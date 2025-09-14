@@ -1,0 +1,13 @@
+{
+    "cursorSE": "cursor.ogg",
+    "decisionSE": "decision1.ogg",
+    "cancelSE": "cancel.ogg",
+    "buzzerSE": "buzzer1.ogg",
+    "shopSE": "shop.ogg",
+    "saveSE": "save.ogg",
+    "loadSE": "load.ogg",
+    "gateSE": "open1.ogg",
+    "stairSE": "move.ogg",
+    "getSE": "item1.ogg",
+    "equipSE": "equip.ogg"
+}

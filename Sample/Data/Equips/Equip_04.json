@@ -1,0 +1,17 @@
+{
+    "ID": 4,
+    "name": "铁盾",
+    "file": [
+        "classic-equips.png",
+        3,
+        0
+    ],
+    "description": "一面铁盾，似乎很坚固。",
+    "attrPlus": {
+        "def": 10,
+        "mdef": 5
+    },
+    "price": 100,
+    "type": "armor",
+    "animationID": 0
+}

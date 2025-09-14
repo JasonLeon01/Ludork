@@ -1,0 +1,44 @@
+{
+    "ID": 1,
+    "name": "勇士",
+    "file": "classic-cha-braver01.png",
+    "attr": {
+        "level": 1,
+        "hp": 100,
+        "atk": 10,
+        "def": 10,
+        "mdef": 5
+    },
+    "wealth": {
+        "exp": 0,
+        "gold": 0
+    },
+    "items": {},
+    "equipSlot": [
+        "helmet",
+        "helmet",
+        "helmet",
+        "weapon",
+        "weapon",
+        "weapon",
+        "weapon",
+        "weapon",
+        "weapon",
+        "armor",
+        "shoe"
+    ],
+    "equip": [
+        5,
+        5,
+        5,
+        2,
+        2,
+        2,
+        1,
+        1,
+        1,
+        4,
+        0
+    ],
+    "animationID": 1
+}

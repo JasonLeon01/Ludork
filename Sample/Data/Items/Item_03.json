@@ -1,0 +1,13 @@
+{
+    "ID": 3,
+    "name": "红钥匙",
+    "file": [
+        "classic-keys.png",
+        0,
+        2
+    ],
+    "description": "可以打开一扇红门。",
+    "price": 500,
+    "cost": false,
+    "event": 0
+}

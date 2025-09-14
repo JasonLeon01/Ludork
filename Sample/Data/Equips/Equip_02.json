@@ -1,0 +1,16 @@
+{
+    "ID": 2,
+    "name": "铁剑",
+    "file": [
+        "classic-equips.png",
+        2,
+        0
+    ],
+    "description": "一把铁剑，似乎很锋利。",
+    "attrPlus": {
+        "atk": 10
+    },
+    "price": 10,
+    "type": "weapon",
+    "animationID": 3
+}

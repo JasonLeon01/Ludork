@@ -1,0 +1,20 @@
+{
+    "title": "Ludork",
+    "gameSize": [
+        640,
+        480
+    ],
+    "fonts": [
+        "HarmonyOS_Sans_SC_Regular.ttf"
+    ],
+    "fontSize": 20,
+    "icon": "icon.png",
+    "windowskinName": "001-Blue01.png",
+    "windowColor": [
+        255,
+        255,
+        255,
+        192
+    ],
+    "cellSize": 32
+}
