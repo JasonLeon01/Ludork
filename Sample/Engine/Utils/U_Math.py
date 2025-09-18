@@ -46,7 +46,7 @@ def ToVector3i(v: Vector3f) -> Vector3i:
     return Vector3i(int(v.x), int(v.y), int(v.z))
 
 
-def Clamp(value, min_val, max_val):
+def Clamp(value, min_val, max_val) -> float:
     return max(min_val, min(value, max_val))
 
 

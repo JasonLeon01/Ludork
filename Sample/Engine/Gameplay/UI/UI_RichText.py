@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+
 from __future__ import annotations
 import math
 from typing import List, Union
@@ -252,7 +253,7 @@ class UI(Transformable):
             self._bounds.size.x = max(self._bounds.size.x, line.getGlobalBounds().size.x)
             self._bounds.size.y += line.getGlobalBounds().size.y
 
-    def __lshift__(self, arg: Union[TextStroke, Outline, Color, Text.Style, str]) -> UI:
+    def __lshift__(self, arg: Union[TextStroke, Outline, Color, Text.Style, str]):
         def explode(inString: str, inDelimiter: str) -> List[str]:
             if not inString:
                 return []

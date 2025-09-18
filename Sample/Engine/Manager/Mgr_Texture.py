@@ -28,7 +28,7 @@ class Manager:
         return texture
 
     @classmethod
-    def _textureGone(cls, filePath: str, sRGB: bool, area: IntRect):
+    def _textureGone(cls, filePath: str, sRGB: bool, area: IntRect) -> callable:
         def callback(_):
             print(f"Texture {filePath} has been garbage collected.")
             cls._TexturesRef.pop((filePath, sRGB, area), None)

@@ -52,7 +52,7 @@ class Input:
     _JoystickBlocked: bool = False
 
     @classmethod
-    def update(cls, window: WindowBase):
+    def update(cls, window: WindowBase) -> None:
         cls._FocusLost = False
         cls._FocusGained = False
 

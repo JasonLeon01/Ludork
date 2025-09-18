@@ -2,20 +2,20 @@
 
 from Engine import pysf
 
-sfRenderStates = pysf.RenderStates
-sfBlendMode = pysf.BlendMode
+RenderStates = pysf.RenderStates
+BlendMode = pysf.BlendMode
 
 
-class ModifiedRenderStates(sfRenderStates):
+class ModifiedRenderStates(RenderStates):
     @staticmethod
-    def Default():
-        return sfRenderStates(
-            sfBlendMode(
-                sfBlendMode.Factor.SrcAlpha,
-                sfBlendMode.Factor.OneMinusSrcAlpha,
-                sfBlendMode.Equation.Add,
-                sfBlendMode.Factor.One,
-                sfBlendMode.Factor.OneMinusSrcAlpha,
-                sfBlendMode.Equation.Add,
+    def Default() -> RenderStates:
+        return RenderStates(
+            BlendMode(
+                BlendMode.Factor.SrcAlpha,
+                BlendMode.Factor.OneMinusSrcAlpha,
+                BlendMode.Equation.Add,
+                BlendMode.Factor.One,
+                BlendMode.Factor.OneMinusSrcAlpha,
+                BlendMode.Equation.Add,
             )
         )

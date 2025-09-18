@@ -3,10 +3,10 @@
 from typing import Optional
 from Engine import pysf
 
-sfContextSettings = pysf.ContextSettings
+ContextSettings = pysf.ContextSettings
 
 
-class ModifiedContextSettings(sfContextSettings):
+class ModifiedContextSettings(ContextSettings):
     def __init__(
         self,
         depthBits: Optional[int] = None,
@@ -14,7 +14,7 @@ class ModifiedContextSettings(sfContextSettings):
         antiAliasingLevel: Optional[int] = None,
         majorVersion: Optional[int] = None,
         minorVersion: Optional[int] = None,
-        attributeFlags: Optional[sfContextSettings.Attribute] = None,
+        attributeFlags: Optional[ContextSettings.Attribute] = None,
         sRgbCapable: Optional[bool] = None,
     ) -> None:
         super().__init__()

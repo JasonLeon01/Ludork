@@ -42,7 +42,7 @@ class Actor(A_Actor.Actor):
         return super().update(deltaTime)
 
     @staticmethod
-    def Create(texture: Optional[Union[Texture, List[Texture]]] = None) -> Actor:
+    def Create(texture: Optional[Union[Texture, List[Texture]]] = None):
         return Actor(texture)
 
     def _autoMove(self, deltaTime: float) -> None:

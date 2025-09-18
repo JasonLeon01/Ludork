@@ -57,23 +57,23 @@ class Manager:
         return music
 
     @classmethod
-    def stopSound(cls):
+    def stopSound(cls) -> None:
         for sound in cls._SoundRec:
             sound.stop()
 
     @classmethod
-    def stopMusic(cls, musicType: str):
+    def stopMusic(cls, musicType: str) -> None:
         if musicType in cls._MusicRef:
             filePath, music = cls._MusicRef[musicType]
             music.stop()
             cls._cleanMusic(music, filePath)
 
     @classmethod
-    def setSoundVolume(cls, volume: float):
+    def setSoundVolume(cls, volume: float) -> None:
         cls._SoundVolumeMultiplier = volume / 100.0
 
     @classmethod
-    def setMusicVolume(cls, volume: float):
+    def setMusicVolume(cls, volume: float) -> None:
         cls._MusicVolumeMultiplier = volume / 100.0
 
     @classmethod
@@ -83,7 +83,7 @@ class Manager:
         filePath: str,
         monitor: Callable[[SoundSource], Coroutine[Any, Any, None]],
         cleanup: Callable[[SoundSource, str], None],
-    ):
+    ) -> None:
         async def monitorWrapper():
             await monitor(sound)
             cleanup(sound, filePath)
@@ -94,7 +94,7 @@ class Manager:
             warnings.warn("No asyncio event loop running; sound end will not be monitored.")
 
     @classmethod
-    def _setSoundFilter(cls, sound: Sound, filter: Filters.SoundFilter):
+    def _setSoundFilter(cls, sound: Sound, filter: Filters.SoundFilter) -> None:
         if not filter.loop is None:
             sound.setLooping(filter.loop)
         if not filter.offset is None:
@@ -111,7 +111,7 @@ class Manager:
             sound.setVolume(soundVolume)
 
     @classmethod
-    def _setMusicFilter(cls, music: Music, filter: Filters.MusicFilter):
+    def _setMusicFilter(cls, music: Music, filter: Filters.MusicFilter) -> None:
         if not filter.loop is None:
             music.setLooping(filter.loop)
         if not filter.offset is None:
@@ -128,7 +128,7 @@ class Manager:
             music.setVolume(musicVolume)
 
     @classmethod
-    def _setAudioFilter(cls, sound: SoundSource, filter: Filters.SoundFilter):
+    def _setAudioFilter(cls, sound: SoundSource, filter: Filters.SoundFilter) -> None:
         if filter.needEffect:
             if filter.soundEffect is None:
                 if not cls._DefaultSoundEffect is None:
@@ -200,11 +200,11 @@ class Manager:
         if not filter.attenuation is None:
             sound.setAttenuation(filter.attenuation)
 
-    async def _soundMonitor(sound: Sound):
+    async def _soundMonitor(sound: Sound) -> None:
         while GetGameRunning() and sound.getStatus() != Sound.Status.Stopped:
             await asyncio.sleep(1)
 
-    def _cleanSound(cls, sound: Sound, filePath: str):
+    def _cleanSound(cls, sound: Sound, filePath: str) -> None:
         if sound in cls._SoundRec:
             cls._SoundRec.remove(sound)
         if filePath in cls._SoundBufferRef:
@@ -213,11 +213,11 @@ class Manager:
                 cls._SoundBufferRef.pop(filePath, None)
                 cls._SoundBufferCount.pop(filePath, None)
 
-    async def _musicMonitor(music: Music):
+    async def _musicMonitor(music: Music) -> None:
         while GetGameRunning() and music.getStatus() != Music.Status.Stopped:
             await asyncio.sleep(1)
 
-    def _cleanMusic(cls, music: Music, filePath: str):
+    def _cleanMusic(cls, music: Music, filePath: str) -> None:
         for musicType, (filePath_, music_) in cls._MusicRef.items():
             if filePath_ == filePath:
                 cls._MusicRef.pop(musicType, None)

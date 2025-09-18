@@ -82,7 +82,7 @@ class System:
             Style.Titlebar | Style.Close,
             settings=ContextSettings(antiAliasingLevel=8),
         )
-        # cls._window.setView(View(Vector2f(320, 240), Math.ToVector2f(cls._gameSize)))
+        cls._window.setView(View(Math.ToVector2f(cls._gameSize / 2), Math.ToVector2f(cls._gameSize)))
         cls._canvas = RenderTexture(cls._gameSize)
         cls._canvasSprite = Sprite(cls._canvas.getTexture())
         cls._window.setIcon(cls._icon)
@@ -249,4 +249,4 @@ class System:
 
 iniFile = configparser.ConfigParser()
 iniFile.read("Main.ini")
-# System.init(iniFile["Main"])
+System.init(iniFile["Main"])

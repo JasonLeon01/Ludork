@@ -2,10 +2,10 @@
 
 from Engine import pysf
 
-sfClock = pysf.Clock
+Clock = pysf.Clock
 
 
-class ModifiedClock(sfClock):
+class ModifiedClock(Clock):
     def v_getElapsedTime(self) -> float:
         return super().getElapsedTime().asSeconds()
 
