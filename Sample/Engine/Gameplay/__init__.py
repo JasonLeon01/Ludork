@@ -4,6 +4,7 @@ from .. import (
     Sprite,
     Texture,
     IntRect,
+    FloatRect,
     Vector2i,
     Vector2f,
     Angle,
@@ -13,8 +14,14 @@ from .. import (
     GetCellSize,
     Utils,
     Manager,
-    pysf,
     RenderTexture,
+    Color,
+    Drawable,
+    Transformable,
+    Text,
+    Font,
+    RenderStates,
+    RenderTarget,
 )
 from . import Actors
 from . import Scenes

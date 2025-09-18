@@ -23,13 +23,13 @@ class Actor(A_Actor.Actor):
         self.expireTime: Optional[float] = None
         self._flyTimer: float = 0.0
 
-    def getVelocity(self):
+    def getVelocity(self) -> Optional[Vector2f]:
         v = super().getVelocity()
         if v is None:
             return self.velocity
         return v + self.velocity
 
-    def update(self, deltaTime: float):
+    def update(self, deltaTime: float) -> None:
         if not self.expireTime is None:
             self.expireTime -= deltaTime
             if self.expireTime <= 0:
@@ -45,7 +45,7 @@ class Actor(A_Actor.Actor):
     def Create(texture: Optional[Union[Texture, List[Texture]]] = None) -> Actor:
         return Actor(texture)
 
-    def _autoMove(self, deltaTime: float):
+    def _autoMove(self, deltaTime: float) -> None:
         zeroStart = False
         if self._velocity is None:
             zeroStart = True

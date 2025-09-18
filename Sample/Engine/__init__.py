@@ -69,7 +69,6 @@ Packet = pysf.Packet
 PlaybackDevice = pysf.PlaybackDevice
 PrimitiveType = pysf.PrimitiveType
 RectangleShape = pysf.RectangleShape
-RenderStates = pysf.RenderStates
 RenderTarget = pysf.RenderTarget
 RenderTexture = pysf.RenderTexture
 RenderWindow = pysf.RenderWindow
@@ -133,6 +132,7 @@ from . import Modified
 
 Clock = Modified.Clock
 ContextSettings = Modified.ContextSettings
+RenderStates = Modified.RenderStates
 
 from . import Utils
 from . import E_Input

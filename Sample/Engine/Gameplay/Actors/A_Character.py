@@ -20,7 +20,7 @@ class Actor(A_Actor.Actor):
         self._sx: int = 0
         self._sy: int = 0
 
-    def setSpriteTexture(self, texture: Texture, resetRect: bool = False):
+    def setSpriteTexture(self, texture: Texture, resetRect: bool = False) -> None:
         super().setSpriteTexture(texture, resetRect)
         if resetRect:
             sx_i = self._sx // self._rectSize.x
@@ -33,11 +33,11 @@ class Actor(A_Actor.Actor):
             raise TypeError("texture must be a Texture")
         super().setTexture(texture, resetRect)
 
-    def setTextureRect(self, rectangle: IntRect):
+    def setTextureRect(self, rectangle: IntRect) -> None:
         self._rectSize = rectangle.size
         return super().setTextureRect(rectangle)
 
-    def update(self, deltaTime: float):
+    def update(self, deltaTime: float) -> None:
         if not self.directionFix:
             velocity = self.getVelocity()
             if velocity:
@@ -48,11 +48,9 @@ class Actor(A_Actor.Actor):
                 else:
                     self.direction = 3 if vy > 0 else 0
             self._sy = self.direction * self._rectSize.y
-            if self._children:
-                print(f"{self._sy} {self.direction} {self._rectSize.y}")
         super().update(deltaTime)
 
-    def _animate(self, deltaTime: float):
+    def _animate(self, deltaTime: float) -> None:
         if self.isMoving() or self.animateWithoutMoving:
             self._switchTimer += deltaTime
             if self._switchTimer >= self.switchInterval:

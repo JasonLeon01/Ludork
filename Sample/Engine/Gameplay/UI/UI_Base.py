@@ -3,13 +3,10 @@
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Tuple, Union, Optional
-from . import pysf
-from . import IntRect, Vector2i, RenderTexture, Vector2f, Angle, degrees, Time, seconds, Utils
-
-sfSprite = pysf.Sprite
+from . import Sprite, IntRect, Vector2i, RenderTexture, Vector2f, Angle, degrees, Time, seconds, Utils
 
 
-class UI(sfSprite):
+class UI(Sprite):
     def __init__(self, rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]]) -> None:
         if not isinstance(rect, IntRect):
             if not isinstance(rect, tuple) or len(rect) != 2:
@@ -23,8 +20,8 @@ class UI(sfSprite):
         size = Utils.Math.ToVector2u(rect.size)
         self.rect: IntRect = rect
         self._canvas: RenderTexture = RenderTexture(size)
-        self._parent: sfSprite = None
-        self._childrenList: List[sfSprite] = []
+        self._parent: Sprite = None
+        self._childrenList: List[Sprite] = []
         self._relativePosition: Vector2f = Vector2f(0, 0)
         self._relativeRotation: Angle = Angle(0)
         self._relativeScale: Vector2f = Vector2f(1, 1)
@@ -165,22 +162,22 @@ class UI(sfSprite):
             origin = Vector2f(x, y)
         return super().setOrigin(origin)
 
-    def getParent(self) -> Optional[sfSprite]:
+    def getParent(self) -> Optional[Sprite]:
         return self._parent
 
-    def setParent(self, parent: Optional[sfSprite]) -> None:
+    def setParent(self, parent: Optional[Sprite]) -> None:
         self._parent = parent
 
-    def getChildren(self) -> List[sfSprite]:
+    def getChildren(self) -> List[Sprite]:
         return self._childrenList
 
-    def addChild(self, child):
-        if not type(child) == sfSprite:
-            warnings.warn("child must be a sfSprite")
+    def addChild(self, child) -> None:
+        if not type(child) == Sprite:
+            warnings.warn("child must be a Sprite")
             return
         self._childrenList.append(child)
 
-    def removeChild(self, child: sfSprite) -> None:
+    def removeChild(self, child: Sprite) -> None:
         if child not in self._childrenList:
             raise ValueError("Child not found")
         self._childrenList.remove(child)
@@ -191,13 +188,13 @@ class UI(sfSprite):
     def setVisible(self, visible: bool) -> None:
         self._visible = visible
 
-    def onTick(self, deltaTime: float):
+    def onTick(self, deltaTime: float) -> None:
         pass
 
-    def onLateTick(self, deltaTime: float):
+    def onLateTick(self, deltaTime: float) -> None:
         pass
 
-    def update(self, deltaTime: float):
+    def update(self, deltaTime: float) -> None:
         self._canvas.clear()
         logicalFuture = ThreadPoolExecutor().submit(self._logicHandle, deltaTime)
         for future in as_completed([logicalFuture]):
@@ -206,10 +203,10 @@ class UI(sfSprite):
             except Exception as e:
                 print(e)
 
-    def _logicHandle(self, deltaTime: float):
+    def _logicHandle(self, deltaTime: float) -> None:
         pass
 
-    def _renderHandle(self, deltaTime: float):
+    def _renderHandle(self, deltaTime: float) -> None:
         for child in self._childrenList:
             self._canvas.draw(child)
         self._canvas.display()

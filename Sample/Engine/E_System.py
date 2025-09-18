@@ -249,4 +249,4 @@ class System:
 
 iniFile = configparser.ConfigParser()
 iniFile.read("Main.ini")
-System.init(iniFile["Main"])
+# System.init(iniFile["Main"])
