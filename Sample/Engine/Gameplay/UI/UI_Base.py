@@ -1,9 +1,23 @@
 # -*- encoding: utf-8 -*-
 
-import warnings
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from __future__ import annotations
+import copy
 from typing import List, Tuple, Union, Optional
-from . import Sprite, IntRect, Vector2i, RenderTexture, Vector2f, Angle, degrees, Time, seconds, Utils
+from . import (
+    Sprite,
+    Drawable,
+    IntRect,
+    Vector2i,
+    Vector2u,
+    Vector2f,
+    RenderTexture,
+    View,
+    FloatRect,
+    Angle,
+    degrees,
+    Color,
+    Utils,
+)
 
 
 class UI(Sprite):
@@ -17,27 +31,22 @@ class UI(Sprite):
             position = Vector2i(x, y)
             size = Vector2i(w, h)
             rect = IntRect(position, size)
-        size = Utils.Math.ToVector2u(rect.size)
-        self.rect: IntRect = rect
+        self._size = Utils.Math.ToVector2u(rect.size)
+        size = Utils.Math.ToVector2u(self._getRealSize(rect.size))
         self._canvas: RenderTexture = RenderTexture(size)
-        self._parent: Sprite = None
-        self._childrenList: List[Sprite] = []
-        self._relativePosition: Vector2f = Vector2f(0, 0)
-        self._relativeRotation: Angle = Angle(0)
-        self._relativeScale: Vector2f = Vector2f(1, 1)
+        self._internalView = View(FloatRect(0, 0, self._size.x, self._size.y))
+        self._parent: Optional[UI] = None
+        self._childrenList: List[Drawable] = []
         self._visible: bool = True
-        super().__init__(self._canvas.getTexture(), rect)
+        super().__init__(self._canvas.getTexture())
         self.setPosition(rect.position)
+
+    def getSize(self) -> Vector2u:
+        return self._size
 
     def v_getPosition(self) -> Tuple[float, float]:
         result = super().getPosition()
         return (result.x, result.y)
-
-    def getRelativePosition(self) -> Vector2f:
-        return self._relativePosition
-
-    def v_getRelativePosition(self) -> Tuple[float, float]:
-        return (self._relativePosition.x, self._relativePosition.y)
 
     def setPosition(self, position: Union[Vector2f, Tuple[float, float]]) -> None:
         if not isinstance(position, Vector2f):
@@ -45,11 +54,6 @@ class UI(Sprite):
                 raise TypeError("position must be a tuple or Vector2f")
             x, y = position
             position = Vector2f(x, y)
-        if self.getParent():
-            parentPosition = self.getParent().getPosition()
-            self._relativePosition = position - parentPosition
-        else:
-            self._relativePosition = Vector2f(0, 0)
         super().setPosition(position)
 
     def move(self, offset: Union[Vector2f, Tuple[float, float]]) -> bool:
@@ -59,62 +63,24 @@ class UI(Sprite):
             x, y = offset
             offset = Vector2f(x, y)
         super().move(offset)
-        self._relativePosition += offset
-
-    def setRelativePosition(self, position: Union[Vector2f, Tuple[float, float]]) -> None:
-        if not isinstance(position, Vector2f):
-            if not isinstance(position, tuple):
-                raise TypeError("position must be a tuple or Vector2f")
-            x, y = position
-            position = Vector2f(x, y)
-        parentPosition = Vector2f(0, 0)
-        if self.getParent():
-            parentPosition = self.getParent().getPosition()
-        self.setPosition(parentPosition + position)
 
     def v_getRotation(self) -> float:
         result = super().getRotation()
         return result.asDegrees()
 
-    def getRelativeRotation(self) -> Angle:
-        return self._relativeRotation
-
-    def v_getRelativeRotation(self) -> float:
-        return self._relativeRotation.asDegrees()
-
     def setRotation(self, angle: Union[Angle, float]) -> None:
         if not isinstance(angle, Angle):
             angle = degrees(angle)
-        if self.getParent():
-            parentRotation = self.getParent().getRotation()
-            self._relativeRotation = angle - parentRotation
-        else:
-            self._relativeRotation = degrees(0)
         super().setRotation(angle)
 
     def rotate(self, angle: Union[Angle, float]) -> None:
         if not isinstance(angle, Angle):
             angle = degrees(angle)
-        self._relativeRotation += angle
         super().rotate(angle)
-
-    def setRelativeRotation(self, angle: Union[Angle, float]) -> None:
-        if not isinstance(angle, Angle):
-            angle = degrees(angle)
-        parentRotation = degrees(0)
-        if self.getParent():
-            parentRotation = self.getParent().getRotation()
-        self.setRotation(parentRotation + angle)
 
     def v_getScale(self) -> Tuple[float, float]:
         result = super().getScale()
         return (result.x, result.y)
-
-    def getRelativeScale(self) -> Vector2f:
-        return self._relativeScale
-
-    def v_getRelativeScale(self) -> Tuple[float, float]:
-        return (self._relativeScale.x, self._relativeScale.y)
 
     def setScale(self, scale: Union[Vector2f, Tuple[float, float]]) -> None:
         if not isinstance(scale, Vector2f):
@@ -122,11 +88,6 @@ class UI(Sprite):
                 raise TypeError("scale must be a tuple or Vector2f")
             x, y = scale
             scale = Vector2f(x, y)
-        if self.getParent():
-            parentScale = self.getParent().getScale()
-            self._relativeScale = scale.componentWiseDiv(parentScale)
-        else:
-            self._relativeScale = Vector2f(1, 1)
         super().setScale(scale)
 
     def scale(self, factor: Union[Vector2f, Tuple[float, float]]) -> None:
@@ -135,20 +96,7 @@ class UI(Sprite):
                 raise TypeError("factor must be a tuple or Vector2f")
             x, y = factor
             factor = Vector2f(x, y)
-
-        self._relativeScale = self._relativeScale.componentWiseMul(factor)
         super().scale(factor)
-
-    def setRelativeScale(self, scale: Union[Vector2f, Tuple[float, float]]) -> None:
-        if not isinstance(scale, Vector2f):
-            if not isinstance(scale, tuple):
-                raise TypeError("scale must be a tuple or Vector2f")
-            x, y = scale
-            scale = Vector2f(x, y)
-        parentScale = Vector2f(1, 1)
-        if self.getParent():
-            parentScale = self.getParent().getScale()
-        self.setScale(parentScale.componentWiseMul(scale))
 
     def v_getOrigin(self) -> Tuple[float, float]:
         result = super().getOrigin()
@@ -162,22 +110,24 @@ class UI(Sprite):
             origin = Vector2f(x, y)
         return super().setOrigin(origin)
 
-    def getParent(self) -> Optional[Sprite]:
+    def getParent(self) -> Optional[UI]:
         return self._parent
 
-    def setParent(self, parent: Optional[Sprite]) -> None:
+    def setParent(self, parent: Optional[UI]) -> None:
         self._parent = parent
 
-    def getChildren(self) -> List[Sprite]:
+    def getChildren(self) -> List[Drawable]:
         return self._childrenList
 
     def addChild(self, child) -> None:
-        if not type(child) == Sprite:
-            warnings.warn("child must be a Sprite")
-            return
-        self._childrenList.append(child)
+        from Engine.Gameplay import Actor
 
-    def removeChild(self, child: Sprite) -> None:
+        assert not isinstance(child, Actor), "Cannot add Actor to UI"
+        self._childrenList.append(child)
+        if isinstance(child, UI):
+            child.setParent(self)
+
+    def removeChild(self, child: Drawable) -> None:
         if child not in self._childrenList:
             raise ValueError("Child not found")
         self._childrenList.remove(child)
@@ -195,18 +145,32 @@ class UI(Sprite):
         pass
 
     def update(self, deltaTime: float) -> None:
-        self._canvas.clear()
-        logicalFuture = ThreadPoolExecutor().submit(self._logicHandle, deltaTime)
-        for future in as_completed([logicalFuture]):
-            try:
-                future.result()
-            except Exception as e:
-                print(e)
-
-    def _logicHandle(self, deltaTime: float) -> None:
-        pass
-
-    def _renderHandle(self, deltaTime: float) -> None:
+        if not self._visible:
+            return
         for child in self._childrenList:
+            if isinstance(child, UI):
+                child.update(deltaTime)
+        self.onTick(deltaTime)
+        self._canvas.clear(Color.Transparent)
+        self._canvas.setView(self._internalView)
+        for child in self._childrenList:
+            if hasattr(child, "getVisible"):
+                if not child.getVisible():
+                    continue
             self._canvas.draw(child)
+        self._canvas.setView(self._canvas.getDefaultView())
         self._canvas.display()
+        self.onLateTick(deltaTime)
+
+    def _getScale(self) -> float:
+        from Engine import System
+
+        return System.getScale()
+
+    def _getRealSize(self, inSize: Union[Vector2i, Vector2u, Vector2f]):
+        if not isinstance(inSize, Vector2i) and not isinstance(inSize, Vector2u):
+            assert isinstance(inSize, Vector2f), "inSize must be a Vector2i, Vector2u or Vector2f"
+            size = copy.copy(inSize)
+        else:
+            size = Utils.Math.ToVector2f(inSize)
+        return size * self._getScale()

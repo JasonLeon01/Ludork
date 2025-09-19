@@ -7,6 +7,8 @@ from .. import (
     FloatRect,
     Vector2i,
     Vector2f,
+    Vector2u,
+    View,
     Angle,
     degrees,
     Time,
