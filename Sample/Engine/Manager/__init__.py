@@ -86,7 +86,9 @@ def hasFont(fontName: str) -> bool:
     return FontManager.hasFont(fontName)
 
 
-def loadTexture(subFolder: str, filename: str, sRGB: bool = False, area: IntRect = None) -> Texture:
+def loadTexture(
+    subFolder: str, filename: str, sRGB: bool = False, area: IntRect = None, smooth: bool = False
+) -> Texture:
     _, ext = os.path.splitext(filename)
     if not ext:
         if filename.endswith("."):
@@ -95,20 +97,20 @@ def loadTexture(subFolder: str, filename: str, sRGB: bool = False, area: IntRect
             filename += ".png"
 
     filePath = os.path.join("Assets", subFolder, filename)
-    return TextureManager.load(filePath, sRGB, area)
+    return TextureManager.load(filePath, sRGB, area, smooth)
 
 
-def loadBlock(filename: str, sRGB: bool = False, area: IntRect = None) -> Texture:
-    return loadTexture("Blocks", filename, sRGB, area)
+def loadBlock(filename: str, sRGB: bool = False, area: IntRect = None, smooth: bool = False) -> Texture:
+    return loadTexture("Blocks", filename, sRGB, area, smooth)
 
 
-def loadCharacter(filename: str, sRGB: bool = False, area: IntRect = None) -> Texture:
-    return loadTexture("Characters", filename, sRGB, area)
+def loadCharacter(filename: str, sRGB: bool = False, area: IntRect = None, smooth: bool = False) -> Texture:
+    return loadTexture("Characters", filename, sRGB, area, smooth)
 
 
-def loadSystem(filename: str, sRGB: bool = False, area: IntRect = None) -> Texture:
-    return loadTexture("System", filename, sRGB, area)
+def loadSystem(filename: str, sRGB: bool = False, area: IntRect = None, smooth: bool = False) -> Texture:
+    return loadTexture("System", filename, sRGB, area, smooth)
 
 
-def loadTileset(filename: str, sRGB: bool = False, area: IntRect = None) -> Texture:
-    return loadTexture("Tilesets", filename, sRGB, area)
+def loadTileset(filename: str, sRGB: bool = False, area: IntRect = None, smooth: bool = False) -> Texture:
+    return loadTexture("Tilesets", filename, sRGB, area, smooth)

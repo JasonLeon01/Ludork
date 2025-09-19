@@ -1,16 +1,15 @@
 # -*- encoding: utf-8 -*-
 
 import configparser
-import json
+import os
 import Engine.Manager as Manager
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from Engine import (
     Color,
     RenderWindow,
     RenderTexture,
     View,
     Vector2u,
-    Vector2f,
     Font,
     Image,
     Sprite,
@@ -76,12 +75,18 @@ class System:
             int(cls._gameSize.x * cls._scale),
             int(cls._gameSize.y * cls._scale),
         )
-        cls._window = RenderWindow(
-            VideoMode(realSize),
-            cls._title,
-            Style.Titlebar | Style.Close,
-            settings=ContextSettings(antiAliasingLevel=8),
-        )
+        handle: Optional[int] = os.environ.get("WINDOWHANDLE")
+        if handle:
+            cls._window = RenderWindow(int(handle), settings=ContextSettings(antiAliasingLevel=8))
+            windowSize = cls._window.getSize()
+            cls._scale = min(windowSize.x / cls._gameSize.x, windowSize.y / cls._gameSize.y)
+        else:
+            cls._window = RenderWindow(
+                VideoMode(realSize),
+                cls._title,
+                Style.Titlebar | Style.Close,
+                settings=ContextSettings(antiAliasingLevel=8),
+            )
         cls._window.setView(View(Math.ToVector2f(cls._gameSize / 2), Math.ToVector2f(cls._gameSize)))
         cls._canvas = RenderTexture(cls._gameSize)
         cls._canvasSprite = Sprite(cls._canvas.getTexture())
@@ -115,12 +120,10 @@ class System:
 
     @classmethod
     def drawOnCanvas(cls, drawable: Drawable) -> None:
-        cls._window.draw(drawable)
+        cls._window.draw(drawable, Render.CanvasRenderState())
 
     @classmethod
     def display(cls) -> None:
-        # cls._canvas.display()
-        # cls._window.draw(cls._canvasSprite)
         cls._window.display()
 
     @classmethod

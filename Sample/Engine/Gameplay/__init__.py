@@ -3,6 +3,7 @@
 from .. import (
     Sprite,
     Texture,
+    Image,
     IntRect,
     FloatRect,
     Vector2i,
@@ -24,6 +25,8 @@ from .. import (
     Font,
     RenderStates,
     RenderTarget,
+    VertexArray,
+    PrimitiveType,
 )
 from . import Actors
 from . import Scenes

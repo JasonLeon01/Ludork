@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from typing import Union
-from . import Vector2f, Vector2i, Vector2u, Vector3f, Vector3i
+from . import Vector2f, Vector2i, Vector2u, Vector3f, Vector3i, IntRect, FloatRect
 
 
 def IsNearZero(v: Vector2f, epsilon: float = 1) -> bool:
@@ -44,6 +44,14 @@ def ToVector3f(v: Vector3i) -> Vector3f:
 
 def ToVector3i(v: Vector3f) -> Vector3i:
     return Vector3i(int(v.x), int(v.y), int(v.z))
+
+
+def ToIntRect(x: int, y: int, width: int, height: int) -> IntRect:
+    return IntRect(Vector2i(x, y), Vector2i(width, height))
+
+
+def ToFloatRect(x: float, y: float, width: float, height: float) -> FloatRect:
+    return FloatRect(Vector2f(x, y), Vector2f(width, height))
 
 
 def Clamp(value, min_val, max_val) -> float:

@@ -1,48 +1,23 @@
 # -*- encoding: utf-8 -*-
 
-from __future__ import annotations
-import copy
-from typing import List, Tuple, Union, Optional
+from typing import Optional, Tuple, Union
 from . import (
     Sprite,
-    Drawable,
+    Texture,
     IntRect,
-    Vector2i,
-    Vector2u,
     Vector2f,
-    RenderTexture,
-    View,
-    FloatRect,
     Angle,
     degrees,
-    Color,
-    Utils,
 )
 
 
 class UI(Sprite):
-    def __init__(self, rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]]) -> None:
-        if not isinstance(rect, IntRect):
-            if not isinstance(rect, tuple) or len(rect) != 2:
-                raise TypeError("rect must be a tuple or IntRect")
-            position, size = rect
-            x, y = position
-            w, h = size
-            position = Vector2i(x, y)
-            size = Vector2i(w, h)
-            rect = IntRect(position, size)
-        self._size = Utils.Math.ToVector2u(rect.size)
-        size = Utils.Math.ToVector2u(self._getRealSize(rect.size))
-        self._canvas: RenderTexture = RenderTexture(size)
-        self._internalView = View(FloatRect(0, 0, self._size.x, self._size.y))
-        self._parent: Optional[UI] = None
-        self._childrenList: List[Drawable] = []
+    def __init__(self, texture: Texture, rect: Optional[IntRect] = None) -> None:
         self._visible: bool = True
-        super().__init__(self._canvas.getTexture())
-        self.setPosition(rect.position)
-
-    def getSize(self) -> Vector2u:
-        return self._size
+        if rect:
+            super().__init__(texture, rect)
+        else:
+            super().__init__(texture)
 
     def v_getPosition(self) -> Tuple[float, float]:
         result = super().getPosition()
@@ -62,7 +37,7 @@ class UI(Sprite):
                 raise TypeError("offset must be a tuple or Vector2f")
             x, y = offset
             offset = Vector2f(x, y)
-        super().move(offset)
+        return super().move(offset)
 
     def v_getRotation(self) -> float:
         result = super().getRotation()
@@ -110,67 +85,8 @@ class UI(Sprite):
             origin = Vector2f(x, y)
         return super().setOrigin(origin)
 
-    def getParent(self) -> Optional[UI]:
-        return self._parent
-
-    def setParent(self, parent: Optional[UI]) -> None:
-        self._parent = parent
-
-    def getChildren(self) -> List[Drawable]:
-        return self._childrenList
-
-    def addChild(self, child) -> None:
-        from Engine.Gameplay import Actor
-
-        assert not isinstance(child, Actor), "Cannot add Actor to UI"
-        self._childrenList.append(child)
-        if isinstance(child, UI):
-            child.setParent(self)
-
-    def removeChild(self, child: Drawable) -> None:
-        if child not in self._childrenList:
-            raise ValueError("Child not found")
-        self._childrenList.remove(child)
-
     def getVisible(self) -> bool:
         return self._visible
 
     def setVisible(self, visible: bool) -> None:
         self._visible = visible
-
-    def onTick(self, deltaTime: float) -> None:
-        pass
-
-    def onLateTick(self, deltaTime: float) -> None:
-        pass
-
-    def update(self, deltaTime: float) -> None:
-        if not self._visible:
-            return
-        for child in self._childrenList:
-            if isinstance(child, UI):
-                child.update(deltaTime)
-        self.onTick(deltaTime)
-        self._canvas.clear(Color.Transparent)
-        self._canvas.setView(self._internalView)
-        for child in self._childrenList:
-            if hasattr(child, "getVisible"):
-                if not child.getVisible():
-                    continue
-            self._canvas.draw(child)
-        self._canvas.setView(self._canvas.getDefaultView())
-        self._canvas.display()
-        self.onLateTick(deltaTime)
-
-    def _getScale(self) -> float:
-        from Engine import System
-
-        return System.getScale()
-
-    def _getRealSize(self, inSize: Union[Vector2i, Vector2u, Vector2f]):
-        if not isinstance(inSize, Vector2i) and not isinstance(inSize, Vector2u):
-            assert isinstance(inSize, Vector2f), "inSize must be a Vector2i, Vector2u or Vector2f"
-            size = copy.copy(inSize)
-        else:
-            size = Utils.Math.ToVector2f(inSize)
-        return size * self._getScale()
