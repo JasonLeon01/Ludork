@@ -1,6 +1,5 @@
 # -*- encoding: utf-8 -*-
 
-from .. import Time, Vector3f, Angle, Sound, Music
 from . import F_Sound
 
 EffectProcessor = F_Sound.EffectProcessor

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 from . import A_Base
-from typing import List, Optional, Tuple, Union
-from . import Texture, IntRect, Vector2f
+from typing import List, Optional, Tuple, Union, TYPE_CHECKING
+from . import Vector2f
+
+if TYPE_CHECKING:
+    from Engine import Texture, IntRect
 
 
 class Actor(A_Base.Actor):
@@ -49,9 +52,8 @@ class Actor(A_Base.Actor):
         self._scene.destroyActor(self)
 
     def move(self, offset: Union[Vector2f, Tuple[float, float]]) -> bool:
+        assert isinstance(offset, (Vector2f, tuple)), "offset must be a tuple or Vector2f"
         if not isinstance(offset, Vector2f):
-            if not isinstance(offset, tuple):
-                raise TypeError("offset must be a tuple or Vector2f")
             x, y = offset
             offset = Vector2f(x, y)
         self._superMove(offset)

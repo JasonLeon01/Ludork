@@ -1,15 +1,16 @@
 # -*- encoding: utf-8 -*-
 
-from typing import List
+from __future__ import annotations
+from typing import List, TYPE_CHECKING
 from . import (
     Sprite,
     Vector2f,
     Color,
-    Texture,
-    RenderTexture,
-    RenderTarget,
     Utils,
 )
+
+if TYPE_CHECKING:
+    from Engine import Texture, RenderTexture, RenderTarget
 
 
 class UI:

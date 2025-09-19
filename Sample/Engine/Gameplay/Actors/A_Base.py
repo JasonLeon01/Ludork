@@ -4,9 +4,10 @@ from __future__ import annotations
 import copy
 import warnings
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
-from . import Sprite, Texture, IntRect, Vector2i, Vector2f, Angle, degrees, Time, GetCellSize, Utils
+from . import Sprite, IntRect, Vector2i, Vector2f, Angle, degrees, GetCellSize, Utils
 
 if TYPE_CHECKING:
+    from Engine import Texture, Time
     from Engine.Gameplay.Scenes import Base
 
 
@@ -18,9 +19,9 @@ class Actor(Sprite):
         tag: str = "",
     ) -> None:
         if not rect is None:
+            assert isinstance(rect, (IntRect, tuple)), "rect must be a tuple or IntRect"
             if not isinstance(rect, IntRect):
-                if not isinstance(rect, tuple) or len(rect) != 2:
-                    raise TypeError("rect must be a tuple or IntRect")
+                assert len(rect) == 2, "rect must be a tuple of two tuples"
                 position, size = rect
                 x, y = position
                 w, h = size
@@ -76,9 +77,8 @@ class Actor(Sprite):
         return (self._relativePosition.x, self._relativePosition.y)
 
     def setPosition(self, position: Union[Vector2f, Tuple[float, float]]) -> None:
+        assert isinstance(position, (Vector2f, tuple)), "position must be a tuple or Vector2f"
         if not isinstance(position, Vector2f):
-            if not isinstance(position, tuple):
-                raise TypeError("position must be a tuple or Vector2f")
             x, y = position
             position = Vector2f(x, y)
         if self.getParent():
@@ -92,9 +92,8 @@ class Actor(Sprite):
                 child._updatePositionFromParent()
 
     def move(self, offset: Union[Vector2f, Tuple[float, float]]) -> bool:
+        assert isinstance(offset, (Vector2f, tuple)), "offset must be a tuple or Vector2f"
         if not isinstance(offset, Vector2f):
-            if not isinstance(offset, tuple):
-                raise TypeError("offset must be a tuple or Vector2f")
             x, y = offset
             offset = Vector2f(x, y)
         super().move(offset)
@@ -105,9 +104,8 @@ class Actor(Sprite):
         return True
 
     def setRelativePosition(self, position: Union[Vector2f, Tuple[float, float]]) -> None:
+        assert isinstance(position, (Vector2f, tuple)), "position must be a tuple or Vector2f"
         if not isinstance(position, Vector2f):
-            if not isinstance(position, tuple):
-                raise TypeError("position must be a tuple or Vector2f")
             x, y = position
             position = Vector2f(x, y)
         parentPosition = Vector2f(0, 0)
@@ -166,9 +164,8 @@ class Actor(Sprite):
         return (self._relativeScale.x, self._relativeScale.y)
 
     def setScale(self, scale: Union[Vector2f, Tuple[float, float]]) -> None:
+        assert isinstance(scale, (Vector2f, tuple)), "scale must be a tuple or Vector2f"
         if not isinstance(scale, Vector2f):
-            if not isinstance(scale, tuple):
-                raise TypeError("scale must be a tuple or Vector2f")
             x, y = scale
             scale = Vector2f(x, y)
         if self.getParent():
@@ -182,9 +179,8 @@ class Actor(Sprite):
                 child._updateScaleFromParent()
 
     def scale(self, factor: Union[Vector2f, Tuple[float, float]]) -> None:
+        assert isinstance(factor, (Vector2f, tuple)), "factor must be a tuple or Vector2f"
         if not isinstance(factor, Vector2f):
-            if not isinstance(factor, tuple):
-                raise TypeError("factor must be a tuple or Vector2f")
             x, y = factor
             factor = Vector2f(x, y)
 
@@ -195,9 +191,8 @@ class Actor(Sprite):
                 child._updateScaleFromParent()
 
     def setRelativeScale(self, scale: Union[Vector2f, Tuple[float, float]]) -> None:
+        assert isinstance(scale, (Vector2f, tuple)), "scale must be a tuple or Vector2f"
         if not isinstance(scale, Vector2f):
-            if not isinstance(scale, tuple):
-                raise TypeError("scale must be a tuple or Vector2f")
             x, y = scale
             scale = Vector2f(x, y)
         parentScale = Vector2f(1, 1)
@@ -210,9 +205,8 @@ class Actor(Sprite):
         return (result.x, result.y)
 
     def setOrigin(self, origin: Union[Vector2f, Tuple[float, float]]) -> None:
+        assert isinstance(origin, (Vector2f, tuple)), "origin must be a tuple or Vector2f"
         if not isinstance(origin, Vector2f):
-            if not isinstance(origin, tuple):
-                raise TypeError("origin must be a tuple or Vector2f")
             x, y = origin
             origin = Vector2f(x, y)
         return super().setOrigin(origin)
@@ -304,9 +298,8 @@ class Actor(Sprite):
         return self._velocity
 
     def _superMove(self, offset: Union[Vector2f, Tuple[float, float]]) -> None:
+        assert isinstance(offset, (Vector2f, tuple)), "offset must be a tuple or Vector2f"
         if not isinstance(offset, Vector2f):
-            if not isinstance(offset, tuple):
-                raise TypeError("offset must be a tuple or Vector2f")
             x, y = offset
             offset = Vector2f(x, y)
         super().move(offset)

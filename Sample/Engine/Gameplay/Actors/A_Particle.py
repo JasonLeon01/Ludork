@@ -1,9 +1,12 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import TypeAlias, Callable, List, Optional, Tuple, Union
-from . import Texture, IntRect, Vector2f
+from typing import TypeAlias, Callable, List, Optional, Tuple, Union, TYPE_CHECKING
+from . import Vector2f
 from . import A_Actor
+
+if TYPE_CHECKING:
+    from Engine import Texture, IntRect
 
 
 VelocityProcessor: TypeAlias = Callable[[float], Vector2f]

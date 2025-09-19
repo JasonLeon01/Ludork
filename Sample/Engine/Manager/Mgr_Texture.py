@@ -1,8 +1,12 @@
 # -*- encoding: utf-8 -*-
 
+from __future__ import annotations
 import weakref
-from typing import Dict, Tuple, Optional
-from . import Texture, IntRect
+from typing import Dict, Tuple, Optional, TYPE_CHECKING
+from . import Texture
+
+if TYPE_CHECKING:
+    from Engine import IntRect
 
 
 class Manager:

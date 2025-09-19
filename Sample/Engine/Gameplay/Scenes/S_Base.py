@@ -1,17 +1,22 @@
 # -*- encoding: utf-8 -*-
 
+from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import deque
-from typing import Dict, List
-from . import Actors, UI, Manager
+from typing import Dict, List, TYPE_CHECKING
+from . import UI, Manager
+
+if TYPE_CHECKING:
+    from Engine.Gameplay import Actor
 
 
 class Scene:
     def __init__(self) -> None:
         self._executor = ThreadPoolExecutor(max_workers=2)
-        self._actors: Dict[str, List[Actors.Actor]] = {}
-        self._actorsOnDestroy: List[Actors.Actor] = []
-        self._wholeActorList: Dict[str, List[Actors.Actor]] = {}
+        self._actors: Dict[str, List[Actor]] = {}
+        self._UIs: List[UI] = []
+        self._actorsOnDestroy: List[Actor] = []
+        self._wholeActorList: Dict[str, List[Actor]] = {}
         self.onCreate()
         self._main()
 
@@ -27,16 +32,24 @@ class Scene:
     def onDestroy(self) -> None:
         pass
 
-    def getAllActors(self) -> List[Actors.Actor]:
+    def getAllActors(self) -> List[Actor]:
         actors = []
         for actorList in self._actors.values():
             actors.extend(actorList)
         return actors
 
-    def getCollision(self, actor: Actors.Actor) -> List[Actors.Actor]:
+    def getAllActorsByTag(self, tag: str) -> List[Actor]:
+        actors = []
+        for actorList in self._actors.values():
+            for actor in actorList:
+                if actor.tag == tag:
+                    actors.append(actor)
+        return actors
+
+    def getCollision(self, actor: Actor) -> List[Actor]:
         if not actor.getCollisionEnabled():
             return []
-        result: List[Actors.Actor] = []
+        result: List[Actor] = []
         for actorList in self._actors.values():
             for other in actorList:
                 if actor == other:
@@ -47,8 +60,8 @@ class Scene:
                     result.append(other)
         return result
 
-    def getOverlaps(self, actor: Actors.Actor) -> List[Actors.Actor]:
-        result: List[Actors.Actor] = []
+    def getOverlaps(self, actor: Actor) -> List[Actor]:
+        result: List[Actor] = []
         for actorList in self._actors.values():
             for other in actorList:
                 if actor == other:
@@ -57,7 +70,7 @@ class Scene:
                     result.append(other)
         return result
 
-    def spawnActor(self, actor: Actors.Actor, layer: str) -> None:
+    def spawnActor(self, actor: Actor, layer: str) -> None:
         if layer not in self._actors:
             self._actors[layer] = []
         actor.setScene(self)
@@ -70,7 +83,7 @@ class Scene:
                     self.spawnActor(child, layer)
         self.updateActorList()
 
-    def destroyActor(self, actor: Actors.Actor) -> None:
+    def destroyActor(self, actor: Actor) -> None:
         self._actorsOnDestroy.append(actor)
 
     def updateActorList(self) -> None:
@@ -84,6 +97,18 @@ class Scene:
                 self._wholeActorList[layerName].append(child)
                 if child.getChildren():
                     q.extend(child.getChildren())
+
+    def addUI(self, ui: UI) -> None:
+        self._UIs.append(ui)
+
+    def getUIs(self) -> List[UI]:
+        return self._UIs
+
+    def removeUI(self, ui: UI) -> None:
+        if ui in self._UIs:
+            self._UIs.remove(ui)
+        else:
+            raise ValueError("UI not found")
 
     def _logicHandle(self, deltaTime: float) -> None:
         self.onTick(deltaTime)
@@ -111,7 +136,10 @@ class Scene:
         System.clearCanvas()
         for actorList in self._wholeActorList.values():
             for actor in actorList:
-                System.drawOnCanvas(actor)
+                System.drawObjectOnCanvas(actor)
+        System.EndActorDraw()
+        for ui in self._UIs:
+            System.drawObjectOnCanvas(ui)
         System.display()
 
     def _main(self) -> None:

@@ -1,16 +1,22 @@
 # -*- encoding: utf-8 -*-
 
+from __future__ import annotations
 import asyncio
 import warnings
-from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple
-from . import GetGameRunning, SoundBuffer, SoundSource, Sound, Time, seconds, Vector3f, Angle, degrees, Music, Filters
+from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple, TYPE_CHECKING
+from . import GetGameRunning, SoundBuffer, Sound, Time, seconds, Vector3f, Angle, degrees, Music
+
+if TYPE_CHECKING:
+    from Engine import SoundSource, Filters, Transformable
 
 
 class Manager:
     _SoundBufferRef: Dict[str, SoundBuffer] = {}
     _SoundBufferCount: Dict[str, int] = {}
     _SoundRec: List[Sound] = []
+    _SoundParentMap: Dict[int, Transformable] = {}  # key is id(Sound)
     _DefaultSoundEffect: Optional[Filters.EffectProcessor] = None
+    __SoundBegin: bool = False
 
     _MusicRef: Dict[str, Tuple[str, Music]] = {}
 
@@ -29,7 +35,9 @@ class Manager:
         return soundBuffer
 
     @classmethod
-    def playSound(cls, filePath: str, filter: Optional[Filters.SoundFilter] = None) -> Sound:
+    def playSound(
+        cls, filePath: str, filter: Optional[Filters.SoundFilter] = None, parent: Optional[Transformable] = None
+    ) -> Sound:
         buffer = cls.loadSound(filePath)
         if not filePath in cls._SoundBufferRef:
             cls._SoundBufferRef[filePath] = buffer
@@ -37,12 +45,26 @@ class Manager:
             cls._SoundBufferCount[filePath] = 0
         cls._SoundBufferCount[filePath] += 1
         sound = Sound(buffer)
+        if not parent is None:
+            cls.setSoundParent(sound, parent)
         cls._SoundRec.append(sound)
         if not filter is None:
             cls._setSoundFilter(sound, filter)
         sound.play()
         cls._monitorPlayEnd(sound, filePath, cls._soundMonitor, cls._cleanSound)
+        if not cls.__SoundBegin:
+            cls.__SoundBegin = True
+            try:
+                asyncio.create_task(Manager.updateAllSoundPositions())
+            except RuntimeError:
+                warnings.warn("No asyncio loop running; sound parent updates disabled")
+
         return sound
+
+    @classmethod
+    def setSoundParent(cls, sound: Sound, parent: Transformable) -> None:
+        cls._SoundParentMap[id(sound)] = parent
+        sound.setPosition(parent.getPosition())
 
     @classmethod
     def playMusic(cls, musicType: str, filePath: str, filter: Optional[Filters.MusicFilter] = None) -> Music:
@@ -75,6 +97,16 @@ class Manager:
     @classmethod
     def setMusicVolume(cls, volume: float) -> None:
         cls._MusicVolumeMultiplier = volume / 100.0
+
+    @classmethod
+    async def updateAllSoundPositions(cls):
+        while GetGameRunning():
+            sound_dict = {id(s): s for s in cls._SoundRec if s.getStatus() != Sound.Status.Stopped}
+            for sound_id, parent in cls._SoundParentMap.items():
+                sound = sound_dict.get(sound_id)
+                if sound:
+                    sound.setPosition(parent.getPosition())
+            await asyncio.sleep(0.016)
 
     @classmethod
     def _monitorPlayEnd(
@@ -200,11 +232,14 @@ class Manager:
         if not filter.attenuation is None:
             sound.setAttenuation(filter.attenuation)
 
-    async def _soundMonitor(sound: Sound) -> None:
+    @classmethod
+    async def _soundMonitor(cls, sound: Sound) -> None:
         while GetGameRunning() and sound.getStatus() != Sound.Status.Stopped:
             await asyncio.sleep(1)
 
+    @classmethod
     def _cleanSound(cls, sound: Sound, filePath: str) -> None:
+        cls._SoundParentMap.pop(id(sound), None)
         if sound in cls._SoundRec:
             cls._SoundRec.remove(sound)
         if filePath in cls._SoundBufferRef:
@@ -213,12 +248,14 @@ class Manager:
                 cls._SoundBufferRef.pop(filePath, None)
                 cls._SoundBufferCount.pop(filePath, None)
 
-    async def _musicMonitor(music: Music) -> None:
+    @classmethod
+    async def _musicMonitor(cls, music: Music) -> None:
         while GetGameRunning() and music.getStatus() != Music.Status.Stopped:
             await asyncio.sleep(1)
 
+    @classmethod
     def _cleanMusic(cls, music: Music, filePath: str) -> None:
-        for musicType, (filePath_, music_) in cls._MusicRef.items():
+        for musicType, (filePath_, music_) in list(cls._MusicRef.items()):
             if filePath_ == filePath:
                 cls._MusicRef.pop(musicType, None)
                 return

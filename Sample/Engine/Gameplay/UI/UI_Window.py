@@ -9,16 +9,14 @@ from . import (
     IntRect,
     Vector2i,
     Vector2f,
-    Vector2u,
-    FloatRect,
     Texture,
-    Image,
     RenderTexture,
     View,
     Utils,
 )
 
 if TYPE_CHECKING:
+    from Engine import Vector2u, Image
     from Engine.Gameplay.UI import Canvas
 
 
@@ -29,9 +27,8 @@ class UI(UI_Base.UI, UI_RectBase.UI):
         windowSkin: Optional[Image] = None,
         repeated: bool = False,
     ) -> None:
+        assert isinstance(rect, (IntRect, tuple)), "rect must be a tuple or IntRect"
         if not isinstance(rect, IntRect):
-            if not isinstance(rect, tuple) or len(rect) != 2:
-                raise TypeError("rect must be a tuple or IntRect")
             position, size = rect
             x, y = position
             w, h = size

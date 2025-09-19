@@ -2,31 +2,21 @@
 
 from .. import (
     Sprite,
-    Texture,
-    Image,
-    IntRect,
-    FloatRect,
-    Vector2i,
     Vector2f,
-    Vector2u,
-    RenderTexture,
-    View,
     Angle,
     degrees,
-    Time,
-    seconds,
-    Utils,
+    IntRect,
+    Vector2i,
+    RenderTexture,
     Color,
-    Drawable,
+    Utils,
     Transformable,
     Text,
-    Font,
+    FloatRect,
     RenderStates,
-    RenderTarget,
-    VertexArray,
-    PrimitiveType,
+    Texture,
+    View,
 )
-
 from . import UI_Canvas
 from . import UI_RichText
 from . import UI_Window

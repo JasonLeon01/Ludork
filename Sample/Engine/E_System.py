@@ -87,8 +87,7 @@ class System:
                 Style.Titlebar | Style.Close,
                 settings=ContextSettings(antiAliasingLevel=8),
             )
-        cls._window.setView(View(Math.ToVector2f(cls._gameSize / 2), Math.ToVector2f(cls._gameSize)))
-        cls._canvas = RenderTexture(cls._gameSize)
+        cls._canvas = RenderTexture(cls._window.getSize())
         cls._canvasSprite = Sprite(cls._canvas.getTexture())
         cls._window.setIcon(cls._icon)
         cls._window.setFramerateLimit(cls._frameRate)
@@ -117,13 +116,20 @@ class System:
     def clearCanvas(cls) -> None:
         cls._window.clear(Color.Transparent)
         cls._canvas.clear(Color.Transparent)
+        cls._canvas.setView(View(Math.ToVector2f(cls._gameSize / 2), Math.ToVector2f(cls._gameSize)))
 
     @classmethod
-    def drawOnCanvas(cls, drawable: Drawable) -> None:
-        cls._window.draw(drawable, Render.CanvasRenderState())
+    def drawObjectOnCanvas(cls, drawable: Drawable) -> None:
+        cls._canvas.draw(drawable, Render.CanvasRenderState())
+
+    @classmethod
+    def EndActorDraw(cls) -> None:
+        cls._canvas.setView(cls._canvas.getDefaultView())
 
     @classmethod
     def display(cls) -> None:
+        cls._canvas.display()
+        cls._window.draw(cls._canvasSprite)
         cls._window.display()
 
     @classmethod

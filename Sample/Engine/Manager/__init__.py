@@ -1,17 +1,15 @@
 # -*- encoding: utf-8 -*-
 
+from __future__ import annotations
 import os
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from .. import (
     SoundBuffer,
     Sound,
     Music,
     Font,
-    IntRect,
     Texture,
-    Filters,
     GetGameRunning,
-    SoundSource,
     Time,
     seconds,
     Vector3f,
@@ -24,6 +22,9 @@ from . import Mgr_Audio
 from . import Mgr_Font
 from . import Mgr_Texture
 from . import Mgr_Time
+
+if TYPE_CHECKING:
+    from Engine import IntRect, Filters
 
 AudioManager = Mgr_Audio.Manager
 FontManager = Mgr_Font.Manager

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 import math
-from typing import List, Union
-from . import Color, Transformable, Text, FloatRect, Font, RenderStates, RenderTarget, Vector2f
+from typing import List, Union, TYPE_CHECKING
+from . import Color, Transformable, Text, FloatRect, RenderStates, Vector2f
+
+if TYPE_CHECKING:
+    from Engine import Font, RenderTarget
 
 
 class TextStroke:
@@ -41,7 +44,7 @@ class Outline:
         return not self.__eq__(other)
 
 
-class UI(Transformable):
+class RichText(Transformable):
     class Line(Transformable):
         def __init__(self) -> None:
             super().__init__()
@@ -231,9 +234,7 @@ class UI(Transformable):
     def getGlobalBounds(self) -> FloatRect:
         return self.getTransform().transformRect(self.getLocalBounds())
 
-    def draw(self, target: RenderTarget, states: RenderStates = None) -> None:
-        if not states:
-            states = RenderStates.Default()
+    def draw(self, target: RenderTarget, states: RenderStates) -> None:
         states.transform *= self.getTransform()
         for line in self._lines:
             line.draw(target, states)
@@ -308,3 +309,31 @@ class UI(Transformable):
         else:
             raise TypeError("Invalid type")
         return self
+
+
+class UI(RichText):
+    def __init__(self, font: Font) -> None:
+        from Engine import System
+
+        super().__init__(font)
+        self.__characterSize = int(self._characterSize * System.getScale())
+        self.__currentStroke.thickness *= System.getScale()
+
+    def setCharacterSize(self, size: int) -> None:
+        from Engine import System
+
+        self.__characterSize = size
+        size = int(size * System.getScale())
+        super().setCharacterSize(size)
+
+    def getCharacterSize(self) -> int:
+        return self.__characterSize
+
+    def draw(self, target: RenderTarget, states: RenderStates = None) -> None:
+        from Engine import System
+
+        if not states:
+            states = RenderStates.Default()
+        states.transform.scale(Vector2f(System.getScale(), System.getScale()))
+        states.transform *= self.getTransform()
+        super().draw(target, states)

@@ -9,8 +9,8 @@ from . import A_Actor
 class Actor(A_Actor.Actor):
 
     def __init__(self, texture: Optional[Texture] = None, tag: str = "") -> None:
-        if not texture is None and not isinstance(texture, Texture):
-            raise TypeError("texture must be a Texture")
+        if not texture is None:
+            assert isinstance(texture, Texture), "texture must be a Texture"
         self._rectSize: Vector2i = Utils.Math.ToVector2i(texture.getSize() / 4)
         rect = IntRect(Vector2i(0, 0), self._rectSize)
         super().__init__(texture, rect, tag)
@@ -29,8 +29,7 @@ class Actor(A_Actor.Actor):
             self.setTextureRect(IntRect(Vector2i(sx_i * self._rectSize.x, sy_i * self._rectSize.y), self._rectSize))
 
     def setTexture(self, texture: Texture, resetRect: bool = False) -> None:
-        if not isinstance(texture, Texture):
-            raise TypeError("texture must be a Texture")
+        assert isinstance(texture, Texture), "texture must be a Texture"
         super().setTexture(texture, resetRect)
 
     def setTextureRect(self, rectangle: IntRect) -> None:
