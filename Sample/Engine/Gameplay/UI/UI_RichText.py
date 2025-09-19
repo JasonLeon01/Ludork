@@ -3,10 +3,13 @@
 from __future__ import annotations
 import math
 from typing import List, Union, TYPE_CHECKING
-from . import Color, Transformable, Text, FloatRect, RenderStates, Vector2f
+
+from . import UI_ControlBase, Color, Drawable, Transformable, Text, FloatRect, RenderStates, Vector2f
 
 if TYPE_CHECKING:
     from Engine import Font, RenderTarget
+
+ControlBase = UI_ControlBase.Base
 
 
 class TextStroke:
@@ -44,10 +47,11 @@ class Outline:
         return not self.__eq__(other)
 
 
-class RichText(Transformable):
-    class Line(Transformable):
+class RichText(Drawable, Transformable, ControlBase):
+    class Line(Drawable, Transformable):
         def __init__(self) -> None:
-            super().__init__()
+            Drawable.__init__(self)
+            Transformable.__init__(self)
             self._texts: List[Text] = []
             self._bounds: FloatRect = FloatRect()
 
@@ -164,7 +168,9 @@ class RichText(Transformable):
             return result
 
     def __init__(self, font: Font) -> None:
-        super().__init__()
+        Drawable.__init__(self)
+        Transformable.__init__(self)
+        ControlBase.__init__(self)
         self._lines: List[UI.Line] = []
         self._font: Font = font
         self._characterSize: int = 22
@@ -237,7 +243,7 @@ class RichText(Transformable):
     def draw(self, target: RenderTarget, states: RenderStates) -> None:
         states.transform *= self.getTransform()
         for line in self._lines:
-            line.draw(target, states)
+            target.draw(line, states)
 
     def _createText(self, string: str) -> Text:
         text = Text(self._font, string, self._characterSize)
@@ -291,7 +297,7 @@ class RichText(Transformable):
             if subStrings:
                 subString = subStrings[0]
                 if not self._lines:
-                    self._lines.append(UI.Line())
+                    self._lines.append(RichText.Line())
                 line = self._lines[-1]
                 self._bounds.size.y -= line.getGlobalBounds().size.y
                 line.appendText(self._createText(subString))
@@ -299,7 +305,7 @@ class RichText(Transformable):
                 self._bounds.size.y += line.getGlobalBounds().size.y
             index = 1
             while index < len(subStrings):
-                line = UI.Line()
+                line = RichText.Line()
                 line.setPosition(Vector2f(0, self._bounds.size.y))
                 line.appendText(self._createText(subStrings[index]))
                 self._lines.append(line)
@@ -317,7 +323,9 @@ class UI(RichText):
 
         super().__init__(font)
         self.__characterSize = int(self._characterSize * System.getScale())
-        self.__currentStroke.thickness *= System.getScale()
+        self.__currentStroke = TextStroke(
+            self._currentStroke.fill, self._currentStroke.outline, self._currentStroke.thickness * System.getScale()
+        )
 
     def setCharacterSize(self, size: int) -> None:
         from Engine import System
@@ -328,12 +336,3 @@ class UI(RichText):
 
     def getCharacterSize(self) -> int:
         return self.__characterSize
-
-    def draw(self, target: RenderTarget, states: RenderStates = None) -> None:
-        from Engine import System
-
-        if not states:
-            states = RenderStates.Default()
-        states.transform.scale(Vector2f(System.getScale(), System.getScale()))
-        states.transform *= self.getTransform()
-        super().draw(target, states)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
 from . import (
-    UI_Base,
+    UI_SpriteBase,
     UI_RectBase,
     Sprite,
     IntRect,
@@ -19,8 +19,11 @@ if TYPE_CHECKING:
     from Engine import Vector2u, Image
     from Engine.Gameplay.UI import Canvas
 
+SpriteBase = UI_SpriteBase.UI
+RectBase = UI_RectBase.Base
 
-class UI(UI_Base.UI, UI_RectBase.UI):
+
+class UI(SpriteBase, RectBase):
     def __init__(
         self,
         rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]],
@@ -59,12 +62,6 @@ class UI(UI_Base.UI, UI_RectBase.UI):
 
     def getParent(self) -> Optional[Canvas]:
         return self._parent
-
-    def getVisible(self) -> bool:
-        return self._visible
-
-    def setVisible(self, visible: bool) -> None:
-        self._visible = visible
 
     def _presave(self, target: List[Texture], area: List[IntRect]) -> None:
         target.clear()

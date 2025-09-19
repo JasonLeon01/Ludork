@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Optional, Tuple, Union, TYPE_CHECKING
 
 from . import (
+    UI_ControlBase,
     Sprite,
     Vector2f,
     Angle,
@@ -13,8 +14,10 @@ from . import (
 if TYPE_CHECKING:
     from Engine import Texture, IntRect, RenderStates
 
+ControlBase = UI_ControlBase.Base
 
-class UI(Sprite):
+
+class UI(Sprite, ControlBase):
     def __init__(self, texture: Texture, rect: Optional[IntRect] = None) -> None:
         from Engine import Utils, System
 
@@ -86,12 +89,6 @@ class UI(Sprite):
             x, y = origin
             origin = Vector2f(x, y)
         return super().setOrigin(origin)
-
-    def getVisible(self) -> bool:
-        return self._visible
-
-    def setVisible(self, visible: bool) -> None:
-        self._visible = visible
 
     def getRenderState(self) -> RenderStates:
         return self._renderState

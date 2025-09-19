@@ -10,6 +10,7 @@ from .. import (
     RenderTexture,
     Color,
     Utils,
+    Drawable,
     Transformable,
     Text,
     FloatRect,
@@ -17,10 +18,12 @@ from .. import (
     Texture,
     View,
 )
+from . import UI_SpriteBase
 from . import UI_Canvas
 from . import UI_RichText
 from . import UI_Window
 
+SpriteBase = UI_SpriteBase.UI
 Canvas = UI_Canvas.UI
 RichText = UI_RichText.UI
 TextStroke = UI_RichText.TextStroke

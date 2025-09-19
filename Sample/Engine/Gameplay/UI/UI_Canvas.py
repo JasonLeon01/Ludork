@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import List, Tuple, Union, Optional, TYPE_CHECKING
 from . import (
-    UI_Base,
+    UI_SpriteBase,
     IntRect,
     Vector2i,
     Vector2f,
@@ -16,8 +16,10 @@ if TYPE_CHECKING:
     from Engine import Drawable, Vector2u
     from Engine.Gameplay.UI import RichText
 
+SpriteBase = UI_SpriteBase.UI
 
-class UI(UI_Base.UI):
+
+class UI(SpriteBase):
     def __init__(self, rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]]) -> None:
         assert isinstance(rect, (IntRect, tuple)), "rect must be a tuple or IntRect"
         if not isinstance(rect, IntRect):
@@ -80,14 +82,11 @@ class UI(UI_Base.UI):
             if hasattr(child, "getVisible"):
                 if not child.getVisible():
                     continue
-            if isinstance(child, RichText):
-                child.draw(self._canvas, Utils.Render.CanvasRenderState())
+            if isinstance(child, SpriteBase):
+                self._canvas.draw(child, child.getRenderState())
             else:
-                if isinstance(child, UI_Base.UI):
-                    self._canvas.draw(child, child.getRenderState())
-                else:
-                    defaultState = Utils.Render.CanvasRenderState()
-                    defaultState.transform.scale(Vector2f(System.getScale(), System.getScale()))
-                    self._canvas.draw(child, defaultState)
+                defaultState = Utils.Render.CanvasRenderState()
+                defaultState.transform.scale(Vector2f(System.getScale(), System.getScale()))
+                self._canvas.draw(child, defaultState)
         self._canvas.display()
         self.onLateTick(deltaTime)

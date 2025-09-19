@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from Engine import Texture, RenderTexture, RenderTarget
 
 
-class UI:
+class Base:
     def _renderCorners(self, dst: RenderTarget, areaCaches: List[Texture], cornerPositions: List[Vector2f]) -> None:
         for i in range(4):
             cornerSprite = Sprite(areaCaches[i])

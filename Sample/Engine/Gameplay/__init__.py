@@ -17,6 +17,7 @@ from .. import (
     RenderTexture,
     Text,
     RenderStates,
+    Drawable,
     Transformable,
 )
 from . import Actors
