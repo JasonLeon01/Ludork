@@ -5,9 +5,10 @@ from typing import Optional
 from . import Texture, IntRect, Vector2i, Utils
 from . import A_Actor
 
+Actor = A_Actor.Actor
 
-class Actor(A_Actor.Actor):
 
+class Character(Actor):
     def __init__(self, texture: Optional[Texture] = None, tag: str = "") -> None:
         if not texture is None:
             assert isinstance(texture, Texture), "texture must be a Texture"

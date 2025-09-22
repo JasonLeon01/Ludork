@@ -17,13 +17,13 @@ from . import (
 
 if TYPE_CHECKING:
     from Engine import Vector2u, Image
-    from Engine.Gameplay.UI import Canvas
+    from Engine.UI import Canvas
 
-SpriteBase = UI_SpriteBase.UI
-RectBase = UI_RectBase.Base
+SpriteBase = UI_SpriteBase.SpriteBase
+RectBase = UI_RectBase.RectBase
 
 
-class UI(SpriteBase, RectBase):
+class Window(SpriteBase, RectBase):
     def __init__(
         self,
         rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]],

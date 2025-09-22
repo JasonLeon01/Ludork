@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from Engine import SoundSource, Filters, Transformable
 
 
-class Manager:
+class AudioManager:
     _SoundBufferRef: Dict[str, SoundBuffer] = {}
     _SoundBufferCount: Dict[str, int] = {}
     _SoundRec: List[Sound] = []
@@ -55,7 +55,7 @@ class Manager:
         if not cls.__SoundBegin:
             cls.__SoundBegin = True
             try:
-                asyncio.create_task(Manager.updateAllSoundPositions())
+                asyncio.create_task(AudioManager.updateAllSoundPositions())
             except RuntimeError:
                 warnings.warn("No asyncio loop running; sound parent updates disabled")
 

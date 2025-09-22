@@ -26,10 +26,10 @@ from . import Mgr_Time
 if TYPE_CHECKING:
     from Engine import IntRect, Filters
 
-AudioManager = Mgr_Audio.Manager
-FontManager = Mgr_Font.Manager
-TextureManager = Mgr_Texture.Manager
-TimeManager = Mgr_Time.Manager
+AudioManager = Mgr_Audio.AudioManager
+FontManager = Mgr_Font.FontManager
+TextureManager = Mgr_Texture.TextureManager
+TimeManager = Mgr_Time.TimeManager
 
 
 def getSoundBuffer(filePath: str) -> SoundBuffer:

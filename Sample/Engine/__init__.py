@@ -139,6 +139,7 @@ from . import E_Input
 from . import Manager
 from . import Filters
 from . import Gameplay
+from . import UI
 from . import E_System
 
 

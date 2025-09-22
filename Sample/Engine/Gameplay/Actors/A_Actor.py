@@ -8,9 +8,10 @@ from . import Vector2f
 if TYPE_CHECKING:
     from Engine import Texture, IntRect
 
+ActorBase = A_Base.ActorBase
 
-class Actor(A_Base.Actor):
 
+class Actor(ActorBase):
     def __init__(
         self,
         texture: Optional[Union[Texture, List[Texture]]] = None,

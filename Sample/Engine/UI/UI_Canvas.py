@@ -13,13 +13,15 @@ from . import (
 )
 
 if TYPE_CHECKING:
-    from Engine import Drawable, Vector2u
-    from Engine.Gameplay.UI import RichText
+    from Engine import Vector2u
+    from Engine.UI import UI_ControlBase
 
-SpriteBase = UI_SpriteBase.UI
+    ControlBase = UI_ControlBase.ControlBase
+
+SpriteBase = UI_SpriteBase.SpriteBase
 
 
-class UI(SpriteBase):
+class Canvas(SpriteBase):
     def __init__(self, rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]]) -> None:
         assert isinstance(rect, (IntRect, tuple)), "rect must be a tuple or IntRect"
         if not isinstance(rect, IntRect):
@@ -32,32 +34,32 @@ class UI(SpriteBase):
         self._size = Utils.Math.ToVector2u(rect.size)
         size = Utils.Math.ToVector2u(Utils.Render.getRealSize(rect.size))
         self._canvas: RenderTexture = RenderTexture(size)
-        self._parent: Optional[UI] = None
-        self._childrenList: List[Drawable] = []
+        self._parent: Optional[Canvas] = None
+        self._childrenList: List[ControlBase] = []
         super().__init__(self._canvas.getTexture())
         self.setPosition(rect.position)
 
     def getSize(self) -> Vector2u:
         return self._size
 
-    def getParent(self) -> Optional[UI]:
+    def getParent(self) -> Optional[Canvas]:
         return self._parent
 
-    def setParent(self, parent: Optional[UI]) -> None:
+    def setParent(self, parent: Optional[Canvas]) -> None:
         self._parent = parent
 
-    def getChildren(self) -> List[Drawable]:
+    def getChildren(self) -> List[ControlBase]:
         return self._childrenList
 
-    def addChild(self, child: Union[Drawable, RichText]) -> None:
-        from Engine.Gameplay import Actor
+    def addChild(self, child: ControlBase) -> None:
+        from Engine.Gameplay.Actors import Actor
 
         assert not isinstance(child, Actor), "Cannot add Actor to UI"
         self._childrenList.append(child)
-        if isinstance(child, UI):
+        if isinstance(child, Canvas):
             child.setParent(self)
 
-    def removeChild(self, child: Union[Drawable, RichText]) -> None:
+    def removeChild(self, child: ControlBase) -> None:
         if child not in self._childrenList:
             raise ValueError("Child not found")
         self._childrenList.remove(child)
@@ -79,9 +81,8 @@ class UI(SpriteBase):
         self.onTick(deltaTime)
         self._canvas.clear(Color.Transparent)
         for child in self._childrenList:
-            if hasattr(child, "getVisible"):
-                if not child.getVisible():
-                    continue
+            if not child.getVisible():
+                continue
             if isinstance(child, SpriteBase):
                 self._canvas.draw(child, child.getRenderState())
             else:

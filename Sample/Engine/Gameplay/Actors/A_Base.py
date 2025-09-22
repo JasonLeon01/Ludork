@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from Engine.Gameplay.Scenes import Base
 
 
-class Actor(Sprite):
+class ActorBase(Sprite):
     def __init__(
         self,
         texture: Optional[Union[Texture, List[Texture]]] = None,
@@ -41,8 +41,8 @@ class Actor(Sprite):
         self.tag: str = tag
 
         self._scene: Base = None
-        self._parent: Optional[Actor] = None
-        self._children: List[Actor] = []
+        self._parent: Optional[ActorBase] = None
+        self._children: List[ActorBase] = []
         self._visible: bool = True
         self._animatable: bool = False
         self._texture: Optional[Union[List[Texture], Texture]] = texture
@@ -225,16 +225,16 @@ class Actor(Sprite):
     def setScene(self, scene: Base) -> None:
         self._scene = scene
 
-    def getParent(self) -> Optional[Actor]:
+    def getParent(self) -> Optional[ActorBase]:
         return self._parent
 
-    def setParent(self, parent: Optional[Actor]) -> None:
+    def setParent(self, parent: Optional[ActorBase]) -> None:
         self._parent = parent
 
-    def getChildren(self) -> List[Actor]:
+    def getChildren(self) -> List[ActorBase]:
         return self._children
 
-    def addChild(self, child: Actor) -> None:
+    def addChild(self, child: ActorBase) -> None:
         if child in self._children:
             warnings.warn("Child already exists")
             return
@@ -244,7 +244,7 @@ class Actor(Sprite):
             child.setScene(self._scene)
             self._scene.updateActorList()
 
-    def removeChild(self, child: Actor) -> None:
+    def removeChild(self, child: ActorBase) -> None:
         if child not in self._children:
             raise ValueError("Child not found")
         self._children.remove(child)
@@ -338,7 +338,7 @@ class Actor(Sprite):
                 self._departure = None
                 self._destination = None
                 self._velocity = None
-                warnings.warn("Actor.move() failed, moveSet cleared")
+                warnings.warn("ActorBase.move() failed, moveSet cleared")
             elif not self._destination is None:
                 if Utils.Math.HasReachedDestination(self._departure, self._destination, self.getPosition()):
                     self._moveSet.pop(0)

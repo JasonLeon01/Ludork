@@ -3,7 +3,7 @@
 from . import Time, Clock
 
 
-class Manager:
+class TimeManager:
     _clock = Clock()
     _lastElapsedTime = Time.Zero
     _deltaTime = Time.Zero
@@ -33,4 +33,4 @@ class Manager:
         cls._deltaTime = currentTime - lastTime
 
 
-Manager.init()
+TimeManager.init()

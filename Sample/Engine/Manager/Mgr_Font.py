@@ -5,7 +5,7 @@ from typing import Dict, List
 from . import Font
 
 
-class Manager:
+class FontManager:
     _FontRec: Dict[str, Font] = {}
     _FontFilenameRec: Dict[str, str] = {}
 

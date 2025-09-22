@@ -2,7 +2,8 @@
 
 import Engine.Manager as Manager
 from Engine import Vector2f, seconds
-from Engine.Gameplay import SceneBase, Character
+from Engine.Gameplay.Scenes import SceneBase
+from Engine.Gameplay.Actors import Character
 
 
 class Scene(SceneBase):

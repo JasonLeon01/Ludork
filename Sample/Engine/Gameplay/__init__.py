@@ -22,9 +22,3 @@ from .. import (
 )
 from . import Actors
 from . import Scenes
-from . import UI
-
-Actor = Actors.Actor
-Character = Actors.Character
-Particle = Actors.Particle
-SceneBase = Scenes.Base

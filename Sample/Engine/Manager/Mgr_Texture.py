@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from Engine import IntRect
 
 
-class Manager:
+class TextureManager:
     _TexturesRef: Dict[Tuple[str, bool, Optional[IntRect], bool], Texture] = {}
 
     @classmethod

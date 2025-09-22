@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 
-class Base:
+class ControlBase:
     def __init__(self) -> None:
         self._visible: bool = True
 

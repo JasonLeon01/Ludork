@@ -14,10 +14,10 @@ from . import (
 if TYPE_CHECKING:
     from Engine import Texture, IntRect, RenderStates
 
-ControlBase = UI_ControlBase.Base
+ControlBase = UI_ControlBase.ControlBase
 
 
-class UI(Sprite, ControlBase):
+class SpriteBase(Sprite, ControlBase):
     def __init__(self, texture: Texture, rect: Optional[IntRect] = None) -> None:
         from Engine import Utils, System
 

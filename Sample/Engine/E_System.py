@@ -20,7 +20,7 @@ from Engine import (
     Style,
     ContextSettings,
 )
-from Engine.Gameplay import SceneBase
+from Engine.Gameplay.Scenes import SceneBase
 from Engine.Utils import Math, File, Render
 
 

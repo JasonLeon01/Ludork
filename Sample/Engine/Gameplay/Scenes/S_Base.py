@@ -4,17 +4,18 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import deque
 from typing import Dict, List, TYPE_CHECKING
-from . import UI, Manager
+from . import Manager
 
 if TYPE_CHECKING:
-    from Engine.Gameplay import Actor
+    from Engine.Gameplay.Actors import Actor
+    from Engine.UI import Canvas
 
 
-class Scene:
+class SceneBase:
     def __init__(self) -> None:
         self._executor = ThreadPoolExecutor(max_workers=2)
         self._actors: Dict[str, List[Actor]] = {}
-        self._UIs: List[UI] = []
+        self._UIs: List[Canvas] = []
         self._actorsOnDestroy: List[Actor] = []
         self._wholeActorList: Dict[str, List[Actor]] = {}
         self.onCreate()
@@ -98,13 +99,13 @@ class Scene:
                 if child.getChildren():
                     q.extend(child.getChildren())
 
-    def addUI(self, ui: UI) -> None:
+    def addUI(self, ui: Canvas) -> None:
         self._UIs.append(ui)
 
-    def getUIs(self) -> List[UI]:
+    def getUIs(self) -> List[Canvas]:
         return self._UIs
 
-    def removeUI(self, ui: UI) -> None:
+    def removeUI(self, ui: Canvas) -> None:
         if ui in self._UIs:
             self._UIs.remove(ui)
         else:

@@ -9,7 +9,7 @@ from . import UI_ControlBase, Color, Drawable, Transformable, Text, FloatRect, R
 if TYPE_CHECKING:
     from Engine import Font, RenderTarget
 
-ControlBase = UI_ControlBase.Base
+ControlBase = UI_ControlBase.ControlBase
 
 
 class TextStroke:
@@ -47,7 +47,7 @@ class Outline:
         return not self.__eq__(other)
 
 
-class RichText(Drawable, Transformable, ControlBase):
+class RichTextBase(Drawable, Transformable, ControlBase):
     class Line(Drawable, Transformable):
         def __init__(self) -> None:
             Drawable.__init__(self)
@@ -171,7 +171,7 @@ class RichText(Drawable, Transformable, ControlBase):
         Drawable.__init__(self)
         Transformable.__init__(self)
         ControlBase.__init__(self)
-        self._lines: List[UI.Line] = []
+        self._lines: List[RichTextBase.Line] = []
         self._font: Font = font
         self._characterSize: int = 22
         self._bounds: FloatRect = FloatRect()
@@ -317,7 +317,7 @@ class RichText(Drawable, Transformable, ControlBase):
         return self
 
 
-class UI(RichText):
+class RichText(RichTextBase):
     def __init__(self, font: Font) -> None:
         from Engine import System
 

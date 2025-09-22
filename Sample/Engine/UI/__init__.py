@@ -23,9 +23,9 @@ from . import UI_Canvas
 from . import UI_RichText
 from . import UI_Window
 
-SpriteBase = UI_SpriteBase.UI
-Canvas = UI_Canvas.UI
-RichText = UI_RichText.UI
+SpriteBase = UI_SpriteBase.SpriteBase
+Canvas = UI_Canvas.Canvas
+RichText = UI_RichText.RichText
 TextStroke = UI_RichText.TextStroke
 Outline = UI_RichText.Outline
-Window = UI_Window.UI
+Window = UI_Window.Window
