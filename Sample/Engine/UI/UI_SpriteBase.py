@@ -21,13 +21,13 @@ class SpriteBase(Sprite, ControlBase):
     def __init__(self, texture: Texture, rect: Optional[IntRect] = None) -> None:
         from Engine import Utils, System
 
-        self._visible: bool = True
         self._renderState = Utils.Render.CanvasRenderState()
         self._renderState.transform.scale(Vector2f(System.getScale(), System.getScale()))
         if rect:
-            super().__init__(texture, rect)
+            Sprite.__init__(self, texture, rect)
         else:
-            super().__init__(texture)
+            Sprite.__init__(self, texture)
+        ControlBase.__init__(self)
 
     def v_getPosition(self) -> Tuple[float, float]:
         result = super().getPosition()

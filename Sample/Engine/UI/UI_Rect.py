@@ -23,12 +23,11 @@ SpriteBase = UI_SpriteBase.SpriteBase
 RectBase = UI_RectBase.RectBase
 
 
-class Window(SpriteBase, RectBase):
+class Rect(SpriteBase, RectBase):
     def __init__(
         self,
         rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]],
         windowSkin: Optional[Image] = None,
-        repeated: bool = False,
     ) -> None:
         assert isinstance(rect, (IntRect, tuple)), "rect must be a tuple or IntRect"
         if not isinstance(rect, IntRect):
@@ -48,7 +47,6 @@ class Window(SpriteBase, RectBase):
             from Engine import System, Manager
 
             self._windowSkin = Manager.loadSystem(System.getWindowskinName(), smooth=True)
-        self._repeated = repeated
         self._initUI()
         super().__init__(self._canvas.getTexture())
         self.setPosition(Utils.Math.ToVector2f(rect.position))
@@ -71,16 +69,10 @@ class Window(SpriteBase, RectBase):
     def _initUI(self) -> None:
         self._windowEdge = RenderTexture(self._canvas.getSize())
         self._windowEdgeSprite = Sprite(self._windowEdge.getTexture())
-        self._windowBack = Texture(self._windowSkin, False, Utils.Math.ToIntRect(0, 0, 128, 128))
-        self._windowBack.setRepeated(self._repeated)
+        self._windowBack = Texture(self._windowSkin, False, Utils.Math.ToIntRect(132, 68, 24, 24))
         self._windowBackSprite = Sprite(self._windowBack)
-        if self._repeated:
-            self._windowBackSprite.setTextureRect(
-                IntRect(Vector2i(0, 0), Utils.Math.ToVector2i(self.getLocalBounds().size()))
-            )
-        else:
-            canvasSize = self._canvas.getSize()
-            self._windowBackSprite.setScale(Vector2f(canvasSize.x / 128.0, canvasSize.y / 128.0))
+        canvasSize = self._canvas.getSize()
+        self._windowBackSprite.setScale(Vector2f(canvasSize.x / 24.0, canvasSize.y / 24.0))
         self._windowHintSprites: List[Sprite] = []
         self._pauseHintSprite: Sprite = None
         self._cachedCorners: List[Texture] = []
@@ -88,19 +80,19 @@ class Window(SpriteBase, RectBase):
         self._presave(
             self._cachedCorners,
             [
-                Utils.Math.ToIntRect(128, 0, 16, 16),
-                Utils.Math.ToIntRect(176, 0, 16, 16),
-                Utils.Math.ToIntRect(128, 48, 16, 16),
-                Utils.Math.ToIntRect(176, 48, 16, 16),
+                Utils.Math.ToIntRect(128, 64, 4, 4),
+                Utils.Math.ToIntRect(156, 64, 4, 4),
+                Utils.Math.ToIntRect(128, 92, 4, 4),
+                Utils.Math.ToIntRect(156, 92, 4, 4),
             ],
         )
         self._presave(
             self._cachedEdges,
             [
-                Utils.Math.ToIntRect(144, 0, 24, 16),
-                Utils.Math.ToIntRect(144, 48, 24, 16),
-                Utils.Math.ToIntRect(128, 16, 16, 24),
-                Utils.Math.ToIntRect(176, 16, 16, 24),
+                Utils.Math.ToIntRect(132, 64, 24, 4),
+                Utils.Math.ToIntRect(132, 92, 24, 4),
+                Utils.Math.ToIntRect(128, 68, 4, 24),
+                Utils.Math.ToIntRect(156, 68, 4, 24),
             ],
         )
         for edge in self._cachedEdges:

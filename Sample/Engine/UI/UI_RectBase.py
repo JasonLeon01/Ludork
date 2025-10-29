@@ -42,15 +42,15 @@ class RectBase:
         canvasSize = edge.getSize()
         cornerPositions = [
             Vector2f(0, 0),
-            Vector2f(canvasSize.x - 16, 0),
-            Vector2f(0, canvasSize.y - 16),
-            Vector2f(canvasSize.x - 16, canvasSize.y - 16),
+            Vector2f(canvasSize.x - cachedCorners[1].getSize().x, 0),
+            Vector2f(0, canvasSize.y - cachedCorners[2].getSize().y),
+            Vector2f(canvasSize.x - cachedCorners[3].getSize().x, canvasSize.y - cachedCorners[3].getSize().y),
         ]
         edgePositions = [
-            Vector2f(16, 0),
-            Vector2f(16, canvasSize.y - 16),
-            Vector2f(0, 16),
-            Vector2f(canvasSize.x - 16, 16),
+            Vector2f(cachedCorners[0].getSize().x, 0),
+            Vector2f(cachedCorners[1].getSize().x, canvasSize.y - cachedCorners[1].getSize().y),
+            Vector2f(0, cachedCorners[2].getSize().y),
+            Vector2f(canvasSize.x - cachedCorners[3].getSize().x, cachedCorners[3].getSize().y),
         ]
         self._renderCorners(edge, cachedCorners, cornerPositions)
         self._renderEdges(edge, cachedEdges, edgePositions)
