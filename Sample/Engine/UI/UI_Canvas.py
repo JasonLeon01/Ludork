@@ -6,7 +6,6 @@ from . import (
     UI_SpriteBase,
     IntRect,
     Vector2i,
-    Vector2f,
     RenderTexture,
     Color,
     Utils,
@@ -71,8 +70,6 @@ class Canvas(SpriteBase):
         pass
 
     def update(self, deltaTime: float) -> None:
-        from Engine import System
-
         if not self._visible:
             return
         for child in self._childrenList:
@@ -83,11 +80,9 @@ class Canvas(SpriteBase):
         for child in self._childrenList:
             if not child.getVisible():
                 continue
-            if isinstance(child, SpriteBase):
+            if hasattr(child, "getRenderState"):
                 self._canvas.draw(child, child.getRenderState())
             else:
-                defaultState = Utils.Render.CanvasRenderState()
-                defaultState.transform.scale(Vector2f(System.getScale(), System.getScale()))
-                self._canvas.draw(child, defaultState)
+                self._canvas.draw(child)
         self._canvas.display()
         self.onLateTick(deltaTime)

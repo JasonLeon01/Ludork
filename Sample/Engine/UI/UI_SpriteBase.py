@@ -3,7 +3,10 @@
 from __future__ import annotations
 from typing import Optional, Tuple, Union, TYPE_CHECKING
 
+
 from . import (
+    Drawable,
+    Transformable,
     UI_ControlBase,
     Sprite,
     Vector2f,
@@ -12,21 +15,23 @@ from . import (
 )
 
 if TYPE_CHECKING:
-    from Engine import Texture, IntRect, RenderStates
+    from Engine import Texture, IntRect, RenderStates, Color, FloatRect, RenderTexture
 
 ControlBase = UI_ControlBase.ControlBase
 
 
-class SpriteBase(Sprite, ControlBase):
+class SpriteBase(Transformable, Drawable, ControlBase):
     def __init__(self, texture: Texture, rect: Optional[IntRect] = None) -> None:
-        from Engine import Utils, System
+        from Engine.Utils import Render
 
-        self._renderState = Utils.Render.CanvasRenderState()
-        self._renderState.transform.scale(Vector2f(System.getScale(), System.getScale()))
+        self._sprite: Sprite
+        self._renderState: RenderStates = Render.CanvasRenderState()
         if rect:
-            Sprite.__init__(self, texture, rect)
+            self._sprite = Sprite(texture, rect)
         else:
-            Sprite.__init__(self, texture)
+            self._sprite = Sprite(texture)
+        Transformable.__init__(self)
+        Drawable.__init__(self)
         ControlBase.__init__(self)
 
     def v_getPosition(self) -> Tuple[float, float]:
@@ -90,5 +95,39 @@ class SpriteBase(Sprite, ControlBase):
             origin = Vector2f(x, y)
         return super().setOrigin(origin)
 
+    def setTexture(self, texture: Texture, resetRect: bool = False) -> None:
+        self._sprite.setTexture(texture, resetRect)
+
+    def getTexture(self) -> Texture:
+        return self._sprite.getTexture()
+
+    def setTextureRect(self, rect: IntRect) -> None:
+        self._sprite.setTextureRect(rect)
+
+    def getTextureRect(self) -> IntRect:
+        return self._sprite.getTextureRect()
+
+    def setColor(self, color: Color) -> None:
+        self._sprite.setColor(color)
+
+    def getColor(self) -> Color:
+        return self._sprite.getColor()
+
+    def getLocalBounds(self) -> FloatRect:
+        return self._sprite.getLocalBounds()
+
+    def getGlobalBounds(self) -> FloatRect:
+        return self._sprite.getGlobalBounds()
+
     def getRenderState(self) -> RenderStates:
         return self._renderState
+
+    def draw(self, target: RenderTexture, states: RenderStates) -> None:
+        self._applyRenderState(states)
+        target.draw(self._sprite, states)
+
+    def _applyRenderState(self, states: RenderStates) -> None:
+        from Engine import System
+
+        states.transform *= self.getTransform()
+        states.transform.translate(Vector2f(System.getScale() - 1, System.getScale() - 1))

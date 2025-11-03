@@ -58,6 +58,8 @@ class RichText(SpriteBase):
         styleCollection: Dict[str, TextStyle],
         text: str,
     ) -> None:
+        from Engine import System
+
         self._texture: RenderTexture = None
         self._font: Font = font
         self._style: TextStyle = TextStyle()
@@ -67,8 +69,10 @@ class RichText(SpriteBase):
         super().__init__(self._texture.getTexture())
 
     def _render(self, text: str, styleCollection: Dict[str, Color]) -> None:
+        from Engine import System
+
         def modelText(inText: str):
-            text = Text(self._font, inText, self._style.characterSize)
+            text = Text(self._font, inText, int(self._style.characterSize * System.getScale()))
             self._style.enableStyle(text)
             return text
 
@@ -125,4 +129,3 @@ class RichText(SpriteBase):
                 maxHeight = max(maxHeight, text.getLocalBounds().size.y + text.getLocalBounds().position.y)
             y += maxHeight
         self._texture.display()
-        self.setTexture(self._texture.getTexture())
