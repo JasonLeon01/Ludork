@@ -1,10 +1,10 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import deque
 from typing import Dict, List, TYPE_CHECKING
 from . import Manager
+from ...Utils import U_Event
 
 if TYPE_CHECKING:
     from Engine.Gameplay.Actors import Actor
@@ -13,7 +13,6 @@ if TYPE_CHECKING:
 
 class SceneBase:
     def __init__(self) -> None:
-        self._executor = ThreadPoolExecutor(max_workers=2)
         self._actors: Dict[str, List[Actor]] = {}
         self._UIs: List[Canvas] = []
         self._actorsOnDestroy: List[Actor] = []
@@ -140,6 +139,7 @@ class SceneBase:
                 System.drawObjectOnCanvas(actor)
         System.EndActorDraw()
         for ui in self._UIs:
+            ui.update(deltaTime)
             System.drawObjectOnCanvas(ui)
         System.display()
 
@@ -153,10 +153,6 @@ class SceneBase:
             self._update(deltaTime)
 
     def _update(self, deltaTime: float) -> None:
-        logicalFuture = self._executor.submit(self._logicHandle, deltaTime)
-        for future in as_completed([logicalFuture]):
-            try:
-                future.result()
-            except Exception as e:
-                print(e)
+        self._logicHandle(deltaTime)
+        U_Event.flush()
         self._renderHandle(deltaTime)
