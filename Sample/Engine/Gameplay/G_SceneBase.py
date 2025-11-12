@@ -3,17 +3,20 @@
 from __future__ import annotations
 from collections import deque
 from typing import Dict, List, TYPE_CHECKING
-from . import Manager
-from ...Utils import U_Event
+from . import Manager, G_ParticleSystem, Particle
+from ..Utils import U_Event
 
 if TYPE_CHECKING:
     from Engine.Gameplay.Actors import Actor
     from Engine.UI import Canvas
 
+ParticleSystem = G_ParticleSystem.ParticleSystem
+
 
 class SceneBase:
     def __init__(self) -> None:
         self._actors: Dict[str, List[Actor]] = {}
+        self._particleSystem: ParticleSystem = ParticleSystem()
         self._UIs: List[Canvas] = []
         self._actorsOnDestroy: List[Actor] = []
         self._wholeActorList: Dict[str, List[Actor]] = {}
@@ -124,10 +127,16 @@ class SceneBase:
                 actor.update(deltaTime)
                 if actor.isActive() and actor.getTickable():
                     actor.onTick(deltaTime)
+        self._particleSystem.onTick(deltaTime)
+        for ui in self._UIs:
+            ui.onTick(deltaTime)
         for actorList in self._actors.values():
             for actor in actorList:
                 if actor.isActive() and actor.getTickable():
                     actor.onLateTick(deltaTime)
+        self._particleSystem.onLateTick(deltaTime)
+        for ui in self._UIs:
+            ui.onLateTick(deltaTime)
         self.onLateTick(deltaTime)
 
     def _renderHandle(self, deltaTime: float) -> None:
@@ -137,7 +146,8 @@ class SceneBase:
         for actorList in self._wholeActorList.values():
             for actor in actorList:
                 System.drawObjectOnCanvas(actor)
-        System.EndActorDraw()
+        System.drawObjectOnCanvas(self._particleSystem)
+        System.EndBasicDraw()
         for ui in self._UIs:
             ui.update(deltaTime)
             System.drawObjectOnCanvas(ui)

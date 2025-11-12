@@ -123,7 +123,7 @@ class System:
         cls._canvas.draw(drawable, Render.CanvasRenderState())
 
     @classmethod
-    def EndActorDraw(cls) -> None:
+    def EndBasicDraw(cls) -> None:
         cls._canvas.setView(cls._canvas.getDefaultView())
 
     @classmethod

@@ -19,6 +19,16 @@ from .. import (
     RenderStates,
     Drawable,
     Transformable,
+    VertexArray,
+    PrimitiveType,
+    Vertex,
+    Transform,
 )
 from . import Actors
-from . import Scenes
+from . import G_ParticleSystem
+from . import G_SceneBase
+
+ParticleInfo = G_ParticleSystem.ParticleInfo
+Particle = G_ParticleSystem.Particle
+ParticleSystem = G_ParticleSystem.ParticleSystem
+SceneBase = G_SceneBase.SceneBase
