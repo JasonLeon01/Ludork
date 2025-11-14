@@ -1,10 +1,12 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+import os
+import sys
 from collections import deque
 from typing import Dict, List, TYPE_CHECKING
 from . import Manager, G_ParticleSystem, G_Camera
-from ..Utils import U_Event
+from ..Utils import U_Event, U_Math
 
 if TYPE_CHECKING:
     from Engine.Gameplay.Actors import Actor
@@ -12,6 +14,8 @@ if TYPE_CHECKING:
 
 ParticleSystem = G_ParticleSystem.ParticleSystem
 Camera = G_Camera.Camera
+Event = U_Event
+Math = U_Math
 
 
 class SceneBase:
@@ -190,21 +194,24 @@ class SceneBase:
 
     def _update(self, deltaTime: float) -> None:
         self._logicHandle(deltaTime)
-        U_Event.flush()
+        Event.flush()
         self._renderHandle(deltaTime)
 
     def _updateDebugInfo(self, deltaTime: float) -> None:
-        from Engine import System, Input
+        from Engine import System, Input, Manager
 
         if not System.isDebugMode():
             return
         if not self._debugHUDEnabled:
             return
+        if Math.IsNearZero(Manager.TimeManager.getSpeed()):
+            return
 
         import psutil
 
-        self._totalTime += deltaTime
-        FPS = 1.0 / deltaTime
+        realDeltaTime = deltaTime / Manager.TimeManager.getSpeed()
+        self._totalTime += realDeltaTime
+        FPS = 1.0 / realDeltaTime
         self._totalFrames += 1
         self._averageFPS = self._totalFrames / self._totalTime
         actors = 0
@@ -213,8 +220,9 @@ class SceneBase:
         UIs = len(self._UIs)
         process = psutil.Process(os.getpid())
         memInfo = process.memory_info()
+        sceneMem = sys.getsizeof(self)
         self._debugHUD.setText(
-            f"Total Time: {self._totalTime:.2f}s\nFPS: {FPS:.2f}\nAverage FPS: {self._averageFPS:.2f}\nActors: {actors}\nUIs: {UIs}\nMemory: {memInfo.rss / 1024 / 1024:.2f} MB"
+            f"Total Time: {self._totalTime:.2f}s\nFPS: {FPS:.2f}\nAverage FPS: {self._averageFPS:.2f}\nActors: {actors}\nUIs: {UIs}\nMemory: {memInfo.rss / 1024 / 1024:.2f} MB\nScene Memory: {sceneMem / 1024 / 1024:.2f} MB"
         )
         if Input.isKeyTriggered(Input.Key.F3, handled=False):
             self._debugHUDEnabled = not self._debugHUDEnabled

@@ -109,6 +109,9 @@ class Camera(Drawable):
     def mapCoordsToPixel(self, point):
         return self._renderTexture.mapCoordsToPixel(point, self._renderTexture.getView())
 
+    def getImage(self) -> Image:
+        return self._renderTexture.getTexture().copyToImage()
+
     def draw(self, target: RenderTarget, states: RenderStates = RenderStates()) -> None:
         self._renderTexture.display()
         target.draw(self._renderSprite, states)
@@ -120,4 +123,4 @@ class Camera(Drawable):
         self._renderTexture.draw(object, self._renderStates)
 
     def _refreshView(self) -> None:
-        self._renderTexture.setView(view)
+        self._renderTexture.setView(View(self._viewport))

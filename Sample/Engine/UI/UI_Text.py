@@ -58,7 +58,7 @@ class TextStyle:
     def enableStyle(self, text: Text):
         from Engine import System
 
-        text.setCharacterSize(int(self._style.characterSize * System.getScale()))
+        text.setCharacterSize(int(self.characterSize * System.getScale()))
         text.setStyle(self.style)
         text.setFillColor(self.fillColor)
         text.setOutlineColor(self.outlineColor)
@@ -81,8 +81,6 @@ class RichText(SpriteBase):
         super().__init__(self._texture.getTexture())
 
     def _render(self, text: str, styleCollection: Dict[str, Color]) -> None:
-        from Engine import System
-
         def modelText(inText: str):
             text = Text(self._font, inText, self._style.characterSize)
             self._style.enableStyle(text)

@@ -7,6 +7,7 @@ class TimeManager:
     _clock = Clock()
     _lastElapsedTime = Time.Zero
     _deltaTime = Time.Zero
+    _speed = 1.0
 
     @classmethod
     def init(cls) -> None:
@@ -19,11 +20,11 @@ class TimeManager:
 
     @classmethod
     def v_getDeltaTime(cls) -> float:
-        return cls._deltaTime.asSeconds()
+        return cls._deltaTime.asSeconds() * cls._speed
 
     @classmethod
     def getDeltaTime(cls) -> Time:
-        return cls._deltaTime
+        return cls._deltaTime * cls._speed
 
     @classmethod
     def update(cls) -> None:
@@ -31,6 +32,14 @@ class TimeManager:
         currentTime = cls._clock.getElapsedTime()
         cls._lastElapsedTime = currentTime
         cls._deltaTime = currentTime - lastTime
+
+    @classmethod
+    def getSpeed(cls) -> float:
+        return cls._speed
+
+    @classmethod
+    def setSpeed(cls, speed: float) -> None:
+        cls._speed = speed
 
 
 TimeManager.init()

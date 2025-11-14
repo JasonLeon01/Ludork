@@ -197,7 +197,6 @@ def update(window: WindowBase) -> None:
                 if joystickButtonEvent.joystickId not in _EventState.JoystickButtonPressedMap:
                     _EventState.JoystickButtonPressedMap[joystickButtonEvent.joystickId] = {}
                 _EventState.JoystickButtonPressedMap[joystickButtonEvent.joystickId][joystickButtonEvent.button] = True
-                print(f"Joystick {joystickButtonEvent.joystickId} button {joystickButtonEvent.button} pressed")
             if event.isJoystickButtonReleased():
                 _EventState.JoystickButtonReleased = True
                 joystickButtonEvent = event.getIfJoystickButtonReleased()
@@ -210,9 +209,6 @@ def update(window: WindowBase) -> None:
                 _EventState.JoystickAxisMovedMap[joystickMoveEvent.joystickId] = (
                     joystickMoveEvent.axis,
                     joystickMoveEvent.position,
-                )
-                print(
-                    f"Joystick {joystickMoveEvent.joystickId} axis {joystickMoveEvent.axis} moved to {joystickMoveEvent.position}"
                 )
             if event.isJoystickConnected():
                 _EventState.JoystickConnected = True
