@@ -12,7 +12,7 @@ def entry(windowHandle: Optional[int] = None):
 
     Engine.System.setScene(Scenes.Title())
     while Engine.System.shouldLoop():
-        pass
+        Engine.System.getScene().main()
 
 
 if __name__ == "__main__":

@@ -1,12 +1,21 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Optional, TYPE_CHECKING, Union
-from . import Drawable, RenderTexture, Sprite, FloatRect, View, RenderTarget, RenderStates, Color, Angle, degrees
+from typing import Optional, Union
+from . import (
+    Drawable,
+    RenderTexture,
+    Sprite,
+    FloatRect,
+    Vector2f,
+    View,
+    RenderTarget,
+    RenderStates,
+    Color,
+    Angle,
+    degrees,
+)
 from ..Utils import U_Math, U_Render
-
-if TYPE_CHECKING:
-    from Engine import Vector2f
 
 ToVector2f = U_Math.ToVector2f
 ToVector2u = U_Math.ToVector2u
@@ -20,7 +29,7 @@ class Camera(Drawable):
         if self._viewport is None:
             from Engine import System
 
-            self._viewport = FloatRect(ToVector2f(System.getGameSize() / 2), ToVector2f(System.getGameSize()))
+            self._viewport = FloatRect(Vector2f(0, 0), ToVector2f(System.getGameSize()))
         self._renderTexture: RenderTexture
         assert isinstance(self._viewport, FloatRect)
         self._renderTexture = RenderTexture(ToVector2u(self._viewport.size))

@@ -41,7 +41,6 @@ class SceneBase:
         if not hasattr(self, "_camera") or self._camera is None:
             self._camera = Camera()
         self.onCreate()
-        self._main()
 
     def onCreate(self) -> None:
         pass
@@ -169,6 +168,7 @@ class SceneBase:
         from Engine import System
 
         System.clearCanvas()
+        self._camera.clear()
         for actorList in self._wholeActorList.values():
             for actor in actorList:
                 self._camera.render(actor)
@@ -182,7 +182,7 @@ class SceneBase:
             System.drawObjectOnCanvas(self._debugHUD)
         System.display()
 
-    def _main(self) -> None:
+    def main(self) -> None:
         from Engine import System, Input
 
         while System.isActive():
