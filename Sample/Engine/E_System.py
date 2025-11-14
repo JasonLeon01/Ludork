@@ -48,6 +48,7 @@ class System:
     _voiceVolume: float = 100
     _scene: SceneBase = None
     _variables: Dict[str, Any] = {}
+    _debugMode: bool = False
 
     @classmethod
     def init(cls, data: configparser.ConfigParser) -> None:
@@ -76,6 +77,7 @@ class System:
             int(cls._gameSize.y * cls._scale),
         )
         handle: Optional[int] = os.environ.get("WINDOWHANDLE")
+        cls._debugMode = handle is not None
         if handle:
             cls._window = RenderWindow(int(handle), settings=ContextSettings(antiAliasingLevel=8))
             windowSize = cls._window.getSize()
@@ -254,6 +256,10 @@ class System:
     @classmethod
     def setVariable(cls, name: str, value: Any) -> None:
         cls._variables[name] = value
+
+    @classmethod
+    def isDebugMode(cls) -> bool:
+        return cls._debugMode
 
 
 iniFile = configparser.ConfigParser()

@@ -16,12 +16,24 @@ Camera = G_Camera.Camera
 
 class SceneBase:
     def __init__(self) -> None:
+        from Engine import System
+
         self._actors: Dict[str, List[Actor]] = {}
         self._particleSystem: ParticleSystem = ParticleSystem()
         self._UIs: List[Canvas] = []
         self._actorsOnDestroy: List[Actor] = []
         self._wholeActorList: Dict[str, List[Actor]] = {}
         self._camera: Camera
+        if System.isDebugMode():
+            from Engine.UI import UI_Text
+
+            PlainText = UI_Text.PlainText
+            self._debugHUDEnabled: bool = True
+            self._debugHUD: PlainText = PlainText(System.getFont(), 12)
+            self._totalTime: float = 0.0
+            self._totalFrames: int = 0
+            self._averageFPS: float = 0.0
+
         if not hasattr(self, "_camera") or self._camera is None:
             self._camera = Camera()
         self.onCreate()
@@ -162,6 +174,8 @@ class SceneBase:
         for ui in self._UIs:
             ui.update(deltaTime)
             System.drawObjectOnCanvas(ui)
+        if System.isDebugMode() and self._debugHUDEnabled:
+            System.drawObjectOnCanvas(self._debugHUD)
         System.display()
 
     def _main(self) -> None:
@@ -171,9 +185,36 @@ class SceneBase:
             Input.update(System.getWindow())
             Manager.TimeManager.update()
             deltaTime = Manager.TimeManager.v_getDeltaTime()
+            self._updateDebugInfo(deltaTime)
             self._update(deltaTime)
 
     def _update(self, deltaTime: float) -> None:
         self._logicHandle(deltaTime)
         U_Event.flush()
         self._renderHandle(deltaTime)
+
+    def _updateDebugInfo(self, deltaTime: float) -> None:
+        from Engine import System, Input
+
+        if not System.isDebugMode():
+            return
+        if not self._debugHUDEnabled:
+            return
+
+        import psutil
+
+        self._totalTime += deltaTime
+        FPS = 1.0 / deltaTime
+        self._totalFrames += 1
+        self._averageFPS = self._totalFrames / self._totalTime
+        actors = 0
+        for actorList in self._actors.values():
+            actors += len(actorList)
+        UIs = len(self._UIs)
+        process = psutil.Process(os.getpid())
+        memInfo = process.memory_info()
+        self._debugHUD.setText(
+            f"Total Time: {self._totalTime:.2f}s\nFPS: {FPS:.2f}\nAverage FPS: {self._averageFPS:.2f}\nActors: {actors}\nUIs: {UIs}\nMemory: {memInfo.rss / 1024 / 1024:.2f} MB"
+        )
+        if Input.isKeyTriggered(Input.Key.F3, handled=False):
+            self._debugHUDEnabled = not self._debugHUDEnabled

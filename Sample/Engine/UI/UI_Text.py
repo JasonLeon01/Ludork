@@ -24,8 +24,20 @@ class PlainText(Text, ControlBase):
     def __init__(
         self, font: Font, characterSize: int, style: Text.Style = Text.Style.Regular, fillColor: Color = Color.White
     ) -> None:
-        Text.__init__(self, font, characterSize, style, fillColor)
+        from Engine import System
+
+        self._characterSize = characterSize
+        Text.__init__(self, font, int(characterSize * System.getScale()), style, fillColor)
         ControlBase.__init__(self)
+
+    def getCharacterSize(self) -> int:
+        return self._characterSize
+
+    def setCharacterSize(self, characterSize: int) -> None:
+        from Engine import System
+
+        self._characterSize = characterSize
+        Text.setCharacterSize(self, int(characterSize * System.getScale()))
 
 
 class TextStyle:
@@ -44,7 +56,9 @@ class TextStyle:
         self.outlineThickness = outlineThickness
 
     def enableStyle(self, text: Text):
-        text.setCharacterSize(self.characterSize)
+        from Engine import System
+
+        text.setCharacterSize(int(self._style.characterSize * System.getScale()))
         text.setStyle(self.style)
         text.setFillColor(self.fillColor)
         text.setOutlineColor(self.outlineColor)
@@ -58,8 +72,6 @@ class RichText(SpriteBase):
         styleCollection: Dict[str, TextStyle],
         text: str,
     ) -> None:
-        from Engine import System
-
         self._texture: RenderTexture = None
         self._font: Font = font
         self._style: TextStyle = TextStyle()
@@ -72,7 +84,7 @@ class RichText(SpriteBase):
         from Engine import System
 
         def modelText(inText: str):
-            text = Text(self._font, inText, int(self._style.characterSize * System.getScale()))
+            text = Text(self._font, inText, self._style.characterSize)
             self._style.enableStyle(text)
             return text
 
