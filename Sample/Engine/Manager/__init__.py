@@ -54,14 +54,6 @@ def stopMusic(musicType: str) -> None:
     AudioManager.stopMusic(musicType)
 
 
-def setSoundVolume(volume: float) -> None:
-    AudioManager.setSoundVolume(volume)
-
-
-def setMusicVolume(volume: float) -> None:
-    AudioManager.setMusicVolume(volume)
-
-
 def loadFont(filename: str) -> Font:
     filePath = os.path.join("Assets", "Fonts", filename)
     return FontManager.load(filePath)

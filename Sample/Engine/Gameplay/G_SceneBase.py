@@ -203,6 +203,9 @@ class SceneBase:
 
         if not System.isDebugMode():
             return
+        if Input.isKeyTriggered(Input.Key.F3, handled=False):
+            self._debugHUDEnabled = not self._debugHUDEnabled
+
         if not self._debugHUDEnabled:
             return
         if Math.IsNearZero(Manager.TimeManager.getSpeed()):
@@ -244,5 +247,3 @@ class SceneBase:
         debugString += f"Font Memory: {fontMem / 1024 / 1024:.2f} MB\n"
 
         self._debugHUD.setString(debugString)
-        if Input.isKeyTriggered(Input.Key.F3, handled=False):
-            self._debugHUDEnabled = not self._debugHUDEnabled

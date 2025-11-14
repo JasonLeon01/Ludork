@@ -14,14 +14,13 @@ class AudioManager:
     _SoundBufferRef: Dict[str, SoundBuffer] = {}
     _SoundBufferCount: Dict[str, int] = {}
     _SoundRec: List[Sound] = []
-    _SoundParentMap: Dict[int, Transformable] = {}  # key is id(Sound)
+    _SoundParentMap: Dict[int, Transformable] = {}
     _DefaultSoundEffect: Optional[Filters.EffectProcessor] = None
     __SoundBegin: bool = False
 
     _MusicRef: Dict[str, Tuple[str, Music]] = {}
-
-    _SoundVolumeMultiplier: float = 1.0
-    _MusicVolumeMultiplier: float = 1.0
+    _SoundBaseVolume: Dict[int, float] = {}
+    _MusicBaseVolume: Dict[int, float] = {}
 
     @classmethod
     def loadSound(cls, filePath: str) -> SoundBuffer:
@@ -38,6 +37,11 @@ class AudioManager:
     def playSound(
         cls, filePath: str, filter: Optional[Filters.SoundFilter] = None, parent: Optional[Transformable] = None
     ) -> Sound:
+        from Engine import System
+
+        if not System.getSoundOn():
+            return None
+
         buffer = cls.loadSound(filePath)
         if not filePath in cls._SoundBufferRef:
             cls._SoundBufferRef[filePath] = buffer
@@ -50,6 +54,13 @@ class AudioManager:
         cls._SoundRec.append(sound)
         if not filter is None:
             cls._setSoundFilter(sound, filter)
+        from Engine import System
+
+        cls._SoundBaseVolume[id(sound)] = sound.getVolume()
+        sv = System.getSoundVolume()
+        if sv != 100:
+            sound.setVolume(cls._SoundBaseVolume[id(sound)] * sv / 100.0)
+
         sound.play()
         cls._monitorPlayEnd(sound, filePath, cls._soundMonitor, cls._cleanSound)
         if not cls.__SoundBegin:
@@ -68,12 +79,24 @@ class AudioManager:
 
     @classmethod
     def playMusic(cls, musicType: str, filePath: str, filter: Optional[Filters.MusicFilter] = None) -> Music:
+        from Engine import System
+
+        if not System.getMusicOn():
+            cls.stopMusic(musicType)
+            return None
+
         music = Music()
         if not music.openFromFile(filePath):
             raise Exception(f"Failed to load music from file: {filePath}")
         cls._MusicRef[musicType] = (filePath, music)
         if not filter is None:
             cls._setMusicFilter(music, filter)
+        from Engine import System
+
+        cls._MusicBaseVolume[id(music)] = music.getVolume()
+        mv = System.getMusicVolume()
+        if mv != 100:
+            music.setVolume(cls._MusicBaseVolume[id(music)] * mv / 100.0)
         music.play()
         cls._monitorPlayEnd(music, filePath, cls._musicMonitor, cls._cleanMusic)
         return music
@@ -89,14 +112,6 @@ class AudioManager:
             filePath, music = cls._MusicRef[musicType]
             music.stop()
             cls._cleanMusic(music, filePath)
-
-    @classmethod
-    def setSoundVolume(cls, volume: float) -> None:
-        cls._SoundVolumeMultiplier = volume / 100.0
-
-    @classmethod
-    def setMusicVolume(cls, volume: float) -> None:
-        cls._MusicVolumeMultiplier = volume / 100.0
 
     @classmethod
     def getMemory(cls):
@@ -146,9 +161,6 @@ class AudioManager:
                     raise Exception(f"Invalid offset type: {type(offset)}")
             sound.setPlayingOffset(offset)
         cls._setAudioFilter(sound, filter)
-        if cls._SoundVolumeMultiplier != 1:
-            soundVolume = filter.volume * cls._SoundVolumeMultiplier
-            sound.setVolume(soundVolume)
 
     @classmethod
     def _setMusicFilter(cls, music: Music, filter: Filters.MusicFilter) -> None:
@@ -163,9 +175,6 @@ class AudioManager:
                     raise Exception(f"Invalid offset type: {type(offset)}")
             music.setPlayingOffset(offset)
         cls._setAudioFilter(music, filter)
-        if cls._MusicVolumeMultiplier != 1:
-            musicVolume = filter.volume * cls._MusicVolumeMultiplier
-            music.setVolume(musicVolume)
 
     @classmethod
     def _setAudioFilter(cls, sound: SoundSource, filter: Filters.SoundFilter) -> None:
@@ -242,12 +251,24 @@ class AudioManager:
 
     @classmethod
     async def _soundMonitor(cls, sound: Sound) -> None:
+        from Engine import System
+
+        base = cls._SoundBaseVolume.get(id(sound), sound.getVolume())
+        last = -1
         while GetGameRunning() and sound.getStatus() != Sound.Status.Stopped:
+            if not System.getSoundOn():
+                sound.stop()
+                break
+            sv = System.getSoundVolume()
+            if sv != last:
+                sound.setVolume(base * sv / 100.0)
+                last = sv
             await asyncio.sleep(1)
 
     @classmethod
     def _cleanSound(cls, sound: Sound, filePath: str) -> None:
         cls._SoundParentMap.pop(id(sound), None)
+        cls._SoundBaseVolume.pop(id(sound), None)
         if sound in cls._SoundRec:
             cls._SoundRec.remove(sound)
         if filePath in cls._SoundBufferRef:
@@ -258,11 +279,23 @@ class AudioManager:
 
     @classmethod
     async def _musicMonitor(cls, music: Music) -> None:
+        from Engine import System
+
+        base = cls._MusicBaseVolume.get(id(music), music.getVolume())
+        last = -1
         while GetGameRunning() and music.getStatus() != Music.Status.Stopped:
+            if not System.getMusicOn():
+                music.stop()
+                break
+            mv = System.getMusicVolume()
+            if mv != last:
+                music.setVolume(base * mv / 100.0)
+                last = mv
             await asyncio.sleep(1)
 
     @classmethod
     def _cleanMusic(cls, music: Music, filePath: str) -> None:
+        cls._MusicBaseVolume.pop(id(music), None)
         for musicType, (filePath_, music_) in list(cls._MusicRef.items()):
             if filePath_ == filePath:
                 cls._MusicRef.pop(musicType, None)

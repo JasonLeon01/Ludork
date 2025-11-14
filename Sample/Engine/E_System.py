@@ -224,7 +224,6 @@ class System:
     @classmethod
     def setMusicVolume(cls, musicVolume: float) -> None:
         cls._musicVolume = musicVolume
-        Manager.setMusicVolume(musicVolume)
 
     @classmethod
     def getSoundVolume(cls) -> float:
@@ -233,7 +232,6 @@ class System:
     @classmethod
     def setSoundVolume(cls, soundVolume: float) -> None:
         cls._soundVolume = soundVolume
-        Manager.setSoundVolume(soundVolume)
 
     @classmethod
     def getVoiceVolume(cls) -> float:
