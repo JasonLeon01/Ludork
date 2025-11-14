@@ -5,6 +5,7 @@ import os
 import sys
 from collections import deque
 from typing import Dict, List, TYPE_CHECKING
+
 from . import Manager, G_ParticleSystem, G_Camera
 from ..Utils import U_Event, U_Math
 
@@ -33,7 +34,7 @@ class SceneBase:
 
             PlainText = UI_Text.PlainText
             self._debugHUDEnabled: bool = True
-            self._debugHUD: PlainText = PlainText(System.getFont(), 12)
+            self._debugHUD: PlainText = PlainText(list(System.getFonts())[0], "", 12)
             self._totalTime: float = 0.0
             self._totalFrames: int = 0
             self._averageFPS: float = 0.0
@@ -208,6 +209,7 @@ class SceneBase:
             return
 
         import psutil
+        from pympler import asizeof
 
         realDeltaTime = deltaTime / Manager.TimeManager.getSpeed()
         self._totalTime += realDeltaTime
@@ -217,12 +219,30 @@ class SceneBase:
         actors = 0
         for actorList in self._actors.values():
             actors += len(actorList)
+        particles = len(self._particleSystem._particles) + len(self._particleSystem._texts)
         UIs = len(self._UIs)
         process = psutil.Process(os.getpid())
         memInfo = process.memory_info()
-        sceneMem = sys.getsizeof(self)
-        self._debugHUD.setText(
-            f"Total Time: {self._totalTime:.2f}s\nFPS: {FPS:.2f}\nAverage FPS: {self._averageFPS:.2f}\nActors: {actors}\nUIs: {UIs}\nMemory: {memInfo.rss / 1024 / 1024:.2f} MB\nScene Memory: {sceneMem / 1024 / 1024:.2f} MB"
-        )
+        sceneMem = asizeof.asizeof(self)
+        particleMem = asizeof.asizeof(self._particleSystem)
+        textureMem = Manager.TextureManager.getMemory()
+        audioMem = Manager.AudioManager.getMemory()
+        fontMem = Manager.FontManager.getMemory()
+
+        debugString = ""
+        debugString += f"Total Time: {self._totalTime:.2f}s\n"
+        debugString += f"FPS: {FPS:.2f}\n"
+        debugString += f"Average FPS: {self._averageFPS:.2f}\n"
+        debugString += f"Actors: {actors}\n"
+        debugString += f"Particles: {particles}\n"
+        debugString += f"UIs: {UIs}\n"
+        debugString += f"Memory: {memInfo.rss / 1024 / 1024:.2f} MB\n"
+        debugString += f"Scene Memory: {sceneMem / 1024 / 1024:.2f} MB\n"
+        debugString += f"Particle Memory: {particleMem / 1024 / 1024:.2f} MB\n"
+        debugString += f"Texture Memory: {textureMem / 1024 / 1024:.2f} MB\n"
+        debugString += f"Audio Memory: {audioMem / 1024 / 1024:.2f} MB\n"
+        debugString += f"Font Memory: {fontMem / 1024 / 1024:.2f} MB\n"
+
+        self._debugHUD.setString(debugString)
         if Input.isKeyTriggered(Input.Key.F3, handled=False):
             self._debugHUDEnabled = not self._debugHUDEnabled

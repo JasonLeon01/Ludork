@@ -99,6 +99,14 @@ class AudioManager:
         cls._MusicVolumeMultiplier = volume / 100.0
 
     @classmethod
+    def getMemory(cls):
+        from pympler import asizeof
+
+        return asizeof.asizeof(
+            [cls._SoundBufferRef, cls._SoundRec, cls._SoundParentMap, cls._DefaultSoundEffect, cls._MusicRef]
+        )
+
+    @classmethod
     async def updateAllSoundPositions(cls):
         while GetGameRunning():
             sound_dict = {id(s): s for s in cls._SoundRec if s.getStatus() != Sound.Status.Stopped}

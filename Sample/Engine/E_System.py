@@ -78,6 +78,7 @@ class System:
         )
         handle: Optional[int] = os.environ.get("WINDOWHANDLE")
         cls._debugMode = handle is not None
+        cls._debugMode = True
         if handle:
             cls._window = RenderWindow(int(handle), settings=ContextSettings(antiAliasingLevel=8))
             windowSize = cls._window.getSize()
@@ -109,6 +110,10 @@ class System:
     @classmethod
     def getWindow(cls) -> RenderWindow:
         return cls._window
+
+    @classmethod
+    def getFonts(cls) -> List[Font]:
+        return cls._fonts
 
     @classmethod
     def getCanvas(cls) -> RenderTexture:

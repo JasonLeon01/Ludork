@@ -4,8 +4,16 @@ from typing import Union
 from . import Vector2f, Vector2i, Vector2u, Vector3f, Vector3i, IntRect, FloatRect
 
 
-def IsNearZero(v: Vector2f, epsilon: float = 1) -> bool:
-    return abs(v.x) < epsilon and abs(v.y) < epsilon
+def IsNearZero(num: Union[int, float], epsilon: float = 1) -> bool:
+    return abs(num) < epsilon
+
+
+def IsVector2NearZero(v: Vector2f, epsilon: float = 1) -> bool:
+    return IsNearZero(v.x, epsilon) and IsNearZero(v.y, epsilon)
+
+
+def IsVector3NearZero(v: Vector3f, epsilon: float = 1) -> bool:
+    return IsNearZero(v.x, epsilon) and IsNearZero(v.y, epsilon) and IsNearZero(v.z, epsilon)
 
 
 def Vector2fRound(v: Vector2f) -> Vector2f:

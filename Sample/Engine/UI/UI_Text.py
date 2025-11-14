@@ -22,13 +22,20 @@ SpriteBase = UI_SpriteBase.SpriteBase
 
 class PlainText(Text, ControlBase):
     def __init__(
-        self, font: Font, characterSize: int, style: Text.Style = Text.Style.Regular, fillColor: Color = Color.White
+        self,
+        font: Font,
+        text: str,
+        characterSize: int,
+        style: Text.Style = Text.Style.Regular,
+        fillColor: Color = Color.White,
     ) -> None:
         from Engine import System
 
         self._characterSize = characterSize
-        Text.__init__(self, font, int(characterSize * System.getScale()), style, fillColor)
+        Text.__init__(self, font, text, int(characterSize * System.getScale()))
         ControlBase.__init__(self)
+        self.setStyle(style)
+        self.setFillColor(fillColor)
 
     def getCharacterSize(self) -> int:
         return self._characterSize
@@ -69,8 +76,8 @@ class RichText(SpriteBase):
     def __init__(
         self,
         font: Font,
-        styleCollection: Dict[str, TextStyle],
         text: str,
+        styleCollection: Dict[str, TextStyle],
     ) -> None:
         self._texture: RenderTexture = None
         self._font: Font = font

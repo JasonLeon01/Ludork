@@ -33,6 +33,12 @@ class TextureManager:
         return texture
 
     @classmethod
+    def getMemory(cls):
+        from pympler import asizeof
+
+        return asizeof.asizeof(cls._TexturesRef)
+
+    @classmethod
     def _textureGone(cls, filePath: str, sRGB: bool, area: IntRect, smooth: bool) -> callable:
         def callback(_):
             print(f"Texture {filePath} has been garbage collected.")
