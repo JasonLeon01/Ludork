@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 import os
-import sys
 from collections import deque
-from typing import Dict, List, TYPE_CHECKING
+from typing import Dict, List, Optional, TYPE_CHECKING
 
-from . import Manager, G_ParticleSystem, G_Camera
+from . import Manager, G_ParticleSystem, G_Camera, G_TileMap
 from ..Utils import U_Event, U_Math
 
 if TYPE_CHECKING:
@@ -15,6 +14,8 @@ if TYPE_CHECKING:
 
 ParticleSystem = G_ParticleSystem.ParticleSystem
 Camera = G_Camera.Camera
+TileLayer = G_TileMap.TileLayer
+Tilemap = G_TileMap.Tilemap
 Event = U_Event
 Math = U_Math
 
@@ -23,6 +24,7 @@ class SceneBase:
     def __init__(self) -> None:
         from Engine import System
 
+        self._tilemap: Optional[Tilemap] = None
         self._actors: Dict[str, List[Actor]] = {}
         self._particleSystem: ParticleSystem = ParticleSystem()
         self._UIs: List[Canvas] = []
@@ -170,9 +172,12 @@ class SceneBase:
 
         System.clearCanvas()
         self._camera.clear()
-        for actorList in self._wholeActorList.values():
-            for actor in actorList:
-                self._camera.render(actor)
+        if not self._tilemap is None:
+            for layerName, layer in self._tilemap.getAllLayers().items():
+                self._camera.render(layer)
+                if layerName in self._actors:
+                    for actor in self._actors[layerName]:
+                        self._camera.render(actor)
         self._camera.render(self._particleSystem)
         System.drawObjectOnCanvas(self._camera)
         System.EndBasicDraw()
