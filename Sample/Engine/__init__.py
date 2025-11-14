@@ -143,5 +143,5 @@ from . import UI
 from . import E_System
 
 
-Input = E_Input.Input
+Input = E_Input
 System = E_System.System

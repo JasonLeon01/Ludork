@@ -67,6 +67,6 @@ class RectBase:
     ) -> None:
         self._renderSides(edge, cachedCorners, cachedEdges)
         dst.clear(Color.Transparent)
-        dst.draw(backSprite, Utils.Render.CanvasRenderState())
-        dst.draw(edgeSprite, Utils.Render.CanvasRenderState())
+        dst.draw(backSprite, Utils.Render.CanvasRenderStates())
+        dst.draw(edgeSprite, Utils.Render.CanvasRenderStates())
         dst.display()

@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import Callable, Dict, List, Optional, Union
 import copy
-from . import Drawable, VertexArray, PrimitiveType, Vertex, Texture, Transform, Vector2f, Color, Text, degrees
+from . import Drawable, VertexArray, PrimitiveType, Vertex, Texture, Font, Transform, Vector2f, Color, Text, degrees
 
 
 class ParticleInfo:
@@ -253,11 +253,11 @@ class ParticleSystem(Drawable):
             if isinstance(text, TextParticle):
                 text.onLateTick(deltaTime)
 
-    def draw(self, target: RenderTarget, state: RenderStates) -> None:
-        originTexture = state.texture
+    def draw(self, target: RenderTarget, states: RenderStates) -> None:
+        originTexture = states.texture
         for resourcePath, vertexArray in self._vertexArrays.items():
-            state.texture = self._resourceDict[resourcePath]
-            target.draw(vertexArray, state)
-        state.texture = originTexture
+            states.texture = self._resourceDict[resourcePath]
+            target.draw(vertexArray, states)
+        states.texture = originTexture
         for text in self._texts:
-            text.draw(target, state)
+            target.draw(text)

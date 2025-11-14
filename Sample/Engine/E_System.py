@@ -20,7 +20,7 @@ from Engine import (
     Style,
     ContextSettings,
 )
-from Engine.Gameplay.Scenes import SceneBase
+from Engine.Gameplay import SceneBase
 from Engine.Utils import Math, File, Render
 
 
@@ -120,7 +120,7 @@ class System:
 
     @classmethod
     def drawObjectOnCanvas(cls, drawable: Drawable) -> None:
-        cls._canvas.draw(drawable, Render.CanvasRenderState())
+        cls._canvas.draw(drawable, Render.CanvasRenderStates())
 
     @classmethod
     def EndBasicDraw(cls) -> None:

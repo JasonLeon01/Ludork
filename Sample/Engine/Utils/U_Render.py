@@ -5,7 +5,7 @@ from typing import Union
 from . import RenderStates, BlendMode, Vector2i, Vector2u, Vector2f
 
 
-def CanvasRenderState() -> RenderStates:
+def CanvasRenderStates() -> RenderStates:
     return RenderStates(
         BlendMode(
             BlendMode.Factor.SrcAlpha,

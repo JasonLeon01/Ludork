@@ -80,8 +80,8 @@ class Canvas(SpriteBase):
         for child in self._childrenList:
             if not child.getVisible():
                 continue
-            if hasattr(child, "getRenderState"):
-                self._canvas.draw(child, child.getRenderState())
+            if hasattr(child, "getRenderStates"):
+                self._canvas.draw(child, child.getRenderStates())
             else:
                 self._canvas.draw(child)
         self._canvas.display()

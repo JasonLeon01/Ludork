@@ -3,7 +3,7 @@
 from __future__ import annotations
 from collections import deque
 from typing import Dict, List, TYPE_CHECKING
-from . import Manager, G_ParticleSystem, Particle
+from . import Manager, G_ParticleSystem, G_Camera
 from ..Utils import U_Event
 
 if TYPE_CHECKING:
@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from Engine.UI import Canvas
 
 ParticleSystem = G_ParticleSystem.ParticleSystem
+Camera = G_Camera.Camera
 
 
 class SceneBase:
@@ -20,6 +21,9 @@ class SceneBase:
         self._UIs: List[Canvas] = []
         self._actorsOnDestroy: List[Actor] = []
         self._wholeActorList: Dict[str, List[Actor]] = {}
+        self._camera: Camera
+        if not hasattr(self, "_camera") or self._camera is None:
+            self._camera = Camera()
         self.onCreate()
         self._main()
 
@@ -113,6 +117,12 @@ class SceneBase:
         else:
             raise ValueError("UI not found")
 
+    def getCamera(self) -> Camera:
+        return self._camera
+
+    def setCamera(self, camera: Camera) -> None:
+        self._camera = camera
+
     def _logicHandle(self, deltaTime: float) -> None:
         self.onTick(deltaTime)
         if len(self._actorsOnDestroy) > 0:
@@ -145,8 +155,9 @@ class SceneBase:
         System.clearCanvas()
         for actorList in self._wholeActorList.values():
             for actor in actorList:
-                System.drawObjectOnCanvas(actor)
-        System.drawObjectOnCanvas(self._particleSystem)
+                self._camera.render(actor)
+        self._camera.render(self._particleSystem)
+        System.drawObjectOnCanvas(self._camera)
         System.EndBasicDraw()
         for ui in self._UIs:
             ui.update(deltaTime)

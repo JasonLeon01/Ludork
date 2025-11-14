@@ -23,12 +23,18 @@ from .. import (
     PrimitiveType,
     Vertex,
     Transform,
+    Font,
+    ContextSettings,
+    RenderTarget,
 )
 from . import Actors
 from . import G_ParticleSystem
+from . import G_Camera
 from . import G_SceneBase
+
 
 ParticleInfo = G_ParticleSystem.ParticleInfo
 Particle = G_ParticleSystem.Particle
 ParticleSystem = G_ParticleSystem.ParticleSystem
+Camera = G_Camera.Camera
 SceneBase = G_SceneBase.SceneBase

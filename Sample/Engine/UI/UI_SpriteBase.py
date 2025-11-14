@@ -25,7 +25,7 @@ class SpriteBase(Transformable, Drawable, ControlBase):
         from Engine.Utils import Render
 
         self._sprite: Sprite
-        self._renderState: RenderStates = Render.CanvasRenderState()
+        self._renderStates: RenderStates = Render.CanvasRenderStates()
         if rect:
             self._sprite = Sprite(texture, rect)
         else:
@@ -119,14 +119,14 @@ class SpriteBase(Transformable, Drawable, ControlBase):
     def getGlobalBounds(self) -> FloatRect:
         return self._sprite.getGlobalBounds()
 
-    def getRenderState(self) -> RenderStates:
-        return self._renderState
+    def getRenderStates(self) -> RenderStates:
+        return self._renderStates
 
     def draw(self, target: RenderTexture, states: RenderStates) -> None:
-        self._applyRenderState(states)
+        self._applyRenderStates(states)
         target.draw(self._sprite, states)
 
-    def _applyRenderState(self, states: RenderStates) -> None:
+    def _applyRenderStates(self, states: RenderStates) -> None:
         from Engine import System
 
         states.transform *= self.getTransform()
