@@ -3,10 +3,9 @@
 from __future__ import annotations
 from collections import deque
 from typing import Dict, List, Optional, TYPE_CHECKING
-from . import G_ParticleSystem, G_Camera, G_TileMap
+from . import Vector2i, G_ParticleSystem, G_Camera, G_TileMap
 
 if TYPE_CHECKING:
-    from Engine import Vector2u
     from Engine.Gameplay.Actors import Actor
 
 ParticleSystem = G_ParticleSystem.ParticleSystem
@@ -41,7 +40,7 @@ class GameMap:
                     actors.append(actor)
         return actors
 
-    def isPassable(self, actor: Actor, targetPosition: Vector2u) -> bool:
+    def isPassable(self, actor: Actor, targetPosition: Vector2i) -> bool:
         if not actor.getCollisionEnabled():
             return True
         layerKeysList = list(self._tilemap.getAllLayers().keys())
@@ -60,7 +59,7 @@ class GameMap:
                 return tile.passible
         return True
 
-    def getCollision(self, actor: Actor, targetPosition: Vector2u) -> List[Actor]:
+    def getCollision(self, actor: Actor, targetPosition: Vector2i) -> List[Actor]:
         if not actor.getCollisionEnabled():
             return []
         result: List[Actor] = []
@@ -121,6 +120,36 @@ class GameMap:
 
     def setCamera(self, camera: Camera) -> None:
         self._camera = camera
+
+    def getLightMap(self) -> List[List[float]]:
+        def getLightThrough(inLayerKeys: List[str], pos: Vector2i):
+            for layerName in inLayerKeys:
+                tile = self._tilemap.getLayer(layerName).get(pos)
+                if layerName in self._actors:
+                    for actor in self._actors[layerName]:
+                        if actor.getMapPosition() == pos:
+                            if not actor.getCollisionEnabled():
+                                return actor.getLightThrough()
+                            else:
+                                return 1.0
+                if tile is not None:
+                    if tile.passible:
+                        return 1.0
+                    else:
+                        return tile.lightThrough
+            return 1.0
+
+        layerKeys = list(self._tilemap.getAllLayers().keys())
+        layerKeys.reverse()
+        lightMap: List[List[float]] = []
+        mapSize = self._tilemap.getSize()
+        width = mapSize.x
+        height = mapSize.y
+        for y in range(height):
+            lightMap.append([])
+            for x in range(width):
+                lightMap[-1].append(getLightThrough(layerKeys, Vector2i(x, y)))
+        return lightMap
 
     def onTick(self, deltaTime: float) -> None:
         if len(self._actorsOnDestroy) > 0:

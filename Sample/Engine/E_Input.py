@@ -2,7 +2,7 @@
 
 import copy
 from enum import Enum
-from typing import Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union, List, Callable
 from .pysf import Keyboard, Mouse, Joystick, WindowBase, Vector2i
 
 
@@ -75,6 +75,11 @@ class _EventState:
     KeyboardBlocked: bool = False
     MouseBlocked: bool = False
     JoystickBlocked: bool = False
+
+    ActionMappings: Dict[
+        Tuple[str, List[Union[Key, Scan, JoystickButton, JoystickAxis]]],
+        Tuple[object, Callable[[object, Optional[float]], None]],
+    ] = {}
 
 
 def update(window: WindowBase) -> None:
@@ -214,6 +219,28 @@ def update(window: WindowBase) -> None:
                 _EventState.JoystickConnected = True
             if event.isJoystickDisconnected():
                 _EventState.JoystickDisconnected = True
+
+        for actionType, callables in _EventState.ActionMappings.items():
+            _, actionKeys = actionType
+            obj, objCallable = callables
+            for key in actionKeys:
+                if not _EventState.KeyboardBlocked:
+                    if isinstance(key, Key):
+                        if (key, False, False, False, False) in _EventState.KeyPressedMap:
+                            objCallable(obj, None)
+                    if isinstance(key, Scan):
+                        if (key, False, False, False, False) in _EventState.KeyboardScanPressedMap:
+                            objCallable(obj, None)
+                if not _EventState.JoystickBlocked:
+                    if isinstance(key, JoystickButton):
+                        for _, joystickDict in _EventState.JoystickButtonPressedMap.items():
+                            if joystickDict.get(key.value, False):
+                                objCallable(obj, None)
+                    if isinstance(key, JoystickAxis):
+                        for _, joystickDict in _EventState.JoystickAxisMovedMap.items():
+                            axis, position = joystickDict
+                            if axis == key:
+                                objCallable(obj, position)
 
     except Exception as e:
         print(f"Error in Input.update: {e}")
@@ -529,3 +556,18 @@ def unblockInput() -> None:
     _EventState.KeyboardBlocked = False
     _EventState.MouseBlocked = False
     _EventState.JoystickBlocked = False
+
+
+def registerActionMapping(
+    obj: object,
+    actionName: str,
+    actionKeys: List[Union[Key, Scan, JoystickButton, JoystickAxis]],
+    callable_: Callable[[object, Optional[float]], None],
+) -> None:
+    _EventState.ActionMappings[(actionName, actionKeys)] = (obj, callable_)
+
+
+def unregisterActionMapping(obj: object, actionName: str) -> None:
+    to_remove = [k for k, v in _EventState.ActionMappings.items() if k[0] == actionName and v[0] == obj]
+    for k in to_remove:
+        _EventState.ActionMappings.pop(k, None)

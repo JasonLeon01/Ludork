@@ -50,6 +50,7 @@ class ActorBase(Sprite):
         self._relativePosition: Vector2f = Vector2f(0, 0)
         self._relativeRotation: Angle = degrees(0)
         self._relativeScale: Vector2f = Vector2f(1, 1)
+        self._lightThrough: float = 0.5
 
     def update(self, deltaTime: float) -> None:
         if self._animatable:
@@ -304,6 +305,12 @@ class ActorBase(Sprite):
         if isinstance(texture, list):
             targetTexture = texture[0]
         self.setSpriteTexture(targetTexture, resetRect)
+
+    def getLightThrough(self) -> float:
+        return self._lightThrough
+
+    def setLightThrough(self, lightThrough: float) -> None:
+        self._lightThrough = lightThrough
 
     def _superMove(self, offset: Union[Vector2f, Tuple[float, float]]) -> None:
         assert isinstance(offset, (Vector2f, tuple)), "offset must be a tuple or Vector2f"

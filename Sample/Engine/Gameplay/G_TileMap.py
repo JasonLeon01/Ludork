@@ -1,9 +1,9 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional, TYPE_CHECKING
-from . import Drawable, Transformable, VertexArray, Manager, PrimitiveType, Vector2f
+from . import Drawable, Transformable, VertexArray, Manager, PrimitiveType, Vector2f, Vector2i, Vector2u
 
 if TYPE_CHECKING:
     from Engine import RenderTarget, RenderStates, Vector2u
@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 class Tile:
     id: int
     passible: bool = True
+    lightThrough: float = 0.5
 
 
 class TileLayer(Drawable, Transformable):
@@ -109,3 +110,9 @@ class Tilemap:
 
     def getLayerNameList(self) -> List[TileLayer]:
         return list(self._layers.keys())
+
+    def getSize(self) -> Vector2u:
+        if len(self._layers) == 0:
+            return Vector2u(0, 0)
+        first = next(iter(self._layers.values()))
+        return Vector2u(first._width, first._height)
