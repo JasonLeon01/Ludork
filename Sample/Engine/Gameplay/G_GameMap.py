@@ -6,10 +6,12 @@ from typing import Dict, List, Optional, TYPE_CHECKING
 from . import G_ParticleSystem, G_Camera, G_TileMap
 
 if TYPE_CHECKING:
+    from Engine import Vector2u
     from Engine.Gameplay.Actors import Actor
 
 ParticleSystem = G_ParticleSystem.ParticleSystem
 Camera = G_Camera.Camera
+Tile = G_TileMap.Tile
 TileLayer = G_TileMap.TileLayer
 Tilemap = G_TileMap.Tilemap
 
@@ -39,7 +41,26 @@ class GameMap:
                     actors.append(actor)
         return actors
 
-    def getCollision(self, actor: Actor) -> List[Actor]:
+    def isPassable(self, actor: Actor, targetPosition: Vector2u) -> bool:
+        if not actor.getCollisionEnabled():
+            return True
+        layerKeysList = list(self._tilemap.getAllLayers().keys())
+        layerKeysList.reverse()
+        for layerName in layerKeysList:
+            tile = self._tilemap.getLayer(layerName).get(targetPosition)
+            if layerName in self._actors:
+                for other in self._actors[layerName]:
+                    if actor == other:
+                        continue
+                    if other in actor.getChildren():
+                        continue
+                    if other.getMapPosition() == targetPosition:
+                        return not other.getCollisionEnabled()
+            if not tile is None:
+                return tile.passible
+        return True
+
+    def getCollision(self, actor: Actor, targetPosition: Vector2u) -> List[Actor]:
         if not actor.getCollisionEnabled():
             return []
         result: List[Actor] = []
@@ -49,7 +70,9 @@ class GameMap:
                     continue
                 if not other.getCollisionEnabled():
                     continue
-                if actor.intersects(other):
+                if other in actor.getChildren():
+                    continue
+                if other.getMapPosition() == targetPosition:
                     result.append(other)
         return result
 
@@ -59,6 +82,8 @@ class GameMap:
             for other in actorList:
                 if actor == other:
                     continue
+                if other in actor.getChildren():
+                    continue
                 if actor.intersects(other):
                     result.append(other)
         return result
@@ -66,7 +91,7 @@ class GameMap:
     def spawnActor(self, actor: Actor, layer: str) -> None:
         if layer not in self._actors:
             self._actors[layer] = []
-        actor.setScene(self)
+        actor.setMap(self)
         self._actors[layer].append(actor)
         actor.onCreate()
         children = actor.getChildren()
@@ -86,7 +111,7 @@ class GameMap:
             q = deque(actorList)
             while q:
                 child = q.popleft()
-                child.setScene(self)
+                child.setMap(self)
                 self._wholeActorList[layerName].append(child)
                 if child.getChildren():
                     q.extend(child.getChildren())
@@ -108,14 +133,14 @@ class GameMap:
         for actorList in self._actors.values():
             for actor in actorList:
                 actor.update(deltaTime)
-                if actor.isActive() and actor.getTickable():
+                if actor.getTickable():
                     actor.onTick(deltaTime)
         self._particleSystem.onTick(deltaTime)
 
     def onLateTick(self, deltaTime: float) -> None:
         for actorList in self._actors.values():
             for actor in actorList:
-                if actor.isActive() and actor.getTickable():
+                if actor.getTickable():
                     actor.onLateTick(deltaTime)
         self._particleSystem.onLateTick(deltaTime)
 

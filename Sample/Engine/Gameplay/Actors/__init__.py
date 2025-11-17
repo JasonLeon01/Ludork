@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from .. import Sprite, Texture, IntRect, Vector2i, Vector2f, Angle, degrees, GetCellSize, Utils
+from .. import Sprite, Texture, IntRect, Vector2i, Vector2u, Vector2f, Angle, degrees, GetCellSize, Utils
 from . import A_Actor
 from . import A_Character
 

@@ -45,7 +45,7 @@ class System:
     _musicVolume: float = 100
     _soundVolume: float = 100
     _voiceVolume: float = 100
-    _scene: SceneBase = None
+    _scenes: List[SceneBase] = None
     _variables: Dict[str, Any] = {}
     _debugMode: bool = False
 
@@ -71,6 +71,7 @@ class System:
         cls._musicVolume = data.getfloat("musicVolume")
         cls._soundVolume = data.getfloat("soundVolume")
         cls._voiceVolume = data.getfloat("voiceVolume")
+        cls._scenes = []
         realSize = Vector2u(
             int(cls._gameSize.x * cls._scale),
             int(cls._gameSize.y * cls._scale),
@@ -102,7 +103,7 @@ class System:
 
     @classmethod
     def shouldLoop(cls) -> bool:
-        return cls._window.isOpen() and GetGameRunning() and cls._scene is not None
+        return cls._window.isOpen() and GetGameRunning() and len(cls._scenes) > 0
 
     @classmethod
     def getWindow(cls) -> RenderWindow:
@@ -237,11 +238,27 @@ class System:
 
     @classmethod
     def getScene(cls) -> SceneBase:
-        return cls._scene
+        return cls._scenes[-1]
+
+    @classmethod
+    def getSceneList(cls) -> List[SceneBase]:
+        return cls._scenes
 
     @classmethod
     def setScene(cls, scene: SceneBase) -> None:
-        cls._scene = scene
+        if len(cls._scenes) == 0:
+            cls._scenes.append(scene)
+        else:
+            cls._scenes[-1] = scene
+
+    @classmethod
+    def pushScene(cls, scene: SceneBase) -> None:
+        cls._scenes.append(scene)
+
+    @classmethod
+    def popScene(cls) -> None:
+        assert len(cls._scenes) > 0
+        cls._scenes.pop()
 
     @classmethod
     def getVariable(cls, name: str) -> Any:

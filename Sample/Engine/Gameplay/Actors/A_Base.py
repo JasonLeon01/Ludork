@@ -1,14 +1,13 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-import copy
 import warnings
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
-from . import Sprite, IntRect, Vector2i, Vector2f, Angle, degrees, GetCellSize, Utils
+from . import Sprite, IntRect, Vector2i, Vector2u, Vector2f, Angle, degrees, GetCellSize, Utils
 
 if TYPE_CHECKING:
-    from Engine import Texture, Time
-    from Engine.Gameplay.Scenes import Base
+    from Engine import Texture
+    from Engine.Gameplay import GameMap
 
 
 class ActorBase(Sprite):
@@ -40,7 +39,7 @@ class ActorBase(Sprite):
         self.switchInterval: float = 0.4
         self.tag: str = tag
 
-        self._scene: Base = None
+        self._map: GameMap = None
         self._parent: Optional[ActorBase] = None
         self._children: List[ActorBase] = []
         self._visible: bool = True
@@ -51,18 +50,8 @@ class ActorBase(Sprite):
         self._relativePosition: Vector2f = Vector2f(0, 0)
         self._relativeRotation: Angle = degrees(0)
         self._relativeScale: Vector2f = Vector2f(1, 1)
-        self._moveSet: List[Tuple[Vector2f, Time]] = []
-        self._velocity: Optional[Vector2f] = None
-        self._departure: Optional[Vector2f] = None
-        self._destination: Optional[Vector2f] = None
 
     def update(self, deltaTime: float) -> None:
-        if self._moveSet:
-            if self._velocity is None:
-                self._departure = self.getPosition()
-                self._destination, time = self._moveSet[0]
-                self._velocity = (self._destination - self._departure) / time.asSeconds()
-        self._autoMove(deltaTime)
         if self._animatable:
             self._animate(deltaTime)
 
@@ -75,6 +64,24 @@ class ActorBase(Sprite):
 
     def v_getRelativePosition(self) -> Tuple[float, float]:
         return (self._relativePosition.x, self._relativePosition.y)
+
+    def getMapPosition(self) -> Vector2i:
+        return Vector2i(
+            int(self.getPosition().x / GetCellSize()),
+            int(self.getPosition().y / GetCellSize()),
+        )
+
+    def v_getMapPosition(self) -> Tuple[int, int]:
+        return (self.getMapPosition().x, self.getMapPosition().y)
+
+    def getRelativeMapPosition(self) -> Vector2i:
+        return Vector2i(
+            int(self.getRelativePosition().x / GetCellSize()),
+            int(self.getRelativePosition().y / GetCellSize()),
+        )
+
+    def v_getRelativeMapPosition(self) -> Tuple[int, int]:
+        return (self.getRelativeMapPosition().x, self.getRelativeMapPosition().y)
 
     def setPosition(self, position: Union[Vector2f, Tuple[float, float]]) -> None:
         assert isinstance(position, (Vector2f, tuple)), "position must be a tuple or Vector2f"
@@ -91,18 +98,6 @@ class ActorBase(Sprite):
             for child in self.getChildren():
                 child._updatePositionFromParent()
 
-    def move(self, offset: Union[Vector2f, Tuple[float, float]]) -> bool:
-        assert isinstance(offset, (Vector2f, tuple)), "offset must be a tuple or Vector2f"
-        if not isinstance(offset, Vector2f):
-            x, y = offset
-            offset = Vector2f(x, y)
-        super().move(offset)
-        self._relativePosition += offset
-        if self.getChildren():
-            for child in self.getChildren():
-                child._updatePositionFromParent()
-        return True
-
     def setRelativePosition(self, position: Union[Vector2f, Tuple[float, float]]) -> None:
         assert isinstance(position, (Vector2f, tuple)), "position must be a tuple or Vector2f"
         if not isinstance(position, Vector2f):
@@ -112,6 +107,31 @@ class ActorBase(Sprite):
         if self.getParent():
             parentPosition = self.getParent().getPosition()
         self.setPosition(parentPosition + position)
+
+    def setMapPosition(self, position: Union[Vector2u, Tuple[int, int]]) -> None:
+        assert isinstance(position, (Vector2u, tuple)), "position must be a tuple or Vector2u"
+        if not isinstance(position, Vector2u):
+            x, y = position
+            position = Vector2u(x, y)
+        self.setPosition(Vector2f(position.x * GetCellSize(), position.y * GetCellSize()))
+
+    def setRelativeMapPosition(self, position: Union[Vector2u, Tuple[int, int]]) -> None:
+        assert isinstance(position, (Vector2u, tuple)), "position must be a tuple or Vector2u"
+        if not isinstance(position, Vector2u):
+            x, y = position
+            position = Vector2u(x, y)
+        self.setRelativePosition(Vector2f(position.x * GetCellSize(), position.y * GetCellSize()))
+
+    def move(self, offset: Union[Vector2f, Tuple[float, float]]) -> None:
+        assert isinstance(offset, (Vector2f, tuple)), "offset must be a tuple or Vector2f"
+        if not isinstance(offset, Vector2f):
+            x, y = offset
+            offset = Vector2f(x, y)
+        super().move(offset)
+        self._relativePosition += offset
+        if self.getChildren():
+            for child in self.getChildren():
+                child._updatePositionFromParent()
 
     def v_getRotation(self) -> float:
         result = super().getRotation()
@@ -219,11 +239,11 @@ class ActorBase(Sprite):
         origin = Vector2f(size.x * x, size.y * y)
         self.setOrigin(origin)
 
-    def getScene(self) -> Base:
-        return self._scene
+    def getMap(self) -> GameMap:
+        return self._map
 
-    def setScene(self, scene: Base) -> None:
-        self._scene = scene
+    def setMap(self, inMap: GameMap) -> None:
+        self._map = inMap
 
     def getParent(self) -> Optional[ActorBase]:
         return self._parent
@@ -240,9 +260,9 @@ class ActorBase(Sprite):
             return
         self._children.append(child)
         child.setParent(self)
-        if self._scene:
-            child.setScene(self._scene)
-            self._scene.updateActorList()
+        if self._map:
+            child.setMap(self._map)
+            self._map.updateActorList()
 
     def removeChild(self, child: ActorBase) -> None:
         if child not in self._children:
@@ -285,18 +305,6 @@ class ActorBase(Sprite):
             targetTexture = texture[0]
         self.setSpriteTexture(targetTexture, resetRect)
 
-    def getMoveSet(self) -> List[Tuple[Vector2f, Time]]:
-        return copy.copy(self._moveSet)
-
-    def setMoveSet(self, moveSet: List[Tuple[Vector2f, Time]]) -> None:
-        self._moveSet = moveSet
-
-    def isMoving(self) -> bool:
-        return len(self._moveSet) > 0
-
-    def getVelocity(self) -> Optional[Vector2f]:
-        return self._velocity
-
     def _superMove(self, offset: Union[Vector2f, Tuple[float, float]]) -> None:
         assert isinstance(offset, (Vector2f, tuple)), "offset must be a tuple or Vector2f"
         if not isinstance(offset, Vector2f):
@@ -330,30 +338,6 @@ class ActorBase(Sprite):
             if self.getChildren():
                 for child in self.getChildren():
                     child._updateScaleFromParent()
-
-    def _autoMove(self, deltaTime: float) -> None:
-        if not self._velocity is None:
-            if not self.move(self._velocity * deltaTime):
-                self._moveSet.clear()
-                self._departure = None
-                self._destination = None
-                self._velocity = None
-                warnings.warn("ActorBase.move() failed, moveSet cleared")
-            elif not self._destination is None:
-                if Utils.Math.HasReachedDestination(self._departure, self._destination, self.getPosition()):
-                    self._moveSet.pop(0)
-                    self.setPosition(self._destination)
-                    self._departure = None
-                    self._destination = None
-                    self._velocity = None
-                else:
-                    return
-            else:
-                return
-            intBasedPosition = Utils.Math.Vector2fRound(self.getPosition())
-            cellBasedX = int(intBasedPosition.x / GetCellSize()) * GetCellSize()
-            cellBasedY = int(intBasedPosition.y / GetCellSize()) * GetCellSize()
-            self.setPosition(Vector2f(cellBasedX, cellBasedY))
 
     def _animate(self, deltaTime: float) -> None:
         if isinstance(self._texture, list):

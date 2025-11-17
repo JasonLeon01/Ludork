@@ -6,6 +6,7 @@ from .. import (
     IntRect,
     FloatRect,
     Vector2i,
+    Vector2u,
     Vector2f,
     View,
     Angle,
@@ -39,6 +40,7 @@ ParticleInfo = G_ParticleSystem.ParticleInfo
 Particle = G_ParticleSystem.Particle
 ParticleSystem = G_ParticleSystem.ParticleSystem
 Camera = G_Camera.Camera
+Tile = G_TileMap.Tile
 TileLayer = G_TileMap.TileLayer
 Tilemap = G_TileMap.Tilemap
 GameMap = G_GameMap.GameMap

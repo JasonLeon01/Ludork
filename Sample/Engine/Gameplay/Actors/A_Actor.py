@@ -3,7 +3,7 @@
 from __future__ import annotations
 from . import A_Base
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
-from . import Vector2f
+from . import Vector2f, Vector2i, GetCellSize
 
 if TYPE_CHECKING:
     from Engine import Texture, IntRect
@@ -18,11 +18,18 @@ class Actor(ActorBase):
         rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]] = None,
         tag: str = "",
     ) -> None:
-
         super().__init__(texture, rect, tag)
         self._collisionEnabled: bool = False
-        self._active: bool = True
         self._tickable: bool = False
+        self._speed: float = 48.0
+        self._isMoving: bool = False
+        self._departure: Optional[Vector2f] = None
+        self._destination: Optional[Vector2f] = None
+
+    def update(self, deltaTime: float) -> None:
+        if self._isMoving:
+            self._processMoving(deltaTime)
+        super().update(deltaTime)
 
     def onCreate(self) -> None:
         pass
@@ -39,40 +46,40 @@ class Actor(ActorBase):
     def onCollision(self, other: List[Actor]) -> None:
         pass
 
-    def onOverlapStart(self, other: List[Actor]) -> None:
+    def onOverlap(self, other: List[Actor]) -> None:
         pass
-
-    def onOverlapEnd(self, other: List[Actor]) -> None:
-        pass
-
-    def isActive(self) -> bool:
-        return self._active
 
     def destroy(self) -> None:
-        self._active = False
-        self._scene.destroyActor(self)
+        self._map.destroyActor(self)
 
-    def move(self, offset: Union[Vector2f, Tuple[float, float]]) -> bool:
-        assert isinstance(offset, (Vector2f, tuple)), "offset must be a tuple or Vector2f"
-        if not isinstance(offset, Vector2f):
+    def MapMove(self, offset: Union[Vector2i, Tuple[int, int]]) -> None:
+        assert isinstance(offset, (Vector2i, tuple)), "offset must be a tuple or Vector2i"
+        if not isinstance(offset, Vector2i):
             x, y = offset
-            offset = Vector2f(x, y)
-        self._superMove(offset)
-        collideActors = self._scene.getCollision(self)
-        if collideActors:
-            self._superMove(-offset)
-            if self.getParent():
-                parentPosition = self.getParent().getPosition()
-                self._relativePosition = self.getPosition() - parentPosition
-            self.onCollision(collideActors)
-            for actor in collideActors:
-                actor.onCollision([self])
-            return False
-        self._relativePosition += offset
-        if self.getChildren():
-            for child in self.getChildren():
-                child._updatePositionFromParent()
-        return True
+            offset = Vector2i(x, y)
+        x = offset.x
+        y = offset.y
+        sx = 1 if x > 0 else (-1 if x < 0 else 0)
+        sy = 1 if y > 0 else (-1 if y < 0 else 0)
+        offset = Vector2i(sx, sy)
+        if offset == Vector2i(0, 0):
+            return
+        if self._isMoving:
+            return
+        target = self.getMapPosition() + offset
+        if not self._map.isPassable(self, target):
+            collisions = self._map.getCollision(self, target)
+            if collisions:
+                self.onCollision(collisions)
+                for collision in collisions:
+                    collision.onCollision([self])
+            return
+        self._isMoving = True
+        self._departure = self.getPosition()
+        self._destination = Vector2f(
+            self.getPosition().x + offset.x * GetCellSize(),
+            self.getPosition().y + offset.y * GetCellSize(),
+        )
 
     def getTickable(self) -> bool:
         return self._tickable
@@ -103,3 +110,35 @@ class Actor(ActorBase):
 
     def intersects(self, other: Actor) -> bool:
         return self.getGlobalBounds().findIntersection(other.getGlobalBounds()) != None
+
+    def isMoving(self) -> bool:
+        return self._isMoving
+
+    def getVelocity(self) -> Optional[Vector2f]:
+        if self._departure is None or self._destination is None:
+            return None
+
+        dist = self._destination - self._departure
+        length = dist.length()
+        time = length / self._speed
+        velocity = dist / time
+        return velocity
+
+    def _processMoving(self, deltaTime: float) -> None:
+        velocity = self.getVelocity()
+        if velocity is None:
+            return
+        offset = velocity * deltaTime
+        self._superMove(offset)
+        if (self._destination.x - self._departure.x) * (self.getPosition().x - self._destination.x) >= 0 or (
+            self._destination.y - self._departure.y
+        ) * (self.getPosition().y - self._destination.y) >= 0:
+            self.setPosition(Vector2f(self._destination.x, self._destination.y))
+            self._isMoving = False
+            self._departure = None
+            self._destination = None
+            overlaps = self._map.getOverlaps(self)
+            if overlaps:
+                self.onOverlap(overlaps)
+                for overlap in overlaps:
+                    overlap.onOverlap([self])

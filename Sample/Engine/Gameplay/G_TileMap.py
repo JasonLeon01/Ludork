@@ -1,20 +1,26 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from dataclasses import field
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, TYPE_CHECKING
 from . import Drawable, Transformable, VertexArray, Manager, PrimitiveType, Vector2f
 
 if TYPE_CHECKING:
-    from Engine import RenderTarget, RenderStates
+    from Engine import RenderTarget, RenderStates, Vector2u
+
+
+@dataclass
+class Tile:
+    id: int
+    passible: bool = True
 
 
 class TileLayer(Drawable, Transformable):
     def __init__(
         self,
-        name: str = "",
-        filePath: str = "",
-        tiles: List[List[int]] = field(default_factory=list),
+        name: str,
+        filePath: str,
+        tiles: List[List[Optional[Tile]]],
         visible: bool = True,
     ) -> None:
         self.name = name
@@ -29,8 +35,21 @@ class TileLayer(Drawable, Transformable):
         Transformable.__init__(self)
         self._init()
 
-    def getTiles(self) -> List[List[int]]:
+    def getTiles(self) -> List[List[Optional[Tile]]]:
         return self._tiles
+
+    def get(self, position: Vector2i) -> Optional[Tile]:
+        if position.x < 0 or position.y < 0 or position.x >= self._width or position.y >= self._height:
+            return None
+        return self._tiles[position.y][position.x]
+
+    def isPassable(self, position: Vector2i) -> bool:
+        if position.x < 0 or position.y < 0 or position.x >= self._width or position.y >= self._height:
+            return False
+        tile = self._tiles[position.y][position.x]
+        if tile is None:
+            return False
+        return tile.passible
 
     def draw(self, target: RenderTarget, states: RenderStates) -> None:
         if not self.visible:
@@ -52,8 +71,10 @@ class TileLayer(Drawable, Transformable):
                 if tile is None:
                     continue
 
-                tu = tile % columns
-                tv = tile // columns
+                tileNumber = tile.id
+
+                tu = tileNumber % columns
+                tv = tileNumber // columns
                 start = (x + y * self._width) * 6
 
                 self._vertexArray[start + 0].position = Vector2f(x * tileSize, y * tileSize)
@@ -78,8 +99,8 @@ class Tilemap:
             self._layers[layer.name] = layer
 
     def getLayer(self, name: str) -> Optional[TileLayer]:
-        for layer in self._layers:
-            if layer.name == name:
+        for layerName, layer in self._layers.items():
+            if layerName == name:
                 return layer
         return None
 

@@ -73,7 +73,7 @@ class SceneBase:
     def main(self) -> None:
         from Engine import System, Input
 
-        while System.isActive():
+        while System.isActive() and System.getScene() == self:
             Input.update(System.getWindow())
             Manager.TimeManager.update()
             deltaTime = Manager.TimeManager.v_getDeltaTime()
