@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 from collections import deque
+from dataclasses import dataclass
 from typing import Dict, List, Optional, TYPE_CHECKING
-from . import Vector2i, G_ParticleSystem, G_Camera, G_TileMap
+from . import Vector2i, Vector2f, Color, G_ParticleSystem, G_Camera, G_TileMap
 
 if TYPE_CHECKING:
     from Engine.Gameplay.Actors import Actor
@@ -13,6 +14,14 @@ Camera = G_Camera.Camera
 Tile = G_TileMap.Tile
 TileLayer = G_TileMap.TileLayer
 Tilemap = G_TileMap.Tilemap
+
+
+@dataclass
+class Light:
+    position: Vector2f
+    color: Color
+    radius: float = 256.0
+    intensity: float = 1.0
 
 
 class GameMap:
@@ -25,6 +34,8 @@ class GameMap:
         self._camera = camera
         if self._camera is None:
             self._camera = Camera()
+        self._lights: List[Light] = []
+        self._ambientLight: Color = Color(255, 255, 255, 255)
 
     def getAllActors(self) -> List[Actor]:
         actors = []
@@ -150,6 +161,18 @@ class GameMap:
             for x in range(width):
                 lightMap[-1].append(getLightThrough(layerKeys, Vector2i(x, y)))
         return lightMap
+
+    def getLights(self) -> List[Light]:
+        return self._lights
+
+    def setLights(self, lights: List[Light]) -> None:
+        self._lights = lights
+
+    def getAmbientLight(self) -> Color:
+        return self._ambientLight
+
+    def setAmbientLight(self, ambientLight: Color) -> None:
+        self._ambientLight = ambientLight
 
     def onTick(self, deltaTime: float) -> None:
         if len(self._actorsOnDestroy) > 0:

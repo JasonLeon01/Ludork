@@ -27,6 +27,9 @@ from .. import (
     Font,
     ContextSettings,
     RenderTarget,
+    Shader,
+    Vector3f,
+    Image,
 )
 from . import Actors
 from . import G_ParticleSystem
@@ -43,5 +46,6 @@ Camera = G_Camera.Camera
 Tile = G_TileMap.Tile
 TileLayer = G_TileMap.TileLayer
 Tilemap = G_TileMap.Tilemap
+Light = G_GameMap.Light
 GameMap = G_GameMap.GameMap
 SceneBase = G_SceneBase.SceneBase
