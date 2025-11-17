@@ -30,7 +30,6 @@ class System:
         WindowColor: Color
 
     _window: RenderWindow = None
-    _canvas: RenderTexture = None
     _title: str = None
     _fonts: List[Font] = []
     _gameSize: Vector2u = None
@@ -90,8 +89,6 @@ class System:
                 Style.Titlebar | Style.Close,
                 settings=ContextSettings(antiAliasingLevel=8),
             )
-        cls._canvas = RenderTexture(cls._window.getSize())
-        cls._canvasSprite = Sprite(cls._canvas.getTexture())
         cls._window.setIcon(cls._icon)
         cls._window.setFramerateLimit(cls._frameRate)
         cls._window.setVerticalSyncEnabled(cls._verticalSync)
@@ -116,27 +113,23 @@ class System:
         return cls._fonts
 
     @classmethod
-    def getCanvas(cls) -> RenderTexture:
-        return cls._canvas
-
-    @classmethod
     def clearCanvas(cls) -> None:
         cls._window.clear(Color.Transparent)
-        cls._canvas.clear(Color.Transparent)
-        cls._canvas.setView(View(Math.ToVector2f(cls._gameSize / 2), Math.ToVector2f(cls._gameSize)))
 
     @classmethod
-    def drawObjectOnCanvas(cls, drawable: Drawable) -> None:
-        cls._canvas.draw(drawable, Render.CanvasRenderStates())
+    def setWindowMapView(cls) -> None:
+        cls._window.setView(View(Math.ToVector2f(cls._gameSize / 2), Math.ToVector2f(cls._gameSize)))
 
     @classmethod
-    def EndBasicDraw(cls) -> None:
-        cls._canvas.setView(cls._canvas.getDefaultView())
+    def setWindowDefaultView(cls) -> None:
+        cls._window.setView(cls._window.getDefaultView())
+
+    @classmethod
+    def draw(cls, drawable: Drawable) -> None:
+        cls._window.draw(drawable, Render.CanvasRenderStates())
 
     @classmethod
     def display(cls) -> None:
-        cls._canvas.display()
-        cls._window.draw(cls._canvasSprite)
         cls._window.display()
 
     @classmethod

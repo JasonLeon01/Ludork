@@ -4,7 +4,7 @@ import Engine.Manager as Manager
 from Engine import Vector2f, seconds
 from Engine.Gameplay import SceneBase
 from Engine.Gameplay.Actors import Character
-from Engine.Gameplay import TileLayer, Tilemap
+from Engine.Gameplay import TileLayer, Tilemap, GameMap
 
 
 class Scene(SceneBase):
@@ -37,11 +37,22 @@ class Scene(SceneBase):
                 [82, 11, 65, 86, 48, 22, 83, 40, 43, 80, 55, 60, 30, 24, 77, 58, 41, 5, 22, 75],
             ],
         )
-        self._tilemap = Tilemap([layer])
 
         self.actors[0].setPosition((96, 160))
         self.actors[0].setMoveSet([(Vector2f(384, 160), seconds(10)), (Vector2f(96, 160), seconds(10))])
         self.actors[0].addChild(self.actors[1])
         self.actors[1].animateWithoutMoving = True
         self.actors[1].setRelativePosition((64, -64))
-        self.spawnActor(self.actors[0], "default")
+
+        self._gameMap = GameMap(Tilemap([layer]))
+
+        self._gameMap.spawnActor(self.actors[0], "default")
+
+    def _logicHandle(self, deltaTime: float) -> None:
+        self._gameMap.onTick(deltaTime)
+        super()._logicHandle(deltaTime)
+        self._gameMap.onLateTick(deltaTime)
+
+    def _renderHandle(self, deltaTime: float) -> None:
+        self._gameMap.show()
+        super()._renderHandle(deltaTime)

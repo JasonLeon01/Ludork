@@ -1,12 +1,12 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import field
 from typing import Dict, List, Optional, TYPE_CHECKING
 from . import Drawable, Transformable, VertexArray, Manager, PrimitiveType, Vector2f
 
 if TYPE_CHECKING:
-    from Engine import Texture, RenderTarget, RenderStates
+    from Engine import RenderTarget, RenderStates
 
 
 class TileLayer(Drawable, Transformable):
@@ -33,17 +33,12 @@ class TileLayer(Drawable, Transformable):
         return self._tiles
 
     def draw(self, target: RenderTarget, states: RenderStates) -> None:
-        states.transform *= self.getTransform()
-        texture = states.texture
-
         if not self.visible:
             return
 
+        states.transform *= self.getTransform()
         states.texture = self._texture
         target.draw(self._vertexArray, states)
-
-        states.texture = texture
-        states.transform *= self.getTransform().getInverse()
 
     def _init(self) -> None:
         from Engine import GetCellSize

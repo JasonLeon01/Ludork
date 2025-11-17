@@ -31,6 +31,7 @@ from . import Actors
 from . import G_ParticleSystem
 from . import G_Camera
 from . import G_TileMap
+from . import G_GameMap
 from . import G_SceneBase
 
 
@@ -40,4 +41,5 @@ ParticleSystem = G_ParticleSystem.ParticleSystem
 Camera = G_Camera.Camera
 TileLayer = G_TileMap.TileLayer
 Tilemap = G_TileMap.Tilemap
+GameMap = G_GameMap.GameMap
 SceneBase = G_SceneBase.SceneBase
