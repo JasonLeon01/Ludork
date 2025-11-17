@@ -15,11 +15,7 @@ from . import (
     Angle,
     degrees,
 )
-from ..Utils import U_Math, U_Render
-
-ToVector2f = U_Math.ToVector2f
-ToVector2u = U_Math.ToVector2u
-CanvasRenderStates = U_Render.CanvasRenderStates
+from ..Utils import Math, Render
 
 
 class Camera(Drawable):
@@ -29,13 +25,13 @@ class Camera(Drawable):
         if self._viewport is None:
             from Engine import System
 
-            self._viewport = FloatRect(Vector2f(0, 0), ToVector2f(System.getGameSize()))
+            self._viewport = FloatRect(Vector2f(0, 0), Math.ToVector2f(System.getGameSize()))
         self._renderTexture: RenderTexture
         assert isinstance(self._viewport, FloatRect)
-        self._renderTexture = RenderTexture(ToVector2u(self._viewport.size))
+        self._renderTexture = RenderTexture(Math.ToVector2u(self._viewport.size))
         self._renderTexture.setView(View(self._viewport))
         self._renderSprite = Sprite(self._renderTexture.getTexture())
-        self._renderStates = CanvasRenderStates()
+        self._renderStates = Render.CanvasRenderStates()
 
     def getViewport(self) -> FloatRect:
         return self._viewport
@@ -118,11 +114,13 @@ class Camera(Drawable):
     def mapCoordsToPixel(self, point):
         return self._renderTexture.mapCoordsToPixel(point, self._renderTexture.getView())
 
+    def getTexture(self) -> Texture:
+        return self._renderTexture.getTexture()
+
     def getImage(self) -> Image:
         return self._renderTexture.getTexture().copyToImage()
 
     def draw(self, target: RenderTarget, states: RenderStates = RenderStates()) -> None:
-        self._renderTexture.display()
         target.draw(self._renderSprite, states)
 
     def clear(self) -> None:
@@ -130,6 +128,9 @@ class Camera(Drawable):
 
     def render(self, object: Drawable) -> None:
         self._renderTexture.draw(object, self._renderStates)
+
+    def display(self):
+        self._renderTexture.display()
 
     def _refreshView(self) -> None:
         self._renderTexture.setView(View(self._viewport))

@@ -4,13 +4,10 @@ from __future__ import annotations
 import os
 from typing import List, TYPE_CHECKING
 from . import Manager
-from ..Utils import U_Event, U_Math
+from ..Utils import Event, Math
 
 if TYPE_CHECKING:
     from Engine.UI import Canvas
-
-Event = U_Event
-Math = U_Math
 
 
 class SceneBase:

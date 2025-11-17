@@ -4,7 +4,19 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
 from typing import Dict, List, Optional, TYPE_CHECKING
-from . import Vector2i, Vector2f, Color, G_ParticleSystem, G_Camera, G_TileMap
+from . import (
+    Vector2i,
+    Vector2f,
+    Vector2u,
+    Vector3f,
+    Color,
+    Shader,
+    Texture,
+    Image,
+    G_ParticleSystem,
+    G_Camera,
+    G_TileMap,
+)
 
 if TYPE_CHECKING:
     from Engine.Gameplay.Actors import Actor
@@ -26,6 +38,8 @@ class Light:
 
 class GameMap:
     def __init__(self, tilemap: Tilemap, camera: Optional[Camera] = None) -> None:
+        from Engine import System
+
         self._tilemap = tilemap
         self._actors: Dict[str, List[Actor]] = {}
         self._particleSystem: ParticleSystem = ParticleSystem()
@@ -34,6 +48,9 @@ class GameMap:
         self._camera = camera
         if self._camera is None:
             self._camera = Camera()
+        self._lightShader: Optional[Shader] = None
+        if self._lightShader is None:
+            self._lightShader = Shader(System.getLightShaderPath(), Shader.Type.Fragment)
         self._lights: List[Light] = []
         self._ambientLight: Color = Color(255, 255, 255, 255)
 
@@ -206,6 +223,37 @@ class GameMap:
             if layerName in self._actors:
                 for actor in self._actors[layerName]:
                     self._camera.render(actor)
-        self._camera.render(self._particleSystem)
-        System.draw(self._camera)
+        self._camera.display()
+        self._refreshShader()
+        System.draw(self._camera, self._lightShader)
+        System.draw(self._particleSystem)
         System.setWindowDefaultView()
+
+    def _refreshShader(self) -> None:
+        if self._lightShader is None:
+            return
+        shader = self._lightShader
+        shader.setUniform("tilemapTex", self._camera.getTexture())
+        shader.setUniform("passabilityTex", self._getPassabilityTexture())
+        shader.setUniform("lightCount", len(self._lights))
+        for i in range(len(self._lights)):
+            light = self._lights[i]
+            c = light.color
+            shader.setUniform(f"lightPos[{i}]", light.position)
+            shader.setUniform(f"lightColor[{i}]", Vector3f(c.r / 255.0, c.g / 255.0, c.b / 255.0))
+            shader.setUniform(f"lightRadius[{i}]", light.radius)
+            shader.setUniform(f"lightIntensity[{i}]", light.intensity)
+        shader.setUniform(
+            "ambientColor",
+            Vector3f(self._ambientLight.r / 255.0, self._ambientLight.g / 255.0, self._ambientLight.b / 255.0),
+        )
+
+    def _getPassabilityTexture(self) -> Texture:
+        size = self._tilemap.getSize()
+        img = Image(size)
+        lightMap = self.getLightMap()
+        for y in range(size.y):
+            for x in range(size.x):
+                g = int(lightMap[y][x] * 255)
+                img.setPixel(Vector2u(x, y), Color(g, g, g))
+        return Texture(img)

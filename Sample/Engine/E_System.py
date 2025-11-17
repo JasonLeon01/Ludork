@@ -1,10 +1,11 @@
 # -*- encoding: utf-8 -*-
 
+from __future__ import annotations
 import configparser
 import os
-import Engine.Manager as Manager
-from typing import Any, Dict, List, Optional
-from Engine import (
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from . import (
+    Manager,
     Color,
     RenderWindow,
     RenderTexture,
@@ -20,8 +21,11 @@ from Engine import (
     Style,
     ContextSettings,
 )
-from Engine.Gameplay import SceneBase
-from Engine.Utils import Math, File, Render
+from .Gameplay import SceneBase
+from .Utils import Math, File, Render
+
+if TYPE_CHECKING:
+    from Engine import Shader
 
 
 class System:
@@ -45,6 +49,7 @@ class System:
     _musicVolume: float = 100
     _soundVolume: float = 100
     _voiceVolume: float = 100
+    _lightShaderPath: str = None
     _scenes: List[SceneBase] = None
     _variables: Dict[str, Any] = {}
     _debugMode: bool = False
@@ -71,6 +76,7 @@ class System:
         cls._musicVolume = data.getfloat("musicVolume")
         cls._soundVolume = data.getfloat("soundVolume")
         cls._voiceVolume = data.getfloat("voiceVolume")
+        cls._lightShaderPath = systemData["lightShaderPath"]
         cls._scenes = []
         realSize = Vector2u(
             int(cls._gameSize.x * cls._scale),
@@ -126,8 +132,11 @@ class System:
         cls._window.setView(cls._window.getDefaultView())
 
     @classmethod
-    def draw(cls, drawable: Drawable) -> None:
-        cls._window.draw(drawable, Render.CanvasRenderStates())
+    def draw(cls, drawable: Drawable, shader: Optional[Shader] = None) -> None:
+        states = Render.CanvasRenderStates()
+        if shader:
+            states.shader = shader
+        cls._window.draw(drawable, states)
 
     @classmethod
     def display(cls) -> None:
@@ -235,6 +244,10 @@ class System:
     def setVoiceVolume(cls, voiceVolume: float) -> None:
         cls._voiceVolume = voiceVolume
         pass
+
+    @classmethod
+    def getLightShaderPath(cls) -> str:
+        return cls._lightShaderPath
 
     @classmethod
     def getScene(cls) -> SceneBase:

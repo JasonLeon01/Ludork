@@ -16,5 +16,6 @@
         255,
         192
     ],
-    "cellSize": 32
+    "cellSize": 32,
+    "lightShaderPath": "./Assets/Shaders/Light.frag"
 }
