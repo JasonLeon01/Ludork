@@ -16,6 +16,7 @@ from . import (
     G_ParticleSystem,
     G_Camera,
     G_TileMap,
+    GetCellSize,
 )
 
 if TYPE_CHECKING:
@@ -150,22 +151,22 @@ class GameMap:
         self._camera = camera
 
     def getLightMap(self) -> List[List[float]]:
-        def getLightThrough(inLayerKeys: List[str], pos: Vector2i):
+        def getLightBlock(inLayerKeys: List[str], pos: Vector2i):
             for layerName in inLayerKeys:
                 tile = self._tilemap.getLayer(layerName).get(pos)
                 if layerName in self._actors:
                     for actor in self._actors[layerName]:
                         if actor.getMapPosition() == pos:
-                            if not actor.getCollisionEnabled():
-                                return actor.getLightThrough()
+                            if actor.getCollisionEnabled():
+                                return actor.getLightBlock()
                             else:
-                                return 1.0
+                                return 0
                 if tile is not None:
                     if tile.passible:
-                        return 1.0
+                        return 0
                     else:
-                        return tile.lightThrough
-            return 1.0
+                        return tile.lightBlock
+            return 0
 
         layerKeys = list(self._tilemap.getAllLayers().keys())
         layerKeys.reverse()
@@ -176,7 +177,7 @@ class GameMap:
         for y in range(height):
             lightMap.append([])
             for x in range(width):
-                lightMap[-1].append(getLightThrough(layerKeys, Vector2i(x, y)))
+                lightMap[-1].append(getLightBlock(layerKeys, Vector2i(x, y)))
         return lightMap
 
     def getLights(self) -> List[Light]:
@@ -232,10 +233,16 @@ class GameMap:
     def _refreshShader(self) -> None:
         if self._lightShader is None:
             return
+
+        from Engine import System
+
         shader = self._lightShader
         shader.setUniform("tilemapTex", self._camera.getTexture())
-        shader.setUniform("passabilityTex", self._getPassabilityTexture())
+        self._passabilityTex = self._getPassabilityTexture()
+        shader.setUniform("passabilityTex", self._passabilityTex)
+        shader.setUniform("screenScale", System.getScale())
         shader.setUniform("lightCount", len(self._lights))
+        shader.setUniform("cellSize", GetCellSize())
         for i in range(len(self._lights)):
             light = self._lights[i]
             c = light.color
@@ -256,4 +263,6 @@ class GameMap:
             for x in range(size.x):
                 g = int(lightMap[y][x] * 255)
                 img.setPixel(Vector2u(x, y), Color(g, g, g))
-        return Texture(img)
+        texture = Texture(img)
+        texture.setSmooth(False)
+        return texture

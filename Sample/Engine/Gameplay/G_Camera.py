@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Optional, Union
+from typing import Optional, Union, TYPE_CHECKING
 from . import (
     Drawable,
     RenderTexture,
@@ -16,6 +16,9 @@ from . import (
     degrees,
 )
 from ..Utils import Math, Render
+
+if TYPE_CHECKING:
+    from Engine import Texture, Image
 
 
 class Camera(Drawable):
