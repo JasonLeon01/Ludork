@@ -238,12 +238,14 @@ class GameMap:
             return
 
         from Engine import System
+        from Engine.Utils import Math
 
         shader = self._lightShader
         shader.setUniform("tilemapTex", self._camera.getTexture())
         self._passabilityTex = self._getPassabilityTexture()
         shader.setUniform("passabilityTex", self._passabilityTex)
         shader.setUniform("screenScale", System.getScale())
+        shader.setUniform("screenSize", Math.ToVector2f(System.getGameSize()))
         shader.setUniform("lightCount", len(self._lights))
         shader.setUniform("cellSize", GetCellSize())
         for i in range(len(self._lights)):
@@ -268,6 +270,7 @@ class GameMap:
                 g = int(lightMap[y][x] * 255)
                 img.setPixel(Vector2u(x, y), Color(g, g, g))
 
+        img.flipVertically()
         texture = Texture(img)
         texture.setSmooth(True)
         return texture
