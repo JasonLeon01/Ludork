@@ -46,7 +46,7 @@ class Character(Actor):
                 if abs(vx) > abs(vy):
                     self.direction = 2 if vx > 0 else 1
                 else:
-                    self.direction = 3 if vy > 0 else 0
+                    self.direction = 0 if vy > 0 else 3
             self._sy = self.direction * self._rectSize.y
         super().update(deltaTime)
 

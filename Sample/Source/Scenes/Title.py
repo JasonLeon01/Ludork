@@ -365,6 +365,25 @@ class Scene(SceneBase):
 
         self._gameMap.spawnActor(self.actors[0], "default")
 
+    def onTick(self, deltaTime: float) -> None:
+        if not hasattr(self, "xx"):
+            self.xx = 0
+        if self.xx < 100:
+            self.xx += 1
+            self.actors[0].MapMove((0, -1))
+        elif self.xx < 200:
+            self.xx += 1
+            self.actors[0].MapMove((1, 0))
+        elif self.xx < 300:
+            self.xx += 1
+            self.actors[0].MapMove((0, 1))
+        elif self.xx < 400:
+            self.xx += 1
+            self.actors[0].MapMove((-1, 0))
+        elif self.xx < 500:
+            self.xx = 0
+        return super().onTick(deltaTime)
+
     def _logicHandle(self, deltaTime: float) -> None:
         self._gameMap.onTick(deltaTime)
         super()._logicHandle(deltaTime)
