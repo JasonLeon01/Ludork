@@ -263,39 +263,6 @@ class GameMap:
         img = Image(size)
         lightMap = self.getLightMap()
 
-        cellSize = GetCellSize()
-        width = size.x
-        height = size.y
-        for actor in self.getAllActors():
-            try:
-                if not actor.getCollisionEnabled():
-                    continue
-            except Exception:
-                continue
-            pos = actor.getPosition()
-            gx = pos.x / float(cellSize)
-            gy = pos.y / float(cellSize)
-            ix = int(gx)
-            iy = int(gy)
-            fx = gx - float(ix)
-            fy = gy - float(iy)
-            lb = actor.getLightBlock()
-
-            def add(x: int, y: int, w: float):
-                if x < 0 or y < 0 or x >= width or y >= height:
-                    return
-                v = lightMap[y][x] + lb * w
-                if v < 0:
-                    v = 0.0
-                if v > 1:
-                    v = 1.0
-                lightMap[y][x] = v
-
-            add(ix, iy, (1.0 - fx) * (1.0 - fy))
-            add(ix + 1, iy, fx * (1.0 - fy))
-            add(ix, iy + 1, (1.0 - fx) * fy)
-            add(ix + 1, iy + 1, fx * fy)
-
         for y in range(size.y):
             for x in range(size.x):
                 g = int(lightMap[y][x] * 255)

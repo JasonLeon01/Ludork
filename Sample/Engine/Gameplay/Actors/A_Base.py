@@ -68,8 +68,8 @@ class ActorBase(Sprite):
 
     def getMapPosition(self) -> Vector2i:
         return Vector2i(
-            int(self.getPosition().x / GetCellSize()),
-            int(self.getPosition().y / GetCellSize()),
+            int(self.getPosition().x * 1.0 / GetCellSize() + 0.5),
+            int(self.getPosition().y * 1.0 / GetCellSize() + 0.5),
         )
 
     def v_getMapPosition(self) -> Tuple[int, int]:

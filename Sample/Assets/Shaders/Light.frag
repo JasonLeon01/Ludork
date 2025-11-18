@@ -48,11 +48,12 @@ void main()
     vec3 totalLight = ambientColor;
     for (int i = 0; i < 16; ++i) {
         if (i >= lightCount) break;
-        float dist = length(pixelPos - lightPos[i]);
+        vec2 reallightPos = vec2(lightPos[i].x, tilemapTexSize.y - lightPos[i].y);
+        float dist = length(pixelPos - reallightPos);
         if (dist < lightRadius[i]) {
             float attenuation = 1.0 - dist / lightRadius[i];
             attenuation = clamp(attenuation, 0.0, 1.0);
-            float obsAtten = GetObstructionAttenuation(lightPos[i], pixelPos, passabilityTex, passabilityTexSize);
+            float obsAtten = GetObstructionAttenuation(reallightPos, pixelPos, passabilityTex, passabilityTexSize);
             attenuation *= obsAtten;
             totalLight += lightColor[i] * lightIntensity[i] * attenuation;
         }
