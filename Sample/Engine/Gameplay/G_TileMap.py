@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 class Tile:
     id: int
     passible: bool = True
-    lightThrough: float = 0.5
+    lightThrough: float = 0.3
 
 
 class TileLayer(Drawable, Transformable):
