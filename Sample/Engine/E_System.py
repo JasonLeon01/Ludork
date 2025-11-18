@@ -14,6 +14,7 @@ from . import (
     Font,
     Image,
     Sprite,
+    Shader,
     Drawable,
     VideoMode,
     SetCellSize,
@@ -34,6 +35,9 @@ class System:
         WindowColor: Color
 
     _window: RenderWindow = None
+    _canvas: RenderTexture = None
+    _canvasSprite: Sprite = None
+    _graphicsShader: Optional[Shader] = None
     _title: str = None
     _fonts: List[Font] = []
     _gameSize: Vector2u = None
@@ -50,6 +54,9 @@ class System:
     _soundVolume: float = 100
     _voiceVolume: float = 100
     _lightShaderPath: str = None
+    _vagueShaderPath: str = None
+    _toneShaderPath: str = None
+    _grayScaleShaderPath: str = None
     _scenes: List[SceneBase] = None
     _variables: Dict[str, Any] = {}
     _debugMode: bool = False
@@ -77,6 +84,9 @@ class System:
         cls._soundVolume = data.getfloat("soundVolume")
         cls._voiceVolume = data.getfloat("voiceVolume")
         cls._lightShaderPath = systemData["lightShaderPath"]
+        cls._vagueShaderPath = systemData["vagueShaderPath"]
+        cls._toneShaderPath = systemData["toneShaderPath"]
+        cls._grayScaleShaderPath = systemData["grayScaleShaderPath"]
         cls._scenes = []
         realSize = Vector2u(
             int(cls._gameSize.x * cls._scale),
@@ -96,6 +106,8 @@ class System:
                 Style.Titlebar | Style.Close,
                 settings=ContextSettings(antiAliasingLevel=8),
             )
+        cls._canvas = RenderTexture(cls._window.getSize())
+        cls._canvasSprite = Sprite(cls._canvas.getTexture())
         cls._window.setIcon(cls._icon)
         cls._window.setFramerateLimit(cls._frameRate)
         cls._window.setVerticalSyncEnabled(cls._verticalSync)
@@ -122,24 +134,33 @@ class System:
     @classmethod
     def clearCanvas(cls) -> None:
         cls._window.clear(Color.Transparent)
+        cls._canvas.clear(Color.Transparent)
 
     @classmethod
     def setWindowMapView(cls) -> None:
-        cls._window.setView(View(Math.ToVector2f(cls._gameSize / 2), Math.ToVector2f(cls._gameSize)))
+        cls._canvas.setView(View(Math.ToVector2f(cls._gameSize / 2), Math.ToVector2f(cls._gameSize)))
 
     @classmethod
     def setWindowDefaultView(cls) -> None:
-        cls._window.setView(cls._window.getDefaultView())
+        cls._canvas.setView(cls._canvas.getDefaultView())
 
     @classmethod
     def draw(cls, drawable: Drawable, shader: Optional[Shader] = None) -> None:
         states = Render.CanvasRenderStates()
         if shader:
             states.shader = shader
-        cls._window.draw(drawable, states)
+        cls._canvas.draw(drawable, states)
 
     @classmethod
     def display(cls) -> None:
+        from Engine.Utils import Render
+
+        cls._canvas.display()
+        states = Render.CanvasRenderStates()
+        if cls._graphicsShader:
+            cls._graphicsShader.setUniform("screenTex", cls._canvas.getTexture())
+            states.shader = cls._graphicsShader
+        cls._window.draw(cls._canvasSprite, states)
         cls._window.display()
 
     @classmethod
@@ -248,6 +269,29 @@ class System:
     @classmethod
     def getLightShaderPath(cls) -> str:
         return cls._lightShaderPath
+
+    @classmethod
+    def getVagueShaderPath(cls) -> str:
+        return cls._vagueShaderPath
+
+    @classmethod
+    def getToneShaderPath(cls) -> str:
+        return cls._toneShaderPath
+
+    @classmethod
+    def getGrayScaleShaderPath(cls) -> str:
+        return cls._grayScaleShaderPath
+
+    @classmethod
+    def getGraphicsShader(cls) -> Optional[Shader]:
+        return cls._graphicsShader
+
+    @classmethod
+    def setGraphicsShader(cls, shader: Optional[Shader], uniforms: Optional[Dict[str, Any]] = None) -> None:
+        cls._graphicsShader = shader
+        if shader and uniforms:
+            for name, value in uniforms.items():
+                shader.setUniform(name, value)
 
     @classmethod
     def getScene(cls) -> SceneBase:

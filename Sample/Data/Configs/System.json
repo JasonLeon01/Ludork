@@ -17,5 +17,8 @@
         192
     ],
     "cellSize": 32,
-    "lightShaderPath": "./Assets/Shaders/Light.frag"
+    "lightShaderPath": "./Assets/Shaders/Light.frag",
+    "vagueShaderPath": "./Assets/Shaders/Vague.frag",
+    "toneShaderPath": "./Assets/Shaders/Tone.frag",
+    "grayScaleShaderPath": "./Assets/Shaders/GrayScale.frag"
 }

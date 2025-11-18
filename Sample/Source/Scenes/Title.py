@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-import Engine.Manager as Manager
-from Engine import Vector2f, seconds, Color
+from Engine import System, Vector2f, seconds, Color, Shader, Vector4f
+from Engine import Manager
 from Engine.Gameplay import SceneBase
 from Engine.Gameplay.Actors import Character
 from Engine.Gameplay import Tile, TileLayer, Tilemap, Light, GameMap
@@ -365,6 +365,7 @@ class Scene(SceneBase):
         self._gameMap.setLights([self.light])
 
         self._gameMap.spawnActor(self.actors[0], "default")
+        System.setGraphicsShader(Shader(System.getGrayScaleShaderPath(), Shader.Type.Fragment), {"intensity": 1.0})
 
     def onTick(self, deltaTime: float) -> None:
         if not hasattr(self, "xx"):
