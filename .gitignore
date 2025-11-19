@@ -1,5 +1,7 @@
 *.pyc
 *.log
 .DS_Store
+Game/pysf/
 Sample/Engine/pysf/
 LudorkEnv/
+Ludork.ini

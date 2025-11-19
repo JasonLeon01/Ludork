@@ -1,10 +1,12 @@
 # -*- encoding: utf-8 -*-
 
 import os
+import sys
 import subprocess
 import configparser
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
+from Game import Locale
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -21,31 +23,40 @@ class MainWindow(QtWidgets.QMainWindow):
         central = QtWidgets.QWidget(self)
         self.setCentralWidget(central)
 
-        self.splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal, central)
+        self.topBar = QtWidgets.QWidget()
+        self.topBar.setMinimumHeight(64)
+        topLayout = QtWidgets.QHBoxLayout(self.topBar)
+        topLayout.setContentsMargins(0, 0, 0, 0)
+        topLayout.addStretch(1)
+        self.startButton = QtWidgets.QPushButton(Locale.getContent("TestGame"))
+        self.startButton.setMinimumHeight(64)
+        topLayout.addWidget(self.startButton)
+        topLayout.addStretch(1)
 
         self.panel = QtWidgets.QWidget()
-        self.panel.setFixedSize(640, 480)
+        if os.environ.get("SCREEN_LOW_RES"):
+            self.panel.setFixedSize(640, 480)
+        else:
+            self.panel.setFixedSize(1280, 960)
         self.panel.setObjectName("GamePanel")
         self.panel.setAttribute(QtCore.Qt.WA_NativeWindow, True)
         self.panel.setAutoFillBackground(True)
         pal = self.panel.palette()
         pal.setColor(QtGui.QPalette.Window, QtGui.QColor.fromRgb(0, 0, 0))
         self.panel.setPalette(pal)
-        self.splitter.addWidget(self.panel)
         self._panelHandle = int(self.panel.winId())
 
-        self.startGame()
+        self.startButton.clicked.connect(self.startGame)
 
-        self.splitter.setStretchFactor(0, 1)
-        self.splitter.setStretchFactor(1, 3)
-
-        layout = QtWidgets.QHBoxLayout(central)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.addWidget(self.splitter)
+        layout = QtWidgets.QVBoxLayout(central)
+        layout.setContentsMargins(8, 0, 8, 8)
+        layout.setSpacing(0)
+        layout.addWidget(self.topBar, 0, alignment=QtCore.Qt.AlignTop)
+        layout.addWidget(self.panel, 0, alignment=QtCore.Qt.AlignHCenter)
+        layout.addStretch(1)
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         super().resizeEvent(event)
-        # self.endGame()
 
     def getPanelHandle(self) -> int:
         return int(self.panel.winId())
@@ -62,17 +73,9 @@ class MainWindow(QtWidgets.QMainWindow):
         iniFile = configparser.ConfigParser()
         iniFile.read(iniPath, encoding="utf-8")
         script_path = iniFile["Main"]["script"]
-        try:
-            self._engineProc = subprocess.Popen(
-                ["py", "-3.10", script_path, str(self._panelHandle)], cwd=self._projPath, shell=False
-            )
-        except FileNotFoundError:
-            local_py = os.path.join(os.environ.get("LocalAppData", ""), "Programs", "Python", "Python310", "python.exe")
-            if not os.path.isfile(local_py):
-                raise RuntimeError("Python 3.10 not found, please install or configure Python Launcher.")
-            self._engineProc = subprocess.Popen(
-                [local_py, script_path, str(self._panelHandle)], cwd=self._projPath, shell=False
-            )
+        self._engineProc = subprocess.Popen(
+            [sys.executable, script_path, str(self._panelHandle)], cwd=self._projPath, shell=False
+        )
 
     def endGame(self):
         if self._engineProc:
