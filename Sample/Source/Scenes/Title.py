@@ -360,13 +360,14 @@ class Scene(SceneBase):
         self.actors[1].setRelativePosition((64, -64))
 
         self._gameMap = GameMap(Tilemap([layer]))
-        self._gameMap.setAmbientLight(Color(30, 30, 30, 255))
+        self._gameMap.setAmbientLight(Color(255, 255, 255, 255))
         self.light = Light(Vector2f(160, 120), Color(255, 220, 180, 255), 32.0)
         self._gameMap.setLights([self.light])
 
         self._gameMap.spawnActor(self.actors[0], "default")
         self.actors[0].setRoutine(self._gameMap.findPath(self.actors[0].getMapPosition(), Vector2i(0, 0)))
         System.setGraphicsShader(Shader(System.getGrayScaleShaderPath(), Shader.Type.Fragment), {"intensity": 1.0})
+        System.setTransition(Manager.loadTransition("012-Random04.png"), 5)
 
     def onFixedTick(self, fixedDelta: float) -> None:
         if self.light.radius < 1280.0:

@@ -17,6 +17,7 @@
         192
     ],
     "cellSize": 32,
+    "transitionShaderPath": "./Assets/Shaders/Transition.frag",
     "lightShaderPath": "./Assets/Shaders/Light.frag",
     "vagueShaderPath": "./Assets/Shaders/Vague.frag",
     "toneShaderPath": "./Assets/Shaders/Tone.frag",

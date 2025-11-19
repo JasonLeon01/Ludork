@@ -107,3 +107,7 @@ def loadSystem(filename: str, sRGB: bool = False, area: IntRect = None, smooth: 
 
 def loadTileset(filename: str, sRGB: bool = False, area: IntRect = None, smooth: bool = False) -> Texture:
     return loadTexture("Tilesets", filename, sRGB, area, smooth)
+
+
+def loadTransition(filename: str, sRGB: bool = False, area: IntRect = None, smooth: bool = False) -> Texture:
+    return loadTexture("Transitions", filename, sRGB, area, smooth)

@@ -112,7 +112,7 @@ class GameMap:
                     continue
                 if other in actor.getChildren():
                     continue
-                if actor.intersects(other):
+                if actor.getMapPosition() == other.getMapPosition():
                     result.append(other)
         return result
 

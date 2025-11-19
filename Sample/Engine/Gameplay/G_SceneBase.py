@@ -95,7 +95,7 @@ class SceneBase:
             System.draw(ui)
         if System.isDebugMode() and self._debugHUDEnabled:
             System.draw(self._debugHUD)
-        System.display()
+        System.display(deltaTime)
 
     def _update(self, deltaTime: float) -> None:
         from Engine import System

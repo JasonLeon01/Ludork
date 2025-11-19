@@ -9,6 +9,7 @@ from . import (
     Color,
     RenderWindow,
     RenderTexture,
+    Texture,
     View,
     Vector2u,
     Font,
@@ -37,6 +38,9 @@ class System:
     _window: RenderWindow = None
     _canvas: RenderTexture = None
     _canvasSprite: Sprite = None
+    _transition: Texture = None
+    _transitionTempTexture: RenderTexture = None
+    _transitionSprite: Sprite = None
     _graphicsShader: Optional[Shader] = None
     _title: str = None
     _fonts: List[Font] = []
@@ -53,10 +57,16 @@ class System:
     _musicVolume: float = 100
     _soundVolume: float = 100
     _voiceVolume: float = 100
+    _transitionShaderPath: str = None
     _lightShaderPath: str = None
     _vagueShaderPath: str = None
     _toneShaderPath: str = None
     _grayScaleShaderPath: str = None
+    _transitionShader: Optional[Shader] = None
+    _transitionResource: Optional[Texture] = None
+    _inTransition: bool = False
+    _transitionTimeCount: float = 0.0
+    _transitionTime: float = 0.0
     _scenes: List[SceneBase] = None
     _variables: Dict[str, Any] = {}
     _debugMode: bool = False
@@ -83,6 +93,7 @@ class System:
         cls._musicVolume = data.getfloat("musicVolume")
         cls._soundVolume = data.getfloat("soundVolume")
         cls._voiceVolume = data.getfloat("voiceVolume")
+        cls._transitionShaderPath = systemData["transitionShaderPath"]
         cls._lightShaderPath = systemData["lightShaderPath"]
         cls._vagueShaderPath = systemData["vagueShaderPath"]
         cls._toneShaderPath = systemData["toneShaderPath"]
@@ -107,13 +118,21 @@ class System:
                 settings=ContextSettings(antiAliasingLevel=8),
             )
         cls._canvas = RenderTexture(cls._window.getSize())
+        cls._canvas.clear(Color.Transparent)
         cls._canvasSprite = Sprite(cls._canvas.getTexture())
+        cls._transition = Texture(cls._window.getSize())
+        cls._transitionTempTexture = RenderTexture(cls._window.getSize())
+        cls._transitionTempTexture.clear(Color.Transparent)
+        cls._transitionSprite = Sprite(cls._transitionTempTexture.getTexture())
         cls._window.setIcon(cls._icon)
         cls._window.setFramerateLimit(cls._frameRate)
         cls._window.setVerticalSyncEnabled(cls._verticalSync)
+        cls._window.clear(Color.Transparent)
         cls.setMusicVolume(cls._musicVolume)
         cls.setSoundVolume(cls._soundVolume)
         cls.setVoiceVolume(cls._voiceVolume)
+        if cls._transitionShaderPath:
+            cls._transitionShader = Shader(cls._transitionShaderPath, Shader.Type.Fragment)
 
     @classmethod
     def isActive(cls) -> bool:
@@ -152,16 +171,38 @@ class System:
         cls._canvas.draw(drawable, states)
 
     @classmethod
-    def display(cls) -> None:
+    def display(cls, deltaTime: float) -> None:
         from Engine.Utils import Render
 
+        if cls._inTransition:
+            cls._transitionTimeCount = min(cls._transitionTimeCount + deltaTime, cls._transitionTime)
         cls._canvas.display()
         states = Render.CanvasRenderStates()
         if cls._graphicsShader:
             cls._graphicsShader.setUniform("screenTex", cls._canvas.getTexture())
             states.shader = cls._graphicsShader
-        cls._window.draw(cls._canvasSprite, states)
+        if cls._inTransition:
+            cls._transitionTempTexture.clear(Color.Transparent)
+            cls._transitionTempTexture.draw(cls._canvasSprite, states)
+            cls._transitionTempTexture.display()
+            cls._transitionShader.setUniform("screenTex", cls._transitionTempTexture.getTexture())
+            cls._transitionShader.setUniform("backTex", cls._transition)
+            if cls._transitionResource:
+                cls._transitionShader.setUniform("transitionResource", cls._transitionResource)
+                cls._transitionShader.setUniform("useMask", 1)
+            else:
+                cls._transitionShader.setUniform("useMask", 0)
+            cls._transitionShader.setUniform("progress", cls._transitionTimeCount)
+            cls._transitionShader.setUniform("totalTime", cls._transitionTime)
+            transitionStates = Render.CanvasRenderStates()
+            transitionStates.shader = cls._transitionShader
+            cls._window.draw(cls._transitionSprite, transitionStates)
+        else:
+            cls._window.draw(cls._canvasSprite, states)
         cls._window.display()
+        if cls._inTransition:
+            if cls._transitionTimeCount >= cls._transitionTime:
+                cls._inTransition = False
 
     @classmethod
     def getTitle(cls) -> str:
@@ -264,7 +305,10 @@ class System:
     @classmethod
     def setVoiceVolume(cls, voiceVolume: float) -> None:
         cls._voiceVolume = voiceVolume
-        pass
+
+    @classmethod
+    def getTransitionShaderPath(cls) -> str:
+        return cls._transitionShaderPath
 
     @classmethod
     def getLightShaderPath(cls) -> str:
@@ -292,6 +336,17 @@ class System:
         if shader and uniforms:
             for name, value in uniforms.items():
                 shader.setUniform(name, value)
+
+    @classmethod
+    def setTransition(cls, transitionResource: Optional[Texture] = None, transitionTime: float = 1.0) -> None:
+        if not (cls._transitionShaderPath and cls._transitionShader):
+            return
+        cls._transitionResource = transitionResource
+        cls._inTransition = True
+        cls._transitionTimeCount = 0.0
+        cls._transitionTime = float(transitionTime)
+        cls._transitionTempTexture.clear(Color.Transparent)
+        cls._transition.update(cls._window)
 
     @classmethod
     def getScene(cls) -> SceneBase:
