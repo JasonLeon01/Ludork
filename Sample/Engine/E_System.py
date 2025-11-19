@@ -419,7 +419,8 @@ class System:
             cls.__data.write(f)
 
 
-iniFilePath = "./Main.ini"
-iniFile = configparser.ConfigParser()
-iniFile.read(iniFilePath, encoding="utf-8")
-System.init(iniFile, iniFilePath)
+if not os.environ.get("INEDITOR"):
+    iniFilePath = "./Main.ini"
+    iniFile = configparser.ConfigParser()
+    iniFile.read(iniFilePath, encoding="utf-8")
+    System.init(iniFile, iniFilePath)

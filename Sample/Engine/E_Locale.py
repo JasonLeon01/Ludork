@@ -27,4 +27,5 @@ def getContent(key: str) -> str:
     return getLocaleContent(System.getLanguage(), key)
 
 
-Locale.init("./Assets/Locale")
+if not os.environ.get("INEDITOR"):
+    Locale.init("./Assets/Locale")

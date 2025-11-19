@@ -1,8 +1,8 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-import math
 import os
+import math
 from dataclasses import dataclass
 from typing import List, Tuple, Union, Optional
 from . import Sound, Sprite, Texture, RenderTexture, Vector2f, Vector2u, Color, Image, Manager, seconds

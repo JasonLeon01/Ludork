@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from Engine import pysf
+from .. import pysf
 
 RenderStates = pysf.RenderStates
 BlendMode = pysf.BlendMode

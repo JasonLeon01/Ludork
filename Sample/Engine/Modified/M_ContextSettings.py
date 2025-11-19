@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from typing import Optional
-from Engine import pysf
+from .. import pysf
 
 ContextSettings = pysf.ContextSettings
 

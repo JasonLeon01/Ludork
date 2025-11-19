@@ -2,7 +2,7 @@
 
 import copy
 from enum import Enum
-from typing import Any, Dict, Optional, Tuple, Union, List, Callable
+from typing import Dict, Optional, Tuple, Union, List, Callable
 from .pysf import Keyboard, Mouse, Joystick, WindowBase, Vector2i
 
 
