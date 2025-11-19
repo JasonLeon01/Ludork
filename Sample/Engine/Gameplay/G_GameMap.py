@@ -49,6 +49,7 @@ class GameMap:
         self._camera = camera
         if self._camera is None:
             self._camera = Camera()
+        self._camera.setMap(self)
         self._lightShader: Optional[Shader] = None
         if self._lightShader is None:
             self._lightShader = Shader(System.getLightShaderPath(), Shader.Type.Fragment)
@@ -259,6 +260,7 @@ class GameMap:
         return []
 
     def onTick(self, deltaTime: float) -> None:
+        self._camera.onTick(deltaTime)
         if len(self._actorsOnDestroy) > 0:
             for actor in self._actorsOnDestroy:
                 for actorList in self._actors.values():
@@ -274,6 +276,7 @@ class GameMap:
         self._particleSystem.onTick(deltaTime)
 
     def onLateTick(self, deltaTime: float) -> None:
+        self._camera.onLateTick(deltaTime)
         for actorList in self._actors.values():
             for actor in actorList:
                 actor.lateUpdate(deltaTime)
@@ -282,6 +285,7 @@ class GameMap:
         self._particleSystem.onLateTick(deltaTime)
 
     def onFixedTick(self, fixedDelta: float) -> None:
+        self._camera.onFixedTick(fixedDelta)
         for actorList in self._actors.values():
             for actor in actorList:
                 actor.fixedUpdate(fixedDelta)

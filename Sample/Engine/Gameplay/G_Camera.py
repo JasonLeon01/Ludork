@@ -14,11 +14,14 @@ from . import (
     Color,
     Angle,
     degrees,
+    GetCellSize,
 )
 from ..Utils import Math, Render
 
 if TYPE_CHECKING:
     from Engine import Texture, Image
+    from Engine.Gameplay import GameMap
+    from Engine.Gameplay.Actors import Actor
 
 
 class Camera(Drawable):
@@ -35,6 +38,8 @@ class Camera(Drawable):
         self._renderTexture.setView(View(self._viewport))
         self._renderSprite = Sprite(self._renderTexture.getTexture())
         self._renderStates = Render.CanvasRenderStates()
+        self._parent: Optional[Actor] = None
+        self._map: Optional[GameMap] = None
 
     def getViewport(self) -> FloatRect:
         return self._viewport
@@ -74,6 +79,7 @@ class Camera(Drawable):
 
     def moveView(self, delta: Vector2f) -> None:
         self.setViewPosition(self._viewport.position + delta)
+        self.fixViewPosition()
 
     def rotateView(self, delta: float) -> None:
         self.setViewRotation(self.getViewRotation() + degrees(delta))
@@ -122,6 +128,42 @@ class Camera(Drawable):
 
     def getImage(self) -> Image:
         return self._renderTexture.getTexture().copyToImage()
+
+    def setParent(self, actor: Actor) -> None:
+        self._parent = actor
+
+    def getParent(self) -> Optional[Actor]:
+        return self._parent
+
+    def setMap(self, map: GameMap) -> None:
+        self._map = map
+
+    def getMap(self) -> Optional[GameMap]:
+        return self._map
+
+    def onTick(self, deltaTime: float) -> None:
+        pass
+
+    def onLateTick(self, deltaTime: float) -> None:
+        pass
+
+    def onFixedTick(self, fixedDelta: float) -> None:
+        if self._map is None:
+            return
+        if self._parent:
+            self.setViewPosition(self._parent.getPosition() - self._viewport.size / 2)
+            self.fixViewPosition()
+
+    def fixViewPosition(self) -> None:
+        if self._map is None:
+            return
+        pos = self.getViewPosition()
+        mapSize = self._map.getSize()
+        maxX = mapSize.x * GetCellSize() - self._viewport.size.x
+        maxY = mapSize.y * GetCellSize() - self._viewport.size.y
+        px = Math.Clamp(pos.x, 0, maxX if maxX > 0 else 0)
+        py = Math.Clamp(pos.y, 0, maxY if maxY > 0 else 0)
+        self.setViewPosition(Vector2f(px, py))
 
     def draw(self, target: RenderTarget, states: RenderStates = RenderStates()) -> None:
         target.draw(self._renderSprite, states)
