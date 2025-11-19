@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Dict
 import os
+from typing import Dict
 
 
 class Locale:
@@ -25,7 +25,3 @@ def getContent(key: str) -> str:
     from Engine import System
 
     return getLocaleContent(System.getLanguage(), key)
-
-
-if not os.environ.get("INEDITOR"):
-    Locale.init("./Assets/Locale")

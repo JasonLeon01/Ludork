@@ -1,10 +1,10 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-import configparser
 import os
 import locale
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
+import configparser
 from . import (
     Manager,
     Color,
@@ -416,10 +416,3 @@ class System:
         cls.__data.set("Main", key, str(value))
         with open(cls.__dataFilePath, "w", encoding="utf-8") as f:
             cls.__data.write(f)
-
-
-if not os.environ.get("INEDITOR"):
-    iniFilePath = "./Main.ini"
-    iniFile = configparser.ConfigParser()
-    iniFile.read(iniFilePath, encoding="utf-8")
-    System.init(iniFile, iniFilePath)

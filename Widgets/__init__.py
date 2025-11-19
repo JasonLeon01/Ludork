@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
 
-from . import mainWindow
+from . import W_MainWindow
 
-MainWindow = mainWindow.MainWindow
+MainWindow = W_MainWindow.MainWindow
