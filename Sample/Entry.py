@@ -10,8 +10,6 @@ def entry(windowHandle: Optional[int] = None):
     import Engine
     from Source import Scenes
 
-    print(Engine.Locale.getLocaleContent("zh_CN", "00001"))
-
     Engine.System.setScene(Scenes.Title())
     while Engine.System.shouldLoop():
         Engine.System.getScene().main()

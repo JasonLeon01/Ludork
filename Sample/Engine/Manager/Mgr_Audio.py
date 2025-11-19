@@ -53,7 +53,7 @@ class AudioManager:
             cls.setSoundParent(sound, parent)
         cls._SoundRec.append(sound)
         if not filter is None:
-            cls._setSoundFilter(sound, filter)
+            cls.setSoundFilter(sound, filter)
         from Engine import System
 
         cls._SoundBaseVolume[id(sound)] = sound.getVolume()
@@ -90,7 +90,7 @@ class AudioManager:
             raise Exception(f"Failed to load music from file: {filePath}")
         cls._MusicRef[musicType] = (filePath, music)
         if not filter is None:
-            cls._setMusicFilter(music, filter)
+            cls.setMusicFilter(music, filter)
         from Engine import System
 
         cls._MusicBaseVolume[id(music)] = music.getVolume()
@@ -149,7 +149,7 @@ class AudioManager:
             warnings.warn("No asyncio event loop running; sound end will not be monitored.")
 
     @classmethod
-    def _setSoundFilter(cls, sound: Sound, filter: Filters.SoundFilter) -> None:
+    def setSoundFilter(cls, sound: Sound, filter: Filters.SoundFilter) -> None:
         if not filter.loop is None:
             sound.setLooping(filter.loop)
         if not filter.offset is None:
@@ -163,7 +163,7 @@ class AudioManager:
         cls._setAudioFilter(sound, filter)
 
     @classmethod
-    def _setMusicFilter(cls, music: Music, filter: Filters.MusicFilter) -> None:
+    def setMusicFilter(cls, music: Music, filter: Filters.MusicFilter) -> None:
         if not filter.loop is None:
             music.setLooping(filter.loop)
         if not filter.offset is None:

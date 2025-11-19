@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from typing import Dict
-import os, pickle
+import os
 
 
 class Locale:
@@ -19,6 +19,12 @@ class Locale:
 
 def getLocaleContent(localeKey: str, key: str) -> str:
     return Locale.dataDict.get(localeKey, {}).get(key, "")
+
+
+def getContent(key: str) -> str:
+    from Engine import System
+
+    return getLocaleContent(System.getLanguage(), key)
 
 
 Locale.init("./Assets/Locale")

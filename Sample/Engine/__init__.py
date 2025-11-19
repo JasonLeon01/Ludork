@@ -142,8 +142,10 @@ from . import Filters
 from . import Gameplay
 from . import UI
 from . import E_System
+from . import E_Effects
 
 
 Input = E_Input
 Locale = E_Locale
 System = E_System.System
+Effects = E_Effects

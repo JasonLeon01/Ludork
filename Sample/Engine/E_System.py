@@ -238,6 +238,15 @@ class System:
         return cls._mainScript
 
     @classmethod
+    def getLanguage(cls) -> str:
+        return cls._language
+
+    @classmethod
+    def setLanguage(cls, language: str) -> None:
+        cls._language = language
+        cls._setIniData("language", cls._language)
+
+    @classmethod
     def getScale(cls) -> float:
         return cls._scale
 

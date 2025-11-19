@@ -66,6 +66,10 @@ def Clamp(value, min_val, max_val) -> float:
     return max(min_val, min(value, max_val))
 
 
+def Lerp(a: float, b: float, t: float) -> float:
+    return a + (b - a) * t
+
+
 def HasReachedDestination(startPosition: Vector2f, targetPosition: Vector2f, currentPosition: Vector2f) -> bool:
     targetDeltaX = targetPosition.x - startPosition.x
     targetDeltaY = targetPosition.y - startPosition.y
