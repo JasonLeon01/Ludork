@@ -315,7 +315,8 @@ class System:
     @classmethod
     def popScene(cls) -> None:
         assert len(cls._scenes) > 0
-        cls._scenes.pop()
+        scene = cls._scenes.pop()
+        scene.onDestroy()
 
     @classmethod
     def getVariable(cls, name: str) -> Any:

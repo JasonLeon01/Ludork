@@ -69,13 +69,15 @@ class Canvas(SpriteBase):
     def onLateTick(self, deltaTime: float) -> None:
         pass
 
+    def onFixedTick(self, fixedDelta: float) -> None:
+        pass
+
     def update(self, deltaTime: float) -> None:
         if not self._visible:
             return
         for child in self._childrenList:
             if hasattr(child, "update"):
                 child.update(deltaTime)
-        self.onTick(deltaTime)
         self._canvas.clear(Color.Transparent)
         for child in self._childrenList:
             if not child.getVisible():
@@ -85,4 +87,3 @@ class Canvas(SpriteBase):
             else:
                 self._canvas.draw(child)
         self._canvas.display()
-        self.onLateTick(deltaTime)

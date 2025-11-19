@@ -1,9 +1,12 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Union, TYPE_CHECKING
 import copy
 from . import Drawable, VertexArray, PrimitiveType, Vertex, Texture, Font, Transform, Vector2f, Color, Text, degrees
+
+if TYPE_CHECKING:
+    from Engine import RenderTarget, RenderStates
 
 
 class ParticleInfo:
@@ -69,6 +72,12 @@ class Particle(ParticleBase):
 
         self._checkUpdate()
 
+    def onFixedTick(self, fixedDelta: float) -> None:
+        if self._parent is None:
+            return
+
+        self._checkUpdate()
+
     def _checkUpdate(self):
         updateFlag = False
         if self._lastPosition != self.info.position:
@@ -97,6 +106,9 @@ class TextParticle(Text, ParticleBase):
         ParticleBase.onTick(self, deltaTime)
 
     def onLateTick(self, deltaTime: float) -> None:
+        pass
+
+    def onFixedTick(self, fixedDelta: float) -> None:
         pass
 
 
@@ -252,6 +264,14 @@ class ParticleSystem(Drawable):
         for text in self._texts:
             if isinstance(text, TextParticle):
                 text.onLateTick(deltaTime)
+
+    def onFixedTick(self, fixedDelta: float) -> None:
+        for _, plist in self._particles.items():
+            for particle in plist:
+                particle.onFixedTick(fixedDelta)
+        for text in self._texts:
+            if isinstance(text, TextParticle):
+                text.onFixedTick(fixedDelta)
 
     def draw(self, target: RenderTarget, states: RenderStates) -> None:
         originTexture = states.texture

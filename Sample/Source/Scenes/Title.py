@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from Engine import System, Vector2f, seconds, Color, Shader, Vector4f
+from Engine import System, Vector2f, Color, Shader, Vector2i
 from Engine import Manager
 from Engine.Gameplay import SceneBase
 from Engine.Gameplay.Actors import Character
@@ -354,44 +354,33 @@ class Scene(SceneBase):
         )
 
         self.actors[0].setCollisionEnabled(True)
-        self.actors[0].setPosition((320, 240))
+        self.actors[0].setPosition((320, 256))
         self.actors[0].addChild(self.actors[1])
         self.actors[1].animateWithoutMoving = True
         self.actors[1].setRelativePosition((64, -64))
 
         self._gameMap = GameMap(Tilemap([layer]))
-        self._gameMap.setAmbientLight(Color(0, 0, 0, 255))
+        self._gameMap.setAmbientLight(Color(30, 30, 30, 255))
         self.light = Light(Vector2f(160, 120), Color(255, 220, 180, 255), 32.0)
         self._gameMap.setLights([self.light])
 
         self._gameMap.spawnActor(self.actors[0], "default")
+        self.actors[0].setRoutine(self._gameMap.findPath(self.actors[0].getMapPosition(), Vector2i(0, 0)))
         System.setGraphicsShader(Shader(System.getGrayScaleShaderPath(), Shader.Type.Fragment), {"intensity": 1.0})
 
-    def onTick(self, deltaTime: float) -> None:
-        if not hasattr(self, "xx"):
-            self.xx = 0
-        if self.xx < 100:
-            self.xx += 1
-            self.actors[0].MapMove((0, -1))
-        elif self.xx < 200:
-            self.xx += 1
-            self.actors[0].MapMove((1, 0))
-        elif self.xx < 300:
-            self.xx += 1
-            self.actors[0].MapMove((0, 1))
-        elif self.xx < 400:
-            self.xx += 1
-            self.actors[0].MapMove((-1, 0))
-        elif self.xx < 500:
-            self.xx = 0
+    def onFixedTick(self, fixedDelta: float) -> None:
         if self.light.radius < 1280.0:
             self.light.radius += 1
+        self._gameMap.onFixedTick(fixedDelta)
+        return super().onFixedTick(fixedDelta)
+
+    def onTick(self, deltaTime: float) -> None:
+        self._gameMap.onTick(deltaTime)
         return super().onTick(deltaTime)
 
-    def _logicHandle(self, deltaTime: float) -> None:
-        self._gameMap.onTick(deltaTime)
-        super()._logicHandle(deltaTime)
+    def onLateTick(self, deltaTime: float) -> None:
         self._gameMap.onLateTick(deltaTime)
+        return super().onLateTick(deltaTime)
 
     def _renderHandle(self, deltaTime: float) -> None:
         self._gameMap.show()

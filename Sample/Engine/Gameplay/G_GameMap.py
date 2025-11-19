@@ -153,7 +153,10 @@ class GameMap:
     def getLightMap(self) -> List[List[float]]:
         def getLightBlock(inLayerKeys: List[str], pos: Vector2i):
             for layerName in inLayerKeys:
-                tile = self._tilemap.getLayer(layerName).get(pos)
+                layer = self._tilemap.getLayer(layerName)
+                if not layer.visible:
+                    continue
+                tile = layer.get(pos)
                 if layerName in self._actors:
                     for actor in self._actors[layerName]:
                         if actor.getMapPosition() == pos:
@@ -195,6 +198,66 @@ class GameMap:
     def getSize(self) -> Vector2u:
         return self._tilemap.getSize()
 
+    def findPath(self, start: Vector2i, goal: Vector2i) -> List[Vector2i]:
+        size = self._tilemap.getSize()
+        sx, sy = start.x, start.y
+        gx, gy = goal.x, goal.y
+
+        def in_bounds(x: int, y: int) -> bool:
+            return 0 <= x < size.x and 0 <= y < size.y
+
+        def passable(x: int, y: int) -> bool:
+            if (x == sx and y == sy) or (x == gx and y == gy):
+                return True
+            layerKeys = list(self._tilemap.getAllLayers().keys())
+            layerKeys.reverse()
+            for layerName in layerKeys:
+                tile = self._tilemap.getLayer(layerName).get(Vector2i(x, y))
+                if tile is not None:
+                    return tile.passible
+            return True
+
+        dirs = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+        start_t = (sx, sy)
+        goal_t = (gx, gy)
+        if start_t == goal_t:
+            return []
+        open_set = set([start_t])
+        came_from: Dict[tuple, tuple] = {}
+        gscore: Dict[tuple, int] = {start_t: 0}
+        fscore: Dict[tuple, int] = {start_t: abs(sx - gx) + abs(sy - gy)}
+        while open_set:
+            current = min(open_set, key=lambda t: fscore.get(t, 1 << 30))
+            if current == goal_t:
+                path_positions: List[tuple] = []
+                c = current
+                while c in came_from:
+                    path_positions.append(c)
+                    c = came_from[c]
+                path_positions.reverse()
+                moves: List[Vector2i] = []
+                px, py = sx, sy
+                for x, y in path_positions:
+                    moves.append(Vector2i(x - px, y - py))
+                    px, py = x, y
+                return moves
+            open_set.remove(current)
+            cx, cy = current
+            for dx, dy in dirs:
+                nx, ny = cx + dx, cy + dy
+                if not in_bounds(nx, ny):
+                    continue
+                if not passable(nx, ny):
+                    continue
+                nt = (nx, ny)
+                tentative = gscore[current] + 1
+                if tentative < gscore.get(nt, 1 << 30):
+                    came_from[nt] = current
+                    gscore[nt] = tentative
+                    fscore[nt] = tentative + abs(nx - gx) + abs(ny - gy)
+                    open_set.add(nt)
+        return []
+
     def onTick(self, deltaTime: float) -> None:
         if len(self._actorsOnDestroy) > 0:
             for actor in self._actorsOnDestroy:
@@ -213,9 +276,17 @@ class GameMap:
     def onLateTick(self, deltaTime: float) -> None:
         for actorList in self._actors.values():
             for actor in actorList:
+                actor.lateUpdate(deltaTime)
                 if actor.getTickable():
                     actor.onLateTick(deltaTime)
         self._particleSystem.onLateTick(deltaTime)
+
+    def onFixedTick(self, fixedDelta: float) -> None:
+        for actorList in self._actors.values():
+            for actor in actorList:
+                actor.fixedUpdate(fixedDelta)
+                if actor.getTickable():
+                    actor.onFixedTick(fixedDelta)
 
     def show(self) -> None:
         from Engine import System
@@ -223,6 +294,8 @@ class GameMap:
         System.setWindowMapView()
         self._camera.clear()
         for layerName, layer in self._tilemap.getAllLayers().items():
+            if not layer.visible:
+                continue
             self._camera.render(layer)
             if layerName in self._actors:
                 for actor in self._actors[layerName]:

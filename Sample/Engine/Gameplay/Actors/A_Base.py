@@ -56,6 +56,12 @@ class ActorBase(Sprite):
         if self._animatable:
             self._animate(deltaTime)
 
+    def lateUpdate(self, deltaTime: float) -> None:
+        pass
+
+    def fixedUpdate(self, fixedDelta: float) -> None:
+        pass
+
     def v_getPosition(self) -> Tuple[float, float]:
         result = super().getPosition()
         return (result.x, result.y)

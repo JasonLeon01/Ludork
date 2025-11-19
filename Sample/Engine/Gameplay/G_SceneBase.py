@@ -25,6 +25,10 @@ class SceneBase:
             self._totalFrames: int = 0
             self._averageFPS: float = 0.0
 
+        self._fixedAccumulator: float = 0.0
+        self._fixedStep: float = 1.0 / 60.0
+        self._maxFixedSteps: int = 5
+
         self.onCreate()
 
     def onCreate(self) -> None:
@@ -34,6 +38,9 @@ class SceneBase:
         pass
 
     def onLateTick(self, deltaTime: float) -> None:
+        pass
+
+    def onFixedTick(self, fixedDelta: float) -> None:
         pass
 
     def onDestroy(self) -> None:
@@ -51,11 +58,34 @@ class SceneBase:
         else:
             raise ValueError("UI not found")
 
+    def main(self) -> None:
+        from Engine import System, Input
+
+        while System.isActive() and System.getScene() == self:
+            Input.update(System.getWindow())
+            Manager.TimeManager.update()
+            deltaTime = Manager.TimeManager.v_getDeltaTime()
+            self._updateDebugInfo(deltaTime)
+            self._fixedAccumulator += deltaTime
+            steps = 0
+            while self._fixedAccumulator >= self._fixedStep and steps < self._maxFixedSteps:
+                self.onFixedTick(self._fixedStep)
+                self._fixedLogicHandle(self._fixedStep)
+                self._fixedAccumulator -= self._fixedStep
+                steps += 1
+            self._update(deltaTime)
+
     def _logicHandle(self, deltaTime: float) -> None:
         for ui in self._UIs:
             ui.onTick(deltaTime)
+
+    def _lateLogicHandle(self, deltaTime: float) -> None:
         for ui in self._UIs:
             ui.onLateTick(deltaTime)
+
+    def _fixedLogicHandle(self, fixedDelta: float) -> None:
+        for ui in self._UIs:
+            ui.onFixedTick(fixedDelta)
 
     def _renderHandle(self, deltaTime: float) -> None:
         from Engine import System
@@ -67,22 +97,13 @@ class SceneBase:
             System.draw(self._debugHUD)
         System.display()
 
-    def main(self) -> None:
-        from Engine import System, Input
-
-        while System.isActive() and System.getScene() == self:
-            Input.update(System.getWindow())
-            Manager.TimeManager.update()
-            deltaTime = Manager.TimeManager.v_getDeltaTime()
-            self._updateDebugInfo(deltaTime)
-            self._update(deltaTime)
-
     def _update(self, deltaTime: float) -> None:
         from Engine import System
 
         self.onTick(deltaTime)
         self._logicHandle(deltaTime)
         self.onLateTick(deltaTime)
+        self._lateLogicHandle(deltaTime)
 
         Event.flush()
 
