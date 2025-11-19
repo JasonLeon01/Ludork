@@ -3,6 +3,7 @@
 from __future__ import annotations
 import configparser
 import os
+import locale
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from . import (
     Manager,
@@ -35,6 +36,8 @@ class System:
         FontSize: int
         WindowColor: Color
 
+    __data: configparser.ConfigParser
+    __dataFilePath: str = None
     _window: RenderWindow = None
     _canvas: RenderTexture = None
     _canvasSprite: Sprite = None
@@ -48,6 +51,7 @@ class System:
     _icon: Image = None
     _windowskinName: str = None
     _mainScript: str = None
+    _language: str = None
     _scale: float = 1.0
     _frameRate: int = 60
     _verticalSync: bool = False
@@ -72,7 +76,10 @@ class System:
     _debugMode: bool = False
 
     @classmethod
-    def init(cls, data: configparser.ConfigParser) -> None:
+    def init(cls, inData: configparser.ConfigParser, dataFilePath: str) -> None:
+        cls.__data = inData
+        cls.__dataFilePath = dataFilePath
+        data = inData["Main"]
         systemData = File.getJSONData("./Data/Configs/System.json")
         cls._title = systemData["title"]
         cls._gameSize = Vector2u(systemData["gameSize"][0], systemData["gameSize"][1])
@@ -84,6 +91,10 @@ class System:
         cls.Config.WindowColor = Color(r, g, b, a)
         SetCellSize(systemData["cellSize"])
         cls._mainScript = data["script"]
+        cls._language = data["language"]
+        if cls._language is None or cls._language == "" or cls._language == "None":
+            lang, encoding = locale.getdefaultlocale()
+            cls._language = lang
         cls._scale = data.getfloat("scale")
         cls._frameRate = data.getint("frameRate")
         cls._verticalSync = data.getboolean("verticalSync")
@@ -128,9 +139,6 @@ class System:
         cls._window.setFramerateLimit(cls._frameRate)
         cls._window.setVerticalSyncEnabled(cls._verticalSync)
         cls._window.clear(Color.Transparent)
-        cls.setMusicVolume(cls._musicVolume)
-        cls.setSoundVolume(cls._soundVolume)
-        cls.setVoiceVolume(cls._voiceVolume)
         if cls._transitionShaderPath:
             cls._transitionShader = Shader(cls._transitionShaderPath, Shader.Type.Fragment)
 
@@ -241,6 +249,7 @@ class System:
     def setFrameRate(cls, frameRate: int) -> None:
         cls._frameRate = frameRate
         cls._window.setFramerateLimit(cls._frameRate)
+        cls._setIniData("frameRate", cls._frameRate)
 
     @classmethod
     def getVerticalSync(cls) -> bool:
@@ -250,6 +259,7 @@ class System:
     def setVerticalSync(cls, verticalSync: bool) -> None:
         cls._verticalSync = verticalSync
         cls._window.setVerticalSyncEnabled(cls._verticalSync)
+        cls._setIniData("verticalSync", cls._verticalSync)
 
     @classmethod
     def getMusicOn(cls) -> bool:
@@ -261,6 +271,7 @@ class System:
         if not cls._musicOn:
             Manager.stopMusic("BGM")
             Manager.stopMusic("BGS")
+        cls._setIniData("musicOn", cls._musicOn)
 
     @classmethod
     def getSoundOn(cls) -> bool:
@@ -271,6 +282,7 @@ class System:
         cls._soundOn = soundOn
         if not cls._soundOn:
             Manager.stopSound()
+        cls._setIniData("soundOn", cls._soundOn)
 
     @classmethod
     def getVoiceOn(cls) -> bool:
@@ -281,6 +293,7 @@ class System:
         cls._voiceOn = voiceOn
         if not cls._voiceOn:
             pass
+        cls._setIniData("voiceOn", cls._voiceOn)
 
     @classmethod
     def getMusicVolume(cls) -> float:
@@ -289,6 +302,7 @@ class System:
     @classmethod
     def setMusicVolume(cls, musicVolume: float) -> None:
         cls._musicVolume = musicVolume
+        cls._setIniData("musicVolume", cls._musicVolume)
 
     @classmethod
     def getSoundVolume(cls) -> float:
@@ -297,6 +311,7 @@ class System:
     @classmethod
     def setSoundVolume(cls, soundVolume: float) -> None:
         cls._soundVolume = soundVolume
+        cls._setIniData("soundVolume", cls._soundVolume)
 
     @classmethod
     def getVoiceVolume(cls) -> float:
@@ -305,6 +320,7 @@ class System:
     @classmethod
     def setVoiceVolume(cls, voiceVolume: float) -> None:
         cls._voiceVolume = voiceVolume
+        cls._setIniData("voiceVolume", cls._voiceVolume)
 
     @classmethod
     def getTransitionShaderPath(cls) -> str:
@@ -387,7 +403,14 @@ class System:
     def isDebugMode(cls) -> bool:
         return cls._debugMode
 
+    @classmethod
+    def _setIniData(cls, key: str, value: Any) -> None:
+        cls.__data.set("Main", key, str(value))
+        with open(cls.__dataFilePath, "w", encoding="utf-8") as f:
+            cls.__data.write(f)
 
+
+iniFilePath = "./Main.ini"
 iniFile = configparser.ConfigParser()
-iniFile.read("Main.ini")
-System.init(iniFile["Main"])
+iniFile.read(iniFilePath, encoding="utf-8")
+System.init(iniFile, iniFilePath)

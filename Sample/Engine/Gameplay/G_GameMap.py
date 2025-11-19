@@ -323,6 +323,7 @@ class GameMap:
         shader.setUniform("passabilityTex", self._passabilityTex)
         shader.setUniform("screenScale", System.getScale())
         shader.setUniform("screenSize", Math.ToVector2f(System.getGameSize()))
+        shader.setUniform("viewPos", self._camera.getViewPosition())
         shader.setUniform("lightCount", len(self._lights))
         shader.setUniform("cellSize", GetCellSize())
         for i in range(len(self._lights)):

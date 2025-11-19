@@ -12,6 +12,7 @@ uniform float lightIntensity[16];
 uniform vec3 ambientColor;
 uniform float screenScale;
 uniform vec2 screenSize;
+uniform vec2 viewPos;
 
 float GetObstructionAttenuation(vec2 from, vec2 to, sampler2D passabilityTex, vec2 gridSize) 
 {
@@ -42,24 +43,27 @@ float GetObstructionAttenuation(vec2 from, vec2 to, sampler2D passabilityTex, ve
 
 void main()
 {
-    vec2 pixelPosBL = gl_FragCoord.xy / screenScale;
-    vec2 pixelPosTL = vec2(pixelPosBL.x, screenSize.y - pixelPosBL.y);
-    vec2 tilemapSize = vec2(textureSize(tilemapTex, 0));
+    vec2 pixelPosBL_view = gl_FragCoord.xy / screenScale;
+    vec2 pixelPosTL_view = vec2(pixelPosBL_view.x, screenSize.y - pixelPosBL_view.y);
+    vec2 pixelPosTL_world = pixelPosTL_view + viewPos;
     vec2 gridSize = vec2(textureSize(passabilityTex, 0));
+    vec2 mapPixelSize = gridSize * float(cellSize);
+    vec2 pixelPosBL_world = vec2(pixelPosTL_world.x, mapPixelSize.y - pixelPosTL_world.y);
+    vec2 tilemapSize = vec2(textureSize(tilemapTex, 0));
 
-    vec2 uv = clamp(pixelPosBL / tilemapSize, 0.0, 1.0);
+    vec2 uv = clamp(pixelPosBL_view / tilemapSize, 0.0, 1.0);
     vec3 pixelColor = texture(tilemapTex, uv).rgb;
 
     vec3 totalLight = ambientColor;
 
     for (int i = 0; i < lightCount; ++i) {
 
-        float dist = length(pixelPosTL - lightPos[i]);
+        float dist = length(pixelPosTL_world - lightPos[i]);
         if (dist >= lightRadius[i]) continue;
 
         float atten = 1.0 - dist / lightRadius[i];
-        vec2 lightPosBL = vec2(lightPos[i].x, screenSize.y - lightPos[i].y);
-        float obs = GetObstructionAttenuation(lightPosBL, pixelPosBL, passabilityTex, gridSize);
+        vec2 lightPosBL_world = vec2(lightPos[i].x, mapPixelSize.y - lightPos[i].y);
+        float obs = GetObstructionAttenuation(lightPosBL_world, pixelPosBL_world, passabilityTex, gridSize);
 
         totalLight += lightColor[i] * lightIntensity[i] * atten * obs;
     }

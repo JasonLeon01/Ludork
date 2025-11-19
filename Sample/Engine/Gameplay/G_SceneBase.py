@@ -31,6 +31,14 @@ class SceneBase:
 
         self.onCreate()
 
+    def onEnter(self) -> None:
+        from Engine import System
+
+        System.setTransition()
+
+    def onQuit(self) -> None:
+        pass
+
     def onCreate(self) -> None:
         pass
 
@@ -61,6 +69,7 @@ class SceneBase:
     def main(self) -> None:
         from Engine import System, Input
 
+        self.onEnter()
         while System.isActive() and System.getScene() == self:
             Input.update(System.getWindow())
             Manager.TimeManager.update()
@@ -74,6 +83,7 @@ class SceneBase:
                 self._fixedAccumulator -= self._fixedStep
                 steps += 1
             self._update(deltaTime)
+        self.onQuit()
 
     def _logicHandle(self, deltaTime: float) -> None:
         for ui in self._UIs:

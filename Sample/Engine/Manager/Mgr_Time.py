@@ -39,6 +39,7 @@ class TimeManager:
 
     @classmethod
     def setSpeed(cls, speed: float) -> None:
+        assert speed >= 0.0
         cls._speed = speed
 
 

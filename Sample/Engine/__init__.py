@@ -136,6 +136,7 @@ RenderStates = Modified.RenderStates
 
 from . import Utils
 from . import E_Input
+from . import E_Locale
 from . import Manager
 from . import Filters
 from . import Gameplay
@@ -144,4 +145,5 @@ from . import E_System
 
 
 Input = E_Input
+Locale = E_Locale
 System = E_System.System
