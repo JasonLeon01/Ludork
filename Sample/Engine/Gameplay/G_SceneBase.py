@@ -24,6 +24,12 @@ class SceneBase:
             self._totalTime: float = 0.0
             self._totalFrames: int = 0
             self._averageFPS: float = 0.0
+            self._debugUpdateTimer: float = 0.0
+            self._memRSS: float = 0.0
+            self._sceneMem: float = 0.0
+            self._textureMem: float = 0.0
+            self._audioMem: float = 0.0
+            self._fontMem: float = 0.0
 
         self._fixedAccumulator: float = 0.0
         self._fixedStep: float = 1.0 / 60.0
@@ -133,20 +139,29 @@ class SceneBase:
         if Math.IsNearZero(Manager.TimeManager.getSpeed()):
             return
 
-        import psutil
-        from pympler import asizeof
-
         realDeltaTime = deltaTime / Manager.TimeManager.getSpeed()
         self._totalTime += realDeltaTime
         FPS = 1.0 / realDeltaTime
         self._totalFrames += 1
         self._averageFPS = self._totalFrames / self._totalTime
-        process = psutil.Process(os.getpid())
-        memInfo = process.memory_info()
-        sceneMem = asizeof.asizeof(self)
-        textureMem = Manager.TextureManager.getMemory()
-        audioMem = Manager.AudioManager.getMemory()
-        fontMem = Manager.FontManager.getMemory()
+        self._debugUpdateTimer += realDeltaTime
+        if self._debugUpdateTimer >= 0.5:
+            import psutil
+            from pympler import asizeof
+            process = psutil.Process(os.getpid())
+            info = process.memory_info()
+            self._memRSS = info.rss * 1.0
+            self._sceneMem = asizeof.asizeof(self) * 1.0
+            self._textureMem = Manager.TextureManager.getMemory() * 1.0
+            self._audioMem = Manager.AudioManager.getMemory() * 1.0
+            self._fontMem = Manager.FontManager.getMemory() * 1.0
+            self._debugUpdateTimer = 0.0
+        import types
+        memInfo = types.SimpleNamespace(rss=self._memRSS)
+        sceneMem = self._sceneMem
+        textureMem = self._textureMem
+        audioMem = self._audioMem
+        fontMem = self._fontMem
 
         debugString = ""
         debugString += f"Total Time: {self._totalTime:.2f}s\n"

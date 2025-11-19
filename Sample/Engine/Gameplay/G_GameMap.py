@@ -55,6 +55,8 @@ class GameMap:
             self._lightShader = Shader(System.getLightShaderPath(), Shader.Type.Fragment)
         self._lights: List[Light] = []
         self._ambientLight: Color = Color(255, 255, 255, 255)
+        self._passabilityTex: Optional[Texture] = None
+        self._passabilityDirty: bool = True
 
     def getAllActors(self) -> List[Actor]:
         actors = []
@@ -129,9 +131,11 @@ class GameMap:
                 if not child in self._wholeActorList:
                     self.spawnActor(child, layer)
         self.updateActorList()
+        self._passabilityDirty = True
 
     def destroyActor(self, actor: Actor) -> None:
         self._actorsOnDestroy.append(actor)
+        self._passabilityDirty = True
 
     def updateActorList(self) -> None:
         self._wholeActorList.clear()
@@ -319,7 +323,9 @@ class GameMap:
 
         shader = self._lightShader
         shader.setUniform("tilemapTex", self._camera.getTexture())
-        self._passabilityTex = self._getPassabilityTexture()
+        if self._passabilityTex is None or self._passabilityDirty:
+            self._passabilityTex = self._getPassabilityTexture()
+            self._passabilityDirty = False
         shader.setUniform("passabilityTex", self._passabilityTex)
         shader.setUniform("screenScale", System.getScale())
         shader.setUniform("screenSize", Math.ToVector2f(System.getGameSize()))
@@ -352,3 +358,6 @@ class GameMap:
         texture = Texture(img)
         texture.setSmooth(True)
         return texture
+
+    def markPassabilityDirty(self) -> None:
+        self._passabilityDirty = True

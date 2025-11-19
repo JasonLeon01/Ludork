@@ -188,3 +188,5 @@ class Actor(ActorBase):
         x = int(pos.x * 1.0 / GetCellSize() + 0.5)
         y = int(pos.y * 1.0 / GetCellSize() + 0.5)
         self.setMapPosition(Vector2u(x, y))
+        if self._map:
+            self._map.markPassabilityDirty()
