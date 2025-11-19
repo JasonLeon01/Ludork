@@ -11,7 +11,6 @@ from . import (
     Vector2f,
     Texture,
     RenderTexture,
-    View,
     Utils,
 )
 

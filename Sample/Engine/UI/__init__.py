@@ -18,6 +18,7 @@ from .. import (
     Texture,
     View,
     Vector2u,
+    RectangleShape,
 )
 from . import UI_SpriteBase
 from . import UI_Canvas

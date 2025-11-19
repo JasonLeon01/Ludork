@@ -3,6 +3,8 @@
 from __future__ import annotations
 import asyncio
 import warnings
+import threading
+import concurrent.futures
 from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple, TYPE_CHECKING
 from . import GetGameRunning, SoundBuffer, Sound, Time, seconds, Vector3f, Angle, degrees, Music
 
@@ -21,6 +23,37 @@ class AudioManager:
     _MusicRef: Dict[str, Tuple[str, Music]] = {}
     _SoundBaseVolume: Dict[int, float] = {}
     _MusicBaseVolume: Dict[int, float] = {}
+    _AsyncLoop: Optional[asyncio.AbstractEventLoop] = None
+    _AsyncThread: Optional[threading.Thread] = None
+
+    @classmethod
+    def _ensure_asyncio_loop(cls) -> Optional[asyncio.AbstractEventLoop]:
+        try:
+            asyncio.get_running_loop()
+            return None
+        except RuntimeError:
+            pass
+        if cls._AsyncLoop is None or cls._AsyncThread is None or not cls._AsyncThread.is_alive():
+            loop = asyncio.new_event_loop()
+            cls._AsyncLoop = loop
+            def _runner(lp: asyncio.AbstractEventLoop) -> None:
+                asyncio.set_event_loop(lp)
+                lp.run_forever()
+            t = threading.Thread(target=_runner, args=(loop,), daemon=True)
+            cls._AsyncThread = t
+            t.start()
+        return cls._AsyncLoop
+
+    @classmethod
+    def _submit(cls, coro: Coroutine[Any, Any, Any]) -> Optional[concurrent.futures.Future]:
+        try:
+            loop = asyncio.get_running_loop()
+            return loop.create_task(coro)
+        except RuntimeError:
+            loop = cls._ensure_asyncio_loop()
+            if loop is None:
+                return None
+            return concurrent.futures.run_coroutine_threadsafe(coro, loop)
 
     @classmethod
     def loadSound(cls, filePath: str) -> SoundBuffer:
@@ -65,10 +98,7 @@ class AudioManager:
         cls._monitorPlayEnd(sound, filePath, cls._soundMonitor, cls._cleanSound)
         if not cls.__SoundBegin:
             cls.__SoundBegin = True
-            try:
-                asyncio.create_task(AudioManager.updateAllSoundPositions())
-            except RuntimeError:
-                warnings.warn("No asyncio loop running; sound parent updates disabled")
+            cls._submit(AudioManager.updateAllSoundPositions())
 
         return sound
 
@@ -142,11 +172,7 @@ class AudioManager:
         async def monitorWrapper():
             await monitor(sound)
             cleanup(sound, filePath)
-
-        try:
-            asyncio.create_task(monitorWrapper())
-        except RuntimeError:
-            warnings.warn("No asyncio event loop running; sound end will not be monitored.")
+        cls._submit(monitorWrapper())
 
     @classmethod
     def setSoundFilter(cls, sound: Sound, filter: Filters.SoundFilter) -> None:

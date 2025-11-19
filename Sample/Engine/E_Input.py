@@ -72,6 +72,8 @@ class _EventState:
     JoystickButtonReleasedMap: Dict[int, Dict[int, bool]] = {}
     JoystickAxisMovedMap: Dict[int, Tuple[Joystick.Axis, float]] = {}
 
+    EnteredText: str = ""
+
     KeyboardBlocked: bool = False
     MouseBlocked: bool = False
     JoystickBlocked: bool = False
@@ -119,6 +121,8 @@ def update(window: WindowBase) -> None:
     _EventState.JoystickButtonPressedMap.clear()
     _EventState.JoystickButtonReleasedMap.clear()
     _EventState.JoystickAxisMovedMap.clear()
+
+    _EventState.EnteredText = ""
 
     try:
         while True:
@@ -219,6 +223,13 @@ def update(window: WindowBase) -> None:
                 _EventState.JoystickConnected = True
             if event.isJoystickDisconnected():
                 _EventState.JoystickDisconnected = True
+            if event.isTextEntered():
+                _EventState.EnteredText += event.getIfTextEntered().unicode
+
+        if _EventState.EnteredText == "\x16":
+            from Engine import Clipboard
+
+            _EventState.EnteredText = Clipboard.getString()
 
         for actionType, callables in _EventState.ActionMappings.items():
             _, actionKeys = actionType
@@ -508,6 +519,18 @@ def isMouseButtonTriggered(
         handled_ = True
         _EventState.MouseButtonTriggeredMap[button] = (count, handled_)
     return result
+
+
+def isTextEntered() -> bool:
+    return _EventState.EnteredText != ""
+
+
+def getEnteredText() -> str:
+    return _EventState.EnteredText
+
+
+def isTextEntered() -> bool:
+    return (len(_EventState.EnteredText) > 0) and not _EventState.KeyboardBlocked
 
 
 def isKeyboardBlocked() -> bool:

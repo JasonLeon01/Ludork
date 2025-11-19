@@ -116,7 +116,6 @@ class System:
         )
         handle: Optional[int] = os.environ.get("WINDOWHANDLE")
         cls._debugMode = handle is not None
-        cls._debugMode = True
         if handle:
             cls._window = RenderWindow(int(handle), settings=ContextSettings(antiAliasingLevel=8))
             windowSize = cls._window.getSize()
