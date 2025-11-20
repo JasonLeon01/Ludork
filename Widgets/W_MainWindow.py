@@ -45,12 +45,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.layerScroll.setWidget(self.layerBarContainer)
         self._layerButtons = {}
         self._selectedLayerName: Optional[str] = None
-        if EditorStatus.SCREEN_LOW_RES == 0:
-            panelW, panelH = 1280, 960
-        elif EditorStatus.SCREEN_LOW_RES == 1:
-            panelW, panelH = 960, 720
-        elif EditorStatus.SCREEN_LOW_RES == 2:
-            panelW, panelH = 640, 480
+        panelW, panelH = 640, 480
 
         self.editorPanel = EditorPanel()
         self.editorPanel.setObjectName("EditorPanel")
@@ -59,9 +54,7 @@ class MainWindow(QtWidgets.QMainWindow):
         pal = self.editorPanel.palette()
         pal.setColor(QtGui.QPalette.Window, QtGui.QColor.fromRgb(0, 0, 0))
         self.editorPanel.setPalette(pal)
-        self._panelScale = panelW / 640.0
-        self.topBar.setMinimumHeight(int(32 * self._panelScale))
-        self.editorPanel.setScale(self._panelScale)
+        self.topBar.setMinimumHeight(32)
         self.layerScroll.setMinimumHeight(self.topBar.minimumHeight())
 
         self.editorScroll = QtWidgets.QScrollArea()
@@ -87,8 +80,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.gamePanel.setPalette(pal)
         self._panelHandle = int(self.gamePanel.winId())
 
-        self.editModeToggle = EditModeToggle(self._panelScale)
-        self.modeToggle = ModeToggle(self._panelScale)
+        self.editModeToggle = EditModeToggle()
+        self.modeToggle = ModeToggle()
         self.addLayerButton = QtWidgets.QPushButton(Locale.getContent("ADD_LAYER"))
         self.addLayerButton.setMinimumHeight(self.topBar.minimumHeight())
         self.addLayerButton.clicked.connect(self._onAddLayer)
@@ -128,8 +121,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.leftLabel = QtWidgets.QLabel(Locale.getContent("MAP_LIST"))
         self.leftLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.leftLabel.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
-        self.leftLabel.setFixedHeight(int(32 * self._panelScale))
-        _lh = int(32 * self._panelScale)
+        self.leftLabel.setFixedHeight(32)
+        _lh = 32
         _font = self.leftLabel.font()
         _font.setBold(True)
         _font.setPixelSize(max(12, int(_lh * 0.6)))

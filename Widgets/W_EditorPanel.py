@@ -31,7 +31,6 @@ class EditorPanel(QtWidgets.QWidget):
         self.mapFilePath = ""
         self.mapData: Optional[MapData] = None
         self._pixmap: Optional[QtGui.QPixmap] = None
-        self._scale: float = 1.0
         self.selectedLayerName: Optional[str] = None
         if not EditorStatus.PROJ_PATH in sys.path:
             sys.path.append(EditorStatus.PROJ_PATH)
@@ -124,14 +123,10 @@ class EditorPanel(QtWidgets.QWidget):
             self.setMinimumSize(0, 0)
             return
         tileSize = EditorStatus.CELLSIZE
-        w = int(self.mapData.width * tileSize * self._scale)
-        h = int(self.mapData.height * tileSize * self._scale)
+        w = int(self.mapData.width * tileSize)
+        h = int(self.mapData.height * tileSize)
         self.setMinimumSize(w, h)
         self.resize(w, h)
-
-    def setScale(self, scale: float) -> None:
-        self._scale = max(0.1, float(scale))
-        self._updateContentSize()
 
     def getLayerNames(self) -> List[str]:
         if self.mapData is None:
@@ -184,9 +179,9 @@ class EditorPanel(QtWidgets.QWidget):
     def paintEvent(self, e: QtGui.QPaintEvent) -> None:
         p = QtGui.QPainter(self)
         if self._pixmap is not None:
-            p.scale(self._scale, self._scale)
             p.drawPixmap(0, 0, self._pixmap)
         p.end()
+
     def changeEvent(self, e: QtCore.QEvent) -> None:
         if e.type() == QtCore.QEvent.EnabledChange:
             Utils.Panel.applyDisabledOpacity(self)
@@ -195,8 +190,8 @@ class EditorPanel(QtWidgets.QWidget):
     def mousePressEvent(self, e: QtGui.QMouseEvent) -> None:
         if self.mapData is None:
             return
-        x = int(e.pos().x() / self._scale)
-        y = int(e.pos().y() / self._scale)
+        x = int(e.pos().x())
+        y = int(e.pos().y())
         tileSize = EditorStatus.CELLSIZE
         gx = x // tileSize
         gy = y // tileSize
