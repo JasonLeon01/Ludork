@@ -10,6 +10,7 @@ from Utils import Locale, Panel
 from .W_EditorPanel import EditorPanel
 from .W_Toggle import ModeToggle
 from .W_FileExplorer import FileExplorer
+from .W_Console import ConsoleWidget
 import EditorStatus
 
 
@@ -136,10 +137,12 @@ class MainWindow(QtWidgets.QMainWindow):
         lowerLayout.setContentsMargins(0, 0, 0, 0)
         lowerLayout.setSpacing(0)
         self.fileExplorer = FileExplorer(EditorStatus.PROJ_PATH)
+        self.consoleWidget = ConsoleWidget()
         self.tabWidget = QtWidgets.QTabWidget()
         self.tabWidget.setTabPosition(QtWidgets.QTabWidget.North)
         self.tabWidget.setTabBarAutoHide(False)
         self.tabWidget.addTab(self.fileExplorer, Locale.getContent("FILE_EXPLORER"))
+        self.tabWidget.addTab(self.consoleWidget, Locale.getContent("CONSOLE"))
         lowerLayout.addWidget(self.tabWidget)
 
         self.topSplitter = QtWidgets.QSplitter(QtCore.Qt.Vertical)
@@ -282,14 +285,25 @@ class MainWindow(QtWidgets.QMainWindow):
         self.endGame()
         self.stacked.setCurrentWidget(self.gamePanel)
         self.leftList.setEnabled(False)
+        if hasattr(self, "fileExplorer"):
+            self.fileExplorer.setInteractive(False)
         iniPath = os.path.join(EditorStatus.PROJ_PATH, "Main.ini")
         iniFile = configparser.ConfigParser()
         iniFile.read(iniPath, encoding="utf-8")
         script_path = iniFile["Main"]["script"]
         self._panelHandle = int(self.gamePanel.winId())
         self._engineProc = subprocess.Popen(
-            [sys.executable, script_path, str(self._panelHandle)], cwd=EditorStatus.PROJ_PATH, shell=False
+            [sys.executable, "-u", script_path, str(self._panelHandle)],
+            cwd=EditorStatus.PROJ_PATH,
+            shell=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdin=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+            env=dict(os.environ, PYTHONUNBUFFERED="1"),
         )
+        self.consoleWidget.attach_process(self._engineProc)
 
     def endGame(self):
         if self._engineProc:
@@ -299,6 +313,11 @@ class MainWindow(QtWidgets.QMainWindow):
         Panel.clearPanel(self.gamePanel)
         self.stacked.setCurrentWidget(self.editorScroll)
         self.leftList.setEnabled(True)
+        if hasattr(self, "fileExplorer"):
+            self.fileExplorer.setInteractive(True)
+        if hasattr(self, "consoleWidget"):
+            self.consoleWidget.detach_process()
+            self.consoleWidget.clear()
 
     def _onModeChanged(self, idx: int) -> None:
         if idx == 1:

@@ -18,6 +18,11 @@
 3. Install dependencies: `pip install -r requirements.txt`
 4. Run: `python main.py`
 
+## Preview
+![Preview](docs/images/image-1.png)
+![Preview](docs/images/image-2.png)
+
+
 ## Dependencies
 - `PyQt5`, `psutil`, `pympler`
 - Install via `pip install -r requirements.txt`

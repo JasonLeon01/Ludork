@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-
+import logging
 import threading
 from collections import deque
 from typing import Any, Callable, Deque, Dict, List, Optional, Tuple
@@ -67,7 +67,7 @@ class EventBus:
             try:
                 fn(payload)
             except Exception as e:
-                print(f"EventBus: handler error for '{event}': {e}")
+                logging.error(f"EventBus: handler error for '{event}': {e}")
 
     def post(self, event: str, payload: Any = None) -> None:
         with self._lock:

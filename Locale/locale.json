@@ -62,5 +62,13 @@
     "OPEN_FROM_SYSTEM": {
         "zh_CN": "从系统打开",
         "en_GB": "Open from System"
+    },
+    "CONSOLE": {
+        "zh_CN": "控制台",
+        "en_GB": "Console"
+    },
+    "SEND": {
+        "zh_CN": "发送",
+        "en_GB": "Send"
     }
 }

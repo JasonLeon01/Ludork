@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import copy
+import logging
 from enum import Enum
 from typing import Dict, Optional, Tuple, Union, List, Callable
 from .pysf import Keyboard, Mouse, Joystick, WindowBase, Vector2i
@@ -254,7 +255,7 @@ def update(window: WindowBase) -> None:
                                 objCallable(obj, position)
 
     except Exception as e:
-        print(f"Error in Input.update: {e}")
+        logging.error(f"Error in Input.update: {e}")
 
 
 def isFocused() -> bool:

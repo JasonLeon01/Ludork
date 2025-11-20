@@ -14,6 +14,7 @@ class FileExplorer(QtWidgets.QWidget):
         super().__init__(parent)
         self._root = os.path.abspath(root_path)
         self._current = self._root
+        self._interactive = True
         self._clipboard = []
         self._clipboard_cut = False
         class _Proxy(QtCore.QSortFilterProxyModel):
@@ -43,6 +44,8 @@ class FileExplorer(QtWidgets.QWidget):
                 self.setDragDropMode(QtWidgets.QAbstractItemView.DragDrop)
                 self.setDefaultDropAction(QtCore.Qt.MoveAction)
             def startDrag(self, supportedActions: QtCore.Qt.DropActions) -> None:
+                if not self._owner._interactive:
+                    return
                 sel = self.selectionModel().selectedRows()
                 if not sel:
                     return
@@ -58,6 +61,8 @@ class FileExplorer(QtWidgets.QWidget):
                 drag.setMimeData(mime)
                 drag.exec_(QtCore.Qt.MoveAction | QtCore.Qt.CopyAction)
             def keyPressEvent(self, e: QtGui.QKeyEvent) -> None:
+                if not self._owner._interactive:
+                    return
                 k = e.key()
                 if k in (QtCore.Qt.Key_Space, QtCore.Qt.Key_Return, QtCore.Qt.Key_Enter):
                     rows = self._owner._selectedSourceRows()
@@ -77,16 +82,22 @@ class FileExplorer(QtWidgets.QWidget):
                                 return
                 super().keyPressEvent(e)
             def dragEnterEvent(self, e: QtGui.QDragEnterEvent) -> None:
+                if not self._owner._interactive:
+                    return
                 if e.mimeData().hasUrls():
                     e.acceptProposedAction()
                 else:
                     super().dragEnterEvent(e)
             def dragMoveEvent(self, e: QtGui.QDragMoveEvent) -> None:
+                if not self._owner._interactive:
+                    return
                 if e.mimeData().hasUrls():
                     e.acceptProposedAction()
                 else:
                     super().dragMoveEvent(e)
             def dropEvent(self, e: QtGui.QDropEvent) -> None:
+                if not self._owner._interactive:
+                    return
                 if not e.mimeData().hasUrls():
                     return super().dropEvent(e)
                 idx = self.indexAt(e.pos())
@@ -175,6 +186,11 @@ class FileExplorer(QtWidgets.QWidget):
         layout.addWidget(topBar, 0)
         layout.addWidget(self._view, 1)
         self.setMinimumHeight(160)
+    def setInteractive(self, enabled: bool) -> None:
+        self._interactive = bool(enabled)
+        fp = QtCore.Qt.StrongFocus if self._interactive else QtCore.Qt.NoFocus
+        self._view.setFocusPolicy(fp)
+        self._upButton.setEnabled(self._interactive)
     def _uniquePath(self, dst: str, moved: bool) -> str:
         if not os.path.exists(dst):
             return dst
@@ -228,6 +244,8 @@ class FileExplorer(QtWidgets.QWidget):
         self._view.setRootIndex(self._proxy.mapFromSource(self._model.index(self._current)))
 
     def _onDoubleClicked(self, index: QtCore.QModelIndex) -> None:
+        if not self._interactive:
+            return
         if not index.isValid():
             return
         src = self._proxy.mapToSource(index)
@@ -241,6 +259,8 @@ class FileExplorer(QtWidgets.QWidget):
         rows = self._view.selectionModel().selectedRows()
         return [self._proxy.mapToSource(i) for i in rows]
     def _onCopy(self) -> None:
+        if not self._interactive:
+            return
         srcRows = self._selectedSourceRows()
         paths = []
         for i in srcRows:
@@ -250,6 +270,8 @@ class FileExplorer(QtWidgets.QWidget):
         self._clipboard = paths
         self._clipboard_cut = False
     def _onCut(self) -> None:
+        if not self._interactive:
+            return
         srcRows = self._selectedSourceRows()
         paths = []
         for i in srcRows:
@@ -259,6 +281,8 @@ class FileExplorer(QtWidgets.QWidget):
         self._clipboard = paths
         self._clipboard_cut = True
     def _onPaste(self) -> None:
+        if not self._interactive:
+            return
         if not self._clipboard:
             return
         destDir = self._current
@@ -293,6 +317,8 @@ class FileExplorer(QtWidgets.QWidget):
         self._clipboard = []
         self._clipboard_cut = False
     def _onDelete(self) -> None:
+        if not self._interactive:
+            return
         rows = self._selectedSourceRows()
         if not rows:
             return
@@ -318,6 +344,8 @@ class FileExplorer(QtWidgets.QWidget):
         if failed:
             QtWidgets.QMessageBox.warning(self, Locale.getContent("DELETE_FAILED"), Locale.getContent("DELETE_FAILED_MESSAGE"))
     def _onContextMenu(self, pos: QtCore.QPoint) -> None:
+        if not self._interactive:
+            return
         idx = self._view.indexAt(pos)
         if idx.isValid():
             sm = self._view.selectionModel()

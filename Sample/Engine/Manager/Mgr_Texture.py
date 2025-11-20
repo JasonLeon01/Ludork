@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import weakref
+import logging
 from typing import Dict, Tuple, Optional, TYPE_CHECKING
 from . import Texture
 
@@ -41,7 +42,7 @@ class TextureManager:
     @classmethod
     def _textureGone(cls, filePath: str, sRGB: bool, area: IntRect, smooth: bool) -> callable:
         def callback(_):
-            print(f"Texture {filePath} has been garbage collected.")
+            logging.warning(f"Texture {filePath} has been garbage collected.")
             cls._TexturesRef.pop((filePath, sRGB, area, smooth), None)
 
         return callback

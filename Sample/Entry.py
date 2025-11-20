@@ -2,8 +2,10 @@
 
 import os
 import sys
+import logging
 from typing import Optional
 import configparser
+import threading
 
 
 def entry(windowHandle: Optional[int] = None):
@@ -18,6 +20,28 @@ def entry(windowHandle: Optional[int] = None):
     Engine.Locale.init("./Assets/Locale")
     Engine.System.init(iniFile, iniFilePath)
     Engine.System.setScene(Scenes.Title())
+
+    def _stdinWorker():
+        env = {"Engine": Engine, "Scenes": Scenes, "System": Engine.System}
+        while True:
+            line = sys.stdin.readline()
+            if not line:
+                break
+            cmd = line.strip()
+            if not cmd:
+                continue
+            try:
+                r = eval(cmd, env)
+                if r is not None:
+                    print(str(r))
+            except Exception:
+                try:
+                    exec(cmd, env)
+                except Exception as e:
+                    logging.error(f"[STDIN] {e}")
+
+    t = threading.Thread(target=_stdinWorker, daemon=True)
+    t.start()
     while Engine.System.shouldLoop():
         Engine.System.getScene().main()
 
