@@ -1,4 +1,4 @@
-PyQt5==5.15.6
+PyQt5==5.15.10
 qt-material==2.14.0
 psutil
 pympler

@@ -1,12 +1,12 @@
 uniform sampler2D screenTex;
 uniform float intensity;
+uniform vec2 texSize;
 
 void main()
 {
-    vec2 texSize = vec2(textureSize(screenTex, 0));
-    vec2 uv = gl_FragCoord.xy / texSize;
+    vec2 uv = gl_TexCoord[0].xy;
     if (intensity <= 0.0) {
-        vec3 c = texture(screenTex, clamp(uv, 0.0, 1.0)).rgb;
+        vec3 c = texture2D(screenTex, clamp(uv, 0.0, 1.0)).rgb;
         gl_FragColor = vec4(c, 1.0);
         return;
     }
@@ -18,7 +18,8 @@ void main()
     for (int j = -4; j <= 4; ++j) {
         for (int i = -4; i <= 4; ++i) {
             vec2 offs = t * vec2(float(i), float(j));
-            sum += texture(screenTex, clamp(uv + offs, 0.0, 1.0)).rgb;
+            vec3 s = texture2D(screenTex, clamp(uv + offs, 0.0, 1.0)).rgb;
+            sum += s;
             count += 1.0;
         }
     }

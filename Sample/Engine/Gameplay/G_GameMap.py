@@ -331,6 +331,7 @@ class GameMap:
         shader.setUniform("screenScale", System.getScale())
         shader.setUniform("screenSize", Math.ToVector2f(System.getGameSize()))
         shader.setUniform("viewPos", self._camera.getViewPosition())
+        shader.setUniform("gridSize", Math.ToVector2f(self._tilemap.getSize()))
         shader.setUniform("lightCount", len(self._lights))
         shader.setUniform("cellSize", GetCellSize())
         for i in range(len(self._lights)):

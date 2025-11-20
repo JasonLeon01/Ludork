@@ -353,17 +353,30 @@ class MainWindow(QtWidgets.QMainWindow):
         iniFile.read(iniPath, encoding="utf-8")
         script_path = iniFile["Main"]["script"]
         self._panelHandle = int(self.gamePanel.winId())
-        self._engineProc = subprocess.Popen(
-            [sys.executable, "-u", script_path, str(self._panelHandle)],
-            cwd=EditorStatus.PROJ_PATH,
-            shell=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            stdin=subprocess.PIPE,
-            text=True,
-            bufsize=1,
-            env=dict(os.environ, PYTHONUNBUFFERED="1"),
-        )
+        if os.name == "nt":
+            self._engineProc = subprocess.Popen(
+                [sys.executable, "-u", script_path, str(self._panelHandle)],
+                cwd=EditorStatus.PROJ_PATH,
+                shell=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                stdin=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+                env=dict(os.environ, PYTHONUNBUFFERED="1"),
+            )
+        else:
+            self._engineProc = subprocess.Popen(
+                [sys.executable, "-u", script_path],
+                cwd=EditorStatus.PROJ_PATH,
+                shell=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                stdin=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+                env=dict(os.environ, PYTHONUNBUFFERED="1"),
+            )
         self.consoleWidget.attach_process(self._engineProc)
 
     def endGame(self):

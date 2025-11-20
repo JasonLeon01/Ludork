@@ -14,7 +14,9 @@ uniform float screenScale;
 uniform vec2 screenSize;
 uniform vec2 viewPos;
 
-float GetObstructionAttenuation(vec2 from, vec2 to, sampler2D passabilityTex, vec2 gridSize) 
+uniform vec2 gridSize;
+
+float GetObstructionAttenuation(vec2 from, vec2 to, vec2 gridSize)
 {
     vec2 fromGrid = from / float(cellSize);
     vec2 toGrid = to / float(cellSize);
@@ -31,8 +33,8 @@ float GetObstructionAttenuation(vec2 from, vec2 to, sampler2D passabilityTex, ve
     for (int i = 0; i < 64; ++i) {
         if (i >= steps) break;
 
-        vec2 uv = curr / gridSize;
-        float r = texture(passabilityTex, uv).r;
+        vec2 uv = clamp(curr / gridSize, 0.0, 1.0);
+        float r = texture2D(passabilityTex, uv).r;
 
         attenuation *= (1.0 - r * 0.6);
         curr += step;
@@ -46,24 +48,23 @@ void main()
     vec2 pixelPosBL_view = gl_FragCoord.xy / screenScale;
     vec2 pixelPosTL_view = vec2(pixelPosBL_view.x, screenSize.y - pixelPosBL_view.y);
     vec2 pixelPosTL_world = pixelPosTL_view + viewPos;
-    vec2 gridSize = vec2(textureSize(passabilityTex, 0));
     vec2 mapPixelSize = gridSize * float(cellSize);
     vec2 pixelPosBL_world = vec2(pixelPosTL_world.x, mapPixelSize.y - pixelPosTL_world.y);
-    vec2 tilemapSize = vec2(textureSize(tilemapTex, 0));
 
-    vec2 uv = clamp(pixelPosBL_view / tilemapSize, 0.0, 1.0);
-    vec3 pixelColor = texture(tilemapTex, uv).rgb;
+    vec2 uv = clamp(gl_TexCoord[0].xy, 0.0, 1.0);
+    vec3 pixelColor = texture2D(tilemapTex, uv).rgb;
 
     vec3 totalLight = ambientColor;
 
-    for (int i = 0; i < lightCount; ++i) {
+    for (int i = 0; i < 16; ++i) {
+        if (i >= lightCount) break;
 
         float dist = length(pixelPosTL_world - lightPos[i]);
         if (dist >= lightRadius[i]) continue;
 
         float atten = 1.0 - dist / lightRadius[i];
         vec2 lightPosBL_world = vec2(lightPos[i].x, mapPixelSize.y - lightPos[i].y);
-        float obs = GetObstructionAttenuation(lightPosBL_world, pixelPosBL_world, passabilityTex, gridSize);
+        float obs = GetObstructionAttenuation(lightPosBL_world, pixelPosBL_world, gridSize);
 
         totalLight += lightColor[i] * lightIntensity[i] * atten * obs;
     }

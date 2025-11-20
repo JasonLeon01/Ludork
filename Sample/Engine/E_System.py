@@ -187,7 +187,9 @@ class System:
         states = Render.CanvasRenderStates()
         if cls._graphicsShader:
             cls._graphicsShader.setUniform("screenTex", cls._canvas.getTexture())
+            cls._graphicsShader.setUniform("texSize", Math.ToVector2f(cls._canvas.getTexture().getSize()))
             states.shader = cls._graphicsShader
+
         if cls._inTransition:
             cls._transitionTempTexture.clear(Color.Transparent)
             cls._transitionTempTexture.draw(cls._canvasSprite, states)
