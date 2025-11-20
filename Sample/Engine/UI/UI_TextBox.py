@@ -15,7 +15,7 @@ Window = UI_Window.Window
 
 class TextBox(SpriteBase):
     def __init__(self, rect: IntRect, windowSkin: Optional[Image] = None) -> None:
-        from Engine import System
+        from .. import System
 
         assert rect.size.x > 16 and rect.size.y > 16
         self._realRect = copy.copy(rect)
@@ -52,7 +52,7 @@ class TextBox(SpriteBase):
         self._active = active
 
     def update(self, deltaTime: float) -> None:
-        from Engine import Input
+        from .. import Input
 
         if not self._active:
             return

@@ -44,7 +44,7 @@ class Rect(SpriteBase, RectBase):
         if windowSkin:
             self._windowSkin = windowSkin
         else:
-            from Engine import System, Manager
+            from .. import System, Manager
 
             self._windowSkin = Manager.loadSystem(System.getWindowskinName(), smooth=True)
         self._initUI()

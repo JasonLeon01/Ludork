@@ -179,7 +179,7 @@ class System:
 
     @classmethod
     def display(cls, deltaTime: float) -> None:
-        from Engine.Utils import Render
+        from .Utils import Render
 
         if cls._inTransition:
             cls._transitionTimeCount = min(cls._transitionTimeCount + deltaTime, cls._transitionTime)

@@ -6,7 +6,7 @@ import subprocess
 import configparser
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Game import Locale
+from Utils import Locale
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -35,7 +35,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.panel = QtWidgets.QWidget()
         if os.environ.get("SCREEN_LOW_RES"):
-            self.panel.setFixedSize(640, 480)
+            if os.environ["SCREEN_LOW_RES"] == "1":
+                self.panel.setFixedSize(640, 480)
+            else:
+                self.panel.setFixedSize(960, 720)
         else:
             self.panel.setFixedSize(1280, 960)
         self.panel.setObjectName("GamePanel")
@@ -57,6 +60,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         super().resizeEvent(event)
+        cfg = configparser.ConfigParser()
+        cfg_path = os.path.join(os.getcwd(), "Ludork.ini")
+        assert os.path.exists(cfg_path)
+        cfg.read(cfg_path)
+        assert "Ludork" in cfg
+        s = self.size()
+        cfg["Ludork"]["Width"] = str(s.width())
+        cfg["Ludork"]["Height"] = str(s.height())
+        with open(cfg_path, "w") as f:
+            cfg.write(f)
 
     def getPanelHandle(self) -> int:
         return int(self.panel.winId())

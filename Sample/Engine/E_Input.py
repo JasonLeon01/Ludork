@@ -227,7 +227,7 @@ def update(window: WindowBase) -> None:
                 _EventState.EnteredText += event.getIfTextEntered().unicode
 
         if _EventState.EnteredText == "\x16":
-            from Engine import Clipboard
+            from . import Clipboard
 
             _EventState.EnteredText = Clipboard.getString()
 

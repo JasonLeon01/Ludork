@@ -29,7 +29,7 @@ class Window(SpriteBase, RectBase):
         windowSkin: Optional[Image] = None,
         repeated: bool = False,
     ) -> None:
-        from Engine import System
+        from .. import System
 
         assert isinstance(rect, (IntRect, tuple)), "rect must be a tuple or IntRect"
         if not isinstance(rect, IntRect):
@@ -46,7 +46,7 @@ class Window(SpriteBase, RectBase):
         if windowSkin:
             self._windowSkin = windowSkin
         else:
-            from Engine import Manager
+            from .. import Manager
 
             self._windowSkin = Manager.loadSystem(System.getWindowskinName(), smooth=True)
         self._repeated = repeated

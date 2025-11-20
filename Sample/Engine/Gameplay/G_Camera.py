@@ -29,7 +29,7 @@ class Camera(Drawable):
         super().__init__()
         self._viewport = viewport
         if self._viewport is None:
-            from Engine import System
+            from .. import System
 
             self._viewport = FloatRect(Vector2f(0, 0), Math.ToVector2f(System.getGameSize()))
         self._renderTexture: RenderTexture

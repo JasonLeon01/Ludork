@@ -7,7 +7,7 @@ SpriteBase = UI_SpriteBase.SpriteBase
 
 class Image(SpriteBase):
     def _applyRenderStates(self, states: RenderStates) -> None:
-        from Engine import System
+        from .. import System
 
         super()._applyRenderStates(states)
         states.transform.scale(Vector2f(System.getScale(), System.getScale()))

@@ -36,9 +36,11 @@ class AudioManager:
         if cls._AsyncLoop is None or cls._AsyncThread is None or not cls._AsyncThread.is_alive():
             loop = asyncio.new_event_loop()
             cls._AsyncLoop = loop
+
             def _runner(lp: asyncio.AbstractEventLoop) -> None:
                 asyncio.set_event_loop(lp)
                 lp.run_forever()
+
             t = threading.Thread(target=_runner, args=(loop,), daemon=True)
             cls._AsyncThread = t
             t.start()
@@ -70,7 +72,7 @@ class AudioManager:
     def playSound(
         cls, filePath: str, filter: Optional[Filters.SoundFilter] = None, parent: Optional[Transformable] = None
     ) -> Sound:
-        from Engine import System
+        from .. import System
 
         if not System.getSoundOn():
             return None
@@ -87,7 +89,7 @@ class AudioManager:
         cls._SoundRec.append(sound)
         if not filter is None:
             cls.setSoundFilter(sound, filter)
-        from Engine import System
+        from .. import System
 
         cls._SoundBaseVolume[id(sound)] = sound.getVolume()
         sv = System.getSoundVolume()
@@ -109,7 +111,7 @@ class AudioManager:
 
     @classmethod
     def playMusic(cls, musicType: str, filePath: str, filter: Optional[Filters.MusicFilter] = None) -> Music:
-        from Engine import System
+        from .. import System
 
         if not System.getMusicOn():
             cls.stopMusic(musicType)
@@ -121,7 +123,7 @@ class AudioManager:
         cls._MusicRef[musicType] = (filePath, music)
         if not filter is None:
             cls.setMusicFilter(music, filter)
-        from Engine import System
+        from .. import System
 
         cls._MusicBaseVolume[id(music)] = music.getVolume()
         mv = System.getMusicVolume()
@@ -172,6 +174,7 @@ class AudioManager:
         async def monitorWrapper():
             await monitor(sound)
             cleanup(sound, filePath)
+
         cls._submit(monitorWrapper())
 
     @classmethod
@@ -277,7 +280,7 @@ class AudioManager:
 
     @classmethod
     async def _soundMonitor(cls, sound: Sound) -> None:
-        from Engine import System
+        from .. import System
 
         base = cls._SoundBaseVolume.get(id(sound), sound.getVolume())
         last = -1
@@ -305,7 +308,7 @@ class AudioManager:
 
     @classmethod
     async def _musicMonitor(cls, music: Music) -> None:
-        from Engine import System
+        from .. import System
 
         base = cls._MusicBaseVolume.get(id(music), music.getVolume())
         last = -1

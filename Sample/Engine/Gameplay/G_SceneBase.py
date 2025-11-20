@@ -12,13 +12,13 @@ if TYPE_CHECKING:
 
 class SceneBase:
     def __init__(self) -> None:
-        from Engine import System
+        from .. import System
 
         self._UIs: List[Canvas] = []
         if System.isDebugMode():
-            from Engine.UI import UI_Text
+            from ..UI import UI_Text as Text
 
-            PlainText = UI_Text.PlainText
+            PlainText = Text.PlainText
             self._debugHUDEnabled: bool = True
             self._debugHUD: PlainText = PlainText(list(System.getFonts())[0], "", 12)
             self._totalTime: float = 0.0
@@ -38,7 +38,7 @@ class SceneBase:
         self.onCreate()
 
     def onEnter(self) -> None:
-        from Engine import System
+        from .. import System
 
         System.setTransition()
 
@@ -73,7 +73,7 @@ class SceneBase:
             raise ValueError("UI not found")
 
     def main(self) -> None:
-        from Engine import System, Input
+        from .. import System, Input
 
         self.onEnter()
         while System.isActive() and System.getScene() == self:
@@ -104,7 +104,7 @@ class SceneBase:
             ui.onFixedTick(fixedDelta)
 
     def _renderHandle(self, deltaTime: float) -> None:
-        from Engine import System
+        from .. import System
 
         for ui in self._UIs:
             ui.update(deltaTime)
@@ -114,7 +114,7 @@ class SceneBase:
         System.display(deltaTime)
 
     def _update(self, deltaTime: float) -> None:
-        from Engine import System
+        from .. import System
 
         self.onTick(deltaTime)
         self._logicHandle(deltaTime)
@@ -127,7 +127,7 @@ class SceneBase:
         self._renderHandle(deltaTime)
 
     def _updateDebugInfo(self, deltaTime: float) -> None:
-        from Engine import System, Input, Manager
+        from .. import System, Input, Manager
 
         if not System.isDebugMode():
             return
@@ -148,6 +148,7 @@ class SceneBase:
         if self._debugUpdateTimer >= 0.5:
             import psutil
             from pympler import asizeof
+
             process = psutil.Process(os.getpid())
             info = process.memory_info()
             self._memRSS = info.rss * 1.0
@@ -157,6 +158,7 @@ class SceneBase:
             self._fontMem = Manager.FontManager.getMemory() * 1.0
             self._debugUpdateTimer = 0.0
         import types
+
         memInfo = types.SimpleNamespace(rss=self._memRSS)
         sceneMem = self._sceneMem
         textureMem = self._textureMem

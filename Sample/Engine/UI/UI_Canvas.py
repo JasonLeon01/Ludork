@@ -51,7 +51,7 @@ class Canvas(SpriteBase):
         return self._childrenList
 
     def addChild(self, child: ControlBase) -> None:
-        from Engine.Gameplay.Actors import Actor
+        from ..Gameplay.Actors import Actor
 
         assert not isinstance(child, Actor), "Cannot add Actor to UI"
         self._childrenList.append(child)

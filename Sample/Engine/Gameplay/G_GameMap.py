@@ -39,7 +39,7 @@ class Light:
 
 class GameMap:
     def __init__(self, tilemap: Tilemap, camera: Optional[Camera] = None) -> None:
-        from Engine import System
+        from .. import System
 
         self._tilemap = tilemap
         self._actors: Dict[str, List[Actor]] = {}
@@ -297,7 +297,7 @@ class GameMap:
                     actor.onFixedTick(fixedDelta)
 
     def show(self) -> None:
-        from Engine import System
+        from .. import System
 
         System.setWindowMapView()
         self._camera.clear()
@@ -318,8 +318,8 @@ class GameMap:
         if self._lightShader is None:
             return
 
-        from Engine import System
-        from Engine.Utils import Math
+        from .. import System
+        from ..Utils import Math
 
         shader = self._lightShader
         shader.setUniform("tilemapTex", self._camera.getTexture())

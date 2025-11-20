@@ -22,7 +22,7 @@ ControlBase = UI_ControlBase.ControlBase
 
 class SpriteBase(Transformable, Drawable, ControlBase):
     def __init__(self, texture: Texture, rect: Optional[IntRect] = None) -> None:
-        from Engine.Utils import Render
+        from ..Utils import Render
 
         self._sprite: Sprite
         self._renderStates: RenderStates = Render.CanvasRenderStates()
@@ -127,7 +127,7 @@ class SpriteBase(Transformable, Drawable, ControlBase):
         target.draw(self._sprite, states)
 
     def _applyRenderStates(self, states: RenderStates) -> None:
-        from Engine import System
+        from .. import System
 
         states.transform *= self.getTransform()
         states.transform.translate(Vector2f(System.getScale() - 1, System.getScale() - 1))

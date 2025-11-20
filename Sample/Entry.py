@@ -15,7 +15,7 @@ def entry(windowHandle: Optional[int] = None):
     iniFilePath = "./Main.ini"
     iniFile = configparser.ConfigParser()
     iniFile.read(iniFilePath, encoding="utf-8")
-    Engine.Locale.Locale.init("./Assets/Locale")
+    Engine.Locale.init("./Assets/Locale")
     Engine.System.init(iniFile, iniFilePath)
     Engine.System.setScene(Scenes.Title())
     while Engine.System.shouldLoop():

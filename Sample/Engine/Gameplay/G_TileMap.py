@@ -61,7 +61,7 @@ class TileLayer(Drawable, Transformable):
         target.draw(self._vertexArray, states)
 
     def _init(self) -> None:
-        from Engine import GetCellSize
+        from . import GetCellSize
 
         tileSize = GetCellSize()
         columns = self._texture.getSize().x // tileSize

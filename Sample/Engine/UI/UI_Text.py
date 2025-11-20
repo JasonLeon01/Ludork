@@ -29,7 +29,7 @@ class PlainText(Text, ControlBase):
         style: Text.Style = Text.Style.Regular,
         fillColor: Color = Color.White,
     ) -> None:
-        from Engine import System
+        from .. import System
 
         self._characterSize = characterSize
         Text.__init__(self, font, text, int(characterSize * System.getScale()))
@@ -41,7 +41,7 @@ class PlainText(Text, ControlBase):
         return self._characterSize
 
     def setCharacterSize(self, characterSize: int) -> None:
-        from Engine import System
+        from .. import System
 
         self._characterSize = characterSize
         Text.setCharacterSize(self, int(characterSize * System.getScale()))
@@ -63,7 +63,7 @@ class TextStyle:
         self.outlineThickness = outlineThickness
 
     def enableStyle(self, text: Text):
-        from Engine import System
+        from .. import System
 
         text.setCharacterSize(int(self.characterSize * System.getScale()))
         text.setStyle(self.style)

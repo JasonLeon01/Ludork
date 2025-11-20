@@ -23,10 +23,10 @@ def getRealSize(inSize: Union[Vector2i, Vector2u, Vector2f]):
         assert isinstance(inSize, Vector2f), "inSize must be a Vector2i, Vector2u or Vector2f"
         size = copy.copy(inSize)
     else:
-        from Engine.Utils import Math
+        from ..Utils import Math
 
         size = Math.ToVector2f(inSize)
 
-    from Engine import System
+    from .. import System
 
     return size * System.getScale()

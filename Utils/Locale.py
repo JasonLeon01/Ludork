@@ -9,10 +9,12 @@ class _Locale:
 
 
 def init(localePath: str) -> None:
-    from .Utils import File
+    from . import File
 
     if os.path.exists(localePath):
         for file in os.listdir(localePath):
+            if os.path.splitext(file)[1]:
+                continue
             filePath = os.path.join(localePath, file)
             _Locale.dataDict[file] = File.loadData(filePath)
 
@@ -22,6 +24,4 @@ def getLocaleContent(localeKey: str, key: str) -> str:
 
 
 def getContent(key: str) -> str:
-    from . import System
-
-    return getLocaleContent(System.getLanguage(), key)
+    return getLocaleContent(os.environ["LANGUAGE"], key)
