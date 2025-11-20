@@ -5,6 +5,7 @@ import sys
 import locale
 import configparser
 from PyQt5.QtWidgets import QApplication
+from qt_material import apply_stylesheet
 from PyQt5.QtGui import QIcon
 from Widgets import MainWindow
 from Utils import Locale
@@ -29,12 +30,18 @@ def initConfig(app):
             if os.environ["SCREEN_LOW_RES"] == "1":
                 editorConfig["Ludork"]["Width"] = "1280"
                 editorConfig["Ludork"]["Height"] = "720"
+                editorConfig["Ludork"]["UpperLeftWidth"] = "320"
+                editorConfig["Ludork"]["UpperRightWidth"] = "320"
             else:
                 editorConfig["Ludork"]["Width"] = "1920"
                 editorConfig["Ludork"]["Height"] = "1080"
+                editorConfig["Ludork"]["UpperLeftWidth"] = "480"
+                editorConfig["Ludork"]["UpperRightWidth"] = "480"
         else:
             editorConfig["Ludork"]["Width"] = "2560"
             editorConfig["Ludork"]["Height"] = "1440"
+            editorConfig["Ludork"]["UpperLeftWidth"] = "640"
+            editorConfig["Ludork"]["UpperRightWidth"] = "640"
         lang, _ = locale.getdefaultlocale()
         editorConfig["Ludork"]["Language"] = lang if lang else "en_GB"
         with open("./Ludork.ini", "w") as f:
@@ -49,6 +56,7 @@ def main():
     icon_path = "./Resource/icon.ico"
     app = QApplication(sys.argv)
     initConfig(app)
+    apply_stylesheet(app, theme="light_cyan_500.xml")
     window = MainWindow("Ludork Editor", "./Sample")
     app.setWindowIcon(QIcon(icon_path))
     window.setWindowIcon(QIcon(icon_path))
