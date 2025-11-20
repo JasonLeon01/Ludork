@@ -38,9 +38,10 @@ class Light:
 
 
 class GameMap:
-    def __init__(self, tilemap: Tilemap, camera: Optional[Camera] = None) -> None:
+    def __init__(self, mapName, tilemap: Tilemap, camera: Optional[Camera] = None) -> None:
         from .. import System
 
+        self.mapName = mapName
         self._tilemap = tilemap
         self._actors: Dict[str, List[Actor]] = {}
         self._particleSystem: ParticleSystem = ParticleSystem()
@@ -361,3 +362,12 @@ class GameMap:
 
     def markPassabilityDirty(self) -> None:
         self._passabilityDirty = True
+
+    @staticmethod
+    def loadData(data: Dict, camera: Optional[Camera] = None) -> GameMap:
+        mapName = data["mapName"]
+        width = data["width"]
+        height = data["height"]
+        layers = data["layers"]
+        tilemap = Tilemap.loadData(layers, width, height)
+        return GameMap(mapName, tilemap, camera)

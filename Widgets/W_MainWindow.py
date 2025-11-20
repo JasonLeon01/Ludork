@@ -28,13 +28,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(central)
 
         self.topBar = QtWidgets.QWidget()
-        self.topBar.setMinimumHeight(64)
+        self.topBar.setMinimumHeight(32)
         topLayout = QtWidgets.QHBoxLayout(self.topBar)
         topLayout.setContentsMargins(0, 0, 0, 0)
-        topLayout.addStretch(1)
-        self.startButton = QtWidgets.QPushButton(Locale.getContent("TestGame"))
-        self.startButton.setMinimumHeight(64)
-        topLayout.addWidget(self.startButton)
         topLayout.addStretch(1)
         if EditorStatus.SCREEN_LOW_RES == 0:
             panelW, panelH = 1280, 960
@@ -50,7 +46,9 @@ class MainWindow(QtWidgets.QMainWindow):
         pal = self.editorPanel.palette()
         pal.setColor(QtGui.QPalette.Window, QtGui.QColor.fromRgb(0, 0, 0))
         self.editorPanel.setPalette(pal)
-        self.editorPanel.setScale(panelW / 640.0)
+        self._panelScale = panelW / 640.0
+        self.topBar.setMinimumHeight(int(32 * self._panelScale))
+        self.editorPanel.setScale(self._panelScale)
 
         self.editorScroll = QtWidgets.QScrollArea()
         self.editorScroll.setWidget(self.editorPanel)
@@ -75,7 +73,60 @@ class MainWindow(QtWidgets.QMainWindow):
         self.gamePanel.setPalette(pal)
         self._panelHandle = int(self.gamePanel.winId())
 
-        self.startButton.clicked.connect(self.startGame)
+        class ModeToggle(QtWidgets.QWidget):
+            selectionChanged = QtCore.pyqtSignal(int)
+
+            def __init__(self, scale: float, parent=None):
+                super().__init__(parent)
+                self._scale = scale
+                self._selected = 0
+                self.setFixedSize(int(128 * scale), int(32 * scale))
+
+            def sizeHint(self):
+                return QtCore.QSize(int(128 * self._scale), int(32 * self._scale))
+
+            def setSelected(self, idx: int):
+                if idx != self._selected:
+                    self._selected = idx
+                    self.update()
+
+            def paintEvent(self, e):
+                p = QtGui.QPainter(self)
+                p.setRenderHint(QtGui.QPainter.Antialiasing, True)
+                w = self.width()
+                h = self.height()
+                half = w // 2
+                rectL = QtCore.QRect(0, 0, half, h)
+                rectR = QtCore.QRect(half, 0, w - half, h)
+                bg = QtGui.QColor(40, 40, 40)
+                p.fillRect(rectL, bg)
+                p.fillRect(rectR, bg)
+                pen = QtGui.QPen(QtGui.QColor(120, 200, 255))
+                pen.setWidth(max(1, int(2 * self._scale)))
+                p.setPen(pen)
+                sel = rectL if self._selected == 0 else rectR
+                r = QtCore.QRect(sel)
+                r.adjust(int(2 * self._scale), int(2 * self._scale), -int(2 * self._scale), -int(2 * self._scale))
+                p.drawRoundedRect(r, int(8 * self._scale), int(8 * self._scale))
+                style = QtWidgets.QApplication.style()
+                editorIcon = style.standardIcon(QtWidgets.QStyle.SP_FileIcon)
+                playIcon = style.standardIcon(QtWidgets.QStyle.SP_MediaPlay)
+                iconSize = QtCore.QSize(int(32 * self._scale), int(32 * self._scale))
+                ep = editorIcon.pixmap(iconSize)
+                pp = playIcon.pixmap(iconSize)
+                p.drawPixmap(rectL.center().x() - ep.width() // 2, rectL.center().y() - ep.height() // 2, ep)
+                p.drawPixmap(rectR.center().x() - pp.width() // 2, rectR.center().y() - pp.height() // 2, pp)
+
+            def mousePressEvent(self, e):
+                idx = 0 if e.x() < self.width() // 2 else 1
+                if idx != self._selected:
+                    self._selected = idx
+                    self.update()
+                    self.selectionChanged.emit(idx)
+
+        self.modeToggle = ModeToggle(self._panelScale)
+        topLayout.addWidget(self.modeToggle, 0, alignment=QtCore.Qt.AlignRight)
+        self.modeToggle.selectionChanged.connect(self._onModeChanged)
 
         self.leftListIndex = -1
         self.leftList = QtWidgets.QListWidget()
@@ -143,11 +194,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.topSplitter.addWidget(self.lowerArea)
         topH = self.topBar.minimumHeight() + self.gamePanel.height()
         self.upperSplitter.setFixedHeight(topH)
-        self.lowerArea.setMinimumHeight(240)
-        self.topSplitter.setSizes([topH, max(self.height() - topH, 240)])
+        self.lowerArea.setMinimumHeight(160)
+        self.topSplitter.setSizes([topH, max(self.height() - topH, 160)])
 
         minW = 320 + self.gamePanel.width() + 320 + self.upperSplitter.handleWidth() * 2 + 16
-        minH = topH + 240 + 8
+        minH = topH + 160 + 8
         self.setMinimumSize(minW, minH)
         self._prevFG = self.frameGeometry()
         self._prevUpperW = self.upperSplitter.width()
@@ -186,7 +237,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self._prevUpperW = self.upperSplitter.width()
             self._prevFG = self.frameGeometry()
             topH = self.topBar.minimumHeight() + self.gamePanel.height()
-            self.topSplitter.setSizes([topH, max(self.height() - topH, 240)])
+            self.topSplitter.setSizes([topH, max(self.height() - topH, 160)])
             return
         if not self._sizesInitialized:
             sizes = self.upperSplitter.sizes()
@@ -247,7 +298,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self._prevUpperW = newUpperW
         self._prevFG = newFG
         topH = self.topBar.minimumHeight() + self.gamePanel.height()
-        self.topSplitter.setSizes([topH, max(self.height() - topH, 240)])
+        self.topSplitter.setSizes([topH, max(self.height() - topH, 160)])
         if self._hasShown:
             cfg = configparser.ConfigParser()
             cfg_path = os.path.join(os.getcwd(), "Ludork.ini")
@@ -274,6 +325,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def startGame(self):
         self.endGame()
         self.stacked.setCurrentWidget(self.gamePanel)
+        self.leftList.setEnabled(False)
         iniPath = os.path.join(EditorStatus.PROJ_PATH, "Main.ini")
         iniFile = configparser.ConfigParser()
         iniFile.read(iniPath, encoding="utf-8")
@@ -290,6 +342,15 @@ class MainWindow(QtWidgets.QMainWindow):
             self._engineProc = None
         Utils.Panel.clearPanel(self.gamePanel)
         self.stacked.setCurrentWidget(self.editorScroll)
+        self.leftList.setEnabled(True)
+
+    def _onModeChanged(self, idx: int) -> None:
+        if idx == 1:
+            self.startGame()
+        else:
+            self.endGame()
+        if hasattr(self, "modeToggle"):
+            self.modeToggle.setSelected(idx)
 
     def _onUpperSplitterMoved(self, pos: int, index: int) -> None:
         sizes = self.upperSplitter.sizes()

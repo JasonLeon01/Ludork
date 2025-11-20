@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from . import Drawable, Transformable, VertexArray, Manager, PrimitiveType, Vector2f, Vector2i, Vector2u
 
 if TYPE_CHECKING:
@@ -121,3 +121,21 @@ class Tilemap:
             return Vector2u(0, 0)
         first = next(iter(self._layers.values()))
         return Vector2u(first._width, first._height)
+
+    @staticmethod
+    def loadData(data: Dict[str, List[List[Any]]], width: int, height: int) -> Tilemap:
+        mapLayers = []
+        for layerName, layerData in data.items():
+            layerTiles = layerData["tiles"]
+            tiles: List[List[Tile]] = []
+            for y in range(height):
+                tiles.append([])
+                for x in range(width):
+                    tileInfo = layerTiles[y][x]
+                    if tileInfo is None:
+                        tiles[-1].append(None)
+                    else:
+                        tiles[-1].append(Tile(tileInfo[0], tileInfo[1], tileInfo[2]))
+            layer = TileLayer(layerName, layerData["filePath"], tiles)
+            mapLayers.append(layer)
+        return Tilemap(mapLayers)
