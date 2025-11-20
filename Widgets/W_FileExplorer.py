@@ -6,6 +6,7 @@ import stat
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Utils import Locale
+from .W_FilePreview import FilePreview
 
 
 class FileExplorer(QtWidgets.QWidget):
@@ -56,6 +57,25 @@ class FileExplorer(QtWidgets.QWidget):
                 drag = QtGui.QDrag(self)
                 drag.setMimeData(mime)
                 drag.exec_(QtCore.Qt.MoveAction | QtCore.Qt.CopyAction)
+            def keyPressEvent(self, e: QtGui.QKeyEvent) -> None:
+                k = e.key()
+                if k in (QtCore.Qt.Key_Space, QtCore.Qt.Key_Return, QtCore.Qt.Key_Enter):
+                    rows = self._owner._selectedSourceRows()
+                    if rows:
+                        i0 = rows[0]
+                        p = self._owner._model.filePath(i0)
+                        if k == QtCore.Qt.Key_Space:
+                            if p and not self._owner._model.isDir(i0) and self._owner._isPreviewable(p):
+                                self._owner._showPreview(p)
+                                return
+                        else:
+                            if p and not self._owner._model.isDir(i0):
+                                self._owner._openSystemFile(p)
+                                return
+                            elif p and self._owner._model.isDir(i0):
+                                self._owner._setCurrentPath(p)
+                                return
+                super().keyPressEvent(e)
             def dragEnterEvent(self, e: QtGui.QDragEnterEvent) -> None:
                 if e.mimeData().hasUrls():
                     e.acceptProposedAction()
@@ -79,7 +99,7 @@ class FileExplorer(QtWidgets.QWidget):
                         parent = self._owner._model.fileInfo(srcIdx).dir().path()
                         targetDir = parent
                 urls = [u for u in e.mimeData().urls() if u.isLocalFile()]
-                internal = all(u.toLocalFile().startswith(self._owner._root) for u in urls)
+                internal = all(self._owner._isUnderRoot(u.toLocalFile()) for u in urls)
                 for u in urls:
                     sp = u.toLocalFile()
                     name = os.path.basename(sp)
@@ -138,6 +158,7 @@ class FileExplorer(QtWidgets.QWidget):
         upIcon = style.standardIcon(QtWidgets.QStyle.SP_ArrowUp)
         self._pathEdit = QtWidgets.QLineEdit(self)
         self._pathEdit.setReadOnly(True)
+        self._pathEdit.setStyleSheet("color: white;")
         self._pathEdit.setText(self._current)
         self._upButton = QtWidgets.QToolButton(self)
         self._upButton.setIcon(upIcon)
@@ -172,8 +193,8 @@ class FileExplorer(QtWidgets.QWidget):
 
     def _isUnderRoot(self, path: str) -> bool:
         try:
-            rp = os.path.abspath(path)
-            rr = os.path.abspath(self._root)
+            rp = os.path.normcase(os.path.abspath(path))
+            rr = os.path.normcase(os.path.abspath(self._root))
             return os.path.commonpath([rp, rr]) == rr
         except Exception:
             return False
@@ -200,11 +221,11 @@ class FileExplorer(QtWidgets.QWidget):
             return False
 
     def _setCurrentPath(self, path: str) -> None:
-        if not path.startswith(self._root):
+        if not self._isUnderRoot(path):
             return
-        self._current = path
-        self._pathEdit.setText(path)
-        self._view.setRootIndex(self._proxy.mapFromSource(self._model.index(path)))
+        self._current = os.path.abspath(path)
+        self._pathEdit.setText(self._current)
+        self._view.setRootIndex(self._proxy.mapFromSource(self._model.index(self._current)))
 
     def _onDoubleClicked(self, index: QtCore.QModelIndex) -> None:
         if not index.isValid():
@@ -213,6 +234,9 @@ class FileExplorer(QtWidgets.QWidget):
         path = self._model.filePath(src)
         if self._model.isDir(src):
             self._setCurrentPath(path)
+        else:
+            if path:
+                self._openSystemFile(path)
     def _selectedSourceRows(self):
         rows = self._view.selectionModel().selectedRows()
         return [self._proxy.mapToSource(i) for i in rows]
@@ -319,13 +343,46 @@ class FileExplorer(QtWidgets.QWidget):
             self._onDelete()
 
     def _onUp(self) -> None:
-        if self._current == self._root:
+        if os.path.normcase(os.path.abspath(self._current)) == os.path.normcase(os.path.abspath(self._root)):
             return
         parent = os.path.dirname(self._current)
-        if not parent or len(parent) < len(self._root) or not parent.startswith(self._root):
+        if not parent or not self._isUnderRoot(parent):
             self._setCurrentPath(self._root)
         else:
             self._setCurrentPath(parent)
+
+    def _suffix(self, p: str) -> str:
+        i = p.rfind('.')
+        return p[i + 1 :].lower() if i >= 0 else ""
+
+    def _isPreviewable(self, p: str) -> bool:
+        ext = self._suffix(p)
+        return ext in ("png", "jpg", "jpeg", "bmp", "gif", "webp", "mp3", "wav", "ogg", "flac", "aac", "m4a")
+
+    def _openSystemFile(self, p: str) -> None:
+        if not p:
+            return
+        try:
+            QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(p))
+        except Exception:
+            pass
+
+    def _showPreview(self, p: str) -> None:
+        if not p:
+            return
+        if not os.path.exists(p):
+            return
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle(os.path.basename(p))
+        layout = QtWidgets.QVBoxLayout(dlg)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        preview = FilePreview(dlg)
+        preview.setFile(p)
+        layout.addWidget(preview)
+        dlg.resize(640, 360)
+        dlg.setModal(False)
+        dlg.show()
 
     def setRootPath(self, root_path: str) -> None:
         self._root = os.path.abspath(root_path)

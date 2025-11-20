@@ -7,6 +7,10 @@
         "zh_CN": "测试游戏",
         "en_GB": "Test Game"
     },
+    "FILE_EXPLORER": {
+        "zh_CN": "文件浏览器",
+        "en_GB": "File Explorer"
+    },
     "CUT": {
         "zh_CN": "剪切",
         "en_GB": "Cut"
@@ -46,5 +50,17 @@
     "CONFIRMATION_NO": {
         "zh_CN": "否",
         "en_GB": "No"
+    },
+    "PLAY_ERROR": {
+        "zh_CN": "播放错误",
+        "en_GB": "Play Error"
+    },
+    "PLAY_ERROR_MESSAGE": {
+        "zh_CN": "当前系统不支持播放该音频",
+        "en_GB": "The current system does not support playing this audio"
+    },
+    "OPEN_FROM_SYSTEM": {
+        "zh_CN": "从系统打开",
+        "en_GB": "Open from System"
     }
 }

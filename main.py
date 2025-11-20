@@ -29,17 +29,17 @@ def initConfig(app):
         editorConfig["Ludork"] = {}
         if EditorStatus.SCREEN_LOW_RES == 0:
             editorConfig["Ludork"]["Width"] = "2560"
-            editorConfig["Ludork"]["Height"] = "1920"
+            editorConfig["Ludork"]["Height"] = "1440"
             editorConfig["Ludork"]["UpperLeftWidth"] = "640"
             editorConfig["Ludork"]["UpperRightWidth"] = "640"
         elif EditorStatus.SCREEN_LOW_RES == 1:
             editorConfig["Ludork"]["Width"] = "1920"
-            editorConfig["Ludork"]["Height"] = "1440"
+            editorConfig["Ludork"]["Height"] = "1080"
             editorConfig["Ludork"]["UpperLeftWidth"] = "480"
             editorConfig["Ludork"]["UpperRightWidth"] = "480"
         elif EditorStatus.SCREEN_LOW_RES == 2:
             editorConfig["Ludork"]["Width"] = "1280"
-            editorConfig["Ludork"]["Height"] = "960"
+            editorConfig["Ludork"]["Height"] = "720"
             editorConfig["Ludork"]["UpperLeftWidth"] = "320"
             editorConfig["Ludork"]["UpperRightWidth"] = "320"
         lang, _ = locale.getdefaultlocale()

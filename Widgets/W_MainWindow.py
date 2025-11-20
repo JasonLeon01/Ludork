@@ -6,7 +6,7 @@ import subprocess
 import configparser
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
-import Utils
+from Utils import Locale, Panel
 from .W_EditorPanel import EditorPanel
 from .W_Toggle import ModeToggle
 from .W_FileExplorer import FileExplorer
@@ -136,7 +136,11 @@ class MainWindow(QtWidgets.QMainWindow):
         lowerLayout.setContentsMargins(0, 0, 0, 0)
         lowerLayout.setSpacing(0)
         self.fileExplorer = FileExplorer(EditorStatus.PROJ_PATH)
-        lowerLayout.addWidget(self.fileExplorer)
+        self.tabWidget = QtWidgets.QTabWidget()
+        self.tabWidget.setTabPosition(QtWidgets.QTabWidget.North)
+        self.tabWidget.setTabBarAutoHide(False)
+        self.tabWidget.addTab(self.fileExplorer, Locale.getContent("FILE_EXPLORER"))
+        lowerLayout.addWidget(self.tabWidget)
 
         self.topSplitter = QtWidgets.QSplitter(QtCore.Qt.Vertical)
         self.topSplitter.setChildrenCollapsible(False)
@@ -292,7 +296,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self._engineProc.terminate()
             self._engineProc.wait()
             self._engineProc = None
-        Utils.Panel.clearPanel(self.gamePanel)
+        Panel.clearPanel(self.gamePanel)
         self.stacked.setCurrentWidget(self.editorScroll)
         self.leftList.setEnabled(True)
 

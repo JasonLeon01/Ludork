@@ -1,5 +1,5 @@
 @echo off
-setlocal
+setlocal EnableDelayedExpansion
 cd /d "%~dp0"
 set ENV_DIR=LudorkEnv
 set "PY_CMD=py -3.10"
@@ -20,8 +20,8 @@ if errorlevel 1 (
 
 if exist "%ENV_DIR%\Scripts\activate.bat" (
   call "%ENV_DIR%\Scripts\activate.bat"
-  for /f "tokens=2 delims= " %%v in ('python -V') do set PV=%%v
-  if /I not "%PV:~0,4%"=="3.10" (
+  for /f "tokens=2 delims= " %%v in ('python --version 2^>^&1') do set PV=%%v
+  if /I not "!PV:~0,4!"=="3.10" (
     call deactivate
     rmdir /S /Q "%ENV_DIR%"
     goto CREATE_ENV
