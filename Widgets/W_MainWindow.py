@@ -8,7 +8,7 @@ from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Utils import Locale, Panel
 from .W_EditorPanel import EditorPanel
-from .W_Toggle import ModeToggle
+from .W_Toggle import ModeToggle, EditModeToggle
 from .W_FileExplorer import FileExplorer
 from .W_Console import ConsoleWidget
 import EditorStatus
@@ -32,7 +32,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.topBar.setMinimumHeight(32)
         topLayout = QtWidgets.QHBoxLayout(self.topBar)
         topLayout.setContentsMargins(0, 0, 0, 0)
-        topLayout.addStretch(1)
+        self.layerScroll = QtWidgets.QScrollArea()
+        self.layerScroll.setWidgetResizable(True)
+        self.layerScroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.layerScroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.layerScroll.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+        self.layerScroll.setStyleSheet("QScrollArea { border: 2px solid palette(mid); border-radius: 4px; }")
+        self.layerBarContainer = QtWidgets.QWidget()
+        self.layerBarLayout = QtWidgets.QHBoxLayout(self.layerBarContainer)
+        self.layerBarLayout.setContentsMargins(8, 0, 8, 0)
+        self.layerBarLayout.setSpacing(4)
+        self.layerScroll.setWidget(self.layerBarContainer)
+        self._layerButtons = {}
+        self._selectedLayerName: Optional[str] = None
         if EditorStatus.SCREEN_LOW_RES == 0:
             panelW, panelH = 1280, 960
         elif EditorStatus.SCREEN_LOW_RES == 1:
@@ -50,6 +62,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._panelScale = panelW / 640.0
         self.topBar.setMinimumHeight(int(32 * self._panelScale))
         self.editorPanel.setScale(self._panelScale)
+        self.layerScroll.setMinimumHeight(self.topBar.minimumHeight())
 
         self.editorScroll = QtWidgets.QScrollArea()
         self.editorScroll.setWidget(self.editorPanel)
@@ -74,9 +87,36 @@ class MainWindow(QtWidgets.QMainWindow):
         self.gamePanel.setPalette(pal)
         self._panelHandle = int(self.gamePanel.winId())
 
+        self.editModeToggle = EditModeToggle(self._panelScale)
         self.modeToggle = ModeToggle(self._panelScale)
+        self.addLayerButton = QtWidgets.QPushButton(Locale.getContent("ADD_LAYER"))
+        self.addLayerButton.setMinimumHeight(self.topBar.minimumHeight())
+        self.addLayerButton.clicked.connect(self._onAddLayer)
+        topLayout.addWidget(self.layerScroll, 1)
+        topLayout.addWidget(self.addLayerButton, 0, alignment=QtCore.Qt.AlignRight)
+        topLayout.addWidget(self.editModeToggle, 0, alignment=QtCore.Qt.AlignRight)
         topLayout.addWidget(self.modeToggle, 0, alignment=QtCore.Qt.AlignRight)
+        self.editModeToggle.selectionChanged.connect(self._onEditModeChanged)
         self.modeToggle.selectionChanged.connect(self._onModeChanged)
+        self._menuBar = self.menuBar()
+        self._menuBar.setNativeMenuBar(True)
+        _fileMenu = self._menuBar.addMenu("File")
+        self._actNewProject = QtWidgets.QAction(Locale.getContent("NEW_PROJECT"), self)
+        self._actNewProject.setShortcut(QtGui.QKeySequence.StandardKey.New)
+        self._actNewProject.triggered.connect(self._onNewProject)
+        self._actOpenProject = QtWidgets.QAction(Locale.getContent("OPEN_PROJECT"), self)
+        self._actOpenProject.setShortcut(QtGui.QKeySequence.StandardKey.Open)
+        self._actOpenProject.triggered.connect(self._onOpenProject)
+        self._actSave = QtWidgets.QAction(Locale.getContent("SAVE"), self)
+        self._actSave.setShortcut(QtGui.QKeySequence.StandardKey.Save)
+        self._actSave.triggered.connect(self._onSave)
+        self._actExit = QtWidgets.QAction(Locale.getContent("EXIT"), self)
+        self._actExit.setShortcut(QtGui.QKeySequence.StandardKey.Close)
+        self._actExit.triggered.connect(self._onExit)
+        _fileMenu.addAction(self._actNewProject)
+        _fileMenu.addAction(self._actOpenProject)
+        _fileMenu.addAction(self._actSave)
+        _fileMenu.addAction(self._actExit)
 
         self.leftListIndex = -1
         self.leftList = QtWidgets.QListWidget()
@@ -302,8 +342,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.endGame()
         self.stacked.setCurrentWidget(self.gamePanel)
         self.leftList.setEnabled(False)
+        Panel.applyDisabledOpacity(self.leftList)
         if hasattr(self, "fileExplorer"):
             self.fileExplorer.setInteractive(False)
+        if hasattr(self, "editModeToggle"):
+            self.editModeToggle.setEnabled(False)
+            Panel.applyDisabledOpacity(self.editModeToggle)
         iniPath = os.path.join(EditorStatus.PROJ_PATH, "Main.ini")
         iniFile = configparser.ConfigParser()
         iniFile.read(iniPath, encoding="utf-8")
@@ -330,8 +374,12 @@ class MainWindow(QtWidgets.QMainWindow):
         Panel.clearPanel(self.gamePanel)
         self.stacked.setCurrentWidget(self.editorScroll)
         self.leftList.setEnabled(True)
+        Panel.applyDisabledOpacity(self.leftList)
         if hasattr(self, "fileExplorer"):
             self.fileExplorer.setInteractive(True)
+        if hasattr(self, "editModeToggle"):
+            self.editModeToggle.setEnabled(True)
+            Panel.applyDisabledOpacity(self.editModeToggle)
         if hasattr(self, "consoleWidget"):
             self.consoleWidget.detach_process()
             self.consoleWidget.clear()
@@ -343,6 +391,20 @@ class MainWindow(QtWidgets.QMainWindow):
             self.endGame()
         if hasattr(self, "modeToggle"):
             self.modeToggle.setSelected(idx)
+        if hasattr(self, "editModeToggle"):
+            self.editModeToggle.setEnabled(idx != 1)
+
+    def _onEditModeChanged(self, idx: int) -> None:
+        if idx == 0:
+            self.toTileMode()
+        else:
+            self.toActorMode()
+
+    def toTileMode(self) -> None:
+        pass
+
+    def toActorMode(self) -> None:
+        pass
 
     def _onUpperSplitterMoved(self, pos: int, index: int) -> None:
         sizes = self.upperSplitter.sizes()
@@ -367,6 +429,8 @@ class MainWindow(QtWidgets.QMainWindow):
         name = item.text()
         self.leftListIndex = self.leftList.row(item)
         self.editorPanel.refreshMap(name)
+        self._selectedLayerName = None
+        self._refreshLayerBar()
 
     def refreshLeftList(self):
         self.leftList.clear()
@@ -378,3 +442,104 @@ class MainWindow(QtWidgets.QMainWindow):
             self.leftList.setCurrentRow(self.leftListIndex)
         else:
             self.leftListIndex = -1
+
+    def _refreshLayerBar(self) -> None:
+        for i in reversed(range(self.layerBarLayout.count())):
+            item = self.layerBarLayout.takeAt(i)
+            w = item.widget()
+            if w:
+                w.deleteLater()
+        self._layerButtons.clear()
+        names = self.editorPanel.getLayerNames() if hasattr(self.editorPanel, "getLayerNames") else []
+        for n in names:
+            btn = QtWidgets.QToolButton()
+            btn.setText(n)
+            btn.setCheckable(True)
+            btn.setAutoRaise(True)
+            btn.setMinimumHeight(self.topBar.minimumHeight())
+            btn.setProperty("layerName", n)
+            btn.clicked.connect(self._onLayerButtonClicked)
+            btn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+            btn.customContextMenuRequested.connect(self._onLayerContextMenu)
+            self.layerBarLayout.addWidget(btn)
+            self._layerButtons[n] = btn
+        if self._selectedLayerName in self._layerButtons:
+            self._layerButtons[self._selectedLayerName].setChecked(True)
+        self.layerBarLayout.addStretch(1)
+
+    def _onLayerButtonClicked(self, checked: bool) -> None:
+        sender = self.sender()
+        if not isinstance(sender, QtWidgets.QToolButton):
+            return
+        name = sender.property("layerName") or sender.text()
+        if self._selectedLayerName == name:
+            if not checked:
+                self._selectedLayerName = None
+                self.editorPanel.setSelectedLayer(None)
+            else:
+                sender.setChecked(True)
+            return
+        for b in self._layerButtons.values():
+            if b is not sender:
+                b.setChecked(False)
+        sender.setChecked(True)
+        self._selectedLayerName = name
+        self.editorPanel.setSelectedLayer(name)
+
+    def _onAddLayer(self, checked: bool = False) -> None:
+        if not hasattr(self.editorPanel, "mapData") or self.editorPanel.mapData is None:
+            QtWidgets.QMessageBox.warning(self, "Hint", Locale.getContent("ADD_ERROR"))
+            return
+        existing = set(self.editorPanel.getLayerNames())
+        while True:
+            name, ok = QtWidgets.QInputDialog.getText(
+                self, Locale.getContent("ADD_LAYER"), Locale.getContent("ADD_MESSAGE")
+            )
+            if not ok:
+                return
+            name = name.strip()
+            if not name:
+                QtWidgets.QMessageBox.warning(self, "Hint", Locale.getContent("ADD_EMPTY"))
+                continue
+            if name in existing:
+                QtWidgets.QMessageBox.warning(self, "Hint", Locale.getContent("ADD_DUPLICATE"))
+                continue
+            break
+        self.editorPanel.addEmptyLayer(name)
+        self._refreshLayerBar()
+        bar = self.layerScroll.horizontalScrollBar()
+        bar.setValue(bar.maximum())
+
+    def _onLayerContextMenu(self, pos: QtCore.QPoint) -> None:
+        sender = self.sender()
+        if not isinstance(sender, QtWidgets.QToolButton):
+            return
+        name = sender.property("layerName") or sender.text()
+        menu = QtWidgets.QMenu(self)
+        actDelete = menu.addAction(Locale.getContent("DELETE"))
+        action = menu.exec_(sender.mapToGlobal(pos))
+        if action == actDelete:
+            ret = QtWidgets.QMessageBox.question(
+                self,
+                "Hint",
+                Locale.getContent("CONFIRM_DELETE_LAYER").format(name=name),
+                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                QtWidgets.QMessageBox.No,
+            )
+            if ret == QtWidgets.QMessageBox.Yes:
+                if self.editorPanel.removeLayer(name):
+                    if self._selectedLayerName == name:
+                        self._selectedLayerName = None
+                    self._refreshLayerBar()
+
+    def _onNewProject(self, checked: bool = False) -> None:
+        pass
+
+    def _onOpenProject(self, checked: bool = False) -> None:
+        pass
+
+    def _onSave(self, checked: bool = False) -> None:
+        pass
+
+    def _onExit(self, checked: bool = False) -> None:
+        self.close()

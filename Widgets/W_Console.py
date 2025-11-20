@@ -4,7 +4,7 @@ from __future__ import annotations
 import sys
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Utils import Locale
+from Utils import Locale, Panel
 
 
 class PipeReader(QtCore.QThread):
@@ -99,6 +99,8 @@ class ConsoleWidget(QtWidgets.QWidget):
         ok = getattr(proc, "stdin", None) is not None
         self._send.setEnabled(ok)
         self._input.setEnabled(ok)
+        Panel.applyDisabledOpacity(self._send)
+        Panel.applyDisabledOpacity(self._input)
 
     def detach_process(self) -> None:
         if self._stdout_reader:
@@ -126,6 +128,8 @@ class ConsoleWidget(QtWidgets.QWidget):
             self._proc = None
         self._send.setEnabled(False)
         self._input.setEnabled(False)
+        Panel.applyDisabledOpacity(self._send)
+        Panel.applyDisabledOpacity(self._input)
 
     def clear(self) -> None:
         self._view.clear()

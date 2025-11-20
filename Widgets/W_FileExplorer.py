@@ -5,7 +5,7 @@ import shutil
 import stat
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Utils import Locale
+from Utils import Locale, Panel
 from .W_FilePreview import FilePreview
 
 
@@ -186,11 +186,17 @@ class FileExplorer(QtWidgets.QWidget):
         layout.addWidget(topBar, 0)
         layout.addWidget(self._view, 1)
         self.setMinimumHeight(160)
+        Panel.applyDisabledOpacity(self)
     def setInteractive(self, enabled: bool) -> None:
         self._interactive = bool(enabled)
         fp = QtCore.Qt.StrongFocus if self._interactive else QtCore.Qt.NoFocus
         self._view.setFocusPolicy(fp)
         self._upButton.setEnabled(self._interactive)
+        Panel.applyDisabledOpacity(self._upButton)
+    def changeEvent(self, e: QtCore.QEvent) -> None:
+        if e.type() == QtCore.QEvent.EnabledChange:
+            Panel.applyDisabledOpacity(self)
+        super().changeEvent(e)
     def _uniquePath(self, dst: str, moved: bool) -> str:
         if not os.path.exists(dst):
             return dst

@@ -1,15 +1,63 @@
 {
-    "EditMap": {
+    "NEW_PROJECT": {
+        "zh_CN": "新建项目",
+        "en_GB": "New Project"
+    },
+    "OPEN_PROJECT": {
+        "zh_CN": "打开项目",
+        "en_GB": "Open Project"
+    },
+    "SAVE": {
+        "zh_CN": "保存",
+        "en_GB": "Save"
+    },
+    "EXIT": {
+        "zh_CN": "退出",
+        "en_GB": "Exit"
+    },
+    "EDIT_MAP": {
         "zh_CN": "编辑地图",
         "en_GB": "Edit Map"
     },
-    "TestGame": {
+    "TEST_GAME": {
         "zh_CN": "测试游戏",
         "en_GB": "Test Game"
+    },
+    "TILE_MODE": {
+        "zh_CN": "图块模式",
+        "en_GB": "Tile Mode"
+    },
+    "ACTOR_MODE": {
+        "zh_CN": "角色模式",
+        "en_GB": "Actor Mode"
     },
     "FILE_EXPLORER": {
         "zh_CN": "文件浏览器",
         "en_GB": "File Explorer"
+    },
+    "ADD_LAYER": {
+        "zh_CN": "添加图层",
+        "en_GB": "Add Layer"
+    },
+    "ADD_ERROR": {
+        "zh_CN": "未加载地图",
+        "en_GB": "No map loaded"
+    },
+    "ADD_MESSAGE": {
+        "zh_CN": "输入添加的图层名称",
+        "en_GB": "Enter the name of the layer to add"
+    },
+    "ADD_EMPTY": {
+        "zh_CN": "图层名称不能为空",
+        "en_GB": "Layer name cannot be empty"
+    },
+    "ADD_DUPLICATE": {
+        "zh_CN": "图层名称已存在",
+        "en_GB": "Layer name already exists"
+    },
+    "CONFIRM_DELETE_LAYER": {
+        "zh_CN": "确认删除图层 '{name}' 吗？",
+        "en_GB": "Are you sure you want to delete the layer '{name}'?"
     },
     "CUT": {
         "zh_CN": "剪切",

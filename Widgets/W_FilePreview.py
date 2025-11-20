@@ -2,7 +2,7 @@
 
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets, QtMultimedia
-from Utils import Locale
+from Utils import Locale, Panel
 
 
 class FilePreview(QtWidgets.QWidget):
@@ -59,6 +59,11 @@ class FilePreview(QtWidgets.QWidget):
             pass
         self._positionSlider.sliderMoved.connect(self._onSeek)
         self._openSystemBtn.clicked.connect(self._openSystem)
+        Panel.applyDisabledOpacity(self)
+    def changeEvent(self, e: QtCore.QEvent) -> None:
+        if e.type() == QtCore.QEvent.EnabledChange:
+            Panel.applyDisabledOpacity(self)
+        super().changeEvent(e)
 
     def setFile(self, path: str) -> None:
         self._stopAudio()

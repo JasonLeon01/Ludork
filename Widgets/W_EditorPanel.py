@@ -32,9 +32,11 @@ class EditorPanel(QtWidgets.QWidget):
         self.mapData: Optional[MapData] = None
         self._pixmap: Optional[QtGui.QPixmap] = None
         self._scale: float = 1.0
+        self.selectedLayerName: Optional[str] = None
         if not EditorStatus.PROJ_PATH in sys.path:
             sys.path.append(EditorStatus.PROJ_PATH)
         super().__init__(parent)
+        Utils.Panel.applyDisabledOpacity(self)
 
     def refreshMap(self, mapFileName: Optional[str] = None):
         self.selctedPos = None
@@ -89,9 +91,14 @@ class EditorPanel(QtWidgets.QWidget):
         img = QtGui.QImage(w, h, QtGui.QImage.Format_ARGB32)
         img.fill(QtGui.QColor(0, 0, 0))
         painter = QtGui.QPainter(img)
-        for _, layer in self.mapData.layers.items():
+        sel = self.selectedLayerName
+        for layerName, layer in self.mapData.layers.items():
             if not getattr(layer, "visible", True):
                 continue
+            if sel is None:
+                painter.setOpacity(1.0)
+            else:
+                painter.setOpacity(1.0 if layerName == sel else 0.5)
             ts_path = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Tilesets", layer.filePath)
             tileset = QtGui.QImage(ts_path)
             if tileset.isNull():
@@ -110,6 +117,7 @@ class EditorPanel(QtWidgets.QWidget):
                     painter.drawImage(dst, tileset, src)
         painter.end()
         self._pixmap = QtGui.QPixmap.fromImage(img)
+        self.update()
 
     def _updateContentSize(self) -> None:
         if self.mapData is None:
@@ -125,12 +133,64 @@ class EditorPanel(QtWidgets.QWidget):
         self._scale = max(0.1, float(scale))
         self._updateContentSize()
 
+    def getLayerNames(self) -> List[str]:
+        if self.mapData is None:
+            return []
+        return list(self.mapData.layers.keys())
+
+    def setSelectedLayer(self, name: Optional[str]) -> None:
+        self.selectedLayerName = name
+        self._renderFromMapData()
+
+    def addEmptyLayer(self, name: Optional[str] = None, filePath: str = "") -> Optional[str]:
+        if self.mapData is None:
+            return None
+        Engine: TempEngine = importlib.import_module("Engine")
+        TileLayerData = Engine.Gameplay.TileLayerData
+        width = self.mapData.width
+        height = self.mapData.height
+        if not name:
+            base = "Layer"
+            i = len(self.mapData.layers) + 1
+            candidate = f"{base}_{i}"
+            while candidate in self.mapData.layers:
+                i += 1
+                candidate = f"{base}_{i}"
+            name = candidate
+        tiles: List[List[Optional[Engine.Gameplay.Tile]]] = []
+        for y in range(height):
+            row: List[Optional[Engine.Gameplay.Tile]] = []
+            for x in range(width):
+                row.append(None)
+            tiles.append(row)
+        layer = TileLayerData(name, filePath, tiles)
+        self.mapData.layers[name] = layer
+        self._renderFromMapData()
+        self.update()
+        return name
+
+    def removeLayer(self, name: str) -> bool:
+        if self.mapData is None:
+            return False
+        if name not in self.mapData.layers:
+            return False
+        self.mapData.layers.pop(name, None)
+        if self.selectedLayerName == name:
+            self.selectedLayerName = None
+        self._renderFromMapData()
+        self.update()
+        return True
+
     def paintEvent(self, e: QtGui.QPaintEvent) -> None:
         p = QtGui.QPainter(self)
         if self._pixmap is not None:
             p.scale(self._scale, self._scale)
             p.drawPixmap(0, 0, self._pixmap)
         p.end()
+    def changeEvent(self, e: QtCore.QEvent) -> None:
+        if e.type() == QtCore.QEvent.EnabledChange:
+            Utils.Panel.applyDisabledOpacity(self)
+        super().changeEvent(e)
 
     def mousePressEvent(self, e: QtGui.QMouseEvent) -> None:
         if self.mapData is None:
