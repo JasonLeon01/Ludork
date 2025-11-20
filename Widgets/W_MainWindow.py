@@ -6,10 +6,10 @@ import subprocess
 import configparser
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
-
 import Utils
 from .W_EditorPanel import EditorPanel
-from Utils import Locale
+from .W_Toggle import ModeToggle
+from .W_FileExplorer import FileExplorer
 import EditorStatus
 
 
@@ -73,57 +73,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.gamePanel.setPalette(pal)
         self._panelHandle = int(self.gamePanel.winId())
 
-        class ModeToggle(QtWidgets.QWidget):
-            selectionChanged = QtCore.pyqtSignal(int)
-
-            def __init__(self, scale: float, parent=None):
-                super().__init__(parent)
-                self._scale = scale
-                self._selected = 0
-                self.setFixedSize(int(128 * scale), int(32 * scale))
-
-            def sizeHint(self):
-                return QtCore.QSize(int(128 * self._scale), int(32 * self._scale))
-
-            def setSelected(self, idx: int):
-                if idx != self._selected:
-                    self._selected = idx
-                    self.update()
-
-            def paintEvent(self, e):
-                p = QtGui.QPainter(self)
-                p.setRenderHint(QtGui.QPainter.Antialiasing, True)
-                w = self.width()
-                h = self.height()
-                half = w // 2
-                rectL = QtCore.QRect(0, 0, half, h)
-                rectR = QtCore.QRect(half, 0, w - half, h)
-                bg = QtGui.QColor(40, 40, 40)
-                p.fillRect(rectL, bg)
-                p.fillRect(rectR, bg)
-                pen = QtGui.QPen(QtGui.QColor(120, 200, 255))
-                pen.setWidth(max(1, int(2 * self._scale)))
-                p.setPen(pen)
-                sel = rectL if self._selected == 0 else rectR
-                r = QtCore.QRect(sel)
-                r.adjust(int(2 * self._scale), int(2 * self._scale), -int(2 * self._scale), -int(2 * self._scale))
-                p.drawRoundedRect(r, int(8 * self._scale), int(8 * self._scale))
-                style = QtWidgets.QApplication.style()
-                editorIcon = style.standardIcon(QtWidgets.QStyle.SP_FileIcon)
-                playIcon = style.standardIcon(QtWidgets.QStyle.SP_MediaPlay)
-                iconSize = QtCore.QSize(int(32 * self._scale), int(32 * self._scale))
-                ep = editorIcon.pixmap(iconSize)
-                pp = playIcon.pixmap(iconSize)
-                p.drawPixmap(rectL.center().x() - ep.width() // 2, rectL.center().y() - ep.height() // 2, ep)
-                p.drawPixmap(rectR.center().x() - pp.width() // 2, rectR.center().y() - pp.height() // 2, pp)
-
-            def mousePressEvent(self, e):
-                idx = 0 if e.x() < self.width() // 2 else 1
-                if idx != self._selected:
-                    self._selected = idx
-                    self.update()
-                    self.selectionChanged.emit(idx)
-
         self.modeToggle = ModeToggle(self._panelScale)
         topLayout.addWidget(self.modeToggle, 0, alignment=QtCore.Qt.AlignRight)
         self.modeToggle.selectionChanged.connect(self._onModeChanged)
@@ -186,7 +135,8 @@ class MainWindow(QtWidgets.QMainWindow):
         lowerLayout = QtWidgets.QVBoxLayout(self.lowerArea)
         lowerLayout.setContentsMargins(0, 0, 0, 0)
         lowerLayout.setSpacing(0)
-        lowerLayout.addStretch(1)
+        self.fileExplorer = FileExplorer(EditorStatus.PROJ_PATH)
+        lowerLayout.addWidget(self.fileExplorer)
 
         self.topSplitter = QtWidgets.QSplitter(QtCore.Qt.Vertical)
         self.topSplitter.setChildrenCollapsible(False)
@@ -321,6 +271,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if hasattr(self, "stacked"):
             self.stacked.setCurrentWidget(self.editorScroll)
             self.editorPanel.refreshMap()
+        if hasattr(self, "fileExplorer"):
+            self.fileExplorer.setRootPath(EditorStatus.PROJ_PATH)
 
     def startGame(self):
         self.endGame()

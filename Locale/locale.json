@@ -6,5 +6,45 @@
     "TestGame": {
         "zh_CN": "测试游戏",
         "en_GB": "Test Game"
+    },
+    "CUT": {
+        "zh_CN": "剪切",
+        "en_GB": "Cut"
+    },
+    "COPY": {
+        "zh_CN": "复制",
+        "en_GB": "Copy"
+    },
+    "PASTE": {
+        "zh_CN": "粘贴",
+        "en_GB": "Paste"
+    },
+    "DELETE": {
+        "zh_CN": "删除",
+        "en_GB": "Delete"
+    },
+    "CONFIRM_DELETE": {
+        "zh_CN": "确认删除",
+        "en_GB": "Confirm Delete"
+    },
+    "DELETE_CONFIRMATION": {
+        "zh_CN": "是否删除选中的文件/文件夹？",
+        "en_GB": "Are you sure you want to delete the selected files/folders?"
+    },
+    "DELETE_FAILED": {
+        "zh_CN": "删除失败",
+        "en_GB": "Delete Failed"
+    },
+    "DELETE_FAILED_MESSAGE": {
+        "zh_CN": "部分文件或文件夹删除失败",
+        "en_GB": "Some files or folders failed to delete"
+    },
+    "CONFIRMATION_YES": {
+        "zh_CN": "是",
+        "en_GB": "Yes"
+    },
+    "CONFIRMATION_NO": {
+        "zh_CN": "否",
+        "en_GB": "No"
     }
 }
