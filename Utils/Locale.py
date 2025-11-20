@@ -24,4 +24,8 @@ def getLocaleContent(localeKey: str, key: str) -> str:
 
 
 def getContent(key: str) -> str:
-    return getLocaleContent(os.environ["LANGUAGE"], key)
+    import EditorStatus
+
+    if EditorStatus.LANGUAGE in _Locale.dataDict:
+        return getLocaleContent(EditorStatus.LANGUAGE, key)
+    return getLocaleContent("en_GB", key)

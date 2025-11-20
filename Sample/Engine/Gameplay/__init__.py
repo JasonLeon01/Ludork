@@ -44,6 +44,7 @@ Particle = G_ParticleSystem.Particle
 ParticleSystem = G_ParticleSystem.ParticleSystem
 Camera = G_Camera.Camera
 Tile = G_TileMap.Tile
+TileLayerData = G_TileMap.TileLayerData
 TileLayer = G_TileMap.TileLayer
 Tilemap = G_TileMap.Tilemap
 Light = G_GameMap.Light

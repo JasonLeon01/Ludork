@@ -6,13 +6,17 @@ import subprocess
 import configparser
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
+
+import Utils
+from .W_EditorPanel import EditorPanel
 from Utils import Locale
+import EditorStatus
 
 
 class MainWindow(QtWidgets.QMainWindow):
-    def __init__(self, title: str, projPath: str):
+    def __init__(self, title: str):
         super().__init__()
-        self.setProjPath(projPath)
+        self.setProjPath(EditorStatus.PROJ_PATH)
         self._engineProc: Optional[subprocess.Popen] = None
         self.resize(1280, 960)
         self.setWindowTitle(title)
@@ -32,17 +36,34 @@ class MainWindow(QtWidgets.QMainWindow):
         self.startButton.setMinimumHeight(64)
         topLayout.addWidget(self.startButton)
         topLayout.addStretch(1)
-
-        if os.environ.get("SCREEN_LOW_RES"):
-            if os.environ["SCREEN_LOW_RES"] == "1":
-                panelW, panelH = 640, 480
-            else:
-                panelW, panelH = 960, 720
-        else:
+        if EditorStatus.SCREEN_LOW_RES == 0:
             panelW, panelH = 1280, 960
+        elif EditorStatus.SCREEN_LOW_RES == 1:
+            panelW, panelH = 960, 720
+        elif EditorStatus.SCREEN_LOW_RES == 2:
+            panelW, panelH = 640, 480
 
-        self.editorPanel = QtWidgets.QWidget()
-        self.editorPanel.setFixedSize(panelW, panelH)
+        self.editorPanel = EditorPanel()
+        self.editorPanel.setObjectName("EditorPanel")
+        self.editorPanel.setAttribute(QtCore.Qt.WA_NativeWindow, True)
+        self.editorPanel.setAutoFillBackground(True)
+        pal = self.editorPanel.palette()
+        pal.setColor(QtGui.QPalette.Window, QtGui.QColor.fromRgb(0, 0, 0))
+        self.editorPanel.setPalette(pal)
+        self.editorPanel.setScale(panelW / 640.0)
+
+        self.editorScroll = QtWidgets.QScrollArea()
+        self.editorScroll.setWidget(self.editorPanel)
+        self.editorScroll.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
+        self.editorScroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.editorScroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.editorScroll.setFixedSize(panelW, panelH)
+        self.editorPanel.setObjectName("EditorPanel")
+        self.editorPanel.setAttribute(QtCore.Qt.WA_NativeWindow, True)
+        self.editorPanel.setAutoFillBackground(True)
+        pal = self.editorPanel.palette()
+        pal.setColor(QtGui.QPalette.Window, QtGui.QColor.fromRgb(0, 0, 0))
+        self.editorPanel.setPalette(pal)
 
         self.gamePanel = QtWidgets.QWidget()
         self.gamePanel.setFixedSize(panelW, panelH)
@@ -61,6 +82,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.leftList.setMinimumWidth(320)
         self.leftList.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         self.refreshLeftList()
+        self.leftList.itemClicked.connect(self._onLeftItemClicked)
 
         self.centerArea = QtWidgets.QWidget()
         centerLayout = QtWidgets.QVBoxLayout(self.centerArea)
@@ -68,9 +90,9 @@ class MainWindow(QtWidgets.QMainWindow):
         centerLayout.setSpacing(0)
         centerLayout.addWidget(self.topBar, 0, alignment=QtCore.Qt.AlignTop)
         self.stacked = QtWidgets.QStackedLayout()
-        self.stacked.addWidget(self.editorPanel)
+        self.stacked.addWidget(self.editorScroll)
         self.stacked.addWidget(self.gamePanel)
-        self.stacked.setCurrentWidget(self.editorPanel)
+        self.stacked.setCurrentWidget(self.editorScroll)
         centerLayout.addLayout(self.stacked)
         centerLayout.addStretch(1)
         self.centerArea.setFixedWidth(self.gamePanel.width())
@@ -186,7 +208,11 @@ class MainWindow(QtWidgets.QMainWindow):
         centerW = self.gamePanel.width()
         minLeft = max(320, self.leftList.minimumWidth())
         minRight = max(320, self.rightArea.minimumWidth())
-        sizesNow = self.upperSplitter.sizes() if hasattr(self.upperSplitter, "sizes") else [self._prevLeftW, centerW, self._prevRightW]
+        sizesNow = (
+            self.upperSplitter.sizes()
+            if hasattr(self.upperSplitter, "sizes")
+            else [self._prevLeftW, centerW, self._prevRightW]
+        )
         leftW = sizesNow[0] if len(sizesNow) >= 3 else self._prevLeftW
         rightW = sizesNow[2] if len(sizesNow) >= 3 else self._prevRightW
         if deltaW != 0:
@@ -240,19 +266,21 @@ class MainWindow(QtWidgets.QMainWindow):
         return int(self.gamePanel.winId())
 
     def setProjPath(self, projPath: str):
-        self._projPath = projPath
-        self._mapFilesRoot = os.path.join(self._projPath, "Data", "Maps")
+        self._mapFilesRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
+        if hasattr(self, "stacked"):
+            self.stacked.setCurrentWidget(self.editorScroll)
+            self.editorPanel.refreshMap()
 
     def startGame(self):
         self.endGame()
         self.stacked.setCurrentWidget(self.gamePanel)
-        iniPath = os.path.join(self._projPath, "Main.ini")
+        iniPath = os.path.join(EditorStatus.PROJ_PATH, "Main.ini")
         iniFile = configparser.ConfigParser()
         iniFile.read(iniPath, encoding="utf-8")
         script_path = iniFile["Main"]["script"]
         self._panelHandle = int(self.gamePanel.winId())
         self._engineProc = subprocess.Popen(
-            [sys.executable, script_path, str(self._panelHandle)], cwd=self._projPath, shell=False
+            [sys.executable, script_path, str(self._panelHandle)], cwd=EditorStatus.PROJ_PATH, shell=False
         )
 
     def endGame(self):
@@ -260,14 +288,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self._engineProc.terminate()
             self._engineProc.wait()
             self._engineProc = None
-        self.clearPanel()
-        self.stacked.setCurrentWidget(self.editorPanel)
-
-    def clearPanel(self, color: QtGui.QColor = QtGui.QColor.fromRgb(0, 0, 0)) -> None:
-        pal = self.gamePanel.palette()
-        pal.setColor(QtGui.QPalette.Window, color)
-        self.gamePanel.setPalette(pal)
-        self.gamePanel.repaint()
+        Utils.Panel.clearPanel(self.gamePanel)
+        self.stacked.setCurrentWidget(self.editorScroll)
 
     def _onUpperSplitterMoved(self, pos: int, index: int) -> None:
         sizes = self.upperSplitter.sizes()
@@ -285,6 +307,13 @@ class MainWindow(QtWidgets.QMainWindow):
             cfg["Ludork"]["UpperRightWidth"] = str(self._prevRightW)
             with open(cfg_path, "w") as f:
                 cfg.write(f)
+
+    def _onLeftItemClicked(self, item: QtWidgets.QListWidgetItem) -> None:
+        if item is None:
+            return
+        name = item.text()
+        self.leftListIndex = self.leftList.row(item)
+        self.editorPanel.refreshMap(name)
 
     def refreshLeftList(self):
         self.leftList.clear()

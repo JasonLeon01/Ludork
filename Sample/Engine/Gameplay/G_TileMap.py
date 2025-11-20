@@ -16,7 +16,15 @@ class Tile:
     lightBlock: float = 0.3
 
 
-class TileLayer(Drawable, Transformable):
+@dataclass
+class TileLayerData:
+    name: str
+    filePath: str
+    tiles: List[List[Optional[Tile]]]
+    visible: bool = True
+
+
+class TileLayer(TileLayerData, Drawable, Transformable):
     def __init__(
         self,
         name: str,
@@ -24,10 +32,7 @@ class TileLayer(Drawable, Transformable):
         tiles: List[List[Optional[Tile]]],
         visible: bool = True,
     ) -> None:
-        self.name = name
-        self.visible = visible
-        self._filePath = filePath
-        self._tiles = tiles
+        TileLayerData.__init__(self, name, filePath, tiles, visible)
         self._width = len(tiles[0])
         self._height = len(tiles)
         self._vertexArray = VertexArray(PrimitiveType.Triangles, self._width * self._height * 6)
@@ -37,17 +42,17 @@ class TileLayer(Drawable, Transformable):
         self._init()
 
     def getTiles(self) -> List[List[Optional[Tile]]]:
-        return self._tiles
+        return self.tiles
 
     def get(self, position: Vector2i) -> Optional[Tile]:
         if position.x < 0 or position.y < 0 or position.x >= self._width or position.y >= self._height:
             return None
-        return self._tiles[position.y][position.x]
+        return self.tiles[position.y][position.x]
 
     def isPassable(self, position: Vector2i) -> bool:
         if position.x < 0 or position.y < 0 or position.x >= self._width or position.y >= self._height:
             return False
-        tile = self._tiles[position.y][position.x]
+        tile = self.tiles[position.y][position.x]
         if tile is None:
             return False
         return tile.passible
@@ -68,7 +73,7 @@ class TileLayer(Drawable, Transformable):
 
         for y in range(self._height):
             for x in range(self._width):
-                tile = self._tiles[y][x]
+                tile = self.tiles[y][x]
                 if tile is None:
                     continue
 
