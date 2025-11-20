@@ -70,5 +70,13 @@
     "SEND": {
         "zh_CN": "发送",
         "en_GB": "Send"
+    },
+    "SEND_HINT": {
+        "zh_CN": "输入命令并按Enter发送",
+        "en_GB": "Enter command and press Enter"
+    },
+    "MAP_LIST": {
+        "zh_CN": "地图列表",
+        "en_GB": "Map List"
     }
 }

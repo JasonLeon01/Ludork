@@ -85,6 +85,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self.refreshLeftList()
         self.leftList.itemClicked.connect(self._onLeftItemClicked)
 
+        self.leftLabel = QtWidgets.QLabel(Locale.getContent("MAP_LIST"))
+        self.leftLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.leftLabel.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
+        self.leftLabel.setFixedHeight(int(32 * self._panelScale))
+        _lh = int(32 * self._panelScale)
+        _font = self.leftLabel.font()
+        _font.setBold(True)
+        _font.setPixelSize(max(12, int(_lh * 0.6)))
+        self.leftLabel.setFont(_font)
+        self.leftArea = QtWidgets.QWidget()
+        leftLayout = QtWidgets.QVBoxLayout(self.leftArea)
+        leftLayout.setContentsMargins(0, 0, 0, 0)
+        leftLayout.setSpacing(0)
+        leftLayout.addWidget(self.leftLabel, 0, alignment=QtCore.Qt.AlignHCenter)
+        leftLayout.addWidget(self.leftList, 1)
+        self.leftArea.setMinimumWidth(320)
+
         self.centerArea = QtWidgets.QWidget()
         centerLayout = QtWidgets.QVBoxLayout(self.centerArea)
         centerLayout.setContentsMargins(0, 0, 0, 0)
@@ -107,7 +124,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.upperSplitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         self.upperSplitter.setChildrenCollapsible(False)
-        self.upperSplitter.addWidget(self.leftList)
+        self.upperSplitter.addWidget(self.leftArea)
         self.upperSplitter.addWidget(self.centerArea)
         self.upperSplitter.addWidget(self.rightArea)
         self.upperSplitter.setStretchFactor(0, 1)
@@ -159,7 +176,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setMinimumSize(minW, minH)
         self._prevFG = self.frameGeometry()
         self._prevUpperW = self.upperSplitter.width()
-        self._prevLeftW = self.leftList.width()
+        self._prevLeftW = self.leftArea.width()
         self._prevRightW = self.rightArea.width()
         self._sizesInitialized = False
         self._hasShown = False
@@ -214,7 +231,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if deltaW == 0:
             deltaW = deltaEvent
         centerW = self.gamePanel.width()
-        minLeft = max(320, self.leftList.minimumWidth())
+        minLeft = max(320, self.leftArea.minimumWidth())
         minRight = max(320, self.rightArea.minimumWidth())
         sizesNow = (
             self.upperSplitter.sizes()
