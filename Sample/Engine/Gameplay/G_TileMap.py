@@ -135,7 +135,7 @@ class Tilemap:
                     if tileInfo is None:
                         tiles[-1].append(None)
                     else:
-                        tiles[-1].append(Tile(tileInfo[0], tileInfo[1], tileInfo[2]))
+                        tiles[-1].append(Tile(*tileInfo))
             layer = TileLayer(layerName, layerData["filePath"], tiles)
             mapLayers.append(layer)
         return Tilemap(mapLayers)

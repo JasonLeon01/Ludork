@@ -59,6 +59,8 @@ class ConsoleWidget(QtWidgets.QWidget):
         self._proc: Optional[object] = None
         self._stdout_reader: Optional[PipeReader] = None
         self._stderr_reader: Optional[PipeReader] = None
+        self._history: list[str] = []
+        self._history_index: Optional[int] = None
 
         self._view = QtWidgets.QTextEdit()
         self._view.setReadOnly(True)
@@ -72,6 +74,7 @@ class ConsoleWidget(QtWidgets.QWidget):
         self._send = QtWidgets.QPushButton(Locale.getContent("SEND"))
         self._send.clicked.connect(self._onSend)
         self._input.returnPressed.connect(self._onSend)
+        self._input.installEventFilter(self)
         self._send.setEnabled(False)
         self._input.setEnabled(False)
 
@@ -86,6 +89,32 @@ class ConsoleWidget(QtWidgets.QWidget):
         layout.setSpacing(8)
         layout.addWidget(self._view, 1)
         layout.addLayout(bl)
+
+    def eventFilter(self, obj, event):
+        if obj is self._input and event.type() == QtCore.QEvent.KeyPress:
+            key = event.key()
+            if key == QtCore.Qt.Key_Up:
+                if self._history:
+                    if self._history_index is None:
+                        self._history_index = len(self._history) - 1
+                    elif self._history_index > 0:
+                        self._history_index -= 1
+                    self._input.setText(self._history[self._history_index])
+                    self._input.setCursorPosition(len(self._input.text()))
+                return True
+            if key == QtCore.Qt.Key_Down:
+                if self._history_index is None:
+                    return True
+                if self._history_index < len(self._history) - 1:
+                    self._history_index += 1
+                    self._input.setText(self._history[self._history_index])
+                    self._input.setCursorPosition(len(self._input.text()))
+                else:
+                    self._history_index = None
+                    self._input.clear()
+                return True
+            self._history_index = None
+        return super().eventFilter(obj, event)
 
     def attach_process(self, proc) -> None:
         self.detach_process()
@@ -157,6 +186,8 @@ class ConsoleWidget(QtWidgets.QWidget):
         if not t:
             return
         self._append_line(">>> " + t, "INFO")
+        self._history.append(t)
+        self._history_index = None
         if self._proc and getattr(self._proc, "stdin", None) is not None:
             try:
                 self._proc.stdin.write(t + "\n")
