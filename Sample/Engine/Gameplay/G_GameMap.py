@@ -24,7 +24,8 @@ if TYPE_CHECKING:
 
 ParticleSystem = G_ParticleSystem.ParticleSystem
 Camera = G_Camera.Camera
-Tile = G_TileMap.Tile
+Tileset = G_TileMap.Tileset
+TileLayerData = G_TileMap.TileLayerData
 TileLayer = G_TileMap.TileLayer
 Tilemap = G_TileMap.Tilemap
 
@@ -79,7 +80,8 @@ class GameMap:
         layerKeysList = list(self._tilemap.getAllLayers().keys())
         layerKeysList.reverse()
         for layerName in layerKeysList:
-            tile = self._tilemap.getLayer(layerName).get(targetPosition)
+            layer = self._tilemap.getLayer(layerName)
+            tile = layer.get(targetPosition)
             if layerName in self._actors:
                 for other in self._actors[layerName]:
                     if actor == other:
@@ -89,7 +91,7 @@ class GameMap:
                     if other.getMapPosition() == targetPosition:
                         return not other.getCollisionEnabled()
             if not tile is None:
-                return tile.passible
+                return layer.isPassable(targetPosition)
         return True
 
     def getCollision(self, actor: Actor, targetPosition: Vector2i) -> List[Actor]:
@@ -162,7 +164,6 @@ class GameMap:
                 layer = self._tilemap.getLayer(layerName)
                 if not layer.visible:
                     continue
-                tile = layer.get(pos)
                 if layerName in self._actors:
                     for actor in self._actors[layerName]:
                         if actor.getMapPosition() == pos:
@@ -170,11 +171,7 @@ class GameMap:
                                 return actor.getLightBlock()
                             else:
                                 return 0
-                if tile is not None:
-                    if tile.passible:
-                        return 0
-                    else:
-                        return tile.lightBlock
+                return layer.getLightBlock(pos)
             return 0
 
         layerKeys = list(self._tilemap.getAllLayers().keys())
@@ -218,9 +215,11 @@ class GameMap:
             layerKeys = list(self._tilemap.getAllLayers().keys())
             layerKeys.reverse()
             for layerName in layerKeys:
-                tile = self._tilemap.getLayer(layerName).get(Vector2i(x, y))
+                layer = self._tilemap.getLayer(layerName)
+                position = Vector2i(x, y)
+                tile = layer.get(position)
                 if tile is not None:
-                    return tile.passible
+                    return layer.isPassable(position)
             return True
 
         dirs = [(-1, 0), (1, 0), (0, -1), (0, 1)]
@@ -365,10 +364,10 @@ class GameMap:
         self._passabilityDirty = True
 
     @staticmethod
-    def loadData(data: Dict, camera: Optional[Camera] = None) -> GameMap:
+    def loadData(data: Dict, tilesetData: Dict, camera: Optional[Camera] = None) -> GameMap:
         mapName = data["mapName"]
         width = data["width"]
         height = data["height"]
         layers = data["layers"]
-        tilemap = Tilemap.loadData(layers, width, height)
+        tilemap = Tilemap.loadData(layers, tilesetData, width, height)
         return GameMap(mapName, tilemap, camera)

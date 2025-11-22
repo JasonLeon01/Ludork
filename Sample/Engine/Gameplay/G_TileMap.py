@@ -10,52 +10,64 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class Tile:
-    id: int
-    passible: bool = True
-    lightBlock: float = 0.3
+class Tileset:
+    name: str
+    fileName: str
+    passible: List[bool]
+    lightBlock: List[float]
 
 
 @dataclass
 class TileLayerData:
-    name: str
-    filePath: str
-    tiles: List[List[Optional[Tile]]]
-    visible: bool = True
+    layerName: str
+    layerTileset: Tileset
+    tiles: List[List[Optional[int]]]
 
 
-class TileLayer(TileLayerData, Drawable, Transformable):
+class TileLayer(Drawable, Transformable):
     def __init__(
         self,
-        name: str,
-        filePath: str,
-        tiles: List[List[Optional[Tile]]],
+        data: TileLayerData,
         visible: bool = True,
     ) -> None:
-        TileLayerData.__init__(self, name, filePath, tiles, visible)
-        self._width = len(tiles[0])
-        self._height = len(tiles)
+        self._data = data
+        self._width = len(self._data.tiles[0])
+        self._height = len(self._data.tiles)
         self._vertexArray = VertexArray(PrimitiveType.Triangles, self._width * self._height * 6)
-        self._texture = Manager.loadTileset(filePath)
+        self._texture = Manager.loadTileset(self._data.layerTileset.fileName)
+        self.visible = visible
         Drawable.__init__(self)
         Transformable.__init__(self)
         self._init()
 
-    def getTiles(self) -> List[List[Optional[Tile]]]:
-        return self.tiles
+    def getName(self) -> str:
+        return self._data.layerName
 
-    def get(self, position: Vector2i) -> Optional[Tile]:
+    def getTiles(self) -> List[List[Optional[int]]]:
+        return self._data.tiles
+
+    def get(self, position: Vector2i) -> Optional[int]:
         if position.x < 0 or position.y < 0 or position.x >= self._width or position.y >= self._height:
             return None
-        return self.tiles[position.y][position.x]
+        return self._data.tiles[position.y][position.x]
 
     def isPassable(self, position: Vector2i) -> bool:
         if position.x < 0 or position.y < 0 or position.x >= self._width or position.y >= self._height:
             return False
-        tile = self.tiles[position.y][position.x]
-        if tile is None:
-            return False
-        return tile.passible
+        tileNumber = self._data.tiles[position.y][position.x]
+        if tileNumber is None:
+            return True
+        return self._data.layerTileset.passible[tileNumber]
+
+    def getLightBlock(self, position: Vector2i) -> float:
+        if self.isPassable(position):
+            return 0.0
+        if position.x < 0 or position.y < 0 or position.x >= self._width or position.y >= self._height:
+            return 0.0
+        tileNumber = self._data.tiles[position.y][position.x]
+        if tileNumber is None:
+            return 0.0
+        return self._data.layerTileset.lightBlock[tileNumber]
 
     def draw(self, target: RenderTarget, states: RenderStates) -> None:
         if not self.visible:
@@ -73,11 +85,9 @@ class TileLayer(TileLayerData, Drawable, Transformable):
 
         for y in range(self._height):
             for x in range(self._width):
-                tile = self.tiles[y][x]
-                if tile is None:
+                tileNumber = self._data.tiles[y][x]
+                if tileNumber is None:
                     continue
-
-                tileNumber = tile.id
 
                 tu = tileNumber % columns
                 tv = tileNumber // columns
@@ -102,7 +112,7 @@ class Tilemap:
     def __init__(self, layers: List[TileLayer]) -> None:
         self._layers: Dict[str, TileLayer] = {}
         for layer in layers:
-            self._layers[layer.name] = layer
+            self._layers[layer.getName()] = layer
 
     def getLayer(self, name: str) -> Optional[TileLayer]:
         for layerName, layer in self._layers.items():
@@ -113,7 +123,7 @@ class Tilemap:
     def getAllLayers(self) -> Dict[str, TileLayer]:
         return self._layers
 
-    def getLayerNameList(self) -> List[TileLayer]:
+    def getLayerNameList(self) -> List[str]:
         return list(self._layers.keys())
 
     def getSize(self) -> Vector2u:
@@ -123,19 +133,23 @@ class Tilemap:
         return Vector2u(first._width, first._height)
 
     @staticmethod
-    def loadData(data: Dict[str, List[List[Any]]], width: int, height: int) -> Tilemap:
+    def loadData(data: Dict[str, List[List[Any]]], tilesetData: Dict[str, Tileset], width: int, height: int) -> Tilemap:
         mapLayers = []
         for layerName, layerData in data.items():
+            name = layerData["layerName"]
+            layerTileset = tilesetData[layerData["layerTileset"]]
             layerTiles = layerData["tiles"]
-            tiles: List[List[Tile]] = []
+            tiles: List[List[Optional[int]]] = []
             for y in range(height):
                 tiles.append([])
                 for x in range(width):
-                    tileInfo = layerTiles[y][x]
-                    if tileInfo is None:
-                        tiles[-1].append(None)
-                    else:
-                        tiles[-1].append(Tile(*tileInfo))
-            layer = TileLayer(layerName, layerData["filePath"], tiles)
+                    tiles[-1].append(layerTiles[y][x])
+            layer = TileLayer(
+                TileLayerData(
+                    name,
+                    layerTileset,
+                    tiles,
+                ),
+            )
             mapLayers.append(layer)
         return Tilemap(mapLayers)

@@ -4,16 +4,18 @@ from __future__ import annotations
 from dataclasses import dataclass
 import os
 import sys
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
-import pickle
+from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 import importlib
 from PyQt5 import QtWidgets, QtGui, QtCore
 import Utils
 import EditorStatus
+import Data
+
 
 if TYPE_CHECKING:
     import Sample.Engine as TempEngine
-    from Sample.Engine.Gameplay import TileLayer
+    from Sample.Engine.Gameplay import Tileset
+    from Sample.Engine.Gameplay import TileLayerData
 
 
 @dataclass
@@ -21,7 +23,7 @@ class MapData:
     mapName: str
     width: int
     height: int
-    layers: Dict[str, TileLayer]
+    layers: Dict[str, TileLayerData]
 
 
 class EditorPanel(QtWidgets.QWidget):
@@ -32,8 +34,6 @@ class EditorPanel(QtWidgets.QWidget):
         self.mapData: Optional[MapData] = None
         self._pixmap: Optional[QtGui.QPixmap] = None
         self.selectedLayerName: Optional[str] = None
-        if not EditorStatus.PROJ_PATH in sys.path:
-            sys.path.append(EditorStatus.PROJ_PATH)
         super().__init__(parent)
         Utils.Panel.applyDisabledOpacity(self)
 
@@ -49,8 +49,7 @@ class EditorPanel(QtWidgets.QWidget):
             self.mapFilePath = mapFileName
         else:
             self.mapFilePath = os.path.join(self._mapFilesRoot, mapFileName)
-        with open(self.mapFilePath, "rb") as f:
-            mapData = pickle.load(f)
+        mapData = Utils.File.loadData(self.mapFilePath)
         self.applyMapData(mapData)
         self._renderFromMapData()
         self._updateContentSize()
@@ -58,7 +57,6 @@ class EditorPanel(QtWidgets.QWidget):
 
     def applyMapData(self, data):
         Engine: TempEngine = importlib.import_module("Engine")
-        Tile = Engine.Gameplay.Tile
         TileLayerData = Engine.Gameplay.TileLayerData
         mapName = data["mapName"]
         width = data["width"]
@@ -66,17 +64,15 @@ class EditorPanel(QtWidgets.QWidget):
         layers = data["layers"]
         mapLayers = {}
         for layerName, layerData in layers.items():
+            name = layerData["layerName"]
+            layerTileset = Data.GameData.tilesetData[layerData["layerTileset"]]
             layerTiles = layerData["tiles"]
             tiles: List[List[Tile]] = []
             for y in range(height):
                 tiles.append([])
                 for x in range(width):
-                    tileInfo = layerTiles[y][x]
-                    if tileInfo is None:
-                        tiles[-1].append(None)
-                    else:
-                        tiles[-1].append(Tile(*tileInfo))
-            layer = TileLayerData(layerName, layerData["filePath"], tiles)
+                    tiles[-1].append(layerTiles[y][x])
+            layer = TileLayerData(name, layerTileset, tiles)
             mapLayers[layerName] = layer
         self.mapData = MapData(mapName, width, height, mapLayers)
 
@@ -98,17 +94,14 @@ class EditorPanel(QtWidgets.QWidget):
                 painter.setOpacity(1.0)
             else:
                 painter.setOpacity(1.0 if layerName == sel else 0.5)
-            ts_path = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Tilesets", layer.filePath)
+            ts_path = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Tilesets", layer.layerTileset.fileName)
             tileset = QtGui.QImage(ts_path)
             if tileset.isNull():
                 continue
             columns = tileset.width() // tileSize
             for y in range(self.mapData.height):
                 for x in range(self.mapData.width):
-                    tile = layer.tiles[y][x]
-                    if tile is None:
-                        continue
-                    tileNumber = tile.id
+                    tileNumber = layer.tiles[y][x]
                     tu = tileNumber % columns
                     tv = tileNumber // columns
                     src = QtCore.QRect(tu * tileSize, tv * tileSize, tileSize, tileSize)
