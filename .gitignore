@@ -5,5 +5,5 @@ Game/pysf/
 Sample/Engine/pysf/
 LudorkEnv/
 Ludork.ini
-dist/
 build/
+Sample/Main.exe

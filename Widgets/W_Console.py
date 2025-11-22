@@ -148,10 +148,21 @@ class ConsoleWidget(QtWidgets.QWidget):
             self._stderr_reader = None
         if self._proc:
             try:
-                if hasattr(self._proc, "terminate"):
+                try:
                     self._proc.terminate()
-                if hasattr(self._proc, "wait"):
-                    self._proc.wait()
+                except Exception:
+                    pass
+                try:
+                    self._proc.wait(timeout=3)
+                except Exception:
+                    try:
+                        self._proc.kill()
+                    except Exception:
+                        pass
+                    try:
+                        self._proc.wait(timeout=1)
+                    except Exception:
+                        pass
             except Exception:
                 pass
             self._proc = None

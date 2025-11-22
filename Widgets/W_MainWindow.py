@@ -3,6 +3,7 @@
 import os
 import sys
 import subprocess
+import psutil
 import configparser
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -21,9 +22,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self._engineProc: Optional[subprocess.Popen] = None
         self.resize(1280, 960)
         self.setWindowTitle(title)
-
-        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
-        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
 
         central = QtWidgets.QWidget(self)
         self.setCentralWidget(central)
@@ -344,38 +342,57 @@ class MainWindow(QtWidgets.QMainWindow):
         iniPath = os.path.join(EditorStatus.PROJ_PATH, "Main.ini")
         iniFile = configparser.ConfigParser()
         iniFile.read(iniPath, encoding="utf-8")
-        script_path = iniFile["Main"]["script"]
+        scriptPath = iniFile["Main"]["script"]
         self._panelHandle = int(self.gamePanel.winId())
-        if os.name == "nt":
-            self._engineProc = subprocess.Popen(
-                [sys.executable, "-u", script_path, str(self._panelHandle)],
-                cwd=EditorStatus.PROJ_PATH,
-                shell=False,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                stdin=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-                env=dict(os.environ, PYTHONUNBUFFERED="1"),
-            )
-        else:
-            self._engineProc = subprocess.Popen(
-                [sys.executable, "-u", script_path],
-                cwd=EditorStatus.PROJ_PATH,
-                shell=False,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                stdin=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-                env=dict(os.environ, PYTHONUNBUFFERED="1"),
-            )
+        self._engineProc = subprocess.Popen(
+            self._getExec(scriptPath),
+            cwd=EditorStatus.PROJ_PATH,
+            shell=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdin=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+            env=dict(os.environ, PYTHONUNBUFFERED="1"),
+        )
         self.consoleWidget.attach_process(self._engineProc)
 
     def endGame(self):
         if self._engineProc:
-            self._engineProc.terminate()
-            self._engineProc.wait()
+            try:
+                try:
+                    p = psutil.Process(self._engineProc.pid)
+                    children = p.children(recursive=True)
+                    for c in children:
+                        try:
+                            c.terminate()
+                        except Exception:
+                            pass
+                    gone, alive = psutil.wait_procs(children, timeout=2)
+                    for c in alive:
+                        try:
+                            c.kill()
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+                try:
+                    self._engineProc.terminate()
+                except Exception:
+                    pass
+                try:
+                    self._engineProc.wait(timeout=3)
+                except Exception:
+                    try:
+                        self._engineProc.kill()
+                    except Exception:
+                        pass
+                    try:
+                        self._engineProc.wait(timeout=1)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
             self._engineProc = None
         Panel.clearPanel(self.gamePanel)
         self.stacked.setCurrentWidget(self.editorScroll)
@@ -389,6 +406,13 @@ class MainWindow(QtWidgets.QMainWindow):
         if hasattr(self, "consoleWidget"):
             self.consoleWidget.detach_process()
             self.consoleWidget.clear()
+
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        try:
+            self.endGame()
+        except Exception:
+            pass
+        super().closeEvent(event)
 
     def _onModeChanged(self, idx: int) -> None:
         if idx == 1:
@@ -549,3 +573,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _onExit(self, checked: bool = False) -> None:
         self.close()
+
+    def _getExec(self, scriptPath):
+        exePath = os.path.join(EditorStatus.PROJ_PATH, "Main.exe" if os.name == "nt" else "Main")
+        if os.path.exists(exePath):
+            if os.name == "nt":
+                return [exePath, str(self._panelHandle)]
+            return [exePath]
+        if os.name == "nt":
+            return [sys.executable, "-u", scriptPath, str(self._panelHandle)]
+        return [sys.executable, "-u", scriptPath]

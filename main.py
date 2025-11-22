@@ -58,6 +58,7 @@ def main():
     projPath = os.path.abspath("./Sample")
     EditorStatus.PROJ_PATH = projPath
     window = MainWindow("Ludork Editor")
+    app.aboutToQuit.connect(window.endGame)
     app.setWindowIcon(QIcon(icon_path))
     window.setWindowIcon(QIcon(icon_path))
     window.resize(int(editorConfig["Ludork"]["Width"]), int(editorConfig["Ludork"]["Height"]))

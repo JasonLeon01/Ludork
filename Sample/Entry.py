@@ -9,17 +9,8 @@ import threading
 
 
 def entry(windowHandle: Optional[int] = None):
-    if windowHandle:
-        os.environ["WINDOWHANDLE"] = str(windowHandle)
     import Engine
     from Source import Scenes
-
-    iniFilePath = "./Main.ini"
-    iniFile = configparser.ConfigParser()
-    iniFile.read(iniFilePath, encoding="utf-8")
-    Engine.Locale.init("./Assets/Locale")
-    Engine.System.init(iniFile, iniFilePath)
-    Engine.System.setScene(Scenes.Title())
 
     def _stdinWorker():
         env = {"Engine": Engine, "Scenes": Scenes, "System": Engine.System}
@@ -40,8 +31,18 @@ def entry(windowHandle: Optional[int] = None):
                 except Exception as e:
                     logging.error(f"[STDIN] {e}")
 
-    t = threading.Thread(target=_stdinWorker, daemon=True)
-    t.start()
+    if windowHandle:
+        os.environ["WINDOWHANDLE"] = str(windowHandle)
+        t = threading.Thread(target=_stdinWorker, daemon=True)
+        t.start()
+
+    iniFilePath = "./Main.ini"
+    iniFile = configparser.ConfigParser()
+    iniFile.read(iniFilePath, encoding="utf-8")
+    Engine.Locale.init("./Assets/Locale")
+    Engine.System.init(iniFile, iniFilePath)
+    Engine.System.setScene(Scenes.Title())
+
     while Engine.System.shouldLoop():
         Engine.System.getScene().main()
 
