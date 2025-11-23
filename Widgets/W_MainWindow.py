@@ -10,6 +10,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from Utils import Locale, Panel
 from .W_EditorPanel import EditorPanel
 from .W_Toggle import ModeToggle, EditModeToggle
+from .W_TileSelect import TileSelect
 from .W_FileExplorer import FileExplorer
 from .W_Console import ConsoleWidget
 import EditorStatus
@@ -151,7 +152,11 @@ class MainWindow(QtWidgets.QMainWindow):
         rightLayout = QtWidgets.QVBoxLayout(self.rightArea)
         rightLayout.setContentsMargins(0, 0, 0, 0)
         rightLayout.setSpacing(0)
-        rightLayout.addStretch(1)
+        self.tileSelect = TileSelect(self.rightArea)
+        rightLayout.addWidget(self.tileSelect, 1)
+        self.tileSelect.tileSelected.connect(self._onTileSelected)
+        self.tileSelect.tilesetChanged.connect(self._onTilesetChanged)
+        self.editorPanel.tileNumberPicked.connect(self._onTileNumberPicked)
 
         self.upperSplitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         self.upperSplitter.setChildrenCollapsible(False)
@@ -173,12 +178,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 ls = cfg["Ludork"].get("UpperLeftWidth")
                 rs = cfg["Ludork"].get("UpperRightWidth")
                 if ls and rs:
-                    try:
-                        self._savedLeftWidth = max(320, int(ls))
-                        self._savedRightWidth = max(320, int(rs))
-                    except Exception:
-                        self._savedLeftWidth = None
-                        self._savedRightWidth = None
+                    self._savedLeftWidth = max(320, int(ls))
+                    self._savedRightWidth = max(320, int(rs))
 
         self.lowerArea = QtWidgets.QWidget()
         lowerLayout = QtWidgets.QVBoxLayout(self.lowerArea)
@@ -283,7 +284,6 @@ class MainWindow(QtWidgets.QMainWindow):
                     if need > 0:
                         take2 = min(need, max(0, rightW - minRight))
                         rightW -= take2
-
             else:
                 if deltaW > 0:
                     rightW += deltaW
@@ -359,40 +359,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def endGame(self):
         if self._engineProc:
-            try:
+            p = psutil.Process(self._engineProc.pid)
+            children = p.children(recursive=True)
+            for c in children:
                 try:
-                    p = psutil.Process(self._engineProc.pid)
-                    children = p.children(recursive=True)
-                    for c in children:
-                        try:
-                            c.terminate()
-                        except Exception:
-                            pass
-                    gone, alive = psutil.wait_procs(children, timeout=2)
-                    for c in alive:
-                        try:
-                            c.kill()
-                        except Exception:
-                            pass
+                    c.terminate()
                 except Exception:
                     pass
-                try:
-                    self._engineProc.terminate()
-                except Exception:
-                    pass
-                try:
-                    self._engineProc.wait(timeout=3)
-                except Exception:
-                    try:
-                        self._engineProc.kill()
-                    except Exception:
-                        pass
-                    try:
-                        self._engineProc.wait(timeout=1)
-                    except Exception:
-                        pass
-            except Exception:
-                pass
+            gone, alive = psutil.wait_procs(children, timeout=2)
+            for c in alive:
+                c.kill()
             self._engineProc = None
         Panel.clearPanel(self.gamePanel)
         self.stacked.setCurrentWidget(self.editorScroll)
@@ -431,10 +407,12 @@ class MainWindow(QtWidgets.QMainWindow):
             self.toActorMode()
 
     def toTileMode(self) -> None:
-        pass
+        self.editorPanel.setTileMode(True)
+        self.tileSelect.setLayerSelected(self._selectedLayerName is not None)
 
     def toActorMode(self) -> None:
-        pass
+        self.editorPanel.setTileMode(False)
+        self.tileSelect.setLayerSelected(False)
 
     def _onUpperSplitterMoved(self, pos: int, index: int) -> None:
         sizes = self.upperSplitter.sizes()
@@ -460,6 +438,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.leftListIndex = self.leftList.row(item)
         self.editorPanel.refreshMap(name)
         self._selectedLayerName = None
+        self.editorPanel.setSelectedLayer(None)
+        self.tileSelect.setLayerSelected(False)
+        self.tileSelect.clearSelection()
         self._refreshLayerBar()
 
     def refreshLeftList(self):
@@ -506,6 +487,8 @@ class MainWindow(QtWidgets.QMainWindow):
             if not checked:
                 self._selectedLayerName = None
                 self.editorPanel.setSelectedLayer(None)
+                self.tileSelect.setLayerSelected(False)
+                self.tileSelect.clearSelection()
             else:
                 sender.setChecked(True)
             return
@@ -515,6 +498,10 @@ class MainWindow(QtWidgets.QMainWindow):
         sender.setChecked(True)
         self._selectedLayerName = name
         self.editorPanel.setSelectedLayer(name)
+        key = self.editorPanel.getLayerTilesetKey(name)
+        if key:
+            self.tileSelect.setCurrentTilesetKey(key)
+        self.tileSelect.setLayerSelected(True)
 
     def _onAddLayer(self, checked: bool = False) -> None:
         if not hasattr(self.editorPanel, "mapData") or self.editorPanel.mapData is None:
@@ -539,6 +526,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self._refreshLayerBar()
         bar = self.layerScroll.horizontalScrollBar()
         bar.setValue(bar.maximum())
+        key = self.editorPanel.getLayerTilesetKey(name)
+        if key:
+            self.tileSelect.setCurrentTilesetKey(key)
+
+    def _onTileSelected(self, tileNumber: int) -> None:
+        self.editorPanel.setSelectedTileNumber(None if tileNumber < 0 else tileNumber)
+
+    def _onTilesetChanged(self, key: str) -> None:
+        if self._selectedLayerName:
+            self.editorPanel.setLayerTilesetForSelectedLayer(key)
+
+    def _onTileNumberPicked(self, tileNumber: int) -> None:
+        if self._selectedLayerName:
+            key = self.editorPanel.getLayerTilesetKey(self._selectedLayerName)
+            if key:
+                self.tileSelect.setCurrentTilesetKey(key)
+        self.tileSelect.setSelectedTileNumber(None if tileNumber < 0 else tileNumber)
 
     def _onLayerContextMenu(self, pos: QtCore.QPoint) -> None:
         sender = self.sender()
@@ -569,7 +573,13 @@ class MainWindow(QtWidgets.QMainWindow):
         pass
 
     def _onSave(self, checked: bool = False) -> None:
-        pass
+        if not hasattr(self.editorPanel, "mapData") or self.editorPanel.mapData is None:
+            return
+        ok, content = self.editorPanel.saveFile()
+        if ok:
+            QtWidgets.QMessageBox.information(self, "Hint", Locale.getContent("SAVE_SUCCESS") + content)
+        else:
+            QtWidgets.QMessageBox.warning(self, "Hint", Locale.getContent("SAVE_FAILED") + content)
 
     def _onExit(self, checked: bool = False) -> None:
         self.close()

@@ -3,19 +3,13 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import os
-import sys
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Tuple
 import importlib
 from PyQt5 import QtWidgets, QtGui, QtCore
 import Utils
 import EditorStatus
+from Utils import Locale
 import Data
-
-
-if TYPE_CHECKING:
-    import Sample.Engine as TempEngine
-    from Sample.Engine.Gameplay import Tileset
-    from Sample.Engine.Gameplay import TileLayerData
 
 
 @dataclass
@@ -23,10 +17,12 @@ class MapData:
     mapName: str
     width: int
     height: int
-    layers: Dict[str, TileLayerData]
+    layers: Dict[str, Any]
 
 
 class EditorPanel(QtWidgets.QWidget):
+    tileNumberPicked = QtCore.pyqtSignal(int)
+
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         self.selctedPos: Tuple[int, int] = None
         self._mapFilesRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
@@ -34,6 +30,8 @@ class EditorPanel(QtWidgets.QWidget):
         self.mapData: Optional[MapData] = None
         self._pixmap: Optional[QtGui.QPixmap] = None
         self.selectedLayerName: Optional[str] = None
+        self.selectedTileNumber: Optional[int] = None
+        self.tileModeEnabled: bool = True
         super().__init__(parent)
         Utils.Panel.applyDisabledOpacity(self)
 
@@ -73,6 +71,7 @@ class EditorPanel(QtWidgets.QWidget):
                 for x in range(width):
                     tiles[-1].append(layerTiles[y][x])
             layer = TileLayerData(name, layerTileset, tiles)
+            setattr(layer, "layerTilesetKey", layerData["layerTileset"])
             mapLayers[layerName] = layer
         self.mapData = MapData(mapName, width, height, mapLayers)
 
@@ -90,11 +89,13 @@ class EditorPanel(QtWidgets.QWidget):
         for layerName, layer in self.mapData.layers.items():
             if not getattr(layer, "visible", True):
                 continue
-            if sel is None:
-                painter.setOpacity(1.0)
-            else:
-                painter.setOpacity(1.0 if layerName == sel else 0.5)
-            ts_path = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Tilesets", layer.layerTileset.fileName)
+            painter.setOpacity(1.0 if (sel is None or layerName == sel) else 0.5)
+            ts_path = os.path.join(
+                EditorStatus.PROJ_PATH,
+                "Assets",
+                "Tilesets",
+                layer.layerTileset.fileName,
+            )
             tileset = QtGui.QImage(ts_path)
             if tileset.isNull():
                 continue
@@ -102,6 +103,8 @@ class EditorPanel(QtWidgets.QWidget):
             for y in range(self.mapData.height):
                 for x in range(self.mapData.width):
                     tileNumber = layer.tiles[y][x]
+                    if tileNumber is None:
+                        continue
                     tu = tileNumber % columns
                     tv = tileNumber // columns
                     src = QtCore.QRect(tu * tileSize, tv * tileSize, tileSize, tileSize)
@@ -130,6 +133,42 @@ class EditorPanel(QtWidgets.QWidget):
         self.selectedLayerName = name
         self._renderFromMapData()
 
+    def setTileMode(self, enabled: bool) -> None:
+        self.tileModeEnabled = bool(enabled)
+
+    def setSelectedTileNumber(self, num: Optional[int]) -> None:
+        self.selectedTileNumber = None if num is None else int(num)
+
+    def getLayerTilesetKey(self, name: str) -> Optional[str]:
+        if self.mapData is None:
+            return None
+        if name not in self.mapData.layers:
+            return None
+        layer = self.mapData.layers[name]
+        key = getattr(layer, "layerTilesetKey", None)
+        if key:
+            return key
+        for k, ts in Data.GameData.tilesetData.items():
+            if ts.fileName == layer.layerTileset.fileName:
+                return k
+        return None
+
+    def setLayerTilesetForSelectedLayer(self, key: str) -> None:
+        if self.mapData is None:
+            return
+        if self.selectedLayerName is None:
+            return
+        if key not in Data.GameData.tilesetData:
+            return
+        layer = self.mapData.layers.get(self.selectedLayerName)
+        if not layer:
+            return
+        ts = Data.GameData.tilesetData[key]
+        setattr(layer, "layerTileset", ts)
+        setattr(layer, "layerTilesetKey", key)
+        self._renderFromMapData()
+        self.update()
+
     def addEmptyLayer(self, name: Optional[str] = None, filePath: str = "") -> Optional[str]:
         if self.mapData is None:
             return None
@@ -145,13 +184,19 @@ class EditorPanel(QtWidgets.QWidget):
                 i += 1
                 candidate = f"{base}_{i}"
             name = candidate
-        tiles: List[List[Optional[Engine.Gameplay.Tile]]] = []
+        tiles: List[List[Optional[int]]] = []
         for y in range(height):
-            row: List[Optional[Engine.Gameplay.Tile]] = []
+            row: List[Optional[int]] = []
             for x in range(width):
                 row.append(None)
             tiles.append(row)
-        layer = TileLayerData(name, filePath, tiles)
+        keys = list(Data.GameData.tilesetData.keys()) if hasattr(Data, "GameData") else []
+        ts_key = keys[0] if keys else None
+        ts = Data.GameData.tilesetData.get(ts_key) if ts_key else None
+        layer = TileLayerData(
+            name, ts if ts is not None else Data.GameData.tilesetData[next(iter(Data.GameData.tilesetData))], tiles
+        )
+        setattr(layer, "layerTilesetKey", ts_key or next(iter(Data.GameData.tilesetData)))
         self.mapData.layers[name] = layer
         self._renderFromMapData()
         self.update()
@@ -191,4 +236,76 @@ class EditorPanel(QtWidgets.QWidget):
         if gx < 0 or gy < 0 or gx >= self.mapData.width or gy >= self.mapData.height:
             return
         self.selctedPos = (gx, gy)
-        QtWidgets.QMessageBox.information(self, "Hint", f"Chosen: ({gx}, {gy})")
+        if not self.tileModeEnabled:
+            return
+        if self.selectedLayerName is None:
+            return
+        layer = self.mapData.layers.get(self.selectedLayerName)
+        if not layer:
+            return
+        if e.button() == QtCore.Qt.RightButton:
+            try:
+                tn = layer.tiles[gy][gx]
+                self.tileNumberPicked.emit(-1 if tn is None else int(tn))
+            except Exception:
+                self.tileNumberPicked.emit(-1)
+            return
+        if e.button() != QtCore.Qt.LeftButton:
+            return
+        layer.tiles[gy][gx] = self.selectedTileNumber
+        self._renderFromMapData()
+        self.update()
+
+    def mouseMoveEvent(self, e: QtGui.QMouseEvent) -> None:
+        if self.mapData is None:
+            return
+        x = int(e.pos().x())
+        y = int(e.pos().y())
+        tileSize = EditorStatus.CELLSIZE
+        gx = x // tileSize
+        gy = y // tileSize
+        if gx < 0 or gy < 0 or gx >= self.mapData.width or gy >= self.mapData.height:
+            return
+        self.selctedPos = (gx, gy)
+        if not self.tileModeEnabled:
+            return
+        if self.selectedLayerName is None:
+            return
+        if not (e.buttons() & QtCore.Qt.LeftButton):
+            return
+        layer = self.mapData.layers.get(self.selectedLayerName)
+        if not layer:
+            return
+        try:
+            if layer.tiles[gy][gx] != self.selectedTileNumber:
+                layer.tiles[gy][gx] = self.selectedTileNumber
+        except Exception:
+            return
+        self._renderFromMapData()
+        self.update()
+
+    def saveFile(self) -> bool:
+        if self.mapData is None:
+            return False, Locale.getContent("MAP_DATA_NONE")
+        if self.mapFilePath is None:
+            return False, Locale.getContent("MAP_FILE_NONE")
+        try:
+            dataDict = {}
+            dataDict["mapName"] = self.mapData.mapName
+            dataDict["width"] = self.mapData.width
+            dataDict["height"] = self.mapData.height
+            dataDict["layers"] = {}
+            for layerName, layerData in self.mapData.layers.items():
+                data = {}
+                data["layerName"] = layerData.layerName
+                tileset = layerData.layerTileset
+                data["layerTileset"] = next(
+                    (key for key, value in Data.GameData.tilesetData.items() if value == tileset), None
+                )
+                data["tiles"] = layerData.tiles
+                data["actors"] = []
+                dataDict["layers"][layerName] = data
+            Utils.File.saveData(self.mapFilePath, dataDict)
+        except Exception as e:
+            return False, str(e)
+        return True, Locale.getContent("SAVE_PATH").format(self.mapFilePath)

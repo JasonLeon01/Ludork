@@ -126,5 +126,25 @@
     "MAP_LIST": {
         "zh_CN": "地图列表",
         "en_GB": "Map List"
+    },
+    "SAVE_SUCCESS": {
+        "zh_CN": "保存成功！",
+        "en_GB": "Save Successfully! "
+    },
+    "SAVE_FAILED": {
+        "zh_CN": "保存失败！",
+        "en_GB": "Save Failed! "
+    },
+    "SAVE_PATH": {
+        "zh_CN": "已保存至 {}",
+        "en_GB": "Successfully saved to {}"
+    },
+    "MAP_DATA_NONE": {
+        "zh_CN": "地图数据为空",
+        "en_GB": "Map data is None yet."
+    },
+    "MAP_FILE_NONE": {
+        "zh_CN": "地图文件失效",
+        "en_GB": "The file path of this map is None yet."
     }
 }

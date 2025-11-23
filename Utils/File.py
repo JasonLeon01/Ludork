@@ -19,3 +19,8 @@ def saveData(filePath: str, data: Any) -> None:
 def loadData(filePath: str) -> Any:
     with open(filePath, "rb") as file:
         return pickle.load(file)
+
+
+def saveData(filePath, data: Dict[str, Any]) -> None:
+    with open(filePath, "wb") as file:
+        pickle.dump(data, file)

@@ -10,7 +10,7 @@ from Engine.Utils import File
 
 class Scene(SceneBase):
     def onEnter(self) -> None:
-        System.setTransition(Manager.loadTransition("012-Random04.png"), 5)
+        System.setTransition(Manager.loadTransition("012-Random04.png"), 1)
 
     def onCreate(self):
         self.actors = [
@@ -36,14 +36,14 @@ class Scene(SceneBase):
                 )
             },
         )
-        self._gameMap.setAmbientLight(Color(30, 30, 30, 255))
-        self.light = Light(Vector2f(0, 0), Color(255, 220, 180, 255), 32.0)
+        self._gameMap.setAmbientLight(Color(60, 60, 60, 255))
+        self.light = Light(Vector2f(160, 120), Color(255, 220, 180, 255), 64.0)
         self._gameMap.setLights([self.light])
 
         self._gameMap.spawnActor(self.actors[0], "default")
         self._gameMap.getCamera().setParent(self.actors[0])
         self.actors[0].setRoutine(self._gameMap.findPath(self.actors[0].getMapPosition(), Vector2i(0, 0)))
-        System.setGraphicsShader(Shader(System.getGrayScaleShaderPath(), Shader.Type.Fragment), {"intensity": 1.0})
+        System.setGraphicsShader(Shader(System.getGrayScaleShaderPath(), Shader.Type.Fragment), {"intensity": 0.5})
 
     def onFixedTick(self, fixedDelta: float) -> None:
         if self.light.radius < 1280.0:
