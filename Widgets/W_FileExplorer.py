@@ -17,6 +17,7 @@ class FileExplorer(QtWidgets.QWidget):
         self._interactive = True
         self._clipboard = []
         self._clipboard_cut = False
+
         class _Proxy(QtCore.QSortFilterProxyModel):
             def filterAcceptsRow(self, source_row: int, source_parent: QtCore.QModelIndex) -> bool:
                 model = self.sourceModel()
@@ -29,20 +30,22 @@ class FileExplorer(QtWidgets.QWidget):
                 name = info.fileName().lower()
                 if name == "__pycache__":
                     return False
-                if info.isDir() and name.startswith('.'):
+                if info.isDir() and name.startswith("."):
                     return False
                 suf = info.suffix().lower()
                 if suf in ("ini", "proj", "csproj", "vcxproj", "log", "tmp"):
                     return False
                 return True
+
         class _View(QtWidgets.QTreeView):
-            def __init__(self, owner: 'FileExplorer'):
+            def __init__(self, owner: "FileExplorer"):
                 super().__init__(owner)
                 self._owner = owner
                 self.setDragEnabled(True)
                 self.setAcceptDrops(True)
                 self.setDragDropMode(QtWidgets.QAbstractItemView.DragDrop)
                 self.setDefaultDropAction(QtCore.Qt.MoveAction)
+
             def startDrag(self, supportedActions: QtCore.Qt.DropActions) -> None:
                 if not self._owner._interactive:
                     return
@@ -60,6 +63,7 @@ class FileExplorer(QtWidgets.QWidget):
                 drag = QtGui.QDrag(self)
                 drag.setMimeData(mime)
                 drag.exec_(QtCore.Qt.MoveAction | QtCore.Qt.CopyAction)
+
             def keyPressEvent(self, e: QtGui.QKeyEvent) -> None:
                 if not self._owner._interactive:
                     return
@@ -81,6 +85,7 @@ class FileExplorer(QtWidgets.QWidget):
                                 self._owner._setCurrentPath(p)
                                 return
                 super().keyPressEvent(e)
+
             def dragEnterEvent(self, e: QtGui.QDragEnterEvent) -> None:
                 if not self._owner._interactive:
                     return
@@ -88,6 +93,7 @@ class FileExplorer(QtWidgets.QWidget):
                     e.acceptProposedAction()
                 else:
                     super().dragEnterEvent(e)
+
             def dragMoveEvent(self, e: QtGui.QDragMoveEvent) -> None:
                 if not self._owner._interactive:
                     return
@@ -95,6 +101,7 @@ class FileExplorer(QtWidgets.QWidget):
                     e.acceptProposedAction()
                 else:
                     super().dragMoveEvent(e)
+
             def dropEvent(self, e: QtGui.QDropEvent) -> None:
                 if not self._owner._interactive:
                     return
@@ -117,7 +124,9 @@ class FileExplorer(QtWidgets.QWidget):
                     dp = os.path.join(targetDir, name)
                     if not self._owner._isUnderRoot(dp):
                         continue
-                    copyAction = (e.keyboardModifiers() & QtCore.Qt.ControlModifier) or (e.keyboardModifiers() & QtCore.Qt.MetaModifier)
+                    copyAction = (e.keyboardModifiers() & QtCore.Qt.ControlModifier) or (
+                        e.keyboardModifiers() & QtCore.Qt.MetaModifier
+                    )
                     if internal and not copyAction:
                         if os.path.abspath(sp) == os.path.abspath(dp):
                             continue
@@ -130,8 +139,8 @@ class FileExplorer(QtWidgets.QWidget):
                         dp2 = self._owner._uniquePath(dp, moved=True)
                         try:
                             shutil.move(sp, dp2)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            print(e)
                     else:
                         dp2 = self._owner._uniquePath(dp, moved=False)
                         try:
@@ -139,10 +148,11 @@ class FileExplorer(QtWidgets.QWidget):
                                 shutil.copytree(sp, dp2)
                             else:
                                 shutil.copy2(sp, dp2)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            print(e)
                 self._owner._refresh()
                 e.acceptProposedAction()
+
         self._model = QtWidgets.QFileSystemModel(self)
         self._model.setFilter(QtCore.QDir.AllEntries | QtCore.QDir.NoDotAndDotDot)
         self._model.setRootPath(self._root)
@@ -187,16 +197,19 @@ class FileExplorer(QtWidgets.QWidget):
         layout.addWidget(self._view, 1)
         self.setMinimumHeight(160)
         Panel.applyDisabledOpacity(self)
+
     def setInteractive(self, enabled: bool) -> None:
         self._interactive = bool(enabled)
         fp = QtCore.Qt.StrongFocus if self._interactive else QtCore.Qt.NoFocus
         self._view.setFocusPolicy(fp)
         self._upButton.setEnabled(self._interactive)
         Panel.applyDisabledOpacity(self._upButton)
+
     def changeEvent(self, e: QtCore.QEvent) -> None:
         if e.type() == QtCore.QEvent.EnabledChange:
             Panel.applyDisabledOpacity(self)
         super().changeEvent(e)
+
     def _uniquePath(self, dst: str, moved: bool) -> str:
         if not os.path.exists(dst):
             return dst
@@ -210,6 +223,7 @@ class FileExplorer(QtWidgets.QWidget):
             cand = os.path.join(parent, f"{name}{tag}{i}{ext}")
             i += 1
         return cand
+
     def _refresh(self) -> None:
         self._view.setRootIndex(self._proxy.mapFromSource(self._model.index(self._current)))
 
@@ -225,8 +239,9 @@ class FileExplorer(QtWidgets.QWidget):
         try:
             os.chmod(p, stat.S_IWRITE)
             func(p)
-        except Exception:
-            pass
+        except Exception as e:
+            print(e)
+            return False
 
     def _safeRemove(self, p: str) -> bool:
         try:
@@ -239,7 +254,8 @@ class FileExplorer(QtWidgets.QWidget):
                     os.chmod(p, stat.S_IWRITE)
                     os.remove(p)
             return True
-        except Exception:
+        except Exception as e:
+            print(e)
             return False
 
     def _setCurrentPath(self, path: str) -> None:
@@ -261,9 +277,11 @@ class FileExplorer(QtWidgets.QWidget):
         else:
             if path:
                 self._openSystemFile(path)
+
     def _selectedSourceRows(self):
         rows = self._view.selectionModel().selectedRows()
         return [self._proxy.mapToSource(i) for i in rows]
+
     def _onCopy(self) -> None:
         if not self._interactive:
             return
@@ -275,6 +293,7 @@ class FileExplorer(QtWidgets.QWidget):
                 paths.append(p)
         self._clipboard = paths
         self._clipboard_cut = False
+
     def _onCut(self) -> None:
         if not self._interactive:
             return
@@ -286,6 +305,7 @@ class FileExplorer(QtWidgets.QWidget):
                 paths.append(p)
         self._clipboard = paths
         self._clipboard_cut = True
+
     def _onPaste(self) -> None:
         if not self._interactive:
             return
@@ -308,8 +328,8 @@ class FileExplorer(QtWidgets.QWidget):
                 dp2 = self._uniquePath(dp, moved=True)
                 try:
                     shutil.move(sp, dp2)
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(e)
             else:
                 dp2 = self._uniquePath(dp, moved=False)
                 try:
@@ -317,11 +337,12 @@ class FileExplorer(QtWidgets.QWidget):
                         shutil.copytree(sp, dp2)
                     else:
                         shutil.copy2(sp, dp2)
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(e)
         self._refresh()
         self._clipboard = []
         self._clipboard_cut = False
+
     def _onDelete(self) -> None:
         if not self._interactive:
             return
@@ -348,7 +369,10 @@ class FileExplorer(QtWidgets.QWidget):
                 failed = True
         self._refresh()
         if failed:
-            QtWidgets.QMessageBox.warning(self, Locale.getContent("DELETE_FAILED"), Locale.getContent("DELETE_FAILED_MESSAGE"))
+            QtWidgets.QMessageBox.warning(
+                self, Locale.getContent("DELETE_FAILED"), Locale.getContent("DELETE_FAILED_MESSAGE")
+            )
+
     def _onContextMenu(self, pos: QtCore.QPoint) -> None:
         if not self._interactive:
             return
@@ -386,7 +410,7 @@ class FileExplorer(QtWidgets.QWidget):
             self._setCurrentPath(parent)
 
     def _suffix(self, p: str) -> str:
-        i = p.rfind('.')
+        i = p.rfind(".")
         return p[i + 1 :].lower() if i >= 0 else ""
 
     def _isPreviewable(self, p: str) -> bool:
@@ -398,8 +422,8 @@ class FileExplorer(QtWidgets.QWidget):
             return
         try:
             QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(p))
-        except Exception:
-            pass
+        except Exception as e:
+            print(e)
 
     def _showPreview(self, p: str) -> None:
         if not p:

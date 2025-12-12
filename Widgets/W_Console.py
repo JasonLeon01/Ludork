@@ -39,8 +39,8 @@ class PipeReader(QtCore.QThread):
         try:
             if hasattr(self._stream, "close"):
                 self._stream.close()
-        except Exception:
-            pass
+        except Exception as e:
+            print(e)
 
     def _detect_level(self, text: str) -> str:
         t = text.lower()
@@ -136,35 +136,18 @@ class ConsoleWidget(QtWidgets.QWidget):
             try:
                 self._stdout_reader.stop()
                 self._stdout_reader.wait()
-            except Exception:
-                pass
+            except Exception as e:
+                print(e)
             self._stdout_reader = None
         if self._stderr_reader:
             try:
                 self._stderr_reader.stop()
                 self._stderr_reader.wait()
-            except Exception:
-                pass
+            except Exception as e:
+                print(e)
             self._stderr_reader = None
         if self._proc:
-            try:
-                try:
-                    self._proc.terminate()
-                except Exception:
-                    pass
-                try:
-                    self._proc.wait(timeout=3)
-                except Exception:
-                    try:
-                        self._proc.kill()
-                    except Exception:
-                        pass
-                    try:
-                        self._proc.wait(timeout=1)
-                    except Exception:
-                        pass
-            except Exception:
-                pass
+            self._proc.terminate()
             self._proc = None
         self._send.setEnabled(False)
         self._input.setEnabled(False)
@@ -203,6 +186,6 @@ class ConsoleWidget(QtWidgets.QWidget):
             try:
                 self._proc.stdin.write(t + "\n")
                 self._proc.stdin.flush()
-            except Exception:
-                pass
+            except Exception as e:
+                print(e)
         self._input.clear()

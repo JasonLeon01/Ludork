@@ -30,11 +30,7 @@ class Scene(SceneBase):
 
         self._gameMap = GameMap.loadData(
             File.loadData("./Data/Maps/Map_01.dat"),
-            {
-                "Tileset_01": Tileset(
-                    tilesetData["name"], tilesetData["fileName"], tilesetData["passable"], tilesetData["lightBlock"]
-                )
-            },
+            {"Tileset_01": Tileset.fromData(tilesetData)},
         )
         self._gameMap.setAmbientLight(Color(60, 60, 60, 255))
         self.light = Light(Vector2f(160, 120), Color(255, 220, 180, 255), 64.0)

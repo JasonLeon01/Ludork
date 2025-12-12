@@ -5,6 +5,7 @@ import sys
 import subprocess
 import psutil
 import configparser
+import json
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Utils import Locale, Panel
@@ -42,6 +43,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.layerBarLayout.setContentsMargins(8, 0, 8, 0)
         self.layerBarLayout.setSpacing(4)
         self.layerScroll.setWidget(self.layerBarContainer)
+        self.layerBarContainer.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.layerBarContainer.customContextMenuRequested.connect(self._onLayerEmptyContextMenu)
         self._layerButtons = {}
         self._selectedLayerName: Optional[str] = None
         panelW, panelH = 640, 480
@@ -81,18 +84,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.editModeToggle = EditModeToggle()
         self.modeToggle = ModeToggle()
-        self.addLayerButton = QtWidgets.QPushButton(Locale.getContent("ADD_LAYER"))
-        self.addLayerButton.setMinimumHeight(self.topBar.minimumHeight())
-        self.addLayerButton.clicked.connect(self._onAddLayer)
         topLayout.addWidget(self.layerScroll, 1)
-        topLayout.addWidget(self.addLayerButton, 0, alignment=QtCore.Qt.AlignRight)
         topLayout.addWidget(self.editModeToggle, 0, alignment=QtCore.Qt.AlignRight)
         topLayout.addWidget(self.modeToggle, 0, alignment=QtCore.Qt.AlignRight)
         self.editModeToggle.selectionChanged.connect(self._onEditModeChanged)
         self.modeToggle.selectionChanged.connect(self._onModeChanged)
         self._menuBar = self.menuBar()
         self._menuBar.setNativeMenuBar(True)
-        _fileMenu = self._menuBar.addMenu("File")
+        _fileMenu = self._menuBar.addMenu(Locale.getContent("FILE"))
         self._actNewProject = QtWidgets.QAction(Locale.getContent("NEW_PROJECT"), self)
         self._actNewProject.setShortcut(QtGui.QKeySequence.StandardKey.New)
         self._actNewProject.triggered.connect(self._onNewProject)
@@ -217,6 +216,8 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.setContentsMargins(8, 0, 8, 8)
         layout.setSpacing(0)
         layout.addWidget(self.topSplitter)
+
+        self._initProjConfigAndSelection()
 
     def showEvent(self, event: QtGui.QShowEvent) -> None:
         super().showEvent(event)
@@ -364,8 +365,8 @@ class MainWindow(QtWidgets.QMainWindow):
             for c in children:
                 try:
                     c.terminate()
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(e)
             gone, alive = psutil.wait_procs(children, timeout=2)
             for c in alive:
                 c.kill()
@@ -384,10 +385,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.consoleWidget.clear()
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
-        try:
-            self.endGame()
-        except Exception:
-            pass
+        self._saveProjLastMap()
+        self.endGame()
         super().closeEvent(event)
 
     def _onModeChanged(self, idx: int) -> None:
@@ -550,8 +549,31 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         name = sender.property("layerName") or sender.text()
         menu = QtWidgets.QMenu(self)
+        actRename = menu.addAction(Locale.getContent("RENAME_LAYER"))
         actDelete = menu.addAction(Locale.getContent("DELETE"))
         action = menu.exec_(sender.mapToGlobal(pos))
+        if action == actRename:
+            existing = set(self.editorPanel.getLayerNames())
+            if name in existing:
+                existing.remove(name)
+            while True:
+                newName, ok = QtWidgets.QInputDialog.getText(
+                    self, Locale.getContent("RENAME_LAYER"), Locale.getContent("RENAME_MESSAGE"), text=str(name)
+                )
+                if not ok:
+                    return
+                newName = newName.strip()
+                if not newName:
+                    QtWidgets.QMessageBox.warning(self, "Hint", Locale.getContent("ADD_EMPTY"))
+                    continue
+                if newName in existing:
+                    QtWidgets.QMessageBox.warning(self, "Hint", Locale.getContent("ADD_DUPLICATE"))
+                    continue
+                break
+            if self.editorPanel.renameLayer(name, newName):
+                if self._selectedLayerName == name:
+                    self._selectedLayerName = newName
+                self._refreshLayerBar()
         if action == actDelete:
             ret = QtWidgets.QMessageBox.question(
                 self,
@@ -566,6 +588,13 @@ class MainWindow(QtWidgets.QMainWindow):
                         self._selectedLayerName = None
                     self._refreshLayerBar()
 
+    def _onLayerEmptyContextMenu(self, pos: QtCore.QPoint) -> None:
+        menu = QtWidgets.QMenu(self)
+        actAdd = menu.addAction(Locale.getContent("ADD_LAYER"))
+        action = menu.exec_(self.layerBarContainer.mapToGlobal(pos))
+        if action == actAdd:
+            self._onAddLayer()
+
     def _onNewProject(self, checked: bool = False) -> None:
         pass
 
@@ -573,13 +602,17 @@ class MainWindow(QtWidgets.QMainWindow):
         pass
 
     def _onSave(self, checked: bool = False) -> None:
-        if not hasattr(self.editorPanel, "mapData") or self.editorPanel.mapData is None:
-            return
-        ok, content = self.editorPanel.saveFile()
+        import Data
+
+        ok, content = Data.GameData.saveModifiedMaps()
         if ok:
-            QtWidgets.QMessageBox.information(self, "Hint", Locale.getContent("SAVE_SUCCESS") + content)
+            QtWidgets.QMessageBox.information(
+                self, "Hint", Locale.getContent("SAVE_SUCCESS") + Locale.getContent("SAVE_PATH").format(content)
+            )
         else:
-            QtWidgets.QMessageBox.warning(self, "Hint", Locale.getContent("SAVE_FAILED") + content)
+            QtWidgets.QMessageBox.warning(
+                self, "Hint", Locale.getContent("SAVE_FAILED") + Locale.getContent("SAVE_PATH").format(content)
+            )
 
     def _onExit(self, checked: bool = False) -> None:
         self.close()
@@ -593,3 +626,57 @@ class MainWindow(QtWidgets.QMainWindow):
         if os.name == "nt":
             return [sys.executable, "-u", scriptPath, str(self._panelHandle)]
         return [sys.executable, "-u", scriptPath]
+
+    def _initProjConfigAndSelection(self) -> None:
+        root = EditorStatus.PROJ_PATH
+        chosen = None
+        try:
+            if os.path.exists(os.path.join(root, "Main.proj")):
+                chosen = os.path.join(root, "Main.proj")
+            else:
+                chosen = os.path.join(root, "Main.proj")
+                with open(chosen, "w", encoding="utf-8") as f:
+                    f.write("{}")
+        except Exception as e:
+            print(e)
+        self._projConfigPath = chosen
+        self._projConfig = {}
+        if chosen and os.path.exists(chosen):
+            try:
+                with open(chosen, "r", encoding="utf-8") as f:
+                    content = f.read().strip()
+                    if content:
+                        self._projConfig = json.loads(content)
+            except Exception as e:
+                print(e)
+                self._projConfig = {}
+        last = None
+        if isinstance(self._projConfig, dict):
+            last = self._projConfig.get("lastMap")
+        targetRow = 0 if self.leftList.count() > 0 else -1
+        if last:
+            for i in range(self.leftList.count()):
+                it = self.leftList.item(i)
+                if it and it.text() == last:
+                    targetRow = i
+                    break
+        if targetRow >= 0:
+            self.leftList.setCurrentRow(targetRow)
+            item = self.leftList.item(targetRow)
+            if item:
+                self._onLeftItemClicked(item)
+
+    def _saveProjLastMap(self) -> None:
+        if not hasattr(self, "_projConfigPath") or not self._projConfigPath:
+            return
+        name = None
+        item = self.leftList.currentItem() if hasattr(self, "leftList") else None
+        if item:
+            name = item.text()
+        if name:
+            data = {}
+            if isinstance(getattr(self, "_projConfig", {}), dict):
+                data.update(self._projConfig)
+            data["lastMap"] = name
+            with open(self._projConfigPath, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False)

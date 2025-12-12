@@ -55,11 +55,12 @@ class FilePreview(QtWidgets.QWidget):
         self._player.mediaStatusChanged.connect(self._onMediaStatusChanged)
         try:
             self._player.error.connect(self._onError)
-        except Exception:
-            pass
+        except Exception as e:
+            print(e)
         self._positionSlider.sliderMoved.connect(self._onSeek)
         self._openSystemBtn.clicked.connect(self._openSystem)
         Panel.applyDisabledOpacity(self)
+
     def changeEvent(self, e: QtCore.QEvent) -> None:
         if e.type() == QtCore.QEvent.EnabledChange:
             Panel.applyDisabledOpacity(self)
@@ -104,8 +105,8 @@ class FilePreview(QtWidgets.QWidget):
         self._player.setMedia(QtMultimedia.QMediaContent(url))
         try:
             self._player.setVolume(100)
-        except Exception:
-            pass
+        except Exception as e:
+            print(e)
         self._player.pause()
         self._playButton.setText("▶")
 
@@ -162,8 +163,8 @@ class FilePreview(QtWidgets.QWidget):
     def _stopAudio(self) -> None:
         try:
             self._player.stop()
-        except Exception:
-            pass
+        except Exception as e:
+            print(e)
 
     def _formatMs(self, ms: int) -> str:
         if ms <= 0:

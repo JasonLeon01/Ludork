@@ -1,4 +1,8 @@
 {
+    "FILE": {
+        "zh_CN": "文件",
+        "en_GB": "File"
+    },
     "NEW_PROJECT": {
         "zh_CN": "新建项目",
         "en_GB": "New Project"
@@ -39,6 +43,10 @@
         "zh_CN": "添加图层",
         "en_GB": "Add Layer"
     },
+    "RENAME_LAYER": {
+        "zh_CN": "修改图层名",
+        "en_GB": "Rename Layer"
+    },
     "ADD_ERROR": {
         "zh_CN": "未加载地图",
         "en_GB": "No map loaded"
@@ -46,6 +54,10 @@
     "ADD_MESSAGE": {
         "zh_CN": "输入添加的图层名称",
         "en_GB": "Enter the name of the layer to add"
+    },
+    "RENAME_MESSAGE": {
+        "zh_CN": "输入新的图层名称",
+        "en_GB": "Enter the new layer name"
     },
     "ADD_EMPTY": {
         "zh_CN": "图层名称不能为空",

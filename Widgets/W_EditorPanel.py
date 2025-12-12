@@ -27,6 +27,7 @@ class EditorPanel(QtWidgets.QWidget):
         self.selctedPos: Tuple[int, int] = None
         self._mapFilesRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
         self.mapFilePath = ""
+        self.mapKey: str = ""
         self.mapData: Optional[MapData] = None
         self._pixmap: Optional[QtGui.QPixmap] = None
         self.selectedLayerName: Optional[str] = None
@@ -38,6 +39,9 @@ class EditorPanel(QtWidgets.QWidget):
     def refreshMap(self, mapFileName: Optional[str] = None):
         self.selctedPos = None
         self.mapData = None
+        self._pixmap = None
+        self.setMinimumSize(0, 0)
+        self.resize(0, 0)
         self._mapFilesRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
         self.mapFilePath = ""
         Utils.Panel.clearPanel(self)
@@ -45,9 +49,14 @@ class EditorPanel(QtWidgets.QWidget):
             return
         if os.path.isabs(mapFileName):
             self.mapFilePath = mapFileName
+            self.mapKey = os.path.basename(mapFileName)
         else:
             self.mapFilePath = os.path.join(self._mapFilesRoot, mapFileName)
-        mapData = Utils.File.loadData(self.mapFilePath)
+            self.mapKey = mapFileName
+        mapData = Data.GameData.mapData.get(self.mapKey)
+        if mapData is None:
+            mapData = Utils.File.loadData(self.mapFilePath)
+            Data.GameData.mapData[self.mapKey] = mapData
         self.applyMapData(mapData)
         self._renderFromMapData()
         self._updateContentSize()
@@ -83,7 +92,7 @@ class EditorPanel(QtWidgets.QWidget):
         w = self.mapData.width * tileSize
         h = self.mapData.height * tileSize
         img = QtGui.QImage(w, h, QtGui.QImage.Format_ARGB32)
-        img.fill(QtGui.QColor(0, 0, 0))
+        img.fill(QtCore.Qt.transparent)
         painter = QtGui.QPainter(img)
         sel = self.selectedLayerName
         for layerName, layer in self.mapData.layers.items():
@@ -166,6 +175,9 @@ class EditorPanel(QtWidgets.QWidget):
         ts = Data.GameData.tilesetData[key]
         setattr(layer, "layerTileset", ts)
         setattr(layer, "layerTilesetKey", key)
+        if self.mapKey and self.selectedLayerName in Data.GameData.mapData.get(self.mapKey, {}).get("layers", {}):
+            Data.GameData.mapData[self.mapKey]["layers"][self.selectedLayerName]["layerTileset"] = key
+        Data.GameData.markMapModified(self.mapKey)
         self._renderFromMapData()
         self.update()
 
@@ -198,6 +210,16 @@ class EditorPanel(QtWidgets.QWidget):
         )
         setattr(layer, "layerTilesetKey", ts_key or next(iter(Data.GameData.tilesetData)))
         self.mapData.layers[name] = layer
+        if self.mapKey:
+            if self.mapKey in Data.GameData.mapData:
+                if "layers" in Data.GameData.mapData[self.mapKey]:
+                    Data.GameData.mapData[self.mapKey]["layers"][name] = {
+                        "layerName": name,
+                        "layerTileset": ts_key or next(iter(Data.GameData.tilesetData)),
+                        "tiles": tiles,
+                        "actors": [],
+                    }
+        Data.GameData.markMapModified(self.mapKey)
         self._renderFromMapData()
         self.update()
         return name
@@ -208,6 +230,9 @@ class EditorPanel(QtWidgets.QWidget):
         if name not in self.mapData.layers:
             return False
         self.mapData.layers.pop(name, None)
+        if self.mapKey and self.mapKey in Data.GameData.mapData:
+            Data.GameData.mapData[self.mapKey].get("layers", {}).pop(name, None)
+        Data.GameData.markMapModified(self.mapKey)
         if self.selectedLayerName == name:
             self.selectedLayerName = None
         self._renderFromMapData()
@@ -216,6 +241,18 @@ class EditorPanel(QtWidgets.QWidget):
 
     def paintEvent(self, e: QtGui.QPaintEvent) -> None:
         p = QtGui.QPainter(self)
+        r = self.rect()
+        s = 16
+        c1 = QtGui.QColor(220, 220, 220)
+        c2 = QtGui.QColor(180, 180, 180)
+        y = 0
+        while y < r.height():
+            x = 0
+            while x < r.width():
+                c = c1 if (((x // s) + (y // s)) % 2 == 0) else c2
+                p.fillRect(QtCore.QRect(x, y, s, s), c)
+                x += s
+            y += s
         if self._pixmap is not None:
             p.drawPixmap(0, 0, self._pixmap)
         p.end()
@@ -253,6 +290,13 @@ class EditorPanel(QtWidgets.QWidget):
         if e.button() != QtCore.Qt.LeftButton:
             return
         layer.tiles[gy][gx] = self.selectedTileNumber
+        if self.mapKey and self.selectedLayerName:
+            if self.mapKey in Data.GameData.mapData:
+                if self.selectedLayerName in Data.GameData.mapData[self.mapKey].get("layers", {}):
+                    Data.GameData.mapData[self.mapKey]["layers"][self.selectedLayerName]["tiles"][gy][gx] = (
+                        None if self.selectedTileNumber is None else int(self.selectedTileNumber)
+                    )
+        Data.GameData.markMapModified(self.mapKey)
         self._renderFromMapData()
         self.update()
 
@@ -279,6 +323,13 @@ class EditorPanel(QtWidgets.QWidget):
         try:
             if layer.tiles[gy][gx] != self.selectedTileNumber:
                 layer.tiles[gy][gx] = self.selectedTileNumber
+                if self.mapKey and self.selectedLayerName:
+                    if self.mapKey in Data.GameData.mapData:
+                        if self.selectedLayerName in Data.GameData.mapData[self.mapKey].get("layers", {}):
+                            Data.GameData.mapData[self.mapKey]["layers"][self.selectedLayerName]["tiles"][gy][gx] = (
+                                None if self.selectedTileNumber is None else int(self.selectedTileNumber)
+                            )
+                Data.GameData.markMapModified(self.mapKey)
         except Exception:
             return
         self._renderFromMapData()
@@ -290,22 +341,37 @@ class EditorPanel(QtWidgets.QWidget):
         if self.mapFilePath is None:
             return False, Locale.getContent("MAP_FILE_NONE")
         try:
-            dataDict = {}
-            dataDict["mapName"] = self.mapData.mapName
-            dataDict["width"] = self.mapData.width
-            dataDict["height"] = self.mapData.height
-            dataDict["layers"] = {}
-            for layerName, layerData in self.mapData.layers.items():
-                data = {}
-                data["layerName"] = layerData.layerName
-                tileset = layerData.layerTileset
-                data["layerTileset"] = next(
-                    (key for key, value in Data.GameData.tilesetData.items() if value == tileset), None
-                )
-                data["tiles"] = layerData.tiles
-                data["actors"] = []
-                dataDict["layers"][layerName] = data
-            Utils.File.saveData(self.mapFilePath, dataDict)
+            if self.mapKey and self.mapKey in Data.GameData.mapData:
+                Utils.File.saveData(self.mapFilePath, Data.GameData.mapData[self.mapKey])
+            else:
+                return False, Locale.getContent("MAP_DATA_NONE")
         except Exception as e:
             return False, str(e)
         return True, Locale.getContent("SAVE_PATH").format(self.mapFilePath)
+
+    def renameLayer(self, oldName: str, newName: str) -> bool:
+        if self.mapData is None:
+            return False
+        old = oldName.strip() if isinstance(oldName, str) else None
+        new = newName.strip() if isinstance(newName, str) else None
+        if not old or not new:
+            return False
+        if old not in self.mapData.layers:
+            return False
+        if new in self.mapData.layers:
+            return False
+        layer = self.mapData.layers.pop(old)
+        setattr(layer, "layerName", new)
+        self.mapData.layers[new] = layer
+        if self.mapKey and self.mapKey in Data.GameData.mapData:
+            layersDict = Data.GameData.mapData[self.mapKey].get("layers", {})
+            if old in layersDict:
+                data = layersDict.pop(old)
+                data["layerName"] = new
+                layersDict[new] = data
+        if self.selectedLayerName == old:
+            self.selectedLayerName = new
+        Data.GameData.markMapModified(self.mapKey)
+        self._renderFromMapData()
+        self.update()
+        return True

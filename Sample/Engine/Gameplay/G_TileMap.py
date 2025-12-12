@@ -16,6 +16,10 @@ class Tileset:
     passible: List[bool]
     lightBlock: List[float]
 
+    @staticmethod
+    def fromData(data: Dict[str, Any]):
+        return Tileset(*data.values())
+
 
 @dataclass
 class TileLayerData:
