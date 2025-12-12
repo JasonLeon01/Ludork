@@ -8,13 +8,15 @@ import configparser
 import json
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Utils import Locale, Panel
+from Utils import Locale, Panel, System
 from .W_EditorPanel import EditorPanel
 from .W_Toggle import ModeToggle, EditModeToggle
 from .W_TileSelect import TileSelect
 from .W_FileExplorer import FileExplorer
 from .W_Console import ConsoleWidget
 import EditorStatus
+from .Utils import MapEditDialog
+from .Utils import SingleRowDialog
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -115,6 +117,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.leftList.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         self.refreshLeftList()
         self.leftList.itemClicked.connect(self._onLeftItemClicked)
+        self.leftList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.leftList.customContextMenuRequested.connect(self._onLeftListContextMenu)
 
         self.leftLabel = QtWidgets.QLabel(Locale.getContent("MAP_LIST"))
         self.leftLabel.setAlignment(QtCore.Qt.AlignCenter)
@@ -442,6 +446,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tileSelect.clearSelection()
         self._refreshLayerBar()
 
+    def _onLeftListContextMenu(self, pos: QtCore.QPoint) -> None:
+        item = self.leftList.itemAt(pos)
+        if item is None:
+            return
+        menu = QtWidgets.QMenu(self)
+        actLabel = Locale.getContent("MAPLIST_EDIT")
+        actEdit = menu.addAction(actLabel)
+        action = menu.exec_(self.leftList.mapToGlobal(pos))
+        if action == actEdit:
+            self._onEditMap(item.text())
+
     def refreshLeftList(self):
         self.leftList.clear()
         if os.path.exists(self._mapFilesRoot):
@@ -452,6 +467,27 @@ class MainWindow(QtWidgets.QMainWindow):
             self.leftList.setCurrentRow(self.leftListIndex)
         else:
             self.leftListIndex = -1
+
+    def _onEditMap(self, mapKey: str) -> None:
+        import Data
+        from Utils import File
+
+        data = Data.GameData.mapData.get(mapKey)
+        if data is None:
+            fp = os.path.join(self._mapFilesRoot, mapKey)
+            if os.path.exists(fp):
+                data = File.loadData(fp)
+                Data.GameData.mapData[mapKey] = data
+        if not isinstance(data, dict):
+            return
+        dlg = MapEditDialog(self, data)
+        if not dlg.execApply():
+            return
+        Data.GameData.mapData[mapKey] = data
+        Data.GameData.markMapModified(mapKey)
+        if self.leftList.currentItem() and self.leftList.currentItem().text() == mapKey:
+            self.editorPanel.refreshMap(mapKey)
+            self._refreshLayerBar()
 
     def _refreshLayerBar(self) -> None:
         for i in reversed(range(self.layerBarLayout.count())):
@@ -508,9 +544,8 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         existing = set(self.editorPanel.getLayerNames())
         while True:
-            name, ok = QtWidgets.QInputDialog.getText(
-                self, Locale.getContent("ADD_LAYER"), Locale.getContent("ADD_MESSAGE")
-            )
+            dlg = SingleRowDialog(self, Locale.getContent("ADD_LAYER"), Locale.getContent("ADD_MESSAGE"))
+            ok, name = dlg.execGetText()
             if not ok:
                 return
             name = name.strip()
@@ -557,9 +592,10 @@ class MainWindow(QtWidgets.QMainWindow):
             if name in existing:
                 existing.remove(name)
             while True:
-                newName, ok = QtWidgets.QInputDialog.getText(
-                    self, Locale.getContent("RENAME_LAYER"), Locale.getContent("RENAME_MESSAGE"), text=str(name)
+                dlg = SingleRowDialog(
+                    self, Locale.getContent("RENAME_LAYER"), Locale.getContent("RENAME_MESSAGE"), str(name)
                 )
+                ok, newName = dlg.execGetText()
                 if not ok:
                     return
                 newName = newName.strip()
@@ -619,7 +655,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _getExec(self, scriptPath):
         exePath = os.path.join(EditorStatus.PROJ_PATH, "Main.exe" if os.name == "nt" else "Main")
-        if os.path.exists(exePath):
+        if System.already_packed():
             if os.name == "nt":
                 return [exePath, str(self._panelHandle)]
             return [exePath]

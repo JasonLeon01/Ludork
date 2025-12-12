@@ -87,6 +87,14 @@
         "zh_CN": "删除",
         "en_GB": "Delete"
     },
+    "CONFIRM": {
+        "zh_CN": "确认",
+        "en_GB": "Confirm"
+    },
+    "CANCEL": {
+        "zh_CN": "取消",
+        "en_GB": "Cancel"
+    },
     "CONFIRM_DELETE": {
         "zh_CN": "确认删除",
         "en_GB": "Confirm Delete"
@@ -138,6 +146,18 @@
     "MAP_LIST": {
         "zh_CN": "地图列表",
         "en_GB": "Map List"
+    },
+    "MAPLIST_EDIT": {
+        "zh_CN": "编辑地图",
+        "en_GB": "Edit Map"
+    },
+    "MAP_WIDTH": {
+        "zh_CN": "地图宽度",
+        "en_GB": "Map Width"
+    },
+    "MAP_HEIGHT": {
+        "zh_CN": "地图高度",
+        "en_GB": "Map Height"
     },
     "SAVE_SUCCESS": {
         "zh_CN": "保存成功！",

@@ -1,7 +1,6 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-import sys
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Utils import Locale, Panel
@@ -70,7 +69,7 @@ class ConsoleWidget(QtWidgets.QWidget):
         self._view.setFont(f)
 
         self._input = QtWidgets.QLineEdit()
-        self._input.setPlaceholderText("Enter command and press Enter")
+        self._input.setPlaceholderText(Locale.getContent("SEND_HINT"))
         self._send = QtWidgets.QPushButton(Locale.getContent("SEND"))
         self._send.clicked.connect(self._onSend)
         self._input.returnPressed.connect(self._onSend)
