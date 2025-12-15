@@ -11,9 +11,9 @@ def getJSONData(filePath: str) -> Dict[str, Any]:
     return json.loads(jsonData)
 
 
-def saveData(filePath: str, data: Any) -> None:
-    with open(filePath, "wb") as file:
-        pickle.dump(data, file)
+def saveJsonData(filePath: str, data: Dict[str, Any]) -> None:
+    with open(filePath, "w", encoding="utf-8") as file:
+        json.dump(data, file, ensure_ascii=False)
 
 
 def loadData(filePath: str) -> Any:

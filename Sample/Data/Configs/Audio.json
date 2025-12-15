@@ -1,13 +1,134 @@
 {
-    "cursorSE": "cursor.ogg",
-    "decisionSE": "decision1.ogg",
-    "cancelSE": "cancel.ogg",
-    "buzzerSE": "buzzer1.ogg",
-    "shopSE": "shop.ogg",
-    "saveSE": "save.ogg",
-    "loadSE": "load.ogg",
-    "gateSE": "open1.ogg",
-    "stairSE": "move.ogg",
-    "getSE": "item1.ogg",
-    "equipSE": "equip.ogg"
+    "cursorSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "cursor.ogg"
+    },
+    "decisionSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "decision1.ogg"
+    },
+    "cancelSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "cancel.ogg"
+    },
+    "buzzerSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "buzzer1.ogg"
+    },
+    "shopSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "shop.ogg"
+    },
+    "saveSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "save.ogg"
+    },
+    "loadSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "load.ogg"
+    },
+    "gateSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "open1.ogg"
+    },
+    "stairSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "move.ogg"
+    },
+    "getSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "item1.ogg"
+    },
+    "equipSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "equip.ogg"
+    }
 }

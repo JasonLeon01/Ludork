@@ -1,25 +1,98 @@
 {
-    "title": "Ludork",
-    "gameSize": [
-        640,
-        480
-    ],
-    "fonts": [
-        "HarmonyOS_Sans_SC_Regular.ttf"
-    ],
-    "fontSize": 20,
-    "icon": "icon.png",
-    "windowskinName": "001-Blue01.png",
-    "windowColor": [
-        255,
-        255,
-        255,
-        192
-    ],
-    "cellSize": 32,
-    "transitionShaderPath": "./Assets/Shaders/Transition.frag",
-    "lightShaderPath": "./Assets/Shaders/Light.frag",
-    "vagueShaderPath": "./Assets/Shaders/Vague.frag",
-    "toneShaderPath": "./Assets/Shaders/Tone.frag",
-    "grayScaleShaderPath": "./Assets/Shaders/GrayScale.frag"
+    "title": {
+        "type": "string",
+        "value": "Ludork"
+    },
+    "gameSize": {
+        "type": "int[2]",
+        "value": [
+            640,
+            480
+        ]
+    },
+    "fonts": {
+        "type": "file[]",
+        "base": "Fonts",
+        "ext": [
+            ".ttf",
+            ".otf"
+        ],
+        "value": [
+            "HarmonyOS_Sans_SC_Regular.ttf"
+        ]
+    },
+    "fontSize": {
+        "type": "int",
+        "value": 20
+    },
+    "icon": {
+        "type": "file",
+        "base": "System",
+        "ext": ".png",
+        "value": "icon.png"
+    },
+    "windowskinName": {
+        "type": "file",
+        "base": "System",
+        "ext": ".png",
+        "value": "001-Blue01.png"
+    },
+    "windowColor": {
+        "type": "int[4]",
+        "value": [
+            255,
+            255,
+            255,
+            192
+        ]
+    },
+    "cellSize": {
+        "type": "int",
+        "value": 32
+    },
+    "transitionShaderPath": {
+        "type": "file",
+        "base": "Shaders",
+        "ext": [
+            ".frag",
+            ".vert"
+        ],
+        "value": "Transition.frag"
+    },
+    "lightShaderPath": {
+        "type": "file",
+        "base": "Shaders",
+        "ext": [
+            ".frag",
+            ".vert"
+        ],
+        "value": "Light.frag"
+    },
+    "vagueShaderPath": {
+        "type": "file",
+        "base": "Shaders",
+        "ext": [
+            ".frag",
+            ".vert"
+        ],
+        "value": "Vague.frag"
+    },
+    "toneShaderPath": {
+        "type": "file",
+        "base": "Shaders",
+        "ext": [
+            ".frag",
+            ".vert"
+        ],
+        "value": "Tone.frag"
+    },
+    "grayScaleShaderPath": {
+        "type": "file",
+        "base": "Shaders",
+        "ext": [
+            ".frag",
+            ".vert"
+        ],
+        "value": "GrayScale.frag"
+    }
 }

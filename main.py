@@ -14,40 +14,36 @@ from Utils import Locale, System
 import EditorStatus
 import Data
 
-editorConfig = None
-
 
 def initConfig():
-    global editorConfig
     if not System.already_packed():
         subprocess.run([sys.executable, "localeTransfer.py", os.path.join(".", "Locale", "locale.json")], check=True)
     Locale.init("./Locale")
-    editorConfig = configparser.ConfigParser()
+    EditorStatus.editorConfig = configparser.ConfigParser()
     if not os.path.exists("./Ludork.ini"):
-        editorConfig["Ludork"] = {}
-        editorConfig["Ludork"]["Width"] = "1280"
-        editorConfig["Ludork"]["Height"] = "720"
-        editorConfig["Ludork"]["UpperLeftWidth"] = "320"
-        editorConfig["Ludork"]["UpperRightWidth"] = "320"
+        EditorStatus.editorConfig["Ludork"] = {}
+        EditorStatus.editorConfig["Ludork"]["Width"] = "1280"
+        EditorStatus.editorConfig["Ludork"]["Height"] = "720"
+        EditorStatus.editorConfig["Ludork"]["UpperLeftWidth"] = "320"
+        EditorStatus.editorConfig["Ludork"]["UpperRightWidth"] = "320"
         lang, _ = locale.getdefaultlocale()
-        editorConfig["Ludork"]["Language"] = lang if lang else "en_GB"
-        editorConfig["Ludork"]["Theme"] = "dark_blue.xml"
+        EditorStatus.editorConfig["Ludork"]["Language"] = lang if lang else "en_GB"
+        EditorStatus.editorConfig["Ludork"]["Theme"] = "dark_blue.xml"
         with open("./Ludork.ini", "w") as f:
-            editorConfig.write(f)
+            EditorStatus.editorConfig.write(f)
     else:
-        editorConfig.read("./Ludork.ini")
-    EditorStatus.LANGUAGE = editorConfig["Ludork"]["Language"]
+        EditorStatus.editorConfig.read("./Ludork.ini")
+    EditorStatus.LANGUAGE = EditorStatus.editorConfig["Ludork"]["Language"]
 
 
 def main():
-    global editorConfig
     icon_path = "./Resource/icon.ico"
     QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
     QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
     app = QApplication(sys.argv)
     initConfig()
     screen = app.primaryScreen()
-    theme_raw = editorConfig["Ludork"].get("Theme", "dark_blue.xml")
+    theme_raw = EditorStatus.editorConfig["Ludork"].get("Theme", "dark_blue.xml")
     t = theme_raw.strip().lower().replace(" ", "_").replace("-", "_")
     if t == "dark":
         theme = "dark_blue.xml"
@@ -71,8 +67,19 @@ def main():
     if not EditorStatus.PROJ_PATH in sys.path:
         sys.path.append(EditorStatus.PROJ_PATH)
     Data.GameData.init()
-    window = MainWindow("Ludork Editor")
-    window.resize(int(editorConfig["Ludork"]["Width"]), int(editorConfig["Ludork"]["Height"]))
+    window = MainWindow(System.get_title())
+    cfg_w = (
+        int(EditorStatus.editorConfig["Ludork"]["Width"])
+        if "Width" in EditorStatus.editorConfig["Ludork"]
+        else window.width()
+    )
+    cfg_h = (
+        int(EditorStatus.editorConfig["Ludork"]["Height"])
+        if "Height" in EditorStatus.editorConfig["Ludork"]
+        else window.height()
+    )
+    min_size = window.minimumSize()
+    window.resize(max(cfg_w, min_size.width()), max(cfg_h, min_size.height()))
     app.aboutToQuit.connect(window.endGame)
     app.setWindowIcon(QIcon(icon_path))
     window.setWindowIcon(QIcon(icon_path))

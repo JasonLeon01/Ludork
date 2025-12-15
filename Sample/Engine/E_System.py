@@ -81,15 +81,16 @@ class System:
         cls.__dataFilePath = dataFilePath
         data = inData["Main"]
         systemData = File.getJSONData("./Data/Configs/System.json")
-        cls._title = systemData["title"]
-        cls._gameSize = Vector2u(systemData["gameSize"][0], systemData["gameSize"][1])
-        cls._fonts = [Manager.loadFont(font) for font in systemData["fonts"]]
-        cls.Config.FontSize = systemData["fontSize"]
-        cls._icon = Image(f"./Assets/System/{systemData['icon']}")
-        cls._windowskinName = systemData["windowskinName"]
-        r, g, b, a = systemData["windowColor"]
+        cls._title = systemData["title"]["value"]
+        size = systemData["gameSize"]["value"]
+        cls._gameSize = Vector2u(size[0], size[1])
+        cls._fonts = [Manager.loadFont(font) for font in systemData["fonts"]["value"]]
+        cls.Config.FontSize = systemData["fontSize"]["value"]
+        cls._icon = Image(os.path.join("./Assets", systemData["icon"]["base"], systemData["icon"]["value"]))
+        cls._windowskinName = systemData["windowskinName"]["value"]
+        r, g, b, a = systemData["windowColor"]["value"]
         cls.Config.WindowColor = Color(r, g, b, a)
-        SetCellSize(systemData["cellSize"])
+        SetCellSize(systemData["cellSize"]["value"])
         cls._mainScript = data["script"]
         cls._language = data["language"]
         if cls._language is None or cls._language == "" or cls._language == "None":
@@ -104,11 +105,21 @@ class System:
         cls._musicVolume = data.getfloat("musicVolume")
         cls._soundVolume = data.getfloat("soundVolume")
         cls._voiceVolume = data.getfloat("voiceVolume")
-        cls._transitionShaderPath = systemData["transitionShaderPath"]
-        cls._lightShaderPath = systemData["lightShaderPath"]
-        cls._vagueShaderPath = systemData["vagueShaderPath"]
-        cls._toneShaderPath = systemData["toneShaderPath"]
-        cls._grayScaleShaderPath = systemData["grayScaleShaderPath"]
+        cls._transitionShaderPath = os.path.join(
+            "./Assets", systemData["transitionShaderPath"]["base"], systemData["transitionShaderPath"]["value"]
+        )
+        cls._lightShaderPath = os.path.join(
+            "./Assets", systemData["lightShaderPath"]["base"], systemData["lightShaderPath"]["value"]
+        )
+        cls._vagueShaderPath = os.path.join(
+            "./Assets", systemData["vagueShaderPath"]["base"], systemData["vagueShaderPath"]["value"]
+        )
+        cls._toneShaderPath = os.path.join(
+            "./Assets", systemData["toneShaderPath"]["base"], systemData["toneShaderPath"]["value"]
+        )
+        cls._grayScaleShaderPath = os.path.join(
+            "./Assets", systemData["grayScaleShaderPath"]["base"], systemData["grayScaleShaderPath"]["value"]
+        )
         cls._scenes = []
         realSize = Vector2u(
             int(cls._gameSize.x * cls._scale),

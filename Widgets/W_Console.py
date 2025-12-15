@@ -39,7 +39,7 @@ class PipeReader(QtCore.QThread):
             if hasattr(self._stream, "close"):
                 self._stream.close()
         except Exception as e:
-            print(e)
+            print(f"Error while closing pipe reader: {e}")
 
     def _detect_level(self, text: str) -> str:
         t = text.lower()
@@ -136,14 +136,14 @@ class ConsoleWidget(QtWidgets.QWidget):
                 self._stdout_reader.stop()
                 self._stdout_reader.wait()
             except Exception as e:
-                print(e)
+                print(f"Error while stopping stdout reader: {e}")
             self._stdout_reader = None
         if self._stderr_reader:
             try:
                 self._stderr_reader.stop()
                 self._stderr_reader.wait()
             except Exception as e:
-                print(e)
+                print(f"Error while stopping stderr reader: {e}")
             self._stderr_reader = None
         if self._proc:
             self._proc.terminate()
@@ -186,5 +186,5 @@ class ConsoleWidget(QtWidgets.QWidget):
                 self._proc.stdin.write(t + "\n")
                 self._proc.stdin.flush()
             except Exception as e:
-                print(e)
+                print(f"Error while writing to stdin: {e}")
         self._input.clear()

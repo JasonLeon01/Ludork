@@ -168,8 +168,8 @@
         "en_GB": "Save Failed! "
     },
     "SAVE_PATH": {
-        "zh_CN": "已保存至 {}",
-        "en_GB": "Successfully saved to {}"
+        "zh_CN": "已修改文件为： {}",
+        "en_GB": "Modified files: {}"
     },
     "MAP_DATA_NONE": {
         "zh_CN": "地图数据为空",
@@ -178,5 +178,121 @@
     "MAP_FILE_NONE": {
         "zh_CN": "地图文件失效",
         "en_GB": "The file path of this map is None yet."
+    },
+    "DATABASE": {
+        "zh_CN": "数据库",
+        "en_GB": "Database"
+    },
+    "SYSTEM_CONFIG": {
+        "zh_CN": "系统配置",
+        "en_GB": "System Config"
+    },
+    "TILES_DATA": {
+        "zh_CN": "图块数据",
+        "en_GB": "Tiles Data"
+    },
+    "COMMON_FUNCTIONS": {
+        "zh_CN": "公共函数",
+        "en_GB": "Common Functions"
+    },
+    "SCRIPTS": {
+        "zh_CN": "脚本",
+        "en_GB": "Scripts"
+    },
+    "title": {
+        "zh_CN": "游戏名称",
+        "en_GB": "Game Title"
+    },
+    "gameSize": {
+        "zh_CN": "游戏尺寸",
+        "en_GB": "Game Size"
+    },
+    "fonts": {
+        "zh_CN": "字体文件",
+        "en_GB": "Font Files"
+    },
+    "fontSize": {
+        "zh_CN": "字体大小",
+        "en_GB": "Font Size"
+    },
+    "icon": {
+        "zh_CN": "图标",
+        "en_GB": "Icon"
+    },
+    "windowskinName": {
+        "zh_CN": "窗口皮肤",
+        "en_GB": "Window Skin"
+    },
+    "windowColor": {
+        "zh_CN": "窗口颜色",
+        "en_GB": "Window Color"
+    },
+    "cellSize": {
+        "zh_CN": "单元格尺寸",
+        "en_GB": "Cell Size"
+    },
+    "transitionShaderPath": {
+        "zh_CN": "转场着色器路径",
+        "en_GB": "Transition Shader Path"
+    },
+    "lightShaderPath": {
+        "zh_CN": "光照着色器路径",
+        "en_GB": "Light Shader Path"
+    },
+    "vagueShaderPath": {
+        "zh_CN": "模糊着色器路径",
+        "en_GB": "Blur Shader Path"
+    },
+    "toneShaderPath": {
+        "zh_CN": "色调着色器路径",
+        "en_GB": "Tone Shader Path"
+    },
+    "grayScaleShaderPath": {
+        "zh_CN": "灰度着色器路径",
+        "en_GB": "Grayscale Shader Path"
+    },
+    "cursorSE": {
+        "zh_CN": "光标音效",
+        "en_GB": "Cursor Sound"
+    },
+    "decisionSE": {
+        "zh_CN": "确认音效",
+        "en_GB": "Decision Sound"
+    },
+    "cancelSE": {
+        "zh_CN": "取消音效",
+        "en_GB": "Cancel Sound"
+    },
+    "buzzerSE": {
+        "zh_CN": "警告音效",
+        "en_GB": "Buzzer Sound"
+    },
+    "shopSE": {
+        "zh_CN": "商店音效",
+        "en_GB": "Shop Sound"
+    },
+    "saveSE": {
+        "zh_CN": "保存音效",
+        "en_GB": "Save Sound"
+    },
+    "loadSE": {
+        "zh_CN": "读取音效",
+        "en_GB": "Load Sound"
+    },
+    "gateSE": {
+        "zh_CN": "开门音效",
+        "en_GB": "Gate Sound"
+    },
+    "stairSE": {
+        "zh_CN": "楼梯音效",
+        "en_GB": "Stair Sound"
+    },
+    "getSE": {
+        "zh_CN": "获得物品音效",
+        "en_GB": "Get Item Sound"
+    },
+    "equipSE": {
+        "zh_CN": "装备音效",
+        "en_GB": "Equip Sound"
     }
 }

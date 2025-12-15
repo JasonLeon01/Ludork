@@ -56,7 +56,7 @@ class FilePreview(QtWidgets.QWidget):
         try:
             self._player.error.connect(self._onError)
         except Exception as e:
-            print(e)
+            print(f"Error while connecting player error signal: {e}")
         self._positionSlider.sliderMoved.connect(self._onSeek)
         self._openSystemBtn.clicked.connect(self._openSystem)
         Panel.applyDisabledOpacity(self)
@@ -106,7 +106,7 @@ class FilePreview(QtWidgets.QWidget):
         try:
             self._player.setVolume(100)
         except Exception as e:
-            print(e)
+            print(f"Error while setting player volume: {e}")
         self._player.pause()
         self._playButton.setText("▶")
 
@@ -164,7 +164,7 @@ class FilePreview(QtWidgets.QWidget):
         try:
             self._player.stop()
         except Exception as e:
-            print(e)
+            print(f"Error while stopping player: {e}")
 
     def _formatMs(self, ms: int) -> str:
         if ms <= 0:

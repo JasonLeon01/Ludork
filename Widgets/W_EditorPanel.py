@@ -178,6 +178,7 @@ class EditorPanel(QtWidgets.QWidget):
         if self.mapKey and self.selectedLayerName in Data.GameData.mapData.get(self.mapKey, {}).get("layers", {}):
             Data.GameData.mapData[self.mapKey]["layers"][self.selectedLayerName]["layerTileset"] = key
         Data.GameData.markMapModified(self.mapKey)
+        self._refreshTitle()
         self._renderFromMapData()
         self.update()
 
@@ -220,6 +221,7 @@ class EditorPanel(QtWidgets.QWidget):
                         "actors": [],
                     }
         Data.GameData.markMapModified(self.mapKey)
+        self._refreshTitle()
         self._renderFromMapData()
         self.update()
         return name
@@ -233,6 +235,7 @@ class EditorPanel(QtWidgets.QWidget):
         if self.mapKey and self.mapKey in Data.GameData.mapData:
             Data.GameData.mapData[self.mapKey].get("layers", {}).pop(name, None)
         Data.GameData.markMapModified(self.mapKey)
+        self._refreshTitle()
         if self.selectedLayerName == name:
             self.selectedLayerName = None
         self._renderFromMapData()
@@ -297,6 +300,7 @@ class EditorPanel(QtWidgets.QWidget):
                         None if self.selectedTileNumber is None else int(self.selectedTileNumber)
                     )
         Data.GameData.markMapModified(self.mapKey)
+        self._refreshTitle()
         self._renderFromMapData()
         self.update()
 
@@ -330,6 +334,7 @@ class EditorPanel(QtWidgets.QWidget):
                                 None if self.selectedTileNumber is None else int(self.selectedTileNumber)
                             )
                 Data.GameData.markMapModified(self.mapKey)
+                self._refreshTitle()
         except Exception:
             return
         self._renderFromMapData()
@@ -372,6 +377,16 @@ class EditorPanel(QtWidgets.QWidget):
         if self.selectedLayerName == old:
             self.selectedLayerName = new
         Data.GameData.markMapModified(self.mapKey)
+        self._refreshTitle()
         self._renderFromMapData()
         self.update()
         return True
+
+    def _refreshTitle(self) -> None:
+        try:
+            from Utils import System
+
+            w = self.window()
+            w.setWindowTitle(System.get_title())
+        except Exception as e:
+            print(f"Error while refreshing title: {e}")

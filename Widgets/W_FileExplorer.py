@@ -140,7 +140,7 @@ class FileExplorer(QtWidgets.QWidget):
                         try:
                             shutil.move(sp, dp2)
                         except Exception as e:
-                            print(e)
+                            print(f"Error while moving file {sp} to {dp2}: {e}")
                     else:
                         dp2 = self._owner._uniquePath(dp, moved=False)
                         try:
@@ -149,7 +149,7 @@ class FileExplorer(QtWidgets.QWidget):
                             else:
                                 shutil.copy2(sp, dp2)
                         except Exception as e:
-                            print(e)
+                            print(f"Error while copying file {sp} to {dp2}: {e}")
                 self._owner._refresh()
                 e.acceptProposedAction()
 
@@ -240,7 +240,7 @@ class FileExplorer(QtWidgets.QWidget):
             os.chmod(p, stat.S_IWRITE)
             func(p)
         except Exception as e:
-            print(e)
+            print(f"Error while removing {p}: {e}")
             return False
 
     def _safeRemove(self, p: str) -> bool:
@@ -255,7 +255,7 @@ class FileExplorer(QtWidgets.QWidget):
                     os.remove(p)
             return True
         except Exception as e:
-            print(e)
+            print(f"Error while removing {p}: {e}")
             return False
 
     def _setCurrentPath(self, path: str) -> None:
@@ -329,7 +329,7 @@ class FileExplorer(QtWidgets.QWidget):
                 try:
                     shutil.move(sp, dp2)
                 except Exception as e:
-                    print(e)
+                    print(f"Error while moving file {sp} to {dp2}: {e}")
             else:
                 dp2 = self._uniquePath(dp, moved=False)
                 try:
@@ -338,7 +338,7 @@ class FileExplorer(QtWidgets.QWidget):
                     else:
                         shutil.copy2(sp, dp2)
                 except Exception as e:
-                    print(e)
+                    print(f"Error while copying file {sp} to {dp2}: {e}")
         self._refresh()
         self._clipboard = []
         self._clipboard_cut = False
@@ -423,7 +423,7 @@ class FileExplorer(QtWidgets.QWidget):
         try:
             QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(p))
         except Exception as e:
-            print(e)
+            print(f"Error while opening file {p}: {e}")
 
     def _showPreview(self, p: str) -> None:
         if not p:

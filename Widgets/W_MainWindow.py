@@ -14,6 +14,7 @@ from .W_Toggle import ModeToggle, EditModeToggle
 from .W_TileSelect import TileSelect
 from .W_FileExplorer import FileExplorer
 from .W_Console import ConsoleWidget
+from .W_ConfigWindow import ConfigWindow
 import EditorStatus
 from .Utils import MapEditDialog
 from .Utils import SingleRowDialog
@@ -24,203 +25,8 @@ class MainWindow(QtWidgets.QMainWindow):
         super().__init__()
         self.setProjPath(EditorStatus.PROJ_PATH)
         self._engineProc: Optional[subprocess.Popen] = None
-        self.resize(1280, 960)
         self.setWindowTitle(title)
-
-        central = QtWidgets.QWidget(self)
-        self.setCentralWidget(central)
-
-        self.topBar = QtWidgets.QWidget()
-        self.topBar.setMinimumHeight(32)
-        topLayout = QtWidgets.QHBoxLayout(self.topBar)
-        topLayout.setContentsMargins(0, 0, 0, 0)
-        self.layerScroll = QtWidgets.QScrollArea()
-        self.layerScroll.setWidgetResizable(True)
-        self.layerScroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        self.layerScroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.layerScroll.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
-        self.layerScroll.setStyleSheet("QScrollArea { border: 2px solid palette(mid); border-radius: 4px; }")
-        self.layerBarContainer = QtWidgets.QWidget()
-        self.layerBarLayout = QtWidgets.QHBoxLayout(self.layerBarContainer)
-        self.layerBarLayout.setContentsMargins(8, 0, 8, 0)
-        self.layerBarLayout.setSpacing(4)
-        self.layerScroll.setWidget(self.layerBarContainer)
-        self.layerBarContainer.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.layerBarContainer.customContextMenuRequested.connect(self._onLayerEmptyContextMenu)
-        self._layerButtons = {}
-        self._selectedLayerName: Optional[str] = None
-        panelW, panelH = 640, 480
-
-        self.editorPanel = EditorPanel()
-        self.editorPanel.setObjectName("EditorPanel")
-        self.editorPanel.setAttribute(QtCore.Qt.WA_NativeWindow, True)
-        self.editorPanel.setAutoFillBackground(True)
-        pal = self.editorPanel.palette()
-        pal.setColor(QtGui.QPalette.Window, QtGui.QColor.fromRgb(0, 0, 0))
-        self.editorPanel.setPalette(pal)
-        self.topBar.setMinimumHeight(32)
-        self.layerScroll.setMinimumHeight(self.topBar.minimumHeight())
-
-        self.editorScroll = QtWidgets.QScrollArea()
-        self.editorScroll.setWidget(self.editorPanel)
-        self.editorScroll.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
-        self.editorScroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        self.editorScroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        self.editorScroll.setFixedSize(panelW, panelH)
-        self.editorPanel.setObjectName("EditorPanel")
-        self.editorPanel.setAttribute(QtCore.Qt.WA_NativeWindow, True)
-        self.editorPanel.setAutoFillBackground(True)
-        pal = self.editorPanel.palette()
-        pal.setColor(QtGui.QPalette.Window, QtGui.QColor.fromRgb(0, 0, 0))
-        self.editorPanel.setPalette(pal)
-
-        self.gamePanel = QtWidgets.QWidget()
-        self.gamePanel.setFixedSize(panelW, panelH)
-        self.gamePanel.setObjectName("GamePanel")
-        self.gamePanel.setAttribute(QtCore.Qt.WA_NativeWindow, True)
-        self.gamePanel.setAutoFillBackground(True)
-        pal = self.gamePanel.palette()
-        pal.setColor(QtGui.QPalette.Window, QtGui.QColor.fromRgb(0, 0, 0))
-        self.gamePanel.setPalette(pal)
-        self._panelHandle = int(self.gamePanel.winId())
-
-        self.editModeToggle = EditModeToggle()
-        self.modeToggle = ModeToggle()
-        topLayout.addWidget(self.layerScroll, 1)
-        topLayout.addWidget(self.editModeToggle, 0, alignment=QtCore.Qt.AlignRight)
-        topLayout.addWidget(self.modeToggle, 0, alignment=QtCore.Qt.AlignRight)
-        self.editModeToggle.selectionChanged.connect(self._onEditModeChanged)
-        self.modeToggle.selectionChanged.connect(self._onModeChanged)
-        self._menuBar = self.menuBar()
-        self._menuBar.setNativeMenuBar(True)
-        _fileMenu = self._menuBar.addMenu(Locale.getContent("FILE"))
-        self._actNewProject = QtWidgets.QAction(Locale.getContent("NEW_PROJECT"), self)
-        self._actNewProject.setShortcut(QtGui.QKeySequence.StandardKey.New)
-        self._actNewProject.triggered.connect(self._onNewProject)
-        self._actOpenProject = QtWidgets.QAction(Locale.getContent("OPEN_PROJECT"), self)
-        self._actOpenProject.setShortcut(QtGui.QKeySequence.StandardKey.Open)
-        self._actOpenProject.triggered.connect(self._onOpenProject)
-        self._actSave = QtWidgets.QAction(Locale.getContent("SAVE"), self)
-        self._actSave.setShortcut(QtGui.QKeySequence.StandardKey.Save)
-        self._actSave.triggered.connect(self._onSave)
-        self._actExit = QtWidgets.QAction(Locale.getContent("EXIT"), self)
-        self._actExit.setShortcut(QtGui.QKeySequence.StandardKey.Close)
-        self._actExit.triggered.connect(self._onExit)
-        _fileMenu.addAction(self._actNewProject)
-        _fileMenu.addAction(self._actOpenProject)
-        _fileMenu.addAction(self._actSave)
-        _fileMenu.addAction(self._actExit)
-
-        self.leftListIndex = -1
-        self.leftList = QtWidgets.QListWidget()
-        self.leftList.setMinimumWidth(320)
-        self.leftList.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-        self.refreshLeftList()
-        self.leftList.itemClicked.connect(self._onLeftItemClicked)
-        self.leftList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.leftList.customContextMenuRequested.connect(self._onLeftListContextMenu)
-
-        self.leftLabel = QtWidgets.QLabel(Locale.getContent("MAP_LIST"))
-        self.leftLabel.setAlignment(QtCore.Qt.AlignCenter)
-        self.leftLabel.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
-        self.leftLabel.setFixedHeight(32)
-        _lh = 32
-        _font = self.leftLabel.font()
-        _font.setBold(True)
-        _font.setPixelSize(max(12, int(_lh * 0.6)))
-        self.leftLabel.setFont(_font)
-        self.leftArea = QtWidgets.QWidget()
-        leftLayout = QtWidgets.QVBoxLayout(self.leftArea)
-        leftLayout.setContentsMargins(0, 0, 0, 0)
-        leftLayout.setSpacing(0)
-        leftLayout.addWidget(self.leftLabel, 0, alignment=QtCore.Qt.AlignHCenter)
-        leftLayout.addWidget(self.leftList, 1)
-        self.leftArea.setMinimumWidth(320)
-
-        self.centerArea = QtWidgets.QWidget()
-        centerLayout = QtWidgets.QVBoxLayout(self.centerArea)
-        centerLayout.setContentsMargins(0, 0, 0, 0)
-        centerLayout.setSpacing(0)
-        centerLayout.addWidget(self.topBar, 0, alignment=QtCore.Qt.AlignTop)
-        self.stacked = QtWidgets.QStackedLayout()
-        self.stacked.addWidget(self.editorScroll)
-        self.stacked.addWidget(self.gamePanel)
-        self.stacked.setCurrentWidget(self.editorScroll)
-        centerLayout.addLayout(self.stacked)
-        centerLayout.addStretch(1)
-        self.centerArea.setFixedWidth(self.gamePanel.width())
-
-        self.rightArea = QtWidgets.QWidget()
-        self.rightArea.setMinimumWidth(320)
-        rightLayout = QtWidgets.QVBoxLayout(self.rightArea)
-        rightLayout.setContentsMargins(0, 0, 0, 0)
-        rightLayout.setSpacing(0)
-        self.tileSelect = TileSelect(self.rightArea)
-        rightLayout.addWidget(self.tileSelect, 1)
-        self.tileSelect.tileSelected.connect(self._onTileSelected)
-        self.tileSelect.tilesetChanged.connect(self._onTilesetChanged)
-        self.editorPanel.tileNumberPicked.connect(self._onTileNumberPicked)
-
-        self.upperSplitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
-        self.upperSplitter.setChildrenCollapsible(False)
-        self.upperSplitter.addWidget(self.leftArea)
-        self.upperSplitter.addWidget(self.centerArea)
-        self.upperSplitter.addWidget(self.rightArea)
-        self.upperSplitter.setStretchFactor(0, 1)
-        self.upperSplitter.setStretchFactor(1, 0)
-        self.upperSplitter.setStretchFactor(2, 1)
-        self.upperSplitter.setSizes([320, self.gamePanel.width(), 320])
-        self.upperSplitter.splitterMoved.connect(self._onUpperSplitterMoved)
-        cfg = configparser.ConfigParser()
-        cfg_path = os.path.join(os.getcwd(), "Ludork.ini")
-        self._savedLeftWidth = None
-        self._savedRightWidth = None
-        if os.path.exists(cfg_path):
-            cfg.read(cfg_path)
-            if "Ludork" in cfg:
-                ls = cfg["Ludork"].get("UpperLeftWidth")
-                rs = cfg["Ludork"].get("UpperRightWidth")
-                if ls and rs:
-                    self._savedLeftWidth = max(320, int(ls))
-                    self._savedRightWidth = max(320, int(rs))
-
-        self.lowerArea = QtWidgets.QWidget()
-        lowerLayout = QtWidgets.QVBoxLayout(self.lowerArea)
-        lowerLayout.setContentsMargins(0, 0, 0, 0)
-        lowerLayout.setSpacing(0)
-        self.fileExplorer = FileExplorer(EditorStatus.PROJ_PATH)
-        self.consoleWidget = ConsoleWidget()
-        self.tabWidget = QtWidgets.QTabWidget()
-        self.tabWidget.setTabPosition(QtWidgets.QTabWidget.North)
-        self.tabWidget.setTabBarAutoHide(False)
-        self.tabWidget.addTab(self.fileExplorer, Locale.getContent("FILE_EXPLORER"))
-        self.tabWidget.addTab(self.consoleWidget, Locale.getContent("CONSOLE"))
-        lowerLayout.addWidget(self.tabWidget)
-
-        self.topSplitter = QtWidgets.QSplitter(QtCore.Qt.Vertical)
-        self.topSplitter.setChildrenCollapsible(False)
-        self.topSplitter.addWidget(self.upperSplitter)
-        self.topSplitter.addWidget(self.lowerArea)
-        topH = self.topBar.minimumHeight() + self.gamePanel.height()
-        self.upperSplitter.setFixedHeight(topH)
-        self.lowerArea.setMinimumHeight(160)
-        self.topSplitter.setSizes([topH, max(self.height() - topH, 160)])
-
-        minW = 320 + self.gamePanel.width() + 320 + self.upperSplitter.handleWidth() * 2 + 16
-        minH = topH + 160 + 8
-        self.setMinimumSize(minW, minH)
-        self._prevFG = self.frameGeometry()
-        self._prevUpperW = self.upperSplitter.width()
-        self._prevLeftW = self.leftArea.width()
-        self._prevRightW = self.rightArea.width()
-        self._sizesInitialized = False
-        self._hasShown = False
-
-        layout = QtWidgets.QVBoxLayout(central)
-        layout.setContentsMargins(8, 0, 8, 8)
-        layout.setSpacing(0)
-        layout.addWidget(self.topSplitter)
-
+        self._setStyle()
         self._initProjConfigAndSelection()
 
     def showEvent(self, event: QtGui.QShowEvent) -> None:
@@ -241,6 +47,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._prevFG = self.frameGeometry()
         self._sizesInitialized = True
         self._hasShown = True
+        topH = self.topBar.minimumHeight() + self.gamePanel.height()
+        self.topSplitter.setSizes([topH, max(self.height() - topH, 160)])
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         super().resizeEvent(event)
@@ -370,7 +178,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 try:
                     c.terminate()
                 except Exception as e:
-                    print(e)
+                    print(f"Error while terminating child process {c.pid}: {e}")
             gone, alive = psutil.wait_procs(children, timeout=2)
             for c in alive:
                 c.kill()
@@ -468,6 +276,218 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.leftListIndex = -1
 
+    def _setStyle(self) -> None:
+        central = QtWidgets.QWidget(self)
+        self.setCentralWidget(central)
+
+        self.topBar = QtWidgets.QWidget()
+        self.topBar.setMinimumHeight(32)
+        topLayout = QtWidgets.QHBoxLayout(self.topBar)
+        topLayout.setContentsMargins(0, 0, 0, 0)
+        self.layerScroll = QtWidgets.QScrollArea()
+        self.layerScroll.setWidgetResizable(True)
+        self.layerScroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.layerScroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.layerScroll.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+        self.layerScroll.setStyleSheet("QScrollArea { border: 2px solid palette(mid); border-radius: 4px; }")
+        self.layerBarContainer = QtWidgets.QWidget()
+        self.layerBarLayout = QtWidgets.QHBoxLayout(self.layerBarContainer)
+        self.layerBarLayout.setContentsMargins(8, 0, 8, 0)
+        self.layerBarLayout.setSpacing(4)
+        self.layerScroll.setWidget(self.layerBarContainer)
+        self.layerBarContainer.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.layerBarContainer.customContextMenuRequested.connect(self._onLayerEmptyContextMenu)
+        self._layerButtons = {}
+        self._selectedLayerName: Optional[str] = None
+        panelW, panelH = 640, 480
+
+        self.editorPanel = EditorPanel()
+        self.editorPanel.setObjectName("EditorPanel")
+        self.editorPanel.setAttribute(QtCore.Qt.WA_NativeWindow, True)
+        self.editorPanel.setAutoFillBackground(True)
+        pal = self.editorPanel.palette()
+        pal.setColor(QtGui.QPalette.Window, QtGui.QColor.fromRgb(0, 0, 0))
+        self.editorPanel.setPalette(pal)
+        self.topBar.setMinimumHeight(32)
+        self.layerScroll.setMinimumHeight(self.topBar.minimumHeight())
+
+        self.editorScroll = QtWidgets.QScrollArea()
+        self.editorScroll.setWidget(self.editorPanel)
+        self.editorScroll.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
+        self.editorScroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.editorScroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.editorScroll.setFixedSize(panelW, panelH)
+        self.editorPanel.setObjectName("EditorPanel")
+        self.editorPanel.setAttribute(QtCore.Qt.WA_NativeWindow, True)
+        self.editorPanel.setAutoFillBackground(True)
+        pal = self.editorPanel.palette()
+        pal.setColor(QtGui.QPalette.Window, QtGui.QColor.fromRgb(0, 0, 0))
+        self.editorPanel.setPalette(pal)
+
+        self.gamePanel = QtWidgets.QWidget()
+        self.gamePanel.setFixedSize(panelW, panelH)
+        self.gamePanel.setObjectName("GamePanel")
+        self.gamePanel.setAttribute(QtCore.Qt.WA_NativeWindow, True)
+        self.gamePanel.setAutoFillBackground(True)
+        pal = self.gamePanel.palette()
+        pal.setColor(QtGui.QPalette.Window, QtGui.QColor.fromRgb(0, 0, 0))
+        self.gamePanel.setPalette(pal)
+        self._panelHandle = int(self.gamePanel.winId())
+
+        self.editModeToggle = EditModeToggle()
+        self.modeToggle = ModeToggle()
+        topLayout.addWidget(self.layerScroll, 1)
+        topLayout.addWidget(self.editModeToggle, 0, alignment=QtCore.Qt.AlignRight)
+        topLayout.addWidget(self.modeToggle, 0, alignment=QtCore.Qt.AlignRight)
+        self.editModeToggle.selectionChanged.connect(self._onEditModeChanged)
+        self.modeToggle.selectionChanged.connect(self._onModeChanged)
+        self._menuBar = self.menuBar()
+        self._menuBar.setNativeMenuBar(True)
+
+        self.leftListIndex = -1
+        self.leftList = QtWidgets.QListWidget()
+        self.leftList.setMinimumWidth(320)
+        self.leftList.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.refreshLeftList()
+        self.leftList.itemClicked.connect(self._onLeftItemClicked)
+        self.leftList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.leftList.customContextMenuRequested.connect(self._onLeftListContextMenu)
+
+        self.leftLabel = QtWidgets.QLabel(Locale.getContent("MAP_LIST"))
+        self.leftLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.leftLabel.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
+        self.leftLabel.setFixedHeight(32)
+        _lh = 32
+        _font = self.leftLabel.font()
+        _font.setBold(True)
+        _font.setPixelSize(max(12, int(_lh * 0.6)))
+        self.leftLabel.setFont(_font)
+        self.leftArea = QtWidgets.QWidget()
+        leftLayout = QtWidgets.QVBoxLayout(self.leftArea)
+        leftLayout.setContentsMargins(0, 0, 0, 0)
+        leftLayout.setSpacing(0)
+        leftLayout.addWidget(self.leftLabel, 0, alignment=QtCore.Qt.AlignHCenter)
+        leftLayout.addWidget(self.leftList, 1)
+        self.leftArea.setMinimumWidth(320)
+
+        self.centerArea = QtWidgets.QWidget()
+        centerLayout = QtWidgets.QVBoxLayout(self.centerArea)
+        centerLayout.setContentsMargins(0, 0, 0, 0)
+        centerLayout.setSpacing(0)
+        centerLayout.addWidget(self.topBar, 0, alignment=QtCore.Qt.AlignTop)
+        self.stacked = QtWidgets.QStackedLayout()
+        self.stacked.addWidget(self.editorScroll)
+        self.stacked.addWidget(self.gamePanel)
+        self.stacked.setCurrentWidget(self.editorScroll)
+        centerLayout.addLayout(self.stacked)
+        centerLayout.addStretch(1)
+        self.centerArea.setFixedWidth(self.gamePanel.width())
+
+        self.rightArea = QtWidgets.QWidget()
+        self.rightArea.setMinimumWidth(320)
+        rightLayout = QtWidgets.QVBoxLayout(self.rightArea)
+        rightLayout.setContentsMargins(0, 0, 0, 0)
+        rightLayout.setSpacing(0)
+        self.tileSelect = TileSelect(self.rightArea)
+        rightLayout.addWidget(self.tileSelect, 1)
+        self.tileSelect.tileSelected.connect(self._onTileSelected)
+        self.tileSelect.tilesetChanged.connect(self._onTilesetChanged)
+        self.editorPanel.tileNumberPicked.connect(self._onTileNumberPicked)
+
+        self.upperSplitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
+        self.upperSplitter.setChildrenCollapsible(False)
+        self.upperSplitter.addWidget(self.leftArea)
+        self.upperSplitter.addWidget(self.centerArea)
+        self.upperSplitter.addWidget(self.rightArea)
+        self.upperSplitter.setStretchFactor(0, 1)
+        self.upperSplitter.setStretchFactor(1, 0)
+        self.upperSplitter.setStretchFactor(2, 1)
+        self.upperSplitter.setSizes([320, self.gamePanel.width(), 320])
+        self.upperSplitter.splitterMoved.connect(self._onUpperSplitterMoved)
+        cfg = configparser.ConfigParser()
+        cfg_path = os.path.join(os.getcwd(), "Ludork.ini")
+        self._savedLeftWidth = None
+        self._savedRightWidth = None
+        if os.path.exists(cfg_path):
+            cfg.read(cfg_path)
+            if "Ludork" in cfg:
+                ls = cfg["Ludork"].get("UpperLeftWidth")
+                rs = cfg["Ludork"].get("UpperRightWidth")
+                if ls and rs:
+                    self._savedLeftWidth = max(320, int(ls))
+                    self._savedRightWidth = max(320, int(rs))
+
+        self.lowerArea = QtWidgets.QWidget()
+        lowerLayout = QtWidgets.QVBoxLayout(self.lowerArea)
+        lowerLayout.setContentsMargins(0, 0, 0, 0)
+        lowerLayout.setSpacing(0)
+        self.fileExplorer = FileExplorer(EditorStatus.PROJ_PATH)
+        self.consoleWidget = ConsoleWidget()
+        self.tabWidget = QtWidgets.QTabWidget()
+        self.tabWidget.setTabPosition(QtWidgets.QTabWidget.North)
+        self.tabWidget.setTabBarAutoHide(False)
+        self.tabWidget.addTab(self.fileExplorer, Locale.getContent("FILE_EXPLORER"))
+        self.tabWidget.addTab(self.consoleWidget, Locale.getContent("CONSOLE"))
+        lowerLayout.addWidget(self.tabWidget)
+
+        self.topSplitter = QtWidgets.QSplitter(QtCore.Qt.Vertical)
+        self.topSplitter.setChildrenCollapsible(False)
+        self.topSplitter.addWidget(self.upperSplitter)
+        self.topSplitter.addWidget(self.lowerArea)
+        topH = self.topBar.minimumHeight() + self.gamePanel.height()
+        self.upperSplitter.setFixedHeight(topH)
+        self.lowerArea.setMinimumHeight(160)
+
+        minW = 320 + self.gamePanel.width() + 320 + self.upperSplitter.handleWidth() * 2 + 16
+        minH = topH + 160 + 8
+        self.setMinimumSize(minW, minH)
+        self._sizesInitialized = False
+        self._hasShown = False
+
+        layout = QtWidgets.QVBoxLayout(central)
+        layout.setContentsMargins(8, 0, 8, 8)
+        layout.setSpacing(0)
+        layout.addWidget(self.topSplitter)
+
+        self._setTopMenu()
+
+    def _setTopMenu(self) -> None:
+        _fileMenu = self._menuBar.addMenu(Locale.getContent("FILE"))
+        self._actNewProject = QtWidgets.QAction(Locale.getContent("NEW_PROJECT"), self)
+        self._actNewProject.setShortcut(QtGui.QKeySequence.StandardKey.New)
+        self._actNewProject.triggered.connect(self._onNewProject)
+        self._actOpenProject = QtWidgets.QAction(Locale.getContent("OPEN_PROJECT"), self)
+        self._actOpenProject.setShortcut(QtGui.QKeySequence.StandardKey.Open)
+        self._actOpenProject.triggered.connect(self._onOpenProject)
+        self._actSave = QtWidgets.QAction(Locale.getContent("SAVE"), self)
+        self._actSave.setShortcut(QtGui.QKeySequence.StandardKey.Save)
+        self._actSave.triggered.connect(self._onSave)
+        self._actExit = QtWidgets.QAction(Locale.getContent("EXIT"), self)
+        self._actExit.setShortcut(QtGui.QKeySequence.StandardKey.Close)
+        self._actExit.triggered.connect(self._onExit)
+        _fileMenu.addAction(self._actNewProject)
+        _fileMenu.addAction(self._actOpenProject)
+        _fileMenu.addAction(self._actSave)
+        _fileMenu.addAction(self._actExit)
+
+        _dbMenu = self._menuBar.addMenu(Locale.getContent("DATABASE"))
+        self._actDatabaseSystemConfig = QtWidgets.QAction(Locale.getContent("SYSTEM_CONFIG"), self)
+        self._actDatabaseSystemConfig.triggered.connect(self._onDatabaseSystemConfig)
+        self._actDatabaseSystemConfig.setShortcut(QtGui.QKeySequence("F8"))
+        self._actDatabaseTilesData = QtWidgets.QAction(Locale.getContent("TILES_DATA"), self)
+        self._actDatabaseTilesData.triggered.connect(self._onDatabaseTilesData)
+        self._actDatabaseTilesData.setShortcut(QtGui.QKeySequence("F9"))
+        self._actDatabaseCommonFunctions = QtWidgets.QAction(Locale.getContent("COMMON_FUNCTIONS"), self)
+        self._actDatabaseCommonFunctions.triggered.connect(self._onDatabaseCommonFunctions)
+        self._actDatabaseCommonFunctions.setShortcut(QtGui.QKeySequence("F10"))
+        self._actDatabaseScripts = QtWidgets.QAction(Locale.getContent("SCRIPTS"), self)
+        self._actDatabaseScripts.triggered.connect(self._onDatabaseScripts)
+        self._actDatabaseScripts.setShortcut(QtGui.QKeySequence("F11"))
+        _dbMenu.addAction(self._actDatabaseSystemConfig)
+        _dbMenu.addAction(self._actDatabaseTilesData)
+        _dbMenu.addAction(self._actDatabaseCommonFunctions)
+        _dbMenu.addAction(self._actDatabaseScripts)
+
     def _onEditMap(self, mapKey: str) -> None:
         import Data
         from Utils import File
@@ -485,6 +505,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         Data.GameData.mapData[mapKey] = data
         Data.GameData.markMapModified(mapKey)
+        self.setWindowTitle(System.get_title())
         if self.leftList.currentItem() and self.leftList.currentItem().text() == mapKey:
             self.editorPanel.refreshMap(mapKey)
             self._refreshLayerBar()
@@ -631,28 +652,6 @@ class MainWindow(QtWidgets.QMainWindow):
         if action == actAdd:
             self._onAddLayer()
 
-    def _onNewProject(self, checked: bool = False) -> None:
-        pass
-
-    def _onOpenProject(self, checked: bool = False) -> None:
-        pass
-
-    def _onSave(self, checked: bool = False) -> None:
-        import Data
-
-        ok, content = Data.GameData.saveModifiedMaps()
-        if ok:
-            QtWidgets.QMessageBox.information(
-                self, "Hint", Locale.getContent("SAVE_SUCCESS") + Locale.getContent("SAVE_PATH").format(content)
-            )
-        else:
-            QtWidgets.QMessageBox.warning(
-                self, "Hint", Locale.getContent("SAVE_FAILED") + Locale.getContent("SAVE_PATH").format(content)
-            )
-
-    def _onExit(self, checked: bool = False) -> None:
-        self.close()
-
     def _getExec(self, scriptPath):
         exePath = os.path.join(EditorStatus.PROJ_PATH, "Main.exe" if os.name == "nt" else "Main")
         if System.already_packed():
@@ -674,7 +673,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 with open(chosen, "w", encoding="utf-8") as f:
                     f.write("{}")
         except Exception as e:
-            print(e)
+            print(f"Error while initializing project config {chosen}: {e}")
         self._projConfigPath = chosen
         self._projConfig = {}
         if chosen and os.path.exists(chosen):
@@ -684,7 +683,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     if content:
                         self._projConfig = json.loads(content)
             except Exception as e:
-                print(e)
+                print(f"Error while loading project config {chosen}: {e}")
                 self._projConfig = {}
         last = None
         if isinstance(self._projConfig, dict):
@@ -716,3 +715,50 @@ class MainWindow(QtWidgets.QMainWindow):
             data["lastMap"] = name
             with open(self._projConfigPath, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False)
+
+    def _onNewProject(self, checked: bool = False) -> None:
+        pass
+
+    def _onOpenProject(self, checked: bool = False) -> None:
+        pass
+
+    def _onSave(self, checked: bool = False) -> None:
+        import Data
+
+        ok, content = Data.GameData.saveAllModified()
+        if ok:
+            QtWidgets.QMessageBox.information(
+                self, "Hint", Locale.getContent("SAVE_SUCCESS") + Locale.getContent("SAVE_PATH").format(content)
+            )
+        else:
+            QtWidgets.QMessageBox.warning(
+                self, "Hint", Locale.getContent("SAVE_FAILED") + Locale.getContent("SAVE_PATH").format(content)
+            )
+        self.setWindowTitle(System.get_title())
+
+    def _onExit(self, checked: bool = False) -> None:
+        self.close()
+
+    def _onDatabaseSystemConfig(self, checked: bool = False) -> None:
+        self._configWindow = ConfigWindow(self)
+        try:
+            self._configWindow.modified.connect(lambda: self.setWindowTitle(System.get_title()))
+        except Exception:
+            pass
+        try:
+            self._configWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+            self._configWindow.setWindowModality(QtCore.Qt.ApplicationModal)
+            self.setEnabled(False)
+            self._configWindow.destroyed.connect(lambda *_: self.setEnabled(True))
+        except Exception:
+            pass
+        self._configWindow.show()
+
+    def _onDatabaseTilesData(self, checked: bool = False) -> None:
+        pass
+
+    def _onDatabaseCommonFunctions(self, checked: bool = False) -> None:
+        pass
+
+    def _onDatabaseScripts(self, checked: bool = False) -> None:
+        pass
