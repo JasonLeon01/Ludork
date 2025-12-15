@@ -741,17 +741,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _onDatabaseSystemConfig(self, checked: bool = False) -> None:
         self._configWindow = ConfigWindow(self)
-        try:
-            self._configWindow.modified.connect(lambda: self.setWindowTitle(System.get_title()))
-        except Exception:
-            pass
-        try:
-            self._configWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
-            self._configWindow.setWindowModality(QtCore.Qt.ApplicationModal)
-            self.setEnabled(False)
-            self._configWindow.destroyed.connect(lambda *_: self.setEnabled(True))
-        except Exception:
-            pass
+        self._configWindow.modified.connect(lambda: self.setWindowTitle(System.get_title()))
+        self._configWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        self._configWindow.setWindowModality(QtCore.Qt.ApplicationModal)
+        self._configWindow.activateWindow()
+        self._configWindow.raise_()
         self._configWindow.show()
 
     def _onDatabaseTilesData(self, checked: bool = False) -> None:

@@ -1,32 +1,54 @@
 # Ludork
+
+Ludork is a lightweight 2D game editor and runtime built with PyQt5. It ships with a sample game project and an embedded engine so you can edit maps, manage assets, configure system settings, and play-test the game directly inside the editor.
+
+The editor persists window and panel layout in `Ludork.ini`, supports themes via `qt-material`, and provides multi-language UI (English and Chinese) through the `Locale` folder.
+
+## Features
+- Integrated editor UI: tile/actor tools, map editor, file explorer, and console
+- In-editor play-test: launch and stop the game without leaving the editor
+- Config window: edit structured system settings (fonts, window skin, shaders, etc.)
+- Theme and language: pick a `qt-material` theme and auto-detected language stored in `Ludork.ini`
+- Persistent layout: remembers window size and splitter widths across sessions
+- Packaging: build a single-file sample executable and pack the standalone editor with Nuitka
+
 ## Quick Start
-- Create virtual environment `LudorkEnv` and install dependencies:
-  - `py -m venv LudorkEnv`
-  - `LudorkEnv\Scripts\activate`
-  - `pip install -r requirements.txt`
-  - `python main.py`
+- Option A: Run `init.bat` or `init.sh`
+  - Activates existing `LudorkEnv` and runs `main.py`
+  - Or creates `LudorkEnv`, installs dependencies, then runs `main.py`
+  - On failure during creation or installation, the script removes `LudorkEnv` to keep the workspace clean
 
-- Or simply run `init.bat`:
-  - If `LudorkEnv` already exists, the script activates it and runs `main.py`
-  - If not, it creates `LudorkEnv`, then runs `pip install -r requirements.txt`
-  - If creation or dependency installation fails, the script automatically deletes `LudorkEnv` to prevent further errors
-  - On success, it activates `LudorkEnv` and runs `main.py`
-
-## Manual Steps
-1. Create virtual environment: `py -m venv LudorkEnv`
-2. Activate virtual environment: `LudorkEnv\Scripts\activate`
-3. Install dependencies: `pip install -r requirements.txt`
-4. Run: `python main.py`
+- Option B: Manual setup
+  - Create venv: `py -m venv LudorkEnv` or `python3 -m venv LudorkEnv`
+  - Activate: `LudorkEnv\Scripts\activate`
+  - Install: `pip install -r requirements.txt`
+  - Run: `python main.py`
 
 ## Build & Pack
-- Build Sample executable: run `build_exec.bat`
-- Package the entire engine: run `pack.bat` (automatically runs `build_exec.bat`)
+- Build sample executable: run `build_exec.bat` (generates `Sample/Main.exe` on Windows)
+- Pack the editor: run `pack.bat` (produces a standalone distribution in `build/`)
 
 ## Preview
-![Preview](docs/images/image-1.png)
-![Preview](docs/images/image-2.png)
+- Main Editor
 
+  ![Main Editor](docs/images/image-1.png)
+
+- In-Editor Game (Play Test)
+
+  ![Game Running](docs/images/image-2.png)
+
+- Config Window
+
+  ![Config Window](docs/images/image-3.png)
 
 ## Dependencies
-- `PyQt5`, `psutil`, `pympler`
-- Install via `pip install -r requirements.txt`
+- `PyQt5==5.15.10`
+- `qt-material==2.14.0`
+- `psutil`
+- `pympler`
+- `nuitka`
+
+Install all with `pip install -r requirements.txt`.
+
+## License
+Distributed under the GPLv3. See `LICENSE.md` for details.

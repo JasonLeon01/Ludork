@@ -294,5 +294,33 @@
     "equipSE": {
         "zh_CN": "装备音效",
         "en_GB": "Equip Sound"
+    },
+    "SELECT_PROJECT_DIR": {
+        "zh_CN": "选择项目路径",
+        "en_GB": "Select project directory"
+    },
+    "ENTER_PROJECT_NAME": {
+        "zh_CN": "请输入新项目名称",
+        "en_GB": "Please enter the new project name"
+    },
+    "SELECT_PROJ_FILE": {
+        "zh_CN": "选择项目文件",
+        "en_GB": "Select project file"
+    },
+    "INVALID_PROJ_FILE": {
+        "zh_CN": "请选择有效的 .proj 文件",
+        "en_GB": "Please select a valid .proj file"
+    },
+    "PROJECT_EXISTS": {
+        "zh_CN": "目标文件夹已存在",
+        "en_GB": "Target folder already exists"
+    },
+    "COPY_FAILED": {
+        "zh_CN": "复制项目失败",
+        "en_GB": "Failed to copy project"
+    },
+    "OPEN_FAILED": {
+        "zh_CN": "打开项目失败",
+        "en_GB": "Failed to open project"
     }
 }

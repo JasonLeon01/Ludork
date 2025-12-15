@@ -9,10 +9,9 @@ from PyQt5 import QtCore
 from PyQt5.QtWidgets import QApplication
 from qt_material import apply_stylesheet
 from PyQt5.QtGui import QIcon
-from Widgets import MainWindow
+from Widgets import StartWindow
 from Utils import Locale, System
 import EditorStatus
-import Data
 
 
 def initConfig():
@@ -62,33 +61,14 @@ def main():
         + "QScrollBar::handle:horizontal { background: #ffffff; border-radius: 5px; min-width: 24px; }\n"
         + "QScrollBar::handle:horizontal:hover { background: #e6e6e6; }\n"
     )
-    projPath = os.path.abspath("./Sample")
-    EditorStatus.PROJ_PATH = projPath
-    if not EditorStatus.PROJ_PATH in sys.path:
-        sys.path.append(EditorStatus.PROJ_PATH)
-    Data.GameData.init()
-    window = MainWindow(System.get_title())
-    cfg_w = (
-        int(EditorStatus.editorConfig["Ludork"]["Width"])
-        if "Width" in EditorStatus.editorConfig["Ludork"]
-        else window.width()
-    )
-    cfg_h = (
-        int(EditorStatus.editorConfig["Ludork"]["Height"])
-        if "Height" in EditorStatus.editorConfig["Ludork"]
-        else window.height()
-    )
-    min_size = window.minimumSize()
-    window.resize(max(cfg_w, min_size.width()), max(cfg_h, min_size.height()))
-    app.aboutToQuit.connect(window.endGame)
     app.setWindowIcon(QIcon(icon_path))
-    window.setWindowIcon(QIcon(icon_path))
+    start = StartWindow()
     screen = app.primaryScreen()
-    fg = window.frameGeometry()
-    cp = screen.availableGeometry().center() if screen else window.geometry().center()
+    fg = start.frameGeometry()
+    cp = screen.availableGeometry().center() if screen else start.geometry().center()
     fg.moveCenter(cp)
-    window.move(fg.topLeft())
-    window.show()
+    start.move(fg.topLeft())
+    start.show()
     sys.exit(app.exec_())
 
 
