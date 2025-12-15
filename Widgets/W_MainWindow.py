@@ -8,7 +8,7 @@ import configparser
 import json
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Utils import Locale, Panel, System
+from Utils import Locale, Panel, System, File
 from .W_EditorPanel import EditorPanel
 from .W_Toggle import ModeToggle, EditModeToggle
 from .W_TileSelect import TileSelect
@@ -717,10 +717,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 json.dump(data, f, ensure_ascii=False)
 
     def _onNewProject(self, checked: bool = False) -> None:
-        pass
+        File.NewProject(self)
 
     def _onOpenProject(self, checked: bool = False) -> None:
-        pass
+        File.OpenProject(self)
 
     def _onSave(self, checked: bool = False) -> None:
         import Data
