@@ -28,6 +28,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle(title)
         self._setStyle()
         self._initProjConfigAndSelection()
+        self._engineMonitorTimer: Optional[QtCore.QTimer] = None
 
     def showEvent(self, event: QtGui.QShowEvent) -> None:
         super().showEvent(event)
@@ -119,15 +120,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.topSplitter.setSizes([topH, max(self.height() - topH, 160)])
         if self._hasShown:
             cfg = configparser.ConfigParser()
-            cfg_path = os.path.join(os.getcwd(), "Ludork.ini")
+            cfg_path = os.path.join(File.getIniPath(), f"{EditorStatus.APP_NAME}.ini")
             assert os.path.exists(cfg_path)
             cfg.read(cfg_path)
-            assert "Ludork" in cfg
+            assert EditorStatus.APP_NAME in cfg
             s = self.size()
-            cfg["Ludork"]["Width"] = str(s.width())
-            cfg["Ludork"]["Height"] = str(s.height())
-            cfg["Ludork"]["UpperLeftWidth"] = str(self._prevLeftW)
-            cfg["Ludork"]["UpperRightWidth"] = str(self._prevRightW)
+            cfg[EditorStatus.APP_NAME]["Width"] = str(s.width())
+            cfg[EditorStatus.APP_NAME]["Height"] = str(s.height())
+            cfg[EditorStatus.APP_NAME]["UpperLeftWidth"] = str(self._prevLeftW)
+            cfg[EditorStatus.APP_NAME]["UpperRightWidth"] = str(self._prevRightW)
             with open(cfg_path, "w") as f:
                 cfg.write(f)
 
@@ -169,20 +170,39 @@ class MainWindow(QtWidgets.QMainWindow):
             env=dict(os.environ, PYTHONUNBUFFERED="1"),
         )
         self.consoleWidget.attach_process(self._engineProc)
+        self.tabWidget.setCurrentWidget(self.consoleWidget)
+        # Start monitor timer to auto return to editor when process exits
+        if self._engineMonitorTimer is None:
+            self._engineMonitorTimer = QtCore.QTimer(self)
+            self._engineMonitorTimer.setInterval(500)
+            self._engineMonitorTimer.timeout.connect(self._onEngineProcCheck)
+        self._engineMonitorTimer.start()
 
     def endGame(self):
+        # Stop monitoring timer
+        if hasattr(self, "_engineMonitorTimer") and self._engineMonitorTimer is not None:
+            self._engineMonitorTimer.stop()
         if self._engineProc:
-            p = psutil.Process(self._engineProc.pid)
-            children = p.children(recursive=True)
-            for c in children:
-                try:
-                    c.terminate()
-                except Exception as e:
-                    print(f"Error while terminating child process {c.pid}: {e}")
-            gone, alive = psutil.wait_procs(children, timeout=2)
-            for c in alive:
-                c.kill()
-            self._engineProc = None
+            try:
+                pid = self._engineProc.pid
+                if psutil.pid_exists(pid):
+                    p = psutil.Process(pid)
+                    children = p.children(recursive=True)
+                    for c in children:
+                        try:
+                            c.terminate()
+                        except Exception as e:
+                            print(f"Error while terminating child process {c.pid}: {e}")
+                    gone, alive = psutil.wait_procs(children, timeout=2)
+                    for c in alive:
+                        c.kill()
+                else:
+                    # process already exited
+                    pass
+            except Exception as e:
+                print(f"Error while terminating engine process: {e}")
+            finally:
+                self._engineProc = None
         Panel.clearPanel(self.gamePanel)
         self.stacked.setCurrentWidget(self.editorScroll)
         self.leftList.setEnabled(True)
@@ -195,6 +215,23 @@ class MainWindow(QtWidgets.QMainWindow):
         if hasattr(self, "consoleWidget"):
             self.consoleWidget.detach_process()
             self.consoleWidget.clear()
+        self.tabWidget.setCurrentWidget(self.fileExplorer)
+
+    def _onEngineProcCheck(self) -> None:
+        if self._engineProc is None:
+            if self._engineMonitorTimer is not None:
+                self._engineMonitorTimer.stop()
+            return
+        try:
+            if self._engineProc.poll() is not None:
+                # Process ended; switch back to editor mode
+                if self._engineMonitorTimer is not None:
+                    self._engineMonitorTimer.stop()
+                self.endGame()
+                if hasattr(self, "modeToggle"):
+                    self.modeToggle.setSelected(0)
+        except Exception as e:
+            print(f"Error checking engine process state: {e}")
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         self._saveProjLastMap()
@@ -232,13 +269,13 @@ class MainWindow(QtWidgets.QMainWindow):
             self._prevRightW = sizes[2]
         self._prevUpperW = self.upperSplitter.width()
         cfg = configparser.ConfigParser()
-        cfg_path = os.path.join(os.getcwd(), "Ludork.ini")
+        cfg_path = os.path.join(File.getIniPath(), f"{EditorStatus.APP_NAME}.ini")
         if os.path.exists(cfg_path):
             cfg.read(cfg_path)
-            if "Ludork" not in cfg:
-                cfg["Ludork"] = {}
-            cfg["Ludork"]["UpperLeftWidth"] = str(self._prevLeftW)
-            cfg["Ludork"]["UpperRightWidth"] = str(self._prevRightW)
+            if EditorStatus.APP_NAME not in cfg:
+                cfg[EditorStatus.APP_NAME] = {}
+            cfg[EditorStatus.APP_NAME]["UpperLeftWidth"] = str(self._prevLeftW)
+            cfg[EditorStatus.APP_NAME]["UpperRightWidth"] = str(self._prevRightW)
             with open(cfg_path, "w") as f:
                 cfg.write(f)
 
@@ -405,14 +442,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.upperSplitter.setSizes([320, self.gamePanel.width(), 320])
         self.upperSplitter.splitterMoved.connect(self._onUpperSplitterMoved)
         cfg = configparser.ConfigParser()
-        cfg_path = os.path.join(os.getcwd(), "Ludork.ini")
+        cfg_path = os.path.join(File.getIniPath(), f"{EditorStatus.APP_NAME}.ini")
         self._savedLeftWidth = None
         self._savedRightWidth = None
         if os.path.exists(cfg_path):
             cfg.read(cfg_path)
-            if "Ludork" in cfg:
-                ls = cfg["Ludork"].get("UpperLeftWidth")
-                rs = cfg["Ludork"].get("UpperRightWidth")
+            if EditorStatus.APP_NAME in cfg:
+                ls = cfg[EditorStatus.APP_NAME].get("UpperLeftWidth")
+                rs = cfg[EditorStatus.APP_NAME].get("UpperRightWidth")
                 if ls and rs:
                     self._savedLeftWidth = max(320, int(ls))
                     self._savedRightWidth = max(320, int(rs))
@@ -655,12 +692,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def _getExec(self, scriptPath):
         exePath = os.path.join(EditorStatus.PROJ_PATH, "Main.exe" if os.name == "nt" else "Main")
         if System.already_packed():
-            if os.name == "nt":
-                return [exePath, str(self._panelHandle)]
-            return [exePath]
-        if os.name == "nt":
-            return [sys.executable, "-u", scriptPath, str(self._panelHandle)]
-        return [sys.executable, "-u", scriptPath]
+            return [exePath, str(self._panelHandle)]
+        return [sys.executable, "-u", scriptPath, str(self._panelHandle)]
 
     def _initProjConfigAndSelection(self) -> None:
         root = EditorStatus.PROJ_PATH

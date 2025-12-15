@@ -22,7 +22,7 @@ class StartWindow(QtWidgets.QWidget):
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
 
-        title = QtWidgets.QLabel("Ludork", self)
+        title = QtWidgets.QLabel(EditorStatus.APP_NAME, self)
         f = QtGui.QFont()
         f.setBold(True)
         f.setPointSize(28)

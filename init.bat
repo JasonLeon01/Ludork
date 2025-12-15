@@ -4,7 +4,6 @@ cd /d "%~dp0"
 set ENV_DIR=LudorkEnv
 set "PY_CMD=py -3.10"
 
-rem detect Python 3.10
 call %PY_CMD% -V >nul 2>&1
 if errorlevel 1 (
   set "PY_CMD=python3.10"

@@ -127,7 +127,7 @@ class System:
         )
         handle: Optional[int] = os.environ.get("WINDOWHANDLE")
         cls._debugMode = handle is not None
-        if handle:
+        if handle and os.name == "nt":
             cls._window = RenderWindow(int(handle), settings=ContextSettings(antiAliasingLevel=8))
             windowSize = cls._window.getSize()
             cls._scale = min(windowSize.x / cls._gameSize.x, windowSize.y / cls._gameSize.y)

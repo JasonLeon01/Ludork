@@ -1,6 +1,5 @@
 # -*- encoding: utf-8 -*-
 
-
 def already_packed() -> bool:
     result = False
     try:
@@ -16,11 +15,11 @@ def already_packed() -> bool:
 
 
 def get_title() -> str:
-    titles = ["Ludork Editor"]
+    import EditorStatus
+    titles = [EditorStatus.APP_NAME]
     result = ""
     try:
         import Data
-        import EditorStatus
 
         if EditorStatus.PROJ_PATH:
             cfg = Data.GameData.systemConfigData.get("System")

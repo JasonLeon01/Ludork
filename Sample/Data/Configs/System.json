@@ -1,7 +1,7 @@
 {
     "title": {
         "type": "string",
-        "value": "Ludork"
+        "value": "Ludork Sample"
     },
     "gameSize": {
         "type": "int[2]",

@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+APP_NAME = "Ludork"
 editorConfig = None
 SCREEN_LOW_RES = 0
 LANGUAGE = "en_GB"

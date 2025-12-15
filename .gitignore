@@ -7,6 +7,7 @@ LudorkEnv/
 Ludork.ini
 build/
 Sample/Main.exe
+Sample/Main
 Sample/Main.proj
 Locale/en_GB
 Locale/zh_CN

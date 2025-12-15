@@ -5,11 +5,37 @@ import sys
 import json
 import pickle
 import shutil
+from pathlib import Path
 from typing import Dict, Any
 from PyQt5 import QtCore, QtGui, QtWidgets
+from . import System
 
 mainWindow: QtWidgets.QMainWindow = None
 
+def getRootPath() -> str:
+    if System.already_packed():
+        return os.path.dirname(sys.executable)
+    return os.getcwd()
+
+def getIniPath() -> str:
+    import EditorStatus
+    if System.already_packed() and os.name == "posix":
+        path = Path.home() / "Library" / "Application Support" / EditorStatus.APP_NAME
+        path.mkdir(parents=True, exist_ok=True)
+        return str(path)
+    return os.getcwd()
+
+def getUserPath() -> str:
+    import EditorStatus
+    if os.name == "nt":
+        return os.path.join(os.getenv("APPDATA"), EditorStatus.APP_NAME)
+    elif os.name == "posix":
+        path = Path.home() / "Library" / "Application Support" / EditorStatus.APP_NAME
+    else:
+        print("Unsupported platform")
+        sys.exit(1)
+    path.mkdir(parents=True, exist_ok=True)
+    return str(path)
 
 def getJSONData(filePath: str) -> Dict[str, Any]:
     with open(filePath, "r", encoding="utf-8") as file:
@@ -43,8 +69,8 @@ def _getLastPathOrHome() -> str:
     import EditorStatus
 
     sec = (
-        EditorStatus.editorConfig["Ludork"]
-        if EditorStatus.editorConfig and "Ludork" in EditorStatus.editorConfig
+        EditorStatus.editorConfig[EditorStatus.APP_NAME]
+        if EditorStatus.editorConfig and EditorStatus.APP_NAME in EditorStatus.editorConfig
         else None
     )
     p = sec.get("LastOpenPath") if sec else None
@@ -54,7 +80,9 @@ def _getLastPathOrHome() -> str:
 
 
 def _configPath() -> str:
-    return os.path.join(os.getcwd(), "Ludork.ini")
+    import EditorStatus
+
+    return os.path.join(getIniPath(), f"{EditorStatus.APP_NAME}.ini")
 
 
 def _setLastOpenPath(path: str) -> None:
@@ -62,9 +90,9 @@ def _setLastOpenPath(path: str) -> None:
 
     if not EditorStatus.editorConfig:
         return
-    if "Ludork" not in EditorStatus.editorConfig:
-        EditorStatus.editorConfig["Ludork"] = {}
-    EditorStatus.editorConfig["Ludork"]["LastOpenPath"] = os.path.abspath(path)
+    if EditorStatus.APP_NAME not in EditorStatus.editorConfig:
+        EditorStatus.editorConfig[EditorStatus.APP_NAME] = {}
+    EditorStatus.editorConfig[EditorStatus.APP_NAME]["LastOpenPath"] = os.path.abspath(path)
     with open(_configPath(), "w", encoding="utf-8") as f:
         EditorStatus.editorConfig.write(f)
 
@@ -88,8 +116,8 @@ def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
 
     mainWindow = MainWindow(System.get_title())
     try:
-        cfg_w = int(EditorStatus.editorConfig["Ludork"].get("Width", mainWindow.width()))
-        cfg_h = int(EditorStatus.editorConfig["Ludork"].get("Height", mainWindow.height()))
+        cfg_w = int(EditorStatus.editorConfig[EditorStatus.APP_NAME].get("Width", mainWindow.width()))
+        cfg_h = int(EditorStatus.editorConfig[EditorStatus.APP_NAME].get("Height", mainWindow.height()))
     except Exception:
         cfg_w, cfg_h = mainWindow.width(), mainWindow.height()
     min_size = mainWindow.minimumSize()
