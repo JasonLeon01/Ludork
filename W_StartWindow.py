@@ -1,13 +1,9 @@
 # -*- encoding: utf-8 -*-
 
-import os
-import sys
-import shutil
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Utils import Locale, System, File
+from Utils import Locale, File
 import EditorStatus
-import Data
 
 
 class StartWindow(QtWidgets.QWidget):

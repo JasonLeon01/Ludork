@@ -374,14 +374,14 @@ class GameMap:
         for y in range(size.y):
             row: List[bool] = []
             for x in range(size.x):
-                passible = True
+                passable = True
                 for layerName in layerKeysList:
                     layer = self._tilemap.getLayer(layerName)
                     tile = layer.get(Vector2i(x, y))
                     if tile is not None:
-                        passible = layer.isPassable(Vector2i(x, y))
+                        passable = layer.isPassable(Vector2i(x, y))
                         break
-                row.append(passible)
+                row.append(passable)
             self._tilePassableGrid.append(row)
         self._occupancyMap = {}
         for actorList in self._actors.values():

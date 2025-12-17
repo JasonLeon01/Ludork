@@ -10,7 +10,7 @@ from PyQt5 import QtCore
 from PyQt5.QtWidgets import QApplication
 from qt_material import apply_stylesheet
 from PyQt5.QtGui import QIcon
-from Widgets import StartWindow
+from W_StartWindow import StartWindow
 from Utils import Locale, System, File
 import EditorStatus
 
@@ -55,6 +55,9 @@ def main():
     app.setStyleSheet(
         app.styleSheet()
         + "\n"
+        + "QListWidget::item:selected, QListWidget::item:selected:active, QListWidget::item:selected:focus, QListWidget::item:selected:hover { background-color: rgba(255,255,255,60); color: white; }\n"
+        + "QListView::item:selected, QListView::item:selected:active, QListView::item:selected:focus, QListView::item:selected:hover { background-color: rgba(255,255,255,60); color: white; }\n"
+        + "QTreeView::item:selected, QTreeView::item:selected:active, QTreeView::item:selected:focus, QTreeView::item:selected:hover { background-color: rgba(255,255,255,60); color: white; }\n"
         + "QScrollBar:vertical { background: transparent; width: 10px; margin: 0px; }\n"
         + "QScrollBar::handle:vertical { background: #ffffff; border-radius: 5px; min-height: 24px; }\n"
         + "QScrollBar::handle:vertical:hover { background: #e6e6e6; }\n"

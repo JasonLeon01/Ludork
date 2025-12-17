@@ -12,21 +12,26 @@ from . import System
 
 mainWindow: QtWidgets.QMainWindow = None
 
+
 def getRootPath() -> str:
     if System.already_packed():
         return os.path.dirname(sys.executable)
     return os.getcwd()
 
+
 def getIniPath() -> str:
     import EditorStatus
+
     if System.already_packed() and os.name == "posix":
         path = Path.home() / "Library" / "Application Support" / EditorStatus.APP_NAME
         path.mkdir(parents=True, exist_ok=True)
         return str(path)
     return os.getcwd()
 
+
 def getUserPath() -> str:
     import EditorStatus
+
     if os.name == "nt":
         return os.path.join(os.getenv("APPDATA"), EditorStatus.APP_NAME)
     elif os.name == "posix":
@@ -36,6 +41,7 @@ def getUserPath() -> str:
         sys.exit(1)
     path.mkdir(parents=True, exist_ok=True)
     return str(path)
+
 
 def getJSONData(filePath: str) -> Dict[str, Any]:
     with open(filePath, "r", encoding="utf-8") as file:
@@ -112,7 +118,7 @@ def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
     except Exception as e:
         QtWidgets.QMessageBox.critical(self, "Error", Locale.getContent("OPEN_FAILED") + "\n" + str(e))
         return
-    from Widgets import MainWindow
+    from W_MainWindow import MainWindow
 
     mainWindow = MainWindow(System.get_title())
     try:

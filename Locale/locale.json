@@ -1,4 +1,16 @@
 {
+    "FILE_NAME": {
+        "zh_CN": "文件名",
+        "en_GB": "File Name"
+    },
+    "PASSABLE": {
+        "zh_CN": "通行",
+        "en_GB": "Passable"
+    },
+    "LIGHT_BLOCK": {
+        "zh_CN": "遮光",
+        "en_GB": "Light Block"
+    },
     "FILE": {
         "zh_CN": "文件",
         "en_GB": "File"
@@ -187,9 +199,9 @@
         "zh_CN": "系统配置",
         "en_GB": "System Config"
     },
-    "TILES_DATA": {
-        "zh_CN": "图块数据",
-        "en_GB": "Tiles Data"
+    "TILESETS_DATA": {
+        "zh_CN": "图块集数据",
+        "en_GB": "Tilesets Data"
     },
     "COMMON_FUNCTIONS": {
         "zh_CN": "公共函数",

@@ -109,13 +109,18 @@ class EditorPanel(QtWidgets.QWidget):
             if tileset.isNull():
                 continue
             columns = tileset.width() // tileSize
+            rows = tileset.height() // tileSize
+            total = columns * rows
             for y in range(self.mapData.height):
                 for x in range(self.mapData.width):
                     tileNumber = layer.tiles[y][x]
                     if tileNumber is None:
                         continue
-                    tu = tileNumber % columns
-                    tv = tileNumber // columns
+                    n = int(tileNumber)
+                    if n < 0 or n >= total:
+                        continue
+                    tu = n % columns
+                    tv = n // columns
                     src = QtCore.QRect(tu * tileSize, tv * tileSize, tileSize, tileSize)
                     dst = QtCore.QRect(x * tileSize, y * tileSize, tileSize, tileSize)
                     painter.drawImage(dst, tileset, src)

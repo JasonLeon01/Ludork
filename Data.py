@@ -58,6 +58,7 @@ class GameData:
 
         cls.modifiedMaps = []
         cls.modifiedSystemConfigs = []
+        cls.modifiedTilesets = []
 
     @classmethod
     def markMapModified(cls, key: str) -> None:
@@ -124,13 +125,50 @@ class GameData:
         return True, "[" + ", ".join(saved) + "]"
 
     @classmethod
+    def markTilesetModified(cls, key: str) -> None:
+        if not key:
+            return
+        if key not in getattr(cls, "modifiedTilesets", []):
+            cls.modifiedTilesets.append(key)
+
+    @classmethod
+    def saveModifiedTilesets(cls):
+        tilesetsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Tilesets")
+        saved = []
+        failed = []
+        for key in list(getattr(cls, "modifiedTilesets", [])):
+            ts = cls.tilesetData.get(key)
+            if ts is None:
+                failed.append(key)
+                continue
+            payload = {
+                "name": ts.name,
+                "fileName": ts.fileName,
+                "passable": ts.passable,
+                "lightBlock": ts.lightBlock,
+            }
+            fp = os.path.join(tilesetsRoot, f"{key}.dat")
+            try:
+                File.saveData(fp, payload)
+                saved.append(key)
+            except Exception:
+                failed.append(key)
+        cls.modifiedTilesets.clear()
+        if failed:
+            return False, "[" + ", ".join(failed) + "]"
+        return True, "[" + ", ".join(saved) + "]"
+
+    @classmethod
     def saveAllModified(cls):
         ok_maps, msg_maps = cls.saveModifiedMaps()
         ok_cfgs, msg_cfgs = cls.saveModifiedSystemConfigs()
-        ok = ok_maps and ok_cfgs
+        ok_ts, msg_ts = cls.saveModifiedTilesets()
+        ok = ok_maps and ok_cfgs and ok_ts
         parts = []
         if msg_maps:
             parts.append("Maps: " + msg_maps)
         if msg_cfgs:
             parts.append("Configs: " + msg_cfgs)
+        if msg_ts:
+            parts.append("Tilesets: " + msg_ts)
         return ok, "; ".join(parts)

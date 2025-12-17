@@ -2,16 +2,19 @@
 
 from . import W_EditorPanel
 from . import W_Toggle
+from . import W_TileSelect
+from . import W_Console
 from . import W_FileExplorer
-from . import W_MainWindow
 from . import W_FilePreview
 from . import W_ConfigWindow
-from . import W_StartWindow
+from . import W_TilesetEditor
 
 EditorPanel = W_EditorPanel.EditorPanel
-Toggle = W_Toggle.ModeToggle
+ModeToggle = W_Toggle.ModeToggle
+EditModeToggle = W_Toggle.EditModeToggle
+TileSelect = W_TileSelect.TileSelect
+ConsoleWidget = W_Console.ConsoleWidget
 FileExplorer = W_FileExplorer.FileExplorer
-MainWindow = W_MainWindow.MainWindow
 FilePreview = W_FilePreview.FilePreview
 ConfigWindow = W_ConfigWindow.ConfigWindow
-StartWindow = W_StartWindow.StartWindow
+TilesetEditor = W_TilesetEditor.TilesetEditor

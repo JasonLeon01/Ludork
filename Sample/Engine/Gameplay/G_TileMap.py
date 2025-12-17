@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 class Tileset:
     name: str
     fileName: str
-    passible: List[bool]
+    passable: List[bool]
     lightBlock: List[float]
 
     @staticmethod
@@ -61,7 +61,7 @@ class TileLayer(Drawable, Transformable):
         tileNumber = self._data.tiles[position.y][position.x]
         if tileNumber is None:
             return True
-        return self._data.layerTileset.passible[tileNumber]
+        return self._data.layerTileset.passable[tileNumber]
 
     def getLightBlock(self, position: Vector2i) -> float:
         if self.isPassable(position):

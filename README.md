@@ -40,6 +40,10 @@ The editor persists window and panel layout in `Ludork.ini`, supports themes via
 
   ![Config Window](docs/images/image-3.png)
 
+- Tilesets Update
+
+  ![Tilesets Update](docs/images/image-4.png)
+
 ## Dependencies
 - `PyQt5==5.15.10`
 - `qt-material==2.14.0`

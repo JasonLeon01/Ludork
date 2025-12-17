@@ -8,16 +8,20 @@ import configparser
 import json
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import QSize
 from Utils import Locale, Panel, System, File
-from .W_EditorPanel import EditorPanel
-from .W_Toggle import ModeToggle, EditModeToggle
-from .W_TileSelect import TileSelect
-from .W_FileExplorer import FileExplorer
-from .W_Console import ConsoleWidget
-from .W_ConfigWindow import ConfigWindow
+from Widgets import (
+    EditorPanel,
+    ModeToggle,
+    EditModeToggle,
+    TileSelect,
+    FileExplorer,
+    ConsoleWidget,
+    ConfigWindow,
+    TilesetEditor,
+)
 import EditorStatus
-from .Utils import MapEditDialog
-from .Utils import SingleRowDialog
+from Widgets.Utils import MapEditDialog, SingleRowDialog
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -320,20 +324,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.topBar.setMinimumHeight(32)
         topLayout = QtWidgets.QHBoxLayout(self.topBar)
         topLayout.setContentsMargins(0, 0, 0, 0)
-        self.layerScroll = QtWidgets.QScrollArea()
-        self.layerScroll.setWidgetResizable(True)
-        self.layerScroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        self.layerScroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.layerScroll.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
-        self.layerScroll.setStyleSheet("QScrollArea { border: 2px solid palette(mid); border-radius: 4px; }")
-        self.layerBarContainer = QtWidgets.QWidget()
-        self.layerBarLayout = QtWidgets.QHBoxLayout(self.layerBarContainer)
-        self.layerBarLayout.setContentsMargins(8, 0, 8, 0)
-        self.layerBarLayout.setSpacing(4)
-        self.layerScroll.setWidget(self.layerBarContainer)
-        self.layerBarContainer.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.layerBarContainer.customContextMenuRequested.connect(self._onLayerEmptyContextMenu)
-        self._layerButtons = {}
+        self.layerList = QtWidgets.QListWidget()
+        self.layerList.setFlow(QtWidgets.QListView.LeftToRight)
+        self.layerList.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+        self.layerList.setFixedHeight(32)
+        self.layerList.setGridSize(QSize(72, 32))
+        self.layerList.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.layerList.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.layerList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.layerList.customContextMenuRequested.connect(self._onLayerContextMenu)
+        self.layerList.itemClicked.connect(self._onLayerButtonClicked)
         self._selectedLayerName: Optional[str] = None
         panelW, panelH = 640, 480
 
@@ -345,7 +345,6 @@ class MainWindow(QtWidgets.QMainWindow):
         pal.setColor(QtGui.QPalette.Window, QtGui.QColor.fromRgb(0, 0, 0))
         self.editorPanel.setPalette(pal)
         self.topBar.setMinimumHeight(32)
-        self.layerScroll.setMinimumHeight(self.topBar.minimumHeight())
 
         self.editorScroll = QtWidgets.QScrollArea()
         self.editorScroll.setWidget(self.editorPanel)
@@ -372,7 +371,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.editModeToggle = EditModeToggle()
         self.modeToggle = ModeToggle()
-        topLayout.addWidget(self.layerScroll, 1)
+        topLayout.addWidget(self.layerList, 1)
         topLayout.addWidget(self.editModeToggle, 0, alignment=QtCore.Qt.AlignRight)
         topLayout.addWidget(self.modeToggle, 0, alignment=QtCore.Qt.AlignRight)
         self.editModeToggle.selectionChanged.connect(self._onEditModeChanged)
@@ -510,9 +509,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actDatabaseSystemConfig = QtWidgets.QAction(Locale.getContent("SYSTEM_CONFIG"), self)
         self._actDatabaseSystemConfig.triggered.connect(self._onDatabaseSystemConfig)
         self._actDatabaseSystemConfig.setShortcut(QtGui.QKeySequence("F8"))
-        self._actDatabaseTilesData = QtWidgets.QAction(Locale.getContent("TILES_DATA"), self)
-        self._actDatabaseTilesData.triggered.connect(self._onDatabaseTilesData)
-        self._actDatabaseTilesData.setShortcut(QtGui.QKeySequence("F9"))
+        self._actDatabaseTilesetsData = QtWidgets.QAction(Locale.getContent("TILESETS_DATA"), self)
+        self._actDatabaseTilesetsData.triggered.connect(self._onDatabaseTilesetsData)
+        self._actDatabaseTilesetsData.setShortcut(QtGui.QKeySequence("F9"))
         self._actDatabaseCommonFunctions = QtWidgets.QAction(Locale.getContent("COMMON_FUNCTIONS"), self)
         self._actDatabaseCommonFunctions.triggered.connect(self._onDatabaseCommonFunctions)
         self._actDatabaseCommonFunctions.setShortcut(QtGui.QKeySequence("F10"))
@@ -520,7 +519,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actDatabaseScripts.triggered.connect(self._onDatabaseScripts)
         self._actDatabaseScripts.setShortcut(QtGui.QKeySequence("F11"))
         _dbMenu.addAction(self._actDatabaseSystemConfig)
-        _dbMenu.addAction(self._actDatabaseTilesData)
+        _dbMenu.addAction(self._actDatabaseTilesetsData)
         _dbMenu.addAction(self._actDatabaseCommonFunctions)
         _dbMenu.addAction(self._actDatabaseScripts)
 
@@ -547,47 +546,23 @@ class MainWindow(QtWidgets.QMainWindow):
             self._refreshLayerBar()
 
     def _refreshLayerBar(self) -> None:
-        for i in reversed(range(self.layerBarLayout.count())):
-            item = self.layerBarLayout.takeAt(i)
-            w = item.widget()
-            if w:
-                w.deleteLater()
-        self._layerButtons.clear()
+        self.layerList.clear()
         names = self.editorPanel.getLayerNames() if hasattr(self.editorPanel, "getLayerNames") else []
         for n in names:
-            btn = QtWidgets.QToolButton()
-            btn.setText(n)
-            btn.setCheckable(True)
-            btn.setAutoRaise(True)
-            btn.setMinimumHeight(self.topBar.minimumHeight())
-            btn.setProperty("layerName", n)
-            btn.clicked.connect(self._onLayerButtonClicked)
-            btn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-            btn.customContextMenuRequested.connect(self._onLayerContextMenu)
-            self.layerBarLayout.addWidget(btn)
-            self._layerButtons[n] = btn
-        if self._selectedLayerName in self._layerButtons:
-            self._layerButtons[self._selectedLayerName].setChecked(True)
-        self.layerBarLayout.addStretch(1)
+            item = QtWidgets.QListWidgetItem(n)
+            self.layerList.addItem(item)
+            if n == self._selectedLayerName:
+                self.layerList.setCurrentItem(item)
 
-    def _onLayerButtonClicked(self, checked: bool) -> None:
-        sender = self.sender()
-        if not isinstance(sender, QtWidgets.QToolButton):
+    def _onLayerButtonClicked(self, item: QtWidgets.QListWidgetItem, force_select: bool = False) -> None:
+        name = item.text()
+        if not force_select and name == self._selectedLayerName:
+            self.layerList.clearSelection()
+            self._selectedLayerName = None
+            self.editorPanel.setSelectedLayer(None)
+            self.tileSelect.setLayerSelected(False)
+            self.tileSelect.clearSelection()
             return
-        name = sender.property("layerName") or sender.text()
-        if self._selectedLayerName == name:
-            if not checked:
-                self._selectedLayerName = None
-                self.editorPanel.setSelectedLayer(None)
-                self.tileSelect.setLayerSelected(False)
-                self.tileSelect.clearSelection()
-            else:
-                sender.setChecked(True)
-            return
-        for b in self._layerButtons.values():
-            if b is not sender:
-                b.setChecked(False)
-        sender.setChecked(True)
         self._selectedLayerName = name
         self.editorPanel.setSelectedLayer(name)
         key = self.editorPanel.getLayerTilesetKey(name)
@@ -614,8 +589,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 continue
             break
         self.editorPanel.addEmptyLayer(name)
+        self._selectedLayerName = name
         self._refreshLayerBar()
-        bar = self.layerScroll.horizontalScrollBar()
+        bar = self.layerList.horizontalScrollBar()
         bar.setValue(bar.maximum())
         key = self.editorPanel.getLayerTilesetKey(name)
         if key:
@@ -636,14 +612,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tileSelect.setSelectedTileNumber(None if tileNumber < 0 else tileNumber)
 
     def _onLayerContextMenu(self, pos: QtCore.QPoint) -> None:
-        sender = self.sender()
-        if not isinstance(sender, QtWidgets.QToolButton):
+        item = self.layerList.itemAt(pos)
+        if item is None:
+            menu = QtWidgets.QMenu(self)
+            actAdd = menu.addAction(Locale.getContent("ADD_LAYER"))
+            action = menu.exec_(self.layerList.mapToGlobal(pos))
+            if action == actAdd:
+                self._onAddLayer()
             return
-        name = sender.property("layerName") or sender.text()
+        self.layerList.setCurrentItem(item)
+        self._onLayerButtonClicked(item, force_select=True)
+
+        name = item.text()
         menu = QtWidgets.QMenu(self)
         actRename = menu.addAction(Locale.getContent("RENAME_LAYER"))
         actDelete = menu.addAction(Locale.getContent("DELETE"))
-        action = menu.exec_(sender.mapToGlobal(pos))
+        action = menu.exec_(self.layerList.mapToGlobal(pos))
         if action == actRename:
             existing = set(self.editorPanel.getLayerNames())
             if name in existing:
@@ -680,13 +664,6 @@ class MainWindow(QtWidgets.QMainWindow):
                     if self._selectedLayerName == name:
                         self._selectedLayerName = None
                     self._refreshLayerBar()
-
-    def _onLayerEmptyContextMenu(self, pos: QtCore.QPoint) -> None:
-        menu = QtWidgets.QMenu(self)
-        actAdd = menu.addAction(Locale.getContent("ADD_LAYER"))
-        action = menu.exec_(self.layerBarContainer.mapToGlobal(pos))
-        if action == actAdd:
-            self._onAddLayer()
 
     def _getExec(self, scriptPath):
         if System.already_packed():
@@ -779,8 +756,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self._configWindow.raise_()
         self._configWindow.show()
 
-    def _onDatabaseTilesData(self, checked: bool = False) -> None:
-        pass
+    def _onDatabaseTilesetsData(self, checked: bool = False) -> None:
+        self._tilesetEditor = TilesetEditor(self)
+        self._tilesetEditor.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        self._tilesetEditor.setWindowModality(QtCore.Qt.ApplicationModal)
+        self._tilesetEditor.show()
 
     def _onDatabaseCommonFunctions(self, checked: bool = False) -> None:
         pass

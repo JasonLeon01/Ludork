@@ -22,8 +22,9 @@ class ConfigDictPanel(QtWidgets.QWidget):
             "QLabel { color: white; }"
             "QLineEdit { color: white; background-color: #3a3a3a; }"
             "QLineEdit:read-only { color: #cccccc; background-color: #4a4a4a; }"
-            "QPushButton { color: white; }"
-            "QPushButton#MinusBtn { color: white; border: 1px solid #c0392b; background-color: #3a1f1f; border-radius: 4px; padding: 2px 6px; }"
+            "QPushButton { color: white; background-color: #3a3a3a; border: 1px solid #606060; border-radius: 4px; padding: 4px 8px; }"
+            "QPushButton:hover { background-color: #4a4a4a; }"
+            "QPushButton#MinusBtn { color: white; background-color: #3a1f1f; border: 1px solid #c0392b; border-radius: 4px; padding: 4px 8px; }"
             "QPushButton#MinusBtn:hover { background-color: #5a2f2f; }"
         )
         layout = QtWidgets.QVBoxLayout(self)
