@@ -21,7 +21,10 @@ FLAGS = [
     "--include-package=Widgets",
     "--include-package=Utils",
     "--include-data-dir=Resource=Resource",
-    "--lto=yes"
+    "--include-module=asyncio",
+    "--include-module=psutil",
+    "--include-module=pympler.asizeof",
+    "--lto=yes",
 ]
 
 if os.name == "nt":
@@ -49,18 +52,6 @@ def run(cmd):
 
 
 def main():
-    sample_exe = ROOT / "Sample" / "Main.exe"
-    if not sample_exe.exists():
-        print("[INFO] Found Sample/Main.exe, running build_exec.bat first...")
-        if os.name == "nt":
-            build_bat = ROOT / "build_exec.bat"
-        else:
-            build_bat = ROOT / "build_exec.sh"
-        if build_bat.exists():
-            run([str(build_bat)])
-        else:
-            print("[WARNING] build_exec.bat not found, skipping...")
-
     if not PYTHON.exists():
         print(f"[ERROR] Python executable not found: {PYTHON}")
         sys.exit(1)
@@ -97,6 +88,7 @@ def main():
             shutil.rmtree(app)
         shutil.move(OUTDIR / "main.app", app)
         print(f"[INFO] Renamed main.app to {APP_NAME}.app")
+
 
 if __name__ == "__main__":
     main()

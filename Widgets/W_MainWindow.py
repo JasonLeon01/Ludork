@@ -171,7 +171,6 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         self.consoleWidget.attach_process(self._engineProc)
         self.tabWidget.setCurrentWidget(self.consoleWidget)
-        # Start monitor timer to auto return to editor when process exits
         if self._engineMonitorTimer is None:
             self._engineMonitorTimer = QtCore.QTimer(self)
             self._engineMonitorTimer.setInterval(500)
@@ -179,7 +178,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self._engineMonitorTimer.start()
 
     def endGame(self):
-        # Stop monitoring timer
         if hasattr(self, "_engineMonitorTimer") and self._engineMonitorTimer is not None:
             self._engineMonitorTimer.stop()
         if self._engineProc:
@@ -196,9 +194,11 @@ class MainWindow(QtWidgets.QMainWindow):
                     gone, alive = psutil.wait_procs(children, timeout=2)
                     for c in alive:
                         c.kill()
-                else:
-                    # process already exited
-                    pass
+                    p.terminate()
+                    try:
+                        p.wait(timeout=2)
+                    except psutil.TimeoutExpired:
+                        p.kill()
             except Exception as e:
                 print(f"Error while terminating engine process: {e}")
             finally:
@@ -224,7 +224,6 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         try:
             if self._engineProc.poll() is not None:
-                # Process ended; switch back to editor mode
                 if self._engineMonitorTimer is not None:
                     self._engineMonitorTimer.stop()
                 self.endGame()
@@ -690,9 +689,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self._onAddLayer()
 
     def _getExec(self, scriptPath):
-        exePath = os.path.join(EditorStatus.PROJ_PATH, "Main.exe" if os.name == "nt" else "Main")
         if System.already_packed():
-            return [exePath, str(self._panelHandle)]
+            return [sys.argv[0], scriptPath, str(self._panelHandle)]
         return [sys.executable, "-u", scriptPath, str(self._panelHandle)]
 
     def _initProjConfigAndSelection(self) -> None:

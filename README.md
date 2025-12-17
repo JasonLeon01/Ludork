@@ -25,7 +25,6 @@ The editor persists window and panel layout in `Ludork.ini`, supports themes via
   - Run: `python main.py`
 
 ## Build & Pack
-- Build sample executable: run `build_exec.bat` (generates `Sample/Main.exe` on Windows)
 - Pack the editor: run `pack.bat` (produces a standalone distribution in `build/`)
 
 ## Preview

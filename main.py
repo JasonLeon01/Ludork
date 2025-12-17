@@ -4,6 +4,7 @@ import os
 import sys
 import locale
 import configparser
+import runpy
 import subprocess
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QApplication
@@ -73,4 +74,12 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    params = sys.argv.copy()
+    if len(params) > 1:
+        sys.argv = sys.argv[1:]
+        sys.argv[0] = os.path.abspath(params[1])
+        if not os.getcwd() in sys.path:
+            sys.path.append(os.getcwd())
+        runpy.run_path(sys.argv[0], run_name="__main__")
+    else:
+        main()

@@ -59,6 +59,8 @@ class GameMap:
         self._ambientLight: Color = Color(255, 255, 255, 255)
         self._passabilityTex: Optional[Texture] = None
         self._passabilityDirty: bool = True
+        self._tilePassableGrid: Optional[List[List[bool]]] = None
+        self._occupancyMap: Dict[tuple, List[Actor]] = {}
 
     def getAllActors(self) -> List[Actor]:
         actors = []
@@ -77,21 +79,24 @@ class GameMap:
     def isPassable(self, actor: Actor, targetPosition: Vector2i) -> bool:
         if not actor.getCollisionEnabled():
             return True
-        layerKeysList = list(self._tilemap.getAllLayers().keys())
-        layerKeysList.reverse()
-        for layerName in layerKeysList:
-            layer = self._tilemap.getLayer(layerName)
-            tile = layer.get(targetPosition)
-            if layerName in self._actors:
-                for other in self._actors[layerName]:
-                    if actor == other:
-                        continue
-                    if other in actor.getChildren():
-                        continue
-                    if other.getMapPosition() == targetPosition:
-                        return not other.getCollisionEnabled()
-            if not tile is None:
-                return layer.isPassable(targetPosition)
+        size = self._tilemap.getSize()
+        x = targetPosition.x
+        y = targetPosition.y
+        if x < 0 or y < 0 or x >= size.x or y >= size.y:
+            return False
+        if self._tilePassableGrid is None or self._occupancyMap is None:
+            self._rebuildPassabilityCache()
+        if not self._tilePassableGrid[y][x]:
+            return False
+        occ = self._occupancyMap.get((x, y))
+        if occ:
+            for other in occ:
+                if other == actor:
+                    continue
+                if other in actor.getChildren():
+                    continue
+                if other.getCollisionEnabled():
+                    return False
         return True
 
     def getCollision(self, actor: Actor, targetPosition: Vector2i) -> List[Actor]:
@@ -325,6 +330,7 @@ class GameMap:
         shader.setUniform("tilemapTex", self._camera.getTexture())
         if self._passabilityTex is None or self._passabilityDirty:
             self._passabilityTex = self._getPassabilityTexture()
+            self._rebuildPassabilityCache()
             self._passabilityDirty = False
         shader.setUniform("passabilityTex", self._passabilityTex)
         shader.setUniform("screenScale", System.getScale())
@@ -359,6 +365,35 @@ class GameMap:
         texture = Texture(img)
         texture.setSmooth(True)
         return texture
+
+    def _rebuildPassabilityCache(self) -> None:
+        size = self._tilemap.getSize()
+        layerKeysList = list(self._tilemap.getAllLayers().keys())
+        layerKeysList.reverse()
+        self._tilePassableGrid = []
+        for y in range(size.y):
+            row: List[bool] = []
+            for x in range(size.x):
+                passible = True
+                for layerName in layerKeysList:
+                    layer = self._tilemap.getLayer(layerName)
+                    tile = layer.get(Vector2i(x, y))
+                    if tile is not None:
+                        passible = layer.isPassable(Vector2i(x, y))
+                        break
+                row.append(passible)
+            self._tilePassableGrid.append(row)
+        self._occupancyMap = {}
+        for actorList in self._actors.values():
+            for other in actorList:
+                if not other.getCollisionEnabled():
+                    continue
+                pos = other.getMapPosition()
+                key = (pos.x, pos.y)
+                if key not in self._occupancyMap:
+                    self._occupancyMap[key] = [other]
+                else:
+                    self._occupancyMap[key].append(other)
 
     def markPassabilityDirty(self) -> None:
         self._passabilityDirty = True
