@@ -134,18 +134,21 @@ class TileSelect(QtWidgets.QWidget):
         layout.addWidget(self._scroll, 1)
         Panel.applyDisabledOpacity(self)
         self._topList.currentRowChanged.connect(self._onTilesetRowChanged)
-        self._initTilesets()
+        self.initTilesets()
 
-    def _initTilesets(self) -> None:
-        self._tilesets = Data.GameData.tilesetData if hasattr(Data, "GameData") else {}
+    def initTilesets(self) -> None:
+        old_key = self._currentKey
+        self._tilesets = Data.GameData.tilesetData
         self._keys = list(self._tilesets.keys())
         self._topList.clear()
         for k in self._keys:
             it = QtWidgets.QListWidgetItem(k)
             self._topList.addItem(it)
         if self._keys:
-            self._topList.setCurrentRow(0)
-            self._onTilesetRowChanged(self._topList.currentRow())
+            idx = 0
+            if old_key and old_key in self._keys:
+                idx = self._keys.index(old_key)
+            self._topList.setCurrentRow(idx)
 
     def setLayerSelected(self, selected: bool) -> None:
         self._allowSelect = bool(selected)

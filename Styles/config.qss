@@ -1,0 +1,8 @@
+QWidget#ConfigDictPanel { background-color: #2b2b2b; border: 1px solid #606060; border-radius: 6px; }
+QLabel { color: white; }
+QLineEdit { color: #ffffff; background-color: #454545; border: 1px solid #606060; border-radius: 4px; padding: 2px; }
+QLineEdit:read-only { color: #909090; background-color: #252525; border: 1px solid #404040; }
+QPushButton { color: white; background-color: #3a3a3a; border: 1px solid #606060; border-radius: 4px; padding: 4px 8px; }
+QPushButton:hover { background-color: #4a4a4a; }
+QPushButton#MinusBtn { color: white; background-color: #3a1f1f; border: 1px solid #c0392b; border-radius: 4px; padding: 4px 8px; }
+QPushButton#MinusBtn:hover { background-color: #5a2f2f; }

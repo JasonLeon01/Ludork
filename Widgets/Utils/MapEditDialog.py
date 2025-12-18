@@ -2,8 +2,7 @@
 
 from typing import Any
 from PyQt5 import QtCore, QtWidgets
-from Utils import Locale
-import EditorStatus
+from Utils import Locale, System
 
 
 class MapEditDialog(QtWidgets.QDialog):
@@ -17,13 +16,7 @@ class MapEditDialog(QtWidgets.QDialog):
         form = QtWidgets.QFormLayout(self)
         form.setContentsMargins(12, 12, 12, 12)
         form.setSpacing(8)
-        self.setStyleSheet(
-            "QDialog { background-color: #2b2b2b; }"
-            "QLabel { color: white; }"
-            "QLineEdit { color: white; background-color: #3a3a3a; }"
-            "QSpinBox { color: white; background-color: #3a3a3a; }"
-            "QDialogButtonBox QPushButton { color: white; }"
-        )
+        System.setStyle(self, "mapEdit.qss")
         self.nameEdit = QtWidgets.QLineEdit(self)
         self.nameEdit.setText(old_name)
         self.wSpin = QtWidgets.QSpinBox(self)
@@ -35,11 +28,11 @@ class MapEditDialog(QtWidgets.QDialog):
         self.wSpin.setValue(max(1, old_w))
         self.hSpin.setValue(max(1, old_h))
         self.nameEdit.setStyleSheet("color: white;")
-        if hasattr(self.wSpin, "lineEdit") and self.wSpin.lineEdit():
+        if self.wSpin.lineEdit():
             self.wSpin.lineEdit().setStyleSheet("color: white;")
         else:
             self.wSpin.setStyleSheet("color: white;")
-        if hasattr(self.hSpin, "lineEdit") and self.hSpin.lineEdit():
+        if self.hSpin.lineEdit():
             self.hSpin.lineEdit().setStyleSheet("color: white;")
         else:
             self.hSpin.setStyleSheet("color: white;")

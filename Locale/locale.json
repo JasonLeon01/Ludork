@@ -1,7 +1,23 @@
 {
+    "ADD_TILESET": {
+        "zh_CN": "新增图块集",
+        "en_GB": "Add Tileset"
+    },
+    "ENTER_TILESET_FILE": {
+        "zh_CN": "请输入新图块集文件名",
+        "en_GB": "Enter new tileset file name"
+    },
+    "TILESET_EXISTS": {
+        "zh_CN": "图块集已存在",
+        "en_GB": "Tileset already exists"
+    },
     "FILE_NAME": {
         "zh_CN": "文件名",
         "en_GB": "File Name"
+    },
+    "TILESET_NAME": {
+        "zh_CN": "图块集名称",
+        "en_GB": "Tileset Name"
     },
     "PASSABLE": {
         "zh_CN": "通行",

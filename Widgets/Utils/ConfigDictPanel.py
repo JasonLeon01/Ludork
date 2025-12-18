@@ -1,7 +1,7 @@
 from typing import Any, List, Tuple
 import os
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Utils import Locale
+from Utils import Locale, System
 import EditorStatus
 from .FileSelectorDialog import FileSelectorDialog
 import Data
@@ -17,16 +17,7 @@ class ConfigDictPanel(QtWidgets.QWidget):
         self._data = data
         self.setObjectName("ConfigDictPanel")
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
-        self.setStyleSheet(
-            "QWidget#ConfigDictPanel { background-color: #2b2b2b; border: 1px solid #606060; border-radius: 6px; }"
-            "QLabel { color: white; }"
-            "QLineEdit { color: white; background-color: #3a3a3a; }"
-            "QLineEdit:read-only { color: #cccccc; background-color: #4a4a4a; }"
-            "QPushButton { color: white; background-color: #3a3a3a; border: 1px solid #606060; border-radius: 4px; padding: 4px 8px; }"
-            "QPushButton:hover { background-color: #4a4a4a; }"
-            "QPushButton#MinusBtn { color: white; background-color: #3a1f1f; border: 1px solid #c0392b; border-radius: 4px; padding: 4px 8px; }"
-            "QPushButton#MinusBtn:hover { background-color: #5a2f2f; }"
-        )
+        System.setStyle(self, "config.qss")
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(8)

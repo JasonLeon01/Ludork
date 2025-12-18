@@ -1,15 +1,17 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Optional
+import io
+from typing import Optional, Union
 from PyQt5 import QtCore, QtGui, QtWidgets
+from psutil import Popen
 from Utils import Locale, Panel
 
 
 class PipeReader(QtCore.QThread):
     new_line = QtCore.pyqtSignal(str, str)
 
-    def __init__(self, stream, level_override: Optional[str] = None):
+    def __init__(self, stream: Union[io.BufferedReader, io.TextIOWrapper], level_override: Optional[str] = None):
         super().__init__()
         self._stream = stream
         self._level_override = level_override
@@ -36,8 +38,7 @@ class PipeReader(QtCore.QThread):
     def stop(self) -> None:
         self._running = False
         try:
-            if hasattr(self._stream, "close"):
-                self._stream.close()
+            self._stream.close()
         except Exception as e:
             print(f"Error while closing pipe reader: {e}")
 
@@ -115,7 +116,7 @@ class ConsoleWidget(QtWidgets.QWidget):
             self._history_index = None
         return super().eventFilter(obj, event)
 
-    def attach_process(self, proc) -> None:
+    def attach_process(self, proc: Popen) -> None:
         self.detach_process()
         self._proc = proc
         self._stdout_reader = PipeReader(proc.stdout, None)

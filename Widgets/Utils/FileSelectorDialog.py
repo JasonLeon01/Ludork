@@ -1,23 +1,13 @@
 import os
 from PyQt5 import QtCore, QtWidgets
+from Utils import System
 
 
 class FileSelectorDialog(QtWidgets.QFileDialog):
     def __init__(self, parent: QtWidgets.QWidget, root: str, filter_str: str, title: str = "Select File") -> None:
         super().__init__(parent, title, root, filter_str)
         self._root = os.path.abspath(root)
-        self.setStyleSheet(
-            "QFileDialog { color: white; }"
-            "QLabel { color: white; }"
-            "QComboBox { color: white; background-color: #3a3a3a; }"
-            "QComboBox QAbstractItemView { color: white; background-color: #3a3a3a; }"
-            "QLineEdit { color: white; background-color: #3a3a3a; }"
-            "QToolButton { color: white; background-color: #3a3a3a; border: 1px solid #606060; border-radius: 4px; padding: 4px; }"
-            "QToolButton:hover { background-color: #4a4a4a; }"
-            "QToolButton:checked { background-color: #5a5a5a; }"
-            "QPushButton { color: white; }"
-            "QListView, QTreeView { color: white; background-color: #2b2b2b; }"
-        )
+        System.setStyle(self, "fileSelector.qss")
         self.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
         self.setOption(QtWidgets.QFileDialog.ReadOnly, True)
         self.setFileMode(QtWidgets.QFileDialog.ExistingFile)

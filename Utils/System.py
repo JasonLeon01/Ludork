@@ -1,5 +1,8 @@
 # -*- encoding: utf-8 -*-
 
+import os
+from PyQt5 import QtCore, QtWidgets
+
 
 def already_packed() -> bool:
     result = False
@@ -42,3 +45,17 @@ def get_title() -> str:
         print(f"Error while getting title: {e}")
         result = " - ".join(titles)
     return result
+
+
+def applyStyle(widget: QtWidgets.QWidget, fileName: str) -> None:
+    qss_path = os.path.join("Styles", fileName)
+    if os.path.exists(qss_path):
+        with open(qss_path, "r", encoding="utf-8") as f:
+            widget.setStyleSheet(widget.styleSheet() + "\n" + f.read())
+
+
+def setStyle(widget: QtWidgets.QWidget, fileName: str) -> None:
+    qss_path = os.path.join("Styles", fileName)
+    if os.path.exists(qss_path):
+        with open(qss_path, "r", encoding="utf-8") as f:
+            widget.setStyleSheet(f.read())

@@ -1,16 +1,20 @@
 # -*- encoding: utf-8 -*-
 
+from __future__ import annotations
 import os
 import sys
 import json
 import pickle
 import shutil
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, TYPE_CHECKING
 from PyQt5 import QtCore, QtGui, QtWidgets
 from . import System
 
-mainWindow: QtWidgets.QMainWindow = None
+if TYPE_CHECKING:
+    from W_MainWindow import MainWindow
+
+mainWindow: MainWindow = None
 
 
 def getRootPath() -> str:

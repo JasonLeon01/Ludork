@@ -2,7 +2,7 @@
 
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Utils import Locale, File
+from Utils import Locale, File, System
 import EditorStatus
 
 
@@ -36,13 +36,8 @@ class StartWindow(QtWidgets.QWidget):
         self._btnNew.clicked.connect(self._onNewProject)
         self._btnOpen.clicked.connect(self._onOpenProject)
 
-        btn_style = (
-            "QPushButton { background-color: #1f1f1f; color: white; border: 1px solid #3a3a3a; border-radius: 6px; padding: 10px; font-size: 18px; }"
-            + "\nQPushButton:hover { background-color: rgba(255,255,255,150); color: #111; border: 2px solid rgba(255,255,255,220); }"
-            + "\nQPushButton:pressed { background-color: rgba(255,255,255,200); color: #111; border: 2px solid rgba(255,255,255,240); padding-top: 12px; padding-bottom: 8px; }"
-        )
-        self._btnNew.setStyleSheet(btn_style)
-        self._btnOpen.setStyleSheet(btn_style)
+        System.setStyle(self._btnNew, "starterBtn.qss")
+        System.setStyle(self._btnOpen, "starterBtn.qss")
 
         self.setStyleSheet("background-color: #121212; color: white;")
 

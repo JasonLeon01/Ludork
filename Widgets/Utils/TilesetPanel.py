@@ -2,6 +2,7 @@
 
 from PyQt5 import QtWidgets, QtGui, QtCore
 import os
+from enum import Enum
 import EditorStatus
 import Data
 from Utils import Locale, System, File
@@ -9,12 +10,17 @@ from .FileSelectorDialog import FileSelectorDialog
 from .SingleRowDialog import SingleRowDialog
 
 
+class TilesetMode(Enum):
+    PASSABLE = 0
+    LIGHTBLOCK = 1
+
+
 class TilesetImageView(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._image = None
         self._data = None
-        self._mode = 0  # 0: Passable, 1: LightBlock
+        self._mode = TilesetMode.PASSABLE
         self._key = None
         self.setMouseTracking(True)
 
@@ -29,7 +35,10 @@ class TilesetImageView(QtWidgets.QWidget):
         self.update()
 
     def setMode(self, mode):
-        self._mode = mode
+        if isinstance(mode, int):
+            self._mode = TilesetMode(mode)
+        else:
+            self._mode = mode
         self.update()
 
     def setTilesetKey(self, key):
@@ -65,7 +74,7 @@ class TilesetImageView(QtWidgets.QWidget):
                     y = (i // cols) * cell_size
                     rect = QtCore.QRect(x, y, cell_size, cell_size)
 
-                    if self._mode == 0:
+                    if self._mode == TilesetMode.PASSABLE:
                         passable_arr = getattr(self._data, "passable", [])
                         val = False
                         if i < len(passable_arr):
@@ -81,7 +90,7 @@ class TilesetImageView(QtWidgets.QWidget):
                             painter.drawLine(draw_rect.topLeft(), draw_rect.bottomRight())
                             painter.drawLine(draw_rect.topRight(), draw_rect.bottomLeft())
 
-                    elif self._mode == 1:
+                    elif self._mode == TilesetMode.LIGHTBLOCK:
                         lb_arr = getattr(self._data, "lightBlock", [])
                         val = 0.0
                         if i < len(lb_arr):
@@ -114,7 +123,7 @@ class TilesetImageView(QtWidgets.QWidget):
             return
         idx = gy * cols + gx
         count = cols * rows
-        if self._mode == 0:
+        if self._mode == TilesetMode.PASSABLE:
             arr = getattr(self._data, "passable", None)
             if not isinstance(arr, list):
                 arr = []
@@ -133,7 +142,15 @@ class TilesetImageView(QtWidgets.QWidget):
             init_text = ("{:.6f}".format(current)).rstrip("0").rstrip(".")
             if not init_text:
                 init_text = "0"
-            dlg = SingleRowDialog(self.parent(), Locale.getContent("LIGHT_BLOCK"), Locale.getContent("LIGHT_BLOCK"), init_text, input_mode="number", min_value=0.0, max_value=1.0)
+            dlg = SingleRowDialog(
+                self.parent(),
+                Locale.getContent("LIGHT_BLOCK"),
+                Locale.getContent("LIGHT_BLOCK"),
+                init_text,
+                input_mode="number",
+                min_value=0.0,
+                max_value=1.0,
+            )
             ok, text = dlg.execGetText()
             if ok:
                 t = text.strip()
@@ -160,6 +177,8 @@ class TilesetImageView(QtWidgets.QWidget):
 class TilesetPanel(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
+        System.setStyle(self, "config.qss")
         self._data = None
         self._initUI()
 
@@ -169,16 +188,20 @@ class TilesetPanel(QtWidgets.QWidget):
         layout.setSpacing(5)
 
         file_row = QtWidgets.QHBoxLayout()
+        self.nameLabel = QtWidgets.QLabel(Locale.getContent("TILESET_NAME"))
+        self.nameEdit = QtWidgets.QLineEdit()
+        self.nameEdit.textEdited.connect(self._onNameChanged)
+
         self.fileLabel = QtWidgets.QLabel(Locale.getContent("FILE_NAME"))
-        self.fileLabel.setStyleSheet("color: white;")
         self.fileEdit = QtWidgets.QLineEdit()
         self.fileEdit.setReadOnly(True)
-        self.fileEdit.setStyleSheet("QLineEdit { color: #cccccc; background-color: #4a4a4a; border: 1px solid #606060; border-radius: 4px; padding: 2px; }")
         self.fileBtn = QtWidgets.QPushButton()
         self.fileBtn.setText("...")
-        self.fileBtn.setStyleSheet("QPushButton { color: white; background-color: #3a3a3a; border: 1px solid #606060; border-radius: 4px; padding: 4px 8px; } QPushButton:hover { background-color: #4a4a4a; }")
         self.fileBtn.clicked.connect(self._onBrowseFile)
 
+        file_row.addWidget(self.nameLabel)
+        file_row.addWidget(self.nameEdit)
+        file_row.addSpacing(10)
         file_row.addWidget(self.fileLabel)
         file_row.addWidget(self.fileEdit)
         file_row.addWidget(self.fileBtn)
@@ -203,20 +226,39 @@ class TilesetPanel(QtWidgets.QWidget):
     def setTilesetData(self, tileset_data):
         self._data = tileset_data
         self._key = None
-        if hasattr(Data, "GameData") and hasattr(Data.GameData, "tilesetData"):
-            for k, v in Data.GameData.tilesetData.items():
-                if v is tileset_data or (tileset_data and v.fileName == tileset_data.fileName):
-                    self._key = k
-                    break
-        if not tileset_data or not hasattr(tileset_data, "fileName"):
+        for k, v in Data.GameData.tilesetData.items():
+            if v is tileset_data or (tileset_data and v.fileName == tileset_data.fileName):
+                self._key = k
+                break
+        if not tileset_data:
+            self.nameEdit.clear()
             self.fileEdit.clear()
             self.imageView.setData(None, None)
             return
+        p = None
+        if tileset_data.fileName:
+            p = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Tilesets", tileset_data.fileName)
+            if not os.path.exists(p):
+                tileset_data.fileName = ""
+                p = None
+                if self._key:
+                    Data.GameData.markTilesetModified(self._key)
+                    if getattr(File, "mainWindow", None):
+                        File.mainWindow.setWindowTitle(System.get_title())
+
+        self.nameEdit.setText(getattr(tileset_data, "name", ""))
         self.fileEdit.setText(tileset_data.fileName)
-        p = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Tilesets", tileset_data.fileName)
         self.imageView.setData(tileset_data, p)
         self.imageView.setTilesetKey(self._key)
         self.imageView.setMode(self.modeList.currentRow())
+
+    def _onNameChanged(self, text):
+        if self._data:
+            self._data.name = text
+            if self._key:
+                Data.GameData.markTilesetModified(self._key)
+                if getattr(File, "mainWindow", None):
+                    File.mainWindow.setWindowTitle(System.get_title())
 
     def _onModeChanged(self, row):
         self.imageView.setMode(row)
@@ -258,12 +300,8 @@ class TilesetPanel(QtWidgets.QWidget):
                 Data.GameData.markTilesetModified(self._key)
                 if getattr(File, "mainWindow", None):
                     File.mainWindow.setWindowTitle(System.get_title())
-                    if hasattr(File.mainWindow, "editorPanel"):
-                        File.mainWindow.editorPanel._renderFromMapData()
-                        File.mainWindow.editorPanel.update()
-                    if hasattr(File.mainWindow, "tileSelect"):
-                        ts = File.mainWindow.tileSelect
-                        ts.setCurrentTilesetKey(self._key)
-                        ts._onTilesetRowChanged(ts._topList.currentRow())
-                        ts.clearSelection()
+                    File.mainWindow.editorPanel._renderFromMapData()
+                    File.mainWindow.editorPanel.update()
+                    ts = File.mainWindow.tileSelect
+                    ts.initTilesets()
             self.setTilesetData(self._data)

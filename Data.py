@@ -59,6 +59,8 @@ class GameData:
         cls.modifiedMaps = []
         cls.modifiedSystemConfigs = []
         cls.modifiedTilesets = []
+        cls.addedTilesets = []
+        cls.deletedTilesets = []
 
     @classmethod
     def markMapModified(cls, key: str) -> None:
@@ -130,6 +132,26 @@ class GameData:
             return
         if key not in getattr(cls, "modifiedTilesets", []):
             cls.modifiedTilesets.append(key)
+    @classmethod
+    def markTilesetAdded(cls, key: str) -> None:
+        if not key:
+            return
+        if key in getattr(cls, "deletedTilesets", []):
+            cls.deletedTilesets.remove(key)
+            return
+        if key not in getattr(cls, "addedTilesets", []):
+            cls.addedTilesets.append(key)
+    @classmethod
+    def markTilesetDeleted(cls, key: str) -> None:
+        if not key:
+            return
+        if key in getattr(cls, "addedTilesets", []):
+            cls.addedTilesets.remove(key)
+            if key in getattr(cls, "modifiedTilesets", []):
+                cls.modifiedTilesets.remove(key)
+            return
+        if key not in getattr(cls, "deletedTilesets", []):
+            cls.deletedTilesets.append(key)
 
     @classmethod
     def saveModifiedTilesets(cls):
@@ -153,7 +175,17 @@ class GameData:
                 saved.append(key)
             except Exception:
                 failed.append(key)
+        for key in list(getattr(cls, "deletedTilesets", [])):
+            fp = os.path.join(tilesetsRoot, f"{key}.dat")
+            try:
+                if os.path.exists(fp):
+                    os.remove(fp)
+                saved.append(key)
+            except Exception:
+                failed.append(key)
         cls.modifiedTilesets.clear()
+        cls.addedTilesets.clear()
+        cls.deletedTilesets.clear()
         if failed:
             return False, "[" + ", ".join(failed) + "]"
         return True, "[" + ", ".join(saved) + "]"

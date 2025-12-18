@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets, QtGui
-from Utils import Locale
+from Utils import Locale, System
 
 
 class SingleRowDialog(QtWidgets.QDialog):
@@ -18,12 +18,7 @@ class SingleRowDialog(QtWidgets.QDialog):
         layout = QtWidgets.QFormLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
-        self.setStyleSheet(
-            "QDialog { background-color: #2b2b2b; }"
-            "QLabel { color: white; }"
-            "QLineEdit { color: white; background-color: #3a3a3a; }"
-            "QDialogButtonBox QPushButton { color: white; }"
-        )
+        System.setStyle(self, "singleRow.qss")
         self.input = QtWidgets.QLineEdit(self)
         if isinstance(initial_text, str):
             self.input.setText(initial_text)

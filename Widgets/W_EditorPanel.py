@@ -208,7 +208,7 @@ class EditorPanel(QtWidgets.QWidget):
             for x in range(width):
                 row.append(None)
             tiles.append(row)
-        keys = list(Data.GameData.tilesetData.keys()) if hasattr(Data, "GameData") else []
+        keys = list(Data.GameData.tilesetData.keys())
         ts_key = keys[0] if keys else None
         ts = Data.GameData.tilesetData.get(ts_key) if ts_key else None
         layer = TileLayerData(
@@ -246,6 +246,20 @@ class EditorPanel(QtWidgets.QWidget):
         self._renderFromMapData()
         self.update()
         return True
+
+    def reorderLayers(self, new_order: List[str]) -> None:
+        if self.mapData is None:
+            return
+        new_layers = {name: self.mapData.layers[name] for name in new_order}
+        self.mapData.layers = new_layers
+        if self.mapKey and self.mapKey in Data.GameData.mapData:
+            game_layers = Data.GameData.mapData[self.mapKey].get("layers", {})
+            new_game_layers = {name: game_layers[name] for name in new_order}
+            Data.GameData.mapData[self.mapKey]["layers"] = new_game_layers
+        Data.GameData.markMapModified(self.mapKey)
+        self._refreshTitle()
+        self._renderFromMapData()
+        self.update()
 
     def paintEvent(self, e: QtGui.QPaintEvent) -> None:
         p = QtGui.QPainter(self)

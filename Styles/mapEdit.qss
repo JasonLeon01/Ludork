@@ -1,0 +1,5 @@
+QDialog { background-color: #2b2b2b; }
+QLabel { color: white; }
+QLineEdit { color: white; background-color: #3a3a3a; }
+QSpinBox { color: white; background-color: #3a3a3a; }
+QDialogButtonBox QPushButton { color: white; }
