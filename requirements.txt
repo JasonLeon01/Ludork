@@ -3,3 +3,4 @@ qt-material==2.14.0
 psutil
 pympler
 nuitka
+av

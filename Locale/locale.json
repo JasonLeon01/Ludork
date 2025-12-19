@@ -1,4 +1,16 @@
 {
+    "HELP": {
+        "zh_CN": "帮助",
+        "en_GB": "Help"
+    },
+    "HELP_EXPLANATION": {
+        "zh_CN": "说明",
+        "en_GB": "Contents"
+    },
+    "HELP_SETTINGS": {
+        "zh_CN": "设置",
+        "en_GB": "Settings"
+    },
     "ADD_TILESET": {
         "zh_CN": "新增图块集",
         "en_GB": "Add Tileset"

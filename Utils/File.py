@@ -26,7 +26,7 @@ def getRootPath() -> str:
 def getIniPath() -> str:
     import EditorStatus
 
-    if System.already_packed() and os.name == "posix":
+    if System.already_packed() and sys.platform == "darwin":
         path = Path.home() / "Library" / "Application Support" / EditorStatus.APP_NAME
         path.mkdir(parents=True, exist_ok=True)
         return str(path)
@@ -36,9 +36,9 @@ def getIniPath() -> str:
 def getUserPath() -> str:
     import EditorStatus
 
-    if os.name == "nt":
+    if sys.platform == "win32":
         return os.path.join(os.getenv("APPDATA"), EditorStatus.APP_NAME)
-    elif os.name == "posix":
+    elif sys.platform == "darwin":
         path = Path.home() / "Library" / "Application Support" / EditorStatus.APP_NAME
     else:
         print("Unsupported platform")

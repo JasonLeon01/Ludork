@@ -59,6 +59,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self._sizesInitialized = False
         self._hasShown = False
 
+        self._actNewProject = QtWidgets.QAction(Locale.getContent("NEW_PROJECT"), self)
+        self._actOpenProject = QtWidgets.QAction(Locale.getContent("OPEN_PROJECT"), self)
+        self._actSave = QtWidgets.QAction(Locale.getContent("SAVE"), self)
+        self._actExit = QtWidgets.QAction(Locale.getContent("EXIT"), self)
+        self._actDatabaseSystemConfig = QtWidgets.QAction(Locale.getContent("SYSTEM_CONFIG"), self)
+        self._actDatabaseTilesetsData = QtWidgets.QAction(Locale.getContent("TILESETS_DATA"), self)
+        self._actDatabaseCommonFunctions = QtWidgets.QAction(Locale.getContent("COMMON_FUNCTIONS"), self)
+        self._actDatabaseScripts = QtWidgets.QAction(Locale.getContent("SCRIPTS"), self)
+        self._actHelpExplanation = QtWidgets.QAction(Locale.getContent("HELP_EXPLANATION"), self)
+        self._actHelpSettings = QtWidgets.QAction(Locale.getContent("HELP_SETTINGS"), self)
+
         self.setProjPath(EditorStatus.PROJ_PATH)
         self._setStyle()
         self._initProjConfigAndSelection()
@@ -482,16 +493,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _setTopMenu(self) -> None:
         _fileMenu = self._menuBar.addMenu(Locale.getContent("FILE"))
-        self._actNewProject = QtWidgets.QAction(Locale.getContent("NEW_PROJECT"), self)
         self._actNewProject.setShortcut(QtGui.QKeySequence.StandardKey.New)
         self._actNewProject.triggered.connect(self._onNewProject)
-        self._actOpenProject = QtWidgets.QAction(Locale.getContent("OPEN_PROJECT"), self)
         self._actOpenProject.setShortcut(QtGui.QKeySequence.StandardKey.Open)
         self._actOpenProject.triggered.connect(self._onOpenProject)
-        self._actSave = QtWidgets.QAction(Locale.getContent("SAVE"), self)
         self._actSave.setShortcut(QtGui.QKeySequence.StandardKey.Save)
         self._actSave.triggered.connect(self._onSave)
-        self._actExit = QtWidgets.QAction(Locale.getContent("EXIT"), self)
         self._actExit.setShortcut(QtGui.QKeySequence.StandardKey.Close)
         self._actExit.triggered.connect(self._onExit)
         _fileMenu.addAction(self._actNewProject)
@@ -500,22 +507,26 @@ class MainWindow(QtWidgets.QMainWindow):
         _fileMenu.addAction(self._actExit)
 
         _dbMenu = self._menuBar.addMenu(Locale.getContent("DATABASE"))
-        self._actDatabaseSystemConfig = QtWidgets.QAction(Locale.getContent("SYSTEM_CONFIG"), self)
         self._actDatabaseSystemConfig.triggered.connect(self._onDatabaseSystemConfig)
         self._actDatabaseSystemConfig.setShortcut(QtGui.QKeySequence("F8"))
-        self._actDatabaseTilesetsData = QtWidgets.QAction(Locale.getContent("TILESETS_DATA"), self)
         self._actDatabaseTilesetsData.triggered.connect(self._onDatabaseTilesetsData)
         self._actDatabaseTilesetsData.setShortcut(QtGui.QKeySequence("F9"))
-        self._actDatabaseCommonFunctions = QtWidgets.QAction(Locale.getContent("COMMON_FUNCTIONS"), self)
         self._actDatabaseCommonFunctions.triggered.connect(self._onDatabaseCommonFunctions)
         self._actDatabaseCommonFunctions.setShortcut(QtGui.QKeySequence("F10"))
-        self._actDatabaseScripts = QtWidgets.QAction(Locale.getContent("SCRIPTS"), self)
         self._actDatabaseScripts.triggered.connect(self._onDatabaseScripts)
         self._actDatabaseScripts.setShortcut(QtGui.QKeySequence("F11"))
         _dbMenu.addAction(self._actDatabaseSystemConfig)
         _dbMenu.addAction(self._actDatabaseTilesetsData)
         _dbMenu.addAction(self._actDatabaseCommonFunctions)
         _dbMenu.addAction(self._actDatabaseScripts)
+
+        _helpMenu = self._menuBar.addMenu(Locale.getContent("HELP"))
+        self._actHelpExplanation.triggered.connect(self._onHelpExplanation)
+        self._actHelpExplanation.setShortcut(QtGui.QKeySequence("F1"))
+        self._actHelpSettings.triggered.connect(self._onHelpSettings)
+        self._actHelpSettings.setShortcut(QtGui.QKeySequence("F12"))
+        _helpMenu.addAction(self._actHelpExplanation)
+        _helpMenu.addAction(self._actHelpSettings)
 
     def _onEditMap(self, mapKey: str) -> None:
         import Data
@@ -668,9 +679,10 @@ class MainWindow(QtWidgets.QMainWindow):
                     self._refreshLayerBar()
 
     def _getExec(self, scriptPath):
+        individual = str(self._projConfig.get("IndividualWindow", False))
         if System.already_packed():
-            return [sys.argv[0], scriptPath, str(self._panelHandle)]
-        return [sys.executable, "-u", scriptPath, str(self._panelHandle)]
+            return [sys.argv[0], scriptPath, str(self._panelHandle), individual]
+        return [sys.executable, "-u", scriptPath, str(self._panelHandle), individual]
 
     def _initProjConfigAndSelection(self) -> None:
         root = EditorStatus.PROJ_PATH
@@ -695,6 +707,24 @@ class MainWindow(QtWidgets.QMainWindow):
             except Exception as e:
                 print(f"Error while loading project config {chosen}: {e}")
                 self._projConfig = {}
+
+        modified = False
+        if "IndividualWindow" not in self._projConfig:
+            self._projConfig["IndividualWindow"] = False
+            modified = True
+
+        if sys.platform == "darwin":
+            if not self._projConfig["IndividualWindow"]:
+                self._projConfig["IndividualWindow"] = True
+                modified = True
+
+        if modified and chosen:
+            try:
+                with open(chosen, "w", encoding="utf-8") as f:
+                    json.dump(self._projConfig, f, ensure_ascii=False, indent=4)
+            except Exception as e:
+                print(f"Error saving project config: {e}")
+
         last = None
         if isinstance(self._projConfig, dict):
             last = self._projConfig.get("lastMap")
@@ -768,4 +798,10 @@ class MainWindow(QtWidgets.QMainWindow):
         pass
 
     def _onDatabaseScripts(self, checked: bool = False) -> None:
+        pass
+
+    def _onHelpExplanation(self, checked: bool = False) -> None:
+        pass
+
+    def _onHelpSettings(self, checked: bool = False) -> None:
         pass

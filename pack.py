@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 VENV_NAME = "LudorkEnv"
-PYTHON = ROOT / VENV_NAME / ("Scripts/python.exe" if os.name == "nt" else "bin/python3")
+PYTHON = ROOT / VENV_NAME / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python3")
 OUTDIR = ROOT / "build"
 
 APP_NAME = "Ludork"
@@ -27,13 +27,13 @@ FLAGS = [
     "--lto=yes",
 ]
 
-if os.name == "nt":
+if sys.platform == "win32":
     ICON = ROOT / "Resource" / "icon.ico"
     if ICON.exists():
         FLAGS.append(f"--windows-icon-from-ico={ICON}")
     FLAGS.append("--windows-console-mode=disable")
     FLAGS.append("--standalone")
-elif os.name == "posix":
+elif sys.platform == "darwin":
     ICON = ROOT / "Resource" / "icon.icns"
     if ICON.exists():
         FLAGS.append(f"--macos-app-icon={ICON}")
@@ -42,7 +42,7 @@ elif os.name == "posix":
     FLAGS.append(f"--macos-app-name={APP_NAME}")
     FLAGS.append(f"--output-filename={APP_NAME}")
 else:
-    print("Unsupported OS:", os.name)
+    print("Unsupported OS:", sys.platform)
     sys.exit(1)
 
 
@@ -70,19 +70,35 @@ def main():
     entry_script = ROOT / "main.py"
     run([PYTHON, "-m", "nuitka", *FLAGS, str(entry_script)])
 
+    print("[INFO] Generating locale files...")
+    run([PYTHON, ROOT / "localeTransfer.py", ROOT / "Locale" / "locale.json"])
+
     for folder_name in ("Locale", "Sample"):
         src = ROOT / folder_name
-        if os.name == "nt":
+        if sys.platform == "win32":
             dst = OUTDIR / "main.dist" / folder_name
         else:
             dst = OUTDIR / "main.app" / "Contents" / "MacOS" / folder_name
         if src.exists():
             if dst.exists():
                 shutil.rmtree(dst)
-            shutil.copytree(src, dst)
+
+            ignore_func = None
+            if folder_name == "Locale":
+                ignore_func = shutil.ignore_patterns("locale.json")
+
+            shutil.copytree(src, dst, ignore=ignore_func)
             print(f"[INFO] Copied {folder_name} to {dst}")
 
-    if os.name == "posix":
+            if folder_name == "Sample":
+                proj_file = dst / "Main.proj"
+                if proj_file.exists():
+                    os.remove(proj_file)
+                with open(proj_file, "w", encoding="utf-8") as f:
+                    f.write("{}")
+                print(f"[INFO] Created clean Main.proj in {dst}")
+
+    if sys.platform == "darwin":
         app = OUTDIR / f"{APP_NAME}.app"
         if app.exists():
             shutil.rmtree(app)

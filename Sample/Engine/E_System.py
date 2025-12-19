@@ -125,9 +125,10 @@ class System:
             int(cls._gameSize.x * cls._scale),
             int(cls._gameSize.y * cls._scale),
         )
-        handle: Optional[int] = os.environ.get("WINDOWHANDLE")
+        handle: Optional[str] = os.environ.get("WINDOWHANDLE")
+        individual: Optional[str] = os.environ.get("INDIVIDUAL")
         cls._debugMode = handle is not None
-        if handle and os.name == "nt":
+        if handle and individual != "True":
             cls._window = RenderWindow(int(handle), settings=ContextSettings(antiAliasingLevel=8))
             windowSize = cls._window.getSize()
             cls._scale = min(windowSize.x / cls._gameSize.x, windowSize.y / cls._gameSize.y)

@@ -38,6 +38,8 @@ def get_title() -> str:
                         bool(getattr(Data.GameData, "modifiedMaps", []))
                         or bool(getattr(Data.GameData, "modifiedSystemConfigs", []))
                         or bool(getattr(Data.GameData, "modifiedTilesets", []))
+                        or bool(getattr(Data.GameData, "addedTilesets", []))
+                        or bool(getattr(Data.GameData, "deletedTilesets", []))
                     )
                     if mods:
                         result += " *"

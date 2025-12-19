@@ -1,12 +1,22 @@
 # -*- encoding: utf-8 -*-
 
 import os
+from typing import Any, Dict, List
 from Utils import File
 import importlib
 import EditorStatus
 
 
 class GameData:
+    systemConfigData: Dict[str, Any]
+    tilesetData: Dict[str, Any]
+    mapData: Dict[str, Any]
+    modifiedMaps: List[Any]
+    modifiedSystemConfigs: List[Any]
+    modifiedTilesets: List[Any]
+    addedTilesets: List[Any]
+    deletedTilesets: List[Any]
+
     @classmethod
     def init(cls) -> None:
         Engine = importlib.import_module("Engine")
@@ -72,23 +82,20 @@ class GameData:
     @classmethod
     def saveModifiedMaps(cls):
         mapsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
-        saved = []
-        failed = []
+        details = {"A": [], "U": [], "D": [], "Failed": []}
         for key in list(getattr(cls, "modifiedMaps", [])):
             data = cls.mapData.get(key)
             if data is None:
-                failed.append(key)
+                details["Failed"].append(key)
                 continue
             fp = os.path.join(mapsRoot, key)
             try:
                 File.saveData(fp, data)
-                saved.append(key)
+                details["U"].append(key)
             except Exception:
-                failed.append(key)
+                details["Failed"].append(key)
         cls.modifiedMaps.clear()
-        if failed:
-            return False, "[" + ", ".join(failed) + "]"
-        return True, "[" + ", ".join(saved) + "]"
+        return not bool(details["Failed"]), details
 
     @classmethod
     def markSystemConfigModified(cls, name: str) -> None:
@@ -100,12 +107,11 @@ class GameData:
     @classmethod
     def saveModifiedSystemConfigs(cls):
         configsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Configs")
-        saved = []
-        failed = []
+        details = {"A": [], "U": [], "D": [], "Failed": []}
         for name in list(getattr(cls, "modifiedSystemConfigs", [])):
             data = cls.systemConfigData.get(name)
             if not isinstance(data, dict):
-                failed.append(name)
+                details["Failed"].append(name)
                 continue
             is_json = bool(data.get("isJson"))
             try:
@@ -118,13 +124,11 @@ class GameData:
                 else:
                     fp = os.path.join(configsRoot, f"{name}.dat")
                     File.saveData(fp, data)
-                saved.append(name)
+                details["U"].append(name)
             except Exception:
-                failed.append(name)
+                details["Failed"].append(name)
         cls.modifiedSystemConfigs.clear()
-        if failed:
-            return False, "[" + ", ".join(failed) + "]"
-        return True, "[" + ", ".join(saved) + "]"
+        return not bool(details["Failed"]), details
 
     @classmethod
     def markTilesetModified(cls, key: str) -> None:
@@ -132,6 +136,7 @@ class GameData:
             return
         if key not in getattr(cls, "modifiedTilesets", []):
             cls.modifiedTilesets.append(key)
+
     @classmethod
     def markTilesetAdded(cls, key: str) -> None:
         if not key:
@@ -141,6 +146,7 @@ class GameData:
             return
         if key not in getattr(cls, "addedTilesets", []):
             cls.addedTilesets.append(key)
+
     @classmethod
     def markTilesetDeleted(cls, key: str) -> None:
         if not key:
@@ -156,12 +162,13 @@ class GameData:
     @classmethod
     def saveModifiedTilesets(cls):
         tilesetsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Tilesets")
-        saved = []
-        failed = []
+        details = {"A": [], "U": [], "D": [], "Failed": []}
+        added_set = set(getattr(cls, "addedTilesets", []))
+
         for key in list(getattr(cls, "modifiedTilesets", [])):
             ts = cls.tilesetData.get(key)
             if ts is None:
-                failed.append(key)
+                details["Failed"].append(key)
                 continue
             payload = {
                 "name": ts.name,
@@ -172,35 +179,48 @@ class GameData:
             fp = os.path.join(tilesetsRoot, f"{key}.dat")
             try:
                 File.saveData(fp, payload)
-                saved.append(key)
+                if key in added_set:
+                    details["A"].append(key)
+                else:
+                    details["U"].append(key)
             except Exception:
-                failed.append(key)
+                details["Failed"].append(key)
+
         for key in list(getattr(cls, "deletedTilesets", [])):
             fp = os.path.join(tilesetsRoot, f"{key}.dat")
             try:
                 if os.path.exists(fp):
                     os.remove(fp)
-                saved.append(key)
+                details["D"].append(key)
             except Exception:
-                failed.append(key)
+                details["Failed"].append(key)
+
         cls.modifiedTilesets.clear()
         cls.addedTilesets.clear()
         cls.deletedTilesets.clear()
-        if failed:
-            return False, "[" + ", ".join(failed) + "]"
-        return True, "[" + ", ".join(saved) + "]"
+        return not bool(details["Failed"]), details
 
     @classmethod
     def saveAllModified(cls):
-        ok_maps, msg_maps = cls.saveModifiedMaps()
-        ok_cfgs, msg_cfgs = cls.saveModifiedSystemConfigs()
-        ok_ts, msg_ts = cls.saveModifiedTilesets()
+        ok_maps, det_maps = cls.saveModifiedMaps()
+        ok_cfgs, det_cfgs = cls.saveModifiedSystemConfigs()
+        ok_ts, det_ts = cls.saveModifiedTilesets()
+
         ok = ok_maps and ok_cfgs and ok_ts
-        parts = []
-        if msg_maps:
-            parts.append("Maps: " + msg_maps)
-        if msg_cfgs:
-            parts.append("Configs: " + msg_cfgs)
-        if msg_ts:
-            parts.append("Tilesets: " + msg_ts)
-        return ok, "; ".join(parts)
+
+        final_details = {"A": [], "U": [], "D": [], "Failed": []}
+        for d in [det_maps, det_cfgs, det_ts]:
+            for k in final_details:
+                final_details[k].extend(d[k])
+
+        lines = []
+        if final_details["A"]:
+            lines.append(f"A [{', '.join(final_details['A'])}]")
+        if final_details["U"]:
+            lines.append(f"U [{', '.join(final_details['U'])}]")
+        if final_details["D"]:
+            lines.append(f"D [{', '.join(final_details['D'])}]")
+        if final_details["Failed"]:
+            lines.append(f"Failed [{', '.join(final_details['Failed'])}]")
+
+        return ok, "\n" + "\n".join(lines)
