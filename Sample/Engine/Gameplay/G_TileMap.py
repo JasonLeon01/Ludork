@@ -87,29 +87,9 @@ class TileLayer(Drawable, Transformable):
         tileSize = GetCellSize()
         columns = self._texture.getSize().x // tileSize
 
-        for y in range(self._height):
-            for x in range(self._width):
-                tileNumber = self._data.tiles[y][x]
-                if tileNumber is None:
-                    continue
+        from .TilemapExtension import calculateVertexArray
 
-                tu = tileNumber % columns
-                tv = tileNumber // columns
-                start = (x + y * self._width) * 6
-
-                self._vertexArray[start + 0].position = Vector2f(x * tileSize, y * tileSize)
-                self._vertexArray[start + 1].position = Vector2f((x + 1) * tileSize, y * tileSize)
-                self._vertexArray[start + 2].position = Vector2f(x * tileSize, (y + 1) * tileSize)
-                self._vertexArray[start + 3].position = Vector2f(x * tileSize, (y + 1) * tileSize)
-                self._vertexArray[start + 4].position = Vector2f((x + 1) * tileSize, y * tileSize)
-                self._vertexArray[start + 5].position = Vector2f((x + 1) * tileSize, (y + 1) * tileSize)
-
-                self._vertexArray[start + 0].texCoords = Vector2f(tu * tileSize, tv * tileSize)
-                self._vertexArray[start + 1].texCoords = Vector2f((tu + 1) * tileSize, tv * tileSize)
-                self._vertexArray[start + 2].texCoords = Vector2f(tu * tileSize, (tv + 1) * tileSize)
-                self._vertexArray[start + 3].texCoords = Vector2f(tu * tileSize, (tv + 1) * tileSize)
-                self._vertexArray[start + 4].texCoords = Vector2f((tu + 1) * tileSize, tv * tileSize)
-                self._vertexArray[start + 5].texCoords = Vector2f((tu + 1) * tileSize, (tv + 1) * tileSize)
+        calculateVertexArray(self._vertexArray, self._data.tiles, tileSize, columns, self._width, self._height)
 
 
 class Tilemap:

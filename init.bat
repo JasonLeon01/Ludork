@@ -1,6 +1,28 @@
 @echo off
 setlocal EnableDelayedExpansion
 cd /d "%~dp0"
+
+if exist "Sample\Engine\pysf" (
+  rmdir /S /Q "Sample\Engine\pysf"
+)
+
+echo Downloading PySF...
+powershell -Command "Invoke-WebRequest -Uri 'https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.2/pysf-3.0.1.2-Windows-x64.zip' -OutFile 'pysf.zip'"
+if errorlevel 1 (
+  echo Failed to download PySF.
+  exit /b 1
+)
+
+echo Extracting PySF...
+powershell -Command "Expand-Archive -Path 'pysf.zip' -DestinationPath 'Sample\Engine' -Force"
+if errorlevel 1 (
+  echo Failed to extract PySF.
+  del pysf.zip
+  exit /b 1
+)
+
+del pysf.zip
+
 set ENV_DIR=LudorkEnv
 set "PY_CMD=py -3.10"
 
@@ -25,8 +47,7 @@ if exist "%ENV_DIR%\Scripts\activate.bat" (
     rmdir /S /Q "%ENV_DIR%"
     goto CREATE_ENV
   )
-  python main.py
-  exit /b %errorlevel%
+  goto RUN_APP
 )
 
 :CREATE_ENV
@@ -41,6 +62,31 @@ python -m pip install -r requirements.txt
 if errorlevel 1 (
   rmdir /S /Q "%ENV_DIR%"
   exit /b 1
+)
+
+:RUN_APP
+if exist "C_Extentions" (
+  cd C_Extentions
+  for /D %%D in (*) do (
+    pushd "%%D"
+    echo Building extension in %%D...
+    python setup.py build
+    if errorlevel 1 (
+      echo Failed to build extension in %%D.
+      popd
+      cd ..
+      exit /b 1
+    )
+    python move.py
+    if errorlevel 1 (
+      echo Failed to move extension in %%D.
+      popd
+      cd ..
+      exit /b 1
+    )
+    popd
+  )
+  cd ..
 )
 
 python main.py
