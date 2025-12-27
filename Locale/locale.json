@@ -7,6 +7,14 @@
         "zh_CN": "请输入新图块集文件名",
         "en_GB": "Enter new tileset file name"
     },
+    "RENAME_TILESET": {
+        "zh_CN": "重命名图块集",
+        "en_GB": "Rename Tileset"
+    },
+    "TILESET_REFERENCED_WARNING": {
+        "zh_CN": "以下地图引用了该图块集：\n{maps}\n\n修改名称可能导致部分地图图层失效，是否继续？",
+        "en_GB": "The following maps reference this tileset:\n{maps}\n\nRenaming may cause partial map layers to become invalid. Continue?"
+    },
     "TILESET_EXISTS": {
         "zh_CN": "图块集已存在",
         "en_GB": "Tileset already exists"
@@ -398,5 +406,13 @@
     "DISCARD_AND_EXIT": {
         "zh_CN": "不保存",
         "en_GB": "Discard"
+    },
+    "NEW_MAP": {
+        "zh_CN": "新建地图",
+        "en_GB": "Create New Map"
+    },
+    "NEW_MAP_DEFAULT_NAME": {
+        "zh_CN": "新地图",
+        "en_GB": "New Map"
     }
 }

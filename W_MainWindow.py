@@ -6,6 +6,7 @@ import subprocess
 import psutil
 import configparser
 import json
+import copy
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QSize
@@ -81,6 +82,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actDatabaseCommonFunctions = QtWidgets.QAction(Locale.getContent("COMMON_FUNCTIONS"), self)
         self._actDatabaseScripts = QtWidgets.QAction(Locale.getContent("SCRIPTS"), self)
         self._actHelpExplanation = QtWidgets.QAction(Locale.getContent("HELP_EXPLANATION"), self)
+
+        self._mapClipboard = None
+        self._actCopyMap = QtWidgets.QAction(Locale.getContent("COPY"), self)
+        self._actCopyMap.setShortcut(QtGui.QKeySequence.Copy)
+        self._actCopyMap.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        self._actCopyMap.triggered.connect(self._onCopyMap)
+
+        self._actPasteMap = QtWidgets.QAction(Locale.getContent("PASTE"), self)
+        self._actPasteMap.setShortcut(QtGui.QKeySequence.Paste)
+        self._actPasteMap.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        self._actPasteMap.triggered.connect(self._onPasteMap)
+        self._actPasteMap.setEnabled(False)
+
+        self._actDeleteMap = QtWidgets.QAction(Locale.getContent("DELETE"), self)
+        self._actDeleteMap.setShortcut(QtGui.QKeySequence.Delete)
+        self._actDeleteMap.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        self._actDeleteMap.triggered.connect(self._onDeleteMapAction)
 
         self.setProjPath(EditorStatus.PROJ_PATH)
         self._setStyle()
@@ -310,10 +328,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def refreshLeftList(self):
         self.leftList.clear()
-        if os.path.exists(self._mapFilesRoot):
-            mapFiles = os.listdir(self._mapFilesRoot)
-            mapFiles = [f for f in mapFiles if f.endswith(".dat")]
-            self.leftList.addItems(mapFiles)
+        mapFiles = [k for k in Data.GameData.mapData.keys() if k.endswith(".dat")]
+        mapFiles.sort()
+        self.leftList.addItems(mapFiles)
+
         if self.leftListIndex >= 0 and self.leftListIndex < self.leftList.count():
             self.leftList.setCurrentRow(self.leftListIndex)
         else:
@@ -378,14 +396,139 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _onLeftListContextMenu(self, pos: QtCore.QPoint) -> None:
         item = self.leftList.itemAt(pos)
-        if item is None:
-            return
         menu = QtWidgets.QMenu(self)
+        if item is None:
+            actNew = menu.addAction(Locale.getContent("NEW_MAP"))
+            if self._mapClipboard:
+                menu.addAction(self._actPasteMap)
+            else:
+                self._actPasteMap.setEnabled(False)
+                menu.addAction(self._actPasteMap)
+                self._actPasteMap.setEnabled(True)
+
+            action = menu.exec_(self.leftList.mapToGlobal(pos))
+            if action == actNew:
+                self._onNewMap()
+            return
+
+        if self.leftList.currentItem() != item:
+            self.leftList.setCurrentItem(item)
+            self._onLeftItemClicked(item)
+
         actLabel = Locale.getContent("MAPLIST_EDIT")
         actEdit = menu.addAction(actLabel)
+        menu.addAction(self._actCopyMap)
+        menu.addAction(self._actDeleteMap)
         action = menu.exec_(self.leftList.mapToGlobal(pos))
         if action == actEdit:
             self._onEditMap(item.text())
+
+    def _getNewMapFileName(self) -> str:
+        existing = set(Data.GameData.mapData.keys())
+        i = 1
+        while True:
+            name = f"Map_{i:02d}.dat"
+            if name not in existing:
+                return name
+            i += 1
+
+    def _onCopyMap(self) -> None:
+        item = self.leftList.currentItem()
+        if not item:
+            return
+        mapName = item.text()
+        if mapName in Data.GameData.mapData:
+            self._mapClipboard = copy.deepcopy(Data.GameData.mapData[mapName])
+            self._mapClipboard["__source_file__"] = mapName
+            self._actPasteMap.setEnabled(True)
+
+    def _onPasteMap(self) -> None:
+        if not self._mapClipboard:
+            return
+
+        newMapData = copy.deepcopy(self._mapClipboard)
+        sourceFile = newMapData.pop("__source_file__", None)
+
+        if "mapName" in newMapData:
+            newMapData["mapName"] += " (copy)"
+
+        if sourceFile:
+            base, ext = os.path.splitext(sourceFile)
+            newFileName = f"{base} (copy){ext}"
+            if newFileName in Data.GameData.mapData:
+                i = 1
+                while True:
+                    testName = f"{base} (copy) ({i}){ext}"
+                    if testName not in Data.GameData.mapData:
+                        newFileName = testName
+                        break
+                    i += 1
+        else:
+            newFileName = self._getNewMapFileName()
+
+        Data.GameData.recordSnapshot()
+        Data.GameData.mapData[newFileName] = newMapData
+
+        self.refreshLeftList()
+        self.setWindowTitle(System.getTitle())
+        self._refreshUndoRedo()
+
+        items = self.leftList.findItems(newFileName, QtCore.Qt.MatchExactly)
+        if items:
+            self.leftList.setCurrentItem(items[0])
+            self._onLeftItemClicked(items[0])
+
+    def _onDeleteMapAction(self) -> None:
+        item = self.leftList.currentItem()
+        if item:
+            self._onDeleteMap(item.text())
+
+    def _onDeleteMap(self, mapName: str) -> None:
+        if mapName not in Data.GameData.mapData:
+            return
+
+        Data.GameData.recordSnapshot()
+        del Data.GameData.mapData[mapName]
+
+        self.refreshLeftList()
+        self.setWindowTitle(System.getTitle())
+        self._refreshUndoRedo()
+
+        item = self.leftList.currentItem()
+        if item:
+            self._onLeftItemClicked(item)
+        else:
+            self.editorPanel.refreshMap(None)
+            self._selectedLayerName = None
+            self.editorPanel.setSelectedLayer(None)
+            self.tileSelect.setLayerSelected(False)
+            self.tileSelect.clearSelection()
+            self._refreshLayerBar()
+
+    def _onNewMap(self) -> None:
+        default_data = {
+            "mapName": Locale.getContent("NEW_MAP_DEFAULT_NAME"),
+            "width": 20,
+            "height": 15,
+            "ambientLight": [255, 255, 255, 255],
+            "layers": {},
+        }
+        suggested_name = self._getNewMapFileName()
+        dlg = MapEditDialog(self, default_data, suggested_name, Locale.getContent("NEW_MAP"))
+        if not dlg.execApply():
+            return
+
+        filename = dlg.getFileName()
+        Data.GameData.mapData[filename] = default_data
+        self.refreshLeftList()
+
+        items = self.leftList.findItems(filename, QtCore.Qt.MatchExactly)
+        if items:
+            self.leftList.setCurrentItem(items[0])
+            self._onLeftItemClicked(items[0])
+
+        self.setWindowTitle(System.getTitle())
+        self._refreshUndoRedo()
 
     def _setStyle(self) -> None:
         central = QtWidgets.QWidget(self)
@@ -460,6 +603,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.leftList.itemClicked.connect(self._onLeftItemClicked)
         self.leftList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.leftList.customContextMenuRequested.connect(self._onLeftListContextMenu)
+        self.leftList.addAction(self._actCopyMap)
+        self.leftList.addAction(self._actPasteMap)
+        self.leftList.addAction(self._actDeleteMap)
 
         self.leftLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.leftLabel.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
@@ -595,9 +741,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actRedo.setEnabled(bool(Data.GameData.redoStack))
 
     def _onEditMap(self, mapKey: str) -> None:
-        import Data
-        from Utils import File
-
         data = Data.GameData.mapData.get(mapKey)
         if data is None:
             fp = os.path.join(self._mapFilesRoot, mapKey)
@@ -606,14 +749,25 @@ class MainWindow(QtWidgets.QMainWindow):
                 Data.GameData.mapData[mapKey] = data
         if not isinstance(data, dict):
             return
-        dlg = MapEditDialog(self, data)
+
+        was_active = self.leftList.currentItem() and self.leftList.currentItem().text() == mapKey
+
+        dlg = MapEditDialog(self, data, mapKey)
         if not dlg.execApply():
             return
-        Data.GameData.mapData[mapKey] = data
+
+        newKey = dlg.getFileName()
         self.setWindowTitle(System.getTitle())
-        if self.leftList.currentItem() and self.leftList.currentItem().text() == mapKey:
-            self.editorPanel.refreshMap(mapKey)
-            self._refreshLayerBar()
+
+        if newKey != mapKey:
+            self.refreshLeftList()
+
+        if was_active:
+            items = self.leftList.findItems(newKey, QtCore.Qt.MatchExactly)
+            if items:
+                self.leftList.setCurrentItem(items[0])
+                self.editorPanel.refreshMap(newKey)
+                self._refreshLayerBar()
 
     def _refreshLayerBar(self) -> None:
         self.layerList.clear()
@@ -828,8 +982,6 @@ class MainWindow(QtWidgets.QMainWindow):
         File.OpenProject(self)
 
     def _onSave(self, checked: bool = False) -> None:
-        import Data
-
         ok, content = Data.GameData.saveAllModified()
         if ok:
             QtWidgets.QMessageBox.information(
@@ -857,6 +1009,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.toast.showMessage("Redo:\n" + "\n".join(diffs))
 
     def _refreshCurrentView(self):
+        self.refreshLeftList()
+        self.tileSelect.initTilesets()
         self.setWindowTitle(System.getTitle())
         self._refreshUndoRedo()
         if self.stacked.currentWidget() == self.editorScroll:

@@ -1,24 +1,30 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Any
+from typing import Any, Optional
 from PyQt5 import QtCore, QtWidgets
 from Utils import Locale, System
 import Data
 
 
 class MapEditDialog(QtWidgets.QDialog):
-    def __init__(self, parent: QtWidgets.QWidget, data: dict[str, Any]) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, data: dict[str, Any], current_key: str = "", title: Optional[str] = None) -> None:
         super().__init__(parent)
         self._data = data
+        self._current_key = current_key
         old_name = str(data.get("mapName", ""))
         old_w = int(data.get("width", 0))
         old_h = int(data.get("height", 0))
-        self.setWindowTitle(Locale.getContent("MAPLIST_EDIT"))
+        if title is None:
+            title = Locale.getContent("MAPLIST_EDIT")
+        self.setWindowTitle(title)
         self.setMinimumSize(640, 256)
         form = QtWidgets.QFormLayout(self)
         form.setContentsMargins(12, 12, 12, 12)
         form.setSpacing(8)
         System.setStyle(self, "mapEdit.qss")
+        self.fileEdit = QtWidgets.QLineEdit(self)
+        self.fileEdit.setText(current_key)
+        self.fileEdit.setStyleSheet("color: white;")
         self.nameEdit = QtWidgets.QLineEdit(self)
         self.nameEdit.setText(old_name)
         self.wSpin = QtWidgets.QSpinBox(self)
@@ -38,6 +44,7 @@ class MapEditDialog(QtWidgets.QDialog):
             self.hSpin.lineEdit().setStyleSheet("color: white;")
         else:
             self.hSpin.setStyleSheet("color: white;")
+        form.addRow("File Name", self.fileEdit)
         form.addRow(Locale.getContent("EDIT_MAP"), self.nameEdit)
         form.addRow(Locale.getContent("MAP_WIDTH"), self.wSpin)
         form.addRow(Locale.getContent("MAP_HEIGHT"), self.hSpin)
@@ -73,10 +80,43 @@ class MapEditDialog(QtWidgets.QDialog):
         self.btns.accepted.connect(self.accept)
         self.btns.rejected.connect(self.reject)
 
+    def accept(self) -> None:
+        fname = self.fileEdit.text().strip()
+        if not fname:
+            QtWidgets.QMessageBox.warning(self, "Hint", "File Name cannot be empty.")
+            return
+        if not fname.endswith(".dat"):
+            fname += ".dat"
+            self.fileEdit.setText(fname)
+        
+        existing = Data.GameData.mapData
+        if fname in existing:
+            is_same = (self._current_key and fname == self._current_key)
+            if not is_same:
+                QtWidgets.QMessageBox.warning(self, "Hint", "File Name already exists.")
+                return
+        
+        super().accept()
+
+    def getFileName(self) -> str:
+        return self.fileEdit.text().strip()
+
     def execApply(self) -> bool:
         if self.exec_() != QtWidgets.QDialog.Accepted:
             return False
         Data.GameData.recordSnapshot()
+        
+        new_key = self.getFileName()
+        if self._current_key and self._current_key in Data.GameData.mapData and new_key != self._current_key:
+            new_map = {}
+            for k, v in Data.GameData.mapData.items():
+                if k == self._current_key:
+                    new_map[new_key] = v
+                else:
+                    new_map[k] = v
+            Data.GameData.mapData.clear()
+            Data.GameData.mapData.update(new_map)
+
         data = self._data
         old_w = int(data.get("width", 0))
         old_h = int(data.get("height", 0))
@@ -116,6 +156,6 @@ class MapEditDialog(QtWidgets.QDialog):
         return True
 
 
-def editMapInfo(parent: QtWidgets.QWidget, data: dict[str, Any]) -> bool:
-    dlg = MapEditDialog(parent, data)
+def editMapInfo(parent: QtWidgets.QWidget, data: dict[str, Any], current_key: str = "") -> bool:
+    dlg = MapEditDialog(parent, data, current_key)
     return dlg.execApply()

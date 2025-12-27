@@ -3,6 +3,7 @@
 from PyQt5 import QtWidgets, QtCore, QtGui
 import Data
 import importlib
+import copy
 from Utils import Locale, File, System
 from .Utils import TilesetPanel
 from .Utils.SingleRowDialog import SingleRowDialog
@@ -15,6 +16,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
         super().__init__(parent)
         self.setWindowTitle(Locale.getContent("TILESETS_DATA"))
         self.setMinimumSize(480, 480)
+        self._tilesetClipboard = None
 
         self._initUI()
         self._loadData()
@@ -31,6 +33,25 @@ class TilesetEditor(QtWidgets.QMainWindow):
         self.listWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.listWidget.customContextMenuRequested.connect(self._showContextMenu)
         self.listWidget.currentRowChanged.connect(self._onSelectionChanged)
+
+        self._actCopy = QtWidgets.QAction(Locale.getContent("COPY"), self)
+        self._actCopy.setShortcut(QtGui.QKeySequence.Copy)
+        self._actCopy.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        self._actCopy.triggered.connect(self._copyTileset)
+        self.listWidget.addAction(self._actCopy)
+
+        self._actPaste = QtWidgets.QAction(Locale.getContent("PASTE"), self)
+        self._actPaste.setShortcut(QtGui.QKeySequence.Paste)
+        self._actPaste.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        self._actPaste.triggered.connect(self._pasteTileset)
+        self.listWidget.addAction(self._actPaste)
+
+        self._actDelete = QtWidgets.QAction(Locale.getContent("DELETE"), self)
+        self._actDelete.setShortcut(QtGui.QKeySequence.Delete)
+        self._actDelete.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        self._actDelete.triggered.connect(self._deleteTileset)
+        self.listWidget.addAction(self._actDelete)
+
         layout.addWidget(self.listWidget)
 
         self.tilesetPanel = TilesetPanel(self)
@@ -49,15 +70,37 @@ class TilesetEditor(QtWidgets.QMainWindow):
     def _showContextMenu(self, position):
         item = self.listWidget.itemAt(position)
         menu = QtWidgets.QMenu()
-        if item is None:
-            add_action = menu.addAction(Locale.getContent("ADD_TILESET"))
-            action = menu.exec_(self.listWidget.mapToGlobal(position))
-            if action == add_action:
-                self._addTileset()
-        else:
+
+        add_action = menu.addAction(Locale.getContent("ADD_TILESET"))
+
+        paste_action = menu.addAction(Locale.getContent("PASTE"))
+        paste_action.setShortcut(QtGui.QKeySequence.Paste)
+        if not self._tilesetClipboard:
+            paste_action.setEnabled(False)
+
+        if item:
+            menu.addSeparator()
+            rename_action = menu.addAction(Locale.getContent("RENAME_TILESET"))
+            copy_action = menu.addAction(Locale.getContent("COPY"))
+            copy_action.setShortcut(QtGui.QKeySequence.Copy)
+
             delete_action = menu.addAction(Locale.getContent("DELETE"))
-            action = menu.exec_(self.listWidget.mapToGlobal(position))
-            if action == delete_action:
+            delete_action.setShortcut(QtGui.QKeySequence.Delete)
+
+        action = menu.exec_(self.listWidget.mapToGlobal(position))
+
+        if action == add_action:
+            self._addTileset()
+        elif action == paste_action:
+            self._pasteTileset()
+        elif item:
+            if action == rename_action:
+                self.listWidget.setCurrentItem(item)
+                self._renameTileset()
+            elif action == copy_action:
+                self.listWidget.setCurrentItem(item)
+                self._copyTileset()
+            elif action == delete_action:
                 self.listWidget.setCurrentItem(item)
                 self._deleteTileset()
 
@@ -87,6 +130,129 @@ class TilesetEditor(QtWidgets.QMainWindow):
             item = QtWidgets.QListWidgetItem(text)
             self.listWidget.addItem(item)
             self.listWidget.setCurrentItem(item)
+
+            if getattr(Data, "GameData", None):
+                if getattr(File, "mainWindow", None):
+                    File.mainWindow.setWindowTitle(System.getTitle())
+                    File.mainWindow.tileSelect.initTilesets()
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, "Error", str(e))
+
+    def _copyTileset(self):
+        row = self.listWidget.currentRow()
+        if row < 0:
+            return
+        key = self.listWidget.item(row).text()
+        if key in Data.GameData.tilesetData:
+            self._tilesetClipboard = copy.deepcopy(Data.GameData.tilesetData[key])
+            self._tilesetClipboardName = key
+
+    def _pasteTileset(self):
+        if not self._tilesetClipboard:
+            return
+
+        new_ts = copy.deepcopy(self._tilesetClipboard)
+
+        base_name = getattr(self, "_tilesetClipboardName", "Tileset")
+
+        new_name = base_name + " (copy)"
+        if new_name in Data.GameData.tilesetData:
+            i = 1
+            while True:
+                test_name = f"{base_name} (copy) ({i})"
+                if test_name not in Data.GameData.tilesetData:
+                    new_name = test_name
+                    break
+                i += 1
+
+        if hasattr(new_ts, "name"):
+            new_ts.name = new_name
+
+        try:
+            Data.GameData.recordSnapshot()
+            Data.GameData.tilesetData[new_name] = new_ts
+            self.modified.emit()
+
+            item = QtWidgets.QListWidgetItem(new_name)
+            self.listWidget.addItem(item)
+            self.listWidget.setCurrentItem(item)
+
+            if getattr(Data, "GameData", None):
+                if getattr(File, "mainWindow", None):
+                    File.mainWindow.setWindowTitle(System.getTitle())
+                    File.mainWindow.tileSelect.initTilesets()
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, "Error", str(e))
+
+    def _renameTileset(self):
+        row = self.listWidget.currentRow()
+        if row < 0:
+            return
+        item = self.listWidget.item(row)
+        old_name = item.text()
+
+        existing = set(Data.GameData.tilesetData.keys())
+        if old_name in existing:
+            existing.remove(old_name)
+
+        while True:
+            dlg = SingleRowDialog(
+                self,
+                Locale.getContent("RENAME_TILESET"),
+                Locale.getContent("ENTER_TILESET_FILE"),
+                old_name,
+            )
+            ok, new_name = dlg.execGetText()
+            if not ok:
+                return
+
+            new_name = new_name.strip()
+            if not new_name:
+                continue
+
+            if new_name in existing:
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    Locale.getContent("RENAME_TILESET"),
+                    Locale.getContent("TILESET_EXISTS"),
+                )
+                continue
+
+            if new_name == old_name:
+                return
+
+            break
+
+        affected_maps = []
+        if getattr(Data.GameData, "mapData", None):
+            for map_key, map_content in Data.GameData.mapData.items():
+                layers = map_content.get("layers", {})
+                for layer_name, layer_data in layers.items():
+                    if layer_data.get("layerTileset") == old_name:
+                        affected_maps.append(map_key)
+                        break
+
+        if affected_maps:
+            msg = Locale.getContent("TILESET_REFERENCED_WARNING").format(maps="\n".join(affected_maps))
+            ret = QtWidgets.QMessageBox.warning(
+                self,
+                Locale.getContent("RENAME_TILESET"),
+                msg,
+                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                QtWidgets.QMessageBox.No,
+            )
+            if ret != QtWidgets.QMessageBox.Yes:
+                return
+
+        try:
+            Data.GameData.recordSnapshot()
+            data = Data.GameData.tilesetData.pop(old_name)
+            if hasattr(data, "name"):
+                data.name = new_name
+            Data.GameData.tilesetData[new_name] = data
+            self.modified.emit()
+
+            item.setText(new_name)
 
             if getattr(Data, "GameData", None):
                 if getattr(File, "mainWindow", None):
