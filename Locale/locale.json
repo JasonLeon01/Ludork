@@ -362,5 +362,9 @@
     "OPEN_FAILED": {
         "zh_CN": "打开项目失败",
         "en_GB": "Failed to open project"
+    },
+    "IndividualWindow": {
+        "zh_CN": "独立窗口",
+        "en_GB": "Individual Window"
     }
 }

@@ -19,6 +19,7 @@ from Widgets import (
     ConsoleWidget,
     ConfigWindow,
     TilesetEditor,
+    SettingsWindow,
 )
 import EditorStatus
 from Widgets.Utils import MapEditDialog, SingleRowDialog
@@ -61,6 +62,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self._actNewProject = QtWidgets.QAction(Locale.getContent("NEW_PROJECT"), self)
         self._actOpenProject = QtWidgets.QAction(Locale.getContent("OPEN_PROJECT"), self)
+        self._actHelpSettings = QtWidgets.QAction(Locale.getContent("HELP_SETTINGS"), self)
         self._actSave = QtWidgets.QAction(Locale.getContent("SAVE"), self)
         self._actExit = QtWidgets.QAction(Locale.getContent("EXIT"), self)
         self._actDatabaseSystemConfig = QtWidgets.QAction(Locale.getContent("SYSTEM_CONFIG"), self)
@@ -68,7 +70,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actDatabaseCommonFunctions = QtWidgets.QAction(Locale.getContent("COMMON_FUNCTIONS"), self)
         self._actDatabaseScripts = QtWidgets.QAction(Locale.getContent("SCRIPTS"), self)
         self._actHelpExplanation = QtWidgets.QAction(Locale.getContent("HELP_EXPLANATION"), self)
-        self._actHelpSettings = QtWidgets.QAction(Locale.getContent("HELP_SETTINGS"), self)
 
         self.setProjPath(EditorStatus.PROJ_PATH)
         self._setStyle()
@@ -499,11 +500,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actOpenProject.triggered.connect(self._onOpenProject)
         self._actSave.setShortcut(QtGui.QKeySequence.StandardKey.Save)
         self._actSave.triggered.connect(self._onSave)
+        self._actHelpSettings.triggered.connect(self._onHelpSettings)
+        self._actHelpSettings.setShortcut(QtGui.QKeySequence.StandardKey.Preferences)
         self._actExit.setShortcut(QtGui.QKeySequence.StandardKey.Close)
         self._actExit.triggered.connect(self._onExit)
         _fileMenu.addAction(self._actNewProject)
         _fileMenu.addAction(self._actOpenProject)
         _fileMenu.addAction(self._actSave)
+        _fileMenu.addAction(self._actHelpSettings)
         _fileMenu.addAction(self._actExit)
 
         _dbMenu = self._menuBar.addMenu(Locale.getContent("DATABASE"))
@@ -523,10 +527,7 @@ class MainWindow(QtWidgets.QMainWindow):
         _helpMenu = self._menuBar.addMenu(Locale.getContent("HELP"))
         self._actHelpExplanation.triggered.connect(self._onHelpExplanation)
         self._actHelpExplanation.setShortcut(QtGui.QKeySequence("F1"))
-        self._actHelpSettings.triggered.connect(self._onHelpSettings)
-        self._actHelpSettings.setShortcut(QtGui.QKeySequence("F12"))
         _helpMenu.addAction(self._actHelpExplanation)
-        _helpMenu.addAction(self._actHelpSettings)
 
     def _onEditMap(self, mapKey: str) -> None:
         import Data
@@ -804,4 +805,10 @@ class MainWindow(QtWidgets.QMainWindow):
         pass
 
     def _onHelpSettings(self, checked: bool = False) -> None:
-        pass
+        self._settingsWindow = SettingsWindow(self, self._projConfig)
+        self._settingsWindow.modified.connect(lambda: self.setWindowTitle(System.get_title()))
+        self._settingsWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        self._settingsWindow.setWindowModality(QtCore.Qt.ApplicationModal)
+        self._settingsWindow.activateWindow()
+        self._settingsWindow.raise_()
+        self._settingsWindow.show()

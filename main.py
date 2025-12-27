@@ -14,6 +14,8 @@ from W_StartWindow import StartWindow
 from Utils import Locale, System, File
 import EditorStatus
 
+START_PROJ_FILE = None
+
 
 def initConfig():
     if not System.already_packed():
@@ -61,17 +63,25 @@ def main():
     cp = screen.availableGeometry().center() if screen else start.geometry().center()
     fg.moveCenter(cp)
     start.move(fg.topLeft())
-    start.show()
+    if START_PROJ_FILE and os.path.isfile(START_PROJ_FILE) and START_PROJ_FILE.lower().endswith(".proj"):
+        File._openProjectPath(os.path.dirname(os.path.abspath(START_PROJ_FILE)), start)
+    else:
+        start.show()
     sys.exit(app.exec_())
 
 
 if __name__ == "__main__":
     params = sys.argv.copy()
     if len(params) > 1:
-        sys.argv = sys.argv[1:]
-        sys.argv[0] = os.path.abspath(params[1])
-        if not os.getcwd() in sys.path:
-            sys.path.append(os.getcwd())
-        runpy.run_path(sys.argv[0], run_name="__main__")
+        arg1 = params[1]
+        if isinstance(arg1, str) and arg1.lower().endswith(".proj") and os.path.isfile(arg1):
+            START_PROJ_FILE = os.path.abspath(arg1)
+            main()
+        else:
+            sys.argv = sys.argv[1:]
+            sys.argv[0] = os.path.abspath(params[1])
+            if not os.getcwd() in sys.path:
+                sys.path.append(os.getcwd())
+            runpy.run_path(sys.argv[0], run_name="__main__")
     else:
         main()

@@ -8,6 +8,7 @@ from . import W_FileExplorer
 from . import W_FilePreview
 from . import W_ConfigWindow
 from . import W_TilesetEditor
+from . import W_SettingsWindow
 
 EditorPanel = W_EditorPanel.EditorPanel
 ModeToggle = W_Toggle.ModeToggle
@@ -18,3 +19,4 @@ FileExplorer = W_FileExplorer.FileExplorer
 FilePreview = W_FilePreview.FilePreview
 ConfigWindow = W_ConfigWindow.ConfigWindow
 TilesetEditor = W_TilesetEditor.TilesetEditor
+SettingsWindow = W_SettingsWindow.SettingsWindow
