@@ -104,6 +104,45 @@ class GameData:
         return changes
 
     @classmethod
+    def getDiff(cls, old_data: Dict[str, Any], new_data: Dict[str, Any]) -> List[str]:
+        diffs = []
+
+        old_maps = old_data.get("mapData", {})
+        new_maps = new_data.get("mapData", {})
+        changed_maps = set()
+        for k in set(old_maps.keys()) | set(new_maps.keys()):
+            if old_maps.get(k) != new_maps.get(k):
+                changed_maps.add(k)
+        if changed_maps:
+            diffs.append(f"Maps: {', '.join(sorted(changed_maps))}")
+
+        old_cfgs = old_data.get("systemConfigData", {})
+        new_cfgs = new_data.get("systemConfigData", {})
+        changed_cfgs = set()
+        for k in set(old_cfgs.keys()) | set(new_cfgs.keys()):
+            if old_cfgs.get(k) != new_cfgs.get(k):
+                changed_cfgs.add(k)
+        if changed_cfgs:
+            diffs.append(f"Configs: {', '.join(sorted(changed_cfgs))}")
+
+        old_ts = old_data.get("tilesetData", {})
+        new_ts = new_data.get("tilesetData", {})
+        changed_ts = set()
+        for k in set(old_ts.keys()) | set(new_ts.keys()):
+            ts1 = old_ts.get(k)
+            ts2 = new_ts.get(k)
+            if ts1 != ts2:
+                attrs1 = vars(ts1) if ts1 else {}
+                attrs2 = vars(ts2) if ts2 else {}
+                if attrs1 != attrs2:
+                    changed_ts.add(k)
+
+        if changed_ts:
+            diffs.append(f"Tilesets: {', '.join(sorted(changed_ts))}")
+
+        return diffs
+
+    @classmethod
     def saveAllModified(cls):
         changes = cls.getChanges()
         final_details = {"A": [], "U": [], "D": [], "Failed": []}
@@ -246,26 +285,30 @@ class GameData:
         cls.redoStack.clear()
 
     @classmethod
-    def undo(cls):
+    def undo(cls) -> List[str]:
         if not cls.undoStack:
-            return
+            return []
 
         current_snapshot = copy.deepcopy(cls.asDict())
         cls.redoStack.append(current_snapshot)
 
         snapshot = cls.undoStack.pop()
+        diffs = cls.getDiff(current_snapshot, snapshot)
         cls._restoreSnapshot(snapshot)
+        return diffs
 
     @classmethod
-    def redo(cls):
+    def redo(cls) -> List[str]:
         if not cls.redoStack:
-            return
+            return []
 
         current_snapshot = copy.deepcopy(cls.asDict())
         cls.undoStack.append(current_snapshot)
 
         snapshot = cls.redoStack.pop()
+        diffs = cls.getDiff(current_snapshot, snapshot)
         cls._restoreSnapshot(snapshot)
+        return diffs
 
     @classmethod
     def _restoreSnapshot(cls, snapshot):

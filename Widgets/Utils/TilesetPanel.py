@@ -16,6 +16,8 @@ class TilesetMode(Enum):
 
 
 class TilesetImageView(QtWidgets.QWidget):
+    dataChanged = QtCore.pyqtSignal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._image = None
@@ -167,6 +169,7 @@ class TilesetImageView(QtWidgets.QWidget):
                 if val > 1.0:
                     val = 1.0
                 arr[idx] = val
+        self.dataChanged.emit()
         key = getattr(self, "_key", None)
         if key:
             if getattr(File, "mainWindow", None):
@@ -175,6 +178,8 @@ class TilesetImageView(QtWidgets.QWidget):
 
 
 class TilesetPanel(QtWidgets.QWidget):
+    modified = QtCore.pyqtSignal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
@@ -221,6 +226,7 @@ class TilesetPanel(QtWidgets.QWidget):
         self.scroll.setWidgetResizable(False)
         self.imageView = TilesetImageView()
         self.scroll.setWidget(self.imageView)
+        self.imageView.dataChanged.connect(self.modified)
         layout.addWidget(self.scroll)
 
     def setTilesetData(self, tileset_data):
@@ -255,6 +261,7 @@ class TilesetPanel(QtWidgets.QWidget):
         if self._data:
             Data.GameData.recordSnapshot()
             self._data.name = text
+            self.modified.emit()
             if self._key:
                 if getattr(File, "mainWindow", None):
                     File.mainWindow.setWindowTitle(System.getTitle())
@@ -303,4 +310,5 @@ class TilesetPanel(QtWidgets.QWidget):
                     File.mainWindow.editorPanel.update()
                     ts = File.mainWindow.tileSelect
                     ts.initTilesets()
+            self.modified.emit()
             self.setTilesetData(self._data)

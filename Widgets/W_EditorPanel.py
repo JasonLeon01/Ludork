@@ -22,6 +22,7 @@ class MapData:
 
 class EditorPanel(QtWidgets.QWidget):
     tileNumberPicked = QtCore.pyqtSignal(int)
+    dataChanged = QtCore.pyqtSignal()
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         self.selctedPos: Tuple[int, int] = None
@@ -549,5 +550,6 @@ class EditorPanel(QtWidgets.QWidget):
 
             w = self.window()
             w.setWindowTitle(System.getTitle())
+            self.dataChanged.emit()
         except Exception as e:
             print(f"Error while refreshing title: {e}")

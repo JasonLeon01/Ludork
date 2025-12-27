@@ -9,6 +9,8 @@ from .Utils.SingleRowDialog import SingleRowDialog
 
 
 class TilesetEditor(QtWidgets.QMainWindow):
+    modified = QtCore.pyqtSignal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle(Locale.getContent("TILESETS_DATA"))
@@ -32,6 +34,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
         layout.addWidget(self.listWidget)
 
         self.tilesetPanel = TilesetPanel(self)
+        self.tilesetPanel.modified.connect(self.modified)
         layout.addWidget(self.tilesetPanel, 1)
 
     def _onSelectionChanged(self, row):
@@ -79,6 +82,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
 
             Data.GameData.recordSnapshot()
             Data.GameData.tilesetData[text] = new_ts
+            self.modified.emit()
 
             item = QtWidgets.QListWidgetItem(text)
             self.listWidget.addItem(item)
@@ -109,6 +113,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
             Data.GameData.recordSnapshot()
             if key in Data.GameData.tilesetData:
                 Data.GameData.tilesetData.pop(key, None)
+            self.modified.emit()
             self.listWidget.takeItem(row)
             if self.listWidget.count() > 0:
                 self.listWidget.setCurrentRow(min(row, self.listWidget.count() - 1))

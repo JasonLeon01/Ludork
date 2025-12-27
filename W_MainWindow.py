@@ -21,14 +21,15 @@ from Widgets import (
     TilesetEditor,
     SettingsWindow,
 )
+from Widgets.Utils import MapEditDialog, SingleRowDialog, Toast
 import EditorStatus
 import Data
-from Widgets.Utils import MapEditDialog, SingleRowDialog
 
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, title: str):
         super().__init__()
+        self.toast = Toast(self)
         self._engineProc: Optional[subprocess.Popen] = None
         self.setWindowTitle(title)
 
@@ -36,6 +37,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.layerList = QtWidgets.QListWidget()
         self._selectedLayerName: Optional[str] = None
         self.editorPanel = EditorPanel()
+        self.editorPanel.dataChanged.connect(self._refreshUndoRedo)
         self.editorScroll = QtWidgets.QScrollArea()
         self.gamePanel = QtWidgets.QWidget()
         self._panelHandle = int(self.gamePanel.winId())
@@ -62,12 +64,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self._hasShown = False
 
         self._actNewProject = QtWidgets.QAction(Locale.getContent("NEW_PROJECT"), self)
+        self._actNewProject.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_FileIcon))
         self._actOpenProject = QtWidgets.QAction(Locale.getContent("OPEN_PROJECT"), self)
+        self._actOpenProject.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_DialogOpenButton))
         self._actSave = QtWidgets.QAction(Locale.getContent("SAVE"), self)
+        self._actSave.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_DialogSaveButton))
         self._actExit = QtWidgets.QAction(Locale.getContent("EXIT"), self)
         self._actUndo = QtWidgets.QAction(Locale.getContent("UNDO"), self)
+        self._actUndo.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_ArrowBack))
         self._actRedo = QtWidgets.QAction(Locale.getContent("REDO"), self)
+        self._actRedo.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_ArrowForward))
         self._actGameSettings = QtWidgets.QAction(Locale.getContent("GAME_SETTINGS"), self)
+        self._actGameSettings.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_FileDialogDetailedView))
         self._actDatabaseSystemConfig = QtWidgets.QAction(Locale.getContent("SYSTEM_CONFIG"), self)
         self._actDatabaseTilesetsData = QtWidgets.QAction(Locale.getContent("TILESETS_DATA"), self)
         self._actDatabaseCommonFunctions = QtWidgets.QAction(Locale.getContent("COMMON_FUNCTIONS"), self)
@@ -80,6 +88,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._engineMonitorTimer: Optional[QtCore.QTimer] = None
 
     def showEvent(self, event: QtGui.QShowEvent) -> None:
+        self._refreshUndoRedo()
         super().showEvent(event)
         applyLW = self._savedLeftWidth
         applyRW = self._savedRightWidth
@@ -102,6 +111,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         super().resizeEvent(event)
+        self.toast._updatePosition()
         if not self._hasShown:
             self._prevUpperW = self.upperSplitter.width()
             self._prevFG = self.frameGeometry()
@@ -381,6 +391,18 @@ class MainWindow(QtWidgets.QMainWindow):
         central = QtWidgets.QWidget(self)
         self.setCentralWidget(central)
 
+        self.toolbar = self.addToolBar("MainToolbar")
+        self.toolbar.setIconSize(QtCore.QSize(16, 16))
+        self.toolbar.setMovable(False)
+        self.toolbar.addAction(self._actNewProject)
+        self.toolbar.addAction(self._actOpenProject)
+        self.toolbar.addAction(self._actSave)
+        self.toolbar.addSeparator()
+        self.toolbar.addAction(self._actUndo)
+        self.toolbar.addAction(self._actRedo)
+        self.toolbar.addSeparator()
+        self.toolbar.addAction(self._actGameSettings)
+
         self.topBar.setMinimumHeight(32)
         topLayout = QtWidgets.QHBoxLayout(self.topBar)
         topLayout.setContentsMargins(0, 0, 0, 0)
@@ -567,6 +589,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actHelpExplanation.triggered.connect(self._onHelpExplanation)
         self._actHelpExplanation.setShortcut(QtGui.QKeySequence("F1"))
         _helpMenu.addAction(self._actHelpExplanation)
+
+    def _refreshUndoRedo(self) -> None:
+        self._actUndo.setEnabled(bool(Data.GameData.undoStack))
+        self._actRedo.setEnabled(bool(Data.GameData.redoStack))
 
     def _onEditMap(self, mapKey: str) -> None:
         import Data
@@ -819,15 +845,20 @@ class MainWindow(QtWidgets.QMainWindow):
         self.close()
 
     def _onUndo(self, checked: bool = False) -> None:
-        Data.GameData.undo()
+        diffs = Data.GameData.undo()
         self._refreshCurrentView()
+        if diffs:
+            self.toast.showMessage("Undo:\n" + "\n".join(diffs))
 
     def _onRedo(self, checked: bool = False) -> None:
-        Data.GameData.redo()
+        diffs = Data.GameData.redo()
         self._refreshCurrentView()
+        if diffs:
+            self.toast.showMessage("Redo:\n" + "\n".join(diffs))
 
     def _refreshCurrentView(self):
         self.setWindowTitle(System.getTitle())
+        self._refreshUndoRedo()
         if self.stacked.currentWidget() == self.editorScroll:
             item = self.leftList.currentItem()
             if item:
@@ -836,7 +867,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _onDatabaseSystemConfig(self, checked: bool = False) -> None:
         self._configWindow = ConfigWindow(self)
-        self._configWindow.modified.connect(lambda: self.setWindowTitle(System.getTitle()))
+        self._configWindow.modified.connect(lambda: (self.setWindowTitle(System.getTitle()), self._refreshUndoRedo()))
         self._configWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._configWindow.setWindowModality(QtCore.Qt.ApplicationModal)
         self._configWindow.activateWindow()
@@ -845,6 +876,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _onDatabaseTilesetsData(self, checked: bool = False) -> None:
         self._tilesetEditor = TilesetEditor(self)
+        self._tilesetEditor.modified.connect(lambda: (self.setWindowTitle(System.getTitle()), self._refreshUndoRedo()))
         self._tilesetEditor.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._tilesetEditor.setWindowModality(QtCore.Qt.ApplicationModal)
         self._tilesetEditor.show()
