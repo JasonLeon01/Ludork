@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import os
+import copy
 from typing import Any, Dict, List
 from Utils import File
 import importlib
@@ -11,11 +12,11 @@ class GameData:
     systemConfigData: Dict[str, Any]
     tilesetData: Dict[str, Any]
     mapData: Dict[str, Any]
-    modifiedMaps: List[Any]
-    modifiedSystemConfigs: List[Any]
-    modifiedTilesets: List[Any]
-    addedTilesets: List[Any]
-    deletedTilesets: List[Any]
+
+    undoStack: List[Dict[str, Any]]
+    redoStack: List[Dict[str, Any]]
+
+    _originData: Dict[str, Any]
 
     @classmethod
     def init(cls) -> None:
@@ -66,109 +67,130 @@ class GameData:
                     except Exception as e:
                         print(f"Error while loading map file {file}: {e}")
 
-        cls.modifiedMaps = []
-        cls.modifiedSystemConfigs = []
-        cls.modifiedTilesets = []
-        cls.addedTilesets = []
-        cls.deletedTilesets = []
+        cls.undoStack = []
+        cls.redoStack = []
+
+        cls._originData = copy.deepcopy(cls.asDict())
 
     @classmethod
-    def markMapModified(cls, key: str) -> None:
-        if not key:
-            return
-        if key not in getattr(cls, "modifiedMaps", []):
-            cls.modifiedMaps.append(key)
+    def checkModified(cls) -> bool:
+        return cls.asDict() != cls._originData
 
     @classmethod
-    def saveModifiedMaps(cls):
+    def getChanges(cls) -> Dict[str, Dict[str, List[str]]]:
+        changes = {
+            "systemConfigData": {"A": [], "D": [], "U": []},
+            "tilesetData": {"A": [], "D": [], "U": []},
+            "mapData": {"A": [], "D": [], "U": []},
+        }
+
+        origin = cls._originData
+        current = cls.asDict()
+
+        for section in ["systemConfigData", "tilesetData", "mapData"]:
+            curr_sec = current.get(section, {})
+            orig_sec = origin.get(section, {})
+
+            curr_keys = set(curr_sec.keys())
+            orig_keys = set(orig_sec.keys())
+
+            changes[section]["A"] = list(curr_keys - orig_keys)
+            changes[section]["D"] = list(orig_keys - curr_keys)
+
+            for key in curr_keys & orig_keys:
+                if curr_sec[key] != orig_sec[key]:
+                    changes[section]["U"].append(key)
+
+        return changes
+
+    @classmethod
+    def saveAllModified(cls):
+        changes = cls.getChanges()
+        final_details = {"A": [], "U": [], "D": [], "Failed": []}
+
+        # Maps
         mapsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
-        details = {"A": [], "U": [], "D": [], "Failed": []}
-        for key in list(getattr(cls, "modifiedMaps", [])):
+        c_map = changes["mapData"]
+        for key in c_map["A"] + c_map["U"]:
             data = cls.mapData.get(key)
             if data is None:
-                details["Failed"].append(key)
+                final_details["Failed"].append(key)
                 continue
-            fp = os.path.join(mapsRoot, key)
             try:
-                File.saveData(fp, data)
-                details["U"].append(key)
+                File.saveData(os.path.join(mapsRoot, key), data)
+                if key in c_map["A"]:
+                    final_details["A"].append(key)
+                else:
+                    final_details["U"].append(key)
+                cls._originData["mapData"][key] = copy.deepcopy(data)
             except Exception:
-                details["Failed"].append(key)
-        cls.modifiedMaps.clear()
-        return not bool(details["Failed"]), details
+                final_details["Failed"].append(key)
 
-    @classmethod
-    def markSystemConfigModified(cls, name: str) -> None:
-        if not name:
-            return
-        if name not in getattr(cls, "modifiedSystemConfigs", []):
-            cls.modifiedSystemConfigs.append(name)
-
-    @classmethod
-    def saveModifiedSystemConfigs(cls):
-        configsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Configs")
-        details = {"A": [], "U": [], "D": [], "Failed": []}
-        for name in list(getattr(cls, "modifiedSystemConfigs", [])):
-            data = cls.systemConfigData.get(name)
-            if not isinstance(data, dict):
-                details["Failed"].append(name)
-                continue
-            is_json = bool(data.get("isJson"))
+        for key in c_map["D"]:
             try:
+                fp = os.path.join(mapsRoot, key)
+                if os.path.exists(fp):
+                    os.remove(fp)
+                final_details["D"].append(key)
+                if key in cls._originData["mapData"]:
+                    del cls._originData["mapData"][key]
+            except Exception:
+                final_details["Failed"].append(key)
+
+        # Configs
+        configsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Configs")
+        c_cfg = changes["systemConfigData"]
+        for key in c_cfg["A"] + c_cfg["U"]:
+            data = cls.systemConfigData.get(key)
+            if not isinstance(data, dict):
+                final_details["Failed"].append(key)
+                continue
+            try:
+                is_json = bool(data.get("isJson"))
                 if is_json:
                     payload = dict(data)
                     if "isJson" in payload:
                         del payload["isJson"]
-                    fp = os.path.join(configsRoot, f"{name}.json")
+                    fp = os.path.join(configsRoot, f"{key}.json")
                     File.saveJsonData(fp, payload)
                 else:
-                    fp = os.path.join(configsRoot, f"{name}.dat")
+                    fp = os.path.join(configsRoot, f"{key}.dat")
                     File.saveData(fp, data)
-                details["U"].append(name)
+
+                if key in c_cfg["A"]:
+                    final_details["A"].append(key)
+                else:
+                    final_details["U"].append(key)
+                cls._originData["systemConfigData"][key] = copy.deepcopy(data)
             except Exception:
-                details["Failed"].append(name)
-        cls.modifiedSystemConfigs.clear()
-        return not bool(details["Failed"]), details
+                final_details["Failed"].append(key)
 
-    @classmethod
-    def markTilesetModified(cls, key: str) -> None:
-        if not key:
-            return
-        if key not in getattr(cls, "modifiedTilesets", []):
-            cls.modifiedTilesets.append(key)
+        for key in c_cfg["D"]:
+            try:
+                fp_json = os.path.join(configsRoot, f"{key}.json")
+                fp_dat = os.path.join(configsRoot, f"{key}.dat")
+                deleted = False
+                if os.path.exists(fp_json):
+                    os.remove(fp_json)
+                    deleted = True
+                if os.path.exists(fp_dat):
+                    os.remove(fp_dat)
+                    deleted = True
 
-    @classmethod
-    def markTilesetAdded(cls, key: str) -> None:
-        if not key:
-            return
-        if key in getattr(cls, "deletedTilesets", []):
-            cls.deletedTilesets.remove(key)
-            return
-        if key not in getattr(cls, "addedTilesets", []):
-            cls.addedTilesets.append(key)
+                if deleted:
+                    final_details["D"].append(key)
+                if key in cls._originData["systemConfigData"]:
+                    del cls._originData["systemConfigData"][key]
+            except Exception:
+                final_details["Failed"].append(key)
 
-    @classmethod
-    def markTilesetDeleted(cls, key: str) -> None:
-        if not key:
-            return
-        if key in getattr(cls, "addedTilesets", []):
-            cls.addedTilesets.remove(key)
-            if key in getattr(cls, "modifiedTilesets", []):
-                cls.modifiedTilesets.remove(key)
-            return
-        if key not in getattr(cls, "deletedTilesets", []):
-            cls.deletedTilesets.append(key)
-
-    @classmethod
-    def saveModifiedTilesets(cls):
+        # Tilesets
         tilesetsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Tilesets")
-        details = {"A": [], "U": [], "D": [], "Failed": []}
-        added_set = set(getattr(cls, "addedTilesets", []))
-
-        for key in list(getattr(cls, "modifiedTilesets", [])):
+        c_ts = changes["tilesetData"]
+        for key in c_ts["A"] + c_ts["U"]:
             ts = cls.tilesetData.get(key)
             if ts is None:
-                details["Failed"].append(key)
+                final_details["Failed"].append(key)
                 continue
             payload = {
                 "name": ts.name,
@@ -176,42 +198,26 @@ class GameData:
                 "passable": ts.passable,
                 "lightBlock": ts.lightBlock,
             }
-            fp = os.path.join(tilesetsRoot, f"{key}.dat")
             try:
-                File.saveData(fp, payload)
-                if key in added_set:
-                    details["A"].append(key)
+                File.saveData(os.path.join(tilesetsRoot, f"{key}.dat"), payload)
+                if key in c_ts["A"]:
+                    final_details["A"].append(key)
                 else:
-                    details["U"].append(key)
+                    final_details["U"].append(key)
+                cls._originData["tilesetData"][key] = copy.deepcopy(ts)
             except Exception:
-                details["Failed"].append(key)
+                final_details["Failed"].append(key)
 
-        for key in list(getattr(cls, "deletedTilesets", [])):
-            fp = os.path.join(tilesetsRoot, f"{key}.dat")
+        for key in c_ts["D"]:
             try:
+                fp = os.path.join(tilesetsRoot, f"{key}.dat")
                 if os.path.exists(fp):
                     os.remove(fp)
-                details["D"].append(key)
+                final_details["D"].append(key)
+                if key in cls._originData["tilesetData"]:
+                    del cls._originData["tilesetData"][key]
             except Exception:
-                details["Failed"].append(key)
-
-        cls.modifiedTilesets.clear()
-        cls.addedTilesets.clear()
-        cls.deletedTilesets.clear()
-        return not bool(details["Failed"]), details
-
-    @classmethod
-    def saveAllModified(cls):
-        ok_maps, det_maps = cls.saveModifiedMaps()
-        ok_cfgs, det_cfgs = cls.saveModifiedSystemConfigs()
-        ok_ts, det_ts = cls.saveModifiedTilesets()
-
-        ok = ok_maps and ok_cfgs and ok_ts
-
-        final_details = {"A": [], "U": [], "D": [], "Failed": []}
-        for d in [det_maps, det_cfgs, det_ts]:
-            for k in final_details:
-                final_details[k].extend(d[k])
+                final_details["Failed"].append(key)
 
         lines = []
         if final_details["A"]:
@@ -223,4 +229,45 @@ class GameData:
         if final_details["Failed"]:
             lines.append(f"Failed [{', '.join(final_details['Failed'])}]")
 
-        return ok, "\n" + "\n".join(lines)
+        return not bool(final_details["Failed"]), "\n" + "\n".join(lines)
+
+    @classmethod
+    def asDict(cls) -> Dict[str, Any]:
+        return {
+            "systemConfigData": cls.systemConfigData,
+            "tilesetData": cls.tilesetData,
+            "mapData": cls.mapData,
+        }
+
+    @classmethod
+    def recordSnapshot(cls):
+        snapshot = copy.deepcopy(cls.asDict())
+        cls.undoStack.append(snapshot)
+        cls.redoStack.clear()
+
+    @classmethod
+    def undo(cls):
+        if not cls.undoStack:
+            return
+
+        current_snapshot = copy.deepcopy(cls.asDict())
+        cls.redoStack.append(current_snapshot)
+
+        snapshot = cls.undoStack.pop()
+        cls._restoreSnapshot(snapshot)
+
+    @classmethod
+    def redo(cls):
+        if not cls.redoStack:
+            return
+
+        current_snapshot = copy.deepcopy(cls.asDict())
+        cls.undoStack.append(current_snapshot)
+
+        snapshot = cls.redoStack.pop()
+        cls._restoreSnapshot(snapshot)
+
+    @classmethod
+    def _restoreSnapshot(cls, snapshot):
+        for key, value in snapshot.items():
+            setattr(cls, key, value)

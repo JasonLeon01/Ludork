@@ -30,11 +30,31 @@ class EditorPanel(QtWidgets.QWidget):
         self.mapKey: str = ""
         self.mapData: Optional[MapData] = None
         self._pixmap: Optional[QtGui.QPixmap] = None
+        self._cachedTilesetImage: Optional[QtGui.QImage] = None
         self.selectedLayerName: Optional[str] = None
         self.selectedTileNumber: Optional[int] = None
         self.tileModeEnabled: bool = True
+        self.rectStartPos: Optional[Tuple[int, int]] = None
         super().__init__(parent)
+        self.setMouseTracking(True)
+        self.setFocusPolicy(QtCore.Qt.ClickFocus)
         Utils.Panel.applyDisabledOpacity(self)
+
+    def _updateCachedTileset(self) -> None:
+        self._cachedTilesetImage = None
+        if self.mapData is None or self.selectedLayerName is None:
+            return
+        layer = self.mapData.layers.get(self.selectedLayerName)
+        if not layer:
+            return
+        ts_path = os.path.join(
+            EditorStatus.PROJ_PATH,
+            "Assets",
+            "Tilesets",
+            layer.layerTileset.fileName,
+        )
+        if os.path.exists(ts_path):
+            self._cachedTilesetImage = QtGui.QImage(ts_path)
 
     def refreshMap(self, mapFileName: Optional[str] = None):
         self.selctedPos = None
@@ -58,6 +78,7 @@ class EditorPanel(QtWidgets.QWidget):
             mapData = Utils.File.loadData(self.mapFilePath)
             Data.GameData.mapData[self.mapKey] = mapData
         self.applyMapData(mapData)
+        self._updateCachedTileset()
         self._renderFromMapData()
         self._updateContentSize()
         self.update()
@@ -145,6 +166,7 @@ class EditorPanel(QtWidgets.QWidget):
 
     def setSelectedLayer(self, name: Optional[str]) -> None:
         self.selectedLayerName = name
+        self._updateCachedTileset()
         self._renderFromMapData()
 
     def setTileMode(self, enabled: bool) -> None:
@@ -174,6 +196,7 @@ class EditorPanel(QtWidgets.QWidget):
             return
         if key not in Data.GameData.tilesetData:
             return
+        Data.GameData.recordSnapshot()
         layer = self.mapData.layers.get(self.selectedLayerName)
         if not layer:
             return
@@ -182,14 +205,15 @@ class EditorPanel(QtWidgets.QWidget):
         setattr(layer, "layerTilesetKey", key)
         if self.mapKey and self.selectedLayerName in Data.GameData.mapData.get(self.mapKey, {}).get("layers", {}):
             Data.GameData.mapData[self.mapKey]["layers"][self.selectedLayerName]["layerTileset"] = key
-        Data.GameData.markMapModified(self.mapKey)
         self._refreshTitle()
+        self._updateCachedTileset()
         self._renderFromMapData()
         self.update()
 
     def addEmptyLayer(self, name: Optional[str] = None, filePath: str = "") -> Optional[str]:
         if self.mapData is None:
             return None
+        Data.GameData.recordSnapshot()
         Engine: TempEngine = importlib.import_module("Engine")
         TileLayerData = Engine.Gameplay.TileLayerData
         width = self.mapData.width
@@ -225,7 +249,6 @@ class EditorPanel(QtWidgets.QWidget):
                         "tiles": tiles,
                         "actors": [],
                     }
-        Data.GameData.markMapModified(self.mapKey)
         self._refreshTitle()
         self._renderFromMapData()
         self.update()
@@ -236,13 +259,14 @@ class EditorPanel(QtWidgets.QWidget):
             return False
         if name not in self.mapData.layers:
             return False
+        Data.GameData.recordSnapshot()
         self.mapData.layers.pop(name, None)
         if self.mapKey and self.mapKey in Data.GameData.mapData:
             Data.GameData.mapData[self.mapKey].get("layers", {}).pop(name, None)
-        Data.GameData.markMapModified(self.mapKey)
         self._refreshTitle()
         if self.selectedLayerName == name:
             self.selectedLayerName = None
+            self._updateCachedTileset()
         self._renderFromMapData()
         self.update()
         return True
@@ -250,16 +274,69 @@ class EditorPanel(QtWidgets.QWidget):
     def reorderLayers(self, new_order: List[str]) -> None:
         if self.mapData is None:
             return
+        Data.GameData.recordSnapshot()
         new_layers = {name: self.mapData.layers[name] for name in new_order}
         self.mapData.layers = new_layers
         if self.mapKey and self.mapKey in Data.GameData.mapData:
             game_layers = Data.GameData.mapData[self.mapKey].get("layers", {})
             new_game_layers = {name: game_layers[name] for name in new_order}
             Data.GameData.mapData[self.mapKey]["layers"] = new_game_layers
-        Data.GameData.markMapModified(self.mapKey)
         self._refreshTitle()
         self._renderFromMapData()
         self.update()
+
+    def _commitRectangle(self, endPos: Optional[Tuple[int, int]]) -> None:
+        if self.rectStartPos is None or endPos is None:
+            self.rectStartPos = None
+            self.update()
+            return
+
+        sx, sy = self.rectStartPos
+        ex, ey = endPos
+        min_x, max_x = min(sx, ex), max(sx, ex)
+        min_y, max_y = min(sy, ey), max(sy, ey)
+
+        if not self.tileModeEnabled or self.selectedLayerName is None:
+            self.rectStartPos = None
+            self.update()
+            return
+
+        layer = self.mapData.layers.get(self.selectedLayerName)
+        if not layer:
+            self.rectStartPos = None
+            self.update()
+            return
+
+        Data.GameData.recordSnapshot()
+        changed = False
+        for y in range(min_y, max_y + 1):
+            for x in range(min_x, max_x + 1):
+                if layer.tiles[y][x] != self.selectedTileNumber:
+                    layer.tiles[y][x] = self.selectedTileNumber
+                    if self.mapKey and self.selectedLayerName:
+                        if self.mapKey in Data.GameData.mapData:
+                            if self.selectedLayerName in Data.GameData.mapData[self.mapKey].get("layers", {}):
+                                Data.GameData.mapData[self.mapKey]["layers"][self.selectedLayerName]["tiles"][y][x] = (
+                                    None if self.selectedTileNumber is None else int(self.selectedTileNumber)
+                                )
+                    changed = True
+
+        if changed:
+            self._refreshTitle()
+            self._renderFromMapData()
+
+        self.rectStartPos = None
+        self.update()
+
+    def mouseReleaseEvent(self, e: QtGui.QMouseEvent) -> None:
+        if e.button() == QtCore.Qt.LeftButton and self.rectStartPos is not None:
+            self._commitRectangle(self.selctedPos)
+        super().mouseReleaseEvent(e)
+
+    def keyReleaseEvent(self, e: QtGui.QKeyEvent) -> None:
+        if e.key() == QtCore.Qt.Key_Shift and self.rectStartPos is not None:
+            self._commitRectangle(self.selctedPos)
+        super().keyReleaseEvent(e)
 
     def paintEvent(self, e: QtGui.QPaintEvent) -> None:
         p = QtGui.QPainter(self)
@@ -277,12 +354,59 @@ class EditorPanel(QtWidgets.QWidget):
             y += s
         if self._pixmap is not None:
             p.drawPixmap(0, 0, self._pixmap)
+
+        if self.selctedPos is not None and self.selectedLayerName is not None:
+            gx, gy = self.selctedPos
+            tileSize = EditorStatus.CELLSIZE
+
+            if self.rectStartPos is not None:
+                sx, sy = self.rectStartPos
+                min_x, max_x = min(sx, gx), max(sx, gx)
+                min_y, max_y = min(sy, gy), max(sy, gy)
+            else:
+                min_x, max_x = gx, gx
+                min_y, max_y = gy, gy
+
+            if (
+                self.tileModeEnabled
+                and self.selectedTileNumber is not None
+                and self._cachedTilesetImage is not None
+                and not self._cachedTilesetImage.isNull()
+            ):
+                n = int(self.selectedTileNumber)
+                columns = self._cachedTilesetImage.width() // tileSize
+                rows = self._cachedTilesetImage.height() // tileSize
+                total = columns * rows
+                if 0 <= n < total:
+                    tu = n % columns
+                    tv = n // columns
+                    src = QtCore.QRect(tu * tileSize, tv * tileSize, tileSize, tileSize)
+
+                    p.setOpacity(0.5)
+                    for y_idx in range(min_y, max_y + 1):
+                        for x_idx in range(min_x, max_x + 1):
+                            dst = QtCore.QRect(x_idx * tileSize, y_idx * tileSize, tileSize, tileSize)
+                            p.drawImage(dst, self._cachedTilesetImage, src)
+                    p.setOpacity(1.0)
+
+            p.setPen(QtGui.QPen(QtCore.Qt.black, 1))
+            p.setBrush(QtCore.Qt.NoBrush)
+
+            rect_w = (max_x - min_x + 1) * tileSize
+            rect_h = (max_y - min_y + 1) * tileSize
+            p.drawRect(min_x * tileSize, min_y * tileSize, rect_w - 1, rect_h - 1)
+
         p.end()
 
     def changeEvent(self, e: QtCore.QEvent) -> None:
         if e.type() == QtCore.QEvent.EnabledChange:
             Utils.Panel.applyDisabledOpacity(self)
         super().changeEvent(e)
+
+    def leaveEvent(self, a0: QtCore.QEvent) -> None:
+        self.selctedPos = None
+        self.update()
+        super().leaveEvent(a0)
 
     def mousePressEvent(self, e: QtGui.QMouseEvent) -> None:
         if self.mapData is None:
@@ -311,6 +435,12 @@ class EditorPanel(QtWidgets.QWidget):
             return
         if e.button() != QtCore.Qt.LeftButton:
             return
+
+        if e.modifiers() & QtCore.Qt.ShiftModifier:
+            self.rectStartPos = (gx, gy)
+            return
+
+        Data.GameData.recordSnapshot()
         layer.tiles[gy][gx] = self.selectedTileNumber
         if self.mapKey and self.selectedLayerName:
             if self.mapKey in Data.GameData.mapData:
@@ -318,7 +448,6 @@ class EditorPanel(QtWidgets.QWidget):
                     Data.GameData.mapData[self.mapKey]["layers"][self.selectedLayerName]["tiles"][gy][gx] = (
                         None if self.selectedTileNumber is None else int(self.selectedTileNumber)
                     )
-        Data.GameData.markMapModified(self.mapKey)
         self._refreshTitle()
         self._renderFromMapData()
         self.update()
@@ -332,8 +461,22 @@ class EditorPanel(QtWidgets.QWidget):
         gx = x // tileSize
         gy = y // tileSize
         if gx < 0 or gy < 0 or gx >= self.mapData.width or gy >= self.mapData.height:
+            if self.selctedPos is not None:
+                self.selctedPos = None
+                self.update()
             return
-        self.selctedPos = (gx, gy)
+
+        if self.selctedPos != (gx, gy):
+            self.selctedPos = (gx, gy)
+            self.update()
+
+        if self.rectStartPos is not None:
+            if not (e.modifiers() & QtCore.Qt.ShiftModifier):
+                self._commitRectangle((gx, gy))
+            else:
+                self.update()
+            return
+
         if not self.tileModeEnabled:
             return
         if self.selectedLayerName is None:
@@ -352,7 +495,6 @@ class EditorPanel(QtWidgets.QWidget):
                             Data.GameData.mapData[self.mapKey]["layers"][self.selectedLayerName]["tiles"][gy][gx] = (
                                 None if self.selectedTileNumber is None else int(self.selectedTileNumber)
                             )
-                Data.GameData.markMapModified(self.mapKey)
                 self._refreshTitle()
         except Exception:
             return
@@ -384,6 +526,7 @@ class EditorPanel(QtWidgets.QWidget):
             return False
         if new in self.mapData.layers:
             return False
+        Data.GameData.recordSnapshot()
         layer = self.mapData.layers.pop(old)
         setattr(layer, "layerName", new)
         self.mapData.layers[new] = layer
@@ -395,7 +538,6 @@ class EditorPanel(QtWidgets.QWidget):
                 layersDict[new] = data
         if self.selectedLayerName == old:
             self.selectedLayerName = new
-        Data.GameData.markMapModified(self.mapKey)
         self._refreshTitle()
         self._renderFromMapData()
         self.update()
@@ -406,6 +548,6 @@ class EditorPanel(QtWidgets.QWidget):
             from Utils import System
 
             w = self.window()
-            w.setWindowTitle(System.get_title())
+            w.setWindowTitle(System.getTitle())
         except Exception as e:
             print(f"Error while refreshing title: {e}")

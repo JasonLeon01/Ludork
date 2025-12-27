@@ -124,7 +124,7 @@ def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
         return
     from W_MainWindow import MainWindow
 
-    mainWindow = MainWindow(System.get_title())
+    mainWindow = MainWindow(System.getTitle())
     try:
         cfg_w = int(EditorStatus.editorConfig[EditorStatus.APP_NAME].get("Width", mainWindow.width()))
         cfg_h = int(EditorStatus.editorConfig[EditorStatus.APP_NAME].get("Height", mainWindow.height()))

@@ -47,6 +47,18 @@
         "zh_CN": "退出",
         "en_GB": "Exit"
     },
+    "EDIT": {
+        "zh_CN": "编辑",
+        "en_GB": "Edit"
+    },
+    "UNDO": {
+        "zh_CN": "撤销",
+        "en_GB": "Undo"
+    },
+    "REDO": {
+        "zh_CN": "重做",
+        "en_GB": "Redo"
+    },
     "GAME": {
         "zh_CN": "游戏",
         "en_GB": "Game"
@@ -223,6 +235,10 @@
         "zh_CN": "地图高度",
         "en_GB": "Map Height"
     },
+    "AMBIENT_LIGHT": {
+        "zh_CN": "环境光",
+        "en_GB": "Ambient Light"
+    },
     "SAVE_SUCCESS": {
         "zh_CN": "保存成功！",
         "en_GB": "Save Successfully! "
@@ -370,5 +386,17 @@
     "IndividualWindow": {
         "zh_CN": "独立窗口",
         "en_GB": "Individual Window"
+    },
+    "CONFIRM_EXIT_WITH_UNSAVED_CHANGES": {
+        "zh_CN": "当前有未保存的修改，是否保存并退出？",
+        "en_GB": "There are unsaved changes. Save and exit?"
+    },
+    "SAVE_AND_EXIT": {
+        "zh_CN": "保存",
+        "en_GB": "Save"
+    },
+    "DISCARD_AND_EXIT": {
+        "zh_CN": "不保存",
+        "en_GB": "Discard"
     }
 }

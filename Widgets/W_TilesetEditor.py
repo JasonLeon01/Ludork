@@ -77,9 +77,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
             Tileset = Engine.Gameplay.Tileset
             new_ts = Tileset(name=text, fileName="", passable=[], lightBlock=[])
 
+            Data.GameData.recordSnapshot()
             Data.GameData.tilesetData[text] = new_ts
-            Data.GameData.markTilesetAdded(text)
-            Data.GameData.markTilesetModified(text)
 
             item = QtWidgets.QListWidgetItem(text)
             self.listWidget.addItem(item)
@@ -87,7 +86,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
 
             if getattr(Data, "GameData", None):
                 if getattr(File, "mainWindow", None):
-                    File.mainWindow.setWindowTitle(System.get_title())
+                    File.mainWindow.setWindowTitle(System.getTitle())
                     File.mainWindow.tileSelect.initTilesets()
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", str(e))
@@ -107,9 +106,9 @@ class TilesetEditor(QtWidgets.QMainWindow):
         if ret != QtWidgets.QMessageBox.Yes:
             return
         try:
+            Data.GameData.recordSnapshot()
             if key in Data.GameData.tilesetData:
                 Data.GameData.tilesetData.pop(key, None)
-            Data.GameData.markTilesetDeleted(key)
             self.listWidget.takeItem(row)
             if self.listWidget.count() > 0:
                 self.listWidget.setCurrentRow(min(row, self.listWidget.count() - 1))
@@ -117,7 +116,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
                 self.tilesetPanel.setTilesetData(None)
             if getattr(Data, "GameData", None):
                 if getattr(File, "mainWindow", None):
-                    File.mainWindow.setWindowTitle(System.get_title())
+                    File.mainWindow.setWindowTitle(System.getTitle())
                     File.mainWindow.tileSelect.initTilesets()
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", str(e))

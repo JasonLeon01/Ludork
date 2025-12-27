@@ -114,6 +114,7 @@ class ConfigDictPanel(QtWidgets.QWidget):
                 ok = any(bn.endswith(e.replace("*", "")) for e in filters)
                 if not ok:
                     return
+            Data.GameData.recordSnapshot()
             edit.setText(bn)
             if list_ref is not None and index is not None:
                 if index >= 0 and index < len(list_ref):
@@ -123,7 +124,6 @@ class ConfigDictPanel(QtWidgets.QWidget):
                 val["value"] = list_ref
             else:
                 val["value"] = bn
-            Data.GameData.markSystemConfigModified(self._filename)
             self.modified.emit()
 
         btn.clicked.connect(on_browse)
@@ -135,6 +135,7 @@ class ConfigDictPanel(QtWidgets.QWidget):
         edit = self._create_line_edit(base_t, val.get("value"))
 
         def on_changed(text: str):
+            Data.GameData.recordSnapshot()
             if base_t == "int":
                 try:
                     val["value"] = int(text) if text.strip() else 0
@@ -147,7 +148,6 @@ class ConfigDictPanel(QtWidgets.QWidget):
                     print(f"Error parsing float: {e}")
             else:
                 val["value"] = text
-            Data.GameData.markSystemConfigModified(self._filename)
             self.modified.emit()
 
         edit.textChanged.connect(on_changed)
@@ -217,9 +217,9 @@ class ConfigDictPanel(QtWidgets.QWidget):
                     edit.setText(bn)
                     idx_now = v.indexOf(row)
                     if idx_now >= 0 and idx_now < len(values):
+                        Data.GameData.recordSnapshot()
                         values[idx_now] = bn
                         val["value"] = values
-                        Data.GameData.markSystemConfigModified(self._filename)
                         self.modified.emit()
 
                 browse.clicked.connect(on_browse)
@@ -228,13 +228,13 @@ class ConfigDictPanel(QtWidgets.QWidget):
                     def on_minus():
                         idx_now = v.indexOf(row)
                         if idx_now >= 0 and idx_now < len(values):
+                            Data.GameData.recordSnapshot()
                             values.pop(idx_now)
                             val["value"] = values
                         v.removeWidget(row)
                         row.setParent(None)
                         row.deleteLater()
                         self.contentHeightChanged.emit()
-                        Data.GameData.markSystemConfigModified(self._filename)
                         self.modified.emit()
 
                     minus.clicked.connect(on_minus)
@@ -247,6 +247,7 @@ class ConfigDictPanel(QtWidgets.QWidget):
                     h.addWidget(minus, 0)
 
                 def on_changed(text: str):
+                    Data.GameData.recordSnapshot()
                     idx_now = v.indexOf(row)
                     if base_t == "int":
                         try:
@@ -261,7 +262,6 @@ class ConfigDictPanel(QtWidgets.QWidget):
                     else:
                         values[idx_now] = text
                     val["value"] = values
-                    Data.GameData.markSystemConfigModified(self._filename)
                     self.modified.emit()
 
                 edit.textChanged.connect(on_changed)
@@ -271,6 +271,7 @@ class ConfigDictPanel(QtWidgets.QWidget):
                     def on_minus():
                         idx_now = v.indexOf(row)
                         if idx_now >= 0 and idx_now < len(values):
+                            Data.GameData.recordSnapshot()
                             values.pop(idx_now)
                             val["value"] = values
                         v.removeWidget(row)
@@ -296,11 +297,11 @@ class ConfigDictPanel(QtWidgets.QWidget):
             btn = QtWidgets.QPushButton("+")
 
             def on_add():
+                Data.GameData.recordSnapshot()
                 values.append("")
                 val["value"] = values
                 add_row("", len(values) - 1)
                 self.contentHeightChanged.emit()
-                Data.GameData.markSystemConfigModified(self._filename)
                 self.modified.emit()
 
             btn.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)

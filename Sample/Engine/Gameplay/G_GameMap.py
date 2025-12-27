@@ -382,4 +382,7 @@ class GameMap:
         height = data["height"]
         layers = data["layers"]
         tilemap = Tilemap.loadData(layers, tilesetData, width, height)
-        return GameMap(mapName, tilemap, camera)
+        ambientLight = data.get("ambientLight", [255, 255, 255, 255])
+        result = GameMap(mapName, tilemap, camera)
+        result.setAmbientLight(Color(*ambientLight))
+        return result

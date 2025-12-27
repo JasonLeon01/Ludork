@@ -18,7 +18,7 @@ def already_packed() -> bool:
     return result
 
 
-def get_title() -> str:
+def getTitle() -> str:
     import EditorStatus
 
     titles = [EditorStatus.APP_NAME]
@@ -34,14 +34,7 @@ def get_title() -> str:
                 if isinstance(title, str) and title.strip():
                     titles.append(title.strip())
                     result = " - ".join(titles)
-                    mods = (
-                        bool(getattr(Data.GameData, "modifiedMaps", []))
-                        or bool(getattr(Data.GameData, "modifiedSystemConfigs", []))
-                        or bool(getattr(Data.GameData, "modifiedTilesets", []))
-                        or bool(getattr(Data.GameData, "addedTilesets", []))
-                        or bool(getattr(Data.GameData, "deletedTilesets", []))
-                    )
-                    if mods:
+                    if Data.GameData.checkModified():
                         result += " *"
     except Exception as e:
         print(f"Error while getting title: {e}")

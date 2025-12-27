@@ -32,9 +32,12 @@ class Scene(SceneBase):
             File.loadData("./Data/Maps/Map_01.dat"),
             {"Tileset_01": Tileset.fromData(tilesetData)},
         )
-        self._gameMap.setAmbientLight(Color(60, 60, 60, 255))
-        self.light = Light(Vector2f(160, 120), Color(255, 220, 180, 255), 64.0)
-        self._gameMap.setLights([self.light])
+        self._gameMap.setLights(
+            [
+                Light(Vector2f(32, 112), Color(255, 220, 180, 255), 256.0),
+                Light(Vector2f(480, 240), Color(255, 110, 60, 255), 128.0),
+            ]
+        )
 
         self._gameMap.spawnActor(self.actors[0], "default")
         self._gameMap.getCamera().setParent(self.actors[0])
@@ -42,8 +45,6 @@ class Scene(SceneBase):
         System.setGraphicsShader(Shader(System.getGrayScaleShaderPath(), Shader.Type.Fragment), {"intensity": 0.5})
 
     def onFixedTick(self, fixedDelta: float) -> None:
-        if self.light.radius < 1280.0:
-            self.light.radius += 1
         self._gameMap.onFixedTick(fixedDelta)
         return super().onFixedTick(fixedDelta)
 

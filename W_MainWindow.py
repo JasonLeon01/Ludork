@@ -22,6 +22,7 @@ from Widgets import (
     SettingsWindow,
 )
 import EditorStatus
+import Data
 from Widgets.Utils import MapEditDialog, SingleRowDialog
 
 
@@ -64,6 +65,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actOpenProject = QtWidgets.QAction(Locale.getContent("OPEN_PROJECT"), self)
         self._actSave = QtWidgets.QAction(Locale.getContent("SAVE"), self)
         self._actExit = QtWidgets.QAction(Locale.getContent("EXIT"), self)
+        self._actUndo = QtWidgets.QAction(Locale.getContent("UNDO"), self)
+        self._actRedo = QtWidgets.QAction(Locale.getContent("REDO"), self)
         self._actGameSettings = QtWidgets.QAction(Locale.getContent("GAME_SETTINGS"), self)
         self._actDatabaseSystemConfig = QtWidgets.QAction(Locale.getContent("SYSTEM_CONFIG"), self)
         self._actDatabaseTilesetsData = QtWidgets.QAction(Locale.getContent("TILESETS_DATA"), self)
@@ -175,9 +178,35 @@ class MainWindow(QtWidgets.QMainWindow):
                 cfg.write(f)
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        if not self._checkUnsavedChanges():
+            event.ignore()
+            return
         self._saveProjLastMap()
         self.endGame()
         super().closeEvent(event)
+
+    def _checkUnsavedChanges(self) -> bool:
+        if not Data.GameData.checkModified():
+            return True
+
+        msgBox = QtWidgets.QMessageBox(self)
+        msgBox.setWindowTitle(Locale.getContent("EXIT"))
+        msgBox.setText(Locale.getContent("CONFIRM_EXIT_WITH_UNSAVED_CHANGES"))
+        msgBox.setIcon(QtWidgets.QMessageBox.Question)
+
+        btnSave = msgBox.addButton(Locale.getContent("SAVE_AND_EXIT"), QtWidgets.QMessageBox.AcceptRole)
+        btnDiscard = msgBox.addButton(Locale.getContent("DISCARD_AND_EXIT"), QtWidgets.QMessageBox.DestructiveRole)
+        btnCancel = msgBox.addButton(Locale.getContent("CANCEL"), QtWidgets.QMessageBox.RejectRole)
+
+        msgBox.exec_()
+
+        if msgBox.clickedButton() == btnSave:
+            Data.GameData.saveAllModified()
+            return True
+        elif msgBox.clickedButton() == btnDiscard:
+            return True
+
+        return False
 
     def getPanelHandle(self) -> int:
         return int(self.gamePanel.winId())
@@ -507,6 +536,14 @@ class MainWindow(QtWidgets.QMainWindow):
         _fileMenu.addAction(self._actSave)
         _fileMenu.addAction(self._actExit)
 
+        _editMenu = self._menuBar.addMenu(Locale.getContent("EDIT"))
+        self._actUndo.setShortcut(QtGui.QKeySequence.StandardKey.Undo)
+        self._actUndo.triggered.connect(self._onUndo)
+        self._actRedo.setShortcut(QtGui.QKeySequence.StandardKey.Redo)
+        self._actRedo.triggered.connect(self._onRedo)
+        _editMenu.addAction(self._actUndo)
+        _editMenu.addAction(self._actRedo)
+
         _gameMenu = self._menuBar.addMenu(Locale.getContent("GAME"))
         self._actGameSettings.triggered.connect(self._onGameSettings)
         self._actGameSettings.setShortcut(QtGui.QKeySequence("F4"))
@@ -547,8 +584,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if not dlg.execApply():
             return
         Data.GameData.mapData[mapKey] = data
-        Data.GameData.markMapModified(mapKey)
-        self.setWindowTitle(System.get_title())
+        self.setWindowTitle(System.getTitle())
         if self.leftList.currentItem() and self.leftList.currentItem().text() == mapKey:
             self.editorPanel.refreshMap(mapKey)
             self._refreshLayerBar()
@@ -777,14 +813,30 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.warning(
                 self, "Hint", Locale.getContent("SAVE_FAILED") + Locale.getContent("SAVE_PATH").format(content)
             )
-        self.setWindowTitle(System.get_title())
+        self.setWindowTitle(System.getTitle())
 
     def _onExit(self, checked: bool = False) -> None:
         self.close()
 
+    def _onUndo(self, checked: bool = False) -> None:
+        Data.GameData.undo()
+        self._refreshCurrentView()
+
+    def _onRedo(self, checked: bool = False) -> None:
+        Data.GameData.redo()
+        self._refreshCurrentView()
+
+    def _refreshCurrentView(self):
+        self.setWindowTitle(System.getTitle())
+        if self.stacked.currentWidget() == self.editorScroll:
+            item = self.leftList.currentItem()
+            if item:
+                self.editorPanel.refreshMap(item.text())
+                self._refreshLayerBar()
+
     def _onDatabaseSystemConfig(self, checked: bool = False) -> None:
         self._configWindow = ConfigWindow(self)
-        self._configWindow.modified.connect(lambda: self.setWindowTitle(System.get_title()))
+        self._configWindow.modified.connect(lambda: self.setWindowTitle(System.getTitle()))
         self._configWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._configWindow.setWindowModality(QtCore.Qt.ApplicationModal)
         self._configWindow.activateWindow()
@@ -808,7 +860,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _onGameSettings(self, checked: bool = False) -> None:
         self._settingsWindow = SettingsWindow(self, self._projConfig)
-        self._settingsWindow.modified.connect(lambda: self.setWindowTitle(System.get_title()))
+        self._settingsWindow.modified.connect(lambda: self.setWindowTitle(System.getTitle()))
         self._settingsWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._settingsWindow.setWindowModality(QtCore.Qt.ApplicationModal)
         self._settingsWindow.activateWindow()
