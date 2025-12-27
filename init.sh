@@ -59,8 +59,8 @@ if [ ! -f "$ENV_DIR/bin/activate" ]; then
   fi
 fi
 
-if [ -d "C_Extentions" ]; then
-  cd C_Extentions
+if [ -d "C_Extensions" ]; then
+  cd C_Extensions
   for d in */; do
     if [ -d "$d" ]; then
       echo "Building extension in $d..."

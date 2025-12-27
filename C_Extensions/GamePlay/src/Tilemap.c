@@ -1,7 +1,4 @@
-#include <Python.h>
-
-#define coord_vec2_obj(objx, objy, x, y) PyObject *objx = PyFloat_FromDouble(x); PyObject *objy = PyFloat_FromDouble(y);
-#define collect_vec(objx, objy, vec) Py_DECREF(objx); Py_DECREF(objy); Py_DECREF(vec);
+#include <Tilemap.h>
 
 static PyObject* getVertexItem(PyObject *vertexArray, Py_ssize_t index) {
     PyObject *vertex;
@@ -34,7 +31,7 @@ static int setVec2(PyObject *vertex, const char *attr, double x, double y) {
     return (r1 == 0 && r2 == 0) ? 0 : -1;
 }
 
-static PyObject* calculateVertexArray(PyObject* self, PyObject* args) {
+PyObject* calculateVertexArray(PyObject* self, PyObject* args) {
     PyObject *vertexArray;
     PyObject *tiles;
     int tileSize, columns, width, height;
@@ -113,21 +110,4 @@ static PyObject* calculateVertexArray(PyObject* self, PyObject* args) {
         Py_DECREF(row);
     }
     Py_RETURN_NONE;
-}
-
-static PyMethodDef TilemapExtensionMethods[] = {
-    {"calculateVertexArray", calculateVertexArray, METH_VARARGS},
-    {NULL, NULL, 0, NULL}
-};
-
-static struct PyModuleDef TilemapExtensionModule = {
-    PyModuleDef_HEAD_INIT,
-    "TilemapExtension",
-    NULL,
-    -1,
-    TilemapExtensionMethods
-};
-
-PyMODINIT_FUNC PyInit_TilemapExtension(void) {
-    return PyModule_Create(&TilemapExtensionModule);
 }

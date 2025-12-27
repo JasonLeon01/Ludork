@@ -65,8 +65,8 @@ if errorlevel 1 (
 )
 
 :RUN_APP
-if exist "C_Extentions" (
-  cd C_Extentions
+if exist "C_Extensions" (
+  cd C_Extensions
   for /D %%D in (*) do (
     pushd "%%D"
     echo Building extension in %%D...

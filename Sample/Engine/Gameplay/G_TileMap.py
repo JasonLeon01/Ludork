@@ -87,7 +87,7 @@ class TileLayer(Drawable, Transformable):
         tileSize = GetCellSize()
         columns = self._texture.getSize().x // tileSize
 
-        from .TilemapExtension import calculateVertexArray
+        from .GamePlayExtension import calculateVertexArray
 
         calculateVertexArray(self._vertexArray, self._data.tiles, tileSize, columns, self._width, self._height)
 

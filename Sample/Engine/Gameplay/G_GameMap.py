@@ -164,32 +164,9 @@ class GameMap:
         self._camera = camera
 
     def getLightMap(self) -> List[List[float]]:
-        def getLightBlock(inLayerKeys: List[str], pos: Vector2i):
-            for layerName in inLayerKeys:
-                layer = self._tilemap.getLayer(layerName)
-                if not layer.visible:
-                    continue
-                if layerName in self._actors:
-                    for actor in self._actors[layerName]:
-                        if actor.getMapPosition() == pos:
-                            if actor.getCollisionEnabled():
-                                return actor.getLightBlock()
-                            else:
-                                return 0
-                return layer.getLightBlock(pos)
-            return 0
+        from .GamePlayExtension import getLightMap
 
-        layerKeys = list(self._tilemap.getAllLayers().keys())
-        layerKeys.reverse()
-        lightMap: List[List[float]] = []
-        mapSize = self._tilemap.getSize()
-        width = mapSize.x
-        height = mapSize.y
-        for y in range(height):
-            lightMap.append([])
-            for x in range(width):
-                lightMap[-1].append(getLightBlock(layerKeys, Vector2i(x, y)))
-        return lightMap
+        return getLightMap(self)
 
     def getLights(self) -> List[Light]:
         return self._lights

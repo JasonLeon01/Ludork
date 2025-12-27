@@ -86,7 +86,7 @@ class SettingsWindow(QtWidgets.QMainWindow):
                 except Exception as e:
                     QtWidgets.QMessageBox.warning(self, "Hint", str(e))
                     self._projConfig = {}
-        self.setWindowTitle(Locale.getContent("HELP_SETTINGS"))
+        self.setWindowTitle(Locale.getContent("GAME_SETTINGS"))
         self.setMinimumSize(640, 320)
         central = QtWidgets.QWidget(self)
         self.setCentralWidget(central)

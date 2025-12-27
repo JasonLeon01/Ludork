@@ -62,9 +62,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self._actNewProject = QtWidgets.QAction(Locale.getContent("NEW_PROJECT"), self)
         self._actOpenProject = QtWidgets.QAction(Locale.getContent("OPEN_PROJECT"), self)
-        self._actHelpSettings = QtWidgets.QAction(Locale.getContent("HELP_SETTINGS"), self)
         self._actSave = QtWidgets.QAction(Locale.getContent("SAVE"), self)
         self._actExit = QtWidgets.QAction(Locale.getContent("EXIT"), self)
+        self._actGameSettings = QtWidgets.QAction(Locale.getContent("GAME_SETTINGS"), self)
         self._actDatabaseSystemConfig = QtWidgets.QAction(Locale.getContent("SYSTEM_CONFIG"), self)
         self._actDatabaseTilesetsData = QtWidgets.QAction(Locale.getContent("TILESETS_DATA"), self)
         self._actDatabaseCommonFunctions = QtWidgets.QAction(Locale.getContent("COMMON_FUNCTIONS"), self)
@@ -500,15 +500,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actOpenProject.triggered.connect(self._onOpenProject)
         self._actSave.setShortcut(QtGui.QKeySequence.StandardKey.Save)
         self._actSave.triggered.connect(self._onSave)
-        self._actHelpSettings.triggered.connect(self._onHelpSettings)
-        self._actHelpSettings.setShortcut(QtGui.QKeySequence.StandardKey.Preferences)
         self._actExit.setShortcut(QtGui.QKeySequence.StandardKey.Close)
         self._actExit.triggered.connect(self._onExit)
         _fileMenu.addAction(self._actNewProject)
         _fileMenu.addAction(self._actOpenProject)
         _fileMenu.addAction(self._actSave)
-        _fileMenu.addAction(self._actHelpSettings)
         _fileMenu.addAction(self._actExit)
+
+        _gameMenu = self._menuBar.addMenu(Locale.getContent("GAME"))
+        self._actGameSettings.triggered.connect(self._onGameSettings)
+        self._actGameSettings.setShortcut(QtGui.QKeySequence("F4"))
+        _gameMenu.addAction(self._actGameSettings)
 
         _dbMenu = self._menuBar.addMenu(Locale.getContent("DATABASE"))
         self._actDatabaseSystemConfig.triggered.connect(self._onDatabaseSystemConfig)
@@ -804,7 +806,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def _onHelpExplanation(self, checked: bool = False) -> None:
         pass
 
-    def _onHelpSettings(self, checked: bool = False) -> None:
+    def _onGameSettings(self, checked: bool = False) -> None:
         self._settingsWindow = SettingsWindow(self, self._projConfig)
         self._settingsWindow.modified.connect(lambda: self.setWindowTitle(System.get_title()))
         self._settingsWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)

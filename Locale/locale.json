@@ -1,16 +1,4 @@
 {
-    "HELP": {
-        "zh_CN": "帮助",
-        "en_GB": "Help"
-    },
-    "HELP_EXPLANATION": {
-        "zh_CN": "说明",
-        "en_GB": "Contents"
-    },
-    "HELP_SETTINGS": {
-        "zh_CN": "设置",
-        "en_GB": "Settings"
-    },
     "ADD_TILESET": {
         "zh_CN": "新增图块集",
         "en_GB": "Add Tileset"
@@ -58,6 +46,42 @@
     "EXIT": {
         "zh_CN": "退出",
         "en_GB": "Exit"
+    },
+    "GAME": {
+        "zh_CN": "游戏",
+        "en_GB": "Game"
+    },
+    "GAME_SETTINGS": {
+        "zh_CN": "游戏设置",
+        "en_GB": "Game Settings"
+    },
+    "DATABASE": {
+        "zh_CN": "数据库",
+        "en_GB": "Database"
+    },
+    "SYSTEM_CONFIG": {
+        "zh_CN": "系统配置",
+        "en_GB": "System Config"
+    },
+    "TILESETS_DATA": {
+        "zh_CN": "图块集数据",
+        "en_GB": "Tilesets Data"
+    },
+    "COMMON_FUNCTIONS": {
+        "zh_CN": "公共函数",
+        "en_GB": "Common Functions"
+    },
+    "SCRIPTS": {
+        "zh_CN": "脚本",
+        "en_GB": "Scripts"
+    },
+    "HELP": {
+        "zh_CN": "帮助",
+        "en_GB": "Help"
+    },
+    "HELP_EXPLANATION": {
+        "zh_CN": "说明",
+        "en_GB": "Contents"
     },
     "EDIT_MAP": {
         "zh_CN": "编辑地图",
@@ -218,26 +242,6 @@
     "MAP_FILE_NONE": {
         "zh_CN": "地图文件失效",
         "en_GB": "The file path of this map is None yet."
-    },
-    "DATABASE": {
-        "zh_CN": "数据库",
-        "en_GB": "Database"
-    },
-    "SYSTEM_CONFIG": {
-        "zh_CN": "系统配置",
-        "en_GB": "System Config"
-    },
-    "TILESETS_DATA": {
-        "zh_CN": "图块集数据",
-        "en_GB": "Tilesets Data"
-    },
-    "COMMON_FUNCTIONS": {
-        "zh_CN": "公共函数",
-        "en_GB": "Common Functions"
-    },
-    "SCRIPTS": {
-        "zh_CN": "脚本",
-        "en_GB": "Scripts"
     },
     "title": {
         "zh_CN": "游戏名称",
