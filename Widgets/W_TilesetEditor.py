@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from PyQt5 import QtWidgets, QtCore, QtGui
-import Data
+from Data import GameData
 import importlib
 import copy
 from Utils import Locale, File, System
@@ -64,45 +64,39 @@ class TilesetEditor(QtWidgets.QMainWindow):
             return
 
         key = self.listWidget.item(row).text()
-        data = Data.GameData.tilesetData.get(key)
+        data = GameData.tilesetData.get(key)
         self.tilesetPanel.setTilesetData(data)
 
     def _showContextMenu(self, position):
         item = self.listWidget.itemAt(position)
         menu = QtWidgets.QMenu()
-
-        add_action = menu.addAction(Locale.getContent("ADD_TILESET"))
-
-        paste_action = menu.addAction(Locale.getContent("PASTE"))
-        paste_action.setShortcut(QtGui.QKeySequence.Paste)
-        if not self._tilesetClipboard:
-            paste_action.setEnabled(False)
-
-        if item:
-            menu.addSeparator()
-            rename_action = menu.addAction(Locale.getContent("RENAME_TILESET"))
-            copy_action = menu.addAction(Locale.getContent("COPY"))
-            copy_action.setShortcut(QtGui.QKeySequence.Copy)
-
-            delete_action = menu.addAction(Locale.getContent("DELETE"))
-            delete_action.setShortcut(QtGui.QKeySequence.Delete)
-
+        if item is None:
+            add_action = menu.addAction(Locale.getContent("ADD_TILESET"))
+            paste_action = menu.addAction(Locale.getContent("PASTE"))
+            paste_action.setShortcut(QtGui.QKeySequence.Paste)
+            if not self._tilesetClipboard:
+                paste_action.setEnabled(False)
+            action = menu.exec_(self.listWidget.mapToGlobal(position))
+            if action == add_action:
+                self._addTileset()
+            elif action == paste_action:
+                self._pasteTileset()
+            return
+        rename_action = menu.addAction(Locale.getContent("RENAME_TILESET"))
+        copy_action = menu.addAction(Locale.getContent("COPY"))
+        copy_action.setShortcut(QtGui.QKeySequence.Copy)
+        delete_action = menu.addAction(Locale.getContent("DELETE"))
+        delete_action.setShortcut(QtGui.QKeySequence.Delete)
         action = menu.exec_(self.listWidget.mapToGlobal(position))
-
-        if action == add_action:
-            self._addTileset()
-        elif action == paste_action:
-            self._pasteTileset()
-        elif item:
-            if action == rename_action:
-                self.listWidget.setCurrentItem(item)
-                self._renameTileset()
-            elif action == copy_action:
-                self.listWidget.setCurrentItem(item)
-                self._copyTileset()
-            elif action == delete_action:
-                self.listWidget.setCurrentItem(item)
-                self._deleteTileset()
+        if action == rename_action:
+            self.listWidget.setCurrentItem(item)
+            self._renameTileset()
+        elif action == copy_action:
+            self.listWidget.setCurrentItem(item)
+            self._copyTileset()
+        elif action == delete_action:
+            self.listWidget.setCurrentItem(item)
+            self._deleteTileset()
 
     def _addTileset(self):
         dlg = SingleRowDialog(self, Locale.getContent("ADD_TILESET"), Locale.getContent("ENTER_TILESET_FILE"), "")
@@ -114,7 +108,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
         if not text:
             return
 
-        if text in Data.GameData.tilesetData:
+        if text in GameData.tilesetData:
             QtWidgets.QMessageBox.warning(self, Locale.getContent("ADD_TILESET"), Locale.getContent("TILESET_EXISTS"))
             return
 
@@ -123,8 +117,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
             Tileset = Engine.Gameplay.Tileset
             new_ts = Tileset(name=text, fileName="", passable=[], lightBlock=[])
 
-            Data.GameData.recordSnapshot()
-            Data.GameData.tilesetData[text] = new_ts
+            GameData.recordSnapshot()
+            GameData.tilesetData[text] = new_ts
             self.modified.emit()
 
             item = QtWidgets.QListWidgetItem(text)
@@ -143,8 +137,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
         if row < 0:
             return
         key = self.listWidget.item(row).text()
-        if key in Data.GameData.tilesetData:
-            self._tilesetClipboard = copy.deepcopy(Data.GameData.tilesetData[key])
+        if key in GameData.tilesetData:
+            self._tilesetClipboard = copy.deepcopy(GameData.tilesetData[key])
             self._tilesetClipboardName = key
 
     def _pasteTileset(self):
@@ -156,11 +150,11 @@ class TilesetEditor(QtWidgets.QMainWindow):
         base_name = getattr(self, "_tilesetClipboardName", "Tileset")
 
         new_name = base_name + " (copy)"
-        if new_name in Data.GameData.tilesetData:
+        if new_name in GameData.tilesetData:
             i = 1
             while True:
                 test_name = f"{base_name} (copy) ({i})"
-                if test_name not in Data.GameData.tilesetData:
+                if test_name not in GameData.tilesetData:
                     new_name = test_name
                     break
                 i += 1
@@ -169,8 +163,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
             new_ts.name = new_name
 
         try:
-            Data.GameData.recordSnapshot()
-            Data.GameData.tilesetData[new_name] = new_ts
+            GameData.recordSnapshot()
+            GameData.tilesetData[new_name] = new_ts
             self.modified.emit()
 
             item = QtWidgets.QListWidgetItem(new_name)
@@ -191,7 +185,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
         item = self.listWidget.item(row)
         old_name = item.text()
 
-        existing = set(Data.GameData.tilesetData.keys())
+        existing = set(GameData.tilesetData.keys())
         if old_name in existing:
             existing.remove(old_name)
 
@@ -224,8 +218,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
             break
 
         affected_maps = []
-        if getattr(Data.GameData, "mapData", None):
-            for map_key, map_content in Data.GameData.mapData.items():
+        if getattr(GameData, "mapData", None):
+            for map_key, map_content in GameData.mapData.items():
                 layers = map_content.get("layers", {})
                 for layer_name, layer_data in layers.items():
                     if layer_data.get("layerTileset") == old_name:
@@ -245,11 +239,11 @@ class TilesetEditor(QtWidgets.QMainWindow):
                 return
 
         try:
-            Data.GameData.recordSnapshot()
-            data = Data.GameData.tilesetData.pop(old_name)
+            GameData.recordSnapshot()
+            data = GameData.tilesetData.pop(old_name)
             if hasattr(data, "name"):
                 data.name = new_name
-            Data.GameData.tilesetData[new_name] = data
+            GameData.tilesetData[new_name] = data
             self.modified.emit()
 
             item.setText(new_name)
@@ -276,9 +270,9 @@ class TilesetEditor(QtWidgets.QMainWindow):
         if ret != QtWidgets.QMessageBox.Yes:
             return
         try:
-            Data.GameData.recordSnapshot()
-            if key in Data.GameData.tilesetData:
-                Data.GameData.tilesetData.pop(key, None)
+            GameData.recordSnapshot()
+            if key in GameData.tilesetData:
+                GameData.tilesetData.pop(key, None)
             self.modified.emit()
             self.listWidget.takeItem(row)
             if self.listWidget.count() > 0:
@@ -294,8 +288,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
 
     def _loadData(self):
         self.listWidget.clear()
-        if Data.GameData.tilesetData:
-            for key in Data.GameData.tilesetData.keys():
+        if GameData.tilesetData:
+            for key in GameData.tilesetData.keys():
                 self.listWidget.addItem(key)
             if self.listWidget.count() > 0:
                 self.listWidget.setCurrentRow(0)

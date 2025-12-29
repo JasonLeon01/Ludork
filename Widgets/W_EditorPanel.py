@@ -9,7 +9,7 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 import Utils
 import EditorStatus
 from Utils import Locale
-import Data
+from Data import GameData
 
 
 @dataclass
@@ -74,10 +74,10 @@ class EditorPanel(QtWidgets.QWidget):
         else:
             self.mapFilePath = os.path.join(self._mapFilesRoot, mapFileName)
             self.mapKey = mapFileName
-        mapData = Data.GameData.mapData.get(self.mapKey)
+        mapData = GameData.mapData.get(self.mapKey)
         if mapData is None:
             mapData = Utils.File.loadData(self.mapFilePath)
-            Data.GameData.mapData[self.mapKey] = mapData
+            GameData.mapData[self.mapKey] = mapData
         self.applyMapData(mapData)
         self._updateCachedTileset()
         self._renderFromMapData()
@@ -94,7 +94,7 @@ class EditorPanel(QtWidgets.QWidget):
         mapLayers = {}
         for layerName, layerData in layers.items():
             name = layerData["layerName"]
-            layerTileset = Data.GameData.tilesetData[layerData["layerTileset"]]
+            layerTileset = GameData.tilesetData[layerData["layerTileset"]]
             layerTiles = layerData["tiles"]
             tiles: List[List[Tile]] = []
             for y in range(height):
@@ -185,7 +185,7 @@ class EditorPanel(QtWidgets.QWidget):
         key = getattr(layer, "layerTilesetKey", None)
         if key:
             return key
-        for k, ts in Data.GameData.tilesetData.items():
+        for k, ts in GameData.tilesetData.items():
             if ts.fileName == layer.layerTileset.fileName:
                 return k
         return None
@@ -195,17 +195,17 @@ class EditorPanel(QtWidgets.QWidget):
             return
         if self.selectedLayerName is None:
             return
-        if key not in Data.GameData.tilesetData:
+        if key not in GameData.tilesetData:
             return
-        Data.GameData.recordSnapshot()
+        GameData.recordSnapshot()
         layer = self.mapData.layers.get(self.selectedLayerName)
         if not layer:
             return
-        ts = Data.GameData.tilesetData[key]
+        ts = GameData.tilesetData[key]
         setattr(layer, "layerTileset", ts)
         setattr(layer, "layerTilesetKey", key)
-        if self.mapKey and self.selectedLayerName in Data.GameData.mapData.get(self.mapKey, {}).get("layers", {}):
-            Data.GameData.mapData[self.mapKey]["layers"][self.selectedLayerName]["layerTileset"] = key
+        if self.mapKey and self.selectedLayerName in GameData.mapData.get(self.mapKey, {}).get("layers", {}):
+            GameData.mapData[self.mapKey]["layers"][self.selectedLayerName]["layerTileset"] = key
         self._refreshTitle()
         self._updateCachedTileset()
         self._renderFromMapData()
@@ -214,7 +214,7 @@ class EditorPanel(QtWidgets.QWidget):
     def addEmptyLayer(self, name: Optional[str] = None, filePath: str = "") -> Optional[str]:
         if self.mapData is None:
             return None
-        Data.GameData.recordSnapshot()
+        GameData.recordSnapshot()
         Engine: TempEngine = importlib.import_module("Engine")
         TileLayerData = Engine.Gameplay.TileLayerData
         width = self.mapData.width
@@ -233,20 +233,20 @@ class EditorPanel(QtWidgets.QWidget):
             for x in range(width):
                 row.append(None)
             tiles.append(row)
-        keys = list(Data.GameData.tilesetData.keys())
+        keys = list(GameData.tilesetData.keys())
         ts_key = keys[0] if keys else None
-        ts = Data.GameData.tilesetData.get(ts_key) if ts_key else None
+        ts = GameData.tilesetData.get(ts_key) if ts_key else None
         layer = TileLayerData(
-            name, ts if ts is not None else Data.GameData.tilesetData[next(iter(Data.GameData.tilesetData))], tiles
+            name, ts if ts is not None else GameData.tilesetData[next(iter(GameData.tilesetData))], tiles
         )
-        setattr(layer, "layerTilesetKey", ts_key or next(iter(Data.GameData.tilesetData)))
+        setattr(layer, "layerTilesetKey", ts_key or next(iter(GameData.tilesetData)))
         self.mapData.layers[name] = layer
         if self.mapKey:
-            if self.mapKey in Data.GameData.mapData:
-                if "layers" in Data.GameData.mapData[self.mapKey]:
-                    Data.GameData.mapData[self.mapKey]["layers"][name] = {
+            if self.mapKey in GameData.mapData:
+                if "layers" in GameData.mapData[self.mapKey]:
+                    GameData.mapData[self.mapKey]["layers"][name] = {
                         "layerName": name,
-                        "layerTileset": ts_key or next(iter(Data.GameData.tilesetData)),
+                        "layerTileset": ts_key or next(iter(GameData.tilesetData)),
                         "tiles": tiles,
                         "actors": [],
                     }
@@ -260,10 +260,10 @@ class EditorPanel(QtWidgets.QWidget):
             return False
         if name not in self.mapData.layers:
             return False
-        Data.GameData.recordSnapshot()
+        GameData.recordSnapshot()
         self.mapData.layers.pop(name, None)
-        if self.mapKey and self.mapKey in Data.GameData.mapData:
-            Data.GameData.mapData[self.mapKey].get("layers", {}).pop(name, None)
+        if self.mapKey and self.mapKey in GameData.mapData:
+            GameData.mapData[self.mapKey].get("layers", {}).pop(name, None)
         self._refreshTitle()
         if self.selectedLayerName == name:
             self.selectedLayerName = None
@@ -275,13 +275,13 @@ class EditorPanel(QtWidgets.QWidget):
     def reorderLayers(self, new_order: List[str]) -> None:
         if self.mapData is None:
             return
-        Data.GameData.recordSnapshot()
+        GameData.recordSnapshot()
         new_layers = {name: self.mapData.layers[name] for name in new_order}
         self.mapData.layers = new_layers
-        if self.mapKey and self.mapKey in Data.GameData.mapData:
-            game_layers = Data.GameData.mapData[self.mapKey].get("layers", {})
+        if self.mapKey and self.mapKey in GameData.mapData:
+            game_layers = GameData.mapData[self.mapKey].get("layers", {})
             new_game_layers = {name: game_layers[name] for name in new_order}
-            Data.GameData.mapData[self.mapKey]["layers"] = new_game_layers
+            GameData.mapData[self.mapKey]["layers"] = new_game_layers
         self._refreshTitle()
         self._renderFromMapData()
         self.update()
@@ -308,16 +308,16 @@ class EditorPanel(QtWidgets.QWidget):
             self.update()
             return
 
-        Data.GameData.recordSnapshot()
+        GameData.recordSnapshot()
         changed = False
         for y in range(min_y, max_y + 1):
             for x in range(min_x, max_x + 1):
                 if layer.tiles[y][x] != self.selectedTileNumber:
                     layer.tiles[y][x] = self.selectedTileNumber
                     if self.mapKey and self.selectedLayerName:
-                        if self.mapKey in Data.GameData.mapData:
-                            if self.selectedLayerName in Data.GameData.mapData[self.mapKey].get("layers", {}):
-                                Data.GameData.mapData[self.mapKey]["layers"][self.selectedLayerName]["tiles"][y][x] = (
+                        if self.mapKey in GameData.mapData:
+                            if self.selectedLayerName in GameData.mapData[self.mapKey].get("layers", {}):
+                                GameData.mapData[self.mapKey]["layers"][self.selectedLayerName]["tiles"][y][x] = (
                                     None if self.selectedTileNumber is None else int(self.selectedTileNumber)
                                 )
                     changed = True
@@ -441,12 +441,12 @@ class EditorPanel(QtWidgets.QWidget):
             self.rectStartPos = (gx, gy)
             return
 
-        Data.GameData.recordSnapshot()
+        GameData.recordSnapshot()
         layer.tiles[gy][gx] = self.selectedTileNumber
         if self.mapKey and self.selectedLayerName:
-            if self.mapKey in Data.GameData.mapData:
-                if self.selectedLayerName in Data.GameData.mapData[self.mapKey].get("layers", {}):
-                    Data.GameData.mapData[self.mapKey]["layers"][self.selectedLayerName]["tiles"][gy][gx] = (
+            if self.mapKey in GameData.mapData:
+                if self.selectedLayerName in GameData.mapData[self.mapKey].get("layers", {}):
+                    GameData.mapData[self.mapKey]["layers"][self.selectedLayerName]["tiles"][gy][gx] = (
                         None if self.selectedTileNumber is None else int(self.selectedTileNumber)
                     )
         self._refreshTitle()
@@ -491,9 +491,9 @@ class EditorPanel(QtWidgets.QWidget):
             if layer.tiles[gy][gx] != self.selectedTileNumber:
                 layer.tiles[gy][gx] = self.selectedTileNumber
                 if self.mapKey and self.selectedLayerName:
-                    if self.mapKey in Data.GameData.mapData:
-                        if self.selectedLayerName in Data.GameData.mapData[self.mapKey].get("layers", {}):
-                            Data.GameData.mapData[self.mapKey]["layers"][self.selectedLayerName]["tiles"][gy][gx] = (
+                    if self.mapKey in GameData.mapData:
+                        if self.selectedLayerName in GameData.mapData[self.mapKey].get("layers", {}):
+                            GameData.mapData[self.mapKey]["layers"][self.selectedLayerName]["tiles"][gy][gx] = (
                                 None if self.selectedTileNumber is None else int(self.selectedTileNumber)
                             )
                 self._refreshTitle()
@@ -508,8 +508,8 @@ class EditorPanel(QtWidgets.QWidget):
         if self.mapFilePath is None:
             return False, Locale.getContent("MAP_FILE_NONE")
         try:
-            if self.mapKey and self.mapKey in Data.GameData.mapData:
-                Utils.File.saveData(self.mapFilePath, Data.GameData.mapData[self.mapKey])
+            if self.mapKey and self.mapKey in GameData.mapData:
+                Utils.File.saveData(self.mapFilePath, GameData.mapData[self.mapKey])
             else:
                 return False, Locale.getContent("MAP_DATA_NONE")
         except Exception as e:
@@ -527,12 +527,12 @@ class EditorPanel(QtWidgets.QWidget):
             return False
         if new in self.mapData.layers:
             return False
-        Data.GameData.recordSnapshot()
+        GameData.recordSnapshot()
         layer = self.mapData.layers.pop(old)
         setattr(layer, "layerName", new)
         self.mapData.layers[new] = layer
-        if self.mapKey and self.mapKey in Data.GameData.mapData:
-            layersDict = Data.GameData.mapData[self.mapKey].get("layers", {})
+        if self.mapKey and self.mapKey in GameData.mapData:
+            layersDict = GameData.mapData[self.mapKey].get("layers", {})
             if old in layersDict:
                 data = layersDict.pop(old)
                 data["layerName"] = new

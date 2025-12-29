@@ -3,7 +3,7 @@
 from PyQt5 import QtCore, QtWidgets
 from Utils import Locale
 from .Utils import ConfigDictPanel
-import Data
+from Data import GameData
 
 
 class ConfigWindow(QtWidgets.QMainWindow):
@@ -33,7 +33,7 @@ class ConfigWindow(QtWidgets.QMainWindow):
         self._populate()
 
     def _populate(self) -> None:
-        data = getattr(Data.GameData, "systemConfigData", {})
+        data = getattr(GameData, "systemConfigData", {})
         i = 0
         for name, cfg in data.items():
             if not isinstance(cfg, dict):

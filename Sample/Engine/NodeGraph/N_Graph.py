@@ -53,6 +53,8 @@ class Graph:
                 if len(startNodes) == 1:
                     self.startNodes[key] = self.nodes[key][startNodes.pop()]
         for key, nodes in self.nodes.items():
+            if not key in self.adjTables:
+                self.adjTables[key] = {}
             for i, node in enumerate(nodes):
                 nextNodesIndexes = self.adjTables[key].get(i, [])
                 returnsLen = 1

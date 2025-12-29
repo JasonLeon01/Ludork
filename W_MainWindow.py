@@ -25,7 +25,7 @@ from Widgets import (
 )
 from Widgets.Utils import MapEditDialog, SingleRowDialog, Toast
 import EditorStatus
-import Data
+from Data import GameData
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -215,7 +215,7 @@ class MainWindow(QtWidgets.QMainWindow):
         super().closeEvent(event)
 
     def _checkUnsavedChanges(self) -> bool:
-        if not Data.GameData.checkModified():
+        if not GameData.checkModified():
             return True
 
         msgBox = QtWidgets.QMessageBox(self)
@@ -230,7 +230,7 @@ class MainWindow(QtWidgets.QMainWindow):
         msgBox.exec_()
 
         if msgBox.clickedButton() == btnSave:
-            Data.GameData.saveAllModified()
+            GameData.saveAllModified()
             return True
         elif msgBox.clickedButton() == btnDiscard:
             return True
@@ -329,7 +329,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def refreshLeftList(self):
         self.leftList.clear()
-        mapFiles = [k for k in Data.GameData.mapData.keys() if k.endswith(".dat")]
+        mapFiles = [k for k in GameData.mapData.keys() if k.endswith(".dat")]
         mapFiles.sort()
         self.leftList.addItems(mapFiles)
 
@@ -425,7 +425,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self._onEditMap(item.text())
 
     def _getNewMapFileName(self) -> str:
-        existing = set(Data.GameData.mapData.keys())
+        existing = set(GameData.mapData.keys())
         i = 1
         while True:
             name = f"Map_{i:02d}.dat"
@@ -438,8 +438,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if not item:
             return
         mapName = item.text()
-        if mapName in Data.GameData.mapData:
-            self._mapClipboard = copy.deepcopy(Data.GameData.mapData[mapName])
+        if mapName in GameData.mapData:
+            self._mapClipboard = copy.deepcopy(GameData.mapData[mapName])
             self._mapClipboard["__source_file__"] = mapName
             self._actPasteMap.setEnabled(True)
 
@@ -456,19 +456,19 @@ class MainWindow(QtWidgets.QMainWindow):
         if sourceFile:
             base, ext = os.path.splitext(sourceFile)
             newFileName = f"{base} (copy){ext}"
-            if newFileName in Data.GameData.mapData:
+            if newFileName in GameData.mapData:
                 i = 1
                 while True:
                     testName = f"{base} (copy) ({i}){ext}"
-                    if testName not in Data.GameData.mapData:
+                    if testName not in GameData.mapData:
                         newFileName = testName
                         break
                     i += 1
         else:
             newFileName = self._getNewMapFileName()
 
-        Data.GameData.recordSnapshot()
-        Data.GameData.mapData[newFileName] = newMapData
+        GameData.recordSnapshot()
+        GameData.mapData[newFileName] = newMapData
 
         self.refreshLeftList()
         self.setWindowTitle(System.getTitle())
@@ -485,11 +485,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self._onDeleteMap(item.text())
 
     def _onDeleteMap(self, mapName: str) -> None:
-        if mapName not in Data.GameData.mapData:
+        if mapName not in GameData.mapData:
             return
 
-        Data.GameData.recordSnapshot()
-        del Data.GameData.mapData[mapName]
+        GameData.recordSnapshot()
+        del GameData.mapData[mapName]
 
         self.refreshLeftList()
         self.setWindowTitle(System.getTitle())
@@ -520,7 +520,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         filename = dlg.getFileName()
-        Data.GameData.mapData[filename] = default_data
+        GameData.mapData[filename] = default_data
         self.refreshLeftList()
 
         items = self.leftList.findItems(filename, QtCore.Qt.MatchExactly)
@@ -738,16 +738,16 @@ class MainWindow(QtWidgets.QMainWindow):
         _helpMenu.addAction(self._actHelpExplanation)
 
     def _refreshUndoRedo(self) -> None:
-        self._actUndo.setEnabled(bool(Data.GameData.undoStack))
-        self._actRedo.setEnabled(bool(Data.GameData.redoStack))
+        self._actUndo.setEnabled(bool(GameData.undoStack))
+        self._actRedo.setEnabled(bool(GameData.redoStack))
 
     def _onEditMap(self, mapKey: str) -> None:
-        data = Data.GameData.mapData.get(mapKey)
+        data = GameData.mapData.get(mapKey)
         if data is None:
             fp = os.path.join(self._mapFilesRoot, mapKey)
             if os.path.exists(fp):
                 data = File.loadData(fp)
-                Data.GameData.mapData[mapKey] = data
+                GameData.mapData[mapKey] = data
         if not isinstance(data, dict):
             return
 
@@ -999,7 +999,7 @@ class MainWindow(QtWidgets.QMainWindow):
         File.OpenProject(self)
 
     def _onSave(self, checked: bool = False) -> None:
-        ok, content = Data.GameData.saveAllModified()
+        ok, content = GameData.saveAllModified()
         if ok:
             QtWidgets.QMessageBox.information(
                 self, "Hint", Locale.getContent("SAVE_SUCCESS") + Locale.getContent("SAVE_PATH").format(content)
@@ -1014,13 +1014,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.close()
 
     def _onUndo(self, checked: bool = False) -> None:
-        diffs = Data.GameData.undo()
+        diffs = GameData.undo()
         self._refreshCurrentView()
         if diffs:
             self.toast.showMessage("Undo:\n" + "\n".join(diffs))
 
     def _onRedo(self, checked: bool = False) -> None:
-        diffs = Data.GameData.redo()
+        diffs = GameData.redo()
         self._refreshCurrentView()
         if diffs:
             self.toast.showMessage("Redo:\n" + "\n".join(diffs))
@@ -1053,9 +1053,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._tilesetEditor.show()
 
     def _onDatabaseCommonFunctions(self, checked: bool = False) -> None:
-        self._nodeGraphWindow = NodeGraphWindow(
-            self, graph=Data.GameData.genGraphFromData(Data.GameData.commonFunctionsData["test"]), key="test"
-        )
+        self._nodeGraphWindow = NodeGraphWindow(self, GameData.commonFunctionsData)
         self._nodeGraphWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._nodeGraphWindow.setWindowModality(QtCore.Qt.ApplicationModal)
         self._nodeGraphWindow.activateWindow()

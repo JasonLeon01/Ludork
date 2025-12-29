@@ -28,6 +28,9 @@ class Node:
         self._paramList: Dict[str, type] = {}
         self._analyzeFunction()
 
+    def getParamList(self) -> Dict[str, type]:
+        return self._paramList
+
     def execute(self) -> None:
         actualParams = []
         for i in range(len(self.params)):
@@ -35,9 +38,17 @@ class Node:
             if self.params[i] == "self":
                 actualParams.append(self.parent)
             elif self._paramList[paramKey] == str:
-                actualParams.append(self.params[i])
+                param = None
+                try:
+                    param = eval(self.params[i])
+                except:
+                    param = self.params[i]
+                actualParams.append(param)
             else:
-                actualParams.append(eval(self.params[i]))
+                if isinstance(self.params[i], str):
+                    actualParams.append(eval(self.params[i]))
+                else:
+                    actualParams.append(self.params[i])
         result: Optional[int] = self.nodeFunction(**actualParams)
         if len(self.nexts) > 0:
             if result is None:
@@ -54,3 +65,6 @@ class Node:
             if paramType == inspect.Parameter.empty:
                 paramType = type(None)
             self._paramList[paramName] = paramType
+
+    def __repr__(self) -> str:
+        return f"{self._funcInfo}({self.params})"

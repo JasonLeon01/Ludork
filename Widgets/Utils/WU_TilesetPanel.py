@@ -4,7 +4,7 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 import os
 from enum import Enum
 import EditorStatus
-import Data
+from Data import GameData
 from Utils import Locale, System, File
 from .WU_FileSelectorDialog import FileSelectorDialog
 from .WU_SingleRowDialog import SingleRowDialog
@@ -123,7 +123,7 @@ class TilesetImageView(QtWidgets.QWidget):
         gy = y // cell_size
         if gx < 0 or gy < 0 or gx >= cols or gy >= rows:
             return
-        Data.GameData.recordSnapshot()
+        GameData.recordSnapshot()
         idx = gy * cols + gx
         count = cols * rows
         if self._mode == TilesetMode.PASSABLE:
@@ -232,7 +232,7 @@ class TilesetPanel(QtWidgets.QWidget):
     def setTilesetData(self, tileset_data):
         self._data = tileset_data
         self._key = None
-        for k, v in Data.GameData.tilesetData.items():
+        for k, v in GameData.tilesetData.items():
             if v is tileset_data or (tileset_data and v.fileName == tileset_data.fileName):
                 self._key = k
                 break
@@ -259,7 +259,7 @@ class TilesetPanel(QtWidgets.QWidget):
 
     def _onNameChanged(self, text):
         if self._data:
-            Data.GameData.recordSnapshot()
+            GameData.recordSnapshot()
             self._data.name = text
             self.modified.emit()
             if self._key:
@@ -276,7 +276,7 @@ class TilesetPanel(QtWidgets.QWidget):
         dlg = FileSelectorDialog(self, root, "Images (*.png *.jpg *.bmp *.jpeg)")
         fp = dlg.execSelect()
         if fp:
-            Data.GameData.recordSnapshot()
+            GameData.recordSnapshot()
             filename = os.path.basename(fp)
             self._data.fileName = filename
             cell_size = EditorStatus.CELLSIZE

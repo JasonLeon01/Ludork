@@ -24,17 +24,17 @@ def getTitle() -> str:
     titles = [EditorStatus.APP_NAME]
     result = ""
     try:
-        import Data
+        from Data import GameData
 
         if EditorStatus.PROJ_PATH:
-            cfg = Data.GameData.systemConfigData.get("System")
+            cfg = GameData.systemConfigData.get("System")
             if isinstance(cfg, dict):
                 t = cfg.get("title")
                 title = t.get("value") if isinstance(t, dict) else t
                 if isinstance(title, str) and title.strip():
                     titles.append(title.strip())
                     result = " - ".join(titles)
-                    if Data.GameData.checkModified():
+                    if GameData.checkModified():
                         result += " *"
     except Exception as e:
         print(f"Error while getting title: {e}")

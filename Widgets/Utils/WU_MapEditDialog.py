@@ -3,11 +3,13 @@
 from typing import Any, Optional
 from PyQt5 import QtCore, QtWidgets
 from Utils import Locale, System
-import Data
+from Data import GameData
 
 
 class MapEditDialog(QtWidgets.QDialog):
-    def __init__(self, parent: QtWidgets.QWidget, data: dict[str, Any], current_key: str = "", title: Optional[str] = None) -> None:
+    def __init__(
+        self, parent: QtWidgets.QWidget, data: dict[str, Any], current_key: str = "", title: Optional[str] = None
+    ) -> None:
         super().__init__(parent)
         self._data = data
         self._current_key = current_key
@@ -88,14 +90,14 @@ class MapEditDialog(QtWidgets.QDialog):
         if not fname.endswith(".dat"):
             fname += ".dat"
             self.fileEdit.setText(fname)
-        
-        existing = Data.GameData.mapData
+
+        existing = GameData.mapData
         if fname in existing:
-            is_same = (self._current_key and fname == self._current_key)
+            is_same = self._current_key and fname == self._current_key
             if not is_same:
                 QtWidgets.QMessageBox.warning(self, "Hint", "File Name already exists.")
                 return
-        
+
         super().accept()
 
     def getFileName(self) -> str:
@@ -104,18 +106,18 @@ class MapEditDialog(QtWidgets.QDialog):
     def execApply(self) -> bool:
         if self.exec_() != QtWidgets.QDialog.Accepted:
             return False
-        Data.GameData.recordSnapshot()
-        
+        GameData.recordSnapshot()
+
         new_key = self.getFileName()
-        if self._current_key and self._current_key in Data.GameData.mapData and new_key != self._current_key:
+        if self._current_key and self._current_key in GameData.mapData and new_key != self._current_key:
             new_map = {}
-            for k, v in Data.GameData.mapData.items():
+            for k, v in GameData.mapData.items():
                 if k == self._current_key:
                     new_map[new_key] = v
                 else:
                     new_map[k] = v
-            Data.GameData.mapData.clear()
-            Data.GameData.mapData.update(new_map)
+            GameData.mapData.clear()
+            GameData.mapData.update(new_map)
 
         data = self._data
         old_w = int(data.get("width", 0))

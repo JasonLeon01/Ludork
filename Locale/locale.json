@@ -414,5 +414,17 @@
     "NEW_MAP_DEFAULT_NAME": {
         "zh_CN": "新地图",
         "en_GB": "New Map"
+    },
+    "CONVERT_TO_EVAL_NODE": {
+        "zh_CN": "转换为 Eval 节点",
+        "en_GB": "Convert to Eval Node"
+    },
+    "CONVERT_TO_NORMAL_NODE": {
+        "zh_CN": "转换为普通节点",
+        "en_GB": "Convert to Normal Node"
+    },
+    "CONVERT_TO_NORMAL_FAILED": {
+        "zh_CN": "部分参数无法转换为目标类型，已取消转换",
+        "en_GB": "Some parameters could not be converted to target types; conversion cancelled"
     }
 }

@@ -4,7 +4,7 @@ import os
 from typing import Optional, List, Dict
 from PyQt5 import QtCore, QtGui, QtWidgets
 import EditorStatus
-import Data
+from Data import GameData
 from Utils import Panel
 
 
@@ -138,7 +138,7 @@ class TileSelect(QtWidgets.QWidget):
 
     def initTilesets(self) -> None:
         old_key = self._currentKey
-        self._tilesets = Data.GameData.tilesetData
+        self._tilesets = GameData.tilesetData
         self._keys = list(self._tilesets.keys())
         self._topList.clear()
         for k in self._keys:

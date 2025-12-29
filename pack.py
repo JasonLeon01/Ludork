@@ -21,9 +21,12 @@ FLAGS = [
     "--include-package=Widgets",
     "--include-package=Utils",
     "--include-data-dir=Resource=Resource",
+    "--include-module=NodeGraphQt",
     "--include-module=asyncio",
     "--include-module=psutil",
     "--include-module=pympler.asizeof",
+    "--include-module=av",
+    "--include-module=nuitka",
     "--lto=yes",
 ]
 

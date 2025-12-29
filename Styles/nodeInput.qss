@@ -1,0 +1,1 @@
+QLineEdit { background: white; color: black; border: 1px solid #AAAAAA; border-radius: 3px; } QLineEdit::placeholder { color: #888888; }
