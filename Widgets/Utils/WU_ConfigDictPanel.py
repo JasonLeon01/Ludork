@@ -1,9 +1,11 @@
+# -*- encoding: utf-8 -*-
+
 from typing import Any, List, Tuple
 import os
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Utils import Locale, System
 import EditorStatus
-from .FileSelectorDialog import FileSelectorDialog
+from .WU_FileSelectorDialog import FileSelectorDialog
 import Data
 
 

@@ -1,57 +1,36 @@
 # Ludork
 
-Ludork is a lightweight 2D game editor and runtime built with PyQt5. It ships with a sample game project and an embedded engine so you can edit maps, manage assets, configure system settings, and play-test the game directly inside the editor.
+Ludork is a software project that appears to focus on game development, providing a set of tools and utilities for creating and managing game content. This repository contains various components including UI widgets, game engine utilities, and gameplay-related modules.
 
-The editor persists window and panel layout in `Ludork.ini`, supports themes via `qt-material`, and provides multi-language UI (English and Chinese) through the `Locale` folder.
+## Key Components
 
-## Features
-- Integrated editor UI: tile/actor tools, map editor, file explorer, and console
-- In-editor play-test: launch and stop the game without leaving the editor
-- Config window: edit structured system settings (fonts, window skin, shaders, etc.)
-- Theme and language: pick a `qt-material` theme and auto-detected language stored in `Ludork.ini`
-- Persistent layout: remembers window size and splitter widths across sessions
-- Packaging: build a single-file sample executable and pack the standalone editor with Nuitka
+### Widgets
+- **FileExplorer**: A file explorer widget with features like drag-and-drop, file operations (copy, cut, paste, delete), and filtering of specific file types.
+- **ConsoleWidget**: A console interface for interacting with processes, displaying output, and handling user input with history support.
+- **FilePreview**: A widget for previewing different file types including images (png, jpg, jpeg, bmp, gif, webp) and audio files (mp3, wav, ogg, flac, aac, m4a).
+- **EditModeToggle**: A toggle widget for switching between tile mode and actor mode, likely used in game level editing.
+- **ConfigDictPanel**: A panel for editing configuration data with support for various data types and file selection.
 
-## Quick Start
-- Option A: Run `init.bat` or `init.sh`
-  - Activates existing `LudorkEnv` and runs `main.py`
-  - Or creates `LudorkEnv`, installs dependencies, then runs `main.py`
-  - On failure during creation or installation, the script removes `LudorkEnv` to keep the workspace clean
+### Engine Utilities
+- **File Handling (U_File)**: Utilities for reading JSON data and saving/loading data using pickle.
+- **Math (U_Math)**: Mathematical utilities, such as checking if a vector is near zero.
+- **Sound Processing (F_Sound)**: Audio processing functions with effects like water modulation, bubble noise, and reverb.
 
-- Option B: Manual setup
-  - Create venv: `py -m venv LudorkEnv` or `python3 -m venv LudorkEnv`
-  - Activate: `LudorkEnv\Scripts\activate`
-  - Install: `pip install -r requirements.txt`
-  - Run: `python main.py`
+### Gameplay Components
+- **ParticleSystem (G_ParticleSystem)**: A base class for particle systems with a late tick update method.
+- **SceneBase (G_SceneBase)**: A base class for game scenes, handling the main game loop, updates, and fixed ticks.
+- **Camera (G_Camera)**: A camera class for controlling the view position.
+- **GameMap (G_GameMap)**: A class for managing game maps and updating actor lists.
+- **Actors**: Base classes for game actors and characters.
 
-## Build & Pack
-- Pack the editor: run `pack.bat` (produces a standalone distribution in `build/`)
-
-## Preview
-- Main Editor
-
-  ![Main Editor](docs/images/image-1.png)
-
-- In-Editor Game (Play Test)
-
-  ![Game Running](docs/images/image-2.png)
-
-- Config Window
-
-  ![Config Window](docs/images/image-3.png)
-
-- Tilesets Update
-
-  ![Tilesets Update](docs/images/image-4.png)
-
-## Dependencies
-- `PyQt5==5.15.10`
-- `qt-material==2.14.0`
-- `psutil`
-- `pympler`
-- `nuitka`
-
-Install all with `pip install -r requirements.txt`.
+### UI Elements
+- **TextBox (UI_TextBox)**: A UI text box widget supporting text input and editing.
+- **RectBase (UI_RectBase)**: A base class for rendering UI rectangles with edges and corners.
 
 ## License
-Distributed under the GPLv3. See `LICENSE.md` for details.
+This project is licensed under terms specified in the [LICENSE.md](LICENSE.md) file. The license includes provisions for Corresponding Source, which includes interface definition files and source code for shared libraries that the work is specifically designed to require.
+
+## Usage
+The components in this repository can be used to build game editing tools and game engine functionality. The widgets provide a user interface for managing files, configuring settings, and previewing assets, while the engine utilities and gameplay components offer core functionality for game development.
+
+To get started, explore the various modules and their respective functionalities. The widgets can be integrated into a Qt application, while the engine and gameplay components can be used to build game logic and systems.

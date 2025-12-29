@@ -117,11 +117,11 @@ def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
     EditorStatus.PROJ_PATH = os.path.abspath(path)
     if EditorStatus.PROJ_PATH not in sys.path:
         sys.path.append(EditorStatus.PROJ_PATH)
-    try:
-        Data.GameData.init()
-    except Exception as e:
-        QtWidgets.QMessageBox.critical(self, "Error", Locale.getContent("OPEN_FAILED") + "\n" + str(e))
-        return
+    # try:
+    Data.GameData.init()
+    # except Exception as e:
+    #     QtWidgets.QMessageBox.critical(None, "Error", Locale.getContent("OPEN_FAILED") + "\n" + str(e))
+    #     return
     from W_MainWindow import MainWindow
 
     mainWindow = MainWindow(System.getTitle())
@@ -176,7 +176,7 @@ def NewProject(parent: QtWidgets.QWidget) -> None:
         with open(projFile, "w", encoding="utf-8") as f:
             f.write("{}")
     except Exception as e:
-        QtWidgets.QMessageBox.critical(self, "Error", Locale.getContent("COPY_FAILED") + "\n" + str(e))
+        QtWidgets.QMessageBox.critical(None, "Error", Locale.getContent("COPY_FAILED") + "\n" + str(e))
         return
     _setLastOpenPath(target)
     _openProjectPath(target, parent)

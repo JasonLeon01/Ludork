@@ -5,8 +5,8 @@ import Data
 import importlib
 import copy
 from Utils import Locale, File, System
-from .Utils import TilesetPanel
-from .Utils.SingleRowDialog import SingleRowDialog
+from .Utils.WU_TilesetPanel import TilesetPanel
+from .Utils.WU_SingleRowDialog import SingleRowDialog
 
 
 class TilesetEditor(QtWidgets.QMainWindow):

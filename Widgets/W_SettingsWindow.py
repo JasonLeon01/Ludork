@@ -1,3 +1,5 @@
+# -*- encoding: utf-8 -*-
+
 from typing import Any, Optional
 import os
 import json

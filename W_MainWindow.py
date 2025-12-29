@@ -21,6 +21,7 @@ from Widgets import (
     ConfigWindow,
     TilesetEditor,
     SettingsWindow,
+    NodeGraphWindow,
 )
 from Widgets.Utils import MapEditDialog, SingleRowDialog, Toast
 import EditorStatus
@@ -944,9 +945,7 @@ class MainWindow(QtWidgets.QMainWindow):
             except Exception as e:
                 print(f"Error saving project config: {e}")
 
-        last = None
-        if isinstance(self._projConfig, dict):
-            last = self._projConfig.get("lastMap")
+        last = self._projConfig.get("lastMap", None)
         targetRow = 0 if self.leftList.count() > 0 else -1
         if last:
             for i in range(self.leftList.count()):
@@ -960,6 +959,13 @@ class MainWindow(QtWidgets.QMainWindow):
             if item:
                 self._onLeftItemClicked(item)
 
+        lastFileExplorerPath = self._projConfig.get("lastFileExplorerPath", None)
+        if lastFileExplorerPath:
+            fullPath = os.path.join(EditorStatus.PROJ_PATH, lastFileExplorerPath)
+            if os.path.exists(fullPath):
+                self.fileExplorer.setCurrentPath(fullPath)
+        self.fileExplorer.pathChanged.connect(self._onFileExplorerPathChanged)
+
     def _saveProjLastMap(self) -> None:
         if not self._projConfigPath:
             return
@@ -968,12 +974,23 @@ class MainWindow(QtWidgets.QMainWindow):
         if item:
             name = item.text()
         if name:
-            data = {}
-            if isinstance(getattr(self, "_projConfig", {}), dict):
-                data.update(self._projConfig)
-            data["lastMap"] = name
+            self._projConfig["lastMap"] = name
             with open(self._projConfigPath, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False)
+                json.dump(self._projConfig, f, ensure_ascii=False)
+
+    def _onFileExplorerPathChanged(self, path: str) -> None:
+        if not self._projConfigPath:
+            return
+        try:
+            rel = os.path.relpath(path, EditorStatus.PROJ_PATH)
+            if isinstance(self._projConfig, dict):
+                if self._projConfig.get("lastFileExplorerPath") == rel:
+                    return
+                self._projConfig["lastFileExplorerPath"] = rel
+                with open(self._projConfigPath, "w", encoding="utf-8") as f:
+                    json.dump(self._projConfig, f, ensure_ascii=False)
+        except Exception as e:
+            print(f"Error saving file explorer path: {e}")
 
     def _onNewProject(self, checked: bool = False) -> None:
         File.NewProject(self)
@@ -1036,7 +1053,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self._tilesetEditor.show()
 
     def _onDatabaseCommonFunctions(self, checked: bool = False) -> None:
-        pass
+        self._nodeGraphWindow = NodeGraphWindow(
+            self, graph=Data.GameData.genGraphFromData(Data.GameData.commonFunctionsData["test"]), key="test"
+        )
+        self._nodeGraphWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        self._nodeGraphWindow.setWindowModality(QtCore.Qt.ApplicationModal)
+        self._nodeGraphWindow.activateWindow()
+        self._nodeGraphWindow.raise_()
+        self._nodeGraphWindow.show()
 
     def _onDatabaseScripts(self, checked: bool = False) -> None:
         pass

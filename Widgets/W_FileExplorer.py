@@ -10,6 +10,8 @@ from .W_FilePreview import FilePreview
 
 
 class FileExplorer(QtWidgets.QWidget):
+    pathChanged = QtCore.pyqtSignal(str)
+
     def __init__(self, root_path: str, parent: Optional[QtWidgets.QWidget] = None):
         super().__init__(parent)
         self._root = os.path.abspath(root_path)
@@ -264,6 +266,10 @@ class FileExplorer(QtWidgets.QWidget):
         self._current = os.path.abspath(path)
         self._pathEdit.setText(self._current)
         self._view.setRootIndex(self._proxy.mapFromSource(self._model.index(self._current)))
+        self.pathChanged.emit(self._current)
+
+    def setCurrentPath(self, path: str) -> None:
+        self._setCurrentPath(path)
 
     def _onDoubleClicked(self, index: QtCore.QModelIndex) -> None:
         if not self._interactive:

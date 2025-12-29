@@ -1,5 +1,6 @@
+# -*- encoding: utf-8 -*-
+
 from PyQt5 import QtWidgets, QtGui
-from Utils import Locale, System
 
 
 class SingleRowDialog(QtWidgets.QDialog):
@@ -13,6 +14,8 @@ class SingleRowDialog(QtWidgets.QDialog):
         min_value: float = None,
         max_value: float = None,
     ) -> None:
+        from Utils import Locale, System
+
         super().__init__(parent)
         self.setWindowTitle(title)
         layout = QtWidgets.QFormLayout(self)

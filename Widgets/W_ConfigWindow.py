@@ -1,4 +1,5 @@
-from typing import Any
+# -*- encoding: utf-8 -*-
+
 from PyQt5 import QtCore, QtWidgets
 from Utils import Locale
 from .Utils import ConfigDictPanel
@@ -7,6 +8,7 @@ import Data
 
 class ConfigWindow(QtWidgets.QMainWindow):
     modified = QtCore.pyqtSignal()
+
     def __init__(self, parent: QtWidgets.QWidget | None = None, title: str | None = None):
         super().__init__(parent)
         self.setWindowTitle(title or Locale.getContent("SYSTEM_CONFIG"))

@@ -6,8 +6,8 @@ from enum import Enum
 import EditorStatus
 import Data
 from Utils import Locale, System, File
-from .FileSelectorDialog import FileSelectorDialog
-from .SingleRowDialog import SingleRowDialog
+from .WU_FileSelectorDialog import FileSelectorDialog
+from .WU_SingleRowDialog import SingleRowDialog
 
 
 class TilesetMode(Enum):

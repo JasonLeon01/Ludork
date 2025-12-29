@@ -24,6 +24,14 @@ def SetCellSize(size: int):
     _CellSize = size
 
 
+def NodeReturn(*args):
+    def decorator(func):
+        func._nodeReturns = list(args)
+        return func
+
+    return decorator
+
+
 from . import pysf
 
 
@@ -143,6 +151,7 @@ from . import Gameplay
 from . import UI
 from . import E_System
 from . import E_Effects
+from . import NodeGraph
 
 
 Input = E_Input

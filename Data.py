@@ -12,6 +12,7 @@ class GameData:
     systemConfigData: Dict[str, Any]
     tilesetData: Dict[str, Any]
     mapData: Dict[str, Any]
+    commonFunctionsData: Dict[str, Any]
 
     undoStack: List[Dict[str, Any]]
     redoStack: List[Dict[str, Any]]
@@ -67,6 +68,19 @@ class GameData:
                     except Exception as e:
                         print(f"Error while loading map file {file}: {e}")
 
+        cls.commonFunctionsData = {}
+        commonFunctionsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "CommonFunctions")
+        if os.path.exists(commonFunctionsRoot):
+            for file in os.listdir(commonFunctionsRoot):
+                namePart, extensionPart = os.path.splitext(file)
+                if extensionPart == ".dat":
+                    fp = os.path.join(commonFunctionsRoot, file)
+                    try:
+                        data = File.loadData(fp)
+                        cls.commonFunctionsData[namePart] = data
+                    except Exception as e:
+                        print(f"Error while loading common function file {file}: {e}")
+
         cls.undoStack = []
         cls.redoStack = []
 
@@ -82,12 +96,13 @@ class GameData:
             "systemConfigData": {"A": [], "D": [], "U": []},
             "tilesetData": {"A": [], "D": [], "U": []},
             "mapData": {"A": [], "D": [], "U": []},
+            "commonFunctionsData": {"A": [], "D": [], "U": []},
         }
 
         origin = cls._originData
         current = cls.asDict()
 
-        for section in ["systemConfigData", "tilesetData", "mapData"]:
+        for section in ["systemConfigData", "tilesetData", "mapData", "commonFunctionsData"]:
             curr_sec = current.get(section, {})
             orig_sec = origin.get(section, {})
 
@@ -139,6 +154,15 @@ class GameData:
 
         if changed_ts:
             diffs.append(f"Tilesets: {', '.join(sorted(changed_ts))}")
+
+        old_cfgs = old_data.get("commonFunctionsData", {})
+        new_cfgs = new_data.get("commonFunctionsData", {})
+        changed_cfgs = set()
+        for k in set(old_cfgs.keys()) | set(new_cfgs.keys()):
+            if old_cfgs.get(k) != new_cfgs.get(k):
+                changed_cfgs.add(k)
+        if changed_cfgs:
+            diffs.append(f"Common Functions: {', '.join(sorted(changed_cfgs))}")
 
         return diffs
 
@@ -258,6 +282,27 @@ class GameData:
             except Exception:
                 final_details["Failed"].append(key)
 
+        # Common Functions
+        commonFunctionsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "CommonFunctions")
+        c_cfgs = changes["commonFunctionsData"]
+        for key in c_cfgs["A"] + c_cfgs["U"]:
+            cfg = cls.commonFunctionsData.get(key)
+            if cfg is None:
+                final_details["Failed"].append(key)
+                continue
+            payload = copy.deepcopy(cfg)
+            if "isJson" in payload:
+                del payload["isJson"]
+            try:
+                File.saveJsonData(os.path.join(commonFunctionsRoot, f"{key}.json"), payload)
+                if key in c_cfgs["A"]:
+                    final_details["A"].append(key)
+                else:
+                    final_details["U"].append(key)
+                cls._originData["commonFunctionsData"][key] = copy.deepcopy(cfg)
+            except Exception:
+                final_details["Failed"].append(key)
+
         lines = []
         if final_details["A"]:
             lines.append(f"A [{', '.join(final_details['A'])}]")
@@ -276,6 +321,7 @@ class GameData:
             "systemConfigData": cls.systemConfigData,
             "tilesetData": cls.tilesetData,
             "mapData": cls.mapData,
+            "commonFunctionsData": cls.commonFunctionsData,
         }
 
     @classmethod
@@ -314,3 +360,21 @@ class GameData:
     def _restoreSnapshot(cls, snapshot):
         for key, value in snapshot.items():
             setattr(cls, key, value)
+
+    @staticmethod
+    def genGraphFromData(data: Dict[str, Any]):
+        from NodeGraph import EditorDataNode, EditorNode
+
+        Engine = importlib.import_module("Engine")
+        Graph = Engine.NodeGraph.Graph
+        nodes = {}
+        links = {}
+        for key, valueDict in data.items():
+            if key == "parent":
+                continue
+            nodes[key] = []
+            for node in valueDict["nodes"]:
+                nodes[key].append(EditorDataNode(**node))
+            links[key] = valueDict["links"]
+
+        return Graph(data["parent"], nodes, links, EditorNode)

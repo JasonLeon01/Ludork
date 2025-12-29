@@ -1,5 +1,6 @@
 PyQt5==5.15.10
 qt-material==2.14.0
+NodeGraphQt
 psutil
 pympler
 av

@@ -9,6 +9,7 @@ from . import W_FilePreview
 from . import W_ConfigWindow
 from . import W_TilesetEditor
 from . import W_SettingsWindow
+from . import W_NodeGraphWindow
 
 EditorPanel = W_EditorPanel.EditorPanel
 ModeToggle = W_Toggle.ModeToggle
@@ -20,3 +21,4 @@ FilePreview = W_FilePreview.FilePreview
 ConfigWindow = W_ConfigWindow.ConfigWindow
 TilesetEditor = W_TilesetEditor.TilesetEditor
 SettingsWindow = W_SettingsWindow.SettingsWindow
+NodeGraphWindow = W_NodeGraphWindow.NodeGraphWindow
