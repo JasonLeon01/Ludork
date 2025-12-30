@@ -3,7 +3,10 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import inspect
-from typing import Callable, List, Dict, Optional
+from typing import Callable, List, Dict, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from Engine.NodeGraph import Graph
 
 
 @dataclass
@@ -15,11 +18,13 @@ class DataNode:
 class Node:
     def __init__(
         self,
+        parentGraph: Graph,
         parent: Optional[object],
         nodeFunction: Callable,
         params: List[str],
         nexts: List[Node],
     ) -> None:
+        self.parentGraph = parentGraph
         self.parent = parent
         self.nodeFunction = nodeFunction
         self.params = params
@@ -49,6 +54,8 @@ class Node:
                     actualParams.append(eval(self.params[i]))
                 else:
                     actualParams.append(self.params[i])
+        if hasattr(self.nodeFunction, "_refLocal"):
+            self.nodeFunction._refLocal = self.parentGraph.localGraph
         result: Optional[int] = self.nodeFunction(**actualParams)
         if len(self.nexts) > 0:
             if result is None:

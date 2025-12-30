@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 from typing import TYPE_CHECKING, Dict, List
-from Qt import QtWidgets, QtGui
+from Qt import QtWidgets, QtGui, QtCore
 from NodeGraphQt import NodeGraph, BaseNode
 from Data import GameData
 from Utils import File, System, Locale
+import inspect
+from NodeGraph import EditorNode
+from .WU_FunctionPickerPopup import FunctionPickerPopup
 
 if TYPE_CHECKING:
     import Sample.Engine.NodeGraph.Graph as Graph
@@ -15,8 +18,8 @@ def makeInit(currNode):
     def subClassInit(self):
         super(self.__class__, self).__init__()
         self.add_input("in")
-        if hasattr(currNode.nodeFunction, "_nodeReturns") and len(currNode.nodeFunction._nodeReturns) > 0:
-            for key in currNode.nodeFunction._nodeReturns:
+        if hasattr(currNode.nodeFunction, "_execSplits") and len(currNode.nodeFunction._execSplits) > 0:
+            for key in currNode.nodeFunction._execSplits:
                 self.add_output(f"out_{key}")
         else:
             self.add_output("out")
@@ -79,10 +82,12 @@ def makeInit(currNode):
 class NodePanel(QtWidgets.QWidget):
     def __init__(self, parent, graph: Graph, key: str, name: str):
         super(NodePanel, self).__init__(parent)
+        self._parent = parent
         self.setWindowTitle("Node Panel")
-        self.resize(1200, 800)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         self.graph = NodeGraph()
         self.graphWidget = self.graph.widget
+        self.graphWidget.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         self.nodeGraph = graph
         self.key = key
         self.name = name
@@ -97,6 +102,7 @@ class NodePanel(QtWidgets.QWidget):
     def _setupLayout(self):
         main_layout = QtWidgets.QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
         main_layout.addWidget(self.graphWidget)
 
     def _registerNodes(self):
@@ -141,9 +147,185 @@ class NodePanel(QtWidgets.QWidget):
         self.graph.property_changed.connect(self._onPropertyChanged)
         self.graph.viewer().moved_nodes.connect(self._onNodesMoved)
         self.graph.context_menu_prompt.connect(self._onContextMenuPrompt)
-        nodes_menu = self.graph.get_context_menu('nodes')
+        nodes_menu = self.graph.get_context_menu("nodes")
         nodes_menu.add_command(Locale.getContent("CONVERT_TO_EVAL_NODE"), func=self._convertToEval, node_class=BaseNode)
-        nodes_menu.add_command(Locale.getContent("CONVERT_TO_NORMAL_NODE"), func=self._convertToNormal, node_class=BaseNode)
+        nodes_menu.add_command(
+            Locale.getContent("CONVERT_TO_NORMAL_NODE"), func=self._convertToNormal, node_class=BaseNode
+        )
+        nodes_menu.add_command(Locale.getContent("DELETE"), func=self._onDeleteNode, node_class=BaseNode)
+
+        graph_menu = self.graph.get_context_menu("graph")
+        self._actUndo = QtWidgets.QAction(Locale.getContent("UNDO"), self)
+        self._actUndo.setShortcut(QtGui.QKeySequence.Undo)
+        self._actUndo.setShortcutContext(QtCore.Qt.WindowShortcut)
+        self._actUndo.triggered.connect(self._onUndo)
+        graph_menu.qmenu.addAction(self._actUndo)
+
+        self._actRedo = QtWidgets.QAction(Locale.getContent("REDO"), self)
+        self._actRedo.setShortcut(QtGui.QKeySequence.Redo)
+        self._actRedo.setShortcutContext(QtCore.Qt.WindowShortcut)
+        self._actRedo.triggered.connect(self._onRedo)
+        graph_menu.qmenu.addAction(self._actRedo)
+
+        self._actAddNode = QtWidgets.QAction(Locale.getContent("ADD_NODE"), self)
+        self._actAddNode.triggered.connect(self._onAddNode)
+        graph_menu.qmenu.addAction(self._actAddNode)
+
+        self._actDelete = QtWidgets.QAction(Locale.getContent("DELETE"), self)
+        self._actDelete.setShortcut(QtGui.QKeySequence.Delete)
+        self._actDelete.setShortcutContext(QtCore.Qt.WindowShortcut)
+        self._actDelete.triggered.connect(self._onDeleteSelected)
+        graph_menu.qmenu.addAction(self._actDelete)
+
+        self._refreshUndoRedo()
+
+    def _onAddNode(self):
+        viewer = self.graph.viewer()
+        gp = QtGui.QCursor.pos()
+        wp = viewer.mapFromGlobal(gp)
+        sp = viewer.mapToScene(wp)
+        sources = {}
+        sources["Parent"] = getattr(self.nodeGraph, "parent", None)
+        for m in getattr(self.nodeGraph, "modules_", []):
+            sources[m.__name__] = m
+        popup = FunctionPickerPopup(viewer, sources)
+
+        def on_selected(path: str, is_parent: bool):
+            self._commitNewNode(path, is_parent, sp)
+
+        popup.functionSelected.connect(on_selected)
+        popup.move(gp)
+        popup.show()
+
+    def _commitNewNode(self, path: str, is_parent: bool, sp: QtCore.QPointF):
+        func = None
+        if is_parent and getattr(self.nodeGraph, "parent", None) is not None:
+            func = getattr(self.nodeGraph.parent, path, None)
+        else:
+            for m in getattr(self.nodeGraph, "modules_", []):
+                f = self.nodeGraph.getFunctionFromModule(m, path)
+                if f is not None:
+                    func = f
+                    break
+        if func is None:
+            return
+        if not hasattr(func, "_execSplits") or getattr(func, "_execSplits", None) is None:
+            return
+        sig = inspect.signature(func)
+        params = []
+        for name, p in sig.parameters.items():
+            if name == "self":
+                continue
+            t = p.annotation
+            if t is int:
+                params.append("0")
+            elif t is float:
+                params.append("0.0")
+            elif t is bool:
+                params.append(False)
+            elif t is str:
+                params.append("")
+            else:
+                params.append("None")
+        x = int(sp.x())
+        y = int(sp.y())
+        GameData.recordSnapshot()
+        group = GameData.commonFunctionsData.get(self.name, {}).get(self.key, {})
+        nodes_data = group.setdefault("nodes", [])
+        nodes_data.append({"nodeFunction": path, "params": params[:], "pos": [x, y]})
+        model = EditorNode(getattr(self.nodeGraph, "parent", None), func, params[:], [], (x, y))
+        self.nodeGraph.nodes.setdefault(self.key, []).append(model)
+        name = func.__name__
+        if name not in self.classDict:
+            self.classDict[name] = type("Class", (BaseNode,), {"__init__": makeInit(model)})
+            self.classDict[name].__identifier__ = name
+            self.classDict[name].NODE_NAME = name
+            self.graph.register_node(self.classDict[name])
+        nodeInst = self.graph.create_node(f"{name}.Class", pos=(x, y))
+        self.nodes.append(nodeInst)
+        pl = model.getParamList()
+        keys = list(pl.keys())
+        si = keys.index("self") if "self" in keys else -1
+        for i, k in enumerate(keys):
+            if k == "self":
+                continue
+            pi = i - 1 if si == 0 else i
+            w = nodeInst.get_widget(k)
+            if w:
+                cw = w.get_custom_widget()
+                val = params[pi] if (0 <= pi < len(params)) else ""
+                if isinstance(cw, QtWidgets.QLineEdit):
+                    cw.setText(str(val))
+                elif hasattr(cw, "setChecked"):
+                    cw.setChecked(bool(val))
+        self._updateEvalBadge(nodeInst)
+        if getattr(File, "mainWindow", None):
+            File.mainWindow.setWindowTitle(System.getTitle())
+            File.mainWindow._refreshUndoRedo()
+        self._refreshUndoRedo()
+
+    def _onDeleteSelected(self):
+        selected = []
+        for i, n in enumerate(self.nodes):
+            v = getattr(n, "view", None)
+            if v and v.isSelected():
+                selected.append(i)
+        if not selected:
+            return
+        self._delete_indices(selected)
+
+    def _onDeleteNode(self, graph, node):
+        try:
+            idx = self.nodes.index(node)
+        except ValueError:
+            return
+        self._delete_indices([idx])
+
+    def _delete_indices(self, indices: List[int]) -> None:
+        indices = sorted({int(i) for i in indices if isinstance(i, int)}, reverse=True)
+        if not indices:
+            return
+        group = GameData.commonFunctionsData.get(self.name, {}).get(self.key, {})
+        nodes_data = group.get("nodes", [])
+        links = group.get("links", [])
+        if not nodes_data:
+            return
+        GameData.recordSnapshot()
+        for idx in indices:
+            if 0 <= idx < len(nodes_data):
+                del nodes_data[idx]
+            model_nodes = self.nodeGraph.nodes.get(self.key, [])
+            if 0 <= idx < len(model_nodes):
+                del model_nodes[idx]
+        if isinstance(links, list) and links:
+            deleted = set(indices)
+            def shift(i: int) -> int:
+                c = sum(1 for d in deleted if d < i)
+                return i - c
+            new_links = []
+            for triple in links:
+                if not isinstance(triple, (list, tuple)) or len(triple) < 3:
+                    continue
+                s, d, o = int(triple[0]), int(triple[1]), int(triple[2])
+                if s in deleted or d in deleted:
+                    continue
+                new_links.append([shift(s), shift(d), o])
+            group["links"] = new_links
+        File.mainWindow.setWindowTitle(System.getTitle())
+        File.mainWindow._refreshUndoRedo()
+        self._parent._refreshCurrentPanel()
+
+    def _onUndo(self):
+        self._parent._onUndo()
+
+    def _onRedo(self):
+        self._parent._onRedo()
+
+    def _refreshUndoRedo(self):
+        if hasattr(self, "_actUndo"):
+            self._actUndo.setEnabled(bool(GameData.undoStack))
+        if hasattr(self, "_actRedo"):
+            self._actRedo.setEnabled(bool(GameData.redoStack))
 
     def _updateEvalBadge(self, node):
         view = getattr(node, "view", None)
@@ -180,8 +362,10 @@ class NodePanel(QtWidgets.QWidget):
         is_eval = bool(getattr(node, "_force_eval", False) or getattr(node, "_string_mode", False))
         for a in sm.actions():
             if a.text() == label_eval:
+                a.setVisible(not is_eval)
                 a.setEnabled(not is_eval)
             elif a.text() == label_norm:
+                a.setVisible(is_eval)
                 a.setEnabled(is_eval)
 
     def _convertToEval(self, graph, node):
@@ -219,6 +403,7 @@ class NodePanel(QtWidgets.QWidget):
         self._recomputeStringMode(idx)
         File.mainWindow.setWindowTitle(System.getTitle())
         File.mainWindow._refreshUndoRedo()
+        self._refreshUndoRedo()
 
     def _convertToNormal(self, graph, node):
         try:
@@ -281,12 +466,16 @@ class NodePanel(QtWidgets.QWidget):
                         break
                 except Exception:
                     if sv.lower() in ("true", "false"):
-                        converted[pi] = (sv.lower() == "true")
+                        converted[pi] = sv.lower() == "true"
                     else:
                         failed = True
                         break
         if failed:
-            QtWidgets.QMessageBox.warning(File.mainWindow if getattr(File, "mainWindow", None) else self, "Hint", Locale.getContent("CONVERT_TO_NORMAL_FAILED"))
+            QtWidgets.QMessageBox.warning(
+                File.mainWindow if getattr(File, "mainWindow", None) else self,
+                "Hint",
+                Locale.getContent("CONVERT_TO_NORMAL_FAILED"),
+            )
             return
         GameData.recordSnapshot()
         nodes_data[idx]["params"] = converted
@@ -311,6 +500,7 @@ class NodePanel(QtWidgets.QWidget):
         self._recomputeStringMode(idx)
         File.mainWindow.setWindowTitle(System.getTitle())
         File.mainWindow._refreshUndoRedo()
+        self._refreshUndoRedo()
 
     def _recomputeStringMode(self, idx: int) -> None:
         group = GameData.commonFunctionsData.get(self.name, {}).get(self.key, {})
@@ -382,6 +572,7 @@ class NodePanel(QtWidgets.QWidget):
             model_nodes[idx].params[param_index] = params[param_index]
         File.mainWindow.setWindowTitle(System.getTitle())
         File.mainWindow._refreshUndoRedo()
+        self._refreshUndoRedo()
         self._recomputeStringMode(idx)
 
     def _onNodesMoved(self, node_data):
@@ -398,6 +589,7 @@ class NodePanel(QtWidgets.QWidget):
                         nodes[i]["pos"] = [int(x), int(y)]
         File.mainWindow.setWindowTitle(System.getTitle())
         File.mainWindow._refreshUndoRedo()
+        self._refreshUndoRedo()
 
     def _onPortConnected(self, in_port, out_port):
         src_node = out_port.node()
@@ -420,6 +612,7 @@ class NodePanel(QtWidgets.QWidget):
             links.append(triple)
             File.mainWindow.setWindowTitle(System.getTitle())
             File.mainWindow._refreshUndoRedo()
+            self._refreshUndoRedo()
 
     def _onPortDisconnected(self, in_port, out_port):
         src_node = out_port.node()
@@ -444,3 +637,4 @@ class NodePanel(QtWidgets.QWidget):
             links.remove(triple)
             File.mainWindow.setWindowTitle(System.getTitle())
             File.mainWindow._refreshUndoRedo()
+            self._refreshUndoRedo()

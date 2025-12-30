@@ -426,5 +426,9 @@
     "CONVERT_TO_NORMAL_FAILED": {
         "zh_CN": "部分参数无法转换为目标类型，已取消转换",
         "en_GB": "Some parameters could not be converted to target types; conversion cancelled"
+    },
+    "ADD_NODE": {
+        "zh_CN": "添加节点",
+        "en_GB": "Add Node"
     }
 }

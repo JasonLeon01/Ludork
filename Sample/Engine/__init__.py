@@ -1,5 +1,8 @@
 # -*- encoding: utf-8 -*-
 
+from typing import Any, Dict
+
+
 _GameRunning: bool = True
 _CellSize: int = 32
 
@@ -24,9 +27,10 @@ def SetCellSize(size: int):
     _CellSize = size
 
 
-def NodeReturn(*args):
+def ExecSplit(*args):
     def decorator(func):
-        func._nodeReturns = list(args)
+        func._execSplits = list(args)
+        func._refLocal: Dict[str, Any] = {}
         return func
 
     return decorator

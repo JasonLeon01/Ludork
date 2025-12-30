@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from .N_Node import DataNode, Node
 
 
@@ -12,8 +12,10 @@ class Graph:
         links: Dict[str, List[Tuple[int, int, int]]],
         nodeModel: Optional[type] = None,
     ) -> None:
-        import Engine, Source
+        import Source
 
+        self.modules_ = [Source.NodeFunctions]
+        self.localGraph: Dict[str, Any] = {}
         self.parent = parent
         self.nodes: Dict[str, List[Node]] = {}
         self.adjTables: Dict[str, Dict[int, List[Tuple[int, int]]]] = {}
@@ -27,13 +29,13 @@ class Graph:
                 functionAttr = getattr(self.parent, functionName, None)
                 if functionAttr is None or not isinstance(functionAttr, Callable):
                     functionAttr = None
-                    for module_ in [Engine, Source]:
+                    for module_ in self.modules_:
                         functionAttr = self.getFunctionFromModule(module_, functionName)
                         if functionAttr is not None:
                             break
                     if functionAttr is None:
                         raise Exception(f"Function {functionName} not found in {module_.__name__}")
-                paramList = [self.parent, functionAttr, dataNode.params, []]
+                paramList = [self, self.parent, functionAttr, dataNode.params, []]
                 if hasattr(dataNode, "pos"):
                     paramList.append(dataNode.pos)
                 self.nodes[key].append(nodeModel(*paramList))
@@ -58,8 +60,8 @@ class Graph:
             for i, node in enumerate(nodes):
                 nextNodesIndexes = self.adjTables[key].get(i, [])
                 returnsLen = 1
-                if hasattr(node.nodeFunction, "_nodeReturns") and len(node.nodeFunction._nodeReturns) > 0:
-                    returnsLen = len(node.nodeFunction._nodeReturns)
+                if hasattr(node.nodeFunction, "_execSplits") and len(node.nodeFunction._execSplits) > 0:
+                    returnsLen = len(node.nodeFunction._execSplits)
                 node.nexts = [None] * returnsLen
                 for couple in nextNodesIndexes:
                     value, index = couple

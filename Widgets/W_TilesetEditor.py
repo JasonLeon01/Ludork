@@ -7,6 +7,7 @@ import copy
 from Utils import Locale, File, System
 from .Utils.WU_TilesetPanel import TilesetPanel
 from .Utils.WU_SingleRowDialog import SingleRowDialog
+from .Utils.WU_Toast import Toast
 
 
 class TilesetEditor(QtWidgets.QMainWindow):
@@ -19,7 +20,14 @@ class TilesetEditor(QtWidgets.QMainWindow):
         self._tilesetClipboard = None
 
         self._initUI()
+        self.toast = Toast(self)
         self._loadData()
+        self._refreshUndoRedo()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if hasattr(self, "toast"):
+            self.toast._updatePosition()
 
     def _initUI(self):
         central_widget = QtWidgets.QWidget()
@@ -51,11 +59,20 @@ class TilesetEditor(QtWidgets.QMainWindow):
         self._actDelete.setShortcutContext(QtCore.Qt.WidgetShortcut)
         self._actDelete.triggered.connect(self._deleteTileset)
         self.listWidget.addAction(self._actDelete)
-
         layout.addWidget(self.listWidget)
-
+        self._actUndo = QtWidgets.QAction(Locale.getContent("UNDO"), self)
+        self._actUndo.setShortcut(QtGui.QKeySequence.Undo)
+        self._actUndo.setShortcutContext(QtCore.Qt.WindowShortcut)
+        self._actUndo.triggered.connect(self._onUndo)
+        self.addAction(self._actUndo)
+        self._actRedo = QtWidgets.QAction(Locale.getContent("REDO"), self)
+        self._actRedo.setShortcut(QtGui.QKeySequence.Redo)
+        self._actRedo.setShortcutContext(QtCore.Qt.WindowShortcut)
+        self._actRedo.triggered.connect(self._onRedo)
+        self.addAction(self._actRedo)
         self.tilesetPanel = TilesetPanel(self)
         self.tilesetPanel.modified.connect(self.modified)
+        self.modified.connect(self._refreshUndoRedo)
         layout.addWidget(self.tilesetPanel, 1)
 
     def _onSelectionChanged(self, row):
@@ -286,10 +303,52 @@ class TilesetEditor(QtWidgets.QMainWindow):
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", str(e))
 
+    def _refreshUndoRedo(self):
+        self._actUndo.setEnabled(bool(GameData.undoStack))
+        self._actRedo.setEnabled(bool(GameData.redoStack))
+
+    def _reloadListPreserveSelection(self):
+        current = None
+        item = self.listWidget.currentItem()
+        if item:
+            current = item.text()
+        self.listWidget.clear()
+        if GameData.tilesetData:
+            for key in GameData.tilesetData.keys():
+                self.listWidget.addItem(key)
+        if current:
+            items = self.listWidget.findItems(current, QtCore.Qt.MatchExactly)
+            if items:
+                self.listWidget.setCurrentItem(items[0])
+        if self.listWidget.count() > 0 and self.listWidget.currentRow() < 0:
+            self.listWidget.setCurrentRow(0)
+
+    def _onUndo(self):
+        diffs = GameData.undo()
+        self._reloadListPreserveSelection()
+        self._refreshUndoRedo()
+        if getattr(File, "mainWindow", None):
+            File.mainWindow.setWindowTitle(System.getTitle())
+            if getattr(File.mainWindow, "tileSelect", None):
+                File.mainWindow.tileSelect.initTilesets()
+        if diffs:
+            self.toast.showMessage("Undo:\n" + "\n".join(diffs))
+
+    def _onRedo(self):
+        diffs = GameData.redo()
+        self._reloadListPreserveSelection()
+        self._refreshUndoRedo()
+        if getattr(File, "mainWindow", None):
+            File.mainWindow.setWindowTitle(System.getTitle())
+            if getattr(File.mainWindow, "tileSelect", None):
+                File.mainWindow.tileSelect.initTilesets()
+        if diffs:
+            self.toast.showMessage("Redo:\n" + "\n".join(diffs))
+
     def _loadData(self):
         self.listWidget.clear()
         if GameData.tilesetData:
             for key in GameData.tilesetData.keys():
                 self.listWidget.addItem(key)
-            if self.listWidget.count() > 0:
-                self.listWidget.setCurrentRow(0)
+        if self.listWidget.count() > 0:
+            self.listWidget.setCurrentRow(0)
