@@ -304,11 +304,10 @@ class TilesetPanel(QtWidgets.QWidget):
             elif len(arr_l) > new_count:
                 del arr_l[new_count:]
             if self._key:
-                if getattr(File, "mainWindow", None):
-                    File.mainWindow.setWindowTitle(System.getTitle())
-                    File.mainWindow.editorPanel._renderFromMapData()
-                    File.mainWindow.editorPanel.update()
-                    ts = File.mainWindow.tileSelect
-                    ts.initTilesets()
+                File.mainWindow.setWindowTitle(System.getTitle())
+                File.mainWindow.editorPanel._renderFromMapData()
+                File.mainWindow.editorPanel.update()
+                ts = File.mainWindow.tileSelect
+                ts.initTilesets()
             self.modified.emit()
             self.setTilesetData(self._data)

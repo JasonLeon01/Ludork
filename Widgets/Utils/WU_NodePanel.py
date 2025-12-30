@@ -7,6 +7,7 @@ from NodeGraphQt import NodeGraph, BaseNode
 from Data import GameData
 from Utils import File, System, Locale
 import inspect
+import copy
 from NodeGraph import EditorNode
 from .WU_FunctionPickerPopup import FunctionPickerPopup
 
@@ -80,7 +81,9 @@ def makeInit(currNode):
 
 
 class NodePanel(QtWidgets.QWidget):
-    def __init__(self, parent, graph: Graph, key: str, name: str):
+    _COPY_BUFFER = None
+
+    def __init__(self, parent: QtWidgets.QWidget, graph: Graph, key: str, name: str):
         super(NodePanel, self).__init__(parent)
         self._parent = parent
         self.setWindowTitle("Node Panel")
@@ -98,6 +101,9 @@ class NodePanel(QtWidgets.QWidget):
         self._createNodes()
         self._createLinks()
         self._connectSignals()
+
+    def setName(self, name: str):
+        self.name = name
 
     def _setupLayout(self):
         main_layout = QtWidgets.QVBoxLayout(self)
@@ -152,7 +158,20 @@ class NodePanel(QtWidgets.QWidget):
         nodes_menu.add_command(
             Locale.getContent("CONVERT_TO_NORMAL_NODE"), func=self._convertToNormal, node_class=BaseNode
         )
-        nodes_menu.add_command(Locale.getContent("DELETE"), func=self._onDeleteNode, node_class=BaseNode)
+        nodes_menu.add_command(Locale.getContent("COPY"), func=self._onCopyCallback, node_class=BaseNode)
+        nodes_menu.add_command(Locale.getContent("DELETE"), func=self._onDeleteCallback, node_class=BaseNode)
+
+        self._actCopy = QtWidgets.QAction(Locale.getContent("COPY"), self)
+        self._actCopy.setShortcut(QtGui.QKeySequence.Copy)
+        self._actCopy.setShortcutContext(QtCore.Qt.WindowShortcut)
+        self._actCopy.triggered.connect(self._onCopy)
+        self.addAction(self._actCopy)
+
+        self._actDelete = QtWidgets.QAction(Locale.getContent("DELETE"), self)
+        self._actDelete.setShortcut(QtGui.QKeySequence.Delete)
+        self._actDelete.setShortcutContext(QtCore.Qt.WindowShortcut)
+        self._actDelete.triggered.connect(self._onDeleteSelected)
+        self.addAction(self._actDelete)
 
         graph_menu = self.graph.get_context_menu("graph")
         self._actUndo = QtWidgets.QAction(Locale.getContent("UNDO"), self)
@@ -171,13 +190,20 @@ class NodePanel(QtWidgets.QWidget):
         self._actAddNode.triggered.connect(self._onAddNode)
         graph_menu.qmenu.addAction(self._actAddNode)
 
-        self._actDelete = QtWidgets.QAction(Locale.getContent("DELETE"), self)
-        self._actDelete.setShortcut(QtGui.QKeySequence.Delete)
-        self._actDelete.setShortcutContext(QtCore.Qt.WindowShortcut)
-        self._actDelete.triggered.connect(self._onDeleteSelected)
-        graph_menu.qmenu.addAction(self._actDelete)
+        self._actPaste = QtWidgets.QAction(Locale.getContent("PASTE"), self)
+        self._actPaste.setShortcut(QtGui.QKeySequence.Paste)
+        self._actPaste.setShortcutContext(QtCore.Qt.WindowShortcut)
+        self._actPaste.triggered.connect(self._onPaste)
+        self.addAction(self._actPaste)
+        graph_menu.qmenu.addAction(self._actPaste)
 
         self._refreshUndoRedo()
+
+    def _onCopyCallback(self, graph, node):
+        self._onCopy()
+
+    def _onDeleteCallback(self, graph, node):
+        self._onDeleteSelected()
 
     def _onAddNode(self):
         viewer = self.graph.viewer()
@@ -233,7 +259,7 @@ class NodePanel(QtWidgets.QWidget):
         group = GameData.commonFunctionsData.get(self.name, {}).get(self.key, {})
         nodes_data = group.setdefault("nodes", [])
         nodes_data.append({"nodeFunction": path, "params": params[:], "pos": [x, y]})
-        model = EditorNode(getattr(self.nodeGraph, "parent", None), func, params[:], [], (x, y))
+        model = EditorNode(self.nodeGraph, getattr(self.nodeGraph, "parent", None), func, params[:], [], (x, y))
         self.nodeGraph.nodes.setdefault(self.key, []).append(model)
         name = func.__name__
         if name not in self.classDict:
@@ -259,6 +285,120 @@ class NodePanel(QtWidgets.QWidget):
                 elif hasattr(cw, "setChecked"):
                     cw.setChecked(bool(val))
         self._updateEvalBadge(nodeInst)
+        File.mainWindow.setWindowTitle(System.getTitle())
+        File.mainWindow._refreshUndoRedo()
+        self._refreshUndoRedo()
+
+    def _onCopy(self):
+        selected = []
+        for i, n in enumerate(self.nodes):
+            v = getattr(n, "view", None)
+            if v and v.isSelected():
+                selected.append(i)
+        if not selected:
+            return
+        group = GameData.commonFunctionsData.get(self.name, {}).get(self.key, {})
+        nodes_data = group.get("nodes", [])
+        links = group.get("links", [])
+        copy_nodes = []
+        mapping = {}
+        for new_idx, old_idx in enumerate(selected):
+            if 0 <= old_idx < len(nodes_data):
+                nd = nodes_data[old_idx]
+                copy_nodes.append(copy.deepcopy(nd))
+                mapping[old_idx] = new_idx
+        copy_links = []
+        for lnk in links:
+            if isinstance(lnk, (list, tuple)) and len(lnk) >= 3:
+                s, d, o = int(lnk[0]), int(lnk[1]), int(lnk[2])
+                if s in mapping and d in mapping:
+                    copy_links.append([mapping[s], mapping[d], o])
+        data = {"ludork_nodes": copy_nodes, "ludork_links": copy_links}
+        NodePanel._COPY_BUFFER = data
+
+    def _onPaste(self):
+        if not NodePanel._COPY_BUFFER:
+            return
+        data = copy.deepcopy(NodePanel._COPY_BUFFER)
+        nodes = data.get("ludork_nodes", [])
+        links = data.get("ludork_links", [])
+        if not nodes:
+            return
+        viewer = self.graph.viewer()
+        gp = QtGui.QCursor.pos()
+        wp = viewer.mapFromGlobal(gp)
+        sp = viewer.mapToScene(wp)
+        min_x = min(n["pos"][0] for n in nodes)
+        min_y = min(n["pos"][1] for n in nodes)
+        dx = sp.x() - min_x
+        dy = sp.y() - min_y
+        GameData.recordSnapshot()
+        group = GameData.commonFunctionsData.get(self.name, {}).get(self.key, {})
+        data_nodes = group.setdefault("nodes", [])
+        data_links = group.setdefault("links", [])
+        pasted_indices = []
+        for n in self.nodes:
+            if getattr(n, "view", None):
+                n.view.setSelected(False)
+        for i, nd in enumerate(nodes):
+            path = nd["nodeFunction"]
+            params = nd["params"]
+            x = int(nd["pos"][0] + dx)
+            y = int(nd["pos"][1] + dy)
+            func = None
+            parent = getattr(self.nodeGraph, "parent", None)
+            if parent is not None and hasattr(parent, path):
+                func = getattr(parent, path)
+            else:
+                for m in getattr(self.nodeGraph, "modules_", []):
+                    f = self.nodeGraph.getFunctionFromModule(m, path)
+                    if f:
+                        func = f
+                        break
+            if not func:
+                pasted_indices.append(-1)
+                continue
+            data_nodes.append({"nodeFunction": path, "params": params, "pos": [x, y]})
+            model = EditorNode(self.graph, parent, func, params[:], [], (x, y))
+            self.nodeGraph.nodes.setdefault(self.key, []).append(model)
+            name = func.__name__
+            if name not in self.classDict:
+                self.classDict[name] = type("Class", (BaseNode,), {"__init__": makeInit(model)})
+                self.classDict[name].__identifier__ = name
+                self.classDict[name].NODE_NAME = name
+                self.graph.register_node(self.classDict[name])
+            nodeInst = self.graph.create_node(f"{name}.Class", pos=(x, y))
+            self.nodes.append(nodeInst)
+            pl = model.getParamList()
+            keys = list(pl.keys())
+            si = keys.index("self") if "self" in keys else -1
+            for k_idx, k_name in enumerate(keys):
+                if k_name == "self":
+                    continue
+                pi = k_idx - 1 if si == 0 else k_idx
+                w = nodeInst.get_widget(k_name)
+                if w:
+                    cw = w.get_custom_widget()
+                    val = params[pi] if (0 <= pi < len(params)) else ""
+                    if isinstance(cw, QtWidgets.QLineEdit):
+                        cw.setText(str(val))
+                    elif hasattr(cw, "setChecked"):
+                        state = val if isinstance(val, bool) else (str(val) == "True")
+                        cw.setChecked(state)
+            self._updateEvalBadge(nodeInst)
+            if getattr(nodeInst, "view", None):
+                nodeInst.view.setSelected(True)
+            pasted_indices.append(len(data_nodes) - 1)
+        for s, d, o in links:
+            if 0 <= s < len(pasted_indices) and 0 <= d < len(pasted_indices):
+                real_s = pasted_indices[s]
+                real_d = pasted_indices[d]
+                if real_s != -1 and real_d != -1:
+                    data_links.append([real_s, real_d, o])
+                    src_node = self.nodes[real_s]
+                    dst_node = self.nodes[real_d]
+                    if o < len(src_node.outputs()):
+                        src_node.set_output(o, dst_node.input(0))
         if getattr(File, "mainWindow", None):
             File.mainWindow.setWindowTitle(System.getTitle())
             File.mainWindow._refreshUndoRedo()
@@ -299,9 +439,11 @@ class NodePanel(QtWidgets.QWidget):
                 del model_nodes[idx]
         if isinstance(links, list) and links:
             deleted = set(indices)
+
             def shift(i: int) -> int:
                 c = sum(1 for d in deleted if d < i)
                 return i - c
+
             new_links = []
             for triple in links:
                 if not isinstance(triple, (list, tuple)) or len(triple) < 3:
@@ -352,6 +494,18 @@ class NodePanel(QtWidgets.QWidget):
                 badge.setVisible(False)
 
     def _onContextMenuPrompt(self, menu, node):
+        if node:
+            if hasattr(node, "view") and node.view and not node.view.isSelected():
+                for n in self.nodes:
+                    if getattr(n, "view", None):
+                        n.view.setSelected(False)
+                node.view.setSelected(True)
+
+        if node is None:
+            if hasattr(self, "_actPaste"):
+                self._actPaste.setEnabled(bool(NodePanel._COPY_BUFFER))
+            return
+
         if not isinstance(node, BaseNode):
             return
         sm = menu.qmenu.get_menu(getattr(node.view, "type_", ""), getattr(node.view, "id", None))
@@ -472,7 +626,7 @@ class NodePanel(QtWidgets.QWidget):
                         break
         if failed:
             QtWidgets.QMessageBox.warning(
-                File.mainWindow if getattr(File, "mainWindow", None) else self,
+                File.mainWindow,
                 "Hint",
                 Locale.getContent("CONVERT_TO_NORMAL_FAILED"),
             )

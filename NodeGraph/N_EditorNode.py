@@ -7,13 +7,15 @@ import importlib
 
 Node = None
 DataNode = None
+Graph = None
 try:
     Engine = importlib.import_module("Engine")
     Node = Engine.NodeGraph.Node
     DataNode = Engine.NodeGraph.DataNode
+    Graph = Engine.NodeGraph.Graph
 except ImportError:
     print("ImportError: Engine.NodeGraph.N_Node")
-    from Sample.Engine.NodeGraph import Node, DataNode
+    from Sample.Engine.NodeGraph import Node, DataNode, Graph
 
 
 @dataclass
@@ -24,13 +26,14 @@ class EditorDataNode(DataNode):
 class EditorNode(Node):
     def __init__(
         self,
+        parentGraph: Graph,
         parent: Optional[object],
         nodeFunction: Callable,
         params: List[str],
         nexts: List[Node],
         position: Tuple[float, float],
     ) -> None:
-        super().__init__(parent, nodeFunction, params, nexts)
+        super().__init__(parentGraph, parent, nodeFunction, params, nexts)
         self.position = position
 
     def __repr__(self):

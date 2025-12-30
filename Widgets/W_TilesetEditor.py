@@ -142,10 +142,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
             self.listWidget.addItem(item)
             self.listWidget.setCurrentItem(item)
 
-            if getattr(Data, "GameData", None):
-                if getattr(File, "mainWindow", None):
-                    File.mainWindow.setWindowTitle(System.getTitle())
-                    File.mainWindow.tileSelect.initTilesets()
+            File.mainWindow.setWindowTitle(System.getTitle())
+            File.mainWindow.tileSelect.initTilesets()
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", str(e))
 
@@ -188,10 +186,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
             self.listWidget.addItem(item)
             self.listWidget.setCurrentItem(item)
 
-            if getattr(Data, "GameData", None):
-                if getattr(File, "mainWindow", None):
-                    File.mainWindow.setWindowTitle(System.getTitle())
-                    File.mainWindow.tileSelect.initTilesets()
+            File.mainWindow.setWindowTitle(System.getTitle())
+            File.mainWindow.tileSelect.initTilesets()
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", str(e))
 
@@ -265,10 +261,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
 
             item.setText(new_name)
 
-            if getattr(Data, "GameData", None):
-                if getattr(File, "mainWindow", None):
-                    File.mainWindow.setWindowTitle(System.getTitle())
-                    File.mainWindow.tileSelect.initTilesets()
+            File.mainWindow.setWindowTitle(System.getTitle())
+            File.mainWindow.tileSelect.initTilesets()
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", str(e))
 
@@ -296,10 +290,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
                 self.listWidget.setCurrentRow(min(row, self.listWidget.count() - 1))
             else:
                 self.tilesetPanel.setTilesetData(None)
-            if getattr(Data, "GameData", None):
-                if getattr(File, "mainWindow", None):
-                    File.mainWindow.setWindowTitle(System.getTitle())
-                    File.mainWindow.tileSelect.initTilesets()
+            File.mainWindow.setWindowTitle(System.getTitle())
+            File.mainWindow.tileSelect.initTilesets()
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", str(e))
 
@@ -327,10 +319,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
         diffs = GameData.undo()
         self._reloadListPreserveSelection()
         self._refreshUndoRedo()
-        if getattr(File, "mainWindow", None):
-            File.mainWindow.setWindowTitle(System.getTitle())
-            if getattr(File.mainWindow, "tileSelect", None):
-                File.mainWindow.tileSelect.initTilesets()
+        File.mainWindow.setWindowTitle(System.getTitle())
+        File.mainWindow.tileSelect.initTilesets()
         if diffs:
             self.toast.showMessage("Undo:\n" + "\n".join(diffs))
 
@@ -338,10 +328,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
         diffs = GameData.redo()
         self._reloadListPreserveSelection()
         self._refreshUndoRedo()
-        if getattr(File, "mainWindow", None):
-            File.mainWindow.setWindowTitle(System.getTitle())
-            if getattr(File.mainWindow, "tileSelect", None):
-                File.mainWindow.tileSelect.initTilesets()
+        File.mainWindow.setWindowTitle(System.getTitle())
+        File.mainWindow.tileSelect.initTilesets()
         if diffs:
             self.toast.showMessage("Redo:\n" + "\n".join(diffs))
 

@@ -430,5 +430,29 @@
     "ADD_NODE": {
         "zh_CN": "添加节点",
         "en_GB": "Add Node"
+    },
+    "NEW_COMMON_FUNC": {
+        "zh_CN": "新建公共函数",
+        "en_GB": "New Common Function"
+    },
+    "ENTER_FUNC_NAME": {
+        "zh_CN": "请输入公共函数名称",
+        "en_GB": "Enter common function name"
+    },
+    "FUNC_NAME_EXISTS": {
+        "zh_CN": "公共函数名称已存在",
+        "en_GB": "Common function name already exists"
+    },
+    "INVALID_NAME": {
+        "zh_CN": "名称无效",
+        "en_GB": "Invalid Name"
+    },
+    "RENAME_FUNC": {
+        "zh_CN": "重命名公共函数",
+        "en_GB": "Rename Common Function"
+    },
+    "CONFIRM_DELETE_FUNC": {
+        "zh_CN": "确认删除公共函数 '{name}' 吗？",
+        "en_GB": "Are you sure you want to delete the common function '{name}'?"
     }
 }
