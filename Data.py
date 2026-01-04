@@ -369,12 +369,10 @@ class GameData:
         Graph = Engine.NodeGraph.Graph
         nodes = {}
         links = {}
-        for key, valueDict in data.items():
-            if key == "parent" or key == "startNodes":
-                continue
+        for key, valueDict in data["nodeGraph"].items():
             nodes[key] = []
             for node in valueDict["nodes"]:
                 nodes[key].append(EditorDataNode(**node))
             links[key] = valueDict["links"]
 
-        return Graph(data["parent"], nodes, links, EditorNode, data["startNodes"])
+        return Graph(data["parent"], copy.deepcopy(nodes), copy.deepcopy(links), EditorNode, data["startNodes"])

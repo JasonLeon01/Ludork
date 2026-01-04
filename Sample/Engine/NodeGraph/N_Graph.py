@@ -18,13 +18,22 @@ class Graph:
         self.modules_ = [Source.NodeFunctions]
         self.localGraph: Dict[str, Any] = {}
         self.parent = parent
+        self.dataNodes = inNodes
         self.nodes: Dict[str, List[Node]] = {}
+        self.links = links
         self.startNodes = startNodes
+        self.nodeRely: Dict[str, Dict[int, Dict[Tuple[int, int]]]] = {}
+        self.nodeNexts: Dict[str, Dict[int, Dict[Tuple[int, int]]]] = {}
         if self.startNodes is None:
             self.startNodes = {}
-        if nodeModel is None:
-            nodeModel = Node
-        for key, dataNodes in inNodes.items():
+        self.nodeModel = nodeModel
+        if self.nodeModel is None:
+            self.nodeModel = Node
+        self.genNodesFromDataNodes()
+        self.genRelationsFromLinks()
+
+    def genNodesFromDataNodes(self) -> None:
+        for key, dataNodes in self.dataNodes.items():
             self.nodes[key] = []
             for dataNode in dataNodes:
                 functionName = dataNode.nodeFunction
@@ -37,13 +46,17 @@ class Graph:
                             break
                     if functionAttr is None:
                         raise Exception(f"Function {functionName} not found in {module_.__name__}")
-                paramList = [self, self.parent, functionAttr, dataNode.params]
+                paramList = [self, self.parent, dataNode.nodeFunction, functionAttr, dataNode.params]
                 if hasattr(dataNode, "pos"):
                     paramList.append(dataNode.pos)
-                self.nodes[key].append(nodeModel(*paramList))
-        self.nodeRely: Dict[str, Dict[int, Dict[Tuple[int, int]]]] = {}
-        self.nodeNexts: Dict[str, Dict[int, Dict[Tuple[int, int]]]] = {}
-        for key, linkList in links.items():
+                self.nodes[key].append(self.nodeModel(*paramList))
+
+    def genRelationsFromLinks(self) -> None:
+        self.nodeRely.clear()
+        self.nodeNexts.clear()
+        self.nodeRely = {}
+        self.nodeNexts = {}
+        for key, linkList in self.links.items():
             self.nodeRely[key] = {}
             self.nodeNexts[key] = {}
             for link in linkList:
@@ -161,3 +174,16 @@ class Graph:
         if callable(currentObj):
             return currentObj
         return None
+
+    def asDict(self) -> Dict[str, Any]:
+        result = {}
+        result["parent"] = self.parent
+        result["nodeGraph"] = {}
+        for key, nodes in self.nodes.items():
+            result["nodeGraph"][key] = {}
+            result["nodeGraph"][key]["nodes"] = []
+            for i, node in enumerate(nodes):
+                result["nodeGraph"][key]["nodes"].append(node.asDict())
+            result["nodeGraph"][key]["links"] = self.links[key]
+        result["startNodes"] = self.startNodes
+        return result

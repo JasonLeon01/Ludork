@@ -20,11 +20,13 @@ class Node:
         self,
         parentGraph: Graph,
         parent: Optional[object],
+        functionName: str,
         nodeFunction: Callable,
         params: List[str],
     ) -> None:
         self.parentGraph = parentGraph
         self.parent = parent
+        self.functionName = functionName
         self.nodeFunction = nodeFunction
         self.params = params
         self._funcInfo: str = ""
@@ -60,6 +62,14 @@ class Node:
         result = self.nodeFunction(**actualParams)
         if not isinstance(result, tuple):
             result = (result,)
+        return result
+
+    def asDict(self) -> Dict[str, Any]:
+        result = {}
+        result["nodeFunction"] = self.functionName
+        result["params"] = self.params
+        if hasattr(self, "position"):
+            result["pos"] = self.position
         return result
 
     def _analyzeFunction(self) -> None:

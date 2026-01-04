@@ -28,12 +28,13 @@ class EditorNode(Node):
         self,
         parentGraph: Graph,
         parent: Optional[object],
+        functionName: str,
         nodeFunction: Callable,
         params: List[str],
         position: Tuple[float, float],
     ) -> None:
-        super().__init__(parentGraph, parent, nodeFunction, params)
+        super().__init__(parentGraph, parent, functionName, nodeFunction, params)
         self.position = position
 
     def __repr__(self):
-        return f"<EditorNode {self._funcInfo} at {self.position}>"
+        return f"<EditorNode {self.functionName} {self._funcInfo} at {self.position}>"
