@@ -15,7 +15,7 @@ FLAGS = [
     "--remove-output",
     f"--output-dir={OUTDIR}",
     "--enable-plugin=pyqt5",
-    "--include-qt-plugins=platforms,styles,iconengines",
+    "--include-qt-plugins=platforms,styles,iconengines,imageformats",
     "--include-package-data=qt_material",
     "--include-module=EditorStatus",
     "--include-package=Widgets",
@@ -27,6 +27,7 @@ FLAGS = [
     "--include-module=pympler.asizeof",
     "--include-module=av",
     "--include-module=nuitka",
+    "--include-module=PyQt5.QtSvg",
     "--lto=yes",
 ]
 
@@ -76,7 +77,7 @@ def main():
     print("[INFO] Generating locale files...")
     run([PYTHON, ROOT / "localeTransfer.py", ROOT / "Locale" / "locale.json"])
 
-    for folder_name in ("Locale", "Sample"):
+    for folder_name in ("Locale", "Styles", "Sample"):
         src = ROOT / folder_name
         if sys.platform == "win32":
             dst = OUTDIR / "main.dist" / folder_name

@@ -3,7 +3,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import inspect
-from typing import Callable, List, Dict, Optional, TYPE_CHECKING
+from typing import Any, Callable, List, Dict, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from Engine.NodeGraph import Graph
@@ -22,13 +22,11 @@ class Node:
         parent: Optional[object],
         nodeFunction: Callable,
         params: List[str],
-        nexts: List[Node],
     ) -> None:
         self.parentGraph = parentGraph
         self.parent = parent
         self.nodeFunction = nodeFunction
         self.params = params
-        self.nexts = nexts
         self._funcInfo: str = ""
         self._paramList: Dict[str, type] = {}
         self._analyzeFunction()
@@ -36,9 +34,12 @@ class Node:
     def getParamList(self) -> Dict[str, type]:
         return self._paramList
 
-    def execute(self) -> None:
+    def execute(self, inputPinReplace: Dict[int, Any] = {}) -> Any:
         actualParams = []
         for i in range(len(self.params)):
+            if i in inputPinReplace:
+                actualParams.append(inputPinReplace[i])
+                continue
             paramKey = list(self._paramList.keys())[i]
             if self.params[i] == "self":
                 actualParams.append(self.parent)
@@ -56,12 +57,10 @@ class Node:
                     actualParams.append(self.params[i])
         if hasattr(self.nodeFunction, "_refLocal"):
             self.nodeFunction._refLocal = self.parentGraph.localGraph
-        result: Optional[int] = self.nodeFunction(**actualParams)
-        if len(self.nexts) > 0:
-            if result is None:
-                result = 0
-            if result < len(self.nexts):
-                self.nexts[result].execute()
+        result = self.nodeFunction(**actualParams)
+        if not isinstance(result, tuple):
+            result = (result,)
+        return result
 
     def _analyzeFunction(self) -> None:
         sig = inspect.signature(self.nodeFunction)

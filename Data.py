@@ -370,11 +370,11 @@ class GameData:
         nodes = {}
         links = {}
         for key, valueDict in data.items():
-            if key == "parent":
+            if key == "parent" or key == "startNodes":
                 continue
             nodes[key] = []
             for node in valueDict["nodes"]:
                 nodes[key].append(EditorDataNode(**node))
             links[key] = valueDict["links"]
 
-        return Graph(data["parent"], nodes, links, EditorNode)
+        return Graph(data["parent"], nodes, links, EditorNode, data["startNodes"])

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Tuple, Optional, Callable
+from typing import Tuple, List, Optional, Callable
 import importlib
 
 Node = None
@@ -30,10 +30,9 @@ class EditorNode(Node):
         parent: Optional[object],
         nodeFunction: Callable,
         params: List[str],
-        nexts: List[Node],
         position: Tuple[float, float],
     ) -> None:
-        super().__init__(parentGraph, parent, nodeFunction, params, nexts)
+        super().__init__(parentGraph, parent, nodeFunction, params)
         self.position = position
 
     def __repr__(self):

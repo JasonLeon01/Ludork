@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from .N_Node import DataNode, Node
 
 
@@ -9,8 +9,9 @@ class Graph:
         self,
         parent: Optional[object],
         inNodes: Dict[str, List[DataNode]],
-        links: Dict[str, List[Tuple[int, int, int]]],
+        links: Dict[str, List[Dict[str, Union[int, str]]]],
         nodeModel: Optional[type] = None,
+        startNodes: Optional[Dict[str, int]] = None,
     ) -> None:
         import Source
 
@@ -18,8 +19,9 @@ class Graph:
         self.localGraph: Dict[str, Any] = {}
         self.parent = parent
         self.nodes: Dict[str, List[Node]] = {}
-        self.adjTables: Dict[str, Dict[int, List[Tuple[int, int]]]] = {}
-        self.startNodes: Dict[str, Node] = {}
+        self.startNodes = startNodes
+        if self.startNodes is None:
+            self.startNodes = {}
         if nodeModel is None:
             nodeModel = Node
         for key, dataNodes in inNodes.items():
@@ -35,41 +37,121 @@ class Graph:
                             break
                     if functionAttr is None:
                         raise Exception(f"Function {functionName} not found in {module_.__name__}")
-                paramList = [self, self.parent, functionAttr, dataNode.params, []]
+                paramList = [self, self.parent, functionAttr, dataNode.params]
                 if hasattr(dataNode, "pos"):
                     paramList.append(dataNode.pos)
                 self.nodes[key].append(nodeModel(*paramList))
+        self.nodeRely: Dict[str, Dict[int, Dict[Tuple[int, int]]]] = {}
+        self.nodeNexts: Dict[str, Dict[int, Dict[Tuple[int, int]]]] = {}
         for key, linkList in links.items():
-            if len(linkList) > 0:
-                self.adjTables[key] = {}
-                adjTable = self.adjTables[key]
-                for left, right, index in linkList:
-                    if not left in adjTable:
-                        adjTable[left] = []
-                    adjTable[left].append((right, index))
-                    if not right in adjTable:
-                        adjTable[right] = []
-                fromNodes = {node for node, _, __ in linkList}
-                toNodes = {node for _, node, __ in linkList}
-                startNodes = fromNodes - toNodes
-                if len(startNodes) == 1:
-                    self.startNodes[key] = self.nodes[key][startNodes.pop()]
-        for key, nodes in self.nodes.items():
-            if not key in self.adjTables:
-                self.adjTables[key] = {}
-            for i, node in enumerate(nodes):
-                nextNodesIndexes = self.adjTables[key].get(i, [])
-                returnsLen = 1
-                if hasattr(node.nodeFunction, "_execSplits") and len(node.nodeFunction._execSplits) > 0:
-                    returnsLen = len(node.nodeFunction._execSplits)
-                node.nexts = [None] * returnsLen
-                for couple in nextNodesIndexes:
-                    value, index = couple
-                    node.nexts[index] = nodes[value]
+            self.nodeRely[key] = {}
+            self.nodeNexts[key] = {}
+            for link in linkList:
+                left = link["left"]
+                right = link["right"]
+                leftOutPin = link["leftOutPin"]
+                rightInPin = link["rightInPin"]
+                linkType = link["linkType"]
+                if not right in self.nodeRely[key]:
+                    self.nodeRely[key][right] = {}
+                if linkType == "Params":
+                    self.nodeRely[key][right][rightInPin] = (left, leftOutPin)
+                if linkType == "Exec":
+                    if not left in self.nodeNexts[key]:
+                        self.nodeNexts[key][left] = {}
+                    self.nodeNexts[key][left][leftOutPin] = (right, rightInPin)
 
-    def execute(self, key: str) -> None:
-        if key in self.startNodes:
-            self.startNodes[key].execute()
+    def execute(self, key: str, limit=10000) -> Tuple[Any, ...]:
+        if key not in self.nodes:
+            raise KeyError(f"Graph key '{key}' not found")
+        if key not in self.startNodes:
+            raise KeyError(f"Start node for key '{key}' not set")
+        curr = self.startNodes[key]
+        if not (0 <= curr < len(self.nodes[key])):
+            raise IndexError(f"startIndex {curr} out of range for key '{key}'")
+        cache: Dict[int, Tuple[Any, ...]] = {}
+        steps = 0
+        while True:
+            result = self.executeNode(key, curr, cache)
+            next_map = self.nodeNexts.get(key, {}).get(curr, {})
+            if not next_map:
+                return result
+            chosen = None
+            node_func = self.nodes[key][curr].nodeFunction
+            splits = getattr(node_func, "_execSplits", None)
+            if splits and len(splits) > 0:
+                configured_values: List[Any] = []
+                for vals in splits.values():
+                    configured_values.extend(vals)
+                for v in result:
+                    match_found = False
+                    for cv in configured_values:
+                        if v == cv:
+                            out_pin = None
+                            if isinstance(cv, bool):
+                                out_pin = 1 if cv else 0
+                            elif isinstance(cv, int):
+                                out_pin = cv
+                            if out_pin is not None and out_pin in next_map:
+                                chosen = next_map[out_pin][0]
+                                match_found = True
+                                break
+                    if match_found:
+                        break
+            else:
+                if len(next_map) == 1:
+                    chosen = list(next_map.values())[0][0]
+                else:
+                    out_pin = sorted(next_map.keys())[0]
+                    chosen = next_map[out_pin][0]
+            if chosen is None:
+                return result
+            curr = chosen
+            steps += 1
+            if steps >= limit:
+                raise RuntimeError(f"Max steps {limit} exceeded while executing graph '{key}'")
+
+    def getRelyNodeIndexList(self, key: str, nodeIndex: int) -> List[int]:
+        rely = self.nodeRely.get(key, {})
+        visited = set()
+        order: List[int] = []
+
+        def dfs(n: int) -> None:
+            if n in visited:
+                return
+            visited.add(n)
+            dep_map = rely.get(n, {})
+            if dep_map:
+                for in_pin, src in sorted(dep_map.items(), key=lambda item: item[0]):
+                    left = src[0]
+                    dfs(left)
+                    if left not in order:
+                        order.append(left)
+
+        dfs(nodeIndex)
+        return order
+
+    def executeNode(
+        self, key: str, nodeIndex: int, _cache: Optional[Dict[int, Tuple[Any, ...]]] = None
+    ) -> Tuple[Any, ...]:
+        if _cache is None:
+            _cache = {}
+        if nodeIndex in _cache:
+            return _cache[nodeIndex]
+        rely_key = self.nodeRely.get(key, {})
+        dep_map = rely_key.get(nodeIndex, {})
+        inputPinReplace: Dict[int, Any] = {}
+        if dep_map:
+            for rightInPin, src in sorted(dep_map.items(), key=lambda item: item[0]):
+                leftIndex, leftOutPin = src
+                leftResult = self.executeNode(key, leftIndex, _cache)
+                if not (0 <= leftOutPin < len(leftResult)):
+                    raise IndexError(f"Output pin {leftOutPin} out of range for node {leftIndex}")
+                inputPinReplace[rightInPin] = leftResult[leftOutPin]
+        node = self.nodes[key][nodeIndex]
+        result = node.execute(inputPinReplace)
+        _cache[nodeIndex] = result
+        return result
 
     def getFunctionFromModule(self, inModule, pathStr: str) -> Optional[Callable]:
         nodes = pathStr.split(".")

@@ -27,9 +27,18 @@ def SetCellSize(size: int):
     _CellSize = size
 
 
-def ExecSplit(*args):
+def ExecSplit(**kwargs):
     def decorator(func):
-        func._execSplits = list(args)
+        func._execSplits = kwargs
+        func._refLocal: Dict[str, Any] = {}
+        return func
+
+    return decorator
+
+
+def ReturnType(**kwargs):
+    def decorator(func):
+        func._returnTypes = kwargs
         func._refLocal: Dict[str, Any] = {}
         return func
 
