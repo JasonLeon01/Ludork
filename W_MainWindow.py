@@ -101,6 +101,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actDeleteMap.setShortcutContext(QtCore.Qt.WidgetShortcut)
         self._actDeleteMap.triggered.connect(self._onDeleteMapAction)
 
+        self._actEditMap = QtWidgets.QAction(Locale.getContent("MAPLIST_EDIT"), self)
+        self._actEditMap.setShortcuts([QtGui.QKeySequence("Return"), QtGui.QKeySequence("Enter")])
+        self._actEditMap.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        self._actEditMap.triggered.connect(lambda: self._onEditMap(self.leftList.currentItem().text()) if self.leftList.currentItem() else None)
+
         self.setProjPath(EditorStatus.PROJ_PATH)
         self._setStyle()
         self._initProjConfigAndSelection()
@@ -602,11 +607,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.leftList.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         self.refreshLeftList()
         self.leftList.itemClicked.connect(self._onLeftItemClicked)
+        self.leftList.itemActivated.connect(lambda item: self._onEditMap(item.text()))
         self.leftList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.leftList.customContextMenuRequested.connect(self._onLeftListContextMenu)
         self.leftList.addAction(self._actCopyMap)
         self.leftList.addAction(self._actPasteMap)
         self.leftList.addAction(self._actDeleteMap)
+        self.leftList.addAction(self._actEditMap)
 
         self.leftLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.leftLabel.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)

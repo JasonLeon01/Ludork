@@ -209,16 +209,12 @@ class GameData:
                 final_details["Failed"].append(key)
                 continue
             try:
-                is_json = bool(data.get("isJson"))
-                if is_json:
-                    payload = dict(data)
-                    if "isJson" in payload:
-                        del payload["isJson"]
-                    fp = os.path.join(configsRoot, f"{key}.json")
-                    File.saveJsonData(fp, payload)
-                else:
-                    fp = os.path.join(configsRoot, f"{key}.dat")
-                    File.saveData(fp, data)
+                payload = dict(data)
+                if "isJson" in payload:
+                    del payload["isJson"]
+                
+                fp = os.path.join(configsRoot, f"{key}.dat")
+                File.saveData(fp, payload)
 
                 if key in c_cfg["A"]:
                     final_details["A"].append(key)
@@ -290,16 +286,34 @@ class GameData:
             if cfg is None:
                 final_details["Failed"].append(key)
                 continue
-            payload = copy.deepcopy(cfg)
-            if "isJson" in payload:
-                del payload["isJson"]
+
+            if hasattr(cfg, "asDict"):
+                payload = cfg.asDict()
+            else:
+                payload = copy.deepcopy(cfg)
+
             try:
-                File.saveJsonData(os.path.join(commonFunctionsRoot, f"{key}.json"), payload)
+                File.saveData(os.path.join(commonFunctionsRoot, f"{key}.dat"), payload)
                 if key in c_cfgs["A"]:
                     final_details["A"].append(key)
                 else:
                     final_details["U"].append(key)
                 cls._originData["commonFunctionsData"][key] = copy.deepcopy(cfg)
+            except Exception:
+                final_details["Failed"].append(key)
+
+        for key in c_cfgs["D"]:
+            try:
+                fp = os.path.join(commonFunctionsRoot, f"{key}.dat")
+                if os.path.exists(fp):
+                    os.remove(fp)
+                fp_json = os.path.join(commonFunctionsRoot, f"{key}.json")
+                if os.path.exists(fp_json):
+                    os.remove(fp_json)
+
+                final_details["D"].append(key)
+                if key in cls._originData["commonFunctionsData"]:
+                    del cls._originData["commonFunctionsData"][key]
             except Exception:
                 final_details["Failed"].append(key)
 

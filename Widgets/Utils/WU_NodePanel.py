@@ -8,7 +8,7 @@ from Data import GameData
 from Utils import File, System, Locale
 import inspect
 import copy
-from NodeGraph import EditorNode
+from NodeGraph import EditorDataNode
 from .WU_FunctionPickerPopup import FunctionPickerPopup
 
 if TYPE_CHECKING:
@@ -71,6 +71,7 @@ class NodePanel(QtWidgets.QWidget):
         self.graph = NodeGraph()
         self.graphWidget = self.graph.widget
         self.graphWidget.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.graph.viewer().viewport().installEventFilter(self)
         self.nodeGraph = graph
         self.key = key
         self.name = name
@@ -150,6 +151,15 @@ class NodePanel(QtWidgets.QWidget):
         self.graph.port_connected.connect(self.on_port_connected)
         self.graph.port_disconnected.connect(self.on_port_disconnected)
         self.graph.viewer().moved_nodes.connect(self.on_nodes_moved)
+
+        QtWidgets.QShortcut(QtGui.QKeySequence.New, self, self._onCreate, context=QtCore.Qt.WidgetWithChildrenShortcut)
+        QtWidgets.QShortcut(QtGui.QKeySequence.Copy, self, self._onCopy, context=QtCore.Qt.WidgetWithChildrenShortcut)
+        QtWidgets.QShortcut(QtGui.QKeySequence.Paste, self, self._onPaste, context=QtCore.Qt.WidgetWithChildrenShortcut)
+        QtWidgets.QShortcut(
+            QtGui.QKeySequence.Delete, self, self._onDelete, context=QtCore.Qt.WidgetWithChildrenShortcut
+        )
+        QtWidgets.QShortcut(QtGui.QKeySequence.Undo, self, self._onUndo, context=QtCore.Qt.WidgetWithChildrenShortcut)
+        QtWidgets.QShortcut(QtGui.QKeySequence.Redo, self, self._onRedo, context=QtCore.Qt.WidgetWithChildrenShortcut)
 
     def on_port_connected(self, portIn, portOut):
         node_in = portIn.node()
@@ -281,3 +291,206 @@ class NodePanel(QtWidgets.QWidget):
         GameData.commonFunctionsData[self.name] = self.nodeGraph.asDict()
         File.mainWindow.setWindowTitle(System.getTitle())
         File.mainWindow._refreshUndoRedo()
+
+    def eventFilter(self, watched, event):
+        if watched == self.graph.viewer().viewport() and event.type() == QtCore.QEvent.MouseButtonPress:
+            if event.button() == QtCore.Qt.RightButton:
+                item = self.graph.viewer().itemAt(event.pos())
+                node_found = None
+                while item:
+                    if hasattr(item, "id"):
+                        node = self.graph.get_node_by_id(item.id)
+                        if node:
+                            if not node.selected():
+                                self.graph.clear_selection()
+                                node.set_selected(True)
+                            node_found = node
+                            break
+                    item = item.parentItem()
+
+                if node_found:
+                    self._showNodeContextMenu(event.globalPos())
+                    return True
+                else:
+                    self._showGeneralContextMenu(event.globalPos())
+                    return True
+        return super(NodePanel, self).eventFilter(watched, event)
+
+    def _showNodeContextMenu(self, global_pos):
+        menu = QtWidgets.QMenu(self)
+
+        copy_action = menu.addAction(Locale.getContent("COPY"))
+        copy_action.setShortcut(QtGui.QKeySequence.Copy)
+        copy_action.triggered.connect(self._onCopy)
+
+        delete_action = menu.addAction(Locale.getContent("DELETE"))
+        delete_action.setShortcut(QtGui.QKeySequence.Delete)
+        delete_action.triggered.connect(self._onDelete)
+
+        menu.exec_(global_pos)
+
+    def _showGeneralContextMenu(self, global_pos):
+        menu = QtWidgets.QMenu(self)
+
+        create_action = menu.addAction(Locale.getContent("ADD_NODE"))
+        create_action.setShortcut(QtGui.QKeySequence.New)
+        create_action.triggered.connect(self._onCreate)
+
+        paste_action = menu.addAction(Locale.getContent("PASTE"))
+        paste_action.setShortcut(QtGui.QKeySequence.Paste)
+        paste_action.triggered.connect(self._onPaste)
+
+        if self._COPY_BUFFER is None:
+            paste_action.setEnabled(False)
+
+        menu.exec_(global_pos)
+
+    def _onCreate(self):
+        sources = {}
+        for module in self.nodeGraph.modules_:
+            sources[module.__name__] = module
+
+        if self.nodeGraph.parent:
+            sources["Parent"] = self.nodeGraph.parent
+
+        popup = FunctionPickerPopup(self, sources)
+        popup.functionSelected.connect(self._onFunctionSelected)
+        popup.move(QtGui.QCursor.pos())
+        popup.show()
+
+    def _onFunctionSelected(self, path: str, is_parent: bool):
+        func = None
+        if is_parent and self.nodeGraph.parent:
+            func = getattr(self.nodeGraph.parent, path, None)
+
+        if not func:
+            for module in self.nodeGraph.modules_:
+                func = self.nodeGraph.getFunctionFromModule(module, path)
+                if func:
+                    break
+
+        if not func:
+            return
+
+        sig = inspect.signature(func)
+        params = []
+        for name, param in sig.parameters.items():
+            if name == "self":
+                continue
+            if param.default != inspect.Parameter.empty:
+                params.append(str(param.default))
+            else:
+                params.append("")
+
+        view = self.graph.viewer()
+        global_pos = QtGui.QCursor.pos()
+        view_pos = view.mapFromGlobal(global_pos)
+        scene_pos = view.mapToScene(view_pos)
+        pos = (scene_pos.x(), scene_pos.y())
+
+        node_data = EditorDataNode(path, params, pos)
+
+        if self.key not in self.nodeGraph.dataNodes:
+            self.nodeGraph.dataNodes[self.key] = []
+
+        self.nodeGraph.dataNodes[self.key].append(node_data)
+        self.nodeGraph.genNodesFromDataNodes()
+        self.nodeGraph.genRelationsFromLinks()
+
+        GameData.recordSnapshot()
+        GameData.commonFunctionsData[self.name] = self.nodeGraph.asDict()
+        File.mainWindow.setWindowTitle(System.getTitle())
+        File.mainWindow._refreshUndoRedo()
+
+        self._refreshPanel()
+
+    def _onCopy(self):
+        nowNodes = self._getSelectedNodes()
+        if not nowNodes:
+            return
+
+        data_nodes = []
+        for node in nowNodes:
+            if node in self.nodes:
+                idx = self.nodes.index(node)
+                data_node = self.nodeGraph.nodes[self.key][idx]
+                data_nodes.append(data_node)
+
+        self._COPY_BUFFER = data_nodes
+
+    def _onPaste(self):
+        if self._COPY_BUFFER is None:
+            return
+        for node in self._COPY_BUFFER:
+            pos = copy.copy(node.position)
+            pos[0] += 100
+            pos[1] += 100
+            self.nodeGraph.dataNodes["common"].append(
+                EditorDataNode(node.functionName, copy.deepcopy(node.params), pos)
+            )
+        self.nodeGraph.genNodesFromDataNodes()
+        self.nodeGraph.genRelationsFromLinks()
+        GameData.recordSnapshot()
+        GameData.commonFunctionsData[self.name] = self.nodeGraph.asDict()
+        File.mainWindow.setWindowTitle(System.getTitle())
+        File.mainWindow._refreshUndoRedo()
+        self._refreshPanel()
+
+    def _onDelete(self):
+        nowNodes = self._getSelectedNodes()
+        originNodeMap = {}
+        for i, node in enumerate(self.nodeGraph.dataNodes[self.key]):
+            originNodeMap[i] = node
+        for node in nowNodes:
+            if node in self.nodes:
+                idx = self.nodes.index(node)
+                data_node = self.nodeGraph.dataNodes[self.key][idx]
+                self.nodes.remove(node)
+                self.nodeGraph.dataNodes[self.key].remove(data_node)
+        links = []
+        for link in self.nodeGraph.links[self.key]:
+            cpLink = copy.deepcopy(link)
+            left = originNodeMap[cpLink["left"]]
+            right = originNodeMap[cpLink["right"]]
+            leftIndex = None
+            rightIndex = None
+            try:
+                leftIndex = self.nodeGraph.dataNodes[self.key].index(left)
+                rightIndex = self.nodeGraph.dataNodes[self.key].index(right)
+            except ValueError:
+                print(f"Link {cpLink} not found in dataNodes, which means the link is not connected to any node.")
+                continue
+            cpLink["left"] = leftIndex
+            cpLink["right"] = rightIndex
+            links.append(cpLink)
+        self.nodeGraph.links[self.key] = links
+        self.nodeGraph.genNodesFromDataNodes()
+        self.nodeGraph.genRelationsFromLinks()
+        GameData.recordSnapshot()
+        GameData.commonFunctionsData[self.name] = self.nodeGraph.asDict()
+        File.mainWindow.setWindowTitle(System.getTitle())
+        File.mainWindow._refreshUndoRedo()
+        self._refreshPanel()
+
+    def _getSelectedNodes(self):
+        sels = self.graph.selected_nodes()
+        if sels:
+            return sels
+        return None
+
+    def _refreshPanel(self):
+        self._is_loading = True
+        self.graph.delete_nodes(self.graph.all_nodes())
+        self.graph.node_factory.clear_registered_nodes()
+        self.classDict.clear()
+        self.nodes.clear()
+        self._registerNodes()
+        self._createNodes()
+        self._createLinks()
+        self._is_loading = False
+
+    def _onUndo(self):
+        self._parent._onUndo()
+
+    def _onRedo(self):
+        self._parent._onRedo()

@@ -198,7 +198,7 @@ class NodeGraphWindow(QtWidgets.QMainWindow):
 
         GameData.recordSnapshot()
 
-        newData = {"parent": None, "common": {"nodes": [], "links": []}}
+        newData = {"parent": None, "nodeGraph": {"common": {"nodes": [], "links": []}}, "startNodes": {}}
         self._data[name] = newData
         self._list.addItem(name)
         self._list.sortItems()
