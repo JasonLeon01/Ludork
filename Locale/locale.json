@@ -419,6 +419,10 @@
         "zh_CN": "添加节点",
         "en_GB": "Add Node"
     },
+    "SET_AS_START": {
+        "zh_CN": "设置为起始节点",
+        "en_GB": "Set as Start Node"
+    },
     "NEW_COMMON_FUNC": {
         "zh_CN": "新建公共函数",
         "en_GB": "New Common Function"

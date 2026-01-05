@@ -37,14 +37,20 @@ class Graph:
             self.nodes[key] = []
             for dataNode in dataNodes:
                 functionName = dataNode.nodeFunction
-                functionAttr = getattr(self.parent, functionName, None)
-                if functionAttr is None or not isinstance(functionAttr, Callable):
+                functionAttr = None
+                if isinstance(functionName, str) and functionName.startswith("self."):
+                    functionAttr = self.getFunctionFromObject(self.parent, functionName[5:])
+                else:
+                    attr = getattr(self.parent, functionName, None)
+                    if isinstance(attr, Callable):
+                        functionAttr = attr
+                if functionAttr is None:
                     functionAttr = None
                     for module_ in self.modules_:
                         functionAttr = self.getFunctionFromModule(module_, functionName)
                         if functionAttr is not None:
                             break
-                    if functionAttr is None:
+                    if functionAttr is None or not isinstance(functionAttr, Callable):
                         raise Exception(f"Function {functionName} not found in {module_.__name__}")
                 paramList = [self, self.parent, dataNode.nodeFunction, functionAttr, dataNode.params]
                 if hasattr(dataNode, "pos"):
@@ -169,6 +175,15 @@ class Graph:
     def getFunctionFromModule(self, inModule, pathStr: str) -> Optional[Callable]:
         nodes = pathStr.split(".")
         currentObj = inModule
+        for node in nodes:
+            currentObj = getattr(currentObj, node.strip())
+        if callable(currentObj):
+            return currentObj
+        return None
+
+    def getFunctionFromObject(self, obj: object, pathStr: str) -> Optional[Callable]:
+        nodes = pathStr.split(".")
+        currentObj = obj
         for node in nodes:
             currentObj = getattr(currentObj, node.strip())
         if callable(currentObj):

@@ -61,8 +61,8 @@ class FunctionPickerPopup(QtWidgets.QFrame):
                     continue
                 if (
                     (inspect.isfunction(a) or inspect.ismethod(a))
-                    and hasattr(a, "_execSplits")
-                    and getattr(a, "_execSplits", None) is not None
+                    and hasattr(a, "_refLocal")
+                    and getattr(a, "_refLocal", None) is not None
                 ):
                     it = QtWidgets.QTreeWidgetItem([n])
                     it.setData(0, QtCore.Qt.UserRole, p)
@@ -97,8 +97,8 @@ class FunctionPickerPopup(QtWidgets.QFrame):
                     found = True
             elif (
                 (inspect.isfunction(a) or inspect.ismethod(a))
-                and hasattr(a, "_execSplits")
-                and getattr(a, "_execSplits", None) is not None
+                and hasattr(a, "_refLocal")
+                and getattr(a, "_refLocal", None) is not None
             ):
                 mod = getattr(a, "__module__", "")
                 if (root_name is None) or (isinstance(mod, str) and mod.startswith(root_name)):

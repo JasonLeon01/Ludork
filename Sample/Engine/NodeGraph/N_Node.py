@@ -31,6 +31,7 @@ class Node:
         self.params = params
         self._funcInfo: str = ""
         self._paramList: Dict[str, type] = {}
+        self._isSelfFunction: bool = isinstance(self.functionName, str) and self.functionName.startswith("self.")
         self._analyzeFunction()
 
     def getParamList(self) -> Dict[str, type]:
@@ -38,6 +39,7 @@ class Node:
 
     def execute(self, inputPinReplace: Dict[int, Any] = {}) -> Any:
         actualParams = []
+        eval_locals = {"self": self.parent} if self._isSelfFunction else None
         for i in range(len(self.params)):
             if i in inputPinReplace:
                 actualParams.append(inputPinReplace[i])
@@ -48,13 +50,15 @@ class Node:
             elif self._paramList[paramKey] == str:
                 param = None
                 try:
-                    param = eval(self.params[i])
+                    param = eval(self.params[i], {}, eval_locals) if eval_locals is not None else eval(self.params[i])
                 except:
                     param = self.params[i]
                 actualParams.append(param)
             else:
                 if isinstance(self.params[i], str):
-                    actualParams.append(eval(self.params[i]))
+                    actualParams.append(
+                        eval(self.params[i], {}, eval_locals) if eval_locals is not None else eval(self.params[i])
+                    )
                 else:
                     actualParams.append(self.params[i])
         if hasattr(self.nodeFunction, "_refLocal"):

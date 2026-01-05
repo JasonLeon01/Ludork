@@ -64,7 +64,7 @@ class NodePanel(QtWidgets.QWidget):
 
     def __init__(self, parent: QtWidgets.QWidget, graph: Graph, key: str, name: str):
         super(NodePanel, self).__init__(parent)
-        self._is_loading = True
+        self._isLoading = True
         self._parent = parent
         self.setWindowTitle("Node Panel")
         self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
@@ -82,7 +82,7 @@ class NodePanel(QtWidgets.QWidget):
         self._createNodes()
         self._setupSignals()
         self._createLinks()
-        self._is_loading = False
+        self._isLoading = False
 
     def setName(self, name: str):
         self.name = name
@@ -95,7 +95,7 @@ class NodePanel(QtWidgets.QWidget):
 
     def _registerNodes(self):
         for node in self.nodeGraph.nodes[self.key]:
-            nodeFunctionName = node.nodeFunction.__name__
+            nodeFunctionName = node.functionName
             if not nodeFunctionName in self.classDict:
                 self.classDict[nodeFunctionName] = type("Class", (BaseNode,), {"__init__": makeInit(node)})
                 self.classDict[nodeFunctionName].__identifier__ = nodeFunctionName
@@ -103,9 +103,30 @@ class NodePanel(QtWidgets.QWidget):
                 self.graph.register_node(self.classDict[nodeFunctionName])
 
     def _createNodes(self):
-        for node in self.nodeGraph.nodes[self.key]:
-            nodeInst = self.graph.create_node(f"{node.nodeFunction.__name__}.Class", pos=node.position)
+        start_idx = self._getStartIndex()
+        for i, node in enumerate(self.nodeGraph.nodes[self.key]):
+            nodeInst = self.graph.create_node(f"{node.functionName}.Class", pos=node.position)
             self.nodes.append(nodeInst)
+            if start_idx is not None and i == start_idx:
+                s_item = QtWidgets.QGraphicsSimpleTextItem("S", nodeInst.view)
+                s_item.setBrush(QtGui.QBrush(QtGui.QColor(255, 215, 0)))
+                f = QtGui.QFont()
+                f.setBold(True)
+                f.setPointSize(14)
+                s_item.setFont(f)
+                s_item.setZValue(nodeInst.view.zValue() + 2)
+                s_item.setPos(6, 4)
+
+    def _getStartIndex(self):
+        start = self.nodeGraph.startNodes.get(self.key)
+        if isinstance(start, int):
+            if 0 <= start < len(self.nodeGraph.nodes.get(self.key, [])):
+                return start
+            return None
+        data_list = self.nodeGraph.dataNodes.get(self.key, [])
+        if isinstance(data_list, list) and start in data_list:
+            return data_list.index(start)
+        return None
 
     def _createLinks(self):
         for link in self.nodeGraph.links[self.key]:
@@ -172,7 +193,7 @@ class NodePanel(QtWidgets.QWidget):
             portIn.disconnect_from(portOut)
             return
 
-        if not self._is_loading:
+        if not self._isLoading:
             left = self.nodes.index(node_out)
             right = self.nodes.index(node_in)
             leftNodeData = self.nodeGraph.nodes[self.key][left]
@@ -225,7 +246,7 @@ class NodePanel(QtWidgets.QWidget):
                 node.hide_widget(name, push_undo=False)
 
     def on_port_disconnected(self, portIn, portOut):
-        if not self._is_loading and portIn and portOut:
+        if not self._isLoading and portIn and portOut:
             node_in = portIn.node()
             node_out = portOut.node()
             left = self.nodes.index(node_out)
@@ -281,7 +302,7 @@ class NodePanel(QtWidgets.QWidget):
                     node.show_widget(name, push_undo=False)
 
     def on_nodes_moved(self, movedInfo):
-        if self._is_loading:
+        if self._isLoading:
             return
         for node, pos in movedInfo.items():
             idx = self.nodes.index(self.graph.get_node_by_id(node.id))
@@ -318,6 +339,9 @@ class NodePanel(QtWidgets.QWidget):
 
     def _showNodeContextMenu(self, global_pos):
         menu = QtWidgets.QMenu(self)
+
+        setAsStart_action = menu.addAction(Locale.getContent("SET_AS_START"))
+        setAsStart_action.triggered.connect(self._onSetAsStart)
 
         copy_action = menu.addAction(Locale.getContent("COPY"))
         copy_action.setShortcut(QtGui.QKeySequence.Copy)
@@ -404,9 +428,23 @@ class NodePanel(QtWidgets.QWidget):
 
         self._refreshPanel()
 
+    def _onSetAsStart(self):
+        selectedNodes = self._getSelectedNodes()
+        if selectedNodes is None:
+            return
+        selectedNode = selectedNodes[0]
+        if selectedNode in self.nodes:
+            idx = self.nodes.index(selectedNode)
+            self.nodeGraph.startNodes[self.key] = idx
+            GameData.recordSnapshot()
+            GameData.commonFunctionsData[self.name] = self.nodeGraph.asDict()
+            File.mainWindow.setWindowTitle(System.getTitle())
+            File.mainWindow._refreshUndoRedo()
+            self._refreshPanel()
+
     def _onCopy(self):
         nowNodes = self._getSelectedNodes()
-        if not nowNodes:
+        if nowNodes is None:
             return
 
         data_nodes = []
@@ -425,7 +463,7 @@ class NodePanel(QtWidgets.QWidget):
             pos = copy.copy(node.position)
             pos[0] += 100
             pos[1] += 100
-            self.nodeGraph.dataNodes["common"].append(
+            self.nodeGraph.dataNodes[self.key].append(
                 EditorDataNode(node.functionName, copy.deepcopy(node.params), pos)
             )
         self.nodeGraph.genNodesFromDataNodes()
@@ -463,6 +501,17 @@ class NodePanel(QtWidgets.QWidget):
             cpLink["left"] = leftIndex
             cpLink["right"] = rightIndex
             links.append(cpLink)
+        if self.nodeGraph.startNodes[self.key] is not None:
+            startNode = originNodeMap[self.nodeGraph.startNodes[self.key]]
+            try:
+                startNodeIndex = self.nodeGraph.dataNodes[self.key].index(startNode)
+                self.nodeGraph.startNodes[self.key] = startNodeIndex
+            except ValueError:
+                print(
+                    f"Start node {startNode} not found in dataNodes, which means the start node is not connected to any node."
+                )
+                self.nodeGraph.startNodes[self.key] = None
+
         self.nodeGraph.links[self.key] = links
         self.nodeGraph.genNodesFromDataNodes()
         self.nodeGraph.genRelationsFromLinks()
@@ -479,7 +528,7 @@ class NodePanel(QtWidgets.QWidget):
         return None
 
     def _refreshPanel(self):
-        self._is_loading = True
+        self._isLoading = True
         self.graph.delete_nodes(self.graph.all_nodes())
         self.graph.node_factory.clear_registered_nodes()
         self.classDict.clear()
@@ -487,7 +536,7 @@ class NodePanel(QtWidgets.QWidget):
         self._registerNodes()
         self._createNodes()
         self._createLinks()
-        self._is_loading = False
+        self._isLoading = False
 
     def _onUndo(self):
         self._parent._onUndo()

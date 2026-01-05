@@ -10,10 +10,10 @@ def IF(condition: bool) -> int:
 
 
 @ExecSplit()
-def SetLocalValue(name: str, value: Any) -> None:
-    SetLocalValue._refLocal[name] = value
+def SetLocalValue(valueName: str, value: Any) -> None:
+    SetLocalValue._refLocal[valueName] = value
 
 
 @ReturnType(value=Any)
-def GetLocalValue(name: str, default: Any = None) -> Any:
-    return SetLocalValue._refLocal.get(name, default)
+def GetLocalValue(valueName: str, default: Any = None) -> Any:
+    return SetLocalValue._refLocal.get(valueName, default)
