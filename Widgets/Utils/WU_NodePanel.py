@@ -31,8 +31,8 @@ def makeInit(currNode):
                 self.add_output(name)
                 self._port_types[name] = "Params"
 
-        param_list = currNode.getParamList()
-        keys = list(param_list.keys())
+        paramList = currNode.getParamList()
+        keys = list(paramList.keys())
         has_invalid = False
         for i, name in enumerate(keys):
             if name == "self":
@@ -116,6 +116,19 @@ class NodePanel(QtWidgets.QWidget):
                 s_item.setFont(f)
                 s_item.setZValue(nodeInst.view.zValue() + 2)
                 s_item.setPos(6, 4)
+            paramList = node.getParamList()
+            keys = list(paramList.keys())
+            paramIndex = 0
+            for name in keys:
+                if paramIndex >= len(node.params):
+                    break
+                w = nodeInst.get_widget(name)
+                if w:
+                    le = w.get_custom_widget()
+                    if isinstance(le, QtWidgets.QLineEdit):
+                        le.setText(str(node.params[paramIndex]))
+                        le.editingFinished.connect(lambda n=i, p=paramIndex, w=le: self._onParamChanged(n, p, w))
+                paramIndex += 1
 
     def _getStartIndex(self):
         start = self.nodeGraph.startNodes.get(self.key)
@@ -169,9 +182,9 @@ class NodePanel(QtWidgets.QWidget):
                 raise ValueError(f"Unknown link type: {linkType}")
 
     def _setupSignals(self):
-        self.graph.port_connected.connect(self.on_port_connected)
-        self.graph.port_disconnected.connect(self.on_port_disconnected)
-        self.graph.viewer().moved_nodes.connect(self.on_nodes_moved)
+        self.graph.port_connected.connect(self.onPortConnected)
+        self.graph.port_disconnected.connect(self.onPortDisconnected)
+        self.graph.viewer().moved_nodes.connect(self.onNodesMoved)
 
         QtWidgets.QShortcut(QtGui.QKeySequence.New, self, self._onCreate, context=QtCore.Qt.WidgetWithChildrenShortcut)
         QtWidgets.QShortcut(QtGui.QKeySequence.Copy, self, self._onCopy, context=QtCore.Qt.WidgetWithChildrenShortcut)
@@ -182,7 +195,7 @@ class NodePanel(QtWidgets.QWidget):
         QtWidgets.QShortcut(QtGui.QKeySequence.Undo, self, self._onUndo, context=QtCore.Qt.WidgetWithChildrenShortcut)
         QtWidgets.QShortcut(QtGui.QKeySequence.Redo, self, self._onRedo, context=QtCore.Qt.WidgetWithChildrenShortcut)
 
-    def on_port_connected(self, portIn, portOut):
+    def onPortConnected(self, portIn, portOut):
         node_in = portIn.node()
         node_out = portOut.node()
 
@@ -245,7 +258,7 @@ class NodePanel(QtWidgets.QWidget):
             if node.get_widget(name):
                 node.hide_widget(name, push_undo=False)
 
-    def on_port_disconnected(self, portIn, portOut):
+    def onPortDisconnected(self, portIn, portOut):
         if not self._isLoading and portIn and portOut:
             node_in = portIn.node()
             node_out = portOut.node()
@@ -301,13 +314,13 @@ class NodePanel(QtWidgets.QWidget):
                 if node.get_widget(name):
                     node.show_widget(name, push_undo=False)
 
-    def on_nodes_moved(self, movedInfo):
+    def onNodesMoved(self, movedInfo):
         if self._isLoading:
             return
         for node, pos in movedInfo.items():
             idx = self.nodes.index(self.graph.get_node_by_id(node.id))
-            data_node = self.nodeGraph.nodes[self.key][idx]
-            data_node.position = [node.pos().x(), node.pos().y()]
+            dataNode = self.nodeGraph.nodes[self.key][idx]
+            dataNode.position = [node.pos().x(), node.pos().y()]
         GameData.recordSnapshot()
         GameData.commonFunctionsData[self.name] = self.nodeGraph.asDict()
         File.mainWindow.setWindowTitle(System.getTitle())
@@ -374,8 +387,8 @@ class NodePanel(QtWidgets.QWidget):
         for module in self.nodeGraph.modules_:
             sources[module.__name__] = module
 
-        if self.nodeGraph.parent:
-            sources["Parent"] = self.nodeGraph.parent
+        if self.nodeGraph.parentClass:
+            sources["Parent"] = self.nodeGraph.parentClass
 
         popup = FunctionPickerPopup(self, sources)
         popup.functionSelected.connect(self._onFunctionSelected)
@@ -384,8 +397,8 @@ class NodePanel(QtWidgets.QWidget):
 
     def _onFunctionSelected(self, path: str, is_parent: bool):
         func = None
-        if is_parent and self.nodeGraph.parent:
-            func = getattr(self.nodeGraph.parent, path, None)
+        if is_parent and self.nodeGraph.parentClass:
+            func = getattr(self.nodeGraph.parentClass, path, None)
 
         if not func:
             for module in self.nodeGraph.modules_:
@@ -435,6 +448,11 @@ class NodePanel(QtWidgets.QWidget):
         selectedNode = selectedNodes[0]
         if selectedNode in self.nodes:
             idx = self.nodes.index(selectedNode)
+            dataNode = self.nodeGraph.nodes[self.key][idx]
+            if not hasattr(dataNode.nodeFunction, "_execSplits") or len(dataNode.nodeFunction._execSplits) == 0:
+                QtWidgets.QMessageBox.information(self, "Hint", Locale.getContent("UNABLE_TO_SET_START_NODE"))
+                return
+
             self.nodeGraph.startNodes[self.key] = idx
             GameData.recordSnapshot()
             GameData.commonFunctionsData[self.name] = self.nodeGraph.asDict()
@@ -451,8 +469,8 @@ class NodePanel(QtWidgets.QWidget):
         for node in nowNodes:
             if node in self.nodes:
                 idx = self.nodes.index(node)
-                data_node = self.nodeGraph.nodes[self.key][idx]
-                data_nodes.append(data_node)
+                dataNode = self.nodeGraph.nodes[self.key][idx]
+                data_nodes.append(dataNode)
 
         self._COPY_BUFFER = data_nodes
 
@@ -482,9 +500,9 @@ class NodePanel(QtWidgets.QWidget):
         for node in nowNodes:
             if node in self.nodes:
                 idx = self.nodes.index(node)
-                data_node = self.nodeGraph.dataNodes[self.key][idx]
+                dataNode = self.nodeGraph.dataNodes[self.key][idx]
                 self.nodes.remove(node)
-                self.nodeGraph.dataNodes[self.key].remove(data_node)
+                self.nodeGraph.dataNodes[self.key].remove(dataNode)
         links = []
         for link in self.nodeGraph.links[self.key]:
             cpLink = copy.deepcopy(link)
@@ -520,6 +538,27 @@ class NodePanel(QtWidgets.QWidget):
         File.mainWindow.setWindowTitle(System.getTitle())
         File.mainWindow._refreshUndoRedo()
         self._refreshPanel()
+
+    def _onParamChanged(self, nodeIndex: int, paramIndex: int, widget: QtWidgets.QLineEdit):
+        text = widget.text()
+        changed = False
+        if self.key in self.nodeGraph.dataNodes and 0 <= nodeIndex < len(self.nodeGraph.dataNodes[self.key]):
+            dataNode = self.nodeGraph.dataNodes[self.key][nodeIndex]
+            if 0 <= paramIndex < len(dataNode.params):
+                if dataNode.params[paramIndex] != text:
+                    dataNode.params[paramIndex] = text
+                    changed = True
+        if self.key in self.nodeGraph.nodes and 0 <= nodeIndex < len(self.nodeGraph.nodes[self.key]):
+            node = self.nodeGraph.nodes[self.key][nodeIndex]
+            if 0 <= paramIndex < len(node.params):
+                if node.params[paramIndex] != text:
+                    node.params[paramIndex] = text
+                    changed = True
+        if changed:
+            GameData.recordSnapshot()
+            GameData.commonFunctionsData[self.name] = self.nodeGraph.asDict()
+            File.mainWindow.setWindowTitle(System.getTitle())
+            File.mainWindow._refreshUndoRedo()
 
     def _getSelectedNodes(self):
         sels = self.graph.selected_nodes()

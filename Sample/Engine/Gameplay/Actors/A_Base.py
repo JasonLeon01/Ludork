@@ -8,6 +8,7 @@ from . import Sprite, IntRect, Vector2i, Vector2u, Vector2f, Angle, degrees, Get
 if TYPE_CHECKING:
     from Engine import Texture
     from Engine.Gameplay import GameMap
+    from Engine.NodeGraph import Graph
 
 
 class ActorBase(Sprite):
@@ -51,16 +52,31 @@ class ActorBase(Sprite):
         self._relativeRotation: Angle = degrees(0)
         self._relativeScale: Vector2f = Vector2f(1, 1)
         self._lightBlock: float = 0.5
+        self._graph: Optional[Graph] = None
 
     def update(self, deltaTime: float) -> None:
         if self._animatable:
             self._animate(deltaTime)
 
     def lateUpdate(self, deltaTime: float) -> None:
-        pass
+        if (
+            hasattr(type(self), "GENERATED_CLASS")
+            and type(self).GENERATED_CLASS
+            and not self._graph is None
+            and self._graph.hasKey("onLateTick")
+        ):
+            self._graph.localGraph["__deltaTime__"] = deltaTime
+            self._graph.execute("onLateTick")
 
     def fixedUpdate(self, fixedDelta: float) -> None:
-        pass
+        if (
+            hasattr(type(self), "GENERATED_CLASS")
+            and type(self).GENERATED_CLASS
+            and not self._graph is None
+            and self._graph.hasKey("onFixedTick")
+        ):
+            self._graph.localGraph["__fixedDeltaTime__"] = fixedDelta
+            self._graph.execute("onFixedTick")
 
     def v_getPosition(self) -> Tuple[float, float]:
         result = super().getPosition()
@@ -317,6 +333,9 @@ class ActorBase(Sprite):
 
     def setLightBlock(self, lightBlock: float) -> None:
         self._lightBlock = lightBlock
+
+    def setGraph(self, graph: Graph) -> None:
+        self._graph = graph
 
     def _superMove(self, offset: Union[Vector2f, Tuple[float, float]]) -> None:
         assert isinstance(offset, (Vector2f, tuple)), "offset must be a tuple or Vector2f"

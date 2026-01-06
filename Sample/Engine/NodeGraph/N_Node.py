@@ -62,6 +62,7 @@ class Node:
                 else:
                     actualParams.append(self.params[i])
         if hasattr(self.nodeFunction, "_refLocal"):
+            self.parentGraph.localGraph["__key__"] = self.parentGraph.doingPartKey
             self.nodeFunction._refLocal = self.parentGraph.localGraph
         result = self.nodeFunction(**actualParams)
         if not isinstance(result, tuple):

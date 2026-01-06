@@ -13,6 +13,8 @@ class Scene(SceneBase):
         System.setTransition(Manager.loadTransition("012-Random04.png"), 1)
 
     def onCreate(self):
+        from Source import Data
+
         self.actors = [
             Character(Manager.loadCharacter("actors/classic-cha-braver01.png"), "yongshi"),
             Character(Manager.loadCharacter("actors/020-Braver10.png"), "shilaimu"),
@@ -26,11 +28,11 @@ class Scene(SceneBase):
         self.actors[1].animateWithoutMoving = True
         self.actors[1].setRelativePosition((64, -64))
 
-        tilesetData = File.loadData("./Data/Tilesets/Tileset_01.dat")
+        tilesetData = Data.getTileset("Tileset_01")
 
         self._gameMap = GameMap.loadData(
             File.loadData("./Data/Maps/Map_01.dat"),
-            {"Tileset_01": Tileset.fromData(tilesetData)},
+            {"Tileset_01": tilesetData},
         )
         self._gameMap.setLights(
             [

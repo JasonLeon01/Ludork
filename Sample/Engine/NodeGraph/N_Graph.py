@@ -7,6 +7,8 @@ from .N_Node import DataNode, Node
 class Graph:
     def __init__(
         self,
+        parentClassName: Optional[str],
+        parentClass: Optional[type],
         parent: Optional[object],
         inNodes: Dict[str, List[DataNode]],
         links: Dict[str, List[Dict[str, Union[int, str]]]],
@@ -16,7 +18,9 @@ class Graph:
         import Source
 
         self.modules_ = [Source.NodeFunctions]
-        self.localGraph: Dict[str, Any] = {}
+        self.localGraph: Dict[str, Any] = {"__graph__": self}
+        self.parentClassName = parentClassName
+        self.parentClass = parentClass
         self.parent = parent
         self.dataNodes = inNodes
         self.nodes: Dict[str, List[Node]] = {}
@@ -29,6 +33,7 @@ class Graph:
         self.nodeModel = nodeModel
         if self.nodeModel is None:
             self.nodeModel = Node
+        self.doingPartKey: Optional[str] = None
         self.genNodesFromDataNodes()
         self.genRelationsFromLinks()
 
@@ -39,9 +44,9 @@ class Graph:
                 functionName = dataNode.nodeFunction
                 functionAttr = None
                 if isinstance(functionName, str) and functionName.startswith("self."):
-                    functionAttr = self.getFunctionFromObject(self.parent, functionName[5:])
+                    functionAttr = self.getFunctionFromObject(self.parentClass, functionName[5:])
                 else:
-                    attr = getattr(self.parent, functionName, None)
+                    attr = getattr(self.parentClass, functionName, None)
                     if isinstance(attr, Callable):
                         functionAttr = attr
                 if functionAttr is None:
@@ -81,6 +86,7 @@ class Graph:
                     self.nodeNexts[key][left][leftOutPin] = (right, rightInPin)
 
     def execute(self, key: str, limit=10000) -> Tuple[Any, ...]:
+        self.doingPartKey = key
         if key not in self.nodes:
             raise KeyError(f"Graph key '{key}' not found")
         if key not in self.startNodes:
@@ -190,9 +196,12 @@ class Graph:
             return currentObj
         return None
 
+    def hasKey(self, key: str) -> bool:
+        return key in self.nodes
+
     def asDict(self) -> Dict[str, Any]:
         result = {}
-        result["parent"] = self.parent
+        result["parent"] = self.parentClassName
         result["nodeGraph"] = {}
         for key, nodes in self.nodes.items():
             result["nodeGraph"][key] = {}

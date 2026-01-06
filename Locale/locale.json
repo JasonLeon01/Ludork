@@ -446,5 +446,9 @@
     "CONFIRM_DELETE_FUNC": {
         "zh_CN": "确认删除公共函数 '{name}' 吗？",
         "en_GB": "Are you sure you want to delete the common function '{name}'?"
+    },
+    "UNABLE_TO_SET_START_NODE": {
+        "zh_CN": "无法设置起始节点，起始节点需要是Exec类型节点",
+        "en_GB": "Unable to set start node. Start node must be of Exec type."
     }
 }

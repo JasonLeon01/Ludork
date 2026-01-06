@@ -212,7 +212,7 @@ class GameData:
                 payload = dict(data)
                 if "isJson" in payload:
                     del payload["isJson"]
-                
+
                 fp = os.path.join(configsRoot, f"{key}.dat")
                 File.saveData(fp, payload)
 
@@ -380,6 +380,7 @@ class GameData:
         from NodeGraph import EditorDataNode, EditorNode
 
         Engine = importlib.import_module("Engine")
+        Source = importlib.import_module("Source")
         Graph = Engine.NodeGraph.Graph
         nodes = {}
         links = {}
@@ -388,5 +389,17 @@ class GameData:
             for node in valueDict["nodes"]:
                 nodes[key].append(EditorDataNode(**node))
             links[key] = valueDict["links"]
+        parentClass = data["parent"]
+        if not parentClass is None:
+            parentClass = Source.Data.getClass(parentClass)
+        parent = None  # For editor only
 
-        return Graph(data["parent"], copy.deepcopy(nodes), copy.deepcopy(links), EditorNode, data["startNodes"])
+        return Graph(
+            data["parent"],
+            parentClass,
+            parent,
+            copy.deepcopy(nodes),
+            copy.deepcopy(links),
+            EditorNode,
+            data["startNodes"],
+        )

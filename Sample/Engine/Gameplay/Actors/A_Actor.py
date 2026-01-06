@@ -43,25 +43,72 @@ class Actor(ActorBase):
             self._processMoving(fixedDelta)
 
     def onCreate(self) -> None:
-        pass
+        if (
+            hasattr(type(self), "GENERATED_CLASS")
+            and type(self).GENERATED_CLASS
+            and not self._graph is None
+            and self._graph.hasKey("onCreate")
+        ):
+            self._graph.execute("onCreate")
 
     def onTick(self, deltaTime: float) -> None:
-        pass
+        if (
+            hasattr(type(self), "GENERATED_CLASS")
+            and type(self).GENERATED_CLASS
+            and not self._graph is None
+            and self._graph.hasKey("onTick")
+        ):
+            self._graph.localGraph["__deltaTime__"] = deltaTime
+            self._graph.execute("onTick")
 
     def onLateTick(self, deltaTime: float) -> None:
-        pass
+        if (
+            hasattr(type(self), "GENERATED_CLASS")
+            and type(self).GENERATED_CLASS
+            and not self._graph is None
+            and self._graph.hasKey("onLateTick")
+        ):
+            self._graph.localGraph["__deltaTime__"] = deltaTime
+            self._graph.execute("onLateTick")
 
     def onFixedTick(self, fixedDelta: float) -> None:
-        pass
+        if (
+            hasattr(type(self), "GENERATED_CLASS")
+            and type(self).GENERATED_CLASS
+            and not self._graph is None
+            and self._graph.hasKey("onFixedTick")
+        ):
+            self._graph.localGraph["__fixedDeltaTime__"] = fixedDelta
+            self._graph.execute("onFixedTick")
 
     def onDestroy(self) -> None:
-        pass
+        if (
+            hasattr(type(self), "GENERATED_CLASS")
+            and type(self).GENERATED_CLASS
+            and not self._graph is None
+            and self._graph.hasKey("onDestroy")
+        ):
+            self._graph.execute("onDestroy")
 
     def onCollision(self, other: List[Actor]) -> None:
-        pass
+        if (
+            hasattr(type(self), "GENERATED_CLASS")
+            and type(self).GENERATED_CLASS
+            and not self._graph is None
+            and self._graph.hasKey("onCollision")
+        ):
+            self._graph.localGraph["__collisionActors__"] = other
+            self._graph.execute("onCollision")
 
     def onOverlap(self, other: List[Actor]) -> None:
-        pass
+        if (
+            hasattr(type(self), "GENERATED_CLASS")
+            and type(self).GENERATED_CLASS
+            and not self._graph is None
+            and self._graph.hasKey("onOverlap")
+        ):
+            self._graph.localGraph["__overlapActors__"] = other
+            self._graph.execute("onOverlap")
 
     def destroy(self) -> None:
         self._map.destroyActor(self)

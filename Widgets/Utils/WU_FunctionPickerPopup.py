@@ -50,7 +50,19 @@ class FunctionPickerPopup(QtWidgets.QFrame):
         if is_parent:
             found = False
             try:
-                names = [n for n in dir(obj) if not str(n).startswith("_")]
+                raw = [n for n in dir(obj) if not str(n).startswith("_")]
+
+                def _aliasFirstKey(name):
+                    try:
+                        a = getattr(obj, name)
+                        m = getattr(a, "__name__", None)
+                        if isinstance(m, str):
+                            return (0 if name != m.split(".")[-1] else 1, str(name))
+                    except Exception:
+                        return (1, str(name))
+                    return (1, str(name))
+
+                names = sorted(raw, key=_aliasFirstKey)
             except Exception:
                 return False
             for n in names:
@@ -77,7 +89,19 @@ class FunctionPickerPopup(QtWidgets.QFrame):
             return False
         self._visited.add(key)
         try:
-            names = [n for n in dir(obj) if not str(n).startswith("_")]
+            raw = [n for n in dir(obj) if not str(n).startswith("_")]
+
+            def _aliasFirstKey(name):
+                try:
+                    a = getattr(obj, name)
+                    m = getattr(a, "__name__", None)
+                    if isinstance(m, str):
+                        return (0 if name != m.split(".")[-1] else 1, str(name))
+                except Exception:
+                    return (1, str(name))
+                return (1, str(name))
+
+            names = sorted(raw, key=_aliasFirstKey)
         except Exception:
             return False
         found = False
