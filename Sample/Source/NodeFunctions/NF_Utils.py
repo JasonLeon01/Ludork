@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Any
+from typing import Any, Dict, List, Union
 from Engine import ExecSplit, ReturnType
 
 
@@ -57,6 +57,11 @@ def GetAttr(obj: object, attrName: str) -> Any:
 def SetAttr(obj: object, attrName: str, value: Any) -> None:
     setattr(obj, attrName, value)
     return 0
+
+
+@ReturnType(value=bool)
+def IsValidValue(value: Any) -> bool:
+    return value is not None
 
 
 @ExecSplit(default=(0,))

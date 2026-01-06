@@ -1,7 +1,21 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Union
-from Engine import ExecSplit, ReturnType, Vector2f, Vector2i, Vector2u, Vector3f, Vector3i, IntRect, FloatRect
+import math
+import random
+from typing import Any, List, Union
+from Engine import (
+    ReturnType,
+    Vector2f,
+    Vector2i,
+    Vector2u,
+    Vector3f,
+    Vector3i,
+    IntRect,
+    FloatRect,
+    Angle,
+    degrees,
+    radians,
+)
 from Engine.Utils import Math
 
 
@@ -78,3 +92,171 @@ def Clamp(value, min_val, max_val) -> float:
 @ReturnType(value=float)
 def Lerp(a: float, b: float, t: float) -> float:
     return Math.Lerp(a, b, t)
+
+
+@ReturnType(value=Union[int, float])
+def Abs(value: Union[int, float]) -> Union[int, float]:
+    return abs(value)
+
+
+@ReturnType(value=Union[int, float])
+def ToInt(value: Union[int, float]) -> int:
+    return int(value)
+
+
+@ReturnType(value=Union[int, float])
+def ToFloat(value: Union[int, float]) -> float:
+    return float(value)
+
+
+@ReturnType(value=List[Any])
+def Max(values: List[Any]) -> Any:
+    return max(values)
+
+
+@ReturnType(value=List[Any])
+def Min(values: List[Any]) -> Any:
+    return min(values)
+
+
+@ReturnType(value=Union[int, float])
+def Sqrt(value: Union[int, float]) -> Union[int, float]:
+    return math.sqrt(value)
+
+
+@ReturnType(value=Union[int, float])
+def Pow(base: Union[int, float], exp: Union[int, float]) -> Union[int, float]:
+    return math.pow(base, exp)
+
+
+@ReturnType(value=float)
+def Vector2Distance(v1: Union[Vector2f, Vector2i, Vector2u], v2: Union[Vector2f, Vector2i, Vector2u]) -> float:
+    return math.sqrt((v1.x - v2.x) ** 2 + (v1.y - v2.y) ** 2)
+
+
+@ReturnType(value=float)
+def Vector3Distance(v1: Vector3f, v2: Vector3f) -> float:
+    return math.sqrt((v1.x - v2.x) ** 2 + (v1.y - v2.y) ** 2 + (v1.z - v2.z) ** 2)
+
+
+@ReturnType(value=float)
+def Vector2Dot(v1: Union[Vector2f, Vector2i, Vector2u], v2: Union[Vector2f, Vector2i, Vector2u]) -> float:
+    return v1.dot(v2)
+
+
+@ReturnType(value=float)
+def Vector3Dot(v1: Union[Vector3f, Vector3i], v2: Union[Vector3f, Vector3i]) -> float:
+    return v1.dot(v2)
+
+
+@ReturnType(value=Union[Vector2f, Vector2i, Vector2u])
+def Vector2Cross(
+    v1: Union[Vector2f, Vector2i, Vector2u], v2: Union[Vector2f, Vector2i, Vector2u]
+) -> Union[Vector2f, Vector2i, Vector2u]:
+    return v1.cross(v2)
+
+
+@ReturnType(value=Union[Vector3f, Vector3i])
+def Vector3Cross(v1: Union[Vector3f, Vector3i], v2: Union[Vector3f, Vector3i]) -> Union[Vector3f, Vector3i]:
+    return v1.cross(v2)
+
+
+@ReturnType(value=float)
+def Vector2Length(v: Union[Vector2f]) -> float:
+    return v.length()
+
+
+@ReturnType(value=float)
+def Vector3Length(v: Union[Vector3f]) -> float:
+    return v.length()
+
+
+@ReturnType(value=Union[float, int])
+def Vector2LengthSquared(v: Union[Vector2f, Vector2i, Vector2u]) -> Union[float, int]:
+    return v.lengthSquared()
+
+
+@ReturnType(value=Union[float, int])
+def Vector3LengthSquared(v: Union[Vector3f, Vector3i]) -> Union[float, int]:
+    return v.lengthSquared()
+
+
+@ReturnType(value=Vector2f)
+def Vector2Normalized(v: Vector2f) -> Vector2f:
+    return v.normalized()
+
+
+@ReturnType(value=Vector3f)
+def Vector3Normalized(v: Vector3f) -> Vector3f:
+    return v.normalized()
+
+
+@ReturnType(value=Angle)
+def GetAngle(v: Vector2f) -> Angle:
+    return v.angle()
+
+
+@ReturnType(value=Angle)
+def GetAngleTo(v1: Vector2f, v2: Vector2f) -> Angle:
+    return v1.angleTo(v2)
+
+
+@ReturnType(value=float)
+def AsDegrees(angle: Angle) -> float:
+    return angle.asDegrees()
+
+
+@ReturnType(value=float)
+def AsRadians(angle: Angle) -> float:
+    return angle.asRadians()
+
+
+@ReturnType(value=Union[Vector2f, Vector2i, Vector2u])
+def Vector2ComponentWiseDiv(
+    v: Union[Vector2f, Vector2i, Vector2u, Vector3f, Vector3i],
+    div: Union[Vector2f, Vector2i, Vector2u, Vector3f, Vector3i],
+) -> Union[Vector2f, Vector2i, Vector2u, Vector3f, Vector3i]:
+    return v.componentWiseDiv(div)
+
+
+@ReturnType(value=Union[Vector2f, Vector2i, Vector2u, Vector3f, Vector3i])
+def Vector2ComponentWiseMul(
+    v: Union[Vector2f, Vector2i, Vector2u, Vector3f, Vector3i],
+    mul: Union[Vector2f, Vector2i, Vector2u, Vector3f, Vector3i],
+) -> Union[Vector2f, Vector2i, Vector2u, Vector3f, Vector3i]:
+    return v.componentWiseMul(mul)
+
+
+@ReturnType(value=Union[Vector2f, Vector2i, Vector2u])
+def Vector2Perpendicular(v: Union[Vector2f, Vector2i, Vector2u]) -> Union[Vector2f, Vector2i, Vector2u]:
+    return v.perpendicular()
+
+
+@ReturnType(value=Vector2f)
+def Vector2ProjectedOnto(v: Vector2f, axis: Vector2f) -> Vector2f:
+    return v.projectedOnto(axis)
+
+
+@ReturnType(value=Vector2f)
+def Vector2RotatedBy(v: Vector2f, phi: Angle) -> Vector2f:
+    return v.rotatedBy(phi)
+
+
+@ReturnType(value=Angle)
+def DegreesToAngle(degrees_: float) -> Angle:
+    return degrees(degrees_)
+
+
+@ReturnType(value=float)
+def RadiansToAngle(radians_: float) -> Angle:
+    return radians(radians_)
+
+
+@ReturnType(value=int)
+def RandomInt(min_val: int, max_val: int) -> int:
+    return random.randint(min_val, max_val)
+
+
+@ReturnType(value=float)
+def RandomFloat(min_val: float, max_val: float) -> float:
+    return random.uniform(min_val, max_val)
