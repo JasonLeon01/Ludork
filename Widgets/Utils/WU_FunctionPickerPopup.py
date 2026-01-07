@@ -9,7 +9,7 @@ import inspect
 class FunctionPickerPopup(QtWidgets.QFrame):
     functionSelected = QtCore.pyqtSignal(str, bool)
 
-    def __init__(self, parent: QtWidgets.QWidget, sources: Dict[str, object]) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, sources: Dict[str, object], filterExecOnly: bool = False) -> None:
         super().__init__(parent, QtCore.Qt.Popup)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self.setWindowFlag(QtCore.Qt.Popup, True)
@@ -21,7 +21,8 @@ class FunctionPickerPopup(QtWidgets.QFrame):
         lay.setSpacing(0)
         lay.addWidget(self._tree)
         self._visited = set()
-        self._max_depth = 4
+        self._maxDepth = 4
+        self._filterExecOnly = filterExecOnly
         self._build(sources)
         self._tree.itemDoubleClicked.connect(self._onDoubleClicked)
         self.resize(320, 420)
@@ -75,6 +76,7 @@ class FunctionPickerPopup(QtWidgets.QFrame):
                     (inspect.isfunction(a) or inspect.ismethod(a))
                     and hasattr(a, "_refLocal")
                     and getattr(a, "_refLocal", None) is not None
+                    and (not self._filterExecOnly or (hasattr(a, "_execSplits") and getattr(a, "_execSplits", None)))
                 ):
                     it = QtWidgets.QTreeWidgetItem([n])
                     it.setData(0, QtCore.Qt.UserRole, p)
@@ -82,7 +84,7 @@ class FunctionPickerPopup(QtWidgets.QFrame):
                     parent_item.addChild(it)
                     found = True
             return found
-        if depth > self._max_depth:
+        if depth > self._maxDepth:
             return False
         key = getattr(obj, "__name__", None) if (inspect.ismodule(obj) or inspect.isclass(obj)) else id(obj)
         if key in self._visited:
@@ -123,6 +125,7 @@ class FunctionPickerPopup(QtWidgets.QFrame):
                 (inspect.isfunction(a) or inspect.ismethod(a))
                 and hasattr(a, "_refLocal")
                 and getattr(a, "_refLocal", None) is not None
+                and (not self._filterExecOnly or (hasattr(a, "_execSplits") and getattr(a, "_execSplits", None)))
             ):
                 mod = getattr(a, "__module__", "")
                 if (root_name is None) or (isinstance(mod, str) and mod.startswith(root_name)):

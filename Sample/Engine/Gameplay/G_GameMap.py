@@ -3,7 +3,7 @@
 from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
-from typing import Dict, List, Optional, TYPE_CHECKING
+from typing import Dict, List, Optional
 from . import (
     Vector2i,
     Vector2f,
@@ -13,21 +13,12 @@ from . import (
     Shader,
     Texture,
     Image,
-    G_ParticleSystem,
-    G_Camera,
-    G_TileMap,
     GetCellSize,
 )
-
-if TYPE_CHECKING:
-    from Engine.Gameplay.Actors import Actor
-
-ParticleSystem = G_ParticleSystem.ParticleSystem
-Camera = G_Camera.Camera
-Tileset = G_TileMap.Tileset
-TileLayerData = G_TileMap.TileLayerData
-TileLayer = G_TileMap.TileLayer
-Tilemap = G_TileMap.Tilemap
+from .Actors import Actor
+from .G_ParticleSystem import ParticleSystem
+from .G_Camera import Camera
+from .G_TileMap import Tilemap
 
 
 @dataclass
@@ -132,7 +123,7 @@ class GameMap:
             self._actors[layer] = []
         actor.setMap(self)
         self._actors[layer].append(actor)
-        actor.onCreate()
+        Actor.ActorCreate(actor)
         children = actor.getChildren()
         if children:
             for child in children:
@@ -252,13 +243,14 @@ class GameMap:
                 for actorList in self._actors.values():
                     if actor in actorList:
                         actorList.remove(actor)
+                        Actor.ActorDestroy(actor)
             self.updateActorList()
             self._actorsOnDestroy.clear()
         for actorList in self._actors.values():
             for actor in actorList:
                 actor.update(deltaTime)
                 if actor.getTickable():
-                    actor.onTick(deltaTime)
+                    Actor.ActorTick(actor, deltaTime)
         self._particleSystem.onTick(deltaTime)
 
     def onLateTick(self, deltaTime: float) -> None:
@@ -267,7 +259,7 @@ class GameMap:
             for actor in actorList:
                 actor.lateUpdate(deltaTime)
                 if actor.getTickable():
-                    actor.onLateTick(deltaTime)
+                    Actor.ActorLateTick(actor, deltaTime)
         self._particleSystem.onLateTick(deltaTime)
 
     def onFixedTick(self, fixedDelta: float) -> None:
@@ -276,7 +268,7 @@ class GameMap:
             for actor in actorList:
                 actor.fixedUpdate(fixedDelta)
                 if actor.getTickable():
-                    actor.onFixedTick(fixedDelta)
+                    Actor.ActorFixedTick(actor, fixedDelta)
 
     def show(self) -> None:
         from .. import System

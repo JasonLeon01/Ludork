@@ -1,36 +1,53 @@
 # Ludork
 
-Ludork is a software project that appears to focus on game development, providing a set of tools and utilities for creating and managing game content. This repository contains various components including UI widgets, game engine utilities, and gameplay-related modules.
+Ludork is a PyQt5-based game toolkit that combines an editor UI and a lightweight runtime engine built on SFML via pybind11 bindings. It provides visual scripting via a Node Graph, asset management, tileset/map tooling, shader and audio utilities, and gameplay foundations. The goal is to make building and iterating on 2D RPG-style content fast and approachable.
 
-## Key Components
+## Highlights
+- Visual Node Graph editor for authoring reusable "Common Functions" (powered by NodeGraphQt)
+- Tileset and map editing with preview, selection, and persistence to `.dat`
+- Asset browsing and preview for images, audio, shaders, and transitions
+- Configuration management and localization support
+- Integrated console, toast notifications, and material-themed UI
 
-### Widgets
-- **FileExplorer**: A file explorer widget with features like drag-and-drop, file operations (copy, cut, paste, delete), and filtering of specific file types.
-- **ConsoleWidget**: A console interface for interacting with processes, displaying output, and handling user input with history support.
-- **FilePreview**: A widget for previewing different file types including images (png, jpg, jpeg, bmp, gif, webp) and audio files (mp3, wav, ogg, flac, aac, m4a).
-- **EditModeToggle**: A toggle widget for switching between tile mode and actor mode, likely used in game level editing.
-- **ConfigDictPanel**: A panel for editing configuration data with support for various data types and file selection.
+## Architecture Overview
+- Engine
+  - Gameplay: scenes, camera, tile map, particle system, and actor bases
+  - UI: canvas, rect/text/image/sprite primitives, windows, text box
+  - Node Graph: node/graph/class dictionaries and editor integration
+  - Managers: audio, texture, font, time; effects/input/locale helpers
+  - Utils & Filters: file IO, render, math, event; audio filters
+  - Runtime: SFML core via pybind11 bindings for rendering, audio, and input
+- Widgets
+  - Editor windows: start/main, file explorer, file preview, console
+  - Node Graph window and panels for editing common functions
+  - Tileset editor, map tools, config/settings panels, toggles
+- Data & Assets
+  - Structured data under `Data/` (Configs, Maps, Tilesets, CommonFunctions)
+  - Sample assets under `Sample/` (characters, tilesets, shaders, sounds)
+- C Extensions
+  - Gameplay map/tilemap modules for performance-critical operations
 
-### Engine Utilities
-- **File Handling (U_File)**: Utilities for reading JSON data and saving/loading data using pickle.
-- **Math (U_Math)**: Mathematical utilities, such as checking if a vector is near zero.
-- **Sound Processing (F_Sound)**: Audio processing functions with effects like water modulation, bubble noise, and reverb.
+## Visual Node Graph
+- Purpose: author reusable logic blocks as visual graphs
+- Node categories: Math, String, Utils, Containers, plus project-specific nodes
+- Persistence: graphs saved under `Data/CommonFunctions/*.dat`
+- Runtime: graphs are loaded and transformed into executable graph instances
 
-### Gameplay Components
-- **ParticleSystem (G_ParticleSystem)**: A base class for particle systems with a late tick update method.
-- **SceneBase (G_SceneBase)**: A base class for game scenes, handling the main game loop, updates, and fixed ticks.
-- **Camera (G_Camera)**: A camera class for controlling the view position.
-- **GameMap (G_GameMap)**: A class for managing game maps and updating actor lists.
-- **Actors**: Base classes for game actors and characters.
+## Getting Started
+- Requirements: Python 3.x, PyQt5, NodeGraphQt, qt-material, psutil, pympler, av, nuitka
+- Install:
+  - `pip install -r requirements.txt`
+- Run:
+  - `python main.py`
 
-### UI Elements
-- **TextBox (UI_TextBox)**: A UI text box widget supporting text input and editing.
-- **RectBase (UI_RectBase)**: A base class for rendering UI rectangles with edges and corners.
+## Typical Use
+- Open the editor, browse assets, and inspect tilesets/maps
+- Create/edit Common Functions in the Node Graph window
+- Preview changes and persist to data files (`.dat` / `.json`)
+- Iterate on gameplay scenes and UI using engine primitives
+
+## Packaging
+- Build scripts available for bundling (e.g., via Nuitka) to produce distributables
 
 ## License
-This project is licensed under terms specified in the [LICENSE.md](LICENSE.md) file. The license includes provisions for Corresponding Source, which includes interface definition files and source code for shared libraries that the work is specifically designed to require.
-
-## Usage
-The components in this repository can be used to build game editing tools and game engine functionality. The widgets provide a user interface for managing files, configuring settings, and previewing assets, while the engine utilities and gameplay components offer core functionality for game development.
-
-To get started, explore the various modules and their respective functionalities. The widgets can be integrated into a Qt application, while the engine and gameplay components can be used to build game logic and systems.
+This project is licensed as described in [LICENSE.md](LICENSE.md).

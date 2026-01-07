@@ -9,22 +9,19 @@ def GetFromDict(dict_: Dict, key: Any) -> Any:
     return dict_.get(key)
 
 
-@ExecSplit(default=(0,))
+@ExecSplit(default=(None,))
 def DictAdd(dict_: Dict, key: Any, value: Any) -> None:
     dict_[key] = value
-    return 0
 
 
-@ExecSplit(default=(0,))
+@ExecSplit(default=(None,))
 def DictRemove(dict_: Dict, key: Any) -> None:
     dict_.pop(key)
-    return 0
 
 
-@ExecSplit(default=(0,))
+@ExecSplit(default=(None,))
 def DictClear(dict_: Dict) -> None:
     dict_.clear()
-    return 0
 
 
 @ReturnType(value=bool)
@@ -39,24 +36,21 @@ def GetFromList(list_: List, index: Union[int, str]) -> Any:
     return list_[index]
 
 
-@ExecSplit(default=(0,))
+@ExecSplit(default=(None,))
 def ListAppend(list_: List, value: Any) -> None:
     list_.append(value)
-    return 0
 
 
-@ExecSplit(default=(0,))
+@ExecSplit(default=(None,))
 def ListRemove(list_: List, index: Union[int, str]) -> None:
     if not isinstance(index, int):
         index = int(index)
     list_.pop(index)
-    return 0
 
 
-@ExecSplit(default=(0,))
+@ExecSplit(default=(None,))
 def ListClear(list_: List) -> None:
     list_.clear()
-    return 0
 
 
 @ReturnType(value=bool)

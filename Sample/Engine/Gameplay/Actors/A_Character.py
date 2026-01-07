@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import Optional
-from . import Texture, IntRect, Vector2i, Utils
+from . import Texture, IntRect, Vector2i, Utils, ExecSplit
 from . import A_Actor
 
 Actor = A_Actor.Actor
@@ -21,6 +21,7 @@ class Character(Actor):
         self._sx: int = 0
         self._sy: int = 0
 
+    @ExecSplit(default=(None,))
     def setSpriteTexture(self, texture: Texture, resetRect: bool = False) -> None:
         super().setSpriteTexture(texture, resetRect)
         if resetRect:
@@ -29,10 +30,12 @@ class Character(Actor):
             self._rectSize = Utils.Math.ToVector2i(texture.getSize() / 4)
             self.setTextureRect(IntRect(Vector2i(sx_i * self._rectSize.x, sy_i * self._rectSize.y), self._rectSize))
 
+    @ExecSplit(default=(None,))
     def setTexture(self, texture: Texture, resetRect: bool = False) -> None:
         assert isinstance(texture, Texture), "texture must be a Texture"
         super().setTexture(texture, resetRect)
 
+    @ExecSplit(default=(None,))
     def setTextureRect(self, rectangle: IntRect) -> None:
         self._rectSize = rectangle.size
         return super().setTextureRect(rectangle)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 import warnings
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
-from . import Sprite, IntRect, Vector2i, Vector2u, Vector2f, Angle, degrees, GetCellSize, Utils
+from . import Sprite, IntRect, Vector2i, Vector2u, Vector2f, Angle, degrees, GetCellSize, Utils, ExecSplit, ReturnType
 
 if TYPE_CHECKING:
     from Engine import Texture
@@ -59,53 +59,47 @@ class ActorBase(Sprite):
             self._animate(deltaTime)
 
     def lateUpdate(self, deltaTime: float) -> None:
-        if (
-            hasattr(type(self), "GENERATED_CLASS")
-            and type(self).GENERATED_CLASS
-            and not self._graph is None
-            and self._graph.hasKey("onLateTick")
-        ):
-            self._graph.localGraph["__deltaTime__"] = deltaTime
-            self._graph.execute("onLateTick")
+        pass
 
     def fixedUpdate(self, fixedDelta: float) -> None:
-        if (
-            hasattr(type(self), "GENERATED_CLASS")
-            and type(self).GENERATED_CLASS
-            and not self._graph is None
-            and self._graph.hasKey("onFixedTick")
-        ):
-            self._graph.localGraph["__fixedDeltaTime__"] = fixedDelta
-            self._graph.execute("onFixedTick")
+        pass
 
+    @ReturnType(pos=Tuple[float, float])
     def v_getPosition(self) -> Tuple[float, float]:
         result = super().getPosition()
         return (result.x, result.y)
 
+    @ReturnType(pos=Vector2f)
     def getRelativePosition(self) -> Vector2f:
         return self._relativePosition
 
+    @ReturnType(pos=Tuple[float, float])
     def v_getRelativePosition(self) -> Tuple[float, float]:
         return (self._relativePosition.x, self._relativePosition.y)
 
+    @ReturnType(pos=Vector2i)
     def getMapPosition(self) -> Vector2i:
         return Vector2i(
             int(self.getPosition().x * 1.0 / GetCellSize() + 0.5),
             int(self.getPosition().y * 1.0 / GetCellSize() + 0.5),
         )
 
+    @ReturnType(pos=Tuple[int, int])
     def v_getMapPosition(self) -> Tuple[int, int]:
         return (self.getMapPosition().x, self.getMapPosition().y)
 
+    @ReturnType(pos=Vector2i)
     def getRelativeMapPosition(self) -> Vector2i:
         return Vector2i(
             int(self.getRelativePosition().x / GetCellSize()),
             int(self.getRelativePosition().y / GetCellSize()),
         )
 
+    @ReturnType(pos=Tuple[int, int])
     def v_getRelativeMapPosition(self) -> Tuple[int, int]:
         return (self.getRelativeMapPosition().x, self.getRelativeMapPosition().y)
 
+    @ExecSplit(default=(None,))
     def setPosition(self, position: Union[Vector2f, Tuple[float, float]]) -> None:
         assert isinstance(position, (Vector2f, tuple)), "position must be a tuple or Vector2f"
         if not isinstance(position, Vector2f):
@@ -121,6 +115,7 @@ class ActorBase(Sprite):
             for child in self.getChildren():
                 child._updatePositionFromParent()
 
+    @ExecSplit(default=(None,))
     def setRelativePosition(self, position: Union[Vector2f, Tuple[float, float]]) -> None:
         assert isinstance(position, (Vector2f, tuple)), "position must be a tuple or Vector2f"
         if not isinstance(position, Vector2f):
@@ -131,6 +126,7 @@ class ActorBase(Sprite):
             parentPosition = self.getParent().getPosition()
         self.setPosition(parentPosition + position)
 
+    @ExecSplit(default=(None,))
     def setMapPosition(self, position: Union[Vector2u, Tuple[int, int]]) -> None:
         assert isinstance(position, (Vector2u, tuple)), "position must be a tuple or Vector2u"
         if not isinstance(position, Vector2u):
@@ -138,6 +134,7 @@ class ActorBase(Sprite):
             position = Vector2u(x, y)
         self.setPosition(Vector2f(position.x * GetCellSize(), position.y * GetCellSize()))
 
+    @ExecSplit(default=(None,))
     def setRelativeMapPosition(self, position: Union[Vector2u, Tuple[int, int]]) -> None:
         assert isinstance(position, (Vector2u, tuple)), "position must be a tuple or Vector2u"
         if not isinstance(position, Vector2u):
@@ -145,6 +142,7 @@ class ActorBase(Sprite):
             position = Vector2u(x, y)
         self.setRelativePosition(Vector2f(position.x * GetCellSize(), position.y * GetCellSize()))
 
+    @ExecSplit(default=(None,))
     def move(self, offset: Union[Vector2f, Tuple[float, float]]) -> None:
         assert isinstance(offset, (Vector2f, tuple)), "offset must be a tuple or Vector2f"
         if not isinstance(offset, Vector2f):
@@ -156,16 +154,20 @@ class ActorBase(Sprite):
             for child in self.getChildren():
                 child._updatePositionFromParent()
 
+    @ReturnType(angle=float)
     def v_getRotation(self) -> float:
         result = super().getRotation()
         return result.asDegrees()
 
+    @ReturnType(angle=Angle)
     def getRelativeRotation(self) -> Angle:
         return self._relativeRotation
 
+    @ReturnType(angle=float)
     def v_getRelativeRotation(self) -> float:
         return self._relativeRotation.asDegrees()
 
+    @ExecSplit(default=(None,))
     def setRotation(self, angle: Union[Angle, float]) -> None:
         if not isinstance(angle, Angle):
             angle = degrees(angle)
@@ -179,6 +181,7 @@ class ActorBase(Sprite):
             for child in self.getChildren():
                 child._updateRotationFromParent()
 
+    @ExecSplit(default=(None,))
     def rotate(self, angle: Union[Angle, float]) -> None:
         if not isinstance(angle, Angle):
             angle = degrees(angle)
@@ -188,6 +191,7 @@ class ActorBase(Sprite):
             for child in self.getChildren():
                 child._updateRotationFromParent()
 
+    @ExecSplit(default=(None,))
     def setRelativeRotation(self, angle: Union[Angle, float]) -> None:
         if not isinstance(angle, Angle):
             angle = degrees(angle)
@@ -196,16 +200,20 @@ class ActorBase(Sprite):
             parentRotation = self.getParent().getRotation()
         self.setRotation(parentRotation + angle)
 
+    @ReturnType(scale=Tuple[float, float])
     def v_getScale(self) -> Tuple[float, float]:
         result = super().getScale()
         return (result.x, result.y)
 
+    @ReturnType(scale=Vector2f)
     def getRelativeScale(self) -> Vector2f:
         return self._relativeScale
 
+    @ReturnType(scale=Tuple[float, float])
     def v_getRelativeScale(self) -> Tuple[float, float]:
         return (self._relativeScale.x, self._relativeScale.y)
 
+    @ExecSplit(default=(None,))
     def setScale(self, scale: Union[Vector2f, Tuple[float, float]]) -> None:
         assert isinstance(scale, (Vector2f, tuple)), "scale must be a tuple or Vector2f"
         if not isinstance(scale, Vector2f):
@@ -221,6 +229,7 @@ class ActorBase(Sprite):
             for child in self.getChildren():
                 child._updateScaleFromParent()
 
+    @ExecSplit(default=(None,))
     def scale(self, factor: Union[Vector2f, Tuple[float, float]]) -> None:
         assert isinstance(factor, (Vector2f, tuple)), "factor must be a tuple or Vector2f"
         if not isinstance(factor, Vector2f):
@@ -233,6 +242,7 @@ class ActorBase(Sprite):
             for child in self.getChildren():
                 child._updateScaleFromParent()
 
+    @ExecSplit(default=(None,))
     def setRelativeScale(self, scale: Union[Vector2f, Tuple[float, float]]) -> None:
         assert isinstance(scale, (Vector2f, tuple)), "scale must be a tuple or Vector2f"
         if not isinstance(scale, Vector2f):
@@ -243,10 +253,12 @@ class ActorBase(Sprite):
             parentScale = self.getParent().getScale()
         self.setScale(parentScale.componentWiseMul(scale))
 
+    @ReturnType(origin=Tuple[float, float])
     def v_getOrigin(self) -> Tuple[float, float]:
         result = super().getOrigin()
         return (result.x, result.y)
 
+    @ExecSplit(default=(None,))
     def setOrigin(self, origin: Union[Vector2f, Tuple[float, float]]) -> None:
         assert isinstance(origin, (Vector2f, tuple)), "origin must be a tuple or Vector2f"
         if not isinstance(origin, Vector2f):
@@ -254,6 +266,7 @@ class ActorBase(Sprite):
             origin = Vector2f(x, y)
         return super().setOrigin(origin)
 
+    @ExecSplit(default=(None,))
     def setAlignment(self, alignment: Tuple[float, float]) -> None:
         x, y = alignment
         x = Utils.Math.Clamp(x, 0, 1)
@@ -262,21 +275,27 @@ class ActorBase(Sprite):
         origin = Vector2f(size.x * x, size.y * y)
         self.setOrigin(origin)
 
+    @ReturnType(map_="GameMap")
     def getMap(self) -> GameMap:
         return self._map
 
+    @ExecSplit(default=(None,))
     def setMap(self, inMap: GameMap) -> None:
         self._map = inMap
 
+    @ReturnType(parent=Optional["ActorBase"])
     def getParent(self) -> Optional[ActorBase]:
         return self._parent
 
+    @ExecSplit(default=(None,))
     def setParent(self, parent: Optional[ActorBase]) -> None:
         self._parent = parent
 
+    @ReturnType(children=List["ActorBase"])
     def getChildren(self) -> List[ActorBase]:
         return self._children
 
+    @ExecSplit(default=(None,))
     def addChild(self, child: ActorBase) -> None:
         if child in self._children:
             warnings.warn("Child already exists")
@@ -287,14 +306,17 @@ class ActorBase(Sprite):
             child.setMap(self._map)
             self._map.updateActorList()
 
+    @ExecSplit(default=(None,))
     def removeChild(self, child: ActorBase) -> None:
         if child not in self._children:
             raise ValueError("Child not found")
         self._children.remove(child)
 
+    @ReturnType(visible=bool)
     def getVisible(self) -> bool:
         return self._visible
 
+    @ExecSplit(default=(None,))
     def setVisible(self, visible: bool, applyToChildren: bool = True) -> None:
         self._visible = visible
         if applyToChildren:
@@ -302,9 +324,11 @@ class ActorBase(Sprite):
                 for child in self.getChildren():
                     child.setVisible(visible, applyToChildren)
 
+    @ReturnType(animatable=bool)
     def getAnimatable(self) -> bool:
         return self._animatable
 
+    @ExecSplit(default=(None,))
     def setAnimatable(self, animate: bool, applyToChildren: bool = True) -> None:
         self._animatable = animate
         if applyToChildren:
@@ -312,15 +336,19 @@ class ActorBase(Sprite):
                 for child in self.getChildren():
                     child.setAnimatable(animate, applyToChildren)
 
+    @ReturnType(texture=Optional["Texture"])
     def getSpriteTexture(self) -> Optional[Texture]:
         return super().getTexture()
 
+    @ReturnType(texture=Optional[Union[List["Texture"], "Texture"]])
     def getTexture(self) -> Optional[Union[List[Texture], Texture]]:
         return self._texture
 
+    @ExecSplit(default=(None,))
     def setSpriteTexture(self, texture: Texture, resetRect: bool = False) -> None:
         super().setTexture(texture, resetRect)
 
+    @ExecSplit(default=(None,))
     def setTexture(self, texture: Union[Texture, List[Texture]], resetRect: bool = False) -> None:
         self._texture = texture
         targetTexture = texture
@@ -328,12 +356,15 @@ class ActorBase(Sprite):
             targetTexture = texture[0]
         self.setSpriteTexture(targetTexture, resetRect)
 
+    @ReturnType(lightBlock=float)
     def getLightBlock(self) -> float:
         return self._lightBlock
 
+    @ExecSplit(default=(None,))
     def setLightBlock(self, lightBlock: float) -> None:
         self._lightBlock = lightBlock
 
+    @ExecSplit(default=(None,))
     def setGraph(self, graph: Graph) -> None:
         self._graph = graph
 

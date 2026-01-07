@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Any, Dict, List, Union
+from typing import Any
 from Engine import ExecSplit, ReturnType
 
 
@@ -9,10 +9,9 @@ def IF(condition: bool) -> int:
     return 0 if condition else 1
 
 
-@ExecSplit(default=(0,))
+@ExecSplit(default=(None,))
 def SetLocalValue(valueName: str, value: Any) -> None:
     SetLocalValue._refLocal[valueName] = value
-    return 0
 
 
 @ReturnType(value=Any)
@@ -20,7 +19,7 @@ def GetLocalValue(valueName: str, default: Any = None) -> Any:
     return SetLocalValue._refLocal.get(valueName, default)
 
 
-@ExecSplit(default=(0,))
+@ExecSplit(default=(None,))
 def SUPER(obj: object) -> None:
     key = SUPER._refLocal.get("__key__")
     assert isinstance(key, str) and key
@@ -40,7 +39,6 @@ def SUPER(obj: object) -> None:
             method()
         else:
             raise AttributeError(f"Method '{key}' not found on object")
-    return 0
 
 
 @ReturnType(value=object)
@@ -53,10 +51,9 @@ def GetAttr(obj: object, attrName: str) -> Any:
     return getattr(obj, attrName)
 
 
-@ExecSplit(default=(0,))
+@ExecSplit(default=(None,))
 def SetAttr(obj: object, attrName: str, value: Any) -> None:
     setattr(obj, attrName, value)
-    return 0
 
 
 @ReturnType(value=bool)
@@ -64,13 +61,11 @@ def IsValidValue(value: Any) -> bool:
     return value is not None
 
 
-@ExecSplit(default=(0,))
+@ExecSplit(default=(None,))
 def Print(message: Any) -> None:
     print(message)
-    return 0
 
 
-@ExecSplit(default=(0,))
+@ExecSplit(default=(None,))
 def EXEC(script: str) -> None:
     exec(script)
-    return 0

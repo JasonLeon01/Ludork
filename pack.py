@@ -26,7 +26,6 @@ FLAGS = [
     "--include-module=psutil",
     "--include-module=pympler.asizeof",
     "--include-module=av",
-    "--include-module=nuitka",
     "--include-module=PyQt5.QtSvg",
     "--lto=yes",
 ]

@@ -105,22 +105,16 @@ class Graph:
             node_func = self.nodes[key][curr].nodeFunction
             splits = getattr(node_func, "_execSplits", None)
             if splits and len(splits) > 0:
-                configured_values: List[Any] = []
-                for vals in splits.values():
-                    configured_values.extend(vals)
                 for v in result:
                     match_found = False
-                    for cv in configured_values:
-                        if v == cv:
-                            out_pin = None
-                            if isinstance(cv, bool):
-                                out_pin = 1 if cv else 0
-                            elif isinstance(cv, int):
-                                out_pin = cv
-                            if out_pin is not None and out_pin in next_map:
+                    for out_pin, pin_values in splits.items():
+                        for cv in pin_values:
+                            if v == cv and out_pin in next_map:
                                 chosen = next_map[out_pin][0]
                                 match_found = True
                                 break
+                        if match_found:
+                            break
                     if match_found:
                         break
             else:

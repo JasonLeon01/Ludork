@@ -4,6 +4,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Dict, List
 from Qt import QtWidgets, QtGui, QtCore
 from NodeGraphQt import NodeGraph, BaseNode
+from NodeGraphQt.widgets.viewer import NodeViewer
+from NodeGraphQt.qgraphics.port import PortItem
 from Data import GameData
 from Utils import File, System, Locale
 import inspect
@@ -13,6 +15,27 @@ from .WU_FunctionPickerPopup import FunctionPickerPopup
 
 if TYPE_CHECKING:
     import Sample.Engine.NodeGraph.Graph as Graph
+
+
+class CustomViewer(NodeViewer):
+    live_connection_prompt = QtCore.Signal(object, QtCore.QPointF)
+
+    def applyLiveConnection(self, event):
+        pos_items = self.scene().items(event.scenePos())
+        end_port = None
+        for item in pos_items:
+            if isinstance(item, PortItem):
+                end_port = item
+                break
+        if (
+            self._LIVE_PIPE.isVisible()
+            and end_port is None
+            and self._detached_port is None
+            and self._start_port is not None
+        ):
+            self.live_connection_prompt.emit(self._start_port, event.scenePos())
+            return
+        return super(CustomViewer, self).applyLiveConnection(event)
 
 
 def makeInit(currNode):
@@ -68,7 +91,7 @@ class NodePanel(QtWidgets.QWidget):
         self._parent = parent
         self.setWindowTitle("Node Panel")
         self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-        self.graph = NodeGraph()
+        self.graph = NodeGraph(viewer=CustomViewer())
         self.graphWidget = self.graph.widget
         self.graphWidget.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         self.graph.viewer().viewport().installEventFilter(self)
@@ -77,6 +100,7 @@ class NodePanel(QtWidgets.QWidget):
         self.name = name
         self.classDict: Dict[str, type] = {}
         self.nodes: List[BaseNode] = []
+        self._pending_conn = None
         self._setupLayout()
         self._registerNodes()
         self._createNodes()
@@ -185,6 +209,7 @@ class NodePanel(QtWidgets.QWidget):
         self.graph.port_connected.connect(self.onPortConnected)
         self.graph.port_disconnected.connect(self.onPortDisconnected)
         self.graph.viewer().moved_nodes.connect(self.onNodesMoved)
+        self.graph.viewer().live_connection_prompt.connect(self._onLiveConnectionPrompt)
 
         QtWidgets.QShortcut(QtGui.QKeySequence.New, self, self._onCreate, context=QtCore.Qt.WidgetWithChildrenShortcut)
         QtWidgets.QShortcut(QtGui.QKeySequence.Copy, self, self._onCopy, context=QtCore.Qt.WidgetWithChildrenShortcut)
@@ -257,6 +282,129 @@ class NodePanel(QtWidgets.QWidget):
             name = portIn.name()
             if node.get_widget(name):
                 node.hide_widget(name, push_undo=False)
+
+    def _onLiveConnectionPrompt(self, start_port_view, scene_pos):
+        node_out = self.graph.get_node_by_id(start_port_view.node.id)
+        type_out = getattr(node_out, "_port_types", {}).get(start_port_view.name)
+        if not type_out:
+            self.graph.viewer().end_live_connection()
+            return
+        if node_out not in self.nodes:
+            self.graph.viewer().end_live_connection()
+            return
+        left = self.nodes.index(node_out)
+        leftNodeData = self.nodeGraph.nodes[self.key][left]
+        leftOutPin = -1
+        r_type = None
+        out_name = start_port_view.name
+        if type_out == "Exec":
+            if hasattr(leftNodeData.nodeFunction, "_execSplits"):
+                keys = list(leftNodeData.nodeFunction._execSplits.keys())
+                if out_name.startswith("out_"):
+                    key = out_name[4:]
+                    if key in keys:
+                        leftOutPin = keys.index(key)
+        elif type_out == "Params":
+            if hasattr(leftNodeData.nodeFunction, "_returnTypes"):
+                keys = list(leftNodeData.nodeFunction._returnTypes.keys())
+                if out_name in keys:
+                    leftOutPin = keys.index(out_name)
+                    r_type = leftNodeData.nodeFunction._returnTypes.get(out_name)
+        if leftOutPin == -1:
+            self.graph.viewer().end_live_connection()
+            return
+        self._pending_conn = {
+            "left": left,
+            "leftOutPin": leftOutPin,
+            "linkType": type_out,
+            "scene_pos": scene_pos,
+            "r_type": r_type,
+        }
+        sources = {}
+        for module in self.nodeGraph.modules_:
+            sources[module.__name__] = module
+        if self.nodeGraph.parentClass:
+            sources["Parent"] = self.nodeGraph.parentClass
+        if (type_out == "Params") and isinstance(r_type, type) and getattr(r_type, "__module__", "") != "builtins":
+            sources["Parent"] = r_type
+        popup = FunctionPickerPopup(self, sources, filterExecOnly=(type_out == "Exec"))
+        popup.functionSelected.connect(self._onFunctionSelectedFromPrompt)
+        popup.destroyed.connect(self._onFunctionPickerClosed)
+        popup.move(QtGui.QCursor.pos())
+        popup.show()
+
+    def _onFunctionSelectedFromPrompt(self, path: str, is_parent: bool):
+        if not self._pending_conn:
+            return
+        func = None
+        if is_parent and self.nodeGraph.parentClass:
+            func = getattr(self.nodeGraph.parentClass, path, None)
+        if not func:
+            for module in self.nodeGraph.modules_:
+                f = self.nodeGraph.getFunctionFromModule(module, path)
+                if f:
+                    func = f
+                    break
+        if not func:
+            self.graph.viewer().end_live_connection()
+            self._pending_conn = None
+            return
+        sig = inspect.signature(func)
+        params = []
+        for name, param in sig.parameters.items():
+            if name == "self":
+                continue
+            if param.default != inspect.Parameter.empty:
+                params.append(str(param.default))
+            else:
+                params.append("")
+        posf = self._pending_conn["scene_pos"]
+        pos = (posf.x(), posf.y())
+        node_data = EditorDataNode(path, params, pos)
+        if self.key not in self.nodeGraph.dataNodes:
+            self.nodeGraph.dataNodes[self.key] = []
+        self.nodeGraph.dataNodes[self.key].append(node_data)
+        self.nodeGraph.genNodesFromDataNodes()
+        self.nodeGraph.genRelationsFromLinks()
+        left = self._pending_conn["left"]
+        leftOutPin = self._pending_conn["leftOutPin"]
+        linkType = self._pending_conn["linkType"]
+        right = len(self.nodeGraph.nodes[self.key]) - 1
+        rightInPin = 0
+        if linkType == "Params":
+            sig2 = inspect.signature(func)
+            param_order = []
+            match_idx = None
+            for pname, p in sig2.parameters.items():
+                if pname == "self":
+                    continue
+                param_order.append(pname)
+                ann = p.annotation
+                if ann is not inspect._empty and ann == self._pending_conn.get("r_type"):
+                    match_idx = len(param_order) - 1
+            if match_idx is not None:
+                rightInPin = match_idx
+        link_data = {
+            "left": left,
+            "right": right,
+            "leftOutPin": leftOutPin,
+            "rightInPin": rightInPin,
+            "linkType": linkType,
+        }
+        if link_data not in self.nodeGraph.links[self.key]:
+            self.nodeGraph.links[self.key].append(link_data)
+        self.nodeGraph.genRelationsFromLinks()
+        GameData.recordSnapshot()
+        GameData.commonFunctionsData[self.name] = self.nodeGraph.asDict()
+        File.mainWindow.setWindowTitle(System.getTitle())
+        File.mainWindow._refreshUndoRedo()
+        self._refreshPanel()
+        self.graph.viewer().end_live_connection()
+        self._pending_conn = None
+
+    def _onFunctionPickerClosed(self):
+        self.graph.viewer().end_live_connection()
+        self._pending_conn = None
 
     def onPortDisconnected(self, portIn, portOut):
         if not self._isLoading and portIn and portOut:

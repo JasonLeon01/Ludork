@@ -3,7 +3,7 @@
 from __future__ import annotations
 from . import A_Base
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
-from . import Vector2f, Vector2i, Vector2u, GetCellSize
+from . import Vector2f, Vector2i, Vector2u, GetCellSize, ExecSplit, ReturnType
 from ...Utils import Math
 
 if TYPE_CHECKING:
@@ -43,76 +43,31 @@ class Actor(ActorBase):
             self._processMoving(fixedDelta)
 
     def onCreate(self) -> None:
-        if (
-            hasattr(type(self), "GENERATED_CLASS")
-            and type(self).GENERATED_CLASS
-            and not self._graph is None
-            and self._graph.hasKey("onCreate")
-        ):
-            self._graph.execute("onCreate")
+        pass
 
     def onTick(self, deltaTime: float) -> None:
-        if (
-            hasattr(type(self), "GENERATED_CLASS")
-            and type(self).GENERATED_CLASS
-            and not self._graph is None
-            and self._graph.hasKey("onTick")
-        ):
-            self._graph.localGraph["__deltaTime__"] = deltaTime
-            self._graph.execute("onTick")
+        pass
 
     def onLateTick(self, deltaTime: float) -> None:
-        if (
-            hasattr(type(self), "GENERATED_CLASS")
-            and type(self).GENERATED_CLASS
-            and not self._graph is None
-            and self._graph.hasKey("onLateTick")
-        ):
-            self._graph.localGraph["__deltaTime__"] = deltaTime
-            self._graph.execute("onLateTick")
+        pass
 
     def onFixedTick(self, fixedDelta: float) -> None:
-        if (
-            hasattr(type(self), "GENERATED_CLASS")
-            and type(self).GENERATED_CLASS
-            and not self._graph is None
-            and self._graph.hasKey("onFixedTick")
-        ):
-            self._graph.localGraph["__fixedDeltaTime__"] = fixedDelta
-            self._graph.execute("onFixedTick")
+        pass
 
     def onDestroy(self) -> None:
-        if (
-            hasattr(type(self), "GENERATED_CLASS")
-            and type(self).GENERATED_CLASS
-            and not self._graph is None
-            and self._graph.hasKey("onDestroy")
-        ):
-            self._graph.execute("onDestroy")
+        pass
 
     def onCollision(self, other: List[Actor]) -> None:
-        if (
-            hasattr(type(self), "GENERATED_CLASS")
-            and type(self).GENERATED_CLASS
-            and not self._graph is None
-            and self._graph.hasKey("onCollision")
-        ):
-            self._graph.localGraph["__collisionActors__"] = other
-            self._graph.execute("onCollision")
+        pass
 
     def onOverlap(self, other: List[Actor]) -> None:
-        if (
-            hasattr(type(self), "GENERATED_CLASS")
-            and type(self).GENERATED_CLASS
-            and not self._graph is None
-            and self._graph.hasKey("onOverlap")
-        ):
-            self._graph.localGraph["__overlapActors__"] = other
-            self._graph.execute("onOverlap")
+        pass
 
+    @ExecSplit(default=(None,))
     def destroy(self) -> None:
         self._map.destroyActor(self)
 
+    @ExecSplit(success=(True,), fail=(False,))
     def MapMove(self, offset: Union[Vector2i, Tuple[int, int]]) -> None:
         assert isinstance(offset, (Vector2i, tuple)), "offset must be a tuple or Vector2i"
         if not isinstance(offset, Vector2i):
@@ -133,9 +88,9 @@ class Actor(ActorBase):
         if not self._map.isPassable(self, target):
             collisions = self._map.getCollision(self, target)
             if collisions:
-                self.onCollision(collisions)
+                Actor.ActorCollision(self, collisions)
                 for collision in collisions:
-                    collision.onCollision([self])
+                    Actor.ActorCollision(collision, [self])
             return False
         self._isMoving = True
         self._departure = self.getPosition()
@@ -145,9 +100,11 @@ class Actor(ActorBase):
         )
         return True
 
+    @ReturnType(tickable=bool)
     def getTickable(self) -> bool:
         return self._tickable
 
+    @ExecSplit(default=(None,))
     def setTickable(self, tickable: bool, applyToChildren: bool = True) -> None:
         self._tickable = tickable
         if applyToChildren:
@@ -156,9 +113,11 @@ class Actor(ActorBase):
                     if isinstance(child, Actor):
                         child.setTickable(tickable, applyToChildren)
 
+    @ReturnType(visible=bool)
     def getVisible(self) -> bool:
         return self._visible
 
+    @ExecSplit(default=(None,))
     def setVisible(self, visible: bool, applyToChildren: bool = True) -> None:
         self._visible = visible
         if applyToChildren:
@@ -166,28 +125,36 @@ class Actor(ActorBase):
                 for child in self.getChildren():
                     child.setVisible(visible, applyToChildren)
 
+    @ReturnType(collisionEnabled=bool)
     def getCollisionEnabled(self) -> bool:
         return self._collisionEnabled
 
+    @ExecSplit(default=(None,))
     def setCollisionEnabled(self, enabled: bool) -> None:
         self._collisionEnabled = enabled
 
+    @ReturnType(intersects=bool)
     def intersects(self, other: Actor) -> bool:
         return self.getGlobalBounds().findIntersection(other.getGlobalBounds()) != None
 
+    @ReturnType(isMoving=bool)
     def isMoving(self) -> bool:
         return self._isMoving
 
+    @ReturnType(isInRoutine=bool)
     def isInRoutine(self) -> bool:
         return self._inRoutine
 
+    @ExecSplit(default=(None,))
     def setRoutine(self, routine: Optional[List[Vector2i]]) -> None:
         self._inRoutine = routine is not None
         self._routine = routine
 
+    @ReturnType(routine=Optional[List[Vector2i]])
     def getRoutine(self) -> Optional[List[Vector2i]]:
         return self._routine
 
+    @ExecSplit(default=(None,))
     def stop(self) -> None:
         self._isMoving = False
         self._inRoutine = False
@@ -196,6 +163,7 @@ class Actor(ActorBase):
         self._destination = None
         self._autoFixMapPosition()
 
+    @ReturnType(velocity=Optional[Vector2f])
     def getVelocity(self) -> Optional[Vector2f]:
         if self._departure is None or self._destination is None:
             return None
@@ -205,6 +173,95 @@ class Actor(ActorBase):
         time = length / self._speed
         velocity = dist / time
         return velocity
+
+    @staticmethod
+    def ActorCreate(actor: Actor) -> None:
+        if (
+            hasattr(type(actor), "GENERATED_CLASS")
+            and type(actor).GENERATED_CLASS
+            and not actor._graph is None
+            and actor._graph.hasKey("onCreate")
+        ):
+            actor._graph.execute("onCreate")
+        else:
+            actor.onCreate()
+
+    @staticmethod
+    def ActorTick(actor: Actor, deltaTime: float) -> None:
+        if (
+            hasattr(type(actor), "GENERATED_CLASS")
+            and type(actor).GENERATED_CLASS
+            and not actor._graph is None
+            and actor._graph.hasKey("onTick")
+        ):
+            actor._graph.localGraph["__deltaTime__"] = deltaTime
+            actor._graph.execute("onTick")
+        else:
+            actor.onTick(deltaTime)
+
+    @staticmethod
+    def ActorLateTick(actor: Actor, deltaTime: float) -> None:
+        if (
+            hasattr(type(actor), "GENERATED_CLASS")
+            and type(actor).GENERATED_CLASS
+            and not actor._graph is None
+            and actor._graph.hasKey("onLateTick")
+        ):
+            actor._graph.localGraph["__deltaTime__"] = deltaTime
+            actor._graph.execute("onLateTick")
+        else:
+            actor.onLateTick(deltaTime)
+
+    @staticmethod
+    def ActorFixedTick(actor: Actor, fixedDelta: float) -> None:
+        if (
+            hasattr(type(actor), "GENERATED_CLASS")
+            and type(actor).GENERATED_CLASS
+            and not actor._graph is None
+            and actor._graph.hasKey("onFixedTick")
+        ):
+            actor._graph.localGraph["__fixedDeltaTime__"] = fixedDelta
+            actor._graph.execute("onFixedTick")
+        else:
+            actor.onFixedTick(fixedDelta)
+
+    @staticmethod
+    def ActorDestroy(actor: Actor) -> None:
+        if (
+            hasattr(type(actor), "GENERATED_CLASS")
+            and type(actor).GENERATED_CLASS
+            and not actor._graph is None
+            and actor._graph.hasKey("onDestroy")
+        ):
+            actor._graph.execute("onDestroy")
+        else:
+            actor.onDestroy()
+
+    @staticmethod
+    def ActorCollision(actor: Actor, other: List[Actor]) -> None:
+        if (
+            hasattr(type(actor), "GENERATED_CLASS")
+            and getattr(type(actor), "GENERATED_CLASS")
+            and not actor._graph is None
+            and actor._graph.hasKey("onCollision")
+        ):
+            actor._graph.localGraph["__collisionActors__"] = other
+            actor._graph.execute("onCollision")
+        else:
+            actor.onCollision(other)
+
+    @staticmethod
+    def ActorOverlap(actor: Actor, other: List[Actor]) -> None:
+        if (
+            hasattr(type(actor), "GENERATED_CLASS")
+            and getattr(type(actor), "GENERATED_CLASS")
+            and not actor._graph is None
+            and actor._graph.hasKey("onOverlap")
+        ):
+            actor._graph.localGraph["__overlapActors__"] = other
+            actor._graph.execute("onOverlap")
+        else:
+            actor.onOverlap(other)
 
     def _processMoving(self, fixedDelta: float) -> None:
         velocity = self.getVelocity()
@@ -226,9 +283,9 @@ class Actor(ActorBase):
             self._destination = None
             overlaps = self._map.getOverlaps(self)
             if overlaps:
-                self.onOverlap(overlaps)
+                Actor.ActorOverlap(self, overlaps)
                 for overlap in overlaps:
-                    overlap.onOverlap([self])
+                    Actor.ActorOverlap(overlap, [self])
 
     def _autoFixMapPosition(self) -> None:
         pos = self.getPosition()

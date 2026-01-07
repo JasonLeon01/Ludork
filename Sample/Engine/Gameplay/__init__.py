@@ -30,6 +30,8 @@ from .. import (
     Shader,
     Vector3f,
     Image,
+    ExecSplit,
+    ReturnType,
 )
 from . import Actors
 from . import G_ParticleSystem

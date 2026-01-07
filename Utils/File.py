@@ -121,7 +121,7 @@ def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
         GameData.init()
     except Exception as e:
         QtWidgets.QMessageBox.critical(None, "Error", Locale.getContent("OPEN_FAILED") + "\n" + str(e))
-        return
+        exit(1)
     from W_MainWindow import MainWindow
 
     mainWindow = MainWindow(System.getTitle())
