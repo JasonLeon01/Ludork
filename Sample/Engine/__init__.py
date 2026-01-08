@@ -36,6 +36,15 @@ def ExecSplit(**kwargs):
     return decorator
 
 
+def Latent(**kwargs):
+    def decorator(func):
+        func._latents = kwargs
+        func._refLocal: Dict[str, Any] = {}
+        return func
+
+    return decorator
+
+
 def ReturnType(**kwargs):
     def decorator(func):
         func._returnTypes = kwargs

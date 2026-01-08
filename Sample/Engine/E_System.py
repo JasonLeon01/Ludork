@@ -225,6 +225,11 @@ class System:
             if cls._transitionTimeCount >= cls._transitionTime:
                 cls._inTransition = False
 
+        from Engine.NodeGraph import latentManager
+
+        if latentManager:
+            latentManager.update()
+
     @classmethod
     def getTitle(cls) -> str:
         return cls._title

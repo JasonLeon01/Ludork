@@ -2,6 +2,7 @@
 
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from .N_Node import DataNode, Node
+from .N_LatentManager import latentManager
 
 
 class Graph:
@@ -26,8 +27,8 @@ class Graph:
         self.nodes: Dict[str, List[Node]] = {}
         self.links = links
         self.startNodes = startNodes
-        self.nodeRely: Dict[str, Dict[int, Dict[Tuple[int, int]]]] = {}
-        self.nodeNexts: Dict[str, Dict[int, Dict[Tuple[int, int]]]] = {}
+        self.nodeRely: Dict[str, Dict[int, Dict[int, Tuple[int, int]]]] = {}
+        self.nodeNexts: Dict[str, Dict[int, Dict[int, Tuple[int, int]]]] = {}
         if self.startNodes is None:
             self.startNodes = {}
         self.nodeModel = nodeModel
@@ -85,44 +86,51 @@ class Graph:
                         self.nodeNexts[key][left] = {}
                     self.nodeNexts[key][left][leftOutPin] = (right, rightInPin)
 
-    def execute(self, key: str, limit=10000) -> Tuple[Any, ...]:
+    def execute(self, key: str, startNode: Optional[int] = None, limit=10000) -> Tuple[Any, ...]:
         self.doingPartKey = key
         if key not in self.nodes:
             raise KeyError(f"Graph key '{key}' not found")
         if key not in self.startNodes:
             raise KeyError(f"Start node for key '{key}' not set")
-        curr = self.startNodes[key]
+        if startNode is None:
+            startNode = self.startNodes[key]
+        curr = startNode
         if not (0 <= curr < len(self.nodes[key])):
             raise IndexError(f"startIndex {curr} out of range for key '{key}'")
         cache: Dict[int, Tuple[Any, ...]] = {}
         steps = 0
         while True:
             result = self.executeNode(key, curr, cache)
-            next_map = self.nodeNexts.get(key, {}).get(curr, {})
-            if not next_map:
+            nextMap = self.nodeNexts.get(key, {}).get(curr, {})
+            if not nextMap:
                 return result
             chosen = None
-            node_func = self.nodes[key][curr].nodeFunction
-            splits = getattr(node_func, "_execSplits", None)
+            nodeFunc = self.nodes[key][curr].nodeFunction
+            if hasattr(nodeFunc, "_latents"):
+                latentManager.add(self, key, result, self.localGraph, curr)
+                return result
+            splits = getattr(nodeFunc, "_execSplits", None)
             if splits and len(splits) > 0:
                 for v in result:
-                    match_found = False
-                    for out_pin, pin_values in splits.items():
-                        for cv in pin_values:
-                            if v == cv and out_pin in next_map:
-                                chosen = next_map[out_pin][0]
-                                match_found = True
+                    matchFound = False
+                    splitKeys = list(splits.keys())
+                    for i, outPin in enumerate(splitKeys):
+                        pinValues = splits[outPin]
+                        for cv in pinValues:
+                            if v == cv and i in nextMap:
+                                chosen, _ = nextMap[i]
+                                matchFound = True
                                 break
-                        if match_found:
+                        if matchFound:
                             break
-                    if match_found:
+                    if matchFound:
                         break
             else:
-                if len(next_map) == 1:
-                    chosen = list(next_map.values())[0][0]
+                if len(nextMap) == 1:
+                    chosen, _ = list(nextMap.values())[0]
                 else:
-                    out_pin = sorted(next_map.keys())[0]
-                    chosen = next_map[out_pin][0]
+                    outPin = sorted(nextMap.keys())[0]
+                    chosen, _ = nextMap[outPin]
             if chosen is None:
                 return result
             curr = chosen
@@ -139,9 +147,9 @@ class Graph:
             if n in visited:
                 return
             visited.add(n)
-            dep_map = rely.get(n, {})
-            if dep_map:
-                for in_pin, src in sorted(dep_map.items(), key=lambda item: item[0]):
+            depMap = rely.get(n, {})
+            if depMap:
+                for inPin, src in sorted(depMap.items(), key=lambda item: item[0]):
                     left = src[0]
                     dfs(left)
                     if left not in order:
@@ -150,6 +158,9 @@ class Graph:
         dfs(nodeIndex)
         return order
 
+    def getNodes(self, key: str) -> List[Node]:
+        return self.nodes[key]
+
     def executeNode(
         self, key: str, nodeIndex: int, _cache: Optional[Dict[int, Tuple[Any, ...]]] = None
     ) -> Tuple[Any, ...]:
@@ -157,11 +168,11 @@ class Graph:
             _cache = {}
         if nodeIndex in _cache:
             return _cache[nodeIndex]
-        rely_key = self.nodeRely.get(key, {})
-        dep_map = rely_key.get(nodeIndex, {})
+        relyKey = self.nodeRely.get(key, {})
+        depMap = relyKey.get(nodeIndex, {})
         inputPinReplace: Dict[int, Any] = {}
-        if dep_map:
-            for rightInPin, src in sorted(dep_map.items(), key=lambda item: item[0]):
+        if depMap:
+            for rightInPin, src in sorted(depMap.items(), key=lambda item: item[0]):
                 leftIndex, leftOutPin = src
                 leftResult = self.executeNode(key, leftIndex, _cache)
                 if not (0 <= leftOutPin < len(leftResult)):

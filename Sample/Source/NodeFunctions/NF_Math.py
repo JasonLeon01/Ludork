@@ -5,6 +5,7 @@ import random
 from typing import Any, List, Union
 from Engine import (
     ReturnType,
+    ExecSplit,
     Vector2f,
     Vector2i,
     Vector2u,
@@ -260,3 +261,128 @@ def RandomInt(min_val: int, max_val: int) -> int:
 @ReturnType(value=float)
 def RandomFloat(min_val: float, max_val: float) -> float:
     return random.uniform(min_val, max_val)
+
+
+@ReturnType(value=Any)
+def ADD(a: Any, b: Any) -> Any:
+    return a + b
+
+
+@ReturnType(value=Any)
+def SUB(a: Any, b: Any) -> Any:
+    return a - b
+
+
+@ReturnType(value=Any)
+def MUL(a: Any, b: Any) -> Any:
+    return a * b
+
+
+@ReturnType(value=Any)
+def DIV(a: Any, b: Any) -> Any:
+    return a / b
+
+
+@ReturnType(value=Any)
+def MOD(a: Any, b: Any) -> Any:
+    return a % b
+
+
+@ReturnType(value=Any)
+def POW(a: Any, b: Any) -> Any:
+    return a**b
+
+
+@ReturnType(bool)
+def EQUALS(a: Any, b: Any) -> bool:
+    return a == b
+
+
+@ReturnType(bool)
+def NOT_EQUALS(a: Any, b: Any) -> bool:
+    return a != b
+
+
+@ReturnType(bool)
+def LESS(a: Any, b: Any) -> bool:
+    return a < b
+
+
+@ReturnType(bool)
+def LESS_EQUALS(a: Any, b: Any) -> bool:
+    return a <= b
+
+
+@ReturnType(bool)
+def GREATER(a: Any, b: Any) -> bool:
+    return a > b
+
+
+@ReturnType(bool)
+def GREATER_EQUALS(a: Any, b: Any) -> bool:
+    return a >= b
+
+
+@ReturnType(bool)
+def AND(a: bool, b: bool) -> bool:
+    return a and b
+
+
+@ReturnType(bool)
+def OR(a: bool, b: bool) -> bool:
+    return a or b
+
+
+@ReturnType(bool)
+def NOT(a: bool) -> bool:
+    return not a
+
+
+@ReturnType(bool)
+def XOR(a: bool, b: bool) -> bool:
+    return a ^ b
+
+
+@ReturnType(bool)
+def NAND(a: bool, b: bool) -> bool:
+    return not (a and b)
+
+
+@ReturnType(bool)
+def NOR(a: bool, b: bool) -> bool:
+    return not (a or b)
+
+
+@ReturnType(bool)
+def XNOR(a: bool, b: bool) -> bool:
+    return not (a ^ b)
+
+
+@ExecSplit(default=(None,))
+def IADD(a: Any, b: Any) -> Any:
+    a += b
+
+
+@ExecSplit(default=(None,))
+def ISUB(a: Any, b: Any) -> Any:
+    a -= b
+
+
+@ExecSplit(default=(None,))
+def IMUL(a: Any, b: Any) -> Any:
+    a *= b
+
+
+@ExecSplit(default=(None,))
+def IDIV(a: Any, b: Any) -> Any:
+    a /= b
+
+
+@ExecSplit(default=(None,))
+def IMOD(a: Any, b: Any) -> Any:
+    a %= b
+
+
+@ExecSplit(default=(None,))
+def IPOW(a: Any, b: Any) -> Any:
+    a **= b

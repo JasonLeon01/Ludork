@@ -15,6 +15,7 @@ from Utils import Locale, System, File
 import EditorStatus
 
 START_PROJ_FILE = None
+os.environ["IN_EDITOR"] = "True"
 
 
 def initConfig():
