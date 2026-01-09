@@ -23,6 +23,8 @@ class MapData:
 class EditorPanel(QtWidgets.QWidget):
     tileNumberPicked = QtCore.pyqtSignal(int)
     dataChanged = QtCore.pyqtSignal()
+    lightSelectionChanged = QtCore.pyqtSignal(str, object, object)
+    lightDataChanged = QtCore.pyqtSignal(str, object, object)
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         self.selctedPos: Tuple[int, int] = None
@@ -36,6 +38,19 @@ class EditorPanel(QtWidgets.QWidget):
         self.selectedTileNumber: Optional[int] = None
         self.tileModeEnabled: bool = True
         self.rectStartPos: Optional[Tuple[int, int]] = None
+        self.selectedLightIndex: Optional[int] = None
+        self._lightRadiusDragging = False
+        self._lightRadiusDragMapKey = ""
+        self._lightRadiusDragIndex: Optional[int] = None
+        self._lightRadiusDragCenter: Optional[Tuple[float, float]] = None
+        self._lightRadiusDragLastRadius: Optional[float] = None
+        self._lightRadiusDragTitleRefreshed = False
+        self._lightMoveDragging = False
+        self._lightMoveDragMapKey = ""
+        self._lightMoveDragIndex: Optional[int] = None
+        self._lightMoveDragOffset: Optional[Tuple[float, float]] = None
+        self._lightMoveDragTitleRefreshed = False
+        self._lightOverlayEnabled = False
         super().__init__(parent)
         self.setMouseTracking(True)
         self.setFocusPolicy(QtCore.Qt.ClickFocus)
@@ -61,6 +76,7 @@ class EditorPanel(QtWidgets.QWidget):
         self.selctedPos = None
         self.mapData = None
         self._pixmap = None
+        self._setSelectedLightIndex(None)
         self.setMinimumSize(0, 0)
         self.resize(0, 0)
         self._mapFilesRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
@@ -172,9 +188,202 @@ class EditorPanel(QtWidgets.QWidget):
 
     def setTileMode(self, enabled: bool) -> None:
         self.tileModeEnabled = bool(enabled)
+        if self.tileModeEnabled:
+            self._stopLightRadiusDrag()
+            self._stopLightMoveDrag()
+            self._setSelectedLightIndex(None)
+            self._setLightOverlayEnabled(False)
+        self.update()
+
+    def setLightOverlayEnabled(self, enabled: bool) -> None:
+        self._setLightOverlayEnabled(bool(enabled))
+        self.update()
+
+    def _setLightOverlayEnabled(self, enabled: bool) -> None:
+        enabled = bool(enabled)
+        if self._lightOverlayEnabled == enabled:
+            return
+        self._lightOverlayEnabled = enabled
+        if not enabled:
+            self._stopLightRadiusDrag()
+            self._stopLightMoveDrag()
+            self._setSelectedLightIndex(None)
 
     def setSelectedTileNumber(self, num: Optional[int]) -> None:
         self.selectedTileNumber = None if num is None else int(num)
+
+    def clearLightSelection(self) -> None:
+        self._stopLightRadiusDrag()
+        self._stopLightMoveDrag()
+        self._setSelectedLightIndex(None)
+        self.update()
+
+    def setSelectedLightIndex(self, index: Optional[int]) -> None:
+        self._stopLightRadiusDrag()
+        self._stopLightMoveDrag()
+        self._setSelectedLightIndex(index)
+        self.update()
+
+    def _getLights(self) -> List[Dict[str, Any]]:
+        if not self.mapKey:
+            return []
+        m = GameData.mapData.get(self.mapKey)
+        if not isinstance(m, dict):
+            return []
+        lights = m.get("lights")
+        if not isinstance(lights, list):
+            return []
+        return lights
+
+    def _stopLightRadiusDrag(self) -> None:
+        if not self._lightRadiusDragging:
+            return
+        self._lightRadiusDragging = False
+        self._lightRadiusDragMapKey = ""
+        self._lightRadiusDragIndex = None
+        self._lightRadiusDragCenter = None
+        self._lightRadiusDragLastRadius = None
+        self._lightRadiusDragTitleRefreshed = False
+        self.unsetCursor()
+
+    def _stopLightMoveDrag(self) -> None:
+        if not self._lightMoveDragging:
+            return
+        self._lightMoveDragging = False
+        self._lightMoveDragMapKey = ""
+        self._lightMoveDragIndex = None
+        self._lightMoveDragOffset = None
+        self._lightMoveDragTitleRefreshed = False
+        self.unsetCursor()
+
+    def _getLightCenterRadius(self, light: Dict[str, Any]) -> Optional[Tuple[float, float, float]]:
+        pos = light.get("position")
+        if not isinstance(pos, (list, tuple)) or len(pos) < 2:
+            return None
+        try:
+            cx = float(pos[0])
+            cy = float(pos[1])
+            r = float(light.get("radius", 0.0))
+        except Exception:
+            return None
+        if r <= 0:
+            return None
+        return cx, cy, r
+
+    def _isInLightDisk(self, pos: QtCore.QPoint, index: int) -> bool:
+        lights = self._getLights()
+        if not (0 <= index < len(lights)):
+            return False
+        light = lights[index]
+        if not isinstance(light, dict):
+            return False
+        cr = self._getLightCenterRadius(light)
+        if cr is None:
+            return False
+        cx, cy, r = cr
+        dx = float(pos.x()) - cx
+        dy = float(pos.y()) - cy
+        return (dx * dx + dy * dy) <= r * r
+
+    def _isNearLightEdge(self, pos: QtCore.QPoint, index: int, tol: float = 6.0) -> bool:
+        lights = self._getLights()
+        if not (0 <= index < len(lights)):
+            return False
+        light = lights[index]
+        if not isinstance(light, dict):
+            return False
+        cr = self._getLightCenterRadius(light)
+        if cr is None:
+            return False
+        cx, cy, r = cr
+        dx = float(pos.x()) - cx
+        dy = float(pos.y()) - cy
+        dist = (dx * dx + dy * dy) ** 0.5
+        return abs(dist - r) <= float(tol)
+
+    def _applyLightRadius(self, index: int, radius: float) -> None:
+        if not self.mapKey:
+            return
+        m = GameData.mapData.get(self.mapKey)
+        if not isinstance(m, dict):
+            return
+        lights = m.get("lights")
+        if not isinstance(lights, list):
+            return
+        if not (0 <= index < len(lights)):
+            return
+        light = lights[index]
+        if not isinstance(light, dict):
+            return
+        light["radius"] = float(radius)
+        self.lightDataChanged.emit(self.mapKey, index, light)
+
+    def _applyLightPosition(self, index: int, x: float, y: float) -> None:
+        if not self.mapKey:
+            return
+        m = GameData.mapData.get(self.mapKey)
+        if not isinstance(m, dict):
+            return
+        lights = m.get("lights")
+        if not isinstance(lights, list):
+            return
+        if not (0 <= index < len(lights)):
+            return
+        light = lights[index]
+        if not isinstance(light, dict):
+            return
+        light["position"] = [float(x), float(y)]
+        self.lightDataChanged.emit(self.mapKey, index, light)
+
+    def _setSelectedLightIndex(self, index: Optional[int]) -> None:
+        if index is not None:
+            try:
+                index = int(index)
+            except Exception:
+                index = None
+        if index is not None:
+            lights = self._getLights()
+            if not (0 <= index < len(lights)):
+                index = None
+        if self.selectedLightIndex == index:
+            return
+        self.selectedLightIndex = index
+        lights = self._getLights()
+        light = lights[index] if (index is not None and 0 <= index < len(lights)) else None
+        if not isinstance(light, dict):
+            light = None
+        self.lightSelectionChanged.emit(self.mapKey, index, light)
+
+    def _hitTestLight(self, pos: QtCore.QPoint) -> Optional[int]:
+        lights = self._getLights()
+        if not lights:
+            return None
+        px = float(pos.x())
+        py = float(pos.y())
+        best = None
+        bestDist2 = None
+        for i, l in enumerate(lights):
+            if not isinstance(l, dict):
+                continue
+            p = l.get("position")
+            if not isinstance(p, (list, tuple)) or len(p) < 2:
+                continue
+            try:
+                cx = float(p[0])
+                cy = float(p[1])
+                r = float(l.get("radius", 0.0))
+            except Exception:
+                continue
+            if r <= 0:
+                continue
+            dx = px - cx
+            dy = py - cy
+            dist2 = dx * dx + dy * dy
+            if dist2 <= r * r:
+                if best is None or (bestDist2 is not None and dist2 < bestDist2):
+                    best = i
+                    bestDist2 = dist2
+        return best
 
     def getLayerTilesetKey(self, name: str) -> Optional[str]:
         if self.mapData is None:
@@ -330,6 +539,12 @@ class EditorPanel(QtWidgets.QWidget):
         self.update()
 
     def mouseReleaseEvent(self, e: QtGui.QMouseEvent) -> None:
+        if self._lightOverlayEnabled and e.button() == QtCore.Qt.LeftButton:
+            self._stopLightRadiusDrag()
+            self._stopLightMoveDrag()
+            self.update()
+            super().mouseReleaseEvent(e)
+            return
         if e.button() == QtCore.Qt.LeftButton and self.rectStartPos is not None:
             self._commitRectangle(self.selctedPos)
         super().mouseReleaseEvent(e)
@@ -355,6 +570,46 @@ class EditorPanel(QtWidgets.QWidget):
             y += s
         if self._pixmap is not None:
             p.drawPixmap(0, 0, self._pixmap)
+
+        if self._lightOverlayEnabled:
+            p.setRenderHint(QtGui.QPainter.Antialiasing, True)
+            lights = self._getLights()
+            for i, light in enumerate(lights):
+                if not isinstance(light, dict):
+                    continue
+                pos = light.get("position")
+                if not isinstance(pos, (list, tuple)) or len(pos) < 2:
+                    continue
+                try:
+                    cx = float(pos[0])
+                    cy = float(pos[1])
+                    radius = float(light.get("radius", 0.0))
+                except Exception:
+                    continue
+                if radius <= 0:
+                    continue
+                isSelected = self.selectedLightIndex == i
+                color = QtGui.QColor(255, 220, 0) if isSelected else QtGui.QColor(0, 200, 0)
+                fillColor = QtGui.QColor(255, 255, 255, 32)
+                rawColor = light.get("color")
+                if isinstance(rawColor, (list, tuple)) and len(rawColor) >= 3:
+                    try:
+                        r = max(0, min(255, int(rawColor[0])))
+                        g = max(0, min(255, int(rawColor[1])))
+                        b = max(0, min(255, int(rawColor[2])))
+                        a = max(0, min(255, int(rawColor[3]))) if len(rawColor) >= 4 else 255
+                        fillA = max(12, min(80, int(a * 0.15)))
+                        fillColor = QtGui.QColor(r, g, b, fillA)
+                    except Exception:
+                        fillColor = QtGui.QColor(255, 255, 255, 32)
+
+                p.setPen(QtGui.QPen(color, 2))
+                p.setBrush(fillColor)
+                p.drawEllipse(QtCore.QPointF(cx, cy), radius, radius)
+                p.setBrush(color)
+                p.setPen(QtCore.Qt.NoPen)
+                p.drawEllipse(QtCore.QPointF(cx, cy), 3.0, 3.0)
+                p.setBrush(QtCore.Qt.NoBrush)
 
         if self.selctedPos is not None and self.selectedLayerName is not None:
             gx, gy = self.selctedPos
@@ -405,6 +660,8 @@ class EditorPanel(QtWidgets.QWidget):
         super().changeEvent(e)
 
     def leaveEvent(self, a0: QtCore.QEvent) -> None:
+        self._stopLightRadiusDrag()
+        self._stopLightMoveDrag()
         self.selctedPos = None
         self.update()
         super().leaveEvent(a0)
@@ -414,6 +671,60 @@ class EditorPanel(QtWidgets.QWidget):
             return
         x = int(e.pos().x())
         y = int(e.pos().y())
+        if self._lightOverlayEnabled:
+            if e.button() != QtCore.Qt.LeftButton:
+                return
+
+            idx = self.selectedLightIndex if isinstance(self.selectedLightIndex, int) else None
+            if isinstance(idx, int) and self._isNearLightEdge(e.pos(), idx):
+                lights = self._getLights()
+                if 0 <= idx < len(lights) and isinstance(lights[idx], dict):
+                    cr = self._getLightCenterRadius(lights[idx])
+                    if cr is not None:
+                        cx, cy, r = cr
+                        GameData.recordSnapshot()
+                        self._lightRadiusDragging = True
+                        self._lightRadiusDragMapKey = self.mapKey
+                        self._lightRadiusDragIndex = idx
+                        self._lightRadiusDragCenter = (cx, cy)
+                        self._lightRadiusDragLastRadius = r
+                        self._lightRadiusDragTitleRefreshed = False
+                        self.setCursor(QtCore.Qt.SizeAllCursor)
+                        return
+
+            if isinstance(idx, int) and self._isInLightDisk(e.pos(), idx):
+                lights = self._getLights()
+                if 0 <= idx < len(lights) and isinstance(lights[idx], dict):
+                    cr = self._getLightCenterRadius(lights[idx])
+                    if cr is not None:
+                        cx, cy, _ = cr
+                        GameData.recordSnapshot()
+                        self._lightMoveDragging = True
+                        self._lightMoveDragMapKey = self.mapKey
+                        self._lightMoveDragIndex = idx
+                        self._lightMoveDragOffset = (float(e.pos().x()) - cx, float(e.pos().y()) - cy)
+                        self._lightMoveDragTitleRefreshed = False
+                        self.setCursor(QtCore.Qt.SizeAllCursor)
+                        return
+
+            hit = self._hitTestLight(e.pos())
+            self._setSelectedLightIndex(hit)
+            if isinstance(hit, int) and self._isInLightDisk(e.pos(), hit) and not self._isNearLightEdge(e.pos(), hit):
+                lights = self._getLights()
+                if 0 <= hit < len(lights) and isinstance(lights[hit], dict):
+                    cr = self._getLightCenterRadius(lights[hit])
+                    if cr is not None:
+                        cx, cy, _ = cr
+                        GameData.recordSnapshot()
+                        self._lightMoveDragging = True
+                        self._lightMoveDragMapKey = self.mapKey
+                        self._lightMoveDragIndex = hit
+                        self._lightMoveDragOffset = (float(e.pos().x()) - cx, float(e.pos().y()) - cy)
+                        self._lightMoveDragTitleRefreshed = False
+                        self.setCursor(QtCore.Qt.SizeAllCursor)
+                        return
+            self.update()
+            return
         tileSize = EditorStatus.CELLSIZE
         gx = x // tileSize
         gy = y // tileSize
@@ -455,6 +766,44 @@ class EditorPanel(QtWidgets.QWidget):
 
     def mouseMoveEvent(self, e: QtGui.QMouseEvent) -> None:
         if self.mapData is None:
+            return
+        if self._lightOverlayEnabled:
+            if self._lightMoveDragging:
+                idx = self._lightMoveDragIndex
+                offset = self._lightMoveDragOffset
+                if isinstance(idx, int) and isinstance(offset, tuple) and len(offset) == 2:
+                    ox, oy = float(offset[0]), float(offset[1])
+                    x = float(e.pos().x()) - ox
+                    y = float(e.pos().y()) - oy
+                    self._applyLightPosition(idx, x, y)
+                    if not self._lightMoveDragTitleRefreshed:
+                        self._lightMoveDragTitleRefreshed = True
+                        self._refreshTitle()
+                    self.update()
+                return
+
+            if self._lightRadiusDragging:
+                idx = self._lightRadiusDragIndex
+                center = self._lightRadiusDragCenter
+                if isinstance(idx, int) and isinstance(center, tuple) and len(center) == 2:
+                    cx, cy = float(center[0]), float(center[1])
+                    dx = float(e.pos().x()) - cx
+                    dy = float(e.pos().y()) - cy
+                    radius = max(0.0, (dx * dx + dy * dy) ** 0.5)
+                    last = self._lightRadiusDragLastRadius
+                    if last is None or abs(radius - float(last)) >= 0.5:
+                        self._lightRadiusDragLastRadius = radius
+                        self._applyLightRadius(idx, radius)
+                        if not self._lightRadiusDragTitleRefreshed:
+                            self._lightRadiusDragTitleRefreshed = True
+                            self._refreshTitle()
+                        self.update()
+                return
+
+            if isinstance(self.selectedLightIndex, int) and self._isNearLightEdge(e.pos(), self.selectedLightIndex):
+                self.setCursor(QtCore.Qt.SizeAllCursor)
+            else:
+                self.unsetCursor()
             return
         x = int(e.pos().x())
         y = int(e.pos().y())

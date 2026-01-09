@@ -28,19 +28,7 @@ class Scene(SceneBase):
         self.actors[1].animateWithoutMoving = True
         self.actors[1].setRelativePosition((64, -64))
 
-        tilesetData = Data.getTileset("Tileset_01")
-
-        self._gameMap = GameMap.loadData(
-            File.loadData("./Data/Maps/Map_01.dat"),
-            {"Tileset_01": tilesetData},
-        )
-        self._gameMap.setLights(
-            [
-                Light(Vector2f(32, 112), Color(255, 220, 180, 255), 256.0),
-                Light(Vector2f(480, 240), Color(255, 110, 60, 255), 128.0),
-            ]
-        )
-
+        self._gameMap = GameMap.fromData(File.loadData("./Data/Maps/Map_01.dat"))
         self._gameMap.spawnActor(self.actors[0], "default")
         self._gameMap.getCamera().setParent(self.actors[0])
         self.actors[0].setRoutine(self._gameMap.findPath(self.actors[0].getMapPosition(), Vector2i(0, 0)))

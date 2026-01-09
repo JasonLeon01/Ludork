@@ -134,12 +134,12 @@ class EditModeToggle(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._selected = 0
-        self.setFixedSize(128, 32)
+        self.setFixedSize(192, 32)
         self.setMouseTracking(True)
         Panel.applyDisabledOpacity(self)
 
     def sizeHint(self):
-        return QtCore.QSize(128, 32)
+        return QtCore.QSize(192, 32)
 
     def setSelected(self, idx: int):
         if idx != self._selected:
@@ -163,6 +163,37 @@ class EditModeToggle(QtWidgets.QWidget):
             for i in range(cols):
                 r = QtCore.QRect(x0 + i * cell + 2, y0 + j * cell + 2, cell - 4, cell - 4)
                 p.drawRoundedRect(r, 3, 3)
+
+    def _drawLightIcon(self, p: QtGui.QPainter, rect: QtCore.QRect):
+        s = 30
+        cx = rect.center().x()
+        cy = rect.center().y()
+        fg = QtGui.QColor(200, 200, 200)
+        pen = QtGui.QPen(fg)
+        pen.setWidth(max(1, 2))
+        p.setPen(pen)
+        p.setBrush(QtCore.Qt.NoBrush)
+
+        bulb_r = 8
+        bulb_center = QtCore.QPoint(cx, cy - 2)
+        p.drawEllipse(bulb_center, bulb_r, bulb_r)
+
+        base_w = 10
+        base_h = 6
+        base_rect = QtCore.QRect(cx - base_w // 2, cy + 8, base_w, base_h)
+        p.drawRoundedRect(base_rect, 2, 2)
+        p.drawLine(cx, cy + 6, cx, cy + 8)
+
+        acc = QtWidgets.QApplication.palette().highlight().color()
+        pen2 = QtGui.QPen(acc)
+        pen2.setWidth(max(1, 2))
+        p.setPen(pen2)
+        ray = 12
+        p.drawLine(cx, cy - 14, cx, cy - ray)
+        p.drawLine(cx - 12, cy - 2, cx - ray, cy - 2)
+        p.drawLine(cx + ray, cy - 2, cx + 12, cy - 2)
+        p.drawLine(cx - 10, cy - 12, cx - 7, cy - 9)
+        p.drawLine(cx + 7, cy - 9, cx + 10, cy - 12)
 
     def _drawActorIcon(self, p: QtGui.QPainter, rect: QtCore.QRect):
         s = 30
@@ -206,37 +237,61 @@ class EditModeToggle(QtWidgets.QWidget):
         p.setRenderHint(QtGui.QPainter.Antialiasing, True)
         w = self.width()
         h = self.height()
-        half = w // 2
-        rectL = QtCore.QRect(0, 0, half, h)
-        rectR = QtCore.QRect(half, 0, w - half, h)
+        third = max(1, w // 3)
+        rectL = QtCore.QRect(0, 0, third, h)
+        rectM = QtCore.QRect(third, 0, third, h)
+        rectR = QtCore.QRect(third * 2, 0, w - third * 2, h)
         bg = QtGui.QColor(40, 40, 40)
         p.fillRect(rectL, bg)
+        p.fillRect(rectM, bg)
         p.fillRect(rectR, bg)
         self._drawTileIcon(p, rectL)
+        self._drawLightIcon(p, rectM)
         self._drawActorIcon(p, rectR)
-        sel = rectL if self._selected == 0 else rectR
+        sel = rectL if self._selected == 0 else (rectM if self._selected == 1 else rectR)
         overlay = QtGui.QColor(255, 255, 255, 80)
         p.fillRect(sel, overlay)
+
+    def _idxFromX(self, x: int) -> int:
+        w = self.width()
+        if w <= 0:
+            return 0
+        third = max(1, w // 3)
+        if x < third:
+            return 0
+        if x < third * 2:
+            return 1
+        return 2
 
     def mousePressEvent(self, e):
         if not self.isEnabled():
             return
-        idx = 0 if e.x() < self.width() // 2 else 1
+        idx = self._idxFromX(e.x())
         if idx != self._selected:
             self._selected = idx
             self.update()
             self.selectionChanged.emit(idx)
 
     def mouseMoveEvent(self, e):
-        idx = 0 if e.x() < self.width() // 2 else 1
-        text = (Locale.getContent("TILE_MODE")) if idx == 0 else (Locale.getContent("ACTOR_MODE"))
+        idx = self._idxFromX(e.x())
+        if idx == 0:
+            text = Locale.getContent("TILE_MODE")
+        elif idx == 1:
+            text = Locale.getContent("LIGHT_MODE")
+        else:
+            text = Locale.getContent("ACTOR_MODE")
         QtWidgets.QToolTip.showText(e.globalPos(), text, self)
         super().mouseMoveEvent(e)
 
     def event(self, e):
         if e.type() == QtCore.QEvent.ToolTip:
-            idx = 0 if e.pos().x() < self.width() // 2 else 1
-            text = (Locale.getContent("TILE_MODE")) if idx == 0 else (Locale.getContent("ACTOR_MODE"))
+            idx = self._idxFromX(e.pos().x())
+            if idx == 0:
+                text = Locale.getContent("TILE_MODE")
+            elif idx == 1:
+                text = Locale.getContent("LIGHT_MODE")
+            else:
+                text = Locale.getContent("ACTOR_MODE")
             QtWidgets.QToolTip.showText(e.globalPos(), text, self)
             return True
         return super().event(e)

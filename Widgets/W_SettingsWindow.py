@@ -73,7 +73,7 @@ class SettingsWindow(QtWidgets.QMainWindow):
         super().__init__(parent)
         self._projConfig: dict[str, Any] = {}
         self._projPath = os.path.join(EditorStatus.PROJ_PATH, "Main.proj")
-        self._hiddenKeys = set(["lastMap"])
+        self._hiddenKeys = set(["lastMap", "lastFileExplorerPath"])
         self._disabledKeys = {"darwin": ["IndividualWindow"]}
         if isinstance(proj_config, dict):
             self._projConfig = proj_config

@@ -117,11 +117,13 @@ class Tilemap:
         return Vector2u(first._width, first._height)
 
     @staticmethod
-    def loadData(data: Dict[str, List[List[Any]]], tilesetData: Dict[str, Tileset], width: int, height: int) -> Tilemap:
+    def fromData(data: Dict[str, List[List[Any]]], width: int, height: int) -> Tilemap:
+        from Source import Data
+
         mapLayers = []
         for layerName, layerData in data.items():
             name = layerData["layerName"]
-            layerTileset = tilesetData[layerData["layerTileset"]]
+            layerTileset = Data.getTileset(layerData["layerTileset"])
             layerTiles = layerData["tiles"]
             tiles: List[List[Optional[int]]] = []
             for y in range(height):

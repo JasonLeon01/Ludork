@@ -5,6 +5,8 @@
 **/.DS_Store
 **/build/
 **/__MACOSX
+.vscode/
+.trae/
 LudorkEnv/
 Ludork.ini
 Locale/en_GB

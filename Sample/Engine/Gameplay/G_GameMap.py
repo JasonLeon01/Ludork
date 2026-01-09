@@ -3,7 +3,7 @@
 from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from . import (
     Vector2i,
     Vector2f,
@@ -27,6 +27,23 @@ class Light:
     color: Color
     radius: float = 256.0
     intensity: float = 1.0
+
+    def asDict(self) -> Dict[str, Any]:
+        return {
+            "position": [self.position.x, self.position.y],
+            "color": [self.color.r, self.color.g, self.color.b, self.color.a],
+            "radius": self.radius,
+            "intensity": self.intensity,
+        }
+
+    @staticmethod
+    def fromDict(data: Dict[str, Any]) -> Light:
+        return Light(
+            Vector2f(*data["position"]),
+            Color(*data["color"]),
+            data.get("radius", 256.0),
+            data.get("intensity", 1.0),
+        )
 
 
 class GameMap:
@@ -164,6 +181,12 @@ class GameMap:
 
     def setLights(self, lights: List[Light]) -> None:
         self._lights = lights
+
+    def addLight(self, light: Light) -> None:
+        self._lights.append(light)
+
+    def removeLight(self, light: Light) -> None:
+        self._lights.remove(light)
 
     def getAmbientLight(self) -> Color:
         return self._ambientLight
@@ -368,13 +391,16 @@ class GameMap:
         self._passabilityDirty = True
 
     @staticmethod
-    def loadData(data: Dict, tilesetData: Dict, camera: Optional[Camera] = None) -> GameMap:
+    def fromData(data: Dict[str, Any], camera: Optional[Camera] = None) -> GameMap:
         mapName = data["mapName"]
         width = data["width"]
         height = data["height"]
         layers = data["layers"]
-        tilemap = Tilemap.loadData(layers, tilesetData, width, height)
+        tilemap = Tilemap.fromData(layers, width, height)
         ambientLight = data.get("ambientLight", [255, 255, 255, 255])
+        lights = data.get("lights", [])
         result = GameMap(mapName, tilemap, camera)
         result.setAmbientLight(Color(*ambientLight))
+        for lightData in lights:
+            result.addLight(Light.fromDict(lightData))
         return result

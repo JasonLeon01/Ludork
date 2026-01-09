@@ -91,10 +91,6 @@
         "zh_CN": "公共函数",
         "en_GB": "Common Functions"
     },
-    "SCRIPTS": {
-        "zh_CN": "脚本",
-        "en_GB": "Scripts"
-    },
     "HELP": {
         "zh_CN": "帮助",
         "en_GB": "Help"
@@ -114,6 +110,10 @@
     "TILE_MODE": {
         "zh_CN": "图块模式",
         "en_GB": "Tile Mode"
+    },
+    "LIGHT_MODE": {
+        "zh_CN": "光源模式",
+        "en_GB": "Light Source Mode"
     },
     "ACTOR_MODE": {
         "zh_CN": "角色模式",
@@ -266,6 +266,22 @@
     "MAP_FILE_NONE": {
         "zh_CN": "地图文件失效",
         "en_GB": "The file path of this map is None yet."
+    },
+    "position": {
+        "zh_CN": "位置",
+        "en_GB": "Position"
+    },
+    "color": {
+        "zh_CN": "颜色",
+        "en_GB": "Color"
+    },
+    "radius": {
+        "zh_CN": "半径",
+        "en_GB": "Radius"
+    },
+    "intensity": {
+        "zh_CN": "强度",
+        "en_GB": "Intensity"
     },
     "title": {
         "zh_CN": "游戏名称",
@@ -450,5 +466,9 @@
     "UNABLE_TO_SET_START_NODE": {
         "zh_CN": "无法设置起始节点，起始节点需要是Exec类型节点",
         "en_GB": "Unable to set start node. Start node must be of Exec type."
+    },
+    "NEW_LIGHT_SOURCE": {
+        "zh_CN": "新建光源",
+        "en_GB": "Create New Light Source"
     }
 }

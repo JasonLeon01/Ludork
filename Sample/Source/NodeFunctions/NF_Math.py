@@ -293,67 +293,67 @@ def POW(a: Any, b: Any) -> Any:
     return a**b
 
 
-@ReturnType(bool)
+@ReturnType(value=bool)
 def EQUALS(a: Any, b: Any) -> bool:
     return a == b
 
 
-@ReturnType(bool)
+@ReturnType(value=bool)
 def NOT_EQUALS(a: Any, b: Any) -> bool:
     return a != b
 
 
-@ReturnType(bool)
+@ReturnType(value=bool)
 def LESS(a: Any, b: Any) -> bool:
     return a < b
 
 
-@ReturnType(bool)
+@ReturnType(value=bool)
 def LESS_EQUALS(a: Any, b: Any) -> bool:
     return a <= b
 
 
-@ReturnType(bool)
+@ReturnType(value=bool)
 def GREATER(a: Any, b: Any) -> bool:
     return a > b
 
 
-@ReturnType(bool)
+@ReturnType(value=bool)
 def GREATER_EQUALS(a: Any, b: Any) -> bool:
     return a >= b
 
 
-@ReturnType(bool)
+@ReturnType(value=bool)
 def AND(a: bool, b: bool) -> bool:
     return a and b
 
 
-@ReturnType(bool)
+@ReturnType(value=bool)
 def OR(a: bool, b: bool) -> bool:
     return a or b
 
 
-@ReturnType(bool)
+@ReturnType(value=bool)
 def NOT(a: bool) -> bool:
     return not a
 
 
-@ReturnType(bool)
+@ReturnType(value=bool)
 def XOR(a: bool, b: bool) -> bool:
     return a ^ b
 
 
-@ReturnType(bool)
+@ReturnType(value=bool)
 def NAND(a: bool, b: bool) -> bool:
     return not (a and b)
 
 
-@ReturnType(bool)
+@ReturnType(value=bool)
 def NOR(a: bool, b: bool) -> bool:
     return not (a or b)
 
 
-@ReturnType(bool)
+@ReturnType(value=bool)
 def XNOR(a: bool, b: bool) -> bool:
     return not (a ^ b)
 

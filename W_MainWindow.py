@@ -22,6 +22,7 @@ from Widgets import (
     TilesetEditor,
     SettingsWindow,
     NodeGraphWindow,
+    LightPanel,
 )
 from Widgets.Utils import MapEditDialog, SingleRowDialog, Toast
 import EditorStatus
@@ -54,6 +55,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.stacked = QtWidgets.QStackedLayout()
         self.rightArea = QtWidgets.QWidget()
         self.tileSelect = TileSelect(self.rightArea)
+        self.lightPanel = LightPanel(self.rightArea)
+        self._selectedLightMapKey = ""
+        self._selectedLightIndex: Optional[int] = None
         self.upperSplitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         self._savedLeftWidth: Optional[int] = None
         self._savedRightWidth: Optional[int] = None
@@ -81,7 +85,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actDatabaseSystemConfig = QtWidgets.QAction(Locale.getContent("SYSTEM_CONFIG"), self)
         self._actDatabaseTilesetsData = QtWidgets.QAction(Locale.getContent("TILESETS_DATA"), self)
         self._actDatabaseCommonFunctions = QtWidgets.QAction(Locale.getContent("COMMON_FUNCTIONS"), self)
-        self._actDatabaseScripts = QtWidgets.QAction(Locale.getContent("SCRIPTS"), self)
         self._actHelpExplanation = QtWidgets.QAction(Locale.getContent("HELP_EXPLANATION"), self)
 
         self._mapClipboard = None
@@ -104,7 +107,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actEditMap = QtWidgets.QAction(Locale.getContent("MAPLIST_EDIT"), self)
         self._actEditMap.setShortcuts([QtGui.QKeySequence("Return"), QtGui.QKeySequence("Enter")])
         self._actEditMap.setShortcutContext(QtCore.Qt.WidgetShortcut)
-        self._actEditMap.triggered.connect(lambda: self._onEditMap(self.leftList.currentItem().text()) if self.leftList.currentItem() else None)
+        self._actEditMap.triggered.connect(
+            lambda: self._onEditMap(self.leftList.currentItem().text()) if self.leftList.currentItem() else None
+        )
+
+        self._editModeIdx = 0
+        self._lastEditorPanelContextPos: Optional[QtCore.QPoint] = None
+        self._actNewLightSource = QtWidgets.QAction(Locale.getContent("NEW_LIGHT_SOURCE"), self)
+        self._actNewLightSource.triggered.connect(self._onNewLightSource)
+        self._actNewLightSource.setEnabled(False)
+
+        self._actPasteLightSource = QtWidgets.QAction(Locale.getContent("PASTE"), self)
+        self._actPasteLightSource.setShortcut(QtGui.QKeySequence.Paste)
+        self._actPasteLightSource.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        self._actPasteLightSource.triggered.connect(self._onPasteLightSource)
+        self._actPasteLightSource.setEnabled(False)
 
         self.setProjPath(EditorStatus.PROJ_PATH)
         self._setStyle()
@@ -258,6 +275,8 @@ class MainWindow(QtWidgets.QMainWindow):
         Panel.applyDisabledOpacity(self.leftList)
         self.tileSelect.setEnabled(False)
         Panel.applyDisabledOpacity(self.tileSelect)
+        self.lightPanel.setEnabled(False)
+        Panel.applyDisabledOpacity(self.lightPanel)
         self.fileExplorer.setInteractive(False)
         self.editModeToggle.setEnabled(False)
         Panel.applyDisabledOpacity(self.editModeToggle)
@@ -320,17 +339,33 @@ class MainWindow(QtWidgets.QMainWindow):
         Panel.applyDisabledOpacity(self.editModeToggle)
         self.tileSelect.setEnabled(True)
         Panel.applyDisabledOpacity(self.tileSelect)
+        self.lightPanel.setEnabled(True)
+        Panel.applyDisabledOpacity(self.lightPanel)
         self.consoleWidget.detach_process()
         self.consoleWidget.clear()
         self.tabWidget.setCurrentWidget(self.fileExplorer)
 
     def toTileMode(self) -> None:
         self.editorPanel.setTileMode(True)
+        self.editorPanel.setLightOverlayEnabled(False)
         self.tileSelect.setLayerSelected(self._selectedLayerName is not None)
+        self.rightStack.setCurrentWidget(self.tileSelect)
+
+    def toLightMode(self) -> None:
+        self.editorPanel.setTileMode(False)
+        self.editorPanel.setLightOverlayEnabled(True)
+        self.tileSelect.setLayerSelected(False)
+        self.rightStack.setCurrentWidget(self.lightPanel)
+        self.editorPanel.clearLightSelection()
+        self.lightPanel.setLight(None)
+        self._selectedLightMapKey = ""
+        self._selectedLightIndex = None
 
     def toActorMode(self) -> None:
         self.editorPanel.setTileMode(False)
+        self.editorPanel.setLightOverlayEnabled(False)
         self.tileSelect.setLayerSelected(False)
+        self.rightStack.setCurrentWidget(self.tileSelect)
 
     def refreshLeftList(self):
         self.leftList.clear()
@@ -366,10 +401,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.editModeToggle.setEnabled(idx != 1)
 
     def _onEditModeChanged(self, idx: int) -> None:
+        self._editModeIdx = idx
         if idx == 0:
+            self._setLayerListInteractive(True)
             self.toTileMode()
+        elif idx == 1:
+            self._clearLayerSelection()
+            self._setLayerListInteractive(False)
+            self.toLightMode()
         else:
+            self._setLayerListInteractive(True)
             self.toActorMode()
+        self._setLightContextActionsEnabled(idx == 1)
 
     def _onUpperSplitterMoved(self, pos: int, index: int) -> None:
         sizes = self.upperSplitter.sizes()
@@ -394,6 +437,10 @@ class MainWindow(QtWidgets.QMainWindow):
         name = item.text()
         self.leftListIndex = self.leftList.row(item)
         self.editorPanel.refreshMap(name)
+        self.editorPanel.clearLightSelection()
+        self.lightPanel.setLight(None)
+        self._selectedLightMapKey = ""
+        self._selectedLightIndex = None
         self._selectedLayerName = None
         self.editorPanel.setSelectedLayer(None)
         self.tileSelect.setLayerSelected(False)
@@ -642,13 +689,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.centerArea.setFixedWidth(self.gamePanel.width())
 
         self.rightArea.setMinimumWidth(320)
-        rightLayout = QtWidgets.QVBoxLayout(self.rightArea)
-        rightLayout.setContentsMargins(0, 0, 0, 0)
-        rightLayout.setSpacing(0)
-        rightLayout.addWidget(self.tileSelect, 1)
+        self.rightStack = QtWidgets.QStackedLayout(self.rightArea)
+        self.rightStack.setContentsMargins(0, 0, 0, 0)
+        self.rightStack.setSpacing(0)
+        self.rightStack.addWidget(self.tileSelect)
+        self.rightStack.addWidget(self.lightPanel)
+        self.rightStack.setCurrentWidget(self.tileSelect)
         self.tileSelect.tileSelected.connect(self._onTileSelected)
         self.tileSelect.tilesetChanged.connect(self._onTilesetChanged)
         self.editorPanel.tileNumberPicked.connect(self._onTileNumberPicked)
+        self.editorPanel.lightSelectionChanged.connect(self._onLightSelectionChanged)
+        self.editorPanel.lightDataChanged.connect(self._onLightDataChanged)
+        self.lightPanel.lightEdited.connect(self._onLightEdited)
+        self.editorPanel.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.editorPanel.customContextMenuRequested.connect(self._onEditorPanelContextMenu)
+        self.editorPanel.addAction(self._actNewLightSource)
+        self.editorPanel.addAction(self._actPasteLightSource)
 
         self.upperSplitter.setChildrenCollapsible(False)
         self.upperSplitter.addWidget(self.leftArea)
@@ -732,12 +788,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actDatabaseTilesetsData.setShortcut(QtGui.QKeySequence("F9"))
         self._actDatabaseCommonFunctions.triggered.connect(self._onDatabaseCommonFunctions)
         self._actDatabaseCommonFunctions.setShortcut(QtGui.QKeySequence("F10"))
-        self._actDatabaseScripts.triggered.connect(self._onDatabaseScripts)
-        self._actDatabaseScripts.setShortcut(QtGui.QKeySequence("F11"))
         _dbMenu.addAction(self._actDatabaseSystemConfig)
         _dbMenu.addAction(self._actDatabaseTilesetsData)
         _dbMenu.addAction(self._actDatabaseCommonFunctions)
-        _dbMenu.addAction(self._actDatabaseScripts)
 
         _helpMenu = self._menuBar.addMenu(Locale.getContent("HELP"))
         self._actHelpExplanation.triggered.connect(self._onHelpExplanation)
@@ -785,6 +838,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.layerList.addItem(item)
             if n == self._selectedLayerName:
                 self.layerList.setCurrentItem(item)
+
+    def _setLayerListInteractive(self, enabled: bool) -> None:
+        self.layerList.setEnabled(bool(enabled))
+        Panel.applyDisabledOpacity(self.layerList)
 
     def _clearLayerSelection(self) -> None:
         if self._selectedLayerName is None:
@@ -850,6 +907,118 @@ class MainWindow(QtWidgets.QMainWindow):
             if key:
                 self.tileSelect.setCurrentTilesetKey(key)
         self.tileSelect.setSelectedTileNumber(None if tileNumber < 0 else tileNumber)
+
+    def _onLightSelectionChanged(self, mapKey: str, index, lightData) -> None:
+        if not isinstance(mapKey, str):
+            mapKey = ""
+        self._selectedLightMapKey = mapKey
+        self._selectedLightIndex = index if isinstance(index, int) else None
+        if isinstance(lightData, dict):
+            self.lightPanel.setLight(lightData)
+        else:
+            self.lightPanel.setLight(None)
+
+    def _onLightDataChanged(self, mapKey: str, index, lightData) -> None:
+        if mapKey != self._selectedLightMapKey:
+            return
+        if not isinstance(index, int) or index != self._selectedLightIndex:
+            return
+        if not isinstance(lightData, dict):
+            return
+        if hasattr(self.lightPanel, "updateLight"):
+            self.lightPanel.updateLight(lightData)
+        else:
+            self.lightPanel.setLight(lightData)
+
+    def _onLightEdited(self, newData) -> None:
+        mapKey = self._selectedLightMapKey
+        index = self._selectedLightIndex
+        if not mapKey or not isinstance(index, int):
+            return
+        if not isinstance(newData, dict):
+            return
+        m = GameData.mapData.get(mapKey)
+        if not isinstance(m, dict):
+            return
+        lights = m.get("lights")
+        if not isinstance(lights, list):
+            return
+        if not (0 <= index < len(lights)):
+            return
+        old = lights[index]
+        if not isinstance(old, dict):
+            return
+
+        applyData = {
+            "position": newData.get("position", old.get("position")),
+            "color": newData.get("color", old.get("color")),
+            "radius": newData.get("radius", old.get("radius")),
+            "intensity": newData.get("intensity", old.get("intensity")),
+        }
+        if applyData == {k: old.get(k) for k in applyData.keys()}:
+            return
+
+        GameData.recordSnapshot()
+        for k, v in applyData.items():
+            old[k] = v
+        self.setWindowTitle(System.getTitle())
+        self._refreshUndoRedo()
+        self.editorPanel.update()
+
+    def _setLightContextActionsEnabled(self, enabled: bool) -> None:
+        self._actNewLightSource.setEnabled(bool(enabled))
+        self._actPasteLightSource.setEnabled(bool(enabled))
+
+    def _onEditorPanelContextMenu(self, pos: QtCore.QPoint) -> None:
+        if self._editModeIdx != 1:
+            return
+        self._lastEditorPanelContextPos = pos
+        menu = QtWidgets.QMenu(self)
+        menu.addAction(self._actNewLightSource)
+        menu.addAction(self._actPasteLightSource)
+        menu.exec_(self.editorPanel.mapToGlobal(pos))
+
+    def _onNewLightSource(self, checked: bool = False) -> None:
+        if self._editModeIdx != 1:
+            return
+
+        mapKey = self.editorPanel.mapKey if getattr(self.editorPanel, "mapKey", "") else ""
+        if not mapKey:
+            item = self.leftList.currentItem()
+            mapKey = item.text() if item else ""
+
+        data = GameData.mapData.get(mapKey) if mapKey else None
+        if not isinstance(data, dict):
+            return
+
+        x = 0.0
+        y = 0.0
+        clickPos = self._lastEditorPanelContextPos
+        if isinstance(clickPos, QtCore.QPoint):
+            x = float(clickPos.x())
+            y = float(clickPos.y())
+
+        lightData = {
+            "position": [float(x), float(y)],
+            "color": [255, 255, 255, 255],
+            "radius": 256.0,
+            "intensity": 1.0,
+        }
+
+        GameData.recordSnapshot()
+
+        lights = data.get("lights")
+        if not isinstance(lights, list):
+            lights = []
+            data["lights"] = lights
+        lights.append(lightData)
+        self.editorPanel.setSelectedLightIndex(len(lights) - 1)
+
+        self.setWindowTitle(System.getTitle())
+        self._refreshUndoRedo()
+
+    def _onPasteLightSource(self, checked: bool = False) -> None:
+        return
 
     def _onLayerContextMenu(self, pos: QtCore.QPoint) -> None:
         item = self.layerList.itemAt(pos)
@@ -1042,6 +1211,10 @@ class MainWindow(QtWidgets.QMainWindow):
             if item:
                 self.editorPanel.refreshMap(item.text())
                 self._refreshLayerBar()
+        self.editorPanel.clearLightSelection()
+        self.lightPanel.setLight(None)
+        self._selectedLightMapKey = ""
+        self._selectedLightIndex = None
 
     def _onDatabaseSystemConfig(self, checked: bool = False) -> None:
         self._configWindow = ConfigWindow(self)
