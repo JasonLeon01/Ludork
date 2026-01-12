@@ -8,13 +8,13 @@
     },
     "graph": {
         "nodeGraph": {
-            "onCollide": {
+            "onCollision": {
                 "nodes": [],
                 "links": []
             }
         },
         "startNodes": {
-            "onCollide": null
+            "onCollision": null
         }
     }
 }

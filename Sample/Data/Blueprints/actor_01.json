@@ -8,7 +8,7 @@
     },
     "graph": {
         "nodeGraph": {
-            "onCollide": {
+            "onCollision": {
                 "nodes": [
                     {
                         "nodeFunction": "Utils.SUPER",
@@ -27,6 +27,16 @@
                             195.80329474308394,
                             314.51867816999334
                         ]
+                    },
+                    {
+                        "nodeFunction": "Utils.Print",
+                        "params": [
+                            "Oh yeah!"
+                        ],
+                        "pos": [
+                            550.5983396681935,
+                            364.520911184142
+                        ]
                     }
                 ],
                 "links": [
@@ -36,12 +46,19 @@
                         "leftOutPin": 0,
                         "rightInPin": 0,
                         "linkType": "Params"
+                    },
+                    {
+                        "left": 0,
+                        "right": 2,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Exec"
                     }
                 ]
             }
         },
         "startNodes": {
-            "onCollide": null
+            "onCollision": 0
         }
     }
 }

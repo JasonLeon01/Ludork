@@ -254,7 +254,7 @@ class Actor(ActorBase):
             and not actor._graph is None
             and actor._graph.hasKey("onCollision")
         ):
-            actor._graph.localGraph["__collisionActors__"] = other
+            actor._graph.localGraph["__onCollision__"] = [other]
             actor._graph.execute("onCollision")
         else:
             actor.onCollision(other)
@@ -267,7 +267,7 @@ class Actor(ActorBase):
             and not actor._graph is None
             and actor._graph.hasKey("onOverlap")
         ):
-            actor._graph.localGraph["__overlapActors__"] = other
+            actor._graph.localGraph["__onOverlap__"] = [other]
             actor._graph.execute("onOverlap")
         else:
             actor.onOverlap(other)

@@ -30,9 +30,13 @@ def SUPER(obj: object) -> None:
     if hasattr(cls, "GENERATED_CLASS") and getattr(cls, "GENERATED_CLASS"):
         graph = getattr(parent_cls, "_graph", None)
         if graph is None:
-            raise RuntimeError("Parent class graph not found")
-        graph.localGraph = SUPER._refLocal
-        graph.execute(key)
+            try:
+                getattr(parent_cls, key)(obj, *SUPER._refLocal[f"__{key}__"])
+            except:
+                raise RuntimeError("Parent class graph not found")
+        else:
+            graph.localGraph = SUPER._refLocal
+            graph.execute(key)
     else:
         method = getattr(obj, key, None)
         if callable(method):

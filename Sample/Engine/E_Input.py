@@ -2,6 +2,7 @@
 
 import copy
 import logging
+import traceback
 from enum import Enum
 from typing import Any, Dict, Optional, Tuple, Union, List, Callable
 
@@ -308,7 +309,7 @@ def update(window: WindowBase) -> None:
             callable_(*params)
 
     except Exception as e:
-        logging.error(f"Error in Input.update: {e}")
+        logging.error(f"Error in Input.update: {e}\n {traceback.format_exc()}")
 
 
 def isFocused() -> bool:
