@@ -3,8 +3,10 @@
 import os
 import shutil
 import stat
-from typing import Optional
+from typing import Callable, Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
+import Data
+import EditorStatus
 from Utils import Locale, Panel, File
 from .W_FilePreview import FilePreview
 
@@ -287,81 +289,89 @@ class FileExplorer(QtWidgets.QWidget):
                 return
             ext = os.path.splitext(path)[1].lower()
             if ext == ".dat":
-                self._handleDatFile(path)
+                self._handleDataFile(path, File.loadData)
             else:
+                if ext == ".json":
+                    if self._handleDataFile(path, File.getJSONData):
+                        return
                 self._openSystemFile(path)
 
-    def _handleDatFile(self, path: str) -> None:
+    def _handleDataFile(self, path: str, openFileCallable: Callable[[str], None]) -> bool:
         if not os.path.exists(path):
             QtWidgets.QMessageBox.warning(
                 self,
                 Locale.getContent("INVALID_DATA_FILE"),
                 Locale.getContent("INVALID_DATA_FILE_MESSAGE"),
             )
-            return
+            return False
         try:
-            data = File.loadData(path)
+            data = openFileCallable(path)
         except Exception:
             QtWidgets.QMessageBox.warning(
                 self,
                 Locale.getContent("INVALID_DATA_FILE"),
                 Locale.getContent("INVALID_DATA_FILE_MESSAGE"),
             )
-            return
+            return False
         if not isinstance(data, dict) or "type" not in data:
             QtWidgets.QMessageBox.warning(
                 self,
                 Locale.getContent("INVALID_DATA_FILE"),
                 Locale.getContent("INVALID_DATA_FILE_MESSAGE"),
             )
-            return
-        data_type = data.get("type")
-        base_name = os.path.splitext(os.path.basename(path))[0]
-        main_window = getattr(File, "mainWindow", None)
-        if data_type == "map":
-            if main_window is None:
-                return
-            items = main_window.leftList.findItems(base_name, QtCore.Qt.MatchExactly)
+            return False
+        dataType = data.get("type")
+        baseName = os.path.splitext(os.path.basename(path))[0]
+        if dataType == "map":
+            items = File.mainWindow.leftList.findItems(baseName, QtCore.Qt.MatchExactly)
             if items:
                 item = items[0]
-                main_window.leftList.setCurrentItem(item)
-                main_window._onLeftItemClicked(item)
-        elif data_type == "tileset":
-            if main_window is None:
-                return
-            main_window._onDatabaseTilesetsData()
-            editor = getattr(main_window, "_tilesetEditor", None)
+                File.mainWindow.leftList.setCurrentItem(item)
+                File.mainWindow._onLeftItemClicked(item)
+        elif dataType == "tileset":
+            File.mainWindow._onDatabaseTilesetsData()
+            editor = File.mainWindow._tilesetEditor
             if editor is None:
-                return
-            items = editor.listWidget.findItems(base_name, QtCore.Qt.MatchExactly)
+                return False
+            items = editor.listWidget.findItems(baseName, QtCore.Qt.MatchExactly)
             if items:
                 item = items[0]
                 editor.listWidget.setCurrentItem(item)
                 editor.activateWindow()
                 editor.raise_()
-        elif data_type == "config":
-            if main_window is None:
-                return
-            main_window._onDatabaseSystemConfig()
-        elif data_type == "commonFunction":
-            if main_window is None:
-                return
-            main_window._onDatabaseCommonFunctions()
-            window = getattr(main_window, "_nodeGraphWindow", None)
+        elif dataType == "config":
+            File.mainWindow._onDatabaseSystemConfig()
+        elif dataType == "commonFunction":
+            File.mainWindow._onDatabaseCommonFunctions()
+            window = File.mainWindow._nodeGraphWindow
             if window is None:
-                return
-            items = window._list.findItems(base_name, QtCore.Qt.MatchExactly)
+                return False
+            items = window._list.findItems(baseName, QtCore.Qt.MatchExactly)
             if items:
                 item = items[0]
                 window._list.setCurrentItem(item)
                 window.activateWindow()
                 window.raise_()
+        elif dataType == "blueprint":
+            blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
+            relPath = os.path.relpath(path, blueprintsRoot)
+            key = os.path.splitext(relPath)[0].replace("\\", "/")
+            if key in Data.GameData.blueprintsData:
+                File.mainWindow._onDatabaseShowBlueprint(key, Data.GameData.blueprintsData[key])
+            else:
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    Locale.getContent("INVALID_DATA_FILE"),
+                    Locale.getContent("INVALID_DATA_FILE_MESSAGE"),
+                )
         else:
             QtWidgets.QMessageBox.warning(
                 self,
                 Locale.getContent("INVALID_DATA_FILE"),
                 Locale.getContent("INVALID_DATA_FILE_MESSAGE"),
             )
+            return False
+        return True
 
     def _selectedSourceRows(self):
         rows = self._view.selectionModel().selectedRows()

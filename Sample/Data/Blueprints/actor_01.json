@@ -1,0 +1,47 @@
+{
+    "type": "blueprint",
+    "parent": "Source.Player",
+    "attrs": {
+        "hp": 1000,
+        "atk": 10,
+        "def": 10
+    },
+    "graph": {
+        "nodeGraph": {
+            "onCollide": {
+                "nodes": [
+                    {
+                        "nodeFunction": "Utils.SUPER",
+                        "params": [
+                            ""
+                        ],
+                        "pos": [
+                            192.71977829043703,
+                            203.51208587470148
+                        ]
+                    },
+                    {
+                        "nodeFunction": "Utils.SELF",
+                        "params": [],
+                        "pos": [
+                            195.80329474308394,
+                            314.51867816999334
+                        ]
+                    }
+                ],
+                "links": [
+                    {
+                        "left": 1,
+                        "right": 0,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Params"
+                    }
+                ]
+            }
+        },
+        "startNodes": {
+            "onCollide": null
+        }
+    }
+}

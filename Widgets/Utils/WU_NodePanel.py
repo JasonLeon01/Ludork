@@ -1,8 +1,8 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Dict, List
-from Qt import QtWidgets, QtGui, QtCore
+from typing import TYPE_CHECKING, Any, Callable, Dict, List
+from PyQt5 import QtWidgets, QtCore, QtGui
 from NodeGraphQt import NodeGraph, BaseNode
 from NodeGraphQt.widgets.viewer import NodeViewer
 from NodeGraphQt.qgraphics.port import PortItem
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 class CustomViewer(NodeViewer):
-    live_connection_prompt = QtCore.Signal(object, QtCore.QPointF)
+    liveConnectionPrompt = QtCore.pyqtSignal(object, QtCore.QPointF)
 
     def applyLiveConnection(self, event):
         pos_items = self.scene().items(event.scenePos())
@@ -33,7 +33,7 @@ class CustomViewer(NodeViewer):
             and self._detached_port is None
             and self._start_port is not None
         ):
-            self.live_connection_prompt.emit(self._start_port, event.scenePos())
+            self.liveConnectionPrompt.emit(self._start_port, event.scenePos())
             return
         return super(CustomViewer, self).applyLiveConnection(event)
 
@@ -84,8 +84,16 @@ def makeInit(currNode):
 
 class NodePanel(QtWidgets.QWidget):
     _COPY_BUFFER = None
+    modified = QtCore.pyqtSignal()
 
-    def __init__(self, parent: QtWidgets.QWidget, graph: Graph, key: str, name: str):
+    def __init__(
+        self,
+        parent: QtWidgets.QWidget,
+        graph: Graph,
+        key: str,
+        name: str,
+        refreshCallable: Callable[str, Dict[str, Any]],
+    ):
         super(NodePanel, self).__init__(parent)
         self._isLoading = True
         self._parent = parent
@@ -98,6 +106,7 @@ class NodePanel(QtWidgets.QWidget):
         self.nodeGraph = graph
         self.key = key
         self.name = name
+        self._refreshCallable = refreshCallable
         self.classDict: Dict[str, type] = {}
         self.nodes: List[BaseNode] = []
         self._pending_conn = None
@@ -209,7 +218,7 @@ class NodePanel(QtWidgets.QWidget):
         self.graph.port_connected.connect(self.onPortConnected)
         self.graph.port_disconnected.connect(self.onPortDisconnected)
         self.graph.viewer().moved_nodes.connect(self.onNodesMoved)
-        self.graph.viewer().live_connection_prompt.connect(self._onLiveConnectionPrompt)
+        self.graph.viewer().liveConnectionPrompt.connect(self._onLiveConnectionPrompt)
 
         QtWidgets.QShortcut(QtGui.QKeySequence.New, self, self._onCreate, context=QtCore.Qt.WidgetWithChildrenShortcut)
         QtWidgets.QShortcut(QtGui.QKeySequence.Copy, self, self._onCopy, context=QtCore.Qt.WidgetWithChildrenShortcut)
@@ -273,9 +282,8 @@ class NodePanel(QtWidgets.QWidget):
                     self.nodeGraph.genNodesFromDataNodes()
                     self.nodeGraph.genRelationsFromLinks()
                     GameData.recordSnapshot()
-                    GameData.commonFunctionsData[self.name] = self.nodeGraph.asDict()
-                    File.mainWindow.setWindowTitle(System.getTitle())
-                    File.mainWindow._refreshUndoRedo()
+                    self._refreshCallable(self.name, self.nodeGraph.asDict())
+                    self.modified.emit()
 
         if portIn.type_() == "in":
             node = portIn.node()
@@ -395,9 +403,8 @@ class NodePanel(QtWidgets.QWidget):
             self.nodeGraph.links[self.key].append(link_data)
         self.nodeGraph.genRelationsFromLinks()
         GameData.recordSnapshot()
-        GameData.commonFunctionsData[self.name] = self.nodeGraph.asDict()
-        File.mainWindow.setWindowTitle(System.getTitle())
-        File.mainWindow._refreshUndoRedo()
+        self._refreshCallable(self.name, self.nodeGraph.asDict())
+        self.modified.emit()
         self._refreshPanel()
         self.graph.viewer().end_live_connection()
         self._pending_conn = None
@@ -451,9 +458,8 @@ class NodePanel(QtWidgets.QWidget):
                     self.nodeGraph.genNodesFromDataNodes()
                     self.nodeGraph.genRelationsFromLinks()
                     GameData.recordSnapshot()
-                    GameData.commonFunctionsData[self.name] = self.nodeGraph.asDict()
-                    File.mainWindow.setWindowTitle(System.getTitle())
-                    File.mainWindow._refreshUndoRedo()
+                    self._refreshCallable(self.name, self.nodeGraph.asDict())
+                    self.modified.emit()
 
         if portIn.type_() == "in":
             if not portIn.connected_ports():
@@ -470,9 +476,8 @@ class NodePanel(QtWidgets.QWidget):
             dataNode = self.nodeGraph.nodes[self.key][idx]
             dataNode.position = [node.pos().x(), node.pos().y()]
         GameData.recordSnapshot()
-        GameData.commonFunctionsData[self.name] = self.nodeGraph.asDict()
-        File.mainWindow.setWindowTitle(System.getTitle())
-        File.mainWindow._refreshUndoRedo()
+        self._refreshCallable(self.name, self.nodeGraph.asDict())
+        self.modified.emit()
 
     def eventFilter(self, watched, event):
         if watched == self.graph.viewer().viewport() and event.type() == QtCore.QEvent.MouseButtonPress:
@@ -583,9 +588,8 @@ class NodePanel(QtWidgets.QWidget):
         self.nodeGraph.genRelationsFromLinks()
 
         GameData.recordSnapshot()
-        GameData.commonFunctionsData[self.name] = self.nodeGraph.asDict()
-        File.mainWindow.setWindowTitle(System.getTitle())
-        File.mainWindow._refreshUndoRedo()
+        self._refreshCallable(self.name, self.nodeGraph.asDict())
+        self.modified.emit()
 
         self._refreshPanel()
 
@@ -603,9 +607,8 @@ class NodePanel(QtWidgets.QWidget):
 
             self.nodeGraph.startNodes[self.key] = idx
             GameData.recordSnapshot()
-            GameData.commonFunctionsData[self.name] = self.nodeGraph.asDict()
-            File.mainWindow.setWindowTitle(System.getTitle())
-            File.mainWindow._refreshUndoRedo()
+            self._refreshCallable(self.name, self.nodeGraph.asDict())
+            self.modified.emit()
             self._refreshPanel()
 
     def _onCopy(self):
@@ -635,9 +638,8 @@ class NodePanel(QtWidgets.QWidget):
         self.nodeGraph.genNodesFromDataNodes()
         self.nodeGraph.genRelationsFromLinks()
         GameData.recordSnapshot()
-        GameData.commonFunctionsData[self.name] = self.nodeGraph.asDict()
-        File.mainWindow.setWindowTitle(System.getTitle())
-        File.mainWindow._refreshUndoRedo()
+        self._refreshCallable(self.name, self.nodeGraph.asDict())
+        self.modified.emit()
         self._refreshPanel()
 
     def _onDelete(self):
@@ -682,9 +684,8 @@ class NodePanel(QtWidgets.QWidget):
         self.nodeGraph.genNodesFromDataNodes()
         self.nodeGraph.genRelationsFromLinks()
         GameData.recordSnapshot()
-        GameData.commonFunctionsData[self.name] = self.nodeGraph.asDict()
-        File.mainWindow.setWindowTitle(System.getTitle())
-        File.mainWindow._refreshUndoRedo()
+        self._refreshCallable(self.name, self.nodeGraph.asDict())
+        self.modified.emit()
         self._refreshPanel()
 
     def _onParamChanged(self, nodeIndex: int, paramIndex: int, widget: QtWidgets.QLineEdit):
@@ -704,9 +705,8 @@ class NodePanel(QtWidgets.QWidget):
                     changed = True
         if changed:
             GameData.recordSnapshot()
-            GameData.commonFunctionsData[self.name] = self.nodeGraph.asDict()
-            File.mainWindow.setWindowTitle(System.getTitle())
-            File.mainWindow._refreshUndoRedo()
+            self._refreshCallable(self.name, self.nodeGraph.asDict())
+            self.modified.emit()
 
     def _getSelectedNodes(self):
         sels = self.graph.selected_nodes()

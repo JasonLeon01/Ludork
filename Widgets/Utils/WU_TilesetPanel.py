@@ -170,10 +170,6 @@ class TilesetImageView(QtWidgets.QWidget):
                     val = 1.0
                 arr[idx] = val
         self.dataChanged.emit()
-        key = getattr(self, "_key", None)
-        if key:
-            if getattr(File, "mainWindow", None):
-                File.mainWindow.setWindowTitle(System.getTitle())
         self.update()
 
 
@@ -229,42 +225,37 @@ class TilesetPanel(QtWidgets.QWidget):
         self.imageView.dataChanged.connect(self.modified)
         layout.addWidget(self.scroll)
 
-    def setTilesetData(self, tileset_data):
-        self._data = tileset_data
+    def setTilesetData(self, tilesetData):
+        self._data = tilesetData
         self._key = None
         for k, v in GameData.tilesetData.items():
-            if v is tileset_data or (tileset_data and v.fileName == tileset_data.fileName):
+            if v is tilesetData or (tilesetData and v.fileName == tilesetData.fileName):
                 self._key = k
                 break
-        if not tileset_data:
+        if not tilesetData:
             self.nameEdit.clear()
             self.fileEdit.clear()
             self.imageView.setData(None, None)
             return
         p = None
-        if tileset_data.fileName:
-            p = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Tilesets", tileset_data.fileName)
+        if tilesetData.fileName:
+            p = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Tilesets", tilesetData.fileName)
             if not os.path.exists(p):
-                tileset_data.fileName = ""
+                tilesetData.fileName = ""
                 p = None
-                if self._key:
-                    if getattr(File, "mainWindow", None):
-                        File.mainWindow.setWindowTitle(System.getTitle())
 
-        self.nameEdit.setText(getattr(tileset_data, "name", ""))
-        self.fileEdit.setText(tileset_data.fileName)
-        self.imageView.setData(tileset_data, p)
+        self.nameEdit.setText(getattr(tilesetData, "name", ""))
+        self.fileEdit.setText(tilesetData.fileName)
+        self.imageView.setData(tilesetData, p)
         self.imageView.setTilesetKey(self._key)
         self.imageView.setMode(self.modeList.currentRow())
+        self.modified.emit()
 
     def _onNameChanged(self, text):
         if self._data:
             GameData.recordSnapshot()
             self._data.name = text
             self.modified.emit()
-            if self._key:
-                if getattr(File, "mainWindow", None):
-                    File.mainWindow.setWindowTitle(System.getTitle())
 
     def _onModeChanged(self, row):
         self.imageView.setMode(row)
@@ -304,7 +295,6 @@ class TilesetPanel(QtWidgets.QWidget):
             elif len(arr_l) > new_count:
                 del arr_l[new_count:]
             if self._key:
-                File.mainWindow.setWindowTitle(System.getTitle())
                 File.mainWindow.editorPanel._renderFromMapData()
                 File.mainWindow.editorPanel.update()
                 ts = File.mainWindow.tileSelect

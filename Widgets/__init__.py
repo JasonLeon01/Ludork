@@ -11,6 +11,7 @@ from . import W_TilesetEditor
 from . import W_SettingsWindow
 from . import W_NodeGraphWindow
 from . import W_LightPanel
+from . import W_BlueprintEditor
 
 
 EditorPanel = W_EditorPanel.EditorPanel
@@ -25,3 +26,4 @@ TilesetEditor = W_TilesetEditor.TilesetEditor
 SettingsWindow = W_SettingsWindow.SettingsWindow
 NodeGraphWindow = W_NodeGraphWindow.NodeGraphWindow
 LightPanel = W_LightPanel.LightPanel
+BluePrintEditor = W_BlueprintEditor.BluePrintEditor

@@ -3,6 +3,7 @@
 from Engine import System, Shader, Manager
 from Engine.Gameplay import SceneBase, GameMap
 from Engine.Utils import File
+from Source import Data
 from ..Player import Player
 
 
@@ -12,7 +13,9 @@ class Scene(SceneBase):
 
     def onCreate(self):
         self.actors = [
-            Player(Manager.loadCharacter("actors/classic-cha-braver01.png"), "yongshi"),
+            Data.getClass("Data.Blueprints.actor_01")(
+                Manager.loadCharacter("actors/classic-cha-braver01.png"), "yongshi"
+            ),
         ]
         for i, actor in enumerate(self.actors):
             actor.setAnimatable(True, True)

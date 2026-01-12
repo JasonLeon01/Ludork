@@ -12,6 +12,7 @@ from Data import GameData
 
 class NodeGraphWindow(QtWidgets.QMainWindow):
     _clipboard = None
+    modified = QtCore.pyqtSignal()
 
     def __init__(self, parent, data: Dict):
         super().__init__(parent)
@@ -132,8 +133,7 @@ class NodeGraphWindow(QtWidgets.QMainWindow):
         items = self._list.findItems(new_name, QtCore.Qt.MatchExactly)
         if items:
             self._list.setCurrentItem(items[0])
-
-        File.mainWindow.setWindowTitle(System.getTitle())
+        self.modified.emit()
 
     def _onPaste(self):
         if NodeGraphWindow._clipboard is None:
@@ -157,8 +157,7 @@ class NodeGraphWindow(QtWidgets.QMainWindow):
         items = self._list.findItems(new_name, QtCore.Qt.MatchExactly)
         if items:
             self._list.setCurrentItem(items[0])
-
-        File.mainWindow.setWindowTitle(System.getTitle())
+        self.modified.emit()
 
     def _onDeleteCommonFunction(self, item=None):
         if item is None:
@@ -183,7 +182,7 @@ class NodeGraphWindow(QtWidgets.QMainWindow):
 
         self._refreshListFromData()
         self._refreshCurrentPanel()
-        File.mainWindow.setWindowTitle(System.getTitle())
+        self.modified.emit()
 
     def _onNewCommonFunction(self):
         name, ok = QtWidgets.QInputDialog.getText(
@@ -205,8 +204,7 @@ class NodeGraphWindow(QtWidgets.QMainWindow):
         items = self._list.findItems(name, QtCore.Qt.MatchExactly)
         if items:
             self._list.setCurrentItem(items[0])
-
-        File.mainWindow.setWindowTitle(System.getTitle())
+        self.modified.emit()
 
     def _onSelect(self, name: str) -> None:
         if not name:
@@ -214,7 +212,8 @@ class NodeGraphWindow(QtWidgets.QMainWindow):
         panel = self._panels.get(name)
         if panel is None:
             graph = GameData.genGraphFromData(self._data.get(name))
-            panel = NodePanel(self, graph, self._key, name)
+            panel = NodePanel(self, graph, self._key, name, self._refreshData)
+            panel.modified.connect(self.modified)
             self._panels[name] = panel
             self._stack.addWidget(panel)
         self._stack.setCurrentWidget(panel)
@@ -227,7 +226,8 @@ class NodeGraphWindow(QtWidgets.QMainWindow):
         self._data = GameData.commonFunctionsData
         old_panel = self._panels.get(name)
         graph = GameData.genGraphFromData(self._data.get(name))
-        panel = NodePanel(self, graph, self._key, name)
+        panel = NodePanel(self, graph, self._key, name, self._refreshData)
+        panel.modified.connect(self.modified)
         self._panels[name] = panel
         self._stack.addWidget(panel)
         self._stack.setCurrentWidget(panel)
@@ -276,3 +276,6 @@ class NodeGraphWindow(QtWidgets.QMainWindow):
         File.mainWindow.setWindowTitle(System.getTitle())
         if diffs:
             self.toast.showMessage("Redo:\n" + "\n".join(diffs))
+
+    def _refreshData(self, name: str, data: Dict[str, Any]) -> None:
+        GameData.commonFunctionsData[name] = data

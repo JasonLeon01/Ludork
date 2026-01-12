@@ -12,7 +12,9 @@ class GameData:
     systemConfigData: Dict[str, Any]
     tilesetData: Dict[str, Any]
     mapData: Dict[str, Any]
+    classDict: Dict[str, Any]
     commonFunctionsData: Dict[str, Any]
+    blueprintsData: Dict[str, Any]
 
     undoStack: List[Dict[str, Any]]
     redoStack: List[Dict[str, Any]]
@@ -47,6 +49,7 @@ class GameData:
                     print(f"Error while loading config file {file}: {e}")
 
         cls.tilesetData = {}
+        cls.classDict = Engine.NodeGraph.ClassDict()
         tilesetData = os.path.join(EditorStatus.PROJ_PATH, "Data", "Tilesets")
         assert os.path.exists(tilesetData)
         for file in os.listdir(tilesetData):
@@ -92,6 +95,29 @@ class GameData:
                     except Exception as e:
                         print(f"Error while loading common function file {file}: {e}")
 
+        cls.blueprintsData = {}
+        blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
+        if os.path.exists(blueprintsRoot):
+            for root, dirs, files in os.walk(blueprintsRoot):
+                for file in files:
+                    full_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(full_path, blueprintsRoot)
+                    namePart, extensionPart = os.path.splitext(rel_path)
+                    namePart = namePart.replace("\\", "/")
+
+                    if extensionPart == ".json":
+                        data = File.getJSONData(full_path)
+                        if "type" in data and data["type"] == "blueprint":
+                            data["isJson"] = True
+                            cls.blueprintsData[namePart] = data
+                    else:
+                        try:
+                            data = File.loadData(full_path)
+                            if "type" in data and data["type"] == "blueprint":
+                                cls.blueprintsData[namePart] = data
+                        except Exception as e:
+                            print(f"Error while loading blueprint file {file}: {e}")
+
         cls.undoStack = []
         cls.redoStack = []
 
@@ -108,12 +134,13 @@ class GameData:
             "tilesetData": {"A": [], "D": [], "U": []},
             "mapData": {"A": [], "D": [], "U": []},
             "commonFunctionsData": {"A": [], "D": [], "U": []},
+            "blueprintsData": {"A": [], "D": [], "U": []},
         }
 
         origin = cls._originData
         current = cls.asDict()
 
-        for section in ["systemConfigData", "tilesetData", "mapData", "commonFunctionsData"]:
+        for section in ["systemConfigData", "tilesetData", "mapData", "commonFunctionsData", "blueprintsData"]:
             curr_sec = current.get(section, {})
             orig_sec = origin.get(section, {})
 
@@ -133,30 +160,30 @@ class GameData:
     def getDiff(cls, old_data: Dict[str, Any], new_data: Dict[str, Any]) -> List[str]:
         diffs = []
 
-        old_maps = old_data.get("mapData", {})
-        new_maps = new_data.get("mapData", {})
+        oldMaps = old_data.get("mapData", {})
+        newMaps = new_data.get("mapData", {})
         changed_maps = set()
-        for k in set(old_maps.keys()) | set(new_maps.keys()):
-            if old_maps.get(k) != new_maps.get(k):
+        for k in set(oldMaps.keys()) | set(newMaps.keys()):
+            if oldMaps.get(k) != newMaps.get(k):
                 changed_maps.add(k)
         if changed_maps:
             diffs.append(f"Maps: {', '.join(sorted(changed_maps))}")
 
-        old_cfgs = old_data.get("systemConfigData", {})
-        new_cfgs = new_data.get("systemConfigData", {})
+        oldCfgs = old_data.get("systemConfigData", {})
+        newCfgs = new_data.get("systemConfigData", {})
         changed_cfgs = set()
-        for k in set(old_cfgs.keys()) | set(new_cfgs.keys()):
-            if old_cfgs.get(k) != new_cfgs.get(k):
+        for k in set(oldCfgs.keys()) | set(newCfgs.keys()):
+            if oldCfgs.get(k) != newCfgs.get(k):
                 changed_cfgs.add(k)
         if changed_cfgs:
             diffs.append(f"Configs: {', '.join(sorted(changed_cfgs))}")
 
-        old_ts = old_data.get("tilesetData", {})
-        new_ts = new_data.get("tilesetData", {})
+        oldTs = old_data.get("tilesetData", {})
+        newTs = new_data.get("tilesetData", {})
         changed_ts = set()
-        for k in set(old_ts.keys()) | set(new_ts.keys()):
-            ts1 = old_ts.get(k)
-            ts2 = new_ts.get(k)
+        for k in set(oldTs.keys()) | set(newTs.keys()):
+            ts1 = oldTs.get(k)
+            ts2 = newTs.get(k)
             if ts1 != ts2:
                 attrs1 = vars(ts1) if ts1 else {}
                 attrs2 = vars(ts2) if ts2 else {}
@@ -166,14 +193,23 @@ class GameData:
         if changed_ts:
             diffs.append(f"Tilesets: {', '.join(sorted(changed_ts))}")
 
-        old_cfgs = old_data.get("commonFunctionsData", {})
-        new_cfgs = new_data.get("commonFunctionsData", {})
+        oldCfgs = old_data.get("commonFunctionsData", {})
+        newCfgs = new_data.get("commonFunctionsData", {})
         changed_cfgs = set()
-        for k in set(old_cfgs.keys()) | set(new_cfgs.keys()):
-            if old_cfgs.get(k) != new_cfgs.get(k):
+        for k in set(oldCfgs.keys()) | set(newCfgs.keys()):
+            if oldCfgs.get(k) != newCfgs.get(k):
                 changed_cfgs.add(k)
         if changed_cfgs:
             diffs.append(f"Common Functions: {', '.join(sorted(changed_cfgs))}")
+
+        oldBps = old_data.get("blueprintsData", {})
+        newBps = new_data.get("blueprintsData", {})
+        changed_bps = set()
+        for k in set(oldBps.keys()) | set(newBps.keys()):
+            if oldBps.get(k) != newBps.get(k):
+                changed_bps.add(k)
+        if changed_bps:
+            diffs.append(f"Blueprints: {', '.join(sorted(changed_bps))}")
 
         return diffs
 
@@ -337,6 +373,29 @@ class GameData:
             except Exception:
                 final_details["Failed"].append(key)
 
+        # Blueprints
+        blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
+        c_bps = changes["blueprintsData"]
+        for key in c_bps["A"] + c_bps["U"]:
+            bp = cls.blueprintsData.get(key)
+            if bp is None:
+                final_details["Failed"].append(key)
+                continue
+            payload = copy.deepcopy(bp)
+            try:
+                if "isJson" in payload:
+                    del payload["isJson"]
+                    File.saveJSONData(os.path.join(blueprintsRoot, f"{key}.json"), payload)
+                else:
+                    File.saveData(os.path.join(blueprintsRoot, f"{key}.dat"), payload)
+                if key in c_bps["A"]:
+                    final_details["A"].append(key)
+                else:
+                    final_details["U"].append(key)
+                cls._originData["blueprintsData"][key] = copy.deepcopy(bp)
+            except Exception:
+                final_details["Failed"].append(key)
+
         lines = []
         if final_details["A"]:
             lines.append(f"A [{', '.join(final_details['A'])}]")
@@ -356,6 +415,7 @@ class GameData:
             "tilesetData": cls.tilesetData,
             "mapData": cls.mapData,
             "commonFunctionsData": cls.commonFunctionsData,
+            "blueprintsData": cls.blueprintsData,
         }
 
     @classmethod
@@ -395,12 +455,11 @@ class GameData:
         for key, value in snapshot.items():
             setattr(cls, key, value)
 
-    @staticmethod
-    def genGraphFromData(data: Dict[str, Any]):
+    @classmethod
+    def genGraphFromData(cls, data: Dict[str, Any], parentClass=None):
         from NodeGraph import EditorDataNode, EditorNode
 
         Engine = importlib.import_module("Engine")
-        Source = importlib.import_module("Source")
         Graph = Engine.NodeGraph.Graph
         nodes = {}
         links = {}
@@ -409,13 +468,10 @@ class GameData:
             for node in valueDict["nodes"]:
                 nodes[key].append(EditorDataNode(**node))
             links[key] = valueDict["links"]
-        parentClass = data["parent"]
-        if not parentClass is None:
-            parentClass = Source.Data.getClass(parentClass)
         parent = None  # For editor only
 
         return Graph(
-            data["parent"],
+            data.get("parent", "NOT_WRITTEN"),
             parentClass,
             parent,
             copy.deepcopy(nodes),

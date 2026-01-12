@@ -1,0 +1,20 @@
+{
+    "type": "blueprint",
+    "parent": "Source.Player",
+    "attrs": {
+        "hp": 1000,
+        "atk": 10,
+        "def": 10
+    },
+    "graph": {
+        "nodeGraph": {
+            "onCollide": {
+                "nodes": [],
+                "links": []
+            }
+        },
+        "startNodes": {
+            "onCollide": null
+        }
+    }
+}

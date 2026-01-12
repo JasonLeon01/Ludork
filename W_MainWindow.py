@@ -7,7 +7,7 @@ import psutil
 import configparser
 import json
 import copy
-from typing import Optional
+from typing import Any, Dict, Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QSize
 from Utils import Locale, Panel, System, File
@@ -23,6 +23,7 @@ from Widgets import (
     SettingsWindow,
     NodeGraphWindow,
     LightPanel,
+    BluePrintEditor,
 )
 from Widgets.Utils import MapEditDialog, SingleRowDialog, Toast
 import EditorStatus
@@ -531,8 +532,7 @@ class MainWindow(QtWidgets.QMainWindow):
         GameData.mapData[newFileName] = newMapData
 
         self.refreshLeftList()
-        self.setWindowTitle(System.getTitle())
-        self._refreshUndoRedo()
+        self._refreshInfo()
 
         items = self.leftList.findItems(newFileName, QtCore.Qt.MatchExactly)
         if items:
@@ -552,8 +552,7 @@ class MainWindow(QtWidgets.QMainWindow):
         del GameData.mapData[mapName]
 
         self.refreshLeftList()
-        self.setWindowTitle(System.getTitle())
-        self._refreshUndoRedo()
+        self._refreshInfo()
 
         item = self.leftList.currentItem()
         if item:
@@ -588,8 +587,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.leftList.setCurrentItem(items[0])
             self._onLeftItemClicked(items[0])
 
-        self.setWindowTitle(System.getTitle())
-        self._refreshUndoRedo()
+        self._refreshInfo()
 
     def _setStyle(self) -> None:
         central = QtWidgets.QWidget(self)
@@ -826,7 +824,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         newKey = dlg.getFileName()
-        self.setWindowTitle(System.getTitle())
+        self._refreshInfo()
 
         if newKey != mapKey:
             self.refreshLeftList()
@@ -969,8 +967,7 @@ class MainWindow(QtWidgets.QMainWindow):
         GameData.recordSnapshot()
         for k, v in applyData.items():
             old[k] = v
-        self.setWindowTitle(System.getTitle())
-        self._refreshUndoRedo()
+        self._refreshInfo()
         self.editorPanel.update()
 
     def _setLightContextActionsEnabled(self, enabled: bool) -> None:
@@ -1022,8 +1019,7 @@ class MainWindow(QtWidgets.QMainWindow):
         lights.append(lightData)
         self.editorPanel.setSelectedLightIndex(len(lights) - 1)
 
-        self.setWindowTitle(System.getTitle())
-        self._refreshUndoRedo()
+        self._refreshInfo()
 
     def _onPasteLightSource(self, checked: bool = False) -> None:
         return
@@ -1191,7 +1187,7 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.warning(
                 self, "Hint", Locale.getContent("SAVE_FAILED") + Locale.getContent("SAVE_PATH").format(content)
             )
-        self.setWindowTitle(System.getTitle())
+        self._refreshInfo()
 
     def _onExit(self, checked: bool = False) -> None:
         self.close()
@@ -1211,8 +1207,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def _refreshCurrentView(self):
         self.refreshLeftList()
         self.tileSelect.initTilesets()
-        self.setWindowTitle(System.getTitle())
-        self._refreshUndoRedo()
+        self._refreshInfo()
         if self.stacked.currentWidget() == self.editorScroll:
             item = self.leftList.currentItem()
             if item:
@@ -1225,7 +1220,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _onDatabaseSystemConfig(self, checked: bool = False) -> None:
         self._configWindow = ConfigWindow(self)
-        self._configWindow.modified.connect(lambda: (self.setWindowTitle(System.getTitle()), self._refreshUndoRedo()))
+        self._configWindow.modified.connect(lambda: self._refreshInfo())
         self._configWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._configWindow.setWindowModality(QtCore.Qt.ApplicationModal)
         self._configWindow.activateWindow()
@@ -1234,30 +1229,41 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _onDatabaseTilesetsData(self, checked: bool = False) -> None:
         self._tilesetEditor = TilesetEditor(self)
-        self._tilesetEditor.modified.connect(lambda: (self.setWindowTitle(System.getTitle()), self._refreshUndoRedo()))
+        self._tilesetEditor.modified.connect(lambda: self._refreshInfo())
         self._tilesetEditor.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._tilesetEditor.setWindowModality(QtCore.Qt.ApplicationModal)
         self._tilesetEditor.show()
 
     def _onDatabaseCommonFunctions(self, checked: bool = False) -> None:
         self._nodeGraphWindow = NodeGraphWindow(self, GameData.commonFunctionsData)
+        self._nodeGraphWindow.modified.connect(lambda: self._refreshInfo())
         self._nodeGraphWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._nodeGraphWindow.setWindowModality(QtCore.Qt.ApplicationModal)
         self._nodeGraphWindow.activateWindow()
         self._nodeGraphWindow.raise_()
         self._nodeGraphWindow.show()
 
-    def _onDatabaseScripts(self, checked: bool = False) -> None:
-        pass
+    def _onDatabaseShowBlueprint(self, title: str, data: Dict[str, Any]) -> None:
+        self._blueprintEditor = BluePrintEditor(title, data, self)
+        self._blueprintEditor.modified.connect(lambda: self._refreshInfo())
+        self._blueprintEditor.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        self._blueprintEditor.setWindowModality(QtCore.Qt.ApplicationModal)
+        self._blueprintEditor.activateWindow()
+        self._blueprintEditor.raise_()
+        self._blueprintEditor.show()
 
     def _onHelpExplanation(self, checked: bool = False) -> None:
         pass
 
     def _onGameSettings(self, checked: bool = False) -> None:
         self._settingsWindow = SettingsWindow(self, self._projConfig)
-        self._settingsWindow.modified.connect(lambda: self.setWindowTitle(System.getTitle()))
+        self._settingsWindow.modified.connect(lambda: self._refreshInfo())
         self._settingsWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._settingsWindow.setWindowModality(QtCore.Qt.ApplicationModal)
         self._settingsWindow.activateWindow()
         self._settingsWindow.raise_()
         self._settingsWindow.show()
+
+    def _refreshInfo(self):
+        self.setWindowTitle(System.getTitle())
+        self._refreshUndoRedo()

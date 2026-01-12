@@ -478,5 +478,33 @@
     "INVALID_DATA_FILE_MESSAGE": {
         "zh_CN": "选中的 .dat 文件不是符合引擎规范的数据文件。",
         "en_GB": "The selected .dat file is not a valid engine data file."
+    },
+    "PARENT": {
+        "zh_CN": "父类",
+        "en_GB": "Parent"
+    },
+    "ADD_ATTR": {
+        "zh_CN": "添加属性",
+        "en_GB": "Add Attribute"
+    },
+    "ATTR_NAME": {
+        "zh_CN": "属性名称",
+        "en_GB": "Attribute Name"
+    },
+    "ATTR_EXISTS": {
+        "zh_CN": "属性已存在",
+        "en_GB": "Attribute already exists"
+    },
+    "INVALID_ATTR_NAME": {
+        "zh_CN": "属性名称无效",
+        "en_GB": "Invalid Attribute Name"
+    },
+    "ATTR_NAME_CANNOT_START_WITH_DIGIT": {
+        "zh_CN": "属性名称不能以数字开头",
+        "en_GB": "Attribute name cannot start with a digit"
+    },
+    "ERROR": {
+        "zh_CN": "错误",
+        "en_GB": "Error"
     }
 }

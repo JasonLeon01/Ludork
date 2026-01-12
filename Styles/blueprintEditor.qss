@@ -1,0 +1,35 @@
+QWidget {
+    background-color: #2b2b2b;
+    color: white;
+}
+
+QLabel {
+    color: white;
+    font-size: 14px;
+}
+
+QLineEdit, QSpinBox, QDoubleSpinBox {
+    color: white;
+    background-color: #454545;
+    border: 1px solid #606060;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
+    border: 1px solid #4a90e2;
+}
+
+QCheckBox {
+    color: white;
+    spacing: 5px;
+}
+
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+}
+
+QSplitter::handle {
+    background-color: #3a3a3a;
+}

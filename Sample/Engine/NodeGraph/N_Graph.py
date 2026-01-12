@@ -206,7 +206,8 @@ class Graph:
 
     def asDict(self) -> Dict[str, Any]:
         result = {}
-        result["parent"] = self.parentClassName
+        if self.parentClassName != "NOT_WRITTEN":
+            result["parent"] = self.parentClassName
         result["nodeGraph"] = {}
         for key, nodes in self.nodes.items():
             result["nodeGraph"][key] = {}
