@@ -24,12 +24,15 @@ class Actor(ActorBase):
         self._tickable: bool = False
         self._speed: float = 64.0
         self._isMoving: bool = False
+        self._nextMoveOffset: Optional[Union[Vector2i, Tuple[int, int]]] = None
         self._inRoutine: bool = False
         self._routine: Optional[List[Vector2i]] = None
         self._departure: Optional[Vector2f] = None
         self._destination: Optional[Vector2f] = None
+        self._realSpeed: float = 0.0
 
     def fixedUpdate(self, fixedDelta: float) -> None:
+        startPosition = self.getPosition()
         if self._inRoutine:
             if len(self._routine) == 0:
                 self._inRoutine = False
@@ -41,6 +44,11 @@ class Actor(ActorBase):
                         self._inRoutine = False
         if self._isMoving:
             self._processMoving(fixedDelta)
+        dist = (self.getPosition() - startPosition).length()
+        if fixedDelta <= 0.0 or Math.IsNearZero(dist, 0.001):
+            self._realSpeed = 0.0
+        else:
+            self._realSpeed = dist / fixedDelta
 
     def onCreate(self) -> None:
         pass
@@ -139,7 +147,7 @@ class Actor(ActorBase):
 
     @ReturnType(isMoving=bool)
     def isMoving(self) -> bool:
-        return self._isMoving
+        return self._isMoving or self._realSpeed > 0.0
 
     @ReturnType(isInRoutine=bool)
     def isInRoutine(self) -> bool:
@@ -161,6 +169,7 @@ class Actor(ActorBase):
         self._routine = None
         self._departure = None
         self._destination = None
+        self._realSpeed = 0.0
         self._autoFixMapPosition()
 
     @ReturnType(velocity=Optional[Vector2f])

@@ -3,7 +3,9 @@
 import copy
 import logging
 from enum import Enum
-from typing import Dict, Optional, Tuple, Union, List, Callable
+from typing import Any, Dict, Optional, Tuple, Union, List, Callable
+
+from .Utils import Math
 from .pysf import Keyboard, Mouse, Joystick, WindowBase, Vector2i
 
 
@@ -72,6 +74,7 @@ class _EventState:
     JoystickButtonPressedMap: Dict[int, Dict[int, bool]] = {}
     JoystickButtonReleasedMap: Dict[int, Dict[int, bool]] = {}
     JoystickAxisMovedMap: Dict[int, Tuple[Joystick.Axis, float]] = {}
+    JoystickAxisStatus: Dict[int, Dict[Joystick.Axis, float]] = {}
 
     EnteredText: str = ""
 
@@ -81,7 +84,7 @@ class _EventState:
 
     ActionMappings: Dict[
         Tuple[str, List[Union[Key, Scan, JoystickButton, JoystickAxis]]],
-        Tuple[object, Callable[[object, Optional[float]], None]],
+        Tuple[object, Callable[[object, Optional[float]], None], bool],
     ] = {}
 
 
@@ -220,10 +223,22 @@ def update(window: WindowBase) -> None:
                     joystickMoveEvent.axis,
                     joystickMoveEvent.position,
                 )
+                if joystickMoveEvent.joystickId not in _EventState.JoystickAxisStatus:
+                    _EventState.JoystickAxisStatus[joystickMoveEvent.joystickId] = {}
+                _EventState.JoystickAxisStatus[joystickMoveEvent.joystickId][
+                    joystickMoveEvent.axis
+                ] = joystickMoveEvent.position
             if event.isJoystickConnected():
                 _EventState.JoystickConnected = True
             if event.isJoystickDisconnected():
                 _EventState.JoystickDisconnected = True
+                joystickDisconnectEvent = event.getIfJoystickDisconnected()
+                if joystickDisconnectEvent.joystickId in _EventState.JoystickAxisStatus:
+                    del _EventState.JoystickAxisStatus[joystickDisconnectEvent.joystickId]
+                if joystickDisconnectEvent.joystickId in _EventState.JoystickButtonPressedMap:
+                    del _EventState.JoystickButtonPressedMap[joystickDisconnectEvent.joystickId]
+                if joystickDisconnectEvent.joystickId in _EventState.JoystickButtonReleasedMap:
+                    del _EventState.JoystickButtonReleasedMap[joystickDisconnectEvent.joystickId]
             if event.isTextEntered():
                 _EventState.EnteredText += event.getIfTextEntered().unicode
 
@@ -232,27 +247,65 @@ def update(window: WindowBase) -> None:
 
             _EventState.EnteredText = Clipboard.getString()
 
+        moveActions: List[Tuple[Joystick.Axis, float, Callable, List[Any]]] = []
         for actionType, callables in _EventState.ActionMappings.items():
-            _, actionKeys = actionType
-            obj, objCallable = callables
+            _, actionKeysTuple = actionType
+            if len(callables) == 2:
+                obj, objCallable = callables
+                triggerOnHold = False
+            else:
+                obj, objCallable, triggerOnHold = callables
+
+            actionKeys = list(actionKeysTuple)
             for key in actionKeys:
                 if not _EventState.KeyboardBlocked:
                     if isinstance(key, Key):
+                        triggered = False
                         if (key, False, False, False, False) in _EventState.KeyPressedMap:
+                            triggered = True
+                        elif triggerOnHold and Keyboard.isKeyPressed(key):
+                            triggered = True
+
+                        if triggered:
                             objCallable(obj, None)
                     if isinstance(key, Scan):
                         if (key, False, False, False, False) in _EventState.KeyboardScanPressedMap:
                             objCallable(obj, None)
                 if not _EventState.JoystickBlocked:
                     if isinstance(key, JoystickButton):
-                        for _, joystickDict in _EventState.JoystickButtonPressedMap.items():
+                        triggered = False
+                        for joyId, joystickDict in _EventState.JoystickButtonPressedMap.items():
                             if joystickDict.get(key.value, False):
-                                objCallable(obj, None)
-                    if isinstance(key, JoystickAxis):
-                        for _, joystickDict in _EventState.JoystickAxisMovedMap.items():
-                            axis, position = joystickDict
-                            if axis == key:
-                                objCallable(obj, position)
+                                triggered = True
+                                break
+
+                        if not triggered and triggerOnHold:
+                            for jId in range(Joystick.Count):
+                                if Joystick.isConnected(jId) and Joystick.isButtonPressed(jId, key.value):
+                                    triggered = True
+                                    break
+
+                        if triggered:
+                            objCallable(obj, None)
+
+                    if isinstance(key, tuple):
+                        axis, threshold, callable_ = key
+                        if isinstance(axis, JoystickAxis):
+                            for _, axisMap in _EventState.JoystickAxisStatus.items():
+                                if axis in axisMap:
+                                    position = axisMap[axis]
+                                    if not Math.IsNearZero(position):
+                                        if callable_(position, threshold):
+                                            moveActions.append((axis, position, objCallable, [obj, position]))
+        finalMoveAction: Tuple[Callable, List[Any]] = None
+        maxPosition = 0.0
+        for axis, position, objCallable, params in moveActions:
+            if position != 0 and abs(position) > maxPosition:
+                maxPosition = abs(position)
+                finalMoveAction = (objCallable, params)
+        if finalMoveAction:
+            callable_, params = finalMoveAction
+            callable_(*params)
 
     except Exception as e:
         logging.error(f"Error in Input.update: {e}")
@@ -582,16 +635,47 @@ def unblockInput() -> None:
     _EventState.JoystickBlocked = False
 
 
+def getConfirmKeys() -> (
+    List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]
+):
+    return (Key.Enter, Key.Space, Scan.Enter, Scan.Space, JoystickButton.A)
+
+
+def getCancelKeys() -> (
+    List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]
+):
+    return (Key.Escape, Scan.Escape, JoystickButton.B)
+
+
+def getUpKeys() -> List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]:
+    return (Key.Up, Scan.Up, (Joystick.Axis.Y, -10.0, float.__lt__))
+
+
+def getDownKeys() -> List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]:
+    return (Key.Down, Scan.Down, (Joystick.Axis.Y, 10.0, float.__gt__))
+
+
+def getLeftKeys() -> List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]:
+    return (Key.Left, Scan.Left, (Joystick.Axis.X, -10.0, float.__lt__))
+
+
+def getRightKeys() -> (
+    List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]
+):
+    return (Key.Right, Scan.Right, (Joystick.Axis.X, 10.0, float.__gt__))
+
+
 def registerActionMapping(
     obj: object,
     actionName: str,
-    actionKeys: List[Union[Key, Scan, JoystickButton, JoystickAxis]],
+    actionKeys: Tuple[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]],
     callable_: Callable[[object, Optional[float]], None],
+    triggerOnHold: bool = False,
 ) -> None:
-    _EventState.ActionMappings[(actionName, actionKeys)] = (obj, callable_)
+    _EventState.ActionMappings[(actionName, actionKeys)] = (obj, callable_, triggerOnHold)
 
 
 def unregisterActionMapping(obj: object, actionName: str) -> None:
-    to_remove = [k for k, v in _EventState.ActionMappings.items() if k[0] == actionName and v[0] == obj]
-    for k in to_remove:
+    toRemove = [k for k, v in _EventState.ActionMappings.items() if k[0] == actionName and v[0] == obj]
+    for k in toRemove:
         _EventState.ActionMappings.pop(k, None)

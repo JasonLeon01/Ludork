@@ -43,6 +43,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.editorPanel.dataChanged.connect(self._refreshUndoRedo)
         self.editorScroll = QtWidgets.QScrollArea()
         self.gamePanel = QtWidgets.QWidget()
+        self.gamePanel.setFocusPolicy(QtCore.Qt.StrongFocus)
         self._panelHandle = int(self.gamePanel.winId())
         self.editModeToggle = EditModeToggle()
         self.modeToggle = ModeToggle()
@@ -271,6 +272,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def startGame(self):
         self.endGame()
         self.stacked.setCurrentWidget(self.gamePanel)
+        self._setLayerListInteractive(False)
         self.leftList.setEnabled(False)
         Panel.applyDisabledOpacity(self.leftList)
         self.tileSelect.setEnabled(False)
@@ -303,6 +305,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self._engineMonitorTimer.setInterval(500)
             self._engineMonitorTimer.timeout.connect(self._onEngineProcCheck)
         self._engineMonitorTimer.start()
+        self.activateWindow()
+        self.raise_()
+        self.gamePanel.setFocus(QtCore.Qt.OtherFocusReason)
 
     def endGame(self):
         if self._engineMonitorTimer is not None:
@@ -332,6 +337,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self._engineProc = None
         Panel.clearPanel(self.gamePanel)
         self.stacked.setCurrentWidget(self.editorScroll)
+        self._setLayerListInteractive(self._editModeIdx != 1)
         self.leftList.setEnabled(True)
         Panel.applyDisabledOpacity(self.leftList)
         self.fileExplorer.setInteractive(True)

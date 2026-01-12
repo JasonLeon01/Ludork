@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Union, Tuple
 from . import Texture, IntRect, Vector2i, Utils, ExecSplit
 from . import A_Actor
 
@@ -40,16 +40,25 @@ class Character(Actor):
         self._rectSize = rectangle.size
         return super().setTextureRect(rectangle)
 
+    @ExecSplit(success=(True,), fail=(False,))
+    def MapMove(self, offset: Union[Vector2i, Tuple[int, int]]) -> None:
+        result = super().MapMove(offset)
+        if not result:
+            assert isinstance(offset, (Vector2i, tuple)), "offset must be a Vector2i or a tuple"
+            if isinstance(offset, tuple):
+                offset = Vector2i(*offset)
+                vx = offset.x
+                vy = offset.y
+                self._applyDirection(vx, vy)
+        return result
+
     def update(self, deltaTime: float) -> None:
         if not self.directionFix:
             velocity = self.getVelocity()
             if velocity:
                 vx = velocity.x
                 vy = velocity.y
-                if abs(vx) > abs(vy):
-                    self.direction = 2 if vx > 0 else 1
-                else:
-                    self.direction = 0 if vy > 0 else 3
+                self._applyDirection(vx, vy)
             self._sy = self.direction * self._rectSize.y
         super().update(deltaTime)
 
@@ -62,3 +71,9 @@ class Character(Actor):
         else:
             self._sx = 0
         self.setTextureRect(IntRect(Vector2i(self._sx, self._sy), self._rectSize))
+
+    def _applyDirection(self, vx: float, vy: float) -> None:
+        if abs(vx) > abs(vy):
+            self.direction = 2 if vx > 0 else 1
+        else:
+            self.direction = 0 if vy > 0 else 3

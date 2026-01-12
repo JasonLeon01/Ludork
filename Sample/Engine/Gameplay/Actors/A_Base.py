@@ -37,7 +37,7 @@ class ActorBase(Sprite):
             args.append(rect)
         super().__init__(*args)
 
-        self.switchInterval: float = 0.4
+        self.switchInterval: float = 0.2
         self.tag: str = tag
 
         self._map: GameMap = None
