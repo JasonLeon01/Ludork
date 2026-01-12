@@ -21,7 +21,7 @@ from Widgets import (
     ConfigWindow,
     TilesetEditor,
     SettingsWindow,
-    NodeGraphWindow,
+    CommonFunctionWindow,
     LightPanel,
     BluePrintEditor,
 )
@@ -1235,13 +1235,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self._tilesetEditor.show()
 
     def _onDatabaseCommonFunctions(self, checked: bool = False) -> None:
-        self._nodeGraphWindow = NodeGraphWindow(self, GameData.commonFunctionsData)
-        self._nodeGraphWindow.modified.connect(lambda: self._refreshInfo())
-        self._nodeGraphWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
-        self._nodeGraphWindow.setWindowModality(QtCore.Qt.ApplicationModal)
-        self._nodeGraphWindow.activateWindow()
-        self._nodeGraphWindow.raise_()
-        self._nodeGraphWindow.show()
+        self._commonFunctionWindow = CommonFunctionWindow(self, GameData.commonFunctionsData)
+        self._commonFunctionWindow.modified.connect(lambda: self._refreshInfo())
+        self._commonFunctionWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        self._commonFunctionWindow.setWindowModality(QtCore.Qt.ApplicationModal)
+        self._commonFunctionWindow.activateWindow()
+        self._commonFunctionWindow.raise_()
+        self._commonFunctionWindow.show()
 
     def _onDatabaseShowBlueprint(self, title: str, data: Dict[str, Any]) -> None:
         self._blueprintEditor = BluePrintEditor(title, data, self)

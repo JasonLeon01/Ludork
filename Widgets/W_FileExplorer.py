@@ -343,7 +343,7 @@ class FileExplorer(QtWidgets.QWidget):
             File.mainWindow._onDatabaseSystemConfig()
         elif dataType == "commonFunction":
             File.mainWindow._onDatabaseCommonFunctions()
-            window = File.mainWindow._nodeGraphWindow
+            window = File.mainWindow._commonFunctionWindow
             if window is None:
                 return False
             items = window._list.findItems(baseName, QtCore.Qt.MatchExactly)

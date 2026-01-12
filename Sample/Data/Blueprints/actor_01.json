@@ -37,6 +37,28 @@
                             550.5983396681935,
                             364.520911184142
                         ]
+                    },
+                    {
+                        "nodeFunction": "MapMove",
+                        "params": [
+                            "",
+                            "(0,1)"
+                        ],
+                        "pos": [
+                            903.4703206255688,
+                            363.85494141234494
+                        ]
+                    },
+                    {
+                        "nodeFunction": "Math.BuildVector2i",
+                        "params": [
+                            "0",
+                            "1"
+                        ],
+                        "pos": [
+                            1049.9373521263008,
+                            780.129662519689
+                        ]
                     }
                 ],
                 "links": [
@@ -53,6 +75,27 @@
                         "leftOutPin": 0,
                         "rightInPin": 0,
                         "linkType": "Exec"
+                    },
+                    {
+                        "left": 2,
+                        "right": 3,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Exec"
+                    },
+                    {
+                        "left": 1,
+                        "right": 3,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Params"
+                    },
+                    {
+                        "left": 4,
+                        "right": 3,
+                        "leftOutPin": 0,
+                        "rightInPin": 1,
+                        "linkType": "Params"
                     }
                 ]
             }

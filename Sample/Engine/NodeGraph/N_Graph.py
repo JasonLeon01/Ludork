@@ -95,6 +95,8 @@ class Graph:
         if startNode is None:
             startNode = self.startNodes[key]
         curr = startNode
+        if curr is None:
+            return None
         if not (0 <= curr < len(self.nodes[key])):
             raise IndexError(f"startIndex {curr} out of range for key '{key}'")
         cache: Dict[int, Tuple[Any, ...]] = {}

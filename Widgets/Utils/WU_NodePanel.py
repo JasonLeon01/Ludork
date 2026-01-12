@@ -58,8 +58,6 @@ def makeInit(currNode):
         keys = list(paramList.keys())
         has_invalid = False
         for i, name in enumerate(keys):
-            if name == "self":
-                continue
             init_val = currNode.params[i] if i < len(currNode.params) else ""
             self.add_input(name, multi_input=False)
             self._port_types[name] = "Params"
@@ -71,8 +69,6 @@ def makeInit(currNode):
         self._string_mode = has_invalid
         if has_invalid:
             for i, name in enumerate(keys):
-                if name == "self":
-                    continue
                 w = self.get_widget(name)
                 if w:
                     cw = w.get_custom_widget()
@@ -202,7 +198,7 @@ class NodePanel(QtWidgets.QWidget):
                     if leftOutPin < len(return_names):
                         out_name = return_names[leftOutPin]
                         left_port = leftNodeInst.get_output(out_name)
-                        param_names = [k for k in rightNodeData.getParamList().keys() if k != "self"]
+                        param_names = [k for k in rightNodeData.getParamList().keys()]
                         if rightInPin < len(param_names):
                             in_name = param_names[rightInPin]
                             right_port = rightNodeInst.get_input(in_name)
@@ -265,7 +261,7 @@ class NodePanel(QtWidgets.QWidget):
                     if portOut.name() in keys:
                         leftOutPin = keys.index(portOut.name())
 
-                param_keys = [k for k in rightNodeData.getParamList().keys() if k != "self"]
+                param_keys = [k for k in rightNodeData.getParamList().keys()]
                 if portIn.name() in param_keys:
                     rightInPin = param_keys.index(portIn.name())
 
@@ -360,8 +356,6 @@ class NodePanel(QtWidgets.QWidget):
         sig = inspect.signature(func)
         params = []
         for name, param in sig.parameters.items():
-            if name == "self":
-                continue
             if param.default != inspect.Parameter.empty:
                 params.append(str(param.default))
             else:
@@ -441,7 +435,7 @@ class NodePanel(QtWidgets.QWidget):
                     if portOut.name() in keys:
                         leftOutPin = keys.index(portOut.name())
 
-                param_keys = [k for k in rightNodeData.getParamList().keys() if k != "self"]
+                param_keys = [k for k in rightNodeData.getParamList().keys()]
                 if portIn.name() in param_keys:
                     rightInPin = param_keys.index(portIn.name())
 
@@ -565,8 +559,6 @@ class NodePanel(QtWidgets.QWidget):
         sig = inspect.signature(func)
         params = []
         for name, param in sig.parameters.items():
-            if name == "self":
-                continue
             if param.default != inspect.Parameter.empty:
                 params.append(str(param.default))
             else:
@@ -630,8 +622,8 @@ class NodePanel(QtWidgets.QWidget):
             return
         for node in self._COPY_BUFFER:
             pos = copy.copy(node.position)
-            pos[0] += 100
-            pos[1] += 100
+            pos[0] += 10
+            pos[1] += 10
             self.nodeGraph.dataNodes[self.key].append(
                 EditorDataNode(node.functionName, copy.deepcopy(node.params), pos)
             )

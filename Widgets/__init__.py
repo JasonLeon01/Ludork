@@ -9,7 +9,7 @@ from . import W_FilePreview
 from . import W_ConfigWindow
 from . import W_TilesetEditor
 from . import W_SettingsWindow
-from . import W_NodeGraphWindow
+from . import W_CommonFunctionWindow
 from . import W_LightPanel
 from . import W_BlueprintEditor
 
@@ -24,6 +24,6 @@ FilePreview = W_FilePreview.FilePreview
 ConfigWindow = W_ConfigWindow.ConfigWindow
 TilesetEditor = W_TilesetEditor.TilesetEditor
 SettingsWindow = W_SettingsWindow.SettingsWindow
-NodeGraphWindow = W_NodeGraphWindow.NodeGraphWindow
+CommonFunctionWindow = W_CommonFunctionWindow.CommonFunctionWindow
 LightPanel = W_LightPanel.LightPanel
 BluePrintEditor = W_BlueprintEditor.BluePrintEditor

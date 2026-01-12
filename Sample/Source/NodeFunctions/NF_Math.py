@@ -20,6 +20,31 @@ from Engine import (
 from Engine.Utils import Math
 
 
+@ReturnType(value=Vector2f)
+def BuildVector2f(x: float, y: float) -> Vector2f:
+    return Vector2f(float(x), float(y))
+
+
+@ReturnType(value=Vector2i)
+def BuildVector2i(x: int, y: int) -> Vector2i:
+    return Vector2i(int(x), int(y))
+
+
+@ReturnType(value=Vector2u)
+def BuildVector2u(x: int, y: int) -> Vector2u:
+    return Vector2u(int(x), int(y))
+
+
+@ReturnType(value=Vector3f)
+def BuildVector3f(x: float, y: float, z: float) -> Vector3f:
+    return Vector3f(float(x), float(y), float(z))
+
+
+@ReturnType(value=Vector3i)
+def BuildVector3i(x: int, y: int, z: int) -> Vector3i:
+    return Vector3i(int(x), int(y), int(z))
+
+
 @ReturnType(value=bool)
 def IsNearZero(num: Union[int, float], epsilon: float = 0.1) -> bool:
     return Math.IsNearZero(num, epsilon)

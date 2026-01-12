@@ -10,7 +10,7 @@ from Widgets.Utils.WU_Toast import Toast
 from Data import GameData
 
 
-class NodeGraphWindow(QtWidgets.QMainWindow):
+class CommonFunctionWindow(QtWidgets.QMainWindow):
     _clipboard = None
     modified = QtCore.pyqtSignal()
 
@@ -85,7 +85,7 @@ class NodeGraphWindow(QtWidgets.QMainWindow):
             newAction.triggered.connect(self._onNewCommonFunction)
             menu.addAction(newAction)
 
-            if NodeGraphWindow._clipboard is not None:
+            if CommonFunctionWindow._clipboard is not None:
                 pasteAction = QtWidgets.QAction(Locale.getContent("PASTE"), self)
                 pasteAction.triggered.connect(self._onPaste)
                 menu.addAction(pasteAction)
@@ -98,7 +98,7 @@ class NodeGraphWindow(QtWidgets.QMainWindow):
             return
         name = item.text()
         if name in self._data:
-            NodeGraphWindow._clipboard = (name, copy.deepcopy(self._data[name]))
+            CommonFunctionWindow._clipboard = (name, copy.deepcopy(self._data[name]))
 
     def _onRename(self):
         item = self._list.currentItem()
@@ -136,10 +136,10 @@ class NodeGraphWindow(QtWidgets.QMainWindow):
         self.modified.emit()
 
     def _onPaste(self):
-        if NodeGraphWindow._clipboard is None:
+        if CommonFunctionWindow._clipboard is None:
             return
 
-        original_name, data = NodeGraphWindow._clipboard
+        original_name, data = CommonFunctionWindow._clipboard
         new_name = original_name + " (copy)"
 
         if new_name in self._data:

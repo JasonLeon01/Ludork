@@ -506,5 +506,29 @@
     "ERROR": {
         "zh_CN": "错误",
         "en_GB": "Error"
+    },
+    "NEW_EVENT": {
+        "zh_CN": "新建事件",
+        "en_GB": "New Event"
+    },
+    "ENTER_EVENT_NAME": {
+        "zh_CN": "请输入事件名称",
+        "en_GB": "Enter event name"
+    },
+    "EVENT_EXISTS": {
+        "zh_CN": "事件名称已存在",
+        "en_GB": "Event name already exists"
+    },
+    "RENAME_EVENT": {
+        "zh_CN": "重命名事件",
+        "en_GB": "Rename Event"
+    },
+    "DELETE_EVENT": {
+        "zh_CN": "删除事件",
+        "en_GB": "Delete Event"
+    },
+    "CONFIRM_DELETE_EVENT": {
+        "zh_CN": "确认删除事件 '{name}' 吗？",
+        "en_GB": "Are you sure you want to delete the event '{name}'?"
     }
 }
