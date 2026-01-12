@@ -53,18 +53,25 @@ class GameData:
             namePart, extensionPart = os.path.splitext(file)
             if extensionPart == ".dat":
                 data = File.loadData(os.path.join(tilesetData, file))
-                cls.tilesetData[namePart] = Tileset.fromData(data)
+                payload = copy.deepcopy(data)
+                if "type" in payload:
+                    del payload["type"]
+                cls.tilesetData[namePart] = Tileset.fromData(payload)
 
         cls.mapData = {}
         mapsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
         if os.path.exists(mapsRoot):
             for file in os.listdir(mapsRoot):
                 namePart, extensionPart = os.path.splitext(file)
-                if extensionPart == ".dat":
+                if extensionPart == ".json":
+                    data = File.getJSONData(os.path.join(mapsRoot, file))
+                    data["isJson"] = True
+                    cls.mapData[namePart] = data
+                else:
                     fp = os.path.join(mapsRoot, file)
                     try:
                         data = File.loadData(fp)
-                        cls.mapData[file] = data
+                        cls.mapData[namePart] = data
                     except Exception as e:
                         print(f"Error while loading map file {file}: {e}")
 
@@ -73,7 +80,11 @@ class GameData:
         if os.path.exists(commonFunctionsRoot):
             for file in os.listdir(commonFunctionsRoot):
                 namePart, extensionPart = os.path.splitext(file)
-                if extensionPart == ".dat":
+                if extensionPart == ".json":
+                    data = File.getJSONData(os.path.join(commonFunctionsRoot, file))
+                    data["isJson"] = True
+                    cls.commonFunctionsData[namePart] = data
+                else:
                     fp = os.path.join(commonFunctionsRoot, file)
                     try:
                         data = File.loadData(fp)
@@ -176,11 +187,16 @@ class GameData:
         c_map = changes["mapData"]
         for key in c_map["A"] + c_map["U"]:
             data = cls.mapData.get(key)
-            if data is None:
+            payload = copy.deepcopy(data)
+            if not isinstance(payload, dict):
                 final_details["Failed"].append(key)
                 continue
             try:
-                File.saveData(os.path.join(mapsRoot, key), data)
+                if "isJson" in payload:
+                    del payload["isJson"]
+                    File.saveJSONData(os.path.join(mapsRoot, f"{key}.json"), payload)
+                else:
+                    File.saveData(os.path.join(mapsRoot, f"{key}.dat"), payload)
                 if key in c_map["A"]:
                     final_details["A"].append(key)
                 else:
@@ -205,22 +221,22 @@ class GameData:
         c_cfg = changes["systemConfigData"]
         for key in c_cfg["A"] + c_cfg["U"]:
             data = cls.systemConfigData.get(key)
-            if not isinstance(data, dict):
+            payload = copy.deepcopy(data)
+            if not isinstance(payload, dict):
                 final_details["Failed"].append(key)
                 continue
             try:
-                payload = dict(data)
                 if "isJson" in payload:
                     del payload["isJson"]
-
-                fp = os.path.join(configsRoot, f"{key}.dat")
-                File.saveData(fp, payload)
+                    File.saveJSONData(os.path.join(configsRoot, f"{key}.json"), payload)
+                else:
+                    File.saveData(os.path.join(configsRoot, f"{key}.dat"), payload)
 
                 if key in c_cfg["A"]:
                     final_details["A"].append(key)
                 else:
                     final_details["U"].append(key)
-                cls._originData["systemConfigData"][key] = copy.deepcopy(data)
+                cls._originData["systemConfigData"][key] = copy.deepcopy(payload)
             except Exception:
                 final_details["Failed"].append(key)
 
@@ -251,14 +267,19 @@ class GameData:
             if ts is None:
                 final_details["Failed"].append(key)
                 continue
-            payload = {
+            data = {
                 "name": ts.name,
                 "fileName": ts.fileName,
                 "passable": ts.passable,
                 "lightBlock": ts.lightBlock,
             }
             try:
-                File.saveData(os.path.join(tilesetsRoot, f"{key}.dat"), payload)
+                payload = copy.deepcopy(data)
+                if "isJson" in payload:
+                    del payload["isJson"]
+                    File.saveJSONData(os.path.join(tilesetsRoot, f"{key}.json"), payload)
+                else:
+                    File.saveData(os.path.join(tilesetsRoot, f"{key}.dat"), payload)
                 if key in c_ts["A"]:
                     final_details["A"].append(key)
                 else:
@@ -286,14 +307,13 @@ class GameData:
             if cfg is None:
                 final_details["Failed"].append(key)
                 continue
-
-            if hasattr(cfg, "asDict"):
-                payload = cfg.asDict()
-            else:
-                payload = copy.deepcopy(cfg)
-
+            payload = copy.deepcopy(cfg)
             try:
-                File.saveData(os.path.join(commonFunctionsRoot, f"{key}.dat"), payload)
+                if "isJson" in payload:
+                    del payload["isJson"]
+                    File.saveJSONData(os.path.join(commonFunctionsRoot, f"{key}.json"), payload)
+                else:
+                    File.saveData(os.path.join(commonFunctionsRoot, f"{key}.dat"), payload)
                 if key in c_cfgs["A"]:
                     final_details["A"].append(key)
                 else:

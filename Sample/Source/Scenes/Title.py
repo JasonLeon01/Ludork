@@ -1,10 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-from Engine import System, Shader
-from Engine import Manager
-from Engine.Gameplay import SceneBase
-from Engine.Gameplay.Actors import Character
-from Engine.Gameplay import GameMap
+from Engine import System, Shader, Manager
+from Engine.Gameplay import SceneBase, GameMap
 from Engine.Utils import File
 from ..Player import Player
 
@@ -16,16 +13,12 @@ class Scene(SceneBase):
     def onCreate(self):
         self.actors = [
             Player(Manager.loadCharacter("actors/classic-cha-braver01.png"), "yongshi"),
-            Character(Manager.loadCharacter("actors/020-Braver10.png"), "shilaimu"),
         ]
         for i, actor in enumerate(self.actors):
             actor.setAnimatable(True, True)
 
         self.actors[0].setCollisionEnabled(True)
-        self.actors[0].setPosition((640, 256))
-        self.actors[0].addChild(self.actors[1])
-        self.actors[1].animateWithoutMoving = True
-        self.actors[1].setRelativePosition((64, -64))
+        self.actors[0].setPosition((608, 256))
 
         self._gameMap = GameMap.fromData(File.loadData("./Data/Maps/Map_01.dat"))
         self._gameMap.spawnActor(self.actors[0], "default")

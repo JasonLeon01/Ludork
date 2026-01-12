@@ -5,7 +5,7 @@ import shutil
 import stat
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Utils import Locale, Panel
+from Utils import Locale, Panel, File
 from .W_FilePreview import FilePreview
 
 
@@ -176,7 +176,9 @@ class FileExplorer(QtWidgets.QWidget):
         QtWidgets.QShortcut(QtGui.QKeySequence.Copy, self, self._onCopy, context=QtCore.Qt.WidgetWithChildrenShortcut)
         QtWidgets.QShortcut(QtGui.QKeySequence.Paste, self, self._onPaste, context=QtCore.Qt.WidgetWithChildrenShortcut)
         QtWidgets.QShortcut(QtGui.QKeySequence.Cut, self, self._onCut, context=QtCore.Qt.WidgetWithChildrenShortcut)
-        QtWidgets.QShortcut(QtGui.QKeySequence.Delete, self, self._onDelete, context=QtCore.Qt.WidgetWithChildrenShortcut)
+        QtWidgets.QShortcut(
+            QtGui.QKeySequence.Delete, self, self._onDelete, context=QtCore.Qt.WidgetWithChildrenShortcut
+        )
         style = QtWidgets.QApplication.style()
         upIcon = style.standardIcon(QtWidgets.QStyle.SP_ArrowUp)
         self._pathEdit = QtWidgets.QLineEdit(self)
@@ -281,8 +283,85 @@ class FileExplorer(QtWidgets.QWidget):
         if self._model.isDir(src):
             self._setCurrentPath(path)
         else:
-            if path:
+            if not path:
+                return
+            ext = os.path.splitext(path)[1].lower()
+            if ext == ".dat":
+                self._handleDatFile(path)
+            else:
                 self._openSystemFile(path)
+
+    def _handleDatFile(self, path: str) -> None:
+        if not os.path.exists(path):
+            QtWidgets.QMessageBox.warning(
+                self,
+                Locale.getContent("INVALID_DATA_FILE"),
+                Locale.getContent("INVALID_DATA_FILE_MESSAGE"),
+            )
+            return
+        try:
+            data = File.loadData(path)
+        except Exception:
+            QtWidgets.QMessageBox.warning(
+                self,
+                Locale.getContent("INVALID_DATA_FILE"),
+                Locale.getContent("INVALID_DATA_FILE_MESSAGE"),
+            )
+            return
+        if not isinstance(data, dict) or "type" not in data:
+            QtWidgets.QMessageBox.warning(
+                self,
+                Locale.getContent("INVALID_DATA_FILE"),
+                Locale.getContent("INVALID_DATA_FILE_MESSAGE"),
+            )
+            return
+        data_type = data.get("type")
+        base_name = os.path.splitext(os.path.basename(path))[0]
+        main_window = getattr(File, "mainWindow", None)
+        if data_type == "map":
+            if main_window is None:
+                return
+            items = main_window.leftList.findItems(base_name, QtCore.Qt.MatchExactly)
+            if items:
+                item = items[0]
+                main_window.leftList.setCurrentItem(item)
+                main_window._onLeftItemClicked(item)
+        elif data_type == "tileset":
+            if main_window is None:
+                return
+            main_window._onDatabaseTilesetsData()
+            editor = getattr(main_window, "_tilesetEditor", None)
+            if editor is None:
+                return
+            items = editor.listWidget.findItems(base_name, QtCore.Qt.MatchExactly)
+            if items:
+                item = items[0]
+                editor.listWidget.setCurrentItem(item)
+                editor.activateWindow()
+                editor.raise_()
+        elif data_type == "config":
+            if main_window is None:
+                return
+            main_window._onDatabaseSystemConfig()
+        elif data_type == "commonFunction":
+            if main_window is None:
+                return
+            main_window._onDatabaseCommonFunctions()
+            window = getattr(main_window, "_nodeGraphWindow", None)
+            if window is None:
+                return
+            items = window._list.findItems(base_name, QtCore.Qt.MatchExactly)
+            if items:
+                item = items[0]
+                window._list.setCurrentItem(item)
+                window.activateWindow()
+                window.raise_()
+        else:
+            QtWidgets.QMessageBox.warning(
+                self,
+                Locale.getContent("INVALID_DATA_FILE"),
+                Locale.getContent("INVALID_DATA_FILE_MESSAGE"),
+            )
 
     def _selectedSourceRows(self):
         rows = self._view.selectionModel().selectedRows()

@@ -80,7 +80,7 @@ class System:
         cls.__data = inData
         cls.__dataFilePath = dataFilePath
         data = inData["Main"]
-        systemData = File.getJSONData("./Data/Configs/System.json")
+        systemData = File.loadData("./Data/Configs/System.dat")
         cls._title = systemData["title"]["value"]
         size = systemData["gameSize"]["value"]
         cls._gameSize = Vector2u(size[0], size[1])

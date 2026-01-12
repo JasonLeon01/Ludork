@@ -470,5 +470,13 @@
     "NEW_LIGHT_SOURCE": {
         "zh_CN": "新建光源",
         "en_GB": "Create New Light Source"
+    },
+    "INVALID_DATA_FILE": {
+        "zh_CN": "数据文件无效",
+        "en_GB": "Invalid Data File"
+    },
+    "INVALID_DATA_FILE_MESSAGE": {
+        "zh_CN": "选中的 .dat 文件不是符合引擎规范的数据文件。",
+        "en_GB": "The selected .dat file is not a valid engine data file."
     }
 }

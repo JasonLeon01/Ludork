@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+import copy
 import os
 from typing import Any, Dict
 from Engine.Gameplay import Tileset
@@ -23,7 +24,10 @@ class _Data:
             namePart, extensionPart = os.path.splitext(file)
             if extensionPart == ".dat":
                 data = File.loadData(os.path.join(tilesetData, file))
-                self._dataDict["tilesetData"][namePart] = Tileset.fromData(data)
+                payload = copy.deepcopy(data)
+                if "type" in payload:
+                    del payload["type"]
+                self._dataDict["tilesetData"][namePart] = Tileset.fromData(payload)
 
     def get(self, dataType: str, name: str) -> Any:
         return self._dataDict[dataType][name]
@@ -32,7 +36,8 @@ class _Data:
         return self._classDict.get(classPath)
 
 
-_data = _Data()
+if os.environ.get("IN_EDITOR", None) is None:
+    _data = _Data()
 
 
 def getTileset(name: str) -> Tileset:

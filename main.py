@@ -74,15 +74,16 @@ def main():
 if __name__ == "__main__":
     params = sys.argv.copy()
     if len(params) > 1:
-        arg1 = params[1]
-        if isinstance(arg1, str) and arg1.lower().endswith(".proj") and os.path.isfile(arg1):
-            START_PROJ_FILE = os.path.abspath(arg1)
-            main()
-        else:
+        if not os.environ.get("WINDOWHANDLE", None) is None:
             sys.argv = sys.argv[1:]
             sys.argv[0] = os.path.abspath(params[1])
             if not os.getcwd() in sys.path:
                 sys.path.append(os.getcwd())
             runpy.run_path(sys.argv[0], run_name="__main__")
+        else:
+            arg1 = params[1]
+            if isinstance(arg1, str) and arg1.lower().endswith(".proj") and os.path.isfile(arg1):
+                START_PROJ_FILE = os.path.abspath(arg1)
+                main()
     else:
         main()

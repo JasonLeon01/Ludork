@@ -8,7 +8,7 @@ import configparser
 import threading
 
 
-def entry(windowHandle: Optional[int] = None, individual: bool = False):
+def entry():
     import Engine
     from Source import Scenes
 
@@ -31,9 +31,7 @@ def entry(windowHandle: Optional[int] = None, individual: bool = False):
                 except Exception as e:
                     logging.error(f"[STDIN] {e}")
 
-    if windowHandle:
-        os.environ["WINDOWHANDLE"] = windowHandle
-        os.environ["INDIVIDUAL"] = individual
+    if not os.environ.get("WINDOWHANDLE", None) is None:
         t = threading.Thread(target=_stdinWorker, daemon=True)
         t.start()
 
@@ -49,7 +47,4 @@ def entry(windowHandle: Optional[int] = None, individual: bool = False):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        entry(sys.argv[1], sys.argv[2])
-    else:
-        entry()
+    entry()

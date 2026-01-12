@@ -287,6 +287,8 @@ class MainWindow(QtWidgets.QMainWindow):
         iniFile.read(iniPath, encoding="utf-8")
         scriptPath = iniFile["Main"]["script"]
         self._panelHandle = int(self.gamePanel.winId())
+        windowhandle = str(self._panelHandle)
+        individual = str(self._projConfig.get("IndividualWindow", False))
         self._engineProc = subprocess.Popen(
             self._getExec(scriptPath),
             cwd=EditorStatus.PROJ_PATH,
@@ -296,7 +298,7 @@ class MainWindow(QtWidgets.QMainWindow):
             stdin=subprocess.PIPE,
             text=True,
             bufsize=1,
-            env=dict(os.environ, PYTHONUNBUFFERED="1"),
+            env=dict(EditorStatus.CLEAN_ENVIRON, WINDOWHANDLE=windowhandle, INDIVIDUAL=individual),
         )
         self.consoleWidget.attach_process(self._engineProc)
         self.tabWidget.setCurrentWidget(self.consoleWidget)
@@ -375,7 +377,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def refreshLeftList(self):
         self.leftList.clear()
-        mapFiles = [k for k in GameData.mapData.keys() if k.endswith(".dat")]
+        mapFiles = [k for k in GameData.mapData.keys()]
         mapFiles.sort()
         self.leftList.addItems(mapFiles)
 
@@ -1081,10 +1083,9 @@ class MainWindow(QtWidgets.QMainWindow):
                     self._refreshLayerBar()
 
     def _getExec(self, scriptPath):
-        individual = str(self._projConfig.get("IndividualWindow", False))
         if System.already_packed():
-            return [sys.argv[0], scriptPath, str(self._panelHandle), individual]
-        return [sys.executable, "-u", scriptPath, str(self._panelHandle), individual]
+            return [sys.argv[0], scriptPath]
+        return [sys.executable, "-u", scriptPath]
 
     def _initProjConfigAndSelection(self) -> None:
         root = EditorStatus.PROJ_PATH
