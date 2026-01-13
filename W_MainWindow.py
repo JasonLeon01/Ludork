@@ -28,6 +28,7 @@ from Widgets import (
     LightPanel,
     BluePrintEditor,
     ClassSelector,
+    ActorInfoPanel,
 )
 from Widgets.Utils import MapEditDialog, SingleRowDialog, Toast
 import EditorStatus
@@ -62,6 +63,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.rightArea = QtWidgets.QWidget()
         self.tileSelect = TileSelect(self.rightArea)
         self.lightPanel = LightPanel(self.rightArea)
+        self.actorInfo = ActorInfoPanel(self.rightArea)
         self._selectedLightMapKey = ""
         self._selectedLightIndex: Optional[int] = None
         self.upperSplitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
@@ -382,7 +384,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.editorPanel.setLightOverlayEnabled(False)
         self.editorPanel.setAcceptDrops(self._selectedLayerName is not None)
         self.tileSelect.setLayerSelected(False)
-        self.rightStack.setCurrentWidget(self.tileSelect)
+        self.rightStack.setCurrentWidget(self.actorInfo)
 
     def refreshLeftList(self):
         self.leftList.clear()
@@ -712,12 +714,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.rightStack.setSpacing(0)
         self.rightStack.addWidget(self.tileSelect)
         self.rightStack.addWidget(self.lightPanel)
+        self.rightStack.addWidget(self.actorInfo)
         self.rightStack.setCurrentWidget(self.tileSelect)
         self.tileSelect.tileSelected.connect(self._onTileSelected)
         self.tileSelect.tilesetChanged.connect(self._onTilesetChanged)
         self.editorPanel.tileNumberPicked.connect(self._onTileNumberPicked)
         self.editorPanel.lightSelectionChanged.connect(self._onLightSelectionChanged)
         self.editorPanel.lightDataChanged.connect(self._onLightDataChanged)
+        self.editorPanel.actorSelectionChanged.connect(
+            lambda l, i, d: self.actorInfo.setActor(l, i, d, self.editorPanel)
+        )
         self.lightPanel.lightEdited.connect(self._onLightEdited)
         self.editorPanel.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.editorPanel.customContextMenuRequested.connect(self._onEditorPanelContextMenu)

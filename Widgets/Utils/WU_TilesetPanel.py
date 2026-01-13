@@ -52,18 +52,18 @@ class TilesetImageView(QtWidgets.QWidget):
         if self._image:
             painter.drawImage(0, 0, self._image)
 
-            cell_size = EditorStatus.CELLSIZE
-            if cell_size <= 0:
+            cellSize = EditorStatus.CELLSIZE
+            if cellSize <= 0:
                 return
-            cols = self._image.width() // cell_size
-            rows = self._image.height() // cell_size
+            cols = self._image.width() // cellSize
+            rows = self._image.height() // cellSize
 
             pen = QtGui.QPen(QtGui.QColor(0, 0, 0, 100))
             painter.setPen(pen)
             for x in range(cols + 1):
-                painter.drawLine(x * cell_size, 0, x * cell_size, self._image.height())
+                painter.drawLine(x * cellSize, 0, x * cellSize, self._image.height())
             for y in range(rows + 1):
-                painter.drawLine(0, y * cell_size, self._image.width(), y * cell_size)
+                painter.drawLine(0, y * cellSize, self._image.width(), y * cellSize)
 
             if self._data:
                 count = cols * rows
@@ -72,9 +72,9 @@ class TilesetImageView(QtWidgets.QWidget):
                 painter.setFont(font)
 
                 for i in range(count):
-                    x = (i % cols) * cell_size
-                    y = (i // cols) * cell_size
-                    rect = QtCore.QRect(x, y, cell_size, cell_size)
+                    x = (i % cols) * cellSize
+                    y = (i // cols) * cellSize
+                    rect = QtCore.QRect(x, y, cellSize, cellSize)
 
                     if self._mode == TilesetMode.PASSABLE:
                         passable_arr = getattr(self._data, "passable", [])
@@ -112,15 +112,15 @@ class TilesetImageView(QtWidgets.QWidget):
             return
         if e.button() != QtCore.Qt.LeftButton:
             return
-        cell_size = EditorStatus.CELLSIZE
-        if cell_size <= 0:
+        cellSize = EditorStatus.CELLSIZE
+        if cellSize <= 0:
             return
         x = int(e.pos().x())
         y = int(e.pos().y())
-        cols = self._image.width() // cell_size
-        rows = self._image.height() // cell_size
-        gx = x // cell_size
-        gy = y // cell_size
+        cols = self._image.width() // cellSize
+        rows = self._image.height() // cellSize
+        gx = x // cellSize
+        gy = y // cellSize
         if gx < 0 or gy < 0 or gx >= cols or gy >= rows:
             return
         GameData.recordSnapshot()
@@ -270,13 +270,13 @@ class TilesetPanel(QtWidgets.QWidget):
             GameData.recordSnapshot()
             filename = os.path.basename(fp)
             self._data.fileName = filename
-            cell_size = EditorStatus.CELLSIZE
+            cellSize = EditorStatus.CELLSIZE
             new_count = 0
-            if isinstance(cell_size, int) and cell_size > 0:
+            if isinstance(cellSize, int) and cellSize > 0:
                 img = QtGui.QImage(fp)
                 if not img.isNull():
-                    cols = img.width() // cell_size
-                    rows = img.height() // cell_size
+                    cols = img.width() // cellSize
+                    rows = img.height() // cellSize
                     new_count = max(0, cols * rows)
             arr_p = getattr(self._data, "passable", [])
             arr_l = getattr(self._data, "lightBlock", [])

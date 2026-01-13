@@ -570,5 +570,33 @@
     "NOT_ACTOR_TYPE": {
         "zh_CN": "不是符合规范的Actor类型",
         "en_GB": "Not a valid Actor type"
+    },
+    "ACTOR_INFO": {
+        "zh_CN": "角色信息",
+        "en_GB": "Actor Info"
+    },
+    "TAG": {
+        "zh_CN": "标签",
+        "en_GB": "Tag"
+    },
+    "TRANSLATION": {
+        "zh_CN": "平移",
+        "en_GB": "Translation"
+    },
+    "ROTATION": {
+        "zh_CN": "旋转",
+        "en_GB": "Rotation"
+    },
+    "SCALE": {
+        "zh_CN": "缩放",
+        "en_GB": "Scale"
+    },
+    "ORIGIN": {
+        "zh_CN": "原点",
+        "en_GB": "Origin"
+    },
+    "NO_SELECTION": {
+        "zh_CN": "无选择",
+        "en_GB": "No Selection"
     }
 }

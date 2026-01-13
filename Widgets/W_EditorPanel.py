@@ -25,6 +25,7 @@ class EditorPanel(QtWidgets.QWidget):
     dataChanged = QtCore.pyqtSignal()
     lightSelectionChanged = QtCore.pyqtSignal(str, object, object)
     lightDataChanged = QtCore.pyqtSignal(str, object, object)
+    actorSelectionChanged = QtCore.pyqtSignal(str, object, object)
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         self.selctedPos: Tuple[int, int] = None
@@ -83,6 +84,7 @@ class EditorPanel(QtWidgets.QWidget):
         self.mapData = None
         self._pixmap = None
         self._setSelectedLightIndex(None)
+        self.actorSelectionChanged.emit(None, None, None)
         self.setMinimumSize(0, 0)
         self.resize(0, 0)
         self._mapFilesRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
@@ -200,6 +202,7 @@ class EditorPanel(QtWidgets.QWidget):
             self._stopLightMoveDrag()
             self._setSelectedLightIndex(None)
             self._setLightOverlayEnabled(False)
+            self.actorSelectionChanged.emit(None, None, None)
         self.update()
 
     def setLightOverlayEnabled(self, enabled: bool) -> None:
@@ -745,6 +748,10 @@ class EditorPanel(QtWidgets.QWidget):
             if e.button() == QtCore.Qt.LeftButton and self.selectedLayerName is not None:
                 hit = self._hitTestActor(self.selectedLayerName, e.pos(), tileSize)
                 if isinstance(hit, int):
+                    actors = self._getActorListForLayer(self.selectedLayerName)
+                    if 0 <= hit < len(actors):
+                        self.actorSelectionChanged.emit(self.selectedLayerName, hit, actors[hit])
+
                     GameData.recordSnapshot()
                     self._actorMoveDragging = True
                     self._actorMoveDragLayerName = self.selectedLayerName
@@ -753,6 +760,8 @@ class EditorPanel(QtWidgets.QWidget):
                     self._actorMoveDragTitleRefreshed = False
                     self.setCursor(QtCore.Qt.SizeAllCursor)
                     return
+                else:
+                    self.actorSelectionChanged.emit(None, None, None)
             return
         if self.selectedLayerName is None:
             return
@@ -1014,11 +1023,8 @@ class EditorPanel(QtWidgets.QWidget):
             return None
 
     def _getClassAttr(self, cls: Any, name: str, default: Any) -> Any:
-        try:
-            if hasattr(cls, name):
-                return getattr(cls, name)
-        except Exception:
-            pass
+        if hasattr(cls, name):
+            return getattr(cls, name)
         return default
 
     def _resolveTextureImage(self, texturePath: Any) -> Optional[QtGui.QImage]:
@@ -1053,33 +1059,65 @@ class EditorPanel(QtWidgets.QWidget):
                 gy = int(pos[1])
             except Exception:
                 continue
+
+            clsObj = self._resolveActorClass(entry.get("bp"))
+
+            # Translation
+            defTrans = self._toVec2f(self._getClassAttr(clsObj, "defaultTranslation", (0.0, 0.0)), 0.0, 0.0)
+            translation = self._toVec2f(entry.get("translation", defTrans), defTrans[0], defTrans[1])
+
+            # Rotation
+            defRot = self._getClassAttr(clsObj, "defaultRotation", 0.0)
+            rotation = float(entry.get("rotation", defRot))
+
+            # Scale
+            defScale = self._toVec2f(self._getClassAttr(clsObj, "defaultScale", (1.0, 1.0)), 1.0, 1.0)
+            scaleVal = self._toVec2f(entry.get("scale", defScale), defScale[0], defScale[1])
+
+            # Origin
+            defOrigin = self._toVec2f(self._getClassAttr(clsObj, "defaultOrigin", (0.0, 0.0)), 0.0, 0.0)
+            origin = self._toVec2f(entry.get("origin", defOrigin), defOrigin[0], defOrigin[1])
+
+            texPath = self._getClassAttr(clsObj, "texturePath", "")
+            rectT = self._toRectTuple(self._getClassAttr(clsObj, "defaultRect", None))
+
             px = gx * tileSize
             py = gy * tileSize
-            clsObj = self._resolveActorClass(entry.get("bp"))
-            rectT = self._toRectTuple(self._getClassAttr(clsObj, "defaultRect", None))
-            origin = self._toVec2f(self._getClassAttr(clsObj, "defaultOrigin", (0.0, 0.0)), 0.0, 0.0)
-            scale = self._toVec2f(self._getClassAttr(clsObj, "defaultScale", (1.0, 1.0)), 1.0, 1.0)
-            texPath = self._getClassAttr(clsObj, "texturePath", "")
+
+            painter.save()
+            painter.translate(px, py)
+            painter.translate(translation[0], translation[1])
+            painter.rotate(rotation)
+            painter.scale(scaleVal[0], scaleVal[1])
+
             w = tileSize
             h = tileSize
             sx = 0
             sy = 0
             if rectT:
                 sx, sy, w, h = rectT
-            dw = int(w * scale[0])
-            dh = int(h * scale[1])
-            dx = int(px - origin[0] * scale[0])
-            dy = int(py - origin[1] * scale[1])
+
             img = self._resolveTextureImage(texPath)
             if img is not None and rectT is not None:
-                src = QtCore.QRect(sx, sy, w, h)
-                dst = QtCore.QRect(dx, dy, dw, dh)
+                src = QtCore.QRectF(sx, sy, w, h)
+                dst = QtCore.QRectF(-origin[0], -origin[1], w, h)
                 painter.drawImage(dst, img, src)
             else:
                 color = QtGui.QColor(0, 120, 255, 160)
-                painter.fillRect(QtCore.QRect(dx, dy, dw, dh), color)
+                r = QtCore.QRectF(-origin[0], -origin[1], w, h)
+                painter.fillRect(r, color)
                 painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255, 220), 1))
-                painter.drawRect(QtCore.QRect(dx, dy, dw - 1, dh - 1))
+                painter.drawRect(r)
+
+            painter.restore()
+
+            # Draw logical grid center
+            cx = px + tileSize / 2
+            cy = py + tileSize / 2
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.setBrush(QtGui.QBrush(QtGui.QColor(0, 255, 0, 220)))
+            painter.drawEllipse(QtCore.QPointF(cx, cy), 3, 3)
+
         painter.setOpacity(oldOpacity)
 
     def _stopActorMoveDrag(self) -> None:
@@ -1257,7 +1295,11 @@ class EditorPanel(QtWidgets.QWidget):
                                 tagStr = f"{getattr(clsObj, 'tag')}_{layerKey}_{gx}_{gy}"
                             else:
                                 tagStr = f"{bpRel}_{layerKey}_{gx}_{gy}"
-                            actorEntry = {"tag": tagStr, "bp": bpRel, "position": [gx, gy]}
+                            actorEntry = {
+                                "tag": tagStr,
+                                "bp": bpRel,
+                                "position": [gx, gy],
+                            }
                             layerList.append(actorEntry)
                             self._refreshTitle()
                             self.dataChanged.emit()

@@ -22,6 +22,7 @@ class Actor(ActorBase):
         ### Generation use only
         self.texturePath: str = ""
         self.defaultRect: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = None
+        self.defaultTranslation: Tuple[float, float] = (0.0, 0.0)
         self.defaultRotation: float = 0.0
         self.defaultScale: Tuple[float, float] = (1.0, 1.0)
         self.defaultOrigin: Tuple[float, float] = (0.0, 0.0)

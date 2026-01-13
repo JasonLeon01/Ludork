@@ -43,6 +43,7 @@ class ActorBase(Sprite):
         self._map: GameMap = None
         self._parent: Optional[ActorBase] = None
         self._children: List[ActorBase] = []
+        self._translation: Vector2f = Vector2f(0, 0)
         self._visible: bool = True
         self._texture: Optional[Texture] = texture
         self._switchTimer: float = 0.0
@@ -61,6 +62,10 @@ class ActorBase(Sprite):
 
     def fixedUpdate(self, fixedDelta: float) -> None:
         pass
+
+    @ReturnType(pos=Vector2f)
+    def getPosition(self) -> Vector2f:
+        return super().getPosition() - self._translation
 
     @ReturnType(pos=Tuple[float, float])
     def v_getPosition(self) -> Tuple[float, float]:
@@ -108,7 +113,7 @@ class ActorBase(Sprite):
             self._relativePosition = position - parentPosition
         else:
             self._relativePosition = Vector2f(0, 0)
-        super().setPosition(position)
+        super().setPosition(position + self._translation)
         if self.getChildren():
             for child in self.getChildren():
                 child._updatePositionFromParent()
@@ -151,6 +156,10 @@ class ActorBase(Sprite):
         if self.getChildren():
             for child in self.getChildren():
                 child._updatePositionFromParent()
+
+    @ReturnType(angle=Angle)
+    def getRotation(self) -> Angle:
+        return super().getRotation()
 
     @ReturnType(angle=float)
     def v_getRotation(self) -> float:
@@ -202,6 +211,10 @@ class ActorBase(Sprite):
     def v_getScale(self) -> Tuple[float, float]:
         result = super().getScale()
         return (result.x, result.y)
+
+    @ReturnType(scale=Vector2f)
+    def getScale(self) -> Vector2f:
+        return super().getScale()
 
     @ReturnType(scale=Vector2f)
     def getRelativeScale(self) -> Vector2f:
@@ -256,6 +269,10 @@ class ActorBase(Sprite):
         result = super().getOrigin()
         return (result.x, result.y)
 
+    @ReturnType(origin=Vector2f)
+    def getOrigin(self) -> Vector2f:
+        return super().getOrigin()
+
     @ExecSplit(default=(None,))
     def setOrigin(self, origin: Union[Vector2f, Tuple[float, float]]) -> None:
         assert isinstance(origin, (Vector2f, tuple)), "origin must be a tuple or Vector2f"
@@ -263,6 +280,18 @@ class ActorBase(Sprite):
             x, y = origin
             origin = Vector2f(x, y)
         return super().setOrigin(origin)
+
+    @ReturnType(translation=Vector2f)
+    def getTranslation(self) -> Vector2f:
+        return self._translation
+
+    @ExecSplit(default=(None,))
+    def setTranslation(self, translation: Union[Vector2f, Tuple[float, float]]) -> None:
+        assert isinstance(translation, (Vector2f, tuple)), "translation must be a tuple or Vector2f"
+        if isinstance(translation, tuple):
+            translation = Vector2f(*translation)
+        self._translation = translation
+        self.setPosition(self.getPosition())
 
     @ExecSplit(default=(None,))
     def setAlignment(self, alignment: Tuple[float, float]) -> None:
