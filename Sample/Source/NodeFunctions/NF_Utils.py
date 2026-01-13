@@ -197,7 +197,7 @@ def SUPER(obj: object) -> None:
     parent_cls = getattr(cls, "__base__", None)
     if parent_cls is None or parent_cls is object:
         return
-    if hasattr(cls, "GENERATED_CLASS") and getattr(cls, "GENERATED_CLASS"):
+    if hasattr(cls, "_GENERATED_CLASS") and getattr(cls, "_GENERATED_CLASS"):
         graph = getattr(parent_cls, "_graph", None)
         if graph is None:
             try:

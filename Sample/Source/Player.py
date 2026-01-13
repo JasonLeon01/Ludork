@@ -9,7 +9,7 @@ from Engine.Gameplay.Actors import Character
 class Player(Character):
     def __init__(self, texture: Optional[Texture] = None, tag: str = "") -> None:
         super().__init__(texture, tag)
-        self._speed = 96
+        self.speed = 96
         Input.registerActionMapping(self, "playerMoveUp", Input.getUpKeys(), Player.moveUp, triggerOnHold=True)
         Input.registerActionMapping(self, "playerMoveDown", Input.getDownKeys(), Player.moveDown, triggerOnHold=True)
         Input.registerActionMapping(self, "playerMoveLeft", Input.getLeftKeys(), Player.moveLeft, triggerOnHold=True)

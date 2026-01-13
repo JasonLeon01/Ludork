@@ -362,12 +362,14 @@ class MainWindow(QtWidgets.QMainWindow):
     def toTileMode(self) -> None:
         self.editorPanel.setTileMode(True)
         self.editorPanel.setLightOverlayEnabled(False)
+        self.editorPanel.setAcceptDrops(False)
         self.tileSelect.setLayerSelected(self._selectedLayerName is not None)
         self.rightStack.setCurrentWidget(self.tileSelect)
 
     def toLightMode(self) -> None:
         self.editorPanel.setTileMode(False)
         self.editorPanel.setLightOverlayEnabled(True)
+        self.editorPanel.setAcceptDrops(False)
         self.tileSelect.setLayerSelected(False)
         self.rightStack.setCurrentWidget(self.lightPanel)
         self.editorPanel.clearLightSelection()
@@ -378,6 +380,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def toActorMode(self) -> None:
         self.editorPanel.setTileMode(False)
         self.editorPanel.setLightOverlayEnabled(False)
+        self.editorPanel.setAcceptDrops(self._selectedLayerName is not None)
         self.tileSelect.setLayerSelected(False)
         self.rightStack.setCurrentWidget(self.tileSelect)
 
@@ -459,6 +462,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.editorPanel.setSelectedLayer(None)
         self.tileSelect.setLayerSelected(False)
         self.tileSelect.clearSelection()
+        if self._editModeIdx == 2:
+            self.editorPanel.setAcceptDrops(False)
         self._refreshLayerBar()
 
     def _onLeftListContextMenu(self, pos: QtCore.QPoint) -> None:
@@ -568,6 +573,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.editorPanel.setSelectedLayer(None)
             self.tileSelect.setLayerSelected(False)
             self.tileSelect.clearSelection()
+            if self._editModeIdx == 2:
+                self.editorPanel.setAcceptDrops(False)
             self._refreshLayerBar()
 
     def _onNewMap(self) -> None:
@@ -865,6 +872,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.editorPanel.setSelectedLayer(None)
         self.tileSelect.setLayerSelected(False)
         self.tileSelect.clearSelection()
+        if self._editModeIdx == 2:
+            self.editorPanel.setAcceptDrops(False)
 
     def _onLayerButtonClicked(self, item: QtWidgets.QListWidgetItem, force_select: bool = False) -> None:
         name = item.text()
@@ -877,6 +886,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if key:
             self.tileSelect.setCurrentTilesetKey(key)
         self.tileSelect.setLayerSelected(True)
+        if self._editModeIdx == 2:
+            self.editorPanel.setAcceptDrops(True)
 
     def _onLayerMoved(self, parent, start, end, destination, row) -> None:
         new_order = [self.layerList.item(i).text() for i in range(self.layerList.count())]
@@ -1084,6 +1095,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 if self.editorPanel.removeLayer(name):
                     if self._selectedLayerName == name:
                         self._selectedLayerName = None
+                        if self._editModeIdx == 2:
+                            self.editorPanel.setAcceptDrops(False)
                     self._refreshLayerBar()
 
     def _getExec(self, scriptPath):
@@ -1320,10 +1333,7 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         dlg.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
         dlg.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
-        try:
-            System.setStyle(dlg, "fileSelector.qss")
-        except Exception:
-            pass
+        System.setStyle(dlg, "fileSelector.qss")
         dlg.setDirectory(blueprintsRoot)
         if dlg.exec_() != QtWidgets.QDialog.Accepted:
             return
@@ -1350,17 +1360,14 @@ class MainWindow(QtWidgets.QMainWindow):
         nodeGraph = {}
         attrs = {}
         try:
-            clsObj = GameData.classDict.get(parentClass)
+            clsObj = GameData.classDict.get(parentClass, EditorStatus.PROJ_PATH)
             if clsObj:
                 # Resolve Events
                 for name in dir(clsObj):
-                    try:
-                        attr = getattr(clsObj, name)
-                        if getattr(attr, "_eventSignature", False):
-                            startNodes[name] = None
-                            nodeGraph[name] = {"nodes": [], "links": []}
-                    except Exception:
-                        pass
+                    attr = getattr(clsObj, name)
+                    if getattr(attr, "_eventSignature", False):
+                        startNodes[name] = None
+                        nodeGraph[name] = {"nodes": [], "links": []}
 
                 # Resolve Attributes
                 mro = inspect.getmro(clsObj)
@@ -1368,7 +1375,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     if cls is object:
                         continue
 
-                    if getattr(cls, "GENERATED_CLASS", False):
+                    if getattr(cls, "_GENERATED_CLASS", False):
                         for k, v in cls.__dict__.items():
                             if (
                                 not k.startswith("_")

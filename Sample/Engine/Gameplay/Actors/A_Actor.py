@@ -17,12 +17,20 @@ class Actor(ActorBase):
         self,
         texture: Optional[Union[Texture, List[Texture]]] = None,
         rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]] = None,
-        tag: str = "",
+        tag: Optional[str] = None,
     ) -> None:
+        ### Generation use only
+        self.texturePath: str = ""
+        self.defaultRect: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = None
+        self.defaultRotation: float = 0.0
+        self.defaultScale: Tuple[float, float] = (1.0, 1.0)
+        self.defaultOrigin: Tuple[float, float] = (0.0, 0.0)
+        ### Generation use only
+
         super().__init__(texture, rect, tag)
-        self._collisionEnabled: bool = False
-        self._tickable: bool = False
-        self._speed: float = 64.0
+        self.collisionEnabled: bool = False
+        self.tickable: bool = False
+        self.speed: float = 64.0
         self._isMoving: bool = False
         self._nextMoveOffset: Optional[Union[Vector2i, Tuple[int, int]]] = None
         self._inRoutine: bool = False
@@ -117,11 +125,11 @@ class Actor(ActorBase):
 
     @ReturnType(tickable=bool)
     def getTickable(self) -> bool:
-        return self._tickable
+        return self.tickable
 
     @ExecSplit(default=(None,))
     def setTickable(self, tickable: bool, applyToChildren: bool = True) -> None:
-        self._tickable = tickable
+        self.tickable = tickable
         if applyToChildren:
             if self.getChildren():
                 for child in self.getChildren():
@@ -142,11 +150,11 @@ class Actor(ActorBase):
 
     @ReturnType(collisionEnabled=bool)
     def getCollisionEnabled(self) -> bool:
-        return self._collisionEnabled
+        return self.collisionEnabled
 
     @ExecSplit(default=(None,))
     def setCollisionEnabled(self, enabled: bool) -> None:
-        self._collisionEnabled = enabled
+        self.collisionEnabled = enabled
 
     @ReturnType(intersects=bool)
     def intersects(self, other: Actor) -> bool:
@@ -186,15 +194,15 @@ class Actor(ActorBase):
 
         dist = self._destination - self._departure
         length = dist.length()
-        time = length / self._speed
+        time = length / self.speed
         velocity = dist / time
         return velocity
 
     @staticmethod
     def ActorCreate(actor: Actor) -> None:
         if (
-            hasattr(type(actor), "GENERATED_CLASS")
-            and type(actor).GENERATED_CLASS
+            hasattr(type(actor), "_GENERATED_CLASS")
+            and type(actor)._GENERATED_CLASS
             and not actor._graph is None
             and actor._graph.hasKey("onCreate")
         ):
@@ -205,8 +213,8 @@ class Actor(ActorBase):
     @staticmethod
     def ActorTick(actor: Actor, deltaTime: float) -> None:
         if (
-            hasattr(type(actor), "GENERATED_CLASS")
-            and type(actor).GENERATED_CLASS
+            hasattr(type(actor), "_GENERATED_CLASS")
+            and type(actor)._GENERATED_CLASS
             and not actor._graph is None
             and actor._graph.hasKey("onTick")
         ):
@@ -218,8 +226,8 @@ class Actor(ActorBase):
     @staticmethod
     def ActorLateTick(actor: Actor, deltaTime: float) -> None:
         if (
-            hasattr(type(actor), "GENERATED_CLASS")
-            and type(actor).GENERATED_CLASS
+            hasattr(type(actor), "_GENERATED_CLASS")
+            and type(actor)._GENERATED_CLASS
             and not actor._graph is None
             and actor._graph.hasKey("onLateTick")
         ):
@@ -231,8 +239,8 @@ class Actor(ActorBase):
     @staticmethod
     def ActorFixedTick(actor: Actor, fixedDelta: float) -> None:
         if (
-            hasattr(type(actor), "GENERATED_CLASS")
-            and type(actor).GENERATED_CLASS
+            hasattr(type(actor), "_GENERATED_CLASS")
+            and type(actor)._GENERATED_CLASS
             and not actor._graph is None
             and actor._graph.hasKey("onFixedTick")
         ):
@@ -244,8 +252,8 @@ class Actor(ActorBase):
     @staticmethod
     def ActorDestroy(actor: Actor) -> None:
         if (
-            hasattr(type(actor), "GENERATED_CLASS")
-            and type(actor).GENERATED_CLASS
+            hasattr(type(actor), "_GENERATED_CLASS")
+            and type(actor)._GENERATED_CLASS
             and not actor._graph is None
             and actor._graph.hasKey("onDestroy")
         ):
@@ -256,8 +264,8 @@ class Actor(ActorBase):
     @staticmethod
     def ActorCollision(actor: Actor, other: List[Actor]) -> None:
         if (
-            hasattr(type(actor), "GENERATED_CLASS")
-            and getattr(type(actor), "GENERATED_CLASS")
+            hasattr(type(actor), "_GENERATED_CLASS")
+            and getattr(type(actor), "_GENERATED_CLASS")
             and not actor._graph is None
             and actor._graph.hasKey("onCollision")
         ):
@@ -269,8 +277,8 @@ class Actor(ActorBase):
     @staticmethod
     def ActorOverlap(actor: Actor, other: List[Actor]) -> None:
         if (
-            hasattr(type(actor), "GENERATED_CLASS")
-            and getattr(type(actor), "GENERATED_CLASS")
+            hasattr(type(actor), "_GENERATED_CLASS")
+            and getattr(type(actor), "_GENERATED_CLASS")
             and not actor._graph is None
             and actor._graph.hasKey("onOverlap")
         ):
@@ -278,6 +286,15 @@ class Actor(ActorBase):
             actor._graph.execute("onOverlap")
         else:
             actor.onOverlap(other)
+
+    @staticmethod
+    def GenActor(
+        ActorModel: type, textureStr: str, textureRect: Optional[Tuple[Tuple[int, int], Tuple[int, int]]], tag: str
+    ) -> Actor:
+        from Engine import Manager
+
+        actor = ActorModel(Manager.loadCharacter(textureStr), textureRect, tag)
+        return actor
 
     def _processMoving(self, fixedDelta: float) -> None:
         velocity = self.getVelocity()

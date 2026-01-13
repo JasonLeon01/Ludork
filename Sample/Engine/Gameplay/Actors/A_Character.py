@@ -9,7 +9,7 @@ Actor = A_Actor.Actor
 
 
 class Character(Actor):
-    def __init__(self, texture: Optional[Texture] = None, tag: str = "") -> None:
+    def __init__(self, texture: Optional[Texture] = None, tag: Optional[str] = None) -> None:
         if not texture is None:
             assert isinstance(texture, Texture), "texture must be a Texture"
         self._rectSize: Vector2i = Utils.Math.ToVector2i(texture.getSize() / 4)
@@ -61,6 +61,15 @@ class Character(Actor):
                 self._applyDirection(vx, vy)
             self._sy = self.direction * self._rectSize.y
         super().update(deltaTime)
+
+    @staticmethod
+    def GenActor(
+        ActorModel: type, textureStr: str, textureRect: Optional[Tuple[Tuple[int, int], Tuple[int, int]]], tag: str
+    ) -> Character:
+        from Engine import Manager
+
+        character = ActorModel(Manager.loadCharacter(textureStr), tag)
+        return character
 
     def _animate(self, deltaTime: float) -> None:
         if self.isMoving() or self.animateWithoutMoving:

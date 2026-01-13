@@ -51,9 +51,15 @@ class EditorPanel(QtWidgets.QWidget):
         self._lightMoveDragOffset: Optional[Tuple[float, float]] = None
         self._lightMoveDragTitleRefreshed = False
         self._lightOverlayEnabled = False
+        self._actorMoveDragging = False
+        self._actorMoveDragLayerName: Optional[str] = None
+        self._actorMoveDragIndex: Optional[int] = None
+        self._actorMoveDragLastGrid: Optional[Tuple[int, int]] = None
+        self._actorMoveDragTitleRefreshed = False
         super().__init__(parent)
         self.setMouseTracking(True)
         self.setFocusPolicy(QtCore.Qt.ClickFocus)
+        self.setAcceptDrops(False)
         Utils.Panel.applyDisabledOpacity(self)
 
     def _updateCachedTileset(self) -> None:
@@ -162,6 +168,7 @@ class EditorPanel(QtWidgets.QWidget):
                     src = QtCore.QRect(tu * tileSize, tv * tileSize, tileSize, tileSize)
                     dst = QtCore.QRect(x * tileSize, y * tileSize, tileSize, tileSize)
                     painter.drawImage(dst, tileset, src)
+            self._drawActorsForLayer(painter, layerName, tileSize, 1.0 if (sel is None or layerName == sel) else 0.5)
         painter.end()
         self._pixmap = QtGui.QPixmap.fromImage(img)
         self.update()
@@ -542,11 +549,14 @@ class EditorPanel(QtWidgets.QWidget):
         if self._lightOverlayEnabled and e.button() == QtCore.Qt.LeftButton:
             self._stopLightRadiusDrag()
             self._stopLightMoveDrag()
+            self._stopActorMoveDrag()
             self.update()
             super().mouseReleaseEvent(e)
             return
         if e.button() == QtCore.Qt.LeftButton and self.rectStartPos is not None:
             self._commitRectangle(self.selctedPos)
+        if e.button() == QtCore.Qt.LeftButton and self._actorMoveDragging:
+            self._stopActorMoveDrag()
         super().mouseReleaseEvent(e)
 
     def keyReleaseEvent(self, e: QtGui.QKeyEvent) -> None:
@@ -732,6 +742,17 @@ class EditorPanel(QtWidgets.QWidget):
             return
         self.selctedPos = (gx, gy)
         if not self.tileModeEnabled:
+            if e.button() == QtCore.Qt.LeftButton and self.selectedLayerName is not None:
+                hit = self._hitTestActor(self.selectedLayerName, e.pos(), tileSize)
+                if isinstance(hit, int):
+                    GameData.recordSnapshot()
+                    self._actorMoveDragging = True
+                    self._actorMoveDragLayerName = self.selectedLayerName
+                    self._actorMoveDragIndex = hit
+                    self._actorMoveDragLastGrid = (gx, gy)
+                    self._actorMoveDragTitleRefreshed = False
+                    self.setCursor(QtCore.Qt.SizeAllCursor)
+                    return
             return
         if self.selectedLayerName is None:
             return
@@ -828,6 +849,46 @@ class EditorPanel(QtWidgets.QWidget):
             return
 
         if not self.tileModeEnabled:
+            if (
+                self._actorMoveDragging
+                and isinstance(self._actorMoveDragIndex, int)
+                and isinstance(self._actorMoveDragLayerName, str)
+            ):
+                if (self._actorMoveDragLastGrid is None) or (self._actorMoveDragLastGrid != (gx, gy)):
+                    self._actorMoveDragLastGrid = (gx, gy)
+                    m = GameData.mapData.get(self.mapKey)
+                    if isinstance(m, dict):
+                        actorsDict = m.get("actors")
+                        if isinstance(actorsDict, dict):
+                            layerList = actorsDict.get(self._actorMoveDragLayerName)
+                            if isinstance(layerList, list) and 0 <= self._actorMoveDragIndex < len(layerList):
+                                entry = layerList[self._actorMoveDragIndex]
+                                if isinstance(entry, dict):
+                                    oldPos = entry.get("position")
+                                    entry["position"] = [gx, gy]
+                                    try:
+                                        bpRel = entry.get("bp", "")
+                                        clsObj = self._resolveActorClass(bpRel)
+                                        if isinstance(oldPos, (list, tuple)) and len(oldPos) >= 2:
+                                            defOld = self._makeDefaultTag(
+                                                clsObj,
+                                                bpRel,
+                                                self._actorMoveDragLayerName,
+                                                int(oldPos[0]),
+                                                int(oldPos[1]),
+                                            )
+                                            if isinstance(entry.get("tag"), str) and entry["tag"] == defOld:
+                                                entry["tag"] = self._makeDefaultTag(
+                                                    clsObj, bpRel, self._actorMoveDragLayerName, gx, gy
+                                                )
+                                    except Exception:
+                                        pass
+                                    if not self._actorMoveDragTitleRefreshed:
+                                        self._actorMoveDragTitleRefreshed = True
+                                        self._refreshTitle()
+                                    self._renderFromMapData()
+                                    self.update()
+                return
             return
         if self.selectedLayerName is None:
             return
@@ -902,3 +963,315 @@ class EditorPanel(QtWidgets.QWidget):
             self.dataChanged.emit()
         except Exception as e:
             print(f"Error while refreshing title: {e}")
+
+    def _getActorListForLayer(self, layerName: str) -> List[Dict[str, Any]]:
+        if not self.mapKey or not isinstance(layerName, str):
+            return []
+        m = GameData.mapData.get(self.mapKey)
+        if not isinstance(m, dict):
+            return []
+        actorsDict = m.get("actors")
+        if not isinstance(actorsDict, dict):
+            return []
+        layerList = actorsDict.get(layerName)
+        if not isinstance(layerList, list):
+            return []
+        return layerList
+
+    def _toRectTuple(self, rectData: Any) -> Optional[Tuple[int, int, int, int]]:
+        if not isinstance(rectData, (list, tuple)) or len(rectData) < 2:
+            return None
+        a, b = rectData[0], rectData[1]
+        if not isinstance(a, (list, tuple)) or not isinstance(b, (list, tuple)):
+            return None
+        if len(a) < 2 or len(b) < 2:
+            return None
+        try:
+            x = int(a[0])
+            y = int(a[1])
+            w = int(b[0])
+            h = int(b[1])
+            if w <= 0 or h <= 0:
+                return None
+            return (x, y, w, h)
+        except Exception:
+            return None
+
+    def _toVec2f(self, data: Any, defaultX: float = 0.0, defaultY: float = 0.0) -> Tuple[float, float]:
+        if isinstance(data, (list, tuple)) and len(data) >= 2:
+            try:
+                return (float(data[0]), float(data[1]))
+            except Exception:
+                return (defaultX, defaultY)
+        return (defaultX, defaultY)
+
+    def _resolveActorClass(self, bpRel: Any) -> Optional[type]:
+        if not isinstance(bpRel, str) or not bpRel.strip():
+            return None
+        try:
+            return GameData.classDict.get(bpRel, EditorStatus.PROJ_PATH)
+        except Exception:
+            return None
+
+    def _getClassAttr(self, cls: Any, name: str, default: Any) -> Any:
+        try:
+            if hasattr(cls, name):
+                return getattr(cls, name)
+        except Exception:
+            pass
+        return default
+
+    def _resolveTextureImage(self, texturePath: Any) -> Optional[QtGui.QImage]:
+        path: Optional[str] = None
+        if isinstance(texturePath, str) and texturePath.strip():
+            p = texturePath.strip()
+            if os.path.isabs(p) or p.startswith("Assets/"):
+                path = p
+            else:
+                path = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Characters", p)
+        if not path:
+            return None
+        img = QtGui.QImage(path)
+        if img.isNull():
+            return None
+        return img
+
+    def _drawActorsForLayer(self, painter: QtGui.QPainter, layerName: str, tileSize: int, opacity: float) -> None:
+        actors = self._getActorListForLayer(layerName)
+        if not actors:
+            return
+        oldOpacity = painter.opacity()
+        painter.setOpacity(opacity)
+        for entry in actors:
+            if not isinstance(entry, dict):
+                continue
+            pos = entry.get("position")
+            if not isinstance(pos, (list, tuple)) or len(pos) < 2:
+                continue
+            try:
+                gx = int(pos[0])
+                gy = int(pos[1])
+            except Exception:
+                continue
+            px = gx * tileSize
+            py = gy * tileSize
+            clsObj = self._resolveActorClass(entry.get("bp"))
+            rectT = self._toRectTuple(self._getClassAttr(clsObj, "defaultRect", None))
+            origin = self._toVec2f(self._getClassAttr(clsObj, "defaultOrigin", (0.0, 0.0)), 0.0, 0.0)
+            scale = self._toVec2f(self._getClassAttr(clsObj, "defaultScale", (1.0, 1.0)), 1.0, 1.0)
+            texPath = self._getClassAttr(clsObj, "texturePath", "")
+            w = tileSize
+            h = tileSize
+            sx = 0
+            sy = 0
+            if rectT:
+                sx, sy, w, h = rectT
+            dw = int(w * scale[0])
+            dh = int(h * scale[1])
+            dx = int(px - origin[0] * scale[0])
+            dy = int(py - origin[1] * scale[1])
+            img = self._resolveTextureImage(texPath)
+            if img is not None and rectT is not None:
+                src = QtCore.QRect(sx, sy, w, h)
+                dst = QtCore.QRect(dx, dy, dw, dh)
+                painter.drawImage(dst, img, src)
+            else:
+                color = QtGui.QColor(0, 120, 255, 160)
+                painter.fillRect(QtCore.QRect(dx, dy, dw, dh), color)
+                painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255, 220), 1))
+                painter.drawRect(QtCore.QRect(dx, dy, dw - 1, dh - 1))
+        painter.setOpacity(oldOpacity)
+
+    def _stopActorMoveDrag(self) -> None:
+        if not self._actorMoveDragging:
+            return
+        self._actorMoveDragging = False
+        self._actorMoveDragLayerName = None
+        self._actorMoveDragIndex = None
+        self._actorMoveDragLastGrid = None
+        self._actorMoveDragTitleRefreshed = False
+        self.unsetCursor()
+
+    def _makeDefaultTag(self, clsObj: Any, bpRel: str, layerName: str, gx: int, gy: int) -> str:
+        prefix = None
+        try:
+            if hasattr(clsObj, "tag"):
+                t = getattr(clsObj, "tag")
+                if isinstance(t, str) and t.strip():
+                    prefix = t.strip()
+        except Exception:
+            prefix = None
+        if not isinstance(prefix, str) or not prefix:
+            prefix = bpRel
+        return f"{prefix}_{layerName}_{gx}_{gy}"
+
+    def _hitTestActor(self, layerName: str, pos: QtCore.QPoint, tileSize: int) -> Optional[int]:
+        actors = self._getActorListForLayer(layerName)
+        if not actors:
+            return None
+        px = int(pos.x())
+        py = int(pos.y())
+        for i, entry in enumerate(actors):
+            if not isinstance(entry, dict):
+                continue
+            p = entry.get("position")
+            if not isinstance(p, (list, tuple)) or len(p) < 2:
+                continue
+            try:
+                gx = int(p[0])
+                gy = int(p[1])
+            except Exception:
+                continue
+            cx = self._resolveActorClass(entry.get("bp"))
+            rectT = self._toRectTuple(self._getClassAttr(cx, "defaultRect", None))
+            origin = self._toVec2f(self._getClassAttr(cx, "defaultOrigin", (0.0, 0.0)), 0.0, 0.0)
+            scale = self._toVec2f(self._getClassAttr(cx, "defaultScale", (1.0, 1.0)), 1.0, 1.0)
+            w = tileSize
+            h = tileSize
+            sx = 0
+            sy = 0
+            if rectT:
+                sx, sy, w, h = rectT
+            dw = int(w * scale[0])
+            dh = int(h * scale[1])
+            dx = int(gx * tileSize - origin[0] * scale[0])
+            dy = int(gy * tileSize - origin[1] * scale[1])
+            rect = QtCore.QRect(dx, dy, dw, dh)
+            if rect.contains(px, py):
+                return i
+        return None
+
+    def dragEnterEvent(self, e: QtGui.QDragEnterEvent) -> None:
+        if not self.isEnabled():
+            return
+        if not self.acceptDrops():
+            return
+        if not e.mimeData().hasUrls():
+            return
+        urls = [u for u in e.mimeData().urls() if u.isLocalFile()]
+        if not urls:
+            return
+        path = urls[0].toLocalFile()
+        ext = os.path.splitext(path)[1].lower()
+        if ext in (".json", ".dat"):
+            e.acceptProposedAction()
+
+    def dragMoveEvent(self, e: QtGui.QDragMoveEvent) -> None:
+        if not self.isEnabled():
+            return
+        if not self.acceptDrops():
+            return
+        if not e.mimeData().hasUrls():
+            return
+        urls = [u for u in e.mimeData().urls() if u.isLocalFile()]
+        if not urls:
+            return
+        path = urls[0].toLocalFile()
+        ext = os.path.splitext(path)[1].lower()
+        if ext in (".json", ".dat"):
+            e.acceptProposedAction()
+
+    def dropEvent(self, e: QtGui.QDropEvent) -> None:
+        if not self.isEnabled():
+            return
+        if not self.acceptDrops():
+            return
+        if self.mapData is None:
+            return
+        if self.selectedLayerName is None:
+            return
+        if not e.mimeData().hasUrls():
+            return
+        urls = [u for u in e.mimeData().urls() if u.isLocalFile()]
+        if not urls:
+            return
+        path = urls[0].toLocalFile()
+        ext = os.path.splitext(path)[1].lower()
+        if ext not in (".json", ".dat"):
+            return
+        pos = e.pos()
+        tileSize = EditorStatus.CELLSIZE
+        gx = int(pos.x()) // tileSize
+        gy = int(pos.y()) // tileSize
+        if gx < 0 or gy < 0 or gx >= self.mapData.width or gy >= self.mapData.height:
+            return
+        w = self.window()
+        msg = None
+        data = None
+        try:
+            if ext == ".json":
+                data = Utils.File.getJSONData(path)
+            else:
+                data = Utils.File.loadData(path)
+        except Exception as e:
+            msg = Locale.getContent("NOT_ACTOR_TYPE")
+        okDict = isinstance(data, dict)
+        bpPath = None
+        if okDict and data.get("type") == "blueprint":
+            parentClass = data.get("parent")
+            clsObj = None
+            if isinstance(parentClass, str) and parentClass.strip():
+                try:
+                    clsObj = GameData.classDict.get(parentClass, EditorStatus.PROJ_PATH)
+                except Exception:
+                    clsObj = None
+            try:
+                ActorBases = []
+                Engine = importlib.import_module("Engine")
+                ActorBases.append(Engine.Gameplay.Actors.Actor)
+                okSubclass = (
+                    bool(clsObj) and isinstance(clsObj, type) and any(issubclass(clsObj, b) for b in ActorBases)
+                )
+                if okSubclass:
+                    bpRel = None
+                    mapsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
+                    blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
+                    try:
+                        absPath = os.path.abspath(path)
+                        if absPath.startswith(os.path.abspath(blueprintsRoot) + os.sep):
+                            rel = os.path.relpath(absPath, blueprintsRoot)
+                            namePart, _ = os.path.splitext(rel)
+                            namePart = namePart.replace("\\", "/")
+                            bpRel = "Data.Blueprints." + namePart.replace("/", ".")
+                    except Exception:
+                        bpRel = None
+                    if bpRel:
+                        if self.mapKey and self.mapKey in GameData.mapData:
+                            GameData.recordSnapshot()
+                            m = GameData.mapData[self.mapKey]
+                            actorsDict = m.get("actors")
+                            if not isinstance(actorsDict, dict):
+                                actorsDict = {}
+                                m["actors"] = actorsDict
+                            layerKey = self.selectedLayerName
+                            layerList = actorsDict.get(layerKey)
+                            if not isinstance(layerList, list):
+                                layerList = []
+                                actorsDict[layerKey] = layerList
+                            tagstr = ""
+                            if (
+                                hasattr(clsObj, "tag")
+                                and not getattr(clsObj, "tag") is None
+                                and getattr(clsObj, "tag") != ""
+                            ):
+                                tagStr = f"{getattr(clsObj, 'tag')}_{layerKey}_{gx}_{gy}"
+                            else:
+                                tagStr = f"{bpRel}_{layerKey}_{gx}_{gy}"
+                            actorEntry = {"tag": tagStr, "bp": bpRel, "position": [gx, gy]}
+                            layerList.append(actorEntry)
+                            self._refreshTitle()
+                            self.dataChanged.emit()
+                            self._renderFromMapData()
+                            self.update()
+                        msg = Locale.getContent("DRAG_INFO").format(file=os.path.basename(path), x=gx, y=gy)
+                    else:
+                        msg = Locale.getContent("NOT_ACTOR_TYPE")
+                else:
+                    msg = Locale.getContent("NOT_ACTOR_TYPE")
+            except Exception:
+                msg = Locale.getContent("NOT_ACTOR_TYPE")
+        else:
+            msg = Locale.getContent("NOT_ACTOR_TYPE")
+        if msg and hasattr(w, "toast") and w.toast:
+            w.toast.showMessage(msg, 3000)
+        e.acceptProposedAction()

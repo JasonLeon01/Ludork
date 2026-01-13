@@ -35,6 +35,9 @@ class _Data:
     def getClass(self, classPath: str) -> type:
         return self._classDict.get(classPath)
 
+    def getClassData(self, classPath: str) -> Dict[str, Any]:
+        return self._classDict.getData(classPath)
+
     def genGraphFromData(self, data: Dict[str, Any], parent=None, parentClass=None):
         nodes = {}
         links = {}
@@ -58,7 +61,7 @@ class _Data:
         )
 
 
-if os.environ.get("IN_EDITOR", None) is None:
+if os.environ.get("IN_EDITOR", None) is None or os.environ.get("WINDOWHANDLE", None) is not None:
     _data = _Data()
 
 
@@ -68,6 +71,10 @@ def getTileset(name: str) -> Tileset:
 
 def getClass(classPath: str) -> type:
     return _data.getClass(classPath)
+
+
+def getClassData(classPath: str) -> Dict[str, Any]:
+    return _data.getClassData(classPath)
 
 
 def genGraphFromData(data: Dict[str, Any], parent=None, parentClass=None) -> Graph:

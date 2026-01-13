@@ -562,5 +562,13 @@
     "HINT_CREATE_BP_SUCCESS": {
         "zh_CN": "创建成功！请保存以应用文件生成。",
         "en_GB": "Creation successful! Please save to apply file generation."
+    },
+    "DRAG_INFO": {
+        "zh_CN": "蓝图：{file}被实例化到了：({x}, {y})",
+        "en_GB": "Blueprint: {file} instantiated at: ({x}, {y})"
+    },
+    "NOT_ACTOR_TYPE": {
+        "zh_CN": "不是符合规范的Actor类型",
+        "en_GB": "Not a valid Actor type"
     }
 }

@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
+
 from . import (
     Vector2i,
     Vector2f,
@@ -392,6 +393,8 @@ class GameMap:
 
     @staticmethod
     def fromData(data: Dict[str, Any], camera: Optional[Camera] = None) -> GameMap:
+        from Source import Data
+
         mapName = data["mapName"]
         width = data["width"]
         height = data["height"]
@@ -399,8 +402,39 @@ class GameMap:
         tilemap = Tilemap.fromData(layers, width, height)
         ambientLight = data.get("ambientLight", [255, 255, 255, 255])
         lights = data.get("lights", [])
+        actors = data.get("actors", [])
         result = GameMap(mapName, tilemap, camera)
         result.setAmbientLight(Color(*ambientLight))
         for lightData in lights:
             result.addLight(Light.fromDict(lightData))
+        for layerName, actorDatas in actors.items():
+            for actorData in actorDatas:
+                tag = actorData.get("tag", None)
+                position = actorData.get("position", [0, 0])
+                rotation = actorData.get("rotation", 0.0)
+                scale = actorData.get("scale", [1, 1])
+                origin = actorData.get("origin", [0, 0])
+                bp = actorData.get("bp", None)
+                if bp is None:
+                    print(f"Actor {tag} in layer {layerName} has no bp")
+                    continue
+                classModel: Optional[Actor] = Data.getClass(bp)
+                if classModel is None:
+                    print(f"Actor {tag} in layer {layerName} has no class model")
+                    continue
+                texturePath = getattr(classModel, "texturePath")
+                defaultRect = getattr(classModel, "defaultRect")
+                actor: Actor = classModel.GenActor(classModel, texturePath, defaultRect, tag)
+                actor.texturePath = texturePath
+                actor.defaultRect = defaultRect
+                actor.defaultRotation = rotation
+                actor.defaultScale = scale
+                actor.defaultOrigin = origin
+                actor.setMapPosition(Vector2u(*position))
+                actor.setRotation(float(rotation))
+                actor.setScale(tuple(scale))
+                actor.setOrigin(tuple(origin))
+                actor.setGraph(Data.genGraphFromData(Data.getClassData(bp)["graph"], actor, classModel))
+                result.spawnActor(actor, layerName)
+
         return result

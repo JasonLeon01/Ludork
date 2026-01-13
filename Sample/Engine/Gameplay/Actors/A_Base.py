@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+import copy
 import warnings
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
 from . import Sprite, IntRect, Vector2i, Vector2u, Vector2f, Angle, degrees, GetCellSize, Utils, ExecSplit, ReturnType
@@ -14,9 +15,9 @@ if TYPE_CHECKING:
 class ActorBase(Sprite):
     def __init__(
         self,
-        texture: Optional[Union[Texture, List[Texture]]] = None,
+        texture: Optional[Texture] = None,
         rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]] = None,
-        tag: str = "",
+        tag: Optional[str] = None,
     ) -> None:
         if not rect is None:
             assert isinstance(rect, (IntRect, tuple)), "rect must be a tuple or IntRect"
@@ -28,25 +29,22 @@ class ActorBase(Sprite):
                 position = Vector2i(x, y)
                 size = Vector2i(w, h)
                 rect = IntRect(position, size)
-        args = []
-        if isinstance(texture, list):
-            args.append(texture[0])
-        else:
-            args.append(texture)
+        args = [texture]
         if not rect is None:
             args.append(rect)
         super().__init__(*args)
 
         self.switchInterval: float = 0.2
-        self.tag: str = tag
+        self.tag: str = ""
+        if not tag is None:
+            self.tag = tag
+        self.animatable: bool = False
 
         self._map: GameMap = None
         self._parent: Optional[ActorBase] = None
         self._children: List[ActorBase] = []
         self._visible: bool = True
-        self._animatable: bool = False
-        self._texture: Optional[Union[List[Texture], Texture]] = texture
-        self._textureIndex: int = 0
+        self._texture: Optional[Texture] = texture
         self._switchTimer: float = 0.0
         self._relativePosition: Vector2f = Vector2f(0, 0)
         self._relativeRotation: Angle = degrees(0)
@@ -55,7 +53,7 @@ class ActorBase(Sprite):
         self._graph: Optional[Graph] = None
 
     def update(self, deltaTime: float) -> None:
-        if self._animatable:
+        if self.animatable:
             self._animate(deltaTime)
 
     def lateUpdate(self, deltaTime: float) -> None:
@@ -326,11 +324,11 @@ class ActorBase(Sprite):
 
     @ReturnType(animatable=bool)
     def getAnimatable(self) -> bool:
-        return self._animatable
+        return self.animatable
 
     @ExecSplit(default=(None,))
     def setAnimatable(self, animate: bool, applyToChildren: bool = True) -> None:
-        self._animatable = animate
+        self.animatable = animate
         if applyToChildren:
             if self.getChildren():
                 for child in self.getChildren():
@@ -340,8 +338,8 @@ class ActorBase(Sprite):
     def getSpriteTexture(self) -> Optional[Texture]:
         return super().getTexture()
 
-    @ReturnType(texture=Optional[Union[List["Texture"], "Texture"]])
-    def getTexture(self) -> Optional[Union[List[Texture], Texture]]:
+    @ReturnType(texture=Optional["Texture"])
+    def getTexture(self) -> Optional[Texture]:
         return self._texture
 
     @ExecSplit(default=(None,))
@@ -349,12 +347,9 @@ class ActorBase(Sprite):
         super().setTexture(texture, resetRect)
 
     @ExecSplit(default=(None,))
-    def setTexture(self, texture: Union[Texture, List[Texture]], resetRect: bool = False) -> None:
+    def setTexture(self, texture: Texture, resetRect: bool = False) -> None:
         self._texture = texture
-        targetTexture = texture
-        if isinstance(texture, list):
-            targetTexture = texture[0]
-        self.setSpriteTexture(targetTexture, resetRect)
+        self.setSpriteTexture(texture, resetRect)
 
     @ReturnType(lightBlock=float)
     def getLightBlock(self) -> float:
@@ -403,9 +398,13 @@ class ActorBase(Sprite):
                     child._updateScaleFromParent()
 
     def _animate(self, deltaTime: float) -> None:
-        if isinstance(self._texture, list):
-            self._switchTimer += deltaTime
-            if self._switchTimer >= self.switchInterval:
-                self._textureIndex = (self._textureIndex + 1) % len(self._texture)
-                self.setSpriteTexture(self._texture[self._textureIndex])
-                self._switchTimer = 0.0
+        newRect = copy.copy(self.getTextureRect())
+        rectWidth = newRect.size.x
+        rectX = newRect.position.x
+        textureWidth = self._texture.getSize().x
+        newRectX = (rectX + rectWidth) % textureWidth
+        newRect.position.x = newRectX
+        self._switchTimer += deltaTime
+        if self._switchTimer >= self.switchInterval:
+            self._switchTimer = 0.0
+            self.setTextureRect(newRect)

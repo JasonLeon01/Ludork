@@ -13,29 +13,25 @@ class Scene(SceneBase):
         System.setTransition(Manager.loadTransition("012-Random04.png"), 3)
 
     def onCreate(self):
+        playerPath = "Data.Blueprints.Actors.BP_Actor_01"
         self.actors: List[Actor] = [
-            Data.getClass("Data.Blueprints.Actors.BP_Actor_01")(
-                Manager.loadCharacter("actors/classic-cha-braver01.png"), "yongshi"
-            ),
-            Character(Manager.loadCharacter("actors/classic-cha-braver01.png"), "yongshi2"),
+            Data.getClass(playerPath)(Manager.loadCharacter("actors/classic-cha-braver01.png"), "yongshi"),
         ]
         for i, actor in enumerate(self.actors):
             actor.setAnimatable(True, True)
 
         self.actors[0].setCollisionEnabled(True)
         self.actors[0].setPosition((608, 256))
-        actor0Data = File.getJSONData("./Data/Blueprints/Actors/BP_Actor_01.json")
         self.actors[0].setGraph(
             Data.genGraphFromData(
-                actor0Data["graph"], self.actors[0], Data.getClass("Data.Blueprints.Actors.BP_Actor_01")
+                Data.getClassData(playerPath)["graph"],
+                self.actors[0],
+                Data.getClass(playerPath),
             )
         )
-        self.actors[1].setCollisionEnabled(True)
-        self.actors[1].setPosition((608, 128))
 
         self._gameMap = GameMap.fromData(File.loadData("./Data/Maps/Map_01.dat"))
         self._gameMap.spawnActor(self.actors[0], "default")
-        self._gameMap.spawnActor(self.actors[1], "default")
 
         self._gameMap.getCamera().setParent(self.actors[0])
 
