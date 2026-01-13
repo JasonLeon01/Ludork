@@ -54,6 +54,16 @@ def ReturnType(**kwargs):
     return decorator
 
 
+def RegisterEvent(func=None):
+    def decorator(f):
+        f._eventSignature = True
+        return f
+
+    if func is None:
+        return decorator
+    return decorator(func)
+
+
 from . import pysf
 
 

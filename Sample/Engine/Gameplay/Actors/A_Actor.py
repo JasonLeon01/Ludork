@@ -3,7 +3,7 @@
 from __future__ import annotations
 from . import A_Base
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
-from . import Vector2f, Vector2i, Vector2u, GetCellSize, ExecSplit, ReturnType
+from . import Vector2f, Vector2i, Vector2u, GetCellSize, ExecSplit, ReturnType, RegisterEvent
 from ...Utils import Math
 
 if TYPE_CHECKING:
@@ -50,24 +50,31 @@ class Actor(ActorBase):
         else:
             self._realSpeed = dist / fixedDelta
 
+    @RegisterEvent
     def onCreate(self) -> None:
         pass
 
+    @RegisterEvent
     def onTick(self, deltaTime: float) -> None:
         pass
 
+    @RegisterEvent
     def onLateTick(self, deltaTime: float) -> None:
         pass
 
+    @RegisterEvent
     def onFixedTick(self, fixedDelta: float) -> None:
         pass
 
+    @RegisterEvent
     def onDestroy(self) -> None:
         pass
 
+    @RegisterEvent
     def onCollision(self, other: List[Actor]) -> None:
         pass
 
+    @RegisterEvent
     def onOverlap(self, other: List[Actor]) -> None:
         pass
 

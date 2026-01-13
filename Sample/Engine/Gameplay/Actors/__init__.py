@@ -13,6 +13,7 @@ from .. import (
     Utils,
     ExecSplit,
     ReturnType,
+    RegisterEvent,
 )
 from . import A_Actor
 from . import A_Character

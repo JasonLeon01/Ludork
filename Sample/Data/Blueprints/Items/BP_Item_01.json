@@ -1,20 +1,19 @@
 {
     "type": "blueprint",
-    "parent": "Source.Player",
+    "parent": "Source.Item",
     "attrs": {
-        "hp": 1000,
-        "atk": 10,
-        "def": 10
+        "name": "黄钥匙",
+        "desc": "可以打开一扇黄门"
     },
     "graph": {
         "nodeGraph": {
-            "onCollision": {
+            "onUse": {
                 "nodes": [],
                 "links": []
             }
         },
         "startNodes": {
-            "onCollision": null
+            "onUse": null
         }
     }
 }

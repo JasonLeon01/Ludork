@@ -530,5 +530,37 @@
     "CONFIRM_DELETE_EVENT": {
         "zh_CN": "确认删除事件 '{name}' 吗？",
         "en_GB": "Are you sure you want to delete the event '{name}'?"
+    },
+    "NEW_BLUEPRINT": {
+        "zh_CN": "新建蓝图",
+        "en_GB": "New Blueprint"
+    },
+    "SELECT_BLUEPRINT_PATH": {
+        "zh_CN": "选择蓝图保存路径",
+        "en_GB": "Select blueprint save path"
+    },
+    "BLUEPRINT_EXISTS": {
+        "zh_CN": "蓝图已存在",
+        "en_GB": "Blueprint already exists"
+    },
+    "SELECT_PARENT": {
+        "zh_CN": "选择父类/蓝图",
+        "en_GB": "Select Parent Class/Blueprint"
+    },
+    "PROJECT_CLASSES": {
+        "zh_CN": "项目类",
+        "en_GB": "Project Classes"
+    },
+    "PROJECT_BLUEPRINT": {
+        "zh_CN": "项目蓝图",
+        "en_GB": "Project Blueprints"
+    },
+    "CLASS_SELECTOR": {
+        "zh_CN": "选择父级",
+        "en_GB": "Select Parent"
+    },
+    "HINT_CREATE_BP_SUCCESS": {
+        "zh_CN": "创建成功！请保存以应用文件生成。",
+        "en_GB": "Creation successful! Please save to apply file generation."
     }
 }

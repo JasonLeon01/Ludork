@@ -12,6 +12,7 @@ from . import W_SettingsWindow
 from . import W_CommonFunctionWindow
 from . import W_LightPanel
 from . import W_BlueprintEditor
+from . import W_ClassSelector
 
 
 EditorPanel = W_EditorPanel.EditorPanel
@@ -27,3 +28,4 @@ SettingsWindow = W_SettingsWindow.SettingsWindow
 CommonFunctionWindow = W_CommonFunctionWindow.CommonFunctionWindow
 LightPanel = W_LightPanel.LightPanel
 BluePrintEditor = W_BlueprintEditor.BluePrintEditor
+ClassSelector = W_ClassSelector.W_ClassSelector

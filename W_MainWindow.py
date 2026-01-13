@@ -7,6 +7,9 @@ import psutil
 import configparser
 import json
 import copy
+import ast
+import inspect
+import textwrap
 from typing import Any, Dict, Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QSize
@@ -24,6 +27,7 @@ from Widgets import (
     CommonFunctionWindow,
     LightPanel,
     BluePrintEditor,
+    ClassSelector,
 )
 from Widgets.Utils import MapEditDialog, SingleRowDialog, Toast
 import EditorStatus
@@ -84,6 +88,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actRedo.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_ArrowForward))
         self._actGameSettings = QtWidgets.QAction(Locale.getContent("GAME_SETTINGS"), self)
         self._actGameSettings.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_FileDialogDetailedView))
+        self._actNewBlueprint = QtWidgets.QAction(Locale.getContent("NEW_BLUEPRINT"), self)
         self._actDatabaseSystemConfig = QtWidgets.QAction(Locale.getContent("SYSTEM_CONFIG"), self)
         self._actDatabaseTilesetsData = QtWidgets.QAction(Locale.getContent("TILESETS_DATA"), self)
         self._actDatabaseCommonFunctions = QtWidgets.QAction(Locale.getContent("COMMON_FUNCTIONS"), self)
@@ -786,6 +791,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actGameSettings.triggered.connect(self._onGameSettings)
         self._actGameSettings.setShortcut(QtGui.QKeySequence("F4"))
         _gameMenu.addAction(self._actGameSettings)
+        self._actNewBlueprint.triggered.connect(self._onNewBlueprint)
+        self._actNewBlueprint.setShortcut(QtGui.QKeySequence("F5"))
+        _gameMenu.addAction(self._actNewBlueprint)
 
         _dbMenu = self._menuBar.addMenu(Locale.getContent("DATABASE"))
         self._actDatabaseSystemConfig.triggered.connect(self._onDatabaseSystemConfig)
@@ -1267,3 +1275,124 @@ class MainWindow(QtWidgets.QMainWindow):
     def _refreshInfo(self):
         self.setWindowTitle(System.getTitle())
         self._refreshUndoRedo()
+
+    def _parseInitAttrs(self, cls) -> Dict[str, Any]:
+        attrs = {}
+        init_method = cls.__init__
+        if not inspect.isfunction(init_method):
+            return attrs
+
+        source = inspect.getsource(init_method)
+        source = textwrap.dedent(source)
+
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Attribute):
+                        if isinstance(target.value, ast.Name) and target.value.id == "self":
+                            attr_name = target.attr
+                            if not attr_name.startswith("_"):
+                                try:
+                                    val = ast.literal_eval(node.value)
+                                    attrs[attr_name] = val
+                                except:
+                                    attrs[attr_name] = None
+            elif isinstance(node, ast.AnnAssign):
+                if isinstance(node.target, ast.Attribute):
+                    if isinstance(node.target.value, ast.Name) and node.target.value.id == "self":
+                        attr_name = node.target.attr
+                        if not attr_name.startswith("_"):
+                            if node.value:
+                                try:
+                                    val = ast.literal_eval(node.value)
+                                    attrs[attr_name] = val
+                                except:
+                                    attrs[attr_name] = None
+                            else:
+                                attrs[attr_name] = None
+        return attrs
+
+    def _onNewBlueprint(self, checked: bool = False) -> None:
+        blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
+        dlg = QtWidgets.QFileDialog(
+            self, Locale.getContent("SELECT_BLUEPRINT_PATH"), blueprintsRoot, "JSON (*.json);;DAT (*.dat)"
+        )
+        dlg.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
+        dlg.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
+        try:
+            System.setStyle(dlg, "fileSelector.qss")
+        except Exception:
+            pass
+        dlg.setDirectory(blueprintsRoot)
+        if dlg.exec_() != QtWidgets.QDialog.Accepted:
+            return
+        sel = dlg.selectedFiles()
+        if not sel:
+            return
+        fp = os.path.abspath(sel[0])
+        rel = os.path.relpath(fp, blueprintsRoot)
+        namePart, ext = os.path.splitext(rel)
+        if not ext:
+            nf = dlg.selectedNameFilter().lower()
+            ext = ".json" if "json" in nf else ".dat"
+        key = namePart.replace("\\", "/")
+        if key in GameData.blueprintsData:
+            QtWidgets.QMessageBox.warning(self, Locale.getContent("ERROR"), Locale.getContent("BLUEPRINT_EXISTS"))
+            return
+
+        selector = ClassSelector(self)
+        if selector.exec_() != QtWidgets.QDialog.Accepted:
+            return
+        parentClass = selector.getSelected()
+
+        startNodes = {}
+        nodeGraph = {}
+        attrs = {}
+        try:
+            clsObj = GameData.classDict.get(parentClass)
+            if clsObj:
+                # Resolve Events
+                for name in dir(clsObj):
+                    try:
+                        attr = getattr(clsObj, name)
+                        if getattr(attr, "_eventSignature", False):
+                            startNodes[name] = None
+                            nodeGraph[name] = {"nodes": [], "links": []}
+                    except Exception:
+                        pass
+
+                # Resolve Attributes
+                mro = inspect.getmro(clsObj)
+                for cls in reversed(mro):
+                    if cls is object:
+                        continue
+
+                    if getattr(cls, "GENERATED_CLASS", False):
+                        for k, v in cls.__dict__.items():
+                            if (
+                                not k.startswith("_")
+                                and not callable(v)
+                                and not isinstance(v, (classmethod, staticmethod))
+                            ):
+                                attrs[k] = v
+                    else:
+                        parsed = self._parseInitAttrs(cls)
+                        attrs.update(parsed)
+        except Exception as e:
+            print(f"Error resolving parent info: {e}")
+
+        data = {
+            "type": "blueprint",
+            "parent": parentClass,
+            "attrs": attrs,
+            "graph": {"nodeGraph": nodeGraph, "startNodes": startNodes},
+        }
+        if ext.lower() == ".json":
+            data["isJson"] = True
+        GameData.recordSnapshot()
+        GameData.blueprintsData[key] = data
+        self._refreshInfo()
+        QtWidgets.QMessageBox.information(
+            self, Locale.getContent("SUCCESS"), Locale.getContent("HINT_CREATE_BP_SUCCESS")
+        )

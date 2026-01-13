@@ -32,6 +32,7 @@ from .. import (
     Image,
     ExecSplit,
     ReturnType,
+    RegisterEvent,
 )
 from . import Actors
 from . import G_ParticleSystem

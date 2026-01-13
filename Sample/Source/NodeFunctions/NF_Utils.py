@@ -4,6 +4,171 @@ from typing import Any
 from Engine import ExecSplit, ReturnType
 
 
+class _attrRef:
+    def __init__(self, obj: object, name: str):
+        self.obj = obj
+        self.name = name
+
+    def get(self) -> Any:
+        return getattr(self.obj, self.name)
+
+    def set(self, value: Any) -> Any:
+        setattr(self.obj, self.name, value)
+        return value
+
+    def _val(self):
+        return getattr(self.obj, self.name)
+
+    def __int__(self):
+        return int(self._val())
+
+    def __float__(self):
+        return float(self._val())
+
+    def __str__(self):
+        return str(self._val())
+
+    def __repr__(self):
+        return f"_attrRef({self.obj!r}, {self.name!r}, value={self._val()!r})"
+
+    def __add__(self, other):
+        return self._val() + (other._val() if isinstance(other, _attrRef) else other)
+
+    def __radd__(self, other):
+        return (other._val() if isinstance(other, _attrRef) else other) + self._val()
+
+    def __sub__(self, other):
+        return self._val() - (other._val() if isinstance(other, _attrRef) else other)
+
+    def __rsub__(self, other):
+        return (other._val() if isinstance(other, _attrRef) else other) - self._val()
+
+    def __mul__(self, other):
+        return self._val() * (other._val() if isinstance(other, _attrRef) else other)
+
+    def __rmul__(self, other):
+        return (other._val() if isinstance(other, _attrRef) else other) * self._val()
+
+    def __truediv__(self, other):
+        return self._val() / (other._val() if isinstance(other, _attrRef) else other)
+
+    def __rtruediv__(self, other):
+        return (other._val() if isinstance(other, _attrRef) else other) / self._val()
+
+    def __mod__(self, other):
+        return self._val() % (other._val() if isinstance(other, _attrRef) else other)
+
+    def __rmod__(self, other):
+        return (other._val() if isinstance(other, _attrRef) else other) % self._val()
+
+    def __pow__(self, other):
+        return self._val() ** (other._val() if isinstance(other, _attrRef) else other)
+
+    def __rpow__(self, other):
+        return (other._val() if isinstance(other, _attrRef) else other) ** self._val()
+
+    def __eq__(self, other):
+        return self._val() == (other._val() if isinstance(other, _attrRef) else other)
+
+    def __ne__(self, other):
+        return self._val() != (other._val() if isinstance(other, _attrRef) else other)
+
+    def __lt__(self, other):
+        return self._val() < (other._val() if isinstance(other, _attrRef) else other)
+
+    def __le__(self, other):
+        return self._val() <= (other._val() if isinstance(other, _attrRef) else other)
+
+    def __gt__(self, other):
+        return self._val() > (other._val() if isinstance(other, _attrRef) else other)
+
+    def __ge__(self, other):
+        return self._val() >= (other._val() if isinstance(other, _attrRef) else other)
+
+
+class _localRef:
+    def __init__(self, loc: dict, name: str, default: Any = None):
+        self.loc = loc
+        self.name = name
+        self.default = default
+
+    def get(self) -> Any:
+        return self.loc.get(self.name, self.default)
+
+    def set(self, value: Any) -> Any:
+        self.loc[self.name] = value
+        return value
+
+    def _val(self):
+        return self.loc.get(self.name, self.default)
+
+    def __int__(self):
+        return int(self._val())
+
+    def __float__(self):
+        return float(self._val())
+
+    def __str__(self):
+        return str(self._val())
+
+    def __repr__(self):
+        return f"_localRef({self.loc!r}, {self.name!r}, value={self._val()!r})"
+
+    def __add__(self, other):
+        return self._val() + (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
+
+    def __radd__(self, other):
+        return (other._val() if isinstance(other, (_attrRef, _localRef)) else other) + self._val()
+
+    def __sub__(self, other):
+        return self._val() - (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
+
+    def __rsub__(self, other):
+        return (other._val() if isinstance(other, (_attrRef, _localRef)) else other) - self._val()
+
+    def __mul__(self, other):
+        return self._val() * (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
+
+    def __rmul__(self, other):
+        return (other._val() if isinstance(other, (_attrRef, _localRef)) else other) * self._val()
+
+    def __truediv__(self, other):
+        return self._val() / (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
+
+    def __rtruediv__(self, other):
+        return (other._val() if isinstance(other, (_attrRef, _localRef)) else other) / self._val()
+
+    def __mod__(self, other):
+        return self._val() % (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
+
+    def __rmod__(self, other):
+        return (other._val() if isinstance(other, (_attrRef, _localRef)) else other) % self._val()
+
+    def __pow__(self, other):
+        return self._val() ** (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
+
+    def __rpow__(self, other):
+        return (other._val() if isinstance(other, (_attrRef, _localRef)) else other) ** self._val()
+
+    def __eq__(self, other):
+        return self._val() == (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
+
+    def __ne__(self, other):
+        return self._val() != (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
+
+    def __lt__(self, other):
+        return self._val() < (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
+
+    def __le__(self, other):
+        return self._val() <= (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
+
+    def __gt__(self, other):
+        return self._val() > (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
+
+    def __ge__(self, other):
+        return self._val() >= (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
+
+
 @ExecSplit(TRUE=(0,), FALSE=(1,))
 def IF(condition: bool) -> int:
     return 0 if condition else 1
@@ -16,7 +181,12 @@ def SetLocalValue(valueName: str, value: Any) -> None:
 
 @ReturnType(value=Any)
 def GetLocalValue(valueName: str, default: Any = None) -> Any:
-    return SetLocalValue._refLocal.get(valueName, default)
+    return GetLocalValue._refLocal.get(valueName, default)
+
+
+@ReturnType(value=Any)
+def GetLocalValueRef(valueName: str, default: Any = None) -> Any:
+    return _localRef(GetLocalValueRef._refLocal, valueName, default)
 
 
 @ExecSplit(default=(None,))
@@ -48,6 +218,11 @@ def SUPER(obj: object) -> None:
 @ReturnType(value=object)
 def SELF() -> object:
     return SELF._refLocal["__graph__"].parent
+
+
+@ReturnType(value=object)
+def GetAttrRef(obj: object, attrName: str) -> Any:
+    return _attrRef(obj, attrName)
 
 
 @ReturnType(value=object)

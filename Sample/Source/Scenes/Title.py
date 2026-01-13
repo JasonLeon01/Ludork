@@ -14,19 +14,21 @@ class Scene(SceneBase):
 
     def onCreate(self):
         self.actors: List[Actor] = [
-            Data.getClass("Data.Blueprints.actor_01")(
+            Data.getClass("Data.Blueprints.Actors.BP_Actor_01")(
                 Manager.loadCharacter("actors/classic-cha-braver01.png"), "yongshi"
             ),
-            Character(Manager.loadCharacter("actors/classic-cha-braver01.png"), "yongshi"),
+            Character(Manager.loadCharacter("actors/classic-cha-braver01.png"), "yongshi2"),
         ]
         for i, actor in enumerate(self.actors):
             actor.setAnimatable(True, True)
 
         self.actors[0].setCollisionEnabled(True)
         self.actors[0].setPosition((608, 256))
-        actor0Data = File.getJSONData("./Data/Blueprints/actor_01.json")
+        actor0Data = File.getJSONData("./Data/Blueprints/Actors/BP_Actor_01.json")
         self.actors[0].setGraph(
-            Data.genGraphFromData(actor0Data["graph"], self.actors[0], Data.getClass("Data.Blueprints.actor_01"))
+            Data.genGraphFromData(
+                actor0Data["graph"], self.actors[0], Data.getClass("Data.Blueprints.Actors.BP_Actor_01")
+            )
         )
         self.actors[1].setCollisionEnabled(True)
         self.actors[1].setPosition((608, 128))

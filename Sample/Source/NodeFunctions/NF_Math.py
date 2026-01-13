@@ -385,29 +385,65 @@ def XNOR(a: bool, b: bool) -> bool:
 
 @ExecSplit(default=(None,))
 def IADD(a: Any, b: Any) -> Any:
+    if isinstance(a, str) and hasattr(IADD, "_refLocal") and a in IADD._refLocal:
+        IADD._refLocal[a] = IADD._refLocal[a] + b
+        return
+    if hasattr(a, "get") and hasattr(a, "set"):
+        a.set(a.get() + b)
+        return
     a += b
 
 
 @ExecSplit(default=(None,))
 def ISUB(a: Any, b: Any) -> Any:
+    if isinstance(a, str) and hasattr(ISUB, "_refLocal") and a in ISUB._refLocal:
+        ISUB._refLocal[a] = ISUB._refLocal[a] - b
+        return
+    if hasattr(a, "get") and hasattr(a, "set"):
+        a.set(a.get() - b)
+        return
     a -= b
 
 
 @ExecSplit(default=(None,))
 def IMUL(a: Any, b: Any) -> Any:
+    if isinstance(a, str) and hasattr(IMUL, "_refLocal") and a in IMUL._refLocal:
+        IMUL._refLocal[a] = IMUL._refLocal[a] * b
+        return
+    if hasattr(a, "get") and hasattr(a, "set"):
+        a.set(a.get() * b)
+        return
     a *= b
 
 
 @ExecSplit(default=(None,))
 def IDIV(a: Any, b: Any) -> Any:
+    if isinstance(a, str) and hasattr(IDIV, "_refLocal") and a in IDIV._refLocal:
+        IDIV._refLocal[a] = IDIV._refLocal[a] / b
+        return
+    if hasattr(a, "get") and hasattr(a, "set"):
+        a.set(a.get() / b)
+        return
     a /= b
 
 
 @ExecSplit(default=(None,))
 def IMOD(a: Any, b: Any) -> Any:
+    if isinstance(a, str) and hasattr(IMOD, "_refLocal") and a in IMOD._refLocal:
+        IMOD._refLocal[a] = IMOD._refLocal[a] % b
+        return
+    if hasattr(a, "get") and hasattr(a, "set"):
+        a.set(a.get() % b)
+        return
     a %= b
 
 
 @ExecSplit(default=(None,))
 def IPOW(a: Any, b: Any) -> Any:
+    if isinstance(a, str) and hasattr(IPOW, "_refLocal") and a in IPOW._refLocal:
+        IPOW._refLocal[a] = IPOW._refLocal[a] ** b
+        return
+    if hasattr(a, "get") and hasattr(a, "set"):
+        a.set(a.get() ** b)
+        return
     a **= b

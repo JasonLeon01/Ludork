@@ -8,10 +8,13 @@ from typing import Any, Dict, Optional
 
 class ClassDict:
     def __init__(self):
-        self._dict: Dict[str, Any] = {}
+        self._dict: Dict[str, Any] = {"": object}
 
-    def get(self, classPath: str, root: Optional[str] = None) -> Any:
+    def get(self, classPath: Optional[str], root: Optional[str] = None) -> Any:
         from Engine.Utils import File
+
+        if classPath is None:
+            return None
 
         if not classPath in self._dict:
             modulePath, className = classPath.rsplit(".", 1)

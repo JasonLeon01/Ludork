@@ -147,25 +147,8 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.formLayout.addRow(addBtn)
 
     def createInputWidget(self, key: str, value: Any, isAttr: bool = True) -> QtWidgets.QWidget:
-        if isinstance(value, bool):
-            w = QtWidgets.QCheckBox()
-            w.setChecked(value)
-            w.stateChanged.connect(lambda val, k=key, attr=isAttr: self.onDataChanged(k, bool(val), attr))
-            return w
-
         w = QtWidgets.QLineEdit(str(value))
-
-        if isinstance(value, int):
-            w.setValidator(QtGui.QIntValidator())
-            w.textChanged.connect(lambda val, k=key, attr=isAttr: self.onDataChanged(k, int(val) if val else 0, attr))
-        elif isinstance(value, float):
-            w.setValidator(QtGui.QDoubleValidator())
-            w.textChanged.connect(
-                lambda val, k=key, attr=isAttr: self.onDataChanged(k, float(val) if val else 0.0, attr)
-            )
-        else:
-            w.textChanged.connect(lambda val, k=key, attr=isAttr: self.onDataChanged(k, val, attr))
-
+        w.textChanged.connect(lambda val, k=key, attr=isAttr: self.onDataChanged(k, val, attr))
         return w
 
     def onDataChanged(self, key: str, value: Any, isAttr: bool = True) -> None:

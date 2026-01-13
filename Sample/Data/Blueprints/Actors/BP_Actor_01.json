@@ -59,6 +59,39 @@
                             1049.9373521263008,
                             780.129662519689
                         ]
+                    },
+                    {
+                        "nodeFunction": "Utils.GetAttrRef",
+                        "params": [
+                            "",
+                            "hp"
+                        ],
+                        "pos": [
+                            479.1094918567162,
+                            747.1682202119929
+                        ]
+                    },
+                    {
+                        "nodeFunction": "Math.IADD",
+                        "params": [
+                            "",
+                            "1"
+                        ],
+                        "pos": [
+                            509.43287741726783,
+                            597.9771632540787
+                        ]
+                    },
+                    {
+                        "nodeFunction": "Utils.GetAttr",
+                        "params": [
+                            "",
+                            "hp"
+                        ],
+                        "pos": [
+                            798.2745563380886,
+                            514.2523422231891
+                        ]
                     }
                 ],
                 "links": [
@@ -68,13 +101,6 @@
                         "leftOutPin": 0,
                         "rightInPin": 0,
                         "linkType": "Params"
-                    },
-                    {
-                        "left": 0,
-                        "right": 2,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Exec"
                     },
                     {
                         "left": 2,
@@ -95,6 +121,48 @@
                         "right": 3,
                         "leftOutPin": 0,
                         "rightInPin": 1,
+                        "linkType": "Params"
+                    },
+                    {
+                        "left": 1,
+                        "right": 5,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Params"
+                    },
+                    {
+                        "left": 5,
+                        "right": 6,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Params"
+                    },
+                    {
+                        "left": 6,
+                        "right": 2,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Exec"
+                    },
+                    {
+                        "left": 0,
+                        "right": 6,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Exec"
+                    },
+                    {
+                        "left": 7,
+                        "right": 2,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Params"
+                    },
+                    {
+                        "left": 1,
+                        "right": 7,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
                         "linkType": "Params"
                     }
                 ]
