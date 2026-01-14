@@ -86,7 +86,7 @@ class Graph:
                         self.nodeNexts[key][left] = {}
                     self.nodeNexts[key][left][leftOutPin] = (right, rightInPin)
 
-    def execute(self, key: str, startNode: Optional[int] = None, limit=10000) -> Tuple[Any, ...]:
+    def execute(self, key: str, startNode: Optional[int] = None, limit=1000000) -> Tuple[Any, ...]:
         self.doingPartKey = key
         if key not in self.nodes:
             raise KeyError(f"Graph key '{key}' not found")

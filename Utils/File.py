@@ -6,6 +6,8 @@ import sys
 import json
 import pickle
 import shutil
+import importlib
+import traceback
 from pathlib import Path
 from typing import Dict, Any, TYPE_CHECKING
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -117,11 +119,15 @@ def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
     EditorStatus.PROJ_PATH = os.path.abspath(path)
     if EditorStatus.PROJ_PATH not in sys.path:
         sys.path.append(EditorStatus.PROJ_PATH)
+        importlib.invalidate_caches()
+        print(f"Add {EditorStatus.PROJ_PATH} to sys.path")
     try:
         GameData.init()
     except Exception as e:
-        QtWidgets.QMessageBox.critical(None, "Error", Locale.getContent("OPEN_FAILED") + "\n" + str(e))
-        exit(1)
+        QtWidgets.QMessageBox.critical(
+            None, "Error", Locale.getContent("OPEN_FAILED") + "\n" + str(e) + "\n" + traceback.format_exc()
+        )
+        sys.exit(1)
     from W_MainWindow import MainWindow
 
     mainWindow = MainWindow(System.getTitle())

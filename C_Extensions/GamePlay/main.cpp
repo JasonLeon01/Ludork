@@ -4,6 +4,8 @@
 static PyMethodDef GamePlayExtensionMethods[] = {
     {"calculateVertexArray", calculateVertexArray, METH_VARARGS},
     {"getLightMap", getLightMap, METH_VARARGS},
+    {"fillPassabilityImage", fillPassabilityImage, METH_VARARGS},
+    {"CExtensionFindPath", CExtensionFindPath, METH_VARARGS},
     {NULL, NULL, 0, NULL}
 };
 

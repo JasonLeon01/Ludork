@@ -1,20 +1,5 @@
-#include <GameMap.h>
-
-static long getAttrLong(PyObject* obj, const char* attr_name, long default_val) {
-    if (!obj) return default_val;
-    PyObject* attr = PyObject_GetAttrString(obj, attr_name);
-    if (!attr) {
-        PyErr_Clear();
-        return default_val;
-    }
-    long val = PyLong_AsLong(attr);
-    if (PyErr_Occurred()) {
-        PyErr_Clear();
-        val = default_val;
-    }
-    Py_DECREF(attr);
-    return val;
-}
+#include <utils.h>
+#include <GameMap/GetLightMap.h>
 
 PyObject* getLightMap(PyObject* self, PyObject* args) {
     PyObject *gameMapObj;
@@ -23,22 +8,35 @@ PyObject* getLightMap(PyObject* self, PyObject* args) {
     }
 
     PyObject *tilemap = PyObject_GetAttrString(gameMapObj, "_tilemap");
-    if (!tilemap) return NULL;
+    if (!tilemap) {
+        return NULL;
+    }
 
     PyObject *mapSize = PyObject_CallMethod(tilemap, "getSize", NULL);
-    if (!mapSize) { Py_DECREF(tilemap); return NULL; }
+    if (!mapSize) { 
+        Py_DECREF(tilemap); 
+        return NULL; 
+    }
     long width = getAttrLong(mapSize, "x", 0);
     long height = getAttrLong(mapSize, "y", 0);
     Py_DECREF(mapSize);
 
     PyObject *allLayers = PyObject_CallMethod(tilemap, "getAllLayers", NULL);
-    if (!allLayers) { Py_DECREF(tilemap); return NULL; }
+    if (!allLayers) { 
+        Py_DECREF(tilemap); 
+        return NULL; 
+    }
     PyObject *keysView = PyMapping_Keys(allLayers);
     Py_DECREF(allLayers);
-    if (!keysView) { Py_DECREF(tilemap); return NULL; }
+    if (!keysView) { 
+        Py_DECREF(tilemap); 
+        return NULL; 
+    }
     
     if (PyList_Reverse(keysView) < 0) {
-        Py_DECREF(keysView); Py_DECREF(tilemap); return NULL;
+        Py_DECREF(keysView); 
+        Py_DECREF(tilemap); 
+        return NULL;
     }
 
     PyObject *activeLayer = NULL;
@@ -48,10 +46,8 @@ PyObject* getLightMap(PyObject* self, PyObject* args) {
         PyObject *key = PyList_GetItem(keysView, i);
         PyObject *layer = PyObject_CallMethod(tilemap, "getLayer", "O", key);
         if (layer) {
-            PyObject *visible = PyObject_GetAttrString(layer, "visible");
-            int is_visible = PyObject_IsTrue(visible);
-            Py_XDECREF(visible);
-            if (is_visible) {
+            bool isVisible = getAttrBool(layer, "visible", false);
+            if (isVisible) {
                 activeLayer = layer;
                 activeLayerName = key;
                 Py_INCREF(activeLayerName);
@@ -105,7 +101,9 @@ PyObject* getLightMap(PyObject* self, PyObject* args) {
         Py_DECREF(activeLayer); Py_DECREF(activeLayerName);
         return PyErr_NoMemory();
     }
-    for (long i=0; i<width*height; ++i) actorGrid[i] = -1.0;
+    for (long i=0; i<width*height; ++i) {
+        actorGrid[i] = -1.0;
+    }
 
     PyObject *actorsDict = PyObject_GetAttrString(gameMapObj, "_actors");
     if (actorsDict) {
@@ -114,11 +112,7 @@ PyObject* getLightMap(PyObject* self, PyObject* args) {
             Py_ssize_t numActors = PyList_Size(actorList);
             for (Py_ssize_t i = 0; i < numActors; ++i) {
                 PyObject *actor = PyList_GetItem(actorList, i);
-                
-                PyObject *collEnabled = PyObject_CallMethod(actor, "getCollisionEnabled", NULL);
-                int is_coll = PyObject_IsTrue(collEnabled);
-                Py_XDECREF(collEnabled);
-                
+                bool is_coll = isMethodTrue(actor, "getCollisionEnabled");
                 double val = 0.0;
                 if (is_coll) {
                     PyObject *lbObj = PyObject_CallMethod(actor, "getLightBlock", NULL);

@@ -1,5 +1,6 @@
 #pragma once
 
-#include <Python.h>
+#include <GameMap/GetLightMap.h>
+#include <GameMap/FillPassabilityImage.h>
+#include <GameMap/CExtensionFindPath.h>
 
-PyObject* getLightMap(PyObject* self, PyObject* args);

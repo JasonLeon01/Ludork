@@ -3,7 +3,7 @@
 from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from . import (
     Vector2i,
@@ -173,9 +173,41 @@ class GameMap:
         self._camera = camera
 
     def getLightMap(self) -> List[List[float]]:
-        from .GamePlayExtension import getLightMap
+        try:
+            from .GamePlayExtension import getLightMap
 
-        return getLightMap(self)
+            return getLightMap(self)
+        except:
+            print("C Exception getLightMap load failed, use default")
+
+            def getLightBlock(inLayerKeys: List[str], pos: Vector2i):
+                for layerName in inLayerKeys:
+                    layer = self._tilemap.getLayer(layerName)
+                    if not layer.visible:
+                        continue
+                    if layerName in self._actors:
+                        for actor in self._actors[layerName]:
+                            if actor.getMapPosition() == pos:
+                                if actor.getCollisionEnabled():
+                                    return actor.getLightBlock()
+                                else:
+                                    return 0
+                    tile = layer.get(pos)
+                    if tile is not None:
+                        return layer.getLightBlock(pos)
+                return 0
+
+            layerKeys = list(self._tilemap.getAllLayers().keys())
+            layerKeys.reverse()
+            lightMap: List[List[float]] = []
+            mapSize = self._tilemap.getSize()
+            width = mapSize.x
+            height = mapSize.y
+            for y in range(height):
+                lightMap.append([])
+                for x in range(width):
+                    lightMap[-1].append(getLightBlock(layerKeys, Vector2i(x, y)))
+            return lightMap
 
     def getLights(self) -> List[Light]:
         return self._lights
@@ -200,65 +232,78 @@ class GameMap:
 
     def findPath(self, start: Vector2i, goal: Vector2i) -> List[Vector2i]:
         size = self._tilemap.getSize()
-        sx, sy = start.x, start.y
-        gx, gy = goal.x, goal.y
+        layerKeys = list(self._tilemap.getAllLayers().keys())
+        layerKeys.reverse()
+        try:
+            from .GamePlayExtension import CExtensionFindPath
 
-        def in_bounds(x: int, y: int) -> bool:
-            return 0 <= x < size.x and 0 <= y < size.y
+            path = CExtensionFindPath(start, goal, size, self._tilemap, layerKeys, self._actors)
+            return path
+        except:
+            print("C Exception CExtensionFindPath load failed, use default")
+            sx, sy = start.x, start.y
+            gx, gy = goal.x, goal.y
 
-        def passable(x: int, y: int) -> bool:
-            if (x == sx and y == sy) or (x == gx and y == gy):
+            def inBounds(x: int, y: int) -> bool:
+                return 0 <= x < size.x and 0 <= y < size.y
+
+            def passable(x: int, y: int) -> bool:
+                if (x == sx and y == sy) or (x == gx and y == gy):
+                    return True
+                for layerName in layerKeys:
+                    layer = self._tilemap.getLayer(layerName)
+                    if not layer.visible:
+                        continue
+                    position = Vector2i(x, y)
+                    if layerName in self._actors:
+                        for actor in self._actors[layerName]:
+                            if actor.getMapPosition() == position:
+                                return not actor.getCollisionEnabled()
+                    tile = layer.get(position)
+                    if tile is not None:
+                        return layer.isPassable(position)
                 return True
-            layerKeys = list(self._tilemap.getAllLayers().keys())
-            layerKeys.reverse()
-            for layerName in layerKeys:
-                layer = self._tilemap.getLayer(layerName)
-                position = Vector2i(x, y)
-                tile = layer.get(position)
-                if tile is not None:
-                    return layer.isPassable(position)
-            return True
 
-        dirs = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-        start_t = (sx, sy)
-        goal_t = (gx, gy)
-        if start_t == goal_t:
+            dirs = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+            start_t = (sx, sy)
+            goal_t = (gx, gy)
+            if start_t == goal_t:
+                return []
+            openSet = set([start_t])
+            cameFrom: Dict[Tuple[int, int], Tuple[int, int]] = {}
+            gscore: Dict[Tuple[int, int], int] = {start_t: 0}
+            fscore: Dict[Tuple[int, int], int] = {start_t: abs(sx - gx) + abs(sy - gy)}
+            while openSet:
+                current = min(openSet, key=lambda t: fscore.get(t, 1 << 30))
+                if current == goal_t:
+                    pathPositions: List[Tuple[int, int]] = []
+                    c = current
+                    while c in cameFrom:
+                        pathPositions.append(c)
+                        c = cameFrom[c]
+                    pathPositions.reverse()
+                    moves: List[Vector2i] = []
+                    px, py = sx, sy
+                    for x, y in pathPositions:
+                        moves.append(Vector2i(x - px, y - py))
+                        px, py = x, y
+                    return moves
+                openSet.remove(current)
+                cx, cy = current
+                for dx, dy in dirs:
+                    nx, ny = cx + dx, cy + dy
+                    if not inBounds(nx, ny):
+                        continue
+                    if not passable(nx, ny):
+                        continue
+                    nt = (nx, ny)
+                    tentative = gscore[current] + 1
+                    if tentative < gscore.get(nt, 1 << 30):
+                        cameFrom[nt] = current
+                        gscore[nt] = tentative
+                        fscore[nt] = tentative + abs(nx - gx) + abs(ny - gy)
+                        openSet.add(nt)
             return []
-        open_set = set([start_t])
-        came_from: Dict[tuple, tuple] = {}
-        gscore: Dict[tuple, int] = {start_t: 0}
-        fscore: Dict[tuple, int] = {start_t: abs(sx - gx) + abs(sy - gy)}
-        while open_set:
-            current = min(open_set, key=lambda t: fscore.get(t, 1 << 30))
-            if current == goal_t:
-                path_positions: List[tuple] = []
-                c = current
-                while c in came_from:
-                    path_positions.append(c)
-                    c = came_from[c]
-                path_positions.reverse()
-                moves: List[Vector2i] = []
-                px, py = sx, sy
-                for x, y in path_positions:
-                    moves.append(Vector2i(x - px, y - py))
-                    px, py = x, y
-                return moves
-            open_set.remove(current)
-            cx, cy = current
-            for dx, dy in dirs:
-                nx, ny = cx + dx, cy + dy
-                if not in_bounds(nx, ny):
-                    continue
-                if not passable(nx, ny):
-                    continue
-                nt = (nx, ny)
-                tentative = gscore[current] + 1
-                if tentative < gscore.get(nt, 1 << 30):
-                    came_from[nt] = current
-                    gscore[nt] = tentative
-                    fscore[nt] = tentative + abs(nx - gx) + abs(ny - gy)
-                    open_set.add(nt)
-        return []
 
     def onTick(self, deltaTime: float) -> None:
         self._camera.onTick(deltaTime)
@@ -349,10 +394,16 @@ class GameMap:
         img = Image(size)
         lightMap = self.getLightMap()
 
-        for y in range(size.y):
-            for x in range(size.x):
-                g = int(lightMap[y][x] * 255)
-                img.setPixel(Vector2u(x, y), Color(g, g, g))
+        try:
+            from .GamePlayExtension import fillPassabilityImage
+
+            fillPassabilityImage(size, img, lightMap)
+        except:
+            print("C Exception fillPassabilityImage load failed, use default")
+            for y in range(size.y):
+                for x in range(size.x):
+                    g = int(lightMap[y][x] * 255)
+                    img.setPixel(Vector2u(x, y), Color(g, g, g))
 
         img.flipVertically()
         texture = Texture(img)

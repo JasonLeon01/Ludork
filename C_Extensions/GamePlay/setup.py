@@ -1,9 +1,23 @@
 from setuptools import setup, Extension
+import sys
+
+cppArgs = ["-std=c++17"]
+if sys.platform == "win32":
+    cppArgs = ["/std:c++17"]
 
 module = Extension(
     "GamePlayExtension",
-    sources=["src/Tilemap.c", "src/GameMap.c", "main.c"],
+    sources=[
+        "src/utils.cpp",
+        "src/Tilemap.cpp",
+        "src/GameMap/GetLightMap.cpp",
+        "src/GameMap/FillPassabilityImage.cpp",
+        "src/GameMap/CExtensionFindPath.cpp",
+        "main.cpp",
+    ],
     include_dirs=["./include"],
+    language="c++",
+    extra_compile_args=cppArgs,
 )
 
 setup(
