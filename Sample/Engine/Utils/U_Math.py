@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from typing import Union
-from . import Vector2f, Vector2i, Vector2u, Vector3f, Vector3i, IntRect, FloatRect
+from .. import Vector2f, Vector2i, Vector2u, Vector3f, Vector3i, IntRect, FloatRect
 
 
 def IsNearZero(num: Union[int, float], epsilon: float = 0.1) -> bool:

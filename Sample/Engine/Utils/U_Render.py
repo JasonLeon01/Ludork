@@ -2,7 +2,7 @@
 
 import copy
 from typing import Union
-from . import RenderStates, BlendMode, Vector2i, Vector2u, Vector2f
+from .. import RenderStates, BlendMode, Vector2i, Vector2u, Vector2f
 
 
 def CanvasRenderStates() -> RenderStates:

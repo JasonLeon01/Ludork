@@ -2,22 +2,18 @@
 
 from __future__ import annotations
 from typing import List, Tuple, Union, Optional, TYPE_CHECKING
-from . import (
-    UI_SpriteBase,
+from .. import (
     IntRect,
     Vector2i,
     RenderTexture,
     Color,
     Utils,
 )
+from .UI_SpriteBase import SpriteBase
 
 if TYPE_CHECKING:
     from Engine import Vector2u
-    from Engine.UI import UI_ControlBase
-
-    ControlBase = UI_ControlBase.ControlBase
-
-SpriteBase = UI_SpriteBase.SpriteBase
+    from Engine.UI.UI_ControlBase import ControlBase
 
 
 class Canvas(SpriteBase):

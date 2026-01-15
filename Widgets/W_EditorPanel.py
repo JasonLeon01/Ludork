@@ -1027,6 +1027,19 @@ class EditorPanel(QtWidgets.QWidget):
             return getattr(cls, name)
         return default
 
+    def getBlueprintAttr(self, bpRel: Any, attrName: str, default: Any) -> Any:
+        if isinstance(bpRel, str):
+            prefix = "Data.Blueprints."
+            if bpRel.startswith(prefix):
+                key = bpRel[len(prefix) :].replace(".", "/")
+                bpData = GameData.blueprintsData.get(key)
+                if isinstance(bpData, dict):
+                    attrs = bpData.get("attrs")
+                    if isinstance(attrs, dict) and attrName in attrs:
+                        return attrs.get(attrName, default)
+        clsObj = self._resolveActorClass(bpRel)
+        return self._getClassAttr(clsObj, attrName, default)
+
     def _resolveTextureImage(self, texturePath: Any) -> Optional[QtGui.QImage]:
         path: Optional[str] = None
         if isinstance(texturePath, str) and texturePath.strip():
@@ -1060,26 +1073,22 @@ class EditorPanel(QtWidgets.QWidget):
             except Exception:
                 continue
 
-            clsObj = self._resolveActorClass(entry.get("bp"))
+            bpRel = entry.get("bp")
 
-            # Translation
-            defTrans = self._toVec2f(self._getClassAttr(clsObj, "defaultTranslation", (0.0, 0.0)), 0.0, 0.0)
+            defTrans = self._toVec2f(self.getBlueprintAttr(bpRel, "defaultTranslation", (0.0, 0.0)), 0.0, 0.0)
             translation = self._toVec2f(entry.get("translation", defTrans), defTrans[0], defTrans[1])
 
-            # Rotation
-            defRot = self._getClassAttr(clsObj, "defaultRotation", 0.0)
+            defRot = self.getBlueprintAttr(bpRel, "defaultRotation", 0.0)
             rotation = float(entry.get("rotation", defRot))
 
-            # Scale
-            defScale = self._toVec2f(self._getClassAttr(clsObj, "defaultScale", (1.0, 1.0)), 1.0, 1.0)
+            defScale = self._toVec2f(self.getBlueprintAttr(bpRel, "defaultScale", (1.0, 1.0)), 1.0, 1.0)
             scaleVal = self._toVec2f(entry.get("scale", defScale), defScale[0], defScale[1])
 
-            # Origin
-            defOrigin = self._toVec2f(self._getClassAttr(clsObj, "defaultOrigin", (0.0, 0.0)), 0.0, 0.0)
+            defOrigin = self._toVec2f(self.getBlueprintAttr(bpRel, "defaultOrigin", (0.0, 0.0)), 0.0, 0.0)
             origin = self._toVec2f(entry.get("origin", defOrigin), defOrigin[0], defOrigin[1])
 
-            texPath = self._getClassAttr(clsObj, "texturePath", "")
-            rectT = self._toRectTuple(self._getClassAttr(clsObj, "defaultRect", None))
+            texPath = self.getBlueprintAttr(bpRel, "texturePath", "")
+            rectT = self._toRectTuple(self.getBlueprintAttr(bpRel, "defaultRect", None))
 
             px = gx * tileSize
             py = gy * tileSize
@@ -1160,10 +1169,10 @@ class EditorPanel(QtWidgets.QWidget):
                 gy = int(p[1])
             except Exception:
                 continue
-            cx = self._resolveActorClass(entry.get("bp"))
-            rectT = self._toRectTuple(self._getClassAttr(cx, "defaultRect", None))
-            origin = self._toVec2f(self._getClassAttr(cx, "defaultOrigin", (0.0, 0.0)), 0.0, 0.0)
-            scale = self._toVec2f(self._getClassAttr(cx, "defaultScale", (1.0, 1.0)), 1.0, 1.0)
+            bpRel = entry.get("bp")
+            rectT = self._toRectTuple(self.getBlueprintAttr(bpRel, "defaultRect", None))
+            origin = self._toVec2f(self.getBlueprintAttr(bpRel, "defaultOrigin", (0.0, 0.0)), 0.0, 0.0)
+            scale = self._toVec2f(self.getBlueprintAttr(bpRel, "defaultScale", (1.0, 1.0)), 1.0, 1.0)
             w = tileSize
             h = tileSize
             sx = 0

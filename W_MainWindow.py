@@ -1272,12 +1272,21 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _onDatabaseShowBlueprint(self, title: str, data: Dict[str, Any]) -> None:
         self._blueprintEditor = BluePrintEditor(title, data, self)
-        self._blueprintEditor.modified.connect(lambda: self._refreshInfo())
+        self._blueprintEditor.modified.connect(self._onBlueprintModified)
         self._blueprintEditor.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._blueprintEditor.setWindowModality(QtCore.Qt.ApplicationModal)
         self._blueprintEditor.activateWindow()
         self._blueprintEditor.raise_()
         self._blueprintEditor.show()
+
+    def _onBlueprintModified(self) -> None:
+        self._refreshInfo()
+        try:
+            if hasattr(self, "editorPanel") and self.editorPanel is not None:
+                self.editorPanel._renderFromMapData()
+                self.editorPanel.update()
+        except Exception as e:
+            print(f"Error while refreshing map after blueprint change: {e}")
 
     def _onHelpExplanation(self, checked: bool = False) -> None:
         pass

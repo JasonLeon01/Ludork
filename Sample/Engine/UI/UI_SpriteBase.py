@@ -2,22 +2,18 @@
 
 from __future__ import annotations
 from typing import Optional, Tuple, Union, TYPE_CHECKING
-
-
-from . import (
+from .. import (
     Drawable,
     Transformable,
-    UI_ControlBase,
     Sprite,
     Vector2f,
     Angle,
     degrees,
 )
+from .UI_ControlBase import ControlBase
 
 if TYPE_CHECKING:
     from Engine import Texture, IntRect, RenderStates, Color, FloatRect, RenderTexture
-
-ControlBase = UI_ControlBase.ControlBase
 
 
 class SpriteBase(Transformable, Drawable, ControlBase):

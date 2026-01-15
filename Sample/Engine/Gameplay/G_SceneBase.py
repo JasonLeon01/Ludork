@@ -3,7 +3,7 @@
 from __future__ import annotations
 import os
 from typing import List, TYPE_CHECKING
-from . import Manager
+from .. import Manager
 from ..Utils import Event, Math
 
 if TYPE_CHECKING:

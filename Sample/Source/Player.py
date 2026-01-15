@@ -4,11 +4,16 @@ from __future__ import annotations
 from typing import Optional
 from Engine import Texture, Input
 from Engine.Gameplay.Actors import Character
+from .Battler import _Battler
 
 
-class Player(Character):
+class Player(Character, _Battler):
     def __init__(self, texture: Optional[Texture] = None, tag: str = "") -> None:
-        super().__init__(texture, tag)
+        Character.__init__(self, texture, tag)
+        _Battler.__init__(self)
+        self.tickable = True
+        self.collisionEnabled = True
+        self.animatable = True
         self.speed = 96
         Input.registerActionMapping(self, "playerMoveUp", Input.getUpKeys(), Player.moveUp, triggerOnHold=True)
         Input.registerActionMapping(self, "playerMoveDown", Input.getDownKeys(), Player.moveDown, triggerOnHold=True)

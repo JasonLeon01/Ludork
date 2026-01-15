@@ -3,7 +3,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
-from . import Drawable, Transformable, VertexArray, Manager, PrimitiveType, Vector2f, Vector2i, Vector2u
+from .. import Drawable, Transformable, VertexArray, Manager, PrimitiveType, Vector2f, Vector2i, Vector2u, GetCellSize
 
 if TYPE_CHECKING:
     from Engine import RenderTarget, RenderStates, Vector2u
@@ -82,8 +82,6 @@ class TileLayer(Drawable, Transformable):
         target.draw(self._vertexArray, states)
 
     def _init(self) -> None:
-        from . import GetCellSize
-
         tileSize = GetCellSize()
         columns = self._texture.getSize().x // tileSize
 

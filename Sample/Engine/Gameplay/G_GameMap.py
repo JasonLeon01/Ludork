@@ -5,7 +5,7 @@ from collections import deque
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-from . import (
+from .. import (
     Vector2i,
     Vector2f,
     Vector2u,

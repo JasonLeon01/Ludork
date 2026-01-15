@@ -6,7 +6,7 @@ import warnings
 import threading
 import concurrent.futures
 from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple, TYPE_CHECKING
-from . import GetGameRunning, SoundBuffer, Sound, Time, seconds, Vector3f, Angle, degrees, Music
+from .. import GetGameRunning, SoundBuffer, Sound, Time, seconds, Vector3f, Angle, degrees, Music
 
 if TYPE_CHECKING:
     from Engine import SoundSource, Filters, Transformable

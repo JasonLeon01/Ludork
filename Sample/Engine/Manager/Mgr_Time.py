@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from . import Time, Clock
+from .. import Time, Clock
 
 
 class TimeManager:

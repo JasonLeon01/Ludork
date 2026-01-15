@@ -4,7 +4,7 @@ from __future__ import annotations
 import weakref
 import logging
 from typing import Dict, Tuple, Optional, TYPE_CHECKING
-from . import Texture
+from .. import Texture
 
 if TYPE_CHECKING:
     from Engine import IntRect

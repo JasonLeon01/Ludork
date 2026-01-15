@@ -4,7 +4,7 @@ from __future__ import annotations
 import copy
 import warnings
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
-from . import Sprite, IntRect, Vector2i, Vector2u, Vector2f, Angle, degrees, GetCellSize, Utils, ExecSplit, ReturnType
+from ... import Sprite, IntRect, Vector2i, Vector2u, Vector2f, Angle, degrees, GetCellSize, Utils, ExecSplit, ReturnType
 
 if TYPE_CHECKING:
     from Engine import Texture
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from Engine.NodeGraph import Graph
 
 
-class ActorBase(Sprite):
+class _ActorBase(Sprite):
     def __init__(
         self,
         texture: Optional[Texture] = None,
@@ -41,8 +41,8 @@ class ActorBase(Sprite):
         self.animatable: bool = False
 
         self._map: GameMap = None
-        self._parent: Optional[ActorBase] = None
-        self._children: List[ActorBase] = []
+        self._parent: Optional[_ActorBase] = None
+        self._children: List[_ActorBase] = []
         self._translation: Vector2f = Vector2f(0, 0)
         self._visible: bool = True
         self._texture: Optional[Texture] = texture
@@ -310,20 +310,20 @@ class ActorBase(Sprite):
     def setMap(self, inMap: GameMap) -> None:
         self._map = inMap
 
-    @ReturnType(parent=Optional["ActorBase"])
-    def getParent(self) -> Optional[ActorBase]:
+    @ReturnType(parent=Optional["_ActorBase"])
+    def getParent(self) -> Optional[_ActorBase]:
         return self._parent
 
     @ExecSplit(default=(None,))
-    def setParent(self, parent: Optional[ActorBase]) -> None:
+    def setParent(self, parent: Optional[_ActorBase]) -> None:
         self._parent = parent
 
-    @ReturnType(children=List["ActorBase"])
-    def getChildren(self) -> List[ActorBase]:
+    @ReturnType(children=List["_ActorBase"])
+    def getChildren(self) -> List[_ActorBase]:
         return self._children
 
     @ExecSplit(default=(None,))
-    def addChild(self, child: ActorBase) -> None:
+    def addChild(self, child: _ActorBase) -> None:
         if child in self._children:
             warnings.warn("Child already exists")
             return
@@ -334,7 +334,7 @@ class ActorBase(Sprite):
             self._map.updateActorList()
 
     @ExecSplit(default=(None,))
-    def removeChild(self, child: ActorBase) -> None:
+    def removeChild(self, child: _ActorBase) -> None:
         if child not in self._children:
             raise ValueError("Child not found")
         self._children.remove(child)

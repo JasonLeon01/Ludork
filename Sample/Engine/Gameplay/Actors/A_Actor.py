@@ -3,16 +3,17 @@
 from __future__ import annotations
 from . import A_Base
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
-from . import Vector2f, Vector2i, Vector2u, GetCellSize, ExecSplit, ReturnType, RegisterEvent
+from ... import Vector2f, Vector2i, Vector2u, GetCellSize, ExecSplit, ReturnType, RegisterEvent, PathVars, RectRangeVars
 from ...Utils import Math
+from .A_Base import _ActorBase
 
 if TYPE_CHECKING:
     from Engine import Texture, IntRect
 
-ActorBase = A_Base.ActorBase
 
-
-class Actor(ActorBase):
+@PathVars("texturePath")
+@RectRangeVars(defaultRect="texturePath")
+class Actor(_ActorBase):
     def __init__(
         self,
         texture: Optional[Union[Texture, List[Texture]]] = None,
@@ -21,7 +22,7 @@ class Actor(ActorBase):
     ) -> None:
         ### Generation use only
         self.texturePath: str = ""
-        self.defaultRect: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = None
+        self.defaultRect: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = ((0, 0), (32, 32))
         self.defaultTranslation: Tuple[float, float] = (0.0, 0.0)
         self.defaultRotation: float = 0.0
         self.defaultScale: Tuple[float, float] = (1.0, 1.0)

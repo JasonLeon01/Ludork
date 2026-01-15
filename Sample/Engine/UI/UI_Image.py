@@ -1,8 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-from . import UI_SpriteBase, RenderStates, Vector2f
-
-SpriteBase = UI_SpriteBase.SpriteBase
+from .. import RenderStates, Vector2f
+from .UI_SpriteBase import SpriteBase
 
 
 class Image(SpriteBase):

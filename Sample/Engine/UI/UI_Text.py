@@ -2,22 +2,18 @@
 
 from __future__ import annotations
 from typing import Dict, List, TYPE_CHECKING
-
-from . import (
-    UI_SpriteBase,
-    UI_ControlBase,
+from .. import (
     Color,
     Text,
     Vector2u,
     Vector2f,
     RenderTexture,
 )
+from .UI_SpriteBase import SpriteBase
+from .UI_ControlBase import ControlBase
 
 if TYPE_CHECKING:
     from Engine import Font
-
-ControlBase = UI_ControlBase.ControlBase
-SpriteBase = UI_SpriteBase.SpriteBase
 
 
 class PlainText(Text, ControlBase):

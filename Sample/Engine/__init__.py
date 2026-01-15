@@ -54,6 +54,30 @@ def ReturnType(**kwargs):
     return decorator
 
 
+def InvalidVars(*args):
+    def decorator(cls):
+        cls._invalidVars = args
+        return cls
+
+    return decorator
+
+
+def PathVars(*args):
+    def decorator(cls):
+        cls._pathVars = args
+        return cls
+
+    return decorator
+
+
+def RectRangeVars(**kwargs):
+    def decorator(cls):
+        cls._rectRangeVars = kwargs
+        return cls
+
+    return decorator
+
+
 def RegisterEvent(func=None):
     def decorator(f):
         f._eventSignature = True

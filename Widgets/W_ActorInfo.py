@@ -140,32 +140,28 @@ class ActorInfoPanel(QtWidgets.QWidget):
 
         self._blockSignals = True
         try:
-            # Tag
             self.tagEdit.setText(str(data.get("tag", "")))
 
-            # Resolve defaults
             bp = data.get("bp")
-            clsObj = self._editorPanel._resolveActorClass(bp) if self._editorPanel else None
 
-            # Translation
-            defTrans = self._toVec2f(self._getClassAttr(clsObj, "defaultTranslation", (0.0, 0.0)), 0.0, 0.0)
+            defTransData = self._getBlueprintAttr(bp, "defaultTranslation", (0.0, 0.0))
+            defTrans = self._toVec2f(defTransData, 0.0, 0.0)
             curTrans = self._toVec2f(data.get("translation", defTrans), defTrans[0], defTrans[1])
             self.translationXSpin.setValue(curTrans[0])
             self.translationYSpin.setValue(curTrans[1])
 
-            # Rotation
-            defRot = self._getClassAttr(clsObj, "defaultRotation", 0.0)
+            defRot = self._getBlueprintAttr(bp, "defaultRotation", 0.0)
             curRot = data.get("rotation", defRot)
             self.rotationSpin.setValue(float(curRot))
 
-            # Scale
-            defScale = self._toVec2f(self._getClassAttr(clsObj, "defaultScale", (1.0, 1.0)), 1.0, 1.0)
+            defScaleData = self._getBlueprintAttr(bp, "defaultScale", (1.0, 1.0))
+            defScale = self._toVec2f(defScaleData, 1.0, 1.0)
             curScale = self._toVec2f(data.get("scale", defScale), defScale[0], defScale[1])
             self.scaleXSpin.setValue(curScale[0])
             self.scaleYSpin.setValue(curScale[1])
 
-            # Origin
-            defOrigin = self._toVec2f(self._getClassAttr(clsObj, "defaultOrigin", (0.0, 0.0)), 0.0, 0.0)
+            defOriginData = self._getBlueprintAttr(bp, "defaultOrigin", (0.0, 0.0))
+            defOrigin = self._toVec2f(defOriginData, 0.0, 0.0)
             curOrigin = self._toVec2f(data.get("origin", defOrigin), defOrigin[0], defOrigin[1])
             self.originXSpin.setValue(curOrigin[0])
             self.originYSpin.setValue(curOrigin[1])
@@ -253,8 +249,8 @@ class ActorInfoPanel(QtWidgets.QWidget):
             return
 
         bp = data.get("bp")
-        clsObj = self._editorPanel._resolveActorClass(bp) if self._editorPanel else None
-        defTrans = self._toVec2f(self._getClassAttr(clsObj, "defaultTranslation", (0.0, 0.0)), 0.0, 0.0)
+        defTransData = self._getBlueprintAttr(bp, "defaultTranslation", (0.0, 0.0))
+        defTrans = self._toVec2f(defTransData, 0.0, 0.0)
 
         val = [self.translationXSpin.value(), self.translationYSpin.value()]
         self._updateData("translation", val, list(defTrans))
@@ -267,8 +263,7 @@ class ActorInfoPanel(QtWidgets.QWidget):
             return
 
         bp = data.get("bp")
-        clsObj = self._editorPanel._resolveActorClass(bp) if self._editorPanel else None
-        defRot = self._getClassAttr(clsObj, "defaultRotation", 0.0)
+        defRot = self._getBlueprintAttr(bp, "defaultRotation", 0.0)
 
         self._updateData("rotation", val, float(defRot))
 
@@ -280,8 +275,8 @@ class ActorInfoPanel(QtWidgets.QWidget):
             return
 
         bp = data.get("bp")
-        clsObj = self._editorPanel._resolveActorClass(bp) if self._editorPanel else None
-        defScale = self._toVec2f(self._getClassAttr(clsObj, "defaultScale", (1.0, 1.0)), 1.0, 1.0)
+        defScaleData = self._getBlueprintAttr(bp, "defaultScale", (1.0, 1.0))
+        defScale = self._toVec2f(defScaleData, 1.0, 1.0)
 
         val = [self.scaleXSpin.value(), self.scaleYSpin.value()]
         self._updateData("scale", val, list(defScale))
@@ -294,8 +289,8 @@ class ActorInfoPanel(QtWidgets.QWidget):
             return
 
         bp = data.get("bp")
-        clsObj = self._editorPanel._resolveActorClass(bp) if self._editorPanel else None
-        defOrigin = self._toVec2f(self._getClassAttr(clsObj, "defaultOrigin", (0.0, 0.0)), 0.0, 0.0)
+        defOriginData = self._getBlueprintAttr(bp, "defaultOrigin", (0.0, 0.0))
+        defOrigin = self._toVec2f(defOriginData, 0.0, 0.0)
 
         val = [self.originXSpin.value(), self.originYSpin.value()]
         self._updateData("origin", val, list(defOrigin))
@@ -305,6 +300,12 @@ class ActorInfoPanel(QtWidgets.QWidget):
         if hasattr(cls, name):
             return getattr(cls, name)
         return default
+
+    def _getBlueprintAttr(self, bpRel: Any, name: str, default: Any) -> Any:
+        if self._editorPanel and hasattr(self._editorPanel, "getBlueprintAttr"):
+            return self._editorPanel.getBlueprintAttr(bpRel, name, default)
+        clsObj = self._editorPanel._resolveActorClass(bpRel) if self._editorPanel else None
+        return self._getClassAttr(clsObj, name, default)
 
     def _toVec2f(self, data: Any, defaultX: float = 0.0, defaultY: float = 0.0) -> Tuple[float, float]:
         if isinstance(data, (list, tuple)) and len(data) >= 2:

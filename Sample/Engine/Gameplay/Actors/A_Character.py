@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 from typing import Optional, Union, Tuple
-from . import Texture, IntRect, Vector2i, Utils, ExecSplit
-from . import A_Actor
-
-Actor = A_Actor.Actor
+from ... import Texture, IntRect, Vector2i, Utils, ExecSplit, InvalidVars
+from .A_Actor import Actor
 
 
+@InvalidVars("defaultRect")
 class Character(Actor):
     def __init__(self, texture: Optional[Texture] = None, tag: Optional[str] = None) -> None:
         if not texture is None:

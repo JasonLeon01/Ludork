@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import Callable, Dict, List, Optional, Union, TYPE_CHECKING
 import copy
-from . import Drawable, VertexArray, PrimitiveType, Vertex, Texture, Font, Transform, Vector2f, Color, Text, degrees
+from .. import Drawable, VertexArray, PrimitiveType, Vertex, Texture, Font, Transform, Vector2f, Color, Text, degrees
 
 if TYPE_CHECKING:
     from Engine import RenderTarget, RenderStates

@@ -10,25 +10,12 @@ inline bool inBounds(int x, int y, int width, int height) {
     return x >= 0 && x < width && y >= 0 && y < height;
 }
 
-inline bool passable(int x, int y, int sx, int sy, int gx, int gy, PyObject *tilemap, PyObject *layerKeys, PyObject *actors) {
+inline bool passable(int x, int y, int sx, int sy, int gx, int gy, PyObject *tilemap, PyObject *layerKeys, PyObject *actors, PyObject *Vector2iClass) {
     if ((x == sx && y == sy) || (x == gx && y == gy)) {
         return true;
     }
-    PyObject *engineModule = PyImport_ImportModule("Engine");
-    if (!engineModule) {
-        PyErr_SetString(PyExc_RuntimeError, "Failed to import Engine module");
-        return false;
-    }
-    PyObject *Vector2iClass = PyObject_GetAttrString(engineModule, "Vector2i");
-    if (!Vector2iClass) {
-        PyErr_SetString(PyExc_RuntimeError, "Failed to get Vector2i class from Engine module");
-        Py_DECREF(engineModule);
-        return false;
-    }
     if (layerKeys == NULL) {
         PyErr_SetString(PyExc_RuntimeError, "Failed to get keys from layers dictionary");
-        Py_DECREF(engineModule);
-        Py_DECREF(Vector2iClass);
         return false;
     }
     int len = PyList_Size(layerKeys);
@@ -37,8 +24,6 @@ inline bool passable(int x, int y, int sx, int sy, int gx, int gy, PyObject *til
         PyObject *layer = PyObject_CallMethod(tilemap, "getLayer", "O", layerName);
         if (layer == NULL) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to get layer from tilemap");
-            Py_DECREF(engineModule);
-            Py_DECREF(Vector2iClass);
             return false;
         }
         bool visible = getAttrBool(layer, "visible", false);
@@ -49,8 +34,6 @@ inline bool passable(int x, int y, int sx, int sy, int gx, int gy, PyObject *til
         PyObject *position = PyObject_CallFunction(Vector2iClass, "ii", x, y);
         if (position == NULL) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to create Vector2i position");
-            Py_DECREF(engineModule);
-            Py_DECREF(Vector2iClass);
             Py_DECREF(layer);
             return false;
         }
@@ -61,8 +44,6 @@ inline bool passable(int x, int y, int sx, int sy, int gx, int gy, PyObject *til
                 PyObject *actor = PyList_GetItem(layerActors, i);
                 if (actor == NULL) {
                     PyErr_SetString(PyExc_RuntimeError, "Failed to get actor from layerActors");
-                    Py_DECREF(engineModule);
-                    Py_DECREF(Vector2iClass);
                     Py_DECREF(layer);
                     Py_DECREF(position);
                     return false;
@@ -70,8 +51,6 @@ inline bool passable(int x, int y, int sx, int sy, int gx, int gy, PyObject *til
                 PyObject *actorMapPosition = PyObject_CallMethod(actor, "getMapPosition", NULL);
                 if (actorMapPosition == NULL) {
                     PyErr_SetString(PyExc_RuntimeError, "Failed to get actorMapPosition from actor");
-                    Py_DECREF(engineModule);
-                    Py_DECREF(Vector2iClass);
                     Py_DECREF(layer);
                     Py_DECREF(position);
                     return false;
@@ -79,16 +58,12 @@ inline bool passable(int x, int y, int sx, int sy, int gx, int gy, PyObject *til
                 int equal = PyObject_RichCompareBool(actorMapPosition, position, Py_EQ);
                 Py_DECREF(actorMapPosition);
                 if (equal < 0) {
-                    Py_DECREF(engineModule);
-                    Py_DECREF(Vector2iClass);
                     Py_DECREF(layer);
                     Py_DECREF(position);
                     return false;
                 }
                 if (equal > 0) {
                     bool result = !isMethodTrue(actor, "getCollisionEnabled");
-                    Py_DECREF(engineModule);
-                    Py_DECREF(Vector2iClass);
                     Py_DECREF(layer);
                     Py_DECREF(position);
                     return result;
@@ -98,8 +73,6 @@ inline bool passable(int x, int y, int sx, int sy, int gx, int gy, PyObject *til
         PyObject *tile = PyObject_CallMethod(layer, "get", "O", position);
         if (tile == NULL) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to get tile from layer");
-            Py_DECREF(engineModule);
-            Py_DECREF(Vector2iClass);
             Py_DECREF(layer);
             Py_DECREF(position);
             return false;
@@ -108,16 +81,12 @@ inline bool passable(int x, int y, int sx, int sy, int gx, int gy, PyObject *til
             PyObject *passableObj = PyObject_CallMethod(layer, "isPassable", "O", position);
             if (passableObj == NULL) {
                 PyErr_SetString(PyExc_RuntimeError, "Failed to call isPassable method");
-                Py_DECREF(engineModule);
-                Py_DECREF(Vector2iClass);
                 Py_DECREF(layer);
                 Py_DECREF(position);
                 Py_DECREF(tile);
                 return false;
             }
             bool result = PyObject_IsTrue(passableObj);
-            Py_DECREF(engineModule);
-            Py_DECREF(Vector2iClass);
             Py_DECREF(layer);
             Py_DECREF(position);
             Py_DECREF(tile);
@@ -128,8 +97,6 @@ inline bool passable(int x, int y, int sx, int sy, int gx, int gy, PyObject *til
         Py_DECREF(position);
         Py_DECREF(tile);
     }
-    Py_DECREF(engineModule);
-    Py_DECREF(Vector2iClass);
     return true;
 }
 
@@ -178,6 +145,7 @@ PyObject* CExtensionFindPath(PyObject* self, PyObject* args) {
         Py_DECREF(engineModule);
         return NULL;
     }
+    Py_DECREF(engineModule);
     std::map<IntPair, IntPair> cameFrom;
     std::map<IntPair, int> gScore;
     gScore[start_t] = 0;
@@ -203,7 +171,6 @@ PyObject* CExtensionFindPath(PyObject* self, PyObject* args) {
                 PyObject *thisMove = PyObject_CallFunction(Vector2iClass, "ii", x - px, y - py);
                 if (thisMove == NULL) {
                     PyErr_SetString(PyExc_RuntimeError, "Failed to create Vector2i move");
-                    Py_DECREF(engineModule);
                     Py_DECREF(Vector2iClass);
                     Py_DECREF(moves);
                     return NULL;
@@ -213,7 +180,6 @@ PyObject* CExtensionFindPath(PyObject* self, PyObject* args) {
                 py = y;
                 Py_DECREF(thisMove);
             }
-            Py_DECREF(engineModule);
             Py_DECREF(Vector2iClass);
             return moves;
         }
@@ -225,7 +191,7 @@ PyObject* CExtensionFindPath(PyObject* self, PyObject* args) {
             if (!inBounds(nx, ny, width, height)) {
                 continue;
             }
-            if (!passable(nx, ny, sx, sy, gx, gy, tilemap, layerKeys, actors)) {
+            if (!passable(nx, ny, sx, sy, gx, gy, tilemap, layerKeys, actors, Vector2iClass)) {
                 continue;
             }
             IntPair nt = {nx, ny};
@@ -242,7 +208,6 @@ PyObject* CExtensionFindPath(PyObject* self, PyObject* args) {
             }
         }
     }
-    Py_DECREF(engineModule);
     Py_DECREF(Vector2iClass);
     return PyList_New(0);
 }

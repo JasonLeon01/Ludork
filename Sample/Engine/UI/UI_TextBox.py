@@ -3,14 +3,13 @@
 from __future__ import annotations
 import copy
 from typing import Optional, TYPE_CHECKING
-from . import UI_SpriteBase, UI_Window, IntRect, RectangleShape, Vector2f, Text, RenderTexture, Sprite, Color
+from .. import IntRect, RectangleShape, Vector2f, Text, RenderTexture, Sprite, Color
 from ..Utils import Math
+from .UI_SpriteBase import SpriteBase
+from .UI_Window import Window
 
 if TYPE_CHECKING:
     from Engine import Image
-
-SpriteBase = UI_SpriteBase.SpriteBase
-Window = UI_Window.Window
 
 
 class TextBox(SpriteBase):

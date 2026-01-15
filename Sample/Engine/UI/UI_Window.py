@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
-from . import (
-    UI_SpriteBase,
-    UI_RectBase,
+from .. import (
     Sprite,
     IntRect,
     Vector2i,
@@ -13,13 +11,13 @@ from . import (
     RenderTexture,
     Utils,
 )
+from .UI_SpriteBase import SpriteBase
+from .UI_RectBase import RectBase
+
 
 if TYPE_CHECKING:
     from Engine import Vector2u, Image
     from Engine.UI import Canvas
-
-SpriteBase = UI_SpriteBase.SpriteBase
-RectBase = UI_RectBase.RectBase
 
 
 class Window(SpriteBase, RectBase):

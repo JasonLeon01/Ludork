@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import Optional, Union, TYPE_CHECKING
-from . import (
+from .. import (
     Drawable,
     RenderTexture,
     Sprite,
