@@ -1,7 +1,8 @@
 # -*- encoding: utf-8 -*-
 
 from typing import Any
-from Engine import ExecSplit, ReturnType
+from Engine import System, ExecSplit, ReturnType
+from Engine.Gameplay import SceneBase
 
 
 class _attrRef:
@@ -233,6 +234,11 @@ def GetAttr(obj: object, attrName: str) -> Any:
 @ExecSplit(default=(None,))
 def SetAttr(obj: object, attrName: str, value: Any) -> None:
     setattr(obj, attrName, value)
+
+
+@ReturnType(value=SceneBase)
+def GetScene() -> SceneBase:
+    return System.getScene()
 
 
 @ReturnType(value=bool)

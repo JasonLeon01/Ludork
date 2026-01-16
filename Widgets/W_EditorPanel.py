@@ -3,6 +3,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import os
+import copy
 from typing import Any, Dict, List, Optional, Tuple
 import importlib
 from PyQt5 import QtWidgets, QtGui, QtCore
@@ -57,6 +58,7 @@ class EditorPanel(QtWidgets.QWidget):
         self._actorMoveDragIndex: Optional[int] = None
         self._actorMoveDragLastGrid: Optional[Tuple[int, int]] = None
         self._actorMoveDragTitleRefreshed = False
+        self._actorClipboard = None
         super().__init__(parent)
         self.setMouseTracking(True)
         self.setFocusPolicy(QtCore.Qt.ClickFocus)
@@ -679,6 +681,76 @@ class EditorPanel(QtWidgets.QWidget):
         self.update()
         super().leaveEvent(a0)
 
+    def _hasActorAt(self, layerName: str, gx: int, gy: int) -> bool:
+        actors = self._getActorListForLayer(layerName)
+        for entry in actors:
+            if not isinstance(entry, dict):
+                continue
+            pos = entry.get("position")
+            if not isinstance(pos, (list, tuple)) or len(pos) < 2:
+                continue
+            try:
+                ax = int(pos[0])
+                ay = int(pos[1])
+                if ax == gx and ay == gy:
+                    return True
+            except Exception:
+                continue
+        return False
+
+    def _copyActor(self, layerName: str, index: int) -> None:
+        actors = self._getActorListForLayer(layerName)
+        if 0 <= index < len(actors):
+            self._actorClipboard = copy.deepcopy(actors[index])
+
+    def _pasteActor(self, gx: int, gy: int) -> None:
+        if self._actorClipboard is None or self.selectedLayerName is None:
+            return
+        if not self.mapKey or self.mapKey not in GameData.mapData:
+            return
+
+        GameData.recordSnapshot()
+        newActor = copy.deepcopy(self._actorClipboard)
+        newActor["position"] = [gx, gy]
+
+        bpRel = newActor.get("bp", "")
+        clsObj = self._resolveActorClass(bpRel)
+        newTag = self._makeDefaultTag(clsObj, bpRel, self.selectedLayerName, gx, gy)
+        newActor["tag"] = newTag
+
+        m = GameData.mapData[self.mapKey]
+        actorsDict = m.get("actors")
+        if not isinstance(actorsDict, dict):
+            actorsDict = {}
+            m["actors"] = actorsDict
+
+        layerList = actorsDict.get(self.selectedLayerName)
+        if not isinstance(layerList, list):
+            layerList = []
+            actorsDict[self.selectedLayerName] = layerList
+
+        layerList.append(newActor)
+        self._refreshTitle()
+        self.dataChanged.emit()
+        self._renderFromMapData()
+        self.update()
+
+    def _deleteActor(self, layerName: str, index: int) -> None:
+        if not self.mapKey or self.mapKey not in GameData.mapData:
+            return
+        m = GameData.mapData[self.mapKey]
+        actorsDict = m.get("actors", {})
+        layerList = actorsDict.get(layerName)
+
+        if isinstance(layerList, list) and 0 <= index < len(layerList):
+            GameData.recordSnapshot()
+            layerList.pop(index)
+            self._refreshTitle()
+            self.dataChanged.emit()
+            self.actorSelectionChanged.emit(None, None, None)
+            self._renderFromMapData()
+            self.update()
+
     def mousePressEvent(self, e: QtGui.QMouseEvent) -> None:
         if self.mapData is None:
             return
@@ -745,23 +817,48 @@ class EditorPanel(QtWidgets.QWidget):
             return
         self.selctedPos = (gx, gy)
         if not self.tileModeEnabled:
-            if e.button() == QtCore.Qt.LeftButton and self.selectedLayerName is not None:
+            if self.selectedLayerName is not None:
                 hit = self._hitTestActor(self.selectedLayerName, e.pos(), tileSize)
-                if isinstance(hit, int):
-                    actors = self._getActorListForLayer(self.selectedLayerName)
-                    if 0 <= hit < len(actors):
-                        self.actorSelectionChanged.emit(self.selectedLayerName, hit, actors[hit])
 
-                    GameData.recordSnapshot()
-                    self._actorMoveDragging = True
-                    self._actorMoveDragLayerName = self.selectedLayerName
-                    self._actorMoveDragIndex = hit
-                    self._actorMoveDragLastGrid = (gx, gy)
-                    self._actorMoveDragTitleRefreshed = False
-                    self.setCursor(QtCore.Qt.SizeAllCursor)
+                if e.button() == QtCore.Qt.RightButton:
+                    menu = QtWidgets.QMenu(self)
+
+                    actCopy = QtWidgets.QAction(Locale.getContent("COPY"), self)
+                    actCopy.setEnabled(isinstance(hit, int))
+                    actCopy.triggered.connect(lambda: self._copyActor(self.selectedLayerName, hit))
+                    menu.addAction(actCopy)
+
+                    actPaste = QtWidgets.QAction(Locale.getContent("PASTE"), self)
+                    hasActor = self._hasActorAt(self.selectedLayerName, gx, gy)
+                    canPaste = (self._actorClipboard is not None) and (hit is None) and (not hasActor)
+                    actPaste.setEnabled(canPaste)
+                    actPaste.triggered.connect(lambda: self._pasteActor(gx, gy))
+                    menu.addAction(actPaste)
+
+                    actDelete = QtWidgets.QAction(Locale.getContent("DELETE"), self)
+                    actDelete.setEnabled(isinstance(hit, int))
+                    actDelete.triggered.connect(lambda: self._deleteActor(self.selectedLayerName, hit))
+                    menu.addAction(actDelete)
+
+                    menu.exec_(e.globalPos())
                     return
-                else:
-                    self.actorSelectionChanged.emit(None, None, None)
+
+                if e.button() == QtCore.Qt.LeftButton:
+                    if isinstance(hit, int):
+                        actors = self._getActorListForLayer(self.selectedLayerName)
+                        if 0 <= hit < len(actors):
+                            self.actorSelectionChanged.emit(self.selectedLayerName, hit, actors[hit])
+
+                        GameData.recordSnapshot()
+                        self._actorMoveDragging = True
+                        self._actorMoveDragLayerName = self.selectedLayerName
+                        self._actorMoveDragIndex = hit
+                        self._actorMoveDragLastGrid = (gx, gy)
+                        self._actorMoveDragTitleRefreshed = False
+                        self.setCursor(QtCore.Qt.SizeAllCursor)
+                        return
+                    else:
+                        self.actorSelectionChanged.emit(None, None, None)
             return
         if self.selectedLayerName is None:
             return

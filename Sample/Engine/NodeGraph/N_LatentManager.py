@@ -3,7 +3,7 @@
 from __future__ import annotations
 import os
 import weakref
-from typing import Any, Dict, List, Tuple, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from Engine.NodeGraph import Graph
@@ -21,9 +21,9 @@ class LatentManager:
     def __init__(self) -> None:
         # (graph_ref, key, condition, localRef, index)
         if not hasattr(self, "_latents"):
-            self._latents: List[Tuple[weakref.ReferenceType[Graph], str, str, Dict[str, Any], int]] = []
+            self._latents: List[Tuple[weakref.ReferenceType[Graph], str, Callable, Dict[str, Any], int]] = []
 
-    def add(self, graph: Graph, key: str, condition: str, localRef: Dict[str, Any], index: int) -> None:
+    def add(self, graph: Graph, key: str, condition: Callable, localRef: Dict[str, Any], index: int) -> None:
         self._latents.append((weakref.ref(graph), key, condition, localRef, index))
 
     def update(self) -> None:
@@ -37,7 +37,8 @@ class LatentManager:
             if graph is None:
                 toRemove.append(latent)
                 continue
-            result = eval(condition, {}, localRef)
+            locals().update(localRef)
+            result = condition()
             node = graph.getNodes(key)[index]
             nodeFunction = node.nodeFunction
             matched = False

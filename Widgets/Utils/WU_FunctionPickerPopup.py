@@ -14,16 +14,32 @@ class FunctionPickerPopup(QtWidgets.QFrame):
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self.setWindowFlag(QtCore.Qt.Popup, True)
         self.setWindowFlag(QtCore.Qt.FramelessWindowHint, True)
-        self._tree = QtWidgets.QTreeWidget(self)
-        self._tree.setHeaderHidden(True)
+
         lay = QtWidgets.QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
+
+        self._searchEdit = QtWidgets.QLineEdit(self)
+        self._searchEdit.setPlaceholderText("Search...")
+        self._searchEdit.setStyleSheet(
+            "QLineEdit { color: white; background-color: #333; border: none; border-bottom: 1px solid #555; padding: 4px; }"
+        )
+        self._searchEdit.textChanged.connect(self._onSearch)
+        lay.addWidget(self._searchEdit)
+
+        self._tree = QtWidgets.QTreeWidget(self)
+        self._tree.setHeaderHidden(True)
         lay.addWidget(self._tree)
+
         self._visited = set()
         self._maxDepth = 4
         self._filterExecOnly = filterExecOnly
         self._build(sources)
+
+        self._searchCache = []
+        self._originalItems = []
+        self._buildSearchCache()
+
         self._tree.itemDoubleClicked.connect(self._onDoubleClicked)
         self.resize(320, 420)
 
@@ -113,12 +129,21 @@ class FunctionPickerPopup(QtWidgets.QFrame):
                 a = getattr(obj, n)
             except Exception:
                 continue
-            if inspect.ismodule(a) or inspect.isclass(a):
+            if inspect.ismodule(a):
                 mod_name = getattr(a, "__name__", "")
                 if root_name and isinstance(mod_name, str) and not mod_name.startswith(root_name):
                     continue
                 child_item = QtWidgets.QTreeWidgetItem([n])
                 if self._addChildren(child_item, a, p, False, depth + 1, root_name or mod_name):
+                    parent_item.addChild(child_item)
+                    found = True
+            elif inspect.isclass(a):
+                mod_name = getattr(a, "__module__", "")
+                if root_name and isinstance(mod_name, str) and not mod_name.startswith(root_name):
+                    continue
+                child_item = QtWidgets.QTreeWidgetItem([n])
+                # Pass root_name down as is, because for a class, its name is not a module path prefix
+                if self._addChildren(child_item, a, p, False, depth + 1, root_name):
                     parent_item.addChild(child_item)
                     found = True
             elif (
@@ -142,3 +167,50 @@ class FunctionPickerPopup(QtWidgets.QFrame):
             is_parent = bool(item.data(0, QtCore.Qt.UserRole + 2))
             self.functionSelected.emit(path, is_parent)
             self.close()
+
+    def _buildSearchCache(self) -> None:
+        self._searchCache = []
+        root = self._tree.invisibleRootItem()
+        for i in range(root.childCount()):
+            self._collectSearchItems(root.child(i), "")
+
+    def _collectSearchItems(self, item: QtWidgets.QTreeWidgetItem, parent_hierarchy: str) -> None:
+        text = item.text(0)
+        path = item.data(0, QtCore.Qt.UserRole)
+
+        current_hierarchy = f"{parent_hierarchy}.{text}" if parent_hierarchy else text
+
+        if isinstance(path, str) and path:
+            self._searchCache.append(
+                {
+                    "name": text,
+                    "hierarchy": parent_hierarchy,
+                    "path": path,
+                    "is_parent": bool(item.data(0, QtCore.Qt.UserRole + 2)),
+                }
+            )
+
+        for i in range(item.childCount()):
+            self._collectSearchItems(item.child(i), current_hierarchy)
+
+    def _onSearch(self, text: str) -> None:
+        text = text.strip().lower()
+        if not text:
+            if self._originalItems:
+                self._tree.clear()
+                self._tree.addTopLevelItems(self._originalItems)
+                self._originalItems = []
+            return
+
+        if not self._originalItems:
+            self._originalItems = [self._tree.takeTopLevelItem(0) for _ in range(self._tree.topLevelItemCount())]
+
+        self._tree.clear()
+
+        for item_data in self._searchCache:
+            if text in item_data["name"].lower():
+                display_text = f"{item_data['name']} ({item_data['hierarchy']})"
+                item = QtWidgets.QTreeWidgetItem([display_text])
+                item.setData(0, QtCore.Qt.UserRole, item_data["path"])
+                item.setData(0, QtCore.Qt.UserRole + 2, item_data["is_parent"])
+                self._tree.addTopLevelItem(item)

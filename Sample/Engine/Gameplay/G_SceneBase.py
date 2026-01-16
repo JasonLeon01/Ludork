@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 import os
-from typing import List, TYPE_CHECKING
-from .. import Manager
+from typing import Any, Callable, List, Dict, Optional
+from .. import Latent, Manager, ExecSplit
+from ..UI import Canvas
 from ..Utils import Event, Math
-
-if TYPE_CHECKING:
-    from Engine.UI import Canvas
+from ..Manager import TimerTaskEntry
 
 
 class SceneBase:
@@ -34,43 +33,68 @@ class SceneBase:
         self._fixedAccumulator: float = 0.0
         self._fixedStep: float = 1.0 / 60.0
         self._maxFixedSteps: int = 5
+        self._timerTasks: Dict[str, TimerTaskEntry] = {}
 
         self.onCreate()
 
+    @ExecSplit(default=(None,))
     def onEnter(self) -> None:
         from .. import System
 
         System.setTransition()
 
+    @ExecSplit(default=(None,))
     def onQuit(self) -> None:
         pass
 
+    @ExecSplit(default=(None,))
     def onCreate(self) -> None:
         pass
 
+    @ExecSplit(default=(None,))
     def onTick(self, deltaTime: float) -> None:
         pass
 
+    @ExecSplit(default=(None,))
     def onLateTick(self, deltaTime: float) -> None:
         pass
 
+    @ExecSplit(default=(None,))
     def onFixedTick(self, fixedDelta: float) -> None:
         pass
 
+    @ExecSplit(default=(None,))
     def onDestroy(self) -> None:
         pass
 
+    @ExecSplit(default=(None,))
     def addUI(self, ui: Canvas) -> None:
         self._UIs.append(ui)
 
+    @ExecSplit(default=(None,))
     def getUIs(self) -> List[Canvas]:
         return self._UIs
 
+    @ExecSplit(default=(None,))
     def removeUI(self, ui: Canvas) -> None:
         if ui in self._UIs:
             self._UIs.remove(ui)
         else:
             raise ValueError("UI not found")
+
+    @Latent(TimeUp=(True,))
+    def addTimer(self, key: str, interval: float, task: Optional[Callable], params: Optional[List[Any]]):
+        if key in self._timerTasks:
+            raise ValueError("Timer key already exists")
+        if params is None:
+            params = []
+        taskEntry = TimerTaskEntry(interval, task, params)
+        self._timerTasks[key] = taskEntry
+
+        def condition() -> bool:
+            return taskEntry.time <= 0
+
+        return condition
 
     def main(self) -> None:
         from .. import System, Input
@@ -120,9 +144,13 @@ class SceneBase:
         self._logicHandle(deltaTime)
         self.onLateTick(deltaTime)
         self._lateLogicHandle(deltaTime)
-
         Event.flush()
-
+        for key, taskEntry in self._timerTasks.copy().items():
+            taskEntry.time = max(0, taskEntry.time - deltaTime)
+            if taskEntry.time <= 0:
+                if not taskEntry.task is None and callable(taskEntry.task):
+                    taskEntry.task(*taskEntry.params)
+                self._timerTasks.pop(key)
         System.clearCanvas()
         self._renderHandle(deltaTime)
 

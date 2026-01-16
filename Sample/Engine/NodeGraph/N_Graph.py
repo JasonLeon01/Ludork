@@ -16,9 +16,9 @@ class Graph:
         nodeModel: Optional[type] = None,
         startNodes: Optional[Dict[str, int]] = None,
     ) -> None:
-        import Source
+        import Engine, Source
 
-        self.modules_ = [Source.NodeFunctions]
+        self.modules_ = [Source, Engine.Gameplay]
         self.localGraph: Dict[str, Any] = {"__graph__": self}
         self.parentClassName = parentClassName
         self.parentClass = parentClass
@@ -187,11 +187,13 @@ class Graph:
 
     def getFunctionFromModule(self, inModule, pathStr: str) -> Optional[Callable]:
         nodes = pathStr.split(".")
-        currentObj = inModule
-        for node in nodes:
-            currentObj = getattr(currentObj, node.strip())
-        if callable(currentObj):
-            return currentObj
+        if len(nodes) > 0:
+            if hasattr(inModule, nodes[0]):
+                currentObj = getattr(inModule, nodes[0])
+                if callable(currentObj):
+                    return currentObj
+                else:
+                    return self.getFunctionFromModule(currentObj, ".".join(nodes[1:]))
         return None
 
     def getFunctionFromObject(self, obj: object, pathStr: str) -> Optional[Callable]:

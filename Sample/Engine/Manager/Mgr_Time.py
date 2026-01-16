@@ -1,6 +1,14 @@
 # -*- encoding: utf-8 -*-
 
+from typing import Any, Callable, List, Optional
 from .. import Time, Clock
+
+
+class TimerTaskEntry:
+    def __init__(self, time: float, task: Optional[Callable], params: List[Any]):
+        self.time = time
+        self.task = task
+        self.params = params
 
 
 class TimeManager:

@@ -42,7 +42,13 @@ def makeInit(currNode):
     def subClassInit(self):
         super(self.__class__, self).__init__()
         self._port_types = {}
-        if hasattr(currNode.nodeFunction, "_execSplits") and len(currNode.nodeFunction._execSplits) > 0:
+        if hasattr(currNode.nodeFunction, "_latents") and len(currNode.nodeFunction._latents) > 0:
+            self.add_input("in")
+            self._port_types["in"] = "Exec"
+            for key in currNode.nodeFunction._latents:
+                self.add_output(f"out_{key}")
+                self._port_types[f"out_{key}"] = "Exec"
+        elif hasattr(currNode.nodeFunction, "_execSplits") and len(currNode.nodeFunction._execSplits) > 0:
             self.add_input("in")
             self._port_types["in"] = "Exec"
             for key in currNode.nodeFunction._execSplits:
@@ -247,7 +253,14 @@ class NodePanel(QtWidgets.QWidget):
             rightInPin = -1
 
             if linkType == "Exec":
-                if hasattr(leftNodeData.nodeFunction, "_execSplits"):
+                if hasattr(leftNodeData.nodeFunction, "_latents"):
+                    keys = list(leftNodeData.nodeFunction._latents.keys())
+                    out_name = portOut.name()
+                    if out_name.startswith("out_"):
+                        key = out_name[4:]
+                        if key in keys:
+                            leftOutPin = keys.index(key)
+                elif hasattr(leftNodeData.nodeFunction, "_execSplits"):
                     keys = list(leftNodeData.nodeFunction._execSplits.keys())
                     out_name = portOut.name()
                     if out_name.startswith("out_"):
@@ -421,7 +434,14 @@ class NodePanel(QtWidgets.QWidget):
             rightInPin = -1
 
             if linkType == "Exec":
-                if hasattr(leftNodeData.nodeFunction, "_execSplits"):
+                if hasattr(leftNodeData.nodeFunction, "_latents"):
+                    keys = list(leftNodeData.nodeFunction._latents.keys())
+                    out_name = portOut.name()
+                    if out_name.startswith("out_"):
+                        key = out_name[4:]
+                        if key in keys:
+                            leftOutPin = keys.index(key)
+                elif hasattr(leftNodeData.nodeFunction, "_execSplits"):
                     keys = list(leftNodeData.nodeFunction._execSplits.keys())
                     out_name = portOut.name()
                     if out_name.startswith("out_"):
@@ -531,11 +551,11 @@ class NodePanel(QtWidgets.QWidget):
 
     def _onCreate(self):
         sources = {}
-        for module in self.nodeGraph.modules_:
-            sources[module.__name__] = module
-
         if self.nodeGraph.parentClass:
             sources["Parent"] = self.nodeGraph.parentClass
+
+        for module in self.nodeGraph.modules_:
+            sources[module.__name__] = module
 
         popup = FunctionPickerPopup(self, sources)
         popup.functionSelected.connect(self._onFunctionSelected)

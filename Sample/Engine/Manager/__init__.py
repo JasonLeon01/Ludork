@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 AudioManager = Mgr_Audio.AudioManager
 FontManager = Mgr_Font.FontManager
 TextureManager = Mgr_Texture.TextureManager
+TimerTaskEntry = Mgr_Time.TimerTaskEntry
 TimeManager = Mgr_Time.TimeManager
 
 
