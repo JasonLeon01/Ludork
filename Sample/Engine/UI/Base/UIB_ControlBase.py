@@ -1,34 +1,44 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Optional, Tuple, Union, TYPE_CHECKING
-from .. import (
+from typing import Tuple, Union, TYPE_CHECKING
+from ... import (
     Drawable,
     Transformable,
-    Sprite,
     Vector2f,
     Angle,
     degrees,
 )
-from .UI_ControlBase import ControlBase
 
 if TYPE_CHECKING:
-    from Engine import Texture, IntRect, RenderStates, Color, FloatRect, RenderTexture
+    from Engine import Texture, IntRect, RenderStates, Color, FloatRect
 
 
-class SpriteBase(Transformable, Drawable, ControlBase):
-    def __init__(self, texture: Texture, rect: Optional[IntRect] = None) -> None:
-        from ..Utils import Render
-
-        self._sprite: Sprite
-        self._renderStates: RenderStates = Render.CanvasRenderStates()
-        if rect:
-            self._sprite = Sprite(texture, rect)
-        else:
-            self._sprite = Sprite(texture)
-        Transformable.__init__(self)
+class ControlBase(Drawable, Transformable):
+    def __init__(self) -> None:
         Drawable.__init__(self)
-        ControlBase.__init__(self)
+        Transformable.__init__(self)
+        self._visible: bool = True
+        self._active: bool = True
+        self._name: str = ""
+
+    def getVisible(self) -> bool:
+        return self._visible
+
+    def setVisible(self, visible: bool) -> None:
+        self._visible = visible
+
+    def getActive(self) -> bool:
+        return self._active
+
+    def setActive(self, active: bool) -> None:
+        self._active = active
+
+    def getName(self) -> str:
+        return self._name
+
+    def setName(self, name: str) -> None:
+        self._name = name
 
     def v_getPosition(self) -> Tuple[float, float]:
         result = super().getPosition()
@@ -117,13 +127,3 @@ class SpriteBase(Transformable, Drawable, ControlBase):
 
     def getRenderStates(self) -> RenderStates:
         return self._renderStates
-
-    def draw(self, target: RenderTexture, states: RenderStates) -> None:
-        self._applyRenderStates(states)
-        target.draw(self._sprite, states)
-
-    def _applyRenderStates(self, states: RenderStates) -> None:
-        from .. import System
-
-        states.transform *= self.getTransform()
-        states.transform.translate(Vector2f(System.getScale() - 1, System.getScale() - 1))

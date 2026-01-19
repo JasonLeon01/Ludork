@@ -39,7 +39,7 @@ class StartWindow(QtWidgets.QWidget):
         System.setStyle(self._btnNew, "starterBtn.qss")
         System.setStyle(self._btnOpen, "starterBtn.qss")
 
-        self.setStyleSheet("background-color: #121212; color: white;")
+        self.setStyleSheet("background-color: #121212;")
 
         layout.addWidget(title)
         layout.addStretch(1)

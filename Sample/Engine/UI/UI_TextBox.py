@@ -5,7 +5,7 @@ import copy
 from typing import Optional, TYPE_CHECKING
 from .. import IntRect, RectangleShape, Vector2f, Text, RenderTexture, Sprite, Color
 from ..Utils import Math
-from .UI_SpriteBase import SpriteBase
+from .Base import SpriteBase
 from .UI_Window import Window
 
 if TYPE_CHECKING:

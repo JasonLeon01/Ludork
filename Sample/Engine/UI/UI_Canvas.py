@@ -9,11 +9,11 @@ from .. import (
     Color,
     Utils,
 )
-from .UI_SpriteBase import SpriteBase
+from .Base import SpriteBase
 
 if TYPE_CHECKING:
     from Engine import Vector2u
-    from Engine.UI.UI_ControlBase import ControlBase
+    from Engine.UI.Base import ControlBase
 
 
 class Canvas(SpriteBase):
@@ -72,7 +72,7 @@ class Canvas(SpriteBase):
         if not self._visible:
             return
         for child in self._childrenList:
-            if hasattr(child, "update"):
+            if self._active and hasattr(child, "update"):
                 child.update(deltaTime)
         self._canvas.clear(Color.Transparent)
         for child in self._childrenList:

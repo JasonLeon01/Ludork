@@ -26,7 +26,7 @@ class MapEditDialog(QtWidgets.QDialog):
         System.setStyle(self, "mapEdit.qss")
         self.fileEdit = QtWidgets.QLineEdit(self)
         self.fileEdit.setText(current_key)
-        self.fileEdit.setStyleSheet("color: white;")
+        self.fileEdit.setStyleSheet("")
         self.nameEdit = QtWidgets.QLineEdit(self)
         self.nameEdit.setText(old_name)
         self.wSpin = QtWidgets.QSpinBox(self)
@@ -37,15 +37,15 @@ class MapEditDialog(QtWidgets.QDialog):
         self.hSpin.setMaximum(1 << 15)
         self.wSpin.setValue(max(1, old_w))
         self.hSpin.setValue(max(1, old_h))
-        self.nameEdit.setStyleSheet("color: white;")
+        self.nameEdit.setStyleSheet("")
         if self.wSpin.lineEdit():
-            self.wSpin.lineEdit().setStyleSheet("color: white;")
+            self.wSpin.lineEdit().setStyleSheet("")
         else:
-            self.wSpin.setStyleSheet("color: white;")
+            self.wSpin.setStyleSheet("")
         if self.hSpin.lineEdit():
-            self.hSpin.lineEdit().setStyleSheet("color: white;")
+            self.hSpin.lineEdit().setStyleSheet("")
         else:
-            self.hSpin.setStyleSheet("color: white;")
+            self.hSpin.setStyleSheet("")
         form.addRow("File Name", self.fileEdit)
         form.addRow(Locale.getContent("EDIT_MAP"), self.nameEdit)
         form.addRow(Locale.getContent("MAP_WIDTH"), self.wSpin)
@@ -63,9 +63,9 @@ class MapEditDialog(QtWidgets.QDialog):
             spin.setRange(0, 255)
             spin.setValue(int(current_light[i]))
             if spin.lineEdit():
-                spin.lineEdit().setStyleSheet("color: white;")
+                spin.lineEdit().setStyleSheet("")
             else:
-                spin.setStyleSheet("color: white;")
+                spin.setStyleSheet("")
             self.ambientLayout.addWidget(spin)
         form.addRow(Locale.getContent("AMBIENT_LIGHT"), self.ambientLayout)
 

@@ -11,8 +11,7 @@ from .. import (
     RenderTexture,
     Utils,
 )
-from .UI_SpriteBase import SpriteBase
-from .UI_RectBase import RectBase
+from .Base import SpriteBase, RectBase
 
 
 if TYPE_CHECKING:

@@ -8,15 +8,16 @@ from .. import (
     Vector2u,
     Vector2f,
     RenderTexture,
+    RenderTarget,
+    RenderStates,
 )
-from .UI_SpriteBase import SpriteBase
-from .UI_ControlBase import ControlBase
+from .Base import ControlBase, SpriteBase
 
 if TYPE_CHECKING:
     from Engine import Font
 
 
-class PlainText(Text, ControlBase):
+class PlainText(ControlBase):
     def __init__(
         self,
         font: Font,
@@ -28,10 +29,10 @@ class PlainText(Text, ControlBase):
         from .. import System
 
         self._characterSize = characterSize
-        Text.__init__(self, font, text, int(characterSize * System.getScale()))
-        ControlBase.__init__(self)
-        self.setStyle(style)
-        self.setFillColor(fillColor)
+        super().__init__()
+        self._text = Text(font, text, int(characterSize * System.getScale()))
+        self._text.setStyle(style)
+        self._text.setFillColor(fillColor)
 
     def getCharacterSize(self) -> int:
         return self._characterSize
@@ -40,7 +41,18 @@ class PlainText(Text, ControlBase):
         from .. import System
 
         self._characterSize = characterSize
-        Text.setCharacterSize(self, int(characterSize * System.getScale()))
+        self._text.setCharacterSize(int(characterSize * System.getScale()))
+
+    def setString(self, text: str) -> None:
+        self._text.setString(text)
+
+    def getString(self) -> str:
+        return self._text.getString()
+
+    def draw(self, target: RenderTarget, states: RenderStates) -> None:
+        states.transform *= self.getTransform()
+        if self.getVisible():
+            target.draw(self._text, states)
 
 
 class TextStyle:

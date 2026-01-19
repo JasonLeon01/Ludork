@@ -185,7 +185,7 @@ class FileExplorer(QtWidgets.QWidget):
         upIcon = style.standardIcon(QtWidgets.QStyle.SP_ArrowUp)
         self._pathEdit = QtWidgets.QLineEdit(self)
         self._pathEdit.setReadOnly(True)
-        self._pathEdit.setStyleSheet("color: white;")
+        self._pathEdit.setStyleSheet("")
         self._pathEdit.setText(self._current)
         self._upButton = QtWidgets.QToolButton(self)
         self._upButton.setIcon(upIcon)

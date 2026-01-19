@@ -14,7 +14,7 @@ class Toast(QtWidgets.QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.label = QtWidgets.QLabel()
         self.label.setStyleSheet(
-            "background-color: rgba(50, 50, 50, 200); color: white; border-radius: 5px; padding: 10px; font-weight: bold;"
+            "background-color: rgba(50, 50, 50, 200); border-radius: 5px; padding: 10px; font-weight: bold;"
         )
         self.layout.addWidget(self.label)
 

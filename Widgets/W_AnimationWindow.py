@@ -526,7 +526,7 @@ class AnimationWindow(QtWidgets.QMainWindow):
                 assetPath = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Sounds", assetName)
                 if os.path.exists(assetPath):
                     label.setText("Audio")
-                    label.setStyleSheet("border: 1px solid #555; background-color: #442222; color: #fff;")
+                    label.setStyleSheet("border: 1px solid #555; background-color: #442222;")
                 else:
                     label.setText("Missing")
             else:

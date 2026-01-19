@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import List, TYPE_CHECKING
-from .. import (
+from ... import (
     Sprite,
     Vector2f,
     Color,

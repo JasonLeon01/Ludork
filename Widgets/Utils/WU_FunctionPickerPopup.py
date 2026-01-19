@@ -22,7 +22,7 @@ class FunctionPickerPopup(QtWidgets.QFrame):
         self._searchEdit = QtWidgets.QLineEdit(self)
         self._searchEdit.setPlaceholderText("Search...")
         self._searchEdit.setStyleSheet(
-            "QLineEdit { color: white; background-color: #333; border: none; border-bottom: 1px solid #555; padding: 4px; }"
+            "QLineEdit { background-color: #333; border: none; border-bottom: 1px solid #555; padding: 4px; }"
         )
         self._searchEdit.textChanged.connect(self._onSearch)
         lay.addWidget(self._searchEdit)

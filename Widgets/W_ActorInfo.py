@@ -13,7 +13,7 @@ class ActorInfoPanel(QtWidgets.QWidget):
         self._editorPanel = None
         self._blockSignals = False
 
-        self.setStyleSheet("color: white;")
+        self.setStyleSheet("")
 
         self.mainLayout = QtWidgets.QVBoxLayout(self)
         self.mainLayout.setContentsMargins(4, 4, 4, 4)
