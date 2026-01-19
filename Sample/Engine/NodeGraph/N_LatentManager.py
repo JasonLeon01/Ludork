@@ -3,7 +3,7 @@
 from __future__ import annotations
 import os
 import weakref
-from typing import Any, Callable, Dict, List, Tuple, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from Engine.NodeGraph import Graph
@@ -27,15 +27,14 @@ class LatentManager:
         self._latents.append((weakref.ref(graph), key, condition, localRef, index))
 
     def update(self) -> None:
-        toRemove = []
         for latent in self._latents[:]:
-            if latent in toRemove:
+            if latent not in self._latents:
                 continue
 
             graph_ref, key, condition, localRef, index = latent
             graph = graph_ref()
             if graph is None:
-                toRemove.append(latent)
+                self._removeLatentsForNode(graph, key, index)
                 continue
             locals().update(localRef)
             result = condition()
@@ -45,20 +44,22 @@ class LatentManager:
             execIndex = -1
             keys = list(nodeFunction._latents.keys())
             for i, latentKey in enumerate(keys):
-                if latentKey == result:
+                if result in nodeFunction._latents[latentKey]:
                     matched = True
                     execIndex = i
                     break
             if matched:
                 self._removeLatentsForNode(graph, key, index)
-                toRemove.extend([l for l in self._latents if l[0]() == graph and l[1] == key and l[4] == index])
                 nextMap = graph.nodeNexts.get(key, {}).get(index, {})
                 if execIndex in nextMap:
                     nextNodeIndex = nextMap[execIndex][0]
                     graph.execute(key, nextNodeIndex)
 
-    def _removeLatentsForNode(self, graph: Graph, key: str, index: int) -> None:
-        self._latents = [l for l in self._latents if not (l[0]() == graph and l[1] == key and l[4] == index)]
+    def _removeLatentsForNode(self, graph: Optional[Graph], key: str, index: int) -> None:
+        if graph is None:
+            self._latents = [l for l in self._latents if not (l[0]() is None)]
+        else:
+            self._latents = [l for l in self._latents if not (l[0]() == graph and l[1] == key and l[4] == index)]
 
 
 latentManager = None

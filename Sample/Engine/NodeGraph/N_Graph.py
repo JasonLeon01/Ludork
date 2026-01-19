@@ -1,5 +1,7 @@
 # -*- encoding: utf-8 -*-
 
+from __future__ import annotations
+import inspect
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from .N_Node import DataNode, Node
 from .N_LatentManager import latentManager
@@ -109,7 +111,8 @@ class Graph:
             chosen = None
             nodeFunc = self.nodes[key][curr].nodeFunction
             if hasattr(nodeFunc, "_latents"):
-                latentManager.add(self, key, result, self.localGraph, curr)
+                condition = result[0] if isinstance(result, tuple) and len(result) > 0 else result
+                latentManager.add(self, key, condition, self.localGraph, curr)
                 return result
             splits = getattr(nodeFunc, "_execSplits", None)
             if splits and len(splits) > 0:
@@ -190,7 +193,7 @@ class Graph:
         if len(nodes) > 0:
             if hasattr(inModule, nodes[0]):
                 currentObj = getattr(inModule, nodes[0])
-                if callable(currentObj):
+                if inspect.isfunction(currentObj):
                     return currentObj
                 else:
                     return self.getFunctionFromModule(currentObj, ".".join(nodes[1:]))
@@ -201,7 +204,7 @@ class Graph:
         currentObj = obj
         for node in nodes:
             currentObj = getattr(currentObj, node.strip())
-        if callable(currentObj):
+        if inspect.isfunction(currentObj):
             return currentObj
         return None
 

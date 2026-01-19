@@ -3,7 +3,7 @@
 from __future__ import annotations
 import weakref
 import logging
-from typing import Dict, Tuple, Optional, TYPE_CHECKING
+from typing import Callable, Dict, Tuple, Optional, TYPE_CHECKING
 from .. import Texture
 
 if TYPE_CHECKING:
@@ -40,7 +40,7 @@ class TextureManager:
         return asizeof.asizeof(cls._TexturesRef)
 
     @classmethod
-    def _textureGone(cls, filePath: str, sRGB: bool, area: IntRect, smooth: bool) -> callable:
+    def _textureGone(cls, filePath: str, sRGB: bool, area: IntRect, smooth: bool) -> Callable:
         def callback(_):
             logging.warning(f"Texture {filePath} has been garbage collected.")
             cls._TexturesRef.pop((filePath, sRGB, area, smooth), None)

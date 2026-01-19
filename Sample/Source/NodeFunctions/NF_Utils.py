@@ -1,5 +1,7 @@
 # -*- encoding: utf-8 -*-
 
+from __future__ import annotations
+import inspect
 from typing import Any
 from Engine import System, ExecSplit, ReturnType
 from Engine.Gameplay import SceneBase
@@ -210,7 +212,7 @@ def SUPER(obj: object) -> None:
             graph.execute(key)
     else:
         method = getattr(obj, key, None)
-        if callable(method):
+        if inspect.isfunction(method):
             method()
         else:
             raise AttributeError(f"Method '{key}' not found on object")

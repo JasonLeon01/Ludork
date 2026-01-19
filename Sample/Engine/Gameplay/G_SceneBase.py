@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import os
+import inspect
 from typing import Any, Callable, List, Dict, Optional
 from .. import Latent, Manager, ExecSplit
 from ..UI import Canvas
@@ -34,8 +35,7 @@ class SceneBase:
         self._fixedStep: float = 1.0 / 60.0
         self._maxFixedSteps: int = 5
         self._timerTasks: Dict[str, TimerTaskEntry] = {}
-
-        self.onCreate()
+        self._created = False
 
     @ExecSplit(default=(None,))
     def onEnter(self) -> None:
@@ -83,7 +83,7 @@ class SceneBase:
             raise ValueError("UI not found")
 
     @Latent(TimeUp=(True,))
-    def addTimer(self, key: str, interval: float, task: Optional[Callable], params: Optional[List[Any]]):
+    def addTimer(self, key: str, interval: float, task: Optional[Callable] = None, params: Optional[List[Any]] = None):
         if key in self._timerTasks:
             raise ValueError("Timer key already exists")
         if params is None:
@@ -99,6 +99,9 @@ class SceneBase:
     def main(self) -> None:
         from .. import System, Input
 
+        if not self._created:
+            self.onCreate()
+            self._created = True
         self.onEnter()
         while System.isActive() and System.getScene() == self:
             Input.update(System.getWindow())
@@ -148,7 +151,7 @@ class SceneBase:
         for key, taskEntry in self._timerTasks.copy().items():
             taskEntry.time = max(0, taskEntry.time - deltaTime)
             if taskEntry.time <= 0:
-                if not taskEntry.task is None and callable(taskEntry.task):
+                if not taskEntry.task is None and inspect.isfunction(taskEntry.task):
                     taskEntry.task(*taskEntry.params)
                 self._timerTasks.pop(key)
         System.clearCanvas()

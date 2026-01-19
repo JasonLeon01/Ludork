@@ -31,11 +31,15 @@ class Node:
         self.params = params
         self._funcInfo: str = ""
         self._paramList: Dict[str, type] = {}
+        self._paramDefaults: Dict[str, Any] = {}
         self._isSelfFunction: bool = isinstance(self.functionName, str) and self.functionName.startswith("self.")
         self._analyzeFunction()
 
     def getParamList(self) -> Dict[str, type]:
         return self._paramList
+
+    def getParamDefaults(self) -> Dict[str, Any]:
+        return self._paramDefaults
 
     def execute(self, inputPinReplace: Dict[int, Any] = {}) -> Any:
         actualParams = []
@@ -84,11 +88,14 @@ class Node:
         sig = inspect.signature(self.nodeFunction)
         self._funcInfo = self.nodeFunction.__name__
         self._paramList.clear()
+        self._paramDefaults.clear()
         for paramName, paramObj in sig.parameters.items():
             paramType = paramObj.annotation
             if paramType == inspect.Parameter.empty:
                 paramType = type(None)
             self._paramList[paramName] = paramType
+            if paramObj.default != inspect.Parameter.empty:
+                self._paramDefaults[paramName] = paramObj.default
 
     def __repr__(self) -> str:
         return f"{self._funcInfo}({self.params})"

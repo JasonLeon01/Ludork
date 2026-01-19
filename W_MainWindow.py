@@ -1394,7 +1394,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         for k, v in cls.__dict__.items():
                             if (
                                 not k.startswith("_")
-                                and not callable(v)
+                                and not inspect.isfunction(v)
                                 and not isinstance(v, (classmethod, staticmethod))
                             ):
                                 attrs[k] = v

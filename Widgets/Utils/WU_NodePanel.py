@@ -61,9 +61,12 @@ def makeInit(currNode):
                 self._port_types[name] = "Params"
 
         paramList = currNode.getParamList()
+        paramDefaults = currNode.getParamDefaults()
         keys = list(paramList.keys())
         has_invalid = False
         for i, name in enumerate(keys):
+            if name in paramDefaults:
+                continue
             init_val = currNode.params[i] if i < len(currNode.params) else ""
             self.add_input(name, multi_input=False)
             self._port_types[name] = "Params"
@@ -190,7 +193,15 @@ class NodePanel(QtWidgets.QWidget):
 
             linkType = link["linkType"]
             if linkType == "Exec":
-                if hasattr(leftNodeData.nodeFunction, "_execSplits"):
+                if hasattr(leftNodeData.nodeFunction, "_latents"):
+                    keys = list(leftNodeData.nodeFunction._latents.keys())
+                    if leftOutPin < len(keys):
+                        out_name = f"out_{keys[leftOutPin]}"
+                        left_port = leftNodeInst.get_output(out_name)
+                        right_port = rightNodeInst.get_input("in")
+                        if left_port and right_port:
+                            left_port.connect_to(right_port)
+                elif hasattr(leftNodeData.nodeFunction, "_execSplits"):
                     splits = list(leftNodeData.nodeFunction._execSplits.keys())
                     if leftOutPin < len(splits):
                         out_name = f"out_{splits[leftOutPin]}"
@@ -487,8 +498,13 @@ class NodePanel(QtWidgets.QWidget):
             return
         for node, pos in movedInfo.items():
             idx = self.nodes.index(self.graph.get_node_by_id(node.id))
-            dataNode = self.nodeGraph.nodes[self.key][idx]
-            dataNode.position = [node.pos().x(), node.pos().y()]
+            nodeInst = self.nodeGraph.nodes[self.key][idx]
+            nodeInst.position = [node.pos().x(), node.pos().y()]
+
+            if self.key in self.nodeGraph.dataNodes and 0 <= idx < len(self.nodeGraph.dataNodes[self.key]):
+                dataNode = self.nodeGraph.dataNodes[self.key][idx]
+                if hasattr(dataNode, "pos"):
+                    dataNode.pos = [node.pos().x(), node.pos().y()]
         GameData.recordSnapshot()
         self._refreshCallable(self.name, self.nodeGraph.asDict())
         self.modified.emit()
@@ -538,7 +554,7 @@ class NodePanel(QtWidgets.QWidget):
 
         create_action = menu.addAction(Locale.getContent("ADD_NODE"))
         create_action.setShortcut(QtGui.QKeySequence.New)
-        create_action.triggered.connect(self._onCreate)
+        create_action.triggered.connect(lambda: self._onCreate(global_pos))
 
         paste_action = menu.addAction(Locale.getContent("PASTE"))
         paste_action.setShortcut(QtGui.QKeySequence.Paste)
@@ -549,7 +565,14 @@ class NodePanel(QtWidgets.QWidget):
 
         menu.exec_(global_pos)
 
-    def _onCreate(self):
+    def _onCreate(self, global_pos=None):
+        if global_pos is None:
+            global_pos = QtGui.QCursor.pos()
+
+        view = self.graph.viewer()
+        view_pos = view.mapFromGlobal(global_pos)
+        self._createNodeScenePos = view.mapToScene(view_pos)
+
         sources = {}
         if self.nodeGraph.parentClass:
             sources["Parent"] = self.nodeGraph.parentClass
@@ -584,10 +607,15 @@ class NodePanel(QtWidgets.QWidget):
             else:
                 params.append("")
 
-        view = self.graph.viewer()
-        global_pos = QtGui.QCursor.pos()
-        view_pos = view.mapFromGlobal(global_pos)
-        scene_pos = view.mapToScene(view_pos)
+        if hasattr(self, "_createNodeScenePos") and self._createNodeScenePos is not None:
+            scene_pos = self._createNodeScenePos
+            self._createNodeScenePos = None
+        else:
+            view = self.graph.viewer()
+            global_pos = QtGui.QCursor.pos()
+            view_pos = view.mapFromGlobal(global_pos)
+            scene_pos = view.mapToScene(view_pos)
+
         pos = (scene_pos.x(), scene_pos.y())
 
         node_data = EditorDataNode(path, params, pos)
@@ -613,7 +641,10 @@ class NodePanel(QtWidgets.QWidget):
         if selectedNode in self.nodes:
             idx = self.nodes.index(selectedNode)
             dataNode = self.nodeGraph.nodes[self.key][idx]
-            if not hasattr(dataNode.nodeFunction, "_execSplits") or len(dataNode.nodeFunction._execSplits) == 0:
+            if not (
+                (hasattr(dataNode.nodeFunction, "_execSplits") and len(dataNode.nodeFunction._execSplits) > 0)
+                or (hasattr(dataNode.nodeFunction, "_latents") and len(dataNode.nodeFunction._latents) > 0)
+            ):
                 QtWidgets.QMessageBox.information(self, "Hint", Locale.getContent("UNABLE_TO_SET_START_NODE"))
                 return
 
