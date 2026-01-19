@@ -14,6 +14,7 @@ from . import W_LightPanel
 from . import W_BlueprintEditor
 from . import W_ClassSelector
 from . import W_ActorInfo
+from . import W_AnimationWindow
 
 
 EditorPanel = W_EditorPanel.EditorPanel
@@ -31,3 +32,4 @@ LightPanel = W_LightPanel.LightPanel
 BluePrintEditor = W_BlueprintEditor.BluePrintEditor
 ClassSelector = W_ClassSelector.W_ClassSelector
 ActorInfoPanel = W_ActorInfo.ActorInfoPanel
+AnimationWindow = W_AnimationWindow.AnimationWindow

@@ -5,7 +5,7 @@ import shutil
 import stat
 from typing import Callable, Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
-import Data
+from Data import GameData
 import EditorStatus
 from Utils import Locale, Panel, File
 from .W_FilePreview import FilePreview
@@ -352,12 +352,24 @@ class FileExplorer(QtWidgets.QWidget):
                 window._list.setCurrentItem(item)
                 window.activateWindow()
                 window.raise_()
+        elif dataType == "animation":
+            animationsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Animations")
+            relPath = os.path.relpath(path, animationsRoot)
+            key = os.path.splitext(relPath)[0].replace("\\", "/")
+            if key in GameData.animationsData:
+                File.mainWindow._onDataBaseShowAnimationWindow(baseName, GameData.animationsData[key])
+            else:
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    Locale.getContent("INVALID_DATA_FILE"),
+                    Locale.getContent("INVALID_DATA_FILE_MESSAGE"),
+                )
         elif dataType == "blueprint":
             blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
             relPath = os.path.relpath(path, blueprintsRoot)
             key = os.path.splitext(relPath)[0].replace("\\", "/")
-            if key in Data.GameData.blueprintsData:
-                File.mainWindow._onDatabaseShowBlueprint(key, Data.GameData.blueprintsData[key])
+            if key in GameData.blueprintsData:
+                File.mainWindow._onDatabaseShowBlueprint(key, GameData.blueprintsData[key])
             else:
                 QtWidgets.QMessageBox.warning(
                     self,

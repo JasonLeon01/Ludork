@@ -15,6 +15,7 @@ class GameData:
     classDict: Dict[str, Any]
     commonFunctionsData: Dict[str, Any]
     blueprintsData: Dict[str, Any]
+    animationsData: Dict[str, Any]
 
     undoStack: List[Dict[str, Any]]
     redoStack: List[Dict[str, Any]]
@@ -118,6 +119,23 @@ class GameData:
                         except Exception as e:
                             print(f"Error while loading blueprint file {file}: {e}")
 
+        cls.animationsData = {}
+        animationsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Animations")
+        if os.path.exists(animationsRoot):
+            for file in os.listdir(animationsRoot):
+                namePart, extensionPart = os.path.splitext(file)
+                if extensionPart == ".json":
+                    data = File.getJSONData(os.path.join(animationsRoot, file))
+                    data["isJson"] = True
+                    cls.animationsData[namePart] = data
+                else:
+                    fp = os.path.join(animationsRoot, file)
+                    try:
+                        data = File.loadData(fp)
+                        cls.animationsData[namePart] = data
+                    except Exception as e:
+                        print(f"Error while loading animation file {file}: {e}")
+
         cls.undoStack = []
         cls.redoStack = []
 
@@ -135,12 +153,20 @@ class GameData:
             "mapData": {"A": [], "D": [], "U": []},
             "commonFunctionsData": {"A": [], "D": [], "U": []},
             "blueprintsData": {"A": [], "D": [], "U": []},
+            "animationsData": {"A": [], "D": [], "U": []},
         }
 
         origin = cls._originData
         current = cls.asDict()
 
-        for section in ["systemConfigData", "tilesetData", "mapData", "commonFunctionsData", "blueprintsData"]:
+        for section in [
+            "systemConfigData",
+            "tilesetData",
+            "mapData",
+            "commonFunctionsData",
+            "blueprintsData",
+            "animationsData",
+        ]:
             curr_sec = current.get(section, {})
             orig_sec = origin.get(section, {})
 
@@ -157,11 +183,11 @@ class GameData:
         return changes
 
     @classmethod
-    def getDiff(cls, old_data: Dict[str, Any], new_data: Dict[str, Any]) -> List[str]:
+    def getDiff(cls, oldData: Dict[str, Any], newData: Dict[str, Any]) -> List[str]:
         diffs = []
 
-        oldMaps = old_data.get("mapData", {})
-        newMaps = new_data.get("mapData", {})
+        oldMaps = oldData.get("mapData", {})
+        newMaps = newData.get("mapData", {})
         changed_maps = set()
         for k in set(oldMaps.keys()) | set(newMaps.keys()):
             if oldMaps.get(k) != newMaps.get(k):
@@ -169,8 +195,8 @@ class GameData:
         if changed_maps:
             diffs.append(f"Maps: {', '.join(sorted(changed_maps))}")
 
-        oldCfgs = old_data.get("systemConfigData", {})
-        newCfgs = new_data.get("systemConfigData", {})
+        oldCfgs = oldData.get("systemConfigData", {})
+        newCfgs = newData.get("systemConfigData", {})
         changed_cfgs = set()
         for k in set(oldCfgs.keys()) | set(newCfgs.keys()):
             if oldCfgs.get(k) != newCfgs.get(k):
@@ -178,8 +204,8 @@ class GameData:
         if changed_cfgs:
             diffs.append(f"Configs: {', '.join(sorted(changed_cfgs))}")
 
-        oldTs = old_data.get("tilesetData", {})
-        newTs = new_data.get("tilesetData", {})
+        oldTs = oldData.get("tilesetData", {})
+        newTs = newData.get("tilesetData", {})
         changed_ts = set()
         for k in set(oldTs.keys()) | set(newTs.keys()):
             ts1 = oldTs.get(k)
@@ -193,8 +219,8 @@ class GameData:
         if changed_ts:
             diffs.append(f"Tilesets: {', '.join(sorted(changed_ts))}")
 
-        oldCfgs = old_data.get("commonFunctionsData", {})
-        newCfgs = new_data.get("commonFunctionsData", {})
+        oldCfgs = oldData.get("commonFunctionsData", {})
+        newCfgs = newData.get("commonFunctionsData", {})
         changed_cfgs = set()
         for k in set(oldCfgs.keys()) | set(newCfgs.keys()):
             if oldCfgs.get(k) != newCfgs.get(k):
@@ -202,14 +228,23 @@ class GameData:
         if changed_cfgs:
             diffs.append(f"Common Functions: {', '.join(sorted(changed_cfgs))}")
 
-        oldBps = old_data.get("blueprintsData", {})
-        newBps = new_data.get("blueprintsData", {})
+        oldBps = oldData.get("blueprintsData", {})
+        newBps = newData.get("blueprintsData", {})
         changed_bps = set()
         for k in set(oldBps.keys()) | set(newBps.keys()):
             if oldBps.get(k) != newBps.get(k):
                 changed_bps.add(k)
         if changed_bps:
             diffs.append(f"Blueprints: {', '.join(sorted(changed_bps))}")
+
+        oldAnims = oldData.get("animationsData", {})
+        newAnims = newData.get("animationsData", {})
+        changed_anims = set()
+        for k in set(oldAnims.keys()) | set(newAnims.keys()):
+            if oldAnims.get(k) != newAnims.get(k):
+                changed_anims.add(k)
+        if changed_anims:
+            diffs.append(f"Animations: {', '.join(sorted(changed_anims))}")
 
         return diffs
 
@@ -396,6 +431,29 @@ class GameData:
             except Exception:
                 final_details["Failed"].append(key)
 
+        # Animations
+        animationsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Animations")
+        c_anims = changes["animationsData"]
+        for key in c_anims["A"] + c_anims["U"]:
+            anim = cls.animationsData.get(key)
+            if anim is None:
+                final_details["Failed"].append(key)
+                continue
+            payload = copy.deepcopy(anim)
+            try:
+                if "isJson" in payload:
+                    del payload["isJson"]
+                    File.saveJSONData(os.path.join(animationsRoot, f"{key}.json"), payload)
+                else:
+                    File.saveData(os.path.join(animationsRoot, f"{key}.dat"), payload)
+                if key in c_anims["A"]:
+                    final_details["A"].append(key)
+                else:
+                    final_details["U"].append(key)
+                cls._originData["animationsData"][key] = copy.deepcopy(anim)
+            except Exception:
+                final_details["Failed"].append(key)
+
         lines = []
         if final_details["A"]:
             lines.append(f"A [{', '.join(final_details['A'])}]")
@@ -416,6 +474,7 @@ class GameData:
             "mapData": cls.mapData,
             "commonFunctionsData": cls.commonFunctionsData,
             "blueprintsData": cls.blueprintsData,
+            "animationsData": cls.animationsData,
         }
 
     @classmethod

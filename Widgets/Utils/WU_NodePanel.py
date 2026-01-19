@@ -7,7 +7,7 @@ from NodeGraphQt import NodeGraph, BaseNode
 from NodeGraphQt.widgets.viewer import NodeViewer
 from NodeGraphQt.qgraphics.port import PortItem
 from Data import GameData
-from Utils import File, System, Locale
+from Utils import System, Locale
 import inspect
 import copy
 from NodeGraph import EditorDataNode

@@ -99,6 +99,30 @@
         "zh_CN": "说明",
         "en_GB": "Contents"
     },
+    "ANIMATION_WINDOW": {
+        "zh_CN": "动画窗口",
+        "en_GB": "Animation Window"
+    },
+    "ANIMATION_NAME": {
+        "zh_CN": "动画名称",
+        "en_GB": "Animation Name"
+    },
+    "FRAME_RATE": {
+        "zh_CN": "帧率",
+        "en_GB": "Frame Rate"
+    },
+    "ASSETS": {
+        "zh_CN": "素材",
+        "en_GB": "Assets"
+    },
+    "ADD_ASSET": {
+        "zh_CN": "添加素材",
+        "en_GB": "Add Asset"
+    },
+    "ADD_AUDIO": {
+        "zh_CN": "添加音频",
+        "en_GB": "Add Audio"
+    },
     "EDIT_MAP": {
         "zh_CN": "编辑地图",
         "en_GB": "Edit Map"
@@ -226,6 +250,34 @@
     "SEND_HINT": {
         "zh_CN": "输入命令并按Enter发送",
         "en_GB": "Enter command and press Enter"
+    },
+    "SEGMENT_PROPERTIES": {
+        "zh_CN": "片段属性",
+        "en_GB": "Segment Properties"
+    },
+    "startFrame": {
+        "zh_CN": "首帧数据",
+        "en_GB": "Start Frame"
+    },
+    "endFrame": {
+        "zh_CN": "尾帧数据",
+        "en_GB": "End Frame"
+    },
+    "time": {
+        "zh_CN": "时间",
+        "en_GB": "Time"
+    },
+    "rotation": {
+        "zh_CN": "旋转",
+        "en_GB": "Rotation"
+    },
+    "scale": {
+        "zh_CN": "缩放",
+        "en_GB": "Scale"
+    },
+    "asset": {
+        "zh_CN": "素材",
+        "en_GB": "Asset"
     },
     "MAP_LIST": {
         "zh_CN": "地图列表",
@@ -560,6 +612,22 @@
         "en_GB": "Select Parent"
     },
     "HINT_CREATE_BP_SUCCESS": {
+        "zh_CN": "创建成功！请保存以应用文件生成。",
+        "en_GB": "Creation successful! Please save to apply file generation."
+    },
+    "NEW_ANIMATION": {
+        "zh_CN": "新建动画",
+        "en_GB": "New Animation"
+    },
+    "SELECT_ANIMATION_PATH": {
+        "zh_CN": "选择动画保存路径",
+        "en_GB": "Select animation save path"
+    },
+    "ANIMATION_EXISTS": {
+        "zh_CN": "动画已存在",
+        "en_GB": "Animation already exists"
+    },
+    "HINT_CREATE_ANIM_SUCCESS": {
         "zh_CN": "创建成功！请保存以应用文件生成。",
         "en_GB": "Creation successful! Please save to apply file generation."
     },

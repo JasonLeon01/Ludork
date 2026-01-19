@@ -9,6 +9,8 @@ from . import WU_RectViewer
 from . import WU_Toast
 from . import WU_NodePanel
 from . import WU_FunctionPickerPopup
+from . import WU_Timeline
+
 
 MapEditDialog = WU_MapEditDialog.MapEditDialog
 SingleRowDialog = WU_SingleRowDialog.SingleRowDialog
@@ -19,3 +21,4 @@ Toast = WU_Toast.Toast
 NodePanel = WU_NodePanel.NodePanel
 FunctionPickerPopup = WU_FunctionPickerPopup.FunctionPickerPopup
 RectViewer = WU_RectViewer.RectViewer
+TimeLine = WU_Timeline.TimelinePanel

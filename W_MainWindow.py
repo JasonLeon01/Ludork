@@ -29,6 +29,7 @@ from Widgets import (
     BluePrintEditor,
     ClassSelector,
     ActorInfoPanel,
+    AnimationWindow,
 )
 from Widgets.Utils import MapEditDialog, SingleRowDialog, Toast
 import EditorStatus
@@ -91,6 +92,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actGameSettings = QtWidgets.QAction(Locale.getContent("GAME_SETTINGS"), self)
         self._actGameSettings.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_FileDialogDetailedView))
         self._actNewBlueprint = QtWidgets.QAction(Locale.getContent("NEW_BLUEPRINT"), self)
+        self._actNewAnimation = QtWidgets.QAction(Locale.getContent("NEW_ANIMATION"), self)
         self._actDatabaseSystemConfig = QtWidgets.QAction(Locale.getContent("SYSTEM_CONFIG"), self)
         self._actDatabaseTilesetsData = QtWidgets.QAction(Locale.getContent("TILESETS_DATA"), self)
         self._actDatabaseCommonFunctions = QtWidgets.QAction(Locale.getContent("COMMON_FUNCTIONS"), self)
@@ -808,6 +810,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actNewBlueprint.setShortcut(QtGui.QKeySequence("F5"))
         _gameMenu.addAction(self._actNewBlueprint)
 
+        self._actNewAnimation.triggered.connect(self._onNewAnimation)
+        self._actNewAnimation.setShortcut(QtGui.QKeySequence("F6"))
+        _gameMenu.addAction(self._actNewAnimation)
+
         _dbMenu = self._menuBar.addMenu(Locale.getContent("DATABASE"))
         self._actDatabaseSystemConfig.triggered.connect(self._onDatabaseSystemConfig)
         self._actDatabaseSystemConfig.setShortcut(QtGui.QKeySequence("F8"))
@@ -1279,14 +1285,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self._blueprintEditor.raise_()
         self._blueprintEditor.show()
 
+    def _onDataBaseShowAnimationWindow(self, title: str, data: Dict[str, Any]) -> None:
+        self._animationWindow = AnimationWindow(self, title, data)
+        self._animationWindow.modified.connect(self._onAnimationModified)
+        self._animationWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        self._animationWindow.setWindowModality(QtCore.Qt.ApplicationModal)
+        self._animationWindow.activateWindow()
+        self._animationWindow.raise_()
+        self._animationWindow.show()
+
     def _onBlueprintModified(self) -> None:
         self._refreshInfo()
-        try:
-            if hasattr(self, "editorPanel") and self.editorPanel is not None:
-                self.editorPanel._renderFromMapData()
-                self.editorPanel.update()
-        except Exception as e:
-            print(f"Error while refreshing map after blueprint change: {e}")
+        if hasattr(self, "editorPanel") and self.editorPanel is not None:
+            self.editorPanel._renderFromMapData()
+            self.editorPanel.update()
+
+    def _onAnimationModified(self) -> None:
+        self._refreshInfo()
 
     def _onHelpExplanation(self, checked: bool = False) -> None:
         pass
@@ -1417,4 +1432,49 @@ class MainWindow(QtWidgets.QMainWindow):
         self._refreshInfo()
         QtWidgets.QMessageBox.information(
             self, Locale.getContent("SUCCESS"), Locale.getContent("HINT_CREATE_BP_SUCCESS")
+        )
+
+    def _onNewAnimation(self, checked: bool = False) -> None:
+        animationsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Animations")
+        if not os.path.exists(animationsRoot):
+            os.makedirs(animationsRoot)
+
+        dlg = QtWidgets.QFileDialog(
+            self, Locale.getContent("SELECT_ANIMATION_PATH"), animationsRoot, "JSON (*.json);;DAT (*.dat)"
+        )
+        dlg.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
+        dlg.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
+        System.setStyle(dlg, "fileSelector.qss")
+        dlg.setDirectory(animationsRoot)
+        if dlg.exec_() != QtWidgets.QDialog.Accepted:
+            return
+        sel = dlg.selectedFiles()
+        if not sel:
+            return
+        fp = os.path.abspath(sel[0])
+        rel = os.path.relpath(fp, animationsRoot)
+        namePart, ext = os.path.splitext(rel)
+        if not ext:
+            nf = dlg.selectedNameFilter().lower()
+            ext = ".json" if "json" in nf else ".dat"
+        key = namePart.replace("\\", "/")
+        if key in GameData.animationsData:
+            QtWidgets.QMessageBox.warning(self, Locale.getContent("ERROR"), Locale.getContent("ANIMATION_EXISTS"))
+            return
+
+        data = {
+            "type": "animation",
+            "name": os.path.basename(namePart),
+            "frameRate": 30,
+            "assets": [],
+            "timeLines": [],
+        }
+        if ext.lower() == ".json":
+            data["isJson"] = True
+
+        GameData.recordSnapshot()
+        GameData.animationsData[key] = data
+        self._refreshInfo()
+        QtWidgets.QMessageBox.information(
+            self, Locale.getContent("SUCCESS"), Locale.getContent("HINT_CREATE_ANIM_SUCCESS")
         )
