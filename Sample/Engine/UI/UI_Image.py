@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from .. import RenderStates, Vector2f
+from .. import FloatRect, RenderStates, Vector2f
 from .Base import SpriteBase
 
 

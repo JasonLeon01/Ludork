@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+import copy
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
 from .. import (
     Sprite,
@@ -15,7 +16,6 @@ from .Base import SpriteBase, RectBase
 
 if TYPE_CHECKING:
     from Engine import Vector2u, Image
-    from Engine.UI import Canvas
 
 
 class Rect(SpriteBase, RectBase):
@@ -23,6 +23,8 @@ class Rect(SpriteBase, RectBase):
         self,
         rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]],
         windowSkin: Optional[Image] = None,
+        fadeSpeed: float = 96,
+        opacityRange: Tuple[float, float] = (128, 255),
     ) -> None:
         assert isinstance(rect, (IntRect, tuple)), "rect must be a tuple or IntRect"
         if not isinstance(rect, IntRect):
@@ -35,25 +37,36 @@ class Rect(SpriteBase, RectBase):
         self._size = Utils.Math.ToVector2u(rect.size)
         size = Utils.Math.ToVector2u(Utils.Render.getRealSize(rect.size))
         self._canvas: RenderTexture = RenderTexture(size)
-        self._parent: Optional[Canvas] = None
         if windowSkin:
             self._windowSkin = windowSkin
         else:
             from .. import System, Manager
 
-            self._windowSkin = Manager.loadSystem(System.getWindowskinName(), smooth=True)
+            self._windowSkin = Manager.loadSystem(System.getWindowskinName(), smooth=True).copyToImage()
         self._initUI()
         super().__init__(self._canvas.getTexture())
         self.setPosition(Utils.Math.ToVector2f(rect.position))
+        self._fadeSpeed = fadeSpeed
+        self._opacityRange = opacityRange
+        self._fading: bool = True
 
     def getSize(self) -> Vector2u:
         return self._size
 
-    def setParent(self, parent: Optional[Canvas]) -> None:
-        self._parent = parent
-
-    def getParent(self) -> Optional[Canvas]:
-        return self._parent
+    def update(self, deltaTime: float) -> None:
+        color = copy.copy(self.getColor())
+        a = color.a
+        opacityMin, opacityMax = self._opacityRange
+        if self._fading:
+            a = max(opacityMin, a - self._fadeSpeed * deltaTime)
+            if a == opacityMin:
+                self._fading = False
+        else:
+            a = min(opacityMax, a + self._fadeSpeed * deltaTime)
+            if a == opacityMax:
+                self._fading = True
+        color.a = int(a)
+        self.setColor(color)
 
     def _presave(self, target: List[Texture], area: List[IntRect]) -> None:
         target.clear()

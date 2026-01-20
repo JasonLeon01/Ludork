@@ -16,7 +16,6 @@ from .Base import SpriteBase, RectBase
 
 if TYPE_CHECKING:
     from Engine import Vector2u, Image
-    from Engine.UI import Canvas
 
 
 class Window(SpriteBase, RectBase):
@@ -39,13 +38,12 @@ class Window(SpriteBase, RectBase):
         self._size = Utils.Math.ToVector2u(rect.size)
         size = Utils.Math.ToVector2u(Utils.Render.getRealSize(rect.size))
         self._canvas: RenderTexture = RenderTexture(size)
-        self._parent: Optional[Canvas] = None
         if windowSkin:
             self._windowSkin = windowSkin
         else:
             from .. import Manager
 
-            self._windowSkin = Manager.loadSystem(System.getWindowskinName(), smooth=True)
+            self._windowSkin = Manager.loadSystem(System.getWindowskinName(), smooth=True).copyToImage()
         self._repeated = repeated
         self._initUI()
         super().__init__(self._canvas.getTexture())
@@ -53,12 +51,6 @@ class Window(SpriteBase, RectBase):
 
     def getSize(self) -> Vector2u:
         return self._size
-
-    def setParent(self, parent: Optional[Canvas]) -> None:
-        self._parent = parent
-
-    def getParent(self) -> Optional[Canvas]:
-        return self._parent
 
     def _presave(self, target: List[Texture], area: List[IntRect]) -> None:
         target.clear()

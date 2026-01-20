@@ -1,17 +1,11 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Tuple, Union, TYPE_CHECKING
-from ... import (
-    Drawable,
-    Transformable,
-    Vector2f,
-    Angle,
-    degrees,
-)
+from typing import Optional, Tuple, Union, TYPE_CHECKING
+from ... import Drawable, Transformable, Vector2f, Angle, degrees, Transform
 
 if TYPE_CHECKING:
-    from Engine import Texture, IntRect, RenderStates, Color, FloatRect
+    from Engine.UI import Canvas, ListView
 
 
 class ControlBase(Drawable, Transformable):
@@ -21,6 +15,7 @@ class ControlBase(Drawable, Transformable):
         self._visible: bool = True
         self._active: bool = True
         self._name: str = ""
+        self._parent: Optional[Union[Canvas, ListView]] = None
 
     def getVisible(self) -> bool:
         return self._visible
@@ -39,6 +34,12 @@ class ControlBase(Drawable, Transformable):
 
     def setName(self, name: str) -> None:
         self._name = name
+
+    def getParent(self) -> Optional[Union[Canvas, ListView]]:
+        return self._parent
+
+    def setParent(self, parent: Optional[Union[Canvas, ListView]]) -> None:
+        self._parent = parent
 
     def v_getPosition(self) -> Tuple[float, float]:
         result = super().getPosition()
@@ -101,29 +102,17 @@ class ControlBase(Drawable, Transformable):
             origin = Vector2f(x, y)
         return super().setOrigin(origin)
 
-    def setTexture(self, texture: Texture, resetRect: bool = False) -> None:
-        self._sprite.setTexture(texture, resetRect)
+    def _getScreenTransform(self) -> Transform:
+        transform = self.getTransform()
+        if self._parent:
+            return self._parent._getScreenTransform() * transform
+        return transform
 
-    def getTexture(self) -> Texture:
-        return self._sprite.getTexture()
+    def _getRenderTransform(self) -> Transform:
+        return self.getTransform()
 
-    def setTextureRect(self, rect: IntRect) -> None:
-        self._sprite.setTextureRect(rect)
-
-    def getTextureRect(self) -> IntRect:
-        return self._sprite.getTextureRect()
-
-    def setColor(self, color: Color) -> None:
-        self._sprite.setColor(color)
-
-    def getColor(self) -> Color:
-        return self._sprite.getColor()
-
-    def getLocalBounds(self) -> FloatRect:
-        return self._sprite.getLocalBounds()
-
-    def getGlobalBounds(self) -> FloatRect:
-        return self._sprite.getGlobalBounds()
-
-    def getRenderStates(self) -> RenderStates:
-        return self._renderStates
+    def _getScreenRenderTransform(self) -> Transform:
+        transform = self._getRenderTransform()
+        if self._parent:
+            return self._parent._getScreenRenderTransform() * transform
+        return transform

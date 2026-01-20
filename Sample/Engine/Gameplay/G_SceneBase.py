@@ -118,24 +118,25 @@ class SceneBase:
             self._update(deltaTime)
         self.onQuit()
 
-    def _logicHandle(self, deltaTime: float) -> None:
-        for ui in self._UIs:
-            ui.onTick(deltaTime)
-
-    def _lateLogicHandle(self, deltaTime: float) -> None:
-        for ui in self._UIs:
-            ui.onLateTick(deltaTime)
-
     def _fixedLogicHandle(self, fixedDelta: float) -> None:
         for ui in self._UIs:
-            ui.onFixedTick(fixedDelta)
+            if ui.getActive() and ui.getVisible():
+                if hasattr(ui, "fixedUpdate"):
+                    ui.fixedUpdate(fixedDelta)
 
     def _renderHandle(self, deltaTime: float) -> None:
         from .. import System
 
         for ui in self._UIs:
-            ui.update(deltaTime)
-            System.draw(ui)
+            if ui.getActive() and ui.getVisible():
+                if hasattr(ui, "update"):
+                    ui.update(deltaTime)
+            if ui.getVisible():
+                System.draw(ui)
+        for ui in self._UIs:
+            if ui.getActive() and ui.getVisible():
+                if hasattr(ui, "lateUpdate"):
+                    ui.lateUpdate(deltaTime)
         if System.isDebugMode() and self._debugHUDEnabled:
             System.draw(self._debugHUD)
         System.display(deltaTime)
@@ -144,9 +145,7 @@ class SceneBase:
         from .. import System
 
         self.onTick(deltaTime)
-        self._logicHandle(deltaTime)
         self.onLateTick(deltaTime)
-        self._lateLogicHandle(deltaTime)
         Event.flush()
         for key, taskEntry in self._timerTasks.copy().items():
             taskEntry.time = max(0, taskEntry.time - deltaTime)

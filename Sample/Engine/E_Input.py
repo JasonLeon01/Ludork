@@ -474,6 +474,13 @@ def getMouseMovedDelta() -> Optional[Vector2i]:
     return _EventState.MouseMovedDelta
 
 
+def setMousePosition(position: Vector2i, relativeTo: Optional[WindowBase] = None) -> None:
+    if relativeTo:
+        Mouse.setPosition(position, relativeTo)
+    else:
+        Mouse.setPosition(position)
+
+
 def isMouseEntered() -> bool:
     return _EventState.MouseEntered and not _EventState.MouseBlocked
 

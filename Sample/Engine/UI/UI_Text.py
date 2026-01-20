@@ -10,6 +10,8 @@ from .. import (
     RenderTexture,
     RenderTarget,
     RenderStates,
+    FloatRect,
+    Transform,
 )
 from .Base import ControlBase, SpriteBase
 
@@ -49,10 +51,49 @@ class PlainText(ControlBase):
     def getString(self) -> str:
         return self._text.getString()
 
+    def getLocalBounds(self) -> FloatRect:
+        from .. import System
+
+        bounds = self._text.getLocalBounds()
+        newBounds = FloatRect(bounds.position, bounds.size / System.getScale())
+        return newBounds
+
+    def getGlobalBounds(self) -> FloatRect:
+        from .. import System
+
+        bounds = self._text.getGlobalBounds()
+        newBounds = FloatRect(bounds.position, bounds.size / System.getScale())
+        return newBounds
+
+    def getSize(self) -> Vector2f:
+        return self._text.getGlobalBounds().size
+
     def draw(self, target: RenderTarget, states: RenderStates) -> None:
-        states.transform *= self.getTransform()
+        self._applyRenderStates(states)
         if self.getVisible():
             target.draw(self._text, states)
+
+    def _applyRenderStates(self, states: RenderStates) -> None:
+        from .. import System
+
+        states.transform *= self.getTransform()
+        states.transform.translate(self.getPosition() * (System.getScale() - 1))
+
+    def _getRenderTransform(self) -> Transform:
+        from .. import System
+
+        transform = Transform()
+        transform *= self.getTransform()
+        transform.translate(self.getPosition() * (System.getScale() - 1))
+        return transform
+
+    def getAbsoluteBounds(self) -> FloatRect:
+        from .. import System
+
+        transform = self._getScreenRenderTransform()
+        bounds = self.getLocalBounds()
+        realBounds = FloatRect(bounds.position * System.getScale(), bounds.size * System.getScale())
+        return transform.transformRect(realBounds)
 
 
 class TextStyle:

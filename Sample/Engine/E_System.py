@@ -392,7 +392,9 @@ class System:
         cls._transition.update(cls._window)
 
     @classmethod
-    def getScene(cls) -> SceneBase:
+    def getScene(cls) -> Optional[SceneBase]:
+        if len(cls._scenes) == 0:
+            return None
         return cls._scenes[-1]
 
     @classmethod
@@ -415,6 +417,11 @@ class System:
         assert len(cls._scenes) > 0
         scene = cls._scenes.pop()
         scene.onDestroy()
+
+    @classmethod
+    def exit(cls) -> None:
+        while len(cls._scenes) > 0:
+            cls.popScene()
 
     @classmethod
     def getVariable(cls, name: str) -> Any:
