@@ -1,186 +1,137 @@
-#include <utils.h>
 #include <GameMap/GetLightMap.h>
+#include <stdexcept>
+#include <utils.h>
+#include <vector>
 
-PyObject* getLightMap(PyObject* self, PyObject* args) {
-    PyObject *gameMapObj;
-    if (!PyArg_ParseTuple(args, "O", &gameMapObj)) {
-        return NULL;
-    }
-
-    PyObject *tilemap = PyObject_GetAttrString(gameMapObj, "_tilemap");
-    if (!tilemap) {
-        return NULL;
-    }
-
-    PyObject *mapSize = PyObject_CallMethod(tilemap, "getSize", NULL);
-    if (!mapSize) { 
-        Py_DECREF(tilemap); 
-        return NULL; 
-    }
-    long width = getAttrLong(mapSize, "x", 0);
-    long height = getAttrLong(mapSize, "y", 0);
-    Py_DECREF(mapSize);
-
-    PyObject *allLayers = PyObject_CallMethod(tilemap, "getAllLayers", NULL);
-    if (!allLayers) { 
-        Py_DECREF(tilemap); 
-        return NULL; 
-    }
-    PyObject *keysView = PyMapping_Keys(allLayers);
-    Py_DECREF(allLayers);
-    if (!keysView) { 
-        Py_DECREF(tilemap); 
-        return NULL; 
-    }
-    
-    if (PyList_Reverse(keysView) < 0) {
-        Py_DECREF(keysView); 
-        Py_DECREF(tilemap); 
-        return NULL;
-    }
-
-    PyObject *activeLayer = NULL;
-    PyObject *activeLayerName = NULL;
-    Py_ssize_t numLayers = PyList_Size(keysView);
-    for (Py_ssize_t i = 0; i < numLayers; ++i) {
-        PyObject *key = PyList_GetItem(keysView, i);
-        PyObject *layer = PyObject_CallMethod(tilemap, "getLayer", "O", key);
-        if (layer) {
-            bool isVisible = getAttrBool(layer, "visible", false);
-            if (isVisible) {
-                activeLayer = layer;
-                activeLayerName = key;
-                Py_INCREF(activeLayerName);
-                break;
+static double getLightBlock(std::vector<PyObject *> inLayerKeys, PyObject *pos,
+                            PyObject *tilemap, PyObject *actors) {
+  std::vector<PyObject *> tempPyObjects;
+  try {
+    for (auto &layerName : inLayerKeys) {
+      PyObject *layer = GetMethodResult(tilemap, "getLayer", {layerName});
+      CHECK_NULL(tempPyObjects, layer, "Failed to call getLayer method");
+      tempPyObjects.push_back(layer);
+      bool visible = GetAttrBool(layer, "visible", false);
+      if (!visible) {
+        continue;
+      }
+      int layerInActors = PyDict_Contains(actors, layerName);
+      if (layerInActors == -1) {
+        ClearCache(tempPyObjects);
+        throw std::runtime_error("Failed to call PyDict_Contains method");
+      }
+      if (layerInActors) {
+        PyObject *actorsListObj = PyDict_GetItem(actors, layerName);
+        CHECK_NULL(tempPyObjects, actorsListObj,
+                   "Failed to call PyDict_GetItem method");
+        auto actorsList = GetPyListItems(actorsListObj);
+        if (!actorsList.has_value()) {
+          ClearCache(tempPyObjects);
+          throw std::runtime_error("Failed to get actors list");
+        }
+        for (auto &actor : actorsList.value()) {
+          PyObject *actorMapPos = GetMethodResult(actor, "getMapPosition", {});
+          CHECK_NULL(tempPyObjects, actorMapPos,
+                     "Failed to call getMapPosition method");
+          tempPyObjects.push_back(actorMapPos);
+          int eq = PyObject_RichCompareBool(actorMapPos, pos, Py_EQ);
+          if (eq == -1) {
+            ClearCache(tempPyObjects);
+            throw std::runtime_error("Failed to compare actorMapPos with pos");
+          }
+          if (eq) {
+            PyObject *lightBlockObj =
+                GetMethodResult(actor, "getLightBlock", {});
+            CHECK_NULL(tempPyObjects, lightBlockObj,
+                       "Failed to call getLightBlock method");
+            tempPyObjects.push_back(lightBlockObj);
+            double lightBlock = PyFloat_AsDouble(lightBlockObj);
+            if (PyErr_Occurred()) {
+              ClearCache(tempPyObjects);
+              throw std::runtime_error("Failed to read actor light block");
             }
-            Py_DECREF(layer);
+            ClearCache(tempPyObjects);
+            return lightBlock;
+          }
         }
-    }
-    Py_DECREF(keysView);
-    Py_DECREF(tilemap);
-
-    if (!activeLayer) {
-        PyObject *result = PyList_New(height);
-        for (long y = 0; y < height; ++y) {
-            PyObject *row = PyList_New(width);
-            for (long x = 0; x < width; ++x) {
-                PyList_SET_ITEM(row, x, PyFloat_FromDouble(0.0));
-            }
-            PyList_SET_ITEM(result, y, row);
+      }
+      PyObject *tile = GetMethodResult(layer, "get", {pos});
+      CHECK_NULL(tempPyObjects, tile, "Failed to call get method");
+      tempPyObjects.push_back(tile);
+      if (tile != Py_None) {
+        PyObject *lightBlockObj =
+            GetMethodResult(layer, "getLightBlock", {pos});
+        CHECK_NULL(tempPyObjects, lightBlockObj,
+                   "Failed to call getLightBlock method");
+        tempPyObjects.push_back(lightBlockObj);
+        double lightBlock = PyFloat_AsDouble(lightBlockObj);
+        if (PyErr_Occurred()) {
+          ClearCache(tempPyObjects);
+          throw std::runtime_error("Failed to read layer light block");
         }
-        return result;
+        ClearCache(tempPyObjects);
+        return lightBlock;
+      }
     }
+    ClearCache(tempPyObjects);
+    return 0;
+  } catch (const std::exception &) {
+    ClearCache(tempPyObjects);
+    throw;
+  }
+}
 
-    PyObject *layerData = PyObject_GetAttrString(activeLayer, "_data");
-    PyObject *tiles = NULL;
-    PyObject *tileset = NULL;
-    PyObject *passable = NULL;
-    PyObject *lightBlockList = NULL;
-
-    if (layerData) {
-        tiles = PyObject_GetAttrString(layerData, "tiles");
-        tileset = PyObject_GetAttrString(layerData, "layerTileset");
-        if (tileset) {
-            passable = PyObject_GetAttrString(tileset, "passable");
-            lightBlockList = PyObject_GetAttrString(tileset, "lightBlock");
-            Py_DECREF(tileset);
+PyObject *C_GetLightMap(PyObject *self, PyObject *args) {
+  std::vector<PyObject *> tempPyObjects;
+  try {
+    PyObject *layerKeysObj;
+    int width;
+    int height;
+    PyObject *tilemap;
+    PyObject *actors;
+    if (!PyArg_ParseTuple(args, "OiiOO", &layerKeysObj, &width, &height,
+                          &tilemap, &actors)) {
+      return nullptr;
+    }
+    PyObject *engineModule = PyImport_ImportModule("Engine");
+    CHECK_NULL(tempPyObjects, engineModule, "Failed to import Engine module");
+    tempPyObjects.push_back(engineModule);
+    PyObject *Vector2iClass = PyObject_GetAttrString(engineModule, "Vector2i");
+    CHECK_NULL(tempPyObjects, Vector2iClass,
+               "Failed to get Vector2i class from Engine module");
+    tempPyObjects.push_back(Vector2iClass);
+    auto layerKeys = GetPyListItems(layerKeysObj);
+    if (!layerKeys.has_value()) {
+      ClearCache(tempPyObjects);
+      throw std::runtime_error("Failed to get layerKeys from layerKeysObj");
+    }
+    std::vector<PyObject *> lightMap(height);
+    for (int y = 0; y < height; ++y) {
+      std::vector<double> rowLightBlock(width);
+      for (int x = 0; x < width; ++x) {
+        PyObject *pos = PyObject_CallFunction(Vector2iClass, "ii", x, y);
+        if (!pos) {
+          PyErr_Clear();
+          pos = PyObject_CallFunction(Vector2iClass, "ii", x, y);
         }
-        Py_DECREF(layerData);
+        CHECK_NULL(tempPyObjects, pos, "Failed to create position");
+        tempPyObjects.push_back(pos);
+        rowLightBlock[x] =
+            getLightBlock(layerKeys.value(), pos, tilemap, actors);
+      }
+      auto rowLightBlockVec = FromVectorFloatToPyList(rowLightBlock);
+      PyObject *rowLightBlockObj = FromVectorPyObjToPyList(rowLightBlockVec);
+      CHECK_NULL(tempPyObjects, rowLightBlockObj,
+                 "Failed to create rowLightBlockObj");
+      tempPyObjects.push_back(rowLightBlockObj);
+      lightMap[y] = rowLightBlockObj;
     }
-    
-    if (!tiles || !passable || !lightBlockList) {
-        Py_XDECREF(tiles); Py_XDECREF(passable); Py_XDECREF(lightBlockList);
-        Py_DECREF(activeLayer); Py_DECREF(activeLayerName);
-        PyErr_SetString(PyExc_RuntimeError, "Failed to retrieve layer data for C extension");
-        return NULL;
-    }
-
-    double *actorGrid = (double*)malloc(width * height * sizeof(double));
-    if (!actorGrid) {
-        Py_DECREF(tiles); Py_DECREF(passable); Py_DECREF(lightBlockList);
-        Py_DECREF(activeLayer); Py_DECREF(activeLayerName);
-        return PyErr_NoMemory();
-    }
-    for (long i=0; i<width*height; ++i) {
-        actorGrid[i] = -1.0;
-    }
-
-    PyObject *actorsDict = PyObject_GetAttrString(gameMapObj, "_actors");
-    if (actorsDict) {
-        PyObject *actorList = PyDict_GetItem(actorsDict, activeLayerName);
-        if (actorList && PyList_Check(actorList)) {
-            Py_ssize_t numActors = PyList_Size(actorList);
-            for (Py_ssize_t i = 0; i < numActors; ++i) {
-                PyObject *actor = PyList_GetItem(actorList, i);
-                bool is_coll = isMethodTrue(actor, "getCollisionEnabled");
-                double val = 0.0;
-                if (is_coll) {
-                    PyObject *lbObj = PyObject_CallMethod(actor, "getLightBlock", NULL);
-                    if (lbObj) {
-                        val = PyFloat_AsDouble(lbObj);
-                        Py_DECREF(lbObj);
-                    }
-                } else {
-                    val = 0.0;
-                }
-
-                PyObject *posObj = PyObject_CallMethod(actor, "getMapPosition", NULL);
-                if (posObj) {
-                    long ax = getAttrLong(posObj, "x", -1);
-                    long ay = getAttrLong(posObj, "y", -1);
-                    Py_DECREF(posObj);
-
-                    if (ax >= 0 && ax < width && ay >= 0 && ay < height) {
-                        long idx = ay * width + ax;
-                        if (actorGrid[idx] < -0.5) {
-                            actorGrid[idx] = val;
-                        }
-                    }
-                }
-            }
-        }
-        Py_DECREF(actorsDict);
-    }
-
-    PyObject *result = PyList_New(height);
-    for (long y = 0; y < height; ++y) {
-        PyObject *row = PyList_New(width);
-        PyObject *tileRow = PyList_GetItem(tiles, y);
-        
-        for (long x = 0; x < width; ++x) {
-            double finalVal = 0.0;
-            long idx = y * width + x;
-
-            if (actorGrid[idx] >= -0.5) {
-                finalVal = actorGrid[idx];
-            } else {
-                if (tileRow) {
-                    PyObject *tileNumObj = PyList_GetItem(tileRow, x);
-                    if (tileNumObj == Py_None) {
-                        finalVal = 0.0;
-                    } else {
-                        long tileNum = PyLong_AsLong(tileNumObj);
-                        PyObject *isPass = PyList_GetItem(passable, tileNum);
-                        if (PyObject_IsTrue(isPass)) {
-                            finalVal = 0.0;
-                        } else {
-                            PyObject *lb = PyList_GetItem(lightBlockList, tileNum);
-                            finalVal = PyFloat_AsDouble(lb);
-                        }
-                    }
-                }
-            }
-            PyList_SET_ITEM(row, x, PyFloat_FromDouble(finalVal));
-        }
-        PyList_SET_ITEM(result, y, row);
-    }
-
-    free(actorGrid);
-    Py_DECREF(activeLayer);
-    Py_DECREF(activeLayerName);
-    Py_DECREF(tiles);
-    Py_DECREF(passable);
-    Py_DECREF(lightBlockList);
-
-    return result;
+    PyObject *lightMapObj = FromVectorPyObjToPyList(lightMap);
+    CHECK_NULL(tempPyObjects, lightMapObj, "Failed to create lightMapObj");
+    ClearCache(tempPyObjects);
+    return lightMapObj;
+  } catch (const std::exception &e) {
+    PyErr_SetString(PyExc_RuntimeError, e.what());
+    return nullptr;
+  }
 }

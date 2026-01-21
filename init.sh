@@ -61,27 +61,11 @@ fi
 
 if [ -d "C_Extensions" ]; then
   cd C_Extensions
-  for d in */; do
-    if [ -d "$d" ]; then
-      echo "Building extension in $d..."
-      cd "$d"
-      python setup.py build
-      if [ $? -ne 0 ]; then
-        echo "Failed to build extension in $d."
-        cd ..
-        cd ..
-        exit 1
-      fi
-      python move.py
-      if [ $? -ne 0 ]; then
-        echo "Failed to move extension in $d."
-        cd ..
-        cd ..
-        exit 1
-      fi
-      cd ..
-    fi
-  done
+  python setup.py
+  if [ $? -ne 0 ]; then
+    cd ..
+    exit 1
+  fi
   cd ..
 fi
 

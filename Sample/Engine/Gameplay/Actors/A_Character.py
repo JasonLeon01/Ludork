@@ -43,7 +43,7 @@ class Character(Actor):
     def MapMove(self, offset: Union[Vector2i, Tuple[int, int]]) -> None:
         result = super().MapMove(offset)
         if not result:
-            assert isinstance(offset, (Vector2i, tuple)), "offset must be a Vector2i or a tuple"
+            assert isinstance(offset, (Vector2i, Tuple)), "offset must be a Vector2i or a tuple"
             if isinstance(offset, tuple):
                 offset = Vector2i(*offset)
                 vx = offset.x

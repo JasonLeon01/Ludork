@@ -1,3 +1,5 @@
+# -*- encoding: utf-8 -*-
+
 from setuptools import setup, Extension
 import sys
 
@@ -8,14 +10,16 @@ if sys.platform == "win32":
 module = Extension(
     "GamePlayExtension",
     sources=[
-        "src/utils.cpp",
+        "../src/utils.cpp",
         "src/Tilemap.cpp",
         "src/GameMap/GetLightMap.cpp",
         "src/GameMap/FillPassabilityImage.cpp",
-        "src/GameMap/CExtensionFindPath.cpp",
+        "src/GameMap/FindPath.cpp",
+        "src/Particles/AddParticle.cpp",
+        "src/Particles/UpdateParticlesInfo.cpp",
         "main.cpp",
     ],
-    include_dirs=["./include"],
+    include_dirs=["./include", "../include"],
     language="c++",
     extra_compile_args=cppArgs,
 )

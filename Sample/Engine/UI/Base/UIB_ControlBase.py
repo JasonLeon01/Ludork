@@ -46,15 +46,15 @@ class ControlBase(Drawable, Transformable):
         return (result.x, result.y)
 
     def setPosition(self, position: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(position, (Vector2f, tuple)), "position must be a tuple or Vector2f"
-        if not isinstance(position, Vector2f):
+        assert isinstance(position, (Vector2f, Tuple)), "position must be a tuple or Vector2f"
+        if isinstance(position, tuple):
             x, y = position
             position = Vector2f(x, y)
         super().setPosition(position)
 
     def move(self, offset: Union[Vector2f, Tuple[float, float]]) -> bool:
-        assert isinstance(offset, (Vector2f, tuple)), "offset must be a tuple or Vector2f"
-        if not isinstance(offset, Vector2f):
+        assert isinstance(offset, (Vector2f, Tuple)), "offset must be a tuple or Vector2f"
+        if isinstance(offset, tuple):
             x, y = offset
             offset = Vector2f(x, y)
         return super().move(offset)
@@ -78,15 +78,15 @@ class ControlBase(Drawable, Transformable):
         return (result.x, result.y)
 
     def setScale(self, scale: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(scale, (Vector2f, tuple)), "scale must be a tuple or Vector2f"
-        if not isinstance(scale, Vector2f):
+        assert isinstance(scale, (Vector2f, Tuple)), "scale must be a tuple or Vector2f"
+        if isinstance(scale, tuple):
             x, y = scale
             scale = Vector2f(x, y)
         super().setScale(scale)
 
     def scale(self, factor: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(factor, (Vector2f, tuple)), "factor must be a tuple or Vector2f"
-        if not isinstance(factor, Vector2f):
+        assert isinstance(factor, (Vector2f, Tuple)), "factor must be a tuple or Vector2f"
+        if isinstance(factor, tuple):
             x, y = factor
             factor = Vector2f(x, y)
         super().scale(factor)
@@ -96,8 +96,8 @@ class ControlBase(Drawable, Transformable):
         return (result.x, result.y)
 
     def setOrigin(self, origin: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(origin, (Vector2f, tuple)), "origin must be a tuple or Vector2f"
-        if not isinstance(origin, Vector2f):
+        assert isinstance(origin, (Vector2f, Tuple)), "origin must be a tuple or Vector2f"
+        if isinstance(origin, tuple):
             x, y = origin
             origin = Vector2f(x, y)
         return super().setOrigin(origin)

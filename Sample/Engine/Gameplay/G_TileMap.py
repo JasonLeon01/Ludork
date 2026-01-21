@@ -86,11 +86,12 @@ class TileLayer(Drawable, Transformable):
         columns = self._texture.getSize().x // tileSize
 
         try:
-            from .GamePlayExtension import calculateVertexArray
+            from .GamePlayExtension import C_CalculateVertexArray
 
-            calculateVertexArray(self._vertexArray, self._data.tiles, tileSize, columns, self._width, self._height)
-        except:
-            print("C Exception calculateVertexArray load failed, use default")
+            C_CalculateVertexArray(self._vertexArray, self._data.tiles, tileSize, columns, self._width, self._height)
+        except Exception as e:
+            # region Calculate Vertex Array by Python
+            print(f"Failed to calculate vertex array by C extension, try to calculate by python. Error: {e}")
             for y in range(self._height):
                 for x in range(self._width):
                     tileNumber = self._data.tiles[y][x]
@@ -114,6 +115,7 @@ class TileLayer(Drawable, Transformable):
                     self._vertexArray[start + 3].texCoords = Vector2f(tu * tileSize, (tv + 1) * tileSize)
                     self._vertexArray[start + 4].texCoords = Vector2f((tu + 1) * tileSize, tv * tileSize)
                     self._vertexArray[start + 5].texCoords = Vector2f((tu + 1) * tileSize, (tv + 1) * tileSize)
+            # endregion
 
 
 class Tilemap:

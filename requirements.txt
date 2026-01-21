@@ -5,3 +5,5 @@ psutil
 pympler
 av
 nuitka
+tree-sitter
+tree-sitter-cpp

@@ -1,6 +1,7 @@
 *.pyc
 *.log
 *.pyd
+*.pyi
 *.so
 **/.DS_Store
 **/build/
@@ -13,3 +14,4 @@ Locale/en_GB
 Locale/zh_CN
 Sample/Main.proj
 Sample/Engine/pysf/
+.clangd

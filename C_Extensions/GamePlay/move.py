@@ -4,8 +4,7 @@ import shutil
 target_folder = "../../Sample/Engine/GamePlay/"
 os.makedirs(target_folder, exist_ok=True)
 
-for root, dirs, files in os.walk("build"):
-    for file in files:
-        if file.endswith(".pyd") or file.endswith(".so"):
-            file_path = os.path.join(root, file)
-            shutil.move(file_path, os.path.join(target_folder, file))
+for file in os.listdir(os.getcwd()):
+    if file.endswith(".pyd") or file.endswith(".so") or file.endswith(".dll") or file.endswith(".pyi"):
+        file_path = os.path.join(os.getcwd(), file)
+        shutil.move(file_path, os.path.join(target_folder, file))

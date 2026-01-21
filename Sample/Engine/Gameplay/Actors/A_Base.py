@@ -20,9 +20,8 @@ class _ActorBase(Sprite):
         tag: Optional[str] = None,
     ) -> None:
         if not rect is None:
-            assert isinstance(rect, (IntRect, tuple)), "rect must be a tuple or IntRect"
-            if not isinstance(rect, IntRect):
-                assert len(rect) == 2, "rect must be a tuple of two tuples"
+            assert isinstance(rect, (IntRect, Tuple)), "rect must be a tuple or IntRect"
+            if isinstance(rect, tuple):
                 position, size = rect
                 x, y = position
                 w, h = size
@@ -104,8 +103,8 @@ class _ActorBase(Sprite):
 
     @ExecSplit(default=(None,))
     def setPosition(self, position: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(position, (Vector2f, tuple)), "position must be a tuple or Vector2f"
-        if not isinstance(position, Vector2f):
+        assert isinstance(position, (Vector2f, Tuple)), "position must be a tuple or Vector2f"
+        if isinstance(position, tuple):
             x, y = position
             position = Vector2f(x, y)
         if self.getParent():
@@ -120,8 +119,8 @@ class _ActorBase(Sprite):
 
     @ExecSplit(default=(None,))
     def setRelativePosition(self, position: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(position, (Vector2f, tuple)), "position must be a tuple or Vector2f"
-        if not isinstance(position, Vector2f):
+        assert isinstance(position, (Vector2f, Tuple)), "position must be a tuple or Vector2f"
+        if isinstance(position, tuple):
             x, y = position
             position = Vector2f(x, y)
         parentPosition = Vector2f(0, 0)
@@ -131,24 +130,24 @@ class _ActorBase(Sprite):
 
     @ExecSplit(default=(None,))
     def setMapPosition(self, position: Union[Vector2u, Tuple[int, int]]) -> None:
-        assert isinstance(position, (Vector2u, tuple)), "position must be a tuple or Vector2u"
-        if not isinstance(position, Vector2u):
+        assert isinstance(position, (Vector2u, Tuple)), "position must be a tuple or Vector2u"
+        if isinstance(position, tuple):
             x, y = position
             position = Vector2u(x, y)
         self.setPosition(Vector2f(position.x * GetCellSize(), position.y * GetCellSize()))
 
     @ExecSplit(default=(None,))
     def setRelativeMapPosition(self, position: Union[Vector2u, Tuple[int, int]]) -> None:
-        assert isinstance(position, (Vector2u, tuple)), "position must be a tuple or Vector2u"
-        if not isinstance(position, Vector2u):
+        assert isinstance(position, (Vector2u, Tuple)), "position must be a tuple or Vector2u"
+        if isinstance(position, tuple):
             x, y = position
             position = Vector2u(x, y)
         self.setRelativePosition(Vector2f(position.x * GetCellSize(), position.y * GetCellSize()))
 
     @ExecSplit(default=(None,))
     def move(self, offset: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(offset, (Vector2f, tuple)), "offset must be a tuple or Vector2f"
-        if not isinstance(offset, Vector2f):
+        assert isinstance(offset, (Vector2f, Tuple)), "offset must be a tuple or Vector2f"
+        if isinstance(offset, tuple):
             x, y = offset
             offset = Vector2f(x, y)
         super().move(offset)
@@ -226,8 +225,8 @@ class _ActorBase(Sprite):
 
     @ExecSplit(default=(None,))
     def setScale(self, scale: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(scale, (Vector2f, tuple)), "scale must be a tuple or Vector2f"
-        if not isinstance(scale, Vector2f):
+        assert isinstance(scale, (Vector2f, Tuple)), "scale must be a tuple or Vector2f"
+        if isinstance(scale, tuple):
             x, y = scale
             scale = Vector2f(x, y)
         if self.getParent():
@@ -242,8 +241,8 @@ class _ActorBase(Sprite):
 
     @ExecSplit(default=(None,))
     def scale(self, factor: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(factor, (Vector2f, tuple)), "factor must be a tuple or Vector2f"
-        if not isinstance(factor, Vector2f):
+        assert isinstance(factor, (Vector2f, Tuple)), "factor must be a tuple or Vector2f"
+        if isinstance(factor, tuple):
             x, y = factor
             factor = Vector2f(x, y)
 
@@ -255,8 +254,8 @@ class _ActorBase(Sprite):
 
     @ExecSplit(default=(None,))
     def setRelativeScale(self, scale: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(scale, (Vector2f, tuple)), "scale must be a tuple or Vector2f"
-        if not isinstance(scale, Vector2f):
+        assert isinstance(scale, (Vector2f, Tuple)), "scale must be a tuple or Vector2f"
+        if isinstance(scale, tuple):
             x, y = scale
             scale = Vector2f(x, y)
         parentScale = Vector2f(1, 1)
@@ -275,8 +274,8 @@ class _ActorBase(Sprite):
 
     @ExecSplit(default=(None,))
     def setOrigin(self, origin: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(origin, (Vector2f, tuple)), "origin must be a tuple or Vector2f"
-        if not isinstance(origin, Vector2f):
+        assert isinstance(origin, (Vector2f, Tuple)), "origin must be a tuple or Vector2f"
+        if isinstance(origin, tuple):
             x, y = origin
             origin = Vector2f(x, y)
         return super().setOrigin(origin)
@@ -287,14 +286,14 @@ class _ActorBase(Sprite):
 
     @ExecSplit(default=(None,))
     def setTranslation(self, translation: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(translation, (Vector2f, tuple)), "translation must be a tuple or Vector2f"
+        assert isinstance(translation, (Vector2f, Tuple)), "translation must be a tuple or Vector2f"
         if isinstance(translation, tuple):
             translation = Vector2f(*translation)
         self._translation = translation
         self.setPosition(self.getPosition())
 
     @ExecSplit(default=(None,))
-    def setAlignment(self, alignment: Tuple[float, float]) -> None:
+    def setAlignment(self, alignment: Tuple) -> None:
         x, y = alignment
         x = Utils.Math.Clamp(x, 0, 1)
         y = Utils.Math.Clamp(y, 0, 1)
@@ -393,10 +392,9 @@ class _ActorBase(Sprite):
         self._graph = graph
 
     def _superMove(self, offset: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(offset, (Vector2f, tuple)), "offset must be a tuple or Vector2f"
-        if not isinstance(offset, Vector2f):
-            x, y = offset
-            offset = Vector2f(x, y)
+        assert isinstance(offset, (Vector2f, Tuple)), "offset must be a tuple or Vector2f"
+        if isinstance(offset, tuple):
+            offset = Vector2f(*offset)
         super().move(offset)
 
     def _updatePositionFromParent(self) -> None:

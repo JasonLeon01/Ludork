@@ -1,17 +1,13 @@
 # -*- encoding: utf-8 -*-
 
-
 from . import Actors
-from . import G_ParticleSystem
 from . import G_Camera
 from . import G_TileMap
 from . import G_GameMap
 from . import G_SceneBase
+from . import Particles
 
 
-ParticleInfo = G_ParticleSystem.ParticleInfo
-Particle = G_ParticleSystem.Particle
-ParticleSystem = G_ParticleSystem.ParticleSystem
 Camera = G_Camera.Camera
 Tileset = G_TileMap.Tileset
 TileLayerData = G_TileMap.TileLayerData

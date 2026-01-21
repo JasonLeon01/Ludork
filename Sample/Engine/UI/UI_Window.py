@@ -27,8 +27,8 @@ class Window(SpriteBase, RectBase):
     ) -> None:
         from .. import System
 
-        assert isinstance(rect, (IntRect, tuple)), "rect must be a tuple or IntRect"
-        if not isinstance(rect, IntRect):
+        assert isinstance(rect, (IntRect, Tuple)), "rect must be a tuple or IntRect"
+        if isinstance(rect, tuple):
             position, size = rect
             x, y = position
             w, h = size

@@ -16,8 +16,8 @@ from .. import (
     Image,
     GetCellSize,
 )
+from .Particles import System as ParticleSystem
 from .Actors import Actor
-from .G_ParticleSystem import ParticleSystem
 from .G_Camera import Camera
 from .G_TileMap import Tilemap
 
@@ -174,11 +174,17 @@ class GameMap:
 
     def getLightMap(self) -> List[List[float]]:
         try:
-            from .GamePlayExtension import getLightMap
+            from .GamePlayExtension import C_GetLightMap
 
-            return getLightMap(self)
-        except:
-            print("C Exception getLightMap load failed, use default")
+            layerKeys = list(self._tilemap.getAllLayers().keys())
+            layerKeys.reverse()
+            mapSize = self._tilemap.getSize()
+            width = mapSize.x
+            height = mapSize.y
+            return C_GetLightMap(layerKeys, width, height, self._tilemap, self._actors)
+        except Exception as e:
+            # region Get Light Map by Python
+            print(f"Failed to get light map by C extension, try to get light map by python. Error: {e}")
 
             def getLightBlock(inLayerKeys: List[str], pos: Vector2i):
                 for layerName in inLayerKeys:
@@ -188,10 +194,7 @@ class GameMap:
                     if layerName in self._actors:
                         for actor in self._actors[layerName]:
                             if actor.getMapPosition() == pos:
-                                if actor.getCollisionEnabled():
-                                    return actor.getLightBlock()
-                                else:
-                                    return 0
+                                return actor.getLightBlock()
                     tile = layer.get(pos)
                     if tile is not None:
                         return layer.getLightBlock(pos)
@@ -208,6 +211,7 @@ class GameMap:
                 for x in range(width):
                     lightMap[-1].append(getLightBlock(layerKeys, Vector2i(x, y)))
             return lightMap
+            # endregion
 
     def getLights(self) -> List[Light]:
         return self._lights
@@ -235,12 +239,13 @@ class GameMap:
         layerKeys = list(self._tilemap.getAllLayers().keys())
         layerKeys.reverse()
         try:
-            from .GamePlayExtension import CExtensionFindPath
+            from .GamePlayExtension import C_FindPath
 
-            path = CExtensionFindPath(start, goal, size, self._tilemap, layerKeys, self._actors)
+            path = C_FindPath(start, goal, size, self._tilemap, layerKeys, self._actors)
             return path
-        except:
-            print("C Exception CExtensionFindPath load failed, use default")
+        except Exception as e:
+            # region Find Path by Python
+            print(f"Failed to find path by C extension, try to find path by python. Error: {e}")
             sx, sy = start.x, start.y
             gx, gy = goal.x, goal.y
 
@@ -304,6 +309,7 @@ class GameMap:
                         fscore[nt] = tentative + abs(nx - gx) + abs(ny - gy)
                         openSet.add(nt)
             return []
+            # endregion
 
     def onTick(self, deltaTime: float) -> None:
         self._camera.onTick(deltaTime)
@@ -395,15 +401,19 @@ class GameMap:
         lightMap = self.getLightMap()
 
         try:
-            from .GamePlayExtension import fillPassabilityImage
+            from .GamePlayExtension import C_FillPassabilityImage
 
-            fillPassabilityImage(size, img, lightMap)
-        except:
-            print("C Exception fillPassabilityImage load failed, use default")
+            C_FillPassabilityImage(size, img, lightMap)
+        except Exception as e:
+            # region Fill Passability Image by Python
+            print(
+                f"Failed to fill passability image by C extension, try to fill passability image by python. Error: {e}"
+            )
             for y in range(size.y):
                 for x in range(size.x):
                     g = int(lightMap[y][x] * 255)
                     img.setPixel(Vector2u(x, y), Color(g, g, g))
+            # endregion
 
         img.flipVertically()
         texture = Texture(img)

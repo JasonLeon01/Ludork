@@ -2,4 +2,4 @@
 
 #include <Python.h>
 
-PyObject* fillPassabilityImage(PyObject* self, PyObject* args);
+PyObject* C_FillPassabilityImage(PyObject* self, PyObject* args);

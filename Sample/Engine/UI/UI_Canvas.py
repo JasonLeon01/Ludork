@@ -21,8 +21,8 @@ if TYPE_CHECKING:
 
 class Canvas(SpriteBase, FunctionalBase):
     def __init__(self, rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]]) -> None:
-        assert isinstance(rect, (IntRect, tuple)), "rect must be a tuple or IntRect"
-        if not isinstance(rect, IntRect):
+        assert isinstance(rect, (IntRect, Tuple)), "rect must be a tuple or IntRect"
+        if isinstance(rect, tuple):
             position, size = rect
             x, y = position
             w, h = size
@@ -50,7 +50,7 @@ class Canvas(SpriteBase, FunctionalBase):
     def setOrigin(self, origin: Union[Vector2f, Tuple[float, float]]) -> None:
         from Engine import System
 
-        assert isinstance(origin, (Vector2f, tuple)), "origin must be a tuple or Vector2f"
+        assert isinstance(origin, (Vector2f, Tuple)), "origin must be a tuple or Vector2f"
         if isinstance(origin, tuple):
             origin = Vector2f(*origin)
         super().setOrigin(origin * System.getScale())

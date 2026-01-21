@@ -1,7 +1,8 @@
 # -*- encoding: utf-8 -*-
 
-from Engine import System, Shader, Manager, Vector2i
+from Engine import System, Shader, Manager, Vector2f, Vector2i, degrees
 from Engine.Gameplay import SceneBase, GameMap
+from Engine.Gameplay.Particles import Particle, Info
 from Engine.Gameplay.Actors import Actor
 from Engine.Utils import File
 from Source import Data
@@ -18,6 +19,13 @@ class Scene(SceneBase):
         self._gameMap.getCamera().setParent(self.player)
         System.setGraphicsShader(Shader(System.getGrayScaleShaderPath(), Shader.Type.Fragment), {"intensity": 0.5})
         self.player.setRoutine(self._gameMap.findPath(self.player.getMapPosition(), Vector2i(0, 0)))
+        self.particle = Particle("./Assets/System/icon.png", Info(Vector2f(333, 234), rotation=123.0))
+
+        def moveFunction(deltaTime: float, totalTime: float, obj: Particle):
+            obj.info.rotation += degrees(90.0 * deltaTime)
+
+        self.particle.setMoveFunction(moveFunction)
+        self._gameMap._particleSystem.addParticle(self.particle)
 
     def onFixedTick(self, fixedDelta: float) -> None:
         self._gameMap.onFixedTick(fixedDelta)

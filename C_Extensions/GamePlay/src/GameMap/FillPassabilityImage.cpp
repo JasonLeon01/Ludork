@@ -1,96 +1,61 @@
-#include <utils.h>
 #include <GameMap/FillPassabilityImage.h>
+#include <utils.h>
+#include <stdexcept>
 
-PyObject* fillPassabilityImage(PyObject* self, PyObject* args) {
-    PyObject *sizeObj;
-    PyObject *imgObj;
-    PyObject *lightMap;
-
-    if (!PyArg_ParseTuple(args, "OOO", &sizeObj, &imgObj, &lightMap)) {
-        return NULL;
-    }
-
-    long width = getAttrLong(sizeObj, "x", -1);
-    long height = getAttrLong(sizeObj, "y", -1);
-    if (width <= 0 || height <= 0) {
-        PyErr_SetString(PyExc_ValueError, "Invalid size object for fillPassabilityImage");
-        return NULL;
-    }
-
-    PyObject *engineModule = PyImport_ImportModule("Engine");
-    if (!engineModule) {
-        return NULL;
-    }
-    PyObject *colorClass = PyObject_GetAttrString(engineModule, "Color");
-    PyObject *vec2uClass = PyObject_GetAttrString(engineModule, "Vector2u");
-    Py_DECREF(engineModule);
-    if (!colorClass || !vec2uClass) {
-        Py_XDECREF(colorClass);
-        Py_XDECREF(vec2uClass);
-        return NULL;
-    }
-
-    for (long y = 0; y < height; ++y) {
-        PyObject *row = PySequence_GetItem(lightMap, y);
-        if (row == NULL) {
-            Py_DECREF(colorClass);
-            Py_DECREF(vec2uClass);
-            return NULL;
+PyObject* C_FillPassabilityImage(PyObject* self, PyObject* args) {
+    std::vector<PyObject*> tempPyObjects;
+    try {
+        PyObject *sizeObj;
+        PyObject *imgObj;
+        PyObject *lightMap;
+        if (!PyArg_ParseTuple(args, "OOO", &sizeObj, &imgObj, &lightMap)) {
+            return nullptr;
         }
-
-        for (long x = 0; x < width; ++x) {
-            PyObject *valObj = PySequence_GetItem(row, x);
-            if (valObj == NULL) {
-                Py_DECREF(row);
-                Py_DECREF(colorClass);
-                Py_DECREF(vec2uClass);
-                return NULL;
-            }
-            double v = PyFloat_AsDouble(valObj);
-            Py_DECREF(valObj);
-            if (PyErr_Occurred()) {
-                Py_DECREF(row);
-                Py_DECREF(colorClass);
-                Py_DECREF(vec2uClass);
-                return NULL;
-            }
-
-            int g = (int)(v * 255.0);
-            if (g < 0) g = 0;
-            if (g > 255) g = 255;
-
-            PyObject *color = PyObject_CallFunction(colorClass, "iii", g, g, g);
-            if (color == NULL) {
-                Py_DECREF(row);
-                Py_DECREF(colorClass);
-                Py_DECREF(vec2uClass);
-                return NULL;
-            }
-
-            PyObject *pos = PyObject_CallFunction(vec2uClass, "ii", (int)x, (int)y);
-            if (pos == NULL) {
-                Py_DECREF(color);
-                Py_DECREF(row);
-                Py_DECREF(colorClass);
-                Py_DECREF(vec2uClass);
-                return NULL;
-            }
-
-            PyObject *result = PyObject_CallMethod(imgObj, "setPixel", "OO", pos, color);
-            Py_DECREF(color);
-            Py_DECREF(pos);
-            if (result == NULL) {
-                Py_DECREF(row);
-                Py_DECREF(colorClass);
-                Py_DECREF(vec2uClass);
-                return NULL;
-            }
-            Py_DECREF(result);
+    
+        long width = GetAttrLong(sizeObj, "x", -1);
+        long height = GetAttrLong(sizeObj, "y", -1);
+        if (width <= 0 || height <= 0) {
+            throw std::runtime_error("Invalid size object for C_FillPassabilityImage");
         }
-        Py_DECREF(row);
+    
+        PyObject *engineModule = PyImport_ImportModule("Engine");
+        CHECK_NULL(tempPyObjects, engineModule, "Failed to import Engine module");
+        tempPyObjects.push_back(engineModule);
+        PyObject *colorClass = PyObject_GetAttrString(engineModule, "Color");
+        CHECK_NULL(tempPyObjects, colorClass, "Failed to get Color class from Engine module");
+        tempPyObjects.push_back(colorClass);
+        PyObject *vec2uClass = PyObject_GetAttrString(engineModule, "Vector2u");
+        CHECK_NULL(tempPyObjects, vec2uClass, "Failed to get Vector2u class from Engine module");
+        tempPyObjects.push_back(vec2uClass);
+    
+        for (long y = 0; y < height; ++y) {
+            PyObject *row = PySequence_GetItem(lightMap, y);
+            CHECK_NULL(tempPyObjects, row, "Invalid light map index");
+            tempPyObjects.push_back(row);
+            for (long x = 0; x < width; ++x) {
+                PyObject *valObj = PySequence_GetItem(row, x);
+                CHECK_NULL(tempPyObjects, valObj, "Invalid light map value");
+                tempPyObjects.push_back(valObj);
+                double v = PyFloat_AsDouble(valObj);
+                int g = (int)(v * 255.0);
+                if (g < 0) g = 0;
+                if (g > 255) g = 255;
+    
+                PyObject *color = PyObject_CallFunction(colorClass, "iii", g, g, g);
+                CHECK_NULL(tempPyObjects, color, "Failed to create Color object");
+                tempPyObjects.push_back(color);
+                PyObject *pos = PyObject_CallFunction(vec2uClass, "ii", (int)x, (int)y);
+                CHECK_NULL(tempPyObjects, pos, "Failed to create Vector2u object");
+                tempPyObjects.push_back(pos);
+                DoMethod(imgObj, "setPixel", {pos, color});
+            }
+        }
+        ClearCache(tempPyObjects);
+        Py_RETURN_NONE;
     }
-
-    Py_DECREF(colorClass);
-    Py_DECREF(vec2uClass);
-    Py_RETURN_NONE;
+    catch (const std::exception& e) {
+        PyErr_SetString(PyExc_RuntimeError, e.what());
+        ClearCache(tempPyObjects);
+        return nullptr;
+    }
 }

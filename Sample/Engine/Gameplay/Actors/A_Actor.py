@@ -94,7 +94,7 @@ class Actor(_ActorBase):
 
     @ExecSplit(success=(True,), fail=(False,))
     def MapMove(self, offset: Union[Vector2i, Tuple[int, int]]) -> None:
-        assert isinstance(offset, (Vector2i, tuple)), "offset must be a tuple or Vector2i"
+        assert isinstance(offset, (Vector2i, Tuple)), "offset must be a tuple or Vector2i"
         if not isinstance(offset, Vector2i):
             x, y = offset
             offset = Vector2i(x, y)

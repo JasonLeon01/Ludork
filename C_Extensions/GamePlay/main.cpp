@@ -1,11 +1,14 @@
 #include <Tilemap.h>
 #include <GameMap.h>
+#include <Particle.h>
 
 static PyMethodDef GamePlayExtensionMethods[] = {
-    {"calculateVertexArray", calculateVertexArray, METH_VARARGS},
-    {"getLightMap", getLightMap, METH_VARARGS},
-    {"fillPassabilityImage", fillPassabilityImage, METH_VARARGS},
-    {"CExtensionFindPath", CExtensionFindPath, METH_VARARGS},
+    {"C_CalculateVertexArray", C_CalculateVertexArray, METH_VARARGS},
+    {"C_GetLightMap", C_GetLightMap, METH_VARARGS},
+    {"C_FillPassabilityImage", C_FillPassabilityImage, METH_VARARGS},
+    {"C_FindPath", C_FindPath, METH_VARARGS},
+    {"C_AddParticle", C_AddParticle, METH_VARARGS},
+    {"C_UpdateParticlesInfo", C_UpdateParticlesInfo, METH_VARARGS},
     {NULL, NULL, 0, NULL}
 };
 

@@ -1,0 +1,36 @@
+{
+    "type": "ui",
+    "range": [
+        [
+            0,
+            0
+        ],
+        [
+            256,
+            96
+        ]
+    ],
+    "tree": [
+        {
+            "UI": "Source.Windows.WindowCommand",
+            "params": [
+                [
+                    [
+                        0,
+                        0
+                    ],
+                    [
+                        256,
+                        96
+                    ]
+                ],
+                [
+                    "Start",
+                    "Load",
+                    "Config",
+                    "Exit"
+                ]
+            ]
+        }
+    ]
+}

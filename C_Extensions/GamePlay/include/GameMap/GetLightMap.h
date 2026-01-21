@@ -2,4 +2,4 @@
 
 #include <Python.h>
 
-PyObject* getLightMap(PyObject* self, PyObject* args);
+PyObject* C_GetLightMap(PyObject* self, PyObject* args);

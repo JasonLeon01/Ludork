@@ -67,24 +67,10 @@ if errorlevel 1 (
 :RUN_APP
 if exist "C_Extensions" (
   cd C_Extensions
-  for /D %%D in (*) do (
-    pushd "%%D"
-    echo Building extension in %%D...
-    python setup.py build
-    if errorlevel 1 (
-      echo Failed to build extension in %%D.
-      popd
-      cd ..
-      exit /b 1
-    )
-    python move.py
-    if errorlevel 1 (
-      echo Failed to move extension in %%D.
-      popd
-      cd ..
-      exit /b 1
-    )
-    popd
+  python setup.py
+  if errorlevel 1 (
+    cd ..
+    exit /b 1
   )
   cd ..
 )
