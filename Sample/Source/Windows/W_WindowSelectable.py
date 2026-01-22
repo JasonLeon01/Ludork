@@ -60,11 +60,12 @@ class WindowSelectable(WindowBase):
                 )
         if self._rect.getParent() is None:
             self.content.addChild(self._rect)
-        for index, child in enumerate(self._listView.getChildren()):
-            if self.index == index:
-                if isinstance(child, FunctionalBase):
-                    if child.isClicked() or child.isKeyDown():
-                        child.onConfirm({})
+        if self._isHovered:
+            for index, child in enumerate(self._listView.getChildren()):
+                if self.index == index:
+                    if isinstance(child, FunctionalBase):
+                        if self._judgeIfConfirm(child):
+                            child.onConfirm({})
         super().update(deltaTime)
 
     def onMouseWheelScrolled(self, kwargs: Dict[str, Any]):
@@ -151,3 +152,11 @@ class WindowSelectable(WindowBase):
         if posY < originY:
             originY = posY
         self.content.setView(View(Vector2f(originX, originY) + viewSize / 2, viewSize))
+
+    def _judgeIfConfirm(self, target: FunctionalBase):
+        if target.isHovered() and self._mouseCursorSelect and Input.isMouseButtonTriggered(Input.Mouse.Button.Left):
+            return True
+        for key in Input.getConfirmKeys():
+            if Input.isKeyTriggered(key, handled=True):
+                return True
+        return False

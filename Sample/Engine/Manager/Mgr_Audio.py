@@ -30,9 +30,10 @@ class AudioManager:
     def _ensure_asyncio_loop(cls) -> Optional[asyncio.AbstractEventLoop]:
         try:
             asyncio.get_running_loop()
-            return None
         except RuntimeError:
-            pass
+            loop = None
+        else:
+            return None
         if cls._AsyncLoop is None or cls._AsyncThread is None or not cls._AsyncThread.is_alive():
             loop = asyncio.new_event_loop()
             cls._AsyncLoop = loop
@@ -55,7 +56,7 @@ class AudioManager:
             loop = cls._ensure_asyncio_loop()
             if loop is None:
                 return None
-            return concurrent.futures.run_coroutine_threadsafe(coro, loop)
+            return asyncio.run_coroutine_threadsafe(coro, loop)
 
     @classmethod
     def loadSound(cls, filePath: str) -> SoundBuffer:

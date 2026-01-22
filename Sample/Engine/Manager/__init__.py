@@ -2,27 +2,20 @@
 
 from __future__ import annotations
 import os
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 from .. import (
+    IntRect,
+    Filters,
     SoundBuffer,
     Sound,
     Music,
     Font,
     Texture,
 )
-from . import Mgr_Audio
-from . import Mgr_Font
-from . import Mgr_Texture
-from . import Mgr_Time
-
-if TYPE_CHECKING:
-    from Engine import IntRect, Filters
-
-AudioManager = Mgr_Audio.AudioManager
-FontManager = Mgr_Font.FontManager
-TextureManager = Mgr_Texture.TextureManager
-TimerTaskEntry = Mgr_Time.TimerTaskEntry
-TimeManager = Mgr_Time.TimeManager
+from .Mgr_Audio import AudioManager
+from .Mgr_Font import FontManager
+from .Mgr_Texture import TextureManager
+from .Mgr_Time import TimerTaskEntry, TimeManager
 
 
 def getSoundBuffer(filePath: str) -> SoundBuffer:

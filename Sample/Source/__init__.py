@@ -2,11 +2,7 @@
 
 from . import Data
 from . import NodeFunctions
-from . import Player
-from . import Enemy
-from . import Item
+from .Player import Player
+from .Enemy import Enemy
+from .Item import Item
 from . import Scenes
-
-Player = Player.Player
-Enemy = Enemy.Enemy
-Item = Item.Item

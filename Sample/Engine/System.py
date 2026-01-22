@@ -24,7 +24,7 @@ from . import (
     Style,
     ContextSettings,
 )
-from .Gameplay import SceneBase
+from .SceneBase import SceneBase
 from .Utils import Math, File, Render
 
 if TYPE_CHECKING:

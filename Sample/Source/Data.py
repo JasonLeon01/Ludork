@@ -2,7 +2,7 @@
 
 import copy
 import os
-from typing import Any, Dict
+from typing import Any, Callable, Dict
 from Engine.Gameplay import Tileset
 from Engine.Utils import File
 from Engine.NodeGraph import ClassDict, Graph, DataNode, Node
@@ -10,27 +10,67 @@ from Engine.NodeGraph import ClassDict, Graph, DataNode, Node
 
 class _Data:
     def __init__(self):
-        self._dataDict: Dict[str, Dict[str, Any]] = {}
-        self._dataDict["tilesetData"] = {}
+        self._animationData: Dict[str, Dict[str, Any]] = {}
+        self._tilesetData: Dict[str, Dict[str, Any]] = {}
+        self._animCache: Dict[str, Dict[str, Any]] = {}
         self._classDict = ClassDict()
         self._loadData()
 
     def _loadData(self):
-        tilesetData = os.path.join(".", "Data", "Tilesets")
-        if not os.path.exists(tilesetData):
-            print(f"Error: Tileset data path {tilesetData} does not exist.")
-            return
-        for file in os.listdir(tilesetData):
-            namePart, extensionPart = os.path.splitext(file)
-            if extensionPart == ".dat":
-                data = File.loadData(os.path.join(tilesetData, file))
-                payload = copy.deepcopy(data)
-                if "type" in payload:
-                    del payload["type"]
-                self._dataDict["tilesetData"][namePart] = Tileset.fromData(payload)
+        animationRoot = os.path.join(".", "Data", "Animations")
+        if not os.path.exists(animationRoot):
+            raise FileNotFoundError(f"Error: Animation data path {animationRoot} does not exist.")
+        for file in os.listdir(animationRoot):
+            namePart, extensionPart = self.splitCompound(file)
+            if extensionPart != ".anim.dat":
+                continue
+            data = self.__getData(extensionPart, animationRoot, file, {".anim.dat": File.loadData})
+            payload = copy.deepcopy(data)
+            if "type" in payload:
+                del payload["type"]
+            self._animationData[namePart] = payload
 
-    def get(self, dataType: str, name: str) -> Any:
-        return self._dataDict[dataType][name]
+        tilesetRoot = os.path.join(".", "Data", "Tilesets")
+        if not os.path.exists(tilesetRoot):
+            raise FileNotFoundError(f"Error: Tileset data path {tilesetRoot} does not exist.")
+        for file in os.listdir(tilesetRoot):
+            namePart, extensionPart = self.splitCompound(file)
+            data = self.__getData(extensionPart, tilesetRoot, file, {".dat": File.loadData})
+            payload = copy.deepcopy(data)
+            if "type" in payload:
+                del payload["type"]
+            self._tilesetData[namePart] = Tileset.fromData(payload)
+
+    def __getData(
+        self,
+        extensionPart: str,
+        root: str,
+        file: str,
+        defaultType: Dict[str, Callable] = {".dat": File.loadData, ".json": File.getJSONData},
+    ):
+        data = None
+        for ext, loader in defaultType.items():
+            if extensionPart == ext or extensionPart.endswith(ext):
+                data = loader(os.path.join(root, file))
+                break
+        return data
+
+    def splitCompound(self, fileName: str):
+        parts = fileName.split(".", 1)
+        if len(parts) == 2:
+            return parts[0], f".{parts[1]}"
+        return fileName, ""
+
+    def getAnimation(self, name: str) -> Dict[str, Any]:
+        if name in self._animCache:
+            return self._animCache[name]
+        payload = copy.deepcopy(self._animationData[name])
+        payload["cacheKey"] = name
+        payload["cacheStore"] = self._animCache
+        return payload
+
+    def getTileset(self, name: str) -> Tileset:
+        return self._tilesetData[name]
 
     def getClass(self, classPath: str) -> type:
         return self._classDict.get(classPath)
@@ -65,8 +105,12 @@ if os.environ.get("IN_EDITOR", None) is None or os.environ.get("WINDOWHANDLE", N
     _data = _Data()
 
 
+def getAnimation(name: str) -> Dict[str, Any]:
+    return _data.getAnimation(name)
+
+
 def getTileset(name: str) -> Tileset:
-    return _data.get("tilesetData", name)
+    return _data.getTileset(name)
 
 
 def getClass(classPath: str) -> type:

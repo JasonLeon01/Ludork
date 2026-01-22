@@ -1,12 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from . import GP_Base
-from . import GP_Particle
-from . import GP_Text
-from . import GP_System
-
-Info = GP_Base.Info
-Base = GP_Base.Base
-Particle = GP_Particle.Particle
-TextParticle = GP_Text.TextParticle
-System = GP_System.System
+from .GP_Base import Info, Base
+from .GP_Particle import Particle
+from .GP_Text import TextParticle
+from .GP_System import System

@@ -4,7 +4,7 @@ from __future__ import annotations
 import inspect
 from typing import Any
 from Engine import System, ExecSplit, ReturnType
-from Engine.Gameplay import SceneBase
+from Engine import SceneBase
 
 
 class _attrRef:

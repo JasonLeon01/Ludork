@@ -1,9 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from .. import pysf
-
-RenderStates = pysf.RenderStates
-BlendMode = pysf.BlendMode
+from ..pysf import RenderStates, BlendMode
 
 
 class ModifiedRenderStates(RenderStates):

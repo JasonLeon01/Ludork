@@ -43,6 +43,25 @@ class TimelineCanvas(QtWidgets.QWidget):
         self.updateCanvasSize()
         self.update()
 
+    def setSelectedSegment(self, trackIdx: int, segIdx: int):
+        newSelected = None
+        if self.data and trackIdx >= 0 and segIdx >= 0:
+            timeLines = self.data.get("timeLines", [])
+            if trackIdx < len(timeLines):
+                segments = timeLines[trackIdx].get("timeSegments", [])
+                if segIdx < len(segments):
+                    newSelected = (trackIdx, segIdx)
+
+        if self.selectedSegment == newSelected:
+            return
+
+        self.selectedSegment = newSelected
+        if newSelected:
+            self.selectionChanged.emit(newSelected[0], newSelected[1])
+        else:
+            self.selectionChanged.emit(-1, -1)
+        self.update()
+
     def setZoom(self, zoom: float):
         self.zoom = zoom
         self.pixelsPerSecond = self.basePixelsPerSecond * self.zoom
@@ -168,6 +187,37 @@ class TimelineCanvas(QtWidgets.QWidget):
                 else:
                     painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255, 100), 1))
                 painter.drawRoundedRect(segRect, 4, 4)
+
+                tolerance = 0.01
+                isHead = isSelected and abs(self.currentTime - start) <= tolerance
+                isTail = isSelected and abs(self.currentTime - end) <= tolerance
+                if isHead or isTail:
+                    painter.setBrush(QtGui.QColor("#ffffff"))
+                    painter.setPen(QtCore.Qt.NoPen)
+                    top = segRect.top()
+                    bottom = segRect.bottom()
+                    mid = (top + bottom) * 0.5
+                    marker = 6.0
+                    if isHead:
+                        leftX = segRect.left()
+                        headPoly = QtGui.QPolygonF(
+                            [
+                                QtCore.QPointF(leftX, top),
+                                QtCore.QPointF(leftX, bottom),
+                                QtCore.QPointF(leftX + marker, mid),
+                            ]
+                        )
+                        painter.drawPolygon(headPoly)
+                    if isTail:
+                        rightX = segRect.right()
+                        tailPoly = QtGui.QPolygonF(
+                            [
+                                QtCore.QPointF(rightX, top),
+                                QtCore.QPointF(rightX, bottom),
+                                QtCore.QPointF(rightX - marker, mid),
+                            ]
+                        )
+                        painter.drawPolygon(tailPoly)
 
                 if 0 <= assetIdx < len(assets):
                     name = assets[assetIdx]
@@ -326,6 +376,8 @@ class TimelineCanvas(QtWidgets.QWidget):
                 seg = self.data["timeLines"][trackIdx]["timeSegments"][segIdx]
                 self.dragOriginalStart = seg.get("startFrame", {}).get("time", 0.0)
                 self.dragOriginalEnd = seg.get("endFrame", {}).get("time", 0.0)
+                self.currentTime = (self.dragOriginalStart + self.dragOriginalEnd) * 0.5
+                self.timeChanged.emit(self.currentTime)
             else:
                 self.selectedSegment = None
                 self.selectionChanged.emit(-1, -1)
@@ -617,9 +669,14 @@ class TimelinePanel(QtWidgets.QWidget):
         self.canvas.timeChanged.connect(self.timeChanged)
 
         self.layout.addWidget(self.scrollArea)
+        desiredHeight = self.toolbar.height() + self.canvas.headerHeight + self.canvas.trackHeight * 3 + 12
+        self.setMinimumHeight(desiredHeight)
 
     def setData(self, data):
         self.canvas.setData(data)
 
     def _onZoomChanged(self, value):
         self.canvas.setZoom(value / 100.0)
+
+    def setSelectedSegment(self, trackIdx: int, segIdx: int):
+        self.canvas.setSelectedSegment(trackIdx, segIdx)

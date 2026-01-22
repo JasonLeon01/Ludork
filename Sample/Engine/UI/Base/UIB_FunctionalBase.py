@@ -8,21 +8,9 @@ from ...Utils import Math
 class FunctionalBase:
     def __init__(self) -> None:
         self._isHovered: bool = False
-        self._isClicked: bool = False
-        self._isKeyDown: bool = False
-        self._isKeyUp: bool = False
 
     def isHovered(self) -> bool:
         return self._isHovered
-
-    def isClicked(self) -> bool:
-        return self._isClicked
-
-    def isKeyDown(self) -> bool:
-        return self._isKeyDown
-
-    def isKeyUp(self) -> bool:
-        return self._isKeyUp
 
     def onConfirm(self, kwargs: Dict[str, Any]):
         pass
@@ -93,9 +81,6 @@ class FunctionalBase:
         self.onTick(deltaTime)
         localMousePos = Math.ToVector2f(Input.getMousePosition())
         hovered = False
-        self._isClicked = False
-        self._isKeyDown = False
-        self._isKeyUp = False
         if hasattr(self, "getAbsoluteBounds"):
             bounds = self.getAbsoluteBounds()
             hovered = bounds.contains(localMousePos)
@@ -106,7 +91,6 @@ class FunctionalBase:
             if Input.isMouseMoved():
                 self.onMouseMoved({"position": localMousePos})
             if Input.isMouseButtonPressed():
-                self._isClicked = True
                 self.onClick({"position": localMousePos})
             if Input.isMouseWheelScrolled():
                 self.onMouseWheelScrolled({"position": localMousePos, "delta": Input.getMouseScrolledWheelDelta()})
@@ -115,10 +99,8 @@ class FunctionalBase:
                 self._isHovered = False
                 self.onUnHover({"position": localMousePos})
         if Input.isKeyPressed():
-            self._isKeyDown = True
             self.onKeyDown({})
         if Input.isKeyReleased():
-            self._isKeyUp = True
             self.onKeyUp({})
 
     def lateUpdate(self, deltaTime: float) -> None:

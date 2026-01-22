@@ -20,7 +20,7 @@ class Graph:
     ) -> None:
         import Engine, Source
 
-        self.modules_ = [Source, Engine.Gameplay]
+        self.modules_ = [Source, Engine]
         self.localGraph: Dict[str, Any] = {"__graph__": self}
         self.parentClassName = parentClassName
         self.parentClass = parentClass

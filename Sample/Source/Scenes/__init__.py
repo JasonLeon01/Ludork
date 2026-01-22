@@ -1,7 +1,4 @@
 # -*- encoding: utf-8 -*-
 
-from . import Title
-from . import Map
-
-Title = Title.Scene
-Map = Map.Scene
+from .Title import Scene as Title
+from .Map import Scene as Map

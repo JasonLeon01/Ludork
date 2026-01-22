@@ -4,19 +4,20 @@ from __future__ import annotations
 import os
 import inspect
 from typing import Any, Callable, List, Dict, Optional
-from .. import Latent, Manager, ExecSplit
-from ..UI import Canvas
-from ..Utils import Event, Math
-from ..Manager import TimerTaskEntry
+from . import Latent, Manager, ExecSplit
+from .UI import Canvas
+from .Utils import Event, Math
+from .Animation import AnimSprite
+from .Manager import TimerTaskEntry
 
 
 class SceneBase:
     def __init__(self) -> None:
-        from .. import System
+        from . import System
 
         self._UIs: List[Canvas] = []
         if System.isDebugMode():
-            from ..UI import UI_Text as Text
+            from .UI import UI_Text as Text
 
             PlainText = Text.PlainText
             self._debugHUDEnabled: bool = True
@@ -36,10 +37,11 @@ class SceneBase:
         self._maxFixedSteps: int = 5
         self._timerTasks: Dict[str, TimerTaskEntry] = {}
         self._created = False
+        self._animList: List[AnimSprite] = []
 
     @ExecSplit(default=(None,))
     def onEnter(self) -> None:
-        from .. import System
+        from . import System
 
         System.setTransition()
 
@@ -96,8 +98,27 @@ class SceneBase:
 
         return condition
 
+    @ExecSplit(default=(None,))
+    def addAnim(self, anim: AnimSprite) -> None:
+        self._animList.append(anim)
+
+    @ExecSplit(default=(None,))
+    def getAnims(self) -> List[AnimSprite]:
+        return self._animList
+
+    @ExecSplit(default=(None,))
+    def removeAnim(self, anim: AnimSprite) -> None:
+        if anim in self._animList:
+            self._animList.remove(anim)
+        else:
+            raise ValueError("AnimSprite not found")
+
+    @ExecSplit(default=(None,))
+    def clearAnims(self) -> None:
+        self._animList.clear()
+
     def main(self) -> None:
-        from .. import System, Input
+        from . import System, Input
 
         if not self._created:
             self.onCreate()
@@ -125,8 +146,11 @@ class SceneBase:
                     ui.fixedUpdate(fixedDelta)
 
     def _renderHandle(self, deltaTime: float) -> None:
-        from .. import System
+        from . import System
 
+        if len(self._animList) > 0:
+            for anim in self._animList:
+                System.draw(anim)
         for ui in self._UIs:
             if ui.getActive() and ui.getVisible():
                 if hasattr(ui, "update"):
@@ -142,7 +166,7 @@ class SceneBase:
         System.display(deltaTime)
 
     def _update(self, deltaTime: float) -> None:
-        from .. import System
+        from . import System
 
         self.onTick(deltaTime)
         self.onLateTick(deltaTime)
@@ -153,11 +177,17 @@ class SceneBase:
                 if not taskEntry.task is None and inspect.isfunction(taskEntry.task):
                     taskEntry.task(*taskEntry.params)
                 self._timerTasks.pop(key)
+        if len(self._animList) > 0:
+            for anim in self._animList[:]:
+                if anim.isFinished():
+                    self._animList.remove(anim)
+            for anim in self._animList:
+                anim.update(deltaTime)
         System.clearCanvas()
         self._renderHandle(deltaTime)
 
     def _updateDebugInfo(self, deltaTime: float) -> None:
-        from .. import System, Input, Manager
+        from . import System, Input, Manager
 
         if not System.isDebugMode():
             return

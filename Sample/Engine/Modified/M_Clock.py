@@ -1,8 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from .. import pysf
-
-Clock = pysf.Clock
+from ..pysf import Clock
 
 
 class ModifiedClock(Clock):

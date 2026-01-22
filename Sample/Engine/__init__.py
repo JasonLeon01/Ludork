@@ -91,126 +91,118 @@ def RegisterEvent(func=None):
 from . import pysf
 
 
-Angle = pysf.Angle
-BlendAdd = pysf.BlendAdd
-BlendAlpha = pysf.BlendAlpha
-BlendMax = pysf.BlendMax
-BlendMin = pysf.BlendMin
-BlendMode = pysf.BlendMode
-BlendMultiply = pysf.BlendMultiply
-BlendNone = pysf.BlendNone
-CircleShape = pysf.CircleShape
-Clipboard = pysf.Clipboard
-Color = pysf.Color
-Context = pysf.Context
-ConvexShape = pysf.ConvexShape
-CoordinateType = pysf.CoordinateType
-Cursor = pysf.Cursor
-Drawable = pysf.Drawable
-Event = pysf.Event
-FileInputStream = pysf.FileInputStream
-FloatRect = pysf.FloatRect
-Font = pysf.Font
-Ftp = pysf.Ftp
-Glyph = pysf.Glyph
-Http = pysf.Http
-Image = pysf.Image
-InputSoundFile = pysf.InputSoundFile
-InputStream = pysf.InputStream
-IntRect = pysf.IntRect
-IpAddress = pysf.IpAddress
-Joystick = pysf.Joystick
-Keyboard = pysf.Keyboard
-Listener = pysf.Listener
-Literals = pysf.Literals
-Mat3 = pysf.Mat3
-Mat4 = pysf.Mat4
-MemoryInputStream = pysf.MemoryInputStream
-Mouse = pysf.Mouse
-Music = pysf.Music
-OutputSoundFile = pysf.OutputSoundFile
-Packet = pysf.Packet
-PlaybackDevice = pysf.PlaybackDevice
-PrimitiveType = pysf.PrimitiveType
-RectangleShape = pysf.RectangleShape
-RenderTarget = pysf.RenderTarget
-RenderTexture = pysf.RenderTexture
-RenderWindow = pysf.RenderWindow
-Sensor = pysf.Sensor
-Shader = pysf.Shader
-Shape = pysf.Shape
-Socket = pysf.Socket
-SocketSelector = pysf.SocketSelector
-Sound = pysf.Sound
-SoundBuffer = pysf.SoundBuffer
-SoundBufferRecorder = pysf.SoundBufferRecorder
-SoundChannel = pysf.SoundChannel
-SoundFileReader = pysf.SoundFileReader
-SoundFileWriter = pysf.SoundFileWriter
-SoundRecorder = pysf.SoundRecorder
-SoundSource = pysf.SoundSource
-SoundStream = pysf.SoundStream
-Sprite = pysf.Sprite
-State = pysf.State
-StencilComparison = pysf.StencilComparison
-StencilMode = pysf.StencilMode
-StencilUpdateOperation = pysf.StencilUpdateOperation
-StencilValue = pysf.StencilValue
-Style = pysf.Style
-TcpListener = pysf.TcpListener
-TcpSocket = pysf.TcpSocket
-Text = pysf.Text
-Texture = pysf.Texture
-Time = pysf.Time
-Touch = pysf.Touch
-Transform = pysf.Transform
-Transformable = pysf.Transformable
-UdpSocket = pysf.UdpSocket
-Vector2b = pysf.Vector2b
-Vector2f = pysf.Vector2f
-Vector2i = pysf.Vector2i
-Vector2u = pysf.Vector2u
-Vector3b = pysf.Vector3b
-Vector3f = pysf.Vector3f
-Vector3i = pysf.Vector3i
-Vector4b = pysf.Vector4b
-Vector4f = pysf.Vector4f
-Vector4i = pysf.Vector4i
-Vertex = pysf.Vertex
-VertexArray = pysf.VertexArray
-VertexBuffer = pysf.VertexBuffer
-VideoMode = pysf.VideoMode
-View = pysf.View
-Window = pysf.Window
-WindowBase = pysf.WindowBase
-degrees = pysf.degrees
-microseconds = pysf.microseconds
-milliseconds = pysf.milliseconds
-positiveRemainder = pysf.positiveRemainder
-radians = pysf.radians
-seconds = pysf.seconds
-sleep = pysf.sleep
-swap = pysf.swap
-
-from . import Modified
-
-Clock = Modified.Clock
-ContextSettings = Modified.ContextSettings
-RenderStates = Modified.RenderStates
+from .pysf import Angle
+from .pysf import BlendAdd
+from .pysf import BlendAlpha
+from .pysf import BlendMax
+from .pysf import BlendMin
+from .pysf import BlendMode
+from .pysf import BlendMultiply
+from .pysf import BlendNone
+from .pysf import CircleShape
+from .pysf import Clipboard
+from .pysf import Color
+from .pysf import Context
+from .pysf import ConvexShape
+from .pysf import CoordinateType
+from .pysf import Cursor
+from .pysf import Drawable
+from .pysf import Event
+from .pysf import FileInputStream
+from .pysf import FloatRect
+from .pysf import Font
+from .pysf import Ftp
+from .pysf import Glyph
+from .pysf import Http
+from .pysf import Image
+from .pysf import InputSoundFile
+from .pysf import InputStream
+from .pysf import IntRect
+from .pysf import IpAddress
+from .pysf import Joystick
+from .pysf import Keyboard
+from .pysf import Listener
+from .pysf import Literals
+from .pysf import Mat3
+from .pysf import Mat4
+from .pysf import MemoryInputStream
+from .pysf import Mouse
+from .pysf import Music
+from .pysf import OutputSoundFile
+from .pysf import Packet
+from .pysf import PlaybackDevice
+from .pysf import PrimitiveType
+from .pysf import RectangleShape
+from .pysf import RenderTarget
+from .pysf import RenderTexture
+from .pysf import RenderWindow
+from .pysf import Sensor
+from .pysf import Shader
+from .pysf import Shape
+from .pysf import Socket
+from .pysf import SocketSelector
+from .pysf import Sound
+from .pysf import SoundBuffer
+from .pysf import SoundBufferRecorder
+from .pysf import SoundChannel
+from .pysf import SoundFileReader
+from .pysf import SoundFileWriter
+from .pysf import SoundRecorder
+from .pysf import SoundSource
+from .pysf import SoundStream
+from .pysf import Sprite
+from .pysf import State
+from .pysf import StencilComparison
+from .pysf import StencilMode
+from .pysf import StencilUpdateOperation
+from .pysf import StencilValue
+from .pysf import Style
+from .pysf import TcpListener
+from .pysf import TcpSocket
+from .pysf import Text
+from .pysf import Texture
+from .pysf import Time
+from .pysf import Touch
+from .pysf import Transform
+from .pysf import Transformable
+from .pysf import UdpSocket
+from .pysf import Vector2b
+from .pysf import Vector2f
+from .pysf import Vector2i
+from .pysf import Vector2u
+from .pysf import Vector3b
+from .pysf import Vector3f
+from .pysf import Vector3i
+from .pysf import Vector4b
+from .pysf import Vector4f
+from .pysf import Vector4i
+from .pysf import Vertex
+from .pysf import VertexArray
+from .pysf import VertexBuffer
+from .pysf import VideoMode
+from .pysf import View
+from .pysf import Window
+from .pysf import WindowBase
+from .pysf import degrees
+from .pysf import microseconds
+from .pysf import milliseconds
+from .pysf import positiveRemainder
+from .pysf import radians
+from .pysf import seconds
+from .pysf import sleep
+from .pysf import swap
+from .Modified import Clock
+from .Modified import ContextSettings
+from .Modified import RenderStates
 
 from . import Utils
-from . import E_Input
-from . import E_Locale
+from . import Input
+from . import Locale
 from . import Manager
 from . import Filters
 from . import Gameplay
 from . import UI
-from . import E_System
-from . import E_Effects
+from .System import System
 from . import NodeGraph
-
-
-Input = E_Input
-Locale = E_Locale
-System = E_System.System
-Effects = E_Effects
+from .SceneBase import SceneBase
+from . import Animation
