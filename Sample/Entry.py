@@ -40,7 +40,7 @@ def entry():
     iniFile.read(iniFilePath, encoding="utf-8")
     Engine.Locale.init("./Data/Locale")
     Engine.System.init(iniFile, iniFilePath)
-    Engine.System.setScene(Scenes.Title())
+    Engine.System.setScene(Scenes.Init())
 
     while Engine.System.shouldLoop():
         Engine.System.getScene().main()

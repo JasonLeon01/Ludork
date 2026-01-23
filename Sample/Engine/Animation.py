@@ -151,6 +151,7 @@ def compressAnimation(
             "type": "compressedAnimation",
             "frameRate": 0,
             "frameCount": 0,
+            "duration": 0.0,
             "canvasSize": [0, 0],
             "canvasOrigin": [0.0, 0.0],
             "frames": [],
@@ -273,7 +274,10 @@ def compressAnimation(
     canvasHeight = max(1, int(math.ceil(maxY - minY)))
 
     renderTexture = RenderTexture(Vector2u(canvasWidth, canvasHeight))
+    renderTexture.setActive(True)
     frames: List[bytes] = []
+    targetTexture = renderTexture.getTexture()
+    sprite = Sprite(targetTexture)
 
     for frameIndex in range(frameCount):
         frameTime = frameIndex * frameStep
@@ -290,7 +294,7 @@ def compressAnimation(
                 if transformData is None:
                     continue
                 curX, curY, curRot, curScaleX, curScaleY = transformData
-                sprite = Sprite(texture)
+                sprite.setTexture(texture, True)
                 size = texture.getSize()
                 sprite.setOrigin(Vector2f(size.x / 2, size.y / 2))
                 sprite.setPosition(Vector2f(curX - minX, curY - minY))
@@ -298,7 +302,7 @@ def compressAnimation(
                 sprite.setScale(Vector2f(curScaleX, curScaleY))
                 renderTexture.draw(sprite)
         renderTexture.display()
-        image = renderTexture.getTexture().copyToImage()
+        image = targetTexture.copyToImage()
         if imageFormat:
             memoryData = image.saveToMemory(imageFormat)
         else:
@@ -324,11 +328,14 @@ def compressAnimation(
                 soundEntry["originalDuration"] = segment["originalDuration"]
             sounds.append(soundEntry)
 
+    duration = frameCount / frameRate if frameRate > 0 else 0.0
+
     return {
         "type": "compressedAnimation",
         "name": animationData.get("name", ""),
         "frameRate": frameRate,
         "frameCount": frameCount,
+        "duration": duration,
         "canvasSize": [canvasWidth, canvasHeight],
         "canvasOrigin": [minX, minY],
         "frames": frames,

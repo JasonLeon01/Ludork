@@ -433,8 +433,6 @@ class GameData:
 
         # Animations
         animationsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Animations")
-        assetsRoot = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Animations")
-        Engine = importlib.import_module("Engine")
         c_anims = changes["animationsData"]
         for key in c_anims["A"] + c_anims["U"]:
             anim = cls.animationsData.get(key)
@@ -448,8 +446,6 @@ class GameData:
                     File.saveJSONData(os.path.join(animationsRoot, f"{key}.json"), payload)
                 else:
                     File.saveData(os.path.join(animationsRoot, f"{key}.dat"), payload)
-                compressed = Engine.Animation.compressAnimation(payload, assetsRoot=assetsRoot)
-                File.saveData(os.path.join(animationsRoot, f"{key}.anim.dat"), compressed)
                 if key in c_anims["A"]:
                     final_details["A"].append(key)
                 else:

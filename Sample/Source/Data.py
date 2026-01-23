@@ -3,6 +3,7 @@
 import copy
 import os
 from typing import Any, Callable, Dict
+from Engine import Animation
 from Engine.Gameplay import Tileset
 from Engine.Utils import File
 from Engine.NodeGraph import ClassDict, Graph, DataNode, Node
@@ -17,6 +18,18 @@ class _Data:
         self._loadData()
 
     def _loadData(self):
+        tilesetRoot = os.path.join(".", "Data", "Tilesets")
+        if not os.path.exists(tilesetRoot):
+            raise FileNotFoundError(f"Error: Tileset data path {tilesetRoot} does not exist.")
+        for file in os.listdir(tilesetRoot):
+            namePart, extensionPart = self.splitCompound(file)
+            data = self.__getData(extensionPart, tilesetRoot, file, {".dat": File.loadData})
+            payload = copy.deepcopy(data)
+            if "type" in payload:
+                del payload["type"]
+            self._tilesetData[namePart] = Tileset.fromData(payload)
+
+    def loadAnimations(self):
         animationRoot = os.path.join(".", "Data", "Animations")
         if not os.path.exists(animationRoot):
             raise FileNotFoundError(f"Error: Animation data path {animationRoot} does not exist.")
@@ -29,17 +42,6 @@ class _Data:
             if "type" in payload:
                 del payload["type"]
             self._animationData[namePart] = payload
-
-        tilesetRoot = os.path.join(".", "Data", "Tilesets")
-        if not os.path.exists(tilesetRoot):
-            raise FileNotFoundError(f"Error: Tileset data path {tilesetRoot} does not exist.")
-        for file in os.listdir(tilesetRoot):
-            namePart, extensionPart = self.splitCompound(file)
-            data = self.__getData(extensionPart, tilesetRoot, file, {".dat": File.loadData})
-            payload = copy.deepcopy(data)
-            if "type" in payload:
-                del payload["type"]
-            self._tilesetData[namePart] = Tileset.fromData(payload)
 
     def __getData(
         self,
@@ -103,6 +105,10 @@ class _Data:
 
 if os.environ.get("IN_EDITOR", None) is None or os.environ.get("WINDOWHANDLE", None) is not None:
     _data = _Data()
+
+
+def loadAnimations():
+    _data.loadAnimations()
 
 
 def getAnimation(name: str) -> Dict[str, Any]:

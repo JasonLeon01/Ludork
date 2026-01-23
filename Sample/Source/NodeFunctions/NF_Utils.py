@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 import inspect
-from typing import Any
-from Engine import System, ExecSplit, ReturnType
-from Engine import SceneBase
+from typing import Any, Tuple
+from Engine import System, ExecSplit, ReturnType, SceneBase, Vector2f, degrees
+from Engine.Animation import AnimSprite
 
 
 class _attrRef:
@@ -190,6 +190,31 @@ def GetLocalValue(valueName: str, default: Any = None) -> Any:
 @ReturnType(value=Any)
 def GetLocalValueRef(valueName: str, default: Any = None) -> Any:
     return _localRef(GetLocalValueRef._refLocal, valueName, default)
+
+
+@ExecSplit(default=(None,))
+def AddAnim(animName: str, position: Tuple[float, float], rotation: float, scale: Tuple[float, float]) -> None:
+    from Source import Data
+
+    animData = Data.getAnimation(animName)
+    if animData is None:
+        raise ValueError(f"Animation '{animName}' not found")
+    anim = AnimSprite(animData)
+    anim.setPosition(Vector2f(*position))
+    anim.setRotation(degrees(rotation))
+    anim.setScale(Vector2f(*scale))
+    System.getScene().addAnim(anim)
+
+
+@ReturnType(value=float)
+def GetAnimLength(animName: str) -> float:
+    from Source import Data
+
+    animData = Data.getAnimation(animName)
+    if animData is None:
+        raise ValueError(f"Animation '{animName}' not found")
+    duration = animData.get("duration", None)
+    return float(duration)
 
 
 @ExecSplit(default=(None,))
