@@ -5,6 +5,7 @@ import inspect
 from typing import Any, Tuple
 from Engine import System, ExecSplit, ReturnType, SceneBase, Vector2f, degrees
 from Engine.Animation import AnimSprite
+from .. import Data
 
 
 class _attrRef:
@@ -276,6 +277,20 @@ def IsValidValue(value: Any) -> bool:
 @ExecSplit(default=(None,))
 def Print(message: Any) -> None:
     print(message)
+
+
+@ExecSplit(default=(None,))
+def RunCommonFunction(commonFunctionName: str) -> Any:
+    callerGraph = RunCommonFunction._refLocal.get("__graph__")
+    commonGraph = Data.getCommonFunction(commonFunctionName)
+    if callerGraph is not None:
+        commonGraph.localGraph = callerGraph.localGraph
+    if commonGraph.hasKey("common"):
+        return commonGraph.execute("common")
+    if commonGraph.startNodes and len(commonGraph.startNodes) > 0:
+        firstKey = sorted(commonGraph.startNodes.keys())[0]
+        return commonGraph.execute(firstKey)
+    raise KeyError(f"Common function '{commonFunctionName}' has no start nodes")
 
 
 @ExecSplit(default=(None,))

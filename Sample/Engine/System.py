@@ -71,6 +71,8 @@ class System:
     _inTransition: bool = False
     _transitionTimeCount: float = 0.0
     _transitionTime: float = 0.0
+    _transitionFrozen: bool = False
+    _transitionFreezePending: bool = False
     _scenes: List[SceneBase] = None
     _variables: Dict[str, Any] = {}
     _debugMode: bool = False
@@ -221,6 +223,10 @@ class System:
         else:
             cls._window.draw(cls._canvasSprite, states)
         cls._window.display()
+        if cls._transitionFreezePending:
+            cls._transition.update(cls._window)
+            cls._transitionFreezePending = False
+            cls._transitionFrozen = True
         if cls._inTransition:
             if cls._transitionTimeCount >= cls._transitionTime:
                 cls._inTransition = False
@@ -389,7 +395,14 @@ class System:
         cls._transitionTimeCount = 0.0
         cls._transitionTime = float(transitionTime)
         cls._transitionTempTexture.clear(Color.Transparent)
-        cls._transition.update(cls._window)
+        if not cls._transitionFrozen:
+            cls._transition.update(cls._window)
+        else:
+            cls._transitionFrozen = False
+
+    @classmethod
+    def freezeTransitionBackground(cls) -> None:
+        cls._transitionFreezePending = True
 
     @classmethod
     def getScene(cls) -> Optional[SceneBase]:
@@ -403,6 +416,7 @@ class System:
 
     @classmethod
     def setScene(cls, scene: SceneBase) -> None:
+        cls.freezeTransitionBackground()
         if len(cls._scenes) == 0:
             cls._scenes.append(scene)
         else:

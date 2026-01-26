@@ -20,7 +20,7 @@ mainWindow: MainWindow = None
 
 
 def getRootPath() -> str:
-    if System.already_packed():
+    if System.alreadyPacked():
         return os.path.dirname(sys.executable)
     return os.getcwd()
 
@@ -28,7 +28,7 @@ def getRootPath() -> str:
 def getIniPath() -> str:
     import EditorStatus
 
-    if System.already_packed() and sys.platform == "darwin":
+    if System.alreadyPacked() and sys.platform == "darwin":
         path = Path.home() / "Library" / "Application Support" / EditorStatus.APP_NAME
         path.mkdir(parents=True, exist_ok=True)
         return str(path)

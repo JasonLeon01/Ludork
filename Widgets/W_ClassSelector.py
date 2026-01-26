@@ -9,7 +9,7 @@ from Utils import Locale
 import EditorStatus
 
 
-class W_ClassSelector(QtWidgets.QDialog):
+class ClassSelector(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle(Locale.getContent("CLASS_SELECTOR"))

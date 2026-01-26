@@ -19,7 +19,7 @@ os.environ["IN_EDITOR"] = "True"
 
 
 def initConfig():
-    if not System.already_packed():
+    if not System.alreadyPacked():
         subprocess.run([sys.executable, "localeTransfer.py", os.path.join(".", "Locale", "locale.json")], check=True)
     Locale.init(os.path.join(File.getRootPath(), "Locale"))
     EditorStatus.editorConfig = configparser.ConfigParser()

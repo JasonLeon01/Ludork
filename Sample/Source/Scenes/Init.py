@@ -4,11 +4,12 @@ from __future__ import annotations
 import os
 import threading
 from typing import Tuple
-from Engine import SceneBase, System, Color, Vector2f, RenderTexture, RectangleShape
+from Engine import SceneBase, System, Color, Vector2f, RenderTexture, RectangleShape, Manager
 from Engine.Utils import Render, Math
 from Engine.Animation import compressAnimation
 from Engine.Utils import File
 from Engine.UI.Base import SpriteBase
+from Engine.UI import Image
 from .Title import Scene as TitleScene
 from .. import Data
 
@@ -49,15 +50,17 @@ class Scene(SceneBase):
         barHeight = 12
         barX = int((gameSize.x - barWidth) / 2)
         barY = int(gameSize.y * 0.8)
+        self._bg = Image(Manager.loadSystem("GrassBackground.png"))
+        self.addUI(self._bg)
         self.progressBar = progressBar(((barX, barY), (barWidth, barHeight)))
         self.addUI(self.progressBar)
         self.progressValue = 0.0
-        self.progressTotal = 0
+        self.progressTotal = 3
         self.processedCount = 0
         self.progressDone = False
         self.hasSwitched = False
-        self.compressThread = threading.Thread(target=self.compressAnimations, daemon=True)
-        self.compressThread.start()
+        self.prepareThread = threading.Thread(target=self.prepareAssets, daemon=True)
+        self.prepareThread.start()
 
     def onTick(self, deltaTime: float) -> None:
         if self.progressTotal > 0:
@@ -66,7 +69,6 @@ class Scene(SceneBase):
             self.progressBar.setProgress(1.0 if self.progressDone else 0.0)
         if self.progressDone and not self.hasSwitched:
             self.hasSwitched = True
-            Data.loadAnimations()
             System.setScene(TitleScene())
 
     def splitCompound(self, fileName: str):
@@ -88,9 +90,7 @@ class Scene(SceneBase):
             if extensionPart not in [".json", ".dat"]:
                 continue
             fileList.append(file)
-        self.progressTotal = len(fileList)
-        if self.progressTotal == 0:
-            self.progressValue = 1.0
+        self.progressTotal += len(fileList)
         for file in fileList:
             namePart, extensionPart = self.splitCompound(file)
             sourcePath = os.path.join(animationRoot, file)
@@ -110,5 +110,22 @@ class Scene(SceneBase):
             if self.progressTotal > 0:
                 self.progressValue = self.processedCount / self.progressTotal
 
+    def loadGameData(self) -> None:
+        Data._data.loadAnimations()
+        self.processedCount += 1
+        if self.progressTotal > 0:
+            self.progressValue = self.processedCount / self.progressTotal
+        Data._data.loadCommonFunctions()
+        self.processedCount += 1
+        if self.progressTotal > 0:
+            self.progressValue = self.processedCount / self.progressTotal
+        Data._data.loadTilesets()
+        self.processedCount += 1
+        if self.progressTotal > 0:
+            self.progressValue = self.processedCount / self.progressTotal
+
+    def prepareAssets(self) -> None:
+        self.compressAnimations()
+        self.loadGameData()
         self.progressValue = 1.0
         self.progressDone = True

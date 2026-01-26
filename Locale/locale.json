@@ -51,6 +51,62 @@
         "zh_CN": "保存",
         "en_GB": "Save"
     },
+    "PACK_PROJECT": {
+        "zh_CN": "打包项目",
+        "en_GB": "Package Project"
+    },
+    "PACK_TITLE": {
+        "zh_CN": "打包",
+        "en_GB": "Packaging"
+    },
+    "PACK_START": {
+        "zh_CN": "正在打包",
+        "en_GB": "Packaging..."
+    },
+    "PACK_SUCCESS": {
+        "zh_CN": "打包完成",
+        "en_GB": "Packaging completed"
+    },
+    "PACK_NO_PROJECT": {
+        "zh_CN": "未找到项目路径",
+        "en_GB": "Project path not found"
+    },
+    "PACK_UNSUPPORTED": {
+        "zh_CN": "当前系统不支持打包",
+        "en_GB": "Packaging not supported on this system"
+    },
+    "PACK_ENTRY_MISSING": {
+        "zh_CN": "未找到 Entry.py",
+        "en_GB": "Entry.py not found"
+    },
+    "PACK_PYTHON_MISSING": {
+        "zh_CN": "未检测到 python3.10.0 环境",
+        "en_GB": "python3.10.0 not found"
+    },
+    "PACK_PYTHON_VERSION": {
+        "zh_CN": "python3.10 版本需为 3.10.0",
+        "en_GB": "python3.10 must be 3.10.0"
+    },
+    "PACK_NUITKA_MISSING": {
+        "zh_CN": "python3.10.0 环境未安装 nuitka",
+        "en_GB": "Nuitka is not installed in python3.10.0"
+    },
+    "PACK_NUITKA_FAILED": {
+        "zh_CN": "Nuitka 打包失败",
+        "en_GB": "Nuitka packaging failed"
+    },
+    "PACK_CYTHON_MISSING": {
+        "zh_CN": "未安装 Cython",
+        "en_GB": "Cython is not installed"
+    },
+    "PACK_CYTHON_FAILED": {
+        "zh_CN": "Cython 编译失败",
+        "en_GB": "Cython compilation failed"
+    },
+    "PACK_COPY_MISSING": {
+        "zh_CN": "缺少以下文件或目录：{items}",
+        "en_GB": "Missing files or folders: {items}"
+    },
     "EXIT": {
         "zh_CN": "退出",
         "en_GB": "Exit"
