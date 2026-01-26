@@ -4,7 +4,7 @@ import os
 from PyQt5 import QtCore, QtWidgets
 
 
-def already_packed() -> bool:
+def alreadyPacked() -> bool:
     result = False
     try:
         result = __compiled__ is not None

@@ -2,9 +2,10 @@
 
 import copy
 import os
-from typing import Any, Callable, Dict
-from Engine import Animation
+from typing import Any, Callable, Dict, Optional
+from Engine import Vector2f, Vector2u
 from Engine.Gameplay import Tileset
+from Engine.Gameplay.Actors import Actor
 from Engine.Utils import File
 from Engine.NodeGraph import ClassDict, Graph, DataNode, Node
 
@@ -12,22 +13,15 @@ from Engine.NodeGraph import ClassDict, Graph, DataNode, Node
 class _Data:
     def __init__(self):
         self._animationData: Dict[str, Dict[str, Any]] = {}
+        self._commonFunctionsData: Dict[str, Dict[str, Any]] = {}
         self._tilesetData: Dict[str, Dict[str, Any]] = {}
         self._animCache: Dict[str, Dict[str, Any]] = {}
         self._classDict = ClassDict()
-        self._loadData()
 
-    def _loadData(self):
-        tilesetRoot = os.path.join(".", "Data", "Tilesets")
-        if not os.path.exists(tilesetRoot):
-            raise FileNotFoundError(f"Error: Tileset data path {tilesetRoot} does not exist.")
-        for file in os.listdir(tilesetRoot):
-            namePart, extensionPart = self.splitCompound(file)
-            data = self.__getData(extensionPart, tilesetRoot, file, {".dat": File.loadData})
-            payload = copy.deepcopy(data)
-            if "type" in payload:
-                del payload["type"]
-            self._tilesetData[namePart] = Tileset.fromData(payload)
+    def loadData(self):
+        self.loadAnimations()
+        self.loadCommonFunctions()
+        self.loadTilesets()
 
     def loadAnimations(self):
         animationRoot = os.path.join(".", "Data", "Animations")
@@ -42,6 +36,32 @@ class _Data:
             if "type" in payload:
                 del payload["type"]
             self._animationData[namePart] = payload
+
+    def loadCommonFunctions(self):
+        commonRoot = os.path.join(".", "Data", "CommonFunctions")
+        if not os.path.exists(commonRoot):
+            raise FileNotFoundError(f"Error: Common function data path {commonRoot} does not exist.")
+        for file in os.listdir(commonRoot):
+            namePart, extensionPart = self.splitCompound(file)
+            if extensionPart != ".dat":
+                continue
+            data = self.__getData(extensionPart, commonRoot, file, {".dat": File.loadData})
+            payload = copy.deepcopy(data)
+            if "type" in payload:
+                del payload["type"]
+            self._commonFunctionsData[namePart] = payload
+
+    def loadTilesets(self):
+        tilesetRoot = os.path.join(".", "Data", "Tilesets")
+        if not os.path.exists(tilesetRoot):
+            raise FileNotFoundError(f"Error: Tileset data path {tilesetRoot} does not exist.")
+        for file in os.listdir(tilesetRoot):
+            namePart, extensionPart = self.splitCompound(file)
+            data = self.__getData(extensionPart, tilesetRoot, file, {".dat": File.loadData})
+            payload = copy.deepcopy(data)
+            if "type" in payload:
+                del payload["type"]
+            self._tilesetData[namePart] = Tileset.fromData(payload)
 
     def __getData(
         self,
@@ -80,6 +100,18 @@ class _Data:
     def getClassData(self, classPath: str) -> Dict[str, Any]:
         return self._classDict.getData(classPath)
 
+    def getCommonFunction(self, name: str) -> Graph:
+        commonRoot = os.path.join(".", "Data", "CommonFunctions")
+        datPath = os.path.join(commonRoot, f"{name}.dat")
+        jsonPath = os.path.join(commonRoot, f"{name}.json")
+        if os.path.exists(datPath):
+            data = File.loadData(datPath)
+            return self.genGraphFromData(data)
+        if os.path.exists(jsonPath):
+            data = File.getJSONData(jsonPath)
+            return self.genGraphFromData(data)
+        raise FileNotFoundError(f"Error: Common function {name} not found in {commonRoot}.")
+
     def genGraphFromData(self, data: Dict[str, Any], parent=None, parentClass=None):
         nodes = {}
         links = {}
@@ -102,13 +134,51 @@ class _Data:
             data["startNodes"],
         )
 
+    def genActorFromData(self, actorData: Dict[str, Any], layerName: str) -> Optional[Actor]:
+        tag = actorData.get("tag", None)
+        position = actorData.get("position", None)
+        translation = actorData.get("translation", None)
+        rotation = actorData.get("rotation", None)
+        scale = actorData.get("scale", None)
+        origin = actorData.get("origin", None)
+        bp = actorData.get("bp", None)
+        if bp is None:
+            print(f"Actor {tag} in layer {layerName} has no bp")
+            return None
+        classModel: Optional[Actor] = self.getClass(bp)
+        if classModel is None:
+            print(f"Actor {tag} in layer {layerName} has no class model")
+            return None
+        texturePath = getattr(classModel, "texturePath")
+        defaultRect = getattr(classModel, "defaultRect")
+        actor: Actor = classModel.GenActor(classModel, texturePath, defaultRect, tag)
+        actor.texturePath = texturePath
+        if position is None:
+            position = getattr(classModel, "defaultPosition", [0, 0])
+        if translation is None:
+            translation = getattr(classModel, "defaultTranslation", [0, 0])
+        if rotation is None:
+            rotation = getattr(classModel, "defaultRotation", 0.0)
+        if scale is None:
+            scale = getattr(classModel, "defaultScale", [1, 1])
+        if origin is None:
+            origin = getattr(classModel, "defaultOrigin", [0, 0])
+        actor.setTranslation(Vector2f(*translation))
+        actor.setRotation(float(rotation))
+        actor.setScale(tuple(scale))
+        actor.setOrigin(tuple(origin))
+        actor.setGraph(self.genGraphFromData(self.getClassData(bp)["graph"], actor, classModel))
+        actor.setMapPosition(Vector2u(*position))
+        return actor
 
+
+_data: _Data = None
 if os.environ.get("IN_EDITOR", None) is None or os.environ.get("WINDOWHANDLE", None) is not None:
     _data = _Data()
 
 
-def loadAnimations():
-    _data.loadAnimations()
+def loadData() -> None:
+    _data.loadData()
 
 
 def getAnimation(name: str) -> Dict[str, Any]:
@@ -127,5 +197,15 @@ def getClassData(classPath: str) -> Dict[str, Any]:
     return _data.getClassData(classPath)
 
 
-def genGraphFromData(data: Dict[str, Any], parent=None, parentClass=None) -> Graph:
+def getCommonFunction(name: str) -> Graph:
+    return _data.getCommonFunction(name)
+
+
+def genGraphFromData(
+    data: Dict[str, Any], parent: Optional[object] = None, parentClass: Optional[type] = None
+) -> Graph:
     return _data.genGraphFromData(data, parent, parentClass)
+
+
+def genActorFromData(actorData: Dict[str, Any], layerName: str) -> Optional[Actor]:
+    return _data.genActorFromData(actorData, layerName)

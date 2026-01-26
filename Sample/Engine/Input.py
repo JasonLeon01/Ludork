@@ -646,31 +646,31 @@ def unblockInput() -> None:
 def getConfirmKeys() -> (
     List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]
 ):
-    return (Key.Enter, Key.Space, Scan.Enter, Scan.Space, JoystickButton.A)
+    return [Key.Enter, Key.Space, Scan.Enter, Scan.Space, JoystickButton.A]
 
 
 def getCancelKeys() -> (
     List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]
 ):
-    return (Key.Escape, Scan.Escape, JoystickButton.B)
+    return [Key.Escape, Scan.Escape, JoystickButton.B]
 
 
 def getUpKeys() -> List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]:
-    return (Key.Up, Scan.Up, (Joystick.Axis.Y, -10.0, float.__lt__))
+    return [Key.Up, Scan.Up, (Joystick.Axis.Y, -10.0, float.__lt__)]
 
 
 def getDownKeys() -> List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]:
-    return (Key.Down, Scan.Down, (Joystick.Axis.Y, 10.0, float.__gt__))
+    return [Key.Down, Scan.Down, (Joystick.Axis.Y, 10.0, float.__gt__)]
 
 
 def getLeftKeys() -> List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]:
-    return (Key.Left, Scan.Left, (Joystick.Axis.X, -10.0, float.__lt__))
+    return [Key.Left, Scan.Left, (Joystick.Axis.X, -10.0, float.__lt__)]
 
 
 def getRightKeys() -> (
     List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]
 ):
-    return (Key.Right, Scan.Right, (Joystick.Axis.X, 10.0, float.__gt__))
+    return [Key.Right, Scan.Right, (Joystick.Axis.X, 10.0, float.__gt__)]
 
 
 def registerActionMapping(

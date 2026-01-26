@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 import os
 import sys
 import subprocess
@@ -26,6 +27,7 @@ FLAGS = [
     "--include-module=psutil",
     "--include-module=pympler.asizeof",
     "--include-module=av",
+    "--include-module=cython",
     "--include-module=PyQt5.QtSvg",
     "--lto=yes",
 ]
@@ -70,6 +72,24 @@ def main():
         print("[STEP] Installing/Updating Nuitka...")
         run([PYTHON, "-m", "pip", "install", "-U", "nuitka"])
 
+    if sys.platform == "win32":
+        launcher_script = ROOT / "launcher.py"
+        launcher_icon = ROOT / "Sample" / "Assets" / "System" / "icon.ico"
+        launcher_cmd = [
+            PYTHON,
+            "-m",
+            "nuitka",
+            "--follow-imports",
+            "--onefile",
+            "--standalone",
+            "--output-filename=Main",
+            "--windows-console-mode=disable",
+            "--plugin-enable=pylint-warnings",
+            f"--windows-icon-from-ico={launcher_icon}",
+            str(launcher_script),
+        ]
+        run(launcher_cmd)
+
     entry_script = ROOT / "main.py"
     run([PYTHON, "-m", "nuitka", *FLAGS, str(entry_script)])
 
@@ -100,6 +120,13 @@ def main():
                 with open(proj_file, "w", encoding="utf-8") as f:
                     f.write("{}")
                 print(f"[INFO] Created clean Main.proj in {dst}")
+
+    if sys.platform == "win32":
+        mainExe = ROOT / "Main.exe"
+        sampleDst = OUTDIR / "main.dist" / "Sample"
+        if mainExe.exists() and sampleDst.exists():
+            shutil.move(str(mainExe), str(sampleDst / "Main.exe"))
+            print(f"[INFO] Moved Main.exe to {sampleDst}")
 
     if sys.platform == "darwin":
         app = OUTDIR / f"{APP_NAME}.app"

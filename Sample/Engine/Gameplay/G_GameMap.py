@@ -470,40 +470,8 @@ class GameMap:
             result.addLight(Light.fromDict(lightData))
         for layerName, actorDatas in actors.items():
             for actorData in actorDatas:
-                tag = actorData.get("tag", None)
-                position = actorData.get("position", None)
-                translation = actorData.get("translation", None)
-                rotation = actorData.get("rotation", None)
-                scale = actorData.get("scale", None)
-                origin = actorData.get("origin", None)
-                bp = actorData.get("bp", None)
-                if bp is None:
-                    print(f"Actor {tag} in layer {layerName} has no bp")
+                actor = Data.genActorFromData(actorData, layerName)
+                if actor is None:
                     continue
-                classModel: Optional[Actor] = Data.getClass(bp)
-                if classModel is None:
-                    print(f"Actor {tag} in layer {layerName} has no class model")
-                    continue
-                texturePath = getattr(classModel, "texturePath")
-                defaultRect = getattr(classModel, "defaultRect")
-                actor: Actor = classModel.GenActor(classModel, texturePath, defaultRect, tag)
-                actor.texturePath = texturePath
-                if position is None:
-                    position = getattr(classModel, "defaultPosition", [0, 0])
-                if translation is None:
-                    translation = getattr(classModel, "defaultTranslation", [0, 0])
-                if rotation is None:
-                    rotation = getattr(classModel, "defaultRotation", 0.0)
-                if scale is None:
-                    scale = getattr(classModel, "defaultScale", [1, 1])
-                if origin is None:
-                    origin = getattr(classModel, "defaultOrigin", [0, 0])
-                actor.setTranslation(Vector2f(*translation))
-                actor.setRotation(float(rotation))
-                actor.setScale(tuple(scale))
-                actor.setOrigin(tuple(origin))
-                actor.setGraph(Data.genGraphFromData(Data.getClassData(bp)["graph"], actor, classModel))
-                actor.setMapPosition(Vector2u(*position))
                 result.spawnActor(actor, layerName)
-
         return result
