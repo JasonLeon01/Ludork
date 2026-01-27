@@ -25,6 +25,11 @@ class JoystickButton(Enum):
     Share = 11
 
 
+class InputType(Enum):
+    Mouse = 0
+    Gamepad = 1
+
+
 Key = Keyboard.Key
 Scan = Keyboard.Scan
 JoystickAxis = Joystick.Axis
@@ -38,6 +43,8 @@ class _EventState:
     Focused: bool = True
     FocusLost: bool = False
     FocusGained: bool = False
+
+    CurrentInputType: InputType = InputType.Mouse
 
     KeyPressed: bool = False
     KeyReleased: bool = False
@@ -74,8 +81,10 @@ class _EventState:
     JoystickDisconnected: bool = False
     JoystickButtonPressedMap: Dict[int, Dict[int, bool]] = {}
     JoystickButtonReleasedMap: Dict[int, Dict[int, bool]] = {}
-    JoystickAxisMovedMap: Dict[int, Tuple[Joystick.Axis, float]] = {}
+    JoystickAxisMovedMap: Dict[int, Dict[Joystick.Axis, float]] = {}
     JoystickAxisStatus: Dict[int, Dict[Joystick.Axis, float]] = {}
+    JoystickLastDominantAxis: Dict[int, Tuple[Joystick.Axis, float]] = {}  # joyId -> (Axis, Value)
+    JoystickAxisJustPressed: Dict[Tuple[int, Joystick.Axis], float] = {}  # (joyId, Axis) -> Value
 
     EnteredText: str = ""
 
@@ -126,6 +135,7 @@ def update(window: WindowBase) -> None:
     _EventState.JoystickButtonPressedMap.clear()
     _EventState.JoystickButtonReleasedMap.clear()
     _EventState.JoystickAxisMovedMap.clear()
+    _EventState.JoystickAxisJustPressed.clear()
 
     _EventState.EnteredText = ""
 
@@ -220,10 +230,12 @@ def update(window: WindowBase) -> None:
             if event.isJoystickMoved():
                 _EventState.JoystickAxisMoved = True
                 joystickMoveEvent = event.getIfJoystickMoved()
-                _EventState.JoystickAxisMovedMap[joystickMoveEvent.joystickId] = (
-                    joystickMoveEvent.axis,
-                    joystickMoveEvent.position,
-                )
+                if joystickMoveEvent.joystickId not in _EventState.JoystickAxisMovedMap:
+                    _EventState.JoystickAxisMovedMap[joystickMoveEvent.joystickId] = {}
+                _EventState.JoystickAxisMovedMap[joystickMoveEvent.joystickId][
+                    joystickMoveEvent.axis
+                ] = joystickMoveEvent.position
+
                 if joystickMoveEvent.joystickId not in _EventState.JoystickAxisStatus:
                     _EventState.JoystickAxisStatus[joystickMoveEvent.joystickId] = {}
                 _EventState.JoystickAxisStatus[joystickMoveEvent.joystickId][
@@ -247,6 +259,51 @@ def update(window: WindowBase) -> None:
             from . import Clipboard
 
             _EventState.EnteredText = Clipboard.getString()
+
+        for joyId, axes in _EventState.JoystickAxisStatus.items():
+            maxAxis = None
+            maxVal = 0.0
+            for axis, val in axes.items():
+                if abs(val) > maxVal:
+                    maxVal = abs(val)
+                    maxAxis = axis
+
+            lastAxis, lastVal = _EventState.JoystickLastDominantAxis.get(joyId, (None, 0.0))
+
+            if maxVal < 10.0:
+                maxAxis = None
+                maxVal = 0.0
+
+            if maxAxis != lastAxis:
+                if maxAxis is not None:
+                    _EventState.JoystickAxisJustPressed[(joyId, maxAxis)] = axes[maxAxis]
+                _EventState.JoystickLastDominantAxis[joyId] = (maxAxis, maxVal)
+            elif maxAxis is not None:
+                _EventState.JoystickLastDominantAxis[joyId] = (maxAxis, axes[maxAxis])
+
+        newInputType = None
+        if _EventState.MouseMoved or _EventState.MouseButtonPressed or _EventState.MouseWheelScrolled:
+            newInputType = InputType.Mouse
+        elif (
+            _EventState.KeyPressed or _EventState.JoystickButtonPressed or len(_EventState.JoystickAxisJustPressed) > 0
+        ):
+            newInputType = InputType.Gamepad
+
+        if newInputType is None and _EventState.JoystickAxisMoved:
+            for joyId, axes in _EventState.JoystickAxisStatus.items():
+                for axis, val in axes.items():
+                    if abs(val) > 10.0:
+                        newInputType = InputType.Gamepad
+                        break
+                if newInputType is not None:
+                    break
+
+        if newInputType is not None and newInputType != _EventState.CurrentInputType:
+            _EventState.CurrentInputType = newInputType
+            try:
+                window.setMouseCursorVisible(newInputType == InputType.Mouse)
+            except AttributeError:
+                pass
 
         moveActions: List[Tuple[Joystick.Axis, float, Callable, List[Any]]] = []
         for actionType, callables in _EventState.ActionMappings.items():
@@ -474,11 +531,10 @@ def getMouseMovedDelta() -> Optional[Vector2i]:
     return _EventState.MouseMovedDelta
 
 
-def setMousePosition(position: Vector2i, relativeTo: Optional[WindowBase] = None) -> None:
-    if relativeTo:
-        Mouse.setPosition(position, relativeTo)
-    else:
-        Mouse.setPosition(position)
+def setMousePosition(position: Vector2i) -> None:
+    from Engine import System
+
+    Mouse.setPosition(position, System.getWindow())
 
 
 def isMouseEntered() -> bool:
@@ -495,6 +551,10 @@ def isJoystickButtonPressed() -> bool:
 
 def isJoystickButtonReleased() -> bool:
     return _EventState.JoystickButtonReleased and not _EventState.JoystickBlocked
+
+
+def isMouseInputMode() -> bool:
+    return _EventState.CurrentInputType == InputType.Mouse
 
 
 def getJoystickButtonPressed(joystickId: int, button: Union[int, JoystickButton], handled: bool) -> bool:
@@ -531,10 +591,15 @@ def getJoystickAxisMoved(joystickId: int, handled: bool) -> Optional[Tuple[Joyst
     if not isJoystickAxisMoved():
         return None
     if joystickId in _EventState.JoystickAxisMovedMap:
-        result = _EventState.JoystickAxisMovedMap[joystickId]
-        if result and handled:
-            _EventState.JoystickAxisMovedMap[joystickId] = None
-        return result
+        axisMap = _EventState.JoystickAxisMovedMap[joystickId]
+        if not axisMap:
+            return None
+        axis, pos = next(iter(axisMap.items()))
+        if handled:
+            del axisMap[axis]
+            if not axisMap:
+                del _EventState.JoystickAxisMovedMap[joystickId]
+        return (axis, pos)
     return None
 
 
@@ -565,6 +630,60 @@ def isKeyTriggered(
         handled_ = True
         _EventState.KeyTriggeredMap[keyMap] = (count, handled_)
     return result
+
+
+def isAnyJoystickButtonTriggered(button: Union[int, JoystickButton], handled: bool = False) -> bool:
+    if not isJoystickButtonPressed():
+        return False
+    if isinstance(button, JoystickButton):
+        button = button.value
+    triggered = False
+    for joyId, buttons in _EventState.JoystickButtonPressedMap.items():
+        if button in buttons and buttons[button]:
+            triggered = True
+            if handled:
+                buttons[button] = False
+    return triggered
+
+
+def isActionTriggered(
+    actionKeys: Tuple[
+        Union[
+            Key,
+            Scan,
+            JoystickButton,
+            Tuple[JoystickAxis, float, Callable[[float, float], None]],
+        ]
+    ],
+    handled: bool = False,
+) -> bool:
+    triggered = False
+    for key in actionKeys:
+        if isinstance(key, (Key, Scan)):
+            if isKeyTriggered(key, handled=handled):
+                triggered = True
+        elif isinstance(key, JoystickButton):
+            if isAnyJoystickButtonTriggered(key, handled=handled):
+                triggered = True
+        elif isinstance(key, tuple):
+            axis, threshold, condition = key
+            triggered_smart = False
+            for (joyId, pressedAxis), pos in _EventState.JoystickAxisJustPressed.items():
+                if pressedAxis == axis and condition(pos, threshold):
+                    triggered_smart = True
+                    break
+
+            if triggered_smart:
+                triggered = True
+            elif isJoystickAxisMoved():
+                is_nav_key = abs(threshold) in [10.0, 50.0]
+                if not is_nav_key:
+                    for joyId, axisMap in _EventState.JoystickAxisMovedMap.items():
+                        if axis in axisMap:
+                            pos = axisMap[axis]
+                            if condition(pos, threshold):
+                                triggered = True
+    return triggered
 
 
 def isMouseButtonTriggered(
@@ -656,25 +775,45 @@ def getCancelKeys() -> (
 
 
 def getUpKeys() -> Tuple[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]:
-    return (Key.Up, Scan.Up, (Joystick.Axis.Y, -10.0, float.__lt__))
+    return (
+        Key.Up,
+        Scan.Up,
+        (Joystick.Axis.Y, -10.0, float.__lt__),
+        (Joystick.Axis.PovY, 50.0, float.__gt__),
+    )
 
 
 def getDownKeys() -> (
     Tuple[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]
 ):
-    return (Key.Down, Scan.Down, (Joystick.Axis.Y, 10.0, float.__gt__))
+    return (
+        Key.Down,
+        Scan.Down,
+        (Joystick.Axis.Y, 10.0, float.__gt__),
+        (Joystick.Axis.PovY, -50.0, float.__lt__),
+    )
 
 
 def getLeftKeys() -> (
     Tuple[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]
 ):
-    return (Key.Left, Scan.Left, (Joystick.Axis.X, -10.0, float.__lt__))
+    return (
+        Key.Left,
+        Scan.Left,
+        (Joystick.Axis.X, -10.0, float.__lt__),
+        (Joystick.Axis.PovX, -50.0, float.__lt__),
+    )
 
 
 def getRightKeys() -> (
     Tuple[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]
 ):
-    return (Key.Right, Scan.Right, (Joystick.Axis.X, 10.0, float.__gt__))
+    return (
+        Key.Right,
+        Scan.Right,
+        (Joystick.Axis.X, 10.0, float.__gt__),
+        (Joystick.Axis.PovX, 50.0, float.__gt__),
+    )
 
 
 def registerActionMapping(

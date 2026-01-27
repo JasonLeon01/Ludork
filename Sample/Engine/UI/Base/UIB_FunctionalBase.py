@@ -84,6 +84,8 @@ class FunctionalBase:
         if hasattr(self, "getAbsoluteBounds"):
             bounds = self.getAbsoluteBounds()
             hovered = bounds.contains(localMousePos)
+        if not Input.isMouseInputMode():
+            hovered = False
         if hovered:
             if not self._isHovered:
                 self._isHovered = True
@@ -98,9 +100,9 @@ class FunctionalBase:
             if self._isHovered:
                 self._isHovered = False
                 self.onUnHover({"position": localMousePos})
-        if Input.isKeyPressed():
+        if Input.isKeyPressed() or Input.isJoystickButtonPressed() or Input.isJoystickAxisMoved():
             self.onKeyDown({})
-        if Input.isKeyReleased():
+        if Input.isKeyReleased() or Input.isJoystickButtonReleased():
             self.onKeyUp({})
 
     def lateUpdate(self, deltaTime: float) -> None:

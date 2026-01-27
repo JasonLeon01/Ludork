@@ -172,9 +172,7 @@ class _Data:
         return actor
 
 
-_data: _Data = None
-if os.environ.get("IN_EDITOR", None) is None or os.environ.get("WINDOWHANDLE", None) is not None:
-    _data = _Data()
+_data = _Data()
 
 
 def loadData() -> None:

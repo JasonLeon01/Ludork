@@ -60,8 +60,3 @@ class LatentManager:
             self._latents = [l for l in self._latents if not (l[0]() is None)]
         else:
             self._latents = [l for l in self._latents if not (l[0]() == graph and l[1] == key and l[4] == index)]
-
-
-latentManager = None
-if os.environ.get("IN_EDITOR", None) is None:
-    latentManager = LatentManager()

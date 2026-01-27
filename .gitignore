@@ -14,4 +14,7 @@ Locale/en_GB
 Locale/zh_CN
 Sample/Main.proj
 Sample/Engine/pysf/
+launcher.build/
+launcher.dist/
+launcher.onefile-build/
 .clangd

@@ -20,11 +20,7 @@ class ClassSelector(QtWidgets.QDialog):
 
     def initUI(self):
         layout = QtWidgets.QVBoxLayout(self)
-
-        # Main content area with two columns
         contentLayout = QtWidgets.QHBoxLayout()
-
-        # Left column: Classes
         leftLayout = QtWidgets.QVBoxLayout()
         leftLabel = QtWidgets.QLabel(Locale.getContent("PROJECT_CLASSES"))
         self.classList = QtWidgets.QListWidget()
@@ -32,8 +28,6 @@ class ClassSelector(QtWidgets.QDialog):
         leftLayout.addWidget(leftLabel)
         leftLayout.addWidget(self.classList)
         contentLayout.addLayout(leftLayout)
-
-        # Right column: Blueprints
         rightLayout = QtWidgets.QVBoxLayout()
         rightLabel = QtWidgets.QLabel(Locale.getContent("PROJECT_BLUEPRINT"))
         self.blueprintList = QtWidgets.QListWidget()
@@ -41,20 +35,14 @@ class ClassSelector(QtWidgets.QDialog):
         rightLayout.addWidget(rightLabel)
         rightLayout.addWidget(self.blueprintList)
         contentLayout.addLayout(rightLayout)
-
         layout.addLayout(contentLayout)
-
-        # Bottom buttons
         btnLayout = QtWidgets.QHBoxLayout()
         btnLayout.addStretch()
-
         self.btnOk = QtWidgets.QPushButton(Locale.getContent("CONFIRM"))
         self.btnOk.clicked.connect(self.accept)
         self.btnOk.setEnabled(False)
-
         self.btnCancel = QtWidgets.QPushButton(Locale.getContent("CANCEL"))
         self.btnCancel.clicked.connect(self.reject)
-
         btnLayout.addWidget(self.btnOk)
         btnLayout.addWidget(self.btnCancel)
         layout.addLayout(btnLayout)
@@ -66,7 +54,6 @@ class ClassSelector(QtWidgets.QDialog):
     def scanClasses(self):
         self.classList.clear()
 
-        # Ensure project path is in sys.path
         if EditorStatus.PROJ_PATH not in sys.path:
             sys.path.append(EditorStatus.PROJ_PATH)
 
@@ -80,25 +67,21 @@ class ClassSelector(QtWidgets.QDialog):
                 continue
 
             for dirpath, dirnames, filenames in os.walk(rootPath):
-                # Calculate module path
                 relPath = os.path.relpath(dirpath, EditorStatus.PROJ_PATH)
                 if relPath == ".":
                     continue
 
                 packagePath = relPath.replace(os.sep, ".")
 
-                # Scan package if __init__.py exists
                 if "__init__.py" in filenames:
                     self._scanModule(packagePath, found_classes, is_package=True)
 
-                # Scan individual modules
                 for filename in filenames:
                     if filename.endswith(".py") and filename != "__init__.py":
                         moduleName = os.path.splitext(filename)[0]
                         fullModulePath = f"{packagePath}.{moduleName}"
                         self._scanModule(fullModulePath, found_classes, is_package=False)
 
-        # Populate list
         sorted_paths = sorted(found_classes.values())
         for path in sorted_paths:
             self.classList.addItem(path)
@@ -109,14 +92,10 @@ class ClassSelector(QtWidgets.QDialog):
             for name, obj in inspect.getmembers(module, inspect.isclass):
                 if name.startswith("_"):
                     continue
-
-                # Check if class belongs to project (Engine or Source)
                 if not obj.__module__:
                     continue
                 if not (obj.__module__.startswith("Engine") or obj.__module__.startswith("Source")):
                     continue
-
-                # Rule: Only accept Definition or Ancestor Package Alias
                 is_definition = modulePath == obj.__module__
                 is_ancestor = is_package and obj.__module__.startswith(modulePath + ".")
 
@@ -133,11 +112,9 @@ class ClassSelector(QtWidgets.QDialog):
             return
 
         current = found_classes[cls]
-        # Priority 1: Depth (fewer dots is better)
         if path.count(".") < current.count("."):
             found_classes[cls] = path
         elif path.count(".") == current.count("."):
-            # Priority 2: Length (shorter is better)
             if len(path) < len(current):
                 found_classes[cls] = path
 

@@ -4,6 +4,7 @@ import os
 import sys
 import subprocess
 import shutil
+import Cython
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -11,10 +12,19 @@ VENV_NAME = "LudorkEnv"
 PYTHON = ROOT / VENV_NAME / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python3")
 OUTDIR = ROOT / "build"
 
+COMPANY_NAME = "Metempsychosis Game Studio"
 APP_NAME = "Ludork"
+VERSION = "1.0.0.0"
+COPYRIGHT = "Copyright (c) 2026 Ludork"
 FLAGS = [
     "--remove-output",
     f"--output-dir={OUTDIR}",
+    f"--company-name={COMPANY_NAME}",
+    f"--product-name={APP_NAME}",
+    f"--file-version={VERSION}",
+    f"--product-version={VERSION}",
+    f"--file-description={APP_NAME} Editor",
+    f"--copyright={COPYRIGHT}",
     "--enable-plugin=pyqt5",
     "--include-qt-plugins=platforms,styles,iconengines,imageformats",
     "--include-package-data=qt_material",
@@ -27,8 +37,8 @@ FLAGS = [
     "--include-module=psutil",
     "--include-module=pympler.asizeof",
     "--include-module=av",
-    "--include-module=cython",
     "--include-module=PyQt5.QtSvg",
+    "--nofollow-import-to=Cython",
     "--lto=yes",
 ]
 
@@ -79,12 +89,19 @@ def main():
             PYTHON,
             "-m",
             "nuitka",
+            f"--company-name={COMPANY_NAME}",
+            f"--product-name={APP_NAME}",
+            f"--file-version={VERSION}",
+            f"--product-version={VERSION}",
+            f"--file-description={APP_NAME} Launcher",
+            f"--copyright={COPYRIGHT}",
             "--follow-imports",
             "--onefile",
             "--standalone",
             "--output-filename=Main",
             "--windows-console-mode=disable",
             "--plugin-enable=pylint-warnings",
+            "--include-module=asyncio",
             f"--windows-icon-from-ico={launcher_icon}",
             str(launcher_script),
         ]
@@ -120,6 +137,17 @@ def main():
                 with open(proj_file, "w", encoding="utf-8") as f:
                     f.write("{}")
                 print(f"[INFO] Created clean Main.proj in {dst}")
+
+    cython_src = os.path.dirname(Cython.__file__)
+    if sys.platform == "win32":
+        cython_dst = OUTDIR / "main.dist" / "Cython"
+    else:
+        cython_dst = OUTDIR / "main.app" / "Contents" / "MacOS" / "Cython"
+
+    if cython_dst.exists():
+        shutil.rmtree(cython_dst)
+    shutil.copytree(cython_src, cython_dst)
+    print(f"[INFO] Copied Cython to {cython_dst}")
 
     if sys.platform == "win32":
         mainExe = ROOT / "Main.exe"

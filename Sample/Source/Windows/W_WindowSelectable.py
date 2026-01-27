@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import Optional, Union, Tuple, Dict, Any
-from Engine import Image, IntRect, Vector2f, Vector2i, Input, View
+from Engine import Image, IntRect, Vector2f, Vector2i, Input, View, FloatRect
 from Engine.UI import Rect, ListView
 from Engine.Utils import Math
 from Engine.UI.Base import ControlBase, FunctionalBase
@@ -34,7 +34,6 @@ class WindowSelectable(WindowBase):
                 Vector2i(self._rectWidth, self._rectHeight),
             )
         )
-        self._mouseCursorSelect = True
 
     def getListView(self) -> Optional[ListView]:
         return self._listView
@@ -62,6 +61,10 @@ class WindowSelectable(WindowBase):
             self.content.addChild(self._rect)
         if self._isHovered:
             for index, child in enumerate(self._listView.getChildren()):
+                if isinstance(child, FunctionalBase):
+                    if child.isHovered():
+                        self.index = index
+            for index, child in enumerate(self._listView.getChildren()):
                 if self.index == index:
                     if isinstance(child, FunctionalBase):
                         if self._judgeIfConfirm(child):
@@ -71,38 +74,46 @@ class WindowSelectable(WindowBase):
     def onMouseWheelScrolled(self, kwargs: Dict[str, Any]):
         if not (self._listView and len(self._listView.getChildren()) > 0 and not self.index is None):
             return
-        self._mouseCursorSelect = False
         delta = kwargs["delta"]
         if delta > 0:
             self.index = max(0, self.index - 1)
         elif delta < 0:
             self.index = min(self._itemCount() - 1, self.index + 1)
+        targetChild = self._listView.getChildren()[self.index]
+        if hasattr(targetChild, "getAbsoluteBounds"):
+            bounds: FloatRect = targetChild.getAbsoluteBounds()
+            Input.setMousePosition(Math.ToVector2i(bounds.position + bounds.size / 2))
 
     def onMouseMoved(self, kwargs: Dict[str, Any]):
-        self._mouseCursorSelect = True
+        pass
 
     def onKeyDown(self, kwargs: Dict[str, Any]):
         if not (self._listView and len(self._listView.getChildren()) > 0 and not self.index is None):
             return
+
+        if Input.isActionTriggered(Input.getConfirmKeys(), handled=True):
+            children = self._listView.getChildren()
+            if 0 <= self.index < len(children):
+                child = children[self.index]
+                if isinstance(child, FunctionalBase):
+                    child.onConfirm({})
+            return
+
         columns = self._getColumns()
-        if Input.isKeyTriggered(Input.Key.Up, handled=True):
-            self._mouseCursorSelect = False
+        if Input.isActionTriggered(Input.getUpKeys(), handled=True):
             if columns == 1:
                 self.index = (self.index - 1) % self._itemCount()
             else:
                 self.index = max(0, self.index - columns)
-        elif Input.isKeyTriggered(Input.Key.Down, handled=True):
-            self._mouseCursorSelect = False
+        elif Input.isActionTriggered(Input.getDownKeys(), handled=True):
             if columns == 1:
                 self.index = (self.index + 1) % self._itemCount()
             else:
                 self.index = min(self._itemCount() - 1, self.index + columns)
-        elif Input.isKeyTriggered(Input.Key.Left, handled=True):
-            self._mouseCursorSelect = False
+        elif Input.isActionTriggered(Input.getLeftKeys(), handled=True):
             if columns != 1:
                 self.index = max(0, self.index - 1)
-        elif Input.isKeyTriggered(Input.Key.Right, handled=True):
-            self._mouseCursorSelect = False
+        elif Input.isActionTriggered(Input.getRightKeys(), handled=True):
             if columns != 1:
                 self.index = min(self._itemCount() - 1, self.index + 1)
 
@@ -154,9 +165,6 @@ class WindowSelectable(WindowBase):
         self.content.setView(View(Vector2f(originX, originY) + viewSize / 2, viewSize))
 
     def _judgeIfConfirm(self, target: FunctionalBase):
-        if target.isHovered() and self._mouseCursorSelect and Input.isMouseButtonTriggered(Input.Mouse.Button.Left):
+        if target.isHovered() and Input.isMouseInputMode() and Input.isMouseButtonTriggered(Input.Mouse.Button.Left):
             return True
-        for key in Input.getConfirmKeys():
-            if Input.isKeyTriggered(key, handled=True):
-                return True
         return False

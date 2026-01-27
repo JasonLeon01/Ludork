@@ -320,7 +320,12 @@ class MainWindow(QtWidgets.QMainWindow):
             stdin=subprocess.PIPE,
             text=True,
             bufsize=1,
-            env=dict(EditorStatus.CLEAN_ENVIRON, WINDOWHANDLE=windowhandle, INDIVIDUAL=individual),
+            env=dict(
+                EditorStatus.CLEAN_ENVIRON,
+                WINDOWHANDLE=windowhandle,
+                INDIVIDUAL=individual,
+                PYTHONUNBUFFERED="1",
+            ),
         )
         self.consoleWidget.attach_process(self._engineProc)
         self.tabWidget.setCurrentWidget(self.consoleWidget)
@@ -1329,7 +1334,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         distPath = os.path.join(projPath, "dist")
 
-        # Collect Python files
         pyFiles = []
         for base in ("Engine", "Source"):
             basePath = os.path.join(projPath, base)
@@ -1343,7 +1347,6 @@ class MainWindow(QtWidgets.QMainWindow):
                         pyFiles.append(os.path.join(root, name))
         pyFiles.append(entryPath)
 
-        # Collect existing artifacts
         existing_pyds = set()
         existing_c_files = set()
         for root, _, files in os.walk(projPath):
@@ -1354,7 +1357,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 elif f.lower().endswith(".c"):
                     existing_c_files.add(path)
 
-        # Setup Progress Dialog and Worker
         self._packDialog = LogDialog(self)
         self._packDialog.setWindowModality(QtCore.Qt.ApplicationModal)
         self._packWorker = PackWorker(projPath, pyFiles, existing_pyds, existing_c_files, distPath)
@@ -1535,14 +1537,12 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             clsObj = GameData.classDict.get(parentClass, EditorStatus.PROJ_PATH)
             if clsObj:
-                # Resolve Events
                 for name in dir(clsObj):
                     attr = getattr(clsObj, name)
                     if getattr(attr, "_eventSignature", False):
                         startNodes[name] = None
                         nodeGraph[name] = {"nodes": [], "links": []}
 
-                # Resolve Attributes
                 mro = inspect.getmro(clsObj)
                 for cls in reversed(mro):
                     if cls is object:

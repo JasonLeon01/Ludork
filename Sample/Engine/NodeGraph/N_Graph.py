@@ -4,7 +4,6 @@ from __future__ import annotations
 import inspect
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from .N_Node import DataNode, Node
-from .N_LatentManager import latentManager
 
 
 class Graph:
@@ -89,6 +88,10 @@ class Graph:
                     self.nodeNexts[key][left][leftOutPin] = (right, rightInPin)
 
     def execute(self, key: str, startNode: Optional[int] = None, limit=1000000) -> Tuple[Any, ...]:
+        from Engine import System
+
+        latentManager = System.getLatentManager()
+
         self.doingPartKey = key
         if key not in self.nodes:
             raise KeyError(f"Graph key '{key}' not found")

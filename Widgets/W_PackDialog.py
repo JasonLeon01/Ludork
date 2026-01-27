@@ -80,13 +80,11 @@ class PackWorker(QtCore.QThread):
 
         old_cwd = os.getcwd()
         try:
-            # 1. Prepare dist directory
             self.log_signal.emit(f"Preparing dist directory: {self.distPath}...\n")
             if os.path.exists(self.distPath):
                 shutil.rmtree(self.distPath)
             os.makedirs(self.distPath, exist_ok=True)
 
-            # 2. Clean previous build artifacts if any
             buildPath = os.path.join(self.projPath, "build")
             if os.path.exists(buildPath):
                 shutil.rmtree(buildPath)
@@ -94,7 +92,6 @@ class PackWorker(QtCore.QThread):
             self.log_signal.emit(f"Starting build in {self.projPath}...\n")
             os.chdir(self.projPath)
 
-            # 3. Compile
             rel_py_files = [os.path.relpath(p, self.projPath) for p in self.pyFiles]
             dist = Distribution(
                 {
@@ -112,29 +109,19 @@ class PackWorker(QtCore.QThread):
 
             self.log_signal.emit("\nBuild finished. Cleaning up and moving files...\n")
 
-            # 4. Move .pyd to dist and cleanup .c
-            # Also cleanup build directory created by setup.py
             if os.path.exists(buildPath):
                 shutil.rmtree(buildPath)
                 self.log_signal.emit("Removed build directory.\n")
 
-            # Iterate over pyFiles to find corresponding .c and .pyd
             for pyFile in self.pyFiles:
-                # Cleanup .c
                 cFile = os.path.splitext(pyFile)[0] + ".c"
                 cFileAbs = os.path.abspath(cFile)
                 if os.path.exists(cFileAbs) and cFileAbs not in self.existing_c_files:
                     os.remove(cFileAbs)
-                    # self.log_signal.emit(f"Removed temp file: {os.path.basename(cFileAbs)}\n")
-
-                # Move .pyd
-                # Note: Extension might vary (.pyd on Windows, .so on Linux/Mac)
-                # On Windows it's usually .cp3x-win_amd64.pyd
                 baseName = os.path.splitext(pyFile)[0]
                 dirName = os.path.dirname(baseName)
                 fileName = os.path.basename(baseName)
 
-                # Find the generated pyd file in the directory
                 foundPyd = False
                 if os.path.exists(dirName):
                     for f in os.listdir(dirName):
@@ -151,15 +138,12 @@ class PackWorker(QtCore.QThread):
                 if not foundPyd:
                     self.log_signal.emit(f"Warning: No .pyd found for {os.path.basename(pyFile)}\n")
 
-            # 5. Copy other assets and binaries
-            # Exclude dist and build and .py files that were compiled
             compiled_py_set = set(os.path.abspath(p) for p in self.pyFiles)
             distPathAbs = os.path.abspath(self.distPath)
 
             for root, dirs, files in os.walk(self.projPath):
                 rootAbs = os.path.abspath(root)
 
-                # Skip dist and build directories
                 if rootAbs.startswith(distPathAbs) or rootAbs == distPathAbs:
                     dirs.clear()
                     continue
@@ -174,35 +158,20 @@ class PackWorker(QtCore.QThread):
                 for name in files:
                     fileAbs = os.path.join(rootAbs, name)
 
-                    # Skip compiled .py files
                     if fileAbs in compiled_py_set:
                         continue
 
-                    # Skip .c files that might be left over (though we tried to delete them)
                     if name.endswith(".c"):
                         continue
 
-                    # Copy everything else?
-                    # Wait, we only want specific things or EVERYTHING except source code?
-                    # User said: "然后把所有的pyd、dll文件也按层级复制... 然后把Assets, Data, Main.ini, Main.exe复制进去"
-                    # So we should copy pre-existing pyd/dlls, and specific folders/files.
-                    # But what about other random files?
-                    # The instruction implies:
-                    # 1. Compiled code (.pyd from source) -> Done above.
-                    # 2. Existing .pyd/.dll (libraries) -> Copy now.
-                    # 3. Assets, Data, Main.ini, Main.exe -> Copy specifically.
-
-                    # Let's follow the "binary files" logic for pyd/dll
                     ext = os.path.splitext(name)[1].lower()
                     if ext in (".pyd", ".dll"):
                         rel = os.path.relpath(fileAbs, self.projPath)
                         dst = os.path.join(self.distPath, rel)
-                        # Only copy if not already there (we moved compiled pyds there)
                         if not os.path.exists(dst):
                             os.makedirs(os.path.dirname(dst), exist_ok=True)
                             shutil.copy2(fileAbs, dst)
 
-            # 6. Copy specific folders/files
             missingItems = []
             for name in ("Assets", "Data"):
                 src = os.path.join(self.projPath, name)

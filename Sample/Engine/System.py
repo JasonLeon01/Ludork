@@ -24,6 +24,7 @@ from . import (
     Style,
     ContextSettings,
 )
+from .NodeGraph import LatentManager
 from .SceneBase import SceneBase
 from .Utils import Math, File, Render
 
@@ -74,6 +75,7 @@ class System:
     _transitionFrozen: bool = False
     _transitionFreezePending: bool = False
     _scenes: List[SceneBase] = None
+    _latentManager: LatentManager = None
     _variables: Dict[str, Any] = {}
     _debugMode: bool = False
 
@@ -154,6 +156,7 @@ class System:
         cls._window.clear(Color.Transparent)
         if cls._transitionShaderPath:
             cls._transitionShader = Shader(cls._transitionShaderPath, Shader.Type.Fragment)
+        cls._latentManager = LatentManager()
 
     @classmethod
     def isActive(cls) -> bool:
@@ -230,11 +233,7 @@ class System:
         if cls._inTransition:
             if cls._transitionTimeCount >= cls._transitionTime:
                 cls._inTransition = False
-
-        from Engine.NodeGraph import latentManager
-
-        if latentManager:
-            latentManager.update()
+        cls._latentManager.update()
 
     @classmethod
     def getTitle(cls) -> str:
@@ -446,6 +445,10 @@ class System:
     @classmethod
     def setVariable(cls, name: str, value: Any) -> None:
         cls._variables[name] = value
+
+    @classmethod
+    def getLatentManager(cls) -> LatentManager:
+        return cls._latentManager
 
     @classmethod
     def isDebugMode(cls) -> bool:

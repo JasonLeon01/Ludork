@@ -15,7 +15,6 @@ from Utils import Locale, System, File
 import EditorStatus
 
 START_PROJ_FILE = None
-os.environ["IN_EDITOR"] = "True"
 
 
 def initConfig():
@@ -40,6 +39,10 @@ def initConfig():
 
 
 def main():
+    if System.alreadyPacked():
+        app_dir = os.path.dirname(sys.executable)
+        if app_dir not in sys.path:
+            sys.path.insert(0, app_dir)
     icon_path = "./Resource/icon.ico"
     QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
     QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)

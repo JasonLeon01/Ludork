@@ -35,11 +35,3 @@ class WindowCommand(WindowSelectable):
 
     def onMouseWheelScrolled(self, kwargs: Dict[str, Any]):
         super().onMouseWheelScrolled(kwargs)
-
-    def update(self, deltaTime: float) -> None:
-        if self._mouseCursorSelect:
-            for index, item in enumerate(self._listView.getChildren()):
-                if isinstance(item, FunctionalBase):
-                    if item.isHovered():
-                        self.index = index
-        super().update(deltaTime)

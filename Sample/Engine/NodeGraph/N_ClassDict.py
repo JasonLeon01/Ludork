@@ -23,7 +23,15 @@ class ClassDict:
             try:
                 moduleSpec = importlib.util.find_spec(modulePath)
                 module = None
-                if not moduleSpec is None and not moduleSpec.origin is None and moduleSpec.origin.endswith(".py"):
+                if (
+                    not moduleSpec is None
+                    and not moduleSpec.origin is None
+                    and (
+                        moduleSpec.origin.endswith(".py")
+                        or moduleSpec.origin.endswith(".pyd")
+                        or moduleSpec.origin.endswith(".so")
+                    )
+                ):
                     module = importlib.import_module(modulePath)
                     if hasattr(module, className):
                         self._dict[classPath] = getattr(module, className)
