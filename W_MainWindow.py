@@ -32,18 +32,11 @@ from Widgets import (
     AnimationWindow,
     LogDialog,
     PackWorker,
+    PackSelectionDialog,
 )
 from Widgets.Utils import MapEditDialog, SingleRowDialog, Toast
 import EditorStatus
 from Data import GameData
-
-try:
-    from Cython.Build import cythonize
-    from setuptools import Distribution
-
-    HAS_CYTHON = True
-except ImportError:
-    HAS_CYTHON = False
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -1245,80 +1238,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if not projPath or not os.path.exists(projPath):
             QtWidgets.QMessageBox.warning(self, Locale.getContent("PACK_TITLE"), Locale.getContent("PACK_NO_PROJECT"))
             return
-        if sys.platform == "darwin":
-            self.packProjectDarwin(projPath)
-            return
-        if sys.platform == "win32":
-            self.packProjectWin32(projPath)
-            return
-        QtWidgets.QMessageBox.warning(self, Locale.getContent("PACK_TITLE"), Locale.getContent("PACK_UNSUPPORTED"))
 
-    def packProjectDarwin(self, projPath: str) -> None:
-        entryPath = os.path.join(projPath, "Entry.py")
-        if not os.path.exists(entryPath):
-            QtWidgets.QMessageBox.warning(
-                self, Locale.getContent("PACK_TITLE"), Locale.getContent("PACK_ENTRY_MISSING")
-            )
-            return
-        pythonExe = "python3.10"
-        versionResult = subprocess.run(
-            [pythonExe, "-c", "import sys;print(sys.version_info[:3])"],
-            capture_output=True,
-            text=True,
-        )
-        if versionResult.returncode != 0:
-            QtWidgets.QMessageBox.warning(
-                self, Locale.getContent("PACK_TITLE"), Locale.getContent("PACK_PYTHON_MISSING")
-            )
-            return
-        try:
-            versionTuple = ast.literal_eval(versionResult.stdout.strip())
-        except Exception:
-            QtWidgets.QMessageBox.warning(
-                self, Locale.getContent("PACK_TITLE"), Locale.getContent("PACK_PYTHON_MISSING")
-            )
-            return
-        if versionTuple != (3, 10, 0):
-            QtWidgets.QMessageBox.warning(
-                self, Locale.getContent("PACK_TITLE"), Locale.getContent("PACK_PYTHON_VERSION")
-            )
-            return
-        nuitkaCheck = subprocess.run(
-            [pythonExe, "-m", "pip", "show", "nuitka"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        if nuitkaCheck.returncode != 0:
-            QtWidgets.QMessageBox.warning(
-                self, Locale.getContent("PACK_TITLE"), Locale.getContent("PACK_NUITKA_MISSING")
-            )
-            return
-        appName = os.path.basename(os.path.abspath(projPath)) or "LudorkGame"
-        cmd = [
-            pythonExe,
-            "-m",
-            "nuitka",
-            "--remove-output",
-            "--follow-imports",
-            "--mode=app",
-            f"--output-dir={projPath}",
-            f"--macos-app-name={appName}",
-            f"--output-filename={appName}",
-            "--include-data-dir=Assets=Assets",
-            "--include-data-dir=Data=Data",
-            "--include-data-file=Main.ini=Main.ini",
-            entryPath,
-        ]
-        self.toast.showMessage(Locale.getContent("PACK_START"))
-        result = subprocess.run(cmd, cwd=projPath)
-        if result.returncode != 0:
-            QtWidgets.QMessageBox.warning(
-                self, Locale.getContent("PACK_TITLE"), Locale.getContent("PACK_NUITKA_FAILED")
-            )
-            return
-        self.toast.showMessage(Locale.getContent("PACK_SUCCESS"))
-
-    def packProjectWin32(self, projPath: str) -> None:
         entryPath = os.path.join(projPath, "Entry.py")
         if not os.path.exists(entryPath):
             QtWidgets.QMessageBox.warning(
@@ -1326,40 +1246,16 @@ class MainWindow(QtWidgets.QMainWindow):
             )
             return
 
-        if not HAS_CYTHON:
-            QtWidgets.QMessageBox.warning(
-                self, Locale.getContent("PACK_TITLE"), Locale.getContent("PACK_CYTHON_MISSING")
-            )
+        selDlg = PackSelectionDialog(self)
+        if selDlg.exec_() != QtWidgets.QDialog.Accepted:
             return
 
+        mode = selDlg.getSelectedMode()
         distPath = os.path.join(projPath, "dist")
-
-        pyFiles = []
-        for base in ("Engine", "Source"):
-            basePath = os.path.join(projPath, base)
-            if not os.path.exists(basePath):
-                continue
-            for root, dirs, files in os.walk(basePath):
-                if "__pycache__" in dirs:
-                    dirs.remove("__pycache__")
-                for name in files:
-                    if name.endswith(".py"):
-                        pyFiles.append(os.path.join(root, name))
-        pyFiles.append(entryPath)
-
-        existing_pyds = set()
-        existing_c_files = set()
-        for root, _, files in os.walk(projPath):
-            for f in files:
-                path = os.path.abspath(os.path.join(root, f))
-                if f.lower().endswith(".pyd"):
-                    existing_pyds.add(path)
-                elif f.lower().endswith(".c"):
-                    existing_c_files.add(path)
 
         self._packDialog = LogDialog(self)
         self._packDialog.setWindowModality(QtCore.Qt.ApplicationModal)
-        self._packWorker = PackWorker(projPath, pyFiles, existing_pyds, existing_c_files, distPath)
+        self._packWorker = PackWorker(projPath, distPath, mode)
 
         self._packWorker.log_signal.connect(self._packDialog.appendLog)
         self._packWorker.finished_signal.connect(self._packDialog.finish)

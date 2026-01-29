@@ -15,4 +15,4 @@ from .W_BlueprintEditor import BluePrintEditor
 from .W_ClassSelector import ClassSelector
 from .W_ActorInfo import ActorInfoPanel
 from .W_AnimationWindow import AnimationWindow
-from .W_PackDialog import LogDialog, PackWorker
+from .W_PackDialog import LogDialog, PackWorker, PackSelectionDialog

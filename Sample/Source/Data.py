@@ -2,8 +2,9 @@
 
 import copy
 import os
+import zlib
 from typing import Any, Callable, Dict, Optional
-from Engine import Vector2f, Vector2u
+from Engine import Vector2f, Vector2u, Image
 from Engine.Gameplay import Tileset
 from Engine.Gameplay.Actors import Actor
 from Engine.Utils import File
@@ -36,6 +37,7 @@ class _Data:
             if "type" in payload:
                 del payload["type"]
             self._animationData[namePart] = payload
+            self._cacheAnimation(namePart, payload)
 
     def loadCommonFunctions(self):
         commonRoot = os.path.join(".", "Data", "CommonFunctions")
@@ -62,6 +64,26 @@ class _Data:
             if "type" in payload:
                 del payload["type"]
             self._tilesetData[namePart] = Tileset.fromData(payload)
+
+    def _cacheAnimation(self, name: str, data: Dict[str, Any]):
+        if name in self._animCache:
+            return
+
+        cachedData = copy.deepcopy(data)
+        frames = cachedData.get("frames", [])
+        for i, frameData in enumerate(frames):
+            if frameData and not isinstance(frameData, Image):
+                try:
+                    memoryData = zlib.decompress(frameData)
+                    image = Image()
+                    if image.loadFromMemory(memoryData, len(memoryData)):
+                        frames[i] = image
+                except Exception:
+                    pass
+
+        cachedData["cacheKey"] = name
+        cachedData["cacheStore"] = self._animCache
+        self._animCache[name] = cachedData
 
     def __getData(
         self,

@@ -55,6 +55,22 @@
         "zh_CN": "打包项目",
         "en_GB": "Package Project"
     },
+    "PACK_MODE_TITLE": {
+        "zh_CN": "选择打包模式",
+        "en_GB": "Select Packaging Mode"
+    },
+    "PACK_MODE_SIMPLE": {
+        "zh_CN": "简单打包 (仅复制文件)",
+        "en_GB": "Simple Packaging (Copy Files Only)"
+    },
+    "PACK_MODE_FULL": {
+        "zh_CN": "完整编译 (Nuitka)",
+        "en_GB": "Full Compilation (Nuitka)"
+    },
+    "PACK_MODE_DESC": {
+        "zh_CN": "简单打包将直接复制项目文件，适合快速测试。\n完整编译将使用Nuitka生成独立可执行文件，适合发布。",
+        "en_GB": "Simple packaging copies files for quick testing.\nFull compilation uses Nuitka to generate a standalone executable for release."
+    },
     "PACK_TITLE": {
         "zh_CN": "打包",
         "en_GB": "Packaging"
