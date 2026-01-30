@@ -1,9 +1,9 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from . import A_Base
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
 from ... import Vector2f, Vector2i, Vector2u, GetCellSize, ExecSplit, ReturnType, RegisterEvent, PathVars, RectRangeVars
+from ..G_Material import Material
 from ...Utils import Math
 from .A_Base import _ActorBase
 
@@ -14,21 +14,24 @@ if TYPE_CHECKING:
 @PathVars("texturePath")
 @RectRangeVars(defaultRect="texturePath")
 class Actor(_ActorBase):
+    collisionEnabled: bool = False
+    tickable: bool = False
+    speed: float = 64.0
+    ### Generation use only
+    texturePath: str = ""
+    defaultRect: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = ((0, 0), (32, 32))
+    defaultTranslation: Tuple[float, float] = (0.0, 0.0)
+    defaultRotation: float = 0.0
+    defaultScale: Tuple[float, float] = (1.0, 1.0)
+    defaultOrigin: Tuple[float, float] = (0.0, 0.0)
+    ### Generation use only
+
     def __init__(
         self,
         texture: Optional[Union[Texture, List[Texture]]] = None,
         rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]] = None,
         tag: Optional[str] = None,
     ) -> None:
-        ### Generation use only
-        self.texturePath: str = ""
-        self.defaultRect: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = ((0, 0), (32, 32))
-        self.defaultTranslation: Tuple[float, float] = (0.0, 0.0)
-        self.defaultRotation: float = 0.0
-        self.defaultScale: Tuple[float, float] = (1.0, 1.0)
-        self.defaultOrigin: Tuple[float, float] = (0.0, 0.0)
-        ### Generation use only
-
         super().__init__(texture, rect, tag)
         self.collisionEnabled: bool = False
         self.tickable: bool = False
@@ -93,8 +96,8 @@ class Actor(_ActorBase):
         self._map.destroyActor(self)
 
     @ExecSplit(success=(True,), fail=(False,))
-    def MapMove(self, offset: Union[Vector2i, Tuple[int, int]]) -> None:
-        assert isinstance(offset, (Vector2i, Tuple)), "offset must be a tuple or Vector2i"
+    def MapMove(self, offset: Union[Vector2i, Tuple[int, int], List[int]]) -> None:
+        assert isinstance(offset, (Vector2i, Tuple, List)), "offset must be a tuple, list, or Vector2i"
         if not isinstance(offset, Vector2i):
             x, y = offset
             offset = Vector2i(x, y)
@@ -295,7 +298,9 @@ class Actor(_ActorBase):
     ) -> Actor:
         from Engine import Manager
 
-        actor = ActorModel(Manager.loadCharacter(textureStr), textureRect, tag)
+        actor: Actor = ActorModel(Manager.loadCharacter(textureStr), textureRect, tag)
+        if isinstance(actor.material, dict):
+            actor.material = Material(**actor.material)
         return actor
 
     def _processMoving(self, fixedDelta: float) -> None:

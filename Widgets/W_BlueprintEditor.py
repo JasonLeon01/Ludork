@@ -2,11 +2,12 @@
 
 import os
 import copy
-from typing import Any, Dict, Optional, Set
+import dataclasses
+from typing import Any, Dict, Optional, Set, get_type_hints
 from PyQt5 import QtWidgets, QtCore, QtGui
 import EditorStatus
 from Utils import System, Locale, File
-from Widgets.Utils import SingleRowDialog, NodePanel, Toast, RectViewer
+from Widgets.Utils import SingleRowDialog, NodePanel, Toast, RectViewer, DataclassWidget
 from Data import GameData
 
 
@@ -141,6 +142,16 @@ class BluePrintEditor(QtWidgets.QWidget):
         while self.formLayout.rowCount() > 0:
             self.formLayout.removeRow(0)
 
+        # Get class and type hints
+        key_path = os.path.join("Data", "Blueprints", self.title).replace("/", ".").replace("\\", ".")
+        cls = GameData.classDict.get(key_path, EditorStatus.PROJ_PATH)
+        type_hints = {}
+        if cls and cls is not EditorStatus.PROJ_PATH:
+            try:
+                type_hints = get_type_hints(cls)
+            except:
+                type_hints = getattr(cls, "__annotations__", {})
+
         parent_val = self.data.get("parent", "")
         label = QtWidgets.QLabel(Locale.getContent("PARENT"))
         widget = self.createInputWidget("parent", parent_val, isAttr=False)
@@ -162,12 +173,23 @@ class BluePrintEditor(QtWidgets.QWidget):
             hbox.setContentsMargins(0, 0, 0, 0)
             hbox.setSpacing(4)
 
-            widget = self.createInputWidget(key, value)
+            is_dc = False
+            type_hint = type_hints.get(key)
+            if type_hint and dataclasses.is_dataclass(type_hint):
+                widget = DataclassWidget(type_hint, value)
+                widget.valueChanged.connect(lambda val, k=key: self.onDataChanged(k, val, True))
+                is_dc = True
+            else:
+                widget = self.createInputWidget(key, value)
+
             isInvalid = key in self.invalidVars
             isRectRange = key in self.rectRangeVars and not isInvalid
             isPath = key in self.pathVars and not isInvalid and not isRectRange
 
-            if isinstance(widget, QtWidgets.QLineEdit):
+            if is_dc:
+                if isInvalid:
+                    widget.setEnabled(False)
+            elif isinstance(widget, QtWidgets.QLineEdit):
                 if isInvalid or isPath or isRectRange:
                     widget.setReadOnly(True)
                     widget.setStyleSheet("background-color: #303030; color: #aaaaaa;")

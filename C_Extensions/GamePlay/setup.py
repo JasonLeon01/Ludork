@@ -12,8 +12,8 @@ module = Extension(
     sources=[
         "../src/utils.cpp",
         "src/Tilemap.cpp",
-        "src/GameMap/GetLightMap.cpp",
-        "src/GameMap/FillPassabilityImage.cpp",
+        "src/GameMap/GetMaterialPropertyMap.cpp",
+        "src/GameMap/GetMaterialPropertyTexture.cpp",
         "src/GameMap/FindPath.cpp",
         "src/Particles/AddParticle.cpp",
         "src/Particles/UpdateParticlesInfo.cpp",

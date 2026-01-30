@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Callable, Optional, Tuple, Union, TYPE_CHECKING
+from typing import Callable, Optional, Tuple, List, Union, TYPE_CHECKING
 from ... import Angle, Vector2f, Color, degrees
 
 if TYPE_CHECKING:
@@ -21,17 +21,21 @@ class Info:
         rotation: Union[Angle, float] = degrees(0.0),
         scale: Union[Vector2f, Tuple[float, float]] = Vector2f(1.0, 1.0),
     ) -> None:
-        assert isinstance(position, (Vector2f, Tuple)), "position must be Vector2f or Tuple[float, float]"
-        assert isinstance(color, (Color, Tuple)), "color must be Color or Tuple[int, int, int, int]"
+        assert isinstance(
+            position, (Vector2f, Tuple, List)
+        ), "position must be Vector2f or Tuple[float, float] or List[float]"
+        assert isinstance(color, (Color, Tuple, List)), "color must be Color or Tuple[int, int, int, int] or List[int]"
         assert isinstance(rotation, (Angle, float)), "rotation must be Angle or float"
-        assert isinstance(scale, (Vector2f, Tuple)), "scale must be Vector2f or Tuple[float, float]"
-        if isinstance(position, Tuple):
+        assert isinstance(
+            scale, (Vector2f, Tuple, List)
+        ), "scale must be Vector2f or Tuple[float, float] or List[float]"
+        if isinstance(position, (tuple, list)):
             position = Vector2f(*position)
-        if isinstance(color, Tuple):
+        if isinstance(color, (tuple, list)):
             color = Color(*color)
         if isinstance(rotation, float):
             rotation = degrees(rotation)
-        if isinstance(scale, Tuple):
+        if isinstance(scale, (tuple, list)):
             scale = Vector2f(*scale)
         self.position = position
         self.color = color

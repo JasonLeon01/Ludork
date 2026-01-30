@@ -31,9 +31,13 @@
         "zh_CN": "通行",
         "en_GB": "Passable"
     },
-    "LIGHT_BLOCK": {
-        "zh_CN": "遮光",
-        "en_GB": "Light Block"
+    "MATERIAL": {
+        "zh_CN": "材质",
+        "en_GB": "Material"
+    },
+    "EDIT_MATERIAL": {
+        "zh_CN": "编辑材质",
+        "en_GB": "Edit Material"
     },
     "FILE": {
         "zh_CN": "文件",

@@ -1,5 +1,8 @@
 uniform sampler2D tilemapTex;
-uniform sampler2D passabilityTex;
+uniform sampler2D blockableTex;
+uniform sampler2D lightBlockTex;
+uniform sampler2D mirrorTex;
+uniform sampler2D reflectionStrengthTex;
 
 uniform int lightCount;
 uniform int cellSize;
@@ -34,7 +37,7 @@ float GetObstructionAttenuation(vec2 from, vec2 to, vec2 gridSize)
         if (i >= steps) break;
 
         vec2 uv = clamp(curr / gridSize, 0.0, 1.0);
-        float r = texture2D(passabilityTex, uv).r;
+        float r = texture2D(lightBlockTex, uv).r;
 
         attenuation *= (1.0 - r * 0.6);
         curr += step;
@@ -43,17 +46,40 @@ float GetObstructionAttenuation(vec2 from, vec2 to, vec2 gridSize)
     return clamp(attenuation, 0.0, 1.0);
 }
 
-void main()
+vec3 ApplyReflection(vec3 pixelColor, vec2 pixelPosBL_world, vec2 uv)
 {
-    vec2 pixelPosBL_view = gl_FragCoord.xy / screenScale;
-    vec2 pixelPosTL_view = vec2(pixelPosBL_view.x, screenSize.y - pixelPosBL_view.y);
-    vec2 pixelPosTL_world = pixelPosTL_view + viewPos;
-    vec2 mapPixelSize = gridSize * float(cellSize);
-    vec2 pixelPosBL_world = vec2(pixelPosTL_world.x, mapPixelSize.y - pixelPosTL_world.y);
+    vec2 gridIndex = floor(pixelPosBL_world / float(cellSize));
+    vec2 tileCenterUV = (gridIndex + 0.5) / gridSize;
+    float isMirror = texture2D(mirrorTex, tileCenterUV).r;
 
-    vec2 uv = clamp(gl_TexCoord[0].xy, 0.0, 1.0);
-    vec3 pixelColor = texture2D(tilemapTex, uv).rgb;
+    if (isMirror > 0.5) {
+        vec2 gridIndexAbove = gridIndex + vec2(0.0, 1.0);
+        if (gridIndexAbove.y < gridSize.y) {
+            vec2 tileCenterUVAbove = (gridIndexAbove + 0.5) / gridSize;
+            float isAboveMirror = texture2D(mirrorTex, tileCenterUVAbove).r;
+            if (isAboveMirror < 0.5) {
+                vec2 cellLocal = fract(pixelPosBL_world / float(cellSize));
+                vec2 reflectedLocal = vec2(cellLocal.x, 1.0 - cellLocal.y);
+                vec2 reflectedWorldPosBL = (gridIndexAbove + reflectedLocal) * float(cellSize);
+                vec2 deltaWorld = reflectedWorldPosBL - pixelPosBL_world;
+                vec2 deltaUV = deltaWorld / screenSize;
+                vec2 reflectedScreenUV = uv + deltaUV;
 
+                if (reflectedScreenUV.x >= 0.0 && reflectedScreenUV.x <= 1.0 &&
+                    reflectedScreenUV.y >= 0.0 && reflectedScreenUV.y <= 1.0) {
+                    vec4 refTex = texture2D(blockableTex, reflectedScreenUV);
+                    float strength = texture2D(reflectionStrengthTex, tileCenterUV).r;
+                    float reflectionAlpha = refTex.a * strength;
+                    return mix(pixelColor, refTex.rgb, reflectionAlpha);
+                }
+            }
+        }
+    }
+    return pixelColor;
+}
+
+vec3 CalculateLighting(vec2 pixelPosTL_world, vec2 pixelPosBL_world, vec2 mapPixelSize)
+{
     vec3 totalLight = ambientColor;
 
     for (int i = 0; i < 16; ++i) {
@@ -68,6 +94,22 @@ void main()
 
         totalLight += lightColor[i] * lightIntensity[i] * atten * obs;
     }
+    return clamp(totalLight, 0.0, 1.0);
+}
 
-    gl_FragColor = vec4(pixelColor * clamp(totalLight, 0.0, 1.0), 1.0);
+void main()
+{
+    vec2 pixelPosBL_view = gl_FragCoord.xy / screenScale;
+    vec2 pixelPosTL_view = vec2(pixelPosBL_view.x, screenSize.y - pixelPosBL_view.y);
+    vec2 pixelPosTL_world = pixelPosTL_view + viewPos;
+    vec2 mapPixelSize = gridSize * float(cellSize);
+    vec2 pixelPosBL_world = vec2(pixelPosTL_world.x, mapPixelSize.y - pixelPosTL_world.y);
+
+    vec2 uv = clamp(gl_TexCoord[0].xy, 0.0, 1.0);
+    vec3 pixelColor = texture2D(tilemapTex, uv).rgb;
+
+    pixelColor = ApplyReflection(pixelColor, pixelPosBL_world, uv);
+    vec3 lighting = CalculateLighting(pixelPosTL_world, pixelPosBL_world, mapPixelSize);
+
+    gl_FragColor = vec4(pixelColor * lighting, 1.0);
 }

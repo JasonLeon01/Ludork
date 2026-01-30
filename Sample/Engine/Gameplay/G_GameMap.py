@@ -3,7 +3,7 @@
 from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .. import (
     Vector2i,
@@ -66,8 +66,10 @@ class GameMap:
             self._lightShader = Shader(System.getLightShaderPath(), Shader.Type.Fragment)
         self._lights: List[Light] = []
         self._ambientLight: Color = Color(255, 255, 255, 255)
-        self._passabilityTex: Optional[Texture] = None
-        self._passabilityDirty: bool = True
+        self._lightBlockTex: Optional[Texture] = None
+        self._mirrorTex: Optional[Texture] = None
+        self._reflectionStrengthTex: Optional[Texture] = None
+        self._materialDirty: bool = True
         self._tilePassableGrid: Optional[List[List[bool]]] = None
         self._occupancyMap: Dict[tuple, List[Actor]] = {}
 
@@ -148,11 +150,11 @@ class GameMap:
                 if not child in self._wholeActorList:
                     self.spawnActor(child, layer)
         self.updateActorList()
-        self._passabilityDirty = True
+        self._materialDirty = True
 
     def destroyActor(self, actor: Actor) -> None:
         self._actorsOnDestroy.append(actor)
-        self._passabilityDirty = True
+        self._materialDirty = True
 
     def updateActorList(self) -> None:
         self._wholeActorList.clear()
@@ -172,21 +174,27 @@ class GameMap:
     def setCamera(self, camera: Camera) -> None:
         self._camera = camera
 
-    def getLightMap(self) -> List[List[float]]:
+    def getMaterialPropertyMap(
+        self, functionName: str, invalidValue: Union[float, bool]
+    ) -> List[List[Union[float, bool]]]:
+        mapSize = self._tilemap.getSize()
+        width = mapSize.x
+        height = mapSize.y
         try:
-            from .GamePlayExtension import C_GetLightMap
+            from .GamePlayExtension import C_GetMaterialPropertyMap
 
             layerKeys = list(self._tilemap.getAllLayers().keys())
             layerKeys.reverse()
-            mapSize = self._tilemap.getSize()
-            width = mapSize.x
-            height = mapSize.y
-            return C_GetLightMap(layerKeys, width, height, self._tilemap, self._actors)
+            return C_GetMaterialPropertyMap(
+                layerKeys, width, height, self._tilemap, self._actors, functionName, invalidValue
+            )
         except Exception as e:
-            # region Get Light Map by Python
-            print(f"Failed to get light map by C extension, try to get light map by python. Error: {e}")
+            # region Get Material Property Map by Python
+            print(
+                f"Failed to get material property map by C extension, try to get material property map by python. Error: {e}"
+            )
 
-            def getLightBlock(inLayerKeys: List[str], pos: Vector2i):
+            def getMaterialProperty(inLayerKeys: List[str], pos: Vector2i) -> Union[float, bool]:
                 for layerName in inLayerKeys:
                     layer = self._tilemap.getLayer(layerName)
                     if not layer.visible:
@@ -194,23 +202,22 @@ class GameMap:
                     if layerName in self._actors:
                         for actor in self._actors[layerName]:
                             if actor.getMapPosition() == pos:
-                                return actor.getLightBlock()
+                                value = getattr(actor, functionName)()
+                                if value != invalidValue:
+                                    return value
                     tile = layer.get(pos)
                     if tile is not None:
-                        return layer.getLightBlock(pos)
-                return 0
+                        return getattr(layer, functionName)(pos)
+                return invalidValue
 
             layerKeys = list(self._tilemap.getAllLayers().keys())
             layerKeys.reverse()
-            lightMap: List[List[float]] = []
-            mapSize = self._tilemap.getSize()
-            width = mapSize.x
-            height = mapSize.y
+            materialPropertyMap: List[List[Union[float, bool]]] = []
             for y in range(height):
-                lightMap.append([])
+                materialPropertyMap.append([])
                 for x in range(width):
-                    lightMap[-1].append(getLightBlock(layerKeys, Vector2i(x, y)))
-            return lightMap
+                    materialPropertyMap[-1].append(getMaterialProperty(layerKeys, Vector2i(x, height - y - 1)))
+            return materialPropertyMap
             # endregion
 
     def getLights(self) -> List[Light]:
@@ -357,7 +364,16 @@ class GameMap:
             if layerName in self._actors:
                 for actor in self._actors[layerName]:
                     self._camera.render(actor)
+        for layerName, layer in self._tilemap.getAllBlockableLayers().items():
+            if not layer.visible:
+                continue
+            self._camera.renderBlockable(layer)
+            if layerName in self._actors:
+                for actor in self._actors[layerName]:
+                    if actor.getLightBlock() > 0:
+                        self._camera.renderBlockable(actor)
         self._camera.display()
+        self._camera.displayBlockable()
         self._refreshShader()
         System.draw(self._camera, self._lightShader)
         System.draw(self._particleSystem)
@@ -372,11 +388,21 @@ class GameMap:
 
         shader = self._lightShader
         shader.setUniform("tilemapTex", self._camera.getTexture())
-        if self._passabilityTex is None or self._passabilityDirty:
-            self._passabilityTex = self._getPassabilityTexture()
+        shader.setUniform("blockableTex", self._camera.getBlockableTexture())
+        if (
+            self._lightBlockTex is None
+            or self._mirrorTex is None
+            or self._reflectionStrengthTex is None
+            or self._materialDirty
+        ):
+            self._lightBlockTex = self._getMaterialPropertyTexture("getLightBlock", 0.0, True)
+            self._mirrorTex = self._getMaterialPropertyTexture("getMirror", False)
+            self._reflectionStrengthTex = self._getMaterialPropertyTexture("getReflectionStrength", 0.0)
             self._rebuildPassabilityCache()
-            self._passabilityDirty = False
-        shader.setUniform("passabilityTex", self._passabilityTex)
+            self._materialDirty = False
+        shader.setUniform("lightBlockTex", self._lightBlockTex)
+        shader.setUniform("mirrorTex", self._mirrorTex)
+        shader.setUniform("reflectionStrengthTex", self._reflectionStrengthTex)
         shader.setUniform("screenScale", System.getScale())
         shader.setUniform("screenSize", Math.ToVector2f(System.getGameSize()))
         shader.setUniform("viewPos", self._camera.getViewPosition())
@@ -395,29 +421,30 @@ class GameMap:
             Vector3f(self._ambientLight.r / 255.0, self._ambientLight.g / 255.0, self._ambientLight.b / 255.0),
         )
 
-    def _getPassabilityTexture(self) -> Texture:
+    def _getMaterialPropertyTexture(
+        self, functionName: str, invalidValue: Union[float, bool], smooth: bool = False
+    ) -> Texture:
         size = self._tilemap.getSize()
         img = Image(size)
-        lightMap = self.getLightMap()
+        materialMap = self.getMaterialPropertyMap(functionName, invalidValue)
 
         try:
-            from .GamePlayExtension import C_FillPassabilityImage
+            from .GamePlayExtension import C_GetMaterialPropertyTexture
 
-            C_FillPassabilityImage(size, img, lightMap)
+            C_GetMaterialPropertyTexture(size, img, materialMap)
         except Exception as e:
-            # region Fill Passability Image by Python
+            # region Get Material Property Texture by Python
             print(
-                f"Failed to fill passability image by C extension, try to fill passability image by python. Error: {e}"
+                f"Failed to get material property texture by C extension, try to get material property texture by python. Error: {e}"
             )
             for y in range(size.y):
                 for x in range(size.x):
-                    g = int(lightMap[y][x] * 255)
+                    g = int(float(materialMap[y][x]) * 255)
                     img.setPixel(Vector2u(x, y), Color(g, g, g))
             # endregion
 
-        img.flipVertically()
         texture = Texture(img)
-        texture.setSmooth(True)
+        texture.setSmooth(smooth)
         return texture
 
     def _rebuildPassabilityCache(self) -> None:
@@ -450,7 +477,7 @@ class GameMap:
                     self._occupancyMap[key].append(other)
 
     def markPassabilityDirty(self) -> None:
-        self._passabilityDirty = True
+        self._materialDirty = True
 
     @staticmethod
     def fromData(data: Dict[str, Any], camera: Optional[Camera] = None) -> GameMap:

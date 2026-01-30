@@ -53,6 +53,21 @@ double GetAttrFloat(PyObject *obj, const char *attrName, double defaultVal) {
   return val;
 }
 
+std::string ToString(PyObject *obj) {
+  if (!obj) {
+    throw std::runtime_error("Object is NULL");
+    return "";
+  }
+  PyObject *str = PyObject_Str(obj);
+  if (!str) {
+    throw std::runtime_error("Failed to convert object to string");
+    return "";
+  }
+  std::string result = PyUnicode_AsUTF8(str);
+  Py_DECREF(str);
+  return result;
+}
+
 PyObject *NewInstance(PyObject *classObj, std::vector<PyObject *> params) {
   PyObject *args = PyTuple_New(params.size());
   if (!args) {

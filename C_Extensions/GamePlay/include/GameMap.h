@@ -1,6 +1,6 @@
 #pragma once
 
-#include <GameMap/GetLightMap.h>
-#include <GameMap/FillPassabilityImage.h>
 #include <GameMap/FindPath.h>
+#include <GameMap/GetMaterialPropertyMap.h>
+#include <GameMap/GetMaterialPropertyTexture.h>
 

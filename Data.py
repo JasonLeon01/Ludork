@@ -2,7 +2,7 @@
 
 import os
 import copy
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 from Utils import File
 import importlib
 import EditorStatus
@@ -28,118 +28,54 @@ class GameData:
         Tileset = Engine.Gameplay.Tileset
 
         cls.systemConfigData = {}
-        configsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Configs")
-        if os.path.exists(configsRoot):
-            for file in os.listdir(configsRoot):
-                namePart, extensionPart = os.path.splitext(file)
-                fp = os.path.join(configsRoot, file)
-                try:
-                    if extensionPart.lower() == ".json":
-                        data = File.getJSONData(fp)
-                        if isinstance(data, dict):
-                            data["isJson"] = True
-                        else:
-                            data = {"isJson": True, "value": data}
-                        cls.systemConfigData[namePart] = data
-                    else:
-                        data = File.loadData(fp)
-                        if not isinstance(data, dict):
-                            data = {"value": data}
-                        cls.systemConfigData[namePart] = data
-                except Exception as e:
-                    print(f"Error while loading config file {file}: {e}")
-
         cls.tilesetData = {}
-        cls.classDict = Engine.NodeGraph.ClassDict()
-        tilesetData = os.path.join(EditorStatus.PROJ_PATH, "Data", "Tilesets")
-        assert os.path.exists(tilesetData)
-        for file in os.listdir(tilesetData):
-            namePart, extensionPart = os.path.splitext(file)
-            if extensionPart == ".dat":
-                data = File.loadData(os.path.join(tilesetData, file))
-                payload = copy.deepcopy(data)
-                if "type" in payload:
-                    del payload["type"]
-                cls.tilesetData[namePart] = Tileset.fromData(payload)
-
         cls.mapData = {}
-        mapsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
-        if os.path.exists(mapsRoot):
-            for file in os.listdir(mapsRoot):
-                namePart, extensionPart = os.path.splitext(file)
-                if extensionPart == ".json":
-                    data = File.getJSONData(os.path.join(mapsRoot, file))
-                    data["isJson"] = True
-                    cls.mapData[namePart] = data
-                else:
-                    fp = os.path.join(mapsRoot, file)
-                    try:
-                        data = File.loadData(fp)
-                        cls.mapData[namePart] = data
-                    except Exception as e:
-                        print(f"Error while loading map file {file}: {e}")
-
         cls.commonFunctionsData = {}
-        commonFunctionsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "CommonFunctions")
-        if os.path.exists(commonFunctionsRoot):
-            for file in os.listdir(commonFunctionsRoot):
-                namePart, extensionPart = os.path.splitext(file)
-                if extensionPart == ".json":
-                    data = File.getJSONData(os.path.join(commonFunctionsRoot, file))
-                    data["isJson"] = True
-                    cls.commonFunctionsData[namePart] = data
-                else:
-                    fp = os.path.join(commonFunctionsRoot, file)
-                    try:
-                        data = File.loadData(fp)
-                        cls.commonFunctionsData[namePart] = data
-                    except Exception as e:
-                        print(f"Error while loading common function file {file}: {e}")
-
         cls.blueprintsData = {}
-        blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
-        if os.path.exists(blueprintsRoot):
-            for root, dirs, files in os.walk(blueprintsRoot):
-                for file in files:
-                    full_path = os.path.join(root, file)
-                    rel_path = os.path.relpath(full_path, blueprintsRoot)
-                    namePart, extensionPart = os.path.splitext(rel_path)
-                    namePart = namePart.replace("\\", "/")
-
-                    if extensionPart == ".json":
-                        data = File.getJSONData(full_path)
-                        if "type" in data and data["type"] == "blueprint":
-                            data["isJson"] = True
-                            cls.blueprintsData[namePart] = data
-                    else:
-                        try:
-                            data = File.loadData(full_path)
-                            if "type" in data and data["type"] == "blueprint":
-                                cls.blueprintsData[namePart] = data
-                        except Exception as e:
-                            print(f"Error while loading blueprint file {file}: {e}")
-
         cls.animationsData = {}
-        animationsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Animations")
-        if os.path.exists(animationsRoot):
-            for file in os.listdir(animationsRoot):
-                namePart, extensionPart = os.path.splitext(file)
-                if extensionPart == ".json":
-                    data = File.getJSONData(os.path.join(animationsRoot, file))
-                    data["isJson"] = True
-                    cls.animationsData[namePart] = data
-                else:
-                    fp = os.path.join(animationsRoot, file)
-                    try:
-                        data = File.loadData(fp)
-                        cls.animationsData[namePart] = data
-                    except Exception as e:
-                        print(f"Error while loading animation file {file}: {e}")
+        cls.loadData("Configs", cls.systemConfigData)
+        cls.loadData("Tilesets", cls.tilesetData, Tileset.fromData, "tileset")
+        cls.loadData("Maps", cls.mapData, needType="map")
+        cls.loadData("CommonFunctions", cls.commonFunctionsData, needType="commonFunction")
+        cls.loadData("Blueprints", cls.blueprintsData, needType="blueprint")
+        cls.loadData("Animations", cls.animationsData, needType="animation")
+
+        cls.classDict = Engine.NodeGraph.ClassDict()
 
         cls.undoStack = []
         cls.redoStack = []
 
         cls._originData = copy.deepcopy(cls.asDict())
+
+    @classmethod
+    def loadData(
+        cls, inRoot: str, inData: Dict[str, Any], initCb: Optional[Callable] = None, needType: Optional[str] = None
+    ) -> None:
+        dataRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", inRoot)
+        if os.path.exists(dataRoot):
+            for root, dirs, files in os.walk(dataRoot):
+                for file in files:
+                    fullPath = os.path.join(root, file)
+                    relPath = os.path.relpath(fullPath, dataRoot)
+                    namePart, extensionPart = os.path.splitext(relPath)
+                    namePart = namePart.replace("\\", "/")
+                    try:
+                        data = None
+                        if extensionPart.lower() == ".json":
+                            data = File.getJSONData(fullPath)
+                            data["isJson"] = True
+                        else:
+                            data = File.loadData(fullPath)
+                        if needType and "type" in data and data["type"] != needType:
+                            continue
+                        if "type" in data:
+                            del data["type"]
+                        if initCb:
+                            inData[namePart] = initCb(data)
+                        else:
+                            inData[namePart] = data
+                    except Exception as e:
+                        print(f"Error while loading config file {file}: {e}")
 
     @classmethod
     def checkModified(cls) -> bool:
@@ -263,6 +199,7 @@ class GameData:
                 final_details["Failed"].append(key)
                 continue
             try:
+                payload["type"] = "map"
                 if "isJson" in payload:
                     del payload["isJson"]
                     File.saveJSONData(os.path.join(mapsRoot, f"{key}.json"), payload)
@@ -297,6 +234,7 @@ class GameData:
                 final_details["Failed"].append(key)
                 continue
             try:
+                payload["type"] = "system"
                 if "isJson" in payload:
                     del payload["isJson"]
                     File.saveJSONData(os.path.join(configsRoot, f"{key}.json"), payload)
@@ -338,14 +276,10 @@ class GameData:
             if ts is None:
                 final_details["Failed"].append(key)
                 continue
-            data = {
-                "name": ts.name,
-                "fileName": ts.fileName,
-                "passable": ts.passable,
-                "lightBlock": ts.lightBlock,
-            }
+            data = ts.asDict()
             try:
                 payload = copy.deepcopy(data)
+                payload["type"] = "tileset"
                 if "isJson" in payload:
                     del payload["isJson"]
                     File.saveJSONData(os.path.join(tilesetsRoot, f"{key}.json"), payload)
@@ -379,6 +313,7 @@ class GameData:
                 final_details["Failed"].append(key)
                 continue
             payload = copy.deepcopy(cfg)
+            payload["type"] = "commonFunction"
             try:
                 if "isJson" in payload:
                     del payload["isJson"]
@@ -417,6 +352,7 @@ class GameData:
                 final_details["Failed"].append(key)
                 continue
             payload = copy.deepcopy(bp)
+            payload["type"] = "blueprint"
             try:
                 if "isJson" in payload:
                     del payload["isJson"]
@@ -440,6 +376,7 @@ class GameData:
                 final_details["Failed"].append(key)
                 continue
             payload = copy.deepcopy(anim)
+            payload["type"] = "animation"
             try:
                 if "isJson" in payload:
                     del payload["isJson"]

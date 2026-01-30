@@ -1,10 +1,9 @@
 # -*- encoding: utf-8 -*-
 
-from __future__ import annotations
-
 
 class _Battler:
-    def __init__(self) -> None:
-        self.HP = 1000
-        self.ATK = 10
-        self.DEF = 10
+    HP: int = 1000
+    ATK: int = 10
+    DEF: int = 10
+    Exp: int = 0
+    Gold: int = 0

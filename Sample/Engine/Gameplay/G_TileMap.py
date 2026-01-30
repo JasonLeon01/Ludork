@@ -1,9 +1,11 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from dataclasses import dataclass
+import copy
+from dataclasses import dataclass, asdict
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from .. import Drawable, Transformable, VertexArray, Manager, PrimitiveType, Vector2f, Vector2i, Vector2u, GetCellSize
+from .G_Material import Material
 
 if TYPE_CHECKING:
     from Engine import RenderTarget, RenderStates, Vector2u
@@ -14,11 +16,16 @@ class Tileset:
     name: str
     fileName: str
     passable: List[bool]
-    lightBlock: List[float]
+    materials: List[Material]
+
+    def asDict(self) -> Dict[str, Any]:
+        return asdict(self)
 
     @staticmethod
     def fromData(data: Dict[str, Any]):
-        return Tileset(*data.values())
+        if isinstance(data["materials"][0], dict):
+            data["materials"] = [Material(**materialData) for materialData in data["materials"]]
+        return Tileset(**data)
 
 
 @dataclass
@@ -63,15 +70,22 @@ class TileLayer(Drawable, Transformable):
             return True
         return self._data.layerTileset.passable[tileNumber]
 
-    def getLightBlock(self, position: Vector2i) -> float:
-        if self.isPassable(position):
-            return 0.0
+    def getMaterialProperty(self, position: Vector2i, propertyName: str) -> Any:
         if position.x < 0 or position.y < 0 or position.x >= self._width or position.y >= self._height:
-            return 0.0
+            return None
         tileNumber = self._data.tiles[position.y][position.x]
         if tileNumber is None:
-            return 0.0
-        return self._data.layerTileset.lightBlock[tileNumber]
+            return None
+        return getattr(self._data.layerTileset.materials[tileNumber], propertyName)
+
+    def getLightBlock(self, position: Vector2i) -> float:
+        return self.getMaterialProperty(position, "lightBlock")
+
+    def getMirror(self, position: Vector2i) -> bool:
+        return self.getMaterialProperty(position, "mirror")
+
+    def getReflectionStrength(self, position: Vector2i) -> float:
+        return self.getMaterialProperty(position, "reflectionStrength")
 
     def draw(self, target: RenderTarget, states: RenderStates) -> None:
         if not self.visible:
@@ -119,10 +133,13 @@ class TileLayer(Drawable, Transformable):
 
 
 class Tilemap:
-    def __init__(self, layers: List[TileLayer]) -> None:
+    def __init__(self, layers: List[TileLayer], blockableLayers: List[TileLayer]) -> None:
         self._layers: Dict[str, TileLayer] = {}
+        self._blockableLayers: Dict[str, TileLayer] = {}
         for layer in layers:
             self._layers[layer.getName()] = layer
+        for layer in blockableLayers:
+            self._blockableLayers[layer.getName()] = layer
 
     def getLayer(self, name: str) -> Optional[TileLayer]:
         for layerName, layer in self._layers.items():
@@ -130,8 +147,17 @@ class Tilemap:
                 return layer
         return None
 
+    def getBlockableLayer(self, name: str) -> Optional[TileLayer]:
+        for layerName, layer in self._blockableLayers.items():
+            if layerName == name:
+                return layer
+        return None
+
     def getAllLayers(self) -> Dict[str, TileLayer]:
         return self._layers
+
+    def getAllBlockableLayers(self) -> Dict[str, TileLayer]:
+        return self._blockableLayers
 
     def getLayerNameList(self) -> List[str]:
         return list(self._layers.keys())
@@ -147,15 +173,24 @@ class Tilemap:
         from Source import Data
 
         mapLayers = []
+        blockableMapLayers = []
         for layerName, layerData in data.items():
             name = layerData["layerName"]
             layerTileset = Data.getTileset(layerData["layerTileset"])
             layerTiles = layerData["tiles"]
             tiles: List[List[Optional[int]]] = []
+            blockableTiles: List[List[Optional[int]]] = []
             for y in range(height):
                 tiles.append([])
+                blockableTiles.append([])
                 for x in range(width):
-                    tiles[-1].append(layerTiles[y][x])
+                    tileNumber = layerTiles[y][x]
+                    tiles[-1].append(tileNumber)
+                    blockableTiles[-1].append(
+                        tileNumber
+                        if not tileNumber is None and layerTileset.materials[tileNumber].lightBlock > 0
+                        else None
+                    )
             layer = TileLayer(
                 TileLayerData(
                     name,
@@ -163,5 +198,13 @@ class Tilemap:
                     tiles,
                 ),
             )
+            blockableLayer = TileLayer(
+                TileLayerData(
+                    name,
+                    layerTileset,
+                    blockableTiles,
+                ),
+            )
             mapLayers.append(layer)
-        return Tilemap(mapLayers)
+            blockableMapLayers.append(blockableLayer)
+        return Tilemap(mapLayers, blockableMapLayers)

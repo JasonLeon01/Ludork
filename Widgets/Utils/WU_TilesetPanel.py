@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+import importlib
 from PyQt5 import QtWidgets, QtGui, QtCore
 import os
 from enum import Enum
@@ -7,12 +8,13 @@ import EditorStatus
 from Data import GameData
 from Utils import Locale, System, File
 from .WU_FileSelectorDialog import FileSelectorDialog
-from .WU_SingleRowDialog import SingleRowDialog
+from .WU_DataclassEditDialog import DataclassEditDialog
+import copy
 
 
 class TilesetMode(Enum):
     PASSABLE = 0
-    LIGHTBLOCK = 1
+    MATERIAL = 1
 
 
 class TilesetImageView(QtWidgets.QWidget):
@@ -24,6 +26,8 @@ class TilesetImageView(QtWidgets.QWidget):
         self._data = None
         self._mode = TilesetMode.PASSABLE
         self._key = None
+        Engine = importlib.import_module("Engine")
+        self.MaterialClass = Engine.Gameplay.Material
         self.setMouseTracking(True)
 
     def setData(self, data, image_path):
@@ -92,20 +96,22 @@ class TilesetImageView(QtWidgets.QWidget):
                             painter.drawLine(draw_rect.topLeft(), draw_rect.bottomRight())
                             painter.drawLine(draw_rect.topRight(), draw_rect.bottomLeft())
 
-                    elif self._mode == TilesetMode.LIGHTBLOCK:
-                        lb_arr = getattr(self._data, "lightBlock", [])
-                        val = 0.0
-                        if i < len(lb_arr):
-                            try:
-                                val = float(lb_arr[i])
-                            except Exception:
-                                val = 0.0
-
-                        painter.setPen(QtGui.QColor(255, 255, 255))
-                        txt = ("{:.6f}".format(val)).rstrip("0").rstrip(".")
-                        if not txt:
-                            txt = "0"
-                        painter.drawText(rect, QtCore.Qt.AlignCenter, txt)
+                    elif self._mode == TilesetMode.MATERIAL:
+                        materials = getattr(self._data, "materials", [])
+                        if i < len(materials):
+                            mat = materials[i]
+                            if mat and self.MaterialClass and isinstance(mat, self.MaterialClass):
+                                is_default = (
+                                    mat.lightBlock == 0.0
+                                    and not mat.mirror
+                                    and mat.opacity == 1.0
+                                    and mat.emissive == 0.0
+                                )
+                                if not is_default:
+                                    painter.setPen(QtGui.QPen(QtGui.QColor(100, 255, 100, 200), 2))
+                                    painter.drawRect(rect.adjusted(4, 4, -4, -4))
+                                    painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255)))
+                                    painter.drawText(rect, QtCore.Qt.AlignCenter, "M")
 
     def mousePressEvent(self, e):
         if not self._image or not self._data:
@@ -134,41 +140,18 @@ class TilesetImageView(QtWidgets.QWidget):
             if len(arr) < count:
                 arr.extend([False] * (count - len(arr)))
             arr[idx] = not bool(arr[idx])
-        else:
-            arr = getattr(self._data, "lightBlock", None)
+        elif self._mode == TilesetMode.MATERIAL:
+            arr = getattr(self._data, "materials", None)
             if not isinstance(arr, list):
                 arr = []
-                setattr(self._data, "lightBlock", arr)
-            if len(arr) < count:
-                arr.extend([0.0] * (count - len(arr)))
-            current = float(arr[idx]) if idx < len(arr) else 0.0
-            init_text = ("{:.6f}".format(current)).rstrip("0").rstrip(".")
-            if not init_text:
-                init_text = "0"
-            dlg = SingleRowDialog(
-                self.parent(),
-                Locale.getContent("LIGHT_BLOCK"),
-                Locale.getContent("LIGHT_BLOCK"),
-                init_text,
-                input_mode="number",
-                min_value=0.0,
-                max_value=1.0,
-            )
-            ok, text = dlg.execGetText()
-            if ok:
-                t = text.strip()
-                if not t:
-                    return
-                try:
-                    val = float(t)
-                except Exception as e:
-                    QtWidgets.QMessageBox.warning(self, "Hint", str(e))
-                    return
-                if val < 0.0:
-                    val = 0.0
-                if val > 1.0:
-                    val = 1.0
-                arr[idx] = val
+                setattr(self._data, "materials", arr)
+
+            if self.MaterialClass:
+                edit_mat = copy.deepcopy(arr[idx])
+                dlg = DataclassEditDialog(self, edit_mat, Locale.getContent("EDIT_MATERIAL"))
+                if dlg.exec_():
+                    GameData.recordSnapshot()
+                    arr[idx] = edit_mat
         self.dataChanged.emit()
         self.update()
 
@@ -212,7 +195,7 @@ class TilesetPanel(QtWidgets.QWidget):
         self.modeList.setFixedHeight(64)
         self.modeList.setFlow(QtWidgets.QListView.LeftToRight)
         self.modeList.addItem(Locale.getContent("PASSABLE"))
-        self.modeList.addItem(Locale.getContent("LIGHT_BLOCK"))
+        self.modeList.addItem(Locale.getContent("MATERIAL"))
         self.modeList.setCurrentRow(0)
         self.modeList.currentRowChanged.connect(self._onModeChanged)
         layout.addWidget(self.modeList)
@@ -279,21 +262,24 @@ class TilesetPanel(QtWidgets.QWidget):
                     rows = img.height() // cellSize
                     new_count = max(0, cols * rows)
             arr_p = getattr(self._data, "passable", [])
-            arr_l = getattr(self._data, "lightBlock", [])
+            arr_m = getattr(self._data, "materials", [])
             if not isinstance(arr_p, list):
                 arr_p = []
                 setattr(self._data, "passable", arr_p)
-            if not isinstance(arr_l, list):
-                arr_l = []
-                setattr(self._data, "lightBlock", arr_l)
+            if not isinstance(arr_m, list):
+                arr_m = []
+                setattr(self._data, "materials", arr_m)
             if len(arr_p) < new_count:
                 arr_p.extend([True] * (new_count - len(arr_p)))
             elif len(arr_p) > new_count:
                 del arr_p[new_count:]
-            if len(arr_l) < new_count:
-                arr_l.extend([0.5] * (new_count - len(arr_l)))
-            elif len(arr_l) > new_count:
-                del arr_l[new_count:]
+            if len(arr_m) < new_count:
+                if self.MaterialClass:
+                    arr_m.extend([self.MaterialClass() for _ in range(new_count - len(arr_m))])
+                else:
+                    arr_m.extend([None] * (new_count - len(arr_m)))
+            elif len(arr_m) > new_count:
+                del arr_m[new_count:]
             if self._key:
                 File.mainWindow.editorPanel._renderFromMapData()
                 File.mainWindow.editorPanel.update()

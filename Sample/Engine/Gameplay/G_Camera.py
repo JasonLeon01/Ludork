@@ -33,10 +33,15 @@ class Camera(Drawable):
 
             self._viewport = FloatRect(Vector2f(0, 0), Math.ToVector2f(System.getGameSize()))
         self._renderTexture: RenderTexture
+        self._renderBlockableTexture: RenderTexture
         assert isinstance(self._viewport, FloatRect)
-        self._renderTexture = RenderTexture(Math.ToVector2u(self._viewport.size))
+        size = Math.ToVector2u(self._viewport.size)
+        self._renderTexture = RenderTexture(size)
+        self._renderBlockableTexture = RenderTexture(size)
         self._renderTexture.setView(View(self._viewport))
+        self._renderBlockableTexture.setView(View(self._viewport))
         self._renderSprite = Sprite(self._renderTexture.getTexture())
+        self._renderBlockableSprite = Sprite(self._renderBlockableTexture.getTexture())
         self._renderStates = Render.CanvasRenderStates()
         self._parent: Optional[Actor] = None
         self._map: Optional[GameMap] = None
@@ -48,6 +53,9 @@ class Camera(Drawable):
         assert isinstance(inViewport, FloatRect)
         self._viewport = inViewport
         self._refreshView()
+
+    def getView(self) -> View:
+        return self._renderTexture.getView()
 
     def getViewPosition(self) -> Vector2f:
         return self._viewport.position
@@ -76,6 +84,7 @@ class Camera(Drawable):
             inRotation = degrees(inRotation)
         view.setRotation(inRotation)
         self._renderTexture.setView(view)
+        self._renderBlockableTexture.setView(view)
 
     def moveView(self, delta: Vector2f) -> None:
         self.setViewPosition(self._viewport.position + delta)
@@ -92,12 +101,14 @@ class Camera(Drawable):
 
     def resumeViewport(self) -> None:
         self._renderTexture.setView(self._renderTexture.getDefaultView())
+        self._renderBlockableTexture.setView(self._renderBlockableTexture.getDefaultView())
 
     def getPosition(self) -> Vector2f:
         return self._renderSprite.getPosition()
 
     def setPosition(self, inPosition: Vector2f) -> None:
         self._renderSprite.setPosition(inPosition)
+        self._renderBlockableSprite.setPosition(inPosition)
 
     def getRotation(self) -> Angle:
         return self._renderSprite.getRotation()
@@ -110,12 +121,14 @@ class Camera(Drawable):
         if isinstance(inRotation, float):
             inRotation = degrees(inRotation)
         self._renderSprite.setRotation(inRotation)
+        self._renderBlockableSprite.setRotation(inRotation)
 
     def getScale(self) -> Vector2f:
         return self._renderSprite.getScale()
 
     def setScale(self, inScale: Vector2f) -> None:
         self._renderSprite.setScale(inScale)
+        self._renderBlockableSprite.setScale(inScale)
 
     def mapPixelToCoords(self, point):
         return self._renderTexture.mapPixelToCoords(point, self._renderTexture.getView())
@@ -126,8 +139,14 @@ class Camera(Drawable):
     def getTexture(self) -> Texture:
         return self._renderTexture.getTexture()
 
+    def getBlockableTexture(self) -> Texture:
+        return self._renderBlockableTexture.getTexture()
+
     def getImage(self) -> Image:
         return self._renderTexture.getTexture().copyToImage()
+
+    def getBlockableImage(self) -> Image:
+        return self._renderBlockableTexture.getTexture().copyToImage()
 
     def setParent(self, actor: Actor) -> None:
         self._parent = actor
@@ -170,12 +189,20 @@ class Camera(Drawable):
 
     def clear(self) -> None:
         self._renderTexture.clear(Color.Transparent)
+        self._renderBlockableTexture.clear(Color.Transparent)
 
     def render(self, object: Drawable) -> None:
         self._renderTexture.draw(object, self._renderStates)
 
+    def renderBlockable(self, object: Drawable) -> None:
+        self._renderBlockableTexture.draw(object, self._renderStates)
+
     def display(self):
         self._renderTexture.display()
 
+    def displayBlockable(self):
+        self._renderBlockableTexture.display()
+
     def _refreshView(self) -> None:
         self._renderTexture.setView(View(self._viewport))
+        self._renderBlockableTexture.setView(View(self._viewport))

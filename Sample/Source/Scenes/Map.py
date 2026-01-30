@@ -4,9 +4,9 @@ from Engine import SceneBase, System, Shader, Manager, Vector2f, Vector2i, degre
 from Engine.Animation import AnimSprite
 from Engine.Gameplay import GameMap
 from Engine.Gameplay.Particles import Particle, Info
-from Engine.Gameplay.Actors import Actor
 from Engine.Utils import File
 from Source import Data
+from Source.Player import Player
 
 
 class Scene(SceneBase):
@@ -51,8 +51,11 @@ class Scene(SceneBase):
         super()._renderHandle(deltaTime)
 
     def _initPlayer(self):
-        playerPath = "Data.Blueprints.Actors.BP_Actor_01"
-        actor: Actor = Data.getClass(playerPath)(Manager.loadCharacter("actors/classic-cha-braver01.png"), "yongshi")
+        playerPath = "Data.Blueprints.Actors.BP_Actor_Braver"
+        actorClass: Player = Data.getClass(playerPath)
+        texturePath = getattr(actorClass, "texturePath")
+        defaultRect = getattr(actorClass, "defaultRect")
+        actor: Player = actorClass.GenActor(actorClass, texturePath, defaultRect, "yongshi")
         actor.setAnimatable(True, True)
         actor.setCollisionEnabled(True)
         actor.setPosition((608, 256))

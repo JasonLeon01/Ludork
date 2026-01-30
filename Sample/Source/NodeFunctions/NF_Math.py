@@ -288,6 +288,16 @@ def RandomFloat(min_val: float, max_val: float) -> float:
     return random.uniform(min_val, max_val)
 
 
+@ReturnType(value=int)
+def GCD(a: int, b: int) -> int:
+    return Math.GCD(a, b)
+
+
+@ReturnType(value=int)
+def LCM(a: int, b: int) -> int:
+    return Math.LCM(a, b)
+
+
 @ReturnType(value=Any)
 def ADD(a: Any, b: Any) -> Any:
     return a + b

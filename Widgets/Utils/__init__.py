@@ -10,3 +10,5 @@ from .WU_Toast import Toast
 from .WU_NodePanel import NodePanel
 from .WU_FunctionPickerPopup import FunctionPickerPopup
 from .WU_Timeline import TimelinePanel as TimeLine
+from .WU_DataclassEditDialog import DataclassEditDialog
+from .WU_DataclassWidget import DataclassWidget

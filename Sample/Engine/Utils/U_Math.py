@@ -68,3 +68,13 @@ def Clamp(value, min_val, max_val) -> float:
 
 def Lerp(a: float, b: float, t: float) -> float:
     return a + (b - a) * t
+
+
+def GCD(a: int, b: int) -> int:
+    if b == 0:
+        return a
+    return GCD(b, a % b)
+
+
+def LCM(a: int, b: int) -> int:
+    return abs(a * b) // GCD(a, b)

@@ -1,7 +1,6 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-import os
 import weakref
 from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 

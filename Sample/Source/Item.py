@@ -1,21 +1,13 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Optional, Union, List, Tuple
-from Engine import Texture, IntRect, RegisterEvent
+from Engine import RegisterEvent
 from Engine.Gameplay.Actors import Actor
 
 
 class Item(Actor):
-    def __init__(
-        self,
-        texture: Optional[Union[Texture, List[Texture]]] = None,
-        rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]] = None,
-        tag: Optional[str] = None,
-    ) -> None:
-        super().__init__(texture, rect, tag)
-        self.name: str = ""
-        self.desc: str = ""
+    name: str = ""
+    desc: str = ""
 
     @RegisterEvent
     def onUse(self):

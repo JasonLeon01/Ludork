@@ -10,7 +10,8 @@ import copy
 import ast
 import inspect
 import textwrap
-from typing import Any, Dict, Optional
+import dataclasses
+from typing import Any, Dict, Optional, get_type_hints
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QSize
 from Utils import Locale, Panel, System, File
@@ -1360,42 +1361,30 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle(System.getTitle())
         self._refreshUndoRedo()
 
-    def _parseInitAttrs(self, cls) -> Dict[str, Any]:
-        attrs = {}
-        init_method = cls.__init__
-        if not inspect.isfunction(init_method):
-            return attrs
+    def _dataclassToDictDefaults(self, dc_cls) -> Dict[str, Any]:
+        if not dataclasses.is_dataclass(dc_cls):
+            return {}
 
-        source = inspect.getsource(init_method)
-        source = textwrap.dedent(source)
+        data = {}
+        for field in dataclasses.fields(dc_cls):
+            value = None
+            if field.default is not dataclasses.MISSING:
+                value = field.default
+            elif field.default_factory is not dataclasses.MISSING:
+                try:
+                    value = field.default_factory()
+                except:
+                    pass
 
-        tree = ast.parse(source)
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Assign):
-                for target in node.targets:
-                    if isinstance(target, ast.Attribute):
-                        if isinstance(target.value, ast.Name) and target.value.id == "self":
-                            attr_name = target.attr
-                            if not attr_name.startswith("_"):
-                                try:
-                                    val = ast.literal_eval(node.value)
-                                    attrs[attr_name] = val
-                                except:
-                                    attrs[attr_name] = None
-            elif isinstance(node, ast.AnnAssign):
-                if isinstance(node.target, ast.Attribute):
-                    if isinstance(node.target.value, ast.Name) and node.target.value.id == "self":
-                        attr_name = node.target.attr
-                        if not attr_name.startswith("_"):
-                            if node.value:
-                                try:
-                                    val = ast.literal_eval(node.value)
-                                    attrs[attr_name] = val
-                                except:
-                                    attrs[attr_name] = None
-                            else:
-                                attrs[attr_name] = None
-        return attrs
+            is_dc = dataclasses.is_dataclass(field.type)
+            if is_dc:
+                if value is None:
+                    value = self._dataclassToDictDefaults(field.type)
+                elif dataclasses.is_dataclass(value):
+                    value = dataclasses.asdict(value)
+
+            data[field.name] = value
+        return data
 
     def _onNewBlueprint(self, checked: bool = False) -> None:
         blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
@@ -1453,8 +1442,23 @@ class MainWindow(QtWidgets.QMainWindow):
                             ):
                                 attrs[k] = v
                     else:
-                        parsed = self._parseInitAttrs(cls)
-                        attrs.update(parsed)
+                        for k, v in cls.__dict__.items():
+                            if (
+                                not k.startswith("_")
+                                and not callable(v)
+                                and not isinstance(v, (classmethod, staticmethod, property))
+                            ):
+                                attrs[k] = v
+
+                        try:
+                            type_hints = get_type_hints(cls)
+                            for name, type_hint in type_hints.items():
+                                if name.startswith("_"):
+                                    continue
+                                if dataclasses.is_dataclass(type_hint):
+                                    attrs[name] = self._dataclassToDictDefaults(type_hint)
+                        except Exception as e:
+                            print(f"Error processing dataclass hints for {cls}: {e}")
         except Exception as e:
             print(f"Error resolving parent info: {e}")
 

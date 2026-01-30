@@ -5,6 +5,7 @@ import copy
 import warnings
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
 from ... import Sprite, IntRect, Vector2i, Vector2u, Vector2f, Angle, degrees, GetCellSize, Utils, ExecSplit, ReturnType
+from ..G_Material import Material
 
 if TYPE_CHECKING:
     from Engine import Texture
@@ -13,15 +14,20 @@ if TYPE_CHECKING:
 
 
 class _ActorBase(Sprite):
+    tag: str = ""
+    switchInterval: float = 0.2
+    animatable: bool = False
+    material: Material = Material()
+
     def __init__(
         self,
         texture: Optional[Texture] = None,
-        rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]] = None,
+        rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]], List[List[int]]] = None,
         tag: Optional[str] = None,
     ) -> None:
         if not rect is None:
-            assert isinstance(rect, (IntRect, Tuple)), "rect must be a tuple or IntRect"
-            if isinstance(rect, tuple):
+            assert isinstance(rect, (IntRect, Tuple, List)), "rect must be a tuple, list, or IntRect"
+            if isinstance(rect, (tuple, list)):
                 position, size = rect
                 x, y = position
                 w, h = size
@@ -33,12 +39,8 @@ class _ActorBase(Sprite):
             args.append(rect)
         super().__init__(*args)
 
-        self.switchInterval: float = 0.2
-        self.tag: str = ""
         if not tag is None:
             self.tag = tag
-        self.animatable: bool = False
-
         self._map: GameMap = None
         self._parent: Optional[_ActorBase] = None
         self._children: List[_ActorBase] = []
@@ -49,7 +51,6 @@ class _ActorBase(Sprite):
         self._relativePosition: Vector2f = Vector2f(0, 0)
         self._relativeRotation: Angle = degrees(0)
         self._relativeScale: Vector2f = Vector2f(1, 1)
-        self._lightBlock: float = 0.5
         self._graph: Optional[Graph] = None
 
     def update(self, deltaTime: float) -> None:
@@ -102,9 +103,9 @@ class _ActorBase(Sprite):
         return (self.getRelativeMapPosition().x, self.getRelativeMapPosition().y)
 
     @ExecSplit(default=(None,))
-    def setPosition(self, position: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(position, (Vector2f, Tuple)), "position must be a tuple or Vector2f"
-        if isinstance(position, tuple):
+    def setPosition(self, position: Union[Vector2f, Tuple[float, float], List[float]]) -> None:
+        assert isinstance(position, (Vector2f, Tuple, List)), "position must be a tuple, list, or Vector2f"
+        if isinstance(position, (tuple, list)):
             x, y = position
             position = Vector2f(x, y)
         if self.getParent():
@@ -118,9 +119,9 @@ class _ActorBase(Sprite):
                 child._updatePositionFromParent()
 
     @ExecSplit(default=(None,))
-    def setRelativePosition(self, position: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(position, (Vector2f, Tuple)), "position must be a tuple or Vector2f"
-        if isinstance(position, tuple):
+    def setRelativePosition(self, position: Union[Vector2f, Tuple[float, float], List[float]]) -> None:
+        assert isinstance(position, (Vector2f, Tuple, List)), "position must be a tuple, list, or Vector2f"
+        if isinstance(position, (tuple, list)):
             x, y = position
             position = Vector2f(x, y)
         parentPosition = Vector2f(0, 0)
@@ -129,25 +130,25 @@ class _ActorBase(Sprite):
         self.setPosition(parentPosition + position)
 
     @ExecSplit(default=(None,))
-    def setMapPosition(self, position: Union[Vector2u, Tuple[int, int]]) -> None:
-        assert isinstance(position, (Vector2u, Tuple)), "position must be a tuple or Vector2u"
-        if isinstance(position, tuple):
+    def setMapPosition(self, position: Union[Vector2u, Tuple[int, int], List[int]]) -> None:
+        assert isinstance(position, (Vector2u, Tuple, List)), "position must be a tuple, list, or Vector2u"
+        if isinstance(position, (tuple, list)):
             x, y = position
             position = Vector2u(x, y)
         self.setPosition(Vector2f(position.x * GetCellSize(), position.y * GetCellSize()))
 
     @ExecSplit(default=(None,))
-    def setRelativeMapPosition(self, position: Union[Vector2u, Tuple[int, int]]) -> None:
-        assert isinstance(position, (Vector2u, Tuple)), "position must be a tuple or Vector2u"
-        if isinstance(position, tuple):
+    def setRelativeMapPosition(self, position: Union[Vector2u, Tuple[int, int], List[int]]) -> None:
+        assert isinstance(position, (Vector2u, Tuple, List)), "position must be a tuple, list, or Vector2u"
+        if isinstance(position, (tuple, list)):
             x, y = position
             position = Vector2u(x, y)
         self.setRelativePosition(Vector2f(position.x * GetCellSize(), position.y * GetCellSize()))
 
     @ExecSplit(default=(None,))
-    def move(self, offset: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(offset, (Vector2f, Tuple)), "offset must be a tuple or Vector2f"
-        if isinstance(offset, tuple):
+    def move(self, offset: Union[Vector2f, Tuple[float, float], List[float]]) -> None:
+        assert isinstance(offset, (Vector2f, Tuple, List)), "offset must be a tuple, list, or Vector2f"
+        if isinstance(offset, (tuple, list)):
             x, y = offset
             offset = Vector2f(x, y)
         super().move(offset)
@@ -224,9 +225,9 @@ class _ActorBase(Sprite):
         return (self._relativeScale.x, self._relativeScale.y)
 
     @ExecSplit(default=(None,))
-    def setScale(self, scale: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(scale, (Vector2f, Tuple)), "scale must be a tuple or Vector2f"
-        if isinstance(scale, tuple):
+    def setScale(self, scale: Union[Vector2f, Tuple[float, float], List[float]]) -> None:
+        assert isinstance(scale, (Vector2f, Tuple, List)), "scale must be a tuple, list, or Vector2f"
+        if isinstance(scale, (tuple, list)):
             x, y = scale
             scale = Vector2f(x, y)
         if self.getParent():
@@ -240,9 +241,9 @@ class _ActorBase(Sprite):
                 child._updateScaleFromParent()
 
     @ExecSplit(default=(None,))
-    def scale(self, factor: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(factor, (Vector2f, Tuple)), "factor must be a tuple or Vector2f"
-        if isinstance(factor, tuple):
+    def scale(self, factor: Union[Vector2f, Tuple[float, float], List[float]]) -> None:
+        assert isinstance(factor, (Vector2f, Tuple, List)), "factor must be a tuple, list, or Vector2f"
+        if isinstance(factor, (tuple, list)):
             x, y = factor
             factor = Vector2f(x, y)
 
@@ -253,9 +254,9 @@ class _ActorBase(Sprite):
                 child._updateScaleFromParent()
 
     @ExecSplit(default=(None,))
-    def setRelativeScale(self, scale: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(scale, (Vector2f, Tuple)), "scale must be a tuple or Vector2f"
-        if isinstance(scale, tuple):
+    def setRelativeScale(self, scale: Union[Vector2f, Tuple[float, float], List[float]]) -> None:
+        assert isinstance(scale, (Vector2f, Tuple, List)), "scale must be a tuple, list, or Vector2f"
+        if isinstance(scale, (tuple, list)):
             x, y = scale
             scale = Vector2f(x, y)
         parentScale = Vector2f(1, 1)
@@ -273,9 +274,9 @@ class _ActorBase(Sprite):
         return super().getOrigin()
 
     @ExecSplit(default=(None,))
-    def setOrigin(self, origin: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(origin, (Vector2f, Tuple)), "origin must be a tuple or Vector2f"
-        if isinstance(origin, tuple):
+    def setOrigin(self, origin: Union[Vector2f, Tuple[float, float], List[float]]) -> None:
+        assert isinstance(origin, (Vector2f, Tuple, List)), "origin must be a tuple, list, or Vector2f"
+        if isinstance(origin, (tuple, list)):
             x, y = origin
             origin = Vector2f(x, y)
         return super().setOrigin(origin)
@@ -285,9 +286,9 @@ class _ActorBase(Sprite):
         return self._translation
 
     @ExecSplit(default=(None,))
-    def setTranslation(self, translation: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(translation, (Vector2f, Tuple)), "translation must be a tuple or Vector2f"
-        if isinstance(translation, tuple):
+    def setTranslation(self, translation: Union[Vector2f, Tuple[float, float], List[float]]) -> None:
+        assert isinstance(translation, (Vector2f, Tuple, List)), "translation must be a tuple, list, or Vector2f"
+        if isinstance(translation, (tuple, list)):
             translation = Vector2f(*translation)
         self._translation = translation
         self.setPosition(self.getPosition())
@@ -379,21 +380,61 @@ class _ActorBase(Sprite):
         self._texture = texture
         self.setSpriteTexture(texture, resetRect)
 
+    @ReturnType(material=Material)
+    def getMaterial(self) -> Material:
+        return self.material
+
+    @ExecSplit(default=(None,))
+    def setMaterial(self, material: Material) -> None:
+        self.material = material
+
     @ReturnType(lightBlock=float)
     def getLightBlock(self) -> float:
-        return self._lightBlock
+        return self.material.lightBlock
 
     @ExecSplit(default=(None,))
     def setLightBlock(self, lightBlock: float) -> None:
-        self._lightBlock = lightBlock
+        self.material.lightBlock = lightBlock
+
+    @ReturnType(mirror=bool)
+    def getMirror(self) -> bool:
+        return self.material.mirror
+
+    @ExecSplit(default=(None,))
+    def setMirror(self, mirror: bool) -> None:
+        self.material.mirror = mirror
+
+    @ReturnType(reflectionStrength=float)
+    def getReflectionStrength(self) -> float:
+        return self.material.reflectionStrength
+
+    @ExecSplit(default=(None,))
+    def setReflectionStrength(self, reflectionStrength: float) -> None:
+        self.material.reflectionStrength = reflectionStrength
+
+    @ReturnType(opacity=float)
+    def getOpacity(self) -> float:
+        return self.material.opacity
+
+    @ExecSplit(default=(None,))
+    def setOpacity(self, opacity: float) -> None:
+        self.material.opacity = opacity
+
+    @ReturnType(emissive=float)
+    def getEmissive(self) -> float:
+        return self.material.emissive
+
+    @ExecSplit(default=(None,))
+    def setEmissive(self, emissive: float) -> None:
+        self.material.emissive = emissive
 
     @ExecSplit(default=(None,))
     def setGraph(self, graph: Graph) -> None:
         self._graph = graph
 
-    def _superMove(self, offset: Union[Vector2f, Tuple[float, float]]) -> None:
-        assert isinstance(offset, (Vector2f, Tuple)), "offset must be a tuple or Vector2f"
-        if isinstance(offset, tuple):
+    def _superMove(self, offset: Union[Vector2f, Tuple[float, float], List[float]]) -> None:
+        assert isinstance(offset, (Vector2f, Tuple, List)), "offset must be a tuple, list, or Vector2f"
+        if isinstance(offset, (tuple, list)):
             offset = Vector2f(*offset)
         super().move(offset)
 

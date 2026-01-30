@@ -1,10 +1,13 @@
-#include <GameMap/GetLightMap.h>
+#include <GameMap/GetMaterialPropertyMap.h>
 #include <stdexcept>
 #include <utils.h>
 #include <vector>
 
-static double getLightBlock(std::vector<PyObject *> inLayerKeys, PyObject *pos,
-                            PyObject *tilemap, PyObject *actors) {
+static PyObject *getMaterialProperty(const std::vector<PyObject *> &inLayerKeys,
+                                     PyObject *pos, PyObject *tilemap,
+                                     PyObject *actors,
+                                     const std::string &functionName,
+                                     PyObject *invalidValue) {
   std::vector<PyObject *> tempPyObjects;
   try {
     for (auto &layerName : inLayerKeys) {
@@ -40,18 +43,23 @@ static double getLightBlock(std::vector<PyObject *> inLayerKeys, PyObject *pos,
             throw std::runtime_error("Failed to compare actorMapPos with pos");
           }
           if (eq) {
-            PyObject *lightBlockObj =
-                GetMethodResult(actor, "getLightBlock", {});
-            CHECK_NULL(tempPyObjects, lightBlockObj,
-                       "Failed to call getLightBlock method");
-            tempPyObjects.push_back(lightBlockObj);
-            double lightBlock = PyFloat_AsDouble(lightBlockObj);
-            if (PyErr_Occurred()) {
+            PyObject *materialPropertyObj =
+                GetMethodResult(actor, functionName.c_str(), {});
+            int eqValid = PyObject_RichCompareBool(materialPropertyObj,
+                                                   invalidValue, Py_EQ);
+            if (eqValid == -1) {
               ClearCache(tempPyObjects);
-              throw std::runtime_error("Failed to read actor light block");
+              throw std::runtime_error(
+                  "Failed to compare materialPropertyObj with invalidValue");
             }
+            if (eqValid) {
+              tempPyObjects.push_back(materialPropertyObj);
+              continue;
+            }
+            CHECK_NULL(tempPyObjects, materialPropertyObj,
+                       ("Failed to call " + functionName + " method").c_str());
             ClearCache(tempPyObjects);
-            return lightBlock;
+            return materialPropertyObj;
           }
         }
       }
@@ -59,29 +67,28 @@ static double getLightBlock(std::vector<PyObject *> inLayerKeys, PyObject *pos,
       CHECK_NULL(tempPyObjects, tile, "Failed to call get method");
       tempPyObjects.push_back(tile);
       if (tile != Py_None) {
-        PyObject *lightBlockObj =
-            GetMethodResult(layer, "getLightBlock", {pos});
-        CHECK_NULL(tempPyObjects, lightBlockObj,
-                   "Failed to call getLightBlock method");
-        tempPyObjects.push_back(lightBlockObj);
-        double lightBlock = PyFloat_AsDouble(lightBlockObj);
+        PyObject *materialPropertyObj =
+            GetMethodResult(layer, functionName.c_str(), {pos});
+        CHECK_NULL(tempPyObjects, materialPropertyObj,
+                   ("Failed to call " + functionName + " method").c_str());
         if (PyErr_Occurred()) {
           ClearCache(tempPyObjects);
           throw std::runtime_error("Failed to read layer light block");
         }
         ClearCache(tempPyObjects);
-        return lightBlock;
+        return materialPropertyObj;
       }
     }
     ClearCache(tempPyObjects);
-    return 0;
+    Py_INCREF(invalidValue);
+    return invalidValue;
   } catch (const std::exception &) {
     ClearCache(tempPyObjects);
     throw;
   }
 }
 
-PyObject *C_GetLightMap(PyObject *self, PyObject *args) {
+PyObject *C_GetMaterialPropertyMap(PyObject *self, PyObject *args) {
   std::vector<PyObject *> tempPyObjects;
   try {
     PyObject *layerKeysObj;
@@ -89,10 +96,13 @@ PyObject *C_GetLightMap(PyObject *self, PyObject *args) {
     int height;
     PyObject *tilemap;
     PyObject *actors;
-    if (!PyArg_ParseTuple(args, "OiiOO", &layerKeysObj, &width, &height,
-                          &tilemap, &actors)) {
+    PyObject *functionName;
+    PyObject *invalidValue;
+    if (!PyArg_ParseTuple(args, "OiiOOOO", &layerKeysObj, &width, &height,
+                          &tilemap, &actors, &functionName, &invalidValue)) {
       return nullptr;
     }
+    std::string functionNameStr = ToString(functionName);
     PyObject *engineModule = PyImport_ImportModule("Engine");
     CHECK_NULL(tempPyObjects, engineModule, "Failed to import Engine module");
     tempPyObjects.push_back(engineModule);
@@ -107,24 +117,26 @@ PyObject *C_GetLightMap(PyObject *self, PyObject *args) {
     }
     std::vector<PyObject *> lightMap(height);
     for (int y = 0; y < height; ++y) {
-      std::vector<double> rowLightBlock(width);
+      std::vector<PyObject *> rowMaterialProperty(width);
       for (int x = 0; x < width; ++x) {
-        PyObject *pos = PyObject_CallFunction(Vector2iClass, "ii", x, y);
+        PyObject *pos =
+            PyObject_CallFunction(Vector2iClass, "ii", x, height - y - 1);
         if (!pos) {
-          PyErr_Clear();
-          pos = PyObject_CallFunction(Vector2iClass, "ii", x, y);
+          ClearCache(tempPyObjects);
+          throw std::runtime_error("Failed to create position");
         }
         CHECK_NULL(tempPyObjects, pos, "Failed to create position");
         tempPyObjects.push_back(pos);
-        rowLightBlock[x] =
-            getLightBlock(layerKeys.value(), pos, tilemap, actors);
+        rowMaterialProperty[x] =
+            getMaterialProperty(layerKeys.value(), pos, tilemap, actors,
+                                functionNameStr, invalidValue);
       }
-      auto rowLightBlockVec = FromVectorFloatToPyList(rowLightBlock);
-      PyObject *rowLightBlockObj = FromVectorPyObjToPyList(rowLightBlockVec);
-      CHECK_NULL(tempPyObjects, rowLightBlockObj,
-                 "Failed to create rowLightBlockObj");
-      tempPyObjects.push_back(rowLightBlockObj);
-      lightMap[y] = rowLightBlockObj;
+      PyObject *rowMaterialPropertyObj =
+          FromVectorPyObjToPyList(rowMaterialProperty);
+      CHECK_NULL(tempPyObjects, rowMaterialPropertyObj,
+                 "Failed to create rowMaterialPropertyObj");
+      tempPyObjects.push_back(rowMaterialPropertyObj);
+      lightMap[y] = rowMaterialPropertyObj;
     }
     PyObject *lightMapObj = FromVectorPyObjToPyList(lightMap);
     CHECK_NULL(tempPyObjects, lightMapObj, "Failed to create lightMapObj");

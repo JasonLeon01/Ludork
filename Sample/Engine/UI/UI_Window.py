@@ -21,14 +21,14 @@ if TYPE_CHECKING:
 class Window(SpriteBase, RectBase):
     def __init__(
         self,
-        rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]],
+        rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]], List[List[int]]],
         windowSkin: Optional[Image] = None,
         repeated: bool = False,
     ) -> None:
         from .. import System
 
-        assert isinstance(rect, (IntRect, Tuple)), "rect must be a tuple or IntRect"
-        if isinstance(rect, tuple):
+        assert isinstance(rect, (IntRect, Tuple, List)), "rect must be a tuple, list or IntRect"
+        if isinstance(rect, (tuple, list)):
             position, size = rect
             x, y = position
             w, h = size

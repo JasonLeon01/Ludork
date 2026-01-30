@@ -7,7 +7,6 @@ from .. import (
     Vector2i,
     Vector2f,
     RenderTexture,
-    RenderStates,
     Color,
     View,
 )
@@ -20,9 +19,9 @@ if TYPE_CHECKING:
 
 
 class Canvas(SpriteBase, FunctionalBase):
-    def __init__(self, rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]]) -> None:
-        assert isinstance(rect, (IntRect, Tuple)), "rect must be a tuple or IntRect"
-        if isinstance(rect, tuple):
+    def __init__(self, rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]], List[List[int]]]) -> None:
+        assert isinstance(rect, (IntRect, Tuple, List)), "rect must be a tuple, list or IntRect"
+        if isinstance(rect, (tuple, list)):
             position, size = rect
             x, y = position
             w, h = size
@@ -47,11 +46,11 @@ class Canvas(SpriteBase, FunctionalBase):
         origin = super().getOrigin()
         return origin / System.getScale()
 
-    def setOrigin(self, origin: Union[Vector2f, Tuple[float, float]]) -> None:
+    def setOrigin(self, origin: Union[Vector2f, Tuple[float, float], List[float]]) -> None:
         from Engine import System
 
-        assert isinstance(origin, (Vector2f, Tuple)), "origin must be a tuple or Vector2f"
-        if isinstance(origin, tuple):
+        assert isinstance(origin, (Vector2f, Tuple, List)), "origin must be a tuple, list or Vector2f"
+        if isinstance(origin, (tuple, list)):
             origin = Vector2f(*origin)
         super().setOrigin(origin * System.getScale())
 

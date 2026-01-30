@@ -1,22 +1,24 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Optional, Union, Tuple
+from typing import Optional, Union, Tuple, List
 from ... import Texture, IntRect, Vector2i, Utils, ExecSplit, InvalidVars
+from ..G_Material import Material
 from .A_Actor import Actor
 
 
 @InvalidVars("defaultRect")
 class Character(Actor):
+    direction: int = 0
+    directionFix: bool = False
+    animateWithoutMoving: bool = False
+
     def __init__(self, texture: Optional[Texture] = None, tag: Optional[str] = None) -> None:
         if not texture is None:
             assert isinstance(texture, Texture), "texture must be a Texture"
         self._rectSize: Vector2i = Utils.Math.ToVector2i(texture.getSize() / 4)
         rect = IntRect(Vector2i(0, 0), self._rectSize)
         super().__init__(texture, rect, tag)
-        self.direction: int = 0
-        self.directionFix: bool = False
-        self.animateWithoutMoving: bool = False
         self._sx: int = 0
         self._sy: int = 0
 
@@ -40,11 +42,11 @@ class Character(Actor):
         return super().setTextureRect(rectangle)
 
     @ExecSplit(success=(True,), fail=(False,))
-    def MapMove(self, offset: Union[Vector2i, Tuple[int, int]]) -> None:
+    def MapMove(self, offset: Union[Vector2i, Tuple[int, int], List[int]]) -> None:
         result = super().MapMove(offset)
         if not result:
-            assert isinstance(offset, (Vector2i, Tuple)), "offset must be a Vector2i or a tuple"
-            if isinstance(offset, tuple):
+            assert isinstance(offset, (Vector2i, Tuple, List)), "offset must be a Vector2i or a tuple"
+            if isinstance(offset, (tuple, list)):
                 offset = Vector2i(*offset)
                 vx = offset.x
                 vy = offset.y
@@ -67,7 +69,9 @@ class Character(Actor):
     ) -> Character:
         from Engine import Manager
 
-        character = ActorModel(Manager.loadCharacter(textureStr), tag)
+        character: Character = ActorModel(Manager.loadCharacter(textureStr), tag)
+        if isinstance(character.material, dict):
+            character.material = Material(**character.material)
         return character
 
     def _animate(self, deltaTime: float) -> None:
