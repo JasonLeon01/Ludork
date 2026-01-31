@@ -2,12 +2,41 @@
 
 cd "$(dirname "$0")"
 
+mkdir -p "C_Extensions"
+if [ -d "C_Extensions/SFML" ]; then
+  rm -rf "C_Extensions/SFML"
+fi
+
+echo "Downloading SFML..."
+curl -L -o sfml.zip "https://github.com/SFML/SFML/archive/refs/tags/3.0.1.zip"
+if [ $? -ne 0 ]; then
+  echo "Failed to download SFML."
+  exit 1
+fi
+
+echo "Extracting SFML..."
+unzip -q sfml.zip -d "C_Extensions"
+if [ $? -ne 0 ]; then
+  echo "Failed to extract SFML."
+  rm sfml.zip
+  exit 1
+fi
+
+rm sfml.zip
+
+if [ -d "C_Extensions/SFML-3.0.1" ]; then
+  mv "C_Extensions/SFML-3.0.1" "C_Extensions/SFML"
+else
+  echo "SFML source folder not found."
+  exit 1
+fi
+
 if [ -d "Sample/Engine/pysf" ]; then
   rm -rf "Sample/Engine/pysf"
 fi
 
 echo "Downloading PySF..."
-curl -L -o pysf.zip "https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.2/pysf-3.0.1.2-macOS-ARM64.zip"
+curl -L -o pysf.zip "https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.3/pysf-3.0.1.3-macOS-ARM64.zip"
 if [ $? -ne 0 ]; then
   echo "Failed to download PySF."
   exit 1
@@ -52,7 +81,7 @@ if [ ! -f "$ENV_DIR/bin/activate" ]; then
   fi
 
   . "$ENV_DIR/bin/activate"
-  python -m pip install -r requirements.txt
+  "$PY_CMD" -m pip install -r requirements.txt
   if [ $? -ne 0 ]; then
     rm -rf "$ENV_DIR"
     exit 1
@@ -61,7 +90,7 @@ fi
 
 if [ -d "C_Extensions" ]; then
   cd C_Extensions
-  python setup.py
+  "$PY_CMD" setup.py
   if [ $? -ne 0 ]; then
     cd ..
     exit 1
@@ -69,5 +98,5 @@ if [ -d "C_Extensions" ]; then
   cd ..
 fi
 
-python main.py
+"$PY_CMD" main.py
 exit $?

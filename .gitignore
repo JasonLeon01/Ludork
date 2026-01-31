@@ -8,6 +8,7 @@
 **/__MACOSX
 .vscode/
 .trae/
+C_Extensions/SFML/
 LudorkEnv/
 Ludork.ini
 Locale/en_GB
@@ -18,3 +19,4 @@ launcher.build/
 launcher.dist/
 launcher.onefile-build/
 .clangd
+.clangd-format

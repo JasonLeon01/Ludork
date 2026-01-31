@@ -22,11 +22,9 @@ def findExtensionFolders(baseDir):
 
 def main():
     baseDir = os.path.dirname(os.path.abspath(__file__))
-    parsePath = os.path.join(baseDir, "parse.py")
     for folder in findExtensionFolders(baseDir):
-        runCommand([sys.executable, "setup.py", "build_ext", "--inplace"], cwd=folder)
-        runCommand([sys.executable, parsePath, folder], cwd=baseDir)
-        runCommand([sys.executable, "move.py"], cwd=folder)
+        runCommand([sys.executable, os.path.join(folder, "setup.py")], cwd=folder)
+        runCommand([sys.executable, "process.py"], cwd=folder)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,6 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-import copy
 from dataclasses import dataclass, asdict
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from .. import Drawable, Transformable, VertexArray, Manager, PrimitiveType, Vector2f, Vector2i, Vector2u, GetCellSize
@@ -146,6 +145,12 @@ class Tilemap:
             if layerName == name:
                 return layer
         return None
+
+    def getTilesData(self) -> Dict[str, List[List[Optional[int]]]]:
+        tilesData: Dict[str, List[List[Optional[int]]]] = {}
+        for layerName, layer in self._layers.items():
+            tilesData[layerName] = layer.getTiles()
+        return tilesData
 
     def getBlockableLayer(self, name: str) -> Optional[TileLayer]:
         for layerName, layer in self._blockableLayers.items():

@@ -1,8 +1,11 @@
 #pragma once
 
-#include <Python.h>
+#include <SFML/Graphics/VertexArray.hpp>
+#include <optional>
+#include <pybind11/pybind11.h>
 
-#define coord_vec2_obj(objx, objy, x, y) PyObject *objx = PyFloat_FromDouble(x); PyObject *objy = PyFloat_FromDouble(y);
-#define collect_vec(objx, objy, vec) Py_DECREF(objx); Py_DECREF(objy); Py_DECREF(vec);
+using TileGrids = std::vector<std::vector<std::optional<int>>>;
 
-PyObject* C_CalculateVertexArray(PyObject* self, PyObject* args);
+void C_CalculateVertexArray(sf::VertexArray &vertexArray,
+                            const TileGrids &tiles, int tileSize, int columns,
+                            int width, int height);

@@ -19,7 +19,7 @@ from .. import (
 from .Particles import System as ParticleSystem
 from .Actors import Actor
 from .G_Camera import Camera
-from .G_TileMap import Tilemap
+from .G_TileMap import Tilemap, TileLayer
 
 
 @dataclass
@@ -180,13 +180,22 @@ class GameMap:
         mapSize = self._tilemap.getSize()
         width = mapSize.x
         height = mapSize.y
+        layerKeys = list(self._tilemap.getAllLayers().keys())
+        layerKeys.reverse()
         try:
             from .GamePlayExtension import C_GetMaterialPropertyMap
 
-            layerKeys = list(self._tilemap.getAllLayers().keys())
-            layerKeys.reverse()
             return C_GetMaterialPropertyMap(
-                layerKeys, width, height, self._tilemap, self._actors, functionName, invalidValue
+                layerKeys,
+                width,
+                height,
+                self._tilemap,
+                self._actors,
+                self._tilemap.getTilesData(),
+                functionName,
+                invalidValue,
+                Tilemap.getLayer,
+                Actor.getMapPosition,
             )
         except Exception as e:
             # region Get Material Property Map by Python
@@ -197,7 +206,7 @@ class GameMap:
             def getMaterialProperty(inLayerKeys: List[str], pos: Vector2i) -> Union[float, bool]:
                 for layerName in inLayerKeys:
                     layer = self._tilemap.getLayer(layerName)
-                    if not layer.visible:
+                    if layer is None or not layer.visible:
                         continue
                     if layerName in self._actors:
                         for actor in self._actors[layerName]:
@@ -210,8 +219,6 @@ class GameMap:
                         return getattr(layer, functionName)(pos)
                 return invalidValue
 
-            layerKeys = list(self._tilemap.getAllLayers().keys())
-            layerKeys.reverse()
             materialPropertyMap: List[List[Union[float, bool]]] = []
             for y in range(height):
                 materialPropertyMap.append([])
@@ -248,7 +255,19 @@ class GameMap:
         try:
             from .GamePlayExtension import C_FindPath
 
-            path = C_FindPath(start, goal, size, self._tilemap, layerKeys, self._actors)
+            path = C_FindPath(
+                start,
+                goal,
+                size,
+                self._tilemap,
+                layerKeys,
+                self._actors,
+                self._tilemap.getTilesData(),
+                Tilemap.getLayer,
+                Actor.getMapPosition,
+                Actor.getCollisionEnabled,
+                TileLayer.isPassable,
+            )
             return path
         except Exception as e:
             # region Find Path by Python

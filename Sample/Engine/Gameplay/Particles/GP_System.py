@@ -51,7 +51,19 @@ class System(Drawable):
             from ..GamePlayExtension import C_AddParticle
 
             C_AddParticle(
-                info, uv_tl, uv_tr, uv_br, uv_bl, tl_tr, tr_tr, br_tr, bl_tr, self._vertexArrays[particle.resourcePath]
+                info.position,
+                info.rotation,
+                info.scale,
+                info.color,
+                uv_tl,
+                uv_tr,
+                uv_br,
+                uv_bl,
+                tl_tr,
+                tr_tr,
+                br_tr,
+                bl_tr,
+                self._vertexArrays[particle.resourcePath],
             )
         except Exception as e:
             # region Add Particle by Python

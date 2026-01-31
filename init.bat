@@ -2,12 +2,44 @@
 setlocal EnableDelayedExpansion
 cd /d "%~dp0"
 
+if not exist "C_Extensions" (
+  mkdir "C_Extensions"
+)
+
+if exist "C_Extensions\SFML" (
+  rmdir /S /Q "C_Extensions\SFML"
+)
+
+echo Downloading SFML...
+powershell -Command "Invoke-WebRequest -Uri 'https://github.com/SFML/SFML/archive/refs/tags/3.0.1.zip' -OutFile 'sfml.zip'"
+if errorlevel 1 (
+  echo Failed to download SFML.
+  exit /b 1
+)
+
+echo Extracting SFML...
+powershell -Command "Expand-Archive -Path 'sfml.zip' -DestinationPath 'C_Extensions' -Force"
+if errorlevel 1 (
+  echo Failed to extract SFML.
+  del sfml.zip
+  exit /b 1
+)
+
+del sfml.zip
+
+if exist "C_Extensions\SFML-3.0.1" (
+  ren "C_Extensions\SFML-3.0.1" "SFML"
+) else (
+  echo SFML source folder not found.
+  exit /b 1
+)
+
 if exist "Sample\Engine\pysf" (
   rmdir /S /Q "Sample\Engine\pysf"
 )
 
 echo Downloading PySF...
-powershell -Command "Invoke-WebRequest -Uri 'https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.2/pysf-3.0.1.2-Windows-x64.zip' -OutFile 'pysf.zip'"
+powershell -Command "Invoke-WebRequest -Uri 'https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.3/pysf-3.0.1.3-Windows-x64.zip' -OutFile 'pysf.zip'"
 if errorlevel 1 (
   echo Failed to download PySF.
   exit /b 1

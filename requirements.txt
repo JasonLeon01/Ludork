@@ -6,5 +6,5 @@ pympler
 av
 nuitka
 cython
-tree-sitter
-tree-sitter-cpp
+pybind11
+pybind11-stubgen
