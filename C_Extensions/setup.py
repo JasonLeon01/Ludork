@@ -3,6 +3,7 @@
 import os
 import subprocess
 import sys
+import argparse
 
 
 def runCommand(command, cwd):
@@ -20,12 +21,19 @@ def findExtensionFolders(baseDir):
     return sorted(folders)
 
 
-def main():
+def main(clean=True):
     baseDir = os.path.dirname(os.path.abspath(__file__))
     for folder in findExtensionFolders(baseDir):
-        runCommand([sys.executable, os.path.join(folder, "setup.py")], cwd=folder)
+        setUpCommand = [sys.executable, os.path.join(folder, "setup.py")]
+        if not clean:
+            setUpCommand.append("--no-clean")
+        runCommand(setUpCommand, cwd=folder)
         runCommand([sys.executable, "process.py"], cwd=folder)
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--no-clean", dest="clean", action="store_false", help="不清空 build 目录")
+    parser.set_defaults(clean=True)
+    args = parser.parse_args()
+    main(clean=args.clean)

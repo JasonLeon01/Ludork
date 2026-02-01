@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .. import (
+    Pair,
     Vector2i,
     Vector2f,
     Vector2u,
@@ -71,7 +72,7 @@ class GameMap:
         self._reflectionStrengthTex: Optional[Texture] = None
         self._materialDirty: bool = True
         self._tilePassableGrid: Optional[List[List[bool]]] = None
-        self._occupancyMap: Dict[Tuple[int, int], List[Actor]] = {}
+        self._occupancyMap: Dict[Pair[int], List[Actor]] = {}
 
     def getAllActors(self) -> List[Actor]:
         actors = []
@@ -301,13 +302,13 @@ class GameMap:
             if start_t == goal_t:
                 return []
             openSet = set([start_t])
-            cameFrom: Dict[Tuple[int, int], Tuple[int, int]] = {}
-            gscore: Dict[Tuple[int, int], int] = {start_t: 0}
-            fscore: Dict[Tuple[int, int], int] = {start_t: abs(sx - gx) + abs(sy - gy)}
+            cameFrom: Dict[Pair[int], Pair[int]] = {}
+            gscore: Dict[Pair[int], int] = {start_t: 0}
+            fscore: Dict[Pair[int], int] = {start_t: abs(sx - gx) + abs(sy - gy)}
             while openSet:
                 current = min(openSet, key=lambda t: fscore.get(t, 1 << 30))
                 if current == goal_t:
-                    pathPositions: List[Tuple[int, int]] = []
+                    pathPositions: List[Pair[int]] = []
                     c = current
                     while c in cameFrom:
                         pathPositions.append(c)

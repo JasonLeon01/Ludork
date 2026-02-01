@@ -1,10 +1,12 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Any, Dict
+from typing import Any, Dict, Tuple, TypeVar, Generic
 
 
 _GameRunning: bool = True
 _CellSize: int = 32
+T = TypeVar("T")
+Pair = Tuple[T, T]
 
 
 def GetGameRunning():
@@ -89,8 +91,6 @@ def RegisterEvent(func=None):
 
 
 from . import pysf
-
-
 from .pysf import Angle
 from .pysf import BlendAdd
 from .pysf import BlendAlpha

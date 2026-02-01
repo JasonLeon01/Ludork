@@ -131,20 +131,28 @@ class System(Drawable):
     def removeParticleAt(self, resourcePath: str, idx: int) -> None:
         plist = self._particles[resourcePath]
         va = self._vertexArrays[resourcePath]
-        n_before = len(plist)
+        isParticleListEmpty = False
+        try:
+            from ..GamePlayExtension import C_RemoveParticle
 
-        if idx != n_before - 1:
-            for i in range(idx, n_before - 1):
-                src = (i + 1) * 6
-                dst = i * 6
-                for k in range(6):
-                    va[dst + k].position = va[src + k].position
-                    va[dst + k].texCoords = va[src + k].texCoords
-                    va[dst + k].color = va[src + k].color
+            isParticleListEmpty = C_RemoveParticle(plist, va, idx)
+        except Exception as e:
+            # region Remove Particle by Python
+            print(f"Failed to remove particle by C extension, try to remove by python. Error: {e}")
+            n_before = len(plist)
 
-        del plist[idx]
-        va.resize((n_before - 1) * 6)
-        if n_before - 1 == 0:
+            if idx != n_before - 1:
+                for i in range(idx, n_before - 1):
+                    src = (i + 1) * 6
+                    dst = i * 6
+                    for k in range(6):
+                        va[dst + k] = va[src + k]
+            del plist[idx]
+            va.resize((n_before - 1) * 6)
+            isParticleListEmpty = n_before == 1
+            # endregion
+
+        if isParticleListEmpty:
             self._particles.pop(resourcePath)
             self._vertexArrays.pop(resourcePath)
             self._resourceDict.pop(resourcePath)

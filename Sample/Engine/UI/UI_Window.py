@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
 from .. import (
+    Pair,
     Sprite,
     IntRect,
     Vector2i,
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
 class Window(SpriteBase, RectBase):
     def __init__(
         self,
-        rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]], List[List[int]]],
+        rect: Union[IntRect, Tuple[Pair[int], Pair[int]], List[List[int]]],
         windowSkin: Optional[Image] = None,
         repeated: bool = False,
     ) -> None:

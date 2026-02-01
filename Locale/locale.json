@@ -115,14 +115,6 @@
         "zh_CN": "Nuitka 打包失败",
         "en_GB": "Nuitka packaging failed"
     },
-    "PACK_CYTHON_MISSING": {
-        "zh_CN": "未安装 Cython",
-        "en_GB": "Cython is not installed"
-    },
-    "PACK_CYTHON_FAILED": {
-        "zh_CN": "Cython 编译失败",
-        "en_GB": "Cython compilation failed"
-    },
     "PACK_COPY_MISSING": {
         "zh_CN": "缺少以下文件或目录：{items}",
         "en_GB": "Missing files or folders: {items}"

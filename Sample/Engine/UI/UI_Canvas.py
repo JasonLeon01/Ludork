@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import List, Tuple, Union, TYPE_CHECKING
 from .. import (
+    Pair,
     IntRect,
     Vector2i,
     Vector2f,
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
 
 
 class Canvas(SpriteBase, FunctionalBase):
-    def __init__(self, rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]], List[List[int]]]) -> None:
+    def __init__(self, rect: Union[IntRect, Tuple[Pair[int], Pair[int]], List[List[int]]]) -> None:
         assert isinstance(rect, (IntRect, Tuple, List)), "rect must be a tuple, list or IntRect"
         if isinstance(rect, (tuple, list)):
             position, size = rect
@@ -36,7 +37,7 @@ class Canvas(SpriteBase, FunctionalBase):
         FunctionalBase.__init__(self)
         self.setPosition(Math.ToVector2f(rect.position))
 
-    def v_getOrigin(self) -> Tuple[float, float]:
+    def v_getOrigin(self) -> Pair[float]:
         origin = self.getOrigin()
         return (origin.x, origin.y)
 
@@ -46,7 +47,7 @@ class Canvas(SpriteBase, FunctionalBase):
         origin = super().getOrigin()
         return origin / System.getScale()
 
-    def setOrigin(self, origin: Union[Vector2f, Tuple[float, float], List[float]]) -> None:
+    def setOrigin(self, origin: Union[Vector2f, Pair[float], List[float]]) -> None:
         from Engine import System
 
         assert isinstance(origin, (Vector2f, Tuple, List)), "origin must be a tuple, list or Vector2f"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 import inspect
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from .. import Pair
 from .N_Node import DataNode, Node
 
 
@@ -28,8 +29,8 @@ class Graph:
         self.nodes: Dict[str, List[Node]] = {}
         self.links = links
         self.startNodes = startNodes
-        self.nodeRely: Dict[str, Dict[int, Dict[int, Tuple[int, int]]]] = {}
-        self.nodeNexts: Dict[str, Dict[int, Dict[int, Tuple[int, int]]]] = {}
+        self.nodeRely: Dict[str, Dict[int, Dict[int, Pair[int]]]] = {}
+        self.nodeNexts: Dict[str, Dict[int, Dict[int, Pair[int]]]] = {}
         if self.startNodes is None:
             self.startNodes = {}
         self.nodeModel = nodeModel

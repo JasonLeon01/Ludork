@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import List, Tuple, Union
-from .. import IntRect, RenderTarget, RenderStates
+from .. import Pair, IntRect, RenderTarget, RenderStates
 from ..Utils import Math, Render
 from .Base import ControlBase
 
@@ -10,7 +10,7 @@ from .Base import ControlBase
 class ListView(ControlBase):
     def __init__(
         self,
-        rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]],
+        rect: Union[IntRect, Tuple[Pair[int], Pair[int]]],
         defaultItemHeight: int = 32,
         fixItemHeight: bool = False,
         columns: int = 1,

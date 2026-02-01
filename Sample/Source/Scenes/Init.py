@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import threading
 from typing import Tuple
-from Engine import SceneBase, System, Color, Vector2f, RenderTexture, RectangleShape, Manager
+from Engine import Pair, SceneBase, System, Color, Vector2f, RenderTexture, RectangleShape, Manager
 from Engine.Utils import Render, Math
 from Engine.Animation import compressAnimation
 from Engine.Utils import File
@@ -15,7 +15,7 @@ from .. import Data
 
 
 class progressBar(SpriteBase):
-    def __init__(self, rect: Tuple[Tuple[int, int], Tuple[int, int]]) -> None:
+    def __init__(self, rect: Tuple[Pair[int], Pair[int]]) -> None:
         position, size = rect
         x, y = position
         w, h = size

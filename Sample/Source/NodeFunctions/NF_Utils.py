@@ -3,7 +3,7 @@
 from __future__ import annotations
 import inspect
 from typing import Any, Tuple
-from Engine import System, ExecSplit, ReturnType, SceneBase, Vector2f, degrees
+from Engine import Pair, System, ExecSplit, ReturnType, SceneBase, Vector2f, degrees
 from Engine.Animation import AnimSprite
 from .. import Data
 
@@ -194,7 +194,7 @@ def GetLocalValueRef(valueName: str, default: Any = None) -> Any:
 
 
 @ExecSplit(default=(None,))
-def AddAnim(animName: str, position: Tuple[float, float], rotation: float, scale: Tuple[float, float]) -> None:
+def AddAnim(animName: str, position: Pair[float], rotation: float, scale: Pair[float]) -> None:
     from Source import Data
 
     animData = Data.getAnimation(animName)

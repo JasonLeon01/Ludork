@@ -3,10 +3,8 @@
 from __future__ import annotations
 import math
 from dataclasses import dataclass
-from typing import List, Union, TypeAlias, Callable, Optional, Tuple, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from Engine import Time, Vector3f, Angle, Sound, Music
+from typing import List, Union, TypeAlias, Callable, Optional, Tuple
+from .. import Pair, Time, Vector3f, Angle, Sound, Music
 
 EffectProcessor: TypeAlias = Callable[[List[float], int, List[float], int, int], None]
 
@@ -37,7 +35,7 @@ class SoundFilter:
 
 @dataclass
 class MusicFilter(SoundFilter):
-    loopPoint: Optional[Union[Tuple[float, float], Tuple[Time, Time], Music.TimeSpan]] = None
+    loopPoint: Optional[Union[Pair[float], Pair[Time], Music.TimeSpan]] = None
 
 
 def echoEffect(delay: float, decay: float, sampleRate: float):

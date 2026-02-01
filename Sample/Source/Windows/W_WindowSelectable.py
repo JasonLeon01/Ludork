@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import Optional, Union, Tuple, Dict, Any
-from Engine import Image, IntRect, Vector2f, Vector2i, Input, View, FloatRect
+from Engine import Pair, Image, IntRect, Vector2f, Vector2i, Input, View, FloatRect
 from Engine.UI import Rect, ListView
 from Engine.Utils import Math
 from Engine.UI.Base import ControlBase, FunctionalBase
@@ -12,7 +12,7 @@ from .W_WindowBase import WindowBase
 class WindowSelectable(WindowBase):
     def __init__(
         self,
-        rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]],
+        rect: Union[IntRect, Tuple[Pair[int], Pair[int]]],
         listView: Optional[ListView] = None,
         rectWidth: Optional[int] = None,
         rectHeight: int = 32,

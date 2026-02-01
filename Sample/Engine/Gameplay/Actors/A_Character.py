@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import Optional, Union, Tuple, List
-from ... import Texture, IntRect, Vector2i, Utils, ExecSplit, InvalidVars
+from ... import Pair, Texture, IntRect, Vector2i, Utils, ExecSplit, InvalidVars
 from ..G_Material import Material
 from .A_Actor import Actor
 
@@ -42,7 +42,7 @@ class Character(Actor):
         return super().setTextureRect(rectangle)
 
     @ExecSplit(success=(True,), fail=(False,))
-    def MapMove(self, offset: Union[Vector2i, Tuple[int, int], List[int]]) -> None:
+    def MapMove(self, offset: Union[Vector2i, Pair[int], List[int]]) -> None:
         result = super().MapMove(offset)
         if not result:
             assert isinstance(offset, (Vector2i, Tuple, List)), "offset must be a Vector2i or a tuple"
@@ -65,7 +65,7 @@ class Character(Actor):
 
     @staticmethod
     def GenActor(
-        ActorModel: type, textureStr: str, textureRect: Optional[Tuple[Tuple[int, int], Tuple[int, int]]], tag: str
+        ActorModel: type, textureStr: str, textureRect: Optional[Tuple[Pair[int], Pair[int]]], tag: str
     ) -> Character:
         from Engine import Manager
 

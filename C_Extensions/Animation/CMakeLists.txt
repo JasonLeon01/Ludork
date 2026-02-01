@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(GamePlayExtension)
+project(AnimationExtension)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -24,37 +24,31 @@ set(SFML_BUILD_SYSTEM ON)
 set(BUILD_SHARED_LIBS OFF)
 add_subdirectory(${SFML_DIR} ${CMAKE_CURRENT_BINARY_DIR}/SFML)
 
-pybind11_add_module(GamePlayExtension
+pybind11_add_module(AnimationExtension
     "main.cpp"
-    "src/Tilemap.cpp"
-    "src/GameMap/GetMaterialPropertyMap.cpp"
-    "src/GameMap/GetMaterialPropertyTexture.cpp"
-    "src/GameMap/FindPath.cpp"
-    "src/GameMap/RebuildPassabilityCache.cpp"
-    "src/Particles/AddParticle.cpp"
-    "src/Particles/UpdateParticlesInfo.cpp"
-    "src/Particles/RemoveParticle.cpp"
+    "src/CompressAnimation.cpp"
 )
 
-target_include_directories(GamePlayExtension PRIVATE
+target_include_directories(AnimationExtension PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${SFML_DIR}/include
 )
 
-target_link_libraries(GamePlayExtension PRIVATE
+target_link_libraries(AnimationExtension PRIVATE
     sfml-graphics
     sfml-system
+    sfml-audio
 )
 if(MSVC)
-  target_compile_options(GamePlayExtension PRIVATE $<$<CONFIG:Release>:/O2 /DNDEBUG /GL>)
-  target_link_options(GamePlayExtension PRIVATE $<$<CONFIG:Release>:/LTCG /OPT:REF /OPT:ICF>)
+  target_compile_options(AnimationExtension PRIVATE $<$<CONFIG:Release>:/O2 /DNDEBUG /GL>)
+  target_link_options(AnimationExtension PRIVATE $<$<CONFIG:Release>:/LTCG /OPT:REF /OPT:ICF>)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 elseif(APPLE)
-  target_compile_options(GamePlayExtension PRIVATE $<$<CONFIG:Release>:-O2 -DNDEBUG -flto>)
-  target_link_options(GamePlayExtension PRIVATE $<$<CONFIG:Release>:-flto -Wl,-dead_strip>)
+  target_compile_options(AnimationExtension PRIVATE $<$<CONFIG:Release>:-O2 -DNDEBUG -flto>)
+  target_link_options(AnimationExtension PRIVATE $<$<CONFIG:Release>:-flto -Wl,-dead_strip>)
 else()
-  target_compile_options(GamePlayExtension PRIVATE $<$<CONFIG:Release>:-O2 -DNDEBUG -ffunction-sections -fdata-sections -flto>)
-  target_link_options(GamePlayExtension PRIVATE $<$<CONFIG:Release>:-Wl,--gc-sections -flto>)
+  target_compile_options(AnimationExtension PRIVATE $<$<CONFIG:Release>:-O2 -DNDEBUG -ffunction-sections -fdata-sections -flto>)
+  target_link_options(AnimationExtension PRIVATE $<$<CONFIG:Release>:-Wl,--gc-sections -flto>)
 endif()
 if(MSVC)
   target_compile_options(sfml-graphics PRIVATE $<$<CONFIG:Release>:/O2 /DNDEBUG /GL /Gy>)

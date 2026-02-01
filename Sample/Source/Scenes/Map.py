@@ -33,6 +33,7 @@ class Scene(SceneBase):
         self.anim2 = AnimSprite(Data.getAnimation("test"))
         self.anim2.setPosition(Vector2f(128, 128))
         self.addTimer("animTest2", 10.0, lambda: self.addAnim(self.anim2))
+        self.addTimer("removeParticle", 10.0, lambda: self._gameMap._particleSystem.removeParticle(self.particle), [])
 
     def onFixedTick(self, fixedDelta: float) -> None:
         self._gameMap.onFixedTick(fixedDelta)

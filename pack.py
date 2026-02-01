@@ -4,7 +4,6 @@ import os
 import sys
 import subprocess
 import shutil
-import Cython
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -38,7 +37,6 @@ FLAGS = [
     "--include-module=pympler.asizeof",
     "--include-module=av",
     "--include-module=PyQt5.QtSvg",
-    "--nofollow-import-to=Cython",
     "--lto=yes",
 ]
 
@@ -137,17 +135,6 @@ def main():
                 with open(proj_file, "w", encoding="utf-8") as f:
                     f.write("{}")
                 print(f"[INFO] Created clean Main.proj in {dst}")
-
-    cython_src = os.path.dirname(Cython.__file__)
-    if sys.platform == "win32":
-        cython_dst = OUTDIR / "main.dist" / "Cython"
-    else:
-        cython_dst = OUTDIR / "main.app" / "Contents" / "MacOS" / "Cython"
-
-    if cython_dst.exists():
-        shutil.rmtree(cython_dst)
-    shutil.copytree(cython_src, cython_dst)
-    print(f"[INFO] Copied Cython to {cython_dst}")
 
     if sys.platform == "win32":
         mainExe = ROOT / "Main.exe"

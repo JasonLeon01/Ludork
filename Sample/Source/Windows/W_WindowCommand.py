@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 from typing import Any, Dict, Optional, Union, Tuple
-from Engine import Image, IntRect, System, Vector2f
+from Engine import Pair, Image, IntRect, System
 from Engine.UI import ListView
-from Engine.Utils import Math
-from Engine.UI.Base import FunctionalBase
 from Engine.UI.FunctionalUI import FPlainText
 from .W_WindowSelectable import WindowSelectable
 
@@ -13,7 +11,7 @@ from .W_WindowSelectable import WindowSelectable
 class WindowCommand(WindowSelectable):
     def __init__(
         self,
-        rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]],
+        rect: Union[IntRect, Tuple[Pair[int], Pair[int]]],
         commands: Dict[str, Dict[str, Any]] = {},
         rectWidth: Optional[int] = None,
         rectHeight: int = 32,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import Optional, Tuple, List, Union, TYPE_CHECKING
-from ... import Drawable, Transformable, Vector2f, Angle, degrees, Transform
+from ... import Pair, Drawable, Transformable, Vector2f, Angle, degrees, Transform
 
 if TYPE_CHECKING:
     from Engine.UI import Canvas, ListView
@@ -41,18 +41,18 @@ class ControlBase(Drawable, Transformable):
     def setParent(self, parent: Optional[Union[Canvas, ListView]]) -> None:
         self._parent = parent
 
-    def v_getPosition(self) -> Tuple[float, float]:
+    def v_getPosition(self) -> Pair[float]:
         result = super().getPosition()
         return (result.x, result.y)
 
-    def setPosition(self, position: Union[Vector2f, Tuple[float, float], List[float]]) -> None:
+    def setPosition(self, position: Union[Vector2f, Pair[float], List[float]]) -> None:
         assert isinstance(position, (Vector2f, Tuple, List)), "position must be a tuple, list or Vector2f"
         if isinstance(position, (tuple, list)):
             x, y = position
             position = Vector2f(x, y)
         super().setPosition(position)
 
-    def move(self, offset: Union[Vector2f, Tuple[float, float], List[float]]) -> bool:
+    def move(self, offset: Union[Vector2f, Pair[float], List[float]]) -> bool:
         assert isinstance(offset, (Vector2f, Tuple, List)), "offset must be a tuple, list or Vector2f"
         if isinstance(offset, (tuple, list)):
             x, y = offset
@@ -73,29 +73,29 @@ class ControlBase(Drawable, Transformable):
             angle = degrees(angle)
         super().rotate(angle)
 
-    def v_getScale(self) -> Tuple[float, float]:
+    def v_getScale(self) -> Pair[float]:
         result = super().getScale()
         return (result.x, result.y)
 
-    def setScale(self, scale: Union[Vector2f, Tuple[float, float], List[float]]) -> None:
+    def setScale(self, scale: Union[Vector2f, Pair[float], List[float]]) -> None:
         assert isinstance(scale, (Vector2f, Tuple, List)), "scale must be a tuple, list or Vector2f"
         if isinstance(scale, (tuple, list)):
             x, y = scale
             scale = Vector2f(x, y)
         super().setScale(scale)
 
-    def scale(self, factor: Union[Vector2f, Tuple[float, float], List[float]]) -> None:
+    def scale(self, factor: Union[Vector2f, Pair[float], List[float]]) -> None:
         assert isinstance(factor, (Vector2f, Tuple, List)), "factor must be a tuple, list or Vector2f"
         if isinstance(factor, (tuple, list)):
             x, y = factor
             factor = Vector2f(x, y)
         super().scale(factor)
 
-    def v_getOrigin(self) -> Tuple[float, float]:
+    def v_getOrigin(self) -> Pair[float]:
         result = super().getOrigin()
         return (result.x, result.y)
 
-    def setOrigin(self, origin: Union[Vector2f, Tuple[float, float], List[float]]) -> None:
+    def setOrigin(self, origin: Union[Vector2f, Pair[float], List[float]]) -> None:
         assert isinstance(origin, (Vector2f, Tuple, List)), "origin must be a tuple, list or Vector2f"
         if isinstance(origin, (tuple, list)):
             x, y = origin

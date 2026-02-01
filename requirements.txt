@@ -5,6 +5,5 @@ psutil
 pympler
 av
 nuitka
-cython
 pybind11
 pybind11-stubgen

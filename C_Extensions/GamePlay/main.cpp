@@ -37,4 +37,6 @@ PYBIND11_MODULE(GamePlayExtension, m) {
   m.def("C_UpdateParticlesInfo", &C_UpdateParticlesInfo,
         py::arg("getUpdateParticleInfo"), py::arg("updateFlags"),
         py::arg("particles"), py::arg("vertexArrays"));
+  m.def("C_RemoveParticle", &C_RemoveParticle, py::arg("particles"),
+        py::arg("vertexArrays"), py::arg("index"));
 }

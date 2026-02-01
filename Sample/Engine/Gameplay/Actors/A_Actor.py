@@ -2,7 +2,18 @@
 
 from __future__ import annotations
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
-from ... import Vector2f, Vector2i, Vector2u, GetCellSize, ExecSplit, ReturnType, RegisterEvent, PathVars, RectRangeVars
+from ... import (
+    Pair,
+    Vector2f,
+    Vector2i,
+    Vector2u,
+    GetCellSize,
+    ExecSplit,
+    ReturnType,
+    RegisterEvent,
+    PathVars,
+    RectRangeVars,
+)
 from ..G_Material import Material
 from ...Utils import Math
 from .A_Base import _ActorBase
@@ -19,17 +30,17 @@ class Actor(_ActorBase):
     speed: float = 64.0
     ### Generation use only
     texturePath: str = ""
-    defaultRect: Optional[Tuple[Tuple[int, int], Tuple[int, int]]] = ((0, 0), (32, 32))
-    defaultTranslation: Tuple[float, float] = (0.0, 0.0)
+    defaultRect: Optional[Tuple[Pair[int], Pair[int]]] = ((0, 0), (32, 32))
+    defaultTranslation: Pair[float] = (0.0, 0.0)
     defaultRotation: float = 0.0
-    defaultScale: Tuple[float, float] = (1.0, 1.0)
-    defaultOrigin: Tuple[float, float] = (0.0, 0.0)
+    defaultScale: Pair[float] = (1.0, 1.0)
+    defaultOrigin: Pair[float] = (0.0, 0.0)
     ### Generation use only
 
     def __init__(
         self,
         texture: Optional[Union[Texture, List[Texture]]] = None,
-        rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]] = None,
+        rect: Union[IntRect, Tuple[Pair[int], Pair[int]]] = None,
         tag: Optional[str] = None,
     ) -> None:
         super().__init__(texture, rect, tag)
@@ -37,7 +48,7 @@ class Actor(_ActorBase):
         self.tickable: bool = False
         self.speed: float = 64.0
         self._isMoving: bool = False
-        self._nextMoveOffset: Optional[Union[Vector2i, Tuple[int, int]]] = None
+        self._nextMoveOffset: Optional[Union[Vector2i, Pair[int]]] = None
         self._inRoutine: bool = False
         self._routine: Optional[List[Vector2i]] = None
         self._departure: Optional[Vector2f] = None
@@ -96,7 +107,7 @@ class Actor(_ActorBase):
         self._map.destroyActor(self)
 
     @ExecSplit(success=(True,), fail=(False,))
-    def MapMove(self, offset: Union[Vector2i, Tuple[int, int], List[int]]) -> None:
+    def MapMove(self, offset: Union[Vector2i, Pair[int], List[int]]) -> None:
         assert isinstance(offset, (Vector2i, Tuple, List)), "offset must be a tuple, list, or Vector2i"
         if not isinstance(offset, Vector2i):
             x, y = offset
@@ -294,7 +305,7 @@ class Actor(_ActorBase):
 
     @staticmethod
     def GenActor(
-        ActorModel: type, textureStr: str, textureRect: Optional[Tuple[Tuple[int, int], Tuple[int, int]]], tag: str
+        ActorModel: type, textureStr: str, textureRect: Optional[Tuple[Pair[int], Pair[int]]], tag: str
     ) -> Actor:
         from Engine import Manager
 

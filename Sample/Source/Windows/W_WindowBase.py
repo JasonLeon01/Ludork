@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 from typing import Optional, Union, Tuple
-from Engine import Image, IntRect
+from Engine import Pair, Image, IntRect
 from Engine.UI import Canvas, Window
 
 
 class WindowBase(Canvas):
     def __init__(
         self,
-        rect: Union[IntRect, Tuple[Tuple[int, int], Tuple[int, int]]],
+        rect: Union[IntRect, Tuple[Pair[int], Pair[int]]],
         windowSkin: Optional[Image] = None,
         repeated: bool = False,
     ) -> None:
