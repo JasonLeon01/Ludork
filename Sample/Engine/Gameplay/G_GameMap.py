@@ -71,7 +71,7 @@ class GameMap:
         self._reflectionStrengthTex: Optional[Texture] = None
         self._materialDirty: bool = True
         self._tilePassableGrid: Optional[List[List[bool]]] = None
-        self._occupancyMap: Dict[tuple, List[Actor]] = {}
+        self._occupancyMap: Dict[Tuple[int, int], List[Actor]] = {}
 
     def getAllActors(self) -> List[Actor]:
         actors = []
@@ -470,30 +470,48 @@ class GameMap:
         size = self._tilemap.getSize()
         layerKeysList = list(self._tilemap.getAllLayers().keys())
         layerKeysList.reverse()
-        self._tilePassableGrid = []
-        for y in range(size.y):
-            row: List[bool] = []
-            for x in range(size.x):
-                passable = True
-                for layerName in layerKeysList:
-                    layer = self._tilemap.getLayer(layerName)
-                    tile = layer.get(Vector2i(x, y))
-                    if tile is not None:
-                        passable = layer.isPassable(Vector2i(x, y))
-                        break
-                row.append(passable)
-            self._tilePassableGrid.append(row)
-        self._occupancyMap = {}
-        for actorList in self._actors.values():
-            for other in actorList:
-                if not other.getCollisionEnabled():
-                    continue
-                pos = other.getMapPosition()
-                key = (pos.x, pos.y)
-                if key not in self._occupancyMap:
-                    self._occupancyMap[key] = [other]
-                else:
-                    self._occupancyMap[key].append(other)
+        try:
+            from .GamePlayExtension import C_RebuildPassabilityCache
+
+            self._tilePassableGrid, self._occupancyMap = C_RebuildPassabilityCache(
+                size,
+                layerKeysList,
+                self._tilemap.getTilesData(),
+                self._actors,
+                self._tilemap,
+                Tilemap.getLayer,
+                TileLayer.isPassable,
+                Actor.getCollisionEnabled,
+                Actor.getMapPosition,
+            )
+        except Exception as e:
+            print(
+                f"Failed to rebuild passability cache by C extension, try to rebuild passability cache by python. Error: {e}"
+            )
+            self._tilePassableGrid = []
+            for y in range(size.y):
+                row: List[bool] = []
+                for x in range(size.x):
+                    passable = True
+                    for layerName in layerKeysList:
+                        layer = self._tilemap.getLayer(layerName)
+                        tile = layer.get(Vector2i(x, y))
+                        if tile is not None:
+                            passable = layer.isPassable(Vector2i(x, y))
+                            break
+                    row.append(passable)
+                self._tilePassableGrid.append(row)
+            self._occupancyMap = {}
+            for actorList in self._actors.values():
+                for other in actorList:
+                    if not other.getCollisionEnabled():
+                        continue
+                    pos = other.getMapPosition()
+                    key = (pos.x, pos.y)
+                    if key not in self._occupancyMap:
+                        self._occupancyMap[key] = [other]
+                    else:
+                        self._occupancyMap[key].append(other)
 
     def markPassabilityDirty(self) -> None:
         self._materialDirty = True

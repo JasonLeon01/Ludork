@@ -139,6 +139,9 @@ class Tilemap:
             self._layers[layer.getName()] = layer
         for layer in blockableLayers:
             self._blockableLayers[layer.getName()] = layer
+        self._tilesData: Dict[str, List[List[Optional[int]]]] = {}
+        for layerName, layer in self._layers.items():
+            self._tilesData[layerName] = layer.getTiles()
 
     def getLayer(self, name: str) -> Optional[TileLayer]:
         for layerName, layer in self._layers.items():
@@ -147,10 +150,7 @@ class Tilemap:
         return None
 
     def getTilesData(self) -> Dict[str, List[List[Optional[int]]]]:
-        tilesData: Dict[str, List[List[Optional[int]]]] = {}
-        for layerName, layer in self._layers.items():
-            tilesData[layerName] = layer.getTiles()
-        return tilesData
+        return self._tilesData
 
     def getBlockableLayer(self, name: str) -> Optional[TileLayer]:
         for layerName, layer in self._blockableLayers.items():

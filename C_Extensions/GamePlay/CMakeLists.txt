@@ -30,6 +30,7 @@ pybind11_add_module(GamePlayExtension
     "src/GameMap/GetMaterialPropertyMap.cpp"
     "src/GameMap/GetMaterialPropertyTexture.cpp"
     "src/GameMap/FindPath.cpp"
+    "src/GameMap/RebuildPassabilityCache.cpp"
     "src/Particles/AddParticle.cpp"
     "src/Particles/UpdateParticlesInfo.cpp"
 )

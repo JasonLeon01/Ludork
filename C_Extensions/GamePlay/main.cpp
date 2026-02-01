@@ -10,6 +10,7 @@ PYBIND11_MODULE(GamePlayExtension, m) {
   m.def("C_CalculateVertexArray", &C_CalculateVertexArray,
         py::arg("vertexArray"), py::arg("tiles"), py::arg("tileSize"),
         py::arg("columns"), py::arg("width"), py::arg("height"));
+
   m.def("C_GetMaterialPropertyMap", &C_GetMaterialPropertyMap,
         py::arg("layerKeys"), py::arg("width"), py::arg("height"),
         py::arg("tilemap"), py::arg("actors"), py::arg("functionName"),
@@ -22,6 +23,12 @@ PYBIND11_MODULE(GamePlayExtension, m) {
         py::arg("actors"), py::arg("getLayer"), py::arg("getMapPosition"),
         py::arg("getCollisionEnabled"), py::arg("getTile"),
         py::arg("isPassable"));
+  m.def("C_RebuildPassabilityCache", &C_RebuildPassabilityCache,
+        py::arg("size"), py::arg("layerKeys"), py::arg("tileData"),
+        py::arg("actors"), py::arg("tilemap"), py::arg("getLayer"),
+        py::arg("isPassable"), py::arg("getCollisionEnabled"),
+        py::arg("getMapPosition"));
+
   m.def("C_AddParticle", &C_AddParticle, py::arg("infoPosition"),
         py::arg("infoRotation"), py::arg("infoScale"), py::arg("infoColor"),
         py::arg("uv_tl"), py::arg("uv_tr"), py::arg("uv_br"), py::arg("uv_bl"),

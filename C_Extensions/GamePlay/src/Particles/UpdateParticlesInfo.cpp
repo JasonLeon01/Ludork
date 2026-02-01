@@ -1,18 +1,24 @@
 #include <Particles/UpdateParticlesInfo.h>
+#include <SFML/Graphics/Color.hpp>
 #include <SFML/Graphics/Transform.hpp>
 #include <SFML/Graphics/Vertex.hpp>
+#include <SFML/System/Angle.hpp>
+#include <SFML/System/Vector2.hpp>
 #include <algorithm>
 
 void C_UpdateParticlesInfo(
     py::function getUpdateParticleInfo,
     const std::vector<py::object> &updateFlags, const Particle &particles,
-    std::unordered_map<std::string, sf::VertexArray> &vertexArrays) {
+    const std::unordered_map<std::string, sf::VertexArray *> &vertexArrays) {
   for (auto &particle : updateFlags) {
     std::string resourcePath =
         particle.attr("resourcePath").cast<std::string>();
-    auto particleList = particles.at(resourcePath);
+    const auto &particleList = particles.at(resourcePath);
     int idx = std::find(particleList.begin(), particleList.end(), particle) -
               particleList.begin();
+    if (idx >= static_cast<int>(particleList.size())) {
+      continue;
+    }
     sf::Transform t = sf::Transform();
     t.translate(particle.attr("info").attr("position").cast<sf::Vector2f>());
     t.rotate(particle.attr("info").attr("rotation").cast<sf::Angle>());
@@ -28,18 +34,22 @@ void C_UpdateParticlesInfo(
     sf::Vector2f br = t.transformPoint(br_tr);
     sf::Vector2f bl = t.transformPoint(bl_tr);
 
-    auto vertexArray = vertexArrays.at(resourcePath);
-    vertexArray[idx * 6 + 0].position = tl;
-    vertexArray[idx * 6 + 1].position = tr;
-    vertexArray[idx * 6 + 2].position = br;
-    vertexArray[idx * 6 + 3].position = tl;
-    vertexArray[idx * 6 + 4].position = br;
-    vertexArray[idx * 6 + 5].position = bl;
-    vertexArray[idx * 6 + 0].color = infoColor;
-    vertexArray[idx * 6 + 1].color = infoColor;
-    vertexArray[idx * 6 + 2].color = infoColor;
-    vertexArray[idx * 6 + 3].color = infoColor;
-    vertexArray[idx * 6 + 4].color = infoColor;
-    vertexArray[idx * 6 + 5].color = infoColor;
+    auto it = vertexArrays.find(resourcePath);
+    if (it == vertexArrays.end() || it->second == nullptr) {
+      continue;
+    }
+    auto vertexArray = it->second;
+    (*vertexArray)[idx * 6 + 0].position = tl;
+    (*vertexArray)[idx * 6 + 1].position = tr;
+    (*vertexArray)[idx * 6 + 2].position = br;
+    (*vertexArray)[idx * 6 + 3].position = tl;
+    (*vertexArray)[idx * 6 + 4].position = br;
+    (*vertexArray)[idx * 6 + 5].position = bl;
+    (*vertexArray)[idx * 6 + 0].color = infoColor;
+    (*vertexArray)[idx * 6 + 1].color = infoColor;
+    (*vertexArray)[idx * 6 + 2].color = infoColor;
+    (*vertexArray)[idx * 6 + 3].color = infoColor;
+    (*vertexArray)[idx * 6 + 4].color = infoColor;
+    (*vertexArray)[idx * 6 + 5].color = infoColor;
   }
 }
