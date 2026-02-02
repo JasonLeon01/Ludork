@@ -9,7 +9,7 @@ import importlib
 from PyQt5 import QtWidgets, QtGui, QtCore
 import Utils
 import EditorStatus
-from Utils import Locale
+from Utils import Locale, System
 from Data import GameData
 
 
@@ -111,7 +111,7 @@ class EditorPanel(QtWidgets.QWidget):
         self.update()
 
     def applyMapData(self, data):
-        Engine: TempEngine = importlib.import_module("Engine")
+        Engine = System.getModule("Engine")
         TileLayerData = Engine.Gameplay.TileLayerData
         mapName = data["mapName"]
         width = data["width"]
@@ -1361,7 +1361,7 @@ class EditorPanel(QtWidgets.QWidget):
                     clsObj = None
             try:
                 ActorBases = []
-                Engine = importlib.import_module("Engine")
+                Engine = System.getModule("Engine")
                 ActorBases.append(Engine.Gameplay.Actors.Actor)
                 okSubclass = (
                     bool(clsObj) and isinstance(clsObj, type) and any(issubclass(clsObj, b) for b in ActorBases)

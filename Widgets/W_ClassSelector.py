@@ -2,10 +2,9 @@
 
 import os
 import sys
-import importlib
 import inspect
 from PyQt5 import QtWidgets, QtCore
-from Utils import Locale
+from Utils import Locale, System
 import EditorStatus
 
 
@@ -88,7 +87,7 @@ class ClassSelector(QtWidgets.QDialog):
 
     def _scanModule(self, modulePath, found_classes, is_package):
         try:
-            module = importlib.import_module(modulePath)
+            module = System.getModule("Engine")
             for name, obj in inspect.getmembers(module, inspect.isclass):
                 if name.startswith("_"):
                     continue

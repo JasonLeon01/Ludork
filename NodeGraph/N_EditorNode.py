@@ -3,19 +3,15 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Tuple, List, Optional, Callable
-import importlib
+from Utils import System
 
-Node = None
-DataNode = None
-Graph = None
 try:
-    Engine = importlib.import_module("Engine")
+    Engine = System.getModule("Engine")
     Node = Engine.NodeGraph.Node
     DataNode = Engine.NodeGraph.DataNode
     Graph = Engine.NodeGraph.Graph
-except ImportError:
-    print("ImportError: Engine.NodeGraph.N_Node")
-    from Sample.Engine.NodeGraph import Node, DataNode, Graph
+except ImportError as e:
+    raise ImportError("Engine.NodeGraph.N_Node") from e
 
 
 @dataclass

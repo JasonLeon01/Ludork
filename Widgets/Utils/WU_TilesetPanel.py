@@ -26,7 +26,7 @@ class TilesetImageView(QtWidgets.QWidget):
         self._data = None
         self._mode = TilesetMode.PASSABLE
         self._key = None
-        Engine = importlib.import_module("Engine")
+        Engine = System.getModule("Engine")
         self.MaterialClass = Engine.Gameplay.Material
         self.setMouseTracking(True)
 

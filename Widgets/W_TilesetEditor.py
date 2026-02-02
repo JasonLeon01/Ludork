@@ -130,7 +130,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
             return
 
         try:
-            Engine = importlib.import_module("Engine")
+            Engine = System.getModule("Engine")
             Tileset = Engine.Gameplay.Tileset
             new_ts = Tileset(name=text, fileName="", passable=[], materials=[])
 

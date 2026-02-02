@@ -1,6 +1,8 @@
 # -*- encoding: utf-8 -*-
 
 import os
+import sys
+import importlib
 from PyQt5 import QtCore, QtWidgets
 
 
@@ -54,3 +56,12 @@ def setStyle(widget: QtWidgets.QWidget, fileName: str) -> None:
     if os.path.exists(qss_path):
         with open(qss_path, "r", encoding="utf-8") as f:
             widget.setStyleSheet(f.read())
+
+
+def getModule(moduleName: str) -> object:
+    if not moduleName in sys.modules:
+        module = importlib.import_module(moduleName)
+    else:
+        print(f"Reloading module: {moduleName}")
+        module = importlib.reload(sys.modules[moduleName])
+    return module

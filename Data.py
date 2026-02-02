@@ -3,8 +3,7 @@
 import os
 import copy
 from typing import Any, Callable, Dict, List, Optional
-from Utils import File
-import importlib
+from Utils import File, System
 import EditorStatus
 
 
@@ -24,7 +23,7 @@ class GameData:
 
     @classmethod
     def init(cls) -> None:
-        Engine = importlib.import_module("Engine")
+        Engine = System.getModule("Engine")
         Tileset = Engine.Gameplay.Tileset
 
         cls.systemConfigData = {}
@@ -455,7 +454,7 @@ class GameData:
     def genGraphFromData(cls, data: Dict[str, Any], parentClass=None):
         from NodeGraph import EditorDataNode, EditorNode
 
-        Engine = importlib.import_module("Engine")
+        Engine = System.getModule("Engine")
         Graph = Engine.NodeGraph.Graph
         nodes = {}
         links = {}
