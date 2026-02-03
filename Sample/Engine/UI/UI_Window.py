@@ -10,8 +10,8 @@ from .. import (
     Vector2f,
     Texture,
     RenderTexture,
-    Utils,
 )
+from ..Utils import Math, Render
 from .Base import SpriteBase
 
 try:
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from Engine import Vector2u, Image
 
 
-class Window(SpriteBase, RectBase):
+class Window(SpriteBase):
     def __init__(
         self,
         rect: Union[IntRect, Tuple[Pair[int], Pair[int]], List[List[int]]],
@@ -42,8 +42,8 @@ class Window(SpriteBase, RectBase):
             position = Vector2i(x, y)
             size = Vector2i(w, h)
             rect = IntRect(position, size)
-        self._size = Utils.Math.ToVector2u(rect.size)
-        size = Utils.Math.ToVector2u(Utils.Render.getRealSize(rect.size))
+        self._size = Math.ToVector2u(rect.size)
+        size = Math.ToVector2u(Render.getRealSize(rect.size))
         self._canvas: RenderTexture = RenderTexture(size)
         if windowSkin:
             self._windowSkin = windowSkin
@@ -52,10 +52,10 @@ class Window(SpriteBase, RectBase):
 
             self._windowSkin = Manager.loadSystem(System.getWindowskinName(), smooth=True).copyToImage()
         self._repeated = repeated
+        self._rectImpl = RectBase()
         self._initUI()
         SpriteBase.__init__(self, self._canvas.getTexture())
-        RectBase.__init__(self)
-        self.setPosition(Utils.Math.ToVector2f(rect.position))
+        self.setPosition(Math.ToVector2f(rect.position))
 
     def getSize(self) -> Vector2u:
         return self._size
@@ -69,12 +69,12 @@ class Window(SpriteBase, RectBase):
     def _initUI(self) -> None:
         self._windowEdge = RenderTexture(self._canvas.getSize())
         self._windowEdgeSprite = Sprite(self._windowEdge.getTexture())
-        self._windowBack = Texture(self._windowSkin, False, Utils.Math.ToIntRect(0, 0, 128, 128))
+        self._windowBack = Texture(self._windowSkin, False, Math.ToIntRect(0, 0, 128, 128))
         self._windowBack.setRepeated(self._repeated)
         self._windowBackSprite = Sprite(self._windowBack)
         if self._repeated:
             self._windowBackSprite.setTextureRect(
-                IntRect(Vector2i(0, 0), Utils.Math.ToVector2i(self.getLocalBounds().size()))
+                IntRect(Vector2i(0, 0), Math.ToVector2i(self.getLocalBounds().size()))
             )
         else:
             canvasSize = self._canvas.getSize()
@@ -86,29 +86,29 @@ class Window(SpriteBase, RectBase):
         self._presave(
             self._cachedCorners,
             [
-                Utils.Math.ToIntRect(128, 0, 16, 16),
-                Utils.Math.ToIntRect(176, 0, 16, 16),
-                Utils.Math.ToIntRect(128, 48, 16, 16),
-                Utils.Math.ToIntRect(176, 48, 16, 16),
+                Math.ToIntRect(128, 0, 16, 16),
+                Math.ToIntRect(176, 0, 16, 16),
+                Math.ToIntRect(128, 48, 16, 16),
+                Math.ToIntRect(176, 48, 16, 16),
             ],
         )
         self._presave(
             self._cachedEdges,
             [
-                Utils.Math.ToIntRect(144, 0, 24, 16),
-                Utils.Math.ToIntRect(144, 48, 24, 16),
-                Utils.Math.ToIntRect(128, 16, 16, 24),
-                Utils.Math.ToIntRect(176, 16, 16, 24),
+                Math.ToIntRect(144, 0, 24, 16),
+                Math.ToIntRect(144, 48, 24, 16),
+                Math.ToIntRect(128, 16, 16, 24),
+                Math.ToIntRect(176, 16, 16, 24),
             ],
         )
         for edge in self._cachedEdges:
             edge.setRepeated(True)
-        self.render(
+        self._rectImpl.render(
             self._canvas,
             self._windowEdge,
             self._windowEdgeSprite,
             self._windowBackSprite,
             self._cachedCorners,
             self._cachedEdges,
-            Utils.Render.CanvasRenderStates(),
+            Render.CanvasRenderStates(),
         )

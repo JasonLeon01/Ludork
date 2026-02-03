@@ -3,6 +3,7 @@
 *.pyd
 *.pyi
 *.so
+*.anim.dat
 **/.DS_Store
 **/build/
 **/__MACOSX
