@@ -12,7 +12,13 @@ from .. import (
     RenderTexture,
     Utils,
 )
-from .Base import SpriteBase, RectBase
+from .Base import SpriteBase
+
+try:
+    from ..GraphicsExtension import RectBase
+except ImportError as e:
+    print(f"Failed to import C++ RectBase, try to import python version. Error: {e}")
+    from .Base import PyRectBase as RectBase
 
 
 if TYPE_CHECKING:
@@ -47,7 +53,8 @@ class Window(SpriteBase, RectBase):
             self._windowSkin = Manager.loadSystem(System.getWindowskinName(), smooth=True).copyToImage()
         self._repeated = repeated
         self._initUI()
-        super().__init__(self._canvas.getTexture())
+        SpriteBase.__init__(self, self._canvas.getTexture())
+        RectBase.__init__(self)
         self.setPosition(Utils.Math.ToVector2f(rect.position))
 
     def getSize(self) -> Vector2u:
@@ -96,11 +103,12 @@ class Window(SpriteBase, RectBase):
         )
         for edge in self._cachedEdges:
             edge.setRepeated(True)
-        self._render(
+        self.render(
             self._canvas,
             self._windowEdge,
             self._windowEdgeSprite,
             self._windowBackSprite,
             self._cachedCorners,
             self._cachedEdges,
+            Utils.Render.CanvasRenderStates(),
         )

@@ -171,7 +171,7 @@ def compressAnimation(
         assetsRoot = os.path.join("Assets", "Animations")
 
     try:
-        from .AnimationExtension import C_CompressAnimation
+        from .GraphicsExtension import C_CompressAnimation
 
         duration, frames, sounds = C_CompressAnimation(
             zlib, frameCount, frameStep, frameRate, timeLines, assets, assetsRoot, imageFormat

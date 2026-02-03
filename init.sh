@@ -36,7 +36,7 @@ if [ -d "Sample/Engine/pysf" ]; then
 fi
 
 echo "Downloading PySF..."
-curl -L -o pysf.zip "https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.3/pysf-3.0.1.3-macOS-ARM64.zip"
+curl -L -o pysf.zip "https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.4/pysf-3.0.1.4-macOS-ARM64.zip"
 if [ $? -ne 0 ]; then
   echo "Failed to download PySF."
   exit 1
@@ -51,6 +51,23 @@ if [ $? -ne 0 ]; then
 fi
 
 rm pysf.zip
+
+echo "Downloading PySF lib..."
+curl -L -o pysflib.zip "https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.4/pysf-3.0.1.4-lib-macOS-ARM64.zip"
+if [ $? -ne 0 ]; then
+  echo "Failed to download PySF lib."
+  exit 1
+fi
+
+echo "Extracting PySF lib..."
+unzip -q pysflib.zip -d "."
+if [ $? -ne 0 ]; then
+  echo "Failed to extract PySF lib."
+  rm pysflib.zip
+  exit 1
+fi
+
+rm pysflib.zip
 
 ENV_DIR="LudorkEnv"
 PY_CMD="python3.10"

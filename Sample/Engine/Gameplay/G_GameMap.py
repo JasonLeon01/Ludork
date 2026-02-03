@@ -486,6 +486,7 @@ class GameMap:
                 Actor.getMapPosition,
             )
         except Exception as e:
+            # region Rebuild Passability Cache by Python
             print(
                 f"Failed to rebuild passability cache by C extension, try to rebuild passability cache by python. Error: {e}"
             )
@@ -513,6 +514,7 @@ class GameMap:
                         self._occupancyMap[key] = [other]
                     else:
                         self._occupancyMap[key].append(other)
+        # endregion
 
     def markPassabilityDirty(self) -> None:
         self._materialDirty = True

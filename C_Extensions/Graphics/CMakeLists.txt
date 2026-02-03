@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(GamePlayExtension)
+project(GraphicsExtension)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -21,28 +21,22 @@ if(ipo_supported)
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
 endif()
 
-pybind11_add_module(GamePlayExtension
+pybind11_add_module(GraphicsExtension
     "main.cpp"
-    "src/Tilemap.cpp"
-    "src/GameMap/GetMaterialPropertyMap.cpp"
-    "src/GameMap/GetMaterialPropertyTexture.cpp"
-    "src/GameMap/FindPath.cpp"
-    "src/GameMap/RebuildPassabilityCache.cpp"
-    "src/Particles/AddParticle.cpp"
-    "src/Particles/UpdateParticlesInfo.cpp"
-    "src/Particles/RemoveParticle.cpp"
+    "src/CompressAnimation.cpp"
+    "src/RectBase.cpp"
 )
 
-target_include_directories(GamePlayExtension PRIVATE
+target_include_directories(GraphicsExtension PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${SFML_INCLUDE_DIR}
 )
 
-target_link_directories(GamePlayExtension PRIVATE
+target_link_directories(GraphicsExtension PRIVATE
     ${SFML_LIB_DIR}
 )
 
-target_link_libraries(GamePlayExtension PRIVATE
+target_link_libraries(GraphicsExtension PRIVATE
     sfml-graphics
     sfml-window
     sfml-system

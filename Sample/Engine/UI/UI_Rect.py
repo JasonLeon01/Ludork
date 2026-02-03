@@ -13,7 +13,13 @@ from .. import (
     RenderTexture,
     Utils,
 )
-from .Base import SpriteBase, RectBase
+from .Base import SpriteBase
+
+try:
+    from ..GraphicsExtension import RectBase
+except ImportError as e:
+    print(f"Failed to import C++ RectBase, try to import python version. Error: {e}")
+    from .Base import PyRectBase as RectBase
 
 if TYPE_CHECKING:
     from Engine import Vector2u, Image
@@ -45,7 +51,8 @@ class Rect(SpriteBase, RectBase):
 
             self._windowSkin = Manager.loadSystem(System.getWindowskinName(), smooth=True).copyToImage()
         self._initUI()
-        super().__init__(self._canvas.getTexture())
+        SpriteBase.__init__(self, self._canvas.getTexture())
+        RectBase.__init__(self)
         self.setPosition(Utils.Math.ToVector2f(rect.position))
         self._fadeSpeed = fadeSpeed
         self._opacityRange = opacityRange
@@ -106,11 +113,12 @@ class Rect(SpriteBase, RectBase):
         )
         for edge in self._cachedEdges:
             edge.setRepeated(True)
-        self._render(
+        self.render(
             self._canvas,
             self._windowEdge,
             self._windowEdgeSprite,
             self._windowBackSprite,
             self._cachedCorners,
             self._cachedEdges,
+            Utils.Render.CanvasRenderStates(),
         )

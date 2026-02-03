@@ -5,9 +5,9 @@ import shutil
 import subprocess
 from typing import List
 
-ExtensionName = "GamePlayExtension"
+ExtensionName = "GraphicsExtension"
 EngineFolder = "../../Sample/Engine/"
-TargetFolder = EngineFolder + "Gameplay/"
+TargetFolder = EngineFolder
 
 
 def collectFileNames() -> List[str]:

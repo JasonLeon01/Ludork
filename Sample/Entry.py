@@ -3,7 +3,6 @@
 import os
 import sys
 import logging
-from typing import Optional
 import configparser
 import threading
 

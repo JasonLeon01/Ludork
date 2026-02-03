@@ -39,7 +39,7 @@ if exist "Sample\Engine\pysf" (
 )
 
 echo Downloading PySF...
-powershell -Command "Invoke-WebRequest -Uri 'https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.3/pysf-3.0.1.3-Windows-x64.zip' -OutFile 'pysf.zip'"
+powershell -Command "Invoke-WebRequest -Uri 'https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.4/pysf-3.0.1.4-Windows-x64.zip' -OutFile 'pysf.zip'"
 if errorlevel 1 (
   echo Failed to download PySF.
   exit /b 1
@@ -54,6 +54,21 @@ if errorlevel 1 (
 )
 
 del pysf.zip
+
+echo Downloading PySF lib...
+powershell -Command "Invoke-WebRequest -Uri 'https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.4/pysf-3.0.1.4-lib-Windows-x64.zip' -OutFile 'pysflib.zip'"
+if errorlevel 1 (
+  echo Failed to download PySF lib.
+  exit /b 1
+)
+
+echo Extracting PySF lib...
+powershell -Command "Expand-Archive -Path 'pysflib.zip' -DestinationPath '.' -Force"
+if errorlevel 1 (
+  echo Failed to extract PySF lib.
+  del pysflib.zip
+  exit /b 1
+)
 
 set ENV_DIR=LudorkEnv
 set "PY_CMD=py -3.10"

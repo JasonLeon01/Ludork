@@ -7,20 +7,21 @@ from ... import (
     Vector2f,
     Color,
     Utils,
+    RenderStates,
 )
 
 if TYPE_CHECKING:
     from Engine import Texture, RenderTexture, RenderTarget
 
 
-class RectBase:
-    def _renderCorners(self, dst: RenderTarget, areaCaches: List[Texture], cornerPositions: List[Vector2f]) -> None:
+class PyRectBase:
+    def renderCorners(self, dst: RenderTarget, areaCaches: List[Texture], cornerPositions: List[Vector2f]) -> None:
         for i in range(4):
             cornerSprite = Sprite(areaCaches[i])
             cornerSprite.setPosition(cornerPositions[i])
             dst.draw(cornerSprite)
 
-    def _renderEdges(self, dst: RenderTarget, areaCaches: List[Texture], edgePositions: List[Vector2f]) -> None:
+    def renderEdges(self, dst: RenderTarget, areaCaches: List[Texture], edgePositions: List[Vector2f]) -> None:
         cornerW = edgePositions[0].x
         cornerH = edgePositions[2].y
         w, h = dst.getSize().x, dst.getSize().y
@@ -37,7 +38,7 @@ class RectBase:
             edgeSprite.setPosition(edgePositions[i])
             dst.draw(edgeSprite)
 
-    def _renderSides(self, edge: RenderTexture, cachedCorners: List[Texture], cachedEdges: List[Texture]) -> None:
+    def renderSides(self, edge: RenderTexture, cachedCorners: List[Texture], cachedEdges: List[Texture]) -> None:
         edge.clear(Color.Transparent)
         canvasSize = edge.getSize()
         cornerPositions = [
@@ -52,11 +53,11 @@ class RectBase:
             Vector2f(0, cachedCorners[2].getSize().y),
             Vector2f(canvasSize.x - cachedCorners[3].getSize().x, cachedCorners[3].getSize().y),
         ]
-        self._renderCorners(edge, cachedCorners, cornerPositions)
-        self._renderEdges(edge, cachedEdges, edgePositions)
+        self.renderCorners(edge, cachedCorners, cornerPositions)
+        self.renderEdges(edge, cachedEdges, edgePositions)
         edge.display()
 
-    def _render(
+    def render(
         self,
         dst: RenderTexture,
         edge: RenderTexture,
@@ -64,9 +65,12 @@ class RectBase:
         backSprite: Sprite,
         cachedCorners: List[Texture],
         cachedEdges: List[Texture],
+        renderStates: RenderStates,
     ) -> None:
-        self._renderSides(edge, cachedCorners, cachedEdges)
+        self.renderSides(edge, cachedCorners, cachedEdges)
         dst.clear(Color.Transparent)
-        dst.draw(backSprite, Utils.Render.CanvasRenderStates())
-        dst.draw(edgeSprite, Utils.Render.CanvasRenderStates())
+        backParams = [backSprite, renderStates]
+        edgeParams = [edgeSprite, renderStates]
+        dst.draw(*backParams)
+        dst.draw(*edgeParams)
         dst.display()

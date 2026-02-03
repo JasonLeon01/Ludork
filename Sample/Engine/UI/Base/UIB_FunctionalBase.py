@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from typing import Callable, Dict, Any
+from ... import FloatRect
 from ...Utils import Math
 
 
@@ -82,7 +83,7 @@ class FunctionalBase:
         localMousePos = Math.ToVector2f(Input.getMousePosition())
         hovered = False
         if hasattr(self, "getAbsoluteBounds"):
-            bounds = self.getAbsoluteBounds()
+            bounds: FloatRect = self.getAbsoluteBounds()
             hovered = bounds.contains(localMousePos)
         if not Input.isMouseInputMode():
             hovered = False

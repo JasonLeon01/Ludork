@@ -23,12 +23,14 @@ class ListView(ControlBase):
         self._columns: int = columns
         self._children: List[ControlBase] = []
         self._renderStates: RenderStates = Render.CanvasRenderStates()
+        self._positionsSettled: bool = False
 
     def getColumns(self) -> int:
         return self._columns
 
     def setColumns(self, columns: int) -> None:
         self._columns = columns
+        self._positionsSettled = False
 
     def getChildren(self) -> List[ControlBase]:
         return self._children
@@ -36,15 +38,18 @@ class ListView(ControlBase):
     def addChild(self, child: ControlBase) -> None:
         self._children.append(child)
         child.setParent(self)
+        self._positionsSettled = False
 
     def removeChild(self, child: ControlBase) -> None:
         self._children.remove(child)
         child.setParent(None)
+        self._positionsSettled = False
 
     def clearChildren(self) -> None:
         for child in self._children:
             child.setParent(None)
         self._children.clear()
+        self._positionsSettled = False
 
     def getRenderStates(self) -> RenderStates:
         return self._renderStates
@@ -67,12 +72,15 @@ class ListView(ControlBase):
                 child.fixedUpdate(fixedDelta)
 
     def draw(self, target: RenderTarget, states: RenderStates) -> None:
-        self.applyPosition()
+        self.applyPositions()
         states.transform *= self.getTransform()
         for child in self._children:
             target.draw(child, states)
 
-    def applyPosition(self) -> None:
+    def applyPositions(self) -> None:
+        if self._positionsSettled:
+            return
+        self._positionsSettled = True
         colWidth = (self.size.x - 32) / self._columns
         rowHeight = 0
         currentY = 0
@@ -91,17 +99,12 @@ class ListView(ControlBase):
                 size = child.getSize()
                 itemHeight = size.y
                 itemWidth = size.x
+            itemHeight = max(itemHeight, self._defaultItemHeight)
             if self._fixItemHeight:
                 itemHeight = self._defaultItemHeight
-            else:
-                itemHeight = max(itemHeight, self._defaultItemHeight)
             colCenter = 16 + col * colWidth + colWidth / 2
-            originX = 0
-            scaleX = 1
-            if hasattr(child, "getOrigin"):
-                originX = child.getOrigin().x
-            if hasattr(child, "getScale"):
-                scaleX = child.getScale().x
+            originX = child.getOrigin().x
+            scaleX = child.getScale().x
             posX = colCenter - itemWidth / 2 + originX * scaleX
             currentRowHeights.append(itemHeight)
             rowHeight = max(rowHeight, itemHeight)
