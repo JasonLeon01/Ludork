@@ -133,6 +133,13 @@ class EditorPanel(QtWidgets.QWidget):
         self.mapData = MapData(mapName, width, height, mapLayers)
 
     def _renderFromMapData(self) -> None:
+        try:
+            from EditorExtensions.EditorExtension import C_RenderTilemapRGBA
+
+            loadedExt = True
+        except ImportError as e:
+            loadedExt = False
+            print(f"Failed to load EditorExtension, try to render map with python. Error: {e}")
         if self.mapData is None:
             self._pixmap = None
             return
@@ -156,22 +163,74 @@ class EditorPanel(QtWidgets.QWidget):
             tileset = QtGui.QImage(ts_path)
             if tileset.isNull():
                 continue
-            columns = tileset.width() // tileSize
-            rows = tileset.height() // tileSize
-            total = columns * rows
-            for y in range(self.mapData.height):
-                for x in range(self.mapData.width):
-                    tileNumber = layer.tiles[y][x]
-                    if tileNumber is None:
-                        continue
-                    n = int(tileNumber)
-                    if n < 0 or n >= total:
-                        continue
-                    tu = n % columns
-                    tv = n // columns
-                    src = QtCore.QRect(tu * tileSize, tv * tileSize, tileSize, tileSize)
-                    dst = QtCore.QRect(x * tileSize, y * tileSize, tileSize, tileSize)
-                    painter.drawImage(dst, tileset, src)
+            if loadedExt:
+                try:
+                    tilesetRgba = tileset.convertToFormat(QtGui.QImage.Format_RGBA8888)
+                    tsW = tilesetRgba.width()
+                    tsH = tilesetRgba.height()
+                    tsStride = tilesetRgba.bytesPerLine()
+                    tsBytes = tilesetRgba.bits().asstring(tsH * tsStride)
+                    from array import array
+
+                    tilesFlat = []
+                    for y in range(self.mapData.height):
+                        for x in range(self.mapData.width):
+                            v = layer.tiles[y][x]
+                            tilesFlat.append(-1 if v is None else int(v))
+                    tilesBuf = memoryview(array("i", tilesFlat))
+                    data = C_RenderTilemapRGBA(
+                        memoryview(tsBytes),
+                        tsW,
+                        tsH,
+                        tsStride,
+                        tilesBuf,
+                        self.mapData.width,
+                        self.mapData.height,
+                        tileSize,
+                    )
+                    layerImg = QtGui.QImage(
+                        data,
+                        self.mapData.width * tileSize,
+                        self.mapData.height * tileSize,
+                        QtGui.QImage.Format_RGBA8888,
+                    )
+                    layerImg = layerImg.copy()
+                    painter.drawImage(0, 0, layerImg)
+                except Exception as e:
+                    print(f"Failed to render tilemap by C extension: {e}")
+                    columns = tileset.width() // tileSize
+                    rows = tileset.height() // tileSize
+                    total = columns * rows
+                    for y in range(self.mapData.height):
+                        for x in range(self.mapData.width):
+                            tileNumber = layer.tiles[y][x]
+                            if tileNumber is None:
+                                continue
+                            n = int(tileNumber)
+                            if n < 0 or n >= total:
+                                continue
+                            tu = n % columns
+                            tv = n // columns
+                            src = QtCore.QRect(tu * tileSize, tv * tileSize, tileSize, tileSize)
+                            dst = QtCore.QRect(x * tileSize, y * tileSize, tileSize, tileSize)
+                            painter.drawImage(dst, tileset, src)
+                painter.drawImage(0, 0, layerImg)
+            else:
+                columns = tileset.width() // tileSize
+                rows = tileset.height() // tileSize
+                for y in range(self.mapData.height):
+                    for x in range(self.mapData.width):
+                        tileNumber = layer.tiles[y][x]
+                        if tileNumber is None:
+                            continue
+                        n = int(tileNumber)
+                        if n < 0 or n >= total:
+                            continue
+                        tu = n % columns
+                        tv = n // columns
+                        src = QtCore.QRect(tu * tileSize, tv * tileSize, tileSize, tileSize)
+                        dst = QtCore.QRect(x * tileSize, y * tileSize, tileSize, tileSize)
+                        painter.drawImage(dst, tileset, src)
             self._drawActorsForLayer(painter, layerName, tileSize, 1.0 if (sel is None or layerName == sel) else 0.5)
         painter.end()
         self._pixmap = QtGui.QPixmap.fromImage(img)

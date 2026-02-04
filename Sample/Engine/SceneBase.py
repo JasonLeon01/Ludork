@@ -157,19 +157,18 @@ class SceneBase:
                     ui.update(deltaTime)
             if ui.getVisible():
                 System.draw(ui)
+        if System.isDebugMode() and self._debugHUDEnabled:
+            System.draw(self._debugHUD)
+        System.display(deltaTime)
         for ui in self._UIs:
             if ui.getActive() and ui.getVisible():
                 if hasattr(ui, "lateUpdate"):
                     ui.lateUpdate(deltaTime)
-        if System.isDebugMode() and self._debugHUDEnabled:
-            System.draw(self._debugHUD)
-        System.display(deltaTime)
 
     def _update(self, deltaTime: float) -> None:
         from . import System
 
         self.onTick(deltaTime)
-        self.onLateTick(deltaTime)
         Event.flush()
         for key, taskEntry in self._timerTasks.copy().items():
             taskEntry.time = max(0, taskEntry.time - deltaTime)
@@ -185,6 +184,7 @@ class SceneBase:
                 anim.update(deltaTime)
         System.clearCanvas()
         self._renderHandle(deltaTime)
+        self.onLateTick(deltaTime)
 
     def _updateDebugInfo(self, deltaTime: float) -> None:
         from . import System, Input, Manager

@@ -1,10 +1,12 @@
 #define PYBIND11_INTERNALS_ID "PYSF"
 
+#include <Color.h>
 #include <CompressAnimation.h>
 #include <RectBase.h>
 #include <iostream>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+
 
 namespace py = pybind11;
 
@@ -31,4 +33,15 @@ PYBIND11_MODULE(GraphicsExtension, m) {
                     py::arg("edge"), py::arg("edgeSprite"),
                     py::arg("backSprite"), py::arg("cachedCorners"),
                     py::arg("cachedEdges"), py::arg("renderStates"));
+
+  m.def(
+      "C_HexColor",
+      [](const std::string &value, int alpha = 255) {
+        return C_HexColor(value, alpha);
+      },
+      py::arg("value"), py::arg("alpha") = 255);
+  m.def(
+      "C_HexColor",
+      [](int value, int alpha = 255) { return C_HexColor(value, alpha); },
+      py::arg("value"), py::arg("alpha") = 255);
 }
