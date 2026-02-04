@@ -1,0 +1,99 @@
+{
+    "title": {
+        "type": "string",
+        "value": "Ludork Sample"
+    },
+    "gameSize": {
+        "type": "int[2]",
+        "value": [
+            640,
+            480
+        ]
+    },
+    "fonts": {
+        "type": "file[]",
+        "base": "Fonts",
+        "ext": [
+            ".ttf",
+            ".otf"
+        ],
+        "value": [
+            "HarmonyOS_Sans_SC_Regular.ttf"
+        ]
+    },
+    "fontSize": {
+        "type": "int",
+        "value": 22
+    },
+    "icon": {
+        "type": "file",
+        "base": "System",
+        "ext": ".png",
+        "value": "icon.png"
+    },
+    "windowskinName": {
+        "type": "file",
+        "base": "System",
+        "ext": ".png",
+        "value": "001-Blue01.png"
+    },
+    "windowColor": {
+        "type": "int[4]",
+        "value": [
+            255,
+            255,
+            255,
+            192
+        ]
+    },
+    "cellSize": {
+        "type": "int",
+        "value": 32
+    },
+    "transitionShaderPath": {
+        "type": "file",
+        "base": "Shaders",
+        "ext": [
+            ".frag",
+            ".vert"
+        ],
+        "value": "Transition.frag"
+    },
+    "materialShaderPath": {
+        "type": "file",
+        "base": "Shaders",
+        "ext": [
+            ".frag",
+            ".vert"
+        ],
+        "value": "Material.frag"
+    },
+    "vagueShaderPath": {
+        "type": "file",
+        "base": "Shaders",
+        "ext": [
+            ".frag",
+            ".vert"
+        ],
+        "value": "Vague.frag"
+    },
+    "toneShaderPath": {
+        "type": "file",
+        "base": "Shaders",
+        "ext": [
+            ".frag",
+            ".vert"
+        ],
+        "value": "Tone.frag"
+    },
+    "grayScaleShaderPath": {
+        "type": "file",
+        "base": "Shaders",
+        "ext": [
+            ".frag",
+            ".vert"
+        ],
+        "value": "GrayScale.frag"
+    },
+    "type": "system"
+}

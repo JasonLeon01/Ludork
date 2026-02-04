@@ -3,6 +3,7 @@ uniform sampler2D blockableTex;
 uniform sampler2D lightBlockTex;
 uniform sampler2D mirrorTex;
 uniform sampler2D reflectionStrengthTex;
+uniform sampler2D emissiveTex;
 
 uniform int lightCount;
 uniform int cellSize;
@@ -111,5 +112,12 @@ void main()
     pixelColor = ApplyReflection(pixelColor, pixelPosBL_world, uv);
     vec3 lighting = CalculateLighting(pixelPosTL_world, pixelPosBL_world, mapPixelSize);
 
-    gl_FragColor = vec4(pixelColor * lighting, 1.0);
+    vec2 gridIndex = floor(pixelPosBL_world / float(cellSize));
+    vec2 tileCenterUV = (gridIndex + 0.5) / gridSize;
+    float emissive = texture2D(emissiveTex, tileCenterUV).r;
+    
+    vec4 blockColor = texture2D(blockableTex, uv);
+    vec3 emissiveColor = blockColor.rgb * blockColor.a * emissive;
+
+    gl_FragColor = vec4(pixelColor * lighting + emissiveColor, 1.0);
 }

@@ -7,7 +7,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-
 namespace py = pybind11;
 
 PYBIND11_MODULE(GamePlayExtension, m) {
@@ -17,8 +16,9 @@ PYBIND11_MODULE(GamePlayExtension, m) {
             << internals_ptr << std::endl;
 
   m.def("C_CalculateVertexArray", &C_CalculateVertexArray,
-        py::arg("vertexArray"), py::arg("tiles"), py::arg("tileSize"),
-        py::arg("columns"), py::arg("width"), py::arg("height"));
+        py::arg("vertexArray"), py::arg("tiles"), py::arg("materials"),
+        py::arg("tileSize"), py::arg("columns"), py::arg("width"),
+        py::arg("height"));
 
   m.def("C_GetMaterialPropertyMap", &C_GetMaterialPropertyMap,
         py::arg("layerKeys"), py::arg("width"), py::arg("height"),

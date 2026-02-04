@@ -62,14 +62,15 @@ class GameMap:
         if self._camera is None:
             self._camera = Camera()
         self._camera.setMap(self)
-        self._lightShader: Optional[Shader] = None
-        if self._lightShader is None:
-            self._lightShader = Shader(System.getLightShaderPath(), Shader.Type.Fragment)
+        self._materialShader: Optional[Shader] = None
+        if self._materialShader is None:
+            self._materialShader = Shader(System.getMaterialShaderPath(), Shader.Type.Fragment)
         self._lights: List[Light] = []
         self._ambientLight: Color = Color(255, 255, 255, 255)
         self._lightBlockTex: Optional[Texture] = None
         self._mirrorTex: Optional[Texture] = None
         self._reflectionStrengthTex: Optional[Texture] = None
+        self._emissiveTex: Optional[Texture] = None
         self._materialDirty: bool = True
         self._tilePassableGrid: Optional[List[List[bool]]] = None
         self._occupancyMap: Dict[Pair[int], List[Actor]] = {}
@@ -395,34 +396,37 @@ class GameMap:
         self._camera.display()
         self._camera.displayBlockable()
         self._refreshShader()
-        System.draw(self._camera, self._lightShader)
+        System.draw(self._camera, self._materialShader)
         System.draw(self._particleSystem)
         System.setWindowDefaultView()
 
     def _refreshShader(self) -> None:
-        if self._lightShader is None:
+        if self._materialShader is None:
             return
 
         from .. import System
         from ..Utils import Math
 
-        shader = self._lightShader
+        shader = self._materialShader
         shader.setUniform("tilemapTex", self._camera.getTexture())
         shader.setUniform("blockableTex", self._camera.getBlockableTexture())
         if (
             self._lightBlockTex is None
             or self._mirrorTex is None
             or self._reflectionStrengthTex is None
+            or self._emissiveTex is None
             or self._materialDirty
         ):
             self._lightBlockTex = self._getMaterialPropertyTexture("getLightBlock", 0.0, True)
             self._mirrorTex = self._getMaterialPropertyTexture("getMirror", False)
             self._reflectionStrengthTex = self._getMaterialPropertyTexture("getReflectionStrength", 0.0)
+            self._emissiveTex = self._getMaterialPropertyTexture("getEmissive", 0.0)
             self._rebuildPassabilityCache()
             self._materialDirty = False
         shader.setUniform("lightBlockTex", self._lightBlockTex)
         shader.setUniform("mirrorTex", self._mirrorTex)
         shader.setUniform("reflectionStrengthTex", self._reflectionStrengthTex)
+        shader.setUniform("emissiveTex", self._emissiveTex)
         shader.setUniform("screenScale", System.getScale())
         shader.setUniform("screenSize", Math.ToVector2f(System.getGameSize()))
         shader.setUniform("viewPos", self._camera.getViewPosition())

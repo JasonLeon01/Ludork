@@ -3,7 +3,18 @@
 from __future__ import annotations
 from dataclasses import dataclass, asdict
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
-from .. import Drawable, Transformable, VertexArray, Manager, PrimitiveType, Vector2f, Vector2i, Vector2u, GetCellSize
+from .. import (
+    Drawable,
+    Transformable,
+    VertexArray,
+    Manager,
+    PrimitiveType,
+    Vector2f,
+    Vector2i,
+    Vector2u,
+    GetCellSize,
+    Color,
+)
 from .G_Material import Material
 
 if TYPE_CHECKING:
@@ -86,6 +97,9 @@ class TileLayer(Drawable, Transformable):
     def getReflectionStrength(self, position: Vector2i) -> float:
         return self.getMaterialProperty(position, "reflectionStrength")
 
+    def getEmissive(self, position: Vector2i) -> float:
+        return self.getMaterialProperty(position, "emissive")
+
     def draw(self, target: RenderTarget, states: RenderStates) -> None:
         if not self.visible:
             return
@@ -101,7 +115,15 @@ class TileLayer(Drawable, Transformable):
         try:
             from .GamePlayExtension import C_CalculateVertexArray
 
-            C_CalculateVertexArray(self._vertexArray, self._data.tiles, tileSize, columns, self._width, self._height)
+            C_CalculateVertexArray(
+                self._vertexArray,
+                self._data.tiles,
+                self._data.layerTileset.materials,
+                tileSize,
+                columns,
+                self._width,
+                self._height,
+            )
         except Exception as e:
             # region Calculate Vertex Array by Python
             print(f"Failed to calculate vertex array by C extension, try to calculate by python. Error: {e}")
@@ -115,19 +137,30 @@ class TileLayer(Drawable, Transformable):
                     tv = tileNumber // columns
                     start = (x + y * self._width) * 6
 
-                    self._vertexArray[start + 0].position = Vector2f(x * tileSize, y * tileSize)
-                    self._vertexArray[start + 1].position = Vector2f((x + 1) * tileSize, y * tileSize)
-                    self._vertexArray[start + 2].position = Vector2f(x * tileSize, (y + 1) * tileSize)
-                    self._vertexArray[start + 3].position = Vector2f(x * tileSize, (y + 1) * tileSize)
-                    self._vertexArray[start + 4].position = Vector2f((x + 1) * tileSize, y * tileSize)
-                    self._vertexArray[start + 5].position = Vector2f((x + 1) * tileSize, (y + 1) * tileSize)
+                    opacity = self._data.layerTileset.materials[tileNumber].opacity
+                    color = Color(255, 255, 255, int(opacity * 255))
 
-                    self._vertexArray[start + 0].texCoords = Vector2f(tu * tileSize, tv * tileSize)
-                    self._vertexArray[start + 1].texCoords = Vector2f((tu + 1) * tileSize, tv * tileSize)
-                    self._vertexArray[start + 2].texCoords = Vector2f(tu * tileSize, (tv + 1) * tileSize)
-                    self._vertexArray[start + 3].texCoords = Vector2f(tu * tileSize, (tv + 1) * tileSize)
-                    self._vertexArray[start + 4].texCoords = Vector2f((tu + 1) * tileSize, tv * tileSize)
-                    self._vertexArray[start + 5].texCoords = Vector2f((tu + 1) * tileSize, (tv + 1) * tileSize)
+                    positions = [
+                        Vector2f(x * tileSize, y * tileSize),
+                        Vector2f((x + 1) * tileSize, y * tileSize),
+                        Vector2f(x * tileSize, (y + 1) * tileSize),
+                        Vector2f(x * tileSize, (y + 1) * tileSize),
+                        Vector2f((x + 1) * tileSize, y * tileSize),
+                        Vector2f((x + 1) * tileSize, (y + 1) * tileSize),
+                    ]
+                    texCoords = [
+                        Vector2f(tu * tileSize, tv * tileSize),
+                        Vector2f((tu + 1) * tileSize, tv * tileSize),
+                        Vector2f(tu * tileSize, (tv + 1) * tileSize),
+                        Vector2f(tu * tileSize, (tv + 1) * tileSize),
+                        Vector2f((tu + 1) * tileSize, tv * tileSize),
+                        Vector2f((tu + 1) * tileSize, (tv + 1) * tileSize),
+                    ]
+                    for i in range(6):
+                        self._vertexArray[start + i].position = positions[i]
+                        self._vertexArray[start + i].texCoords = texCoords[i]
+                        if opacity < 255:
+                            self._vertexArray[start + i].color = color
             # endregion
 
 

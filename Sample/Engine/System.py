@@ -63,7 +63,7 @@ class System:
     _soundVolume: float = 100
     _voiceVolume: float = 100
     _transitionShaderPath: str = None
-    _lightShaderPath: str = None
+    _materialShaderPath: str = None
     _vagueShaderPath: str = None
     _toneShaderPath: str = None
     _grayScaleShaderPath: str = None
@@ -84,7 +84,7 @@ class System:
         cls.__data = inData
         cls.__dataFilePath = dataFilePath
         data = inData["Main"]
-        systemData = File.loadData("./Data/Configs/System.dat")
+        systemData = File.getJSONData("./Data/Configs/System.json")
         cls._title = systemData["title"]["value"]
         size = systemData["gameSize"]["value"]
         cls._gameSize = Vector2u(size[0], size[1])
@@ -112,8 +112,8 @@ class System:
         cls._transitionShaderPath = os.path.join(
             "./Assets", systemData["transitionShaderPath"]["base"], systemData["transitionShaderPath"]["value"]
         )
-        cls._lightShaderPath = os.path.join(
-            "./Assets", systemData["lightShaderPath"]["base"], systemData["lightShaderPath"]["value"]
+        cls._materialShaderPath = os.path.join(
+            "./Assets", systemData["materialShaderPath"]["base"], systemData["materialShaderPath"]["value"]
         )
         cls._vagueShaderPath = os.path.join(
             "./Assets", systemData["vagueShaderPath"]["base"], systemData["vagueShaderPath"]["value"]
@@ -359,8 +359,8 @@ class System:
         return cls._transitionShaderPath
 
     @classmethod
-    def getLightShaderPath(cls) -> str:
-        return cls._lightShaderPath
+    def getMaterialShaderPath(cls) -> str:
+        return cls._materialShaderPath
 
     @classmethod
     def getVagueShaderPath(cls) -> str:

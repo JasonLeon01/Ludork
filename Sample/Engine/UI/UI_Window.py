@@ -74,7 +74,7 @@ class Window(SpriteBase):
         self._windowBackSprite = Sprite(self._windowBack)
         if self._repeated:
             self._windowBackSprite.setTextureRect(
-                IntRect(Vector2i(0, 0), Math.ToVector2i(self.getLocalBounds().size()))
+                IntRect(Vector2i(0, 0), Math.ToVector2i(self.getLocalBounds().size))
             )
         else:
             canvasSize = self._canvas.getSize()

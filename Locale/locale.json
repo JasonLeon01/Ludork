@@ -439,9 +439,9 @@
         "zh_CN": "转场着色器路径",
         "en_GB": "Transition Shader Path"
     },
-    "lightShaderPath": {
-        "zh_CN": "光照着色器路径",
-        "en_GB": "Light Shader Path"
+    "materialShaderPath": {
+        "zh_CN": "材质着色器路径",
+        "en_GB": "Material Shader Path"
     },
     "vagueShaderPath": {
         "zh_CN": "模糊着色器路径",

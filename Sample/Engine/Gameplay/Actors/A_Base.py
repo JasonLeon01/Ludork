@@ -441,6 +441,14 @@ class _ActorBase(Sprite):
     def setEmissive(self, emissive: float) -> None:
         self.material.emissive = emissive
 
+    @ReturnType(emissive=float)
+    def getEmissive(self) -> float:
+        return self.material.emissive
+
+    @ExecSplit(default=(None,))
+    def setEmissive(self, emissive: float) -> None:
+        self.material.emissive = emissive
+
     @ExecSplit(default=(None,))
     def setGraph(self, graph: Graph) -> None:
         self._graph = graph
