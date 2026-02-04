@@ -6,6 +6,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows" AND MSVC)
+  set(CMAKE_CXX_FLAGS_RELEASE "/O2 /DNDEBUG")
+else()
+  set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -flto")
+endif()
 set(PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 set(SFML_INCLUDE_DIR ${PROJECT_ROOT}/C_Extensions/SFML/include)
 set(SFML_LIB_DIR ${PROJECT_ROOT}/lib)
@@ -15,11 +20,6 @@ execute_process(COMMAND python -c "import pybind11; print(pybind11.get_cmake_dir
                 OUTPUT_VARIABLE pybind11_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
 set(PYBIND11_FINDPYTHON ON)
 find_package(pybind11 REQUIRED PATHS ${pybind11_DIR})
-include(CheckIPOSupported)
-check_ipo_supported(RESULT ipo_supported OUTPUT ipo_msg)
-if(ipo_supported)
-  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
-endif()
 
 pybind11_add_module(GraphicsExtension
     "main.cpp"

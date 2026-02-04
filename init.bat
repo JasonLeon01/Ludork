@@ -70,6 +70,8 @@ if errorlevel 1 (
   exit /b 1
 )
 
+del pysflib.zip
+
 set ENV_DIR=LudorkEnv
 set "PY_CMD=py -3.10"
 
