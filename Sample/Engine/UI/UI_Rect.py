@@ -11,8 +11,8 @@ from .. import (
     Vector2f,
     Texture,
     RenderTexture,
-    Utils,
 )
+from ..Utils import Math, Render
 from .Base import SpriteBase
 
 try:
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from Engine import Vector2u, Image
 
 
-class Rect(SpriteBase, RectBase):
+class Rect(SpriteBase):
     def __init__(
         self,
         rect: Union[IntRect, Tuple[Pair[int], Pair[int]], List[List[int]]],
@@ -41,8 +41,8 @@ class Rect(SpriteBase, RectBase):
             position = Vector2i(x, y)
             size = Vector2i(w, h)
             rect = IntRect(position, size)
-        self._size = Utils.Math.ToVector2u(rect.size)
-        size = Utils.Math.ToVector2u(Utils.Render.getRealSize(rect.size))
+        self._size = Math.ToVector2u(rect.size)
+        size = Math.ToVector2u(Render.getRealSize(rect.size))
         self._canvas: RenderTexture = RenderTexture(size)
         if windowSkin:
             self._windowSkin = windowSkin
@@ -50,10 +50,10 @@ class Rect(SpriteBase, RectBase):
             from .. import System, Manager
 
             self._windowSkin = Manager.loadSystem(System.getWindowskinName(), smooth=True).copyToImage()
+        self._rectImpl = RectBase()
         self._initUI()
         SpriteBase.__init__(self, self._canvas.getTexture())
-        RectBase.__init__(self)
-        self.setPosition(Utils.Math.ToVector2f(rect.position))
+        self.setPosition(Math.ToVector2f(rect.position))
         self._fadeSpeed = fadeSpeed
         self._opacityRange = opacityRange
         self._fading: bool = True
@@ -85,7 +85,7 @@ class Rect(SpriteBase, RectBase):
     def _initUI(self) -> None:
         self._windowEdge = RenderTexture(self._canvas.getSize())
         self._windowEdgeSprite = Sprite(self._windowEdge.getTexture())
-        self._windowBack = Texture(self._windowSkin, False, Utils.Math.ToIntRect(132, 68, 24, 24))
+        self._windowBack = Texture(self._windowSkin, False, Math.ToIntRect(132, 68, 24, 24))
         self._windowBackSprite = Sprite(self._windowBack)
         canvasSize = self._canvas.getSize()
         self._windowBackSprite.setScale(Vector2f(canvasSize.x / 24.0, canvasSize.y / 24.0))
@@ -96,29 +96,29 @@ class Rect(SpriteBase, RectBase):
         self._presave(
             self._cachedCorners,
             [
-                Utils.Math.ToIntRect(128, 64, 4, 4),
-                Utils.Math.ToIntRect(156, 64, 4, 4),
-                Utils.Math.ToIntRect(128, 92, 4, 4),
-                Utils.Math.ToIntRect(156, 92, 4, 4),
+                Math.ToIntRect(128, 64, 4, 4),
+                Math.ToIntRect(156, 64, 4, 4),
+                Math.ToIntRect(128, 92, 4, 4),
+                Math.ToIntRect(156, 92, 4, 4),
             ],
         )
         self._presave(
             self._cachedEdges,
             [
-                Utils.Math.ToIntRect(132, 64, 24, 4),
-                Utils.Math.ToIntRect(132, 92, 24, 4),
-                Utils.Math.ToIntRect(128, 68, 4, 24),
-                Utils.Math.ToIntRect(156, 68, 4, 24),
+                Math.ToIntRect(132, 64, 24, 4),
+                Math.ToIntRect(132, 92, 24, 4),
+                Math.ToIntRect(128, 68, 4, 24),
+                Math.ToIntRect(156, 68, 4, 24),
             ],
         )
         for edge in self._cachedEdges:
             edge.setRepeated(True)
-        self.render(
+        self._rectImpl.render(
             self._canvas,
             self._windowEdge,
             self._windowEdgeSprite,
             self._windowBackSprite,
             self._cachedCorners,
             self._cachedEdges,
-            Utils.Render.CanvasRenderStates(),
+            Render.CanvasRenderStates(),
         )
