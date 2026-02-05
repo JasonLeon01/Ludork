@@ -15,3 +15,5 @@ std::vector<std::vector<py::object>> C_GetMaterialPropertyMap(
     const std::unordered_map<std::string, TileGrids> &tileData,
     const std::string &functionName, const py::object &invalidValue,
     const py::function &getLayer, const py::function &getMapPosition);
+
+void ApplyGetMaterialPropertyMapBinding(py::module &m);

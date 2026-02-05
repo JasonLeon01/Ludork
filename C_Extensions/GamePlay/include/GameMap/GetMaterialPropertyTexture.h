@@ -10,3 +10,5 @@ namespace py = pybind11;
 void C_GetMaterialPropertyTexture(
     const sf::Vector2u &size, sf::Image &img,
     const std::vector<std::vector<py::object>> &materialMap);
+
+void ApplyGetMaterialPropertyTextureBinding(py::module &m);

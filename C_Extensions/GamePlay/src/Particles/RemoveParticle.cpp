@@ -1,4 +1,5 @@
 #include <Particles/RemoveParticle.h>
+#include <pybind11/stl.h>
 
 bool C_RemoveParticle(std::vector<py::object> &particles,
                       sf::VertexArray &vertexArray, std::size_t index) {
@@ -16,4 +17,9 @@ bool C_RemoveParticle(std::vector<py::object> &particles,
     vertexArray.resize((n_before - 1) * 6);
   }
   return result;
+}
+
+void ApplyRemoveParticleBinding(py::module &m) {
+  m.def("C_RemoveParticle", &C_RemoveParticle, py::arg("particles"),
+        py::arg("vertexArrays"), py::arg("index"));
 }

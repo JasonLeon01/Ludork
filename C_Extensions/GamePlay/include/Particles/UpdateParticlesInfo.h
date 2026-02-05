@@ -13,3 +13,5 @@ void C_UpdateParticlesInfo(
     py::function getUpdateParticleInfo,
     const std::vector<py::object> &updateFlags, const Particle &particles,
     const std::unordered_map<std::string, sf::VertexArray *> &vertexArrays);
+
+void ApplyUpdateParticlesInfoBinding(py::module &m);

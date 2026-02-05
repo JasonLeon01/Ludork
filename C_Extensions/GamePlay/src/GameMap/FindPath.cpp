@@ -2,7 +2,9 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <pybind11/stl.h>
 #include <queue>
+
 
 using Node = std::pair<int, IntPair>;
 
@@ -132,4 +134,12 @@ C_FindPath(const sf::Vector2i &start, const sf::Vector2i &goal,
     }
   }
   return {};
+}
+
+void ApplyFindPathBinding(py::module &m) {
+  m.def("C_FindPath", &C_FindPath, py::arg("start"), py::arg("goal"),
+        py::arg("size"), py::arg("tilemap"), py::arg("layerKeys"),
+        py::arg("actors"), py::arg("getLayer"), py::arg("getMapPosition"),
+        py::arg("getCollisionEnabled"), py::arg("getTile"),
+        py::arg("isPassable"));
 }

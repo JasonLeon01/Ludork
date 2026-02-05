@@ -19,3 +19,5 @@ C_RebuildPassabilityCache(
     const ActorDict &actors, py::object &tilemap, py::function &getLayer,
     py::function &isPassable, py::function &getCollisionEnabled,
     py::function &getMapPosition);
+
+void ApplyRebuildPassabilityCacheBinding(py::module &m);

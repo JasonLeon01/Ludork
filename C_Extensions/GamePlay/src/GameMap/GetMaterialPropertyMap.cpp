@@ -1,5 +1,6 @@
 #include <GameMap/GetMaterialPropertyMap.h>
 #include <SFML/System/Vector2.hpp>
+#include <pybind11/stl.h>
 
 py::object getMaterialProperty(
     const std::vector<std::string> &layerKeys, const py::object &tilemap,
@@ -52,4 +53,12 @@ std::vector<std::vector<py::object>> C_GetMaterialPropertyMap(
     }
   }
   return materialPropertyMap;
+}
+
+void ApplyGetMaterialPropertyMapBinding(py::module &m) {
+  m.def("C_GetMaterialPropertyMap", &C_GetMaterialPropertyMap,
+        py::arg("layerKeys"), py::arg("width"), py::arg("height"),
+        py::arg("tilemap"), py::arg("actors"), py::arg("functionName"),
+        py::arg("invalidValue"), py::arg("getLayer"), py::arg("getMapPosition"),
+        py::arg("getTile"));
 }

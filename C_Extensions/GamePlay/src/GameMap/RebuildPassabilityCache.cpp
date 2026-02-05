@@ -1,4 +1,5 @@
 #include <GameMap/RebuildPassabilityCache.h>
+#include <pybind11/stl.h>
 
 std::pair<std::vector<std::vector<bool>>,
           std::map<std::pair<int, int>, std::vector<py::object>>>
@@ -42,4 +43,12 @@ C_RebuildPassabilityCache(
     }
   }
   return {tilePassableGrid, occupancyMap};
+}
+
+void ApplyRebuildPassabilityCacheBinding(py::module &m) {
+  m.def("C_RebuildPassabilityCache", &C_RebuildPassabilityCache,
+        py::arg("size"), py::arg("layerKeys"), py::arg("tileData"),
+        py::arg("actors"), py::arg("tilemap"), py::arg("getLayer"),
+        py::arg("isPassable"), py::arg("getCollisionEnabled"),
+        py::arg("getMapPosition"));
 }

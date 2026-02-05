@@ -8,3 +8,5 @@ namespace py = pybind11;
 
 bool C_RemoveParticle(std::vector<py::object> &particles,
                       sf::VertexArray &vertexArray, std::size_t index);
+
+void ApplyRemoveParticleBinding(py::module &m);

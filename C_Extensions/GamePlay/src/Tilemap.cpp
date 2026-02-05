@@ -1,6 +1,7 @@
 #include <SFML/Graphics/Color.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <Tilemap.h>
+#include <pybind11/stl.h>
 
 void C_CalculateVertexArray(sf::VertexArray &vertexArray,
                             const TileGrids &tiles,
@@ -43,4 +44,11 @@ void C_CalculateVertexArray(sf::VertexArray &vertexArray,
       }
     }
   }
+}
+
+void ApplyCalculateVertexArrayBinding(py::module &m) {
+  m.def("C_CalculateVertexArray", &C_CalculateVertexArray,
+        py::arg("vertexArray"), py::arg("tiles"), py::arg("materials"),
+        py::arg("tileSize"), py::arg("columns"), py::arg("width"),
+        py::arg("height"));
 }

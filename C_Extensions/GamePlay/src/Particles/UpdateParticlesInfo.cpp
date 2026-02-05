@@ -5,6 +5,7 @@
 #include <SFML/System/Angle.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <algorithm>
+#include <pybind11/stl.h>
 
 void C_UpdateParticlesInfo(
     py::function getUpdateParticleInfo,
@@ -52,4 +53,10 @@ void C_UpdateParticlesInfo(
     (*vertexArray)[idx * 6 + 4].color = infoColor;
     (*vertexArray)[idx * 6 + 5].color = infoColor;
   }
+}
+
+void ApplyUpdateParticlesInfoBinding(py::module &m) {
+  m.def("C_UpdateParticlesInfo", &C_UpdateParticlesInfo,
+        py::arg("getUpdateParticleInfo"), py::arg("updateFlags"),
+        py::arg("particles"), py::arg("vertexArrays"));
 }

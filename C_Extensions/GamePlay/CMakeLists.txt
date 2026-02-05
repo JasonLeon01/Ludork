@@ -13,6 +13,8 @@ pybind11_add_module(GamePlayExtension
     "src/Particles/AddParticle.cpp"
     "src/Particles/UpdateParticlesInfo.cpp"
     "src/Particles/RemoveParticle.cpp"
+    "src/GameMap.cpp"
+    "src/Particle.cpp"
 )
 
 ConfigureTarget(GamePlayExtension)

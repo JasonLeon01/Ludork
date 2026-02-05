@@ -15,3 +15,5 @@ C_CompressAnimation(
         &timeLines,
     const std::vector<std::string> &assets, const std::string &assetsRoot,
     const std::string &imageFormat);
+
+void ApplyCompressAnimationBinding(py::module &m);

@@ -19,3 +19,5 @@ C_FindPath(const sf::Vector2i &start, const sf::Vector2i &goal,
            const py::function &getLayer, const py::function &getMapPosition,
            const py::function &getCollisionEnabled,
            const py::function &isPassable);
+
+void ApplyFindPathBinding(py::module &m);

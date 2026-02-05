@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <limits>
 #include <optional>
+#include <pybind11/stl.h>
 #include <stdexcept>
 #include <utility>
 
@@ -236,4 +237,11 @@ C_CompressAnimation(
   }
   float duration = frameRate > 0 ? (1.0 * frameCount / frameRate) : 0.0f;
   return std::make_tuple(duration, frames, sounds);
+}
+
+void ApplyCompressAnimationBinding(py::module &m) {
+  m.def("C_CompressAnimation", &C_CompressAnimation, py::arg("zlibModule"),
+        py::arg("frameCount"), py::arg("frameStep"), py::arg("frameRate"),
+        py::arg("timeLines"), py::arg("assets"), py::arg("assetsRoot"),
+        py::arg("imageFormat"));
 }

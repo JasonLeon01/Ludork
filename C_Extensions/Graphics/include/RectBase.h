@@ -6,7 +6,10 @@
 #include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Graphics/Texture.hpp>
 #include <SFML/System/Vector2.hpp>
+#include <pybind11/pybind11.h>
 #include <vector>
+
+namespace py = pybind11;
 
 class RectBase {
 public:
@@ -25,3 +28,5 @@ public:
               const std::vector<sf::Texture *> &cachedEdges,
               sf::RenderStates renderStates);
 };
+
+void ApplyRectBaseBinding(py::module &m);

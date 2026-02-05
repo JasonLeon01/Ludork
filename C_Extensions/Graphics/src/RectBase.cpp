@@ -1,6 +1,7 @@
 #include <RectBase.h>
 #include <SFML/Graphics/Color.hpp>
 #include <SFML/Graphics/Rect.hpp>
+#include <pybind11/stl.h>
 
 void RectBase::renderCorners(sf::RenderTarget &dst,
                              const std::vector<sf::Texture *> &areaCaches,
@@ -77,4 +78,13 @@ void RectBase::render(sf::RenderTexture &dst, sf::RenderTexture &edge,
   dst.draw(backSprite, renderStates);
   dst.draw(edgeSprite, renderStates);
   dst.display();
+}
+
+void ApplyRectBaseBinding(py::module &m) {
+  py::class_<RectBase> RectBaseClass(m, "RectBase");
+  RectBaseClass.def(py::init<>());
+  RectBaseClass.def("render", &RectBase::render, py::arg("dst"),
+                    py::arg("edge"), py::arg("edgeSprite"),
+                    py::arg("backSprite"), py::arg("cachedCorners"),
+                    py::arg("cachedEdges"), py::arg("renderStates"));
 }

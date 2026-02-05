@@ -1,7 +1,9 @@
 #include <Color.h>
 #include <algorithm>
 #include <cctype>
+#include <pybind11/stl.h>
 #include <stdexcept>
+
 
 sf::Color C_HexColor(const std::string &value, int alpha) {
   try {
@@ -36,4 +38,17 @@ sf::Color C_HexColor(int value, int alpha) {
   int b = value & 0xFF;
   int a = value >> 24 ? (value >> 24) & 0xFF : alpha;
   return sf::Color(r, g, b, a);
+}
+
+void ApplyColorBinding(py::module &m) {
+  m.def(
+      "C_HexColor",
+      [](const std::string &value, int alpha = 255) {
+        return C_HexColor(value, alpha);
+      },
+      py::arg("value"), py::arg("alpha") = 255);
+  m.def(
+      "C_HexColor",
+      [](int value, int alpha = 255) { return C_HexColor(value, alpha); },
+      py::arg("value"), py::arg("alpha") = 255);
 }

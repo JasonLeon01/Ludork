@@ -1,6 +1,7 @@
 #include <Particles/AddParticle.h>
 #include <SFML/Graphics/Transform.hpp>
 #include <SFML/Graphics/Vertex.hpp>
+#include <pybind11/stl.h>
 
 void C_AddParticle(const sf::Vector2f &infoPosition,
                    const sf::Angle &infoRotation, const sf::Vector2f &infoScale,
@@ -50,4 +51,12 @@ void C_AddParticle(const sf::Vector2f &infoPosition,
   vertexArray.append(vertex3);
   vertexArray.append(vertex4);
   vertexArray.append(vertex5);
+}
+
+void ApplyAddParticleBinding(py::module &m) {
+  m.def("C_AddParticle", &C_AddParticle, py::arg("infoPosition"),
+        py::arg("infoRotation"), py::arg("infoScale"), py::arg("infoColor"),
+        py::arg("uv_tl"), py::arg("uv_tr"), py::arg("uv_br"), py::arg("uv_bl"),
+        py::arg("tl_tr"), py::arg("tr_tr"), py::arg("br_tr"), py::arg("bl_tr"),
+        py::arg("vertexArray"));
 }
