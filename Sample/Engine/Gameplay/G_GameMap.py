@@ -3,7 +3,7 @@
 from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 from .. import (
     Pair,
@@ -17,10 +17,12 @@ from .. import (
     Image,
     GetCellSize,
 )
+from ..Utils import Math
 from .Particles import System as ParticleSystem
 from .Actors import Actor
 from .G_Camera import Camera
 from .G_TileMap import Tilemap, TileLayer
+from .G_Material import Material
 
 
 @dataclass
@@ -67,13 +69,21 @@ class GameMap:
             self._materialShader = Shader(System.getMaterialShaderPath(), Shader.Type.Fragment)
         self._lights: List[Light] = []
         self._ambientLight: Color = Color(255, 255, 255, 255)
-        self._lightBlockTex: Optional[Texture] = None
+        self._lightBlockTexs: Optional[List[Texture]] = None
+        self._lightBlockSmoothTex: Optional[Texture] = None
         self._mirrorTex: Optional[Texture] = None
         self._reflectionStrengthTex: Optional[Texture] = None
         self._emissiveTex: Optional[Texture] = None
         self._materialDirty: bool = True
         self._tilePassableGrid: Optional[List[List[bool]]] = None
         self._occupancyMap: Dict[Pair[int], List[Actor]] = {}
+        self._player: Optional[Actor] = None
+
+    def getPlayer(self) -> Optional[Actor]:
+        return self._player
+
+    def setPlayer(self, player: Optional[Actor]) -> None:
+        self._player = player
 
     def getAllActors(self) -> List[Actor]:
         actors = []
@@ -250,6 +260,36 @@ class GameMap:
     def getSize(self) -> Vector2u:
         return self._tilemap.getSize()
 
+    def getActorLayerLightBlockMap(self, layerName: str, size: Vector2u) -> Optional[List[List[float]]]:
+        width: int = size.x
+        height: int = size.y
+        if layerName not in self._actors:
+            return None
+        result = [[0] * width for _ in range(height)]
+        for actor in self._actors[layerName]:
+            position = actor.getMapPosition()
+            result[position.y][position.x] = actor.getLightBlock()
+        return result
+
+    def getTopMaterial(self, pos: Vector2i) -> Optional[Material]:
+        layers = self._tilemap.getAllLayers()
+        layerKeys = list(layers.keys())
+        layerKeys.reverse()
+        for layerName in layerKeys:
+            layer = layers[layerName]
+            if layer is None or not layer.visible:
+                continue
+            if layerName in self._actors:
+                for actor in self._actors[layerName]:
+                    if actor == self._player:
+                        continue
+                    if actor.getMapPosition() == pos:
+                        return actor.getMaterial()
+            material = layer.getMaterial(pos)
+            if material is not None:
+                return material
+        return None
+
     def findPath(self, start: Vector2i, goal: Vector2i) -> List[Vector2i]:
         size = self._tilemap.getSize()
         layerKeys = list(self._tilemap.getAllLayers().keys())
@@ -376,29 +416,50 @@ class GameMap:
     def show(self) -> None:
         from .. import System
 
+        layers = self._tilemap.getAllLayers()
+        layerKeys = list(layers.keys())
         System.setWindowMapView()
         self._camera.clear()
-        for layerName, layer in self._tilemap.getAllLayers().items():
-            if not layer.visible:
-                continue
-            self._camera.render(layer)
-            if layerName in self._actors:
-                for actor in self._actors[layerName]:
-                    self._camera.render(actor)
-        for layerName, layer in self._tilemap.getAllBlockableLayers().items():
-            if not layer.visible:
-                continue
-            self._camera.renderBlockable(layer)
-            if layerName in self._actors:
-                for actor in self._actors[layerName]:
-                    if actor.getLightBlock() > 0:
-                        self._camera.renderBlockable(actor)
         self._camera.display()
-        self._camera.displayBlockable()
+        self._camera.applyCanvasCount(len(layerKeys) + len(self._actors))
+        idx = 0
+        canvases = self._camera.getCanvases()
+        renderStates = self._camera.getRenderStates()
+        for layerName in layerKeys:
+            layer = layers[layerName]
+            if not layer.visible:
+                continue
+            canvases[idx].clear(Color.Transparent)
+            canvases[idx].draw(layer, renderStates)
+            canvases[idx].display()
+            idx += 1
+            if layerName in self._actors:
+                canvases[idx].clear(Color.Transparent)
+                for actor in self._actors[layerName]:
+                    canvases[idx].draw(actor, renderStates)
+                canvases[idx].display()
+                idx += 1
         self._refreshShader()
         System.draw(self._camera, self._materialShader)
         System.draw(self._particleSystem)
         System.setWindowDefaultView()
+
+    def _getLightBlockTexs(self) -> List[Texture]:
+        result = []
+        layers = self._tilemap.getAllLayers()
+        size = self._tilemap.getSize()
+        for layerName in layers:
+            layer = layers[layerName]
+            if not layer.visible:
+                continue
+            result.append(Texture(layer.getLightBlockImage()))
+            if layerName in self._actors:
+                actorImg = Image(size, Color.Transparent)
+                for actor in self._actors[layerName]:
+                    g = int(actor.getLightBlock() * 255)
+                    actorImg.setPixel(Math.ToVector2u(actor.getMapPosition()), Color(g, g, g))
+                result.append(Texture(actorImg))
+        return result
 
     def _refreshShader(self) -> None:
         if self._materialShader is None:
@@ -408,22 +469,29 @@ class GameMap:
         from ..Utils import Math
 
         shader = self._materialShader
-        shader.setUniform("tilemapTex", self._camera.getTexture())
-        shader.setUniform("blockableTex", self._camera.getBlockableTexture())
+        canvases = self._camera.getCanvases()
+        shader.setUniform("tilemapTexLen", len(canvases))
+        for i, canvas in enumerate(canvases):
+            shader.setUniform(f"tilemapTex[{i}]", canvas.getTexture())
         if (
-            self._lightBlockTex is None
+            self._lightBlockTexs is None
+            or self._lightBlockSmoothTex is None
             or self._mirrorTex is None
             or self._reflectionStrengthTex is None
             or self._emissiveTex is None
             or self._materialDirty
         ):
-            self._lightBlockTex = self._getMaterialPropertyTexture("getLightBlock", 0.0, True)
+            self._lightBlockTexs = self._getLightBlockTexs()
+            self._lightBlockSmoothTex = self._getMaterialPropertyTexture("getLightBlock", 0.0, True)
             self._mirrorTex = self._getMaterialPropertyTexture("getMirror", False)
             self._reflectionStrengthTex = self._getMaterialPropertyTexture("getReflectionStrength", 0.0)
             self._emissiveTex = self._getMaterialPropertyTexture("getEmissive", 0.0)
             self._rebuildPassabilityCache()
             self._materialDirty = False
-        shader.setUniform("lightBlockTex", self._lightBlockTex)
+        shader.setUniform("lightBlockLen", len(self._lightBlockTexs))
+        for i in range(len(self._lightBlockTexs)):
+            shader.setUniform(f"lightBlockTex[{i}]", self._lightBlockTexs[i])
+        shader.setUniform("lightBlockSmoothTex", self._lightBlockSmoothTex)
         shader.setUniform("mirrorTex", self._mirrorTex)
         shader.setUniform("reflectionStrengthTex", self._reflectionStrengthTex)
         shader.setUniform("emissiveTex", self._emissiveTex)
@@ -445,13 +513,8 @@ class GameMap:
             Vector3f(self._ambientLight.r / 255.0, self._ambientLight.g / 255.0, self._ambientLight.b / 255.0),
         )
 
-    def _getMaterialPropertyTexture(
-        self, functionName: str, invalidValue: Union[float, bool], smooth: bool = False
-    ) -> Texture:
-        size = self._tilemap.getSize()
+    def _generateDataFromMap(self, size: Vector2u, materialMap: List[List[float]], smooth: bool = False) -> Texture:
         img = Image(size)
-        materialMap = self.getMaterialPropertyMap(functionName, invalidValue)
-
         try:
             from .GamePlayExtension import C_GetMaterialPropertyTexture
 
@@ -470,6 +533,13 @@ class GameMap:
         texture = Texture(img)
         texture.setSmooth(smooth)
         return texture
+
+    def _getMaterialPropertyTexture(
+        self, functionName: str, invalidValue: Union[float, bool], smooth: bool = False
+    ) -> Texture:
+        size = self._tilemap.getSize()
+        materialMap = self.getMaterialPropertyMap(functionName, invalidValue)
+        return self._generateDataFromMap(size, materialMap, smooth)
 
     def _rebuildPassabilityCache(self) -> None:
         size = self._tilemap.getSize()

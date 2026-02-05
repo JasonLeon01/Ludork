@@ -11,6 +11,7 @@ class Material:
     reflectionStrength: float = 0.5
     opacity: float = 1.0
     emissive: float = 0.0
+    speedRate: float = 1.0
 
     def asDict(self) -> Dict[str, Any]:
         return asdict(self)

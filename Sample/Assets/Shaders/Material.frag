@@ -1,6 +1,8 @@
-uniform sampler2D tilemapTex;
-uniform sampler2D blockableTex;
-uniform sampler2D lightBlockTex;
+uniform int tilemapTexLen;
+uniform sampler2D tilemapTex[16];
+uniform int lightBlockLen;
+uniform sampler2D lightBlockTex[16];
+uniform sampler2D lightBlockSmoothTex;
 uniform sampler2D mirrorTex;
 uniform sampler2D reflectionStrengthTex;
 uniform sampler2D emissiveTex;
@@ -20,6 +22,52 @@ uniform vec2 viewPos;
 
 uniform vec2 gridSize;
 
+vec4 GetRealColor(vec2 uv) {
+    vec4 blendedColor = vec4(0.0);
+    for (int i = 0; i < 16; ++i) {
+        if (i < tilemapTexLen) {
+            vec4 currentColor = texture2D(tilemapTex[i], uv);
+            blendedColor = vec4(currentColor.rgb * currentColor.a + blendedColor.rgb * (1.0 - currentColor.a), 
+                                currentColor.a + blendedColor.a * (1.0 - currentColor.a));
+        } else {
+            break;
+        }
+    }
+    return blendedColor;
+}
+
+vec2 ConvertUVToGridIndex(vec2 uv) {
+    vec2 pixelPosTL_view = uv * screenSize;
+    vec2 pixelPosBL_view = vec2(pixelPosTL_view.x, screenSize.y - pixelPosTL_view.y);
+    vec2 pixelPosTL_world = pixelPosBL_view + viewPos;
+    vec2 mapPixelSize = gridSize * float(cellSize);
+    vec2 pixelPosBL_world = vec2(pixelPosTL_world.x, mapPixelSize.y - pixelPosTL_world.y);
+    vec2 gridIndex = floor(pixelPosBL_world / float(cellSize));
+    return gridIndex;
+}
+
+vec4 GetRealLightBlockColor(vec2 uv) {
+    vec2 gridIndex = ConvertUVToGridIndex(uv);
+    vec2 sampleUV = (gridIndex + 0.5) / gridSize;
+    vec4 blendedColor = vec4(0.0);
+    bool stopSkipping = false;
+    for (int i = 0; i < 16; ++i) {
+        if (i < tilemapTexLen && i < lightBlockLen) {
+            float lightBlock = texture2D(lightBlockTex[i], sampleUV).r;
+            if (lightBlock == 0 && !stopSkipping) {
+                stopSkipping = true;
+                continue;
+            }
+            vec4 currentColor = texture2D(tilemapTex[i], uv);
+            blendedColor = vec4(currentColor.rgb * currentColor.a + blendedColor.rgb * (1.0 - currentColor.a), 
+                                currentColor.a + blendedColor.a * (1.0 - currentColor.a));
+        } else {
+            break;
+        }
+    }
+    return blendedColor;
+}
+
 float GetObstructionAttenuation(vec2 from, vec2 to, vec2 gridSize)
 {
     vec2 fromGrid = from / float(cellSize);
@@ -38,7 +86,7 @@ float GetObstructionAttenuation(vec2 from, vec2 to, vec2 gridSize)
         if (i >= steps) break;
 
         vec2 uv = clamp(curr / gridSize, 0.0, 1.0);
-        float r = texture2D(lightBlockTex, uv).r;
+        float r = texture2D(lightBlockSmoothTex, uv).r;
 
         attenuation *= (1.0 - r * 0.6);
         curr += step;
@@ -68,7 +116,7 @@ vec3 ApplyReflection(vec3 pixelColor, vec2 pixelPosBL_world, vec2 uv)
 
                 if (reflectedScreenUV.x >= 0.0 && reflectedScreenUV.x <= 1.0 &&
                     reflectedScreenUV.y >= 0.0 && reflectedScreenUV.y <= 1.0) {
-                    vec4 refTex = texture2D(blockableTex, reflectedScreenUV);
+                    vec4 refTex = GetRealLightBlockColor(reflectedScreenUV);
                     float strength = texture2D(reflectionStrengthTex, tileCenterUV).r;
                     float reflectionAlpha = refTex.a * strength;
                     return mix(pixelColor, refTex.rgb, reflectionAlpha);
@@ -107,17 +155,20 @@ void main()
     vec2 pixelPosBL_world = vec2(pixelPosTL_world.x, mapPixelSize.y - pixelPosTL_world.y);
 
     vec2 uv = clamp(gl_TexCoord[0].xy, 0.0, 1.0);
-    vec3 pixelColor = texture2D(tilemapTex, uv).rgb;
+    vec3 pixelColor = GetRealColor(uv).rgb;
 
     pixelColor = ApplyReflection(pixelColor, pixelPosBL_world, uv);
     vec3 lighting = CalculateLighting(pixelPosTL_world, pixelPosBL_world, mapPixelSize);
 
-    vec2 gridIndex = floor(pixelPosBL_world / float(cellSize));
+    vec2 gridIndex = ConvertUVToGridIndex(uv);
     vec2 tileCenterUV = (gridIndex + 0.5) / gridSize;
     float emissive = texture2D(emissiveTex, tileCenterUV).r;
     
-    vec4 blockColor = texture2D(blockableTex, uv);
-    vec3 emissiveColor = blockColor.rgb * blockColor.a * emissive;
-
-    gl_FragColor = vec4(pixelColor * lighting + emissiveColor, 1.0);
+    if (emissive > 0) {
+        vec4 blockColor = GetRealLightBlockColor(uv);
+        vec3 emissiveColor = blockColor.rgb * blockColor.a * emissive;
+        gl_FragColor = vec4(pixelColor * lighting + emissiveColor, 1.0);
+    } else {
+        gl_FragColor = vec4(pixelColor * lighting, 1.0);
+    }
 }

@@ -208,9 +208,13 @@ class Actor(_ActorBase):
         if self._departure is None or self._destination is None:
             return None
 
+        topMaterial = self._map.getTopMaterial(self.getMapPosition())
+        speed = self.speed
+        if not topMaterial is None:
+            speed *= topMaterial.speedRate
         dist = self._destination - self._departure
         length = dist.length()
-        time = length / self.speed
+        time = length / speed
         velocity = dist / time
         return velocity
 

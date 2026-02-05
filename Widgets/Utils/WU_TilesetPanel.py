@@ -101,12 +101,15 @@ class TilesetImageView(QtWidgets.QWidget):
                         if i < len(materials):
                             mat = materials[i]
                             if mat and self.MaterialClass and isinstance(mat, self.MaterialClass):
-                                is_default = (
-                                    mat.lightBlock == 0.0
-                                    and not mat.mirror
-                                    and mat.opacity == 1.0
-                                    and mat.emissive == 0.0
-                                )
+                                is_default = True
+                                matType = type(mat)
+                                for attr in dir(mat):
+                                    val = getattr(mat, attr)
+                                    if not attr.startswith("_") and not callable(val):
+                                        typeVal = getattr(matType, attr)
+                                        if val != typeVal:
+                                            is_default = False
+                                            break
                                 if not is_default:
                                     painter.setPen(QtGui.QPen(QtGui.QColor(100, 255, 100, 200), 2))
                                     painter.drawRect(rect.adjusted(4, 4, -4, -4))

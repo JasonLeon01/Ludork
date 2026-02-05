@@ -14,6 +14,7 @@ from .. import (
     Vector2u,
     GetCellSize,
     Color,
+    Image,
 )
 from .G_Material import Material
 
@@ -56,6 +57,8 @@ class TileLayer(Drawable, Transformable):
         self._height = len(self._data.tiles)
         self._vertexArray = VertexArray(PrimitiveType.Triangles, self._width * self._height * 6)
         self._texture = Manager.loadTileset(self._data.layerTileset.fileName)
+        self._lightBlockMapCache: Optional[List[List[float]]] = None
+        self._lightBlockImageCache: Optional[Image] = None
         self.visible = visible
         Drawable.__init__(self)
         Transformable.__init__(self)
@@ -80,13 +83,37 @@ class TileLayer(Drawable, Transformable):
             return True
         return self._data.layerTileset.passable[tileNumber]
 
-    def getMaterialProperty(self, position: Vector2i, propertyName: str) -> Any:
+    def getMaterial(self, position: Vector2i) -> Any:
         if position.x < 0 or position.y < 0 or position.x >= self._width or position.y >= self._height:
             return None
         tileNumber = self._data.tiles[position.y][position.x]
         if tileNumber is None:
             return None
-        return getattr(self._data.layerTileset.materials[tileNumber], propertyName)
+        return self._data.layerTileset.materials[tileNumber]
+
+    def getMaterialProperty(self, position: Vector2i, propertyName: str) -> Any:
+        result = self.getMaterial(position)
+        if result is None:
+            return None
+        return getattr(result, propertyName)
+
+    def getLightBlockMap(self) -> List[List[float]]:
+        if self._lightBlockMapCache is None:
+            self._lightBlockMapCache = [
+                [(self.getLightBlock(Vector2i(x, y)) or 0.0) for x in range(self._width)] for y in range(self._height)
+            ]
+        return self._lightBlockMapCache
+
+    def getLightBlockImage(self) -> Image:
+        if self._lightBlockImageCache is None:
+            dataMap = self.getLightBlockMap()
+            img = Image(Vector2u(self._width, self._height))
+            for y in range(self._height):
+                for x in range(self._width):
+                    g = int(dataMap[y][x] * 255)
+                    img.setPixel(Vector2u(x, y), Color(g, g, g))
+            self._lightBlockImageCache = img
+        return self._lightBlockImageCache
 
     def getLightBlock(self, position: Vector2i) -> float:
         return self.getMaterialProperty(position, "lightBlock")
@@ -99,6 +126,9 @@ class TileLayer(Drawable, Transformable):
 
     def getEmissive(self, position: Vector2i) -> float:
         return self.getMaterialProperty(position, "emissive")
+
+    def getSpeedRate(self, position: Vector2i) -> Optional[float]:
+        return self.getMaterialProperty(position, "speedRate")
 
     def draw(self, target: RenderTarget, states: RenderStates) -> None:
         if not self.visible:
@@ -165,13 +195,10 @@ class TileLayer(Drawable, Transformable):
 
 
 class Tilemap:
-    def __init__(self, layers: List[TileLayer], blockableLayers: List[TileLayer]) -> None:
+    def __init__(self, layers: List[TileLayer]) -> None:
         self._layers: Dict[str, TileLayer] = {}
-        self._blockableLayers: Dict[str, TileLayer] = {}
         for layer in layers:
             self._layers[layer.getName()] = layer
-        for layer in blockableLayers:
-            self._blockableLayers[layer.getName()] = layer
         self._tilesData: Dict[str, List[List[Optional[int]]]] = {}
         for layerName, layer in self._layers.items():
             self._tilesData[layerName] = layer.getTiles()
@@ -185,17 +212,8 @@ class Tilemap:
     def getTilesData(self) -> Dict[str, List[List[Optional[int]]]]:
         return self._tilesData
 
-    def getBlockableLayer(self, name: str) -> Optional[TileLayer]:
-        for layerName, layer in self._blockableLayers.items():
-            if layerName == name:
-                return layer
-        return None
-
     def getAllLayers(self) -> Dict[str, TileLayer]:
         return self._layers
-
-    def getAllBlockableLayers(self) -> Dict[str, TileLayer]:
-        return self._blockableLayers
 
     def getLayerNameList(self) -> List[str]:
         return list(self._layers.keys())
@@ -211,24 +229,16 @@ class Tilemap:
         from Source import Data
 
         mapLayers = []
-        blockableMapLayers = []
         for layerName, layerData in data.items():
             name = layerData["layerName"]
             layerTileset = Data.getTileset(layerData["layerTileset"])
             layerTiles = layerData["tiles"]
             tiles: List[List[Optional[int]]] = []
-            blockableTiles: List[List[Optional[int]]] = []
             for y in range(height):
                 tiles.append([])
-                blockableTiles.append([])
                 for x in range(width):
                     tileNumber = layerTiles[y][x]
                     tiles[-1].append(tileNumber)
-                    blockableTiles[-1].append(
-                        tileNumber
-                        if not tileNumber is None and layerTileset.materials[tileNumber].lightBlock > 0
-                        else None
-                    )
             layer = TileLayer(
                 TileLayerData(
                     name,
@@ -236,13 +246,5 @@ class Tilemap:
                     tiles,
                 ),
             )
-            blockableLayer = TileLayer(
-                TileLayerData(
-                    name,
-                    layerTileset,
-                    blockableTiles,
-                ),
-            )
             mapLayers.append(layer)
-            blockableMapLayers.append(blockableLayer)
-        return Tilemap(mapLayers, blockableMapLayers)
+        return Tilemap(mapLayers)
