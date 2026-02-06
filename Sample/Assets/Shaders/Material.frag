@@ -113,26 +113,36 @@ vec3 ApplyReflection(vec3 pixelColor, vec2 pixelPosBL_world, vec2 uv) {
     float isMirror = texture2D(mirrorTex, tileCenterUV).r;
 
     if (isMirror > 0.5) {
-        vec2 gridIndexAbove = gridIndex + vec2(0.0, 1.0);
-        if (gridIndexAbove.y < gridSize.y) {
-            vec2 tileCenterUVAbove = (gridIndexAbove + 0.5) / gridSize;
-            float isAboveMirror = texture2D(mirrorTex, tileCenterUVAbove).r;
-            if (isAboveMirror < 0.5) {
-                vec2 cellLocal = fract(pixelPosBL_world / float(cellSize));
-                vec2 reflectedLocal = vec2(cellLocal.x, 1.0 - cellLocal.y);
-                vec2 reflectedWorldPosBL = (gridIndexAbove + reflectedLocal) * float(cellSize);
-                vec2 deltaWorld = reflectedWorldPosBL - pixelPosBL_world;
-                vec2 deltaUV = deltaWorld / screenSize;
-                vec2 reflectedScreenUV = uv + deltaUV;
-
-                if (reflectedScreenUV.x >= 0.0 && reflectedScreenUV.x <= 1.0 &&
-                    reflectedScreenUV.y >= 0.0 && reflectedScreenUV.y <= 1.0) {
-                    vec4 refTex = GetRealLightBlockColor(reflectedScreenUV);
-                    float strength = texture2D(reflectionStrengthTex, tileCenterUV).r;
-                    float reflectionAlpha = refTex.a * strength;
-                    return mix(pixelColor, refTex.rgb, reflectionAlpha);
-                }
+        float stepsUp = 0.0;
+        for (int i = 1; i < 64; ++i) {
+            vec2 checkIndex = gridIndex + vec2(0.0, float(i));
+            if (checkIndex.y >= gridSize.y) {
+                break;
             }
+            vec2 checkUV = (checkIndex + 0.5) / gridSize;
+            float checkMirror = texture2D(mirrorTex, checkUV).r;
+            if (checkMirror < 0.5) {
+                break;
+            }
+            stepsUp = float(i);
+        }
+
+        vec2 gridIndexTop = gridIndex + vec2(0.0, stepsUp);
+        float topEdgeY = (gridIndexTop.y + 1.0) * float(cellSize);
+        float deltaY = topEdgeY - pixelPosBL_world.y;
+
+        vec2 reflectedWorldPosBL = vec2(pixelPosBL_world.x, topEdgeY + deltaY);
+        vec2 deltaWorld = reflectedWorldPosBL - pixelPosBL_world;
+        vec2 deltaUV = deltaWorld / screenSize;
+        vec2 reflectedScreenUV = uv + deltaUV;
+
+        if (reflectedScreenUV.x >= 0.0 && reflectedScreenUV.x <= 1.0 &&
+            reflectedScreenUV.y >= 0.0 && reflectedScreenUV.y <= 1.0) {
+            vec4 refTex = GetRealLightBlockColor(reflectedScreenUV);
+            float strength = texture2D(reflectionStrengthTex, tileCenterUV).r;
+            float reflectionAlpha = refTex.a * strength;
+            vec3 mirrorColor = mix(refTex.rgb, pixelColor, 0.05);
+            return mix(pixelColor, mirrorColor, reflectionAlpha);
         }
     }
     return pixelColor;

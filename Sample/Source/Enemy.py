@@ -8,6 +8,7 @@ from .Battler import _Battler
 
 
 class Enemy(Actor, _Battler):
+    ID: str = "FILL_IT_BY_YOURSELF"
     tickable: bool = True
     collisionEnabled: bool = True
     animatable: bool = True
