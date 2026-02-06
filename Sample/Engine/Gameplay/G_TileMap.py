@@ -2,24 +2,27 @@
 
 from __future__ import annotations
 from dataclasses import dataclass, asdict
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional
 from .. import (
-    Drawable,
-    Transformable,
     VertexArray,
     Manager,
     PrimitiveType,
-    Vector2f,
     Vector2i,
     Vector2u,
     GetCellSize,
     Color,
     Image,
+    Drawable,
+    Transformable,
 )
 from .G_Material import Material
 
-if TYPE_CHECKING:
-    from Engine import RenderTarget, RenderStates, Vector2u
+try:
+    from ..GraphicsExtension import TileLayerGraphics
+except ImportError:
+
+    class TileLayerGraphics(Drawable, Transformable):
+        pass
 
 
 @dataclass
@@ -46,7 +49,7 @@ class TileLayerData:
     tiles: List[List[Optional[int]]]
 
 
-class TileLayer(Drawable, Transformable):
+class TileLayer(TileLayerGraphics):
     def __init__(
         self,
         data: TileLayerData,
@@ -60,9 +63,9 @@ class TileLayer(Drawable, Transformable):
         self._lightBlockMapCache: Optional[List[List[float]]] = None
         self._lightBlockImageCache: Optional[Image] = None
         self.visible = visible
-        Drawable.__init__(self)
-        Transformable.__init__(self)
-        self._init()
+        super().__init__(
+            self._width, self._height, GetCellSize(), self._texture, self._data.tiles, self._data.layerTileset.materials
+        )
 
     def getName(self) -> str:
         return self._data.layerName
@@ -129,69 +132,6 @@ class TileLayer(Drawable, Transformable):
 
     def getSpeedRate(self, position: Vector2i) -> Optional[float]:
         return self.getMaterialProperty(position, "speedRate")
-
-    def draw(self, target: RenderTarget, states: RenderStates) -> None:
-        if not self.visible:
-            return
-
-        states.transform *= self.getTransform()
-        states.texture = self._texture
-        target.draw(self._vertexArray, states)
-
-    def _init(self) -> None:
-        tileSize = GetCellSize()
-        columns = self._texture.getSize().x // tileSize
-
-        try:
-            from .GamePlayExtension import C_CalculateVertexArray
-
-            C_CalculateVertexArray(
-                self._vertexArray,
-                self._data.tiles,
-                self._data.layerTileset.materials,
-                tileSize,
-                columns,
-                self._width,
-                self._height,
-            )
-        except Exception as e:
-            # region Calculate Vertex Array by Python
-            print(f"Failed to calculate vertex array by C extension, try to calculate by python. Error: {e}")
-            for y in range(self._height):
-                for x in range(self._width):
-                    tileNumber = self._data.tiles[y][x]
-                    if tileNumber is None:
-                        continue
-
-                    tu = tileNumber % columns
-                    tv = tileNumber // columns
-                    start = (x + y * self._width) * 6
-
-                    opacity = self._data.layerTileset.materials[tileNumber].opacity
-                    color = Color(255, 255, 255, int(opacity * 255))
-
-                    positions = [
-                        Vector2f(x * tileSize, y * tileSize),
-                        Vector2f((x + 1) * tileSize, y * tileSize),
-                        Vector2f(x * tileSize, (y + 1) * tileSize),
-                        Vector2f(x * tileSize, (y + 1) * tileSize),
-                        Vector2f((x + 1) * tileSize, y * tileSize),
-                        Vector2f((x + 1) * tileSize, (y + 1) * tileSize),
-                    ]
-                    texCoords = [
-                        Vector2f(tu * tileSize, tv * tileSize),
-                        Vector2f((tu + 1) * tileSize, tv * tileSize),
-                        Vector2f(tu * tileSize, (tv + 1) * tileSize),
-                        Vector2f(tu * tileSize, (tv + 1) * tileSize),
-                        Vector2f((tu + 1) * tileSize, tv * tileSize),
-                        Vector2f((tu + 1) * tileSize, (tv + 1) * tileSize),
-                    ]
-                    for i in range(6):
-                        self._vertexArray[start + i].position = positions[i]
-                        self._vertexArray[start + i].texCoords = texCoords[i]
-                        if opacity < 255:
-                            self._vertexArray[start + i].color = color
-            # endregion
 
 
 class Tilemap:

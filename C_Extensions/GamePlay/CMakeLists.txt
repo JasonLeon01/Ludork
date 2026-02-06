@@ -5,9 +5,7 @@ include(../SFMLcommon.cmake)
 
 pybind11_add_module(GamePlayExtension
     "main.cpp"
-    "src/Tilemap.cpp"
     "src/GameMap/GetMaterialPropertyMap.cpp"
-    "src/GameMap/GetMaterialPropertyTexture.cpp"
     "src/GameMap/FindPath.cpp"
     "src/GameMap/RebuildPassabilityCache.cpp"
     "src/Particles/AddParticle.cpp"

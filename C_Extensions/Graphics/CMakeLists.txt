@@ -8,6 +8,8 @@ pybind11_add_module(GraphicsExtension
     "src/CompressAnimation.cpp"
     "src/RectBase.cpp"
     "src/Color.cpp"
+    "src/GameMapGraphics.cpp"
+    "src/TilemapGraphics.cpp"
 )
 
 ConfigureTarget(GraphicsExtension)

@@ -2,7 +2,6 @@
 
 #include <GameMap/FindPath.h>
 #include <GameMap/GetMaterialPropertyMap.h>
-#include <GameMap/GetMaterialPropertyTexture.h>
 #include <GameMap/RebuildPassabilityCache.h>
 #include <pybind11/pybind11.h>
 

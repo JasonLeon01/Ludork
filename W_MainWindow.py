@@ -35,7 +35,7 @@ from Widgets import (
     PackWorker,
     PackSelectionDialog,
 )
-from Widgets.Utils import MapEditDialog, SingleRowDialog, Toast
+from Widgets.Utils import MapEditDialog, SingleRowDialog, Toast, FPSGraphDialog
 import EditorStatus
 from Data import GameData
 
@@ -286,6 +286,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def startGame(self):
         self.endGame()
+        fpsFile = os.path.join(EditorStatus.PROJ_PATH, "Temp", "FPSHistory.json")
+        if os.path.exists(fpsFile):
+            os.remove(fpsFile)
         self.consoleWidget.clear()
         self.stacked.setCurrentWidget(self.gamePanel)
         self._setLayerListInteractive(False)
@@ -305,6 +308,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._panelHandle = int(self.gamePanel.winId())
         windowhandle = str(self._panelHandle)
         individual = str(self._projConfig.get("IndividualWindow", False))
+        showFPSGraph = str(self._projConfig.get("ShowFPSGraph", False))
         self._engineProc = subprocess.Popen(
             self._getExec(scriptPath),
             cwd=EditorStatus.PROJ_PATH,
@@ -318,6 +322,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 EditorStatus.CLEAN_ENVIRON,
                 WINDOWHANDLE=windowhandle,
                 INDIVIDUAL=individual,
+                SHOWFPSGRAPH=showFPSGraph,
                 PYTHONUNBUFFERED="1",
             ),
         )
@@ -420,8 +425,22 @@ class MainWindow(QtWidgets.QMainWindow):
                     self._engineMonitorTimer.stop()
                 self.endGame()
                 self.modeToggle.setSelected(0)
+                self._checkAndShowFPS()
         except Exception as e:
             print(f"Error checking engine process state: {e}")
+
+    def _checkAndShowFPS(self) -> None:
+        fpsFile = os.path.join(EditorStatus.PROJ_PATH, "Temp", "FPSHistory.json")
+        if os.path.exists(fpsFile):
+            try:
+                with open(fpsFile, "r") as f:
+                    data = json.load(f)
+                if data:
+                    dlg = FPSGraphDialog(data, self)
+                    dlg.exec_()
+                os.remove(fpsFile)
+            except Exception as e:
+                print(f"Failed to load FPS history: {e}")
 
     def _onModeChanged(self, idx: int) -> None:
         if idx == 1:
@@ -1155,6 +1174,10 @@ class MainWindow(QtWidgets.QMainWindow):
         modified = False
         if "IndividualWindow" not in self._projConfig:
             self._projConfig["IndividualWindow"] = False
+            modified = True
+
+        if "ShowFPSGraph" not in self._projConfig:
+            self._projConfig["ShowFPSGraph"] = False
             modified = True
 
         if sys.platform == "darwin":

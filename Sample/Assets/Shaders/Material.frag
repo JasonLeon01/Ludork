@@ -2,25 +2,24 @@ uniform int tilemapTexLen;
 uniform sampler2D tilemapTex[16];
 uniform int lightBlockLen;
 uniform sampler2D lightBlockTex[16];
-uniform sampler2D lightBlockSmoothTex;
 uniform sampler2D mirrorTex;
 uniform sampler2D reflectionStrengthTex;
 uniform sampler2D emissiveTex;
 
-uniform int lightCount;
+uniform float screenScale;
+uniform vec2 screenSize;
+uniform vec2 viewPos;
+uniform vec2 gridSize;
 uniform int cellSize;
 
+uniform int lightLen;
 uniform vec2 lightPos[16];
 uniform vec3 lightColor[16];
 uniform float lightRadius[16];
 uniform float lightIntensity[16];
 
 uniform vec3 ambientColor;
-uniform float screenScale;
-uniform vec2 screenSize;
-uniform vec2 viewPos;
 
-uniform vec2 gridSize;
 
 vec4 GetRealColor(vec2 uv) {
     vec4 blendedColor = vec4(0.0);
@@ -68,14 +67,28 @@ vec4 GetRealLightBlockColor(vec2 uv) {
     return blendedColor;
 }
 
-float GetObstructionAttenuation(vec2 from, vec2 to, vec2 gridSize)
-{
+float GetLightBlockValue(vec2 uv) {
+    vec2 uv_ = clamp(uv / gridSize, 0.0, 1.0);
+    for (int i = 15; i >= 0; --i) {
+        if (i < tilemapTexLen && i < lightBlockLen) {
+            float r = texture2D(lightBlockTex[i], uv_).r;
+            if (r > 0) {
+                return r;
+            }
+        }
+    }
+    return 0.0;
+}
+
+float GetObstructionAttenuation(vec2 from, vec2 to, vec2 gridSize) {
     vec2 fromGrid = from / float(cellSize);
     vec2 toGrid = to / float(cellSize);
     vec2 delta = toGrid - fromGrid;
 
     int steps = int(clamp(max(abs(delta.x), abs(delta.y)) * 1.2, 8.0, 64.0));
-    if (steps <= 0) return 1.0;
+    if (steps <= 0) {
+        return 1.0;
+    }
 
     vec2 step = delta / float(steps);
     vec2 curr = fromGrid;
@@ -83,11 +96,10 @@ float GetObstructionAttenuation(vec2 from, vec2 to, vec2 gridSize)
     float attenuation = 1.0;
 
     for (int i = 0; i < 64; ++i) {
-        if (i >= steps) break;
-
-        vec2 uv = clamp(curr / gridSize, 0.0, 1.0);
-        float r = texture2D(lightBlockSmoothTex, uv).r;
-
+        if (i >= steps) {
+            break;
+        }
+        float r = GetLightBlockValue(curr);
         attenuation *= (1.0 - r * 0.6);
         curr += step;
     }
@@ -95,8 +107,7 @@ float GetObstructionAttenuation(vec2 from, vec2 to, vec2 gridSize)
     return clamp(attenuation, 0.0, 1.0);
 }
 
-vec3 ApplyReflection(vec3 pixelColor, vec2 pixelPosBL_world, vec2 uv)
-{
+vec3 ApplyReflection(vec3 pixelColor, vec2 pixelPosBL_world, vec2 uv) {
     vec2 gridIndex = floor(pixelPosBL_world / float(cellSize));
     vec2 tileCenterUV = (gridIndex + 0.5) / gridSize;
     float isMirror = texture2D(mirrorTex, tileCenterUV).r;
@@ -127,27 +138,24 @@ vec3 ApplyReflection(vec3 pixelColor, vec2 pixelPosBL_world, vec2 uv)
     return pixelColor;
 }
 
-vec3 CalculateLighting(vec2 pixelPosTL_world, vec2 pixelPosBL_world, vec2 mapPixelSize)
-{
+vec3 CalculateLighting(vec2 pixelPosTL_world, vec2 pixelPosBL_world, vec2 mapPixelSize) {
     vec3 totalLight = ambientColor;
 
     for (int i = 0; i < 16; ++i) {
-        if (i >= lightCount) break;
+        if (i >= lightLen) break;
 
         float dist = length(pixelPosTL_world - lightPos[i]);
         if (dist >= lightRadius[i]) continue;
 
         float atten = 1.0 - dist / lightRadius[i];
-        vec2 lightPosBL_world = vec2(lightPos[i].x, mapPixelSize.y - lightPos[i].y);
-        float obs = GetObstructionAttenuation(lightPosBL_world, pixelPosBL_world, gridSize);
+        float obs = GetObstructionAttenuation(lightPos[i], pixelPosTL_world, gridSize);
 
         totalLight += lightColor[i] * lightIntensity[i] * atten * obs;
     }
     return clamp(totalLight, 0.0, 1.0);
 }
 
-void main()
-{
+void main() {
     vec2 pixelPosBL_view = gl_FragCoord.xy / screenScale;
     vec2 pixelPosTL_view = vec2(pixelPosBL_view.x, screenSize.y - pixelPosBL_view.y);
     vec2 pixelPosTL_world = pixelPosTL_view + viewPos;

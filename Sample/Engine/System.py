@@ -3,6 +3,7 @@
 from __future__ import annotations
 import os
 import locale
+import json
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 import configparser
 from . import (
@@ -78,6 +79,10 @@ class System:
     _latentManager: LatentManager = None
     _variables: Dict[str, Any] = {}
     _debugMode: bool = False
+    _showFPSGraph: bool = False
+    _fpsHistory: List[float] = []
+    _fpsAccumulator: float = 0.0
+    _fpsCount: int = 0
 
     @classmethod
     def init(cls, inData: configparser.ConfigParser, dataFilePath: str) -> None:
@@ -132,6 +137,7 @@ class System:
         handle: Optional[str] = os.environ.get("WINDOWHANDLE")
         individual: Optional[str] = os.environ.get("INDIVIDUAL")
         cls._debugMode = handle is not None
+        cls._showFPSGraph = os.environ.get("SHOWFPSGRAPH") == "True"
         if handle and individual != "True":
             cls._window = RenderWindow(int(handle), settings=ContextSettings(antiAliasingLevel=8))
             windowSize = cls._window.getSize()
@@ -157,6 +163,33 @@ class System:
         if cls._transitionShaderPath:
             cls._transitionShader = Shader(cls._transitionShaderPath, Shader.Type.Fragment)
         cls._latentManager = LatentManager()
+
+    @classmethod
+    def isDebugMode(cls) -> bool:
+        return cls._debugMode
+
+    @classmethod
+    def recordFPS(cls, fps: float) -> None:
+        if cls._debugMode and cls._showFPSGraph:
+            cls._fpsAccumulator += fps
+            cls._fpsCount += 1
+            if cls._fpsCount >= 30:
+                cls._fpsHistory.append(cls._fpsAccumulator / cls._fpsCount)
+                cls._fpsAccumulator = 0.0
+                cls._fpsCount = 0
+
+    @classmethod
+    def saveFPSHistory(cls) -> None:
+        if not cls._debugMode or not cls._fpsHistory:
+            return
+        try:
+            temp_dir = "./Temp"
+            if not os.path.exists(temp_dir):
+                os.makedirs(temp_dir)
+            with open(os.path.join(temp_dir, "FPSHistory.json"), "w") as f:
+                json.dump(cls._fpsHistory, f)
+        except Exception as e:
+            print(f"Failed to save FPS history: {e}")
 
     @classmethod
     def isActive(cls) -> bool:
@@ -449,10 +482,6 @@ class System:
     @classmethod
     def getLatentManager(cls) -> LatentManager:
         return cls._latentManager
-
-    @classmethod
-    def isDebugMode(cls) -> bool:
-        return cls._debugMode
 
     @classmethod
     def _setIniData(cls, key: str, value: Any) -> None:

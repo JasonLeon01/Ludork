@@ -202,6 +202,7 @@ class SceneBase:
         realDeltaTime = deltaTime / Manager.TimeManager.getSpeed()
         self._totalTime += realDeltaTime
         FPS = 1.0 / realDeltaTime
+        System.recordFPS(FPS)
         self._totalFrames += 1
         self._averageFPS = self._totalFrames / self._totalTime
         self._debugUpdateTimer += realDeltaTime

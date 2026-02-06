@@ -2,7 +2,6 @@
 
 #include <GameMap.h>
 #include <Particle.h>
-#include <Tilemap.h>
 #include <iostream>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -14,7 +13,15 @@ PYBIND11_MODULE(GamePlayExtension, m) {
       const_cast<py::detail::internals *>(&py::detail::get_internals()));
   std::cout << "[Ludork PYSF Binding] PyBind11 internals address: "
             << internals_ptr << std::endl;
-  ApplyCalculateVertexArrayBinding(m);
+
+  auto importModule = py::module::import("importlib").attr("import_module");
+  try {
+    importModule("Engine.pysf");
+  } catch (py::error_already_set &) {
+    PyErr_Clear();
+    importModule("pysf");
+  }
+
   ApplyGameMapBinding(m);
   ApplyParticleBinding(m);
 }

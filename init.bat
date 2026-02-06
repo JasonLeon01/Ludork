@@ -116,7 +116,7 @@ if errorlevel 1 (
 :RUN_APP
 if exist "C_Extensions" (
   cd C_Extensions
-  python setup.py
+  python setup.py --no-clean
   if errorlevel 1 (
     cd ..
     exit /b 1

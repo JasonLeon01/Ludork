@@ -7,12 +7,12 @@ from typing import Any, Dict, List, Optional, Union
 
 from .. import (
     Pair,
+    RenderTexture,
     Vector2i,
     Vector2f,
     Vector2u,
-    Vector3f,
-    Color,
     Shader,
+    Color,
     Texture,
     Image,
     GetCellSize,
@@ -23,6 +23,32 @@ from .Actors import Actor
 from .G_Camera import Camera
 from .G_TileMap import Tilemap, TileLayer
 from .G_Material import Material
+
+try:
+    from ..GraphicsExtension import GameMapGraphics
+except ImportError:
+
+    class GameMapGraphics:
+        def __init__(self, shaderPath: str) -> None: ...
+        def getMaterialShader(self) -> Shader: ...
+        def refreshShader(
+            self,
+            canvases: List[RenderTexture],
+            lightBlockTexs: List[Texture],
+            mirrorTex: Texture,
+            reflectionStrengthTex: Texture,
+            emissiveTex: Texture,
+            screenScale: float,
+            screenSize: Vector2f,
+            viewPos: Vector2f,
+            gridSize: Vector2f,
+            cellSize: int,
+            lights: List[Light],
+            ambientColor: Color,
+        ) -> None: ...
+        def generateDataFromMap(
+            self, size: Vector2u, materialMap: List[List[float]], smooth: bool = False
+        ) -> Texture: ...
 
 
 @dataclass
@@ -50,7 +76,7 @@ class Light:
         )
 
 
-class GameMap:
+class GameMap(GameMapGraphics):
     def __init__(self, mapName, tilemap: Tilemap, camera: Optional[Camera] = None) -> None:
         from .. import System
 
@@ -64,13 +90,9 @@ class GameMap:
         if self._camera is None:
             self._camera = Camera()
         self._camera.setMap(self)
-        self._materialShader: Optional[Shader] = None
-        if self._materialShader is None:
-            self._materialShader = Shader(System.getMaterialShaderPath(), Shader.Type.Fragment)
         self._lights: List[Light] = []
         self._ambientLight: Color = Color(255, 255, 255, 255)
         self._lightBlockTexs: Optional[List[Texture]] = None
-        self._lightBlockSmoothTex: Optional[Texture] = None
         self._mirrorTex: Optional[Texture] = None
         self._reflectionStrengthTex: Optional[Texture] = None
         self._emissiveTex: Optional[Texture] = None
@@ -78,6 +100,7 @@ class GameMap:
         self._tilePassableGrid: Optional[List[List[bool]]] = None
         self._occupancyMap: Dict[Pair[int], List[Actor]] = {}
         self._player: Optional[Actor] = None
+        super().__init__(System.getMaterialShaderPath())
 
     def getPlayer(self) -> Optional[Actor]:
         return self._player
@@ -439,8 +462,8 @@ class GameMap:
                     canvases[idx].draw(actor, renderStates)
                 canvases[idx].display()
                 idx += 1
-        self._refreshShader()
-        System.draw(self._camera, self._materialShader)
+        self.refreshShader()
+        System.draw(self._camera, self.getMaterialShader())
         System.draw(self._particleSystem)
         System.setWindowDefaultView()
 
@@ -452,94 +475,58 @@ class GameMap:
             layer = layers[layerName]
             if not layer.visible:
                 continue
-            result.append(Texture(layer.getLightBlockImage()))
+            texture = Texture(layer.getLightBlockImage())
+            texture.setSmooth(True)
+            result.append(texture)
             if layerName in self._actors:
                 actorImg = Image(size, Color.Transparent)
                 for actor in self._actors[layerName]:
                     g = int(actor.getLightBlock() * 255)
                     actorImg.setPixel(Math.ToVector2u(actor.getMapPosition()), Color(g, g, g))
-                result.append(Texture(actorImg))
+                texture = Texture(actorImg)
+                texture.setSmooth(True)
+                result.append(texture)
         return result
 
-    def _refreshShader(self) -> None:
-        if self._materialShader is None:
-            return
-
-        from .. import System
-        from ..Utils import Math
-
-        shader = self._materialShader
-        canvases = self._camera.getCanvases()
-        shader.setUniform("tilemapTexLen", len(canvases))
-        for i, canvas in enumerate(canvases):
-            shader.setUniform(f"tilemapTex[{i}]", canvas.getTexture())
+    def refreshShader(self) -> None:
         if (
             self._lightBlockTexs is None
-            or self._lightBlockSmoothTex is None
             or self._mirrorTex is None
             or self._reflectionStrengthTex is None
             or self._emissiveTex is None
             or self._materialDirty
         ):
             self._lightBlockTexs = self._getLightBlockTexs()
-            self._lightBlockSmoothTex = self._getMaterialPropertyTexture("getLightBlock", 0.0, True)
             self._mirrorTex = self._getMaterialPropertyTexture("getMirror", False)
             self._reflectionStrengthTex = self._getMaterialPropertyTexture("getReflectionStrength", 0.0)
             self._emissiveTex = self._getMaterialPropertyTexture("getEmissive", 0.0)
             self._rebuildPassabilityCache()
             self._materialDirty = False
-        shader.setUniform("lightBlockLen", len(self._lightBlockTexs))
-        for i in range(len(self._lightBlockTexs)):
-            shader.setUniform(f"lightBlockTex[{i}]", self._lightBlockTexs[i])
-        shader.setUniform("lightBlockSmoothTex", self._lightBlockSmoothTex)
-        shader.setUniform("mirrorTex", self._mirrorTex)
-        shader.setUniform("reflectionStrengthTex", self._reflectionStrengthTex)
-        shader.setUniform("emissiveTex", self._emissiveTex)
-        shader.setUniform("screenScale", System.getScale())
-        shader.setUniform("screenSize", Math.ToVector2f(System.getGameSize()))
-        shader.setUniform("viewPos", self._camera.getViewPosition())
-        shader.setUniform("gridSize", Math.ToVector2f(self._tilemap.getSize()))
-        shader.setUniform("lightCount", len(self._lights))
-        shader.setUniform("cellSize", GetCellSize())
-        for i in range(len(self._lights)):
-            light = self._lights[i]
-            c = light.color
-            shader.setUniform(f"lightPos[{i}]", light.position)
-            shader.setUniform(f"lightColor[{i}]", Vector3f(c.r / 255.0, c.g / 255.0, c.b / 255.0))
-            shader.setUniform(f"lightRadius[{i}]", light.radius)
-            shader.setUniform(f"lightIntensity[{i}]", light.intensity)
-        shader.setUniform(
-            "ambientColor",
-            Vector3f(self._ambientLight.r / 255.0, self._ambientLight.g / 255.0, self._ambientLight.b / 255.0),
+
+        from .. import System
+        from ..Utils import Math
+
+        super().refreshShader(
+            self._camera.getCanvases(),
+            self._lightBlockTexs,
+            self._mirrorTex,
+            self._reflectionStrengthTex,
+            self._emissiveTex,
+            System.getScale(),
+            Math.ToVector2f(System.getGameSize()),
+            self._camera.getViewPosition(),
+            Math.ToVector2f(self._tilemap.getSize()),
+            GetCellSize(),
+            self._lights,
+            self._ambientLight,
         )
-
-    def _generateDataFromMap(self, size: Vector2u, materialMap: List[List[float]], smooth: bool = False) -> Texture:
-        img = Image(size)
-        try:
-            from .GamePlayExtension import C_GetMaterialPropertyTexture
-
-            C_GetMaterialPropertyTexture(size, img, materialMap)
-        except Exception as e:
-            # region Get Material Property Texture by Python
-            print(
-                f"Failed to get material property texture by C extension, try to get material property texture by python. Error: {e}"
-            )
-            for y in range(size.y):
-                for x in range(size.x):
-                    g = int(float(materialMap[y][x]) * 255)
-                    img.setPixel(Vector2u(x, y), Color(g, g, g))
-            # endregion
-
-        texture = Texture(img)
-        texture.setSmooth(smooth)
-        return texture
 
     def _getMaterialPropertyTexture(
         self, functionName: str, invalidValue: Union[float, bool], smooth: bool = False
     ) -> Texture:
         size = self._tilemap.getSize()
         materialMap = self.getMaterialPropertyMap(functionName, invalidValue)
-        return self._generateDataFromMap(size, materialMap, smooth)
+        return self.generateDataFromMap(size, materialMap, smooth)
 
     def _rebuildPassabilityCache(self) -> None:
         size = self._tilemap.getSize()

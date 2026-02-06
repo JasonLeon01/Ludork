@@ -90,7 +90,7 @@ fi
 
 if [ -d "C_Extensions" ]; then
   cd C_Extensions
-  "$PY_CMD" setup.py
+  "$PY_CMD" setup.py --no-clean
   if [ $? -ne 0 ]; then
     cd ..
     exit 1

@@ -99,6 +99,10 @@
         "zh_CN": "未找到 Entry.py",
         "en_GB": "Entry.py not found"
     },
+    "FPS_HISTORY": {
+        "zh_CN": "帧率波动图",
+        "en_GB": "FPS History"
+    },
     "PACK_PYTHON_MISSING": {
         "zh_CN": "未检测到 python3.10.0 环境",
         "en_GB": "python3.10.0 not found"
@@ -530,6 +534,10 @@
     "IndividualWindow": {
         "zh_CN": "独立窗口",
         "en_GB": "Individual Window"
+    },
+    "ShowFPSGraph": {
+        "zh_CN": "运行结束后显示 FPS 图表",
+        "en_GB": "Show FPS graph after game ends"
     },
     "CONFIRM_EXIT_WITH_UNSAVED_CHANGES": {
         "zh_CN": "当前有未保存的修改，是否保存并退出？",

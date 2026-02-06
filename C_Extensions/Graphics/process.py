@@ -25,8 +25,17 @@ targetNames = collectFileNames()
 for targetFile in targetNames:
     shutil.move(os.path.join(os.getcwd(), targetFile), os.path.join(pysfDir, targetFile))
 print(f"Generating {ExtensionName}.pyi in {os.path.abspath(os.path.join(os.getcwd(), pysfDir))}")
-subprocess.run([sys.executable, "-m", "pybind11_stubgen", "--output-dir=.", ExtensionName], cwd=os.path.abspath(os.path.join(os.getcwd(), pysfDir)))
+subprocess.run(
+    [sys.executable, "-m", "pybind11_stubgen", "--output-dir=.", ExtensionName],
+    cwd=os.path.abspath(os.path.join(os.getcwd(), pysfDir)),
+)
 print("Complete generation!")
 for targetFile in targetNames:
     shutil.move(os.path.join(pysfDir, targetFile), os.path.join(TargetFolder, targetFile))
+with open(os.path.join(pysfDir, ExtensionName + ".pyi"), "r") as f:
+    content = f.read()
+    content = content.replace("import pysf.sf", "from Engine import pysf")
+    content = content.replace("pysf.sf.", "pysf.")
+    with open(os.path.join(pysfDir, ExtensionName + ".pyi"), "w") as f:
+        f.write(content)
 shutil.move(os.path.join(pysfDir, ExtensionName + ".pyi"), os.path.join(TargetFolder, ExtensionName + ".pyi"))

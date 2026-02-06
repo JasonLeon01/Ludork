@@ -43,6 +43,7 @@ def entry():
 
     while Engine.System.shouldLoop():
         Engine.System.getScene().main()
+    Engine.System.saveFPSHistory()
 
 
 if __name__ == "__main__":

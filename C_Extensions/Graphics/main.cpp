@@ -2,7 +2,9 @@
 
 #include <Color.h>
 #include <CompressAnimation.h>
+#include <GameMapGraphics.h>
 #include <RectBase.h>
+#include <TilemapGraphics.h>
 #include <iostream>
 #include <pybind11/pybind11.h>
 
@@ -14,7 +16,17 @@ PYBIND11_MODULE(GraphicsExtension, m) {
   std::cout << "[Ludork PYSF Binding] PyBind11 internals address: "
             << internals_ptr << std::endl;
 
+  auto importModule = py::module::import("importlib").attr("import_module");
+  try {
+    importModule("Engine.pysf");
+  } catch (py::error_already_set &) {
+    PyErr_Clear();
+    importModule("pysf");
+  }
+
   ApplyCompressAnimationBinding(m);
   ApplyRectBaseBinding(m);
   ApplyColorBinding(m);
+  ApplyGameMapGraphicsBinding(m);
+  ApplyTileLayerGraphicsBinding(m);
 }
