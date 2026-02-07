@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+import sys
 from collections import deque
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
@@ -530,6 +531,11 @@ class GameMap(GameMapGraphics):
 
         from .. import System
         from ..Utils import Math
+
+        canvases = self._camera.getCanvases()
+
+        if len(self._lightBlockTexs) > 6 or len(canvases) > 6:
+            raise ValueError("The total number of samples of OpenGL 2.1 on macOS is limited to 16. If you are sure that you would not need macOS distribution, delete this part.")
 
         super().refreshShader(
             self._camera.getCanvases(),

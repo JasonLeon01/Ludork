@@ -1,7 +1,7 @@
 uniform int tilemapTexLen;
-uniform sampler2D tilemapTex[16];
+uniform sampler2D tilemapTex[6];
 uniform int lightBlockLen;
-uniform sampler2D lightBlockTex[16];
+uniform sampler2D lightBlockTex[6];
 uniform sampler2D mirrorTex;
 uniform sampler2D reflectionStrengthTex;
 uniform sampler2D emissiveTex;
@@ -30,10 +30,10 @@ vec2 rotate2D(vec2 v, float a) {
 
 vec4 GetRealColor(vec2 uv) {
     vec4 blendedColor = vec4(0.0);
-    for (int i = 0; i < 16; ++i) {
+    for (int i = 0; i < 6; ++i) {
         if (i < tilemapTexLen) {
             vec4 currentColor = texture2D(tilemapTex[i], uv);
-            blendedColor = vec4(currentColor.rgb * currentColor.a + blendedColor.rgb * (1.0 - currentColor.a), 
+            blendedColor = vec4(currentColor.rgb * currentColor.a + blendedColor.rgb * (1.0 - currentColor.a),
                                 currentColor.a + blendedColor.a * (1.0 - currentColor.a));
         } else {
             break;
@@ -57,7 +57,7 @@ vec4 GetRealLightBlockColor(vec2 uv) {
     vec2 sampleUV = (gridIndex + 0.5) / gridSize;
     vec4 blendedColor = vec4(0.0);
     bool stopSkipping = false;
-    for (int i = 0; i < 16; ++i) {
+    for (int i = 0; i < 6; ++i) {
         if (i < tilemapTexLen && i < lightBlockLen) {
             float lightBlock = texture2D(lightBlockTex[i], sampleUV).r;
             if (lightBlock == 0.0 && !stopSkipping) {
@@ -65,7 +65,7 @@ vec4 GetRealLightBlockColor(vec2 uv) {
                 continue;
             }
             vec4 currentColor = texture2D(tilemapTex[i], uv);
-            blendedColor = vec4(currentColor.rgb * currentColor.a + blendedColor.rgb * (1.0 - currentColor.a), 
+            blendedColor = vec4(currentColor.rgb * currentColor.a + blendedColor.rgb * (1.0 - currentColor.a),
                                 currentColor.a + blendedColor.a * (1.0 - currentColor.a));
         } else {
             break;
