@@ -12,15 +12,3 @@ class Item(Actor):
     @RegisterEvent
     def onUse(self):
         pass
-
-    @staticmethod
-    def ItemUse(item: Item):
-        if (
-            hasattr(type(item), "_GENERATED_CLASS")
-            and type(item)._GENERATED_CLASS
-            and not item._graph is None
-            and item._graph.hasKey("onUse")
-        ):
-            item._graph.execute("onUse")
-        else:
-            item.onUse()

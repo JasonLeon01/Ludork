@@ -6,6 +6,8 @@ import configparser
 import runpy
 import importlib.util
 import concurrent.futures
+import tkinter.messagebox as messagebox
+import traceback
 
 
 def main():
@@ -28,4 +30,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        messagebox.showerror(
+            Locale.getContent("ERROR"), f"{Locale.getContent('UNEXPECTED_ERROR')}\n\n{traceback.format_exc()}"
+        )
+        sys.exit(1)

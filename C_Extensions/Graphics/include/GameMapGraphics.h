@@ -22,7 +22,8 @@ public:
                      const sf::Texture &reflectionStrengthTex,
                      const sf::Texture &emissiveTex, float screenScale,
                      const sf::Vector2f &screenSize,
-                     const sf::Vector2f &viewPos, const sf::Vector2f &gridSize,
+                     const sf::Vector2f &viewPos, float viewRot,
+                     const sf::Vector2f &gridSize,
                      int cellSize, const std::vector<py::object> &lights,
                      const sf::Color &ambientColor);
   sf::Texture *

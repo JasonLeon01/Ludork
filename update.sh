@@ -1,36 +1,10 @@
 #!/usr/bin/env bash
 
-call cleanup.sh
-
 cd "$(dirname "$0")"
 
 mkdir -p "C_Extensions"
 if [ -d "C_Extensions/SFML" ]; then
   rm -rf "C_Extensions/SFML"
-fi
-
-echo "Downloading SFML..."
-curl -L -o sfml.zip "https://github.com/SFML/SFML/archive/refs/tags/3.0.1.zip"
-if [ $? -ne 0 ]; then
-  echo "Failed to download SFML."
-  exit 1
-fi
-
-echo "Extracting SFML..."
-unzip -q sfml.zip -d "C_Extensions"
-if [ $? -ne 0 ]; then
-  echo "Failed to extract SFML."
-  rm sfml.zip
-  exit 1
-fi
-
-rm sfml.zip
-
-if [ -d "C_Extensions/SFML-3.0.1" ]; then
-  mv "C_Extensions/SFML-3.0.1" "C_Extensions/SFML"
-else
-  echo "SFML source folder not found."
-  exit 1
 fi
 
 if [ -d "Sample/Engine/pysf" ]; then
@@ -92,7 +66,7 @@ fi
 
 if [ -d "C_Extensions" ]; then
   cd C_Extensions
-  "$PY_CMD" setup.py
+  "$PY_CMD" setup.py --no-clean
   if [ $? -ne 0 ]; then
     cd ..
     exit 1

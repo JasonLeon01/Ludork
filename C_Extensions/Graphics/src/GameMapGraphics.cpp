@@ -21,7 +21,7 @@ void GameMapGraphics::refreshShader(
     const std::vector<sf::Texture *> &lightBlockTexs,
     const sf::Texture &mirrorTex, const sf::Texture &reflectionStrengthTex,
     const sf::Texture &emissiveTex, float screenScale,
-    const sf::Vector2f &screenSize, const sf::Vector2f &viewPos,
+    const sf::Vector2f &screenSize, const sf::Vector2f &viewPos, float viewRot,
     const sf::Vector2f &gridSize, int cellSize,
     const std::vector<py::object> &lights, const sf::Color &ambientColor) {
   if (!materialShader_) {
@@ -44,6 +44,7 @@ void GameMapGraphics::refreshShader(
   shader->setUniform("screenScale", screenScale);
   shader->setUniform("screenSize", screenSize);
   shader->setUniform("viewPos", viewPos);
+  shader->setUniform("viewRot", viewRot);
   shader->setUniform("gridSize", gridSize);
   shader->setUniform("cellSize", cellSize);
   shader->setUniform("lightLen", int(lights.size()));
@@ -102,6 +103,7 @@ void ApplyGameMapGraphicsBinding(py::module &m) {
       py::arg("lightBlockTexs"), py::arg("mirrorTex"),
       py::arg("reflectionStrengthTex"), py::arg("emissiveTex"),
       py::arg("screenScale"), py::arg("screenSize"), py::arg("viewPos"),
+      py::arg("viewRot"),
       py::arg("gridSize"), py::arg("cellSize"), py::arg("lights"),
       py::arg("ambientColor"));
   GameMapGraphicsClass.def(

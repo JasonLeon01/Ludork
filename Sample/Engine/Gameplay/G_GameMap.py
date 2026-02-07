@@ -6,8 +6,10 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 
 from .. import (
+    ExecSplit,
     Pair,
     RenderTexture,
+    ReturnType,
     Vector2i,
     Vector2f,
     Vector2u,
@@ -41,6 +43,7 @@ except ImportError:
             screenScale: float,
             screenSize: Vector2f,
             viewPos: Vector2f,
+            viewRot: float,
             gridSize: Vector2f,
             cellSize: int,
             lights: List[Light],
@@ -102,18 +105,22 @@ class GameMap(GameMapGraphics):
         self._player: Optional[Actor] = None
         super().__init__(System.getMaterialShaderPath())
 
+    @ReturnType(player=Actor)
     def getPlayer(self) -> Optional[Actor]:
         return self._player
 
+    @ExecSplit(default=(None,))
     def setPlayer(self, player: Optional[Actor]) -> None:
         self._player = player
 
+    @ReturnType(actors=List[Actor])
     def getAllActors(self) -> List[Actor]:
         actors = []
         for actorList in self._actors.values():
             actors.extend(actorList)
         return actors
 
+    @ReturnType(actors=List[Actor])
     def getAllActorsByTag(self, tag: str) -> List[Actor]:
         actors = []
         for actorList in self._actors.values():
@@ -122,6 +129,7 @@ class GameMap(GameMapGraphics):
                     actors.append(actor)
         return actors
 
+    @ReturnType(passable=bool)
     def isPassable(self, actor: Actor, targetPosition: Vector2i) -> bool:
         if not actor.getCollisionEnabled():
             return True
@@ -145,40 +153,13 @@ class GameMap(GameMapGraphics):
                     return False
         return True
 
-    def getCollision(self, actor: Actor, targetPosition: Vector2i) -> List[Actor]:
-        if not actor.getCollisionEnabled():
-            return []
-        result: List[Actor] = []
-        for actorList in self._actors.values():
-            for other in actorList:
-                if actor == other:
-                    continue
-                if not other.getCollisionEnabled():
-                    continue
-                if other in actor.getChildren():
-                    continue
-                if other.getMapPosition() == targetPosition:
-                    result.append(other)
-        return result
-
-    def getOverlaps(self, actor: Actor) -> List[Actor]:
-        result: List[Actor] = []
-        for actorList in self._actors.values():
-            for other in actorList:
-                if actor == other:
-                    continue
-                if other in actor.getChildren():
-                    continue
-                if actor.getMapPosition() == other.getMapPosition():
-                    result.append(other)
-        return result
-
+    @ExecSplit(default=(None,))
     def spawnActor(self, actor: Actor, layer: str) -> None:
         if layer not in self._actors:
             self._actors[layer] = []
         actor.setMap(self)
         self._actors[layer].append(actor)
-        Actor.ActorCreate(actor)
+        Actor.BlueprintEvent(actor, Actor, "onCreate")
         children = actor.getChildren()
         if children:
             for child in children:
@@ -187,113 +168,52 @@ class GameMap(GameMapGraphics):
         self.updateActorList()
         self._materialDirty = True
 
+    @ExecSplit(default=(None,))
     def destroyActor(self, actor: Actor) -> None:
         self._actorsOnDestroy.append(actor)
         self._materialDirty = True
 
-    def updateActorList(self) -> None:
-        self._wholeActorList.clear()
-        for layerName, actorList in self._actors.items():
-            self._wholeActorList[layerName] = []
-            q = deque(actorList)
-            while q:
-                child = q.popleft()
-                child.setMap(self)
-                self._wholeActorList[layerName].append(child)
-                if child.getChildren():
-                    q.extend(child.getChildren())
-
+    @ReturnType(camera=Camera)
     def getCamera(self) -> Camera:
         return self._camera
 
+    @ExecSplit(default=(None,))
     def setCamera(self, camera: Camera) -> None:
         self._camera = camera
 
-    def getMaterialPropertyMap(
-        self, functionName: str, invalidValue: Union[float, bool]
-    ) -> List[List[Union[float, bool]]]:
-        mapSize = self._tilemap.getSize()
-        width = mapSize.x
-        height = mapSize.y
-        layerKeys = list(self._tilemap.getAllLayers().keys())
-        layerKeys.reverse()
-        try:
-            from .GamePlayExtension import C_GetMaterialPropertyMap
+    @ReturnType(tilemap=Tilemap)
+    def getTilemap(self) -> Tilemap:
+        return self._tilemap
 
-            return C_GetMaterialPropertyMap(
-                layerKeys,
-                width,
-                height,
-                self._tilemap,
-                self._actors,
-                self._tilemap.getTilesData(),
-                functionName,
-                invalidValue,
-                Tilemap.getLayer,
-                Actor.getMapPosition,
-            )
-        except Exception as e:
-            # region Get Material Property Map by Python
-            print(
-                f"Failed to get material property map by C extension, try to get material property map by python. Error: {e}"
-            )
-
-            def getMaterialProperty(inLayerKeys: List[str], pos: Vector2i) -> Union[float, bool]:
-                for layerName in inLayerKeys:
-                    layer = self._tilemap.getLayer(layerName)
-                    if layer is None or not layer.visible:
-                        continue
-                    if layerName in self._actors:
-                        for actor in self._actors[layerName]:
-                            if actor.getMapPosition() == pos:
-                                value = getattr(actor, functionName)()
-                                if value != invalidValue:
-                                    return value
-                    tile = layer.get(pos)
-                    if tile is not None:
-                        return getattr(layer, functionName)(pos)
-                return invalidValue
-
-            materialPropertyMap: List[List[Union[float, bool]]] = []
-            for y in range(height):
-                materialPropertyMap.append([])
-                for x in range(width):
-                    materialPropertyMap[-1].append(getMaterialProperty(layerKeys, Vector2i(x, height - y - 1)))
-            return materialPropertyMap
-            # endregion
-
+    @ReturnType(lights=List[Light])
     def getLights(self) -> List[Light]:
         return self._lights
 
+    @ExecSplit(default=(None,))
     def setLights(self, lights: List[Light]) -> None:
         self._lights = lights
 
+    @ExecSplit(default=(None,))
     def addLight(self, light: Light) -> None:
         self._lights.append(light)
 
+    @ExecSplit(default=(None,))
     def removeLight(self, light: Light) -> None:
         self._lights.remove(light)
 
+    @ReturnType(ambientLight=Color)
     def getAmbientLight(self) -> Color:
         return self._ambientLight
 
+    @ExecSplit(default=(None,))
     def setAmbientLight(self, ambientLight: Color) -> None:
         self._ambientLight = ambientLight
 
+    @ReturnType(size=Vector2u)
     def getSize(self) -> Vector2u:
         return self._tilemap.getSize()
 
-    def getActorLayerLightBlockMap(self, layerName: str, size: Vector2u) -> Optional[List[List[float]]]:
-        width: int = size.x
-        height: int = size.y
-        if layerName not in self._actors:
-            return None
-        result = [[0] * width for _ in range(height)]
-        for actor in self._actors[layerName]:
-            position = actor.getMapPosition()
-            result[position.y][position.x] = actor.getLightBlock()
-        return result
-
+    @ReturnType(topMaterial=Optional[Material])
     def getTopMaterial(self, pos: Vector2i) -> Optional[Material]:
         layers = self._tilemap.getAllLayers()
         layerKeys = list(layers.keys())
@@ -313,6 +233,7 @@ class GameMap(GameMapGraphics):
                 return material
         return None
 
+    @ReturnType(path=List[Vector2i])
     def findPath(self, start: Vector2i, goal: Vector2i) -> List[Vector2i]:
         size = self._tilemap.getSize()
         layerKeys = list(self._tilemap.getAllLayers().keys())
@@ -402,6 +323,110 @@ class GameMap(GameMapGraphics):
             return []
             # endregion
 
+    def getCollision(self, actor: Actor, targetPosition: Vector2i) -> List[Actor]:
+        if not actor.getCollisionEnabled():
+            return []
+        result: List[Actor] = []
+        for actorList in self._actors.values():
+            for other in actorList:
+                if actor == other:
+                    continue
+                if not other.getCollisionEnabled():
+                    continue
+                if other in actor.getChildren():
+                    continue
+                if other.getMapPosition() == targetPosition:
+                    result.append(other)
+        return result
+
+    def getOverlaps(self, actor: Actor) -> List[Actor]:
+        result: List[Actor] = []
+        for actorList in self._actors.values():
+            for other in actorList:
+                if actor == other:
+                    continue
+                if other in actor.getChildren():
+                    continue
+                if actor.getMapPosition() == other.getMapPosition():
+                    result.append(other)
+        return result
+
+    def updateActorList(self) -> None:
+        self._wholeActorList.clear()
+        for layerName, actorList in self._actors.items():
+            self._wholeActorList[layerName] = []
+            q = deque(actorList)
+            while q:
+                child = q.popleft()
+                child.setMap(self)
+                self._wholeActorList[layerName].append(child)
+                if child.getChildren():
+                    q.extend(child.getChildren())
+
+    def getMaterialPropertyMap(
+        self, functionName: str, invalidValue: Union[float, bool]
+    ) -> List[List[Union[float, bool]]]:
+        mapSize = self._tilemap.getSize()
+        width = mapSize.x
+        height = mapSize.y
+        layerKeys = list(self._tilemap.getAllLayers().keys())
+        layerKeys.reverse()
+        try:
+            from .GamePlayExtension import C_GetMaterialPropertyMap
+
+            return C_GetMaterialPropertyMap(
+                layerKeys,
+                width,
+                height,
+                self._tilemap,
+                self._actors,
+                self._tilemap.getTilesData(),
+                functionName,
+                invalidValue,
+                Tilemap.getLayer,
+                Actor.getMapPosition,
+            )
+        except Exception as e:
+            # region Get Material Property Map by Python
+            print(
+                f"Failed to get material property map by C extension, try to get material property map by python. Error: {e}"
+            )
+
+            def getMaterialProperty(inLayerKeys: List[str], pos: Vector2i) -> Union[float, bool]:
+                for layerName in inLayerKeys:
+                    layer = self._tilemap.getLayer(layerName)
+                    if layer is None or not layer.visible:
+                        continue
+                    if layerName in self._actors:
+                        for actor in self._actors[layerName]:
+                            if actor.getMapPosition() == pos:
+                                value = getattr(actor, functionName)()
+                                if value != invalidValue:
+                                    return value
+                    tile = layer.get(pos)
+                    if tile is not None:
+                        return getattr(layer, functionName)(pos)
+                return invalidValue
+
+            materialPropertyMap: List[List[Union[float, bool]]] = []
+            for y in range(height):
+                materialPropertyMap.append([])
+                for x in range(width):
+                    materialPropertyMap[-1].append(getMaterialProperty(layerKeys, Vector2i(x, height - y - 1)))
+            return materialPropertyMap
+            # endregion
+
+    def getActorLayerLightBlockMap(self, layerName: str, size: Vector2u) -> Optional[List[List[float]]]:
+        width: int = size.x
+        height: int = size.y
+        if layerName not in self._actors:
+            return None
+        result = [[0] * width for _ in range(height)]
+        for actor in self._actors[layerName]:
+            position = actor.getMapPosition()
+            result[position.y][position.x] = actor.getLightBlock()
+        return result
+
     def onTick(self, deltaTime: float) -> None:
         self._camera.onTick(deltaTime)
         if len(self._actorsOnDestroy) > 0:
@@ -409,14 +434,14 @@ class GameMap(GameMapGraphics):
                 for actorList in self._actors.values():
                     if actor in actorList:
                         actorList.remove(actor)
-                        Actor.ActorDestroy(actor)
+                        Actor.BlueprintEvent(actor, Actor, "onDestroy")
             self.updateActorList()
             self._actorsOnDestroy.clear()
         for actorList in self._actors.values():
             for actor in actorList:
                 actor.update(deltaTime)
                 if actor.getTickable():
-                    Actor.ActorTick(actor, deltaTime)
+                    Actor.BlueprintEvent(actor, Actor, "onTick", {"deltaTime": deltaTime})
         self._particleSystem.onTick(deltaTime)
 
     def onLateTick(self, deltaTime: float) -> None:
@@ -425,7 +450,7 @@ class GameMap(GameMapGraphics):
             for actor in actorList:
                 actor.lateUpdate(deltaTime)
                 if actor.getTickable():
-                    Actor.ActorLateTick(actor, deltaTime)
+                    Actor.BlueprintEvent(actor, Actor, "onLateTick", {"deltaTime": deltaTime})
         self._particleSystem.onLateTick(deltaTime)
 
     def onFixedTick(self, fixedDelta: float) -> None:
@@ -434,7 +459,7 @@ class GameMap(GameMapGraphics):
             for actor in actorList:
                 actor.fixedUpdate(fixedDelta)
                 if actor.getTickable():
-                    Actor.ActorFixedTick(actor, fixedDelta)
+                    Actor.BlueprintEvent(actor, Actor, "onFixedTick", {"fixedDelta": fixedDelta})
 
     def show(self) -> None:
         from .. import System
@@ -515,6 +540,7 @@ class GameMap(GameMapGraphics):
             System.getScale(),
             Math.ToVector2f(System.getGameSize()),
             self._camera.getViewPosition(),
+            self._camera.v_getViewRotation(),
             Math.ToVector2f(self._tilemap.getSize()),
             GetCellSize(),
             self._lights,

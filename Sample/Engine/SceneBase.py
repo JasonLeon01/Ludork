@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import inspect
 from typing import Any, Callable, List, Dict, Optional
-from . import Latent, Manager, ExecSplit
+from . import Latent, Manager, ExecSplit, ReturnType
 from .UI import Canvas
 from .Utils import Event, Math
 from .Animation import AnimSprite
@@ -39,33 +39,26 @@ class SceneBase:
         self._created = False
         self._animList: List[AnimSprite] = []
 
-    @ExecSplit(default=(None,))
     def onEnter(self) -> None:
         from . import System
 
         System.setTransition()
 
-    @ExecSplit(default=(None,))
     def onQuit(self) -> None:
         pass
 
-    @ExecSplit(default=(None,))
     def onCreate(self) -> None:
         pass
 
-    @ExecSplit(default=(None,))
     def onTick(self, deltaTime: float) -> None:
         pass
 
-    @ExecSplit(default=(None,))
     def onLateTick(self, deltaTime: float) -> None:
         pass
 
-    @ExecSplit(default=(None,))
     def onFixedTick(self, fixedDelta: float) -> None:
         pass
 
-    @ExecSplit(default=(None,))
     def onDestroy(self) -> None:
         pass
 
@@ -73,7 +66,7 @@ class SceneBase:
     def addUI(self, ui: Canvas) -> None:
         self._UIs.append(ui)
 
-    @ExecSplit(default=(None,))
+    @ReturnType(uis=List[Canvas])
     def getUIs(self) -> List[Canvas]:
         return self._UIs
 
@@ -102,7 +95,7 @@ class SceneBase:
     def addAnim(self, anim: AnimSprite) -> None:
         self._animList.append(anim)
 
-    @ExecSplit(default=(None,))
+    @ReturnType(anims=List[AnimSprite])
     def getAnims(self) -> List[AnimSprite]:
         return self._animList
 

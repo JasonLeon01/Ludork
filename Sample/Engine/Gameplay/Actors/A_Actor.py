@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
 from ... import (
     Pair,
+    BPBase,
     Vector2f,
     Vector2i,
     Vector2u,
@@ -24,7 +25,7 @@ if TYPE_CHECKING:
 
 @PathVars("texturePath")
 @RectRangeVars(defaultRect="texturePath")
-class Actor(_ActorBase):
+class Actor(_ActorBase, BPBase):
     collisionEnabled: bool = False
     tickable: bool = False
     speed: float = 64.0
@@ -127,9 +128,9 @@ class Actor(_ActorBase):
         if not self._map.isPassable(self, target):
             collisions = self._map.getCollision(self, target)
             if collisions:
-                Actor.ActorCollision(self, collisions)
+                Actor.BlueprintEvent(collision, Actor, "onCollision", {"other": collisions})
                 for collision in collisions:
-                    Actor.ActorCollision(collision, [self])
+                    Actor.BlueprintEvent(collision, Actor, "onCollision", {"other": [self]})
             return False
         self._isMoving = True
         self._departure = self.getPosition()
@@ -219,95 +220,6 @@ class Actor(_ActorBase):
         return velocity
 
     @staticmethod
-    def ActorCreate(actor: Actor) -> None:
-        if (
-            hasattr(type(actor), "_GENERATED_CLASS")
-            and type(actor)._GENERATED_CLASS
-            and not actor._graph is None
-            and actor._graph.hasKey("onCreate")
-        ):
-            actor._graph.execute("onCreate")
-        else:
-            actor.onCreate()
-
-    @staticmethod
-    def ActorTick(actor: Actor, deltaTime: float) -> None:
-        if (
-            hasattr(type(actor), "_GENERATED_CLASS")
-            and type(actor)._GENERATED_CLASS
-            and not actor._graph is None
-            and actor._graph.hasKey("onTick")
-        ):
-            actor._graph.localGraph["__deltaTime__"] = deltaTime
-            actor._graph.execute("onTick")
-        else:
-            actor.onTick(deltaTime)
-
-    @staticmethod
-    def ActorLateTick(actor: Actor, deltaTime: float) -> None:
-        if (
-            hasattr(type(actor), "_GENERATED_CLASS")
-            and type(actor)._GENERATED_CLASS
-            and not actor._graph is None
-            and actor._graph.hasKey("onLateTick")
-        ):
-            actor._graph.localGraph["__deltaTime__"] = deltaTime
-            actor._graph.execute("onLateTick")
-        else:
-            actor.onLateTick(deltaTime)
-
-    @staticmethod
-    def ActorFixedTick(actor: Actor, fixedDelta: float) -> None:
-        if (
-            hasattr(type(actor), "_GENERATED_CLASS")
-            and type(actor)._GENERATED_CLASS
-            and not actor._graph is None
-            and actor._graph.hasKey("onFixedTick")
-        ):
-            actor._graph.localGraph["__fixedDeltaTime__"] = fixedDelta
-            actor._graph.execute("onFixedTick")
-        else:
-            actor.onFixedTick(fixedDelta)
-
-    @staticmethod
-    def ActorDestroy(actor: Actor) -> None:
-        if (
-            hasattr(type(actor), "_GENERATED_CLASS")
-            and type(actor)._GENERATED_CLASS
-            and not actor._graph is None
-            and actor._graph.hasKey("onDestroy")
-        ):
-            actor._graph.execute("onDestroy")
-        else:
-            actor.onDestroy()
-
-    @staticmethod
-    def ActorCollision(actor: Actor, other: List[Actor]) -> None:
-        if (
-            hasattr(type(actor), "_GENERATED_CLASS")
-            and getattr(type(actor), "_GENERATED_CLASS")
-            and not actor._graph is None
-            and actor._graph.hasKey("onCollision")
-        ):
-            actor._graph.localGraph["__onCollision__"] = [other]
-            actor._graph.execute("onCollision")
-        else:
-            actor.onCollision(other)
-
-    @staticmethod
-    def ActorOverlap(actor: Actor, other: List[Actor]) -> None:
-        if (
-            hasattr(type(actor), "_GENERATED_CLASS")
-            and getattr(type(actor), "_GENERATED_CLASS")
-            and not actor._graph is None
-            and actor._graph.hasKey("onOverlap")
-        ):
-            actor._graph.localGraph["__onOverlap__"] = [other]
-            actor._graph.execute("onOverlap")
-        else:
-            actor.onOverlap(other)
-
-    @staticmethod
     def GenActor(
         ActorModel: type, textureStr: str, textureRect: Optional[Tuple[Pair[int], Pair[int]]], tag: str
     ) -> Actor:
@@ -338,9 +250,9 @@ class Actor(_ActorBase):
             self._destination = None
             overlaps = self._map.getOverlaps(self)
             if overlaps:
-                Actor.ActorOverlap(self, overlaps)
+                Actor.BlueprintEvent(self, Actor, "onOverlap", {"other": overlaps})
                 for overlap in overlaps:
-                    Actor.ActorOverlap(overlap, [self])
+                    Actor.BlueprintEvent(overlap, Actor, "onOverlap", {"other": [self]})
 
     def _autoFixMapPosition(self) -> None:
         pos = self.getPosition()

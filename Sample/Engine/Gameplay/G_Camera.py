@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import Optional, Union, List, TYPE_CHECKING
 from .. import (
     Pair,
-    Vector2u,
     Transformable,
     Drawable,
     RenderTexture,
@@ -18,6 +17,8 @@ from .. import (
     Angle,
     degrees,
     GetCellSize,
+    ReturnType,
+    ExecSplit,
 )
 from ..Utils import Math, Render
 
@@ -47,47 +48,51 @@ class Camera(Drawable, Transformable):
         self._parent: Optional[Actor] = None
         self._map: Optional[GameMap] = None
 
-    def applyCanvasCount(self, count: int) -> None:
-        if count < len(self._canvases):
-            self._canvases = self._canvases[:count]
-        else:
-            for i in range(len(self._canvases), count):
-                self._canvases.append(RenderTexture(Math.ToVector2u(self._viewport.size)))
-
-    def getCanvases(self) -> List[RenderTexture]:
-        return self._canvases
-
-    def getViewport(self) -> FloatRect:
-        return self._viewport
-
+    @ExecSplit(default=(None,))
     def setViewport(self, inViewport: FloatRect) -> None:
         assert isinstance(inViewport, FloatRect)
         self._viewport = inViewport
         self._refreshView()
 
+    @ReturnType(view=View)
     def getView(self) -> View:
         return self._renderTexture.getView()
 
+    @ReturnType(position=Vector2f)
     def getViewPosition(self) -> Vector2f:
         return self._viewport.position
 
+    @ReturnType(position=Pair[float])
+    def v_getViewPosition(self) -> Pair[float]:
+        return (self._viewport.position.x, self._viewport.position.y)
+
+    @ExecSplit(default=(None,))
     def setViewPosition(self, inPosition: Vector2f) -> None:
         self._viewport.position = inPosition
         self._refreshView()
 
+    @ReturnType(size=Vector2f)
     def getViewSize(self) -> Vector2f:
         return self._viewport.size
 
+    @ReturnType(size=Pair[float])
+    def v_getViewSize(self) -> Pair[float]:
+        return (self._viewport.size.x, self._viewport.size.y)
+
+    @ExecSplit(default=(None,))
     def setViewSize(self, inSize: Vector2f) -> None:
         self._viewport.size = inSize
         self._refreshView()
 
+    @ReturnType(rotation=Angle)
     def getViewRotation(self) -> Angle:
         return self._renderTexture.getView().getRotation()
 
+    @ReturnType(rotation=float)
     def v_getViewRotation(self) -> float:
         return self._renderTexture.getView().getRotation().asDegrees()
 
+    @ExecSplit(default=(None,))
     def setViewRotation(self, inRotation: Union[Angle, float]) -> None:
         assert isinstance(inRotation, (Angle, float))
         view = self._renderTexture.getView()
@@ -95,45 +100,131 @@ class Camera(Drawable, Transformable):
             inRotation = degrees(inRotation)
         view.setRotation(inRotation)
         self._renderTexture.setView(view)
+        for canvas in self._canvases:
+            canvas.setView(view)
 
-    def moveView(self, delta: Vector2f) -> None:
+    @ExecSplit(default=(None,))
+    def moveView(self, delta: Union[Vector2f, Pair[float]]) -> None:
+        assert isinstance(delta, (Vector2f, tuple))
+        if isinstance(delta, tuple):
+            delta = Vector2f(*delta)
         self.setViewPosition(self._viewport.position + delta)
-        self.fixViewPosition()
 
-    def rotateView(self, delta: float) -> None:
-        self.setViewRotation(self.getViewRotation() + degrees(delta))
+    @ExecSplit(default=(None,))
+    def rotateView(self, delta: Union[Angle, float]) -> None:
+        assert isinstance(delta, (Angle, float))
+        if isinstance(delta, float):
+            delta = degrees(delta)
+        self.setViewRotation(self.getViewRotation() + delta)
 
-    def getRenderStates(self) -> RenderStates:
-        return self._renderStates
-
-    def setRenderStates(self, inRenderStates: RenderStates) -> None:
-        self._renderStates = inRenderStates
-
+    @ExecSplit(default=(None,))
     def resumeViewport(self) -> None:
         self._renderTexture.setView(self._renderTexture.getDefaultView())
 
+    @ReturnType(position=Pair[float])
     def v_getPosition(self) -> Pair[float]:
         pos = self.getPosition()
         return (pos.x, pos.y)
 
+    @ReturnType(position=Vector2f)
+    def getPosition(self) -> Vector2f:
+        return super().getPosition()
+
+    @ExecSplit(default=(None,))
     def setPosition(self, inPosition: Union[Vector2f, Pair[float]]) -> None:
         assert isinstance(inPosition, (Vector2f, tuple))
         if isinstance(inPosition, tuple):
             inPosition = Vector2f(*inPosition)
         super().setPosition(inPosition)
 
+    @ExecSplit(default=(None,))
+    def move(self, delta: Union[Vector2f, Pair[float]]) -> None:
+        assert isinstance(delta, (Vector2f, tuple))
+        if isinstance(delta, tuple):
+            delta = Vector2f(*delta)
+        super().move(delta)
+
+    @ReturnType(rotation=float)
     def v_getRotation(self) -> float:
         return self.getRotation().asDegrees()
 
+    @ReturnType(rotation=Angle)
+    def getRotation(self) -> Angle:
+        return super().getRotation()
+
+    @ExecSplit(default=(None,))
     def setRotation(self, inRotation: Union[Angle, float]) -> None:
         assert isinstance(inRotation, (Angle, float))
         if isinstance(inRotation, float):
             inRotation = degrees(inRotation)
         super().setRotation(inRotation)
 
+    @ExecSplit(default=(None,))
+    def rotate(self, delta: Union[Angle, float]) -> None:
+        assert isinstance(delta, (Angle, float))
+        if isinstance(delta, float):
+            delta = degrees(delta)
+        super().rotate(delta)
+
+    @ReturnType(scale=Pair[float])
     def v_getScale(self) -> Pair[float]:
         scale = self.getScale()
         return (scale.x, scale.y)
+
+    @ReturnType(scale=Vector2f)
+    def getScale(self) -> Vector2f:
+        return super().getScale()
+
+    @ExecSplit(default=(None,))
+    def setScale(self, inScale: Union[Vector2f, Pair[float]]) -> None:
+        assert isinstance(inScale, (Vector2f, tuple))
+        if isinstance(inScale, tuple):
+            inScale = Vector2f(*inScale)
+        super().setScale(inScale)
+
+    @ExecSplit(default=(None,))
+    def scale(self, delta: Union[Vector2f, Pair[float]]) -> None:
+        assert isinstance(delta, (Vector2f, tuple))
+        if isinstance(delta, tuple):
+            delta = Vector2f(*delta)
+        super().scale(delta)
+
+    @ReturnType(parent="Actor")
+    def getParent(self) -> Optional[Actor]:
+        return self._parent
+
+    @ExecSplit(default=(None,))
+    def setParent(self, actor: Actor) -> None:
+        self._parent = actor
+
+    @ExecSplit(default=(None,))
+    def setMap(self, map: GameMap) -> None:
+        self._map = map
+
+    @ReturnType(map="GameMap")
+    def getMap(self) -> Optional[GameMap]:
+        return self._map
+
+    def applyCanvasCount(self, count: int) -> None:
+        if count < len(self._canvases):
+            self._canvases = self._canvases[:count]
+        else:
+            for i in range(len(self._canvases), count):
+                rt = RenderTexture(Math.ToVector2u(self._viewport.size))
+                rt.setView(self._renderTexture.getView())
+                self._canvases.append(rt)
+
+    def getCanvases(self) -> List[RenderTexture]:
+        return self._canvases
+
+    def getViewport(self) -> FloatRect:
+        return self._viewport
+
+    def getRenderStates(self) -> RenderStates:
+        return self._renderStates
+
+    def setRenderStates(self, inRenderStates: RenderStates) -> None:
+        self._renderStates = inRenderStates
 
     def setScale(self, inScale: Union[Vector2f, Pair[float]]) -> None:
         assert isinstance(inScale, (Vector2f, tuple))
@@ -152,18 +243,6 @@ class Camera(Drawable, Transformable):
 
     def getImage(self) -> Image:
         return self._renderTexture.getTexture().copyToImage()
-
-    def setParent(self, actor: Actor) -> None:
-        self._parent = actor
-
-    def getParent(self) -> Optional[Actor]:
-        return self._parent
-
-    def setMap(self, map: GameMap) -> None:
-        self._map = map
-
-    def getMap(self) -> Optional[GameMap]:
-        return self._map
 
     def onTick(self, deltaTime: float) -> None:
         pass
@@ -196,11 +275,11 @@ class Camera(Drawable, Transformable):
     def clear(self) -> None:
         self._renderTexture.clear(Color.Transparent)
 
-    def render(self, object: Drawable) -> None:
-        self._renderTexture.draw(object, self._renderStates)
-
     def display(self):
         self._renderTexture.display()
 
     def _refreshView(self) -> None:
-        self._renderTexture.setView(View(self._viewport))
+        view = View(self._viewport)
+        self._renderTexture.setView(view)
+        for canvas in self._canvases:
+            canvas.setView(view)

@@ -99,6 +99,7 @@ def main():
             "--output-filename=Main",
             "--windows-console-mode=disable",
             "--plugin-enable=pylint-warnings",
+            "--plugin-enable=tk-inter",
             "--include-module=asyncio",
             f"--windows-icon-from-ico={launcher_icon}",
             str(launcher_script),

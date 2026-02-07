@@ -6,13 +6,15 @@ import locale
 import configparser
 import runpy
 import subprocess
-from PyQt5 import QtCore
+from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QApplication
 from qt_material import apply_stylesheet
 from PyQt5.QtGui import QIcon
 from W_StartWindow import StartWindow
 from Utils import Locale, System, File
 import EditorStatus
+import traceback
+import threading
 
 START_PROJ_FILE = None
 
@@ -38,6 +40,33 @@ def initConfig():
     EditorStatus.LANGUAGE = EditorStatus.editorConfig[EditorStatus.APP_NAME]["Language"]
 
 
+def _handle_unexpected_exception(exc_type, exc_value, exc_tb):
+    traceback.print_exception(exc_type, exc_value, exc_tb, file=sys.stderr)
+    try:
+        sys.stderr.flush()
+    except Exception:
+        pass
+    QtWidgets.QMessageBox.critical(
+        None,
+        Locale.getContent("ERROR"),
+        f"{Locale.getContent('UNEXPECTED_ERROR')}\n\n{''.join(traceback.format_exception(exc_type, exc_value, exc_tb))}",
+    )
+    sys.exit(1)
+
+
+class App(QApplication):
+    def notify(self, receiver, event):
+        try:
+            return super().notify(receiver, event)
+        except Exception:
+            _handle_unexpected_exception(*sys.exc_info())
+            return False
+
+
+def _thread_excepthook(args):
+    _handle_unexpected_exception(args.exc_type, args.exc_value, args.exc_traceback)
+
+
 def main():
     if System.alreadyPacked():
         app_dir = os.path.dirname(sys.executable)
@@ -46,7 +75,9 @@ def main():
     icon_path = "./Resource/icon.ico"
     QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
     QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
-    app = QApplication(sys.argv)
+    app = App(sys.argv)
+    sys.excepthook = _handle_unexpected_exception
+    threading.excepthook = _thread_excepthook
     initConfig()
     screen = app.primaryScreen()
     theme_raw = EditorStatus.editorConfig[EditorStatus.APP_NAME].get("Theme", "dark_blue.xml")
@@ -75,18 +106,21 @@ def main():
 
 
 if __name__ == "__main__":
-    params = sys.argv.copy()
-    if len(params) > 1:
-        if not os.environ.get("WINDOWHANDLE", None) is None:
-            sys.argv = sys.argv[1:]
-            sys.argv[0] = os.path.abspath(params[1])
-            if not os.getcwd() in sys.path:
-                sys.path.append(os.getcwd())
-            runpy.run_path(sys.argv[0], run_name="__main__")
+    try:
+        params = sys.argv.copy()
+        if len(params) > 1:
+            if not os.environ.get("WINDOWHANDLE", None) is None:
+                sys.argv = sys.argv[1:]
+                sys.argv[0] = os.path.abspath(params[1])
+                if not os.getcwd() in sys.path:
+                    sys.path.append(os.getcwd())
+                runpy.run_path(sys.argv[0], run_name="__main__")
+            else:
+                arg1 = params[1]
+                if isinstance(arg1, str) and arg1.lower().endswith(".proj") and os.path.isfile(arg1):
+                    START_PROJ_FILE = os.path.abspath(arg1)
+                    main()
         else:
-            arg1 = params[1]
-            if isinstance(arg1, str) and arg1.lower().endswith(".proj") and os.path.isfile(arg1):
-                START_PROJ_FILE = os.path.abspath(arg1)
-                main()
-    else:
-        main()
+            main()
+    except Exception:
+        _handle_unexpected_exception(*sys.exc_info())

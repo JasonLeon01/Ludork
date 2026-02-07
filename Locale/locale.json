@@ -635,6 +635,10 @@
         "zh_CN": "错误",
         "en_GB": "Error"
     },
+    "UNEXPECTED_ERROR": {
+        "zh_CN": "发生了意外错误",
+        "en_GB": "An unexpected error occurred"
+    },
     "NEW_EVENT": {
         "zh_CN": "新建事件",
         "en_GB": "New Event"

@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Any, Dict, Tuple, TypeVar, Generic
+from typing import Any, Dict, Tuple, TypeVar
+from .BPBase import BPBase
 
 
 _GameRunning: bool = True

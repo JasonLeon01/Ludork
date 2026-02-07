@@ -18,6 +18,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         super().__init__(parent)
         self.setWindowFlags(QtCore.Qt.Window)
         self.setWindowTitle(title)
+        self.setMaximumHeight(600)
         self.resize(1080, 600)
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
         System.setStyle(self, "blueprintEditor.qss")
@@ -78,6 +79,17 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.leftLayout.addLayout(self.formLayout)
         self.leftLayout.addStretch()
 
+        self.leftScroll = QtWidgets.QScrollArea()
+        self.leftPanel.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding)
+        self.leftPanel.setMinimumWidth(320)
+        self.leftScroll.setWidgetResizable(True)
+        self.leftScroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.leftScroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.leftScroll.setFrameShape(QtWidgets.QFrame.NoFrame)
+        self.leftScroll.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.leftScroll.setMinimumWidth(320)
+        self.leftScroll.setWidget(self.leftPanel)
+
         self.rightPanel = QtWidgets.QWidget()
         self.rightLayout = QtWidgets.QVBoxLayout(self.rightPanel)
 
@@ -100,9 +112,11 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.stackedWidget = QtWidgets.QStackedWidget()
         self.rightLayout.addWidget(self.stackedWidget)
 
-        self.splitter.addWidget(self.leftPanel)
+        self.splitter.addWidget(self.leftScroll)
         self.splitter.addWidget(self.rightPanel)
+        self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 1)
+        self.splitter.setSizes([max(320, int(self.width() * 0.4)), max(320, int(self.width() * 0.6))])
 
         self.refreshAttrs()
         self.refreshGraphList()

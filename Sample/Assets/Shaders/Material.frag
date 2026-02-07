@@ -9,6 +9,7 @@ uniform sampler2D emissiveTex;
 uniform float screenScale;
 uniform vec2 screenSize;
 uniform vec2 viewPos;
+uniform float viewRot;
 uniform vec2 gridSize;
 uniform int cellSize;
 
@@ -20,6 +21,12 @@ uniform float lightIntensity[16];
 
 uniform vec3 ambientColor;
 
+
+vec2 rotate2D(vec2 v, float a) {
+    float s = sin(a);
+    float c = cos(a);
+    return vec2(v.x * c - v.y * s, v.x * s + v.y * c);
+}
 
 vec4 GetRealColor(vec2 uv) {
     vec4 blendedColor = vec4(0.0);
@@ -38,9 +45,9 @@ vec4 GetRealColor(vec2 uv) {
 vec2 ConvertUVToGridIndex(vec2 uv) {
     vec2 pixelPosTL_view = uv * screenSize;
     vec2 pixelPosBL_view = vec2(pixelPosTL_view.x, screenSize.y - pixelPosTL_view.y);
-    vec2 pixelPosTL_world = pixelPosBL_view + viewPos;
-    vec2 mapPixelSize = gridSize * float(cellSize);
-    vec2 pixelPosBL_world = vec2(pixelPosTL_world.x, mapPixelSize.y - pixelPosTL_world.y);
+    float rad = viewRot * 0.017453292519943295;
+    vec2 center = viewPos + screenSize * 0.5;
+    vec2 pixelPosBL_world = center + rotate2D(pixelPosBL_view - screenSize * 0.5, rad);
     vec2 gridIndex = floor(pixelPosBL_world / float(cellSize));
     return gridIndex;
 }
@@ -53,7 +60,7 @@ vec4 GetRealLightBlockColor(vec2 uv) {
     for (int i = 0; i < 16; ++i) {
         if (i < tilemapTexLen && i < lightBlockLen) {
             float lightBlock = texture2D(lightBlockTex[i], sampleUV).r;
-            if (lightBlock == 0 && !stopSkipping) {
+            if (lightBlock == 0.0 && !stopSkipping) {
                 stopSkipping = true;
                 continue;
             }
@@ -72,7 +79,7 @@ float GetLightBlockValue(vec2 uv) {
     for (int i = 15; i >= 0; --i) {
         if (i < tilemapTexLen && i < lightBlockLen) {
             float r = texture2D(lightBlockTex[i], uv_).r;
-            if (r > 0) {
+            if (r > 0.0) {
                 return r;
             }
         }
@@ -168,9 +175,11 @@ vec3 CalculateLighting(vec2 pixelPosTL_world, vec2 pixelPosBL_world, vec2 mapPix
 void main() {
     vec2 pixelPosBL_view = gl_FragCoord.xy / screenScale;
     vec2 pixelPosTL_view = vec2(pixelPosBL_view.x, screenSize.y - pixelPosBL_view.y);
-    vec2 pixelPosTL_world = pixelPosTL_view + viewPos;
+    float rad = viewRot * 0.017453292519943295;
+    vec2 center = viewPos + screenSize * 0.5;
     vec2 mapPixelSize = gridSize * float(cellSize);
-    vec2 pixelPosBL_world = vec2(pixelPosTL_world.x, mapPixelSize.y - pixelPosTL_world.y);
+    vec2 pixelPosTL_world = center + rotate2D(pixelPosTL_view - screenSize * 0.5, rad);
+    vec2 pixelPosBL_world = center + rotate2D(pixelPosBL_view - screenSize * 0.5, rad);
 
     vec2 uv = clamp(gl_TexCoord[0].xy, 0.0, 1.0);
     vec3 pixelColor = GetRealColor(uv).rgb;
@@ -181,8 +190,7 @@ void main() {
     vec2 gridIndex = ConvertUVToGridIndex(uv);
     vec2 tileCenterUV = (gridIndex + 0.5) / gridSize;
     float emissive = texture2D(emissiveTex, tileCenterUV).r;
-    
-    if (emissive > 0) {
+    if (emissive > 0.0) {
         vec4 blockColor = GetRealLightBlockColor(uv);
         vec3 emissiveColor = blockColor.rgb * blockColor.a * emissive;
         gl_FragColor = vec4(pixelColor * lighting + emissiveColor, 1.0);
