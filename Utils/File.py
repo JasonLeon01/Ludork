@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Dict, Any, TYPE_CHECKING
 from PyQt5 import QtCore, QtGui, QtWidgets
 from . import System
+import EditorStatus
 
 if TYPE_CHECKING:
     from W_MainWindow import MainWindow
@@ -33,6 +34,12 @@ def getIniPath() -> str:
         path.mkdir(parents=True, exist_ok=True)
         return str(path)
     return os.getcwd()
+
+
+def getDocPath() -> str:
+    from . import Locale
+    language = EditorStatus.LANGUAGE if EditorStatus.LANGUAGE in Locale.getLocaleKeys() else "en_GB"
+    return os.path.join(getRootPath(), "docs", language)
 
 
 def getUserPath() -> str:

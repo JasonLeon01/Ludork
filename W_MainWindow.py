@@ -7,9 +7,7 @@ import psutil
 import configparser
 import json
 import copy
-import ast
 import inspect
-import textwrap
 import dataclasses
 from typing import Any, Dict, Optional, get_type_hints
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -34,6 +32,7 @@ from Widgets import (
     LogDialog,
     PackWorker,
     PackSelectionDialog,
+    MarkdownPreviewer,
 )
 from Widgets.Utils import MapEditDialog, SingleRowDialog, Toast, FPSGraphDialog
 import EditorStatus
@@ -1369,7 +1368,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self._refreshInfo()
 
     def _onHelpExplanation(self, checked: bool = False) -> None:
-        pass
+        filePath = File.getDocPath()
+        self._explanationWindow = MarkdownPreviewer(self, filePath)
+        self._explanationWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        self._explanationWindow.setWindowModality(QtCore.Qt.ApplicationModal)
+        self._explanationWindow.show()
 
     def _onGameSettings(self, checked: bool = False) -> None:
         self._settingsWindow = SettingsWindow(self, self._projConfig)

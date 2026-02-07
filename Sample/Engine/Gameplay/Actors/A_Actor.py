@@ -128,7 +128,7 @@ class Actor(_ActorBase, BPBase):
         if not self._map.isPassable(self, target):
             collisions = self._map.getCollision(self, target)
             if collisions:
-                Actor.BlueprintEvent(collision, Actor, "onCollision", {"other": collisions})
+                Actor.BlueprintEvent(self, Actor, "onCollision", {"other": collisions})
                 for collision in collisions:
                     Actor.BlueprintEvent(collision, Actor, "onCollision", {"other": [self]})
             return False

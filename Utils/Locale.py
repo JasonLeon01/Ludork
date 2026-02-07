@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import os
-from typing import Dict
+from typing import Dict, List
 
 
 class _Locale:
@@ -17,6 +17,9 @@ def init(localePath: str) -> None:
                 continue
             filePath = os.path.join(localePath, file)
             _Locale.dataDict[file] = File.loadData(filePath)
+
+def getLocaleKeys() -> List[str]:
+    return list(_Locale.dataDict.keys())
 
 
 def getLocaleContent(localeKey: str, key: str) -> str:

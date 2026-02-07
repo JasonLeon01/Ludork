@@ -16,3 +16,4 @@ from .W_ClassSelector import ClassSelector
 from .W_ActorInfo import ActorInfoPanel
 from .W_AnimationWindow import AnimationWindow
 from .W_PackDialog import LogDialog, PackWorker, PackSelectionDialog
+from .W_MarkdownPreviewer import MarkdownPreviewer
