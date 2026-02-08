@@ -8,7 +8,6 @@ import runpy
 import subprocess
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtWebEngineWidgets import QWebEngineView 
 from qt_material import apply_stylesheet
 from PyQt5.QtGui import QIcon
 from W_StartWindow import StartWindow

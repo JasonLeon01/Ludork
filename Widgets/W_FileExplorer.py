@@ -1,8 +1,6 @@
 # -*- encoding: utf-8 -*-
 
 import os
-import shutil
-import stat
 from typing import Callable, Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Data import GameData
@@ -19,8 +17,6 @@ class FileExplorer(QtWidgets.QWidget):
         self._root = os.path.abspath(root_path)
         self._current = self._root
         self._interactive = True
-        self._clipboard = []
-        self._clipboard_cut = False
 
         class _Proxy(QtCore.QSortFilterProxyModel):
             def filterAcceptsRow(self, source_row: int, source_parent: QtCore.QModelIndex) -> bool:
@@ -45,28 +41,12 @@ class FileExplorer(QtWidgets.QWidget):
             def __init__(self, owner: "FileExplorer"):
                 super().__init__(owner)
                 self._owner = owner
-                self.setDragEnabled(True)
-                self.setAcceptDrops(True)
-                self.setDragDropMode(QtWidgets.QAbstractItemView.DragDrop)
-                self.setDefaultDropAction(QtCore.Qt.MoveAction)
+                self.setDragEnabled(False)
+                self.setAcceptDrops(False)
+                self.setDragDropMode(QtWidgets.QAbstractItemView.NoDragDrop)
 
             def startDrag(self, supportedActions: QtCore.Qt.DropActions) -> None:
-                if not self._owner._interactive:
-                    return
-                sel = self.selectionModel().selectedRows()
-                if not sel:
-                    return
-                urls = []
-                for i in sel:
-                    src = self._owner._proxy.mapToSource(i)
-                    p = self._owner._model.filePath(src)
-                    if p:
-                        urls.append(QtCore.QUrl.fromLocalFile(p))
-                mime = QtCore.QMimeData()
-                mime.setUrls(urls)
-                drag = QtGui.QDrag(self)
-                drag.setMimeData(mime)
-                drag.exec_(QtCore.Qt.MoveAction | QtCore.Qt.CopyAction)
+                return
 
             def keyPressEvent(self, e: QtGui.QKeyEvent) -> None:
                 if not self._owner._interactive:
@@ -91,71 +71,13 @@ class FileExplorer(QtWidgets.QWidget):
                 super().keyPressEvent(e)
 
             def dragEnterEvent(self, e: QtGui.QDragEnterEvent) -> None:
-                if not self._owner._interactive:
-                    return
-                if e.mimeData().hasUrls():
-                    e.acceptProposedAction()
-                else:
-                    super().dragEnterEvent(e)
+                return
 
             def dragMoveEvent(self, e: QtGui.QDragMoveEvent) -> None:
-                if not self._owner._interactive:
-                    return
-                if e.mimeData().hasUrls():
-                    e.acceptProposedAction()
-                else:
-                    super().dragMoveEvent(e)
+                return
 
             def dropEvent(self, e: QtGui.QDropEvent) -> None:
-                if not self._owner._interactive:
-                    return
-                if not e.mimeData().hasUrls():
-                    return super().dropEvent(e)
-                idx = self.indexAt(e.pos())
-                srcIdx = self._owner._proxy.mapToSource(idx) if idx.isValid() else QtCore.QModelIndex()
-                targetDir = self._owner._current
-                if idx.isValid():
-                    if self._owner._model.isDir(srcIdx):
-                        targetDir = self._owner._model.filePath(srcIdx)
-                    else:
-                        parent = self._owner._model.fileInfo(srcIdx).dir().path()
-                        targetDir = parent
-                urls = [u for u in e.mimeData().urls() if u.isLocalFile()]
-                internal = all(self._owner._isUnderRoot(u.toLocalFile()) for u in urls)
-                for u in urls:
-                    sp = u.toLocalFile()
-                    name = os.path.basename(sp)
-                    dp = os.path.join(targetDir, name)
-                    if not self._owner._isUnderRoot(dp):
-                        continue
-                    copyAction = (e.keyboardModifiers() & QtCore.Qt.ControlModifier) or (
-                        e.keyboardModifiers() & QtCore.Qt.MetaModifier
-                    )
-                    if internal and not copyAction:
-                        if os.path.abspath(sp) == os.path.abspath(dp):
-                            continue
-                        try:
-                            common = os.path.commonpath([os.path.abspath(dp), os.path.abspath(sp)])
-                        except Exception:
-                            common = ""
-                        if common == os.path.abspath(sp):
-                            continue
-                        dp2 = self._owner._uniquePath(dp, moved=True)
-                        try:
-                            shutil.move(sp, dp2)
-                        except Exception as e:
-                            print(f"Error while moving file {sp} to {dp2}: {e}")
-                    else:
-                        dp2 = self._owner._uniquePath(dp, moved=False)
-                        try:
-                            if os.path.isdir(sp):
-                                shutil.copytree(sp, dp2)
-                            else:
-                                shutil.copy2(sp, dp2)
-                        except Exception as e:
-                            print(f"Error while copying file {sp} to {dp2}: {e}")
-                self._owner._refresh()
-                e.acceptProposedAction()
+                return
 
         self._model = QtWidgets.QFileSystemModel(self)
         self._model.setFilter(QtCore.QDir.AllEntries | QtCore.QDir.NoDotAndDotDot)
@@ -175,12 +97,7 @@ class FileExplorer(QtWidgets.QWidget):
         self._view.doubleClicked.connect(self._onDoubleClicked)
         self._view.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self._view.customContextMenuRequested.connect(self._onContextMenu)
-        QtWidgets.QShortcut(QtGui.QKeySequence.Copy, self, self._onCopy, context=QtCore.Qt.WidgetWithChildrenShortcut)
-        QtWidgets.QShortcut(QtGui.QKeySequence.Paste, self, self._onPaste, context=QtCore.Qt.WidgetWithChildrenShortcut)
-        QtWidgets.QShortcut(QtGui.QKeySequence.Cut, self, self._onCut, context=QtCore.Qt.WidgetWithChildrenShortcut)
-        QtWidgets.QShortcut(
-            QtGui.QKeySequence.Delete, self, self._onDelete, context=QtCore.Qt.WidgetWithChildrenShortcut
-        )
+        
         style = QtWidgets.QApplication.style()
         upIcon = style.standardIcon(QtWidgets.QStyle.SP_ArrowUp)
         self._pathEdit = QtWidgets.QLineEdit(self)
@@ -216,19 +133,7 @@ class FileExplorer(QtWidgets.QWidget):
             Panel.applyDisabledOpacity(self)
         super().changeEvent(e)
 
-    def _uniquePath(self, dst: str, moved: bool) -> str:
-        if not os.path.exists(dst):
-            return dst
-        base = os.path.basename(dst)
-        parent = os.path.dirname(dst)
-        name, ext = os.path.splitext(base)
-        tag = "_moved" if moved else "_copy"
-        i = 1
-        cand = os.path.join(parent, f"{name}{tag}{ext}")
-        while os.path.exists(cand):
-            cand = os.path.join(parent, f"{name}{tag}{i}{ext}")
-            i += 1
-        return cand
+    
 
     def _refresh(self) -> None:
         self._view.setRootIndex(self._proxy.mapFromSource(self._model.index(self._current)))
@@ -241,28 +146,9 @@ class FileExplorer(QtWidgets.QWidget):
         except Exception:
             return False
 
-    def _handleRemoveReadonly(self, func, p, excinfo):
-        try:
-            os.chmod(p, stat.S_IWRITE)
-            func(p)
-        except Exception as e:
-            print(f"Error while removing {p}: {e}")
-            return False
+    
 
-    def _safeRemove(self, p: str) -> bool:
-        try:
-            if os.path.isdir(p):
-                shutil.rmtree(p, onerror=self._handleRemoveReadonly)
-            else:
-                try:
-                    os.remove(p)
-                except PermissionError:
-                    os.chmod(p, stat.S_IWRITE)
-                    os.remove(p)
-            return True
-        except Exception as e:
-            print(f"Error while removing {p}: {e}")
-            return False
+    
 
     def _setCurrentPath(self, path: str) -> None:
         if not self._isUnderRoot(path):
@@ -389,96 +275,7 @@ class FileExplorer(QtWidgets.QWidget):
         rows = self._view.selectionModel().selectedRows()
         return [self._proxy.mapToSource(i) for i in rows]
 
-    def _onCopy(self) -> None:
-        if not self._interactive:
-            return
-        srcRows = self._selectedSourceRows()
-        paths = []
-        for i in srcRows:
-            p = self._model.filePath(i)
-            if p and os.path.exists(p):
-                paths.append(p)
-        self._clipboard = paths
-        self._clipboard_cut = False
-
-    def _onCut(self) -> None:
-        if not self._interactive:
-            return
-        srcRows = self._selectedSourceRows()
-        paths = []
-        for i in srcRows:
-            p = self._model.filePath(i)
-            if p and os.path.exists(p):
-                paths.append(p)
-        self._clipboard = paths
-        self._clipboard_cut = True
-
-    def _onPaste(self) -> None:
-        if not self._interactive:
-            return
-        if not self._clipboard:
-            return
-        destDir = self._current
-        rows = self._selectedSourceRows()
-        if rows:
-            i0 = rows[0]
-            if self._model.isDir(i0):
-                destDir = self._model.filePath(i0)
-            else:
-                destDir = self._model.fileInfo(i0).dir().path()
-        if not self._isUnderRoot(destDir):
-            destDir = self._current
-        for sp in self._clipboard:
-            name = os.path.basename(sp)
-            dp = os.path.join(destDir, name)
-            if self._clipboard_cut:
-                dp2 = self._uniquePath(dp, moved=True)
-                try:
-                    shutil.move(sp, dp2)
-                except Exception as e:
-                    print(f"Error while moving file {sp} to {dp2}: {e}")
-            else:
-                dp2 = self._uniquePath(dp, moved=False)
-                try:
-                    if os.path.isdir(sp):
-                        shutil.copytree(sp, dp2)
-                    else:
-                        shutil.copy2(sp, dp2)
-                except Exception as e:
-                    print(f"Error while copying file {sp} to {dp2}: {e}")
-        self._refresh()
-        self._clipboard = []
-        self._clipboard_cut = False
-
-    def _onDelete(self) -> None:
-        if not self._interactive:
-            return
-        rows = self._selectedSourceRows()
-        if not rows:
-            return
-        msg = QtWidgets.QMessageBox(self)
-        msg.setIcon(QtWidgets.QMessageBox.Question)
-        msg.setWindowTitle(Locale.getContent("CONFIRM_DELETE"))
-        msg.setText(Locale.getContent("DELETE_CONFIRMATION"))
-        yes_btn = msg.addButton(Locale.getContent("CONFIRMATION_YES"), QtWidgets.QMessageBox.YesRole)
-        no_btn = msg.addButton(Locale.getContent("CONFIRMATION_NO"), QtWidgets.QMessageBox.NoRole)
-        msg.setDefaultButton(no_btn)
-        msg.exec_()
-        if msg.clickedButton() != yes_btn:
-            return
-        failed = False
-        for i in rows:
-            p = self._model.filePath(i)
-            if not self._isUnderRoot(p):
-                continue
-            ok = self._safeRemove(p)
-            if not ok:
-                failed = True
-        self._refresh()
-        if failed:
-            QtWidgets.QMessageBox.warning(
-                self, Locale.getContent("DELETE_FAILED"), Locale.getContent("DELETE_FAILED_MESSAGE")
-            )
+    
 
     def _onContextMenu(self, pos: QtCore.QPoint) -> None:
         if not self._interactive:
@@ -491,21 +288,15 @@ class FileExplorer(QtWidgets.QWidget):
                 sm.select(idx, QtCore.QItemSelectionModel.Select | QtCore.QItemSelectionModel.Rows)
                 self._view.setCurrentIndex(idx)
         menu = QtWidgets.QMenu(self)
-        actCut = menu.addAction(Locale.getContent("CUT"))
-        actCopy = menu.addAction(Locale.getContent("COPY"))
-        actPaste = menu.addAction(Locale.getContent("PASTE"))
-        menu.addSeparator()
-        actDelete = menu.addAction(Locale.getContent("DELETE"))
-        actPaste.setEnabled(bool(self._clipboard))
+        actOpen = menu.addAction(Locale.getContent("OPEN_FROM_SYSTEM"))
         r = menu.exec_(self._view.viewport().mapToGlobal(pos))
-        if r == actCopy:
-            self._onCopy()
-        elif r == actCut:
-            self._onCut()
-        elif r == actPaste:
-            self._onPaste()
-        elif r == actDelete:
-            self._onDelete()
+        if r == actOpen:
+            rows = self._selectedSourceRows()
+            if rows:
+                i0 = rows[0]
+                p = self._model.filePath(i0)
+                if p:
+                    self._openSystemFile(p)
 
     def _onUp(self) -> None:
         if os.path.normcase(os.path.abspath(self._current)) == os.path.normcase(os.path.abspath(self._root)):
