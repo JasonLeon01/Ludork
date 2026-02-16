@@ -114,21 +114,11 @@ class System:
         cls._musicVolume = data.getfloat("musicVolume")
         cls._soundVolume = data.getfloat("soundVolume")
         cls._voiceVolume = data.getfloat("voiceVolume")
-        cls._transitionShaderPath = os.path.join(
-            "./Assets", systemData["transitionShaderPath"]["base"], systemData["transitionShaderPath"]["value"]
-        )
-        cls._materialShaderPath = os.path.join(
-            "./Assets", systemData["materialShaderPath"]["base"], systemData["materialShaderPath"]["value"]
-        )
-        cls._vagueShaderPath = os.path.join(
-            "./Assets", systemData["vagueShaderPath"]["base"], systemData["vagueShaderPath"]["value"]
-        )
-        cls._toneShaderPath = os.path.join(
-            "./Assets", systemData["toneShaderPath"]["base"], systemData["toneShaderPath"]["value"]
-        )
-        cls._grayScaleShaderPath = os.path.join(
-            "./Assets", systemData["grayScaleShaderPath"]["base"], systemData["grayScaleShaderPath"]["value"]
-        )
+        cls._transitionShaderPath = systemData["transitionShaderPath"]["value"]
+        cls._materialShaderPath = os.path.join("./Assets", systemData["materialShaderPath"]["base"], systemData["materialShaderPath"]["value"])
+        cls._vagueShaderPath = systemData["vagueShaderPath"]["value"]
+        cls._toneShaderPath = systemData["toneShaderPath"]["value"]
+        cls._grayScaleShaderPath = systemData["grayScaleShaderPath"]["value"]
         cls._scenes = []
         realSize = Vector2u(
             int(cls._gameSize.x * cls._scale),
@@ -161,7 +151,13 @@ class System:
         cls._window.setVerticalSyncEnabled(cls._verticalSync)
         cls._window.clear(Color.Transparent)
         if cls._transitionShaderPath:
-            cls._transitionShader = Shader(cls._transitionShaderPath, Shader.Type.Fragment)
+            cls._transitionShader = Manager.loadShader(cls._transitionShaderPath)
+        if cls._vagueShaderPath:
+            cls._vagueShader = Manager.loadShader(cls._vagueShaderPath)
+        if cls._toneShaderPath:
+            cls._toneShader = Manager.loadShader(cls._toneShaderPath)
+        if cls._grayScaleShaderPath:
+            cls._grayScaleShader = Manager.loadShader(cls._grayScaleShaderPath)
         cls._latentManager = LatentManager()
 
     @classmethod
@@ -388,24 +384,24 @@ class System:
         cls._setIniData("voiceVolume", cls._voiceVolume)
 
     @classmethod
-    def getTransitionShaderPath(cls) -> str:
-        return cls._transitionShaderPath
-
-    @classmethod
     def getMaterialShaderPath(cls) -> str:
         return cls._materialShaderPath
 
     @classmethod
-    def getVagueShaderPath(cls) -> str:
-        return cls._vagueShaderPath
+    def getTransitionShader(cls) -> Shader:
+        return cls._transitionShader
 
     @classmethod
-    def getToneShaderPath(cls) -> str:
-        return cls._toneShaderPath
+    def getVagueShader(cls) -> Shader:
+        return cls._vagueShader
 
     @classmethod
-    def getGrayScaleShaderPath(cls) -> str:
-        return cls._grayScaleShaderPath
+    def getToneShader(cls) -> Shader:
+        return cls._toneShader
+
+    @classmethod
+    def getGrayScaleShader(cls) -> Shader:
+        return cls._grayScaleShader
 
     @classmethod
     def getGraphicsShader(cls) -> Optional[Shader]:

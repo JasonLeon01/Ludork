@@ -11,10 +11,12 @@ from .. import (
     Music,
     Font,
     Texture,
+    Shader,
 )
 from .Mgr_Audio import AudioManager
 from .Mgr_Font import FontManager
 from .Mgr_Texture import TextureManager
+from .Mgr_Shader import ShaderManager
 from .Mgr_Time import TimerTaskEntry, TimeManager
 
 
@@ -97,3 +99,12 @@ def loadTileset(filename: str, sRGB: bool = False, area: IntRect = None, smooth:
 
 def loadTransition(filename: str, sRGB: bool = False, area: IntRect = None, smooth: bool = False) -> Texture:
     return loadTexture("Transitions", filename, sRGB, area, smooth)
+
+def loadShader(shaderPath: str, shaderType: Optional[Shader.Type] = None) -> Shader:
+    return ShaderManager.load(shaderPath, shaderType)
+
+def loadFullShaderWithGeo(vertPath: str, geoPath: str, fragPath: str) -> Shader:
+    return ShaderManager.loadFullShaderWithGeo(vertPath, geoPath, fragPath)
+
+def loadGeoShader(vertPath: str, geoPath: str, fragPath: str) -> Shader:
+    return ShaderManager.loadFullShaderWithGeo(vertPath, geoPath, fragPath)

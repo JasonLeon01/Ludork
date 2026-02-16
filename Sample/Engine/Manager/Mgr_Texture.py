@@ -3,15 +3,11 @@
 from __future__ import annotations
 import weakref
 import logging
-from typing import Callable, Dict, Tuple, Optional, TYPE_CHECKING
-from .. import Texture
-
-if TYPE_CHECKING:
-    from Engine import IntRect
-
+from typing import Callable, Dict, Tuple, Optional
+from .. import Texture, IntRect
 
 class TextureManager:
-    _TexturesRef: Dict[Tuple[str, bool, Optional[IntRect], bool], Texture] = {}
+    _TexturesRef: Dict[Tuple[str, bool, Optional[IntRect], bool], weakref.ReferenceType[Texture]] = {}
 
     @classmethod
     def load(cls, filePath: str, sRGB: bool = False, area: IntRect = None, smooth: bool = False) -> Texture:
@@ -19,7 +15,7 @@ class TextureManager:
         if key in cls._TexturesRef:
             textureRef = cls._TexturesRef[key]
             texture = textureRef()
-            if texture is not None:
+            if not texture is None:
                 return texture
 
         texture = Texture()
