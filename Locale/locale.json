@@ -746,5 +746,13 @@
     "NO_SELECTION": {
         "zh_CN": "无选择",
         "en_GB": "No Selection"
+    },
+    "HELP_LANGUAGE": {
+        "zh_CN": "语言",
+        "en_GB": "Language"
+    },
+    "LANGUAGE_CHANGE_RESTART": {
+        "zh_CN": "语言设置将在重启编辑器后生效。",
+        "en_GB": "Language changes will take effect after restarting the editor."
     }
 }

@@ -101,6 +101,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actDatabaseTilesetsData = QtWidgets.QAction(Locale.getContent("TILESETS_DATA"), self)
         self._actDatabaseCommonFunctions = QtWidgets.QAction(Locale.getContent("COMMON_FUNCTIONS"), self)
         self._actHelpExplanation = QtWidgets.QAction(Locale.getContent("HELP_EXPLANATION"), self)
+        self._languageActionGroup = QtWidgets.QActionGroup(self)
 
         self._mapClipboard = None
         self._actCopyMap = QtWidgets.QAction(Locale.getContent("COPY"), self)
@@ -859,6 +860,32 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actHelpExplanation.triggered.connect(self._onHelpExplanation)
         self._actHelpExplanation.setShortcut(QtGui.QKeySequence("F1"))
         _helpMenu.addAction(self._actHelpExplanation)
+
+        _languageMenu = _helpMenu.addMenu(Locale.getContent("HELP_LANGUAGE"))
+        for lang in Locale.getLocaleKeys():
+            act = _languageMenu.addAction(lang)
+            act.setCheckable(True)
+            if lang == EditorStatus.LANGUAGE:
+                act.setChecked(True)
+            act.setData(lang)
+            self._languageActionGroup.addAction(act)
+        self._languageActionGroup.triggered.connect(self._onLanguageChanged)
+
+    def _onLanguageChanged(self, action: QtWidgets.QAction) -> None:
+        lang = action.data()
+        if not isinstance(lang, str) or not lang:
+            return
+        cfg = configparser.ConfigParser()
+        cfg_path = os.path.join(File.getIniPath(), f"{EditorStatus.APP_NAME}.ini")
+        if not os.path.exists(cfg_path):
+            return
+        cfg.read(cfg_path)
+        if EditorStatus.APP_NAME not in cfg:
+            cfg[EditorStatus.APP_NAME] = {}
+        cfg[EditorStatus.APP_NAME]["Language"] = lang
+        with open(cfg_path, "w") as f:
+            cfg.write(f)
+        QtWidgets.QMessageBox.information(self, "Hint", Locale.getContent("LANGUAGE_CHANGE_RESTART"))
 
     def _refreshUndoRedo(self) -> None:
         self._actUndo.setEnabled(bool(GameData.undoStack))

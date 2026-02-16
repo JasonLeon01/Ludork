@@ -25,8 +25,8 @@ class MarkdownPreviewer(QWidget):
         splitter.setChildrenCollapsible(False)
         splitter.setCollapsible(0, False)
         splitter.setCollapsible(1, False)
-        splitter.setSizes([max(224, int(self.width() * 0.3)), max(300, int(self.width() * 0.7))])
-        self._list.setMinimumWidth(224)
+        splitter.setSizes([max(160, int(self.width() * 0.3)), max(300, int(self.width() * 0.7))])
+        self._list.setMinimumWidth(160)
         lay = QtWidgets.QHBoxLayout(self)
         lay.setContentsMargins(8, 8, 8, 8)
         lay.setSpacing(8)
@@ -47,7 +47,10 @@ class MarkdownPreviewer(QWidget):
         files.sort()
         self._list.clear()
         for n in files:
-            self._list.addItem(n)
+            base, _ = os.path.splitext(n)
+            item = QtWidgets.QListWidgetItem(base)
+            item.setData(QtCore.Qt.UserRole, n)
+            self._list.addItem(item)
         if files:
             self._list.setCurrentRow(0)
             self._loadFile(files[0])
@@ -58,7 +61,8 @@ class MarkdownPreviewer(QWidget):
         items = self._list.selectedItems()
         if not items:
             return
-        name = items[0].text()
+        item = items[0]
+        name = item.data(QtCore.Qt.UserRole) or item.text()
         self._loadFile(name)
 
     def _onCurrentRowChanged(self, row: int):
@@ -67,7 +71,8 @@ class MarkdownPreviewer(QWidget):
         it = self._list.item(row)
         if not it:
             return
-        self._loadFile(it.text())
+        name = it.data(QtCore.Qt.UserRole) or it.text()
+        self._loadFile(name)
 
     def _loadFile(self, name: str):
         p = os.path.join(self._dir, name)
