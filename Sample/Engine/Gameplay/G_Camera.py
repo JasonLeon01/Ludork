@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Optional, Union, List, TYPE_CHECKING
 from .. import (
     Pair,
+    Vector2u,
     Transformable,
     Drawable,
     RenderTexture,
@@ -205,17 +206,12 @@ class Camera(Drawable, Transformable):
     def getMap(self) -> Optional[GameMap]:
         return self._map
 
-    def applyCanvasCount(self, count: int) -> None:
-        if count < len(self._canvases):
-            self._canvases = self._canvases[:count]
-        else:
-            for i in range(len(self._canvases), count):
-                rt = RenderTexture(Math.ToVector2u(self._viewport.size))
-                rt.setView(self._renderTexture.getView())
-                self._canvases.append(rt)
+    def initLightMask(self, size: Vector2u) -> RenderTexture:
+        self._lightMask = RenderTexture(size)
+        return self._lightMask
 
-    def getCanvases(self) -> List[RenderTexture]:
-        return self._canvases
+    def render(self, obj: Drawable) -> None:
+        self._renderTexture.draw(obj, self._renderStates)
 
     def getViewport(self) -> FloatRect:
         return self._viewport

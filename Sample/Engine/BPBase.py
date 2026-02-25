@@ -18,8 +18,24 @@ class BPBase:
             and not obj._graph is None
             and obj._graph.hasKey(eventName)
         ):
-            for key, value in kwargs.items():
-                obj._graph.localGraph[f"__{key}__"] = value
-            obj._graph.execute(eventName)
+            if eventName in obj._graph.startNodes:
+                for key, value in kwargs.items():
+                    obj._graph.localGraph[f"__{key}__"] = value
+                obj._graph.execute(eventName)
+            else:
+                cls = type(obj)
+                parent_cls = getattr(cls, "__base__", None)
+                if parent_cls is None or parent_cls is object:
+                    return
+                graph = getattr(parent_cls, "_graph", None)
+                if graph is None:
+                    try:
+                        getattr(parent_cls, eventName)(obj, **kwargs)
+                    except:
+                        raise RuntimeError("Parent class graph not found")
+                else:
+                    for key, value in kwargs.items():
+                        graph.localGraph[f"__{key}__"] = value
+                    graph.execute(eventName)
         else:
             getattr(obj, eventName)(**kwargs)

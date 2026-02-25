@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from Engine import SceneBase, System, Shader, Manager, Vector2f, Vector2i, degrees
+from Engine import SceneBase, System, Manager, Vector2f, Vector2i, degrees
 from Engine.Animation import AnimSprite
 from Engine.Gameplay import GameMap
 from Engine.Gameplay.Particles import Particle, Info
@@ -17,8 +17,6 @@ class Scene(SceneBase):
         self.player = self._initPlayer()
         self._gameMap = GameMap.fromData(File.loadData("./Data/Maps/Map_01.dat"))
         self._gameMap.spawnActor(self.player, "default")
-        # self._gameMap.getCamera().setParent(self.player)
-        # System.setGraphicsShader(System.getGrayScaleShader(), {"intensity": 0.5})
         self.player.setRoutine(self._gameMap.findPath(self.player.getMapPosition(), Vector2i(0, 0)))
         self._gameMap.setPlayer(self.player)
         self.particle = Particle("./Assets/System/star-3.png", Info(Vector2f(333, 234), rotation=123.0))

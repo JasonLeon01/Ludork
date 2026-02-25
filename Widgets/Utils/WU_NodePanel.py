@@ -144,6 +144,17 @@ class NodePanel(QtWidgets.QWidget):
         start_idx = self._getStartIndex()
         for i, node in enumerate(self.nodeGraph.nodes[self.key]):
             nodeInst = self.graph.create_node(f"{node.functionName}.Class", pos=node.position)
+
+            original_name = node.functionName
+            parts = original_name.split(".")
+            if len(parts) > 1:
+                display_name = parts[-1]
+            else:
+                display_name = f"(parent){original_name}"
+
+            nodeInst.set_name(display_name)
+            nodeInst.view.setToolTip(original_name)
+
             self.nodes.append(nodeInst)
             if start_idx is not None and i == start_idx:
                 s_item = QtWidgets.QGraphicsSimpleTextItem("S", nodeInst.view)
@@ -536,8 +547,21 @@ class NodePanel(QtWidgets.QWidget):
     def _showNodeContextMenu(self, global_pos):
         menu = QtWidgets.QMenu(self)
 
-        setAsStart_action = menu.addAction(Locale.getContent("SET_AS_START"))
-        setAsStart_action.triggered.connect(self._onSetAsStart)
+        is_start_node = False
+        selectedNodes = self._getSelectedNodes()
+        if selectedNodes:
+            selectedNode = selectedNodes[0]
+            if selectedNode in self.nodes:
+                idx = self.nodes.index(selectedNode)
+                if idx == self.nodeGraph.startNodes.get(self.key):
+                    is_start_node = True
+
+        if is_start_node:
+            cancelStartNode_action = menu.addAction(Locale.getContent("CANCEL_START_NODE"))
+            cancelStartNode_action.triggered.connect(self._onCancelStartNode)
+        else:
+            setAsStart_action = menu.addAction(Locale.getContent("SET_AS_START"))
+            setAsStart_action.triggered.connect(self._onSetAsStart)
 
         copy_action = menu.addAction(Locale.getContent("COPY"))
         copy_action.setShortcut(QtGui.QKeySequence.Copy)
@@ -653,6 +677,13 @@ class NodePanel(QtWidgets.QWidget):
             self._refreshCallable(self.name, self.nodeGraph.asDict())
             self.modified.emit()
             self._refreshPanel()
+
+    def _onCancelStartNode(self):
+        self.nodeGraph.startNodes[self.key] = None
+        GameData.recordSnapshot()
+        self._refreshCallable(self.name, self.nodeGraph.asDict())
+        self.modified.emit()
+        self._refreshPanel()
 
     def _onCopy(self):
         nowNodes = self._getSelectedNodes()

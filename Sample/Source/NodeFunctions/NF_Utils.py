@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import inspect
-from typing import Any, Tuple
+from typing import Any
 from Engine import Pair, System, ExecSplit, ReturnType, SceneBase, Vector2f, degrees
 from Engine.Animation import AnimSprite
 from .. import Data

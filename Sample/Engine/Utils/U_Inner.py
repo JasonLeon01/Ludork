@@ -3,6 +3,8 @@
 import os
 import sys
 from pathlib import Path
+from typing import Any, Dict
+
 
 def getSavePath(APP_NAME: str) -> str:
     if sys.platform == "darwin":
@@ -10,3 +12,7 @@ def getSavePath(APP_NAME: str) -> str:
         path.mkdir(parents=True, exist_ok=True)
         return str(path)
     return os.path.join(os.getcwd(), "Save")
+
+
+def filterDataClassParams(params: Dict[str, Any], type_: type) -> Dict[str, Any]:
+    return {k: v for k, v in params.items() if hasattr(type_, k)}

@@ -16,15 +16,13 @@ public:
   GameMapGraphics(const std::string &shaderPath);
   ~GameMapGraphics();
   sf::Shader *getMaterialShader() const;
-  void refreshShader(const std::vector<sf::RenderTexture *> &canvases,
-                     const std::vector<sf::Texture *> &lightBlockTexs,
+  void refreshShader(const sf::RenderTexture &lightMask,
                      const sf::Texture &mirrorTex,
                      const sf::Texture &reflectionStrengthTex,
-                     const sf::Texture &emissiveTex, float screenScale,
-                     const sf::Vector2f &screenSize,
+                     float screenScale, const sf::Vector2f &screenSize,
                      const sf::Vector2f &viewPos, float viewRot,
-                     const sf::Vector2f &gridSize,
-                     int cellSize, const std::vector<py::object> &lights,
+                     const sf::Vector2f &gridSize, int cellSize,
+                     const std::vector<py::object> &lights,
                      const sf::Color &ambientColor);
   sf::Texture *
   generateDataFromMap(const sf::Vector2u &size,

@@ -130,11 +130,7 @@ class AnimSprite(Sprite):
             self._texture = Texture(image)
             self.setTexture(self._texture, True)
             return
-        if hasattr(self._texture, "update"):
-            self._texture.update(image)
-        else:
-            self._texture = Texture(image)
-            self.setTexture(self._texture, True)
+        self._texture.update(image)
 
 
 def compressAnimation(

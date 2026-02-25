@@ -59,6 +59,24 @@
         ],
         "value": "Transition.frag"
     },
+    "tilemapLightMaskShaderPath": {
+        "type": "file",
+        "base": "Shaders",
+        "ext": [
+            ".frag",
+            ".vert"
+        ],
+        "value": "TilemapLightMask.frag"
+    },
+    "lightMaskShaderPath": {
+        "type": "file",
+        "base": "Shaders",
+        "ext": [
+            ".frag",
+            ".vert"
+        ],
+        "value": "lightMask.frag"
+    },
     "materialShaderPath": {
         "type": "file",
         "base": "Shaders",
@@ -67,33 +85,6 @@
             ".vert"
         ],
         "value": "Material.frag"
-    },
-    "vagueShaderPath": {
-        "type": "file",
-        "base": "Shaders",
-        "ext": [
-            ".frag",
-            ".vert"
-        ],
-        "value": "Vague.frag"
-    },
-    "toneShaderPath": {
-        "type": "file",
-        "base": "Shaders",
-        "ext": [
-            ".frag",
-            ".vert"
-        ],
-        "value": "Tone.frag"
-    },
-    "grayScaleShaderPath": {
-        "type": "file",
-        "base": "Shaders",
-        "ext": [
-            ".frag",
-            ".vert"
-        ],
-        "value": "GrayScale.frag"
     },
     "type": "system"
 }

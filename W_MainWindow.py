@@ -3,6 +3,7 @@
 import os
 import sys
 import subprocess
+import traceback
 import psutil
 import configparser
 import json
@@ -93,6 +94,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actUndo.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_ArrowBack))
         self._actRedo = QtWidgets.QAction(Locale.getContent("REDO"), self)
         self._actRedo.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_ArrowForward))
+        self._actReloadModule = QtWidgets.QAction(Locale.getContent("RELOAD_MODULE"), self)
         self._actGameSettings = QtWidgets.QAction(Locale.getContent("GAME_SETTINGS"), self)
         self._actGameSettings.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_FileDialogDetailedView))
         self._actNewBlueprint = QtWidgets.QAction(Locale.getContent("NEW_BLUEPRINT"), self)
@@ -837,12 +839,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actGameSettings.triggered.connect(self._onGameSettings)
         self._actGameSettings.setShortcut(QtGui.QKeySequence("F4"))
         _gameMenu.addAction(self._actGameSettings)
+        self._actReloadModule.triggered.connect(self._onReloadModule)
+        self._actReloadModule.setShortcut(QtGui.QKeySequence("F5"))
+        _gameMenu.addAction(self._actReloadModule)
         self._actNewBlueprint.triggered.connect(self._onNewBlueprint)
-        self._actNewBlueprint.setShortcut(QtGui.QKeySequence("F5"))
+        self._actNewBlueprint.setShortcut(QtGui.QKeySequence("F6"))
         _gameMenu.addAction(self._actNewBlueprint)
-
         self._actNewAnimation.triggered.connect(self._onNewAnimation)
-        self._actNewAnimation.setShortcut(QtGui.QKeySequence("F6"))
+        self._actNewAnimation.setShortcut(QtGui.QKeySequence("F7"))
         _gameMenu.addAction(self._actNewAnimation)
 
         _dbMenu = self._menuBar.addMenu(Locale.getContent("DATABASE"))
@@ -1019,10 +1023,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         if not isinstance(lightData, dict):
             return
-        if hasattr(self.lightPanel, "updateLight"):
-            self.lightPanel.updateLight(lightData)
-        else:
-            self.lightPanel.setLight(lightData)
+        self.lightPanel.updateLight(lightData)
 
     def _onLightEdited(self, newData) -> None:
         mapKey = self._selectedLightMapKey
@@ -1387,9 +1388,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _onBlueprintModified(self) -> None:
         self._refreshInfo()
-        if hasattr(self, "editorPanel") and self.editorPanel is not None:
-            self.editorPanel._renderFromMapData()
-            self.editorPanel.update()
+        self.editorPanel._renderFromMapData()
+        self.editorPanel.update()
 
     def _onAnimationModified(self) -> None:
         self._refreshInfo()
@@ -1574,3 +1574,17 @@ class MainWindow(QtWidgets.QMainWindow):
         QtWidgets.QMessageBox.information(
             self, Locale.getContent("SUCCESS"), Locale.getContent("HINT_CREATE_ANIM_SUCCESS")
         )
+
+    def _onReloadModule(self, checked: bool = False) -> None:
+        try:
+            System.reloadModule("Engine")
+            System.reloadModule("Source")
+            QtWidgets.QMessageBox.information(
+                self, Locale.getContent("SUCCESS"), Locale.getContent("HINT_RELOAD_MODULE_SUCCESS")
+            )
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(
+                self,
+                Locale.getContent("ERROR"),
+                Locale.getContent("HINT_RELOAD_MODULE_FAILED") + traceback.format_exc(),
+            )

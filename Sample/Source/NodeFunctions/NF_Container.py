@@ -5,7 +5,7 @@ from Engine import ExecSplit, ReturnType
 
 
 @ReturnType(value=object)
-def GetFromDict(dict_: Dict, key: Any) -> Any:
+def DictGet(dict_: Dict, key: Any) -> Any:
     return dict_.get(key)
 
 
@@ -30,7 +30,7 @@ def DictContains(dict_: Dict, key: Any) -> bool:
 
 
 @ReturnType(value=object)
-def GetFromList(list_: List, index: Union[int, str]) -> Any:
+def ListGet(list_: List, index: Union[int, str]) -> Any:
     if not isinstance(index, int):
         index = int(index)
     return list_[index]

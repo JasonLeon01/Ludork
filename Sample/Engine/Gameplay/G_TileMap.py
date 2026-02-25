@@ -15,8 +15,8 @@ from .. import (
     Drawable,
     Transformable,
     ReturnType,
-    ExecSplit,
 )
+from ..Utils import Inner
 from .G_Material import Material
 
 try:
@@ -40,7 +40,9 @@ class Tileset:
     @staticmethod
     def fromData(data: Dict[str, Any]):
         if isinstance(data["materials"][0], dict):
-            data["materials"] = [Material(**materialData) for materialData in data["materials"]]
+            data["materials"] = [
+                Material(**Inner.filterDataClassParams(materialData, Material)) for materialData in data["materials"]
+            ]
         return Tileset(**data)
 
 

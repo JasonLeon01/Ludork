@@ -1,8 +1,8 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-import sys
 from collections import deque
+import copy
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 
@@ -17,10 +17,8 @@ from .. import (
     Shader,
     Color,
     Texture,
-    Image,
     GetCellSize,
 )
-from ..Utils import Math
 from .Particles import System as ParticleSystem
 from .Actors import Actor
 from .G_Camera import Camera
@@ -36,8 +34,7 @@ except ImportError:
         def getMaterialShader(self) -> Shader: ...
         def refreshShader(
             self,
-            canvases: List[RenderTexture],
-            lightBlockTexs: List[Texture],
+            lightMask: RenderTexture,
             mirrorTex: Texture,
             reflectionStrengthTex: Texture,
             emissiveTex: Texture,
@@ -96,14 +93,18 @@ class GameMap(GameMapGraphics):
         self._camera.setMap(self)
         self._lights: List[Light] = []
         self._ambientLight: Color = Color(255, 255, 255, 255)
-        self._lightBlockTexs: Optional[List[Texture]] = None
+        self._lightMask: Optional[RenderTexture] = None
         self._mirrorTex: Optional[Texture] = None
         self._reflectionStrengthTex: Optional[Texture] = None
-        self._emissiveTex: Optional[Texture] = None
         self._materialDirty: bool = True
         self._tilePassableGrid: Optional[List[List[bool]]] = None
         self._occupancyMap: Dict[Pair[int], List[Actor]] = {}
         self._player: Optional[Actor] = None
+        self._lightMask = self._camera.initLightMask(self._tilemap.getSize() * GetCellSize())
+        self._tilemapRenderStates = copy.copy(self._camera.getRenderStates())
+        self._tilemapRenderStates.shader = System.getTilemapLightMaskShader()
+        self._actorRenderStates = copy.copy(self._camera.getRenderStates())
+        self._actorRenderStates.shader = System.getLightMaskShader()
         super().__init__(System.getMaterialShaderPath())
 
     @ReturnType(player=Actor)
@@ -119,6 +120,26 @@ class GameMap(GameMapGraphics):
         actors = []
         for actorList in self._actors.values():
             actors.extend(actorList)
+        return actors
+
+    @ReturnType(actors=List[Actor])
+    def getActorsByPosition(self, position: Vector2i) -> List[Actor]:
+        return self._occupancyMap.get((position.x, position.y), [])
+
+    @ReturnType(actor=Actor)
+    def getActorByLayerAndPosition(self, layer: str, position: Vector2i) -> Optional[Actor]:
+        actors = self._actors.get(layer, [])
+        for actor in actors:
+            if actor.getPosition() == position:
+                return actor
+        return None
+
+    @ReturnType(actors=List[Actor])
+    def getActorsByRange(self, position: Vector2i, radius: int) -> List[Actor]:
+        actors = []
+        for x in range(position.x - radius, position.x + radius + 1):
+            for y in range(position.y - radius, position.y + radius + 1):
+                actors.extend(self._occupancyMap.get((x, y), []))
         return actors
 
     @ReturnType(actors=List[Actor])
@@ -465,93 +486,70 @@ class GameMap(GameMapGraphics):
     def show(self) -> None:
         from .. import System
 
+        tilemapLightMask = System.getTilemapLightMaskShader()
+        actorLightMask = System.getLightMaskShader()
         layers = self._tilemap.getAllLayers()
         layerKeys = list(layers.keys())
         System.setWindowMapView()
         self._camera.clear()
-        self._camera.display()
-        self._camera.applyCanvasCount(len(layerKeys) + len(self._actors))
-        idx = 0
-        canvases = self._camera.getCanvases()
-        renderStates = self._camera.getRenderStates()
+        self._lightMask.clear()
         for layerName in layerKeys:
             layer = layers[layerName]
             if not layer.visible:
                 continue
-            canvases[idx].clear(Color.Transparent)
-            canvases[idx].draw(layer, renderStates)
-            canvases[idx].display()
-            idx += 1
+            self._camera.render(layer)
             if layerName in self._actors:
-                canvases[idx].clear(Color.Transparent)
                 for actor in self._actors[layerName]:
-                    canvases[idx].draw(actor, renderStates)
-                canvases[idx].display()
-                idx += 1
+                    self._camera.render(actor)
+        for layerName in layerKeys:
+            layer = layers[layerName]
+            if not layer.visible:
+                continue
+            cellSize = GetCellSize()
+            lbTexture = Texture(layer.getLightBlockImage())
+            tilemapLightMask.setUniform("lightBlockTex", lbTexture)
+            tilemapLightMask.setUniform("lightBlockSize", Vector2f(cellSize, cellSize))
+            tilemapLightMask.setUniform("mapSize", Vector2f(self._tilemap.getSize().x, self._tilemap.getSize().y))
+            self._lightMask.draw(layer, self._tilemapRenderStates)
+            if layerName in self._actors:
+                for actor in self._actors[layerName]:
+                    actorLightMask.setUniform("lightBlock", actor.getLightBlock())
+                    self._lightMask.draw(actor, self._actorRenderStates)
+        self._camera.display()
+        self._lightMask.display()
         self.refreshShader()
         System.draw(self._camera, self.getMaterialShader())
         System.draw(self._particleSystem)
         System.setWindowDefaultView()
 
-    def _getLightBlockTexs(self) -> List[Texture]:
-        result = []
-        layers = self._tilemap.getAllLayers()
-        size = self._tilemap.getSize()
-        for layerName in layers:
-            layer = layers[layerName]
-            if not layer.visible:
-                continue
-            texture = Texture(layer.getLightBlockImage())
-            texture.setSmooth(True)
-            result.append(texture)
-            if layerName in self._actors:
-                actorImg = Image(size, Color.Transparent)
-                for actor in self._actors[layerName]:
-                    g = int(actor.getLightBlock() * 255)
-                    actorImg.setPixel(Math.ToVector2u(actor.getMapPosition()), Color(g, g, g))
-                texture = Texture(actorImg)
-                texture.setSmooth(True)
-                result.append(texture)
-        return result
-
     def refreshShader(self) -> None:
-        if (
-            self._lightBlockTexs is None
-            or self._mirrorTex is None
-            or self._reflectionStrengthTex is None
-            or self._emissiveTex is None
-            or self._materialDirty
-        ):
-            self._lightBlockTexs = self._getLightBlockTexs()
-            self._mirrorTex = self._getMaterialPropertyTexture("getMirror", False)
-            self._reflectionStrengthTex = self._getMaterialPropertyTexture("getReflectionStrength", 0.0)
-            self._emissiveTex = self._getMaterialPropertyTexture("getEmissive", 0.0)
-            self._rebuildPassabilityCache()
-            self._materialDirty = False
-
         from .. import System
         from ..Utils import Math
 
-        canvases = self._camera.getCanvases()
+        if (
+            self._lightMask is None
+            or self._mirrorTex is None
+            or self._reflectionStrengthTex is None
+            or self._materialDirty
+        ):
+            self._mirrorTex = self._getMaterialPropertyTexture("getMirror", False)
+            self._reflectionStrengthTex = self._getMaterialPropertyTexture("getReflectionStrength", 0.0)
+            self._rebuildPassabilityCache()
+            self._materialDirty = False
 
-        if len(self._lightBlockTexs) > 6 or len(canvases) > 6:
-            raise ValueError("The total number of samples of OpenGL 2.1 on macOS is limited to 16. If you are sure that you would not need macOS distribution, delete this part.")
-
-        super().refreshShader(
-            self._camera.getCanvases(),
-            self._lightBlockTexs,
-            self._mirrorTex,
-            self._reflectionStrengthTex,
-            self._emissiveTex,
-            System.getScale(),
-            Math.ToVector2f(System.getGameSize()),
-            self._camera.getViewPosition(),
-            self._camera.v_getViewRotation(),
-            Math.ToVector2f(self._tilemap.getSize()),
-            GetCellSize(),
-            self._lights,
-            self._ambientLight,
-        )
+            super().refreshShader(
+                self._lightMask,
+                self._mirrorTex,
+                self._reflectionStrengthTex,
+                System.getScale(),
+                Math.ToVector2f(System.getGameSize()),
+                self._camera.getViewPosition(),
+                self._camera.v_getViewRotation(),
+                Math.ToVector2f(self._tilemap.getSize()),
+                GetCellSize(),
+                self._lights,
+                self._ambientLight,
+            )
 
     def _getMaterialPropertyTexture(
         self, functionName: str, invalidValue: Union[float, bool], smooth: bool = False

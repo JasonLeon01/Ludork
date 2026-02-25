@@ -64,11 +64,12 @@ class System:
     _soundVolume: float = 100
     _voiceVolume: float = 100
     _transitionShaderPath: str = None
+    _tilemapLightMaskShaderPath: str = None
+    _lightMaskShaderPath: str = None
     _materialShaderPath: str = None
-    _vagueShaderPath: str = None
-    _toneShaderPath: str = None
-    _grayScaleShaderPath: str = None
     _transitionShader: Optional[Shader] = None
+    _tilemapLightMaskShader: Optional[Shader] = None
+    _lightMaskShader: Optional[Shader] = None
     _transitionResource: Optional[Texture] = None
     _inTransition: bool = False
     _transitionTimeCount: float = 0.0
@@ -115,10 +116,11 @@ class System:
         cls._soundVolume = data.getfloat("soundVolume")
         cls._voiceVolume = data.getfloat("voiceVolume")
         cls._transitionShaderPath = systemData["transitionShaderPath"]["value"]
-        cls._materialShaderPath = os.path.join("./Assets", systemData["materialShaderPath"]["base"], systemData["materialShaderPath"]["value"])
-        cls._vagueShaderPath = systemData["vagueShaderPath"]["value"]
-        cls._toneShaderPath = systemData["toneShaderPath"]["value"]
-        cls._grayScaleShaderPath = systemData["grayScaleShaderPath"]["value"]
+        cls._tilemapLightMaskShaderPath = systemData["tilemapLightMaskShaderPath"]["value"]
+        cls._lightMaskShaderPath = systemData["lightMaskShaderPath"]["value"]
+        cls._materialShaderPath = os.path.join(
+            "./Assets", systemData["materialShaderPath"]["base"], systemData["materialShaderPath"]["value"]
+        )
         cls._scenes = []
         realSize = Vector2u(
             int(cls._gameSize.x * cls._scale),
@@ -152,12 +154,10 @@ class System:
         cls._window.clear(Color.Transparent)
         if cls._transitionShaderPath:
             cls._transitionShader = Manager.loadShader(cls._transitionShaderPath)
-        if cls._vagueShaderPath:
-            cls._vagueShader = Manager.loadShader(cls._vagueShaderPath)
-        if cls._toneShaderPath:
-            cls._toneShader = Manager.loadShader(cls._toneShaderPath)
-        if cls._grayScaleShaderPath:
-            cls._grayScaleShader = Manager.loadShader(cls._grayScaleShaderPath)
+        if cls._tilemapLightMaskShaderPath:
+            cls._tilemapLightMaskShader = Manager.loadShader(cls._tilemapLightMaskShaderPath)
+        if cls._lightMaskShaderPath:
+            cls._lightMaskShader = Manager.loadShader(cls._lightMaskShaderPath)
         cls._latentManager = LatentManager()
 
     @classmethod
@@ -388,20 +388,24 @@ class System:
         return cls._materialShaderPath
 
     @classmethod
+    def getTilemapLightMaskShaderPath(cls) -> str:
+        return cls._tilemapLightMaskShaderPath
+
+    @classmethod
+    def getLightMaskShaderPath(cls) -> str:
+        return cls._lightMaskShaderPath
+
+    @classmethod
     def getTransitionShader(cls) -> Shader:
         return cls._transitionShader
 
     @classmethod
-    def getVagueShader(cls) -> Shader:
-        return cls._vagueShader
+    def getTilemapLightMaskShader(cls) -> Optional[Shader]:
+        return cls._tilemapLightMaskShader
 
     @classmethod
-    def getToneShader(cls) -> Shader:
-        return cls._toneShader
-
-    @classmethod
-    def getGrayScaleShader(cls) -> Shader:
-        return cls._grayScaleShader
+    def getLightMaskShader(cls) -> Optional[Shader]:
+        return cls._lightMaskShader
 
     @classmethod
     def getGraphicsShader(cls) -> Optional[Shader]:

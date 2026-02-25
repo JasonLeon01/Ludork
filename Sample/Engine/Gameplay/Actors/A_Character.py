@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import Optional, Union, Tuple, List
 from ... import Pair, Texture, IntRect, Vector2i, Utils, ExecSplit, InvalidVars
+from ...Utils import Inner
 from ..G_Material import Material
 from .A_Actor import Actor
 
@@ -71,7 +72,7 @@ class Character(Actor):
 
         character: Character = ActorModel(Manager.loadCharacter(textureStr), tag)
         if isinstance(character.material, dict):
-            character.material = Material(**character.material)
+            character.material = Material(**Inner.filterDataClassParams(character.material, Material))
         return character
 
     def _animate(self, deltaTime: float) -> None:

@@ -17,10 +17,8 @@ sf::Shader *GameMapGraphics::getMaterialShader() const {
 }
 
 void GameMapGraphics::refreshShader(
-    const std::vector<sf::RenderTexture *> &canvases,
-    const std::vector<sf::Texture *> &lightBlockTexs,
-    const sf::Texture &mirrorTex, const sf::Texture &reflectionStrengthTex,
-    const sf::Texture &emissiveTex, float screenScale,
+    const sf::RenderTexture &lightMask, const sf::Texture &mirrorTex,
+    const sf::Texture &reflectionStrengthTex, float screenScale,
     const sf::Vector2f &screenSize, const sf::Vector2f &viewPos, float viewRot,
     const sf::Vector2f &gridSize, int cellSize,
     const std::vector<py::object> &lights, const sf::Color &ambientColor) {
@@ -28,19 +26,9 @@ void GameMapGraphics::refreshShader(
     return;
   }
   auto shader = materialShader_;
-  shader->setUniform("tilemapTexLen", int(canvases.size()));
-  for (int i = 0; i < canvases.size(); ++i) {
-    shader->setUniform("tilemapTex[" + std::to_string(i) + "]",
-                       canvases[i]->getTexture());
-  }
-  shader->setUniform("lightBlockLen", int(lightBlockTexs.size()));
-  for (int i = 0; i < lightBlockTexs.size(); ++i) {
-    shader->setUniform("lightBlockTex[" + std::to_string(i) + "]",
-                       *lightBlockTexs[i]);
-  }
+  shader->setUniform("lightMask", lightMask.getTexture());
   shader->setUniform("mirrorTex", mirrorTex);
   shader->setUniform("reflectionStrengthTex", reflectionStrengthTex);
-  shader->setUniform("emissiveTex", emissiveTex);
   shader->setUniform("screenScale", screenScale);
   shader->setUniform("screenSize", screenSize);
   shader->setUniform("viewPos", viewPos);
@@ -99,13 +87,11 @@ void ApplyGameMapGraphicsBinding(py::module &m) {
                            &GameMapGraphics::getMaterialShader,
                            py::return_value_policy::reference);
   GameMapGraphicsClass.def(
-      "refreshShader", &GameMapGraphics::refreshShader, py::arg("canvases"),
-      py::arg("lightBlockTexs"), py::arg("mirrorTex"),
-      py::arg("reflectionStrengthTex"), py::arg("emissiveTex"),
+      "refreshShader", &GameMapGraphics::refreshShader, py::arg("lightMask"),
+      py::arg("mirrorTex"), py::arg("reflectionStrengthTex"),
       py::arg("screenScale"), py::arg("screenSize"), py::arg("viewPos"),
-      py::arg("viewRot"),
-      py::arg("gridSize"), py::arg("cellSize"), py::arg("lights"),
-      py::arg("ambientColor"));
+      py::arg("viewRot"), py::arg("gridSize"), py::arg("cellSize"),
+      py::arg("lights"), py::arg("ambientColor"));
   GameMapGraphicsClass.def(
       "generateDataFromMap", &GameMapGraphics::generateDataFromMap,
       py::arg("size"), py::arg("materialMap"), py::arg("smooth") = false);

@@ -443,21 +443,17 @@
         "zh_CN": "转场着色器路径",
         "en_GB": "Transition Shader Path"
     },
+    "tilemapLightMaskShaderPath": {
+        "zh_CN": "瓦片地图光照遮罩着色器路径",
+        "en_GB": "Tilemap Light Mask Shader Path"
+    },
+    "lightMaskShaderPath": {
+        "zh_CN": "光照遮罩着色器路径",
+        "en_GB": "Light Mask Shader Path"
+    },
     "materialShaderPath": {
         "zh_CN": "材质着色器路径",
         "en_GB": "Material Shader Path"
-    },
-    "vagueShaderPath": {
-        "zh_CN": "模糊着色器路径",
-        "en_GB": "Blur Shader Path"
-    },
-    "toneShaderPath": {
-        "zh_CN": "色调着色器路径",
-        "en_GB": "Tone Shader Path"
-    },
-    "grayScaleShaderPath": {
-        "zh_CN": "灰度着色器路径",
-        "en_GB": "Grayscale Shader Path"
     },
     "cursorSE": {
         "zh_CN": "光标音效",
@@ -566,6 +562,10 @@
     "SET_AS_START": {
         "zh_CN": "设置为起始节点",
         "en_GB": "Set as Start Node"
+    },
+    "CANCEL_START_NODE": {
+        "zh_CN": "取消起始节点",
+        "en_GB": "Cancel Start Node"
     },
     "NEW_COMMON_FUNC": {
         "zh_CN": "新建公共函数",
@@ -710,6 +710,18 @@
     "HINT_CREATE_ANIM_SUCCESS": {
         "zh_CN": "创建成功！请保存以应用文件生成。",
         "en_GB": "Creation successful! Please save to apply file generation."
+    },
+    "RELOAD_MODULE": {
+        "zh_CN": "重载模块",
+        "en_GB": "Reload Module"
+    },
+    "HINT_RELOAD_MODULE_SUCCESS": {
+        "zh_CN": "模块重载成功！",
+        "en_GB": "Module reload successful!"
+    },
+    "HINT_RELOAD_MODULE_FAILED": {
+        "zh_CN": "模块重载失败！",
+        "en_GB": "Module reload failed!"
     },
     "DRAG_INFO": {
         "zh_CN": "蓝图：{file}被实例化到了：({x}, {y})",

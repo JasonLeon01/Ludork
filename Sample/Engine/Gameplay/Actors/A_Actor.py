@@ -16,7 +16,7 @@ from ... import (
     RectRangeVars,
 )
 from ..G_Material import Material
-from ...Utils import Math
+from ...Utils import Math, Inner
 from .A_Base import _ActorBase
 
 if TYPE_CHECKING:
@@ -227,7 +227,7 @@ class Actor(_ActorBase, BPBase):
 
         actor: Actor = ActorModel(Manager.loadCharacter(textureStr), textureRect, tag)
         if isinstance(actor.material, dict):
-            actor.material = Material(**actor.material)
+            actor.material = Material(**Inner.filterDataClassParams(actor.material, Material))
         return actor
 
     def _processMoving(self, fixedDelta: float) -> None:
