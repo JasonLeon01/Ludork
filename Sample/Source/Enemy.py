@@ -8,11 +8,14 @@ from Engine.Gameplay.Actors import Actor
 from .Battler import Battler
 
 
-@dataclass(frozen=True)
+@dataclass
 class EnemyInfo:
     ID: str = "FILL_IT_BY_YOURSELF"
     name: str = ""
     desc: str = ""
+
+    def __hash__(self) -> int:
+        return hash(self.ID)
 
 
 # This cannot be a dataclass because it contains a list

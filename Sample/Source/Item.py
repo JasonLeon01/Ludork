@@ -7,11 +7,14 @@ from Engine import Pair, RegisterEvent, Texture, IntRect
 from Engine.Gameplay.Actors import Actor
 
 
-@dataclass(frozen=True)
+@dataclass
 class ItemInfo:
     ID: str = "FILL_IT_BY_YOURSELF"
     name: str = ""
     desc: str = ""
+
+    def __hash__(self) -> int:
+        return hash(self.ID)
 
 
 class Item(Actor, ItemInfo):
