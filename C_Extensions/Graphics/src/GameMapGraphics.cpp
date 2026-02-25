@@ -39,13 +39,12 @@ void GameMapGraphics::refreshShader(
   for (int i = 0; i < lights.size(); ++i) {
     auto light = lights[i];
     auto c = light.attr("color").cast<sf::Color>();
-    shader->setUniform("lightPos[" + std::to_string(i) + "]",
+    shader->setUniform(getUniformArrayName("lightPos", i),
                        light.attr("position").cast<sf::Vector2f>());
-    shader->setUniform("lightColor[" + std::to_string(i) + "]",
-                       castFromColor(c));
-    shader->setUniform("lightRadius[" + std::to_string(i) + "]",
+    shader->setUniform(getUniformArrayName("lightColor", i), castFromColor(c));
+    shader->setUniform(getUniformArrayName("lightRadius", i),
                        light.attr("radius").cast<float>());
-    shader->setUniform("lightIntensity[" + std::to_string(i) + "]",
+    shader->setUniform(getUniformArrayName("lightIntensity", i),
                        light.attr("intensity").cast<float>());
   }
   shader->setUniform("ambientColor", castFromColor(ambientColor));
@@ -78,6 +77,17 @@ sf::Texture *GameMapGraphics::generateDataFromMap(
 
 sf::Vector3f GameMapGraphics::castFromColor(const sf::Color &color) {
   return sf::Vector3f(color.r / 255.0f, color.g / 255.0f, color.b / 255.0f);
+}
+
+std::string GameMapGraphics::getUniformArrayName(const std::string &name,
+                                                 int count) {
+  auto it = uniformArrayNameCache_.find({name, count});
+  if (it != uniformArrayNameCache_.end()) {
+    return it->second;
+  }
+  std::string arrayName = name + "[" + std::to_string(count) + "]";
+  uniformArrayNameCache_.insert({{name, count}, arrayName});
+  return arrayName;
 }
 
 void ApplyGameMapGraphicsBinding(py::module &m) {

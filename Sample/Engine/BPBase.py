@@ -18,7 +18,7 @@ class BPBase:
             and not obj._graph is None
             and obj._graph.hasKey(eventName)
         ):
-            if eventName in obj._graph.startNodes:
+            if eventName in obj._graph.startNodes and not obj._graph.startNodes[eventName] is None:
                 for key, value in kwargs.items():
                     obj._graph.localGraph[f"__{key}__"] = value
                 obj._graph.execute(eventName)

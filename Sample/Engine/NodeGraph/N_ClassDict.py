@@ -3,6 +3,7 @@
 import os
 import importlib
 import importlib.util
+import traceback
 from typing import Any, Dict, Optional
 
 
@@ -22,6 +23,9 @@ class ClassDict:
             loadDataClass = False
             try:
                 moduleSpec = importlib.util.find_spec(modulePath)
+            except:
+                loadDataClass = True
+            if not loadDataClass:
                 module = None
                 if (
                     not moduleSpec is None
@@ -32,15 +36,16 @@ class ClassDict:
                         or moduleSpec.origin.endswith(".so")
                     )
                 ):
-                    module = importlib.import_module(modulePath)
+                    try:
+                        module = importlib.import_module(modulePath)
+                    except Exception as e:
+                        raise ImportError(f"Error loading module {modulePath}: {e}, detail: {traceback.format_exc()}")
                     if hasattr(module, className):
                         self._dict[classPath] = getattr(module, className)
                     else:
                         loadDataClass = True
                 else:
                     loadDataClass = True
-            except:
-                loadDataClass = True
             if loadDataClass:
                 filePath = classPath.replace(".", "/")
                 if not root is None:

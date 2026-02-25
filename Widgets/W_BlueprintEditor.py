@@ -152,19 +152,93 @@ class BluePrintEditor(QtWidgets.QWidget):
         if self.nodeGraphList.count() > 0:
             self.nodeGraphList.setCurrentRow(0)
 
+    def _getDisplayOrder(self, attrs: Dict[str, Any], cls: Optional[type]) -> list:
+        if not cls or not isinstance(cls, type):
+            return list(attrs.keys())
+
+        defined_order = []
+        try:
+            mro = list(reversed(cls.mro()))
+        except:
+            mro = [cls]
+
+        for base in mro:
+            if base is object:
+                continue
+
+            ann = getattr(base, "__annotations__", {})
+            for k in ann:
+                if k not in defined_order:
+                    defined_order.append(k)
+
+            for k in getattr(base, "__dict__", {}):
+                if k.startswith("_"):
+                    continue
+                if k in defined_order:
+                    continue
+                try:
+                    v = getattr(base, k)
+                    if callable(v) or isinstance(v, property):
+                        continue
+                except:
+                    pass
+                defined_order.append(k)
+
+        ordered = [k for k in defined_order if k in attrs]
+        seen = set(ordered)
+        remaining = [k for k in attrs.keys() if k not in seen]
+        return ordered + remaining
+
     def refreshAttrs(self) -> None:
         while self.formLayout.rowCount() > 0:
             self.formLayout.removeRow(0)
 
-        # Get class and type hints
         key_path = os.path.join("Data", "Blueprints", self.title).replace("/", ".").replace("\\", ".")
         cls = GameData.classDict.get(key_path, EditorStatus.PROJ_PATH)
         type_hints = {}
+        parent_cls = None
+        parent_hints = {}
         if cls and cls is not EditorStatus.PROJ_PATH:
             try:
                 type_hints = get_type_hints(cls)
             except:
                 type_hints = getattr(cls, "__annotations__", {})
+
+            if hasattr(cls, "__bases__") and cls.__bases__:
+                parent_cls = cls.__bases__[0]
+                try:
+                    parent_hints = get_type_hints(parent_cls)
+                except:
+                    parent_hints = getattr(parent_cls, "__annotations__", {})
+
+                if "attrs" not in self.data or not isinstance(self.data["attrs"], dict):
+                    self.data["attrs"] = {}
+
+                changed = False
+                for attr_name in dir(parent_cls):
+                    if attr_name.startswith("_"):
+                        continue
+
+                    try:
+                        attr_val = getattr(parent_cls, attr_name)
+                    except:
+                        continue
+
+                    if callable(attr_val):
+                        continue
+
+                    if attr_name not in self.data["attrs"]:
+                        if not changed:
+                            GameData.recordSnapshot()
+                            changed = True
+                        try:
+                            self.data["attrs"][attr_name] = copy.deepcopy(attr_val)
+                        except:
+                            self.data["attrs"][attr_name] = attr_val
+
+                if changed:
+                    GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
+                    self.modified.emit()
 
         parent_val = self.data.get("parent", "")
         label = QtWidgets.QLabel(Locale.getContent("PARENT"))
@@ -180,7 +254,11 @@ class BluePrintEditor(QtWidgets.QWidget):
         if not isinstance(attrs, dict):
             return
 
-        for key, value in attrs.items():
+        target_cls = cls if (cls and cls is not EditorStatus.PROJ_PATH) else parent_cls
+        display_keys = self._getDisplayOrder(attrs, target_cls)
+
+        for key in display_keys:
+            value = attrs[key]
             label = QtWidgets.QLabel(str(key))
             container = QtWidgets.QWidget()
             hbox = QtWidgets.QHBoxLayout(container)
@@ -189,12 +267,18 @@ class BluePrintEditor(QtWidgets.QWidget):
 
             is_dc = False
             type_hint = type_hints.get(key)
+            if type_hint is None and key in parent_hints:
+                type_hint = parent_hints[key]
+
             if type_hint and dataclasses.is_dataclass(type_hint):
                 widget = DataclassWidget(type_hint, value)
                 widget.valueChanged.connect(lambda val, k=key: self.onDataChanged(k, val, True))
                 is_dc = True
             else:
-                widget = self.createInputWidget(key, value)
+                parent_val = None
+                if parent_cls and hasattr(parent_cls, key):
+                    parent_val = getattr(parent_cls, key)
+                widget = self.createInputWidget(key, value, type_hint=type_hint, parent_val=parent_val)
 
             isInvalid = key in self.invalidVars
             isRectRange = key in self.rectRangeVars and not isInvalid
@@ -237,11 +321,19 @@ class BluePrintEditor(QtWidgets.QWidget):
                 rectBtn.clicked.connect(lambda _, k=key: self.onEditRectRange(k))
                 hbox.addWidget(rectBtn, 0)
 
-            minusBtn = QtWidgets.QPushButton("-")
-            minusBtn.setObjectName("MinusBtn")
-            minusBtn.setFixedWidth(24)
-            minusBtn.clicked.connect(lambda _, k=key: self.onDeleteAttr(k))
-            hbox.addWidget(minusBtn, 0)
+            has_parent_attr = False
+            if parent_cls:
+                if hasattr(parent_cls, key):
+                    has_parent_attr = True
+                elif key in parent_hints:
+                    has_parent_attr = True
+
+            if not has_parent_attr:
+                minusBtn = QtWidgets.QPushButton("-")
+                minusBtn.setObjectName("MinusBtn")
+                minusBtn.setFixedWidth(24)
+                minusBtn.clicked.connect(lambda _, k=key: self.onDeleteAttr(k))
+                hbox.addWidget(minusBtn, 0)
 
             self.formLayout.addRow(label, container)
 
@@ -249,13 +341,67 @@ class BluePrintEditor(QtWidgets.QWidget):
         addBtn.clicked.connect(self.onAddAttr)
         self.formLayout.addRow(addBtn)
 
-    def createInputWidget(self, key: str, value: Any, isAttr: bool = True) -> QtWidgets.QWidget:
+    def createInputWidget(
+        self, key: str, value: Any, isAttr: bool = True, type_hint: Any = None, parent_val: Any = None
+    ) -> QtWidgets.QWidget:
         if isAttr and isinstance(value, bool):
             w = QtWidgets.QCheckBox()
             w.setChecked(bool(value))
             w.toggled.connect(lambda checked, k=key: self.onDataChanged(k, checked, True))
             return w
-        if isAttr and isinstance(value, (list, tuple)):
+
+        is_list = False
+        if isAttr:
+            if type_hint:
+                origin = getattr(type_hint, "__origin__", None)
+                if origin is list:
+                    is_list = True
+            elif parent_val is not None and isinstance(parent_val, list):
+                is_list = True
+            elif isinstance(value, list):
+                is_list = True
+
+        if is_list:
+            container = QtWidgets.QWidget()
+            layout = QtWidgets.QVBoxLayout(container)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(2)
+
+            if not isinstance(value, list):
+                if isinstance(value, tuple):
+                    value = list(value)
+                else:
+                    value = []
+
+            edits = []
+            for i, item in enumerate(value):
+                row = QtWidgets.QWidget()
+                row_layout = QtWidgets.QHBoxLayout(row)
+                row_layout.setContentsMargins(0, 0, 0, 0)
+                row_layout.setSpacing(2)
+
+                e = QtWidgets.QLineEdit(str(item))
+                e.textChanged.connect(lambda _, k=key, c=container: self._onListItemChanged(k, c))
+                row_layout.addWidget(e)
+                edits.append(e)
+
+                removeBtn = QtWidgets.QPushButton("-")
+                removeBtn.setFixedWidth(24)
+                removeBtn.clicked.connect(lambda _, idx=i, k=key, c=container: self._onRemoveListItem(k, c, idx))
+                row_layout.addWidget(removeBtn)
+
+                layout.addWidget(row)
+
+            addBtn = QtWidgets.QPushButton("+")
+            addBtn.clicked.connect(lambda _, k=key, c=container: self._onAddListItem(k, c))
+            layout.addWidget(addBtn)
+
+            container._elementWidgets = edits
+            container._listIsTuple = False
+            container._originalTypeHint = type_hint
+            return container
+
+        if isAttr and isinstance(value, tuple):
             container = QtWidgets.QWidget()
             layout = QtWidgets.QHBoxLayout(container)
             layout.setContentsMargins(0, 0, 0, 0)
@@ -266,13 +412,65 @@ class BluePrintEditor(QtWidgets.QWidget):
                 layout.addWidget(e)
                 edits.append(e)
             container._elementWidgets = edits
-            container._listIsTuple = isinstance(value, tuple)
+            container._listIsTuple = True
             for _e in edits:
                 _e.textChanged.connect(lambda _, k=key, c=container: self._onListItemChanged(k, c))
             return container
         w = QtWidgets.QLineEdit(str(value))
         w.textChanged.connect(lambda val, k=key, attr=isAttr: self.onDataChanged(k, val, attr))
         return w
+
+    def _onRemoveListItem(self, key: str, container: QtWidgets.QWidget, index: int) -> None:
+        elems = getattr(container, "_elementWidgets", [])
+        if 0 <= index < len(elems):
+            values = []
+            for i, e in enumerate(elems):
+                if i == index:
+                    continue
+                text = e.text()
+                try:
+                    v = eval(text)
+                except:
+                    v = text
+                values.append(v)
+
+            self.onDataChanged(key, values, True)
+            self.refreshAttrs()
+
+    def _onAddListItem(self, key: str, container: QtWidgets.QWidget) -> None:
+        elems = getattr(container, "_elementWidgets", [])
+        values = []
+        for e in elems:
+            text = e.text()
+            try:
+                v = eval(text)
+            except:
+                v = text
+            values.append(v)
+
+        default_val = ""
+        type_hint = getattr(container, "_originalTypeHint", None)
+        if type_hint:
+            args = getattr(type_hint, "__args__", [])
+            if args:
+                arg_type = args[0]
+                if arg_type is int:
+                    default_val = 0
+                elif arg_type is float:
+                    default_val = 0.0
+                elif arg_type is bool:
+                    default_val = False
+                elif arg_type is str:
+                    default_val = ""
+        elif values:
+            try:
+                default_val = type(values[-1])()
+            except:
+                pass
+
+        values.append(default_val)
+        self.onDataChanged(key, values, True)
+        self.refreshAttrs()
 
     def _onListItemChanged(self, key: str, container: QtWidgets.QWidget) -> None:
         elems = getattr(container, "_elementWidgets", [])

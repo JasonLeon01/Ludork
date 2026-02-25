@@ -33,6 +33,24 @@ class Scene(SceneBase):
         self.anim2.setPosition(Vector2f(128, 128))
         self.addTimer("animTest2", 10.0, lambda: self.addAnim(self.anim2))
         self.addTimer("removeParticle", 10.0, lambda: self._gameMap._particleSystem.removeParticle(self.particle), [])
+        self.addTimer(
+            "shaderTest", 3.0, lambda: System.addGraphicsShader(Manager.loadShader("Vague.frag"), {"intensity": 1.0})
+        )
+        self.addTimer(
+            "shaderTest2",
+            6.0,
+            lambda: System.addGraphicsShader(Manager.loadShader("GrayScale.frag"), {"intensity": 1.0}),
+        )
+        self.addTimer(
+            "shaderTest3",
+            9.0,
+            lambda: System.removeGraphicsShaderAt(0),
+        )
+        self.addTimer(
+            "shaderTest4",
+            12.0,
+            lambda: System.removeGraphicsShaderAt(0),
+        )
 
     def onFixedTick(self, fixedDelta: float) -> None:
         self._gameMap.onFixedTick(fixedDelta)

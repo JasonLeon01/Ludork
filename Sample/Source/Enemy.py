@@ -1,14 +1,27 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+from dataclasses import dataclass
 from typing import Optional, Union, List, Tuple
 from Engine import Pair, Texture, IntRect
 from Engine.Gameplay.Actors import Actor
-from .Battler import _Battler
+from .Battler import Battler
 
 
-class Enemy(Actor, _Battler):
+@dataclass(frozen=True)
+class EnemyInfo:
     ID: str = "FILL_IT_BY_YOURSELF"
+    name: str = ""
+    desc: str = ""
+
+
+# This cannot be a dataclass because it contains a list
+class EnemyProperty:
+    attackPerTurn: int = 1
+    drops: List[str] = []
+
+
+class Enemy(Actor, Battler, EnemyProperty, EnemyInfo):
     tickable: bool = True
     collisionEnabled: bool = True
     animatable: bool = True
@@ -21,4 +34,4 @@ class Enemy(Actor, _Battler):
         tag: Optional[str] = None,
     ) -> None:
         Actor.__init__(self, texture, rect, tag)
-        _Battler.__init__(self)
+        Battler.__init__(self)

@@ -40,13 +40,14 @@ class System:
 
     __data: configparser.ConfigParser
     __dataFilePath: str = None
+    __graphicsCanvases: List[RenderTexture] = []
     _window: RenderWindow = None
     _canvas: RenderTexture = None
     _canvasSprite: Sprite = None
     _transition: Texture = None
     _transitionTempTexture: RenderTexture = None
     _transitionSprite: Sprite = None
-    _graphicsShader: Optional[Shader] = None
+    _graphicsShaders: List[Shader] = []
     _title: str = None
     _fonts: List[Font] = []
     _gameSize: Vector2u = None
@@ -89,6 +90,7 @@ class System:
     def init(cls, inData: configparser.ConfigParser, dataFilePath: str) -> None:
         cls.__data = inData
         cls.__dataFilePath = dataFilePath
+        cls.__graphicsCanvases = []
         data = inData["Main"]
         systemData = File.getJSONData("./Data/Configs/System.json")
         cls._title = systemData["title"]["value"]
@@ -231,11 +233,21 @@ class System:
             cls._transitionTimeCount = min(cls._transitionTimeCount + deltaTime, cls._transitionTime)
         cls._canvas.display()
         states = Render.CanvasRenderStates()
-        if cls._graphicsShader:
-            cls._graphicsShader.setUniform("screenTex", cls._canvas.getTexture())
-            cls._graphicsShader.setUniform("texSize", Math.ToVector2f(cls._canvas.getTexture().getSize()))
-            states.shader = cls._graphicsShader
-
+        finalCanvas = cls._canvas
+        if len(cls.__graphicsCanvases) > 0:
+            for i, canvas in enumerate(cls.__graphicsCanvases):
+                canvas.clear(Color.Transparent)
+                lastCanvas = cls._canvas
+                if i > 0:
+                    lastCanvas = cls.__graphicsCanvases[i - 1]
+                cls._graphicsShaders[i].setUniform("screenTex", lastCanvas.getTexture())
+                cls._graphicsShaders[i].setUniform("texSize", Math.ToVector2f(lastCanvas.getTexture().getSize()))
+                states.shader = cls._graphicsShaders[i]
+                tempSprite = Sprite(canvas.getTexture())
+                canvas.draw(tempSprite, states)
+                canvas.display()
+            finalCanvas = cls.__graphicsCanvases[-1]
+        cls._canvasSprite.setTexture(finalCanvas.getTexture())
         if cls._inTransition:
             cls._transitionTempTexture.clear(Color.Transparent)
             cls._transitionTempTexture.draw(cls._canvasSprite, states)
@@ -408,15 +420,34 @@ class System:
         return cls._lightMaskShader
 
     @classmethod
-    def getGraphicsShader(cls) -> Optional[Shader]:
-        return cls._graphicsShader
+    def getGraphicsShaders(cls) -> List[Shader]:
+        return cls._graphicsShaders
 
     @classmethod
-    def setGraphicsShader(cls, shader: Optional[Shader], uniforms: Optional[Dict[str, Any]] = None) -> None:
-        cls._graphicsShader = shader
+    def addGraphicsShader(cls, shader: Optional[Shader], uniforms: Optional[Dict[str, Any]] = None) -> None:
+        cls._graphicsShaders.append(shader)
         if shader and uniforms:
             for name, value in uniforms.items():
                 shader.setUniform(name, value)
+        cls._applyGraphicsShadersLength()
+
+    @classmethod
+    def removeGraphicsShader(cls, shader: Optional[Shader]) -> None:
+        if shader in cls._graphicsShaders:
+            cls._graphicsShaders.remove(shader)
+        cls._applyGraphicsShadersLength()
+
+    @classmethod
+    def removeAllGraphicsShaders(cls) -> None:
+        cls._graphicsShaders.clear()
+        cls._applyGraphicsShadersLength()
+
+    @classmethod
+    def removeGraphicsShaderAt(cls, index: int) -> None:
+        if index < 0 or index >= len(cls._graphicsShaders):
+            return
+        cls._graphicsShaders.pop(index)
+        cls._applyGraphicsShadersLength()
 
     @classmethod
     def setTransition(cls, transitionResource: Optional[Texture] = None, transitionTime: float = 1.0) -> None:
@@ -488,3 +519,13 @@ class System:
         cls.__data.set("Main", key, str(value))
         with open(cls.__dataFilePath, "w", encoding="utf-8") as f:
             cls.__data.write(f)
+
+    @classmethod
+    def _applyGraphicsShadersLength(cls) -> None:
+        if len(cls._graphicsShaders) < len(cls.__graphicsCanvases):
+            cls.__graphicsCanvases = cls.__graphicsCanvases[: len(cls._graphicsShaders)]
+        elif len(cls._graphicsShaders) > len(cls.__graphicsCanvases):
+            cls.__graphicsCanvases += [
+                RenderTexture(cls._window.getSize())
+                for _ in range(len(cls._graphicsShaders) - len(cls.__graphicsCanvases))
+            ]

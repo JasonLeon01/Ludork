@@ -5,8 +5,10 @@
 #include <SFML/Graphics/Shader.hpp>
 #include <SFML/Graphics/Texture.hpp>
 #include <SFML/System/Vector2.hpp>
+#include <map>
 #include <pybind11/pybind11.h>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace py = pybind11;
@@ -31,7 +33,9 @@ public:
 
 private:
   sf::Vector3f castFromColor(const sf::Color &color);
+  std::string getUniformArrayName(const std::string &name, int count);
   sf::Shader *materialShader_;
+  std::map<std::pair<std::string, int>, std::string> uniformArrayNameCache_;
 };
 
 void ApplyGameMapGraphicsBinding(py::module &m);

@@ -1,20 +1,22 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+from dataclasses import dataclass
 from typing import Optional
 from Engine import RegisterEvent, BPBase
 from Engine.NodeGraph import Graph
 
 
-class State(BPBase):
+@dataclass
+class StateInfo:
     name: str = ""
     icon: str = ""
     description: str = ""
 
+
+class State(BPBase, StateInfo):
     def __init__(self, name: str = "", icon: str = "", description: str = "") -> None:
-        self.name = name
-        self.icon = icon
-        self.description = description
+        StateInfo.__init__(self, name, icon, description)
         self._graph: Optional[Graph] = None
 
     @RegisterEvent

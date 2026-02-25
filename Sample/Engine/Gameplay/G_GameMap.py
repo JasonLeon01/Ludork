@@ -223,6 +223,29 @@ class GameMap(GameMapGraphics):
     def removeLight(self, light: Light) -> None:
         self._lights.remove(light)
 
+    @ExecSplit(default=(None,))
+    def setLightPosition(self, light: Light, position: Union[Vector2f, Pair[float]]) -> None:
+        assert light in self._lights, "Light not found in map"
+        assert isinstance(position, (Vector2f, tuple)), "Position must be a Vector2f or Pair[float]"
+        if isinstance(position, tuple):
+            position = Vector2f(*position)
+        light.position = position
+
+    @ExecSplit(default=(None,))
+    def setLightColor(self, light: Light, color: Color) -> None:
+        assert light in self._lights, "Light not found in map"
+        light.color = color
+
+    @ExecSplit(default=(None,))
+    def setLightRadius(self, light: Light, radius: float) -> None:
+        assert light in self._lights, "Light not found in map"
+        light.radius = radius
+
+    @ExecSplit(default=(None,))
+    def setLightIntensity(self, light: Light, intensity: float) -> None:
+        assert light in self._lights, "Light not found in map"
+        light.intensity = intensity
+
     @ReturnType(ambientLight=Color)
     def getAmbientLight(self) -> Color:
         return self._ambientLight
