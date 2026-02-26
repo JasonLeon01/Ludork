@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 import inspect
+import os
 from typing import Any
-from Engine import Pair, System, ExecSplit, ReturnType, SceneBase, Vector2f, degrees
+from Engine import Pair, System, ExecSplit, ReturnType, SceneBase, Vector2f, degrees, playVideo
 from Engine.Animation import AnimSprite
 from .. import Data
 
@@ -275,11 +276,6 @@ def IsValidValue(value: Any) -> bool:
 
 
 @ExecSplit(default=(None,))
-def Print(message: Any) -> None:
-    print(message)
-
-
-@ExecSplit(default=(None,))
 def RunCommonFunction(commonFunctionName: str) -> Any:
     callerGraph = RunCommonFunction._refLocal.get("__graph__")
     commonGraph = Data.getCommonFunction(commonFunctionName)
@@ -291,6 +287,17 @@ def RunCommonFunction(commonFunctionName: str) -> Any:
         firstKey = sorted(commonGraph.startNodes.keys())[0]
         return commonGraph.execute(firstKey)
     raise KeyError(f"Common function '{commonFunctionName}' has no start nodes")
+
+
+@ExecSplit(default=(None,))
+def PlayVideo(videoFileName: str, mute: bool, skipable: bool) -> None:
+    videoPath = os.path.join(os.getcwd(), "Assets", "Videos", videoFileName)
+    playVideo(videoPath, mute, skipable)
+
+
+@ExecSplit(default=(None,))
+def Print(message: Any) -> None:
+    print(message)
 
 
 @ExecSplit(default=(None,))

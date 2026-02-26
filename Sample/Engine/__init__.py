@@ -253,3 +253,9 @@ from .System import System
 from . import NodeGraph
 from .SceneBase import SceneBase
 from . import Animation
+from .Video import Video
+
+
+def playVideo(videoPath: str, mute: bool = False, skipable: bool = False):
+    video = Video(videoPath, mute, skipable)
+    video.play()

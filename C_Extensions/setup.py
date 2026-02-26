@@ -33,7 +33,7 @@ def main(clean=True):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--no-clean", dest="clean", action="store_false", help="不清空 build 目录")
+    parser.add_argument("--no-clean", dest="clean", action="store_false", help="It will not clear build folder")
     parser.set_defaults(clean=True)
     args = parser.parse_args()
     main(clean=args.clean)
