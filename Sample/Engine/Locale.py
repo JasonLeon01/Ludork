@@ -22,7 +22,7 @@ def init(localePath: str) -> None:
 
 
 def getLocaleContent(localeKey: str, key: str) -> str:
-    return _Locale.dataDict.get(localeKey, {}).get(key, "")
+    return _Locale.dataDict.get(localeKey, {}).get(key, key)
 
 
 def getContent(key: str) -> str:

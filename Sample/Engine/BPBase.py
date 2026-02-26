@@ -43,10 +43,14 @@ class BPBase:
 
     @staticmethod
     def ApplyGeneralData(obj: object, data: Dict[str, Any], paramsType: Dict[str, Any]) -> None:
+        from .Utils import Inner
+
         basicTypes = ["int", "float", "bool", "string", "list"]
         for k, v in data.items():
             if k in paramsType:
                 if paramsType[k]["type"] in basicTypes or re.match(r"tuple\[\d+\]", paramsType[k]["type"]):
+                    if paramsType[k]["type"] == "string":
+                        v = Inner.ApplyStringLocaleFormat(v)
                     setattr(obj, k, v)
                     continue
             setattr(obj, k, eval(v))

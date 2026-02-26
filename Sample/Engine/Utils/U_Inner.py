@@ -2,8 +2,10 @@
 
 import os
 import sys
+import re
 from pathlib import Path
 from typing import Any, Dict
+from ..Locale import getContent
 
 
 def getSavePath(APP_NAME: str) -> str:
@@ -16,3 +18,9 @@ def getSavePath(APP_NAME: str) -> str:
 
 def filterDataClassParams(params: Dict[str, Any], type_: type) -> Dict[str, Any]:
     return {k: v for k, v in params.items() if hasattr(type_, k)}
+
+
+def ApplyStringLocaleFormat(string: str) -> str:
+    pattern = r"\{(.*?)\}"
+    matches = re.findall(pattern, string)
+    return string.format(**{match: getContent(match) for match in matches})
