@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from typing import Any, Dict
+import regex
 
 
 class BPBase:
@@ -42,10 +43,10 @@ class BPBase:
 
     @staticmethod
     def ApplyGeneralData(obj: object, data: Dict[str, Any], paramsType: Dict[str, Any]) -> None:
-        basicTypes = ["int", "float", "string"]
+        basicTypes = ["int", "float", "bool", "string", "list"]
         for k, v in data.items():
             if k in paramsType:
-                if paramsType[k]["type"] in basicTypes:
+                if paramsType[k]["type"] in basicTypes or regex.match(r"tuple\[\d+\]", paramsType[k]["type"]):
                     setattr(obj, k, v)
                     continue
             setattr(obj, k, eval(v))

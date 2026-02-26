@@ -831,6 +831,10 @@
         "zh_CN": "更改ID",
         "en_GB": "Change ID"
     },
+    "TUPLE_SIZE_ERR": {
+        "zh_CN": "元组大小必须为 {SIZE}，格式：tuple[{SIZE}]",
+        "en_GB": "Tuple size must be {SIZE}, format: tuple[{SIZE}]"
+    },
     "SELECT_FILE": {
         "zh_CN": "选择文件",
         "en_GB": "Select File"

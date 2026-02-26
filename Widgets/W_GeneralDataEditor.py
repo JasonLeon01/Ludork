@@ -1,12 +1,106 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 import os
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Utils import Locale, System
+from Utils import Locale
 import EditorStatus
 from Data import GameData
 from .Utils.WU_FileSelectorDialog import FileSelectorDialog
+
+
+class ListEditorWidget(QtWidgets.QWidget):
+    dataChanged = QtCore.pyqtSignal(list)
+
+    def __init__(self, data: list, parent=None):
+        super().__init__(parent)
+        self.dataList = list(data) if isinstance(data, list) else []
+        self._setupUI()
+
+    def _setupUI(self):
+        if self.layout():
+            QtWidgets.QWidget().setLayout(self.layout())
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
+
+        for i, val in enumerate(self.dataList):
+            row = QtWidgets.QWidget()
+            rowLayout = QtWidgets.QHBoxLayout(row)
+            rowLayout.setContentsMargins(0, 0, 0, 0)
+
+            le = QtWidgets.QLineEdit(str(val))
+            le.textChanged.connect(lambda text, idx=i: self._onItemChanged(idx, text))
+
+            delBtn = QtWidgets.QPushButton("-")
+            delBtn.setFixedWidth(24)
+            delBtn.clicked.connect(lambda _, idx=i: self._onItemRemoved(idx))
+
+            rowLayout.addWidget(le)
+            rowLayout.addWidget(delBtn)
+            layout.addWidget(row)
+
+        addBtn = QtWidgets.QPushButton("+")
+        addBtn.clicked.connect(self._onItemAdded)
+        layout.addWidget(addBtn)
+
+    def _onItemChanged(self, index, text):
+        if 0 <= index < len(self.dataList):
+            self.dataList[index] = text
+            self.dataChanged.emit(self.dataList)
+
+    def _onItemRemoved(self, index):
+        if 0 <= index < len(self.dataList):
+            self.dataList.pop(index)
+            self._setupUI()
+            self.dataChanged.emit(self.dataList)
+
+    def _onItemAdded(self):
+        self.dataList.append("")
+        self._setupUI()
+        self.dataChanged.emit(self.dataList)
+
+
+class TupleEditorWidget(QtWidgets.QWidget):
+    dataChanged = QtCore.pyqtSignal(list)
+
+    def __init__(self, data: list, size: int, parent=None):
+        super().__init__(parent)
+        self.targetSize = size
+        if isinstance(data, list):
+            self.dataList = list(data)[:size]
+            while len(self.dataList) < size:
+                self.dataList.append("")
+        else:
+            self.dataList = [""] * size
+
+        self._setupUI()
+
+    def _setupUI(self):
+        if self.layout():
+            QtWidgets.QWidget().setLayout(self.layout())
+
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
+
+        layout.addWidget(QtWidgets.QLabel("("))
+
+        for i, val in enumerate(self.dataList):
+            le = QtWidgets.QLineEdit(str(val))
+            le.textChanged.connect(lambda text, idx=i: self._onItemChanged(idx, text))
+            layout.addWidget(le)
+
+            if i < len(self.dataList) - 1:
+                layout.addWidget(QtWidgets.QLabel(","))
+
+        layout.addWidget(QtWidgets.QLabel(")"))
+
+    def _onItemChanged(self, index, text):
+        if 0 <= index < len(self.dataList):
+            self.dataList[index] = text
+            self.dataChanged.emit(self.dataList)
 
 
 class GeneralDataPage(QtWidgets.QWidget):
@@ -20,11 +114,9 @@ class GeneralDataPage(QtWidgets.QWidget):
 
         layout = QtWidgets.QVBoxLayout(self)
 
-        # Splitter
         self.splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         layout.addWidget(self.splitter)
 
-        # Left: Members list
         leftWidget = QtWidgets.QWidget()
         leftLayout = QtWidgets.QVBoxLayout(leftWidget)
         leftLayout.setContentsMargins(0, 0, 0, 0)
@@ -32,20 +124,17 @@ class GeneralDataPage(QtWidgets.QWidget):
         self.memberList.currentItemChanged.connect(self._onMemberSelected)
         leftLayout.addWidget(self.memberList)
 
-        # Add button for members
         btnLayout = QtWidgets.QHBoxLayout()
         self.btnAdd = QtWidgets.QPushButton("+")
         self.btnAdd.clicked.connect(self._onAddMember)
         btnLayout.addWidget(self.btnAdd)
         leftLayout.addLayout(btnLayout)
 
-        # Context menu
         self.memberList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.memberList.customContextMenuRequested.connect(self._onMemberListContextMenu)
 
         self.splitter.addWidget(leftWidget)
 
-        # Right: Property editor
         self.scrollArea = QtWidgets.QScrollArea()
         self.scrollArea.setWidgetResizable(True)
         self.propertyWidget = QtWidgets.QWidget()
@@ -101,7 +190,6 @@ class GeneralDataPage(QtWidgets.QWidget):
 
         self._ignoreChanges = True
 
-        # Always add ID (key) field first
         idLabel = QtWidgets.QLabel("ID")
         idWidget = QtWidgets.QLineEdit(self._currentMemberKey)
         idWidget.setReadOnly(True)
@@ -204,7 +292,6 @@ class GeneralDataPage(QtWidgets.QWidget):
         defaultValStr = defaultEdit.text()
         defaultVal = defaultValStr
 
-        # Simple type conversion for basic types
         if t == "int":
             try:
                 defaultVal = int(defaultValStr)
@@ -217,6 +304,43 @@ class GeneralDataPage(QtWidgets.QWidget):
                 defaultVal = 0.0
         elif t == "bool":
             defaultVal = defaultValStr.lower() == "true"
+        elif t == "list":
+            try:
+                if defaultValStr.strip().startswith("["):
+                    import ast
+
+                    defaultVal = ast.literal_eval(defaultValStr)
+                    if not isinstance(defaultVal, list):
+                        defaultVal = []
+                else:
+                    defaultVal = []
+            except:
+                defaultVal = []
+        elif t.startswith("tuple"):
+            import re
+
+            match = re.match(r"tuple\[(\d+)\]", t)
+            if not match:
+                QtWidgets.QMessageBox.warning(
+                    self, Locale.getContent("ERROR"), Locale.getContent("TUPLE_SIZE_ERR").format(SIZE=size)
+                )
+                return
+
+            size = int(match.group(1))
+            try:
+                if defaultValStr.strip().startswith("[") or defaultValStr.strip().startswith("("):
+                    import ast
+
+                    val = ast.literal_eval(defaultValStr)
+                    defaultVal = list(val) if isinstance(val, (list, tuple)) else []
+                else:
+                    defaultVal = []
+            except:
+                defaultVal = []
+
+            defaultVal = defaultVal[:size]
+            while len(defaultVal) < size:
+                defaultVal.append("")
 
         params[name] = {"type": t, "defaultValue": defaultVal}
         for mKey, mData in members.items():
@@ -257,6 +381,22 @@ class GeneralDataPage(QtWidgets.QWidget):
             layout.addWidget(btn)
 
             return container
+        elif paramType == "list":
+            w = ListEditorWidget(value if isinstance(value, list) else [])
+            w.dataChanged.connect(lambda v, k=key: self._onValueChanged(k, v))
+            return w
+        elif paramType.startswith("tuple"):
+            import re
+
+            match = re.match(r"tuple\[(\d+)\]", paramType)
+            if match:
+                size = int(match.group(1))
+                val = value if isinstance(value, (list, tuple)) else []
+                w = TupleEditorWidget(list(val), size)
+                w.dataChanged.connect(lambda v, k=key: self._onValueChanged(k, v))
+                return w
+            else:
+                return QtWidgets.QLabel("Invalid Tuple Type")
         else:
             w = QtWidgets.QLineEdit(str(value) if value is not None else "")
             w.textChanged.connect(lambda v, k=key: self._onValueChanged(k, v))
@@ -279,7 +419,6 @@ class GeneralDataPage(QtWidgets.QWidget):
         path = dialog.execSelect()
         if path:
             relPath = os.path.relpath(path, startDir)
-            # Normalize path separators
             relPath = relPath.replace("\\", "/")
             lineEdit.setText(relPath)
             self._onValueChanged(key, relPath)
@@ -320,15 +459,12 @@ class GeneralDataPage(QtWidgets.QWidget):
                 QtWidgets.QMessageBox.warning(self, Locale.getContent("ERROR"), "ID already exists!")
                 return
 
-            # Rename in data
             if oldID in members:
                 members[newID] = members.pop(oldID)
 
-                # Rename in list
                 current.setText(newID)
                 self._currentMemberKey = newID
 
-                # Refresh right panel to update ID field
                 self._buildPropertyForm()
 
                 self.modified.emit()
@@ -345,7 +481,6 @@ class GeneralDataPage(QtWidgets.QWidget):
                 QtWidgets.QMessageBox.warning(self, "Error", "ID already exists!")
                 return
 
-            # Create new member with default values
             params = fileData.get("params", {})
             newMember = {}
             for pk, pv in params.items():
@@ -387,7 +522,6 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
         self.setCentralWidget(central)
         mainLayout = QtWidgets.QVBoxLayout(central)
 
-        # Tab Widget
         self.tabWidget = QtWidgets.QTabWidget()
         self.tabWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.tabWidget.customContextMenuRequested.connect(self._onTabContextMenu)
@@ -398,18 +532,14 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
     def _onTabContextMenu(self, position):
         menu = QtWidgets.QMenu(self)
 
-        # Always allow adding new data type
         addAction = QtWidgets.QAction(Locale.getContent("NEW_DATA_TYPE"), self)
         addAction.triggered.connect(self._onAddDataType)
         menu.addAction(addAction)
 
-        # Check if we clicked on a tab
         tabIndex = self.tabWidget.tabBar().tabAt(position)
         if tabIndex >= 0:
             menu.addSeparator()
 
-            # Using lambda in a loop or direct binding can be tricky with context menus,
-            # but here we capture the current tabIndex immediately.
             renameAction = QtWidgets.QAction(Locale.getContent("RENAME_DATA_TYPE"), self)
             renameAction.triggered.connect(lambda checked=False, idx=tabIndex: self._onRenameDataType(idx))
             menu.addAction(renameAction)
@@ -430,13 +560,8 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
                 QtWidgets.QMessageBox.warning(self, Locale.getContent("ERROR"), Locale.getContent("DATA_TYPE_EXISTS"))
                 return
 
-            # Create new data type structure
             data[text] = {"params": {}, "members": {}}
-
-            # Re-populate to maintain sort order and fix display issues
             self._populateFiles()
-
-            # Select the new tab
             for i in range(self.tabWidget.count()):
                 if self.tabWidget.tabText(i) == text:
                     self.tabWidget.setCurrentIndex(i)
@@ -460,14 +585,10 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
                 QtWidgets.QMessageBox.warning(self, Locale.getContent("ERROR"), Locale.getContent("DATA_TYPE_EXISTS"))
                 return
 
-            # Rename key in dictionary
             if oldKey in data:
                 data[text] = data.pop(oldKey)
 
-            # Re-populate to maintain sort order
             self._populateFiles()
-
-            # Select the renamed tab
             for i in range(self.tabWidget.count()):
                 if self.tabWidget.tabText(i) == text:
                     self.tabWidget.setCurrentIndex(i)
@@ -497,7 +618,6 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
         self.tabWidget.clear()
         data = getattr(GameData, "generalData", {})
 
-        # Sort keys to ensure consistent order
         for key in sorted(data.keys()):
             page = GeneralDataPage(key, self)
             page.modified.connect(self.modified.emit)
