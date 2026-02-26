@@ -11,8 +11,8 @@ class _BaseBattler:
     HP: int = 1000
     ATK: int = 10
     DEF: int = 10
-    Exp: int = 0
-    Gold: int = 0
+    EXP: int = 0
+    GOLD: int = 0
 
 
 class Battler(_BaseBattler):

@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import List, Tuple, Union, TYPE_CHECKING
 from .. import (
+    TypeAdapter,
     Pair,
     IntRect,
     Vector2i,
@@ -20,15 +21,8 @@ if TYPE_CHECKING:
 
 
 class Canvas(SpriteBase, FunctionalBase):
+    @TypeAdapter(rect=([tuple, list], IntRect, lambda pos, size: IntRect(Vector2i(*pos), Vector2i(*size))))
     def __init__(self, rect: Union[IntRect, Tuple[Pair[int], Pair[int]], List[List[int]]]) -> None:
-        assert isinstance(rect, (IntRect, Tuple, List)), "rect must be a tuple, list or IntRect"
-        if isinstance(rect, (tuple, list)):
-            position, size = rect
-            x, y = position
-            w, h = size
-            position = Vector2i(x, y)
-            size = Vector2i(w, h)
-            rect = IntRect(position, size)
         self._size = Math.ToVector2u(rect.size)
         size = Math.ToVector2u(Render.getRealSize(rect.size))
         self._canvas: RenderTexture = RenderTexture(size)
@@ -47,12 +41,10 @@ class Canvas(SpriteBase, FunctionalBase):
         origin = super().getOrigin()
         return origin / System.getScale()
 
+    @TypeAdapter(origin=([tuple, list], Vector2f))
     def setOrigin(self, origin: Union[Vector2f, Pair[float], List[float]]) -> None:
         from Engine import System
 
-        assert isinstance(origin, (Vector2f, Tuple, List)), "origin must be a tuple, list or Vector2f"
-        if isinstance(origin, (tuple, list)):
-            origin = Vector2f(*origin)
         super().setOrigin(origin * System.getScale())
 
     def getSize(self) -> Vector2u:

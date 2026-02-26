@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import Optional, Union, Tuple, List
-from ... import Pair, Texture, IntRect, Vector2i, Utils, ExecSplit, InvalidVars
+from ... import TypeAdapter, Pair, Texture, IntRect, Vector2i, Utils, ExecSplit, InvalidVars
 from ...Utils import Inner
 from ..G_Material import Material
 from .A_Actor import Actor
@@ -43,15 +43,13 @@ class Character(Actor):
         return super().setTextureRect(rectangle)
 
     @ExecSplit(success=(True,), fail=(False,))
+    @TypeAdapter(offset=([tuple, list], Vector2i))
     def MapMove(self, offset: Union[Vector2i, Pair[int], List[int]]) -> None:
         result = super().MapMove(offset)
         if not result:
-            assert isinstance(offset, (Vector2i, Tuple, List)), "offset must be a Vector2i or a tuple"
-            if isinstance(offset, (tuple, list)):
-                offset = Vector2i(*offset)
-                vx = offset.x
-                vy = offset.y
-                self._applyDirection(vx, vy)
+            vx = offset.x
+            vy = offset.y
+            self._applyDirection(vx, vy)
         return result
 
     def update(self, deltaTime: float) -> None:

@@ -15,6 +15,7 @@ class GameData:
     commonFunctionsData: Dict[str, Any]
     blueprintsData: Dict[str, Any]
     animationsData: Dict[str, Any]
+    generalData: Dict[str, Any]
 
     undoStack: List[Dict[str, Any]]
     redoStack: List[Dict[str, Any]]
@@ -32,12 +33,14 @@ class GameData:
         cls.commonFunctionsData = {}
         cls.blueprintsData = {}
         cls.animationsData = {}
+        cls.generalData = {}
         cls.loadData("Configs", cls.systemConfigData)
         cls.loadData("Tilesets", cls.tilesetData, Tileset.fromData, "tileset")
         cls.loadData("Maps", cls.mapData, needType="map")
         cls.loadData("CommonFunctions", cls.commonFunctionsData, needType="commonFunction")
         cls.loadData("Blueprints", cls.blueprintsData, needType="blueprint")
         cls.loadData("Animations", cls.animationsData, needType="animation")
+        cls.loadData("General", cls.generalData)
 
         cls.classDict = Engine.NodeGraph.ClassDict()
 
@@ -89,6 +92,7 @@ class GameData:
             "commonFunctionsData": {"A": [], "D": [], "U": []},
             "blueprintsData": {"A": [], "D": [], "U": []},
             "animationsData": {"A": [], "D": [], "U": []},
+            "generalData": {"A": [], "D": [], "U": []},
         }
 
         origin = cls._originData
@@ -101,6 +105,7 @@ class GameData:
             "commonFunctionsData",
             "blueprintsData",
             "animationsData",
+            "generalData",
         ]:
             curr_sec = current.get(section, {})
             orig_sec = origin.get(section, {})
@@ -180,6 +185,15 @@ class GameData:
                 changed_anims.add(k)
         if changed_anims:
             diffs.append(f"Animations: {', '.join(sorted(changed_anims))}")
+
+        oldGen = oldData.get("generalData", {})
+        newGen = newData.get("generalData", {})
+        changed_gen = set()
+        for k in set(oldGen.keys()) | set(newGen.keys()):
+            if oldGen.get(k) != newGen.get(k):
+                changed_gen.add(k)
+        if changed_gen:
+            diffs.append(f"General: {', '.join(sorted(changed_gen))}")
 
         return diffs
 
@@ -390,6 +404,49 @@ class GameData:
             except Exception:
                 final_details["Failed"].append(key)
 
+        # General
+        generalRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "General")
+        c_gen = changes["generalData"]
+        for key in c_gen["A"] + c_gen["U"]:
+            data = cls.generalData.get(key)
+            if data is None:
+                final_details["Failed"].append(key)
+                continue
+            payload = copy.deepcopy(data)
+            try:
+                if "isJson" in payload:
+                    del payload["isJson"]
+                    File.saveJSONData(os.path.join(generalRoot, f"{key}.json"), payload)
+                else:
+                    File.saveData(os.path.join(generalRoot, f"{key}.dat"), payload)
+
+                if key in c_gen["A"]:
+                    final_details["A"].append(key)
+                else:
+                    final_details["U"].append(key)
+                cls._originData["generalData"][key] = copy.deepcopy(data)
+            except Exception:
+                final_details["Failed"].append(key)
+
+        for key in c_gen["D"]:
+            try:
+                fp_json = os.path.join(generalRoot, f"{key}.json")
+                fp_dat = os.path.join(generalRoot, f"{key}.dat")
+                deleted = False
+                if os.path.exists(fp_json):
+                    os.remove(fp_json)
+                    deleted = True
+                if os.path.exists(fp_dat):
+                    os.remove(fp_dat)
+                    deleted = True
+
+                if deleted:
+                    final_details["D"].append(key)
+                if key in cls._originData["generalData"]:
+                    del cls._originData["generalData"][key]
+            except Exception:
+                final_details["Failed"].append(key)
+
         lines = []
         if final_details["A"]:
             lines.append(f"A [{', '.join(final_details['A'])}]")
@@ -411,6 +468,7 @@ class GameData:
             "commonFunctionsData": cls.commonFunctionsData,
             "blueprintsData": cls.blueprintsData,
             "animationsData": cls.animationsData,
+            "generalData": cls.generalData,
         }
 
     @classmethod

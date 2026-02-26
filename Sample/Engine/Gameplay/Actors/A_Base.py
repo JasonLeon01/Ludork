@@ -5,6 +5,7 @@ import copy
 import warnings
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
 from ... import (
+    TypeAdapter,
     Pair,
     Sprite,
     IntRect,
@@ -32,21 +33,13 @@ class _ActorBase(Sprite):
     animatable: bool = False
     material: Material = Material()
 
+    @TypeAdapter(rect=([tuple, list], IntRect, lambda pos, size: IntRect(Vector2i(*pos), Vector2i(*size))))
     def __init__(
         self,
         texture: Optional[Texture] = None,
         rect: Union[IntRect, Tuple[Pair[int], Pair[int]], List[List[int]]] = None,
         tag: Optional[str] = None,
     ) -> None:
-        if not rect is None:
-            assert isinstance(rect, (IntRect, Tuple, List)), "rect must be a tuple, list, or IntRect"
-            if isinstance(rect, (tuple, list)):
-                position, size = rect
-                x, y = position
-                w, h = size
-                position = Vector2i(x, y)
-                size = Vector2i(w, h)
-                rect = IntRect(position, size)
         args = [texture]
         if not rect is None:
             args.append(rect)
@@ -116,11 +109,8 @@ class _ActorBase(Sprite):
         return (self.getRelativeMapPosition().x, self.getRelativeMapPosition().y)
 
     @ExecSplit(default=(None,))
+    @TypeAdapter(position=([tuple, list], Vector2f))
     def setPosition(self, position: Union[Vector2f, Pair[float], List[float]]) -> None:
-        assert isinstance(position, (Vector2f, Tuple, List)), "position must be a tuple, list, or Vector2f"
-        if isinstance(position, (tuple, list)):
-            x, y = position
-            position = Vector2f(x, y)
         if self.getParent():
             parentPosition = self.getParent().getPosition()
             self._relativePosition = position - parentPosition
@@ -132,38 +122,26 @@ class _ActorBase(Sprite):
                 child._updatePositionFromParent()
 
     @ExecSplit(default=(None,))
+    @TypeAdapter(position=([tuple, list], Vector2f))
     def setRelativePosition(self, position: Union[Vector2f, Pair[float], List[float]]) -> None:
-        assert isinstance(position, (Vector2f, Tuple, List)), "position must be a tuple, list, or Vector2f"
-        if isinstance(position, (tuple, list)):
-            x, y = position
-            position = Vector2f(x, y)
         parentPosition = Vector2f(0, 0)
         if self.getParent():
             parentPosition = self.getParent().getPosition()
         self.setPosition(parentPosition + position)
 
     @ExecSplit(default=(None,))
+    @TypeAdapter(position=([tuple, list], Vector2u))
     def setMapPosition(self, position: Union[Vector2u, Pair[int], List[int]]) -> None:
-        assert isinstance(position, (Vector2u, Tuple, List)), "position must be a tuple, list, or Vector2u"
-        if isinstance(position, (tuple, list)):
-            x, y = position
-            position = Vector2u(x, y)
         self.setPosition(Vector2f(position.x * GetCellSize(), position.y * GetCellSize()))
 
     @ExecSplit(default=(None,))
+    @TypeAdapter(position=([tuple, list], Vector2u))
     def setRelativeMapPosition(self, position: Union[Vector2u, Pair[int], List[int]]) -> None:
-        assert isinstance(position, (Vector2u, Tuple, List)), "position must be a tuple, list, or Vector2u"
-        if isinstance(position, (tuple, list)):
-            x, y = position
-            position = Vector2u(x, y)
         self.setRelativePosition(Vector2f(position.x * GetCellSize(), position.y * GetCellSize()))
 
     @ExecSplit(default=(None,))
+    @TypeAdapter(offset=([tuple, list], Vector2f))
     def move(self, offset: Union[Vector2f, Pair[float], List[float]]) -> None:
-        assert isinstance(offset, (Vector2f, Tuple, List)), "offset must be a tuple, list, or Vector2f"
-        if isinstance(offset, (tuple, list)):
-            x, y = offset
-            offset = Vector2f(x, y)
         super().move(offset)
         self._relativePosition += offset
         if self.getChildren():
@@ -238,11 +216,8 @@ class _ActorBase(Sprite):
         return (self._relativeScale.x, self._relativeScale.y)
 
     @ExecSplit(default=(None,))
+    @TypeAdapter(scale=([tuple, list], Vector2f))
     def setScale(self, scale: Union[Vector2f, Pair[float], List[float]]) -> None:
-        assert isinstance(scale, (Vector2f, Tuple, List)), "scale must be a tuple, list, or Vector2f"
-        if isinstance(scale, (tuple, list)):
-            x, y = scale
-            scale = Vector2f(x, y)
         if self.getParent():
             parentScale = self.getParent().getScale()
             self._relativeScale = scale.componentWiseDiv(parentScale)
@@ -254,12 +229,8 @@ class _ActorBase(Sprite):
                 child._updateScaleFromParent()
 
     @ExecSplit(default=(None,))
+    @TypeAdapter(factor=([tuple, list], Vector2f))
     def scale(self, factor: Union[Vector2f, Pair[float], List[float]]) -> None:
-        assert isinstance(factor, (Vector2f, Tuple, List)), "factor must be a tuple, list, or Vector2f"
-        if isinstance(factor, (tuple, list)):
-            x, y = factor
-            factor = Vector2f(x, y)
-
         self._relativeScale = self._relativeScale.componentWiseMul(factor)
         super().scale(factor)
         if self.getChildren():
@@ -267,11 +238,8 @@ class _ActorBase(Sprite):
                 child._updateScaleFromParent()
 
     @ExecSplit(default=(None,))
+    @TypeAdapter(scale=([tuple, list], Vector2f))
     def setRelativeScale(self, scale: Union[Vector2f, Pair[float], List[float]]) -> None:
-        assert isinstance(scale, (Vector2f, Tuple, List)), "scale must be a tuple, list, or Vector2f"
-        if isinstance(scale, (tuple, list)):
-            x, y = scale
-            scale = Vector2f(x, y)
         parentScale = Vector2f(1, 1)
         if self.getParent():
             parentScale = self.getParent().getScale()
@@ -287,11 +255,8 @@ class _ActorBase(Sprite):
         return super().getOrigin()
 
     @ExecSplit(default=(None,))
+    @TypeAdapter(origin=([tuple, list], Vector2f))
     def setOrigin(self, origin: Union[Vector2f, Pair[float], List[float]]) -> None:
-        assert isinstance(origin, (Vector2f, Tuple, List)), "origin must be a tuple, list, or Vector2f"
-        if isinstance(origin, (tuple, list)):
-            x, y = origin
-            origin = Vector2f(x, y)
         return super().setOrigin(origin)
 
     @ReturnType(translation=Vector2f)
@@ -299,10 +264,8 @@ class _ActorBase(Sprite):
         return self._translation
 
     @ExecSplit(default=(None,))
+    @TypeAdapter(translation=([tuple, list], Vector2f))
     def setTranslation(self, translation: Union[Vector2f, Pair[float], List[float]]) -> None:
-        assert isinstance(translation, (Vector2f, Tuple, List)), "translation must be a tuple, list, or Vector2f"
-        if isinstance(translation, (tuple, list)):
-            translation = Vector2f(*translation)
         self._translation = translation
         self.setPosition(self.getPosition())
 
@@ -453,10 +416,8 @@ class _ActorBase(Sprite):
     def setGraph(self, graph: Graph) -> None:
         self._graph = graph
 
+    @TypeAdapter(offset=([tuple, list], Vector2f))
     def _superMove(self, offset: Union[Vector2f, Pair[float], List[float]]) -> None:
-        assert isinstance(offset, (Vector2f, Tuple, List)), "offset must be a tuple, list, or Vector2f"
-        if isinstance(offset, (tuple, list)):
-            offset = Vector2f(*offset)
         super().move(offset)
 
     def _updatePositionFromParent(self) -> None:

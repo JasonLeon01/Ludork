@@ -31,7 +31,9 @@ def initConfig():
         EditorStatus.editorConfig[EditorStatus.APP_NAME]["UpperLeftWidth"] = "320"
         EditorStatus.editorConfig[EditorStatus.APP_NAME]["UpperRightWidth"] = "320"
         lang, _ = locale.getdefaultlocale()
-        EditorStatus.editorConfig[EditorStatus.APP_NAME]["Language"] = lang if lang else "en_GB"
+        EditorStatus.editorConfig[EditorStatus.APP_NAME]["Language"] = (
+            lang if lang in Locale.getLocaleKeys() else "en_GB"
+        )
         EditorStatus.editorConfig[EditorStatus.APP_NAME]["Theme"] = "dark_blue.xml"
         with open(os.path.join(File.getIniPath(), f"{EditorStatus.APP_NAME}.ini"), "w") as f:
             EditorStatus.editorConfig.write(f)
@@ -40,7 +42,7 @@ def initConfig():
     EditorStatus.LANGUAGE = EditorStatus.editorConfig[EditorStatus.APP_NAME]["Language"]
 
 
-def _handle_unexpected_exception(exc_type, exc_value, exc_tb):
+def _handleUnexpectedException(exc_type, exc_value, exc_tb):
     traceback.print_exception(exc_type, exc_value, exc_tb, file=sys.stderr)
     try:
         sys.stderr.flush()
@@ -59,12 +61,12 @@ class App(QApplication):
         try:
             return super().notify(receiver, event)
         except Exception:
-            _handle_unexpected_exception(*sys.exc_info())
+            _handleUnexpectedException(*sys.exc_info())
             return False
 
 
 def _thread_excepthook(args):
-    _handle_unexpected_exception(args.exc_type, args.exc_value, args.exc_traceback)
+    _handleUnexpectedException(args.exc_type, args.exc_value, args.exc_traceback)
 
 
 def main():
@@ -76,7 +78,7 @@ def main():
     QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
     QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
     app = App(sys.argv)
-    sys.excepthook = _handle_unexpected_exception
+    sys.excepthook = _handleUnexpectedException
     threading.excepthook = _thread_excepthook
     initConfig()
     screen = app.primaryScreen()
@@ -123,4 +125,4 @@ if __name__ == "__main__":
         else:
             main()
     except Exception:
-        _handle_unexpected_exception(*sys.exc_info())
+        _handleUnexpectedException(*sys.exc_info())

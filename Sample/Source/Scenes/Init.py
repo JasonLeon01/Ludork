@@ -55,7 +55,7 @@ class Scene(SceneBase):
         self.progressBar = progressBar(((barX, barY), (barWidth, barHeight)))
         self.addUI(self.progressBar)
         self.progressValue = 0.0
-        self.progressTotal = 3
+        self.progressTotal = Data.getDataKinds()
         self.processedCount = 0
         self.progressDone = False
         self.hasSwitched = False
@@ -111,15 +111,17 @@ class Scene(SceneBase):
                 self.progressValue = self.processedCount / self.progressTotal
 
     def loadGameData(self) -> None:
-        Data._data.loadAnimations()
+        Data.loadAnimations()
         self.processedCount += 1
         if self.progressTotal > 0:
             self.progressValue = self.processedCount / self.progressTotal
-        Data._data.loadCommonFunctions()
+        Data.loadCommonFunctions()
         self.processedCount += 1
         if self.progressTotal > 0:
             self.progressValue = self.processedCount / self.progressTotal
-        Data._data.loadTilesets()
+        Data.loadTilesets()
+        self.processedCount += 1
+        Data.loadGeneralData()
         self.processedCount += 1
         if self.progressTotal > 0:
             self.progressValue = self.processedCount / self.progressTotal

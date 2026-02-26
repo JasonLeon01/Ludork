@@ -766,5 +766,97 @@
     "LANGUAGE_CHANGE_RESTART": {
         "zh_CN": "语言设置将在重启编辑器后生效。",
         "en_GB": "Language changes will take effect after restarting the editor."
+    },
+    "CONFIRM_DELETE_PARAM": {
+        "zh_CN": "确认删除字段 '{}' 吗？\n这将从所有成员中移除该数据。",
+        "en_GB": "Are you sure you want to delete the field '{}'?\nThis will remove it from all members."
+    },
+    "NEW_DATA_TYPE": {
+        "zh_CN": "新建数据类型",
+        "en_GB": "New Data Type"
+    },
+    "RENAME_DATA_TYPE": {
+        "zh_CN": "重命名数据类型",
+        "en_GB": "Rename Data Type"
+    },
+    "DELETE_DATA_TYPE": {
+        "zh_CN": "删除数据类型",
+        "en_GB": "Delete Data Type"
+    },
+    "CONFIRM_DELETE_DATA_TYPE": {
+        "zh_CN": "确认删除数据类型 '{}' 吗？\n这将不可恢复。",
+        "en_GB": "Are you sure you want to delete data type '{}'?\nThis cannot be undone."
+    },
+    "ENTER_DATA_TYPE_NAME": {
+        "zh_CN": "请输入数据类型名称",
+        "en_GB": "Enter data type name"
+    },
+    "DATA_TYPE_EXISTS": {
+        "zh_CN": "数据类型已存在",
+        "en_GB": "Data type already exists"
+    },
+    "GENERAL_DATA": {
+        "zh_CN": "通用数据",
+        "en_GB": "General Data"
+    },
+    "PARAM_NAME": {
+        "zh_CN": "字段名",
+        "en_GB": "Field Name"
+    },
+    "PARAM_TYPE": {
+        "zh_CN": "字段类型",
+        "en_GB": "Field Type"
+    },
+    "DEFAULT_VALUE": {
+        "zh_CN": "默认值",
+        "en_GB": "Default Value"
+    },
+    "PARAM_EXISTS": {
+        "zh_CN": "字段已存在",
+        "en_GB": "Field already exists"
+    },
+    "GENERAL_DATA_EDITOR": {
+        "zh_CN": "通用数据编辑器",
+        "en_GB": "General Data Editor"
+    },
+    "ADD_MEMBER": {
+        "zh_CN": "添加成员",
+        "en_GB": "Add Member"
+    },
+    "REMOVE_MEMBER": {
+        "zh_CN": "删除成员",
+        "en_GB": "Remove Member"
+    },
+    "CHANGE_ID": {
+        "zh_CN": "更改ID",
+        "en_GB": "Change ID"
+    },
+    "SELECT_FILE": {
+        "zh_CN": "选择文件",
+        "en_GB": "Select File"
+    },
+    "EXPORT_LOCALE": {
+        "zh_CN": "导出本地化表",
+        "en_GB": "Export Locale"
+    },
+    "LOCALE_DIR_NOT_FOUND": {
+        "zh_CN": "未找到 Locale 目录",
+        "en_GB": "Locale directory not found"
+    },
+    "LOCALE_XLSX_NOT_FOUND": {
+        "zh_CN": "未找到 Locale.xlsx",
+        "en_GB": "Locale.xlsx not found"
+    },
+    "LOCALE_XLSX_INVALID": {
+        "zh_CN": "Locale.xlsx 格式无效：首行需为 ID 与语言列",
+        "en_GB": "Invalid Locale.xlsx format: first row must be ID and language columns"
+    },
+    "EXPORT_LOCALE_SUCCESS": {
+        "zh_CN": "本地化表导出完成：{langs}",
+        "en_GB": "Locale export completed: {langs}"
+    },
+    "EXPORT_LOCALE_FAILED": {
+        "zh_CN": "本地化表导出失败",
+        "en_GB": "Locale export failed"
     }
 }

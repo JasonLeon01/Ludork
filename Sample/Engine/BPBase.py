@@ -39,3 +39,13 @@ class BPBase:
                     graph.execute(eventName)
         else:
             getattr(obj, eventName)(**kwargs)
+
+    @staticmethod
+    def ApplyGeneralData(obj: object, data: Dict[str, Any], paramsType: Dict[str, Any]) -> None:
+        basicTypes = ["int", "float", "string"]
+        for k, v in data.items():
+            if k in paramsType:
+                if paramsType[k]["type"] in basicTypes:
+                    setattr(obj, k, v)
+                    continue
+            setattr(obj, k, eval(v))

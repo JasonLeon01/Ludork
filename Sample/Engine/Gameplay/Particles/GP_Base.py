@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import Callable, Optional, Tuple, List, Union, TYPE_CHECKING
-from ... import Pair, Angle, Vector2f, Color, degrees
+from ... import TypeAdapter, Pair, Angle, Vector2f, Color, degrees
 
 if TYPE_CHECKING:
     from .GP_System import System
@@ -14,25 +14,19 @@ class Info:
     rotation: Angle
     scale: Vector2f
 
+    @TypeAdapter(
+        position=([tuple, list], Vector2f),
+        color=([tuple, list], Color),
+        rotation=(float, Angle, degrees),
+        scale=([tuple, list], Vector2f),
+    )
     def __init__(
         self,
-        position: Union[Vector2f, Pair[float]],
-        color: Union[Color, Tuple[int, int, int, int]] = Color.White,
+        position: Union[Vector2f, Pair[float], List[float]],
+        color: Union[Color, Tuple[int, int, int, int], List[int]] = Color.White,
         rotation: Union[Angle, float] = degrees(0.0),
-        scale: Union[Vector2f, Pair[float]] = Vector2f(1.0, 1.0),
+        scale: Union[Vector2f, Pair[float], List[float]] = Vector2f(1.0, 1.0),
     ) -> None:
-        assert isinstance(position, (Vector2f, Tuple, List)), "position must be Vector2f or Pair[float] or List[float]"
-        assert isinstance(color, (Color, Tuple, List)), "color must be Color or Tuple[int, int, int, int] or List[int]"
-        assert isinstance(rotation, (Angle, float)), "rotation must be Angle or float"
-        assert isinstance(scale, (Vector2f, Tuple, List)), "scale must be Vector2f or Pair[float] or List[float]"
-        if isinstance(position, (tuple, list)):
-            position = Vector2f(*position)
-        if isinstance(color, (tuple, list)):
-            color = Color(*color)
-        if isinstance(rotation, float):
-            rotation = degrees(rotation)
-        if isinstance(scale, (tuple, list)):
-            scale = Vector2f(*scale)
         self.position = position
         self.color = color
         self.rotation = rotation

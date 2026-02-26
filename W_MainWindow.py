@@ -10,6 +10,7 @@ import json
 import copy
 import inspect
 import dataclasses
+import openpyxl
 from typing import Any, Dict, Optional, get_type_hints
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QSize
@@ -35,6 +36,7 @@ from Widgets import (
     PackSelectionDialog,
     MarkdownPreviewer,
 )
+from Widgets.W_GeneralDataEditor import GeneralDataEditor
 from Widgets.Utils import MapEditDialog, SingleRowDialog, Toast, FPSGraphDialog
 import EditorStatus
 from Data import GameData
@@ -81,6 +83,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.topSplitter = QtWidgets.QSplitter(QtCore.Qt.Vertical)
         self._sizesInitialized = False
         self._hasShown = False
+        self.generalDataEditor: Optional[GeneralDataEditor] = None
 
         self._actNewProject = QtWidgets.QAction(Locale.getContent("NEW_PROJECT"), self)
         self._actNewProject.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_FileIcon))
@@ -102,8 +105,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actDatabaseSystemConfig = QtWidgets.QAction(Locale.getContent("SYSTEM_CONFIG"), self)
         self._actDatabaseTilesetsData = QtWidgets.QAction(Locale.getContent("TILESETS_DATA"), self)
         self._actDatabaseCommonFunctions = QtWidgets.QAction(Locale.getContent("COMMON_FUNCTIONS"), self)
+        self._actDatabaseGeneralData = QtWidgets.QAction(Locale.getContent("GENERAL_DATA"), self)
+        self._actDatabaseGeneralData.setShortcut(QtGui.QKeySequence("F11"))
+        self._actDatabaseGeneralData.triggered.connect(self._onGeneralDataEditor)
         self._actHelpExplanation = QtWidgets.QAction(Locale.getContent("HELP_EXPLANATION"), self)
         self._languageActionGroup = QtWidgets.QActionGroup(self)
+        self._actDatabaseExportLocale = QtWidgets.QAction(Locale.getContent("EXPORT_LOCALE"), self)
+        self._actDatabaseExportLocale.setShortcut(QtGui.QKeySequence("F12"))
+        self._actDatabaseExportLocale.triggered.connect(self._onDatabaseExportLocale)
 
         self._mapClipboard = None
         self._actCopyMap = QtWidgets.QAction(Locale.getContent("COPY"), self)
@@ -859,6 +868,8 @@ class MainWindow(QtWidgets.QMainWindow):
         _dbMenu.addAction(self._actDatabaseSystemConfig)
         _dbMenu.addAction(self._actDatabaseTilesetsData)
         _dbMenu.addAction(self._actDatabaseCommonFunctions)
+        _dbMenu.addAction(self._actDatabaseGeneralData)
+        _dbMenu.addAction(self._actDatabaseExportLocale)
 
         _helpMenu = self._menuBar.addMenu(Locale.getContent("HELP"))
         self._actHelpExplanation.triggered.connect(self._onHelpExplanation)
@@ -1367,6 +1378,67 @@ class MainWindow(QtWidgets.QMainWindow):
         self._commonFunctionWindow.activateWindow()
         self._commonFunctionWindow.raise_()
         self._commonFunctionWindow.show()
+
+    def _onDatabaseExportLocale(self, checked: bool = False) -> None:
+        import EditorStatus
+
+        projPath = EditorStatus.PROJ_PATH
+        localeDir = os.path.join(projPath, "Data", "Locale")
+        xlsxPath = os.path.join(localeDir, "Locale.xlsx")
+        if not os.path.exists(localeDir):
+            QtWidgets.QMessageBox.warning(self, "Hint", Locale.getContent("LOCALE_DIR_NOT_FOUND"))
+            return
+        if not os.path.exists(xlsxPath):
+            QtWidgets.QMessageBox.warning(self, "Hint", Locale.getContent("LOCALE_XLSX_NOT_FOUND"))
+            return
+        try:
+            wb = openpyxl.load_workbook(xlsxPath, data_only=True)
+            ws = wb.active
+            headers = []
+            for cell in next(ws.iter_rows(min_row=1, max_row=1, values_only=True)):
+                headers.append("" if cell is None else str(cell).strip())
+            if not headers or headers[0].upper() != "ID" or len(headers) < 2:
+                QtWidgets.QMessageBox.warning(self, "Hint", Locale.getContent("LOCALE_XLSX_INVALID"))
+                return
+            langs = [h for h in headers[1:] if isinstance(h, str) and h.strip()]
+            langMaps: Dict[str, Dict[str, str]] = {lang: {} for lang in langs}
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                if not row:
+                    continue
+                key = row[0]
+                if key is None:
+                    continue
+                keyStr = str(key).strip()
+                if not keyStr:
+                    continue
+                for i, lang in enumerate(langs):
+                    idx = i + 1
+                    val = row[idx] if idx < len(row) else None
+                    if val is None:
+                        continue
+                    langMaps[lang][keyStr] = str(val)
+            for lang, mapping in langMaps.items():
+                outPath = os.path.join(localeDir, lang)
+                File.saveData(outPath, mapping)
+            QtWidgets.QMessageBox.information(
+                self,
+                "Hint",
+                Locale.getContent("EXPORT_LOCALE_SUCCESS").format(langs=", ".join(langs)),
+            )
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Hint",
+                Locale.getContent("EXPORT_LOCALE_FAILED") + "\n" + str(e) + "\n" + traceback.format_exc(),
+            )
+
+    def _onGeneralDataEditor(self, checked: bool = False) -> None:
+        self.generalDataEditor = GeneralDataEditor(self)
+        self.generalDataEditor.modified.connect(self._refreshInfo)
+        self.generalDataEditor.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        self.generalDataEditor.show()
+        self.generalDataEditor.raise_()
+        self.generalDataEditor.activateWindow()
 
     def _onDatabaseShowBlueprint(self, title: str, data: Dict[str, Any]) -> None:
         self._blueprintEditor = BluePrintEditor(title, data, self)

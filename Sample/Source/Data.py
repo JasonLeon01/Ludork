@@ -13,57 +13,52 @@ from Engine.NodeGraph import ClassDict, Graph, DataNode, Node
 
 class _Data:
     def __init__(self):
+        self.dataKinds = 4
         self._animationData: Dict[str, Dict[str, Any]] = {}
         self._commonFunctionsData: Dict[str, Dict[str, Any]] = {}
         self._tilesetData: Dict[str, Dict[str, Any]] = {}
         self._animCache: Dict[str, Dict[str, Any]] = {}
+        self._generalData: Dict[str, Dict[str, Any]] = {}
         self._classDict = ClassDict()
-
-    def loadData(self):
-        self.loadAnimations()
-        self.loadCommonFunctions()
-        self.loadTilesets()
 
     def loadAnimations(self):
         animationRoot = os.path.join(".", "Data", "Animations")
-        if not os.path.exists(animationRoot):
-            raise FileNotFoundError(f"Error: Animation data path {animationRoot} does not exist.")
-        for file in os.listdir(animationRoot):
-            namePart, extensionPart = self.splitCompound(file)
-            if extensionPart != ".anim.dat":
-                continue
-            data = self.__getData(extensionPart, animationRoot, file, {".anim.dat": File.loadData})
-            payload = copy.deepcopy(data)
-            if "type" in payload:
-                del payload["type"]
-            self._animationData[namePart] = payload
-            self._cacheAnimation(namePart, payload)
+        self._loadData(animationRoot, self._animationData, ".anim.dat", {".anim.dat": File.loadData})
 
     def loadCommonFunctions(self):
         commonRoot = os.path.join(".", "Data", "CommonFunctions")
-        if not os.path.exists(commonRoot):
-            raise FileNotFoundError(f"Error: Common function data path {commonRoot} does not exist.")
-        for file in os.listdir(commonRoot):
-            namePart, extensionPart = self.splitCompound(file)
-            if extensionPart != ".dat":
-                continue
-            data = self.__getData(extensionPart, commonRoot, file, {".dat": File.loadData})
-            payload = copy.deepcopy(data)
-            if "type" in payload:
-                del payload["type"]
-            self._commonFunctionsData[namePart] = payload
+        self._loadData(commonRoot, self._commonFunctionsData, ".dat", {".dat": File.loadData})
 
     def loadTilesets(self):
         tilesetRoot = os.path.join(".", "Data", "Tilesets")
-        if not os.path.exists(tilesetRoot):
-            raise FileNotFoundError(f"Error: Tileset data path {tilesetRoot} does not exist.")
-        for file in os.listdir(tilesetRoot):
+        self._loadData(tilesetRoot, self._tilesetData, defaultType={".dat": File.loadData}, wrapper=Tileset.fromData)
+
+    def loadGeneralData(self):
+        generalRoot = os.path.join(".", "Data", "General")
+        self._loadData(generalRoot, self._generalData)
+
+    def _loadData(
+        self,
+        dataRoot: str,
+        dataVal: Dict[str, Any],
+        needExt: Optional[str] = None,
+        defaultType: Dict[str, Callable] = {".dat": File.loadData, ".json": File.getJSONData},
+        wrapper: Optional[Callable[[Any], None]] = None,
+    ):
+        if not os.path.exists(dataRoot):
+            raise FileNotFoundError(f"Error: Data path {dataRoot} does not exist.")
+        for file in os.listdir(dataRoot):
             namePart, extensionPart = self.splitCompound(file)
-            data = self.__getData(extensionPart, tilesetRoot, file, {".dat": File.loadData})
+            if not needExt is None and extensionPart != needExt:
+                continue
+            data = self.__getData(extensionPart, dataRoot, file, defaultType)
             payload = copy.deepcopy(data)
             if "type" in payload:
                 del payload["type"]
-            self._tilesetData[namePart] = Tileset.fromData(payload)
+            if wrapper is None:
+                dataVal[namePart] = payload
+            else:
+                dataVal[namePart] = wrapper(payload)
 
     def _cacheAnimation(self, name: str, data: Dict[str, Any]):
         if name in self._animCache:
@@ -115,6 +110,9 @@ class _Data:
 
     def getTileset(self, name: str) -> Tileset:
         return self._tilesetData[name]
+
+    def getGeneralData(self, name: str) -> Dict[str, Any]:
+        return self._generalData[name]
 
     def getClass(self, classPath: str) -> type:
         return self._classDict.get(classPath)
@@ -197,8 +195,24 @@ class _Data:
 _data = _Data()
 
 
-def loadData() -> None:
-    _data.loadData()
+def getDataKinds() -> int:
+    return _data.dataKinds
+
+
+def loadAnimations() -> None:
+    _data.loadAnimations()
+
+
+def loadCommonFunctions() -> None:
+    _data.loadCommonFunctions()
+
+
+def loadTilesets() -> None:
+    _data.loadTilesets()
+
+
+def loadGeneralData() -> None:
+    _data.loadGeneralData()
 
 
 def getAnimation(name: str) -> Dict[str, Any]:
@@ -207,6 +221,10 @@ def getAnimation(name: str) -> Dict[str, Any]:
 
 def getTileset(name: str) -> Tileset:
     return _data.getTileset(name)
+
+
+def getGeneralData(name: str) -> Dict[str, Any]:
+    return _data.getGeneralData(name)
 
 
 def getClass(classPath: str) -> type:

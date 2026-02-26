@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
 from ... import (
+    TypeAdapter,
     Pair,
     BPBase,
     Vector2f,
@@ -108,11 +109,8 @@ class Actor(_ActorBase, BPBase):
         self._map.destroyActor(self)
 
     @ExecSplit(success=(True,), fail=(False,))
+    @TypeAdapter(offset=([tuple, list], Vector2i))
     def MapMove(self, offset: Union[Vector2i, Pair[int], List[int]]) -> None:
-        assert isinstance(offset, (Vector2i, Tuple, List)), "offset must be a tuple, list, or Vector2i"
-        if not isinstance(offset, Vector2i):
-            x, y = offset
-            offset = Vector2i(x, y)
         x = offset.x
         y = offset.y
         sx = 1 if x > 0 else (-1 if x < 0 else 0)

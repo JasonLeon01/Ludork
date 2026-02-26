@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import Optional, Union, List, TYPE_CHECKING
 from .. import (
+    TypeAdapter,
     Pair,
     Vector2u,
     Transformable,
@@ -94,28 +95,22 @@ class Camera(Drawable, Transformable):
         return self._renderTexture.getView().getRotation().asDegrees()
 
     @ExecSplit(default=(None,))
+    @TypeAdapter(inRotation=(float, Angle, degrees))
     def setViewRotation(self, inRotation: Union[Angle, float]) -> None:
-        assert isinstance(inRotation, (Angle, float))
         view = self._renderTexture.getView()
-        if isinstance(inRotation, float):
-            inRotation = degrees(inRotation)
         view.setRotation(inRotation)
         self._renderTexture.setView(view)
         for canvas in self._canvases:
             canvas.setView(view)
 
     @ExecSplit(default=(None,))
+    @TypeAdapter(delta=(tuple, Vector2f))
     def moveView(self, delta: Union[Vector2f, Pair[float]]) -> None:
-        assert isinstance(delta, (Vector2f, tuple))
-        if isinstance(delta, tuple):
-            delta = Vector2f(*delta)
         self.setViewPosition(self._viewport.position + delta)
 
     @ExecSplit(default=(None,))
+    @TypeAdapter(delta=(float, Angle, degrees))
     def rotateView(self, delta: Union[Angle, float]) -> None:
-        assert isinstance(delta, (Angle, float))
-        if isinstance(delta, float):
-            delta = degrees(delta)
         self.setViewRotation(self.getViewRotation() + delta)
 
     @ExecSplit(default=(None,))
@@ -132,17 +127,13 @@ class Camera(Drawable, Transformable):
         return super().getPosition()
 
     @ExecSplit(default=(None,))
+    @TypeAdapter(inPosition=(tuple, Vector2f))
     def setPosition(self, inPosition: Union[Vector2f, Pair[float]]) -> None:
-        assert isinstance(inPosition, (Vector2f, tuple))
-        if isinstance(inPosition, tuple):
-            inPosition = Vector2f(*inPosition)
         super().setPosition(inPosition)
 
     @ExecSplit(default=(None,))
+    @TypeAdapter(delta=(tuple, Vector2f))
     def move(self, delta: Union[Vector2f, Pair[float]]) -> None:
-        assert isinstance(delta, (Vector2f, tuple))
-        if isinstance(delta, tuple):
-            delta = Vector2f(*delta)
         super().move(delta)
 
     @ReturnType(rotation=float)
@@ -154,17 +145,13 @@ class Camera(Drawable, Transformable):
         return super().getRotation()
 
     @ExecSplit(default=(None,))
+    @TypeAdapter(inRotation=(float, Angle, degrees))
     def setRotation(self, inRotation: Union[Angle, float]) -> None:
-        assert isinstance(inRotation, (Angle, float))
-        if isinstance(inRotation, float):
-            inRotation = degrees(inRotation)
         super().setRotation(inRotation)
 
     @ExecSplit(default=(None,))
+    @TypeAdapter(delta=(float, Angle, degrees))
     def rotate(self, delta: Union[Angle, float]) -> None:
-        assert isinstance(delta, (Angle, float))
-        if isinstance(delta, float):
-            delta = degrees(delta)
         super().rotate(delta)
 
     @ReturnType(scale=Pair[float])
@@ -177,17 +164,13 @@ class Camera(Drawable, Transformable):
         return super().getScale()
 
     @ExecSplit(default=(None,))
+    @TypeAdapter(inScale=(tuple, Vector2f))
     def setScale(self, inScale: Union[Vector2f, Pair[float]]) -> None:
-        assert isinstance(inScale, (Vector2f, tuple))
-        if isinstance(inScale, tuple):
-            inScale = Vector2f(*inScale)
         super().setScale(inScale)
 
     @ExecSplit(default=(None,))
+    @TypeAdapter(delta=(tuple, Vector2f))
     def scale(self, delta: Union[Vector2f, Pair[float]]) -> None:
-        assert isinstance(delta, (Vector2f, tuple))
-        if isinstance(delta, tuple):
-            delta = Vector2f(*delta)
         super().scale(delta)
 
     @ReturnType(parent="Actor")
@@ -222,10 +205,8 @@ class Camera(Drawable, Transformable):
     def setRenderStates(self, inRenderStates: RenderStates) -> None:
         self._renderStates = inRenderStates
 
+    @TypeAdapter(inScale=(tuple, Vector2f))
     def setScale(self, inScale: Union[Vector2f, Pair[float]]) -> None:
-        assert isinstance(inScale, (Vector2f, tuple))
-        if isinstance(inScale, tuple):
-            inScale = Vector2f(*inScale)
         super().setScale(inScale)
 
     def mapPixelToCoords(self, point):

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 
 from .. import (
+    TypeAdapter,
     ExecSplit,
     Pair,
     RenderTexture,
@@ -224,11 +225,9 @@ class GameMap(GameMapGraphics):
         self._lights.remove(light)
 
     @ExecSplit(default=(None,))
+    @TypeAdapter(position=(tuple, Vector2f))
     def setLightPosition(self, light: Light, position: Union[Vector2f, Pair[float]]) -> None:
         assert light in self._lights, "Light not found in map"
-        assert isinstance(position, (Vector2f, tuple)), "Position must be a Vector2f or Pair[float]"
-        if isinstance(position, tuple):
-            position = Vector2f(*position)
         light.position = position
 
     @ExecSplit(default=(None,))

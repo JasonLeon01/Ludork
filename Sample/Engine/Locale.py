@@ -12,9 +12,13 @@ def init(localePath: str) -> None:
     from .Utils import File
 
     if os.path.exists(localePath):
+        excelExt = [".xls", ".xlsx", ".csv"]
         for file in os.listdir(localePath):
             filePath = os.path.join(localePath, file)
-            _Locale.dataDict[file] = File.loadData(filePath)
+            fileName, ext = os.path.splitext(file)
+            if ext in excelExt:
+                continue
+            _Locale.dataDict[fileName] = File.loadData(filePath)
 
 
 def getLocaleContent(localeKey: str, key: str) -> str:

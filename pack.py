@@ -36,6 +36,7 @@ FLAGS = [
     "--include-module=psutil",
     "--include-module=pympler.asizeof",
     "--include-module=av",
+    "--include-module=openpyxl",
     "--include-module=PyQt5.QtSvg",
     "--lto=yes",
 ]

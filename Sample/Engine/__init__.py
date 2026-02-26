@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Any, Dict, Tuple, TypeVar
+import functools
+from typing import Any, Callable, Dict, List, Tuple, Type, TypeVar, Union
 from .BPBase import BPBase
 
 
@@ -28,6 +29,51 @@ def GetCellSize():
 def SetCellSize(size: int):
     global _CellSize
     _CellSize = size
+
+
+def TypeAdapter(**typeMap: Union[Tuple[Union[Type, List[Type]], Type], Tuple[Union[Type, List[Type]], Type, Callable]]):
+    def decorator(func: Callable):
+        argNames = func.__code__.co_varnames[: func.__code__.co_argcount]
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            fullArgs = dict(zip(argNames, args))
+            fullArgs.update(kwargs)
+            for paramName, types in typeMap.items():
+                if not paramName in fullArgs:
+                    continue
+                if fullArgs[paramName] is None:
+                    continue
+                converter = None
+                if len(types) == 2:
+                    originType, targetType = types
+                    converter = targetType
+                elif len(types) == 3:
+                    originType, targetType, converter = types
+                else:
+                    raise ValueError(f"Error: Parameter {paramName} must have 2 or 3 types.")
+                value = fullArgs[paramName]
+                if not isinstance(value, targetType):
+                    isOriginType = False
+                    if isinstance(originType, list):
+                        for t in originType:
+                            if isinstance(value, t):
+                                isOriginType = True
+                                break
+                    else:
+                        isOriginType = isinstance(value, originType)
+                    if isOriginType:
+                        if isinstance(value, list) or isinstance(value, tuple):
+                            fullArgs[paramName] = converter(*value)
+                        else:
+                            fullArgs[paramName] = converter(value)
+                    else:
+                        raise TypeError(f"Error: Parameter {paramName} must be of type {originType} or {targetType}")
+            return func(**fullArgs)
+
+        return wrapper
+
+    return decorator
 
 
 def ExecSplit(**kwargs):

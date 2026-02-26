@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
 from .. import (
+    TypeAdapter,
     Pair,
     Sprite,
     IntRect,
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
 
 
 class Rect(SpriteBase):
+    @TypeAdapter(rect=([tuple, list], IntRect, lambda pos, size: IntRect(Vector2i(*pos), Vector2i(*size))))
     def __init__(
         self,
         rect: Union[IntRect, Tuple[Pair[int], Pair[int]], List[List[int]]],
@@ -33,14 +35,6 @@ class Rect(SpriteBase):
         fadeSpeed: float = 96,
         opacityRange: Pair[float] = (128, 255),
     ) -> None:
-        assert isinstance(rect, (IntRect, Tuple, List)), "rect must be a tuple, list or IntRect"
-        if isinstance(rect, (tuple, list)):
-            position, size = rect
-            x, y = position
-            w, h = size
-            position = Vector2i(x, y)
-            size = Vector2i(w, h)
-            rect = IntRect(position, size)
         self._size = Math.ToVector2u(rect.size)
         size = Math.ToVector2u(Render.getRealSize(rect.size))
         self._canvas: RenderTexture = RenderTexture(size)

@@ -1,30 +1,14 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from dataclasses import dataclass
 from typing import Optional, Union, List, Tuple
 from Engine import Pair, Texture, IntRect
 from Engine.Gameplay.Actors import Actor
-from .Battler import Battler
+from . import Data
 
 
-@dataclass
-class EnemyInfo:
+class Enemy(Actor):
     ID: str = "FILL_IT_BY_YOURSELF"
-    name: str = ""
-    desc: str = ""
-
-    def __hash__(self) -> int:
-        return hash(self.ID)
-
-
-# This cannot be a dataclass because it contains a list
-class EnemyProperty:
-    attackPerTurn: int = 1
-    drops: List[str] = []
-
-
-class Enemy(Actor, Battler, EnemyProperty, EnemyInfo):
     tickable: bool = True
     collisionEnabled: bool = True
     animatable: bool = True
@@ -36,5 +20,6 @@ class Enemy(Actor, Battler, EnemyProperty, EnemyInfo):
         rect: Union[IntRect, Tuple[Pair[int], Pair[int]]] = None,
         tag: Optional[str] = None,
     ) -> None:
-        Actor.__init__(self, texture, rect, tag)
-        Battler.__init__(self)
+        super().__init__(texture, rect, tag)
+        datas = Data.getGeneralData("Enemy")
+        Enemy.ApplyGeneralData(self, datas.get("members", {}).get(self.ID, {}), datas.get("params", {}))
