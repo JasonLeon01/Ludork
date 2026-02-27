@@ -1,39 +1,27 @@
 # -*- coding: utf-8 -*-
+# Used in win32 only.
 
 import os
 import sys
 import configparser
-import runpy
-import importlib.util
-import concurrent.futures
-import tkinter.messagebox as messagebox
+import ctypes
 import traceback
 
 
 def main():
     config = configparser.ConfigParser()
-    bin_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
-    os.chdir(bin_dir)
-    configPath = os.path.join(bin_dir, "Main.ini")
+    configPath = os.path.join(os.getcwd(), "Main.ini")
     config.read(configPath)
 
-    coreScript = os.path.splitext(config["Main"]["script"])[0]
-    try:
-        runpy.run_module(coreScript, run_name="__main__", alter_sys=True)
-    except:
-        spec = importlib.util.find_spec(coreScript)
-        if spec:
-            module = importlib.util.module_from_spec(spec)
-            module.__name__ = "__main__"
-            sys.modules["__main__"] = module
-            spec.loader.exec_module(module)
+    scriptPath = os.path.join(os.getcwd(), config["Main"]["script"])
+    with open(scriptPath, encoding="utf-8") as f:
+        code = f.read()
+    exec(code, {"__name__": "__main__", "__file__": scriptPath})
 
 
 if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        messagebox.showerror(
-            Locale.getContent("ERROR"), f"{Locale.getContent('UNEXPECTED_ERROR')}\n\n{traceback.format_exc()}"
-        )
+        ctypes.windll.user32.MessageBoxW(0, traceback.format_exc(), "ERROR", 0x10)
         sys.exit(1)

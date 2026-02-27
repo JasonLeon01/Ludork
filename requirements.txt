@@ -5,6 +5,8 @@ psutil
 pympler
 av
 nuitka
+zstandard
+ordered-set
 pybind11
 pybind11-stubgen
 openpyxl
