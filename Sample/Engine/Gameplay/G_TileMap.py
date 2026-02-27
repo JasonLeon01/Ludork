@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, asdict
 from typing import Any, Dict, List, Optional
 from .. import (
+    Tuple4,
     VertexArray,
     Manager,
     PrimitiveType,
@@ -33,6 +34,7 @@ class Tileset:
     fileName: str
     passable: List[bool]
     materials: List[Material]
+    dir4: List[Tuple4[bool]]
 
     def asDict(self) -> Dict[str, Any]:
         return asdict(self)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import Optional, Union, Tuple, List
-from ... import TypeAdapter, Pair, Texture, IntRect, Vector2i, Utils, ExecSplit, InvalidVars
+from ... import TypeAdapter, Direction, Pair, Texture, IntRect, Vector2i, Utils, ExecSplit, InvalidVars
 from ...Utils import Inner
 from ..G_Material import Material
 from .A_Actor import Actor
@@ -10,7 +10,7 @@ from .A_Actor import Actor
 
 @InvalidVars("defaultRect")
 class Character(Actor):
-    direction: int = 0
+    direction: Direction = Direction.DOWN
     directionFix: bool = False
     animateWithoutMoving: bool = False
 
@@ -85,6 +85,6 @@ class Character(Actor):
 
     def _applyDirection(self, vx: float, vy: float) -> None:
         if abs(vx) > abs(vy):
-            self.direction = 2 if vx > 0 else 1
+            self.direction = Direction.RIGHT if vx > 0 else Direction.LEFT
         else:
-            self.direction = 0 if vy > 0 else 3
+            self.direction = Direction.DOWN if vy > 0 else Direction.UP

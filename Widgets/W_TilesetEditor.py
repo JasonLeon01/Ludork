@@ -132,7 +132,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
         try:
             Engine = System.getModule("Engine")
             Tileset = Engine.Gameplay.Tileset
-            new_ts = Tileset(name=text, fileName="", passable=[], materials=[])
+            new_ts = Tileset(name=text, fileName="", passable=[], materials=[], dir4=[])
 
             GameData.recordSnapshot()
             GameData.tilesetData[text] = new_ts

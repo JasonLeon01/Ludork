@@ -35,6 +35,10 @@
         "zh_CN": "材质",
         "en_GB": "Material"
     },
+    "DIR4": {
+        "zh_CN": "四方向",
+        "en_GB": "Dir4"
+    },
     "EDIT_MATERIAL": {
         "zh_CN": "编辑材质",
         "en_GB": "Edit Material"
@@ -430,6 +434,10 @@
     "icon": {
         "zh_CN": "图标",
         "en_GB": "Icon"
+    },
+    "cursor": {
+        "zh_CN": "光标",
+        "en_GB": "Cursor"
     },
     "windowskinName": {
         "zh_CN": "窗口皮肤",

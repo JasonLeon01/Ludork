@@ -31,6 +31,12 @@
         "ext": ".png",
         "value": "icon.png"
     },
+    "cursor": {
+        "type": "file",
+        "base": "System",
+        "ext": ".png",
+        "value": "cursor.png"
+    },
     "windowskinName": {
         "type": "file",
         "base": "System",

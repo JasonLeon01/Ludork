@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+from enum import IntEnum
 import functools
 from typing import Any, Callable, Dict, List, Tuple, Type, TypeVar, Union
 from .BPBase import BPBase
@@ -10,6 +11,31 @@ _CellSize: int = 32
 T = TypeVar("T")
 Pair = Tuple[T, T]
 Tuple3 = Tuple[T, T, T]
+Tuple4 = Tuple[T, T, T, T]
+
+
+class Direction(IntEnum):
+    DOWN = 0
+    LEFT = 1
+    RIGHT = 2
+    UP = 3
+
+
+def OppositeDirection(direction: Direction) -> Direction:
+    assert isinstance(
+        direction, (Direction, int)
+    ), f"Error: direction must be a Direction enum value or an integer, but got {direction}"
+    if isinstance(direction, int):
+        assert 0 <= direction <= 3, f"Error: direction must be an integer between 0 and 3, but got {direction}"
+        direction = Direction(direction)
+    if direction == Direction.DOWN:
+        return Direction.UP
+    elif direction == Direction.LEFT:
+        return Direction.RIGHT
+    elif direction == Direction.RIGHT:
+        return Direction.LEFT
+    elif direction == Direction.UP:
+        return Direction.DOWN
 
 
 def GetGameRunning():

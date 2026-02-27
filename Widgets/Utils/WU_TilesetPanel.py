@@ -15,6 +15,7 @@ import copy
 class TilesetMode(Enum):
     PASSABLE = 0
     MATERIAL = 1
+    DIR4 = 2
 
 
 class TilesetImageView(QtWidgets.QWidget):
@@ -115,6 +116,71 @@ class TilesetImageView(QtWidgets.QWidget):
                                     painter.drawRect(rect.adjusted(4, 4, -4, -4))
                                     painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255)))
                                     painter.drawText(rect, QtCore.Qt.AlignCenter, "M")
+                    elif self._mode == TilesetMode.DIR4:
+                        dir4Arr = getattr(self._data, "dir4", [])
+                        dir4Val = (True, True, True, True)
+                        if i < len(dir4Arr):
+                            v = dir4Arr[i]
+                            if isinstance(v, (list, tuple)) and len(v) == 4:
+                                dir4Val = (bool(v[0]), bool(v[1]), bool(v[2]), bool(v[3]))
+
+                        centerX = x + cellSize // 2
+                        centerY = y + cellSize // 2
+                        arrowLen = max(8, cellSize // 3)
+                        arrowWidth = max(6, cellSize // 4)
+                        headLen = max(5, arrowLen // 2)
+
+                        painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 0, 140), 1))
+
+                        def drawArrow(direction: str, enabled: bool) -> None:
+                            color = QtGui.QColor(100, 255, 100, 200) if enabled else QtGui.QColor(255, 100, 100, 200)
+                            painter.setBrush(color)
+                            if direction == "up":
+                                points = [
+                                    QtCore.QPoint(centerX, centerY - arrowLen),
+                                    QtCore.QPoint(centerX - arrowWidth // 2, centerY - arrowLen + headLen),
+                                    QtCore.QPoint(centerX - arrowWidth // 4, centerY - arrowLen + headLen),
+                                    QtCore.QPoint(centerX - arrowWidth // 4, centerY),
+                                    QtCore.QPoint(centerX + arrowWidth // 4, centerY),
+                                    QtCore.QPoint(centerX + arrowWidth // 4, centerY - arrowLen + headLen),
+                                    QtCore.QPoint(centerX + arrowWidth // 2, centerY - arrowLen + headLen),
+                                ]
+                            elif direction == "down":
+                                points = [
+                                    QtCore.QPoint(centerX, centerY + arrowLen),
+                                    QtCore.QPoint(centerX - arrowWidth // 2, centerY + arrowLen - headLen),
+                                    QtCore.QPoint(centerX - arrowWidth // 4, centerY + arrowLen - headLen),
+                                    QtCore.QPoint(centerX - arrowWidth // 4, centerY),
+                                    QtCore.QPoint(centerX + arrowWidth // 4, centerY),
+                                    QtCore.QPoint(centerX + arrowWidth // 4, centerY + arrowLen - headLen),
+                                    QtCore.QPoint(centerX + arrowWidth // 2, centerY + arrowLen - headLen),
+                                ]
+                            elif direction == "left":
+                                points = [
+                                    QtCore.QPoint(centerX - arrowLen, centerY),
+                                    QtCore.QPoint(centerX - arrowLen + headLen, centerY - arrowWidth // 2),
+                                    QtCore.QPoint(centerX - arrowLen + headLen, centerY - arrowWidth // 4),
+                                    QtCore.QPoint(centerX, centerY - arrowWidth // 4),
+                                    QtCore.QPoint(centerX, centerY + arrowWidth // 4),
+                                    QtCore.QPoint(centerX - arrowLen + headLen, centerY + arrowWidth // 4),
+                                    QtCore.QPoint(centerX - arrowLen + headLen, centerY + arrowWidth // 2),
+                                ]
+                            else:
+                                points = [
+                                    QtCore.QPoint(centerX + arrowLen, centerY),
+                                    QtCore.QPoint(centerX + arrowLen - headLen, centerY - arrowWidth // 2),
+                                    QtCore.QPoint(centerX + arrowLen - headLen, centerY - arrowWidth // 4),
+                                    QtCore.QPoint(centerX, centerY - arrowWidth // 4),
+                                    QtCore.QPoint(centerX, centerY + arrowWidth // 4),
+                                    QtCore.QPoint(centerX + arrowLen - headLen, centerY + arrowWidth // 4),
+                                    QtCore.QPoint(centerX + arrowLen - headLen, centerY + arrowWidth // 2),
+                                ]
+                            painter.drawPolygon(QtGui.QPolygon(points))
+
+                        drawArrow("down", bool(dir4Val[0]))
+                        drawArrow("left", bool(dir4Val[1]))
+                        drawArrow("right", bool(dir4Val[2]))
+                        drawArrow("up", bool(dir4Val[3]))
 
     def mousePressEvent(self, e):
         if not self._image or not self._data:
@@ -155,6 +221,36 @@ class TilesetImageView(QtWidgets.QWidget):
                 if dlg.exec_():
                     GameData.recordSnapshot()
                     arr[idx] = edit_mat
+        elif self._mode == TilesetMode.DIR4:
+            arrDir4 = getattr(self._data, "dir4", None)
+            if not isinstance(arrDir4, list):
+                arrDir4 = []
+                setattr(self._data, "dir4", arrDir4)
+            if len(arrDir4) < count:
+                arrDir4.extend([(True, True, True, True)] * (count - len(arrDir4)))
+
+            localX = x - gx * cellSize
+            localY = y - gy * cellSize
+            topDist = localY
+            rightDist = (cellSize - 1) - localX
+            bottomDist = (cellSize - 1) - localY
+            leftDist = localX
+            dists = [topDist, rightDist, bottomDist, leftDist]
+            dirIndex = 0
+            minDist = dists[0]
+            for i in range(1, 4):
+                if dists[i] < minDist:
+                    minDist = dists[i]
+                    dirIndex = i
+            dirMap = [3, 2, 0, 1]
+            dirIndex = dirMap[dirIndex]
+
+            dir4Val = arrDir4[idx]
+            if not isinstance(dir4Val, (list, tuple)) or len(dir4Val) != 4:
+                dir4Val = (True, True, True, True)
+            newVal = [bool(dir4Val[0]), bool(dir4Val[1]), bool(dir4Val[2]), bool(dir4Val[3])]
+            newVal[dirIndex] = not newVal[dirIndex]
+            arrDir4[idx] = (newVal[0], newVal[1], newVal[2], newVal[3])
         self.dataChanged.emit()
         self.update()
 
@@ -166,6 +262,8 @@ class TilesetPanel(QtWidgets.QWidget):
         super().__init__(parent)
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
         System.setStyle(self, "config.qss")
+        Engine = System.getModule("Engine")
+        self.MaterialClass = Engine.Gameplay.Material
         self._data = None
         self._initUI()
 
@@ -199,6 +297,7 @@ class TilesetPanel(QtWidgets.QWidget):
         self.modeList.setFlow(QtWidgets.QListView.LeftToRight)
         self.modeList.addItem(Locale.getContent("PASSABLE"))
         self.modeList.addItem(Locale.getContent("MATERIAL"))
+        self.modeList.addItem(Locale.getContent("DIR4"))
         self.modeList.setCurrentRow(0)
         self.modeList.currentRowChanged.connect(self._onModeChanged)
         layout.addWidget(self.modeList)
@@ -266,12 +365,16 @@ class TilesetPanel(QtWidgets.QWidget):
                     new_count = max(0, cols * rows)
             arr_p = getattr(self._data, "passable", [])
             arr_m = getattr(self._data, "materials", [])
+            arrDir4 = getattr(self._data, "dir4", [])
             if not isinstance(arr_p, list):
                 arr_p = []
                 setattr(self._data, "passable", arr_p)
             if not isinstance(arr_m, list):
                 arr_m = []
                 setattr(self._data, "materials", arr_m)
+            if not isinstance(arrDir4, list):
+                arrDir4 = []
+                setattr(self._data, "dir4", arrDir4)
             if len(arr_p) < new_count:
                 arr_p.extend([True] * (new_count - len(arr_p)))
             elif len(arr_p) > new_count:
@@ -283,6 +386,10 @@ class TilesetPanel(QtWidgets.QWidget):
                     arr_m.extend([None] * (new_count - len(arr_m)))
             elif len(arr_m) > new_count:
                 del arr_m[new_count:]
+            if len(arrDir4) < new_count:
+                arrDir4.extend([(True, True, True, True)] * (new_count - len(arrDir4)))
+            elif len(arrDir4) > new_count:
+                del arrDir4[new_count:]
             if self._key:
                 File.mainWindow.editorPanel._renderFromMapData()
                 File.mainWindow.editorPanel.update()

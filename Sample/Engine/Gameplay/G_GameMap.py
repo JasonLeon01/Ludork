@@ -19,6 +19,8 @@ from .. import (
     Color,
     Texture,
     GetCellSize,
+    Direction,
+    OppositeDirection,
 )
 from .Particles import System as ParticleSystem
 from .Actors import Actor
@@ -84,6 +86,8 @@ class GameMap(GameMapGraphics):
 
         self.mapName = mapName
         self._tilemap = tilemap
+        self._layersTopFirst = list(self._tilemap.getAllLayers().values())
+        self._layersTopFirst.reverse()
         self._actors: Dict[str, List[Actor]] = {}
         self._particleSystem: ParticleSystem = ParticleSystem()
         self._actorsOnDestroy: List[Actor] = []
@@ -165,6 +169,52 @@ class GameMap(GameMapGraphics):
             self._rebuildPassabilityCache()
         if not self._tilePassableGrid[y][x]:
             return False
+
+        currentPosition = actor.getMapPosition()
+        direction = None
+        delta = targetPosition - currentPosition
+        if delta.x == 0 and delta.y == 1:
+            direction = Direction.DOWN
+        elif delta.x == 0 and delta.y == -1:
+            direction = Direction.UP
+        elif delta.x == 1 and delta.y == 0:
+            direction = Direction.RIGHT
+        elif delta.x == -1 and delta.y == 0:
+            direction = Direction.LEFT
+
+        if direction is not None:
+            dirIndex = int(direction)
+            oppIndex = int(OppositeDirection(direction))
+            currBlocked = False
+            nextBlocked = False
+
+            for layer in self._layersTopFirst:
+                if not layer.visible:
+                    continue
+
+                if not currBlocked:
+                    tileCurr = layer.get(currentPosition)
+                    if tileCurr is not None:
+                        ts = layer._data.layerTileset
+                        d4 = ts.dir4[tileCurr] if hasattr(ts, "dir4") and tileCurr < len(ts.dir4) else None
+                        if isinstance(d4, (list, tuple)) and len(d4) == 4:
+                            if not d4[dirIndex]:
+                                return False
+                        currBlocked = True
+
+                if not nextBlocked:
+                    tileNext = layer.get(targetPosition)
+                    if tileNext is not None:
+                        ts = layer._data.layerTileset
+                        d4 = ts.dir4[tileNext] if hasattr(ts, "dir4") and tileNext < len(ts.dir4) else None
+                        if isinstance(d4, (list, tuple)) and len(d4) == 4:
+                            if not d4[oppIndex]:
+                                return False
+                        nextBlocked = True
+
+                if currBlocked and nextBlocked:
+                    break
+
         occ = self._occupancyMap.get((x, y))
         if occ:
             for other in occ:

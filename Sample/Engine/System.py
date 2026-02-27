@@ -16,6 +16,7 @@ from . import (
     Vector2u,
     Font,
     Image,
+    Cursor,
     Sprite,
     Shader,
     Drawable,
@@ -52,6 +53,7 @@ class System:
     _fonts: List[Font] = []
     _gameSize: Vector2u = None
     _icon: Image = None
+    _cursor: Cursor = None
     _windowskinName: str = None
     _mainScript: str = None
     _language: str = None
@@ -99,6 +101,10 @@ class System:
         cls._fonts = [Manager.loadFont(font) for font in systemData["fonts"]["value"]]
         cls.Config.FontSize = systemData["fontSize"]["value"]
         cls._icon = Image(os.path.join("./Assets", systemData["icon"]["base"], systemData["icon"]["value"]))
+        cursorPath = os.path.join("./Assets", systemData["cursor"]["base"], systemData["cursor"]["value"])
+        if cursorPath and os.path.exists(cursorPath):
+            cursorImage = Image(cursorPath)
+            cls._cursor = Cursor(cursorImage.getPixelsArray(), cursorImage.getSize(), Vector2u(0, 0))
         cls._windowskinName = systemData["windowskinName"]["value"]
         r, g, b, a = systemData["windowColor"]["value"]
         cls.Config.WindowColor = Color(r, g, b, a)
@@ -151,6 +157,8 @@ class System:
         cls._transitionTempTexture.clear(Color.Transparent)
         cls._transitionSprite = Sprite(cls._transitionTempTexture.getTexture())
         cls._window.setIcon(cls._icon)
+        if cls._cursor:
+            cls._window.setMouseCursor(cls._cursor)
         cls._window.setFramerateLimit(cls._frameRate)
         cls._window.setVerticalSyncEnabled(cls._verticalSync)
         cls._window.clear(Color.Transparent)
