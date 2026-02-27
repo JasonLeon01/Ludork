@@ -350,6 +350,26 @@ class BluePrintEditor(QtWidgets.QWidget):
             w.toggled.connect(lambda checked, k=key: self.onDataChanged(k, checked, True))
             return w
 
+        if isAttr and (type_hint is int or (isinstance(value, int) and not isinstance(value, bool))):
+            w = QtWidgets.QSpinBox()
+            w.setRange(-2147483648, 2147483647)
+            try:
+                w.setValue(int(value))
+            except (ValueError, TypeError):
+                w.setValue(0)
+            w.valueChanged.connect(lambda val, k=key: self.onDataChanged(k, val, True))
+            return w
+
+        if isAttr and (type_hint is float or isinstance(value, float)):
+            w = QtWidgets.QDoubleSpinBox()
+            w.setRange(-999999999.0, 999999999.0)
+            try:
+                w.setValue(float(value))
+            except (ValueError, TypeError):
+                w.setValue(0.0)
+            w.valueChanged.connect(lambda val, k=key: self.onDataChanged(k, val, True))
+            return w
+
         is_list = False
         if isAttr:
             if type_hint:

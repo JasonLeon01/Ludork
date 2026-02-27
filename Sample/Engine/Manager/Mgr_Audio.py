@@ -225,43 +225,32 @@ class AudioManager:
         sound.setSpatializationEnabled(filter.spatial)
         if not filter.position is None:
             position = filter.position
-            if not isinstance(position, Vector3f):
-                if isinstance(position, tuple):
-                    x, y, z = position
-                    position = Vector3f(x, y, z)
-                else:
-                    raise Exception(f"Invalid position type: {type(position)}")
+            assert isinstance(position, (Vector3f, tuple)), f"Invalid position type: {type(position)}"
+            if isinstance(position, tuple):
+                position = Vector3f(*position)
             sound.setPosition(position)
         if not filter.direction is None:
             direction = filter.direction
-            if not isinstance(direction, Vector3f):
-                if isinstance(direction, tuple):
-                    x, y, z = direction
-                    direction = Vector3f(x, y, z)
-                else:
-                    raise Exception(f"Invalid direction type: {type(direction)}")
+            assert isinstance(direction, (Vector3f, tuple)), f"Invalid direction type: {type(direction)}"
+            if isinstance(direction, tuple):
+                direction = Vector3f(*direction)
             sound.setDirection(direction)
         if not filter.cone is None:
             cone = filter.cone
-            if not isinstance(cone, Sound.Cone):
-                if isinstance(cone, tuple):
-                    innerAngle, outerAngle, outerVolume = cone
-                    if not isinstance(innerAngle, Angle):
-                        innerAngle = degrees(innerAngle)
-                    if not isinstance(outerAngle, Angle):
-                        outerAngle = degrees(outerAngle)
-                    cone = Sound.Cone(innerAngle, outerAngle, outerVolume)
-                else:
-                    raise Exception(f"Invalid cone type: {type(cone)}")
+            assert isinstance(cone, (Sound.Cone, tuple)), f"Invalid cone type: {type(cone)}"
+            if isinstance(cone, tuple):
+                innerAngle, outerAngle, outerVolume = cone
+                if not isinstance(innerAngle, Angle):
+                    innerAngle = degrees(innerAngle)
+                if not isinstance(outerAngle, Angle):
+                    outerAngle = degrees(outerAngle)
+                cone = Sound.Cone(innerAngle, outerAngle, outerVolume)
             sound.setCone(cone)
         if not filter.velocity is None:
             velocity = filter.velocity
-            if not isinstance(velocity, Vector3f):
-                if isinstance(velocity, tuple):
-                    x, y, z = velocity
-                    velocity = Vector3f(x, y, z)
-                else:
-                    raise Exception(f"Invalid velocity type: {type(velocity)}")
+            assert isinstance(velocity, (Vector3f, tuple)), f"Invalid velocity type: {type(velocity)}"
+            if isinstance(velocity, tuple):
+                velocity = Vector3f(*velocity)
             sound.setVelocity(velocity)
         if not filter.dopplerFactor is None:
             sound.setDopplerFactor(filter.dopplerFactor)

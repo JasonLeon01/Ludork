@@ -75,6 +75,10 @@
         "zh_CN": "简单打包将直接复制项目文件，适合快速测试。\n完整编译将使用Nuitka生成独立可执行文件，适合发布。",
         "en_GB": "Simple packaging copies files for quick testing.\nFull compilation uses Nuitka to generate a standalone executable for release."
     },
+    "PACK_VIDEO_WARNING": {
+        "zh_CN": "注意：简单打包不支持视频播放功能",
+        "en_GB": "Note: Simple packaging does not support video playback"
+    },
     "PACK_TITLE": {
         "zh_CN": "打包",
         "en_GB": "Packaging"

@@ -1,1 +1,21 @@
-QLineEdit { background: white; color: black; border: 1px solid #AAAAAA; border-radius: 3px; } QLineEdit::placeholder { color: #888888; }
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {
+    background-color: #454545;
+    color: white;
+    border: 1px solid #606060;
+    border-radius: 3px;
+    padding: 2px;
+    selection-background-color: #4a90e2;
+}
+
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
+    border: 1px solid #4a90e2;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #454545;
+    color: white;
+    selection-background-color: #4a90e2;
+    selection-color: white;
+    border: 1px solid #606060;
+    outline: none;
+}

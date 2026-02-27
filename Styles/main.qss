@@ -12,3 +12,7 @@ QScrollBar::handle:vertical:hover { background: #e6e6e6; }
 QScrollBar:horizontal { background: transparent; height: 10px; margin: 0px; }
 QScrollBar::handle:horizontal { background: #ffffff; border-radius: 5px; min-width: 24px; }
 QScrollBar::handle:horizontal:hover { background: #e6e6e6; }
+
+QPushButton, QToolButton, QTabBar::tab, QLabel, QHeaderView::section, QGroupBox, QGroupBox::title {
+    text-transform: none;
+}

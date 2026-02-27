@@ -9,6 +9,7 @@ _GameRunning: bool = True
 _CellSize: int = 32
 T = TypeVar("T")
 Pair = Tuple[T, T]
+Tuple3 = Tuple[T, T, T]
 
 
 def GetGameRunning():
@@ -135,6 +136,14 @@ def RegisterEvent(func=None):
     if func is None:
         return decorator
     return decorator(func)
+
+
+def DropBox(**kwargs):
+    def decorator(func):
+        func._dropBox = kwargs
+        return func
+
+    return decorator
 
 
 from . import pysf

@@ -3,9 +3,6 @@
 cd "$(dirname "$0")"
 
 mkdir -p "C_Extensions"
-if [ -d "C_Extensions/SFML" ]; then
-  rm -rf "C_Extensions/SFML"
-fi
 
 if [ -d "Sample/Engine/pysf" ]; then
   rm -rf "Sample/Engine/pysf"

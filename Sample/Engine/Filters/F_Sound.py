@@ -3,8 +3,8 @@
 from __future__ import annotations
 import math
 from dataclasses import dataclass
-from typing import List, Union, TypeAlias, Callable, Optional, Tuple
-from .. import Pair, Time, Vector3f, Angle, Sound, Music
+from typing import List, Union, TypeAlias, Callable, Optional
+from .. import Pair, Tuple3, Time, Vector3f, Angle, Sound, Music
 
 EffectProcessor: TypeAlias = Callable[[List[float], int, List[float], int, int], None]
 
@@ -19,10 +19,10 @@ class SoundFilter:
     pan: Optional[float] = None
     volume: Optional[float] = None
     spatial: Optional[bool] = None
-    position: Optional[Union[Tuple[float, float, float], Vector3f]] = None
-    direction: Optional[Union[Tuple[float, float, float], Vector3f]] = None
-    cone: Optional[Union[Tuple[Angle, Angle, float], Tuple[float, float, float], Sound.Cone]] = None
-    velocity: Optional[Union[Tuple[float, float, float], Vector3f]] = None
+    position: Optional[Union[Tuple3[float], Vector3f]] = None
+    direction: Optional[Union[Tuple3[float], Vector3f]] = None
+    cone: Optional[Union[Tuple3[Angle], Tuple3[float], Sound.Cone]] = None
+    velocity: Optional[Union[Tuple3[float], Vector3f]] = None
     dopplerFactor: Optional[float] = None
     directionalAttenuationFactor: Optional[float] = None
     relativeToListener: Optional[bool] = None

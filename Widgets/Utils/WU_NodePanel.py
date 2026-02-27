@@ -70,11 +70,67 @@ def makeInit(currNode):
             init_val = currNode.params[i] if i < len(currNode.params) else ""
             self.add_input(name, multi_input=False)
             self._port_types[name] = "Params"
-            self.add_text_input(name=name, label=name, text=str(init_val))
-            w = self.get_widget(name)
-            if w:
-                le = w.get_custom_widget()
-                System.setStyle(le, "nodeInput.qss")
+
+            param_type = paramList[name]
+
+            type_str = param_type.__name__ if isinstance(param_type, type) else str(param_type)
+            if "." in type_str:
+                type_str = type_str.split(".")[-1]
+            display_label = f"{name} ({type_str})"
+
+            drop_box = getattr(currNode.nodeFunction, "_dropBox", {})
+
+            if name in drop_box:
+                items = drop_box[name]
+                if isinstance(items, (list, tuple)):
+                    items = [str(x) for x in items]
+                else:
+                    items = []
+                self.add_combo_menu(name=name, label=display_label, items=items)
+                w = self.get_widget(name)
+                if w:
+                    le = w.get_custom_widget()
+                    if le and hasattr(le, "setCurrentText"):
+                        le.setCurrentText(str(init_val))
+                    System.setStyle(le, "nodeInput.qss")
+            elif param_type is bool or param_type == "bool":
+                self.add_checkbox(name=name, label=display_label, text="", state=bool(init_val))
+            elif param_type is int or param_type == "int":
+                try:
+                    val = int(init_val)
+                except:
+                    val = 0
+                self.add_spinbox(
+                    name=name, label=display_label, value=val, min_value=-2147483648, max_value=2147483647, double=False
+                )
+                w = self.get_widget(name)
+                if w:
+                    le = w.get_custom_widget()
+                    System.setStyle(le, "nodeInput.qss")
+            elif param_type is float or param_type == "float":
+                try:
+                    val = float(init_val)
+                except:
+                    val = 0.0
+                self.add_spinbox(
+                    name=name,
+                    label=display_label,
+                    value=val,
+                    min_value=-999999999.0,
+                    max_value=999999999.0,
+                    double=True,
+                )
+                w = self.get_widget(name)
+                if w:
+                    le = w.get_custom_widget()
+                    System.setStyle(le, "nodeInput.qss")
+            else:
+                self.add_text_input(name=name, label=display_label, text=str(init_val))
+                w = self.get_widget(name)
+                if w:
+                    le = w.get_custom_widget()
+                    System.setStyle(le, "nodeInput.qss")
+
         self._string_mode = has_invalid
         if has_invalid:
             for i, name in enumerate(keys):
@@ -174,9 +230,38 @@ class NodePanel(QtWidgets.QWidget):
                 w = nodeInst.get_widget(name)
                 if w:
                     le = w.get_custom_widget()
+                    val = node.params[paramIndex]
                     if isinstance(le, QtWidgets.QLineEdit):
-                        le.setText(str(node.params[paramIndex]))
-                        le.editingFinished.connect(lambda n=i, p=paramIndex, w=le: self._onParamChanged(n, p, w))
+                        le.setText(str(val))
+                        le.editingFinished.connect(
+                            lambda n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
+                        )
+                    elif isinstance(le, QtWidgets.QCheckBox):
+                        le.setChecked(bool(val))
+                        le.toggled.connect(
+                            lambda checked, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
+                        )
+                    elif isinstance(le, QtWidgets.QSpinBox):
+                        try:
+                            le.setValue(int(val))
+                        except:
+                            le.setValue(0)
+                        le.valueChanged.connect(
+                            lambda val, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
+                        )
+                    elif isinstance(le, QtWidgets.QDoubleSpinBox):
+                        try:
+                            le.setValue(float(val))
+                        except:
+                            le.setValue(0.0)
+                        le.valueChanged.connect(
+                            lambda val, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
+                        )
+                    elif isinstance(le, QtWidgets.QComboBox):
+                        le.setCurrentText(str(val))
+                        le.currentIndexChanged.connect(
+                            lambda idx, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
+                        )
                 paramIndex += 1
 
     def _getStartIndex(self):
@@ -762,8 +847,17 @@ class NodePanel(QtWidgets.QWidget):
         self.modified.emit()
         self._refreshPanel()
 
-    def _onParamChanged(self, nodeIndex: int, paramIndex: int, widget: QtWidgets.QLineEdit):
-        text = widget.text()
+    def _onParamChanged(self, nodeIndex: int, paramIndex: int, widget: QtWidgets.QWidget):
+        text = ""
+        if isinstance(widget, QtWidgets.QLineEdit):
+            text = widget.text()
+        elif isinstance(widget, QtWidgets.QCheckBox):
+            text = widget.isChecked()
+        elif isinstance(widget, (QtWidgets.QSpinBox, QtWidgets.QDoubleSpinBox)):
+            text = widget.value()
+        elif isinstance(widget, QtWidgets.QComboBox):
+            text = widget.currentText()
+
         changed = False
         if self.key in self.nodeGraph.dataNodes and 0 <= nodeIndex < len(self.nodeGraph.dataNodes[self.key]):
             dataNode = self.nodeGraph.dataNodes[self.key][nodeIndex]

@@ -33,14 +33,28 @@ class PackSelectionDialog(QtWidgets.QDialog):
         self.rbNuitka = QtWidgets.QRadioButton(Locale.getContent("PACK_MODE_FULL"))
         layout.addWidget(self.rbNuitka)
 
+        self.lblWarning = QtWidgets.QLabel(Locale.getContent("PACK_VIDEO_WARNING"))
+        self.lblWarning.setStyleSheet("color: orange;")
+        self.lblWarning.setWordWrap(True)
+        layout.addWidget(self.lblWarning)
+
         if sys.platform == "darwin":
             self.rbSimple.setEnabled(False)
             self.rbNuitka.setChecked(True)
+            self.lblWarning.setVisible(False)
+        else:
+            # Update warning visibility based on selection
+            self.rbSimple.toggled.connect(self._updateWarning)
+            self.rbNuitka.toggled.connect(self._updateWarning)
+            self._updateWarning()
 
         self.btnBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
         self.btnBox.accepted.connect(self.accept)
         self.btnBox.rejected.connect(self.reject)
         layout.addWidget(self.btnBox)
+
+    def _updateWarning(self):
+        self.lblWarning.setVisible(self.rbSimple.isChecked())
 
     def getSelectedMode(self) -> PackMode:
         if self.rbNuitka.isChecked():

@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 import inspect
-import os
 from typing import Any
-from Engine import Pair, System, ExecSplit, ReturnType, SceneBase, Vector2f, degrees, playVideo
+from Engine import Pair, System, ExecSplit, ReturnType, SceneBase, Vector2f, degrees
 from Engine.Animation import AnimSprite
 from .. import Data
 
@@ -287,12 +286,6 @@ def RunCommonFunction(commonFunctionName: str) -> Any:
         firstKey = sorted(commonGraph.startNodes.keys())[0]
         return commonGraph.execute(firstKey)
     raise KeyError(f"Common function '{commonFunctionName}' has no start nodes")
-
-
-@ExecSplit(default=(None,))
-def PlayVideo(videoFileName: str, mute: bool, skipable: bool) -> None:
-    videoPath = os.path.join(os.getcwd(), "Assets", "Videos", videoFileName)
-    playVideo(videoPath, mute, skipable)
 
 
 @ExecSplit(default=(None,))

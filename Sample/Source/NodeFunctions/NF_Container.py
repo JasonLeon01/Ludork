@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List
 from Engine import ExecSplit, ReturnType
 
 
@@ -30,29 +30,30 @@ def DictContains(dict_: Dict, key: Any) -> bool:
 
 
 @ReturnType(value=object)
-def ListGet(list_: List, index: Union[int, str]) -> Any:
-    if not isinstance(index, int):
-        index = int(index)
+def ListGet(list_: List[Any], index: int) -> Any:
     return list_[index]
 
 
 @ExecSplit(default=(None,))
-def ListAppend(list_: List, value: Any) -> None:
+def ListAppend(list_: List[Any], value: Any) -> None:
     list_.append(value)
 
 
 @ExecSplit(default=(None,))
-def ListRemove(list_: List, index: Union[int, str]) -> None:
-    if not isinstance(index, int):
-        index = int(index)
+def ListRemove(list_: List[Any], index: int) -> None:
     list_.pop(index)
 
 
+@ReturnType(index=int)
+def ListFind(list_: List[Any], value: Any) -> int:
+    return list_.index(value)
+
+
 @ExecSplit(default=(None,))
-def ListClear(list_: List) -> None:
+def ListClear(list_: List[Any]) -> None:
     list_.clear()
 
 
 @ReturnType(value=bool)
-def ListContains(list_: List, value: Any) -> bool:
+def ListContains(list_: List[Any], value: Any) -> bool:
     return value in list_
