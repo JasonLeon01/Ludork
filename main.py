@@ -2,6 +2,7 @@
 
 import os
 import sys
+import Engine.pysf
 import locale
 import configparser
 import runpy
@@ -17,6 +18,7 @@ import traceback
 import threading
 
 START_PROJ_FILE = None
+sys.modules.pop("Engine")
 
 
 def initConfig():

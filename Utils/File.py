@@ -38,6 +38,7 @@ def getIniPath() -> str:
 
 def getDocPath() -> str:
     from . import Locale
+
     language = EditorStatus.LANGUAGE if EditorStatus.LANGUAGE in Locale.getLocaleKeys() else "en_GB"
     return os.path.join(getRootPath(), "docs", language)
 
@@ -125,7 +126,7 @@ def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
 
     EditorStatus.PROJ_PATH = os.path.abspath(path)
     if EditorStatus.PROJ_PATH not in sys.path:
-        sys.path.append(EditorStatus.PROJ_PATH)
+        sys.path.insert(0, EditorStatus.PROJ_PATH)
         importlib.invalidate_caches()
         print(f"Add {EditorStatus.PROJ_PATH} to sys.path")
     try:

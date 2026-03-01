@@ -10,8 +10,12 @@ if exist "Sample\Engine\pysf" (
   rmdir /S /Q "Sample\Engine\pysf"
 )
 
+if exist "Engine\pysf" (
+  rmdir /S /Q "Engine\pysf"
+)
+
 echo Downloading PySF...
-powershell -Command "Invoke-WebRequest -Uri 'https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.5/pysf-3.0.1.5-Windows-x64.zip' -OutFile 'pysf.zip'"
+powershell -Command "Invoke-WebRequest -Uri 'https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.6/pysf-3.0.1.6-Windows-x64.zip' -OutFile 'pysf.zip'"
 if errorlevel 1 (
   echo Failed to download PySF.
   exit /b 1
@@ -20,7 +24,14 @@ if errorlevel 1 (
 echo Extracting PySF...
 powershell -Command "Expand-Archive -Path 'pysf.zip' -DestinationPath 'Sample\Engine' -Force"
 if errorlevel 1 (
-  echo Failed to extract PySF.
+  echo Failed to extract PySF to Sample/Engine.
+  del pysf.zip
+  exit /b 1
+)
+
+powershell -Command "Expand-Archive -Path 'pysf.zip' -DestinationPath 'Engine' -Force"
+if errorlevel 1 (
+  echo Failed to extract PySF to Engine.
   del pysf.zip
   exit /b 1
 )
@@ -28,7 +39,7 @@ if errorlevel 1 (
 del pysf.zip
 
 echo Downloading PySF lib...
-powershell -Command "Invoke-WebRequest -Uri 'https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.5/pysf-3.0.1.5-lib-Windows-x64.zip' -OutFile 'pysflib.zip'"
+powershell -Command "Invoke-WebRequest -Uri 'https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.6/pysf-3.0.1.6-lib-Windows-x64.zip' -OutFile 'pysflib.zip'"
 if errorlevel 1 (
   echo Failed to download PySF lib.
   exit /b 1
@@ -45,16 +56,16 @@ if errorlevel 1 (
 del pysflib.zip
 
 set ENV_DIR=LudorkEnv
-set "PY_CMD=py -3.10"
+set "PY_CMD=py -3.12"
 
 call %PY_CMD% -V >nul 2>&1
 if errorlevel 1 (
-  set "PY_CMD=python3.10"
+  set "PY_CMD=python3.12"
   call %PY_CMD% -V >nul 2>&1
   if errorlevel 1 (
     set "PY_CMD=%LocalAppData%\Programs\Python\Python310\python.exe"
     if not exist "%PY_CMD%" (
-      echo Python 3.10 not found. Please install Python 3.10 and try again.
+      echo Python 3.12 not found. Please install Python 3.12 and try again.
       exit /b 1
     )
   )
@@ -63,7 +74,7 @@ if errorlevel 1 (
 if exist "%ENV_DIR%\Scripts\activate.bat" (
   call "%ENV_DIR%\Scripts\activate.bat"
   for /f "tokens=2 delims= " %%v in ('python --version 2^>^&1') do set PV=%%v
-  if /I not "!PV:~0,4!"=="3.10" (
+  if /I not "!PV:~0,4!"=="3.12" (
     call deactivate
     rmdir /S /Q "%ENV_DIR%"
     goto CREATE_ENV

@@ -8,8 +8,12 @@ if [ -d "Sample/Engine/pysf" ]; then
   rm -rf "Sample/Engine/pysf"
 fi
 
+if [ -d "Engine/pysf" ]; then
+  rm -rf "Engine/pysf"
+fi
+
 echo "Downloading PySF..."
-curl -L -o pysf.zip "https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.5/pysf-3.0.1.5-macOS-ARM64.zip"
+curl -L -o pysf.zip "https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.6/pysf-3.0.1.6-macOS-ARM64.zip"
 if [ $? -ne 0 ]; then
   echo "Failed to download PySF."
   exit 1
@@ -18,7 +22,14 @@ fi
 echo "Extracting PySF..."
 unzip -q pysf.zip -d "Sample/Engine"
 if [ $? -ne 0 ]; then
-  echo "Failed to extract PySF."
+  echo "Failed to extract PySF to Sample/Engine."
+  rm pysf.zip
+  exit 1
+fi
+
+unzip -q pysf.zip -d "Engine"
+if [ $? -ne 0 ]; then
+  echo "Failed to extract PySF to Engine."
   rm pysf.zip
   exit 1
 fi
@@ -26,10 +37,10 @@ fi
 rm pysf.zip
 
 ENV_DIR="LudorkEnv"
-PY_CMD="python3.10"
+PY_CMD="python3.12"
 
 if ! command -v "$PY_CMD" >/dev/null 2>&1; then
-  echo "Python 3.10 not found. Please install Python 3.10 and try again."
+  echo "Python 3.12 not found. Please install Python 3.12 and try again."
   exit 1
 fi
 
@@ -37,7 +48,7 @@ if [ -f "$ENV_DIR/bin/activate" ]; then
   . "$ENV_DIR/bin/activate"
   PV=$(python --version 2>&1 | awk '{print $2}')
   case "$PV" in
-    3.10*)
+    3.12*)
       ;;
     *)
       deactivate 2>/dev/null || true

@@ -112,16 +112,16 @@
         "en_GB": "FPS History"
     },
     "PACK_PYTHON_MISSING": {
-        "zh_CN": "未检测到 python3.10.0 环境",
-        "en_GB": "python3.10.0 not found"
+        "zh_CN": "未检测到 python3.12.0 环境",
+        "en_GB": "python3.12.0 not found"
     },
     "PACK_PYTHON_VERSION": {
-        "zh_CN": "python3.10 版本需为 3.10.0",
-        "en_GB": "python3.10 must be 3.10.0"
+        "zh_CN": "python3.12 版本需为 3.12.0",
+        "en_GB": "python3.12 must be 3.12.0"
     },
     "PACK_NUITKA_MISSING": {
-        "zh_CN": "python3.10.0 环境未安装 nuitka",
-        "en_GB": "Nuitka is not installed in python3.10.0"
+        "zh_CN": "python3.12.0 环境未安装 nuitka",
+        "en_GB": "Nuitka is not installed in python3.12.0"
     },
     "PACK_NUITKA_FAILED": {
         "zh_CN": "Nuitka 打包失败",
