@@ -7,6 +7,7 @@ av
 nuitka
 zstandard
 ordered-set
+setuptools
 pybind11
 pybind11-stubgen
 openpyxl

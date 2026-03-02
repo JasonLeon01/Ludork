@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -e
+./del_cache.sh
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 cd "$script_dir"
 echo "Cleaning up venv..."

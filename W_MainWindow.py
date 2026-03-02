@@ -37,7 +37,9 @@ from Widgets import (
     MarkdownPreviewer,
 )
 from Widgets.W_GeneralDataEditor import GeneralDataEditor
+from Widgets.W_AboutDialog import AboutDialog
 from Widgets.Utils import MapEditDialog, SingleRowDialog, Toast, FPSGraphDialog
+from Widgets.W_GamePanel import GamePanel
 import EditorStatus
 from Data import GameData
 
@@ -55,7 +57,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.editorPanel = EditorPanel()
         self.editorPanel.dataChanged.connect(self._refreshUndoRedo)
         self.editorScroll = QtWidgets.QScrollArea()
-        self.gamePanel = QtWidgets.QWidget()
+        self.gamePanel = GamePanel()
         self.gamePanel.setFocusPolicy(QtCore.Qt.StrongFocus)
         self._panelHandle = int(self.gamePanel.winId())
         self.editModeToggle = EditModeToggle()
@@ -337,6 +339,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 PYTHONUNBUFFERED="1",
             ),
         )
+        self.gamePanel.setEngineProcess(self._engineProc)
         self.consoleWidget.attach_process(self._engineProc)
         self.tabWidget.setCurrentWidget(self.consoleWidget)
         if self._engineMonitorTimer is None:
@@ -374,6 +377,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 print(f"Error while terminating engine process: {e}")
             finally:
                 self._engineProc = None
+        self.gamePanel.setEngineProcess(None)
         Panel.clearPanel(self.gamePanel)
         self.stacked.setCurrentWidget(self.editorScroll)
         self._setLayerListInteractive(self._editModeIdx != 1)
@@ -875,6 +879,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actHelpExplanation.triggered.connect(self._onHelpExplanation)
         self._actHelpExplanation.setShortcut(QtGui.QKeySequence("F1"))
         _helpMenu.addAction(self._actHelpExplanation)
+
+        self._actAbout = QtWidgets.QAction(Locale.getContent("ABOUT_MENU"), self)
+        self._actAbout.triggered.connect(self._onAbout)
+        _helpMenu.addAction(self._actAbout)
 
         _languageMenu = _helpMenu.addMenu(Locale.getContent("HELP_LANGUAGE"))
         for lang in Locale.getLocaleKeys():
@@ -1472,6 +1480,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self._explanationWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._explanationWindow.setWindowModality(QtCore.Qt.ApplicationModal)
         self._explanationWindow.show()
+
+    def _onAbout(self, checked: bool = False) -> None:
+        dlg = AboutDialog(self)
+        dlg.exec_()
 
     def _onGameSettings(self, checked: bool = False) -> None:
         self._settingsWindow = SettingsWindow(self, self._projConfig)

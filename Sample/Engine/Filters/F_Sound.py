@@ -3,10 +3,10 @@
 from __future__ import annotations
 import math
 from dataclasses import dataclass
-from typing import List, Union, TypeAlias, Callable, Optional
+from typing import List, Union, Callable, Optional
 from .. import Pair, Tuple3, Time, Vector3f, Angle, Sound, Music
 
-EffectProcessor: TypeAlias = Callable[[List[float], int, List[float], int, int], None]
+type EffectProcessor = Callable[[list[float], int, list[float], int, int], None]
 
 
 @dataclass

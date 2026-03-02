@@ -182,18 +182,52 @@ class PackWorker(QtCore.QThread):
             self.finished_signal.emit(True, "")
 
     def _packNuitka(self):
-        # Check Nuitka environment
         pythonExe = sys.executable
-
-        self.log_signal.emit(f"Checking Nuitka in {pythonExe}...\n")
-
+        chosenExe = pythonExe
+        if sys.platform in ("win32", "darwin"):
+            self.log_signal.emit("Checking Python 3.12.0...\n")
+            chosenExe = self._findPython3120() or ""
+            if not chosenExe:
+                text = Locale.getContent("PACK_PY312_PROMPT")
+                res = QtWidgets.QMessageBox.question(
+                    None,
+                    Locale.getContent("PACK_TITLE"),
+                    text,
+                    QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                    QtWidgets.QMessageBox.Yes,
+                )
+                if res == QtWidgets.QMessageBox.Yes:
+                    QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://www.python.org/downloads/release/python-3120/"))
+                self.finished_signal.emit(False, Locale.getContent("PACK_PY312_NOT_FOUND"))
+                return
+        if not chosenExe:
+            chosenExe = pythonExe
+        self.log_signal.emit(f"Checking Nuitka in {chosenExe}...\n")
+        hasNuitka = True
         try:
             subprocess.check_call(
-                [pythonExe, "-m", "pip", "show", "nuitka"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                [chosenExe, "-m", "pip", "show", "nuitka"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
             )
         except subprocess.CalledProcessError:
-            self.finished_signal.emit(False, Locale.getContent("PACK_NUITKA_MISSING"))
-            return
+            hasNuitka = False
+        if not hasNuitka:
+            text = Locale.getContent("PACK_NUITKA_PROMPT")
+            res = QtWidgets.QMessageBox.question(
+                None,
+                Locale.getContent("PACK_TITLE"),
+                text,
+                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                QtWidgets.QMessageBox.Yes,
+            )
+            if res == QtWidgets.QMessageBox.Yes:
+                self.log_signal.emit(Locale.getContent("PACK_NUITKA_INSTALLING") + "\n")
+                installOk = self._installNuitka(chosenExe)
+                if not installOk:
+                    self.finished_signal.emit(False, Locale.getContent("PACK_NUITKA_INSTALL_FAILED"))
+                    return
+            else:
+                self.finished_signal.emit(False, Locale.getContent("PACK_NUITKA_MISSING"))
+                return
 
         entryPath = os.path.join(self.projPath, "Entry.py")
         if not os.path.exists(entryPath):
@@ -204,7 +238,7 @@ class PackWorker(QtCore.QThread):
 
         # Construct Nuitka command
         cmd = [
-            pythonExe,
+            chosenExe,
             "-m",
             "nuitka",
             "--follow-imports",
@@ -266,3 +300,71 @@ class PackWorker(QtCore.QThread):
             self.finished_signal.emit(True, "")
         else:
             self.finished_signal.emit(False, Locale.getContent("PACK_NUITKA_FAILED"))
+
+    def _findPython3120(self) -> str:
+        if sys.platform == "win32":
+            try:
+                if shutil.which("py"):
+                    ver = subprocess.check_output(
+                        ["py", "-3.12", "-c", "import sys;print(sys.version)"],
+                        text=True,
+                        stderr=subprocess.STDOUT,
+                    ).strip()
+                    if ver.startswith("3.12.0"):
+                        exe = subprocess.check_output(
+                            ["py", "-3.12", "-c", "import sys;print(sys.executable)"],
+                            text=True,
+                            stderr=subprocess.STDOUT,
+                        ).strip()
+                        return exe
+            except Exception:
+                return ""
+            return ""
+        if sys.platform == "darwin":
+            try:
+                if shutil.which("python3.12"):
+                    ver = subprocess.check_output(
+                        ["python3.12", "-c", "import sys;print(sys.version)"],
+                        text=True,
+                        stderr=subprocess.STDOUT,
+                    ).strip()
+                    if ver.startswith("3.12.0"):
+                        exe = subprocess.check_output(
+                            ["python3.12", "-c", "import sys;print(sys.executable)"],
+                            text=True,
+                            stderr=subprocess.STDOUT,
+                        ).strip()
+                        return exe
+            except Exception:
+                return ""
+            return ""
+        return ""
+
+    def _installNuitka(self, exe: str) -> bool:
+        try:
+            cmd = [exe, "-m", "pip", "install", "-U", "pip", "setuptools", "wheel"]
+            proc1 = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace"
+            )
+            while True:
+                line = proc1.stdout.readline()
+                if not line and proc1.poll() is not None:
+                    break
+                if line:
+                    self.log_signal.emit(line)
+            if proc1.poll() != 0:
+                return False
+            cmd2 = [exe, "-m", "pip", "install", "-U", "nuitka"]
+            proc2 = subprocess.Popen(
+                cmd2, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace"
+            )
+            while True:
+                line = proc2.stdout.readline()
+                if not line and proc2.poll() is not None:
+                    break
+                if line:
+                    self.log_signal.emit(line)
+            return proc2.poll() == 0
+        except Exception as e:
+            self.log_signal.emit(str(e) + "\n")
+            return False

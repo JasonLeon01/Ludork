@@ -12,7 +12,7 @@
 lib/
 C_Extensions/SFML/
 LudorkEnv/
-Engine/
+/Engine/
 Ludork.ini
 Locale/en_GB
 Locale/zh_CN

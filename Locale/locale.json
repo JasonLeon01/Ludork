@@ -111,17 +111,29 @@
         "zh_CN": "帧率波动图",
         "en_GB": "FPS History"
     },
-    "PACK_PYTHON_MISSING": {
-        "zh_CN": "未检测到 python3.12.0 环境",
-        "en_GB": "python3.12.0 not found"
-    },
-    "PACK_PYTHON_VERSION": {
-        "zh_CN": "python3.12 版本需为 3.12.0",
-        "en_GB": "python3.12 must be 3.12.0"
-    },
     "PACK_NUITKA_MISSING": {
         "zh_CN": "python3.12.0 环境未安装 nuitka",
         "en_GB": "Nuitka is not installed in python3.12.0"
+    },
+    "PACK_PY312_PROMPT": {
+        "zh_CN": "未检测到 Python 3.12.0，是否前往下载页面？",
+        "en_GB": "Python 3.12.0 not found. Open the download page?"
+    },
+    "PACK_PY312_NOT_FOUND": {
+        "zh_CN": "未检测到 Python 3.12.0",
+        "en_GB": "Python 3.12.0 not found"
+    },
+    "PACK_NUITKA_PROMPT": {
+        "zh_CN": "未检测到 Nuitka，是否现在安装？",
+        "en_GB": "Nuitka not found. Install now?"
+    },
+    "PACK_NUITKA_INSTALLING": {
+        "zh_CN": "正在安装 Nuitka…",
+        "en_GB": "Installing Nuitka..."
+    },
+    "PACK_NUITKA_INSTALL_FAILED": {
+        "zh_CN": "Nuitka 安装失败",
+        "en_GB": "Failed to install Nuitka"
     },
     "PACK_NUITKA_FAILED": {
         "zh_CN": "Nuitka 打包失败",
@@ -874,5 +886,25 @@
     "EXPORT_LOCALE_FAILED": {
         "zh_CN": "本地化表导出失败",
         "en_GB": "Locale export failed"
+    },
+    "ABOUT_MENU": {
+        "zh_CN": "关于",
+        "en_GB": "About"
+    },
+    "ABOUT_TITLE": {
+        "zh_CN": "关于 Ludork",
+        "en_GB": "About Ludork"
+    },
+    "ABOUT_DESC": {
+        "zh_CN": "Ludork 是一个基于 PyQt5 的 2D RPG 工具包，它通过 pybind11 将编辑器 UI 与由 SFML 绑定的轻量级运行时引擎配对。它专注于通过可视化脚本、资产工具和游戏基础进行快速迭代，以便创作者可以在不离开编辑器的情况下构建内容。",
+        "en_GB": "Ludork is a PyQt5-based 2D RPG toolkit that pairs an editor UI with a lightweight runtime engine powered by SFML bindings through pybind11. It focuses on fast iteration with visual scripting, asset tooling, and gameplay foundations so creators can build content without constantly leaving the editor."
+    },
+    "ABOUT_LICENSES": {
+        "zh_CN": "开源许可",
+        "en_GB": "Open Source Licenses"
+    },
+    "ABOUT_COPYRIGHT": {
+        "zh_CN": "© 2026 Ludork Team",
+        "en_GB": "© 2026 Ludork Team"
     }
 }

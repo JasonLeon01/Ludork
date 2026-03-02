@@ -1,5 +1,6 @@
 @echo off
 setlocal EnableDelayedExpansion
+call del_cache.bat
 cd /d "%~dp0"
 echo "Cleaning up venv..."
 if exist "LudorkEnv" (

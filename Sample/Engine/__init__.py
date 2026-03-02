@@ -2,16 +2,15 @@
 
 from enum import IntEnum
 import functools
-from typing import Any, Callable, Dict, List, Tuple, Type, TypeVar, Union
+from typing import Any, Callable, Dict, List, Tuple, Type, Union
 from .BPBase import BPBase
 
 
 _GameRunning: bool = True
 _CellSize: int = 32
-T = TypeVar("T")
-Pair = Tuple[T, T]
-Tuple3 = Tuple[T, T, T]
-Tuple4 = Tuple[T, T, T, T]
+type Pair[T] = tuple[T, T]
+type Tuple3[T] = tuple[T, T, T]
+type Tuple4[T] = tuple[T, T, T, T]
 
 
 class Direction(IntEnum):

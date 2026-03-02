@@ -98,6 +98,111 @@ class _EventState:
     ] = {}
 
 
+_InjectedEvents = []
+
+
+def injectEvent(data: Dict[str, Any]) -> None:
+    _InjectedEvents.append(data)
+
+
+def _processInjectedEvents():
+    while _InjectedEvents:
+        data = _InjectedEvents.pop(0)
+        t = data.get("type")
+        if t == "KeyPressed":
+            keyName = data.get("key")
+            key = getattr(Keyboard.Key, keyName, Keyboard.Key.Unknown)
+            scan = Keyboard.Scan.Unknown 
+            alt = data.get("alt", False)
+            ctrl = data.get("control", False)
+            shift = data.get("shift", False)
+            system = data.get("system", False)
+            
+            _EventState.KeyPressed = True
+            keyMap = (key, alt, ctrl, shift, system)
+            scanMap = (scan, alt, ctrl, shift, system)
+            _EventState.KeyPressedMap[keyMap] = True
+            _EventState.KeyboardScanPressedMap[scanMap] = True
+            
+            if not keyMap in _EventState.KeyTriggeredMap:
+                _EventState.KeyTriggeredMap[keyMap] = (0, False)
+            count, handled = _EventState.KeyTriggeredMap[keyMap]
+            count += 1
+            _EventState.KeyTriggeredMap[keyMap] = (count, handled)
+            
+        elif t == "KeyReleased":
+            keyName = data.get("key")
+            key = getattr(Keyboard.Key, keyName, Keyboard.Key.Unknown)
+            scan = Keyboard.Scan.Unknown
+            alt = data.get("alt", False)
+            ctrl = data.get("control", False)
+            shift = data.get("shift", False)
+            system = data.get("system", False)
+            
+            _EventState.KeyReleased = True
+            keyMap = (key, alt, ctrl, shift, system)
+            scanMap = (scan, alt, ctrl, shift, system)
+            _EventState.KeyReleasedMap[keyMap] = True
+            _EventState.KeyboardScanReleasedMap[scanMap] = True
+            if keyMap in _EventState.KeyTriggeredMap:
+                _EventState.KeyTriggeredMap.pop(keyMap, None)
+
+        elif t == "MouseMoved":
+            x = data.get("x", 0)
+            y = data.get("y", 0)
+            _EventState.MouseMoved = True
+            _EventState.MousePosition = Vector2i(x, y)
+            
+        elif t == "MouseButtonPressed":
+            btnName = data.get("button")
+            btn = getattr(Mouse.Button, btnName, Mouse.Button.Left)
+            x = data.get("x", 0)
+            y = data.get("y", 0)
+            pos = Vector2i(x, y)
+            
+            _EventState.MouseButtonPressed = True
+            _EventState.MouseButtonPressedMap[btn] = True
+            _EventState.MousePressedPosition = pos
+            
+            if not btn in _EventState.MouseButtonTriggeredMap:
+                _EventState.MouseButtonTriggeredMap[btn] = (0, False)
+            count, handled = _EventState.MouseButtonTriggeredMap[btn]
+            count += 1
+            _EventState.MouseButtonTriggeredMap[btn] = (count, handled)
+
+        elif t == "MouseButtonReleased":
+            btnName = data.get("button")
+            btn = getattr(Mouse.Button, btnName, Mouse.Button.Left)
+            x = data.get("x", 0)
+            y = data.get("y", 0)
+            pos = Vector2i(x, y)
+            
+            _EventState.MouseButtonReleased = True
+            _EventState.MouseButtonReleasedMap[btn] = True
+            _EventState.MouseReleasedPosition = pos
+            
+            if btn in _EventState.MouseButtonTriggeredMap:
+                _EventState.MouseButtonTriggeredMap.pop(btn, None)
+                
+        elif t == "MouseWheelScrolled":
+            delta = data.get("delta", 0.0)
+            x = data.get("x", 0)
+            y = data.get("y", 0)
+            
+            _EventState.MouseWheelScrolled = True
+            _EventState.MouseScrolledWheel = Mouse.Wheel.VerticalWheel
+            _EventState.MouseScrolledWheelDelta = delta
+            _EventState.MouseScrolledWheelPosition = Vector2i(x, y)
+            
+        elif t == "FocusGained":
+            _EventState.Focused = True
+            _EventState.FocusGained = True
+            
+        elif t == "FocusLost":
+            _EventState.Focused = False
+            _EventState.FocusLost = True
+
+
 def update(window: WindowBase) -> None:
     _EventState.FocusLost = False
     _EventState.FocusGained = False
@@ -138,6 +243,8 @@ def update(window: WindowBase) -> None:
     _EventState.JoystickAxisJustPressed.clear()
 
     _EventState.EnteredText = ""
+
+    _processInjectedEvents()
 
     try:
         while True:
