@@ -1,9 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-from Engine import SceneBase, System, Manager, Vector2f, Vector2i, degrees, GetCellSize
-from Engine.Animation import AnimSprite
+from Engine import SceneBase, System, Manager, Vector2f, Vector2i, GetCellSize
 from Engine.Gameplay import GameMap
-from Engine.Gameplay.Particles import Particle, Info
 from Engine.Utils import File
 from Source import Data
 from Source.Player import Player
@@ -17,78 +15,8 @@ class Scene(SceneBase):
         self._roars = []
         self._roarSeqId = 0
         self.player = self._initPlayer()
-        self._gameMap = GameMap.fromData(File.loadData("./Data/Maps/Map_01.dat"))
-        self._gameMap.spawnActor(self.player, "default")
-        self.player.setRoutine(self._gameMap.findPath(self.player.getMapPosition(), Vector2i(0, 0)))
-        self._gameMap.setPlayer(self.player)
-        self.particle = Particle("./Assets/System/star-3.png", Info(Vector2f(333, 234), rotation=123.0))
-
-        def moveFunction(deltaTime: float, totalTime: float, obj: Particle):
-            obj.info.rotation += degrees(90.0 * deltaTime)
-
-        self.particle.setMoveFunction(moveFunction)
-        self._gameMap._particleSystem.addParticle(self.particle)
-        self.anim = AnimSprite(Data.getAnimation("test"))
-        self.anim.setPosition(Vector2f(64, 64))
-        self.addTimer("animTest", 5.0, lambda: self.addAnim(self.anim))
-        self.anim2 = AnimSprite(Data.getAnimation("test"))
-        self.anim2.setPosition(Vector2f(128, 128))
-        self.addTimer("animTest2", 10.0, lambda: self.addAnim(self.anim2))
-        self.addTimer("removeParticle", 10.0, lambda: self._gameMap._particleSystem.removeParticle(self.particle), [])
-        self.addTimer(
-            "shaderTest", 3.0, lambda: System.addGraphicsShader(Manager.loadShader("Vague.frag"), {"intensity": 1.0})
-        )
-        self.addTimer(
-            "shaderTest2",
-            6.0,
-            lambda: System.addGraphicsShader(Manager.loadShader("GrayScale.frag"), {"intensity": 1.0}),
-        )
-        self.addTimer(
-            "shaderTest3",
-            9.0,
-            lambda: System.removeGraphicsShaderAt(0),
-        )
-        self.addTimer(
-            "shaderTest4",
-            12.0,
-            lambda: System.removeGraphicsShaderAt(0),
-        )
-        self.addTimer(
-            "roarTest",
-            4.0,
-            lambda: self.triggerRoarBurst(
-                Vector2i(4, 4),
-                3,
-                0.18,
-                0.6,
-                0.0,
-                (
-                    (System.getGameSize().x * System.getGameSize().x + System.getGameSize().y * System.getGameSize().y)
-                    ** 0.5
-                ),
-                64.0,
-                18.0,
-                0.85,
-            ),
-        )
-        self.addTimer(
-            "roarTest2",
-            6,
-            lambda: self.triggerRoarBurst(
-                Vector2i(6, 6),
-                3,
-                0.18,
-                0.6,
-                0.0,
-                (
-                    (System.getGameSize().x * System.getGameSize().x + System.getGameSize().y * System.getGameSize().y)
-                    ** 0.5
-                ),
-                64.0,
-                18.0,
-                0.85,
-            ),
-        )
+        self._gameMap: GameMap = None
+        self.loadMap("./Data/Maps/Map_01.dat")
 
     def onFixedTick(self, fixedDelta: float) -> None:
         self._gameMap.onFixedTick(fixedDelta)
@@ -102,6 +30,11 @@ class Scene(SceneBase):
         self._gameMap.onLateTick(deltaTime)
         self._updateRoars(deltaTime)
         return super().onLateTick(deltaTime)
+
+    def loadMap(self, mapPath: str) -> None:
+        self._gameMap = GameMap.fromData(File.loadData(mapPath))
+        self._gameMap.spawnActor(self.player, "default")
+        self._gameMap.setPlayer(self.player)
 
     def _renderHandle(self, deltaTime: float) -> None:
         self._gameMap.show()

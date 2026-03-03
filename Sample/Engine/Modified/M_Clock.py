@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from ..pysf import Clock
+from pysf import Clock
 
 
 class ModifiedClock(Clock):

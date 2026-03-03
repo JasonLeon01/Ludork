@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from typing import Optional
-from ..pysf import ContextSettings
+from pysf import ContextSettings
 
 
 class ModifiedContextSettings(ContextSettings):

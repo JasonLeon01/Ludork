@@ -16,6 +16,8 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QSize
 from Utils import Locale, Panel, System, File
 from Widgets import (
+    AspectRatioContainer,
+    GamePanel,
     EditorPanel,
     ModeToggle,
     EditModeToggle,
@@ -35,11 +37,10 @@ from Widgets import (
     PackWorker,
     PackSelectionDialog,
     MarkdownPreviewer,
+    GeneralDataEditor,
+    AboutDialog,
 )
-from Widgets.W_GeneralDataEditor import GeneralDataEditor
-from Widgets.W_AboutDialog import AboutDialog
 from Widgets.Utils import MapEditDialog, SingleRowDialog, Toast, FPSGraphDialog
-from Widgets.W_GamePanel import GamePanel
 import EditorStatus
 from Data import GameData
 
@@ -152,10 +153,97 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actPasteLightSource.triggered.connect(self._onPasteLightSource)
         self._actPasteLightSource.setEnabled(False)
 
+        self.gameSize = QSize(640, 480)
+        self.panelAspectRatio = 4.0 / 3.0
+        self.refreshGameSize()
         self.setProjPath(EditorStatus.PROJ_PATH)
         self._setStyle()
         self._initProjConfigAndSelection()
         self._engineMonitorTimer: Optional[QtCore.QTimer] = None
+        self._gameLockActive: bool = False
+        self._lockedViewportSize: Optional[QSize] = None
+
+    def _lockGameViewportSize(self) -> None:
+        if not hasattr(self, "gameViewport") or not hasattr(self, "upperSplitter"):
+            return
+        vw = max(1, int(self.gameViewport.width()))
+        vh = max(1, int(self.gameViewport.height()))
+        self._lockedViewportSize = QSize(vw, vh)
+        self.gameViewport.setMinimumSize(vw, vh)
+        self.gameViewport.setMaximumSize(vw, vh)
+        self.centerArea.setMinimumWidth(vw)
+        self.centerArea.setMaximumWidth(vw)
+        topH = int(self.topBar.minimumHeight()) + vh
+        self.upperSplitter.setMinimumHeight(topH)
+        self.upperSplitter.setMaximumHeight(topH)
+        self._gameLockActive = True
+
+    def _unlockGameViewportSize(self) -> None:
+        if not hasattr(self, "gameViewport") or not hasattr(self, "upperSplitter"):
+            return
+        self.gameViewport.setMinimumSize(self.gameSize)
+        self.gameViewport.setMaximumSize(16777215, 16777215)
+        self.centerArea.setMinimumWidth(self.gameSize.width())
+        self.centerArea.setMaximumWidth(16777215)
+        self.upperSplitter.setMinimumHeight(0)
+        self.upperSplitter.setMaximumHeight(16777215)
+        self._lockedViewportSize = None
+        self._gameLockActive = False
+
+    def refreshGameSize(self) -> None:
+        panelW, panelH = 640, 480
+        cfg = GameData.systemConfigData.get("System")
+        if isinstance(cfg, dict):
+            gs = cfg.get("gameSize")
+            val = gs.get("value") if isinstance(gs, dict) else gs
+            if isinstance(val, (list, tuple)) and len(val) >= 2:
+
+                def toPositiveInt(v: Any) -> Optional[int]:
+                    if isinstance(v, bool):
+                        return None
+                    if isinstance(v, int):
+                        return v if v > 0 else None
+                    if isinstance(v, float):
+                        i = int(v)
+                        return i if i > 0 else None
+                    if isinstance(v, str):
+                        s = v.strip()
+                        if s.isdigit():
+                            i = int(s)
+                            return i if i > 0 else None
+                    return None
+
+                w = toPositiveInt(val[0])
+                h = toPositiveInt(val[1])
+                if isinstance(w, int) and isinstance(h, int):
+                    panelW, panelH = w, h
+        self.gameSize = QSize(panelW, panelH)
+        self.panelAspectRatio = (float(panelW) / float(panelH)) if panelH > 0 else (4.0 / 3.0)
+        if hasattr(self, "editorViewport"):
+            self.editorViewport.setAspectRatio(self.panelAspectRatio)
+            self.editorViewport.setMinimumSize(self.gameSize)
+        if hasattr(self, "gameViewport"):
+            self.gameViewport.setAspectRatio(self.panelAspectRatio)
+            self.gameViewport.setMinimumSize(self.gameSize)
+        if hasattr(self, "editorScroll"):
+            self.editorScroll.setMinimumSize(self.gameSize)
+        if hasattr(self, "gamePanel"):
+            self.gamePanel.setMinimumSize(self.gameSize)
+        if hasattr(self, "centerArea"):
+            self.centerArea.setMinimumWidth(self.gameSize.width())
+        if hasattr(self, "upperSplitter") and hasattr(self, "topBar") and hasattr(self, "lowerArea"):
+            minLeft = 320
+            minRight = 320
+            if hasattr(self, "leftArea"):
+                minLeft = max(minLeft, int(self.leftArea.minimumWidth()))
+            if hasattr(self, "rightArea"):
+                minRight = max(minRight, int(self.rightArea.minimumWidth()))
+            lowerMinH = max(160, int(self.lowerArea.minimumHeight()))
+            topHMin = int(self.topBar.minimumHeight()) + int(self.gameSize.height())
+            handleW = int(self.upperSplitter.handleWidth())
+            minW = minLeft + int(self.gameSize.width()) + minRight + handleW * 2 + 16
+            minH = topHMin + lowerMinH + 8
+            self.setMinimumSize(minW, minH)
 
     def showEvent(self, event: QtGui.QShowEvent) -> None:
         self._refreshUndoRedo()
@@ -163,7 +251,9 @@ class MainWindow(QtWidgets.QMainWindow):
         applyLW = self._savedLeftWidth
         applyRW = self._savedRightWidth
         if applyLW is not None and applyRW is not None:
-            cw = self.gamePanel.width()
+            totalW = self.upperSplitter.width()
+            minCenterW = max(self.gameSize.width(), self.centerArea.minimumWidth())
+            cw = max(minCenterW, totalW - applyLW - applyRW)
             self.upperSplitter.setSizes([applyLW, cw, applyRW])
             self._prevLeftW = applyLW
             self._prevRightW = applyRW
@@ -176,84 +266,26 @@ class MainWindow(QtWidgets.QMainWindow):
         self._prevFG = self.frameGeometry()
         self._sizesInitialized = True
         self._hasShown = True
-        topH = self.topBar.minimumHeight() + self.gamePanel.height()
-        self.topSplitter.setSizes([topH, max(self.height() - topH, 160)])
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         super().resizeEvent(event)
         self.toast._updatePosition()
-        if not self._hasShown:
-            self._prevUpperW = self.upperSplitter.width()
-            self._prevFG = self.frameGeometry()
-            topH = self.topBar.minimumHeight() + self.gamePanel.height()
-            self.topSplitter.setSizes([topH, max(self.height() - topH, 160)])
-            return
-        if not self._sizesInitialized:
-            sizes = self.upperSplitter.sizes()
-            if len(sizes) >= 3 and sizes[0] > 0 and sizes[2] > 0:
-                self._prevLeftW = sizes[0]
-                self._prevRightW = sizes[2]
-                self._prevUpperW = self.upperSplitter.width()
-                self._prevFG = self.frameGeometry()
-                self._sizesInitialized = True
-        newFG = self.frameGeometry()
-        dxL = newFG.left() - self._prevFG.left()
-        dxR = newFG.right() - self._prevFG.right()
-        directionLeft = abs(dxL) > abs(dxR)
-        newUpperW = self.upperSplitter.width()
-        deltaW = newUpperW - self._prevUpperW
-        deltaEvent = event.size().width() - event.oldSize().width()
-        if deltaW == 0:
-            deltaW = deltaEvent
-        centerW = self.gamePanel.width()
-        minLeft = max(320, self.leftArea.minimumWidth())
-        minRight = max(320, self.rightArea.minimumWidth())
-        sizesNow = self.upperSplitter.sizes()
-        leftW = sizesNow[0] if len(sizesNow) >= 3 else self._prevLeftW
-        rightW = sizesNow[2] if len(sizesNow) >= 3 else self._prevRightW
-        if deltaW != 0:
-            if directionLeft:
-                if deltaW > 0:
-                    leftW += deltaW
-                else:
-                    need = -deltaW
-                    take = min(need, max(0, leftW - minLeft))
-                    leftW -= take
-                    need -= take
-                    if need > 0:
-                        take2 = min(need, max(0, rightW - minRight))
-                        rightW -= take2
-            else:
-                if deltaW > 0:
-                    rightW += deltaW
-                else:
-                    need = -deltaW
-                    take = min(need, max(0, rightW - minRight))
-                    rightW -= take
-                    need -= take
-                    if need > 0:
-                        take2 = min(need, max(0, leftW - minLeft))
-                        leftW -= take2
-            leftW = max(leftW, minLeft)
-            rightW = max(rightW, minRight)
-            self.upperSplitter.setSizes([leftW, centerW, rightW])
-            self._prevLeftW = leftW
-            self._prevRightW = rightW
-            self._prevUpperW = newUpperW
-        self._prevFG = newFG
-        topH = self.topBar.minimumHeight() + self.gamePanel.height()
-        self.topSplitter.setSizes([topH, max(self.height() - topH, 160)])
         if self._hasShown:
             cfg = configparser.ConfigParser()
             cfg_path = os.path.join(File.getIniPath(), f"{EditorStatus.APP_NAME}.ini")
-            assert os.path.exists(cfg_path)
-            cfg.read(cfg_path)
-            assert EditorStatus.APP_NAME in cfg
+            if os.path.exists(cfg_path):
+                cfg.read(cfg_path)
+            if EditorStatus.APP_NAME not in cfg:
+                cfg[EditorStatus.APP_NAME] = {}
             s = self.size()
             cfg[EditorStatus.APP_NAME]["Width"] = str(s.width())
             cfg[EditorStatus.APP_NAME]["Height"] = str(s.height())
-            cfg[EditorStatus.APP_NAME]["UpperLeftWidth"] = str(self._prevLeftW)
-            cfg[EditorStatus.APP_NAME]["UpperRightWidth"] = str(self._prevRightW)
+            sizes = self.upperSplitter.sizes()
+            if len(sizes) >= 3:
+                self._prevLeftW = sizes[0]
+                self._prevRightW = sizes[2]
+            cfg[EditorStatus.APP_NAME]["UpperLeftWidth"] = str(self._prevLeftW or 320)
+            cfg[EditorStatus.APP_NAME]["UpperRightWidth"] = str(self._prevRightW or 320)
             with open(cfg_path, "w") as f:
                 cfg.write(f)
 
@@ -293,7 +325,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def setProjPath(self, projPath: str):
         self._mapFilesRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
-        self.stacked.setCurrentWidget(self.editorScroll)
+        self.refreshGameSize()
+        if hasattr(self, "editorViewport"):
+            self.stacked.setCurrentWidget(self.editorViewport)
+        else:
+            self.stacked.setCurrentWidget(self.editorScroll)
         self.editorPanel.refreshMap()
         self.fileExplorer.setRootPath(EditorStatus.PROJ_PATH)
 
@@ -303,7 +339,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if os.path.exists(fpsFile):
             os.remove(fpsFile)
         self.consoleWidget.clear()
-        self.stacked.setCurrentWidget(self.gamePanel)
+        self.stacked.setCurrentWidget(self.gameViewport)
+        self._lockGameViewportSize()
         self._setLayerListInteractive(False)
         self.leftList.setEnabled(False)
         Panel.applyDisabledOpacity(self.leftList)
@@ -379,7 +416,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 self._engineProc = None
         self.gamePanel.setEngineProcess(None)
         Panel.clearPanel(self.gamePanel)
-        self.stacked.setCurrentWidget(self.editorScroll)
+        self.stacked.setCurrentWidget(self.editorViewport)
+        self._unlockGameViewportSize()
         self._setLayerListInteractive(self._editModeIdx != 1)
         self.leftList.setEnabled(True)
         Panel.applyDisabledOpacity(self.leftList)
@@ -679,7 +717,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.layerList.itemClicked.connect(self._onLayerButtonClicked)
         self.layerList.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
         self.layerList.model().rowsMoved.connect(self._onLayerMoved)
-        panelW, panelH = 640, 480
+        panelW, panelH = self.gameSize.width(), self.gameSize.height()
 
         self.editorPanel.setObjectName("EditorPanel")
         self.editorPanel.setAttribute(QtCore.Qt.WA_NativeWindow, True)
@@ -693,7 +731,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.editorScroll.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
         self.editorScroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
         self.editorScroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        self.editorScroll.setFixedSize(panelW, panelH)
+        self.editorScroll.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.editorScroll.setMinimumSize(self.gameSize)
         self.editorPanel.setObjectName("EditorPanel")
         self.editorPanel.setAttribute(QtCore.Qt.WA_NativeWindow, True)
         self.editorPanel.setAutoFillBackground(True)
@@ -701,13 +740,19 @@ class MainWindow(QtWidgets.QMainWindow):
         pal.setColor(QtGui.QPalette.Window, QtGui.QColor.fromRgb(0, 0, 0))
         self.editorPanel.setPalette(pal)
 
-        self.gamePanel.setFixedSize(panelW, panelH)
+        self.gamePanel.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.gamePanel.setMinimumSize(self.gameSize)
         self.gamePanel.setObjectName("GamePanel")
         self.gamePanel.setAttribute(QtCore.Qt.WA_NativeWindow, True)
         self.gamePanel.setAutoFillBackground(True)
         pal = self.gamePanel.palette()
         pal.setColor(QtGui.QPalette.Window, QtGui.QColor.fromRgb(0, 0, 0))
         self.gamePanel.setPalette(pal)
+
+        self.editorViewport = AspectRatioContainer(self.editorScroll, self.panelAspectRatio)
+        self.editorViewport.setMinimumSize(self.gameSize)
+        self.gameViewport = AspectRatioContainer(self.gamePanel, self.panelAspectRatio)
+        self.gameViewport.setMinimumSize(self.gameSize)
 
         topLayout.addWidget(self.layerList, 1)
         topLayout.addWidget(self.editModeToggle, 0, alignment=QtCore.Qt.AlignRight)
@@ -747,12 +792,11 @@ class MainWindow(QtWidgets.QMainWindow):
         centerLayout.setContentsMargins(0, 0, 0, 0)
         centerLayout.setSpacing(0)
         centerLayout.addWidget(self.topBar, 0, alignment=QtCore.Qt.AlignTop)
-        self.stacked.addWidget(self.editorScroll)
-        self.stacked.addWidget(self.gamePanel)
-        self.stacked.setCurrentWidget(self.editorScroll)
-        centerLayout.addLayout(self.stacked)
-        centerLayout.addStretch(1)
-        self.centerArea.setFixedWidth(self.gamePanel.width())
+        self.stacked.addWidget(self.editorViewport)
+        self.stacked.addWidget(self.gameViewport)
+        self.stacked.setCurrentWidget(self.editorViewport)
+        centerLayout.addLayout(self.stacked, 1)
+        self.centerArea.setMinimumWidth(panelW)
 
         self.rightArea.setMinimumWidth(320)
         self.rightStack = QtWidgets.QStackedLayout(self.rightArea)
@@ -780,10 +824,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.upperSplitter.addWidget(self.leftArea)
         self.upperSplitter.addWidget(self.centerArea)
         self.upperSplitter.addWidget(self.rightArea)
-        self.upperSplitter.setStretchFactor(0, 1)
-        self.upperSplitter.setStretchFactor(1, 0)
-        self.upperSplitter.setStretchFactor(2, 1)
-        self.upperSplitter.setSizes([320, self.gamePanel.width(), 320])
+        self.upperSplitter.setStretchFactor(0, 0)
+        self.upperSplitter.setStretchFactor(1, 1)
+        self.upperSplitter.setStretchFactor(2, 0)
+        self.upperSplitter.setSizes([320, panelW, 320])
         self.upperSplitter.splitterMoved.connect(self._onUpperSplitterMoved)
         cfg = configparser.ConfigParser()
         cfg_path = os.path.join(File.getIniPath(), f"{EditorStatus.APP_NAME}.ini")
@@ -808,12 +852,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.topSplitter.setChildrenCollapsible(False)
         self.topSplitter.addWidget(self.upperSplitter)
         self.topSplitter.addWidget(self.lowerArea)
-        topH = self.topBar.minimumHeight() + self.gamePanel.height()
-        self.upperSplitter.setFixedHeight(topH)
+        self.topSplitter.setStretchFactor(0, 1)
+        self.topSplitter.setStretchFactor(1, 0)
         self.lowerArea.setMinimumHeight(160)
 
-        minW = 320 + self.gamePanel.width() + 320 + self.upperSplitter.handleWidth() * 2 + 16
-        minH = topH + 160 + 8
+        topHMin = self.topBar.minimumHeight() + panelH
+        minW = 320 + panelW + 320 + self.upperSplitter.handleWidth() * 2 + 16
+        minH = topHMin + 160 + 8
         self.setMinimumSize(minW, minH)
 
         layout = QtWidgets.QVBoxLayout(central)
@@ -1352,7 +1397,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.refreshLeftList()
         self.tileSelect.initTilesets()
         self._refreshInfo()
-        if self.stacked.currentWidget() == self.editorScroll:
+        if self.stacked.currentWidget() == self.editorViewport:
             item = self.leftList.currentItem()
             if item:
                 self.editorPanel.refreshMap(item.text())
@@ -1364,7 +1409,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _onDatabaseSystemConfig(self, checked: bool = False) -> None:
         self._configWindow = ConfigWindow(self)
-        self._configWindow.modified.connect(lambda: self._refreshInfo())
+        self._configWindow.modified.connect(lambda: (self.refreshGameSize(), self._refreshInfo()))
         self._configWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._configWindow.setWindowModality(QtCore.Qt.ApplicationModal)
         self._configWindow.activateWindow()

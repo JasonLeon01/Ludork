@@ -12,12 +12,11 @@
 lib/
 C_Extensions/SFML/
 LudorkEnv/
-/Engine/
+pysf/
 Ludork.ini
 Locale/en_GB
 Locale/zh_CN
 Sample/Main.proj
-Sample/Engine/pysf/
 launcher.build/
 launcher.dist/
 launcher.onefile-build/

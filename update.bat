@@ -6,12 +6,12 @@ if not exist "C_Extensions" (
   mkdir "C_Extensions"
 )
 
-if exist "Sample\Engine\pysf" (
-  rmdir /S /Q "Sample\Engine\pysf"
+if exist "Sample\pysf" (
+  rmdir /S /Q "Sample\pysf"
 )
 
-if exist "Engine\pysf" (
-  rmdir /S /Q "Engine\pysf"
+if exist "pysf" (
+  rmdir /S /Q "pysf"
 )
 
 echo Downloading PySF...
@@ -22,16 +22,16 @@ if errorlevel 1 (
 )
 
 echo Extracting PySF...
-powershell -Command "Expand-Archive -Path 'pysf.zip' -DestinationPath 'Sample\Engine' -Force"
+powershell -Command "Expand-Archive -Path 'pysf.zip' -DestinationPath 'Sample' -Force"
 if errorlevel 1 (
-  echo Failed to extract PySF to Sample/Engine.
+  echo Failed to extract PySF to Sample.
   del pysf.zip
   exit /b 1
 )
 
-powershell -Command "Expand-Archive -Path 'pysf.zip' -DestinationPath 'Engine' -Force"
+powershell -Command "Expand-Archive -Path 'pysf.zip' -DestinationPath '.' -Force"
 if errorlevel 1 (
-  echo Failed to extract PySF to Engine.
+  echo Failed to extract PySF to current folder.
   del pysf.zip
   exit /b 1
 )

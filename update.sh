@@ -4,12 +4,12 @@ cd "$(dirname "$0")"
 
 mkdir -p "C_Extensions"
 
-if [ -d "Sample/Engine/pysf" ]; then
-  rm -rf "Sample/Engine/pysf"
+if [ -d "Sample/pysf" ]; then
+  rm -rf "Sample/pysf"
 fi
 
-if [ -d "Engine/pysf" ]; then
-  rm -rf "Engine/pysf"
+if [ -d "pysf" ]; then
+  rm -rf "pysf"
 fi
 
 echo "Downloading PySF..."
@@ -20,16 +20,16 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "Extracting PySF..."
-unzip -q pysf.zip -d "Sample/Engine"
+unzip -q pysf.zip -d "Sample"
 if [ $? -ne 0 ]; then
-  echo "Failed to extract PySF to Sample/Engine."
+  echo "Failed to extract PySF to Sample."
   rm pysf.zip
   exit 1
 fi
 
-unzip -q pysf.zip -d "Engine"
+unzip -q pysf.zip -d "."
 if [ $? -ne 0 ]; then
-  echo "Failed to extract PySF to Engine."
+  echo "Failed to extract PySF to current folder."
   rm pysf.zip
   exit 1
 fi

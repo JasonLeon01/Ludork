@@ -1,5 +1,7 @@
 # -*- encoding: utf-8 -*-
 
+from .W_AspectRatioContainer import AspectRatioContainer
+from .W_GamePanel import GamePanel
 from .W_EditorPanel import EditorPanel
 from .W_Toggle import ModeToggle, EditModeToggle
 from .W_TileSelect import TileSelect
@@ -17,3 +19,5 @@ from .W_ActorInfo import ActorInfoPanel
 from .W_AnimationWindow import AnimationWindow
 from .W_PackDialog import LogDialog, PackWorker, PackSelectionDialog
 from .W_MarkdownPreviewer import MarkdownPreviewer
+from .W_GeneralDataEditor import GeneralDataEditor
+from .W_AboutDialog import AboutDialog
