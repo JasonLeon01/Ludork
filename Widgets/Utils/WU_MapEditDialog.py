@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+import os
 from typing import Any, Optional
 from PyQt5 import QtCore, QtWidgets
 from Utils import Locale, System
@@ -101,7 +102,10 @@ class MapEditDialog(QtWidgets.QDialog):
         super().accept()
 
     def getFileName(self) -> str:
-        return self.fileEdit.text().strip()
+        name = self.fileEdit.text().strip()
+        if name.lower().endswith(".dat"):
+            return os.path.splitext(name)[0]
+        return name
 
     def execApply(self) -> bool:
         if self.exec_() != QtWidgets.QDialog.Accepted:

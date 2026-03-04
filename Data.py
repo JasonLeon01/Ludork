@@ -81,7 +81,14 @@ class GameData:
 
     @classmethod
     def checkModified(cls) -> bool:
-        return cls.asDict() != cls._originData
+        if cls.asDict() != cls._originData:
+            return True
+        for mapName, mapData in cls.asDict().get("mapData", {}).items():
+            layersKeys = list(mapData.get("layers", {}).keys())
+            originLayersKeys = list(cls._originData.get("mapData", {}).get(mapName, {}).get("layers", {}).keys())
+            if layersKeys != originLayersKeys:
+                return True
+        return False
 
     @classmethod
     def getChanges(cls) -> Dict[str, Dict[str, List[str]]]:
@@ -117,7 +124,14 @@ class GameData:
             changes[section]["D"] = list(orig_keys - curr_keys)
 
             for key in curr_keys & orig_keys:
-                if curr_sec[key] != orig_sec[key]:
+                is_different = curr_sec[key] != orig_sec[key]
+                if not is_different and section == "mapData":
+                    c_layers = list(curr_sec[key].get("layers", {}).keys())
+                    o_layers = list(orig_sec[key].get("layers", {}).keys())
+                    if c_layers != o_layers:
+                        is_different = True
+
+                if is_different:
                     changes[section]["U"].append(key)
 
         return changes
@@ -228,9 +242,10 @@ class GameData:
 
         for key in c_map["D"]:
             try:
-                fp = os.path.join(mapsRoot, key)
-                if os.path.exists(fp):
-                    os.remove(fp)
+                for ext in [".dat", ".json"]:
+                    fp = os.path.join(mapsRoot, f"{key}{ext}")
+                    if os.path.exists(fp):
+                        os.remove(fp)
                 final_details["D"].append(key)
                 if key in cls._originData["mapData"]:
                     del cls._originData["mapData"][key]

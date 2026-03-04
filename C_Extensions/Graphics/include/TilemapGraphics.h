@@ -21,6 +21,11 @@ public:
                     const std::vector<py::object> &materials);
   ~TileLayerGraphics();
 
+  void setTileColor(int x, int y, sf::Color color);
+  void resetTileColor(int x, int y);
+  std::vector<std::pair<int, int>> floodFillTransparent(int startX, int startY,
+                                                        sf::Color color);
+
 private:
   void init(int tileSize);
   virtual void draw(sf::RenderTarget &target,

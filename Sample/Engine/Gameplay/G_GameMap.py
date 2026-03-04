@@ -558,6 +558,15 @@ class GameMap(GameMapGraphics):
     def show(self) -> None:
         from .. import System
 
+        if not hasattr(self, "_transparentTiles"):
+            self._transparentTiles = []
+
+        if self._transparentTiles:
+            for layer, x, y in self._transparentTiles:
+                if hasattr(layer, "resetTileColor"):
+                    layer.resetTileColor(x, y)
+            self._transparentTiles.clear()
+
         tilemapLightMask = System.getTilemapLightMaskShader()
         actorLightMask = System.getLightMaskShader()
         layers = self._tilemap.getAllLayers()
@@ -565,13 +574,38 @@ class GameMap(GameMapGraphics):
         System.setWindowMapView()
         self._camera.clear()
         self._lightMask.clear()
-        for layerName in layerKeys:
+
+        playerLayerIndex = -1
+        if self._player:
+            for i, name in enumerate(layerKeys):
+                if name in self._actors and self._player in self._actors[name]:
+                    playerLayerIndex = i
+                    break
+
+        for i, layerName in enumerate(layerKeys):
             layer = layers[layerName]
             if not layer.visible:
                 continue
+
+            if self._player and i > playerLayerIndex and playerLayerIndex != -1:
+                playerPos = self._player.getMapPosition()
+                if layer.get(playerPos) is not None:
+                    if hasattr(layer, "floodFillTransparent"):
+                        processed = layer.floodFillTransparent(playerPos.x, playerPos.y, Color(255, 255, 255, 100))
+                        for x, y in processed:
+                            self._transparentTiles.append((layer, x, y))
+                    elif hasattr(layer, "setTileColor"):
+                        layer.setTileColor(playerPos.x, playerPos.y, Color(255, 255, 255, 100))
+                        self._transparentTiles.append((layer, playerPos.x, playerPos.y))
+
             self._camera.render(layer)
             if layerName in self._actors:
                 for actor in self._actors[layerName]:
+                    actorAlpha = 255
+                    if self._player and i > playerLayerIndex and playerLayerIndex != -1:
+                        if actor != self._player and actor.intersects(self._player):
+                            actorAlpha = 100
+                    actor.setColor(Color(255, 255, 255, actorAlpha))
                     self._camera.render(actor)
         for layerName in layerKeys:
             layer = layers[layerName]

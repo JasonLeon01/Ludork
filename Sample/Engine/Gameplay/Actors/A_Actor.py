@@ -173,7 +173,7 @@ class Actor(_ActorBase, BPBase):
 
     @ReturnType(intersects=bool)
     def intersects(self, other: Actor) -> bool:
-        return self.getGlobalBounds().findIntersection(other.getGlobalBounds()) != None
+        return not self.getGlobalBounds().findIntersection(other.getGlobalBounds()) is None
 
     @ReturnType(isMoving=bool)
     def isMoving(self) -> bool:

@@ -7,7 +7,8 @@ import subprocess
 from typing import List
 
 ExtensionName = "GraphicsExtension"
-EngineFolder = "../../Sample/Engine/"
+SampleFolder = "../../Sample/"
+EngineFolder = SampleFolder + "Engine/"
 TargetFolder = EngineFolder
 
 
@@ -20,7 +21,7 @@ def collectFileNames() -> List[str]:
 
 
 os.makedirs(TargetFolder, exist_ok=True)
-pysfDir = EngineFolder + "pysf/"
+pysfDir = SampleFolder + "pysf/"
 targetNames = collectFileNames()
 for targetFile in targetNames:
     shutil.move(os.path.join(os.getcwd(), targetFile), os.path.join(pysfDir, targetFile))

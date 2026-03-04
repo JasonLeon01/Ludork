@@ -53,7 +53,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle(title)
 
         self.topBar = QtWidgets.QWidget()
-        self.layerList = QtWidgets.QListWidget()
+        self.layerList = QtWidgets.QTabWidget()
         self._selectedLayerName: Optional[str] = None
         self.editorPanel = EditorPanel()
         self.editorPanel.dataChanged.connect(self._refreshUndoRedo)
@@ -294,7 +294,7 @@ class MainWindow(QtWidgets.QMainWindow):
             event.ignore()
             return
         self._saveProjLastMap()
-        self.endGame()
+        self.endGame(showFPS=False)
         super().closeEvent(event)
 
     def _checkUnsavedChanges(self) -> bool:
@@ -388,9 +388,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self.raise_()
         self.gamePanel.setFocus(QtCore.Qt.OtherFocusReason)
 
-    def endGame(self):
+    def endGame(self, showFPS: bool = True):
         if self._engineMonitorTimer is not None:
             self._engineMonitorTimer.stop()
+        if self._engineProc and self._engineProc.poll() is None:
+            self._engineProc.stdin.write("Engine.StopGame()\n")
+            self._engineProc.stdin.flush()
+            try:
+                self._engineProc.wait(timeout=0.2)
+            except subprocess.TimeoutExpired:
+                pass
+
         if self._engineProc:
             try:
                 pid = self._engineProc.pid
@@ -430,6 +438,8 @@ class MainWindow(QtWidgets.QMainWindow):
         Panel.applyDisabledOpacity(self.lightPanel)
         self.consoleWidget.detach_process()
         self.tabWidget.setCurrentWidget(self.fileExplorer)
+        if showFPS:
+            self._checkAndShowFPS()
 
     def toTileMode(self) -> None:
         self.editorPanel.setTileMode(True)
@@ -476,9 +486,8 @@ class MainWindow(QtWidgets.QMainWindow):
             if self._engineProc.poll() is not None:
                 if self._engineMonitorTimer is not None:
                     self._engineMonitorTimer.stop()
-                self.endGame()
+                self.endGame(showFPS=True)
                 self.modeToggle.setSelected(0)
-                self._checkAndShowFPS()
         except Exception as e:
             print(f"Error checking engine process state: {e}")
 
@@ -706,17 +715,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.topBar.setMinimumHeight(32)
         topLayout = QtWidgets.QHBoxLayout(self.topBar)
         topLayout.setContentsMargins(0, 0, 0, 0)
-        self.layerList.setFlow(QtWidgets.QListView.LeftToRight)
         self.layerList.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
         self.layerList.setFixedHeight(32)
-        self.layerList.setGridSize(QSize(72, 32))
-        self.layerList.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.layerList.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
         self.layerList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.layerList.customContextMenuRequested.connect(self._onLayerContextMenu)
-        self.layerList.itemClicked.connect(self._onLayerButtonClicked)
-        self.layerList.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
-        self.layerList.model().rowsMoved.connect(self._onLayerMoved)
+        self.layerList.currentChanged.connect(self._onLayerTabChanged)
+        self.layerList.setMovable(True)
+        self.layerList.tabBar().tabMoved.connect(self._onLayerTabMoved)
+        self.layerList.setStyleSheet("QTabWidget::pane { border: 0; }")
         panelW, panelH = self.gameSize.width(), self.gameSize.height()
 
         self.editorPanel.setObjectName("EditorPanel")
@@ -990,12 +996,23 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _refreshLayerBar(self) -> None:
         self.layerList.clear()
+        self.layerList.addTab(QtWidgets.QWidget(), Locale.getContent("OVERVIEW"))
         names = self.editorPanel.getLayerNames()
         for n in names:
-            item = QtWidgets.QListWidgetItem(n)
-            self.layerList.addItem(item)
-            if n == self._selectedLayerName:
-                self.layerList.setCurrentItem(item)
+            self.layerList.addTab(QtWidgets.QWidget(), n)
+
+        if self._selectedLayerName:
+            found = False
+            for i in range(1, self.layerList.count()):
+                if self.layerList.tabText(i) == self._selectedLayerName:
+                    self.layerList.setCurrentIndex(i)
+                    found = True
+                    break
+            if not found:
+                self._selectedLayerName = None
+                self.layerList.setCurrentIndex(0)
+        else:
+            self.layerList.setCurrentIndex(0)
 
     def _setLayerListInteractive(self, enabled: bool) -> None:
         self.layerList.setEnabled(bool(enabled))
@@ -1004,7 +1021,6 @@ class MainWindow(QtWidgets.QMainWindow):
     def _clearLayerSelection(self) -> None:
         if self._selectedLayerName is None:
             return
-        self.layerList.clearSelection()
         self._selectedLayerName = None
         self.editorPanel.setSelectedLayer(None)
         self.tileSelect.setLayerSelected(False)
@@ -1012,11 +1028,15 @@ class MainWindow(QtWidgets.QMainWindow):
         if self._editModeIdx == 2:
             self.editorPanel.setAcceptDrops(False)
 
-    def _onLayerButtonClicked(self, item: QtWidgets.QListWidgetItem, force_select: bool = False) -> None:
-        name = item.text()
-        if not force_select and name == self._selectedLayerName:
+    def _onLayerTabChanged(self, index: int) -> None:
+        if index == 0:
             self._clearLayerSelection()
             return
+
+        name = self.layerList.tabText(index)
+        if name == self._selectedLayerName:
+            return
+
         self._selectedLayerName = name
         self.editorPanel.setSelectedLayer(name)
         key = self.editorPanel.getLayerTilesetKey(name)
@@ -1026,12 +1046,20 @@ class MainWindow(QtWidgets.QMainWindow):
         if self._editModeIdx == 2:
             self.editorPanel.setAcceptDrops(True)
 
-    def _onLayerMoved(self, parent, start, end, destination, row) -> None:
-        new_order = [self.layerList.item(i).text() for i in range(self.layerList.count())]
+    def _onLayerTabMoved(self, fromIndex: int, toIndex: int) -> None:
+        overview_text = Locale.getContent("OVERVIEW")
+
+        if self.layerList.tabText(0) != overview_text:
+            for i in range(self.layerList.count()):
+                if self.layerList.tabText(i) == overview_text:
+                    self.layerList.tabBar().moveTab(i, 0)
+                    break
+
+        new_order = []
+        for i in range(1, self.layerList.count()):
+            new_order.append(self.layerList.tabText(i))
+
         self.editorPanel.reorderLayers(new_order)
-        selected_items = self.layerList.selectedItems()
-        if selected_items:
-            self._onLayerButtonClicked(selected_items[0], force_select=True)
 
     def _onAddLayer(self, checked: bool = False) -> None:
         if self.editorPanel.mapData is None:
@@ -1053,8 +1081,9 @@ class MainWindow(QtWidgets.QMainWindow):
             break
         self.editorPanel.addEmptyLayer(name)
         self._refreshLayerBar()
-        bar = self.layerList.horizontalScrollBar()
-        bar.setValue(bar.maximum())
+        count = self.layerList.count()
+        if count > 1:
+            self.layerList.setCurrentIndex(count - 1)
 
     def _onTileSelected(self, tileNumber: int) -> None:
         self.editorPanel.setSelectedTileNumber(None if tileNumber < 0 else tileNumber)
@@ -1178,22 +1207,26 @@ class MainWindow(QtWidgets.QMainWindow):
         return
 
     def _onLayerContextMenu(self, pos: QtCore.QPoint) -> None:
-        item = self.layerList.itemAt(pos)
-        if item is None:
+        tabBar = self.layerList.tabBar()
+        tab_pos = tabBar.mapFromParent(pos)
+        index = tabBar.tabAt(tab_pos)
+
+        if index <= 0:
             menu = QtWidgets.QMenu(self)
             actAdd = menu.addAction(Locale.getContent("ADD_LAYER"))
             action = menu.exec_(self.layerList.mapToGlobal(pos))
             if action == actAdd:
                 self._onAddLayer()
             return
-        self.layerList.setCurrentItem(item)
-        self._onLayerButtonClicked(item, force_select=True)
 
-        name = item.text()
+        self.layerList.setCurrentIndex(index)
+        name = self.layerList.tabText(index)
+
         menu = QtWidgets.QMenu(self)
         actRename = menu.addAction(Locale.getContent("RENAME_LAYER"))
         actDelete = menu.addAction(Locale.getContent("DELETE"))
         action = menu.exec_(self.layerList.mapToGlobal(pos))
+
         if action == actRename:
             existing = set(self.editorPanel.getLayerNames())
             if name in existing:
@@ -1217,6 +1250,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 if self._selectedLayerName == name:
                     self._selectedLayerName = newName
                 self._refreshLayerBar()
+
         if action == actDelete:
             ret = QtWidgets.QMessageBox.question(
                 self,

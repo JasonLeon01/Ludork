@@ -375,6 +375,10 @@
         "zh_CN": "地图列表",
         "en_GB": "Map List"
     },
+    "OVERVIEW": {
+        "zh_CN": "全貌",
+        "en_GB": "Overview"
+    },
     "MAPLIST_EDIT": {
         "zh_CN": "编辑地图",
         "en_GB": "Edit Map"

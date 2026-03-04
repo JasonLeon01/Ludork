@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-from Engine import SceneBase, System, Manager, Vector2f, Vector2i, GetCellSize
+from typing import List, Union
+from Engine import TypeAdapter, Pair, SceneBase, System, Manager, Vector2f, Vector2u, Vector2i, GetCellSize
 from Engine.Gameplay import GameMap
 from Engine.Utils import File
 from Source import Data
@@ -16,7 +17,8 @@ class Scene(SceneBase):
         self._roarSeqId = 0
         self.player = self._initPlayer()
         self._gameMap: GameMap = None
-        self.loadMap("./Data/Maps/Map_01.dat")
+        self._cachedMapFile: str = None
+        self.gotoMapAndPos("./Data/Maps/Map_01.dat", Vector2u(19, 8))
 
     def onFixedTick(self, fixedDelta: float) -> None:
         self._gameMap.onFixedTick(fixedDelta)
@@ -35,6 +37,13 @@ class Scene(SceneBase):
         self._gameMap = GameMap.fromData(File.loadData(mapPath))
         self._gameMap.spawnActor(self.player, "default")
         self._gameMap.setPlayer(self.player)
+
+    @TypeAdapter(pos=([tuple, list], Vector2u))
+    def gotoMapAndPos(self, mapPath: str, pos: Union[Vector2u, Pair[int], List[int]]) -> None:
+        if self._cachedMapFile != mapPath:
+            self._cachedMapFile = mapPath
+            self.loadMap(mapPath)
+        self._gameMap.getPlayer().setMapPosition(pos)
 
     def _renderHandle(self, deltaTime: float) -> None:
         self._gameMap.show()
