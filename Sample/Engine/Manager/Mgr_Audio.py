@@ -6,7 +6,7 @@ import warnings
 import threading
 import concurrent.futures
 from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple, TYPE_CHECKING
-from .. import GetGameRunning, SoundBuffer, Sound, Time, seconds, Vector3f, Angle, degrees, Music
+from .. import GetGameRunning, SoundBuffer, Sound, Time, seconds, Vector3f, Angle, degrees, Music, System
 
 if TYPE_CHECKING:
     from Engine import SoundSource, Filters, Transformable
@@ -73,8 +73,6 @@ class AudioManager:
     def playSound(
         cls, filePath: str, filter: Optional[Filters.SoundFilter] = None, parent: Optional[Transformable] = None
     ) -> Sound:
-        from .. import System
-
         if not System.getSoundOn():
             return None
 
@@ -90,8 +88,6 @@ class AudioManager:
         cls._SoundRec.append(sound)
         if not filter is None:
             cls.setSoundFilter(sound, filter)
-        from .. import System
-
         cls._SoundBaseVolume[id(sound)] = sound.getVolume()
         sv = System.getSoundVolume()
         if sv != 100:
@@ -112,8 +108,6 @@ class AudioManager:
 
     @classmethod
     def playMusic(cls, musicType: str, filePath: str, filter: Optional[Filters.MusicFilter] = None) -> Music:
-        from .. import System
-
         if not System.getMusicOn():
             cls.stopMusic(musicType)
             return None
@@ -124,8 +118,6 @@ class AudioManager:
         cls._MusicRef[musicType] = (filePath, music)
         if not filter is None:
             cls.setMusicFilter(music, filter)
-        from .. import System
-
         cls._MusicBaseVolume[id(music)] = music.getVolume()
         mv = System.getMusicVolume()
         if mv != 100:
@@ -270,8 +262,6 @@ class AudioManager:
 
     @classmethod
     async def _soundMonitor(cls, sound: Sound) -> None:
-        from .. import System
-
         base = cls._SoundBaseVolume.get(id(sound), sound.getVolume())
         last = -1
         while GetGameRunning() and sound.getStatus() != Sound.Status.Stopped:
@@ -298,8 +288,6 @@ class AudioManager:
 
     @classmethod
     async def _musicMonitor(cls, music: Music) -> None:
-        from .. import System
-
         base = cls._MusicBaseVolume.get(id(music), music.getVolume())
         last = -1
         while GetGameRunning() and music.getStatus() != Music.Status.Stopped:

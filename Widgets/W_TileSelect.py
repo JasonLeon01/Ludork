@@ -112,12 +112,14 @@ class TileSelect(QtWidgets.QWidget):
         self._keys: List[str] = []
         self._currentKey: Optional[str] = None
         self._selectedTileNumber: Optional[int] = None
-        self._topList = QtWidgets.QListWidget(self)
-        self._topList.setFlow(QtWidgets.QListView.LeftToRight)
-        self._topList.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        self._topList.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self._topList.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
-        self._topList.setFixedHeight(40)
+        self._topTabs = QtWidgets.QTabBar(self)
+        self._topTabs.setExpanding(False)
+        self._topTabs.setMovable(False)
+        self._topTabs.setDrawBase(False)
+        self._topTabs.setElideMode(QtCore.Qt.ElideRight)
+        self._topTabs.setFocusPolicy(QtCore.Qt.NoFocus)
+        self._topTabs.setUsesScrollButtons(True)
+        self._topTabs.setFixedHeight(36)
         self._grid = _TileGridView(self)
         self._grid.setCellSize(EditorStatus.CELLSIZE)
         self._grid.tileClicked.connect(self._onTileClicked)
@@ -130,25 +132,28 @@ class TileSelect(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
-        layout.addWidget(self._topList, 0)
+        layout.addWidget(self._topTabs, 0)
         layout.addWidget(self._scroll, 1)
         Panel.applyDisabledOpacity(self)
-        self._topList.currentRowChanged.connect(self._onTilesetRowChanged)
+        self._topTabs.currentChanged.connect(self._onTilesetRowChanged)
         self.initTilesets()
 
     def initTilesets(self) -> None:
         old_key = self._currentKey
         self._tilesets = GameData.tilesetData
         self._keys = list(self._tilesets.keys())
-        self._topList.clear()
+        self._topTabs.blockSignals(True)
+        while self._topTabs.count() > 0:
+            self._topTabs.removeTab(0)
         for k in self._keys:
-            it = QtWidgets.QListWidgetItem(k)
-            self._topList.addItem(it)
+            self._topTabs.addTab(k)
+        self._topTabs.blockSignals(False)
         if self._keys:
             idx = 0
             if old_key and old_key in self._keys:
                 idx = self._keys.index(old_key)
-            self._topList.setCurrentRow(idx)
+            self._topTabs.setCurrentIndex(idx)
+            self._onTilesetRowChanged(self._topTabs.currentIndex())
 
     def setLayerSelected(self, selected: bool) -> None:
         self._allowSelect = bool(selected)
@@ -158,11 +163,12 @@ class TileSelect(QtWidgets.QWidget):
 
     def setCurrentTilesetKey(self, key: Optional[str]) -> None:
         if not key:
-            self._topList.clearSelection()
+            if self._topTabs.count() > 0:
+                self._topTabs.setCurrentIndex(-1)
             return
         for i, k in enumerate(self._keys):
             if k == key:
-                self._topList.setCurrentRow(i)
+                self._topTabs.setCurrentIndex(i)
                 return
 
     def clearSelection(self) -> None:

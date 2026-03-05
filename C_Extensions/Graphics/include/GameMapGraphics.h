@@ -15,9 +15,7 @@ namespace py = pybind11;
 
 class GameMapGraphics {
 public:
-  GameMapGraphics(const std::string &shaderPath);
-  ~GameMapGraphics();
-  sf::Shader *getMaterialShader() const;
+  GameMapGraphics(sf::Shader *shader);
   void refreshShader(const sf::RenderTexture &lightMask,
                      const sf::Texture &mirrorTex,
                      const sf::Texture &reflectionStrengthTex,

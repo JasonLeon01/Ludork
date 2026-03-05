@@ -39,6 +39,7 @@ from Widgets import (
     MarkdownPreviewer,
     GeneralDataEditor,
     AboutDialog,
+    ActorQueuePanel,
 )
 from Widgets.Utils import MapEditDialog, SingleRowDialog, Toast, FPSGraphDialog
 import EditorStatus
@@ -81,6 +82,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._savedRightWidth: Optional[int] = None
         self.lowerArea = QtWidgets.QWidget()
         self.fileExplorer = FileExplorer(EditorStatus.PROJ_PATH)
+        self.actorQueuePanel = ActorQueuePanel()
         self.consoleWidget = ConsoleWidget()
         self.tabWidget = QtWidgets.QTabWidget()
         self.topSplitter = QtWidgets.QSplitter(QtCore.Qt.Vertical)
@@ -239,10 +241,16 @@ class MainWindow(QtWidgets.QMainWindow):
             if hasattr(self, "rightArea"):
                 minRight = max(minRight, int(self.rightArea.minimumWidth()))
             lowerMinH = max(160, int(self.lowerArea.minimumHeight()))
+            queueMinH = 0
+            if hasattr(self, "actorQueuePanel"):
+                try:
+                    queueMinH = max(120, int(self.actorQueuePanel.minimumHeight()))
+                except Exception:
+                    queueMinH = 120
             topHMin = int(self.topBar.minimumHeight()) + int(self.gameSize.height())
             handleW = int(self.upperSplitter.handleWidth())
             minW = minLeft + int(self.gameSize.width()) + minRight + handleW * 2 + 16
-            minH = topHMin + lowerMinH + 8
+            minH = topHMin + lowerMinH + queueMinH + 8
             self.setMinimumSize(minW, minH)
 
     def showEvent(self, event: QtGui.QShowEvent) -> None:
@@ -857,14 +865,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.topSplitter.setChildrenCollapsible(False)
         self.topSplitter.addWidget(self.upperSplitter)
+        self.topSplitter.addWidget(self.actorQueuePanel)
         self.topSplitter.addWidget(self.lowerArea)
         self.topSplitter.setStretchFactor(0, 1)
         self.topSplitter.setStretchFactor(1, 0)
+        self.topSplitter.setStretchFactor(2, 0)
         self.lowerArea.setMinimumHeight(160)
 
         topHMin = self.topBar.minimumHeight() + panelH
         minW = 320 + panelW + 320 + self.upperSplitter.handleWidth() * 2 + 16
-        minH = topHMin + 160 + 8
+        minH = topHMin + max(int(self.actorQueuePanel.minimumHeight()), 120) + 160 + 8
         self.setMinimumSize(minW, minH)
 
         layout = QtWidgets.QVBoxLayout(central)
@@ -873,6 +883,11 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.topSplitter)
 
         self._setTopMenu()
+
+        self.fileExplorer.fileClicked.connect(self._onFileExplorerFileClicked)
+        self.actorQueuePanel.selectionChanged.connect(
+            lambda bpRel: self.editorPanel.setPendingActor(bpRel if isinstance(bpRel, str) else None)
+        )
 
     def _setTopMenu(self) -> None:
         _fileMenu = self._menuBar.addMenu(Locale.getContent("FILE"))
@@ -1518,6 +1533,48 @@ class MainWindow(QtWidgets.QMainWindow):
                 "Hint",
                 Locale.getContent("EXPORT_LOCALE_FAILED") + "\n" + str(e) + "\n" + traceback.format_exc(),
             )
+
+    def _onFileExplorerFileClicked(self, path: str) -> None:
+        if not isinstance(path, str) or not path:
+            return
+        ext = os.path.splitext(path)[1].lower()
+        if ext not in (".json", ".dat"):
+            return
+        try:
+            if ext == ".json":
+                data = File.getJSONData(path)
+            else:
+                data = File.loadData(path)
+        except Exception:
+            return
+        if not isinstance(data, dict) or data.get("type") != "blueprint":
+            return
+        parentClass = data.get("parent")
+        clsObj = None
+        if isinstance(parentClass, str) and parentClass.strip():
+            try:
+                clsObj = GameData.classDict.get(parentClass, EditorStatus.PROJ_PATH)
+            except Exception:
+                clsObj = None
+        try:
+            Engine = System.getModule("Engine")
+            actorBase = Engine.Gameplay.Actors.Actor
+            okSubclass = bool(clsObj) and isinstance(clsObj, type) and issubclass(clsObj, actorBase)
+        except Exception:
+            okSubclass = False
+        if not okSubclass:
+            return
+        blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
+        try:
+            absPath = os.path.abspath(path)
+            if absPath.startswith(os.path.abspath(blueprintsRoot) + os.sep):
+                rel = os.path.relpath(absPath, blueprintsRoot)
+                namePart, _ = os.path.splitext(rel)
+                namePart = namePart.replace("\\", "/")
+                bpRel = "Data.Blueprints." + namePart.replace("/", ".")
+                self.actorQueuePanel.addOrPromote(bpRel)
+        except Exception:
+            return
 
     def _onGeneralDataEditor(self, checked: bool = False) -> None:
         self.generalDataEditor = GeneralDataEditor(self)

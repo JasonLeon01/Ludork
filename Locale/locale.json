@@ -459,13 +459,21 @@
         "zh_CN": "窗口皮肤",
         "en_GB": "Window Skin"
     },
-    "windowColor": {
-        "zh_CN": "窗口颜色",
-        "en_GB": "Window Color"
-    },
     "cellSize": {
         "zh_CN": "单元格尺寸",
         "en_GB": "Cell Size"
+    },
+    "coverOpaqueAlpha": {
+        "zh_CN": "遮挡时不透明度",
+        "en_GB": "Alpha when covered"
+    },
+    "startMap": {
+        "zh_CN": "初始地图",
+        "en_GB": "Start Map"
+    },
+    "startPos": {
+        "zh_CN": "初始位置",
+        "en_GB": "Start Position"
     },
     "transitionShaderPath": {
         "zh_CN": "转场着色器路径",

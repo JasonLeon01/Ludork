@@ -59,6 +59,7 @@ class EditorPanel(QtWidgets.QWidget):
         self._actorMoveDragLastGrid: Optional[Tuple[int, int]] = None
         self._actorMoveDragTitleRefreshed = False
         self._actorClipboard = None
+        self._pendingActorBpRel: Optional[str] = None
         super().__init__(parent)
         self.setMouseTracking(True)
         self.setFocusPolicy(QtCore.Qt.ClickFocus)
@@ -268,6 +269,10 @@ class EditorPanel(QtWidgets.QWidget):
 
     def setLightOverlayEnabled(self, enabled: bool) -> None:
         self._setLightOverlayEnabled(bool(enabled))
+        self.update()
+
+    def setPendingActor(self, bpRel: Optional[str]) -> None:
+        self._pendingActorBpRel = bpRel if isinstance(bpRel, str) and bpRel.strip() else None
         self.update()
 
     def _setLightOverlayEnabled(self, enabled: bool) -> None:
@@ -722,6 +727,72 @@ class EditorPanel(QtWidgets.QWidget):
             p.setPen(QtGui.QPen(QtCore.Qt.black, 1))
             p.setBrush(QtCore.Qt.NoBrush)
 
+            if (
+                not self.tileModeEnabled
+                and isinstance(self._pendingActorBpRel, str)
+                and self._pendingActorBpRel.strip()
+                and self.selectedLayerName is not None
+            ):
+                gx0, gy0 = gx, gy
+                if self._hasActorAt(self.selectedLayerName, gx0, gy0):
+                    w = tileSize
+                    h = tileSize
+                    defOrigin = self._toVec2f(
+                        self.getBlueprintAttr(self._pendingActorBpRel, "defaultOrigin", (0.0, 0.0)), 0.0, 0.0
+                    )
+                    origin = self._toVec2f(defOrigin, defOrigin[0], defOrigin[1])
+                    px = gx0 * tileSize
+                    py = gy0 * tileSize
+                    p.save()
+                    p.translate(px, py)
+                    p.setOpacity(0.5)
+                    color = QtGui.QColor(255, 0, 0, 120)
+                    rr = QtCore.QRectF(-origin[0], -origin[1], w, h)
+                    p.fillRect(rr, color)
+                    p.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255, 180), 1))
+                    p.drawRect(rr)
+                    p.setOpacity(1.0)
+                    p.restore()
+                else:
+                    bpRel = self._pendingActorBpRel
+                    defTrans = self._toVec2f(self.getBlueprintAttr(bpRel, "defaultTranslation", (0.0, 0.0)), 0.0, 0.0)
+                    translation = self._toVec2f(defTrans, defTrans[0], defTrans[1])
+                    defRot = self.getBlueprintAttr(bpRel, "defaultRotation", 0.0)
+                    rotation = float(defRot)
+                    defScale = self._toVec2f(self.getBlueprintAttr(bpRel, "defaultScale", (1.0, 1.0)), 1.0, 1.0)
+                    scaleVal = self._toVec2f(defScale, defScale[0], defScale[1])
+                    defOrigin = self._toVec2f(self.getBlueprintAttr(bpRel, "defaultOrigin", (0.0, 0.0)), 0.0, 0.0)
+                    origin = self._toVec2f(defOrigin, defOrigin[0], defOrigin[1])
+                    texPath = self.getBlueprintAttr(bpRel, "texturePath", "")
+                    rectT = self._toRectTuple(self.getBlueprintAttr(bpRel, "defaultRect", None))
+                    px = gx0 * tileSize
+                    py = gy0 * tileSize
+                    p.save()
+                    p.translate(px, py)
+                    p.translate(translation[0], translation[1])
+                    p.rotate(rotation)
+                    p.scale(scaleVal[0], scaleVal[1])
+                    w = tileSize
+                    h = tileSize
+                    sx = 0
+                    sy = 0
+                    if rectT:
+                        sx, sy, w, h = rectT
+                    imgGhost = self._resolveTextureImage(texPath)
+                    p.setOpacity(0.5)
+                    if imgGhost is not None and rectT is not None:
+                        src = QtCore.QRectF(sx, sy, w, h)
+                        dst = QtCore.QRectF(-origin[0], -origin[1], w, h)
+                        p.drawImage(dst, imgGhost, src)
+                    else:
+                        color = QtGui.QColor(0, 120, 255, 120)
+                        rr = QtCore.QRectF(-origin[0], -origin[1], w, h)
+                        p.fillRect(rr, color)
+                        p.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255, 180), 1))
+                        p.drawRect(rr)
+                    p.setOpacity(1.0)
+                    p.restore()
+
             rect_w = (max_x - min_x + 1) * tileSize
             rect_h = (max_y - min_y + 1) * tileSize
             p.drawRect(min_x * tileSize, min_y * tileSize, rect_w - 1, rect_h - 1)
@@ -917,6 +988,35 @@ class EditorPanel(QtWidgets.QWidget):
                         self.setCursor(QtCore.Qt.SizeAllCursor)
                         return
                     else:
+                        if isinstance(self._pendingActorBpRel, str) and self._pendingActorBpRel.strip():
+                            if self.mapKey and self.mapKey in GameData.mapData:
+                                if self._hasActorAt(self.selectedLayerName, gx, gy):
+                                    return
+                                bpRel = self._pendingActorBpRel
+                                m = GameData.mapData[self.mapKey]
+                                actorsDict = m.get("actors")
+                                if not isinstance(actorsDict, dict):
+                                    actorsDict = {}
+                                    m["actors"] = actorsDict
+                                layerKey = self.selectedLayerName
+                                layerList = actorsDict.get(layerKey)
+                                if not isinstance(layerList, list):
+                                    layerList = []
+                                    actorsDict[layerKey] = layerList
+                                clsObj = self._resolveActorClass(bpRel)
+                                tagStr = self._makeDefaultTag(clsObj, bpRel, layerKey, gx, gy)
+                                actorEntry = {
+                                    "tag": tagStr,
+                                    "bp": bpRel,
+                                    "position": [gx, gy],
+                                }
+                                GameData.recordSnapshot()
+                                layerList.append(actorEntry)
+                                self._refreshTitle()
+                                self.dataChanged.emit()
+                                self._renderFromMapData()
+                                self.update()
+                                return
                         self.actorSelectionChanged.emit(None, None, None)
             return
         if self.selectedLayerName is None:
@@ -1276,7 +1376,6 @@ class EditorPanel(QtWidgets.QWidget):
 
             painter.restore()
 
-            # Draw logical grid center
             cx = px + tileSize / 2
             cy = py + tileSize / 2
             painter.setPen(QtCore.Qt.NoPen)

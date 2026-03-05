@@ -6,6 +6,7 @@ import math
 import zlib
 from typing import List, Tuple, Optional, Dict, Any
 from . import Pair, Sprite, Texture, RenderTexture, Vector2f, Vector2u, Color, degrees, Image, Manager
+from .GraphicsExtension import C_CompressAnimation
 
 
 class AnimSprite(Sprite):
@@ -166,169 +167,10 @@ def compressAnimation(
     if assetsRoot is None:
         assetsRoot = os.path.join("Assets", "Animations")
 
-    try:
-        from .GraphicsExtension import C_CompressAnimation
+    duration, frames, sounds = C_CompressAnimation(
+        zlib, frameCount, frameStep, frameRate, timeLines, assets, assetsRoot, imageFormat
+    )
 
-        duration, frames, sounds = C_CompressAnimation(
-            zlib, frameCount, frameStep, frameRate, timeLines, assets, assetsRoot, imageFormat
-        )
-    except Exception as e:
-        # region Compress by python
-        print(f"Failed to compress animation, try to compress by python. Error: {e}")
-
-        textureCache: Dict[int, Texture] = {}
-
-        def getTexture(assetIndex: int) -> Optional[Texture]:
-            if assetIndex in textureCache:
-                return textureCache[assetIndex]
-            if 0 <= assetIndex < len(assets):
-                assetName = assets[assetIndex]
-                assetPath = os.path.join(assetsRoot, assetName)
-                textureCache[assetIndex] = Texture(assetPath)
-                return textureCache[assetIndex]
-            return None
-
-        def getSegmentTransform(
-            segment: Dict[str, Any], frameTime: float
-        ) -> Optional[Tuple[float, float, float, float, float]]:
-            startFrame: Dict[str, Any] = segment.get("startFrame", {})
-            endFrame: Dict[str, Any] = segment.get("endFrame", {})
-            startTime: float = startFrame.get("time", 0.0)
-            endTime: float = endFrame.get("time", 0.0)
-
-            if frameTime < startTime or frameTime > endTime:
-                return None
-
-            if endTime - startTime <= 0.0001:
-                factor = 0.0
-            else:
-                factor = (frameTime - startTime) / (endTime - startTime)
-
-            startPos: List[float] = startFrame.get("position", [0.0, 0.0])
-            endPos: List[float] = endFrame.get("position", [0.0, 0.0])
-            curX = startPos[0] + (endPos[0] - startPos[0]) * factor
-            curY = startPos[1] + (endPos[1] - startPos[1]) * factor
-
-            startRot: float = startFrame.get("rotation", 0.0)
-            endRot: float = endFrame.get("rotation", 0.0)
-            curRot = startRot + (endRot - startRot) * factor
-
-            startScale: List[float] = startFrame.get("scale", [1.0, 1.0])
-            endScale: List[float] = endFrame.get("scale", [1.0, 1.0])
-            curScaleX = startScale[0] + (endScale[0] - startScale[0]) * factor
-            curScaleY = startScale[1] + (endScale[1] - startScale[1]) * factor
-
-            return curX, curY, curRot, curScaleX, curScaleY
-
-        def getRotatedSize(width: float, height: float, rotation: float) -> Pair[float]:
-            radians = math.radians(rotation)
-            cosValue = abs(math.cos(radians))
-            sinValue = abs(math.sin(radians))
-            return width * cosValue + height * sinValue, width * sinValue + height * cosValue
-
-        minX = float("inf")
-        minY = float("inf")
-        maxX = float("-inf")
-        maxY = float("-inf")
-
-        for frameIndex in range(frameCount):
-            frameTime = frameIndex * frameStep
-            for timeLine in timeLines:
-                for segment in timeLine.get("timeSegments", []):
-                    if segment.get("type", "frame") != "frame":
-                        continue
-                    assetIndex = segment.get("asset", -1)
-                    texture = getTexture(assetIndex)
-                    if texture is None:
-                        continue
-                    transformData = getSegmentTransform(segment, frameTime)
-                    if transformData is None:
-                        continue
-                    curX, curY, curRot, curScaleX, curScaleY = transformData
-                    size = texture.getSize()
-                    scaledWidth = size.x * abs(curScaleX)
-                    scaledHeight = size.y * abs(curScaleY)
-                    rotatedWidth, rotatedHeight = getRotatedSize(scaledWidth, scaledHeight, curRot)
-                    left = curX - rotatedWidth / 2
-                    right = curX + rotatedWidth / 2
-                    top = curY - rotatedHeight / 2
-                    bottom = curY + rotatedHeight / 2
-                    if left < minX:
-                        minX = left
-                    if right > maxX:
-                        maxX = right
-                    if top < minY:
-                        minY = top
-                    if bottom > maxY:
-                        maxY = bottom
-
-        if minX == float("inf"):
-            minX = 0.0
-            minY = 0.0
-            maxX = 1.0
-            maxY = 1.0
-
-        canvasWidth = max(1, int(math.ceil(maxX - minX)))
-        canvasHeight = max(1, int(math.ceil(maxY - minY)))
-
-        renderTexture = RenderTexture(Vector2u(canvasWidth, canvasHeight))
-        if not renderTexture.setActive(True):
-            raise ValueError("Failed to set active render texture")
-        frames: List[bytes] = []
-        targetTexture = renderTexture.getTexture()
-        sprite = Sprite(targetTexture)
-
-        for frameIndex in range(frameCount):
-            frameTime = frameIndex * frameStep
-            renderTexture.clear(Color.Transparent)
-            for timeLine in timeLines:
-                for segment in timeLine.get("timeSegments", []):
-                    if segment.get("type", "frame") != "frame":
-                        continue
-                    assetIndex = segment.get("asset", -1)
-                    texture = getTexture(assetIndex)
-                    if texture is None:
-                        continue
-                    transformData = getSegmentTransform(segment, frameTime)
-                    if transformData is None:
-                        continue
-                    curX, curY, curRot, curScaleX, curScaleY = transformData
-                    sprite.setTexture(texture, True)
-                    size = texture.getSize()
-                    sprite.setOrigin(Vector2f(size.x / 2, size.y / 2))
-                    sprite.setPosition(Vector2f(curX - minX, curY - minY))
-                    sprite.setRotation(degrees(curRot))
-                    sprite.setScale(Vector2f(curScaleX, curScaleY))
-                    renderTexture.draw(sprite)
-            renderTexture.display()
-            image = targetTexture.copyToImage()
-            if imageFormat:
-                memoryData = image.saveToMemory(imageFormat)
-            else:
-                raise ValueError("imageFormat must be specified if no format is specified in the image")
-            frames.append(zlib.compress(bytes(memoryData)))
-
-        sounds: List[Dict[str, Any]] = []
-        for timeLine in timeLines:
-            for segment in timeLine.get("timeSegments", []):
-                if segment.get("type") != "sound":
-                    continue
-                assetIndex = segment.get("asset", -1)
-                if 0 <= assetIndex < len(assets):
-                    assetName = assets[assetIndex]
-                else:
-                    assetName = ""
-                startTime: float = segment.get("startFrame", {}).get("time", 0.0)
-                endTime: float = segment.get("endFrame", {}).get("time", 0.0)
-                startFrameIndex = max(0, int(math.floor(startTime * frameRate + 0.000001)))
-                endFrameIndex = max(0, int(math.ceil(endTime * frameRate - 0.000001)))
-                soundEntry = {"asset": assetName, "startFrame": startFrameIndex, "endFrame": endFrameIndex}
-                if "originalDuration" in segment:
-                    soundEntry["originalDuration"] = segment["originalDuration"]
-                sounds.append(soundEntry)
-
-        duration = (1.0 * frameCount / frameRate) if frameRate > 0 else 0.0
-        # endregion
     return {
         "type": "compressedAnimation",
         "name": animationData.get("name", ""),

@@ -1,16 +1,18 @@
 # -*- encoding: utf-8 -*-
 
+import os
 from typing import List, Union
-from Engine import TypeAdapter, Pair, SceneBase, System, Manager, Vector2f, Vector2u, Vector2i, GetCellSize
+from Engine import TypeAdapter, Pair, SceneBase, Manager, Vector2f, Vector2u, Vector2i, GetCellSize
+from Engine import System as EngineSystem
 from Engine.Gameplay import GameMap
 from Engine.Utils import File
-from Source import Data
+from Source import Data, System
 from Source.Player import Player
 
 
 class Scene(SceneBase):
     def onEnter(self) -> None:
-        System.setTransition(Manager.loadTransition("012-Random04.png"), 3)
+        EngineSystem.setTransition(Manager.loadTransition("012-Random04.png"), 3)
 
     def onCreate(self):
         self._roars = []
@@ -18,7 +20,7 @@ class Scene(SceneBase):
         self.player = self._initPlayer()
         self._gameMap: GameMap = None
         self._cachedMapFile: str = None
-        self.gotoMapAndPos("./Data/Maps/Map_01.dat", Vector2u(19, 8))
+        self.gotoMapAndPos(System.getStartMap(), System.getStartPos())
 
     def onFixedTick(self, fixedDelta: float) -> None:
         self._gameMap.onFixedTick(fixedDelta)
@@ -34,6 +36,7 @@ class Scene(SceneBase):
         return super().onLateTick(deltaTime)
 
     def loadMap(self, mapPath: str) -> None:
+        mapPath = os.path.join("./Data/Maps", mapPath)
         self._gameMap = GameMap.fromData(File.loadData(mapPath))
         self._gameMap.spawnActor(self.player, "default")
         self._gameMap.setPlayer(self.player)
@@ -77,7 +80,7 @@ class Scene(SceneBase):
         strength: float,
     ) -> None:
         shader = Manager.loadShader("Ripple.frag")
-        System.addGraphicsShader(
+        EngineSystem.addGraphicsShader(
             shader,
             {
                 "center": Vector2f(0.5, 0.5),
@@ -116,7 +119,7 @@ class Scene(SceneBase):
         while startIndex < count:
             take = min(maxPerPass, count - startIndex)
             shader = Manager.loadShader("RoarDistortionMulti.frag")
-            System.addGraphicsShader(
+            EngineSystem.addGraphicsShader(
                 shader,
                 {
                     "count": 0,
@@ -153,7 +156,7 @@ class Scene(SceneBase):
             cs = GetCellSize()
             worldPos = Vector2f((mp.x + 0.5) * cs, (mp.y + 0.5) * cs)
             pix = self._gameMap.getCamera().mapCoordsToPixel(worldPos)
-            gs = System.getGameSize()
+            gs = EngineSystem.getGameSize()
             centerUV = Vector2f(pix.x * 1.0 / gs.x, pix.y * 1.0 / gs.y)
             shader = eff["shader"]
             if eff.get("multi", False):
@@ -195,7 +198,7 @@ class Scene(SceneBase):
                 if t < totalTime:
                     alive.append(eff)
                 else:
-                    System.removeGraphicsShader(shader)
+                    EngineSystem.removeGraphicsShader(shader)
             else:
                 if dur <= 0.0:
                     tau = 1.0
@@ -209,5 +212,5 @@ class Scene(SceneBase):
                 if t < dur:
                     alive.append(eff)
                 else:
-                    System.removeGraphicsShader(shader)
+                    EngineSystem.removeGraphicsShader(shader)
         self._roars = alive

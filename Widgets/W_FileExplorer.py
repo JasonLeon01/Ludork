@@ -11,6 +11,7 @@ from .W_FilePreview import FilePreview
 
 class FileExplorer(QtWidgets.QWidget):
     pathChanged = QtCore.pyqtSignal(str)
+    fileClicked = QtCore.pyqtSignal(str)
 
     def __init__(self, root_path: str, parent: Optional[QtWidgets.QWidget] = None):
         super().__init__(parent)
@@ -95,9 +96,10 @@ class FileExplorer(QtWidgets.QWidget):
         self._view.sortByColumn(0, QtCore.Qt.AscendingOrder)
         self._view.setColumnWidth(0, 240)
         self._view.doubleClicked.connect(self._onDoubleClicked)
+        self._view.clicked.connect(self._onClicked)
         self._view.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self._view.customContextMenuRequested.connect(self._onContextMenu)
-        
+
         style = QtWidgets.QApplication.style()
         upIcon = style.standardIcon(QtWidgets.QStyle.SP_ArrowUp)
         self._pathEdit = QtWidgets.QLineEdit(self)
@@ -133,8 +135,6 @@ class FileExplorer(QtWidgets.QWidget):
             Panel.applyDisabledOpacity(self)
         super().changeEvent(e)
 
-    
-
     def _refresh(self) -> None:
         self._view.setRootIndex(self._proxy.mapFromSource(self._model.index(self._current)))
 
@@ -145,10 +145,6 @@ class FileExplorer(QtWidgets.QWidget):
             return os.path.commonpath([rp, rr]) == rr
         except Exception:
             return False
-
-    
-
-    
 
     def _setCurrentPath(self, path: str) -> None:
         if not self._isUnderRoot(path):
@@ -181,6 +177,19 @@ class FileExplorer(QtWidgets.QWidget):
                     if self._handleDataFile(path, File.getJSONData):
                         return
                 self._openSystemFile(path)
+
+    def _onClicked(self, index: QtCore.QModelIndex) -> None:
+        if not self._interactive:
+            return
+        if not index.isValid():
+            return
+        src = self._proxy.mapToSource(index)
+        try:
+            path = self._model.filePath(src)
+            if path and not self._model.isDir(src):
+                self.fileClicked.emit(path)
+        except Exception as e:
+            print(f"Error while handling file click: {e}")
 
     def _handleDataFile(self, path: str, openFileCallable: Callable[[str], None]) -> bool:
         if not os.path.exists(path):
@@ -274,8 +283,6 @@ class FileExplorer(QtWidgets.QWidget):
     def _selectedSourceRows(self):
         rows = self._view.selectionModel().selectedRows()
         return [self._proxy.mapToSource(i) for i in rows]
-
-    
 
     def _onContextMenu(self, pos: QtCore.QPoint) -> None:
         if not self._interactive:

@@ -16,6 +16,7 @@ from ... import (
     Color,
     FloatRect,
     RenderTarget,
+    System,
 )
 from .UIB_ControlBase import ControlBase
 
@@ -56,15 +57,11 @@ class SpriteBase(ControlBase):
         return self._sprite.getGlobalBounds().size
 
     def getLocalBounds(self) -> FloatRect:
-        from ... import System
-
         bounds = self._sprite.getLocalBounds()
         newBounds = FloatRect(bounds.position, bounds.size / System.getScale())
         return newBounds
 
     def getGlobalBounds(self) -> FloatRect:
-        from ... import System
-
         bounds = self._sprite.getGlobalBounds()
         newBounds = FloatRect(bounds.position, bounds.size / System.getScale())
         return newBounds
@@ -77,22 +74,16 @@ class SpriteBase(ControlBase):
         target.draw(self._sprite, states)
 
     def _applyRenderStates(self, states: RenderStates) -> None:
-        from ... import System
-
         states.transform.translate(self.getPosition() * (System.getScale() - 1))
         states.transform *= self.getTransform()
 
     def _getRenderTransform(self) -> Transform:
-        from ... import System
-
         transform = Transform()
         transform.translate(self.getPosition() * (System.getScale() - 1))
         transform *= self.getTransform()
         return transform
 
     def getAbsoluteBounds(self) -> FloatRect:
-        from ... import System
-
         transform = self._getScreenRenderTransform()
         bounds = self.getLocalBounds()
         realBounds = FloatRect(bounds.position * System.getScale(), bounds.size * System.getScale())

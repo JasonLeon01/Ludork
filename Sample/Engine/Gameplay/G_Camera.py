@@ -5,8 +5,11 @@ from typing import Optional, Union, List, TYPE_CHECKING
 from .. import (
     TypeAdapter,
     Pair,
+    System,
     Vector2u,
     Transformable,
+    Texture,
+    Image,
     Drawable,
     RenderTexture,
     Sprite,
@@ -24,8 +27,8 @@ from .. import (
 )
 from ..Utils import Math, Render
 
+
 if TYPE_CHECKING:
-    from Engine import Texture, Image
     from Engine.Gameplay import GameMap
     from Engine.Gameplay.Actors import Actor
 
@@ -36,8 +39,6 @@ class Camera(Drawable, Transformable):
         Transformable.__init__(self)
         self._viewport = viewport
         if self._viewport is None:
-            from .. import System
-
             self._viewport = FloatRect(Vector2f(0, 0), Math.ToVector2f(System.getGameSize()))
         self._renderTexture: RenderTexture
         assert isinstance(self._viewport, FloatRect)

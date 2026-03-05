@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Dict
+from typing import Dict, Optional
 from Engine import Font, Text, Color
 from .. import PlainText, RichText, TextStyle
 from ..Base import FunctionalBase
@@ -12,10 +12,14 @@ class FunctionalPlainText(PlainText, FunctionalBase):
         self,
         font: Font,
         text: str,
-        characterSize: int,
+        characterSize: Optional[int] = None,
         style: Text.Style = Text.Style.Regular,
         fillColor: Color = Color.White,
     ) -> None:
+        from .. import DefaultFontSize
+
+        if characterSize is None:
+            characterSize = DefaultFontSize
         PlainText.__init__(self, font, text, characterSize, style, fillColor)
         FunctionalBase.__init__(self)
 

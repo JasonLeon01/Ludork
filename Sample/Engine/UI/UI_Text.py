@@ -1,9 +1,10 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Dict, List, TYPE_CHECKING
+from typing import Dict, List, Optional
 from .. import (
     Color,
+    Font,
     Text,
     Vector2u,
     Vector2f,
@@ -12,11 +13,9 @@ from .. import (
     RenderStates,
     FloatRect,
     Transform,
+    System,
 )
 from .Base import ControlBase, SpriteBase
-
-if TYPE_CHECKING:
-    from Engine import Font
 
 
 class PlainText(ControlBase):
@@ -24,12 +23,14 @@ class PlainText(ControlBase):
         self,
         font: Font,
         text: str,
-        characterSize: int,
+        characterSize: Optional[int] = None,
         style: Text.Style = Text.Style.Regular,
         fillColor: Color = Color.White,
     ) -> None:
-        from .. import System
+        from . import DefaultFontSize
 
+        if characterSize is None:
+            characterSize = DefaultFontSize
         self._characterSize = characterSize
         super().__init__()
         self._text = Text(font, text, int(characterSize * System.getScale()))
@@ -40,8 +41,6 @@ class PlainText(ControlBase):
         return self._characterSize
 
     def setCharacterSize(self, characterSize: int) -> None:
-        from .. import System
-
         self._characterSize = characterSize
         self._text.setCharacterSize(int(characterSize * System.getScale()))
 
@@ -52,15 +51,11 @@ class PlainText(ControlBase):
         return self._text.getString()
 
     def getLocalBounds(self) -> FloatRect:
-        from .. import System
-
         bounds = self._text.getLocalBounds()
         newBounds = FloatRect(bounds.position, bounds.size / System.getScale())
         return newBounds
 
     def getGlobalBounds(self) -> FloatRect:
-        from .. import System
-
         bounds = self._text.getGlobalBounds()
         newBounds = FloatRect(bounds.position, bounds.size / System.getScale())
         return newBounds
@@ -74,22 +69,16 @@ class PlainText(ControlBase):
             target.draw(self._text, states)
 
     def _applyRenderStates(self, states: RenderStates) -> None:
-        from .. import System
-
         states.transform *= self.getTransform()
         states.transform.translate(self.getPosition() * (System.getScale() - 1))
 
     def _getRenderTransform(self) -> Transform:
-        from .. import System
-
         transform = Transform()
         transform *= self.getTransform()
         transform.translate(self.getPosition() * (System.getScale() - 1))
         return transform
 
     def getAbsoluteBounds(self) -> FloatRect:
-        from .. import System
-
         transform = self._getScreenRenderTransform()
         bounds = self.getLocalBounds()
         realBounds = FloatRect(bounds.position * System.getScale(), bounds.size * System.getScale())
@@ -99,12 +88,16 @@ class PlainText(ControlBase):
 class TextStyle:
     def __init__(
         self,
-        characterSize: int = 30,
+        characterSize: Optional[int] = None,
         style: Text.Style = Text.Style.Regular,
         fillColor: Color = Color.White,
         outlineColor: Color = Color.Transparent,
         outlineThickness: float = 0.0,
     ) -> None:
+        if characterSize is None:
+            from . import DefaultFontSize
+
+            characterSize = DefaultFontSize
         self.characterSize = characterSize
         self.style = style
         self.fillColor = fillColor
@@ -112,8 +105,6 @@ class TextStyle:
         self.outlineThickness = outlineThickness
 
     def enableStyle(self, text: Text):
-        from .. import System
-
         text.setCharacterSize(int(self.characterSize * System.getScale()))
         text.setStyle(self.style)
         text.setFillColor(self.fillColor)

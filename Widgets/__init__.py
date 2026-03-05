@@ -21,3 +21,4 @@ from .W_PackDialog import LogDialog, PackWorker, PackSelectionDialog
 from .W_MarkdownPreviewer import MarkdownPreviewer
 from .W_GeneralDataEditor import GeneralDataEditor
 from .W_AboutDialog import AboutDialog
+from .W_ActorQueuePanel import ActorQueuePanel

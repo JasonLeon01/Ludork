@@ -1,12 +1,18 @@
 # -*- encoding: utf-8 -*-
 
+from .. import Color, Font
 from .UI_Canvas import Canvas
 from .UI_Text import TextStyle, PlainText, RichText
+from .UI_TextBox import TextBox
 from .UI_Image import Image
 from .UI_Window import Window
 from .UI_Rect import Rect
 from .UI_ListView import ListView
-from .. import Color
+
+DefaultFont: Font
+DefaultFontSize: int = 32
+DefaultWindowskinName: str
+
 
 try:
     from ..GraphicsExtension import C_HexColor as HexColor

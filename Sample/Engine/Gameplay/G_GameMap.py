@@ -10,49 +10,26 @@ from .. import (
     TypeAdapter,
     ExecSplit,
     Pair,
+    System,
     RenderTexture,
     ReturnType,
     Vector2i,
     Vector2f,
     Vector2u,
-    Shader,
     Color,
     Texture,
     GetCellSize,
     Direction,
     OppositeDirection,
 )
+from ..Utils import Math
+from ..GraphicsExtension import GameMapGraphics
 from .Particles import System as ParticleSystem
 from .Actors import Actor
 from .G_Camera import Camera
 from .G_TileMap import Tilemap, TileLayer
 from .G_Material import Material
-
-try:
-    from ..GraphicsExtension import GameMapGraphics
-except ImportError:
-
-    class GameMapGraphics:
-        def __init__(self, shaderPath: str) -> None: ...
-        def getMaterialShader(self) -> Shader: ...
-        def refreshShader(
-            self,
-            lightMask: RenderTexture,
-            mirrorTex: Texture,
-            reflectionStrengthTex: Texture,
-            emissiveTex: Texture,
-            screenScale: float,
-            screenSize: Vector2f,
-            viewPos: Vector2f,
-            viewRot: float,
-            gridSize: Vector2f,
-            cellSize: int,
-            lights: List[Light],
-            ambientColor: Color,
-        ) -> None: ...
-        def generateDataFromMap(
-            self, size: Vector2u, materialMap: List[List[float]], smooth: bool = False
-        ) -> Texture: ...
+from .GamePlayExtension import C_FindPath, C_GetMaterialPropertyMap, C_RebuildPassabilityCache
 
 
 @dataclass
@@ -81,9 +58,9 @@ class Light:
 
 
 class GameMap(GameMapGraphics):
-    def __init__(self, mapName, tilemap: Tilemap, camera: Optional[Camera] = None) -> None:
-        from .. import System
+    DefaultCoverAlpha: int
 
+    def __init__(self, mapName, tilemap: Tilemap, camera: Optional[Camera] = None) -> None:
         self.mapName = mapName
         self._tilemap = tilemap
         self._layersTopFirst = list(self._tilemap.getAllLayers().values())
@@ -110,7 +87,7 @@ class GameMap(GameMapGraphics):
         self._tilemapRenderStates.shader = System.getTilemapLightMaskShader()
         self._actorRenderStates = copy.copy(self._camera.getRenderStates())
         self._actorRenderStates.shader = System.getLightMaskShader()
-        super().__init__(System.getMaterialShaderPath())
+        super().__init__(System.getMaterialShader())
 
     @ReturnType(player=Actor)
     def getPlayer(self) -> Optional[Actor]:
@@ -332,90 +309,19 @@ class GameMap(GameMapGraphics):
         size = self._tilemap.getSize()
         layerKeys = list(self._tilemap.getAllLayers().keys())
         layerKeys.reverse()
-        try:
-            from .GamePlayExtension import C_FindPath
-
-            path = C_FindPath(
-                start,
-                goal,
-                size,
-                self._tilemap,
-                layerKeys,
-                self._actors,
-                self._tilemap.getTilesData(),
-                Tilemap.getLayer,
-                Actor.getMapPosition,
-                Actor.getCollisionEnabled,
-                TileLayer.isPassable,
-            )
-            return path
-        except Exception as e:
-            # region Find Path by Python
-            print(f"Failed to find path by C extension, try to find path by python. Error: {e}")
-            sx, sy = start.x, start.y
-            gx, gy = goal.x, goal.y
-
-            def inBounds(x: int, y: int) -> bool:
-                return 0 <= x < size.x and 0 <= y < size.y
-
-            def passable(x: int, y: int) -> bool:
-                if (x == sx and y == sy) or (x == gx and y == gy):
-                    return True
-                for layerName in layerKeys:
-                    layer = self._tilemap.getLayer(layerName)
-                    if not layer.visible:
-                        continue
-                    position = Vector2i(x, y)
-                    if layerName in self._actors:
-                        for actor in self._actors[layerName]:
-                            if actor.getMapPosition() == position:
-                                return not actor.getCollisionEnabled()
-                    tile = layer.get(position)
-                    if tile is not None:
-                        return layer.isPassable(position)
-                return True
-
-            dirs = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-            start_t = (sx, sy)
-            goal_t = (gx, gy)
-            if start_t == goal_t:
-                return []
-            openSet = set([start_t])
-            cameFrom: Dict[Pair[int], Pair[int]] = {}
-            gscore: Dict[Pair[int], int] = {start_t: 0}
-            fscore: Dict[Pair[int], int] = {start_t: abs(sx - gx) + abs(sy - gy)}
-            while openSet:
-                current = min(openSet, key=lambda t: fscore.get(t, 1 << 30))
-                if current == goal_t:
-                    pathPositions: List[Pair[int]] = []
-                    c = current
-                    while c in cameFrom:
-                        pathPositions.append(c)
-                        c = cameFrom[c]
-                    pathPositions.reverse()
-                    moves: List[Vector2i] = []
-                    px, py = sx, sy
-                    for x, y in pathPositions:
-                        moves.append(Vector2i(x - px, y - py))
-                        px, py = x, y
-                    return moves
-                openSet.remove(current)
-                cx, cy = current
-                for dx, dy in dirs:
-                    nx, ny = cx + dx, cy + dy
-                    if not inBounds(nx, ny):
-                        continue
-                    if not passable(nx, ny):
-                        continue
-                    nt = (nx, ny)
-                    tentative = gscore[current] + 1
-                    if tentative < gscore.get(nt, 1 << 30):
-                        cameFrom[nt] = current
-                        gscore[nt] = tentative
-                        fscore[nt] = tentative + abs(nx - gx) + abs(ny - gy)
-                        openSet.add(nt)
-            return []
-            # endregion
+        return C_FindPath(
+            start,
+            goal,
+            size,
+            self._tilemap,
+            layerKeys,
+            self._actors,
+            self._tilemap.getTilesData(),
+            Tilemap.getLayer,
+            Actor.getMapPosition,
+            Actor.getCollisionEnabled,
+            TileLayer.isPassable,
+        )
 
     def getCollision(self, actor: Actor, targetPosition: Vector2i) -> List[Actor]:
         if not actor.getCollisionEnabled():
@@ -465,50 +371,18 @@ class GameMap(GameMapGraphics):
         height = mapSize.y
         layerKeys = list(self._tilemap.getAllLayers().keys())
         layerKeys.reverse()
-        try:
-            from .GamePlayExtension import C_GetMaterialPropertyMap
-
-            return C_GetMaterialPropertyMap(
-                layerKeys,
-                width,
-                height,
-                self._tilemap,
-                self._actors,
-                self._tilemap.getTilesData(),
-                functionName,
-                invalidValue,
-                Tilemap.getLayer,
-                Actor.getMapPosition,
-            )
-        except Exception as e:
-            # region Get Material Property Map by Python
-            print(
-                f"Failed to get material property map by C extension, try to get material property map by python. Error: {e}"
-            )
-
-            def getMaterialProperty(inLayerKeys: List[str], pos: Vector2i) -> Union[float, bool]:
-                for layerName in inLayerKeys:
-                    layer = self._tilemap.getLayer(layerName)
-                    if layer is None or not layer.visible:
-                        continue
-                    if layerName in self._actors:
-                        for actor in self._actors[layerName]:
-                            if actor.getMapPosition() == pos:
-                                value = getattr(actor, functionName)()
-                                if value != invalidValue:
-                                    return value
-                    tile = layer.get(pos)
-                    if tile is not None:
-                        return getattr(layer, functionName)(pos)
-                return invalidValue
-
-            materialPropertyMap: List[List[Union[float, bool]]] = []
-            for y in range(height):
-                materialPropertyMap.append([])
-                for x in range(width):
-                    materialPropertyMap[-1].append(getMaterialProperty(layerKeys, Vector2i(x, height - y - 1)))
-            return materialPropertyMap
-            # endregion
+        return C_GetMaterialPropertyMap(
+            layerKeys,
+            width,
+            height,
+            self._tilemap,
+            self._actors,
+            self._tilemap.getTilesData(),
+            functionName,
+            invalidValue,
+            Tilemap.getLayer,
+            Actor.getMapPosition,
+        )
 
     def getActorLayerLightBlockMap(self, layerName: str, size: Vector2u) -> Optional[List[List[float]]]:
         width: int = size.x
@@ -556,8 +430,6 @@ class GameMap(GameMapGraphics):
                     Actor.BlueprintEvent(actor, Actor, "onFixedTick", {"fixedDelta": fixedDelta})
 
     def show(self) -> None:
-        from .. import System
-
         if not hasattr(self, "_transparentTiles"):
             self._transparentTiles = []
 
@@ -591,11 +463,13 @@ class GameMap(GameMapGraphics):
                 playerPos = self._player.getMapPosition()
                 if layer.get(playerPos) is not None:
                     if hasattr(layer, "floodFillTransparent"):
-                        processed = layer.floodFillTransparent(playerPos.x, playerPos.y, Color(255, 255, 255, 100))
+                        processed = layer.floodFillTransparent(
+                            playerPos.x, playerPos.y, Color(255, 255, 255, GameMap.DefaultCoverAlpha)
+                        )
                         for x, y in processed:
                             self._transparentTiles.append((layer, x, y))
                     elif hasattr(layer, "setTileColor"):
-                        layer.setTileColor(playerPos.x, playerPos.y, Color(255, 255, 255, 100))
+                        layer.setTileColor(playerPos.x, playerPos.y, Color(255, 255, 255, GameMap.DefaultCoverAlpha))
                         self._transparentTiles.append((layer, playerPos.x, playerPos.y))
 
             self._camera.render(layer)
@@ -604,7 +478,7 @@ class GameMap(GameMapGraphics):
                     actorAlpha = 255
                     if self._player and i > playerLayerIndex and playerLayerIndex != -1:
                         if actor != self._player and actor.intersects(self._player):
-                            actorAlpha = 100
+                            actorAlpha = GameMap.DefaultCoverAlpha
                     actor.setColor(Color(255, 255, 255, actorAlpha))
                     self._camera.render(actor)
         for layerName in layerKeys:
@@ -624,14 +498,11 @@ class GameMap(GameMapGraphics):
         self._camera.display()
         self._lightMask.display()
         self.refreshShader()
-        System.draw(self._camera, self.getMaterialShader())
+        System.draw(self._camera, System.getMaterialShader())
         System.draw(self._particleSystem)
         System.setWindowDefaultView()
 
     def refreshShader(self) -> None:
-        from .. import System
-        from ..Utils import Math
-
         if (
             self._lightMask is None
             or self._mirrorTex is None
@@ -668,50 +539,17 @@ class GameMap(GameMapGraphics):
         size = self._tilemap.getSize()
         layerKeysList = list(self._tilemap.getAllLayers().keys())
         layerKeysList.reverse()
-        try:
-            from .GamePlayExtension import C_RebuildPassabilityCache
-
-            self._tilePassableGrid, self._occupancyMap = C_RebuildPassabilityCache(
-                size,
-                layerKeysList,
-                self._tilemap.getTilesData(),
-                self._actors,
-                self._tilemap,
-                Tilemap.getLayer,
-                TileLayer.isPassable,
-                Actor.getCollisionEnabled,
-                Actor.getMapPosition,
-            )
-        except Exception as e:
-            # region Rebuild Passability Cache by Python
-            print(
-                f"Failed to rebuild passability cache by C extension, try to rebuild passability cache by python. Error: {e}"
-            )
-            self._tilePassableGrid = []
-            for y in range(size.y):
-                row: List[bool] = []
-                for x in range(size.x):
-                    passable = True
-                    for layerName in layerKeysList:
-                        layer = self._tilemap.getLayer(layerName)
-                        tile = layer.get(Vector2i(x, y))
-                        if tile is not None:
-                            passable = layer.isPassable(Vector2i(x, y))
-                            break
-                    row.append(passable)
-                self._tilePassableGrid.append(row)
-            self._occupancyMap = {}
-            for actorList in self._actors.values():
-                for other in actorList:
-                    if not other.getCollisionEnabled():
-                        continue
-                    pos = other.getMapPosition()
-                    key = (pos.x, pos.y)
-                    if key not in self._occupancyMap:
-                        self._occupancyMap[key] = [other]
-                    else:
-                        self._occupancyMap[key].append(other)
-        # endregion
+        self._tilePassableGrid, self._occupancyMap = C_RebuildPassabilityCache(
+            size,
+            layerKeysList,
+            self._tilemap.getTilesData(),
+            self._actors,
+            self._tilemap,
+            Tilemap.getLayer,
+            TileLayer.isPassable,
+            Actor.getCollisionEnabled,
+            Actor.getMapPosition,
+        )
 
     def markPassabilityDirty(self) -> None:
         self._materialDirty = True

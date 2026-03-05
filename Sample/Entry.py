@@ -9,10 +9,10 @@ import threading
 
 def entry():
     import Engine
-    from Source import Scenes
+    import Source
 
     def _stdinWorker():
-        env = {"Engine": Engine, "Scenes": Scenes, "System": Engine.System}
+        env = {"Engine": Engine, "Scenes": Source.Scenes, "System": Engine.System}
         while True:
             line = sys.stdin.readline()
             if not line:
@@ -38,12 +38,15 @@ def entry():
     iniFile = configparser.ConfigParser()
     iniFile.read(iniFilePath, encoding="utf-8")
     Engine.Locale.init("./Data/Locale")
+    Engine.NodeGraph.initLatent()
     Engine.System.init(iniFile, iniFilePath)
-    Engine.System.setScene(Scenes.Init())
+    Engine.System.setScene(Source.Scenes.Init())
+    Source.System.init()
 
     while Engine.System.shouldLoop():
         Engine.System.getScene().main()
     Engine.System.saveFPSHistory()
+    print("Game exited successfully.")
 
 
 if __name__ == "__main__":

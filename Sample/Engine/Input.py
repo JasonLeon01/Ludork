@@ -5,7 +5,7 @@ import logging
 import traceback
 from enum import Enum
 from typing import Any, Dict, Optional, Tuple, Union, List, Callable
-from . import Keyboard, Mouse, Joystick, WindowBase, Vector2i
+from . import Keyboard, Mouse, Joystick, WindowBase, Vector2i, System
 from .Utils import Math
 
 
@@ -474,6 +474,10 @@ def update(window: WindowBase) -> None:
     except Exception as e:
         logging.error(f"Error in Input.update: {e}\n {traceback.format_exc()}")
 
+    from .NodeGraph import latentManager
+
+    latentManager.update()
+
 
 def isFocused() -> bool:
     return _EventState.Focused
@@ -638,8 +642,6 @@ def getMouseMovedDelta() -> Optional[Vector2i]:
 
 
 def setMousePosition(position: Vector2i) -> None:
-    from Engine import System
-
     Mouse.setPosition(position, System.getWindow())
 
 

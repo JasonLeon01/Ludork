@@ -96,7 +96,11 @@ class ConfigDictPanel(QtWidgets.QWidget):
         def on_browse():
             base = str(val.get("base", "")).strip()
             ext = val.get("ext")
-            root = os.path.join(EditorStatus.PROJ_PATH, "Assets")
+            rootKey = val.get("root")
+            if rootKey:
+                root = os.path.join(EditorStatus.PROJ_PATH, str(rootKey).strip())
+            else:
+                root = os.path.join(EditorStatus.PROJ_PATH, "Assets")
             if base:
                 root = os.path.join(root, base)
             filters: List[str] = []
@@ -196,7 +200,11 @@ class ConfigDictPanel(QtWidgets.QWidget):
                 def on_browse():
                     base = str(val.get("base", "")).strip()
                     ext = val.get("ext")
-                    root = os.path.join(EditorStatus.PROJ_PATH, "Assets")
+                    rootKey = val.get("root")
+                    if rootKey:
+                        root = os.path.join(EditorStatus.PROJ_PATH, str(rootKey).strip())
+                    else:
+                        root = os.path.join(EditorStatus.PROJ_PATH, "Assets")
                     if base:
                         root = os.path.join(root, base)
                     filters: List[str] = []

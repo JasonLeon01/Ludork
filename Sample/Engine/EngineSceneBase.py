@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import inspect
 from typing import Any, Callable, List, Dict, Optional
-from . import Latent, Manager, ExecSplit, ReturnType
+from . import Latent, Manager, ExecSplit, ReturnType, System, Input, Manager
 from .UI import Canvas
 from .Utils import Event, Math
 from .Animation import AnimSprite
@@ -13,15 +13,13 @@ from .Manager import TimerTaskEntry
 
 class SceneBase:
     def __init__(self) -> None:
-        from . import System
-
         self._UIs: List[Canvas] = []
+        self._debugHUDEnabled: bool = False
         if System.isDebugMode():
-            from .UI import UI_Text as Text
+            from .UI import DefaultFont, PlainText
 
-            PlainText = Text.PlainText
             self._debugHUDEnabled: bool = True
-            self._debugHUD: PlainText = PlainText(list(System.getFonts())[0], "", 12)
+            self._debugHUD: PlainText = PlainText(DefaultFont, "", 12)
             self._totalTime: float = 0.0
             self._totalFrames: int = 0
             self._averageFPS: float = 0.0
@@ -40,8 +38,6 @@ class SceneBase:
         self._animList: List[AnimSprite] = []
 
     def onEnter(self) -> None:
-        from . import System
-
         System.setTransition()
 
     def onQuit(self) -> None:
@@ -111,8 +107,6 @@ class SceneBase:
         self._animList.clear()
 
     def main(self) -> None:
-        from . import System, Input
-
         if not self._created:
             self.onCreate()
             self._created = True
@@ -139,8 +133,6 @@ class SceneBase:
                     ui.fixedUpdate(fixedDelta)
 
     def _renderHandle(self, deltaTime: float) -> None:
-        from . import System
-
         if len(self._animList) > 0:
             for anim in self._animList:
                 System.draw(anim)
@@ -159,8 +151,6 @@ class SceneBase:
                     ui.lateUpdate(deltaTime)
 
     def _update(self, deltaTime: float) -> None:
-        from . import System
-
         self.onTick(deltaTime)
         Event.flush()
         for key, taskEntry in self._timerTasks.copy().items():
@@ -180,8 +170,6 @@ class SceneBase:
         self.onLateTick(deltaTime)
 
     def _updateDebugInfo(self, deltaTime: float) -> None:
-        from . import System, Input, Manager
-
         if not System.isDebugMode():
             return
         if Input.isKeyTriggered(Input.Key.F3, handled=False):

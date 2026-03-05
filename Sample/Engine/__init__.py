@@ -276,6 +276,8 @@ from .Modified import Clock
 from .Modified import ContextSettings
 from .Modified import RenderStates
 
+from .EngineSystem import System
+from .EngineSceneBase import SceneBase
 from . import Utils
 from . import Input
 from . import Locale
@@ -283,9 +285,7 @@ from . import Manager
 from . import Filters
 from . import Gameplay
 from . import UI
-from .System import System
 from . import NodeGraph
-from .SceneBase import SceneBase
 from . import Animation
 from .Video import Video
 

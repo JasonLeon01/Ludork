@@ -7,41 +7,27 @@ import json
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 import configparser
 from . import (
-    Manager,
     Color,
     RenderWindow,
     RenderTexture,
     Texture,
     View,
     Vector2u,
-    Font,
-    Image,
-    Cursor,
     Sprite,
     Shader,
     Drawable,
-    VideoMode,
-    SetCellSize,
     GetGameRunning,
-    Style,
-    ContextSettings,
 )
-from .NodeGraph import LatentManager
-from .SceneBase import SceneBase
-from .Utils import Math, File, Render
 
 if TYPE_CHECKING:
-    from Engine import Shader
+    from Engine import SceneBase
 
 
 class System:
-    class Config:
-        FontSize: int
-        WindowColor: Color
-
     __data: configparser.ConfigParser
     __dataFilePath: str = None
     __graphicsCanvases: List[RenderTexture] = []
+    _gameSize: Vector2u = None
     _window: RenderWindow = None
     _canvas: RenderTexture = None
     _canvasSprite: Sprite = None
@@ -49,14 +35,8 @@ class System:
     _transitionTempTexture: RenderTexture = None
     _transitionSprite: Sprite = None
     _graphicsShaders: List[Shader] = []
-    _title: str = None
-    _fonts: List[Font] = []
-    _gameSize: Vector2u = None
-    _icon: Image = None
-    _cursor: Cursor = None
-    _windowskinName: str = None
-    _mainScript: str = None
-    _language: str = None
+    _mainScript: str = ""
+    _language: str = "en_GB"
     _scale: float = 1.0
     _frameRate: int = 60
     _verticalSync: bool = False
@@ -66,13 +46,10 @@ class System:
     _musicVolume: float = 100
     _soundVolume: float = 100
     _voiceVolume: float = 100
-    _transitionShaderPath: str = None
-    _tilemapLightMaskShaderPath: str = None
-    _lightMaskShaderPath: str = None
-    _materialShaderPath: str = None
     _transitionShader: Optional[Shader] = None
     _tilemapLightMaskShader: Optional[Shader] = None
     _lightMaskShader: Optional[Shader] = None
+    _materialShader: Optional[Shader] = None
     _transitionResource: Optional[Texture] = None
     _inTransition: bool = False
     _transitionTimeCount: float = 0.0
@@ -80,8 +57,6 @@ class System:
     _transitionFrozen: bool = False
     _transitionFreezePending: bool = False
     _scenes: List[SceneBase] = None
-    _latentManager: LatentManager = None
-    _variables: Dict[str, Any] = {}
     _debugMode: bool = False
     _showFPSGraph: bool = False
     _fpsHistory: List[float] = []
@@ -94,21 +69,6 @@ class System:
         cls.__dataFilePath = dataFilePath
         cls.__graphicsCanvases = []
         data = inData["Main"]
-        systemData = File.getJSONData("./Data/Configs/System.json")
-        cls._title = systemData["title"]["value"]
-        size = systemData["gameSize"]["value"]
-        cls._gameSize = Vector2u(size[0], size[1])
-        cls._fonts = [Manager.loadFont(font) for font in systemData["fonts"]["value"]]
-        cls.Config.FontSize = systemData["fontSize"]["value"]
-        cls._icon = Image(os.path.join("./Assets", systemData["icon"]["base"], systemData["icon"]["value"]))
-        cursorPath = os.path.join("./Assets", systemData["cursor"]["base"], systemData["cursor"]["value"])
-        if cursorPath and os.path.exists(cursorPath):
-            cursorImage = Image(cursorPath)
-            cls._cursor = Cursor(cursorImage.getPixelsArray(), cursorImage.getSize(), Vector2u(0, 0))
-        cls._windowskinName = systemData["windowskinName"]["value"]
-        r, g, b, a = systemData["windowColor"]["value"]
-        cls.Config.WindowColor = Color(r, g, b, a)
-        SetCellSize(systemData["cellSize"]["value"])
         cls._mainScript = data["script"]
         cls._language = data["language"]
         if cls._language is None or cls._language == "" or cls._language == "None":
@@ -123,56 +83,19 @@ class System:
         cls._musicVolume = data.getfloat("musicVolume")
         cls._soundVolume = data.getfloat("soundVolume")
         cls._voiceVolume = data.getfloat("voiceVolume")
-        cls._transitionShaderPath = systemData["transitionShaderPath"]["value"]
-        cls._tilemapLightMaskShaderPath = systemData["tilemapLightMaskShaderPath"]["value"]
-        cls._lightMaskShaderPath = systemData["lightMaskShaderPath"]["value"]
-        cls._materialShaderPath = os.path.join(
-            "./Assets", systemData["materialShaderPath"]["base"], systemData["materialShaderPath"]["value"]
-        )
         cls._scenes = []
-        realSize = Vector2u(
-            int(cls._gameSize.x * cls._scale),
-            int(cls._gameSize.y * cls._scale),
-        )
-        handle: Optional[str] = os.environ.get("WINDOWHANDLE")
-        individual: Optional[str] = os.environ.get("INDIVIDUAL")
-        cls._debugMode = handle is not None
-        cls._showFPSGraph = os.environ.get("SHOWFPSGRAPH") == "True"
-        if handle and individual != "True":
-            cls._window = RenderWindow(int(handle), settings=ContextSettings(antiAliasingLevel=8))
-            windowSize = cls._window.getSize()
-            cls._scale = min(windowSize.x / cls._gameSize.x, windowSize.y / cls._gameSize.y)
-        else:
-            cls._window = RenderWindow(
-                VideoMode(realSize),
-                cls._title,
-                Style.Titlebar | Style.Close,
-                settings=ContextSettings(antiAliasingLevel=8),
-            )
-        cls._canvas = RenderTexture(cls._window.getSize())
-        cls._canvas.clear(Color.Transparent)
-        cls._canvasSprite = Sprite(cls._canvas.getTexture())
-        cls._transition = Texture(cls._window.getSize())
-        cls._transitionTempTexture = RenderTexture(cls._window.getSize())
-        cls._transitionTempTexture.clear(Color.Transparent)
-        cls._transitionSprite = Sprite(cls._transitionTempTexture.getTexture())
-        cls._window.setIcon(cls._icon)
-        if cls._cursor:
-            cls._window.setMouseCursor(cls._cursor)
-        cls._window.setFramerateLimit(cls._frameRate)
-        cls._window.setVerticalSyncEnabled(cls._verticalSync)
-        cls._window.clear(Color.Transparent)
-        if cls._transitionShaderPath:
-            cls._transitionShader = Manager.loadShader(cls._transitionShaderPath)
-        if cls._tilemapLightMaskShaderPath:
-            cls._tilemapLightMaskShader = Manager.loadShader(cls._tilemapLightMaskShaderPath)
-        if cls._lightMaskShaderPath:
-            cls._lightMaskShader = Manager.loadShader(cls._lightMaskShaderPath)
-        cls._latentManager = LatentManager()
 
     @classmethod
     def isDebugMode(cls) -> bool:
         return cls._debugMode
+
+    @classmethod
+    def setDebugMode(cls, debugMode: bool) -> None:
+        cls._debugMode = debugMode
+
+    @classmethod
+    def setShowFPSGraph(cls, showFPSGraph: bool) -> None:
+        cls._showFPSGraph = showFPSGraph
 
     @classmethod
     def recordFPS(cls, fps: float) -> None:
@@ -198,6 +121,14 @@ class System:
             print(f"Failed to save FPS history: {e}")
 
     @classmethod
+    def getGameSize(cls) -> Vector2u:
+        return cls._gameSize
+
+    @classmethod
+    def setGameSize(cls, gameSize: Vector2u) -> None:
+        cls._gameSize = gameSize
+
+    @classmethod
     def isActive(cls) -> bool:
         return cls._window.isOpen() and GetGameRunning()
 
@@ -206,12 +137,25 @@ class System:
         return cls._window.isOpen() and GetGameRunning() and len(cls._scenes) > 0
 
     @classmethod
+    def initWindow(cls, window: RenderWindow) -> None:
+        cls._window = window
+        cls._window.setFramerateLimit(cls._frameRate)
+        cls._window.setVerticalSyncEnabled(cls._verticalSync)
+        cls._window.clear(Color.Transparent)
+
+    @classmethod
     def getWindow(cls) -> RenderWindow:
         return cls._window
 
     @classmethod
-    def getFonts(cls) -> List[Font]:
-        return cls._fonts
+    def initCanvas(cls, size: Vector2u) -> None:
+        cls._canvas = RenderTexture(size)
+        cls._canvas.clear(Color.Transparent)
+        cls._canvasSprite = Sprite(cls._canvas.getTexture())
+        cls._transition = Texture(size)
+        cls._transitionTempTexture = RenderTexture(size)
+        cls._transitionTempTexture.clear(Color.Transparent)
+        cls._transitionSprite = Sprite(cls._transitionTempTexture.getTexture())
 
     @classmethod
     def clearCanvas(cls) -> None:
@@ -219,7 +163,25 @@ class System:
         cls._canvas.clear(Color.Transparent)
 
     @classmethod
+    def initTransitionShader(cls, shader: Shader) -> None:
+        cls._transitionShader = shader
+
+    @classmethod
+    def initTilemapLightMaskShader(cls, shader: Shader) -> None:
+        cls._tilemapLightMaskShader = shader
+
+    @classmethod
+    def initLightMaskShader(cls, shader: Shader) -> None:
+        cls._lightMaskShader = shader
+
+    @classmethod
+    def initMaterialShader(cls, shader: Shader) -> None:
+        cls._materialShader = shader
+
+    @classmethod
     def setWindowMapView(cls) -> None:
+        from .Utils import Math
+
         cls._canvas.setView(View(Math.ToVector2f(cls._gameSize / 2), Math.ToVector2f(cls._gameSize)))
 
     @classmethod
@@ -228,6 +190,8 @@ class System:
 
     @classmethod
     def draw(cls, drawable: Drawable, shader: Optional[Shader] = None) -> None:
+        from .Utils import Render
+
         states = Render.CanvasRenderStates()
         if shader:
             states.shader = shader
@@ -235,7 +199,7 @@ class System:
 
     @classmethod
     def display(cls, deltaTime: float) -> None:
-        from .Utils import Render
+        from .Utils import Math, Render
 
         if cls._inTransition:
             cls._transitionTimeCount = min(cls._transitionTimeCount + deltaTime, cls._transitionTime)
@@ -282,28 +246,6 @@ class System:
         if cls._inTransition:
             if cls._transitionTimeCount >= cls._transitionTime:
                 cls._inTransition = False
-        cls._latentManager.update()
-
-    @classmethod
-    def getTitle(cls) -> str:
-        return cls._title
-
-    @classmethod
-    def setTitle(cls, title: str) -> None:
-        cls._title = title
-        cls._window.setTitle(cls._title)
-
-    @classmethod
-    def getGameSize(cls) -> Vector2u:
-        return cls._gameSize
-
-    @classmethod
-    def getWindowskinName(cls) -> str:
-        return cls._windowskinName
-
-    @classmethod
-    def setWindowskinName(cls, name: str) -> None:
-        cls._windowskinName = name
 
     @classmethod
     def getMainScript(cls) -> str:
@@ -317,6 +259,10 @@ class System:
     def setLanguage(cls, language: str) -> None:
         cls._language = language
         cls._setIniData("language", cls._language)
+
+    @classmethod
+    def setScale(cls, scale: float) -> None:
+        cls._scale = scale
 
     @classmethod
     def getScale(cls) -> float:
@@ -348,6 +294,8 @@ class System:
 
     @classmethod
     def setMusicOn(cls, musicOn: bool) -> None:
+        from . import Manager
+
         cls._musicOn = musicOn
         if not cls._musicOn:
             Manager.stopMusic("BGM")
@@ -360,6 +308,8 @@ class System:
 
     @classmethod
     def setSoundOn(cls, soundOn: bool) -> None:
+        from . import Manager
+
         cls._soundOn = soundOn
         if not cls._soundOn:
             Manager.stopSound()
@@ -404,22 +354,6 @@ class System:
         cls._setIniData("voiceVolume", cls._voiceVolume)
 
     @classmethod
-    def getMaterialShaderPath(cls) -> str:
-        return cls._materialShaderPath
-
-    @classmethod
-    def getTilemapLightMaskShaderPath(cls) -> str:
-        return cls._tilemapLightMaskShaderPath
-
-    @classmethod
-    def getLightMaskShaderPath(cls) -> str:
-        return cls._lightMaskShaderPath
-
-    @classmethod
-    def getTransitionShader(cls) -> Shader:
-        return cls._transitionShader
-
-    @classmethod
     def getTilemapLightMaskShader(cls) -> Optional[Shader]:
         return cls._tilemapLightMaskShader
 
@@ -430,6 +364,10 @@ class System:
     @classmethod
     def getGraphicsShaders(cls) -> List[Shader]:
         return cls._graphicsShaders
+
+    @classmethod
+    def getMaterialShader(cls) -> Optional[Shader]:
+        return cls._materialShader
 
     @classmethod
     def addGraphicsShader(cls, shader: Optional[Shader], uniforms: Optional[Dict[str, Any]] = None) -> None:
@@ -459,7 +397,7 @@ class System:
 
     @classmethod
     def setTransition(cls, transitionResource: Optional[Texture] = None, transitionTime: float = 1.0) -> None:
-        if not (cls._transitionShaderPath and cls._transitionShader):
+        if not (cls._transitionShader):
             return
         cls._transitionResource = transitionResource
         cls._inTransition = True
@@ -507,20 +445,6 @@ class System:
     def exit(cls) -> None:
         while len(cls._scenes) > 0:
             cls.popScene()
-
-    @classmethod
-    def getVariable(cls, name: str) -> Any:
-        if not name in cls._variables:
-            return None
-        return cls._variables[name]
-
-    @classmethod
-    def setVariable(cls, name: str, value: Any) -> None:
-        cls._variables[name] = value
-
-    @classmethod
-    def getLatentManager(cls) -> LatentManager:
-        return cls._latentManager
 
     @classmethod
     def _setIniData(cls, key: str, value: Any) -> None:

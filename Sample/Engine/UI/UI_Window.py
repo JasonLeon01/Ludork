@@ -1,17 +1,8 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import List, Optional, Tuple, Union, TYPE_CHECKING
-from .. import (
-    TypeAdapter,
-    Pair,
-    Sprite,
-    IntRect,
-    Vector2i,
-    Vector2f,
-    Texture,
-    RenderTexture,
-)
+from typing import List, Optional, Tuple, Union
+from .. import TypeAdapter, Pair, Sprite, IntRect, Vector2i, Vector2f, Texture, RenderTexture, Vector2u, Image
 from ..Utils import Math, Render
 from .Base import SpriteBase
 
@@ -22,10 +13,6 @@ except ImportError as e:
     from .Base import PyRectBase as RectBase
 
 
-if TYPE_CHECKING:
-    from Engine import Vector2u, Image
-
-
 class Window(SpriteBase):
     @TypeAdapter(rect=([tuple, list], IntRect, lambda pos, size: IntRect(Vector2i(*pos), Vector2i(*size))))
     def __init__(
@@ -34,17 +21,16 @@ class Window(SpriteBase):
         windowSkin: Optional[Image] = None,
         repeated: bool = False,
     ) -> None:
-        from .. import System
-
         self._size = Math.ToVector2u(rect.size)
         size = Math.ToVector2u(Render.getRealSize(rect.size))
         self._canvas: RenderTexture = RenderTexture(size)
         if windowSkin:
             self._windowSkin = windowSkin
         else:
+            from . import DefaultWindowskinName
             from .. import Manager
 
-            self._windowSkin = Manager.loadSystem(System.getWindowskinName(), smooth=True).copyToImage()
+            self._windowSkin = Manager.loadSystem(DefaultWindowskinName, smooth=True).copyToImage()
         self._repeated = repeated
         self._rectImpl = RectBase()
         self._initUI()

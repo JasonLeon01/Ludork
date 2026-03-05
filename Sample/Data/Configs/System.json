@@ -43,18 +43,30 @@
         "ext": ".png",
         "value": "001-Blue01.png"
     },
-    "windowColor": {
-        "type": "int[4]",
-        "value": [
-            255,
-            255,
-            255,
-            192
-        ]
-    },
     "cellSize": {
         "type": "int",
         "value": 32
+    },
+    "coverOpaqueAlpha": {
+        "type": "int",
+        "value": 128
+    },
+    "startMap": {
+        "type": "file",
+        "root": "Data",
+        "base": "Maps",
+        "ext": [
+            ".json",
+            ".dat"
+        ],
+        "value": "Map_01.dat"
+    },
+    "startPos": {
+        "type": "int[2]",
+        "value": [
+            19,
+            8
+        ]
     },
     "transitionShaderPath": {
         "type": "file",

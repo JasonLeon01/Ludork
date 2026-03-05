@@ -2,21 +2,11 @@
 
 from __future__ import annotations
 from typing import List, Tuple, Union, TYPE_CHECKING
-from .. import (
-    TypeAdapter,
-    Pair,
-    IntRect,
-    Vector2i,
-    Vector2f,
-    RenderTexture,
-    Color,
-    View,
-)
+from .. import TypeAdapter, Pair, IntRect, Vector2i, Vector2f, Vector2u, RenderTexture, Color, View, System
 from ..Utils import Math, Render
 from .Base import SpriteBase, FunctionalBase
 
 if TYPE_CHECKING:
-    from Engine import Vector2u
     from Engine.UI.Base import ControlBase
 
 
@@ -36,15 +26,11 @@ class Canvas(SpriteBase, FunctionalBase):
         return (origin.x, origin.y)
 
     def getOrigin(self) -> Vector2f:
-        from Engine import System
-
         origin = super().getOrigin()
         return origin / System.getScale()
 
     @TypeAdapter(origin=([tuple, list], Vector2f))
     def setOrigin(self, origin: Union[Vector2f, Pair[float], List[float]]) -> None:
-        from Engine import System
-
         super().setOrigin(origin * System.getScale())
 
     def getSize(self) -> Vector2u:
@@ -57,20 +43,14 @@ class Canvas(SpriteBase, FunctionalBase):
         return IntRect(Vector2i(16, 16), Vector2i(self._size.x - 32, self._size.y - 32))
 
     def getView(self) -> View:
-        from Engine import System
-
         view = self._canvas.getView()
         return View(view.getCenter() / System.getScale(), view.getSize() / System.getScale())
 
     def getDefaultView(self) -> View:
-        from Engine import System
-
         view = self._canvas.getDefaultView()
         return View(view.getCenter() / System.getScale(), view.getSize() / System.getScale())
 
     def setView(self, view: View) -> None:
-        from Engine import System
-
         newView = View(view.getCenter() * System.getScale(), view.getSize() * System.getScale())
         self._canvas.setView(newView)
 

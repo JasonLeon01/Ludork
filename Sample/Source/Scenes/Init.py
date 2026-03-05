@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import threading
 from typing import Tuple
-from Engine import Pair, SceneBase, System, Color, Vector2f, RenderTexture, RectangleShape, Manager
+from Engine import Pair, System, SceneBase, Color, Vector2f, RenderTexture, RectangleShape, Manager
 from Engine.Utils import Render, Math
 from Engine.Animation import compressAnimation
 from Engine.Utils import File

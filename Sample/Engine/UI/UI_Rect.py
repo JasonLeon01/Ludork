@@ -41,9 +41,10 @@ class Rect(SpriteBase):
         if windowSkin:
             self._windowSkin = windowSkin
         else:
-            from .. import System, Manager
+            from . import DefaultWindowskinName
+            from .. import Manager
 
-            self._windowSkin = Manager.loadSystem(System.getWindowskinName(), smooth=True).copyToImage()
+            self._windowSkin = Manager.loadSystem(DefaultWindowskinName, smooth=True).copyToImage()
         self._rectImpl = RectBase()
         self._initUI()
         SpriteBase.__init__(self, self._canvas.getTexture())

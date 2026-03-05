@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+from .System import System
 from . import NodeFunctions
 from .Player import Player
 from .Enemy import Enemy

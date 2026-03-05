@@ -2,7 +2,7 @@
 
 import copy
 from typing import Union
-from .. import RenderStates, BlendMode, Vector2i, Vector2u, Vector2f
+from .. import RenderStates, BlendMode, Vector2i, Vector2u, Vector2f, System
 
 
 def CanvasRenderStates() -> RenderStates:
@@ -26,7 +26,5 @@ def getRealSize(inSize: Union[Vector2i, Vector2u, Vector2f]):
         from ..Utils import Math
 
         size = Math.ToVector2f(inSize)
-
-    from .. import System
 
     return size * System.getScale()

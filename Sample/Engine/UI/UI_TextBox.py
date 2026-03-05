@@ -2,21 +2,18 @@
 
 from __future__ import annotations
 import copy
-from typing import Optional, TYPE_CHECKING
-from .. import IntRect, RectangleShape, Vector2f, Text, RenderTexture, Sprite, Color
+from typing import Optional
+from .. import Font, IntRect, RectangleShape, Vector2f, Text, RenderTexture, Sprite, Color, Image
 from ..Utils import Math
 from .Base import SpriteBase
 from .UI_Window import Window
 
-if TYPE_CHECKING:
-    from Engine import Image
-
 
 class TextBox(SpriteBase):
     def __init__(self, rect: IntRect, windowSkin: Optional[Image] = None) -> None:
-        from .. import System
-
         assert rect.size.x > 16 and rect.size.y > 16
+        from . import DefaultFont, DefaultFontSize
+
         self._realRect = copy.copy(rect)
         self._realRect.size.x -= 16
         self._realRect.size.y -= 16
@@ -30,7 +27,7 @@ class TextBox(SpriteBase):
         self._textLeft: str = ""
         self._textRight: str = ""
         self._active: bool = False
-        self._textControl: Text = Text(System.getFonts()[0], "|", min(self._realRect.size.y, 30))
+        self._textControl: Text = Text(DefaultFont, "|", min(self._realRect.size.y, DefaultFontSize))
         self._textControl.setFillColor(Color.Black)
         self._textControlTexture: RenderTexture = RenderTexture(Math.ToVector2u(self._realRect.size))
         self._textControlSprite: Sprite = Sprite(self._textControlTexture.getTexture())

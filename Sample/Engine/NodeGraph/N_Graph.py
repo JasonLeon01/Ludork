@@ -3,7 +3,7 @@
 from __future__ import annotations
 import inspect
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-from .. import Pair
+from .. import Pair, System
 from .N_Node import DataNode, Node
 
 
@@ -89,9 +89,7 @@ class Graph:
                     self.nodeNexts[key][left][leftOutPin] = (right, rightInPin)
 
     def execute(self, key: str, startNode: Optional[int] = None, limit=1000000) -> Tuple[Any, ...]:
-        from Engine import System
-
-        latentManager = System.getLatentManager()
+        from . import latentManager
 
         self.doingPartKey = key
         if key not in self.nodes:

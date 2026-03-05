@@ -3,17 +3,8 @@
 #include <cstdint>
 #include <pybind11/stl.h>
 
-GameMapGraphics::GameMapGraphics(const std::string &shaderPath) {
-  materialShader_ = new sf::Shader();
-  if (!materialShader_->loadFromFile(shaderPath, sf::Shader::Type::Fragment)) {
-    throw std::runtime_error("Failed to load shader from file: " + shaderPath);
-  }
-}
-
-GameMapGraphics::~GameMapGraphics() { delete materialShader_; }
-
-sf::Shader *GameMapGraphics::getMaterialShader() const {
-  return materialShader_;
+GameMapGraphics::GameMapGraphics(sf::Shader *shader) {
+  materialShader_ = shader;
 }
 
 void GameMapGraphics::refreshShader(
@@ -92,10 +83,7 @@ std::string GameMapGraphics::getUniformArrayName(const std::string &name,
 
 void ApplyGameMapGraphicsBinding(py::module &m) {
   py::class_<GameMapGraphics> GameMapGraphicsClass(m, "GameMapGraphics");
-  GameMapGraphicsClass.def(py::init<const std::string &>());
-  GameMapGraphicsClass.def("getMaterialShader",
-                           &GameMapGraphics::getMaterialShader,
-                           py::return_value_policy::reference);
+  GameMapGraphicsClass.def(py::init<sf::Shader *>());
   GameMapGraphicsClass.def(
       "refreshShader", &GameMapGraphics::refreshShader, py::arg("lightMask"),
       py::arg("mirrorTex"), py::arg("reflectionStrengthTex"),

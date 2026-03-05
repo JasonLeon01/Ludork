@@ -2,6 +2,7 @@
 
 import os
 from typing import Dict
+from . import System
 
 
 class _Locale:
@@ -26,6 +27,4 @@ def getLocaleContent(localeKey: str, key: str) -> str:
 
 
 def getContent(key: str) -> str:
-    from . import System
-
     return getLocaleContent(System.getLanguage(), key)

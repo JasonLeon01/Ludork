@@ -16,7 +16,6 @@ TileLayerGraphics::TileLayerGraphics(
 }
 
 TileLayerGraphics::~TileLayerGraphics() {
-  delete texture_;
   delete vertexArray_;
 }
 
