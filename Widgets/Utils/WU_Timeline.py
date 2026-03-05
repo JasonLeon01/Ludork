@@ -6,7 +6,7 @@ import contextlib
 from PyQt5 import QtWidgets, QtGui, QtCore, QtMultimedia
 from typing import Dict, Any, Optional, Tuple
 from Utils import Locale
-import EditorStatus
+from Global import EditorStatus
 
 
 class TimelineCanvas(QtWidgets.QWidget):

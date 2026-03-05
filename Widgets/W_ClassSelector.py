@@ -5,7 +5,7 @@ import sys
 import inspect
 from PyQt5 import QtWidgets, QtCore
 from Utils import Locale, System
-import EditorStatus
+from Global import EditorStatus
 
 
 class ClassSelector(QtWidgets.QDialog):

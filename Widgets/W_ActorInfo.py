@@ -1,8 +1,8 @@
 # -*- encoding: utf-8 -*-
 from typing import Optional, Dict, Any, Tuple
 from PyQt5 import QtWidgets, QtCore, QtGui
-from Utils import Locale, Panel
-from Data import GameData
+from Utils import Locale
+from Global import GameData
 
 
 class ActorInfoPanel(QtWidgets.QWidget):

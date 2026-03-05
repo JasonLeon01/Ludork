@@ -4,8 +4,7 @@ from typing import Any, Optional
 import os
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Utils import Locale
-import EditorStatus
-from Data import GameData
+from Global import EditorStatus, GameData
 from .Utils.WU_FileSelectorDialog import FileSelectorDialog
 
 

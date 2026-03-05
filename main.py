@@ -11,9 +11,7 @@ from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QApplication
 from qt_material import apply_stylesheet
 from PyQt5.QtGui import QIcon
-from W_StartWindow import StartWindow
 from Utils import Locale, System, File
-import EditorStatus
 import traceback
 import threading
 
@@ -21,8 +19,12 @@ START_PROJ_FILE = None
 
 
 def initConfig():
+    from Global import EditorStatus
+
     if not System.alreadyPacked():
-        subprocess.run([sys.executable, "localeTransfer.py", os.path.join(".", "Locale", "locale.json")], check=True)
+        subprocess.run(
+            [sys.executable, "tools/localeTransfer.py", os.path.join(".", "Locale", "locale.json")], check=True
+        )
     Locale.init(os.path.join(File.getRootPath(), "Locale"))
     EditorStatus.editorConfig = configparser.ConfigParser()
     if not os.path.exists(os.path.join(File.getIniPath(), f"{EditorStatus.APP_NAME}.ini")):
@@ -71,6 +73,8 @@ def _thread_excepthook(args):
 
 
 def main():
+    from Global import StartWindow, EditorStatus
+
     if System.alreadyPacked():
         app_dir = os.path.dirname(sys.executable)
         if app_dir not in sys.path:

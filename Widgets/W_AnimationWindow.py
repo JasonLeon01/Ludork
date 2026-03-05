@@ -6,8 +6,7 @@ import math
 from PyQt5 import QtCore, QtWidgets, QtGui, QtMultimedia
 from typing import Optional, Dict, Any, List
 from Utils import Locale
-import EditorStatus
-from Data import GameData
+from Global import EditorStatus, GameData
 from .Utils import TimeLine
 
 

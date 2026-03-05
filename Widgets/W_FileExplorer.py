@@ -3,8 +3,7 @@
 import os
 from typing import Callable, Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Data import GameData
-import EditorStatus
+from Global import EditorStatus, GameData
 from Utils import Locale, Panel, File
 from .W_FilePreview import FilePreview
 

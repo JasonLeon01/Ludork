@@ -3,8 +3,7 @@
 import os
 from typing import Optional, List, Dict
 from PyQt5 import QtCore, QtGui, QtWidgets
-import EditorStatus
-from Data import GameData
+from Global import EditorStatus, GameData
 from Utils import Panel
 
 

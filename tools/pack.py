@@ -6,7 +6,7 @@ import subprocess
 import shutil
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(os.getcwd())
 VENV_NAME = "LudorkEnv"
 PYTHON = ROOT / VENV_NAME / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python3")
 OUTDIR = ROOT / "build"
@@ -124,7 +124,7 @@ def main():
 
     try:
         print("[INFO] Generating locale files...")
-        run([PYTHON, ROOT / "localeTransfer.py", str(locale_json)])
+        run([PYTHON, ROOT / "tools/localeTransfer.py", str(locale_json)])
 
         if locale_json.exists():
             shutil.move(str(locale_json), str(locale_json_bak))

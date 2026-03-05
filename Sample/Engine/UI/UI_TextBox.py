@@ -3,7 +3,7 @@
 from __future__ import annotations
 import copy
 from typing import Optional
-from .. import Font, IntRect, RectangleShape, Vector2f, Text, RenderTexture, Sprite, Color, Image
+from .. import IntRect, RectangleShape, Vector2f, Text, RenderTexture, Sprite, Color, Image
 from ..Utils import Math
 from .Base import SpriteBase
 from .UI_Window import Window

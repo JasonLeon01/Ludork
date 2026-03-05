@@ -4,8 +4,7 @@ import importlib
 from PyQt5 import QtWidgets, QtGui, QtCore
 import os
 from enum import Enum
-import EditorStatus
-from Data import GameData
+from Global import EditorStatus, GameData
 from Utils import Locale, System, File
 from .WU_FileSelectorDialog import FileSelectorDialog
 from .WU_DataclassEditDialog import DataclassEditDialog

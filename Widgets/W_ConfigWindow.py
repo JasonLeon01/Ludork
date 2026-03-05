@@ -2,8 +2,8 @@
 
 from PyQt5 import QtCore, QtWidgets
 from Utils import Locale
+from Global import GameData
 from .Utils import ConfigDictPanel
-from Data import GameData
 
 
 class ConfigWindow(QtWidgets.QMainWindow):

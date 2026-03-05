@@ -9,13 +9,11 @@ import shutil
 import importlib
 import traceback
 from pathlib import Path
-from typing import Dict, Any, TYPE_CHECKING
+from typing import Dict, Any
 from PyQt5 import QtCore, QtGui, QtWidgets
+from Global import EditorStatus, MainWindow
 from . import System
-import EditorStatus
 
-if TYPE_CHECKING:
-    from W_MainWindow import MainWindow
 
 mainWindow: MainWindow = None
 
@@ -27,8 +25,6 @@ def getRootPath() -> str:
 
 
 def getIniPath() -> str:
-    import EditorStatus
-
     if System.alreadyPacked() and sys.platform == "darwin":
         path = Path.home() / "Library" / "Application Support" / EditorStatus.APP_NAME
         path.mkdir(parents=True, exist_ok=True)
@@ -44,8 +40,6 @@ def getDocPath() -> str:
 
 
 def getUserPath() -> str:
-    import EditorStatus
-
     if sys.platform == "win32":
         return os.path.join(os.getenv("APPDATA"), EditorStatus.APP_NAME)
     elif sys.platform == "darwin":
@@ -86,8 +80,6 @@ def _homeDir() -> str:
 
 
 def _getLastPathOrHome() -> str:
-    import EditorStatus
-
     sec = (
         EditorStatus.editorConfig[EditorStatus.APP_NAME]
         if EditorStatus.editorConfig and EditorStatus.APP_NAME in EditorStatus.editorConfig
@@ -100,14 +92,10 @@ def _getLastPathOrHome() -> str:
 
 
 def _configPath() -> str:
-    import EditorStatus
-
     return os.path.join(getIniPath(), f"{EditorStatus.APP_NAME}.ini")
 
 
 def _setLastOpenPath(path: str) -> None:
-    import EditorStatus
-
     if not EditorStatus.editorConfig:
         return
     if EditorStatus.APP_NAME not in EditorStatus.editorConfig:
@@ -120,8 +108,7 @@ def _setLastOpenPath(path: str) -> None:
 def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
     global mainWindow
 
-    import EditorStatus
-    from Data import GameData
+    from Global import GameData
     from Utils import Locale, System
 
     EditorStatus.PROJ_PATH = os.path.abspath(path)
@@ -136,8 +123,6 @@ def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
             None, "Error", Locale.getContent("OPEN_FAILED") + "\n" + str(e) + "\n" + traceback.format_exc()
         )
         sys.exit(1)
-    from W_MainWindow import MainWindow
-
     mainWindow = MainWindow(System.getTitle())
     try:
         cfg_w = int(EditorStatus.editorConfig[EditorStatus.APP_NAME].get("Width", mainWindow.width()))

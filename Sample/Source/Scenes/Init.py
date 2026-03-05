@@ -10,8 +10,8 @@ from Engine.Animation import compressAnimation
 from Engine.Utils import File
 from Engine.UI.Base import SpriteBase
 from Engine.UI import Image
-from .Title import Scene as TitleScene
 from .. import Data
+from .Title import Scene as TitleScene
 
 
 class progressBar(SpriteBase):

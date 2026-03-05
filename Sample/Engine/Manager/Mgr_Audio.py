@@ -5,11 +5,22 @@ import asyncio
 import warnings
 import threading
 import concurrent.futures
-from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple, TYPE_CHECKING
-from .. import GetGameRunning, SoundBuffer, Sound, Time, seconds, Vector3f, Angle, degrees, Music, System
-
-if TYPE_CHECKING:
-    from Engine import SoundSource, Filters, Transformable
+from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple
+from .. import (
+    GetGameRunning,
+    SoundBuffer,
+    Sound,
+    Time,
+    seconds,
+    Vector3f,
+    Angle,
+    degrees,
+    Music,
+    System,
+    SoundSource,
+    Filters,
+    Transformable,
+)
 
 
 class AudioManager:

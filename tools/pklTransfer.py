@@ -40,7 +40,7 @@ def pkl2json(pkl_path, ext=None):
 
 if __name__ == "__main__":
     if len(sys.argv) == 1:
-        print("Usage: python pklTransfer.py <path_to_json_file>")
+        print("Usage: python tools/pklTransfer.py <path_to_json_file>")
         sys.exit(1)
     if len(sys.argv) == 3:
         eval(sys.argv[1])(sys.argv[2])

@@ -1,3 +1,3 @@
 call LudorkEnv\Scripts\activate.bat
-python pack.py
+python tools/pack.py
 pause

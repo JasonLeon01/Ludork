@@ -3,8 +3,7 @@ from __future__ import annotations
 import os
 from typing import Optional, Dict
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Data import GameData
-import EditorStatus
+from Global import GameData
 
 
 class ActorQueuePanel(QtWidgets.QWidget):
@@ -65,7 +64,7 @@ class ActorQueuePanel(QtWidgets.QWidget):
         if isinstance(bpRel, str):
             prefix = "Data.Blueprints."
             if bpRel.startswith(prefix):
-                key = bpRel[len(prefix):].replace(".", "/")
+                key = bpRel[len(prefix) :].replace(".", "/")
                 bpData = GameData.blueprintsData.get(key)
                 if isinstance(bpData, dict):
                     attrs = bpData.get("attrs")

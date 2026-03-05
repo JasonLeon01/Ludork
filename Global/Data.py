@@ -4,7 +4,7 @@ import os
 import copy
 from typing import Any, Callable, Dict, List, Optional
 from Utils import File, System
-import EditorStatus
+from . import EditorStatus
 
 
 class GameData:

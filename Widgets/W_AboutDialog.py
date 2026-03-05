@@ -4,7 +4,7 @@ from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Utils import Locale, File
 from Widgets.W_MarkdownPreviewer import MarkdownPreviewer
-import EditorStatus
+from Global import EditorStatus
 
 
 class AboutDialog(QtWidgets.QDialog):

@@ -2,6 +2,7 @@
 
 import os
 from typing import Dict, List
+from Global import EditorStatus
 
 
 class _Locale:
@@ -18,6 +19,7 @@ def init(localePath: str) -> None:
             filePath = os.path.join(localePath, file)
             _Locale.dataDict[file] = File.loadData(filePath)
 
+
 def getLocaleKeys() -> List[str]:
     return list(_Locale.dataDict.keys())
 
@@ -27,8 +29,6 @@ def getLocaleContent(localeKey: str, key: str) -> str:
 
 
 def getContent(key: str) -> str:
-    import EditorStatus
-
     if EditorStatus.LANGUAGE in _Locale.dataDict:
         return getLocaleContent(EditorStatus.LANGUAGE, key)
     return getLocaleContent("en_GB", key)

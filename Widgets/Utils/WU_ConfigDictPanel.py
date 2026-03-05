@@ -4,9 +4,8 @@ from typing import Any, List, Tuple
 import os
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Utils import Locale, System
-import EditorStatus
+from Global import EditorStatus, GameData
 from .WU_FileSelectorDialog import FileSelectorDialog
-from Data import GameData
 
 
 class ConfigDictPanel(QtWidgets.QWidget):

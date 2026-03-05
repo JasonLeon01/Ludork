@@ -4,6 +4,7 @@ import os
 import sys
 import importlib
 from PyQt5 import QtCore, QtWidgets
+from Global import EditorStatus
 
 
 def alreadyPacked() -> bool:
@@ -21,12 +22,10 @@ def alreadyPacked() -> bool:
 
 
 def getTitle() -> str:
-    import EditorStatus
-
     titles = [EditorStatus.APP_NAME]
     result = ""
     try:
-        from Data import GameData
+        from Global import GameData
 
         if EditorStatus.PROJ_PATH:
             cfg = GameData.systemConfigData.get("System")

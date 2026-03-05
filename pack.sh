@@ -16,4 +16,4 @@ else
   PY="python3"
 fi
 
-$PY pack.py
+$PY tools/pack.py

@@ -34,6 +34,6 @@ def json2localePickles(json_path: str) -> None:
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: python localeTransfer.py <path_to_json_file>")
+        print("Usage: python tools/localeTransfer.py <path_to_json_file>")
         sys.exit(1)
     json2localePickles(sys.argv[1])

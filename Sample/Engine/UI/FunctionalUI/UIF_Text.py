@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import Dict, Optional
-from Engine import Font, Text, Color
+from ... import Font, Text, Color
 from .. import PlainText, RichText, TextStyle
 from ..Base import FunctionalBase
 

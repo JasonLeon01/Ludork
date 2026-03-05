@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import Optional
-from Engine import Texture, IntRect
+from ... import Texture, IntRect
 from .. import Image
 from ..Base import FunctionalBase
 

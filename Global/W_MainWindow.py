@@ -42,8 +42,7 @@ from Widgets import (
     ActorQueuePanel,
 )
 from Widgets.Utils import MapEditDialog, SingleRowDialog, Toast, FPSGraphDialog
-import EditorStatus
-from Data import GameData
+from . import EditorStatus, GameData
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -1482,8 +1481,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self._commonFunctionWindow.show()
 
     def _onDatabaseExportLocale(self, checked: bool = False) -> None:
-        import EditorStatus
-
         projPath = EditorStatus.PROJ_PATH
         localeDir = os.path.join(projPath, "Data", "Locale")
         xlsxPath = os.path.join(localeDir, "Locale.xlsx")

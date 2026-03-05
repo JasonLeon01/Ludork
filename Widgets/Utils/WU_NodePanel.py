@@ -1,16 +1,15 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+import inspect
+import copy
 from typing import TYPE_CHECKING, Any, Callable, Dict, List
 from PyQt5 import QtWidgets, QtCore, QtGui
 from NodeGraphQt import NodeGraph, BaseNode
 from NodeGraphQt.widgets.viewer import NodeViewer
 from NodeGraphQt.qgraphics.port import PortItem
-from Data import GameData
+from Global import GameData
 from Utils import System, Locale
-import inspect
-import copy
-from NodeGraph import EditorDataNode
 from .WU_FunctionPickerPopup import FunctionPickerPopup
 
 if TYPE_CHECKING:
@@ -458,6 +457,8 @@ class NodePanel(QtWidgets.QWidget):
         popup.show()
 
     def _onFunctionSelectedFromPrompt(self, path: str, is_parent: bool):
+        from NodeGraph import EditorDataNode
+
         if not self._pending_conn:
             return
         func = None
@@ -695,6 +696,8 @@ class NodePanel(QtWidgets.QWidget):
         popup.show()
 
     def _onFunctionSelected(self, path: str, is_parent: bool):
+        from NodeGraph import EditorDataNode
+
         func = None
         if is_parent and self.nodeGraph.parentClass:
             func = getattr(self.nodeGraph.parentClass, path, None)
@@ -785,6 +788,8 @@ class NodePanel(QtWidgets.QWidget):
         self._COPY_BUFFER = data_nodes
 
     def _onPaste(self):
+        from NodeGraph import EditorDataNode
+
         if self._COPY_BUFFER is None:
             return
         for node in self._COPY_BUFFER:

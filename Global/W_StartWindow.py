@@ -3,7 +3,7 @@
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Utils import Locale, File, System
-import EditorStatus
+from . import EditorStatus
 
 
 class StartWindow(QtWidgets.QWidget):

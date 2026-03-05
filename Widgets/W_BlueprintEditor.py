@@ -5,10 +5,9 @@ import copy
 import dataclasses
 from typing import Any, Dict, Optional, Set, get_type_hints
 from PyQt5 import QtWidgets, QtCore, QtGui
-import EditorStatus
+from Global import EditorStatus, GameData
 from Utils import System, Locale, File
 from Widgets.Utils import SingleRowDialog, NodePanel, Toast, RectViewer, DataclassWidget
-from Data import GameData
 
 
 class BluePrintEditor(QtWidgets.QWidget):

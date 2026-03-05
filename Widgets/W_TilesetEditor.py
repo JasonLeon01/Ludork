@@ -1,8 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from PyQt5 import QtWidgets, QtCore, QtGui
-from Data import GameData
-import importlib
+from Global import GameData
 import copy
 from Utils import Locale, File, System
 from .Utils.WU_TilesetPanel import TilesetPanel
