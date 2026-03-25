@@ -10,6 +10,7 @@ ExtensionName = "EditorExtension"
 ProjectFolder = "../../"
 EngineFolder = ProjectFolder + "Sample/Engine/"
 TargetFolder = ProjectFolder + "EditorExtensions/"
+pysfDir = ProjectFolder + "pysf/"
 
 
 def collectFileNames() -> List[str]:
@@ -21,7 +22,6 @@ def collectFileNames() -> List[str]:
 
 
 os.makedirs(TargetFolder, exist_ok=True)
-pysfDir = EngineFolder + "pysf/"
 targetNames = collectFileNames()
 print(f"Generating {ExtensionName}.pyi in {os.path.abspath(os.getcwd())}")
 subprocess.run(

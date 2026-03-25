@@ -1,7 +1,6 @@
 # -*- encoding: utf-8 -*-
 
 from PyQt5 import QtCore, QtWidgets
-from Utils import Locale
 from Global import GameData
 from .Utils import ConfigDictPanel
 
@@ -11,7 +10,7 @@ class ConfigWindow(QtWidgets.QMainWindow):
 
     def __init__(self, parent: QtWidgets.QWidget | None = None, title: str | None = None):
         super().__init__(parent)
-        self.setWindowTitle(title or Locale.getContent("SYSTEM_CONFIG"))
+        self.setWindowTitle(title or ELOC("SYSTEM_CONFIG"))
         central = QtWidgets.QWidget(self)
         self.setCentralWidget(central)
         layout = QtWidgets.QVBoxLayout(central)

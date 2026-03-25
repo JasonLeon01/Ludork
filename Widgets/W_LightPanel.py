@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Tuple
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Utils import Locale, System
+from Utils import System
 
 
 class LightPanel(QtWidgets.QWidget):
@@ -41,7 +41,7 @@ class LightPanel(QtWidgets.QWidget):
 
         self._isLoading = True
         for key, kind in self._fieldSchema():
-            label = QtWidgets.QLabel(Locale.getContent(key))
+            label = QtWidgets.QLabel(ELOC(key))
             edits = self._createEditorsForKind(kind)
             values = self._extractValues(lightData, key, kind)
 

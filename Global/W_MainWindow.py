@@ -11,7 +11,7 @@ import copy
 import inspect
 import dataclasses
 import openpyxl
-from typing import Any, Dict, Optional, get_type_hints
+from typing import Any, Dict, List, Optional, get_type_hints
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QSize
 from Utils import Locale, Panel, System, File
@@ -66,7 +66,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._menuBar = self.menuBar()
         self.leftListIndex = -1
         self.leftList = QtWidgets.QListWidget()
-        self.leftLabel = QtWidgets.QLabel(Locale.getContent("MAP_LIST"))
+        self.leftLabel = QtWidgets.QLabel(ELOC("MAP_LIST"))
         self.leftArea = QtWidgets.QWidget()
         self.centerArea = QtWidgets.QWidget()
         self.stacked = QtWidgets.QStackedLayout()
@@ -89,53 +89,53 @@ class MainWindow(QtWidgets.QMainWindow):
         self._hasShown = False
         self.generalDataEditor: Optional[GeneralDataEditor] = None
 
-        self._actNewProject = QtWidgets.QAction(Locale.getContent("NEW_PROJECT"), self)
+        self._actNewProject = QtWidgets.QAction(ELOC("NEW_PROJECT"), self)
         self._actNewProject.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_FileIcon))
-        self._actOpenProject = QtWidgets.QAction(Locale.getContent("OPEN_PROJECT"), self)
+        self._actOpenProject = QtWidgets.QAction(ELOC("OPEN_PROJECT"), self)
         self._actOpenProject.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_DialogOpenButton))
-        self._actSave = QtWidgets.QAction(Locale.getContent("SAVE"), self)
+        self._actSave = QtWidgets.QAction(ELOC("SAVE"), self)
         self._actSave.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_DialogSaveButton))
-        self.packAction = QtWidgets.QAction(Locale.getContent("PACK_PROJECT"), self)
-        self._actExit = QtWidgets.QAction(Locale.getContent("EXIT"), self)
-        self._actUndo = QtWidgets.QAction(Locale.getContent("UNDO"), self)
+        self.packAction = QtWidgets.QAction(ELOC("PACK_PROJECT"), self)
+        self._actExit = QtWidgets.QAction(ELOC("EXIT"), self)
+        self._actUndo = QtWidgets.QAction(ELOC("UNDO"), self)
         self._actUndo.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_ArrowBack))
-        self._actRedo = QtWidgets.QAction(Locale.getContent("REDO"), self)
+        self._actRedo = QtWidgets.QAction(ELOC("REDO"), self)
         self._actRedo.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_ArrowForward))
-        self._actReloadModule = QtWidgets.QAction(Locale.getContent("RELOAD_MODULE"), self)
-        self._actGameSettings = QtWidgets.QAction(Locale.getContent("GAME_SETTINGS"), self)
+        self._actReloadModule = QtWidgets.QAction(ELOC("RELOAD_MODULE"), self)
+        self._actGameSettings = QtWidgets.QAction(ELOC("GAME_SETTINGS"), self)
         self._actGameSettings.setIcon(self.style().standardIcon(QtWidgets.QStyle.SP_FileDialogDetailedView))
-        self._actNewBlueprint = QtWidgets.QAction(Locale.getContent("NEW_BLUEPRINT"), self)
-        self._actNewAnimation = QtWidgets.QAction(Locale.getContent("NEW_ANIMATION"), self)
-        self._actDatabaseSystemConfig = QtWidgets.QAction(Locale.getContent("SYSTEM_CONFIG"), self)
-        self._actDatabaseTilesetsData = QtWidgets.QAction(Locale.getContent("TILESETS_DATA"), self)
-        self._actDatabaseCommonFunctions = QtWidgets.QAction(Locale.getContent("COMMON_FUNCTIONS"), self)
-        self._actDatabaseGeneralData = QtWidgets.QAction(Locale.getContent("GENERAL_DATA"), self)
+        self._actNewBlueprint = QtWidgets.QAction(ELOC("NEW_BLUEPRINT"), self)
+        self._actNewAnimation = QtWidgets.QAction(ELOC("NEW_ANIMATION"), self)
+        self._actDatabaseSystemConfig = QtWidgets.QAction(ELOC("SYSTEM_CONFIG"), self)
+        self._actDatabaseTilesetsData = QtWidgets.QAction(ELOC("TILESETS_DATA"), self)
+        self._actDatabaseCommonFunctions = QtWidgets.QAction(ELOC("COMMON_FUNCTIONS"), self)
+        self._actDatabaseGeneralData = QtWidgets.QAction(ELOC("GENERAL_DATA"), self)
         self._actDatabaseGeneralData.setShortcut(QtGui.QKeySequence("F11"))
         self._actDatabaseGeneralData.triggered.connect(self._onGeneralDataEditor)
-        self._actHelpExplanation = QtWidgets.QAction(Locale.getContent("HELP_EXPLANATION"), self)
+        self._actHelpExplanation = QtWidgets.QAction(ELOC("HELP_EXPLANATION"), self)
         self._languageActionGroup = QtWidgets.QActionGroup(self)
-        self._actDatabaseExportLocale = QtWidgets.QAction(Locale.getContent("EXPORT_LOCALE"), self)
+        self._actDatabaseExportLocale = QtWidgets.QAction(ELOC("EXPORT_LOCALE"), self)
         self._actDatabaseExportLocale.setShortcut(QtGui.QKeySequence("F12"))
         self._actDatabaseExportLocale.triggered.connect(self._onDatabaseExportLocale)
 
         self._mapClipboard = None
-        self._actCopyMap = QtWidgets.QAction(Locale.getContent("COPY"), self)
+        self._actCopyMap = QtWidgets.QAction(ELOC("COPY"), self)
         self._actCopyMap.setShortcut(QtGui.QKeySequence.Copy)
         self._actCopyMap.setShortcutContext(QtCore.Qt.WidgetShortcut)
         self._actCopyMap.triggered.connect(self._onCopyMap)
 
-        self._actPasteMap = QtWidgets.QAction(Locale.getContent("PASTE"), self)
+        self._actPasteMap = QtWidgets.QAction(ELOC("PASTE"), self)
         self._actPasteMap.setShortcut(QtGui.QKeySequence.Paste)
         self._actPasteMap.setShortcutContext(QtCore.Qt.WidgetShortcut)
         self._actPasteMap.triggered.connect(self._onPasteMap)
         self._actPasteMap.setEnabled(False)
 
-        self._actDeleteMap = QtWidgets.QAction(Locale.getContent("DELETE"), self)
+        self._actDeleteMap = QtWidgets.QAction(ELOC("DELETE"), self)
         self._actDeleteMap.setShortcut(QtGui.QKeySequence.Delete)
         self._actDeleteMap.setShortcutContext(QtCore.Qt.WidgetShortcut)
         self._actDeleteMap.triggered.connect(self._onDeleteMapAction)
 
-        self._actEditMap = QtWidgets.QAction(Locale.getContent("MAPLIST_EDIT"), self)
+        self._actEditMap = QtWidgets.QAction(ELOC("MAPLIST_EDIT"), self)
         self._actEditMap.setShortcuts([QtGui.QKeySequence("Return"), QtGui.QKeySequence("Enter")])
         self._actEditMap.setShortcutContext(QtCore.Qt.WidgetShortcut)
         self._actEditMap.triggered.connect(
@@ -144,11 +144,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self._editModeIdx = 0
         self._lastEditorPanelContextPos: Optional[QtCore.QPoint] = None
-        self._actNewLightSource = QtWidgets.QAction(Locale.getContent("NEW_LIGHT_SOURCE"), self)
+        self._actNewLightSource = QtWidgets.QAction(ELOC("NEW_LIGHT_SOURCE"), self)
         self._actNewLightSource.triggered.connect(self._onNewLightSource)
         self._actNewLightSource.setEnabled(False)
 
-        self._actPasteLightSource = QtWidgets.QAction(Locale.getContent("PASTE"), self)
+        self._actPasteLightSource = QtWidgets.QAction(ELOC("PASTE"), self)
         self._actPasteLightSource.setShortcut(QtGui.QKeySequence.Paste)
         self._actPasteLightSource.setShortcutContext(QtCore.Qt.WidgetShortcut)
         self._actPasteLightSource.triggered.connect(self._onPasteLightSource)
@@ -309,13 +309,13 @@ class MainWindow(QtWidgets.QMainWindow):
             return True
 
         msgBox = QtWidgets.QMessageBox(self)
-        msgBox.setWindowTitle(Locale.getContent("EXIT"))
-        msgBox.setText(Locale.getContent("CONFIRM_EXIT_WITH_UNSAVED_CHANGES"))
+        msgBox.setWindowTitle(ELOC("EXIT"))
+        msgBox.setText(ELOC("CONFIRM_EXIT_WITH_UNSAVED_CHANGES"))
         msgBox.setIcon(QtWidgets.QMessageBox.Question)
 
-        btnSave = msgBox.addButton(Locale.getContent("SAVE_AND_EXIT"), QtWidgets.QMessageBox.AcceptRole)
-        btnDiscard = msgBox.addButton(Locale.getContent("DISCARD_AND_EXIT"), QtWidgets.QMessageBox.DestructiveRole)
-        btnCancel = msgBox.addButton(Locale.getContent("CANCEL"), QtWidgets.QMessageBox.RejectRole)
+        btnSave = msgBox.addButton(ELOC("SAVE_AND_EXIT"), QtWidgets.QMessageBox.AcceptRole)
+        btnDiscard = msgBox.addButton(ELOC("DISCARD_AND_EXIT"), QtWidgets.QMessageBox.DestructiveRole)
+        btnCancel = msgBox.addButton(ELOC("CANCEL"), QtWidgets.QMessageBox.RejectRole)
 
         msgBox.exec_()
 
@@ -572,7 +572,7 @@ class MainWindow(QtWidgets.QMainWindow):
         item = self.leftList.itemAt(pos)
         menu = QtWidgets.QMenu(self)
         if item is None:
-            actNew = menu.addAction(Locale.getContent("NEW_MAP"))
+            actNew = menu.addAction(ELOC("NEW_MAP"))
             if self._mapClipboard:
                 menu.addAction(self._actPasteMap)
             else:
@@ -589,7 +589,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.leftList.setCurrentItem(item)
             self._onLeftItemClicked(item)
 
-        actLabel = Locale.getContent("MAPLIST_EDIT")
+        actLabel = ELOC("MAPLIST_EDIT")
         actEdit = menu.addAction(actLabel)
         menu.addAction(self._actCopyMap)
         menu.addAction(self._actDeleteMap)
@@ -681,14 +681,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _onNewMap(self) -> None:
         default_data = {
-            "mapName": Locale.getContent("NEW_MAP_DEFAULT_NAME"),
+            "mapName": ELOC("NEW_MAP_DEFAULT_NAME"),
             "width": 20,
             "height": 15,
             "ambientLight": [255, 255, 255, 255],
             "layers": {},
         }
         suggested_name = self._getNewMapFileName()
-        dlg = MapEditDialog(self, default_data, suggested_name, Locale.getContent("NEW_MAP"))
+        dlg = MapEditDialog(self, default_data, suggested_name, ELOC("NEW_MAP"))
         if not dlg.execApply():
             return
 
@@ -858,8 +858,8 @@ class MainWindow(QtWidgets.QMainWindow):
         lowerLayout.setSpacing(0)
         self.tabWidget.setTabPosition(QtWidgets.QTabWidget.North)
         self.tabWidget.setTabBarAutoHide(False)
-        self.tabWidget.addTab(self.fileExplorer, Locale.getContent("FILE_EXPLORER"))
-        self.tabWidget.addTab(self.consoleWidget, Locale.getContent("CONSOLE"))
+        self.tabWidget.addTab(self.fileExplorer, ELOC("FILE_EXPLORER"))
+        self.tabWidget.addTab(self.consoleWidget, ELOC("CONSOLE"))
         lowerLayout.addWidget(self.tabWidget)
 
         self.topSplitter.setChildrenCollapsible(False)
@@ -889,7 +889,7 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
     def _setTopMenu(self) -> None:
-        _fileMenu = self._menuBar.addMenu(Locale.getContent("FILE"))
+        _fileMenu = self._menuBar.addMenu(ELOC("FILE"))
         self._actNewProject.setShortcut(QtGui.QKeySequence.StandardKey.New)
         self._actNewProject.triggered.connect(self._onNewProject)
         self._actOpenProject.setShortcut(QtGui.QKeySequence.StandardKey.Open)
@@ -905,7 +905,7 @@ class MainWindow(QtWidgets.QMainWindow):
         _fileMenu.addAction(self.packAction)
         _fileMenu.addAction(self._actExit)
 
-        _editMenu = self._menuBar.addMenu(Locale.getContent("EDIT"))
+        _editMenu = self._menuBar.addMenu(ELOC("EDIT"))
         self._actUndo.setShortcut(QtGui.QKeySequence.StandardKey.Undo)
         self._actUndo.triggered.connect(self._onUndo)
         self._actRedo.setShortcut(QtGui.QKeySequence.StandardKey.Redo)
@@ -913,7 +913,7 @@ class MainWindow(QtWidgets.QMainWindow):
         _editMenu.addAction(self._actUndo)
         _editMenu.addAction(self._actRedo)
 
-        _gameMenu = self._menuBar.addMenu(Locale.getContent("GAME"))
+        _gameMenu = self._menuBar.addMenu(ELOC("GAME"))
         self._actGameSettings.triggered.connect(self._onGameSettings)
         self._actGameSettings.setShortcut(QtGui.QKeySequence("F4"))
         _gameMenu.addAction(self._actGameSettings)
@@ -927,7 +927,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actNewAnimation.setShortcut(QtGui.QKeySequence("F7"))
         _gameMenu.addAction(self._actNewAnimation)
 
-        _dbMenu = self._menuBar.addMenu(Locale.getContent("DATABASE"))
+        _dbMenu = self._menuBar.addMenu(ELOC("DATABASE"))
         self._actDatabaseSystemConfig.triggered.connect(self._onDatabaseSystemConfig)
         self._actDatabaseSystemConfig.setShortcut(QtGui.QKeySequence("F8"))
         self._actDatabaseTilesetsData.triggered.connect(self._onDatabaseTilesetsData)
@@ -940,16 +940,16 @@ class MainWindow(QtWidgets.QMainWindow):
         _dbMenu.addAction(self._actDatabaseGeneralData)
         _dbMenu.addAction(self._actDatabaseExportLocale)
 
-        _helpMenu = self._menuBar.addMenu(Locale.getContent("HELP"))
+        _helpMenu = self._menuBar.addMenu(ELOC("HELP"))
         self._actHelpExplanation.triggered.connect(self._onHelpExplanation)
         self._actHelpExplanation.setShortcut(QtGui.QKeySequence("F1"))
         _helpMenu.addAction(self._actHelpExplanation)
 
-        self._actAbout = QtWidgets.QAction(Locale.getContent("ABOUT_MENU"), self)
+        self._actAbout = QtWidgets.QAction(ELOC("ABOUT_MENU"), self)
         self._actAbout.triggered.connect(self._onAbout)
         _helpMenu.addAction(self._actAbout)
 
-        _languageMenu = _helpMenu.addMenu(Locale.getContent("HELP_LANGUAGE"))
+        _languageMenu = _helpMenu.addMenu(ELOC("HELP_LANGUAGE"))
         for lang in Locale.getLocaleKeys():
             act = _languageMenu.addAction(lang)
             act.setCheckable(True)
@@ -973,7 +973,7 @@ class MainWindow(QtWidgets.QMainWindow):
         cfg[EditorStatus.APP_NAME]["Language"] = lang
         with open(cfg_path, "w") as f:
             cfg.write(f)
-        QtWidgets.QMessageBox.information(self, "Hint", Locale.getContent("LANGUAGE_CHANGE_RESTART"))
+        QtWidgets.QMessageBox.information(self, "Hint", ELOC("LANGUAGE_CHANGE_RESTART"))
 
     def _refreshUndoRedo(self) -> None:
         self._actUndo.setEnabled(bool(GameData.undoStack))
@@ -1010,7 +1010,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _refreshLayerBar(self) -> None:
         self.layerList.clear()
-        self.layerList.addTab(QtWidgets.QWidget(), Locale.getContent("OVERVIEW"))
+        self.layerList.addTab(QtWidgets.QWidget(), ELOC("OVERVIEW"))
         names = self.editorPanel.getLayerNames()
         for n in names:
             self.layerList.addTab(QtWidgets.QWidget(), n)
@@ -1061,7 +1061,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.editorPanel.setAcceptDrops(True)
 
     def _onLayerTabMoved(self, fromIndex: int, toIndex: int) -> None:
-        overview_text = Locale.getContent("OVERVIEW")
+        overview_text = ELOC("OVERVIEW")
 
         if self.layerList.tabText(0) != overview_text:
             for i in range(self.layerList.count()):
@@ -1077,20 +1077,20 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _onAddLayer(self, checked: bool = False) -> None:
         if self.editorPanel.mapData is None:
-            QtWidgets.QMessageBox.warning(self, "Hint", Locale.getContent("ADD_ERROR"))
+            QtWidgets.QMessageBox.warning(self, "Hint", ELOC("ADD_ERROR"))
             return
         existing = set(self.editorPanel.getLayerNames())
         while True:
-            dlg = SingleRowDialog(self, Locale.getContent("ADD_LAYER"), Locale.getContent("ADD_MESSAGE"))
+            dlg = SingleRowDialog(self, ELOC("ADD_LAYER"), ELOC("ADD_MESSAGE"))
             ok, name = dlg.execGetText()
             if not ok:
                 return
             name = name.strip()
             if not name:
-                QtWidgets.QMessageBox.warning(self, "Hint", Locale.getContent("ADD_EMPTY"))
+                QtWidgets.QMessageBox.warning(self, "Hint", ELOC("ADD_EMPTY"))
                 continue
             if name in existing:
-                QtWidgets.QMessageBox.warning(self, "Hint", Locale.getContent("ADD_DUPLICATE"))
+                QtWidgets.QMessageBox.warning(self, "Hint", ELOC("ADD_DUPLICATE"))
                 continue
             break
         self.editorPanel.addEmptyLayer(name)
@@ -1227,7 +1227,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if index <= 0:
             menu = QtWidgets.QMenu(self)
-            actAdd = menu.addAction(Locale.getContent("ADD_LAYER"))
+            actAdd = menu.addAction(ELOC("ADD_LAYER"))
             action = menu.exec_(self.layerList.mapToGlobal(pos))
             if action == actAdd:
                 self._onAddLayer()
@@ -1237,8 +1237,8 @@ class MainWindow(QtWidgets.QMainWindow):
         name = self.layerList.tabText(index)
 
         menu = QtWidgets.QMenu(self)
-        actRename = menu.addAction(Locale.getContent("RENAME_LAYER"))
-        actDelete = menu.addAction(Locale.getContent("DELETE"))
+        actRename = menu.addAction(ELOC("RENAME_LAYER"))
+        actDelete = menu.addAction(ELOC("DELETE"))
         action = menu.exec_(self.layerList.mapToGlobal(pos))
 
         if action == actRename:
@@ -1246,18 +1246,16 @@ class MainWindow(QtWidgets.QMainWindow):
             if name in existing:
                 existing.remove(name)
             while True:
-                dlg = SingleRowDialog(
-                    self, Locale.getContent("RENAME_LAYER"), Locale.getContent("RENAME_MESSAGE"), str(name)
-                )
+                dlg = SingleRowDialog(self, ELOC("RENAME_LAYER"), ELOC("RENAME_MESSAGE"), str(name))
                 ok, newName = dlg.execGetText()
                 if not ok:
                     return
                 newName = newName.strip()
                 if not newName:
-                    QtWidgets.QMessageBox.warning(self, "Hint", Locale.getContent("ADD_EMPTY"))
+                    QtWidgets.QMessageBox.warning(self, "Hint", ELOC("ADD_EMPTY"))
                     continue
                 if newName in existing:
-                    QtWidgets.QMessageBox.warning(self, "Hint", Locale.getContent("ADD_DUPLICATE"))
+                    QtWidgets.QMessageBox.warning(self, "Hint", ELOC("ADD_DUPLICATE"))
                     continue
                 break
             if self.editorPanel.renameLayer(name, newName):
@@ -1269,7 +1267,7 @@ class MainWindow(QtWidgets.QMainWindow):
             ret = QtWidgets.QMessageBox.question(
                 self,
                 "Hint",
-                Locale.getContent("CONFIRM_DELETE_LAYER").format(name=name),
+                ELOC("CONFIRM_DELETE_LAYER").format(name=name),
                 QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
                 QtWidgets.QMessageBox.No,
             )
@@ -1387,26 +1385,20 @@ class MainWindow(QtWidgets.QMainWindow):
     def _onSave(self, checked: bool = False) -> None:
         ok, content = GameData.saveAllModified()
         if ok:
-            QtWidgets.QMessageBox.information(
-                self, "Hint", Locale.getContent("SAVE_SUCCESS") + Locale.getContent("SAVE_PATH").format(content)
-            )
+            QtWidgets.QMessageBox.information(self, "Hint", ELOC("SAVE_SUCCESS") + ELOC("SAVE_PATH").format(content))
         else:
-            QtWidgets.QMessageBox.warning(
-                self, "Hint", Locale.getContent("SAVE_FAILED") + Locale.getContent("SAVE_PATH").format(content)
-            )
+            QtWidgets.QMessageBox.warning(self, "Hint", ELOC("SAVE_FAILED") + ELOC("SAVE_PATH").format(content))
         self._refreshInfo()
 
     def packProject(self, checked: bool = False) -> None:
         projPath = EditorStatus.PROJ_PATH
         if not projPath or not os.path.exists(projPath):
-            QtWidgets.QMessageBox.warning(self, Locale.getContent("PACK_TITLE"), Locale.getContent("PACK_NO_PROJECT"))
+            QtWidgets.QMessageBox.warning(self, ELOC("PACK_TITLE"), ELOC("PACK_NO_PROJECT"))
             return
 
         entryPath = os.path.join(projPath, "Entry.py")
         if not os.path.exists(entryPath):
-            QtWidgets.QMessageBox.warning(
-                self, Locale.getContent("PACK_TITLE"), Locale.getContent("PACK_ENTRY_MISSING")
-            )
+            QtWidgets.QMessageBox.warning(self, ELOC("PACK_TITLE"), ELOC("PACK_ENTRY_MISSING"))
             return
 
         selDlg = PackSelectionDialog(self)
@@ -1485,50 +1477,59 @@ class MainWindow(QtWidgets.QMainWindow):
         localeDir = os.path.join(projPath, "Data", "Locale")
         xlsxPath = os.path.join(localeDir, "Locale.xlsx")
         if not os.path.exists(localeDir):
-            QtWidgets.QMessageBox.warning(self, "Hint", Locale.getContent("LOCALE_DIR_NOT_FOUND"))
+            QtWidgets.QMessageBox.warning(self, "Hint", ELOC("LOCALE_DIR_NOT_FOUND"))
             return
         if not os.path.exists(xlsxPath):
-            QtWidgets.QMessageBox.warning(self, "Hint", Locale.getContent("LOCALE_XLSX_NOT_FOUND"))
+            QtWidgets.QMessageBox.warning(self, "Hint", ELOC("LOCALE_XLSX_NOT_FOUND"))
             return
         try:
             wb = openpyxl.load_workbook(xlsxPath, data_only=True)
-            ws = wb.active
-            headers = []
-            for cell in next(ws.iter_rows(min_row=1, max_row=1, values_only=True)):
-                headers.append("" if cell is None else str(cell).strip())
-            if not headers or headers[0].upper() != "ID" or len(headers) < 2:
-                QtWidgets.QMessageBox.warning(self, "Hint", Locale.getContent("LOCALE_XLSX_INVALID"))
-                return
-            langs = [h for h in headers[1:] if isinstance(h, str) and h.strip()]
-            langMaps: Dict[str, Dict[str, str]] = {lang: {} for lang in langs}
-            for row in ws.iter_rows(min_row=2, values_only=True):
-                if not row:
+            langs: List[str] = []
+            langMaps: Dict[str, Dict[str, str]] = {}
+
+            for ws in wb.worksheets:
+                headerRow = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), None)
+                if not headerRow:
                     continue
-                key = row[0]
-                if key is None:
-                    continue
-                keyStr = str(key).strip()
-                if not keyStr:
-                    continue
-                for i, lang in enumerate(langs):
-                    idx = i + 1
-                    val = row[idx] if idx < len(row) else None
-                    if val is None:
+                headers = ["" if cell is None else str(cell).strip() for cell in headerRow]
+                if not headers or headers[0].upper() != "ID" or len(headers) < 2:
+                    QtWidgets.QMessageBox.warning(self, "Hint", ELOC("LOCALE_XLSX_INVALID"))
+                    return
+
+                sheetLangs = [h for h in headers[1:] if isinstance(h, str) and h.strip()]
+                for lang in sheetLangs:
+                    if lang not in langMaps:
+                        langMaps[lang] = {}
+                        langs.append(lang)
+
+                for row in ws.iter_rows(min_row=2, values_only=True):
+                    if not row:
                         continue
-                    langMaps[lang][keyStr] = str(val)
+                    key = row[0]
+                    if key is None:
+                        continue
+                    keyStr = str(key).strip()
+                    if not keyStr:
+                        continue
+                    for i, lang in enumerate(sheetLangs):
+                        idx = i + 1
+                        val = row[idx] if idx < len(row) else None
+                        if val is None:
+                            continue
+                        langMaps[lang][keyStr] = str(val)
             for lang, mapping in langMaps.items():
                 outPath = os.path.join(localeDir, lang)
                 File.saveData(outPath, mapping)
             QtWidgets.QMessageBox.information(
                 self,
                 "Hint",
-                Locale.getContent("EXPORT_LOCALE_SUCCESS").format(langs=", ".join(langs)),
+                ELOC("EXPORT_LOCALE_SUCCESS").format(langs=", ".join(langs)),
             )
         except Exception as e:
             QtWidgets.QMessageBox.warning(
                 self,
                 "Hint",
-                Locale.getContent("EXPORT_LOCALE_FAILED") + "\n" + str(e) + "\n" + traceback.format_exc(),
+                ELOC("EXPORT_LOCALE_FAILED") + "\n" + str(e) + "\n" + traceback.format_exc(),
             )
 
     def _onFileExplorerFileClicked(self, path: str) -> None:
@@ -1658,9 +1659,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _onNewBlueprint(self, checked: bool = False) -> None:
         blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
-        dlg = QtWidgets.QFileDialog(
-            self, Locale.getContent("SELECT_BLUEPRINT_PATH"), blueprintsRoot, "JSON (*.json);;DAT (*.dat)"
-        )
+        dlg = QtWidgets.QFileDialog(self, ELOC("SELECT_BLUEPRINT_PATH"), blueprintsRoot, "JSON (*.json);;DAT (*.dat)")
         dlg.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
         dlg.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
         System.setStyle(dlg, "fileSelector.qss")
@@ -1678,7 +1677,7 @@ class MainWindow(QtWidgets.QMainWindow):
             ext = ".json" if "json" in nf else ".dat"
         key = namePart.replace("\\", "/")
         if key in GameData.blueprintsData:
-            QtWidgets.QMessageBox.warning(self, Locale.getContent("ERROR"), Locale.getContent("BLUEPRINT_EXISTS"))
+            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("BLUEPRINT_EXISTS"))
             return
 
         selector = ClassSelector(self)
@@ -1743,18 +1742,14 @@ class MainWindow(QtWidgets.QMainWindow):
         GameData.recordSnapshot()
         GameData.blueprintsData[key] = data
         self._refreshInfo()
-        QtWidgets.QMessageBox.information(
-            self, Locale.getContent("SUCCESS"), Locale.getContent("HINT_CREATE_BP_SUCCESS")
-        )
+        QtWidgets.QMessageBox.information(self, ELOC("SUCCESS"), ELOC("HINT_CREATE_BP_SUCCESS"))
 
     def _onNewAnimation(self, checked: bool = False) -> None:
         animationsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Animations")
         if not os.path.exists(animationsRoot):
             os.makedirs(animationsRoot)
 
-        dlg = QtWidgets.QFileDialog(
-            self, Locale.getContent("SELECT_ANIMATION_PATH"), animationsRoot, "JSON (*.json);;DAT (*.dat)"
-        )
+        dlg = QtWidgets.QFileDialog(self, ELOC("SELECT_ANIMATION_PATH"), animationsRoot, "JSON (*.json);;DAT (*.dat)")
         dlg.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
         dlg.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
         System.setStyle(dlg, "fileSelector.qss")
@@ -1772,7 +1767,7 @@ class MainWindow(QtWidgets.QMainWindow):
             ext = ".json" if "json" in nf else ".dat"
         key = namePart.replace("\\", "/")
         if key in GameData.animationsData:
-            QtWidgets.QMessageBox.warning(self, Locale.getContent("ERROR"), Locale.getContent("ANIMATION_EXISTS"))
+            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ANIMATION_EXISTS"))
             return
 
         data = {
@@ -1788,20 +1783,16 @@ class MainWindow(QtWidgets.QMainWindow):
         GameData.recordSnapshot()
         GameData.animationsData[key] = data
         self._refreshInfo()
-        QtWidgets.QMessageBox.information(
-            self, Locale.getContent("SUCCESS"), Locale.getContent("HINT_CREATE_ANIM_SUCCESS")
-        )
+        QtWidgets.QMessageBox.information(self, ELOC("SUCCESS"), ELOC("HINT_CREATE_ANIM_SUCCESS"))
 
     def _onReloadModule(self, checked: bool = False) -> None:
         try:
             System.reloadModule("Engine")
             System.reloadModule("Source")
-            QtWidgets.QMessageBox.information(
-                self, Locale.getContent("SUCCESS"), Locale.getContent("HINT_RELOAD_MODULE_SUCCESS")
-            )
+            QtWidgets.QMessageBox.information(self, ELOC("SUCCESS"), ELOC("HINT_RELOAD_MODULE_SUCCESS"))
         except Exception as e:
             QtWidgets.QMessageBox.warning(
                 self,
-                Locale.getContent("ERROR"),
-                Locale.getContent("HINT_RELOAD_MODULE_FAILED") + traceback.format_exc(),
+                ELOC("ERROR"),
+                ELOC("HINT_RELOAD_MODULE_FAILED") + traceback.format_exc(),
             )

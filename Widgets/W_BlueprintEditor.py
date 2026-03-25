@@ -6,7 +6,7 @@ import dataclasses
 from typing import Any, Dict, Optional, Set, get_type_hints
 from PyQt5 import QtWidgets, QtCore, QtGui
 from Global import EditorStatus, GameData
-from Utils import System, Locale, File
+from Utils import System, File
 from Widgets.Utils import SingleRowDialog, NodePanel, Toast, RectViewer, DataclassWidget
 
 
@@ -240,7 +240,7 @@ class BluePrintEditor(QtWidgets.QWidget):
                     self.modified.emit()
 
         parent_val = self.data.get("parent", "")
-        label = QtWidgets.QLabel(Locale.getContent("PARENT"))
+        label = QtWidgets.QLabel(ELOC("PARENT"))
         widget = self.createInputWidget("parent", parent_val, isAttr=False)
         self.formLayout.addRow(label, widget)
 
@@ -530,7 +530,7 @@ class BluePrintEditor(QtWidgets.QWidget):
                 self.modified.emit()
 
     def onAddAttr(self) -> None:
-        dlg = SingleRowDialog(self, Locale.getContent("ADD_ATTR"), Locale.getContent("ATTR_NAME"), "", None)
+        dlg = SingleRowDialog(self, ELOC("ADD_ATTR"), ELOC("ATTR_NAME"), "", None)
         ok, key = dlg.execGetText()
         if ok:
             key = key.strip()
@@ -538,19 +538,17 @@ class BluePrintEditor(QtWidgets.QWidget):
                 return
 
             if key[0].isdigit():
-                QtWidgets.QMessageBox.warning(
-                    self, Locale.getContent("ERROR"), Locale.getContent("ATTR_NAME_CANNOT_START_WITH_DIGIT")
-                )
+                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ATTR_NAME_CANNOT_START_WITH_DIGIT"))
                 return
 
             if key in self.invalidVars:
-                QtWidgets.QMessageBox.warning(self, Locale.getContent("ERROR"), Locale.getContent("INVALID_NAME"))
+                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("INVALID_NAME"))
                 return
 
             if "attrs" not in self.data or not isinstance(self.data["attrs"], dict):
                 self.data["attrs"] = {}
             if key in self.data["attrs"]:
-                QtWidgets.QMessageBox.warning(self, Locale.getContent("ERROR"), Locale.getContent("ATTR_EXISTS"))
+                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ATTR_EXISTS"))
                 return
 
             GameData.recordSnapshot()
@@ -663,28 +661,26 @@ class BluePrintEditor(QtWidgets.QWidget):
         if has_item:
             self.nodeGraphList.setCurrentRow(index.row())
         menu = QtWidgets.QMenu(self)
-        action_new = menu.addAction(Locale.getContent("NEW_EVENT"))
+        action_new = menu.addAction(ELOC("NEW_EVENT"))
         action_new.triggered.connect(self._onNewEvent)
         if has_item:
-            action_rename = menu.addAction(Locale.getContent("RENAME_EVENT"))
+            action_rename = menu.addAction(ELOC("RENAME_EVENT"))
             action_rename.triggered.connect(self._onRenameEvent)
-            action_del = menu.addAction(Locale.getContent("DELETE_EVENT"))
+            action_del = menu.addAction(ELOC("DELETE_EVENT"))
             action_del.triggered.connect(self._onDeleteEvent)
         menu.exec_(self.nodeGraphList.mapToGlobal(pos))
 
     def _onNewEvent(self) -> None:
-        dlg = SingleRowDialog(self, Locale.getContent("NEW_EVENT"), Locale.getContent("ENTER_EVENT_NAME"), "", None)
+        dlg = SingleRowDialog(self, ELOC("NEW_EVENT"), ELOC("ENTER_EVENT_NAME"), "", None)
         ok, name = dlg.execGetText()
         if not ok:
             return
         name = name.strip()
         if not name:
-            QtWidgets.QMessageBox.warning(self, Locale.getContent("ERROR"), Locale.getContent("INVALID_NAME"))
+            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("INVALID_NAME"))
             return
         if name[0].isdigit():
-            QtWidgets.QMessageBox.warning(
-                self, Locale.getContent("ERROR"), Locale.getContent("ATTR_NAME_CANNOT_START_WITH_DIGIT")
-            )
+            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ATTR_NAME_CANNOT_START_WITH_DIGIT"))
             return
         graph = self.data.get("graph")
         if not isinstance(graph, dict):
@@ -699,7 +695,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             startNodes = {}
             graph["startNodes"] = startNodes
         if name in nodeGraph:
-            QtWidgets.QMessageBox.warning(self, Locale.getContent("ERROR"), Locale.getContent("EVENT_EXISTS"))
+            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("EVENT_EXISTS"))
             return
         GameData.recordSnapshot()
         nodeGraph[name] = {"nodes": [], "links": []}
@@ -718,8 +714,8 @@ class BluePrintEditor(QtWidgets.QWidget):
         name = item.text()
         ret = QtWidgets.QMessageBox.question(
             self,
-            Locale.getContent("CONFIRM_DELETE"),
-            Locale.getContent("CONFIRM_DELETE_EVENT").format(name=name),
+            ELOC("CONFIRM_DELETE"),
+            ELOC("CONFIRM_DELETE_EVENT").format(name=name),
             QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
         )
         if ret != QtWidgets.QMessageBox.Yes:
@@ -749,9 +745,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         if not item:
             return
         old_name = item.text()
-        dlg = SingleRowDialog(
-            self, Locale.getContent("RENAME_EVENT"), Locale.getContent("ENTER_EVENT_NAME"), old_name, None
-        )
+        dlg = SingleRowDialog(self, ELOC("RENAME_EVENT"), ELOC("ENTER_EVENT_NAME"), old_name, None)
         ok, new_name = dlg.execGetText()
         if not ok:
             return
@@ -759,9 +753,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         if not new_name or new_name == old_name:
             return
         if new_name[0].isdigit():
-            QtWidgets.QMessageBox.warning(
-                self, Locale.getContent("ERROR"), Locale.getContent("ATTR_NAME_CANNOT_START_WITH_DIGIT")
-            )
+            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ATTR_NAME_CANNOT_START_WITH_DIGIT"))
             return
         graph = self.data.get("graph")
         if not isinstance(graph, dict):
@@ -771,7 +763,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         if not isinstance(nodeGraph, dict) or not isinstance(startNodes, dict):
             return
         if new_name in nodeGraph:
-            QtWidgets.QMessageBox.warning(self, Locale.getContent("ERROR"), Locale.getContent("EVENT_EXISTS"))
+            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("EVENT_EXISTS"))
             return
         GameData.recordSnapshot()
         new_nodeGraph = {}

@@ -3,7 +3,6 @@
 from __future__ import annotations
 from typing import Optional, Union, List, TYPE_CHECKING
 from .. import (
-    TypeAdapter,
     Pair,
     System,
     Vector2u,
@@ -22,8 +21,6 @@ from .. import (
     Angle,
     degrees,
     GetCellSize,
-    ReturnType,
-    ExecSplit,
 )
 from ..Utils import Math, Render
 

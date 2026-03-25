@@ -3,7 +3,7 @@
 from PyQt5 import QtWidgets, QtCore, QtGui
 from Global import GameData
 import copy
-from Utils import Locale, File, System
+from Utils import File, System
 from .Utils.WU_TilesetPanel import TilesetPanel
 from .Utils.WU_SingleRowDialog import SingleRowDialog
 from .Utils.WU_Toast import Toast
@@ -14,7 +14,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(Locale.getContent("TILESETS_DATA"))
+        self.setWindowTitle(ELOC("TILESETS_DATA"))
         self.setMinimumSize(480, 480)
         self._tilesetClipboard = None
 
@@ -41,30 +41,30 @@ class TilesetEditor(QtWidgets.QMainWindow):
         self.listWidget.customContextMenuRequested.connect(self._showContextMenu)
         self.listWidget.currentRowChanged.connect(self._onSelectionChanged)
 
-        self._actCopy = QtWidgets.QAction(Locale.getContent("COPY"), self)
+        self._actCopy = QtWidgets.QAction(ELOC("COPY"), self)
         self._actCopy.setShortcut(QtGui.QKeySequence.Copy)
         self._actCopy.setShortcutContext(QtCore.Qt.WidgetShortcut)
         self._actCopy.triggered.connect(self._copyTileset)
         self.listWidget.addAction(self._actCopy)
 
-        self._actPaste = QtWidgets.QAction(Locale.getContent("PASTE"), self)
+        self._actPaste = QtWidgets.QAction(ELOC("PASTE"), self)
         self._actPaste.setShortcut(QtGui.QKeySequence.Paste)
         self._actPaste.setShortcutContext(QtCore.Qt.WidgetShortcut)
         self._actPaste.triggered.connect(self._pasteTileset)
         self.listWidget.addAction(self._actPaste)
 
-        self._actDelete = QtWidgets.QAction(Locale.getContent("DELETE"), self)
+        self._actDelete = QtWidgets.QAction(ELOC("DELETE"), self)
         self._actDelete.setShortcut(QtGui.QKeySequence.Delete)
         self._actDelete.setShortcutContext(QtCore.Qt.WidgetShortcut)
         self._actDelete.triggered.connect(self._deleteTileset)
         self.listWidget.addAction(self._actDelete)
         layout.addWidget(self.listWidget)
-        self._actUndo = QtWidgets.QAction(Locale.getContent("UNDO"), self)
+        self._actUndo = QtWidgets.QAction(ELOC("UNDO"), self)
         self._actUndo.setShortcut(QtGui.QKeySequence.Undo)
         self._actUndo.setShortcutContext(QtCore.Qt.WindowShortcut)
         self._actUndo.triggered.connect(self._onUndo)
         self.addAction(self._actUndo)
-        self._actRedo = QtWidgets.QAction(Locale.getContent("REDO"), self)
+        self._actRedo = QtWidgets.QAction(ELOC("REDO"), self)
         self._actRedo.setShortcut(QtGui.QKeySequence.Redo)
         self._actRedo.setShortcutContext(QtCore.Qt.WindowShortcut)
         self._actRedo.triggered.connect(self._onRedo)
@@ -87,8 +87,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
         item = self.listWidget.itemAt(position)
         menu = QtWidgets.QMenu()
         if item is None:
-            add_action = menu.addAction(Locale.getContent("ADD_TILESET"))
-            paste_action = menu.addAction(Locale.getContent("PASTE"))
+            add_action = menu.addAction(ELOC("ADD_TILESET"))
+            paste_action = menu.addAction(ELOC("PASTE"))
             paste_action.setShortcut(QtGui.QKeySequence.Paste)
             if not self._tilesetClipboard:
                 paste_action.setEnabled(False)
@@ -98,10 +98,10 @@ class TilesetEditor(QtWidgets.QMainWindow):
             elif action == paste_action:
                 self._pasteTileset()
             return
-        rename_action = menu.addAction(Locale.getContent("RENAME_TILESET"))
-        copy_action = menu.addAction(Locale.getContent("COPY"))
+        rename_action = menu.addAction(ELOC("RENAME_TILESET"))
+        copy_action = menu.addAction(ELOC("COPY"))
         copy_action.setShortcut(QtGui.QKeySequence.Copy)
-        delete_action = menu.addAction(Locale.getContent("DELETE"))
+        delete_action = menu.addAction(ELOC("DELETE"))
         delete_action.setShortcut(QtGui.QKeySequence.Delete)
         action = menu.exec_(self.listWidget.mapToGlobal(position))
         if action == rename_action:
@@ -115,7 +115,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
             self._deleteTileset()
 
     def _addTileset(self):
-        dlg = SingleRowDialog(self, Locale.getContent("ADD_TILESET"), Locale.getContent("ENTER_TILESET_FILE"), "")
+        dlg = SingleRowDialog(self, ELOC("ADD_TILESET"), ELOC("ENTER_TILESET_FILE"), "")
         ok, text = dlg.execGetText()
         if not ok:
             return
@@ -125,7 +125,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
             return
 
         if text in GameData.tilesetData:
-            QtWidgets.QMessageBox.warning(self, Locale.getContent("ADD_TILESET"), Locale.getContent("TILESET_EXISTS"))
+            QtWidgets.QMessageBox.warning(self, ELOC("ADD_TILESET"), ELOC("TILESET_EXISTS"))
             return
 
         try:
@@ -199,8 +199,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
         while True:
             dlg = SingleRowDialog(
                 self,
-                Locale.getContent("RENAME_TILESET"),
-                Locale.getContent("ENTER_TILESET_FILE"),
+                ELOC("RENAME_TILESET"),
+                ELOC("ENTER_TILESET_FILE"),
                 old_name,
             )
             ok, new_name = dlg.execGetText()
@@ -214,8 +214,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
             if new_name in existing:
                 QtWidgets.QMessageBox.warning(
                     self,
-                    Locale.getContent("RENAME_TILESET"),
-                    Locale.getContent("TILESET_EXISTS"),
+                    ELOC("RENAME_TILESET"),
+                    ELOC("TILESET_EXISTS"),
                 )
                 continue
 
@@ -234,10 +234,10 @@ class TilesetEditor(QtWidgets.QMainWindow):
                         break
 
         if affected_maps:
-            msg = Locale.getContent("TILESET_REFERENCED_WARNING").format(maps="\n".join(affected_maps))
+            msg = ELOC("TILESET_REFERENCED_WARNING").format(maps="\n".join(affected_maps))
             ret = QtWidgets.QMessageBox.warning(
                 self,
-                Locale.getContent("RENAME_TILESET"),
+                ELOC("RENAME_TILESET"),
                 msg,
                 QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
                 QtWidgets.QMessageBox.No,
@@ -265,8 +265,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
         key = self.listWidget.item(row).text()
         ret = QtWidgets.QMessageBox.question(
             self,
-            Locale.getContent("CONFIRM_DELETE"),
-            Locale.getContent("DELETE_CONFIRMATION"),
+            ELOC("CONFIRM_DELETE"),
+            ELOC("DELETE_CONFIRMATION"),
             QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
             QtWidgets.QMessageBox.No,
         )

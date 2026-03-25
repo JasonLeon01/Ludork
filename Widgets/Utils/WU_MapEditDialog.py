@@ -3,7 +3,7 @@
 import os
 from typing import Any, Optional
 from PyQt5 import QtCore, QtWidgets
-from Utils import Locale, System
+from Utils import System
 from Global import GameData
 
 
@@ -18,7 +18,7 @@ class MapEditDialog(QtWidgets.QDialog):
         old_w = int(data.get("width", 0))
         old_h = int(data.get("height", 0))
         if title is None:
-            title = Locale.getContent("MAPLIST_EDIT")
+            title = ELOC("MAPLIST_EDIT")
         self.setWindowTitle(title)
         self.setMinimumSize(640, 256)
         form = QtWidgets.QFormLayout(self)
@@ -48,9 +48,9 @@ class MapEditDialog(QtWidgets.QDialog):
         else:
             self.hSpin.setStyleSheet("")
         form.addRow("File Name", self.fileEdit)
-        form.addRow(Locale.getContent("EDIT_MAP"), self.nameEdit)
-        form.addRow(Locale.getContent("MAP_WIDTH"), self.wSpin)
-        form.addRow(Locale.getContent("MAP_HEIGHT"), self.hSpin)
+        form.addRow(ELOC("EDIT_MAP"), self.nameEdit)
+        form.addRow(ELOC("MAP_WIDTH"), self.wSpin)
+        form.addRow(ELOC("MAP_HEIGHT"), self.hSpin)
 
         self.ambientLayout = QtWidgets.QHBoxLayout()
         self.rSpin = QtWidgets.QSpinBox(self)
@@ -68,12 +68,12 @@ class MapEditDialog(QtWidgets.QDialog):
             else:
                 spin.setStyleSheet("")
             self.ambientLayout.addWidget(spin)
-        form.addRow(Locale.getContent("AMBIENT_LIGHT"), self.ambientLayout)
+        form.addRow(ELOC("AMBIENT_LIGHT"), self.ambientLayout)
 
         self.btns = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel, self)
         form.addRow(self.btns)
-        confirm_label = Locale.getContent("CONFIRM")
-        cancel_label = Locale.getContent("CANCEL")
+        confirm_label = ELOC("CONFIRM")
+        cancel_label = ELOC("CANCEL")
         ok_btn = self.btns.button(QtWidgets.QDialogButtonBox.Ok)
         cancel_btn = self.btns.button(QtWidgets.QDialogButtonBox.Cancel)
         if ok_btn:

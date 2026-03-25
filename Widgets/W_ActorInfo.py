@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
+
 from typing import Optional, Dict, Any, Tuple
 from PyQt5 import QtWidgets, QtCore, QtGui
-from Utils import Locale
 from Global import GameData
 
 
@@ -20,7 +20,7 @@ class ActorInfoPanel(QtWidgets.QWidget):
         self.mainLayout.setSpacing(4)
 
         # Title
-        self.titleLabel = QtWidgets.QLabel(Locale.getContent("ACTOR_INFO"))
+        self.titleLabel = QtWidgets.QLabel(ELOC("ACTOR_INFO"))
         self.titleLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.titleLabel.setStyleSheet("font-weight: bold; background-color: #444; padding: 4px; border-radius: 4px;")
         self.mainLayout.addWidget(self.titleLabel)
@@ -33,7 +33,7 @@ class ActorInfoPanel(QtWidgets.QWidget):
         # Tag
         self.tagEdit = QtWidgets.QLineEdit()
         self.tagEdit.textChanged.connect(self._onTagChanged)
-        self.formLayout.addRow(Locale.getContent("TAG"), self.tagEdit)
+        self.formLayout.addRow(ELOC("TAG"), self.tagEdit)
 
         # Translation
         self.translationXSpin = QtWidgets.QDoubleSpinBox()
@@ -51,14 +51,14 @@ class ActorInfoPanel(QtWidgets.QWidget):
         translationLayout.addWidget(self.translationXSpin)
         translationLayout.addWidget(QtWidgets.QLabel("Y:"))
         translationLayout.addWidget(self.translationYSpin)
-        self.formLayout.addRow(Locale.getContent("TRANSLATION"), translationLayout)
+        self.formLayout.addRow(ELOC("TRANSLATION"), translationLayout)
 
         # Rotation
         self.rotationSpin = QtWidgets.QDoubleSpinBox()
         self.rotationSpin.setRange(-360.0, 360.0)
         self.rotationSpin.setSingleStep(15.0)
         self.rotationSpin.valueChanged.connect(self._onRotationChanged)
-        self.formLayout.addRow(Locale.getContent("ROTATION"), self.rotationSpin)
+        self.formLayout.addRow(ELOC("ROTATION"), self.rotationSpin)
 
         # Scale
         self.scaleXSpin = QtWidgets.QDoubleSpinBox()
@@ -76,7 +76,7 @@ class ActorInfoPanel(QtWidgets.QWidget):
         scaleLayout.addWidget(self.scaleXSpin)
         scaleLayout.addWidget(QtWidgets.QLabel("Y:"))
         scaleLayout.addWidget(self.scaleYSpin)
-        self.formLayout.addRow(Locale.getContent("SCALE"), scaleLayout)
+        self.formLayout.addRow(ELOC("SCALE"), scaleLayout)
 
         # Origin
         self.originXSpin = QtWidgets.QDoubleSpinBox()
@@ -94,11 +94,11 @@ class ActorInfoPanel(QtWidgets.QWidget):
         originLayout.addWidget(self.originXSpin)
         originLayout.addWidget(QtWidgets.QLabel("Y:"))
         originLayout.addWidget(self.originYSpin)
-        self.formLayout.addRow(Locale.getContent("ORIGIN"), originLayout)
+        self.formLayout.addRow(ELOC("ORIGIN"), originLayout)
 
         self.mainLayout.addLayout(self.formLayout)
 
-        self.noSelectionLabel = QtWidgets.QLabel(Locale.getContent("NO_SELECTION"))
+        self.noSelectionLabel = QtWidgets.QLabel(ELOC("NO_SELECTION"))
         self.noSelectionLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.noSelectionLabel.setStyleSheet("color: #888; font-style: italic; margin-top: 20px;")
         self.mainLayout.addWidget(self.noSelectionLabel)

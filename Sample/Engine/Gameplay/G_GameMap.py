@@ -7,12 +7,9 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 
 from .. import (
-    TypeAdapter,
-    ExecSplit,
     Pair,
     System,
     RenderTexture,
-    ReturnType,
     Vector2i,
     Vector2f,
     Vector2u,

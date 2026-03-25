@@ -58,31 +58,37 @@ def setStyle(widget: QtWidgets.QWidget, fileName: str) -> None:
 
 
 def getModule(moduleName: str) -> object:
+    module = None
     if moduleName not in sys.modules:
-        return importlib.import_module(moduleName)
-    return sys.modules[moduleName]
+        module = importlib.import_module(moduleName)
+    module = sys.modules[moduleName]
+    if module and hasattr(module, "Locale"):
+        module.Locale.init(os.path.join(EditorStatus.PROJ_PATH, "Data", "Locale"))
+        module.Locale.LANGUAGE = EditorStatus.LANGUAGE
+    return module
 
 
 def reloadModule(moduleName: str) -> object:
-    if moduleName not in sys.modules:
-        return importlib.import_module(moduleName)
+    module = importlib.import_module(moduleName)
+    if moduleName in sys.modules:
+        print(f"Reloading module: {moduleName}")
+        module = importlib.reload(sys.modules[moduleName])
 
-    print(f"Reloading module: {moduleName}")
-    module = importlib.reload(sys.modules[moduleName])
+        prefix = moduleName + "."
+        submodules = []
+        for name in list(sys.modules.keys()):
+            if name.startswith(prefix):
+                submodules.append(name)
 
-    prefix = moduleName + "."
-    submodules = []
-    for name in list(sys.modules.keys()):
-        if name.startswith(prefix):
-            submodules.append(name)
+        submodules.sort(key=lambda n: n.count("."))
 
-    submodules.sort(key=lambda n: n.count("."))
-
-    for name in submodules:
-        print(f"Reloading submodule: {name}")
-        try:
-            importlib.reload(sys.modules[name])
-        except Exception as e:
-            print(f"Failed to reload submodule {name}: {e}")
-
+        for name in submodules:
+            print(f"Reloading submodule: {name}")
+            try:
+                importlib.reload(sys.modules[name])
+            except Exception as e:
+                print(f"Failed to reload submodule {name}: {e}")
+    if module and hasattr(module, "Locale"):
+        module.Locale.init(os.path.join(EditorStatus.PROJ_PATH, "Data", "Locale"))
+        module.Locale.LANGUAGE = EditorStatus.LANGUAGE
     return module

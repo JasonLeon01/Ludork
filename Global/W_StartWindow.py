@@ -2,7 +2,7 @@
 
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Utils import Locale, File, System
+from Utils import File, System
 from . import EditorStatus
 
 
@@ -25,8 +25,8 @@ class StartWindow(QtWidgets.QWidget):
         title.setFont(f)
         title.setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignTop)
 
-        self._btnNew = QtWidgets.QPushButton(Locale.getContent("NEW_PROJECT"), self)
-        self._btnOpen = QtWidgets.QPushButton(Locale.getContent("OPEN_PROJECT"), self)
+        self._btnNew = QtWidgets.QPushButton(ELOC("NEW_PROJECT"), self)
+        self._btnOpen = QtWidgets.QPushButton(ELOC("OPEN_PROJECT"), self)
         self._btnNew.setObjectName("startNew")
         self._btnOpen.setObjectName("startOpen")
         self._btnNew.setCursor(QtCore.Qt.PointingHandCursor)

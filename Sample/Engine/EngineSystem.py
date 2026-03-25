@@ -17,6 +17,7 @@ from . import (
     Shader,
     Drawable,
     GetGameRunning,
+    Locale,
 )
 
 if TYPE_CHECKING:
@@ -36,7 +37,6 @@ class System:
     _transitionSprite: Sprite = None
     _graphicsShaders: List[Shader] = []
     _mainScript: str = ""
-    _language: str = "en_GB"
     _scale: float = 1.0
     _frameRate: int = 60
     _verticalSync: bool = False
@@ -70,10 +70,11 @@ class System:
         cls.__graphicsCanvases = []
         data = inData["Main"]
         cls._mainScript = data["script"]
-        cls._language = data["language"]
-        if cls._language is None or cls._language == "" or cls._language == "None":
+        _language = data["language"]
+        if _language is None or _language == "" or _language == "None":
             lang, encoding = locale.getdefaultlocale()
-            cls._language = lang
+            _language = lang
+        Locale.LANGUAGE = _language
         cls._scale = data.getfloat("scale")
         cls._frameRate = data.getint("frameRate")
         cls._verticalSync = data.getboolean("verticalSync")

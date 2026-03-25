@@ -2,7 +2,7 @@
 
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Utils import Locale, File
+from Utils import File
 from Widgets.W_MarkdownPreviewer import MarkdownPreviewer
 from Global import EditorStatus
 
@@ -10,7 +10,7 @@ from Global import EditorStatus
 class AboutDialog(QtWidgets.QDialog):
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None):
         super().__init__(parent)
-        self.setWindowTitle(Locale.getContent("ABOUT_TITLE"))
+        self.setWindowTitle(ELOC("ABOUT_TITLE"))
         self.setFixedSize(500, 400)
         self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowContextHelpButtonHint)
         self._licenseWindow: Optional[MarkdownPreviewer] = None
@@ -31,12 +31,12 @@ class AboutDialog(QtWidgets.QDialog):
         versionLabel.setAlignment(QtCore.Qt.AlignCenter)
         layout.addWidget(versionLabel)
 
-        descLabel = QtWidgets.QLabel(Locale.getContent("ABOUT_DESC"))
+        descLabel = QtWidgets.QLabel(ELOC("ABOUT_DESC"))
         descLabel.setWordWrap(True)
         descLabel.setAlignment(QtCore.Qt.AlignCenter)
         layout.addWidget(descLabel)
 
-        copyrightLabel = QtWidgets.QLabel(Locale.getContent("ABOUT_COPYRIGHT"))
+        copyrightLabel = QtWidgets.QLabel(ELOC("ABOUT_COPYRIGHT"))
         copyrightLabel.setAlignment(QtCore.Qt.AlignCenter)
         copyrightLabel.setStyleSheet("color: gray;")
         layout.addWidget(copyrightLabel)
@@ -44,7 +44,7 @@ class AboutDialog(QtWidgets.QDialog):
         layout.addStretch()
 
         btnBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
-        licensesBtn = btnBox.addButton(Locale.getContent("ABOUT_LICENSES"), QtWidgets.QDialogButtonBox.ActionRole)
+        licensesBtn = btnBox.addButton(ELOC("ABOUT_LICENSES"), QtWidgets.QDialogButtonBox.ActionRole)
         licensesBtn.clicked.connect(self._onOpenLicenses)
         btnBox.rejected.connect(self.reject)
         layout.addWidget(btnBox)

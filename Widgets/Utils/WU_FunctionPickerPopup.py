@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Dict
+from typing import Any, Dict
 from PyQt5 import QtCore, QtWidgets
 import inspect
 
@@ -12,8 +12,10 @@ class FunctionPickerPopup(QtWidgets.QFrame):
     def __init__(self, parent: QtWidgets.QWidget, sources: Dict[str, object], filterExecOnly: bool = False) -> None:
         super().__init__(parent, QtCore.Qt.Popup)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
-        self.setWindowFlag(QtCore.Qt.Popup, True)
+        self.setWindowFlag(QtCore.Qt.Popup, False)
         self.setWindowFlag(QtCore.Qt.FramelessWindowHint, True)
+        self.setWindowFlag(QtCore.Qt.Tool, True)
+        self.setAttribute(QtCore.Qt.WA_NativeWindow, True)
 
         lay = QtWidgets.QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
@@ -42,6 +44,17 @@ class FunctionPickerPopup(QtWidgets.QFrame):
 
         self._tree.itemDoubleClicked.connect(self._onDoubleClicked)
         self.resize(320, 420)
+        self.setAttribute(QtCore.Qt.WA_InputMethodEnabled, True)
+        self._searchEdit.setAttribute(QtCore.Qt.WA_InputMethodEnabled, True)
+        self._searchEdit.setFocusPolicy(QtCore.Qt.StrongFocus)
+        self._searchEdit.setFocus(QtCore.Qt.OtherFocusReason)
+        self.activateWindow()
+
+    def event(self, e: QtCore.QEvent) -> bool:
+        if e.type() == QtCore.QEvent.WindowDeactivate:
+            self.close()
+            return True
+        return super().event(e)
 
     def _build(self, sources: Dict[str, object]) -> None:
         self._tree.clear()
@@ -55,6 +68,25 @@ class FunctionPickerPopup(QtWidgets.QFrame):
                 self._tree.addTopLevelItem(root)
         self._tree.collapseAll()
 
+    def _handleChildren(self, n: str, a: Any, p: str, parent_item: QtWidgets.QTreeWidgetItem):
+        it = QtWidgets.QTreeWidgetItem([n])
+        it.setData(0, QtCore.Qt.UserRole, p)
+        it.setData(0, QtCore.Qt.UserRole + 2, True)
+        displayName = None
+        try:
+            meta = getattr(a, "_meta", None)
+            if isinstance(meta, dict):
+                mv = meta.get("DisplayName")
+                if isinstance(mv, str):
+                    try:
+                        displayName = str(eval(mv))
+                    except Exception:
+                        displayName = mv
+        except Exception:
+            displayName = None
+        it.setData(0, QtCore.Qt.UserRole + 3, displayName if isinstance(displayName, str) else n)
+        parent_item.addChild(it)
+
     def _addChildren(
         self,
         parent_item: QtWidgets.QTreeWidgetItem,
@@ -64,21 +96,20 @@ class FunctionPickerPopup(QtWidgets.QFrame):
         depth: int = 0,
         root_name: str | None = None,
     ) -> bool:
+        def _aliasFirstKey(name):
+            try:
+                a = getattr(obj, name)
+                m = getattr(a, "__name__", None)
+                if isinstance(m, str):
+                    return (0 if name != m.split(".")[-1] else 1, str(name))
+            except Exception:
+                return (1, str(name))
+            return (1, str(name))
+
         if is_parent:
             found = False
             try:
                 raw = [n for n in dir(obj) if not str(n).startswith("_")]
-
-                def _aliasFirstKey(name):
-                    try:
-                        a = getattr(obj, name)
-                        m = getattr(a, "__name__", None)
-                        if isinstance(m, str):
-                            return (0 if name != m.split(".")[-1] else 1, str(name))
-                    except Exception:
-                        return (1, str(name))
-                    return (1, str(name))
-
                 names = sorted(raw, key=_aliasFirstKey)
             except Exception:
                 return False
@@ -94,10 +125,7 @@ class FunctionPickerPopup(QtWidgets.QFrame):
                     and getattr(a, "_refLocal", None) is not None
                     and (not self._filterExecOnly or (hasattr(a, "_execSplits") and getattr(a, "_execSplits", None)))
                 ):
-                    it = QtWidgets.QTreeWidgetItem([n])
-                    it.setData(0, QtCore.Qt.UserRole, p)
-                    it.setData(0, QtCore.Qt.UserRole + 2, True)
-                    parent_item.addChild(it)
+                    self._handleChildren(n, a, p, parent_item)
                     found = True
             return found
         if depth > self._maxDepth:
@@ -108,17 +136,6 @@ class FunctionPickerPopup(QtWidgets.QFrame):
         self._visited.add(key)
         try:
             raw = [n for n in dir(obj) if not str(n).startswith("_")]
-
-            def _aliasFirstKey(name):
-                try:
-                    a = getattr(obj, name)
-                    m = getattr(a, "__name__", None)
-                    if isinstance(m, str):
-                        return (0 if name != m.split(".")[-1] else 1, str(name))
-                except Exception:
-                    return (1, str(name))
-                return (1, str(name))
-
             names = sorted(raw, key=_aliasFirstKey)
         except Exception:
             return False
@@ -154,10 +171,7 @@ class FunctionPickerPopup(QtWidgets.QFrame):
             ):
                 mod = getattr(a, "__module__", "")
                 if (root_name is None) or (isinstance(mod, str) and mod.startswith(root_name)):
-                    it = QtWidgets.QTreeWidgetItem([n])
-                    it.setData(0, QtCore.Qt.UserRole, p)
-                    it.setData(0, QtCore.Qt.UserRole + 2, False)
-                    parent_item.addChild(it)
+                    self._handleChildren(n, a, p, parent_item)
                     found = True
         return found
 
@@ -187,6 +201,7 @@ class FunctionPickerPopup(QtWidgets.QFrame):
                     "hierarchy": parent_hierarchy,
                     "path": path,
                     "is_parent": bool(item.data(0, QtCore.Qt.UserRole + 2)),
+                    "displayName": item.data(0, QtCore.Qt.UserRole + 3),
                 }
             )
 
@@ -208,7 +223,9 @@ class FunctionPickerPopup(QtWidgets.QFrame):
         self._tree.clear()
 
         for item_data in self._searchCache:
-            if text in item_data["name"].lower():
+            dn = item_data.get("displayName")
+            dn_str = dn.lower() if isinstance(dn, str) else ""
+            if text in item_data["name"].lower() or (dn_str and text in dn_str):
                 display_text = f"{item_data['name']} ({item_data['hierarchy']})"
                 item = QtWidgets.QTreeWidgetItem([display_text])
                 item.setData(0, QtCore.Qt.UserRole, item_data["path"])

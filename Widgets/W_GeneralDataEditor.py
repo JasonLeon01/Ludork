@@ -3,7 +3,6 @@
 from typing import Any, Optional
 import os
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Utils import Locale
 from Global import EditorStatus, GameData
 from .Utils.WU_FileSelectorDialog import FileSelectorDialog
 
@@ -213,7 +212,7 @@ class GeneralDataPage(QtWidgets.QWidget):
 
             delBtn = QtWidgets.QPushButton("-")
             delBtn.setFixedWidth(24)
-            delBtn.setToolTip(Locale.getContent("DELETE"))
+            delBtn.setToolTip(ELOC("DELETE"))
             delBtn.clicked.connect(lambda _, k=paramKey: self._onRemoveParam(k))
             hLayout.addWidget(delBtn, 0)
 
@@ -228,8 +227,8 @@ class GeneralDataPage(QtWidgets.QWidget):
     def _onRemoveParam(self, key: str):
         reply = QtWidgets.QMessageBox.question(
             self,
-            Locale.getContent("CONFIRM_DELETE"),
-            Locale.getContent("CONFIRM_DELETE_PARAM").format(key),
+            ELOC("CONFIRM_DELETE"),
+            ELOC("CONFIRM_DELETE_PARAM").format(key),
             QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
         )
         if reply != QtWidgets.QMessageBox.Yes:
@@ -254,16 +253,16 @@ class GeneralDataPage(QtWidgets.QWidget):
         if not self.fileKey or not self._currentMemberKey:
             return
         dlg = QtWidgets.QDialog(self)
-        dlg.setWindowTitle(Locale.getContent("ADD_PARAM"))
+        dlg.setWindowTitle(ELOC("ADD_PARAM"))
         form = QtWidgets.QFormLayout(dlg)
 
         nameEdit = QtWidgets.QLineEdit()
         typeEdit = QtWidgets.QLineEdit()
         defaultEdit = QtWidgets.QLineEdit()
 
-        form.addRow(QtWidgets.QLabel(Locale.getContent("PARAM_NAME")), nameEdit)
-        form.addRow(QtWidgets.QLabel(Locale.getContent("PARAM_TYPE")), typeEdit)
-        form.addRow(QtWidgets.QLabel(Locale.getContent("DEFAULT_VALUE")), defaultEdit)
+        form.addRow(QtWidgets.QLabel(ELOC("PARAM_NAME")), nameEdit)
+        form.addRow(QtWidgets.QLabel(ELOC("PARAM_TYPE")), typeEdit)
+        form.addRow(QtWidgets.QLabel(ELOC("DEFAULT_VALUE")), defaultEdit)
 
         btnBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
         form.addRow(btnBox)
@@ -276,7 +275,7 @@ class GeneralDataPage(QtWidgets.QWidget):
 
         name = nameEdit.text().strip()
         if not name:
-            QtWidgets.QMessageBox.warning(self, Locale.getContent("ERROR"), Locale.getContent("INVALID_NAME"))
+            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("INVALID_NAME"))
             return
 
         fileData = GameData.generalData.get(self.fileKey, {})
@@ -284,7 +283,7 @@ class GeneralDataPage(QtWidgets.QWidget):
         members = fileData.get("members", {})
 
         if name in params:
-            QtWidgets.QMessageBox.warning(self, Locale.getContent("ERROR"), Locale.getContent("PARAM_EXISTS"))
+            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("PARAM_EXISTS"))
             return
 
         t = typeEdit.text().strip()
@@ -320,9 +319,7 @@ class GeneralDataPage(QtWidgets.QWidget):
 
             match = re.match(r"tuple\[(\d+)\]", t)
             if not match:
-                QtWidgets.QMessageBox.warning(
-                    self, Locale.getContent("ERROR"), Locale.getContent("TUPLE_SIZE_ERR").format(SIZE=size)
-                )
+                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("TUPLE_SIZE_ERR").format(SIZE=size))
                 return
 
             size = int(match.group(1))
@@ -414,7 +411,7 @@ class GeneralDataPage(QtWidgets.QWidget):
 
     def _onFileBrowse(self, key: str, lineEdit: QtWidgets.QLineEdit):
         startDir = os.path.join(EditorStatus.PROJ_PATH, "Assets")
-        dialog = FileSelectorDialog(self, startDir, Locale.getContent("SELECT_FILE"), "All Files (*)")
+        dialog = FileSelectorDialog(self, startDir, ELOC("SELECT_FILE"), "All Files (*)")
         path = dialog.execSelect()
         if path:
             relPath = os.path.relpath(path, startDir)
@@ -431,11 +428,11 @@ class GeneralDataPage(QtWidgets.QWidget):
 
         menu = QtWidgets.QMenu(self)
 
-        changeIdAction = QtWidgets.QAction(Locale.getContent("CHANGE_ID"), self)
+        changeIdAction = QtWidgets.QAction(ELOC("CHANGE_ID"), self)
         changeIdAction.triggered.connect(self._changeMemberID)
         menu.addAction(changeIdAction)
 
-        removeAction = QtWidgets.QAction(Locale.getContent("REMOVE_MEMBER"), self)
+        removeAction = QtWidgets.QAction(ELOC("REMOVE_MEMBER"), self)
         removeAction.triggered.connect(self._onRemoveMember)
         menu.addAction(removeAction)
 
@@ -448,14 +445,14 @@ class GeneralDataPage(QtWidgets.QWidget):
 
         oldID = current.text()
         newID, ok = QtWidgets.QInputDialog.getText(
-            self, Locale.getContent("CHANGE_ID"), Locale.getContent("ENTER_ID"), QtWidgets.QLineEdit.Normal, oldID
+            self, ELOC("CHANGE_ID"), ELOC("ENTER_ID"), QtWidgets.QLineEdit.Normal, oldID
         )
 
         if ok and newID and newID != oldID:
             fileData = GameData.generalData.get(self.fileKey, {})
             members = fileData.get("members", {})
             if newID in members:
-                QtWidgets.QMessageBox.warning(self, Locale.getContent("ERROR"), "ID already exists!")
+                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), "ID already exists!")
                 return
 
             if oldID in members:
@@ -472,7 +469,7 @@ class GeneralDataPage(QtWidgets.QWidget):
         if not self.fileKey:
             return
 
-        text, ok = QtWidgets.QInputDialog.getText(self, Locale.getContent("NEW_MEMBER"), Locale.getContent("ENTER_ID"))
+        text, ok = QtWidgets.QInputDialog.getText(self, ELOC("NEW_MEMBER"), ELOC("ENTER_ID"))
         if ok and text:
             fileData = GameData.generalData.get(self.fileKey, {})
             members = fileData.get("members", {})
@@ -514,7 +511,7 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None):
         super().__init__(parent)
-        self.setWindowTitle(Locale.getContent("GENERAL_DATA_EDITOR"))
+        self.setWindowTitle(ELOC("GENERAL_DATA_EDITOR"))
         self.resize(1000, 600)
 
         central = QtWidgets.QWidget()
@@ -531,7 +528,7 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
     def _onTabContextMenu(self, position):
         menu = QtWidgets.QMenu(self)
 
-        addAction = QtWidgets.QAction(Locale.getContent("NEW_DATA_TYPE"), self)
+        addAction = QtWidgets.QAction(ELOC("NEW_DATA_TYPE"), self)
         addAction.triggered.connect(self._onAddDataType)
         menu.addAction(addAction)
 
@@ -539,24 +536,22 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
         if tabIndex >= 0:
             menu.addSeparator()
 
-            renameAction = QtWidgets.QAction(Locale.getContent("RENAME_DATA_TYPE"), self)
+            renameAction = QtWidgets.QAction(ELOC("RENAME_DATA_TYPE"), self)
             renameAction.triggered.connect(lambda checked=False, idx=tabIndex: self._onRenameDataType(idx))
             menu.addAction(renameAction)
 
-            deleteAction = QtWidgets.QAction(Locale.getContent("DELETE_DATA_TYPE"), self)
+            deleteAction = QtWidgets.QAction(ELOC("DELETE_DATA_TYPE"), self)
             deleteAction.triggered.connect(lambda checked=False, idx=tabIndex: self._onRemoveDataType(idx))
             menu.addAction(deleteAction)
 
         menu.exec_(self.tabWidget.mapToGlobal(position))
 
     def _onAddDataType(self):
-        text, ok = QtWidgets.QInputDialog.getText(
-            self, Locale.getContent("NEW_DATA_TYPE"), Locale.getContent("ENTER_DATA_TYPE_NAME")
-        )
+        text, ok = QtWidgets.QInputDialog.getText(self, ELOC("NEW_DATA_TYPE"), ELOC("ENTER_DATA_TYPE_NAME"))
         if ok and text:
             data = getattr(GameData, "generalData", {})
             if text in data:
-                QtWidgets.QMessageBox.warning(self, Locale.getContent("ERROR"), Locale.getContent("DATA_TYPE_EXISTS"))
+                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("DATA_TYPE_EXISTS"))
                 return
 
             data[text] = {"params": {}, "members": {}}
@@ -573,15 +568,15 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
 
         text, ok = QtWidgets.QInputDialog.getText(
             self,
-            Locale.getContent("RENAME_DATA_TYPE"),
-            Locale.getContent("ENTER_DATA_TYPE_NAME"),
+            ELOC("RENAME_DATA_TYPE"),
+            ELOC("ENTER_DATA_TYPE_NAME"),
             QtWidgets.QLineEdit.Normal,
             oldKey,
         )
         if ok and text and text != oldKey:
             data = getattr(GameData, "generalData", {})
             if text in data:
-                QtWidgets.QMessageBox.warning(self, Locale.getContent("ERROR"), Locale.getContent("DATA_TYPE_EXISTS"))
+                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("DATA_TYPE_EXISTS"))
                 return
 
             if oldKey in data:
@@ -600,8 +595,8 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
 
         reply = QtWidgets.QMessageBox.question(
             self,
-            Locale.getContent("CONFIRM_DELETE"),
-            Locale.getContent("CONFIRM_DELETE_DATA_TYPE").format(key),
+            ELOC("CONFIRM_DELETE"),
+            ELOC("CONFIRM_DELETE_DATA_TYPE").format(key),
             QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
         )
 

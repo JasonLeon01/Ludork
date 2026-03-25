@@ -5,7 +5,7 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 import os
 from enum import Enum
 from Global import EditorStatus, GameData
-from Utils import Locale, System, File
+from Utils import System, File
 from .WU_FileSelectorDialog import FileSelectorDialog
 from .WU_DataclassEditDialog import DataclassEditDialog
 import copy
@@ -216,7 +216,7 @@ class TilesetImageView(QtWidgets.QWidget):
 
             if self.MaterialClass:
                 edit_mat = copy.deepcopy(arr[idx])
-                dlg = DataclassEditDialog(self, edit_mat, Locale.getContent("EDIT_MATERIAL"))
+                dlg = DataclassEditDialog(self, edit_mat, ELOC("EDIT_MATERIAL"))
                 if dlg.exec_():
                     GameData.recordSnapshot()
                     arr[idx] = edit_mat
@@ -272,11 +272,11 @@ class TilesetPanel(QtWidgets.QWidget):
         layout.setSpacing(5)
 
         file_row = QtWidgets.QHBoxLayout()
-        self.nameLabel = QtWidgets.QLabel(Locale.getContent("TILESET_NAME"))
+        self.nameLabel = QtWidgets.QLabel(ELOC("TILESET_NAME"))
         self.nameEdit = QtWidgets.QLineEdit()
         self.nameEdit.textEdited.connect(self._onNameChanged)
 
-        self.fileLabel = QtWidgets.QLabel(Locale.getContent("FILE_NAME"))
+        self.fileLabel = QtWidgets.QLabel(ELOC("FILE_NAME"))
         self.fileEdit = QtWidgets.QLineEdit()
         self.fileEdit.setReadOnly(True)
         self.fileBtn = QtWidgets.QPushButton()
@@ -294,9 +294,9 @@ class TilesetPanel(QtWidgets.QWidget):
         self.modeList = QtWidgets.QListWidget()
         self.modeList.setFixedHeight(64)
         self.modeList.setFlow(QtWidgets.QListView.LeftToRight)
-        self.modeList.addItem(Locale.getContent("PASSABLE"))
-        self.modeList.addItem(Locale.getContent("MATERIAL"))
-        self.modeList.addItem(Locale.getContent("DIR4"))
+        self.modeList.addItem(ELOC("PASSABLE"))
+        self.modeList.addItem(ELOC("MATERIAL"))
+        self.modeList.addItem(ELOC("DIR4"))
         self.modeList.setCurrentRow(0)
         self.modeList.currentRowChanged.connect(self._onModeChanged)
         layout.addWidget(self.modeList)

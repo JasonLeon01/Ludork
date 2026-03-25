@@ -5,7 +5,7 @@ import io
 from typing import Optional, Union
 from PyQt5 import QtCore, QtGui, QtWidgets
 from psutil import Popen
-from Utils import Locale, Panel
+from Utils import Panel
 
 
 class PipeReader(QtCore.QThread):
@@ -70,8 +70,8 @@ class ConsoleWidget(QtWidgets.QWidget):
         self._view.setFont(f)
 
         self._input = QtWidgets.QLineEdit()
-        self._input.setPlaceholderText(Locale.getContent("SEND_HINT"))
-        self._send = QtWidgets.QPushButton(Locale.getContent("SEND"))
+        self._input.setPlaceholderText(ELOC("SEND_HINT"))
+        self._send = QtWidgets.QPushButton(ELOC("SEND"))
         self._send.clicked.connect(self._onSend)
         self._input.returnPressed.connect(self._onSend)
         self._input.installEventFilter(self)

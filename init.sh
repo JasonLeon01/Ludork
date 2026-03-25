@@ -42,27 +42,19 @@ if [ -d "pysf" ]; then
 fi
 
 echo "Downloading PySF..."
-curl -L -o pysf.zip "https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.6/pysf-3.0.1.6-macOS-ARM64.zip"
+curl -L -o pysf.zip "https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.7/pysf-macOS-ARM64.zip"
 if [ $? -ne 0 ]; then
   echo "Failed to download PySF."
   exit 1
 fi
 
 echo "Extracting PySF..."
-unzip -q pysf.zip -d "Sample"
-if [ $? -ne 0 ]; then
-  echo "Failed to extract PySF to Sample."
-  rm pysf.zip
-  exit 1
-fi
-
 unzip -q pysf.zip -d "."
 if [ $? -ne 0 ]; then
   echo "Failed to extract PySF to current folder."
   rm pysf.zip
   exit 1
 fi
-
 rm pysf.zip
 
 ENV_DIR="LudorkEnv"

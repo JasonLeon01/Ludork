@@ -3,7 +3,7 @@
 from __future__ import annotations
 import inspect
 from typing import Any
-from Engine import Pair, System, ExecSplit, ReturnType, SceneBase, Vector2f, degrees
+from Engine import Pair, System, SceneBase, Vector2f, degrees
 from Engine.Animation import AnimSprite
 from .. import Data
 
@@ -173,26 +173,31 @@ class _localRef:
         return self._val() >= (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
 
 
+@Meta(DisplayName='LOC("IF")', DisplayDesc='LOC("IF_DESC")')
 @ExecSplit(TRUE=(0,), FALSE=(1,))
 def IF(condition: bool) -> int:
     return 0 if condition else 1
 
 
+@Meta(DisplayName='LOC("SET_LOCAL_VALUE")', DisplayDesc='LOC("SET_LOCAL_VALUE_DESC")')
 @ExecSplit(default=(None,))
 def SetLocalValue(valueName: str, value: Any) -> None:
     SetLocalValue._refLocal[valueName] = value
 
 
+@Meta(DisplayName='LOC("GET_LOCAL_VALUE")', DisplayDesc='LOC("GET_LOCAL_VALUE_DESC")')
 @ReturnType(value=Any)
 def GetLocalValue(valueName: str, default: Any = None) -> Any:
     return GetLocalValue._refLocal.get(valueName, default)
 
 
+@Meta(DisplayName='LOC("GET_LOCAL_VALUE_REF")', DisplayDesc='LOC("GET_LOCAL_VALUE_REF_DESC")')
 @ReturnType(value=Any)
 def GetLocalValueRef(valueName: str, default: Any = None) -> Any:
     return _localRef(GetLocalValueRef._refLocal, valueName, default)
 
 
+@Meta(DisplayName='LOC("ADD_ANIM")', DisplayDesc='LOC("ADD_ANIM_DESC")')
 @ExecSplit(default=(None,))
 def AddAnim(animName: str, position: Pair[float], rotation: float, scale: Pair[float]) -> None:
     from Source import Data
@@ -207,6 +212,7 @@ def AddAnim(animName: str, position: Pair[float], rotation: float, scale: Pair[f
     System.getScene().addAnim(anim)
 
 
+@Meta(DisplayName='LOC("GET_ANIM_LENGTH")', DisplayDesc='LOC("GET_ANIM_LENGTH_DESC")')
 @ReturnType(value=float)
 def GetAnimLength(animName: str) -> float:
     from Source import Data
@@ -218,6 +224,7 @@ def GetAnimLength(animName: str) -> float:
     return float(duration)
 
 
+@Meta(DisplayName='LOC("SUPER")', DisplayDesc='LOC("SUPER_DESC")')
 @ExecSplit(default=(None,))
 def SUPER(obj: object) -> None:
     key = SUPER._refLocal.get("__key__")
@@ -244,36 +251,43 @@ def SUPER(obj: object) -> None:
             raise AttributeError(f"Method '{key}' not found on object")
 
 
+@Meta(DisplayName='LOC("SELF")', DisplayDesc='LOC("SELF_DESC")')
 @ReturnType(value=object)
 def SELF() -> object:
     return SELF._refLocal["__graph__"].parent
 
 
+@Meta(DisplayName='LOC("GET_ATTR_REF")', DisplayDesc='LOC("GET_ATTR_REF_DESC")')
 @ReturnType(value=object)
 def GetAttrRef(obj: object, attrName: str) -> Any:
     return _attrRef(obj, attrName)
 
 
+@Meta(DisplayName='LOC("GET_ATTR")', DisplayDesc='LOC("GET_ATTR_DESC")')
 @ReturnType(value=object)
 def GetAttr(obj: object, attrName: str) -> Any:
     return getattr(obj, attrName)
 
 
+@Meta(DisplayName='LOC("SET_ATTR")', DisplayDesc='LOC("SET_ATTR_DESC")')
 @ExecSplit(default=(None,))
 def SetAttr(obj: object, attrName: str, value: Any) -> None:
     setattr(obj, attrName, value)
 
 
+@Meta(DisplayName='LOC("GET_SCENE")', DisplayDesc='LOC("GET_SCENE_DESC")')
 @ReturnType(value=SceneBase)
 def GetScene() -> SceneBase:
     return System.getScene()
 
 
+@Meta(DisplayName='LOC("IS_VALID_VALUE")', DisplayDesc='LOC("IS_VALID_VALUE_DESC")')
 @ReturnType(value=bool)
 def IsValidValue(value: Any) -> bool:
     return value is not None
 
 
+@Meta(DisplayName='LOC("RUN_COMMON_FUNCTION")', DisplayDesc='LOC("RUN_COMMON_FUNCTION_DESC")')
 @ExecSplit(default=(None,))
 def RunCommonFunction(commonFunctionName: str) -> Any:
     callerGraph = RunCommonFunction._refLocal.get("__graph__")
@@ -288,11 +302,13 @@ def RunCommonFunction(commonFunctionName: str) -> Any:
     raise KeyError(f"Common function '{commonFunctionName}' has no start nodes")
 
 
+@Meta(DisplayName='LOC("PRINT")', DisplayDesc='LOC("PRINT_DESC")')
 @ExecSplit(default=(None,))
 def Print(message: Any) -> None:
     print(message)
 
 
+@Meta(DisplayName='LOC("EXEC")', DisplayDesc='LOC("EXEC_DESC")')
 @ExecSplit(default=(None,))
 def EXEC(script: str) -> None:
     exec(script)

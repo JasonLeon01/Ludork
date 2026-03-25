@@ -1,13 +1,12 @@
 # -*- encoding: utf-8 -*-
 
 from PyQt5 import QtWidgets, QtGui, QtCore
-from Utils import Locale
 
 
 class FPSGraphDialog(QtWidgets.QDialog):
     def __init__(self, fpsData: list, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(Locale.getContent("FPS_HISTORY"))
+        self.setWindowTitle(ELOC("FPS_HISTORY"))
         self.resize(800, 400)
         self.fpsData = fpsData
         self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowContextHelpButtonHint)

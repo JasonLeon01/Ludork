@@ -3,6 +3,7 @@
 import os
 from typing import Dict, List
 from Global import EditorStatus
+import builtins
 
 
 class _Locale:
@@ -32,3 +33,7 @@ def getContent(key: str) -> str:
     if EditorStatus.LANGUAGE in _Locale.dataDict:
         return getLocaleContent(EditorStatus.LANGUAGE, key)
     return getLocaleContent("en_GB", key)
+
+
+builtins.ELOC = getContent
+builtins.ELOC_L = getLocaleContent

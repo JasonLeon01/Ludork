@@ -5,7 +5,6 @@ import copy
 import warnings
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
 from ... import (
-    TypeAdapter,
     Pair,
     Sprite,
     IntRect,
@@ -16,8 +15,6 @@ from ... import (
     degrees,
     GetCellSize,
     Utils,
-    ExecSplit,
-    ReturnType,
 )
 from ..G_Material import Material
 

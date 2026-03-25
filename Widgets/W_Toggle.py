@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Utils import Locale, Panel
+from Utils import Panel
 
 
 class ModeToggle(QtWidgets.QWidget):
@@ -48,14 +48,14 @@ class ModeToggle(QtWidgets.QWidget):
 
     def mouseMoveEvent(self, e):
         idx = 0 if e.x() < self.width() // 2 else 1
-        text = Locale.getContent("EDIT_MAP") if idx == 0 else Locale.getContent("TEST_GAME")
+        text = ELOC("EDIT_MAP") if idx == 0 else ELOC("TEST_GAME")
         QtWidgets.QToolTip.showText(e.globalPos(), text, self)
         super().mouseMoveEvent(e)
 
     def event(self, e):
         if e.type() == QtCore.QEvent.ToolTip:
             idx = 0 if e.pos().x() < self.width() // 2 else 1
-            text = Locale.getContent("EDIT_MAP") if idx == 0 else Locale.getContent("TEST_GAME")
+            text = ELOC("EDIT_MAP") if idx == 0 else ELOC("TEST_GAME")
             QtWidgets.QToolTip.showText(e.globalPos(), text, self)
             return True
         return super().event(e)
@@ -275,11 +275,11 @@ class EditModeToggle(QtWidgets.QWidget):
     def mouseMoveEvent(self, e):
         idx = self._idxFromX(e.x())
         if idx == 0:
-            text = Locale.getContent("TILE_MODE")
+            text = ELOC("TILE_MODE")
         elif idx == 1:
-            text = Locale.getContent("LIGHT_MODE")
+            text = ELOC("LIGHT_MODE")
         else:
-            text = Locale.getContent("ACTOR_MODE")
+            text = ELOC("ACTOR_MODE")
         QtWidgets.QToolTip.showText(e.globalPos(), text, self)
         super().mouseMoveEvent(e)
 
@@ -287,11 +287,11 @@ class EditModeToggle(QtWidgets.QWidget):
         if e.type() == QtCore.QEvent.ToolTip:
             idx = self._idxFromX(e.pos().x())
             if idx == 0:
-                text = Locale.getContent("TILE_MODE")
+                text = ELOC("TILE_MODE")
             elif idx == 1:
-                text = Locale.getContent("LIGHT_MODE")
+                text = ELOC("LIGHT_MODE")
             else:
-                text = Locale.getContent("ACTOR_MODE")
+                text = ELOC("ACTOR_MODE")
             QtWidgets.QToolTip.showText(e.globalPos(), text, self)
             return True
         return super().event(e)

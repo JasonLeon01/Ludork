@@ -1,7 +1,6 @@
 *.pyc
 *.log
 *.pyd
-*.pyi
 *.so
 *.anim.dat
 **/.DS_Store
@@ -22,3 +21,5 @@ launcher.dist/
 launcher.onefile-build/
 .clangd
 .clangd-format
+/Sample/**/*.pyi
+/EditorExtensions/**/*.pyi

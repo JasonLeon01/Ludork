@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import Optional, Union, Tuple, List
-from ... import TypeAdapter, Direction, Pair, Texture, IntRect, Vector2i, Utils, ExecSplit, InvalidVars
+from ... import Direction, Pair, Texture, IntRect, Vector2i, Utils
 from ...Utils import Inner
 from ..G_Material import Material
 from .A_Actor import Actor

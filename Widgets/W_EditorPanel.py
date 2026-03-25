@@ -9,7 +9,7 @@ import importlib
 from PyQt5 import QtWidgets, QtGui, QtCore
 import Utils
 from Global import EditorStatus, GameData
-from Utils import Locale, System
+from Utils import System
 
 
 @dataclass
@@ -952,19 +952,19 @@ class EditorPanel(QtWidgets.QWidget):
                 if e.button() == QtCore.Qt.RightButton:
                     menu = QtWidgets.QMenu(self)
 
-                    actCopy = QtWidgets.QAction(Locale.getContent("COPY"), self)
+                    actCopy = QtWidgets.QAction(ELOC("COPY"), self)
                     actCopy.setEnabled(isinstance(hit, int))
                     actCopy.triggered.connect(lambda: self._copyActor(self.selectedLayerName, hit))
                     menu.addAction(actCopy)
 
-                    actPaste = QtWidgets.QAction(Locale.getContent("PASTE"), self)
+                    actPaste = QtWidgets.QAction(ELOC("PASTE"), self)
                     hasActor = self._hasActorAt(self.selectedLayerName, gx, gy)
                     canPaste = (self._actorClipboard is not None) and (hit is None) and (not hasActor)
                     actPaste.setEnabled(canPaste)
                     actPaste.triggered.connect(lambda: self._pasteActor(gx, gy))
                     menu.addAction(actPaste)
 
-                    actDelete = QtWidgets.QAction(Locale.getContent("DELETE"), self)
+                    actDelete = QtWidgets.QAction(ELOC("DELETE"), self)
                     actDelete.setEnabled(isinstance(hit, int))
                     actDelete.triggered.connect(lambda: self._deleteActor(self.selectedLayerName, hit))
                     menu.addAction(actDelete)
@@ -1178,17 +1178,17 @@ class EditorPanel(QtWidgets.QWidget):
 
     def saveFile(self) -> bool:
         if self.mapData is None:
-            return False, Locale.getContent("MAP_DATA_NONE")
+            return False, ELOC("MAP_DATA_NONE")
         if self.mapFilePath is None:
-            return False, Locale.getContent("MAP_FILE_NONE")
+            return False, ELOC("MAP_FILE_NONE")
         try:
             if self.mapKey and self.mapKey in GameData.mapData:
                 Utils.File.saveData(self.mapFilePath, GameData.mapData[self.mapKey])
             else:
-                return False, Locale.getContent("MAP_DATA_NONE")
+                return False, ELOC("MAP_DATA_NONE")
         except Exception as e:
             return False, str(e)
-        return True, Locale.getContent("SAVE_PATH").format(self.mapFilePath)
+        return True, ELOC("SAVE_PATH").format(self.mapFilePath)
 
     def renameLayer(self, oldName: str, newName: str) -> bool:
         if self.mapData is None:
@@ -1505,7 +1505,7 @@ class EditorPanel(QtWidgets.QWidget):
             else:
                 data = Utils.File.loadData(path)
         except Exception as e:
-            msg = Locale.getContent("NOT_ACTOR_TYPE")
+            msg = ELOC("NOT_ACTOR_TYPE")
         okDict = isinstance(data, dict)
         bpPath = None
         if okDict and data.get("type") == "blueprint":
@@ -1568,15 +1568,15 @@ class EditorPanel(QtWidgets.QWidget):
                             self.dataChanged.emit()
                             self._renderFromMapData()
                             self.update()
-                        msg = Locale.getContent("DRAG_INFO").format(file=os.path.basename(path), x=gx, y=gy)
+                        msg = ELOC("DRAG_INFO").format(file=os.path.basename(path), x=gx, y=gy)
                     else:
-                        msg = Locale.getContent("NOT_ACTOR_TYPE")
+                        msg = ELOC("NOT_ACTOR_TYPE")
                 else:
-                    msg = Locale.getContent("NOT_ACTOR_TYPE")
+                    msg = ELOC("NOT_ACTOR_TYPE")
             except Exception:
-                msg = Locale.getContent("NOT_ACTOR_TYPE")
+                msg = ELOC("NOT_ACTOR_TYPE")
         else:
-            msg = Locale.getContent("NOT_ACTOR_TYPE")
+            msg = ELOC("NOT_ACTOR_TYPE")
         if msg and hasattr(w, "toast") and w.toast:
             w.toast.showMessage(msg, 3000)
         e.acceptProposedAction()

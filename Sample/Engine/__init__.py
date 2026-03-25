@@ -2,175 +2,9 @@
 
 from enum import IntEnum
 import functools
+import builtins
 from typing import Any, Callable, Dict, List, Tuple, Type, Union
 from .BPBase import BPBase
-
-
-_GameRunning: bool = True
-_CellSize: int = 32
-type Pair[T] = tuple[T, T]
-type Tuple3[T] = tuple[T, T, T]
-type Tuple4[T] = tuple[T, T, T, T]
-
-
-class Direction(IntEnum):
-    DOWN = 0
-    LEFT = 1
-    RIGHT = 2
-    UP = 3
-
-
-def OppositeDirection(direction: Direction) -> Direction:
-    assert isinstance(
-        direction, (Direction, int)
-    ), f"Error: direction must be a Direction enum value or an integer, but got {direction}"
-    if isinstance(direction, int):
-        assert 0 <= direction <= 3, f"Error: direction must be an integer between 0 and 3, but got {direction}"
-        direction = Direction(direction)
-    if direction == Direction.DOWN:
-        return Direction.UP
-    elif direction == Direction.LEFT:
-        return Direction.RIGHT
-    elif direction == Direction.RIGHT:
-        return Direction.LEFT
-    elif direction == Direction.UP:
-        return Direction.DOWN
-
-
-def GetGameRunning():
-    global _GameRunning
-    return _GameRunning
-
-
-def StopGame():
-    global _GameRunning
-    _GameRunning = False
-
-
-def GetCellSize():
-    global _CellSize
-    return _CellSize
-
-
-def SetCellSize(size: int):
-    global _CellSize
-    _CellSize = size
-
-
-def TypeAdapter(**typeMap: Union[Tuple[Union[Type, List[Type]], Type], Tuple[Union[Type, List[Type]], Type, Callable]]):
-    def decorator(func: Callable):
-        argNames = func.__code__.co_varnames[: func.__code__.co_argcount]
-
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            fullArgs = dict(zip(argNames, args))
-            fullArgs.update(kwargs)
-            for paramName, types in typeMap.items():
-                if not paramName in fullArgs:
-                    continue
-                if fullArgs[paramName] is None:
-                    continue
-                converter = None
-                if len(types) == 2:
-                    originType, targetType = types
-                    converter = targetType
-                elif len(types) == 3:
-                    originType, targetType, converter = types
-                else:
-                    raise ValueError(f"Error: Parameter {paramName} must have 2 or 3 types.")
-                value = fullArgs[paramName]
-                if not isinstance(value, targetType):
-                    isOriginType = False
-                    if isinstance(originType, list):
-                        for t in originType:
-                            if isinstance(value, t):
-                                isOriginType = True
-                                break
-                    else:
-                        isOriginType = isinstance(value, originType)
-                    if isOriginType:
-                        if isinstance(value, list) or isinstance(value, tuple):
-                            fullArgs[paramName] = converter(*value)
-                        else:
-                            fullArgs[paramName] = converter(value)
-                    else:
-                        raise TypeError(f"Error: Parameter {paramName} must be of type {originType} or {targetType}")
-            return func(**fullArgs)
-
-        return wrapper
-
-    return decorator
-
-
-def ExecSplit(**kwargs):
-    def decorator(func):
-        func._execSplits = kwargs
-        func._refLocal: Dict[str, Any] = {}
-        return func
-
-    return decorator
-
-
-def Latent(**kwargs):
-    def decorator(func):
-        func._latents = kwargs
-        func._refLocal: Dict[str, Any] = {}
-        return func
-
-    return decorator
-
-
-def ReturnType(**kwargs):
-    def decorator(func):
-        func._returnTypes = kwargs
-        func._refLocal: Dict[str, Any] = {}
-        return func
-
-    return decorator
-
-
-def InvalidVars(*args):
-    def decorator(cls):
-        cls._invalidVars = args
-        return cls
-
-    return decorator
-
-
-def PathVars(*args):
-    def decorator(cls):
-        cls._pathVars = args
-        return cls
-
-    return decorator
-
-
-def RectRangeVars(**kwargs):
-    def decorator(cls):
-        cls._rectRangeVars = kwargs
-        return cls
-
-    return decorator
-
-
-def RegisterEvent(func=None):
-    def decorator(f):
-        f._eventSignature = True
-        return f
-
-    if func is None:
-        return decorator
-    return decorator(func)
-
-
-def DropBox(**kwargs):
-    def decorator(func):
-        func._dropBox = kwargs
-        return func
-
-    return decorator
-
-
 import pysf
 from pysf import Angle
 from pysf import BlendAdd
@@ -272,10 +106,187 @@ from pysf import radians
 from pysf import seconds
 from pysf import sleep
 from pysf import swap
+
+
+_GameRunning: bool = True
+_CellSize: int = 32
+type Pair[T] = tuple[T, T]
+type Tuple3[T] = tuple[T, T, T]
+type Tuple4[T] = tuple[T, T, T, T]
+
+
+class Direction(IntEnum):
+    DOWN = 0
+    LEFT = 1
+    RIGHT = 2
+    UP = 3
+
+
+def OppositeDirection(direction: Direction) -> Direction:
+    assert isinstance(
+        direction, (Direction, int)
+    ), f"Error: direction must be a Direction enum value or an integer, but got {direction}"
+    if isinstance(direction, int):
+        assert 0 <= direction <= 3, f"Error: direction must be an integer between 0 and 3, but got {direction}"
+        direction = Direction(direction)
+    if direction == Direction.DOWN:
+        return Direction.UP
+    elif direction == Direction.LEFT:
+        return Direction.RIGHT
+    elif direction == Direction.RIGHT:
+        return Direction.LEFT
+    elif direction == Direction.UP:
+        return Direction.DOWN
+
+
+def GetGameRunning():
+    global _GameRunning
+    return _GameRunning
+
+
+def StopGame():
+    global _GameRunning
+    _GameRunning = False
+
+
+def GetCellSize():
+    global _CellSize
+    return _CellSize
+
+
+def SetCellSize(size: int):
+    global _CellSize
+    _CellSize = size
+
+
+def TypeAdapter(**typeMap: Union[Tuple[Union[Type, List[Type]], Type], Tuple[Union[Type, List[Type]], Type, Callable]]):
+    def decorator(func: Callable):
+        argNames = func.__code__.co_varnames[: func.__code__.co_argcount]
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            fullArgs = dict(zip(argNames, args))
+            fullArgs.update(kwargs)
+            for paramName, types in typeMap.items():
+                if not paramName in fullArgs:
+                    continue
+                if fullArgs[paramName] is None:
+                    continue
+                converter = None
+                if len(types) == 2:
+                    originType, targetType = types
+                    converter = targetType
+                elif len(types) == 3:
+                    originType, targetType, converter = types
+                else:
+                    raise ValueError(f"Error: Parameter {paramName} must have 2 or 3 types.")
+                value = fullArgs[paramName]
+                if not isinstance(value, targetType):
+                    isOriginType = False
+                    if isinstance(originType, list):
+                        for t in originType:
+                            if isinstance(value, t):
+                                isOriginType = True
+                                break
+                    else:
+                        isOriginType = isinstance(value, originType)
+                    if isOriginType:
+                        if isinstance(value, list) or isinstance(value, tuple):
+                            fullArgs[paramName] = converter(*value)
+                        else:
+                            fullArgs[paramName] = converter(value)
+                    else:
+                        raise TypeError(f"Error: Parameter {paramName} must be of type {originType} or {targetType}")
+            return func(**fullArgs)
+
+        return wrapper
+
+    return decorator
+
+
+def Meta(**kwargs):
+    def decorator(func):
+        func._meta = kwargs
+        return func
+
+    return decorator
+
+
+def ExecSplit(**kwargs):
+    def decorator(func):
+        func._execSplits = kwargs
+        func._refLocal: Dict[str, Any] = {}
+        return func
+
+    return decorator
+
+
+def Latent(**kwargs):
+    def decorator(func):
+        func._latents = kwargs
+        func._refLocal: Dict[str, Any] = {}
+        return func
+
+    return decorator
+
+
+def ReturnType(**kwargs):
+    def decorator(func):
+        func._returnTypes = kwargs
+        func._refLocal: Dict[str, Any] = {}
+        return func
+
+    return decorator
+
+
+def InvalidVars(*args):
+    def decorator(cls):
+        cls._invalidVars = args
+        return cls
+
+    return decorator
+
+
+def PathVars(*args):
+    def decorator(cls):
+        cls._pathVars = args
+        return cls
+
+    return decorator
+
+
+def RectRangeVars(**kwargs):
+    def decorator(cls):
+        cls._rectRangeVars = kwargs
+        return cls
+
+    return decorator
+
+
+def RegisterEvent(func=None):
+    def decorator(f):
+        f._eventSignature = True
+        return f
+
+    if func is None:
+        return decorator
+    return decorator(func)
+
+
+builtins.TypeAdapter = TypeAdapter
+builtins.Meta = Meta
+builtins.ExecSplit = ExecSplit
+builtins.Latent = Latent
+builtins.ReturnType = ReturnType
+builtins.InvalidVars = InvalidVars
+builtins.PathVars = PathVars
+builtins.RectRangeVars = RectRangeVars
+builtins.RegisterEvent = RegisterEvent
+
+
 from .Modified import Clock
 from .Modified import ContextSettings
 from .Modified import RenderStates
-
 from .EngineSystem import System
 from .EngineSceneBase import SceneBase
 from . import Utils

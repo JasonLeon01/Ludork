@@ -14,7 +14,7 @@ class SingleRowDialog(QtWidgets.QDialog):
         min_value: float = None,
         max_value: float = None,
     ) -> None:
-        from Utils import Locale, System
+        from Utils import System
 
         super().__init__(parent)
         self.setWindowTitle(title)
@@ -42,8 +42,8 @@ class SingleRowDialog(QtWidgets.QDialog):
         layout.addRow(message, self.input)
         self.btns = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel, self)
         layout.addRow(self.btns)
-        confirm_label = Locale.getContent("CONFIRM")
-        cancel_label = Locale.getContent("CANCEL")
+        confirm_label = ELOC("CONFIRM")
+        cancel_label = ELOC("CANCEL")
         ok_btn = self.btns.button(QtWidgets.QDialogButtonBox.Ok)
         cancel_btn = self.btns.button(QtWidgets.QDialogButtonBox.Cancel)
         if ok_btn:

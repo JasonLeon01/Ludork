@@ -109,7 +109,7 @@ def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
     global mainWindow
 
     from Global import GameData
-    from Utils import Locale, System
+    from Utils import System
 
     EditorStatus.PROJ_PATH = os.path.abspath(path)
     if EditorStatus.PROJ_PATH not in sys.path:
@@ -120,7 +120,7 @@ def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
         GameData.init()
     except Exception as e:
         QtWidgets.QMessageBox.critical(
-            None, "Error", Locale.getContent("OPEN_FAILED") + "\n" + str(e) + "\n" + traceback.format_exc()
+            None, "Error", ELOC("OPEN_FAILED") + "\n" + str(e) + "\n" + traceback.format_exc()
         )
         sys.exit(1)
     mainWindow = MainWindow(System.getTitle())
@@ -148,16 +148,14 @@ def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
 
 
 def NewProject(parent: QtWidgets.QWidget) -> None:
-    from Utils import Locale
-
     root = _getLastPathOrHome()
-    dirPath = QtWidgets.QFileDialog.getExistingDirectory(parent, Locale.getContent("SELECT_PROJECT_DIR"), root)
+    dirPath = QtWidgets.QFileDialog.getExistingDirectory(parent, ELOC("SELECT_PROJECT_DIR"), root)
     if not dirPath:
         return
     text, ok = QtWidgets.QInputDialog.getText(
         parent,
-        Locale.getContent("ENTER_PROJECT_NAME"),
-        Locale.getContent("ENTER_PROJECT_NAME"),
+        ELOC("ENTER_PROJECT_NAME"),
+        ELOC("ENTER_PROJECT_NAME"),
     )
     if not ok:
         return
@@ -166,7 +164,7 @@ def NewProject(parent: QtWidgets.QWidget) -> None:
         return
     target = os.path.abspath(os.path.join(dirPath, name))
     if os.path.exists(target):
-        QtWidgets.QMessageBox.warning(parent, "Hint", Locale.getContent("PROJECT_EXISTS"))
+        QtWidgets.QMessageBox.warning(parent, "Hint", ELOC("PROJECT_EXISTS"))
         return
     try:
         src = os.path.abspath(os.path.join(os.getcwd(), "Sample"))
@@ -175,26 +173,24 @@ def NewProject(parent: QtWidgets.QWidget) -> None:
         with open(projFile, "w", encoding="utf-8") as f:
             f.write("{}")
     except Exception as e:
-        QtWidgets.QMessageBox.critical(None, "Error", Locale.getContent("COPY_FAILED") + "\n" + str(e))
+        QtWidgets.QMessageBox.critical(None, "Error", ELOC("COPY_FAILED") + "\n" + str(e))
         return
     _setLastOpenPath(target)
     _openProjectPath(target, parent)
 
 
 def OpenProject(parent: QtWidgets.QWidget) -> None:
-    from Utils import Locale
-
     root = _getLastPathOrHome()
     fp, _ = QtWidgets.QFileDialog.getOpenFileName(
         parent,
-        Locale.getContent("SELECT_PROJ_FILE"),
+        ELOC("SELECT_PROJ_FILE"),
         root,
         "Project Files (*.proj)",
     )
     if not fp:
         return
     if not fp.lower().endswith(".proj"):
-        QtWidgets.QMessageBox.warning(parent, "Hint", Locale.getContent("INVALID_PROJ_FILE"))
+        QtWidgets.QMessageBox.warning(parent, "Hint", ELOC("INVALID_PROJ_FILE"))
         return
     proj_dir = os.path.dirname(fp)
     _setLastOpenPath(proj_dir)

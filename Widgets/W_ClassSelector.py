@@ -4,14 +4,14 @@ import os
 import sys
 import inspect
 from PyQt5 import QtWidgets, QtCore
-from Utils import Locale, System
+from Utils import System
 from Global import EditorStatus
 
 
 class ClassSelector(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(Locale.getContent("CLASS_SELECTOR"))
+        self.setWindowTitle(ELOC("CLASS_SELECTOR"))
         self.resize(800, 600)
         self.selectedPath = None
         self.initUI()
@@ -21,14 +21,14 @@ class ClassSelector(QtWidgets.QDialog):
         layout = QtWidgets.QVBoxLayout(self)
         contentLayout = QtWidgets.QHBoxLayout()
         leftLayout = QtWidgets.QVBoxLayout()
-        leftLabel = QtWidgets.QLabel(Locale.getContent("PROJECT_CLASSES"))
+        leftLabel = QtWidgets.QLabel(ELOC("PROJECT_CLASSES"))
         self.classList = QtWidgets.QListWidget()
         self.classList.itemClicked.connect(self.onClassSelected)
         leftLayout.addWidget(leftLabel)
         leftLayout.addWidget(self.classList)
         contentLayout.addLayout(leftLayout)
         rightLayout = QtWidgets.QVBoxLayout()
-        rightLabel = QtWidgets.QLabel(Locale.getContent("PROJECT_BLUEPRINT"))
+        rightLabel = QtWidgets.QLabel(ELOC("PROJECT_BLUEPRINT"))
         self.blueprintList = QtWidgets.QListWidget()
         self.blueprintList.itemClicked.connect(self.onBlueprintSelected)
         rightLayout.addWidget(rightLabel)
@@ -37,10 +37,10 @@ class ClassSelector(QtWidgets.QDialog):
         layout.addLayout(contentLayout)
         btnLayout = QtWidgets.QHBoxLayout()
         btnLayout.addStretch()
-        self.btnOk = QtWidgets.QPushButton(Locale.getContent("CONFIRM"))
+        self.btnOk = QtWidgets.QPushButton(ELOC("CONFIRM"))
         self.btnOk.clicked.connect(self.accept)
         self.btnOk.setEnabled(False)
-        self.btnCancel = QtWidgets.QPushButton(Locale.getContent("CANCEL"))
+        self.btnCancel = QtWidgets.QPushButton(ELOC("CANCEL"))
         self.btnCancel.clicked.connect(self.reject)
         btnLayout.addWidget(self.btnOk)
         btnLayout.addWidget(self.btnCancel)

@@ -2,7 +2,7 @@
 
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets, QtMultimedia
-from Utils import Locale, Panel
+from Utils import Panel
 
 
 class FilePreview(QtWidgets.QWidget):
@@ -21,7 +21,7 @@ class FilePreview(QtWidgets.QWidget):
         self._positionSlider.setRange(0, 0)
         self._timeLabel = QtWidgets.QLabel("00:00 / 00:00", self)
         self._openSystemBtn = QtWidgets.QToolButton(self)
-        self._openSystemBtn.setText(Locale.getContent("OPEN_FROM_SYSTEM"))
+        self._openSystemBtn.setText(ELOC("OPEN_FROM_SYSTEM"))
         self._audioErrorLabel = QtWidgets.QLabel("", self)
         self._audioErrorLabel.setStyleSheet("color: #f0a0a0;")
         bar = QtWidgets.QHBoxLayout()
@@ -150,7 +150,7 @@ class FilePreview(QtWidgets.QWidget):
         if st == QtMultimedia.QMediaPlayer.InvalidMedia:
             self._playButton.setEnabled(False)
             self._positionSlider.setEnabled(False)
-            self._setAudioError(Locale.getContent("PLAY_ERROR"))
+            self._setAudioError(ELOC("PLAY_ERROR"))
 
     def _onError(self, err) -> None:
         if self._path:
@@ -158,7 +158,7 @@ class FilePreview(QtWidgets.QWidget):
                 emsg = self._player.errorString()
             except Exception:
                 emsg = ""
-            self._setAudioError(Locale.getContent("PLAY_ERROR") or emsg)
+            self._setAudioError(ELOC("PLAY_ERROR") or emsg)
 
     def _stopAudio(self) -> None:
         try:

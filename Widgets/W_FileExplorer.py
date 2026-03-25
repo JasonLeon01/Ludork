@@ -4,7 +4,7 @@ import os
 from typing import Callable, Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Global import EditorStatus, GameData
-from Utils import Locale, Panel, File
+from Utils import Panel, File
 from .W_FilePreview import FilePreview
 
 
@@ -194,8 +194,8 @@ class FileExplorer(QtWidgets.QWidget):
         if not os.path.exists(path):
             QtWidgets.QMessageBox.warning(
                 self,
-                Locale.getContent("INVALID_DATA_FILE"),
-                Locale.getContent("INVALID_DATA_FILE_MESSAGE"),
+                ELOC("INVALID_DATA_FILE"),
+                ELOC("INVALID_DATA_FILE_MESSAGE"),
             )
             return False
         try:
@@ -203,15 +203,15 @@ class FileExplorer(QtWidgets.QWidget):
         except Exception:
             QtWidgets.QMessageBox.warning(
                 self,
-                Locale.getContent("INVALID_DATA_FILE"),
-                Locale.getContent("INVALID_DATA_FILE_MESSAGE"),
+                ELOC("INVALID_DATA_FILE"),
+                ELOC("INVALID_DATA_FILE_MESSAGE"),
             )
             return False
         if not isinstance(data, dict) or "type" not in data:
             QtWidgets.QMessageBox.warning(
                 self,
-                Locale.getContent("INVALID_DATA_FILE"),
-                Locale.getContent("INVALID_DATA_FILE_MESSAGE"),
+                ELOC("INVALID_DATA_FILE"),
+                ELOC("INVALID_DATA_FILE_MESSAGE"),
             )
             return False
         dataType = data.get("type")
@@ -255,8 +255,8 @@ class FileExplorer(QtWidgets.QWidget):
             else:
                 QtWidgets.QMessageBox.warning(
                     self,
-                    Locale.getContent("INVALID_DATA_FILE"),
-                    Locale.getContent("INVALID_DATA_FILE_MESSAGE"),
+                    ELOC("INVALID_DATA_FILE"),
+                    ELOC("INVALID_DATA_FILE_MESSAGE"),
                 )
         elif dataType == "blueprint":
             blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
@@ -267,14 +267,14 @@ class FileExplorer(QtWidgets.QWidget):
             else:
                 QtWidgets.QMessageBox.warning(
                     self,
-                    Locale.getContent("INVALID_DATA_FILE"),
-                    Locale.getContent("INVALID_DATA_FILE_MESSAGE"),
+                    ELOC("INVALID_DATA_FILE"),
+                    ELOC("INVALID_DATA_FILE_MESSAGE"),
                 )
         else:
             QtWidgets.QMessageBox.warning(
                 self,
-                Locale.getContent("INVALID_DATA_FILE"),
-                Locale.getContent("INVALID_DATA_FILE_MESSAGE"),
+                ELOC("INVALID_DATA_FILE"),
+                ELOC("INVALID_DATA_FILE_MESSAGE"),
             )
             return False
         return True
@@ -294,7 +294,7 @@ class FileExplorer(QtWidgets.QWidget):
                 sm.select(idx, QtCore.QItemSelectionModel.Select | QtCore.QItemSelectionModel.Rows)
                 self._view.setCurrentIndex(idx)
         menu = QtWidgets.QMenu(self)
-        actOpen = menu.addAction(Locale.getContent("OPEN_FROM_SYSTEM"))
+        actOpen = menu.addAction(ELOC("OPEN_FROM_SYSTEM"))
         r = menu.exec_(self._view.viewport().mapToGlobal(pos))
         if r == actOpen:
             rows = self._selectedSourceRows()

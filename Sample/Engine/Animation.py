@@ -4,8 +4,8 @@ from __future__ import annotations
 import os
 import math
 import zlib
-from typing import List, Tuple, Optional, Dict, Any
-from . import Pair, Sprite, Texture, RenderTexture, Vector2f, Vector2u, Color, degrees, Image, Manager
+from typing import List, Optional, Dict, Any
+from . import Sprite, Texture, Image, Manager
 from .GraphicsExtension import C_CompressAnimation
 
 

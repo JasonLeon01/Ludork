@@ -5,7 +5,6 @@ import os
 import math
 from PyQt5 import QtCore, QtWidgets, QtGui, QtMultimedia
 from typing import Optional, Dict, Any, List
-from Utils import Locale
 from Global import EditorStatus, GameData
 from .Utils import TimeLine
 
@@ -53,20 +52,20 @@ class SegmentInspector(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        self.groupBox = QtWidgets.QGroupBox(Locale.getContent("SEGMENT_PROPERTIES"))
+        self.groupBox = QtWidgets.QGroupBox(ELOC("SEGMENT_PROPERTIES"))
 
         formLayout = QtWidgets.QFormLayout(self.groupBox)
 
         self.lblAsset = QtWidgets.QLabel()
-        formLayout.addRow(Locale.getContent("asset"), self.lblAsset)
+        formLayout.addRow(ELOC("asset"), self.lblAsset)
 
-        self.startGroup = QtWidgets.QGroupBox(Locale.getContent("startFrame"))
+        self.startGroup = QtWidgets.QGroupBox(ELOC("startFrame"))
         startLayout = QtWidgets.QFormLayout(self.startGroup)
         self.startTime = QtWidgets.QDoubleSpinBox()
         self.startTime.setRange(0, 9999)
         self.startTime.setSingleStep(0.1)
         self.startTime.valueChanged.connect(self._onValueChanged)
-        startLayout.addRow(Locale.getContent("time"), self.startTime)
+        startLayout.addRow(ELOC("time"), self.startTime)
 
         posLayout = QtWidgets.QHBoxLayout()
         self.startX = QtWidgets.QDoubleSpinBox()
@@ -81,13 +80,13 @@ class SegmentInspector(QtWidgets.QWidget):
         posLayout.addWidget(self.startX)
         posLayout.addWidget(QtWidgets.QLabel("Y"))
         posLayout.addWidget(self.startY)
-        startLayout.addRow(Locale.getContent("position"), posLayout)
+        startLayout.addRow(ELOC("position"), posLayout)
 
         self.startRot = QtWidgets.QDoubleSpinBox()
         self.startRot.setRange(-360, 360)
         self.startRot.setSingleStep(5.0)
         self.startRot.valueChanged.connect(self._onValueChanged)
-        startLayout.addRow(Locale.getContent("rotation"), self.startRot)
+        startLayout.addRow(ELOC("rotation"), self.startRot)
 
         scaleLayout = QtWidgets.QHBoxLayout()
         self.startSX = QtWidgets.QDoubleSpinBox()
@@ -102,17 +101,17 @@ class SegmentInspector(QtWidgets.QWidget):
         scaleLayout.addWidget(self.startSX)
         scaleLayout.addWidget(QtWidgets.QLabel("Y"))
         scaleLayout.addWidget(self.startSY)
-        startLayout.addRow(Locale.getContent("scale"), scaleLayout)
+        startLayout.addRow(ELOC("scale"), scaleLayout)
 
         formLayout.addRow(self.startGroup)
 
-        self.endGroup = QtWidgets.QGroupBox(Locale.getContent("endFrame"))
+        self.endGroup = QtWidgets.QGroupBox(ELOC("endFrame"))
         endLayout = QtWidgets.QFormLayout(self.endGroup)
         self.endTime = QtWidgets.QDoubleSpinBox()
         self.endTime.setRange(0, 9999)
         self.endTime.setSingleStep(0.1)
         self.endTime.valueChanged.connect(self._onValueChanged)
-        endLayout.addRow(Locale.getContent("time"), self.endTime)
+        endLayout.addRow(ELOC("time"), self.endTime)
 
         posLayout2 = QtWidgets.QHBoxLayout()
         self.endX = QtWidgets.QDoubleSpinBox()
@@ -127,13 +126,13 @@ class SegmentInspector(QtWidgets.QWidget):
         posLayout2.addWidget(self.endX)
         posLayout2.addWidget(QtWidgets.QLabel("Y"))
         posLayout2.addWidget(self.endY)
-        endLayout.addRow(Locale.getContent("position"), posLayout2)
+        endLayout.addRow(ELOC("position"), posLayout2)
 
         self.endRot = QtWidgets.QDoubleSpinBox()
         self.endRot.setRange(-360, 360)
         self.endRot.setSingleStep(5.0)
         self.endRot.valueChanged.connect(self._onValueChanged)
-        endLayout.addRow(Locale.getContent("rotation"), self.endRot)
+        endLayout.addRow(ELOC("rotation"), self.endRot)
 
         scaleLayout2 = QtWidgets.QHBoxLayout()
         self.endSX = QtWidgets.QDoubleSpinBox()
@@ -148,7 +147,7 @@ class SegmentInspector(QtWidgets.QWidget):
         scaleLayout2.addWidget(self.endSX)
         scaleLayout2.addWidget(QtWidgets.QLabel("Y"))
         scaleLayout2.addWidget(self.endSY)
-        endLayout.addRow(Locale.getContent("scale"), scaleLayout2)
+        endLayout.addRow(ELOC("scale"), scaleLayout2)
 
         formLayout.addRow(self.endGroup)
 
@@ -731,7 +730,7 @@ class AnimationWindow(QtWidgets.QMainWindow):
         super().__init__(parent)
         self._data = data if data is not None else {}
 
-        windowTitle = Locale.getContent("ANIMATION_WINDOW")
+        windowTitle = ELOC("ANIMATION_WINDOW")
         self.title = title
         if title:
             windowTitle += f" - {title}"
@@ -775,13 +774,13 @@ class AnimationWindow(QtWidgets.QMainWindow):
         self.rightSplitter.setStretchFactor(1, 1)
         self.rightSplitter.setSizes([600, 300])
 
-        leftLayout.addWidget(QtWidgets.QLabel(Locale.getContent("ANIMATION_NAME")))
+        leftLayout.addWidget(QtWidgets.QLabel(ELOC("ANIMATION_NAME")))
         self.nameEdit = QtWidgets.QLineEdit()
         self.nameEdit.setText(self._data.get("name", ""))
         self.nameEdit.textChanged.connect(self._onNameChanged)
         leftLayout.addWidget(self.nameEdit)
 
-        leftLayout.addWidget(QtWidgets.QLabel(Locale.getContent("FRAME_RATE")))
+        leftLayout.addWidget(QtWidgets.QLabel(ELOC("FRAME_RATE")))
         self.fpsCombo = QtWidgets.QComboBox()
         self.fpsCombo.addItems(["30", "60"])
         current_fps = str(self._data.get("frameRate", 30))
@@ -791,7 +790,7 @@ class AnimationWindow(QtWidgets.QMainWindow):
         self.fpsCombo.currentTextChanged.connect(self._onFpsChanged)
         leftLayout.addWidget(self.fpsCombo)
 
-        leftLayout.addWidget(QtWidgets.QLabel(Locale.getContent("ASSETS")))
+        leftLayout.addWidget(QtWidgets.QLabel(ELOC("ASSETS")))
 
         self.assetsScroll = QtWidgets.QScrollArea()
         self.assetsScroll.setWidgetResizable(True)
@@ -835,11 +834,11 @@ class AnimationWindow(QtWidgets.QMainWindow):
     def _onAssetsContextMenu(self, position: QtCore.QPoint) -> None:
         menu = QtWidgets.QMenu(self)
 
-        actNew = QtWidgets.QAction(Locale.getContent("ADD_ASSET"), self)
+        actNew = QtWidgets.QAction(ELOC("ADD_ASSET"), self)
         actNew.triggered.connect(self._onNewAsset)
         menu.addAction(actNew)
 
-        actNewAudio = QtWidgets.QAction(Locale.getContent("ADD_AUDIO"), self)
+        actNewAudio = QtWidgets.QAction(ELOC("ADD_AUDIO"), self)
         actNewAudio.triggered.connect(self._onNewAudioAsset)
         menu.addAction(actNewAudio)
 
@@ -847,7 +846,7 @@ class AnimationWindow(QtWidgets.QMainWindow):
         if isinstance(child, QtWidgets.QLabel):
             assetName = child.property("assetName")
             if assetName:
-                actDelete = QtWidgets.QAction(Locale.getContent("DELETE"), self)
+                actDelete = QtWidgets.QAction(ELOC("DELETE"), self)
                 actDelete.triggered.connect(lambda: self._onDeleteAsset(assetName))
                 menu.addAction(actDelete)
 
@@ -873,7 +872,7 @@ class AnimationWindow(QtWidgets.QMainWindow):
     def _onNewAsset(self) -> None:
         startDir = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Animations")
         files, _ = QtWidgets.QFileDialog.getOpenFileNames(
-            self, Locale.getContent("ADD_ASSET"), startDir, "Images (*.png *.jpg *.bmp)"
+            self, ELOC("ADD_ASSET"), startDir, "Images (*.png *.jpg *.bmp)"
         )
         if files:
             self._addAssets(files)
@@ -881,7 +880,7 @@ class AnimationWindow(QtWidgets.QMainWindow):
     def _onNewAudioAsset(self) -> None:
         startDir = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Sounds")
         files, _ = QtWidgets.QFileDialog.getOpenFileNames(
-            self, Locale.getContent("ADD_AUDIO"), startDir, "Audio (*.wav *.ogg *.mp3)"
+            self, ELOC("ADD_AUDIO"), startDir, "Audio (*.wav *.ogg *.mp3)"
         )
         if files:
             self._addAssets(files)

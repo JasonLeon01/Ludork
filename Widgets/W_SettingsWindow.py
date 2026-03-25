@@ -6,7 +6,7 @@ import json
 import platform
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Global import EditorStatus
-from Utils import Locale, Panel
+from Utils import Panel
 
 
 class _BoolSwitch(QtWidgets.QWidget):
@@ -88,7 +88,7 @@ class SettingsWindow(QtWidgets.QMainWindow):
                 except Exception as e:
                     QtWidgets.QMessageBox.warning(self, "Hint", str(e))
                     self._projConfig = {}
-        self.setWindowTitle(Locale.getContent("GAME_SETTINGS"))
+        self.setWindowTitle(ELOC("GAME_SETTINGS"))
         self.setMinimumSize(640, 320)
         central = QtWidgets.QWidget(self)
         self.setCentralWidget(central)
@@ -106,7 +106,7 @@ class SettingsWindow(QtWidgets.QMainWindow):
         self._populate()
 
     def _labelForKey(self, key: str) -> QtWidgets.QLabel:
-        lab = QtWidgets.QLabel(Locale.getContent(key), self.container)
+        lab = QtWidgets.QLabel(ELOC(key), self.container)
         return lab
 
     def _populate(self) -> None:

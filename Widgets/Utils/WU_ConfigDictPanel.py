@@ -3,7 +3,7 @@
 from typing import Any, List, Tuple
 import os
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Utils import Locale, System
+from Utils import System
 from Global import EditorStatus, GameData
 from .WU_FileSelectorDialog import FileSelectorDialog
 
@@ -38,7 +38,7 @@ class ConfigDictPanel(QtWidgets.QWidget):
                 continue
             t = str(val.get("type", "")).strip()
             base_t, arr_len = self._parse_type(t)
-            label = QtWidgets.QLabel(Locale.getContent(key))
+            label = QtWidgets.QLabel(ELOC(key))
             if arr_len is None and base_t.endswith("[]"):
                 base_t = base_t[:-2]
             is_array = (arr_len is not None) or t.endswith("[]")

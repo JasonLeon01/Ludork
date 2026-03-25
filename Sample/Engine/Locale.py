@@ -1,8 +1,10 @@
 # -*- encoding: utf-8 -*-
 
 import os
+import builtins
 from typing import Dict
-from . import System
+
+LANGUAGE = "en_GB"
 
 
 class _Locale:
@@ -27,4 +29,8 @@ def getLocaleContent(localeKey: str, key: str) -> str:
 
 
 def getContent(key: str) -> str:
-    return getLocaleContent(System.getLanguage(), key)
+    return getLocaleContent(LANGUAGE, key)
+
+
+builtins.LOC = getContent
+builtins.LOC_L = getLocaleContent

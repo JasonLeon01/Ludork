@@ -5,7 +5,6 @@ import wave
 import contextlib
 from PyQt5 import QtWidgets, QtGui, QtCore, QtMultimedia
 from typing import Dict, Any, Optional, Tuple
-from Utils import Locale
 from Global import EditorStatus
 
 
@@ -339,7 +338,7 @@ class TimelineCanvas(QtWidgets.QWidget):
             self.update()
 
             menu = QtWidgets.QMenu(self)
-            actDelete = menu.addAction(Locale.getContent("DELETE"))
+            actDelete = menu.addAction(ELOC("DELETE"))
             actDelete.triggered.connect(self.deleteSelectedSegment)
             menu.exec_(event.globalPos())
 

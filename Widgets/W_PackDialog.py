@@ -6,7 +6,6 @@ import shutil
 import subprocess
 from enum import Enum
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Utils import Locale
 
 
 class PackMode(Enum):
@@ -17,23 +16,23 @@ class PackMode(Enum):
 class PackSelectionDialog(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(Locale.getContent("PACK_MODE_TITLE"))
+        self.setWindowTitle(ELOC("PACK_MODE_TITLE"))
         self.resize(400, 300)
 
         layout = QtWidgets.QVBoxLayout(self)
 
-        self.lblDesc = QtWidgets.QLabel(Locale.getContent("PACK_MODE_DESC"))
+        self.lblDesc = QtWidgets.QLabel(ELOC("PACK_MODE_DESC"))
         self.lblDesc.setWordWrap(True)
         layout.addWidget(self.lblDesc)
 
-        self.rbSimple = QtWidgets.QRadioButton(Locale.getContent("PACK_MODE_SIMPLE"))
+        self.rbSimple = QtWidgets.QRadioButton(ELOC("PACK_MODE_SIMPLE"))
         self.rbSimple.setChecked(True)
         layout.addWidget(self.rbSimple)
 
-        self.rbNuitka = QtWidgets.QRadioButton(Locale.getContent("PACK_MODE_FULL"))
+        self.rbNuitka = QtWidgets.QRadioButton(ELOC("PACK_MODE_FULL"))
         layout.addWidget(self.rbNuitka)
 
-        self.lblWarning = QtWidgets.QLabel(Locale.getContent("PACK_VIDEO_WARNING"))
+        self.lblWarning = QtWidgets.QLabel(ELOC("PACK_VIDEO_WARNING"))
         self.lblWarning.setStyleSheet("color: orange;")
         self.lblWarning.setWordWrap(True)
         layout.addWidget(self.lblWarning)
@@ -65,7 +64,7 @@ class PackSelectionDialog(QtWidgets.QDialog):
 class LogDialog(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(Locale.getContent("PACK_TITLE"))
+        self.setWindowTitle(ELOC("PACK_TITLE"))
         self.resize(800, 600)
         layout = QtWidgets.QVBoxLayout(self)
         self.textEdit = QtWidgets.QPlainTextEdit(self)
@@ -91,9 +90,9 @@ class LogDialog(QtWidgets.QDialog):
         if msg:
             self.appendLog("\n" + msg + "\n")
         if success:
-            self.appendLog("\n" + Locale.getContent("PACK_SUCCESS"))
+            self.appendLog("\n" + ELOC("PACK_SUCCESS"))
         else:
-            self.appendLog("\n" + Locale.getContent("PACK_NUITKA_FAILED"))
+            self.appendLog("\n" + ELOC("PACK_NUITKA_FAILED"))
 
 
 class PackWorker(QtCore.QThread):
@@ -175,9 +174,7 @@ class PackWorker(QtCore.QThread):
                 missingItems.append(name)
 
         if missingItems:
-            self.finished_signal.emit(
-                True, Locale.getContent("PACK_COPY_MISSING").format(items=", ".join(missingItems))
-            )
+            self.finished_signal.emit(True, ELOC("PACK_COPY_MISSING").format(items=", ".join(missingItems)))
         else:
             self.finished_signal.emit(True, "")
 
@@ -188,17 +185,17 @@ class PackWorker(QtCore.QThread):
             self.log_signal.emit("Checking Python 3.12.0...\n")
             chosenExe = self._findPython3120() or ""
             if not chosenExe:
-                text = Locale.getContent("PACK_PY312_PROMPT")
+                text = ELOC("PACK_PY312_PROMPT")
                 res = QtWidgets.QMessageBox.question(
                     None,
-                    Locale.getContent("PACK_TITLE"),
+                    ELOC("PACK_TITLE"),
                     text,
                     QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
                     QtWidgets.QMessageBox.Yes,
                 )
                 if res == QtWidgets.QMessageBox.Yes:
                     QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://www.python.org/downloads/release/python-3120/"))
-                self.finished_signal.emit(False, Locale.getContent("PACK_PY312_NOT_FOUND"))
+                self.finished_signal.emit(False, ELOC("PACK_PY312_NOT_FOUND"))
                 return
         if not chosenExe:
             chosenExe = pythonExe
@@ -211,27 +208,27 @@ class PackWorker(QtCore.QThread):
         except subprocess.CalledProcessError:
             hasNuitka = False
         if not hasNuitka:
-            text = Locale.getContent("PACK_NUITKA_PROMPT")
+            text = ELOC("PACK_NUITKA_PROMPT")
             res = QtWidgets.QMessageBox.question(
                 None,
-                Locale.getContent("PACK_TITLE"),
+                ELOC("PACK_TITLE"),
                 text,
                 QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
                 QtWidgets.QMessageBox.Yes,
             )
             if res == QtWidgets.QMessageBox.Yes:
-                self.log_signal.emit(Locale.getContent("PACK_NUITKA_INSTALLING") + "\n")
+                self.log_signal.emit(ELOC("PACK_NUITKA_INSTALLING") + "\n")
                 installOk = self._installNuitka(chosenExe)
                 if not installOk:
-                    self.finished_signal.emit(False, Locale.getContent("PACK_NUITKA_INSTALL_FAILED"))
+                    self.finished_signal.emit(False, ELOC("PACK_NUITKA_INSTALL_FAILED"))
                     return
             else:
-                self.finished_signal.emit(False, Locale.getContent("PACK_NUITKA_MISSING"))
+                self.finished_signal.emit(False, ELOC("PACK_NUITKA_MISSING"))
                 return
 
         entryPath = os.path.join(self.projPath, "Entry.py")
         if not os.path.exists(entryPath):
-            self.finished_signal.emit(False, Locale.getContent("PACK_ENTRY_MISSING"))
+            self.finished_signal.emit(False, ELOC("PACK_ENTRY_MISSING"))
             return
 
         appName = "Main"
@@ -299,7 +296,7 @@ class PackWorker(QtCore.QThread):
         if rc == 0:
             self.finished_signal.emit(True, "")
         else:
-            self.finished_signal.emit(False, Locale.getContent("PACK_NUITKA_FAILED"))
+            self.finished_signal.emit(False, ELOC("PACK_NUITKA_FAILED"))
 
     def _findPython3120(self) -> str:
         if sys.platform == "win32":

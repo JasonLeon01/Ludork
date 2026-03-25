@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Dict
 import copy
 from PyQt5 import QtWidgets, QtCore, QtGui
-from Utils import Locale, File, System
+from Utils import File, System
 from Widgets.Utils.WU_NodePanel import NodePanel
 from Widgets.Utils.WU_Toast import Toast
 from Global import GameData
@@ -16,7 +16,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
 
     def __init__(self, parent, data: Dict):
         super().__init__(parent)
-        self.setWindowTitle(Locale.getContent("COMMON_FUNCTIONS"))
+        self.setWindowTitle(ELOC("COMMON_FUNCTIONS"))
         self.setMinimumSize(1200, 800)
         self._data = data
         self._key = "common"
@@ -69,24 +69,24 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
         item = self._list.itemAt(position)
 
         if item:
-            copyAction = QtWidgets.QAction(Locale.getContent("COPY"), self)
+            copyAction = QtWidgets.QAction(ELOC("COPY"), self)
             copyAction.triggered.connect(self._onCopy)
             menu.addAction(copyAction)
 
-            renameAction = QtWidgets.QAction(Locale.getContent("RENAME_FUNC"), self)
+            renameAction = QtWidgets.QAction(ELOC("RENAME_FUNC"), self)
             renameAction.triggered.connect(self._onRename)
             menu.addAction(renameAction)
 
-            deleteAction = QtWidgets.QAction(Locale.getContent("DELETE"), self)
+            deleteAction = QtWidgets.QAction(ELOC("DELETE"), self)
             deleteAction.triggered.connect(lambda: self._onDeleteCommonFunction(item))
             menu.addAction(deleteAction)
         else:
-            newAction = QtWidgets.QAction(Locale.getContent("NEW_COMMON_FUNC"), self)
+            newAction = QtWidgets.QAction(ELOC("NEW_COMMON_FUNC"), self)
             newAction.triggered.connect(self._onNewCommonFunction)
             menu.addAction(newAction)
 
             if CommonFunctionWindow._clipboard is not None:
-                pasteAction = QtWidgets.QAction(Locale.getContent("PASTE"), self)
+                pasteAction = QtWidgets.QAction(ELOC("PASTE"), self)
                 pasteAction.triggered.connect(self._onPaste)
                 menu.addAction(pasteAction)
 
@@ -107,8 +107,8 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
         old_name = item.text()
         new_name, ok = QtWidgets.QInputDialog.getText(
             self,
-            Locale.getContent("RENAME_FUNC"),
-            Locale.getContent("ENTER_FUNC_NAME"),
+            ELOC("RENAME_FUNC"),
+            ELOC("ENTER_FUNC_NAME"),
             QtWidgets.QLineEdit.Normal,
             old_name,
         )
@@ -116,7 +116,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
             return
 
         if new_name in self._data:
-            self.toast.showMessage(Locale.getContent("FUNC_NAME_EXISTS"))
+            self.toast.showMessage(ELOC("FUNC_NAME_EXISTS"))
             return
 
         GameData.recordSnapshot()
@@ -168,8 +168,8 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
         name = item.text()
         ret = QtWidgets.QMessageBox.question(
             self,
-            Locale.getContent("CONFIRM_DELETE"),
-            Locale.getContent("CONFIRM_DELETE_FUNC").format(name=name),
+            ELOC("CONFIRM_DELETE"),
+            ELOC("CONFIRM_DELETE_FUNC").format(name=name),
             QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
         )
         if ret != QtWidgets.QMessageBox.Yes:
@@ -185,14 +185,12 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
         self.modified.emit()
 
     def _onNewCommonFunction(self):
-        name, ok = QtWidgets.QInputDialog.getText(
-            self, Locale.getContent("NEW_COMMON_FUNC"), Locale.getContent("ENTER_FUNC_NAME")
-        )
+        name, ok = QtWidgets.QInputDialog.getText(self, ELOC("NEW_COMMON_FUNC"), ELOC("ENTER_FUNC_NAME"))
         if not ok or not name:
             return
 
         if name in self._data:
-            self.toast.showMessage(Locale.getContent("FUNC_NAME_EXISTS"))
+            self.toast.showMessage(ELOC("FUNC_NAME_EXISTS"))
             return
 
         GameData.recordSnapshot()

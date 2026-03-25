@@ -3,18 +3,12 @@
 from __future__ import annotations
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
 from ... import (
-    TypeAdapter,
     Pair,
     BPBase,
     Vector2f,
     Vector2i,
     Vector2u,
     GetCellSize,
-    ExecSplit,
-    ReturnType,
-    RegisterEvent,
-    PathVars,
-    RectRangeVars,
 )
 from ..G_Material import Material
 from ...Utils import Math, Inner

@@ -9,7 +9,7 @@ from NodeGraphQt import NodeGraph, BaseNode
 from NodeGraphQt.widgets.viewer import NodeViewer
 from NodeGraphQt.qgraphics.port import PortItem
 from Global import GameData
-from Utils import System, Locale
+from Utils import System
 from .WU_FunctionPickerPopup import FunctionPickerPopup
 
 if TYPE_CHECKING:
@@ -63,6 +63,11 @@ def makeInit(currNode):
         paramDefaults = currNode.getParamDefaults()
         keys = list(paramList.keys())
         has_invalid = False
+
+        meta = getattr(currNode.nodeFunction, "_meta", {})
+        dropBox = meta.get("DropBox", [])
+        self.META = meta
+
         for i, name in enumerate(keys):
             if name in paramDefaults:
                 continue
@@ -77,10 +82,8 @@ def makeInit(currNode):
                 type_str = type_str.split(".")[-1]
             display_label = f"{name} ({type_str})"
 
-            drop_box = getattr(currNode.nodeFunction, "_dropBox", {})
-
-            if name in drop_box:
-                items = drop_box[name]
+            if name in dropBox:
+                items = dropBox[name]
                 if isinstance(items, (list, tuple)):
                     items = [str(x) for x in items]
                 else:
@@ -195,20 +198,34 @@ class NodePanel(QtWidgets.QWidget):
                 self.classDict[nodeFunctionName].NODE_NAME = nodeFunctionName
                 self.graph.register_node(self.classDict[nodeFunctionName])
 
+    def handleMeta(self, obj: object, defaultName: str, metaRefer: Dict[str, Any]):
+        meta: Dict[str, Any] = obj.META
+        obj.set_name(defaultName)
+        for metaKey, metaValue in meta.items():
+            try:
+                metaValue = eval(metaValue)
+            except:
+                pass
+            if metaKey == "DisplayName":
+                obj.set_name(metaValue)
+            if metaKey == "DisplayDesc":
+                obj.view.setToolTip(metaRefer["originalName"] + "\n\n" + metaValue)
+
     def _createNodes(self):
         start_idx = self._getStartIndex()
         for i, node in enumerate(self.nodeGraph.nodes[self.key]):
             nodeInst = self.graph.create_node(f"{node.functionName}.Class", pos=node.position)
 
-            original_name = node.functionName
-            parts = original_name.split(".")
+            metaRefer: Dict[str, Any] = {}
+            metaRefer["originalName"] = node.functionName
+            parts = metaRefer["originalName"].split(".")
             if len(parts) > 1:
-                display_name = parts[-1]
+                displayName = parts[-1]
             else:
-                display_name = f"(parent){original_name}"
+                displayName = f"(parent){metaRefer["originalName"]}"
 
-            nodeInst.set_name(display_name)
-            nodeInst.view.setToolTip(original_name)
+            nodeInst.view.setToolTip(metaRefer["originalName"])
+            self.handleMeta(nodeInst, displayName, metaRefer)
 
             self.nodes.append(nodeInst)
             if start_idx is not None and i == start_idx:
@@ -643,17 +660,17 @@ class NodePanel(QtWidgets.QWidget):
                     is_start_node = True
 
         if is_start_node:
-            cancelStartNode_action = menu.addAction(Locale.getContent("CANCEL_START_NODE"))
+            cancelStartNode_action = menu.addAction(ELOC("CANCEL_START_NODE"))
             cancelStartNode_action.triggered.connect(self._onCancelStartNode)
         else:
-            setAsStart_action = menu.addAction(Locale.getContent("SET_AS_START"))
+            setAsStart_action = menu.addAction(ELOC("SET_AS_START"))
             setAsStart_action.triggered.connect(self._onSetAsStart)
 
-        copy_action = menu.addAction(Locale.getContent("COPY"))
+        copy_action = menu.addAction(ELOC("COPY"))
         copy_action.setShortcut(QtGui.QKeySequence.Copy)
         copy_action.triggered.connect(self._onCopy)
 
-        delete_action = menu.addAction(Locale.getContent("DELETE"))
+        delete_action = menu.addAction(ELOC("DELETE"))
         delete_action.setShortcut(QtGui.QKeySequence.Delete)
         delete_action.triggered.connect(self._onDelete)
 
@@ -662,11 +679,11 @@ class NodePanel(QtWidgets.QWidget):
     def _showGeneralContextMenu(self, global_pos):
         menu = QtWidgets.QMenu(self)
 
-        create_action = menu.addAction(Locale.getContent("ADD_NODE"))
+        create_action = menu.addAction(ELOC("ADD_NODE"))
         create_action.setShortcut(QtGui.QKeySequence.New)
         create_action.triggered.connect(lambda: self._onCreate(global_pos))
 
-        paste_action = menu.addAction(Locale.getContent("PASTE"))
+        paste_action = menu.addAction(ELOC("PASTE"))
         paste_action.setShortcut(QtGui.QKeySequence.Paste)
         paste_action.triggered.connect(self._onPaste)
 
@@ -757,7 +774,7 @@ class NodePanel(QtWidgets.QWidget):
                 (hasattr(dataNode.nodeFunction, "_execSplits") and len(dataNode.nodeFunction._execSplits) > 0)
                 or (hasattr(dataNode.nodeFunction, "_latents") and len(dataNode.nodeFunction._latents) > 0)
             ):
-                QtWidgets.QMessageBox.information(self, "Hint", Locale.getContent("UNABLE_TO_SET_START_NODE"))
+                QtWidgets.QMessageBox.information(self, "Hint", ELOC("UNABLE_TO_SET_START_NODE"))
                 return
 
             self.nodeGraph.startNodes[self.key] = idx
