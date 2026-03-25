@@ -12,6 +12,7 @@ Ludork is a PyQt5-based 2D RPG toolkit that pairs an editor UI with a lightweigh
 
 ## Architecture Overview
 - Engine
+  - Reference runtime implementation lives under `Sample/Engine/`
   - Gameplay: scenes, camera, tile map, particle system, and actor bases
   - UI: canvas, rect/text/image/sprite primitives, windows, text box
   - Node Graph: node/graph/class dictionaries and editor integration
@@ -23,15 +24,16 @@ Ludork is a PyQt5-based 2D RPG toolkit that pairs an editor UI with a lightweigh
   - Node Graph window and panels for editing Common Functions
   - Tileset editor, map tools, config/settings panels, toggles
 - Data & Assets
-  - Structured data under `Data/` (Configs, Maps, Tilesets, CommonFunctions)
-  - Sample assets under `Sample/` (characters, tilesets, shaders, sounds)
+  - Structured project data under `Data/` (Configs, Maps, Tilesets, CommonFunctions, Animations, Blueprints, General, Locale)
+  - Sample Project layout under `Sample/` (`Sample/Data/` + `Sample/Assets/`)
 - C Extensions
-  - Gameplay map/tilemap modules for performance-critical operations
+  - Native acceleration modules under `C_Extensions/` (Editor, GamePlay, Graphics, Utils)
+  - Editor-side build outputs are typically placed under `EditorExtensions/`
 
 ## Visual Node Graph
 - Purpose: author reusable logic blocks as visual graphs
 - Node categories: Math, String, Utils, Containers, plus project-specific nodes
-- Persistence: graphs saved under `Data/CommonFunctions/*.dat`
+- Persistence: graphs saved under the Project `Data/CommonFunctions/*.dat` (see `Sample/Data/CommonFunctions/` for examples)
 - Runtime: graphs are loaded and transformed into executable graph instances
 
 ## Editor Workflow
@@ -45,10 +47,15 @@ Ludork is a PyQt5-based 2D RPG toolkit that pairs an editor UI with a lightweigh
 - `Data/Maps`: map definitions and serialized tile layers
 - `Data/Tilesets`: tileset metadata and selection presets
 - `Data/CommonFunctions`: visual graph assets saved as `.dat`
-- `Sample`: example sprites, tiles, shaders, and sounds
+- `Data/Animations`: animation definitions (for example `.json`)
+- `Data/Blueprints`: actor/enemy/item blueprint definitions (project-driven)
+- `Data/General`: shared data tables (for example enemies/items)
+- `Data/Locale`: localization sources/outputs (for example `Locale.xlsx` and per-language folders)
+- `Assets`: media resources (images, audio, fonts, shaders, etc.)
+- `Sample`: example Project data and assets (`Sample/Data`, `Sample/Assets`)
 
 ## Getting Started
-- Requirements: Python 3.x, PyQt5, NodeGraphQt, qt-material, psutil, pympler, av, nuitka
+- Requirements: Python 3.12.0, PyQt5, NodeGraphQt, qt-material, psutil, pympler, av, nuitka, openpyxl, zstandard, pybind11, pybind11-stubgen
 - Install:
   - Windows
     ```bat
