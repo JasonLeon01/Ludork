@@ -64,11 +64,9 @@ class Character(Actor):
 
     @staticmethod
     def GenActor(
-        ActorModel: type, textureStr: str, textureRect: Optional[Tuple[Pair[int], Pair[int]]], tag: str
+        ActorModel: type, texture: Texture, textureRect: Optional[Tuple[Pair[int], Pair[int]]], tag: str
     ) -> Character:
-        from Engine import Manager
-
-        character: Character = ActorModel(Manager.loadCharacter(textureStr), tag)
+        character: Character = ActorModel(texture, tag)
         if isinstance(character.material, dict):
             character.material = Material(**Inner.filterDataClassParams(character.material, Material))
         return character

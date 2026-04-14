@@ -5,7 +5,7 @@ import os
 import math
 import zlib
 from typing import List, Optional, Dict, Any
-from . import Sprite, Texture, Image, Manager
+from . import Sprite, Texture, Image
 from .GraphicsExtension import C_CompressAnimation
 
 
@@ -18,11 +18,6 @@ class AnimSprite(Sprite):
         self._frameCounter: float = 0.0
         self._frameIndex: int = 0
         self._finished: bool = False
-        self.soundEntries: List[Dict[str, Any]] = []
-        self.soundIndex: int = 0
-        self.playingSounds: List[Dict[str, Any]] = []
-        self.cacheKey: str = ""
-        self.cacheStore: Optional[Dict[str, Any]] = None
         self.setData(animationData)
         super().__init__(self._texture)
 
@@ -38,8 +33,6 @@ class AnimSprite(Sprite):
         self.soundEntries.sort(key=lambda entry: int(entry.get("startFrame", 0) or 0))
         self.soundIndex = 0
         self.playingSounds = []
-        self.cacheKey = animationData.get("cacheKey", "")
-        self.cacheStore = animationData.get("cacheStore", None)
         self._frameCounter = 0.0
         self._frameIndex = 0
         self._finished = self._frameCount <= 0 or len(self._frames) == 0
@@ -67,36 +60,6 @@ class AnimSprite(Sprite):
         if newFrameIndex != self._frameIndex:
             self._frameIndex = newFrameIndex
             self.applyFrame(self._frameIndex)
-        self.playSoundsUpToFrame(newFrameIndex)
-        self.stopSoundsAtFrame(newFrameIndex)
-
-    def playSoundsUpToFrame(self, frameIndex: int) -> None:
-        if not self.soundEntries:
-            return
-        while self.soundIndex < len(self.soundEntries):
-            entry = self.soundEntries[self.soundIndex]
-            startFrame = int(entry.get("startFrame", -1) or -1)
-            if startFrame > frameIndex:
-                break
-            assetName = entry.get("asset", "")
-            if assetName:
-                sound = Manager.playSE(assetName)
-                endFrame = int(entry.get("endFrame", -1) or -1)
-                if sound and endFrame >= 0:
-                    self.playingSounds.append({"sound": sound, "endFrame": endFrame})
-            self.soundIndex += 1
-
-    def stopSoundsAtFrame(self, frameIndex: int) -> None:
-        if not self.playingSounds:
-            return
-        remaining: List[Dict[str, Any]] = []
-        for entry in self.playingSounds:
-            endFrame = int(entry.get("endFrame", -1) or -1)
-            if endFrame >= 0 and frameIndex >= endFrame:
-                entry["sound"].stop()
-            else:
-                remaining.append(entry)
-        self.playingSounds = remaining
 
     def applyFrame(self, frameIndex: int) -> None:
         if frameIndex < 0 or frameIndex >= len(self._frames):
@@ -112,21 +75,6 @@ class AnimSprite(Sprite):
             if not image.loadFromMemory(memoryData, len(memoryData)):
                 return
             self._frames[frameIndex] = image
-            if self.cacheStore is not None and self.cacheKey:
-                cachedData = self.cacheStore.get(self.cacheKey, None)
-                if cachedData is None:
-                    cachedData = {
-                        "frames": list(self._frames),
-                        "frameRate": self._frameRate,
-                        "frameCount": self._frameCount,
-                        "sounds": list(self.soundEntries),
-                        "cacheKey": self.cacheKey,
-                        "cacheStore": self.cacheStore,
-                    }
-                    self.cacheStore[self.cacheKey] = cachedData
-                cachedFrames = cachedData.get("frames", None)
-                if isinstance(cachedFrames, list) and 0 <= frameIndex < len(cachedFrames):
-                    cachedFrames[frameIndex] = image
         if self._texture is None:
             self._texture = Texture(image)
             self.setTexture(self._texture, True)

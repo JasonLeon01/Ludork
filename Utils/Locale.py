@@ -2,7 +2,7 @@
 
 import os
 from typing import Dict, List
-from Global import EditorStatus
+from EditorGlobal import EditorStatus
 import builtins
 
 

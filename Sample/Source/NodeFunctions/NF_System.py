@@ -3,7 +3,8 @@
 from dataclasses import fields
 import os
 from typing import Any
-from Engine import Manager, Filters, playVideo
+from Engine import Filters
+from Global import Manager, playVideo
 
 SoundFilter = Filters.SoundFilter()
 MusicFilter = Filters.MusicFilter()

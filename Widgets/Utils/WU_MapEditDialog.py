@@ -4,7 +4,7 @@ import os
 from typing import Any, Optional
 from PyQt5 import QtCore, QtWidgets
 from Utils import System
-from Global import GameData
+from EditorGlobal import GameData
 
 
 class MapEditDialog(QtWidgets.QDialog):

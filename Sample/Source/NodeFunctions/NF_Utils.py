@@ -3,8 +3,8 @@
 from __future__ import annotations
 import inspect
 from typing import Any
-from Engine import Pair, System, SceneBase, Vector2f, degrees
-from Engine.Animation import AnimSprite
+from Engine import Pair, Vector2f, degrees
+from Global import System, SceneBase, Animation
 from .. import Data
 
 
@@ -91,7 +91,7 @@ class _attrRef:
 
 
 class _localRef:
-    def __init__(self, loc: dict, name: str, default: Any = None):
+    def __init__(self, loc: Dict[str, Any], name: str, default: Any = None):
         self.loc = loc
         self.name = name
         self.default = default
@@ -205,7 +205,7 @@ def AddAnim(animName: str, position: Pair[float], rotation: float, scale: Pair[f
     animData = Data.getAnimation(animName)
     if animData is None:
         raise ValueError(f"Animation '{animName}' not found")
-    anim = AnimSprite(animData)
+    anim = Animation(animData)
     anim.setPosition(Vector2f(*position))
     anim.setRotation(degrees(rotation))
     anim.setScale(Vector2f(*scale))

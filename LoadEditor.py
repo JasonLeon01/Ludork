@@ -17,7 +17,7 @@ START_PROJ_FILE = None
 
 
 def initConfig():
-    from Global import EditorStatus
+    from EditorGlobal import EditorStatus
 
     if not System.alreadyPacked():
         subprocess.run(
@@ -71,7 +71,7 @@ def _thread_excepthook(args):
 
 
 def main():
-    from Global import StartWindow, EditorStatus
+    from EditorGlobal import StartWindow, EditorStatus
 
     if System.alreadyPacked():
         app_dir = os.path.dirname(sys.executable)

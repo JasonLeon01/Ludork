@@ -68,41 +68,5 @@
             8
         ]
     },
-    "transitionShaderPath": {
-        "type": "file",
-        "base": "Shaders",
-        "ext": [
-            ".frag",
-            ".vert"
-        ],
-        "value": "Transition.frag"
-    },
-    "tilemapLightMaskShaderPath": {
-        "type": "file",
-        "base": "Shaders",
-        "ext": [
-            ".frag",
-            ".vert"
-        ],
-        "value": "TilemapLightMask.frag"
-    },
-    "lightMaskShaderPath": {
-        "type": "file",
-        "base": "Shaders",
-        "ext": [
-            ".frag",
-            ".vert"
-        ],
-        "value": "lightMask.frag"
-    },
-    "materialShaderPath": {
-        "type": "file",
-        "base": "Shaders",
-        "ext": [
-            ".frag",
-            ".vert"
-        ],
-        "value": "Material.frag"
-    },
     "type": "system"
 }

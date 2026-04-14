@@ -13,7 +13,6 @@ from .. import (
     RenderStates,
     FloatRect,
     Transform,
-    System,
 )
 from .Base import ControlBase, SpriteBase
 
@@ -28,12 +27,13 @@ class PlainText(ControlBase):
         fillColor: Color = Color.White,
     ) -> None:
         from . import DefaultFontSize
+        from .. import Scale
 
         if characterSize is None:
             characterSize = DefaultFontSize
         self._characterSize = characterSize
         super().__init__()
-        self._text = Text(font, text, int(characterSize * System.getScale()))
+        self._text = Text(font, text, int(characterSize * Scale))
         self._text.setStyle(style)
         self._text.setFillColor(fillColor)
 
@@ -41,8 +41,10 @@ class PlainText(ControlBase):
         return self._characterSize
 
     def setCharacterSize(self, characterSize: int) -> None:
+        from .. import Scale
+
         self._characterSize = characterSize
-        self._text.setCharacterSize(int(characterSize * System.getScale()))
+        self._text.setCharacterSize(int(characterSize * Scale))
 
     def setString(self, text: str) -> None:
         self._text.setString(text)
@@ -51,13 +53,17 @@ class PlainText(ControlBase):
         return self._text.getString()
 
     def getLocalBounds(self) -> FloatRect:
+        from .. import Scale
+
         bounds = self._text.getLocalBounds()
-        newBounds = FloatRect(bounds.position, bounds.size / System.getScale())
+        newBounds = FloatRect(bounds.position, bounds.size / Scale)
         return newBounds
 
     def getGlobalBounds(self) -> FloatRect:
+        from .. import Scale
+
         bounds = self._text.getGlobalBounds()
-        newBounds = FloatRect(bounds.position, bounds.size / System.getScale())
+        newBounds = FloatRect(bounds.position, bounds.size / Scale)
         return newBounds
 
     def getSize(self) -> Vector2f:
@@ -69,19 +75,25 @@ class PlainText(ControlBase):
             target.draw(self._text, states)
 
     def _applyRenderStates(self, states: RenderStates) -> None:
+        from .. import Scale
+
         states.transform *= self.getTransform()
-        states.transform.translate(self.getPosition() * (System.getScale() - 1))
+        states.transform.translate(self.getPosition() * (Scale - 1))
 
     def _getRenderTransform(self) -> Transform:
+        from .. import Scale
+
         transform = Transform()
         transform *= self.getTransform()
-        transform.translate(self.getPosition() * (System.getScale() - 1))
+        transform.translate(self.getPosition() * (Scale - 1))
         return transform
 
     def getAbsoluteBounds(self) -> FloatRect:
+        from .. import Scale
+
         transform = self._getScreenRenderTransform()
         bounds = self.getLocalBounds()
-        realBounds = FloatRect(bounds.position * System.getScale(), bounds.size * System.getScale())
+        realBounds = FloatRect(bounds.position * Scale, bounds.size * Scale)
         return transform.transformRect(realBounds)
 
 
@@ -105,7 +117,9 @@ class TextStyle:
         self.outlineThickness = outlineThickness
 
     def enableStyle(self, text: Text):
-        text.setCharacterSize(int(self.characterSize * System.getScale()))
+        from .. import Scale
+
+        text.setCharacterSize(int(self.characterSize * Scale))
         text.setStyle(self.style)
         text.setFillColor(self.fillColor)
         text.setOutlineColor(self.outlineColor)

@@ -8,11 +8,16 @@ import threading
 
 
 def entry():
+    try:
+        import debugpy
+    except ImportError:
+        pass
     import Engine
+    import Global
     import Source
 
     def _stdinWorker():
-        env = {"Engine": Engine, "Scenes": Source.Scenes, "System": Engine.System}
+        env = {"Engine": Engine, "Scenes": Source.Scenes, "Global": Global}
         while True:
             line = sys.stdin.readline()
             if not line:
@@ -34,18 +39,19 @@ def entry():
         t = threading.Thread(target=_stdinWorker, daemon=True)
         t.start()
 
+    debugpy.listen(("localhost", 5678))
     iniFilePath = "./Main.ini"
     iniFile = configparser.ConfigParser()
     iniFile.read(iniFilePath, encoding="utf-8")
     Engine.Locale.init("./Data/Locale")
     Engine.NodeGraph.initLatent()
-    Engine.System.init(iniFile, iniFilePath)
-    Engine.System.setScene(Source.Scenes.Init())
+    Global.System.init(iniFile, iniFilePath)
+    Global.System.setScene(Source.Scenes.Init())
     Source.System.init()
 
-    while Engine.System.shouldLoop():
-        Engine.System.getScene().main()
-    Engine.System.saveFPSHistory()
+    while Global.System.shouldLoop():
+        Global.System.getScene().main()
+    Global.System.saveFPSHistory()
     print("Game exited successfully.")
 
 

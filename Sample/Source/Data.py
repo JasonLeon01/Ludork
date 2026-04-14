@@ -9,6 +9,7 @@ from Engine.Gameplay import Tileset
 from Engine.Gameplay.Actors import Actor
 from Engine.Utils import File
 from Engine.NodeGraph import ClassDict, Graph, DataNode, Node
+from Global import Manager
 
 
 class _Data:
@@ -171,7 +172,7 @@ class _Data:
             return None
         texturePath = getattr(classModel, "texturePath")
         defaultRect = getattr(classModel, "defaultRect")
-        actor: Actor = classModel.GenActor(classModel, texturePath, defaultRect, tag)
+        actor: Actor = classModel.GenActor(classModel, Manager.loadCharacter(texturePath), defaultRect, tag)
         actor.texturePath = texturePath
         if position is None:
             position = getattr(classModel, "defaultPosition", [0, 0])

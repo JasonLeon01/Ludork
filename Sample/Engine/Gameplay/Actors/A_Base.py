@@ -20,7 +20,7 @@ from ..G_Material import Material
 
 if TYPE_CHECKING:
     from Engine import Texture
-    from Engine.Gameplay import GameMap
+    from Global import GameMap
     from Engine.NodeGraph import Graph
 
 

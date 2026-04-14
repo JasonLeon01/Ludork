@@ -5,8 +5,6 @@ from typing import List, Optional, Dict, Any
 from Engine import (
     Vector2u,
     Font,
-    Manager,
-    Color,
     Image,
     Cursor,
     SetCellSize,
@@ -15,10 +13,10 @@ from Engine import (
     Style,
     ContextSettings,
 )
-from Engine import System as EngineSystem
 from Engine import UI
 from Engine.Utils import File
-from Engine.Gameplay import GameMap
+from Global import Manager, GameMap
+from Global import System as GlobalSystem
 
 
 class System:
@@ -31,10 +29,6 @@ class System:
     _coverOpaqueAlpha: int = 0
     _startMap: str = ""
     _startPos: Vector2u = None
-    _transitionShaderPath: str = None
-    _tilemapLightMaskShaderPath: str = None
-    _lightMaskShaderPath: str = None
-    _materialShaderPath: str = None
     _variables: Dict[str, Any] = {}
 
     @classmethod
@@ -55,13 +49,9 @@ class System:
         coverOpaqueAlpha = systemData["coverOpaqueAlpha"]["value"]
         cls._startMap = systemData["startMap"]["value"]
         cls._startPos = Vector2u(*systemData["startPos"]["value"])
-        cls._transitionShaderPath = systemData["transitionShaderPath"]["value"]
-        cls._tilemapLightMaskShaderPath = systemData["tilemapLightMaskShaderPath"]["value"]
-        cls._lightMaskShaderPath = systemData["lightMaskShaderPath"]["value"]
-        cls._materialShaderPath = systemData["materialShaderPath"]["value"]
         realSize = Vector2u(
-            int(gameSize.x * EngineSystem.getScale()),
-            int(gameSize.y * EngineSystem.getScale()),
+            int(gameSize.x * GlobalSystem.getScale()),
+            int(gameSize.y * GlobalSystem.getScale()),
         )
         handle: Optional[str] = os.environ.get("WINDOWHANDLE")
         individual: Optional[str] = os.environ.get("INDIVIDUAL")
@@ -69,7 +59,7 @@ class System:
             window = RenderWindow(int(handle), settings=ContextSettings(antiAliasingLevel=8))
             windowSize = window.getSize()
             scale = min(windowSize.x / gameSize.x, windowSize.y / gameSize.y)
-            EngineSystem.setScale(scale)
+            GlobalSystem.setScale(scale)
         else:
             window = RenderWindow(
                 VideoMode(realSize),
@@ -80,19 +70,11 @@ class System:
         window.setIcon(cls._icon)
         if cls._cursor:
             window.setMouseCursor(cls._cursor)
-        EngineSystem.setGameSize(gameSize)
-        EngineSystem.setDebugMode(handle is not None)
-        EngineSystem.setShowFPSGraph(os.environ.get("SHOWFPSGRAPH") == "True")
-        EngineSystem.initWindow(window)
-        EngineSystem.initCanvas(window.getSize())
-        if cls._transitionShaderPath:
-            EngineSystem.initTransitionShader(Manager.loadShader(cls._transitionShaderPath))
-        if cls._tilemapLightMaskShaderPath:
-            EngineSystem.initTilemapLightMaskShader(Manager.loadShader(cls._tilemapLightMaskShaderPath))
-        if cls._lightMaskShaderPath:
-            EngineSystem.initLightMaskShader(Manager.loadShader(cls._lightMaskShaderPath))
-        if cls._materialShaderPath:
-            EngineSystem.initMaterialShader(Manager.loadShader(cls._materialShaderPath))
+        GlobalSystem.setGameSize(gameSize)
+        GlobalSystem.setDebugMode(handle is not None)
+        GlobalSystem.setShowFPSGraph(os.environ.get("SHOWFPSGRAPH") == "True")
+        GlobalSystem.initWindow(window)
+        GlobalSystem.initCanvas(window.getSize())
         UI.DefaultFont = cls._fonts[0]
         UI.DefaultFontSize = cls._fontSize
         UI.DefaultWindowskinName = cls._windowskinName

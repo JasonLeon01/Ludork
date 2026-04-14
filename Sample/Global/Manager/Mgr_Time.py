@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from typing import Any, Callable, List, Optional
-from .. import Time, Clock
+from Engine import Time, Clock
 
 
 class TimerTaskEntry:

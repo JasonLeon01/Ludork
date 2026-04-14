@@ -5,7 +5,7 @@ import copy
 import dataclasses
 from typing import Any, Dict, Optional, Set, get_type_hints
 from PyQt5 import QtWidgets, QtCore, QtGui
-from Global import EditorStatus, GameData
+from EditorGlobal import EditorStatus, GameData
 from Utils import System, File
 from Widgets.Utils import SingleRowDialog, NodePanel, Toast, RectViewer, DataclassWidget
 

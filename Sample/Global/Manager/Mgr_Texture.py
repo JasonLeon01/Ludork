@@ -4,7 +4,7 @@ from __future__ import annotations
 import weakref
 import logging
 from typing import Callable, Dict, Tuple, Optional
-from .. import Texture, IntRect
+from Engine import Texture, IntRect
 
 class TextureManager:
     _TexturesRef: Dict[Tuple[str, bool, Optional[IntRect], bool], weakref.ReferenceType[Texture]] = {}

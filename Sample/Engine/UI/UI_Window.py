@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import List, Optional, Tuple, Union
+from typing import List, Tuple, Union
 from .. import TypeAdapter, Pair, Sprite, IntRect, Vector2i, Vector2f, Texture, RenderTexture, Vector2u, Image
 from ..Utils import Math, Render
 from .Base import SpriteBase
@@ -18,19 +18,15 @@ class Window(SpriteBase):
     def __init__(
         self,
         rect: Union[IntRect, Tuple[Pair[int], Pair[int]], List[List[int]]],
-        windowSkin: Optional[Image] = None,
+        windowSkin: Image,
         repeated: bool = False,
     ) -> None:
-        self._size = Math.ToVector2u(rect.size)
-        size = Math.ToVector2u(Render.getRealSize(rect.size))
-        self._canvas: RenderTexture = RenderTexture(size)
-        if windowSkin:
-            self._windowSkin = windowSkin
-        else:
-            from . import DefaultWindowskinName
-            from .. import Manager
+        from .. import Scale
 
-            self._windowSkin = Manager.loadSystem(DefaultWindowskinName, smooth=True).copyToImage()
+        self._size = Math.ToVector2u(rect.size)
+        size = Math.ToVector2u(Math.ToVector2f(rect.size) * Scale)
+        self._canvas: RenderTexture = RenderTexture(size)
+        self._windowSkin = windowSkin
         self._repeated = repeated
         self._rectImpl = RectBase()
         self._initUI()

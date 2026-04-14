@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from PyQt5 import QtCore, QtWidgets
-from Global import GameData
+from EditorGlobal import GameData
 from .Utils import ConfigDictPanel
 
 

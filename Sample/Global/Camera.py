@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 from typing import Optional, Union, List, TYPE_CHECKING
-from .. import (
+from Engine import (
     Pair,
-    System,
     Vector2u,
     Transformable,
     Texture,
@@ -22,11 +21,12 @@ from .. import (
     degrees,
     GetCellSize,
 )
-from ..Utils import Math, Render
+from Engine.Utils import Math, Render
+from .System import System
 
 
 if TYPE_CHECKING:
-    from Engine.Gameplay import GameMap
+    from Global import GameMap
     from Engine.Gameplay.Actors import Actor
 
 

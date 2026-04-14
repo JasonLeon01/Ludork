@@ -5,7 +5,7 @@ import os
 import logging
 import weakref
 from typing import Callable, Dict, Optional, Tuple
-from .. import Shader
+from Engine import Shader
 
 class ShaderManager:
     _shaderRec: Dict[Tuple[str, Shader.Type], weakref.ReferenceType[Shader]] = {}

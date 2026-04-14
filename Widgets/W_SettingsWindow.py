@@ -5,7 +5,7 @@ import os
 import json
 import platform
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Global import EditorStatus
+from EditorGlobal import EditorStatus
 from Utils import Panel
 
 

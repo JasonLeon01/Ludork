@@ -1,9 +1,9 @@
 # -*- encoding: utf-8 -*-
 
 from typing import Any, Dict
-from Engine import SceneBase, System, Manager
 from Engine.UI import Image
 from Engine.UI.Base import FunctionalBase
+from Global import Manager, System, SceneBase
 from Source.Windows import WindowCommand
 
 

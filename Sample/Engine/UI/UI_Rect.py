@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import copy
-from typing import List, Optional, Tuple, Union, TYPE_CHECKING
+from typing import List, Tuple, Union, TYPE_CHECKING
 from .. import (
     TypeAdapter,
     Pair,
@@ -31,20 +31,16 @@ class Rect(SpriteBase):
     def __init__(
         self,
         rect: Union[IntRect, Tuple[Pair[int], Pair[int]], List[List[int]]],
-        windowSkin: Optional[Image] = None,
+        windowSkin: Image,
         fadeSpeed: float = 96,
         opacityRange: Pair[float] = (128, 255),
     ) -> None:
-        self._size = Math.ToVector2u(rect.size)
-        size = Math.ToVector2u(Render.getRealSize(rect.size))
-        self._canvas: RenderTexture = RenderTexture(size)
-        if windowSkin:
-            self._windowSkin = windowSkin
-        else:
-            from . import DefaultWindowskinName
-            from .. import Manager
+        from .. import Scale
 
-            self._windowSkin = Manager.loadSystem(DefaultWindowskinName, smooth=True).copyToImage()
+        self._size = Math.ToVector2u(rect.size)
+        size = Math.ToVector2u(Math.ToVector2f(rect.size) * Scale)
+        self._canvas: RenderTexture = RenderTexture(size)
+        self._windowSkin = windowSkin
         self._rectImpl = RectBase()
         self._initUI()
         SpriteBase.__init__(self, self._canvas.getTexture())

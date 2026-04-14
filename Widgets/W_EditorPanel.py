@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import importlib
 from PyQt5 import QtWidgets, QtGui, QtCore
 import Utils
-from Global import EditorStatus, GameData
+from EditorGlobal import EditorStatus, GameData
 from Utils import System
 
 

@@ -6,7 +6,8 @@ import locale
 import json
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 import configparser
-from . import (
+import Engine
+from Engine import (
     Color,
     RenderWindow,
     RenderTexture,
@@ -19,16 +20,16 @@ from . import (
     GetGameRunning,
     Locale,
 )
+from Engine.Utils import Math, Render
 
 if TYPE_CHECKING:
-    from Engine import SceneBase
+    from .SceneBase import SceneBase
 
 
 class System:
     __data: configparser.ConfigParser
     __dataFilePath: str = None
     __graphicsCanvases: List[RenderTexture] = []
-    _gameSize: Vector2u = None
     _window: RenderWindow = None
     _canvas: RenderTexture = None
     _canvasSprite: Sprite = None
@@ -37,7 +38,6 @@ class System:
     _transitionSprite: Sprite = None
     _graphicsShaders: List[Shader] = []
     _mainScript: str = ""
-    _scale: float = 1.0
     _frameRate: int = 60
     _verticalSync: bool = False
     _musicOn: bool = True
@@ -47,9 +47,6 @@ class System:
     _soundVolume: float = 100
     _voiceVolume: float = 100
     _transitionShader: Optional[Shader] = None
-    _tilemapLightMaskShader: Optional[Shader] = None
-    _lightMaskShader: Optional[Shader] = None
-    _materialShader: Optional[Shader] = None
     _transitionResource: Optional[Texture] = None
     _inTransition: bool = False
     _transitionTimeCount: float = 0.0
@@ -75,7 +72,7 @@ class System:
             lang, encoding = locale.getdefaultlocale()
             _language = lang
         Locale.LANGUAGE = _language
-        cls._scale = data.getfloat("scale")
+        Engine.Scale = data.getfloat("scale")
         cls._frameRate = data.getint("frameRate")
         cls._verticalSync = data.getboolean("verticalSync")
         cls._musicOn = data.getboolean("musicOn")
@@ -85,6 +82,7 @@ class System:
         cls._soundVolume = data.getfloat("soundVolume")
         cls._voiceVolume = data.getfloat("voiceVolume")
         cls._scenes = []
+        cls._transitionShader = Shader("./Assets/Shaders/Transition.frag", Shader.Type.Fragment)
 
     @classmethod
     def isDebugMode(cls) -> bool:
@@ -123,11 +121,11 @@ class System:
 
     @classmethod
     def getGameSize(cls) -> Vector2u:
-        return cls._gameSize
+        return Engine.GameSize
 
     @classmethod
     def setGameSize(cls, gameSize: Vector2u) -> None:
-        cls._gameSize = gameSize
+        Engine.GameSize = gameSize
 
     @classmethod
     def isActive(cls) -> bool:
@@ -164,26 +162,8 @@ class System:
         cls._canvas.clear(Color.Transparent)
 
     @classmethod
-    def initTransitionShader(cls, shader: Shader) -> None:
-        cls._transitionShader = shader
-
-    @classmethod
-    def initTilemapLightMaskShader(cls, shader: Shader) -> None:
-        cls._tilemapLightMaskShader = shader
-
-    @classmethod
-    def initLightMaskShader(cls, shader: Shader) -> None:
-        cls._lightMaskShader = shader
-
-    @classmethod
-    def initMaterialShader(cls, shader: Shader) -> None:
-        cls._materialShader = shader
-
-    @classmethod
     def setWindowMapView(cls) -> None:
-        from .Utils import Math
-
-        cls._canvas.setView(View(Math.ToVector2f(cls._gameSize / 2), Math.ToVector2f(cls._gameSize)))
+        cls._canvas.setView(View(Math.ToVector2f(Engine.GameSize / 2), Math.ToVector2f(Engine.GameSize)))
 
     @classmethod
     def setWindowDefaultView(cls) -> None:
@@ -191,8 +171,6 @@ class System:
 
     @classmethod
     def draw(cls, drawable: Drawable, shader: Optional[Shader] = None) -> None:
-        from .Utils import Render
-
         states = Render.CanvasRenderStates()
         if shader:
             states.shader = shader
@@ -200,8 +178,6 @@ class System:
 
     @classmethod
     def display(cls, deltaTime: float) -> None:
-        from .Utils import Math, Render
-
         if cls._inTransition:
             cls._transitionTimeCount = min(cls._transitionTimeCount + deltaTime, cls._transitionTime)
         cls._canvas.display()
@@ -263,11 +239,11 @@ class System:
 
     @classmethod
     def setScale(cls, scale: float) -> None:
-        cls._scale = scale
+        Engine.Scale = scale
 
     @classmethod
     def getScale(cls) -> float:
-        return cls._scale
+        return Engine.Scale
 
     @classmethod
     def getFrameRate(cls) -> int:
@@ -353,22 +329,6 @@ class System:
     def setVoiceVolume(cls, voiceVolume: float) -> None:
         cls._voiceVolume = voiceVolume
         cls._setIniData("voiceVolume", cls._voiceVolume)
-
-    @classmethod
-    def getTilemapLightMaskShader(cls) -> Optional[Shader]:
-        return cls._tilemapLightMaskShader
-
-    @classmethod
-    def getLightMaskShader(cls) -> Optional[Shader]:
-        return cls._lightMaskShader
-
-    @classmethod
-    def getGraphicsShaders(cls) -> List[Shader]:
-        return cls._graphicsShaders
-
-    @classmethod
-    def getMaterialShader(cls) -> Optional[Shader]:
-        return cls._materialShader
 
     @classmethod
     def addGraphicsShader(cls, shader: Optional[Shader], uniforms: Optional[Dict[str, Any]] = None) -> None:

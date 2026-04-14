@@ -5,7 +5,7 @@ import logging
 import traceback
 from enum import Enum
 from typing import Any, Dict, Optional, Tuple, Union, List, Callable
-from . import Keyboard, Mouse, Joystick, WindowBase, Vector2i, System
+from . import Keyboard, Mouse, Joystick, WindowBase, Vector2i
 from .Utils import Math
 
 
@@ -641,8 +641,8 @@ def getMouseMovedDelta() -> Optional[Vector2i]:
     return _EventState.MouseMovedDelta
 
 
-def setMousePosition(position: Vector2i) -> None:
-    Mouse.setPosition(position, System.getWindow())
+def setMousePosition(position: Vector2i, window: WindowBase) -> None:
+    Mouse.setPosition(position, window)
 
 
 def isMouseEntered() -> bool:

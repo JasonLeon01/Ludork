@@ -6,6 +6,7 @@ from Engine import Pair, Image, IntRect, Vector2f, Vector2i, Input, View, FloatR
 from Engine.UI import Rect, ListView
 from Engine.Utils import Math
 from Engine.UI.Base import ControlBase, FunctionalBase
+from Global import System
 from .W_WindowBase import WindowBase
 
 
@@ -32,7 +33,8 @@ class WindowSelectable(WindowBase):
             IntRect(
                 Math.ToVector2i(self._getRectPosition()),
                 Vector2i(self._rectWidth, self._rectHeight),
-            )
+            ),
+            self._windowSkin,
         )
 
     def getListView(self) -> Optional[ListView]:
@@ -55,7 +57,8 @@ class WindowSelectable(WindowBase):
                     IntRect(
                         Math.ToVector2i(self._getRectPosition()),
                         Vector2i(self._rectWidth, self._rectHeight),
-                    )
+                    ),
+                    self._windowSkin,
                 )
         if self._rect.getParent() is None:
             self.content.addChild(self._rect)
@@ -82,7 +85,7 @@ class WindowSelectable(WindowBase):
         targetChild = self._listView.getChildren()[self.index]
         if hasattr(targetChild, "getAbsoluteBounds"):
             bounds: FloatRect = targetChild.getAbsoluteBounds()
-            Input.setMousePosition(Math.ToVector2i(bounds.position + bounds.size / 2))
+            Input.setMousePosition(Math.ToVector2i(bounds.position + bounds.size / 2), System.getWindow())
 
     def onMouseMoved(self, kwargs: Dict[str, Any]):
         pass

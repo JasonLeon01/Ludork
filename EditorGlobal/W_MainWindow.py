@@ -1788,6 +1788,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def _onReloadModule(self, checked: bool = False) -> None:
         try:
             System.reloadModule("Engine")
+            System.reloadModule("Global")
             System.reloadModule("Source")
             QtWidgets.QMessageBox.information(self, ELOC("SUCCESS"), ELOC("HINT_RELOAD_MODULE_SUCCESS"))
         except Exception as e:

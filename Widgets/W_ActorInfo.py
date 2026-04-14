@@ -2,7 +2,7 @@
 
 from typing import Optional, Dict, Any, Tuple
 from PyQt5 import QtWidgets, QtCore, QtGui
-from Global import GameData
+from EditorGlobal import GameData
 
 
 class ActorInfoPanel(QtWidgets.QWidget):

@@ -3,7 +3,7 @@
 from __future__ import annotations
 import inspect
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-from .. import Pair, System
+from .. import Pair
 from .N_Node import DataNode, Node
 
 
@@ -18,9 +18,9 @@ class Graph:
         nodeModel: Optional[type] = None,
         startNodes: Optional[Dict[str, int]] = None,
     ) -> None:
-        import Engine, Source
+        import Engine, Global, Source
 
-        self.modules_ = [Source, Engine]
+        self.modules_ = [Source, Global, Engine]
         self.localGraph: Dict[str, Any] = {"__graph__": self}
         self.parentClassName = parentClassName
         self.parentClass = parentClass

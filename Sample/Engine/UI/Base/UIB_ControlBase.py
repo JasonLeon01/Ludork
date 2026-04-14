@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Optional, Tuple, List, Union, TYPE_CHECKING
+from typing import Optional, List, Union, TYPE_CHECKING
 from ... import TypeAdapter, Pair, Drawable, Transformable, Vector2f, Angle, degrees, Transform
 
 if TYPE_CHECKING:

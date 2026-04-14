@@ -2,7 +2,7 @@
 
 from PyQt5 import QtWidgets, QtGui, QtCore
 import os
-from Global import EditorStatus
+from EditorGlobal import EditorStatus
 from Utils import File, System
 
 

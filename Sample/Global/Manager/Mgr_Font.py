@@ -2,7 +2,7 @@
 
 import warnings
 from typing import Dict, List
-from .. import Font
+from Engine import Font
 
 
 class FontManager:

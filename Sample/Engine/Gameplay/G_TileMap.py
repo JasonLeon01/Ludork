@@ -6,13 +6,13 @@ from typing import Any, Dict, List, Optional
 from .. import (
     Tuple4,
     VertexArray,
-    Manager,
     PrimitiveType,
     Vector2i,
     Vector2u,
     GetCellSize,
     Color,
     Image,
+    Texture,
     Drawable,
     Transformable,
     ReturnType,
@@ -59,13 +59,14 @@ class TileLayer(TileLayerGraphics):
     def __init__(
         self,
         data: TileLayerData,
+        texture: Texture,
         visible: bool = True,
     ) -> None:
         self._data = data
         self._width = len(self._data.tiles[0])
         self._height = len(self._data.tiles)
         self._vertexArray = VertexArray(PrimitiveType.Triangles, self._width * self._height * 6)
-        self._texture = Manager.loadTileset(self._data.layerTileset.fileName)
+        self._texture = texture
         self._lightBlockMapCache: Optional[List[List[float]]] = None
         self._lightBlockImageCache: Optional[Image] = None
         self.visible = visible
@@ -184,28 +185,3 @@ class Tilemap:
             return Vector2u(0, 0)
         first = next(iter(self._layers.values()))
         return Vector2u(first._width, first._height)
-
-    @staticmethod
-    def fromData(data: Dict[str, List[List[Any]]], width: int, height: int) -> Tilemap:
-        from Source import Data
-
-        mapLayers = []
-        for layerName, layerData in data.items():
-            name = layerData["layerName"]
-            layerTileset = Data.getTileset(layerData["layerTileset"])
-            layerTiles = layerData["tiles"]
-            tiles: List[List[Optional[int]]] = []
-            for y in range(height):
-                tiles.append([])
-                for x in range(width):
-                    tileNumber = layerTiles[y][x]
-                    tiles[-1].append(tileNumber)
-            layer = TileLayer(
-                TileLayerData(
-                    name,
-                    layerTileset,
-                    tiles,
-                ),
-            )
-            mapLayers.append(layer)
-        return Tilemap(mapLayers)

@@ -110,6 +110,8 @@ from pysf import swap
 
 _GameRunning: bool = True
 _CellSize: int = 32
+GameSize: Vector2f = Vector2f(640, 480)
+Scale: float = 1.0
 type Pair[T] = tuple[T, T]
 type Tuple3[T] = tuple[T, T, T]
 type Tuple4[T] = tuple[T, T, T, T]
@@ -287,20 +289,11 @@ builtins.RegisterEvent = RegisterEvent
 from .Modified import Clock
 from .Modified import ContextSettings
 from .Modified import RenderStates
-from .EngineSystem import System
-from .EngineSceneBase import SceneBase
 from . import Utils
 from . import Input
 from . import Locale
-from . import Manager
 from . import Filters
 from . import Gameplay
 from . import UI
 from . import NodeGraph
 from . import Animation
-from .Video import Video
-
-
-def playVideo(videoPath: str, mute: bool = False, skipable: bool = False):
-    video = Video(videoPath, mute, skipable)
-    video.play()

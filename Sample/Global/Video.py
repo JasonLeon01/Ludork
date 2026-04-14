@@ -4,7 +4,8 @@ from __future__ import annotations
 from typing import Optional, Tuple, TYPE_CHECKING
 from io import BytesIO
 import traceback
-from . import RenderWindow, SoundBuffer, Sound, Texture, Sprite, Color, Vector2u, Vector2f, System, Input, Manager
+from Engine import RenderWindow, SoundBuffer, Sound, Texture, Sprite, Color, Vector2u, Vector2f, Input
+from . import Manager, System
 
 if TYPE_CHECKING:
     import av

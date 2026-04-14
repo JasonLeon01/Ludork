@@ -8,7 +8,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 from NodeGraphQt import NodeGraph, BaseNode
 from NodeGraphQt.widgets.viewer import NodeViewer
 from NodeGraphQt.qgraphics.port import PortItem
-from Global import GameData
+from EditorGlobal import GameData
 from Utils import System
 from .WU_FunctionPickerPopup import FunctionPickerPopup
 

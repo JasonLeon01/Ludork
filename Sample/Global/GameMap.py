@@ -5,10 +5,8 @@ from collections import deque
 import copy
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
-
-from .. import (
+from Engine import (
     Pair,
-    System,
     RenderTexture,
     Vector2i,
     Vector2f,
@@ -18,15 +16,16 @@ from .. import (
     GetCellSize,
     Direction,
     OppositeDirection,
+    Shader,
 )
-from ..Utils import Math
-from ..GraphicsExtension import GameMapGraphics
-from .Particles import System as ParticleSystem
-from .Actors import Actor
-from .G_Camera import Camera
-from .G_TileMap import Tilemap, TileLayer
-from .G_Material import Material
-from .GamePlayExtension import C_FindPath, C_GetMaterialPropertyMap, C_RebuildPassabilityCache
+from Engine.Utils import Math
+from Engine.GraphicsExtension import GameMapGraphics
+from Engine.Gameplay.Particles import System as ParticleSystem
+from Engine.Gameplay.Actors import Actor
+from .Camera import Camera
+from Engine.Gameplay import Tilemap, TileLayer, Material
+from Engine.Gameplay.GamePlayExtension import C_FindPath, C_GetMaterialPropertyMap, C_RebuildPassabilityCache
+from .System import System
 
 
 @dataclass
@@ -57,7 +56,7 @@ class Light:
 class GameMap(GameMapGraphics):
     DefaultCoverAlpha: int
 
-    def __init__(self, mapName, tilemap: Tilemap, camera: Optional[Camera] = None) -> None:
+    def __init__(self, mapName: str, tilemap: Tilemap, camera: Optional[Camera] = None) -> None:
         self.mapName = mapName
         self._tilemap = tilemap
         self._layersTopFirst = list(self._tilemap.getAllLayers().values())
@@ -80,11 +79,14 @@ class GameMap(GameMapGraphics):
         self._occupancyMap: Dict[Pair[int], List[Actor]] = {}
         self._player: Optional[Actor] = None
         self._lightMask = self._camera.initLightMask(self._tilemap.getSize() * GetCellSize())
+        self._tilemapLightMaskShader = Shader("./Assets/Shaders/Map/TilemapLightMask.frag", Shader.Type.Fragment)
+        self._lightMaskShader = Shader("./Assets/Shaders/Map/lightMask.frag", Shader.Type.Fragment)
+        self._materialShader = Shader("./Assets/Shaders/Map/Material.frag", Shader.Type.Fragment)
         self._tilemapRenderStates = copy.copy(self._camera.getRenderStates())
-        self._tilemapRenderStates.shader = System.getTilemapLightMaskShader()
+        self._tilemapRenderStates.shader = self._tilemapLightMaskShader
         self._actorRenderStates = copy.copy(self._camera.getRenderStates())
-        self._actorRenderStates.shader = System.getLightMaskShader()
-        super().__init__(System.getMaterialShader())
+        self._actorRenderStates.shader = self._lightMaskShader
+        super().__init__(self._materialShader)
 
     @ReturnType(player=Actor)
     def getPlayer(self) -> Optional[Actor]:
@@ -436,8 +438,8 @@ class GameMap(GameMapGraphics):
                     layer.resetTileColor(x, y)
             self._transparentTiles.clear()
 
-        tilemapLightMask = System.getTilemapLightMaskShader()
-        actorLightMask = System.getLightMaskShader()
+        tilemapLightMask = self._tilemapLightMaskShader
+        actorLightMask = self._lightMaskShader
         layers = self._tilemap.getAllLayers()
         layerKeys = list(layers.keys())
         System.setWindowMapView()
@@ -495,7 +497,7 @@ class GameMap(GameMapGraphics):
         self._camera.display()
         self._lightMask.display()
         self.refreshShader()
-        System.draw(self._camera, System.getMaterialShader())
+        System.draw(self._camera, self._materialShader)
         System.draw(self._particleSystem)
         System.setWindowDefaultView()
 
@@ -550,27 +552,3 @@ class GameMap(GameMapGraphics):
 
     def markPassabilityDirty(self) -> None:
         self._materialDirty = True
-
-    @staticmethod
-    def fromData(data: Dict[str, Any], camera: Optional[Camera] = None) -> GameMap:
-        from Source import Data
-
-        mapName = data["mapName"]
-        width = data["width"]
-        height = data["height"]
-        layers = data["layers"]
-        tilemap = Tilemap.fromData(layers, width, height)
-        ambientLight = data.get("ambientLight", [255, 255, 255, 255])
-        lights = data.get("lights", [])
-        actors = data.get("actors", [])
-        result = GameMap(mapName, tilemap, camera)
-        result.setAmbientLight(Color(*ambientLight))
-        for lightData in lights:
-            result.addLight(Light.fromDict(lightData))
-        for layerName, actorDatas in actors.items():
-            for actorData in actorDatas:
-                actor = Data.genActorFromData(actorData, layerName)
-                if actor is None:
-                    continue
-                result.spawnActor(actor, layerName)
-        return result

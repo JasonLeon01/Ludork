@@ -149,7 +149,7 @@ class PackWorker(QtCore.QThread):
     def _packSimple(self):
         missingItems = []
         # Folders to copy
-        for name in ("Assets", "Data", "Engine", "Source"):
+        for name in ("Assets", "Data", "Engine", "Global", "Source"):
             src = os.path.join(self.projPath, name)
             dst = os.path.join(self.distPath, name)
             if os.path.exists(src):
@@ -160,7 +160,7 @@ class PackWorker(QtCore.QThread):
             else:
                 if name in ("Assets", "Data"):
                     missingItems.append(name)
-                elif name in ("Engine", "Source"):
+                elif name in ("Engine", "Global", "Source"):
                     missingItems.append(name)
 
         # Files to copy

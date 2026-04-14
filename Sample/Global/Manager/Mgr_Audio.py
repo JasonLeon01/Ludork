@@ -6,7 +6,7 @@ import warnings
 import threading
 import concurrent.futures
 from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple
-from .. import (
+from Engine import (
     GetGameRunning,
     SoundBuffer,
     Sound,
@@ -16,11 +16,11 @@ from .. import (
     Angle,
     degrees,
     Music,
-    System,
     SoundSource,
     Filters,
     Transformable,
 )
+from ..System import System
 
 
 class AudioManager:

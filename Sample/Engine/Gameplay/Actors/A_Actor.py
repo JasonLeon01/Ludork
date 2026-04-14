@@ -1,21 +1,11 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import List, Optional, Tuple, Union, TYPE_CHECKING
-from ... import (
-    Pair,
-    BPBase,
-    Vector2f,
-    Vector2i,
-    Vector2u,
-    GetCellSize,
-)
+from typing import List, Optional, Tuple, Union
+from ... import Pair, BPBase, Vector2f, Vector2i, Vector2u, IntRect, GetCellSize, Texture
 from ..G_Material import Material
 from ...Utils import Math, Inner
 from .A_Base import _ActorBase
-
-if TYPE_CHECKING:
-    from Engine import Texture, IntRect
 
 
 @PathVars("texturePath")
@@ -213,11 +203,9 @@ class Actor(_ActorBase, BPBase):
 
     @staticmethod
     def GenActor(
-        ActorModel: type, textureStr: str, textureRect: Optional[Tuple[Pair[int], Pair[int]]], tag: str
+        ActorModel: type, texture: Texture, textureRect: Optional[Tuple[Pair[int], Pair[int]]], tag: str
     ) -> Actor:
-        from Engine import Manager
-
-        actor: Actor = ActorModel(Manager.loadCharacter(textureStr), textureRect, tag)
+        actor: Actor = ActorModel(texture, textureRect, tag)
         if isinstance(actor.material, dict):
             actor.material = Material(**Inner.filterDataClassParams(actor.material, Material))
         return actor

@@ -4,10 +4,12 @@ from __future__ import annotations
 import os
 import inspect
 from typing import Any, Callable, List, Dict, Optional
-from . import Manager, System, Input, Manager
-from .UI import Canvas
-from .Utils import Event, Math
-from .Animation import AnimSprite
+from Engine import Input
+from Engine.Utils import Event, Math
+from Engine.UI import Canvas
+from . import Manager
+from .System import System
+from .Animation import Animation
 from .Manager import TimerTaskEntry
 
 
@@ -16,7 +18,7 @@ class SceneBase:
         self._UIs: List[Canvas] = []
         self._debugHUDEnabled: bool = False
         if System.isDebugMode():
-            from .UI import DefaultFont, PlainText
+            from Engine.UI import DefaultFont, PlainText
 
             self._debugHUDEnabled: bool = True
             self._debugHUD: PlainText = PlainText(DefaultFont, "", 12)
@@ -35,7 +37,7 @@ class SceneBase:
         self._maxFixedSteps: int = 5
         self._timerTasks: Dict[str, TimerTaskEntry] = {}
         self._created = False
-        self._animList: List[AnimSprite] = []
+        self._animList: List[Animation] = []
 
     def onEnter(self) -> None:
         System.setTransition()
@@ -88,19 +90,19 @@ class SceneBase:
         return condition
 
     @ExecSplit(default=(None,))
-    def addAnim(self, anim: AnimSprite) -> None:
+    def addAnim(self, anim: Animation) -> None:
         self._animList.append(anim)
 
-    @ReturnType(anims=List[AnimSprite])
-    def getAnims(self) -> List[AnimSprite]:
+    @ReturnType(anims=List[Animation])
+    def getAnims(self) -> List[Animation]:
         return self._animList
 
     @ExecSplit(default=(None,))
-    def removeAnim(self, anim: AnimSprite) -> None:
+    def removeAnim(self, anim: Animation) -> None:
         if anim in self._animList:
             self._animList.remove(anim)
         else:
-            raise ValueError("AnimSprite not found")
+            raise ValueError("Animation not found")
 
     @ExecSplit(default=(None,))
     def clearAnims(self) -> None:

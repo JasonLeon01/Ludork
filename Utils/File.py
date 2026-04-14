@@ -11,7 +11,7 @@ import traceback
 from pathlib import Path
 from typing import Dict, Any
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Global import EditorStatus, MainWindow
+from EditorGlobal import EditorStatus, MainWindow
 from . import System
 
 
@@ -108,7 +108,7 @@ def _setLastOpenPath(path: str) -> None:
 def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
     global mainWindow
 
-    from Global import GameData
+    from EditorGlobal import GameData
     from Utils import System
 
     EditorStatus.PROJ_PATH = os.path.abspath(path)

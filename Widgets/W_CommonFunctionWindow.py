@@ -7,7 +7,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 from Utils import File, System
 from Widgets.Utils.WU_NodePanel import NodePanel
 from Widgets.Utils.WU_Toast import Toast
-from Global import GameData
+from EditorGlobal import GameData
 
 
 class CommonFunctionWindow(QtWidgets.QMainWindow):

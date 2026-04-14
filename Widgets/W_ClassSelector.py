@@ -5,7 +5,7 @@ import sys
 import inspect
 from PyQt5 import QtWidgets, QtCore
 from Utils import System
-from Global import EditorStatus
+from EditorGlobal import EditorStatus
 
 
 class ClassSelector(QtWidgets.QDialog):
@@ -58,7 +58,7 @@ class ClassSelector(QtWidgets.QDialog):
 
         found_classes = {}  # ClassObj -> BestPath
 
-        roots = ["Engine", "Source"]
+        roots = ["Engine", "Global", "Source"]
 
         for rootName in roots:
             rootPath = os.path.join(EditorStatus.PROJ_PATH, rootName)
@@ -93,7 +93,11 @@ class ClassSelector(QtWidgets.QDialog):
                     continue
                 if not obj.__module__:
                     continue
-                if not (obj.__module__.startswith("Engine") or obj.__module__.startswith("Source")):
+                if not (
+                    obj.__module__.startswith("Engine")
+                    or obj.__module__.startswith("Global")
+                    or obj.__module__.startswith("Source")
+                ):
                     continue
                 is_definition = modulePath == obj.__module__
                 is_ancestor = is_package and obj.__module__.startswith(modulePath + ".")

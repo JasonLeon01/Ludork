@@ -4,23 +4,26 @@ from __future__ import annotations
 import os
 import threading
 from typing import Tuple
-from Engine import Pair, System, SceneBase, Color, Vector2f, RenderTexture, RectangleShape, Manager
+from Engine import Pair, Color, Vector2f, RenderTexture, RectangleShape
 from Engine.Utils import Render, Math
 from Engine.Animation import compressAnimation
 from Engine.Utils import File
 from Engine.UI.Base import SpriteBase
 from Engine.UI import Image
+from Global import Manager, System, SceneBase
 from .. import Data
 from .Title import Scene as TitleScene
 
 
-class progressBar(SpriteBase):
+class ProgressBar(SpriteBase):
     def __init__(self, rect: Tuple[Pair[int], Pair[int]]) -> None:
+        from Engine import Scale
+
         position, size = rect
         x, y = position
         w, h = size
         self.size = Vector2f(w, h)
-        self.realSize = Render.getRealSize(self.size)
+        self.realSize = self.size * Scale
         self.canvas = RenderTexture(Math.ToVector2u(self.realSize))
         self.backRect = RectangleShape(Math.ToVector2f(self.realSize))
         self.backRect.setFillColor(Color(255, 255, 255, 64))
@@ -52,8 +55,8 @@ class Scene(SceneBase):
         barY = int(gameSize.y * 0.8)
         self._bg = Image(Manager.loadSystem("GrassBackground.png"))
         self.addUI(self._bg)
-        self.progressBar = progressBar(((barX, barY), (barWidth, barHeight)))
-        self.addUI(self.progressBar)
+        self.ProgressBar = ProgressBar(((barX, barY), (barWidth, barHeight)))
+        self.addUI(self.ProgressBar)
         self.progressValue = 0.0
         self.progressTotal = Data.getDataKinds()
         self.processedCount = 0
@@ -64,9 +67,9 @@ class Scene(SceneBase):
 
     def onTick(self, deltaTime: float) -> None:
         if self.progressTotal > 0:
-            self.progressBar.setProgress(self.progressValue)
+            self.ProgressBar.setProgress(self.progressValue)
         else:
-            self.progressBar.setProgress(1.0 if self.progressDone else 0.0)
+            self.ProgressBar.setProgress(1.0 if self.progressDone else 0.0)
         if self.progressDone and not self.hasSwitched:
             self.hasSwitched = True
             System.setScene(TitleScene())

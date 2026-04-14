@@ -1,22 +1,21 @@
 # -*- encoding: utf-8 -*-
 
 import os
-from typing import List, Union
-from Engine import TypeAdapter, Pair, SceneBase, Manager, Vector2f, Vector2u, Vector2i, GetCellSize
-from Engine import System as EngineSystem
-from Engine.Gameplay import GameMap
+from typing import List, Union, Optional, Dict, Any
+from Engine import TypeAdapter, Pair, Vector2u, Color
+from Engine.Gameplay import Tilemap, TileLayer, TileLayerData
 from Engine.Utils import File
+from Global import Manager, SceneBase, GameMap, Camera, Light
+from Global import System as GlobalSystem
 from Source import Data, System
 from Source.Player import Player
 
 
 class Scene(SceneBase):
     def onEnter(self) -> None:
-        EngineSystem.setTransition(Manager.loadTransition("012-Random04.png"), 3)
+        GlobalSystem.setTransition(Manager.loadTransition("012-Random04.png"), 3)
 
     def onCreate(self):
-        self._roars = []
-        self._roarSeqId = 0
         self.player = self._initPlayer()
         self._gameMap: GameMap = None
         self._cachedMapFile: str = None
@@ -32,12 +31,11 @@ class Scene(SceneBase):
 
     def onLateTick(self, deltaTime: float) -> None:
         self._gameMap.onLateTick(deltaTime)
-        self._updateRoars(deltaTime)
         return super().onLateTick(deltaTime)
 
     def loadMap(self, mapPath: str) -> None:
         mapPath = os.path.join("./Data/Maps", mapPath)
-        self._gameMap = GameMap.fromData(File.loadData(mapPath))
+        self._gameMap = self._generateGameMap(File.loadData(mapPath))
         self._gameMap.spawnActor(self.player, "default")
         self._gameMap.setPlayer(self.player)
 
@@ -57,7 +55,7 @@ class Scene(SceneBase):
         actorClass: Player = Data.getClass(playerPath)
         texturePath = getattr(actorClass, "texturePath")
         defaultRect = getattr(actorClass, "defaultRect")
-        actor: Player = actorClass.GenActor(actorClass, texturePath, defaultRect, "yongshi")
+        actor: Player = actorClass.GenActor(actorClass, Manager.loadCharacter(texturePath), defaultRect, "yongshi")
         actor.setAnimatable(True, True)
         actor.setCollisionEnabled(True)
         actor.setPosition((608, 256))
@@ -70,147 +68,44 @@ class Scene(SceneBase):
         )
         return actor
 
-    def triggerRipple(
-        self,
-        mapPos: Vector2i,
-        duration: float,
-        r0: float,
-        r1: float,
-        thickness: float,
-        strength: float,
-    ) -> None:
-        shader = Manager.loadShader("Ripple.frag")
-        EngineSystem.addGraphicsShader(
-            shader,
-            {
-                "center": Vector2f(0.5, 0.5),
-                "radius": r0,
-                "thickness": thickness,
-                "strength": strength,
-            },
-        )
-        self._roars.append(
-            {
-                "shader": shader,
-                "elapsed": 0.0,
-                "duration": float(duration),
-                "r0": float(r0),
-                "r1": float(r1),
-                "thickness": float(thickness),
-                "strength": float(strength),
-                "mapPos": mapPos,
-            }
-        )
-
-    def triggerRoarBurst(
-        self,
-        mapPos: Vector2i,
-        count: int,
-        interval: float,
-        duration: float,
-        r0: float,
-        r1: float,
-        thickness: float,
-        strength: float,
-        decay: float = 1.0,
-    ) -> None:
-        maxPerPass = 4
-        startIndex = 0
-        while startIndex < count:
-            take = min(maxPerPass, count - startIndex)
-            shader = Manager.loadShader("RoarDistortionMulti.frag")
-            EngineSystem.addGraphicsShader(
-                shader,
-                {
-                    "count": 0,
-                },
+    def _generateTilemap(self, data: Dict[str, List[List[Any]]], width: int, height: int) -> Tilemap:
+        mapLayers = []
+        for layerName, layerData in data.items():
+            name = layerData["layerName"]
+            layerTileset = Data.getTileset(layerData["layerTileset"])
+            layerTiles = layerData["tiles"]
+            tiles: List[List[Optional[int]]] = []
+            for y in range(height):
+                tiles.append([])
+                for x in range(width):
+                    tileNumber = layerTiles[y][x]
+                    tiles[-1].append(tileNumber)
+            data = TileLayerData(
+                name,
+                layerTileset,
+                tiles,
             )
-            self._roars.append(
-                {
-                    "shader": shader,
-                    "elapsed": 0.0,
-                    "duration": float(duration),
-                    "interval": float(interval),
-                    "count": int(take),
-                    "offsetIndex": int(startIndex),
-                    "r0": float(r0),
-                    "r1": float(r1),
-                    "thickness": float(thickness),
-                    "strength": float(strength),
-                    "decay": float(decay),
-                    "mapPos": mapPos,
-                    "multi": True,
-                }
-            )
-            startIndex += take
+            layer = TileLayer(data, Manager.loadTileset(data.layerTileset.fileName))
+            mapLayers.append(layer)
+        return Tilemap(mapLayers)
 
-    def _updateRoars(self, deltaTime: float) -> None:
-        if not self._roars:
-            return
-        alive = []
-        for eff in self._roars:
-            dur = eff["duration"]
-            t = eff["elapsed"] + deltaTime
-            eff["elapsed"] = t
-            mp = eff["mapPos"]
-            cs = GetCellSize()
-            worldPos = Vector2f((mp.x + 0.5) * cs, (mp.y + 0.5) * cs)
-            pix = self._gameMap.getCamera().mapCoordsToPixel(worldPos)
-            gs = EngineSystem.getGameSize()
-            centerUV = Vector2f(pix.x * 1.0 / gs.x, pix.y * 1.0 / gs.y)
-            shader = eff["shader"]
-            if eff.get("multi", False):
-                maxPerPass = eff["count"]
-                activeCount = 0
-                for j in range(maxPerPass):
-                    idx = eff["offsetIndex"] + j
-                    lt = t - idx * eff["interval"]
-                    if lt < 0.0 or lt > dur:
-                        continue
-                    tau = 1.0 if dur <= 0.0 else min(lt / dur, 1.0)
-                    rad = eff["r0"] + (eff["r1"] - eff["r0"]) * tau
-                    s = eff["strength"] * (eff["decay"] ** idx)
-                    if activeCount == 0:
-                        shader.setUniform("center0", centerUV)
-                        shader.setUniform("radius0", rad)
-                        shader.setUniform("thickness0", eff["thickness"])
-                        shader.setUniform("strength0", s)
-                    elif activeCount == 1:
-                        shader.setUniform("center1", centerUV)
-                        shader.setUniform("radius1", rad)
-                        shader.setUniform("thickness1", eff["thickness"])
-                        shader.setUniform("strength1", s)
-                    elif activeCount == 2:
-                        shader.setUniform("center2", centerUV)
-                        shader.setUniform("radius2", rad)
-                        shader.setUniform("thickness2", eff["thickness"])
-                        shader.setUniform("strength2", s)
-                    elif activeCount == 3:
-                        shader.setUniform("center3", centerUV)
-                        shader.setUniform("radius3", rad)
-                        shader.setUniform("thickness3", eff["thickness"])
-                        shader.setUniform("strength3", s)
-                    activeCount += 1
-                    if activeCount >= 4:
-                        break
-                shader.setUniform("count", activeCount)
-                totalTime = (eff["offsetIndex"] + eff["count"] - 1) * eff["interval"] + dur
-                if t < totalTime:
-                    alive.append(eff)
-                else:
-                    EngineSystem.removeGraphicsShader(shader)
-            else:
-                if dur <= 0.0:
-                    tau = 1.0
-                else:
-                    tau = min(t / dur, 1.0)
-                radius = eff["r0"] + (eff["r1"] - eff["r0"]) * tau
-                shader.setUniform("center", centerUV)
-                shader.setUniform("radius", radius)
-                shader.setUniform("thickness", eff["thickness"])
-                shader.setUniform("strength", eff["strength"])
-                if t < dur:
-                    alive.append(eff)
-                else:
-                    EngineSystem.removeGraphicsShader(shader)
-        self._roars = alive
+    def _generateGameMap(self, data: Dict[str, Any], camera: Optional[Camera] = None) -> GameMap:
+        mapName = data["mapName"]
+        width = data["width"]
+        height = data["height"]
+        layers = data["layers"]
+        tilemap = self._generateTilemap(layers, width, height)
+        ambientLight = data.get("ambientLight", [255, 255, 255, 255])
+        lights = data.get("lights", [])
+        actors = data.get("actors", [])
+        result = GameMap(mapName, tilemap, camera)
+        result.setAmbientLight(Color(*ambientLight))
+        for lightData in lights:
+            result.addLight(Light.fromDict(lightData))
+        for layerName, actorDatas in actors.items():
+            for actorData in actorDatas:
+                actor = Data.genActorFromData(actorData, layerName)
+                if actor is None:
+                    continue
+                result.spawnActor(actor, layerName)
+        return result

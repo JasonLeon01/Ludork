@@ -5,7 +5,7 @@ import wave
 import contextlib
 from PyQt5 import QtWidgets, QtGui, QtCore, QtMultimedia
 from typing import Dict, Any, Optional, Tuple
-from Global import EditorStatus
+from EditorGlobal import EditorStatus
 
 
 class TimelineCanvas(QtWidgets.QWidget):
