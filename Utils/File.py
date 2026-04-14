@@ -131,7 +131,9 @@ def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
         cfg_w, cfg_h = mainWindow.width(), mainWindow.height()
     min_size = mainWindow.minimumSize()
     mainWindow.resize(max(cfg_w, min_size.width()), max(cfg_h, min_size.height()))
-    icon_path = os.path.join(os.getcwd(), "Resource", "icon.ico")
+    icon_path = os.path.join(getRootPath(), "Resource", "icon.icns" if sys.platform == "darwin" else "icon.ico")
+    if not os.path.exists(icon_path):
+        icon_path = os.path.join(getRootPath(), "Resource", "icon.ico")
     app = QtWidgets.QApplication.instance()
     if app:
         app.setWindowIcon(QtGui.QIcon(icon_path))
@@ -167,8 +169,17 @@ def NewProject(parent: QtWidgets.QWidget) -> None:
         QtWidgets.QMessageBox.warning(parent, "Hint", ELOC("PROJECT_EXISTS"))
         return
     try:
-        src = os.path.abspath(os.path.join(os.getcwd(), "Sample"))
+        src = os.path.abspath(os.path.join(getRootPath(), "Sample"))
+        if not os.path.isdir(src):
+            raise FileNotFoundError(f"Sample directory not found: {src}")
         shutil.copytree(src, target)
+        pysfSrc = os.path.abspath(os.path.join(getRootPath(), "pysf"))
+        pysfDst = os.path.join(target, "pysf")
+        if os.path.isdir(pysfSrc):
+            if os.path.exists(pysfDst) and not os.path.isdir(pysfDst):
+                raise FileExistsError(f"Target pysf exists and is not a directory: {pysfDst}")
+            if not os.path.exists(pysfDst):
+                shutil.copytree(pysfSrc, pysfDst)
         projFile = os.path.join(target, "Main.proj")
         with open(projFile, "w", encoding="utf-8") as f:
             f.write("{}")

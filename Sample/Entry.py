@@ -8,10 +8,6 @@ import threading
 
 
 def entry():
-    try:
-        import debugpy
-    except ImportError:
-        pass
     import Engine
     import Global
     import Source
@@ -39,7 +35,13 @@ def entry():
         t = threading.Thread(target=_stdinWorker, daemon=True)
         t.start()
 
-    debugpy.listen(("localhost", 5678))
+    try:
+        import debugpy
+
+        debugpy.listen(("localhost", 5678))
+    except ImportError:
+        print("Debugpy not found, not using it.")
+
     iniFilePath = "./Main.ini"
     iniFile = configparser.ConfigParser()
     iniFile.read(iniFilePath, encoding="utf-8")

@@ -44,14 +44,20 @@ def getTitle() -> str:
 
 
 def applyStyle(widget: QtWidgets.QWidget, fileName: str) -> None:
-    qss_path = os.path.join("Styles", fileName)
+    baseDir = os.path.dirname(sys.executable) if alreadyPacked() else os.getcwd()
+    qss_path = os.path.join(baseDir, "Styles", fileName)
+    if not os.path.exists(qss_path):
+        qss_path = os.path.join("Styles", fileName)
     if os.path.exists(qss_path):
         with open(qss_path, "r", encoding="utf-8") as f:
             widget.setStyleSheet(widget.styleSheet() + "\n" + f.read())
 
 
 def setStyle(widget: QtWidgets.QWidget, fileName: str) -> None:
-    qss_path = os.path.join("Styles", fileName)
+    baseDir = os.path.dirname(sys.executable) if alreadyPacked() else os.getcwd()
+    qss_path = os.path.join(baseDir, "Styles", fileName)
+    if not os.path.exists(qss_path):
+        qss_path = os.path.join("Styles", fileName)
     if os.path.exists(qss_path):
         with open(qss_path, "r", encoding="utf-8") as f:
             widget.setStyleSheet(f.read())

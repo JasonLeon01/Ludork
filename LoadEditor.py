@@ -39,7 +39,9 @@ def initConfig():
         with open(os.path.join(File.getIniPath(), f"{EditorStatus.APP_NAME}.ini"), "w") as f:
             EditorStatus.editorConfig.write(f)
     else:
-        EditorStatus.editorConfig.read(os.path.join(File.getIniPath(), f"{EditorStatus.APP_NAME}.ini"))
+        EditorStatus.editorConfig.read(
+            os.path.join(File.getIniPath(), f"{EditorStatus.APP_NAME}.ini"), encoding="utf-8"
+        )
     EditorStatus.LANGUAGE = EditorStatus.editorConfig[EditorStatus.APP_NAME]["Language"]
 
 
@@ -77,7 +79,9 @@ def main():
         app_dir = os.path.dirname(sys.executable)
         if app_dir not in sys.path:
             sys.path.insert(0, app_dir)
-    icon_path = "./Resource/icon.ico"
+    icon_path = os.path.join(File.getRootPath(), "Resource", "icon.icns" if sys.platform == "darwin" else "icon.ico")
+    if not os.path.exists(icon_path):
+        icon_path = os.path.join(File.getRootPath(), "Resource", "icon.ico")
     QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
     QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
     app = App(sys.argv)
