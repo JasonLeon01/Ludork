@@ -9,7 +9,7 @@ from typing import List
 ExtensionName = "UtilsExtension"
 ProjectFolder = "../../"
 SampleFolder = "../../Sample/"
-EngineFolder = SampleFolder + "Engine/"
+EngineFolder = SampleFolder + "Global/"
 TargetFolder = EngineFolder
 pysfDir = ProjectFolder + "pysf/"
 

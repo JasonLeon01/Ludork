@@ -101,3 +101,6 @@ class ControlBase(Drawable, Transformable):
         if self._parent:
             return self._parent._getScreenRenderTransform() * transform
         return transform
+
+    def __del__(self) -> None:
+        print(f"ControlBase {self} deleted")

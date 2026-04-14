@@ -11,17 +11,11 @@ if exist "lib" (
   rmdir /S /Q "lib"
 )
 echo "Cleaning up SFML..."
-for /d /r %%d in (SFML) do (
-  if exist "%%d\NUL" rmdir /s /q "%%d"
-)
+rmdir /s /q "C_Extensions\SFML"
 echo "Cleaning up pysf..."
-for /d /r %%d in (pysf) do (
-  if exist "%%d\NUL" rmdir /s /q "%%d"
-)
+rmdir /s /q "pysf"
 echo "Cleaning up build..."
-for /d /r %%d in (build) do (
-  if exist "%%d\NUL" rmdir /s /q "%%d"
-)
+rmdir /s /q "build"
 echo "Cleaning up .pyi, .pyd, and .so files..."
 for /r %%f in (*.pyi) do if exist "%%f" del /f /q "%%f"
 for /r %%f in (*.pyd) do if exist "%%f" del /f /q "%%f"

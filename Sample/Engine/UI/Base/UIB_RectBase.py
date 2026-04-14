@@ -74,3 +74,7 @@ class PyRectBase:
         dst.draw(*backParams)
         dst.draw(*edgeParams)
         dst.display()
+
+    def __del__(self) -> None:
+        super().__del__()
+        print(f"RectBase {self} deleted")

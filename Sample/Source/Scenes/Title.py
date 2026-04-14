@@ -24,8 +24,8 @@ class Scene(SceneBase):
         )
         self._windowCommand.setOrigin((128, 64))
         self._windowCommand.setPosition((320, 240))
-        self.addUI(self._bg)
-        self.addUI(self._windowCommand)
+        self._uiManager.loadUI(self._bg)
+        self._uiManager.loadUI(self._windowCommand)
 
     @staticmethod
     def _startGame(obj: FunctionalBase, kwargs: Dict[str, Any]):

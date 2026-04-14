@@ -97,3 +97,6 @@ class SpriteBase(ControlBase):
         bounds = self.getLocalBounds()
         realBounds = FloatRect(bounds.position * Scale, bounds.size * Scale)
         return transform.transformRect(realBounds)
+
+    def __del__(self) -> None:
+        print(f"SpriteBase {self} deleted")

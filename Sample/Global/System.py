@@ -400,6 +400,7 @@ class System:
     def popScene(cls) -> None:
         assert len(cls._scenes) > 0
         scene = cls._scenes.pop()
+        scene._stopLogicThread()
         scene.onDestroy()
 
     @classmethod

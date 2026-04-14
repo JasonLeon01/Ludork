@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+import copy
 from typing import List, Tuple, Union, TYPE_CHECKING
 from .. import TypeAdapter, Pair, IntRect, Vector2i, Vector2f, Vector2u, RenderTexture, Color, View
 from ..Utils import Math
@@ -19,6 +20,8 @@ class Canvas(SpriteBase, FunctionalBase):
         size = Math.ToVector2u(Math.ToVector2f(rect.size) * Scale)
         self._canvas: RenderTexture = RenderTexture(size)
         self._childrenList: List[ControlBase] = []
+        self._renderQueue: List[tuple[ControlBase, object]] = []
+        self._zOrder: int = 0
         SpriteBase.__init__(self, self._canvas.getTexture())
         FunctionalBase.__init__(self)
         self.setPosition(Math.ToVector2f(rect.position))
@@ -80,22 +83,54 @@ class Canvas(SpriteBase, FunctionalBase):
         if child not in self._childrenList:
             raise ValueError("Child not found")
         self._childrenList.remove(child)
+        child.setParent(None)
+
+    def setZOrder(self, zOrder: int) -> None:
+        self._zOrder = zOrder
+
+    def getZOrder(self) -> int:
+        return self._zOrder
+
+    def _appendRenderNode(self, node: ControlBase, parentStates) -> None:
+        from .UI_ListView import ListView
+
+        if hasattr(node, "applyPositions"):
+            node.applyPositions()
+        nodeStates = copy.copy(parentStates)
+        if hasattr(node, "getRenderStates"):
+            nodeStates = copy.copy(node.getRenderStates())
+            nodeStates.transform *= parentStates.transform
+        if not isinstance(node, ListView):
+            self._renderQueue.append((node, nodeStates))
+        childStates = copy.copy(parentStates)
+        childStates.transform *= node._getRenderTransform()
+        if hasattr(node, "getChildren"):
+            for child in node.getChildren():
+                if child.getVisible():
+                    self._appendRenderNode(child, childStates)
+
+    def _buildRenderQueue(self) -> None:
+        from ..Utils import Render
+
+        self._renderQueue.clear()
+        baseStates = Render.CanvasRenderStates()
+        for child in self._childrenList:
+            if child.getVisible():
+                self._appendRenderNode(child, baseStates)
 
     def update(self, deltaTime: float) -> None:
         for child in self._childrenList:
             if child.getActive() and child.getVisible():
                 if hasattr(child, "update"):
                     child.update(deltaTime)
-        self._canvas.clear(Color.Transparent)
-        for child in self._childrenList:
-            if not child.getVisible():
-                continue
-            params = [child]
-            if hasattr(child, "getRenderStates"):
-                params.append(child.getRenderStates())
-            self._canvas.draw(*params)
-        self._canvas.display()
         FunctionalBase.update(self, deltaTime)
+        self._buildRenderQueue()
+
+    def render(self) -> None:
+        self._canvas.clear(Color.Transparent)
+        for node, nodeStates in self._renderQueue:
+            self._canvas.draw(node, copy.copy(nodeStates))
+        self._canvas.display()
 
     def lateUpdate(self, deltaTime: float) -> None:
         for child in self._childrenList:

@@ -111,3 +111,7 @@ class FunctionalBase:
 
     def fixedUpdate(self, fixedDelta: float) -> None:
         self.onFixedTick(fixedDelta)
+
+    def __del__(self) -> None:
+        super().__del__()
+        print(f"FunctionalBase {self} deleted")

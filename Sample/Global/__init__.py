@@ -8,6 +8,7 @@ from .System import System
 from .GameMap import Light, GameMap
 from .Camera import Camera
 from .SceneBase import SceneBase
+from .UIManager import UIManager
 
 
 def playVideo(videoPath: str, mute: bool = False, skipable: bool = False):

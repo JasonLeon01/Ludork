@@ -54,9 +54,9 @@ class Scene(SceneBase):
         barX = int((gameSize.x - barWidth) / 2)
         barY = int(gameSize.y * 0.8)
         self._bg = Image(Manager.loadSystem("GrassBackground.png"))
-        self.addUI(self._bg)
+        self._uiManager.loadUI(self._bg)
         self.ProgressBar = ProgressBar(((barX, barY), (barWidth, barHeight)))
-        self.addUI(self.ProgressBar)
+        self._uiManager.loadUI(self.ProgressBar)
         self.progressValue = 0.0
         self.progressTotal = Data.getDataKinds()
         self.processedCount = 0
