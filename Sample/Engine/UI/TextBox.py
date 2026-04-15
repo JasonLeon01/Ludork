@@ -6,7 +6,7 @@ from typing import Optional
 from .. import IntRect, RectangleShape, Vector2f, Text, RenderTexture, Sprite, Color, Image
 from ..Utils import Math
 from .Base import SpriteBase
-from .UI_Window import Window
+from .Window import Window
 
 
 class TextBox(SpriteBase):

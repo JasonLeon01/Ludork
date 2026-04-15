@@ -3,9 +3,9 @@
 from __future__ import annotations
 from typing import List, Optional, Tuple, Union
 from ... import Pair, BPBase, Vector2f, Vector2i, Vector2u, IntRect, GetCellSize, Texture
-from ..G_Material import Material
+from ..Material import Material
 from ...Utils import Math, Inner
-from .A_Base import _ActorBase
+from .Base import _ActorBase
 
 
 @PathVars("texturePath")

@@ -94,6 +94,8 @@ class GameMap(GameMapGraphics):
 
     @ExecSplit(default=(None,))
     def setPlayer(self, player: Optional[Actor]) -> None:
+        if self._player is None:
+            self._camera.setParent(player)
         self._player = player
 
     @ReturnType(actors=List[Actor])
@@ -512,20 +514,19 @@ class GameMap(GameMapGraphics):
             self._reflectionStrengthTex = self._getMaterialPropertyTexture("getReflectionStrength", 0.0)
             self._rebuildPassabilityCache()
             self._materialDirty = False
-
-            super().refreshShader(
-                self._lightMask,
-                self._mirrorTex,
-                self._reflectionStrengthTex,
-                System.getScale(),
-                Math.ToVector2f(System.getGameSize()),
-                self._camera.getViewPosition(),
-                self._camera.v_getViewRotation(),
-                Math.ToVector2f(self._tilemap.getSize()),
-                GetCellSize(),
-                self._lights,
-                self._ambientLight,
-            )
+        super().refreshShader(
+            self._lightMask,
+            self._mirrorTex,
+            self._reflectionStrengthTex,
+            System.getScale(),
+            Math.ToVector2f(System.getGameSize()),
+            self._camera.getViewPosition(),
+            self._camera.v_getViewRotation(),
+            Math.ToVector2f(self._tilemap.getSize()),
+            GetCellSize(),
+            self._lights,
+            self._ambientLight,
+        )
 
     def _getMaterialPropertyTexture(
         self, functionName: str, invalidValue: Union[float, bool], smooth: bool = False

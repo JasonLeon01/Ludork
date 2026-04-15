@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+import logging
 from typing import Optional, List, Union, TYPE_CHECKING
 from ... import TypeAdapter, Pair, Drawable, Transformable, Vector2f, Angle, degrees, Transform
 
@@ -103,4 +104,4 @@ class ControlBase(Drawable, Transformable):
         return transform
 
     def __del__(self) -> None:
-        print(f"ControlBase {self} deleted")
+        logging.warning(f"ControlBase {self} deleted")

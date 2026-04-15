@@ -6,8 +6,8 @@ import os
 from enum import Enum
 from EditorGlobal import EditorStatus, GameData
 from Utils import System, File
-from .WU_FileSelectorDialog import FileSelectorDialog
-from .WU_DataclassEditDialog import DataclassEditDialog
+from .FileSelectorDialog import FileSelectorDialog
+from .DataclassEditDialog import DataclassEditDialog
 import copy
 
 

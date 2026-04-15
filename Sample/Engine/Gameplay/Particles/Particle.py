@@ -3,7 +3,7 @@
 from __future__ import annotations
 import copy
 from ... import Color
-from .GP_Base import Base, Info
+from .Base import Base, Info
 
 
 class Particle(Base):

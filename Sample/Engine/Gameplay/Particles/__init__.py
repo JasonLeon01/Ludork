@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from .GP_Base import Info, Base
-from .GP_Particle import Particle
-from .GP_Text import TextParticle
-from .GP_System import System
+from .Base import Info, Base
+from .Particle import Particle
+from .Text import TextParticle
+from .System import System

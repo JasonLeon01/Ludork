@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from ... import Font, Text
-from .GP_Base import Base
+from .Base import Base
 
 
 class TextParticle(Text, Base):

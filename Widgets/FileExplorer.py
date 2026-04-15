@@ -5,7 +5,7 @@ from typing import Callable, Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
 from EditorGlobal import EditorStatus, GameData
 from Utils import Panel, File
-from .W_FilePreview import FilePreview
+from .FilePreview import FilePreview
 
 
 class FileExplorer(QtWidgets.QWidget):

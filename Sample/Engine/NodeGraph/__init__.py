@@ -1,9 +1,9 @@
 # -*- encoding: utf-8 -*-
 
-from .N_Node import DataNode, Node
-from .N_Graph import Graph
-from .N_ClassDict import ClassDict
-from .N_LatentManager import LatentManager
+from .Node import DataNode, Node
+from .Graph import Graph
+from .ClassDict import ClassDict
+from .LatentManager import LatentManager
 
 latentManager: LatentManager = None
 

@@ -1,24 +1,24 @@
 # -*- encoding: utf-8 -*-
 
-from .W_AspectRatioContainer import AspectRatioContainer
-from .W_GamePanel import GamePanel
-from .W_EditorPanel import EditorPanel
-from .W_Toggle import ModeToggle, EditModeToggle
-from .W_TileSelect import TileSelect
-from .W_Console import ConsoleWidget
-from .W_FileExplorer import FileExplorer
-from .W_FilePreview import FilePreview
-from .W_ConfigWindow import ConfigWindow
-from .W_TilesetEditor import TilesetEditor
-from .W_SettingsWindow import SettingsWindow
-from .W_CommonFunctionWindow import CommonFunctionWindow
-from .W_LightPanel import LightPanel
-from .W_BlueprintEditor import BluePrintEditor
-from .W_ClassSelector import ClassSelector
-from .W_ActorInfo import ActorInfoPanel
-from .W_AnimationWindow import AnimationWindow
-from .W_PackDialog import LogDialog, PackWorker, PackSelectionDialog
-from .W_MarkdownPreviewer import MarkdownPreviewer
-from .W_GeneralDataEditor import GeneralDataEditor
-from .W_AboutDialog import AboutDialog
-from .W_ActorQueuePanel import ActorQueuePanel
+from .AspectRatioContainer import AspectRatioContainer
+from .GamePanel import GamePanel
+from .EditorPanel import EditorPanel
+from .Toggle import ModeToggle, EditModeToggle
+from .TileSelect import TileSelect
+from .Console import ConsoleWidget
+from .FileExplorer import FileExplorer
+from .FilePreview import FilePreview
+from .ConfigWindow import ConfigWindow
+from .TilesetEditor import TilesetEditor
+from .SettingsWindow import SettingsWindow
+from .CommonFunctionWindow import CommonFunctionWindow
+from .LightPanel import LightPanel
+from .BlueprintEditor import BluePrintEditor
+from .ClassSelector import ClassSelector
+from .ActorInfo import ActorInfoPanel
+from .AnimationWindow import AnimationWindow
+from .PackDialog import LogDialog, PackWorker, PackSelectionDialog
+from .MarkdownPreviewer import MarkdownPreviewer
+from .GeneralDataEditor import GeneralDataEditor
+from .AboutDialog import AboutDialog
+from .ActorQueuePanel import ActorQueuePanel

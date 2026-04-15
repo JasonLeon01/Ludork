@@ -10,7 +10,7 @@ from NodeGraphQt.widgets.viewer import NodeViewer
 from NodeGraphQt.qgraphics.port import PortItem
 from EditorGlobal import GameData
 from Utils import System
-from .WU_FunctionPickerPopup import FunctionPickerPopup
+from .FunctionPickerPopup import FunctionPickerPopup
 
 if TYPE_CHECKING:
     import Sample.Engine.NodeGraph.Graph as Graph

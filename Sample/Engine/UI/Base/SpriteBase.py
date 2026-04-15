@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+import logging
 from typing import Optional
 from ... import (
     Sprite,
@@ -17,7 +18,7 @@ from ... import (
     FloatRect,
     RenderTarget,
 )
-from .UIB_ControlBase import ControlBase
+from .ControlBase import ControlBase
 
 
 class SpriteBase(ControlBase):
@@ -99,4 +100,4 @@ class SpriteBase(ControlBase):
         return transform.transformRect(realBounds)
 
     def __del__(self) -> None:
-        print(f"SpriteBase {self} deleted")
+        logging.warning(f"SpriteBase {self} deleted")

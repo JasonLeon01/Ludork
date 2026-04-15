@@ -7,7 +7,7 @@ from Engine.UI import Rect, ListView
 from Engine.Utils import Math
 from Engine.UI.Base import ControlBase, FunctionalBase
 from Global import System
-from .W_WindowBase import WindowBase
+from .WindowBase import WindowBase
 
 
 class WindowSelectable(WindowBase):

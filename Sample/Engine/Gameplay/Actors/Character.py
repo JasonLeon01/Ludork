@@ -4,8 +4,8 @@ from __future__ import annotations
 from typing import Optional, Union, Tuple, List
 from ... import Direction, Pair, Texture, IntRect, Vector2i, Utils
 from ...Utils import Inner
-from ..G_Material import Material
-from .A_Actor import Actor
+from ..Material import Material
+from .Actor import Actor
 
 
 @InvalidVars("defaultRect")

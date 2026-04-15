@@ -11,7 +11,7 @@ try:
     DataNode = Engine.NodeGraph.DataNode
     Graph = Engine.NodeGraph.Graph
 except ImportError as e:
-    raise ImportError("Engine.NodeGraph.N_Node") from e
+    raise ImportError("Engine.NodeGraph.Node") from e
 
 
 @dataclass

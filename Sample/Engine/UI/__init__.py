@@ -1,13 +1,13 @@
 # -*- encoding: utf-8 -*-
 
 from .. import Color, Font
-from .UI_Canvas import Canvas
-from .UI_Text import TextStyle, PlainText, RichText
-from .UI_TextBox import TextBox
-from .UI_Image import Image
-from .UI_Window import Window
-from .UI_Rect import Rect
-from .UI_ListView import ListView
+from .Canvas import Canvas
+from .Text import TextStyle, PlainText, RichText
+from .TextBox import TextBox
+from .Image import Image
+from .Window import Window
+from .Rect import Rect
+from .ListView import ListView
 
 DefaultFont: Font
 DefaultFontSize: int = 32

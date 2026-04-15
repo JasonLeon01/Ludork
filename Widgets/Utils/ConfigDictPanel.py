@@ -5,7 +5,7 @@ import os
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Utils import System
 from EditorGlobal import EditorStatus, GameData
-from .WU_FileSelectorDialog import FileSelectorDialog
+from .FileSelectorDialog import FileSelectorDialog
 
 
 class ConfigDictPanel(QtWidgets.QWidget):

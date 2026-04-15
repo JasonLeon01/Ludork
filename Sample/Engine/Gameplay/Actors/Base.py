@@ -16,7 +16,7 @@ from ... import (
     GetCellSize,
     Utils,
 )
-from ..G_Material import Material
+from ..Material import Material
 
 if TYPE_CHECKING:
     from Engine import Texture

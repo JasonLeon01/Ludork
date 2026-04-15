@@ -4,7 +4,7 @@ from __future__ import annotations
 import inspect
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from .. import Pair
-from .N_Node import DataNode, Node
+from .Node import DataNode, Node
 
 
 class Graph:

@@ -18,7 +18,7 @@ from .. import (
     ReturnType,
 )
 from ..Utils import Inner
-from .G_Material import Material
+from .Material import Material
 
 try:
     from ..GraphicsExtension import TileLayerGraphics

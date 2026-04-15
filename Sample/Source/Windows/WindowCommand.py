@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional, Union, Tuple
 from Engine import Pair, Image, IntRect, UI
 from Engine.UI import ListView
 from Engine.UI.FunctionalUI import FPlainText
-from .W_WindowSelectable import WindowSelectable
+from .WindowSelectable import WindowSelectable
 
 
 class WindowCommand(WindowSelectable):

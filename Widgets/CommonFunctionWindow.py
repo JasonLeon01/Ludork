@@ -5,8 +5,8 @@ from typing import Dict
 import copy
 from PyQt5 import QtWidgets, QtCore, QtGui
 from Utils import File, System
-from Widgets.Utils.WU_NodePanel import NodePanel
-from Widgets.Utils.WU_Toast import Toast
+from Widgets.Utils import NodePanel
+from Widgets.Utils import Toast
 from EditorGlobal import GameData
 
 

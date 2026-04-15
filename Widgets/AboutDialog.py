@@ -3,7 +3,7 @@
 from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Utils import File
-from Widgets.W_MarkdownPreviewer import MarkdownPreviewer
+from .MarkdownPreviewer import MarkdownPreviewer
 from EditorGlobal import EditorStatus
 
 

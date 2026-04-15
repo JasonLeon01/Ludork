@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+import logging
 from typing import Callable, Dict, Any
 from ... import FloatRect
 from ...Utils import Math
@@ -114,4 +115,4 @@ class FunctionalBase:
 
     def __del__(self) -> None:
         super().__del__()
-        print(f"FunctionalBase {self} deleted")
+        logging.warning(f"FunctionalBase {self} deleted")

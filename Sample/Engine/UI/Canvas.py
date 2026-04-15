@@ -92,7 +92,7 @@ class Canvas(SpriteBase, FunctionalBase):
         return self._zOrder
 
     def _appendRenderNode(self, node: ControlBase, parentStates) -> None:
-        from .UI_ListView import ListView
+        from .ListView import ListView
 
         if hasattr(node, "applyPositions"):
             node.applyPositions()

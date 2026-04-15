@@ -4,8 +4,8 @@ from __future__ import annotations
 from typing import Dict, List, TYPE_CHECKING, Tuple
 from ... import Drawable, VertexArray, PrimitiveType, Texture, Vector2f
 from ..GamePlayExtension import C_AddParticle, C_RemoveParticle, C_UpdateParticlesInfo
-from .GP_Particle import Particle
-from .GP_Text import TextParticle
+from .Particle import Particle
+from .Text import TextParticle
 
 if TYPE_CHECKING:
     from Engine import RenderTarget, RenderStates

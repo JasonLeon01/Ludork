@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+import logging
 from typing import List, TYPE_CHECKING
 from ... import (
     Sprite,
@@ -77,4 +78,4 @@ class PyRectBase:
 
     def __del__(self) -> None:
         super().__del__()
-        print(f"RectBase {self} deleted")
+        logging.warning(f"RectBase {self} deleted")

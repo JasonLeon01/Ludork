@@ -1,12 +1,10 @@
 # -*- encoding: utf-8 -*-
 
+import copy
 from PyQt5 import QtWidgets, QtCore, QtGui
 from EditorGlobal import GameData
-import copy
 from Utils import File, System
-from .Utils.WU_TilesetPanel import TilesetPanel
-from .Utils.WU_SingleRowDialog import SingleRowDialog
-from .Utils.WU_Toast import Toast
+from .Utils import TilesetPanel, SingleRowDialog, Toast
 
 
 class TilesetEditor(QtWidgets.QMainWindow):

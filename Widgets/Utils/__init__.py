@@ -1,15 +1,15 @@
 # -*- encoding: utf-8 -*-
 
-from .WU_MapEditDialog import MapEditDialog
-from .WU_SingleRowDialog import SingleRowDialog
-from .WU_ConfigDictPanel import ConfigDictPanel
-from .WU_FileSelectorDialog import FileSelectorDialog
-from .WU_TilesetPanel import TilesetPanel
-from .WU_RectViewer import RectViewer
-from .WU_Toast import Toast
-from .WU_NodePanel import NodePanel
-from .WU_FunctionPickerPopup import FunctionPickerPopup
-from .WU_Timeline import TimelinePanel as TimeLine
-from .WU_DataclassEditDialog import DataclassEditDialog
-from .WU_DataclassWidget import DataclassWidget
-from .WU_FPSGraphDialog import FPSGraphDialog
+from .MapEditDialog import MapEditDialog
+from .SingleRowDialog import SingleRowDialog
+from .ConfigDictPanel import ConfigDictPanel
+from .FileSelectorDialog import FileSelectorDialog
+from .TilesetPanel import TilesetPanel
+from .RectViewer import RectViewer
+from .Toast import Toast
+from .NodePanel import NodePanel
+from .FunctionPickerPopup import FunctionPickerPopup
+from .Timeline import TimelinePanel as TimeLine
+from .DataclassEditDialog import DataclassEditDialog
+from .DataclassWidget import DataclassWidget
+from .FPSGraphDialog import FPSGraphDialog

@@ -4,7 +4,7 @@ from typing import Any, Optional
 import os
 from PyQt5 import QtCore, QtGui, QtWidgets
 from EditorGlobal import EditorStatus, GameData
-from .Utils.WU_FileSelectorDialog import FileSelectorDialog
+from .Utils import FileSelectorDialog
 
 
 class ListEditorWidget(QtWidgets.QWidget):
