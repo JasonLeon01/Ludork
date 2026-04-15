@@ -69,6 +69,8 @@ class TileLayer(TileLayerGraphics):
         self._texture = texture
         self._lightBlockMapCache: Optional[List[List[float]]] = None
         self._lightBlockImageCache: Optional[Image] = None
+        self._reflectionStrengthMapCache: Optional[List[List[float]]] = None
+        self._reflectionStrengthImageCache: Optional[Image] = None
         self.visible = visible
         super().__init__(
             self._width, self._height, GetCellSize(), self._texture, self._data.tiles, self._data.layerTileset.materials
@@ -139,6 +141,17 @@ class TileLayer(TileLayerGraphics):
             ]
         return self._lightBlockMapCache
 
+    def getReflectionStrengthMap(self) -> List[List[float]]:
+        if self._reflectionStrengthMapCache is None:
+            self._reflectionStrengthMapCache = [
+                [
+                    (self.getMirror(Vector2i(x, y)) and self.getReflectionStrength(Vector2i(x, y)) or 0.0)
+                    for x in range(self._width)
+                ]
+                for y in range(self._height)
+            ]
+        return self._reflectionStrengthMapCache
+
     def getLightBlockImage(self) -> Image:
         if self._lightBlockImageCache is None:
             dataMap = self.getLightBlockMap()
@@ -149,6 +162,17 @@ class TileLayer(TileLayerGraphics):
                     img.setPixel(Vector2u(x, y), Color(g, g, g))
             self._lightBlockImageCache = img
         return self._lightBlockImageCache
+
+    def getReflectionStrengthImage(self) -> Image:
+        if self._reflectionStrengthImageCache is None:
+            dataMap = self.getReflectionStrengthMap()
+            img = Image(Vector2u(self._width, self._height))
+            for y in range(self._height):
+                for x in range(self._width):
+                    g = int(dataMap[y][x] * 255)
+                    img.setPixel(Vector2u(x, y), Color(g, g, g))
+            self._reflectionStrengthImageCache = img
+        return self._reflectionStrengthImageCache
 
 
 class Tilemap:

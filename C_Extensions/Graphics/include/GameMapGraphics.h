@@ -16,10 +16,8 @@ namespace py = pybind11;
 class GameMapGraphics {
 public:
   GameMapGraphics(sf::Shader *shader);
-  void refreshShader(const sf::RenderTexture &lightMask,
-                     const sf::Texture &mirrorTex,
-                     const sf::Texture &reflectionStrengthTex,
-                     float screenScale, const sf::Vector2f &screenSize,
+  void refreshShader(const sf::RenderTexture &lightMask, float screenScale,
+                     const sf::Vector2f &screenSize,
                      const sf::Vector2f &viewPos, float viewRot,
                      const sf::Vector2f &gridSize, int cellSize,
                      const std::vector<py::object> &lights,

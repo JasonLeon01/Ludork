@@ -187,10 +187,6 @@ class Camera(Drawable, Transformable):
     def getMap(self) -> Optional[GameMap]:
         return self._map
 
-    def initLightMask(self, size: Vector2u) -> RenderTexture:
-        self._lightMask = RenderTexture(size)
-        return self._lightMask
-
     def render(self, obj: Drawable) -> None:
         self._renderTexture.draw(obj, self._renderStates)
 
