@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List
 from PyQt5 import QtWidgets, QtCore, QtGui
 from NodeGraphQt import NodeGraph, BaseNode
 from NodeGraphQt.widgets.viewer import NodeViewer
+from NodeGraphQt.widgets.node_widgets import NodeBaseWidget
 from NodeGraphQt.qgraphics.port import PortItem
 from EditorGlobal import GameData
 from Utils import System
@@ -37,10 +38,97 @@ class CustomViewer(NodeViewer):
         return super(CustomViewer, self).applyLiveConnection(event)
 
 
+_RESERVED_NODE_PROPERTIES = {
+    "type_",
+    "id",
+    "icon",
+    "name",
+    "color",
+    "border_color",
+    "text_color",
+    "disabled",
+    "selected",
+    "visible",
+    "width",
+    "height",
+    "pos",
+    "layout_direction",
+    "inputs",
+    "outputs",
+    "port_deletion_allowed",
+    "subgraph_session",
+}
+
+
+def makeSafeNodePropertyName(name: str, usedNames: set) -> str:
+    base = name
+    if base in _RESERVED_NODE_PROPERTIES:
+        if base:
+            base = f"param{base[:1].upper()}{base[1:]}"
+        else:
+            base = "param"
+    if base in _RESERVED_NODE_PROPERTIES:
+        base = "param"
+    safe = base
+    i = 2
+    while safe in usedNames or safe in _RESERVED_NODE_PROPERTIES:
+        safe = f"{base}{i}"
+        i += 1
+    usedNames.add(safe)
+    return safe
+
+
+class NodePlainTextEdit(QtWidgets.QPlainTextEdit):
+    editingFinished = QtCore.pyqtSignal()
+
+    def __init__(self, parent: QtWidgets.QWidget = None):
+        super(NodePlainTextEdit, self).__init__(parent)
+        self.setLineWrapMode(QtWidgets.QPlainTextEdit.WidgetWidth)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+        self.setFixedHeight(60)
+
+    def focusOutEvent(self, event: QtGui.QFocusEvent):
+        super(NodePlainTextEdit, self).focusOutEvent(event)
+        self.editingFinished.emit()
+
+    def keyPressEvent(self, event: QtGui.QKeyEvent):
+        if event.key() in (QtCore.Qt.Key_Return, QtCore.Qt.Key_Enter) and (
+            event.modifiers() & QtCore.Qt.ControlModifier
+        ):
+            self.editingFinished.emit()
+            event.accept()
+            return
+        super(NodePlainTextEdit, self).keyPressEvent(event)
+
+
+class NodeMultiLineTextWidget(NodeBaseWidget):
+    def __init__(self, parent=None, name: str = "", label: str = "", text: str = ""):
+        super(NodeMultiLineTextWidget, self).__init__(parent)
+        self.set_name(name)
+        self.set_label(label)
+        editor = NodePlainTextEdit()
+        editor.setPlainText(text or "")
+        self.set_custom_widget(editor)
+        editor.textChanged.connect(self.on_value_changed)
+
+    def get_value(self):
+        editor = self.get_custom_widget()
+        return editor.toPlainText()
+
+    def set_value(self, value):
+        editor = self.get_custom_widget()
+        wasBlocked = editor.blockSignals(True)
+        editor.setPlainText("" if value is None else str(value))
+        editor.blockSignals(wasBlocked)
+
+
 def makeInit(currNode):
     def subClassInit(self):
         super(self.__class__, self).__init__()
         self._port_types = {}
+        self._widgetNameByPort = {}
+        usedNames = set()
         if hasattr(currNode.nodeFunction, "_latents") and len(currNode.nodeFunction._latents) > 0:
             self.add_input("in")
             self._port_types["in"] = "Exec"
@@ -71,6 +159,8 @@ def makeInit(currNode):
         for i, name in enumerate(keys):
             if name in paramDefaults:
                 continue
+            widgetName = makeSafeNodePropertyName(name, usedNames)
+            self._widgetNameByPort[name] = widgetName
             init_val = currNode.params[i] if i < len(currNode.params) else ""
             self.add_input(name, multi_input=False)
             self._port_types[name] = "Params"
@@ -88,24 +178,29 @@ def makeInit(currNode):
                     items = [str(x) for x in items]
                 else:
                     items = []
-                self.add_combo_menu(name=name, label=display_label, items=items)
-                w = self.get_widget(name)
+                self.add_combo_menu(name=widgetName, label=display_label, items=items)
+                w = self.get_widget(widgetName)
                 if w:
                     le = w.get_custom_widget()
                     if le and hasattr(le, "setCurrentText"):
                         le.setCurrentText(str(init_val))
                     System.setStyle(le, "nodeInput.qss")
             elif param_type is bool or param_type == "bool":
-                self.add_checkbox(name=name, label=display_label, text="", state=bool(init_val))
+                self.add_checkbox(name=widgetName, label=display_label, text="", state=bool(init_val))
             elif param_type is int or param_type == "int":
                 try:
                     val = int(init_val)
                 except:
                     val = 0
                 self.add_spinbox(
-                    name=name, label=display_label, value=val, min_value=-2147483648, max_value=2147483647, double=False
+                    name=widgetName,
+                    label=display_label,
+                    value=val,
+                    min_value=-2147483648,
+                    max_value=2147483647,
+                    double=False,
                 )
-                w = self.get_widget(name)
+                w = self.get_widget(widgetName)
                 if w:
                     le = w.get_custom_widget()
                     System.setStyle(le, "nodeInput.qss")
@@ -115,20 +210,23 @@ def makeInit(currNode):
                 except:
                     val = 0.0
                 self.add_spinbox(
-                    name=name,
+                    name=widgetName,
                     label=display_label,
                     value=val,
                     min_value=-999999999.0,
                     max_value=999999999.0,
                     double=True,
                 )
-                w = self.get_widget(name)
+                w = self.get_widget(widgetName)
                 if w:
                     le = w.get_custom_widget()
                     System.setStyle(le, "nodeInput.qss")
             else:
-                self.add_text_input(name=name, label=display_label, text=str(init_val))
-                w = self.get_widget(name)
+                nodeWidget = NodeMultiLineTextWidget(
+                    self.view, name=widgetName, label=display_label, text=str(init_val)
+                )
+                self.add_custom_widget(nodeWidget)
+                w = self.get_widget(widgetName)
                 if w:
                     le = w.get_custom_widget()
                     System.setStyle(le, "nodeInput.qss")
@@ -136,7 +234,8 @@ def makeInit(currNode):
         self._string_mode = has_invalid
         if has_invalid:
             for i, name in enumerate(keys):
-                w = self.get_widget(name)
+                widgetName = self._widgetNameByPort.get(name, name)
+                w = self.get_widget(widgetName)
                 if w:
                     cw = w.get_custom_widget()
                     if isinstance(cw, QtWidgets.QLineEdit):
@@ -173,6 +272,7 @@ class NodePanel(QtWidgets.QWidget):
         self.classDict: Dict[str, type] = {}
         self.nodes: List[BaseNode] = []
         self._pending_conn = None
+        self.paramChangeTimerByWidget: Dict[int, QtCore.QTimer] = {}
         self._setupLayout()
         self._registerNodes()
         self._createNodes()
@@ -211,6 +311,12 @@ class NodePanel(QtWidgets.QWidget):
             if metaKey == "DisplayDesc":
                 obj.view.setToolTip(metaRefer["originalName"] + "\n\n" + metaValue)
 
+    def resolveWidgetName(self, node: BaseNode, portName: str) -> str:
+        widgetNameByPort = getattr(node, "_widgetNameByPort", None)
+        if isinstance(widgetNameByPort, dict):
+            return widgetNameByPort.get(portName, portName)
+        return portName
+
     def _createNodes(self):
         start_idx = self._getStartIndex()
         for i, node in enumerate(self.nodeGraph.nodes[self.key]):
@@ -243,7 +349,8 @@ class NodePanel(QtWidgets.QWidget):
             for name in keys:
                 if paramIndex >= len(node.params):
                     break
-                w = nodeInst.get_widget(name)
+                widgetName = self.resolveWidgetName(nodeInst, name)
+                w = nodeInst.get_widget(widgetName)
                 if w:
                     le = w.get_custom_widget()
                     val = node.params[paramIndex]
@@ -251,6 +358,17 @@ class NodePanel(QtWidgets.QWidget):
                         le.setText(str(val))
                         le.editingFinished.connect(
                             lambda n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
+                        )
+                    elif isinstance(le, QtWidgets.QPlainTextEdit):
+                        wasBlocked = le.blockSignals(True)
+                        le.setPlainText(str(val))
+                        le.blockSignals(wasBlocked)
+                        if hasattr(le, "editingFinished"):
+                            le.editingFinished.connect(
+                                lambda n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
+                            )
+                        le.textChanged.connect(
+                            lambda n=i, p=paramIndex, widget=le: self.scheduleParamChanged(n, p, widget)
                         )
                     elif isinstance(le, QtWidgets.QCheckBox):
                         le.setChecked(bool(val))
@@ -279,6 +397,16 @@ class NodePanel(QtWidgets.QWidget):
                             lambda idx, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
                         )
                 paramIndex += 1
+
+    def scheduleParamChanged(self, nodeIndex: int, paramIndex: int, widget: QtWidgets.QWidget):
+        key = id(widget)
+        timer = self.paramChangeTimerByWidget.get(key)
+        if not timer:
+            timer = QtCore.QTimer(self)
+            timer.setSingleShot(True)
+            timer.timeout.connect(lambda n=nodeIndex, p=paramIndex, w=widget: self._onParamChanged(n, p, w))
+            self.paramChangeTimerByWidget[key] = timer
+        timer.start(300)
 
     def _getStartIndex(self):
         start = self.nodeGraph.startNodes.get(self.key)
@@ -334,8 +462,9 @@ class NodePanel(QtWidgets.QWidget):
 
                             if left_port and right_port:
                                 left_port.connect_to(right_port)
-                                if rightNodeInst.get_widget(in_name):
-                                    rightNodeInst.hide_widget(in_name, push_undo=False)
+                                widgetName = self.resolveWidgetName(rightNodeInst, in_name)
+                                if rightNodeInst.get_widget(widgetName):
+                                    rightNodeInst.hide_widget(widgetName, push_undo=False)
             else:
                 raise ValueError(f"Unknown link type: {linkType}")
 
@@ -420,8 +549,9 @@ class NodePanel(QtWidgets.QWidget):
         if portIn.type_() == "in":
             node = portIn.node()
             name = portIn.name()
-            if node.get_widget(name):
-                node.hide_widget(name, push_undo=False)
+            widgetName = self.resolveWidgetName(node, name)
+            if node.get_widget(widgetName):
+                node.hide_widget(widgetName, push_undo=False)
 
     def _onLiveConnectionPrompt(self, start_port_view, scene_pos):
         node_out = self.graph.get_node_by_id(start_port_view.node.id)
@@ -604,8 +734,9 @@ class NodePanel(QtWidgets.QWidget):
             if not portIn.connected_ports():
                 node = portIn.node()
                 name = portIn.name()
-                if node.get_widget(name):
-                    node.show_widget(name, push_undo=False)
+                widgetName = self.resolveWidgetName(node, name)
+                if node.get_widget(widgetName):
+                    node.show_widget(widgetName, push_undo=False)
 
     def onNodesMoved(self, movedInfo):
         if self._isLoading:
@@ -811,8 +942,11 @@ class NodePanel(QtWidgets.QWidget):
             return
         for node in self._COPY_BUFFER:
             pos = copy.copy(node.position)
-            pos[0] += 10
-            pos[1] += 10
+            if isinstance(pos, tuple):
+                pos = (pos[0] + 10, pos[1] + 10)
+            else:
+                pos[0] += 10
+                pos[1] += 10
             self.nodeGraph.dataNodes[self.key].append(
                 EditorDataNode(node.functionName, copy.deepcopy(node.params), pos)
             )
@@ -873,6 +1007,8 @@ class NodePanel(QtWidgets.QWidget):
         text = ""
         if isinstance(widget, QtWidgets.QLineEdit):
             text = widget.text()
+        elif isinstance(widget, (QtWidgets.QPlainTextEdit, QtWidgets.QTextEdit)):
+            text = widget.toPlainText()
         elif isinstance(widget, QtWidgets.QCheckBox):
             text = widget.isChecked()
         elif isinstance(widget, (QtWidgets.QSpinBox, QtWidgets.QDoubleSpinBox)):

@@ -66,12 +66,12 @@ class ClassDict:
                     attrs[key] = value
 
                 def __init__(self, *args, **kwargs) -> None:
-                    super(type(self), self).__init__(*args, **kwargs)
                     for key, value in classAttrs.items():
                         try:
                             setattr(self, key, eval(value))
                         except:
                             setattr(self, key, value)
+                    super(type(self), self).__init__(*args, **kwargs)
 
                 attrs["__init__"] = __init__
                 targetClass = type(

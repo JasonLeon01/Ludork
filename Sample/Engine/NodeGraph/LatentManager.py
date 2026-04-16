@@ -23,6 +23,7 @@ class LatentManager:
             self._latents: List[Tuple[weakref.ReferenceType[Graph], str, Callable, Dict[str, Any], int]] = []
 
     def add(self, graph: Graph, key: str, condition: Callable, localRef: Dict[str, Any], index: int) -> None:
+        graph.onLatentAdded(key)
         self._latents.append((weakref.ref(graph), key, condition, localRef, index))
 
     def update(self) -> None:
@@ -49,10 +50,12 @@ class LatentManager:
                     break
             if matched:
                 self._removeLatentsForNode(graph, key, index)
+                graph.onLatentResolved(key)
                 nextMap = graph.nodeNexts.get(key, {}).get(index, {})
                 if execIndex in nextMap:
                     nextNodeIndex = nextMap[execIndex][0]
                     graph.execute(key, nextNodeIndex)
+                graph.completeExecution(key)
 
     def _removeLatentsForNode(self, graph: Optional[Graph], key: str, index: int) -> None:
         if graph is None:

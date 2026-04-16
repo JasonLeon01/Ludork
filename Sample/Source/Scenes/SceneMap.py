@@ -2,7 +2,7 @@
 
 import os
 from typing import List, Union, Optional, Dict, Any
-from Engine import Pair, Vector2u, Color
+from Engine import Pair, Vector2u, Vector2f, Color
 from Engine.Gameplay import Tilemap, TileLayer, TileLayerData
 from Engine.Utils import File
 from Global import Manager, SceneBase, GameMap, Camera, Light
@@ -45,8 +45,15 @@ class Scene(SceneBase):
         self._gameMap.setPlayer(self.player)
 
     @Latent(FinishedDialogue=(True,))
-    def showMessage(self, message: str) -> None:
-        self._messageWindow.setMessage(message)
+    def showMessage(self, refActorTag: str, name: str, message: str) -> None:
+        refPosition: Optional[Vector2f] = None
+        if bool(refActorTag):
+            actors = self._gameMap.getAllActorsByTag(refActorTag)
+            if actors:
+                actor = actors[0]
+                camera = self._gameMap.getCamera()
+                refPosition = actor.getPosition() - camera.getViewPosition()
+        self._messageWindow.setMessage(refPosition, name, message)
         originMoveEnabled = self.player.getMoveEnabled()
         self.player.setMoveEnabled(False)
 

@@ -1,4 +1,4 @@
-QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {
+QLineEdit, QPlainTextEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QComboBox {
     background-color: #454545;
     color: white;
     border: 1px solid #606060;
@@ -7,7 +7,7 @@ QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {
     selection-background-color: #4a90e2;
 }
 
-QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
+QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
     border: 1px solid #4a90e2;
 }
 

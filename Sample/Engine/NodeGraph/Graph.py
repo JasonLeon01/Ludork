@@ -37,6 +37,8 @@ class Graph:
         if self.nodeModel is None:
             self.nodeModel = Node
         self.doingPartKey: Optional[str] = None
+        self._executionLocked: Dict[str, bool] = {}
+        self._latentPendingCount: Dict[str, int] = {}
         self.genNodesFromDataNodes()
         self.genRelationsFromLinks()
 
@@ -107,15 +109,15 @@ class Graph:
         steps = 0
         while True:
             result = self.executeNode(key, curr, cache)
-            nextMap = self.nodeNexts.get(key, {}).get(curr, {})
-            if not nextMap:
-                return result
-            chosen = None
             nodeFunc = self.nodes[key][curr].nodeFunction
             if hasattr(nodeFunc, "_latents"):
                 condition = result[0] if isinstance(result, tuple) and len(result) > 0 else result
                 latentManager.add(self, key, condition, self.localGraph, curr)
                 return result
+            nextMap = self.nodeNexts.get(key, {}).get(curr, {})
+            if not nextMap:
+                return result
+            chosen = None
             splits = getattr(nodeFunc, "_execSplits", None)
             if splits and len(splits) > 0:
                 for v in result:
@@ -212,6 +214,26 @@ class Graph:
 
     def hasKey(self, key: str) -> bool:
         return key in self.nodes
+
+    def tryLockExecution(self, key: str) -> bool:
+        if self._executionLocked.get(key, False):
+            return False
+        self._executionLocked[key] = True
+        return True
+
+    def isExecutionLocked(self, key: str) -> bool:
+        return self._executionLocked.get(key, False)
+
+    def onLatentAdded(self, key: str) -> None:
+        self._latentPendingCount[key] = self._latentPendingCount.get(key, 0) + 1
+
+    def onLatentResolved(self, key: str) -> None:
+        count = self._latentPendingCount.get(key, 0)
+        self._latentPendingCount[key] = max(0, count - 1)
+
+    def completeExecution(self, key: str) -> None:
+        if self._latentPendingCount.get(key, 0) <= 0:
+            self._executionLocked[key] = False
 
     def asDict(self) -> Dict[str, Any]:
         result = {}

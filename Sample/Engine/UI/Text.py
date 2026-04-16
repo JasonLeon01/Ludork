@@ -161,6 +161,7 @@ class RichText(SpriteBase):
         self.setTexture(self._textTexture.getTexture(), True)
 
     def _render(self, text: str, styleCollection: Dict[str, TextStyle]) -> None:
+        from . import HexColor
         from .. import Scale
 
         def modelText(inText: str) -> Text:
@@ -186,11 +187,12 @@ class RichText(SpriteBase):
                         pauseRender = True
                     else:
                         pauseRender = False
-                        if not savedMark in styleCollection:
-                            texts[-1].append(modelText(f"#{savedMark}#"))
+                        targetStyle: TextStyle = None
+                        if savedMark in styleCollection:
+                            targetStyle = styleCollection[savedMark]
                         else:
-                            self._style.adaptStyle(styleCollection[savedMark])
-
+                            targetStyle = eval(f"TextStyle(fillColor=HexColor('{savedMark}'))")
+                        self._style.adaptStyle(targetStyle)
                         savedMark = ""
                 else:
                     if pauseRender:
