@@ -104,7 +104,7 @@ def injectEvent(data: Dict[str, Any]) -> None:
     _InjectedEvents.append(data)
 
 
-def _processInjectedEvents():
+def _processInjectedEvents() -> None:
     while _InjectedEvents:
         data = _InjectedEvents.pop(0)
         t = data.get("type")
@@ -258,6 +258,8 @@ def update(window: WindowBase) -> None:
             if event.isFocusGained():
                 _EventState.Focused = True
                 _EventState.FocusGained = True
+            if not window.hasFocus():
+                break
             if event.isKeyPressed():
                 _EventState.KeyPressed = True
                 keyEvent = event.getIfKeyPressed()

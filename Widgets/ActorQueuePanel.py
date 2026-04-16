@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Optional, Dict
 from PyQt5 import QtCore, QtGui, QtWidgets
-from EditorGlobal import GameData
+from EditorGlobal import GameData, EditorStatus
 
 
 class ActorQueuePanel(QtWidgets.QWidget):

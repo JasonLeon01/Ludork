@@ -12,7 +12,7 @@ from Engine.UI.Base import SpriteBase
 from Engine.UI import Image
 from Global import Manager, System, SceneBase
 from .. import Data
-from .Title import Scene as TitleScene
+from .SceneTitle import Scene as SceneTitle
 
 
 class ProgressBar(SpriteBase):
@@ -47,7 +47,7 @@ class ProgressBar(SpriteBase):
 
 
 class Scene(SceneBase):
-    def onCreate(self):
+    def onCreate(self) -> None:
         gameSize = System.getGameSize()
         barWidth = int(gameSize.x * 0.6)
         barHeight = 12
@@ -72,9 +72,9 @@ class Scene(SceneBase):
             self.ProgressBar.setProgress(1.0 if self.progressDone else 0.0)
         if self.progressDone and not self.hasSwitched:
             self.hasSwitched = True
-            System.setScene(TitleScene())
+            System.setScene(SceneTitle())
 
-    def splitCompound(self, fileName: str):
+    def splitCompound(self, fileName: str) -> Tuple[str, str]:
         parts = fileName.split(".", 1)
         if len(parts) == 2:
             return parts[0], f".{parts[1]}"

@@ -6,6 +6,7 @@ import logging
 from typing import Callable, Dict, Tuple, Optional
 from Engine import Texture, IntRect
 
+
 class TextureManager:
     _TexturesRef: Dict[Tuple[str, bool, Optional[IntRect], bool], weakref.ReferenceType[Texture]] = {}
 
@@ -30,14 +31,14 @@ class TextureManager:
         return texture
 
     @classmethod
-    def getMemory(cls):
+    def getMemory(cls) -> int:
         from pympler import asizeof
 
         return asizeof.asizeof(cls._TexturesRef)
 
     @classmethod
     def _textureGone(cls, filePath: str, sRGB: bool, area: IntRect, smooth: bool) -> Callable:
-        def callback(_):
+        def callback(_) -> None:
             logging.warning(f"Texture {filePath} has been garbage collected.")
             cls._TexturesRef.pop((filePath, sRGB, area, smooth), None)
 

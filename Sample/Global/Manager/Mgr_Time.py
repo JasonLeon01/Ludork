@@ -5,7 +5,7 @@ from Engine import Time, Clock
 
 
 class TimerTaskEntry:
-    def __init__(self, time: float, task: Optional[Callable], params: List[Any]):
+    def __init__(self, time: float, task: Optional[Callable], params: List[Any]) -> None:
         self.time = time
         self.task = task
         self.params = params

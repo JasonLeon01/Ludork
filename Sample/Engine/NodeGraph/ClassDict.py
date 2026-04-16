@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional
 
 
 class ClassDict:
-    def __init__(self):
+    def __init__(self) -> None:
         self._dict: Dict[str, Any] = {"": object}
         self._dataDict: Dict[str, Dict[str, Any]] = {}
 
@@ -65,7 +65,7 @@ class ClassDict:
                 for key, value in classAttrs.items():
                     attrs[key] = value
 
-                def __init__(self, *args, **kwargs):
+                def __init__(self, *args, **kwargs) -> None:
                     super(type(self), self).__init__(*args, **kwargs)
                     for key, value in classAttrs.items():
                         try:

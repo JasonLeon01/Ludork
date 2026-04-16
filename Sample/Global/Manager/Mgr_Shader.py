@@ -7,6 +7,7 @@ import weakref
 from typing import Callable, Dict, Optional, Tuple
 from Engine import Shader
 
+
 class ShaderManager:
     _shaderRec: Dict[Tuple[str, Shader.Type], weakref.ReferenceType[Shader]] = {}
     _fullShaderRec: Dict[Tuple[str, str], weakref.ReferenceType[Shader]] = {}
@@ -60,14 +61,16 @@ class ShaderManager:
         realFragPath = os.path.join(os.getcwd(), "Assets", "Shaders", fragPath)
         shader = Shader()
         if not shader.loadFromFile(realVertPath, realGeoPath, realFragPath):
-            raise Exception(f"Failed to load full shader with geo from file: {realVertPath}, {realGeoPath}, and {realFragPath}")
+            raise Exception(
+                f"Failed to load full shader with geo from file: {realVertPath}, {realGeoPath}, and {realFragPath}"
+            )
         shaderRef = weakref.ref(shader, cls._geoShaderGone(key))
         cls._geoShaderRec[key] = shaderRef
         return shader
 
     @classmethod
     def _shaderGone(cls, key: Tuple[str, Shader.Type]) -> Callable:
-        def callback(_):
+        def callback(_) -> None:
             logging.warning(f"Shader {key} has been garbage collected.")
             cls._shaderRec.pop(key, None)
 
@@ -75,7 +78,7 @@ class ShaderManager:
 
     @classmethod
     def _fullShaderGone(cls, key: Tuple[str, str]) -> Callable:
-        def callback(_):
+        def callback(_) -> None:
             logging.warning(f"Full shader {key} has been garbage collected.")
             cls._fullShaderRec.pop(key, None)
 
@@ -83,7 +86,7 @@ class ShaderManager:
 
     @classmethod
     def _geoShaderGone(cls, key: Tuple[str, str, str]) -> Callable:
-        def callback(_):
+        def callback(_) -> None:
             logging.warning(f"Geo shader {key} has been garbage collected.")
             cls._geoShaderRec.pop(key, None)
 

@@ -9,7 +9,7 @@ from .. import Data
 
 
 class _attrRef:
-    def __init__(self, obj: object, name: str):
+    def __init__(self, obj: object, name: str) -> None:
         self.obj = obj
         self.name = name
 
@@ -20,78 +20,78 @@ class _attrRef:
         setattr(self.obj, self.name, value)
         return value
 
-    def _val(self):
+    def _val(self) -> Any:
         return getattr(self.obj, self.name)
 
-    def __int__(self):
+    def __int__(self) -> int:
         return int(self._val())
 
-    def __float__(self):
+    def __float__(self) -> float:
         return float(self._val())
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self._val())
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"_attrRef({self.obj!r}, {self.name!r}, value={self._val()!r})"
 
-    def __add__(self, other):
+    def __add__(self, other) -> Any:
         return self._val() + (other._val() if isinstance(other, _attrRef) else other)
 
-    def __radd__(self, other):
+    def __radd__(self, other) -> Any:
         return (other._val() if isinstance(other, _attrRef) else other) + self._val()
 
-    def __sub__(self, other):
+    def __sub__(self, other) -> Any:
         return self._val() - (other._val() if isinstance(other, _attrRef) else other)
 
-    def __rsub__(self, other):
+    def __rsub__(self, other) -> Any:
         return (other._val() if isinstance(other, _attrRef) else other) - self._val()
 
-    def __mul__(self, other):
+    def __mul__(self, other) -> Any:
         return self._val() * (other._val() if isinstance(other, _attrRef) else other)
 
-    def __rmul__(self, other):
+    def __rmul__(self, other) -> Any:
         return (other._val() if isinstance(other, _attrRef) else other) * self._val()
 
-    def __truediv__(self, other):
+    def __truediv__(self, other) -> Any:
         return self._val() / (other._val() if isinstance(other, _attrRef) else other)
 
-    def __rtruediv__(self, other):
+    def __rtruediv__(self, other) -> Any:
         return (other._val() if isinstance(other, _attrRef) else other) / self._val()
 
-    def __mod__(self, other):
+    def __mod__(self, other) -> Any:
         return self._val() % (other._val() if isinstance(other, _attrRef) else other)
 
-    def __rmod__(self, other):
+    def __rmod__(self, other) -> Any:
         return (other._val() if isinstance(other, _attrRef) else other) % self._val()
 
-    def __pow__(self, other):
+    def __pow__(self, other) -> Any:
         return self._val() ** (other._val() if isinstance(other, _attrRef) else other)
 
-    def __rpow__(self, other):
+    def __rpow__(self, other) -> Any:
         return (other._val() if isinstance(other, _attrRef) else other) ** self._val()
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> Any:
         return self._val() == (other._val() if isinstance(other, _attrRef) else other)
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> Any:
         return self._val() != (other._val() if isinstance(other, _attrRef) else other)
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> Any:
         return self._val() < (other._val() if isinstance(other, _attrRef) else other)
 
-    def __le__(self, other):
+    def __le__(self, other) -> Any:
         return self._val() <= (other._val() if isinstance(other, _attrRef) else other)
 
-    def __gt__(self, other):
+    def __gt__(self, other) -> Any:
         return self._val() > (other._val() if isinstance(other, _attrRef) else other)
 
-    def __ge__(self, other):
+    def __ge__(self, other) -> Any:
         return self._val() >= (other._val() if isinstance(other, _attrRef) else other)
 
 
 class _localRef:
-    def __init__(self, loc: Dict[str, Any], name: str, default: Any = None):
+    def __init__(self, loc: Dict[str, Any], name: str, default: Any = None) -> None:
         self.loc = loc
         self.name = name
         self.default = default
@@ -103,73 +103,73 @@ class _localRef:
         self.loc[self.name] = value
         return value
 
-    def _val(self):
+    def _val(self) -> Any:
         return self.loc.get(self.name, self.default)
 
-    def __int__(self):
+    def __int__(self) -> int:
         return int(self._val())
 
-    def __float__(self):
+    def __float__(self) -> float:
         return float(self._val())
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self._val())
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"_localRef({self.loc!r}, {self.name!r}, value={self._val()!r})"
 
-    def __add__(self, other):
+    def __add__(self, other) -> Any:
         return self._val() + (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
 
-    def __radd__(self, other):
+    def __radd__(self, other) -> Any:
         return (other._val() if isinstance(other, (_attrRef, _localRef)) else other) + self._val()
 
-    def __sub__(self, other):
+    def __sub__(self, other) -> Any:
         return self._val() - (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
 
-    def __rsub__(self, other):
+    def __rsub__(self, other) -> Any:
         return (other._val() if isinstance(other, (_attrRef, _localRef)) else other) - self._val()
 
-    def __mul__(self, other):
+    def __mul__(self, other) -> Any:
         return self._val() * (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
 
-    def __rmul__(self, other):
+    def __rmul__(self, other) -> Any:
         return (other._val() if isinstance(other, (_attrRef, _localRef)) else other) * self._val()
 
-    def __truediv__(self, other):
+    def __truediv__(self, other) -> Any:
         return self._val() / (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
 
-    def __rtruediv__(self, other):
+    def __rtruediv__(self, other) -> Any:
         return (other._val() if isinstance(other, (_attrRef, _localRef)) else other) / self._val()
 
-    def __mod__(self, other):
+    def __mod__(self, other) -> Any:
         return self._val() % (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
 
-    def __rmod__(self, other):
+    def __rmod__(self, other) -> Any:
         return (other._val() if isinstance(other, (_attrRef, _localRef)) else other) % self._val()
 
-    def __pow__(self, other):
+    def __pow__(self, other) -> Any:
         return self._val() ** (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
 
-    def __rpow__(self, other):
+    def __rpow__(self, other) -> Any:
         return (other._val() if isinstance(other, (_attrRef, _localRef)) else other) ** self._val()
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> Any:
         return self._val() == (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> Any:
         return self._val() != (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> Any:
         return self._val() < (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
 
-    def __le__(self, other):
+    def __le__(self, other) -> Any:
         return self._val() <= (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
 
-    def __gt__(self, other):
+    def __gt__(self, other) -> Any:
         return self._val() > (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
 
-    def __ge__(self, other):
+    def __ge__(self, other) -> Any:
         return self._val() >= (other._val() if isinstance(other, (_attrRef, _localRef)) else other)
 
 

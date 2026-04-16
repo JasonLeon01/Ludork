@@ -33,7 +33,7 @@ class Particle(Base):
             return
         self._checkUpdate()
 
-    def _checkUpdate(self):
+    def _checkUpdate(self) -> None:
         updateFlag = False
         if self._lastPosition != self.info.position:
             self._lastPosition = copy.copy(self.info.position)

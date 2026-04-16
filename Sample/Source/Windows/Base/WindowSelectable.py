@@ -74,7 +74,7 @@ class WindowSelectable(WindowBase):
                             child.onConfirm({})
         super().update(deltaTime)
 
-    def onMouseWheelScrolled(self, kwargs: Dict[str, Any]):
+    def onMouseWheelScrolled(self, kwargs: Dict[str, Any]) -> None:
         if not (self._listView and len(self._listView.getChildren()) > 0 and not self.index is None):
             return
         delta = kwargs["delta"]
@@ -87,10 +87,10 @@ class WindowSelectable(WindowBase):
             bounds: FloatRect = targetChild.getAbsoluteBounds()
             Input.setMousePosition(Math.ToVector2i(bounds.position + bounds.size / 2), System.getWindow())
 
-    def onMouseMoved(self, kwargs: Dict[str, Any]):
+    def onMouseMoved(self, kwargs: Dict[str, Any]) -> None:
         pass
 
-    def onKeyDown(self, kwargs: Dict[str, Any]):
+    def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
         if not (self._listView and len(self._listView.getChildren()) > 0 and not self.index is None):
             return
 
@@ -167,7 +167,7 @@ class WindowSelectable(WindowBase):
             originY = posY
         self.content.setView(View(Vector2f(originX, originY) + viewSize / 2, viewSize))
 
-    def _judgeIfConfirm(self, target: FunctionalBase):
+    def _judgeIfConfirm(self, target: FunctionalBase) -> bool:
         if target.isHovered() and Input.isMouseInputMode() and Input.isMouseButtonTriggered(Input.Mouse.Button.Left):
             return True
         return False

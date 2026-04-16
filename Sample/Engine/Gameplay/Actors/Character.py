@@ -45,6 +45,8 @@ class Character(Actor):
     @ExecSplit(success=(True,), fail=(False,))
     @TypeAdapter(offset=([tuple, list], Vector2i))
     def MapMove(self, offset: Union[Vector2i, Pair[int], List[int]]) -> None:
+        if not self._moveEnabled:
+            return
         result = super().MapMove(offset)
         if not result:
             vx = offset.x

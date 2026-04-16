@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+import copy
 from typing import Dict, List, Optional
 from .. import (
     Color,
@@ -101,29 +102,42 @@ class TextStyle:
     def __init__(
         self,
         characterSize: Optional[int] = None,
-        style: Text.Style = Text.Style.Regular,
-        fillColor: Color = Color.White,
-        outlineColor: Color = Color.Transparent,
-        outlineThickness: float = 0.0,
+        style: Optional[Text.Style] = None,
+        fillColor: Optional[Color] = None,
+        outlineColor: Optional[Color] = None,
+        outlineThickness: Optional[float] = None,
     ) -> None:
-        if characterSize is None:
-            from . import DefaultFontSize
-
-            characterSize = DefaultFontSize
         self.characterSize = characterSize
         self.style = style
         self.fillColor = fillColor
         self.outlineColor = outlineColor
         self.outlineThickness = outlineThickness
 
-    def enableStyle(self, text: Text):
+    def enableStyle(self, text: Text) -> None:
         from .. import Scale
 
-        text.setCharacterSize(int(self.characterSize * Scale))
-        text.setStyle(self.style)
-        text.setFillColor(self.fillColor)
-        text.setOutlineColor(self.outlineColor)
-        text.setOutlineThickness(self.outlineThickness)
+        if not self.characterSize is None:
+            text.setCharacterSize(int(self.characterSize * Scale))
+        if not self.style is None:
+            text.setStyle(self.style)
+        if not self.fillColor is None:
+            text.setFillColor(self.fillColor)
+        if not self.outlineColor is None:
+            text.setOutlineColor(self.outlineColor)
+        if not self.outlineThickness is None:
+            text.setOutlineThickness(self.outlineThickness)
+
+    def adaptStyle(self, inStyle: TextStyle) -> None:
+        if not inStyle.characterSize is None:
+            self.characterSize = inStyle.characterSize
+        if not inStyle.style is None:
+            self.style = inStyle.style
+        if not inStyle.fillColor is None:
+            self.fillColor = inStyle.fillColor
+        if not inStyle.outlineColor is None:
+            self.outlineColor = inStyle.outlineColor
+        if not inStyle.outlineThickness is None:
+            self.outlineThickness = inStyle.outlineThickness
 
 
 class RichText(SpriteBase):
@@ -133,17 +147,24 @@ class RichText(SpriteBase):
         text: str,
         styleCollection: Dict[str, TextStyle],
     ) -> None:
-        self._texture: RenderTexture = None
+        self._textTexture: RenderTexture = None
         self._font: Font = font
         self._style: TextStyle = TextStyle()
+        self._styleCollection = styleCollection
         if "default" in styleCollection:
-            self._style = styleCollection["default"]
+            self._style = copy.copy(styleCollection["default"])
         self._render(text, styleCollection)
-        super().__init__(self._texture.getTexture())
+        super().__init__(self._textTexture.getTexture())
 
-    def _render(self, text: str, styleCollection: Dict[str, Color]) -> None:
-        def modelText(inText: str):
-            text = Text(self._font, inText, self._style.characterSize)
+    def setString(self, text: str) -> None:
+        self._render(text, self._styleCollection)
+        self.setTexture(self._textTexture.getTexture(), True)
+
+    def _render(self, text: str, styleCollection: Dict[str, TextStyle]) -> None:
+        from .. import Scale
+
+        def modelText(inText: str) -> Text:
+            text = Text(self._font, inText, int(self._style.characterSize * Scale))
             self._style.enableStyle(text)
             return text
 
@@ -168,7 +189,8 @@ class RichText(SpriteBase):
                         if not savedMark in styleCollection:
                             texts[-1].append(modelText(f"#{savedMark}#"))
                         else:
-                            self._style = styleCollection[savedMark]
+                            self._style.adaptStyle(styleCollection[savedMark])
+
                         savedMark = ""
                 else:
                     if pauseRender:
@@ -187,16 +209,22 @@ class RichText(SpriteBase):
                 lineHeight = max(lineHeight, textObj.getLocalBounds().size.y + textObj.getLocalBounds().position.y)
             maxWidth = int(max(maxWidth, lineWidth))
             maxHeight = int(maxHeight + lineHeight)
-        self._texture = RenderTexture(Vector2u(maxWidth, maxHeight))
-        self._texture.clear(Color.Transparent)
+        if maxWidth == 0 and maxHeight == 0 and self._textTexture is None:
+            self._textTexture = RenderTexture(Vector2u(1, 1))
+        else:
+            if self._textTexture is None:
+                self._textTexture = RenderTexture(Vector2u(maxWidth, maxHeight))
+            else:
+                self._textTexture.resize(Vector2u(maxWidth, maxHeight))
+        self._textTexture.clear(Color.Transparent)
         y = 0
         for line in texts:
             x = 0
             maxHeight = 0
             for text in line:
                 text.setPosition(Vector2f(x, y))
-                self._texture.draw(text)
+                self._textTexture.draw(text)
                 x += text.getLocalBounds().size.x + text.getLocalBounds().position.x
                 maxHeight = max(maxHeight, text.getLocalBounds().size.y + text.getLocalBounds().position.y)
             y += maxHeight
-        self._texture.display()
+        self._textTexture.display()

@@ -50,7 +50,9 @@ class SceneBase:
         pass
 
     @Latent(TimeUp=(True,))
-    def addTimer(self, key: str, interval: float, task: Optional[Callable] = None, params: Optional[List[Any]] = None):
+    def addTimer(
+        self, key: str, interval: float, task: Optional[Callable] = None, params: Optional[List[Any]] = None
+    ) -> Callable[[], bool]:
         with self._logicDataLock:
             if key in self._timerTasks:
                 raise ValueError("Timer key already exists")

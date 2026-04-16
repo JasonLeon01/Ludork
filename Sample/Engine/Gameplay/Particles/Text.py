@@ -6,7 +6,7 @@ from .Base import Base
 
 
 class TextParticle(Text, Base):
-    def __init__(self, font: Font, text: str, characterSize: int = 30):
+    def __init__(self, font: Font, text: str, characterSize: int = 30) -> None:
         Text.__init__(self, font, text, characterSize)
         Base.__init__(self)
 

@@ -11,6 +11,6 @@ from .SceneBase import SceneBase
 from .UIManager import UIManager
 
 
-def playVideo(videoPath: str, mute: bool = False, skipable: bool = False):
+def playVideo(videoPath: str, mute: bool = False, skipable: bool = False) -> None:
     video = Video(videoPath, mute, skipable)
     video.play()

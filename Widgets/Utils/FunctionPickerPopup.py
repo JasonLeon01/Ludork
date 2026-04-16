@@ -130,10 +130,19 @@ class FunctionPickerPopup(QtWidgets.QFrame):
             return found
         if depth > self._maxDepth:
             return False
-        key = getattr(obj, "__name__", None) if (inspect.ismodule(obj) or inspect.isclass(obj)) else id(obj)
-        if key in self._visited:
+        visitKey = None
+        if inspect.ismodule(obj):
+            visitKey = getattr(obj, "__name__", None)
+        elif inspect.isclass(obj):
+            modName = getattr(obj, "__module__", "")
+            qualName = getattr(obj, "__qualname__", getattr(obj, "__name__", ""))
+            visitKey = f"{modName}.{qualName}" if modName else qualName
+        else:
+            visitKey = id(obj)
+
+        if visitKey in self._visited:
             return False
-        self._visited.add(key)
+        self._visited.add(visitKey)
         try:
             raw = [n for n in dir(obj) if not str(n).startswith("_")]
             names = sorted(raw, key=_aliasFirstKey)

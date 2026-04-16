@@ -34,12 +34,12 @@ class Video:
         self.fps = float(self._stream.average_rate)
         self.finished = False
 
-    def __del__(self):
+    def __del__(self) -> None:
         if self._cap:
             self._cap.close()
             self._cap = None
 
-    def play(self):
+    def play(self) -> None:
         self._sound.setVolume(0 if self.mute else 100)
         self._sound.play()
         window = System.getWindow()

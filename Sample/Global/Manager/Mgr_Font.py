@@ -46,7 +46,7 @@ class FontManager:
         return fontName in cls._FontRec
 
     @classmethod
-    def getMemory(cls):
+    def getMemory(cls) -> int:
         from pympler import asizeof
 
         return asizeof.asizeof([cls._FontRec, cls._FontFilenameRec])

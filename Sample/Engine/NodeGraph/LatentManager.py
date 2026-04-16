@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 class LatentManager:
     _instance = None
 
-    def __new__(cls):
+    def __new__(cls) -> LatentManager:
         if cls._instance is None:
             cls._instance = super(LatentManager, cls).__new__(cls)
             cls._instance._latents = []

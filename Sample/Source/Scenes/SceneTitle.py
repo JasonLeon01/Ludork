@@ -11,7 +11,7 @@ class Scene(SceneBase):
     def onEnter(self) -> None:
         System.setTransition(Manager.loadTransition("001-Blind01.png"), 3)
 
-    def onCreate(self):
+    def onCreate(self) -> None:
         self._bg = Image(Manager.loadSystem("GrassBackground.png"))
         self._windowCommand = WindowCommand(
             ((0, 0), (256, 128)),
@@ -28,19 +28,19 @@ class Scene(SceneBase):
         self._uiManager.loadUI(self._windowCommand)
 
     @staticmethod
-    def _startGame(obj: FunctionalBase, kwargs: Dict[str, Any]):
-        from .Map import Scene as MapScene
+    def _startGame(obj: FunctionalBase, kwargs: Dict[str, Any]) -> None:
+        from .SceneMap import Scene as SceneMap
 
-        System.setScene(MapScene())
+        System.setScene(SceneMap())
 
     @staticmethod
-    def _loadGame(obj: FunctionalBase, kwargs: Dict[str, Any]):
+    def _loadGame(obj: FunctionalBase, kwargs: Dict[str, Any]) -> None:
         print("Load Game")
 
     @staticmethod
-    def _configGame(obj: FunctionalBase, kwargs: Dict[str, Any]):
+    def _configGame(obj: FunctionalBase, kwargs: Dict[str, Any]) -> None:
         print("Config Game")
 
     @staticmethod
-    def _exitGame(obj: FunctionalBase, kwargs: Dict[str, Any]):
+    def _exitGame(obj: FunctionalBase, kwargs: Dict[str, Any]) -> None:
         System.exit()

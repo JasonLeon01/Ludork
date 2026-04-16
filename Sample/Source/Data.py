@@ -3,7 +3,7 @@
 import copy
 import os
 import zlib
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Tuple
 from Engine import Vector2f, Vector2u, Image
 from Engine.Gameplay import Tileset
 from Engine.Gameplay.Actors import Actor
@@ -13,7 +13,7 @@ from Global import Manager
 
 
 class _Data:
-    def __init__(self):
+    def __init__(self) -> None:
         self.dataKinds = 4
         self._animationData: Dict[str, Dict[str, Any]] = {}
         self._commonFunctionsData: Dict[str, Dict[str, Any]] = {}
@@ -22,19 +22,19 @@ class _Data:
         self._generalData: Dict[str, Dict[str, Any]] = {}
         self._classDict = ClassDict()
 
-    def loadAnimations(self):
+    def loadAnimations(self) -> None:
         animationRoot = os.path.join(".", "Data", "Animations")
         self._loadData(animationRoot, self._animationData, ".anim.dat", {".anim.dat": File.loadData})
 
-    def loadCommonFunctions(self):
+    def loadCommonFunctions(self) -> None:
         commonRoot = os.path.join(".", "Data", "CommonFunctions")
         self._loadData(commonRoot, self._commonFunctionsData, ".dat", {".dat": File.loadData})
 
-    def loadTilesets(self):
+    def loadTilesets(self) -> None:
         tilesetRoot = os.path.join(".", "Data", "Tilesets")
         self._loadData(tilesetRoot, self._tilesetData, defaultType={".dat": File.loadData}, wrapper=Tileset.fromData)
 
-    def loadGeneralData(self):
+    def loadGeneralData(self) -> None:
         generalRoot = os.path.join(".", "Data", "General")
         self._loadData(generalRoot, self._generalData)
 
@@ -61,7 +61,7 @@ class _Data:
             else:
                 dataVal[namePart] = wrapper(payload)
 
-    def _cacheAnimation(self, name: str, data: Dict[str, Any]):
+    def _cacheAnimation(self, name: str, data: Dict[str, Any]) -> None:
         if name in self._animCache:
             return
 
@@ -95,7 +95,7 @@ class _Data:
                 break
         return data
 
-    def splitCompound(self, fileName: str):
+    def splitCompound(self, fileName: str) -> Tuple[str, str]:
         parts = fileName.split(".", 1)
         if len(parts) == 2:
             return parts[0], f".{parts[1]}"
@@ -133,7 +133,7 @@ class _Data:
             return self.genGraphFromData(data)
         raise FileNotFoundError(f"Error: Common function {name} not found in {commonRoot}.")
 
-    def genGraphFromData(self, data: Dict[str, Any], parent=None, parentClass=None):
+    def genGraphFromData(self, data: Dict[str, Any], parent=None, parentClass=None) -> Graph:
         nodes = {}
         links = {}
         for key, valueDict in data["nodeGraph"].items():

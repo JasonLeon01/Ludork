@@ -19,12 +19,13 @@ from Engine import (
     Shader,
 )
 from Engine.Utils import Math
-from Engine.GraphicsExtension import GameMapGraphics
+from Engine.Gameplay import Tilemap, TileLayer, Material
 from Engine.Gameplay.Particles import System as ParticleSystem
 from Engine.Gameplay.Actors import Actor
-from .Camera import Camera
-from Engine.Gameplay import Tilemap, TileLayer, Material
 from Engine.Gameplay.GamePlayExtension import C_FindPath, C_GetMaterialPropertyMap, C_RebuildPassabilityCache
+from Engine.GraphicsExtension import GameMapGraphics
+from . import SceneBase
+from .Camera import Camera
 from .System import System
 from .Components import MapClickAutoPath, PathPreviewComponent, PathRouteState, ComponentBase
 
@@ -59,6 +60,7 @@ class GameMap(GameMapGraphics):
 
     def __init__(self, mapName: str, tilemap: Tilemap, camera: Optional[Camera] = None) -> None:
         self.mapName = mapName
+        self._scene: SceneBase = None
         self._tilemap = tilemap
         self._layersTopFirst = list(self._tilemap.getAllLayers().values())
         self._layersTopFirst.reverse()
@@ -327,6 +329,13 @@ class GameMap(GameMapGraphics):
             Actor.getCollisionEnabled,
             TileLayer.isPassable,
         )
+
+    @ReturnType(scene=SceneBase)
+    def getScene(self) -> SceneBase:
+        return self._scene
+
+    def setScene(self, scene: SceneBase) -> None:
+        self._scene = scene
 
     def getCollision(self, actor: Actor, targetPosition: Vector2i) -> List[Actor]:
         if not actor.getCollisionEnabled():

@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional, Union, Tuple
 from Engine import Pair, Image, IntRect, UI
 from Engine.UI import ListView
 from Engine.UI.FunctionalUI import FPlainText
-from .WindowSelectable import WindowSelectable
+from .Base import WindowSelectable
 
 
 class WindowCommand(WindowSelectable):
@@ -29,5 +29,5 @@ class WindowCommand(WindowSelectable):
                 listView.addChild(child)
         self.setListView(listView)
 
-    def onMouseWheelScrolled(self, kwargs: Dict[str, Any]):
+    def onMouseWheelScrolled(self, kwargs: Dict[str, Any]) -> None:
         super().onMouseWheelScrolled(kwargs)

@@ -2,20 +2,24 @@
 
 import os
 from typing import List, Union, Optional, Dict, Any
-from Engine import TypeAdapter, Pair, Vector2u, Color
+from Engine import Pair, Vector2u, Color
 from Engine.Gameplay import Tilemap, TileLayer, TileLayerData
 from Engine.Utils import File
 from Global import Manager, SceneBase, GameMap, Camera, Light
 from Global import System as GlobalSystem
 from Source import Data, System
 from Source.Player import Player
+from Source.Windows.WindowMessage import WindowMessage
 
 
 class Scene(SceneBase):
     def onEnter(self) -> None:
-        GlobalSystem.setTransition(Manager.loadTransition("012-Random04.png"), 3)
+        GlobalSystem.setTransition(Manager.loadTransition("012-Random04.png"), 0.5)
 
-    def onCreate(self):
+    def onCreate(self) -> None:
+        self._messageWindow = WindowMessage()
+        self._uiManager.loadUI(self._messageWindow)
+
         self.player = self._initPlayer()
         self._gameMap: GameMap = None
         self._cachedMapFile: str = None
@@ -36,9 +40,25 @@ class Scene(SceneBase):
     def loadMap(self, mapPath: str) -> None:
         mapPath = os.path.join("./Data/Maps", mapPath)
         self._gameMap = self._generateGameMap(File.loadData(mapPath))
+        self._gameMap.setScene(self)
         self._gameMap.spawnActor(self.player, "default")
         self._gameMap.setPlayer(self.player)
 
+    @Latent(FinishedDialogue=(True,))
+    def showMessage(self, message: str) -> None:
+        self._messageWindow.setMessage(message)
+        originMoveEnabled = self.player.getMoveEnabled()
+        self.player.setMoveEnabled(False)
+
+        def condition() -> bool:
+            if self._messageWindow.isInDialogue():
+                return False
+            self.player.setMoveEnabled(originMoveEnabled)
+            return True
+
+        return condition
+
+    @ExecSplit(default=(None,))
     @TypeAdapter(pos=([tuple, list], Vector2u))
     def gotoMapAndPos(self, mapPath: str, pos: Union[Vector2u, Pair[int], List[int]]) -> None:
         if self._cachedMapFile != mapPath:
@@ -50,7 +70,7 @@ class Scene(SceneBase):
         self._gameMap.show()
         super()._renderHandle(deltaTime)
 
-    def _initPlayer(self):
+    def _initPlayer(self) -> Player:
         playerPath = "Data.Blueprints.Actors.BP_Actor_Braver"
         actorClass: Player = Data.getClass(playerPath)
         texturePath = getattr(actorClass, "texturePath")

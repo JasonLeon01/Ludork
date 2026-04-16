@@ -34,7 +34,7 @@ class MapClickAutoPath(ComponentBase):
     def onTick(self) -> None:
         gameMap: GameMap = self._parent
         player = gameMap.getPlayer()
-        if player is None:
+        if player is None or not player.getMoveEnabled():
             self._autoPathing = False
             self._routeState.clear()
             with self._pendingGoalsLock:

@@ -20,45 +20,45 @@ class State(BPBase, StateInfo):
         self._graph: Optional[Graph] = None
 
     @RegisterEvent
-    def onAdd(self):
+    def onAdd(self) -> None:
         pass
 
     @RegisterEvent
-    def onRemove(self):
+    def onRemove(self) -> None:
         pass
 
     @RegisterEvent
-    def onWalk(self):
+    def onWalk(self) -> None:
         pass
 
     @RegisterEvent
-    def onBattleBegin(self):
+    def onBattleBegin(self) -> None:
         pass
 
     @RegisterEvent
-    def onTurnStart(self):
+    def onTurnStart(self) -> None:
         pass
 
     @RegisterEvent
-    def onTurnEnd(self):
+    def onTurnEnd(self) -> None:
         pass
 
     @RegisterEvent
-    def onBeforeAttack(self):
+    def onBeforeAttack(self) -> None:
         pass
 
     @RegisterEvent
-    def onAfterAttack(self):
+    def onAfterAttack(self) -> None:
         pass
 
     @RegisterEvent
-    def onBeforeDefense(self):
+    def onBeforeDefense(self) -> None:
         pass
 
     @RegisterEvent
-    def onAfterDefense(self):
+    def onAfterDefense(self) -> None:
         pass
 
     @RegisterEvent
-    def onBattleEnd(self):
+    def onBattleEnd(self) -> None:
         pass

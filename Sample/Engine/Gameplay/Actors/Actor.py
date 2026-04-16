@@ -37,6 +37,7 @@ class Actor(_ActorBase, BPBase):
         self._nextMoveOffset: Optional[Union[Vector2i, Pair[int]]] = None
         self._inRoutine: bool = False
         self._routine: Optional[List[Vector2i]] = None
+        self._moveEnabled: bool = True
         self._departure: Optional[Vector2f] = None
         self._destination: Optional[Vector2f] = None
         self._realSpeed: float = 0.0
@@ -95,11 +96,15 @@ class Actor(_ActorBase, BPBase):
     @ExecSplit(success=(True,), fail=(False,))
     @TypeAdapter(offset=([tuple, list], Vector2i))
     def MapMove(self, offset: Union[Vector2i, Pair[int], List[int]]) -> None:
+        if not self._moveEnabled:
+            return
         x = offset.x
         y = offset.y
         sx = 1 if x > 0 else (-1 if x < 0 else 0)
         sy = 1 if y > 0 else (-1 if y < 0 else 0)
         offset = Vector2i(sx, sy)
+        if not self._moveEnabled:
+            return False
         if offset == Vector2i(0, 0):
             return False
         if self._isMoving:
@@ -175,6 +180,16 @@ class Actor(_ActorBase, BPBase):
     @ReturnType(routine=Optional[List[Vector2i]])
     def getRoutine(self) -> Optional[List[Vector2i]]:
         return self._routine
+
+    @ReturnType(moveEnabled=bool)
+    def getMoveEnabled(self) -> bool:
+        return self._moveEnabled
+
+    @ExecSplit(default=(None,))
+    def setMoveEnabled(self, enabled: bool) -> None:
+        self._moveEnabled = enabled
+        if not enabled:
+            self.stop()
 
     @ExecSplit(default=(None,))
     def stop(self) -> None:

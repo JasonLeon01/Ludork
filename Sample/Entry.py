@@ -7,12 +7,12 @@ import configparser
 import threading
 
 
-def entry():
+def entry() -> None:
     import Engine
     import Global
     import Source
 
-    def _stdinWorker():
+    def _stdinWorker() -> None:
         env = {"Engine": Engine, "Scenes": Source.Scenes, "Global": Global}
         while True:
             line = sys.stdin.readline()

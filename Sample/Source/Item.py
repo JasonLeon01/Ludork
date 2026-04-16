@@ -21,5 +21,5 @@ class Item(Actor):
         Item.ApplyGeneralData(self, datas.get("members", {}).get(self.ID, {}), datas.get("params", {}))
 
     @RegisterEvent
-    def onUse(self):
+    def onUse(self) -> None:
         pass

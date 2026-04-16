@@ -12,6 +12,7 @@ from Engine import (
     RenderTexture,
     Sprite,
     FloatRect,
+    Vector2i,
     Vector2f,
     View,
     RenderTarget,
@@ -203,10 +204,10 @@ class Camera(Drawable, Transformable):
     def setScale(self, inScale: Union[Vector2f, Pair[float]]) -> None:
         super().setScale(inScale)
 
-    def mapPixelToCoords(self, point):
+    def mapPixelToCoords(self, point: Vector2i) -> Vector2f:
         return self._renderTexture.mapPixelToCoords(point, self._renderTexture.getView())
 
-    def mapCoordsToPixel(self, point):
+    def mapCoordsToPixel(self, point: Vector2f) -> Vector2i:
         return self._renderTexture.mapCoordsToPixel(point, self._renderTexture.getView())
 
     def getTexture(self) -> Texture:
@@ -246,7 +247,7 @@ class Camera(Drawable, Transformable):
     def clear(self) -> None:
         self._renderTexture.clear(Color.Transparent)
 
-    def display(self):
+    def display(self) -> None:
         self._renderTexture.display()
 
     def _refreshView(self) -> None:

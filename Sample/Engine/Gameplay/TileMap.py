@@ -40,7 +40,7 @@ class Tileset:
         return asdict(self)
 
     @staticmethod
-    def fromData(data: Dict[str, Any]):
+    def fromData(data: Dict[str, Any]) -> Tileset:
         if isinstance(data["materials"][0], dict):
             data["materials"] = [
                 Material(**Inner.filterDataClassParams(materialData, Material)) for materialData in data["materials"]

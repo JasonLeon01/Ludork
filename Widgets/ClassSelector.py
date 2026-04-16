@@ -87,7 +87,7 @@ class ClassSelector(QtWidgets.QDialog):
 
     def _scanModule(self, modulePath, found_classes, is_package):
         try:
-            module = System.getModule("Engine")
+            module = System.getModule(modulePath)
             for name, obj in inspect.getmembers(module, inspect.isclass):
                 if name.startswith("_"):
                     continue
@@ -103,7 +103,7 @@ class ClassSelector(QtWidgets.QDialog):
                 is_ancestor = is_package and obj.__module__.startswith(modulePath + ".")
 
                 if is_definition or is_ancestor:
-                    fullPath = f"{modulePath}.{name}"
+                    fullPath = f"{obj.__module__}.{name}"
                     self._updateBestPath(obj, fullPath, found_classes)
 
         except Exception as e:

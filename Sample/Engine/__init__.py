@@ -141,22 +141,22 @@ def OppositeDirection(direction: Direction) -> Direction:
         return Direction.DOWN
 
 
-def GetGameRunning():
+def GetGameRunning() -> bool:
     global _GameRunning
     return _GameRunning
 
 
-def StopGame():
+def StopGame() -> None:
     global _GameRunning
     _GameRunning = False
 
 
-def GetCellSize():
+def GetCellSize() -> int:
     global _CellSize
     return _CellSize
 
 
-def SetCellSize(size: int):
+def SetCellSize(size: int) -> None:
     global _CellSize
     _CellSize = size
 

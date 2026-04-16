@@ -44,13 +44,15 @@ class UIManager:
             raise ValueError("UI not found")
 
     def _fixedLogicHandle(self, fixedDelta: float) -> None:
-        for ui in self._UIs:
+        sortedUIs = sorted(self._UIs, key=lambda item: item.getZOrder() if hasattr(item, "getZOrder") else 0, reverse=True)
+        for ui in sortedUIs:
             if ui.getActive() and ui.getVisible():
                 if hasattr(ui, "fixedUpdate"):
                     ui.fixedUpdate(fixedDelta)
 
     def _logicHandle(self, deltaTime: float) -> None:
-        for ui in self._UIs:
+        sortedUIs = sorted(self._UIs, key=lambda item: item.getZOrder() if hasattr(item, "getZOrder") else 0, reverse=True)
+        for ui in sortedUIs:
             if ui.getActive() and ui.getVisible():
                 if hasattr(ui, "update"):
                     ui.update(deltaTime)

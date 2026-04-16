@@ -32,7 +32,7 @@ class System:
     _variables: Dict[str, Any] = {}
 
     @classmethod
-    def init(cls):
+    def init(cls) -> None:
         systemData = File.getJSONData("./Data/Configs/System.json")
         cls._title = systemData["title"]["value"]
         size = systemData["gameSize"]["value"]

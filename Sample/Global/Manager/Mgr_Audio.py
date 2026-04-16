@@ -150,7 +150,7 @@ class AudioManager:
             cls._cleanMusic(music, filePath)
 
     @classmethod
-    def getMemory(cls):
+    def getMemory(cls) -> int:
         from pympler import asizeof
 
         return asizeof.asizeof(
@@ -158,7 +158,7 @@ class AudioManager:
         )
 
     @classmethod
-    async def updateAllSoundPositions(cls):
+    async def updateAllSoundPositions(cls) -> None:
         while GetGameRunning():
             sound_dict = {id(s): s for s in cls._SoundRec if s.getStatus() != Sound.Status.Stopped}
             for sound_id, parent in cls._SoundParentMap.items():
@@ -175,7 +175,7 @@ class AudioManager:
         monitor: Callable[[SoundSource], Coroutine[Any, Any, None]],
         cleanup: Callable[[SoundSource, str], None],
     ) -> None:
-        async def monitorWrapper():
+        async def monitorWrapper() -> None:
             await monitor(sound)
             cleanup(sound, filePath)
 

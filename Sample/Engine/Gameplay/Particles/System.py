@@ -96,7 +96,7 @@ class System(Drawable):
         self._updateFlags.append(particle)
 
     def updateParticlesInfo(self) -> None:
-        def getUpdateParticleInfo(particle):
+        def getUpdateParticleInfo(particle: Particle) -> Tuple[Vector2f, Vector2f, Vector2f, Vector2f]:
             width, height, _, _, _, _ = self._textureUV[particle.resourcePath]
             halfSize = Vector2f(width / 2, height / 2)
             tl_tr = Vector2f(-halfSize.x, -halfSize.y)

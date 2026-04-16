@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
 
-from .WindowBase import WindowBase
-from .WindowSelectable import WindowSelectable
+from . import Base
 from .WindowCommand import WindowCommand

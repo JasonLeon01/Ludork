@@ -38,7 +38,7 @@ class MusicFilter(SoundFilter):
     loopPoint: Optional[Union[Pair[float], Pair[Time], Music.TimeSpan]] = None
 
 
-def echoEffect(delay: float, decay: float, sampleRate: float):
+def echoEffect(delay: float, decay: float, sampleRate: float) -> EffectProcessor:
     delay_samples = int(delay * sampleRate / 1000)
     delay_buffer = [0.0] * (delay_samples * 2)
     buffer_index = 0
