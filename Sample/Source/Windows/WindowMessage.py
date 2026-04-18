@@ -39,8 +39,8 @@ class WindowMessage(WindowBase):
 
         self._inDialogue: bool = False
         self._fadePhase: FadePhase = FadePhase.NOTHING
-        self._fadeInSpeed = 600.0
-        self._fadeOutSpeed = 600.0
+        self._fadeInSpeed = 1000.0
+        self._fadeOutSpeed = 1000.0
 
     def onTick(self, deltaTime: float) -> None:
         if self._fadePhase == FadePhase.IN:

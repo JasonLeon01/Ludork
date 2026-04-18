@@ -189,7 +189,7 @@ def _processInjectedEvents() -> None:
             y = data.get("y", 0)
 
             _EventState.MouseWheelScrolled = True
-            _EventState.MouseScrolledWheel = Mouse.Wheel.VerticalWheel
+            _EventState.MouseScrolledWheel = Mouse.Wheel.Vertical
             _EventState.MouseScrolledWheelDelta = delta
             _EventState.MouseScrolledWheelPosition = Vector2i(x, y)
 
@@ -362,6 +362,14 @@ def update(window: WindowBase) -> None:
                     del _EventState.JoystickButtonReleasedMap[joystickDisconnectEvent.joystickId]
             if event.isTextEntered():
                 _EventState.EnteredText += event.getIfTextEntered().unicode
+
+        if window.hasFocus():
+            polledMousePosition = Mouse.getPosition(window)
+            if polledMousePosition != _EventState.MousePosition:
+                lastPosition: Vector2i = copy.copy(_EventState.MousePosition)
+                _EventState.MousePosition = polledMousePosition
+                _EventState.MouseMoved = True
+                _EventState.MouseMovedDelta = polledMousePosition - lastPosition
 
         if _EventState.EnteredText == "\x16":
             from . import Clipboard

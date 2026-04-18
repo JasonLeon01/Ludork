@@ -10,7 +10,7 @@ if [ -d "C_Extensions/SFML" ]; then
 fi
 
 echo "Downloading SFML..."
-curl -L -o sfml.zip "https://github.com/SFML/SFML/archive/refs/tags/3.0.1.zip"
+curl -L -o sfml.zip "https://github.com/SFML/SFML/archive/refs/tags/3.1.0.zip"
 if [ $? -ne 0 ]; then
   echo "Failed to download SFML."
   exit 1
@@ -26,8 +26,8 @@ fi
 
 rm sfml.zip
 
-if [ -d "C_Extensions/SFML-3.0.1" ]; then
-  mv "C_Extensions/SFML-3.0.1" "C_Extensions/SFML"
+if [ -d "C_Extensions/SFML-3.1.0" ]; then
+  mv "C_Extensions/SFML-3.1.0" "C_Extensions/SFML"
 else
   echo "SFML source folder not found."
   exit 1
@@ -42,7 +42,7 @@ if [ -d "pysf" ]; then
 fi
 
 echo "Downloading PySF..."
-curl -L -o pysf.zip "https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.8/pysf-macOS-ARM64.zip"
+curl -L -o pysf.zip "https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.1.0.0/pysf-macOS-ARM64.zip"
 if [ $? -ne 0 ]; then
   echo "Failed to download PySF."
   exit 1

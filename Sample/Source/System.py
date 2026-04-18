@@ -9,6 +9,7 @@ from Engine import (
     Cursor,
     SetCellSize,
     RenderWindow,
+    State,
     VideoMode,
     Style,
     ContextSettings,
@@ -65,6 +66,7 @@ class System:
                 VideoMode(realSize),
                 cls._title,
                 Style.Titlebar | Style.Close,
+                State.Windowed,
                 settings=ContextSettings(antiAliasingLevel=8),
             )
         window.setIcon(cls._icon)

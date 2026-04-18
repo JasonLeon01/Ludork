@@ -21,6 +21,7 @@ from pysf import Context
 from pysf import ConvexShape
 from pysf import CoordinateType
 from pysf import Cursor
+from pysf import Dns
 from pysf import Drawable
 from pysf import Event
 from pysf import FileInputStream
@@ -52,6 +53,7 @@ from pysf import RenderTarget
 from pysf import RenderTexture
 from pysf import RenderWindow
 from pysf import Sensor
+from pysf import Sftp
 from pysf import Shader
 from pysf import Shape
 from pysf import Socket
@@ -77,6 +79,7 @@ from pysf import TcpSocket
 from pysf import Text
 from pysf import Texture
 from pysf import Time
+from pysf import TimeoutWithPredicate
 from pysf import Touch
 from pysf import Transform
 from pysf import Transformable
@@ -88,9 +91,11 @@ from pysf import Vector2u
 from pysf import Vector3b
 from pysf import Vector3f
 from pysf import Vector3i
+from pysf import Vector3u
 from pysf import Vector4b
 from pysf import Vector4f
 from pysf import Vector4i
+from pysf import Version
 from pysf import Vertex
 from pysf import VertexArray
 from pysf import VertexBuffer
@@ -98,6 +103,7 @@ from pysf import VideoMode
 from pysf import View
 from pysf import Window
 from pysf import WindowBase
+from pysf import WindowHandle
 from pysf import degrees
 from pysf import microseconds
 from pysf import milliseconds
@@ -106,7 +112,7 @@ from pysf import radians
 from pysf import seconds
 from pysf import sleep
 from pysf import swap
-
+from pysf import version
 
 _GameRunning: bool = True
 _CellSize: int = 32

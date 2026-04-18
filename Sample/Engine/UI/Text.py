@@ -2,20 +2,18 @@
 
 from __future__ import annotations
 import copy
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from .. import (
     Color,
     Font,
     Text,
-    Vector2u,
     Vector2f,
-    RenderTexture,
     RenderTarget,
     RenderStates,
     FloatRect,
     Transform,
 )
-from .Base import ControlBase, SpriteBase
+from .Base import ControlBase
 
 
 class PlainText(ControlBase):
@@ -140,93 +138,194 @@ class TextStyle:
             self.outlineThickness = inStyle.outlineThickness
 
 
-class RichText(SpriteBase):
+class RichText(ControlBase):
     def __init__(
         self,
         font: Font,
         text: str,
         styleCollection: Dict[str, TextStyle],
     ) -> None:
-        self._textTexture: RenderTexture = None
         self._font: Font = font
-        self._style: TextStyle = TextStyle()
+        self._color: Color = Color.White
+        self._string: str = ""
+        self._segments: List[Tuple[Text, TextStyle]] = []
+        self._localBounds: FloatRect = FloatRect(Vector2f(), Vector2f())
         self._styleCollection = styleCollection
-        if "default" in styleCollection:
-            self._style = copy.copy(styleCollection["default"])
-        self._render(text, styleCollection)
-        super().__init__(self._textTexture.getTexture())
+        super().__init__()
+        self.setString(text)
 
     def setString(self, text: str) -> None:
+        self._string = text
         self._render(text, self._styleCollection)
-        self.setTexture(self._textTexture.getTexture(), True)
+        self._refreshSegmentColors()
+
+    def getString(self) -> str:
+        return self._string
+
+    def setColor(self, color: Color) -> None:
+        self._color = color
+        self._refreshSegmentColors()
+
+    def getColor(self) -> Color:
+        return self._color
+
+    def getLocalBounds(self) -> FloatRect:
+        from .. import Scale
+
+        return FloatRect(self._localBounds.position, self._localBounds.size / Scale)
+
+    def getGlobalBounds(self) -> FloatRect:
+        return self.getLocalBounds()
+
+    def getSize(self) -> Vector2f:
+        return self._localBounds.size
+
+    def draw(self, target: RenderTarget, states: RenderStates) -> None:
+        self._applyRenderStates(states)
+        if not self.getVisible():
+            return
+        for text, style in self._segments:
+            self._applySegmentColor(text, style)
+            target.draw(text, states)
+
+    def _applyRenderStates(self, states: RenderStates) -> None:
+        from .. import Scale
+
+        states.transform *= self.getTransform()
+        states.transform.translate(self.getPosition() * (Scale - 1))
+
+    def _getRenderTransform(self) -> Transform:
+        from .. import Scale
+
+        transform = Transform()
+        transform *= self.getTransform()
+        transform.translate(self.getPosition() * (Scale - 1))
+        return transform
+
+    def getAbsoluteBounds(self) -> FloatRect:
+        from .. import Scale
+
+        transform = self._getScreenRenderTransform()
+        bounds = self.getLocalBounds()
+        realBounds = FloatRect(bounds.position * Scale, bounds.size * Scale)
+        return transform.transformRect(realBounds)
 
     def _render(self, text: str, styleCollection: Dict[str, TextStyle]) -> None:
         from . import HexColor
-        from .. import Scale
 
-        def modelText(inText: str) -> Text:
-            text = Text(self._font, inText, int(self._style.characterSize * Scale))
-            self._style.enableStyle(text)
-            return text
+        style = self._createDefaultStyle()
+        self._segments = []
+        minX = 0.0
+        minY = 0.0
+        maxX = 0.0
+        maxY = 0.0
+        hasVisibleSegment = False
 
         if text.endswith("\n"):
             text = text[:-1]
         lines = text.split("\n")
-        texts: List[Text] = []
-        maxWidth = 0
-        maxHeight = 0
+        y = 0.0
         for line in lines:
-            texts.append([])
+            lineSegments: List[Tuple[str, TextStyle]] = []
+            bufferedText = ""
             savedMark = ""
             pauseRender = False
-            lineWidth = 0
-            lineHeight = 0
             for char in line:
-                if char == "#":
-                    if not pauseRender:
-                        pauseRender = True
-                    else:
-                        pauseRender = False
-                        targetStyle: TextStyle = None
-                        if savedMark in styleCollection:
-                            targetStyle = styleCollection[savedMark]
-                        else:
-                            targetStyle = eval(f"TextStyle(fillColor=HexColor('{savedMark}'))")
-                        self._style.adaptStyle(targetStyle)
-                        savedMark = ""
-                else:
+                if char != "#":
                     if pauseRender:
                         savedMark = savedMark + char
                     else:
-                        textObj = modelText(char)
-                        texts[-1].append(textObj)
-                        lineWidth += textObj.getLocalBounds().size.x + textObj.getLocalBounds().position.x
-                        lineHeight = max(
-                            lineHeight, textObj.getLocalBounds().size.y + textObj.getLocalBounds().position.y
-                        )
+                        bufferedText = bufferedText + char
+                    continue
+                if pauseRender:
+                    pauseRender = False
+                    targetStyle = self._resolveStyleMarker(savedMark, styleCollection, HexColor)
+                    if targetStyle is None:
+                        bufferedText = bufferedText + f"#{savedMark}#"
+                    else:
+                        if bufferedText:
+                            lineSegments.append((bufferedText, copy.copy(style)))
+                            bufferedText = ""
+                        style.adaptStyle(targetStyle)
+                    savedMark = ""
+                    continue
+                if bufferedText:
+                    lineSegments.append((bufferedText, copy.copy(style)))
+                    bufferedText = ""
+                pauseRender = True
             if pauseRender:
-                textObj = modelText(f"#{savedMark}")
-                texts[-1].append(textObj)
-                lineWidth += textObj.getLocalBounds().size.x + textObj.getLocalBounds().position.x
-                lineHeight = max(lineHeight, textObj.getLocalBounds().size.y + textObj.getLocalBounds().position.y)
-            maxWidth = int(max(maxWidth, lineWidth))
-            maxHeight = int(maxHeight + lineHeight)
-        if maxWidth == 0 and maxHeight == 0 and self._textTexture is None:
-            self._textTexture = RenderTexture(Vector2u(1, 1))
+                bufferedText = bufferedText + f"#{savedMark}"
+            if bufferedText:
+                lineSegments.append((bufferedText, copy.copy(style)))
+
+            x = 0.0
+            lineHeight = 0.0
+            for segmentText, segmentStyle in lineSegments:
+                textObj = self._buildText(segmentText, segmentStyle)
+                bounds = textObj.getLocalBounds()
+                textObj.setPosition(Vector2f(x, y))
+                self._segments.append((textObj, segmentStyle))
+                hasVisibleSegment = True
+                minX = min(minX, x + bounds.position.x)
+                minY = min(minY, y + bounds.position.y)
+                maxX = max(maxX, x + bounds.position.x + bounds.size.x)
+                maxY = max(maxY, y + bounds.position.y + bounds.size.y)
+                x += self._measureAdvance(textObj)
+                lineHeight = max(lineHeight, bounds.position.y + bounds.size.y)
+            y += lineHeight
+
+        if hasVisibleSegment:
+            self._localBounds = FloatRect(Vector2f(minX, minY), Vector2f(maxX - minX, maxY - minY))
         else:
-            if self._textTexture is None:
-                self._textTexture = RenderTexture(Vector2u(maxWidth, maxHeight))
-            else:
-                self._textTexture.resize(Vector2u(maxWidth, maxHeight))
-        self._textTexture.clear(Color.Transparent)
-        y = 0
-        for line in texts:
-            x = 0
-            maxHeight = 0
-            for text in line:
-                text.setPosition(Vector2f(x, y))
-                self._textTexture.draw(text)
-                x += text.getLocalBounds().size.x + text.getLocalBounds().position.x
-                maxHeight = max(maxHeight, text.getLocalBounds().size.y + text.getLocalBounds().position.y)
-            y += maxHeight
-        self._textTexture.display()
+            self._localBounds = FloatRect(Vector2f(), Vector2f())
+
+    def _createDefaultStyle(self) -> TextStyle:
+        from . import DefaultFontSize
+
+        defaultStyle = TextStyle(DefaultFontSize, Text.Style.Regular, Color.White, Color.Black, 0.0)
+        if "default" in self._styleCollection:
+            defaultStyle.adaptStyle(self._styleCollection["default"])
+        return defaultStyle
+
+    def _resolveStyleMarker(
+        self, marker: str, styleCollection: Dict[str, TextStyle], hexColorFactory
+    ) -> Optional[TextStyle]:
+        if marker in styleCollection:
+            return styleCollection[marker]
+        try:
+            return TextStyle(fillColor=hexColorFactory(marker))
+        except Exception:
+            return None
+
+    def _buildText(self, inText: str, style: TextStyle) -> Text:
+        from .. import Scale
+
+        text = Text(self._font, inText, int(style.characterSize * Scale))
+        style.enableStyle(text)
+        return text
+
+    def _measureAdvance(self, text: Text) -> float:
+        shapedGlyphs = text.getShapedGlyphs()
+        if shapedGlyphs:
+            # SFML 3.1 shaping keeps advances correct for ligatures and complex scripts.
+            return max(glyph.position.x + glyph.glyph.advance for glyph in shapedGlyphs)
+        bounds = text.getLocalBounds()
+        return bounds.position.x + bounds.size.x
+
+    def _refreshSegmentColors(self) -> None:
+        for text, style in self._segments:
+            self._applySegmentColor(text, style)
+
+    def _applySegmentColor(self, text: Text, style: TextStyle) -> None:
+        fillColor = style.fillColor if style.fillColor is not None else Color.White
+        outlineColor = style.outlineColor if style.outlineColor is not None else Color.Black
+        text.setFillColor(self._modulateColor(fillColor, self._color))
+        text.setOutlineColor(self._modulateColor(outlineColor, self._color))
+
+    def _modulateColor(self, baseColor: Color, factorColor: Color) -> Color:
+        return Color(
+            int(baseColor.r * factorColor.r / 255),
+            int(baseColor.g * factorColor.g / 255),
+            int(baseColor.b * factorColor.b / 255),
+            int(baseColor.a * factorColor.a / 255),
+        )

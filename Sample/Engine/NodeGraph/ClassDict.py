@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import os
+import copy
 import importlib
 import importlib.util
 import traceback
@@ -65,13 +66,20 @@ class ClassDict:
                 for key, value in classAttrs.items():
                     attrs[key] = value
 
+                def _cloneAttrValue(value: Any) -> Any:
+                    if isinstance(value, str):
+                        try:
+                            return eval(value)
+                        except:
+                            return value
+                    return copy.deepcopy(value)
+
                 def __init__(self, *args, **kwargs) -> None:
                     for key, value in classAttrs.items():
-                        try:
-                            setattr(self, key, eval(value))
-                        except:
-                            setattr(self, key, value)
+                        setattr(self, key, _cloneAttrValue(value))
                     super(type(self), self).__init__(*args, **kwargs)
+                    for key, value in classAttrs.items():
+                        setattr(self, key, _cloneAttrValue(value))
 
                 attrs["__init__"] = __init__
                 targetClass = type(

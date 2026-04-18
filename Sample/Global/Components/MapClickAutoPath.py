@@ -48,17 +48,21 @@ class MapClickAutoPath(ComponentBase):
         goals = self._drainPendingGoals()
         if len(goals) == 0:
             return
+        if self._autoPathing:
+            self._finishAutoPathImmediately(player, currentPos)
+            self._autoPathing = False
+            self._routeState.clear()
+            return
         for goal in goals:
             if not self._isInMap(goal):
                 continue
             start = player.getMapPosition()
+            if start == goal:
+                self._routeState.clear()
+                self._setActorDirection(player, start, goal, True)
+                continue
             plan = self._buildAutoPathPlan(player, start, goal)
             if plan is None:
-                continue
-            if self._autoPathing:
-                self._finishAutoPathImmediately(player, start, goal, plan["route"], plan["goalPassable"])
-                self._autoPathing = False
-                self._routeState.clear()
                 continue
             self._routeState.setRoute(plan["route"])
             self._trimPreviewRoute(start)
@@ -69,14 +73,16 @@ class MapClickAutoPath(ComponentBase):
         self,
         player: Actor,
         start: Vector2i,
-        goal: Vector2i,
-        route: List[Vector2i],
-        goalPassable: bool,
     ) -> None:
+        route = self._routeState.getRoute()
+        if len(route) == 0:
+            player.stop()
+            return
+        goal = route[-1]
+        goalPassable = self._parent.isPassable(player, goal)
         player.stop()
-        if len(route) >= 2:
-            destination = goal if goalPassable else route[-2]
-            player.setMapPosition(Vector2u(destination.x, destination.y))
+        destination = goal if goalPassable else (route[-2] if len(route) >= 2 else start)
+        player.setMapPosition(Vector2u(destination.x, destination.y))
         fromPos = route[-2] if len(route) >= 2 else start
         self._setActorDirection(player, fromPos, goal, start == goal)
 

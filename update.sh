@@ -13,7 +13,7 @@ if [ -d "pysf" ]; then
 fi
 
 echo "Downloading PySF..."
-curl -L -o pysf.zip "https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.0.1.8/pysf-macOS-ARM64.zip"
+curl -L -o pysf.zip "https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF3.1.0.0/pysf-macOS-ARM64.zip"
 if [ $? -ne 0 ]; then
   echo "Failed to download PySF."
   exit 1
