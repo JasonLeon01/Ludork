@@ -3,9 +3,9 @@ set(SFML_INCLUDE_DIR ${PROJECT_ROOT}/C_Extensions/SFML/include)
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
   set(SFML_LIB_DIR ${PROJECT_ROOT}/lib)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-  set(SFML_LIB_DIR ${PROJECT_ROOT}/Sample/Engine/pysf)
+  set(SFML_LIB_DIR ${PROJECT_ROOT}/pysf)
 endif()
-set(SFML_BIN_DIR ${PROJECT_ROOT}/Sample/Engine/pysf)
+set(SFML_BIN_DIR ${PROJECT_ROOT}/pysf)
 
 function(ConfigureSFMLTarget TARGET_NAME)
     target_include_directories(${TARGET_NAME} PRIVATE

@@ -6,7 +6,7 @@
 **/.DS_Store
 **/build/
 **/__MACOSX
-.vscode/
+/.vscode/
 .trae/
 lib/
 C_Extensions/SFML/

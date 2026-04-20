@@ -1,0 +1,12 @@
+{
+    "version":"0.2.0",
+    "configurations": [
+        {
+            "name": "Launch Ludork Project",
+            "type": "debugpy",
+            "request": "attach",
+            "port": 2333,
+            "host": "localhost"
+        }
+    ]
+}

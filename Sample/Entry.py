@@ -38,9 +38,9 @@ def entry() -> None:
     try:
         import debugpy
 
-        debugpy.listen(("localhost", 5678))
+        debugpy.listen(("localhost", 2333))
     except ImportError:
-        print("Debugpy not found, not using it.")
+        print("Debugpy not found or this is a release build, not using it.")
 
     iniFilePath = "./Main.ini"
     iniFile = configparser.ConfigParser()
