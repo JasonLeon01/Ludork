@@ -65,7 +65,8 @@ class Graph:
                 paramList = [self, self.parent, dataNode.nodeFunction, functionAttr, dataNode.params]
                 if hasattr(dataNode, "pos"):
                     paramList.append(dataNode.pos)
-                self.nodes[key].append(self.nodeModel(*paramList))
+                if self.nodeModel:
+                    self.nodes[key].append(self.nodeModel(*paramList))
 
     def genRelationsFromLinks(self) -> None:
         self.nodeRely.clear()
@@ -90,7 +91,7 @@ class Graph:
                         self.nodeNexts[key][left] = {}
                     self.nodeNexts[key][left][leftOutPin] = (right, rightInPin)
 
-    def execute(self, key: str, startNode: Optional[int] = None, limit=1000000) -> Tuple[Any, ...]:
+    def execute(self, key: str, startNode: Optional[int] = None, limit=1000000) -> Optional[Tuple[Any, ...]]:
         from . import latentManager
 
         self.doingPartKey = key
@@ -98,7 +99,7 @@ class Graph:
             raise KeyError(f"Graph key '{key}' not found")
         if key not in self.startNodes:
             raise KeyError(f"Start node for key '{key}' not set")
-        if startNode is None:
+        if startNode is None and self.startNodes:
             startNode = self.startNodes[key]
         curr = startNode
         if curr is None:

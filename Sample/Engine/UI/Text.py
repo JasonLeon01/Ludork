@@ -300,6 +300,7 @@ class RichText(ControlBase):
     def _buildText(self, inText: str, style: TextStyle) -> Text:
         from .. import Scale
 
+        assert style.characterSize
         text = Text(self._font, inText, int(style.characterSize * Scale))
         style.enableStyle(text)
         return text
@@ -307,7 +308,6 @@ class RichText(ControlBase):
     def _measureAdvance(self, text: Text) -> float:
         shapedGlyphs = text.getShapedGlyphs()
         if shapedGlyphs:
-            # SFML 3.1 shaping keeps advances correct for ligatures and complex scripts.
             return max(glyph.position.x + glyph.glyph.advance for glyph in shapedGlyphs)
         bounds = text.getLocalBounds()
         return bounds.position.x + bounds.size.x

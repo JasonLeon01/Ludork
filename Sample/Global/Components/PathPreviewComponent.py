@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 from typing import TYPE_CHECKING
-from Engine import RectangleShape, Vector2f, Color, GetCellSize
+import Engine
+from Engine import RectangleShape, Vector2f, Color
 from .ComponentBase import ComponentBase
 from .PathRouteState import PathRouteState
 
@@ -22,7 +23,7 @@ class PathPreviewComponent(ComponentBase):
         route = self._routeState.getRoute()
         if len(route) == 0:
             return
-        cellSize = GetCellSize()
+        cellSize = Engine.CellSize
         pad = max(1.0, cellSize * 0.12)
         size = max(1.0, cellSize - pad * 2.0)
         for cell in route:

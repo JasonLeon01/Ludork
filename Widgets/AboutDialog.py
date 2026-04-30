@@ -45,6 +45,7 @@ class AboutDialog(QtWidgets.QDialog):
 
         btnBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
         licensesBtn = btnBox.addButton(ELOC("ABOUT_LICENSES"), QtWidgets.QDialogButtonBox.ActionRole)
+        assert licensesBtn
         licensesBtn.clicked.connect(self._onOpenLicenses)
         btnBox.rejected.connect(self.reject)
         layout.addWidget(btnBox)

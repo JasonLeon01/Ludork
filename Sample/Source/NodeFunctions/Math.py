@@ -205,10 +205,8 @@ def Vector3Dot(v1: Union[Vector3f, Vector3i], v2: Union[Vector3f, Vector3i]) -> 
 
 
 @Meta(DisplayName='LOC("VECTOR2_CROSS")', DisplayDesc='LOC("VECTOR2_CROSS_DESC")')
-@ReturnType(value=Union[Vector2f, Vector2i, Vector2u])
-def Vector2Cross(
-    v1: Union[Vector2f, Vector2i, Vector2u], v2: Union[Vector2f, Vector2i, Vector2u]
-) -> Union[Vector2f, Vector2i, Vector2u]:
+@ReturnType(value=Union[float, int])
+def Vector2Cross(v1: Union[Vector2f, Vector2i, Vector2u], v2: Union[Vector2f, Vector2i, Vector2u]) -> Union[float, int]:
     return v1.cross(v2)
 
 
@@ -220,13 +218,13 @@ def Vector3Cross(v1: Union[Vector3f, Vector3i], v2: Union[Vector3f, Vector3i]) -
 
 @Meta(DisplayName='LOC("VECTOR2_LENGTH")', DisplayDesc='LOC("VECTOR2_LENGTH_DESC")')
 @ReturnType(value=float)
-def Vector2Length(v: Union[Vector2f]) -> float:
+def Vector2Length(v: Vector2f) -> float:
     return v.length()
 
 
 @Meta(DisplayName='LOC("VECTOR3_LENGTH")', DisplayDesc='LOC("VECTOR3_LENGTH_DESC")')
 @ReturnType(value=float)
-def Vector3Length(v: Union[Vector3f]) -> float:
+def Vector3Length(v: Vector3f) -> float:
     return v.length()
 
 

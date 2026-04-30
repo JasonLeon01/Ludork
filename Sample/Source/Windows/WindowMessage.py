@@ -3,7 +3,8 @@
 from __future__ import annotations
 from enum import IntEnum
 from typing import Dict, Any, Optional
-from Engine import Color, Input, UI, Text, Vector2f, Vector2u, GetCellSize
+import Engine
+from Engine import Color, Input, UI, Text, Vector2f, Vector2u
 from Engine.UI import RichText, TextStyle, PlainText
 from Engine.Utils import Math
 from Global import System as GlobalSystem
@@ -83,7 +84,7 @@ class WindowMessage(WindowBase):
             posY = (gameHeight - windowHeight) / 2.0
             self.setPosition(Vector2f(posX, posY))
         else:
-            cellSize = float(GetCellSize())
+            cellSize = float(Engine.CellSize)
             anchorX = refPosition.x + cellSize * 0.5
             halfScreenY = gameHeight * 0.5
             if refPosition.y < halfScreenY:

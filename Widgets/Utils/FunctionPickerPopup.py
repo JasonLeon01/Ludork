@@ -194,6 +194,7 @@ class FunctionPickerPopup(QtWidgets.QFrame):
     def _buildSearchCache(self) -> None:
         self._searchCache = []
         root = self._tree.invisibleRootItem()
+        assert root
         for i in range(root.childCount()):
             self._collectSearchItems(root.child(i), "")
 

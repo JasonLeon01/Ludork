@@ -912,6 +912,7 @@ class AnimationWindow(QtWidgets.QMainWindow):
     def _refreshAssets(self) -> None:
         while self.assetsLayout.count():
             item = self.assetsLayout.takeAt(0)
+            assert item
             widget = item.widget()
             if widget:
                 widget.deleteLater()

@@ -424,11 +424,7 @@ def update(window: WindowBase) -> None:
         moveActions: List[Tuple[Joystick.Axis, float, Callable, List[Any]]] = []
         for actionType, callables in _EventState.ActionMappings.items():
             _, actionKeysTuple = actionType
-            if len(callables) == 2:
-                obj, objCallable = callables
-                triggerOnHold = False
-            else:
-                obj, objCallable, triggerOnHold = callables
+            obj, objCallable, triggerOnHold = callables
 
             actionKeys = list(actionKeysTuple)
             for key in actionKeys:
@@ -471,7 +467,7 @@ def update(window: WindowBase) -> None:
                                     if not Math.IsNearZero(position):
                                         if callable_(position, threshold):
                                             moveActions.append((axis, position, objCallable, [obj, position]))
-        finalMoveAction: Tuple[Callable, List[Any]] = None
+        finalMoveAction: Optional[Tuple[Callable, List[Any]]] = None
         maxPosition = 0.0
         for axis, position, objCallable, params in moveActions:
             if position != 0 and abs(position) > maxPosition:
@@ -765,12 +761,12 @@ def isAnyJoystickButtonTriggered(button: Union[int, JoystickButton], handled: bo
 
 
 def isActionTriggered(
-    actionKeys: Tuple[
+    actionKeys: List[
         Union[
             Key,
             Scan,
             JoystickButton,
-            Tuple[JoystickAxis, float, Callable[[float, float], None]],
+            Tuple[JoystickAxis, float, Callable[[float, float], bool]],
         ]
     ],
     handled: bool = False,
@@ -818,10 +814,6 @@ def isMouseButtonTriggered(
         handled_ = True
         _EventState.MouseButtonTriggeredMap[button] = (count, handled_)
     return result
-
-
-def isTextEntered() -> bool:
-    return _EventState.EnteredText != ""
 
 
 def getEnteredText() -> str:
@@ -881,67 +873,63 @@ def unblockInput() -> None:
 
 
 def getConfirmKeys() -> (
-    Tuple[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]
+    List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], bool]]]]
 ):
-    return (Key.Enter, Key.Space, Scan.Enter, Scan.Space, JoystickButton.A)
+    return [Key.Enter, Key.Space, Scan.Enter, Scan.Space, JoystickButton.A]
 
 
 def getCancelKeys() -> (
-    Tuple[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]
+    List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], bool]]]]
 ):
-    return (Key.Escape, Scan.Escape, JoystickButton.B)
+    return [Key.Escape, Scan.Escape, JoystickButton.B]
 
 
-def getUpKeys() -> Tuple[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]:
-    return (
+def getUpKeys() -> List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], bool]]]]:
+    return [
         Key.Up,
         Scan.Up,
         (Joystick.Axis.Y, -10.0, float.__lt__),
         (Joystick.Axis.PovY, 50.0, float.__gt__),
-    )
+    ]
 
 
-def getDownKeys() -> (
-    Tuple[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]
-):
-    return (
+def getDownKeys() -> List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], bool]]]]:
+    return [
         Key.Down,
         Scan.Down,
         (Joystick.Axis.Y, 10.0, float.__gt__),
         (Joystick.Axis.PovY, -50.0, float.__lt__),
-    )
+    ]
 
 
-def getLeftKeys() -> (
-    Tuple[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]
-):
-    return (
+def getLeftKeys() -> List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], bool]]]]:
+    return [
         Key.Left,
         Scan.Left,
         (Joystick.Axis.X, -10.0, float.__lt__),
         (Joystick.Axis.PovX, -50.0, float.__lt__),
-    )
+    ]
 
 
 def getRightKeys() -> (
-    Tuple[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]]
+    List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], bool]]]]
 ):
-    return (
+    return [
         Key.Right,
         Scan.Right,
         (Joystick.Axis.X, 10.0, float.__gt__),
         (Joystick.Axis.PovX, 50.0, float.__gt__),
-    )
+    ]
 
 
 def registerActionMapping(
     obj: object,
     actionName: str,
-    actionKeys: Tuple[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], None]]]],
+    actionKeys: List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], bool]]]],
     callable_: Callable[[object, Optional[float]], None],
     triggerOnHold: bool = False,
 ) -> None:
-    _EventState.ActionMappings[(actionName, actionKeys)] = (obj, callable_, triggerOnHold)
+    _EventState.ActionMappings[(actionName, tuple(actionKeys))] = (obj, callable_, triggerOnHold)
 
 
 def unregisterActionMapping(obj: object, actionName: str) -> None:

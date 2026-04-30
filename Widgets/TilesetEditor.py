@@ -77,7 +77,9 @@ class TilesetEditor(QtWidgets.QMainWindow):
             self.tilesetPanel.setTilesetData(None)
             return
 
-        key = self.listWidget.item(row).text()
+        rowItem = self.listWidget.item(row)
+        assert rowItem
+        key = rowItem.text()
         data = GameData.tilesetData.get(key)
         self.tilesetPanel.setTilesetData(data)
 
@@ -87,6 +89,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
         if item is None:
             add_action = menu.addAction(ELOC("ADD_TILESET"))
             paste_action = menu.addAction(ELOC("PASTE"))
+            assert paste_action
             paste_action.setShortcut(QtGui.QKeySequence.Paste)
             if not self._tilesetClipboard:
                 paste_action.setEnabled(False)
@@ -98,9 +101,14 @@ class TilesetEditor(QtWidgets.QMainWindow):
             return
         rename_action = menu.addAction(ELOC("RENAME_TILESET"))
         copy_action = menu.addAction(ELOC("COPY"))
-        copy_action.setShortcut(QtGui.QKeySequence.Copy)
         delete_action = menu.addAction(ELOC("DELETE"))
+
+        assert copy_action
+        assert delete_action
+
+        copy_action.setShortcut(QtGui.QKeySequence.Copy)
         delete_action.setShortcut(QtGui.QKeySequence.Delete)
+
         action = menu.exec_(self.listWidget.mapToGlobal(position))
         if action == rename_action:
             self.listWidget.setCurrentItem(item)
@@ -145,7 +153,9 @@ class TilesetEditor(QtWidgets.QMainWindow):
         row = self.listWidget.currentRow()
         if row < 0:
             return
-        key = self.listWidget.item(row).text()
+        rowItem = self.listWidget.item(row)
+        assert rowItem
+        key = rowItem.text()
         if key in GameData.tilesetData:
             self._tilesetClipboard = copy.deepcopy(GameData.tilesetData[key])
             self._tilesetClipboardName = key
@@ -188,6 +198,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
         if row < 0:
             return
         item = self.listWidget.item(row)
+        assert item
         old_name = item.text()
 
         existing = set(GameData.tilesetData.keys())
@@ -260,7 +271,9 @@ class TilesetEditor(QtWidgets.QMainWindow):
         row = self.listWidget.currentRow()
         if row < 0:
             return
-        key = self.listWidget.item(row).text()
+        rowItem = self.listWidget.item(row)
+        assert rowItem
+        key = rowItem.text()
         ret = QtWidgets.QMessageBox.question(
             self,
             ELOC("CONFIRM_DELETE"),

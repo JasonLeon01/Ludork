@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from .States import StateInfo, State
 
 
@@ -20,18 +20,18 @@ class Battler(_BaseBattler):
         self._states: List[State] = []
 
     @ReturnType(state=bool)
-    def hasStateByInfo(self, stateInfo: StateInfo) -> bool:
+    def hasStateByInfo(self, stateInfo: StateInfo) -> Optional[State]:
         info = ["name", "icon", "description"]
         for s in self._states:
             if all([getattr(s, i) == getattr(stateInfo, i) for i in info]):
-                return True
-        return False
+                return s
+        return None
 
     @ReturnType(state=bool)
     def hasState(self, state: State) -> bool:
         if state in self._states:
             return True
-        return self.hasStateByInfo(state)
+        return not self.hasStateByInfo(state) is None
 
     @ExecSplit(default=(None,))
     def addState(self, state: State) -> None:
@@ -49,7 +49,5 @@ class Battler(_BaseBattler):
             self._states.remove(state)
 
     @ReturnType(state=State)
-    def getState(self, state: StateInfo) -> State:
-        if self.hasState(state):
-            return state
-        return None
+    def getState(self, state: StateInfo) -> Optional[State]:
+        return self.hasStateByInfo(state)

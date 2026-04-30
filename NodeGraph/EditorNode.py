@@ -22,7 +22,7 @@ class EditorDataNode(DataNode):
 class EditorNode(Node):
     def __init__(
         self,
-        parentGraph: Graph,
+        parentGraph: Graph,  # type: ignore
         parent: Optional[object],
         functionName: str,
         nodeFunction: Callable,

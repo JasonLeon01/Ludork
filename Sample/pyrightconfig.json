@@ -1,0 +1,9 @@
+{
+    "stubPath": "typings",
+    "typeCheckingMode": "basic",
+    "reportIncompatibleMethodOverride": false,
+    "reportArgumentType": false,
+    "reportCallIssue": false,
+    "reportOperatorIssue": false,
+    "reportAttributeAccessIssue": false
+}

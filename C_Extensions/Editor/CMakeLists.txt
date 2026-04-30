@@ -1,10 +1,8 @@
-cmake_minimum_required(VERSION 3.15)
-project(EditorExtension)
-include(../common.cmake)
+project(EditorExt)
 
-pybind11_add_module(EditorExtension
+pybind11_add_module(EditorExt
     "main.cpp"
     "src/RenderTilemapRGBA.cpp"
 )
 
-ConfigureTarget(EditorExtension)
+ConfigureTarget(EditorExt)

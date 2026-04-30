@@ -77,7 +77,9 @@ class LogDialog(QtWidgets.QDialog):
 
         self.btnBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
         self.btnBox.rejected.connect(self.close)
-        self.btnBox.button(QtWidgets.QDialogButtonBox.Close).setEnabled(False)
+        btn = self.btnBox.button(QtWidgets.QDialogButtonBox.Close)
+        assert btn
+        btn.setEnabled(False)
         layout.addWidget(self.btnBox)
 
     def appendLog(self, text: str):
@@ -86,7 +88,9 @@ class LogDialog(QtWidgets.QDialog):
         self.textEdit.moveCursor(QtGui.QTextCursor.End)
 
     def finish(self, success: bool, msg: str = ""):
-        self.btnBox.button(QtWidgets.QDialogButtonBox.Close).setEnabled(True)
+        btn = self.btnBox.button(QtWidgets.QDialogButtonBox.Close)
+        assert btn
+        btn.setEnabled(True)
         if msg:
             self.appendLog("\n" + msg + "\n")
         if success:
@@ -285,6 +289,8 @@ class PackWorker(QtCore.QThread):
             errors="replace",
         )
 
+        assert process.stdout
+
         while True:
             line = process.stdout.readline()
             if not line and process.poll() is not None:
@@ -343,6 +349,7 @@ class PackWorker(QtCore.QThread):
             proc1 = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace"
             )
+            assert proc1.stdout
             while True:
                 line = proc1.stdout.readline()
                 if not line and proc1.poll() is not None:
@@ -355,6 +362,7 @@ class PackWorker(QtCore.QThread):
             proc2 = subprocess.Popen(
                 cmd2, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace"
             )
+            assert proc2.stdout
             while True:
                 line = proc2.stdout.readline()
                 if not line and proc2.poll() is not None:

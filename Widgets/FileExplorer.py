@@ -21,6 +21,7 @@ class FileExplorer(QtWidgets.QWidget):
         class _Proxy(QtCore.QSortFilterProxyModel):
             def filterAcceptsRow(self, source_row: int, source_parent: QtCore.QModelIndex) -> bool:
                 model = self.sourceModel()
+                assert model
                 idx = model.index(source_row, 0, source_parent)
                 if not idx.isValid():
                     return True
@@ -100,6 +101,7 @@ class FileExplorer(QtWidgets.QWidget):
         self._view.customContextMenuRequested.connect(self._onContextMenu)
 
         style = QtWidgets.QApplication.style()
+        assert style
         upIcon = style.standardIcon(QtWidgets.QStyle.SP_ArrowUp)
         self._pathEdit = QtWidgets.QLineEdit(self)
         self._pathEdit.setReadOnly(True)
@@ -280,7 +282,9 @@ class FileExplorer(QtWidgets.QWidget):
         return True
 
     def _selectedSourceRows(self):
-        rows = self._view.selectionModel().selectedRows()
+        model = self._view.selectionModel()
+        assert model
+        rows = model.selectedRows()
         return [self._proxy.mapToSource(i) for i in rows]
 
     def _onContextMenu(self, pos: QtCore.QPoint) -> None:
@@ -289,13 +293,16 @@ class FileExplorer(QtWidgets.QWidget):
         idx = self._view.indexAt(pos)
         if idx.isValid():
             sm = self._view.selectionModel()
+            assert sm
             if not sm.isSelected(idx):
                 sm.clearSelection()
                 sm.select(idx, QtCore.QItemSelectionModel.Select | QtCore.QItemSelectionModel.Rows)
                 self._view.setCurrentIndex(idx)
         menu = QtWidgets.QMenu(self)
         actOpen = menu.addAction(ELOC("OPEN_FROM_SYSTEM"))
-        r = menu.exec_(self._view.viewport().mapToGlobal(pos))
+        viewport = self._view.viewport()
+        assert viewport
+        r = menu.exec_(viewport.mapToGlobal(pos))
         if r == actOpen:
             rows = self._selectedSourceRows()
             if rows:

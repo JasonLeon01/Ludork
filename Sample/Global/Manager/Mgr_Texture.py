@@ -32,7 +32,7 @@ class TextureManager:
 
     @classmethod
     def getMemory(cls) -> int:
-        from pympler import asizeof
+        from pympler import asizeof  # type: ignore
 
         return asizeof.asizeof(cls._TexturesRef)
 

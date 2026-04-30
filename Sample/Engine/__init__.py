@@ -114,9 +114,18 @@ from pysf import sleep
 from pysf import swap
 from pysf import version
 
-_GameRunning: bool = True
-_CellSize: int = 32
-GameSize: Vector2f = Vector2f(640, 480)
+from .EngineExt import ParticleInfo
+from .EngineExt import Particle
+from .EngineExt import TextParticle
+from .EngineExt import ParticleSystem
+from .EngineExt import TileLayerGraphics
+from .EngineExt import RectBase
+from .EngineExt import C_CompressAnimation
+from .EngineExt import C_HexColor
+
+GameRunning: bool = True
+CellSize: int = 32
+GameSize: Vector2u = Vector2u(640, 480)
 Scale: float = 1.0
 type Pair[T] = tuple[T, T]
 type Tuple3[T] = tuple[T, T, T]
@@ -145,26 +154,6 @@ def OppositeDirection(direction: Direction) -> Direction:
         return Direction.LEFT
     elif direction == Direction.UP:
         return Direction.DOWN
-
-
-def GetGameRunning() -> bool:
-    global _GameRunning
-    return _GameRunning
-
-
-def StopGame() -> None:
-    global _GameRunning
-    _GameRunning = False
-
-
-def GetCellSize() -> int:
-    global _CellSize
-    return _CellSize
-
-
-def SetCellSize(size: int) -> None:
-    global _CellSize
-    _CellSize = size
 
 
 def TypeAdapter(**typeMap: Union[Tuple[Union[Type, List[Type]], Type], Tuple[Union[Type, List[Type]], Type, Callable]]):
@@ -223,7 +212,7 @@ def Meta(**kwargs):
 def ExecSplit(**kwargs):
     def decorator(func):
         func._execSplits = kwargs
-        func._refLocal: Dict[str, Any] = {}
+        func._refLocal = {}
         return func
 
     return decorator
@@ -232,7 +221,7 @@ def ExecSplit(**kwargs):
 def Latent(**kwargs):
     def decorator(func):
         func._latents = kwargs
-        func._refLocal: Dict[str, Any] = {}
+        func._refLocal = {}
         return func
 
     return decorator
@@ -241,7 +230,7 @@ def Latent(**kwargs):
 def ReturnType(**kwargs):
     def decorator(func):
         func._returnTypes = kwargs
-        func._refLocal: Dict[str, Any] = {}
+        func._refLocal = {}
         return func
 
     return decorator

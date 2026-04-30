@@ -5,6 +5,7 @@ from collections import deque
 import copy
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
+import Engine
 from Engine import (
     Pair,
     RenderTexture,
@@ -13,18 +14,16 @@ from Engine import (
     Vector2u,
     Color,
     Texture,
-    GetCellSize,
     Direction,
     OppositeDirection,
     Shader,
+    ParticleSystem,
 )
 from Engine.Utils import Math
 from Engine.Gameplay import Tilemap, TileLayer, Material
-from Engine.Gameplay.Particles import System as ParticleSystem
 from Engine.Gameplay.Actors import Actor
-from Engine.Gameplay.GamePlayExtension import C_FindPath, C_GetMaterialPropertyMap, C_RebuildPassabilityCache
-from Engine.GraphicsExtension import GameMapGraphics
 from . import SceneBase
+from .GlobalExt import GameMapExt
 from .Camera import Camera
 from .System import System
 from .Components import MapClickAutoPath, PathPreviewComponent, PathRouteState, ComponentBase
@@ -55,7 +54,7 @@ class Light:
         )
 
 
-class GameMap(GameMapGraphics):
+class GameMap(GameMapExt):
     DefaultCoverAlpha: int
 
     def __init__(self, mapName: str, tilemap: Tilemap, camera: Optional[Camera] = None) -> None:
@@ -84,7 +83,7 @@ class GameMap(GameMapGraphics):
             MapClickAutoPath(self, self._pathRouteState),
             PathPreviewComponent(self, self._pathRouteState),
         ]
-        self._lightMask = RenderTexture(self._tilemap.getSize() * GetCellSize())
+        self._lightMask = RenderTexture(self._tilemap.getSize() * Engine.CellSize)
         self._tilemapLightMaskShader = Shader("./Assets/Shaders/Map/TilemapLightMask.frag", Shader.Type.Fragment)
         self._lightMaskShader = Shader("./Assets/Shaders/Map/lightMask.frag", Shader.Type.Fragment)
         self._materialShader = Shader("./Assets/Shaders/Map/Material.frag", Shader.Type.Fragment)
@@ -93,6 +92,12 @@ class GameMap(GameMapGraphics):
         self._actorRenderStates = copy.copy(self._camera.getRenderStates())
         self._actorRenderStates.shader = self._lightMaskShader
         super().__init__(self._materialShader)
+        self.tilemapRef = self._tilemap
+        self.actorsRef = self._actors
+        self.getLayer = Tilemap.getLayer
+        self.getMapPosition = Actor.getMapPosition
+        self.getCollisionEnabled = Actor.getCollisionEnabled
+        self.TileLayerPassable = TileLayer.isPassable
 
     @ReturnType(player=Actor)
     def getPlayer(self) -> Optional[Actor]:
@@ -100,6 +105,8 @@ class GameMap(GameMapGraphics):
 
     @ExecSplit(default=(None,))
     def setPlayer(self, player: Optional[Actor]) -> None:
+        if not self._camera:
+            return
         if self._player is None:
             self._camera.setParent(player)
         self._player = player
@@ -149,9 +156,10 @@ class GameMap(GameMapGraphics):
         y = targetPosition.y
         if x < 0 or y < 0 or x >= size.x or y >= size.y:
             return False
-        if self._tilePassableGrid is None or self._occupancyMap is None:
+        if self._tilePassableGrid is None or self._occupancyMap is None or self._materialDirty:
             self._rebuildPassabilityCache()
-        if not self._tilePassableGrid[y][x]:
+            self._materialDirty = False
+        if self._tilePassableGrid and not self._tilePassableGrid[y][x]:
             return False
 
         currentPosition = actor.getMapPosition()
@@ -231,7 +239,7 @@ class GameMap(GameMapGraphics):
         self._materialDirty = True
 
     @ReturnType(camera=Camera)
-    def getCamera(self) -> Camera:
+    def getCamera(self) -> Optional[Camera]:
         return self._camera
 
     @ExecSplit(default=(None,))
@@ -316,19 +324,10 @@ class GameMap(GameMapGraphics):
         size = self._tilemap.getSize()
         layerKeys = list(self._tilemap.getAllLayers().keys())
         layerKeys.reverse()
-        return C_FindPath(
-            start,
-            goal,
-            size,
-            self._tilemap,
-            layerKeys,
-            self._actors,
-            self._tilemap.getTilesData(),
-            Tilemap.getLayer,
-            Actor.getMapPosition,
-            Actor.getCollisionEnabled,
-            TileLayer.isPassable,
-        )
+        self.layerKeysRef = layerKeys
+        self.tileDataRef = self._tilemap.getTilesData()
+        self.actorsRef = self._actors
+        return self.findPathExt(start, goal, size)
 
     @ReturnType(scene=SceneBase)
     def getScene(self) -> SceneBase:
@@ -385,32 +384,25 @@ class GameMap(GameMapGraphics):
         height = mapSize.y
         layerKeys = list(self._tilemap.getAllLayers().keys())
         layerKeys.reverse()
-        return C_GetMaterialPropertyMap(
-            layerKeys,
-            width,
-            height,
-            self._tilemap,
-            self._actors,
-            self._tilemap.getTilesData(),
-            functionName,
-            invalidValue,
-            Tilemap.getLayer,
-            Actor.getMapPosition,
-        )
+        self.layerKeysRef = layerKeys
+        self.tileDataRef = self._tilemap.getTilesData()
+        self.actorsRef = self._actors
+        return self.getMaterialPropertyMapExt(width, height, functionName, invalidValue)
 
     def getActorLayerLightBlockMap(self, layerName: str, size: Vector2u) -> Optional[List[List[float]]]:
         width: int = size.x
         height: int = size.y
         if layerName not in self._actors:
             return None
-        result = [[0] * width for _ in range(height)]
+        result = [[0.0] * width for _ in range(height)]
         for actor in self._actors[layerName]:
             position = actor.getMapPosition()
             result[position.y][position.x] = actor.getLightBlock()
         return result
 
     def onTick(self, deltaTime: float) -> None:
-        self._camera.onTick(deltaTime)
+        if self._camera:
+            self._camera.onTick(deltaTime)
         for component in self._components:
             component.onTick()
         if len(self._actorsOnDestroy) > 0:
@@ -429,7 +421,8 @@ class GameMap(GameMapGraphics):
         self._particleSystem.onTick(deltaTime)
 
     def onLateTick(self, deltaTime: float) -> None:
-        self._camera.onLateTick(deltaTime)
+        if self._camera:
+            self._camera.onLateTick(deltaTime)
         for component in self._components:
             component.onLateTick()
         for actorList in self._actors.values():
@@ -440,7 +433,8 @@ class GameMap(GameMapGraphics):
         self._particleSystem.onLateTick(deltaTime)
 
     def onFixedTick(self, fixedDelta: float) -> None:
-        self._camera.onFixedTick(fixedDelta)
+        if self._camera:
+            self._camera.onFixedTick(fixedDelta)
         for component in self._components:
             component.onFixedTick()
         for actorList in self._actors.values():
@@ -464,8 +458,10 @@ class GameMap(GameMapGraphics):
         layers = self._tilemap.getAllLayers()
         layerKeys = list(layers.keys())
         System.setWindowMapView()
-        self._camera.clear()
-        self._lightMask.clear()
+        if self._camera:
+            self._camera.clear()
+        if self._lightMask:
+            self._lightMask.clear()
 
         playerLayerIndex = -1
         if self._player:
@@ -492,39 +488,43 @@ class GameMap(GameMapGraphics):
                         layer.setTileColor(playerPos.x, playerPos.y, Color(255, 255, 255, GameMap.DefaultCoverAlpha))
                         self._transparentTiles.append((layer, playerPos.x, playerPos.y))
 
-            self._camera.render(layer)
-            if layerName in self._actors:
-                for actor in self._actors[layerName]:
-                    actorAlpha = 255
-                    if self._player and i > playerLayerIndex and playerLayerIndex != -1:
-                        if actor != self._player and actor.intersects(self._player):
-                            actorAlpha = GameMap.DefaultCoverAlpha
-                    actor.setColor(Color(255, 255, 255, actorAlpha))
-                    self._camera.render(actor)
+            if self._camera:
+                self._camera.render(layer)
+                if layerName in self._actors:
+                    for actor in self._actors[layerName]:
+                        actorAlpha = 255
+                        if self._player and i > playerLayerIndex and playerLayerIndex != -1:
+                            if actor != self._player and actor.intersects(self._player):
+                                actorAlpha = GameMap.DefaultCoverAlpha
+                        actor.setColor(Color(255, 255, 255, actorAlpha))
+                        self._camera.render(actor)
         for component in self._components:
             component.onRender(self._camera)
         for layerName in layerKeys:
             layer = layers[layerName]
             if not layer.visible:
                 continue
-            cellSize = GetCellSize()
+            cellSize = Engine.CellSize
             lbTexture = Texture(layer.getLightBlockImage())
             reflectionStrengthTexture = Texture(layer.getReflectionStrengthImage())
             tilemapLightMask.setUniform("lightBlockTex", lbTexture)
             tilemapLightMask.setUniform("reflectionStrengthTex", reflectionStrengthTexture)
             tilemapLightMask.setUniform("lightBlockSize", Vector2f(cellSize, cellSize))
             tilemapLightMask.setUniform("mapSize", Vector2f(self._tilemap.getSize().x, self._tilemap.getSize().y))
-            self._lightMask.draw(layer, self._tilemapRenderStates)
-            if layerName in self._actors:
-                for actor in self._actors[layerName]:
-                    actorLightMask.setUniform("lightBlock", actor.getLightBlock())
-                    if actor.getMirror():
-                        actorLightMask.setUniform("reflectionStrength", actor.getReflectionStrength())
-                    else:
-                        actorLightMask.setUniform("reflectionStrength", 0.0)
-                    self._lightMask.draw(actor, self._actorRenderStates)
-        self._camera.display()
-        self._lightMask.display()
+            if self._lightMask:
+                self._lightMask.draw(layer, self._tilemapRenderStates)
+                if layerName in self._actors:
+                    for actor in self._actors[layerName]:
+                        actorLightMask.setUniform("lightBlock", actor.getLightBlock())
+                        if actor.getMirror():
+                            actorLightMask.setUniform("reflectionStrength", actor.getReflectionStrength())
+                        else:
+                            actorLightMask.setUniform("reflectionStrength", 0.0)
+                        self._lightMask.draw(actor, self._actorRenderStates)
+        if self._camera:
+            self._camera.display()
+        if self._lightMask:
+            self._lightMask.display()
         self.refreshShader()
         System.draw(self._camera, self._materialShader)
         System.draw(self._particleSystem)
@@ -534,17 +534,18 @@ class GameMap(GameMapGraphics):
         if self._lightMask is None or self._materialDirty:
             self._rebuildPassabilityCache()
             self._materialDirty = False
-        super().refreshShader(
-            self._lightMask,
-            System.getScale(),
-            Math.ToVector2f(System.getGameSize()),
-            self._camera.getViewPosition(),
-            self._camera.v_getViewRotation(),
-            Math.ToVector2f(self._tilemap.getSize()),
-            GetCellSize(),
-            self._lights,
-            self._ambientLight,
-        )
+        if self._camera:
+            super().refreshShader(
+                self._lightMask,
+                System.getScale(),
+                Math.ToVector2f(System.getGameSize()),
+                self._camera.getViewPosition(),
+                self._camera.v_getViewRotation(),
+                Math.ToVector2f(self._tilemap.getSize()),
+                Engine.CellSize,
+                self._lights,
+                self._ambientLight,
+            )
 
     def _getMaterialPropertyTexture(
         self, functionName: str, invalidValue: Union[float, bool], smooth: bool = False
@@ -557,17 +558,10 @@ class GameMap(GameMapGraphics):
         size = self._tilemap.getSize()
         layerKeysList = list(self._tilemap.getAllLayers().keys())
         layerKeysList.reverse()
-        self._tilePassableGrid, self._occupancyMap = C_RebuildPassabilityCache(
-            size,
-            layerKeysList,
-            self._tilemap.getTilesData(),
-            self._actors,
-            self._tilemap,
-            Tilemap.getLayer,
-            TileLayer.isPassable,
-            Actor.getCollisionEnabled,
-            Actor.getMapPosition,
-        )
+        self.layerKeysRef = layerKeysList
+        self.tileDataRef = self._tilemap.getTilesData()
+        self.actorsRef = self._actors
+        self._tilePassableGrid, self._occupancyMap = self.rebuildPassabilityCache(size)
 
     def markPassabilityDirty(self) -> None:
         self._materialDirty = True

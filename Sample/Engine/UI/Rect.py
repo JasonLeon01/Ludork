@@ -12,15 +12,10 @@ from .. import (
     Vector2f,
     Texture,
     RenderTexture,
+    RectBase,
 )
 from ..Utils import Math, Render
 from .Base import SpriteBase
-
-try:
-    from ..GraphicsExtension import RectBase
-except ImportError as e:
-    print(f"Failed to import C++ RectBase, try to import python version. Error: {e}")
-    from .Base import PyRectBase as RectBase
 
 if TYPE_CHECKING:
     from Engine import Vector2u, Image

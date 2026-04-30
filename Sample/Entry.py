@@ -36,7 +36,7 @@ def entry() -> None:
         t.start()
 
     try:
-        import debugpy
+        import debugpy  # type: ignore
 
         debugpy.listen(("localhost", 2333))
     except ImportError:
@@ -52,7 +52,9 @@ def entry() -> None:
     Source.System.init()
 
     while Global.System.shouldLoop():
-        Global.System.getScene().main()
+        scene = Global.System.getScene()
+        if scene:
+            scene.main()
     Global.System.saveFPSHistory()
     print("Game exited successfully.")
 

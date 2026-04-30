@@ -17,7 +17,6 @@ from Engine import (
     Sprite,
     Shader,
     Drawable,
-    GetGameRunning,
     Locale,
 )
 from Engine.Utils import Math, Render
@@ -28,14 +27,14 @@ if TYPE_CHECKING:
 
 class System:
     __data: configparser.ConfigParser
-    __dataFilePath: str = None
+    __dataFilePath: str
     __graphicsCanvases: List[RenderTexture] = []
-    _window: RenderWindow = None
-    _canvas: RenderTexture = None
-    _canvasSprite: Sprite = None
-    _transition: Texture = None
-    _transitionTempTexture: RenderTexture = None
-    _transitionSprite: Sprite = None
+    _window: RenderWindow
+    _canvas: RenderTexture
+    _canvasSprite: Sprite
+    _transition: Texture
+    _transitionTempTexture: RenderTexture
+    _transitionSprite: Sprite
     _graphicsShaders: List[Shader] = []
     _mainScript: str = ""
     _frameRate: int = 60
@@ -53,7 +52,7 @@ class System:
     _transitionTime: float = 0.0
     _transitionFrozen: bool = False
     _transitionFreezePending: bool = False
-    _scenes: List[SceneBase] = None
+    _scenes: List[SceneBase] = []
     _debugMode: bool = False
     _showFPSGraph: bool = False
     _fpsHistory: List[float] = []
@@ -129,11 +128,15 @@ class System:
 
     @classmethod
     def isActive(cls) -> bool:
-        return cls._window.isOpen() and GetGameRunning()
+        from Engine import GameRunning
+
+        return cls._window.isOpen() and GameRunning
 
     @classmethod
     def shouldLoop(cls) -> bool:
-        return cls._window.isOpen() and GetGameRunning() and len(cls._scenes) > 0
+        from Engine import GameRunning
+
+        return cls._window.isOpen() and GameRunning and len(cls._scenes) > 0
 
     @classmethod
     def initWindow(cls, window: RenderWindow) -> None:
@@ -197,7 +200,7 @@ class System:
                 canvas.display()
             finalCanvas = cls.__graphicsCanvases[-1]
         cls._canvasSprite.setTexture(finalCanvas.getTexture())
-        if cls._inTransition:
+        if cls._inTransition and cls._transitionShader:
             cls._transitionTempTexture.clear(Color.Transparent)
             cls._transitionTempTexture.draw(cls._canvasSprite, states)
             cls._transitionTempTexture.display()

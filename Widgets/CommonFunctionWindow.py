@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Dict
+from typing import Dict, Any
 import copy
 from PyQt5 import QtWidgets, QtCore, QtGui
 from Utils import File, System

@@ -134,6 +134,7 @@ class LightPanel(QtWidgets.QWidget):
     def _clearRows(self) -> None:
         while self._form.count():
             item = self._form.takeAt(0)
+            assert item
             w = item.widget()
             if w is not None:
                 w.setParent(None)
@@ -146,6 +147,7 @@ class LightPanel(QtWidgets.QWidget):
     def _clearLayout(self, layout: QtWidgets.QLayout) -> None:
         while layout.count():
             item = layout.takeAt(0)
+            assert item
             w = item.widget()
             if w is not None:
                 w.setParent(None)

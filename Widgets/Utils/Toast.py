@@ -34,6 +34,7 @@ class Toast(QtWidgets.QWidget):
         self.timer.start(duration)
 
     def _updatePosition(self):
-        if self.parent():
-            p_rect = self.parent().rect()
+        parent = self.parent()
+        if parent:
+            p_rect = parent.rect()
             self.move(p_rect.width() - self.width() - 20, p_rect.height() - self.height() - 40)

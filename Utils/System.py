@@ -10,12 +10,12 @@ from EditorGlobal import EditorStatus
 def alreadyPacked() -> bool:
     result = False
     try:
-        result = __compiled__ is not None
+        result = __compiled__ is not None  # type: ignore
     except Exception:
         pass
     if not result:
         try:
-            result = __nuitka_binary_dir is not None
+            result = __nuitka_binary_dir is not None  # type: ignore
         except Exception:
             pass
     return result

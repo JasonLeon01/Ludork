@@ -339,6 +339,7 @@ class TimelineCanvas(QtWidgets.QWidget):
 
             menu = QtWidgets.QMenu(self)
             actDelete = menu.addAction(ELOC("DELETE"))
+            assert actDelete
             actDelete.triggered.connect(self.deleteSelectedSegment)
             menu.exec_(event.globalPos())
 

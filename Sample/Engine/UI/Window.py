@@ -2,19 +2,31 @@
 
 from __future__ import annotations
 from typing import List, Tuple, Union
-from .. import TypeAdapter, Pair, Sprite, IntRect, Vector2i, Vector2f, Texture, RenderTexture, Vector2u, Image
+from .. import (
+    TypeAdapter,
+    Pair,
+    Sprite,
+    IntRect,
+    Vector2i,
+    Vector2f,
+    Texture,
+    RenderTexture,
+    Vector2u,
+    Image,
+    RectBase,
+)
 from ..Utils import Math, Render
 from .Base import SpriteBase
 
-try:
-    from ..GraphicsExtension import RectBase
-except ImportError as e:
-    print(f"Failed to import C++ RectBase, try to import python version. Error: {e}")
-    from .Base import PyRectBase as RectBase
-
 
 class Window(SpriteBase):
-    @TypeAdapter(rect=([tuple, list], IntRect, lambda pos, size: IntRect(Vector2i(*pos), Vector2i(*size))))
+    @TypeAdapter(
+        rect=(
+            [tuple, list],
+            IntRect,
+            lambda pos, size: IntRect(Vector2i(*pos), Vector2i(*size)),
+        )
+    )
     def __init__(
         self,
         rect: Union[IntRect, Tuple[Pair[int], Pair[int]], List[List[int]]],
@@ -45,14 +57,20 @@ class Window(SpriteBase):
     def _initUI(self) -> None:
         self._windowEdge = RenderTexture(self._canvas.getSize())
         self._windowEdgeSprite = Sprite(self._windowEdge.getTexture())
-        self._windowBack = Texture(self._windowSkin, False, Math.ToIntRect(0, 0, 128, 128))
+        self._windowBack = Texture(
+            self._windowSkin, False, Math.ToIntRect(0, 0, 128, 128)
+        )
         self._windowBack.setRepeated(self._repeated)
         self._windowBackSprite = Sprite(self._windowBack)
         if self._repeated:
-            self._windowBackSprite.setTextureRect(IntRect(Vector2i(0, 0), Math.ToVector2i(self.getLocalBounds().size)))
+            self._windowBackSprite.setTextureRect(
+                IntRect(Vector2i(0, 0), Math.ToVector2i(self.getLocalBounds().size))
+            )
         else:
             canvasSize = self._canvas.getSize()
-            self._windowBackSprite.setScale(Vector2f(canvasSize.x / 128.0, canvasSize.y / 128.0))
+            self._windowBackSprite.setScale(
+                Vector2f(canvasSize.x / 128.0, canvasSize.y / 128.0)
+            )
         self._windowHintSprites: List[Sprite] = []
         self._pauseHintSprite: Sprite = None
         self._cachedCorners: List[Texture] = []

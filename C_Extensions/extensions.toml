@@ -1,0 +1,23 @@
+[editor_ext]
+name = "EditorExt"
+target_dir = "EditorExtensions"
+needs_pysf = false
+stub_patches = []
+
+[engine_ext]
+name = "EngineExt"
+target_dir = "Sample/Engine"
+needs_pysf = true
+stub_patches = [
+    { find = "import pysf.sf", replace = "from Engine import pysf" },
+    { find = "pysf.sf.", replace = "pysf." },
+]
+
+[global_ext]
+name = "GlobalExt"
+target_dir = "Sample/Global"
+needs_pysf = true
+stub_patches = [
+    { find = "import pysf.sf", replace = "from Engine import pysf" },
+    { find = "pysf.sf.", replace = "pysf." },
+]

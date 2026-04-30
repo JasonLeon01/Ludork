@@ -8,12 +8,12 @@ from Engine import RenderWindow, SoundBuffer, Sound, Texture, Sprite, Color, Vec
 from . import Manager, System
 
 if TYPE_CHECKING:
-    import av
+    import av  # type: ignore
 
 
 class Video:
     def __init__(self, videoPath: str, mute: bool = False, skipable: bool = False) -> None:
-        import av
+        import av  # type: ignore
 
         self.mute = mute
         self.skipable = skipable
@@ -58,7 +58,7 @@ class Video:
         self._sound.stop()
 
     def _extractAudio(self, videoPath) -> tuple[bytes, int, int]:
-        import av
+        import av  # type: ignore
 
         container = av.open(videoPath)
         audioStream = next((s for s in container.streams if s.type == "audio"), None)
@@ -103,13 +103,13 @@ class Video:
             self.finished = True
 
     def _getFrame(self, window: RenderWindow) -> Optional[int]:
-        from .UtilsExtension import C_ImageUpdateBuffer1D
+        from .GlobalExt import C_ImageUpdateBuffer1D
 
         success, frame = self._read()
         if not success:
             self._sprite = None
             return None
-        if self._image is None:
+        if self._image is None and frame:
             h, w = frame.height, frame.width
             self._image = Texture(Vector2u(w, h))
             self._sprite = Sprite(self._image)

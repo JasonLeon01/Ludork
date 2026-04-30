@@ -51,8 +51,8 @@ class ControlBase(Drawable, Transformable):
         super().setPosition(position)
 
     @TypeAdapter(offset=([tuple, list], Vector2f))
-    def move(self, offset: Union[Vector2f, Pair[float], List[float]]) -> bool:
-        return super().move(offset)
+    def move(self, offset: Union[Vector2f, Pair[float], List[float]]) -> None:
+        super().move(offset)
 
     def v_getRotation(self) -> float:
         result = super().getRotation()

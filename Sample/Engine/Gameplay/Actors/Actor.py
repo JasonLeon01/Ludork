@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import List, Optional, Tuple, Union
-from ... import Pair, BPBase, Vector2f, Vector2i, Vector2u, IntRect, GetCellSize, Texture
+from ... import Pair, BPBase, Vector2f, Vector2i, Vector2u, IntRect, Texture
 from ..Material import Material
 from ...Utils import Math, Inner
 from .Base import _ActorBase
@@ -48,7 +48,7 @@ class Actor(_ActorBase, BPBase):
             if len(self._routine) == 0:
                 self._inRoutine = False
             else:
-                if not self._isMoving:
+                if not self._isMoving and self._routine:
                     step = self._routine[0]
                     self._routine.pop(0)
                     if not self.MapMove(step):
@@ -91,13 +91,16 @@ class Actor(_ActorBase, BPBase):
 
     @ExecSplit(default=(None,))
     def destroy(self) -> None:
-        self._map.destroyActor(self)
+        if self._map:
+            self._map.destroyActor(self)
 
     @ExecSplit(success=(True,), fail=(False,))
     @TypeAdapter(offset=([tuple, list], Vector2i))
-    def MapMove(self, offset: Union[Vector2i, Pair[int], List[int]]) -> None:
-        if not self._moveEnabled:
-            return
+    def MapMove(self, offset: Union[Vector2i, Pair[int], List[int]]) -> bool:
+        from ... import CellSize
+
+        if not self._moveEnabled or not self._map:
+            return False
         x = offset.x
         y = offset.y
         sx = 1 if x > 0 else (-1 if x < 0 else 0)
@@ -122,8 +125,8 @@ class Actor(_ActorBase, BPBase):
         self._isMoving = True
         self._departure = self.getPosition()
         self._destination = Vector2f(
-            self.getPosition().x + offset.x * GetCellSize(),
-            self.getPosition().y + offset.y * GetCellSize(),
+            self.getPosition().x + offset.x * CellSize,
+            self.getPosition().y + offset.y * CellSize,
         )
         return True
 
@@ -203,7 +206,7 @@ class Actor(_ActorBase, BPBase):
 
     @ReturnType(velocity=Optional[Vector2f])
     def getVelocity(self) -> Optional[Vector2f]:
-        if self._departure is None or self._destination is None:
+        if not self._map or self._departure is None or self._destination is None:
             return None
 
         topMaterial = self._map.getTopMaterial(self.getMapPosition())
@@ -232,11 +235,19 @@ class Actor(_ActorBase, BPBase):
         offset = velocity * fixedDelta
         self.move(offset)
         if (
-            Math.IsNearZero(self.getPosition().x - self._destination.x, 0.1)
-            and Math.IsNearZero(self.getPosition().y - self._destination.y, 0.1)
-        ) or (
-            (self._destination.x - self._departure.x) * (self.getPosition().x - self._destination.x) > 0
-            or (self._destination.y - self._departure.y) * (self.getPosition().y - self._destination.y) > 0
+            self._destination
+            and self._departure
+            and self._map
+            and (
+                (
+                    Math.IsNearZero(self.getPosition().x - self._destination.x, 0.1)
+                    and Math.IsNearZero(self.getPosition().y - self._destination.y, 0.1)
+                )
+                or (
+                    (self._destination.x - self._departure.x) * (self.getPosition().x - self._destination.x) > 0
+                    or (self._destination.y - self._departure.y) * (self.getPosition().y - self._destination.y) > 0
+                )
+            )
         ):
             self.setPosition(Vector2f(self._destination.x, self._destination.y))
             self._autoFixMapPosition()
@@ -250,9 +261,11 @@ class Actor(_ActorBase, BPBase):
                     Actor.BlueprintEvent(overlap, Actor, "onOverlap", {"other": [self]})
 
     def _autoFixMapPosition(self) -> None:
+        from ... import CellSize
+
         pos = self.getPosition()
-        x = int(pos.x * 1.0 / GetCellSize() + 0.5)
-        y = int(pos.y * 1.0 / GetCellSize() + 0.5)
+        x = int(pos.x * 1.0 / CellSize + 0.5)
+        y = int(pos.y * 1.0 / CellSize + 0.5)
         self.setMapPosition(Vector2u(x, y))
         if self._map:
             self._map.markPassabilityDirty()

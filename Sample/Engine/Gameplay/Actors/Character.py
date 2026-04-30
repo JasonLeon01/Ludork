@@ -14,7 +14,7 @@ class Character(Actor):
     directionFix: bool = False
     animateWithoutMoving: bool = False
 
-    def __init__(self, texture: Optional[Texture] = None, tag: Optional[str] = None) -> None:
+    def __init__(self, texture: Texture, tag: Optional[str] = None) -> None:
         if not texture is None:
             assert isinstance(texture, Texture), "texture must be a Texture"
         self._rectSize: Vector2i = Utils.Math.ToVector2i(texture.getSize() / 4)
@@ -44,9 +44,9 @@ class Character(Actor):
 
     @ExecSplit(success=(True,), fail=(False,))
     @TypeAdapter(offset=([tuple, list], Vector2i))
-    def MapMove(self, offset: Union[Vector2i, Pair[int], List[int]]) -> None:
+    def MapMove(self, offset: Union[Vector2i, Pair[int], List[int]]) -> bool:
         if not self._moveEnabled:
-            return
+            return False
         result = super().MapMove(offset)
         if not result:
             vx = offset.x
@@ -74,11 +74,14 @@ class Character(Actor):
         return character
 
     def _animate(self, deltaTime: float) -> None:
+        spriteTexture = self.getSpriteTexture()
+        if spriteTexture is None:
+            return
         if self.isMoving() or self.animateWithoutMoving:
             self._switchTimer += deltaTime
             if self._switchTimer >= self.switchInterval:
                 self._switchTimer = 0.0
-                self._sx = (self._sx + self._rectSize.x) % self.getSpriteTexture().getSize().x
+                self._sx = (self._sx + self._rectSize.x) % spriteTexture.getSize().x
         else:
             self._sx = 0
         self.setTextureRect(IntRect(Vector2i(self._sx, self._sy), self._rectSize))

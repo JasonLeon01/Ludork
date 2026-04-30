@@ -3,7 +3,7 @@
 import copy
 import os
 import zlib
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple, Type
 from Engine import Vector2f, Vector2u, Image
 from Engine.Gameplay import Tileset
 from Engine.Gameplay.Actors import Actor
@@ -17,7 +17,7 @@ class _Data:
         self.dataKinds = 4
         self._animationData: Dict[str, Dict[str, Any]] = {}
         self._commonFunctionsData: Dict[str, Dict[str, Any]] = {}
-        self._tilesetData: Dict[str, Dict[str, Any]] = {}
+        self._tilesetData: Dict[str, Tileset] = {}
         self._animCache: Dict[str, Dict[str, Any]] = {}
         self._generalData: Dict[str, Dict[str, Any]] = {}
         self._classDict = ClassDict()
@@ -54,6 +54,7 @@ class _Data:
                 continue
             data = self.__getData(extensionPart, dataRoot, file, defaultType)
             payload = copy.deepcopy(data)
+            assert payload
             if "type" in payload:
                 del payload["type"]
             if wrapper is None:
@@ -166,10 +167,7 @@ class _Data:
         if bp is None:
             print(f"Actor {tag} in layer {layerName} has no bp")
             return None
-        classModel: Optional[Actor] = self.getClass(bp)
-        if classModel is None:
-            print(f"Actor {tag} in layer {layerName} has no class model")
-            return None
+        classModel: Type[Actor] = self.getClass(bp)
         texturePath = getattr(classModel, "texturePath")
         defaultRect = getattr(classModel, "defaultRect")
         actor: Actor = classModel.GenActor(classModel, Manager.loadCharacter(texturePath), defaultRect, tag)

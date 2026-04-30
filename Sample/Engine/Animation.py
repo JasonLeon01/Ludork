@@ -5,8 +5,7 @@ import os
 import math
 import zlib
 from typing import List, Optional, Dict, Any
-from . import Sprite, Texture, Image
-from .GraphicsExtension import C_CompressAnimation
+from . import Sprite, Texture, Image, C_CompressAnimation
 
 
 class AnimSprite(Sprite):

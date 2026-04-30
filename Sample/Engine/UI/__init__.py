@@ -1,9 +1,9 @@
 # -*- encoding: utf-8 -*-
 
 from .. import Color, Font
+from .. import C_HexColor as HexColor
 from .Canvas import Canvas
 from .Text import TextStyle, PlainText, RichText
-from .TextBox import TextBox
 from .Image import Image
 from .Window import Window
 from .Rect import Rect
@@ -14,56 +14,64 @@ DefaultFontSize: int = 32
 DefaultWindowskinName: str
 
 
-try:
-    from ..GraphicsExtension import C_HexColor as HexColor
+def GetRosyBrown() -> Color:
+    """#a96362"""
+    return HexColor(0xA96362)
 
-    def GetRosyBrown() -> Color:
-        """#a96362"""
-        return HexColor(0xA96362)
 
-    def GetCopper() -> Color:
-        """#a86538"""
-        return HexColor(0xA86538)
+def GetCopper() -> Color:
+    """#a86538"""
+    return HexColor(0xA86538)
 
-    def GetSage() -> Color:
-        """#adb57d"""
-        return HexColor(0xADB57D)
 
-    def GetTeal() -> Color:
-        """#4b8082"""
-        return HexColor(0x4B8082)
+def GetSage() -> Color:
+    """#adb57d"""
+    return HexColor(0xADB57D)
 
-    def GetMutedPurple() -> Color:
-        """#6f6496"""
-        return HexColor(0x6F6496)
 
-    def GetTaupe() -> Color:
-        """#72695c"""
-        return HexColor(0x72695C)
+def GetTeal() -> Color:
+    """#4b8082"""
+    return HexColor(0x4B8082)
 
-    def GetTerraCotta() -> Color:
-        """#99574d"""
-        return HexColor(0x99574D)
 
-    def GetOchre() -> Color:
-        """#927140"""
-        return HexColor(0x927140)
+def GetMutedPurple() -> Color:
+    """#6f6496"""
+    return HexColor(0x6F6496)
 
-    def GetFernGreen() -> Color:
-        """#4b7455"""
-        return HexColor(0x4B7455)
 
-    def GetSteelBlue() -> Color:
-        """#566c8f"""
-        return HexColor(0x566C8F)
+def GetTaupe() -> Color:
+    """#72695c"""
+    return HexColor(0x72695C)
 
-    def GetDimGray() -> Color:
-        """#6a6a6a"""
-        return HexColor(0x6A6A6A)
 
-    def GetCharcoal() -> Color:
-        """#1f1f1f"""
-        return HexColor(0x1F1F1F)
+def GetTerraCotta() -> Color:
+    """#99574d"""
+    return HexColor(0x99574D)
 
-except ImportError as e:
-    print("Failed to import C_HexColor from GraphicsExtension")
+
+def GetOchre() -> Color:
+    """#927140"""
+    return HexColor(0x927140)
+
+
+def GetFernGreen() -> Color:
+    """#4b7455"""
+    return HexColor(0x4B7455)
+
+
+def GetSteelBlue() -> Color:
+    """#566c8f"""
+    return HexColor(0x566C8F)
+
+
+def GetDimGray() -> Color:
+    """#6a6a6a"""
+    return HexColor(0x6A6A6A)
+
+
+def GetCharcoal() -> Color:
+    """#1f1f1f"""
+    return HexColor(0x1F1F1F)
+
+
+__all__ = ["HexColor", "Canvas", "Text", "Image", "Window", "Rect", "ListView", "RichText", "PlainText", "TextStyle"]

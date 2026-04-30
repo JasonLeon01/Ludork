@@ -39,12 +39,14 @@ class MapEditDialog(QtWidgets.QDialog):
         self.wSpin.setValue(max(1, old_w))
         self.hSpin.setValue(max(1, old_h))
         self.nameEdit.setStyleSheet("")
-        if self.wSpin.lineEdit():
-            self.wSpin.lineEdit().setStyleSheet("")
+        wLineEdit = self.wSpin.lineEdit()
+        hLineEdit = self.hSpin.lineEdit()
+        if wLineEdit:
+            wLineEdit.setStyleSheet("")
         else:
             self.wSpin.setStyleSheet("")
-        if self.hSpin.lineEdit():
-            self.hSpin.lineEdit().setStyleSheet("")
+        if hLineEdit:
+            hLineEdit.setStyleSheet("")
         else:
             self.hSpin.setStyleSheet("")
         form.addRow("File Name", self.fileEdit)
@@ -63,8 +65,9 @@ class MapEditDialog(QtWidgets.QDialog):
         for i, spin in enumerate((self.rSpin, self.gSpin, self.bSpin, self.aSpin)):
             spin.setRange(0, 255)
             spin.setValue(int(current_light[i]))
-            if spin.lineEdit():
-                spin.lineEdit().setStyleSheet("")
+            spinLineEdit = spin.lineEdit()
+            if spinLineEdit:
+                spinLineEdit.setStyleSheet("")
             else:
                 spin.setStyleSheet("")
             self.ambientLayout.addWidget(spin)

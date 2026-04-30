@@ -109,13 +109,17 @@ class ActorInfoPanel(QtWidgets.QWidget):
         self.noSelectionLabel.setVisible(True)
         self.titleLabel.setVisible(False)
         for i in range(self.formLayout.count()):
-            w = self.formLayout.itemAt(i).widget()
+            item = self.formLayout.itemAt(i)
+            assert item
+            w = item.widget()
             if w:
                 w.setVisible(False)
-            l = self.formLayout.itemAt(i).layout()
+            l = item.layout()
             if l:
                 for j in range(l.count()):
-                    lw = l.itemAt(j).widget()
+                    litem = l.itemAt(j)
+                    assert litem
+                    lw = litem.widget()
                     if lw:
                         lw.setVisible(False)
 
@@ -174,13 +178,16 @@ class ActorInfoPanel(QtWidgets.QWidget):
     def _setFormVisible(self, visible: bool):
         for i in range(self.formLayout.count()):
             item = self.formLayout.itemAt(i)
+            assert item
             w = item.widget()
             if w:
                 w.setVisible(visible)
             l = item.layout()
             if l:
                 for j in range(l.count()):
-                    lw = l.itemAt(j).widget()
+                    litem = l.itemAt(j)
+                    assert litem
+                    lw = litem.widget()
                     if lw:
                         lw.setVisible(visible)
 

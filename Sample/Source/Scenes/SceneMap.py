@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import os
-from typing import List, Union, Optional, Dict, Any
+from typing import Callable, List, Union, Optional, Dict, Any, Type, cast
 from Engine import Pair, Vector2u, Vector2f, Color
 from Engine.Gameplay import Tilemap, TileLayer, TileLayerData
 from Engine.Utils import File
@@ -45,13 +45,14 @@ class Scene(SceneBase):
         self._gameMap.setPlayer(self.player)
 
     @Latent(FinishedDialogue=(True,))
-    def showMessage(self, refActorTag: str, name: str, message: str) -> None:
+    def showMessage(self, refActorTag: str, name: str, message: str) -> Callable[[], bool]:
         refPosition: Optional[Vector2f] = None
         if bool(refActorTag):
             actors = self._gameMap.getAllActorsByTag(refActorTag)
             if actors:
                 actor = actors[0]
                 camera = self._gameMap.getCamera()
+                assert camera
                 refPosition = actor.getPosition() - camera.getViewPosition()
         self._messageWindow.setMessage(refPosition, name, message)
         originMoveEnabled = self.player.getMoveEnabled()
@@ -71,7 +72,9 @@ class Scene(SceneBase):
         if self._cachedMapFile != mapPath:
             self._cachedMapFile = mapPath
             self.loadMap(mapPath)
-        self._gameMap.getPlayer().setMapPosition(pos)
+        player = self._gameMap.getPlayer()
+        assert player
+        player.setMapPosition(pos)
 
     def _renderHandle(self, deltaTime: float) -> None:
         self._gameMap.show()
@@ -79,10 +82,10 @@ class Scene(SceneBase):
 
     def _initPlayer(self) -> Player:
         playerPath = "Data.Blueprints.Actors.BP_Actor_Braver"
-        actorClass: Player = Data.getClass(playerPath)
+        actorClass: Type[Player] = Data.getClass(playerPath)
         texturePath = getattr(actorClass, "texturePath")
         defaultRect = getattr(actorClass, "defaultRect")
-        actor: Player = actorClass.GenActor(actorClass, Manager.loadCharacter(texturePath), defaultRect, "yongshi")
+        actor: Player = cast(Player, actorClass.GenActor(actorClass, Manager.loadCharacter(texturePath), defaultRect, "yongshi"))
         actor.setAnimatable(True, True)
         actor.setCollisionEnabled(True)
         actor.setPosition((608, 256))
@@ -107,12 +110,12 @@ class Scene(SceneBase):
                 for x in range(width):
                     tileNumber = layerTiles[y][x]
                     tiles[-1].append(tileNumber)
-            data = TileLayerData(
+            tileLayerData = TileLayerData(
                 name,
                 layerTileset,
                 tiles,
             )
-            layer = TileLayer(data, Manager.loadTileset(data.layerTileset.fileName))
+            layer = TileLayer(tileLayerData, Manager.loadTileset(tileLayerData.layerTileset.fileName))
             mapLayers.append(layer)
         return Tilemap(mapLayers)
 

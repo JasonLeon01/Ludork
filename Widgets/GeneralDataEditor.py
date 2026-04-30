@@ -2,6 +2,7 @@
 
 from typing import Any, Optional
 import os
+import re
 from PyQt5 import QtCore, QtGui, QtWidgets
 from EditorGlobal import EditorStatus, GameData
 from .Utils import FileSelectorDialog
@@ -172,6 +173,7 @@ class GeneralDataPage(QtWidgets.QWidget):
     def _clearPropertyForm(self):
         while self.propertyLayout.count():
             item = self.propertyLayout.takeAt(0)
+            assert item
             w = item.widget()
             if w:
                 w.deleteLater()
@@ -315,11 +317,9 @@ class GeneralDataPage(QtWidgets.QWidget):
             except:
                 defaultVal = []
         elif t.startswith("tuple"):
-            import re
-
             match = re.match(r"tuple\[(\d+)\]", t)
             if not match:
-                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("TUPLE_SIZE_ERR").format(SIZE=size))
+                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("TUPLE_SIZE_ERR"))
                 return
 
             size = int(match.group(1))
@@ -382,8 +382,6 @@ class GeneralDataPage(QtWidgets.QWidget):
             w.dataChanged.connect(lambda v, k=key: self._onValueChanged(k, v))
             return w
         elif paramType.startswith("tuple"):
-            import re
-
             match = re.match(r"tuple\[(\d+)\]", paramType)
             if match:
                 size = int(match.group(1))
@@ -493,6 +491,7 @@ class GeneralDataPage(QtWidgets.QWidget):
             return
 
         item = self.memberList.takeItem(row)
+        assert item
         key = item.text()
 
         if self.fileKey:
@@ -532,7 +531,9 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
         addAction.triggered.connect(self._onAddDataType)
         menu.addAction(addAction)
 
-        tabIndex = self.tabWidget.tabBar().tabAt(position)
+        tabBar = self.tabWidget.tabBar()
+        assert tabBar
+        tabIndex = tabBar.tabAt(position)
         if tabIndex >= 0:
             menu.addSeparator()
 

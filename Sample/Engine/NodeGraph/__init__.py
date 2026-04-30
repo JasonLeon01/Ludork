@@ -5,7 +5,7 @@ from .Graph import Graph
 from .ClassDict import ClassDict
 from .LatentManager import LatentManager
 
-latentManager: LatentManager = None
+latentManager: LatentManager
 
 
 def initLatent() -> None:

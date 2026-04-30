@@ -44,14 +44,18 @@ class UIManager:
             raise ValueError("UI not found")
 
     def _fixedLogicHandle(self, fixedDelta: float) -> None:
-        sortedUIs = sorted(self._UIs, key=lambda item: item.getZOrder() if hasattr(item, "getZOrder") else 0, reverse=True)
+        sortedUIs = sorted(
+            self._UIs, key=lambda item: item.getZOrder() if hasattr(item, "getZOrder") else 0, reverse=True
+        )
         for ui in sortedUIs:
             if ui.getActive() and ui.getVisible():
                 if hasattr(ui, "fixedUpdate"):
                     ui.fixedUpdate(fixedDelta)
 
     def _logicHandle(self, deltaTime: float) -> None:
-        sortedUIs = sorted(self._UIs, key=lambda item: item.getZOrder() if hasattr(item, "getZOrder") else 0, reverse=True)
+        sortedUIs = sorted(
+            self._UIs, key=lambda item: item.getZOrder() if hasattr(item, "getZOrder") else 0, reverse=True
+        )
         for ui in sortedUIs:
             if ui.getActive() and ui.getVisible():
                 if hasattr(ui, "update"):
@@ -91,8 +95,8 @@ class UIManager:
         self._averageFPS = self._totalFrames / self._totalTime
         self._debugUpdateTimer += realDeltaTime
         if self._debugUpdateTimer >= 0.5:
-            import psutil
-            from pympler import asizeof
+            import psutil  # type: ignore
+            from pympler import asizeof  # type: ignore
 
             process = psutil.Process(os.getpid())
             info = process.memory_info()

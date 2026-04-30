@@ -251,10 +251,10 @@ class NodePanel(QtWidgets.QWidget):
     def __init__(
         self,
         parent: QtWidgets.QWidget,
-        graph: Graph,
+        graph: Graph,  # type: ignore
         key: str,
         name: str,
-        refreshCallable: Callable[str, Dict[str, Any]],
+        refreshCallable: Callable[[str], Dict[str, Any]],
     ):
         super(NodePanel, self).__init__(parent)
         self._isLoading = True
@@ -792,16 +792,22 @@ class NodePanel(QtWidgets.QWidget):
 
         if is_start_node:
             cancelStartNode_action = menu.addAction(ELOC("CANCEL_START_NODE"))
+            assert cancelStartNode_action
             cancelStartNode_action.triggered.connect(self._onCancelStartNode)
         else:
             setAsStart_action = menu.addAction(ELOC("SET_AS_START"))
+            assert setAsStart_action
             setAsStart_action.triggered.connect(self._onSetAsStart)
 
         copy_action = menu.addAction(ELOC("COPY"))
+        delete_action = menu.addAction(ELOC("DELETE"))
+
+        assert copy_action
+        assert delete_action
+
         copy_action.setShortcut(QtGui.QKeySequence.Copy)
         copy_action.triggered.connect(self._onCopy)
 
-        delete_action = menu.addAction(ELOC("DELETE"))
         delete_action.setShortcut(QtGui.QKeySequence.Delete)
         delete_action.triggered.connect(self._onDelete)
 
@@ -811,10 +817,14 @@ class NodePanel(QtWidgets.QWidget):
         menu = QtWidgets.QMenu(self)
 
         create_action = menu.addAction(ELOC("ADD_NODE"))
+        paste_action = menu.addAction(ELOC("PASTE"))
+
+        assert create_action
+        assert paste_action
+
         create_action.setShortcut(QtGui.QKeySequence.New)
         create_action.triggered.connect(lambda: self._onCreate(global_pos))
 
-        paste_action = menu.addAction(ELOC("PASTE"))
         paste_action.setShortcut(QtGui.QKeySequence.Paste)
         paste_action.triggered.connect(self._onPaste)
 
@@ -959,6 +969,7 @@ class NodePanel(QtWidgets.QWidget):
 
     def _onDelete(self):
         nowNodes = self._getSelectedNodes()
+        assert nowNodes
         originNodeMap = {}
         for i, node in enumerate(self.nodeGraph.dataNodes[self.key]):
             originNodeMap[i] = node

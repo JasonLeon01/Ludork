@@ -1,9 +1,10 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from dataclasses import dataclass
 import os
 import copy
+from array import array
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 import importlib
 from PyQt5 import QtWidgets, QtGui, QtCore
@@ -122,7 +123,7 @@ class EditorPanel(QtWidgets.QWidget):
             name = layerData["layerName"]
             layerTileset = GameData.tilesetData[layerData["layerTileset"]]
             layerTiles = layerData["tiles"]
-            tiles: List[List[Tile]] = []
+            tiles: List[List[Optional[int]]] = []
             for y in range(height):
                 tiles.append([])
                 for x in range(width):
@@ -134,12 +135,12 @@ class EditorPanel(QtWidgets.QWidget):
 
     def _renderFromMapData(self) -> None:
         try:
-            from EditorExtensions.EditorExtension import C_RenderTilemapRGBA
+            from EditorExtensions.EditorExt import C_RenderTilemapRGBA
 
             loadedExt = True
         except ImportError as e:
             loadedExt = False
-            print(f"Failed to load EditorExtension, try to render map with python. Error: {e}")
+            print(f"Failed to load EditorExt, try to render map with python. Error: {e}")
         if self.mapData is None:
             self._pixmap = None
             return
@@ -169,8 +170,9 @@ class EditorPanel(QtWidgets.QWidget):
                     tsW = tilesetRgba.width()
                     tsH = tilesetRgba.height()
                     tsStride = tilesetRgba.bytesPerLine()
-                    tsBytes = tilesetRgba.bits().asstring(tsH * tsStride)
-                    from array import array
+                    tilesetRgbaBits = tilesetRgba.bits()
+                    assert tilesetRgbaBits
+                    tsBytes = tilesetRgbaBits.asstring(tsH * tsStride)
 
                     tilesFlat = []
                     for y in range(self.mapData.height):
@@ -499,7 +501,7 @@ class EditorPanel(QtWidgets.QWidget):
         if self.mapData is None:
             return None
         GameData.recordSnapshot()
-        Engine: TempEngine = importlib.import_module("Engine")
+        Engine: TempEngine = importlib.import_module("Engine")  # type: ignore
         TileLayerData = Engine.Gameplay.TileLayerData
         width = self.mapData.width
         height = self.mapData.height
@@ -571,6 +573,7 @@ class EditorPanel(QtWidgets.QWidget):
         self.update()
 
     def _commitRectangle(self, endPos: Optional[Tuple[int, int]]) -> None:
+        assert self.mapData and self.mapData.layers
         if self.rectStartPos is None or endPos is None:
             self.rectStartPos = None
             self.update()
@@ -1176,7 +1179,7 @@ class EditorPanel(QtWidgets.QWidget):
         self._renderFromMapData()
         self.update()
 
-    def saveFile(self) -> bool:
+    def saveFile(self) -> Tuple[bool, str]:
         if self.mapData is None:
             return False, ELOC("MAP_DATA_NONE")
         if self.mapFilePath is None:
@@ -1223,6 +1226,7 @@ class EditorPanel(QtWidgets.QWidget):
             from Utils import System
 
             w = self.window()
+            assert w
             w.setWindowTitle(System.getTitle())
             self.dataChanged.emit()
         except Exception as e:
@@ -1447,9 +1451,11 @@ class EditorPanel(QtWidgets.QWidget):
             return
         if not self.acceptDrops():
             return
-        if not e.mimeData().hasUrls():
+        mimeData = e.mimeData()
+        assert mimeData
+        if not mimeData.hasUrls():
             return
-        urls = [u for u in e.mimeData().urls() if u.isLocalFile()]
+        urls = [u for u in mimeData.urls() if u.isLocalFile()]
         if not urls:
             return
         path = urls[0].toLocalFile()
@@ -1462,9 +1468,11 @@ class EditorPanel(QtWidgets.QWidget):
             return
         if not self.acceptDrops():
             return
-        if not e.mimeData().hasUrls():
+        mimeData = e.mimeData()
+        assert mimeData
+        if not mimeData.hasUrls():
             return
-        urls = [u for u in e.mimeData().urls() if u.isLocalFile()]
+        urls = [u for u in mimeData.urls() if u.isLocalFile()]
         if not urls:
             return
         path = urls[0].toLocalFile()
@@ -1481,9 +1489,11 @@ class EditorPanel(QtWidgets.QWidget):
             return
         if self.selectedLayerName is None:
             return
-        if not e.mimeData().hasUrls():
+        mimeData = e.mimeData()
+        assert mimeData
+        if not mimeData.hasUrls():
             return
-        urls = [u for u in e.mimeData().urls() if u.isLocalFile()]
+        urls = [u for u in mimeData.urls() if u.isLocalFile()]
         if not urls:
             return
         path = urls[0].toLocalFile()
@@ -1504,7 +1514,7 @@ class EditorPanel(QtWidgets.QWidget):
                 data = Utils.File.getJSONData(path)
             else:
                 data = Utils.File.loadData(path)
-        except Exception as e:
+        except Exception as ex:
             msg = ELOC("NOT_ACTOR_TYPE")
         okDict = isinstance(data, dict)
         bpPath = None
@@ -1577,6 +1587,6 @@ class EditorPanel(QtWidgets.QWidget):
                 msg = ELOC("NOT_ACTOR_TYPE")
         else:
             msg = ELOC("NOT_ACTOR_TYPE")
-        if msg and hasattr(w, "toast") and w.toast:
+        if msg and hasattr(w, "toast") and w and w.toast:
             w.toast.showMessage(msg, 3000)
         e.acceptProposedAction()

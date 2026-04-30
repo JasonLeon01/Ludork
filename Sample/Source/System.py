@@ -2,12 +2,12 @@
 
 import os
 from typing import List, Optional, Dict, Any
+import Engine
 from Engine import (
     Vector2u,
     Font,
     Image,
     Cursor,
-    SetCellSize,
     RenderWindow,
     State,
     VideoMode,
@@ -21,15 +21,15 @@ from Global import System as GlobalSystem
 
 
 class System:
-    _title: str = None
+    _title: str
     _fonts: List[Font] = []
     _fontSize: int = 32
-    _icon: Image = None
+    _icon: Image
     _cursor: Optional[Cursor] = None
-    _windowskinName: str = None
+    _windowskinName: str
     _coverOpaqueAlpha: int = 0
     _startMap: str = ""
-    _startPos: Vector2u = None
+    _startPos: Vector2u
     _variables: Dict[str, Any] = {}
 
     @classmethod
@@ -46,7 +46,7 @@ class System:
             cursorImage = Image(cursorPath)
             cls._cursor = Cursor(cursorImage.getPixelsArray(), cursorImage.getSize(), Vector2u(0, 0))
         cls._windowskinName = systemData["windowskinName"]["value"]
-        SetCellSize(systemData["cellSize"]["value"])
+        Engine.CellSize = systemData["cellSize"]["value"]
         coverOpaqueAlpha = systemData["coverOpaqueAlpha"]["value"]
         cls._startMap = systemData["startMap"]["value"]
         cls._startPos = Vector2u(*systemData["startPos"]["value"])

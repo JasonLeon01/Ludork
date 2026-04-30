@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from typing import Optional, Union, List, TYPE_CHECKING
+import Engine
 from Engine import (
     Pair,
     Vector2u,
@@ -20,11 +21,9 @@ from Engine import (
     Color,
     Angle,
     degrees,
-    GetCellSize,
 )
 from Engine.Utils import Math, Render
 from .System import System
-
 
 if TYPE_CHECKING:
     from Global import GameMap
@@ -60,30 +59,32 @@ class Camera(Drawable, Transformable):
         return self._renderTexture.getView()
 
     @ReturnType(position=Vector2f)
-    def getViewPosition(self) -> Vector2f:
-        return self._viewport.position
+    def getViewPosition(self) -> Optional[Vector2f]:
+        return self._viewport and self._viewport.position or None
 
     @ReturnType(position=Pair[float])
-    def v_getViewPosition(self) -> Pair[float]:
-        return (self._viewport.position.x, self._viewport.position.y)
+    def v_getViewPosition(self) -> Optional[Pair[float]]:
+        return self._viewport and (self._viewport.position.x, self._viewport.position.y) or None
 
     @ExecSplit(default=(None,))
     def setViewPosition(self, inPosition: Vector2f) -> None:
-        self._viewport.position = inPosition
-        self._refreshView()
+        if self._viewport:
+            self._viewport.position = inPosition
+            self._refreshView()
 
     @ReturnType(size=Vector2f)
-    def getViewSize(self) -> Vector2f:
-        return self._viewport.size
+    def getViewSize(self) -> Optional[Vector2f]:
+        return self._viewport and self._viewport.size or None
 
     @ReturnType(size=Pair[float])
-    def v_getViewSize(self) -> Pair[float]:
-        return (self._viewport.size.x, self._viewport.size.y)
+    def v_getViewSize(self) -> Optional[Pair[float]]:
+        return self._viewport and (self._viewport.size.x, self._viewport.size.y) or None
 
     @ExecSplit(default=(None,))
     def setViewSize(self, inSize: Vector2f) -> None:
-        self._viewport.size = inSize
-        self._refreshView()
+        if self._viewport:
+            self._viewport.size = inSize
+            self._refreshView()
 
     @ReturnType(rotation=Angle)
     def getViewRotation(self) -> Angle:
@@ -105,7 +106,8 @@ class Camera(Drawable, Transformable):
     @ExecSplit(default=(None,))
     @TypeAdapter(delta=(tuple, Vector2f))
     def moveView(self, delta: Union[Vector2f, Pair[float]]) -> None:
-        self.setViewPosition(self._viewport.position + delta)
+        if self._viewport:
+            self.setViewPosition(self._viewport.position + delta)
 
     @ExecSplit(default=(None,))
     @TypeAdapter(delta=(float, Angle, degrees))
@@ -163,9 +165,9 @@ class Camera(Drawable, Transformable):
         return super().getScale()
 
     @ExecSplit(default=(None,))
-    @TypeAdapter(inScale=(tuple, Vector2f))
-    def setScale(self, inScale: Union[Vector2f, Pair[float]]) -> None:
-        super().setScale(inScale)
+    @TypeAdapter(factors=(tuple, Vector2f))
+    def setScale(self, factors: Union[Vector2f, Pair[float]]) -> None:
+        super().setScale(factors)
 
     @ExecSplit(default=(None,))
     @TypeAdapter(delta=(tuple, Vector2f))
@@ -177,7 +179,7 @@ class Camera(Drawable, Transformable):
         return self._parent
 
     @ExecSplit(default=(None,))
-    def setParent(self, actor: Actor) -> None:
+    def setParent(self, actor: Optional[Actor]) -> None:
         self._parent = actor
 
     @ExecSplit(default=(None,))
@@ -191,7 +193,7 @@ class Camera(Drawable, Transformable):
     def render(self, obj: Drawable) -> None:
         self._renderTexture.draw(obj, self._renderStates)
 
-    def getViewport(self) -> FloatRect:
+    def getViewport(self) -> Optional[FloatRect]:
         return self._viewport
 
     def getRenderStates(self) -> RenderStates:
@@ -199,10 +201,6 @@ class Camera(Drawable, Transformable):
 
     def setRenderStates(self, inRenderStates: RenderStates) -> None:
         self._renderStates = inRenderStates
-
-    @TypeAdapter(inScale=(tuple, Vector2f))
-    def setScale(self, inScale: Union[Vector2f, Pair[float]]) -> None:
-        super().setScale(inScale)
 
     def mapPixelToCoords(self, point: Vector2i) -> Vector2f:
         return self._renderTexture.mapPixelToCoords(point, self._renderTexture.getView())
@@ -225,17 +223,19 @@ class Camera(Drawable, Transformable):
     def onFixedTick(self, fixedDelta: float) -> None:
         if self._map is None:
             return
-        if self._parent:
+        if self._parent and self._viewport:
             self.setViewPosition(self._parent.getPosition() - self._viewport.size / 2)
             self.fixViewPosition()
 
     def fixViewPosition(self) -> None:
-        if self._map is None:
+        if self._map is None or self._viewport is None:
             return
         pos = self.getViewPosition()
+        if pos is None:
+            return
         mapSize = self._map.getSize()
-        maxX = mapSize.x * GetCellSize() - self._viewport.size.x
-        maxY = mapSize.y * GetCellSize() - self._viewport.size.y
+        maxX = mapSize.x * Engine.CellSize - self._viewport.size.x
+        maxY = mapSize.y * Engine.CellSize - self._viewport.size.y
         px = Math.Clamp(pos.x, 0, maxX if maxX > 0 else 0)
         py = Math.Clamp(pos.y, 0, maxY if maxY > 0 else 0)
         self.setViewPosition(Vector2f(px, py))

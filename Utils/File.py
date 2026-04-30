@@ -14,8 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from EditorGlobal import EditorStatus, MainWindow
 from . import System
 
-
-mainWindow: MainWindow = None
+mainWindow: MainWindow
 
 
 def getRootPath() -> str:

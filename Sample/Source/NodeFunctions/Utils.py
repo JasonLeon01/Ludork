@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import inspect
-from typing import Any
+from typing import Any, Dict, Optional
 from Engine import Pair, Vector2f, degrees
 from Global import System, SceneBase, Animation
 from .. import Data
@@ -209,7 +209,9 @@ def AddAnim(animName: str, position: Pair[float], rotation: float, scale: Pair[f
     anim.setPosition(Vector2f(*position))
     anim.setRotation(degrees(rotation))
     anim.setScale(Vector2f(*scale))
-    System.getScene().addAnim(anim)
+    scene = System.getScene()
+    if scene:
+        scene.addAnim(anim)
 
 
 @Meta(DisplayName='LOC("GET_ANIM_LENGTH")', DisplayDesc='LOC("GET_ANIM_LENGTH_DESC")')
@@ -277,7 +279,7 @@ def SetAttr(obj: object, attrName: str, value: Any) -> None:
 
 @Meta(DisplayName='LOC("GET_SCENE")', DisplayDesc='LOC("GET_SCENE_DESC")')
 @ReturnType(value=SceneBase)
-def GetScene() -> SceneBase:
+def GetScene() -> Optional[SceneBase]:
     return System.getScene()
 
 

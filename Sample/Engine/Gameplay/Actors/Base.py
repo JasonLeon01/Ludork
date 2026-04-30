@@ -11,9 +11,9 @@ from ... import (
     Vector2i,
     Vector2u,
     Vector2f,
+    Shader,
     Angle,
     degrees,
-    GetCellSize,
     Utils,
 )
 from ..Material import Material
@@ -29,6 +29,7 @@ class _ActorBase(Sprite):
     switchInterval: float = 0.2
     animatable: bool = False
     material: Material = Material()
+    shaderPath: str = ""
 
     @TypeAdapter(rect=([tuple, list], IntRect, lambda pos, size: IntRect(Vector2i(*pos), Vector2i(*size))))
     def __init__(
@@ -44,7 +45,7 @@ class _ActorBase(Sprite):
 
         if not tag is None:
             self.tag = tag
-        self._map: GameMap = None
+        self._map: Optional[GameMap] = None
         self._parent: Optional[_ActorBase] = None
         self._children: List[_ActorBase] = []
         self._translation: Vector2f = Vector2f(0, 0)
@@ -55,6 +56,9 @@ class _ActorBase(Sprite):
         self._relativeRotation: Angle = degrees(0)
         self._relativeScale: Vector2f = Vector2f(1, 1)
         self._graph: Optional[Graph] = None
+        self._shader: Optional[Shader] = None
+        if self.shaderPath:
+            self._shader = Shader(self.shaderPath, Shader.Type.Fragment)
 
     def update(self, deltaTime: float) -> None:
         if self.animatable:
@@ -85,9 +89,11 @@ class _ActorBase(Sprite):
 
     @ReturnType(pos=Vector2i)
     def getMapPosition(self) -> Vector2i:
+        from ... import CellSize
+
         return Vector2i(
-            int(self.getPosition().x * 1.0 / GetCellSize() + 0.5),
-            int(self.getPosition().y * 1.0 / GetCellSize() + 0.5),
+            int(self.getPosition().x * 1.0 / CellSize + 0.5),
+            int(self.getPosition().y * 1.0 / CellSize + 0.5),
         )
 
     @ReturnType(pos=Pair[int])
@@ -96,9 +102,11 @@ class _ActorBase(Sprite):
 
     @ReturnType(pos=Vector2i)
     def getRelativeMapPosition(self) -> Vector2i:
+        from ... import CellSize
+
         return Vector2i(
-            int(self.getRelativePosition().x / GetCellSize()),
-            int(self.getRelativePosition().y / GetCellSize()),
+            int(self.getRelativePosition().x / CellSize),
+            int(self.getRelativePosition().y / CellSize),
         )
 
     @ReturnType(pos=Pair[int])
@@ -108,8 +116,9 @@ class _ActorBase(Sprite):
     @ExecSplit(default=(None,))
     @TypeAdapter(position=([tuple, list], Vector2f))
     def setPosition(self, position: Union[Vector2f, Pair[float], List[float]]) -> None:
-        if self.getParent():
-            parentPosition = self.getParent().getPosition()
+        parent = self.getParent()
+        if parent:
+            parentPosition = parent.getPosition()
             self._relativePosition = position - parentPosition
         else:
             self._relativePosition = Vector2f(0, 0)
@@ -122,19 +131,24 @@ class _ActorBase(Sprite):
     @TypeAdapter(position=([tuple, list], Vector2f))
     def setRelativePosition(self, position: Union[Vector2f, Pair[float], List[float]]) -> None:
         parentPosition = Vector2f(0, 0)
-        if self.getParent():
-            parentPosition = self.getParent().getPosition()
+        parent = self.getParent()
+        if parent:
+            parentPosition = parent.getPosition()
         self.setPosition(parentPosition + position)
 
     @ExecSplit(default=(None,))
     @TypeAdapter(position=([tuple, list], Vector2u))
     def setMapPosition(self, position: Union[Vector2u, Pair[int], List[int]]) -> None:
-        self.setPosition(Vector2f(position.x * GetCellSize(), position.y * GetCellSize()))
+        from ... import CellSize
+
+        self.setPosition(Vector2f(position.x * CellSize, position.y * CellSize))
 
     @ExecSplit(default=(None,))
     @TypeAdapter(position=([tuple, list], Vector2u))
     def setRelativeMapPosition(self, position: Union[Vector2u, Pair[int], List[int]]) -> None:
-        self.setRelativePosition(Vector2f(position.x * GetCellSize(), position.y * GetCellSize()))
+        from ... import CellSize
+
+        self.setRelativePosition(Vector2f(position.x * CellSize, position.y * CellSize))
 
     @ExecSplit(default=(None,))
     @TypeAdapter(offset=([tuple, list], Vector2f))
@@ -166,8 +180,9 @@ class _ActorBase(Sprite):
     def setRotation(self, angle: Union[Angle, float]) -> None:
         if not isinstance(angle, Angle):
             angle = degrees(angle)
-        if self.getParent():
-            parentRotation = self.getParent().getRotation()
+        parent = self.getParent()
+        if parent:
+            parentRotation = parent.getRotation()
             self._relativeRotation = angle - parentRotation
         else:
             self._relativeRotation = degrees(0)
@@ -191,8 +206,9 @@ class _ActorBase(Sprite):
         if not isinstance(angle, Angle):
             angle = degrees(angle)
         parentRotation = degrees(0)
-        if self.getParent():
-            parentRotation = self.getParent().getRotation()
+        parent = self.getParent()
+        if parent:
+            parentRotation = parent.getRotation()
         self.setRotation(parentRotation + angle)
 
     @ReturnType(scale=Pair[float])
@@ -213,14 +229,15 @@ class _ActorBase(Sprite):
         return (self._relativeScale.x, self._relativeScale.y)
 
     @ExecSplit(default=(None,))
-    @TypeAdapter(scale=([tuple, list], Vector2f))
-    def setScale(self, scale: Union[Vector2f, Pair[float], List[float]]) -> None:
-        if self.getParent():
-            parentScale = self.getParent().getScale()
-            self._relativeScale = scale.componentWiseDiv(parentScale)
+    @TypeAdapter(factors=([tuple, list], Vector2f))
+    def setScale(self, factors: Union[Vector2f, Pair[float], List[float]]) -> None:
+        parent = self.getParent()
+        if parent:
+            parentScale = parent.getScale()
+            self._relativeScale = factors.componentWiseDiv(parentScale)
         else:
             self._relativeScale = Vector2f(1, 1)
-        super().setScale(scale)
+        super().setScale(factors)
         if self.getChildren():
             for child in self.getChildren():
                 child._updateScaleFromParent()
@@ -238,8 +255,9 @@ class _ActorBase(Sprite):
     @TypeAdapter(scale=([tuple, list], Vector2f))
     def setRelativeScale(self, scale: Union[Vector2f, Pair[float], List[float]]) -> None:
         parentScale = Vector2f(1, 1)
-        if self.getParent():
-            parentScale = self.getParent().getScale()
+        parent = self.getParent()
+        if parent:
+            parentScale = parent.getScale()
         self.setScale(parentScale.componentWiseMul(scale))
 
     @ReturnType(origin=Pair[float])
@@ -276,7 +294,7 @@ class _ActorBase(Sprite):
         self.setOrigin(origin)
 
     @ReturnType(map_="GameMap")
-    def getMap(self) -> GameMap:
+    def getMap(self) -> Optional[GameMap]:
         return self._map
 
     @ExecSplit(default=(None,))
@@ -401,14 +419,6 @@ class _ActorBase(Sprite):
     def setEmissive(self, emissive: float) -> None:
         self.material.emissive = emissive
 
-    @ReturnType(emissive=float)
-    def getEmissive(self) -> float:
-        return self.material.emissive
-
-    @ExecSplit(default=(None,))
-    def setEmissive(self, emissive: float) -> None:
-        self.material.emissive = emissive
-
     @ExecSplit(default=(None,))
     def setGraph(self, graph: Graph) -> None:
         self._graph = graph
@@ -418,8 +428,9 @@ class _ActorBase(Sprite):
         super().move(offset)
 
     def _updatePositionFromParent(self) -> None:
-        if self.getParent():
-            parentPosition = self.getParent().getPosition()
+        parent = self.getParent()
+        if parent:
+            parentPosition = parent.getPosition()
             newPosition = parentPosition + self._relativePosition
             super().setPosition(newPosition)
             if self.getChildren():
@@ -427,8 +438,9 @@ class _ActorBase(Sprite):
                     child._updatePositionFromParent()
 
     def _updateRotationFromParent(self) -> None:
-        if self.getParent():
-            parentRotation = self.getParent().getRotation()
+        parent = self.getParent()
+        if parent:
+            parentRotation = parent.getRotation()
             newRotation = parentRotation + self._relativeRotation
             super().setRotation(newRotation)
             if self.getChildren():
@@ -436,8 +448,9 @@ class _ActorBase(Sprite):
                     child._updateRotationFromParent()
 
     def _updateScaleFromParent(self) -> None:
-        if self.getParent():
-            parentScale = self.getParent().getScale()
+        parent = self.getParent()
+        if parent:
+            parentScale = parent.getScale()
             newScale = parentScale.componentWiseMul(self._relativeScale)
             super().setScale(newScale)
             if self.getChildren():
@@ -448,10 +461,11 @@ class _ActorBase(Sprite):
         newRect = copy.copy(self.getTextureRect())
         rectWidth = newRect.size.x
         rectX = newRect.position.x
-        textureWidth = self._texture.getSize().x
-        newRectX = (rectX + rectWidth) % textureWidth
-        newRect.position.x = newRectX
-        self._switchTimer += deltaTime
-        if self._switchTimer >= self.switchInterval:
-            self._switchTimer = 0.0
-            self.setTextureRect(newRect)
+        if self._texture:
+            textureWidth = self._texture.getSize().x
+            newRectX = (rectX + rectWidth) % textureWidth
+            newRect.position.x = newRectX
+            self._switchTimer += deltaTime
+            if self._switchTimer >= self.switchInterval:
+                self._switchTimer = 0.0
+                self.setTextureRect(newRect)

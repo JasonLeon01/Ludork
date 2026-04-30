@@ -5,9 +5,8 @@ import asyncio
 import warnings
 import threading
 import concurrent.futures
-from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple
+from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple, Union
 from Engine import (
-    GetGameRunning,
     SoundBuffer,
     Sound,
     Time,
@@ -59,7 +58,9 @@ class AudioManager:
         return cls._AsyncLoop
 
     @classmethod
-    def _submit(cls, coro: Coroutine[Any, Any, Any]) -> Optional[concurrent.futures.Future]:
+    def _submit(
+        cls, coro: Coroutine[Any, Any, Any]
+    ) -> Optional[Union[asyncio.Task[Any], concurrent.futures.Future[Any]]]:
         try:
             loop = asyncio.get_running_loop()
             return loop.create_task(coro)
@@ -83,7 +84,7 @@ class AudioManager:
     @classmethod
     def playSound(
         cls, filePath: str, filter: Optional[Filters.SoundFilter] = None, parent: Optional[Transformable] = None
-    ) -> Sound:
+    ) -> Optional[Sound]:
         if not System.getSoundOn():
             return None
 
@@ -118,7 +119,7 @@ class AudioManager:
         sound.setPosition(parent.getPosition())
 
     @classmethod
-    def playMusic(cls, musicType: str, filePath: str, filter: Optional[Filters.MusicFilter] = None) -> Music:
+    def playMusic(cls, musicType: str, filePath: str, filter: Optional[Filters.MusicFilter] = None) -> Optional[Music]:
         if not System.getMusicOn():
             cls.stopMusic(musicType)
             return None
@@ -151,7 +152,7 @@ class AudioManager:
 
     @classmethod
     def getMemory(cls) -> int:
-        from pympler import asizeof
+        from pympler import asizeof  # type: ignore
 
         return asizeof.asizeof(
             [cls._SoundBufferRef, cls._SoundRec, cls._SoundParentMap, cls._DefaultSoundEffect, cls._MusicRef]
@@ -159,7 +160,11 @@ class AudioManager:
 
     @classmethod
     async def updateAllSoundPositions(cls) -> None:
-        while GetGameRunning():
+        import Engine
+
+        GameRunning = Engine.GameRunning
+        while GameRunning:
+            GameRunning = Engine.GameRunning
             sound_dict = {id(s): s for s in cls._SoundRec if s.getStatus() != Sound.Status.Stopped}
             for sound_id, parent in cls._SoundParentMap.items():
                 sound = sound_dict.get(sound_id)
@@ -273,9 +278,13 @@ class AudioManager:
 
     @classmethod
     async def _soundMonitor(cls, sound: Sound) -> None:
+        import Engine
+
         base = cls._SoundBaseVolume.get(id(sound), sound.getVolume())
         last = -1
-        while GetGameRunning() and sound.getStatus() != Sound.Status.Stopped:
+        GameRunning = Engine.GameRunning
+        while GameRunning and sound.getStatus() != Sound.Status.Stopped:
+            GameRunning = Engine.GameRunning
             if not System.getSoundOn():
                 sound.stop()
                 break
@@ -299,9 +308,13 @@ class AudioManager:
 
     @classmethod
     async def _musicMonitor(cls, music: Music) -> None:
+        import Engine
+
         base = cls._MusicBaseVolume.get(id(music), music.getVolume())
         last = -1
-        while GetGameRunning() and music.getStatus() != Music.Status.Stopped:
+        GameRunning = Engine.GameRunning
+        while GameRunning and music.getStatus() != Music.Status.Stopped:
+            GameRunning = Engine.GameRunning
             if not System.getMusicOn():
                 music.stop()
                 break

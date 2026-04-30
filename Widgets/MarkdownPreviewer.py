@@ -86,11 +86,9 @@ class MarkdownPreviewer(QWidget):
 
     def _render(self, text: str):
         doc = self._preview.document()
+        assert doc
         if hasattr(doc, "setBaseUrl"):
-            try:
-                doc.setBaseUrl(QtCore.QUrl.fromLocalFile(self._dir))
-            except Exception:
-                pass
+            doc.setBaseUrl(QtCore.QUrl.fromLocalFile(self._dir))
         setMdWidget = getattr(self._preview, "setMarkdown", None)
         if callable(setMdWidget):
             setMdWidget(text)

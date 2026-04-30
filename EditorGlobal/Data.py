@@ -25,7 +25,7 @@ class GameData:
     @classmethod
     def init(cls) -> None:
         Engine = System.getModule("Engine")
-        Tileset = Engine.Gameplay.Tileset
+        Tileset = Engine.Gameplay.Tileset  # type: ignore
 
         cls.systemConfigData = {}
         cls.tilesetData = {}
@@ -42,7 +42,7 @@ class GameData:
         cls.loadData("Animations", cls.animationsData, needType="animation")
         cls.loadData("General", cls.generalData)
 
-        cls.classDict = Engine.NodeGraph.ClassDict()
+        cls.classDict = Engine.NodeGraph.ClassDict()  # type: ignore
 
         cls.undoStack = []
         cls.redoStack = []
@@ -528,7 +528,7 @@ class GameData:
         from NodeGraph import EditorDataNode, EditorNode
 
         Engine = System.getModule("Engine")
-        Graph = Engine.NodeGraph.Graph
+        Graph = Engine.NodeGraph.Graph  # type: ignore
         nodes = {}
         links = {}
         for key, valueDict in data["nodeGraph"].items():

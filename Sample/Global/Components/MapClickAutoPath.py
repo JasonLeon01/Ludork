@@ -4,7 +4,8 @@ from __future__ import annotations
 from collections import deque
 from threading import Lock
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
-from Engine import Vector2i, Vector2u, Direction, Input, Mouse, GetCellSize
+import Engine
+from Engine import Vector2i, Vector2u, Direction, Input, Mouse
 from Engine.Gameplay.Actors import Actor
 from ..System import System
 from .ComponentBase import ComponentBase
@@ -204,7 +205,7 @@ class MapClickAutoPath(ComponentBase):
         if scale > 0:
             mousePos = Vector2i(int(mousePos.x / scale), int(mousePos.y / scale))
         worldPos = self._parent.getCamera().mapPixelToCoords(mousePos)
-        cellSize = GetCellSize()
+        cellSize = Engine.CellSize
         return Vector2i(int(worldPos.x // cellSize), int(worldPos.y // cellSize))
 
     def _isInMap(self, pos: Vector2i) -> bool:

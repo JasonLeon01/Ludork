@@ -9,23 +9,14 @@ from .. import (
     PrimitiveType,
     Vector2i,
     Vector2u,
-    GetCellSize,
     Color,
     Image,
     Texture,
-    Drawable,
-    Transformable,
     ReturnType,
+    TileLayerGraphics,
 )
 from ..Utils import Inner
 from .Material import Material
-
-try:
-    from ..GraphicsExtension import TileLayerGraphics
-except ImportError:
-
-    class TileLayerGraphics(Drawable, Transformable):
-        pass
 
 
 @dataclass
@@ -62,6 +53,8 @@ class TileLayer(TileLayerGraphics):
         texture: Texture,
         visible: bool = True,
     ) -> None:
+        from .. import CellSize
+
         self._data = data
         self._width = len(self._data.tiles[0])
         self._height = len(self._data.tiles)
@@ -73,7 +66,7 @@ class TileLayer(TileLayerGraphics):
         self._reflectionStrengthImageCache: Optional[Image] = None
         self.visible = visible
         super().__init__(
-            self._width, self._height, GetCellSize(), self._texture, self._data.tiles, self._data.layerTileset.materials
+            self._width, self._height, CellSize, self._texture, self._data.tiles, self._data.layerTileset.materials
         )
 
     @ReturnType(name=str)

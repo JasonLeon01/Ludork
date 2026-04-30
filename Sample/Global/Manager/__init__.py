@@ -24,12 +24,12 @@ def getSoundBuffer(filePath: str) -> SoundBuffer:
     return AudioManager.loadSound(filePath)
 
 
-def playSE(filename: str, filter: Optional[Filters.SoundFilter] = None) -> Sound:
+def playSE(filename: str, filter: Optional[Filters.SoundFilter] = None) -> Optional[Sound]:
     filePath = os.path.join("./Assets", "Sounds", filename)
     return AudioManager.playSound(filePath, filter)
 
 
-def playMusic(musicType: str, filename: str, filter: Optional[Filters.MusicFilter] = None) -> Music:
+def playMusic(musicType: str, filename: str, filter: Optional[Filters.MusicFilter] = None) -> Optional[Music]:
     filePath = os.path.join("./Assets", "Musics", filename)
     return AudioManager.playMusic(musicType, filePath, filter)
 

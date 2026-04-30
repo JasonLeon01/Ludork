@@ -62,7 +62,7 @@ class WindowSelectable(WindowBase):
                 )
         if self._rect.getParent() is None:
             self.content.addChild(self._rect)
-        if self._isHovered:
+        if self._isHovered and self._listView:
             for index, child in enumerate(self._listView.getChildren()):
                 if isinstance(child, FunctionalBase):
                     if child.isHovered():
