@@ -792,18 +792,20 @@ class NodePanel(QtWidgets.QWidget):
 
         if is_start_node:
             cancelStartNode_action = menu.addAction(ELOC("CANCEL_START_NODE"))
-            assert cancelStartNode_action
+            if cancelStartNode_action is None:
+                return
             cancelStartNode_action.triggered.connect(self._onCancelStartNode)
         else:
             setAsStart_action = menu.addAction(ELOC("SET_AS_START"))
-            assert setAsStart_action
+            if setAsStart_action is None:
+                return
             setAsStart_action.triggered.connect(self._onSetAsStart)
 
         copy_action = menu.addAction(ELOC("COPY"))
         delete_action = menu.addAction(ELOC("DELETE"))
 
-        assert copy_action
-        assert delete_action
+        if copy_action is None or delete_action is None:
+            return
 
         copy_action.setShortcut(QtGui.QKeySequence.Copy)
         copy_action.triggered.connect(self._onCopy)
@@ -819,8 +821,8 @@ class NodePanel(QtWidgets.QWidget):
         create_action = menu.addAction(ELOC("ADD_NODE"))
         paste_action = menu.addAction(ELOC("PASTE"))
 
-        assert create_action
-        assert paste_action
+        if create_action is None or paste_action is None:
+            return
 
         create_action.setShortcut(QtGui.QKeySequence.New)
         create_action.triggered.connect(lambda: self._onCreate(global_pos))
@@ -969,7 +971,8 @@ class NodePanel(QtWidgets.QWidget):
 
     def _onDelete(self):
         nowNodes = self._getSelectedNodes()
-        assert nowNodes
+        if not nowNodes:
+            return
         originNodeMap = {}
         for i, node in enumerate(self.nodeGraph.dataNodes[self.key]):
             originNodeMap[i] = node

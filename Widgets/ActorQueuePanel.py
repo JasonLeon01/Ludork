@@ -20,7 +20,7 @@ class ActorQueuePanel(QtWidgets.QWidget):
         self._list.setResizeMode(QtWidgets.QListView.Adjust)
         self._list.setFlow(QtWidgets.QListView.LeftToRight)
         self._list.setSpacing(8)
-        self._list.setIconSize(QtCore.QSize(64, 64))
+        self._list.setUniformItemSizes(True)
         self._list.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self._list.itemClicked.connect(self._onItemClicked)
         layout = QtWidgets.QVBoxLayout(self)
@@ -28,6 +28,20 @@ class ActorQueuePanel(QtWidgets.QWidget):
         layout.setSpacing(0)
         layout.addWidget(self._list, 1)
         self.setMinimumHeight(120)
+        QtCore.QTimer.singleShot(0, self._updateIconMetrics)
+
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
+        super().resizeEvent(event)
+        self._updateIconMetrics()
+
+    def _updateIconMetrics(self) -> None:
+        viewport = self._list.viewport()
+        vh = viewport.height() if viewport is not None else self._list.height()
+        fm = self._list.fontMetrics()
+        text_h = fm.height()
+        icon = max(24, min(64, int(vh - text_h - 24)))
+        self._list.setIconSize(QtCore.QSize(icon, icon))
+        self._list.setGridSize(QtCore.QSize(icon + 18, icon + text_h + 18))
 
     def clearQueue(self) -> None:
         self._queue.clear()

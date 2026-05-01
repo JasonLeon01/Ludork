@@ -78,7 +78,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
             return
 
         rowItem = self.listWidget.item(row)
-        assert rowItem
+        if rowItem is None:
+            return
         key = rowItem.text()
         data = GameData.tilesetData.get(key)
         self.tilesetPanel.setTilesetData(data)
@@ -89,7 +90,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
         if item is None:
             add_action = menu.addAction(ELOC("ADD_TILESET"))
             paste_action = menu.addAction(ELOC("PASTE"))
-            assert paste_action
+            if paste_action is None:
+                return
             paste_action.setShortcut(QtGui.QKeySequence.Paste)
             if not self._tilesetClipboard:
                 paste_action.setEnabled(False)
@@ -103,8 +105,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
         copy_action = menu.addAction(ELOC("COPY"))
         delete_action = menu.addAction(ELOC("DELETE"))
 
-        assert copy_action
-        assert delete_action
+        if copy_action is None or delete_action is None:
+            return
 
         copy_action.setShortcut(QtGui.QKeySequence.Copy)
         delete_action.setShortcut(QtGui.QKeySequence.Delete)
@@ -154,7 +156,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
         if row < 0:
             return
         rowItem = self.listWidget.item(row)
-        assert rowItem
+        if rowItem is None:
+            return
         key = rowItem.text()
         if key in GameData.tilesetData:
             self._tilesetClipboard = copy.deepcopy(GameData.tilesetData[key])
@@ -198,7 +201,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
         if row < 0:
             return
         item = self.listWidget.item(row)
-        assert item
+        if item is None:
+            return
         old_name = item.text()
 
         existing = set(GameData.tilesetData.keys())
@@ -272,7 +276,8 @@ class TilesetEditor(QtWidgets.QMainWindow):
         if row < 0:
             return
         rowItem = self.listWidget.item(row)
-        assert rowItem
+        if rowItem is None:
+            return
         key = rowItem.text()
         ret = QtWidgets.QMessageBox.question(
             self,

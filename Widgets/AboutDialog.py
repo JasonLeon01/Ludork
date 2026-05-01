@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Optional
+from typing import Optional, cast
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Utils import File
 from .MarkdownPreviewer import MarkdownPreviewer
@@ -44,8 +44,7 @@ class AboutDialog(QtWidgets.QDialog):
         layout.addStretch()
 
         btnBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
-        licensesBtn = btnBox.addButton(ELOC("ABOUT_LICENSES"), QtWidgets.QDialogButtonBox.ActionRole)
-        assert licensesBtn
+        licensesBtn = cast(QtWidgets.QAbstractButton, btnBox.addButton(ELOC("ABOUT_LICENSES"), QtWidgets.QDialogButtonBox.ActionRole))
         licensesBtn.clicked.connect(self._onOpenLicenses)
         btnBox.rejected.connect(self.reject)
         layout.addWidget(btnBox)

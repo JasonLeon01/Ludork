@@ -11,7 +11,7 @@ import copy
 import inspect
 import dataclasses
 import openpyxl
-from typing import Any, Dict, List, Optional, get_type_hints
+from typing import Any, Dict, List, Optional, cast, get_type_hints
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QSize
 from Utils import Locale, Panel, System, File
@@ -51,8 +51,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.toast = Toast(self)
         self._engineProc: Optional[subprocess.Popen] = None
         self.setWindowTitle(title)
-        wstyle = self.style()
-        assert wstyle
+        wstyle = cast(QtWidgets.QStyle, self.style())
 
         self.topBar = QtWidgets.QWidget()
         self.layerList = QtWidgets.QTabWidget()
@@ -65,7 +64,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._panelHandle = int(self.gamePanel.winId())
         self.editModeToggle = EditModeToggle()
         self.modeToggle = ModeToggle()
-        self._menuBar = self.menuBar()
+        self._menuBar = cast(QtWidgets.QMenuBar, self.menuBar())
         self.leftListIndex = -1
         self.leftList = QtWidgets.QListWidget()
         self.leftLabel = QtWidgets.QLabel(ELOC("MAP_LIST"))
@@ -90,10 +89,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self._sizesInitialized = False
         self._hasShown = False
         self.generalDataEditor: Optional[GeneralDataEditor] = None
-
-        leftItem = self.leftList.currentItem()
-        assert leftItem
-
         self._actNewProject = QtWidgets.QAction(ELOC("NEW_PROJECT"), self)
         self._actNewProject.setIcon(wstyle.standardIcon(QtWidgets.QStyle.SP_FileIcon))
         self._actOpenProject = QtWidgets.QAction(ELOC("OPEN_PROJECT"), self)
@@ -144,9 +139,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actEditMap.setShortcuts([QtGui.QKeySequence("Return"), QtGui.QKeySequence("Enter")])
         self._actEditMap.setShortcutContext(QtCore.Qt.WidgetShortcut)
 
-        self._actEditMap.triggered.connect(
-            lambda: self._onEditMap(leftItem.text()) if self.leftList.currentItem() else None
-        )
+        self._actEditMap.triggered.connect(self._onEditCurrentMap)
 
         self._editModeIdx = 0
         self._lastEditorPanelContextPos: Optional[QtCore.QPoint] = None
@@ -169,6 +162,20 @@ class MainWindow(QtWidgets.QMainWindow):
         self._engineMonitorTimer: Optional[QtCore.QTimer] = None
         self._gameLockActive: bool = False
         self._lockedViewportSize: Optional[QSize] = None
+
+    def _layerTabBar(self) -> QtWidgets.QTabBar:
+        tabBar = self.layerList.tabBar()
+        if tabBar:
+            return tabBar
+        tabBar = QtWidgets.QTabBar(self.layerList)
+        self.layerList.setTabBar(tabBar)
+        return tabBar
+
+    def _onEditCurrentMap(self, checked: bool = False) -> None:
+        item = self.leftList.currentItem()
+        if not item:
+            return
+        self._onEditMap(item.text())
 
     def _lockGameViewportSize(self) -> None:
         if not hasattr(self, "gameViewport") or not hasattr(self, "upperSplitter"):
@@ -402,20 +409,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self.gamePanel.setFocus(QtCore.Qt.OtherFocusReason)
 
     def endGame(self, showFPS: bool = True):
-        assert self._engineProc and self._engineProc.stdin
         if self._engineMonitorTimer is not None:
             self._engineMonitorTimer.stop()
-        if self._engineProc and self._engineProc.poll() is None:
-            self._engineProc.stdin.write("Engine.StopGame()\n")
-            self._engineProc.stdin.flush()
+        proc = self._engineProc
+        stdin = proc.stdin if proc else None
+        if proc and stdin and proc.poll() is None:
+            stdin.write("Engine.StopGame()\n")
+            stdin.flush()
             try:
-                self._engineProc.wait(timeout=0.2)
+                proc.wait(timeout=0.2)
             except subprocess.TimeoutExpired:
                 pass
 
-        if self._engineProc:
+        if proc:
             try:
-                pid = self._engineProc.pid
+                pid = proc.pid
                 if psutil.pid_exists(pid):
                     p = psutil.Process(pid)
                     children = p.children(recursive=True)
@@ -714,8 +722,7 @@ class MainWindow(QtWidgets.QMainWindow):
         central = QtWidgets.QWidget(self)
         self.setCentralWidget(central)
 
-        self.toolbar = self.addToolBar("MainToolbar")
-        assert self.toolbar
+        self.toolbar = cast(QtWidgets.QToolBar, self.addToolBar("MainToolbar"))
         self.toolbar.setIconSize(QtCore.QSize(16, 16))
         self.toolbar.setMovable(False)
         self.toolbar.addAction(self._actNewProject)
@@ -730,15 +737,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.topBar.setMinimumHeight(32)
         topLayout = QtWidgets.QHBoxLayout(self.topBar)
         topLayout.setContentsMargins(0, 0, 0, 0)
-        tabBar = self.layerList.tabBar()
-        assert tabBar
-        assert self._menuBar
         self.layerList.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
         self.layerList.setFixedHeight(32)
         self.layerList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.layerList.customContextMenuRequested.connect(self._onLayerContextMenu)
         self.layerList.currentChanged.connect(self._onLayerTabChanged)
         self.layerList.setMovable(True)
+        tabBar = self._layerTabBar()
         tabBar.tabMoved.connect(self._onLayerTabMoved)
         self.layerList.setStyleSheet("QTabWidget::pane { border: 0; }")
         panelW, panelH = self.gameSize.width(), self.gameSize.height()
@@ -900,9 +905,7 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
     def _setTopMenu(self) -> None:
-        assert self._menuBar
-        _fileMenu = self._menuBar.addMenu(ELOC("FILE"))
-        assert _fileMenu
+        _fileMenu = cast(QtWidgets.QMenu, self._menuBar.addMenu(ELOC("FILE")))
         self._actNewProject.setShortcut(QtGui.QKeySequence.StandardKey.New)
         self._actNewProject.triggered.connect(self._onNewProject)
         self._actOpenProject.setShortcut(QtGui.QKeySequence.StandardKey.Open)
@@ -918,18 +921,11 @@ class MainWindow(QtWidgets.QMainWindow):
         _fileMenu.addAction(self.packAction)
         _fileMenu.addAction(self._actExit)
 
-        _editMenu = self._menuBar.addMenu(ELOC("EDIT"))
-        _gameMenu = self._menuBar.addMenu(ELOC("GAME"))
-        _dbMenu = self._menuBar.addMenu(ELOC("DATABASE"))
-        _helpMenu = self._menuBar.addMenu(ELOC("HELP"))
-
-        assert _editMenu
-        assert _gameMenu
-        assert _dbMenu
-        assert _helpMenu
-
-        _languageMenu = _helpMenu.addMenu(ELOC("HELP_LANGUAGE"))
-        assert _languageMenu
+        _editMenu = cast(QtWidgets.QMenu, self._menuBar.addMenu(ELOC("EDIT")))
+        _gameMenu = cast(QtWidgets.QMenu, self._menuBar.addMenu(ELOC("GAME")))
+        _dbMenu = cast(QtWidgets.QMenu, self._menuBar.addMenu(ELOC("DATABASE")))
+        _helpMenu = cast(QtWidgets.QMenu, self._menuBar.addMenu(ELOC("HELP")))
+        _languageMenu = cast(QtWidgets.QMenu, _helpMenu.addMenu(ELOC("HELP_LANGUAGE")))
 
         self._actUndo.setShortcut(QtGui.QKeySequence.StandardKey.Undo)
         self._actUndo.triggered.connect(self._onUndo)
@@ -972,8 +968,7 @@ class MainWindow(QtWidgets.QMainWindow):
         _helpMenu.addAction(self._actAbout)
 
         for lang in Locale.getLocaleKeys():
-            act = _languageMenu.addAction(lang)
-            assert act
+            act = cast(QtWidgets.QAction, _languageMenu.addAction(lang))
             act.setCheckable(True)
             if lang == EditorStatus.LANGUAGE:
                 act.setChecked(True)
@@ -1085,8 +1080,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _onLayerTabMoved(self, fromIndex: int, toIndex: int) -> None:
         overview_text = ELOC("OVERVIEW")
-        tabBar = self.layerList.tabBar()
-        assert tabBar
+        tabBar = self._layerTabBar()
 
         if self.layerList.tabText(0) != overview_text:
             for i in range(self.layerList.count()):
@@ -1246,8 +1240,7 @@ class MainWindow(QtWidgets.QMainWindow):
         return
 
     def _onLayerContextMenu(self, pos: QtCore.QPoint) -> None:
-        tabBar = self.layerList.tabBar()
-        assert tabBar
+        tabBar = self._layerTabBar()
 
         tab_pos = tabBar.mapFromParent(pos)
         index = tabBar.tabAt(tab_pos)

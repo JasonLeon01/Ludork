@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-call cleanup.sh
+bash cleanup.sh
 
 cd "$(dirname "$0")"
 
@@ -10,21 +10,21 @@ if [ -d "C_Extensions/SFML" ]; then
 fi
 
 echo "Downloading SFML..."
-curl -L -o sfml.zip "https://github.com/SFML/SFML/archive/refs/tags/3.1.0.zip"
+curl -L -o sfml.tar.gz "https://github.com/SFML/SFML/archive/refs/tags/3.1.0.tar.gz"
 if [ $? -ne 0 ]; then
   echo "Failed to download SFML."
   exit 1
 fi
 
 echo "Extracting SFML..."
-unzip -q sfml.zip -d "C_Extensions"
+tar -xzf sfml.tar.gz -C "C_Extensions"
 if [ $? -ne 0 ]; then
   echo "Failed to extract SFML."
-  rm sfml.zip
+  rm sfml.tar.gz
   exit 1
 fi
 
-rm sfml.zip
+rm sfml.tar.gz
 
 if [ -d "C_Extensions/SFML-3.1.0" ]; then
   mv "C_Extensions/SFML-3.1.0" "C_Extensions/SFML"
@@ -95,7 +95,7 @@ fi
 
 if [ -d "C_Extensions" ]; then
   cd C_Extensions
-  "$PY_CMD" setup.py
+  "$PY_CMD" build.py
   if [ $? -ne 0 ]; then
     cd ..
     exit 1

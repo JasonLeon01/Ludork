@@ -5,6 +5,7 @@ import sys
 import shutil
 import subprocess
 from enum import Enum
+from typing import Optional, TextIO
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
@@ -78,8 +79,8 @@ class LogDialog(QtWidgets.QDialog):
         self.btnBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
         self.btnBox.rejected.connect(self.close)
         btn = self.btnBox.button(QtWidgets.QDialogButtonBox.Close)
-        assert btn
-        btn.setEnabled(False)
+        if btn is not None:
+            btn.setEnabled(False)
         layout.addWidget(self.btnBox)
 
     def appendLog(self, text: str):
@@ -89,8 +90,8 @@ class LogDialog(QtWidgets.QDialog):
 
     def finish(self, success: bool, msg: str = ""):
         btn = self.btnBox.button(QtWidgets.QDialogButtonBox.Close)
-        assert btn
-        btn.setEnabled(True)
+        if btn is not None:
+            btn.setEnabled(True)
         if msg:
             self.appendLog("\n" + msg + "\n")
         if success:
@@ -288,11 +289,13 @@ class PackWorker(QtCore.QThread):
             encoding="utf-8",
             errors="replace",
         )
-
-        assert process.stdout
+        stdout: Optional[TextIO] = process.stdout
+        if stdout is None:
+            self.finished_signal.emit(False, ELOC("PACK_NUITKA_FAILED"))
+            return
 
         while True:
-            line = process.stdout.readline()
+            line = stdout.readline()
             if not line and process.poll() is not None:
                 break
             if line:
@@ -349,9 +352,11 @@ class PackWorker(QtCore.QThread):
             proc1 = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace"
             )
-            assert proc1.stdout
+            stdout1: Optional[TextIO] = proc1.stdout
+            if stdout1 is None:
+                return False
             while True:
-                line = proc1.stdout.readline()
+                line = stdout1.readline()
                 if not line and proc1.poll() is not None:
                     break
                 if line:
@@ -362,9 +367,11 @@ class PackWorker(QtCore.QThread):
             proc2 = subprocess.Popen(
                 cmd2, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace"
             )
-            assert proc2.stdout
+            stdout2: Optional[TextIO] = proc2.stdout
+            if stdout2 is None:
+                return False
             while True:
-                line = proc2.stdout.readline()
+                line = stdout2.readline()
                 if not line and proc2.poll() is not None:
                     break
                 if line:

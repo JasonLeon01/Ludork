@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import os
-from typing import Callable, Optional
+from typing import Callable, Optional, cast
 from PyQt5 import QtCore, QtGui, QtWidgets
 from EditorGlobal import EditorStatus, GameData
 from Utils import Panel, File
@@ -21,7 +21,8 @@ class FileExplorer(QtWidgets.QWidget):
         class _Proxy(QtCore.QSortFilterProxyModel):
             def filterAcceptsRow(self, source_row: int, source_parent: QtCore.QModelIndex) -> bool:
                 model = self.sourceModel()
-                assert model
+                if model is None:
+                    return True
                 idx = model.index(source_row, 0, source_parent)
                 if not idx.isValid():
                     return True
@@ -100,8 +101,7 @@ class FileExplorer(QtWidgets.QWidget):
         self._view.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self._view.customContextMenuRequested.connect(self._onContextMenu)
 
-        style = QtWidgets.QApplication.style()
-        assert style
+        style = cast(QtWidgets.QStyle, QtWidgets.QApplication.style())
         upIcon = style.standardIcon(QtWidgets.QStyle.SP_ArrowUp)
         self._pathEdit = QtWidgets.QLineEdit(self)
         self._pathEdit.setReadOnly(True)
@@ -282,9 +282,10 @@ class FileExplorer(QtWidgets.QWidget):
         return True
 
     def _selectedSourceRows(self):
-        model = self._view.selectionModel()
-        assert model
-        rows = model.selectedRows()
+        sm = self._view.selectionModel()
+        if sm is None:
+            return []
+        rows = sm.selectedRows()
         return [self._proxy.mapToSource(i) for i in rows]
 
     def _onContextMenu(self, pos: QtCore.QPoint) -> None:
@@ -293,7 +294,8 @@ class FileExplorer(QtWidgets.QWidget):
         idx = self._view.indexAt(pos)
         if idx.isValid():
             sm = self._view.selectionModel()
-            assert sm
+            if sm is None:
+                return
             if not sm.isSelected(idx):
                 sm.clearSelection()
                 sm.select(idx, QtCore.QItemSelectionModel.Select | QtCore.QItemSelectionModel.Rows)
@@ -301,7 +303,8 @@ class FileExplorer(QtWidgets.QWidget):
         menu = QtWidgets.QMenu(self)
         actOpen = menu.addAction(ELOC("OPEN_FROM_SYSTEM"))
         viewport = self._view.viewport()
-        assert viewport
+        if viewport is None:
+            return
         r = menu.exec_(viewport.mapToGlobal(pos))
         if r == actOpen:
             rows = self._selectedSourceRows()

@@ -662,14 +662,15 @@ class BluePrintEditor(QtWidgets.QWidget):
             self.nodeGraphList.setCurrentRow(index.row())
         menu = QtWidgets.QMenu(self)
         action_new = menu.addAction(ELOC("NEW_EVENT"))
-        assert action_new
+        if action_new is None:
+            return
         action_new.triggered.connect(self._onNewEvent)
         if has_item:
             action_rename = menu.addAction(ELOC("RENAME_EVENT"))
             action_del = menu.addAction(ELOC("DELETE_EVENT"))
 
-            assert action_rename
-            assert action_del
+            if action_rename is None or action_del is None:
+                return
 
             action_rename.triggered.connect(self._onRenameEvent)
             action_del.triggered.connect(self._onDeleteEvent)

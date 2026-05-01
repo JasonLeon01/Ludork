@@ -114,7 +114,8 @@ class SettingsWindow(QtWidgets.QMainWindow):
             item = self.form.itemAt(i)
             if item and item.widget():
                 w = item.widget()
-                assert w
+                if w is None:
+                    continue
                 self.form.removeWidget(w)
                 w.setParent(None)
         for key, val in self._projConfig.items():

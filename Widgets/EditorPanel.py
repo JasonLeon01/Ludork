@@ -171,7 +171,8 @@ class EditorPanel(QtWidgets.QWidget):
                     tsH = tilesetRgba.height()
                     tsStride = tilesetRgba.bytesPerLine()
                     tilesetRgbaBits = tilesetRgba.bits()
-                    assert tilesetRgbaBits
+                    if not tilesetRgbaBits:
+                        raise RuntimeError()
                     tsBytes = tilesetRgbaBits.asstring(tsH * tsStride)
 
                     tilesFlat = []
@@ -573,7 +574,10 @@ class EditorPanel(QtWidgets.QWidget):
         self.update()
 
     def _commitRectangle(self, endPos: Optional[Tuple[int, int]]) -> None:
-        assert self.mapData and self.mapData.layers
+        if self.mapData is None or not getattr(self.mapData, "layers", None):
+            self.rectStartPos = None
+            self.update()
+            return
         if self.rectStartPos is None or endPos is None:
             self.rectStartPos = None
             self.update()
@@ -1226,7 +1230,8 @@ class EditorPanel(QtWidgets.QWidget):
             from Utils import System
 
             w = self.window()
-            assert w
+            if not w:
+                return
             w.setWindowTitle(System.getTitle())
             self.dataChanged.emit()
         except Exception as e:
@@ -1452,7 +1457,8 @@ class EditorPanel(QtWidgets.QWidget):
         if not self.acceptDrops():
             return
         mimeData = e.mimeData()
-        assert mimeData
+        if not mimeData:
+            return
         if not mimeData.hasUrls():
             return
         urls = [u for u in mimeData.urls() if u.isLocalFile()]
@@ -1469,7 +1475,8 @@ class EditorPanel(QtWidgets.QWidget):
         if not self.acceptDrops():
             return
         mimeData = e.mimeData()
-        assert mimeData
+        if not mimeData:
+            return
         if not mimeData.hasUrls():
             return
         urls = [u for u in mimeData.urls() if u.isLocalFile()]
@@ -1490,7 +1497,8 @@ class EditorPanel(QtWidgets.QWidget):
         if self.selectedLayerName is None:
             return
         mimeData = e.mimeData()
-        assert mimeData
+        if not mimeData:
+            return
         if not mimeData.hasUrls():
             return
         urls = [u for u in mimeData.urls() if u.isLocalFile()]

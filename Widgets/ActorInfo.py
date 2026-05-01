@@ -110,7 +110,8 @@ class ActorInfoPanel(QtWidgets.QWidget):
         self.titleLabel.setVisible(False)
         for i in range(self.formLayout.count()):
             item = self.formLayout.itemAt(i)
-            assert item
+            if item is None:
+                continue
             w = item.widget()
             if w:
                 w.setVisible(False)
@@ -118,7 +119,8 @@ class ActorInfoPanel(QtWidgets.QWidget):
             if l:
                 for j in range(l.count()):
                     litem = l.itemAt(j)
-                    assert litem
+                    if litem is None:
+                        continue
                     lw = litem.widget()
                     if lw:
                         lw.setVisible(False)
@@ -178,7 +180,8 @@ class ActorInfoPanel(QtWidgets.QWidget):
     def _setFormVisible(self, visible: bool):
         for i in range(self.formLayout.count()):
             item = self.formLayout.itemAt(i)
-            assert item
+            if item is None:
+                continue
             w = item.widget()
             if w:
                 w.setVisible(visible)
@@ -186,7 +189,8 @@ class ActorInfoPanel(QtWidgets.QWidget):
             if l:
                 for j in range(l.count()):
                     litem = l.itemAt(j)
-                    assert litem
+                    if litem is None:
+                        continue
                     lw = litem.widget()
                     if lw:
                         lw.setVisible(visible)

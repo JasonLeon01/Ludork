@@ -72,8 +72,13 @@ class ModeToggle(QtWidgets.QWidget):
     def _fgColor(self) -> QtGui.QColor:
         return QtGui.QColor(220, 220, 220)
 
+    def _iconSide(self, rect: QtCore.QRect) -> int:
+        side = min(int(rect.width()), int(rect.height()))
+        s = int(side * 0.62) - 2
+        return max(12, min(22, s))
+
     def _drawEditorIcon(self, p: QtGui.QPainter, rect: QtCore.QRect):
-        s = 30
+        s = self._iconSide(rect)
         cx = rect.center().x()
         cy = rect.center().y()
         x0 = cx - s // 2
@@ -108,7 +113,7 @@ class ModeToggle(QtWidgets.QWidget):
         p.drawPolygon(tip)
 
     def _drawPlayIcon(self, p: QtGui.QPainter, rect: QtCore.QRect):
-        s = 30
+        s = self._iconSide(rect)
         cx = rect.center().x()
         cy = rect.center().y()
         r = s // 2
@@ -146,8 +151,13 @@ class EditModeToggle(QtWidgets.QWidget):
             self._selected = idx
             self.update()
 
+    def _iconSide(self, rect: QtCore.QRect) -> int:
+        side = min(int(rect.width()), int(rect.height()))
+        s = int(side * 0.62) - 2
+        return max(12, min(22, s))
+
     def _drawTileIcon(self, p: QtGui.QPainter, rect: QtCore.QRect):
-        s = 30
+        s = self._iconSide(rect)
         cx = rect.center().x()
         cy = rect.center().y()
         x0 = cx - s // 2
@@ -165,7 +175,7 @@ class EditModeToggle(QtWidgets.QWidget):
                 p.drawRoundedRect(r, 3, 3)
 
     def _drawLightIcon(self, p: QtGui.QPainter, rect: QtCore.QRect):
-        s = 30
+        s = self._iconSide(rect)
         cx = rect.center().x()
         cy = rect.center().y()
         fg = QtGui.QColor(200, 200, 200)
@@ -174,29 +184,29 @@ class EditModeToggle(QtWidgets.QWidget):
         p.setPen(pen)
         p.setBrush(QtCore.Qt.NoBrush)
 
-        bulb_r = 8
-        bulb_center = QtCore.QPoint(cx, cy - 2)
+        bulb_r = max(4, int(8 * s / 30))
+        bulb_center = QtCore.QPoint(cx, cy - max(1, int(2 * s / 30)))
         p.drawEllipse(bulb_center, bulb_r, bulb_r)
 
-        base_w = 10
-        base_h = 6
-        base_rect = QtCore.QRect(cx - base_w // 2, cy + 8, base_w, base_h)
+        base_w = max(6, int(10 * s / 30))
+        base_h = max(4, int(6 * s / 30))
+        base_rect = QtCore.QRect(cx - base_w // 2, cy + max(4, int(8 * s / 30)), base_w, base_h)
         p.drawRoundedRect(base_rect, 2, 2)
-        p.drawLine(cx, cy + 6, cx, cy + 8)
+        p.drawLine(cx, cy + max(3, int(6 * s / 30)), cx, cy + max(4, int(8 * s / 30)))
 
         acc = QtWidgets.QApplication.palette().highlight().color()
         pen2 = QtGui.QPen(acc)
         pen2.setWidth(max(1, 2))
         p.setPen(pen2)
-        ray = 12
-        p.drawLine(cx, cy - 14, cx, cy - ray)
-        p.drawLine(cx - 12, cy - 2, cx - ray, cy - 2)
-        p.drawLine(cx + ray, cy - 2, cx + 12, cy - 2)
-        p.drawLine(cx - 10, cy - 12, cx - 7, cy - 9)
-        p.drawLine(cx + 7, cy - 9, cx + 10, cy - 12)
+        ray = max(8, int(12 * s / 30))
+        p.drawLine(cx, cy - max(ray + 2, int(14 * s / 30)), cx, cy - ray)
+        p.drawLine(cx - max(ray, int(12 * s / 30)), cy - max(1, int(2 * s / 30)), cx - ray, cy - max(1, int(2 * s / 30)))
+        p.drawLine(cx + ray, cy - max(1, int(2 * s / 30)), cx + max(ray, int(12 * s / 30)), cy - max(1, int(2 * s / 30)))
+        p.drawLine(cx - max(6, int(10 * s / 30)), cy - max(8, int(12 * s / 30)), cx - max(4, int(7 * s / 30)), cy - max(6, int(9 * s / 30)))
+        p.drawLine(cx + max(4, int(7 * s / 30)), cy - max(6, int(9 * s / 30)), cx + max(6, int(10 * s / 30)), cy - max(8, int(12 * s / 30)))
 
     def _drawActorIcon(self, p: QtGui.QPainter, rect: QtCore.QRect):
-        s = 30
+        s = self._iconSide(rect)
         cx = rect.center().x()
         cy = rect.center().y()
         fg = QtGui.QColor(200, 200, 200)

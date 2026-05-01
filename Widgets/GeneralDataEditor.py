@@ -173,7 +173,8 @@ class GeneralDataPage(QtWidgets.QWidget):
     def _clearPropertyForm(self):
         while self.propertyLayout.count():
             item = self.propertyLayout.takeAt(0)
-            assert item
+            if item is None:
+                continue
             w = item.widget()
             if w:
                 w.deleteLater()
@@ -491,7 +492,8 @@ class GeneralDataPage(QtWidgets.QWidget):
             return
 
         item = self.memberList.takeItem(row)
-        assert item
+        if item is None:
+            return
         key = item.text()
 
         if self.fileKey:
@@ -532,7 +534,8 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
         menu.addAction(addAction)
 
         tabBar = self.tabWidget.tabBar()
-        assert tabBar
+        if not tabBar:
+            return
         tabIndex = tabBar.tabAt(position)
         if tabIndex >= 0:
             menu.addSeparator()
