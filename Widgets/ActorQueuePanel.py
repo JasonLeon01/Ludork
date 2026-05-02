@@ -16,8 +16,9 @@ MIN_HEIGHT_EXTRA_PADDING = 2
 class ActorQueuePanel(QtWidgets.QWidget):
     selectionChanged = QtCore.pyqtSignal(object)
 
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None):
+    def __init__(self, parent: Optional[QtWidgets.QWidget] = None, dockMode: str = "horizontal"):
         super().__init__(parent)
+        self._dockMode = ""
         self._queue: list[str] = []
         self._itemMap: Dict[str, QtWidgets.QListWidgetItem] = {}
         self._currentBpRel: Optional[str] = None
@@ -25,7 +26,6 @@ class ActorQueuePanel(QtWidgets.QWidget):
         self._list.setViewMode(QtWidgets.QListView.IconMode)
         self._list.setMovement(QtWidgets.QListView.Static)
         self._list.setResizeMode(QtWidgets.QListView.Adjust)
-        self._list.setFlow(QtWidgets.QListView.LeftToRight)
         self._list.setSpacing(8)
         self._list.setUniformItemSizes(True)
         self._list.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
@@ -34,15 +34,42 @@ class ActorQueuePanel(QtWidgets.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self._list, 1)
-        oneRowMinHeight = self._calculateOneRowMinHeight()
-        self.setMinimumHeight(oneRowMinHeight)
-        self.setMaximumHeight(oneRowMinHeight)
-        self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+        self.setDockMode(dockMode)
         QtCore.QTimer.singleShot(0, self._updateIconMetrics)
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         super().resizeEvent(event)
         self._updateIconMetrics()
+
+    def setDockMode(self, dockMode: str) -> None:
+        m = dockMode.strip().lower() if isinstance(dockMode, str) else "horizontal"
+        if m not in ("horizontal", "vertical"):
+            m = "horizontal"
+        if self._dockMode == m:
+            return
+        self._dockMode = m
+        self._applyDockMode()
+        self._updateIconMetrics()
+
+    def _applyDockMode(self) -> None:
+        if self._dockMode == "vertical":
+            self._list.setFlow(QtWidgets.QListView.LeftToRight)
+            self._list.setWrapping(True)
+            oneColMinWidth = self._calculateOneColumnMinWidth()
+            self.setMinimumWidth(oneColMinWidth)
+            self.setMaximumWidth(16777215)
+            self.setMinimumHeight(0)
+            self.setMaximumHeight(16777215)
+            self.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding)
+            return
+        self._list.setFlow(QtWidgets.QListView.LeftToRight)
+        self._list.setWrapping(True)
+        oneRowMinHeight = self._calculateOneRowMinHeight()
+        self.setMinimumHeight(oneRowMinHeight)
+        self.setMaximumHeight(oneRowMinHeight)
+        self.setMinimumWidth(0)
+        self.setMaximumWidth(16777215)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
 
     def _calculateOneRowMinHeight(self) -> int:
         fontMetrics = self._list.fontMetrics()
@@ -53,12 +80,25 @@ class ActorQueuePanel(QtWidgets.QWidget):
         scrollBarHeight = int(scrollBar.sizeHint().height()) if scrollBar is not None else 0
         return int(gridHeight + frameHeight + scrollBarHeight + MIN_HEIGHT_EXTRA_PADDING)
 
+    def _calculateOneColumnMinWidth(self) -> int:
+        gridWidth = int(MIN_ICON_SIZE + ICON_SIZE_PADDING + GRID_SIZE_PADDING)
+        frameWidth = int(self._list.frameWidth()) * 2
+        scrollBar = self._list.verticalScrollBar()
+        scrollBarWidth = int(scrollBar.sizeHint().width()) if scrollBar is not None else 0
+        return int(gridWidth + frameWidth + scrollBarWidth + MIN_HEIGHT_EXTRA_PADDING)
+
     def _updateIconMetrics(self) -> None:
         viewport = self._list.viewport()
-        viewportHeight = viewport.height() if viewport is not None else self._list.height()
         fontMetrics = self._list.fontMetrics()
         textHeight = int(fontMetrics.height())
-        iconSize = max(MIN_ICON_SIZE, min(MAX_ICON_SIZE, int(viewportHeight - textHeight - ICON_SIZE_PADDING)))
+        if self._dockMode == "vertical":
+            viewportWidth = viewport.width() if viewport is not None else self._list.width()
+            maxAllowedByWidth = int(viewportWidth - ICON_SIZE_PADDING)
+            iconSize = min(MAX_ICON_SIZE, maxAllowedByWidth)
+            iconSize = max(MIN_ICON_SIZE, iconSize)
+        else:
+            viewportHeight = viewport.height() if viewport is not None else self._list.height()
+            iconSize = max(MIN_ICON_SIZE, min(MAX_ICON_SIZE, int(viewportHeight - textHeight - ICON_SIZE_PADDING)))
         self._list.setIconSize(QtCore.QSize(iconSize, iconSize))
         self._list.setGridSize(QtCore.QSize(iconSize + GRID_SIZE_PADDING, iconSize + textHeight + GRID_SIZE_PADDING))
 

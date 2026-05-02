@@ -37,6 +37,11 @@ class CustomViewer(NodeViewer):
             return
         return super(CustomViewer, self).applyLiveConnection(event)
 
+MIN_VIEW_SCALE = 0.05
+MAX_VIEW_SCALE = 5.0
+TRACKPAD_ZOOM_WHEEL_BLOCK_MS = 200
+PAN_EMULATION_MODIFIER = QtCore.Qt.MetaModifier
+
 
 _RESERVED_NODE_PROPERTIES = {
     "type_",
@@ -264,7 +269,13 @@ class NodePanel(QtWidgets.QWidget):
         self.graph = NodeGraph(viewer=CustomViewer())
         self.graphWidget = self.graph.widget
         self.graphWidget.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-        self.graph.viewer().viewport().installEventFilter(self)
+        self._isSpacePressed = False
+        self._isPanEmulationActive = False
+        self._trackpadZoomWheelBlockUntilMs = 0
+        viewer = self.graph.viewer()
+        viewer.setFocusPolicy(QtCore.Qt.StrongFocus)
+        viewer.installEventFilter(self)
+        viewer.viewport().installEventFilter(self)
         self.nodeGraph = graph
         self.key = key
         self.name = name
@@ -756,10 +767,76 @@ class NodePanel(QtWidgets.QWidget):
         self._refreshCallable(self.name, self.nodeGraph.asDict())
         self.modified.emit()
 
+    def _shouldEmulatePan(self, event: QtGui.QMouseEvent) -> bool:
+        if self._isSpacePressed:
+            return True
+        modifiers = event.modifiers()
+        return bool(modifiers & PAN_EMULATION_MODIFIER)
+
+    def _applyZoomAtCursor(self, viewer: QtWidgets.QGraphicsView, scaleFactor: float) -> None:
+        if scaleFactor <= 0:
+            return
+        currentScale = float(viewer.transform().m11())
+        if currentScale <= 0:
+            return
+        nextScale = currentScale * scaleFactor
+        if nextScale < MIN_VIEW_SCALE:
+            scaleFactor = MIN_VIEW_SCALE / currentScale
+        elif nextScale > MAX_VIEW_SCALE:
+            scaleFactor = MAX_VIEW_SCALE / currentScale
+
+        if scaleFactor == 1.0:
+            return
+
+        prevAnchor = viewer.transformationAnchor()
+        viewer.setTransformationAnchor(QtWidgets.QGraphicsView.AnchorUnderMouse)
+        viewer.scale(scaleFactor, scaleFactor)
+        viewer.setTransformationAnchor(prevAnchor)
+
+    def _sendMouseEventAsMiddleButton(
+        self, target: QtWidgets.QWidget, originalEvent: QtGui.QMouseEvent, eventType: QtCore.QEvent.Type
+    ) -> None:
+        localPos = originalEvent.localPos() if hasattr(originalEvent, "localPos") else QtCore.QPointF(originalEvent.pos())
+        windowPos = (
+            originalEvent.windowPos() if hasattr(originalEvent, "windowPos") else QtCore.QPointF(originalEvent.pos())
+        )
+        screenPos = (
+            originalEvent.screenPos()
+            if hasattr(originalEvent, "screenPos")
+            else QtCore.QPointF(originalEvent.globalPos())
+        )
+
+        if eventType == QtCore.QEvent.MouseMove:
+            button = QtCore.Qt.NoButton
+            buttons = QtCore.Qt.MiddleButton
+        elif eventType == QtCore.QEvent.MouseButtonPress:
+            button = QtCore.Qt.MiddleButton
+            buttons = QtCore.Qt.MiddleButton
+        else:
+            button = QtCore.Qt.MiddleButton
+            buttons = QtCore.Qt.NoButton
+
+        modifiers = originalEvent.modifiers() & ~(QtCore.Qt.AltModifier | QtCore.Qt.MetaModifier)
+        emulatedEvent = QtGui.QMouseEvent(eventType, localPos, windowPos, screenPos, button, buttons, modifiers)
+        QtCore.QCoreApplication.sendEvent(target, emulatedEvent)
+
     def eventFilter(self, watched, event):
-        if watched == self.graph.viewer().viewport() and event.type() == QtCore.QEvent.MouseButtonPress:
+        viewer = self.graph.viewer()
+        viewport = viewer.viewport()
+
+        if watched == viewer and event.type() == QtCore.QEvent.KeyPress:
+            if event.key() == QtCore.Qt.Key_Space:
+                self._isSpacePressed = True
+        if watched == viewer and event.type() == QtCore.QEvent.KeyRelease:
+            if event.key() == QtCore.Qt.Key_Space:
+                self._isSpacePressed = False
+        if watched == viewer and event.type() == QtCore.QEvent.FocusOut:
+            self._isSpacePressed = False
+            self._isPanEmulationActive = False
+
+        if watched == viewport and event.type() == QtCore.QEvent.MouseButtonPress:
             if event.button() == QtCore.Qt.RightButton:
-                item = self.graph.viewer().itemAt(event.pos())
+                item = viewer.itemAt(event.pos())
                 node_found = None
                 while item:
                     if hasattr(item, "id"):
@@ -778,6 +855,110 @@ class NodePanel(QtWidgets.QWidget):
                 else:
                     self._showGeneralContextMenu(event.globalPos())
                     return True
+
+            if event.button() == QtCore.Qt.LeftButton and self._shouldEmulatePan(event):
+                self._isPanEmulationActive = True
+                self._sendMouseEventAsMiddleButton(viewport, event, QtCore.QEvent.MouseButtonPress)
+                return True
+
+        if watched == viewport and event.type() == QtCore.QEvent.MouseMove and self._isPanEmulationActive:
+            if event.buttons() & QtCore.Qt.LeftButton:
+                self._sendMouseEventAsMiddleButton(viewport, event, QtCore.QEvent.MouseMove)
+                return True
+
+        if watched == viewport and event.type() == QtCore.QEvent.MouseButtonRelease and self._isPanEmulationActive:
+            if event.button() == QtCore.Qt.LeftButton:
+                self._isPanEmulationActive = False
+                self._sendMouseEventAsMiddleButton(viewport, event, QtCore.QEvent.MouseButtonRelease)
+                return True
+
+        if watched == viewport and event.type() == QtCore.QEvent.Wheel:
+            if hasattr(event, "source"):
+                source = event.source()
+                mouseNotSynthesized = getattr(QtCore.Qt, "MouseEventNotSynthesized", None)
+                if mouseNotSynthesized is None:
+                    mouseEventSourceEnum = getattr(QtCore.Qt, "MouseEventSource", None)
+                    if mouseEventSourceEnum is not None:
+                        mouseNotSynthesized = getattr(mouseEventSourceEnum, "MouseEventNotSynthesized", None)
+                if mouseNotSynthesized is not None:
+                    try:
+                        isRealMouseWheel = int(source) == int(mouseNotSynthesized)
+                    except Exception:
+                        isRealMouseWheel = source == mouseNotSynthesized
+                    if isRealMouseWheel:
+                        return super(NodePanel, self).eventFilter(watched, event)
+
+            if hasattr(event, "modifiers"):
+                modifiers = event.modifiers()
+                if modifiers & (QtCore.Qt.ControlModifier | QtCore.Qt.AltModifier | QtCore.Qt.MetaModifier):
+                    return super(NodePanel, self).eventFilter(watched, event)
+
+            if self._trackpadZoomWheelBlockUntilMs:
+                nowMs = int(QtCore.QDateTime.currentMSecsSinceEpoch())
+                if nowMs < self._trackpadZoomWheelBlockUntilMs:
+                    event.accept()
+                    return True
+            if hasattr(event, "pixelDelta") and event.pixelDelta() and not event.pixelDelta().isNull():
+                pixelDelta = event.pixelDelta()
+                h = viewer.horizontalScrollBar()
+                v = viewer.verticalScrollBar()
+                dx = int(pixelDelta.x())
+                dy = int(pixelDelta.y())
+                h.setValue(h.value() - dx)
+                v.setValue(v.value() - dy)
+                if (
+                    h.minimum() == 0
+                    and h.maximum() == 0
+                    and v.minimum() == 0
+                    and v.maximum() == 0
+                    and (dx != 0 or dy != 0)
+                ):
+                    currentScale = float(viewer.transform().m11()) or 1.0
+                    viewer.translate(-dx / currentScale, -dy / currentScale)
+                event.accept()
+                return True
+
+        if watched == viewport and event.type() == QtCore.QEvent.NativeGesture:
+            if isinstance(event, QtGui.QNativeGestureEvent):
+                zoomGestureType = getattr(QtCore.Qt, "ZoomNativeGesture", None)
+                if zoomGestureType is None:
+                    nativeGestureTypeEnum = getattr(QtCore.Qt, "NativeGestureType", None)
+                    if nativeGestureTypeEnum is not None:
+                        zoomGestureType = getattr(nativeGestureTypeEnum, "ZoomNativeGesture", None)
+
+                smartZoomGestureType = getattr(QtCore.Qt, "SmartZoomNativeGesture", None)
+                if smartZoomGestureType is None:
+                    nativeGestureTypeEnum = getattr(QtCore.Qt, "NativeGestureType", None)
+                    if nativeGestureTypeEnum is not None:
+                        smartZoomGestureType = getattr(nativeGestureTypeEnum, "SmartZoomNativeGesture", None)
+
+                gestureType = event.gestureType()
+                isZoom = False
+                isSmartZoom = False
+                if zoomGestureType is not None:
+                    try:
+                        isZoom = int(gestureType) == int(zoomGestureType)
+                    except Exception:
+                        isZoom = gestureType == zoomGestureType
+                if smartZoomGestureType is not None:
+                    try:
+                        isSmartZoom = int(gestureType) == int(smartZoomGestureType)
+                    except Exception:
+                        isSmartZoom = gestureType == smartZoomGestureType
+
+                if isZoom:
+                    value = float(event.value())
+                    scaleFactor = max(0.01, 1.0 + value)
+                    self._applyZoomAtCursor(viewer, scaleFactor)
+                    nowMs = int(QtCore.QDateTime.currentMSecsSinceEpoch())
+                    self._trackpadZoomWheelBlockUntilMs = nowMs + TRACKPAD_ZOOM_WHEEL_BLOCK_MS
+                    event.accept()
+                    return True
+
+                if isSmartZoom:
+                    event.accept()
+                    return True
+
         return super(NodePanel, self).eventFilter(watched, event)
 
     def _showNodeContextMenu(self, global_pos):

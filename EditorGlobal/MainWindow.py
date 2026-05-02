@@ -86,9 +86,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self._savedRightWidth: Optional[int] = None
         self.lowerArea = QtWidgets.QWidget()
         self.fileExplorer = FileExplorer(EditorStatus.PROJ_PATH)
-        self.actorQueuePanel = ActorQueuePanel()
+        self.actorQueuePanel = ActorQueuePanel(dockMode="vertical")
         self.consoleWidget = ConsoleWidget()
         self.tabWidget = QtWidgets.QTabWidget()
+        self.lowerSplitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         self.topSplitter = QtWidgets.QSplitter(QtCore.Qt.Vertical)
         self._sizesInitialized = False
         self._hasShown = False
@@ -257,19 +258,10 @@ class MainWindow(QtWidgets.QMainWindow):
             if hasattr(self, "rightArea"):
                 minRight = max(minRight, int(self.rightArea.minimumWidth()))
             lowerMinH = max(self.DEFAULT_LOWER_AREA_MIN_HEIGHT, int(self.lowerArea.minimumHeight()))
-            queueMinH = 0
-            if hasattr(self, "actorQueuePanel"):
-                try:
-                    queueMinH = int(self.actorQueuePanel.minimumHeight())
-                except Exception:
-                    try:
-                        queueMinH = int(self.actorQueuePanel.sizeHint().height())
-                    except Exception:
-                        queueMinH = 0
             topHMin = int(self.topBar.minimumHeight()) + int(self.gameSize.height())
             handleW = int(self.upperSplitter.handleWidth())
             minW = minLeft + int(self.gameSize.width()) + minRight + handleW * 2 + 16
-            minH = topHMin + lowerMinH + queueMinH + 8
+            minH = topHMin + lowerMinH + 8
             self.setMinimumSize(minW, minH)
 
     def showEvent(self, event: QtGui.QShowEvent) -> None:
@@ -871,15 +863,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tabWidget.setTabBarAutoHide(False)
         self.tabWidget.addTab(self.fileExplorer, ELOC("FILE_EXPLORER"))
         self.tabWidget.addTab(self.consoleWidget, ELOC("CONSOLE"))
-        lowerLayout.addWidget(self.tabWidget)
+        self.lowerSplitter.setChildrenCollapsible(False)
+        self.lowerSplitter.addWidget(self.actorQueuePanel)
+        self.lowerSplitter.addWidget(self.tabWidget)
+        self.lowerSplitter.setStretchFactor(0, 0)
+        self.lowerSplitter.setStretchFactor(1, 1)
+        self.lowerSplitter.setSizes([int(self.actorQueuePanel.minimumWidth()), 1])
+        lowerLayout.addWidget(self.lowerSplitter)
 
         self.topSplitter.setChildrenCollapsible(False)
         self.topSplitter.addWidget(self.upperSplitter)
-        self.topSplitter.addWidget(self.actorQueuePanel)
         self.topSplitter.addWidget(self.lowerArea)
         self.topSplitter.setStretchFactor(0, 1)
         self.topSplitter.setStretchFactor(1, 0)
-        self.topSplitter.setStretchFactor(2, 0)
         self.lowerArea.setMinimumHeight(self.DEFAULT_LOWER_AREA_MIN_HEIGHT)
 
         topHMin = self.topBar.minimumHeight() + panelH
@@ -890,10 +886,8 @@ class MainWindow(QtWidgets.QMainWindow):
             + self.upperSplitter.handleWidth() * 2
             + 16
         )
-        queueMinH = int(self.actorQueuePanel.minimumHeight())
         minH = (
             topHMin
-            + queueMinH
             + self.DEFAULT_LOWER_AREA_MIN_HEIGHT
             + 8
         )
