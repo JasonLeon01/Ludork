@@ -2,20 +2,20 @@
 
 from __future__ import annotations
 from typing import Any, Dict
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtWidgets, QtGui
 import inspect
+import sys
 
 
-class FunctionPickerPopup(QtWidgets.QFrame):
+class FunctionPickerPopup(QtWidgets.QDialog):
     functionSelected = QtCore.pyqtSignal(str, bool)
 
     def __init__(self, parent: QtWidgets.QWidget, sources: Dict[str, object], filterExecOnly: bool = False) -> None:
-        super().__init__(parent, QtCore.Qt.Popup)
+        super().__init__(parent)
+        self.setModal(False)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
-        self.setWindowFlag(QtCore.Qt.Popup, False)
-        self.setWindowFlag(QtCore.Qt.FramelessWindowHint, True)
-        self.setWindowFlag(QtCore.Qt.Tool, True)
-        self.setAttribute(QtCore.Qt.WA_NativeWindow, True)
+        self.setWindowFlags(QtCore.Qt.Tool | QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
+        self._isMac = sys.platform == "darwin"
 
         lay = QtWidgets.QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
@@ -47,14 +47,34 @@ class FunctionPickerPopup(QtWidgets.QFrame):
         self.setAttribute(QtCore.Qt.WA_InputMethodEnabled, True)
         self._searchEdit.setAttribute(QtCore.Qt.WA_InputMethodEnabled, True)
         self._searchEdit.setFocusPolicy(QtCore.Qt.StrongFocus)
+        self._ignoreDeactivate = True
+
+    def showEvent(self, e: QtCore.QEvent) -> None:
+        super().showEvent(e)
         self._searchEdit.setFocus(QtCore.Qt.OtherFocusReason)
         self.activateWindow()
+        self.raise_()
+        self._ignoreDeactivate = True
+        QtCore.QTimer.singleShot(150, self._clearIgnoreDeactivate)
+
+    def _clearIgnoreDeactivate(self) -> None:
+        self._ignoreDeactivate = False
 
     def event(self, e: QtCore.QEvent) -> bool:
         if e.type() == QtCore.QEvent.WindowDeactivate:
+            if getattr(self, "_isMac", False):
+                return super().event(e)
+            if getattr(self, "_ignoreDeactivate", False):
+                return True
             self.close()
             return True
         return super().event(e)
+
+    def keyPressEvent(self, e: QtGui.QKeyEvent) -> None:
+        if e.key() == QtCore.Qt.Key_Escape:
+            self.close()
+            return
+        super().keyPressEvent(e)
 
     def _build(self, sources: Dict[str, object]) -> None:
         self._tree.clear()

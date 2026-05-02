@@ -6,6 +6,13 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from EditorGlobal import GameData, EditorStatus
 
 
+MIN_ICON_SIZE = 24
+MAX_ICON_SIZE = 64
+ICON_SIZE_PADDING = 24
+GRID_SIZE_PADDING = 18
+MIN_HEIGHT_EXTRA_PADDING = 2
+
+
 class ActorQueuePanel(QtWidgets.QWidget):
     selectionChanged = QtCore.pyqtSignal(object)
 
@@ -27,21 +34,33 @@ class ActorQueuePanel(QtWidgets.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self._list, 1)
-        self.setMinimumHeight(120)
+        oneRowMinHeight = self._calculateOneRowMinHeight()
+        self.setMinimumHeight(oneRowMinHeight)
+        self.setMaximumHeight(oneRowMinHeight)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
         QtCore.QTimer.singleShot(0, self._updateIconMetrics)
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         super().resizeEvent(event)
         self._updateIconMetrics()
 
+    def _calculateOneRowMinHeight(self) -> int:
+        fontMetrics = self._list.fontMetrics()
+        textHeight = int(fontMetrics.height())
+        gridHeight = int(MIN_ICON_SIZE + textHeight + GRID_SIZE_PADDING)
+        frameHeight = int(self._list.frameWidth()) * 2
+        scrollBar = self._list.horizontalScrollBar()
+        scrollBarHeight = int(scrollBar.sizeHint().height()) if scrollBar is not None else 0
+        return int(gridHeight + frameHeight + scrollBarHeight + MIN_HEIGHT_EXTRA_PADDING)
+
     def _updateIconMetrics(self) -> None:
         viewport = self._list.viewport()
-        vh = viewport.height() if viewport is not None else self._list.height()
-        fm = self._list.fontMetrics()
-        text_h = fm.height()
-        icon = max(24, min(64, int(vh - text_h - 24)))
-        self._list.setIconSize(QtCore.QSize(icon, icon))
-        self._list.setGridSize(QtCore.QSize(icon + 18, icon + text_h + 18))
+        viewportHeight = viewport.height() if viewport is not None else self._list.height()
+        fontMetrics = self._list.fontMetrics()
+        textHeight = int(fontMetrics.height())
+        iconSize = max(MIN_ICON_SIZE, min(MAX_ICON_SIZE, int(viewportHeight - textHeight - ICON_SIZE_PADDING)))
+        self._list.setIconSize(QtCore.QSize(iconSize, iconSize))
+        self._list.setGridSize(QtCore.QSize(iconSize + GRID_SIZE_PADDING, iconSize + textHeight + GRID_SIZE_PADDING))
 
     def clearQueue(self) -> None:
         self._queue.clear()

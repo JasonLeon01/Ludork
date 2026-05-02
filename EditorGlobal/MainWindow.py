@@ -46,6 +46,10 @@ from . import EditorStatus, GameData
 
 
 class MainWindow(QtWidgets.QMainWindow):
+    DEFAULT_LEFT_PANEL_MIN_WIDTH = 160
+    DEFAULT_RIGHT_PANEL_MIN_WIDTH = 320
+    DEFAULT_LOWER_AREA_MIN_HEIGHT = 160
+
     def __init__(self, title: str):
         super().__init__()
         self.toast = Toast(self)
@@ -246,19 +250,22 @@ class MainWindow(QtWidgets.QMainWindow):
         if hasattr(self, "centerArea"):
             self.centerArea.setMinimumWidth(self.gameSize.width())
         if hasattr(self, "upperSplitter") and hasattr(self, "topBar") and hasattr(self, "lowerArea"):
-            minLeft = 320
-            minRight = 320
+            minLeft = self.DEFAULT_LEFT_PANEL_MIN_WIDTH
+            minRight = self.DEFAULT_RIGHT_PANEL_MIN_WIDTH
             if hasattr(self, "leftArea"):
                 minLeft = max(minLeft, int(self.leftArea.minimumWidth()))
             if hasattr(self, "rightArea"):
                 minRight = max(minRight, int(self.rightArea.minimumWidth()))
-            lowerMinH = max(160, int(self.lowerArea.minimumHeight()))
+            lowerMinH = max(self.DEFAULT_LOWER_AREA_MIN_HEIGHT, int(self.lowerArea.minimumHeight()))
             queueMinH = 0
             if hasattr(self, "actorQueuePanel"):
                 try:
-                    queueMinH = max(120, int(self.actorQueuePanel.minimumHeight()))
+                    queueMinH = int(self.actorQueuePanel.minimumHeight())
                 except Exception:
-                    queueMinH = 120
+                    try:
+                        queueMinH = int(self.actorQueuePanel.sizeHint().height())
+                    except Exception:
+                        queueMinH = 0
             topHMin = int(self.topBar.minimumHeight()) + int(self.gameSize.height())
             handleW = int(self.upperSplitter.handleWidth())
             minW = minLeft + int(self.gameSize.width()) + minRight + handleW * 2 + 16
@@ -304,8 +311,8 @@ class MainWindow(QtWidgets.QMainWindow):
             if len(sizes) >= 3:
                 self._prevLeftW = sizes[0]
                 self._prevRightW = sizes[2]
-            cfg[EditorStatus.APP_NAME]["UpperLeftWidth"] = str(self._prevLeftW or 320)
-            cfg[EditorStatus.APP_NAME]["UpperRightWidth"] = str(self._prevRightW or 320)
+            cfg[EditorStatus.APP_NAME]["UpperLeftWidth"] = str(self._prevLeftW or self.DEFAULT_LEFT_PANEL_MIN_WIDTH)
+            cfg[EditorStatus.APP_NAME]["UpperRightWidth"] = str(self._prevRightW or self.DEFAULT_RIGHT_PANEL_MIN_WIDTH)
             with open(cfg_path, "w") as f:
                 cfg.write(f)
 
@@ -722,18 +729,6 @@ class MainWindow(QtWidgets.QMainWindow):
         central = QtWidgets.QWidget(self)
         self.setCentralWidget(central)
 
-        self.toolbar = cast(QtWidgets.QToolBar, self.addToolBar("MainToolbar"))
-        self.toolbar.setIconSize(QtCore.QSize(16, 16))
-        self.toolbar.setMovable(False)
-        self.toolbar.addAction(self._actNewProject)
-        self.toolbar.addAction(self._actOpenProject)
-        self.toolbar.addAction(self._actSave)
-        self.toolbar.addSeparator()
-        self.toolbar.addAction(self._actUndo)
-        self.toolbar.addAction(self._actRedo)
-        self.toolbar.addSeparator()
-        self.toolbar.addAction(self._actGameSettings)
-
         self.topBar.setMinimumHeight(32)
         topLayout = QtWidgets.QHBoxLayout(self.topBar)
         topLayout.setContentsMargins(0, 0, 0, 0)
@@ -790,7 +785,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.modeToggle.selectionChanged.connect(self._onModeChanged)
         self._menuBar.setNativeMenuBar(True)
 
-        self.leftList.setMinimumWidth(320)
+        self.leftList.setMinimumWidth(self.DEFAULT_LEFT_PANEL_MIN_WIDTH)
         self.leftList.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         self.refreshLeftList()
         self.leftList.itemClicked.connect(self._onLeftItemClicked)
@@ -815,7 +810,7 @@ class MainWindow(QtWidgets.QMainWindow):
         leftLayout.setSpacing(0)
         leftLayout.addWidget(self.leftLabel, 0, alignment=QtCore.Qt.AlignHCenter)
         leftLayout.addWidget(self.leftList, 1)
-        self.leftArea.setMinimumWidth(320)
+        self.leftArea.setMinimumWidth(self.DEFAULT_LEFT_PANEL_MIN_WIDTH)
 
         centerLayout = QtWidgets.QVBoxLayout(self.centerArea)
         centerLayout.setContentsMargins(0, 0, 0, 0)
@@ -827,7 +822,7 @@ class MainWindow(QtWidgets.QMainWindow):
         centerLayout.addLayout(self.stacked, 1)
         self.centerArea.setMinimumWidth(panelW)
 
-        self.rightArea.setMinimumWidth(320)
+        self.rightArea.setMinimumWidth(self.DEFAULT_RIGHT_PANEL_MIN_WIDTH)
         self.rightStack = QtWidgets.QStackedLayout(self.rightArea)
         self.rightStack.setContentsMargins(0, 0, 0, 0)
         self.rightStack.setSpacing(0)
@@ -856,7 +851,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.upperSplitter.setStretchFactor(0, 0)
         self.upperSplitter.setStretchFactor(1, 1)
         self.upperSplitter.setStretchFactor(2, 0)
-        self.upperSplitter.setSizes([320, panelW, 320])
+        self.upperSplitter.setSizes([self.DEFAULT_LEFT_PANEL_MIN_WIDTH, panelW, self.DEFAULT_RIGHT_PANEL_MIN_WIDTH])
         self.upperSplitter.splitterMoved.connect(self._onUpperSplitterMoved)
         cfg = configparser.ConfigParser()
         cfg_path = os.path.join(File.getIniPath(), f"{EditorStatus.APP_NAME}.ini")
@@ -866,8 +861,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 ls = cfg[EditorStatus.APP_NAME].get("UpperLeftWidth")
                 rs = cfg[EditorStatus.APP_NAME].get("UpperRightWidth")
                 if ls and rs:
-                    self._savedLeftWidth = max(320, int(ls))
-                    self._savedRightWidth = max(320, int(rs))
+                    self._savedLeftWidth = max(self.DEFAULT_LEFT_PANEL_MIN_WIDTH, int(ls))
+                    self._savedRightWidth = max(self.DEFAULT_RIGHT_PANEL_MIN_WIDTH, int(rs))
 
         lowerLayout = QtWidgets.QVBoxLayout(self.lowerArea)
         lowerLayout.setContentsMargins(0, 0, 0, 0)
@@ -885,11 +880,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self.topSplitter.setStretchFactor(0, 1)
         self.topSplitter.setStretchFactor(1, 0)
         self.topSplitter.setStretchFactor(2, 0)
-        self.lowerArea.setMinimumHeight(160)
+        self.lowerArea.setMinimumHeight(self.DEFAULT_LOWER_AREA_MIN_HEIGHT)
 
         topHMin = self.topBar.minimumHeight() + panelH
-        minW = 320 + panelW + 320 + self.upperSplitter.handleWidth() * 2 + 16
-        minH = topHMin + max(int(self.actorQueuePanel.minimumHeight()), 120) + 160 + 8
+        minW = (
+            self.DEFAULT_LEFT_PANEL_MIN_WIDTH
+            + panelW
+            + self.DEFAULT_RIGHT_PANEL_MIN_WIDTH
+            + self.upperSplitter.handleWidth() * 2
+            + 16
+        )
+        queueMinH = int(self.actorQueuePanel.minimumHeight())
+        minH = (
+            topHMin
+            + queueMinH
+            + self.DEFAULT_LOWER_AREA_MIN_HEIGHT
+            + 8
+        )
         self.setMinimumSize(minW, minH)
 
         layout = QtWidgets.QVBoxLayout(central)

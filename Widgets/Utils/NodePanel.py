@@ -598,10 +598,12 @@ class NodePanel(QtWidgets.QWidget):
         if (type_out == "Params") and isinstance(r_type, type) and getattr(r_type, "__module__", "") != "builtins":
             sources["Parent"] = r_type
         popup = FunctionPickerPopup(self, sources, filterExecOnly=(type_out == "Exec"))
+        self._connectionPickerPopup = popup
         popup.functionSelected.connect(self._onFunctionSelectedFromPrompt)
         popup.destroyed.connect(self._onFunctionPickerClosed)
+        popup.destroyed.connect(lambda: setattr(self, "_connectionPickerPopup", None))
         popup.move(QtGui.QCursor.pos())
-        popup.show()
+        QtCore.QTimer.singleShot(0, lambda p=popup: p.show())
 
     def _onFunctionSelectedFromPrompt(self, path: str, is_parent: bool):
         from NodeGraph import EditorDataNode
@@ -851,9 +853,11 @@ class NodePanel(QtWidgets.QWidget):
             sources[module.__name__] = module
 
         popup = FunctionPickerPopup(self, sources)
+        self._functionPickerPopup = popup
         popup.functionSelected.connect(self._onFunctionSelected)
-        popup.move(QtGui.QCursor.pos())
-        popup.show()
+        popup.destroyed.connect(lambda: setattr(self, "_functionPickerPopup", None))
+        popup.move(global_pos)
+        QtCore.QTimer.singleShot(0, lambda p=popup: p.show())
 
     def _onFunctionSelected(self, path: str, is_parent: bool):
         from NodeGraph import EditorDataNode

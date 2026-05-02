@@ -1,73 +1,101 @@
 # Ludork
 
-Ludork is a PyQt5-based 2D RPG toolkit that pairs an editor UI with a lightweight runtime engine powered by SFML bindings through pybind11. It focuses on fast iteration with visual scripting, asset tooling, and gameplay foundations so creators can build content without constantly leaving the editor.
+Ludork is a 2D RPG toolkit that pairs a PyQt5 editor with an SFML-based runtime (via PySF and pybind11 native extensions). It is designed for fast iteration: edit content in the editor, run/preview using the same data formats, and keep project code alongside project data.
 
 ## Highlights
 - Visual Node Graph editor for reusable Common Functions (NodeGraphQt)
-- Tileset and map editing with preview, selection, and `.dat` persistence
+- Tileset and map editing with `.dat` persistence
 - Asset browsing and preview for images, audio, shaders, and transitions
-- Configuration management with localization support
-- Integrated console, toast notifications, and material-themed UI
-- Runtime engine that mirrors editor data formats for rapid iteration
+- Config editors plus localization support (spreadsheet source + per-locale outputs)
+- Runtime preview driven by the Project entry script (for example `Entry.py` via `Main.ini`)
+- Native-accelerated modules for engine/global/editor helpers (pybind11 + SFML)
 
-## Architecture Overview
-- Engine
-  - Reference runtime implementation lives under `Sample/Engine/`
-  - Gameplay: scenes, camera, tile map, particle system, and actor bases
-  - UI: canvas, rect/text/image/sprite primitives, windows, text box
-  - Node Graph: node/graph/class dictionaries and editor integration
-  - Managers: audio, texture, font, time; effects/input/locale helpers
-  - Utils & Filters: file IO, render, math, event; audio filters
-  - Runtime: SFML core via pybind11 bindings for rendering, audio, and input
-- Widgets
-  - Editor windows: start/main, file explorer, file preview, console
-  - Node Graph window and panels for editing Common Functions
-  - Tileset editor, map tools, config/settings panels, toggles
-- Data & Assets
-  - Structured project data under `Data/` (Configs, Maps, Tilesets, CommonFunctions, Animations, Blueprints, General, Locale)
-  - Sample Project layout under `Sample/` (`Sample/Data/` + `Sample/Assets/`)
-- C Extensions
-  - Native acceleration modules under `C_Extensions/` (Editor, GamePlay, Graphics, Utils)
-  - Editor-side build outputs are typically placed under `EditorExtensions/`
+## What’s in This Repository
+- Editor application code: `EditorGlobal/`, `Widgets/`, `NodeGraph/`, `Utils/`, `Styles/`
+- Sample Project (also a template): `Sample/` (contains `Main.ini`, `Entry.py`, `Data/`, `Assets/`, and runtime code packages)
+- Native extensions (pybind11): `C_Extensions/` (builds into `EditorExtensions/` and `Sample/*`)
+- Packaging & utility scripts: `tools/`, `pack.*`, `run.*`, `init.*`
 
 ## Visual Node Graph
 - Purpose: author reusable logic blocks as visual graphs
 - Node categories: Math, String, Utils, Containers, plus project-specific nodes
 - Persistence: graphs saved under the Project `Data/CommonFunctions/*.dat` (see `Sample/Data/CommonFunctions/` for examples)
-- Runtime: graphs are loaded and transformed into executable graph instances
+- Runtime: graphs are loaded and executed by the runtime NodeGraph subsystem
 
-## Editor Workflow
-- Browse assets and inspect tilesets/maps in the main editor windows
-- Create and refine Common Functions in the Node Graph editor
-- Preview changes and persist data files (`.dat` / `.json`)
-- Use engine primitives to assemble gameplay scenes and UI
-
-## Data Layout
-- `Data/Configs`: runtime and editor configuration files
-- `Data/Maps`: map definitions and serialized tile layers
-- `Data/Tilesets`: tileset metadata and selection presets
-- `Data/CommonFunctions`: visual graph assets saved as `.dat`
-- `Data/Animations`: animation definitions (for example `.json`)
-- `Data/Blueprints`: actor/enemy/item blueprint definitions (project-driven)
-- `Data/General`: shared data tables (for example enemies/items)
-- `Data/Locale`: localization sources/outputs (for example `Locale.xlsx` and per-language folders)
-- `Assets`: media resources (images, audio, fonts, shaders, etc.)
-- `Sample`: example Project data and assets (`Sample/Data`, `Sample/Assets`)
-
-## Getting Started
-- Requirements: Python 3.12.0, PyQt5, NodeGraphQt, qt-material, psutil, pympler, av, nuitka, openpyxl, zstandard, pybind11, pybind11-stubgen
-- Install:
-  - Windows
+## Quick Start (Editor)
+- Prerequisites:
+  - Python 3.12
+  - CMake + a working C++ toolchain (required for building `C_Extensions/`)
+  - macOS/Linux: `curl`, `tar`, `unzip` (used by `init.sh`)
+  - Windows: PowerShell (used by `init.bat`)
+- Install & run (one step):
+  - Windows:
     ```bat
-    ./init.bat
+    .\init.bat
     ```
-  - Unix-like(macOS)
+  - macOS/Linux:
     ```bash
     ./init.sh
     ```
 
+The init scripts will:
+- Create a virtual environment at `LudorkEnv/` and install `requirements.txt`
+- Download SFML 3.1.0 sources under `C_Extensions/SFML/`
+- Download a prebuilt PySF package into the repository (used by both editor and runtime)
+- Build native extensions via `C_Extensions/build.py`
+- Launch the editor (`main.py`)
+
+For subsequent launches:
+- Windows: `.\run.bat`
+- macOS/Linux: `./run.sh`
+
+## Opening the Sample Project
+- Run the editor, then open the `Sample/` folder as the Project root.
+- The editor stores per-project editor settings in `Main.proj` inside the Project root (created automatically if missing).
+
+## Running the Game Without the Editor (Sample)
+From the Project root (for example `Sample/`):
+
+```bash
+cd Sample
+python Entry.py
+```
+
+Notes:
+- The Sample entry reads `Main.ini` and loads content from `Data/` and `Assets/`.
+- `Entry.py` attempts to enable `debugpy` on `localhost:2333` if the dependency is available.
+
+## Project Layout (Inside a Project Root)
+- `Main.ini`: points to the runtime entry script (for example `[Main] script = Entry.py`)
+- `Entry.py`: Project bootstrap (initializes locale/system/scenes)
+- `Main.proj`: editor-side per-project settings (JSON)
+- `Data/`: structured game data
+  - `Configs/`, `Maps/`, `Tilesets/`, `CommonFunctions/`, `Animations/`, `Blueprints/`, `General/`, `Locale/`
+- `Assets/`: media resources (images, audio, fonts, shaders, etc.)
+
+## Native Extensions
+Native modules are built from `C_Extensions/` and distributed into Python import locations:
+- `EditorExt` → `EditorExtensions/`
+- `EngineExt` → `Sample/Engine/`
+- `GlobalExt` → `Sample/Global/`
+
+To build manually (after installing Python deps and ensuring CMake/toolchain is available):
+
+```bash
+python C_Extensions/build.py
+```
+
+Useful options:
+- `--no-clean` to reuse the existing CMake build directory
+- `--only EditorExt|EngineExt|GlobalExt` to build/distribute one module
+- `--skip-build` to only distribute artifacts (if you already built them)
+
 ## Packaging
-- Build scripts are available for bundling with tools like Nuitka
+- `pack.sh` / `pack.bat` runs `tools/pack.py` (Nuitka-based packaging pipeline)
+
+## Documentation
+- Full manual: `docs/en_GB/`
+- Chinese translation: `docs/zh_CN/`
 
 ## License
 This project is licensed as described in [LICENSE.md](LICENSE.md).

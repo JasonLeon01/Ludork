@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import List, Tuple, Union
-from .. import Pair, IntRect, RenderTarget, RenderStates
+from .. import Pair, IntRect, RenderTarget, RenderStates, Transform
 from ..Utils import Math, Render
 from .Base import ControlBase
 
@@ -76,6 +76,14 @@ class ListView(ControlBase):
         states.transform *= self.getTransform()
         for child in self._children:
             target.draw(child, states)
+
+    def _getRenderTransform(self) -> Transform:
+        from .. import Scale
+
+        transform = Transform()
+        transform *= self.getTransform()
+        transform.translate(self.getPosition() * (Scale - 1))
+        return transform
 
     def applyPositions(self) -> None:
         if self._positionsSettled:

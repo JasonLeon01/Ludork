@@ -66,6 +66,30 @@ class Scene(SceneBase):
 
         return condition
 
+    @Latent(Selected0=(0,), Selected1=(1,), Selected2=(2,), Selected3=(3,), Cancelled=(-1,))
+    def showSelection(self, refActorTag: str, name: str, options: List[str], allowCancel: bool) -> Callable[[], Optional[int]]:
+        refPosition: Optional[Vector2f] = None
+        if bool(refActorTag):
+            actors = self._gameMap.getAllActorsByTag(refActorTag)
+            if actors:
+                actor = actors[0]
+                camera = self._gameMap.getCamera()
+                assert camera
+                refPosition = actor.getPosition() - camera.getViewPosition()
+
+        self._messageWindow.setMessage(refPosition, name, options, allowCancel=allowCancel)
+        originMoveEnabled = self.player.getMoveEnabled()
+        self.player.setMoveEnabled(False)
+
+        def condition() -> Optional[int]:
+            selectionResult = self._messageWindow.getSelectionResult()
+            if selectionResult is None:
+                return None
+            self.player.setMoveEnabled(originMoveEnabled)
+            return selectionResult
+
+        return condition
+
     @ExecSplit(default=(None,))
     @TypeAdapter(pos=([tuple, list], Vector2u))
     def gotoMapAndPos(self, mapPath: str, pos: Union[Vector2u, Pair[int], List[int]]) -> None:

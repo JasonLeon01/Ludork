@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 from enum import IntEnum
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Union, Tuple
 import Engine
-from Engine import Color, Input, UI, Text, Vector2f, Vector2u
-from Engine.UI import RichText, TextStyle, PlainText
+from Engine import Color, Input, UI, Text, Vector2f, Vector2u, Vector2i, IntRect
+from Engine.UI import RichText, TextStyle, PlainText, ListView
+from Engine.UI.FunctionalUI import FPlainText
 from Engine.Utils import Math
 from Global import System as GlobalSystem
-from .Base import WindowBase
+from .Base import WindowSelectable
 from ..System import System
 
 
@@ -18,13 +19,30 @@ class FadePhase(IntEnum):
     OUT = 2
 
 
-class WindowMessage(WindowBase):
+class ContentMode(IntEnum):
+    MESSAGE = 0
+    SELECTION = 1
+
+
+class WindowMessage(WindowSelectable):
     _WINDOW_PADDING = 16
     _NAME_TEXT_SIZE = 28
     _NAME_MESSAGE_GAP = 8
+    _OPTION_TEXT_SIZE = 22
+    _OPTION_ITEM_HEIGHT = 32
+    _MAX_OPTIONS = 4
 
     def __init__(self) -> None:
-        super().__init__(((48, 288), (544, 160)))
+        self._inDialogue: bool = False
+        self._contentMode: ContentMode = ContentMode.MESSAGE
+        self._selectionListView: Optional[ListView] = None
+        self._selectionResult: Optional[int] = None
+        self._allowCancel: bool = True
+        self._fadePhase: FadePhase = FadePhase.NOTHING
+        self._fadeInSpeed = 1000.0
+        self._fadeOutSpeed = 1000.0
+
+        super().__init__(((48, 288), (544, 160)), None, None, self._OPTION_ITEM_HEIGHT)
         self.setColor(Color(255, 255, 255, 0))
         self._window.setColor(Color(255, 255, 255, 192))
         self._name = ""
@@ -38,11 +56,6 @@ class WindowMessage(WindowBase):
         self.content.addChild(self._text)
         self.setVisible(False)
 
-        self._inDialogue: bool = False
-        self._fadePhase: FadePhase = FadePhase.NOTHING
-        self._fadeInSpeed = 1000.0
-        self._fadeOutSpeed = 1000.0
-
     def onTick(self, deltaTime: float) -> None:
         if self._fadePhase == FadePhase.IN:
             self._fadeIn(deltaTime)
@@ -50,29 +63,98 @@ class WindowMessage(WindowBase):
             self._fadeOut(deltaTime)
         return super().onTick(deltaTime)
 
+    def update(self, deltaTime: float) -> None:
+        if self._contentMode != ContentMode.SELECTION:
+            self.index = None
+            if hasattr(self, "_rect"):
+                self._rect.setVisible(False)
+                if self._rect.getParent() is not None:
+                    self.content.removeChild(self._rect)
+            return super(WindowSelectable, self).update(deltaTime)
+        return super().update(deltaTime)
+
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
         if self.getVisible():
+            if self._contentMode == ContentMode.SELECTION:
+                if self._allowCancel and Input.isActionTriggered(Input.getCancelKeys(), handled=True):
+                    self._resolveSelection(-1)
+                    return
+                super().onKeyDown(kwargs)
+                return
             if Input.isActionTriggered(Input.getConfirmKeys(), handled=True):
-                self._inDialogue = False
-                self._fadePhase = FadePhase.OUT
+                self._resolveSelection(0)
         return super().onKeyDown(kwargs)
 
     def isInDialogue(self) -> bool:
         return self._inDialogue
 
-    def setMessage(self, refPosition: Optional[Vector2f], name: str, message: str) -> None:
-        if name == self._name and message == self._message:
-            return
-        self._text.setColor(Color(255, 255, 255, 0))
+    def getSelectionResult(self) -> Optional[int]:
+        return self._selectionResult
+
+    def setMessage(
+        self,
+        refPosition: Optional[Vector2f],
+        name: str,
+        message: Union[str, List[str], Tuple[str, ...]],
+        allowCancel: bool = True,
+    ) -> None:
+        self.setColor(Color(255, 255, 255, 0))
         self.setVisible(True)
         self._inDialogue = True
+        self._selectionResult = None
+        self._allowCancel = allowCancel
         self._fadePhase = FadePhase.IN
         self._name = name
-        self._message = message
         self._nameText.setString(name)
         self._nameText.setVisible(bool(name.strip()))
-        self._text.setString(message)
-        self._updateLayoutByTextSize()
+        self._nameText.setColor(Color(255, 255, 255, 0))
+        if isinstance(message, (list, tuple)):
+            self._contentMode = ContentMode.SELECTION
+            self._message = ""
+            self._text.setVisible(False)
+            self._setupSelectionList([str(item) for item in message])
+            if self._selectionListView is not None:
+                for child in self._selectionListView.getChildren():
+                    child.setColor(Color(255, 255, 255, 0))
+            self._updateLayoutBySelectionSize()
+        else:
+            self._contentMode = ContentMode.MESSAGE
+            self._message = message
+            self.index = None
+            self.setListView(None)
+            self._text.setVisible(True)
+            self._text.setColor(Color(255, 255, 255, 0))
+            self._text.setString(message)
+            self._updateLayoutByTextSize()
+        self._updateWindowPosition(refPosition)
+
+    def _resolveSelection(self, selectionResult: int) -> None:
+        if self._selectionResult is not None:
+            return
+        self._selectionResult = selectionResult
+        self._inDialogue = False
+        self._fadePhase = FadePhase.OUT
+
+    def _setupSelectionList(self, options: List[str]) -> None:
+        options = options[: self._MAX_OPTIONS]
+        if self._selectionListView is None:
+            self._selectionListView = ListView(IntRect(Vector2i(0, 0), Vector2i(1, 1)), self._OPTION_ITEM_HEIGHT, True, 1)
+        self._selectionListView.clearChildren()
+
+        for optionIndex, optionText in enumerate(options):
+            item = FPlainText(System.getFonts()[0], optionText, self._OPTION_TEXT_SIZE)
+
+            def onConfirm(_itemSelf, _kwargs, optionIndex=optionIndex) -> None:
+                self._resolveSelection(optionIndex)
+
+            item.addConfirmCallback(onConfirm)
+            self._applyItem(item)
+            self._selectionListView.addChild(item)
+
+        self.setListView(self._selectionListView)
+        self.index = 0 if len(options) > 0 else None
+
+    def _updateWindowPosition(self, refPosition: Optional[Vector2f]) -> None:
         gameSize = GlobalSystem.getGameSize()
         gameWidth = float(gameSize.x)
         gameHeight = float(gameSize.y)
@@ -124,7 +206,12 @@ class WindowMessage(WindowBase):
         self._textStyles["Yellow"] = TextStyle(fillColor=Color.Yellow)
 
     def _fadeIn(self, deltaTime: float) -> None:
-        for comp in [self, self._text]:
+        fadeTargets = [self, self._nameText]
+        if self._contentMode == ContentMode.MESSAGE:
+            fadeTargets.append(self._text)
+        elif self._contentMode == ContentMode.SELECTION and self._selectionListView is not None:
+            fadeTargets.extend(self._selectionListView.getChildren())
+        for comp in fadeTargets:
             a = comp.getColor().a
             if a == 255:
                 continue
@@ -135,6 +222,9 @@ class WindowMessage(WindowBase):
     def _fadeOut(self, deltaTime: float) -> None:
         a = self.getColor().a
         if a == 0:
+            self._fadePhase = FadePhase.NOTHING
+            self._inDialogue = False
+            self.setVisible(False)
             return
         deltaAlpha = self._fadeOutSpeed * deltaTime
         a = int(max(a - deltaAlpha, 0))
@@ -171,6 +261,67 @@ class WindowMessage(WindowBase):
             self._nameText.setPosition(Vector2f(nameX, 0.0))
             textY = float(nameHeight + self._NAME_MESSAGE_GAP)
         self._text.setPosition(Vector2f(0.0, textY))
+
+    def _updateLayoutBySelectionSize(self) -> None:
+        nameBounds = self._nameText.getLocalBounds()
+        hasName = self._nameText.getVisible()
+        nameWidth = 0
+        nameHeight = 0
+        if hasName:
+            nameWidth = max(1, int(nameBounds.size.x + nameBounds.position.x))
+            nameHeight = max(1, int(nameBounds.size.y + nameBounds.position.y))
+
+        optionWidth = 1
+        optionCount = 0
+        if self._selectionListView is not None:
+            optionCount = len(self._selectionListView.getChildren())
+            for child in self._selectionListView.getChildren():
+                bounds = child.getLocalBounds()
+                childWidth = max(1, int(bounds.size.x + bounds.position.x))
+                optionWidth = max(optionWidth, childWidth)
+
+        contentWidth = max(32, optionWidth, nameWidth)
+        contentHeight = optionCount * self._OPTION_ITEM_HEIGHT
+        if hasName:
+            contentHeight += nameHeight + self._NAME_MESSAGE_GAP
+        totalWidth = contentWidth + self._WINDOW_PADDING * 2
+        totalHeight = contentHeight + self._WINDOW_PADDING * 2
+        self._resizeCanvas(self, totalWidth, totalHeight)
+        self._resizeWindow(totalWidth, totalHeight)
+        self._resizeCanvas(self.content, contentWidth, contentHeight)
+        self.content.setPosition(Vector2f(self._WINDOW_PADDING, self._WINDOW_PADDING))
+        currentY = 0.0
+        if hasName:
+            nameX = (contentWidth - nameWidth) / 2.0
+            self._nameText.setPosition(Vector2f(nameX, 0.0))
+            currentY = float(nameHeight + self._NAME_MESSAGE_GAP)
+        if self._selectionListView is not None:
+            self._selectionListView.size = Vector2i(contentWidth, optionCount * self._OPTION_ITEM_HEIGHT)
+            self._selectionListView.setPosition(Vector2f(0.0, currentY))
+
+    def _getRectPosition(self) -> Optional[Vector2f]:
+        if self.index is None:
+            return None
+        if self._contentMode != ContentMode.SELECTION or self._selectionListView is None:
+            return super()._getRectPosition()
+        columns = self._selectionListView.getColumns()
+        if columns <= 0:
+            return super()._getRectPosition()
+        listViewX, listViewY = self._selectionListView.v_getPosition()
+        colWidth = (float(self._selectionListView.size.x) - 32.0) / float(columns)
+        col = self.index % columns
+        row = self.index // columns
+        x = float(listViewX) + 16.0 + float(col) * colWidth
+        y = float(listViewY) + float(row) * float(self._rectHeight)
+        return Vector2f(x, y)
+
+    def _getRectWidth(self) -> int:
+        if self._contentMode != ContentMode.SELECTION or self._selectionListView is None:
+            return super()._getRectWidth()
+        columns = self._selectionListView.getColumns()
+        if columns <= 0:
+            return super()._getRectWidth()
+        return max(1, int(round((float(self._selectionListView.size.x) - 32.0) / float(columns))))
 
     def _resizeCanvas(self, target, width: int, height: int) -> None:
         from Engine import Scale

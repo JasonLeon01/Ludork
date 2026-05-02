@@ -68,6 +68,12 @@ class PlainText(ControlBase):
     def getSize(self) -> Vector2f:
         return self._text.getGlobalBounds().size
 
+    def getColor(self) -> Color:
+        return self._text.getFillColor()
+
+    def setColor(self, color: Color) -> None:
+        self._text.setFillColor(color)
+
     def draw(self, target: RenderTarget, states: RenderStates) -> None:
         self._applyRenderStates(states)
         if self.getVisible():

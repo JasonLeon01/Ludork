@@ -7,7 +7,9 @@
 **/build/
 **/__MACOSX
 /.vscode/
+.claude/
 .trae/
+.rules/
 lib/
 C_Extensions/SFML/
 LudorkEnv/
