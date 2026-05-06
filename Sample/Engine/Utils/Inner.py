@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""Internal utility functions for type filtering, string formatting, and module introspection."""
 
 import os
 import sys

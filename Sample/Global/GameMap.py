@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""GameMap: manages tile layers, actors, lights, collisions, and pathfinding for a single map."""
 
 from __future__ import annotations
 from collections import deque

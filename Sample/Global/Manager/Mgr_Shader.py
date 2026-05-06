@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""ShaderManager: loads and caches GLSL shader programs."""
 
 from __future__ import annotations
 import os

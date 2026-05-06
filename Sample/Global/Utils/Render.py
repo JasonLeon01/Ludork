@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""Global render utilities: screen-space coordinate transforms and draw helpers."""
 
 import copy
 from typing import Union

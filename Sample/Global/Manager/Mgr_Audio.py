@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""AudioManager: manages sound effect and music playback with caching and filters."""
 
 from __future__ import annotations
 import asyncio

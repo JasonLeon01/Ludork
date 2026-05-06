@@ -1,7 +1,8 @@
 # -*- encoding: utf-8 -*-
+"""Game system bootstrap: initializes engine, loads data, and starts the game loop."""
 
 import os
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 import Engine
 from Engine import (
     Vector2u,
@@ -30,7 +31,6 @@ class System:
     _coverOpaqueAlpha: int = 0
     _startMap: str = ""
     _startPos: Vector2u
-    _variables: Dict[str, Any] = {}
 
     @classmethod
     def init(cls) -> None:
@@ -61,6 +61,8 @@ class System:
             windowSize = window.getSize()
             scale = min(windowSize.x / gameSize.x, windowSize.y / gameSize.y)
             GlobalSystem.setScale(scale)
+            from Engine import Input as EngineInput
+            EngineInput.setUseInjectedMouseOnly(True)
         else:
             window = RenderWindow(
                 VideoMode(realSize),
@@ -109,13 +111,3 @@ class System:
     @classmethod
     def getStartPos(cls) -> Vector2u:
         return cls._startPos
-
-    @classmethod
-    def getVariable(cls, name: str) -> Any:
-        if not name in cls._variables:
-            return None
-        return cls._variables[name]
-
-    @classmethod
-    def setVariable(cls, name: str, value: Any) -> None:
-        cls._variables[name] = value

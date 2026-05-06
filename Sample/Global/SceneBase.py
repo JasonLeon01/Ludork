@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""SceneBase: abstract base class for all game scenes with lifecycle hooks."""
 
 from __future__ import annotations
 import inspect

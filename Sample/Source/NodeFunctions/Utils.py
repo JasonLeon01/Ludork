@@ -238,6 +238,13 @@ def SUPER(obj: object) -> None:
     if hasattr(cls, "_GENERATED_CLASS") and getattr(cls, "_GENERATED_CLASS"):
         graph = getattr(parent_cls, "_graph", None)
         if graph is None:
+            from Engine.BPBase import BPBase
+            infoGraph = getattr(obj, "_infoGraph", None)
+            if infoGraph and infoGraph.hasKey(key):
+                if key in infoGraph.startNodes and infoGraph.startNodes[key] is not None:
+                    infoGraph.localGraph = SUPER._refLocal
+                    infoGraph.execute(key)
+                    return
             try:
                 getattr(parent_cls, key)(obj, *SUPER._refLocal[f"__{key}__"])
             except:
@@ -246,6 +253,13 @@ def SUPER(obj: object) -> None:
             graph.localGraph = SUPER._refLocal
             graph.execute(key)
     else:
+        from Engine.BPBase import BPBase
+        infoGraph = getattr(obj, "_infoGraph", None)
+        if infoGraph and infoGraph.hasKey(key):
+            if key in infoGraph.startNodes and infoGraph.startNodes[key] is not None:
+                infoGraph.localGraph = SUPER._refLocal
+                infoGraph.execute(key)
+                return
         method = getattr(obj, key, None)
         if inspect.isfunction(method):
             method()

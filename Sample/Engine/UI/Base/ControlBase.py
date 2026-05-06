@@ -10,7 +10,14 @@ if TYPE_CHECKING:
 
 
 class ControlBase(Drawable, Transformable):
+    """Base class for all UI controls.
+
+    Provides visibility, activity state, naming, parent-child relationships,
+    and transform operations (position, rotation, scale, origin).
+    """
+
     def __init__(self) -> None:
+        """Construct an empty UI control with default visibility and activity."""
         Drawable.__init__(self)
         Transformable.__init__(self)
         self._visible: bool = True

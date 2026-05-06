@@ -22,7 +22,10 @@ from .ControlBase import ControlBase
 
 
 class SpriteBase(ControlBase):
+    """UI control backed by a textured sprite with bounds and color support."""
+
     def __init__(self, texture: Texture, rect: Optional[IntRect] = None) -> None:
+        """Construct a sprite-based control from a texture and optional sub-rectangle."""
         from ...Utils import Render
 
         self._sprite: Sprite

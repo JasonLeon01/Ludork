@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""File I/O utilities for loading and saving data files (pickle, JSON)."""
 
 import json
 import pickle

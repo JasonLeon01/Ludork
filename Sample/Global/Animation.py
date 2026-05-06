@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""Animation helper: spawns and manages AnimSprite instances on the current scene."""
 
 from typing import List, Dict, Any
 from Engine.Animation import AnimSprite

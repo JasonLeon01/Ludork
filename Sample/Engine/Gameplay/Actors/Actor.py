@@ -11,11 +11,17 @@ from .Base import _ActorBase
 @PathVars("texturePath")
 @RectRangeVars(defaultRect="texturePath")
 class Actor(_ActorBase, BPBase):
-    collisionEnabled: bool = False
-    tickable: bool = False
-    speed: float = 64.0
+    """Game actor with collision, movement, and blueprint event support.
+
+    Extends `_ActorBase` with grid-based movement, collision detection,
+    routine (pathfinding) execution, and blueprint event dispatching.
+    """
+
+    collisionEnabled: bool = False   #: Whether this actor blocks movement
+    tickable: bool = False           #: Whether tick events are dispatched
+    speed: float = 64.0              #: Movement speed in pixels per second
     ### Generation use only
-    texturePath: str = ""
+    texturePath: str = ""            #: Asset path to the character texture
     defaultRect: Optional[Tuple[Pair[int], Pair[int]]] = ((0, 0), (32, 32))
     defaultTranslation: Pair[float] = (0.0, 0.0)
     defaultRotation: float = 0.0
@@ -63,40 +69,62 @@ class Actor(_ActorBase, BPBase):
 
     @RegisterEvent
     def onCreate(self) -> None:
+        """Blueprint event: called once when the actor is spawned into the scene."""
         pass
 
     @RegisterEvent
     def onTick(self, deltaTime: float) -> None:
+        """Blueprint event: called every frame while `tickable` is `True`."""
         pass
 
     @RegisterEvent
     def onLateTick(self, deltaTime: float) -> None:
+        """Blueprint event: called after all actors' onTick in the same frame."""
         pass
 
     @RegisterEvent
     def onFixedTick(self, fixedDelta: float) -> None:
+        """Blueprint event: called at a fixed physics timestep."""
         pass
 
     @RegisterEvent
     def onDestroy(self) -> None:
+        """Blueprint event: called when the actor is removed from the scene."""
         pass
 
     @RegisterEvent
     def onCollision(self, other: List[Actor]) -> None:
+        r"""Blueprint event: called when movement is blocked by another actor.
+
+        \param other  List of actors at the collision target cell
+        """
         pass
 
     @RegisterEvent
     def onOverlap(self, other: List[Actor]) -> None:
+        r"""Blueprint event: called when this actor enters a cell occupied by others.
+
+        \param other  List of actors sharing the same cell
+        """
         pass
 
     @ExecSplit(default=(None,))
     def destroy(self) -> None:
+        """Remove this actor from the current map and trigger `onDestroy`."""
         if self._map:
             self._map.destroyActor(self)
 
     @ExecSplit(success=(True,), fail=(False,))
     @TypeAdapter(offset=([tuple, list], Vector2i))
     def MapMove(self, offset: Union[Vector2i, Pair[int], List[int]]) -> bool:
+        """Move the actor by one cell in the given direction.
+
+        Validates boundaries and passability before initiating movement.
+        Triggers `onCollision` on both parties if the target cell is blocked.
+
+        \param offset  Direction vector (clamped to unit: -1, 0, or 1 per axis)
+        \return `True` if movement was initiated, `False` otherwise
+        """
         from ... import CellSize
 
         if not self._moveEnabled or not self._map:
@@ -132,6 +160,7 @@ class Actor(_ActorBase, BPBase):
 
     @ReturnType(tickable=bool)
     def getTickable(self) -> bool:
+        """Check whether tick events are enabled."""
         return self.tickable
 
     @ExecSplit(default=(None,))
@@ -145,6 +174,7 @@ class Actor(_ActorBase, BPBase):
 
     @ReturnType(visible=bool)
     def getVisible(self) -> bool:
+        """Check whether this actor is visible."""
         return self._visible
 
     @ExecSplit(default=(None,))
@@ -157,39 +187,48 @@ class Actor(_ActorBase, BPBase):
 
     @ReturnType(collisionEnabled=bool)
     def getCollisionEnabled(self) -> bool:
+        """Check whether this actor blocks movement of others."""
         return self.collisionEnabled
 
     @ExecSplit(default=(None,))
     def setCollisionEnabled(self, enabled: bool) -> None:
+        """Enable or disable collision blocking."""
         self.collisionEnabled = enabled
 
     @ReturnType(intersects=bool)
     def intersects(self, other: Actor) -> bool:
+        """Test whether this actor's bounding box overlaps another's."""
         return not self.getGlobalBounds().findIntersection(other.getGlobalBounds()) is None
 
     @ReturnType(isMoving=bool)
     def isMoving(self) -> bool:
+        """Check whether this actor is currently in motion."""
         return self._isMoving or self._realSpeed > 0.0
 
     @ReturnType(isInRoutine=bool)
     def isInRoutine(self) -> bool:
+        """Check whether this actor is executing a movement routine."""
         return self._inRoutine
 
     @ExecSplit(default=(None,))
     def setRoutine(self, routine: Optional[List[Vector2i]]) -> None:
+        """Set a sequence of grid offsets to walk automatically."""
         self._inRoutine = routine is not None
         self._routine = routine
 
     @ReturnType(routine=Optional[List[Vector2i]])
     def getRoutine(self) -> Optional[List[Vector2i]]:
+        """Get the current movement routine, or `None` if inactive."""
         return self._routine
 
     @ReturnType(moveEnabled=bool)
     def getMoveEnabled(self) -> bool:
+        """Check whether movement is allowed."""
         return self._moveEnabled
 
     @ExecSplit(default=(None,))
     def setMoveEnabled(self, enabled: bool) -> None:
+        """Enable or disable movement. Disabling also stops current motion."""
         self._moveEnabled = enabled
         if not enabled:
             self.stop()
@@ -206,6 +245,7 @@ class Actor(_ActorBase, BPBase):
 
     @ReturnType(velocity=Optional[Vector2f])
     def getVelocity(self) -> Optional[Vector2f]:
+        """Compute the current velocity vector, accounting for tile material speed rate."""
         if not self._map or self._departure is None or self._destination is None:
             return None
 

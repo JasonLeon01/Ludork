@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""WindowBase: base class for all game windows with open/close lifecycle."""
 
 from __future__ import annotations
 from typing import Optional, Union, Tuple

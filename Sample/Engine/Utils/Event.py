@@ -74,6 +74,7 @@ class EventBus:
             self._queue.append((event, payload))
 
     def flush(self, limit: Optional[int] = None) -> int:
+        """Process queued events up to an optional limit. Returns number processed."""
         processed = 0
         while True:
             with self._lock:

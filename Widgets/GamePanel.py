@@ -13,6 +13,14 @@ class GamePanel(QtWidgets.QWidget):
         self._engineProc = None
         self._keyMap = self._initKeyMap()
 
+    def _dpr(self) -> float:
+        return self.devicePixelRatioF()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        dpr = self._dpr()
+        print(f"[GamePanel] resized: logical={self.width()}x{self.height()}, dpr={dpr}, physical={int(self.width()*dpr)}x{int(self.height()*dpr)}")
+
     def setEngineProcess(self, proc):
         self._engineProc = proc
 
@@ -110,7 +118,8 @@ class GamePanel(QtWidgets.QWidget):
         elif event.button() == QtCore.Qt.XButton2:
             btn = "XButton2"
 
-        data = {"type": "MouseButtonPressed", "button": btn, "x": int(event.x()), "y": int(event.y())}
+        dpr = self._dpr()
+        data = {"type": "MouseButtonPressed", "button": btn, "x": int(event.x() * dpr), "y": int(event.y() * dpr)}
         self._sendEvent(data)
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent):
@@ -124,16 +133,19 @@ class GamePanel(QtWidgets.QWidget):
         elif event.button() == QtCore.Qt.XButton2:
             btn = "XButton2"
 
-        data = {"type": "MouseButtonReleased", "button": btn, "x": int(event.x()), "y": int(event.y())}
+        dpr = self._dpr()
+        data = {"type": "MouseButtonReleased", "button": btn, "x": int(event.x() * dpr), "y": int(event.y() * dpr)}
         self._sendEvent(data)
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent):
-        data = {"type": "MouseMoved", "x": int(event.x()), "y": int(event.y())}
+        dpr = self._dpr()
+        data = {"type": "MouseMoved", "x": int(event.x() * dpr), "y": int(event.y() * dpr)}
         self._sendEvent(data)
 
     def wheelEvent(self, event: QtGui.QWheelEvent):
         delta = event.angleDelta().y() / 120.0
-        data = {"type": "MouseWheelScrolled", "delta": delta, "x": int(event.x()), "y": int(event.y())}
+        dpr = self._dpr()
+        data = {"type": "MouseWheelScrolled", "delta": delta, "x": int(event.x() * dpr), "y": int(event.y() * dpr)}
         self._sendEvent(data)
 
     def focusInEvent(self, event: QtGui.QFocusEvent):

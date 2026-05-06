@@ -3,7 +3,8 @@
 from typing import Any, Optional
 import os
 import re
-from PyQt5 import QtCore, QtGui, QtWidgets
+import sys
+from PyQt5 import QtCore, QtWidgets
 from EditorGlobal import EditorStatus, GameData
 from .Utils import FileSelectorDialog
 
@@ -104,6 +105,7 @@ class TupleEditorWidget(QtWidgets.QWidget):
 
 class GeneralDataPage(QtWidgets.QWidget):
     modified = QtCore.pyqtSignal()
+    requestBlueprintEdit = QtCore.pyqtSignal(str, str, list)
 
     def __init__(self, fileKey: str, parent: Optional[QtWidgets.QWidget] = None):
         super().__init__(parent)
@@ -134,16 +136,99 @@ class GeneralDataPage(QtWidgets.QWidget):
 
         self.splitter.addWidget(leftWidget)
 
+        rightWidget = QtWidgets.QWidget()
+        rightLayout = QtWidgets.QVBoxLayout(rightWidget)
+        rightLayout.setContentsMargins(0, 0, 0, 0)
+
+        self.linkedTypeBar = QtWidgets.QWidget()
+        linkedTypeLayout = QtWidgets.QHBoxLayout(self.linkedTypeBar)
+        linkedTypeLayout.setContentsMargins(0, 0, 0, 4)
+        self.linkedTypeLabel = QtWidgets.QLabel("")
+        self.linkedTypeLabel.setStyleSheet("color: #88aaff; font-weight: bold;")
+        linkedTypeLayout.addWidget(self.linkedTypeLabel)
+        linkedTypeLayout.addStretch()
+
+        self.btnEditBlueprint = QtWidgets.QPushButton(ELOC("EDIT_BLUEPRINT"))
+        self.btnEditBlueprint.setEnabled(False)
+        self.btnEditBlueprint.clicked.connect(self._onEditBlueprint)
+        linkedTypeLayout.addWidget(self.btnEditBlueprint)
+
+        rightLayout.addWidget(self.linkedTypeBar)
+
         self.scrollArea = QtWidgets.QScrollArea()
         self.scrollArea.setWidgetResizable(True)
         self.propertyWidget = QtWidgets.QWidget()
         self.propertyLayout = QtWidgets.QFormLayout(self.propertyWidget)
         self.scrollArea.setWidget(self.propertyWidget)
-        self.splitter.addWidget(self.scrollArea)
+        rightLayout.addWidget(self.scrollArea)
 
+        self.splitter.addWidget(rightWidget)
         self.splitter.setSizes([300, 700])
 
+        self._updateLinkedTypeBar()
         self._populateMembers()
+
+    def _getLinkedType(self) -> Optional[str]:
+        data = GameData.generalData.get(self.fileKey, {})
+        return data.get("linkedType", None)
+
+    def _getLinkedEvents(self) -> list:
+        data = GameData.generalData.get(self.fileKey, {})
+        events = data.get("events", [])
+        if events:
+            return events
+        linkedType = self._getLinkedType()
+        if linkedType:
+            cls = self._resolveLinkedClass(linkedType)
+            if cls:
+                return self._extractRegisteredEvents(cls)
+        return []
+
+    def _resolveLinkedClass(self, typeName: str) -> Optional[type]:
+        try:
+            cls = GameData.classDict.get(f"Source.{typeName}", EditorStatus.PROJ_PATH)
+            if cls and cls is not EditorStatus.PROJ_PATH:
+                return cls
+        except Exception:
+            pass
+
+        try:
+            sourcePath = os.path.join(EditorStatus.PROJ_PATH, "Source")
+            if sourcePath not in sys.path:
+                sys.path.insert(0, sourcePath)
+            moduleName = typeName.replace("Info", "Info")
+            mod = __import__(f"Source.{moduleName}", fromlist=[typeName])
+            return getattr(mod, typeName, None)
+        except Exception:
+            pass
+
+        return None
+
+    @staticmethod
+    def _extractRegisteredEvents(targetCls) -> list:
+        events = []
+        for name in dir(targetCls):
+            if name.startswith("_"):
+                continue
+            attr = getattr(targetCls, name, None)
+            if callable(attr) and getattr(attr, "_eventSignature", False):
+                events.append(name)
+        return events
+
+    def _updateLinkedTypeBar(self):
+        linkedType = self._getLinkedType()
+        if linkedType:
+            self.linkedTypeLabel.setText(f"[{ELOC('LINKED_TYPE')}: {linkedType}]")
+            self.linkedTypeBar.setVisible(True)
+        else:
+            self.linkedTypeBar.setVisible(False)
+
+    def _onEditBlueprint(self):
+        if not self._currentMemberKey:
+            return
+        events = self._getLinkedEvents()
+        if events:
+            self.requestBlueprintEdit.emit(self.fileKey, self._currentMemberKey, events)
 
     def _populateMembers(self):
         self.memberList.blockSignals(True)
@@ -165,10 +250,15 @@ class GeneralDataPage(QtWidgets.QWidget):
     def _onMemberSelected(self, current: QtWidgets.QListWidgetItem, previous: QtWidgets.QListWidgetItem):
         if not current:
             self._clearPropertyForm()
+            self.btnEditBlueprint.setEnabled(False)
             return
 
         self._currentMemberKey = current.text()
         self._buildPropertyForm()
+
+        linkedType = self._getLinkedType()
+        events = self._getLinkedEvents()
+        self.btnEditBlueprint.setEnabled(bool(linkedType and events))
 
     def _clearPropertyForm(self):
         while self.propertyLayout.count():
@@ -435,6 +525,14 @@ class GeneralDataPage(QtWidgets.QWidget):
         removeAction.triggered.connect(self._onRemoveMember)
         menu.addAction(removeAction)
 
+        linkedType = self._getLinkedType()
+        events = self._getLinkedEvents()
+        if linkedType and events:
+            menu.addSeparator()
+            bpAction = QtWidgets.QAction(ELOC("EDIT_BLUEPRINT"), self)
+            bpAction.triggered.connect(self._onEditBlueprint)
+            menu.addAction(bpAction)
+
         menu.exec_(self.memberList.mapToGlobal(position))
 
     def _changeMemberID(self):
@@ -526,6 +624,57 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
 
         self._populateFiles()
 
+    def _scanInfoTypes(self) -> list:
+        infoTypes = []
+        sourcePath = os.path.join(EditorStatus.PROJ_PATH, "Source")
+
+        if not os.path.isdir(sourcePath):
+            return infoTypes
+
+        for fileName in os.listdir(sourcePath):
+            if not fileName.endswith(".py") or fileName.startswith("_"):
+                continue
+            filePath = os.path.join(sourcePath, fileName)
+            try:
+                with open(filePath, "r", encoding="utf-8") as f:
+                    content = f.read()
+                if "InfoBase" in content or "_infoType" in content:
+                    className = fileName[:-3]
+                    infoTypes.append(className)
+            except Exception:
+                continue
+
+        if not infoTypes:
+            infoTypes = ["ItemInfo", "EnemyInfo"]
+
+        return infoTypes
+
+    def _getEventsFromType(self, typeName: str) -> list:
+        try:
+            cls = GameData.classDict.get(f"Source.{typeName}", EditorStatus.PROJ_PATH)
+            if cls and cls is not EditorStatus.PROJ_PATH:
+                return GeneralDataPage._extractRegisteredEvents(cls)
+        except Exception:
+            pass
+
+        sourcePath = os.path.join(EditorStatus.PROJ_PATH, "Source", f"{typeName}.py")
+        if os.path.exists(sourcePath):
+            events = []
+            try:
+                with open(sourcePath, "r", encoding="utf-8") as f:
+                    lines = f.readlines()
+                for i, line in enumerate(lines):
+                    if "@RegisterEvent" in line:
+                        if i + 1 < len(lines):
+                            match = re.match(r"\s*def\s+(\w+)\s*\(", lines[i + 1])
+                            if match:
+                                events.append(match.group(1))
+            except Exception:
+                pass
+            return events
+
+        return []
+
     def _onTabContextMenu(self, position):
         menu = QtWidgets.QMenu(self)
 
@@ -544,6 +693,12 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
             renameAction.triggered.connect(lambda checked=False, idx=tabIndex: self._onRenameDataType(idx))
             menu.addAction(renameAction)
 
+            linkAction = QtWidgets.QAction(ELOC("SET_LINKED_TYPE"), self)
+            linkAction.triggered.connect(lambda checked=False, idx=tabIndex: self._onSetLinkedType(idx))
+            menu.addAction(linkAction)
+
+            menu.addSeparator()
+
             deleteAction = QtWidgets.QAction(ELOC("DELETE_DATA_TYPE"), self)
             deleteAction.triggered.connect(lambda checked=False, idx=tabIndex: self._onRemoveDataType(idx))
             menu.addAction(deleteAction)
@@ -551,21 +706,91 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
         menu.exec_(self.tabWidget.mapToGlobal(position))
 
     def _onAddDataType(self):
+        infoTypes = self._scanInfoTypes()
+        options = [ELOC("NO_LINKED_TYPE")] + infoTypes
+
+        linkedType, ok = QtWidgets.QInputDialog.getItem(
+            self,
+            ELOC("SELECT_LINKED_TYPE"),
+            ELOC("SELECT_LINKED_TYPE_DESC"),
+            options,
+            0,
+            False,
+        )
+        if not ok:
+            return
+
+        isLinked = linkedType != options[0]
+        actualLinkedType = linkedType if isLinked else None
+
         text, ok = QtWidgets.QInputDialog.getText(self, ELOC("NEW_DATA_TYPE"), ELOC("ENTER_DATA_TYPE_NAME"))
-        if ok and text:
-            data = getattr(GameData, "generalData", {})
-            if text in data:
-                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("DATA_TYPE_EXISTS"))
-                return
+        if not (ok and text):
+            return
 
-            data[text] = {"params": {}, "members": {}}
-            self._populateFiles()
-            for i in range(self.tabWidget.count()):
-                if self.tabWidget.tabText(i) == text:
-                    self.tabWidget.setCurrentIndex(i)
-                    break
+        data = getattr(GameData, "generalData", {})
+        if text in data:
+            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("DATA_TYPE_EXISTS"))
+            return
 
-            self.modified.emit()
+        newEntry = {"params": {}, "members": {}}
+
+        if actualLinkedType:
+            newEntry["linkedType"] = actualLinkedType
+            events = self._getEventsFromType(actualLinkedType)
+            if events:
+                newEntry["events"] = events
+
+        data[text] = newEntry
+        self._populateFiles()
+        for i in range(self.tabWidget.count()):
+            if self.tabWidget.tabText(i) == text:
+                self.tabWidget.setCurrentIndex(i)
+                break
+
+        self.modified.emit()
+
+    def _onSetLinkedType(self, index: int):
+        key = self.tabWidget.tabText(index)
+        data = getattr(GameData, "generalData", {})
+        fileData = data.get(key, {})
+
+        infoTypes = self._scanInfoTypes()
+        currentLinked = fileData.get("linkedType", "")
+        options = [ELOC("NO_LINKED_TYPE")] + infoTypes
+
+        currentIndex = 0
+        if currentLinked in infoTypes:
+            currentIndex = infoTypes.index(currentLinked) + 1
+
+        linkedType, ok = QtWidgets.QInputDialog.getItem(
+            self,
+            ELOC("SET_LINKED_TYPE"),
+            ELOC("SELECT_LINKED_TYPE_DESC"),
+            options,
+            currentIndex,
+            False,
+        )
+        if not ok:
+            return
+
+        isLinked = linkedType != options[0]
+
+        if isLinked:
+            fileData["linkedType"] = linkedType
+            events = self._getEventsFromType(linkedType)
+            if events:
+                fileData["events"] = events
+            elif "events" in fileData:
+                del fileData["events"]
+        else:
+            if "linkedType" in fileData:
+                del fileData["linkedType"]
+            if "events" in fileData:
+                del fileData["events"]
+
+        self._populateFiles()
+        self.tabWidget.setCurrentIndex(index)
+        self.modified.emit()
 
     def _onRenameDataType(self, index: int):
         oldKey = self.tabWidget.tabText(index)
@@ -612,6 +837,46 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
             self.tabWidget.removeTab(index)
             self.modified.emit()
 
+    def _onBlueprintEditRequest(self, fileKey: str, memberKey: str, events: list):
+        import copy
+
+        fileData = GameData.generalData.get(fileKey, {})
+        members = fileData.get("members", {})
+        memberData = members.get(memberKey, {})
+        linkedType = fileData.get("linkedType", "")
+
+        if "_graph" not in memberData:
+            nodeGraph = {}
+            startNodes = {}
+            for event in events:
+                nodeGraph[event] = {"nodes": [], "links": []}
+                startNodes[event] = None
+
+            memberData["_graph"] = {
+                "nodeGraph": nodeGraph,
+                "startNodes": startNodes,
+            }
+            members[memberKey] = memberData
+
+        bpData = {
+            "parent": f"Source.{linkedType}" if linkedType else "",
+            "attrs": {"ID": memberKey},
+            "graph": copy.deepcopy(memberData["_graph"]),
+        }
+
+        from Widgets.BlueprintEditor import BluePrintEditor
+
+        bpTitle = f"__info__/{fileKey}/{memberKey}"
+        editor = BluePrintEditor(bpTitle, bpData, self)
+
+        def _onInfoBlueprintModified():
+            memberData["_graph"] = copy.deepcopy(editor.data.get("graph", {}))
+            self.modified.emit()
+
+        editor.modified.connect(_onInfoBlueprintModified)
+        editor.show()
+        editor.raise_()
+
     def _populateFiles(self):
         self.tabWidget.clear()
         data = getattr(GameData, "generalData", {})
@@ -619,4 +884,5 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
         for key in sorted(data.keys()):
             page = GeneralDataPage(key, self)
             page.modified.connect(self.modified.emit)
+            page.requestBlueprintEdit.connect(self._onBlueprintEditRequest)
             self.tabWidget.addTab(page, key)

@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""TextureManager: loads and caches texture resources with optional sRGB and smoothing."""
 
 from __future__ import annotations
 import weakref

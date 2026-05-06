@@ -1,26 +1,30 @@
 # -*- encoding: utf-8 -*-
+"""SceneMap: the main gameplay scene handling map rendering, actors, and player interaction."""
 
 import os
-from typing import Callable, List, Union, Optional, Dict, Any, Type, cast
+from typing import Callable, List, Union, Optional, Dict, Any
 from Engine import Pair, Vector2u, Vector2f, Color
 from Engine.Gameplay import Tilemap, TileLayer, TileLayerData
 from Engine.Utils import File
 from Global import Manager, SceneBase, GameMap, Camera, Light
 from Global import System as GlobalSystem
 from Source import Data, System
-from Source.Player import Player
 from Source.Windows.WindowMessage import WindowMessage
+from Source.GameInstance import GameInstance
 
 
 class Scene(SceneBase):
     def onEnter(self) -> None:
         GlobalSystem.setTransition(Manager.loadTransition("012-Random04.png"), 0.5)
 
+    def setInst(self, inst: GameInstance) -> None:
+        self.inst = inst
+
     def onCreate(self) -> None:
+        self.player = self.inst.getPlayer()
         self._messageWindow = WindowMessage()
         self._uiManager.loadUI(self._messageWindow)
 
-        self.player = self._initPlayer()
         self._gameMap: GameMap = None
         self._cachedMapFile: str = None
         self.gotoMapAndPos(System.getStartMap(), System.getStartPos())
@@ -43,6 +47,13 @@ class Scene(SceneBase):
         self._gameMap.setScene(self)
         self._gameMap.spawnActor(self.player, "default")
         self._gameMap.setPlayer(self.player)
+        destroyedActors = self.inst.getDestroyedActors(mapPath)
+        if destroyedActors:
+            for actorTag in destroyedActors:
+                actorList = self._gameMap.getAllActorsByTag(actorTag)
+                if actorList:
+                    for actor in actorList:
+                        actor.destroy()
 
     @Latent(FinishedDialogue=(True,))
     def showMessage(self, refActorTag: str, name: str, message: str) -> Callable[[], bool]:
@@ -67,7 +78,9 @@ class Scene(SceneBase):
         return condition
 
     @Latent(Selected0=(0,), Selected1=(1,), Selected2=(2,), Selected3=(3,), Cancelled=(-1,))
-    def showSelection(self, refActorTag: str, name: str, options: List[str], allowCancel: bool) -> Callable[[], Optional[int]]:
+    def showSelection(
+        self, refActorTag: str, name: str, options: List[str], allowCancel: bool
+    ) -> Callable[[], Optional[int]]:
         refPosition: Optional[Vector2f] = None
         if bool(refActorTag):
             actors = self._gameMap.getAllActorsByTag(refActorTag)
@@ -93,34 +106,14 @@ class Scene(SceneBase):
     @ExecSplit(default=(None,))
     @TypeAdapter(pos=([tuple, list], Vector2u))
     def gotoMapAndPos(self, mapPath: str, pos: Union[Vector2u, Pair[int], List[int]]) -> None:
-        if self._cachedMapFile != mapPath:
+        if mapPath and self._cachedMapFile != mapPath:
             self._cachedMapFile = mapPath
             self.loadMap(mapPath)
-        player = self._gameMap.getPlayer()
-        assert player
-        player.setMapPosition(pos)
+        self.inst.applyMapInfo(mapPath, pos)
 
     def _renderHandle(self, deltaTime: float) -> None:
         self._gameMap.show()
         super()._renderHandle(deltaTime)
-
-    def _initPlayer(self) -> Player:
-        playerPath = "Data.Blueprints.Actors.BP_Actor_Braver"
-        actorClass: Type[Player] = Data.getClass(playerPath)
-        texturePath = getattr(actorClass, "texturePath")
-        defaultRect = getattr(actorClass, "defaultRect")
-        actor: Player = cast(Player, actorClass.GenActor(actorClass, Manager.loadCharacter(texturePath), defaultRect, "yongshi"))
-        actor.setAnimatable(True, True)
-        actor.setCollisionEnabled(True)
-        actor.setPosition((608, 256))
-        actor.setGraph(
-            Data.genGraphFromData(
-                Data.getClassData(playerPath)["graph"],
-                actor,
-                Data.getClass(playerPath),
-            )
-        )
-        return actor
 
     def _generateTilemap(self, data: Dict[str, List[List[Any]]], width: int, height: int) -> Tilemap:
         mapLayers = []

@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""FunctionalPlainText / FunctionalRichText: interactive text controls with event support."""
 
 from __future__ import annotations
 from typing import Dict, Optional

@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""FontManager: loads and caches font resources."""
 
 import warnings
 from typing import Dict, List

@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""WindowCommand: a simple selectable command list window."""
 
 from __future__ import annotations
 from typing import Any, Dict, Optional, Union, Tuple

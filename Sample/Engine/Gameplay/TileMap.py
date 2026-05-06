@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""Tile-based map system: Tileset, TileLayer, and Tilemap classes."""
 
 from __future__ import annotations
 from dataclasses import dataclass, asdict

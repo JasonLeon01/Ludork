@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""WindowMessage: dialogue message window with typewriter effect and selection branches."""
 
 from __future__ import annotations
 from enum import IntEnum

@@ -1,4 +1,10 @@
 # -*- encoding: utf-8 -*-
+"""Input polling and event system.
+
+Provides a stateful, per-frame input abstraction over SFML's event system.
+Supports keyboard, mouse, and gamepad input with action mappings,
+trigger/hold detection, and input blocking.
+"""
 
 import copy
 import logging
@@ -98,6 +104,12 @@ class _EventState:
 
 
 _InjectedEvents = []
+_UseInjectedMouseOnly: bool = False
+
+
+def setUseInjectedMouseOnly(value: bool) -> None:
+    global _UseInjectedMouseOnly
+    _UseInjectedMouseOnly = value
 
 
 def injectEvent(data: Dict[str, Any]) -> None:
@@ -289,40 +301,41 @@ def update(window: WindowBase) -> None:
                 _EventState.KeyboardScanReleasedMap[scanMap] = True
                 if keyMap in _EventState.KeyTriggeredMap:
                     _EventState.KeyTriggeredMap.pop(keyMap, None)
-            if event.isMouseWheelScrolled():
-                _EventState.MouseWheelScrolled = True
-                mouseWheelEvent = event.getIfMouseWheelScrolled()
-                _EventState.MouseScrolledWheel = mouseWheelEvent.wheel
-                _EventState.MouseScrolledWheelDelta = mouseWheelEvent.delta
-                _EventState.MouseScrolledWheelPosition = mouseWheelEvent.position
-            if event.isMouseButtonPressed():
-                _EventState.MouseButtonPressed = True
-                mouseButtonEvent = event.getIfMouseButtonPressed()
-                _EventState.MouseButtonPressedMap[mouseButtonEvent.button] = True
-                _EventState.MousePressedPosition = mouseButtonEvent.position
-                if not mouseButtonEvent.button in _EventState.MouseButtonTriggeredMap:
-                    _EventState.MouseButtonTriggeredMap[mouseButtonEvent.button] = (0, False)
-                count, handled = _EventState.MouseButtonTriggeredMap[mouseButtonEvent.button]
-                count += 1
-                _EventState.MouseButtonTriggeredMap[mouseButtonEvent.button] = (count, handled)
-            if event.isMouseButtonReleased():
-                _EventState.MouseButtonReleased = True
-                mouseButtonEvent = event.getIfMouseButtonReleased()
-                _EventState.MouseButtonReleasedMap[mouseButtonEvent.button] = True
-                _EventState.MouseReleasedPosition = mouseButtonEvent.position
-                if mouseButtonEvent.button in _EventState.MouseButtonTriggeredMap:
-                    _EventState.MouseButtonTriggeredMap.pop(mouseButtonEvent.button, None)
-            if event.isMouseMoved():
-                _EventState.MouseMoved = True
-                mouseMoveEvent = event.getIfMouseMoved()
-                lastPosition: Vector2i = copy.copy(_EventState.MousePosition)
-                _EventState.MousePosition = mouseMoveEvent.position
-                if mouseMoveEvent.position != lastPosition:
-                    _EventState.MouseMovedDelta = mouseMoveEvent.position - lastPosition
-            if event.isMouseEntered():
-                _EventState.MouseEntered = True
-            if event.isMouseLeft():
-                _EventState.MouseLeft = True
+            if not _UseInjectedMouseOnly:
+                if event.isMouseWheelScrolled():
+                    _EventState.MouseWheelScrolled = True
+                    mouseWheelEvent = event.getIfMouseWheelScrolled()
+                    _EventState.MouseScrolledWheel = mouseWheelEvent.wheel
+                    _EventState.MouseScrolledWheelDelta = mouseWheelEvent.delta
+                    _EventState.MouseScrolledWheelPosition = mouseWheelEvent.position
+                if event.isMouseButtonPressed():
+                    _EventState.MouseButtonPressed = True
+                    mouseButtonEvent = event.getIfMouseButtonPressed()
+                    _EventState.MouseButtonPressedMap[mouseButtonEvent.button] = True
+                    _EventState.MousePressedPosition = mouseButtonEvent.position
+                    if not mouseButtonEvent.button in _EventState.MouseButtonTriggeredMap:
+                        _EventState.MouseButtonTriggeredMap[mouseButtonEvent.button] = (0, False)
+                    count, handled = _EventState.MouseButtonTriggeredMap[mouseButtonEvent.button]
+                    count += 1
+                    _EventState.MouseButtonTriggeredMap[mouseButtonEvent.button] = (count, handled)
+                if event.isMouseButtonReleased():
+                    _EventState.MouseButtonReleased = True
+                    mouseButtonEvent = event.getIfMouseButtonReleased()
+                    _EventState.MouseButtonReleasedMap[mouseButtonEvent.button] = True
+                    _EventState.MouseReleasedPosition = mouseButtonEvent.position
+                    if mouseButtonEvent.button in _EventState.MouseButtonTriggeredMap:
+                        _EventState.MouseButtonTriggeredMap.pop(mouseButtonEvent.button, None)
+                if event.isMouseMoved():
+                    _EventState.MouseMoved = True
+                    mouseMoveEvent = event.getIfMouseMoved()
+                    lastPosition: Vector2i = copy.copy(_EventState.MousePosition)
+                    _EventState.MousePosition = mouseMoveEvent.position
+                    if mouseMoveEvent.position != lastPosition:
+                        _EventState.MouseMovedDelta = mouseMoveEvent.position - lastPosition
+                if event.isMouseEntered():
+                    _EventState.MouseEntered = True
+                if event.isMouseLeft():
+                    _EventState.MouseLeft = True
             if event.isJoystickButtonPressed():
                 _EventState.JoystickButtonPressed = True
                 joystickButtonEvent = event.getIfJoystickButtonPressed()
@@ -363,7 +376,7 @@ def update(window: WindowBase) -> None:
             if event.isTextEntered():
                 _EventState.EnteredText += event.getIfTextEntered().unicode
 
-        if window.hasFocus():
+        if window.hasFocus() and not _UseInjectedMouseOnly:
             polledMousePosition = Mouse.getPosition(window)
             if polledMousePosition != _EventState.MousePosition:
                 lastPosition: Vector2i = copy.copy(_EventState.MousePosition)
@@ -771,6 +784,7 @@ def isActionTriggered(
     ],
     handled: bool = False,
 ) -> bool:
+    """Check whether any key in an action key set was triggered this frame."""
     triggered = False
     for key in actionKeys:
         if isinstance(key, (Key, Scan)):

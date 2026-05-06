@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""Resource manager facade: provides unified access to audio, fonts, textures, and shaders."""
 
 from __future__ import annotations
 import os

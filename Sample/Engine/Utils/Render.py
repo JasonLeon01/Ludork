@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""Rendering utility helpers (blend modes, render states)."""
 
 from .. import RenderStates, BlendMode
 

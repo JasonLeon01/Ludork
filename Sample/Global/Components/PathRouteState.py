@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""PathRouteState: state machine for path movement execution (idle, moving, arrived)."""
 
 from __future__ import annotations
 from threading import Lock

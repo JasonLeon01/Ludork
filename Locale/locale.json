@@ -899,6 +899,42 @@
         "zh_CN": "本地化表导出失败",
         "en_GB": "Locale export failed"
     },
+    "NEW_MEMBER": {
+        "zh_CN": "新建成员",
+        "en_GB": "New Member"
+    },
+    "ENTER_ID": {
+        "zh_CN": "请输入ID",
+        "en_GB": "Enter ID"
+    },
+    "ADD_PARAM": {
+        "zh_CN": "添加字段",
+        "en_GB": "Add Field"
+    },
+    "EDIT_BLUEPRINT": {
+        "zh_CN": "编辑蓝图",
+        "en_GB": "Edit Blueprint"
+    },
+    "LINKED_TYPE": {
+        "zh_CN": "关联类型",
+        "en_GB": "Linked Type"
+    },
+    "NO_LINKED_TYPE": {
+        "zh_CN": "(无 - 不关联类型)",
+        "en_GB": "(None - No Linked Type)"
+    },
+    "SELECT_LINKED_TYPE": {
+        "zh_CN": "选择关联类型",
+        "en_GB": "Select Linked Type"
+    },
+    "SELECT_LINKED_TYPE_DESC": {
+        "zh_CN": "选择一个 InfoType 关联（或无）：",
+        "en_GB": "Choose a linked InfoType (or none):"
+    },
+    "SET_LINKED_TYPE": {
+        "zh_CN": "设置关联类型",
+        "en_GB": "Set Linked Type"
+    },
     "ABOUT_MENU": {
         "zh_CN": "关于",
         "en_GB": "About"

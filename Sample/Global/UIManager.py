@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""UIManager: manages active UI canvases, event dispatch, and rendering order."""
 
 import os
 from typing import List

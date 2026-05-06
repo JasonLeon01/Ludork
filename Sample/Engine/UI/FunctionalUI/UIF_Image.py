@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""FunctionalImage: interactive image control with hover/click support."""
 
 from __future__ import annotations
 from typing import Optional

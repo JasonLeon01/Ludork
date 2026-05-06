@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""PathPreviewComponent: renders a visual preview of the pathfinding route."""
 
 from __future__ import annotations
 from typing import TYPE_CHECKING

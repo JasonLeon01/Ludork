@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""Global system: window management, scene transitions, rendering pipeline, and game loop."""
 
 from __future__ import annotations
 import os

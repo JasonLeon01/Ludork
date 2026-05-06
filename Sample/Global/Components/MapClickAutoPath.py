@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""MapClickAutoPath: component that pathfinds and moves an actor to the clicked tile."""
 
 from __future__ import annotations
 from collections import deque

@@ -11,11 +11,19 @@ if TYPE_CHECKING:
 
 @dataclass
 class DataNode:
-    nodeFunction: str
-    params: List[str]
+    """Serialized representation of a node (function path + parameter strings)."""
+
+    nodeFunction: str    #: Dot-path to the callable (e.g. "NodeFunctions.Utils.Print")
+    params: List[str]    #: List of parameter expressions as strings
 
 
 class Node:
+    """Runtime representation of a blueprint node.
+
+    Wraps a callable function with its parameter expressions.
+    On `execute`, evaluates parameter strings and invokes the function.
+    """
+
     def __init__(
         self,
         parentGraph: Graph,
@@ -24,6 +32,14 @@ class Node:
         nodeFunction: Callable,
         params: List[str],
     ) -> None:
+        """Construct a node bound to a graph, a parent object, and a callable.
+
+        \param parentGraph    Owning graph instance
+        \param parent         Actor/Info that owns this graph
+        \param functionName   Original dot-path string of the function
+        \param nodeFunction   Resolved callable reference
+        \param params         List of parameter expressions (evaluated at execute time)
+        """
         self.parentGraph = parentGraph
         self.parent = parent
         self.functionName = functionName
@@ -36,12 +52,22 @@ class Node:
         self._analyzeFunction()
 
     def getParamList(self) -> Dict[str, type]:
+        """Get the parameter name-to-type mapping extracted from the function signature."""
         return self._paramList
 
     def getParamDefaults(self) -> Dict[str, Any]:
+        """Get the default values for each parameter."""
         return self._paramDefaults
 
     def execute(self, inputPinReplace: Dict[int, Any] = {}) -> Any:
+        r"""Execute this node's function with resolved parameters.
+
+        Evaluates each parameter expression string, applies any input-pin
+        overrides from connected nodes, and invokes the underlying callable.
+
+        \param inputPinReplace  Map of param index -> value from upstream node outputs
+        \return Tuple of return values from the function
+        """
         actualParams = []
         eval_locals = {"self": self.parent} if self._isSelfFunction else None
         for i in range(len(self.params)):
@@ -77,6 +103,7 @@ class Node:
         return result
 
     def asDict(self) -> Dict[str, Any]:
+        """Serialize this node back to a dictionary for storage."""
         result = {}
         result["nodeFunction"] = self.functionName
         result["params"] = self.params

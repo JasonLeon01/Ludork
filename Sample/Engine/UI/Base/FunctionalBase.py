@@ -8,6 +8,11 @@ from ...Utils import Math
 
 
 class FunctionalBase:
+    """Mixin providing interactive event callbacks for UI controls.
+
+    Handles hover detection and dispatches confirm, cancel, click, hover,
+    mouse, keyboard, and tick events to registered callbacks.
+    """
     def __init__(self) -> None:
         self._isHovered: bool = False
 

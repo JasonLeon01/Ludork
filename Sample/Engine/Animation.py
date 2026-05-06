@@ -39,12 +39,15 @@ class AnimSprite(Sprite):
             self.applyFrame(0)
 
     def isFinished(self) -> bool:
+        """Check whether the animation has played through all frames."""
         return self._finished
 
     def getFrameIndex(self) -> int:
+        """Get the current frame index."""
         return self._frameIndex
 
     def update(self, deltaTime: float) -> None:
+        """Advance the animation by the elapsed time and apply the new frame."""
         if self._finished:
             return
         if self._frameCount <= 0:

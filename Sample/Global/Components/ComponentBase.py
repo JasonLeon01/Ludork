@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""ComponentBase: base class for attachable gameplay components."""
 
 from __future__ import annotations
 from typing import Any

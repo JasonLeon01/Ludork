@@ -8,6 +8,13 @@ from .Node import DataNode, Node
 
 
 class Graph:
+    """Blueprint node graph executor.
+
+    Holds a collection of event-keyed node lists with their execution links.
+    Resolves node functions from project modules, builds dependency/next
+    relationships, and executes nodes in topological order from a start node.
+    """
+
     def __init__(
         self,
         parentClassName: Optional[str],
@@ -18,6 +25,16 @@ class Graph:
         nodeModel: Optional[type] = None,
         startNodes: Optional[Dict[str, int]] = None,
     ) -> None:
+        r"""Construct a graph and immediately build nodes and relations.
+
+        \param parentClassName  Dot-path of the parent blueprint class
+        \param parentClass      Resolved parent class type
+        \param parent           Owner object instance (the actor/info)
+        \param inNodes          Event name -> list of DataNode definitions
+        \param links            Event name -> list of link dictionaries
+        \param nodeModel        Node class to instantiate (default: `Node`)
+        \param startNodes       Event name -> index of the entry node (or None)
+        """
         import Engine, Global, Source
 
         self.modules_ = [Source, Global, Engine]
@@ -43,6 +60,7 @@ class Graph:
         self.genRelationsFromLinks()
 
     def genNodesFromDataNodes(self) -> None:
+        """Instantiate Node objects from DataNode definitions, resolving function references."""
         for key, dataNodes in self.dataNodes.items():
             self.nodes[key] = []
             for dataNode in dataNodes:
@@ -69,6 +87,7 @@ class Graph:
                     self.nodes[key].append(self.nodeModel(*paramList))
 
     def genRelationsFromLinks(self) -> None:
+        """Build execution order (nodeNexts) and parameter dependency (nodeRely) maps from links."""
         self.nodeRely.clear()
         self.nodeNexts.clear()
         self.nodeRely = {}
@@ -149,6 +168,7 @@ class Graph:
                 raise RuntimeError(f"Max steps {limit} exceeded while executing graph '{key}'")
 
     def getRelyNodeIndexList(self, key: str, nodeIndex: int) -> List[int]:
+        """Recursively collect all upstream dependency node indices for a given node."""
         rely = self.nodeRely.get(key, {})
         visited = set()
         order: List[int] = []
@@ -214,25 +234,31 @@ class Graph:
         return None
 
     def hasKey(self, key: str) -> bool:
+        """Check whether this graph has nodes registered for the given event key."""
         return key in self.nodes
 
     def tryLockExecution(self, key: str) -> bool:
+        """Attempt to lock execution for re-entrancy protection. Returns `False` if already locked."""
         if self._executionLocked.get(key, False):
             return False
         self._executionLocked[key] = True
         return True
 
     def isExecutionLocked(self, key: str) -> bool:
+        """Check whether execution is currently locked for the given event."""
         return self._executionLocked.get(key, False)
 
     def onLatentAdded(self, key: str) -> None:
+        """Increment the pending latent node count for an event."""
         self._latentPendingCount[key] = self._latentPendingCount.get(key, 0) + 1
 
     def onLatentResolved(self, key: str) -> None:
+        """Decrement the pending latent node count for an event."""
         count = self._latentPendingCount.get(key, 0)
         self._latentPendingCount[key] = max(0, count - 1)
 
     def completeExecution(self, key: str) -> None:
+        """Unlock execution if no latent nodes are pending."""
         if self._latentPendingCount.get(key, 0) <= 0:
             self._executionLocked[key] = False
 

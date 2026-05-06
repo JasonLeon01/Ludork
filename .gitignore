@@ -22,6 +22,7 @@ launcher.build/
 launcher.dist/
 launcher.onefile-build/
 .clangd
-.clangd-format
+.clang-format
 /Sample/**/*.pyi
 /EditorExtensions/**/*.pyi
+pyrightconfig.json

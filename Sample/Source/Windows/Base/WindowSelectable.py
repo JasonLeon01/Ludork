@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""WindowSelectable: window with cursor-navigable selectable items and input handling."""
 
 from __future__ import annotations
 from typing import Optional, Union, Tuple, Dict, Any

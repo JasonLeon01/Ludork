@@ -8,6 +8,12 @@ from .Battler import Battler
 
 
 class Player(Character, Battler):
+    """Player-controlled character with input bindings and battle stats.
+
+    Combines `Character` (directional movement/animation) with `Battler`
+    (HP, ATK, DEF, states). Registers arrow-key input mappings on construction.
+    """
+
     def __init__(self, texture: Optional[Texture] = None, tag: str = "") -> None:
         Character.__init__(self, texture, tag)
         Battler.__init__(self)

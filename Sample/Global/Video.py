@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""Video playback system using frame-by-frame decoding."""
 
 from __future__ import annotations
 from typing import Optional, Tuple, TYPE_CHECKING

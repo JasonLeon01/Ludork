@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""Camera system: viewport tracking, smooth follow, and screen-space transforms."""
 
 from __future__ import annotations
 from typing import Optional, Union, List, TYPE_CHECKING

@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""SceneInit: initial loading scene that bootstraps game data and transitions to title."""
 
 from __future__ import annotations
 import os

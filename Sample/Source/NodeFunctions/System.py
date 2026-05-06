@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""Blueprint system nodes: scene transitions, save/load, and game flow control."""
 
 from dataclasses import fields
 import os

@@ -25,11 +25,18 @@ if TYPE_CHECKING:
 
 
 class _ActorBase(Sprite):
-    tag: str = ""
-    switchInterval: float = 0.2
-    animatable: bool = False
-    material: Material = Material()
-    shaderPath: str = ""
+    """Base class for all scene entities.
+
+    Extends the SFML Sprite with transform hierarchy, material system,
+    texture animation, and child-parent relationships.
+    Not intended to be instantiated directly; use `Actor` instead.
+    """
+
+    tag: str = ""                    #: Identifier tag for lookups
+    switchInterval: float = 0.2      #: Frame switch interval for sprite animation (seconds)
+    animatable: bool = False         #: Whether sprite-sheet animation is enabled
+    material: Material = Material()  #: Surface material (lighting, speed, opacity)
+    shaderPath: str = ""             #: Path to a fragment shader applied to this actor
 
     @TypeAdapter(rect=([tuple, list], IntRect, lambda pos, size: IntRect(Vector2i(*pos), Vector2i(*size))))
     def __init__(
@@ -38,6 +45,12 @@ class _ActorBase(Sprite):
         rect: Union[IntRect, Tuple[Pair[int], Pair[int]], List[List[int]]] = None,
         tag: Optional[str] = None,
     ) -> None:
+        r"""Construct an actor base from a texture and optional sub-rectangle.
+
+        \param texture  Source texture (or `None` for an invisible actor)
+        \param rect     Sub-rectangle of the texture to display
+        \param tag      Optional identifier tag
+        """
         args = [texture]
         if not rect is None:
             args.append(rect)
@@ -61,34 +74,42 @@ class _ActorBase(Sprite):
             self._shader = Shader(self.shaderPath, Shader.Type.Fragment)
 
     def update(self, deltaTime: float) -> None:
+        """Called every frame. Handles sprite-sheet animation if enabled."""
         if self.animatable:
             self._animate(deltaTime)
 
     def lateUpdate(self, deltaTime: float) -> None:
+        """Called after all actors have been updated. Override in subclasses."""
         pass
 
     def fixedUpdate(self, fixedDelta: float) -> None:
+        """Called at a fixed timestep. Override for physics/movement logic."""
         pass
 
     @ReturnType(pos=Vector2f)
     def getPosition(self) -> Vector2f:
+        """Get the world position (without translation offset)."""
         return super().getPosition() - self._translation
 
     @ReturnType(pos=Pair[float])
     def v_getPosition(self) -> Pair[float]:
+        """Get the world position as a raw tuple."""
         result = super().getPosition()
         return (result.x, result.y)
 
     @ReturnType(pos=Vector2f)
     def getRelativePosition(self) -> Vector2f:
+        """Get the position relative to the parent actor."""
         return self._relativePosition
 
     @ReturnType(pos=Pair[float])
     def v_getRelativePosition(self) -> Pair[float]:
+        """Get the relative position as a raw tuple."""
         return (self._relativePosition.x, self._relativePosition.y)
 
     @ReturnType(pos=Vector2i)
     def getMapPosition(self) -> Vector2i:
+        """Get the grid cell position (world position / CellSize)."""
         from ... import CellSize
 
         return Vector2i(
@@ -98,10 +119,12 @@ class _ActorBase(Sprite):
 
     @ReturnType(pos=Pair[int])
     def v_getMapPosition(self) -> Pair[int]:
+        """Get the grid cell position as a raw tuple."""
         return (self.getMapPosition().x, self.getMapPosition().y)
 
     @ReturnType(pos=Vector2i)
     def getRelativeMapPosition(self) -> Vector2i:
+        """Get the grid cell position relative to the parent."""
         from ... import CellSize
 
         return Vector2i(
@@ -130,6 +153,7 @@ class _ActorBase(Sprite):
     @ExecSplit(default=(None,))
     @TypeAdapter(position=([tuple, list], Vector2f))
     def setRelativePosition(self, position: Union[Vector2f, Pair[float], List[float]]) -> None:
+        """Set position relative to the parent actor."""
         parentPosition = Vector2f(0, 0)
         parent = self.getParent()
         if parent:
@@ -139,6 +163,7 @@ class _ActorBase(Sprite):
     @ExecSplit(default=(None,))
     @TypeAdapter(position=([tuple, list], Vector2u))
     def setMapPosition(self, position: Union[Vector2u, Pair[int], List[int]]) -> None:
+        """Set position by grid cell coordinates."""
         from ... import CellSize
 
         self.setPosition(Vector2f(position.x * CellSize, position.y * CellSize))
@@ -146,6 +171,7 @@ class _ActorBase(Sprite):
     @ExecSplit(default=(None,))
     @TypeAdapter(position=([tuple, list], Vector2u))
     def setRelativeMapPosition(self, position: Union[Vector2u, Pair[int], List[int]]) -> None:
+        """Set relative position by grid cell coordinates."""
         from ... import CellSize
 
         self.setRelativePosition(Vector2f(position.x * CellSize, position.y * CellSize))
@@ -153,6 +179,7 @@ class _ActorBase(Sprite):
     @ExecSplit(default=(None,))
     @TypeAdapter(offset=([tuple, list], Vector2f))
     def move(self, offset: Union[Vector2f, Pair[float], List[float]]) -> None:
+        """Move by a pixel offset and propagate to children."""
         super().move(offset)
         self._relativePosition += offset
         if self.getChildren():
@@ -161,23 +188,28 @@ class _ActorBase(Sprite):
 
     @ReturnType(angle=Angle)
     def getRotation(self) -> Angle:
+        """Get the current rotation angle."""
         return super().getRotation()
 
     @ReturnType(angle=float)
     def v_getRotation(self) -> float:
+        """Get the current rotation in degrees as a float."""
         result = super().getRotation()
         return result.asDegrees()
 
     @ReturnType(angle=Angle)
     def getRelativeRotation(self) -> Angle:
+        """Get the rotation relative to the parent."""
         return self._relativeRotation
 
     @ReturnType(angle=float)
     def v_getRelativeRotation(self) -> float:
+        """Get the relative rotation in degrees as a float."""
         return self._relativeRotation.asDegrees()
 
     @ExecSplit(default=(None,))
     def setRotation(self, angle: Union[Angle, float]) -> None:
+        """Set the absolute rotation and propagate to children."""
         if not isinstance(angle, Angle):
             angle = degrees(angle)
         parent = self.getParent()
@@ -303,18 +335,22 @@ class _ActorBase(Sprite):
 
     @ReturnType(parent=Optional["_ActorBase"])
     def getParent(self) -> Optional[_ActorBase]:
+        """Get the parent actor in the hierarchy."""
         return self._parent
 
     @ExecSplit(default=(None,))
     def setParent(self, parent: Optional[_ActorBase]) -> None:
+        """Set the parent actor."""
         self._parent = parent
 
     @ReturnType(children=List["_ActorBase"])
     def getChildren(self) -> List[_ActorBase]:
+        """Get the list of child actors."""
         return self._children
 
     @ExecSplit(default=(None,))
     def addChild(self, child: _ActorBase) -> None:
+        """Attach a child actor to this actor's hierarchy."""
         if child in self._children:
             warnings.warn("Child already exists")
             return

@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""TimeManager: scheduled timer tasks and delayed callbacks."""
 
 from typing import Any, Callable, List, Optional
 from Engine import Time, Clock

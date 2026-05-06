@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+"""Localization system. Loads translation dictionaries and injects `LOC()` into builtins."""
 
 import os
 import builtins
@@ -12,6 +13,7 @@ class _Locale:
 
 
 def init(localePath: str) -> None:
+    """Load all locale data files from the given directory."""
     from .Utils import File
 
     if os.path.exists(localePath):

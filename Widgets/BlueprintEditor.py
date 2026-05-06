@@ -32,25 +32,31 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.setupUI()
         self.toast = Toast(self)
 
-    def _getInvalidVars(self) -> Set[str]:
+    def _resolveClass(self) -> Any:
+        if self.title.startswith("__info__/"):
+            return None
         key = os.path.join("Data", "Blueprints", self.title).replace("/", ".").replace("\\", ".")
-        cls = GameData.classDict.get(key, EditorStatus.PROJ_PATH)
+        try:
+            return GameData.classDict.get(key, EditorStatus.PROJ_PATH)
+        except (ImportError, Exception):
+            return None
+
+    def _getInvalidVars(self) -> Set[str]:
+        cls = self._resolveClass()
         if cls is None:
             return set()
         invalid = getattr(cls, "_invalidVars", ())
         return set(invalid)
 
     def _getPathVars(self) -> Set[str]:
-        key = os.path.join("Data", "Blueprints", self.title).replace("/", ".").replace("\\", ".")
-        cls = GameData.classDict.get(key, EditorStatus.PROJ_PATH)
+        cls = self._resolveClass()
         if cls is None:
             return set()
         paths = getattr(cls, "_pathVars", ())
         return set(paths)
 
     def _getRectRangeVars(self) -> Dict[str, str]:
-        key = os.path.join("Data", "Blueprints", self.title).replace("/", ".").replace("\\", ".")
-        cls = GameData.classDict.get(key, EditorStatus.PROJ_PATH)
+        cls = self._resolveClass()
         if cls is None:
             return {}
         rects = getattr(cls, "_rectRangeVars", {})
@@ -128,12 +134,11 @@ class BluePrintEditor(QtWidgets.QWidget):
             self.stackedWidget.setCurrentWidget(self.graphs[text])
             return
 
+        parentCls = self._resolveClass()
+
         graph = GameData.genGraphFromData(
             self.data["graph"],
-            GameData.classDict.get(
-                os.path.join("Data", "Blueprints", self.title).replace("/", ".").replace("\\", "."),
-                EditorStatus.PROJ_PATH,
-            ),
+            parentCls,
         )
         panel = NodePanel(self, graph, text, self.title, self._refreshData)
         self.graphs[text] = panel
@@ -192,8 +197,8 @@ class BluePrintEditor(QtWidgets.QWidget):
         while self.formLayout.rowCount() > 0:
             self.formLayout.removeRow(0)
 
-        key_path = os.path.join("Data", "Blueprints", self.title).replace("/", ".").replace("\\", ".")
-        cls = GameData.classDict.get(key_path, EditorStatus.PROJ_PATH)
+
+        cls = self._resolveClass()
         type_hints = {}
         parent_cls = None
         parent_hints = {}
@@ -624,12 +629,10 @@ class BluePrintEditor(QtWidgets.QWidget):
         current_widget = self.stackedWidget.currentWidget()
         if isinstance(current_widget, NodePanel):
             graph_key = current_widget.name
+            parentCls = self._resolveClass()
             graph = GameData.genGraphFromData(
                 self.data["graph"],
-                GameData.classDict.get(
-                    os.path.join("Data", "Blueprints", self.title).replace("/", ".").replace("\\", "."),
-                    EditorStatus.PROJ_PATH,
-                ),
+                parentCls,
             )
             current_widget.nodeGraph = graph
             current_widget._refreshPanel()
@@ -652,7 +655,9 @@ class BluePrintEditor(QtWidgets.QWidget):
 
     def _refreshData(self, name: str, data: Dict[str, Any]) -> None:
         GameData.recordSnapshot()
-        GameData.blueprintsData[name]["graph"] = data
+        if name in GameData.blueprintsData:
+            GameData.blueprintsData[name]["graph"] = data
+        self.data["graph"] = data
         self.modified.emit()
 
     def onGraphListContextMenu(self, pos: QtCore.QPoint) -> None:
