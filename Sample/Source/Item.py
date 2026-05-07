@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Optional, Union, List, Tuple
 from Engine import Pair, Texture, IntRect
 from Engine.Gameplay.Actors import Actor
+from . import Data
 from .ItemInfo import ItemInfo
 
 
@@ -23,4 +24,4 @@ class Item(Actor, ItemInfo):
         tag: Optional[str] = None,
     ) -> None:
         Actor.__init__(self, texture, rect, tag)
-        self.initInfo()
+        self.initInfo(Data)

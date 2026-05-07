@@ -10,6 +10,7 @@ import Engine
 from Engine import (
     Pair,
     RenderTexture,
+    RenderStates,
     Vector2i,
     Vector2f,
     Vector2u,
@@ -408,6 +409,9 @@ class GameMap(GameMapExt):
         return result
 
     def onTick(self, deltaTime: float) -> None:
+        if not hasattr(self, "_shaderTime"):
+            self._shaderTime = 0.0
+        self._shaderTime += deltaTime
         if self._camera:
             self._camera.onTick(deltaTime)
         for component in self._components:
@@ -504,8 +508,27 @@ class GameMap(GameMapExt):
                         if self._player and i > playerLayerIndex and playerLayerIndex != -1:
                             if actor != self._player and actor.intersects(self._player):
                                 actorAlpha = GameMap.DefaultCoverAlpha
-                        actor.setColor(Color(255, 255, 255, actorAlpha))
-                        self._camera.render(actor)
+                        
+                        # Apply actor shader or ERROR style
+                        if actor.hasShaderError():
+                            # ERROR style: purple color
+                            actor.setColor(Color(255, 0, 255, actorAlpha))
+                            self._camera.render(actor)
+                        else:
+                            actor.setColor(Color(255, 255, 255, actorAlpha))
+                            actorShader = actor.getShader()
+                            if actorShader:
+                                # Try to set time uniform for dynamic shaders
+                                try:
+                                    actorShader.setUniform("time", self._shaderTime)
+                                except Exception:
+                                    pass  # Shader doesn't have time uniform
+                                # Create render states with shader, preserving transform
+                                renderStates = RenderStates()
+                                renderStates.shader = actorShader
+                                self._camera._renderTexture.draw(actor, renderStates)
+                            else:
+                                self._camera.render(actor)
         for component in self._components:
             component.onRender(self._camera)
         for layerName in layerKeys:

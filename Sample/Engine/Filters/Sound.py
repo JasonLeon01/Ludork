@@ -11,35 +11,55 @@ type EffectProcessor = Callable[[list[float], int, list[float], int, int], None]
 
 @dataclass
 class SoundFilter:
-    loop: Optional[bool] = None
-    offset: Optional[Union[float, Time]] = None
-    needEffect: bool = False
-    soundEffect: Optional[EffectProcessor] = None
-    pitch: Optional[float] = None
-    pan: Optional[float] = None
-    volume: Optional[float] = None
-    spatial: Optional[bool] = None
-    position: Optional[Union[Tuple3[float], Vector3f]] = None
-    direction: Optional[Union[Tuple3[float], Vector3f]] = None
-    cone: Optional[Union[Tuple3[Angle], Tuple3[float], Sound.Cone]] = None
-    velocity: Optional[Union[Tuple3[float], Vector3f]] = None
-    dopplerFactor: Optional[float] = None
-    directionalAttenuationFactor: Optional[float] = None
-    relativeToListener: Optional[bool] = None
-    minDistance: Optional[float] = None
-    maxDistance: Optional[float] = None
-    minGain: Optional[float] = None
-    maxGain: Optional[float] = None
-    attenuation: Optional[float] = None
+    r"""Sound filter dataclass.
+
+    Holds optional sound properties that can be applied to a `pysf.Sound` instance.
+    Any field left as `None` means "use the current value".
+    """
+
+    loop: Optional[bool] = None  #: Whether to loop playback
+    offset: Optional[Union[float, Time]] = None  #: Playback offset (seconds or `Time`)
+    needEffect: bool = False  #: Whether a sound effect processor is required
+    soundEffect: Optional[EffectProcessor] = None  #: Custom effect processor callback
+    pitch: Optional[float] = None  #: Pitch multiplier (1.0 = normal)
+    pan: Optional[float] = None  #: Pan: -1.0 (left) to 1.0 (right)
+    volume: Optional[float] = None  #: Volume: 0.0 (mute) to 100.0 (max)
+    spatial: Optional[bool] = None  #: Enable spatialisation
+    position: Optional[Union[Tuple3[float], Vector3f]] = None  #: Sound position in 3D space
+    direction: Optional[Union[Tuple3[float], Vector3f]] = None  #: Sound direction in 3D space
+    cone: Optional[Union[Tuple3[Angle], Tuple3[float], Sound.Cone]] = None  #: Attenuation cone
+    velocity: Optional[Union[Tuple3[float], Vector3f]] = None  #: Sound source velocity (for Doppler)
+    dopplerFactor: Optional[float] = None  #: Doppler effect factor
+    directionalAttenuationFactor: Optional[float] = None  #: Directional attenuation factor
+    relativeToListener: Optional[bool] = None  #: Position relative to listener
+    minDistance: Optional[float] = None  #: Minimum attenuation distance
+    maxDistance: Optional[float] = None  #: Maximum attenuation distance
+    minGain: Optional[float] = None  #: Minimum gain
+    maxGain: Optional[float] = None  #: Maximum gain
+    attenuation: Optional[float] = None  #: Attenuation factor
 
 
 @dataclass
 class MusicFilter(SoundFilter):
-    loopPoint: Optional[Union[Pair[float], Pair[Time], Music.TimeSpan]] = None
+    r"""Music filter dataclass.
+
+    Extends `SoundFilter` with a loop-point for `pysf.Music`.
+
+    - loopPoint  Optional loop time range (start/end) for music
+    """
+
+    loopPoint: Optional[Union[Pair[float], Pair[Time], Music.TimeSpan]] = None  #: Loop time range
 
 
 def echoEffect(delay: float, decay: float, sampleRate: float) -> EffectProcessor:
-    delay_samples = int(delay * sampleRate / 1000)
+    r"""Create an echo (delay) effect processor.
+
+    - \param delay        Delay time in seconds
+    - \param decay        Feedback decay factor (0.0–1.0)
+    - \param sampleRate   Audio sample rate in Hz
+    - \return             An `EffectProcessor` callback
+    """
+    delay_samples = int(delay * sampleRate)
     delay_buffer = [0.0] * (delay_samples * 2)
     buffer_index = 0
 
@@ -76,6 +96,13 @@ def echoEffect(delay: float, decay: float, sampleRate: float) -> EffectProcessor
 
 
 def distortionEffect(drive: float, threshold: float = 0.7) -> EffectProcessor:
+    r"""Create a distortion effect processor.
+
+    - \param drive        Amplification factor applied before clipping
+    - \param threshold    Clipping threshold (default 0.7)
+    - \return             An `EffectProcessor` callback
+    """
+
     def processor(
         inputFrames: List[float],
         inputCount: int,
@@ -100,6 +127,16 @@ def distortionEffect(drive: float, threshold: float = 0.7) -> EffectProcessor:
 
 
 def underwaterEffect(depth: float = 0.7, bubble_intensity: float = 0.3, sample_rate: float = 44100) -> EffectProcessor:
+    r"""Create an underwater-like effect processor.
+
+    Applies low-pass filtering, reverb, bubbles, and dynamic compression
+    to simulate an underwater sound.
+
+    - \param depth            Effect depth (0.0–1.0); higher = more muffled
+    - \param bubble_intensity Bubble noise intensity (0.0–1.0)
+    - \param sample_rate      Audio sample rate in Hz
+    - \return                 An `EffectProcessor` callback
+    """
     cutoff_freq = 800 - depth * 600
     rc = 1.0 / (cutoff_freq * 2 * math.pi)
     dt = 1.0 / sample_rate

@@ -34,7 +34,7 @@ class CommonTipController:
     _FADE_IN = 0.2
     _HOLD_TOP = 0.5
     _FADE_OUT = 0.35
-    _RISE = 24.0
+    _RISE = 16.0
 
     def __init__(self, particleSystem: ParticleSystem, fontSize: int = 12) -> None:
         """
@@ -76,14 +76,14 @@ class CommonTipController:
 
         index = len(self._tips)
         targetY = self._START_Y + index * self._GAP
-        phase = "fade_in" if index == 0 else "queued"
+        # All tips start with fade_in to have fade-in animation
         self._tips.append(
             _TipItem(
                 textParticle=textParticle,
                 screenY=targetY,
                 targetScreenY=targetY,
                 alpha=0.0,
-                phase=phase,
+                phase="fade_in",
             )
         )
         self._updatePlacement()
@@ -143,7 +143,7 @@ class CommonTipController:
                 if item.fadeProgress >= 1.0:
                     item.alpha = 255.0
                     item.phase = "queued"
-            elif item.phase != "fade_out":
+            elif item.phase == "queued":
                 item.alpha = 255.0
 
         self._updatePlacement()

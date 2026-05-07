@@ -1,5 +1,20 @@
 # -*- encoding: utf-8 -*-
 
+r"""UI component package.
+
+Provides reusable UI widgets and drawing primitives
+for the Ludork sample engine.
+
+- Canvas      Drawable canvas widget
+- TextStyle   Text styling descriptor
+- PlainText   Non-rich text display
+- RichText    Rich-formatted text display
+- Image       Image display widget
+- Window      Base window widget
+- Rect        Rectangle utility / widget
+- SolidRect   Filled rectangle widget
+"""
+
 from .. import Color, Font
 from .. import C_HexColor as HexColor
 from .Canvas import Canvas

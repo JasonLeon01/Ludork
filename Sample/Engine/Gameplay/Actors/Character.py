@@ -22,7 +22,11 @@ class Character(Actor):
     animateWithoutMoving: bool = False     #: If `True`, animation plays even when idle
 
     def __init__(self, texture: Texture, tag: Optional[str] = None) -> None:
-        """Construct a character from a 4-direction sprite-sheet texture."""
+        r"""Construct a character from a 4-direction sprite-sheet texture.
+
+        - \param texture  The sprite-sheet texture (4 columns × 4 rows)
+        - \param tag      Optional tag string for actor identification
+        """
         if not texture is None:
             assert isinstance(texture, Texture), "texture must be a Texture"
         self._rectSize: Vector2i = Utils.Math.ToVector2i(texture.getSize() / 4)
@@ -33,7 +37,13 @@ class Character(Actor):
 
     @ExecSplit(default=(None,))
     def setSpriteTexture(self, texture: Texture, resetRect: bool = False) -> None:
-        """Set the sprite texture, optionally resetting the rect to the new sheet size."""
+        r"""Set the sprite texture.
+
+        Optionally resets the texture rectangle to match the new sheet size.
+
+        - \param texture     The new sprite-sheet texture
+        - \param resetRect   If `True`, recalculate the texture rectangle
+        """
         super().setSpriteTexture(texture, resetRect)
         if resetRect:
             sx_i = self._sx // self._rectSize.x
@@ -43,20 +53,33 @@ class Character(Actor):
 
     @ExecSplit(default=(None,))
     def setTexture(self, texture: Texture, resetRect: bool = False) -> None:
-        """Set the character texture (must be a valid Texture instance)."""
+        r"""Set the character texture.
+
+        - \param texture     The texture to assign; must be a `Texture` instance
+        - \param resetRect   If `True`, reset the texture rectangle to the full texture
+        """
         assert isinstance(texture, Texture), "texture must be a Texture"
         super().setTexture(texture, resetRect)
 
     @ExecSplit(default=(None,))
     def setTextureRect(self, rectangle: IntRect) -> None:
-        """Set the texture sub-rectangle and update internal rect size."""
+        r"""Set the texture sub-rectangle.
+
+        Also updates the internal rect size used for animation.
+
+        - \param rectangle  The sub-rectangle of the texture to display
+        """
         self._rectSize = rectangle.size
         return super().setTextureRect(rectangle)
 
     @ExecSplit(success=(True,), fail=(False,))
     @TypeAdapter(offset=([tuple, list], Vector2i))
     def MapMove(self, offset: Union[Vector2i, Pair[int], List[int]]) -> bool:
-        """Move one grid cell and update facing direction on failure."""
+        r"""Move one grid cell and update facing direction on failure.
+
+        - \param offset  Direction vector (clamped to unit: -1, 0, or 1 per axis)
+        - \return        `True` if movement was initiated, `False` otherwise
+        """
         if not self._moveEnabled:
             return False
         result = super().MapMove(offset)
@@ -67,7 +90,10 @@ class Character(Actor):
         return result
 
     def update(self, deltaTime: float) -> None:
-        """Update facing direction from velocity and advance animation."""
+        r"""Update facing direction from velocity and advance animation.
+
+        - \param deltaTime  Time elapsed since the last frame in seconds
+        """
         if not self.directionFix:
             velocity = self.getVelocity()
             if velocity:
@@ -81,7 +107,14 @@ class Character(Actor):
     def GenActor(
         ActorModel: type, texture: Texture, textureRect: Optional[Tuple[Pair[int], Pair[int]]], tag: str
     ) -> Character:
-        """Factory: instantiate a character from a blueprint-generated class model."""
+        r"""Factory: instantiate a character from a blueprint-generated class model.
+
+        - \param ActorModel     The character subclass to instantiate
+        - \param texture        The sprite-sheet texture to assign
+        - \param textureRect    Optional texture rectangle (unused for Character)
+        - \param tag            Optional tag string for the new character
+        - \return               The created `Character` instance
+        """
         character: Character = ActorModel(texture, tag)
         if isinstance(character.material, dict):
             character.material = Material(**Inner.filterDataClassParams(character.material, Material))

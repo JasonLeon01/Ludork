@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import copy
+import os
 import warnings
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
 from ... import (
@@ -70,46 +71,131 @@ class _ActorBase(Sprite):
         self._relativeScale: Vector2f = Vector2f(1, 1)
         self._graph: Optional[Graph] = None
         self._shader: Optional[Shader] = None
+        self._shaderError: bool = False
+        self._loadShader()
+
+    def _loadShader(self) -> None:
+        self._shader = None
+        self._shaderError = False
         if self.shaderPath:
-            self._shader = Shader(self.shaderPath, Shader.Type.Fragment)
+            try:
+                # shaderPath is relative to Assets/Shaders/
+                if self.shaderPath.startswith("Assets/Shaders/"):
+                    fullPath = self.shaderPath
+                else:
+                    fullPath = os.path.join(".", "Assets", "Shaders", self.shaderPath)
+
+                if os.path.exists(fullPath):
+                    self._shader = Shader(fullPath, Shader.Type.Fragment)
+                else:
+                    self._shaderError = True
+                    print(f"Warning: Shader file not found: {fullPath}")
+            except Exception as e:
+                self._shaderError = True
+                print(f"Warning: Shader load failed for {self.shaderPath}: {e}")
+
+    @ExecSplit(default=(None,))
+    def setShaderPath(self, shaderPath: str) -> None:
+        r"""\brief Set the shader path and load the shader.
+
+        - \param shaderPath Path to the fragment shader (relative to Assets/Shaders/)
+        """
+        self.shaderPath = shaderPath
+        self._loadShader()
+
+    @ReturnType(shaderPath=str)
+    def getShaderPath(self) -> str:
+        r"""\brief Get the current shader path.
+
+        - \return The shader path string
+        """
+        return self.shaderPath
+
+    @ReturnType(shader=Optional[Shader])
+    def getShader(self) -> Optional[Shader]:
+        r"""\brief Get the loaded shader object.
+
+        - \return The shader object, or None if not loaded
+        """
+        return self._shader
+
+    @ReturnType(error=bool)
+    def hasShaderError(self) -> bool:
+        r"""\brief Check if the shader failed to load.
+
+        - \return True if the shader failed to load, False otherwise
+        """
+        return self._shaderError
 
     def update(self, deltaTime: float) -> None:
-        """Called every frame. Handles sprite-sheet animation if enabled."""
+        r"""\brief Update the actor (called every frame).
+
+        Handles sprite-sheet animation if animatable is enabled.
+
+        - \param deltaTime Time elapsed since last frame (in seconds)
+        """
         if self.animatable:
             self._animate(deltaTime)
 
     def lateUpdate(self, deltaTime: float) -> None:
-        """Called after all actors have been updated. Override in subclasses."""
+        r"""\brief Late update callback (called after all actors are updated).
+
+        Override in subclasses to implement post-update logic.
+
+        - \param deltaTime Time elapsed since last frame (in seconds)
+        """
         pass
 
     def fixedUpdate(self, fixedDelta: float) -> None:
-        """Called at a fixed timestep. Override for physics/movement logic."""
+        r"""\brief Fixed timestep update callback.
+
+        Override this method to implement physics or movement logic
+        that requires a constant timestep.
+
+        - \param fixedDelta Fixed time step interval (in seconds)
+        """
         pass
 
     @ReturnType(pos=Vector2f)
     def getPosition(self) -> Vector2f:
-        """Get the world position (without translation offset)."""
+        r"""\brief Get the world position.
+
+        - \return World position as Vector2f (excluding translation offset)
+        """
         return super().getPosition() - self._translation
 
     @ReturnType(pos=Pair[float])
     def v_getPosition(self) -> Pair[float]:
-        """Get the world position as a raw tuple."""
-        result = super().getPosition()
-        return (result.x, result.y)
+        r"""\brief Get the world position as a raw tuple.
+
+        - \return Position as a tuple of (x, y) floats
+        """
+        return super().getPosition().unpack()
 
     @ReturnType(pos=Vector2f)
     def getRelativePosition(self) -> Vector2f:
-        """Get the position relative to the parent actor."""
+        r"""\brief Get the position relative to the parent actor.
+
+        - \return Relative position as Vector2f
+        """
         return self._relativePosition
 
     @ReturnType(pos=Pair[float])
     def v_getRelativePosition(self) -> Pair[float]:
-        """Get the relative position as a raw tuple."""
-        return (self._relativePosition.x, self._relativePosition.y)
+        r"""\brief Get the relative position as a raw tuple.
+
+        - \return Relative position as a tuple of (x, y) floats
+        """
+        return self._relativePosition.unpack()
 
     @ReturnType(pos=Vector2i)
     def getMapPosition(self) -> Vector2i:
-        """Get the grid cell position (world position / CellSize)."""
+        r"""\brief Get the grid cell position.
+
+        Calculates the grid cell by dividing world position by CellSize.
+
+        - \return Grid cell position as Vector2i
+        """
         from ... import CellSize
 
         return Vector2i(
@@ -119,12 +205,18 @@ class _ActorBase(Sprite):
 
     @ReturnType(pos=Pair[int])
     def v_getMapPosition(self) -> Pair[int]:
-        """Get the grid cell position as a raw tuple."""
-        return (self.getMapPosition().x, self.getMapPosition().y)
+        r"""\brief Get the grid cell position as a raw tuple.
+
+        - \return Grid cell position as a tuple of (x, y) integers
+        """
+        return self.getMapPosition().unpack()
 
     @ReturnType(pos=Vector2i)
     def getRelativeMapPosition(self) -> Vector2i:
-        """Get the grid cell position relative to the parent."""
+        r"""\brief Get the grid cell position relative to the parent.
+
+        - \return Relative grid cell position as Vector2i
+        """
         from ... import CellSize
 
         return Vector2i(
@@ -134,11 +226,22 @@ class _ActorBase(Sprite):
 
     @ReturnType(pos=Pair[int])
     def v_getRelativeMapPosition(self) -> Pair[int]:
-        return (self.getRelativeMapPosition().x, self.getRelativeMapPosition().y)
+        r"""\brief Get the relative grid cell position as a raw tuple.
+
+        - \return Relative grid cell position as a tuple of (x, y) integers
+        """
+        return self.getRelativeMapPosition().unpack()
 
     @ExecSplit(default=(None,))
     @TypeAdapter(position=([tuple, list], Vector2f))
     def setPosition(self, position: Union[Vector2f, Pair[float], List[float]]) -> None:
+        r"""\brief Set the absolute world position.
+
+        Updates the relative position based on parent, and propagates
+        to all children.
+
+        - \param position New world position as Vector2f, tuple, or list
+        """
         parent = self.getParent()
         if parent:
             parentPosition = parent.getPosition()
@@ -153,7 +256,10 @@ class _ActorBase(Sprite):
     @ExecSplit(default=(None,))
     @TypeAdapter(position=([tuple, list], Vector2f))
     def setRelativePosition(self, position: Union[Vector2f, Pair[float], List[float]]) -> None:
-        """Set position relative to the parent actor."""
+        r"""\brief Set the position relative to the parent actor.
+
+        - \param position Relative position as Vector2f, tuple, or list
+        """
         parentPosition = Vector2f(0, 0)
         parent = self.getParent()
         if parent:
@@ -163,7 +269,10 @@ class _ActorBase(Sprite):
     @ExecSplit(default=(None,))
     @TypeAdapter(position=([tuple, list], Vector2u))
     def setMapPosition(self, position: Union[Vector2u, Pair[int], List[int]]) -> None:
-        """Set position by grid cell coordinates."""
+        r"""\brief Set position by grid cell coordinates.
+
+        - \param position Grid cell position as Vector2u, tuple, or list
+        """
         from ... import CellSize
 
         self.setPosition(Vector2f(position.x * CellSize, position.y * CellSize))
@@ -171,7 +280,10 @@ class _ActorBase(Sprite):
     @ExecSplit(default=(None,))
     @TypeAdapter(position=([tuple, list], Vector2u))
     def setRelativeMapPosition(self, position: Union[Vector2u, Pair[int], List[int]]) -> None:
-        """Set relative position by grid cell coordinates."""
+        r"""\brief Set relative position by grid cell coordinates.
+
+        - \param position Relative grid cell position as Vector2u, tuple, or list
+        """
         from ... import CellSize
 
         self.setRelativePosition(Vector2f(position.x * CellSize, position.y * CellSize))
@@ -179,7 +291,12 @@ class _ActorBase(Sprite):
     @ExecSplit(default=(None,))
     @TypeAdapter(offset=([tuple, list], Vector2f))
     def move(self, offset: Union[Vector2f, Pair[float], List[float]]) -> None:
-        """Move by a pixel offset and propagate to children."""
+        r"""\brief Move by a pixel offset.
+
+        Propagates the movement to all children.
+
+        - \param offset Movement offset as Vector2f, tuple, or list
+        """
         super().move(offset)
         self._relativePosition += offset
         if self.getChildren():
@@ -188,28 +305,45 @@ class _ActorBase(Sprite):
 
     @ReturnType(angle=Angle)
     def getRotation(self) -> Angle:
-        """Get the current rotation angle."""
+        r"""\brief Get the current rotation angle.
+
+        - \return Rotation angle as Angle object
+        """
         return super().getRotation()
 
     @ReturnType(angle=float)
     def v_getRotation(self) -> float:
-        """Get the current rotation in degrees as a float."""
-        result = super().getRotation()
-        return result.asDegrees()
+        r"""\brief Get the current rotation in degrees.
+
+        - \return Rotation angle in degrees as a float
+        """
+        return super().getRotation().asDegrees()
 
     @ReturnType(angle=Angle)
     def getRelativeRotation(self) -> Angle:
-        """Get the rotation relative to the parent."""
+        r"""\brief Get the rotation relative to the parent.
+
+        - \return Relative rotation as Angle object
+        """
         return self._relativeRotation
 
     @ReturnType(angle=float)
     def v_getRelativeRotation(self) -> float:
-        """Get the relative rotation in degrees as a float."""
+        r"""\brief Get the relative rotation in degrees.
+
+        - \return Relative rotation in degrees as a float
+        """
         return self._relativeRotation.asDegrees()
 
     @ExecSplit(default=(None,))
     def setRotation(self, angle: Union[Angle, float]) -> None:
-        """Set the absolute rotation and propagate to children."""
+        r"""\brief Set the absolute rotation.
+
+        Updates the relative rotation based on parent, and propagates
+        to all children.
+
+        - \param angle Rotation angle (Angle object or float in degrees)
+        """
         if not isinstance(angle, Angle):
             angle = degrees(angle)
         parent = self.getParent()
@@ -225,6 +359,12 @@ class _ActorBase(Sprite):
 
     @ExecSplit(default=(None,))
     def rotate(self, angle: Union[Angle, float]) -> None:
+        r"""\brief Rotate by a relative angle.
+
+        Adds the angle to the current rotation and propagates to children.
+
+        - \param angle Relative rotation angle (Angle object or float in degrees)
+        """
         if not isinstance(angle, Angle):
             angle = degrees(angle)
         self._relativeRotation += angle
@@ -235,6 +375,10 @@ class _ActorBase(Sprite):
 
     @ExecSplit(default=(None,))
     def setRelativeRotation(self, angle: Union[Angle, float]) -> None:
+        r"""\brief Set the rotation relative to the parent.
+
+        - \param angle Relative rotation angle (Angle object or float in degrees)
+        """
         if not isinstance(angle, Angle):
             angle = degrees(angle)
         parentRotation = degrees(0)
@@ -245,24 +389,46 @@ class _ActorBase(Sprite):
 
     @ReturnType(scale=Pair[float])
     def v_getScale(self) -> Pair[float]:
-        result = super().getScale()
-        return (result.x, result.y)
+        r"""\brief Get the scale as a raw tuple.
+
+        - \return Scale as a tuple of (x, y) floats
+        """
+        return super().getScale().unpack()
 
     @ReturnType(scale=Vector2f)
     def getScale(self) -> Vector2f:
+        r"""\brief Get the current scale.
+
+        \return Scale as Vector2f
+        """
         return super().getScale()
 
     @ReturnType(scale=Vector2f)
     def getRelativeScale(self) -> Vector2f:
+        r"""\brief Get the scale relative to the parent.
+
+        - \return Relative scale as Vector2f
+        """
         return self._relativeScale
 
     @ReturnType(scale=Pair[float])
     def v_getRelativeScale(self) -> Pair[float]:
-        return (self._relativeScale.x, self._relativeScale.y)
+        r"""\brief Get the relative scale as a raw tuple.
+
+        - \return Relative scale as a tuple of (x, y) floats
+        """
+        return self._relativeScale.unpack()
 
     @ExecSplit(default=(None,))
     @TypeAdapter(factors=([tuple, list], Vector2f))
     def setScale(self, factors: Union[Vector2f, Pair[float], List[float]]) -> None:
+        r"""\brief Set the absolute scale.
+
+        Updates the relative scale based on parent, and propagates
+        to all children.
+
+        - \param factors New scale factors as Vector2f, tuple, or list
+        """
         parent = self.getParent()
         if parent:
             parentScale = parent.getScale()
@@ -277,6 +443,13 @@ class _ActorBase(Sprite):
     @ExecSplit(default=(None,))
     @TypeAdapter(factor=([tuple, list], Vector2f))
     def scale(self, factor: Union[Vector2f, Pair[float], List[float]]) -> None:
+        r"""\brief Scale by a relative factor.
+
+        Multiplies the current scale by the given factor and propagates
+        to all children.
+
+        - \param factor Scale factor as Vector2f, tuple, or list
+        """
         self._relativeScale = self._relativeScale.componentWiseMul(factor)
         super().scale(factor)
         if self.getChildren():
@@ -286,6 +459,10 @@ class _ActorBase(Sprite):
     @ExecSplit(default=(None,))
     @TypeAdapter(scale=([tuple, list], Vector2f))
     def setRelativeScale(self, scale: Union[Vector2f, Pair[float], List[float]]) -> None:
+        r"""\brief Set the scale relative to the parent.
+
+        - \param scale Relative scale as Vector2f, tuple, or list
+        """
         parentScale = Vector2f(1, 1)
         parent = self.getParent()
         if parent:
@@ -294,30 +471,62 @@ class _ActorBase(Sprite):
 
     @ReturnType(origin=Pair[float])
     def v_getOrigin(self) -> Pair[float]:
-        result = super().getOrigin()
-        return (result.x, result.y)
+        r"""\brief Get the origin as a raw tuple.
+
+        - \return Origin as a tuple of (x, y) floats
+        """
+        return super().getOrigin().unpack()
 
     @ReturnType(origin=Vector2f)
     def getOrigin(self) -> Vector2f:
+        r"""\brief Get the current origin.
+
+        - \return Origin point as Vector2f
+        """
         return super().getOrigin()
 
     @ExecSplit(default=(None,))
     @TypeAdapter(origin=([tuple, list], Vector2f))
     def setOrigin(self, origin: Union[Vector2f, Pair[float], List[float]]) -> None:
+        r"""\brief Set the origin point.
+
+        The origin is the point around which transformations (position,
+        rotation, scale) are applied.
+
+        - \param origin New origin point as Vector2f, tuple, or list
+        """
         return super().setOrigin(origin)
 
     @ReturnType(translation=Vector2f)
     def getTranslation(self) -> Vector2f:
+        r"""\brief Get the translation offset.
+
+        - \return Translation offset as Vector2f
+        """
         return self._translation
 
     @ExecSplit(default=(None,))
     @TypeAdapter(translation=([tuple, list], Vector2f))
     def setTranslation(self, translation: Union[Vector2f, Pair[float], List[float]]) -> None:
+        r"""\brief Set the translation offset.
+
+        The translation is an additional offset applied to the position.
+        After setting, the actor's position is recalculated.
+
+        - \param translation Translation offset as Vector2f, tuple, or list
+        """
         self._translation = translation
         self.setPosition(self.getPosition())
 
     @ExecSplit(default=(None,))
     def setAlignment(self, alignment: Tuple) -> None:
+        r"""\brief Set the origin based on alignment ratios.
+
+        Sets the origin point as a ratio of the texture rectangle size.
+        (0, 0) = top-left, (0.5, 0.5) = centre, (1, 1) = bottom-right.
+
+        - \param alignment Tuple of (x, y) ratios, each in range [0, 1]
+        """
         x, y = alignment
         x = Utils.Math.Clamp(x, 0, 1)
         y = Utils.Math.Clamp(y, 0, 1)
@@ -327,30 +536,53 @@ class _ActorBase(Sprite):
 
     @ReturnType(map_="GameMap")
     def getMap(self) -> Optional[GameMap]:
+        r"""\brief Get the map that this actor belongs to.
+
+        - \return The GameMap instance, or None if not assigned
+        """
         return self._map
 
     @ExecSplit(default=(None,))
     def setMap(self, inMap: GameMap) -> None:
+        r"""\brief Set the map that this actor belongs to.
+
+        - \param inMap The GameMap instance to assign
+        """
         self._map = inMap
 
     @ReturnType(parent=Optional["_ActorBase"])
     def getParent(self) -> Optional[_ActorBase]:
-        """Get the parent actor in the hierarchy."""
+        r"""\brief Get the parent actor in the hierarchy.
+
+        - \return Parent actor, or None if this is the root
+        """
         return self._parent
 
     @ExecSplit(default=(None,))
     def setParent(self, parent: Optional[_ActorBase]) -> None:
-        """Set the parent actor."""
+        r"""\brief Set the parent actor.
+
+        - \param parent The parent actor to assign, or None to detach
+        """
         self._parent = parent
 
     @ReturnType(children=List["_ActorBase"])
     def getChildren(self) -> List[_ActorBase]:
-        """Get the list of child actors."""
+        r"""\brief Get the list of child actors.
+
+        - \return List of child actors
+        """
         return self._children
 
     @ExecSplit(default=(None,))
     def addChild(self, child: _ActorBase) -> None:
-        """Attach a child actor to this actor's hierarchy."""
+        r"""\brief Attach a child actor to this actor's hierarchy.
+
+        Sets the child's parent and map, then updates the actor list
+        in the map if applicable.
+
+        - \param child The child actor to attach
+        """
         if child in self._children:
             warnings.warn("Child already exists")
             return
@@ -362,16 +594,33 @@ class _ActorBase(Sprite):
 
     @ExecSplit(default=(None,))
     def removeChild(self, child: _ActorBase) -> None:
+        r"""\brief Remove a child actor from this actor's hierarchy.
+
+        - \param child The child actor to remove
+
+        - \throw ValueError If the child is not found in the hierarchy
+        """
         if child not in self._children:
             raise ValueError("Child not found")
         self._children.remove(child)
 
     @ReturnType(visible=bool)
     def getVisible(self) -> bool:
+        r"""\brief Get the visibility state of this actor.
+
+        - \return True if visible, False if hidden
+        """
         return self._visible
 
     @ExecSplit(default=(None,))
     def setVisible(self, visible: bool, applyToChildren: bool = True) -> None:
+        r"""\brief Set the visibility of this actor.
+
+        Optionally propagates the visibility setting to all children.
+
+        - \param visible True to make visible, False to hide
+        - \param applyToChildren If True, apply to all children recursively
+        """
         self._visible = visible
         if applyToChildren:
             if self.getChildren():
@@ -380,10 +629,21 @@ class _ActorBase(Sprite):
 
     @ReturnType(animatable=bool)
     def getAnimatable(self) -> bool:
+        r"""\brief Get the animation state of this actor.
+
+        - \return True if animation is enabled, False otherwise
+        """
         return self.animatable
 
     @ExecSplit(default=(None,))
     def setAnimatable(self, animate: bool, applyToChildren: bool = True) -> None:
+        r"""\brief Enable or disable sprite-sheet animation.
+
+        Optionally propagates the setting to all children.
+
+        - \param animate True to enable animation, False to disable
+        - \param applyToChildren If True, apply to all children recursively
+        """
         self.animatable = animate
         if applyToChildren:
             if self.getChildren():
@@ -392,71 +652,160 @@ class _ActorBase(Sprite):
 
     @ReturnType(texture=Optional["Texture"])
     def getSpriteTexture(self) -> Optional[Texture]:
+        r"""\brief Get the texture of the underlying SFML sprite.
+
+        - \return The texture, or None if not set
+        """
         return super().getTexture()
 
     @ReturnType(texture=Optional["Texture"])
     def getTexture(self) -> Optional[Texture]:
+        r"""\brief Get the texture reference of this actor.
+
+        - \return The texture reference, or None if not set
+        """
         return self._texture
 
     @ExecSplit(default=(None,))
     def setSpriteTexture(self, texture: Texture, resetRect: bool = False) -> None:
+        r"""\brief Set the texture for the underlying SFML sprite.
+
+        This only updates the sprite's texture, not the actor's texture reference.
+
+        - \param texture The texture to apply
+        - \param resetRect If True, reset the texture rectangle to the texture size
+        """
         super().setTexture(texture, resetRect)
 
     @ExecSplit(default=(None,))
     def setTexture(self, texture: Texture, resetRect: bool = False) -> None:
+        r"""\brief Set the texture for this actor.
+
+        Updates both the internal texture reference and the sprite's texture.
+
+        - \param texture The texture to apply
+        - \param resetRect If True, reset the texture rectangle to the texture size
+        """
         self._texture = texture
         self.setSpriteTexture(texture, resetRect)
 
     @ReturnType(material=Material)
     def getMaterial(self) -> Material:
+        r"""\brief Get the material of this actor.
+
+        - \return The Material instance
+        """
         return self.material
 
     @ExecSplit(default=(None,))
     def setMaterial(self, material: Material) -> None:
+        r"""\brief Set the material for this actor.
+
+        The material defines lighting, opacity, and other surface properties.
+
+        - \param material The Material to apply
+        """
         self.material = material
 
     @ReturnType(lightBlock=float)
     def getLightBlock(self) -> float:
+        r"""\brief Get the light blocking factor.
+
+        - \return Light blocking factor (0.0 to 1.0)
+        """
         return self.material.lightBlock
 
     @ExecSplit(default=(None,))
     def setLightBlock(self, lightBlock: float) -> None:
+        r"""\brief Set the light blocking factor.
+
+        Controls how much light is blocked by this actor's material.
+
+        - \param lightBlock Light blocking factor (typically 0.0 to 1.0)
+        """
         self.material.lightBlock = lightBlock
 
     @ReturnType(mirror=bool)
     def getMirror(self) -> bool:
+        r"""\brief Get the mirror property of the material.
+
+        - \return True if mirror effect is enabled, False otherwise
+        """
         return self.material.mirror
 
     @ExecSplit(default=(None,))
     def setMirror(self, mirror: bool) -> None:
+        r"""\brief Set the mirror property of the material.
+
+        Controls whether the actor's surface acts as a mirror.
+
+        - \param mirror True to enable mirror effect, False to disable
+        """
         self.material.mirror = mirror
 
     @ReturnType(reflectionStrength=float)
     def getReflectionStrength(self) -> float:
+        r"""\brief Get the reflection strength of the material.
+
+        - \return Reflection strength factor (0.0 to 1.0)
+        """
         return self.material.reflectionStrength
 
     @ExecSplit(default=(None,))
     def setReflectionStrength(self, reflectionStrength: float) -> None:
+        r"""\brief Set the reflection strength of the material.
+
+        Controls how strongly the actor's surface reflects light.
+
+        - \param reflectionStrength Reflection strength factor (0.0 to 1.0)
+        """
         self.material.reflectionStrength = reflectionStrength
 
     @ReturnType(opacity=float)
     def getOpacity(self) -> float:
+        r"""\brief Get the opacity of the material.
+
+        - \return Opacity factor in range [0.0, 1.0]
+        """
         return self.material.opacity
 
     @ExecSplit(default=(None,))
     def setOpacity(self, opacity: float) -> None:
+        r"""\brief Set the opacity of the material.
+
+        Controls the transparency of the actor (0.0 = fully transparent,
+        1.0 = fully opaque).
+
+        - \param opacity Opacity factor in range [0.0, 1.0]
+        """
         self.material.opacity = opacity
 
     @ReturnType(emissive=float)
     def getEmissive(self) -> float:
+        r"""\brief Get the emissive property of the material.
+
+        - \return Emissive factor (0.0 = no emission)
+        """
         return self.material.emissive
 
     @ExecSplit(default=(None,))
     def setEmissive(self, emissive: float) -> None:
+        r"""\brief Set the emissive property of the material.
+
+        Controls how much light the actor emits.
+
+        - \param emissive Emissive factor (0.0 = no emission)
+        """
         self.material.emissive = emissive
 
     @ExecSplit(default=(None,))
     def setGraph(self, graph: Graph) -> None:
+        r"""\brief Set the behaviour graph for this actor.
+
+        The graph drives the actor's logic and state machine.
+
+        - \param graph The Graph instance to assign
+        """
         self._graph = graph
 
     @TypeAdapter(offset=([tuple, list], Vector2f))

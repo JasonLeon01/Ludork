@@ -3,8 +3,8 @@
 from __future__ import annotations
 from typing import List, Optional, Tuple, Union
 from ... import Pair, BPBase, Vector2f, Vector2i, Vector2u, IntRect, Texture
-from ..Material import Material
 from ...Utils import Math, Inner
+from ..Material import Material
 from .Base import _ActorBase
 
 
@@ -22,11 +22,11 @@ class Actor(_ActorBase, BPBase):
     speed: float = 64.0  #: Movement speed in pixels per second
     ### Generation use only
     texturePath: str = ""  #: Asset path to the character texture
-    defaultRect: Optional[Tuple[Pair[int], Pair[int]]] = ((0, 0), (32, 32))
-    defaultTranslation: Pair[float] = (0.0, 0.0)
-    defaultRotation: float = 0.0
-    defaultScale: Pair[float] = (1.0, 1.0)
-    defaultOrigin: Pair[float] = (0.0, 0.0)
+    defaultRect: Optional[Tuple[Pair[int], Pair[int]]] = ((0, 0), (32, 32))  #: Default texture rectangle (origin, size)
+    defaultTranslation: Pair[float] = (0.0, 0.0)  #: Default position offset
+    defaultRotation: float = 0.0  #: Default rotation in degrees
+    defaultScale: Pair[float] = (1.0, 1.0)  #: Default scale factors (x, y)
+    defaultOrigin: Pair[float] = (0.0, 0.0)  #: Default origin point for transformations
     ### Generation use only
 
     def __init__(
@@ -35,6 +35,15 @@ class Actor(_ActorBase, BPBase):
         rect: Union[IntRect, Tuple[Pair[int], Pair[int]]] = None,
         tag: Optional[str] = None,
     ) -> None:
+        r"""Initialise an Actor instance.
+
+        Creates the actor with optional texture, texture rectangle, and tag.
+        Initialises movement and routine state.
+
+        - \param texture  Optional single texture or list of textures
+        - \param rect     Optional texture rectangle or (origin, size) pair
+        - \param tag      Optional tag string for actor identification
+        """
         super().__init__(texture, rect, tag)
         self.collisionEnabled: bool = False
         self.tickable: bool = False
@@ -49,6 +58,13 @@ class Actor(_ActorBase, BPBase):
         self._realSpeed: float = 0.0
 
     def fixedUpdate(self, fixedDelta: float) -> None:
+        r"""Fixed-timestep update callback.
+
+        Processes routine movement and per-step motion. Computes real speed
+        for the frame.
+
+        - \param fixedDelta  Fixed timestep duration in seconds
+        """
         startPosition = self.getPosition()
         if self._inRoutine:
             if len(self._routine) == 0:
@@ -69,27 +85,36 @@ class Actor(_ActorBase, BPBase):
 
     @RegisterEvent
     def onCreate(self) -> None:
-        """Blueprint event: called once when the actor is spawned into the scene."""
+        r"""Blueprint event: called once when the actor is spawned into the scene."""
         pass
 
     @RegisterEvent
     def onTick(self, deltaTime: float) -> None:
-        """Blueprint event: called every frame while `tickable` is `True`."""
+        r"""Blueprint event: called every frame while `tickable` is `True`.
+
+        - \param deltaTime  Time elapsed since the last frame in seconds
+        """
         pass
 
     @RegisterEvent
     def onLateTick(self, deltaTime: float) -> None:
-        """Blueprint event: called after all actors' onTick in the same frame."""
+        r"""Blueprint event: called after all actors' onTick in the same frame.
+
+        - \param deltaTime  Time elapsed since the last frame in seconds
+        """
         pass
 
     @RegisterEvent
     def onFixedTick(self, fixedDelta: float) -> None:
-        """Blueprint event: called at a fixed physics timestep."""
+        r"""Blueprint event: called at a fixed physics timestep.
+
+        - \param fixedDelta  Fixed timestep duration in seconds
+        """
         pass
 
     @RegisterEvent
     def onDestroy(self) -> None:
-        """Blueprint event: called when the actor is removed from the scene."""
+        r"""Blueprint event: called when the actor is removed from the scene."""
         pass
 
     @RegisterEvent
@@ -110,7 +135,7 @@ class Actor(_ActorBase, BPBase):
 
     @ExecSplit(default=(None,))
     def destroy(self) -> None:
-        """Remove this actor from the current map and trigger `onDestroy`."""
+        r"""Remove this actor from the current map and trigger `onDestroy`."""
         if self._map:
             self._map.destroyActor(self)
 
@@ -160,11 +185,21 @@ class Actor(_ActorBase, BPBase):
 
     @ReturnType(tickable=bool)
     def getTickable(self) -> bool:
-        """Check whether tick events are enabled."""
+        r"""Check whether tick events are enabled.
+
+        - \return  `True` if tickable, `False` otherwise
+        """
         return self.tickable
 
     @ExecSplit(default=(None,))
     def setTickable(self, tickable: bool, applyToChildren: bool = True) -> None:
+        r"""Enable or disable tick event dispatch.
+
+        Optionally propagates the setting to all child actors.
+
+        - \param tickable         Whether to enable tick events
+        - \param applyToChildren  If `True`, propagate to all child actors
+        """
         self.tickable = tickable
         if applyToChildren:
             if self.getChildren():
@@ -174,11 +209,21 @@ class Actor(_ActorBase, BPBase):
 
     @ReturnType(visible=bool)
     def getVisible(self) -> bool:
-        """Check whether this actor is visible."""
+        r"""Check whether this actor is visible.
+
+        - \return  `True` if visible, `False` otherwise
+        """
         return self._visible
 
     @ExecSplit(default=(None,))
     def setVisible(self, visible: bool, applyToChildren: bool = True) -> None:
+        r"""Set actor visibility.
+
+        Optionally propagates the setting to all child actors.
+
+        - \param visible          Whether the actor should be visible
+        - \param applyToChildren  If `True`, propagate to all child actors
+        """
         self._visible = visible
         if applyToChildren:
             if self.getChildren():
@@ -187,54 +232,88 @@ class Actor(_ActorBase, BPBase):
 
     @ReturnType(collisionEnabled=bool)
     def getCollisionEnabled(self) -> bool:
-        """Check whether this actor blocks movement of others."""
+        r"""Check whether this actor blocks movement of others.
+
+        - \return  `True` if collision is enabled, `False` otherwise
+        """
         return self.collisionEnabled
 
     @ExecSplit(default=(None,))
     def setCollisionEnabled(self, enabled: bool) -> None:
-        """Enable or disable collision blocking."""
+        r"""Enable or disable collision blocking.
+
+        - \param enabled  Whether to enable collision blocking
+        """
         self.collisionEnabled = enabled
 
     @ReturnType(intersects=bool)
     def intersects(self, other: Actor) -> bool:
-        """Test whether this actor's bounding box overlaps another's."""
+        r"""Test whether this actor's bounding box overlaps another's.
+
+        - \param other   The other actor to test against
+        - \return        `True` if bounding boxes intersect, `False` otherwise
+        """
         return not self.getGlobalBounds().findIntersection(other.getGlobalBounds()) is None
 
     @ReturnType(isMoving=bool)
     def isMoving(self) -> bool:
-        """Check whether this actor is currently in motion."""
+        r"""Check whether this actor is currently in motion.
+
+        - \return  `True` if moving or has non-zero real speed
+        """
         return self._isMoving or self._realSpeed > 0.0
 
     @ReturnType(isInRoutine=bool)
     def isInRoutine(self) -> bool:
-        """Check whether this actor is executing a movement routine."""
+        r"""Check whether this actor is executing a movement routine.
+
+        - \return  `True` if a routine is active, `False` otherwise
+        """
         return self._inRoutine
 
     @ExecSplit(default=(None,))
     def setRoutine(self, routine: Optional[List[Vector2i]]) -> None:
-        """Set a sequence of grid offsets to walk automatically."""
+        r"""Set a sequence of grid offsets to walk automatically.
+
+        - \param routine  List of grid offsets, or `None` to clear the routine
+        """
         self._inRoutine = routine is not None
         self._routine = routine
 
     @ReturnType(routine=Optional[List[Vector2i]])
     def getRoutine(self) -> Optional[List[Vector2i]]:
-        """Get the current movement routine, or `None` if inactive."""
+        r"""Get the current movement routine.
+
+        - \return  List of grid offsets, or `None` if inactive
+        """
         return self._routine
 
     @ReturnType(moveEnabled=bool)
     def getMoveEnabled(self) -> bool:
-        """Check whether movement is allowed."""
+        r"""Check whether movement is allowed.
+
+        - \return  `True` if movement is enabled, `False` otherwise
+        """
         return self._moveEnabled
 
     @ExecSplit(default=(None,))
     def setMoveEnabled(self, enabled: bool) -> None:
-        """Enable or disable movement. Disabling also stops current motion."""
+        r"""Enable or disable movement.
+
+        Disabling also stops current motion.
+
+        - \param enabled  Whether to enable movement
+        """
         self._moveEnabled = enabled
         if not enabled:
             self.stop()
 
     @ExecSplit(default=(None,))
     def stop(self) -> None:
+        r"""Immediately halt all movement and clear the current routine.
+
+        Resets motion state and snaps map position to the current location.
+        """
         self._isMoving = False
         self._inRoutine = False
         self._routine = None
@@ -245,7 +324,12 @@ class Actor(_ActorBase, BPBase):
 
     @ReturnType(velocity=Optional[Vector2f])
     def getVelocity(self) -> Optional[Vector2f]:
-        """Compute the current velocity vector, accounting for tile material speed rate."""
+        r"""Compute the current velocity vector.
+
+        Accounts for the tile material speed rate at the current map position.
+
+        - \return  Velocity vector in pixels/second, or `None` if not moving
+        """
         if not self._map or self._departure is None or self._destination is None:
             return None
 
@@ -263,6 +347,14 @@ class Actor(_ActorBase, BPBase):
     def GenActor(
         ActorModel: type, texture: Texture, textureRect: Optional[Tuple[Pair[int], Pair[int]]], tag: str
     ) -> Actor:
+        r"""Create an actor instance from a model class with material initialisation.
+
+        - \param ActorModel     The actor subclass to instantiate
+        - \param texture        The texture to assign to the new actor
+        - \param textureRect    Optional texture rectangle for sprite slicing
+        - \param tag            Optional tag string for the new actor
+        - \return               The created `Actor` instance
+        """
         actor: Actor = ActorModel(texture, textureRect, tag)
         if isinstance(actor.material, dict):
             actor.material = Material(**Inner.filterDataClassParams(actor.material, Material))

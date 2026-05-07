@@ -169,6 +169,6 @@ class WindowSelectable(WindowBase):
         self.content.setView(View(Vector2f(originX, originY) + viewSize / 2, viewSize))
 
     def _judgeIfConfirm(self, target: FunctionalBase) -> bool:
-        if target.isHovered() and Input.isMouseInputMode() and Input.isMouseButtonTriggered(Input.Mouse.Button.Left):
+        if target.isHovered() and Input.isMouseInputMode() and Input.isMouseButtonTriggered(Input.Mouse.Button.Left, True):
             return True
         return False
