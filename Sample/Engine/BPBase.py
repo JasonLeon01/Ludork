@@ -22,10 +22,10 @@ class BPBase:
         2. Otherwise, try the info-layer `_infoGraph`.
         3. Otherwise, fall back to the parent class graph or direct method call.
 
-        \param obj        Target object instance
-        \param objType    Expected type (used for isinstance check)
-        \param eventName  Name of the event to trigger (e.g. "onUse", "onCreate")
-        \param kwargs     Arguments passed to the event
+        - \param obj        Target object instance
+        - \param objType    Expected type (used for isinstance check)
+        - \param eventName  Name of the event to trigger (e.g. "onUse", "onCreate")
+        - \param kwargs     Arguments passed to the event
         """
         if kwargs is None:
             kwargs = {}
@@ -114,9 +114,9 @@ class BPBase:
         Handles type coercion for basic types (int, float, bool, string, list, tuple).
         Keys starting with '_' are skipped (reserved for internal fields like _graph).
 
-        \param obj        Target object to set attributes on
-        \param data       Member data dictionary from GeneralData
-        \param paramsType Parameter schema with type/defaultValue definitions
+        - \param obj        Target object to set attributes on
+        - \param data       Member data dictionary from GeneralData
+        - \param paramsType Parameter schema with type/defaultValue definitions
         """
         from .Utils import Inner
 

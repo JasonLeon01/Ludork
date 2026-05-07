@@ -9,11 +9,11 @@ from .States import StateInfo, State
 class _BaseBattler:
     """Base combat attributes for any battling entity."""
 
-    HP: int = 1000   #: Hit points
-    ATK: int = 10    #: Attack power
-    DEF: int = 10    #: Defense power
-    EXP: int = 0     #: Experience points
-    GOLD: int = 0    #: Currency
+    MAXHP: int = 1000  #: Hit points
+    ATK: int = 10  #: Attack power
+    DEF: int = 10  #: Defense power
+    EXP: int = 0  #: Experience points
+    GOLD: int = 0  #: Currency
 
 
 class Battler(_BaseBattler):

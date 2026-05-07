@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import threading
 from typing import Tuple
+import Engine
 from Engine import Pair, Color, Vector2f, RenderTexture, RectangleShape
 from Engine.Utils import Render, Math
 from Engine.Animation import compressAnimation
@@ -18,13 +19,11 @@ from .SceneTitle import Scene as SceneTitle
 
 class ProgressBar(SpriteBase):
     def __init__(self, rect: Tuple[Pair[int], Pair[int]]) -> None:
-        from Engine import Scale
-
         position, size = rect
         x, y = position
         w, h = size
         self.size = Vector2f(w, h)
-        self.realSize = self.size * Scale
+        self.realSize = self.size * Engine.Scale
         self.canvas = RenderTexture(Math.ToVector2u(self.realSize))
         self.backRect = RectangleShape(Math.ToVector2f(self.realSize))
         self.backRect.setFillColor(Color(255, 255, 255, 64))

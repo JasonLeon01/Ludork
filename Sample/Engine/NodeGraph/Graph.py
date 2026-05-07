@@ -27,13 +27,13 @@ class Graph:
     ) -> None:
         r"""Construct a graph and immediately build nodes and relations.
 
-        \param parentClassName  Dot-path of the parent blueprint class
-        \param parentClass      Resolved parent class type
-        \param parent           Owner object instance (the actor/info)
-        \param inNodes          Event name -> list of DataNode definitions
-        \param links            Event name -> list of link dictionaries
-        \param nodeModel        Node class to instantiate (default: `Node`)
-        \param startNodes       Event name -> index of the entry node (or None)
+        - \param parentClassName  Dot-path of the parent blueprint class
+        - \param parentClass      Resolved parent class type
+        - \param parent           Owner object instance (the actor/info)
+        - \param inNodes          Event name -> list of DataNode definitions
+        - \param links            Event name -> list of link dictionaries
+        - \param nodeModel        Node class to instantiate (default: `Node`)
+        - \param startNodes       Event name -> index of the entry node (or None)
         """
         import Engine, Global, Source
 

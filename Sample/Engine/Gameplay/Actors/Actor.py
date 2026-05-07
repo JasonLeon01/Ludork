@@ -17,11 +17,11 @@ class Actor(_ActorBase, BPBase):
     routine (pathfinding) execution, and blueprint event dispatching.
     """
 
-    collisionEnabled: bool = False   #: Whether this actor blocks movement
-    tickable: bool = False           #: Whether tick events are dispatched
-    speed: float = 64.0              #: Movement speed in pixels per second
+    collisionEnabled: bool = False  #: Whether this actor blocks movement
+    tickable: bool = False  #: Whether tick events are dispatched
+    speed: float = 64.0  #: Movement speed in pixels per second
     ### Generation use only
-    texturePath: str = ""            #: Asset path to the character texture
+    texturePath: str = ""  #: Asset path to the character texture
     defaultRect: Optional[Tuple[Pair[int], Pair[int]]] = ((0, 0), (32, 32))
     defaultTranslation: Pair[float] = (0.0, 0.0)
     defaultRotation: float = 0.0
@@ -96,7 +96,7 @@ class Actor(_ActorBase, BPBase):
     def onCollision(self, other: List[Actor]) -> None:
         r"""Blueprint event: called when movement is blocked by another actor.
 
-        \param other  List of actors at the collision target cell
+        - \param other  List of actors at the collision target cell
         """
         pass
 
@@ -104,7 +104,7 @@ class Actor(_ActorBase, BPBase):
     def onOverlap(self, other: List[Actor]) -> None:
         r"""Blueprint event: called when this actor enters a cell occupied by others.
 
-        \param other  List of actors sharing the same cell
+        - \param other  List of actors sharing the same cell
         """
         pass
 
@@ -117,13 +117,13 @@ class Actor(_ActorBase, BPBase):
     @ExecSplit(success=(True,), fail=(False,))
     @TypeAdapter(offset=([tuple, list], Vector2i))
     def MapMove(self, offset: Union[Vector2i, Pair[int], List[int]]) -> bool:
-        """Move the actor by one cell in the given direction.
+        r"""Move the actor by one cell in the given direction.
 
         Validates boundaries and passability before initiating movement.
         Triggers `onCollision` on both parties if the target cell is blocked.
 
-        \param offset  Direction vector (clamped to unit: -1, 0, or 1 per axis)
-        \return `True` if movement was initiated, `False` otherwise
+        - \param offset  Direction vector (clamped to unit: -1, 0, or 1 per axis)
+        - \return `True` if movement was initiated, `False` otherwise
         """
         from ... import CellSize
 

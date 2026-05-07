@@ -9,6 +9,7 @@ from Engine.Utils import File
 from Global import Manager, SceneBase, GameMap, Camera, Light
 from Global import System as GlobalSystem
 from Source import Data, System
+from Source.Windows.HUDPlayerAttr import PlayerAttrHUD
 from Source.Windows.WindowMessage import WindowMessage
 from Source.GameInstance import GameInstance
 
@@ -22,6 +23,8 @@ class Scene(SceneBase):
 
     def onCreate(self) -> None:
         self.player = self.inst.getPlayer()
+        self._playerHUD = PlayerAttrHUD(self.player)
+        self._uiManager.loadUI(self._playerHUD)
         self._messageWindow = WindowMessage()
         self._uiManager.loadUI(self._messageWindow)
 

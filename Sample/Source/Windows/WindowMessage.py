@@ -139,7 +139,9 @@ class WindowMessage(WindowSelectable):
     def _setupSelectionList(self, options: List[str]) -> None:
         options = options[: self._MAX_OPTIONS]
         if self._selectionListView is None:
-            self._selectionListView = ListView(IntRect(Vector2i(0, 0), Vector2i(1, 1)), self._OPTION_ITEM_HEIGHT, True, 1)
+            self._selectionListView = ListView(
+                IntRect(Vector2i(0, 0), Vector2i(1, 1)), self._OPTION_ITEM_HEIGHT, True, 1
+            )
         self._selectionListView.clearChildren()
 
         for optionIndex, optionText in enumerate(options):
@@ -325,17 +327,13 @@ class WindowMessage(WindowSelectable):
         return max(1, int(round((float(self._selectionListView.size.x) - 32.0) / float(columns))))
 
     def _resizeCanvas(self, target, width: int, height: int) -> None:
-        from Engine import Scale
-
         target._size = Vector2u(width, height)
-        target._canvas.resize(Math.ToVector2u(Vector2f(width, height) * Scale))
+        target._canvas.resize(Math.ToVector2u(Vector2f(width, height) * Engine.Scale))
         target.setTexture(target._canvas.getTexture(), True)
         target.setView(target.getDefaultView())
 
     def _resizeWindow(self, width: int, height: int) -> None:
-        from Engine import Scale
-
         self._window._size = Vector2u(width, height)
-        self._window._canvas.resize(Math.ToVector2u(Vector2f(width, height) * Scale))
+        self._window._canvas.resize(Math.ToVector2u(Vector2f(width, height) * Engine.Scale))
         self._window._initUI()
         self._window.setTexture(self._window._canvas.getTexture(), True)

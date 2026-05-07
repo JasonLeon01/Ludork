@@ -7,6 +7,7 @@ from .Text import TextStyle, PlainText, RichText
 from .Image import Image
 from .Window import Window
 from .Rect import Rect
+from .SolidRect import SolidRect
 from .ListView import ListView
 
 DefaultFont: Font
@@ -74,4 +75,16 @@ def GetCharcoal() -> Color:
     return HexColor(0x1F1F1F)
 
 
-__all__ = ["HexColor", "Canvas", "Text", "Image", "Window", "Rect", "ListView", "RichText", "PlainText", "TextStyle"]
+__all__ = [
+    "HexColor",
+    "Canvas",
+    "Text",
+    "Image",
+    "Window",
+    "Rect",
+    "SolidRect",
+    "ListView",
+    "RichText",
+    "PlainText",
+    "TextStyle",
+]

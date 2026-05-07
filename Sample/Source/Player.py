@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, List
 from Engine import Texture, Input
 from Engine.Gameplay.Actors import Character
 from .Battler import Battler
@@ -14,6 +14,9 @@ class Player(Character, Battler):
     (HP, ATK, DEF, states). Registers arrow-key input mappings on construction.
     """
 
+    LEVEL: int = 1  #: Current level
+    HP: int = 0  #: Current hit points, initialized to `MAXHP`
+
     def __init__(self, texture: Optional[Texture] = None, tag: str = "") -> None:
         Character.__init__(self, texture, tag)
         Battler.__init__(self)
@@ -21,6 +24,7 @@ class Player(Character, Battler):
         self.collisionEnabled = True
         self.animatable = True
         self.speed = 96
+        self.HP = self.MAXHP
         Input.registerActionMapping(
             self, "playerMoveUp", Input.getUpKeys(), lambda obj, delta: obj.MapMove((0, -1)), triggerOnHold=True
         )

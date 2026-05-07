@@ -32,11 +32,11 @@ class _ActorBase(Sprite):
     Not intended to be instantiated directly; use `Actor` instead.
     """
 
-    tag: str = ""                    #: Identifier tag for lookups
-    switchInterval: float = 0.2      #: Frame switch interval for sprite animation (seconds)
-    animatable: bool = False         #: Whether sprite-sheet animation is enabled
+    tag: str = ""  #: Identifier tag for lookups
+    switchInterval: float = 0.2  #: Frame switch interval for sprite animation (seconds)
+    animatable: bool = False  #: Whether sprite-sheet animation is enabled
     material: Material = Material()  #: Surface material (lighting, speed, opacity)
-    shaderPath: str = ""             #: Path to a fragment shader applied to this actor
+    shaderPath: str = ""  #: Path to a fragment shader applied to this actor
 
     @TypeAdapter(rect=([tuple, list], IntRect, lambda pos, size: IntRect(Vector2i(*pos), Vector2i(*size))))
     def __init__(
@@ -47,9 +47,9 @@ class _ActorBase(Sprite):
     ) -> None:
         r"""Construct an actor base from a texture and optional sub-rectangle.
 
-        \param texture  Source texture (or `None` for an invisible actor)
-        \param rect     Sub-rectangle of the texture to display
-        \param tag      Optional identifier tag
+        - \param texture  Source texture (or `None` for an invisible actor)
+        - \param rect     Sub-rectangle of the texture to display
+        - \param tag      Optional identifier tag
         """
         args = [texture]
         if not rect is None:
