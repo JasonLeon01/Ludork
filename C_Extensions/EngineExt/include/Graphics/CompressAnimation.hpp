@@ -10,6 +10,9 @@
 
 namespace py = pybind11;
 
+// BIND_FUNCTION
+// Compress an animation sequence into zlib-compressed frame data.
+// Returns a tuple of (duration, compressed_frames, sound_entries).
 std::tuple<float, std::vector<py::bytes>, std::vector<py::dict>> C_CompressAnimation(
     py::object zlibModule, int frameCount, float frameStep, int frameRate,
     const std::vector<std::unordered_map<std::string, std::vector<py::dict>>> &timeLines,

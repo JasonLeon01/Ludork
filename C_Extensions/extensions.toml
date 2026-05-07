@@ -1,8 +1,28 @@
+# =============================================================================
+# Ludork C Extensions Configuration
+#
+# Each extension module contains:
+#   - name: module name
+#   - target_dir: build artifact output directory
+#   - needs_pysf: whether SFML/pysf is required
+#   - stub_patches: text replacements applied after stub generation
+#   - bindgen: auto binding generation settings (optional)
+#       - enabled: enable automatic generation
+#       - internals_id: PYBIND11_INTERNALS_ID
+#       - pysf_import: pysf import path on module load
+#       - extra_includes: additional #include directives
+#       - include_paths: additional include search paths
+#       - clang_args: extra arguments passed to libclang
+# =============================================================================
+
 [editor_ext]
 name = "EditorExt"
 target_dir = "EditorExtensions"
 needs_pysf = false
 stub_patches = []
+
+[editor_ext.bindgen]
+enabled = false
 
 [engine_ext]
 name = "EngineExt"
@@ -13,6 +33,14 @@ stub_patches = [
     { find = "pysf.sf.", replace = "pysf." },
 ]
 
+[engine_ext.bindgen]
+enabled = true
+internals_id = "PYSF"
+pysf_import = "EngineExt.pysf"
+extra_includes = []
+include_paths = []
+clang_args = []
+
 [global_ext]
 name = "GlobalExt"
 target_dir = "Sample/Global"
@@ -21,3 +49,11 @@ stub_patches = [
     { find = "import pysf.sf", replace = "from Engine import pysf" },
     { find = "pysf.sf.", replace = "pysf." },
 ]
+
+[global_ext.bindgen]
+enabled = true
+internals_id = "PYSF"
+pysf_import = "Engine.pysf"
+extra_includes = []
+include_paths = []
+clang_args = []

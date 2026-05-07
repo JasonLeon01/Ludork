@@ -11,4 +11,5 @@ ordered-set
 setuptools
 pybind11
 pybind11-stubgen
+clang==18.1.8
 openpyxl

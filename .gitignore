@@ -23,6 +23,9 @@ launcher.dist/
 launcher.onefile-build/
 .clangd
 .clang-format
+C_Extensions/*/_generated_bindings.cpp
+C_Extensions/EngineExt/CMakeLists.txt
+C_Extensions/GlobalExt/CMakeLists.txt
 /Sample/**/*.pyi
 /EditorExtensions/**/*.pyi
 pyrightconfig.json

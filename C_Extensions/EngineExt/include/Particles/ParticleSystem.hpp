@@ -10,19 +10,42 @@
 #include "Particles/TextParticle.hpp"
 
 
+// BIND_CLASS
+// Manages all particles and handles rendering via vertex arrays.
 class ParticleSystem : public sf::Drawable {
 public:
+    // BIND_INIT
     ParticleSystem() {};
     ~ParticleSystem();
+
+    // BIND_METHOD
     void addParticle(Particle* particle);
+
+    // BIND_METHOD
     void addText(TextParticle* text);
+
+    // BIND_METHOD
     void removeParticle(Particle* particle);
+
+    // BIND_METHOD
     void removeText(TextParticle* text);
+
+    // BIND_METHOD
     void removeParticleAt(const std::string& resourcePath, int index);
+
+    // BIND_METHOD
     void addUpdateFlag(Particle* particle);
+
+    // BIND_METHOD
     void updateParticlesInfo();
+
+    // BIND_METHOD
     void onTick(float deltaTime);
+
+    // BIND_METHOD
     void onLateTick(float deltaTime);
+
+    // BIND_METHOD
     void onFixedTick(float fixedDelta);
 
 protected:

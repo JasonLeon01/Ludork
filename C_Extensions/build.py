@@ -11,6 +11,8 @@ PROJECT_ROOT = os.path.abspath(os.path.join(ROOT, ".."))
 BUILD_DIR = os.path.join(ROOT, "build")
 PYSF_DIR = os.path.join(PROJECT_ROOT, "pysf")
 
+sys.path.insert(0, ROOT)
+
 
 def loadConfig():
     with open(os.path.join(ROOT, "extensions.toml"), "rb") as f:
@@ -101,14 +103,34 @@ def distribute(config: dict, only: str = None):
         print(f"[OK] {name} -> {target_dir}")
 
 
+def runBindgen(only: str = None):
+    """运行自动绑定生成器"""
+    try:
+        from bindgen.generate import main as bindgen_main
+        print("[BUILD] Running bindgen...")
+        sys.argv = ["bindgen"]
+        if only:
+            sys.argv.extend(["--only", only])
+        bindgen_main()
+    except ImportError as e:
+        print(f"[WARN] Bindgen not available ({e}), skipping code generation")
+        print("[HINT] Install libclang: pip install libclang")
+    except Exception as e:
+        print(f"[WARN] Bindgen failed: {e}")
+        print("[HINT] Falling back to existing binding files")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--no-clean", dest="clean", action="store_false")
     parser.add_argument("--only", type=str, default=None)
     parser.add_argument("--skip-build", action="store_true")
+    parser.add_argument("--skip-bindgen", action="store_true", help="Skip auto binding generation")
     args = parser.parse_args()
 
     config = loadConfig()
+    if not args.skip_bindgen:
+        runBindgen(only=args.only)
     if not args.skip_build:
         cmakeBuild(clean=args.clean)
     distribute(config, only=args.only)
