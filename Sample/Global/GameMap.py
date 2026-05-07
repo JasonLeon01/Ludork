@@ -28,6 +28,7 @@ from .GlobalExt import GameMapExt
 from .Camera import Camera
 from .System import System
 from .Components import MapClickAutoPath, PathPreviewComponent, PathRouteState, ComponentBase
+from .CustomParticles import CommonTipController
 
 
 @dataclass
@@ -92,6 +93,7 @@ class GameMap(GameMapExt):
         self._tilemapRenderStates.shader = self._tilemapLightMaskShader
         self._actorRenderStates = copy.copy(self._camera.getRenderStates())
         self._actorRenderStates.shader = self._lightMaskShader
+        self._commonTipController = CommonTipController(self._particleSystem, fontSize=12)
         super().__init__(self._materialShader)
         self.tilemapRef = self._tilemap
         self.actorsRef = self._actors
@@ -337,6 +339,10 @@ class GameMap(GameMapExt):
     def setScene(self, scene: SceneBase) -> None:
         self._scene = scene
 
+    @ExecSplit(default=(None,))
+    def addCommonTip(self, text: str) -> None:
+        self._commonTipController.addTip(text)
+
     def getCollision(self, actor: Actor, targetPosition: Vector2i) -> List[Actor]:
         if not actor.getCollisionEnabled():
             return []
@@ -420,6 +426,7 @@ class GameMap(GameMapExt):
                 if actor.getTickable():
                     Actor.BlueprintEvent(actor, Actor, "onTick", {"deltaTime": deltaTime})
         self._particleSystem.onTick(deltaTime)
+        self._commonTipController.onTick(deltaTime)
 
     def onLateTick(self, deltaTime: float) -> None:
         if self._camera:

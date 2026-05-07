@@ -8,7 +8,9 @@
 **/__MACOSX
 /.vscode/
 .claude/
+.cursor/
 .trae/
+.codebuddy/
 .rules/
 lib/
 C_Extensions/SFML/
