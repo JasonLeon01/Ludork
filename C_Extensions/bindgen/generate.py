@@ -72,7 +72,7 @@ def generate_extension(ext_key: str, ext_config: dict) -> bool:
     extra_includes = bindgen_conf.get("extra_includes", [])
     extra_args = bindgen_conf.get("clang_args", [])
 
-    include_dirs = [os.path.join(ext_dir, "include")]
+    include_dirs = [os.path.join(ext_dir, "include"), BINDGEN_DIR]
 
     sfml_include = os.path.join(C_EXT_DIR, "SFML", "include")
     if os.path.exists(sfml_include):

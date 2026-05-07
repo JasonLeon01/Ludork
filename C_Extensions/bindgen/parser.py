@@ -121,24 +121,45 @@ def _parse_annotation_options(option_str: str) -> dict:
     return options
 
 
+def _normalize_comment_line(line: str) -> str:
+    s = line.strip()
+
+    if s.startswith("//"):
+        s = s[2:]
+        while s.startswith("/"):
+            s = s[1:]
+        if s.startswith("<"):
+            s = s[1:]
+        return s.lstrip()
+
+    if s.startswith("/*"):
+        s = s[2:]
+        while s.startswith("*") or s.startswith("!"):
+            s = s[1:]
+        s = s.lstrip()
+
+    if s.endswith("*/"):
+        s = s[:-2].rstrip()
+
+    if s.startswith("*"):
+        s = s[1:].lstrip()
+    if s.startswith("<"):
+        s = s[1:].lstrip()
+
+    return s
+
+
 def _parse_comment_block(raw_comment: str) -> Optional[BindAnnotation]:
     if not raw_comment:
         return None
 
     lines = raw_comment.strip().splitlines()
     annotation = None
-    docstring_lines = []
+    normalized_lines: list[str] = []
 
     for line in lines:
-        stripped = line.strip()
-        if stripped.startswith("//"):
-            stripped = stripped[2:].strip()
-        elif stripped.startswith("/*"):
-            stripped = stripped[2:].strip()
-        elif stripped.startswith("*"):
-            stripped = stripped[1:].strip()
-            if stripped.endswith("*/"):
-                stripped = stripped[:-2].strip()
+        stripped = _normalize_comment_line(line)
+        normalized_lines.append(stripped)
 
         match = _ANNOTATION_RE.search(stripped)
         if match:
@@ -147,10 +168,14 @@ def _parse_comment_block(raw_comment: str) -> Optional[BindAnnotation]:
             kind = BindKind[kind_str]
             options = _parse_annotation_options(options_str)
             annotation = BindAnnotation(kind=kind, options=options)
-        elif annotation is not None and stripped:
-            docstring_lines.append(stripped)
 
     if annotation is not None:
+        docstring_lines = []
+        for stripped in normalized_lines:
+            if _ANNOTATION_RE.search(stripped):
+                continue
+            if stripped:
+                docstring_lines.append(stripped)
         annotation.docstring = "\n".join(docstring_lines)
 
     return annotation
@@ -160,11 +185,21 @@ def _get_raw_comment(cursor: Cursor) -> str:
     return cursor.raw_comment or ""
 
 
-def _get_comment_above(cursor: Cursor, source_lines: list[str]) -> str:
-    raw = _get_raw_comment(cursor)
-    if raw:
-        return raw
+_ANNOTATION_MACRO_LINE_RE = re.compile(r"^\s*BIND_(CLASS|FUNCTION|METHOD|PROPERTY|INIT|IGNORE)(?:\([^)]*\))?\s*;?\s*$")
 
+
+def _is_annotation_macro_line(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped:
+        return False
+    if stripped.startswith("#"):
+        return False
+    if stripped.startswith("//") or stripped.startswith("/*") or stripped.startswith("*"):
+        return False
+    return _ANNOTATION_MACRO_LINE_RE.match(line) is not None
+
+
+def _get_annotation_block_above(cursor: Cursor, source_lines: list[str]) -> str:
     loc = cursor.location
     if not loc or not loc.file:
         return ""
@@ -173,15 +208,61 @@ def _get_comment_above(cursor: Cursor, source_lines: list[str]) -> str:
     if line_num <= 0 or line_num > len(source_lines):
         return ""
 
-    comment_lines = []
+    def _is_line_comment(line: str) -> bool:
+        return line.strip().startswith("//")
+
+    def _is_block_comment_end(line: str) -> bool:
+        return "*/" in line
+
+    def _is_block_comment_start(line: str) -> bool:
+        return "/*" in line
+
+    comment_lines: list[str] = []
     i = line_num - 1
+
+    # Skip multiline declaration preamble (e.g. return type on previous line).
     while i >= 0:
         stripped = source_lines[i].strip()
-        if stripped.startswith("//"):
-            comment_lines.insert(0, stripped)
-            i -= 1
-        else:
+        if not stripped:
             break
+        if (
+            _is_line_comment(source_lines[i])
+            or _is_block_comment_end(source_lines[i])
+            or _is_annotation_macro_line(source_lines[i])
+        ):
+            break
+        if ";" in stripped or "{" in stripped or "}" in stripped:
+            return ""
+        i -= 1
+
+    while i >= 0:
+        stripped = source_lines[i].strip()
+
+        if not stripped:
+            break
+
+        if _is_annotation_macro_line(source_lines[i]):
+            comment_lines.insert(0, source_lines[i])
+            i -= 1
+            continue
+
+        if _is_line_comment(source_lines[i]):
+            comment_lines.insert(0, source_lines[i])
+            i -= 1
+            continue
+
+        if _is_block_comment_end(source_lines[i]):
+            comment_lines.insert(0, source_lines[i])
+            i -= 1
+            while i >= 0:
+                comment_lines.insert(0, source_lines[i])
+                if _is_block_comment_start(source_lines[i]):
+                    i -= 1
+                    break
+                i -= 1
+            continue
+
+        break
 
     return "\n".join(comment_lines)
 
@@ -211,7 +292,7 @@ def _parse_default_value(cursor: Cursor, source_lines: list[str]) -> Optional[st
 
     eq_idx = text.find("=")
     if eq_idx >= 0:
-        return text[eq_idx + 1:].strip()
+        return text[eq_idx + 1 :].strip()
     return None
 
 
@@ -287,7 +368,7 @@ class HeaderParser:
         if not cursor.is_definition():
             return None
 
-        comment = _get_comment_above(cursor, source_lines)
+        comment = _get_annotation_block_above(cursor, source_lines)
         annotation = _parse_comment_block(comment)
 
         if annotation is None or annotation.kind != BindKind.CLASS:
@@ -298,10 +379,7 @@ class HeaderParser:
         for child in cursor.get_children():
             if child.kind == CursorKind.CXX_BASE_SPECIFIER:
                 tokens = [t.spelling for t in child.get_tokens()]
-                base_tokens = [
-                    t for t in tokens
-                    if t not in ("public", "protected", "private", "virtual", ":", ",")
-                ]
+                base_tokens = [t for t in tokens if t not in ("public", "protected", "private", "virtual", ":", ",")]
                 if base_tokens:
                     base_name = "".join(base_tokens)
                     class_info.bases.append(base_name)
@@ -321,7 +399,7 @@ class HeaderParser:
             if current_access != "public":
                 continue
 
-            member_comment = _get_comment_above(child, source_lines)
+            member_comment = _get_annotation_block_above(child, source_lines)
             member_annotation = _parse_comment_block(member_comment)
 
             if member_annotation and member_annotation.kind == BindKind.IGNORE:
@@ -373,7 +451,7 @@ class HeaderParser:
         return class_info
 
     def _parse_function(self, cursor: Cursor, source_lines: list[str]) -> Optional[FunctionInfo]:
-        comment = _get_comment_above(cursor, source_lines)
+        comment = _get_annotation_block_above(cursor, source_lines)
         annotation = _parse_comment_block(comment)
 
         if annotation is None or annotation.kind != BindKind.FUNCTION:

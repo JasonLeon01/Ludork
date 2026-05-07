@@ -40,9 +40,14 @@ sf::Color C_HexColor(int value, int alpha) {
 
 void ApplyColorBinding(py::module &m) {
     m.def(
-        "C_HexColor", [](const std::string &value, int alpha = 255) { return C_HexColor(value, alpha); },
+        "C_HexColor",
+        [](const std::string &value, int alpha = 255) { return C_HexColor(value, alpha); },
+        "Convert a hex color string to `sf.Color`.\n\n"
+        "Supported formats: '#RRGGBB', '$RRGGBB', '0xRRGGBB', 'RRGGBBAA'.\n",
         py::arg("value"), py::arg("alpha") = 255);
     m.def(
-        "C_HexColor", [](int value, int alpha = 255) { return C_HexColor(value, alpha); }, py::arg("value"),
-        py::arg("alpha") = 255);
+        "C_HexColor",
+        [](int value, int alpha = 255) { return C_HexColor(value, alpha); },
+        "Convert a packed integer color to `sf.Color`.\n",
+        py::arg("value"), py::arg("alpha") = 255);
 }

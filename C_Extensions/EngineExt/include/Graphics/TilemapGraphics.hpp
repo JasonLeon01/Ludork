@@ -1,5 +1,7 @@
 #pragma once
 
+#include <BindAnnotations.hpp>
+
 #include <pybind11/pybind11.h>
 
 #include <SFML/Graphics/Drawable.hpp>
@@ -16,31 +18,85 @@
 
 namespace py = pybind11;
 
-// BIND_CLASS
-// GPU-accelerated tile layer renderer using vertex arrays.
+////////////////////////////////////////////////////////////
+/// \brief GPU-accelerated tile layer renderer using vertex arrays
+///
+////////////////////////////////////////////////////////////
+BIND_CLASS()
 class TileLayerGraphics : public sf::Drawable, public sf::Transformable {
 public:
-    // BIND_INIT
+    ////////////////////////////////////////////////////////////
+    /// \brief Construct a tile layer graphics object
+    ///
+    /// - \param width Tile count on X axis
+    /// - \param height Tile count on Y axis
+    /// - \param tileSize Tile size in pixels
+    /// - \param texture Tileset texture
+    /// - \param tiles Tile id grid
+    /// - \param materials Material metadata list
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_INIT()
     TileLayerGraphics(int width, int height, int tileSize, sf::Texture *texture,
                       const std::vector<std::vector<std::optional<int>>> &tiles,
                       const std::vector<py::object> &materials);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Destructor
+    ///
+    ////////////////////////////////////////////////////////////
     ~TileLayerGraphics();
 
-    // BIND_METHOD
-    // Set the colour tint of a specific tile.
+    ////////////////////////////////////////////////////////////
+    /// \brief Set the color tint of a specific tile
+    ///
+    /// - \param x Tile X coordinate
+    /// - \param y Tile Y coordinate
+    /// - \param color Tint color to apply
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
     void setTileColor(int x, int y, sf::Color color);
 
-    // BIND_METHOD
-    // Reset a tile's colour to its default opacity-based value.
+    ////////////////////////////////////////////////////////////
+    /// \brief Reset a tile color to its material opacity value
+    ///
+    /// - \param x Tile X coordinate
+    /// - \param y Tile Y coordinate
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
     void resetTileColor(int x, int y);
 
-    // BIND_METHOD
-    // Flood-fill connected tiles with a transparent colour overlay.
-    // Returns the list of affected tile coordinates.
+    ////////////////////////////////////////////////////////////
+    /// \brief Flood fill connected valid tiles with a color overlay
+    ///
+    /// - \param startX Seed tile X coordinate
+    /// - \param startY Seed tile Y coordinate
+    /// - \param color Fill color
+    ///
+    /// - \return List of affected tile coordinates
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
     std::vector<std::pair<int, int>> floodFillTransparent(int startX, int startY, sf::Color color);
 
 private:
+    ////////////////////////////////////////////////////////////
+    /// \brief Build vertex data from tile and material tables
+    ///
+    /// - \param tileSize Tile size in pixels
+    ///
+    ////////////////////////////////////////////////////////////
     void init(int tileSize);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Draw tile vertices to a render target
+    ///
+    /// - \param target Destination render target
+    /// - \param states Render state bundle
+    ///
+    ////////////////////////////////////////////////////////////
     virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const override;
 
     sf::VertexArray *vertexArray_;
@@ -50,4 +106,10 @@ private:
     std::vector<py::object> materials_;
 };
 
+////////////////////////////////////////////////////////////
+/// \brief Register `TileLayerGraphics` bindings to Python
+///
+/// - \param m Target Python module
+///
+////////////////////////////////////////////////////////////
 void ApplyTileLayerGraphicsBinding(py::module &m);

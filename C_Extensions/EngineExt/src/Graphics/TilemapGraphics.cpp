@@ -140,13 +140,17 @@ void TileLayerGraphics::init(int tileSize) {
 }
 
 void ApplyTileLayerGraphicsBinding(py::module &m) {
-    py::class_<TileLayerGraphics, sf::Drawable, sf::Transformable> TileLayerGraphicsClass(m, "TileLayerGraphics");
+    py::class_<TileLayerGraphics, sf::Drawable, sf::Transformable> TileLayerGraphicsClass(
+        m, "TileLayerGraphics", "GPU-accelerated tile layer renderer.");
     TileLayerGraphicsClass.def(
         py::init<int, int, int, sf::Texture *, std::vector<std::vector<std::optional<int>>>, std::vector<py::object>>(),
         py::arg("width"), py::arg("height"), py::arg("tileSize"), py::arg("texture"), py::arg("tiles"),
         py::arg("materials"));
 
-    TileLayerGraphicsClass.def("setTileColor", &TileLayerGraphics::setTileColor);
-    TileLayerGraphicsClass.def("resetTileColor", &TileLayerGraphics::resetTileColor);
-    TileLayerGraphicsClass.def("floodFillTransparent", &TileLayerGraphics::floodFillTransparent);
+    TileLayerGraphicsClass.def("setTileColor", &TileLayerGraphics::setTileColor,
+                               "Set the color tint for one tile.");
+    TileLayerGraphicsClass.def("resetTileColor", &TileLayerGraphics::resetTileColor,
+                               "Reset tile color to the material opacity.");
+    TileLayerGraphicsClass.def("floodFillTransparent", &TileLayerGraphics::floodFillTransparent,
+                               "Flood fill connected tiles and return affected tile coordinates.");
 }

@@ -69,8 +69,10 @@ void RectBase::render(sf::RenderTexture &dst, sf::RenderTexture &edge, sf::Sprit
 }
 
 void ApplyRectBaseBinding(py::module &m) {
-    py::class_<RectBase> RectBaseClass(m, "RectBase");
+    py::class_<RectBase> RectBaseClass(m, "RectBase", "Nine-patch rectangle rendering helper.");
     RectBaseClass.def(py::init<>());
-    RectBaseClass.def("render", &RectBase::render, py::arg("dst"), py::arg("edge"), py::arg("edgeSprite"),
-                      py::arg("backSprite"), py::arg("cachedCorners"), py::arg("cachedEdges"), py::arg("renderStates"));
+    RectBaseClass.def("render", &RectBase::render,
+                      "Render a full nine-patch rectangle into the destination texture.",
+                      py::arg("dst"), py::arg("edge"), py::arg("edgeSprite"), py::arg("backSprite"),
+                      py::arg("cachedCorners"), py::arg("cachedEdges"), py::arg("renderStates"));
 }

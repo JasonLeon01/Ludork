@@ -1,5 +1,7 @@
 #pragma once
 
+#include <BindAnnotations.hpp>
+
 #include <SFML/Graphics.hpp>
 #include <string>
 #include <tuple>
@@ -10,48 +12,134 @@
 #include "Particles/TextParticle.hpp"
 
 
-// BIND_CLASS
-// Manages all particles and handles rendering via vertex arrays.
+////////////////////////////////////////////////////////////
+/// \brief Manages particle lifetime, updates and rendering
+///
+////////////////////////////////////////////////////////////
+BIND_CLASS()
 class ParticleSystem : public sf::Drawable {
 public:
-    // BIND_INIT
+    ////////////////////////////////////////////////////////////
+    /// \brief Default constructor
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_INIT()
     ParticleSystem() {};
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Destructor
+    ///
+    ////////////////////////////////////////////////////////////
     ~ParticleSystem();
 
-    // BIND_METHOD
+    ////////////////////////////////////////////////////////////
+    /// \brief Add a sprite particle to the system
+    ///
+    /// - \param particle Particle instance to add
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
     void addParticle(Particle* particle);
 
-    // BIND_METHOD
+    ////////////////////////////////////////////////////////////
+    /// \brief Add a text particle to the system
+    ///
+    /// - \param text Text particle instance to add
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
     void addText(TextParticle* text);
 
-    // BIND_METHOD
+    ////////////////////////////////////////////////////////////
+    /// \brief Remove a sprite particle from the system
+    ///
+    /// - \param particle Particle instance to remove
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
     void removeParticle(Particle* particle);
 
-    // BIND_METHOD
+    ////////////////////////////////////////////////////////////
+    /// \brief Remove a text particle from the system
+    ///
+    /// - \param text Text particle instance to remove
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
     void removeText(TextParticle* text);
 
-    // BIND_METHOD
+    ////////////////////////////////////////////////////////////
+    /// \brief Remove particle by resource group and index
+    ///
+    /// - \param resourcePath Particle texture path key
+    /// - \param index Index in grouped particle list
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
     void removeParticleAt(const std::string& resourcePath, int index);
 
-    // BIND_METHOD
+    ////////////////////////////////////////////////////////////
+    /// \brief Mark particle geometry as dirty
+    ///
+    /// - \param particle Dirty particle instance
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
     void addUpdateFlag(Particle* particle);
 
-    // BIND_METHOD
+    ////////////////////////////////////////////////////////////
+    /// \brief Apply pending particle geometry updates
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
     void updateParticlesInfo();
 
-    // BIND_METHOD
+    ////////////////////////////////////////////////////////////
+    /// \brief Execute per-frame updates for all particles
+    ///
+    /// - \param deltaTime Elapsed time in seconds
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
     void onTick(float deltaTime);
 
-    // BIND_METHOD
+    ////////////////////////////////////////////////////////////
+    /// \brief Execute late updates for all particles
+    ///
+    /// - \param deltaTime Elapsed time in seconds
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
     void onLateTick(float deltaTime);
 
-    // BIND_METHOD
+    ////////////////////////////////////////////////////////////
+    /// \brief Execute fixed-step updates for all particles
+    ///
+    /// - \param fixedDelta Fixed time step in seconds
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
     void onFixedTick(float fixedDelta);
 
 protected:
+    ////////////////////////////////////////////////////////////
+    /// \brief Draw all particle batches and text particles
+    ///
+    /// - \param target Destination render target
+    /// - \param states Render states
+    ///
+    ////////////////////////////////////////////////////////////
     virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override;
 
 private:
+    ////////////////////////////////////////////////////////////
+    /// \brief Build local quad points for a particle texture
+    ///
+    /// - \param particle Source particle
+    ///
+    /// - \return Quad corners in local space
+    ///
+    ////////////////////////////////////////////////////////////
     std::tuple<sf::Vector2f, sf::Vector2f, sf::Vector2f, sf::Vector2f> getUpdateParticleInfo(Particle* particle);
     std::unordered_map<std::string, std::vector<Particle*>> particles_;
     std::unordered_map<std::string, sf::VertexArray> vertexArrays_;
