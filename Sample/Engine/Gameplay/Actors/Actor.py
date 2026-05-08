@@ -50,7 +50,7 @@ class Actor(_ActorBase, BPBase):
         self.speed: float = 64.0
         self._isMoving: bool = False
         self._nextMoveOffset: Optional[Union[Vector2i, Pair[int]]] = None
-        self._inRoutine: bool = False
+        self._inRoute: bool = False
         self._routine: Optional[List[Vector2i]] = None
         self._moveEnabled: bool = True
         self._departure: Optional[Vector2f] = None
@@ -66,15 +66,15 @@ class Actor(_ActorBase, BPBase):
         - \param fixedDelta  Fixed timestep duration in seconds
         """
         startPosition = self.getPosition()
-        if self._inRoutine:
+        if self._inRoute:
             if len(self._routine) == 0:
-                self._inRoutine = False
+                self._inRoute = False
             else:
                 if not self._isMoving and self._routine:
                     step = self._routine[0]
                     self._routine.pop(0)
                     if not self.MapMove(step):
-                        self._inRoutine = False
+                        self._inRoute = False
         if self._isMoving:
             self._processMoving(fixedDelta)
         dist = (self.getPosition() - startPosition).length()
@@ -263,25 +263,25 @@ class Actor(_ActorBase, BPBase):
         """
         return self._isMoving or self._realSpeed > 0.0
 
-    @ReturnType(isInRoutine=bool)
-    def isInRoutine(self) -> bool:
+    @ReturnType(isInRoute=bool)
+    def isInRoute(self) -> bool:
         r"""Check whether this actor is executing a movement routine.
 
         - \return  `True` if a routine is active, `False` otherwise
         """
-        return self._inRoutine
+        return self._inRoute
 
     @ExecSplit(default=(None,))
-    def setRoutine(self, routine: Optional[List[Vector2i]]) -> None:
+    def setRoute(self, routine: Optional[List[Vector2i]]) -> None:
         r"""Set a sequence of grid offsets to walk automatically.
 
         - \param routine  List of grid offsets, or `None` to clear the routine
         """
-        self._inRoutine = routine is not None
+        self._inRoute = routine is not None
         self._routine = routine
 
     @ReturnType(routine=Optional[List[Vector2i]])
-    def getRoutine(self) -> Optional[List[Vector2i]]:
+    def getRoute(self) -> Optional[List[Vector2i]]:
         r"""Get the current movement routine.
 
         - \return  List of grid offsets, or `None` if inactive
@@ -315,7 +315,7 @@ class Actor(_ActorBase, BPBase):
         Resets motion state and snaps map position to the current location.
         """
         self._isMoving = False
-        self._inRoutine = False
+        self._inRoute = False
         self._routine = None
         self._departure = None
         self._destination = None

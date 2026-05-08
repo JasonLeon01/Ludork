@@ -171,7 +171,7 @@ class MapClickAutoPath(ComponentBase):
             return None
         best: Optional[Dict[str, List[Vector2i]]] = None
         for routine in candidates:
-            route = self._buildRouteByRoutine(start, routine)
+            route = self._buildRouteByRoute(start, routine)
             if len(route) == 0:
                 continue
             item = {"routine": routine, "route": route}
@@ -217,7 +217,7 @@ class MapClickAutoPath(ComponentBase):
                 current = Vector2i(current.x + sx, current.y + sy)
         return routine
 
-    def _buildRouteByRoutine(self, start: Vector2i, routine: List[Vector2i]) -> List[Vector2i]:
+    def _buildRouteByRoute(self, start: Vector2i, routine: List[Vector2i]) -> List[Vector2i]:
         route: List[Vector2i] = [Vector2i(start.x, start.y)]
         current = Vector2i(start.x, start.y)
         for step in routine:

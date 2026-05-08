@@ -1,9 +1,9 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Optional
-from Engine import IntRect, Vector2f, Vector2i, Color
-from Engine.UI import Canvas, Image, PlainText, SolidRect
+from typing import Optional, Dict
+from Engine import IntRect, Vector2f, Vector2i, Color, Text
+from Engine.UI import Canvas, Image, PlainText, SolidRect, RichText, TextStyle
 from ..Player import Player
 from ..System import System
 
@@ -18,6 +18,7 @@ class PlayerAttrHUD(Canvas):
     _HP_BAR_WIDTH = 128
     _STAT_ROW_1_Y = 32
     _STAT_ROW_2_Y = 48
+    _STAT_ROW_3_Y = 64
 
     def __init__(self, player: Player) -> None:
         r"""Construct a player attribute HUD bound to the given player instance.
@@ -31,6 +32,7 @@ class PlayerAttrHUD(Canvas):
         self._hpBarWidth = self._HP_BAR_WIDTH
         self._font = System.getFonts()[0]
         self._initAvatar()
+        self._initTextStyles()
         self._initLayout()
         super().__init__(((self._HUD_POS_X, self._HUD_POS_Y), (self._hudWidth, self._hudHeight)))
         self._buildUI()
@@ -57,9 +59,17 @@ class PlayerAttrHUD(Canvas):
         avatarRect = IntRect(Vector2i(0, 0), Vector2i(frameWidth, frameHeight))
         self._avatar = Image(texture, avatarRect)
 
+    def _initTextStyles(self) -> None:
+        r"""Initialize text styles for rich text rendering."""
+        self._textStyles: Dict[str, TextStyle] = {}
+        self._textStyles["default"] = TextStyle(self._FONT_SIZE, Text.Style.Regular, Color.White, None, 0.0)
+        self._textStyles["Yellow"] = TextStyle(fillColor=Color.Yellow)
+        self._textStyles["Blue"] = TextStyle(fillColor=Color.Blue)
+        self._textStyles["Red"] = TextStyle(fillColor=Color.Red)
+
     def _initLayout(self) -> None:
         self._hudWidth = max(self._infoStartX + self._hpBarWidth, self._hpBarWidth + self._AVATAR_MIN_SIZE)
-        self._hudHeight = self._STAT_ROW_2_Y + self._FONT_SIZE + 4
+        self._hudHeight = self._STAT_ROW_3_Y + self._FONT_SIZE + 4
 
     def _buildUI(self) -> None:
         if self._avatar is not None:
@@ -89,6 +99,10 @@ class PlayerAttrHUD(Canvas):
         self._statLine2.setPosition((0, self._STAT_ROW_2_Y))
         self.addChild(self._statLine2)
 
+        self._itemText = RichText(self._font, "", self._textStyles)
+        self._itemText.setPosition((0, self._STAT_ROW_3_Y))
+        self.addChild(self._itemText)
+
     def _refresh(self) -> None:
         hp = int(getattr(self._player, "HP", 0))
         maxhp = max(1, int(getattr(self._player, "MAXHP", 1)))
@@ -111,3 +125,9 @@ class PlayerAttrHUD(Canvas):
         textX = self._infoStartX + (self._hpBarWidth - hpBounds.size.x) / 2.0 - hpBounds.position.x
         textY = self._HP_ROW_Y + (self._HP_BAR_HEIGHT - hpBounds.size.y) / 2.0 - hpBounds.position.y
         self._hpText.setPosition((textX, textY))
+
+        keyY_count = self._player.getItemCount("KEY_Y")
+        keyB_count = self._player.getItemCount("KEY_B")
+        keyR_count = self._player.getItemCount("KEY_R")
+        displayText = f"#default#KEYS: #Yellow#{keyY_count}#default#\t#Blue#{keyB_count}#default#\t#Red#{keyR_count}#default#"
+        self._itemText.setString(displayText)

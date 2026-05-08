@@ -27,7 +27,7 @@ class FileSelectorDialog(QtWidgets.QFileDialog):
     def _on_dir_entered(self, path: str) -> None:
         rp = os.path.normcase(self._root)
         pp = os.path.normcase(os.path.abspath(path))
-        if rp != pp:
+        if pp != rp and not pp.startswith(rp + os.sep):
             self.setDirectory(self._root)
 
     def execSelect(self) -> str:
