@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 """GameInstance: persistent game state container surviving across scene transitions."""
 
-from typing import Any, Dict, List, Optional, Type, cast
+from typing import Any, Dict, List, Optional, Type
 from Engine import Vector2u
 from Engine.Gameplay.Actors import Actor
 from Global import Manager
@@ -50,7 +50,7 @@ class GameInstance:
         actorClass: Type[Player] = Data.getClass(playerPath)
         texturePath = getattr(actorClass, "texturePath")
         defaultRect = getattr(actorClass, "defaultRect")
-        actor: Player = cast(
+        actor: Player = Cast(
             Player, actorClass.GenActor(actorClass, Manager.loadCharacter(texturePath), defaultRect, "yongshi")
         )
         actor.setAnimatable(True, True)

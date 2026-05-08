@@ -6,7 +6,9 @@ import re
 
 
 class BPBase:
-    """Blueprint system base class.
+    r"""////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////
+    \brief Blueprint system base class.
 
     Provides static methods for dispatching blueprint events through
     node graphs, applying GeneralData attributes, and managing the
@@ -15,7 +17,9 @@ class BPBase:
 
     @staticmethod
     def BlueprintEvent(obj: object, objType: type, eventName: str, kwargs: Dict[str, Any] = None) -> None:
-        r"""Dispatch a blueprint event on the given object.
+        r"""////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////
+        \brief Dispatch a blueprint event on the given object.
 
         Resolution order:
         1. If the object's actor-layer `_graph` has a startNode for the event, execute it.
@@ -76,9 +80,14 @@ class BPBase:
 
     @staticmethod
     def _tryExecuteInfoGraph(obj: object, eventName: str, kwargs: Dict[str, Any]) -> bool:
-        """
-        Try to execute an event from the info-layer graph (_infoGraph).
-        Returns True if executed, False if no info graph or event not found.
+        r"""////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////
+        \brief Try to execute an event from the info-layer graph.
+
+        - \param obj        Target object instance.
+        - \param eventName  Name of the event to trigger.
+        - \param kwargs     Arguments passed to the event.
+        - \return True if executed, False if no info graph or event not found.
         """
         infoGraph = getattr(obj, "_infoGraph", None)
         if infoGraph is None:
@@ -99,9 +108,15 @@ class BPBase:
 
     @staticmethod
     def ExecuteInfoGraph(obj: object, eventName: str, kwargs: Dict[str, Any] = None) -> None:
-        """
-        Explicitly execute the info-layer graph for a given event.
+        r"""////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////
+        \brief Explicitly execute the info-layer graph for a given event.
+
         Used by the SUPER node to call the GeneralData-level event logic.
+
+        - \param obj        Target object instance.
+        - \param eventName  Name of the event to trigger.
+        - \param kwargs     Arguments passed to the event.
         """
         if kwargs is None:
             kwargs = {}
@@ -109,7 +124,9 @@ class BPBase:
 
     @staticmethod
     def ApplyGeneralData(obj: object, data: Dict[str, Any], paramsType: Dict[str, Any]) -> None:
-        r"""Apply key-value pairs from GeneralData onto an object's attributes.
+        r"""////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////
+        \brief Apply key-value pairs from GeneralData onto an object's attributes.
 
         Handles type coercion for basic types (int, float, bool, string, list, tuple).
         Keys starting with '_' are skipped (reserved for internal fields like _graph).

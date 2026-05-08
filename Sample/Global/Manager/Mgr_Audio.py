@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-"""AudioManager: manages sound effect and music playback with caching and filters."""
 
 from __future__ import annotations
 import asyncio
@@ -24,6 +23,11 @@ from ..System import System
 
 
 class AudioManager:
+    r"""\brief Manages sound effect and music playback.
+
+    Provides caching, filters, and spatialization support.
+    """
+
     _SoundBufferRef: Dict[str, SoundBuffer] = {}
     _SoundBufferCount: Dict[str, int] = {}
     _SoundRec: List[Sound] = []
@@ -38,7 +42,7 @@ class AudioManager:
     _AsyncThread: Optional[threading.Thread] = None
 
     @classmethod
-    def _ensure_asyncio_loop(cls) -> Optional[asyncio.AbstractEventLoop]:
+    def _ensureAsyncioLoop(cls) -> Optional[asyncio.AbstractEventLoop]:
         try:
             asyncio.get_running_loop()
         except RuntimeError:
@@ -66,13 +70,17 @@ class AudioManager:
             loop = asyncio.get_running_loop()
             return loop.create_task(coro)
         except RuntimeError:
-            loop = cls._ensure_asyncio_loop()
+            loop = cls._ensureAsyncioLoop()
             if loop is None:
                 return None
             return asyncio.run_coroutine_threadsafe(coro, loop)
 
     @classmethod
     def loadSound(cls, filePath: str) -> SoundBuffer:
+        r"""\brief Load a sound buffer from file.
+        - \param filePath: Path to the sound file.
+        - \return: Loaded SoundBuffer.
+        """
         if filePath in cls._SoundBufferRef:
             return cls._SoundBufferRef[filePath]
 
@@ -86,6 +94,12 @@ class AudioManager:
     def playSound(
         cls, filePath: str, filter: Optional[Filters.SoundFilter] = None, parent: Optional[Transformable] = None
     ) -> Optional[Sound]:
+        r"""\brief Play a sound effect from file.
+        - \param filePath: Path to the sound file.
+        - \param filter: Optional sound filter to apply.
+        - \param parent: Optional parent Transformable for spatialization.
+        - \return: Playing Sound object, or None if sound is disabled.
+        """
         if not System.getSoundOn():
             return None
 
@@ -116,11 +130,21 @@ class AudioManager:
 
     @classmethod
     def setSoundParent(cls, sound: Sound, parent: Transformable) -> None:
+        r"""\brief Set the parent Transformable for a sound.
+        - \param sound: The sound to set parent for.
+        - \param parent: The parent Transformable.
+        """
         cls._SoundParentMap[id(sound)] = parent
         sound.setPosition(parent.getPosition())
 
     @classmethod
     def playMusic(cls, musicType: str, filePath: str, filter: Optional[Filters.MusicFilter] = None) -> Optional[Music]:
+        r"""\brief Play music from file.
+        - \param musicType: Type identifier for the music.
+        - \param filePath: Path to the music file.
+        - \param filter: Optional music filter to apply.
+        - \return: Playing Music object, or None if music is disabled.
+        """
         if not System.getMusicOn():
             cls.stopMusic(musicType)
             return None
@@ -141,11 +165,15 @@ class AudioManager:
 
     @classmethod
     def stopSound(cls) -> None:
+        r"""\brief Stop all currently playing sounds."""
         for sound in cls._SoundRec:
             sound.stop()
 
     @classmethod
     def stopMusic(cls, musicType: str) -> None:
+        r"""\brief Stop music of a specific type.
+        - \param musicType: Type identifier for the music to stop.
+        """
         if musicType in cls._MusicRef:
             filePath, music = cls._MusicRef[musicType]
             music.stop()
@@ -153,6 +181,9 @@ class AudioManager:
 
     @classmethod
     def getMemory(cls) -> int:
+        r"""\brief Get memory usage of audio resources.
+        - \return: Memory usage in bytes.
+        """
         from pympler import asizeof  # type: ignore
 
         return asizeof.asizeof(
@@ -161,6 +192,7 @@ class AudioManager:
 
     @classmethod
     async def updateAllSoundPositions(cls) -> None:
+        r"""\brief Update positions of all playing sounds."""
         import Engine
 
         GameRunning = Engine.GameRunning

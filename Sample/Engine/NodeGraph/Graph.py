@@ -37,25 +37,25 @@ class Graph:
         """
         import Engine, Global, Source
 
-        self.modules_ = [Source, Global, Engine]
-        self.localGraph: Dict[str, Any] = {"__graph__": self}
-        self.parentClassName = parentClassName
-        self.parentClass = parentClass
-        self.parent = parent
-        self.dataNodes = inNodes
-        self.nodes: Dict[str, List[Node]] = {}
-        self.links = links
-        self.startNodes = startNodes
-        self.nodeRely: Dict[str, Dict[int, Dict[int, Pair[int]]]] = {}
-        self.nodeNexts: Dict[str, Dict[int, Dict[int, Pair[int]]]] = {}
+        self.modules_ = [Source, Global, Engine]  # Project modules to search functions from
+        self.localGraph: Dict[str, Any] = {"__graph__": self}  # Local graph execution context
+        self.parentClassName = parentClassName  # Dot-path of the parent blueprint class
+        self.parentClass = parentClass  # Resolved parent class type
+        self.parent = parent  # Owner object instance (the actor/info)
+        self.dataNodes = inNodes  # Raw node data keyed by event name
+        self.nodes: Dict[str, List[Node]] = {}  # Instantiated nodes keyed by event name
+        self.links = links  # Connection links between nodes
+        self.startNodes = startNodes  # Entry node index for each event
+        self.nodeRely: Dict[str, Dict[int, Dict[int, Pair[int]]]] = {}  # Parameter dependency map
+        self.nodeNexts: Dict[str, Dict[int, Dict[int, Pair[int]]]] = {}  # Execution order map
         if self.startNodes is None:
             self.startNodes = {}
-        self.nodeModel = nodeModel
+        self.nodeModel = nodeModel  # Node class to instantiate
         if self.nodeModel is None:
             self.nodeModel = Node
-        self.doingPartKey: Optional[str] = None
-        self._executionLocked: Dict[str, bool] = {}
-        self._latentPendingCount: Dict[str, int] = {}
+        self.doingPartKey: Optional[str] = None  # Current event key being executed
+        self._executionLocked: Dict[str, bool] = {}  # Re-entrancy lock per event
+        self._latentPendingCount: Dict[str, int] = {}  # Pending latent node count per event
         self.genNodesFromDataNodes()
         self.genRelationsFromLinks()
 
@@ -111,6 +111,15 @@ class Graph:
                     self.nodeNexts[key][left][leftOutPin] = (right, rightInPin)
 
     def execute(self, key: str, startNode: Optional[int] = None, limit=1000000) -> Optional[Tuple[Any, ...]]:
+        r"""Execute the node graph from a start node, following execution links.
+
+        Handles latent nodes by delegating to LatentManager when encountered.
+
+        - \param key         Event key to execute (e.g. "onUpdate")
+        - \param startNode   Index of the entry node (uses startNodes[key] if None)
+        - \param limit       Maximum number of steps before raising RuntimeError
+        - \return Tuple of return values from the final node, or None
+        """
         from . import latentManager
 
         self.doingPartKey = key
@@ -189,11 +198,25 @@ class Graph:
         return order
 
     def getNodes(self, key: str) -> List[Node]:
+        r"""Get the list of nodes registered for a given event key.
+
+        - \param key  Event key (e.g. "onUpdate")
+        - \return List of Node objects for that event
+        """
         return self.nodes[key]
 
     def executeNode(
         self, key: str, nodeIndex: int, _cache: Optional[Dict[int, Tuple[Any, ...]]] = None
     ) -> Tuple[Any, ...]:
+        r"""Execute a single node, resolving its input dependencies first.
+
+        Recursively evaluates upstream nodes on which this node depends.
+
+        - \param key         Event key
+        - \param nodeIndex   Index of the node to execute
+        - \param _cache      Internal cache to avoid re-executing nodes
+        - \return Tuple of return values from the node
+        """
         if _cache is None:
             _cache = {}
         if nodeIndex in _cache:
@@ -214,6 +237,12 @@ class Graph:
         return result
 
     def getFunctionFromModule(self, inModule, pathStr: str) -> Optional[Callable]:
+        r"""Resolve a callable by dot-path from a module, recursively.
+
+        - \param inModule  Root module to start searching from
+        - \param pathStr   Dot-separated path to the function (e.g. "Utils.Print")
+        - \return Resolved callable, or None if not found
+        """
         nodes = pathStr.split(".")
         if len(nodes) > 0:
             if hasattr(inModule, nodes[0]):
@@ -225,6 +254,12 @@ class Graph:
         return None
 
     def getFunctionFromObject(self, obj: object, pathStr: str) -> Optional[Callable]:
+        r"""Resolve a callable by dot-path from an object.
+
+        - \param obj      Object to start searching from
+        - \param pathStr  Dot-separated path to the function
+        - \return Resolved callable, or None if not found
+        """
         nodes = pathStr.split(".")
         currentObj = obj
         for node in nodes:
@@ -263,6 +298,10 @@ class Graph:
             self._executionLocked[key] = False
 
     def asDict(self) -> Dict[str, Any]:
+        r"""Serialize the graph to a dictionary for storage.
+
+        - \return Dictionary containing parent class, nodes, links, and start nodes
+        """
         result = {}
         if self.parentClassName != "NOT_WRITTEN":
             result["parent"] = self.parentClassName

@@ -20,6 +20,11 @@ from .Base import SpriteBase
 
 
 class Window(SpriteBase):
+    r"""Window widget rendered with a skin texture and optional repeated background.
+
+    Provides a framed window area backed by a RenderTexture.
+    """
+
     @TypeAdapter(
         rect=(
             [tuple, list],
@@ -33,6 +38,12 @@ class Window(SpriteBase):
         windowSkin: Image,
         repeated: bool = False,
     ) -> None:
+        r"""\brief Construct a Window with a given rectangle and skin.
+
+        - \param rect        Logical position and size of the window
+        - \param windowSkin  Texture used for rendering the window skin
+        - \param repeated    Whether the background texture should be repeated
+        """
         from .. import Scale
 
         self._size = Math.ToVector2u(rect.size)
@@ -46,6 +57,10 @@ class Window(SpriteBase):
         self.setPosition(Math.ToVector2f(rect.position))
 
     def getSize(self) -> Vector2u:
+        r"""\brief Get the window size in logical UI units.
+
+        - \return  Window size in logical UI units
+        """
         return self._size
 
     def _presave(self, target: List[Texture], area: List[IntRect]) -> None:

@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
-"""Input polling and event system.
+r"""
+\brief Input polling and event system.
 
 Provides a stateful, per-frame input abstraction over SFML's event system.
 Supports keyboard, mouse, and gamepad input with action mappings,
@@ -45,62 +46,79 @@ JoystickAxisName: Dict[JoystickAxis, str] = {member: member.name for member in J
 
 
 class _EventState:
-    Focused: bool = True
-    FocusLost: bool = False
-    FocusGained: bool = False
+    r"""
+    \brief Internal state container for input events.
 
-    CurrentInputType: InputType = InputType.Mouse
+    This class stores all input states for the current frame.
+    All members are class-level variables that persist across frames.
+    """
 
-    KeyPressed: bool = False
-    KeyReleased: bool = False
-    KeyPressedMap: Dict[Tuple[Keyboard.Key, bool, bool, bool, bool], bool] = {}
-    KeyReleasedMap: Dict[Tuple[Keyboard.Key, bool, bool, bool, bool], bool] = {}
-    KeyboardScanPressedMap: Dict[Tuple[Keyboard.Scan, bool, bool, bool, bool], bool] = {}
-    KeyboardScanReleasedMap: Dict[Tuple[Keyboard.Scan, bool, bool, bool, bool], bool] = {}
-    KeyTriggeredMap: Dict[Tuple[Keyboard.Key, bool, bool, bool, bool], Tuple[int, bool]] = {}
+    Focused: bool = True  # Whether the window has focus
+    FocusLost: bool = False  # Whether focus was lost this frame
+    FocusGained: bool = False  # Whether focus was gained this frame
 
-    MouseWheelScrolled: bool = False
-    MouseScrolledWheel: Optional[Mouse.Wheel] = None
-    MouseScrolledWheelDelta: float = 0.0
-    MouseScrolledWheelPosition: Optional[Vector2i] = None
+    CurrentInputType: InputType = InputType.Mouse  # Current active input device type
 
-    MouseButtonPressed: bool = False
-    MouseButtonReleased: bool = False
-    MouseButtonPressedMap: Dict[Mouse.Button, bool] = {}
-    MouseButtonReleasedMap: Dict[Mouse.Button, bool] = {}
-    MousePressedPosition: Optional[Vector2i] = None
-    MouseReleasedPosition: Optional[Vector2i] = None
-    MouseButtonTriggeredMap: Dict[Mouse.Button, Tuple[int, bool]] = {}
+    KeyPressed: bool = False  # Whether any key was pressed this frame
+    KeyReleased: bool = False  # Whether any key was released this frame
+    KeyPressedMap: Dict[Tuple[Keyboard.Key, bool, bool, bool, bool], bool] = (
+        {}
+    )  # Map of (key, alt, ctrl, shift, system) -> pressed
+    KeyReleasedMap: Dict[Tuple[Keyboard.Key, bool, bool, bool, bool], bool] = (
+        {}
+    )  # Map of (key, alt, ctrl, shift, system) -> released
+    KeyboardScanPressedMap: Dict[Tuple[Keyboard.Scan, bool, bool, bool, bool], bool] = (
+        {}
+    )  # Map of (scan, alt, ctrl, shift, system) -> pressed
+    KeyboardScanReleasedMap: Dict[Tuple[Keyboard.Scan, bool, bool, bool, bool], bool] = (
+        {}
+    )  # Map of (scan, alt, ctrl, shift, system) -> released
+    KeyTriggeredMap: Dict[Tuple[Keyboard.Key, bool, bool, bool, bool], Tuple[int, bool]] = (
+        {}
+    )  # Map of (key, alt, ctrl, shift, system) -> (press_count, handled)
 
-    MouseMoved: bool = False
-    MousePosition: Vector2i = Vector2i(0, 0)
-    MouseMovedDelta: Optional[Vector2i] = None
+    MouseWheelScrolled: bool = False  # Whether mouse wheel was scrolled this frame
+    MouseScrolledWheel: Optional[Mouse.Wheel] = None  # Which wheel was scrolled
+    MouseScrolledWheelDelta: float = 0.0  # Scroll delta
+    MouseScrolledWheelPosition: Optional[Vector2i] = None  # Position where wheel was scrolled
 
-    MouseEntered: bool = False
-    MouseLeft: bool = False
+    MouseButtonPressed: bool = False  # Whether any mouse button was pressed this frame
+    MouseButtonReleased: bool = False  # Whether any mouse button was released this frame
+    MouseButtonPressedMap: Dict[Mouse.Button, bool] = {}  # Map of button -> pressed
+    MouseButtonReleasedMap: Dict[Mouse.Button, bool] = {}  # Map of button -> released
+    MousePressedPosition: Optional[Vector2i] = None  # Position where mouse was pressed
+    MouseReleasedPosition: Optional[Vector2i] = None  # Position where mouse was released
+    MouseButtonTriggeredMap: Dict[Mouse.Button, Tuple[int, bool]] = {}  # Map of button -> (press_count, handled)
 
-    JoystickButtonPressed: bool = False
-    JoystickButtonReleased: bool = False
-    JoystickAxisMoved: bool = False
-    JoystickConnected: bool = False
-    JoystickDisconnected: bool = False
-    JoystickButtonPressedMap: Dict[int, Dict[int, bool]] = {}
-    JoystickButtonReleasedMap: Dict[int, Dict[int, bool]] = {}
-    JoystickAxisMovedMap: Dict[int, Dict[Joystick.Axis, float]] = {}
-    JoystickAxisStatus: Dict[int, Dict[Joystick.Axis, float]] = {}
+    MouseMoved: bool = False  # Whether mouse was moved this frame
+    MousePosition: Vector2i = Vector2i(0, 0)  # Current mouse position
+    MouseMovedDelta: Optional[Vector2i] = None  # Mouse movement delta
+
+    MouseEntered: bool = False  # Whether mouse entered the window this frame
+    MouseLeft: bool = False  # Whether mouse left the window this frame
+
+    JoystickButtonPressed: bool = False  # Whether any joystick button was pressed this frame
+    JoystickButtonReleased: bool = False  # Whether any joystick button was released this frame
+    JoystickAxisMoved: bool = False  # Whether any joystick axis was moved this frame
+    JoystickConnected: bool = False  # Whether any joystick was connected this frame
+    JoystickDisconnected: bool = False  # Whether any joystick was disconnected this frame
+    JoystickButtonPressedMap: Dict[int, Dict[int, bool]] = {}  # Map of joystickId -> (button -> pressed)
+    JoystickButtonReleasedMap: Dict[int, Dict[int, bool]] = {}  # Map of joystickId -> (button -> released)
+    JoystickAxisMovedMap: Dict[int, Dict[Joystick.Axis, float]] = {}  # Map of joystickId -> (axis -> position)
+    JoystickAxisStatus: Dict[int, Dict[Joystick.Axis, float]] = {}  # Map of joystickId -> (axis -> current_position)
     JoystickLastDominantAxis: Dict[int, Tuple[Joystick.Axis, float]] = {}  # joyId -> (Axis, Value)
     JoystickAxisJustPressed: Dict[Tuple[int, Joystick.Axis], float] = {}  # (joyId, Axis) -> Value
 
-    EnteredText: str = ""
+    EnteredText: str = ""  # Text entered this frame
 
-    KeyboardBlocked: bool = False
-    MouseBlocked: bool = False
-    JoystickBlocked: bool = False
+    KeyboardBlocked: bool = False  # Whether keyboard input is blocked
+    MouseBlocked: bool = False  # Whether mouse input is blocked
+    JoystickBlocked: bool = False  # Whether joystick input is blocked
 
     ActionMappings: Dict[
         Tuple[str, List[Union[Key, Scan, JoystickButton, JoystickAxis]]],
         Tuple[object, Callable[[object, Optional[float]], None], bool],
-    ] = {}
+    ] = {}  # Action name -> (object, callback, trigger_on_hold)
 
 
 _InjectedEvents = []
@@ -108,11 +126,21 @@ _UseInjectedMouseOnly: bool = False
 
 
 def setUseInjectedMouseOnly(value: bool) -> None:
+    r"""
+    \brief Set whether to use only injected mouse events.
+
+    - value: If True, only use injected mouse events instead of polling real mouse position.
+    """
     global _UseInjectedMouseOnly
     _UseInjectedMouseOnly = value
 
 
 def injectEvent(data: Dict[str, Any]) -> None:
+    r"""
+    \brief Inject an artificial input event.
+
+    - data: Dictionary containing event data with 'type' key and type-specific fields.
+    """
     _InjectedEvents.append(data)
 
 
@@ -215,6 +243,14 @@ def _processInjectedEvents() -> None:
 
 
 def update(window: WindowBase) -> None:
+    r"""
+    \brief Update input state for the current frame.
+
+    This function should be called once per frame. It resets all input states,
+    processes SFML events, and updates action mappings.
+
+    - window: The window to poll events from.
+    """
     _EventState.FocusLost = False
     _EventState.FocusGained = False
 
@@ -499,22 +535,47 @@ def update(window: WindowBase) -> None:
 
 
 def isFocused() -> bool:
+    r"""
+    \brief Check if the window is currently focused.
+
+    \return True if the window has focus, False otherwise.
+    """
     return _EventState.Focused
 
 
 def isFocusLost() -> bool:
+    r"""
+    \brief Check if the window lost focus this frame.
+
+    \return True if focus was lost this frame, False otherwise.
+    """
     return _EventState.FocusLost
 
 
 def isFocusGained() -> bool:
+    r"""
+    \brief Check if the window gained focus this frame.
+
+    \return True if focus was gained this frame, False otherwise.
+    """
     return _EventState.FocusGained
 
 
 def isKeyPressed() -> bool:
+    r"""
+    \brief Check if any key was pressed this frame.
+
+    \return True if any key was pressed and keyboard is not blocked, False otherwise.
+    """
     return _EventState.KeyPressed and not _EventState.KeyboardBlocked
 
 
 def isKeyReleased() -> bool:
+    r"""
+    \brief Check if any key was released this frame.
+
+    \return True if any key was released and keyboard is not blocked, False otherwise.
+    """
     return _EventState.KeyReleased and not _EventState.KeyboardBlocked
 
 
@@ -526,6 +587,18 @@ def getKeyPressed(
     shift: bool = False,
     system: bool = False,
 ) -> bool:
+    r"""
+    \brief Check if a specific key was pressed this frame.
+
+    - key: The key to check.
+    - handled: Whether to mark the key as handled if pressed.
+    - alt: Whether ALT modifier is required.
+    - ctrl: Whether CTRL modifier is required.
+    - shift: Whether SHIFT modifier is required.
+    - system: Whether SYSTEM modifier is required.
+
+    \return True if the key was pressed this frame, False otherwise.
+    """
     if not isKeyPressed():
         return False
     mapKey = (key, alt, ctrl, shift, system)
@@ -545,6 +618,18 @@ def getScanPressed(
     shift: bool = False,
     system: bool = False,
 ) -> bool:
+    r"""
+    \brief Check if a specific scan code was pressed this frame.
+
+    - scan: The scan code to check.
+    - handled: Whether to mark the scan as handled if pressed.
+    - alt: Whether ALT modifier is required.
+    - ctrl: Whether CTRL modifier is required.
+    - shift: Whether SHIFT modifier is required.
+    - system: Whether SYSTEM modifier is required.
+
+    \return True if the scan was pressed this frame, False otherwise.
+    """
     if not isKeyPressed():
         return False
     mapScan = (scan, alt, ctrl, shift, system)
@@ -564,6 +649,18 @@ def getKeyReleased(
     shift: bool = False,
     system: bool = False,
 ) -> bool:
+    r"""
+    \brief Check if a specific key was released this frame.
+
+    - key: The key to check.
+    - handled: Whether to mark the key as handled if released.
+    - alt: Whether ALT modifier is required.
+    - ctrl: Whether CTRL modifier is required.
+    - shift: Whether SHIFT modifier is required.
+    - system: Whether SYSTEM modifier is required.
+
+    \return True if the key was released this frame, False otherwise.
+    """
     if not isKeyReleased():
         return False
     mapKey = (key, alt, ctrl, shift, system)
@@ -583,6 +680,18 @@ def getScanReleased(
     shift: bool = False,
     system: bool = False,
 ) -> bool:
+    r"""
+    \brief Check if a specific scan code was released this frame.
+
+    - scan: The scan code to check.
+    - handled: Whether to mark the scan as handled if released.
+    - alt: Whether ALT modifier is required.
+    - ctrl: Whether CTRL modifier is required.
+    - shift: Whether SHIFT modifier is required.
+    - system: Whether SYSTEM modifier is required.
+
+    \return True if the scan was released this frame, False otherwise.
+    """
     if not isKeyReleased():
         return False
     mapScan = (scan, alt, ctrl, shift, system)
@@ -595,36 +704,74 @@ def getScanReleased(
 
 
 def isMouseWheelScrolled() -> bool:
+    r"""
+    \brief Check if the mouse wheel was scrolled this frame.
+
+    \return True if the mouse wheel was scrolled and mouse is not blocked, False otherwise.
+    """
     return _EventState.MouseWheelScrolled and not _EventState.MouseBlocked
 
 
 def getMouseScrolledWheel() -> Optional[Mouse.Wheel]:
+    r"""
+    \brief Get which mouse wheel was scrolled this frame.
+
+    \return The wheel that was scrolled, or None if not scrolled.
+    """
     if not isMouseWheelScrolled():
         return None
     return _EventState.MouseScrolledWheel
 
 
 def getMouseScrolledWheelDelta() -> float:
+    r"""
+    \brief Get the mouse wheel scroll delta.
+
+    \return The scroll delta, or 0.0 if not scrolled.
+    """
     if not isMouseWheelScrolled():
         return 0.0
     return _EventState.MouseScrolledWheelDelta
 
 
 def getMouseScrolledWheelPosition() -> Optional[Vector2i]:
+    r"""
+    \brief Get the position where the mouse wheel was scrolled.
+
+    \return The position where the wheel was scrolled, or None if not scrolled.
+    """
     if not isMouseWheelScrolled():
         return None
     return _EventState.MouseScrolledWheelPosition
 
 
 def isMouseButtonPressed() -> bool:
+    r"""
+    \brief Check if any mouse button was pressed this frame.
+
+    \return True if any mouse button was pressed and mouse is not blocked, False otherwise.
+    """
     return _EventState.MouseButtonPressed and not _EventState.MouseBlocked
 
 
 def isMouseButtonReleased() -> bool:
+    r"""
+    \brief Check if any mouse button was released this frame.
+
+    \return True if any mouse button was released and mouse is not blocked, False otherwise.
+    """
     return _EventState.MouseButtonReleased and not _EventState.MouseBlocked
 
 
 def getMouseButtonPressed(button: Mouse.Button, handled: bool) -> bool:
+    r"""
+    \brief Check if a specific mouse button was pressed this frame.
+
+    - button: The button to check.
+    - handled: Whether to mark the button as handled if pressed.
+
+    \return True if the button was pressed this frame, False otherwise.
+    """
     if not isMouseButtonPressed():
         return False
     if button in _EventState.MouseButtonPressedMap:
@@ -636,6 +783,14 @@ def getMouseButtonPressed(button: Mouse.Button, handled: bool) -> bool:
 
 
 def getMouseButtonReleased(button: Mouse.Button, handled: bool) -> bool:
+    r"""
+    \brief Check if a specific mouse button was released this frame.
+
+    - button: The button to check.
+    - handled: Whether to mark the button as handled if released.
+
+    \return True if the button was released this frame, False otherwise.
+    """
     if not isMouseButtonReleased():
         return False
     if button in _EventState.MouseButtonReleasedMap:
@@ -647,44 +802,99 @@ def getMouseButtonReleased(button: Mouse.Button, handled: bool) -> bool:
 
 
 def isMouseMoved() -> bool:
+    r"""
+    \brief Check if the mouse was moved this frame.
+
+    \return True if the mouse was moved and mouse is not blocked, False otherwise.
+    """
     return _EventState.MouseMoved and not _EventState.MouseBlocked
 
 
 def getMousePosition() -> Vector2i:
+    r"""
+    \brief Get the current mouse position.
+
+    \return The current mouse position.
+    """
     return _EventState.MousePosition
 
 
 def getMouseMovedDelta() -> Optional[Vector2i]:
+    r"""
+    \brief Get the mouse movement delta this frame.
+
+    \return The mouse movement delta, or None if mouse was not moved.
+    """
     if not isMouseMoved():
         return None
     return _EventState.MouseMovedDelta
 
 
 def setMousePosition(position: Vector2i, window: WindowBase) -> None:
+    r"""
+    \brief Set the mouse position relative to a window.
+
+    - position: The new mouse position.
+    - window: The window to set position relative to.
+    """
     Mouse.setPosition(position, window)
 
 
 def isMouseEntered() -> bool:
+    r"""
+    \brief Check if the mouse entered the window this frame.
+
+    \return True if mouse entered and mouse is not blocked, False otherwise.
+    """
     return _EventState.MouseEntered and not _EventState.MouseBlocked
 
 
 def isMouseLeft() -> bool:
+    r"""
+    \brief Check if the mouse left the window this frame.
+
+    \return True if mouse left and mouse is not blocked, False otherwise.
+    """
     return _EventState.MouseLeft and not _EventState.MouseBlocked
 
 
 def isJoystickButtonPressed() -> bool:
+    r"""
+    \brief Check if any joystick button was pressed this frame.
+
+    \return True if any joystick button was pressed and joystick is not blocked, False otherwise.
+    """
     return _EventState.JoystickButtonPressed and not _EventState.JoystickBlocked
 
 
 def isJoystickButtonReleased() -> bool:
+    r"""
+    \brief Check if any joystick button was released this frame.
+
+    \return True if any joystick button was released and joystick is not blocked, False otherwise.
+    """
     return _EventState.JoystickButtonReleased and not _EventState.JoystickBlocked
 
 
 def isMouseInputMode() -> bool:
+    r"""
+    \brief Check if the current input mode is mouse.
+
+    \return True if the current input type is Mouse, False otherwise.
+    """
     return _EventState.CurrentInputType == InputType.Mouse
 
 
 def getJoystickButtonPressed(joystickId: int, button: Union[int, JoystickButton], handled: bool) -> bool:
+    r"""
+    \brief Check if a specific joystick button was pressed this frame.
+
+    - joystickId: The ID of the joystick.
+    - button: The button to check.
+    - handled: Whether to mark the button as handled if pressed.
+
+    \return True if the button was pressed this frame, False otherwise.
+    """
     if not isJoystickButtonPressed():
         return False
     if isinstance(button, JoystickButton):
@@ -699,6 +909,15 @@ def getJoystickButtonPressed(joystickId: int, button: Union[int, JoystickButton]
 
 
 def getJoystickButtonReleased(joystickId: int, button: int, handled: bool) -> bool:
+    r"""
+    \brief Check if a specific joystick button was released this frame.
+
+    - joystickId: The ID of the joystick.
+    - button: The button to check.
+    - handled: Whether to mark the button as handled if released.
+
+    \return True if the button was released this frame, False otherwise.
+    """
     if not isJoystickButtonReleased():
         return False
     if joystickId in _EventState.JoystickButtonReleasedMap:
@@ -711,10 +930,23 @@ def getJoystickButtonReleased(joystickId: int, button: int, handled: bool) -> bo
 
 
 def isJoystickAxisMoved() -> bool:
+    r"""
+    \brief Check if any joystick axis was moved this frame.
+
+    \return True if any joystick axis was moved and joystick is not blocked, False otherwise.
+    """
     return _EventState.JoystickAxisMoved and not _EventState.JoystickBlocked
 
 
 def getJoystickAxisMoved(joystickId: int, handled: bool) -> Optional[Tuple[Joystick.Axis, float]]:
+    r"""
+    \brief Get the joystick axis that was moved this frame.
+
+    - joystickId: The ID of the joystick.
+    - handled: Whether to mark the axis movement as handled.
+
+    \return Tuple of (axis, position) if an axis was moved, None otherwise.
+    """
     if not isJoystickAxisMoved():
         return None
     if joystickId in _EventState.JoystickAxisMovedMap:
@@ -731,10 +963,20 @@ def getJoystickAxisMoved(joystickId: int, handled: bool) -> Optional[Tuple[Joyst
 
 
 def isJoystickConnected() -> bool:
+    r"""
+    \brief Check if any joystick was connected this frame.
+
+    \return True if any joystick was connected and joystick is not blocked, False otherwise.
+    """
     return _EventState.JoystickConnected and not _EventState.JoystickBlocked
 
 
 def isJoystickDisconnected() -> bool:
+    r"""
+    \brief Check if any joystick was disconnected this frame.
+
+    \return True if any joystick was disconnected and joystick is not blocked, False otherwise.
+    """
     return _EventState.JoystickDisconnected and not _EventState.JoystickBlocked
 
 
@@ -746,6 +988,18 @@ def isKeyTriggered(
     system: bool = False,
     handled: bool = False,
 ) -> bool:
+    r"""
+    \brief Check if a key was triggered (first press) this frame.
+
+    - key: The key to check.
+    - alt: Whether ALT modifier is required.
+    - ctrl: Whether CTRL modifier is required.
+    - shift: Whether SHIFT modifier is required.
+    - system: Whether SYSTEM modifier is required.
+    - handled: Whether to mark the key as handled if triggered.
+
+    \return True if the key was triggered this frame, False otherwise.
+    """
     if not isKeyPressed():
         return False
     keyMap = (key, alt, ctrl, shift, system)
@@ -760,6 +1014,14 @@ def isKeyTriggered(
 
 
 def isAnyJoystickButtonTriggered(button: Union[int, JoystickButton], handled: bool = False) -> bool:
+    r"""
+    \brief Check if any joystick button was triggered (first press) this frame.
+
+    - button: The button to check.
+    - handled: Whether to mark the button as handled if triggered.
+
+    \return True if the button was triggered this frame, False otherwise.
+    """
     if not isJoystickButtonPressed():
         return False
     if isinstance(button, JoystickButton):
@@ -784,7 +1046,14 @@ def isActionTriggered(
     ],
     handled: bool = False,
 ) -> bool:
-    """Check whether any key in an action key set was triggered this frame."""
+    r"""
+    \brief Check whether any key in an action key set was triggered this frame.
+
+    - actionKeys: List of keys/buttons/axes to check.
+    - handled: Whether to mark the action as handled if triggered.
+
+    \return True if any action key was triggered this frame, False otherwise.
+    """
     triggered = False
     for key in actionKeys:
         if isinstance(key, (Key, Scan)):
@@ -818,6 +1087,14 @@ def isMouseButtonTriggered(
     button: Mouse.Button,
     handled: bool = False,
 ) -> bool:
+    r"""
+    \brief Check if a mouse button was triggered (first press) this frame.
+
+    - button: The button to check.
+    - handled: Whether to mark the button as handled if triggered.
+
+    \return True if the button was triggered this frame, False otherwise.
+    """
     if not isMouseButtonPressed():
         return False
     if not button in _EventState.MouseButtonTriggeredMap:
@@ -831,56 +1108,105 @@ def isMouseButtonTriggered(
 
 
 def getEnteredText() -> str:
+    r"""
+    \brief Get the text entered this frame.
+
+    \return The entered text string.
+    """
     return _EventState.EnteredText
 
 
 def isTextEntered() -> bool:
+    r"""
+    \brief Check if any text was entered this frame.
+
+    \return True if text was entered and keyboard is not blocked, False otherwise.
+    """
     return (len(_EventState.EnteredText) > 0) and not _EventState.KeyboardBlocked
 
 
 def isKeyboardBlocked() -> bool:
+    r"""
+    \brief Check if keyboard input is blocked.
+
+    \return True if keyboard is blocked, False otherwise.
+    """
     return _EventState.KeyboardBlocked
 
 
 def isMouseBlocked() -> bool:
+    r"""
+    \brief Check if mouse input is blocked.
+
+    \return True if mouse is blocked, False otherwise.
+    """
     return _EventState.MouseBlocked
 
 
 def isJoystickBlocked() -> bool:
+    r"""
+    \brief Check if joystick input is blocked.
+
+    \return True if joystick is blocked, False otherwise.
+    """
     return _EventState.JoystickBlocked
 
 
 def blockKeyboard() -> None:
+    r"""
+    \brief Block keyboard input.
+    """
     _EventState.KeyboardBlocked = True
 
 
 def blockMouse() -> None:
+    r"""
+    \brief Block mouse input.
+    """
     _EventState.MouseBlocked = True
 
 
 def blockJoystick() -> None:
+    r"""
+    \brief Block joystick input.
+    """
     _EventState.JoystickBlocked = True
 
 
 def unblockKeyboard() -> None:
+    r"""
+    \brief Unblock keyboard input.
+    """
     _EventState.KeyboardBlocked = False
 
 
 def unblockMouse() -> None:
+    r"""
+    \brief Unblock mouse input.
+    """
     _EventState.MouseBlocked = False
 
 
 def unblockJoystick() -> None:
+    r"""
+    \brief Unblock joystick input.
+    """
     _EventState.JoystickBlocked = False
 
 
 def blockInput() -> None:
+    r"""
+    \brief Block all input (keyboard, mouse, joystick).
+    """
     _EventState.KeyboardBlocked = True
     _EventState.MouseBlocked = True
     _EventState.JoystickBlocked = True
 
 
 def unblockInput() -> None:
+    r"""
+    \brief Unblock all input (keyboard, mouse, joystick).
+    """
     _EventState.KeyboardBlocked = False
     _EventState.MouseBlocked = False
     _EventState.JoystickBlocked = False
@@ -889,16 +1215,31 @@ def unblockInput() -> None:
 def getConfirmKeys() -> (
     List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], bool]]]]
 ):
+    r"""
+    \brief Get the default confirmation action keys.
+
+    \return List of keys/buttons that trigger confirmation.
+    """
     return [Key.Enter, Key.Space, Scan.Enter, Scan.Space, JoystickButton.A]
 
 
 def getCancelKeys() -> (
     List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], bool]]]]
 ):
+    r"""
+    \brief Get the default cancellation action keys.
+
+    \return List of keys/buttons that trigger cancellation.
+    """
     return [Key.Escape, Scan.Escape, JoystickButton.B]
 
 
 def getUpKeys() -> List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], bool]]]]:
+    r"""
+    \brief Get the default up navigation keys.
+
+    \return List of keys/buttons that trigger up navigation.
+    """
     return [
         Key.Up,
         Scan.Up,
@@ -908,6 +1249,11 @@ def getUpKeys() -> List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, flo
 
 
 def getDownKeys() -> List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], bool]]]]:
+    r"""
+    \brief Get the default down navigation keys.
+
+    \return List of keys/buttons that trigger down navigation.
+    """
     return [
         Key.Down,
         Scan.Down,
@@ -917,6 +1263,11 @@ def getDownKeys() -> List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, f
 
 
 def getLeftKeys() -> List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], bool]]]]:
+    r"""
+    \brief Get the default left navigation keys.
+
+    \return List of keys/buttons that trigger left navigation.
+    """
     return [
         Key.Left,
         Scan.Left,
@@ -928,6 +1279,11 @@ def getLeftKeys() -> List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, f
 def getRightKeys() -> (
     List[Union[Key, Scan, JoystickButton, Tuple[JoystickAxis, float, Callable[[float, float], bool]]]]
 ):
+    r"""
+    \brief Get the default right navigation keys.
+
+    \return List of keys/buttons that trigger right navigation.
+    """
     return [
         Key.Right,
         Scan.Right,
@@ -943,10 +1299,25 @@ def registerActionMapping(
     callable_: Callable[[object, Optional[float]], None],
     triggerOnHold: bool = False,
 ) -> None:
+    r"""
+    \brief Register an action mapping.
+
+    - obj: The object that owns the callback.
+    - actionName: Name of the action.
+    - actionKeys: List of keys/buttons that trigger this action.
+    - callable_: Callback function to invoke when action is triggered.
+    - triggerOnHold: Whether to trigger on key/button hold.
+    """
     _EventState.ActionMappings[(actionName, tuple(actionKeys))] = (obj, callable_, triggerOnHold)
 
 
 def unregisterActionMapping(obj: object, actionName: str) -> None:
+    r"""
+    \brief Unregister an action mapping.
+
+    - obj: The object that owns the callback.
+    - actionName: Name of the action to unregister.
+    """
     toRemove = [k for k, v in _EventState.ActionMappings.items() if k[0] == actionName and v[0] == obj]
     for k in toRemove:
         _EventState.ActionMappings.pop(k, None)

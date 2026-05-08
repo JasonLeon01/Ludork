@@ -1,5 +1,11 @@
 # -*- encoding: utf-8 -*-
-"""MapClickAutoPath: component that pathfinds and moves an actor to the clicked tile."""
+
+r"""
+\brief MapClickAutoPath: component that pathfinds and moves an actor to the clicked tile.
+
+This component handles mouse click input and automatically pathfinds
+to the clicked map position, moving the player actor along the path.
+"""
 
 from __future__ import annotations
 from collections import deque
@@ -17,7 +23,20 @@ if TYPE_CHECKING:
 
 
 class MapClickAutoPath(ComponentBase):
+    r"""
+    \brief Component that pathfinds and moves an actor to the clicked tile.
+
+    This component listens for mouse clicks, finds a path to the
+    clicked tile, and moves the player actor along that path.
+    """
+
     def __init__(self, gameMap: GameMap, routeState: PathRouteState) -> None:
+        r"""
+        \brief Initialize the MapClickAutoPath component.
+
+        - gameMap: The game map this component operates on.
+        - routeState: The path route state to use for path preview.
+        """
         super().__init__(gameMap)
         self._routeState = routeState
         self._autoPathing: bool = False
@@ -25,6 +44,12 @@ class MapClickAutoPath(ComponentBase):
         self._pendingGoalsLock = Lock()
 
     def onLateTick(self) -> None:
+        r"""
+        \brief Handle mouse click input to set pathfinding goals.
+
+        This method checks for left mouse button clicks and adds
+        the clicked map position to the pending goals queue.
+        """
         if not Input.isMouseButtonTriggered(Mouse.Button.Left, True):
             return
         goal = self._getMouseMapPosition()
@@ -34,6 +59,12 @@ class MapClickAutoPath(ComponentBase):
             self._pendingGoals.append(goal)
 
     def onTick(self) -> None:
+        r"""
+        \brief Update pathfinding and movement logic.
+
+        This method processes pending goals, builds pathfinding plans,
+        and moves the player actor along the calculated paths.
+        """
         gameMap: GameMap = self._parent
         player = gameMap.getPlayer()
         if player is None or not player.getMoveEnabled():
@@ -44,7 +75,7 @@ class MapClickAutoPath(ComponentBase):
             return
         currentPos = player.getMapPosition()
         self._trimPreviewRoute(currentPos)
-        if self._autoPathing and not player.isMoving() and not player.isInRoutine():
+        if self._autoPathing and not player.isMoving() and not player.isInRoute():
             self._autoPathing = False
             self._routeState.clear()
         goals = self._drainPendingGoals()
@@ -68,7 +99,7 @@ class MapClickAutoPath(ComponentBase):
                 continue
             self._routeState.setRoute(plan["route"])
             self._trimPreviewRoute(start)
-            player.setRoutine(plan["routine"])
+            player.setRoute(plan["routine"])
             self._autoPathing = True
 
     def _finishAutoPathImmediately(

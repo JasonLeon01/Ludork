@@ -9,7 +9,20 @@ from . import Sprite, Texture, Image, C_CompressAnimation
 
 
 class AnimSprite(Sprite):
+    r"""////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////
+    \brief Sprite that plays frame-based animations from compressed data.
+
+    Supports frame rates, frame counts, and embedded sound triggers.
+    """
+
     def __init__(self, animationData: Dict[str, Any]) -> None:
+        r"""////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////
+        \brief Construct an AnimSprite from animation data.
+
+        - \param animationData Dictionary containing frames, frameRate, frameCount, and sounds.
+        """
         self._texture: Texture = None
         self._frames: List[Any] = []
         self._frameRate: int = 30
@@ -21,6 +34,12 @@ class AnimSprite(Sprite):
         super().__init__(self._texture)
 
     def setData(self, animationData: Dict[str, Any]) -> None:
+        r"""////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////
+        \brief Load animation data and reset playback state.
+
+        - \param animationData Dictionary with frames, frameRate, frameCount, and sounds.
+        """
         self._frames = animationData.get("frames", [])
         self._frameRate = int(animationData.get("frameRate", 30) or 30)
         if self._frameRate <= 0:
@@ -39,15 +58,30 @@ class AnimSprite(Sprite):
             self.applyFrame(0)
 
     def isFinished(self) -> bool:
-        """Check whether the animation has played through all frames."""
+        r"""////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////
+        \brief Check whether the animation has played through all frames.
+
+        - \return True if the animation has finished, False otherwise.
+        """
         return self._finished
 
     def getFrameIndex(self) -> int:
-        """Get the current frame index."""
+        r"""////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////
+        \brief Get the current frame index.
+
+        - \return Current frame index (0-based).
+        """
         return self._frameIndex
 
     def update(self, deltaTime: float) -> None:
-        """Advance the animation by the elapsed time and apply the new frame."""
+        r"""////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////
+        \brief Advance the animation by the elapsed time and apply the new frame.
+
+        - \param deltaTime Time elapsed since last update (in seconds).
+        """
         if self._finished:
             return
         if self._frameCount <= 0:
@@ -64,6 +98,12 @@ class AnimSprite(Sprite):
             self.applyFrame(self._frameIndex)
 
     def applyFrame(self, frameIndex: int) -> None:
+        r"""////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////
+        \brief Apply the given frame index to the sprite texture.
+
+        - \param frameIndex Index of the frame to apply.
+        """
         if frameIndex < 0 or frameIndex >= len(self._frames):
             return
         frameData = self._frames[frameIndex]
@@ -87,6 +127,15 @@ class AnimSprite(Sprite):
 def compressAnimation(
     animationData: Dict[str, Any], assetsRoot: Optional[str] = None, imageFormat: Optional[str] = "png"
 ) -> Dict[str, Any]:
+    r"""////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////
+    \brief Compress animation data into a frame-based format.
+
+    - \param animationData Raw animation data with timelines and assets.
+    - \param assetsRoot Root directory for asset resolution (default: "Assets/Animations").
+    - \param imageFormat Image format for frame compression (default: "png").
+    - \return Compressed animation dictionary with frames and metadata.
+    """
     if not animationData:
         return {
             "type": "compressedAnimation",

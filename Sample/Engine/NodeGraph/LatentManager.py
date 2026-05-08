@@ -9,7 +9,13 @@ if TYPE_CHECKING:
 
 
 class LatentManager:
-    _instance = None
+    r"""Singleton manager for latent (delayed) node execution.
+
+    Latent nodes pause execution until a condition becomes true,
+    then resume from the next connected node.
+    """
+
+    _instance = None  #: Singleton instance
 
     def __new__(cls) -> LatentManager:
         if cls._instance is None:
@@ -18,15 +24,31 @@ class LatentManager:
         return cls._instance
 
     def __init__(self) -> None:
+        r"""(Re)initialise the LatentManager.
+
+        - \brief Ensures `_latents` list exists on the singleton instance.
+        """
         # (graph_ref, key, condition, localRef, index)
         if not hasattr(self, "_latents"):
             self._latents: List[Tuple[weakref.ReferenceType[Graph], str, Callable, Dict[str, Any], int]] = []
 
     def add(self, graph: Graph, key: str, condition: Callable, localRef: Dict[str, Any], index: int) -> None:
+        r"""Register a latent node to be checked each frame.
+
+        - \param graph      Graph containing the latent node
+        - \param key        Event key of the graph
+        - \param condition  Callable that returns the condition value
+        - \param localRef   Local graph execution context
+        - \param index      Index of the latent node in the graph
+        """
         graph.onLatentAdded(key)
         self._latents.append((weakref.ref(graph), key, condition, localRef, index))
 
     def update(self) -> None:
+        r"""Check all registered latent nodes and resume execution if conditions are met.
+
+        - \brief Called each frame to poll latent node conditions.
+        """
         for latent in self._latents[:]:
             if latent not in self._latents:
                 continue

@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-"""ShaderManager: loads and caches GLSL shader programs."""
 
 from __future__ import annotations
 import os
@@ -10,12 +9,22 @@ from Engine import Shader
 
 
 class ShaderManager:
+    r"""\brief Manages shader programs.
+
+    Loads and caches GLSL vertex, fragment, geometry, and full shaders.
+    """
+
     _shaderRec: Dict[Tuple[str, Shader.Type], weakref.ReferenceType[Shader]] = {}
     _fullShaderRec: Dict[Tuple[str, str], weakref.ReferenceType[Shader]] = {}
     _geoShaderRec: Dict[Tuple[str, str, str], weakref.ReferenceType[Shader]] = {}
 
     @classmethod
     def load(cls, shaderPath: str, shaderType: Optional[Shader.Type] = None) -> Shader:
+        r"""\brief Load a shader from file.
+        - \param shaderPath: Path to the shader file.
+        - \param shaderType: Type of the shader (defaults to Fragment).
+        - \return: Loaded Shader object.
+        """
         key = (shaderPath, shaderType)
         if key in cls._shaderRec:
             shaderRef = cls._shaderRec[key]
@@ -34,6 +43,11 @@ class ShaderManager:
 
     @classmethod
     def loadFull(cls, vertPath: str, fragPath: str) -> Shader:
+        r"""\brief Load a full shader with vertex and fragment shaders.
+        - \param vertPath: Path to the vertex shader file.
+        - \param fragPath: Path to the fragment shader file.
+        - \return: Loaded Shader object.
+        """
         key = (vertPath, fragPath)
         if key in cls._fullShaderRec:
             shaderRef = cls._fullShaderRec[key]
@@ -51,6 +65,12 @@ class ShaderManager:
 
     @classmethod
     def loadFullShaderWithGeo(cls, vertPath: str, geoPath: str, fragPath: str) -> Shader:
+        r"""\brief Load a full shader with vertex, geometry, and fragment shaders.
+        - \param vertPath: Path to the vertex shader file.
+        - \param geoPath: Path to the geometry shader file.
+        - \param fragPath: Path to the fragment shader file.
+        - \return: Loaded Shader object.
+        """
         key = (vertPath, geoPath, fragPath)
         if key in cls._geoShaderRec:
             shaderRef = cls._geoShaderRec[key]

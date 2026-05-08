@@ -9,11 +9,30 @@ from typing import Any, Dict, Optional
 
 
 class ClassDict:
+    r"""Dynamic class loader and cache.
+
+    Resolves classes by dot-path, loading from Python modules
+    or from .dat/.json data files when no module is found.
+    """
+
     def __init__(self) -> None:
+        r"""(Re)initialise the class dictionary.
+
+        - \brief Creates empty caches for classes and class data.
+        """
         self._dict: Dict[str, Any] = {"": object}
         self._dataDict: Dict[str, Dict[str, Any]] = {}
 
     def get(self, classPath: Optional[str], root: Optional[str] = None) -> Any:
+        r"""Resolve and return a class by its dot-path.
+
+        Attempts to load from a Python module first; falls back to
+        loading class data from .dat or .json files.
+
+        - \param classPath  Dot-separated class path (e.g. "Source.Scenes.MyScene")
+        - \param root       Optional root directory for data files
+        - \return Resolved class, or None if classPath is None
+        """
         from Engine.Utils import File
 
         if classPath is None:
@@ -91,7 +110,17 @@ class ClassDict:
         return self._dict.get(classPath)
 
     def getData(self, classPath: str) -> Dict[str, Any]:
+        r"""Get the raw class data dictionary for a previously loaded class.
+
+        - \param classPath  Dot-separated class path
+        - \return Class data dictionary, or empty dict if not found
+        """
         return self._dataDict.get(classPath, {})
 
     def __getitem__(self, classPath: str) -> Any:
+        r"""Allow dictionary-style access to resolve classes.
+
+        - \param classPath  Dot-separated class path
+        - \return Resolved class
+        """
         return self.get(classPath)

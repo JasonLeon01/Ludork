@@ -22,6 +22,12 @@ if TYPE_CHECKING:
 
 
 class Rect(SpriteBase):
+    r"""Rectangle widget with a fading opacity effect and skin-based rendering.
+
+    Renders a rectangular area using a window skin texture with support
+    for opacity fading animation.
+    """
+
     @TypeAdapter(rect=([tuple, list], IntRect, lambda pos, size: IntRect(Vector2i(*pos), Vector2i(*size))))
     def __init__(
         self,
@@ -30,6 +36,13 @@ class Rect(SpriteBase):
         fadeSpeed: float = 96,
         opacityRange: Pair[float] = (128, 255),
     ) -> None:
+        r"""\brief Construct a Rect widget with fading opacity.
+
+        - \param rect          Logical position and size of the rectangle
+        - \param windowSkin    Texture used for rendering the rectangle skin
+        - \param fadeSpeed    Speed of opacity fading (units per second)
+        - \param opacityRange  Min and max opacity values for fading
+        """
         from .. import Scale
 
         self._size = Math.ToVector2u(rect.size)
@@ -45,9 +58,17 @@ class Rect(SpriteBase):
         self._fading: bool = True
 
     def getSize(self) -> Vector2u:
+        r"""\brief Get the rectangle size in logical UI units.
+
+        - \return  Rectangle size in logical UI units
+        """
         return self._size
 
     def update(self, deltaTime: float) -> None:
+        r"""\brief Update the fading opacity animation.
+
+        - \param deltaTime  Time elapsed since last update, in seconds
+        """
         color = copy.copy(self.getColor())
         a = color.a
         opacityMin, opacityMax = self._opacityRange

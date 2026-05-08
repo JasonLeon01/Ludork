@@ -1,6 +1,8 @@
 # -*- encoding: utf-8 -*-
 
-r"""Engine utility package.
+r"""////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+\brief Engine utility package.
 
 Provides math, file I/O, rendering, and event utilities
 for the Ludork sample engine.

@@ -8,6 +8,11 @@ from .Base import ControlBase
 
 
 class ListView(ControlBase):
+    r"""List view control that arranges child controls in a grid layout.
+
+    Supports multiple columns and automatic item positioning.
+    """
+
     def __init__(
         self,
         rect: Union[IntRect, Tuple[Pair[int], Pair[int]]],
@@ -15,6 +20,13 @@ class ListView(ControlBase):
         fixItemHeight: bool = False,
         columns: int = 1,
     ) -> None:
+        r"""\brief Construct a ListView with a given rectangle and layout options.
+
+        - \param rect              Position and size of the list view
+        - \param defaultItemHeight  Default height for items (used when item has no size)
+        - \param fixItemHeight     Whether to force all items to the same height
+        - \param columns           Number of columns in the grid
+        """
         super().__init__()
         self.size = rect.size
         self.setPosition(Math.ToVector2f(rect.position))
@@ -26,35 +38,64 @@ class ListView(ControlBase):
         self._positionsSettled: bool = False
 
     def getColumns(self) -> int:
+        r"""\brief Get the number of columns in the list view.
+
+        - \return  Current column count
+        """
         return self._columns
 
     def setColumns(self, columns: int) -> None:
+        r"""\brief Set the number of columns in the list view.
+
+        - \param columns  New column count
+        """
         self._columns = columns
         self._positionsSettled = False
 
     def getChildren(self) -> List[ControlBase]:
+        r"""\brief Get the list of child controls.
+
+        - \return  List of child controls
+        """
         return self._children
 
     def addChild(self, child: ControlBase) -> None:
+        r"""\brief Add a child control to the list view.
+
+        - \param child  Control to add
+        """
         self._children.append(child)
         child.setParent(self)
         self._positionsSettled = False
 
     def removeChild(self, child: ControlBase) -> None:
+        r"""\brief Remove a child control from the list view.
+
+        - \param child  Control to remove
+        """
         self._children.remove(child)
         child.setParent(None)
         self._positionsSettled = False
 
     def clearChildren(self) -> None:
+        r"""\brief Remove all child controls from the list view."""
         for child in self._children:
             child.setParent(None)
         self._children.clear()
         self._positionsSettled = False
 
     def getRenderStates(self) -> RenderStates:
+        r"""\brief Get the render states used when drawing this list view.
+
+        - \return  Current render states
+        """
         return self._renderStates
 
     def update(self, deltaTime: float) -> None:
+        r"""\brief Update active, visible children in the list view.
+
+        - \param deltaTime  Time elapsed since last update, in seconds
+        """
         for child in self._children:
             if not (child._visible and child._active):
                 continue
@@ -62,30 +103,39 @@ class ListView(ControlBase):
                 child.update(deltaTime)
 
     def lateUpdate(self, deltaTime: float) -> None:
+        r"""\brief Run late update on children in the list view.
+
+        - \param deltaTime  Time elapsed since last update, in seconds
+        """
         for child in self._children:
             if hasattr(child, "lateUpdate"):
                 child.lateUpdate(deltaTime)
 
     def fixedUpdate(self, fixedDelta: float) -> None:
+        r"""\brief Run fixed-timestep update on children in the list view.
+
+        - \param fixedDelta  Fixed timestep duration, in seconds
+        """
         for child in self._children:
             if hasattr(child, "fixedUpdate"):
                 child.fixedUpdate(fixedDelta)
 
     def draw(self, target: RenderTarget, states: RenderStates) -> None:
+        r"""\brief Draw the list view and its children to a render target.
+
+        - \param target  Render target used for drawing
+        - \param states  Render states used when drawing
+        """
         self.applyPositions()
         states.transform *= self.getTransform()
         for child in self._children:
             target.draw(child, states)
 
-    def _getRenderTransform(self) -> Transform:
-        from .. import Scale
-
-        transform = Transform()
-        transform *= self.getTransform()
-        transform.translate(self.getPosition() * (Scale - 1))
-        return transform
-
     def applyPositions(self) -> None:
+        r"""\brief Recompute child positions in the grid layout.
+
+        Automatically called before drawing if positions have not been settled.
+        """
         if self._positionsSettled:
             return
         self._positionsSettled = True
@@ -117,3 +167,11 @@ class ListView(ControlBase):
             currentRowHeights.append(itemHeight)
             rowHeight = max(rowHeight, itemHeight)
             child.setPosition((posX, currentY))
+
+    def _getRenderTransform(self) -> Transform:
+        from .. import Scale
+
+        transform = Transform()
+        transform *= self.getTransform()
+        transform.translate(self.getPosition() * (Scale - 1))
+        return transform

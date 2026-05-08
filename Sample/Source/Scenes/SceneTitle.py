@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 """SceneTitle: title screen scene with menu options (new game, continue, exit)."""
 
-from typing import Any, Dict, cast
+from typing import Any, Dict
 from Engine.UI import Image
 from Engine.UI.Base import FunctionalBase
 from Global import Manager, System, SceneBase
@@ -34,7 +34,7 @@ class Scene(SceneBase):
         from .SceneMap import Scene as SceneMap
 
         System.setScene(SceneMap())
-        cast(SceneMap, System.getScene()).setInst(GameInstance())
+        Cast(SceneMap, System.getScene()).setInst(GameInstance())
 
     @staticmethod
     def _loadGame(obj: FunctionalBase, kwargs: Dict[str, Any]) -> None:

@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-r"""Component package.
+r"""
+\brief Component package.
 
 Provides reusable actor component classes for the Ludork sample engine.
 

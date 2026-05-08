@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-r"""Custom particles package.
+r"""
+\brief Custom particles package.
 
 Provides custom particle controller classes for the Ludork sample engine.
 

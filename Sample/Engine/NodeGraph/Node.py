@@ -40,15 +40,17 @@ class Node:
         - \param nodeFunction   Resolved callable reference
         - \param params         List of parameter expressions (evaluated at execute time)
         """
-        self.parentGraph = parentGraph
-        self.parent = parent
-        self.functionName = functionName
-        self.nodeFunction = nodeFunction
-        self.params = params
-        self._funcInfo: str = ""
-        self._paramList: Dict[str, type] = {}
-        self._paramDefaults: Dict[str, Any] = {}
-        self._isSelfFunction: bool = isinstance(self.functionName, str) and self.functionName.startswith("self.")
+        self.parentGraph = parentGraph  # Owning graph instance
+        self.parent = parent  # Actor/Info that owns this graph
+        self.functionName = functionName  # Original dot-path string of the function
+        self.nodeFunction = nodeFunction  # Resolved callable reference
+        self.params = params  # List of parameter expressions
+        self._funcInfo: str = ""  # Function name for display
+        self._paramList: Dict[str, type] = {}  # Parameter name-to-type mapping
+        self._paramDefaults: Dict[str, Any] = {}  # Parameter name-to-default mapping
+        self._isSelfFunction: bool = isinstance(self.functionName, str) and self.functionName.startswith(
+            "self."
+        )  # Whether the function is a method of parent
         self._analyzeFunction()
 
     def getParamList(self) -> Dict[str, type]:

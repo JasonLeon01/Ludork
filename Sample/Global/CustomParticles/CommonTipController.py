@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-"""Common tip controller: manages queued top-center tip text particle effects."""
 
 from __future__ import annotations
 from dataclasses import dataclass
@@ -10,8 +9,11 @@ from Engine.Utils import Math
 
 @dataclass
 class _TipItem:
-    """
-    \\brief Internal runtime state of a single common tip entry
+    r"""
+    \brief Internal runtime state of a single common tip entry.
+
+    This class stores the runtime state of a single tip, including
+    the text particle, screen position, alpha, phase, and timers.
     """
 
     textParticle: TextParticle
@@ -24,9 +26,11 @@ class _TipItem:
 
 
 class CommonTipController:
-    """
-    \\brief Controller for queued top-center text tip particles
-    Handles tip creation, fade-in, hold, upward fade-out and queue compaction.
+    r"""
+    \brief Controller for queued top-center text tip particles.
+
+    This class handles tip creation, fade-in, hold, upward fade-out
+    and queue compaction for displaying floating tip text.
     """
 
     _START_Y = 64.0
@@ -37,10 +41,11 @@ class CommonTipController:
     _RISE = 16.0
 
     def __init__(self, particleSystem: ParticleSystem, fontSize: int = 12) -> None:
-        """
-        \\brief Construct a common tip controller
-        - \\param particleSystem Target particle system used to create and render `TextParticle`
-        - \\param fontSize Character size used when creating each tip text particle
+        r"""
+        \brief Construct a common tip controller.
+
+        - particleSystem: Target particle system used to create and render `TextParticle`
+        - fontSize: Character size used when creating each tip text particle
         """
         self._particleSystem = particleSystem
         self._fontSize = fontSize
@@ -48,11 +53,13 @@ class CommonTipController:
         self._shifting = False
 
     def addTip(self, text: str) -> None:
-        """
-        \\brief Add a new tip message to the queue
+        r"""
+        \brief Add a new tip message to the queue.
+
         If no active tip exists, the new tip starts with fade-in immediately.
         Otherwise, it is appended below existing tips and waits for its turn.
-        - \\param text Tip message content
+
+        - text: Tip message content
         """
         message = str(text).strip()
         if not message:
@@ -89,10 +96,12 @@ class CommonTipController:
         self._updatePlacement()
 
     def onTick(self, deltaTime: float) -> None:
-        """
-        \\brief Advance all tip animation states by one frame
+        r"""
+        \brief Advance all tip animation states by one frame.
+
         Updates queue compaction, top-tip hold timing, fade transitions and placement.
-        - \\param deltaTime Elapsed time in seconds since previous frame
+
+        - deltaTime: Elapsed time in seconds since previous frame
         """
         if len(self._tips) == 0:
             self._shifting = False

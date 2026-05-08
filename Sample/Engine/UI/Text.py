@@ -17,6 +17,11 @@ from .Base import ControlBase
 
 
 class PlainText(ControlBase):
+    r"""Plain text control rendered with a single font and style.
+
+    Wraps an SFML Text object and provides logical-size scaling support.
+    """
+
     def __init__(
         self,
         font: Font,
@@ -25,6 +30,14 @@ class PlainText(ControlBase):
         style: Text.Style = Text.Style.Regular,
         fillColor: Color = Color.White,
     ) -> None:
+        r"""\brief Construct a PlainText control.
+
+        - \param font           Font used for rendering
+        - \param text           Initial text string
+        - \param characterSize  Character size in logical UI units (uses default if None)
+        - \param style          Text style (regular, bold, italic, etc.)
+        - \param fillColor      Fill colour of the text
+        """
         from . import DefaultFontSize
         from .. import Scale
 
@@ -37,21 +50,41 @@ class PlainText(ControlBase):
         self._text.setFillColor(fillColor)
 
     def getCharacterSize(self) -> int:
+        r"""\brief Get the character size of this text.
+
+        - \return  Character size in logical UI units
+        """
         return self._characterSize
 
     def setCharacterSize(self, characterSize: int) -> None:
+        r"""\brief Set the character size of this text.
+
+        - \param characterSize  New character size in logical UI units
+        """
         from .. import Scale
 
         self._characterSize = characterSize
         self._text.setCharacterSize(int(characterSize * Scale))
 
     def setString(self, text: str) -> None:
+        r"""\brief Set the text string.
+
+        - \param text  New text string
+        """
         self._text.setString(text)
 
     def getString(self) -> str:
+        r"""\brief Get the current text string.
+
+        - \return  Current text string
+        """
         return self._text.getString()
 
     def getLocalBounds(self) -> FloatRect:
+        r"""\brief Get the local bounds of this text in logical UI units.
+
+        - \return  Local bounds rectangle
+        """
         from .. import Scale
 
         bounds = self._text.getLocalBounds()
@@ -59,6 +92,10 @@ class PlainText(ControlBase):
         return newBounds
 
     def getGlobalBounds(self) -> FloatRect:
+        r"""\brief Get the global bounds of this text in logical UI units.
+
+        - \return  Global bounds rectangle
+        """
         from .. import Scale
 
         bounds = self._text.getGlobalBounds()
@@ -66,18 +103,47 @@ class PlainText(ControlBase):
         return newBounds
 
     def getSize(self) -> Vector2f:
+        r"""\brief Get the size of this text in logical UI units.
+
+        - \return  Size as (width, height)
+        """
         return self._text.getGlobalBounds().size
 
     def getColor(self) -> Color:
+        r"""\brief Get the fill colour of this text.
+
+        - \return  Current fill colour
+        """
         return self._text.getFillColor()
 
     def setColor(self, color: Color) -> None:
+        r"""\brief Set the fill colour of this text.
+
+        - \param color  New fill colour
+        """
         self._text.setFillColor(color)
 
     def draw(self, target: RenderTarget, states: RenderStates) -> None:
+        r"""\brief Draw this text control to the given render target.
+
+        - \param target  Render target used for drawing
+        - \param states  Render states used when drawing
+        """
         self._applyRenderStates(states)
         if self.getVisible():
             target.draw(self._text, states)
+
+    def getAbsoluteBounds(self) -> FloatRect:
+        r"""\brief Get the absolute bounds of this text in screen coordinates.
+
+        - \return  Absolute bounds rectangle in screen coordinates
+        """
+        from .. import Scale
+
+        transform = self._getScreenRenderTransform()
+        bounds = self.getLocalBounds()
+        realBounds = FloatRect(bounds.position * Scale, bounds.size * Scale)
+        return transform.transformRect(realBounds)
 
     def _applyRenderStates(self, states: RenderStates) -> None:
         from .. import Scale
@@ -93,16 +159,14 @@ class PlainText(ControlBase):
         transform.translate(self.getPosition() * (Scale - 1))
         return transform
 
-    def getAbsoluteBounds(self) -> FloatRect:
-        from .. import Scale
-
-        transform = self._getScreenRenderTransform()
-        bounds = self.getLocalBounds()
-        realBounds = FloatRect(bounds.position * Scale, bounds.size * Scale)
-        return transform.transformRect(realBounds)
-
 
 class TextStyle:
+    r"""Text rendering style descriptor.
+
+    Holds optional character size, font style, fill/outline colour,
+    and outline thickness for rich-text rendering.
+    """
+
     def __init__(
         self,
         characterSize: Optional[int] = None,
@@ -111,6 +175,14 @@ class TextStyle:
         outlineColor: Optional[Color] = None,
         outlineThickness: Optional[float] = None,
     ) -> None:
+        r"""\brief Construct a TextStyle with optional overrides.
+
+        - \param characterSize   Character size in logical UI units (None = use default)
+        - \param style           Text style (regular, bold, italic, etc.)
+        - \param fillColor       Fill colour of the text
+        - \param outlineColor    Outline colour of the text
+        - \param outlineThickness  Outline thickness in logical UI units
+        """
         self.characterSize = characterSize
         self.style = style
         self.fillColor = fillColor
@@ -118,6 +190,10 @@ class TextStyle:
         self.outlineThickness = outlineThickness
 
     def enableStyle(self, text: Text) -> None:
+        r"""\brief Apply this style to an SFML Text object.
+
+        - \param text  Text object to modify
+        """
         from .. import Scale
 
         if not self.characterSize is None:
@@ -132,6 +208,10 @@ class TextStyle:
             text.setOutlineThickness(self.outlineThickness)
 
     def adaptStyle(self, inStyle: TextStyle) -> None:
+        r"""\brief Merge non-None fields from another TextStyle.
+
+        - \param inStyle  Source style to adapt from
+        """
         if not inStyle.characterSize is None:
             self.characterSize = inStyle.characterSize
         if not inStyle.style is None:
@@ -145,12 +225,24 @@ class TextStyle:
 
 
 class RichText(ControlBase):
+    r"""Rich-text control supporting multiple styles and colours.
+
+    Parses a marked-up string and renders it as multiple SFML Text
+    segments with per-segment style and colour control.
+    """
+
     def __init__(
         self,
         font: Font,
         text: str,
         styleCollection: Dict[str, TextStyle],
     ) -> None:
+        r"""\brief Construct a RichText control.
+
+        - \param font              Font used for rendering
+        - \param text              Initial rich-text string
+        - \param styleCollection  Named styles used by the markup
+        """
         self._font: Font = font
         self._color: Color = Color.White
         self._string: str = ""
@@ -161,38 +253,83 @@ class RichText(ControlBase):
         self.setString(text)
 
     def setString(self, text: str) -> None:
+        r"""\brief Set the rich-text string and re-render.
+
+        - \param text  New rich-text string (may include style markers)
+        """
         self._string = text
         self._render(text, self._styleCollection)
         self._refreshSegmentColors()
 
     def getString(self) -> str:
+        r"""\brief Get the current rich-text string.
+
+        - \return  Current rich-text string
+        """
         return self._string
 
     def setColor(self, color: Color) -> None:
+        r"""\brief Set the modulation colour for all segments.
+
+        - \param color  New modulation colour
+        """
         self._color = color
         self._refreshSegmentColors()
 
     def getColor(self) -> Color:
+        r"""\brief Get the current modulation colour.
+
+        - \return  Current modulation colour
+        """
         return self._color
 
     def getLocalBounds(self) -> FloatRect:
+        r"""\brief Get the local bounds of this rich text in logical UI units.
+
+        - \return  Local bounds rectangle
+        """
         from .. import Scale
 
         return FloatRect(self._localBounds.position, self._localBounds.size / Scale)
 
     def getGlobalBounds(self) -> FloatRect:
+        r"""\brief Get the global bounds of this rich text.
+
+        - \return  Global bounds rectangle
+        """
         return self.getLocalBounds()
 
     def getSize(self) -> Vector2f:
+        r"""\brief Get the size of this rich text in logical UI units.
+
+        - \return  Size as (width, height)
+        """
         return self._localBounds.size
 
     def draw(self, target: RenderTarget, states: RenderStates) -> None:
+        r"""\brief Draw this rich text control to the given render target.
+
+        - \param target  Render target used for drawing
+        - \param states  Render states used when drawing
+        """
         self._applyRenderStates(states)
         if not self.getVisible():
             return
         for text, style in self._segments:
             self._applySegmentColor(text, style)
             target.draw(text, states)
+
+    def getAbsoluteBounds(self) -> FloatRect:
+        r"""\brief Get the absolute bounds of this rich text in logical UI units.
+
+        - \return  Absolute bounds rectangle
+        """
+        from .. import Scale
+
+        transform = self._getScreenRenderTransform()
+        bounds = self.getLocalBounds()
+        realBounds = FloatRect(bounds.position * Scale, bounds.size * Scale)
+        return transform.transformRect(realBounds)
 
     def _applyRenderStates(self, states: RenderStates) -> None:
         from .. import Scale
@@ -207,14 +344,6 @@ class RichText(ControlBase):
         transform *= self.getTransform()
         transform.translate(self.getPosition() * (Scale - 1))
         return transform
-
-    def getAbsoluteBounds(self) -> FloatRect:
-        from .. import Scale
-
-        transform = self._getScreenRenderTransform()
-        bounds = self.getLocalBounds()
-        realBounds = FloatRect(bounds.position * Scale, bounds.size * Scale)
-        return transform.transformRect(realBounds)
 
     def _render(self, text: str, styleCollection: Dict[str, TextStyle]) -> None:
         from . import HexColor
