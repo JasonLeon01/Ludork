@@ -239,6 +239,7 @@ def SUPER(obj: object) -> None:
         graph = getattr(parent_cls, "_graph", None)
         if graph is None:
             from Engine.BPBase import BPBase
+
             infoGraph = getattr(obj, "_infoGraph", None)
             if infoGraph and infoGraph.hasKey(key):
                 if key in infoGraph.startNodes and infoGraph.startNodes[key] is not None:
@@ -254,6 +255,7 @@ def SUPER(obj: object) -> None:
             graph.execute(key)
     else:
         from Engine.BPBase import BPBase
+
         infoGraph = getattr(obj, "_infoGraph", None)
         if infoGraph and infoGraph.hasKey(key):
             if key in infoGraph.startNodes and infoGraph.startNodes[key] is not None:
@@ -316,6 +318,14 @@ def RunCommonFunction(commonFunctionName: str) -> Any:
         firstKey = sorted(commonGraph.startNodes.keys())[0]
         return commonGraph.execute(firstKey)
     raise KeyError(f"Common function '{commonFunctionName}' has no start nodes")
+
+
+@Meta(DisplayName='LOC("BACK_TO_TITLE")', DisplayDesc='LOC("BACK_TO_TITLE_DESC")')
+@ExecSplit(default=(None,))
+def BackToTitle() -> None:
+    from Source.Scenes import Title
+
+    System.setScene(Title())
 
 
 @Meta(DisplayName='LOC("PRINT")', DisplayDesc='LOC("PRINT_DESC")')

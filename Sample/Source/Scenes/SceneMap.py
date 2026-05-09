@@ -5,6 +5,7 @@ import os
 from typing import Callable, List, Union, Optional, Dict, Any
 from Engine import Pair, Vector2u, Vector2f, Color
 from Engine.Gameplay import Tilemap, TileLayer, TileLayerData
+from Engine.Gameplay.Actors import Actor
 from Engine.Utils import File
 from Global import Manager, SceneBase, GameMap, Camera, Light
 from Global import System as GlobalSystem
@@ -113,6 +114,10 @@ class Scene(SceneBase):
             self._cachedMapFile = mapPath
             self.loadMap(mapPath)
         self.inst.applyMapInfo(mapPath, pos)
+
+    @ExecSplit(default=(None,))
+    def recordDestroyedActor(self, actor: Actor) -> None:
+        self.inst.recordDestroyedActor(self._cachedMapFile, actor)
 
     def _renderHandle(self, deltaTime: float) -> None:
         self._gameMap.show()

@@ -1,9 +1,11 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Optional, List, Dict
-from Engine import Texture, Input
+from typing import List, Optional, Dict, Any, Tuple, Type, Union
+from Engine import Texture, Input, Vector2u
 from Engine.Gameplay.Actors import Character
+from Global import Manager
+from . import Data
 from .Battler import Battler
 
 
@@ -26,6 +28,7 @@ class Player(Character, Battler):
         self.speed = 96
         self.HP = self.MAXHP
         self._items: Dict[str, int] = {}
+        self._classPath: str = ""
         Input.registerActionMapping(
             self, "playerMoveUp", Input.getUpKeys(), lambda obj, delta: obj.MapMove((0, -1)), triggerOnHold=True
         )
@@ -38,6 +41,70 @@ class Player(Character, Battler):
         Input.registerActionMapping(
             self, "playerMoveRight", Input.getRightKeys(), lambda obj, delta: obj.MapMove((1, 0)), triggerOnHold=True
         )
+
+    def asDict(self) -> Dict[str, Any]:
+        r"""
+        \brief Serialize player information for serialization.
+
+        - \return A dictionary containing player class path, tag, position, attributes, and inventory.
+        """
+        return {
+            "playerClass": self._classPath,
+            "tag": self.tag,
+            "position": self.getMapPosition().unpack(),
+            "attr": {k: getattr(self, k) for k in ["LEVEL", "HP", "MAXHP", "ATK", "DEF", "EXP", "GOLD"]},
+            "items": self._items,
+        }
+
+    @staticmethod
+    def InitPlayer(playerPath: str) -> Player:
+        r"""
+        \brief Initialize a player character from a class path.
+
+        - \param playerPath  Path to the player class.
+
+        - \return A new `Player` instance initialized with the provided class path.
+        """
+        actorClass: Type[Player] = Data.getClass(playerPath)
+        texturePath = getattr(actorClass, "texturePath")
+        defaultRect = getattr(actorClass, "defaultRect")
+        actor: Player = Cast(
+            Player, actorClass.GenActor(actorClass, Manager.loadCharacter(texturePath), defaultRect, "yongshi")
+        )
+        actor._classPath = playerPath
+        actor.setAnimatable(True, True)
+        actor.setCollisionEnabled(True)
+        actor.setGraph(
+            Data.genGraphFromData(
+                Data.getClassData(playerPath)["graph"],
+                actor,
+                Data.getClass(playerPath),
+            )
+        )
+        return actor
+
+    @staticmethod
+    def FromDict(data: Dict[str, Any]) -> Player:
+        r"""
+        \brief Deserialize player attributes and inventory from a dictionary.
+
+        - \param data  A dictionary containing player attributes and inventory.
+
+        - \return A new `Player` instance initialized with the provided data.
+        """
+        assert "playerClass" in data and "tag" in data and "position" in data and "attr" in data and "items" in data
+        assert isinstance(data["playerClass"], str) and isinstance(data["tag"], str)
+        AssertType(data["position"], Union[List[int], Tuple[int, int]])
+        AssertType(data["attr"], Dict[str, Any])
+        AssertType(data["items"], Dict[str, int])
+        player = Player.initPlayer(data["playerClass"])
+        player.tag = data["tag"]
+        player.setMapPosition(Vector2u(*data["position"]))
+        for k, v in data["attr"].items():
+            setattr(player, k, v)
+
+        player._items = data["items"]
+        return player
 
     def addItem(self, itemID: str, count: int = 1) -> None:
         r"""\brief Add item(s) to the player's inventory.

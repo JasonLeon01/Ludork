@@ -1,8 +1,14 @@
 # -*- encoding: utf-8 -*-
 
+from enum import IntEnum
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 from .States import StateInfo, State
+
+
+class DamageType(IntEnum):
+    NORMAL = 0
+    UNDEFEATABLE = 1
 
 
 @dataclass

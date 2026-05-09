@@ -28,6 +28,7 @@ launcher.onefile-build/
 C_Extensions/*/_generated_bindings.cpp
 C_Extensions/EngineExt/CMakeLists.txt
 C_Extensions/GlobalExt/CMakeLists.txt
-/Sample/**/*.pyi
+/Sample/Engine/*.pyi
+/Sample/Global/*.pyi
 /EditorExtensions/**/*.pyi
 pyrightconfig.json
