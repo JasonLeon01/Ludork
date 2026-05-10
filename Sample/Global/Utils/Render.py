@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-"""Global render utilities: screen-space coordinate transforms and draw helpers."""
+r"""\brief Global render utilities: screen-space coordinate transforms and draw helpers."""
 
 import copy
 from typing import Union
@@ -9,6 +9,12 @@ from .. import System
 
 
 def getRealSize(inSize: Union[Vector2i, Vector2u, Vector2f]) -> Vector2f:
+    r"""\brief Convert a size vector to real-world coordinates using the current scale.
+
+    - \param inSize Size as Vector2i, Vector2u, or Vector2f.
+
+    - \return The scaled size.
+    """
     if not isinstance(inSize, Vector2i) and not isinstance(inSize, Vector2u):
         assert isinstance(inSize, Vector2f), "inSize must be a Vector2i, Vector2u or Vector2f"
         size = copy.copy(inSize)

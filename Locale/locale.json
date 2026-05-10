@@ -167,6 +167,58 @@
         "zh_CN": "游戏设置",
         "en_GB": "Game Settings"
     },
+    "GAME_CONFIG": {
+        "zh_CN": "游戏配置",
+        "en_GB": "Game Config"
+    },
+    "script": {
+        "zh_CN": "入口脚本",
+        "en_GB": "Script"
+    },
+    "language": {
+        "zh_CN": "语言",
+        "en_GB": "Language"
+    },
+    "framerate": {
+        "zh_CN": "帧率上限",
+        "en_GB": "Frame Rate"
+    },
+    "verticalsync": {
+        "zh_CN": "垂直同步",
+        "en_GB": "Vertical Sync"
+    },
+    "musicon": {
+        "zh_CN": "音乐开关",
+        "en_GB": "Music Enabled"
+    },
+    "soundon": {
+        "zh_CN": "音效开关",
+        "en_GB": "Sound Enabled"
+    },
+    "voiceon": {
+        "zh_CN": "语音开关",
+        "en_GB": "Voice Enabled"
+    },
+    "musicvolume": {
+        "zh_CN": "音乐音量",
+        "en_GB": "Music Volume"
+    },
+    "soundvolume": {
+        "zh_CN": "音效音量",
+        "en_GB": "Sound Volume"
+    },
+    "voicevolume": {
+        "zh_CN": "语音音量",
+        "en_GB": "Voice Volume"
+    },
+    "GAME_CONFIG_LOAD_FAILED": {
+        "zh_CN": "读取游戏配置失败",
+        "en_GB": "Failed to load game config"
+    },
+    "GAME_CONFIG_SAVE_FAILED": {
+        "zh_CN": "保存游戏配置失败",
+        "en_GB": "Failed to save game config"
+    },
     "DATABASE": {
         "zh_CN": "数据库",
         "en_GB": "Database"
@@ -395,6 +447,50 @@
         "zh_CN": "环境光",
         "en_GB": "Ambient Light"
     },
+    "MAP_BGM": {
+        "zh_CN": "BGM（背景音乐）",
+        "en_GB": "BGM"
+    },
+    "MAP_BGS": {
+        "zh_CN": "BGS（背景音效）",
+        "en_GB": "BGS"
+    },
+    "FILTER": {
+        "zh_CN": "滤镜",
+        "en_GB": "Filter"
+    },
+    "EDIT_BGM_FILTER": {
+        "zh_CN": "编辑BGM滤镜",
+        "en_GB": "Edit BGM Filter"
+    },
+    "EDIT_BGS_FILTER": {
+        "zh_CN": "编辑BGS滤镜",
+        "en_GB": "Edit BGS Filter"
+    },
+    "FILTER_LOOP": {
+        "zh_CN": "循环",
+        "en_GB": "Loop"
+    },
+    "FILTER_OFFSET": {
+        "zh_CN": "偏移（秒）",
+        "en_GB": "Offset (s)"
+    },
+    "FILTER_PITCH": {
+        "zh_CN": "音高",
+        "en_GB": "Pitch"
+    },
+    "FILTER_PAN": {
+        "zh_CN": "声道 (-1=左 1=右)",
+        "en_GB": "Pan (-1=Left 1=Right)"
+    },
+    "FILTER_VOLUME": {
+        "zh_CN": "音量",
+        "en_GB": "Volume"
+    },
+    "FILTER_LOOP_POINT": {
+        "zh_CN": "循环区间（起/止 秒）",
+        "en_GB": "Loop Point (start/end s)"
+    },
     "SAVE_SUCCESS": {
         "zh_CN": "保存成功！",
         "en_GB": "Save Successfully! "
@@ -534,6 +630,10 @@
     "equipSE": {
         "zh_CN": "装备音效",
         "en_GB": "Equip Sound"
+    },
+    "titleBGM": {
+        "zh_CN": "标题音乐",
+        "en_GB": "Title Music"
     },
     "SELECT_PROJECT_DIR": {
         "zh_CN": "选择项目路径",

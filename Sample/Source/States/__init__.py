@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-r"""State package.
+r"""
+\brief State package.
 
 Provides finite-state machine support for the Ludork sample engine.
 

@@ -4,7 +4,9 @@ import os
 from typing import Any, Optional
 from PyQt5 import QtCore, QtWidgets
 from Utils import System
-from EditorGlobal import GameData
+from EditorGlobal import GameData, EditorStatus
+from Widgets.Utils.FileSelectorDialog import FileSelectorDialog
+from Widgets.Utils.FilterEditDialog import editFilterData
 
 
 class MapEditDialog(QtWidgets.QDialog):
@@ -73,6 +75,66 @@ class MapEditDialog(QtWidgets.QDialog):
             self.ambientLayout.addWidget(spin)
         form.addRow(ELOC("AMBIENT_LIGHT"), self.ambientLayout)
 
+        self.bgmEdit = QtWidgets.QLineEdit(self)
+        self.bgmEdit.setReadOnly(True)
+        self.bgmEdit.setStyleSheet("")
+        self.bgmEdit.setText(data.get("bgm", ""))
+        self.bgmBtn = QtWidgets.QPushButton("...", self)
+        self.bgmFilterBtn = QtWidgets.QPushButton(ELOC("FILTER"), self)
+        self._bgmFilterData = data.get("bgmFilter") if "bgmFilter" in data else {}
+        self.bgmLayout = QtWidgets.QHBoxLayout()
+        self.bgmLayout.setContentsMargins(0, 0, 0, 0)
+        self.bgmLayout.setSpacing(6)
+        self.bgmLayout.addWidget(self.bgmEdit, 1)
+        self.bgmLayout.addWidget(self.bgmBtn, 0)
+        self.bgmLayout.addWidget(self.bgmFilterBtn, 0)
+
+        self.bgsEdit = QtWidgets.QLineEdit(self)
+        self.bgsEdit.setReadOnly(True)
+        self.bgsEdit.setStyleSheet("")
+        self.bgsEdit.setText(data.get("bgs", ""))
+        self.bgsBtn = QtWidgets.QPushButton("...", self)
+        self.bgsFilterBtn = QtWidgets.QPushButton(ELOC("FILTER"), self)
+        self._bgsFilterData = data.get("bgsFilter") if "bgsFilter" in data else {}
+        self.bgsLayout = QtWidgets.QHBoxLayout()
+        self.bgsLayout.setContentsMargins(0, 0, 0, 0)
+        self.bgsLayout.setSpacing(6)
+        self.bgsLayout.addWidget(self.bgsEdit, 1)
+        self.bgsLayout.addWidget(self.bgsBtn, 0)
+        self.bgsLayout.addWidget(self.bgsFilterBtn, 0)
+
+        bgmRoot = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Musics")
+        bgsRoot = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Sounds")
+
+        def onBrowseBgm():
+            dlg = FileSelectorDialog(self, bgmRoot, "Audio Files (*.ogg *.wav *.flac *.mp3)")
+            fp = dlg.execSelect()
+            if fp:
+                self.bgmEdit.setText(os.path.basename(fp))
+
+        def onBrowseBgs():
+            dlg = FileSelectorDialog(self, bgsRoot, "Audio Files (*.ogg *.wav *.flac *.mp3)")
+            fp = dlg.execSelect()
+            if fp:
+                self.bgsEdit.setText(os.path.basename(fp))
+
+        def onEditBgmFilter():
+            result = editFilterData(self, self._bgmFilterData, "bgm")
+            if result is not None:
+                self._bgmFilterData = result
+
+        def onEditBgsFilter():
+            result = editFilterData(self, self._bgsFilterData, "bgs")
+            if result is not None:
+                self._bgsFilterData = result
+
+        self.bgmBtn.clicked.connect(onBrowseBgm)
+        self.bgsBtn.clicked.connect(onBrowseBgs)
+        self.bgmFilterBtn.clicked.connect(onEditBgmFilter)
+        self.bgsFilterBtn.clicked.connect(onEditBgsFilter)
+        form.addRow(ELOC("MAP_BGM"), self.bgmLayout)
+        form.addRow(ELOC("MAP_BGS"), self.bgsLayout)
+
         self.btns = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel, self)
         form.addRow(self.btns)
         confirm_label = ELOC("CONFIRM")
@@ -140,6 +202,13 @@ class MapEditDialog(QtWidgets.QDialog):
         new_b = int(self.bSpin.value())
         new_a = int(self.aSpin.value())
         data["ambientLight"] = [new_r, new_g, new_b, new_a]
+
+        bgm = self.bgmEdit.text().strip()
+        data["bgm"] = bgm if bgm else ""
+        data["bgmFilter"] = self._bgmFilterData
+        bgs = self.bgsEdit.text().strip()
+        data["bgs"] = bgs if bgs else ""
+        data["bgsFilter"] = self._bgsFilterData
 
         if new_w != old_w or new_h != old_h:
             layers = data.get("layers", {})

@@ -8,8 +8,7 @@ from typing import Any, Callable, Deque, Dict, List, Optional, Tuple
 
 
 class EventBus:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Thread-safe event bus with priority-based handlers.
 
     Supports subscribing, unsubscribing, one-shot handlers,
@@ -17,14 +16,17 @@ class EventBus:
     """
 
     def __init__(self) -> None:
+        r"""
+        \brief Construct a event bus.
+        """
+
         self._handlers: Dict[str, List[Tuple[int, int, Callable[[Any], None]]]] = {}
         self._queue: Deque[Tuple[str, Any]] = deque()
         self._next_id: int = 1
         self._lock = threading.RLock()
 
     def subscribe(self, event: str, fn: Callable[[Any], None], priority: int = 0) -> int:
-        r"""////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////
+        r"""
         \brief Subscribe a handler to an event with an optional priority.
 
         Higher priority handlers are called first.
@@ -44,8 +46,7 @@ class EventBus:
             return token
 
     def once(self, event: str, fn: Callable[[Any], None], priority: int = 0) -> int:
-        r"""////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////
+        r"""
         \brief Subscribe a one-shot handler that auto-removes after first invocation.
 
         - \param event Event name to subscribe to.
@@ -68,8 +69,7 @@ class EventBus:
         return token
 
     def unsubscribe(self, token: int) -> bool:
-        r"""////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////
+        r"""
         \brief Unsubscribe a handler using its subscription token.
 
         - \param token Token returned by subscribe() or once().
@@ -90,8 +90,7 @@ class EventBus:
             return found
 
     def clear(self, event: Optional[str] = None) -> None:
-        r"""////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////
+        r"""
         \brief Remove all handlers, or only those for a specific event.
 
         - \param event Event name to clear; if None, all events are cleared.
@@ -103,8 +102,7 @@ class EventBus:
                 self._handlers.pop(event, None)
 
     def publish(self, event: str, payload: Any = None) -> None:
-        r"""////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////
+        r"""
         \brief Immediately publish an event to all subscribed handlers.
 
         Handlers are called synchronously in priority order.
@@ -122,8 +120,7 @@ class EventBus:
                 logging.error(f"EventBus: handler error for '{event}': {e}")
 
     def post(self, event: str, payload: Any = None) -> None:
-        r"""////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////
+        r"""
         \brief Post an event to the deferred queue (processed later by flush).
 
         - \param event Event name to post.
@@ -133,8 +130,7 @@ class EventBus:
             self._queue.append((event, payload))
 
     def flush(self, limit: Optional[int] = None) -> int:
-        r"""////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////
+        r"""
         \brief Process queued events up to an optional limit.
 
         - \param limit Maximum number of events to process; None means no limit.
@@ -157,8 +153,7 @@ _default_bus = EventBus()
 
 
 def subscribe(event: str, fn: Callable[[Any], None], priority: int = 0) -> int:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Subscribe to an event on the default event bus.
 
     - \param event Event name to subscribe to.
@@ -170,8 +165,7 @@ def subscribe(event: str, fn: Callable[[Any], None], priority: int = 0) -> int:
 
 
 def once(event: str, fn: Callable[[Any], None], priority: int = 0) -> int:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Subscribe a one-shot handler on the default event bus.
 
     - \param event Event name to subscribe to.
@@ -183,8 +177,7 @@ def once(event: str, fn: Callable[[Any], None], priority: int = 0) -> int:
 
 
 def unsubscribe(token: int) -> bool:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Unsubscribe a handler on the default event bus.
 
     - \param token Token returned by subscribe() or once().
@@ -194,8 +187,7 @@ def unsubscribe(token: int) -> bool:
 
 
 def publish(event: str, payload: Any = None) -> None:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Immediately publish an event on the default event bus.
 
     - \param event Event name to publish.
@@ -205,8 +197,7 @@ def publish(event: str, payload: Any = None) -> None:
 
 
 def post(event: str, payload: Any = None) -> None:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Post an event to the deferred queue on the default event bus.
 
     - \param event Event name to post.
@@ -216,8 +207,7 @@ def post(event: str, payload: Any = None) -> None:
 
 
 def flush(limit: Optional[int] = None) -> int:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Process queued events on the default event bus.
 
     - \param limit Maximum number of events to process; None means no limit.
@@ -227,8 +217,7 @@ def flush(limit: Optional[int] = None) -> int:
 
 
 def clear(event: Optional[str] = None) -> None:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Clear handlers on the default event bus.
 
     - \param event Event name to clear; if None, all events are cleared.

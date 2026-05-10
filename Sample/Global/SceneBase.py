@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-"""SceneBase: abstract base class for all game scenes with lifecycle hooks."""
+r"""\brief SceneBase: abstract base class for all game scenes with lifecycle hooks."""
 
 from __future__ import annotations
 import inspect
@@ -16,7 +16,15 @@ from .UIManager import UIManager
 
 
 class SceneBase:
+    r"""\brief Abstract base class for all game scenes.
+
+    Provides lifecycle hooks (onCreate, onEnter, onTick, onFixedTick, onLateTick,
+    onDestroy, onQuit), timer management, animation list management,
+    and a threaded logic loop.
+    """
+
     def __init__(self) -> None:
+        r"""\brief Construct a new scene with default timing and UI manager."""
         self._fixedAccumulator: float = 0.0
         self._fixedStep: float = 1.0 / 60.0
         self._maxFixedSteps: int = 5
@@ -30,30 +38,66 @@ class SceneBase:
         self._logicDataLock: threading.RLock = threading.RLock()
 
     def onEnter(self) -> None:
+        r"""\brief Called when the scene becomes active.
+
+        Override to perform scene-specific setup when entering.
+        """
         System.setTransition()
 
     def onQuit(self) -> None:
+        r"""\brief Called when the scene is about to be removed.
+
+        Override to perform cleanup before the scene quits.
+        """
         pass
 
     def onCreate(self) -> None:
+        r"""\brief Called once when the scene is first created.
+
+        Override to initialise scene resources and state.
+        """
         pass
 
     def onTick(self, deltaTime: float) -> None:
+        r"""\brief Called every logic frame.
+
+        - \param deltaTime Elapsed time in seconds since the previous logic frame.
+        """
         pass
 
     def onLateTick(self, deltaTime: float) -> None:
+        r"""\brief Called after onTick for late-update logic.
+
+        - \param deltaTime Elapsed time in seconds since the previous frame.
+        """
         pass
 
     def onFixedTick(self, fixedDelta: float) -> None:
+        r"""\brief Called at a fixed timestep for physics-like updates.
+
+        - \param fixedDelta Fixed timestep in seconds (default 1/60).
+        """
         pass
 
     def onDestroy(self) -> None:
+        r"""\brief Called when the scene is destroyed.
+
+        Override to release resources.
+        """
         pass
 
     @Latent(TimeUp=(True,))
     def addTimer(
         self, key: str, interval: float, task: Optional[Callable] = None, params: Optional[List[Any]] = None
     ) -> Callable[[], bool]:
+        r"""\brief Add a timer that fires after the specified interval.
+
+        - \param key Unique key for the timer.
+        - \param interval Time in seconds before the timer fires.
+        - \param task Optional callable to invoke when the timer fires.
+        - \param params Optional list of parameters passed to the task.
+        - \return A callable condition function that returns True when the timer fires.
+        """
         with self._logicDataLock:
             if key in self._timerTasks:
                 raise ValueError("Timer key already exists")
@@ -69,16 +113,29 @@ class SceneBase:
 
     @ExecSplit(default=(None,))
     def addAnim(self, anim: Animation) -> None:
+        r"""\brief Add an animation to the scene's animation list.
+
+        - \param anim The animation to add.
+        """
         with self._logicDataLock:
             self._animList.append(anim)
 
     @ReturnType(anims=List[Animation])
     def getAnims(self) -> List[Animation]:
+        r"""\brief Get a snapshot of the current animation list.
+
+        - \return A copy of the animation list.
+        """
         with self._logicDataLock:
             return self._animList[:]
 
     @ExecSplit(default=(None,))
     def removeAnim(self, anim: Animation) -> None:
+        r"""\brief Remove an animation from the scene.
+
+        - \param anim The animation to remove.
+        - \raises ValueError if the animation is not found.
+        """
         with self._logicDataLock:
             if anim in self._animList:
                 self._animList.remove(anim)
@@ -87,10 +144,16 @@ class SceneBase:
 
     @ExecSplit(default=(None,))
     def clearAnims(self) -> None:
+        r"""\brief Remove all animations from the scene."""
         with self._logicDataLock:
             self._animList.clear()
 
     def main(self) -> None:
+        r"""\brief Enter the scene's main loop.
+
+        Calls onCreate once, then onEnter, then runs the game loop
+        until the scene is no longer active, then calls onQuit.
+        """
         if not self._created:
             self.onCreate()
             self._created = True

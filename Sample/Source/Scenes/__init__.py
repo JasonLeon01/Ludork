@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-r"""Scene definitions package.
+r"""
+\brief Scene definitions package.
 
 Provides scene classes for the Ludork sample project.
 

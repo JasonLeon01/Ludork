@@ -1,11 +1,11 @@
 # -*- encoding: utf-8 -*-
-"""Blueprint system nodes: scene transitions, save/load, and game flow control."""
+r"""\brief Blueprint system nodes: scene transitions, save/load, and game flow control."""
 
 from dataclasses import fields
 import os
 from typing import Any
 from Engine import Filters
-from Global import Manager, playVideo
+from Global import Manager, playVideo, System as GlobalSystem
 
 SoundFilter = Filters.SoundFilter()
 MusicFilter = Filters.MusicFilter()
@@ -56,3 +56,27 @@ def PlayMusic(musicFileName: str, applyFilter: bool) -> None:
 def PlayVideo(videoFileName: str, mute: bool, skipable: bool) -> None:
     videoPath = os.path.join(os.getcwd(), "Assets", "Videos", videoFileName)
     playVideo(videoPath, mute, skipable)
+
+
+@Meta(
+    DisplayName='LOC("SET_BGM_FILTER")',
+    DisplayDesc='LOC("SET_BGM_FILTER_DESC")',
+    DropBox={"attr": [field.name for field in fields(Filters.MusicFilter)]},
+)
+@ExecSplit(default=(None,))
+def SetBgmFilter(attr: str, value: Any) -> None:
+    scene = GlobalSystem.getScene()
+    if scene and hasattr(scene, "setBgmFilter"):
+        scene.setBgmFilter(attr, value)
+
+
+@Meta(
+    DisplayName='LOC("SET_BGS_FILTER")',
+    DisplayDesc='LOC("SET_BGS_FILTER_DESC")',
+    DropBox={"attr": [field.name for field in fields(Filters.SoundFilter)]},
+)
+@ExecSplit(default=(None,))
+def SetBgsFilter(attr: str, value: Any) -> None:
+    scene = GlobalSystem.getScene()
+    if scene and hasattr(scene, "setBgsFilter"):
+        scene.setBgsFilter(attr, value)

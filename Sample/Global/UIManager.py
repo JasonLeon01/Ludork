@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-"""UIManager: manages active UI canvases, event dispatch, and rendering order."""
+r"""\brief UIManager: manages active UI canvases, event dispatch, and rendering order."""
 
 import os
 from typing import List
@@ -11,7 +11,14 @@ from .System import System
 
 
 class UIManager:
+    r"""\brief Manages active UI canvases, event dispatch, and rendering order.
+
+    Handles loading, removal, and sorted update/render of UI canvases.
+    Includes optional debug HUD with FPS and memory information.
+    """
+
     def __init__(self) -> None:
+        r"""\brief Construct a UI manager with debug HUD if debug mode is enabled."""
         self._UIs: List[Canvas] = []
         self._debugHUDEnabled: bool = False
         if System.isDebugMode():
@@ -31,14 +38,27 @@ class UIManager:
 
     @ExecSplit(default=(None,))
     def loadUI(self, ui: Canvas) -> None:
+        r"""\brief Load a UI canvas into the manager.
+
+        - \param ui The canvas to load.
+        """
         self._UIs.append(ui)
 
     @ReturnType(uis=List[Canvas])
     def getUIs(self) -> List[Canvas]:
+        r"""\brief Get the list of all loaded UI canvases.
+
+        - \return A list of Canvas objects.
+        """
         return self._UIs
 
     @ExecSplit(default=(None,))
     def removeUI(self, ui: Canvas) -> None:
+        r"""\brief Remove a UI canvas from the manager.
+
+        - \param ui The canvas to remove.
+        - \raises ValueError if the UI is not found.
+        """
         if ui in self._UIs:
             self._UIs.remove(ui)
         else:

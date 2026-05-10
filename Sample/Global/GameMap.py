@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-"""GameMap: manages tile layers, actors, lights, collisions, and pathfinding for a single map."""
+r"""\brief GameMap: manages tile layers, actors, lights, collisions, and pathfinding for a single map."""
 
 from __future__ import annotations
 from collections import deque
@@ -34,12 +34,18 @@ from .CustomParticles import CommonTipController
 
 @dataclass
 class Light:
+    r"""\brief Light source with position, colour, radius, and intensity."""
+
     position: Vector2f
     color: Color
     radius: float = 256.0
     intensity: float = 1.0
 
     def asDict(self) -> Dict[str, Any]:
+        r"""\brief Serialize the light to a dictionary.
+
+        - \return A dictionary with position, color, radius, and intensity.
+        """
         return {
             "position": [self.position.x, self.position.y],
             "color": [self.color.r, self.color.g, self.color.b, self.color.a],
@@ -49,6 +55,12 @@ class Light:
 
     @staticmethod
     def fromDict(data: Dict[str, Any]) -> Light:
+        r"""\brief Deserialize a light from a dictionary.
+
+        - \param data The serialised light data.
+
+        - \return A new Light instance.
+        """
         return Light(
             Vector2f(*data["position"]),
             Color(*data["color"]),
@@ -58,9 +70,21 @@ class Light:
 
 
 class GameMap(GameMapExt):
+    r"""\brief Game map managing tile layers, actors, lights, collisions, and pathfinding.
+
+    Provides the core gameplay map with lighting, occlusion, actor management,
+    and pathfinding support. Integrates with Camera and SceneBase.
+    """
+
     DefaultCoverAlpha: int
 
     def __init__(self, mapName: str, tilemap: Tilemap, camera: Optional[Camera] = None) -> None:
+        r"""\brief Construct a game map.
+
+        - \param mapName The name of the map.
+        - \param tilemap The tilemap data.
+        - \param camera Optional camera; a default one is created if not provided.
+        """
         self.mapName = mapName
         self._scene: SceneBase = None
         self._tilemap = tilemap
@@ -105,10 +129,18 @@ class GameMap(GameMapExt):
 
     @ReturnType(player=Actor)
     def getPlayer(self) -> Optional[Actor]:
+        r"""\brief Get the player actor.
+
+        - \return The player actor, or None.
+        """
         return self._player
 
     @ExecSplit(default=(None,))
     def setPlayer(self, player: Optional[Actor]) -> None:
+        r"""\brief Set the player actor and parent the camera to it.
+
+        - \param player The player actor to set, or None.
+        """
         if not self._camera:
             return
         if self._player is None:
@@ -117,6 +149,10 @@ class GameMap(GameMapExt):
 
     @ReturnType(actors=List[Actor])
     def getAllActors(self) -> List[Actor]:
+        r"""\brief Get all actors across all layers.
+
+        - \return A flat list of all actors.
+        """
         actors = []
         for actorList in self._actors.values():
             actors.extend(actorList)
@@ -124,10 +160,23 @@ class GameMap(GameMapExt):
 
     @ReturnType(actors=List[Actor])
     def getActorsByPosition(self, position: Vector2i) -> List[Actor]:
+        r"""\brief Get actors at a specific map position.
+
+        - \param position The map position to query.
+
+        - \return A list of actors at the given position.
+        """
         return self._occupancyMap.get((position.x, position.y), [])
 
     @ReturnType(actor=Actor)
     def getActorByLayerAndPosition(self, layer: str, position: Vector2i) -> Optional[Actor]:
+        r"""\brief Get the first actor on a given layer at a position.
+
+        - \param layer The layer name.
+        - \param position The map position.
+
+        - \return The matching actor, or None.
+        """
         actors = self._actors.get(layer, [])
         for actor in actors:
             if actor.getPosition() == position:
@@ -136,6 +185,13 @@ class GameMap(GameMapExt):
 
     @ReturnType(actors=List[Actor])
     def getActorsByRange(self, position: Vector2i, radius: int) -> List[Actor]:
+        r"""\brief Get actors within a range of a position.
+
+        - \param position The centre position.
+        - \param radius The search radius in tiles.
+
+        - \return A list of actors within the range.
+        """
         actors = []
         for x in range(position.x - radius, position.x + radius + 1):
             for y in range(position.y - radius, position.y + radius + 1):
@@ -144,6 +200,12 @@ class GameMap(GameMapExt):
 
     @ReturnType(actors=List[Actor])
     def getAllActorsByTag(self, tag: str) -> List[Actor]:
+        r"""\brief Get all actors with a given tag.
+
+        - \param tag The tag to search for.
+
+        - \return A list of matching actors.
+        """
         actors = []
         for actorList in self._actors.values():
             for actor in actorList:
@@ -153,6 +215,15 @@ class GameMap(GameMapExt):
 
     @ReturnType(passable=bool)
     def isPassable(self, actor: Actor, targetPosition: Vector2i) -> bool:
+        r"""\brief Check if an actor can move to a target position.
+
+        Considers tile passability, direction, and actor collision.
+
+        - \param actor The moving actor.
+        - \param targetPosition The target map position.
+
+        - \return True if the position is passable.
+        """
         if not actor.getCollisionEnabled():
             return True
         size = self._tilemap.getSize()
@@ -224,6 +295,11 @@ class GameMap(GameMapExt):
 
     @ExecSplit(default=(None,))
     def spawnActor(self, actor: Actor, layer: str) -> None:
+        r"""\brief Spawn an actor on a layer.
+
+        - \param actor The actor to spawn.
+        - \param layer The layer name to place the actor on.
+        """
         if layer not in self._actors:
             self._actors[layer] = []
         actor.setMap(self)
@@ -239,72 +315,142 @@ class GameMap(GameMapExt):
 
     @ExecSplit(default=(None,))
     def destroyActor(self, actor: Actor) -> None:
+        r"""\brief Queue an actor for destruction on the next tick.
+
+        - \param actor The actor to destroy.
+        """
         self._actorsOnDestroy.append(actor)
         self._materialDirty = True
 
     @ReturnType(camera=Camera)
     def getCamera(self) -> Optional[Camera]:
+        r"""\brief Get the camera attached to this map.
+
+        - \return The Camera, or None.
+        """
         return self._camera
 
     @ExecSplit(default=(None,))
     def setCamera(self, camera: Camera) -> None:
+        r"""\brief Set the camera for this map.
+
+        - \param camera The camera to set.
+        """
         self._camera = camera
 
     @ReturnType(tilemap=Tilemap)
     def getTilemap(self) -> Tilemap:
+        r"""\brief Get the tilemap.
+
+        - \return The Tilemap.
+        """
         return self._tilemap
 
     @ReturnType(lights=List[Light])
     def getLights(self) -> List[Light]:
+        r"""\brief Get all lights on the map.
+
+        - \return A list of Light objects.
+        """
         return self._lights
 
     @ExecSplit(default=(None,))
     def setLights(self, lights: List[Light]) -> None:
+        r"""\brief Replace all lights on the map.
+
+        - \param lights The new list of Light objects.
+        """
         self._lights = lights
 
     @ExecSplit(default=(None,))
     def addLight(self, light: Light) -> None:
+        r"""\brief Add a light to the map.
+
+        - \param light The Light to add.
+        """
         self._lights.append(light)
 
     @ExecSplit(default=(None,))
     def removeLight(self, light: Light) -> None:
+        r"""\brief Remove a light from the map.
+
+        - \param light The Light to remove.
+        """
         self._lights.remove(light)
 
     @ExecSplit(default=(None,))
     @TypeAdapter(position=(tuple, Vector2f))
     def setLightPosition(self, light: Light, position: Union[Vector2f, Pair[float]]) -> None:
+        r"""\brief Set the position of a light.
+
+        - \param light The light to modify.
+        - \param position The new position.
+        """
         assert light in self._lights, "Light not found in map"
         light.position = position
 
     @ExecSplit(default=(None,))
     def setLightColor(self, light: Light, color: Color) -> None:
+        r"""\brief Set the colour of a light.
+
+        - \param light The light to modify.
+        - \param color The new colour.
+        """
         assert light in self._lights, "Light not found in map"
         light.color = color
 
     @ExecSplit(default=(None,))
     def setLightRadius(self, light: Light, radius: float) -> None:
+        r"""\brief Set the radius of a light.
+
+        - \param light The light to modify.
+        - \param radius The new radius.
+        """
         assert light in self._lights, "Light not found in map"
         light.radius = radius
 
     @ExecSplit(default=(None,))
     def setLightIntensity(self, light: Light, intensity: float) -> None:
+        r"""\brief Set the intensity of a light.
+
+        - \param light The light to modify.
+        - \param intensity The new intensity.
+        """
         assert light in self._lights, "Light not found in map"
         light.intensity = intensity
 
     @ReturnType(ambientLight=Color)
     def getAmbientLight(self) -> Color:
+        r"""\brief Get the ambient light colour.
+
+        - \return The ambient light Colour.
+        """
         return self._ambientLight
 
     @ExecSplit(default=(None,))
     def setAmbientLight(self, ambientLight: Color) -> None:
+        r"""\brief Set the ambient light colour.
+
+        - \param ambientLight The new ambient light Colour.
+        """
         self._ambientLight = ambientLight
 
     @ReturnType(size=Vector2u)
     def getSize(self) -> Vector2u:
+        r"""\brief Get the map size in tiles.
+
+        - \return The map size.
+        """
         return self._tilemap.getSize()
 
     @ReturnType(topMaterial=Optional[Material])
     def getTopMaterial(self, pos: Vector2i) -> Optional[Material]:
+        r"""\brief Get the topmost visible material at a position.
+
+        - \param pos The map position.
+
+        - \return The top Material, or None.
+        """
         layers = self._tilemap.getAllLayers()
         layerKeys = list(layers.keys())
         layerKeys.reverse()
@@ -325,6 +471,13 @@ class GameMap(GameMapExt):
 
     @ReturnType(path=List[Vector2i])
     def findPath(self, start: Vector2i, goal: Vector2i) -> List[Vector2i]:
+        r"""\brief Find a path from start to goal using pathfinding.
+
+        - \param start The starting position.
+        - \param goal The goal position.
+
+        - \return A list of positions forming the path.
+        """
         size = self._tilemap.getSize()
         layerKeys = list(self._tilemap.getAllLayers().keys())
         layerKeys.reverse()
@@ -335,16 +488,35 @@ class GameMap(GameMapExt):
 
     @ReturnType(scene=SceneBase)
     def getScene(self) -> SceneBase:
+        r"""\brief Get the scene this map belongs to.
+
+        - \return The parent SceneBase.
+        """
         return self._scene
 
     def setScene(self, scene: SceneBase) -> None:
+        r"""\brief Set the scene this map belongs to.
+
+        - \param scene The parent scene.
+        """
         self._scene = scene
 
     @ExecSplit(default=(None,))
     def addCommonTip(self, text: str) -> None:
+        r"""\brief Display a floating tip text on the map.
+
+        - \param text The tip message to display.
+        """
         self._commonTipController.addTip(text)
 
     def getCollision(self, actor: Actor, targetPosition: Vector2i) -> List[Actor]:
+        r"""\brief Get all actors colliding with a given actor at a target position.
+
+        - \param actor The querying actor.
+        - \param targetPosition The map position to check.
+
+        - \return A list of colliding actors.
+        """
         if not actor.getCollisionEnabled():
             return []
         result: List[Actor] = []
@@ -361,6 +533,12 @@ class GameMap(GameMapExt):
         return result
 
     def getOverlaps(self, actor: Actor) -> List[Actor]:
+        r"""\brief Get all actors overlapping with the given actor.
+
+        - \param actor The querying actor.
+
+        - \return A list of overlapping actors.
+        """
         result: List[Actor] = []
         for actorList in self._actors.values():
             for other in actorList:
@@ -373,6 +551,7 @@ class GameMap(GameMapExt):
         return result
 
     def updateActorList(self) -> None:
+        r"""\brief Rebuild the flat actor list from all layers, including children."""
         self._wholeActorList.clear()
         for layerName, actorList in self._actors.items():
             self._wholeActorList[layerName] = []
@@ -387,6 +566,13 @@ class GameMap(GameMapExt):
     def getMaterialPropertyMap(
         self, functionName: str, invalidValue: Union[float, bool]
     ) -> List[List[Union[float, bool]]]:
+        r"""\brief Get a 2D map of material property values.
+
+        - \param functionName The material property function name.
+        - \param invalidValue The default value for invalid positions.
+
+        - \return A 2D grid of property values.
+        """
         mapSize = self._tilemap.getSize()
         width = mapSize.x
         height = mapSize.y
@@ -398,6 +584,13 @@ class GameMap(GameMapExt):
         return self.getMaterialPropertyMapExt(width, height, functionName, invalidValue)
 
     def getActorLayerLightBlockMap(self, layerName: str, size: Vector2u) -> Optional[List[List[float]]]:
+        r"""\brief Get a light blocking map for a specific actor layer.
+
+        - \param layerName The layer name.
+        - \param size The map size.
+
+        - \return A 2D grid of light block values, or None.
+        """
         width: int = size.x
         height: int = size.y
         if layerName not in self._actors:
@@ -409,6 +602,10 @@ class GameMap(GameMapExt):
         return result
 
     def onTick(self, deltaTime: float) -> None:
+        r"""\brief Update all actors, components, and particles each frame.
+
+        - \param deltaTime Elapsed time in seconds.
+        """
         if not hasattr(self, "_shaderTime"):
             self._shaderTime = 0.0
         self._shaderTime += deltaTime
@@ -433,6 +630,10 @@ class GameMap(GameMapExt):
         self._commonTipController.onTick(deltaTime)
 
     def onLateTick(self, deltaTime: float) -> None:
+        r"""\brief Late-update all actors, components, and particles each frame.
+
+        - \param deltaTime Elapsed time in seconds.
+        """
         if self._camera:
             self._camera.onLateTick(deltaTime)
         for component in self._components:
@@ -445,6 +646,10 @@ class GameMap(GameMapExt):
         self._particleSystem.onLateTick(deltaTime)
 
     def onFixedTick(self, fixedDelta: float) -> None:
+        r"""\brief Fixed-timestep update for all actors and components.
+
+        - \param fixedDelta Fixed timestep in seconds.
+        """
         if self._camera:
             self._camera.onFixedTick(fixedDelta)
         for component in self._components:
@@ -456,6 +661,7 @@ class GameMap(GameMapExt):
                     Actor.BlueprintEvent(actor, Actor, "onFixedTick", {"fixedDelta": fixedDelta})
 
     def show(self) -> None:
+        r"""\brief Render the full map including layers, actors, lights, and particles."""
         if not hasattr(self, "_transparentTiles"):
             self._transparentTiles = []
 
@@ -508,22 +714,18 @@ class GameMap(GameMapExt):
                         if self._player and i > playerLayerIndex and playerLayerIndex != -1:
                             if actor != self._player and actor.intersects(self._player):
                                 actorAlpha = GameMap.DefaultCoverAlpha
-                        
-                        # Apply actor shader or ERROR style
+
                         if actor.hasShaderError():
-                            # ERROR style: purple color
                             actor.setColor(Color(255, 0, 255, actorAlpha))
                             self._camera.render(actor)
                         else:
                             actor.setColor(Color(255, 255, 255, actorAlpha))
                             actorShader = actor.getShader()
                             if actorShader:
-                                # Try to set time uniform for dynamic shaders
                                 try:
                                     actorShader.setUniform("time", self._shaderTime)
                                 except Exception:
-                                    pass  # Shader doesn't have time uniform
-                                # Create render states with shader, preserving transform
+                                    pass
                                 renderStates = RenderStates()
                                 renderStates.shader = actorShader
                                 self._camera._renderTexture.draw(actor, renderStates)
@@ -562,6 +764,7 @@ class GameMap(GameMapExt):
         System.setWindowDefaultView()
 
     def refreshShader(self) -> None:
+        r"""\brief Refresh the material shader uniforms with current lighting data."""
         if self._lightMask is None or self._materialDirty:
             self._rebuildPassabilityCache()
             self._materialDirty = False
@@ -578,6 +781,10 @@ class GameMap(GameMapExt):
                 self._ambientLight,
             )
 
+    def markPassabilityDirty(self) -> None:
+        r"""\brief Mark the passability cache as dirty for rebuild on next query."""
+        self._materialDirty = True
+
     def _getMaterialPropertyTexture(
         self, functionName: str, invalidValue: Union[float, bool], smooth: bool = False
     ) -> Texture:
@@ -593,6 +800,3 @@ class GameMap(GameMapExt):
         self.tileDataRef = self._tilemap.getTilesData()
         self.actorsRef = self._actors
         self._tilePassableGrid, self._occupancyMap = self.rebuildPassabilityCache(size)
-
-    def markPassabilityDirty(self) -> None:
-        self._materialDirty = True

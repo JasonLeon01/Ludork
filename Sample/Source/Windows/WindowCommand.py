@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-"""WindowCommand: a simple selectable command list window."""
 
 from __future__ import annotations
 from typing import Any, Dict, Optional, Union, Tuple
@@ -10,6 +9,12 @@ from .Base import WindowSelectable
 
 
 class WindowCommand(WindowSelectable):
+    r"""\brief A simple selectable command list window.
+
+    Provides a vertical list of command items with callbacks
+    triggered on confirmation.
+    """
+
     def __init__(
         self,
         rect: Union[IntRect, Tuple[Pair[int], Pair[int]]],
@@ -19,6 +24,15 @@ class WindowCommand(WindowSelectable):
         windowSkin: Optional[Image] = None,
         repeated: bool = False,
     ) -> None:
+        r"""\brief Construct a command window with the given commands.
+
+        - \param rect The window rectangle.
+        - \param commands Dictionary of command key to {text, callback}.
+        - \param rectWidth Optional fixed width for the selection rectangle.
+        - \param rectHeight Height of each command item.
+        - \param windowSkin Optional window skin image.
+        - \param repeated Whether the window skin is repeated.
+        """
         super().__init__(rect, None, rectWidth, rectHeight, windowSkin, repeated)
         listView = ListView(self.content.getNoTranslationRect(), rectHeight, True, 2)
         if len(commands) > 0:
@@ -29,6 +43,3 @@ class WindowCommand(WindowSelectable):
                 self._applyItem(child)
                 listView.addChild(child)
         self.setListView(listView)
-
-    def onMouseWheelScrolled(self, kwargs: Dict[str, Any]) -> None:
-        super().onMouseWheelScrolled(kwargs)

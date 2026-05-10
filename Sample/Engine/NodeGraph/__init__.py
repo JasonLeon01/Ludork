@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-r"""Node graph package.
+r"""
+\brief Node graph package.
 
 Provides node-based graph data structures and latent execution management
 for the Ludork sample engine.
@@ -21,6 +22,10 @@ latentManager: LatentManager
 
 
 def initLatent() -> None:
+    r"""
+    \brief init Latent.
+    """
+
     global latentManager
     latentManager = LatentManager()
 

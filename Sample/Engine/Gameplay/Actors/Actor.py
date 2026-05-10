@@ -11,7 +11,8 @@ from .Base import _ActorBase
 @PathVars("texturePath")
 @RectRangeVars(defaultRect="texturePath")
 class Actor(_ActorBase, BPBase):
-    """Game actor with collision, movement, and blueprint event support.
+    r"""
+    \brief Game actor with collision, movement, and blueprint event support.
 
     Extends `_ActorBase` with grid-based movement, collision detection,
     routine (pathfinding) execution, and blueprint event dispatching.
@@ -35,7 +36,8 @@ class Actor(_ActorBase, BPBase):
         rect: Union[IntRect, Tuple[Pair[int], Pair[int]]] = None,
         tag: Optional[str] = None,
     ) -> None:
-        r"""Initialise an Actor instance.
+        r"""
+        \brief Initialise an Actor instance.
 
         Creates the actor with optional texture, texture rectangle, and tag.
         Initialises movement and routine state.

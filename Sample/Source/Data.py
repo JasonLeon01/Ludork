@@ -195,54 +195,105 @@ _data = _Data()
 
 
 def getDataKinds() -> int:
+    r"""\brief Get the number of data kind categories.
+
+    - \return The number of data kinds.
+    """
     return _data.dataKinds
 
 
 def loadAnimations() -> None:
+    r"""\brief Load all animation data from the Data/Animations directory."""
     _data.loadAnimations()
 
 
 def loadCommonFunctions() -> None:
+    r"""\brief Load all common function data from the Data/CommonFunctions directory."""
     _data.loadCommonFunctions()
 
 
 def loadTilesets() -> None:
+    r"""\brief Load all tileset data from the Data/Tilesets directory."""
     _data.loadTilesets()
 
 
 def loadGeneralData() -> None:
+    r"""\brief Load all general data from the Data/General directory."""
     _data.loadGeneralData()
 
 
 def getAnimation(name: str) -> Dict[str, Any]:
+    r"""\brief Get animation data by name.
+
+    - \param name The animation name.
+    - \return Animation configuration dictionary.
+    """
     return _data.getAnimation(name)
 
 
 def getTileset(name: str) -> Tileset:
+    r"""\brief Get a tileset by name.
+
+    - \param name The tileset name.
+    - \return The Tileset object.
+    """
     return _data.getTileset(name)
 
 
 def getGeneralData(name: str) -> Dict[str, Any]:
+    r"""\brief Get general data by name.
+
+    - \param name The data name.
+    - \return General data dictionary.
+    """
     return _data.getGeneralData(name)
 
 
 def getClass(classPath: str) -> type:
+    r"""\brief Get a class by its blueprint path.
+
+    - \param classPath The class path.
+    - \return The class type.
+    """
     return _data.getClass(classPath)
 
 
 def getClassData(classPath: str) -> Dict[str, Any]:
+    r"""\brief Get class data by its blueprint path.
+
+    - \param classPath The class path.
+    - \return Class data dictionary.
+    """
     return _data.getClassData(classPath)
 
 
 def getCommonFunction(name: str) -> Graph:
+    r"""\brief Get a common function graph by name.
+
+    - \param name The common function name.
+    - \return The function Graph.
+    """
     return _data.getCommonFunction(name)
 
 
 def genGraphFromData(
     data: Dict[str, Any], parent: Optional[object] = None, parentClass: Optional[type] = None
 ) -> Graph:
+    r"""\brief Generate a node graph from data.
+
+    - \param data The graph data dictionary.
+    - \param parent Optional parent object.
+    - \param parentClass Optional parent class.
+    - \return The generated Graph.
+    """
     return _data.genGraphFromData(data, parent, parentClass)
 
 
 def genActorFromData(actorData: Dict[str, Any], layerName: str) -> Optional[Actor]:
+    r"""\brief Generate an actor from data.
+
+    - \param actorData The actor data dictionary.
+    - \param layerName The layer to spawn the actor on.
+    - \return The generated Actor, or None.
+    """
     return _data.genActorFromData(actorData, layerName)

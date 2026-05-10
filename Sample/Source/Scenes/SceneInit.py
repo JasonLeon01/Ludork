@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-"""SceneInit: initial loading scene that bootstraps game data and transitions to title."""
 
 from __future__ import annotations
 import os
@@ -7,7 +6,7 @@ import threading
 from typing import Tuple
 import Engine
 from Engine import Pair, Color, Vector2f, RenderTexture, RectangleShape
-from Engine.Utils import Render, Math
+from Engine.Utils import Math
 from Engine.Animation import compressAnimation
 from Engine.Utils import File
 from Engine.UI.Base import SpriteBase
@@ -18,7 +17,13 @@ from .SceneTitle import Scene as SceneTitle
 
 
 class ProgressBar(SpriteBase):
+    r"""\brief Progress bar for the initial loading scene."""
+
     def __init__(self, rect: Tuple[Pair[int], Pair[int]]) -> None:
+        r"""\brief Construct a progress bar.
+
+        - \param rect A tuple of (position, size) pairs defining the bar's rectangle.
+        """
         position, size = rect
         x, y = position
         w, h = size
@@ -34,9 +39,17 @@ class ProgressBar(SpriteBase):
         self.setPosition((x, y))
 
     def setProgress(self, value: float) -> None:
+        r"""\brief Set the progress bar's fill value.
+
+        - \param value The progress value (0.0 to 1.0).
+        """
         self.progressValue = Math.Clamp(value, 0.0, 1.0)
 
     def update(self, deltaTime: float) -> None:
+        r"""\brief Update the progress bar visual.
+
+        - \param deltaTime Elapsed time in seconds.
+        """
         fillWidth = self.realSize.x * self.progressValue
         self.fillRect.setSize(Vector2f(fillWidth, self.realSize.y))
         self.canvas.clear(Color.Transparent)
@@ -47,7 +60,10 @@ class ProgressBar(SpriteBase):
 
 
 class Scene(SceneBase):
+    r"""\brief Initial loading scene that bootstraps game data."""
+
     def onCreate(self) -> None:
+        r"""\brief Create progress bar UI and start asset preparation thread."""
         gameSize = System.getGameSize()
         barWidth = int(gameSize.x * 0.6)
         barHeight = 12
@@ -66,6 +82,10 @@ class Scene(SceneBase):
         self.prepareThread.start()
 
     def onTick(self, deltaTime: float) -> None:
+        r"""\brief Update the progress bar and transition when done.
+
+        - \param deltaTime Elapsed time in seconds.
+        """
         if self.progressTotal > 0:
             self.ProgressBar.setProgress(self.progressValue)
         else:
@@ -75,12 +95,19 @@ class Scene(SceneBase):
             System.setScene(SceneTitle())
 
     def splitCompound(self, fileName: str) -> Tuple[str, str]:
+        r"""\brief Split a compound filename into name and extension.
+
+        - \param fileName The compound filename.
+
+        - \return A tuple of (name, extension).
+        """
         parts = fileName.split(".", 1)
         if len(parts) == 2:
             return parts[0], f".{parts[1]}"
         return fileName, ""
 
     def compressAnimations(self) -> None:
+        r"""\brief Compress animation data files if source is newer than cached copies."""
         animationRoot = os.path.join(".", "Data", "Animations")
         if not os.path.exists(animationRoot):
             raise FileNotFoundError(f"Error: Animation data path {animationRoot} does not exist.")
@@ -114,6 +141,7 @@ class Scene(SceneBase):
                 self.progressValue = self.processedCount / self.progressTotal
 
     def loadGameData(self) -> None:
+        r"""\brief Load all game data in sequence and update the progress bar."""
         Data.loadAnimations()
         self.processedCount += 1
         if self.progressTotal > 0:
@@ -130,6 +158,7 @@ class Scene(SceneBase):
             self.progressValue = self.processedCount / self.progressTotal
 
     def prepareAssets(self) -> None:
+        r"""\brief Background thread entry point: compress animations then load all data."""
         self.compressAnimations()
         self.loadGameData()
         self.progressValue = 1.0

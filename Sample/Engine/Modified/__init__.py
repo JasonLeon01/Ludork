@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-r"""Modified SFML bindings package.
+r"""
+\brief Modified SFML bindings package.
 
 Provides patched/replacement classes for SFML types used by the engine.
 

@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-r"""Window package.
+r"""
+\brief Window package.
 
 Provides window base classes and command windows
 for the Ludork sample engine.

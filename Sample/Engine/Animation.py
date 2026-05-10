@@ -9,16 +9,14 @@ from . import Sprite, Texture, Image, C_CompressAnimation
 
 
 class AnimSprite(Sprite):
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Sprite that plays frame-based animations from compressed data.
 
     Supports frame rates, frame counts, and embedded sound triggers.
     """
 
     def __init__(self, animationData: Dict[str, Any]) -> None:
-        r"""////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////
+        r"""
         \brief Construct an AnimSprite from animation data.
 
         - \param animationData Dictionary containing frames, frameRate, frameCount, and sounds.
@@ -34,8 +32,7 @@ class AnimSprite(Sprite):
         super().__init__(self._texture)
 
     def setData(self, animationData: Dict[str, Any]) -> None:
-        r"""////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////
+        r"""
         \brief Load animation data and reset playback state.
 
         - \param animationData Dictionary with frames, frameRate, frameCount, and sounds.
@@ -58,8 +55,7 @@ class AnimSprite(Sprite):
             self.applyFrame(0)
 
     def isFinished(self) -> bool:
-        r"""////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////
+        r"""
         \brief Check whether the animation has played through all frames.
 
         - \return True if the animation has finished, False otherwise.
@@ -67,8 +63,7 @@ class AnimSprite(Sprite):
         return self._finished
 
     def getFrameIndex(self) -> int:
-        r"""////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////
+        r"""
         \brief Get the current frame index.
 
         - \return Current frame index (0-based).
@@ -76,8 +71,7 @@ class AnimSprite(Sprite):
         return self._frameIndex
 
     def update(self, deltaTime: float) -> None:
-        r"""////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////
+        r"""
         \brief Advance the animation by the elapsed time and apply the new frame.
 
         - \param deltaTime Time elapsed since last update (in seconds).
@@ -98,8 +92,7 @@ class AnimSprite(Sprite):
             self.applyFrame(self._frameIndex)
 
     def applyFrame(self, frameIndex: int) -> None:
-        r"""////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////
+        r"""
         \brief Apply the given frame index to the sprite texture.
 
         - \param frameIndex Index of the frame to apply.
@@ -127,8 +120,7 @@ class AnimSprite(Sprite):
 def compressAnimation(
     animationData: Dict[str, Any], assetsRoot: Optional[str] = None, imageFormat: Optional[str] = "png"
 ) -> Dict[str, Any]:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Compress animation data into a frame-based format.
 
     - \param animationData Raw animation data with timelines and assets.

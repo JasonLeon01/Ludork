@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-r"""UI base classes package.
+r"""
+\brief UI base classes package.
 
 Provides base classes for UI controls, sprites, and functional widgets.
 

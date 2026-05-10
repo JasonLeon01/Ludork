@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-r"""Window base classes package.
+r"""
+\brief Window base classes package.
 
 Provides base classes for game windows.
 

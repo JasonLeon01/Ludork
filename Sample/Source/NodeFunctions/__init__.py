@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-r"""Node function helpers package.
+r"""
+\brief Node function helpers package.
 
 Provides utility modules used by node-graph functions
 in the Ludork sample engine.

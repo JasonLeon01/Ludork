@@ -1,9 +1,8 @@
 # -*- encoding: utf-8 -*-
-"""SceneMap: the main gameplay scene handling map rendering, actors, and player interaction."""
 
 import os
 from typing import Callable, List, Union, Optional, Dict, Any
-from Engine import Pair, Vector2u, Vector2f, Color
+from Engine import Pair, Vector2u, Vector2f, Color, Filters, Music
 from Engine.Gameplay import Tilemap, TileLayer, TileLayerData
 from Engine.Gameplay.Actors import Actor
 from Engine.Utils import File
@@ -16,13 +15,21 @@ from Source.GameInstance import GameInstance
 
 
 class Scene(SceneBase):
+    r"""\brief Main gameplay scene handling map rendering, actors, and player interaction."""
+
     def onEnter(self) -> None:
+        r"""\brief Start with a transition effect."""
         GlobalSystem.setTransition(Manager.loadTransition("012-Random04.png"), 0.5)
 
     def setInst(self, inst: GameInstance) -> None:
+        r"""\brief Set the game instance for this scene.
+
+        - \param inst The GameInstance to use.
+        """
         self.inst = inst
 
     def onCreate(self) -> None:
+        r"""\brief Create player HUD, message window, and load the starting map."""
         self.player = self.inst.getPlayer()
         self._playerHUD = PlayerAttrHUD(self.player)
         self._uiManager.loadUI(self._playerHUD)
@@ -31,26 +38,56 @@ class Scene(SceneBase):
 
         self._gameMap: GameMap = None
         self._cachedMapFile: str = None
-        self.gotoMapAndPos(System.getStartMap(), System.getStartPos())
+        self._currentBgmMusic: Optional[Music] = None
+        self._currentBgmFile: str = ""
+        self._currentBgsMusic: Optional[Music] = None
+        self._currentBgsFile: str = ""
+        self.gotoMapAndPos(System.getStartMap())
+
+    def onQuit(self) -> None:
+        r"""\brief Stop map BGM/BGS when leaving this scene."""
+        self._stopMapAudio()
+
+    def onDestroy(self) -> None:
+        r"""\brief Ensure map BGM/BGS are stopped when scene is destroyed."""
+        self._stopMapAudio()
 
     def onFixedTick(self, fixedDelta: float) -> None:
+        r"""\brief Forward fixed timestep updates to the game map.
+
+        - \param fixedDelta Fixed timestep in seconds.
+        """
         self._gameMap.onFixedTick(fixedDelta)
         return super().onFixedTick(fixedDelta)
 
     def onTick(self, deltaTime: float) -> None:
+        r"""\brief Forward per-frame updates to the game map.
+
+        - \param deltaTime Elapsed time in seconds.
+        """
         self._gameMap.onTick(deltaTime)
         return super().onTick(deltaTime)
 
     def onLateTick(self, deltaTime: float) -> None:
+        r"""\brief Forward late-update to the game map.
+
+        - \param deltaTime Elapsed time in seconds.
+        """
         self._gameMap.onLateTick(deltaTime)
         return super().onLateTick(deltaTime)
 
     def loadMap(self, mapPath: str) -> None:
+        r"""\brief Load and generate a game map from data.
+
+        - \param mapPath Path to the map data file.
+        """
         mapPath = os.path.join("./Data/Maps", mapPath)
-        self._gameMap = self._generateGameMap(File.loadData(mapPath))
+        mapData = File.loadData(mapPath)
+        self._gameMap = self._generateGameMap(mapData)
         self._gameMap.setScene(self)
         self._gameMap.spawnActor(self.player, "default")
         self._gameMap.setPlayer(self.player)
+        self._playMapAudio(mapData)
         destroyedActors = self.inst.getDestroyedActors(mapPath)
         if destroyedActors:
             for actorTag in destroyedActors:
@@ -61,6 +98,13 @@ class Scene(SceneBase):
 
     @Latent(FinishedDialogue=(True,))
     def showMessage(self, refActorTag: str, name: str, message: str) -> Callable[[], bool]:
+        r"""\brief Show a dialogue message window.
+
+        - \param refActorTag Tag of the reference actor for positioning.
+        - \param name Speaker name.
+        - \param message Message text.
+        - \return A callable condition function that returns True when dialogue finishes.
+        """
         refPosition: Optional[Vector2f] = None
         if bool(refActorTag):
             actors = self._gameMap.getAllActorsByTag(refActorTag)
@@ -85,6 +129,14 @@ class Scene(SceneBase):
     def showSelection(
         self, refActorTag: str, name: str, options: List[str], allowCancel: bool
     ) -> Callable[[], Optional[int]]:
+        r"""\brief Show a selection window with multiple options.
+
+        - \param refActorTag Tag of the reference actor for positioning.
+        - \param name Window title.
+        - \param options List of option strings.
+        - \param allowCancel Whether the player can cancel.
+        - \return A callable that returns the selected option index, or -1 for cancel.
+        """
         refPosition: Optional[Vector2f] = None
         if bool(refActorTag):
             actors = self._gameMap.getAllActorsByTag(refActorTag)
@@ -109,7 +161,12 @@ class Scene(SceneBase):
 
     @ExecSplit(default=(None,))
     @TypeAdapter(pos=([tuple, list], Vector2u))
-    def gotoMapAndPos(self, mapPath: str, pos: Union[Vector2u, Pair[int], List[int]]) -> None:
+    def gotoMapAndPos(self, mapPath: str, pos: Optional[Union[Vector2u, Pair[int], List[int]]] = None) -> None:
+        r"""\brief Transition to a map and set the player position.
+
+        - \param mapPath Path to the map data file.
+        - \param pos The position to place the player.
+        """
         if mapPath and self._cachedMapFile != mapPath:
             self._cachedMapFile = mapPath
             self.loadMap(mapPath)
@@ -117,11 +174,130 @@ class Scene(SceneBase):
 
     @ExecSplit(default=(None,))
     def recordDestroyedActor(self, actor: Actor) -> None:
+        r"""\brief Record a destroyed actor for persistence.
+
+        - \param actor The destroyed actor.
+        """
         self.inst.recordDestroyedActor(self._cachedMapFile, actor)
+
+    def setBgmFilter(self, attr: str, value: Any) -> None:
+        r"""\brief Set a filter attribute on the current BGM music.
+
+        - \param attr The filter attribute name.
+        - \param value The filter attribute value.
+        """
+        if self._currentBgmMusic is None:
+            return
+        data: Dict[str, Any] = {attr: value}
+        if attr == "loopPoint" and isinstance(value, (Pair, tuple, list)):
+            data["loopPoint"] = {"start": value[0], "end": value[1]}
+        filterObj = self._buildMusicFilter(data)
+        if filterObj is not None:
+            from Global.Manager.Mgr_Audio import AudioManager
+
+            AudioManager.setMusicFilter(self._currentBgmMusic, filterObj)
+
+    def setBgsFilter(self, attr: str, value: Any) -> None:
+        r"""\brief Set a filter attribute on the current BGS music.
+
+        - \param attr The filter attribute name.
+        - \param value The filter attribute value.
+        """
+        if self._currentBgsMusic is None:
+            return
+        data: Dict[str, Any] = {attr: value}
+        if attr == "loopPoint" and isinstance(value, (Pair, tuple, list)):
+            data["loopPoint"] = {"start": value[0], "end": value[1]}
+        filterObj = self._buildMusicFilter(data)
+        if filterObj is not None:
+            from Global.Manager.Mgr_Audio import AudioManager
+
+            AudioManager.setMusicFilter(self._currentBgsMusic, filterObj)
 
     def _renderHandle(self, deltaTime: float) -> None:
         self._gameMap.show()
         super()._renderHandle(deltaTime)
+
+    def _playMapAudio(self, mapData: Dict[str, Any]) -> None:
+        bgm = mapData.get("bgm", "")
+        bgmFilter = self._buildMusicFilter(mapData.get("bgmFilter", {}))
+        reuseBgm = bool(bgm) and self._currentBgmMusic is not None and self._currentBgmFile == bgm
+        if reuseBgm:
+            if bgmFilter is not None:
+                from Global.Manager.Mgr_Audio import AudioManager
+
+                AudioManager.setMusicFilter(self._currentBgmMusic, bgmFilter)
+            Cast(Music, self._currentBgmMusic).setLooping(True)
+        else:
+            if self._currentBgmMusic is not None:
+                Manager.stopMusic("BGM")
+                self._currentBgmMusic = None
+            self._currentBgmFile = ""
+        if bgm:
+            if not reuseBgm:
+                self._currentBgmMusic = Manager.playMusic("BGM", bgm, bgmFilter)
+                if self._currentBgmMusic is not None:
+                    self._currentBgmMusic.setLooping(True)
+                    self._currentBgmFile = bgm
+        bgs = mapData.get("bgs", "")
+        bgsFilter = self._buildMusicFilter(mapData.get("bgsFilter", {}))
+        reuseBgs = bool(bgs) and self._currentBgsMusic is not None and self._currentBgsFile == bgs
+        if reuseBgs:
+            if bgsFilter is not None:
+                from Global.Manager.Mgr_Audio import AudioManager
+
+                AudioManager.setMusicFilter(self._currentBgsMusic, bgsFilter)
+            Cast(Music, self._currentBgsMusic).setLooping(True)
+        else:
+            if self._currentBgsMusic is not None:
+                Manager.stopMusic("BGS")
+                self._currentBgsMusic = None
+            self._currentBgsFile = ""
+        if bgs:
+            if not reuseBgs:
+                self._currentBgsMusic = Manager.playMusic("BGS", bgs, bgsFilter)
+                if self._currentBgsMusic is not None:
+                    self._currentBgsMusic.setLooping(True)
+                    self._currentBgsFile = bgs
+
+    def _stopMapAudio(self) -> None:
+        if self._currentBgmMusic is not None:
+            Manager.stopMusic("BGM")
+            self._currentBgmMusic = None
+        self._currentBgmFile = ""
+        if self._currentBgsMusic is not None:
+            Manager.stopMusic("BGS")
+            self._currentBgsMusic = None
+        self._currentBgsFile = ""
+
+    def _buildSoundFilter(self, data: Dict[str, Any]) -> Optional[Filters.SoundFilter]:
+        if not data:
+            return None
+        kwargs: Dict[str, Any] = {}
+        for key in ("loop", "offset", "pitch", "pan", "volume"):
+            if key in data:
+                kwargs[key] = data[key]
+        if not kwargs:
+            return None
+        return Filters.SoundFilter(**kwargs)
+
+    def _buildMusicFilter(self, data: Dict[str, Any]) -> Optional[Filters.MusicFilter]:
+        if not data:
+            return None
+        kwargs: Dict[str, Any] = {}
+        for key in ("loop", "offset", "pitch", "pan", "volume"):
+            if key in data:
+                kwargs[key] = data[key]
+        if "loopPoint" in data and isinstance(data["loopPoint"], dict):
+            lp = data["loopPoint"]
+            kwargs["loopPoint"] = (float(lp.get("start", 0.0)), float(lp.get("end", 0.0)))
+            if "offset" not in kwargs:
+                start = float(lp.get("start", 0.0))
+                if start > 0.0:
+                    kwargs["offset"] = start
+        if not kwargs:
+            return None
+        return Filters.MusicFilter(**kwargs)
 
     def _generateTilemap(self, data: Dict[str, List[List[Any]]], width: int, height: int) -> Tilemap:
         mapLayers = []

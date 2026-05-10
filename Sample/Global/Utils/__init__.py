@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-r"""Global utility package.
+r"""
+\brief Global utility package.
 
 Provides rendering utilities used across the Ludork sample engine.
 

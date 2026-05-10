@@ -6,8 +6,7 @@ import re
 
 
 class BPBase:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Blueprint system base class.
 
     Provides static methods for dispatching blueprint events through
@@ -17,8 +16,7 @@ class BPBase:
 
     @staticmethod
     def BlueprintEvent(obj: object, objType: type, eventName: str, kwargs: Dict[str, Any] = None) -> None:
-        r"""////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////
+        r"""
         \brief Dispatch a blueprint event on the given object.
 
         Resolution order:
@@ -80,8 +78,7 @@ class BPBase:
 
     @staticmethod
     def _tryExecuteInfoGraph(obj: object, eventName: str, kwargs: Dict[str, Any]) -> bool:
-        r"""////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////
+        r"""
         \brief Try to execute an event from the info-layer graph.
 
         - \param obj        Target object instance.
@@ -108,8 +105,7 @@ class BPBase:
 
     @staticmethod
     def ExecuteInfoGraph(obj: object, eventName: str, kwargs: Dict[str, Any] = None) -> None:
-        r"""////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////
+        r"""
         \brief Explicitly execute the info-layer graph for a given event.
 
         Used by the SUPER node to call the GeneralData-level event logic.
@@ -124,8 +120,7 @@ class BPBase:
 
     @staticmethod
     def ApplyGeneralData(obj: object, data: Dict[str, Any], paramsType: Dict[str, Any]) -> None:
-        r"""////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////
+        r"""
         \brief Apply key-value pairs from GeneralData onto an object's attributes.
 
         Handles type coercion for basic types (int, float, bool, string, list, tuple).

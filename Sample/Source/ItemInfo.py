@@ -6,8 +6,9 @@ from Engine.Gameplay.InfoBase import InfoBase
 
 
 class ItemInfo(InfoBase):
-    """
-    Item data + logic layer.
+    r"""
+    \brief Item data + logic layer.
+
     Defines item-related blueprint events (onUse, onEquip, onDrop).
     Independent of Actor; can be used standalone in inventory/shop UI.
     """
@@ -16,15 +17,15 @@ class ItemInfo(InfoBase):
 
     @RegisterEvent
     def onUse(self) -> None:
-        """Triggered when the item is used."""
+        r"""\brief Triggered when the item is used."""
         pass
 
     @RegisterEvent
     def onEquip(self) -> None:
-        """Triggered when the item is equipped."""
+        r"""\brief Triggered when the item is equipped."""
         pass
 
     @RegisterEvent
     def onDrop(self) -> None:
-        """Triggered when the item is dropped."""
+        r"""\brief Triggered when the item is dropped."""
         pass

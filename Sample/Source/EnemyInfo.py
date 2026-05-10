@@ -6,8 +6,9 @@ from Engine.Gameplay.InfoBase import InfoBase
 
 
 class EnemyInfo(InfoBase):
-    """
-    Enemy data + logic layer.
+    r"""
+    \brief Enemy data + logic layer.
+
     Defines enemy-related blueprint events (onDefeat, onEncounter).
     Independent of Actor; can be used standalone in battle systems.
     """
@@ -16,10 +17,10 @@ class EnemyInfo(InfoBase):
 
     @RegisterEvent
     def onDefeat(self) -> None:
-        """Triggered when the enemy is defeated."""
+        r"""\brief Triggered when the enemy is defeated."""
         pass
 
     @RegisterEvent
     def onEncounter(self) -> None:
-        """Triggered when the enemy is encountered."""
+        r"""\brief Triggered when the enemy is encountered."""
         pass

@@ -8,8 +8,9 @@ import pickle
 import shutil
 import importlib
 import traceback
+import openpyxl
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional, List, cast
 from PyQt5 import QtCore, QtGui, QtWidgets
 from EditorGlobal import EditorStatus, MainWindow
 from . import System
@@ -40,7 +41,10 @@ def getDocPath() -> str:
 
 def getUserPath() -> str:
     if sys.platform == "win32":
-        return os.path.join(os.getenv("APPDATA"), EditorStatus.APP_NAME)
+        appData = os.getenv("APPDATA")
+        if not appData:
+            appData = os.path.expanduser(r"~\AppData\Roaming")
+        return os.path.join(appData, EditorStatus.APP_NAME)
     elif sys.platform == "darwin":
         path = Path.home() / "Library" / "Application Support" / EditorStatus.APP_NAME
     else:
@@ -133,7 +137,7 @@ def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
     icon_path = os.path.join(getRootPath(), "Resource", "icon.icns" if sys.platform == "darwin" else "icon.ico")
     if not os.path.exists(icon_path):
         icon_path = os.path.join(getRootPath(), "Resource", "icon.ico")
-    app = QtWidgets.QApplication.instance()
+    app = cast(Optional[QtWidgets.QApplication], QtWidgets.QApplication.instance())
     if app:
         app.setWindowIcon(QtGui.QIcon(icon_path))
     mainWindow.setWindowIcon(QtGui.QIcon(icon_path))
@@ -205,3 +209,48 @@ def OpenProject(parent: QtWidgets.QWidget) -> None:
     proj_dir = os.path.dirname(fp)
     _setLastOpenPath(proj_dir)
     _openProjectPath(proj_dir, parent)
+
+
+def ExportLocale(parent: Optional[QtWidgets.QWidget], xlsxPath: str, localeDir: str) -> None:
+    wb = openpyxl.load_workbook(xlsxPath, data_only=True)
+    langs: List[str] = []
+    langMaps: Dict[str, Dict[str, str]] = {}
+
+    for ws in wb.worksheets:
+        headerRow = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), None)
+        if not headerRow:
+            continue
+        headers = ["" if cell is None else str(cell).strip() for cell in headerRow]
+        if not headers or headers[0].upper() != "ID" or len(headers) < 2:
+            QtWidgets.QMessageBox.warning(parent, "Hint", ELOC("LOCALE_XLSX_INVALID"))
+            return
+
+        sheetLangs = [h for h in headers[1:] if isinstance(h, str) and h.strip()]
+        for lang in sheetLangs:
+            if lang not in langMaps:
+                langMaps[lang] = {}
+                langs.append(lang)
+
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if not row:
+                continue
+            key = row[0]
+            if key is None:
+                continue
+            keyStr = str(key).strip()
+            if not keyStr:
+                continue
+            for i, lang in enumerate(sheetLangs):
+                idx = i + 1
+                val = row[idx] if idx < len(row) else None
+                if val is None:
+                    continue
+                langMaps[lang][keyStr] = str(val)
+    for lang, mapping in langMaps.items():
+        outPath = os.path.join(localeDir, lang)
+        saveData(outPath, mapping)
+    QtWidgets.QMessageBox.information(
+        parent,
+        "Hint",
+        ELOC("EXPORT_LOCALE_SUCCESS").format(langs=", ".join(langs)),
+    )

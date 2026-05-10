@@ -10,7 +10,6 @@ import json
 import copy
 import inspect
 import dataclasses
-import openpyxl
 from typing import Any, Dict, List, Optional, cast, get_type_hints
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QSize
@@ -41,7 +40,7 @@ from Widgets import (
     AboutDialog,
     ActorQueuePanel,
 )
-from Widgets.Utils import MapEditDialog, SingleRowDialog, Toast, FPSGraphDialog
+from Widgets.Utils import MapEditDialog, SingleRowDialog, Toast, FPSGraphDialog, GameConfigDialog
 from . import EditorStatus, GameData
 
 
@@ -109,6 +108,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._actReloadModule = QtWidgets.QAction(ELOC("RELOAD_MODULE"), self)
         self._actGameSettings = QtWidgets.QAction(ELOC("GAME_SETTINGS"), self)
         self._actGameSettings.setIcon(wstyle.standardIcon(QtWidgets.QStyle.SP_FileDialogDetailedView))
+        self._actGameConfig = QtWidgets.QAction(ELOC("GAME_CONFIG"), self)
+        self._actGameConfig.setIcon(wstyle.standardIcon(QtWidgets.QStyle.SP_FileDialogInfoView))
         self._actNewBlueprint = QtWidgets.QAction(ELOC("NEW_BLUEPRINT"), self)
         self._actNewAnimation = QtWidgets.QAction(ELOC("NEW_ANIMATION"), self)
         self._actDatabaseSystemConfig = QtWidgets.QAction(ELOC("SYSTEM_CONFIG"), self)
@@ -167,6 +168,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._engineMonitorTimer: Optional[QtCore.QTimer] = None
         self._gameLockActive: bool = False
         self._lockedViewportSize: Optional[QSize] = None
+        self._gameConfigModified: bool = False
+        self._pendingGameConfig: Optional[Dict[str, Any]] = None
 
     def _layerTabBar(self) -> QtWidgets.QTabBar:
         tabBar = self.layerList.tabBar()
@@ -317,7 +320,7 @@ class MainWindow(QtWidgets.QMainWindow):
         super().closeEvent(event)
 
     def _checkUnsavedChanges(self) -> bool:
-        if not GameData.checkModified():
+        if not GameData.checkModified() and not self._gameConfigModified:
             return True
 
         msgBox = QtWidgets.QMessageBox(self)
@@ -332,9 +335,15 @@ class MainWindow(QtWidgets.QMainWindow):
         msgBox.exec_()
 
         if msgBox.clickedButton() == btnSave:
-            GameData.saveAllModified()
+            ok, content = self._saveAllChanges()
+            if not ok:
+                QtWidgets.QMessageBox.warning(self, "Hint", ELOC("SAVE_FAILED") + ELOC("SAVE_PATH").format(content))
+                return False
             return True
         elif msgBox.clickedButton() == btnDiscard:
+            self._gameConfigModified = False
+            self._pendingGameConfig = None
+            self._refreshInfo()
             return True
 
         return False
@@ -413,7 +422,7 @@ class MainWindow(QtWidgets.QMainWindow):
         proc = self._engineProc
         stdin = proc.stdin if proc else None
         if proc and stdin and proc.poll() is None:
-            stdin.write("Engine.StopGame()\n")
+            stdin.write("Engine.GameRunning = False\n")
             stdin.flush()
             try:
                 proc.wait(timeout=0.2)
@@ -886,11 +895,7 @@ class MainWindow(QtWidgets.QMainWindow):
             + self.upperSplitter.handleWidth() * 2
             + 16
         )
-        minH = (
-            topHMin
-            + self.DEFAULT_LOWER_AREA_MIN_HEIGHT
-            + 8
-        )
+        minH = topHMin + self.DEFAULT_LOWER_AREA_MIN_HEIGHT + 8
         self.setMinimumSize(minW, minH)
 
         layout = QtWidgets.QVBoxLayout(central)
@@ -936,8 +941,11 @@ class MainWindow(QtWidgets.QMainWindow):
         _editMenu.addAction(self._actRedo)
 
         self._actGameSettings.triggered.connect(self._onGameSettings)
-        self._actGameSettings.setShortcut(QtGui.QKeySequence("F4"))
+        self._actGameSettings.setShortcut(QtGui.QKeySequence("F3"))
         _gameMenu.addAction(self._actGameSettings)
+        self._actGameConfig.triggered.connect(self._onGameConfig)
+        self._actGameConfig.setShortcut(QtGui.QKeySequence("F4"))
+        _gameMenu.addAction(self._actGameConfig)
         self._actReloadModule.triggered.connect(self._onReloadModule)
         self._actReloadModule.setShortcut(QtGui.QKeySequence("F5"))
         _gameMenu.addAction(self._actReloadModule)
@@ -1404,7 +1412,7 @@ class MainWindow(QtWidgets.QMainWindow):
         File.OpenProject(self)
 
     def _onSave(self, checked: bool = False) -> None:
-        ok, content = GameData.saveAllModified()
+        ok, content = self._saveAllChanges()
         if ok:
             QtWidgets.QMessageBox.information(self, "Hint", ELOC("SAVE_SUCCESS") + ELOC("SAVE_PATH").format(content))
         else:
@@ -1504,48 +1512,7 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.warning(self, "Hint", ELOC("LOCALE_XLSX_NOT_FOUND"))
             return
         try:
-            wb = openpyxl.load_workbook(xlsxPath, data_only=True)
-            langs: List[str] = []
-            langMaps: Dict[str, Dict[str, str]] = {}
-
-            for ws in wb.worksheets:
-                headerRow = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), None)
-                if not headerRow:
-                    continue
-                headers = ["" if cell is None else str(cell).strip() for cell in headerRow]
-                if not headers or headers[0].upper() != "ID" or len(headers) < 2:
-                    QtWidgets.QMessageBox.warning(self, "Hint", ELOC("LOCALE_XLSX_INVALID"))
-                    return
-
-                sheetLangs = [h for h in headers[1:] if isinstance(h, str) and h.strip()]
-                for lang in sheetLangs:
-                    if lang not in langMaps:
-                        langMaps[lang] = {}
-                        langs.append(lang)
-
-                for row in ws.iter_rows(min_row=2, values_only=True):
-                    if not row:
-                        continue
-                    key = row[0]
-                    if key is None:
-                        continue
-                    keyStr = str(key).strip()
-                    if not keyStr:
-                        continue
-                    for i, lang in enumerate(sheetLangs):
-                        idx = i + 1
-                        val = row[idx] if idx < len(row) else None
-                        if val is None:
-                            continue
-                        langMaps[lang][keyStr] = str(val)
-            for lang, mapping in langMaps.items():
-                outPath = os.path.join(localeDir, lang)
-                File.saveData(outPath, mapping)
-            QtWidgets.QMessageBox.information(
-                self,
-                "Hint",
-                ELOC("EXPORT_LOCALE_SUCCESS").format(langs=", ".join(langs)),
-            )
+            File.ExportLocale(self, xlsxPath, localeDir)
         except Exception as e:
             QtWidgets.QMessageBox.warning(
                 self,
@@ -1649,8 +1616,61 @@ class MainWindow(QtWidgets.QMainWindow):
         self._settingsWindow.raise_()
         self._settingsWindow.show()
 
+    def _onGameConfig(self, checked: bool = False) -> None:
+        dlg = GameConfigDialog(self, self._pendingGameConfig)
+        if dlg.exec_() != QtWidgets.QDialog.Accepted:
+            return
+        if dlg.isChanged():
+            self._pendingGameConfig = dlg.getData()
+            self._onGameConfigModified()
+
+    def _onGameConfigModified(self) -> None:
+        self._gameConfigModified = True
+        self._refreshInfo()
+
+    def _savePendingGameConfig(self) -> tuple[bool, str]:
+        if not self._gameConfigModified or not isinstance(self._pendingGameConfig, dict):
+            return True, ""
+        iniPath = os.path.join(EditorStatus.PROJ_PATH, "Main.ini")
+        iniFile = configparser.ConfigParser()
+        if os.path.exists(iniPath):
+            iniFile.read(iniPath, encoding="utf-8")
+        if "Main" not in iniFile:
+            iniFile["Main"] = {}
+        sec = iniFile["Main"]
+        sec["script"] = str(self._pendingGameConfig.get("script", "Entry.py"))
+        sec["language"] = str(self._pendingGameConfig.get("language", "")).strip()
+        sec["scale"] = f"{float(self._pendingGameConfig.get('scale', 1.0)):.2f}"
+        sec["framerate"] = str(int(self._pendingGameConfig.get("framerate", 60)))
+        sec["verticalsync"] = "True" if bool(self._pendingGameConfig.get("verticalsync", False)) else "False"
+        sec["musicon"] = "True" if bool(self._pendingGameConfig.get("musicon", True)) else "False"
+        sec["soundon"] = "True" if bool(self._pendingGameConfig.get("soundon", True)) else "False"
+        sec["voiceon"] = "True" if bool(self._pendingGameConfig.get("voiceon", True)) else "False"
+        sec["musicvolume"] = f"{float(self._pendingGameConfig.get('musicvolume', 100.0)):.2f}"
+        sec["soundvolume"] = f"{float(self._pendingGameConfig.get('soundvolume', 100.0)):.2f}"
+        sec["voicevolume"] = f"{float(self._pendingGameConfig.get('voicevolume', 100.0)):.2f}"
+        try:
+            with open(iniPath, "w", encoding="utf-8") as f:
+                iniFile.write(f)
+            self._gameConfigModified = False
+            self._pendingGameConfig = None
+            return True, "Main.ini"
+        except Exception as e:
+            return False, f"Main.ini({str(e)})"
+
+    def _saveAllChanges(self) -> tuple[bool, str]:
+        okData, contentData = GameData.saveAllModified()
+        okIni, iniResult = self._savePendingGameConfig()
+        details = contentData
+        if iniResult:
+            details += f"\nU [{iniResult}]"
+        return okData and okIni, details
+
     def _refreshInfo(self):
-        self.setWindowTitle(System.getTitle())
+        title = System.getTitle()
+        if self._gameConfigModified and not title.endswith(" *"):
+            title += " *"
+        self.setWindowTitle(title)
         self._refreshUndoRedo()
 
     def _dataclassToDictDefaults(self, dc_cls) -> Dict[str, Any]:

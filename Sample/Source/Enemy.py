@@ -10,8 +10,9 @@ from .Battler import Battler, DamageType
 
 
 class Enemy(Actor, EnemyInfo, Battler):
-    """
-    Scene enemy entity.
+    r"""
+    \brief Scene enemy entity.
+
     Bridges Actor (rendering/collision/movement) and EnemyInfo (enemy data + event logic)
     via multiple inheritance.
     """
@@ -28,11 +29,21 @@ class Enemy(Actor, EnemyInfo, Battler):
         rect: Union[IntRect, Tuple[Pair[int], Pair[int]]] = None,
         tag: Optional[str] = None,
     ) -> None:
+        r"""\brief Construct an enemy with actor rendering and enemy info.
+
+        - \param texture Optional texture or list of textures for the actor sprite.
+        - \param rect Optional texture rectangle or pair of position/size pairs.
+        - \param tag Optional actor tag.
+        """
         Actor.__init__(self, texture, rect, tag)
         self.initInfo(Data)
 
     @ExecSplit(Win=(0,), Lose=(1,), Escape=(2,))
     def Battle(self):
+        r"""\brief Perform battle calculations against the player.
+
+        - \return 0 for win, 1 for lose or undefeatable opponent.
+        """
         from Source.Scenes import Map
         from Global import System
 
@@ -45,6 +56,11 @@ class Enemy(Actor, EnemyInfo, Battler):
         return 0
 
     def getDamage(self, battler: Battler) -> Tuple[DamageType, int]:
+        r"""\brief Calculate damage dealt between this enemy and a battler.
+
+        - \param battler The opposing battler.
+        - \return A tuple of (DamageType, damage amount).
+        """
         damagePerRound = max(0, self.ATK - battler.DEF)
         damageTakenPerRound = max(0, battler.ATK - self.DEF)
         if damageTakenPerRound == 0:

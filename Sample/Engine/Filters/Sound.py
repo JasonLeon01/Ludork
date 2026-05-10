@@ -11,7 +11,8 @@ type EffectProcessor = Callable[[list[float], int, list[float], int, int], None]
 
 @dataclass
 class SoundFilter:
-    r"""Sound filter dataclass.
+    r"""
+    \brief Sound filter dataclass.
 
     Holds optional sound properties that can be applied to a `pysf.Sound` instance.
     Any field left as `None` means "use the current value".
@@ -41,7 +42,8 @@ class SoundFilter:
 
 @dataclass
 class MusicFilter(SoundFilter):
-    r"""Music filter dataclass.
+    r"""
+    \brief Music filter dataclass.
 
     Extends `SoundFilter` with a loop-point for `pysf.Music`.
 
@@ -52,7 +54,8 @@ class MusicFilter(SoundFilter):
 
 
 def echoEffect(delay: float, decay: float, sampleRate: float) -> EffectProcessor:
-    r"""Create an echo (delay) effect processor.
+    r"""
+    \brief Create an echo (delay) effect processor.
 
     - \param delay        Delay time in seconds
     - \param decay        Feedback decay factor (0.0–1.0)
@@ -96,7 +99,8 @@ def echoEffect(delay: float, decay: float, sampleRate: float) -> EffectProcessor
 
 
 def distortionEffect(drive: float, threshold: float = 0.7) -> EffectProcessor:
-    r"""Create a distortion effect processor.
+    r"""
+    \brief Create a distortion effect processor.
 
     - \param drive        Amplification factor applied before clipping
     - \param threshold    Clipping threshold (default 0.7)
@@ -127,7 +131,8 @@ def distortionEffect(drive: float, threshold: float = 0.7) -> EffectProcessor:
 
 
 def underwaterEffect(depth: float = 0.7, bubble_intensity: float = 0.3, sample_rate: float = 44100) -> EffectProcessor:
-    r"""Create an underwater-like effect processor.
+    r"""
+    \brief Create an underwater-like effect processor.
 
     Applies low-pass filtering, reverb, bubbles, and dynamic compression
     to simulate an underwater sound.

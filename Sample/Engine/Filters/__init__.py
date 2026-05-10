@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-r"""Audio filter package.
+r"""
+\brief Audio filter package.
 
 Provides sound effect processors and filters for the Ludork sample engine.
 

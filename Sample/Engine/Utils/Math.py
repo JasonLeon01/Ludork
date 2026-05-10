@@ -5,8 +5,7 @@ from .. import Vector2f, Vector2i, Vector2u, Vector3f, Vector3i, IntRect, FloatR
 
 
 def IsNearZero(num: Union[int, float], epsilon: float = 0.1) -> bool:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Check whether a number is within epsilon of zero.
 
     - \param num Number to test.
@@ -17,8 +16,7 @@ def IsNearZero(num: Union[int, float], epsilon: float = 0.1) -> bool:
 
 
 def IsVector2NearZero(v: Vector2f, epsilon: float = 0.1) -> bool:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Check whether both components of a 2D vector are near zero.
 
     - \param v Vector to test.
@@ -29,8 +27,7 @@ def IsVector2NearZero(v: Vector2f, epsilon: float = 0.1) -> bool:
 
 
 def IsVector3NearZero(v: Vector3f, epsilon: float = 0.1) -> bool:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Check whether all components of a 3D vector are near zero.
 
     - \param v Vector to test.
@@ -41,8 +38,7 @@ def IsVector3NearZero(v: Vector3f, epsilon: float = 0.1) -> bool:
 
 
 def Vector2fRound(v: Vector2f) -> Vector2f:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Round both components of a Vector2f to the nearest integer.
 
     - \param v Vector to round.
@@ -52,8 +48,7 @@ def Vector2fRound(v: Vector2f) -> Vector2f:
 
 
 def Vector2fFloor(v: Vector2f) -> Vector2f:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Floor both components of a Vector2f.
 
     - \param v Vector to floor.
@@ -63,8 +58,7 @@ def Vector2fFloor(v: Vector2f) -> Vector2f:
 
 
 def Vector2fCeil(v: Vector2f) -> Vector2f:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Ceil both components of a Vector2f.
 
     - \param v Vector to ceil.
@@ -80,8 +74,7 @@ def Vector2fCeil(v: Vector2f) -> Vector2f:
 
 
 def ToVector2f(v: Union[Vector2i, Vector2u]) -> Vector2f:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Convert an integer or unsigned vector to a float vector.
 
     - \param v Integer or unsigned vector to convert.
@@ -91,8 +84,7 @@ def ToVector2f(v: Union[Vector2i, Vector2u]) -> Vector2f:
 
 
 def ToVector2i(v: Union[Vector2f, Vector2u]) -> Vector2i:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Convert a float or unsigned vector to an integer vector (truncated).
 
     - \param v Float or unsigned vector to convert.
@@ -102,8 +94,7 @@ def ToVector2i(v: Union[Vector2f, Vector2u]) -> Vector2i:
 
 
 def ToVector2u(v: Union[Vector2f, Vector2i]) -> Vector2u:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Convert a float or integer vector to an unsigned vector.
 
     - \param v Float or integer vector to convert.
@@ -113,8 +104,7 @@ def ToVector2u(v: Union[Vector2f, Vector2i]) -> Vector2u:
 
 
 def ToVector3f(v: Vector3i) -> Vector3f:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Convert an integer 3D vector to a float 3D vector.
 
     - \param v Integer 3D vector to convert.
@@ -124,8 +114,7 @@ def ToVector3f(v: Vector3i) -> Vector3f:
 
 
 def ToVector3i(v: Vector3f) -> Vector3i:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Convert a float 3D vector to an integer 3D vector (truncated).
 
     - \param v Float 3D vector to convert.
@@ -135,8 +124,7 @@ def ToVector3i(v: Vector3f) -> Vector3i:
 
 
 def ToIntRect(x: int, y: int, width: int, height: int) -> IntRect:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Create an IntRect from individual coordinates.
 
     - \param x X coordinate of the top-left corner.
@@ -149,8 +137,7 @@ def ToIntRect(x: int, y: int, width: int, height: int) -> IntRect:
 
 
 def ToFloatRect(x: float, y: float, width: float, height: float) -> FloatRect:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Create a FloatRect from individual coordinates.
 
     - \param x X coordinate of the top-left corner.
@@ -163,8 +150,7 @@ def ToFloatRect(x: float, y: float, width: float, height: float) -> FloatRect:
 
 
 def Clamp(value, min_val, max_val) -> float:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Clamp a value between min and max bounds.
 
     - \param value Value to clamp.
@@ -176,8 +162,7 @@ def Clamp(value, min_val, max_val) -> float:
 
 
 def Lerp(a: float, b: float, t: float) -> float:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Linearly interpolate between a and b by factor t.
 
     - \param a Start value.
@@ -189,8 +174,7 @@ def Lerp(a: float, b: float, t: float) -> float:
 
 
 def GCD(a: int, b: int) -> int:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Compute the greatest common divisor of two integers.
 
     - \param a First integer.
@@ -203,8 +187,7 @@ def GCD(a: int, b: int) -> int:
 
 
 def LCM(a: int, b: int) -> int:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Compute the least common multiple of two integers.
 
     - \param a First integer.

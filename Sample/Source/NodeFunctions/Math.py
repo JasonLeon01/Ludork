@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-"""Blueprint math nodes: arithmetic, comparison, trigonometry, and vector operations."""
+r"""\brief Blueprint math nodes: arithmetic, comparison, trigonometry, and vector operations."""
 
 import math
 import random

@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-r"""Game source package.
+r"""
+\brief Game source package.
 
 Provides game-specific systems, scene definitions, and entity classes
 for the Ludork sample project.

@@ -8,8 +8,7 @@ from typing import Any, Dict
 
 
 def getSavePath(APP_NAME: str) -> str:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Get the platform-specific save directory path.
 
     On macOS, returns ~/Library/Application Support/<APP_NAME>/Save.
@@ -26,8 +25,7 @@ def getSavePath(APP_NAME: str) -> str:
 
 
 def filterDataClassParams(params: Dict[str, Any], type_: type) -> Dict[str, Any]:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Filter a dictionary to keys that exist as attributes of a type.
 
     - \param params Dictionary of parameters to filter.
@@ -38,8 +36,7 @@ def filterDataClassParams(params: Dict[str, Any], type_: type) -> Dict[str, Any]
 
 
 def ApplyStringLocaleFormat(string: str) -> str:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Format a string by replacing placeholders with locale values.
 
     Placeholders are in the form {key} and are replaced with LOC(key).

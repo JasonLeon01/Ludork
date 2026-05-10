@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-"""Video playback system using frame-by-frame decoding."""
+r"""\brief Video playback system using frame-by-frame decoding."""
 
 from __future__ import annotations
 from typing import Optional, Tuple, TYPE_CHECKING
@@ -13,7 +13,19 @@ if TYPE_CHECKING:
 
 
 class Video:
+    r"""\brief Video playback with frame-by-frame decoding and audio extraction.
+
+    Uses the av library for decoding video frames and extracting audio.
+    Supports optional muting and skipping.
+    """
+
     def __init__(self, videoPath: str, mute: bool = False, skipable: bool = False) -> None:
+        r"""\brief Open a video file and prepare for playback.
+
+        - \param videoPath Path to the video file.
+        - \param mute True to mute audio during playback.
+        - \param skipable True to allow skipping with Enter key.
+        """
         import av  # type: ignore
 
         self.mute = mute
@@ -36,11 +48,16 @@ class Video:
         self.finished = False
 
     def __del__(self) -> None:
+        r"""\brief Clean up the video container on deletion."""
         if self._cap:
             self._cap.close()
             self._cap = None
 
     def play(self) -> None:
+        r"""\brief Play the video in a blocking loop.
+
+        Renders frames to the window until the video ends or is skipped.
+        """
         self._sound.setVolume(0 if self.mute else 100)
         self._sound.play()
         window = System.getWindow()

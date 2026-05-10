@@ -18,6 +18,10 @@ class LatentManager:
     _instance = None  #: Singleton instance
 
     def __new__(cls) -> LatentManager:
+        r"""
+        \brief __new__.
+        """
+
         if cls._instance is None:
             cls._instance = super(LatentManager, cls).__new__(cls)
             cls._instance._latents = []

@@ -245,6 +245,23 @@ class AudioManager:
                 else:
                     raise Exception(f"Invalid offset type: {type(offset)}")
             music.setPlayingOffset(offset)
+        if not filter.loopPoint is None:
+            lp = filter.loopPoint
+            if isinstance(lp, Music.TimeSpan):
+                timespan = lp
+            elif isinstance(lp, tuple) or isinstance(lp, list):
+                first, second = lp[0], lp[1]
+                t1 = first if isinstance(first, Time) else seconds(float(first))
+                t2 = second if isinstance(second, Time) else seconds(float(second))
+                timespan = Music.TimeSpan()
+                timespan.offset = t1
+                if t2 > t1:
+                    timespan.length = t2 - t1
+                else:
+                    timespan.length = music.getDuration() - t1
+            else:
+                raise Exception(f"Invalid loopPoint type: {type(lp)}")
+            music.setLoopPoints(timespan)
         cls._setAudioFilter(music, filter)
 
     @classmethod

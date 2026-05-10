@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-r"""UI component package.
+r"""
+\brief UI component package.
 
 Provides reusable UI widgets and drawing primitives
 for the Ludork sample engine.
@@ -26,67 +27,91 @@ from .SolidRect import SolidRect
 from .ListView import ListView
 
 DefaultFont: Font
-DefaultFontSize: int = 32
-DefaultWindowskinName: str
+DefaultFontSize: int = 32  # Default font size in pixels
+DefaultWindowskinName: str  # Default windowskin image filename
 
 
 def GetRosyBrown() -> Color:
-    """#a96362"""
+    r"""
+    \brief Return rosy brown colour (#a96362).
+    """
     return HexColor(0xA96362)
 
 
 def GetCopper() -> Color:
-    """#a86538"""
+    r"""
+    \brief Return copper colour (#a86538).
+    """
     return HexColor(0xA86538)
 
 
 def GetSage() -> Color:
-    """#adb57d"""
+    r"""
+    \brief Return sage colour (#adb57d).
+    """
     return HexColor(0xADB57D)
 
 
 def GetTeal() -> Color:
-    """#4b8082"""
+    r"""
+    \brief Return teal colour (#4b8082).
+    """
     return HexColor(0x4B8082)
 
 
 def GetMutedPurple() -> Color:
-    """#6f6496"""
+    r"""
+    \brief Return muted purple colour (#6f6496).
+    """
     return HexColor(0x6F6496)
 
 
 def GetTaupe() -> Color:
-    """#72695c"""
+    r"""
+    \brief Return taupe colour (#72695c).
+    """
     return HexColor(0x72695C)
 
 
 def GetTerraCotta() -> Color:
-    """#99574d"""
+    r"""
+    \brief Return terra cotta colour (#99574d).
+    """
     return HexColor(0x99574D)
 
 
 def GetOchre() -> Color:
-    """#927140"""
+    r"""
+    \brief Return ochre colour (#927140).
+    """
     return HexColor(0x927140)
 
 
 def GetFernGreen() -> Color:
-    """#4b7455"""
+    r"""
+    \brief Return fern green colour (#4b7455).
+    """
     return HexColor(0x4B7455)
 
 
 def GetSteelBlue() -> Color:
-    """#566c8f"""
+    r"""
+    \brief Return steel blue colour (#566c8f).
+    """
     return HexColor(0x566C8F)
 
 
 def GetDimGray() -> Color:
-    """#6a6a6a"""
+    r"""
+    \brief Return dim gray colour (#6a6a6a).
+    """
     return HexColor(0x6A6A6A)
 
 
 def GetCharcoal() -> Color:
-    """#1f1f1f"""
+    r"""
+    \brief Return charcoal colour (#1f1f1f).
+    """
     return HexColor(0x1F1F1F)
 
 

@@ -8,6 +8,10 @@ import threading
 
 
 def entry() -> None:
+    r"""
+    \brief entry.
+    """
+
     import Engine
     import Global
     import Source

@@ -17,6 +17,10 @@ from .Utils import Math
 
 
 class JoystickButton(Enum):
+    r"""
+    \brief Joystick Button.
+    """
+
     A = 0
     B = 1
     X = 2
@@ -32,6 +36,10 @@ class JoystickButton(Enum):
 
 
 class InputType(Enum):
+    r"""
+    \brief Input Type.
+    """
+
     Mouse = 0
     Gamepad = 1
 

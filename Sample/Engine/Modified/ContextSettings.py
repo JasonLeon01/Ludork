@@ -5,7 +5,12 @@ from pysf import ContextSettings
 
 
 class ModifiedContextSettings(ContextSettings):
+    r"""
+    \brief Modified Context Settings.
+    """
+
     def __init__(
+
         self,
         depthBits: Optional[int] = None,
         stencilBits: Optional[int] = None,
@@ -15,6 +20,9 @@ class ModifiedContextSettings(ContextSettings):
         attributeFlags: Optional[ContextSettings.Attribute] = None,
         sRgbCapable: Optional[bool] = None,
     ) -> None:
+        r"""
+        \brief Construct a modified context settings.
+        """
         super().__init__()
         params = {
             "depthBits": depthBits,

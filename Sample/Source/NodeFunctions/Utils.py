@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+r"""\brief Blueprint utility nodes: conditionals, local/game variables, scene management, and reflection utilities."""
 
 from __future__ import annotations
 import inspect
@@ -176,30 +177,111 @@ class _localRef:
 @Meta(DisplayName='LOC("IF")', DisplayDesc='LOC("IF_DESC")')
 @ExecSplit(TRUE=(0,), FALSE=(1,))
 def IF(condition: bool) -> int:
+    r"""\brief Blueprint conditional branch.
+
+    - \param condition The condition to evaluate.
+    - \return 0 if True, 1 if False.
+    """
     return 0 if condition else 1
 
 
 @Meta(DisplayName='LOC("SET_LOCAL_VALUE")', DisplayDesc='LOC("SET_LOCAL_VALUE_DESC")')
 @ExecSplit(default=(None,))
 def SetLocalValue(valueName: str, value: Any) -> None:
+    r"""\brief Set a local variable value.
+
+    - \param valueName The variable name.
+    - \param value The value to set.
+    """
     SetLocalValue._refLocal[valueName] = value
 
 
 @Meta(DisplayName='LOC("GET_LOCAL_VALUE")', DisplayDesc='LOC("GET_LOCAL_VALUE_DESC")')
 @ReturnType(value=Any)
 def GetLocalValue(valueName: str, default: Any = None) -> Any:
+    r"""\brief Get a local variable value.
+
+    - \param valueName The variable name.
+    - \param default Default value if the variable is not found.
+    - \return The variable value.
+    """
     return GetLocalValue._refLocal.get(valueName, default)
 
 
 @Meta(DisplayName='LOC("GET_LOCAL_VALUE_REF")', DisplayDesc='LOC("GET_LOCAL_VALUE_REF_DESC")')
 @ReturnType(value=Any)
 def GetLocalValueRef(valueName: str, default: Any = None) -> Any:
+    r"""\brief Get a reference wrapper for a local variable.
+
+    - \param valueName The variable name.
+    - \param default Default value if the variable is not found.
+    - \return A _localRef wrapper.
+    """
     return _localRef(GetLocalValueRef._refLocal, valueName, default)
+
+
+@Meta(DisplayName='LOC("SET_GAME_VARIABLE")', DisplayDesc='LOC("SET_GAME_VARIABLE_DESC")')
+@ExecSplit(default=(None,))
+def SetGameVariable(valueName: str, value: Any) -> None:
+    r"""\brief Set a game variable on the current scene's game instance.
+
+    - \param valueName The variable name.
+    - \param value The value to set.
+    """
+    scene = System.getScene()
+    if scene and hasattr(scene, "inst"):
+        scene.inst.setVariable(valueName, value)
+
+
+@Meta(DisplayName='LOC("GET_GAME_VARIABLE")', DisplayDesc='LOC("GET_GAME_VARIABLE_DESC")')
+@ReturnType(value=Any)
+def GetGameVariable(valueName: str, default: Any = None) -> Any:
+    r"""\brief Get a game variable from the current scene's game instance.
+
+    - \param valueName The variable name.
+    - \param default Default value if the variable is not found.
+    - \return The variable value.
+    """
+    scene = System.getScene()
+    if scene and hasattr(scene, "inst"):
+        return scene.inst.getVariable(valueName)
+    return default
+
+
+@Meta(DisplayName='LOC("ADD_PLAYER_BY_CLASS")', DisplayDesc='LOC("ADD_PLAYER_BY_CLASS_DESC")')
+@ExecSplit(default=(None,))
+def AddPlayerByClass(playerClass: str) -> None:
+    r"""\brief Add a new player by class path.
+
+    - \param playerClass The class path for the player blueprint.
+    """
+    scene = System.getScene()
+    if scene and hasattr(scene, "inst"):
+        scene.inst.addPlayerByClass(playerClass)
+
+
+@Meta(DisplayName='LOC("REMOVE_PLAYER_BY_CLASS")', DisplayDesc='LOC("REMOVE_PLAYER_BY_CLASS_DESC")')
+@ExecSplit(default=(None,))
+def RemovePlayerByClass(playerClass: str) -> None:
+    r"""\brief Remove a player by class path.
+
+    - \param playerClass The class path to remove.
+    """
+    scene = System.getScene()
+    if scene and hasattr(scene, "inst"):
+        scene.inst.removePlayerByClass(playerClass)
 
 
 @Meta(DisplayName='LOC("ADD_ANIM")', DisplayDesc='LOC("ADD_ANIM_DESC")')
 @ExecSplit(default=(None,))
 def AddAnim(animName: str, position: Pair[float], rotation: float, scale: Pair[float]) -> None:
+    r"""\brief Spawn an animation at a given position.
+
+    - \param animName The animation name.
+    - \param position The world position to spawn at.
+    - \param rotation The rotation in degrees.
+    - \param scale The scale as (x, y).
+    """
     from Source import Data
 
     animData = Data.getAnimation(animName)
@@ -217,6 +299,11 @@ def AddAnim(animName: str, position: Pair[float], rotation: float, scale: Pair[f
 @Meta(DisplayName='LOC("GET_ANIM_LENGTH")', DisplayDesc='LOC("GET_ANIM_LENGTH_DESC")')
 @ReturnType(value=float)
 def GetAnimLength(animName: str) -> float:
+    r"""\brief Get the duration of an animation.
+
+    - \param animName The animation name.
+    - \return The duration in seconds.
+    """
     from Source import Data
 
     animData = Data.getAnimation(animName)

@@ -9,6 +9,11 @@ from ..System import System
 
 
 class PlayerAttrHUD(Canvas):
+    r"""\brief Player attribute HUD displaying level, HP bar, and stats.
+
+    Shows the player's avatar, name, HP bar with value, and stat values.
+    """
+
     _AVATAR_MIN_SIZE = 32
     _FONT_SIZE = 12
     _HUD_POS_X = 0
@@ -129,5 +134,7 @@ class PlayerAttrHUD(Canvas):
         keyY_count = self._player.getItemCount("KEY_Y")
         keyB_count = self._player.getItemCount("KEY_B")
         keyR_count = self._player.getItemCount("KEY_R")
-        displayText = f"#default#KEYS: #Yellow#{keyY_count}#default#\t#Blue#{keyB_count}#default#\t#Red#{keyR_count}#default#"
+        displayText = (
+            f"#default#KEYS: #Yellow#{keyY_count}#default#\t#Blue#{keyB_count}#default#\t#Red#{keyR_count}#default#"
+        )
         self._itemText.setString(displayText)

@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-r"""Game actor package.
+r"""
+\brief Game actor package.
 
 Provides actor base classes for the Ludork sample engine, including
 grid-based movement, collision, blueprint events, and directional sprite animation.

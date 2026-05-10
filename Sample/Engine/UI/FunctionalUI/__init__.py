@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-r"""Functional UI widgets package.
+r"""
+\brief Functional UI widgets package.
 
 Provides pre-built functional UI widget classes.
 

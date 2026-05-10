@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-"""WindowMessage: dialogue message window with typewriter effect and selection branches."""
 
 from __future__ import annotations
 from enum import IntEnum
@@ -9,7 +8,7 @@ from Engine import Color, Input, UI, Text, Vector2f, Vector2u, Vector2i, IntRect
 from Engine.UI import RichText, TextStyle, PlainText, ListView
 from Engine.UI.FunctionalUI import FPlainText
 from Engine.Utils import Math
-from Global import System as GlobalSystem
+from Global import Manager, System as GlobalSystem
 from .Base import WindowSelectable
 from ..System import System
 
@@ -26,6 +25,12 @@ class ContentMode(IntEnum):
 
 
 class WindowMessage(WindowSelectable):
+    r"""\brief Dialogue message window with typewriter effect and selection branches.
+
+    Supports fade-in/out, speaker name display, multi-option selection,
+    and automatic positioning relative to reference actors.
+    """
+
     _WINDOW_PADDING = 16
     _NAME_TEXT_SIZE = 28
     _NAME_MESSAGE_GAP = 8
@@ -34,6 +39,7 @@ class WindowMessage(WindowSelectable):
     _MAX_OPTIONS = 4
 
     def __init__(self) -> None:
+        r"""\brief Construct a message window with default fade and layout settings."""
         self._inDialogue: bool = False
         self._contentMode: ContentMode = ContentMode.MESSAGE
         self._selectionListView: Optional[ListView] = None
@@ -58,6 +64,10 @@ class WindowMessage(WindowSelectable):
         self.setVisible(False)
 
     def onTick(self, deltaTime: float) -> None:
+        r"""\brief Update fade animations.
+
+        - \param deltaTime Elapsed time in seconds.
+        """
         if self._fadePhase == FadePhase.IN:
             self._fadeIn(deltaTime)
         if self._fadePhase == FadePhase.OUT:
@@ -65,6 +75,10 @@ class WindowMessage(WindowSelectable):
         return super().onTick(deltaTime)
 
     def update(self, deltaTime: float) -> None:
+        r"""\brief Update the window, hiding selection cursor when not in selection mode.
+
+        - \param deltaTime Elapsed time in seconds.
+        """
         if self._contentMode != ContentMode.SELECTION:
             self.index = None
             if hasattr(self, "_rect"):
@@ -72,12 +86,17 @@ class WindowMessage(WindowSelectable):
                 if self._rect.getParent() is not None:
                     self.content.removeChild(self._rect)
             return super(WindowSelectable, self).update(deltaTime)
-        return super().update(deltaTime)
+        super().update(deltaTime)
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
+        r"""\brief Handle keyboard input for dialogue advancement and selection.
+
+        - \param kwargs Event data.
+        """
         if self.getVisible():
             if self._contentMode == ContentMode.SELECTION:
                 if self._allowCancel and Input.isActionTriggered(Input.getCancelKeys(), handled=True):
+                    Manager.playSE("cancel.ogg")
                     self._resolveSelection(-1)
                     return
                 super().onKeyDown(kwargs)
@@ -87,9 +106,17 @@ class WindowMessage(WindowSelectable):
         return super().onKeyDown(kwargs)
 
     def isInDialogue(self) -> bool:
+        r"""\brief Check if the window is currently showing a dialogue.
+
+        - \return True if in dialogue mode.
+        """
         return self._inDialogue
 
     def getSelectionResult(self) -> Optional[int]:
+        r"""\brief Get the result of a selection dialogue.
+
+        - \return The selected option index, or None if no selection has been made.
+        """
         return self._selectionResult
 
     def setMessage(
@@ -99,6 +126,13 @@ class WindowMessage(WindowSelectable):
         message: Union[str, List[str], Tuple[str, ...]],
         allowCancel: bool = True,
     ) -> None:
+        r"""\brief Show a message or selection dialogue.
+
+        - \param refPosition Optional reference position for window placement.
+        - \param name Speaker name to display.
+        - \param message Message text (str) or selection options (list).
+        - \param allowCancel Whether the selection can be cancelled.
+        """
         self.setColor(Color(255, 255, 255, 0))
         self.setVisible(True)
         self._inDialogue = True
@@ -148,6 +182,7 @@ class WindowMessage(WindowSelectable):
             item = FPlainText(System.getFonts()[0], optionText, self._OPTION_TEXT_SIZE)
 
             def onConfirm(_itemSelf, _kwargs, optionIndex=optionIndex) -> None:
+                Manager.playSE("decision1.ogg")
                 self._resolveSelection(optionIndex)
 
             item.addConfirmCallback(onConfirm)

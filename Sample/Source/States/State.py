@@ -15,8 +15,10 @@ class StateInfo:
 
 
 class State(InfoBase, StateInfo):
-    """
-    State class. Inherits InfoBase for blueprint event support
+    r"""
+    \brief State class with blueprint event support and data attributes.
+
+    Inherits InfoBase for blueprint event support
     and StateInfo for data attributes.
     State does not use _infoType since its data is provided directly by the StateInfo dataclass.
     """
@@ -24,60 +26,66 @@ class State(InfoBase, StateInfo):
     _infoType: str = ""
 
     def __init__(self, name: str = "", icon: str = "", description: str = "") -> None:
+        r"""\brief Construct a state with optional name, icon, and description.
+
+        - \param name The state name.
+        - \param icon The state icon identifier.
+        - \param description The state description.
+        """
         StateInfo.__init__(self, name, icon, description)
         self._graph = None
 
     @RegisterEvent
     def onAdd(self) -> None:
-        """Blueprint event: called when this state is applied to a battler."""
+        r"""\brief Blueprint event: called when this state is applied to a battler."""
         pass
 
     @RegisterEvent
     def onRemove(self) -> None:
-        """Blueprint event: called when this state is removed from a battler."""
+        r"""\brief Blueprint event: called when this state is removed from a battler."""
         pass
 
     @RegisterEvent
     def onWalk(self) -> None:
-        """Blueprint event: called each step the affected battler takes."""
+        r"""\brief Blueprint event: called each step the affected battler takes."""
         pass
 
     @RegisterEvent
     def onBattleBegin(self) -> None:
-        """Blueprint event: called when a battle starts while this state is active."""
+        r"""\brief Blueprint event: called when a battle starts while this state is active."""
         pass
 
     @RegisterEvent
     def onTurnStart(self) -> None:
-        """Blueprint event: called at the beginning of the battler's turn."""
+        r"""\brief Blueprint event: called at the beginning of the battler's turn."""
         pass
 
     @RegisterEvent
     def onTurnEnd(self) -> None:
-        """Blueprint event: called at the end of the battler's turn."""
+        r"""\brief Blueprint event: called at the end of the battler's turn."""
         pass
 
     @RegisterEvent
     def onBeforeAttack(self) -> None:
-        """Blueprint event: called before the battler performs an attack."""
+        r"""\brief Blueprint event: called before the battler performs an attack."""
         pass
 
     @RegisterEvent
     def onAfterAttack(self) -> None:
-        """Blueprint event: called after the battler performs an attack."""
+        r"""\brief Blueprint event: called after the battler performs an attack."""
         pass
 
     @RegisterEvent
     def onBeforeDefense(self) -> None:
-        """Blueprint event: called before the battler receives damage."""
+        r"""\brief Blueprint event: called before the battler receives damage."""
         pass
 
     @RegisterEvent
     def onAfterDefense(self) -> None:
-        """Blueprint event: called after the battler receives damage."""
+        r"""\brief Blueprint event: called after the battler receives damage."""
         pass
 
     @RegisterEvent
     def onBattleEnd(self) -> None:
-        """Blueprint event: called when the battle ends while this state is active."""
+        r"""\brief Blueprint event: called when the battle ends while this state is active."""
         pass

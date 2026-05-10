@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-"""WindowSelectable: window with cursor-navigable selectable items and input handling."""
 
 from __future__ import annotations
 from typing import Optional, Union, Tuple, Dict, Any
@@ -7,11 +6,17 @@ from Engine import Pair, Image, IntRect, Vector2f, Vector2i, Input, View, FloatR
 from Engine.UI import Rect, ListView
 from Engine.Utils import Math
 from Engine.UI.Base import ControlBase, FunctionalBase
-from Global import System
+from Global import Manager, System
 from .WindowBase import WindowBase
+from ...System import System as GameSystem
 
 
 class WindowSelectable(WindowBase):
+    r"""\brief Window with cursor-navigable selectable items.
+
+    Supports keyboard and mouse navigation, scrolling, and item selection.
+    """
+
     def __init__(
         self,
         rect: Union[IntRect, Tuple[Pair[int], Pair[int]]],
@@ -21,7 +26,17 @@ class WindowSelectable(WindowBase):
         windowSkin: Optional[Image] = None,
         repeated: bool = False,
     ) -> None:
+        r"""\brief Construct a selectable window.
+
+        - \param rect The window rectangle.
+        - \param listView Optional ListView for selectable items.
+        - \param rectWidth Optional fixed width for the selection rectangle.
+        - \param rectHeight Height of each selection item.
+        - \param windowSkin Optional window skin image.
+        - \param repeated Whether the window skin is repeated.
+        """
         super().__init__(rect, windowSkin, repeated)
+        self._oldIndex: Optional[int] = None
         self.index: Optional[int] = 0
         if not listView is None:
             self.content.addChild(listView)
@@ -39,9 +54,17 @@ class WindowSelectable(WindowBase):
         )
 
     def getListView(self) -> Optional[ListView]:
+        r"""\brief Get the current list view.
+
+        - \return The ListView, or None.
+        """
         return self._listView
 
     def setListView(self, listView: Optional[ListView] = None) -> None:
+        r"""\brief Set the list view for selectable items.
+
+        - \param listView The ListView to use, or None to clear.
+        """
         if not self._listView is None:
             self.content.removeChild(self._listView)
         if not listView is None:
@@ -49,6 +72,10 @@ class WindowSelectable(WindowBase):
         self._listView = listView
 
     def update(self, deltaTime: float) -> None:
+        r"""\brief Update selection rectangle position and handle hover.
+
+        - \param deltaTime Elapsed time in seconds.
+        """
         self._rect.setVisible((not self.index is None and self._itemCount() > 0))
         if self.index is not None:
             self._updateScroll()
@@ -73,9 +100,18 @@ class WindowSelectable(WindowBase):
                     if isinstance(child, FunctionalBase):
                         if self._judgeIfConfirm(child):
                             child.onConfirm({})
+        if self._oldIndex is None:
+            self._oldIndex = self.index
+        if self.index != self._oldIndex:
+            self._oldIndex = self.index
+            Manager.playSE(GameSystem.getCursorSE())
         super().update(deltaTime)
 
     def onMouseWheelScrolled(self, kwargs: Dict[str, Any]) -> None:
+        r"""\brief Handle mouse wheel scrolling.
+
+        - \param kwargs Event data containing delta.
+        """
         if not (self._listView and len(self._listView.getChildren()) > 0 and not self.index is None):
             return
         delta = kwargs["delta"]
@@ -89,9 +125,17 @@ class WindowSelectable(WindowBase):
             Input.setMousePosition(Math.ToVector2i(bounds.position + bounds.size / 2), System.getWindow())
 
     def onMouseMoved(self, kwargs: Dict[str, Any]) -> None:
+        r"""\brief Handle mouse movement events.
+
+        - \param kwargs Event data.
+        """
         pass
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
+        r"""\brief Handle keyboard navigation and confirmation.
+
+        - \param kwargs Event data.
+        """
         if not (self._listView and len(self._listView.getChildren()) > 0 and not self.index is None):
             return
 
@@ -169,6 +213,10 @@ class WindowSelectable(WindowBase):
         self.content.setView(View(Vector2f(originX, originY) + viewSize / 2, viewSize))
 
     def _judgeIfConfirm(self, target: FunctionalBase) -> bool:
-        if target.isHovered() and Input.isMouseInputMode() and Input.isMouseButtonTriggered(Input.Mouse.Button.Left, True):
+        if (
+            target.isHovered()
+            and Input.isMouseInputMode()
+            and Input.isMouseButtonTriggered(Input.Mouse.Button.Left, True)
+        ):
             return True
         return False

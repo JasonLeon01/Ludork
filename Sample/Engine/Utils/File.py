@@ -6,8 +6,7 @@ from typing import Dict, Any
 
 
 def getJSONData(filePath: str) -> Dict[str, Any]:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Load and parse a JSON file.
 
     - \param filePath Path to the JSON file to load.
@@ -19,8 +18,7 @@ def getJSONData(filePath: str) -> Dict[str, Any]:
 
 
 def saveData(filePath: str, data: Any) -> None:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Save data to a file using pickle serialisation.
 
     - \param filePath Path to the output file.
@@ -31,8 +29,7 @@ def saveData(filePath: str, data: Any) -> None:
 
 
 def loadData(filePath: str) -> Any:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Load data from a pickle file.
 
     - \param filePath Path to the pickle file to load.

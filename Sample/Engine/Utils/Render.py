@@ -4,8 +4,7 @@ from .. import RenderStates, BlendMode
 
 
 def CanvasRenderStates() -> RenderStates:
-    r"""////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
+    r"""
     \brief Create a RenderStates object configured for typical canvas rendering.
 
     Uses alpha blending (src alpha / one minus src alpha) for both
