@@ -17,7 +17,7 @@ from .BlueprintEditor import BluePrintEditor
 from .ClassSelector import ClassSelector
 from .ActorInfo import ActorInfoPanel
 from .AnimationWindow import AnimationWindow
-from .PackDialog import LogDialog, PackWorker, PackSelectionDialog
+from .PackDialog import LogDialog, PackPlatform, PackWorker, PackSelectionDialog
 from .MarkdownPreviewer import MarkdownPreviewer
 from .GeneralDataEditor import GeneralDataEditor
 from .AboutDialog import AboutDialog
@@ -43,6 +43,7 @@ __all__ = [
     "ActorInfoPanel",
     "AnimationWindow",
     "LogDialog",
+    "PackPlatform",
     "PackWorker",
     "PackSelectionDialog",
     "MarkdownPreviewer",

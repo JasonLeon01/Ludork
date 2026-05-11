@@ -1434,12 +1434,12 @@ class MainWindow(QtWidgets.QMainWindow):
         if selDlg.exec_() != QtWidgets.QDialog.Accepted:
             return
 
-        mode = selDlg.getSelectedMode()
+        platform = selDlg.getSelectedPlatform()
         distPath = os.path.join(projPath, "dist")
 
         self._packDialog = LogDialog(self)
         self._packDialog.setWindowModality(QtCore.Qt.ApplicationModal)
-        self._packWorker = PackWorker(projPath, distPath, mode)
+        self._packWorker = PackWorker(projPath, distPath, platform)
 
         self._packWorker.log_signal.connect(self._packDialog.appendLog)
         self._packWorker.finished_signal.connect(self._packDialog.finish)

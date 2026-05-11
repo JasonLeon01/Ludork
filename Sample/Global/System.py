@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import locale
 import json
+import random
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 import configparser
 import Engine
@@ -14,7 +15,9 @@ from Engine import (
     RenderTexture,
     Texture,
     View,
+    Vector2f,
     Vector2u,
+    Vector4f,
     Sprite,
     Shader,
     Drawable,
@@ -58,6 +61,18 @@ class System:
     _transitionTime: float = 0.0
     _transitionFrozen: bool = False
     _transitionFreezePending: bool = False
+    _flashShader: Optional[Shader] = None
+    _flashColor: Vector4f = Vector4f(1.0, 1.0, 1.0, 1.0)
+    _flashDuration: float = 0.0
+    _flashTimeCount: float = 0.0
+    _flashActive: bool = False
+    _shakePower: float = 0.0
+    _shakeSpeed: float = 0.0
+    _shakeDuration: float = 0.0
+    _shakeTimeCount: float = 0.0
+    _shakeActive: bool = False
+    _shakeOffset: Vector2f = Vector2f(0.0, 0.0)
+    _shakeNextUpdate: float = 0.0
     _scenes: List[SceneBase] = []
     _debugMode: bool = False
     _showFPSGraph: bool = False
@@ -247,12 +262,14 @@ class System:
     def display(cls, deltaTime: float) -> None:
         r"""\brief Display the canvas contents to the window.
 
-        Handles graphics shaders, transitions, and freeze effect.
+        Handles graphics shaders, transitions, freeze effect, and screen shake.
 
         - \param deltaTime Elapsed time in seconds since the previous frame.
         """
         if cls._inTransition:
             cls._transitionTimeCount = min(cls._transitionTimeCount + deltaTime, cls._transitionTime)
+        cls._updateFlash(deltaTime)
+        cls._updateShake(deltaTime)
         cls._canvas.display()
         states = Render.CanvasRenderStates()
         finalCanvas = cls._canvas
@@ -270,6 +287,21 @@ class System:
                 canvas.display()
             finalCanvas = cls.__graphicsCanvases[-1]
         cls._canvasSprite.setTexture(finalCanvas.getTexture())
+        if cls._shakeActive:
+            winSize = cls._window.getSize()
+            pad = cls._shakePower
+            cls._canvasSprite.setScale(
+                Vector2f(
+                    (winSize.x + pad * 2) / winSize.x,
+                    (winSize.y + pad * 2) / winSize.y,
+                )
+            )
+            cls._canvasSprite.setPosition(
+                Vector2f(
+                    -pad + cls._shakeOffset.x,
+                    -pad + cls._shakeOffset.y,
+                )
+            )
         if cls._inTransition and cls._transitionShader:
             cls._transitionTempTexture.clear(Color.Transparent)
             cls._transitionTempTexture.draw(cls._canvasSprite, states)
@@ -288,6 +320,9 @@ class System:
             cls._window.draw(cls._transitionSprite, transitionStates)
         else:
             cls._window.draw(cls._canvasSprite, states)
+        if cls._shakeActive:
+            cls._canvasSprite.setScale(Vector2f(1.0, 1.0))
+            cls._canvasSprite.setPosition(Vector2f(0.0, 0.0))
         cls._window.display()
         if cls._transitionFreezePending:
             cls._transition.update(cls._window)
@@ -528,6 +563,116 @@ class System:
         cls._applyGraphicsShadersLength()
 
     @classmethod
+    def flashScreen(cls, color: Color = Color.White, duration: float = 0.5) -> None:
+        r"""\brief Trigger an RMXP-style screen flash effect.
+
+        Loads (and caches) the Flash.frag post-processing shader, attaches it
+        to the graphics shader pipeline, and fades its intensity from 1.0 to
+        0.0 over the given duration. The shader is removed automatically when
+        the flash finishes.
+
+        - \param color Flash color (alpha controls peak strength, 255 = full).
+        - \param duration Flash duration in seconds; values <= 0 cancel the flash.
+        """
+        if duration <= 0.0:
+            cls.stopFlash()
+            return
+        if cls._flashShader is None:
+            from . import Manager
+
+            try:
+                cls._flashShader = Manager.ShaderManager.load("Flash.frag")
+            except Exception:
+                cls._flashShader = None
+                print(LOC("FLASH_SHADER_LOAD_FAILED"))
+                return
+        cls._flashColor = Vector4f(
+            float(color.r) / 255.0,
+            float(color.g) / 255.0,
+            float(color.b) / 255.0,
+            float(color.a) / 255.0,
+        )
+        cls._flashDuration = float(duration)
+        cls._flashTimeCount = 0.0
+        if not cls._flashActive:
+            cls.addGraphicsShader(cls._flashShader)
+            cls._flashActive = True
+        cls._flashShader.setUniform("flashColor", cls._flashColor)
+        cls._flashShader.setUniform("intensity", 1.0)
+
+    @classmethod
+    def stopFlash(cls) -> None:
+        r"""\brief Cancel any in-progress screen flash effect."""
+        if cls._flashActive and cls._flashShader is not None:
+            cls.removeGraphicsShader(cls._flashShader)
+        cls._flashActive = False
+        cls._flashTimeCount = 0.0
+        cls._flashDuration = 0.0
+
+    @classmethod
+    def isFlashing(cls) -> bool:
+        r"""\brief Check whether a screen flash effect is currently active.
+
+        - \return True if a flash is in progress.
+        """
+        return cls._flashActive
+
+    @classmethod
+    def startShake(cls, power: float = 4.0, speed: float = 10.0, duration: float = 0.5) -> None:
+        r"""\brief Start an RMXP-style screen shake effect.
+
+        The screen offsets randomly within the remaining power range,
+        updating at the given speed, fading linearly over the duration.
+
+        - \param power Maximum shake amplitude in pixels.
+        - \param speed Shake update frequency (updates per second).
+        - \param duration Shake duration in seconds; values <= 0 cancel the shake.
+        """
+        if duration <= 0.0:
+            cls.stopShake()
+            return
+        cls._shakePower = float(power)
+        cls._shakeSpeed = float(speed)
+        cls._shakeDuration = float(duration)
+        cls._shakeTimeCount = 0.0
+        cls._shakeActive = True
+        cls._shakeNextUpdate = 0.0
+        cls._shakeOffset = Vector2f(0.0, 0.0)
+
+    @classmethod
+    def stopShake(cls) -> None:
+        r"""\brief Cancel any in-progress screen shake effect."""
+        cls._shakeActive = False
+        cls._shakeTimeCount = 0.0
+        cls._shakeDuration = 0.0
+        cls._shakeOffset = Vector2f(0.0, 0.0)
+
+    @classmethod
+    def isShaking(cls) -> bool:
+        r"""\brief Check whether a screen shake effect is currently active.
+
+        - \return True if a shake is in progress.
+        """
+        return cls._shakeActive
+
+    @classmethod
+    def _updateShake(cls, deltaTime: float) -> None:
+        if not cls._shakeActive:
+            return
+        cls._shakeTimeCount = min(cls._shakeTimeCount + deltaTime, cls._shakeDuration)
+        if cls._shakeTimeCount >= cls._shakeDuration:
+            cls.stopShake()
+            return
+        remainingPower = cls._shakePower * (1.0 - cls._shakeTimeCount / cls._shakeDuration)
+        cls._shakeNextUpdate -= deltaTime
+        if cls._shakeNextUpdate <= 0.0:
+            cls._shakeNextUpdate = 1.0 / cls._shakeSpeed
+            cls._shakeOffset = Vector2f(
+                random.uniform(-remainingPower, remainingPower),
+                random.uniform(-remainingPower, remainingPower),
+            )
+
+    @classmethod
     def setTransition(cls, transitionResource: Optional[Texture] = None, transitionTime: float = 1.0) -> None:
         r"""\brief Start a scene transition effect.
 
@@ -608,6 +753,21 @@ class System:
         cls.__data.set("Main", key, str(value))
         with open(cls.__dataFilePath, "w", encoding="utf-8") as f:
             cls.__data.write(f)
+
+    @classmethod
+    def _updateFlash(cls, deltaTime: float) -> None:
+        if not cls._flashActive or cls._flashShader is None:
+            return
+        cls._flashTimeCount = min(cls._flashTimeCount + deltaTime, cls._flashDuration)
+        if cls._flashDuration > 0.0:
+            intensity = max(0.0, 1.0 - cls._flashTimeCount / cls._flashDuration)
+        else:
+            intensity = 0.0
+        cls._flashShader.setUniform("flashColor", cls._flashColor)
+        cls._flashShader.setUniform("intensity", intensity)
+        if cls._flashTimeCount >= cls._flashDuration:
+            cls.removeGraphicsShader(cls._flashShader)
+            cls._flashActive = False
 
     @classmethod
     def _applyGraphicsShadersLength(cls) -> None:

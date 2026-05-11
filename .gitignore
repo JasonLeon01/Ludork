@@ -12,6 +12,8 @@
 .trae/
 .codebuddy/
 .rules/
+ios_python/
+build_ios/
 lib/
 C_Extensions/SFML/
 LudorkEnv/
@@ -30,5 +32,7 @@ C_Extensions/EngineExt/CMakeLists.txt
 C_Extensions/GlobalExt/CMakeLists.txt
 /Sample/Engine/*.pyi
 /Sample/Global/*.pyi
+/Sample/Engine/*.a
+/Sample/Global/*.a
 /EditorExtensions/**/*.pyi
 pyrightconfig.json

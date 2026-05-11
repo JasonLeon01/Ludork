@@ -2,15 +2,17 @@
 
 import os
 from typing import Callable, List, Union, Optional, Dict, Any
-from Engine import Pair, Vector2u, Vector2f, Color, Filters, Music
+from Engine import Pair, Vector2u, Vector2f, Color, Filters, Music, Input
 from Engine.Gameplay import Tilemap, TileLayer, TileLayerData
 from Engine.Gameplay.Actors import Actor
+from Engine.UI.Base import FunctionalBase
 from Engine.Utils import File
 from Global import Manager, SceneBase, GameMap, Camera, Light
 from Global import System as GlobalSystem
 from Source import Data, System
 from Source.Windows.HUDPlayerAttr import PlayerAttrHUD
 from Source.Windows.WindowMessage import WindowMessage
+from Source.Windows.WindowMenu import WindowMenu
 from Source.GameInstance import GameInstance
 
 
@@ -29,12 +31,24 @@ class Scene(SceneBase):
         self.inst = inst
 
     def onCreate(self) -> None:
-        r"""\brief Create player HUD, message window, and load the starting map."""
+        r"""\brief Create player HUD, message window, menu, and load the starting map."""
         self.player = self.inst.getPlayer()
         self._playerHUD = PlayerAttrHUD(self.player)
         self._uiManager.loadUI(self._playerHUD)
         self._messageWindow = WindowMessage()
         self._uiManager.loadUI(self._messageWindow)
+        self._windowMenu = WindowMenu(
+            {
+                "Items": {"text": LOC("MENU_ITEM"), "callback": self._MenuItem},
+                "Equipment": {"text": LOC("MENU_EQUIP"), "callback": self._MenuEquip},
+                "Save": {"text": LOC("MENU_SAVE"), "callback": self._MenuSave},
+                "Load": {"text": LOC("MENU_LOAD"), "callback": self._MenuLoad},
+                "ReturnTitle": {"text": LOC("MENU_EXIT"), "callback": self._MenuExit},
+            },
+            onClose=self._onMenuClose,
+        )
+        self._windowMenu.close()
+        self._uiManager.loadUI(self._windowMenu)
 
         self._gameMap: GameMap = None
         self._cachedMapFile: str = None
@@ -61,11 +75,18 @@ class Scene(SceneBase):
         return super().onFixedTick(fixedDelta)
 
     def onTick(self, deltaTime: float) -> None:
-        r"""\brief Forward per-frame updates to the game map.
+        r"""\brief Forward per-frame updates to the game map and handle menu toggle.
 
         - \param deltaTime Elapsed time in seconds.
         """
         self._gameMap.onTick(deltaTime)
+        if self._windowMenu.getVisible():
+            return super().onTick(deltaTime)
+        if not self._messageWindow.isInDialogue():
+            if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
+                Manager.playSE(System.getCancelSE())
+                self._windowMenu.open()
+                self.player.setMoveEnabled(False)
         return super().onTick(deltaTime)
 
     def onLateTick(self, deltaTime: float) -> None:
@@ -214,6 +235,28 @@ class Scene(SceneBase):
 
             AudioManager.setMusicFilter(self._currentBgsMusic, filterObj)
 
+    @staticmethod
+    def _MenuItem(obj: FunctionalBase, kwargs: Dict[str, Any]) -> None:
+        pass
+
+    @staticmethod
+    def _MenuEquip(obj: FunctionalBase, kwargs: Dict[str, Any]) -> None:
+        pass
+
+    @staticmethod
+    def _MenuSave(obj: FunctionalBase, kwargs: Dict[str, Any]) -> None:
+        pass
+
+    @staticmethod
+    def _MenuLoad(obj: FunctionalBase, kwargs: Dict[str, Any]) -> None:
+        pass
+
+    @staticmethod
+    def _MenuExit(obj: FunctionalBase, kwargs: Dict[str, Any]) -> None:
+        from Source.Scenes import Title
+
+        GlobalSystem.setScene(Title())
+
     def _renderHandle(self, deltaTime: float) -> None:
         self._gameMap.show()
         super()._renderHandle(deltaTime)
@@ -298,6 +341,10 @@ class Scene(SceneBase):
         if not kwargs:
             return None
         return Filters.MusicFilter(**kwargs)
+
+    def _onMenuClose(self) -> None:
+        r"""\brief Callback when the menu window is closed."""
+        self.player.setMoveEnabled(True)
 
     def _generateTilemap(self, data: Dict[str, List[List[Any]]], width: int, height: int) -> Tilemap:
         mapLayers = []

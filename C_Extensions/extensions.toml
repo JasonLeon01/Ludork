@@ -5,6 +5,7 @@
 #   - name: module name
 #   - target_dir: build artifact output directory
 #   - needs_pysf: whether SFML/pysf is required
+#   - ios_enabled: whether to build a static .a for iOS (--ios flow)
 #   - stub_patches: text replacements applied after stub generation
 #   - bindgen: auto binding generation settings (optional)
 #       - enabled: enable automatic generation
@@ -19,6 +20,7 @@
 name = "EditorExt"
 target_dir = "EditorExtensions"
 needs_pysf = false
+ios_enabled = false
 stub_patches = []
 
 [editor_ext.bindgen]
@@ -28,6 +30,7 @@ enabled = false
 name = "EngineExt"
 target_dir = "Sample/Engine"
 needs_pysf = true
+ios_enabled = true
 stub_patches = [
     { find = "import pysf.sf", replace = "from Engine import pysf" },
     { find = "pysf.sf.", replace = "pysf." },
@@ -45,6 +48,7 @@ clang_args = []
 name = "GlobalExt"
 target_dir = "Sample/Global"
 needs_pysf = true
+ios_enabled = true
 stub_patches = [
     { find = "import pysf.sf", replace = "from Engine import pysf" },
     { find = "pysf.sf.", replace = "pysf." },

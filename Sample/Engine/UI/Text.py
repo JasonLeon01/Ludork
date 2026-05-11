@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 import copy
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 from .. import (
     Color,
     Font,
+    Pair,
     Text,
     Vector2f,
     RenderTarget,
@@ -107,7 +108,29 @@ class PlainText(ControlBase):
 
         - \return  Size as (width, height)
         """
-        return self._text.getGlobalBounds().size
+        from .. import Scale
+
+        return self._text.getGlobalBounds().size / Scale
+
+    def getOrigin(self) -> Vector2f:
+        r"""\brief Get the origin of this text in logical UI units.
+
+        - \return  Origin position in logical UI units
+        """
+        from .. import Scale
+
+        origin = super().getOrigin()
+        return origin / Scale
+
+    @TypeAdapter(origin=([tuple, list], Vector2f))
+    def setOrigin(self, origin: Union[Vector2f, Pair[float], List[float]]) -> None:
+        r"""\brief Set the origin of this text in logical UI units.
+
+        - \param origin  New origin in logical UI units
+        """
+        from .. import Scale
+
+        super().setOrigin(origin * Scale)
 
     def getColor(self) -> Color:
         r"""\brief Get the fill colour of this text.
@@ -304,7 +327,29 @@ class RichText(ControlBase):
 
         - \return  Size as (width, height)
         """
-        return self._localBounds.size
+        from .. import Scale
+
+        return self._localBounds.size / Scale
+
+    def getOrigin(self) -> Vector2f:
+        r"""\brief Get the origin of this rich text in logical UI units.
+
+        - \return  Origin position in logical UI units
+        """
+        from .. import Scale
+
+        origin = super().getOrigin()
+        return origin / Scale
+
+    @TypeAdapter(origin=([tuple, list], Vector2f))
+    def setOrigin(self, origin: Union[Vector2f, Pair[float], List[float]]) -> None:
+        r"""\brief Set the origin of this rich text in logical UI units.
+
+        - \param origin  New origin in logical UI units
+        """
+        from .. import Scale
+
+        super().setOrigin(origin * Scale)
 
     def draw(self, target: RenderTarget, states: RenderStates) -> None:
         r"""\brief Draw this rich text control to the given render target.

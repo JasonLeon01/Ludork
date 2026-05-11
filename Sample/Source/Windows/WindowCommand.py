@@ -23,6 +23,7 @@ class WindowCommand(WindowSelectable):
         rectHeight: int = 32,
         windowSkin: Optional[Image] = None,
         repeated: bool = False,
+        columns: int = 1,
     ) -> None:
         r"""\brief Construct a command window with the given commands.
 
@@ -34,7 +35,7 @@ class WindowCommand(WindowSelectable):
         - \param repeated Whether the window skin is repeated.
         """
         super().__init__(rect, None, rectWidth, rectHeight, windowSkin, repeated)
-        listView = ListView(self.content.getNoTranslationRect(), rectHeight, True, 2)
+        listView = ListView(self.content.getNoTranslationRect(), rectHeight, True, columns)
         if len(commands) > 0:
             for key, item in commands.items():
                 child = FPlainText(UI.DefaultFont, item["text"], UI.DefaultFontSize)

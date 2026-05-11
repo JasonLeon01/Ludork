@@ -144,7 +144,7 @@ class GameInstance:
                 self._players.pop(i)
                 return
 
-    def applyMapInfo(self, mapPath: str, pos: Optional[Union[Vector2u]] = None) -> None:
+    def applyMapInfo(self, mapPath: str, pos: Optional[Vector2u] = None) -> None:
         r"""\brief Apply map information for scene transitions.
 
         - \param mapPath The new map path to cache.

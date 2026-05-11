@@ -5,13 +5,14 @@ import sys
 import shutil
 import subprocess
 from enum import Enum
-from typing import Optional, TextIO
+from typing import Optional, TextIO, cast
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
-class PackMode(Enum):
-    SIMPLE = 0
-    NUITKA = 1
+class PackPlatform(Enum):
+    WIN32 = "win32"
+    MACOS_ARM = "macos_arm"
+    IOS = "ios"
 
 
 class PackSelectionDialog(QtWidgets.QDialog):
@@ -26,40 +27,37 @@ class PackSelectionDialog(QtWidgets.QDialog):
         self.lblDesc.setWordWrap(True)
         layout.addWidget(self.lblDesc)
 
-        self.rbSimple = QtWidgets.QRadioButton(ELOC("PACK_MODE_SIMPLE"))
-        self.rbSimple.setChecked(True)
-        layout.addWidget(self.rbSimple)
+        self.platformRadios = {}
 
-        self.rbNuitka = QtWidgets.QRadioButton(ELOC("PACK_MODE_FULL"))
-        layout.addWidget(self.rbNuitka)
+        if sys.platform == "win32":
+            rb = QtWidgets.QRadioButton(ELOC("PACK_PLATFORM_WIN32"))
+            rb.setChecked(True)
+            layout.addWidget(rb)
+            self.platformRadios[PackPlatform.WIN32] = rb
+        elif sys.platform == "darwin":
+            rbMac = QtWidgets.QRadioButton(ELOC("PACK_PLATFORM_MACOS_ARM"))
+            rbMac.setChecked(True)
+            layout.addWidget(rbMac)
+            self.platformRadios[PackPlatform.MACOS_ARM] = rbMac
 
-        self.lblWarning = QtWidgets.QLabel(ELOC("PACK_VIDEO_WARNING"))
-        self.lblWarning.setStyleSheet("color: orange;")
-        self.lblWarning.setWordWrap(True)
-        layout.addWidget(self.lblWarning)
-
-        if sys.platform == "darwin":
-            self.rbSimple.setEnabled(False)
-            self.rbNuitka.setChecked(True)
-            self.lblWarning.setVisible(False)
-        else:
-            # Update warning visibility based on selection
-            self.rbSimple.toggled.connect(self._updateWarning)
-            self.rbNuitka.toggled.connect(self._updateWarning)
-            self._updateWarning()
+            rbIOS = QtWidgets.QRadioButton(ELOC("PACK_PLATFORM_IOS"))
+            layout.addWidget(rbIOS)
+            self.platformRadios[PackPlatform.IOS] = rbIOS
 
         self.btnBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
         self.btnBox.accepted.connect(self.accept)
         self.btnBox.rejected.connect(self.reject)
         layout.addWidget(self.btnBox)
 
-    def _updateWarning(self):
-        self.lblWarning.setVisible(self.rbSimple.isChecked())
-
-    def getSelectedMode(self) -> PackMode:
-        if self.rbNuitka.isChecked():
-            return PackMode.NUITKA
-        return PackMode.SIMPLE
+    def getSelectedPlatform(self) -> PackPlatform:
+        for platform, rb in self.platformRadios.items():
+            if rb.isChecked():
+                return platform
+        if sys.platform == "win32":
+            return PackPlatform.WIN32
+        elif sys.platform == "darwin":
+            return PackPlatform.MACOS_ARM
+        return PackPlatform.WIN32
 
 
 class LogDialog(QtWidgets.QDialog):
@@ -104,11 +102,11 @@ class PackWorker(QtCore.QThread):
     log_signal = QtCore.pyqtSignal(str)
     finished_signal = QtCore.pyqtSignal(bool, str)
 
-    def __init__(self, projPath: str, distPath: str, mode: PackMode):
+    def __init__(self, projPath: str, distPath: str, platform: PackPlatform):
         super().__init__()
         self.projPath = projPath
         self.distPath = distPath
-        self.mode = mode
+        self.platform = platform
 
     def run(self):
         old_stdout = sys.stdout
@@ -134,12 +132,27 @@ class PackWorker(QtCore.QThread):
                 shutil.rmtree(self.distPath)
             os.makedirs(self.distPath, exist_ok=True)
 
-            self.log_signal.emit(f"Mode: {self.mode.name}\n")
+            self.log_signal.emit(f"Platform: {self.platform.value}\n")
 
-            if self.mode == PackMode.SIMPLE:
-                self._packSimple()
-            elif self.mode == PackMode.NUITKA:
-                self._packNuitka()
+            if self.platform == PackPlatform.IOS:
+                self._packIOS()
+                self.finished_signal.emit(False, ELOC("PACK_IOS_NOT_IMPLEMENTED"))
+                return
+
+            pythonExe = self._findPython3120()
+            if not pythonExe:
+                self._promptInstallPython()
+                return
+
+            self.log_signal.emit(f"Using Python: {pythonExe}\n")
+
+            if not self._checkNuitka(pythonExe):
+                self.log_signal.emit("Nuitka not found. Installing...\n")
+                if not self._installNuitka(pythonExe):
+                    self.finished_signal.emit(False, ELOC("PACK_NUITKA_INSTALL_FAILED"))
+                    return
+
+            self._packNuitka(pythonExe)
 
         except Exception as e:
             import traceback
@@ -150,162 +163,6 @@ class PackWorker(QtCore.QThread):
             os.chdir(old_cwd)
             sys.stdout = old_stdout
             sys.stderr = old_stderr
-
-    def _packSimple(self):
-        missingItems = []
-        # Folders to copy
-        for name in ("Assets", "Data", "Engine", "Global", "Source"):
-            src = os.path.join(self.projPath, name)
-            dst = os.path.join(self.distPath, name)
-            if os.path.exists(src):
-                self.log_signal.emit(f"Copying {name}...\n")
-                if os.path.exists(dst):
-                    shutil.rmtree(dst)
-                shutil.copytree(src, dst)
-            else:
-                if name in ("Assets", "Data"):
-                    missingItems.append(name)
-                elif name in ("Engine", "Global", "Source"):
-                    missingItems.append(name)
-
-        # Files to copy
-        for name in ("Entry.py", "Main.ini", "Main.exe"):
-            src = os.path.join(self.projPath, name)
-            dst = os.path.join(self.distPath, name)
-            if os.path.exists(src):
-                self.log_signal.emit(f"Copying {name}...\n")
-                shutil.copy2(src, dst)
-            else:
-                missingItems.append(name)
-
-        if missingItems:
-            self.finished_signal.emit(True, ELOC("PACK_COPY_MISSING").format(items=", ".join(missingItems)))
-        else:
-            self.finished_signal.emit(True, "")
-
-    def _packNuitka(self):
-        pythonExe = sys.executable
-        chosenExe = pythonExe
-        if sys.platform in ("win32", "darwin"):
-            self.log_signal.emit("Checking Python 3.12.0...\n")
-            chosenExe = self._findPython3120() or ""
-            if not chosenExe:
-                text = ELOC("PACK_PY312_PROMPT")
-                res = QtWidgets.QMessageBox.question(
-                    None,
-                    ELOC("PACK_TITLE"),
-                    text,
-                    QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-                    QtWidgets.QMessageBox.Yes,
-                )
-                if res == QtWidgets.QMessageBox.Yes:
-                    QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://www.python.org/downloads/release/python-3120/"))
-                self.finished_signal.emit(False, ELOC("PACK_PY312_NOT_FOUND"))
-                return
-        if not chosenExe:
-            chosenExe = pythonExe
-        self.log_signal.emit(f"Checking Nuitka in {chosenExe}...\n")
-        hasNuitka = True
-        try:
-            subprocess.check_call(
-                [chosenExe, "-m", "pip", "show", "nuitka"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-            )
-        except subprocess.CalledProcessError:
-            hasNuitka = False
-        if not hasNuitka:
-            text = ELOC("PACK_NUITKA_PROMPT")
-            res = QtWidgets.QMessageBox.question(
-                None,
-                ELOC("PACK_TITLE"),
-                text,
-                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-                QtWidgets.QMessageBox.Yes,
-            )
-            if res == QtWidgets.QMessageBox.Yes:
-                self.log_signal.emit(ELOC("PACK_NUITKA_INSTALLING") + "\n")
-                installOk = self._installNuitka(chosenExe)
-                if not installOk:
-                    self.finished_signal.emit(False, ELOC("PACK_NUITKA_INSTALL_FAILED"))
-                    return
-            else:
-                self.finished_signal.emit(False, ELOC("PACK_NUITKA_MISSING"))
-                return
-
-        entryPath = os.path.join(self.projPath, "Entry.py")
-        if not os.path.exists(entryPath):
-            self.finished_signal.emit(False, ELOC("PACK_ENTRY_MISSING"))
-            return
-
-        appName = "Main"
-
-        # Construct Nuitka command
-        cmd = [
-            chosenExe,
-            "-m",
-            "nuitka",
-            "--follow-imports",
-            "--remove-output",
-            f"--output-dir={self.distPath}",
-            f"--output-filename={appName}",
-            "--include-data-dir=Assets=Assets",
-            "--include-data-dir=Data=Data",
-            "--include-data-file=Main.ini=Main.ini",
-        ]
-
-        iconPath = None
-        if sys.platform == "win32":
-            possible = os.path.join(self.projPath, "Assets", "System", "icon.ico")
-            if os.path.exists(possible):
-                iconPath = possible
-        elif sys.platform == "darwin":
-            possible = os.path.join(self.projPath, "Assets", "System", "icon.icns")
-            if os.path.exists(possible):
-                iconPath = possible
-
-        if sys.platform == "win32":
-            cmd.append("--standalone")
-            cmd.append("--windows-console-mode=disable")
-            if iconPath:
-                cmd.append(f"--windows-icon-from-ico={iconPath}")
-        elif sys.platform == "darwin":
-            cmd.append("--mode=app")
-            cmd.append(f"--macos-app-name={appName}")
-            if iconPath:
-                cmd.append(f"--macos-app-icon={iconPath}")
-        else:
-            # Default for Linux/others
-            cmd.append("--standalone")
-
-        cmd.append(entryPath)
-
-        self.log_signal.emit(f"Running Nuitka: {' '.join(cmd)}\n")
-
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            cwd=self.projPath,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-        )
-        stdout: Optional[TextIO] = process.stdout
-        if stdout is None:
-            self.finished_signal.emit(False, ELOC("PACK_NUITKA_FAILED"))
-            return
-
-        while True:
-            line = stdout.readline()
-            if not line and process.poll() is not None:
-                break
-            if line:
-                self.log_signal.emit(line)
-
-        rc = process.poll()
-        if rc == 0:
-            self.finished_signal.emit(True, "")
-        else:
-            self.finished_signal.emit(False, ELOC("PACK_NUITKA_FAILED"))
 
     def _findPython3120(self) -> str:
         if sys.platform == "win32":
@@ -324,7 +181,7 @@ class PackWorker(QtCore.QThread):
                         ).strip()
                         return exe
             except Exception:
-                return ""
+                pass
             return ""
         if sys.platform == "darwin":
             try:
@@ -342,9 +199,31 @@ class PackWorker(QtCore.QThread):
                         ).strip()
                         return exe
             except Exception:
-                return ""
+                pass
             return ""
         return ""
+
+    def _promptInstallPython(self):
+        text = ELOC("PACK_PY312_PROMPT")
+        res = QtWidgets.QMessageBox.question(
+            None,
+            ELOC("PACK_TITLE"),
+            text,
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+            QtWidgets.QMessageBox.Yes,
+        )
+        if res == QtWidgets.QMessageBox.Yes:
+            QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://www.python.org/downloads/release/python-3120/"))
+        self.finished_signal.emit(False, ELOC("PACK_PY312_NOT_FOUND"))
+
+    def _checkNuitka(self, exe: str) -> bool:
+        try:
+            subprocess.check_call(
+                [exe, "-m", "pip", "show", "nuitka"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
+            return True
+        except subprocess.CalledProcessError:
+            return False
 
     def _installNuitka(self, exe: str) -> bool:
         try:
@@ -352,7 +231,7 @@ class PackWorker(QtCore.QThread):
             proc1 = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace"
             )
-            stdout1: Optional[TextIO] = proc1.stdout
+            stdout1: Optional[TextIO] = cast(TextIO, proc1.stdout)
             if stdout1 is None:
                 return False
             while True:
@@ -367,7 +246,7 @@ class PackWorker(QtCore.QThread):
             proc2 = subprocess.Popen(
                 cmd2, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace"
             )
-            stdout2: Optional[TextIO] = proc2.stdout
+            stdout2: Optional[TextIO] = cast(TextIO, proc2.stdout)
             if stdout2 is None:
                 return False
             while True:
@@ -380,3 +259,87 @@ class PackWorker(QtCore.QThread):
         except Exception as e:
             self.log_signal.emit(str(e) + "\n")
             return False
+
+    def _packNuitka(self, pythonExe: str):
+        entryPath = os.path.join(self.projPath, "Entry.py")
+        if not os.path.exists(entryPath):
+            self.finished_signal.emit(False, ELOC("PACK_ENTRY_MISSING"))
+            return
+
+        appName = "Main"
+
+        cmd = [
+            pythonExe,
+            "-m",
+            "nuitka",
+            "--follow-imports",
+            "--remove-output",
+            "--assume-yes-for-downloads",
+            f"--output-dir={self.distPath}",
+            f"--output-filename={appName}",
+            "--include-data-dir=Assets=Assets",
+            "--include-data-dir=Data=Data",
+            "--include-data-file=Main.ini=Main.ini",
+            "--include-package=pysf",
+            "--include-package=Engine",
+            "--include-package=Global",
+            "--include-package=Source",
+        ]
+
+        iconPath = None
+        if self.platform == PackPlatform.WIN32:
+            possible = os.path.join(self.projPath, "Assets", "System", "icon.ico")
+            if os.path.exists(possible):
+                iconPath = possible
+        elif self.platform == PackPlatform.MACOS_ARM:
+            possible = os.path.join(self.projPath, "Assets", "System", "icon.icns")
+            if os.path.exists(possible):
+                iconPath = possible
+
+        if self.platform == PackPlatform.WIN32:
+            cmd.append("--standalone")
+            cmd.append("--windows-console-mode=disable")
+            if iconPath:
+                cmd.append(f"--windows-icon-from-ico={iconPath}")
+        elif self.platform == PackPlatform.MACOS_ARM:
+            cmd.append("--mode=app")
+            cmd.append(f"--macos-app-name={appName}")
+            if iconPath:
+                cmd.append(f"--macos-app-icon={iconPath}")
+        else:
+            self.finished_signal.emit(False, ELOC("PACK_IOS_NOT_IMPLEMENTED"))
+            return
+
+        cmd.append(entryPath)
+
+        self.log_signal.emit(f"Running Nuitka: {' '.join(cmd)}\n")
+
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            cwd=self.projPath,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        stdout: Optional[TextIO] = cast(TextIO, process.stdout)
+        if stdout is None:
+            self.finished_signal.emit(False, ELOC("PACK_NUITKA_FAILED"))
+            return
+
+        while True:
+            line = stdout.readline()
+            if not line and process.poll() is not None:
+                break
+            if line:
+                self.log_signal.emit(line)
+
+        rc = process.poll()
+        if rc == 0:
+            self.finished_signal.emit(True, "")
+        else:
+            self.finished_signal.emit(False, ELOC("PACK_NUITKA_FAILED"))
+
+    def _packIOS(self):
+        pass

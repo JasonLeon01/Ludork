@@ -68,35 +68,6 @@ def run(cmd):
     subprocess.check_call([str(c) for c in cmd])
 
 
-def packWin32Launcher():
-    launcher_script = ROOT / "launcher.py"
-    launcher_icon = ROOT / "Sample" / "Assets" / "System" / "icon.ico"
-    launcher_cmd = [
-        PYTHON,
-        "-m",
-        "nuitka",
-        f"--company-name={COMPANY_NAME}",
-        f"--product-name={APP_NAME}",
-        f"--file-version={VERSION}",
-        f"--product-version={VERSION}",
-        f"--file-description={APP_NAME} Launcher",
-        f"--copyright={COPYRIGHT}",
-        "--onefile",
-        "--standalone",
-        "--output-filename=Main",
-        "--include-module=asyncio",
-        "--include-module=concurrent.futures",
-        "--windows-console-mode=disable",
-        f"--windows-icon-from-ico={launcher_icon}",
-        str(launcher_script),
-    ]
-    run(launcher_cmd)
-    for dir in ["launcher.build", "launcher.dist", "launcher.onefile-build"]:
-        if (ROOT / dir).exists():
-            shutil.rmtree(ROOT / dir)
-            print(f"[INFO] Removed {ROOT / dir}")
-
-
 def main():
     if not PYTHON.exists():
         print(f"[ERROR] Python executable not found: {PYTHON}")
@@ -113,15 +84,10 @@ def main():
         print("[STEP] Installing/Updating Nuitka...")
         run([PYTHON, "-m", "pip", "install", "-U", "nuitka"])
 
-    if sys.platform == "win32":
-        packWin32Launcher()
-
     locale_json = ROOT / "Locale" / "locale.json"
     locale_json_bak = ROOT / "locale.json.bak"
     sample_proj = ROOT / "Sample" / "Main.proj"
     sample_proj_bak = ROOT / "Main.proj.bak"
-    sample_exe = ROOT / "Sample" / "Main.exe"
-    build_exe = ROOT / "Main.exe"
 
     try:
         print("[INFO] Generating locale files...")
@@ -139,13 +105,6 @@ def main():
             f.write("{}")
         print(f"[INFO] Created clean {sample_proj}")
 
-        if sys.platform == "win32":
-            if build_exe.exists():
-                shutil.move(str(build_exe), str(sample_exe))
-                print(f"[INFO] Moved {build_exe} to {sample_exe}")
-            else:
-                print(f"[WARNING] Launcher executable not found at {build_exe}")
-
         entry_script = ROOT / "main.py"
         run([PYTHON, "-m", "nuitka", *FLAGS, str(entry_script)])
 
@@ -162,6 +121,21 @@ def main():
         shutil.copytree(src_sample, dst_sample, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"))
         print(f"[INFO] Copied Sample to {dst_sample}")
 
+        if sys.platform == "darwin":
+            src_ios_python = ROOT / "ios_python"
+            if src_ios_python.exists():
+                dst_ios_python = OUTDIR / "main.app" / "Contents" / "MacOS" / "ios_python"
+                if dst_ios_python.exists():
+                    shutil.rmtree(dst_ios_python)
+                shutil.copytree(
+                    src_ios_python,
+                    dst_ios_python,
+                    ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
+                )
+                print(f"[INFO] Copied ios_python to {dst_ios_python}")
+            else:
+                print(f"[WARNING] ios_python directory not found at {src_ios_python}; iOS packaging from the editor will be unavailable.")
+
     finally:
         print("[INFO] Cleaning up environment...")
 
@@ -176,10 +150,6 @@ def main():
         if sample_proj_bak.exists():
             shutil.move(str(sample_proj_bak), str(sample_proj))
             print(f"[INFO] Restored {sample_proj}")
-
-        if sample_exe.exists():
-            os.remove(sample_exe)
-            print(f"[INFO] Removed {sample_exe}")
 
     if sys.platform == "darwin":
         app = OUTDIR / f"{APP_NAME}.app"

@@ -9,11 +9,14 @@ trigger/hold detection, and input blocking.
 
 import copy
 import logging
+import threading
 import traceback
 from enum import Enum
 from typing import Any, Dict, Optional, Tuple, Union, List, Callable
 from . import Keyboard, Mouse, Joystick, WindowBase, Vector2i
 from .Utils import Math
+
+_StateLock: threading.RLock = threading.RLock()
 
 
 class JoystickButton(Enum):
@@ -112,10 +115,15 @@ class _EventState:
     JoystickDisconnected: bool = False  # Whether any joystick was disconnected this frame
     JoystickButtonPressedMap: Dict[int, Dict[int, bool]] = {}  # Map of joystickId -> (button -> pressed)
     JoystickButtonReleasedMap: Dict[int, Dict[int, bool]] = {}  # Map of joystickId -> (button -> released)
+    JoystickButtonTriggeredMap: Dict[int, Tuple[int, bool]] = (
+        {}
+    )  # Map of button -> (press_count, handled); persists until ButtonReleased
     JoystickAxisMovedMap: Dict[int, Dict[Joystick.Axis, float]] = {}  # Map of joystickId -> (axis -> position)
     JoystickAxisStatus: Dict[int, Dict[Joystick.Axis, float]] = {}  # Map of joystickId -> (axis -> current_position)
     JoystickLastDominantAxis: Dict[int, Tuple[Joystick.Axis, float]] = {}  # joyId -> (Axis, Value)
-    JoystickAxisJustPressed: Dict[Tuple[int, Joystick.Axis], float] = {}  # (joyId, Axis) -> Value
+    JoystickAxisJustPressed: Dict[Tuple[int, Joystick.Axis], Tuple[float, bool]] = (
+        {}
+    )  # (joyId, Axis) -> (Value, handled); persists until axis releases (returns under threshold or flips sign)
 
     EnteredText: str = ""  # Text entered this frame
 
@@ -149,7 +157,8 @@ def injectEvent(data: Dict[str, Any]) -> None:
 
     - data: Dictionary containing event data with 'type' key and type-specific fields.
     """
-    _InjectedEvents.append(data)
+    with _StateLock:
+        _InjectedEvents.append(data)
 
 
 def _processInjectedEvents() -> None:
@@ -259,283 +268,294 @@ def update(window: WindowBase) -> None:
 
     - window: The window to poll events from.
     """
-    _EventState.FocusLost = False
-    _EventState.FocusGained = False
+    with _StateLock:
+        _EventState.FocusLost = False
+        _EventState.FocusGained = False
 
-    _EventState.KeyPressed = False
-    _EventState.KeyReleased = False
-    _EventState.KeyPressedMap.clear()
-    _EventState.KeyReleasedMap.clear()
-    _EventState.KeyboardScanPressedMap.clear()
-    _EventState.KeyboardScanReleasedMap.clear()
+        _EventState.KeyPressed = False
+        _EventState.KeyReleased = False
+        _EventState.KeyPressedMap.clear()
+        _EventState.KeyReleasedMap.clear()
+        _EventState.KeyboardScanPressedMap.clear()
+        _EventState.KeyboardScanReleasedMap.clear()
 
-    _EventState.MouseWheelScrolled = False
-    _EventState.MouseScrolledWheel = None
-    _EventState.MouseScrolledWheelDelta = 0.0
-    _EventState.MouseScrolledWheelPosition = None
+        _EventState.MouseWheelScrolled = False
+        _EventState.MouseScrolledWheel = None
+        _EventState.MouseScrolledWheelDelta = 0.0
+        _EventState.MouseScrolledWheelPosition = None
 
-    _EventState.MouseButtonPressed = False
-    _EventState.MouseButtonReleased = False
-    _EventState.MouseButtonPressedMap.clear()
-    _EventState.MouseButtonReleasedMap.clear()
-    _EventState.MousePressedPosition = None
-    _EventState.MouseReleasedPosition = None
+        _EventState.MouseButtonPressed = False
+        _EventState.MouseButtonReleased = False
+        _EventState.MouseButtonPressedMap.clear()
+        _EventState.MouseButtonReleasedMap.clear()
+        _EventState.MousePressedPosition = None
+        _EventState.MouseReleasedPosition = None
 
-    _EventState.MouseMoved = False
-    _EventState.MouseMovedDelta = None
+        _EventState.MouseMoved = False
+        _EventState.MouseMovedDelta = None
 
-    _EventState.MouseEntered = False
-    _EventState.MouseLeft = False
+        _EventState.MouseEntered = False
+        _EventState.MouseLeft = False
 
-    _EventState.JoystickButtonPressed = False
-    _EventState.JoystickButtonReleased = False
-    _EventState.JoystickAxisMoved = False
-    _EventState.JoystickConnected = False
-    _EventState.JoystickDisconnected = False
-    _EventState.JoystickButtonPressedMap.clear()
-    _EventState.JoystickButtonReleasedMap.clear()
-    _EventState.JoystickAxisMovedMap.clear()
-    _EventState.JoystickAxisJustPressed.clear()
+        _EventState.JoystickButtonPressed = False
+        _EventState.JoystickButtonReleased = False
+        _EventState.JoystickAxisMoved = False
+        _EventState.JoystickConnected = False
+        _EventState.JoystickDisconnected = False
+        _EventState.JoystickButtonPressedMap.clear()
+        _EventState.JoystickButtonReleasedMap.clear()
+        _EventState.JoystickAxisMovedMap.clear()
 
-    _EventState.EnteredText = ""
+        _EventState.EnteredText = ""
 
-    _processInjectedEvents()
+        _processInjectedEvents()
 
-    try:
-        while True:
-            event = window.pollEvent()
-            if event is None:
-                break
-            if event.isClosed():
-                window.close()
-            if event.isFocusLost():
-                _EventState.Focused = False
-                _EventState.FocusLost = True
-            if event.isFocusGained():
-                _EventState.Focused = True
-                _EventState.FocusGained = True
-            if not window.hasFocus():
-                break
-            if event.isKeyPressed():
-                _EventState.KeyPressed = True
-                keyEvent = event.getIfKeyPressed()
-                alt = keyEvent.alt
-                ctrl = keyEvent.control
-                shift = keyEvent.shift
-                system = keyEvent.system
-                keyMap = (keyEvent.code, alt, ctrl, shift, system)
-                scanMap = (keyEvent.scancode, alt, ctrl, shift, system)
-                _EventState.KeyPressedMap[keyMap] = True
-                _EventState.KeyboardScanPressedMap[scanMap] = True
-                if not keyMap in _EventState.KeyTriggeredMap:
-                    _EventState.KeyTriggeredMap[keyMap] = (0, False)
-                count, handled = _EventState.KeyTriggeredMap[keyMap]
-                count += 1
-                _EventState.KeyTriggeredMap[keyMap] = (count, handled)
-            if event.isKeyReleased():
-                _EventState.KeyReleased = True
-                keyEvent = event.getIfKeyReleased()
-                alt = keyEvent.alt
-                ctrl = keyEvent.control
-                shift = keyEvent.shift
-                system = keyEvent.system
-                keyMap = (keyEvent.code, alt, ctrl, shift, system)
-                scanMap = (keyEvent.scancode, alt, ctrl, shift, system)
-                _EventState.KeyReleasedMap[keyMap] = True
-                _EventState.KeyboardScanReleasedMap[scanMap] = True
-                if keyMap in _EventState.KeyTriggeredMap:
-                    _EventState.KeyTriggeredMap.pop(keyMap, None)
-            if not _UseInjectedMouseOnly:
-                if event.isMouseWheelScrolled():
-                    _EventState.MouseWheelScrolled = True
-                    mouseWheelEvent = event.getIfMouseWheelScrolled()
-                    _EventState.MouseScrolledWheel = mouseWheelEvent.wheel
-                    _EventState.MouseScrolledWheelDelta = mouseWheelEvent.delta
-                    _EventState.MouseScrolledWheelPosition = mouseWheelEvent.position
-                if event.isMouseButtonPressed():
-                    _EventState.MouseButtonPressed = True
-                    mouseButtonEvent = event.getIfMouseButtonPressed()
-                    _EventState.MouseButtonPressedMap[mouseButtonEvent.button] = True
-                    _EventState.MousePressedPosition = mouseButtonEvent.position
-                    if not mouseButtonEvent.button in _EventState.MouseButtonTriggeredMap:
-                        _EventState.MouseButtonTriggeredMap[mouseButtonEvent.button] = (0, False)
-                    count, handled = _EventState.MouseButtonTriggeredMap[mouseButtonEvent.button]
+        try:
+            while True:
+                event = window.pollEvent()
+                if event is None:
+                    break
+                if event.isClosed():
+                    window.close()
+                if event.isFocusLost():
+                    _EventState.Focused = False
+                    _EventState.FocusLost = True
+                if event.isFocusGained():
+                    _EventState.Focused = True
+                    _EventState.FocusGained = True
+                if not window.hasFocus():
+                    break
+                if event.isKeyPressed():
+                    _EventState.KeyPressed = True
+                    keyEvent = event.getIfKeyPressed()
+                    alt = keyEvent.alt
+                    ctrl = keyEvent.control
+                    shift = keyEvent.shift
+                    system = keyEvent.system
+                    keyMap = (keyEvent.code, alt, ctrl, shift, system)
+                    scanMap = (keyEvent.scancode, alt, ctrl, shift, system)
+                    _EventState.KeyPressedMap[keyMap] = True
+                    _EventState.KeyboardScanPressedMap[scanMap] = True
+                    if not keyMap in _EventState.KeyTriggeredMap:
+                        _EventState.KeyTriggeredMap[keyMap] = (0, False)
+                    count, handled = _EventState.KeyTriggeredMap[keyMap]
                     count += 1
-                    _EventState.MouseButtonTriggeredMap[mouseButtonEvent.button] = (count, handled)
-                if event.isMouseButtonReleased():
-                    _EventState.MouseButtonReleased = True
-                    mouseButtonEvent = event.getIfMouseButtonReleased()
-                    _EventState.MouseButtonReleasedMap[mouseButtonEvent.button] = True
-                    _EventState.MouseReleasedPosition = mouseButtonEvent.position
-                    if mouseButtonEvent.button in _EventState.MouseButtonTriggeredMap:
-                        _EventState.MouseButtonTriggeredMap.pop(mouseButtonEvent.button, None)
-                if event.isMouseMoved():
-                    _EventState.MouseMoved = True
-                    mouseMoveEvent = event.getIfMouseMoved()
+                    _EventState.KeyTriggeredMap[keyMap] = (count, handled)
+                if event.isKeyReleased():
+                    _EventState.KeyReleased = True
+                    keyEvent = event.getIfKeyReleased()
+                    alt = keyEvent.alt
+                    ctrl = keyEvent.control
+                    shift = keyEvent.shift
+                    system = keyEvent.system
+                    keyMap = (keyEvent.code, alt, ctrl, shift, system)
+                    scanMap = (keyEvent.scancode, alt, ctrl, shift, system)
+                    _EventState.KeyReleasedMap[keyMap] = True
+                    _EventState.KeyboardScanReleasedMap[scanMap] = True
+                    if keyMap in _EventState.KeyTriggeredMap:
+                        _EventState.KeyTriggeredMap.pop(keyMap, None)
+                if not _UseInjectedMouseOnly:
+                    if event.isMouseWheelScrolled():
+                        _EventState.MouseWheelScrolled = True
+                        mouseWheelEvent = event.getIfMouseWheelScrolled()
+                        _EventState.MouseScrolledWheel = mouseWheelEvent.wheel
+                        _EventState.MouseScrolledWheelDelta = mouseWheelEvent.delta
+                        _EventState.MouseScrolledWheelPosition = mouseWheelEvent.position
+                    if event.isMouseButtonPressed():
+                        _EventState.MouseButtonPressed = True
+                        mouseButtonEvent = event.getIfMouseButtonPressed()
+                        _EventState.MouseButtonPressedMap[mouseButtonEvent.button] = True
+                        _EventState.MousePressedPosition = mouseButtonEvent.position
+                        if not mouseButtonEvent.button in _EventState.MouseButtonTriggeredMap:
+                            _EventState.MouseButtonTriggeredMap[mouseButtonEvent.button] = (0, False)
+                        count, handled = _EventState.MouseButtonTriggeredMap[mouseButtonEvent.button]
+                        count += 1
+                        _EventState.MouseButtonTriggeredMap[mouseButtonEvent.button] = (count, handled)
+                    if event.isMouseButtonReleased():
+                        _EventState.MouseButtonReleased = True
+                        mouseButtonEvent = event.getIfMouseButtonReleased()
+                        _EventState.MouseButtonReleasedMap[mouseButtonEvent.button] = True
+                        _EventState.MouseReleasedPosition = mouseButtonEvent.position
+                        if mouseButtonEvent.button in _EventState.MouseButtonTriggeredMap:
+                            _EventState.MouseButtonTriggeredMap.pop(mouseButtonEvent.button, None)
+                    if event.isMouseMoved():
+                        _EventState.MouseMoved = True
+                        mouseMoveEvent = event.getIfMouseMoved()
+                        lastPosition: Vector2i = copy.copy(_EventState.MousePosition)
+                        _EventState.MousePosition = mouseMoveEvent.position
+                        if mouseMoveEvent.position != lastPosition:
+                            _EventState.MouseMovedDelta = mouseMoveEvent.position - lastPosition
+                    if event.isMouseEntered():
+                        _EventState.MouseEntered = True
+                    if event.isMouseLeft():
+                        _EventState.MouseLeft = True
+                if event.isJoystickButtonPressed():
+                    _EventState.JoystickButtonPressed = True
+                    joystickButtonEvent = event.getIfJoystickButtonPressed()
+                    if joystickButtonEvent.joystickId not in _EventState.JoystickButtonPressedMap:
+                        _EventState.JoystickButtonPressedMap[joystickButtonEvent.joystickId] = {}
+                    _EventState.JoystickButtonPressedMap[joystickButtonEvent.joystickId][joystickButtonEvent.button] = True
+                    if not joystickButtonEvent.button in _EventState.JoystickButtonTriggeredMap:
+                        _EventState.JoystickButtonTriggeredMap[joystickButtonEvent.button] = (0, False)
+                    count, handled = _EventState.JoystickButtonTriggeredMap[joystickButtonEvent.button]
+                    count += 1
+                    _EventState.JoystickButtonTriggeredMap[joystickButtonEvent.button] = (count, handled)
+                if event.isJoystickButtonReleased():
+                    _EventState.JoystickButtonReleased = True
+                    joystickButtonEvent = event.getIfJoystickButtonReleased()
+                    if joystickButtonEvent.joystickId not in _EventState.JoystickButtonReleasedMap:
+                        _EventState.JoystickButtonReleasedMap[joystickButtonEvent.joystickId] = {}
+                    _EventState.JoystickButtonReleasedMap[joystickButtonEvent.joystickId][joystickButtonEvent.button] = True
+                    if joystickButtonEvent.button in _EventState.JoystickButtonTriggeredMap:
+                        _EventState.JoystickButtonTriggeredMap.pop(joystickButtonEvent.button, None)
+                if event.isJoystickMoved():
+                    _EventState.JoystickAxisMoved = True
+                    joystickMoveEvent = event.getIfJoystickMoved()
+                    if joystickMoveEvent.joystickId not in _EventState.JoystickAxisMovedMap:
+                        _EventState.JoystickAxisMovedMap[joystickMoveEvent.joystickId] = {}
+                    _EventState.JoystickAxisMovedMap[joystickMoveEvent.joystickId][
+                        joystickMoveEvent.axis
+                    ] = joystickMoveEvent.position
+
+                    if joystickMoveEvent.joystickId not in _EventState.JoystickAxisStatus:
+                        _EventState.JoystickAxisStatus[joystickMoveEvent.joystickId] = {}
+                    _EventState.JoystickAxisStatus[joystickMoveEvent.joystickId][
+                        joystickMoveEvent.axis
+                    ] = joystickMoveEvent.position
+                if event.isJoystickConnected():
+                    _EventState.JoystickConnected = True
+                if event.isJoystickDisconnected():
+                    _EventState.JoystickDisconnected = True
+                    joystickDisconnectEvent = event.getIfJoystickDisconnected()
+                    if joystickDisconnectEvent.joystickId in _EventState.JoystickAxisStatus:
+                        del _EventState.JoystickAxisStatus[joystickDisconnectEvent.joystickId]
+                    if joystickDisconnectEvent.joystickId in _EventState.JoystickButtonPressedMap:
+                        del _EventState.JoystickButtonPressedMap[joystickDisconnectEvent.joystickId]
+                    if joystickDisconnectEvent.joystickId in _EventState.JoystickButtonReleasedMap:
+                        del _EventState.JoystickButtonReleasedMap[joystickDisconnectEvent.joystickId]
+                if event.isTextEntered():
+                    _EventState.EnteredText += event.getIfTextEntered().unicode
+
+            if window.hasFocus() and not _UseInjectedMouseOnly:
+                polledMousePosition = Mouse.getPosition(window)
+                if polledMousePosition != _EventState.MousePosition:
                     lastPosition: Vector2i = copy.copy(_EventState.MousePosition)
-                    _EventState.MousePosition = mouseMoveEvent.position
-                    if mouseMoveEvent.position != lastPosition:
-                        _EventState.MouseMovedDelta = mouseMoveEvent.position - lastPosition
-                if event.isMouseEntered():
-                    _EventState.MouseEntered = True
-                if event.isMouseLeft():
-                    _EventState.MouseLeft = True
-            if event.isJoystickButtonPressed():
-                _EventState.JoystickButtonPressed = True
-                joystickButtonEvent = event.getIfJoystickButtonPressed()
-                if joystickButtonEvent.joystickId not in _EventState.JoystickButtonPressedMap:
-                    _EventState.JoystickButtonPressedMap[joystickButtonEvent.joystickId] = {}
-                _EventState.JoystickButtonPressedMap[joystickButtonEvent.joystickId][joystickButtonEvent.button] = True
-            if event.isJoystickButtonReleased():
-                _EventState.JoystickButtonReleased = True
-                joystickButtonEvent = event.getIfJoystickButtonReleased()
-                if joystickButtonEvent.joystickId not in _EventState.JoystickButtonReleasedMap:
-                    _EventState.JoystickButtonReleasedMap[joystickButtonEvent.joystickId] = {}
-                _EventState.JoystickButtonReleasedMap[joystickButtonEvent.joystickId][joystickButtonEvent.button] = True
-            if event.isJoystickMoved():
-                _EventState.JoystickAxisMoved = True
-                joystickMoveEvent = event.getIfJoystickMoved()
-                if joystickMoveEvent.joystickId not in _EventState.JoystickAxisMovedMap:
-                    _EventState.JoystickAxisMovedMap[joystickMoveEvent.joystickId] = {}
-                _EventState.JoystickAxisMovedMap[joystickMoveEvent.joystickId][
-                    joystickMoveEvent.axis
-                ] = joystickMoveEvent.position
+                    _EventState.MousePosition = polledMousePosition
+                    _EventState.MouseMoved = True
+                    _EventState.MouseMovedDelta = polledMousePosition - lastPosition
 
-                if joystickMoveEvent.joystickId not in _EventState.JoystickAxisStatus:
-                    _EventState.JoystickAxisStatus[joystickMoveEvent.joystickId] = {}
-                _EventState.JoystickAxisStatus[joystickMoveEvent.joystickId][
-                    joystickMoveEvent.axis
-                ] = joystickMoveEvent.position
-            if event.isJoystickConnected():
-                _EventState.JoystickConnected = True
-            if event.isJoystickDisconnected():
-                _EventState.JoystickDisconnected = True
-                joystickDisconnectEvent = event.getIfJoystickDisconnected()
-                if joystickDisconnectEvent.joystickId in _EventState.JoystickAxisStatus:
-                    del _EventState.JoystickAxisStatus[joystickDisconnectEvent.joystickId]
-                if joystickDisconnectEvent.joystickId in _EventState.JoystickButtonPressedMap:
-                    del _EventState.JoystickButtonPressedMap[joystickDisconnectEvent.joystickId]
-                if joystickDisconnectEvent.joystickId in _EventState.JoystickButtonReleasedMap:
-                    del _EventState.JoystickButtonReleasedMap[joystickDisconnectEvent.joystickId]
-            if event.isTextEntered():
-                _EventState.EnteredText += event.getIfTextEntered().unicode
+            if _EventState.EnteredText == "\x16":
+                from . import Clipboard
 
-        if window.hasFocus() and not _UseInjectedMouseOnly:
-            polledMousePosition = Mouse.getPosition(window)
-            if polledMousePosition != _EventState.MousePosition:
-                lastPosition: Vector2i = copy.copy(_EventState.MousePosition)
-                _EventState.MousePosition = polledMousePosition
-                _EventState.MouseMoved = True
-                _EventState.MouseMovedDelta = polledMousePosition - lastPosition
+                _EventState.EnteredText = Clipboard.getString()
 
-        if _EventState.EnteredText == "\x16":
-            from . import Clipboard
-
-            _EventState.EnteredText = Clipboard.getString()
-
-        for joyId, axes in _EventState.JoystickAxisStatus.items():
-            maxAxis = None
-            maxVal = 0.0
-            for axis, val in axes.items():
-                if abs(val) > maxVal:
-                    maxVal = abs(val)
-                    maxAxis = axis
-
-            lastAxis, lastVal = _EventState.JoystickLastDominantAxis.get(joyId, (None, 0.0))
-
-            if maxVal < 10.0:
+            for joyId, axes in _EventState.JoystickAxisStatus.items():
                 maxAxis = None
                 maxVal = 0.0
-
-            if maxAxis != lastAxis:
-                if maxAxis is not None:
-                    _EventState.JoystickAxisJustPressed[(joyId, maxAxis)] = axes[maxAxis]
-                _EventState.JoystickLastDominantAxis[joyId] = (maxAxis, maxVal)
-            elif maxAxis is not None:
-                _EventState.JoystickLastDominantAxis[joyId] = (maxAxis, axes[maxAxis])
-
-        newInputType = None
-        if _EventState.MouseMoved or _EventState.MouseButtonPressed or _EventState.MouseWheelScrolled:
-            newInputType = InputType.Mouse
-        elif (
-            _EventState.KeyPressed or _EventState.JoystickButtonPressed or len(_EventState.JoystickAxisJustPressed) > 0
-        ):
-            newInputType = InputType.Gamepad
-
-        if newInputType is None and _EventState.JoystickAxisMoved:
-            for joyId, axes in _EventState.JoystickAxisStatus.items():
                 for axis, val in axes.items():
-                    if abs(val) > 10.0:
-                        newInputType = InputType.Gamepad
+                    if abs(val) > maxVal:
+                        maxVal = abs(val)
+                        maxAxis = axis
+
+                lastAxis, lastVal = _EventState.JoystickLastDominantAxis.get(joyId, (None, 0.0))
+
+                if maxVal < 10.0:
+                    maxAxis = None
+                    maxVal = 0.0
+
+                if maxAxis != lastAxis:
+                    if lastAxis is not None:
+                        _EventState.JoystickAxisJustPressed.pop((joyId, lastAxis), None)
+                    if maxAxis is not None:
+                        _EventState.JoystickAxisJustPressed[(joyId, maxAxis)] = (axes[maxAxis], False)
+                    _EventState.JoystickLastDominantAxis[joyId] = (maxAxis, maxVal)
+                elif maxAxis is not None:
+                    _EventState.JoystickLastDominantAxis[joyId] = (maxAxis, axes[maxAxis])
+
+            newInputType = None
+            if _EventState.MouseMoved or _EventState.MouseButtonPressed or _EventState.MouseWheelScrolled:
+                newInputType = InputType.Mouse
+            elif (
+                _EventState.KeyPressed
+                or _EventState.JoystickButtonPressed
+                or len(_EventState.JoystickAxisJustPressed) > 0
+            ):
+                newInputType = InputType.Gamepad
+
+            if newInputType is None and _EventState.JoystickAxisMoved:
+                for joyId, axes in _EventState.JoystickAxisStatus.items():
+                    for axis, val in axes.items():
+                        if abs(val) > 10.0:
+                            newInputType = InputType.Gamepad
+                            break
+                    if newInputType is not None:
                         break
-                if newInputType is not None:
-                    break
 
-        if newInputType is not None and newInputType != _EventState.CurrentInputType:
-            _EventState.CurrentInputType = newInputType
-            try:
-                window.setMouseCursorVisible(newInputType == InputType.Mouse)
-            except AttributeError:
-                pass
+            if newInputType is not None and newInputType != _EventState.CurrentInputType:
+                _EventState.CurrentInputType = newInputType
+                try:
+                    window.setMouseCursorVisible(newInputType == InputType.Mouse)
+                except AttributeError:
+                    pass
 
-        moveActions: List[Tuple[Joystick.Axis, float, Callable, List[Any]]] = []
-        for actionType, callables in _EventState.ActionMappings.items():
-            _, actionKeysTuple = actionType
-            obj, objCallable, triggerOnHold = callables
+            moveActions: List[Tuple[Joystick.Axis, float, Callable, List[Any]]] = []
+            for actionType, callables in _EventState.ActionMappings.items():
+                _, actionKeysTuple = actionType
+                obj, objCallable, triggerOnHold = callables
 
-            actionKeys = list(actionKeysTuple)
-            for key in actionKeys:
-                if not _EventState.KeyboardBlocked:
-                    if isinstance(key, Key):
-                        triggered = False
-                        if (key, False, False, False, False) in _EventState.KeyPressedMap:
-                            triggered = True
-                        elif triggerOnHold and Keyboard.isKeyPressed(key):
-                            triggered = True
-
-                        if triggered:
-                            objCallable(obj, None)
-                    if isinstance(key, Scan):
-                        if (key, False, False, False, False) in _EventState.KeyboardScanPressedMap:
-                            objCallable(obj, None)
-                if not _EventState.JoystickBlocked:
-                    if isinstance(key, JoystickButton):
-                        triggered = False
-                        for joyId, joystickDict in _EventState.JoystickButtonPressedMap.items():
-                            if joystickDict.get(key.value, False):
+                actionKeys = list(actionKeysTuple)
+                for key in actionKeys:
+                    if not _EventState.KeyboardBlocked:
+                        if isinstance(key, Key):
+                            triggered = False
+                            if (key, False, False, False, False) in _EventState.KeyPressedMap:
                                 triggered = True
-                                break
+                            elif triggerOnHold and Keyboard.isKeyPressed(key):
+                                triggered = True
 
-                        if not triggered and triggerOnHold:
-                            for jId in range(Joystick.Count):
-                                if Joystick.isConnected(jId) and Joystick.isButtonPressed(jId, key.value):
+                            if triggered:
+                                objCallable(obj, None)
+                        if isinstance(key, Scan):
+                            if (key, False, False, False, False) in _EventState.KeyboardScanPressedMap:
+                                objCallable(obj, None)
+                    if not _EventState.JoystickBlocked:
+                        if isinstance(key, JoystickButton):
+                            triggered = False
+                            for joyId, joystickDict in _EventState.JoystickButtonPressedMap.items():
+                                if joystickDict.get(key.value, False):
                                     triggered = True
                                     break
 
-                        if triggered:
-                            objCallable(obj, None)
+                            if not triggered and triggerOnHold:
+                                for jId in range(Joystick.Count):
+                                    if Joystick.isConnected(jId) and Joystick.isButtonPressed(jId, key.value):
+                                        triggered = True
+                                        break
 
-                    if isinstance(key, tuple):
-                        axis, threshold, callable_ = key
-                        if isinstance(axis, JoystickAxis):
-                            for _, axisMap in _EventState.JoystickAxisStatus.items():
-                                if axis in axisMap:
-                                    position = axisMap[axis]
-                                    if not Math.IsNearZero(position):
-                                        if callable_(position, threshold):
-                                            moveActions.append((axis, position, objCallable, [obj, position]))
-        finalMoveAction: Optional[Tuple[Callable, List[Any]]] = None
-        maxPosition = 0.0
-        for axis, position, objCallable, params in moveActions:
-            if position != 0 and abs(position) > maxPosition:
-                maxPosition = abs(position)
-                finalMoveAction = (objCallable, params)
-        if finalMoveAction:
-            callable_, params = finalMoveAction
-            callable_(*params)
+                            if triggered:
+                                objCallable(obj, None)
 
-    except Exception as e:
-        logging.error(f"Error in Input.update: {e}\n {traceback.format_exc()}")
+                        if isinstance(key, tuple):
+                            axis, threshold, callable_ = key
+                            if isinstance(axis, JoystickAxis):
+                                for _, axisMap in _EventState.JoystickAxisStatus.items():
+                                    if axis in axisMap:
+                                        position = axisMap[axis]
+                                        if not Math.IsNearZero(position):
+                                            if callable_(position, threshold):
+                                                moveActions.append((axis, position, objCallable, [obj, position]))
+            finalMoveAction: Optional[Tuple[Callable, List[Any]]] = None
+            maxPosition = 0.0
+            for axis, position, objCallable, params in moveActions:
+                if position != 0 and abs(position) > maxPosition:
+                    maxPosition = abs(position)
+                    finalMoveAction = (objCallable, params)
+            if finalMoveAction:
+                callable_, params = finalMoveAction
+                callable_(*params)
+
+        except Exception as e:
+            logging.error(f"Error in Input.update: {e}\n {traceback.format_exc()}")
 
     from .NodeGraph import latentManager
 
@@ -607,15 +627,16 @@ def getKeyPressed(
 
     \return True if the key was pressed this frame, False otherwise.
     """
-    if not isKeyPressed():
+    with _StateLock:
+        if not isKeyPressed():
+            return False
+        mapKey = (key, alt, ctrl, shift, system)
+        if mapKey in _EventState.KeyPressedMap:
+            result = _EventState.KeyPressedMap[mapKey]
+            if result and handled:
+                _EventState.KeyPressedMap[mapKey] = False
+            return result
         return False
-    mapKey = (key, alt, ctrl, shift, system)
-    if mapKey in _EventState.KeyPressedMap:
-        result = _EventState.KeyPressedMap[mapKey]
-        if result and handled:
-            _EventState.KeyPressedMap[mapKey] = False
-        return result
-    return False
 
 
 def getScanPressed(
@@ -638,15 +659,16 @@ def getScanPressed(
 
     \return True if the scan was pressed this frame, False otherwise.
     """
-    if not isKeyPressed():
+    with _StateLock:
+        if not isKeyPressed():
+            return False
+        mapScan = (scan, alt, ctrl, shift, system)
+        if mapScan in _EventState.KeyboardScanPressedMap:
+            result = _EventState.KeyboardScanPressedMap[mapScan]
+            if result and handled:
+                _EventState.KeyboardScanPressedMap[mapScan] = False
+            return result
         return False
-    mapScan = (scan, alt, ctrl, shift, system)
-    if mapScan in _EventState.KeyboardScanPressedMap:
-        result = _EventState.KeyboardScanPressedMap[mapScan]
-        if result and handled:
-            _EventState.KeyboardScanPressedMap[mapScan] = False
-        return result
-    return False
 
 
 def getKeyReleased(
@@ -669,15 +691,16 @@ def getKeyReleased(
 
     \return True if the key was released this frame, False otherwise.
     """
-    if not isKeyReleased():
+    with _StateLock:
+        if not isKeyReleased():
+            return False
+        mapKey = (key, alt, ctrl, shift, system)
+        if mapKey in _EventState.KeyReleasedMap:
+            result = _EventState.KeyReleasedMap[mapKey]
+            if result and handled:
+                _EventState.KeyReleasedMap[mapKey] = False
+            return result
         return False
-    mapKey = (key, alt, ctrl, shift, system)
-    if mapKey in _EventState.KeyReleasedMap:
-        result = _EventState.KeyReleasedMap[mapKey]
-        if result and handled:
-            _EventState.KeyReleasedMap[mapKey] = False
-        return result
-    return False
 
 
 def getScanReleased(
@@ -700,15 +723,16 @@ def getScanReleased(
 
     \return True if the scan was released this frame, False otherwise.
     """
-    if not isKeyReleased():
+    with _StateLock:
+        if not isKeyReleased():
+            return False
+        mapScan = (scan, alt, ctrl, shift, system)
+        if mapScan in _EventState.KeyboardScanReleasedMap:
+            result = _EventState.KeyboardScanReleasedMap[mapScan]
+            if result and handled:
+                _EventState.KeyboardScanReleasedMap[mapScan] = False
+            return result
         return False
-    mapScan = (scan, alt, ctrl, shift, system)
-    if mapScan in _EventState.KeyboardScanReleasedMap:
-        result = _EventState.KeyboardScanReleasedMap[mapScan]
-        if result and handled:
-            _EventState.KeyboardScanReleasedMap[mapScan] = False
-        return result
-    return False
 
 
 def isMouseWheelScrolled() -> bool:
@@ -780,14 +804,15 @@ def getMouseButtonPressed(button: Mouse.Button, handled: bool) -> bool:
 
     \return True if the button was pressed this frame, False otherwise.
     """
-    if not isMouseButtonPressed():
+    with _StateLock:
+        if not isMouseButtonPressed():
+            return False
+        if button in _EventState.MouseButtonPressedMap:
+            result = _EventState.MouseButtonPressedMap[button]
+            if result and handled:
+                _EventState.MouseButtonPressedMap[button] = False
+            return result
         return False
-    if button in _EventState.MouseButtonPressedMap:
-        result = _EventState.MouseButtonPressedMap[button]
-        if result and handled:
-            _EventState.MouseButtonPressedMap[button] = False
-        return result
-    return False
 
 
 def getMouseButtonReleased(button: Mouse.Button, handled: bool) -> bool:
@@ -799,14 +824,15 @@ def getMouseButtonReleased(button: Mouse.Button, handled: bool) -> bool:
 
     \return True if the button was released this frame, False otherwise.
     """
-    if not isMouseButtonReleased():
+    with _StateLock:
+        if not isMouseButtonReleased():
+            return False
+        if button in _EventState.MouseButtonReleasedMap:
+            result = _EventState.MouseButtonReleasedMap[button]
+            if result and handled:
+                _EventState.MouseButtonReleasedMap[button] = False
+            return result
         return False
-    if button in _EventState.MouseButtonReleasedMap:
-        result = _EventState.MouseButtonReleasedMap[button]
-        if result and handled:
-            _EventState.MouseButtonReleasedMap[button] = False
-        return result
-    return False
 
 
 def isMouseMoved() -> bool:
@@ -903,17 +929,18 @@ def getJoystickButtonPressed(joystickId: int, button: Union[int, JoystickButton]
 
     \return True if the button was pressed this frame, False otherwise.
     """
-    if not isJoystickButtonPressed():
+    with _StateLock:
+        if not isJoystickButtonPressed():
+            return False
+        if isinstance(button, JoystickButton):
+            button = button.value
+        if joystickId in _EventState.JoystickButtonPressedMap:
+            if button in _EventState.JoystickButtonPressedMap[joystickId]:
+                result = _EventState.JoystickButtonPressedMap[joystickId][button]
+                if result and handled:
+                    _EventState.JoystickButtonPressedMap[joystickId][button] = False
+                return result
         return False
-    if isinstance(button, JoystickButton):
-        button = button.value
-    if joystickId in _EventState.JoystickButtonPressedMap:
-        if button in _EventState.JoystickButtonPressedMap[joystickId]:
-            result = _EventState.JoystickButtonPressedMap[joystickId][button]
-            if result and handled:
-                _EventState.JoystickButtonPressedMap[joystickId][button] = False
-            return result
-    return False
 
 
 def getJoystickButtonReleased(joystickId: int, button: int, handled: bool) -> bool:
@@ -926,15 +953,16 @@ def getJoystickButtonReleased(joystickId: int, button: int, handled: bool) -> bo
 
     \return True if the button was released this frame, False otherwise.
     """
-    if not isJoystickButtonReleased():
+    with _StateLock:
+        if not isJoystickButtonReleased():
+            return False
+        if joystickId in _EventState.JoystickButtonReleasedMap:
+            if button in _EventState.JoystickButtonReleasedMap[joystickId]:
+                result = _EventState.JoystickButtonReleasedMap[joystickId][button]
+                if result and handled:
+                    _EventState.JoystickButtonReleasedMap[joystickId][button] = False
+                return result
         return False
-    if joystickId in _EventState.JoystickButtonReleasedMap:
-        if button in _EventState.JoystickButtonReleasedMap[joystickId]:
-            result = _EventState.JoystickButtonReleasedMap[joystickId][button]
-            if result and handled:
-                _EventState.JoystickButtonReleasedMap[joystickId][button] = False
-            return result
-    return False
 
 
 def isJoystickAxisMoved() -> bool:
@@ -955,19 +983,20 @@ def getJoystickAxisMoved(joystickId: int, handled: bool) -> Optional[Tuple[Joyst
 
     \return Tuple of (axis, position) if an axis was moved, None otherwise.
     """
-    if not isJoystickAxisMoved():
-        return None
-    if joystickId in _EventState.JoystickAxisMovedMap:
-        axisMap = _EventState.JoystickAxisMovedMap[joystickId]
-        if not axisMap:
+    with _StateLock:
+        if not isJoystickAxisMoved():
             return None
-        axis, pos = next(iter(axisMap.items()))
-        if handled:
-            del axisMap[axis]
+        if joystickId in _EventState.JoystickAxisMovedMap:
+            axisMap = _EventState.JoystickAxisMovedMap[joystickId]
             if not axisMap:
-                del _EventState.JoystickAxisMovedMap[joystickId]
-        return (axis, pos)
-    return None
+                return None
+            axis, pos = next(iter(axisMap.items()))
+            if handled:
+                del axisMap[axis]
+                if not axisMap:
+                    del _EventState.JoystickAxisMovedMap[joystickId]
+            return (axis, pos)
+        return None
 
 
 def isJoystickConnected() -> bool:
@@ -997,50 +1026,62 @@ def isKeyTriggered(
     handled: bool = False,
 ) -> bool:
     r"""
-    \brief Check if a key was triggered (first press) this frame.
+    \brief Check if a key is currently triggered (held since first press, not yet consumed).
+
+    A key becomes triggered on KeyPressed and stays triggered across frames
+    until either it is released (KeyReleased) or consumed via handled=True.
+    This is thread-safe and decoupled from the per-frame KeyPressed flag,
+    so concurrent threads observing input will agree on the trigger state.
 
     - key: The key to check.
     - alt: Whether ALT modifier is required.
     - ctrl: Whether CTRL modifier is required.
     - shift: Whether SHIFT modifier is required.
     - system: Whether SYSTEM modifier is required.
-    - handled: Whether to mark the key as handled if triggered.
+    - handled: Whether to mark the key as handled (consumed) if triggered.
 
-    \return True if the key was triggered this frame, False otherwise.
+    \return True if the key is currently triggered and not yet handled, False otherwise.
     """
-    if not isKeyPressed():
-        return False
-    keyMap = (key, alt, ctrl, shift, system)
-    if not keyMap in _EventState.KeyTriggeredMap:
-        return False
-    count, handled_ = _EventState.KeyTriggeredMap[keyMap]
-    result = count == 1 and not handled_
-    if result and handled:
-        handled_ = True
-        _EventState.KeyTriggeredMap[keyMap] = (count, handled_)
-    return result
+    with _StateLock:
+        if _EventState.KeyboardBlocked:
+            return False
+        keyMap = (key, alt, ctrl, shift, system)
+        entry = _EventState.KeyTriggeredMap.get(keyMap)
+        if entry is None:
+            return False
+        count, handled_ = entry
+        if handled_ or count < 1:
+            return False
+        if handled:
+            _EventState.KeyTriggeredMap[keyMap] = (count, True)
+        return True
 
 
 def isAnyJoystickButtonTriggered(button: Union[int, JoystickButton], handled: bool = False) -> bool:
     r"""
-    \brief Check if any joystick button was triggered (first press) this frame.
+    \brief Check if a joystick button is currently triggered (held since first press, not yet consumed).
+
+    Persists across frames until the button is released or consumed via handled=True.
 
     - button: The button to check.
-    - handled: Whether to mark the button as handled if triggered.
+    - handled: Whether to mark the button as handled (consumed) if triggered.
 
-    \return True if the button was triggered this frame, False otherwise.
+    \return True if the button is currently triggered and not yet handled, False otherwise.
     """
-    if not isJoystickButtonPressed():
-        return False
-    if isinstance(button, JoystickButton):
-        button = button.value
-    triggered = False
-    for joyId, buttons in _EventState.JoystickButtonPressedMap.items():
-        if button in buttons and buttons[button]:
-            triggered = True
-            if handled:
-                buttons[button] = False
-    return triggered
+    with _StateLock:
+        if _EventState.JoystickBlocked:
+            return False
+        if isinstance(button, JoystickButton):
+            button = button.value
+        entry = _EventState.JoystickButtonTriggeredMap.get(button)
+        if entry is None:
+            return False
+        count, handled_ = entry
+        if handled_ or count < 1:
+            return False
+        if handled:
+            _EventState.JoystickButtonTriggeredMap[button] = (count, True)
+        return True
 
 
 def isActionTriggered(
@@ -1055,40 +1096,48 @@ def isActionTriggered(
     handled: bool = False,
 ) -> bool:
     r"""
-    \brief Check whether any key in an action key set was triggered this frame.
+    \brief Check whether any key in an action key set is currently triggered.
+
+    Trigger state persists across frames until release or consumption (handled=True),
+    and is consistent across threads via an internal lock.
 
     - actionKeys: List of keys/buttons/axes to check.
-    - handled: Whether to mark the action as handled if triggered.
+    - handled: Whether to mark the matching action keys as handled (consumed) if triggered.
 
-    \return True if any action key was triggered this frame, False otherwise.
+    \return True if any action key is currently triggered and not yet handled, False otherwise.
     """
-    triggered = False
-    for key in actionKeys:
-        if isinstance(key, (Key, Scan)):
-            if isKeyTriggered(key, handled=handled):
-                triggered = True
-        elif isinstance(key, JoystickButton):
-            if isAnyJoystickButtonTriggered(key, handled=handled):
-                triggered = True
-        elif isinstance(key, tuple):
-            axis, threshold, condition = key
-            triggered_smart = False
-            for (joyId, pressedAxis), pos in _EventState.JoystickAxisJustPressed.items():
-                if pressedAxis == axis and condition(pos, threshold):
-                    triggered_smart = True
-                    break
-
-            if triggered_smart:
-                triggered = True
-            elif isJoystickAxisMoved():
-                is_nav_key = abs(threshold) in [10.0, 50.0]
-                if not is_nav_key:
-                    for joyId, axisMap in _EventState.JoystickAxisMovedMap.items():
-                        if axis in axisMap:
-                            pos = axisMap[axis]
-                            if condition(pos, threshold):
-                                triggered = True
-    return triggered
+    with _StateLock:
+        triggered = False
+        for key in actionKeys:
+            if isinstance(key, (Key, Scan)):
+                if isKeyTriggered(key, handled=handled):
+                    triggered = True
+            elif isinstance(key, JoystickButton):
+                if isAnyJoystickButtonTriggered(key, handled=handled):
+                    triggered = True
+            elif isinstance(key, tuple):
+                axis, threshold, condition = key
+                if _EventState.JoystickBlocked:
+                    continue
+                matched = False
+                for (joyId, pressedAxis), entry in list(_EventState.JoystickAxisJustPressed.items()):
+                    pos, handled_ = entry
+                    if pressedAxis == axis and not handled_ and condition(pos, threshold):
+                        matched = True
+                        if handled:
+                            _EventState.JoystickAxisJustPressed[(joyId, pressedAxis)] = (pos, True)
+                        break
+                if matched:
+                    triggered = True
+                elif _EventState.JoystickAxisMoved:
+                    is_nav_key = abs(threshold) in [10.0, 50.0]
+                    if not is_nav_key:
+                        for joyId, axisMap in _EventState.JoystickAxisMovedMap.items():
+                            if axis in axisMap:
+                                pos = axisMap[axis]
+                                if condition(pos, threshold):
+                                    triggered = True
+        return triggered
 
 
 def isMouseButtonTriggered(
@@ -1096,23 +1145,27 @@ def isMouseButtonTriggered(
     handled: bool = False,
 ) -> bool:
     r"""
-    \brief Check if a mouse button was triggered (first press) this frame.
+    \brief Check if a mouse button is currently triggered (held since first press, not yet consumed).
+
+    Persists across frames until the button is released or consumed via handled=True.
 
     - button: The button to check.
-    - handled: Whether to mark the button as handled if triggered.
+    - handled: Whether to mark the button as handled (consumed) if triggered.
 
-    \return True if the button was triggered this frame, False otherwise.
+    \return True if the button is currently triggered and not yet handled, False otherwise.
     """
-    if not isMouseButtonPressed():
-        return False
-    if not button in _EventState.MouseButtonTriggeredMap:
-        return False
-    count, handled_ = _EventState.MouseButtonTriggeredMap[button]
-    result = count == 1 and not handled_
-    if result and handled:
-        handled_ = True
-        _EventState.MouseButtonTriggeredMap[button] = (count, handled_)
-    return result
+    with _StateLock:
+        if _EventState.MouseBlocked:
+            return False
+        entry = _EventState.MouseButtonTriggeredMap.get(button)
+        if entry is None:
+            return False
+        count, handled_ = entry
+        if handled_ or count < 1:
+            return False
+        if handled:
+            _EventState.MouseButtonTriggeredMap[button] = (count, True)
+        return True
 
 
 def getEnteredText() -> str:

@@ -168,6 +168,7 @@ class SceneBase:
             self._renderHandle(deltaTime)
             System.clearCanvas()
             self.onLateTick(deltaTime)
+            time.sleep(0)
         self._stopLogicThread()
         self.onQuit()
 

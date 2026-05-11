@@ -20,15 +20,16 @@ class Scene(SceneBase):
         r"""\brief Create background, command window, and load UI elements."""
         self._bg = Image(Manager.loadSystem("GrassBackground.png"))
         self._windowCommand = WindowCommand(
-            ((0, 0), (256, 128)),
+            ((0, 0), (320, 96)),
             {
-                "Start": {"text": "Start", "callback": Scene._startGame},
-                "Load": {"text": "Load", "callback": Scene._loadGame},
-                "Config": {"text": "Config", "callback": Scene._configGame},
-                "Exit": {"text": "Exit", "callback": Scene._exitGame},
+                "Start": {"text": LOC("TITLE_START"), "callback": Scene._startGame},
+                "Load": {"text": LOC("TITLE_CONTINUE"), "callback": Scene._loadGame},
+                "Config": {"text": LOC("TITLE_CONFIG"), "callback": Scene._configGame},
+                "Exit": {"text": LOC("TITLE_EXIT"), "callback": Scene._exitGame},
             },
+            columns=2,
         )
-        self._windowCommand.setOrigin((128, 64))
+        self._windowCommand.setOrigin((160, 64))
         self._windowCommand.setPosition((320, 240))
         self._uiManager.loadUI(self._bg)
         self._uiManager.loadUI(self._windowCommand)

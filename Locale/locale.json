@@ -64,24 +64,24 @@
         "en_GB": "Package Project"
     },
     "PACK_MODE_TITLE": {
-        "zh_CN": "选择打包模式",
-        "en_GB": "Select Packaging Mode"
+        "zh_CN": "选择编译平台",
+        "en_GB": "Select Compilation Platform"
     },
-    "PACK_MODE_SIMPLE": {
-        "zh_CN": "简单打包 (仅复制文件)",
-        "en_GB": "Simple Packaging (Copy Files Only)"
+    "PACK_PLATFORM_WIN32": {
+        "zh_CN": "编译（win32）",
+        "en_GB": "Compile (win32)"
     },
-    "PACK_MODE_FULL": {
-        "zh_CN": "完整编译 (Nuitka)",
-        "en_GB": "Full Compilation (Nuitka)"
+    "PACK_PLATFORM_MACOS_ARM": {
+        "zh_CN": "编译（macOS(Apple Silicon)）",
+        "en_GB": "Compile (macOS(Apple Silicon))"
+    },
+    "PACK_PLATFORM_IOS": {
+        "zh_CN": "编译（iOS）",
+        "en_GB": "Compile (iOS)"
     },
     "PACK_MODE_DESC": {
-        "zh_CN": "简单打包将直接复制项目文件，适合快速测试。\n完整编译将使用Nuitka生成独立可执行文件，适合发布。",
-        "en_GB": "Simple packaging copies files for quick testing.\nFull compilation uses Nuitka to generate a standalone executable for release."
-    },
-    "PACK_VIDEO_WARNING": {
-        "zh_CN": "注意：简单打包不支持视频播放功能",
-        "en_GB": "Note: Simple packaging does not support video playback"
+        "zh_CN": "选择目标平台进行编译。编译将使用Nuitka生成独立可执行文件。",
+        "en_GB": "Select target platform for compilation. Compilation uses Nuitka to generate a standalone executable."
     },
     "PACK_TITLE": {
         "zh_CN": "打包",
@@ -138,6 +138,10 @@
     "PACK_NUITKA_FAILED": {
         "zh_CN": "Nuitka 打包失败",
         "en_GB": "Nuitka packaging failed"
+    },
+    "PACK_IOS_NOT_IMPLEMENTED": {
+        "zh_CN": "iOS 平台打包暂未实现",
+        "en_GB": "iOS packaging is not implemented yet"
     },
     "PACK_COPY_MISSING": {
         "zh_CN": "缺少以下文件或目录：{items}",

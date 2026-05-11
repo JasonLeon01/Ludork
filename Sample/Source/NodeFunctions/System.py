@@ -4,7 +4,7 @@ r"""\brief Blueprint system nodes: scene transitions, save/load, and game flow c
 from dataclasses import fields
 import os
 from typing import Any
-from Engine import Filters
+from Engine import Filters, Color
 from Global import Manager, playVideo, System as GlobalSystem
 
 SoundFilter = Filters.SoundFilter()
@@ -80,3 +80,27 @@ def SetBgsFilter(attr: str, value: Any) -> None:
     scene = GlobalSystem.getScene()
     if scene and hasattr(scene, "setBgsFilter"):
         scene.setBgsFilter(attr, value)
+
+
+@Meta(DisplayName='LOC("FLASH_SCREEN")', DisplayDesc='LOC("FLASH_SCREEN_DESC")')
+@ExecSplit(default=(None,))
+def FlashScreen(red: int, green: int, blue: int, alpha: int, duration: float) -> None:
+    GlobalSystem.flashScreen(Color(int(red), int(green), int(blue), int(alpha)), float(duration))
+
+
+@Meta(DisplayName='LOC("STOP_FLASH_SCREEN")', DisplayDesc='LOC("STOP_FLASH_SCREEN_DESC")')
+@ExecSplit(default=(None,))
+def StopFlashScreen() -> None:
+    GlobalSystem.stopFlash()
+
+
+@Meta(DisplayName='LOC("SCREEN_SHAKE")', DisplayDesc='LOC("SCREEN_SHAKE_DESC")')
+@ExecSplit(default=(None,))
+def ScreenShake(power: float, speed: float, duration: float) -> None:
+    GlobalSystem.startShake(float(power), float(speed), float(duration))
+
+
+@Meta(DisplayName='LOC("STOP_SCREEN_SHAKE")', DisplayDesc='LOC("STOP_SCREEN_SHAKE_DESC")')
+@ExecSplit(default=(None,))
+def StopScreenShake() -> None:
+    GlobalSystem.stopShake()
