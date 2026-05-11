@@ -105,6 +105,21 @@ class WindowMessage(WindowSelectable):
                 self._resolveSelection(0)
         return super().onKeyDown(kwargs)
 
+    def onClick(self, kwargs: Dict[str, Any]) -> None:
+        r"""\brief Advance a plain message dialogue on left mouse click.
+
+        - \param kwargs Event data with cursor position.
+        """
+        if not self.getVisible():
+            return super().onClick(kwargs)
+        if self._contentMode != ContentMode.MESSAGE:
+            return super().onClick(kwargs)
+        if self._fadePhase == FadePhase.OUT:
+            return super().onClick(kwargs)
+        if Input.isMouseButtonTriggered(Input.Mouse.Button.Left, handled=True):
+            self._resolveSelection(0)
+        return super().onClick(kwargs)
+
     def isInDialogue(self) -> bool:
         r"""\brief Check if the window is currently showing a dialogue.
 
