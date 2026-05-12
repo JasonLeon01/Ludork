@@ -151,6 +151,14 @@
         "zh_CN": "缺少以下文件或目录：{items}",
         "en_GB": "Missing files or folders: {items}"
     },
+    "PACK_IOS_SHADER_WARNING": {
+        "zh_CN": "警告：SFML3 在 iOS 仅支持 OpenGL ES 1，无法使用 Shader。\n请确保项目中已去除所有 Shader 相关代码后再进行打包，否则将无法运行。",
+        "en_GB": "Warning: SFML3 on iOS only supports OpenGL ES 1 and cannot use Shaders.\nPlease ensure all Shader-related code is removed before packaging, otherwise the app will not run."
+    },
+    "PACK_IOS_CANCELLED": {
+        "zh_CN": "iOS 打包已取消",
+        "en_GB": "iOS packaging cancelled"
+    },
     "EXIT": {
         "zh_CN": "退出",
         "en_GB": "Exit"

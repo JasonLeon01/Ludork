@@ -341,6 +341,17 @@ class PackWorker(QtCore.QThread):
             self.finished_signal.emit(False, ELOC("PACK_NUITKA_FAILED"))
 
     def _packIOS(self):
+        res = QtWidgets.QMessageBox.warning(
+            None,
+            ELOC("PACK_TITLE"),
+            ELOC("PACK_IOS_SHADER_WARNING"),
+            QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
+            QtWidgets.QMessageBox.Ok,
+        )
+        if res != QtWidgets.QMessageBox.Ok:
+            self.finished_signal.emit(False, ELOC("PACK_IOS_CANCELLED"))
+            return
+
         from Utils import File
 
         rootPath = File.getRootPath()

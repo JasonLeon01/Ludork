@@ -48,7 +48,7 @@ if exist "pysf" (
 )
 
 echo Downloading PySF...
-powershell -Command "Invoke-WebRequest -Uri 'https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF%PYSF_VERSION%/pysf-Windows-x64.zip' -OutFile 'pysf.zip'"
+powershell -Command "Invoke-WebRequest -Uri 'https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF%PYSF_VERSION%/pysf-Windows-x64-MSVC.zip' -OutFile 'pysf.zip'"
 if errorlevel 1 (
   echo Failed to download PySF.
   exit /b 1
@@ -64,7 +64,7 @@ if errorlevel 1 (
 del pysf.zip
 
 echo Downloading PySF lib...
-powershell -Command "Invoke-WebRequest -Uri 'https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF%PYSF_VERSION%/pysf-lib-Windows-x64.zip' -OutFile 'pysflib.zip'"
+powershell -Command "Invoke-WebRequest -Uri 'https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF%PYSF_VERSION%/pysf-lib-Windows-x64-MSVC.zip' -OutFile 'pysflib.zip'"
 if errorlevel 1 (
   echo Failed to download PySF lib.
   exit /b 1
@@ -124,5 +124,6 @@ if errorlevel 1 (
 :RUN_APP
 call build_C_Ext.bat
 
+call "%ENV_DIR%\Scripts\activate.bat"
 python main.py
 exit /b %errorlevel%

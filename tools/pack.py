@@ -136,6 +136,28 @@ def main():
             else:
                 print(f"[WARNING] ios_python directory not found at {src_ios_python}; iOS packaging from the editor will be unavailable.")
 
+            src_ios_template = ROOT / "iOSTemplate"
+            if src_ios_template.exists():
+                dst_ios_template = OUTDIR / "main.app" / "Contents" / "MacOS" / "iOSTemplate"
+                if dst_ios_template.exists():
+                    shutil.rmtree(dst_ios_template)
+                shutil.copytree(
+                    src_ios_template,
+                    dst_ios_template,
+                    ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
+                )
+                print(f"[INFO] Copied iOSTemplate to {dst_ios_template}")
+            else:
+                print(f"[WARNING] iOSTemplate directory not found at {src_ios_template}; iOS project generation will be unavailable.")
+
+            src_ios_script = ROOT / "generateiOSApp.sh"
+            if src_ios_script.exists():
+                dst_ios_script = OUTDIR / "main.app" / "Contents" / "MacOS" / "generateiOSApp.sh"
+                shutil.copy2(src_ios_script, dst_ios_script)
+                print(f"[INFO] Copied generateiOSApp.sh to {dst_ios_script}")
+            else:
+                print(f"[WARNING] generateiOSApp.sh not found; iOS project generation will be unavailable.")
+
     finally:
         print("[INFO] Cleaning up environment...")
 
