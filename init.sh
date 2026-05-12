@@ -59,6 +59,26 @@ if [ $? -ne 0 ]; then
 fi
 rm pysf.zip
 
+echo "Downloading PySF for iOS..."
+curl -L -o pysf_ios.zip "https://github.com/JasonLeon01/PySF-AutoGenerator/releases/download/PySF${PYSF_VERSION}/pysf-iOS-ARM64.zip"
+if [ $? -ne 0 ]; then
+  echo "Failed to download PySF for iOS."
+  exit 1
+fi
+
+echo "Extracting PySF for iOS..."
+mkdir -p "pysf_ios_tmp"
+unzip -q pysf_ios.zip -d "pysf_ios_tmp"
+if [ $? -ne 0 ]; then
+  echo "Failed to extract PySF for iOS."
+  rm -rf pysf_ios_tmp pysf_ios.zip
+  exit 1
+fi
+
+echo "Merging iOS PySF into pysf..."
+cp -R pysf_ios_tmp/*/pysf/* pysf/ 2>/dev/null || cp -R pysf_ios_tmp/pysf/* pysf/ 2>/dev/null || cp pysf_ios_tmp/* pysf/ 2>/dev/null
+rm -rf pysf_ios_tmp pysf_ios.zip
+
 if [ -d "ios_python" ]; then
   rm -rf "ios_python"
 fi
@@ -118,15 +138,7 @@ if [ ! -f "$ENV_DIR/bin/activate" ]; then
   fi
 fi
 
-if [ -d "C_Extensions" ]; then
-  cd C_Extensions
-  "$PY_CMD" build.py
-  if [ $? -ne 0 ]; then
-    cd ..
-    exit 1
-  fi
-  cd ..
-fi
+bash ./build_C_Ext.sh
 
 "$PY_CMD" main.py
 exit $?

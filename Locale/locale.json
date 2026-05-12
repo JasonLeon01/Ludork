@@ -61,7 +61,7 @@
     },
     "PACK_PROJECT": {
         "zh_CN": "打包项目",
-        "en_GB": "Package Project"
+        "en_GB": "Pack Project"
     },
     "PACK_MODE_TITLE": {
         "zh_CN": "选择编译平台",
@@ -139,9 +139,13 @@
         "zh_CN": "Nuitka 打包失败",
         "en_GB": "Nuitka packaging failed"
     },
-    "PACK_IOS_NOT_IMPLEMENTED": {
-        "zh_CN": "iOS 平台打包暂未实现",
-        "en_GB": "iOS packaging is not implemented yet"
+    "PACK_IOS_SCRIPT_MISSING": {
+        "zh_CN": "缺少 iOS 打包脚本 generateiOSApp.sh",
+        "en_GB": "iOS packaging script generateiOSApp.sh not found"
+    },
+    "PACK_IOS_FAILED": {
+        "zh_CN": "iOS 打包失败",
+        "en_GB": "iOS packaging failed"
     },
     "PACK_COPY_MISSING": {
         "zh_CN": "缺少以下文件或目录：{items}",

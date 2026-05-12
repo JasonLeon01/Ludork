@@ -12,6 +12,6 @@ echo "Cleaning up pysf..."
 rm -rf ./pysf
 echo "Cleaning up build..."
 rm -rf ./build
-echo "Cleaning up .pyi, .pyd, and .so files..."
-find . -type f \( -name "*.pyi" -o -name "*.pyd" -o -name "*.so" \) -exec rm -f {} +
+echo "Cleaning up .a, .pyd, and .so files..."
+find . -type f \( -name "*.a" -o -name "*.pyd" -o -name "*.so" \) -exec rm -f {} +
 echo "Cleanup completed"

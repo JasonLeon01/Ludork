@@ -74,8 +74,9 @@ class System:
         )
         handle: Optional[str] = os.environ.get("WINDOWHANDLE")
         individual: Optional[str] = os.environ.get("INDIVIDUAL")
+        contextSettings = ContextSettings(antiAliasingLevel=8, majorVersion=2, minorVersion=1)
         if handle and individual != "True":
-            window = RenderWindow(int(handle), settings=ContextSettings(antiAliasingLevel=8))
+            window = RenderWindow(int(handle), settings=contextSettings)
             windowSize = window.getSize()
             scale = min(windowSize.x / gameSize.x, windowSize.y / gameSize.y)
             GlobalSystem.setScale(scale)
@@ -88,7 +89,7 @@ class System:
                 cls._title,
                 Style.Titlebar | Style.Close,
                 State.Windowed,
-                settings=ContextSettings(antiAliasingLevel=8),
+                settings=contextSettings,
             )
         window.setIcon(cls._icon)
         if cls._cursor:

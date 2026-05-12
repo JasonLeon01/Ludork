@@ -6,8 +6,10 @@
 **/.DS_Store
 **/build/
 **/__MACOSX
+**/.cache/
 /.vscode/
 .claude/
+.deepseek/
 .cursor/
 .trae/
 .codebuddy/

@@ -136,7 +136,6 @@ class PackWorker(QtCore.QThread):
 
             if self.platform == PackPlatform.IOS:
                 self._packIOS()
-                self.finished_signal.emit(False, ELOC("PACK_IOS_NOT_IMPLEMENTED"))
                 return
 
             pythonExe = self._findPython3120()
@@ -307,7 +306,7 @@ class PackWorker(QtCore.QThread):
             if iconPath:
                 cmd.append(f"--macos-app-icon={iconPath}")
         else:
-            self.finished_signal.emit(False, ELOC("PACK_IOS_NOT_IMPLEMENTED"))
+            self.finished_signal.emit(False, ELOC("PACK_IOS_FAILED"))
             return
 
         cmd.append(entryPath)
@@ -342,4 +341,51 @@ class PackWorker(QtCore.QThread):
             self.finished_signal.emit(False, ELOC("PACK_NUITKA_FAILED"))
 
     def _packIOS(self):
-        pass
+        from Utils import File
+
+        rootPath = File.getRootPath()
+        scriptPath = os.path.join(rootPath, "generateiOSApp.sh")
+
+        if not os.path.exists(scriptPath):
+            self.log_signal.emit("generateiOSApp.sh not found\n")
+            self.finished_signal.emit(False, ELOC("PACK_IOS_SCRIPT_MISSING"))
+            return
+
+        projectName = os.path.basename(os.path.normpath(self.projPath))
+        scriptsDir = self.projPath
+        iosPythonDir = os.path.join(rootPath, "ios_python")
+        resourceDir = os.path.join(self.projPath, "Assets", "System")
+
+        # Game root = opened project (EditorStatus.PROJ_PATH); iOS output goes to <proj>/build/<name>/
+        cmd = ["bash", scriptPath, projectName, "-g", self.projPath, scriptsDir, iosPythonDir]
+        if os.path.isdir(resourceDir):
+            cmd.extend(["-r", resourceDir])
+
+        self.log_signal.emit(f"Running: {' '.join(cmd)}\n")
+
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            cwd=self.projPath,
+        )
+        stdout = cast(TextIO, process.stdout)
+        if stdout is None:
+            self.finished_signal.emit(False, ELOC("PACK_IOS_FAILED"))
+            return
+
+        while True:
+            line = stdout.readline()
+            if not line and process.poll() is not None:
+                break
+            if line:
+                self.log_signal.emit(line)
+
+        rc = process.poll()
+        if rc == 0:
+            self.finished_signal.emit(True, "")
+        else:
+            self.finished_signal.emit(False, ELOC("PACK_IOS_FAILED"))

@@ -1,9 +1,10 @@
 # -*- encoding: utf-8 -*-
+# pyright: reportAttributeAccessIssue=false
+
 from __future__ import annotations
 
 import re
 import os
-import sys
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Optional
@@ -16,6 +17,7 @@ _LLVM_PATHS = [
     "/usr/lib/llvm-18/lib",
     "/usr/lib/llvm-17/lib",
     "/usr/local/opt/llvm/lib",
+    "/opt/homebrew/opt/llvm/lib",
 ]
 for _path in _LLVM_PATHS:
     if os.path.isdir(_path):
@@ -181,11 +183,16 @@ def _parse_comment_block(raw_comment: str) -> Optional[BindAnnotation]:
     return annotation
 
 
-def _get_raw_comment(cursor: Cursor) -> str:
-    return cursor.raw_comment or ""
-
-
 _ANNOTATION_MACRO_LINE_RE = re.compile(r"^\s*BIND_(CLASS|FUNCTION|METHOD|PROPERTY|INIT|IGNORE)(?:\([^)]*\))?\s*;?\s*$")
+
+_MACRO_BIND_KIND = {
+    "BIND_CLASS": BindKind.CLASS,
+    "BIND_FUNCTION": BindKind.FUNCTION,
+    "BIND_METHOD": BindKind.METHOD,
+    "BIND_PROPERTY": BindKind.PROPERTY,
+    "BIND_INIT": BindKind.INIT,
+    "BIND_IGNORE": BindKind.IGNORE,
+}
 
 
 def _is_annotation_macro_line(line: str) -> bool:
@@ -296,7 +303,141 @@ def _parse_default_value(cursor: Cursor, source_lines: list[str]) -> Optional[st
     return None
 
 
+def _find_param_name_in_type(raw: str) -> int:
+    depth = 0
+    for i in range(len(raw) - 1, -1, -1):
+        ch = raw[i]
+        if ch in (")", ">", "}", "]"):
+            depth += 1
+        elif ch in ("(", "<", "{", "["):
+            depth -= 1
+        elif ch.isspace() and depth == 0:
+            return i + 1
+    return 0
+
+
+def _split_params_by_comma(text: str) -> list[str]:
+    parts = []
+    depth = 0
+    current = []
+    for ch in text:
+        if ch in ("<", "(", "{", "["):
+            depth += 1
+            current.append(ch)
+        elif ch in (">", ")", "}", "]"):
+            depth -= 1
+            current.append(ch)
+        elif ch == "," and depth == 0:
+            parts.append("".join(current).strip())
+            current = []
+        else:
+            current.append(ch)
+    remainder = "".join(current).strip()
+    if remainder:
+        parts.append(remainder)
+    return parts
+
+
+def _parse_params_from_source(cursor: Cursor, source_lines: list[str]) -> list[ParamInfo]:
+    extent = cursor.extent
+    if not extent:
+        return []
+
+    start_line = extent.start.line - 1
+    start_col = extent.start.column - 1
+    end_line = extent.end.line - 1
+    end_col = extent.end.column - 1
+
+    if start_line < 0 or start_line >= len(source_lines):
+        return []
+
+    if start_line == end_line:
+        text = source_lines[start_line][start_col:end_col]
+    else:
+        text = source_lines[start_line][start_col:]
+        for i in range(start_line + 1, end_line):
+            text += " " + source_lines[i]
+        text += source_lines[end_line][:end_col]
+
+    paren_start = text.find("(")
+    paren_end = text.rfind(")")
+    if paren_start < 0 or paren_end < 0 or paren_start >= paren_end:
+        return []
+
+    params_text = text[paren_start + 1 : paren_end].strip()
+    if not params_text:
+        return []
+
+    raw_params = _split_params_by_comma(params_text)
+    result = []
+    for idx, raw in enumerate(raw_params):
+        raw = raw.strip()
+        if not raw:
+            continue
+
+        default_val = None
+        eq_pos = raw.find("=")
+        if eq_pos >= 0:
+            default_val = raw[eq_pos + 1 :].strip()
+            raw = raw[:eq_pos].strip()
+
+        name_start = _find_param_name_in_type(raw)
+        if name_start < len(raw):
+            name = raw[name_start:].strip()
+            type_spelling = raw[:name_start].strip()
+            while name and name[0] in ("*", "&"):
+                type_spelling = (type_spelling + " " + name[0]).rstrip()
+                name = name[1:].strip()
+        else:
+            name = f"arg{idx}"
+            type_spelling = raw.strip()
+
+        result.append(
+            ParamInfo(
+                name=name,
+                type_spelling=type_spelling,
+                default_value=default_val,
+            )
+        )
+    return result
+
+
+def _get_param_type_spelling(cursor: Cursor, source_lines: list[str]) -> str:
+    if not cursor.extent:
+        return cursor.type.spelling
+
+    start_line = cursor.extent.start.line - 1
+    start_col = cursor.extent.start.column - 1
+    end_line = cursor.extent.end.line - 1
+    end_col = cursor.extent.end.column - 1
+
+    if start_line < 0 or start_line >= len(source_lines):
+        return cursor.type.spelling
+
+    if start_line == end_line:
+        text = source_lines[start_line][start_col:end_col]
+    else:
+        text = source_lines[start_line][start_col:]
+        for i in range(start_line + 1, end_line):
+            text += source_lines[i]
+        text += source_lines[end_line][:end_col]
+
+    eq_pos = text.find("=")
+    if eq_pos >= 0:
+        text = text[:eq_pos].rstrip()
+
+    name = cursor.spelling
+    if name and text.rstrip().endswith(name):
+        text = text[: text.rstrip().rfind(name)].rstrip()
+
+    return text.strip()
+
+
 def _parse_params(cursor: Cursor, source_lines: list[str]) -> list[ParamInfo]:
+    source_params = _parse_params_from_source(cursor, source_lines)
+    if source_params:
+        return source_params
+
     params = []
     for child in cursor.get_children():
         if child.kind == CursorKind.PARM_DECL:
@@ -304,7 +445,7 @@ def _parse_params(cursor: Cursor, source_lines: list[str]) -> list[ParamInfo]:
             params.append(
                 ParamInfo(
                     name=child.spelling or f"arg{len(params)}",
-                    type_spelling=child.type.spelling,
+                    type_spelling=_get_param_type_spelling(child, source_lines),
                     default_value=default_val,
                 )
             )
@@ -312,7 +453,7 @@ def _parse_params(cursor: Cursor, source_lines: list[str]) -> list[ParamInfo]:
 
 
 class HeaderParser:
-    def __init__(self, include_paths: list[str] = None, extra_args: list[str] = None):
+    def __init__(self, include_paths: Optional[list[str]] = None, extra_args: Optional[list[str]] = None):
         self.index = Index.create()
         self.include_paths = include_paths or []
         self.extra_args = extra_args or []
@@ -349,6 +490,8 @@ class HeaderParser:
                     result.includes.append(child.displayname)
 
     def _visit(self, cursor: Cursor, filepath: str, source_lines: list[str], result: ParsedHeader):
+        self._fallback_func_names: set[str] = set()
+        self._fallback_class_names: set[str] = set()
         for child in cursor.get_children():
             if child.location.file and os.path.normpath(child.location.file.name) != os.path.normpath(filepath):
                 continue
@@ -363,6 +506,114 @@ class HeaderParser:
                     result.functions.append(func_info)
             elif child.kind == CursorKind.NAMESPACE:
                 self._visit(child, filepath, source_lines, result)
+            elif child.kind == CursorKind.MACRO_INSTANTIATION:
+                self._handle_macro_instantiation(child, source_lines, result)
+
+    def _handle_macro_instantiation(self, cursor: Cursor, source_lines: list[str], result: ParsedHeader):
+        """Handle BIND_* macro instantiations when libclang couldn't parse the
+        associated declaration (e.g. complex template return types)."""
+        if not cursor.location or not cursor.location.file:
+            return
+        macro_name = cursor.spelling
+        if macro_name not in _MACRO_BIND_KIND:
+            return
+        kind = _MACRO_BIND_KIND[macro_name]
+        if kind == BindKind.IGNORE:
+            return
+
+        macro_line_idx = cursor.location.line - 1
+        if kind == BindKind.FUNCTION:
+            func_info = self._extract_function_from_source(source_lines, macro_line_idx, macro_name)
+            if func_info:
+                result.functions.append(func_info)
+                self._fallback_func_names.add(func_info.name)
+
+    def _extract_function_from_source(self, source_lines: list[str], macro_line_idx: int, macro_name: str):
+        """Extract function info from source lines when libclang couldn't parse."""
+        import re as _re
+
+        # Build annotation from comment block above macro + macro line itself
+        comment_lines = []
+        j = macro_line_idx - 1
+        while j >= 0:
+            stripped = source_lines[j].strip()
+            if not stripped:
+                break
+            if (stripped.startswith('//') or stripped.startswith('/*')
+                    or stripped.startswith('*') or '*/' in stripped):
+                comment_lines.insert(0, source_lines[j])
+                j -= 1
+            else:
+                break
+        comment_lines.append(source_lines[macro_line_idx])
+        comment_block = '\n'.join(comment_lines)
+        annotation = _parse_comment_block(comment_block)
+        if annotation is None or annotation.kind != BindKind.FUNCTION:
+            return None
+
+        # Scan forward for function declaration
+        i = macro_line_idx + 1
+        while i < len(source_lines) and not source_lines[i].strip():
+            i += 1
+        if i >= len(source_lines):
+            return None
+
+        decl_text = ""
+        paren_depth = 0
+        found_open = False
+        while i < len(source_lines):
+            line = source_lines[i]
+            comment_pos = line.find('//')
+            if comment_pos >= 0:
+                line = line[:comment_pos]
+            decl_text += line
+
+            for ch in line:
+                if ch == '(':
+                    paren_depth += 1
+                    found_open = True
+                elif ch == ')':
+                    paren_depth -= 1
+                    if paren_depth == 0 and found_open:
+                        break
+
+            if paren_depth == 0 and found_open:
+                break
+            i += 1
+
+        # Extract function name (last identifier before '(')
+        func_match = _re.search(r'\b([a-zA-Z_]\w*)\s*\(', decl_text)
+        if not func_match:
+            return None
+        func_name = func_match.group(1)
+
+        # Return type is everything before the function name
+        name_pos = decl_text.index(func_name)
+        return_type = decl_text[:name_pos].strip()
+
+        # Extract parameters
+        paren_start = decl_text.index('(')
+        paren_end = decl_text.rindex(')')
+        params_text = decl_text[paren_start + 1:paren_end]
+
+        param_infos = []
+        if params_text.strip():
+            for p in _split_params_by_comma(params_text):
+                p = p.strip()
+                if not p:
+                    continue
+                tokens = _re.findall(r'[a-zA-Z_]\w*', p)
+                if tokens:
+                    param_name = tokens[-1]
+                    param_type = p[:p.rfind(param_name)].strip()
+                    param_infos.append(ParamInfo(name=param_name, type_spelling=param_type))
+
+        return FunctionInfo(
+            name=func_name,
+            params=param_infos,
+            return_type=return_type,
+            annotation=annotation,
+        )
 
     def _parse_class(self, cursor: Cursor, source_lines: list[str]) -> Optional[ClassInfo]:
         if not cursor.is_definition():
@@ -455,6 +706,10 @@ class HeaderParser:
         annotation = _parse_comment_block(comment)
 
         if annotation is None or annotation.kind != BindKind.FUNCTION:
+            return None
+
+        # Skip if this function was already added via MACRO_INSTANTIATION fallback
+        if hasattr(self, '_fallback_func_names') and cursor.spelling in self._fallback_func_names:
             return None
 
         return FunctionInfo(

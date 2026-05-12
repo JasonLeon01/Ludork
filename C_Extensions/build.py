@@ -24,8 +24,8 @@ def loadConfig():
         return tomllib.load(f)
 
 
-def handleRemoveReadonly(func, path, excinfo):
-    if isinstance(excinfo[1], PermissionError):
+def handleRemoveReadonly(func, path, exc):
+    if isinstance(exc, PermissionError):
         os.chmod(path, stat.S_IWRITE)
         func(path)
     else:
@@ -34,10 +34,10 @@ def handleRemoveReadonly(func, path, excinfo):
 
 def cmakeBuild(clean=True):
     if clean and os.path.exists(BUILD_DIR):
-        shutil.rmtree(BUILD_DIR, onerror=handleRemoveReadonly)
+        shutil.rmtree(BUILD_DIR, onexc=handleRemoveReadonly)
     os.makedirs(BUILD_DIR, exist_ok=True)
     subprocess.run(
-        ["cmake", "..", "-DCMAKE_BUILD_TYPE=Release"],
+        ["cmake", "..", "-DCMAKE_BUILD_TYPE=Release", f"-DPython3_EXECUTABLE={sys.executable}"],
         cwd=BUILD_DIR,
         check=True,
     )
@@ -112,6 +112,7 @@ def runBindgen(only: str = None):
     """运行自动绑定生成器"""
     try:
         from bindgen.generate import main as bindgen_main
+
         print("[BUILD] Running bindgen...")
         sys.argv = ["bindgen"]
         if only:
@@ -127,6 +128,10 @@ def runBindgen(only: str = None):
 
 def detectIOSPython():
     candidates = [
+        (
+            os.path.join(IOS_PYTHON_DIR, "ios-arm64", "Headers"),
+            os.path.join(IOS_PYTHON_DIR, "ios-arm64", f"libPython{IOS_PYTHON_VERSION}.a"),
+        ),
         (
             os.path.join(IOS_PYTHON_DIR, "include", f"python{IOS_PYTHON_VERSION}"),
             os.path.join(IOS_PYTHON_DIR, "lib", f"libpython{IOS_PYTHON_VERSION}.a"),
@@ -153,6 +158,84 @@ def detectIOSPython():
     )
 
 
+def detectXcodeVersion(developer_dir):
+    try:
+        env = os.environ.copy()
+        if developer_dir:
+            env["DEVELOPER_DIR"] = developer_dir
+        result = subprocess.run(
+            ["xcodebuild", "-version"],
+            capture_output=True,
+            text=True,
+            check=True,
+            env=env,
+        )
+        return result.stdout.strip()
+    except Exception:
+        return "unknown"
+
+
+def detectDeveloperDir():
+    candidates = [
+        "/Applications/Xcode.app/Contents/Developer",
+    ]
+    try:
+        result = subprocess.run(
+            ["xcode-select", "-p"],
+            capture_output=True,
+            text=True,
+        )
+        default_dir = result.stdout.strip()
+        if default_dir and default_dir not in candidates:
+            candidates.append(default_dir)
+    except Exception:
+        pass
+    for dev_dir in candidates:
+        if os.path.isdir(os.path.join(dev_dir, "Platforms", "iPhoneOS.platform")):
+            return dev_dir
+    return None
+
+
+def detectIosSDKPath():
+    """通过 xcrun 获取 iOS SDK 路径，返回 (sdk_path, developer_dir) 或 (None, None)"""
+    developer_dir = detectDeveloperDir()
+    if not developer_dir:
+        return None, None
+
+    try:
+        env = os.environ.copy()
+        env["DEVELOPER_DIR"] = developer_dir
+        result = subprocess.run(
+            ["xcrun", "--sdk", "iphoneos", "--show-sdk-path"],
+            capture_output=True,
+            text=True,
+            check=True,
+            env=env,
+        )
+        sdk = result.stdout.strip()
+        if os.path.isdir(sdk):
+            return sdk, developer_dir
+    except Exception:
+        pass
+
+    try:
+        env = os.environ.copy()
+        result = subprocess.run(
+            ["xcrun", "--sdk", "iphoneos", "--show-sdk-path"],
+            capture_output=True,
+            text=True,
+            check=True,
+            env=env,
+        )
+        sdk = result.stdout.strip()
+        if os.path.isdir(sdk):
+            return sdk, None
+    except Exception:
+        pass
+
+    return None, None
+
+
 def detectHostPython():
     if sys.executable:
         return sys.executable
@@ -164,8 +247,31 @@ def detectHostPython():
 
 
 def cmakeBuildIOS(clean=True):
+    sdk_path, developer_dir = detectIosSDKPath()
+    if not sdk_path:
+        raise RuntimeError(
+            "iOS SDK not found. Install Xcode and run: " "sudo xcode-select --switch /Applications/Xcode.app"
+        )
+
+    xcode_ver = detectXcodeVersion(developer_dir)
+    print(f"[iOS] Xcode version: {xcode_ver}")
+    print(f"[iOS] developer dir: {developer_dir or 'not set (using xcode-select default)'}")
+
+    try:
+        result = subprocess.run(
+            ["cmake", "--version"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        cmake_ver = result.stdout.strip().split("\n")[0]
+        print(f"[iOS] cmake: {cmake_ver}")
+    except Exception:
+        print("[iOS] cmake: not found")
+        raise RuntimeError("cmake not found. Install cmake: brew install cmake")
+
     if clean and os.path.exists(BUILD_IOS_DIR):
-        shutil.rmtree(BUILD_IOS_DIR, onerror=handleRemoveReadonly)
+        shutil.rmtree(BUILD_IOS_DIR, onexc=handleRemoveReadonly)
     os.makedirs(BUILD_IOS_DIR, exist_ok=True)
 
     inc, lib = detectIOSPython()
@@ -173,13 +279,21 @@ def cmakeBuildIOS(clean=True):
     print(f"[iOS] host python: {host_py}")
     print(f"[iOS] python include: {inc}")
     print(f"[iOS] python library: {lib}")
+    print(f"[iOS] SDK path: {sdk_path}")
+
+    env = os.environ.copy()
+    if developer_dir:
+        env["DEVELOPER_DIR"] = developer_dir
 
     subprocess.run(
         [
-            "cmake", "..",
-            "-G", "Xcode",
+            "cmake",
+            "..",
+            "-G",
+            "Xcode",
             "-DLUDORK_IOS=ON",
             "-DCMAKE_SYSTEM_NAME=iOS",
+            f"-DCMAKE_OSX_SYSROOT={sdk_path}",
             f"-DCMAKE_OSX_DEPLOYMENT_TARGET={IOS_DEPLOY_TARGET}",
             f"-DCMAKE_OSX_ARCHITECTURES={IOS_ARCH}",
             f"-DPython3_EXECUTABLE={host_py}",
@@ -192,11 +306,13 @@ def cmakeBuildIOS(clean=True):
         ],
         cwd=BUILD_IOS_DIR,
         check=True,
+        env=env,
     )
     subprocess.run(
         ["cmake", "--build", ".", "--config", "Release"],
         cwd=BUILD_IOS_DIR,
         check=True,
+        env=env,
     )
 
 
@@ -209,17 +325,7 @@ def findIOSStaticLibs(name: str) -> list:
     return artifacts
 
 
-def collectIOSDependencyLibs() -> list:
-    libs = []
-    for dirpath, _dirnames, filenames in os.walk(BUILD_IOS_DIR):
-        for f in filenames:
-            if f.endswith(".a") and f.startswith("libsfml-"):
-                libs.append(os.path.join(dirpath, f))
-    return libs
-
-
 def distributeIOS(config: dict, only: str = None):
-    sfml_libs = collectIOSDependencyLibs()
     for _key, ext in config.items():
         name = ext["name"]
         if only and name != only:
@@ -237,10 +343,6 @@ def distributeIOS(config: dict, only: str = None):
 
         for art in artifacts:
             shutil.copy2(art, target_dir)
-
-        if ext.get("needs_pysf", False):
-            for sfml_lib in sfml_libs:
-                shutil.copy2(sfml_lib, target_dir)
 
         print(f"[OK] iOS {name} -> {target_dir}")
 
@@ -270,6 +372,26 @@ def main():
     if not args.skip_build:
         cmakeBuild(clean=args.clean)
     distribute(config, only=args.only)
+
+    # On macOS, also build iOS static libraries (.a) when ios_python is available
+    if sys.platform == "darwin" and not args.skip_build and not args.only:
+        if os.path.isdir(IOS_PYTHON_DIR) and os.path.isdir(os.path.join(PROJECT_ROOT, "pysf")):
+            pysf_has_a = any(
+                f.endswith(".a") and f.startswith("libsfml-")
+                for f in os.listdir(os.path.join(PROJECT_ROOT, "pysf"))
+                if os.path.isfile(os.path.join(PROJECT_ROOT, "pysf", f))
+            )
+            if pysf_has_a:
+                print("\n[iOS] Building static libraries (.a) for iOS...")
+                try:
+                    cmakeBuildIOS(clean=args.clean)
+                    distributeIOS(config, only=None)
+                except Exception as e:
+                    print(f"[WARN] iOS build failed: {e}")
+            else:
+                print("\n[iOS] Skipped — no SFML .a files in pysf/ (run init.sh to download)")
+        else:
+            print("\n[iOS] Skipped — ios_python or pysf not found (run init.sh first)")
 
 
 if __name__ == "__main__":

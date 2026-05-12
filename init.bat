@@ -122,15 +122,7 @@ if errorlevel 1 (
 )
 
 :RUN_APP
-if exist "C_Extensions" (
-  cd C_Extensions
-  python build.py
-  if errorlevel 1 (
-    cd ..
-    exit /b 1
-  )
-  cd ..
-)
+call build_C_Ext.bat
 
 python main.py
 exit /b %errorlevel%
