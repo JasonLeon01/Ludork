@@ -14,7 +14,7 @@ MIN_HEIGHT_EXTRA_PADDING = 2
 
 
 class ActorQueuePanel(QtWidgets.QWidget):
-    selectionChanged = QtCore.pyqtSignal(object)
+    SELECTION_CHANGED = QtCore.pyqtSignal(object)
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None, dockMode: str = "horizontal"):
         super().__init__(parent)
@@ -107,7 +107,7 @@ class ActorQueuePanel(QtWidgets.QWidget):
         self._itemMap.clear()
         self._list.clear()
         self._currentBpRel = None
-        self.selectionChanged.emit(None)
+        self.SELECTION_CHANGED.emit(None)
 
     def _displayName(self, bpRel: str) -> str:
         if not isinstance(bpRel, str):
@@ -210,7 +210,7 @@ class ActorQueuePanel(QtWidgets.QWidget):
         if b in self._itemMap:
             it = self._itemMap[b]
             self._list.setCurrentItem(it)
-            self.selectionChanged.emit(b)
+            self.SELECTION_CHANGED.emit(b)
 
     def _rebuildList(self) -> None:
         existingSel: Optional[str] = None
@@ -241,13 +241,13 @@ class ActorQueuePanel(QtWidgets.QWidget):
         if not val:
             self._currentBpRel = None
             self._list.clearSelection()
-            self.selectionChanged.emit(None)
+            self.SELECTION_CHANGED.emit(None)
             return
         if self._currentBpRel == val:
             self._currentBpRel = None
             self._list.clearSelection()
-            self.selectionChanged.emit(None)
+            self.SELECTION_CHANGED.emit(None)
             return
         self._currentBpRel = val
         self._list.setCurrentItem(item)
-        self.selectionChanged.emit(val)
+        self.SELECTION_CHANGED.emit(val)

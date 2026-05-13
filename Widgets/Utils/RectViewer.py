@@ -152,7 +152,7 @@ class RectViewer(QtWidgets.QDialog):
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.Window)
         self.setWindowTitle("Rect Viewer")
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
-        System.setStyle(self, "config.qss")
+        System.SetStyle(self, "config.qss")
         self.canvas = RectCanvas(self)
         self.canvas.setImageAndRect(imagePath, rectTuple)
         self.setMinimumHeight(File.mainWindow.height() // 2)

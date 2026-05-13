@@ -5,14 +5,14 @@ from Utils import Panel
 
 
 class ModeToggle(QtWidgets.QWidget):
-    selectionChanged = QtCore.pyqtSignal(int)
+    SELECTION_CHANGED = QtCore.pyqtSignal(int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._selected = 0
         self.setFixedSize(128, 32)
         self.setMouseTracking(True)
-        Panel.applyDisabledOpacity(self)
+        Panel.ApplyDisabledOpacity(self)
 
     def sizeHint(self):
         return QtCore.QSize(128, 32)
@@ -44,7 +44,7 @@ class ModeToggle(QtWidgets.QWidget):
         if idx != self._selected:
             self._selected = idx
             self.update()
-            self.selectionChanged.emit(idx)
+            self.SELECTION_CHANGED.emit(idx)
 
     def mouseMoveEvent(self, e):
         idx = 0 if e.x() < self.width() // 2 else 1
@@ -66,7 +66,7 @@ class ModeToggle(QtWidgets.QWidget):
 
     def changeEvent(self, e: QtCore.QEvent) -> None:
         if e.type() == QtCore.QEvent.EnabledChange:
-            Panel.applyDisabledOpacity(self)
+            Panel.ApplyDisabledOpacity(self)
         super().changeEvent(e)
 
     def _fgColor(self) -> QtGui.QColor:
@@ -134,14 +134,14 @@ class ModeToggle(QtWidgets.QWidget):
 
 
 class EditModeToggle(QtWidgets.QWidget):
-    selectionChanged = QtCore.pyqtSignal(int)
+    SELECTION_CHANGED = QtCore.pyqtSignal(int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._selected = 0
         self.setFixedSize(192, 32)
         self.setMouseTracking(True)
-        Panel.applyDisabledOpacity(self)
+        Panel.ApplyDisabledOpacity(self)
 
     def sizeHint(self):
         return QtCore.QSize(192, 32)
@@ -280,7 +280,7 @@ class EditModeToggle(QtWidgets.QWidget):
         if idx != self._selected:
             self._selected = idx
             self.update()
-            self.selectionChanged.emit(idx)
+            self.SELECTION_CHANGED.emit(idx)
 
     def mouseMoveEvent(self, e):
         idx = self._idxFromX(e.x())
@@ -312,5 +312,5 @@ class EditModeToggle(QtWidgets.QWidget):
 
     def changeEvent(self, e: QtCore.QEvent) -> None:
         if e.type() == QtCore.QEvent.EnabledChange:
-            Panel.applyDisabledOpacity(self)
+            Panel.ApplyDisabledOpacity(self)
         super().changeEvent(e)

@@ -124,6 +124,6 @@ if errorlevel 1 (
 :RUN_APP
 call build_C_Ext.bat
 
-call "%ENV_DIR%\Scripts\activate.bat"
+cd ..
 python main.py
 exit /b %errorlevel%

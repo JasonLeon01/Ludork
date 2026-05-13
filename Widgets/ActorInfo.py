@@ -237,7 +237,7 @@ class ActorInfoPanel(QtWidgets.QWidget):
 
         if self._editorPanel:
             self._editorPanel._refreshTitle()
-            self._editorPanel.dataChanged.emit()
+            self._editorPanel.DATA_CHANGED.emit()
             self._editorPanel._renderFromMapData()
             self._editorPanel.update()
 
@@ -250,7 +250,7 @@ class ActorInfoPanel(QtWidgets.QWidget):
         GameData.recordSnapshot()
         data["tag"] = text
         if self._editorPanel:
-            self._editorPanel.dataChanged.emit()
+            self._editorPanel.DATA_CHANGED.emit()
 
     def _onTranslationChanged(self):
         if self._blockSignals:

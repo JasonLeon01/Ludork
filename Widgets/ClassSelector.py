@@ -87,7 +87,7 @@ class ClassSelector(QtWidgets.QDialog):
 
     def _scanModule(self, modulePath, found_classes, is_package):
         try:
-            module = System.getModule(modulePath)
+            module = System.GetModule(modulePath)
             for name, obj in inspect.getmembers(module, inspect.isclass):
                 if name.startswith("_"):
                     continue

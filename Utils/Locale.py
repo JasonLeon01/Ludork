@@ -10,7 +10,7 @@ class _Locale:
     dataDict: Dict[str, Dict[str, str]] = {}
 
 
-def init(localePath: str) -> None:
+def Init(localePath: str) -> None:
     from . import File
 
     if os.path.exists(localePath):
@@ -18,22 +18,22 @@ def init(localePath: str) -> None:
             if os.path.splitext(file)[1]:
                 continue
             filePath = os.path.join(localePath, file)
-            _Locale.dataDict[file] = File.loadData(filePath)
+            _Locale.dataDict[file] = File.LoadData(filePath)
 
 
-def getLocaleKeys() -> List[str]:
+def GetLocaleKeys() -> List[str]:
     return list(_Locale.dataDict.keys())
 
 
-def getLocaleContent(localeKey: str, key: str) -> str:
+def GetLocaleContent(localeKey: str, key: str) -> str:
     return _Locale.dataDict.get(localeKey, {}).get(key, key)
 
 
-def getContent(key: str) -> str:
+def GetContent(key: str) -> str:
     if EditorStatus.LANGUAGE in _Locale.dataDict:
-        return getLocaleContent(EditorStatus.LANGUAGE, key)
-    return getLocaleContent("en_GB", key)
+        return GetLocaleContent(EditorStatus.LANGUAGE, key)
+    return GetLocaleContent("en_GB", key)
 
 
-builtins.ELOC = getContent
-builtins.ELOC_L = getLocaleContent
+builtins.ELOC = GetContent
+builtins.ELOC_L = GetLocaleContent

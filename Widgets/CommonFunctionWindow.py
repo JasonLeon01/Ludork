@@ -12,7 +12,7 @@ from EditorGlobal import GameData
 
 class CommonFunctionWindow(QtWidgets.QMainWindow):
     _clipboard = None
-    modified = QtCore.pyqtSignal()
+    MODIFIED = QtCore.pyqtSignal()
 
     def __init__(self, parent, data: Dict):
         super().__init__(parent)
@@ -133,7 +133,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
         items = self._list.findItems(new_name, QtCore.Qt.MatchExactly)
         if items:
             self._list.setCurrentItem(items[0])
-        self.modified.emit()
+        self.MODIFIED.emit()
 
     def _onPaste(self):
         if CommonFunctionWindow._clipboard is None:
@@ -157,7 +157,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
         items = self._list.findItems(new_name, QtCore.Qt.MatchExactly)
         if items:
             self._list.setCurrentItem(items[0])
-        self.modified.emit()
+        self.MODIFIED.emit()
 
     def _onDeleteCommonFunction(self, item=None):
         if item is None:
@@ -182,7 +182,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
 
         self._refreshListFromData()
         self._refreshCurrentPanel()
-        self.modified.emit()
+        self.MODIFIED.emit()
 
     def _onNewCommonFunction(self):
         name, ok = QtWidgets.QInputDialog.getText(self, ELOC("NEW_COMMON_FUNC"), ELOC("ENTER_FUNC_NAME"))
@@ -202,7 +202,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
         items = self._list.findItems(name, QtCore.Qt.MatchExactly)
         if items:
             self._list.setCurrentItem(items[0])
-        self.modified.emit()
+        self.MODIFIED.emit()
 
     def _onSelect(self, name: str) -> None:
         if not name:
@@ -211,7 +211,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
         if panel is None:
             graph = GameData.genGraphFromData(self._data.get(name))
             panel = NodePanel(self, graph, self._key, name, self._refreshData)
-            panel.modified.connect(self.modified)
+            panel.MODIFIED.connect(self.MODIFIED.emit)
             self._panels[name] = panel
             self._stack.addWidget(panel)
         self._stack.setCurrentWidget(panel)
@@ -225,7 +225,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
         old_panel = self._panels.get(name)
         graph = GameData.genGraphFromData(self._data.get(name))
         panel = NodePanel(self, graph, self._key, name, self._refreshData)
-        panel.modified.connect(self.modified)
+        panel.MODIFIED.connect(self.MODIFIED.emit)
         self._panels[name] = panel
         self._stack.addWidget(panel)
         self._stack.setCurrentWidget(panel)
@@ -263,7 +263,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
         diffs = GameData.undo()
         self._refreshListFromData()
         self._refreshCurrentPanel()
-        File.mainWindow.setWindowTitle(System.getTitle())
+        File.mainWindow.setWindowTitle(System.GetTitle())
         if diffs:
             self.toast.showMessage("Undo:\n" + "\n".join(diffs))
 
@@ -271,7 +271,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
         diffs = GameData.redo()
         self._refreshListFromData()
         self._refreshCurrentPanel()
-        File.mainWindow.setWindowTitle(System.getTitle())
+        File.mainWindow.setWindowTitle(System.GetTitle())
         if diffs:
             self.toast.showMessage("Redo:\n" + "\n".join(diffs))
 

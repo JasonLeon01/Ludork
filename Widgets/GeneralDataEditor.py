@@ -10,7 +10,7 @@ from .Utils import FileSelectorDialog
 
 
 class ListEditorWidget(QtWidgets.QWidget):
-    dataChanged = QtCore.pyqtSignal(list)
+    DATA_CHANGED = QtCore.pyqtSignal(list)
 
     def __init__(self, data: list, parent=None):
         super().__init__(parent)
@@ -48,22 +48,22 @@ class ListEditorWidget(QtWidgets.QWidget):
     def _onItemChanged(self, index, text):
         if 0 <= index < len(self.dataList):
             self.dataList[index] = text
-            self.dataChanged.emit(self.dataList)
+            self.DATA_CHANGED.emit(self.dataList)
 
     def _onItemRemoved(self, index):
         if 0 <= index < len(self.dataList):
             self.dataList.pop(index)
             self._setupUI()
-            self.dataChanged.emit(self.dataList)
+            self.DATA_CHANGED.emit(self.dataList)
 
     def _onItemAdded(self):
         self.dataList.append("")
         self._setupUI()
-        self.dataChanged.emit(self.dataList)
+        self.DATA_CHANGED.emit(self.dataList)
 
 
 class TupleEditorWidget(QtWidgets.QWidget):
-    dataChanged = QtCore.pyqtSignal(list)
+    DATA_CHANGED = QtCore.pyqtSignal(list)
 
     def __init__(self, data: list, size: int, parent=None):
         super().__init__(parent)
@@ -100,12 +100,12 @@ class TupleEditorWidget(QtWidgets.QWidget):
     def _onItemChanged(self, index, text):
         if 0 <= index < len(self.dataList):
             self.dataList[index] = text
-            self.dataChanged.emit(self.dataList)
+            self.DATA_CHANGED.emit(self.dataList)
 
 
 class GeneralDataPage(QtWidgets.QWidget):
-    modified = QtCore.pyqtSignal()
-    requestBlueprintEdit = QtCore.pyqtSignal(str, str, list)
+    MODIFIED = QtCore.pyqtSignal()
+    REQUEST_BLUEPRINT_EDIT = QtCore.pyqtSignal(str, str, list)
 
     def __init__(self, fileKey: str, parent: Optional[QtWidgets.QWidget] = None):
         super().__init__(parent)
@@ -228,7 +228,7 @@ class GeneralDataPage(QtWidgets.QWidget):
             return
         events = self._getLinkedEvents()
         if events:
-            self.requestBlueprintEdit.emit(self.fileKey, self._currentMemberKey, events)
+            self.REQUEST_BLUEPRINT_EDIT.emit(self.fileKey, self._currentMemberKey, events)
 
     def _populateMembers(self):
         self.memberList.blockSignals(True)
@@ -338,7 +338,7 @@ class GeneralDataPage(QtWidgets.QWidget):
                 if key in memberData:
                     del memberData[key]
 
-            self.modified.emit()
+            self.MODIFIED.emit()
 
             self._buildPropertyForm()
 
@@ -433,7 +433,7 @@ class GeneralDataPage(QtWidgets.QWidget):
         for mKey, mData in members.items():
             mData[name] = defaultVal
 
-        self.modified.emit()
+        self.MODIFIED.emit()
         self._buildPropertyForm()
 
     def _createWidget(self, key: str, paramType: str, value: Any) -> QtWidgets.QWidget:
@@ -470,7 +470,7 @@ class GeneralDataPage(QtWidgets.QWidget):
             return container
         elif paramType == "list":
             w = ListEditorWidget(value if isinstance(value, list) else [])
-            w.dataChanged.connect(lambda v, k=key: self._onValueChanged(k, v))
+            w.DATA_CHANGED.connect(lambda v, k=key: self._onValueChanged(k, v))
             return w
         elif paramType.startswith("tuple"):
             match = re.match(r"tuple\[(\d+)\]", paramType)
@@ -478,7 +478,7 @@ class GeneralDataPage(QtWidgets.QWidget):
                 size = int(match.group(1))
                 val = value if isinstance(value, (list, tuple)) else []
                 w = TupleEditorWidget(list(val), size)
-                w.dataChanged.connect(lambda v, k=key: self._onValueChanged(k, v))
+                w.DATA_CHANGED.connect(lambda v, k=key: self._onValueChanged(k, v))
                 return w
             else:
                 return QtWidgets.QLabel("Invalid Tuple Type")
@@ -496,7 +496,7 @@ class GeneralDataPage(QtWidgets.QWidget):
             members = fileData.get("members", {})
             if self._currentMemberKey in members:
                 members[self._currentMemberKey][key] = value
-                self.modified.emit()
+                self.MODIFIED.emit()
 
     def _onFileBrowse(self, key: str, lineEdit: QtWidgets.QLineEdit):
         startDir = os.path.join(EditorStatus.PROJ_PATH, "Assets")
@@ -560,7 +560,7 @@ class GeneralDataPage(QtWidgets.QWidget):
 
                 self._buildPropertyForm()
 
-                self.modified.emit()
+                self.MODIFIED.emit()
 
     def _onAddMember(self):
         if not self.fileKey:
@@ -582,7 +582,7 @@ class GeneralDataPage(QtWidgets.QWidget):
             members[text] = newMember
             self.memberList.addItem(text)
             self.memberList.setCurrentRow(self.memberList.count() - 1)
-            self.modified.emit()
+            self.MODIFIED.emit()
 
     def _onRemoveMember(self):
         row = self.memberList.currentRow()
@@ -599,14 +599,14 @@ class GeneralDataPage(QtWidgets.QWidget):
             members = fileData.get("members", {})
             if key in members:
                 del members[key]
-                self.modified.emit()
+                self.MODIFIED.emit()
 
         if self.memberList.count() == 0:
             self._clearPropertyForm()
 
 
 class GeneralDataEditor(QtWidgets.QMainWindow):
-    modified = QtCore.pyqtSignal()
+    MODIFIED = QtCore.pyqtSignal()
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None):
         super().__init__(parent)
@@ -747,7 +747,7 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
                 self.tabWidget.setCurrentIndex(i)
                 break
 
-        self.modified.emit()
+        self.MODIFIED.emit()
 
     def _onSetLinkedType(self, index: int):
         key = self.tabWidget.tabText(index)
@@ -790,7 +790,7 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
 
         self._populateFiles()
         self.tabWidget.setCurrentIndex(index)
-        self.modified.emit()
+        self.MODIFIED.emit()
 
     def _onRenameDataType(self, index: int):
         oldKey = self.tabWidget.tabText(index)
@@ -817,7 +817,7 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
                     self.tabWidget.setCurrentIndex(i)
                     break
 
-            self.modified.emit()
+            self.MODIFIED.emit()
 
     def _onRemoveDataType(self, index: int):
         key = self.tabWidget.tabText(index)
@@ -835,7 +835,7 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
                 del data[key]
 
             self.tabWidget.removeTab(index)
-            self.modified.emit()
+            self.MODIFIED.emit()
 
     def _onBlueprintEditRequest(self, fileKey: str, memberKey: str, events: list):
         import copy
@@ -871,9 +871,9 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
 
         def _onInfoBlueprintModified():
             memberData["_graph"] = copy.deepcopy(editor.data.get("graph", {}))
-            self.modified.emit()
+            self.MODIFIED.emit()
 
-        editor.modified.connect(_onInfoBlueprintModified)
+        editor.MODIFIED.connect(_onInfoBlueprintModified)
         editor.show()
         editor.raise_()
 
@@ -883,6 +883,6 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
 
         for key in sorted(data.keys()):
             page = GeneralDataPage(key, self)
-            page.modified.connect(self.modified.emit)
-            page.requestBlueprintEdit.connect(self._onBlueprintEditRequest)
+            page.MODIFIED.connect(self.MODIFIED.emit)
+            page.REQUEST_BLUEPRINT_EDIT.connect(self._onBlueprintEditRequest)
             self.tabWidget.addTab(page, key)

@@ -25,7 +25,7 @@ from ..Data import GameData
 class DatabaseMenuMixin:
     def _onDatabaseSystemConfig(self, checked: bool = False) -> None:
         self._configWindow = ConfigWindow(self)
-        self._configWindow.modified.connect(lambda: (self.refreshGameSize(), self._refreshInfo()))
+        self._configWindow.MODIFIED.connect(lambda: (self.refreshGameSize(), self._refreshInfo()))
         self._configWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._configWindow.setWindowModality(QtCore.Qt.ApplicationModal)
         self._configWindow.activateWindow()
@@ -34,14 +34,14 @@ class DatabaseMenuMixin:
 
     def _onDatabaseTilesetsData(self, checked: bool = False) -> None:
         self._tilesetEditor = TilesetEditor(self)
-        self._tilesetEditor.modified.connect(lambda: self._refreshInfo())
+        self._tilesetEditor.MODIFIED.connect(lambda: self._refreshInfo())
         self._tilesetEditor.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._tilesetEditor.setWindowModality(QtCore.Qt.ApplicationModal)
         self._tilesetEditor.show()
 
     def _onDatabaseCommonFunctions(self, checked: bool = False) -> None:
         self._commonFunctionWindow = CommonFunctionWindow(self, GameData.commonFunctionsData)
-        self._commonFunctionWindow.modified.connect(lambda: self._refreshInfo())
+        self._commonFunctionWindow.MODIFIED.connect(lambda: self._refreshInfo())
         self._commonFunctionWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._commonFunctionWindow.setWindowModality(QtCore.Qt.ApplicationModal)
         self._commonFunctionWindow.activateWindow()
@@ -69,7 +69,7 @@ class DatabaseMenuMixin:
 
     def _onGeneralDataEditor(self, checked: bool = False) -> None:
         self.generalDataEditor = GeneralDataEditor(self)
-        self.generalDataEditor.modified.connect(self._refreshInfo)
+        self.generalDataEditor.MODIFIED.connect(self._refreshInfo)
         self.generalDataEditor.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self.generalDataEditor.show()
         self.generalDataEditor.raise_()
@@ -77,7 +77,7 @@ class DatabaseMenuMixin:
 
     def _onDatabaseShowBlueprint(self, title: str, data: Dict[str, Any]) -> None:
         self._blueprintEditor = BluePrintEditor(title, data, self)
-        self._blueprintEditor.modified.connect(self._onBlueprintModified)
+        self._blueprintEditor.MODIFIED.connect(self._onBlueprintModified)
         self._blueprintEditor.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._blueprintEditor.setWindowModality(QtCore.Qt.ApplicationModal)
         self._blueprintEditor.activateWindow()
@@ -86,7 +86,7 @@ class DatabaseMenuMixin:
 
     def _onDataBaseShowAnimationWindow(self, title: str, data: Dict[str, Any]) -> None:
         self._animationWindow = AnimationWindow(self, title, data)
-        self._animationWindow.modified.connect(self._onAnimationModified)
+        self._animationWindow.MODIFIED.connect(self._onAnimationModified)
         self._animationWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._animationWindow.setWindowModality(QtCore.Qt.ApplicationModal)
         self._animationWindow.activateWindow()
@@ -103,7 +103,7 @@ class DatabaseMenuMixin:
 
     def _onGameSettings(self, checked: bool = False) -> None:
         self._settingsWindow = SettingsWindow(self, self._projConfig)
-        self._settingsWindow.modified.connect(lambda: self._refreshInfo())
+        self._settingsWindow.MODIFIED.connect(lambda: self._refreshInfo())
         self._settingsWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._settingsWindow.setWindowModality(QtCore.Qt.ApplicationModal)
         self._settingsWindow.activateWindow()
@@ -152,7 +152,7 @@ class DatabaseMenuMixin:
         dlg = QtWidgets.QFileDialog(self, ELOC("SELECT_BLUEPRINT_PATH"), blueprintsRoot, "JSON (*.json);;DAT (*.dat)")
         dlg.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
         dlg.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
-        System.setStyle(dlg, "fileSelector.qss")
+        System.SetStyle(dlg, "fileSelector.qss")
         dlg.setDirectory(blueprintsRoot)
         if dlg.exec_() != QtWidgets.QDialog.Accepted:
             return
@@ -242,7 +242,7 @@ class DatabaseMenuMixin:
         dlg = QtWidgets.QFileDialog(self, ELOC("SELECT_ANIMATION_PATH"), animationsRoot, "JSON (*.json);;DAT (*.dat)")
         dlg.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
         dlg.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
-        System.setStyle(dlg, "fileSelector.qss")
+        System.SetStyle(dlg, "fileSelector.qss")
         dlg.setDirectory(animationsRoot)
         if dlg.exec_() != QtWidgets.QDialog.Accepted:
             return
@@ -277,9 +277,9 @@ class DatabaseMenuMixin:
 
     def _onReloadModule(self, checked: bool = False) -> None:
         try:
-            System.reloadModule("Engine")
-            System.reloadModule("Global")
-            System.reloadModule("Source")
+            System.ReloadModule("Engine")
+            System.ReloadModule("Global")
+            System.ReloadModule("Source")
             QtWidgets.QMessageBox.information(self, ELOC("SUCCESS"), ELOC("HINT_RELOAD_MODULE_SUCCESS"))
         except Exception as e:
             QtWidgets.QMessageBox.warning(

@@ -11,6 +11,18 @@ QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus, QSpinBox:focus, QDoubleS
     border: 1px solid #4a90e2;
 }
 
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 20px;
+    border-left: 1px solid #606060;
+}
+
+QComboBox::down-arrow {
+    width: 10px;
+    height: 10px;
+}
+
 QComboBox QAbstractItemView {
     background-color: #454545;
     color: white;

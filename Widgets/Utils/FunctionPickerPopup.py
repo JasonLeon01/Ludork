@@ -8,7 +8,7 @@ import sys
 
 
 class FunctionPickerPopup(QtWidgets.QDialog):
-    functionSelected = QtCore.pyqtSignal(str, bool)
+    FUNCTION_SELECTED = QtCore.pyqtSignal(str, bool)
 
     def __init__(self, parent: QtWidgets.QWidget, sources: Dict[str, object], filterExecOnly: bool = False) -> None:
         super().__init__(parent)
@@ -208,7 +208,7 @@ class FunctionPickerPopup(QtWidgets.QDialog):
         path = item.data(0, QtCore.Qt.UserRole)
         if isinstance(path, str) and path.strip():
             is_parent = bool(item.data(0, QtCore.Qt.UserRole + 2))
-            self.functionSelected.emit(path, is_parent)
+            self.FUNCTION_SELECTED.emit(path, is_parent)
             self.close()
 
     def _buildSearchCache(self) -> None:

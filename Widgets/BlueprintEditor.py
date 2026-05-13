@@ -11,7 +11,7 @@ from Widgets.Utils import SingleRowDialog, NodePanel, Toast, RectViewer, Datacla
 
 
 class BluePrintEditor(QtWidgets.QWidget):
-    modified = QtCore.pyqtSignal()
+    MODIFIED = QtCore.pyqtSignal()
 
     def __init__(self, title: str, data: Dict[str, Any], parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
@@ -20,7 +20,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.setMaximumHeight(600)
         self.resize(1080, 600)
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
-        System.setStyle(self, "blueprintEditor.qss")
+        System.SetStyle(self, "blueprintEditor.qss")
         self.title = title
         self.data = copy.deepcopy(data)
         self.graphs: Dict[str, Any] = {}
@@ -242,7 +242,7 @@ class BluePrintEditor(QtWidgets.QWidget):
 
                 if changed:
                     GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
-                    self.modified.emit()
+                    self.MODIFIED.emit()
 
         parent_val = self.data.get("parent", "")
         label = QtWidgets.QLabel(ELOC("PARENT"))
@@ -276,7 +276,7 @@ class BluePrintEditor(QtWidgets.QWidget):
 
             if type_hint and dataclasses.is_dataclass(type_hint):
                 widget = DataclassWidget(type_hint, value)
-                widget.valueChanged.connect(lambda val, k=key: self.onDataChanged(k, val, True))
+                widget.VALUE_CHANGED.connect(lambda val, k=key: self.onDataChanged(k, val, True))
                 is_dc = True
             else:
                 parent_val = None
@@ -523,7 +523,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             self.data[key] = value
         GameData.recordSnapshot()
         GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
-        self.modified.emit()
+        self.MODIFIED.emit()
 
     def onDeleteAttr(self, key: str) -> None:
         if "attrs" in self.data and isinstance(self.data["attrs"], dict):
@@ -532,7 +532,7 @@ class BluePrintEditor(QtWidgets.QWidget):
                 del self.data["attrs"][key]
                 self.refreshAttrs()
                 GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
-                self.modified.emit()
+                self.MODIFIED.emit()
 
     def onAddAttr(self) -> None:
         dlg = SingleRowDialog(self, ELOC("ADD_ATTR"), ELOC("ATTR_NAME"), "", None)
@@ -560,7 +560,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             self.data["attrs"][key] = ""
             self.refreshAttrs()
             GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
-            self.modified.emit()
+            self.MODIFIED.emit()
 
     def onSelectPath(self, key: str, widget: QtWidgets.QLineEdit) -> None:
         baseDir = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Characters")
@@ -641,7 +641,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         diffs = GameData.undo()
         self._refreshListFromData()
         self._refreshCurrentPanel()
-        File.mainWindow.setWindowTitle(System.getTitle())
+        File.mainWindow.setWindowTitle(System.GetTitle())
         if diffs:
             self.toast.showMessage("Undo:\n" + "\n".join(diffs))
 
@@ -649,7 +649,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         diffs = GameData.redo()
         self._refreshListFromData()
         self._refreshCurrentPanel()
-        File.mainWindow.setWindowTitle(System.getTitle())
+        File.mainWindow.setWindowTitle(System.GetTitle())
         if diffs:
             self.toast.showMessage("Redo:\n" + "\n".join(diffs))
 
@@ -658,7 +658,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         if name in GameData.blueprintsData:
             GameData.blueprintsData[name]["graph"] = data
         self.data["graph"] = data
-        self.modified.emit()
+        self.MODIFIED.emit()
 
     def onGraphListContextMenu(self, pos: QtCore.QPoint) -> None:
         index = self.nodeGraphList.indexAt(pos)
@@ -716,7 +716,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         items = self.nodeGraphList.findItems(name, QtCore.Qt.MatchExactly)
         if items:
             self.nodeGraphList.setCurrentItem(items[0])
-        self.modified.emit()
+        self.MODIFIED.emit()
 
     def _onDeleteEvent(self) -> None:
         item = self.nodeGraphList.currentItem()
@@ -749,7 +749,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.refreshGraphList()
         if self.nodeGraphList.count() > 0:
             self.nodeGraphList.setCurrentRow(0)
-        self.modified.emit()
+        self.MODIFIED.emit()
 
     def _onRenameEvent(self) -> None:
         item = self.nodeGraphList.currentItem()
@@ -800,4 +800,4 @@ class BluePrintEditor(QtWidgets.QWidget):
         items = self.nodeGraphList.findItems(new_name, QtCore.Qt.MatchExactly)
         if items:
             self.nodeGraphList.setCurrentItem(items[0])
-        self.modified.emit()
+        self.MODIFIED.emit()

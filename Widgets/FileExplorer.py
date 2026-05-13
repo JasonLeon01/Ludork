@@ -9,8 +9,8 @@ from .FilePreview import FilePreview
 
 
 class FileExplorer(QtWidgets.QWidget):
-    pathChanged = QtCore.pyqtSignal(str)
-    fileClicked = QtCore.pyqtSignal(str)
+    PATH_CHANGED = QtCore.pyqtSignal(str)
+    FILE_CLICKED = QtCore.pyqtSignal(str)
 
     def __init__(self, root_path: str, parent: Optional[QtWidgets.QWidget] = None):
         super().__init__(parent)
@@ -122,18 +122,18 @@ class FileExplorer(QtWidgets.QWidget):
         layout.addWidget(topBar, 0)
         layout.addWidget(self._view, 1)
         self.setMinimumHeight(160)
-        Panel.applyDisabledOpacity(self)
+        Panel.ApplyDisabledOpacity(self)
 
     def setInteractive(self, enabled: bool) -> None:
         self._interactive = bool(enabled)
         fp = QtCore.Qt.StrongFocus if self._interactive else QtCore.Qt.NoFocus
         self._view.setFocusPolicy(fp)
         self._upButton.setEnabled(self._interactive)
-        Panel.applyDisabledOpacity(self._upButton)
+        Panel.ApplyDisabledOpacity(self._upButton)
 
     def changeEvent(self, e: QtCore.QEvent) -> None:
         if e.type() == QtCore.QEvent.EnabledChange:
-            Panel.applyDisabledOpacity(self)
+            Panel.ApplyDisabledOpacity(self)
         super().changeEvent(e)
 
     def _refresh(self) -> None:
@@ -153,7 +153,7 @@ class FileExplorer(QtWidgets.QWidget):
         self._current = os.path.abspath(path)
         self._pathEdit.setText(self._current)
         self._view.setRootIndex(self._proxy.mapFromSource(self._model.index(self._current)))
-        self.pathChanged.emit(self._current)
+        self.PATH_CHANGED.emit(self._current)
 
     def setCurrentPath(self, path: str) -> None:
         self._setCurrentPath(path)
@@ -172,10 +172,10 @@ class FileExplorer(QtWidgets.QWidget):
                 return
             ext = os.path.splitext(path)[1].lower()
             if ext == ".dat":
-                self._handleDataFile(path, File.loadData)
+                self._handleDataFile(path, File.LoadData)
             else:
                 if ext == ".json":
-                    if self._handleDataFile(path, File.getJSONData):
+                    if self._handleDataFile(path, File.GetJSONData):
                         return
                 self._openSystemFile(path)
 
@@ -188,7 +188,7 @@ class FileExplorer(QtWidgets.QWidget):
         try:
             path = self._model.filePath(src)
             if path and not self._model.isDir(src):
-                self.fileClicked.emit(path)
+                self.FILE_CLICKED.emit(path)
         except Exception as e:
             print(f"Error while handling file click: {e}")
 

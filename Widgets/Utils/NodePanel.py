@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 class CustomViewer(NodeViewer):
-    liveConnectionPrompt = QtCore.pyqtSignal(object, QtCore.QPointF)
+    LIVE_CONNECTION_PROMPT = QtCore.pyqtSignal(object, QtCore.QPointF)
 
     def applyLiveConnection(self, event):
         pos_items = self.scene().items(event.scenePos())
@@ -33,7 +33,7 @@ class CustomViewer(NodeViewer):
             and self._detached_port is None
             and self._start_port is not None
         ):
-            self.liveConnectionPrompt.emit(self._start_port, event.scenePos())
+            self.LIVE_CONNECTION_PROMPT.emit(self._start_port, event.scenePos())
             return
         return super(CustomViewer, self).applyLiveConnection(event)
 
@@ -65,7 +65,7 @@ _RESERVED_NODE_PROPERTIES = {
 }
 
 
-def makeSafeNodePropertyName(name: str, usedNames: set) -> str:
+def MakeSafeNodePropertyName(name: str, usedNames: set) -> str:
     base = name
     if base in _RESERVED_NODE_PROPERTIES:
         if base:
@@ -84,7 +84,7 @@ def makeSafeNodePropertyName(name: str, usedNames: set) -> str:
 
 
 class NodePlainTextEdit(QtWidgets.QPlainTextEdit):
-    editingFinished = QtCore.pyqtSignal()
+    EDITING_FINISHED = QtCore.pyqtSignal()
 
     def __init__(self, parent: QtWidgets.QWidget = None):
         super(NodePlainTextEdit, self).__init__(parent)
@@ -95,13 +95,13 @@ class NodePlainTextEdit(QtWidgets.QPlainTextEdit):
 
     def focusOutEvent(self, event: QtGui.QFocusEvent):
         super(NodePlainTextEdit, self).focusOutEvent(event)
-        self.editingFinished.emit()
+        self.EDITING_FINISHED.emit()
 
     def keyPressEvent(self, event: QtGui.QKeyEvent):
         if event.key() in (QtCore.Qt.Key_Return, QtCore.Qt.Key_Enter) and (
             event.modifiers() & QtCore.Qt.ControlModifier
         ):
-            self.editingFinished.emit()
+            self.EDITING_FINISHED.emit()
             event.accept()
             return
         super(NodePlainTextEdit, self).keyPressEvent(event)
@@ -128,7 +128,7 @@ class NodeMultiLineTextWidget(NodeBaseWidget):
         editor.blockSignals(wasBlocked)
 
 
-def makeInit(currNode):
+def MakeInit(currNode):
     def subClassInit(self):
         super(self.__class__, self).__init__()
         self._port_types = {}
@@ -164,7 +164,7 @@ def makeInit(currNode):
         for i, name in enumerate(keys):
             if name in paramDefaults:
                 continue
-            widgetName = makeSafeNodePropertyName(name, usedNames)
+            widgetName = MakeSafeNodePropertyName(name, usedNames)
             self._widgetNameByPort[name] = widgetName
             init_val = currNode.params[i] if i < len(currNode.params) else ""
             self.add_input(name, multi_input=False)
@@ -189,7 +189,7 @@ def makeInit(currNode):
                     le = w.get_custom_widget()
                     if le and hasattr(le, "setCurrentText"):
                         le.setCurrentText(str(init_val))
-                    System.setStyle(le, "nodeInput.qss")
+                    System.SetStyle(le, "nodeInput.qss")
             elif param_type is bool or param_type == "bool":
                 self.add_checkbox(name=widgetName, label=display_label, text="", state=bool(init_val))
             elif param_type is int or param_type == "int":
@@ -208,7 +208,7 @@ def makeInit(currNode):
                 w = self.get_widget(widgetName)
                 if w:
                     le = w.get_custom_widget()
-                    System.setStyle(le, "nodeInput.qss")
+                    System.SetStyle(le, "nodeInput.qss")
             elif param_type is float or param_type == "float":
                 try:
                     val = float(init_val)
@@ -225,7 +225,7 @@ def makeInit(currNode):
                 w = self.get_widget(widgetName)
                 if w:
                     le = w.get_custom_widget()
-                    System.setStyle(le, "nodeInput.qss")
+                    System.SetStyle(le, "nodeInput.qss")
             else:
                 nodeWidget = NodeMultiLineTextWidget(
                     self.view, name=widgetName, label=display_label, text=str(init_val)
@@ -234,7 +234,7 @@ def makeInit(currNode):
                 w = self.get_widget(widgetName)
                 if w:
                     le = w.get_custom_widget()
-                    System.setStyle(le, "nodeInput.qss")
+                    System.SetStyle(le, "nodeInput.qss")
 
         self._string_mode = has_invalid
         if has_invalid:
@@ -251,7 +251,7 @@ def makeInit(currNode):
 
 class NodePanel(QtWidgets.QWidget):
     _COPY_BUFFER = None
-    modified = QtCore.pyqtSignal()
+    MODIFIED = QtCore.pyqtSignal()
 
     def __init__(
         self,
@@ -304,7 +304,7 @@ class NodePanel(QtWidgets.QWidget):
         for node in self.nodeGraph.nodes[self.key]:
             nodeFunctionName = node.functionName
             if not nodeFunctionName in self.classDict:
-                self.classDict[nodeFunctionName] = type("Class", (BaseNode,), {"__init__": makeInit(node)})
+                self.classDict[nodeFunctionName] = type("Class", (BaseNode,), {"__init__": MakeInit(node)})
                 self.classDict[nodeFunctionName].__identifier__ = nodeFunctionName
                 self.classDict[nodeFunctionName].NODE_NAME = nodeFunctionName
                 self.graph.register_node(self.classDict[nodeFunctionName])
@@ -483,7 +483,7 @@ class NodePanel(QtWidgets.QWidget):
         self.graph.port_connected.connect(self.onPortConnected)
         self.graph.port_disconnected.connect(self.onPortDisconnected)
         self.graph.viewer().moved_nodes.connect(self.onNodesMoved)
-        self.graph.viewer().liveConnectionPrompt.connect(self._onLiveConnectionPrompt)
+        self.graph.viewer().LIVE_CONNECTION_PROMPT.connect(self._onLiveConnectionPrompt)
 
         QtWidgets.QShortcut(QtGui.QKeySequence.New, self, self._onCreate, context=QtCore.Qt.WidgetWithChildrenShortcut)
         QtWidgets.QShortcut(QtGui.QKeySequence.Copy, self, self._onCopy, context=QtCore.Qt.WidgetWithChildrenShortcut)
@@ -555,7 +555,7 @@ class NodePanel(QtWidgets.QWidget):
                     self.nodeGraph.genRelationsFromLinks()
                     GameData.recordSnapshot()
                     self._refreshCallable(self.name, self.nodeGraph.asDict())
-                    self.modified.emit()
+                    self.MODIFIED.emit()
 
         if portIn.type_() == "in":
             node = portIn.node()
@@ -610,7 +610,7 @@ class NodePanel(QtWidgets.QWidget):
             sources["Parent"] = r_type
         popup = FunctionPickerPopup(self, sources, filterExecOnly=(type_out == "Exec"))
         self._connectionPickerPopup = popup
-        popup.functionSelected.connect(self._onFunctionSelectedFromPrompt)
+        popup.FUNCTION_SELECTED.connect(self._onFunctionSelectedFromPrompt)
         popup.destroyed.connect(self._onFunctionPickerClosed)
         popup.destroyed.connect(lambda: setattr(self, "_connectionPickerPopup", None))
         popup.move(QtGui.QCursor.pos())
@@ -679,7 +679,7 @@ class NodePanel(QtWidgets.QWidget):
         self.nodeGraph.genRelationsFromLinks()
         GameData.recordSnapshot()
         self._refreshCallable(self.name, self.nodeGraph.asDict())
-        self.modified.emit()
+        self.MODIFIED.emit()
         self._refreshPanel()
         self.graph.viewer().end_live_connection()
         self._pending_conn = None
@@ -741,7 +741,7 @@ class NodePanel(QtWidgets.QWidget):
                     self.nodeGraph.genRelationsFromLinks()
                     GameData.recordSnapshot()
                     self._refreshCallable(self.name, self.nodeGraph.asDict())
-                    self.modified.emit()
+                    self.MODIFIED.emit()
 
         if portIn.type_() == "in":
             if not portIn.connected_ports():
@@ -765,7 +765,7 @@ class NodePanel(QtWidgets.QWidget):
                     dataNode.pos = [node.pos().x(), node.pos().y()]
         GameData.recordSnapshot()
         self._refreshCallable(self.name, self.nodeGraph.asDict())
-        self.modified.emit()
+        self.MODIFIED.emit()
 
     def _shouldEmulatePan(self, event: QtGui.QMouseEvent) -> bool:
         if self._isSpacePressed:
@@ -1035,7 +1035,7 @@ class NodePanel(QtWidgets.QWidget):
 
         popup = FunctionPickerPopup(self, sources)
         self._functionPickerPopup = popup
-        popup.functionSelected.connect(self._onFunctionSelected)
+        popup.FUNCTION_SELECTED.connect(self._onFunctionSelected)
         popup.destroyed.connect(lambda: setattr(self, "_functionPickerPopup", None))
         popup.move(global_pos)
         QtCore.QTimer.singleShot(0, lambda p=popup: p.show())
@@ -1086,7 +1086,7 @@ class NodePanel(QtWidgets.QWidget):
 
         GameData.recordSnapshot()
         self._refreshCallable(self.name, self.nodeGraph.asDict())
-        self.modified.emit()
+        self.MODIFIED.emit()
 
         self._refreshPanel()
 
@@ -1108,14 +1108,14 @@ class NodePanel(QtWidgets.QWidget):
             self.nodeGraph.startNodes[self.key] = idx
             GameData.recordSnapshot()
             self._refreshCallable(self.name, self.nodeGraph.asDict())
-            self.modified.emit()
+            self.MODIFIED.emit()
             self._refreshPanel()
 
     def _onCancelStartNode(self):
         self.nodeGraph.startNodes[self.key] = None
         GameData.recordSnapshot()
         self._refreshCallable(self.name, self.nodeGraph.asDict())
-        self.modified.emit()
+        self.MODIFIED.emit()
         self._refreshPanel()
 
     def _onCopy(self):
@@ -1151,7 +1151,7 @@ class NodePanel(QtWidgets.QWidget):
         self.nodeGraph.genRelationsFromLinks()
         GameData.recordSnapshot()
         self._refreshCallable(self.name, self.nodeGraph.asDict())
-        self.modified.emit()
+        self.MODIFIED.emit()
         self._refreshPanel()
 
     def _onDelete(self):
@@ -1199,7 +1199,7 @@ class NodePanel(QtWidgets.QWidget):
         self.nodeGraph.genRelationsFromLinks()
         GameData.recordSnapshot()
         self._refreshCallable(self.name, self.nodeGraph.asDict())
-        self.modified.emit()
+        self.MODIFIED.emit()
         self._refreshPanel()
 
     def _onParamChanged(self, nodeIndex: int, paramIndex: int, widget: QtWidgets.QWidget):
@@ -1231,7 +1231,7 @@ class NodePanel(QtWidgets.QWidget):
         if changed:
             GameData.recordSnapshot()
             self._refreshCallable(self.name, self.nodeGraph.asDict())
-            self.modified.emit()
+            self.MODIFIED.emit()
 
     def _getSelectedNodes(self):
         sels = self.graph.selected_nodes()

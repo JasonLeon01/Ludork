@@ -6,7 +6,7 @@ from typing import Dict, Any, Type
 
 
 class DataclassWidget(QtWidgets.QWidget):
-    valueChanged = QtCore.pyqtSignal(dict)
+    VALUE_CHANGED = QtCore.pyqtSignal(dict)
 
     def __init__(self, dc_type: Type, data: Dict[str, Any], parent=None):
         super().__init__(parent)
@@ -54,7 +54,7 @@ class DataclassWidget(QtWidgets.QWidget):
             gb_layout.setContentsMargins(0, 5, 0, 0)
 
             dc_widget = DataclassWidget(ftype, value)
-            dc_widget.valueChanged.connect(lambda v, k=field.name: self._onFieldChanged(k, v))
+            dc_widget.VALUE_CHANGED.connect(lambda v, k=field.name: self._onFieldChanged(k, v))
             gb_layout.addWidget(dc_widget)
             return gb
 
@@ -83,4 +83,4 @@ class DataclassWidget(QtWidgets.QWidget):
 
     def _onFieldChanged(self, key, value):
         self.data[key] = value
-        self.valueChanged.emit(self.data)
+        self.VALUE_CHANGED.emit(self.data)

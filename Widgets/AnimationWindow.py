@@ -42,7 +42,7 @@ class AssetLabel(QtWidgets.QLabel):
 
 
 class SegmentInspector(QtWidgets.QWidget):
-    valueChanged = QtCore.pyqtSignal()
+    VALUE_CHANGED = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -212,13 +212,13 @@ class SegmentInspector(QtWidgets.QWidget):
         end["rotation"] = self.endRot.value()
         end["scale"] = [self.endSX.value(), self.endSY.value()]
 
-        self.valueChanged.emit()
+        self.VALUE_CHANGED.emit()
 
 
 class AnimationPreview(QtWidgets.QWidget):
-    selectionChanged = QtCore.pyqtSignal(int, int)
-    dataChanged = QtCore.pyqtSignal()
-    segmentUpdated = QtCore.pyqtSignal(int, int)
+    SELECTION_CHANGED = QtCore.pyqtSignal(int, int)
+    DATA_CHANGED = QtCore.pyqtSignal()
+    SEGMENT_UPDATED = QtCore.pyqtSignal(int, int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -523,7 +523,7 @@ class AnimationPreview(QtWidgets.QWidget):
         if selected:
             if self.selectedSegment != selected:
                 self.selectedSegment = selected
-                self.selectionChanged.emit(selected[0], selected[1])
+                self.SELECTION_CHANGED.emit(selected[0], selected[1])
                 self.update()
             self.dragStartPos = QtCore.QPointF(event.pos())
             self.dragSegment = selected
@@ -571,7 +571,7 @@ class AnimationPreview(QtWidgets.QWidget):
         else:
             if self.selectedSegment is not None:
                 self.selectedSegment = None
-                self.selectionChanged.emit(-1, -1)
+                self.SELECTION_CHANGED.emit(-1, -1)
                 self.update()
 
     def mouseMoveEvent(self, event):
@@ -604,7 +604,7 @@ class AnimationPreview(QtWidgets.QWidget):
                 end["rotation"] = er + delta
             self.rotateMousePos = pos
             self.setCursor(QtCore.Qt.CrossCursor)
-            self.segmentUpdated.emit(trackIdx, segIdx)
+            self.SEGMENT_UPDATED.emit(trackIdx, segIdx)
             self.update()
             return
         if not (event.buttons() & QtCore.Qt.LeftButton):
@@ -691,7 +691,7 @@ class AnimationPreview(QtWidgets.QWidget):
                 start["position"] = [spx + dx, spy + dy]
                 end["position"] = [epx + dx, epy + dy]
 
-        self.segmentUpdated.emit(trackIdx, segIdx)
+        self.SEGMENT_UPDATED.emit(trackIdx, segIdx)
         self.update()
 
     def mouseReleaseEvent(self, event):
@@ -703,7 +703,7 @@ class AnimationPreview(QtWidgets.QWidget):
             self.rotateMousePos = None
             self.dragMode = ""
             self.unsetCursor()
-            self.dataChanged.emit()
+            self.DATA_CHANGED.emit()
             self.update()
             return
         if self.dragSegment:
@@ -718,11 +718,11 @@ class AnimationPreview(QtWidgets.QWidget):
             self.dragRotation = 0.0
             self.dragBaseWidth = 0.0
             self.dragBaseHeight = 0.0
-            self.dataChanged.emit()
+            self.DATA_CHANGED.emit()
 
 
 class AnimationWindow(QtWidgets.QMainWindow):
-    modified = QtCore.pyqtSignal()
+    MODIFIED = QtCore.pyqtSignal()
 
     def __init__(
         self, parent: Optional[QtWidgets.QWidget] = None, title: str = "", data: Dict[str, Any] = None
@@ -758,16 +758,16 @@ class AnimationWindow(QtWidgets.QMainWindow):
 
         self.preview = AnimationPreview()
         self.preview.setData(self._data)
-        self.preview.selectionChanged.connect(self.onPreviewSelectionChanged)
-        self.preview.dataChanged.connect(self._onPreviewDataChanged)
-        self.preview.segmentUpdated.connect(self.onPreviewSegmentUpdated)
+        self.preview.SELECTION_CHANGED.connect(self.onPreviewSelectionChanged)
+        self.preview.DATA_CHANGED.connect(self._onPreviewDataChanged)
+        self.preview.SEGMENT_UPDATED.connect(self.onPreviewSegmentUpdated)
         self.rightSplitter.addWidget(self.preview)
 
         self.timelinePanel = TimeLine()
         self.timelinePanel.setData(self._data)
-        self.timelinePanel.dataChanged.connect(self._onTimelineChanged)
-        self.timelinePanel.selectionChanged.connect(self._onSelectionChanged)
-        self.timelinePanel.timeChanged.connect(self.preview.setTime)
+        self.timelinePanel.DATA_CHANGED.connect(self._onTimelineChanged)
+        self.timelinePanel.SELECTION_CHANGED.connect(self._onSelectionChanged)
+        self.timelinePanel.TIME_CHANGED.connect(self.preview.setTime)
         self.rightSplitter.addWidget(self.timelinePanel)
 
         self.rightSplitter.setStretchFactor(0, 1)
@@ -805,7 +805,7 @@ class AnimationWindow(QtWidgets.QMainWindow):
         leftLayout.addWidget(self.assetsScroll)
 
         self.inspector = SegmentInspector()
-        self.inspector.valueChanged.connect(self._onInspectorValueChanged)
+        self.inspector.VALUE_CHANGED.connect(self._onInspectorValueChanged)
         leftLayout.addWidget(self.inspector)
 
         self._refreshAssets()
@@ -815,13 +815,13 @@ class AnimationWindow(QtWidgets.QMainWindow):
         if self.title:
             GameData.animationsData[self.title] = copy.deepcopy(self._data)
         self.preview.update()
-        self.modified.emit()
+        self.MODIFIED.emit()
 
     def _onNameChanged(self, text: str) -> None:
         self._data["name"] = text
         GameData.recordSnapshot()
         GameData.animationsData[self.title] = copy.deepcopy(self._data)
-        self.modified.emit()
+        self.MODIFIED.emit()
 
     def _onFpsChanged(self, text: str) -> None:
         if text:
@@ -829,7 +829,7 @@ class AnimationWindow(QtWidgets.QMainWindow):
             GameData.recordSnapshot()
             GameData.animationsData[self.title] = copy.deepcopy(self._data)
             self.timelinePanel.setData(self._data)
-            self.modified.emit()
+            self.MODIFIED.emit()
 
     def _onAssetsContextMenu(self, position: QtCore.QPoint) -> None:
         menu = QtWidgets.QMenu(self)
@@ -867,7 +867,7 @@ class AnimationWindow(QtWidgets.QMainWindow):
             GameData.animationsData[self.title] = copy.deepcopy(self._data)
         self._refreshAssets()
         self.timelinePanel.setData(self._data)
-        self.modified.emit()
+        self.MODIFIED.emit()
 
     def _onNewAsset(self) -> None:
         startDir = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Animations")
@@ -907,7 +907,7 @@ class AnimationWindow(QtWidgets.QMainWindow):
             GameData.animationsData[self.title] = copy.deepcopy(self._data)
         self._refreshAssets()
         self.timelinePanel.setData(self._data)
-        self.modified.emit()
+        self.MODIFIED.emit()
 
     def _refreshAssets(self) -> None:
         while self.assetsLayout.count():
@@ -983,7 +983,7 @@ class AnimationWindow(QtWidgets.QMainWindow):
         if self.title:
             GameData.animationsData[self.title] = copy.deepcopy(self._data)
         self.preview.update()
-        self.modified.emit()
+        self.MODIFIED.emit()
 
     def _onInspectorValueChanged(self) -> None:
         GameData.recordSnapshot()
@@ -993,4 +993,4 @@ class AnimationWindow(QtWidgets.QMainWindow):
         self.timelinePanel.canvas.updateCanvasSize()
         self.timelinePanel.canvas.update()
         self.preview.update()
-        self.modified.emit()
+        self.MODIFIED.emit()

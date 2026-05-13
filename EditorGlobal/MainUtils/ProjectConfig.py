@@ -75,7 +75,7 @@ class ProjectConfigMixin:
             fullPath = os.path.join(EditorStatus.PROJ_PATH, lastFileExplorerPath)
             if os.path.exists(fullPath):
                 self.fileExplorer.setCurrentPath(fullPath)
-        self.fileExplorer.pathChanged.connect(self._onFileExplorerPathChanged)
+        self.fileExplorer.PATH_CHANGED.connect(self._onFileExplorerPathChanged)
 
     def _saveProjLastMap(self) -> None:
         if not self._projConfigPath:
@@ -111,9 +111,9 @@ class ProjectConfigMixin:
             return
         try:
             if ext == ".json":
-                data = File.getJSONData(path)
+                data = File.GetJSONData(path)
             else:
-                data = File.loadData(path)
+                data = File.LoadData(path)
         except Exception:
             return
         if not isinstance(data, dict) or data.get("type") != "blueprint":
@@ -126,7 +126,7 @@ class ProjectConfigMixin:
             except Exception:
                 clsObj = None
         try:
-            Engine = System.getModule("Engine")
+            Engine = System.GetModule("Engine")
             actorBase = Engine.Gameplay.Actors.Actor
             okSubclass = bool(clsObj) and isinstance(clsObj, type) and issubclass(clsObj, actorBase)
         except Exception:
@@ -213,7 +213,7 @@ class ProjectConfigMixin:
         return okData and okIni, details
 
     def _refreshInfo(self):
-        title = System.getTitle()
+        title = System.GetTitle()
         if self._gameConfigModified and not title.endswith(" *"):
             title += " *"
         self.setWindowTitle(title)

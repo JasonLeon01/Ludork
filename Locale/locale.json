@@ -159,6 +159,18 @@
         "zh_CN": "iOS 打包已取消",
         "en_GB": "iOS packaging cancelled"
     },
+    "PACK_TOOLCHAIN_MSVC_PROMPT": {
+        "zh_CN": "未检测到 MSVC 工具链，是否前往下载页面？",
+        "en_GB": "MSVC toolchain not found. Open the download page?"
+    },
+    "PACK_TOOLCHAIN_XCODE_MACOS_PROMPT": {
+        "zh_CN": "未检测到 Xcode 工具链（macOS），是否前往下载页面？",
+        "en_GB": "Xcode toolchain (macOS) not found. Open the download page?"
+    },
+    "PACK_TOOLCHAIN_XCODE_IOS_PROMPT": {
+        "zh_CN": "未检测到 Xcode 工具链（iOS），是否前往下载页面？",
+        "en_GB": "Xcode toolchain (iOS) not found. Open the download page?"
+    },
     "EXIT": {
         "zh_CN": "退出",
         "en_GB": "Exit"

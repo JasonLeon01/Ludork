@@ -9,8 +9,8 @@ from .FileSelectorDialog import FileSelectorDialog
 
 
 class ConfigDictPanel(QtWidgets.QWidget):
-    contentHeightChanged = QtCore.pyqtSignal()
-    modified = QtCore.pyqtSignal()
+    CONTENT_HEIGHT_CHANGED = QtCore.pyqtSignal()
+    MODIFIED = QtCore.pyqtSignal()
 
     def __init__(self, parent: QtWidgets.QWidget, filename: str, data: dict[str, Any]) -> None:
         super().__init__(parent)
@@ -18,7 +18,7 @@ class ConfigDictPanel(QtWidgets.QWidget):
         self._data = data
         self.setObjectName("ConfigDictPanel")
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
-        System.setStyle(self, "config.qss")
+        System.SetStyle(self, "config.qss")
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(8)
@@ -129,7 +129,7 @@ class ConfigDictPanel(QtWidgets.QWidget):
                 val["value"] = list_ref
             else:
                 val["value"] = bn
-            self.modified.emit()
+            self.MODIFIED.emit()
 
         btn.clicked.connect(on_browse)
         return w
@@ -153,7 +153,7 @@ class ConfigDictPanel(QtWidgets.QWidget):
                     print(f"Error parsing float: {e}")
             else:
                 val["value"] = text
-            self.modified.emit()
+            self.MODIFIED.emit()
 
         edit.textChanged.connect(on_changed)
         return edit
@@ -229,7 +229,7 @@ class ConfigDictPanel(QtWidgets.QWidget):
                         GameData.recordSnapshot()
                         values[idx_now] = bn
                         val["value"] = values
-                        self.modified.emit()
+                        self.MODIFIED.emit()
 
                 browse.clicked.connect(on_browse)
                 if var_len:
@@ -243,8 +243,8 @@ class ConfigDictPanel(QtWidgets.QWidget):
                         v.removeWidget(row)
                         row.setParent(None)
                         row.deleteLater()
-                        self.contentHeightChanged.emit()
-                        self.modified.emit()
+                        self.CONTENT_HEIGHT_CHANGED.emit()
+                        self.MODIFIED.emit()
 
                     minus.clicked.connect(on_minus)
             else:
@@ -271,7 +271,7 @@ class ConfigDictPanel(QtWidgets.QWidget):
                     else:
                         values[idx_now] = text
                     val["value"] = values
-                    self.modified.emit()
+                    self.MODIFIED.emit()
 
                 edit.textChanged.connect(on_changed)
 
@@ -286,7 +286,7 @@ class ConfigDictPanel(QtWidgets.QWidget):
                         v.removeWidget(row)
                         row.setParent(None)
                         row.deleteLater()
-                        self.contentHeightChanged.emit()
+                        self.CONTENT_HEIGHT_CHANGED.emit()
 
                     minus.clicked.connect(on_minus)
 
@@ -310,8 +310,8 @@ class ConfigDictPanel(QtWidgets.QWidget):
                 values.append("")
                 val["value"] = values
                 add_row("", len(values) - 1)
-                self.contentHeightChanged.emit()
-                self.modified.emit()
+                self.CONTENT_HEIGHT_CHANGED.emit()
+                self.MODIFIED.emit()
 
             btn.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
             btn.clicked.connect(on_add)

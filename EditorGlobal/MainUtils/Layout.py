@@ -65,8 +65,8 @@ class LayoutMixin:
         topLayout.addWidget(self.layerList, 1)
         topLayout.addWidget(self.editModeToggle, 0, alignment=QtCore.Qt.AlignRight)
         topLayout.addWidget(self.modeToggle, 0, alignment=QtCore.Qt.AlignRight)
-        self.editModeToggle.selectionChanged.connect(self._onEditModeChanged)
-        self.modeToggle.selectionChanged.connect(self._onModeChanged)
+        self.editModeToggle.SELECTION_CHANGED.connect(self._onEditModeChanged)
+        self.modeToggle.SELECTION_CHANGED.connect(self._onModeChanged)
         self._menuBar.setNativeMenuBar(True)
 
         self.leftList.setMinimumWidth(self.DEFAULT_LEFT_PANEL_MIN_WIDTH)
@@ -114,15 +114,15 @@ class LayoutMixin:
         self.rightStack.addWidget(self.lightPanel)
         self.rightStack.addWidget(self.actorInfo)
         self.rightStack.setCurrentWidget(self.tileSelect)
-        self.tileSelect.tileSelected.connect(self._onTileSelected)
-        self.tileSelect.tilesetChanged.connect(self._onTilesetChanged)
-        self.editorPanel.tileNumberPicked.connect(self._onTileNumberPicked)
-        self.editorPanel.lightSelectionChanged.connect(self._onLightSelectionChanged)
-        self.editorPanel.lightDataChanged.connect(self._onLightDataChanged)
-        self.editorPanel.actorSelectionChanged.connect(
+        self.tileSelect.TILE_SELECTED.connect(self._onTileSelected)
+        self.tileSelect.TILESET_CHANGED.connect(self._onTilesetChanged)
+        self.editorPanel.TILE_NUMBER_PICKED.connect(self._onTileNumberPicked)
+        self.editorPanel.LIGHT_SELECTION_CHANGED.connect(self._onLightSelectionChanged)
+        self.editorPanel.LIGHT_DATA_CHANGED.connect(self._onLightDataChanged)
+        self.editorPanel.ACTOR_SELECTION_CHANGED.connect(
             lambda l, i, d: self.actorInfo.setActor(l, i, d, self.editorPanel)
         )
-        self.lightPanel.lightEdited.connect(self._onLightEdited)
+        self.lightPanel.LIGHT_EDITED.connect(self._onLightEdited)
         self.editorPanel.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.editorPanel.customContextMenuRequested.connect(self._onEditorPanelContextMenu)
         self.editorPanel.addAction(self._actNewLightSource)
@@ -138,7 +138,7 @@ class LayoutMixin:
         self.upperSplitter.setSizes([self.DEFAULT_LEFT_PANEL_MIN_WIDTH, panelW, self.DEFAULT_RIGHT_PANEL_MIN_WIDTH])
         self.upperSplitter.splitterMoved.connect(self._onUpperSplitterMoved)
         cfg = configparser.ConfigParser()
-        cfg_path = os.path.join(File.getIniPath(), f"{EditorStatus.APP_NAME}.ini")
+        cfg_path = os.path.join(File.GetIniPath(), f"{EditorStatus.APP_NAME}.ini")
         if os.path.exists(cfg_path):
             cfg.read(cfg_path)
             if EditorStatus.APP_NAME in cfg:
@@ -188,8 +188,8 @@ class LayoutMixin:
 
         self._setTopMenu()
 
-        self.fileExplorer.fileClicked.connect(self._onFileExplorerFileClicked)
-        self.actorQueuePanel.selectionChanged.connect(
+        self.fileExplorer.FILE_CLICKED.connect(self._onFileExplorerFileClicked)
+        self.actorQueuePanel.SELECTION_CHANGED.connect(
             lambda bpRel: self.editorPanel.setPendingActor(bpRel if isinstance(bpRel, str) else None)
         )
 
@@ -200,7 +200,7 @@ class LayoutMixin:
             self._prevRightW = sizes[2]
         self._prevUpperW = self.upperSplitter.width()
         cfg = configparser.ConfigParser()
-        cfg_path = os.path.join(File.getIniPath(), f"{EditorStatus.APP_NAME}.ini")
+        cfg_path = os.path.join(File.GetIniPath(), f"{EditorStatus.APP_NAME}.ini")
         if os.path.exists(cfg_path):
             cfg.read(cfg_path)
             if EditorStatus.APP_NAME not in cfg:

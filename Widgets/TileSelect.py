@@ -8,7 +8,7 @@ from Utils import Panel
 
 
 class _TileGridView(QtWidgets.QWidget):
-    tileClicked = QtCore.pyqtSignal(int)
+    TILE_CLICKED = QtCore.pyqtSignal(int)
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
@@ -16,7 +16,7 @@ class _TileGridView(QtWidgets.QWidget):
         self._cell: int = EditorStatus.CELLSIZE
         self._selected: Optional[int] = None
         self.setMouseTracking(True)
-        Panel.applyDisabledOpacity(self)
+        Panel.ApplyDisabledOpacity(self)
 
     def setCellSize(self, size: int) -> None:
         if size != self._cell:
@@ -81,7 +81,7 @@ class _TileGridView(QtWidgets.QWidget):
         gy = y // self._cell
         cols = self._image.width() // self._cell if self._cell > 0 else 1
         tileNumber = gy * max(1, cols) + gx
-        self.tileClicked.emit(int(tileNumber))
+        self.TILE_CLICKED.emit(int(tileNumber))
 
     def mouseMoveEvent(self, e: QtGui.QMouseEvent) -> None:
         if self._image is None or self._image.isNull():
@@ -97,12 +97,12 @@ class _TileGridView(QtWidgets.QWidget):
         cols = self._image.width() // self._cell if self._cell > 0 else 1
         tileNumber = gy * max(1, cols) + gx
         if self._selected != int(tileNumber):
-            self.tileClicked.emit(int(tileNumber))
+            self.TILE_CLICKED.emit(int(tileNumber))
 
 
 class TileSelect(QtWidgets.QWidget):
-    tilesetChanged = QtCore.pyqtSignal(str)
-    tileSelected = QtCore.pyqtSignal(int)
+    TILESET_CHANGED = QtCore.pyqtSignal(str)
+    TILE_SELECTED = QtCore.pyqtSignal(int)
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
@@ -121,7 +121,7 @@ class TileSelect(QtWidgets.QWidget):
         self._topTabs.setFixedHeight(36)
         self._grid = _TileGridView(self)
         self._grid.setCellSize(EditorStatus.CELLSIZE)
-        self._grid.tileClicked.connect(self._onTileClicked)
+        self._grid.TILE_CLICKED.connect(self._onTileClicked)
         self._scroll = QtWidgets.QScrollArea(self)
         self._scroll.setWidget(self._grid)
         self._scroll.setWidgetResizable(False)
@@ -133,7 +133,7 @@ class TileSelect(QtWidgets.QWidget):
         layout.setSpacing(4)
         layout.addWidget(self._topTabs, 0)
         layout.addWidget(self._scroll, 1)
-        Panel.applyDisabledOpacity(self)
+        Panel.ApplyDisabledOpacity(self)
         self._topTabs.currentChanged.connect(self._onTilesetRowChanged)
         self.initTilesets()
 
@@ -158,7 +158,7 @@ class TileSelect(QtWidgets.QWidget):
         self._allowSelect = bool(selected)
         if not self._allowSelect:
             self.clearSelection()
-        Panel.applyDisabledOpacity(self._grid)
+        Panel.ApplyDisabledOpacity(self._grid)
 
     def setCurrentTilesetKey(self, key: Optional[str]) -> None:
         if not key:
@@ -173,7 +173,7 @@ class TileSelect(QtWidgets.QWidget):
     def clearSelection(self) -> None:
         self._selectedTileNumber = None
         self._grid.clearSelected()
-        self.tileSelected.emit(-1)
+        self.TILE_SELECTED.emit(-1)
 
     def setSelectedTileNumber(self, num: Optional[int]) -> None:
         if num is None or int(num) < 0:
@@ -181,7 +181,7 @@ class TileSelect(QtWidgets.QWidget):
             return
         self._selectedTileNumber = int(num)
         self._grid.setSelected(self._selectedTileNumber)
-        self.tileSelected.emit(self._selectedTileNumber)
+        self.TILE_SELECTED.emit(self._selectedTileNumber)
 
     def _onTilesetRowChanged(self, idx: int) -> None:
         if idx < 0 or idx >= len(self._keys):
@@ -196,7 +196,7 @@ class TileSelect(QtWidgets.QWidget):
         p = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Tilesets", ts.fileName)
         img = QtGui.QImage(p)
         self._grid.setImage(img if not img.isNull() else None)
-        self.tilesetChanged.emit(self._currentKey)
+        self.TILESET_CHANGED.emit(self._currentKey)
 
     def _onTileClicked(self, tileNumber: int) -> None:
         if not self._allowSelect:
@@ -205,8 +205,8 @@ class TileSelect(QtWidgets.QWidget):
         if self._selectedTileNumber == tileNumber:
             self._selectedTileNumber = None
             self._grid.clearSelected()
-            self.tileSelected.emit(-1)
+            self.TILE_SELECTED.emit(-1)
             return
         self._selectedTileNumber = tileNumber
         self._grid.setSelected(tileNumber)
-        self.tileSelected.emit(tileNumber)
+        self.TILE_SELECTED.emit(tileNumber)

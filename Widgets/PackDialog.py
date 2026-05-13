@@ -15,7 +15,7 @@ class PackPlatform(Enum):
     IOS = "ios"
 
 
-def find_python_3120_for_pack() -> str:
+def FindPython3120ForPack() -> str:
     r"""\brief Locate a Python 3.12.0 executable for Nuitka packaging (main thread or any thread; no GUI)."""
     if sys.platform == "win32":
         try:
@@ -56,7 +56,7 @@ def find_python_3120_for_pack() -> str:
     return ""
 
 
-def prompt_install_python_3120(parent: Optional[QtWidgets.QWidget]) -> None:
+def PromptInstallPython3120(parent: Optional[QtWidgets.QWidget]) -> None:
     r"""\brief Show download prompt for Python 3.12.0; must run on the Qt GUI thread."""
     text = ELOC("PACK_PY312_PROMPT")
     res = QtWidgets.QMessageBox.question(
@@ -68,6 +68,79 @@ def prompt_install_python_3120(parent: Optional[QtWidgets.QWidget]) -> None:
     )
     if res == QtWidgets.QMessageBox.Yes:
         QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://www.python.org/downloads/release/python-3120/"))
+
+
+def CheckMsvcToolchain() -> bool:
+    r"""\brief Check if MSVC toolchain is available on Windows."""
+    if sys.platform != "win32":
+        return True
+    try:
+        subprocess.check_output(
+            ["cl.exe"],
+            stderr=subprocess.STDOUT,
+            stdout=subprocess.DEVNULL,
+            shell=True,
+        )
+        return True
+    except Exception:
+        return False
+
+
+def CheckXcodeToolchainMacos() -> bool:
+    r"""\brief Check if Xcode toolchain is available for macOS builds."""
+    if sys.platform != "darwin":
+        return True
+    try:
+        subprocess.check_output(
+            ["xcodebuild", "-version"],
+            stderr=subprocess.STDOUT,
+            stdout=subprocess.DEVNULL,
+        )
+        return True
+    except Exception:
+        return False
+
+
+def CheckXcodeToolchainIos() -> bool:
+    r"""\brief Check if Xcode toolchain is available for iOS builds."""
+    if sys.platform != "darwin":
+        return True
+    try:
+        subprocess.check_output(
+            ["xcodebuild", "-version"],
+            stderr=subprocess.STDOUT,
+            stdout=subprocess.DEVNULL,
+        )
+        subprocess.check_output(
+            ["xcrun", "--show-sdk-path", "--sdk", "iphoneos"],
+            stderr=subprocess.STDOUT,
+            stdout=subprocess.DEVNULL,
+        )
+        return True
+    except Exception:
+        return False
+
+
+def PromptInstallToolchain(parent: Optional[QtWidgets.QWidget], platform: PackPlatform) -> None:
+    r"""\brief Show download prompt for missing toolchain; must run on the Qt GUI thread."""
+    if platform == PackPlatform.IOS:
+        text = ELOC("PACK_TOOLCHAIN_XCODE_IOS_PROMPT")
+    elif platform == PackPlatform.MACOS_ARM:
+        text = ELOC("PACK_TOOLCHAIN_XCODE_MACOS_PROMPT")
+    else:
+        text = ELOC("PACK_TOOLCHAIN_MSVC_PROMPT")
+    res = QtWidgets.QMessageBox.question(
+        parent,
+        ELOC("PACK_TITLE"),
+        text,
+        QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+        QtWidgets.QMessageBox.Yes,
+    )
+    if res == QtWidgets.QMessageBox.Yes:
+        if sys.platform == "darwin":
+            QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://developer.apple.com/xcode/"))
+        else:
+            QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://visualstudio.microsoft.com/visual-cpp-build-tools/"))
 
 
 class PackSelectionDialog(QtWidgets.QDialog):
@@ -154,8 +227,9 @@ class LogDialog(QtWidgets.QDialog):
 
 
 class PackWorker(QtCore.QThread):
-    log_signal = QtCore.pyqtSignal(str)
-    finished_signal = QtCore.pyqtSignal(bool, str)
+    LOG_SIGNAL = QtCore.pyqtSignal(str)
+    FINISHED_SIGNAL = QtCore.pyqtSignal(bool, str)
+    IOS_OUTPUT_READY = QtCore.pyqtSignal(str)
 
     def __init__(self, projPath: str, distPath: str, platform: PackPlatform, pythonExe: str = ""):
         super().__init__()
@@ -178,17 +252,17 @@ class PackWorker(QtCore.QThread):
             def flush(self):
                 pass
 
-        sys.stdout = StreamRedirector(self.log_signal)
-        sys.stderr = StreamRedirector(self.log_signal)
+        sys.stdout = StreamRedirector(self.LOG_SIGNAL)
+        sys.stderr = StreamRedirector(self.LOG_SIGNAL)
 
         old_cwd = os.getcwd()
         try:
-            self.log_signal.emit(f"Preparing dist directory: {self.distPath}...\n")
+            self.LOG_SIGNAL.emit(f"Preparing dist directory: {self.distPath}...\n")
             if os.path.exists(self.distPath):
                 shutil.rmtree(self.distPath)
             os.makedirs(self.distPath, exist_ok=True)
 
-            self.log_signal.emit(f"Platform: {self.platform.value}\n")
+            self.LOG_SIGNAL.emit(f"Platform: {self.platform.value}\n")
 
             if self.platform == PackPlatform.IOS:
                 self._packIOS()
@@ -196,15 +270,15 @@ class PackWorker(QtCore.QThread):
 
             pythonExe = self.pythonExe
             if not pythonExe:
-                self.finished_signal.emit(False, ELOC("PACK_PY312_NOT_FOUND"))
+                self.FINISHED_SIGNAL.emit(False, ELOC("PACK_PY312_NOT_FOUND"))
                 return
 
-            self.log_signal.emit(f"Using Python: {pythonExe}\n")
+            self.LOG_SIGNAL.emit(f"Using Python: {pythonExe}\n")
 
             if not self._checkNuitka(pythonExe):
-                self.log_signal.emit("Nuitka not found. Installing...\n")
+                self.LOG_SIGNAL.emit("Nuitka not found. Installing...\n")
                 if not self._installNuitka(pythonExe):
-                    self.finished_signal.emit(False, ELOC("PACK_NUITKA_INSTALL_FAILED"))
+                    self.FINISHED_SIGNAL.emit(False, ELOC("PACK_NUITKA_INSTALL_FAILED"))
                     return
 
             self._packNuitka(pythonExe)
@@ -212,8 +286,8 @@ class PackWorker(QtCore.QThread):
         except Exception as e:
             import traceback
 
-            self.log_signal.emit(traceback.format_exc())
-            self.finished_signal.emit(False, str(e))
+            self.LOG_SIGNAL.emit(traceback.format_exc())
+            self.FINISHED_SIGNAL.emit(False, str(e))
         finally:
             os.chdir(old_cwd)
             sys.stdout = old_stdout
@@ -242,7 +316,7 @@ class PackWorker(QtCore.QThread):
                 if not line and proc1.poll() is not None:
                     break
                 if line:
-                    self.log_signal.emit(line)
+                    self.LOG_SIGNAL.emit(line)
             if proc1.poll() != 0:
                 return False
             cmd2 = [exe, "-m", "pip", "install", "-U", "nuitka"]
@@ -257,16 +331,16 @@ class PackWorker(QtCore.QThread):
                 if not line and proc2.poll() is not None:
                     break
                 if line:
-                    self.log_signal.emit(line)
+                    self.LOG_SIGNAL.emit(line)
             return proc2.poll() == 0
         except Exception as e:
-            self.log_signal.emit(str(e) + "\n")
+            self.LOG_SIGNAL.emit(str(e) + "\n")
             return False
 
     def _packNuitka(self, pythonExe: str):
         entryPath = os.path.join(self.projPath, "Entry.py")
         if not os.path.exists(entryPath):
-            self.finished_signal.emit(False, ELOC("PACK_ENTRY_MISSING"))
+            self.FINISHED_SIGNAL.emit(False, ELOC("PACK_ENTRY_MISSING"))
             return
 
         appName = "Main"
@@ -310,12 +384,12 @@ class PackWorker(QtCore.QThread):
             if iconPath:
                 cmd.append(f"--macos-app-icon={iconPath}")
         else:
-            self.finished_signal.emit(False, ELOC("PACK_IOS_FAILED"))
+            self.FINISHED_SIGNAL.emit(False, ELOC("PACK_IOS_FAILED"))
             return
 
         cmd.append(entryPath)
 
-        self.log_signal.emit(f"Running Nuitka: {' '.join(cmd)}\n")
+        self.LOG_SIGNAL.emit(f"Running Nuitka: {' '.join(cmd)}\n")
 
         process = subprocess.Popen(
             cmd,
@@ -328,7 +402,7 @@ class PackWorker(QtCore.QThread):
         )
         stdout: Optional[TextIO] = cast(TextIO, process.stdout)
         if stdout is None:
-            self.finished_signal.emit(False, ELOC("PACK_NUITKA_FAILED"))
+            self.FINISHED_SIGNAL.emit(False, ELOC("PACK_NUITKA_FAILED"))
             return
 
         while True:
@@ -336,23 +410,23 @@ class PackWorker(QtCore.QThread):
             if not line and process.poll() is not None:
                 break
             if line:
-                self.log_signal.emit(line)
+                self.LOG_SIGNAL.emit(line)
 
         rc = process.poll()
         if rc == 0:
-            self.finished_signal.emit(True, "")
+            self.FINISHED_SIGNAL.emit(True, "")
         else:
-            self.finished_signal.emit(False, ELOC("PACK_NUITKA_FAILED"))
+            self.FINISHED_SIGNAL.emit(False, ELOC("PACK_NUITKA_FAILED"))
 
     def _packIOS(self):
         from Utils import File
 
-        rootPath = File.getRootPath()
+        rootPath = File.GetRootPath()
         scriptPath = os.path.join(rootPath, "generateiOSApp.sh")
 
         if not os.path.exists(scriptPath):
-            self.log_signal.emit("generateiOSApp.sh not found\n")
-            self.finished_signal.emit(False, ELOC("PACK_IOS_SCRIPT_MISSING"))
+            self.LOG_SIGNAL.emit("generateiOSApp.sh not found\n")
+            self.FINISHED_SIGNAL.emit(False, ELOC("PACK_IOS_SCRIPT_MISSING"))
             return
 
         projectName = os.path.basename(os.path.normpath(self.projPath))
@@ -365,7 +439,7 @@ class PackWorker(QtCore.QThread):
         if os.path.isdir(resourceDir):
             cmd.extend(["-r", resourceDir])
 
-        self.log_signal.emit(f"Running: {' '.join(cmd)}\n")
+        self.LOG_SIGNAL.emit(f"Running: {' '.join(cmd)}\n")
 
         process = subprocess.Popen(
             cmd,
@@ -378,7 +452,7 @@ class PackWorker(QtCore.QThread):
         )
         stdout = cast(TextIO, process.stdout)
         if stdout is None:
-            self.finished_signal.emit(False, ELOC("PACK_IOS_FAILED"))
+            self.FINISHED_SIGNAL.emit(False, ELOC("PACK_IOS_FAILED"))
             return
 
         while True:
@@ -386,10 +460,13 @@ class PackWorker(QtCore.QThread):
             if not line and process.poll() is not None:
                 break
             if line:
-                self.log_signal.emit(line)
+                self.LOG_SIGNAL.emit(line)
 
         rc = process.poll()
         if rc == 0:
-            self.finished_signal.emit(True, "")
+            outputDir = os.path.join(self.projPath, "build", projectName)
+            self.LOG_SIGNAL.emit(f"\niOS project generated: {outputDir}\n")
+            self.IOS_OUTPUT_READY.emit(outputDir)
+            self.FINISHED_SIGNAL.emit(True, "")
         else:
-            self.finished_signal.emit(False, ELOC("PACK_IOS_FAILED"))
+            self.FINISHED_SIGNAL.emit(False, ELOC("PACK_IOS_FAILED"))

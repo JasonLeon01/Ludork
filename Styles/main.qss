@@ -3,6 +3,17 @@ QLabel, QCheckBox, QRadioButton, QGroupBox, QToolButton, QPushButton, QLineEdit,
     color: #ffffff;
 }
 
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 20px;
+}
+
+QComboBox::down-arrow {
+    width: 10px;
+    height: 10px;
+}
+
 QComboBox QAbstractItemView {
     color: #ffffff;
     background-color: #2d2d2d;

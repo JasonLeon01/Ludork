@@ -59,11 +59,11 @@ class FilePreview(QtWidgets.QWidget):
             print(f"Error while connecting player error signal: {e}")
         self._positionSlider.sliderMoved.connect(self._onSeek)
         self._openSystemBtn.clicked.connect(self._openSystem)
-        Panel.applyDisabledOpacity(self)
+        Panel.ApplyDisabledOpacity(self)
 
     def changeEvent(self, e: QtCore.QEvent) -> None:
         if e.type() == QtCore.QEvent.EnabledChange:
-            Panel.applyDisabledOpacity(self)
+            Panel.ApplyDisabledOpacity(self)
         super().changeEvent(e)
 
     def setFile(self, path: str) -> None:

@@ -18,7 +18,7 @@ class TilesetMode(Enum):
 
 
 class TilesetImageView(QtWidgets.QWidget):
-    dataChanged = QtCore.pyqtSignal()
+    DATA_CHANGED = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -26,7 +26,7 @@ class TilesetImageView(QtWidgets.QWidget):
         self._data = None
         self._mode = TilesetMode.PASSABLE
         self._key = None
-        Engine = System.getModule("Engine")
+        Engine = System.GetModule("Engine")
         self.MaterialClass = Engine.Gameplay.Material
         self.setMouseTracking(True)
 
@@ -250,18 +250,18 @@ class TilesetImageView(QtWidgets.QWidget):
             newVal = [bool(dir4Val[0]), bool(dir4Val[1]), bool(dir4Val[2]), bool(dir4Val[3])]
             newVal[dirIndex] = not newVal[dirIndex]
             arrDir4[idx] = (newVal[0], newVal[1], newVal[2], newVal[3])
-        self.dataChanged.emit()
+        self.DATA_CHANGED.emit()
         self.update()
 
 
 class TilesetPanel(QtWidgets.QWidget):
-    modified = QtCore.pyqtSignal()
+    MODIFIED = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
-        System.setStyle(self, "config.qss")
-        Engine = System.getModule("Engine")
+        System.SetStyle(self, "config.qss")
+        Engine = System.GetModule("Engine")
         self.MaterialClass = Engine.Gameplay.Material
         self._data = None
         self._initUI()
@@ -306,7 +306,7 @@ class TilesetPanel(QtWidgets.QWidget):
         self.scroll.setWidgetResizable(False)
         self.imageView = TilesetImageView()
         self.scroll.setWidget(self.imageView)
-        self.imageView.dataChanged.connect(self.modified)
+        self.imageView.DATA_CHANGED.connect(self.MODIFIED.emit)
         layout.addWidget(self.scroll)
 
     def setTilesetData(self, tilesetData):
@@ -333,13 +333,13 @@ class TilesetPanel(QtWidgets.QWidget):
         self.imageView.setData(tilesetData, p)
         self.imageView.setTilesetKey(self._key)
         self.imageView.setMode(self.modeList.currentRow())
-        self.modified.emit()
+        self.MODIFIED.emit()
 
     def _onNameChanged(self, text):
         if self._data:
             GameData.recordSnapshot()
             self._data.name = text
-            self.modified.emit()
+            self.MODIFIED.emit()
 
     def _onModeChanged(self, row):
         self.imageView.setMode(row)
@@ -394,5 +394,5 @@ class TilesetPanel(QtWidgets.QWidget):
                 File.mainWindow.editorPanel.update()
                 ts = File.mainWindow.tileSelect
                 ts.initTilesets()
-            self.modified.emit()
+            self.MODIFIED.emit()
             self.setTilesetData(self._data)

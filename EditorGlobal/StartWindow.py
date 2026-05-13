@@ -36,8 +36,8 @@ class StartWindow(QtWidgets.QWidget):
         self._btnNew.clicked.connect(self._onNewProject)
         self._btnOpen.clicked.connect(self._onOpenProject)
 
-        System.setStyle(self._btnNew, "starterBtn.qss")
-        System.setStyle(self._btnOpen, "starterBtn.qss")
+        System.SetStyle(self._btnNew, "starterBtn.qss")
+        System.SetStyle(self._btnOpen, "starterBtn.qss")
 
         self.setStyleSheet("background-color: #121212;")
 

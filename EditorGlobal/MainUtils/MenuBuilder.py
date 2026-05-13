@@ -1,11 +1,13 @@
 # -*- encoding: utf-8 -*-
 
 import os
+import sys
 import configparser
+import subprocess
 from typing import cast
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Utils import File, Locale
-from Widgets import AboutDialog, LogDialog, PackWorker, PackSelectionDialog, MarkdownPreviewer, PackPlatform, find_python_3120_for_pack, prompt_install_python_3120
+from Widgets import AboutDialog, LogDialog, PackWorker, PackSelectionDialog, MarkdownPreviewer, PackPlatform, FindPython3120ForPack, PromptInstallPython3120, CheckMsvcToolchain, CheckXcodeToolchainMacos, CheckXcodeToolchainIos, PromptInstallToolchain
 from .. import EditorStatus
 from ..Data import GameData
 
@@ -77,7 +79,7 @@ class MenuBuilderMixin:
         self._actAbout.triggered.connect(self._onAbout)
         _helpMenu.addAction(self._actAbout)
 
-        for lang in Locale.getLocaleKeys():
+        for lang in Locale.GetLocaleKeys():
             act = cast(QtWidgets.QAction, _languageMenu.addAction(lang))
             act.setCheckable(True)
             if lang == EditorStatus.LANGUAGE:
@@ -91,7 +93,7 @@ class MenuBuilderMixin:
         if not isinstance(lang, str) or not lang:
             return
         cfg = configparser.ConfigParser()
-        cfg_path = os.path.join(File.getIniPath(), f"{EditorStatus.APP_NAME}.ini")
+        cfg_path = os.path.join(File.GetIniPath(), f"{EditorStatus.APP_NAME}.ini")
         if not os.path.exists(cfg_path):
             return
         cfg.read(cfg_path)
@@ -176,26 +178,49 @@ class MenuBuilderMixin:
             if res != QtWidgets.QMessageBox.Ok:
                 return
         else:
-            python_exe = find_python_3120_for_pack()
+            python_exe = FindPython3120ForPack()
             if not python_exe:
-                prompt_install_python_3120(self)
+                PromptInstallPython3120(self)
+                return
+
+        if platform == PackPlatform.IOS:
+            if not CheckXcodeToolchainIos():
+                PromptInstallToolchain(self, platform)
+                return
+        elif platform == PackPlatform.MACOS_ARM:
+            if not CheckXcodeToolchainMacos():
+                PromptInstallToolchain(self, platform)
+                return
+        elif platform == PackPlatform.WIN32:
+            if not CheckMsvcToolchain():
+                PromptInstallToolchain(self, platform)
                 return
 
         self._packDialog = LogDialog(self)
         self._packDialog.setWindowModality(QtCore.Qt.ApplicationModal)
         self._packWorker = PackWorker(projPath, distPath, platform, python_exe)
 
-        self._packWorker.log_signal.connect(self._packDialog.appendLog)
-        self._packWorker.finished_signal.connect(self._packDialog.finish)
+        self._packWorker.LOG_SIGNAL.connect(self._packDialog.appendLog)
+        self._packWorker.FINISHED_SIGNAL.connect(self._packDialog.finish)
+        self._packWorker.IOS_OUTPUT_READY.connect(self._onIOSOutputReady)
 
         self._packDialog.show()
         self._packWorker.start()
+
+    def _onIOSOutputReady(self, outputDir: str) -> None:
+        if os.path.exists(outputDir):
+            if sys.platform == "darwin":
+                subprocess.run(["open", outputDir])
+            elif sys.platform == "win32":
+                os.startfile(outputDir)
+            else:
+                subprocess.run(["xdg-open", outputDir])
 
     def _onExit(self, checked: bool = False) -> None:
         self.close()
 
     def _onHelpExplanation(self, checked: bool = False) -> None:
-        filePath = File.getDocPath()
+        filePath = File.GetDocPath()
         self._explanationWindow = MarkdownPreviewer(self, filePath)
         self._explanationWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._explanationWindow.setWindowModality(QtCore.Qt.ApplicationModal)

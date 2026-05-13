@@ -184,7 +184,7 @@ class MapListOpsMixin:
         if data is None:
             fp = os.path.join(self._mapFilesRoot, mapKey)
             if os.path.exists(fp):
-                data = File.loadData(fp)
+                data = File.LoadData(fp)
                 GameData.mapData[mapKey] = data
         if not isinstance(data, dict):
             return

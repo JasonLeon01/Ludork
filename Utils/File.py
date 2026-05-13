@@ -18,28 +18,28 @@ from . import System
 mainWindow: MainWindow
 
 
-def getRootPath() -> str:
-    if System.alreadyPacked():
+def GetRootPath() -> str:
+    if System.AlreadyPacked():
         return os.path.dirname(sys.executable)
     return os.getcwd()
 
 
-def getIniPath() -> str:
-    if System.alreadyPacked() and sys.platform == "darwin":
+def GetIniPath() -> str:
+    if System.AlreadyPacked() and sys.platform == "darwin":
         path = Path.home() / "Library" / "Application Support" / EditorStatus.APP_NAME
         path.mkdir(parents=True, exist_ok=True)
         return str(path)
     return os.getcwd()
 
 
-def getDocPath() -> str:
+def GetDocPath() -> str:
     from . import Locale
 
-    language = EditorStatus.LANGUAGE if EditorStatus.LANGUAGE in Locale.getLocaleKeys() else "en_GB"
-    return os.path.join(getRootPath(), "docs", language)
+    language = EditorStatus.LANGUAGE if EditorStatus.LANGUAGE in Locale.GetLocaleKeys() else "en_GB"
+    return os.path.join(GetRootPath(), "docs", language)
 
 
-def getUserPath() -> str:
+def GetUserPath() -> str:
     if sys.platform == "win32":
         appData = os.getenv("APPDATA")
         if not appData:
@@ -54,23 +54,23 @@ def getUserPath() -> str:
     return str(path)
 
 
-def getJSONData(filePath: str) -> Dict[str, Any]:
+def GetJSONData(filePath: str) -> Dict[str, Any]:
     with open(filePath, "r", encoding="utf-8") as file:
         jsonData = file.read()
     return json.loads(jsonData)
 
 
-def saveJSONData(filePath: str, data: Dict[str, Any]) -> None:
+def SaveJSONData(filePath: str, data: Dict[str, Any]) -> None:
     with open(filePath, "w", encoding="utf-8") as file:
         json.dump(data, file, ensure_ascii=False)
 
 
-def loadData(filePath: str) -> Any:
+def LoadData(filePath: str) -> Any:
     with open(filePath, "rb") as file:
         return pickle.load(file)
 
 
-def saveData(filePath, data: Dict[str, Any]) -> None:
+def SaveData(filePath, data: Dict[str, Any]) -> None:
     with open(filePath, "wb") as file:
         pickle.dump(data, file)
 
@@ -95,7 +95,7 @@ def _getLastPathOrHome() -> str:
 
 
 def _configPath() -> str:
-    return os.path.join(getIniPath(), f"{EditorStatus.APP_NAME}.ini")
+    return os.path.join(GetIniPath(), f"{EditorStatus.APP_NAME}.ini")
 
 
 def _setLastOpenPath(path: str) -> None:
@@ -126,7 +126,7 @@ def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
             None, "Error", ELOC("OPEN_FAILED") + "\n" + str(e) + "\n" + traceback.format_exc()
         )
         sys.exit(1)
-    mainWindow = MainWindow(System.getTitle())
+    mainWindow = MainWindow(System.GetTitle())
     try:
         cfg_w = int(EditorStatus.editorConfig[EditorStatus.APP_NAME].get("Width", mainWindow.width()))
         cfg_h = int(EditorStatus.editorConfig[EditorStatus.APP_NAME].get("Height", mainWindow.height()))
@@ -134,9 +134,9 @@ def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
         cfg_w, cfg_h = mainWindow.width(), mainWindow.height()
     min_size = mainWindow.minimumSize()
     mainWindow.resize(max(cfg_w, min_size.width()), max(cfg_h, min_size.height()))
-    icon_path = os.path.join(getRootPath(), "Resource", "icon.icns" if sys.platform == "darwin" else "icon.ico")
+    icon_path = os.path.join(GetRootPath(), "Resource", "icon.icns" if sys.platform == "darwin" else "icon.ico")
     if not os.path.exists(icon_path):
-        icon_path = os.path.join(getRootPath(), "Resource", "icon.ico")
+        icon_path = os.path.join(GetRootPath(), "Resource", "icon.ico")
     app = cast(Optional[QtWidgets.QApplication], QtWidgets.QApplication.instance())
     if app:
         app.setWindowIcon(QtGui.QIcon(icon_path))
@@ -172,11 +172,11 @@ def NewProject(parent: QtWidgets.QWidget) -> None:
         QtWidgets.QMessageBox.warning(parent, "Hint", ELOC("PROJECT_EXISTS"))
         return
     try:
-        src = os.path.abspath(os.path.join(getRootPath(), "Sample"))
+        src = os.path.abspath(os.path.join(GetRootPath(), "Sample"))
         if not os.path.isdir(src):
             raise FileNotFoundError(f"Sample directory not found: {src}")
         shutil.copytree(src, target)
-        pysfSrc = os.path.abspath(os.path.join(getRootPath(), "pysf"))
+        pysfSrc = os.path.abspath(os.path.join(GetRootPath(), "pysf"))
         pysfDst = os.path.join(target, "pysf")
         if os.path.isdir(pysfSrc):
             if os.path.exists(pysfDst) and not os.path.isdir(pysfDst):
@@ -248,7 +248,7 @@ def ExportLocale(parent: Optional[QtWidgets.QWidget], xlsxPath: str, localeDir: 
                 langMaps[lang][keyStr] = str(val)
     for lang, mapping in langMaps.items():
         outPath = os.path.join(localeDir, lang)
-        saveData(outPath, mapping)
+        SaveData(outPath, mapping)
     QtWidgets.QMessageBox.information(
         parent,
         "Hint",

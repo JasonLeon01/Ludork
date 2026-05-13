@@ -8,7 +8,7 @@ from .Utils import TilesetPanel, SingleRowDialog, Toast
 
 
 class TilesetEditor(QtWidgets.QMainWindow):
-    modified = QtCore.pyqtSignal()
+    MODIFIED = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -68,9 +68,9 @@ class TilesetEditor(QtWidgets.QMainWindow):
         self._actRedo.triggered.connect(self._onRedo)
         self.addAction(self._actRedo)
         self.tilesetPanel = TilesetPanel(self)
-        self.tilesetPanel.modified.connect(self.modified)
+        self.tilesetPanel.MODIFIED.connect(self.MODIFIED.emit)
         layout.addWidget(self.tilesetPanel, 1)
-        self.modified.connect(self._refreshUndoRedo)
+        self.MODIFIED.connect(self._refreshUndoRedo)
 
     def _onSelectionChanged(self, row):
         if row < 0:
@@ -137,7 +137,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
             return
 
         try:
-            Engine = System.getModule("Engine")
+            Engine = System.GetModule("Engine")
             Tileset = Engine.Gameplay.Tileset
             new_ts = Tileset(name=text, fileName="", passable=[], materials=[], dir4=[])
 
@@ -147,7 +147,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
             self.listWidget.addItem(item)
             self.listWidget.setCurrentItem(item)
             File.mainWindow.tileSelect.initTilesets()
-            self.modified.emit()
+            self.MODIFIED.emit()
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", str(e))
 
@@ -191,7 +191,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
             item = QtWidgets.QListWidgetItem(new_name)
             self.listWidget.addItem(item)
             self.listWidget.setCurrentItem(item)
-            self.modified.emit()
+            self.MODIFIED.emit()
             File.mainWindow.tileSelect.initTilesets()
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", str(e))
@@ -266,7 +266,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
             GameData.tilesetData[new_name] = data
 
             item.setText(new_name)
-            self.modified.emit()
+            self.MODIFIED.emit()
             File.mainWindow.tileSelect.initTilesets()
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", str(e))
@@ -297,7 +297,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
                 self.listWidget.setCurrentRow(min(row, self.listWidget.count() - 1))
             else:
                 self.tilesetPanel.setTilesetData(None)
-            self.modified.emit()
+            self.MODIFIED.emit()
             File.mainWindow.tileSelect.initTilesets()
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", str(e))
@@ -326,7 +326,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
         diffs = GameData.undo()
         self._reloadListPreserveSelection()
         File.mainWindow.tileSelect.initTilesets()
-        self.modified.emit()
+        self.MODIFIED.emit()
         if diffs:
             self.toast.showMessage("Undo:\n" + "\n".join(diffs))
 
@@ -334,7 +334,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
         diffs = GameData.redo()
         self._reloadListPreserveSelection()
         File.mainWindow.tileSelect.initTilesets()
-        self.modified.emit()
+        self.MODIFIED.emit()
         if diffs:
             self.toast.showMessage("Redo:\n" + "\n".join(diffs))
 

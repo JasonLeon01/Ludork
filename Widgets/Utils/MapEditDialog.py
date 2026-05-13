@@ -6,7 +6,7 @@ from PyQt5 import QtCore, QtWidgets
 from Utils import System
 from EditorGlobal import GameData, EditorStatus
 from Widgets.Utils.FileSelectorDialog import FileSelectorDialog
-from Widgets.Utils.FilterEditDialog import editFilterData
+from Widgets.Utils.FilterEditDialog import EditFilterData
 
 
 class MapEditDialog(QtWidgets.QDialog):
@@ -26,7 +26,7 @@ class MapEditDialog(QtWidgets.QDialog):
         form = QtWidgets.QFormLayout(self)
         form.setContentsMargins(12, 12, 12, 12)
         form.setSpacing(8)
-        System.setStyle(self, "mapEdit.qss")
+        System.SetStyle(self, "mapEdit.qss")
         self.fileEdit = QtWidgets.QLineEdit(self)
         self.fileEdit.setText(current_key)
         self.fileEdit.setStyleSheet("")
@@ -119,12 +119,12 @@ class MapEditDialog(QtWidgets.QDialog):
                 self.bgsEdit.setText(os.path.basename(fp))
 
         def onEditBgmFilter():
-            result = editFilterData(self, self._bgmFilterData, "bgm")
+            result = EditFilterData(self, self._bgmFilterData, "bgm")
             if result is not None:
                 self._bgmFilterData = result
 
         def onEditBgsFilter():
-            result = editFilterData(self, self._bgsFilterData, "bgs")
+            result = EditFilterData(self, self._bgsFilterData, "bgs")
             if result is not None:
                 self._bgsFilterData = result
 
@@ -234,6 +234,6 @@ class MapEditDialog(QtWidgets.QDialog):
         return True
 
 
-def editMapInfo(parent: QtWidgets.QWidget, data: dict[str, Any], current_key: str = "") -> bool:
+def EditMapInfo(parent: QtWidgets.QWidget, data: dict[str, Any], current_key: str = "") -> bool:
     dlg = MapEditDialog(parent, data, current_key)
     return dlg.execApply()

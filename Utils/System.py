@@ -7,7 +7,7 @@ from PyQt5 import QtCore, QtWidgets
 from EditorGlobal import EditorStatus
 
 
-def alreadyPacked() -> bool:
+def AlreadyPacked() -> bool:
     result = False
     try:
         result = __compiled__ is not None  # type: ignore
@@ -21,7 +21,7 @@ def alreadyPacked() -> bool:
     return result
 
 
-def getTitle() -> str:
+def GetTitle() -> str:
     titles = [EditorStatus.APP_NAME]
     result = ""
     try:
@@ -43,8 +43,8 @@ def getTitle() -> str:
     return result
 
 
-def applyStyle(widget: QtWidgets.QWidget, fileName: str) -> None:
-    baseDir = os.path.dirname(sys.executable) if alreadyPacked() else os.getcwd()
+def ApplyStyle(widget: QtWidgets.QWidget, fileName: str) -> None:
+    baseDir = os.path.dirname(sys.executable) if AlreadyPacked() else os.getcwd()
     qss_path = os.path.join(baseDir, "Styles", fileName)
     if not os.path.exists(qss_path):
         qss_path = os.path.join("Styles", fileName)
@@ -53,8 +53,8 @@ def applyStyle(widget: QtWidgets.QWidget, fileName: str) -> None:
             widget.setStyleSheet(widget.styleSheet() + "\n" + f.read())
 
 
-def setStyle(widget: QtWidgets.QWidget, fileName: str) -> None:
-    baseDir = os.path.dirname(sys.executable) if alreadyPacked() else os.getcwd()
+def SetStyle(widget: QtWidgets.QWidget, fileName: str) -> None:
+    baseDir = os.path.dirname(sys.executable) if AlreadyPacked() else os.getcwd()
     qss_path = os.path.join(baseDir, "Styles", fileName)
     if not os.path.exists(qss_path):
         qss_path = os.path.join("Styles", fileName)
@@ -63,7 +63,7 @@ def setStyle(widget: QtWidgets.QWidget, fileName: str) -> None:
             widget.setStyleSheet(f.read())
 
 
-def getModule(moduleName: str) -> object:
+def GetModule(moduleName: str) -> object:
     module = None
     if moduleName not in sys.modules:
         module = importlib.import_module(moduleName)
@@ -74,7 +74,7 @@ def getModule(moduleName: str) -> object:
     return module
 
 
-def reloadModule(moduleName: str) -> object:
+def ReloadModule(moduleName: str) -> object:
     module = importlib.import_module(moduleName)
     if moduleName in sys.modules:
         print(f"Reloading module: {moduleName}")

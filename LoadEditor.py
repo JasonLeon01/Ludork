@@ -19,13 +19,13 @@ START_PROJ_FILE = None
 def initConfig():
     from EditorGlobal import EditorStatus
 
-    if not System.alreadyPacked():
+    if not System.AlreadyPacked():
         subprocess.run(
             [sys.executable, "tools/localeTransfer.py", os.path.join(".", "Locale", "locale.json")], check=True
         )
-    Locale.init(os.path.join(File.getRootPath(), "Locale"))
+    Locale.Init(os.path.join(File.GetRootPath(), "Locale"))
     EditorStatus.editorConfig = configparser.ConfigParser()
-    if not os.path.exists(os.path.join(File.getIniPath(), f"{EditorStatus.APP_NAME}.ini")):
+    if not os.path.exists(os.path.join(File.GetIniPath(), f"{EditorStatus.APP_NAME}.ini")):
         EditorStatus.editorConfig[EditorStatus.APP_NAME] = {}
         EditorStatus.editorConfig[EditorStatus.APP_NAME]["Width"] = "1280"
         EditorStatus.editorConfig[EditorStatus.APP_NAME]["Height"] = "720"
@@ -33,14 +33,14 @@ def initConfig():
         EditorStatus.editorConfig[EditorStatus.APP_NAME]["UpperRightWidth"] = "320"
         lang, _ = locale.getdefaultlocale()
         EditorStatus.editorConfig[EditorStatus.APP_NAME]["Language"] = (
-            lang if lang in Locale.getLocaleKeys() else "en_GB"
+            lang if lang in Locale.GetLocaleKeys() else "en_GB"
         )
         EditorStatus.editorConfig[EditorStatus.APP_NAME]["Theme"] = "dark_blue.xml"
-        with open(os.path.join(File.getIniPath(), f"{EditorStatus.APP_NAME}.ini"), "w") as f:
+        with open(os.path.join(File.GetIniPath(), f"{EditorStatus.APP_NAME}.ini"), "w") as f:
             EditorStatus.editorConfig.write(f)
     else:
         EditorStatus.editorConfig.read(
-            os.path.join(File.getIniPath(), f"{EditorStatus.APP_NAME}.ini"), encoding="utf-8"
+            os.path.join(File.GetIniPath(), f"{EditorStatus.APP_NAME}.ini"), encoding="utf-8"
         )
     EditorStatus.LANGUAGE = EditorStatus.editorConfig[EditorStatus.APP_NAME]["Language"]
 
@@ -75,13 +75,13 @@ def _thread_excepthook(args):
 def main():
     from EditorGlobal import StartWindow, EditorStatus
 
-    if System.alreadyPacked():
+    if System.AlreadyPacked():
         app_dir = os.path.dirname(sys.executable)
         if app_dir not in sys.path:
             sys.path.insert(0, app_dir)
-    icon_path = os.path.join(File.getRootPath(), "Resource", "icon.icns" if sys.platform == "darwin" else "icon.ico")
+    icon_path = os.path.join(File.GetRootPath(), "Resource", "icon.icns" if sys.platform == "darwin" else "icon.ico")
     if not os.path.exists(icon_path):
-        icon_path = os.path.join(File.getRootPath(), "Resource", "icon.ico")
+        icon_path = os.path.join(File.GetRootPath(), "Resource", "icon.ico")
     QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
     QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
     app = App(sys.argv)
@@ -98,7 +98,7 @@ def main():
     else:
         theme = f"{t}.xml"
     apply_stylesheet(app, theme=theme, extra={"font_size": "12px"})
-    System.applyStyle(app, "main.qss")
+    System.ApplyStyle(app, "main.qss")
 
     app.setWindowIcon(QIcon(icon_path))
     start = StartWindow()

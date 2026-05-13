@@ -97,7 +97,7 @@ class FilterEditDialog(QtWidgets.QDialog):
         return result
 
 
-def editFilterData(
+def EditFilterData(
     parent: QtWidgets.QWidget,
     filterData: Dict[str, Any],
     filterType: str,

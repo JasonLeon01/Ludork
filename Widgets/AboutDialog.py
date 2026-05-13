@@ -50,7 +50,7 @@ class AboutDialog(QtWidgets.QDialog):
         layout.addWidget(btnBox)
 
     def _onOpenLicenses(self) -> None:
-        self._licenseWindow = MarkdownPreviewer(self, File.getRootPath())
+        self._licenseWindow = MarkdownPreviewer(self, File.GetRootPath())
         self._licenseWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._licenseWindow.setWindowModality(QtCore.Qt.ApplicationModal)
         self._licenseWindow.show()

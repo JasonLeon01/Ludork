@@ -60,7 +60,7 @@ class MainWindow(
         self.layerList = QtWidgets.QTabWidget()
         self._selectedLayerName: Optional[str] = None
         self.editorPanel = EditorPanel()
-        self.editorPanel.dataChanged.connect(self._refreshUndoRedo)
+        self.editorPanel.DATA_CHANGED.connect(self._refreshUndoRedo)
         self.editorScroll = QtWidgets.QScrollArea()
         self.gamePanel = GamePanel()
         self.gamePanel.setFocusPolicy(QtCore.Qt.StrongFocus)
@@ -261,7 +261,7 @@ class MainWindow(
         self.toast._updatePosition()
         if self._hasShown:
             cfg = configparser.ConfigParser()
-            cfg_path = os.path.join(File.getIniPath(), f"{EditorStatus.APP_NAME}.ini")
+            cfg_path = os.path.join(File.GetIniPath(), f"{EditorStatus.APP_NAME}.ini")
             if os.path.exists(cfg_path):
                 cfg.read(cfg_path)
             if EditorStatus.APP_NAME not in cfg:
@@ -303,4 +303,4 @@ class MainWindow(
         from Utils import Panel
 
         self.layerList.setEnabled(bool(enabled))
-        Panel.applyDisabledOpacity(self.layerList)
+        Panel.ApplyDisabledOpacity(self.layerList)

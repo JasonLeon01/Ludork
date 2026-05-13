@@ -6,7 +6,7 @@ from .Utils import ConfigDictPanel
 
 
 class ConfigWindow(QtWidgets.QMainWindow):
-    modified = QtCore.pyqtSignal()
+    MODIFIED = QtCore.pyqtSignal()
 
     def __init__(self, parent: QtWidgets.QWidget | None = None, title: str | None = None):
         super().__init__(parent)
@@ -39,8 +39,8 @@ class ConfigWindow(QtWidgets.QMainWindow):
                 continue
             panel = ConfigDictPanel(self.container, name, cfg)
             panel.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
-            panel.contentHeightChanged.connect(self._onPanelResized)
-            panel.modified.connect(self.modified)
+            panel.CONTENT_HEIGHT_CHANGED.connect(self._onPanelResized)
+            panel.MODIFIED.connect(self.MODIFIED.emit)
             r = i // 2
             c = i % 2
             self.grid.addWidget(panel, r, c, alignment=QtCore.Qt.AlignTop)

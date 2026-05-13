@@ -9,7 +9,7 @@ class FileSelectorDialog(QtWidgets.QFileDialog):
     def __init__(self, parent: QtWidgets.QWidget, root: str, filter_str: str, title: str = "Select File") -> None:
         super().__init__(parent, title, root, filter_str)
         self._root = os.path.abspath(root)
-        System.setStyle(self, "fileSelector.qss")
+        System.SetStyle(self, "fileSelector.qss")
         self.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
         self.setOption(QtWidgets.QFileDialog.ReadOnly, True)
         self.setFileMode(QtWidgets.QFileDialog.ExistingFile)

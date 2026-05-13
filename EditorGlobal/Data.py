@@ -24,7 +24,7 @@ class GameData:
 
     @classmethod
     def init(cls) -> None:
-        Engine = System.getModule("Engine")
+        Engine = System.GetModule("Engine")
         Tileset = Engine.Gameplay.Tileset  # type: ignore
 
         cls.systemConfigData = {}
@@ -64,10 +64,10 @@ class GameData:
                     try:
                         data = None
                         if extensionPart.lower() == ".json":
-                            data = File.getJSONData(fullPath)
+                            data = File.GetJSONData(fullPath)
                             data["isJson"] = True
                         else:
-                            data = File.loadData(fullPath)
+                            data = File.LoadData(fullPath)
                         if needType and "type" in data and data["type"] != needType:
                             continue
                         if "type" in data:
@@ -229,9 +229,9 @@ class GameData:
                 payload["type"] = "map"
                 if "isJson" in payload:
                     del payload["isJson"]
-                    File.saveJSONData(os.path.join(mapsRoot, f"{key}.json"), payload)
+                    File.SaveJSONData(os.path.join(mapsRoot, f"{key}.json"), payload)
                 else:
-                    File.saveData(os.path.join(mapsRoot, f"{key}.dat"), payload)
+                    File.SaveData(os.path.join(mapsRoot, f"{key}.dat"), payload)
                 if key in c_map["A"]:
                     final_details["A"].append(key)
                 else:
@@ -265,9 +265,9 @@ class GameData:
                 payload["type"] = "system"
                 if "isJson" in payload:
                     del payload["isJson"]
-                    File.saveJSONData(os.path.join(configsRoot, f"{key}.json"), payload)
+                    File.SaveJSONData(os.path.join(configsRoot, f"{key}.json"), payload)
                 else:
-                    File.saveData(os.path.join(configsRoot, f"{key}.dat"), payload)
+                    File.SaveData(os.path.join(configsRoot, f"{key}.dat"), payload)
 
                 if key in c_cfg["A"]:
                     final_details["A"].append(key)
@@ -310,9 +310,9 @@ class GameData:
                 payload["type"] = "tileset"
                 if "isJson" in payload:
                     del payload["isJson"]
-                    File.saveJSONData(os.path.join(tilesetsRoot, f"{key}.json"), payload)
+                    File.SaveJSONData(os.path.join(tilesetsRoot, f"{key}.json"), payload)
                 else:
-                    File.saveData(os.path.join(tilesetsRoot, f"{key}.dat"), payload)
+                    File.SaveData(os.path.join(tilesetsRoot, f"{key}.dat"), payload)
                 if key in c_ts["A"]:
                     final_details["A"].append(key)
                 else:
@@ -345,9 +345,9 @@ class GameData:
             try:
                 if "isJson" in payload:
                     del payload["isJson"]
-                    File.saveJSONData(os.path.join(commonFunctionsRoot, f"{key}.json"), payload)
+                    File.SaveJSONData(os.path.join(commonFunctionsRoot, f"{key}.json"), payload)
                 else:
-                    File.saveData(os.path.join(commonFunctionsRoot, f"{key}.dat"), payload)
+                    File.SaveData(os.path.join(commonFunctionsRoot, f"{key}.dat"), payload)
                 if key in c_cfgs["A"]:
                     final_details["A"].append(key)
                 else:
@@ -384,9 +384,9 @@ class GameData:
             try:
                 if "isJson" in payload:
                     del payload["isJson"]
-                    File.saveJSONData(os.path.join(blueprintsRoot, f"{key}.json"), payload)
+                    File.SaveJSONData(os.path.join(blueprintsRoot, f"{key}.json"), payload)
                 else:
-                    File.saveData(os.path.join(blueprintsRoot, f"{key}.dat"), payload)
+                    File.SaveData(os.path.join(blueprintsRoot, f"{key}.dat"), payload)
                 if key in c_bps["A"]:
                     final_details["A"].append(key)
                 else:
@@ -408,9 +408,9 @@ class GameData:
             try:
                 if "isJson" in payload:
                     del payload["isJson"]
-                    File.saveJSONData(os.path.join(animationsRoot, f"{key}.json"), payload)
+                    File.SaveJSONData(os.path.join(animationsRoot, f"{key}.json"), payload)
                 else:
-                    File.saveData(os.path.join(animationsRoot, f"{key}.dat"), payload)
+                    File.SaveData(os.path.join(animationsRoot, f"{key}.dat"), payload)
                 if key in c_anims["A"]:
                     final_details["A"].append(key)
                 else:
@@ -431,9 +431,9 @@ class GameData:
             try:
                 if "isJson" in payload:
                     del payload["isJson"]
-                    File.saveJSONData(os.path.join(generalRoot, f"{key}.json"), payload)
+                    File.SaveJSONData(os.path.join(generalRoot, f"{key}.json"), payload)
                 else:
-                    File.saveData(os.path.join(generalRoot, f"{key}.dat"), payload)
+                    File.SaveData(os.path.join(generalRoot, f"{key}.dat"), payload)
 
                 if key in c_gen["A"]:
                     final_details["A"].append(key)
@@ -527,7 +527,7 @@ class GameData:
     def genGraphFromData(cls, data: Dict[str, Any], parentClass=None):
         from NodeGraph import EditorDataNode, EditorNode
 
-        Engine = System.getModule("Engine")
+        Engine = System.GetModule("Engine")
         Graph = Engine.NodeGraph.Graph  # type: ignore
         nodes = {}
         links = {}

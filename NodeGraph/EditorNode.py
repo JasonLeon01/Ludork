@@ -6,7 +6,7 @@ from typing import Tuple, List, Optional, Callable
 from Utils import System
 
 try:
-    Engine = System.getModule("Engine")
+    Engine = System.GetModule("Engine")
     Node = Engine.NodeGraph.Node
     DataNode = Engine.NodeGraph.DataNode
     Graph = Engine.NodeGraph.Graph

@@ -9,12 +9,12 @@ from Utils import System
 
 
 class LightPanel(QtWidgets.QWidget):
-    lightEdited = QtCore.pyqtSignal(object)
+    LIGHT_EDITED = QtCore.pyqtSignal(object)
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
-        System.applyStyle(self, "config.qss")
+        System.ApplyStyle(self, "config.qss")
         self._form = QtWidgets.QFormLayout()
         self._form.setContentsMargins(0, 0, 0, 0)
         self._form.setSpacing(8)
@@ -89,7 +89,7 @@ class LightPanel(QtWidgets.QWidget):
             return
         if self._lastData != data:
             self._lastData = data
-            self.lightEdited.emit(data)
+            self.LIGHT_EDITED.emit(data)
 
     def _collectData(self) -> Optional[Dict[str, Any]]:
         if not self._editMap:

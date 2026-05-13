@@ -22,14 +22,14 @@ class MapData:
 
 
 class EditorPanel(QtWidgets.QWidget):
-    tileNumberPicked = QtCore.pyqtSignal(int)
-    dataChanged = QtCore.pyqtSignal()
-    lightSelectionChanged = QtCore.pyqtSignal(str, object, object)
-    lightDataChanged = QtCore.pyqtSignal(str, object, object)
-    actorSelectionChanged = QtCore.pyqtSignal(str, object, object)
+    TILE_NUMBER_PICKED = QtCore.pyqtSignal(int)
+    DATA_CHANGED = QtCore.pyqtSignal()
+    LIGHT_SELECTION_CHANGED = QtCore.pyqtSignal(str, object, object)
+    LIGHT_DATA_CHANGED = QtCore.pyqtSignal(str, object, object)
+    ACTOR_SELECTION_CHANGED = QtCore.pyqtSignal(str, object, object)
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
-        self.selctedPos: Tuple[int, int] = None
+        self.selectedPos: Tuple[int, int] = None
         self._mapFilesRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
         self.mapFilePath = ""
         self.mapKey: str = ""
@@ -64,7 +64,7 @@ class EditorPanel(QtWidgets.QWidget):
         self.setMouseTracking(True)
         self.setFocusPolicy(QtCore.Qt.ClickFocus)
         self.setAcceptDrops(False)
-        Utils.Panel.applyDisabledOpacity(self)
+        Utils.Panel.ApplyDisabledOpacity(self)
 
     def _updateCachedTileset(self) -> None:
         self._cachedTilesetImage = None
@@ -83,16 +83,16 @@ class EditorPanel(QtWidgets.QWidget):
             self._cachedTilesetImage = QtGui.QImage(ts_path)
 
     def refreshMap(self, mapFileName: Optional[str] = None):
-        self.selctedPos = None
+        self.selectedPos = None
         self.mapData = None
         self._pixmap = None
         self._setSelectedLightIndex(None)
-        self.actorSelectionChanged.emit(None, None, None)
+        self.ACTOR_SELECTION_CHANGED.emit(None, None, None)
         self.setMinimumSize(0, 0)
         self.resize(0, 0)
         self._mapFilesRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
         self.mapFilePath = ""
-        Utils.Panel.clearPanel(self)
+        Utils.Panel.ClearPanel(self)
         if not mapFileName:
             return
         if os.path.isabs(mapFileName):
@@ -103,7 +103,7 @@ class EditorPanel(QtWidgets.QWidget):
             self.mapKey = mapFileName
         mapData = GameData.mapData.get(self.mapKey)
         if mapData is None:
-            mapData = Utils.File.loadData(self.mapFilePath)
+            mapData = Utils.File.LoadData(self.mapFilePath)
             GameData.mapData[self.mapKey] = mapData
         self.applyMapData(mapData)
         self._updateCachedTileset()
@@ -112,7 +112,7 @@ class EditorPanel(QtWidgets.QWidget):
         self.update()
 
     def applyMapData(self, data):
-        Engine = System.getModule("Engine")
+        Engine = System.GetModule("Engine")
         TileLayerData = Engine.Gameplay.TileLayerData
         mapName = data["mapName"]
         width = data["width"]
@@ -266,7 +266,7 @@ class EditorPanel(QtWidgets.QWidget):
             self._stopLightMoveDrag()
             self._setSelectedLightIndex(None)
             self._setLightOverlayEnabled(False)
-            self.actorSelectionChanged.emit(None, None, None)
+            self.ACTOR_SELECTION_CHANGED.emit(None, None, None)
         self.update()
 
     def setLightOverlayEnabled(self, enabled: bool) -> None:
@@ -394,7 +394,7 @@ class EditorPanel(QtWidgets.QWidget):
         if not isinstance(light, dict):
             return
         light["radius"] = float(radius)
-        self.lightDataChanged.emit(self.mapKey, index, light)
+        self.LIGHT_DATA_CHANGED.emit(self.mapKey, index, light)
 
     def _applyLightPosition(self, index: int, x: float, y: float) -> None:
         if not self.mapKey:
@@ -411,7 +411,7 @@ class EditorPanel(QtWidgets.QWidget):
         if not isinstance(light, dict):
             return
         light["position"] = [float(x), float(y)]
-        self.lightDataChanged.emit(self.mapKey, index, light)
+        self.LIGHT_DATA_CHANGED.emit(self.mapKey, index, light)
 
     def _setSelectedLightIndex(self, index: Optional[int]) -> None:
         if index is not None:
@@ -430,7 +430,7 @@ class EditorPanel(QtWidgets.QWidget):
         light = lights[index] if (index is not None and 0 <= index < len(lights)) else None
         if not isinstance(light, dict):
             light = None
-        self.lightSelectionChanged.emit(self.mapKey, index, light)
+        self.LIGHT_SELECTION_CHANGED.emit(self.mapKey, index, light)
 
     def _hitTestLight(self, pos: QtCore.QPoint) -> Optional[int]:
         lights = self._getLights()
@@ -629,14 +629,14 @@ class EditorPanel(QtWidgets.QWidget):
             super().mouseReleaseEvent(e)
             return
         if e.button() == QtCore.Qt.LeftButton and self.rectStartPos is not None:
-            self._commitRectangle(self.selctedPos)
+            self._commitRectangle(self.selectedPos)
         if e.button() == QtCore.Qt.LeftButton and self._actorMoveDragging:
             self._stopActorMoveDrag()
         super().mouseReleaseEvent(e)
 
     def keyReleaseEvent(self, e: QtGui.QKeyEvent) -> None:
         if e.key() == QtCore.Qt.Key_Shift and self.rectStartPos is not None:
-            self._commitRectangle(self.selctedPos)
+            self._commitRectangle(self.selectedPos)
         super().keyReleaseEvent(e)
 
     def paintEvent(self, e: QtGui.QPaintEvent) -> None:
@@ -696,8 +696,8 @@ class EditorPanel(QtWidgets.QWidget):
                 p.drawEllipse(QtCore.QPointF(cx, cy), 3.0, 3.0)
                 p.setBrush(QtCore.Qt.NoBrush)
 
-        if self.selctedPos is not None and self.selectedLayerName is not None:
-            gx, gy = self.selctedPos
+        if self.selectedPos is not None and self.selectedLayerName is not None:
+            gx, gy = self.selectedPos
             tileSize = EditorStatus.CELLSIZE
 
             if self.rectStartPos is not None:
@@ -807,13 +807,13 @@ class EditorPanel(QtWidgets.QWidget):
 
     def changeEvent(self, e: QtCore.QEvent) -> None:
         if e.type() == QtCore.QEvent.EnabledChange:
-            Utils.Panel.applyDisabledOpacity(self)
+            Utils.Panel.ApplyDisabledOpacity(self)
         super().changeEvent(e)
 
     def leaveEvent(self, a0: QtCore.QEvent) -> None:
         self._stopLightRadiusDrag()
         self._stopLightMoveDrag()
-        self.selctedPos = None
+        self.selectedPos = None
         self.update()
         super().leaveEvent(a0)
 
@@ -867,7 +867,7 @@ class EditorPanel(QtWidgets.QWidget):
 
         layerList.append(newActor)
         self._refreshTitle()
-        self.dataChanged.emit()
+        self.DATA_CHANGED.emit()
         self._renderFromMapData()
         self.update()
 
@@ -882,8 +882,8 @@ class EditorPanel(QtWidgets.QWidget):
             GameData.recordSnapshot()
             layerList.pop(index)
             self._refreshTitle()
-            self.dataChanged.emit()
-            self.actorSelectionChanged.emit(None, None, None)
+            self.DATA_CHANGED.emit()
+            self.ACTOR_SELECTION_CHANGED.emit(None, None, None)
             self._renderFromMapData()
             self.update()
 
@@ -951,7 +951,7 @@ class EditorPanel(QtWidgets.QWidget):
         gy = y // tileSize
         if gx < 0 or gy < 0 or gx >= self.mapData.width or gy >= self.mapData.height:
             return
-        self.selctedPos = (gx, gy)
+        self.selectedPos = (gx, gy)
         if not self.tileModeEnabled:
             if self.selectedLayerName is not None:
                 hit = self._hitTestActor(self.selectedLayerName, e.pos(), tileSize)
@@ -983,7 +983,7 @@ class EditorPanel(QtWidgets.QWidget):
                     if isinstance(hit, int):
                         actors = self._getActorListForLayer(self.selectedLayerName)
                         if 0 <= hit < len(actors):
-                            self.actorSelectionChanged.emit(self.selectedLayerName, hit, actors[hit])
+                            self.ACTOR_SELECTION_CHANGED.emit(self.selectedLayerName, hit, actors[hit])
 
                         GameData.recordSnapshot()
                         self._actorMoveDragging = True
@@ -1019,11 +1019,11 @@ class EditorPanel(QtWidgets.QWidget):
                                 GameData.recordSnapshot()
                                 layerList.append(actorEntry)
                                 self._refreshTitle()
-                                self.dataChanged.emit()
+                                self.DATA_CHANGED.emit()
                                 self._renderFromMapData()
                                 self.update()
                                 return
-                        self.actorSelectionChanged.emit(None, None, None)
+                        self.ACTOR_SELECTION_CHANGED.emit(None, None, None)
             return
         if self.selectedLayerName is None:
             return
@@ -1033,9 +1033,9 @@ class EditorPanel(QtWidgets.QWidget):
         if e.button() == QtCore.Qt.RightButton:
             try:
                 tn = layer.tiles[gy][gx]
-                self.tileNumberPicked.emit(-1 if tn is None else int(tn))
+                self.TILE_NUMBER_PICKED.emit(-1 if tn is None else int(tn))
             except Exception:
-                self.tileNumberPicked.emit(-1)
+                self.TILE_NUMBER_PICKED.emit(-1)
             return
         if e.button() != QtCore.Qt.LeftButton:
             return
@@ -1103,13 +1103,13 @@ class EditorPanel(QtWidgets.QWidget):
         gx = x // tileSize
         gy = y // tileSize
         if gx < 0 or gy < 0 or gx >= self.mapData.width or gy >= self.mapData.height:
-            if self.selctedPos is not None:
-                self.selctedPos = None
+            if self.selectedPos is not None:
+                self.selectedPos = None
                 self.update()
             return
 
-        if self.selctedPos != (gx, gy):
-            self.selctedPos = (gx, gy)
+        if self.selectedPos != (gx, gy):
+            self.selectedPos = (gx, gy)
             self.update()
 
         if self.rectStartPos is not None:
@@ -1190,7 +1190,7 @@ class EditorPanel(QtWidgets.QWidget):
             return False, ELOC("MAP_FILE_NONE")
         try:
             if self.mapKey and self.mapKey in GameData.mapData:
-                Utils.File.saveData(self.mapFilePath, GameData.mapData[self.mapKey])
+                Utils.File.SaveData(self.mapFilePath, GameData.mapData[self.mapKey])
             else:
                 return False, ELOC("MAP_DATA_NONE")
         except Exception as e:
@@ -1232,8 +1232,8 @@ class EditorPanel(QtWidgets.QWidget):
             w = self.window()
             if not w:
                 return
-            w.setWindowTitle(System.getTitle())
-            self.dataChanged.emit()
+            w.setWindowTitle(System.GetTitle())
+            self.DATA_CHANGED.emit()
         except Exception as e:
             print(f"Error while refreshing title: {e}")
 
@@ -1519,9 +1519,9 @@ class EditorPanel(QtWidgets.QWidget):
         data = None
         try:
             if ext == ".json":
-                data = Utils.File.getJSONData(path)
+                data = Utils.File.GetJSONData(path)
             else:
-                data = Utils.File.loadData(path)
+                data = Utils.File.LoadData(path)
         except Exception as ex:
             msg = ELOC("NOT_ACTOR_TYPE")
         okDict = isinstance(data, dict)
@@ -1536,7 +1536,7 @@ class EditorPanel(QtWidgets.QWidget):
                     clsObj = None
             try:
                 ActorBases = []
-                Engine = System.getModule("Engine")
+                Engine = System.GetModule("Engine")
                 ActorBases.append(Engine.Gameplay.Actors.Actor)
                 okSubclass = (
                     bool(clsObj) and isinstance(clsObj, type) and any(issubclass(clsObj, b) for b in ActorBases)
@@ -1583,7 +1583,7 @@ class EditorPanel(QtWidgets.QWidget):
                             }
                             layerList.append(actorEntry)
                             self._refreshTitle()
-                            self.dataChanged.emit()
+                            self.DATA_CHANGED.emit()
                             self._renderFromMapData()
                             self.update()
                         msg = ELOC("DRAG_INFO").format(file=os.path.basename(path), x=gx, y=gy)

@@ -21,7 +21,7 @@ class SingleRowDialog(QtWidgets.QDialog):
         layout = QtWidgets.QFormLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
-        System.setStyle(self, "singleRow.qss")
+        System.SetStyle(self, "singleRow.qss")
         self.input = QtWidgets.QLineEdit(self)
         if isinstance(initial_text, str):
             self.input.setText(initial_text)

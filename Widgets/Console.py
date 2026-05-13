@@ -9,7 +9,7 @@ from Utils import Panel
 
 
 class PipeReader(QtCore.QThread):
-    new_line = QtCore.pyqtSignal(str, str)
+    NEW_LINE = QtCore.pyqtSignal(str, str)
 
     def __init__(self, stream: Union[io.BufferedReader, io.TextIOWrapper], level_override: Optional[str] = None):
         super().__init__()
@@ -33,7 +33,7 @@ class PipeReader(QtCore.QThread):
             else:
                 text = str(line)
             lvl = self._detect_level(text) if self._level_override is None else self._level_override
-            self.new_line.emit(text.rstrip("\n"), lvl)
+            self.NEW_LINE.emit(text.rstrip("\n"), lvl)
 
     def stop(self) -> None:
         self._running = False
@@ -121,15 +121,15 @@ class ConsoleWidget(QtWidgets.QWidget):
         self._proc = proc
         self._stdout_reader = PipeReader(proc.stdout, None)
         self._stderr_reader = PipeReader(proc.stderr, None)
-        self._stdout_reader.new_line.connect(self._append_line)
-        self._stderr_reader.new_line.connect(self._append_line)
+        self._stdout_reader.NEW_LINE.connect(self._append_line)
+        self._stderr_reader.NEW_LINE.connect(self._append_line)
         self._stdout_reader.start()
         self._stderr_reader.start()
         ok = getattr(proc, "stdin", None) is not None
         self._send.setEnabled(ok)
         self._input.setEnabled(ok)
-        Panel.applyDisabledOpacity(self._send)
-        Panel.applyDisabledOpacity(self._input)
+        Panel.ApplyDisabledOpacity(self._send)
+        Panel.ApplyDisabledOpacity(self._input)
 
     def detach_process(self) -> None:
         if self._stdout_reader:
@@ -151,8 +151,8 @@ class ConsoleWidget(QtWidgets.QWidget):
             self._proc = None
         self._send.setEnabled(False)
         self._input.setEnabled(False)
-        Panel.applyDisabledOpacity(self._send)
-        Panel.applyDisabledOpacity(self._input)
+        Panel.ApplyDisabledOpacity(self._send)
+        Panel.ApplyDisabledOpacity(self._input)
 
     def clear(self) -> None:
         self._view.clear()

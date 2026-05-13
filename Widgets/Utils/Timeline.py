@@ -9,9 +9,9 @@ from EditorGlobal import EditorStatus
 
 
 class TimelineCanvas(QtWidgets.QWidget):
-    dataChanged = QtCore.pyqtSignal()
-    selectionChanged = QtCore.pyqtSignal(int, int)
-    timeChanged = QtCore.pyqtSignal(float)
+    DATA_CHANGED = QtCore.pyqtSignal()
+    SELECTION_CHANGED = QtCore.pyqtSignal(int, int)
+    TIME_CHANGED = QtCore.pyqtSignal(float)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -38,7 +38,7 @@ class TimelineCanvas(QtWidgets.QWidget):
         if self.data:
             self.frameRate = self.data.get("frameRate", 30)
         self.selectedSegment = None
-        self.selectionChanged.emit(-1, -1)
+        self.SELECTION_CHANGED.emit(-1, -1)
         self.updateCanvasSize()
         self.update()
 
@@ -56,9 +56,9 @@ class TimelineCanvas(QtWidgets.QWidget):
 
         self.selectedSegment = newSelected
         if newSelected:
-            self.selectionChanged.emit(newSelected[0], newSelected[1])
+            self.SELECTION_CHANGED.emit(newSelected[0], newSelected[1])
         else:
-            self.selectionChanged.emit(-1, -1)
+            self.SELECTION_CHANGED.emit(-1, -1)
         self.update()
 
     def setZoom(self, zoom: float):
@@ -353,8 +353,8 @@ class TimelineCanvas(QtWidgets.QWidget):
                     if 0 <= segIdx < len(segments):
                         segments.pop(segIdx)
                         self.selectedSegment = None
-                        self.selectionChanged.emit(-1, -1)
-                        self.dataChanged.emit()
+                        self.SELECTION_CHANGED.emit(-1, -1)
+                        self.DATA_CHANGED.emit()
                         self.updateCanvasSize()
                         self.update()
 
@@ -369,7 +369,7 @@ class TimelineCanvas(QtWidgets.QWidget):
 
             if trackIdx != -1 and handle != 0:
                 self.selectedSegment = (trackIdx, segIdx)
-                self.selectionChanged.emit(trackIdx, segIdx)
+                self.SELECTION_CHANGED.emit(trackIdx, segIdx)
                 self.dragMode = handle
                 self.dragStartPos = pos
 
@@ -377,14 +377,14 @@ class TimelineCanvas(QtWidgets.QWidget):
                 self.dragOriginalStart = seg.get("startFrame", {}).get("time", 0.0)
                 self.dragOriginalEnd = seg.get("endFrame", {}).get("time", 0.0)
                 self.currentTime = (self.dragOriginalStart + self.dragOriginalEnd) * 0.5
-                self.timeChanged.emit(self.currentTime)
+                self.TIME_CHANGED.emit(self.currentTime)
             else:
                 self.selectedSegment = None
-                self.selectionChanged.emit(-1, -1)
+                self.SELECTION_CHANGED.emit(-1, -1)
                 x = event.x()
                 time = x / self.pixelsPerSecond
                 self.currentTime = max(0, time)
-                self.timeChanged.emit(self.currentTime)
+                self.TIME_CHANGED.emit(self.currentTime)
 
             self.setFocus()
             self.update()
@@ -458,18 +458,18 @@ class TimelineCanvas(QtWidgets.QWidget):
 
             self.updateCanvasSize()
             self.update()
-            self.selectionChanged.emit(trackIdx, segIdx)
+            self.SELECTION_CHANGED.emit(trackIdx, segIdx)
         else:
             x = event.x()
             time = x / self.pixelsPerSecond
             self.currentTime = max(0, time)
-            self.timeChanged.emit(self.currentTime)
+            self.TIME_CHANGED.emit(self.currentTime)
             self.update()
 
     def mouseReleaseEvent(self, event):
         if self.dragMode != 0:
             self.dragMode = 0
-            self.dataChanged.emit()
+            self.DATA_CHANGED.emit()
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasText():
@@ -549,7 +549,7 @@ class TimelineCanvas(QtWidgets.QWidget):
         segment["originalDuration"] = duration
         self.updateCanvasSize()
         self.update()
-        self.dataChanged.emit()
+        self.DATA_CHANGED.emit()
 
     def dropEvent(self, event):
         assetName = event.mimeData().text()
@@ -621,13 +621,13 @@ class TimelineCanvas(QtWidgets.QWidget):
 
         self.updateCanvasSize()
         self.update()
-        self.dataChanged.emit()
+        self.DATA_CHANGED.emit()
 
 
 class TimelinePanel(QtWidgets.QWidget):
-    timeChanged = QtCore.pyqtSignal(float)
-    dataChanged = QtCore.pyqtSignal()
-    selectionChanged = QtCore.pyqtSignal(int, int)
+    TIME_CHANGED = QtCore.pyqtSignal(float)
+    DATA_CHANGED = QtCore.pyqtSignal()
+    SELECTION_CHANGED = QtCore.pyqtSignal(int, int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -664,9 +664,9 @@ class TimelinePanel(QtWidgets.QWidget):
         self.canvas = TimelineCanvas()
         self.scrollArea.setWidget(self.canvas)
 
-        self.canvas.dataChanged.connect(self.dataChanged)
-        self.canvas.selectionChanged.connect(self.selectionChanged)
-        self.canvas.timeChanged.connect(self.timeChanged)
+        self.canvas.DATA_CHANGED.connect(self.DATA_CHANGED.emit)
+        self.canvas.SELECTION_CHANGED.connect(self.SELECTION_CHANGED.emit)
+        self.canvas.TIME_CHANGED.connect(self.TIME_CHANGED.emit)
 
         self.layout.addWidget(self.scrollArea)
         desiredHeight = self.toolbar.height() + self.canvas.headerHeight + self.canvas.trackHeight * 3 + 12

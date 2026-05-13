@@ -10,7 +10,7 @@ from Utils import Panel
 
 
 class _BoolSwitch(QtWidgets.QWidget):
-    toggled = QtCore.pyqtSignal(bool)
+    TOGGLED = QtCore.pyqtSignal(bool)
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None, initial: bool = False) -> None:
         super().__init__(parent)
@@ -54,16 +54,16 @@ class _BoolSwitch(QtWidgets.QWidget):
             return
         self._checked = not self._checked
         self.update()
-        self.toggled.emit(self._checked)
+        self.TOGGLED.emit(self._checked)
 
     def changeEvent(self, e: QtCore.QEvent) -> None:
         if e.type() == QtCore.QEvent.EnabledChange:
-            Panel.applyDisabledOpacity(self)
+            Panel.ApplyDisabledOpacity(self)
         super().changeEvent(e)
 
 
 class SettingsWindow(QtWidgets.QMainWindow):
-    modified = QtCore.pyqtSignal()
+    MODIFIED = QtCore.pyqtSignal()
 
     def __init__(
         self,
@@ -133,9 +133,9 @@ class SettingsWindow(QtWidgets.QMainWindow):
                     def on_toggled(v: bool, k: str = key):
                         self._projConfig[k] = v
                         self._save()
-                        self.modified.emit()
+                        self.MODIFIED.emit()
 
-                    w.toggled.connect(on_toggled)
+                    w.TOGGLED.connect(on_toggled)
                 w.setEnabled(not is_disabled)
                 self.form.addRow(lab, w)
             else:
@@ -160,7 +160,7 @@ class SettingsWindow(QtWidgets.QMainWindow):
                             new_val = text
                         self._projConfig[k] = new_val
                         self._save()
-                        self.modified.emit()
+                        self.MODIFIED.emit()
 
                     edit.textChanged.connect(on_changed)
                 edit.setReadOnly(is_disabled)

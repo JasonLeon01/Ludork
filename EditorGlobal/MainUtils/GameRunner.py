@@ -23,14 +23,14 @@ class GameRunnerMixin:
         self._lockGameViewportSize()
         self._setLayerListInteractive(False)
         self.leftList.setEnabled(False)
-        Panel.applyDisabledOpacity(self.leftList)
+        Panel.ApplyDisabledOpacity(self.leftList)
         self.tileSelect.setEnabled(False)
-        Panel.applyDisabledOpacity(self.tileSelect)
+        Panel.ApplyDisabledOpacity(self.tileSelect)
         self.lightPanel.setEnabled(False)
-        Panel.applyDisabledOpacity(self.lightPanel)
+        Panel.ApplyDisabledOpacity(self.lightPanel)
         self.fileExplorer.setInteractive(False)
         self.editModeToggle.setEnabled(False)
-        Panel.applyDisabledOpacity(self.editModeToggle)
+        Panel.ApplyDisabledOpacity(self.editModeToggle)
         iniPath = os.path.join(EditorStatus.PROJ_PATH, "Main.ini")
         iniFile = configparser.ConfigParser()
         iniFile.read(iniPath, encoding="utf-8")
@@ -105,19 +105,19 @@ class GameRunnerMixin:
             finally:
                 self._engineProc = None
         self.gamePanel.setEngineProcess(None)
-        Panel.clearPanel(self.gamePanel)
+        Panel.ClearPanel(self.gamePanel)
         self.stacked.setCurrentWidget(self.editorViewport)
         self._unlockGameViewportSize()
         self._setLayerListInteractive(self._editModeIdx != 1)
         self.leftList.setEnabled(True)
-        Panel.applyDisabledOpacity(self.leftList)
+        Panel.ApplyDisabledOpacity(self.leftList)
         self.fileExplorer.setInteractive(True)
         self.editModeToggle.setEnabled(True)
-        Panel.applyDisabledOpacity(self.editModeToggle)
+        Panel.ApplyDisabledOpacity(self.editModeToggle)
         self.tileSelect.setEnabled(True)
-        Panel.applyDisabledOpacity(self.tileSelect)
+        Panel.ApplyDisabledOpacity(self.tileSelect)
         self.lightPanel.setEnabled(True)
-        Panel.applyDisabledOpacity(self.lightPanel)
+        Panel.ApplyDisabledOpacity(self.lightPanel)
         self.consoleWidget.detach_process()
         self.tabWidget.setCurrentWidget(self.fileExplorer)
         if showFPS:
@@ -151,7 +151,7 @@ class GameRunnerMixin:
                 print(f"Failed to load FPS history: {e}")
 
     def _getExec(self, scriptPath):
-        if System.alreadyPacked():
+        if System.AlreadyPacked():
             return [sys.argv[0], scriptPath]
         return [sys.executable, "-u", scriptPath]
 
