@@ -311,12 +311,12 @@ class System:
             finalCanvas = cls.__graphicsCanvases[-1]
         cls._canvasSprite.setTexture(finalCanvas.getTexture())
         if cls._shakeActive:
-            winSize = cls._window.getSize()
+            canvasTexSize = finalCanvas.getSize()
             pad = cls._shakePower
             cls._canvasSprite.setScale(
                 Vector2f(
-                    (winSize.x + pad * 2) / winSize.x,
-                    (winSize.y + pad * 2) / winSize.y,
+                    (canvasTexSize.x + pad * 2) / canvasTexSize.x,
+                    (canvasTexSize.y + pad * 2) / canvasTexSize.y,
                 )
             )
             cls._canvasSprite.setPosition(

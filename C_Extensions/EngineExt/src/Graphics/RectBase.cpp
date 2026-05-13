@@ -4,6 +4,8 @@
 #include <SFML/Graphics/Color.hpp>
 #include <SFML/Graphics/Rect.hpp>
 
+#include <algorithm>
+
 void RectBase::renderCorners(sf::RenderTarget &dst, const std::vector<sf::Texture *> &areaCaches,
                              const std::vector<sf::Vector2f> &cornerPositions) {
     for (int i = 0; i < 4; ++i) {
@@ -20,22 +22,36 @@ void RectBase::renderEdges(sf::RenderTarget &dst, const std::vector<sf::Texture 
     float w = dst.getSize().x;
     float h = dst.getSize().y;
     for (int i = 0; i < 4; ++i) {
-        sf::Sprite edgeSprite(*areaCaches[i]);
-        int rectW, rectH;
+        int totalW, totalH;
+        int tileW = int(areaCaches[i]->getSize().x);
+        int tileH = int(areaCaches[i]->getSize().y);
         if (i < 2) {
-            rectW = int(w - 2 * cornerW);
-            rectH = int(areaCaches[i]->getSize().y);
+            totalW = int(w - 2 * cornerW);
+            totalH = tileH;
         } else {
-            rectW = int(areaCaches[i]->getSize().x);
-            rectH = int(h - 2 * cornerH);
+            totalW = tileW;
+            totalH = int(h - 2 * cornerH);
         }
 
-        if (rectW < 0) rectW = 0;
-        if (rectH < 0) rectH = 0;
+        if (totalW <= 0 || totalH <= 0 || tileW <= 0 || tileH <= 0) continue;
 
-        edgeSprite.setTextureRect(sf::IntRect(sf::Vector2i(0, 0), sf::Vector2i(rectW, rectH)));
-        edgeSprite.setPosition(edgePositions[i]);
-        dst.draw(edgeSprite);
+        int drawn = 0;
+        const bool horizontal = (i < 2);
+        const int total = horizontal ? totalW : totalH;
+        const int step = horizontal ? tileW : tileH;
+        while (drawn < total) {
+            int chunk = std::min(step, total - drawn);
+            sf::Sprite edgeSprite(*areaCaches[i]);
+            if (horizontal) {
+                edgeSprite.setTextureRect(sf::IntRect(sf::Vector2i(0, 0), sf::Vector2i(chunk, tileH)));
+                edgeSprite.setPosition(edgePositions[i] + sf::Vector2f(float(drawn), 0.f));
+            } else {
+                edgeSprite.setTextureRect(sf::IntRect(sf::Vector2i(0, 0), sf::Vector2i(tileW, chunk)));
+                edgeSprite.setPosition(edgePositions[i] + sf::Vector2f(0.f, float(drawn)));
+            }
+            dst.draw(edgeSprite);
+            drawn += chunk;
+        }
     }
 }
 

@@ -50,13 +50,17 @@ class MapClickAutoPath(ComponentBase):
         This method checks for left mouse button clicks and adds
         the clicked map position to the pending goals queue.
         """
-        if not Input.isMouseButtonTriggered(Mouse.Button.Left, True):
+        if Input.isMouseButtonTriggered(Mouse.Button.Left, True):
+            goal = self._getMouseMapPosition()
+            if goal is not None:
+                with self._pendingGoalsLock:
+                    self._pendingGoals.append(goal)
             return
-        goal = self._getMouseMapPosition()
-        if goal is None:
-            return
-        with self._pendingGoalsLock:
-            self._pendingGoals.append(goal)
+        if Input.isTouchBegan(handled=True):
+            goal = self._getTouchMapPosition()
+            if goal is not None:
+                with self._pendingGoalsLock:
+                    self._pendingGoals.append(goal)
 
     def onTick(self) -> None:
         r"""
@@ -237,6 +241,17 @@ class MapClickAutoPath(ComponentBase):
         if scale > 0:
             mousePos = Vector2i(int(mousePos.x / scale), int(mousePos.y / scale))
         worldPos = self._parent.getCamera().mapPixelToCoords(mousePos)
+        cellSize = Engine.CellSize
+        return Vector2i(int(worldPos.x // cellSize), int(worldPos.y // cellSize))
+
+    def _getTouchMapPosition(self) -> Optional[Vector2i]:
+        touchPos = Input.getTouchBeganPosition()
+        if touchPos is None:
+            return None
+        scale = System.getScale()
+        if scale > 0:
+            touchPos = Vector2i(int(touchPos.x / scale), int(touchPos.y / scale))
+        worldPos = self._parent.getCamera().mapPixelToCoords(touchPos)
         cellSize = Engine.CellSize
         return Vector2i(int(worldPos.x // cellSize), int(worldPos.y // cellSize))
 

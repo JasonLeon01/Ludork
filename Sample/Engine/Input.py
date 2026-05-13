@@ -13,7 +13,7 @@ import threading
 import traceback
 from enum import Enum
 from typing import Any, Dict, Optional, Tuple, Union, List, Callable
-from . import Keyboard, Mouse, Joystick, WindowBase, Vector2i
+from . import Keyboard, Mouse, Joystick, Touch, WindowBase, Vector2i
 from .Utils import Math
 
 _StateLock: threading.RLock = threading.RLock()
@@ -108,6 +108,18 @@ class _EventState:
     MouseEntered: bool = False  # Whether mouse entered the window this frame
     MouseLeft: bool = False  # Whether mouse left the window this frame
 
+    TouchBegan: bool = False  # Whether a touch began this frame
+    TouchEnded: bool = False  # Whether a touch ended this frame
+    TouchMoved: bool = False  # Whether a touch moved this frame
+    TouchActive: bool = False  # Whether a touch is currently down (persistent across frames)
+    TouchPosition: Optional[Vector2i] = None  # Current touch position (last known, while active)
+    TouchBeganPosition: Optional[Vector2i] = None  # Position where touch began this frame
+    TouchEndedPosition: Optional[Vector2i] = None  # Position where touch ended this frame
+    TouchMovedDelta: Optional[Vector2i] = None  # Touch movement delta this frame
+    TouchBeganHandled: bool = False  # Whether the TouchBegan was handled this frame
+    TouchTriggered: Tuple[int, bool] = (0, False)  # (press_count, handled); persists across frames while active
+    TouchBlocked: bool = False  # Whether touch input is blocked
+
     JoystickButtonPressed: bool = False  # Whether any joystick button was pressed this frame
     JoystickButtonReleased: bool = False  # Whether any joystick button was released this frame
     JoystickAxisMoved: bool = False  # Whether any joystick axis was moved this frame
@@ -139,6 +151,27 @@ class _EventState:
 
 _InjectedEvents = []
 _UseInjectedMouseOnly: bool = False
+
+
+def _pixelToWorld(window: WindowBase, pixel: Vector2i) -> Vector2i:
+    r"""
+    \brief Convert a window-pixel position to world (view) coordinates.
+
+    Returns the same coordinates when the window uses a default view that spans
+    the full pixel surface. On targets that apply a custom view (e.g. iOS
+    letterbox), this maps the raw event pixel position into the UI's logical
+    coordinate space so it aligns with `getAbsoluteBounds()` outputs.
+
+    - window: The window whose current view defines the mapping.
+    - pixel: Input position in window pixel coordinates.
+
+    \return The mapped position as a Vector2i in world coordinates.
+    """
+    try:
+        world = window.mapPixelToCoords(pixel)
+        return Vector2i(int(world.x), int(world.y))
+    except Exception:
+        return pixel
 
 
 def setUseInjectedMouseOnly(value: bool) -> None:
@@ -297,6 +330,14 @@ def update(window: WindowBase) -> None:
         _EventState.MouseEntered = False
         _EventState.MouseLeft = False
 
+        _EventState.TouchBegan = False
+        _EventState.TouchEnded = False
+        _EventState.TouchMoved = False
+        _EventState.TouchBeganPosition = None
+        _EventState.TouchEndedPosition = None
+        _EventState.TouchMovedDelta = None
+        _EventState.TouchBeganHandled = False
+
         _EventState.JoystickButtonPressed = False
         _EventState.JoystickButtonReleased = False
         _EventState.JoystickAxisMoved = False
@@ -360,12 +401,12 @@ def update(window: WindowBase) -> None:
                         mouseWheelEvent = event.getIfMouseWheelScrolled()
                         _EventState.MouseScrolledWheel = mouseWheelEvent.wheel
                         _EventState.MouseScrolledWheelDelta = mouseWheelEvent.delta
-                        _EventState.MouseScrolledWheelPosition = mouseWheelEvent.position
+                        _EventState.MouseScrolledWheelPosition = _pixelToWorld(window, mouseWheelEvent.position)
                     if event.isMouseButtonPressed():
                         _EventState.MouseButtonPressed = True
                         mouseButtonEvent = event.getIfMouseButtonPressed()
                         _EventState.MouseButtonPressedMap[mouseButtonEvent.button] = True
-                        _EventState.MousePressedPosition = mouseButtonEvent.position
+                        _EventState.MousePressedPosition = _pixelToWorld(window, mouseButtonEvent.position)
                         if not mouseButtonEvent.button in _EventState.MouseButtonTriggeredMap:
                             _EventState.MouseButtonTriggeredMap[mouseButtonEvent.button] = (0, False)
                         count, handled = _EventState.MouseButtonTriggeredMap[mouseButtonEvent.button]
@@ -375,20 +416,49 @@ def update(window: WindowBase) -> None:
                         _EventState.MouseButtonReleased = True
                         mouseButtonEvent = event.getIfMouseButtonReleased()
                         _EventState.MouseButtonReleasedMap[mouseButtonEvent.button] = True
-                        _EventState.MouseReleasedPosition = mouseButtonEvent.position
+                        _EventState.MouseReleasedPosition = _pixelToWorld(window, mouseButtonEvent.position)
                         if mouseButtonEvent.button in _EventState.MouseButtonTriggeredMap:
                             _EventState.MouseButtonTriggeredMap.pop(mouseButtonEvent.button, None)
                     if event.isMouseMoved():
                         _EventState.MouseMoved = True
                         mouseMoveEvent = event.getIfMouseMoved()
                         lastPosition: Vector2i = copy.copy(_EventState.MousePosition)
-                        _EventState.MousePosition = mouseMoveEvent.position
-                        if mouseMoveEvent.position != lastPosition:
-                            _EventState.MouseMovedDelta = mouseMoveEvent.position - lastPosition
+                        _EventState.MousePosition = _pixelToWorld(window, mouseMoveEvent.position)
+                        if _EventState.MousePosition != lastPosition:
+                            _EventState.MouseMovedDelta = _EventState.MousePosition - lastPosition
                     if event.isMouseEntered():
                         _EventState.MouseEntered = True
                     if event.isMouseLeft():
                         _EventState.MouseLeft = True
+                if not _EventState.TouchBlocked:
+                    if event.isTouchBegan():
+                        touchEvent = event.getIfTouchBegan()
+                        if touchEvent.finger == 0:
+                            _EventState.TouchBegan = True
+                            _EventState.TouchActive = True
+                            worldPos = _pixelToWorld(window, touchEvent.position)
+                            _EventState.TouchBeganPosition = worldPos
+                            _EventState.TouchPosition = worldPos
+                            count, _ = _EventState.TouchTriggered
+                            _EventState.TouchTriggered = (count + 1, False)
+                    if event.isTouchMoved():
+                        touchEvent = event.getIfTouchMoved()
+                        if touchEvent.finger == 0:
+                            _EventState.TouchMoved = True
+                            lastPosition = _EventState.TouchPosition
+                            worldPos = _pixelToWorld(window, touchEvent.position)
+                            _EventState.TouchPosition = worldPos
+                            if lastPosition is not None and worldPos != lastPosition:
+                                _EventState.TouchMovedDelta = worldPos - lastPosition
+                    if event.isTouchEnded():
+                        touchEvent = event.getIfTouchEnded()
+                        if touchEvent.finger == 0:
+                            _EventState.TouchEnded = True
+                            _EventState.TouchActive = False
+                            worldPos = _pixelToWorld(window, touchEvent.position)
+                            _EventState.TouchEndedPosition = worldPos
+                            _EventState.TouchPosition = worldPos
+                            _EventState.TouchTriggered = (0, False)
                 if event.isJoystickButtonPressed():
                     _EventState.JoystickButtonPressed = True
                     joystickButtonEvent = event.getIfJoystickButtonPressed()
@@ -437,7 +507,7 @@ def update(window: WindowBase) -> None:
                     _EventState.EnteredText += event.getIfTextEntered().unicode
 
             if window.hasFocus() and not _UseInjectedMouseOnly:
-                polledMousePosition = Mouse.getPosition(window)
+                polledMousePosition = _pixelToWorld(window, Mouse.getPosition(window))
                 if polledMousePosition != _EventState.MousePosition:
                     lastPosition: Vector2i = copy.copy(_EventState.MousePosition)
                     _EventState.MousePosition = polledMousePosition
@@ -892,6 +962,135 @@ def isMouseLeft() -> bool:
     return _EventState.MouseLeft and not _EventState.MouseBlocked
 
 
+def isTouchBegan(handled: bool = False) -> bool:
+    r"""
+    \brief Check if a touch began this frame (primary finger).
+
+    - handled: Whether to mark the TouchBegan as handled (consumed) if true.
+
+    \return True if a touch began this frame and touch is not blocked, False otherwise.
+    """
+    with _StateLock:
+        if _EventState.TouchBlocked:
+            return False
+        if not _EventState.TouchBegan or _EventState.TouchBeganHandled:
+            return False
+        if handled:
+            _EventState.TouchBeganHandled = True
+        return True
+
+
+def isTouchEnded() -> bool:
+    r"""
+    \brief Check if a touch ended this frame (primary finger).
+
+    \return True if a touch ended this frame and touch is not blocked, False otherwise.
+    """
+    return _EventState.TouchEnded and not _EventState.TouchBlocked
+
+
+def isTouchMoved() -> bool:
+    r"""
+    \brief Check if the primary touch moved this frame.
+
+    \return True if the primary touch moved this frame and touch is not blocked, False otherwise.
+    """
+    return _EventState.TouchMoved and not _EventState.TouchBlocked
+
+
+def isTouchActive() -> bool:
+    r"""
+    \brief Check whether the primary finger is currently touching the screen.
+
+    The state persists across frames until a TouchEnded event.
+
+    \return True if the primary finger is currently down and touch is not blocked, False otherwise.
+    """
+    return _EventState.TouchActive and not _EventState.TouchBlocked
+
+
+def getTouchPosition() -> Optional[Vector2i]:
+    r"""
+    \brief Get the most recently reported primary touch position.
+
+    \return The last known touch position, or None if no touch has occurred.
+    """
+    return _EventState.TouchPosition
+
+
+def getTouchBeganPosition() -> Optional[Vector2i]:
+    r"""
+    \brief Get the position where the primary touch began this frame.
+
+    \return The touch-began position, or None if no TouchBegan occurred this frame.
+    """
+    return _EventState.TouchBeganPosition
+
+
+def getTouchEndedPosition() -> Optional[Vector2i]:
+    r"""
+    \brief Get the position where the primary touch ended this frame.
+
+    \return The touch-ended position, or None if no TouchEnded occurred this frame.
+    """
+    return _EventState.TouchEndedPosition
+
+
+def getTouchMovedDelta() -> Optional[Vector2i]:
+    r"""
+    \brief Get the primary touch movement delta this frame.
+
+    \return The touch movement delta, or None if touch was not moved this frame.
+    """
+    if not isTouchMoved():
+        return None
+    return _EventState.TouchMovedDelta
+
+
+def isTouchTriggered(handled: bool = False) -> bool:
+    r"""
+    \brief Check if the primary touch is currently triggered (held since TouchBegan, not yet consumed).
+
+    Persists across frames until the touch ends or is consumed via handled=True.
+
+    - handled: Whether to mark the touch as handled (consumed) if triggered.
+
+    \return True if the touch is currently triggered and not yet handled, False otherwise.
+    """
+    with _StateLock:
+        if _EventState.TouchBlocked:
+            return False
+        count, handled_ = _EventState.TouchTriggered
+        if handled_ or count < 1:
+            return False
+        if handled:
+            _EventState.TouchTriggered = (count, True)
+        return True
+
+
+def isTouchBlocked() -> bool:
+    r"""
+    \brief Check if touch input is blocked.
+
+    \return True if touch is blocked, False otherwise.
+    """
+    return _EventState.TouchBlocked
+
+
+def blockTouch() -> None:
+    r"""
+    \brief Block touch input.
+    """
+    _EventState.TouchBlocked = True
+
+
+def unblockTouch() -> None:
+    r"""
+    \brief Unblock touch input.
+    """
+    _EventState.TouchBlocked = False
+
+
 def isJoystickButtonPressed() -> bool:
     r"""
     \brief Check if any joystick button was pressed this frame.
@@ -1257,20 +1456,22 @@ def unblockJoystick() -> None:
 
 def blockInput() -> None:
     r"""
-    \brief Block all input (keyboard, mouse, joystick).
+    \brief Block all input (keyboard, mouse, joystick, touch).
     """
     _EventState.KeyboardBlocked = True
     _EventState.MouseBlocked = True
     _EventState.JoystickBlocked = True
+    _EventState.TouchBlocked = True
 
 
 def unblockInput() -> None:
     r"""
-    \brief Unblock all input (keyboard, mouse, joystick).
+    \brief Unblock all input (keyboard, mouse, joystick, touch).
     """
     _EventState.KeyboardBlocked = False
     _EventState.MouseBlocked = False
     _EventState.JoystickBlocked = False
+    _EventState.TouchBlocked = False
 
 
 def getConfirmKeys() -> (

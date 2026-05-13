@@ -203,6 +203,20 @@ class FunctionalBase:
             if self._isHovered:
                 self._isHovered = False
                 self.onUnHover({"position": localMousePos})
+        if hasattr(self, "getAbsoluteBounds"):
+            bounds = self.getAbsoluteBounds()
+            if Input.isTouchBegan():
+                beganPos = Input.getTouchBeganPosition()
+                if beganPos is not None:
+                    touchLocal = Math.ToVector2f(beganPos)
+                    if bounds.contains(touchLocal):
+                        self.onClick({"position": touchLocal})
+            if Input.isTouchMoved():
+                touchPos = Input.getTouchPosition()
+                if touchPos is not None:
+                    touchLocal = Math.ToVector2f(touchPos)
+                    if bounds.contains(touchLocal):
+                        self.onMouseMoved({"position": touchLocal})
         if Input.isKeyPressed() or Input.isJoystickButtonPressed() or Input.isJoystickAxisMoved():
             self.onKeyDown({})
         if Input.isKeyReleased() or Input.isJoystickButtonReleased():

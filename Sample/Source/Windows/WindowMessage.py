@@ -116,7 +116,7 @@ class WindowMessage(WindowSelectable):
             return super().onClick(kwargs)
         if self._fadePhase == FadePhase.OUT:
             return super().onClick(kwargs)
-        if Input.isMouseButtonTriggered(Input.Mouse.Button.Left, handled=True):
+        if Input.isMouseButtonTriggered(Input.Mouse.Button.Left, handled=True) or Input.isTouchTriggered(handled=True):
             self._resolveSelection(0)
         return super().onClick(kwargs)
 

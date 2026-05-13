@@ -6,6 +6,7 @@ from typing import List, Optional
 import Engine
 from Engine import (
     Vector2u,
+    Vector2f,
     Font,
     Image,
     Cursor,
@@ -14,6 +15,8 @@ from Engine import (
     VideoMode,
     Style,
     ContextSettings,
+    View,
+    FloatRect,
 )
 from Engine import UI
 from Engine.Utils import File
@@ -87,28 +90,47 @@ class System:
         )
         handle: Optional[str] = os.environ.get("WINDOWHANDLE")
         individual: Optional[str] = os.environ.get("INDIVIDUAL")
+        canvasSize: Vector2u
         if handle and individual != "True":
             contextSettings = ContextSettings(antiAliasingLevel=8)
             window = RenderWindow(int(handle), settings=contextSettings)
             windowSize = window.getSize()
             scale = min(windowSize.x / gameSize.x, windowSize.y / gameSize.y)
             GlobalSystem.setScale(scale)
+            canvasSize = windowSize
             if handle:
                 from Engine import Input as EngineInput
 
                 EngineInput.setUseInjectedMouseOnly(True)
         elif IS_IOS_PLATFORM:
             iosContext = ContextSettings(antiAliasingLevel=0)
+            desktopMode = VideoMode.getDesktopMode()
             window = RenderWindow(
-                VideoMode(realSize),
+                desktopMode,
                 cls._title,
                 Style.Default,
-                State.Windowed,
+                State.Fullscreen,
                 settings=iosContext,
             )
-            windowSize = window.getSize()
-            scale = min(windowSize.x / gameSize.x, windowSize.y / gameSize.y)
+            screenSize = window.getSize()
+            scale = min(screenSize.x / gameSize.x, screenSize.y / gameSize.y)
             GlobalSystem.setScale(scale)
+            canvasW = int(gameSize.x * scale)
+            canvasH = int(gameSize.y * scale)
+            canvasSize = Vector2u(canvasW, canvasH)
+            offsetX = (screenSize.x - canvasW) / 2.0
+            offsetY = (screenSize.y - canvasH) / 2.0
+            centeredView = View(
+                Vector2f(canvasW / 2.0, canvasH / 2.0),
+                Vector2f(float(canvasW), float(canvasH)),
+            )
+            centeredView.setViewport(
+                FloatRect(
+                    Vector2f(offsetX / screenSize.x, offsetY / screenSize.y),
+                    Vector2f(canvasW / screenSize.x, canvasH / screenSize.y),
+                )
+            )
+            window.setView(centeredView)
         else:
             contextSettings = ContextSettings(antiAliasingLevel=8)
             window = RenderWindow(
@@ -118,6 +140,7 @@ class System:
                 State.Windowed,
                 settings=contextSettings,
             )
+            canvasSize = window.getSize()
         if IS_IOS_PLATFORM:
             try:
                 window.setIcon(cls._icon)
@@ -131,7 +154,7 @@ class System:
         GlobalSystem.setDebugMode(handle is not None)
         GlobalSystem.setShowFPSGraph(os.environ.get("SHOWFPSGRAPH") == "True")
         GlobalSystem.initWindow(window)
-        GlobalSystem.initCanvas(window.getSize())
+        GlobalSystem.initCanvas(canvasSize)
         UI.DefaultFont = cls._fonts[0]
         UI.DefaultFontSize = cls._fontSize
         UI.DefaultWindowskinName = cls._windowskinName

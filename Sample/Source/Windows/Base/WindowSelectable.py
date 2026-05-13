@@ -100,6 +100,21 @@ class WindowSelectable(WindowBase):
                     if isinstance(child, FunctionalBase):
                         if self._judgeIfConfirm(child):
                             child.onConfirm({})
+        if self._listView and Input.isTouchBegan():
+            beganPos = Input.getTouchBeganPosition()
+            if beganPos is not None:
+                touchLocal = Math.ToVector2f(beganPos)
+                for index, child in enumerate(self._listView.getChildren()):
+                    if not isinstance(child, FunctionalBase):
+                        continue
+                    if not hasattr(child, "getAbsoluteBounds"):
+                        continue
+                    childBounds: FloatRect = child.getAbsoluteBounds()
+                    if childBounds.contains(touchLocal):
+                        self.index = index
+                        Input.isTouchBegan(handled=True)
+                        child.onConfirm({})
+                        break
         if self._oldIndex is None:
             self._oldIndex = self.index
         if self.index != self._oldIndex:
