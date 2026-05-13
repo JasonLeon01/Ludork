@@ -187,4 +187,8 @@ class ControlBase(Drawable, Transformable):
         return transform
 
     def __del__(self) -> None:
-        logging.warning(f"ControlBase {self} deleted")
+        r"""\brief Destructor for ControlBase.
+
+        Logs at debug level when the object is collected.
+        """
+        logging.debug(f"ControlBase {self} deleted")

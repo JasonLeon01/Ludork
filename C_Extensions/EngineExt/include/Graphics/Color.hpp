@@ -39,11 +39,3 @@ sf::Color C_HexColor(const std::string &value, int alpha = 255);
 ////////////////////////////////////////////////////////////
 BIND_FUNCTION()
 sf::Color C_HexColor(int value, int alpha = 255);
-
-////////////////////////////////////////////////////////////
-/// \brief Register color helpers to a Python module
-///
-/// - \param m Target Python module
-///
-////////////////////////////////////////////////////////////
-void ApplyColorBinding(py::module &m);

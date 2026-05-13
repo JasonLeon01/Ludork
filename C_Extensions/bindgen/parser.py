@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import re
 import os
+import sys
+import subprocess
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Optional
@@ -25,6 +27,49 @@ for _path in _LLVM_PATHS:
         break
 
 from clang.cindex import Index, Cursor, CursorKind, TranslationUnit
+
+
+def _argv_has_option(argv: list[str], option: str) -> bool:
+    """Return True if ``argv`` contains ``option`` or ``option=value``."""
+    for a in argv:
+        if a == option or a.startswith(option + "="):
+            return True
+    return False
+
+
+def _darwin_clang_implicit_args(extra_args: list[str]) -> list[str]:
+    if sys.platform != "darwin":
+        return []
+    implicit: list[str] = []
+    if not _argv_has_option(extra_args, "-isysroot"):
+        try:
+            proc = subprocess.run(
+                ["xcrun", "--show-sdk-path"],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            sdk = (proc.stdout or "").strip()
+            if sdk and os.path.isdir(sdk):
+                implicit.extend(["-isysroot", sdk])
+        except (FileNotFoundError, subprocess.CalledProcessError, OSError):
+            pass
+    if not _argv_has_option(extra_args, "-resource-dir"):
+        try:
+            proc = subprocess.run(
+                ["xcrun", "clang", "-print-resource-dir"],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            rd = (proc.stdout or "").strip()
+            if rd and os.path.isdir(rd):
+                implicit.extend(["-resource-dir", rd])
+        except (FileNotFoundError, subprocess.CalledProcessError, OSError):
+            pass
+    return implicit
 
 
 class BindKind(Enum):
@@ -338,33 +383,9 @@ def _split_params_by_comma(text: str) -> list[str]:
     return parts
 
 
-def _parse_params_from_source(cursor: Cursor, source_lines: list[str]) -> list[ParamInfo]:
-    extent = cursor.extent
-    if not extent:
-        return []
-
-    start_line = extent.start.line - 1
-    start_col = extent.start.column - 1
-    end_line = extent.end.line - 1
-    end_col = extent.end.column - 1
-
-    if start_line < 0 or start_line >= len(source_lines):
-        return []
-
-    if start_line == end_line:
-        text = source_lines[start_line][start_col:end_col]
-    else:
-        text = source_lines[start_line][start_col:]
-        for i in range(start_line + 1, end_line):
-            text += " " + source_lines[i]
-        text += source_lines[end_line][:end_col]
-
-    paren_start = text.find("(")
-    paren_end = text.rfind(")")
-    if paren_start < 0 or paren_end < 0 or paren_start >= paren_end:
-        return []
-
-    params_text = text[paren_start + 1 : paren_end].strip()
+def _parse_param_decl_text_list(params_text: str) -> list[ParamInfo]:
+    """Parse a comma-separated C++ parameter list (inside parentheses) into ParamInfo."""
+    params_text = params_text.strip()
     if not params_text:
         return []
 
@@ -400,6 +421,36 @@ def _parse_params_from_source(cursor: Cursor, source_lines: list[str]) -> list[P
             )
         )
     return result
+
+
+def _parse_params_from_source(cursor: Cursor, source_lines: list[str]) -> list[ParamInfo]:
+    extent = cursor.extent
+    if not extent:
+        return []
+
+    start_line = extent.start.line - 1
+    start_col = extent.start.column - 1
+    end_line = extent.end.line - 1
+    end_col = extent.end.column - 1
+
+    if start_line < 0 or start_line >= len(source_lines):
+        return []
+
+    if start_line == end_line:
+        text = source_lines[start_line][start_col:end_col]
+    else:
+        text = source_lines[start_line][start_col:]
+        for i in range(start_line + 1, end_line):
+            text += " " + source_lines[i]
+        text += source_lines[end_line][:end_col]
+
+    paren_start = text.find("(")
+    paren_end = text.rfind(")")
+    if paren_start < 0 or paren_end < 0 or paren_start >= paren_end:
+        return []
+
+    params_text = text[paren_start + 1 : paren_end].strip()
+    return _parse_param_decl_text_list(params_text)
 
 
 def _get_param_type_spelling(cursor: Cursor, source_lines: list[str]) -> str:
@@ -462,6 +513,7 @@ class HeaderParser:
         args = ["-x", "c++", "-std=c++17", "-DBINDGEN_PARSING"]
         for inc in self.include_paths:
             args.append(f"-I{inc}")
+        args.extend(_darwin_clang_implicit_args(self.extra_args))
         args.extend(self.extra_args)
 
         tu = self.index.parse(
@@ -596,17 +648,7 @@ class HeaderParser:
         paren_end = decl_text.rindex(')')
         params_text = decl_text[paren_start + 1:paren_end]
 
-        param_infos = []
-        if params_text.strip():
-            for p in _split_params_by_comma(params_text):
-                p = p.strip()
-                if not p:
-                    continue
-                tokens = _re.findall(r'[a-zA-Z_]\w*', p)
-                if tokens:
-                    param_name = tokens[-1]
-                    param_type = p[:p.rfind(param_name)].strip()
-                    param_infos.append(ParamInfo(name=param_name, type_spelling=param_type))
+        param_infos = _parse_param_decl_text_list(params_text)
 
         return FunctionInfo(
             name=func_name,

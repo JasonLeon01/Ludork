@@ -6,6 +6,7 @@ import logging
 import weakref
 from typing import Callable, Dict, Optional, Tuple
 from Engine import Shader
+from Engine.Utils.Inner import IS_IOS_PLATFORM, warnIosShaderSkippedOnce
 
 
 class ShaderManager:
@@ -19,12 +20,18 @@ class ShaderManager:
     _geoShaderRec: Dict[Tuple[str, str, str], weakref.ReferenceType[Shader]] = {}
 
     @classmethod
-    def load(cls, shaderPath: str, shaderType: Optional[Shader.Type] = None) -> Shader:
+    def load(cls, shaderPath: str, shaderType: Optional[Shader.Type] = None) -> Optional[Shader]:
         r"""\brief Load a shader from file.
         - \param shaderPath: Path to the shader file.
         - \param shaderType: Type of the shader (defaults to Fragment).
-        - \return: Loaded Shader object.
+        - \return: Loaded Shader object, or None on iOS where shaders are disabled.
         """
+        if IS_IOS_PLATFORM:
+            warnIosShaderSkippedOnce(
+                f"ShaderManager.load:{shaderPath}",
+                f"iOS: shaders are disabled; skipped loading shader file: {shaderPath}",
+            )
+            return None
         key = (shaderPath, shaderType)
         if key in cls._shaderRec:
             shaderRef = cls._shaderRec[key]
@@ -42,12 +49,18 @@ class ShaderManager:
         return shader
 
     @classmethod
-    def loadFull(cls, vertPath: str, fragPath: str) -> Shader:
+    def loadFull(cls, vertPath: str, fragPath: str) -> Optional[Shader]:
         r"""\brief Load a full shader with vertex and fragment shaders.
         - \param vertPath: Path to the vertex shader file.
         - \param fragPath: Path to the fragment shader file.
-        - \return: Loaded Shader object.
+        - \return: Loaded Shader object, or None on iOS where shaders are disabled.
         """
+        if IS_IOS_PLATFORM:
+            warnIosShaderSkippedOnce(
+                f"ShaderManager.loadFull:{vertPath}:{fragPath}",
+                f"iOS: shaders are disabled; skipped full shader: {vertPath}, {fragPath}",
+            )
+            return None
         key = (vertPath, fragPath)
         if key in cls._fullShaderRec:
             shaderRef = cls._fullShaderRec[key]
@@ -64,13 +77,19 @@ class ShaderManager:
         return shader
 
     @classmethod
-    def loadFullShaderWithGeo(cls, vertPath: str, geoPath: str, fragPath: str) -> Shader:
+    def loadFullShaderWithGeo(cls, vertPath: str, geoPath: str, fragPath: str) -> Optional[Shader]:
         r"""\brief Load a full shader with vertex, geometry, and fragment shaders.
         - \param vertPath: Path to the vertex shader file.
         - \param geoPath: Path to the geometry shader file.
         - \param fragPath: Path to the fragment shader file.
-        - \return: Loaded Shader object.
+        - \return: Loaded Shader object, or None on iOS where shaders are disabled.
         """
+        if IS_IOS_PLATFORM:
+            warnIosShaderSkippedOnce(
+                f"ShaderManager.loadFullShaderWithGeo:{vertPath}:{geoPath}:{fragPath}",
+                f"iOS: shaders are disabled; skipped geo shader: {vertPath}, {geoPath}, {fragPath}",
+            )
+            return None
         key = (vertPath, geoPath, fragPath)
         if key in cls._geoShaderRec:
             shaderRef = cls._geoShaderRec[key]

@@ -160,6 +160,7 @@ class SceneBase:
         self.onEnter()
         self._startLogicThread()
         while System.isActive() and System.getScene() == self:
+            System.applyPendingSceneReplace()
             Input.update(System.getWindow())
             Manager.TimeManager.update()
             deltaTime = Manager.TimeManager.v_getDeltaTime()

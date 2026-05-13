@@ -52,10 +52,12 @@ def entry() -> None:
     Engine.Locale.init("./Data/Locale")
     Engine.NodeGraph.initLatent()
     Global.System.init(iniFile, iniFilePath)
+    Global.System.bindSceneOperationThread()
     Global.System.setScene(Source.Scenes.Init())
     Source.System.init()
 
     while Global.System.shouldLoop():
+        Global.System.applyPendingSceneReplace()
         scene = Global.System.getScene()
         if scene:
             scene.main()

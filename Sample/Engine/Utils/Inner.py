@@ -1,10 +1,27 @@
 # -*- encoding: utf-8 -*-
 
 import os
-import sys
 import re
+import sys
+import warnings
 from pathlib import Path
 from typing import Any, Dict
+
+IS_IOS_PLATFORM = sys.platform == "ios"
+_iosShaderWarnOnceKeys: set[str] = set()
+
+
+def warnIosShaderSkippedOnce(key: str, message: str) -> None:
+    r"""
+    \brief Emit a single UserWarning per key when shaders are skipped on iOS.
+
+    - \param key Deduplication key for the warning.
+    - \param message Full warning message text.
+    """
+    if key in _iosShaderWarnOnceKeys:
+        return
+    _iosShaderWarnOnceKeys.add(key)
+    warnings.warn(message, UserWarning, stacklevel=2)
 
 
 def getSavePath(APP_NAME: str) -> str:

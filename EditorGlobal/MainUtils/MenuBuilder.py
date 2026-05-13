@@ -5,7 +5,7 @@ import configparser
 from typing import cast
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Utils import File, Locale
-from Widgets import AboutDialog, LogDialog, PackWorker, PackSelectionDialog, MarkdownPreviewer
+from Widgets import AboutDialog, LogDialog, PackWorker, PackSelectionDialog, MarkdownPreviewer, PackPlatform, find_python_3120_for_pack, prompt_install_python_3120
 from .. import EditorStatus
 from ..Data import GameData
 
@@ -164,9 +164,26 @@ class MenuBuilderMixin:
         platform = selDlg.getSelectedPlatform()
         distPath = os.path.join(projPath, "dist")
 
+        python_exe = ""
+        if platform == PackPlatform.IOS:
+            res = QtWidgets.QMessageBox.warning(
+                self,
+                ELOC("PACK_TITLE"),
+                ELOC("PACK_IOS_SHADER_WARNING"),
+                QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
+                QtWidgets.QMessageBox.Ok,
+            )
+            if res != QtWidgets.QMessageBox.Ok:
+                return
+        else:
+            python_exe = find_python_3120_for_pack()
+            if not python_exe:
+                prompt_install_python_3120(self)
+                return
+
         self._packDialog = LogDialog(self)
         self._packDialog.setWindowModality(QtCore.Qt.ApplicationModal)
-        self._packWorker = PackWorker(projPath, distPath, platform)
+        self._packWorker = PackWorker(projPath, distPath, platform, python_exe)
 
         self._packWorker.log_signal.connect(self._packDialog.appendLog)
         self._packWorker.finished_signal.connect(self._packDialog.finish)

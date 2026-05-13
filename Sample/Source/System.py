@@ -17,6 +17,7 @@ from Engine import (
 )
 from Engine import UI
 from Engine.Utils import File
+from Engine.Utils.Inner import IS_IOS_PLATFORM, warnIosShaderSkippedOnce
 from Global import Manager, GameMap
 from Global import System as GlobalSystem
 
@@ -59,10 +60,22 @@ class System:
         cls._fonts = [Manager.loadFont(font) for font in systemData["fonts"]["value"]]
         cls._fontSize = systemData["fontSize"]["value"]
         cls._icon = Image(os.path.join("./Assets", systemData["icon"]["base"], systemData["icon"]["value"]))
+        cls._cursor = None
         cursorPath = os.path.join("./Assets", systemData["cursor"]["base"], systemData["cursor"]["value"])
-        if cursorPath and os.path.exists(cursorPath):
-            cursorImage = Image(cursorPath)
-            cls._cursor = Cursor(cursorImage.getPixelsArray(), cursorImage.getSize(), Vector2u(0, 0))
+        if IS_IOS_PLATFORM:
+            warnIosShaderSkippedOnce(
+                "Source.System.cursor",
+                "iOS: custom mouse cursor is not supported; skipped",
+            )
+        elif cursorPath and os.path.exists(cursorPath):
+            try:
+                cursorImage = Image(cursorPath)
+                cls._cursor = Cursor(cursorImage.getPixelsArray(), cursorImage.getSize(), Vector2u(0, 0))
+            except RuntimeError:
+                warnIosShaderSkippedOnce(
+                    "Source.System.cursorLoadFailed",
+                    f"Failed to create cursor from pixels; skipped. Path: {cursorPath}",
+                )
         cls._windowskinName = systemData["windowskinName"]["value"]
         Engine.CellSize = systemData["cellSize"]["value"]
         coverOpaqueAlpha = systemData["coverOpaqueAlpha"]["value"]
@@ -74,16 +87,30 @@ class System:
         )
         handle: Optional[str] = os.environ.get("WINDOWHANDLE")
         individual: Optional[str] = os.environ.get("INDIVIDUAL")
-        contextSettings = ContextSettings(antiAliasingLevel=8, majorVersion=2, minorVersion=1)
         if handle and individual != "True":
+            contextSettings = ContextSettings(antiAliasingLevel=8)
             window = RenderWindow(int(handle), settings=contextSettings)
             windowSize = window.getSize()
             scale = min(windowSize.x / gameSize.x, windowSize.y / gameSize.y)
             GlobalSystem.setScale(scale)
-            from Engine import Input as EngineInput
+            if handle:
+                from Engine import Input as EngineInput
 
-            EngineInput.setUseInjectedMouseOnly(True)
+                EngineInput.setUseInjectedMouseOnly(True)
+        elif IS_IOS_PLATFORM:
+            iosContext = ContextSettings(antiAliasingLevel=0)
+            window = RenderWindow(
+                VideoMode(realSize),
+                cls._title,
+                Style.Default,
+                State.Windowed,
+                settings=iosContext,
+            )
+            windowSize = window.getSize()
+            scale = min(windowSize.x / gameSize.x, windowSize.y / gameSize.y)
+            GlobalSystem.setScale(scale)
         else:
+            contextSettings = ContextSettings(antiAliasingLevel=8)
             window = RenderWindow(
                 VideoMode(realSize),
                 cls._title,
@@ -91,7 +118,13 @@ class System:
                 State.Windowed,
                 settings=contextSettings,
             )
-        window.setIcon(cls._icon)
+        if IS_IOS_PLATFORM:
+            try:
+                window.setIcon(cls._icon)
+            except Exception:
+                pass
+        else:
+            window.setIcon(cls._icon)
         if cls._cursor:
             window.setMouseCursor(cls._cursor)
         GlobalSystem.setGameSize(gameSize)

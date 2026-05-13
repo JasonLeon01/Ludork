@@ -207,33 +207,33 @@ def loadTransition(filename: str, sRGB: bool = False, area: IntRect = None, smoo
     return loadTexture("Transitions", filename, sRGB, area, smooth)
 
 
-def loadShader(shaderPath: str, shaderType: Optional[Shader.Type] = None) -> Shader:
+def loadShader(shaderPath: str, shaderType: Optional[Shader.Type] = None) -> Optional[Shader]:
     r"""
     \brief Load a shader from Assets/Shaders.
     - \param shaderPath Path to the shader file.
     - \param shaderType Type of the shader (defaults to Fragment).
-    - \return Loaded Shader object.
+    - \return Loaded Shader object, or None on iOS where shaders are disabled.
     """
     return ShaderManager.load(shaderPath, shaderType)
 
 
-def loadFullShaderWithGeo(vertPath: str, geoPath: str, fragPath: str) -> Shader:
+def loadFullShaderWithGeo(vertPath: str, geoPath: str, fragPath: str) -> Optional[Shader]:
     r"""
     \brief Load a full shader with geometry shader from Assets/Shaders.
     - \param vertPath Path to the vertex shader file.
     - \param geoPath Path to the geometry shader file.
     - \param fragPath Path to the fragment shader file.
-    - \return Loaded Shader object.
+    - \return Loaded Shader object, or None on iOS where shaders are disabled.
     """
     return ShaderManager.loadFullShaderWithGeo(vertPath, geoPath, fragPath)
 
 
-def loadGeoShader(vertPath: str, geoPath: str, fragPath: str) -> Shader:
+def loadGeoShader(vertPath: str, geoPath: str, fragPath: str) -> Optional[Shader]:
     r"""
     \brief Load a shader with vertex and geometry shaders from Assets/Shaders.
     - \param vertPath Path to the vertex shader file.
     - \param geoPath Path to the geometry shader file.
     - \param fragPath Path to the fragment shader file.
-    - \return Loaded Shader object.
+    - \return Loaded Shader object, or None on iOS where shaders are disabled.
     """
     return ShaderManager.loadFullShaderWithGeo(vertPath, geoPath, fragPath)

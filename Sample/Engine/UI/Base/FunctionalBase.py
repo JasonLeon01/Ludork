@@ -225,7 +225,7 @@ class FunctionalBase:
     def __del__(self) -> None:
         r"""\brief Destructor for FunctionalBase.
 
-        Logs a warning when the object is deleted.
+        Logs at debug level when the object is collected.
         """
         super().__del__()
-        logging.warning(f"FunctionalBase {self} deleted")
+        logging.debug(f"FunctionalBase {self} deleted")

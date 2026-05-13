@@ -155,6 +155,6 @@ class SpriteBase(ControlBase):
     def __del__(self) -> None:
         r"""\brief Destructor for SpriteBase.
 
-        Logs a warning when the object is deleted.
+        Logs at debug level when the object is collected (e.g. scene change).
         """
-        logging.warning(f"SpriteBase {self} deleted")
+        logging.debug(f"SpriteBase {self} deleted")

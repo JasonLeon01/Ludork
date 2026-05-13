@@ -15,6 +15,61 @@ class PackPlatform(Enum):
     IOS = "ios"
 
 
+def find_python_3120_for_pack() -> str:
+    r"""\brief Locate a Python 3.12.0 executable for Nuitka packaging (main thread or any thread; no GUI)."""
+    if sys.platform == "win32":
+        try:
+            if shutil.which("py"):
+                ver = subprocess.check_output(
+                    ["py", "-3.12", "-c", "import sys;print(sys.version)"],
+                    text=True,
+                    stderr=subprocess.STDOUT,
+                ).strip()
+                if ver.startswith("3.12.0"):
+                    exe = subprocess.check_output(
+                        ["py", "-3.12", "-c", "import sys;print(sys.executable)"],
+                        text=True,
+                        stderr=subprocess.STDOUT,
+                    ).strip()
+                    return exe
+        except Exception:
+            pass
+        return ""
+    if sys.platform == "darwin":
+        try:
+            if shutil.which("python3.12"):
+                ver = subprocess.check_output(
+                    ["python3.12", "-c", "import sys;print(sys.version)"],
+                    text=True,
+                    stderr=subprocess.STDOUT,
+                ).strip()
+                if ver.startswith("3.12.0"):
+                    exe = subprocess.check_output(
+                        ["python3.12", "-c", "import sys;print(sys.executable)"],
+                        text=True,
+                        stderr=subprocess.STDOUT,
+                    ).strip()
+                    return exe
+        except Exception:
+            pass
+        return ""
+    return ""
+
+
+def prompt_install_python_3120(parent: Optional[QtWidgets.QWidget]) -> None:
+    r"""\brief Show download prompt for Python 3.12.0; must run on the Qt GUI thread."""
+    text = ELOC("PACK_PY312_PROMPT")
+    res = QtWidgets.QMessageBox.question(
+        parent,
+        ELOC("PACK_TITLE"),
+        text,
+        QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+        QtWidgets.QMessageBox.Yes,
+    )
+    if res == QtWidgets.QMessageBox.Yes:
+        QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://www.python.org/downloads/release/python-3120/"))
+
+
 class PackSelectionDialog(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -102,11 +157,12 @@ class PackWorker(QtCore.QThread):
     log_signal = QtCore.pyqtSignal(str)
     finished_signal = QtCore.pyqtSignal(bool, str)
 
-    def __init__(self, projPath: str, distPath: str, platform: PackPlatform):
+    def __init__(self, projPath: str, distPath: str, platform: PackPlatform, pythonExe: str = ""):
         super().__init__()
         self.projPath = projPath
         self.distPath = distPath
         self.platform = platform
+        self.pythonExe = pythonExe
 
     def run(self):
         old_stdout = sys.stdout
@@ -138,9 +194,9 @@ class PackWorker(QtCore.QThread):
                 self._packIOS()
                 return
 
-            pythonExe = self._findPython3120()
+            pythonExe = self.pythonExe
             if not pythonExe:
-                self._promptInstallPython()
+                self.finished_signal.emit(False, ELOC("PACK_PY312_NOT_FOUND"))
                 return
 
             self.log_signal.emit(f"Using Python: {pythonExe}\n")
@@ -162,58 +218,6 @@ class PackWorker(QtCore.QThread):
             os.chdir(old_cwd)
             sys.stdout = old_stdout
             sys.stderr = old_stderr
-
-    def _findPython3120(self) -> str:
-        if sys.platform == "win32":
-            try:
-                if shutil.which("py"):
-                    ver = subprocess.check_output(
-                        ["py", "-3.12", "-c", "import sys;print(sys.version)"],
-                        text=True,
-                        stderr=subprocess.STDOUT,
-                    ).strip()
-                    if ver.startswith("3.12.0"):
-                        exe = subprocess.check_output(
-                            ["py", "-3.12", "-c", "import sys;print(sys.executable)"],
-                            text=True,
-                            stderr=subprocess.STDOUT,
-                        ).strip()
-                        return exe
-            except Exception:
-                pass
-            return ""
-        if sys.platform == "darwin":
-            try:
-                if shutil.which("python3.12"):
-                    ver = subprocess.check_output(
-                        ["python3.12", "-c", "import sys;print(sys.version)"],
-                        text=True,
-                        stderr=subprocess.STDOUT,
-                    ).strip()
-                    if ver.startswith("3.12.0"):
-                        exe = subprocess.check_output(
-                            ["python3.12", "-c", "import sys;print(sys.executable)"],
-                            text=True,
-                            stderr=subprocess.STDOUT,
-                        ).strip()
-                        return exe
-            except Exception:
-                pass
-            return ""
-        return ""
-
-    def _promptInstallPython(self):
-        text = ELOC("PACK_PY312_PROMPT")
-        res = QtWidgets.QMessageBox.question(
-            None,
-            ELOC("PACK_TITLE"),
-            text,
-            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-            QtWidgets.QMessageBox.Yes,
-        )
-        if res == QtWidgets.QMessageBox.Yes:
-            QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://www.python.org/downloads/release/python-3120/"))
-        self.finished_signal.emit(False, ELOC("PACK_PY312_NOT_FOUND"))
 
     def _checkNuitka(self, exe: str) -> bool:
         try:
@@ -341,17 +345,6 @@ class PackWorker(QtCore.QThread):
             self.finished_signal.emit(False, ELOC("PACK_NUITKA_FAILED"))
 
     def _packIOS(self):
-        res = QtWidgets.QMessageBox.warning(
-            None,
-            ELOC("PACK_TITLE"),
-            ELOC("PACK_IOS_SHADER_WARNING"),
-            QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
-            QtWidgets.QMessageBox.Ok,
-        )
-        if res != QtWidgets.QMessageBox.Ok:
-            self.finished_signal.emit(False, ELOC("PACK_IOS_CANCELLED"))
-            return
-
         from Utils import File
 
         rootPath = File.getRootPath()

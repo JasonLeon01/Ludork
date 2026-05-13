@@ -48,8 +48,6 @@
 		AA0000010000000000000420 /* AppIcon.png in Resources */ = {isa = PBXBuildFile; fileRef = AA0000100000000000001002 /* AppIcon.png */; };
 		AA0000010000000000000421 /* libEngineExt.a in Frameworks */ = {isa = PBXBuildFile; fileRef = AA0000100000000000000421 /* libEngineExt.a */; };
 		AA0000010000000000000422 /* libGlobalExt.a in Frameworks */ = {isa = PBXBuildFile; fileRef = AA0000100000000000000422 /* libGlobalExt.a */; };
-		AA0000010000000000000423 /* LudorkSceneDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = AA0000100000000000000424 /* LudorkSceneDelegate.m */; };
-		AA0000010000000000000424 /* SFAppDelegate+LudorkScene.m in Sources */ = {isa = PBXBuildFile; fileRef = AA0000100000000000000425 /* SFAppDelegate+LudorkScene.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -103,9 +101,6 @@
 		AA0000100000000000001001 /* __PROJECT_NAME__.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = __PROJECT_NAME__.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000100000000000000421 /* libEngineExt.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libEngineExt.a; path = __C_EXT_BUILD__/EngineExt/Release-iphoneos/libEngineExt.a; sourceTree = SOURCE_ROOT; };
 		AA0000100000000000000422 /* libGlobalExt.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libGlobalExt.a; path = __C_EXT_BUILD__/GlobalExt/Release-iphoneos/libGlobalExt.a; sourceTree = SOURCE_ROOT; };
-		AA0000100000000000000423 /* LudorkSceneDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LudorkSceneDelegate.h; sourceTree = "<group>"; };
-		AA0000100000000000000424 /* LudorkSceneDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LudorkSceneDelegate.m; sourceTree = "<group>"; };
-		AA0000100000000000000425 /* SFAppDelegate+LudorkScene.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "SFAppDelegate+LudorkScene.m"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -174,9 +169,6 @@
 				AA0000100000000000000007 /* PythonRunner.h */,
 				AA0000100000000000000004 /* PythonRunner.mm */,
 				AA0000100000000000000009 /* SFMLMain.mm */,
-				AA0000100000000000000423 /* LudorkSceneDelegate.h */,
-				AA0000100000000000000424 /* LudorkSceneDelegate.m */,
-				AA0000100000000000000425 /* SFAppDelegate+LudorkScene.m */,
 			);
 			path = __PROJECT_NAME__;
 			sourceTree = "<group>";
@@ -336,8 +328,6 @@
 			files = (
 				AA0000010000000000000004 /* PythonRunner.mm in Sources */,
 				AA0000010000000000000009 /* SFMLMain.mm in Sources */,
-				AA0000010000000000000423 /* LudorkSceneDelegate.m in Sources */,
-				AA0000010000000000000424 /* SFAppDelegate+LudorkScene.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

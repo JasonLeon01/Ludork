@@ -22,6 +22,7 @@ from Engine import (
     ParticleSystem,
 )
 from Engine.Utils import Math
+from Engine.Utils.Inner import IS_IOS_PLATFORM, warnIosShaderSkippedOnce
 from Engine.Gameplay import Tilemap, TileLayer, Material
 from Engine.Gameplay.Actors import Actor
 from . import SceneBase
@@ -111,13 +112,24 @@ class GameMap(GameMapExt):
             PathPreviewComponent(self, self._pathRouteState),
         ]
         self._lightMask = RenderTexture(self._tilemap.getSize() * Engine.CellSize)
-        self._tilemapLightMaskShader = Shader("./Assets/Shaders/Map/TilemapLightMask.frag", Shader.Type.Fragment)
-        self._lightMaskShader = Shader("./Assets/Shaders/Map/lightMask.frag", Shader.Type.Fragment)
-        self._materialShader = Shader("./Assets/Shaders/Map/Material.frag", Shader.Type.Fragment)
-        self._tilemapRenderStates = copy.copy(self._camera.getRenderStates())
-        self._tilemapRenderStates.shader = self._tilemapLightMaskShader
-        self._actorRenderStates = copy.copy(self._camera.getRenderStates())
-        self._actorRenderStates.shader = self._lightMaskShader
+        if IS_IOS_PLATFORM:
+            warnIosShaderSkippedOnce(
+                "GameMap.mapShaders",
+                "iOS: shaders are disabled; skipped map lighting shaders",
+            )
+            self._tilemapLightMaskShader = None
+            self._lightMaskShader = None
+            self._materialShader = None
+            self._tilemapRenderStates = copy.copy(self._camera.getRenderStates())
+            self._actorRenderStates = copy.copy(self._camera.getRenderStates())
+        else:
+            self._tilemapLightMaskShader = Shader("./Assets/Shaders/Map/TilemapLightMask.frag", Shader.Type.Fragment)
+            self._lightMaskShader = Shader("./Assets/Shaders/Map/lightMask.frag", Shader.Type.Fragment)
+            self._materialShader = Shader("./Assets/Shaders/Map/Material.frag", Shader.Type.Fragment)
+            self._tilemapRenderStates = copy.copy(self._camera.getRenderStates())
+            self._tilemapRenderStates.shader = self._tilemapLightMaskShader
+            self._actorRenderStates = copy.copy(self._camera.getRenderStates())
+            self._actorRenderStates.shader = self._lightMaskShader
         self._commonTipController = CommonTipController(self._particleSystem, fontSize=12)
         super().__init__(self._materialShader)
         self.tilemapRef = self._tilemap
@@ -671,8 +683,6 @@ class GameMap(GameMapExt):
                     layer.resetTileColor(x, y)
             self._transparentTiles.clear()
 
-        tilemapLightMask = self._tilemapLightMaskShader
-        actorLightMask = self._lightMaskShader
         layers = self._tilemap.getAllLayers()
         layerKeys = list(layers.keys())
         System.setWindowMapView()
@@ -733,27 +743,36 @@ class GameMap(GameMapExt):
                                 self._camera.render(actor)
         for component in self._components:
             component.onRender(self._camera)
-        for layerName in layerKeys:
-            layer = layers[layerName]
-            if not layer.visible:
-                continue
-            cellSize = Engine.CellSize
-            lbTexture = Texture(layer.getLightBlockImage())
-            reflectionStrengthTexture = Texture(layer.getReflectionStrengthImage())
-            tilemapLightMask.setUniform("lightBlockTex", lbTexture)
-            tilemapLightMask.setUniform("reflectionStrengthTex", reflectionStrengthTexture)
-            tilemapLightMask.setUniform("lightBlockSize", Vector2f(cellSize, cellSize))
-            tilemapLightMask.setUniform("mapSize", Vector2f(self._tilemap.getSize().x, self._tilemap.getSize().y))
-            if self._lightMask:
-                self._lightMask.draw(layer, self._tilemapRenderStates)
-                if layerName in self._actors:
-                    for actor in self._actors[layerName]:
-                        actorLightMask.setUniform("lightBlock", actor.getLightBlock())
-                        if actor.getMirror():
-                            actorLightMask.setUniform("reflectionStrength", actor.getReflectionStrength())
-                        else:
-                            actorLightMask.setUniform("reflectionStrength", 0.0)
-                        self._lightMask.draw(actor, self._actorRenderStates)
+        useLightMaskShaders = self._tilemapLightMaskShader is not None and self._lightMaskShader is not None
+        if useLightMaskShaders:
+            tilemapLightMask = self._tilemapLightMaskShader
+            actorLightMask = self._lightMaskShader
+            for layerName in layerKeys:
+                layer = layers[layerName]
+                if not layer.visible:
+                    continue
+                cellSize = Engine.CellSize
+                lbTexture = Texture(layer.getLightBlockImage())
+                reflectionStrengthTexture = Texture(layer.getReflectionStrengthImage())
+                tilemapLightMask.setUniform("lightBlockTex", lbTexture)
+                tilemapLightMask.setUniform("reflectionStrengthTex", reflectionStrengthTexture)
+                tilemapLightMask.setUniform("lightBlockSize", Vector2f(cellSize, cellSize))
+                tilemapLightMask.setUniform("mapSize", Vector2f(self._tilemap.getSize().x, self._tilemap.getSize().y))
+                if self._lightMask:
+                    self._lightMask.draw(layer, self._tilemapRenderStates)
+                    if layerName in self._actors:
+                        for actor in self._actors[layerName]:
+                            actorLightMask.setUniform("lightBlock", actor.getLightBlock())
+                            if actor.getMirror():
+                                actorLightMask.setUniform("reflectionStrength", actor.getReflectionStrength())
+                            else:
+                                actorLightMask.setUniform("reflectionStrength", 0.0)
+                            self._lightMask.draw(actor, self._actorRenderStates)
+        elif IS_IOS_PLATFORM:
+            warnIosShaderSkippedOnce(
+                "GameMap.show.lightMaskPass",
+                "iOS: shaders are disabled; skipped map light-mask render pass",
+            )
         if self._camera:
             self._camera.display()
         if self._lightMask:

@@ -6,6 +6,7 @@ import os
 import locale
 import json
 import random
+import threading
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 import configparser
 import Engine
@@ -24,6 +25,7 @@ from Engine import (
     Locale,
 )
 from Engine.Utils import Math, Render
+from Engine.Utils.Inner import IS_IOS_PLATFORM, warnIosShaderSkippedOnce
 
 if TYPE_CHECKING:
     from .SceneBase import SceneBase
@@ -74,6 +76,9 @@ class System:
     _shakeOffset: Vector2f = Vector2f(0.0, 0.0)
     _shakeNextUpdate: float = 0.0
     _scenes: List[SceneBase] = []
+    _pendingSceneReplace: Optional[Any] = None
+    _pendingSceneLock: threading.Lock = threading.Lock()
+    _sceneOpThreadIdent: Optional[int] = None
     _debugMode: bool = False
     _showFPSGraph: bool = False
     _fpsHistory: List[float] = []
@@ -107,7 +112,17 @@ class System:
         cls._soundVolume = data.getfloat("soundVolume")
         cls._voiceVolume = data.getfloat("voiceVolume")
         cls._scenes = []
-        cls._transitionShader = Shader("./Assets/Shaders/Transition.frag", Shader.Type.Fragment)
+        with cls._pendingSceneLock:
+            cls._pendingSceneReplace = None
+        cls._sceneOpThreadIdent = None
+        if IS_IOS_PLATFORM:
+            cls._transitionShader = None
+            warnIosShaderSkippedOnce(
+                "System.transitionShader",
+                "iOS: shaders are disabled; skipped loading transition shader",
+            )
+        else:
+            cls._transitionShader = Shader("./Assets/Shaders/Transition.frag", Shader.Type.Fragment)
 
     @classmethod
     def isDebugMode(cls) -> bool:
@@ -279,9 +294,17 @@ class System:
                 lastCanvas = cls._canvas
                 if i > 0:
                     lastCanvas = cls.__graphicsCanvases[i - 1]
-                cls._graphicsShaders[i].setUniform("screenTex", lastCanvas.getTexture())
-                cls._graphicsShaders[i].setUniform("texSize", Math.ToVector2f(lastCanvas.getTexture().getSize()))
-                states.shader = cls._graphicsShaders[i]
+                postShader = cls._graphicsShaders[i] if i < len(cls._graphicsShaders) else None
+                if postShader is None:
+                    if IS_IOS_PLATFORM:
+                        warnIosShaderSkippedOnce(
+                            "System.display.postProcessShader",
+                            "iOS: shaders are disabled; skipped post-process shader pass",
+                        )
+                    continue
+                postShader.setUniform("screenTex", lastCanvas.getTexture())
+                postShader.setUniform("texSize", Math.ToVector2f(lastCanvas.getTexture().getSize()))
+                states.shader = postShader
                 tempSprite = Sprite(canvas.getTexture())
                 canvas.draw(tempSprite, states)
                 canvas.display()
@@ -529,6 +552,13 @@ class System:
         - \param shader The shader to add.
         - \param uniforms Optional uniforms to set on the shader.
         """
+        if IS_IOS_PLATFORM:
+            if shader is not None:
+                warnIosShaderSkippedOnce(
+                    "System.addGraphicsShader",
+                    "iOS: shaders are disabled; ignored addGraphicsShader",
+                )
+            return
         cls._graphicsShaders.append(shader)
         if shader and uniforms:
             for name, value in uniforms.items():
@@ -577,6 +607,12 @@ class System:
         if duration <= 0.0:
             cls.stopFlash()
             return
+        if IS_IOS_PLATFORM:
+            warnIosShaderSkippedOnce(
+                "System.flashScreen",
+                "iOS: shaders are disabled; skipped screen flash effect",
+            )
+            return
         if cls._flashShader is None:
             from . import Manager
 
@@ -585,6 +621,8 @@ class System:
             except Exception:
                 cls._flashShader = None
                 print(LOC("FLASH_SHADER_LOAD_FAILED"))
+                return
+            if cls._flashShader is None:
                 return
         cls._flashColor = Vector4f(
             float(color.r) / 255.0,
@@ -679,7 +717,9 @@ class System:
         - \param transitionResource Optional texture used as the transition mask.
         - \param transitionTime Duration of the transition in seconds.
         """
-        if not (cls._transitionShader):
+        if not cls._transitionShader:
+            cls._transitionResource = transitionResource
+            cls._inTransition = False
             return
         cls._transitionResource = transitionResource
         cls._inTransition = True
@@ -695,6 +735,39 @@ class System:
     def freezeTransitionBackground(cls) -> None:
         r"""\brief Freeze the current frame to use as the transition background."""
         cls._transitionFreezePending = True
+
+    @classmethod
+    def bindSceneOperationThread(cls) -> None:
+        r"""\brief Record the current thread as the only thread that may replace scenes synchronously.
+
+        Call once from the same thread that runs SceneBase.main (window / OpenGL). Embedded
+        runtimes may not match threading.main_thread(); use this instead.
+        """
+        cls._sceneOpThreadIdent = threading.get_ident()
+
+    @classmethod
+    def applyPendingSceneReplace(cls) -> None:
+        r"""\brief Apply a scene replacement queued from a non-scene-operation thread.
+
+        Window and transition updates must run on the thread bound via bindSceneOperationThread.
+        """
+        if cls._sceneOpThreadIdent is not None and threading.get_ident() != cls._sceneOpThreadIdent:
+            return
+        pending: Optional[Any] = None
+        with cls._pendingSceneLock:
+            if cls._pendingSceneReplace is not None:
+                pending = cls._pendingSceneReplace
+                cls._pendingSceneReplace = None
+        if pending is not None:
+            cls._applySetScene(pending)
+
+    @classmethod
+    def _applySetScene(cls, scene: SceneBase) -> None:
+        cls.freezeTransitionBackground()
+        if len(cls._scenes) == 0:
+            cls._scenes.append(scene)
+        else:
+            cls._scenes[-1] = scene
 
     @classmethod
     def getScene(cls) -> Optional[SceneBase]:
@@ -718,13 +791,17 @@ class System:
     def setScene(cls, scene: SceneBase) -> None:
         r"""\brief Replace the current scene on the top of the stack.
 
+        When called from a thread other than the one bound by bindSceneOperationThread, the
+        replacement is deferred until applyPendingSceneReplace runs on the bound thread.
+
         - \param scene The new scene to set.
         """
-        cls.freezeTransitionBackground()
-        if len(cls._scenes) == 0:
-            cls._scenes.append(scene)
+        tid = threading.get_ident()
+        if cls._sceneOpThreadIdent is None or tid == cls._sceneOpThreadIdent:
+            cls._applySetScene(scene)
         else:
-            cls._scenes[-1] = scene
+            with cls._pendingSceneLock:
+                cls._pendingSceneReplace = scene
 
     @classmethod
     def pushScene(cls, scene: SceneBase) -> None:

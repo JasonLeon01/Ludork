@@ -17,7 +17,14 @@ from .BlueprintEditor import BluePrintEditor
 from .ClassSelector import ClassSelector
 from .ActorInfo import ActorInfoPanel
 from .AnimationWindow import AnimationWindow
-from .PackDialog import LogDialog, PackPlatform, PackWorker, PackSelectionDialog
+from .PackDialog import (
+    LogDialog,
+    PackPlatform,
+    PackWorker,
+    PackSelectionDialog,
+    find_python_3120_for_pack,
+    prompt_install_python_3120,
+)
 from .MarkdownPreviewer import MarkdownPreviewer
 from .GeneralDataEditor import GeneralDataEditor
 from .AboutDialog import AboutDialog
@@ -46,6 +53,8 @@ __all__ = [
     "PackPlatform",
     "PackWorker",
     "PackSelectionDialog",
+    "find_python_3120_for_pack",
+    "prompt_install_python_3120",
     "MarkdownPreviewer",
     "GeneralDataEditor",
     "AboutDialog",

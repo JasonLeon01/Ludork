@@ -17,6 +17,7 @@ from ... import (
     degrees,
     Utils,
 )
+from ...Utils.Inner import IS_IOS_PLATFORM, warnIosShaderSkippedOnce
 from ..Material import Material
 
 if TYPE_CHECKING:
@@ -78,6 +79,12 @@ class _ActorBase(Sprite):
         self._shader = None
         self._shaderError = False
         if self.shaderPath:
+            if IS_IOS_PLATFORM:
+                warnIosShaderSkippedOnce(
+                    f"Actor.shaderPath:{self.shaderPath}",
+                    f"iOS: shaders are disabled; skipped actor shader: {self.shaderPath}",
+                )
+                return
             try:
                 # shaderPath is relative to Assets/Shaders/
                 if self.shaderPath.startswith("Assets/Shaders/"):
