@@ -3,6 +3,7 @@
 import os
 import sys
 import json
+from typing import TextIO, cast
 import subprocess
 import configparser
 import psutil
@@ -74,8 +75,15 @@ class GameRunnerMixin:
         proc = self._engineProc
         stdin = proc.stdin if proc else None
         if proc and stdin and proc.poll() is None:
-            stdin.write("Engine.GameRunning = False\n")
-            stdin.flush()
+            try:
+                stdin.write("Engine.GameRunning = False\n")
+                stdin.flush()
+            except Exception as e:
+                print(f"Error while writing shutdown command: {e}")
+            try:
+                cast(TextIO, proc.stdin).close()
+            except Exception:
+                pass
             try:
                 proc.wait(timeout=0.2)
             except subprocess.TimeoutExpired:
@@ -90,16 +98,26 @@ class GameRunnerMixin:
                     for c in children:
                         try:
                             c.terminate()
+                        except psutil.NoSuchProcess:
+                            pass
                         except Exception as e:
                             print(f"Error while terminating child process {c.pid}: {e}")
                     gone, alive = psutil.wait_procs(children, timeout=2)
                     for c in alive:
-                        c.kill()
-                    p.terminate()
+                        try:
+                            c.kill()
+                        except psutil.NoSuchProcess:
+                            pass
                     try:
+                        p.terminate()
                         p.wait(timeout=2)
                     except psutil.TimeoutExpired:
-                        p.kill()
+                        try:
+                            p.kill()
+                        except psutil.NoSuchProcess:
+                            pass
+                    except psutil.NoSuchProcess:
+                        pass
             except Exception as e:
                 print(f"Error while terminating engine process: {e}")
             finally:
@@ -128,6 +146,8 @@ class GameRunnerMixin:
             if self._engineMonitorTimer is not None:
                 self._engineMonitorTimer.stop()
             return
+        if self._closing:
+            return
         try:
             if self._engineProc.poll() is not None:
                 if self._engineMonitorTimer is not None:
@@ -138,6 +158,8 @@ class GameRunnerMixin:
             print(f"Error checking engine process state: {e}")
 
     def _checkAndShowFPS(self) -> None:
+        if self._closing:
+            return
         fpsFile = os.path.join(EditorStatus.PROJ_PATH, "Temp", "FPSHistory.json")
         if os.path.exists(fpsFile):
             try:

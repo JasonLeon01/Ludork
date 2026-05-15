@@ -4,7 +4,8 @@ from __future__ import annotations
 import copy
 from typing import List, Tuple, Union, TYPE_CHECKING
 from .. import TypeAdapter, Pair, IntRect, Vector2i, Vector2f, Vector2u, RenderTexture, Color, View
-from ..Utils import Math
+from ..Animation import AnimSprite
+from ..Utils import Math, Render
 from .Base import SpriteBase, FunctionalBase
 
 if TYPE_CHECKING:
@@ -28,11 +29,13 @@ class Canvas(SpriteBase, FunctionalBase):
 
         from .. import Scale
 
+        self._inRect = rect
         self._size = Math.ToVector2u(rect.size)
         size = Math.ToVector2u(Math.ToVector2f(rect.size) * Scale)
         self._canvas: RenderTexture = RenderTexture(size)
         self._childrenList: List[ControlBase] = []
         self._renderQueue: List[tuple[ControlBase, object]] = []
+        self._anims: List[AnimSprite] = []
         self._zOrder: int = 0
         SpriteBase.__init__(self, self._canvas.getTexture())
         FunctionalBase.__init__(self)
@@ -146,6 +149,34 @@ class Canvas(SpriteBase, FunctionalBase):
         self._childrenList.remove(child)
         child.setParent(None)
 
+    def addAnim(self, anim: AnimSprite) -> None:
+        r"""\brief Add an animation sprite to this canvas.
+
+        - \param anim  The animation sprite to add
+        """
+        self._anims.append(anim)
+
+    def removeAnim(self, anim: AnimSprite) -> None:
+        r"""\brief Remove an animation sprite from this canvas.
+
+        - \param anim  The animation sprite to remove
+        - \throws ValueError  If the animation is not found
+        """
+        if anim not in self._anims:
+            raise ValueError("Animation not found")
+        self._anims.remove(anim)
+
+    def clearAnims(self) -> None:
+        r"""\brief Remove all animation sprites from this canvas."""
+        self._anims.clear()
+
+    def getAnims(self) -> List[AnimSprite]:
+        r"""\brief Get the list of animation sprites on this canvas.
+
+        - \return  List of AnimSprite objects
+        """
+        return self._anims
+
     def setZOrder(self, zOrder: int) -> None:
         r"""\brief Set the z-order of this canvas.
 
@@ -169,15 +200,22 @@ class Canvas(SpriteBase, FunctionalBase):
             if child.getActive() and child.getVisible():
                 if hasattr(child, "update"):
                     child.update(deltaTime)
+        for anim in self._anims[:]:
+            if anim.isFinished():
+                self._anims.remove(anim)
+        for anim in self._anims:
+            anim.update(deltaTime)
         FunctionalBase.update(self, deltaTime)
         self._buildRenderQueue()
 
     def render(self) -> None:
         r"""\brief Render the canvas to its internal RenderTexture.
 
-        Clears the canvas, draws all queued nodes, and displays the result.
+        Clears the canvas, draws all animations and queued nodes, and displays the result.
         """
         self._canvas.clear(Color.Transparent)
+        for anim in self._anims:
+            self._canvas.draw(anim, Render.CanvasRenderStates())
         for node, nodeStates in self._renderQueue:
             self._canvas.draw(node, copy.copy(nodeStates))
         self._canvas.display()
@@ -221,8 +259,6 @@ class Canvas(SpriteBase, FunctionalBase):
                     self._appendRenderNode(child, childStates)
 
     def _buildRenderQueue(self) -> None:
-        from ..Utils import Render
-
         self._renderQueue.clear()
         baseStates = Render.CanvasRenderStates()
         for child in self._childrenList:

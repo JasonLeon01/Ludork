@@ -74,6 +74,13 @@ class PlainText(ControlBase):
         """
         self._text.setString(text)
 
+    def setLineAlignment(self, lineAlignment: Text.LineAlignment) -> None:
+        r"""\brief Set the line alignment for multi-line text.
+
+        - \param lineAlignment New line alignment
+        """
+        self._text.setLineAlignment(lineAlignment)
+
     def getString(self) -> str:
         r"""\brief Get the current text string.
 

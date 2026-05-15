@@ -25,7 +25,7 @@ class WindowMenu(WindowCommand):
         - \param commands Dictionary of command key to {text, callback}.
         - \param onClose Optional callback invoked when the menu is closed.
         """
-        super().__init__(((0, 0), (256, 192)), commands)
+        super().__init__(((0, 0), (192, 192)), commands)
         self._onCloseCallback = onClose
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
@@ -33,6 +33,8 @@ class WindowMenu(WindowCommand):
 
         - \param kwargs Event data.
         """
+        if not self.getActive():
+            return
         if self.getVisible():
             if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
                 Manager.playSE(GameSystem.getCancelSE())

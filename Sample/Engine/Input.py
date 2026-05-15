@@ -445,7 +445,7 @@ def update(window: WindowBase) -> None:
                         touchEvent = event.getIfTouchMoved()
                         if touchEvent.finger == 0:
                             _EventState.TouchMoved = True
-                            lastPosition = _EventState.TouchPosition
+                            lastPosition = Cast(Vector2i, _EventState.TouchPosition)
                             worldPos = _pixelToWorld(window, touchEvent.position)
                             _EventState.TouchPosition = worldPos
                             if lastPosition is not None and worldPos != lastPosition:
@@ -464,7 +464,9 @@ def update(window: WindowBase) -> None:
                     joystickButtonEvent = event.getIfJoystickButtonPressed()
                     if joystickButtonEvent.joystickId not in _EventState.JoystickButtonPressedMap:
                         _EventState.JoystickButtonPressedMap[joystickButtonEvent.joystickId] = {}
-                    _EventState.JoystickButtonPressedMap[joystickButtonEvent.joystickId][joystickButtonEvent.button] = True
+                    _EventState.JoystickButtonPressedMap[joystickButtonEvent.joystickId][
+                        joystickButtonEvent.button
+                    ] = True
                     if not joystickButtonEvent.button in _EventState.JoystickButtonTriggeredMap:
                         _EventState.JoystickButtonTriggeredMap[joystickButtonEvent.button] = (0, False)
                     count, handled = _EventState.JoystickButtonTriggeredMap[joystickButtonEvent.button]
@@ -475,7 +477,9 @@ def update(window: WindowBase) -> None:
                     joystickButtonEvent = event.getIfJoystickButtonReleased()
                     if joystickButtonEvent.joystickId not in _EventState.JoystickButtonReleasedMap:
                         _EventState.JoystickButtonReleasedMap[joystickButtonEvent.joystickId] = {}
-                    _EventState.JoystickButtonReleasedMap[joystickButtonEvent.joystickId][joystickButtonEvent.button] = True
+                    _EventState.JoystickButtonReleasedMap[joystickButtonEvent.joystickId][
+                        joystickButtonEvent.button
+                    ] = True
                     if joystickButtonEvent.button in _EventState.JoystickButtonTriggeredMap:
                         _EventState.JoystickButtonTriggeredMap.pop(joystickButtonEvent.button, None)
                 if event.isJoystickMoved():

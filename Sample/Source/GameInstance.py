@@ -24,6 +24,7 @@ class GameInstance:
         self._players.append(firstPlayer)
         self._variables: Dict[str, Any] = {}
         self._cachedMap: Optional[str] = None
+        self._cachedNewItem: Dict[str, bool] = {}
         self._cachedDestroyedActors: Dict[str, List[str]] = {}
 
     def asDict(self) -> Dict[str, Any]:
@@ -174,3 +175,19 @@ class GameInstance:
         if not mapPath in self._cachedDestroyedActors:
             return []
         return self._cachedDestroyedActors[mapPath]
+
+    def getCachedNewItem(self, itemID: str) -> bool:
+        r"""\brief Get the cached new item status for a player.
+
+        - \param itemID The item ID.
+        - \return True if the item is new, False otherwise.
+        """
+        return self._cachedNewItem.get(itemID, False)
+
+    def setCachedNewItem(self, itemID: str) -> None:
+        r"""\brief Set the cached new item status for a player.
+
+        - \param itemID The item ID.
+        - \param isNew True if the item is new, False otherwise.
+        """
+        self._cachedNewItem[itemID] = True

@@ -9,10 +9,12 @@ for the Ludork sample engine.
 - Base          Window base classes
 - WindowCommand  Command-selection window
 - WindowMenu     In-game menu window
+- WindowItem     Item inventory window
 """
 
 from . import Base
 from .WindowCommand import WindowCommand
 from .WindowMenu import WindowMenu
+from .WindowItem import WindowItem
 
-__all__ = ["Base", "WindowCommand", "WindowMenu"]
+__all__ = ["Base", "WindowCommand", "WindowMenu", "WindowItem"]

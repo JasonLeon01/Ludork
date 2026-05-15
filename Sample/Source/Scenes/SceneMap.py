@@ -13,6 +13,7 @@ from Source import Data, System
 from Source.Windows.HUDPlayerAttr import PlayerAttrHUD
 from Source.Windows.WindowMessage import WindowMessage
 from Source.Windows.WindowMenu import WindowMenu
+from Source.Windows.WindowItem import WindowItem
 from Source.GameInstance import GameInstance
 
 
@@ -39,7 +40,7 @@ class Scene(SceneBase):
         self._uiManager.loadUI(self._messageWindow)
         self._windowMenu = WindowMenu(
             {
-                "Items": {"text": LOC("MENU_ITEM"), "callback": self._MenuItem},
+                "Items": {"text": LOC("MENU_ITEM"), "callback": lambda obj, kwargs: self._onMenuItem(kwargs)},
                 "Equipment": {"text": LOC("MENU_EQUIP"), "callback": self._MenuEquip},
                 "Save": {"text": LOC("MENU_SAVE"), "callback": self._MenuSave},
                 "Load": {"text": LOC("MENU_LOAD"), "callback": self._MenuLoad},
@@ -49,6 +50,9 @@ class Scene(SceneBase):
         )
         self._windowMenu.close()
         self._uiManager.loadUI(self._windowMenu)
+
+        self._windowItem = WindowItem(((192, 0), (256, 256)), self.player, onClose=self._onItemClose)
+        self._uiManager.loadUI(self._windowItem)
 
         self._gameMap: GameMap = None
         self._cachedMapFile: str = None
@@ -80,7 +84,7 @@ class Scene(SceneBase):
         - \param deltaTime Elapsed time in seconds.
         """
         self._gameMap.onTick(deltaTime)
-        if self._windowMenu.getVisible():
+        if self._windowMenu.getVisible() or self._windowItem.getVisible():
             return super().onTick(deltaTime)
         if not self._messageWindow.isInDialogue():
             if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
@@ -134,9 +138,14 @@ class Scene(SceneBase):
                 camera = self._gameMap.getCamera()
                 assert camera
                 refPosition = actor.getPosition() - camera.getViewPosition()
-        self._messageWindow.setMessage(refPosition, name, message)
         originMoveEnabled = self.player.getMoveEnabled()
         self.player.setMoveEnabled(False)
+        self._messageWindow.setMessage(
+            refPosition,
+            name,
+            message,
+            onFinished=lambda: self.player.setMoveEnabled(originMoveEnabled),
+        )
 
         def condition() -> bool:
             if self._messageWindow.isInDialogue():
@@ -167,9 +176,15 @@ class Scene(SceneBase):
                 assert camera
                 refPosition = actor.getPosition() - camera.getViewPosition()
 
-        self._messageWindow.setMessage(refPosition, name, options, allowCancel=allowCancel)
         originMoveEnabled = self.player.getMoveEnabled()
         self.player.setMoveEnabled(False)
+        self._messageWindow.setMessage(
+            refPosition,
+            name,
+            options,
+            allowCancel=allowCancel,
+            onFinished=lambda: self.player.setMoveEnabled(originMoveEnabled),
+        )
 
         def condition() -> Optional[int]:
             selectionResult = self._messageWindow.getSelectionResult()
@@ -235,24 +250,29 @@ class Scene(SceneBase):
 
             AudioManager.setMusicFilter(self._currentBgsMusic, filterObj)
 
+    def _onMenuItem(self, kwargs: Dict[str, Any] = {}) -> None:
+        r"""\brief Open the item window when Items is confirmed.
+
+        - \param obj The confirmed UI element.
+        - \param kwargs Event data.
+        """
+        self._windowMenu.setActive(False)
+        self._windowItem.open()
+
     @staticmethod
-    def _MenuItem(obj: FunctionalBase, kwargs: Dict[str, Any]) -> None:
+    def _MenuEquip(obj: FunctionalBase, kwargs: Dict[str, Any] = {}) -> None:
         pass
 
     @staticmethod
-    def _MenuEquip(obj: FunctionalBase, kwargs: Dict[str, Any]) -> None:
+    def _MenuSave(obj: FunctionalBase, kwargs: Dict[str, Any] = {}) -> None:
         pass
 
     @staticmethod
-    def _MenuSave(obj: FunctionalBase, kwargs: Dict[str, Any]) -> None:
+    def _MenuLoad(obj: FunctionalBase, kwargs: Dict[str, Any] = {}) -> None:
         pass
 
     @staticmethod
-    def _MenuLoad(obj: FunctionalBase, kwargs: Dict[str, Any]) -> None:
-        pass
-
-    @staticmethod
-    def _MenuExit(obj: FunctionalBase, kwargs: Dict[str, Any]) -> None:
+    def _MenuExit(obj: FunctionalBase, kwargs: Dict[str, Any] = {}) -> None:
         from Source.Scenes import Title
 
         GlobalSystem.setScene(Title())
@@ -345,6 +365,10 @@ class Scene(SceneBase):
     def _onMenuClose(self) -> None:
         r"""\brief Callback when the menu window is closed."""
         self.player.setMoveEnabled(True)
+
+    def _onItemClose(self) -> None:
+        r"""\brief Callback when the item window is closed."""
+        self._windowMenu.setActive(True)
 
     def _generateTilemap(self, data: Dict[str, List[List[Any]]], width: int, height: int) -> Tilemap:
         mapLayers = []

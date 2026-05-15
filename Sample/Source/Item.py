@@ -4,7 +4,8 @@ from __future__ import annotations
 from typing import Optional, Union, List, Tuple
 from Engine import Pair, Texture, IntRect
 from Engine.Gameplay.Actors import Actor
-from . import Data
+from Global import GameMap, Manager
+from . import Data, System
 from .ItemInfo import ItemInfo
 
 
@@ -32,3 +33,20 @@ class Item(Actor, ItemInfo):
         """
         Actor.__init__(self, texture, rect, tag)
         self.initInfo(Data)
+
+    def onCollision(self, other: List[Actor]) -> None:
+        from .Scenes import Map
+
+        if self.isDestroyed():
+            return
+        scene = Cast(Map, Cast(GameMap, self.getMap()).getScene())
+        inst = scene.inst
+        player = inst.getPlayer()
+        if player and player in other:
+            Manager.playSE(System.getGetSE())
+            player.addItem(self.ID)
+            if not inst.getCachedNewItem(self.ID):
+                inst.setCachedNewItem(self.ID)
+                scene.showMessage("", "", LOC("ITEM_NEW").format(name=self.name, desc=self.desc).replace("\\n", "\n"))
+        super().onCollision(other)
+        self.destroy()

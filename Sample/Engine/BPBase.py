@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import Any, Dict
 import re
+import traceback
 
 
 class BPBase:
@@ -31,6 +32,8 @@ class BPBase:
         """
         if kwargs is None:
             kwargs = {}
+        if getattr(obj, "isDestroyed", lambda: False)():
+            return
         if not isinstance(obj, objType) or not hasattr(obj, eventName) or not callable(getattr(obj, eventName)):
             return
         if (
@@ -61,7 +64,9 @@ class BPBase:
                     try:
                         getattr(parent_cls, eventName)(obj, **kwargs)
                     except:
-                        raise RuntimeError("Parent class graph not found")
+                        raise RuntimeError(
+                            "Parent class graph not found or something else went wrong. ", traceback.format_exc()
+                        )
                 else:
                     if not graph.tryLockExecution(eventName):
                         return
@@ -142,4 +147,4 @@ class BPBase:
                         v = Inner.ApplyStringLocaleFormat(v)
                     setattr(obj, k, v)
                     continue
-            setattr(obj, k, eval(v))
+            setattr(obj, k, Eval(v))

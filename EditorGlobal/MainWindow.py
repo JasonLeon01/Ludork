@@ -170,6 +170,7 @@ class MainWindow(
         self._lockedViewportSize: Optional[QSize] = None
         self._gameConfigModified: bool = False
         self._pendingGameConfig: Optional[Dict[str, Any]] = None
+        self._closing: bool = False
 
     def _layerTabBar(self) -> QtWidgets.QTabBar:
         tabBar = self.layerList.tabBar()
@@ -279,7 +280,9 @@ class MainWindow(
                 cfg.write(f)
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        self._closing = True
         if not self._checkUnsavedChanges():
+            self._closing = False
             event.ignore()
             return
         self._saveProjLastMap()

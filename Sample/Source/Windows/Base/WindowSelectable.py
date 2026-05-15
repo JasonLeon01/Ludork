@@ -151,6 +151,8 @@ class WindowSelectable(WindowBase):
 
         - \param kwargs Event data.
         """
+        if not self.getActive():
+            return
         if not (self._listView and len(self._listView.getChildren()) > 0 and not self.index is None):
             return
 

@@ -29,6 +29,7 @@ def TypeAdapter(**kwargs: Any) -> Callable[[_F], _F]:
     \return A decorator function that wraps the target function with type adaptation.
     """
     ...
+
 def Meta(**kwargs: Any) -> Callable[[_F], _F]:
     r"""
     \brief Decorator for attaching metadata to a function.
@@ -41,6 +42,7 @@ def Meta(**kwargs: Any) -> Callable[[_F], _F]:
     \return A decorator function that attaches metadata to the target function.
     """
     ...
+
 def ExecSplit(**kwargs: Any) -> Callable[[_F], _F]:
     r"""
     \brief Decorator for marking execution split points in node graph.
@@ -53,6 +55,7 @@ def ExecSplit(**kwargs: Any) -> Callable[[_F], _F]:
     \return A decorator function that attaches execution split metadata.
     """
     ...
+
 def Latent(**kwargs: Any) -> Callable[[_F], _F]:
     r"""
     \brief Decorator for marking functions as latent (async) operations.
@@ -65,6 +68,7 @@ def Latent(**kwargs: Any) -> Callable[[_F], _F]:
     \return A decorator function that attaches latent metadata.
     """
     ...
+
 def ReturnType(**kwargs: Any) -> Callable[[_F], _F]:
     r"""
     \brief Decorator for specifying return types of a function.
@@ -77,6 +81,7 @@ def ReturnType(**kwargs: Any) -> Callable[[_F], _F]:
     \return A decorator function that attaches return type metadata.
     """
     ...
+
 def InvalidVars(*args: str) -> Callable[[type[_T]], type[_T]]:
     r"""
     \brief Class decorator for marking invalid variables.
@@ -89,6 +94,7 @@ def InvalidVars(*args: str) -> Callable[[type[_T]], type[_T]]:
     \return A class decorator that attaches invalid variables metadata.
     """
     ...
+
 def PathVars(*args: str) -> Callable[[type[_T]], type[_T]]:
     r"""
     \brief Class decorator for marking path-type variables.
@@ -102,6 +108,7 @@ def PathVars(*args: str) -> Callable[[type[_T]], type[_T]]:
     \return A class decorator that attaches path variables metadata.
     """
     ...
+
 def RectRangeVars(**kwargs: Any) -> Callable[[type[_T]], type[_T]]:
     r"""
     \brief Class decorator for marking rectangle range variables.
@@ -115,6 +122,7 @@ def RectRangeVars(**kwargs: Any) -> Callable[[type[_T]], type[_T]]:
     \return A class decorator that attaches rectangle range variables metadata.
     """
     ...
+
 def RegisterEvent(func: _F = ...) -> _F:
     r"""
     \brief Decorator for registering a function as an event handler.
@@ -128,6 +136,7 @@ def RegisterEvent(func: _F = ...) -> _F:
     \return A decorator function that attaches event signature metadata.
     """
     ...
+
 def Cast[T](targetType: type[T], value: Any) -> T:
     r"""
     \brief Cast a value to the specified type with a runtime type assertion on targetType.
@@ -137,6 +146,7 @@ def Cast[T](targetType: type[T], value: Any) -> T:
     - \return The value, typed as targetType.
     """
     ...
+
 def AssertType[T](obj: Any, type_: type[T]) -> None:
     r"""
     \brief Recursively assert that obj conforms to the given type annotation.
@@ -148,3 +158,11 @@ def AssertType[T](obj: Any, type_: type[T]) -> None:
     - \param type_ The type annotation to validate against.
     """
     ...
+
+def Eval(expr: str) -> Any:
+    r"""
+    \brief Evaluate a string expression as Python Python code.
+
+    - \param expr The expression to evaluate.
+    - \return The result of the evaluation.
+    """

@@ -301,6 +301,8 @@ class GameMap(GameMapExt):
                     continue
                 if other in actor.getChildren():
                     continue
+                if other.isDestroyed():
+                    continue
                 if other.getCollisionEnabled():
                     return False
         return True
@@ -540,6 +542,8 @@ class GameMap(GameMapExt):
                     continue
                 if other in actor.getChildren():
                     continue
+                if other.isDestroyed():
+                    continue
                 if other.getMapPosition() == targetPosition:
                     result.append(other)
         return result
@@ -557,6 +561,8 @@ class GameMap(GameMapExt):
                 if actor == other:
                     continue
                 if other in actor.getChildren():
+                    continue
+                if other.isDestroyed():
                     continue
                 if actor.getMapPosition() == other.getMapPosition():
                     result.append(other)
@@ -745,8 +751,8 @@ class GameMap(GameMapExt):
             component.onRender(self._camera)
         useLightMaskShaders = self._tilemapLightMaskShader is not None and self._lightMaskShader is not None
         if useLightMaskShaders:
-            tilemapLightMask = self._tilemapLightMaskShader
-            actorLightMask = self._lightMaskShader
+            tilemapLightMask = Cast(Shader, self._tilemapLightMaskShader)
+            actorLightMask = Cast(Shader, self._lightMaskShader)
             for layerName in layerKeys:
                 layer = layers[layerName]
                 if not layer.visible:

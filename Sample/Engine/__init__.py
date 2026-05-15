@@ -134,6 +134,18 @@ def AssertType[T](obj: Any, type_: type[T]) -> None:
     assert isinstance(obj, type_), f"Assert failed: expected {type_.__name__}, " f"got {type(obj).__name__}"
 
 
+def Eval(expr: str) -> Any:
+    r"""
+    \brief Evaluate a string expression as Python Python code.
+
+    - \param expr The expression to evaluate.
+    - \return The result of the evaluation.
+    """
+    if isinstance(expr, str) and expr:
+        return eval(expr)
+    return None
+
+
 builtins.TypeAdapter = TypeAdapter
 builtins.Meta = Meta
 builtins.ExecSplit = ExecSplit
@@ -145,6 +157,7 @@ builtins.RectRangeVars = RectRangeVars
 builtins.RegisterEvent = RegisterEvent
 builtins.Cast = Cast
 builtins.AssertType = AssertType
+builtins.Eval = Eval
 
 
 from . import Utils

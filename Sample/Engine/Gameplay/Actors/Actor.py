@@ -58,6 +58,7 @@ class Actor(_ActorBase, BPBase):
         self._departure: Optional[Vector2f] = None
         self._destination: Optional[Vector2f] = None
         self._realSpeed: float = 0.0
+        self._destroyed: bool = False
 
     def fixedUpdate(self, fixedDelta: float) -> None:
         r"""Fixed-timestep update callback.
@@ -138,8 +139,14 @@ class Actor(_ActorBase, BPBase):
     @ExecSplit(default=(None,))
     def destroy(self) -> None:
         r"""Remove this actor from the current map and trigger `onDestroy`."""
+        self._destroyed = True
         if self._map:
             self._map.destroyActor(self)
+
+    @ReturnType(destroyed=bool)
+    def isDestroyed(self) -> bool:
+        r"""Check whether the actor has been destroyed."""
+        return self._destroyed
 
     @ExecSplit(success=(True,), fail=(False,))
     @TypeAdapter(offset=([tuple, list], Vector2i))

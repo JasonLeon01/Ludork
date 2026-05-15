@@ -1,6 +1,9 @@
 {
     "stubPath": "typings",
     "typeCheckingMode": "basic",
+    "exclude": [
+        "pysf/pysf"
+    ],
     "reportIncompatibleMethodOverride": false,
     "reportArgumentType": false,
     "reportCallIssue": false,

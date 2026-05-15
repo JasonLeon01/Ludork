@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from enum import IntEnum
-from typing import Dict, Any, Optional, List, Union, Tuple
+from typing import Dict, Any, Optional, List, Union, Tuple, Callable
 import Engine
 from Engine import Color, Input, UI, Text, Vector2f, Vector2u, Vector2i, IntRect
 from Engine.UI import RichText, TextStyle, PlainText, ListView
@@ -45,6 +45,7 @@ class WindowMessage(WindowSelectable):
         self._selectionListView: Optional[ListView] = None
         self._selectionResult: Optional[int] = None
         self._allowCancel: bool = True
+        self._onFinished: Optional[Callable[[], None]] = None
         self._fadePhase: FadePhase = FadePhase.NOTHING
         self._fadeInSpeed = 1000.0
         self._fadeOutSpeed = 1000.0
@@ -140,6 +141,7 @@ class WindowMessage(WindowSelectable):
         name: str,
         message: Union[str, List[str], Tuple[str, ...]],
         allowCancel: bool = True,
+        onFinished: Optional[Callable[[], None]] = None,
     ) -> None:
         r"""\brief Show a message or selection dialogue.
 
@@ -147,12 +149,14 @@ class WindowMessage(WindowSelectable):
         - \param name Speaker name to display.
         - \param message Message text (str) or selection options (list).
         - \param allowCancel Whether the selection can be cancelled.
+        - \param onFinished Optional callback invoked when the dialogue is confirmed/cancelled.
         """
         self.setColor(Color(255, 255, 255, 0))
         self.setVisible(True)
         self._inDialogue = True
         self._selectionResult = None
         self._allowCancel = allowCancel
+        self._onFinished = onFinished
         self._fadePhase = FadePhase.IN
         self._name = name
         self._nameText.setString(name)
@@ -184,6 +188,10 @@ class WindowMessage(WindowSelectable):
         self._selectionResult = selectionResult
         self._inDialogue = False
         self._fadePhase = FadePhase.OUT
+        if self._onFinished is not None:
+            onFinished = self._onFinished
+            self._onFinished = None
+            onFinished()
 
     def _setupSelectionList(self, options: List[str]) -> None:
         options = options[: self._MAX_OPTIONS]

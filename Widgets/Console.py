@@ -147,8 +147,12 @@ class ConsoleWidget(QtWidgets.QWidget):
                 print(f"Error while stopping stderr reader: {e}")
             self._stderr_reader = None
         if self._proc:
-            self._proc.terminate()
-            self._proc = None
+            try:
+                self._proc.terminate()
+            except Exception:
+                pass
+            finally:
+                self._proc = None
         self._send.setEnabled(False)
         self._input.setEnabled(False)
         Panel.ApplyDisabledOpacity(self._send)
