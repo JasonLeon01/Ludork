@@ -24,7 +24,7 @@ from Engine.Utils import Math
 from Global import Manager
 from .Base import WindowSelectable
 from ..System import System as GameSystem
-from ..ItemInfo import ItemInfo
+from ..Infos.ItemInfo import ItemInfo
 from .. import Data
 
 _UNUSABLE_ICON_ALPHA = 160

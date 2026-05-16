@@ -62,6 +62,78 @@ class ListEditorWidget(QtWidgets.QWidget):
         self.DATA_CHANGED.emit(self.dataList)
 
 
+class DictEditorWidget(QtWidgets.QWidget):
+    DATA_CHANGED = QtCore.pyqtSignal(dict)
+
+    def __init__(self, data: dict, parent=None):
+        super().__init__(parent)
+        self.dataItems: list[list[str]] = []
+        if isinstance(data, dict):
+            for key, val in data.items():
+                self.dataItems.append([str(key), str(val)])
+        self._setupUI()
+
+    def _setupUI(self):
+        if self.layout():
+            QtWidgets.QWidget().setLayout(self.layout())
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
+
+        for i, pair in enumerate(self.dataItems):
+            row = QtWidgets.QWidget()
+            rowLayout = QtWidgets.QHBoxLayout(row)
+            rowLayout.setContentsMargins(0, 0, 0, 0)
+
+            keyEdit = QtWidgets.QLineEdit(pair[0])
+            keyEdit.textChanged.connect(lambda text, idx=i: self._onKeyChanged(idx, text))
+            valueEdit = QtWidgets.QLineEdit(pair[1])
+            valueEdit.textChanged.connect(lambda text, idx=i: self._onValueChanged(idx, text))
+
+            delBtn = QtWidgets.QPushButton("-")
+            delBtn.setFixedWidth(24)
+            delBtn.clicked.connect(lambda _, idx=i: self._onItemRemoved(idx))
+
+            rowLayout.addWidget(keyEdit, 1)
+            rowLayout.addWidget(valueEdit, 1)
+            rowLayout.addWidget(delBtn)
+            layout.addWidget(row)
+
+        addBtn = QtWidgets.QPushButton("+")
+        addBtn.clicked.connect(self._onItemAdded)
+        layout.addWidget(addBtn)
+
+    def _buildDict(self) -> dict:
+        result: dict[str, str] = {}
+        for key, val in self.dataItems:
+            key = key.strip()
+            if key:
+                result[key] = val
+        return result
+
+    def _onKeyChanged(self, index: int, text: str):
+        if 0 <= index < len(self.dataItems):
+            self.dataItems[index][0] = text
+            self.DATA_CHANGED.emit(self._buildDict())
+
+    def _onValueChanged(self, index: int, text: str):
+        if 0 <= index < len(self.dataItems):
+            self.dataItems[index][1] = text
+            self.DATA_CHANGED.emit(self._buildDict())
+
+    def _onItemRemoved(self, index: int):
+        if 0 <= index < len(self.dataItems):
+            self.dataItems.pop(index)
+            self._setupUI()
+            self.DATA_CHANGED.emit(self._buildDict())
+
+    def _onItemAdded(self):
+        self.dataItems.append(["", ""])
+        self._setupUI()
+        self.DATA_CHANGED.emit(self._buildDict())
+
+
 class TupleEditorWidget(QtWidgets.QWidget):
     DATA_CHANGED = QtCore.pyqtSignal(list)
 
@@ -106,7 +178,7 @@ class TupleEditorWidget(QtWidgets.QWidget):
 class GeneralDataPage(QtWidgets.QWidget):
     MODIFIED = QtCore.pyqtSignal()
     REQUEST_BLUEPRINT_EDIT = QtCore.pyqtSignal(str, str, list)
-    PARAM_TYPE_OPTIONS = ["string", "int", "float", "bool", "file", "list"]
+    PARAM_TYPE_OPTIONS = ["string", "int", "float", "bool", "file", "list", "dict"]
     PARAM_TYPE_TOOLTIP_KEYS = {
         "string": "GENERAL_DATA_TYPE_TIP_STRING",
         "int": "GENERAL_DATA_TYPE_TIP_INT",
@@ -114,6 +186,7 @@ class GeneralDataPage(QtWidgets.QWidget):
         "bool": "GENERAL_DATA_TYPE_TIP_BOOL",
         "file": "GENERAL_DATA_TYPE_TIP_FILE",
         "list": "GENERAL_DATA_TYPE_TIP_LIST",
+        "dict": "GENERAL_DATA_TYPE_TIP_DICT",
     }
     PARAM_DEFAULT_TOOLTIP_KEYS = {
         "string": "GENERAL_DATA_DEFAULT_TIP_STRING",
@@ -122,6 +195,7 @@ class GeneralDataPage(QtWidgets.QWidget):
         "bool": "GENERAL_DATA_DEFAULT_TIP_BOOL",
         "file": "GENERAL_DATA_DEFAULT_TIP_FILE",
         "list": "GENERAL_DATA_DEFAULT_TIP_LIST",
+        "dict": "GENERAL_DATA_DEFAULT_TIP_DICT",
     }
 
     def __init__(self, fileKey: str, parent: Optional[QtWidgets.QWidget] = None):
@@ -203,7 +277,7 @@ class GeneralDataPage(QtWidgets.QWidget):
 
     def _resolveLinkedClass(self, typeName: str) -> Optional[type]:
         try:
-            cls = GameData.classDict.get(f"Source.{typeName}", EditorStatus.PROJ_PATH)
+            cls = GameData.classDict.get(f"Source.Infos.{typeName}", EditorStatus.PROJ_PATH)
             if cls and cls is not EditorStatus.PROJ_PATH:
                 return cls
         except Exception:
@@ -213,8 +287,7 @@ class GeneralDataPage(QtWidgets.QWidget):
             sourcePath = os.path.join(EditorStatus.PROJ_PATH, "Source")
             if sourcePath not in sys.path:
                 sys.path.insert(0, sourcePath)
-            moduleName = typeName.replace("Info", "Info")
-            mod = __import__(f"Source.{moduleName}", fromlist=[typeName])
+            mod = __import__(f"Source.Infos.{typeName}", fromlist=[typeName])
             return getattr(mod, typeName, None)
         except Exception:
             pass
@@ -456,6 +529,20 @@ class GeneralDataPage(QtWidgets.QWidget):
                     defaultVal = []
             except:
                 defaultVal = []
+        elif t == "dict":
+            try:
+                if defaultValStr.strip().startswith("{"):
+                    import ast
+
+                    defaultVal = ast.literal_eval(defaultValStr)
+                    if not isinstance(defaultVal, dict):
+                        defaultVal = {}
+                    else:
+                        defaultVal = {str(k): str(v) for k, v in defaultVal.items()}
+                else:
+                    defaultVal = {}
+            except:
+                defaultVal = {}
         elif t.startswith("tuple"):
             match = re.match(r"tuple\[(\d+)\]", t)
             if not match:
@@ -550,6 +637,10 @@ class GeneralDataPage(QtWidgets.QWidget):
             w = ListEditorWidget(value if isinstance(value, list) else [])
             w.DATA_CHANGED.connect(lambda v, k=key: self._onValueChanged(k, v))
             return w
+        elif paramType == "dict":
+            w = DictEditorWidget(value if isinstance(value, dict) else {})
+            w.DATA_CHANGED.connect(lambda v, k=key: self._onValueChanged(k, v))
+            return w
         elif paramType.startswith("tuple"):
             match = re.match(r"tuple\[(\d+)\]", paramType)
             if match:
@@ -579,7 +670,7 @@ class GeneralDataPage(QtWidgets.QWidget):
     def _onFileBrowse(self, key: str, lineEdit: QtWidgets.QLineEdit, paramDef: dict):
         assetsRoot = os.path.abspath(os.path.join(EditorStatus.PROJ_PATH, "Assets"))
         startDir = self._getFileBrowseRoot(paramDef)
-        dialog = FileSelectorDialog(self, startDir, "All Files (*)", ELOC("SELECT_FILE"))
+        dialog = FileSelectorDialog(self, startDir, FileSelectorDialog.allFilesFilter())
         path = dialog.execSelect()
         if path:
             relPath = os.path.relpath(path, assetsRoot)
@@ -705,15 +796,15 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
 
     def _scanInfoTypes(self) -> list:
         infoTypes = []
-        sourcePath = os.path.join(EditorStatus.PROJ_PATH, "Source")
+        infosPath = os.path.join(EditorStatus.PROJ_PATH, "Source", "Infos")
 
-        if not os.path.isdir(sourcePath):
+        if not os.path.isdir(infosPath):
             return infoTypes
 
-        for fileName in os.listdir(sourcePath):
+        for fileName in os.listdir(infosPath):
             if not fileName.endswith(".py") or fileName.startswith("_"):
                 continue
-            filePath = os.path.join(sourcePath, fileName)
+            filePath = os.path.join(infosPath, fileName)
             try:
                 with open(filePath, "r", encoding="utf-8") as f:
                     content = f.read()
@@ -730,13 +821,13 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
 
     def _getEventsFromType(self, typeName: str) -> list:
         try:
-            cls = GameData.classDict.get(f"Source.{typeName}", EditorStatus.PROJ_PATH)
+            cls = GameData.classDict.get(f"Source.Infos.{typeName}", EditorStatus.PROJ_PATH)
             if cls and cls is not EditorStatus.PROJ_PATH:
                 return GeneralDataPage._extractRegisteredEvents(cls)
         except Exception:
             pass
 
-        sourcePath = os.path.join(EditorStatus.PROJ_PATH, "Source", f"{typeName}.py")
+        sourcePath = os.path.join(EditorStatus.PROJ_PATH, "Source", "Infos", f"{typeName}.py")
         if os.path.exists(sourcePath):
             events = []
             try:

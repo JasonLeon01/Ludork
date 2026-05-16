@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+from typing import Optional
 from PyQt5 import QtCore, QtWidgets
 from Widgets.Utils import SingleRowDialog
 
@@ -69,7 +70,7 @@ class LayerBarMixin:
 
         self.editorPanel.reorderLayers(new_order)
 
-    def _onAddLayer(self, checked: bool = False) -> None:
+    def _onAddLayer(self, checked: bool = False, insertAfterTabIndex: Optional[int] = None) -> None:
         if self.editorPanel.mapData is None:
             QtWidgets.QMessageBox.warning(self, "Hint", ELOC("ADD_ERROR"))
             return
@@ -88,10 +89,12 @@ class LayerBarMixin:
                 continue
             break
         self.editorPanel.addEmptyLayer(name)
+        if insertAfterTabIndex is not None and insertAfterTabIndex >= 1:
+            names = [n for n in self.editorPanel.getLayerNames() if n != name]
+            new_order = names[:insertAfterTabIndex] + [name] + names[insertAfterTabIndex:]
+            self.editorPanel.reorderLayers(new_order)
+        self._selectedLayerName = name
         self._refreshLayerBar()
-        count = self.layerList.count()
-        if count > 1:
-            self.layerList.setCurrentIndex(count - 1)
 
     def _onLayerContextMenu(self, pos: QtCore.QPoint) -> None:
         tabBar = self._layerTabBar()
@@ -111,9 +114,14 @@ class LayerBarMixin:
         name = self.layerList.tabText(index)
 
         menu = QtWidgets.QMenu(self)
+        actAdd = menu.addAction(ELOC("ADD_LAYER"))
         actRename = menu.addAction(ELOC("RENAME_LAYER"))
         actDelete = menu.addAction(ELOC("DELETE"))
         action = menu.exec_(self.layerList.mapToGlobal(pos))
+
+        if action == actAdd:
+            self._onAddLayer(insertAfterTabIndex=index)
+            return
 
         if action == actRename:
             existing = set(self.editorPanel.getLayerNames())

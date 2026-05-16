@@ -17,12 +17,14 @@ class WindowMenu(WindowCommand):
     re-enables player movement on close.
     """
 
-    def __init__(self, player, windowItem, messageWindow) -> None:
+    def __init__(self, player, windowItem, messageWindow, windowEquipSlot=None, windowEquipSelect=None) -> None:
         r"""\brief Construct the menu window and wire up sub-window callbacks.
 
         - \param player The player actor; movement is disabled while the menu is open.
         - \param windowItem The item sub-window to open when Items is selected.
         - \param messageWindow The message window; the menu will not open during dialogue.
+        - \param windowEquipSlot The equipped-slot sub-window.
+        - \param windowEquipSelect The available-equip sub-window.
         """
         commands = {
             "Items": {"text": LOC("MENU_ITEM"), "callback": lambda obj, kwargs: self._onMenuItem(kwargs)},
@@ -35,8 +37,14 @@ class WindowMenu(WindowCommand):
         self._player = player
         self._windowItem = windowItem
         self._messageWindow = messageWindow
+        self._windowEquipSlot = windowEquipSlot
+        self._windowEquipSelect = windowEquipSelect
         self._windowItem._onCloseCallback = self._onItemClose
         self._windowItem._onUseCallback = self._onItemUsed
+        if self._windowEquipSlot is not None:
+            self._windowEquipSlot._onCloseCallback = self._onEquipClose
+        if self._windowEquipSelect is not None:
+            self._windowEquipSelect._onEquipCallback = self._onEquipUsed
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
         r"""\brief Handle cancel key to close the menu.
@@ -73,7 +81,10 @@ class WindowMenu(WindowCommand):
 
     def isBlocking(self) -> bool:
         r"""\brief Return True when the menu or its sub-windows are blocking map input."""
-        return self.getVisible() or self._windowItem.getVisible()
+        equipVisible = (
+            self._windowEquipSlot is not None and self._windowEquipSlot.getVisible()
+        )
+        return self.getVisible() or self._windowItem.getVisible() or equipVisible
 
     def _closeByCancel(self) -> None:
         Manager.playSE(GameSystem.getCancelSE())
@@ -91,6 +102,17 @@ class WindowMenu(WindowCommand):
         self.close()
 
     def _onMenuEquip(self, kwargs: Dict[str, Any] = {}) -> None:
+        if self._windowEquipSlot is None or self._windowEquipSelect is None:
+            return
+        Manager.playSE(GameSystem.getDecisionSE())
+        self.setActive(False)
+        self._windowEquipSelect.open()
+        self._windowEquipSlot.open()
+
+    def _onEquipClose(self) -> None:
+        self.setActive(True)
+
+    def _onEquipUsed(self) -> None:
         pass
 
     def _onMenuSave(self, kwargs: Dict[str, Any] = {}) -> None:

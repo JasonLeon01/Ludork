@@ -9,8 +9,26 @@ from Utils import System
 class FileSelectorDialog(QtWidgets.QFileDialog):
     _IMAGE_SUFFIXES = {"png", "jpg", "jpeg", "bmp", "gif", "webp"}
 
-    def __init__(self, parent: QtWidgets.QWidget, root: str, filter_str: str, title: str = "Select File") -> None:
-        super().__init__(parent, title, root, filter_str)
+    @staticmethod
+    def allFilesFilter(star: bool = False) -> str:
+        return ELOC("FILE_FILTER_ALL_STAR" if star else "FILE_FILTER_ALL")
+
+    @staticmethod
+    def audioFilesFilter() -> str:
+        return ELOC("FILE_FILTER_AUDIO")
+
+    @staticmethod
+    def imageFilesFilter() -> str:
+        return ELOC("FILE_FILTER_IMAGES")
+
+    @staticmethod
+    def filesFilter(patterns: list[str]) -> str:
+        return ELOC("FILE_FILTER_FILES").format(patterns=" ".join(patterns))
+
+    def __init__(
+        self, parent: QtWidgets.QWidget, root: str, filter_str: str, title: str | None = None
+    ) -> None:
+        super().__init__(parent, title or ELOC("SELECT_FILE"), root, filter_str)
         self._root = os.path.abspath(root)
         self._previewPixmap = None
         System.SetStyle(self, "fileSelector.qss")
@@ -19,6 +37,7 @@ class FileSelectorDialog(QtWidgets.QFileDialog):
         self.setFileMode(QtWidgets.QFileDialog.ExistingFile)
         self.setDirectory(self._root)
         self.setNameFilter(filter_str)
+        self._localizeLabels()
         self._preview = QtWidgets.QFrame(self)
         self._preview.setObjectName("FileSelectorPreview")
         self._preview.setMinimumWidth(220)
@@ -40,6 +59,13 @@ class FileSelectorDialog(QtWidgets.QFileDialog):
         for b in self.findChildren(QtWidgets.QToolButton):
             b.setAutoRaise(False)
             b.setIconSize(QtCore.QSize(20, 20))
+
+    def _localizeLabels(self) -> None:
+        self.setLabelText(QtWidgets.QFileDialog.LookIn, ELOC("FILE_DIALOG_LOOK_IN"))
+        self.setLabelText(QtWidgets.QFileDialog.FileName, ELOC("FILE_NAME"))
+        self.setLabelText(QtWidgets.QFileDialog.FileType, ELOC("FILE_DIALOG_FILE_TYPE"))
+        self.setLabelText(QtWidgets.QFileDialog.Accept, ELOC("FILE_DIALOG_OPEN"))
+        self.setLabelText(QtWidgets.QFileDialog.Reject, ELOC("CANCEL"))
 
     def _installPreview(self) -> None:
         layout = cast(QtWidgets.QLayout, self.layout())

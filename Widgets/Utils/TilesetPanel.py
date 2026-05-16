@@ -348,7 +348,7 @@ class TilesetPanel(QtWidgets.QWidget):
         if not self._data:
             return
         root = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Tilesets")
-        dlg = FileSelectorDialog(self, root, "Images (*.png *.jpg *.bmp *.jpeg)")
+        dlg = FileSelectorDialog(self, root, FileSelectorDialog.imageFilesFilter())
         fp = dlg.execSelect()
         if fp:
             GameData.recordSnapshot()

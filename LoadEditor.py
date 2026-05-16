@@ -36,6 +36,8 @@ def initConfig():
             lang if lang in Locale.GetLocaleKeys() else "en_GB"
         )
         EditorStatus.editorConfig[EditorStatus.APP_NAME]["Theme"] = "dark_blue.xml"
+        EditorStatus.editorConfig[EditorStatus.APP_NAME]["UIFont"] = "HarmonyOS_Sans_SC_Regular.ttf"
+        EditorStatus.editorConfig[EditorStatus.APP_NAME]["UIFontSize"] = "12"
         with open(os.path.join(File.GetIniPath(), f"{EditorStatus.APP_NAME}.ini"), "w") as f:
             EditorStatus.editorConfig.write(f)
     else:
@@ -97,8 +99,10 @@ def main():
         theme = t
     else:
         theme = f"{t}.xml"
-    apply_stylesheet(app, theme=theme, extra={"font_size": "12px"})
+    font_size_px = System.getEditorUIFontSize()
+    apply_stylesheet(app, theme=theme, extra={"font_size": f"{font_size_px}px"})
     System.ApplyStyle(app, "main.qss")
+    System.ApplyEditorFont(app)
 
     app.setWindowIcon(QIcon(icon_path))
     start = StartWindow()

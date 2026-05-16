@@ -411,6 +411,18 @@
         "zh_CN": "从系统打开",
         "en_GB": "Open from System"
     },
+    "NEW_FOLDER": {
+        "zh_CN": "新建文件夹",
+        "en_GB": "New Folder"
+    },
+    "NEW_FOLDER_PROMPT": {
+        "zh_CN": "输入文件夹名称",
+        "en_GB": "Enter folder name"
+    },
+    "CREATE_FOLDER_FAILED": {
+        "zh_CN": "创建文件夹失败",
+        "en_GB": "Failed to create folder"
+    },
     "DUPLICATE_FILE": {
         "zh_CN": "复制文件",
         "en_GB": "Duplicate File"
@@ -1027,6 +1039,10 @@
         "zh_CN": "list：列表字段，编辑时使用可增删行的列表编辑器。",
         "en_GB": "list: A list field edited with a row-based list editor."
     },
+    "GENERAL_DATA_TYPE_TIP_DICT": {
+        "zh_CN": "dict：字典字段，编辑时使用键值行编辑器，左侧为 key，右侧为 value。",
+        "en_GB": "dict: A dictionary field edited with key-value rows (key on the left, value on the right)."
+    },
     "GENERAL_DATA_DEFAULT_TIP_STRING": {
         "zh_CN": "string：新成员默认填入的文本。",
         "en_GB": "string: Text assigned to new members by default."
@@ -1050,6 +1066,10 @@
     "GENERAL_DATA_DEFAULT_TIP_LIST": {
         "zh_CN": "list：输入 Python 列表格式作为默认值，例如 [\"A\", \"B\"]；留空时使用空列表。",
         "en_GB": "list: Enter a Python list as the default, such as [\"A\", \"B\"]; empty uses an empty list."
+    },
+    "GENERAL_DATA_DEFAULT_TIP_DICT": {
+        "zh_CN": "dict：输入 Python 字典格式作为默认值，例如 {\"key\": \"value\"}；留空时使用空字典。",
+        "en_GB": "dict: Enter a Python dict as the default, such as {\"key\": \"value\"}; empty uses an empty dict."
     },
     "PARAM_EXISTS": {
         "zh_CN": "字段已存在",
@@ -1079,6 +1099,38 @@
         "zh_CN": "选择文件",
         "en_GB": "Select File"
     },
+    "FILE_FILTER_ALL": {
+        "zh_CN": "所有文件 (*)",
+        "en_GB": "All Files (*)"
+    },
+    "FILE_FILTER_ALL_STAR": {
+        "zh_CN": "所有文件 (*.*)",
+        "en_GB": "All Files (*.*)"
+    },
+    "FILE_FILTER_AUDIO": {
+        "zh_CN": "音频文件 (*.ogg *.wav *.flac *.mp3)",
+        "en_GB": "Audio Files (*.ogg *.wav *.flac *.mp3)"
+    },
+    "FILE_FILTER_IMAGES": {
+        "zh_CN": "图像文件 (*.png *.jpg *.bmp *.jpeg)",
+        "en_GB": "Images (*.png *.jpg *.bmp *.jpeg)"
+    },
+    "FILE_FILTER_FILES": {
+        "zh_CN": "文件 ({patterns})",
+        "en_GB": "Files ({patterns})"
+    },
+    "FILE_DIALOG_LOOK_IN": {
+        "zh_CN": "查找范围:",
+        "en_GB": "Look in:"
+    },
+    "FILE_DIALOG_FILE_TYPE": {
+        "zh_CN": "文件类型:",
+        "en_GB": "Files of type:"
+    },
+    "FILE_DIALOG_OPEN": {
+        "zh_CN": "打开",
+        "en_GB": "Open"
+    },
     "EXPORT_LOCALE": {
         "zh_CN": "导出本地化表",
         "en_GB": "Export Locale"
@@ -1102,6 +1154,54 @@
     "EXPORT_LOCALE_FAILED": {
         "zh_CN": "本地化表导出失败",
         "en_GB": "Locale export failed"
+    },
+    "VIEW_LOCALE_TABLE": {
+        "zh_CN": "查看本地化表",
+        "en_GB": "View Locale Table"
+    },
+    "LOCALE_EDITOR_IN_APP": {
+        "zh_CN": "编辑器内编辑",
+        "en_GB": "Edit in Editor"
+    },
+    "LOCALE_OPEN_FILE": {
+        "zh_CN": "打开本地化文件",
+        "en_GB": "Open Locale File"
+    },
+    "LOCALE_EDITOR_TITLE": {
+        "zh_CN": "本地化表编辑器",
+        "en_GB": "Locale Table Editor"
+    },
+    "LOCALE_ADD_SHEET": {
+        "zh_CN": "添加工作表",
+        "en_GB": "Add Sheet"
+    },
+    "LOCALE_DELETE_SHEET": {
+        "zh_CN": "删除工作表",
+        "en_GB": "Delete Sheet"
+    },
+    "LOCALE_RENAME_SHEET": {
+        "zh_CN": "重命名工作表",
+        "en_GB": "Rename Sheet"
+    },
+    "LOCALE_SHEET_NAME_PROMPT": {
+        "zh_CN": "请输入工作表名称：",
+        "en_GB": "Enter sheet name:"
+    },
+    "LOCALE_SHEET_EXISTS": {
+        "zh_CN": "工作表名已存在",
+        "en_GB": "Sheet name already exists"
+    },
+    "LOCALE_CANNOT_DELETE_LAST_SHEET": {
+        "zh_CN": "不能删除最后一个工作表",
+        "en_GB": "Cannot delete the last sheet"
+    },
+    "LOCALE_CONFIRM_DELETE_SHEET": {
+        "zh_CN": "确认删除工作表 \"{}\" ？",
+        "en_GB": "Confirm deleting sheet \"{}\"?"
+    },
+    "CLOSE": {
+        "zh_CN": "关闭",
+        "en_GB": "Close"
     },
     "NEW_MEMBER": {
         "zh_CN": "新建成员",

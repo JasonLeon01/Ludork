@@ -8,8 +8,7 @@ for the Ludork sample project.
 
 - System         Game system base
 - NodeFunctions  Node graph function definitions
-- ItemInfo       Item data descriptor
-- EnemyInfo      Enemy data descriptor
+- Infos          Info descriptor sub-package (ItemInfo, EnemyInfo)
 - Player         Player entity
 - Enemy          Enemy entity
 - Item           Item entity
@@ -18,11 +17,11 @@ for the Ludork sample project.
 
 from .System import System
 from . import NodeFunctions
-from .ItemInfo import ItemInfo
-from .EnemyInfo import EnemyInfo
+from .Infos import ItemInfo, EnemyInfo
 from .Player import Player
 from .Enemy import Enemy
 from .Item import Item
+from .Equip import Equip
 from . import Scenes
 
-__all__ = ["System", "NodeFunctions", "ItemInfo", "EnemyInfo", "Player", "Enemy", "Item", "Scenes"]
+__all__ = ["System", "NodeFunctions", "ItemInfo", "EnemyInfo", "Player", "Enemy", "Item", "Equip", "Scenes"]

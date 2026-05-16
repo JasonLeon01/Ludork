@@ -13,6 +13,7 @@ from Source.Windows.HUDPlayerAttr import PlayerAttrHUD
 from Source.Windows.WindowMessage import WindowMessage
 from Source.Windows.WindowMenu import WindowMenu
 from Source.Windows.WindowItem import WindowItem
+from Source.Windows.WindowEquip import WindowEquipSlot, WindowEquipSelect
 from Source.GameInstance import GameInstance
 
 
@@ -36,11 +37,23 @@ class Scene(SceneBase):
         self._playerHUD = PlayerAttrHUD(self.player)
         self._messageWindow = WindowMessage()
         self._windowItem = WindowItem(((192, 0), (256, 256)), self.player)
-        self._windowMenu = WindowMenu(self.player, self._windowItem, self._messageWindow)
+        self._windowEquipSlot = WindowEquipSlot(((192, 0), (196, 256)), self.player)
+        self._windowEquipSelect = WindowEquipSelect(((384, 0), (256, 256)), self.player)
+        self._windowEquipSlot.setEquipSelectWindow(self._windowEquipSelect)
+        self._windowEquipSelect.setEquipSlotWindow(self._windowEquipSlot)
+        self._windowMenu = WindowMenu(
+            self.player,
+            self._windowItem,
+            self._messageWindow,
+            self._windowEquipSlot,
+            self._windowEquipSelect,
+        )
         self._uiManager.loadUI(self._playerHUD)
         self._uiManager.loadUI(self._messageWindow)
         self._uiManager.loadUI(self._windowMenu)
         self._uiManager.loadUI(self._windowItem)
+        self._uiManager.loadUI(self._windowEquipSlot)
+        self._uiManager.loadUI(self._windowEquipSelect)
 
         self._windowMenu.close()
 

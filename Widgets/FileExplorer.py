@@ -310,6 +310,7 @@ class FileExplorer(QtWidgets.QWidget):
                 selectedPath = self._model.filePath(i0)
                 isDir = self._model.isDir(i0)
         menu = QtWidgets.QMenu(self)
+        actNewFolder = menu.addAction(ELOC("NEW_FOLDER"))
         actOpen = menu.addAction(ELOC("OPEN_FROM_SYSTEM"))
         actDuplicate = None
         actRename = None
@@ -321,13 +322,60 @@ class FileExplorer(QtWidgets.QWidget):
         if viewport is None:
             return
         r = menu.exec_(viewport.mapToGlobal(pos))
-        if r == actOpen:
+        if r == actNewFolder:
+            self._createFolder(self._targetDirForNewFolder(selectedPath, isDir))
+        elif r == actOpen:
             if selectedPath:
                 self._openSystemFile(selectedPath)
         elif actDuplicate and r == actDuplicate:
             self._duplicateItem(selectedPath)
         elif actRename and r == actRename:
             self._renameItem(selectedPath)
+
+    def _targetDirForNewFolder(self, selectedPath: str, isDir: bool) -> str:
+        if selectedPath and isDir:
+            return selectedPath
+        if selectedPath and not isDir:
+            return os.path.dirname(selectedPath)
+        return self._current
+
+    def _createFolder(self, targetDir: str) -> None:
+        if not targetDir or not self._isUnderRoot(targetDir):
+            return
+        name, ok = QtWidgets.QInputDialog.getText(
+            self,
+            ELOC("NEW_FOLDER"),
+            ELOC("NEW_FOLDER_PROMPT"),
+        )
+        if not ok:
+            return
+        name = name.strip()
+        if not name:
+            return
+        if os.sep in name or "/" in name or "\\" in name:
+            QtWidgets.QMessageBox.warning(
+                self,
+                ELOC("ERROR"),
+                ELOC("CREATE_FOLDER_FAILED") + "\n" + name,
+            )
+            return
+        newPath = os.path.join(targetDir, name)
+        if os.path.exists(newPath):
+            QtWidgets.QMessageBox.warning(
+                self,
+                ELOC("ERROR"),
+                ELOC("FILE_ALREADY_EXISTS").format(name=name),
+            )
+            return
+        try:
+            os.mkdir(newPath)
+            self.DATA_FILE_CHANGED.emit()
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(
+                self,
+                ELOC("ERROR"),
+                ELOC("CREATE_FOLDER_FAILED") + "\n" + str(e),
+            )
 
     def _duplicateItem(self, path: str) -> None:
         if not path or not os.path.isfile(path):

@@ -107,13 +107,13 @@ class MapEditDialog(QtWidgets.QDialog):
         bgsRoot = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Sounds")
 
         def onBrowseBgm():
-            dlg = FileSelectorDialog(self, bgmRoot, "Audio Files (*.ogg *.wav *.flac *.mp3)")
+            dlg = FileSelectorDialog(self, bgmRoot, FileSelectorDialog.audioFilesFilter())
             fp = dlg.execSelect()
             if fp:
                 self.bgmEdit.setText(os.path.basename(fp))
 
         def onBrowseBgs():
-            dlg = FileSelectorDialog(self, bgsRoot, "Audio Files (*.ogg *.wav *.flac *.mp3)")
+            dlg = FileSelectorDialog(self, bgsRoot, FileSelectorDialog.audioFilesFilter())
             fp = dlg.execSelect()
             if fp:
                 self.bgsEdit.setText(os.path.basename(fp))

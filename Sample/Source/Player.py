@@ -7,6 +7,7 @@ from Engine.Gameplay.Actors import Character
 from Global import Manager
 from . import Data
 from .Battler import Battler
+from .Infos.EquipInfo import EquipInfo
 
 
 class Player(Character, Battler):
@@ -18,6 +19,7 @@ class Player(Character, Battler):
 
     LEVEL: int = 1  #: Current level
     HP: int = 0  #: Current hit points, initialized to `MAXHP`
+    CLASS: str = ""  #: Current class
 
     def __init__(self, texture: Optional[Texture] = None, tag: str = "") -> None:
         Character.__init__(self, texture, tag)
@@ -28,6 +30,8 @@ class Player(Character, Battler):
         self.speed = 96
         self.HP = self.MAXHP
         self._items: Dict[str, int] = {}
+        self._equips: Dict[str, int] = {}
+        self._equipInfo: Dict[str, str] = {}
         self._classPath: str = ""
         Input.registerActionMapping(
             self, "playerMoveUp", Input.getUpKeys(), lambda obj, delta: obj.MapMove((0, -1)), triggerOnHold=True
@@ -41,6 +45,9 @@ class Player(Character, Battler):
         Input.registerActionMapping(
             self, "playerMoveRight", Input.getRightKeys(), lambda obj, delta: obj.MapMove((1, 0)), triggerOnHold=True
         )
+        for slot, equipID in Data.getGeneralData("Class").get("members", {}).get(self.CLASS, {}).get("slot").items():
+            if equipID:
+                self.equip(equipID)
 
     def asDict(self) -> Dict[str, Any]:
         r"""
@@ -54,6 +61,8 @@ class Player(Character, Battler):
             "position": self.getMapPosition().unpack(),
             "attr": {k: getattr(self, k) for k in ["LEVEL", "HP", "MAXHP", "ATK", "DEF", "EXP", "GOLD"]},
             "items": self._items,
+            "equips": self._equips,
+            "equipInfo": self._equipInfo,
         }
 
     @staticmethod
@@ -97,6 +106,8 @@ class Player(Character, Battler):
         AssertType(data["position"], Union[List[int], Tuple[int, int]])
         AssertType(data["attr"], Dict[str, Any])
         AssertType(data["items"], Dict[str, int])
+        AssertType(data["equips"], Dict[str, int])
+        AssertType(data["equipInfo"], Dict[str, str])
         player = Player.initPlayer(data["playerClass"])
         player.tag = data["tag"]
         player.setMapPosition(Vector2u(*data["position"]))
@@ -104,6 +115,8 @@ class Player(Character, Battler):
             setattr(player, k, v)
 
         player._items = data["items"]
+        player._equips = data["equips"]
+        player._equipInfo = data["equipInfo"]
         return player
 
     def addItem(self, itemID: str, count: int = 1) -> None:
@@ -149,3 +162,108 @@ class Player(Character, Battler):
         - \return `True` if the item is owned and count > 0, `False` otherwise.
         """
         return itemID in self._items and self._items[itemID] > 0
+
+    def addEquip(self, equipID: str, count: int = 1) -> None:
+        r"""\brief Add equip(s) to the player's equipment.
+
+        - `equipID` - Equip identifier.
+        - `count` - Number of equips to add, default is 1.
+        """
+        if equipID in self._equips:
+            self._equips[equipID] += count
+        else:
+            self._equips[equipID] = count
+
+    def removeEquip(self, equipID: str, count: int = 1) -> bool:
+        r"""\brief Remove equip(s) from the player's equipment.
+
+        - `equipID` - Equip identifier.
+        - `count` - Number of equips to remove, default is 1.
+
+        - \return `True` if removal succeeded, `False` otherwise.
+        """
+        if equipID not in self._equips or self._equips[equipID] < count:
+            return False
+        self._equips[equipID] -= count
+        if self._equips[equipID] == 0:
+            del self._equips[equipID]
+        return True
+
+    def equip(self, equipID: str) -> None:
+        r"""\brief Equip a specific equip to the player's equipment.
+
+        - `equipID` - Equip identifier.
+        """
+        equipInfo = Data.getGeneralData("Equip").get("members", {}).get(equipID, {})
+        classInfo = Data.getGeneralData("Class").get("members", {}).get(self.CLASS, {})
+        slot = equipInfo.get("slot", "")
+        if slot not in classInfo.get("slot", {}):
+            raise ValueError(f"Equip {equipID} is not in the player's class")
+        currentID = self._equipInfo.get(slot, "")
+        if currentID and currentID != equipID:
+            self.unequip(slot)
+        self._updateEquipInfo(slot, equipID)
+        for attrKey, attrValue in equipInfo.get("attrPlus", {}).items():
+            originAttr = getattr(self, attrKey)
+            setattr(self, attrKey, originAttr + int(attrValue))
+        info = EquipInfo()
+        info.ID = equipID
+        info.initInfo(Data)
+        info.triggerEvent("onEquip")
+        self.removeEquip(equipID)
+
+    def unequip(self, slotID: str) -> None:
+        r"""\brief Unequip a specific equip from the player's equipment.
+
+        - `slotID` - Slot identifier.
+        """
+        equipID = self._equipInfo.get(slotID, "")
+        if not equipID:
+            return
+        self._updateEquipInfo(slotID, "")
+        equipInfo = Data.getGeneralData("Equip").get("members", {}).get(equipID, {})
+        for attrKey, attrValue in equipInfo.get("attrPlus", {}).items():
+            originAttr = getattr(self, attrKey)
+            setattr(self, attrKey, originAttr - int(attrValue))
+        info = EquipInfo()
+        info.ID = equipID
+        info.initInfo(Data)
+        info.triggerEvent("onUnequip")
+        self.addEquip(equipID)
+
+    def getEquipCount(self, equipID: str) -> int:
+        r"""\brief Get the count of a specific equip in the player's equipment.
+
+        - `equipID` - Equip identifier.
+
+        - \return Number of equips owned, or 0 if not found.
+        """
+        return self._equips.get(equipID, 0)
+
+    def hasEquip(self, equipID: str) -> bool:
+        r"""\brief Check whether the player owns at least one of the specified equip.
+
+        - `equipID` - Equip identifier.
+
+        - \return `True` if the equip is owned and count > 0, `False` otherwise.
+        """
+        return equipID in self._equips and self._equips[equipID] > 0
+
+    def getEquipInfo(self, slotID: str) -> str:
+        r"""\brief Get the info of a specific equip in the player's equipment.
+
+        - `slotID` - Slot identifier.
+
+        - \return The info of the equip, or empty string if not found.
+        """
+        return self._equipInfo.get(slotID, "")
+
+    def _updateEquipInfo(self, slot: str, equipID: str) -> None:
+        tempEquipInfo = {}
+        classInfo = Data.getGeneralData("Class").get("members", {}).get(self.CLASS, {})
+        for slot_ in classInfo.get("slot", {}).keys():
+            if slot_ != slot:
+                tempEquipInfo[slot_] = self._equipInfo.get(slot_, "")
+            else:
+                tempEquipInfo[slot_] = equipID
+        self._equipInfo = tempEquipInfo

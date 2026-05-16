@@ -109,7 +109,9 @@ class ConfigDictPanel(QtWidgets.QWidget):
                 for e in ext:
                     if isinstance(e, str) and e:
                         filters.append(f"*{e}")
-            filter_str = "Files (" + " ".join(filters) + ")" if filters else "All Files (*.*)"
+            filter_str = (
+                FileSelectorDialog.filesFilter(filters) if filters else FileSelectorDialog.allFilesFilter(star=True)
+            )
             dlg = FileSelectorDialog(self, root, filter_str)
             fp = dlg.execSelect()
             if not fp:
@@ -213,7 +215,11 @@ class ConfigDictPanel(QtWidgets.QWidget):
                         for e in ext:
                             if isinstance(e, str) and e:
                                 filters.append(f"*{e}")
-                    filter_str = "Files (" + " ".join(filters) + ")" if filters else "All Files (*.*)"
+                    filter_str = (
+                        FileSelectorDialog.filesFilter(filters)
+                        if filters
+                        else FileSelectorDialog.allFilesFilter(star=True)
+                    )
                     dlg = FileSelectorDialog(self, root, filter_str)
                     fp = dlg.execSelect()
                     if not fp:

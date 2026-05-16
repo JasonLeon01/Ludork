@@ -32,8 +32,10 @@ class WindowMessage(WindowSelectable):
     """
 
     _WINDOW_PADDING = 16
+    _SCREEN_EDGE_MARGIN = 64
     _NAME_TEXT_SIZE = 28
     _NAME_MESSAGE_GAP = 8
+    _MESSAGE_TEXT_SIZE = 22
     _OPTION_TEXT_SIZE = 22
     _OPTION_ITEM_HEIGHT = 32
     _MAX_OPTIONS = 4
@@ -303,22 +305,88 @@ class WindowMessage(WindowSelectable):
             self._inDialogue = False
             self.setVisible(False)
 
+    def _shouldAutoFitWidth(self) -> bool:
+        return not self._nameText.getVisible()
+
+    def _getMaxWindowWidth(self) -> int:
+        gameWidth = int(GlobalSystem.getGameSize().x)
+        return max(1, gameWidth - self._SCREEN_EDGE_MARGIN)
+
+    def _wrapMessage(self, text: str, maxWidth: float) -> str:
+        from Engine import Scale
+
+        font = System.getFonts()[0]
+        charSize = int(self._MESSAGE_TEXT_SIZE * Scale)
+        maxW = maxWidth * Scale
+
+        def adv(ch: str) -> float:
+            return font.getGlyph(ch, charSize, False).advance
+
+        def wrap_para(para: str) -> str:
+            lines: List[str] = []
+            line = ""
+            line_w = 0.0
+            for word in para.split(" "):
+                word_w = sum(adv(ch) for ch in word) if word else 0.0
+                sep_w = adv(" ") if line else 0.0
+                if line_w + sep_w + word_w <= maxW:
+                    line += (" " if line else "") + word
+                    line_w += sep_w + word_w
+                else:
+                    if line:
+                        lines.append(line)
+                        line = ""
+                        line_w = 0.0
+                    if word_w <= maxW:
+                        line = word
+                        line_w = word_w
+                    else:
+                        for ch in word:
+                            ch_w = adv(ch)
+                            if line and line_w + ch_w > maxW:
+                                lines.append(line)
+                                line = ""
+                                line_w = 0.0
+                            line += ch
+                            line_w += ch_w
+            lines.append(line)
+            return "\n".join(lines)
+
+        return "\n".join(wrap_para(p) for p in text.split("\n"))
+
     def _updateLayoutByTextSize(self) -> None:
         nameBounds = self._nameText.getLocalBounds()
-        textBounds = self._text.getLocalBounds()
-        textWidth = max(1, int(textBounds.size.x + textBounds.position.x))
-        textHeight = max(1, int(textBounds.size.y + textBounds.position.y))
         hasName = self._nameText.getVisible()
         nameWidth = 0
         nameHeight = 0
         if hasName:
             nameWidth = max(1, int(nameBounds.size.x + nameBounds.position.x))
             nameHeight = max(1, int(nameBounds.size.y + nameBounds.position.y))
+
+        displayMessage = self._message
+        maxContentWidth: Optional[int] = None
+        if self._shouldAutoFitWidth():
+            maxContentWidth = max(32, self._getMaxWindowWidth() - self._WINDOW_PADDING * 2)
+
+        self._text.setString(displayMessage)
+        textBounds = self._text.getLocalBounds()
+        textWidth = max(1, int(textBounds.size.x + textBounds.position.x))
+        if maxContentWidth is not None and textWidth > maxContentWidth:
+            displayMessage = self._wrapMessage(displayMessage, float(maxContentWidth))
+            self._text.setString(displayMessage)
+            textBounds = self._text.getLocalBounds()
+            textWidth = max(1, int(textBounds.size.x + textBounds.position.x))
+
+        textHeight = max(1, int(textBounds.size.y + textBounds.position.y))
         contentWidth = max(textWidth, nameWidth)
+        if maxContentWidth is not None:
+            contentWidth = min(contentWidth, maxContentWidth)
         contentHeight = textHeight
         if hasName:
             contentHeight += nameHeight + self._NAME_MESSAGE_GAP
         totalWidth = contentWidth + self._WINDOW_PADDING * 2
+        if maxContentWidth is not None:
+            totalWidth = min(totalWidth, self._getMaxWindowWidth())
         totalHeight = contentHeight + self._WINDOW_PADDING * 2
         self._resizeCanvas(self, totalWidth, totalHeight)
         self._resizeWindow(totalWidth, totalHeight)
@@ -350,10 +418,15 @@ class WindowMessage(WindowSelectable):
                 optionWidth = max(optionWidth, childWidth)
 
         contentWidth = max(32, optionWidth, nameWidth)
+        if self._shouldAutoFitWidth():
+            maxContentWidth = max(32, self._getMaxWindowWidth() - self._WINDOW_PADDING * 2)
+            contentWidth = min(contentWidth, maxContentWidth)
         contentHeight = optionCount * self._OPTION_ITEM_HEIGHT
         if hasName:
             contentHeight += nameHeight + self._NAME_MESSAGE_GAP
         totalWidth = contentWidth + self._WINDOW_PADDING * 2
+        if self._shouldAutoFitWidth():
+            totalWidth = min(totalWidth, self._getMaxWindowWidth())
         totalHeight = contentHeight + self._WINDOW_PADDING * 2
         self._resizeCanvas(self, totalWidth, totalHeight)
         self._resizeWindow(totalWidth, totalHeight)

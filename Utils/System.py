@@ -3,7 +3,7 @@
 import os
 import sys
 import importlib
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets
 from EditorGlobal import EditorStatus
 
 
@@ -61,6 +61,71 @@ def SetStyle(widget: QtWidgets.QWidget, fileName: str) -> None:
     if os.path.exists(qss_path):
         with open(qss_path, "r", encoding="utf-8") as f:
             widget.setStyleSheet(f.read())
+
+
+def _getRootPath() -> str:
+    return os.path.dirname(sys.executable) if AlreadyPacked() else os.getcwd()
+
+
+def _resolveEditorFontPath(spec: str) -> str:
+    spec = spec.strip()
+    if not spec:
+        return ""
+    if os.path.isfile(spec):
+        return os.path.abspath(spec)
+    root = _getRootPath()
+    for candidate in (os.path.join(root, "Resource", spec), os.path.join(root, spec)):
+        if os.path.isfile(candidate):
+            return os.path.abspath(candidate)
+    return ""
+
+
+def getEditorUIFontSize() -> int:
+    r"""\brief
+    - \return Editor UI font pixel size from ini, or 12 when unset or invalid.
+    """
+    try:
+        if not EditorStatus.editorConfig or EditorStatus.APP_NAME not in EditorStatus.editorConfig:
+            return 12
+        raw = EditorStatus.editorConfig[EditorStatus.APP_NAME].get("UIFontSize", "12").strip()
+        return max(8, int(raw))
+    except (TypeError, ValueError):
+        return 12
+
+
+def ApplyEditorFont(app: QtWidgets.QApplication) -> None:
+    r"""\brief
+    Load the editor UI font from Ludork.ini (UIFont / UIFontSize) and apply it application-wide.
+
+    - \param app - QApplication instance.
+    """
+    try:
+        if not EditorStatus.editorConfig or EditorStatus.APP_NAME not in EditorStatus.editorConfig:
+            return
+        sec = EditorStatus.editorConfig[EditorStatus.APP_NAME]
+        font_spec = str(sec.get("UIFont", "HarmonyOS_Sans_SC_Regular.ttf")).strip()
+        if not font_spec:
+            return
+        pixel_size = getEditorUIFontSize()
+        path = _resolveEditorFontPath(font_spec)
+        if not path:
+            print(f"Editor UI font not found: {font_spec}")
+            return
+        font_id = QtGui.QFontDatabase.addApplicationFont(path)
+        if font_id < 0:
+            print(f"Failed to load editor UI font: {path}")
+            return
+        families = QtGui.QFontDatabase.applicationFontFamilies(font_id)
+        if not families:
+            return
+        family = families[0]
+        font = QtGui.QFont(family)
+        font.setPixelSize(pixel_size)
+        app.setFont(font)
+        escaped = family.replace("\\", "\\\\").replace('"', '\\"')
+        app.setStyleSheet(app.styleSheet() + f'\n* {{ font-family: "{escaped}"; }}')
+    except Exception as e:
+        print(f"Error applying editor UI font: {e}")
 
 
 def GetModule(moduleName: str) -> object:

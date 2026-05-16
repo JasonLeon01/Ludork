@@ -566,7 +566,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         baseDir = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Characters")
         if not os.path.isdir(baseDir):
             baseDir = EditorStatus.PROJ_PATH
-        dlg = FileSelectorDialog(self, baseDir, "All Files (*.*)")
+        dlg = FileSelectorDialog(self, baseDir, FileSelectorDialog.allFilesFilter(star=True))
         filePath = dlg.execSelect()
         if not filePath:
             return

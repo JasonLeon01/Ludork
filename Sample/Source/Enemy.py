@@ -5,7 +5,7 @@ from typing import Optional, Union, List, Tuple
 from Engine import Pair, Texture, IntRect
 from Engine.Gameplay.Actors import Actor
 from . import Data
-from .EnemyInfo import EnemyInfo
+from .Infos.EnemyInfo import EnemyInfo
 from .Battler import Battler, DamageType
 
 

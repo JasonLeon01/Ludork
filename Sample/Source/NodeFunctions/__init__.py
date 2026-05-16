@@ -10,7 +10,10 @@ in the Ludork sample engine.
 - Math       Mathematical helpers
 - String     String processing helpers
 - Container  Container/collection helpers
-- System     System-level helpers
+- System     System-level helpers (audio, video, screen effects)
+- Player     Player inventory, equipment, attribute, gold and EXP management
+- Save       Save/load game state
+- Scene      Scene and map navigation
 """
 
 from . import Utils
@@ -18,5 +21,8 @@ from . import Math
 from . import String
 from . import Container
 from . import System
+from . import Player
+from . import Save
+from . import Scene
 
-__all__ = ["Utils", "Math", "String", "Container", "System"]
+__all__ = ["Utils", "Math", "String", "Container", "System", "Player", "Save", "Scene"]

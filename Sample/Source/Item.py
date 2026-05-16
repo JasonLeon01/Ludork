@@ -6,7 +6,7 @@ from Engine import Pair, Texture, IntRect
 from Engine.Gameplay.Actors import Actor
 from Global import GameMap, Manager
 from . import Data, System
-from .ItemInfo import ItemInfo
+from .Infos.ItemInfo import ItemInfo
 
 
 class Item(Actor, ItemInfo):
