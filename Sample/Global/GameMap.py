@@ -31,6 +31,7 @@ from .Camera import Camera
 from .System import System
 from .Components import MapClickAutoPath, PathPreviewComponent, PathRouteState, ComponentBase
 from .CustomParticles import CommonTipController
+from .Weather import WeatherController
 
 
 @dataclass
@@ -784,7 +785,10 @@ class GameMap(GameMapExt):
         if self._lightMask:
             self._lightMask.display()
         self.refreshShader()
+        if self._camera:
+            WeatherController.drawShaderOverlay(self._camera)
         System.draw(self._camera, self._materialShader)
+        WeatherController.registerParticleSystem(self._particleSystem)
         System.draw(self._particleSystem)
         System.setWindowDefaultView()
 

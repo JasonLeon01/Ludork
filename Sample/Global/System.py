@@ -262,6 +262,43 @@ class System:
         cls._canvas.setView(cls._canvas.getDefaultView())
 
     @classmethod
+    def getCanvas(cls) -> RenderTexture:
+        r"""\brief Get the main game render canvas.
+
+        - \return The active RenderTexture used for world and UI drawing.
+        """
+        return cls._canvas
+
+    @classmethod
+    def setWeather(cls, weatherType, power: int, maxCount: int) -> None:
+        r"""\brief Set RMXP-style screen weather (rain, storm, or snow).
+
+        - \param weatherType WeatherType enum, name, or localized DropBox label.
+        - \param power Effect strength from 0 to 100.
+        - \param maxCount Density cap from 0 to 100.
+        """
+        from .Weather import WeatherController
+
+        WeatherController.setWeather(weatherType, power, maxCount)
+
+    @classmethod
+    def clearWeather(cls) -> None:
+        r"""\brief Clear any active screen weather effect."""
+        from .Weather import WeatherController
+
+        WeatherController.clearWeather()
+
+    @classmethod
+    def updateWeather(cls, deltaTime: float) -> None:
+        r"""\brief Update active weather timers and storm flashes.
+
+        - \param deltaTime Elapsed time in seconds.
+        """
+        from .Weather import WeatherController
+
+        WeatherController.update(deltaTime)
+
+    @classmethod
     def draw(cls, drawable: Drawable, shader: Optional[Shader] = None) -> None:
         r"""\brief Draw a drawable object to the canvas.
 
@@ -285,6 +322,7 @@ class System:
             cls._transitionTimeCount = min(cls._transitionTimeCount + deltaTime, cls._transitionTime)
         cls._updateFlash(deltaTime)
         cls._updateShake(deltaTime)
+        cls.updateWeather(deltaTime)
         cls._canvas.display()
         states = Render.CanvasRenderStates()
         finalCanvas = cls._canvas

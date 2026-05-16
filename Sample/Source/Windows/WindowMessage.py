@@ -38,6 +38,7 @@ class WindowMessage(WindowSelectable):
     _MESSAGE_TEXT_SIZE = 22
     _OPTION_TEXT_SIZE = 22
     _OPTION_ITEM_HEIGHT = 32
+    _SELECTION_LIST_HORIZONTAL_INSET = 32
     _MAX_OPTIONS = 4
 
     def __init__(self) -> None:
@@ -312,6 +313,16 @@ class WindowMessage(WindowSelectable):
         gameWidth = int(GlobalSystem.getGameSize().x)
         return max(1, gameWidth - self._SCREEN_EDGE_MARGIN)
 
+    def _measurePlainTextWidth(self, text: str, characterSize: int) -> int:
+        from Engine import Scale
+
+        font = System.getFonts()[0]
+        charSize = int(characterSize * Scale)
+        if not text:
+            return 1
+        pixelWidth = sum(font.getGlyph(ch, charSize, False).advance for ch in text)
+        return max(1, int(round(pixelWidth / Scale)))
+
     def _wrapMessage(self, text: str, maxWidth: float) -> str:
         from Engine import Scale
 
@@ -408,16 +419,22 @@ class WindowMessage(WindowSelectable):
             nameWidth = max(1, int(nameBounds.size.x + nameBounds.position.x))
             nameHeight = max(1, int(nameBounds.size.y + nameBounds.position.y))
 
-        optionWidth = 1
+        maxOptionTextWidth = 1
         optionCount = 0
         if self._selectionListView is not None:
             optionCount = len(self._selectionListView.getChildren())
             for child in self._selectionListView.getChildren():
-                bounds = child.getLocalBounds()
-                childWidth = max(1, int(bounds.size.x + bounds.position.x))
-                optionWidth = max(optionWidth, childWidth)
+                optionText = child.getString() if hasattr(child, "getString") else ""
+                maxOptionTextWidth = max(
+                    maxOptionTextWidth,
+                    self._measurePlainTextWidth(optionText, self._OPTION_TEXT_SIZE),
+                )
 
-        contentWidth = max(32, optionWidth, nameWidth)
+        contentWidth = max(
+            32,
+            nameWidth,
+            maxOptionTextWidth + self._SELECTION_LIST_HORIZONTAL_INSET,
+        )
         if self._shouldAutoFitWidth():
             maxContentWidth = max(32, self._getMaxWindowWidth() - self._WINDOW_PADDING * 2)
             contentWidth = min(contentWidth, maxContentWidth)

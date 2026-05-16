@@ -67,8 +67,9 @@ class Scene(SceneBase):
         self.gotoMapAndPos(System.getStartMap())
 
     def onQuit(self) -> None:
-        r"""\brief Stop map BGM/BGS when leaving this scene."""
+        r"""\brief Stop map BGM/BGS and weather when leaving this scene."""
         self._stopMapAudio()
+        GlobalSystem.clearWeather()
 
     def onDestroy(self) -> None:
         r"""\brief Ensure map BGM/BGS are stopped when scene is destroyed."""

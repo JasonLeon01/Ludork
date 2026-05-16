@@ -369,6 +369,14 @@ class Camera(Drawable, Transformable):
         """
         return self._renderTexture.getTexture()
 
+    @ReturnType(renderTexture=RenderTexture)
+    def getRenderTexture(self) -> RenderTexture:
+        r"""\brief Get the off-screen render target used for map drawing.
+
+        - \return The camera RenderTexture.
+        """
+        return self._renderTexture
+
     def getImage(self) -> Image:
         r"""\brief Get the rendered image.
 

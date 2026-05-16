@@ -8,6 +8,7 @@ Provides engine-level systems shared across all game scenes:
 - Camera          Viewport tracking and screen-space transforms
 - Components      Reusable gameplay components
 - CustomParticles Custom particle controllers
+- Weather          RMXP-style screen weather (shader / iOS particles)
 - GameMap         Tile map management with lighting and pathfinding
 - Manager         Resource manager facade (audio, fonts, textures, shaders)
 - SceneBase       Abstract base class for scenes
@@ -26,6 +27,7 @@ from .GameMap import Light, GameMap
 from .Camera import Camera
 from .SceneBase import SceneBase
 from .UIManager import UIManager
+from .Weather import WeatherController, WeatherType
 
 
 def playVideo(videoPath: str, mute: bool = False, skipable: bool = False) -> None:

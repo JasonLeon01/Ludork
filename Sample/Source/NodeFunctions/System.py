@@ -6,6 +6,7 @@ import os
 from typing import Any
 from Engine import Filters, Color
 from Global import Manager, playVideo, System as GlobalSystem
+from Global.Weather import WeatherType
 
 SoundFilter = Filters.SoundFilter()
 MusicFilter = Filters.MusicFilter()
@@ -104,3 +105,19 @@ def ScreenShake(power: float, speed: float, duration: float) -> None:
 @ExecSplit(default=(None,))
 def StopScreenShake() -> None:
     GlobalSystem.stopShake()
+
+
+@Meta(
+    DisplayName='LOC("SET_WEATHER")',
+    DisplayDesc='LOC("SET_WEATHER_DESC")',
+    DropBox={"weatherType": WeatherType.dropBoxItems()},
+)
+@ExecSplit(default=(None,))
+def SetWeather(weatherType: WeatherType, power: int, maxCount: int) -> None:
+    GlobalSystem.setWeather(WeatherType.coerce(weatherType), int(power), int(maxCount))
+
+
+@Meta(DisplayName='LOC("CLEAR_WEATHER")', DisplayDesc='LOC("CLEAR_WEATHER_DESC")')
+@ExecSplit(default=(None,))
+def ClearWeather() -> None:
+    GlobalSystem.clearWeather()
