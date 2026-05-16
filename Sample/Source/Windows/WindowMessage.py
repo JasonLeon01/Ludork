@@ -49,6 +49,8 @@ class WindowMessage(WindowSelectable):
         self._fadePhase: FadePhase = FadePhase.NOTHING
         self._fadeInSpeed = 1000.0
         self._fadeOutSpeed = 1000.0
+        self._pendingLayout: bool = False
+        self._pendingRefPosition: Optional[Vector2f] = None
 
         super().__init__(((48, 288), (544, 160)), None, None, self._OPTION_ITEM_HEIGHT)
         self.setColor(Color(255, 255, 255, 0))
@@ -80,6 +82,13 @@ class WindowMessage(WindowSelectable):
 
         - \param deltaTime Elapsed time in seconds.
         """
+        if self._pendingLayout:
+            self._pendingLayout = False
+            if self._contentMode == ContentMode.SELECTION:
+                self._updateLayoutBySelectionSize()
+            else:
+                self._updateLayoutByTextSize()
+            self._updateWindowPosition(self._pendingRefPosition)
         if self._contentMode != ContentMode.SELECTION:
             self.index = None
             if hasattr(self, "_rect"):
@@ -170,7 +179,6 @@ class WindowMessage(WindowSelectable):
             if self._selectionListView is not None:
                 for child in self._selectionListView.getChildren():
                     child.setColor(Color(255, 255, 255, 0))
-            self._updateLayoutBySelectionSize()
         else:
             self._contentMode = ContentMode.MESSAGE
             self._message = message
@@ -179,8 +187,8 @@ class WindowMessage(WindowSelectable):
             self._text.setVisible(True)
             self._text.setColor(Color(255, 255, 255, 0))
             self._text.setString(message)
-            self._updateLayoutByTextSize()
-        self._updateWindowPosition(refPosition)
+        self._pendingLayout = True
+        self._pendingRefPosition = refPosition
 
     def _resolveSelection(self, selectionResult: int) -> None:
         if self._selectionResult is not None:

@@ -5,7 +5,6 @@ from typing import Callable, List, Union, Optional, Dict, Any
 from Engine import Pair, Vector2u, Vector2f, Color, Filters, Music, Input
 from Engine.Gameplay import Tilemap, TileLayer, TileLayerData
 from Engine.Gameplay.Actors import Actor
-from Engine.UI.Base import FunctionalBase
 from Engine.Utils import File
 from Global import Manager, SceneBase, GameMap, Camera, Light
 from Global import System as GlobalSystem
@@ -35,24 +34,15 @@ class Scene(SceneBase):
         r"""\brief Create player HUD, message window, menu, and load the starting map."""
         self.player = self.inst.getPlayer()
         self._playerHUD = PlayerAttrHUD(self.player)
-        self._uiManager.loadUI(self._playerHUD)
         self._messageWindow = WindowMessage()
+        self._windowItem = WindowItem(((192, 0), (256, 256)), self.player)
+        self._windowMenu = WindowMenu(self.player, self._windowItem, self._messageWindow)
+        self._uiManager.loadUI(self._playerHUD)
         self._uiManager.loadUI(self._messageWindow)
-        self._windowMenu = WindowMenu(
-            {
-                "Items": {"text": LOC("MENU_ITEM"), "callback": lambda obj, kwargs: self._onMenuItem(kwargs)},
-                "Equipment": {"text": LOC("MENU_EQUIP"), "callback": self._MenuEquip},
-                "Save": {"text": LOC("MENU_SAVE"), "callback": self._MenuSave},
-                "Load": {"text": LOC("MENU_LOAD"), "callback": self._MenuLoad},
-                "ReturnTitle": {"text": LOC("MENU_EXIT"), "callback": self._MenuExit},
-            },
-            onClose=self._onMenuClose,
-        )
-        self._windowMenu.close()
         self._uiManager.loadUI(self._windowMenu)
-
-        self._windowItem = WindowItem(((192, 0), (256, 256)), self.player, onClose=self._onItemClose)
         self._uiManager.loadUI(self._windowItem)
+
+        self._windowMenu.close()
 
         self._gameMap: GameMap = None
         self._cachedMapFile: str = None
@@ -60,6 +50,7 @@ class Scene(SceneBase):
         self._currentBgmFile: str = ""
         self._currentBgsMusic: Optional[Music] = None
         self._currentBgsFile: str = ""
+        self._mapClickMoveBlockedUntilLateTick: bool = False
         self.gotoMapAndPos(System.getStartMap())
 
     def onQuit(self) -> None:
@@ -79,18 +70,15 @@ class Scene(SceneBase):
         return super().onFixedTick(fixedDelta)
 
     def onTick(self, deltaTime: float) -> None:
-        r"""\brief Forward per-frame updates to the game map and handle menu toggle.
+        r"""\brief Forward per-frame updates to the game map and handle menu open trigger.
 
         - \param deltaTime Elapsed time in seconds.
         """
+        self._mapClickMoveBlockedUntilLateTick = self._isMapClickMoveBlocked()
         self._gameMap.onTick(deltaTime)
-        if self._windowMenu.getVisible() or self._windowItem.getVisible():
-            return super().onTick(deltaTime)
-        if not self._messageWindow.isInDialogue():
-            if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
-                Manager.playSE(System.getCancelSE())
+        if not self._windowMenu.isBlocking() and not self._messageWindow.isInDialogue():
+            if self._isMenuOpenTriggered():
                 self._windowMenu.open()
-                self.player.setMoveEnabled(False)
         return super().onTick(deltaTime)
 
     def onLateTick(self, deltaTime: float) -> None:
@@ -98,6 +86,9 @@ class Scene(SceneBase):
 
         - \param deltaTime Elapsed time in seconds.
         """
+        if self._mapClickMoveBlockedUntilLateTick:
+            self._consumeMapClickMoveInput()
+            self._mapClickMoveBlockedUntilLateTick = False
         self._gameMap.onLateTick(deltaTime)
         return super().onLateTick(deltaTime)
 
@@ -250,33 +241,6 @@ class Scene(SceneBase):
 
             AudioManager.setMusicFilter(self._currentBgsMusic, filterObj)
 
-    def _onMenuItem(self, kwargs: Dict[str, Any] = {}) -> None:
-        r"""\brief Open the item window when Items is confirmed.
-
-        - \param obj The confirmed UI element.
-        - \param kwargs Event data.
-        """
-        self._windowMenu.setActive(False)
-        self._windowItem.open()
-
-    @staticmethod
-    def _MenuEquip(obj: FunctionalBase, kwargs: Dict[str, Any] = {}) -> None:
-        pass
-
-    @staticmethod
-    def _MenuSave(obj: FunctionalBase, kwargs: Dict[str, Any] = {}) -> None:
-        pass
-
-    @staticmethod
-    def _MenuLoad(obj: FunctionalBase, kwargs: Dict[str, Any] = {}) -> None:
-        pass
-
-    @staticmethod
-    def _MenuExit(obj: FunctionalBase, kwargs: Dict[str, Any] = {}) -> None:
-        from Source.Scenes import Title
-
-        GlobalSystem.setScene(Title())
-
     def _renderHandle(self, deltaTime: float) -> None:
         self._gameMap.show()
         super()._renderHandle(deltaTime)
@@ -362,13 +326,18 @@ class Scene(SceneBase):
             return None
         return Filters.MusicFilter(**kwargs)
 
-    def _onMenuClose(self) -> None:
-        r"""\brief Callback when the menu window is closed."""
-        self.player.setMoveEnabled(True)
+    def _isMenuOpenTriggered(self) -> bool:
+        if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
+            return True
+        return Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
 
-    def _onItemClose(self) -> None:
-        r"""\brief Callback when the item window is closed."""
-        self._windowMenu.setActive(True)
+    def _isMapClickMoveBlocked(self) -> bool:
+        return self._messageWindow.isInDialogue() or self._windowMenu.isBlocking()
+
+    def _consumeMapClickMoveInput(self) -> None:
+        Input.isMouseButtonTriggered(Input.Mouse.Button.Left, handled=True)
+        Input.isTouchBegan(handled=True)
+        Input.isTouchTriggered(handled=True)
 
     def _generateTilemap(self, data: Dict[str, List[List[Any]]], width: int, height: int) -> Tilemap:
         mapLayers = []

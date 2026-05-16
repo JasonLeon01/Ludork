@@ -147,4 +147,7 @@ class BPBase:
                         v = Inner.ApplyStringLocaleFormat(v)
                     setattr(obj, k, v)
                     continue
-            setattr(obj, k, Eval(v))
+            try:
+                setattr(obj, k, Eval(v))
+            except:
+                setattr(obj, k, v)

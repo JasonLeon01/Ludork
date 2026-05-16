@@ -16,8 +16,8 @@ class PlayerAttrHUD(Canvas):
 
     _AVATAR_MIN_SIZE = 32
     _FONT_SIZE = 12
-    _HUD_POS_X = 0
-    _HUD_POS_Y = 32
+    _HUD_POS_X = 16
+    _HUD_POS_Y = 16
     _HP_ROW_Y = 16
     _HP_BAR_HEIGHT = 16
     _HP_BAR_WIDTH = 128

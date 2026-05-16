@@ -9,8 +9,9 @@
 **/.cache/
 /.vscode/
 .claude/
-.deepseek/
+.codex/
 .cursor/
+.deepseek/
 .trae/
 .codebuddy/
 .rules/

@@ -103,6 +103,11 @@ class ProjectConfigMixin:
         except Exception as e:
             print(f"Error saving file explorer path: {e}")
 
+    def _onDataFileChanged(self) -> None:
+        GameData.init()
+        self.refreshLeftList()
+        self.actorQueuePanel.purgeStale()
+
     def _onFileExplorerFileClicked(self, path: str) -> None:
         if not isinstance(path, str) or not path:
             return

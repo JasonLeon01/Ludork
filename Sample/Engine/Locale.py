@@ -42,7 +42,7 @@ def init(localePath: str) -> None:
             _Locale.dataDict[fileName] = File.loadData(filePath)
 
 
-def getLocaleContent(localeKey: str, key: str) -> str:
+def GetLocaleContent(localeKey: str, key: str) -> str:
     r"""
     \brief Get localized content for a specific locale.
 
@@ -54,7 +54,7 @@ def getLocaleContent(localeKey: str, key: str) -> str:
     return _Locale.dataDict.get(localeKey, {}).get(key, key)
 
 
-def getContent(key: str) -> str:
+def GetContent(key: str) -> str:
     r"""
     \brief Get localized content for the current language.
 
@@ -62,8 +62,17 @@ def getContent(key: str) -> str:
 
     \return The localized string, or the key itself if not found.
     """
-    return getLocaleContent(LANGUAGE, key)
+    return GetLocaleContent(LANGUAGE, key)
+
+def GetLocaleDict() -> Dict[str, str]:
+    r"""
+    \brief Get the locale dictionary for the current language.
+
+    \return The locale dictionary for the current language.
+    """
+    return _Locale.dataDict.get(LANGUAGE, {})
 
 
-builtins.LOC = getContent
-builtins.LOC_L = getLocaleContent
+builtins.LOC = GetContent
+builtins.LOC_L = GetLocaleContent
+builtins.LOC_D = GetLocaleDict

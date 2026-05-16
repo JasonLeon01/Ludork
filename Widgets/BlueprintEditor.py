@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional, Set, get_type_hints
 from PyQt5 import QtWidgets, QtCore, QtGui
 from EditorGlobal import EditorStatus, GameData
 from Utils import System, File
-from Widgets.Utils import SingleRowDialog, NodePanel, Toast, RectViewer, DataclassWidget
+from Widgets.Utils import SingleRowDialog, NodePanel, Toast, RectViewer, DataclassWidget, FileSelectorDialog
 
 
 class BluePrintEditor(QtWidgets.QWidget):
@@ -566,7 +566,8 @@ class BluePrintEditor(QtWidgets.QWidget):
         baseDir = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Characters")
         if not os.path.isdir(baseDir):
             baseDir = EditorStatus.PROJ_PATH
-        filePath, _ = QtWidgets.QFileDialog.getOpenFileName(self, "", baseDir, "All Files (*.*)")
+        dlg = FileSelectorDialog(self, baseDir, "All Files (*.*)")
+        filePath = dlg.execSelect()
         if not filePath:
             return
         try:

@@ -106,6 +106,23 @@ class TupleEditorWidget(QtWidgets.QWidget):
 class GeneralDataPage(QtWidgets.QWidget):
     MODIFIED = QtCore.pyqtSignal()
     REQUEST_BLUEPRINT_EDIT = QtCore.pyqtSignal(str, str, list)
+    PARAM_TYPE_OPTIONS = ["string", "int", "float", "bool", "file", "list"]
+    PARAM_TYPE_TOOLTIP_KEYS = {
+        "string": "GENERAL_DATA_TYPE_TIP_STRING",
+        "int": "GENERAL_DATA_TYPE_TIP_INT",
+        "float": "GENERAL_DATA_TYPE_TIP_FLOAT",
+        "bool": "GENERAL_DATA_TYPE_TIP_BOOL",
+        "file": "GENERAL_DATA_TYPE_TIP_FILE",
+        "list": "GENERAL_DATA_TYPE_TIP_LIST",
+    }
+    PARAM_DEFAULT_TOOLTIP_KEYS = {
+        "string": "GENERAL_DATA_DEFAULT_TIP_STRING",
+        "int": "GENERAL_DATA_DEFAULT_TIP_INT",
+        "float": "GENERAL_DATA_DEFAULT_TIP_FLOAT",
+        "bool": "GENERAL_DATA_DEFAULT_TIP_BOOL",
+        "file": "GENERAL_DATA_DEFAULT_TIP_FILE",
+        "list": "GENERAL_DATA_DEFAULT_TIP_LIST",
+    }
 
     def __init__(self, fileKey: str, parent: Optional[QtWidgets.QWidget] = None):
         super().__init__(parent)
@@ -289,7 +306,7 @@ class GeneralDataPage(QtWidgets.QWidget):
         for paramKey, paramDef in params.items():
             paramType = paramDef.get("type", "string")
             paramDesc = paramDef.get("desc", "")
-            paramValue = memberData.get(paramKey, paramDef.get("defaultValue"))
+            paramValue = memberData.get(paramKey, self._getDefaultMemberValue(paramDef))
 
             label = QtWidgets.QLabel(paramKey)
             if paramDesc:
@@ -300,7 +317,7 @@ class GeneralDataPage(QtWidgets.QWidget):
             hLayout.setContentsMargins(0, 0, 0, 0)
             hLayout.setSpacing(5)
 
-            widget = self._createWidget(paramKey, paramType, paramValue)
+            widget = self._createWidget(paramKey, paramDef, paramValue)
             hLayout.addWidget(widget, 1)
 
             delBtn = QtWidgets.QPushButton("-")
@@ -350,12 +367,44 @@ class GeneralDataPage(QtWidgets.QWidget):
         form = QtWidgets.QFormLayout(dlg)
 
         nameEdit = QtWidgets.QLineEdit()
-        typeEdit = QtWidgets.QLineEdit()
+        typeEdit = QtWidgets.QComboBox()
+        typeEdit.setEditable(False)
+        typeEdit.addItems(self.PARAM_TYPE_OPTIONS)
         defaultEdit = QtWidgets.QLineEdit()
+        nameLabel = QtWidgets.QLabel(ELOC("PARAM_NAME"))
+        typeLabel = QtWidgets.QLabel(ELOC("PARAM_TYPE"))
+        defaultLabel = QtWidgets.QLabel(ELOC("DEFAULT_VALUE"))
 
-        form.addRow(QtWidgets.QLabel(ELOC("PARAM_NAME")), nameEdit)
-        form.addRow(QtWidgets.QLabel(ELOC("PARAM_TYPE")), typeEdit)
-        form.addRow(QtWidgets.QLabel(ELOC("DEFAULT_VALUE")), defaultEdit)
+        nameTip = ELOC("GENERAL_DATA_PARAM_NAME_TIP")
+        nameLabel.setToolTip(nameTip)
+        nameLabel.setWhatsThis(nameTip)
+        nameEdit.setToolTip(nameTip)
+        nameEdit.setWhatsThis(nameTip)
+
+        form.addRow(nameLabel, nameEdit)
+        form.addRow(typeLabel, typeEdit)
+        form.addRow(defaultLabel, defaultEdit)
+
+        def updateTypeTip(_text: str = ""):
+            tipKey = self.PARAM_TYPE_TOOLTIP_KEYS.get(typeEdit.currentText().strip(), "")
+            tip = ELOC(tipKey) if tipKey else ""
+            typeLabel.setToolTip(tip)
+            typeLabel.setWhatsThis(tip)
+            typeEdit.setToolTip(tip)
+            typeEdit.setWhatsThis(tip)
+
+        def updateDefaultTip(_text: str = ""):
+            tipKey = self.PARAM_DEFAULT_TOOLTIP_KEYS.get(typeEdit.currentText().strip(), "")
+            tip = ELOC(tipKey) if tipKey else ""
+            defaultLabel.setToolTip(tip)
+            defaultLabel.setWhatsThis(tip)
+            defaultEdit.setToolTip(tip)
+            defaultEdit.setWhatsThis(tip)
+
+        typeEdit.currentTextChanged.connect(updateTypeTip)
+        typeEdit.currentTextChanged.connect(updateDefaultTip)
+        updateTypeTip()
+        updateDefaultTip()
 
         btnBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
         form.addRow(btnBox)
@@ -379,7 +428,7 @@ class GeneralDataPage(QtWidgets.QWidget):
             QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("PARAM_EXISTS"))
             return
 
-        t = typeEdit.text().strip()
+        t = typeEdit.currentText().strip()
         defaultValStr = defaultEdit.text()
         defaultVal = defaultValStr
 
@@ -431,12 +480,41 @@ class GeneralDataPage(QtWidgets.QWidget):
 
         params[name] = {"type": t, "defaultValue": defaultVal}
         for mKey, mData in members.items():
-            mData[name] = defaultVal
+            mData[name] = self._getDefaultMemberValue(params[name])
 
         self.MODIFIED.emit()
         self._buildPropertyForm()
 
-    def _createWidget(self, key: str, paramType: str, value: Any) -> QtWidgets.QWidget:
+    def _getDefaultMemberValue(self, paramDef: dict) -> Any:
+        if paramDef.get("type", "string") == "file":
+            return ""
+        return paramDef.get("defaultValue")
+
+    def _getFileBrowseRoot(self, paramDef: dict) -> str:
+        assetsRoot = os.path.abspath(os.path.join(EditorStatus.PROJ_PATH, "Assets"))
+        base = str(paramDef.get("defaultValue", "") or "").strip().strip("/\\")
+        if not base:
+            return assetsRoot
+
+        normalizedBase = os.path.normpath(base.replace("\\", os.sep).replace("/", os.sep))
+        if os.path.isabs(normalizedBase) or normalizedBase == ".." or normalizedBase.startswith(".." + os.sep):
+            return assetsRoot
+
+        root = os.path.abspath(os.path.join(assetsRoot, normalizedBase))
+        try:
+            if os.path.commonpath([assetsRoot, root]) != assetsRoot:
+                return assetsRoot
+        except ValueError:
+            return assetsRoot
+
+        if os.path.isfile(root):
+            root = os.path.dirname(root)
+        if not os.path.isdir(root):
+            return assetsRoot
+        return root
+
+    def _createWidget(self, key: str, paramDef: dict, value: Any) -> QtWidgets.QWidget:
+        paramType = paramDef.get("type", "string")
         if paramType == "int":
             w = QtWidgets.QSpinBox()
             w.setRange(-999999, 999999)
@@ -464,7 +542,7 @@ class GeneralDataPage(QtWidgets.QWidget):
             layout.addWidget(le)
 
             btn = QtWidgets.QPushButton("...")
-            btn.clicked.connect(lambda _, k=key, l=le: self._onFileBrowse(k, l))
+            btn.clicked.connect(lambda _, k=key, l=le, p=paramDef: self._onFileBrowse(k, l, p))
             layout.addWidget(btn)
 
             return container
@@ -498,12 +576,13 @@ class GeneralDataPage(QtWidgets.QWidget):
                 members[self._currentMemberKey][key] = value
                 self.MODIFIED.emit()
 
-    def _onFileBrowse(self, key: str, lineEdit: QtWidgets.QLineEdit):
-        startDir = os.path.join(EditorStatus.PROJ_PATH, "Assets")
-        dialog = FileSelectorDialog(self, startDir, ELOC("SELECT_FILE"), "All Files (*)")
+    def _onFileBrowse(self, key: str, lineEdit: QtWidgets.QLineEdit, paramDef: dict):
+        assetsRoot = os.path.abspath(os.path.join(EditorStatus.PROJ_PATH, "Assets"))
+        startDir = self._getFileBrowseRoot(paramDef)
+        dialog = FileSelectorDialog(self, startDir, "All Files (*)", ELOC("SELECT_FILE"))
         path = dialog.execSelect()
         if path:
-            relPath = os.path.relpath(path, startDir)
+            relPath = os.path.relpath(path, assetsRoot)
             relPath = relPath.replace("\\", "/")
             lineEdit.setText(relPath)
             self._onValueChanged(key, relPath)
@@ -577,7 +656,7 @@ class GeneralDataPage(QtWidgets.QWidget):
             params = fileData.get("params", {})
             newMember = {}
             for pk, pv in params.items():
-                newMember[pk] = pv.get("defaultValue")
+                newMember[pk] = self._getDefaultMemberValue(pv)
 
             members[text] = newMember
             self.memberList.addItem(text)

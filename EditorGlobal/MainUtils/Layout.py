@@ -189,6 +189,7 @@ class LayoutMixin:
         self._setTopMenu()
 
         self.fileExplorer.FILE_CLICKED.connect(self._onFileExplorerFileClicked)
+        self.fileExplorer.DATA_FILE_CHANGED.connect(self._onDataFileChanged)
         self.actorQueuePanel.SELECTION_CHANGED.connect(
             lambda bpRel: self.editorPanel.setPendingActor(bpRel if isinstance(bpRel, str) else None)
         )

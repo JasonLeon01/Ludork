@@ -8,3 +8,4 @@ QToolButton:hover { background-color: #4a4a4a; }
 QToolButton:checked { background-color: #5a5a5a; }
 QPushButton { color: white; }
 QListView, QTreeView { color: white; background-color: #2b2b2b; }
+QFrame#FileSelectorPreview { background-color: #242424; border: 1px solid #506273; border-radius: 4px; }

@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import os
+import shutil
 from typing import Callable, Optional, cast
 from PyQt5 import QtCore, QtGui, QtWidgets
 from EditorGlobal import EditorStatus, GameData
@@ -11,6 +12,7 @@ from .FilePreview import FilePreview
 class FileExplorer(QtWidgets.QWidget):
     PATH_CHANGED = QtCore.pyqtSignal(str)
     FILE_CLICKED = QtCore.pyqtSignal(str)
+    DATA_FILE_CHANGED = QtCore.pyqtSignal()
 
     def __init__(self, root_path: str, parent: Optional[QtWidgets.QWidget] = None):
         super().__init__(parent)
@@ -292,6 +294,8 @@ class FileExplorer(QtWidgets.QWidget):
         if not self._interactive:
             return
         idx = self._view.indexAt(pos)
+        selectedPath = ""
+        isDir = False
         if idx.isValid():
             sm = self._view.selectionModel()
             if sm is None:
@@ -300,19 +304,92 @@ class FileExplorer(QtWidgets.QWidget):
                 sm.clearSelection()
                 sm.select(idx, QtCore.QItemSelectionModel.Select | QtCore.QItemSelectionModel.Rows)
                 self._view.setCurrentIndex(idx)
+            rows = self._selectedSourceRows()
+            if rows:
+                i0 = rows[0]
+                selectedPath = self._model.filePath(i0)
+                isDir = self._model.isDir(i0)
         menu = QtWidgets.QMenu(self)
         actOpen = menu.addAction(ELOC("OPEN_FROM_SYSTEM"))
+        actDuplicate = None
+        actRename = None
+        if selectedPath:
+            if not isDir:
+                actDuplicate = menu.addAction(ELOC("DUPLICATE_FILE"))
+            actRename = menu.addAction(ELOC("RENAME_FILE"))
         viewport = self._view.viewport()
         if viewport is None:
             return
         r = menu.exec_(viewport.mapToGlobal(pos))
         if r == actOpen:
-            rows = self._selectedSourceRows()
-            if rows:
-                i0 = rows[0]
-                p = self._model.filePath(i0)
-                if p:
-                    self._openSystemFile(p)
+            if selectedPath:
+                self._openSystemFile(selectedPath)
+        elif actDuplicate and r == actDuplicate:
+            self._duplicateItem(selectedPath)
+        elif actRename and r == actRename:
+            self._renameItem(selectedPath)
+
+    def _duplicateItem(self, path: str) -> None:
+        if not path or not os.path.isfile(path):
+            return
+        dirPath = os.path.dirname(path)
+        base, ext = os.path.splitext(os.path.basename(path))
+        candidate = os.path.join(dirPath, f"{base}_copy{ext}")
+        if os.path.exists(candidate):
+            i = 2
+            while os.path.exists(os.path.join(dirPath, f"{base}_copy{i}{ext}")):
+                i += 1
+            candidate = os.path.join(dirPath, f"{base}_copy{i}{ext}")
+        try:
+            shutil.copy2(path, candidate)
+            self.DATA_FILE_CHANGED.emit()
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(
+                self,
+                ELOC("ERROR"),
+                ELOC("DUPLICATE_FAILED") + "\n" + str(e),
+            )
+
+    def _renameItem(self, path: str) -> None:
+        if not path:
+            return
+        currentName = os.path.basename(path)
+        dirPath = os.path.dirname(path)
+        newName, ok = QtWidgets.QInputDialog.getText(
+            self,
+            ELOC("RENAME_FILE"),
+            ELOC("RENAME_FILE_PROMPT"),
+            text=currentName,
+        )
+        if not ok:
+            return
+        newName = newName.strip()
+        if not newName or newName == currentName:
+            return
+        if os.sep in newName or "/" in newName or "\\" in newName:
+            QtWidgets.QMessageBox.warning(
+                self,
+                ELOC("ERROR"),
+                ELOC("RENAME_FAILED") + "\n" + newName,
+            )
+            return
+        newPath = os.path.join(dirPath, newName)
+        if os.path.exists(newPath):
+            QtWidgets.QMessageBox.warning(
+                self,
+                ELOC("ERROR"),
+                ELOC("FILE_ALREADY_EXISTS").format(name=newName),
+            )
+            return
+        try:
+            os.rename(path, newPath)
+            self.DATA_FILE_CHANGED.emit()
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(
+                self,
+                ELOC("ERROR"),
+                ELOC("RENAME_FAILED") + "\n" + str(e),
+            )
 
     def _onUp(self) -> None:
         if os.path.normcase(os.path.abspath(self._current)) == os.path.normcase(os.path.abspath(self._root)):

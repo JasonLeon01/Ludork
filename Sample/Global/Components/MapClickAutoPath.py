@@ -50,6 +50,9 @@ class MapClickAutoPath(ComponentBase):
         This method checks for left mouse button clicks and adds
         the clicked map position to the pending goals queue.
         """
+        player = self._parent.getPlayer()
+        if player is None or not player.getMoveEnabled():
+            return
         if Input.isMouseButtonTriggered(Mouse.Button.Left, True):
             goal = self._getMouseMapPosition()
             if goal is not None:
@@ -122,6 +125,9 @@ class MapClickAutoPath(ComponentBase):
         player.setMapPosition(Vector2u(destination.x, destination.y))
         fromPos = route[-2] if len(route) >= 2 else start
         self._setActorDirection(player, fromPos, goal, start == goal)
+        if not goalPassable and destination != goal:
+            bumpOffset = Vector2i(goal.x - destination.x, goal.y - destination.y)
+            player.MapMove(bumpOffset)
 
     def _buildAutoPathPlan(
         self,
@@ -160,7 +166,10 @@ class MapClickAutoPath(ComponentBase):
             return None
         fullRoute = [Vector2i(p.x, p.y) for p in bestPlan["route"]]
         fullRoute.append(Vector2i(goal.x, goal.y))
-        return {"routine": bestPlan["routine"], "route": fullRoute, "goalPassable": False}
+        routine = [Vector2i(p.x, p.y) for p in bestPlan["routine"]]
+        stopPos = fullRoute[-2]
+        routine.append(Vector2i(goal.x - stopPos.x, goal.y - stopPos.y))
+        return {"routine": routine, "route": fullRoute, "goalPassable": False}
 
     def _buildPathToTarget(self, start: Vector2i, target: Vector2i) -> Optional[Dict[str, List[Vector2i]]]:
         rawPath = self._parent.findPath(start, target)

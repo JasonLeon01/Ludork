@@ -230,6 +230,25 @@ class ActorQueuePanel(QtWidgets.QWidget):
             it = self._itemMap[existingSel]
             self._list.setCurrentItem(it)
 
+    def purgeStale(self) -> None:
+        prefix = "Data.Blueprints."
+        stale = [
+            bp for bp in self._queue
+            if isinstance(bp, str)
+            and bp.startswith(prefix)
+            and bp[len(prefix):].replace(".", "/") not in GameData.blueprintsData
+        ]
+        if not stale:
+            return
+        for bp in stale:
+            self._queue.remove(bp)
+        if self._currentBpRel in stale:
+            self._currentBpRel = None
+        self._rebuildList()
+        if self._currentBpRel is None:
+            self._list.clearSelection()
+            self.SELECTION_CHANGED.emit(None)
+
     def _onItemClicked(self, item: QtWidgets.QListWidgetItem) -> None:
         if item is None:
             return

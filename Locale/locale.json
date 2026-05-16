@@ -411,6 +411,30 @@
         "zh_CN": "从系统打开",
         "en_GB": "Open from System"
     },
+    "DUPLICATE_FILE": {
+        "zh_CN": "复制文件",
+        "en_GB": "Duplicate File"
+    },
+    "RENAME_FILE": {
+        "zh_CN": "重命名",
+        "en_GB": "Rename"
+    },
+    "RENAME_FILE_PROMPT": {
+        "zh_CN": "输入新的名称",
+        "en_GB": "Enter new name"
+    },
+    "FILE_ALREADY_EXISTS": {
+        "zh_CN": "'{name}' 已存在",
+        "en_GB": "'{name}' already exists"
+    },
+    "RENAME_FAILED": {
+        "zh_CN": "重命名失败",
+        "en_GB": "Rename failed"
+    },
+    "DUPLICATE_FAILED": {
+        "zh_CN": "复制失败",
+        "en_GB": "Duplicate failed"
+    },
     "CONSOLE": {
         "zh_CN": "控制台",
         "en_GB": "Console"
@@ -974,6 +998,58 @@
     "DEFAULT_VALUE": {
         "zh_CN": "默认值",
         "en_GB": "Default Value"
+    },
+    "GENERAL_DATA_PARAM_NAME_TIP": {
+        "zh_CN": "字段名：保存到 GeneralData 成员里的键名，通常应与代码读取的属性名一致，例如 icon 或 price。",
+        "en_GB": "Field name: The key saved on each GeneralData member. It should usually match the attribute name read by code, such as icon or price."
+    },
+    "GENERAL_DATA_TYPE_TIP_STRING": {
+        "zh_CN": "string：普通文本字段，编辑时使用单行文本框。",
+        "en_GB": "string: A plain text field edited with a single-line text box."
+    },
+    "GENERAL_DATA_TYPE_TIP_INT": {
+        "zh_CN": "int：整数数字字段，编辑时使用整数输入框。",
+        "en_GB": "int: An integer numeric field edited with an integer spin box."
+    },
+    "GENERAL_DATA_TYPE_TIP_FLOAT": {
+        "zh_CN": "float：小数字段，编辑时使用浮点数输入框。",
+        "en_GB": "float: A decimal numeric field edited with a floating-point spin box."
+    },
+    "GENERAL_DATA_TYPE_TIP_BOOL": {
+        "zh_CN": "bool：真假值字段，编辑时使用勾选框。",
+        "en_GB": "bool: A true/false field edited with a checkbox."
+    },
+    "GENERAL_DATA_TYPE_TIP_FILE": {
+        "zh_CN": "file：素材文件字段，编辑时从 Assets 下选择文件，并保存相对 Assets 的路径。",
+        "en_GB": "file: An asset file field. It selects a file under Assets and saves the path relative to Assets."
+    },
+    "GENERAL_DATA_TYPE_TIP_LIST": {
+        "zh_CN": "list：列表字段，编辑时使用可增删行的列表编辑器。",
+        "en_GB": "list: A list field edited with a row-based list editor."
+    },
+    "GENERAL_DATA_DEFAULT_TIP_STRING": {
+        "zh_CN": "string：新成员默认填入的文本。",
+        "en_GB": "string: Text assigned to new members by default."
+    },
+    "GENERAL_DATA_DEFAULT_TIP_INT": {
+        "zh_CN": "int：新成员默认填入的整数；留空时使用 0。",
+        "en_GB": "int: Integer assigned to new members by default; empty uses 0."
+    },
+    "GENERAL_DATA_DEFAULT_TIP_FLOAT": {
+        "zh_CN": "float：新成员默认填入的小数；留空时使用 0.0。",
+        "en_GB": "float: Decimal number assigned to new members by default; empty uses 0.0."
+    },
+    "GENERAL_DATA_DEFAULT_TIP_BOOL": {
+        "zh_CN": "bool：输入 true 表示勾选，其它内容都表示不勾选。",
+        "en_GB": "bool: Enter true for checked; any other value is unchecked."
+    },
+    "GENERAL_DATA_DEFAULT_TIP_FILE": {
+        "zh_CN": "file：填写 Assets 下的默认选择目录，例如 Icons；成员值会保存为相对 Assets 的文件路径。",
+        "en_GB": "file: Enter the default selection folder under Assets, such as Icons; member values are saved as paths relative to Assets."
+    },
+    "GENERAL_DATA_DEFAULT_TIP_LIST": {
+        "zh_CN": "list：输入 Python 列表格式作为默认值，例如 [\"A\", \"B\"]；留空时使用空列表。",
+        "en_GB": "list: Enter a Python list as the default, such as [\"A\", \"B\"]; empty uses an empty list."
     },
     "PARAM_EXISTS": {
         "zh_CN": "字段已存在",

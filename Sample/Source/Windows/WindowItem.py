@@ -3,17 +3,34 @@
 from __future__ import annotations
 from typing import Any, Callable, Dict, Optional, Union, Tuple
 import Engine
-from Engine import Pair, Vector2i, Vector2u, IntRect, Texture, Color, Vector2f, Input, UI, Text
+from Engine import (
+    Pair,
+    Vector2i,
+    Vector2u,
+    IntRect,
+    Texture,
+    Color,
+    Vector2f,
+    Input,
+    UI,
+    Text,
+    RenderTarget,
+    RenderStates,
+)
 from Engine.UI import Canvas, ListView, PlainText
+from Engine.UI.Base import FunctionalBase
 from Engine.UI.FunctionalUI import FImage, FPlainText
 from Engine.Utils import Math
 from Global import Manager
 from .Base import WindowSelectable
 from ..System import System as GameSystem
+from ..ItemInfo import ItemInfo
 from .. import Data
 
+_UNUSABLE_ICON_ALPHA = 160
 
-class _ItemCell(Canvas):
+
+class _ItemCell(Canvas, FunctionalBase):
     r"""\brief Single item cell displaying icon and optional count.
 
     Shows the item icon with reduced opacity for unusable items,
@@ -28,11 +45,12 @@ class _ItemCell(Canvas):
         - \param cost Whether the item has a cost/quantity.
         - \param count The quantity of this item in inventory.
         """
-        super().__init__(((0, 0), (32, 32)))
+        Canvas.__init__(self, ((0, 0), (32, 32)))
+        FunctionalBase.__init__(self)
         if iconTexture is not None:
             icon = FImage(iconTexture)
             if not usable:
-                icon.setColor(Color(255, 255, 255, 190))
+                icon.setColor(Color(255, 255, 255, _UNUSABLE_ICON_ALPHA))
             self.addChild(icon)
         if cost:
             text = FPlainText(UI.DefaultFont, str(count), 12)
@@ -42,6 +60,9 @@ class _ItemCell(Canvas):
                 Vector2f(32 - bounds.size.x - bounds.position.x - 1, 32 - bounds.size.y - bounds.position.y - 1)
             )
             self.addChild(text)
+
+    def getChildren(self):
+        return []
 
     def update(self, deltaTime: float) -> None:
         r"""\brief Update the cell and render to internal texture.
@@ -93,6 +114,7 @@ class WindowItem(WindowSelectable):
         """
         super().__init__(rect, None, 32, 32)
         self._onCloseCallback = onClose
+        self._onUseCallback: Optional[Callable[[], None]] = None
         self._player = player
         self._lastDescIndex: Optional[int] = None
         self._descNameText = PlainText(UI.DefaultFont, "", 18, Text.Style.Bold)
@@ -113,6 +135,7 @@ class WindowItem(WindowSelectable):
         r"""\brief Rebuild the item list from the player's current inventory."""
         descHeight = 64
         contentWidth = self._inRect.size.x - 32
+        self._descMaxWidth = contentWidth
         contentHeight = self._inRect.size.y - 32 - descHeight
         self._resizeCanvas(self.content, contentWidth, contentHeight)
         listView = ListView(
@@ -136,6 +159,7 @@ class WindowItem(WindowSelectable):
             cost = member.get("cost", True)
             iconTex = _loadItemIcon(iconPath)
             cell = _ItemCell(iconTex, usable, cost, count)
+            cell.addConfirmCallback(lambda obj, kwargs: self._onUseItem())
             self._applyItem(cell)
             listView.addChild(cell)
         self.setListView(listView)
@@ -154,29 +178,79 @@ class WindowItem(WindowSelectable):
             self._lastDescIndex = self.index
             self._updateDescription()
 
+    def _wrapDesc(self, text: str) -> str:
+        from Engine import Scale
+
+        charSize = int(14 * Scale)
+        maxW = self._descMaxWidth * Scale
+        font = UI.DefaultFont
+
+        def adv(ch: str) -> float:
+            return font.getGlyph(ch, charSize, False).advance
+
+        def wrap_para(para: str) -> str:
+            lines = []
+            line = ""
+            line_w = 0.0
+            for word in para.split(" "):
+                word_w = sum(adv(ch) for ch in word) if word else 0.0
+                sep_w = adv(" ") if line else 0.0
+                if line_w + sep_w + word_w <= maxW:
+                    line += (" " if line else "") + word
+                    line_w += sep_w + word_w
+                else:
+                    if line:
+                        lines.append(line)
+                        line = ""
+                        line_w = 0.0
+                    if word_w <= maxW:
+                        line = word
+                        line_w = word_w
+                    else:
+                        for ch in word:
+                            ch_w = adv(ch)
+                            if line and line_w + ch_w > maxW:
+                                lines.append(line)
+                                line = ""
+                                line_w = 0.0
+                            line += ch
+                            line_w += ch_w
+            lines.append(line)
+            return "\n".join(lines)
+
+        return "\n".join(wrap_para(p) for p in text.split("\n"))
+
     def _updateDescription(self) -> None:
         if self.index is None or not hasattr(self, "_itemList") or self.index >= len(self._itemList):
             self._descNameText.setString("")
             self._descText.setString("")
             return
         itemID, _ = self._itemList[self.index]
-        self._descNameText.setString(LOC(itemID))
-        self._descText.setString(LOC(f"{itemID}_DESC"))
+        self._descNameText.setString(Data.getGeneralData("Item").get("members", {}).get(itemID, {}).get("name", "").format(**LOC_D()))
+        raw_desc = Data.getGeneralData("Item").get("members", {}).get(itemID, {}).get("desc", "").format(**LOC_D())
+        self._descText.setString(self._wrapDesc(raw_desc))
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
-        r"""\brief Handle cancel key to close the item window.
+        r"""\brief Handle cancel and confirm keys for the item window.
 
         - \param kwargs Event data.
         """
         if not self.getActive():
             return
         if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
-            Manager.playSE(GameSystem.getCancelSE())
-            self.close()
-            if self._onCloseCallback is not None:
-                self._onCloseCallback()
+            self._closeByCancel()
+            return
+        if Input.isActionTriggered(Input.getConfirmKeys(), handled=True):
+            self._onUseItem()
             return
         return super().onKeyDown(kwargs)
+
+    def onTick(self, deltaTime: float) -> None:
+        r"""\brief Handle mouse cancel to close the item window."""
+        if not self.getActive() or not self.getVisible():
+            return
+        if Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True):
+            self._closeByCancel()
 
     def open(self) -> None:
         r"""\brief Open the item window, refreshing inventory first."""
@@ -188,3 +262,27 @@ class WindowItem(WindowSelectable):
         r"""\brief Close the item window."""
         self.setVisible(False)
         self.setActive(False)
+
+    def _onUseItem(self) -> None:
+        if self.index is None or not hasattr(self, "_itemList") or self.index >= len(self._itemList):
+            return
+        itemID, _ = self._itemList[self.index]
+        itemData = Data.getGeneralData("Item")
+        members = itemData.get("members", {})
+        member = members.get(itemID, {})
+        if not member.get("usable", True):
+            return
+        Manager.playSE(GameSystem.getDecisionSE())
+        info = ItemInfo()
+        info.ID = itemID
+        info.initInfo(Data)
+        info.triggerEvent("onUse")
+        self.close()
+        if self._onUseCallback is not None:
+            self._onUseCallback()
+
+    def _closeByCancel(self) -> None:
+        Manager.playSE(GameSystem.getCancelSE())
+        self.close()
+        if self._onCloseCallback is not None:
+            self._onCloseCallback()

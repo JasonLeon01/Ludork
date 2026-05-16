@@ -1,17 +1,14 @@
 # -*- encoding: utf-8 -*-
 # Additional builtins injected at runtime by Engine/__init__.py (for Sample runtime)
-# and by editor (for ELOC).
 
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, TypeVar, Dict
 
 _T = TypeVar("_T")
 _F = TypeVar("_F", bound=Callable[..., Any])
 
-# Editor builtin: localisation for editor UI
-def ELOC(key: str) -> str: ...
-
-# Sample runtime builtins: injected by Engine/__init__.py
 def LOC(key: str) -> str: ...
+def LOC_L(localeKey: str, key: str) -> str: ...
+def LOC_D() -> Dict[str, str]: ...
 def TypeAdapter(**kwargs: Any) -> Callable[[_F], _F]:
     r"""
     \brief Decorator for adapting parameter types in function calls.
