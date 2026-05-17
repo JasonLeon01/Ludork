@@ -116,7 +116,9 @@ class LayoutMixin:
         self.rightStack.setCurrentWidget(self.tileSelect)
         self.tileSelect.TILE_SELECTED.connect(self._onTileSelected)
         self.tileSelect.TILESET_CHANGED.connect(self._onTilesetChanged)
+        self.tileSelect.AUTOTILE_SELECTED.connect(self._onAutoTileSelected)
         self.editorPanel.TILE_NUMBER_PICKED.connect(self._onTileNumberPicked)
+        self.editorPanel.AUTOTILE_PICKED.connect(self._onAutoTilePicked)
         self.editorPanel.LIGHT_SELECTION_CHANGED.connect(self._onLightSelectionChanged)
         self.editorPanel.LIGHT_DATA_CHANGED.connect(self._onLightDataChanged)
         self.editorPanel.ACTOR_SELECTION_CHANGED.connect(

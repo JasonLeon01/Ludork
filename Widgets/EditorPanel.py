@@ -11,6 +11,10 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 import Utils
 from EditorGlobal import EditorStatus, GameData
 from Utils import System
+from .Utils import AutoTileRenderer, computeMaskFromGrid
+
+
+_AUTOTILE_ANIMATION_INTERVAL_MS = 500
 
 
 @dataclass
@@ -23,6 +27,7 @@ class MapData:
 
 class EditorPanel(QtWidgets.QWidget):
     TILE_NUMBER_PICKED = QtCore.pyqtSignal(int)
+    AUTOTILE_PICKED = QtCore.pyqtSignal(str)
     DATA_CHANGED = QtCore.pyqtSignal()
     LIGHT_SELECTION_CHANGED = QtCore.pyqtSignal(str, object, object)
     LIGHT_DATA_CHANGED = QtCore.pyqtSignal(str, object, object)
@@ -38,6 +43,7 @@ class EditorPanel(QtWidgets.QWidget):
         self._cachedTilesetImage: Optional[QtGui.QImage] = None
         self.selectedLayerName: Optional[str] = None
         self.selectedTileNumber: Optional[int] = None
+        self.selectedAutoTileKey: Optional[str] = None
         self.tileModeEnabled: bool = True
         self.rectStartPos: Optional[Tuple[int, int]] = None
         self.selectedLightIndex: Optional[int] = None
@@ -60,11 +66,17 @@ class EditorPanel(QtWidgets.QWidget):
         self._actorMoveDragTitleRefreshed = False
         self._actorClipboard = None
         self._pendingActorBpRel: Optional[str] = None
+        self._autoTileRenderer = AutoTileRenderer()
+        self._autoTileFrame: int = 0
         super().__init__(parent)
         self.setMouseTracking(True)
         self.setFocusPolicy(QtCore.Qt.ClickFocus)
         self.setAcceptDrops(False)
         Utils.Panel.ApplyDisabledOpacity(self)
+        self._autoTileTimer = QtCore.QTimer(self)
+        self._autoTileTimer.setInterval(_AUTOTILE_ANIMATION_INTERVAL_MS)
+        self._autoTileTimer.timeout.connect(self._onAutoTileTick)
+        self._autoTileTimer.start()
 
     def _updateCachedTileset(self) -> None:
         self._cachedTilesetImage = None
@@ -130,6 +142,21 @@ class EditorPanel(QtWidgets.QWidget):
                     tiles[-1].append(layerTiles[y][x])
             layer = TileLayerData(name, layerTileset, tiles)
             setattr(layer, "layerTilesetKey", layerData["layerTileset"])
+            rawAuto = layerData.get("autoTiles")
+            autoTiles: List[List[Optional[str]]] = []
+            for y in range(height):
+                row: List[Optional[str]] = []
+                for x in range(width):
+                    val = None
+                    if isinstance(rawAuto, list) and y < len(rawAuto) and isinstance(rawAuto[y], list) and x < len(rawAuto[y]):
+                        cell = rawAuto[y][x]
+                        if isinstance(cell, str) and cell:
+                            val = cell
+                    row.append(val)
+                autoTiles.append(row)
+            setattr(layer, "autoTiles", autoTiles)
+            if not isinstance(layerData.get("autoTiles"), list):
+                layerData["autoTiles"] = [list(r) for r in autoTiles]
             mapLayers[layerName] = layer
         self.mapData = MapData(mapName, width, height, mapLayers)
 
@@ -234,10 +261,74 @@ class EditorPanel(QtWidgets.QWidget):
                         src = QtCore.QRect(tu * tileSize, tv * tileSize, tileSize, tileSize)
                         dst = QtCore.QRect(x * tileSize, y * tileSize, tileSize, tileSize)
                         painter.drawImage(dst, tileset, src)
+            self._drawAutoTilesForLayer(painter, layer, tileSize)
             self._drawActorsForLayer(painter, layerName, tileSize, 1.0 if (sel is None or layerName == sel) else 0.5)
         painter.end()
         self._pixmap = QtGui.QPixmap.fromImage(img)
         self.update()
+
+    def _drawAutoTilesForLayer(self, painter: QtGui.QPainter, layer, tileSize: int) -> None:
+        autoTiles = getattr(layer, "autoTiles", None)
+        if not isinstance(autoTiles, list) or not autoTiles:
+            return
+        height = len(autoTiles)
+        for y in range(height):
+            row = autoTiles[y]
+            if not isinstance(row, list):
+                continue
+            for x in range(len(row)):
+                key = row[x]
+                if not isinstance(key, str) or not key:
+                    continue
+                if key not in GameData.autoTileData:
+                    continue
+                mask = computeMaskFromGrid(autoTiles, x, y)
+                tileImg = self._autoTileRenderer.renderTile(key, mask, self._autoTileFrame)
+                if tileImg is None or tileImg.isNull():
+                    continue
+                dst = QtCore.QRect(x * tileSize, y * tileSize, tileSize, tileSize)
+                painter.drawImage(dst, tileImg)
+
+    def _onAutoTileTick(self) -> None:
+        self._autoTileFrame = (self._autoTileFrame + 1) % 1024
+        if self.mapData is None:
+            return
+        if not self._hasAnyAnimatedAutoTile():
+            return
+        self._renderFromMapData()
+
+    def _hasAnyAnimatedAutoTile(self) -> bool:
+        if self.mapData is None:
+            return False
+        seenAnimated = False
+        seenKeys: set = set()
+        for layer in self.mapData.layers.values():
+            autoTiles = getattr(layer, "autoTiles", None)
+            if not isinstance(autoTiles, list):
+                continue
+            for row in autoTiles:
+                if not isinstance(row, list):
+                    continue
+                for key in row:
+                    if not isinstance(key, str) or not key or key in seenKeys:
+                        continue
+                    seenKeys.add(key)
+                    if self._autoTileRenderer.frameCountFor(key) > 1:
+                        seenAnimated = True
+                        return seenAnimated
+        return seenAnimated
+
+    def invalidateAutoTileCache(self, key: Optional[str] = None) -> None:
+        r"""Invalidate cached autotile renders.
+
+        - \param key  Optional autotile key; if `None` the entire cache is dropped.
+        """
+        if key is None:
+            self._autoTileRenderer.invalidate()
+        else:
+            self._autoTileRenderer.invalidateKey(key)
+        if self.mapData is not None:
+            self._renderFromMapData()
 
     def _updateContentSize(self) -> None:
         if self.mapData is None:
@@ -289,6 +380,15 @@ class EditorPanel(QtWidgets.QWidget):
 
     def setSelectedTileNumber(self, num: Optional[int]) -> None:
         self.selectedTileNumber = None if num is None else int(num)
+        if self.selectedTileNumber is not None:
+            self.selectedAutoTileKey = None
+
+    def setSelectedAutoTileKey(self, key: Optional[str]) -> None:
+        if key is None or not isinstance(key, str) or key == "":
+            self.selectedAutoTileKey = None
+            return
+        self.selectedAutoTileKey = key
+        self.selectedTileNumber = None
 
     def clearLightSelection(self) -> None:
         self._stopLightRadiusDrag()
@@ -520,6 +620,9 @@ class EditorPanel(QtWidgets.QWidget):
             for x in range(width):
                 row.append(None)
             tiles.append(row)
+        autoTiles: List[List[Optional[str]]] = []
+        for y in range(height):
+            autoTiles.append([None] * width)
         keys = list(GameData.tilesetData.keys())
         ts_key = keys[0] if keys else None
         ts = GameData.tilesetData.get(ts_key) if ts_key else None
@@ -527,6 +630,7 @@ class EditorPanel(QtWidgets.QWidget):
             name, ts if ts is not None else GameData.tilesetData[next(iter(GameData.tilesetData))], tiles
         )
         setattr(layer, "layerTilesetKey", ts_key or next(iter(GameData.tilesetData)))
+        setattr(layer, "autoTiles", autoTiles)
         self.mapData.layers[name] = layer
         if self.mapKey:
             if self.mapKey in GameData.mapData:
@@ -535,6 +639,7 @@ class EditorPanel(QtWidgets.QWidget):
                         "layerName": name,
                         "layerTileset": ts_key or next(iter(GameData.tilesetData)),
                         "tiles": tiles,
+                        "autoTiles": [list(r) for r in autoTiles],
                         "actors": [],
                     }
         self._refreshTitle()
@@ -603,14 +708,7 @@ class EditorPanel(QtWidgets.QWidget):
         changed = False
         for y in range(min_y, max_y + 1):
             for x in range(min_x, max_x + 1):
-                if layer.tiles[y][x] != self.selectedTileNumber:
-                    layer.tiles[y][x] = self.selectedTileNumber
-                    if self.mapKey and self.selectedLayerName:
-                        if self.mapKey in GameData.mapData:
-                            if self.selectedLayerName in GameData.mapData[self.mapKey].get("layers", {}):
-                                GameData.mapData[self.mapKey]["layers"][self.selectedLayerName]["tiles"][y][x] = (
-                                    None if self.selectedTileNumber is None else int(self.selectedTileNumber)
-                                )
+                if self._writeCellSelection(layer, x, y):
                     changed = True
 
         if changed:
@@ -619,6 +717,45 @@ class EditorPanel(QtWidgets.QWidget):
 
         self.rectStartPos = None
         self.update()
+
+    def _writeCellSelection(self, layer, x: int, y: int) -> bool:
+        autoKey = self.selectedAutoTileKey
+        tileNum = self.selectedTileNumber
+        autoTiles = getattr(layer, "autoTiles", None)
+        changed = False
+        if autoKey is not None:
+            if isinstance(autoTiles, list):
+                if autoTiles[y][x] != autoKey:
+                    autoTiles[y][x] = autoKey
+                    changed = True
+        elif tileNum is not None:
+            if layer.tiles[y][x] != tileNum:
+                layer.tiles[y][x] = tileNum
+                changed = True
+        else:
+            if layer.tiles[y][x] is not None:
+                layer.tiles[y][x] = None
+                changed = True
+            if isinstance(autoTiles, list) and autoTiles[y][x] is not None:
+                autoTiles[y][x] = None
+                changed = True
+        if changed and self.mapKey and self.selectedLayerName:
+            mapEntry = GameData.mapData.get(self.mapKey)
+            if isinstance(mapEntry, dict):
+                layers = mapEntry.get("layers")
+                if isinstance(layers, dict) and self.selectedLayerName in layers:
+                    layerData = layers[self.selectedLayerName]
+                    layerTiles = layerData.get("tiles")
+                    if isinstance(layerTiles, list):
+                        layerTiles[y][x] = None if layer.tiles[y][x] is None else int(layer.tiles[y][x])
+                    layerAuto = layerData.get("autoTiles")
+                    if not isinstance(layerAuto, list):
+                        layerAuto = [list(r) for r in autoTiles] if isinstance(autoTiles, list) else None
+                        if layerAuto is not None:
+                            layerData["autoTiles"] = layerAuto
+                    if isinstance(layerAuto, list) and isinstance(autoTiles, list):
+                        layerAuto[y][x] = autoTiles[y][x]
+        return changed
 
     def mouseReleaseEvent(self, e: QtGui.QMouseEvent) -> None:
         if self._lightOverlayEnabled and e.button() == QtCore.Qt.LeftButton:
@@ -728,6 +865,16 @@ class EditorPanel(QtWidgets.QWidget):
                         for x_idx in range(min_x, max_x + 1):
                             dst = QtCore.QRect(x_idx * tileSize, y_idx * tileSize, tileSize, tileSize)
                             p.drawImage(dst, self._cachedTilesetImage, src)
+                    p.setOpacity(1.0)
+
+            if self.tileModeEnabled and self.selectedAutoTileKey is not None:
+                preview = self._autoTileRenderer.renderTile(self.selectedAutoTileKey, 0, self._autoTileFrame)
+                if preview is not None and not preview.isNull():
+                    p.setOpacity(0.5)
+                    for y_idx in range(min_y, max_y + 1):
+                        for x_idx in range(min_x, max_x + 1):
+                            dst = QtCore.QRect(x_idx * tileSize, y_idx * tileSize, tileSize, tileSize)
+                            p.drawImage(dst, preview)
                     p.setOpacity(1.0)
 
             p.setPen(QtGui.QPen(QtCore.Qt.black, 1))
@@ -1032,8 +1179,19 @@ class EditorPanel(QtWidgets.QWidget):
             return
         if e.button() == QtCore.Qt.RightButton:
             try:
-                tn = layer.tiles[gy][gx]
-                self.TILE_NUMBER_PICKED.emit(-1 if tn is None else int(tn))
+                autoTiles = getattr(layer, "autoTiles", None)
+                pickedAuto: Optional[str] = None
+                if isinstance(autoTiles, list) and 0 <= gy < len(autoTiles):
+                    rowAuto = autoTiles[gy]
+                    if isinstance(rowAuto, list) and 0 <= gx < len(rowAuto):
+                        cell = rowAuto[gx]
+                        if isinstance(cell, str) and cell:
+                            pickedAuto = cell
+                if pickedAuto is not None:
+                    self.AUTOTILE_PICKED.emit(pickedAuto)
+                else:
+                    tn = layer.tiles[gy][gx]
+                    self.TILE_NUMBER_PICKED.emit(-1 if tn is None else int(tn))
             except Exception:
                 self.TILE_NUMBER_PICKED.emit(-1)
             return
@@ -1045,15 +1203,9 @@ class EditorPanel(QtWidgets.QWidget):
             return
 
         GameData.recordSnapshot()
-        layer.tiles[gy][gx] = self.selectedTileNumber
-        if self.mapKey and self.selectedLayerName:
-            if self.mapKey in GameData.mapData:
-                if self.selectedLayerName in GameData.mapData[self.mapKey].get("layers", {}):
-                    GameData.mapData[self.mapKey]["layers"][self.selectedLayerName]["tiles"][gy][gx] = (
-                        None if self.selectedTileNumber is None else int(self.selectedTileNumber)
-                    )
-        self._refreshTitle()
-        self._renderFromMapData()
+        if self._writeCellSelection(layer, gx, gy):
+            self._refreshTitle()
+            self._renderFromMapData()
         self.update()
 
     def mouseMoveEvent(self, e: QtGui.QMouseEvent) -> None:
@@ -1169,18 +1321,11 @@ class EditorPanel(QtWidgets.QWidget):
         if not layer:
             return
         try:
-            if layer.tiles[gy][gx] != self.selectedTileNumber:
-                layer.tiles[gy][gx] = self.selectedTileNumber
-                if self.mapKey and self.selectedLayerName:
-                    if self.mapKey in GameData.mapData:
-                        if self.selectedLayerName in GameData.mapData[self.mapKey].get("layers", {}):
-                            GameData.mapData[self.mapKey]["layers"][self.selectedLayerName]["tiles"][gy][gx] = (
-                                None if self.selectedTileNumber is None else int(self.selectedTileNumber)
-                            )
+            if self._writeCellSelection(layer, gx, gy):
                 self._refreshTitle()
+                self._renderFromMapData()
         except Exception:
             return
-        self._renderFromMapData()
         self.update()
 
     def saveFile(self) -> Tuple[bool, str]:

@@ -3,18 +3,130 @@
 #include <Graphics/TilemapGraphics.hpp>
 #include <SFML/Graphics/PrimitiveType.hpp>
 
+#include <array>
+
+////////////////////////////////////////////////////////////
+// Autotile mask helpers (RPG Maker XP 48-state composition).
+//
+// Bit layout of the 8-bit neighbour mask matches the Python-side
+// `AutoTileRenderer`:
+//   bit0=top, bit1=right, bit2=bottom, bit3=left,
+//   bit4=top-left, bit5=top-right, bit6=bottom-right, bit7=bottom-left.
+////////////////////////////////////////////////////////////
+namespace {
+
+constexpr int MASK_TOP = 0x01;
+constexpr int MASK_RIGHT = 0x02;
+constexpr int MASK_BOTTOM = 0x04;
+constexpr int MASK_LEFT = 0x08;
+constexpr int MASK_TOP_LEFT = 0x10;
+constexpr int MASK_TOP_RIGHT = 0x20;
+constexpr int MASK_BOTTOM_RIGHT = 0x40;
+constexpr int MASK_BOTTOM_LEFT = 0x80;
+
+constexpr int kInnerFillerCell = 3;
+
+// Base 4-quadrant cell pattern (1-based mini-pattern indices) keyed by the
+// 4-bit orthogonal mask. Order: (TL, TR, BL, BR).
+constexpr std::array<std::array<int, 4>, 16> kBasePattern = {{
+    {{1, 1, 1, 1}},      // 0x00
+    {{10, 12, 10, 12}},  // 0x01
+    {{4, 4, 10, 10}},    // 0x02
+    {{10, 10, 10, 10}},  // 0x03
+    {{4, 6, 4, 6}},      // 0x04
+    {{7, 9, 7, 9}},      // 0x05
+    {{4, 4, 4, 4}},      // 0x06
+    {{7, 7, 7, 7}},      // 0x07
+    {{6, 6, 12, 12}},    // 0x08
+    {{12, 12, 12, 12}},  // 0x09
+    {{5, 5, 11, 11}},    // 0x0A
+    {{11, 11, 11, 11}},  // 0x0B
+    {{6, 6, 6, 6}},      // 0x0C
+    {{9, 9, 9, 9}},      // 0x0D
+    {{5, 5, 5, 5}},      // 0x0E
+    {{8, 8, 8, 8}}       // 0x0F
+}};
+
+// (orthoA, orthoB, diagonal) for each quadrant (TL, TR, BL, BR).
+constexpr std::array<std::array<int, 3>, 4> kQuadBits = {{
+    {{MASK_TOP, MASK_LEFT, MASK_TOP_LEFT}},
+    {{MASK_TOP, MASK_RIGHT, MASK_TOP_RIGHT}},
+    {{MASK_BOTTOM, MASK_LEFT, MASK_BOTTOM_LEFT}},
+    {{MASK_BOTTOM, MASK_RIGHT, MASK_BOTTOM_RIGHT}},
+}};
+
+std::array<int, 4> composeCellPattern(int mask) {
+    int orthoMask = mask & 0x0F;
+    std::array<int, 4> out = kBasePattern[orthoMask];
+    for (int q = 0; q < 4; ++q) {
+        int oa = kQuadBits[q][0];
+        int ob = kQuadBits[q][1];
+        int d = kQuadBits[q][2];
+        if ((mask & oa) && (mask & ob) && !(mask & d)) {
+            out[q] = kInnerFillerCell;
+        }
+    }
+    return out;
+}
+
+bool sameAutoTileAt(const std::vector<std::vector<std::optional<int>>> &grid, int x, int y, int width, int height,
+                    int self) {
+    if (x < 0 || y < 0 || x >= width || y >= height) {
+        return false;
+    }
+    auto &cell = grid[y][x];
+    if (!cell.has_value()) {
+        return false;
+    }
+    return cell.value() == self;
+}
+
+int computeAutoTileMask(const std::vector<std::vector<std::optional<int>>> &grid, int x, int y, int width,
+                        int height) {
+    int self = grid[y][x].value();
+    int mask = 0;
+    if (sameAutoTileAt(grid, x, y - 1, width, height, self)) mask |= MASK_TOP;
+    if (sameAutoTileAt(grid, x + 1, y, width, height, self)) mask |= MASK_RIGHT;
+    if (sameAutoTileAt(grid, x, y + 1, width, height, self)) mask |= MASK_BOTTOM;
+    if (sameAutoTileAt(grid, x - 1, y, width, height, self)) mask |= MASK_LEFT;
+    if (sameAutoTileAt(grid, x - 1, y - 1, width, height, self)) mask |= MASK_TOP_LEFT;
+    if (sameAutoTileAt(grid, x + 1, y - 1, width, height, self)) mask |= MASK_TOP_RIGHT;
+    if (sameAutoTileAt(grid, x + 1, y + 1, width, height, self)) mask |= MASK_BOTTOM_RIGHT;
+    if (sameAutoTileAt(grid, x - 1, y + 1, width, height, self)) mask |= MASK_BOTTOM_LEFT;
+    return mask;
+}
+
+}  // namespace
+
 TileLayerGraphics::TileLayerGraphics(int width, int height, int tileSize, sf::Texture *texture,
                                      const std::vector<std::vector<std::optional<int>>> &tiles,
-                                     const std::vector<py::object> &materials) {
+                                     const std::vector<py::object> &materials,
+                                     const std::vector<std::vector<std::optional<int>>> &autoTiles,
+                                     const std::vector<sf::Texture *> &autoTileTextures,
+                                     const std::vector<py::object> &autoTileMaterials,
+                                     const std::vector<int> &autoTileFrameCounts) {
     texture_ = texture;
     vertexArray_ = new sf::VertexArray(sf::PrimitiveType::Triangles, width * height * 6);
     size_ = sf::Vector2f(width, height);
+    tileSize_ = tileSize;
     tiles_ = tiles;
     materials_ = materials;
+    autoTiles_ = autoTiles;
+    autoTileTextures_ = autoTileTextures;
+    autoTileMaterials_ = autoTileMaterials;
+    autoTileFrameCounts_ = autoTileFrameCounts;
+    autoTileCurrentFrames_.assign(autoTileTextures_.size(), 0);
+    autoTileAnimationAccum_ = 0.0f;
     init(tileSize);
+    initAutoTiles(tileSize);
 }
 
-TileLayerGraphics::~TileLayerGraphics() { delete vertexArray_; }
+TileLayerGraphics::~TileLayerGraphics() {
+    delete vertexArray_;
+    for (auto *va : autoTileVertexArrays_) {
+        delete va;
+    }
+}
 
 void TileLayerGraphics::setTileColor(int x, int y, sf::Color color) {
     int width = static_cast<int>(size_.x);
@@ -86,13 +198,48 @@ std::vector<std::pair<int, int>> TileLayerGraphics::floodFillTransparent(int sta
     return processedTiles;
 }
 
+void TileLayerGraphics::updateAutoTileAnimation(float deltaTime, float frameInterval) {
+    if (autoTileVertexArrays_.empty() || frameInterval <= 0.0f) {
+        return;
+    }
+    autoTileAnimationAccum_ += deltaTime;
+    if (autoTileAnimationAccum_ < frameInterval) {
+        return;
+    }
+    int steps = static_cast<int>(autoTileAnimationAccum_ / frameInterval);
+    autoTileAnimationAccum_ -= steps * frameInterval;
+    for (std::size_t i = 0; i < autoTileVertexArrays_.size(); ++i) {
+        int frameCount = i < autoTileFrameCounts_.size() ? autoTileFrameCounts_[i] : 1;
+        if (frameCount <= 1) {
+            continue;
+        }
+        int previous = autoTileCurrentFrames_[i];
+        int next = (previous + steps) % frameCount;
+        if (next != previous) {
+            autoTileCurrentFrames_[i] = next;
+            refreshAutoTileTexCoords(static_cast<int>(i));
+        }
+    }
+}
+
 void TileLayerGraphics::draw(sf::RenderTarget &target, sf::RenderStates states) const {
     states.transform *= getTransform();
-    states.texture = texture_;
-    target.draw(*vertexArray_, states);
+    sf::RenderStates tileStates = states;
+    tileStates.texture = texture_;
+    target.draw(*vertexArray_, tileStates);
+    for (std::size_t i = 0; i < autoTileVertexArrays_.size(); ++i) {
+        if (autoTileVertexArrays_[i] == nullptr) continue;
+        if (autoTileVertexArrays_[i]->getVertexCount() == 0) continue;
+        sf::RenderStates autoStates = states;
+        autoStates.texture = autoTileTextures_[i];
+        target.draw(*autoTileVertexArrays_[i], autoStates);
+    }
 }
 
 void TileLayerGraphics::init(int tileSize) {
+    if (texture_ == nullptr) {
+        return;
+    }
     int columns = texture_->getSize().x / tileSize;
     int width = size_.x;
     int height = size_.y;
@@ -139,18 +286,113 @@ void TileLayerGraphics::init(int tileSize) {
     }
 }
 
-void ApplyTileLayerGraphicsBinding(py::module &m) {
-    py::class_<TileLayerGraphics, sf::Drawable, sf::Transformable> TileLayerGraphicsClass(
-        m, "TileLayerGraphics", "GPU-accelerated tile layer renderer.");
-    TileLayerGraphicsClass.def(
-        py::init<int, int, int, sf::Texture *, std::vector<std::vector<std::optional<int>>>, std::vector<py::object>>(),
-        py::arg("width"), py::arg("height"), py::arg("tileSize"), py::arg("texture"), py::arg("tiles"),
-        py::arg("materials"));
+void TileLayerGraphics::initAutoTiles(int tileSize) {
+    int width = static_cast<int>(size_.x);
+    int height = static_cast<int>(size_.y);
+    std::size_t poolSize = autoTileTextures_.size();
+    autoTileVertexArrays_.assign(poolSize, nullptr);
+    autoTileCells_.assign(poolSize, {});
+    autoTileMasks_.assign(poolSize, {});
 
-    TileLayerGraphicsClass.def("setTileColor", &TileLayerGraphics::setTileColor,
-                               "Set the color tint for one tile.");
-    TileLayerGraphicsClass.def("resetTileColor", &TileLayerGraphics::resetTileColor,
-                               "Reset tile color to the material opacity.");
-    TileLayerGraphicsClass.def("floodFillTransparent", &TileLayerGraphics::floodFillTransparent,
-                               "Flood fill connected tiles and return affected tile coordinates.");
+    if (poolSize == 0 || autoTiles_.empty()) {
+        return;
+    }
+
+    for (std::size_t i = 0; i < poolSize; ++i) {
+        autoTileVertexArrays_[i] = new sf::VertexArray(sf::PrimitiveType::Triangles, 0);
+    }
+
+    for (int y = 0; y < height; ++y) {
+        if (y >= static_cast<int>(autoTiles_.size())) break;
+        auto &row = autoTiles_[y];
+        for (int x = 0; x < width; ++x) {
+            if (x >= static_cast<int>(row.size())) break;
+            auto &cell = row[x];
+            if (!cell.has_value()) continue;
+            int poolIndex = cell.value();
+            if (poolIndex < 0 || poolIndex >= static_cast<int>(poolSize)) continue;
+            int mask = computeAutoTileMask(autoTiles_, x, y, width, height);
+            autoTileCells_[poolIndex].push_back({x, y});
+            autoTileMasks_[poolIndex].push_back(mask);
+        }
+    }
+
+    for (std::size_t i = 0; i < poolSize; ++i) {
+        std::size_t cellCount = autoTileCells_[i].size();
+        autoTileVertexArrays_[i]->resize(cellCount * 4 * 6);
+
+        for (std::size_t k = 0; k < cellCount; ++k) {
+            int cx = autoTileCells_[i][k].first;
+            int cy = autoTileCells_[i][k].second;
+            int half = tileSize / 2;
+            for (int q = 0; q < 4; ++q) {
+                int qx = q % 2;
+                int qy = q / 2;
+                float px0 = static_cast<float>(cx * tileSize + qx * half);
+                float py0 = static_cast<float>(cy * tileSize + qy * half);
+                float px1 = px0 + half;
+                float py1 = py0 + half;
+                std::size_t base = (k * 4 + q) * 6;
+                (*autoTileVertexArrays_[i])[base + 0].position = sf::Vector2f(px0, py0);
+                (*autoTileVertexArrays_[i])[base + 1].position = sf::Vector2f(px1, py0);
+                (*autoTileVertexArrays_[i])[base + 2].position = sf::Vector2f(px0, py1);
+                (*autoTileVertexArrays_[i])[base + 3].position = sf::Vector2f(px0, py1);
+                (*autoTileVertexArrays_[i])[base + 4].position = sf::Vector2f(px1, py0);
+                (*autoTileVertexArrays_[i])[base + 5].position = sf::Vector2f(px1, py1);
+            }
+        }
+
+        float opacity = 1.0f;
+        if (i < autoTileMaterials_.size() && !autoTileMaterials_[i].is_none()) {
+            opacity = autoTileMaterials_[i].attr("opacity").cast<float>();
+        }
+        sf::Color color = sf::Color::White;
+        color.a = static_cast<std::uint8_t>(opacity * 255);
+        if (opacity < 1.0f) {
+            for (std::size_t v = 0; v < autoTileVertexArrays_[i]->getVertexCount(); ++v) {
+                (*autoTileVertexArrays_[i])[v].color = color;
+            }
+        }
+
+        refreshAutoTileTexCoords(static_cast<int>(i));
+    }
+}
+
+void TileLayerGraphics::refreshAutoTileTexCoords(int poolIndex) {
+    if (poolIndex < 0 || poolIndex >= static_cast<int>(autoTileVertexArrays_.size())) return;
+    sf::VertexArray *va = autoTileVertexArrays_[poolIndex];
+    if (va == nullptr) return;
+    int half = tileSize_ / 2;
+    int frameCount = poolIndex < static_cast<int>(autoTileFrameCounts_.size()) ? autoTileFrameCounts_[poolIndex] : 1;
+    if (frameCount <= 0) frameCount = 1;
+    int frame = autoTileCurrentFrames_[poolIndex] % frameCount;
+    int frameOffsetX = frame * 3 * tileSize_;
+
+    auto &cells = autoTileCells_[poolIndex];
+    auto &masks = autoTileMasks_[poolIndex];
+    for (std::size_t k = 0; k < cells.size(); ++k) {
+        std::array<int, 4> pattern = composeCellPattern(masks[k]);
+        for (int q = 0; q < 4; ++q) {
+            int cell0Based = pattern[q] - 1;
+            int col = cell0Based % 3;
+            int row = cell0Based / 3;
+            int cellX = col * tileSize_;
+            int cellY = row * tileSize_;
+            int qx = q % 2;
+            int qy = q / 2;
+            int srcX = cellX + qx * half + frameOffsetX;
+            int srcY = cellY + qy * half;
+            float tx0 = static_cast<float>(srcX);
+            float ty0 = static_cast<float>(srcY);
+            float tx1 = tx0 + half;
+            float ty1 = ty0 + half;
+            std::size_t base = (k * 4 + q) * 6;
+            (*va)[base + 0].texCoords = sf::Vector2f(tx0, ty0);
+            (*va)[base + 1].texCoords = sf::Vector2f(tx1, ty0);
+            (*va)[base + 2].texCoords = sf::Vector2f(tx0, ty1);
+            (*va)[base + 3].texCoords = sf::Vector2f(tx0, ty1);
+            (*va)[base + 4].texCoords = sf::Vector2f(tx1, ty0);
+            (*va)[base + 5].texCoords = sf::Vector2f(tx1, ty1);
+        }
+    }
 }

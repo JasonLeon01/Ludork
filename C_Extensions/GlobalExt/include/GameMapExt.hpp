@@ -137,6 +137,17 @@ public:
     std::unordered_map<std::string, TileGrids> tileDataRef;
 
     ////////////////////////////////////////////////////////////
+    /// \brief Layered autotile data references
+    ///
+    /// Each cell stores the autotile pool index (or `std::nullopt`
+    /// when the cell has no autotile). Layers without autotiles may
+    /// omit their entry from the map.
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_PROPERTY()
+    std::unordered_map<std::string, TileGrids> autoTileDataRef;
+
+    ////////////////////////////////////////////////////////////
     /// \brief Python callback for retrieving a layer object
     ///
     ////////////////////////////////////////////////////////////

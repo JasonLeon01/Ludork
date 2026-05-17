@@ -4,34 +4,22 @@ import copy
 from PyQt5 import QtWidgets, QtCore, QtGui
 from EditorGlobal import GameData
 from Utils import File, System
-from .Utils import TilesetPanel, SingleRowDialog, Toast
+from .Utils import TilesetPanel, AutoTilePanel, SingleRowDialog, Toast
 
 
-class TilesetEditor(QtWidgets.QMainWindow):
+class _TilesetTab(QtWidgets.QWidget):
     MODIFIED = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(ELOC("TILESETS_DATA"))
-        self.setMinimumSize(480, 480)
         self._tilesetClipboard = None
-
+        self._tilesetClipboardName = None
         self._initUI()
-        self.toast = Toast(self)
         self._loadData()
-        self._refreshUndoRedo()
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        if hasattr(self, "toast"):
-            self.toast._updatePosition()
 
     def _initUI(self):
-        central_widget = QtWidgets.QWidget()
-        self.setCentralWidget(central_widget)
-
-        layout = QtWidgets.QHBoxLayout(central_widget)
-        layout.setContentsMargins(5, 5, 5, 5)
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
 
         self.listWidget = QtWidgets.QListWidget()
         self.listWidget.setFixedWidth(120)
@@ -57,20 +45,10 @@ class TilesetEditor(QtWidgets.QMainWindow):
         self._actDelete.triggered.connect(self._deleteTileset)
         self.listWidget.addAction(self._actDelete)
         layout.addWidget(self.listWidget)
-        self._actUndo = QtWidgets.QAction(ELOC("UNDO"), self)
-        self._actUndo.setShortcut(QtGui.QKeySequence.Undo)
-        self._actUndo.setShortcutContext(QtCore.Qt.WindowShortcut)
-        self._actUndo.triggered.connect(self._onUndo)
-        self.addAction(self._actUndo)
-        self._actRedo = QtWidgets.QAction(ELOC("REDO"), self)
-        self._actRedo.setShortcut(QtGui.QKeySequence.Redo)
-        self._actRedo.setShortcutContext(QtCore.Qt.WindowShortcut)
-        self._actRedo.triggered.connect(self._onRedo)
-        self.addAction(self._actRedo)
+
         self.tilesetPanel = TilesetPanel(self)
         self.tilesetPanel.MODIFIED.connect(self.MODIFIED.emit)
         layout.addWidget(self.tilesetPanel, 1)
-        self.MODIFIED.connect(self._refreshUndoRedo)
 
     def _onSelectionChanged(self, row):
         if row < 0:
@@ -302,11 +280,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", str(e))
 
-    def _refreshUndoRedo(self):
-        self._actUndo.setEnabled(bool(GameData.undoStack))
-        self._actRedo.setEnabled(bool(GameData.redoStack))
-
-    def _reloadListPreserveSelection(self):
+    def reloadListPreserveSelection(self):
         current = None
         item = self.listWidget.currentItem()
         if item:
@@ -322,22 +296,6 @@ class TilesetEditor(QtWidgets.QMainWindow):
         if self.listWidget.count() > 0 and self.listWidget.currentRow() < 0:
             self.listWidget.setCurrentRow(0)
 
-    def _onUndo(self):
-        diffs = GameData.undo()
-        self._reloadListPreserveSelection()
-        File.mainWindow.tileSelect.initTilesets()
-        self.MODIFIED.emit()
-        if diffs:
-            self.toast.showMessage("Undo:\n" + "\n".join(diffs))
-
-    def _onRedo(self):
-        diffs = GameData.redo()
-        self._reloadListPreserveSelection()
-        File.mainWindow.tileSelect.initTilesets()
-        self.MODIFIED.emit()
-        if diffs:
-            self.toast.showMessage("Redo:\n" + "\n".join(diffs))
-
     def _loadData(self):
         self.listWidget.clear()
         if GameData.tilesetData:
@@ -345,3 +303,340 @@ class TilesetEditor(QtWidgets.QMainWindow):
                 self.listWidget.addItem(key)
         if self.listWidget.count() > 0:
             self.listWidget.setCurrentRow(0)
+
+
+class _AutoTileTab(QtWidgets.QWidget):
+    MODIFIED = QtCore.pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._clipboard = None
+        self._clipboardName = None
+        self._initUI()
+        self._loadData()
+
+    def _initUI(self):
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self.listWidget = QtWidgets.QListWidget()
+        self.listWidget.setFixedWidth(120)
+        self.listWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.listWidget.customContextMenuRequested.connect(self._showContextMenu)
+        self.listWidget.currentRowChanged.connect(self._onSelectionChanged)
+
+        self._actCopy = QtWidgets.QAction(ELOC("COPY"), self)
+        self._actCopy.setShortcut(QtGui.QKeySequence.Copy)
+        self._actCopy.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        self._actCopy.triggered.connect(self._copy)
+        self.listWidget.addAction(self._actCopy)
+
+        self._actPaste = QtWidgets.QAction(ELOC("PASTE"), self)
+        self._actPaste.setShortcut(QtGui.QKeySequence.Paste)
+        self._actPaste.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        self._actPaste.triggered.connect(self._paste)
+        self.listWidget.addAction(self._actPaste)
+
+        self._actDelete = QtWidgets.QAction(ELOC("DELETE"), self)
+        self._actDelete.setShortcut(QtGui.QKeySequence.Delete)
+        self._actDelete.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        self._actDelete.triggered.connect(self._delete)
+        self.listWidget.addAction(self._actDelete)
+        layout.addWidget(self.listWidget)
+
+        self.autoTilePanel = AutoTilePanel(self)
+        self.autoTilePanel.MODIFIED.connect(self.MODIFIED.emit)
+        layout.addWidget(self.autoTilePanel, 1)
+
+    def _onSelectionChanged(self, row):
+        if row < 0:
+            self.autoTilePanel.setAutoTileData(None)
+            return
+        rowItem = self.listWidget.item(row)
+        if rowItem is None:
+            return
+        key = rowItem.text()
+        data = GameData.autoTileData.get(key)
+        self.autoTilePanel.setAutoTileData(data)
+
+    def _showContextMenu(self, position):
+        item = self.listWidget.itemAt(position)
+        menu = QtWidgets.QMenu()
+        if item is None:
+            add_action = menu.addAction(ELOC("ADD_AUTOTILE"))
+            paste_action = menu.addAction(ELOC("PASTE"))
+            if paste_action is None:
+                return
+            paste_action.setShortcut(QtGui.QKeySequence.Paste)
+            if not self._clipboard:
+                paste_action.setEnabled(False)
+            action = menu.exec_(self.listWidget.mapToGlobal(position))
+            if action == add_action:
+                self._add()
+            elif action == paste_action:
+                self._paste()
+            return
+        rename_action = menu.addAction(ELOC("RENAME_AUTOTILE"))
+        copy_action = menu.addAction(ELOC("COPY"))
+        delete_action = menu.addAction(ELOC("DELETE"))
+
+        if copy_action is None or delete_action is None:
+            return
+
+        copy_action.setShortcut(QtGui.QKeySequence.Copy)
+        delete_action.setShortcut(QtGui.QKeySequence.Delete)
+
+        action = menu.exec_(self.listWidget.mapToGlobal(position))
+        if action == rename_action:
+            self.listWidget.setCurrentItem(item)
+            self._rename()
+        elif action == copy_action:
+            self.listWidget.setCurrentItem(item)
+            self._copy()
+        elif action == delete_action:
+            self.listWidget.setCurrentItem(item)
+            self._delete()
+
+    def _add(self):
+        dlg = SingleRowDialog(self, ELOC("ADD_AUTOTILE"), ELOC("ENTER_AUTOTILE_NAME"), "")
+        ok, text = dlg.execGetText()
+        if not ok:
+            return
+        text = text.strip()
+        if not text:
+            return
+        if text in GameData.autoTileData:
+            QtWidgets.QMessageBox.warning(self, ELOC("ADD_AUTOTILE"), ELOC("AUTOTILE_EXISTS"))
+            return
+        try:
+            Engine = System.GetModule("Engine")
+            AutoTile = Engine.Gameplay.AutoTile
+            Material = Engine.Gameplay.Material
+            new_at = AutoTile(name=text, fileName="", passable=True, material=Material())
+
+            GameData.recordSnapshot()
+            GameData.autoTileData[text] = new_at
+            item = QtWidgets.QListWidgetItem(text)
+            self.listWidget.addItem(item)
+            self.listWidget.setCurrentItem(item)
+            File.mainWindow.tileSelect.initAutoTiles()
+            self.MODIFIED.emit()
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, "Error", str(e))
+
+    def _copy(self):
+        row = self.listWidget.currentRow()
+        if row < 0:
+            return
+        rowItem = self.listWidget.item(row)
+        if rowItem is None:
+            return
+        key = rowItem.text()
+        if key in GameData.autoTileData:
+            self._clipboard = copy.deepcopy(GameData.autoTileData[key])
+            self._clipboardName = key
+
+    def _paste(self):
+        if not self._clipboard:
+            return
+        new_at = copy.deepcopy(self._clipboard)
+        base_name = self._clipboardName or "AutoTile"
+        new_name = base_name + " (copy)"
+        if new_name in GameData.autoTileData:
+            i = 1
+            while True:
+                test_name = f"{base_name} (copy) ({i})"
+                if test_name not in GameData.autoTileData:
+                    new_name = test_name
+                    break
+                i += 1
+
+        if hasattr(new_at, "name"):
+            new_at.name = new_name
+
+        try:
+            GameData.recordSnapshot()
+            GameData.autoTileData[new_name] = new_at
+            item = QtWidgets.QListWidgetItem(new_name)
+            self.listWidget.addItem(item)
+            self.listWidget.setCurrentItem(item)
+            File.mainWindow.tileSelect.initAutoTiles()
+            self.MODIFIED.emit()
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, "Error", str(e))
+
+    def _rename(self):
+        row = self.listWidget.currentRow()
+        if row < 0:
+            return
+        item = self.listWidget.item(row)
+        if item is None:
+            return
+        old_name = item.text()
+
+        existing = set(GameData.autoTileData.keys())
+        if old_name in existing:
+            existing.remove(old_name)
+
+        while True:
+            dlg = SingleRowDialog(
+                self,
+                ELOC("RENAME_AUTOTILE"),
+                ELOC("ENTER_AUTOTILE_NAME"),
+                old_name,
+            )
+            ok, new_name = dlg.execGetText()
+            if not ok:
+                return
+            new_name = new_name.strip()
+            if not new_name:
+                continue
+            if new_name in existing:
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    ELOC("RENAME_AUTOTILE"),
+                    ELOC("AUTOTILE_EXISTS"),
+                )
+                continue
+            if new_name == old_name:
+                return
+            break
+
+        try:
+            GameData.recordSnapshot()
+            data = GameData.autoTileData.pop(old_name)
+            if hasattr(data, "name"):
+                data.name = new_name
+            GameData.autoTileData[new_name] = data
+            item.setText(new_name)
+            File.mainWindow.tileSelect.initAutoTiles()
+            self.MODIFIED.emit()
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, "Error", str(e))
+
+    def _delete(self):
+        row = self.listWidget.currentRow()
+        if row < 0:
+            return
+        rowItem = self.listWidget.item(row)
+        if rowItem is None:
+            return
+        key = rowItem.text()
+        ret = QtWidgets.QMessageBox.question(
+            self,
+            ELOC("CONFIRM_DELETE"),
+            ELOC("DELETE_CONFIRMATION"),
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+            QtWidgets.QMessageBox.No,
+        )
+        if ret != QtWidgets.QMessageBox.Yes:
+            return
+        try:
+            GameData.recordSnapshot()
+            if key in GameData.autoTileData:
+                GameData.autoTileData.pop(key, None)
+            self.listWidget.takeItem(row)
+            if self.listWidget.count() > 0:
+                self.listWidget.setCurrentRow(min(row, self.listWidget.count() - 1))
+            else:
+                self.autoTilePanel.setAutoTileData(None)
+            File.mainWindow.tileSelect.initAutoTiles()
+            self.MODIFIED.emit()
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, "Error", str(e))
+
+    def reloadListPreserveSelection(self):
+        current = None
+        item = self.listWidget.currentItem()
+        if item:
+            current = item.text()
+        self.listWidget.clear()
+        if GameData.autoTileData:
+            for key in GameData.autoTileData.keys():
+                self.listWidget.addItem(key)
+        if current:
+            items = self.listWidget.findItems(current, QtCore.Qt.MatchExactly)
+            if items:
+                self.listWidget.setCurrentItem(items[0])
+        if self.listWidget.count() > 0 and self.listWidget.currentRow() < 0:
+            self.listWidget.setCurrentRow(0)
+
+    def _loadData(self):
+        self.listWidget.clear()
+        if GameData.autoTileData:
+            for key in GameData.autoTileData.keys():
+                self.listWidget.addItem(key)
+        if self.listWidget.count() > 0:
+            self.listWidget.setCurrentRow(0)
+
+
+class TilesetEditor(QtWidgets.QMainWindow):
+    MODIFIED = QtCore.pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(ELOC("TILESETS_DATA"))
+        self.setMinimumSize(560, 480)
+
+        self._initUI()
+        self.toast = Toast(self)
+        self._refreshUndoRedo()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if hasattr(self, "toast"):
+            self.toast._updatePosition()
+
+    def _initUI(self):
+        central_widget = QtWidgets.QWidget()
+        self.setCentralWidget(central_widget)
+
+        layout = QtWidgets.QVBoxLayout(central_widget)
+        layout.setContentsMargins(5, 5, 5, 5)
+
+        self._tabs = QtWidgets.QTabWidget(central_widget)
+        self._tilesetTab = _TilesetTab(self)
+        self._autoTileTab = _AutoTileTab(self)
+        self._tabs.addTab(self._tilesetTab, ELOC("TILESETS_DATA"))
+        self._tabs.addTab(self._autoTileTab, ELOC("AUTOTILES_DATA"))
+        layout.addWidget(self._tabs)
+
+        self._tilesetTab.MODIFIED.connect(self.MODIFIED.emit)
+        self._autoTileTab.MODIFIED.connect(self.MODIFIED.emit)
+
+        self._actUndo = QtWidgets.QAction(ELOC("UNDO"), self)
+        self._actUndo.setShortcut(QtGui.QKeySequence.Undo)
+        self._actUndo.setShortcutContext(QtCore.Qt.WindowShortcut)
+        self._actUndo.triggered.connect(self._onUndo)
+        self.addAction(self._actUndo)
+        self._actRedo = QtWidgets.QAction(ELOC("REDO"), self)
+        self._actRedo.setShortcut(QtGui.QKeySequence.Redo)
+        self._actRedo.setShortcutContext(QtCore.Qt.WindowShortcut)
+        self._actRedo.triggered.connect(self._onRedo)
+        self.addAction(self._actRedo)
+
+        self.MODIFIED.connect(self._refreshUndoRedo)
+
+    def _refreshUndoRedo(self):
+        self._actUndo.setEnabled(bool(GameData.undoStack))
+        self._actRedo.setEnabled(bool(GameData.redoStack))
+
+    def _onUndo(self):
+        diffs = GameData.undo()
+        self._tilesetTab.reloadListPreserveSelection()
+        self._autoTileTab.reloadListPreserveSelection()
+        File.mainWindow.tileSelect.initTilesets()
+        File.mainWindow.tileSelect.initAutoTiles()
+        self.MODIFIED.emit()
+        if diffs:
+            self.toast.showMessage("Undo:\n" + "\n".join(diffs))
+
+    def _onRedo(self):
+        diffs = GameData.redo()
+        self._tilesetTab.reloadListPreserveSelection()
+        self._autoTileTab.reloadListPreserveSelection()
+        File.mainWindow.tileSelect.initTilesets()
+        File.mainWindow.tileSelect.initAutoTiles()
+        self.MODIFIED.emit()
+        if diffs:
+            self.toast.showMessage("Redo:\n" + "\n".join(diffs))

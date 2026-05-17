@@ -5,7 +5,7 @@ import os
 import zlib
 from typing import Any, Callable, Dict, Optional, Tuple, Type
 from Engine import Vector2f, Vector2u, Image
-from Engine.Gameplay import Tileset
+from Engine.Gameplay import Tileset, AutoTile
 from Engine.Gameplay.Actors import Actor
 from Engine.Utils import File
 from Engine.NodeGraph import ClassDict, Graph, DataNode, Node
@@ -14,10 +14,11 @@ from Global import Manager
 
 class _Data:
     def __init__(self) -> None:
-        self.dataKinds = 4
+        self.dataKinds = 5
         self._animationData: Dict[str, Dict[str, Any]] = {}
         self._commonFunctionsData: Dict[str, Dict[str, Any]] = {}
         self._tilesetData: Dict[str, Tileset] = {}
+        self._autoTileData: Dict[str, AutoTile] = {}
         self._animCache: Dict[str, Dict[str, Any]] = {}
         self._generalData: Dict[str, Dict[str, Any]] = {}
         self._classDict = ClassDict()
@@ -33,6 +34,12 @@ class _Data:
     def loadTilesets(self) -> None:
         tilesetRoot = os.path.join(".", "Data", "Tilesets")
         self._loadData(tilesetRoot, self._tilesetData, defaultType={".dat": File.loadData}, wrapper=Tileset.fromData)
+
+    def loadAutoTiles(self) -> None:
+        autoTileRoot = os.path.join(".", "Data", "AutoTiles")
+        if not os.path.exists(autoTileRoot):
+            return
+        self._loadData(autoTileRoot, self._autoTileData, defaultType={".dat": File.loadData}, wrapper=AutoTile.fromData)
 
     def loadGeneralData(self) -> None:
         generalRoot = os.path.join(".", "Data", "General")
@@ -112,6 +119,12 @@ class _Data:
 
     def getTileset(self, name: str) -> Tileset:
         return self._tilesetData[name]
+
+    def getAutoTile(self, name: str) -> AutoTile:
+        return self._autoTileData[name]
+
+    def hasAutoTile(self, name: str) -> bool:
+        return name in self._autoTileData
 
     def getGeneralData(self, name: str) -> Dict[str, Any]:
         return self._generalData[name]
@@ -217,6 +230,11 @@ def loadTilesets() -> None:
     _data.loadTilesets()
 
 
+def loadAutoTiles() -> None:
+    r"""\brief Load all autotile data from the Data/AutoTiles directory."""
+    _data.loadAutoTiles()
+
+
 def loadGeneralData() -> None:
     r"""\brief Load all general data from the Data/General directory."""
     _data.loadGeneralData()
@@ -238,6 +256,24 @@ def getTileset(name: str) -> Tileset:
     - \return The Tileset object.
     """
     return _data.getTileset(name)
+
+
+def getAutoTile(name: str) -> AutoTile:
+    r"""\brief Get an autotile by name.
+
+    - \param name The autotile name.
+    - \return The AutoTile object.
+    """
+    return _data.getAutoTile(name)
+
+
+def hasAutoTile(name: str) -> bool:
+    r"""\brief Check whether an autotile is registered.
+
+    - \param name The autotile name.
+    - \return True if the autotile exists.
+    """
+    return _data.hasAutoTile(name)
 
 
 def getGeneralData(name: str) -> Dict[str, Any]:

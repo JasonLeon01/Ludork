@@ -10,6 +10,7 @@ from . import EditorStatus
 class GameData:
     systemConfigData: Dict[str, Any]
     tilesetData: Dict[str, Any]
+    autoTileData: Dict[str, Any]
     mapData: Dict[str, Any]
     classDict: Dict[str, Any]
     commonFunctionsData: Dict[str, Any]
@@ -26,9 +27,11 @@ class GameData:
     def init(cls) -> None:
         Engine = System.GetModule("Engine")
         Tileset = Engine.Gameplay.Tileset  # type: ignore
+        AutoTile = Engine.Gameplay.AutoTile  # type: ignore
 
         cls.systemConfigData = {}
         cls.tilesetData = {}
+        cls.autoTileData = {}
         cls.mapData = {}
         cls.commonFunctionsData = {}
         cls.blueprintsData = {}
@@ -36,6 +39,7 @@ class GameData:
         cls.generalData = {}
         cls.loadData("Configs", cls.systemConfigData)
         cls.loadData("Tilesets", cls.tilesetData, Tileset.fromData, "tileset")
+        cls.loadData("AutoTiles", cls.autoTileData, AutoTile.fromData, "autoTile")
         cls.loadData("Maps", cls.mapData, needType="map")
         cls.loadData("CommonFunctions", cls.commonFunctionsData, needType="commonFunction")
         cls.loadData("Blueprints", cls.blueprintsData, needType="blueprint")
@@ -95,6 +99,7 @@ class GameData:
         changes = {
             "systemConfigData": {"A": [], "D": [], "U": []},
             "tilesetData": {"A": [], "D": [], "U": []},
+            "autoTileData": {"A": [], "D": [], "U": []},
             "mapData": {"A": [], "D": [], "U": []},
             "commonFunctionsData": {"A": [], "D": [], "U": []},
             "blueprintsData": {"A": [], "D": [], "U": []},
@@ -108,6 +113,7 @@ class GameData:
         for section in [
             "systemConfigData",
             "tilesetData",
+            "autoTileData",
             "mapData",
             "commonFunctionsData",
             "blueprintsData",
@@ -172,6 +178,21 @@ class GameData:
 
         if changed_ts:
             diffs.append(f"Tilesets: {', '.join(sorted(changed_ts))}")
+
+        oldAt = oldData.get("autoTileData", {})
+        newAt = newData.get("autoTileData", {})
+        changed_at = set()
+        for k in set(oldAt.keys()) | set(newAt.keys()):
+            at1 = oldAt.get(k)
+            at2 = newAt.get(k)
+            if at1 != at2:
+                attrs1 = vars(at1) if at1 else {}
+                attrs2 = vars(at2) if at2 else {}
+                if attrs1 != attrs2:
+                    changed_at.add(k)
+
+        if changed_at:
+            diffs.append(f"AutoTiles: {', '.join(sorted(changed_at))}")
 
         oldCfgs = oldData.get("commonFunctionsData", {})
         newCfgs = newData.get("commonFunctionsData", {})
@@ -332,6 +353,43 @@ class GameData:
             except Exception:
                 final_details["Failed"].append(key)
 
+        # AutoTiles
+        autoTilesRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "AutoTiles")
+        c_at = changes["autoTileData"]
+        for key in c_at["A"] + c_at["U"]:
+            at = cls.autoTileData.get(key)
+            if at is None:
+                final_details["Failed"].append(key)
+                continue
+            data = at.asDict()
+            try:
+                payload = copy.deepcopy(data)
+                payload["type"] = "autoTile"
+                if "isJson" in payload:
+                    del payload["isJson"]
+                    File.SaveJSONData(os.path.join(autoTilesRoot, f"{key}.json"), payload)
+                else:
+                    File.SaveData(os.path.join(autoTilesRoot, f"{key}.dat"), payload)
+                if key in c_at["A"]:
+                    final_details["A"].append(key)
+                else:
+                    final_details["U"].append(key)
+                cls._originData["autoTileData"][key] = copy.deepcopy(at)
+            except Exception:
+                final_details["Failed"].append(key)
+
+        for key in c_at["D"]:
+            try:
+                for ext in [".dat", ".json"]:
+                    fp = os.path.join(autoTilesRoot, f"{key}{ext}")
+                    if os.path.exists(fp):
+                        os.remove(fp)
+                final_details["D"].append(key)
+                if key in cls._originData["autoTileData"]:
+                    del cls._originData["autoTileData"][key]
+            except Exception:
+                final_details["Failed"].append(key)
+
         # Common Functions
         commonFunctionsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "CommonFunctions")
         c_cfgs = changes["commonFunctionsData"]
@@ -479,6 +537,7 @@ class GameData:
         return {
             "systemConfigData": cls.systemConfigData,
             "tilesetData": cls.tilesetData,
+            "autoTileData": cls.autoTileData,
             "mapData": cls.mapData,
             "commonFunctionsData": cls.commonFunctionsData,
             "blueprintsData": cls.blueprintsData,

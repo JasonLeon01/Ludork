@@ -8,6 +8,9 @@ class LightActorMixin:
     def _onTileSelected(self, tileNumber: int) -> None:
         self.editorPanel.setSelectedTileNumber(None if tileNumber < 0 else tileNumber)
 
+    def _onAutoTileSelected(self, key: str) -> None:
+        self.editorPanel.setSelectedAutoTileKey(key if isinstance(key, str) and key else None)
+
     def _onTilesetChanged(self, key: str) -> None:
         if self._selectedLayerName:
             self.editorPanel.setLayerTilesetForSelectedLayer(key)
@@ -18,6 +21,12 @@ class LightActorMixin:
             if key:
                 self.tileSelect.setCurrentTilesetKey(key)
         self.tileSelect.setSelectedTileNumber(None if tileNumber < 0 else tileNumber)
+
+    def _onAutoTilePicked(self, key: str) -> None:
+        if isinstance(key, str) and key:
+            self.tileSelect.setSelectedAutoTileKey(key)
+        else:
+            self.tileSelect.setSelectedAutoTileKey(None)
 
     def _onLightSelectionChanged(self, mapKey: str, index, lightData) -> None:
         if not isinstance(mapKey, str):

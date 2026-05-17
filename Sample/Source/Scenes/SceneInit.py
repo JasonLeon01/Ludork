@@ -152,6 +152,8 @@ class Scene(SceneBase):
             self.progressValue = self.processedCount / self.progressTotal
         Data.loadTilesets()
         self.processedCount += 1
+        Data.loadAutoTiles()
+        self.processedCount += 1
         Data.loadGeneralData()
         self.processedCount += 1
         if self.progressTotal > 0:

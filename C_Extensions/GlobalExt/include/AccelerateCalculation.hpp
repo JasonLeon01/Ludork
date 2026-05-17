@@ -30,11 +30,3 @@ void C_ImageUpdateBuffer1D(sf::Texture &img, py::buffer buffer);
 ////////////////////////////////////////////////////////////
 BIND_FUNCTION()
 void C_ImageUpdateBuffer3D(sf::Texture &img, py::buffer buffer);
-
-////////////////////////////////////////////////////////////
-/// \brief Register accelerated texture helpers to Python
-///
-/// - \param m Target Python module
-///
-////////////////////////////////////////////////////////////
-void ApplyACBinding(py::module &m);

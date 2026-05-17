@@ -82,11 +82,3 @@ public:
                 const std::vector<sf::Texture *> &cachedCorners, const std::vector<sf::Texture *> &cachedEdges,
                 sf::RenderStates renderStates);
 };
-
-////////////////////////////////////////////////////////////
-/// \brief Register `RectBase` bindings to a Python module
-///
-/// - \param m Target Python module
-///
-////////////////////////////////////////////////////////////
-void ApplyRectBaseBinding(py::module &m);

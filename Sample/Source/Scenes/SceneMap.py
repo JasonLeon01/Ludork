@@ -3,6 +3,7 @@
 import os
 from typing import Callable, List, Union, Optional, Dict, Any
 from Engine import Pair, Vector2u, Vector2f, Color, Filters, Music, Input
+import Engine
 from Engine.Gameplay import Tilemap, TileLayer, TileLayerData
 from Engine.Gameplay.Actors import Actor
 from Engine.Utils import File
@@ -90,6 +91,7 @@ class Scene(SceneBase):
         """
         self._mapClickMoveBlockedUntilLateTick = self._isMapClickMoveBlocked()
         self._gameMap.onTick(deltaTime)
+        self._gameMap.getTilemap().updateAutoTileAnimation(deltaTime)
         if not self._windowMenu.isBlocking() and not self._messageWindow.isInDialogue():
             if self._isMenuOpenTriggered():
                 self._windowMenu.open()
@@ -365,12 +367,51 @@ class Scene(SceneBase):
                 for x in range(width):
                     tileNumber = layerTiles[y][x]
                     tiles[-1].append(tileNumber)
+            rawAutoTiles = layerData.get("autoTiles")
+            autoTilePool = []
+            autoTileIndexByKey: Dict[str, int] = {}
+            autoTileGrid: List[List[Optional[int]]] = []
+            if isinstance(rawAutoTiles, list):
+                for y in range(height):
+                    row: List[Optional[int]] = []
+                    rawRow = rawAutoTiles[y] if y < len(rawAutoTiles) else None
+                    for x in range(width):
+                        cell = rawRow[x] if isinstance(rawRow, list) and x < len(rawRow) else None
+                        if isinstance(cell, str) and cell and Data.hasAutoTile(cell):
+                            if cell not in autoTileIndexByKey:
+                                autoTileIndexByKey[cell] = len(autoTilePool)
+                                autoTilePool.append(Data.getAutoTile(cell))
+                            row.append(autoTileIndexByKey[cell])
+                        elif isinstance(cell, int) and 0 <= cell < len(autoTilePool):
+                            row.append(cell)
+                        else:
+                            row.append(None)
+                    autoTileGrid.append(row)
+            else:
+                for _ in range(height):
+                    autoTileGrid.append([None] * width)
             tileLayerData = TileLayerData(
                 name,
                 layerTileset,
                 tiles,
+                autoTileGrid,
+                autoTilePool,
             )
-            layer = TileLayer(tileLayerData, Manager.loadTileset(tileLayerData.layerTileset.fileName))
+            autoTileTextures = [Manager.loadAutotile(entry.fileName) for entry in autoTilePool]
+            autoTileFrameCounts = []
+            for texture in autoTileTextures:
+                size = texture.getSize()
+                cellSize = Engine.CellSize
+                frames = size.x // (3 * cellSize) if cellSize > 0 else 1
+                if frames < 1:
+                    frames = 1
+                autoTileFrameCounts.append(frames)
+            layer = TileLayer(
+                tileLayerData,
+                Manager.loadTileset(tileLayerData.layerTileset.fileName),
+                autoTileTextures,
+                autoTileFrameCounts,
+            )
             mapLayers.append(layer)
         return Tilemap(mapLayers)
 

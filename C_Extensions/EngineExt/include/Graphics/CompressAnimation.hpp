@@ -37,11 +37,3 @@ std::tuple<float, std::vector<py::bytes>, std::vector<py::dict>> C_CompressAnima
     py::object zlibModule, int frameCount, float frameStep, int frameRate,
     const std::vector<std::unordered_map<std::string, std::vector<py::dict>>> &timeLines,
     const std::vector<std::string> &assets, const std::string &assetsRoot, const std::string &imageFormat);
-
-////////////////////////////////////////////////////////////
-/// \brief Register animation compression helpers to Python
-///
-/// - \param m Target Python module
-///
-////////////////////////////////////////////////////////////
-void ApplyCompressAnimationBinding(py::module &m);

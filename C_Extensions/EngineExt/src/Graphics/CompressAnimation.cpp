@@ -206,10 +206,3 @@ std::tuple<float, std::vector<py::bytes>, std::vector<py::dict>> C_CompressAnima
     float duration = frameRate > 0 ? (1.0 * frameCount / frameRate) : 0.0f;
     return std::make_tuple(duration, frames, sounds);
 }
-
-void ApplyCompressAnimationBinding(py::module &m) {
-    m.def("C_CompressAnimation", &C_CompressAnimation,
-          "Render timeline animation frames and return compressed frame payloads.\n",
-          py::arg("zlibModule"), py::arg("frameCount"), py::arg("frameStep"), py::arg("frameRate"),
-          py::arg("timeLines"), py::arg("assets"), py::arg("assetsRoot"), py::arg("imageFormat"));
-}

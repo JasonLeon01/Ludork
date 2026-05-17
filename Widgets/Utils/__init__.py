@@ -5,6 +5,8 @@ from .SingleRowDialog import SingleRowDialog
 from .ConfigDictPanel import ConfigDictPanel
 from .FileSelectorDialog import FileSelectorDialog
 from .TilesetPanel import TilesetPanel
+from .AutoTilePanel import AutoTilePanel
+from .AutoTileRenderer import AutoTileRenderer, computeMaskFromGrid
 from .RectViewer import RectViewer
 from .Toast import Toast
 from .NodePanel import NodePanel

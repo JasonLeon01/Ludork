@@ -164,8 +164,18 @@ GameMapExt::rebuildPassabilityCache(const sf::Vector2u &size) {
             bool passable = true;
             for (auto &layerName : layerKeysRef) {
                 auto tile = tileDataRef.at(layerName).at(y).at(x);
-                auto layer = getLayer(tilemapRef, layerName);
-                if (tile.has_value()) {
+                bool hasContent = tile.has_value();
+                if (!hasContent) {
+                    auto autoIt = autoTileDataRef.find(layerName);
+                    if (autoIt != autoTileDataRef.end()) {
+                        auto &autoGrid = autoIt->second;
+                        if (y < autoGrid.size() && x < autoGrid[y].size() && autoGrid[y][x].has_value()) {
+                            hasContent = true;
+                        }
+                    }
+                }
+                if (hasContent) {
+                    auto layer = getLayer(tilemapRef, layerName);
                     passable = TileLayerPassable(layer, sf::Vector2i(x, y)).cast<bool>();
                     break;
                 }
@@ -226,7 +236,19 @@ bool GameMapExt::passable(int x, int y, int sx, int sy, int gx, int gy) {
             }
         }
         auto tile = tileDataRef.at(layerName)[position.y][position.x];
-        if (tile.has_value()) {
+        bool hasContent = tile.has_value();
+        if (!hasContent) {
+            auto autoIt = autoTileDataRef.find(layerName);
+            if (autoIt != autoTileDataRef.end()) {
+                auto &autoGrid = autoIt->second;
+                if (static_cast<std::size_t>(position.y) < autoGrid.size() &&
+                    static_cast<std::size_t>(position.x) < autoGrid[position.y].size() &&
+                    autoGrid[position.y][position.x].has_value()) {
+                    hasContent = true;
+                }
+            }
+        }
+        if (hasContent) {
             return TileLayerPassable(layer, position).cast<bool>();
         }
     }
@@ -256,7 +278,19 @@ py::object GameMapExt::getMaterialProperty(const sf::Vector2i pos, const std::st
             }
         }
         auto tileObj = tileDataRef.at(layerName)[pos.y][pos.x];
-        if (tileObj.has_value()) {
+        bool hasContent = tileObj.has_value();
+        if (!hasContent) {
+            auto autoIt = autoTileDataRef.find(layerName);
+            if (autoIt != autoTileDataRef.end()) {
+                auto &autoGrid = autoIt->second;
+                if (static_cast<std::size_t>(pos.y) < autoGrid.size() &&
+                    static_cast<std::size_t>(pos.x) < autoGrid[pos.y].size() &&
+                    autoGrid[pos.y][pos.x].has_value()) {
+                    hasContent = true;
+                }
+            }
+        }
+        if (hasContent) {
             auto value = layer.attr(functionName.c_str())(pos);
             return value;
         }

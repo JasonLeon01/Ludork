@@ -498,6 +498,7 @@ class GameMap(GameMapExt):
         layerKeys.reverse()
         self.layerKeysRef = layerKeys
         self.tileDataRef = self._tilemap.getTilesData()
+        self.autoTileDataRef = self._tilemap.getAutoTilesData()
         self.actorsRef = self._actors
         return self.findPathExt(start, goal, size)
 
@@ -599,6 +600,7 @@ class GameMap(GameMapExt):
         layerKeys.reverse()
         self.layerKeysRef = layerKeys
         self.tileDataRef = self._tilemap.getTilesData()
+        self.autoTileDataRef = self._tilemap.getAutoTilesData()
         self.actorsRef = self._actors
         return self.getMaterialPropertyMapExt(width, height, functionName, invalidValue)
 
@@ -827,5 +829,6 @@ class GameMap(GameMapExt):
         layerKeysList.reverse()
         self.layerKeysRef = layerKeysList
         self.tileDataRef = self._tilemap.getTilesData()
+        self.autoTileDataRef = self._tilemap.getAutoTilesData()
         self.actorsRef = self._actors
         self._tilePassableGrid, self._occupancyMap = self.rebuildPassabilityCache(size)

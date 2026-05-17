@@ -29,12 +29,3 @@ void C_ImageUpdateBuffer3D(sf::Texture &img, py::buffer buffer) {
     std::vector<std::uint8_t> flatPixels(ptr, ptr + width * height * channels);
     img.update(flatPixels.data());
 }
-
-void ApplyACBinding(py::module &m) {
-    m.def("C_ImageUpdateBuffer1D", &C_ImageUpdateBuffer1D,
-          "Update a texture from a flat RGBA byte buffer.",
-          py::arg("img"), py::arg("buffer"));
-    m.def("C_ImageUpdateBuffer3D", &C_ImageUpdateBuffer3D,
-          "Update a texture from a [height, width, 4] RGBA byte buffer.",
-          py::arg("img"), py::arg("buffer"));
-}

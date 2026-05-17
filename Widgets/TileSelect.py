@@ -100,9 +100,99 @@ class _TileGridView(QtWidgets.QWidget):
             self.TILE_CLICKED.emit(int(tileNumber))
 
 
+class _AutoTileBar(QtWidgets.QListWidget):
+    AUTOTILE_CLICKED = QtCore.pyqtSignal(str)
+
+    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+        super().__init__(parent)
+        self._cell: int = EditorStatus.CELLSIZE
+        self._keys: List[str] = []
+        self._selectedKey: Optional[str] = None
+        self.setFlow(QtWidgets.QListView.LeftToRight)
+        self.setWrapping(False)
+        self.setMovement(QtWidgets.QListView.Static)
+        self.setResizeMode(QtWidgets.QListView.Adjust)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
+        self.setSpacing(2)
+        self.setUniformItemSizes(True)
+        self.setIconSize(QtCore.QSize(self._cell, self._cell))
+        self.setViewMode(QtWidgets.QListView.IconMode)
+        self.setFrameShape(QtWidgets.QFrame.NoFrame)
+        h = self._cell + 16
+        self.setFixedHeight(h)
+        self.itemClicked.connect(self._onItemClicked)
+        Panel.ApplyDisabledOpacity(self)
+
+    def setCellSize(self, size: int) -> None:
+        if size != self._cell:
+            self._cell = size
+            self.setIconSize(QtCore.QSize(self._cell, self._cell))
+            self.setFixedHeight(self._cell + 16)
+            self.refresh()
+
+    def refresh(self) -> None:
+        self.blockSignals(True)
+        self.clear()
+        self._keys = list(GameData.autoTileData.keys())
+        for key in self._keys:
+            data = GameData.autoTileData.get(key)
+            icon = self._buildIcon(data, highlighted=(key == self._selectedKey))
+            item = QtWidgets.QListWidgetItem(icon, "")
+            item.setToolTip(key)
+            item.setData(QtCore.Qt.UserRole, key)
+            item.setSizeHint(QtCore.QSize(self._cell + 4, self._cell + 4))
+            self.addItem(item)
+        self.blockSignals(False)
+
+    def setSelectedKey(self, key: Optional[str]) -> None:
+        if self._selectedKey == key:
+            return
+        self._selectedKey = key
+        self.refresh()
+
+    def selectedKey(self) -> Optional[str]:
+        return self._selectedKey
+
+    def _buildIcon(self, data, highlighted: bool = False) -> QtGui.QIcon:
+        size = self._cell
+        pix = QtGui.QPixmap(size, size)
+        pix.fill(QtGui.QColor(60, 60, 60))
+        if data is not None:
+            fileName = getattr(data, "fileName", "") or ""
+            if fileName:
+                path = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Autotiles", fileName)
+                if os.path.exists(path):
+                    img = QtGui.QImage(path)
+                    if not img.isNull():
+                        rect = QtCore.QRect(0, 0, min(size, img.width()), min(size, img.height()))
+                        crop = img.copy(rect)
+                        if crop.size() != QtCore.QSize(size, size):
+                            crop = crop.scaled(
+                                size, size, QtCore.Qt.KeepAspectRatio, QtCore.Qt.FastTransformation
+                            )
+                        pix = QtGui.QPixmap.fromImage(crop)
+        if highlighted:
+            painter = QtGui.QPainter(pix)
+            selColor = QtWidgets.QApplication.palette().highlight().color()
+            pen = QtGui.QPen(selColor)
+            pen.setWidth(2)
+            painter.setPen(pen)
+            painter.drawRect(1, 1, size - 2, size - 2)
+            painter.end()
+        return QtGui.QIcon(pix)
+
+    def _onItemClicked(self, item: QtWidgets.QListWidgetItem) -> None:
+        key = item.data(QtCore.Qt.UserRole)
+        if isinstance(key, str):
+            self.AUTOTILE_CLICKED.emit(key)
+
+
 class TileSelect(QtWidgets.QWidget):
     TILESET_CHANGED = QtCore.pyqtSignal(str)
     TILE_SELECTED = QtCore.pyqtSignal(int)
+    AUTOTILE_SELECTED = QtCore.pyqtSignal(str)
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
@@ -111,6 +201,9 @@ class TileSelect(QtWidgets.QWidget):
         self._keys: List[str] = []
         self._currentKey: Optional[str] = None
         self._selectedTileNumber: Optional[int] = None
+        self._selectedAutoTileKey: Optional[str] = None
+        self._autoTileBar = _AutoTileBar(self)
+        self._autoTileBar.AUTOTILE_CLICKED.connect(self._onAutoTileClicked)
         self._topTabs = QtWidgets.QTabBar(self)
         self._topTabs.setExpanding(False)
         self._topTabs.setMovable(False)
@@ -131,11 +224,13 @@ class TileSelect(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
+        layout.addWidget(self._autoTileBar, 0)
         layout.addWidget(self._topTabs, 0)
         layout.addWidget(self._scroll, 1)
         Panel.ApplyDisabledOpacity(self)
         self._topTabs.currentChanged.connect(self._onTilesetRowChanged)
         self.initTilesets()
+        self.initAutoTiles()
 
     def initTilesets(self) -> None:
         old_key = self._currentKey
@@ -154,11 +249,19 @@ class TileSelect(QtWidgets.QWidget):
             self._topTabs.setCurrentIndex(idx)
             self._onTilesetRowChanged(self._topTabs.currentIndex())
 
+    def initAutoTiles(self) -> None:
+        if self._selectedAutoTileKey is not None and self._selectedAutoTileKey not in GameData.autoTileData:
+            self._selectedAutoTileKey = None
+            self.AUTOTILE_SELECTED.emit("")
+        self._autoTileBar.setSelectedKey(self._selectedAutoTileKey)
+        self._autoTileBar.refresh()
+
     def setLayerSelected(self, selected: bool) -> None:
         self._allowSelect = bool(selected)
         if not self._allowSelect:
             self.clearSelection()
         Panel.ApplyDisabledOpacity(self._grid)
+        Panel.ApplyDisabledOpacity(self._autoTileBar)
 
     def setCurrentTilesetKey(self, key: Optional[str]) -> None:
         if not key:
@@ -171,17 +274,43 @@ class TileSelect(QtWidgets.QWidget):
                 return
 
     def clearSelection(self) -> None:
-        self._selectedTileNumber = None
-        self._grid.clearSelected()
-        self.TILE_SELECTED.emit(-1)
+        if self._selectedTileNumber is not None:
+            self._selectedTileNumber = None
+            self._grid.clearSelected()
+            self.TILE_SELECTED.emit(-1)
+        if self._selectedAutoTileKey is not None:
+            self._selectedAutoTileKey = None
+            self._autoTileBar.setSelectedKey(None)
+            self.AUTOTILE_SELECTED.emit("")
 
     def setSelectedTileNumber(self, num: Optional[int]) -> None:
         if num is None or int(num) < 0:
             self.clearSelection()
             return
+        if self._selectedAutoTileKey is not None:
+            self._selectedAutoTileKey = None
+            self._autoTileBar.setSelectedKey(None)
+            self.AUTOTILE_SELECTED.emit("")
         self._selectedTileNumber = int(num)
         self._grid.setSelected(self._selectedTileNumber)
         self.TILE_SELECTED.emit(self._selectedTileNumber)
+
+    def setSelectedAutoTileKey(self, key: Optional[str]) -> None:
+        if key is None or not isinstance(key, str) or key == "":
+            if self._selectedAutoTileKey is not None:
+                self._selectedAutoTileKey = None
+                self._autoTileBar.setSelectedKey(None)
+                self.AUTOTILE_SELECTED.emit("")
+            return
+        if key not in GameData.autoTileData:
+            return
+        if self._selectedTileNumber is not None:
+            self._selectedTileNumber = None
+            self._grid.clearSelected()
+            self.TILE_SELECTED.emit(-1)
+        self._selectedAutoTileKey = key
+        self._autoTileBar.setSelectedKey(key)
+        self.AUTOTILE_SELECTED.emit(key)
 
     def _onTilesetRowChanged(self, idx: int) -> None:
         if idx < 0 or idx >= len(self._keys):
@@ -202,11 +331,32 @@ class TileSelect(QtWidgets.QWidget):
         if not self._allowSelect:
             self.clearSelection()
             return
-        if self._selectedTileNumber == tileNumber:
+        if self._selectedTileNumber == tileNumber and self._selectedAutoTileKey is None:
             self._selectedTileNumber = None
             self._grid.clearSelected()
             self.TILE_SELECTED.emit(-1)
             return
+        if self._selectedAutoTileKey is not None:
+            self._selectedAutoTileKey = None
+            self._autoTileBar.setSelectedKey(None)
+            self.AUTOTILE_SELECTED.emit("")
         self._selectedTileNumber = tileNumber
         self._grid.setSelected(tileNumber)
         self.TILE_SELECTED.emit(tileNumber)
+
+    def _onAutoTileClicked(self, key: str) -> None:
+        if not self._allowSelect:
+            self.clearSelection()
+            return
+        if self._selectedAutoTileKey == key and self._selectedTileNumber is None:
+            self._selectedAutoTileKey = None
+            self._autoTileBar.setSelectedKey(None)
+            self.AUTOTILE_SELECTED.emit("")
+            return
+        if self._selectedTileNumber is not None:
+            self._selectedTileNumber = None
+            self._grid.clearSelected()
+            self.TILE_SELECTED.emit(-1)
+        self._selectedAutoTileKey = key
+        self._autoTileBar.setSelectedKey(key)
+        self.AUTOTILE_SELECTED.emit(key)

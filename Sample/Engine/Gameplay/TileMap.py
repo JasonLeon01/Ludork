@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from typing import Any, Dict, List, Optional
 from .. import (
     Tuple4,
@@ -17,6 +17,7 @@ from .. import (
 )
 from ..Utils import Inner
 from .Material import Material
+from .AutoTile import AutoTile
 
 
 @dataclass
@@ -57,12 +58,16 @@ class Tileset:
 class TileLayerData:
     r"""Tile layer data dataclass.
 
-    Stores the raw tile-index grid for one layer.
+    Stores the raw tile-index grid for one layer along with the
+    per-cell autotile assignments. Autotiles are referenced by their
+    index inside `autoTilePool`; cells with `None` carry no autotile.
     """
 
     layerName: str  #: Name of the layer
     layerTileset: Tileset  #: Tileset used by this layer
     tiles: List[List[Optional[int]]]  #: 2D grid of tile indices (None = empty)
+    autoTiles: List[List[Optional[int]]] = field(default_factory=list)  #: 2D grid of autotile pool indices
+    autoTilePool: List[AutoTile] = field(default_factory=list)  #: Autotile entries referenced by this layer
 
 
 class TileLayer(TileLayerGraphics):
@@ -70,24 +75,31 @@ class TileLayer(TileLayerGraphics):
 
     Renders a tile grid using a `VertexArray` and provides
     per-cell queries for passability and material properties.
+    Autotile cells are rendered with the standard RPG Maker XP 48-state
+    composition through additional vertex arrays managed in the C++
+    backend.
     """
 
     def __init__(
         self,
         data: TileLayerData,
         texture: Texture,
+        autoTileTextures: Optional[List[Texture]] = None,
+        autoTileFrameCounts: Optional[List[int]] = None,
         visible: bool = True,
     ) -> None:
         r"""Initialise a TileLayer.
 
-        - \param data      TileLayerData containing the tile-index grid
-        - \param texture  Texture (tileset image) for rendering
-        - \param visible  Whether the layer is initially visible
+        - \param data                TileLayerData containing the tile-index grid and autotile pool
+        - \param texture             Texture (tileset image) for rendering
+        - \param autoTileTextures    Per-autotile-pool textures matching `data.autoTilePool`
+        - \param autoTileFrameCounts Per-autotile-pool animation frame counts
+        - \param visible             Whether the layer is initially visible
         """
         from .. import CellSize
 
         self._data = data
-        self._width = len(self._data.tiles[0])
+        self._width = len(self._data.tiles[0]) if self._data.tiles else 0
         self._height = len(self._data.tiles)
         self._vertexArray = VertexArray(PrimitiveType.Triangles, self._width * self._height * 6)
         self._texture = texture
@@ -96,8 +108,38 @@ class TileLayer(TileLayerGraphics):
         self._reflectionStrengthMapCache: Optional[List[List[float]]] = None
         self._reflectionStrengthImageCache: Optional[Image] = None
         self.visible = visible
+
+        autoTilePool = list(self._data.autoTilePool or [])
+        autoTileTextureList: List[Texture] = list(autoTileTextures or [])
+        if len(autoTileTextureList) < len(autoTilePool):
+            autoTileTextureList.extend([None] * (len(autoTilePool) - len(autoTileTextureList)))
+        autoTileMaterials = [(entry.material if entry is not None else None) for entry in autoTilePool]
+        autoTileFrames = list(autoTileFrameCounts or [])
+        if len(autoTileFrames) < len(autoTilePool):
+            autoTileFrames.extend([1] * (len(autoTilePool) - len(autoTileFrames)))
+        self._autoTileTextures = autoTileTextureList
+        self._autoTileMaterialsRef = autoTileMaterials
+
+        autoTileGrid: List[List[Optional[int]]] = []
+        if self._data.autoTiles and len(self._data.autoTiles) == self._height:
+            for y in range(self._height):
+                row = self._data.autoTiles[y]
+                autoTileGrid.append([row[x] if x < len(row) else None for x in range(self._width)])
+        else:
+            for _ in range(self._height):
+                autoTileGrid.append([None] * self._width)
+
         super().__init__(
-            self._width, self._height, CellSize, self._texture, self._data.tiles, self._data.layerTileset.materials
+            self._width,
+            self._height,
+            CellSize,
+            self._texture,
+            self._data.tiles,
+            self._data.layerTileset.materials,
+            autoTileGrid,
+            autoTileTextureList,
+            autoTileMaterials,
+            autoTileFrames,
         )
 
     @ReturnType(name=str)
@@ -116,6 +158,22 @@ class TileLayer(TileLayerGraphics):
         """
         return self._data.tiles
 
+    @ReturnType(autoTiles=List[List[Optional[int]]])
+    def getAutoTiles(self) -> List[List[Optional[int]]]:
+        r"""Return the autotile pool-index grid.
+
+        - \return  2D list of autotile pool indices (`None` = no autotile)
+        """
+        return self._data.autoTiles
+
+    @ReturnType(pool=List[AutoTile])
+    def getAutoTilePool(self) -> List[AutoTile]:
+        r"""Return the autotile pool used by this layer.
+
+        - \return  List of `AutoTile` entries referenced by `autoTiles`
+        """
+        return self._data.autoTilePool
+
     @ReturnType(tile=Optional[int])
     def get(self, position: Vector2i) -> Optional[int]:
         r"""Return the tile index at the given position.
@@ -127,6 +185,27 @@ class TileLayer(TileLayerGraphics):
             return None
         return self._data.tiles[position.y][position.x]
 
+    @ReturnType(autoTile=Optional[AutoTile])
+    def getAutoTileAt(self, position: Vector2i) -> Optional[AutoTile]:
+        r"""Return the autotile entry at the given position.
+
+        - \param position  Grid position to query
+        - \return          `AutoTile`, or `None` if no autotile is present
+        """
+        if position.x < 0 or position.y < 0 or position.x >= self._width or position.y >= self._height:
+            return None
+        if not self._data.autoTiles:
+            return None
+        row = self._data.autoTiles[position.y]
+        if position.x >= len(row):
+            return None
+        index = row[position.x]
+        if index is None:
+            return None
+        if index < 0 or index >= len(self._data.autoTilePool):
+            return None
+        return self._data.autoTilePool[index]
+
     @ReturnType(isPassable=bool)
     def isPassable(self, position: Vector2i) -> bool:
         r"""Check whether a cell is passable.
@@ -136,6 +215,9 @@ class TileLayer(TileLayerGraphics):
         """
         if position.x < 0 or position.y < 0 or position.x >= self._width or position.y >= self._height:
             return False
+        autoTile = self.getAutoTileAt(position)
+        if autoTile is not None:
+            return autoTile.passable
         tileNumber = self._data.tiles[position.y][position.x]
         if tileNumber is None:
             return True
@@ -150,6 +232,9 @@ class TileLayer(TileLayerGraphics):
         """
         if position.x < 0 or position.y < 0 or position.x >= self._width or position.y >= self._height:
             return None
+        autoTile = self.getAutoTileAt(position)
+        if autoTile is not None:
+            return autoTile.material
         tileNumber = self._data.tiles[position.y][position.x]
         if tileNumber is None:
             return None
@@ -308,6 +393,14 @@ class Tilemap:
         """
         return self._tilesData
 
+    @ReturnType(autoTiles=Dict[str, List[List[Optional[int]]]])
+    def getAutoTilesData(self) -> Dict[str, List[List[Optional[int]]]]:
+        r"""Return raw autotile pool-index data for every layer.
+
+        - \return  Dictionary mapping layer name to autotile pool-index grid
+        """
+        return {layerName: layer.getAutoTiles() for layerName, layer in self._layers.items()}
+
     @ReturnType(layers=Dict[str, TileLayer])
     def getAllLayers(self) -> Dict[str, TileLayer]:
         r"""Return all layers.
@@ -334,3 +427,12 @@ class Tilemap:
             return Vector2u(0, 0)
         first = next(iter(self._layers.values()))
         return Vector2u(first._width, first._height)
+
+    def updateAutoTileAnimation(self, deltaTime: float, frameInterval: float = 0.5) -> None:
+        r"""Advance autotile animation across every layer.
+
+        - \param deltaTime      Elapsed time in seconds
+        - \param frameInterval  Seconds between two animation frames
+        """
+        for layer in self._layers.values():
+            layer.updateAutoTileAnimation(deltaTime, frameInterval)

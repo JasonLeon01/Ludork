@@ -38,7 +38,7 @@ class DatabaseMenuMixin:
 
     def _onDatabaseTilesetsData(self, checked: bool = False) -> None:
         self._tilesetEditor = TilesetEditor(self)
-        self._tilesetEditor.MODIFIED.connect(lambda: self._refreshInfo())
+        self._tilesetEditor.MODIFIED.connect(lambda: (self._refreshInfo(), self.editorPanel.invalidateAutoTileCache()))
         self._tilesetEditor.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._tilesetEditor.setWindowModality(QtCore.Qt.ApplicationModal)
         self._tilesetEditor.show()

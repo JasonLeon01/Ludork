@@ -27,6 +27,38 @@
         "zh_CN": "图块集名称",
         "en_GB": "Tileset Name"
     },
+    "AUTOTILES_DATA": {
+        "zh_CN": "自动图块",
+        "en_GB": "AutoTiles"
+    },
+    "ADD_AUTOTILE": {
+        "zh_CN": "新增自动图块",
+        "en_GB": "Add AutoTile"
+    },
+    "RENAME_AUTOTILE": {
+        "zh_CN": "重命名自动图块",
+        "en_GB": "Rename AutoTile"
+    },
+    "ENTER_AUTOTILE_NAME": {
+        "zh_CN": "请输入自动图块名称",
+        "en_GB": "Enter AutoTile name"
+    },
+    "AUTOTILE_EXISTS": {
+        "zh_CN": "自动图块已存在",
+        "en_GB": "AutoTile already exists"
+    },
+    "AUTOTILE_NAME": {
+        "zh_CN": "自动图块名称",
+        "en_GB": "AutoTile Name"
+    },
+    "AUTOTILE_FILE_INVALID": {
+        "zh_CN": "无法读取图片文件",
+        "en_GB": "Failed to load image file"
+    },
+    "AUTOTILE_FILE_SIZE_INVALID": {
+        "zh_CN": "自动图块尺寸必须为 96 × 128 起步，且宽度必须是 96 的倍数（当前 {w} × {h}）",
+        "en_GB": "AutoTile size must be at least 96 x 128 with width a multiple of 96 (current {w} x {h})"
+    },
     "PASSABLE": {
         "zh_CN": "通行",
         "en_GB": "Passable"
