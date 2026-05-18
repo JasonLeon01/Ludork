@@ -28,13 +28,13 @@ def getSavePath(APP_NAME: str) -> str:
     r"""
     \brief Get the platform-specific save directory path.
 
-    On macOS, returns ~/Library/Application Support/<APP_NAME>/Save.
+    On macOS and iOS, returns ~/Library/Application Support/<APP_NAME>/Save.
     On other platforms, returns <cwd>/Save.
 
     - \param APP_NAME Application name used to build the path (macOS only).
     - \return Absolute path to the save directory.
     """
-    if sys.platform == "darwin":
+    if sys.platform in ("darwin", "ios"):
         path = Path.home() / "Library" / "Application Support" / APP_NAME / "Save"
         path.mkdir(parents=True, exist_ok=True)
         return str(path)

@@ -2,7 +2,7 @@
 
 import os
 from typing import Callable, List, Union, Optional, Dict, Any
-from Engine import Pair, Vector2u, Vector2f, Color, Filters, Music, Input
+from Engine import Pair, Vector2u, Vector2f, Color, Filters, Music, Input, RenderTexture, Sprite
 import Engine
 from Engine.Gameplay import Tilemap, TileLayer, TileLayerData
 from Engine.Gameplay.Actors import Actor
@@ -15,6 +15,7 @@ from Source.Windows.WindowMessage import WindowMessage
 from Source.Windows.WindowMenu import WindowMenu
 from Source.Windows.WindowItem import WindowItem
 from Source.Windows.WindowEquip import WindowEquipSlot, WindowEquipSelect
+from Source.Windows.WindowSaveLoad import WindowSaveLoad
 from Source.GameInstance import GameInstance
 
 
@@ -42,12 +43,18 @@ class Scene(SceneBase):
         self._windowEquipSelect = WindowEquipSelect(((384, 0), (256, 256)), self.player)
         self._windowEquipSlot.setEquipSelectWindow(self._windowEquipSelect)
         self._windowEquipSelect.setEquipSlotWindow(self._windowEquipSlot)
+        self._windowSaveLoad = WindowSaveLoad(
+            getSaveSource=self._getSaveSource,
+            onClose=self._onSaveLoadClose,
+            onLoaded=self.applyLoadedGame,
+        )
         self._windowMenu = WindowMenu(
             self.player,
             self._windowItem,
             self._messageWindow,
             self._windowEquipSlot,
             self._windowEquipSelect,
+            self._windowSaveLoad,
         )
         self._uiManager.loadUI(self._playerHUD)
         self._uiManager.loadUI(self._messageWindow)
@@ -55,6 +62,11 @@ class Scene(SceneBase):
         self._uiManager.loadUI(self._windowItem)
         self._uiManager.loadUI(self._windowEquipSlot)
         self._uiManager.loadUI(self._windowEquipSelect)
+        commandWindow = self._windowSaveLoad.getCommandWindow()
+        if commandWindow is not None:
+            self._uiManager.loadUI(commandWindow)
+        self._uiManager.loadUI(self._windowSaveLoad.getSlotWindow())
+        self._uiManager.loadUI(self._windowSaveLoad.getDetailWindow())
 
         self._windowMenu.close()
 
@@ -65,7 +77,9 @@ class Scene(SceneBase):
         self._currentBgsMusic: Optional[Music] = None
         self._currentBgsFile: str = ""
         self._mapClickMoveBlockedUntilLateTick: bool = False
-        self.gotoMapAndPos(System.getStartMap())
+        self._pendingMenuOpen: bool = False
+        startMap = self.inst._cachedMap or System.getStartMap()
+        self.gotoMapAndPos(startMap)
 
     def onQuit(self) -> None:
         r"""\brief Stop map BGM/BGS and weather when leaving this scene."""
@@ -93,8 +107,8 @@ class Scene(SceneBase):
         self._gameMap.onTick(deltaTime)
         self._gameMap.getTilemap().updateAutoTileAnimation(deltaTime)
         if not self._windowMenu.isBlocking() and not self._messageWindow.isInDialogue():
-            if self._isMenuOpenTriggered():
-                self._windowMenu.open()
+            if not self._pendingMenuOpen and self._isMenuOpenTriggered():
+                self._pendingMenuOpen = True
         return super().onTick(deltaTime)
 
     def onLateTick(self, deltaTime: float) -> None:
@@ -204,6 +218,44 @@ class Scene(SceneBase):
 
     @ExecSplit(default=(None,))
     @TypeAdapter(pos=([tuple, list], Vector2u))
+    def applyLoadedGame(self, inst: GameInstance) -> None:
+        r"""\brief Apply a loaded game instance and force-reload the cached map.
+
+        - \param inst The restored game instance from a save file.
+        """
+        self.inst = inst
+        self.player = inst.getPlayer()
+        self._rebindPlayerToUI()
+        mapPath = inst._cachedMap or System.getStartMap()
+        pos = self.player.getMapPosition().unpack()
+        self._cachedMapFile = None
+        self.gotoMapAndPos(mapPath, pos)
+
+    def _rebindPlayerToUI(self) -> None:
+        r"""\brief Point HUD and sub-windows at the current player after load."""
+        self._windowItem._player = self.player
+        self._windowEquipSlot._player = self.player
+        self._windowEquipSelect._player = self.player
+        self._windowMenu._player = self.player
+        self._playerHUD._player = self.player
+
+    def _getSaveSource(self) -> GameInstance:
+        r"""\brief Provide the GameInstance to persist when saving from this scene.
+
+        - \return The current scene GameInstance.
+        """
+        return self.inst
+
+    def _onSaveLoadClose(self, reason: str) -> None:
+        r"""\brief React to the save/load UI closing.
+
+        - \param reason One of ``"cancel"``, ``"saved"``, or ``"loaded"``.
+        """
+        if reason == "cancel":
+            self._windowMenu._onSaveLoadClose()
+            return
+        self._windowMenu.close()
+
     def gotoMapAndPos(self, mapPath: str, pos: Optional[Union[Vector2u, Pair[int], List[int]]] = None) -> None:
         r"""\brief Transition to a map and set the player position.
 
@@ -260,6 +312,29 @@ class Scene(SceneBase):
     def _renderHandle(self, deltaTime: float) -> None:
         self._gameMap.show()
         super()._renderHandle(deltaTime)
+        if self._pendingMenuOpen:
+            self._pendingMenuOpen = False
+            self._captureScreenSnapshot()
+            self._windowMenu.open()
+
+    def _captureScreenSnapshot(self) -> None:
+        canvas = GlobalSystem.getCanvas()
+        sourceTex = canvas.getTexture()
+        srcSize = sourceTex.getSize()
+        gameSize = GlobalSystem.getGameSize()
+        if srcSize.x == 0 or srcSize.y == 0:
+            System.setSavedScreenImage(None)
+            return
+        if srcSize.x == gameSize.x and srcSize.y == gameSize.y:
+            System.setSavedScreenImage(sourceTex.copyToImage())
+            return
+        scaledRT = RenderTexture(gameSize)
+        scaledRT.clear(Color.Transparent)
+        sprite = Sprite(sourceTex)
+        sprite.setScale(Vector2f(gameSize.x / srcSize.x, gameSize.y / srcSize.y))
+        scaledRT.draw(sprite)
+        scaledRT.display()
+        System.setSavedScreenImage(scaledRT.getTexture().copyToImage())
 
     def _playMapAudio(self, mapData: Dict[str, Any]) -> None:
         bgm = mapData.get("bgm", "")

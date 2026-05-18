@@ -8,7 +8,7 @@ Provides generic save/load interface with automatic format detection:
 
 import json
 import os
-from typing import Optional
+from typing import Optional, Dict, Any
 from Engine.Utils.File import getJSONData, saveData, loadData
 from Engine.Utils.Inner import getSavePath
 from .GameInstance import GameInstance
@@ -49,24 +49,25 @@ def LoadGame(filePath: str) -> Optional[GameInstance]:
         return None
 
     ext: str = os.path.splitext(filePath)[1].lower()
+    data: Dict[str, Any]
 
     if ext == ".json":
-        data: dict = getJSONData(filePath)
+        data = getJSONData(filePath)
     else:  # .dat or default
-        data: dict = loadData(filePath)
+        data = loadData(filePath)
 
-    instance: GameInstance = GameInstance.FromDict(data)
+    instance = GameInstance.FromDict(data)
     return instance
 
 
-def GetSavePath(slot: int = 0, ext: str = "json") -> str:
+def GetSavePath(slot: int = 1, ext: str = "dat") -> str:
     r"""\brief Get the platform-specific save file path.
 
     Uses Engine.Utils.Inner.getSavePath to determine the save directory.
 
-    - \param slot Save slot number (0 = default).
+    - \param slot Save slot number (1-based).
     - \param ext File extension ('json' or 'dat').
     - \return Full path to the save file.
     """
     saveDir: str = getSavePath("Ludork")
-    return os.path.join(saveDir, f"save_{slot}.{ext}")
+    return os.path.join(saveDir, f"Save_{slot}.{ext}")

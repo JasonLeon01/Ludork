@@ -78,7 +78,7 @@ class UIManager:
             self._UIs, key=lambda item: item.getZOrder() if hasattr(item, "getZOrder") else 0, reverse=True
         )
         for ui in sortedUIs:
-            if ui.getActive() and ui.getVisible():
+            if ui.getVisible():
                 if hasattr(ui, "update"):
                     ui.update(deltaTime)
 

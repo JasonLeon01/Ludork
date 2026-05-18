@@ -49,6 +49,7 @@ class System:
     _getSE: str = ""
     _equipSE: str = ""
     _titleBGM: str = ""
+    _savedScreenImage: Optional[Image] = None
 
     @classmethod
     def init(cls) -> None:
@@ -324,3 +325,19 @@ class System:
         - \return The title BGM filename.
         """
         return cls._titleBGM
+
+    @classmethod
+    def getSavedScreenImage(cls) -> Optional[Image]:
+        r"""\brief Get the most recently captured screen snapshot.
+
+        - \return The captured Image scaled to game size, or None if no snapshot exists.
+        """
+        return cls._savedScreenImage
+
+    @classmethod
+    def setSavedScreenImage(cls, image: Optional[Image]) -> None:
+        r"""\brief Set the captured screen snapshot used for save thumbnails.
+
+        - \param image The captured Image scaled to game size, or None to clear.
+        """
+        cls._savedScreenImage = image

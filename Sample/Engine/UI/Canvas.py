@@ -120,6 +120,19 @@ class Canvas(SpriteBase, FunctionalBase):
         newView = View(view.getCenter() * Scale, view.getSize() * Scale)
         self._canvas.setView(newView)
 
+    def _getScreenRenderTransform(self):
+        from .. import Scale
+
+        transform = self._getRenderTransform()
+        if self._parent:
+            transform = self._parent._getScreenRenderTransform() * transform
+        defaultView = self.getDefaultView()
+        currentView = self.getView()
+        scrollOffset = defaultView.getCenter() - currentView.getCenter()
+        if scrollOffset.x != 0 or scrollOffset.y != 0:
+            transform.translate(scrollOffset * Scale)
+        return transform
+
     def getChildren(self) -> List[ControlBase]:
         r"""\brief Get the list of child controls attached to this canvas.
 
@@ -251,6 +264,9 @@ class Canvas(SpriteBase, FunctionalBase):
             nodeStates.transform *= parentStates.transform
         if not isinstance(node, ListView):
             self._renderQueue.append((node, nodeStates))
+        if isinstance(node, Canvas):
+            node.render()
+            return
         childStates = copy.copy(parentStates)
         childStates.transform *= node._getRenderTransform()
         if hasattr(node, "getChildren"):

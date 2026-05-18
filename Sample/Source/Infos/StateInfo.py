@@ -1,39 +1,19 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Optional
 from Engine import RegisterEvent
 from Engine.Gameplay.InfoBase import InfoBase
 
 
-@dataclass
-class StateInfo:
-    name: str = ""
-    icon: str = ""
-    description: str = ""
-
-
-class State(InfoBase, StateInfo):
+class StateInfo(InfoBase):
     r"""
-    \brief State class with blueprint event support and data attributes.
+    \brief State data + logic layer.
 
-    Inherits InfoBase for blueprint event support
-    and StateInfo for data attributes.
-    State does not use _infoType since its data is provided directly by the StateInfo dataclass.
+    Defines state-related blueprint events (onAdd, onRemove, onWalk, onBattleBegin, onTurnStart, onTurnEnd, onBeforeAttack, onAfterAttack, onBeforeDefense, onAfterDefense, onBattleEnd).
+    Independent of Actor; can be used standalone in inventory/shop UI.
     """
 
-    _infoType: str = ""
-
-    def __init__(self, name: str = "", icon: str = "", description: str = "") -> None:
-        r"""\brief Construct a state with optional name, icon, and description.
-
-        - \param name The state name.
-        - \param icon The state icon identifier.
-        - \param description The state description.
-        """
-        StateInfo.__init__(self, name, icon, description)
-        self._graph = None
+    _infoType: str = "State"
 
     @RegisterEvent
     def onAdd(self) -> None:

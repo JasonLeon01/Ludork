@@ -13,6 +13,7 @@ class FunctionalBase:
     Handles hover detection and dispatches confirm, cancel, click, hover,
     mouse, keyboard, and tick events to registered callbacks.
     """
+
     def __init__(self) -> None:
         r"""\brief Construct a FunctionalBase mixin.
 
@@ -182,6 +183,8 @@ class FunctionalBase:
         from Engine import Input
 
         self.onTick(deltaTime)
+        if not getattr(self, "getActive", lambda: True)():
+            return
         localMousePos = Math.ToVector2f(Input.getMousePosition())
         hovered = False
         if hasattr(self, "getAbsoluteBounds"):

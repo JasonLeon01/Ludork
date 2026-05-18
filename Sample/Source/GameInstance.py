@@ -26,17 +26,19 @@ class GameInstance:
         self._cachedMap: Optional[str] = None
         self._cachedNewItem: Dict[str, bool] = {}
         self._cachedDestroyedActors: Dict[str, List[str]] = {}
+        self._screenshot: Optional[List[int]] = None
 
     def asDict(self) -> Dict[str, Any]:
         r"""\brief Serialize the game instance to a dictionary.
 
-        - \return A dictionary containing players, variables, map, and destroyed actors.
+        - \return A dictionary containing players, variables, map, destroyed actors, and screenshot.
         """
         return {
             "players": [p.asDict() for p in self._players],
             "variables": self._variables,
             "map": Cast(str, self._cachedMap),
             "destroyedActors": self._cachedDestroyedActors,
+            "screenshot": self._screenshot,
         }
 
     @staticmethod
@@ -55,7 +57,23 @@ class GameInstance:
         inst._variables = data["variables"]
         inst._cachedMap = data["map"]
         inst._cachedDestroyedActors = data["destroyedActors"]
+        inst._cachedNewItem = {}
+        inst._screenshot = data.get("screenshot")
         return inst
+
+    def setScreenshot(self, screenshot: Optional[List[int]]) -> None:
+        r"""\brief Set the captured screenshot bytes used for save thumbnails.
+
+        - \param screenshot Encoded image bytes (PNG) or None to clear.
+        """
+        self._screenshot = screenshot
+
+    def getScreenshot(self) -> Optional[List[int]]:
+        r"""\brief Get the captured screenshot bytes.
+
+        - \return Encoded image bytes (PNG) or None.
+        """
+        return self._screenshot
 
     def getVariables(self) -> Dict[str, Any]:
         r"""\brief Get all game variables.

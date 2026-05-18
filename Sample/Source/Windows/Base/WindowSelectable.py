@@ -134,6 +134,7 @@ class WindowSelectable(WindowBase):
             self.index = max(0, self.index - 1)
         elif delta < 0:
             self.index = min(self._itemCount() - 1, self.index + 1)
+        self._updateScroll()
         targetChild = self._listView.getChildren()[self.index]
         if hasattr(targetChild, "getAbsoluteBounds"):
             bounds: FloatRect = targetChild.getAbsoluteBounds()

@@ -1,14 +1,32 @@
 # -*- encoding: utf-8 -*-
 
+from __future__ import annotations
 from enum import IntEnum
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
-from .States import StateInfo, State
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple, Union
+from . import Data
+from .Infos import StateInfo
 
 
 class DamageType(IntEnum):
     NORMAL = 0
     UNDEFEATABLE = 1
+
+
+@dataclass
+class DamageContext:
+    r"""\brief Mutable context shared with state blueprints during damage resolution.
+
+    State graphs may read/modify these fields in onBeforeAttack/onAfterAttack/
+    onBeforeDefense/onAfterDefense to alter the final damage outcome.
+    """
+
+    attacker: Optional[Battler] = None  #: The battler dealing damage
+    defender: Optional[Battler] = None  #: The battler receiving damage
+    atk: int = 0  #: Effective ATK after modifiers
+    deF: int = 0  #: Effective DEF after modifiers
+    damagePerRound: int = 0  #: Damage per round dealt to the defender
+    extra: Dict[str, Any] = field(default_factory=dict)  #: Free-form payload for blueprints
 
 
 @dataclass
@@ -26,7 +44,8 @@ class Battler(_BaseBattler):
     r"""\brief Mixin providing combat stats and state management.
 
     Attach to any Actor via multiple inheritance to give it battle capabilities.
-    Manages a list of active `State` objects that can modify behavior.
+    Manages a list of active `StateInfo` objects whose blueprint events drive
+    extra behaviour during combat.
     """
 
     def __init__(self, attrs: Dict[str, Any] = {}) -> None:
@@ -35,64 +54,168 @@ class Battler(_BaseBattler):
         - \param attrs Optional dictionary of attribute overrides.
         """
         super().__init__(**attrs)
-        self._states: List[State] = []  #: Active state effects
+        self._states: List[StateInfo] = []  #: Active state effects
 
-    @ReturnType(state=bool)
-    def hasStateByInfo(self, stateInfo: StateInfo) -> Optional[State]:
-        r"""\brief Find an active state matching the given info descriptor.
+    def hasState(self, state: Union[str, StateInfo]) -> bool:
+        r"""\brief Check whether a state is currently active.
 
-        - \param stateInfo The state info descriptor to search for.
+        - \param state State ID string or `StateInfo` instance.
+        - \return True if the state is active.
+        """
+        return self.getStateByID(self._resolveStateID(state)) is not None
+
+    def getStateByID(self, stateID: str) -> Optional[StateInfo]:
+        r"""\brief Return the active `StateInfo` matching the given ID.
+
+        - \param stateID State identifier.
         - \return The matching state, or None.
         """
-        info = ["name", "icon", "description"]
+        if not stateID:
+            return None
         for s in self._states:
-            if all([getattr(s, i) == getattr(stateInfo, i) for i in info]):
+            if s.ID == stateID:
                 return s
         return None
 
-    @ReturnType(state=bool)
-    def hasState(self, state: State) -> bool:
-        r"""\brief Check whether a state (or one matching its info) is currently active.
+    def getStates(self) -> List[StateInfo]:
+        r"""\brief Get a shallow copy of all active states.
 
-        - \param state The state or state info to check.
-        - \return True if the state is active.
+        - \return List of currently active `StateInfo` instances.
         """
-        if state in self._states:
-            return True
-        return not self.hasStateByInfo(state) is None
+        return list(self._states)
+
+    def getStateIDs(self) -> List[str]:
+        r"""\brief Get the IDs of all active states (for serialization).
+
+        - \return List of state ID strings.
+        """
+        return [s.ID for s in self._states]
 
     @ExecSplit(default=(None,))
-    def addState(self, state: State) -> None:
+    def addState(self, state: Union[str, StateInfo]) -> None:
         r"""\brief Apply a state to this battler if not already present.
 
-        - \param state The state to apply.
+        Accepts either a state ID (string) or a pre-built `StateInfo`.
+        When given an ID the corresponding `StateInfo` is built from
+        GeneralData and `onAdd` is fired on it.
+
+        - \param state State ID string or `StateInfo` instance.
         """
-        if not self.hasState(state):
-            self._states.append(state)
+        info = self._buildStateInfo(state)
+        if info is None:
+            return
+        if self.getStateByID(info.ID) is not None:
+            return
+        self._states.append(info)
+        info.triggerEvent("onAdd", battler=self)
 
     @ExecSplit(default=(None,))
-    def removeStateByInfo(self, state: StateInfo) -> None:
-        r"""\brief Remove an active state by its info descriptor.
+    def removeState(self, state: Union[str, StateInfo]) -> None:
+        r"""\brief Remove an active state by ID or instance.
 
-        - \param state The state info to remove.
+        Fires `onRemove` on the removed state.
+
+        - \param state State ID string or `StateInfo` instance.
         """
-        if self.hasState(state):
-            self._states.remove(state)
+        existing = self.getStateByID(self._resolveStateID(state))
+        if existing is None:
+            return
+        existing.triggerEvent("onRemove", battler=self)
+        self._states.remove(existing)
 
-    @ExecSplit(default=(None,))
-    def removeState(self, state: State) -> None:
-        r"""\brief Remove a specific state instance.
+    def clearStates(self) -> None:
+        r"""\brief Remove all active states, firing `onRemove` for each."""
+        for s in list(self._states):
+            s.triggerEvent("onRemove", battler=self)
+        self._states.clear()
 
-        - \param state The state to remove.
+    def setStateIDs(self, stateIDs: List[str]) -> None:
+        r"""\brief Replace active states by ID list (used during load).
+
+        Existing states are cleared first; `onAdd` is fired for each new one.
+
+        - \param stateIDs List of state ID strings.
         """
-        if self.hasState(state):
-            self._states.remove(state)
+        self.clearStates()
+        for sid in stateIDs or []:
+            self.addState(sid)
 
-    @ReturnType(state=State)
-    def getState(self, state: StateInfo) -> Optional[State]:
-        r"""\brief Get the active state matching the given info.
+    def triggerStateEvent(self, eventName: str, **kwargs) -> None:
+        r"""\brief Forward a blueprint event to every active state.
 
-        - \param state The state info to look up.
-        - \return The matching state, or None.
+        - \param eventName Name of the event registered on `StateInfo`.
+        - \param kwargs Extra keyword arguments delivered to the event.
         """
-        return self.hasStateByInfo(state)
+        for s in list(self._states):
+            s.triggerEvent(eventName, battler=self, **kwargs)
+
+    def getDamagePerRound(self, attacker: "Battler", defender: "Battler") -> Tuple[DamageContext, bool]:
+        r"""\brief Build a `DamageContext` for one attacker->defender exchange.
+
+        Fires `onBeforeAttack` on the attacker's states and `onBeforeDefense`
+        on the defender's states so they may mutate the context. The returned
+        boolean indicates whether the defender is undefeatable for this exchange.
+
+        - \param attacker The battler dealing damage.
+        - \param defender The battler receiving damage.
+        - \return Tuple of (context, undefeatable).
+        """
+        ctx = DamageContext(
+            attacker=attacker,
+            defender=defender,
+            atk=attacker.ATK,
+            deF=defender.DEF,
+            damagePerRound=0,
+        )
+        attacker.triggerStateEvent("onBeforeAttack", context=ctx)
+        defender.triggerStateEvent("onBeforeDefense", context=ctx)
+        ctx.damagePerRound = max(0, ctx.atk - ctx.deF)
+        attacker.triggerStateEvent("onAfterAttack", context=ctx)
+        defender.triggerStateEvent("onAfterDefense", context=ctx)
+        undefeatable = ctx.damagePerRound <= 0
+        return ctx, undefeatable
+
+    def getDamage(self, battler: "Battler") -> Tuple[DamageType, int]:
+        r"""\brief Calculate accumulated damage taken by `battler` if it fights `self`.
+
+        Simulates a round-by-round duel where `battler` is the attacker and
+        `self` is the defender; returns how much damage `battler` ultimately
+        suffers from `self`'s counter-attacks before defeating `self`.
+
+        - \param battler The opposing battler (the attacker).
+        - \return Tuple of (DamageType, accumulated damage on `battler`).
+        """
+        attackCtx, _ = battler.getDamagePerRound(battler, self)
+        counterCtx, undefeatable = self.getDamagePerRound(self, battler)
+        if attackCtx.damagePerRound <= 0:
+            return (DamageType.UNDEFEATABLE, -1)
+        rounds = max(1, (self.MAXHP + attackCtx.damagePerRound - 1) // attackCtx.damagePerRound)
+        if undefeatable:
+            return (DamageType.NORMAL, 0)
+        return (DamageType.NORMAL, rounds * counterCtx.damagePerRound)
+
+    @staticmethod
+    def _resolveStateID(state: Union[str, StateInfo, None]) -> str:
+        if state is None:
+            return ""
+        if isinstance(state, str):
+            return state
+        return getattr(state, "ID", "")
+
+    @staticmethod
+    def _buildStateInfo(state: Union[str, StateInfo, None]) -> Optional[StateInfo]:
+        if state is None:
+            return None
+        if isinstance(state, StateInfo):
+            if not getattr(state, "_infoGraph", None) and state.ID:
+                state.initInfo(Data)
+            return state
+        if isinstance(state, str) and state:
+            members = Data.getGeneralData("State").get("members", {})
+            if state not in members:
+                return None
+            info = StateInfo()
+            info.ID = state
+            info.initInfo(Data)
+            return info
+        return None

@@ -12,5 +12,6 @@ Each class pairs a GeneralData type key with blueprint event hooks.
 from .ItemInfo import ItemInfo
 from .EnemyInfo import EnemyInfo
 from .EquipInfo import EquipInfo
+from .StateInfo import StateInfo
 
-__all__ = ["ItemInfo", "EnemyInfo", "EquipInfo"]
+__all__ = ["ItemInfo", "EnemyInfo", "EquipInfo", "StateInfo"]

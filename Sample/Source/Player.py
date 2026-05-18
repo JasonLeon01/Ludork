@@ -63,6 +63,7 @@ class Player(Character, Battler):
             "items": self._items,
             "equips": self._equips,
             "equipInfo": self._equipInfo,
+            "states": self.getStateIDs(),
         }
 
     @staticmethod
@@ -108,7 +109,7 @@ class Player(Character, Battler):
         AssertType(data["items"], Dict[str, int])
         AssertType(data["equips"], Dict[str, int])
         AssertType(data["equipInfo"], Dict[str, str])
-        player = Player.initPlayer(data["playerClass"])
+        player = Player.InitPlayer(data["playerClass"])
         player.tag = data["tag"]
         player.setMapPosition(Vector2u(*data["position"]))
         for k, v in data["attr"].items():
@@ -117,6 +118,7 @@ class Player(Character, Battler):
         player._items = data["items"]
         player._equips = data["equips"]
         player._equipInfo = data["equipInfo"]
+        player.setStateIDs(data.get("states", []))
         return player
 
     def addItem(self, itemID: str, count: int = 1) -> None:

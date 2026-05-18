@@ -3,7 +3,6 @@
 from __future__ import annotations
 from typing import Any, Dict
 from Engine import Input
-from Engine.UI.Base import FunctionalBase
 from Global import Manager, System as GlobalSystem
 from .WindowCommand import WindowCommand
 from ..System import System as GameSystem
@@ -17,7 +16,15 @@ class WindowMenu(WindowCommand):
     re-enables player movement on close.
     """
 
-    def __init__(self, player, windowItem, messageWindow, windowEquipSlot=None, windowEquipSelect=None) -> None:
+    def __init__(
+        self,
+        player,
+        windowItem,
+        messageWindow,
+        windowEquipSlot=None,
+        windowEquipSelect=None,
+        windowSaveLoad=None,
+    ) -> None:
         r"""\brief Construct the menu window and wire up sub-window callbacks.
 
         - \param player The player actor; movement is disabled while the menu is open.
@@ -25,20 +32,21 @@ class WindowMenu(WindowCommand):
         - \param messageWindow The message window; the menu will not open during dialogue.
         - \param windowEquipSlot The equipped-slot sub-window.
         - \param windowEquipSelect The available-equip sub-window.
+        - \param windowSaveLoad The integrated save/load sub-window.
         """
         commands = {
             "Items": {"text": LOC("MENU_ITEM"), "callback": lambda obj, kwargs: self._onMenuItem(kwargs)},
             "Equipment": {"text": LOC("MENU_EQUIP"), "callback": lambda obj, kwargs: self._onMenuEquip(kwargs)},
-            "Save": {"text": LOC("MENU_SAVE"), "callback": lambda obj, kwargs: self._onMenuSave(kwargs)},
-            "Load": {"text": LOC("MENU_LOAD"), "callback": lambda obj, kwargs: self._onMenuLoad(kwargs)},
+            "Save": {"text": LOC("MENU_SAVE_FILE"), "callback": lambda obj, kwargs: self._onMenuSave(kwargs)},
             "ReturnTitle": {"text": LOC("MENU_EXIT"), "callback": lambda obj, kwargs: self._onMenuExit(kwargs)},
         }
-        super().__init__(((0, 0), (192, 192)), commands)
+        super().__init__(((0, 0), (192, 160)), commands)
         self._player = player
         self._windowItem = windowItem
         self._messageWindow = messageWindow
         self._windowEquipSlot = windowEquipSlot
         self._windowEquipSelect = windowEquipSelect
+        self._windowSaveLoad = windowSaveLoad
         self._windowItem._onCloseCallback = self._onItemClose
         self._windowItem._onUseCallback = self._onItemUsed
         if self._windowEquipSlot is not None:
@@ -81,10 +89,9 @@ class WindowMenu(WindowCommand):
 
     def isBlocking(self) -> bool:
         r"""\brief Return True when the menu or its sub-windows are blocking map input."""
-        equipVisible = (
-            self._windowEquipSlot is not None and self._windowEquipSlot.getVisible()
-        )
-        return self.getVisible() or self._windowItem.getVisible() or equipVisible
+        equipVisible = self._windowEquipSlot is not None and self._windowEquipSlot.getVisible()
+        saveLoadVisible = self._windowSaveLoad is not None and self._windowSaveLoad.getVisible()
+        return self.getVisible() or self._windowItem.getVisible() or equipVisible or saveLoadVisible
 
     def _closeByCancel(self) -> None:
         Manager.playSE(GameSystem.getCancelSE())
@@ -116,10 +123,14 @@ class WindowMenu(WindowCommand):
         pass
 
     def _onMenuSave(self, kwargs: Dict[str, Any] = {}) -> None:
-        pass
+        if self._windowSaveLoad is None:
+            return
+        Manager.playSE(GameSystem.getDecisionSE())
+        self.setActive(False)
+        self._windowSaveLoad.open()
 
-    def _onMenuLoad(self, kwargs: Dict[str, Any] = {}) -> None:
-        pass
+    def _onSaveLoadClose(self) -> None:
+        self.setActive(True)
 
     def _onMenuExit(self, kwargs: Dict[str, Any] = {}) -> None:
         from Source.Scenes import Title

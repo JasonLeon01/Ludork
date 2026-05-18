@@ -12,6 +12,7 @@ for the Ludork sample engine.
 - WindowItem     Item inventory window
 - WindowEquipSlot   Equipped-slot list window
 - WindowEquipSelect Available-equip window
+- WindowSaveLoad    Integrated save/load window
 """
 
 from . import Base
@@ -19,5 +20,14 @@ from .WindowCommand import WindowCommand
 from .WindowMenu import WindowMenu
 from .WindowItem import WindowItem
 from .WindowEquip import WindowEquipSlot, WindowEquipSelect
+from .WindowSaveLoad import WindowSaveLoad
 
-__all__ = ["Base", "WindowCommand", "WindowMenu", "WindowItem", "WindowEquipSlot", "WindowEquipSelect"]
+__all__ = [
+    "Base",
+    "WindowCommand",
+    "WindowMenu",
+    "WindowItem",
+    "WindowEquipSlot",
+    "WindowEquipSelect",
+    "WindowSaveLoad",
+]

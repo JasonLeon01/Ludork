@@ -36,11 +36,16 @@ class Enemy(Actor, EnemyInfo, Battler):
         - \param tag Optional actor tag.
         """
         Actor.__init__(self, texture, rect, tag)
+        Battler.__init__(self)
         self.initInfo(Data)
 
     @ExecSplit(Win=(0,), Lose=(1,), Escape=(2,))
     def Battle(self):
         r"""\brief Perform battle calculations against the player.
+
+        Fires `onBattleBegin`/`onBattleEnd` on both sides so each active state's
+        blueprint may react. On player victory, the enemy's `onDefeat` event is
+        also fired.
 
         - \return 0 for win, 1 for lose or undefeatable opponent.
         """
@@ -49,21 +54,23 @@ class Enemy(Actor, EnemyInfo, Battler):
 
         map = Cast(Map, System.getScene())
         player = map.inst.getPlayer()
+
+        player.triggerStateEvent("onBattleBegin", opponent=self)
+        self.triggerStateEvent("onBattleBegin", opponent=player)
+
         damageType, damage = self.getDamage(player)
-        player.HP = max(0, player.HP - damage)
-        if damageType == DamageType.UNDEFEATABLE or damage > player.HP:
+        if damageType == DamageType.UNDEFEATABLE:
+            player.triggerStateEvent("onBattleEnd", opponent=self, won=False)
+            self.triggerStateEvent("onBattleEnd", opponent=player, won=True)
             return 1
+
+        won = damage < player.HP
+        player.HP = max(0, player.HP - damage)
+
+        player.triggerStateEvent("onBattleEnd", opponent=self, won=won)
+        self.triggerStateEvent("onBattleEnd", opponent=player, won=not won)
+
+        if not won:
+            return 1
+        self.triggerEvent("onDefeat")
         return 0
-
-    def getDamage(self, battler: Battler) -> Tuple[DamageType, int]:
-        r"""\brief Calculate damage dealt between this enemy and a battler.
-
-        - \param battler The opposing battler.
-        - \return A tuple of (DamageType, damage amount).
-        """
-        damagePerRound = max(0, self.ATK - battler.DEF)
-        damageTakenPerRound = max(0, battler.ATK - self.DEF)
-        if damageTakenPerRound == 0:
-            return (DamageType.Critical, -1)
-        rounds = self.MAXHP // damageTakenPerRound
-        return (DamageType.Normal, rounds * damagePerRound)

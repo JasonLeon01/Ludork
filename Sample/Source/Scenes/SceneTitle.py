@@ -5,7 +5,7 @@ from Engine.UI import Image
 from Engine.UI.Base import FunctionalBase
 from Global import Manager, System, SceneBase
 from Source import System as SourceSystem, System as GameSystem
-from Source.Windows import WindowCommand
+from Source.Windows import WindowCommand, WindowSaveLoad
 from Source.GameInstance import GameInstance
 
 
@@ -23,7 +23,7 @@ class Scene(SceneBase):
             ((0, 0), (320, 96)),
             {
                 "Start": {"text": LOC("TITLE_START"), "callback": Scene._startGame},
-                "Load": {"text": LOC("TITLE_CONTINUE"), "callback": Scene._loadGame},
+                "Load": {"text": LOC("TITLE_CONTINUE"), "callback": lambda obj, kwargs: self._onLoadCommand()},
                 "Config": {"text": LOC("TITLE_CONFIG"), "callback": Scene._configGame},
                 "Exit": {"text": LOC("TITLE_EXIT"), "callback": Scene._exitGame},
             },
@@ -31,8 +31,17 @@ class Scene(SceneBase):
         )
         self._windowCommand.setOrigin((160, 64))
         self._windowCommand.setPosition((320, 240))
+        self._windowSaveLoad = WindowSaveLoad(
+            slotRect=((112, 112), (160, 256)),
+            detailRect=((272, 112), (256, 256)),
+            loadOnly=True,
+            onClose=self._onSaveLoadClose,
+            onLoaded=self._onSaveLoadLoaded,
+        )
         self._uiManager.loadUI(self._bg)
         self._uiManager.loadUI(self._windowCommand)
+        self._uiManager.loadUI(self._windowSaveLoad.getSlotWindow())
+        self._uiManager.loadUI(self._windowSaveLoad.getDetailWindow())
         self._titleBGM = None
         titleBGMFile = SourceSystem.getTitleBGM()
         if titleBGMFile:
@@ -59,10 +68,23 @@ class Scene(SceneBase):
         System.setScene(SceneMap())
         Cast(SceneMap, System.getScene()).setInst(GameInstance())
 
-    @staticmethod
-    def _loadGame(obj: FunctionalBase, kwargs: Dict[str, Any]) -> None:
+    def _onLoadCommand(self) -> None:
         Manager.playSE(GameSystem.getDecisionSE())
-        print("Load Game")
+        self._windowCommand.setActive(False)
+        self._windowSaveLoad.open()
+
+    def _onSaveLoadClose(self, reason: str) -> None:
+        if reason == "loaded":
+            return
+        self._windowCommand.setActive(True)
+
+    def _onSaveLoadLoaded(self, inst: GameInstance) -> None:
+        from .SceneMap import Scene as SceneMap
+
+        Manager.stopMusic("BGM")
+        nextScene = SceneMap()
+        nextScene.setInst(inst)
+        System.setScene(nextScene)
 
     @staticmethod
     def _configGame(obj: FunctionalBase, kwargs: Dict[str, Any]) -> None:

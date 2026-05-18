@@ -9,7 +9,7 @@ from Engine.UI import RichText, TextStyle, PlainText, ListView
 from Engine.UI.FunctionalUI import FPlainText
 from Engine.Utils import Math
 from Global import Manager, System as GlobalSystem
-from .Base import WindowSelectable
+from .Base import WindowSelectable, WindowBase
 from ..System import System
 
 
@@ -46,6 +46,8 @@ class WindowMessage(WindowSelectable):
         self._inDialogue: bool = False
         self._contentMode: ContentMode = ContentMode.MESSAGE
         self._selectionListView: Optional[ListView] = None
+        self._messageListView: Optional[ListView] = None
+        self._messageAdvancer: Optional[FPlainText] = None
         self._selectionResult: Optional[int] = None
         self._allowCancel: bool = True
         self._onFinished: Optional[Callable[[], None]] = None
@@ -67,7 +69,21 @@ class WindowMessage(WindowSelectable):
         self.content.addChild(self._nameText)
         self._text = RichText(System.getFonts()[0], self._message, self._textStyles)
         self.content.addChild(self._text)
+        self._setupMessageAdvancer()
         self.setVisible(False)
+
+    def _setupMessageAdvancer(self) -> None:
+        self._messageAdvancer = FPlainText(System.getFonts()[0], "", self._MESSAGE_TEXT_SIZE)
+        self._messageAdvancer.setVisible(False)
+
+        def onConfirm(_itemSelf, _kwargs) -> None:
+            self._resolveSelection(0)
+
+        self._messageAdvancer.addConfirmCallback(onConfirm)
+        self._messageListView = ListView(
+            IntRect(Vector2i(0, 0), Vector2i(1, 1)), self._OPTION_ITEM_HEIGHT, True, 1
+        )
+        self._messageListView.addChild(self._messageAdvancer)
 
     def onTick(self, deltaTime: float) -> None:
         r"""\brief Update fade animations.
@@ -93,7 +109,6 @@ class WindowMessage(WindowSelectable):
                 self._updateLayoutByTextSize()
             self._updateWindowPosition(self._pendingRefPosition)
         if self._contentMode != ContentMode.SELECTION:
-            self.index = None
             if hasattr(self, "_rect"):
                 self._rect.setVisible(False)
                 if self._rect.getParent() is not None:
@@ -102,24 +117,29 @@ class WindowMessage(WindowSelectable):
         super().update(deltaTime)
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
-        r"""\brief Handle keyboard input for dialogue advancement and selection.
+        r"""\brief Handle keyboard input for selection cancel and option navigation.
 
         - \param kwargs Event data.
         """
-        if self.getVisible():
-            if self._contentMode == ContentMode.SELECTION:
-                if self._allowCancel and Input.isActionTriggered(Input.getCancelKeys(), handled=True):
-                    Manager.playSE("cancel.ogg")
-                    self._resolveSelection(-1)
-                    return
-                super().onKeyDown(kwargs)
-                return
-            if Input.isActionTriggered(Input.getConfirmKeys(), handled=True):
-                self._resolveSelection(0)
+        if not self.getVisible():
+            return super().onKeyDown(kwargs)
+        if (
+            self._contentMode == ContentMode.SELECTION
+            and self._allowCancel
+            and self._selectionListView is not None
+            and self.index is not None
+            and Input.isActionTriggered(Input.getCancelKeys(), handled=True)
+        ):
+            children = self._selectionListView.getChildren()
+            if 0 <= self.index < len(children):
+                child = children[self.index]
+                if hasattr(child, "onCancel"):
+                    child.onCancel({})
+            return
         return super().onKeyDown(kwargs)
 
     def onClick(self, kwargs: Dict[str, Any]) -> None:
-        r"""\brief Advance a plain message dialogue on left mouse click.
+        r"""\brief Advance a plain message dialogue on left mouse click anywhere within the window.
 
         - \param kwargs Event data with cursor position.
         """
@@ -130,7 +150,8 @@ class WindowMessage(WindowSelectable):
         if self._fadePhase == FadePhase.OUT:
             return super().onClick(kwargs)
         if Input.isMouseButtonTriggered(Input.Mouse.Button.Left, handled=True) or Input.isTouchTriggered(handled=True):
-            self._resolveSelection(0)
+            if self._messageAdvancer is not None:
+                self._messageAdvancer.onConfirm({})
         return super().onClick(kwargs)
 
     def isInDialogue(self) -> bool:
@@ -163,6 +184,7 @@ class WindowMessage(WindowSelectable):
         - \param allowCancel Whether the selection can be cancelled.
         - \param onFinished Optional callback invoked when the dialogue is confirmed/cancelled.
         """
+        self.hidePauseMark()
         self.setColor(Color(255, 255, 255, 0))
         self.setVisible(True)
         self._inDialogue = True
@@ -185,8 +207,8 @@ class WindowMessage(WindowSelectable):
         else:
             self._contentMode = ContentMode.MESSAGE
             self._message = message
-            self.index = None
-            self.setListView(None)
+            self.setListView(self._messageListView)
+            self.index = 0
             self._text.setVisible(True)
             self._text.setColor(Color(255, 255, 255, 0))
             self._text.setString(message)
@@ -196,6 +218,7 @@ class WindowMessage(WindowSelectable):
     def _resolveSelection(self, selectionResult: int) -> None:
         if self._selectionResult is not None:
             return
+        self.hidePauseMark()
         self._selectionResult = selectionResult
         self._inDialogue = False
         self._fadePhase = FadePhase.OUT
@@ -219,7 +242,12 @@ class WindowMessage(WindowSelectable):
                 Manager.playSE("decision1.ogg")
                 self._resolveSelection(optionIndex)
 
+            def onCancel(_itemSelf, _kwargs) -> None:
+                Manager.playSE("cancel.ogg")
+                self._resolveSelection(-1)
+
             item.addConfirmCallback(onConfirm)
+            item.addCancelCallback(onCancel)
             self._applyItem(item)
             self._selectionListView.addChild(item)
 
@@ -290,6 +318,14 @@ class WindowMessage(WindowSelectable):
             deltaAlpha = self._fadeInSpeed * deltaTime
             a = int(min(a + deltaAlpha, 255))
             comp.setColor(Color(255, 255, 255, a))
+        if all(comp.getColor().a == 255 for comp in fadeTargets):
+            self._fadePhase = FadePhase.NOTHING
+            self._onFadeInComplete()
+
+    def _onFadeInComplete(self) -> None:
+        if self._contentMode == ContentMode.MESSAGE:
+            self.refreshPauseMarkLayout()
+            self.showPauseMark()
 
     def _fadeOut(self, deltaTime: float) -> None:
         a = self.getColor().a
@@ -389,10 +425,10 @@ class WindowMessage(WindowSelectable):
             textWidth = max(1, int(textBounds.size.x + textBounds.position.x))
 
         textHeight = max(1, int(textBounds.size.y + textBounds.position.y))
-        contentWidth = max(textWidth, nameWidth)
+        contentWidth = max(textWidth, nameWidth, WindowBase._PAUSE_MARK_SIZE)
         if maxContentWidth is not None:
             contentWidth = min(contentWidth, maxContentWidth)
-        contentHeight = textHeight
+        contentHeight = textHeight + WindowBase._PAUSE_MARK_SIZE
         if hasName:
             contentHeight += nameHeight + self._NAME_MESSAGE_GAP
         totalWidth = contentWidth + self._WINDOW_PADDING * 2
@@ -409,6 +445,7 @@ class WindowMessage(WindowSelectable):
             self._nameText.setPosition(Vector2f(nameX, 0.0))
             textY = float(nameHeight + self._NAME_MESSAGE_GAP)
         self._text.setPosition(Vector2f(0.0, textY))
+        self.refreshPauseMarkLayout()
 
     def _updateLayoutBySelectionSize(self) -> None:
         nameBounds = self._nameText.getLocalBounds()
@@ -457,6 +494,7 @@ class WindowMessage(WindowSelectable):
         if self._selectionListView is not None:
             self._selectionListView.size = Vector2i(contentWidth, optionCount * self._OPTION_ITEM_HEIGHT)
             self._selectionListView.setPosition(Vector2f(0.0, currentY))
+        self.refreshPauseMarkLayout()
 
     def _getRectPosition(self) -> Optional[Vector2f]:
         if self.index is None:
