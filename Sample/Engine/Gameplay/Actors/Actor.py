@@ -46,10 +46,8 @@ class Actor(_ActorBase, BPBase):
         - \param rect     Optional texture rectangle or (origin, size) pair
         - \param tag      Optional tag string for actor identification
         """
-        super().__init__(texture, rect, tag)
-        self.collisionEnabled: bool = False
-        self.tickable: bool = False
-        self.speed: float = 64.0
+        _ActorBase.__init__(self, texture, rect, tag)
+        BPBase.__init__(self)
         self._isMoving: bool = False
         self._nextMoveOffset: Optional[Union[Vector2i, Pair[int]]] = None
         self._inRoute: bool = False

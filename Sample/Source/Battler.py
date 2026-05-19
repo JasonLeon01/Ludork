@@ -18,7 +18,8 @@ class DamageContext:
     r"""\brief Mutable context shared with state blueprints during damage resolution.
 
     State graphs may read/modify these fields in onBeforeAttack/onAfterAttack/
-    onBeforeDefense/onAfterDefense to alter the final damage outcome.
+    onBeforeDefense/onAfterDefense/onResolveDamage to alter the final damage
+    outcome (incl. damage-over-time effects such as poison).
     """
 
     attacker: Optional[Battler] = None  #: The battler dealing damage
@@ -26,6 +27,8 @@ class DamageContext:
     atk: int = 0  #: Effective ATK after modifiers
     deF: int = 0  #: Effective DEF after modifiers
     damagePerRound: int = 0  #: Damage per round dealt to the defender
+    rounds: int = 0  #: Number of rounds it takes the attacker to fell the defender
+    totalDamage: int = 0  #: Final accumulated damage on the attacker side
     extra: Dict[str, Any] = field(default_factory=dict)  #: Free-form payload for blueprints
 
 
@@ -38,6 +41,7 @@ class _BaseBattler:
     DEF: int = 10  #: Defense power
     EXP: int = 0  #: Experience points
     GOLD: int = 0  #: Currency
+    ANIMATION_KEY: str = ""  #: Animation key for this battler
 
 
 class Battler(_BaseBattler):
@@ -47,6 +51,8 @@ class Battler(_BaseBattler):
     Manages a list of active `StateInfo` objects whose blueprint events drive
     extra behaviour during combat.
     """
+
+    HP: int = 0  #: Current hit points (declared so all battlers expose it)
 
     def __init__(self, attrs: Dict[str, Any] = {}) -> None:
         r"""\brief Construct a battler with optional attribute overrides.
@@ -97,7 +103,7 @@ class Battler(_BaseBattler):
 
         Accepts either a state ID (string) or a pre-built `StateInfo`.
         When given an ID the corresponding `StateInfo` is built from
-        GeneralData and `onAdd` is fired on it.
+        GeneralData and `onAdd(battler=self)` is fired on it.
 
         - \param state State ID string or `StateInfo` instance.
         """
@@ -106,6 +112,7 @@ class Battler(_BaseBattler):
             return
         if self.getStateByID(info.ID) is not None:
             return
+        info.setOwner(self)
         self._states.append(info)
         info.triggerEvent("onAdd", battler=self)
 
@@ -113,7 +120,7 @@ class Battler(_BaseBattler):
     def removeState(self, state: Union[str, StateInfo]) -> None:
         r"""\brief Remove an active state by ID or instance.
 
-        Fires `onRemove` on the removed state.
+        Fires `onRemove(battler=self)` on the removed state.
 
         - \param state State ID string or `StateInfo` instance.
         """
@@ -121,12 +128,14 @@ class Battler(_BaseBattler):
         if existing is None:
             return
         existing.triggerEvent("onRemove", battler=self)
+        existing.setOwner(None)
         self._states.remove(existing)
 
     def clearStates(self) -> None:
         r"""\brief Remove all active states, firing `onRemove` for each."""
         for s in list(self._states):
             s.triggerEvent("onRemove", battler=self)
+            s.setOwner(None)
         self._states.clear()
 
     def setStateIDs(self, stateIDs: List[str]) -> None:
@@ -143,56 +152,74 @@ class Battler(_BaseBattler):
     def triggerStateEvent(self, eventName: str, **kwargs) -> None:
         r"""\brief Forward a blueprint event to every active state.
 
+        The hosting battler is always injected as `battler=self`; callers may
+        pass extra keyword arguments which are forwarded to each state.
+
         - \param eventName Name of the event registered on `StateInfo`.
         - \param kwargs Extra keyword arguments delivered to the event.
         """
         for s in list(self._states):
             s.triggerEvent(eventName, battler=self, **kwargs)
 
-    def getDamagePerRound(self, attacker: "Battler", defender: "Battler") -> Tuple[DamageContext, bool]:
+    def getDamagePerRound(self, attacker: Battler, defender: Battler) -> DamageContext:
         r"""\brief Build a `DamageContext` for one attacker->defender exchange.
 
         Fires `onBeforeAttack` on the attacker's states and `onBeforeDefense`
-        on the defender's states so they may mutate the context. The returned
-        boolean indicates whether the defender is undefeatable for this exchange.
+        on the defender's states (they may mutate atk/deF), computes
+        damagePerRound, then fires `onAfterAttack`/`onAfterDefense` so states
+        may further mutate damagePerRound (crit, shield, etc).
 
         - \param attacker The battler dealing damage.
         - \param defender The battler receiving damage.
-        - \return Tuple of (context, undefeatable).
+        - \return The populated `DamageContext` for this exchange.
         """
         ctx = DamageContext(
             attacker=attacker,
             defender=defender,
             atk=attacker.ATK,
             deF=defender.DEF,
-            damagePerRound=0,
         )
+        attacker.triggerStateEvent("onTurnStart")
+        defender.triggerStateEvent("onTurnStart")
         attacker.triggerStateEvent("onBeforeAttack", context=ctx)
         defender.triggerStateEvent("onBeforeDefense", context=ctx)
         ctx.damagePerRound = max(0, ctx.atk - ctx.deF)
         attacker.triggerStateEvent("onAfterAttack", context=ctx)
         defender.triggerStateEvent("onAfterDefense", context=ctx)
-        undefeatable = ctx.damagePerRound <= 0
-        return ctx, undefeatable
+        ctx.damagePerRound = max(0, ctx.damagePerRound)
+        attacker.triggerStateEvent("onTurnEnd")
+        defender.triggerStateEvent("onTurnEnd")
+        return ctx
 
-    def getDamage(self, battler: "Battler") -> Tuple[DamageType, int]:
+    def getDamage(self, battler: Battler) -> Tuple[DamageType, int]:
         r"""\brief Calculate accumulated damage taken by `battler` if it fights `self`.
 
-        Simulates a round-by-round duel where `battler` is the attacker and
+        Models a round-by-round duel where `battler` is the attacker and
         `self` is the defender; returns how much damage `battler` ultimately
         suffers from `self`'s counter-attacks before defeating `self`.
+
+        Pipeline (states can hook every stage):
+            1. attackCtx  = battler.getDamagePerRound(battler, self)
+            2. counterCtx = self.getDamagePerRound(self, battler)
+            3. rounds = ceil(self.MAXHP / attackCtx.damagePerRound)
+            4. totalDamage = rounds * counterCtx.damagePerRound
+            5. fire onResolveDamage on both sides (poison/DoT can modify totalDamage)
 
         - \param battler The opposing battler (the attacker).
         - \return Tuple of (DamageType, accumulated damage on `battler`).
         """
-        attackCtx, _ = battler.getDamagePerRound(battler, self)
-        counterCtx, undefeatable = self.getDamagePerRound(self, battler)
+        attackCtx = battler.getDamagePerRound(battler, self)
+        counterCtx = self.getDamagePerRound(self, battler)
         if attackCtx.damagePerRound <= 0:
             return (DamageType.UNDEFEATABLE, -1)
         rounds = max(1, (self.MAXHP + attackCtx.damagePerRound - 1) // attackCtx.damagePerRound)
-        if undefeatable:
-            return (DamageType.NORMAL, 0)
-        return (DamageType.NORMAL, rounds * counterCtx.damagePerRound)
+        attackCtx.rounds = rounds
+        counterCtx.rounds = rounds
+        counterCtx.totalDamage = rounds * counterCtx.damagePerRound
+        attackCtx.totalDamage = counterCtx.totalDamage
+        battler.triggerStateEvent("onResolveDamage", context=counterCtx)
+        self.triggerStateEvent("onResolveDamage", context=counterCtx)
+        return (DamageType.NORMAL, max(0, counterCtx.totalDamage))
 
     @staticmethod
     def _resolveStateID(state: Union[str, StateInfo, None]) -> str:

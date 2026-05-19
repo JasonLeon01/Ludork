@@ -192,11 +192,14 @@ class SceneBase:
     def _fixedLogicHandle(self, fixedDelta: float) -> None:
         self._uiManager._fixedLogicHandle(fixedDelta)
 
-    def _renderHandle(self, deltaTime: float) -> None:
+    def _drawSceneAnims(self) -> None:
+        r"""\brief Draw active scene animations to the canvas."""
         animSnapshot = self.getAnims()
-        if len(animSnapshot) > 0:
-            for anim in animSnapshot:
-                System.draw(anim)
+        for anim in animSnapshot:
+            System.draw(anim)
+
+    def _renderHandle(self, deltaTime: float) -> None:
+        self._drawSceneAnims()
         self._uiManager._renderHandle(deltaTime)
 
     def _update(self, deltaTime: float) -> None:

@@ -14,6 +14,7 @@ in the Ludork sample engine.
 - Player     Player inventory, equipment, attribute, gold and EXP management
 - Save       Save/load game state
 - Scene      Scene and map navigation
+- State      State context manipulation, host access, cross-battler state ops
 """
 
 from . import Utils
@@ -24,5 +25,6 @@ from . import System
 from . import Player
 from . import Save
 from . import Scene
+from . import State
 
-__all__ = ["Utils", "Math", "String", "Container", "System", "Player", "Save", "Scene"]
+__all__ = ["Utils", "Math", "String", "Container", "System", "Player", "Save", "Scene", "State"]

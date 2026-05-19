@@ -97,8 +97,6 @@ class ClassDict:
                     for key, value in classAttrs.items():
                         setattr(self, key, _cloneAttrValue(value))
                     super(type(self), self).__init__(*args, **kwargs)
-                    for key, value in classAttrs.items():
-                        setattr(self, key, _cloneAttrValue(value))
 
                 attrs["__init__"] = __init__
                 targetClass = type(

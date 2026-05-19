@@ -63,10 +63,10 @@ class BPBase:
                 if graph is None:
                     try:
                         getattr(parent_cls, eventName)(obj, **kwargs)
-                    except:
+                    except Exception as e:
                         raise RuntimeError(
                             "Parent class graph not found or something else went wrong. ", traceback.format_exc()
-                        )
+                        ) from e
                 else:
                     if not graph.tryLockExecution(eventName):
                         return

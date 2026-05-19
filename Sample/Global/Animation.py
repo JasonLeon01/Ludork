@@ -3,6 +3,7 @@ r"""\brief Animation helper: spawns and manages AnimSprite instances on the curr
 
 from typing import List, Dict, Any
 from Engine.Animation import AnimSprite
+from Engine.Utils import Math
 from . import Manager
 
 
@@ -22,6 +23,7 @@ class Animation(AnimSprite):
         self.soundIndex: int = 0
         self.playingSounds: List[Dict[str, Any]] = []
         super().__init__(animationData)
+        self.setOrigin(Math.ToVector2f(self.getTexture().getSize() / 2))
 
     def update(self, deltaTime: float) -> None:
         r"""\brief Update the animation and synchronise sound playback.

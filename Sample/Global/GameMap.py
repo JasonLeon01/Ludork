@@ -298,7 +298,7 @@ class GameMap(GameMapExt):
         occ = self._occupancyMap.get((x, y))
         if occ:
             for other in occ:
-                if other == actor:
+                if other is actor:
                     continue
                 if other in actor.getChildren():
                     continue
@@ -538,7 +538,7 @@ class GameMap(GameMapExt):
         result: List[Actor] = []
         for actorList in self._actors.values():
             for other in actorList:
-                if actor == other:
+                if actor is other:
                     continue
                 if not other.getCollisionEnabled():
                     continue
@@ -560,7 +560,7 @@ class GameMap(GameMapExt):
         result: List[Actor] = []
         for actorList in self._actors.values():
             for other in actorList:
-                if actor == other:
+                if actor is other:
                     continue
                 if other in actor.getChildren():
                     continue
@@ -637,9 +637,11 @@ class GameMap(GameMapExt):
         if len(self._actorsOnDestroy) > 0:
             for actor in self._actorsOnDestroy:
                 for actorList in self._actors.values():
-                    if actor in actorList:
-                        actorList.remove(actor)
-                        Actor.BlueprintEvent(actor, Actor, "onDestroy")
+                    for i, listed in enumerate(actorList):
+                        if listed is actor:
+                            actorList.pop(i)
+                            Actor.BlueprintEvent(actor, Actor, "onDestroy")
+                            break
             self.updateActorList()
             self._actorsOnDestroy.clear()
         for actorList in self._actors.values():

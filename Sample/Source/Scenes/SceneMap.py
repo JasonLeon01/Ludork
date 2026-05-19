@@ -81,6 +81,9 @@ class Scene(SceneBase):
         startMap = self.inst._cachedMap or System.getStartMap()
         self.gotoMapAndPos(startMap)
 
+    def getGameMap(self) -> GameMap:
+        return self._gameMap
+
     def onQuit(self) -> None:
         r"""\brief Stop map BGM/BGS and weather when leaving this scene."""
         self._stopMapAudio()
@@ -308,6 +311,24 @@ class Scene(SceneBase):
             from Global.Manager.Mgr_Audio import AudioManager
 
             AudioManager.setMusicFilter(self._currentBgsMusic, filterObj)
+
+    def _drawSceneAnims(self) -> None:
+        r"""\brief Draw map animations in screen space aligned with the camera view."""
+        animSnapshot = self.getAnims()
+        if not animSnapshot:
+            return
+        camera = self._gameMap.getCamera()
+        viewPos = camera.getViewPosition() if camera else None
+        GlobalSystem.setWindowMapView()
+        for anim in animSnapshot:
+            worldPosition = anim.getPosition()
+            drawPosition = worldPosition
+            if viewPos is not None:
+                drawPosition = worldPosition - viewPos
+            anim.setPosition(drawPosition)
+            GlobalSystem.draw(anim)
+            anim.setPosition(worldPosition)
+        GlobalSystem.setWindowDefaultView()
 
     def _renderHandle(self, deltaTime: float) -> None:
         self._gameMap.show()

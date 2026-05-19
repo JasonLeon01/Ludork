@@ -75,6 +75,12 @@ class _ActorBase(Sprite):
         self._shaderError: bool = False
         self._loadShader()
 
+    def __eq__(self, other: object) -> bool:
+        return self is other
+
+    def __ne__(self, other: object) -> bool:
+        return self is not other
+
     def _loadShader(self) -> None:
         self._shader = None
         self._shaderError = False
