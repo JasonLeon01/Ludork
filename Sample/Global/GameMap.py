@@ -30,8 +30,8 @@ from .GlobalExt import GameMapExt
 from .Camera import Camera
 from .System import System
 from .Components import MapClickAutoPath, PathPreviewComponent, PathRouteState, ComponentBase
-from .CustomParticles import CommonTipController
 from .Weather import WeatherController
+from .Fog import FogController
 
 
 @dataclass
@@ -131,7 +131,6 @@ class GameMap(GameMapExt):
             self._tilemapRenderStates.shader = self._tilemapLightMaskShader
             self._actorRenderStates = copy.copy(self._camera.getRenderStates())
             self._actorRenderStates.shader = self._lightMaskShader
-        self._commonTipController = CommonTipController(self._particleSystem, fontSize=12)
         super().__init__(self._materialShader)
         self.tilemapRef = self._tilemap
         self.actorsRef = self._actors
@@ -519,11 +518,12 @@ class GameMap(GameMapExt):
 
     @ExecSplit(default=(None,))
     def addCommonTip(self, text: str) -> None:
-        r"""\brief Display a floating tip text on the map.
+        r"""\brief Display a floating tip text in the parent scene.
 
         - \param text The tip message to display.
         """
-        self._commonTipController.addTip(text)
+        if self._scene is not None:
+            self._scene.addCommonTip(text)
 
     def getCollision(self, actor: Actor, targetPosition: Vector2i) -> List[Actor]:
         r"""\brief Get all actors colliding with a given actor at a target position.
@@ -650,7 +650,6 @@ class GameMap(GameMapExt):
                 if actor.getTickable():
                     Actor.BlueprintEvent(actor, Actor, "onTick", {"deltaTime": deltaTime})
         self._particleSystem.onTick(deltaTime)
-        self._commonTipController.onTick(deltaTime)
 
     def onLateTick(self, deltaTime: float) -> None:
         r"""\brief Late-update all actors, components, and particles each frame.
@@ -792,6 +791,7 @@ class GameMap(GameMapExt):
         if self._camera:
             WeatherController.drawShaderOverlay(self._camera)
         System.draw(self._camera, self._materialShader)
+        FogController.drawOverlay()
         WeatherController.registerParticleSystem(self._particleSystem)
         System.draw(self._particleSystem)
         System.setWindowDefaultView()

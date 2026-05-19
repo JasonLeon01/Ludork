@@ -551,6 +551,30 @@
         "zh_CN": "BGS（背景音效）",
         "en_GB": "BGS"
     },
+    "MAP_FOG": {
+        "zh_CN": "雾效贴图",
+        "en_GB": "Fog Texture"
+    },
+    "MAP_FOG_POWER": {
+        "zh_CN": "雾强度",
+        "en_GB": "Fog Strength"
+    },
+    "MAP_FOG_OX": {
+        "zh_CN": "雾 X 速度",
+        "en_GB": "Fog Scroll X"
+    },
+    "MAP_FOG_OY": {
+        "zh_CN": "雾 Y 速度",
+        "en_GB": "Fog Scroll Y"
+    },
+    "MAP_FOG_DISTORT": {
+        "zh_CN": "雾扰动强度",
+        "en_GB": "Fog Distortion"
+    },
+    "CLEAR": {
+        "zh_CN": "清除",
+        "en_GB": "Clear"
+    },
     "FILTER": {
         "zh_CN": "滤镜",
         "en_GB": "Filter"

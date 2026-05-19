@@ -149,9 +149,8 @@ class WindowMessage(WindowSelectable):
             return super().onClick(kwargs)
         if self._fadePhase == FadePhase.OUT:
             return super().onClick(kwargs)
-        if Input.isMouseButtonTriggered(Input.Mouse.Button.Left, handled=True) or Input.isTouchTriggered(handled=True):
-            if self._messageAdvancer is not None:
-                self._messageAdvancer.onConfirm({})
+        if self._messageAdvancer is not None:
+            self._messageAdvancer.onConfirm({})
         return super().onClick(kwargs)
 
     def isInDialogue(self) -> bool:

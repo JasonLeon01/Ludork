@@ -14,8 +14,6 @@ from Engine import (
     Input,
     UI,
     Text,
-    RenderTarget,
-    RenderStates,
 )
 from Engine.UI import Canvas, ListView, PlainText
 from Engine.UI.Base import FunctionalBase
@@ -226,7 +224,9 @@ class WindowItem(WindowSelectable):
             self._descText.setString("")
             return
         itemID, _ = self._itemList[self.index]
-        self._descNameText.setString(Data.getGeneralData("Item").get("members", {}).get(itemID, {}).get("name", "").format(**LOC_D()))
+        self._descNameText.setString(
+            Data.getGeneralData("Item").get("members", {}).get(itemID, {}).get("name", "").format(**LOC_D())
+        )
         raw_desc = Data.getGeneralData("Item").get("members", {}).get(itemID, {}).get("desc", "").format(**LOC_D())
         self._descText.setString(self._wrapDesc(raw_desc))
 
@@ -239,9 +239,6 @@ class WindowItem(WindowSelectable):
             return
         if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
             self._closeByCancel()
-            return
-        if Input.isActionTriggered(Input.getConfirmKeys(), handled=True):
-            self._onUseItem()
             return
         return super().onKeyDown(kwargs)
 

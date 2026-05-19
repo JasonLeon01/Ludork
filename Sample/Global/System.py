@@ -48,6 +48,7 @@ class System:
     _transitionSprite: Sprite
     _graphicsShaders: List[Shader] = []
     _mainScript: str = ""
+    _language: str = ""
     _frameRate: int = 60
     _verticalSync: bool = False
     _musicOn: bool = True
@@ -101,6 +102,7 @@ class System:
         if _language is None or _language == "" or _language == "None":
             lang, encoding = locale.getdefaultlocale()
             _language = lang
+        cls._language = _language
         Locale.LANGUAGE = _language
         Engine.Scale = data.getfloat("scale")
         cls._frameRate = data.getint("frameRate")
@@ -299,6 +301,33 @@ class System:
         WeatherController.update(deltaTime)
 
     @classmethod
+    def updateFog(cls, deltaTime: float) -> None:
+        r"""\brief Update active map fog scroll offset.
+
+        - \param deltaTime Elapsed time in seconds.
+        """
+        from .Fog import FogController
+
+        FogController.update(deltaTime)
+
+    @classmethod
+    def clearFog(cls) -> None:
+        r"""\brief Clear active map fog."""
+        from .Fog import FogController
+
+        FogController.clearFog()
+
+    @classmethod
+    def applyFogFromMapData(cls, mapData) -> None:
+        r"""\brief Apply fog settings from loaded map data.
+
+        - \param mapData Serialized map dictionary.
+        """
+        from .Fog import FogController
+
+        FogController.applyFromMapData(mapData)
+
+    @classmethod
     def draw(cls, drawable: Drawable, shader: Optional[Shader] = None) -> None:
         r"""\brief Draw a drawable object to the canvas.
 
@@ -323,6 +352,7 @@ class System:
         cls._updateFlash(deltaTime)
         cls._updateShake(deltaTime)
         cls.updateWeather(deltaTime)
+        cls.updateFog(deltaTime)
         cls._canvas.display()
         states = Render.CanvasRenderStates()
         finalCanvas = cls._canvas
@@ -411,12 +441,21 @@ class System:
 
     @classmethod
     def setLanguage(cls, language: str) -> None:
-        r"""\brief Set the current language.
+        r"""\brief Set the current language code.
 
-        - \param language The language code to set.
+        - \param language The language code to apply.
         """
         cls._language = language
+        Locale.LANGUAGE = language
         cls._setIniData("language", cls._language)
+
+    @classmethod
+    def saveLanguage(cls, language: str) -> None:
+        r"""\brief Save the language code to configuration without applying it immediately.
+
+        - \param language The language code to persist for next restart.
+        """
+        cls._setIniData("language", language)
 
     @classmethod
     def setScale(cls, scale: float) -> None:
@@ -425,6 +464,15 @@ class System:
         - \param scale The new scale factor.
         """
         Engine.Scale = scale
+        cls._setIniData("scale", scale)
+
+    @classmethod
+    def saveScale(cls, scale: float) -> None:
+        r"""\brief Save the display scale factor to configuration without applying it immediately.
+
+        - \param scale The scale factor to persist for next restart.
+        """
+        cls._setIniData("scale", scale)
 
     @classmethod
     def getScale(cls) -> float:
@@ -484,12 +532,7 @@ class System:
 
         - \param musicOn True to enable music.
         """
-        from . import Manager
-
         cls._musicOn = musicOn
-        if not cls._musicOn:
-            Manager.stopMusic("BGM")
-            Manager.stopMusic("BGS")
         cls._setIniData("musicOn", cls._musicOn)
 
     @classmethod

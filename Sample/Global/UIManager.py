@@ -2,7 +2,7 @@
 r"""\brief UIManager: manages active UI canvases, event dispatch, and rendering order."""
 
 import os
-from typing import List
+from typing import Callable, List, Optional
 from Engine import Input
 from Engine.Utils import Math
 from Engine.UI import Canvas
@@ -82,7 +82,7 @@ class UIManager:
                 if hasattr(ui, "update"):
                     ui.update(deltaTime)
 
-    def _renderHandle(self, deltaTime: float) -> None:
+    def _renderHandle(self, deltaTime: float, overlayRenderer: Optional[Callable[[], None]] = None) -> None:
         sortedUIs = sorted(self._UIs, key=lambda item: item.getZOrder() if hasattr(item, "getZOrder") else 0)
         for ui in sortedUIs:
             if ui.getVisible():
@@ -91,6 +91,8 @@ class UIManager:
                 System.draw(ui)
         if System.isDebugMode() and self._debugHUDEnabled:
             System.draw(self._debugHUD)
+        if overlayRenderer is not None:
+            overlayRenderer()
         System.display(deltaTime)
         for ui in sortedUIs:
             if ui.getActive() and ui.getVisible():

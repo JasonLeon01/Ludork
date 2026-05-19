@@ -145,10 +145,6 @@ class AudioManager:
         - \param filter: Optional music filter to apply.
         - \return: Playing Music object, or None if music is disabled.
         """
-        if not System.getMusicOn():
-            cls.stopMusic(musicType)
-            return None
-
         music = Music()
         if not music.openFromFile(filePath):
             raise Exception(f"Failed to load music from file: {filePath}")
@@ -156,9 +152,12 @@ class AudioManager:
         if not filter is None:
             cls.setMusicFilter(music, filter)
         cls._MusicBaseVolume[id(music)] = music.getVolume()
-        mv = System.getMusicVolume()
-        if mv != 100:
-            music.setVolume(cls._MusicBaseVolume[id(music)] * mv / 100.0)
+        if not System.getMusicOn():
+            music.setVolume(0)
+        else:
+            mv = System.getMusicVolume()
+            if mv != 100:
+                music.setVolume(cls._MusicBaseVolume[id(music)] * mv / 100.0)
         music.play()
         cls._monitorPlayEnd(music, filePath, cls._musicMonitor, cls._cleanMusic)
         return music
@@ -361,17 +360,17 @@ class AudioManager:
         import Engine
 
         base = cls._MusicBaseVolume.get(id(music), music.getVolume())
-        last = -1
+        lastVolume = -1.0
         GameRunning = Engine.GameRunning
         while GameRunning and music.getStatus() != Music.Status.Stopped:
             GameRunning = Engine.GameRunning
             if not System.getMusicOn():
-                music.stop()
-                break
-            mv = System.getMusicVolume()
-            if mv != last:
-                music.setVolume(base * mv / 100.0)
-                last = mv
+                targetVolume = 0.0
+            else:
+                targetVolume = base * System.getMusicVolume() / 100.0
+            if abs(targetVolume - lastVolume) > 0.001 or abs(music.getVolume() - targetVolume) > 0.001:
+                music.setVolume(targetVolume)
+                lastVolume = targetVolume
             await asyncio.sleep(1)
 
     @classmethod

@@ -40,12 +40,12 @@ class CommonTipController:
     _FADE_OUT = 0.35
     _RISE = 16.0
 
-    def __init__(self, particleSystem: ParticleSystem, fontSize: int = 12) -> None:
+    def __init__(self, particleSystem: ParticleSystem, fontSize: int = 20) -> None:
         r"""
         \brief Construct a common tip controller.
 
         - particleSystem: Target particle system used to create and render `TextParticle`
-        - fontSize: Character size used when creating each tip text particle
+        - fontSize: Character size in logical UI units
         """
         self._particleSystem = particleSystem
         self._fontSize = fontSize
@@ -75,14 +75,14 @@ class CommonTipController:
             0.0,
             "",
             font,
-            self._fontSize,
+            self._getScaledFontSize(),
         )
         textParticle.setString(message)
         textParticle.setFillColor(Color(255, 255, 255, 0))
         self._particleSystem.addText(textParticle)
 
         index = len(self._tips)
-        targetY = self._START_Y + index * self._GAP
+        targetY = self._getScaledScreenY(index)
         # All tips start with fade_in to have fade-in animation
         self._tips.append(
             _TipItem(
@@ -139,7 +139,7 @@ class CommonTipController:
         elif top.phase == "fade_out":
             top.fadeProgress = min(1.0, top.fadeProgress + deltaTime / max(0.001, self._FADE_OUT))
             top.alpha = 255.0 * (1.0 - top.fadeProgress)
-            top.screenY = top.targetScreenY - self._RISE * top.fadeProgress
+            top.screenY = top.targetScreenY - self._getScaledDistance(self._RISE) * top.fadeProgress
             if top.fadeProgress >= 1.0:
                 self._removeTopTip()
                 if len(self._tips) == 0:
@@ -163,7 +163,7 @@ class CommonTipController:
         top = self._tips.pop(0)
         self._particleSystem.removeText(top.textParticle)
         for idx, item in enumerate(self._tips):
-            item.targetScreenY = self._START_Y + idx * self._GAP
+            item.targetScreenY = self._getScaledScreenY(idx)
         self._shifting = len(self._tips) > 0
         if len(self._tips) > 0:
             self._tips[0].phase = "queued"
@@ -174,11 +174,23 @@ class CommonTipController:
 
         if len(self._tips) == 0:
             return
-        gameWidth = float(System.getGameSize().x)
-        centerScreenX = gameWidth * 0.5
+        canvasWidth = float(System.getCanvas().getSize().x)
+        centerScreenX = canvasWidth * 0.5
         for item in self._tips:
             bounds = item.textParticle.getLocalBounds()
-            textWidth = float(bounds.size.x + bounds.position.x)
-            screenX = (centerScreenX - textWidth * 0.5) - float(bounds.position.x)
+            screenX = centerScreenX - (float(bounds.position.x) + float(bounds.size.x) * 0.5)
             item.textParticle.setPosition(Vector2f(screenX, item.screenY))
             item.textParticle.setFillColor(Color(255, 255, 255, int(Math.Clamp(item.alpha, 0.0, 255.0))))
+
+    def _getScaledFontSize(self) -> int:
+        from Global import System
+
+        return max(1, int(round(self._fontSize * System.getScale())))
+
+    def _getScaledDistance(self, logicalValue: float) -> float:
+        from Global import System
+
+        return logicalValue * System.getScale()
+
+    def _getScaledScreenY(self, index: int) -> float:
+        return self._getScaledDistance(self._START_Y + index * self._GAP)

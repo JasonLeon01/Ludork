@@ -84,7 +84,7 @@ class StateInfo(InfoBase):
         pass
 
     @RegisterEvent
-    def onTurnStart(self, battler: Battler = None) -> None:
+    def onTurnStart(self, battler: Battler = None, context: DamageContext = None) -> None:
         r"""\brief Blueprint event: called at the beginning of the battler's turn.
 
         - \param battler The hosting battler.
@@ -92,7 +92,7 @@ class StateInfo(InfoBase):
         pass
 
     @RegisterEvent
-    def onTurnEnd(self, battler: Battler = None) -> None:
+    def onTurnEnd(self, battler: Battler = None, context: DamageContext = None) -> None:
         r"""\brief Blueprint event: called at the end of the battler's turn.
 
         - \param battler The hosting battler.

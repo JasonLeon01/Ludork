@@ -11,7 +11,7 @@ import os
 import builtins
 from typing import Dict
 
-LANGUAGE = "en_GB"
+LANGUAGE: str = "en_GB"
 
 
 class _Locale:
@@ -63,6 +63,7 @@ def GetContent(key: str) -> str:
     \return The localized string, or the key itself if not found.
     """
     return GetLocaleContent(LANGUAGE, key)
+
 
 def GetLocaleDict() -> Dict[str, str]:
     r"""

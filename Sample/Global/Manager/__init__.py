@@ -207,6 +207,18 @@ def loadAutotile(filename: str, sRGB: bool = False, area: IntRect = None, smooth
     return loadTexture("Autotiles", filename, sRGB, area, smooth)
 
 
+def loadFog(filename: str, sRGB: bool = False, area: IntRect = None, smooth: bool = False) -> Texture:
+    r"""
+    \brief Load a texture from Assets/Fogs.
+    - \param filename Name of the texture file.
+    - \param sRGB Whether to use sRGB colour space.
+    - \param area Optional area to load from the texture.
+    - \param smooth Whether to enable smoothing.
+    - \return Loaded Texture object.
+    """
+    return loadTexture("Fogs", filename, sRGB, area, smooth)
+
+
 def loadTransition(filename: str, sRGB: bool = False, area: IntRect = None, smooth: bool = False) -> Texture:
     r"""
     \brief Load a texture from Assets/Transitions.

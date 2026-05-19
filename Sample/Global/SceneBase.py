@@ -6,11 +6,12 @@ import inspect
 import threading
 import time
 from typing import Any, Callable, List, Dict, Optional
-from Engine import Input
+from Engine import Input, ParticleSystem
 from Engine.Utils import Event
 from . import Manager
 from .System import System
 from .Animation import Animation
+from .CustomParticles import CommonTipController
 from .Manager import TimerTaskEntry
 from .UIManager import UIManager
 
@@ -33,6 +34,8 @@ class SceneBase:
         self._created = False
         self._animList: List[Animation] = []
         self._uiManager: UIManager = UIManager()
+        self._commonTipParticleSystem: ParticleSystem = ParticleSystem()
+        self._commonTipController: CommonTipController = CommonTipController(self._commonTipParticleSystem, fontSize=20)
         self._logicThread: Optional[threading.Thread] = None
         self._logicStopEvent: threading.Event = threading.Event()
         self._logicDataLock: threading.RLock = threading.RLock()
@@ -148,6 +151,14 @@ class SceneBase:
         with self._logicDataLock:
             self._animList.clear()
 
+    @ExecSplit(default=(None,))
+    def addCommonTip(self, text: str) -> None:
+        r"""\brief Display a floating tip text in the current scene.
+
+        - \param text The tip message to display.
+        """
+        self._commonTipController.addTip(text)
+
     def main(self) -> None:
         r"""\brief Enter the scene's main loop.
 
@@ -169,6 +180,7 @@ class SceneBase:
             self._renderHandle(deltaTime)
             System.clearCanvas()
             self.onLateTick(deltaTime)
+            self._commonTipParticleSystem.onLateTick(deltaTime)
             time.sleep(0)
         self._stopLogicThread()
         self.onQuit()
@@ -188,6 +200,8 @@ class SceneBase:
                         self._animList.remove(anim)
                 for anim in self._animList:
                     anim.update(deltaTime)
+            self._commonTipController.onTick(deltaTime)
+            self._commonTipParticleSystem.onTick(deltaTime)
 
     def _fixedLogicHandle(self, fixedDelta: float) -> None:
         self._uiManager._fixedLogicHandle(fixedDelta)
@@ -200,7 +214,11 @@ class SceneBase:
 
     def _renderHandle(self, deltaTime: float) -> None:
         self._drawSceneAnims()
-        self._uiManager._renderHandle(deltaTime)
+        self._uiManager._renderHandle(deltaTime, self._drawCommonTipOverlay)
+
+    def _drawCommonTipOverlay(self) -> None:
+        System.setWindowDefaultView()
+        System.draw(self._commonTipParticleSystem)
 
     def _update(self, deltaTime: float) -> None:
         self._renderHandle(deltaTime)

@@ -88,6 +88,7 @@ class Scene(SceneBase):
         r"""\brief Stop map BGM/BGS and weather when leaving this scene."""
         self._stopMapAudio()
         GlobalSystem.clearWeather()
+        GlobalSystem.clearFog()
 
     def onDestroy(self) -> None:
         r"""\brief Ensure map BGM/BGS are stopped when scene is destroyed."""
@@ -137,6 +138,8 @@ class Scene(SceneBase):
         self._gameMap.spawnActor(self.player, "default")
         self._gameMap.setPlayer(self.player)
         self._playMapAudio(mapData)
+        GlobalSystem.clearFog()
+        GlobalSystem.applyFogFromMapData(mapData)
         destroyedActors = self.inst.getDestroyedActors(mapPath)
         if destroyedActors:
             for actorTag in destroyedActors:

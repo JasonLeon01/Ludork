@@ -76,6 +76,7 @@ class WindowSelectable(WindowBase):
 
         - \param deltaTime Elapsed time in seconds.
         """
+        active = self.getActive()
         self._rect.setVisible((not self.index is None and self._itemCount() > 0))
         if self.index is not None:
             self._updateScroll()
@@ -90,7 +91,7 @@ class WindowSelectable(WindowBase):
                 )
         if self._rect.getParent() is None:
             self.content.addChild(self._rect)
-        if self._isHovered and self._listView:
+        if active and self._isHovered and self._listView:
             for index, child in enumerate(self._listView.getChildren()):
                 if isinstance(child, FunctionalBase):
                     if child.isHovered():
@@ -100,7 +101,7 @@ class WindowSelectable(WindowBase):
                     if isinstance(child, FunctionalBase):
                         if self._judgeIfConfirm(child):
                             child.onConfirm({})
-        if self._listView and Input.isTouchBegan():
+        if active and self._listView and Input.isTouchBegan():
             beganPos = Input.getTouchBeganPosition()
             if beganPos is not None:
                 touchLocal = Math.ToVector2f(beganPos)

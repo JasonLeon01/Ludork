@@ -22,7 +22,7 @@ class MapEditDialog(QtWidgets.QDialog):
         if title is None:
             title = ELOC("MAPLIST_EDIT")
         self.setWindowTitle(title)
-        self.setMinimumSize(640, 256)
+        self.setMinimumWidth(640)
         form = QtWidgets.QFormLayout(self)
         form.setContentsMargins(12, 12, 12, 12)
         form.setSpacing(8)
@@ -85,8 +85,10 @@ class MapEditDialog(QtWidgets.QDialog):
         self.bgmLayout = QtWidgets.QHBoxLayout()
         self.bgmLayout.setContentsMargins(0, 0, 0, 0)
         self.bgmLayout.setSpacing(6)
+        self.bgmClearBtn = QtWidgets.QPushButton(ELOC("CLEAR"), self)
         self.bgmLayout.addWidget(self.bgmEdit, 1)
         self.bgmLayout.addWidget(self.bgmBtn, 0)
+        self.bgmLayout.addWidget(self.bgmClearBtn, 0)
         self.bgmLayout.addWidget(self.bgmFilterBtn, 0)
 
         self.bgsEdit = QtWidgets.QLineEdit(self)
@@ -99,8 +101,10 @@ class MapEditDialog(QtWidgets.QDialog):
         self.bgsLayout = QtWidgets.QHBoxLayout()
         self.bgsLayout.setContentsMargins(0, 0, 0, 0)
         self.bgsLayout.setSpacing(6)
+        self.bgsClearBtn = QtWidgets.QPushButton(ELOC("CLEAR"), self)
         self.bgsLayout.addWidget(self.bgsEdit, 1)
         self.bgsLayout.addWidget(self.bgsBtn, 0)
+        self.bgsLayout.addWidget(self.bgsClearBtn, 0)
         self.bgsLayout.addWidget(self.bgsFilterBtn, 0)
 
         bgmRoot = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Musics")
@@ -112,11 +116,17 @@ class MapEditDialog(QtWidgets.QDialog):
             if fp:
                 self.bgmEdit.setText(os.path.basename(fp))
 
+        def onClearBgm():
+            self.bgmEdit.clear()
+
         def onBrowseBgs():
             dlg = FileSelectorDialog(self, bgsRoot, FileSelectorDialog.audioFilesFilter())
             fp = dlg.execSelect()
             if fp:
                 self.bgsEdit.setText(os.path.basename(fp))
+
+        def onClearBgs():
+            self.bgsEdit.clear()
 
         def onEditBgmFilter():
             result = EditFilterData(self, self._bgmFilterData, "bgm")
@@ -129,14 +139,95 @@ class MapEditDialog(QtWidgets.QDialog):
                 self._bgsFilterData = result
 
         self.bgmBtn.clicked.connect(onBrowseBgm)
+        self.bgmClearBtn.clicked.connect(onClearBgm)
         self.bgsBtn.clicked.connect(onBrowseBgs)
+        self.bgsClearBtn.clicked.connect(onClearBgs)
         self.bgmFilterBtn.clicked.connect(onEditBgmFilter)
         self.bgsFilterBtn.clicked.connect(onEditBgsFilter)
         form.addRow(ELOC("MAP_BGM"), self.bgmLayout)
         form.addRow(ELOC("MAP_BGS"), self.bgsLayout)
 
+        self.fogEdit = QtWidgets.QLineEdit(self)
+        self.fogEdit.setReadOnly(True)
+        self.fogEdit.setStyleSheet("")
+        self.fogEdit.setText(data.get("fog", ""))
+        self.fogBtn = QtWidgets.QPushButton("...", self)
+        self.fogClearBtn = QtWidgets.QPushButton(ELOC("CLEAR"), self)
+        self.fogLayout = QtWidgets.QHBoxLayout()
+        self.fogLayout.setContentsMargins(0, 0, 0, 0)
+        self.fogLayout.setSpacing(6)
+        self.fogLayout.addWidget(self.fogEdit, 1)
+        self.fogLayout.addWidget(self.fogBtn, 0)
+        self.fogLayout.addWidget(self.fogClearBtn, 0)
+        fogRoot = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Fogs")
+
+        def onBrowseFog():
+            dlg = FileSelectorDialog(self, fogRoot, FileSelectorDialog.imageFilesFilter())
+            fp = dlg.execSelect()
+            if fp:
+                self.fogEdit.setText(os.path.basename(fp))
+                self._updateFogOptionsVisible()
+
+        def onClearFog():
+            self.fogEdit.clear()
+            self._updateFogOptionsVisible()
+
+        self.fogBtn.clicked.connect(onBrowseFog)
+        self.fogClearBtn.clicked.connect(onClearFog)
+        form.addRow(ELOC("MAP_FOG"), self.fogLayout)
+
+        self._fogOptionsWidget = QtWidgets.QWidget(self)
+        self._fogOptionsWidget.setSizePolicy(
+            QtWidgets.QSizePolicy.Preferred,
+            QtWidgets.QSizePolicy.Minimum,
+        )
+        fogOptionsForm = QtWidgets.QFormLayout(self._fogOptionsWidget)
+        fogOptionsForm.setContentsMargins(0, 0, 0, 0)
+        fogOptionsForm.setSpacing(8)
+        fogOptionsForm.setFieldGrowthPolicy(QtWidgets.QFormLayout.AllNonFixedFieldsGrow)
+
+        self.fogPowerSpin = QtWidgets.QSpinBox(self)
+        self.fogPowerSpin.setRange(0, 100)
+        self.fogPowerSpin.setValue(int(data.get("fogPower", 0)))
+        fogPowerLineEdit = self.fogPowerSpin.lineEdit()
+        if fogPowerLineEdit:
+            fogPowerLineEdit.setStyleSheet("")
+        else:
+            self.fogPowerSpin.setStyleSheet("")
+        fogOptionsForm.addRow(ELOC("MAP_FOG_POWER"), self.fogPowerSpin)
+
+        self.fogOxSpin = QtWidgets.QDoubleSpinBox(self)
+        self.fogOySpin = QtWidgets.QDoubleSpinBox(self)
+        for spin in (self.fogOxSpin, self.fogOySpin):
+            spin.setRange(-9999.0, 9999.0)
+            spin.setDecimals(2)
+            spin.setSingleStep(1.0)
+            lineEdit = spin.lineEdit()
+            if lineEdit:
+                lineEdit.setStyleSheet("")
+            else:
+                spin.setStyleSheet("")
+        self.fogOxSpin.setValue(float(data.get("fogOx", 0)))
+        self.fogOySpin.setValue(float(data.get("fogOy", 0)))
+        fogOptionsForm.addRow(ELOC("MAP_FOG_OX"), self.fogOxSpin)
+        fogOptionsForm.addRow(ELOC("MAP_FOG_OY"), self.fogOySpin)
+
+        self.fogDistortSpin = QtWidgets.QSpinBox(self)
+        self.fogDistortSpin.setRange(0, 100)
+        self.fogDistortSpin.setValue(int(data.get("fogDistort", 0)))
+        fogDistortLineEdit = self.fogDistortSpin.lineEdit()
+        if fogDistortLineEdit:
+            fogDistortLineEdit.setStyleSheet("")
+        else:
+            self.fogDistortSpin.setStyleSheet("")
+        fogOptionsForm.addRow(ELOC("MAP_FOG_DISTORT"), self.fogDistortSpin)
+
+        form.addRow(self._fogOptionsWidget)
+        self.fogEdit.textChanged.connect(self._updateFogOptionsVisible)
+
         self.btns = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel, self)
         form.addRow(self.btns)
+        self._updateFogOptionsVisible()
         confirm_label = ELOC("CONFIRM")
         cancel_label = ELOC("CANCEL")
         ok_btn = self.btns.button(QtWidgets.QDialogButtonBox.Ok)
@@ -147,6 +238,29 @@ class MapEditDialog(QtWidgets.QDialog):
             cancel_btn.setText(cancel_label)
         self.btns.accepted.connect(self.accept)
         self.btns.rejected.connect(self.reject)
+
+    def _hasFogGraphic(self) -> bool:
+        return bool(self.fogEdit.text().strip())
+
+    def _updateFogOptionsVisible(self) -> None:
+        visible = self._hasFogGraphic()
+        self._fogOptionsWidget.setVisible(visible)
+        if visible:
+            self._fogOptionsWidget.setMinimumHeight(self._fogOptionsWidget.sizeHint().height())
+        else:
+            self._fogOptionsWidget.setMinimumHeight(0)
+        self._relayoutDialog()
+
+    def _relayoutDialog(self) -> None:
+        layout = self.layout()
+        if layout is not None:
+            layout.activate()
+        self.adjustSize()
+        hint = self.sizeHint()
+        w = max(640, hint.width())
+        h = hint.height()
+        self.setMinimumSize(w, h)
+        self.resize(w, h)
 
     def accept(self) -> None:
         fname = self.fileEdit.text().strip()
@@ -209,6 +323,18 @@ class MapEditDialog(QtWidgets.QDialog):
         bgs = self.bgsEdit.text().strip()
         data["bgs"] = bgs if bgs else ""
         data["bgsFilter"] = self._bgsFilterData
+        fog = self.fogEdit.text().strip()
+        data["fog"] = fog if fog else ""
+        if fog:
+            data["fogPower"] = int(self.fogPowerSpin.value())
+            data["fogOx"] = float(self.fogOxSpin.value())
+            data["fogOy"] = float(self.fogOySpin.value())
+            data["fogDistort"] = int(self.fogDistortSpin.value())
+        else:
+            data["fogPower"] = 0
+            data["fogOx"] = 0
+            data["fogOy"] = 0
+            data["fogDistort"] = 0
 
         if new_w != old_w or new_h != old_h:
             layers = data.get("layers", {})

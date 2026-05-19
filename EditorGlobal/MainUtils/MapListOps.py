@@ -161,6 +161,11 @@ class MapListOpsMixin:
             "width": 20,
             "height": 15,
             "ambientLight": [255, 255, 255, 255],
+            "fog": "",
+            "fogPower": 0,
+            "fogOx": 0,
+            "fogOy": 0,
+            "fogDistort": 0,
             "layers": {},
         }
         suggested_name = self._getNewMapFileName()

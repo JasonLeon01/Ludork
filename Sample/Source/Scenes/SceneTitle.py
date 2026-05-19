@@ -5,7 +5,7 @@ from Engine.UI import Image
 from Engine.UI.Base import FunctionalBase
 from Global import Manager, System, SceneBase
 from Source import System as SourceSystem, System as GameSystem
-from Source.Windows import WindowCommand, WindowSaveLoad
+from Source.Windows import WindowCommand, WindowSaveLoad, ConfigWindow
 from Source.GameInstance import GameInstance
 
 
@@ -24,7 +24,7 @@ class Scene(SceneBase):
             {
                 "Start": {"text": LOC("TITLE_START"), "callback": Scene._startGame},
                 "Load": {"text": LOC("TITLE_CONTINUE"), "callback": lambda obj, kwargs: self._onLoadCommand()},
-                "Config": {"text": LOC("TITLE_CONFIG"), "callback": Scene._configGame},
+                "Config": {"text": LOC("TITLE_CONFIG"), "callback": lambda obj, kwargs: self._onConfigCommand()},
                 "Exit": {"text": LOC("TITLE_EXIT"), "callback": Scene._exitGame},
             },
             columns=2,
@@ -42,6 +42,8 @@ class Scene(SceneBase):
         self._uiManager.loadUI(self._windowCommand)
         self._uiManager.loadUI(self._windowSaveLoad.getSlotWindow())
         self._uiManager.loadUI(self._windowSaveLoad.getDetailWindow())
+        self._configWindow = ConfigWindow(onClose=self._onConfigClose)
+        self._uiManager.loadUI(self._configWindow)
         self._titleBGM = None
         titleBGMFile = SourceSystem.getTitleBGM()
         if titleBGMFile:
@@ -86,10 +88,16 @@ class Scene(SceneBase):
         nextScene.setInst(inst)
         System.setScene(nextScene)
 
-    @staticmethod
-    def _configGame(obj: FunctionalBase, kwargs: Dict[str, Any]) -> None:
+    def _onConfigCommand(self) -> None:
         Manager.playSE(GameSystem.getDecisionSE())
-        print("Config Game")
+        if self._configWindow.isOpen():
+            self._configWindow.close()
+        else:
+            self._configWindow.open()
+            self._windowCommand.setActive(False)
+
+    def _onConfigClose(self) -> None:
+        self._windowCommand.setActive(True)
 
     @staticmethod
     def _exitGame(obj: FunctionalBase, kwargs: Dict[str, Any]) -> None:

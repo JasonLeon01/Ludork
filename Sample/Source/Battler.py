@@ -179,16 +179,16 @@ class Battler(_BaseBattler):
             atk=attacker.ATK,
             deF=defender.DEF,
         )
-        attacker.triggerStateEvent("onTurnStart")
-        defender.triggerStateEvent("onTurnStart")
+        attacker.triggerStateEvent("onTurnStart", context=ctx)
+        defender.triggerStateEvent("onTurnStart", context=ctx)
         attacker.triggerStateEvent("onBeforeAttack", context=ctx)
         defender.triggerStateEvent("onBeforeDefense", context=ctx)
         ctx.damagePerRound = max(0, ctx.atk - ctx.deF)
         attacker.triggerStateEvent("onAfterAttack", context=ctx)
         defender.triggerStateEvent("onAfterDefense", context=ctx)
         ctx.damagePerRound = max(0, ctx.damagePerRound)
-        attacker.triggerStateEvent("onTurnEnd")
-        defender.triggerStateEvent("onTurnEnd")
+        attacker.triggerStateEvent("onTurnEnd", context=ctx)
+        defender.triggerStateEvent("onTurnEnd", context=ctx)
         return ctx
 
     def getDamage(self, battler: Battler) -> Tuple[DamageType, int]:

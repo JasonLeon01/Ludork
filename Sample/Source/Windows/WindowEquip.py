@@ -325,9 +325,6 @@ class WindowEquipSlot(WindowSelectable):
         if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
             self._closeByCancel()
             return
-        if Input.isActionTriggered(Input.getConfirmKeys(), handled=True):
-            self._focusSelectWindow()
-            return
         if Input.isActionTriggered(Input.getRightKeys(), handled=True):
             self._focusSelectWindow()
             return
@@ -503,9 +500,6 @@ class WindowEquipSelect(WindowSelectable):
             return
         if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
             self._closeByCancel()
-            return
-        if Input.isActionTriggered(Input.getConfirmKeys(), handled=True):
-            self._onConfirmAction()
             return
         if Input.isActionTriggered(Input.getLeftKeys(), handled=True):
             columns = self._getColumns()
