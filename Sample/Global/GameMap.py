@@ -79,6 +79,7 @@ class GameMap(GameMapExt):
     """
 
     DefaultCoverAlpha: int
+    MapViewOffset: Vector2f = Vector2f(0.0, 0.0)
 
     def __init__(self, mapName: str, tilemap: Tilemap, camera: Optional[Camera] = None) -> None:
         r"""\brief Construct a game map.
@@ -224,6 +225,24 @@ class GameMap(GameMapExt):
                 if actor.tag == tag:
                     actors.append(actor)
         return actors
+
+    def removeActorsByTags(self, tags: List[str]) -> None:
+        r"""\brief Remove actors matching any tag from the map without replaying destroy events.
+
+        - \param tags Actor tags to remove.
+        """
+        if not tags:
+            return
+        tagSet = set(tags)
+        removed = False
+        for layerName, actorList in self._actors.items():
+            keptActors = [actor for actor in actorList if actor.tag not in tagSet]
+            if len(keptActors) != len(actorList):
+                self._actors[layerName] = keptActors
+                removed = True
+        if removed:
+            self.updateActorList()
+            self._materialDirty = True
 
     @ReturnType(passable=bool)
     def isPassable(self, actor: Actor, targetPosition: Vector2i) -> bool:
@@ -695,7 +714,7 @@ class GameMap(GameMapExt):
 
         layers = self._tilemap.getAllLayers()
         layerKeys = list(layers.keys())
-        System.setWindowMapView()
+        System.setWindowMapView(GameMap.MapViewOffset)
         if self._camera:
             self._camera.clear()
         if self._lightMask:

@@ -21,6 +21,20 @@ def GotoMap(mapPath: str, x: Optional[int] = None, y: Optional[int] = None) -> N
         scene.gotoMapAndPos(mapPath, pos)
 
 
+@Meta(DisplayName='LOC("RECORD_TELEPOINT")', DisplayDesc='LOC("RECORD_TELEPOINT_DESC")')
+@ExecSplit(default=(None,))
+def RecordTelepoint(mapPath: str, x: int, y: int) -> None:
+    r"""\brief Record a telepoint in the current game instance.
+
+    - \param mapPath The map path where the telepoint is located.
+    - \param x Telepoint tile column.
+    - \param y Telepoint tile row.
+    """
+    scene = System.getScene()
+    if scene and hasattr(scene, "inst"):
+        scene.inst.recordTelepoint(mapPath, Vector2u(int(x), int(y)))
+
+
 @Meta(DisplayName='LOC("OPEN_SHOP")', DisplayDesc='LOC("OPEN_SHOP_DESC")')
 @Latent(Closed=(True,))
 def OpenShop(items: List[str], canSell: bool) -> Callable[[], bool]:

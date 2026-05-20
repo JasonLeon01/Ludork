@@ -116,6 +116,7 @@ class Enemy(Actor, EnemyInfo, Battler):
         if player and player in other:
             result = self.battle()
             if result == 0:
+                map.recordDestroyedActor(self)
                 self.destroy()
                 player.GOLD += self.GOLD
                 player.EXP += self.EXP

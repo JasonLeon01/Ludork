@@ -16,6 +16,7 @@ for the Ludork sample engine.
 - WindowSaveLoad    Integrated save/load window
 - WindowShop        Integrated buy/sell shop window
 - WindowEnemyBook   Current-map monster handbook window
+- WindowFloorTeleporter Visited-floor list and map preview window
 - ConfigWindow      Game configuration window
 - DropBox           Drop-down field and expanded list widgets
 - CheckBox          Boolean checkbox field widget
@@ -30,6 +31,7 @@ from .WindowEquip import WindowEquipSlot, WindowEquipSelect
 from .WindowSaveLoad import WindowSaveLoad
 from .WindowShop import WindowShop
 from .WindowEnemyBook import WindowEnemyBook
+from .WindowFloorTeleporter import WindowFloorTeleporter
 from .ConfigWindow import ConfigWindow
 from .General import DropBox, CheckBox
 
@@ -44,6 +46,7 @@ __all__ = [
     "WindowSaveLoad",
     "WindowShop",
     "WindowEnemyBook",
+    "WindowFloorTeleporter",
     "ConfigWindow",
     "DropBox",
     "CheckBox",

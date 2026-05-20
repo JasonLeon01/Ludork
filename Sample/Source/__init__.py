@@ -12,6 +12,7 @@ for the Ludork sample project.
 - Player         Player entity
 - Enemy          Enemy entity
 - Item           Item entity
+- Teleporter     Mota floor teleporter actor
 - Scenes         Scene definitions
 """
 
@@ -22,6 +23,18 @@ from .Player import Player
 from .Enemy import Enemy
 from .Item import Item
 from .Equip import Equip
+from .Teleporter import Teleporter
 from . import Scenes
 
-__all__ = ["System", "NodeFunctions", "ItemInfo", "EnemyInfo", "Player", "Enemy", "Item", "Equip", "Scenes"]
+__all__ = [
+    "System",
+    "NodeFunctions",
+    "ItemInfo",
+    "EnemyInfo",
+    "Player",
+    "Enemy",
+    "Item",
+    "Equip",
+    "Teleporter",
+    "Scenes",
+]

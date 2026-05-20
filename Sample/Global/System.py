@@ -79,6 +79,8 @@ class System:
     _scenes: List[SceneBase] = []
     _pendingSceneReplace: Optional[Any] = None
     _pendingSceneLock: threading.Lock = threading.Lock()
+    _pendingTransition: Optional[tuple[Optional[str], float]] = None
+    _pendingTransitionLock: threading.Lock = threading.Lock()
     _sceneOpThreadIdent: Optional[int] = None
     _debugMode: bool = False
     _showFPSGraph: bool = False
@@ -254,9 +256,17 @@ class System:
         cls._canvas.clear(Color.Transparent)
 
     @classmethod
-    def setWindowMapView(cls) -> None:
-        r"""\brief Set the canvas view to centre on the game's logical size."""
-        cls._canvas.setView(View(Math.ToVector2f(Engine.GameSize / 2), Math.ToVector2f(Engine.GameSize)))
+    def setWindowMapView(cls, offset: Vector2f = Vector2f(0.0, 0.0)) -> None:
+        r"""\brief Set the map canvas view to the game's logical size with a screen offset.
+
+        - \param offset Screen-space offset for map drawing on the main canvas.
+        """
+        cls._canvas.setView(
+            View(
+                Math.ToVector2f(Engine.GameSize / 2) - offset,
+                Math.ToVector2f(Engine.GameSize),
+            )
+        )
 
     @classmethod
     def setWindowDefaultView(cls) -> None:
@@ -353,6 +363,7 @@ class System:
         cls._updateShake(deltaTime)
         cls.updateWeather(deltaTime)
         cls.updateFog(deltaTime)
+        cls.applyPendingTransition()
         cls._canvas.display()
         states = Render.CanvasRenderStates()
         finalCanvas = cls._canvas
@@ -816,6 +827,51 @@ class System:
     def freezeTransitionBackground(cls) -> None:
         r"""\brief Freeze the current frame to use as the transition background."""
         cls._transitionFreezePending = True
+
+    @classmethod
+    def isTransitionBackgroundFrozen(cls) -> bool:
+        r"""\brief Check whether the transition background is ready."""
+        return cls._transitionFrozen
+
+    @classmethod
+    def cancelTransitionBackgroundFreeze(cls) -> None:
+        r"""\brief Cancel a pending or frozen transition background."""
+        cls._transitionFreezePending = False
+        cls._transitionFrozen = False
+
+    @classmethod
+    def requestTransition(cls, transitionName: Optional[str] = None, transitionTime: float = 1.0) -> None:
+        r"""\brief Queue a transition to be started on the render thread.
+
+        - \param transitionName Optional transition texture filename.
+        - \param transitionTime Duration of the transition in seconds.
+        """
+        with cls._pendingTransitionLock:
+            cls._pendingTransition = (transitionName, float(transitionTime))
+
+    @classmethod
+    def cancelPendingTransition(cls) -> None:
+        r"""\brief Cancel a queued transition that has not started yet."""
+        with cls._pendingTransitionLock:
+            cls._pendingTransition = None
+
+    @classmethod
+    def applyPendingTransition(cls) -> None:
+        r"""\brief Start any queued transition on the render thread."""
+        pending: Optional[tuple[Optional[str], float]] = None
+        with cls._pendingTransitionLock:
+            if cls._pendingTransition is not None:
+                pending = cls._pendingTransition
+                cls._pendingTransition = None
+        if pending is None:
+            return
+        transitionName, transitionTime = pending
+        transitionResource = None
+        if transitionName:
+            from . import Manager
+
+            transitionResource = Manager.loadTransition(transitionName)
+        cls.setTransition(transitionResource, transitionTime)
 
     @classmethod
     def bindSceneOperationThread(cls) -> None:

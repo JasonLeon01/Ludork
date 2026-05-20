@@ -15,6 +15,7 @@ in the Ludork sample engine.
 - Save       Save/load game state
 - Scene      Scene and map navigation
 - State      State context manipulation, host access, cross-battler state ops
+- Mota       Mota-specific scene shortcuts and region helpers
 """
 
 from . import Utils
@@ -26,5 +27,6 @@ from . import Player
 from . import Save
 from . import Scene
 from . import State
+from . import Mota
 
-__all__ = ["Utils", "Math", "String", "Container", "System", "Player", "Save", "Scene", "State"]
+__all__ = ["Utils", "Math", "String", "Container", "System", "Player", "Save", "Scene", "State", "Mota"]

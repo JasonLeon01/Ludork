@@ -19,3 +19,8 @@ class ItemInfo(InfoBase):
     def onUse(self) -> None:
         r"""\brief Triggered when the item is used."""
         pass
+
+    @RegisterEvent
+    def onGet(self) -> None:
+        r"""\brief Triggered when the item is gotten."""
+        pass

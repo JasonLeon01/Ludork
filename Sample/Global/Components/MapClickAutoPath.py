@@ -123,11 +123,20 @@ class MapClickAutoPath(ComponentBase):
         player.stop()
         destination = goal if goalPassable else (route[-2] if len(route) >= 2 else start)
         player.setMapPosition(Vector2u(destination.x, destination.y))
+        self._dispatchInstantMoveOverlaps(player)
         fromPos = route[-2] if len(route) >= 2 else start
         self._setActorDirection(player, fromPos, goal, start == goal)
         if not goalPassable and destination != goal:
             bumpOffset = Vector2i(goal.x - destination.x, goal.y - destination.y)
             player.MapMove(bumpOffset)
+
+    def _dispatchInstantMoveOverlaps(self, player: Actor) -> None:
+        overlaps = self._parent.getOverlaps(player)
+        if not overlaps:
+            return
+        Actor.BlueprintEvent(player, Actor, "onOverlap", {"other": overlaps})
+        for overlap in overlaps:
+            Actor.BlueprintEvent(overlap, Actor, "onOverlap", {"other": [player]})
 
     def _buildAutoPathPlan(
         self,
@@ -249,6 +258,7 @@ class MapClickAutoPath(ComponentBase):
         scale = System.getScale()
         if scale > 0:
             mousePos = Vector2i(int(mousePos.x / scale), int(mousePos.y / scale))
+        mousePos = self._toMapViewPixelPosition(mousePos)
         worldPos = self._parent.getCamera().mapPixelToCoords(mousePos)
         cellSize = Engine.CellSize
         return Vector2i(int(worldPos.x // cellSize), int(worldPos.y // cellSize))
@@ -260,9 +270,14 @@ class MapClickAutoPath(ComponentBase):
         scale = System.getScale()
         if scale > 0:
             touchPos = Vector2i(int(touchPos.x / scale), int(touchPos.y / scale))
+        touchPos = self._toMapViewPixelPosition(touchPos)
         worldPos = self._parent.getCamera().mapPixelToCoords(touchPos)
         cellSize = Engine.CellSize
         return Vector2i(int(worldPos.x // cellSize), int(worldPos.y // cellSize))
+
+    def _toMapViewPixelPosition(self, pos: Vector2i) -> Vector2i:
+        mapOffset = self._parent.MapViewOffset
+        return Vector2i(int(pos.x - mapOffset.x), int(pos.y - mapOffset.y))
 
     def _isInMap(self, pos: Vector2i) -> bool:
         size = self._parent.getSize()

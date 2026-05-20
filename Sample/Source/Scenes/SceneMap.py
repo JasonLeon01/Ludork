@@ -1,12 +1,12 @@
 # -*- encoding: utf-8 -*-
 
 import os
-from typing import Callable, List, Union, Optional, Dict, Any
-from Engine import Pair, Vector2u, Vector2f, Color, Filters, Music, Input, RenderTexture, Sprite
+from typing import Callable, List, Union, Optional, Dict, Any, Tuple
+from Engine import Pair, Vector2u, Vector2f, Color, Filters, Music, Input, RenderTexture, Sprite, Texture, View, RectangleShape
 import Engine
 from Engine.Gameplay import Tilemap, TileLayer, TileLayerData
 from Engine.Gameplay.Actors import Actor
-from Engine.Utils import File
+from Engine.Utils import File, Render
 from Global import Manager, SceneBase, GameMap, Camera, Light
 from Global import System as GlobalSystem
 from Source import Data, System
@@ -18,6 +18,7 @@ from Source.Windows.WindowEquip import WindowEquipSlot, WindowEquipSelect
 from Source.Windows.WindowSaveLoad import WindowSaveLoad
 from Source.Windows.WindowShop import WindowShop
 from Source.Windows.WindowEnemyBook import WindowEnemyBook
+from Source.Windows.WindowFloorTeleporter import GetDefaultFloorTeleporterRects, WindowFloorTeleporter
 from Source.GameInstance import GameInstance
 
 
@@ -56,6 +57,16 @@ class Scene(SceneBase):
         self._windowShop = WindowShop(self.player, shopCommandRect, shopItemRect, self._onShopClose)
         self._enemyBookMoveEnabledBeforeOpen = True
         self._windowEnemyBook = WindowEnemyBook(self._getEnemyBookRect(), self.player, self._onEnemyBookClose)
+        self._floorTeleporterMoveEnabledBeforeOpen = True
+        floorListRect, floorPreviewRect = GetDefaultFloorTeleporterRects()
+        self._windowFloorTeleporter = WindowFloorTeleporter(
+            self.inst,
+            floorListRect,
+            floorPreviewRect,
+            self._buildFloorMapPreview,
+            self._onFloorTeleporterConfirm,
+            self._onFloorTeleporterClose,
+        )
         self._windowSaveLoad = WindowSaveLoad(
             getSaveSource=self._getSaveSource,
             onClose=self._onSaveLoadClose,
@@ -79,6 +90,8 @@ class Scene(SceneBase):
         self._uiManager.loadUI(self._windowShop.getCommandWindow())
         self._uiManager.loadUI(self._windowShop.getItemWindow())
         self._uiManager.loadUI(self._windowEnemyBook)
+        self._uiManager.loadUI(self._windowFloorTeleporter.getCommandWindow())
+        self._uiManager.loadUI(self._windowFloorTeleporter.getPreviewWindow())
         commandWindow = self._windowSaveLoad.getCommandWindow()
         if commandWindow is not None:
             self._uiManager.loadUI(commandWindow)
@@ -133,6 +146,7 @@ class Scene(SceneBase):
             and not self._messageWindow.isInDialogue()
             and not self._windowShop.getVisible()
             and not self._windowEnemyBook.getVisible()
+            and not self._windowFloorTeleporter.getVisible()
         ):
             if not self._pendingMenuOpen and self._isMenuOpenTriggered():
                 self._pendingMenuOpen = True
@@ -157,22 +171,18 @@ class Scene(SceneBase):
 
         - \param mapPath Path to the map data file.
         """
-        mapPath = os.path.join("./Data/Maps", mapPath)
-        mapData = File.loadData(mapPath)
+        mapFile = mapPath
+        mapDataPath = os.path.join("./Data/Maps", mapFile)
+        mapData = File.loadData(mapDataPath)
         self._gameMap = self._generateGameMap(mapData)
         self._gameMap.setScene(self)
+        destroyedActors = self.inst.getDestroyedActors(mapFile)
+        self._gameMap.removeActorsByTags(destroyedActors)
         self._gameMap.spawnActor(self.player, "default")
         self._gameMap.setPlayer(self.player)
         self._playMapAudio(mapData)
         GlobalSystem.clearFog()
         GlobalSystem.applyFogFromMapData(mapData)
-        destroyedActors = self.inst.getDestroyedActors(mapPath)
-        if destroyedActors:
-            for actorTag in destroyedActors:
-                actorList = self._gameMap.getAllActorsByTag(actorTag)
-                if actorList:
-                    for actor in actorList:
-                        actor.destroy()
 
     @Latent(FinishedDialogue=(True,))
     def showMessage(self, refActorTag: str, name: str, message: str) -> Callable[[], bool]:
@@ -190,7 +200,7 @@ class Scene(SceneBase):
                 actor = actors[0]
                 camera = self._gameMap.getCamera()
                 assert camera
-                refPosition = actor.getPosition() - camera.getViewPosition()
+                refPosition = actor.getPosition() - camera.getViewPosition() + GameMap.MapViewOffset
         originMoveEnabled = self.player.getMoveEnabled()
         restored = False
 
@@ -237,7 +247,7 @@ class Scene(SceneBase):
                 actor = actors[0]
                 camera = self._gameMap.getCamera()
                 assert camera
-                refPosition = actor.getPosition() - camera.getViewPosition()
+                refPosition = actor.getPosition() - camera.getViewPosition() + GameMap.MapViewOffset
 
         originMoveEnabled = self.player.getMoveEnabled()
         restored = False
@@ -304,6 +314,18 @@ class Scene(SceneBase):
         self._windowEnemyBook.open(self._gameMap)
         self._blockMapInput(2)
 
+    @ExecSplit(default=(None,))
+    def showFloorTeleporter(self) -> None:
+        r"""\brief Show the visited-floor teleporter preview window."""
+        if not self._windowFloorTeleporter.getVisible():
+            self._floorTeleporterMoveEnabledBeforeOpen = (
+                True if self._windowMenu.isBlocking() else self.player.getMoveEnabled()
+            )
+            self.player.setMoveEnabled(False)
+        self._recordCurrentFloorTelepoint()
+        self._windowFloorTeleporter.open(self.inst)
+        self._blockMapInput(2)
+
     def openShop(self, buyItemIDs: List[str], canSell: bool) -> Callable[[], bool]:
         r"""\brief Open the map-bound shop and wait until it closes.
 
@@ -327,6 +349,36 @@ class Scene(SceneBase):
         self.player.setMoveEnabled(self._enemyBookMoveEnabledBeforeOpen)
         self._blockMapInput(1)
 
+    def _onFloorTeleporterClose(self) -> None:
+        self.player.setMoveEnabled(self._floorTeleporterMoveEnabledBeforeOpen)
+        self._blockMapInput(1)
+
+    def _onFloorTeleporterConfirm(self, mapKey: str, telepoint: Tuple[int, int]) -> None:
+        targetMap = self._resolveRegionMapPath(mapKey)
+        self._windowFloorTeleporter.close()
+        self.gotoMapAndPos(targetMap, Vector2u(telepoint[0], telepoint[1]))
+        self.player.setMoveEnabled(self._floorTeleporterMoveEnabledBeforeOpen)
+        self._blockMapInput(2)
+
+    def _recordCurrentFloorTelepoint(self) -> None:
+        if not self._gameMap or not self._cachedMapFile:
+            return
+        telepoint = self._findNearestFloorTelepoint()
+        if telepoint is None:
+            return
+        self.inst.recordTelepoint(self._cachedMapFile, Vector2u(telepoint[0], telepoint[1]))
+
+    def _findNearestFloorTelepoint(self) -> Optional[Tuple[int, int]]:
+        from Source.Teleporter import Teleporter
+
+        player = self._gameMap.getPlayer()
+        if player is None:
+            return None
+        nearest = Teleporter._findNearestTeleporter(self._gameMap.getAllActors(), player.getMapPosition())
+        if nearest is None:
+            return None
+        return nearest.getTeleportPosition()
+
     def _getShopRects(self):
         gameSize = GlobalSystem.getGameSize()
         totalHeight = _SHOP_COMMAND_HEIGHT + _SHOP_ITEM_SIZE
@@ -344,7 +396,11 @@ class Scene(SceneBase):
         return ((x, y), (_ENEMY_BOOK_SIZE, _ENEMY_BOOK_SIZE))
 
     def _canRestoreMoveAfterMenuClose(self) -> bool:
-        return not (self._windowShop.getVisible() or self._windowEnemyBook.getVisible())
+        return not (
+            self._windowShop.getVisible()
+            or self._windowEnemyBook.getVisible()
+            or self._windowFloorTeleporter.getVisible()
+        )
 
     def _blockMapInput(self, frames: int = 1) -> None:
         self._mapInputBlockFrames = max(self._mapInputBlockFrames, frames)
@@ -426,7 +482,7 @@ class Scene(SceneBase):
             return
         camera = self._gameMap.getCamera()
         viewPos = camera.getViewPosition() if camera else None
-        GlobalSystem.setWindowMapView()
+        GlobalSystem.setWindowMapView(GameMap.MapViewOffset)
         for anim in animSnapshot:
             worldPosition = anim.getPosition()
             drawPosition = worldPosition
@@ -556,6 +612,7 @@ class Scene(SceneBase):
             or self._windowMenu.isBlocking()
             or self._windowShop.getVisible()
             or self._windowEnemyBook.getVisible()
+            or self._windowFloorTeleporter.getVisible()
             or self._mapInputBlockFrames > 0
         )
 
@@ -644,3 +701,72 @@ class Scene(SceneBase):
                     continue
                 result.spawnActor(actor, layerName)
         return result
+
+    def _buildFloorMapPreview(
+        self,
+        mapKey: str,
+        telepoint: Tuple[int, int],
+        previewSize: int,
+        previewScale: float,
+    ) -> Optional[Texture]:
+        mapPath = self._resolveRegionMapPath(mapKey)
+        try:
+            mapData = File.loadData(os.path.join("./Data/Maps", mapPath))
+            tilemap = self._generateTilemap(mapData["layers"], mapData["width"], mapData["height"])
+        except Exception:
+            return None
+        if previewScale <= 0.0:
+            previewScale = 1.0
+        target = RenderTexture(Vector2u(previewSize, previewSize))
+        target.clear(Color.Transparent)
+        viewSize = Vector2f(float(previewSize) / previewScale, float(previewSize) / previewScale)
+        mapPixelSize = Vector2f(
+            float(mapData["width"] * Engine.CellSize),
+            float(mapData["height"] * Engine.CellSize),
+        )
+        center = Vector2f(
+            viewSize.x / 2.0 if mapPixelSize.x >= viewSize.x else mapPixelSize.x / 2.0,
+            viewSize.y / 2.0 if mapPixelSize.y >= viewSize.y else mapPixelSize.y / 2.0,
+        )
+        cellSize = Engine.CellSize
+        telepointCenter = Vector2f(
+            (float(telepoint[0]) + 0.5) * cellSize,
+            (float(telepoint[1]) + 0.5) * cellSize,
+        )
+        halfView = viewSize / 2.0
+        if (
+            telepointCenter.x < center.x - halfView.x
+            or telepointCenter.x > center.x + halfView.x
+            or telepointCenter.y < center.y - halfView.y
+            or telepointCenter.y > center.y + halfView.y
+        ):
+            center = telepointCenter
+        target.setView(View(center, viewSize))
+        states = Render.CanvasRenderStates()
+        for layer in tilemap.getAllLayers().values():
+            if layer.visible:
+                target.draw(layer, states)
+        marker = RectangleShape(Vector2f(float(cellSize), float(cellSize)))
+        marker.setPosition(Vector2f(float(telepoint[0] * cellSize), float(telepoint[1] * cellSize)))
+        marker.setFillColor(Color(0, 255, 0, 64))
+        marker.setOutlineColor(Color(0, 255, 0, 255))
+        marker.setOutlineThickness(2.0)
+        target.draw(marker, states)
+        target.display()
+        texture = Texture(target.getTexture().copyToImage())
+        texture.setSmooth(False)
+        return texture
+
+    def _resolveRegionMapPath(self, mapKey: str) -> str:
+        if os.path.splitext(mapKey)[1]:
+            return mapKey
+        candidates: List[str] = []
+        currentMap = self._cachedMapFile or self.inst._cachedMap or System.getStartMap()
+        currentExt = os.path.splitext(currentMap)[1] if currentMap else ""
+        if currentExt:
+            candidates.append(f"{mapKey}{currentExt}")
+        candidates.extend([f"{mapKey}.dat", f"{mapKey}.json"])
+        for candidate in candidates:
+            if os.path.exists(os.path.join("./Data/Maps", candidate)):
+                return candidate
+        return candidates[0] if candidates else mapKey

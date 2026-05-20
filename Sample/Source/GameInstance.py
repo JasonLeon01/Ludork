@@ -2,7 +2,7 @@
 r"""\brief GameInstance: persistent game state container surviving across scene transitions."""
 
 from __future__ import annotations
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from Engine import Vector2u
 from Engine.Gameplay.Actors import Actor
 from Source import System
@@ -16,16 +16,20 @@ class GameInstance:
     and destroyed actor tracking.
     """
 
+    REGION_DICT: Dict[str, Dict[str, str]] = {"Mota": {"Map_01": "魔塔 1 层", "Map_02": "魔塔 2 层"}}
+
     def __init__(self) -> None:
         r"""\brief Construct a new game instance with a default player."""
         self._players: List[Player] = []
         firstPlayer = Player.InitPlayer("Data.Blueprints.Actors.BP_Actor_Braver")
         firstPlayer.setMapPosition(System.getStartPos())
+        self._currentRegion = "Mota"
         self._players.append(firstPlayer)
         self._variables: Dict[str, Any] = {}
         self._cachedMap: Optional[str] = None
         self._cachedNewItem: Dict[str, bool] = {}
         self._cachedDestroyedActors: Dict[str, List[str]] = {}
+        self._cachedTelepoints: Dict[str, List[Tuple[int, int]]] = {}
         self._screenshot: Optional[List[int]] = None
 
     def asDict(self) -> Dict[str, Any]:
@@ -34,10 +38,12 @@ class GameInstance:
         - \return A dictionary containing players, variables, map, destroyed actors, and screenshot.
         """
         return {
+            "region": self._currentRegion,
             "players": [p.asDict() for p in self._players],
             "variables": self._variables,
             "map": Cast(str, self._cachedMap),
             "destroyedActors": self._cachedDestroyedActors,
+            "telepoints": self._cachedTelepoints,
             "screenshot": self._screenshot,
         }
 
@@ -53,13 +59,29 @@ class GameInstance:
         assert isinstance(data["map"], str)
         AssertType(data["destroyedActors"], Dict[str, List[str]])
         inst = GameInstance.__new__(GameInstance)
+        inst._currentRegion = data["region"]
         inst._players = [Player.FromDict(p) for p in data["players"]]
         inst._variables = data["variables"]
         inst._cachedMap = data["map"]
-        inst._cachedDestroyedActors = data["destroyedActors"]
+        inst._cachedDestroyedActors = GameInstance._normaliseDestroyedActors(data["destroyedActors"])
         inst._cachedNewItem = {}
+        inst._cachedTelepoints = GameInstance._normaliseTelepoints(data.get("telepoints", {}))
         inst._screenshot = data.get("screenshot")
         return inst
+
+    def getCurrentRegion(self) -> str:
+        r"""\brief Get the current region.
+
+        - \return The current region.
+        """
+        return self._currentRegion
+
+    def setCurrentRegion(self, region: str) -> None:
+        r"""\brief Set the current region.
+
+        - \param region The region to set.
+        """
+        self._currentRegion = region
 
     def setScreenshot(self, screenshot: Optional[List[int]]) -> None:
         r"""\brief Set the captured screenshot bytes used for save thumbnails.
@@ -180,9 +202,14 @@ class GameInstance:
         - \param mapPath The map path where the actor was destroyed.
         - \param actor The destroyed actor.
         """
+        mapPath = self._normaliseMapPath(mapPath)
+        actorTag = actor.tag
+        if not actorTag:
+            return
         if not mapPath in self._cachedDestroyedActors:
             self._cachedDestroyedActors[mapPath] = []
-        self._cachedDestroyedActors[mapPath].append(actor.tag)
+        if actorTag not in self._cachedDestroyedActors[mapPath]:
+            self._cachedDestroyedActors[mapPath].append(actorTag)
 
     def getDestroyedActors(self, mapPath: str) -> List[str]:
         r"""\brief Get destroyed actor tags for a map.
@@ -190,9 +217,75 @@ class GameInstance:
         - \param mapPath The map path.
         - \return A list of destroyed actor tags.
         """
+        mapPath = self._normaliseMapPath(mapPath)
         if not mapPath in self._cachedDestroyedActors:
             return []
         return self._cachedDestroyedActors[mapPath]
+
+    def recordTelepoint(self, mapPath: str, telepoint: Vector2u) -> None:
+        r"""\brief Record a telepoint for persistence.
+
+        - \param mapPath The map path where the telepoint is located.
+        - \param telepoint The telepoint position.
+        """
+        mapPath = self._normaliseMapPath(mapPath)
+        if not mapPath in self._cachedTelepoints:
+            self._cachedTelepoints[mapPath] = []
+        telepointValue = telepoint.unpack()
+        if telepointValue not in self._cachedTelepoints[mapPath]:
+            self._cachedTelepoints[mapPath].append(telepointValue)
+
+    def getTelepoints(self, mapPath: str) -> List[Tuple[int, int]]:
+        r"""\brief Get telepoint positions for a map.
+
+        - \param mapPath The map path.
+        - \return A list of telepoint positions.
+        """
+        mapPath = self._normaliseMapPath(mapPath)
+        if not mapPath in self._cachedTelepoints:
+            return []
+        return self._cachedTelepoints[mapPath]
+
+    @staticmethod
+    def _normaliseDestroyedActors(destroyedActors: Dict[str, List[str]]) -> Dict[str, List[str]]:
+        result: Dict[str, List[str]] = {}
+        for mapPath, actorTags in destroyedActors.items():
+            normalisedMapPath = GameInstance._normaliseMapPath(mapPath)
+            if normalisedMapPath not in result:
+                result[normalisedMapPath] = []
+            for actorTag in actorTags:
+                if actorTag and actorTag not in result[normalisedMapPath]:
+                    result[normalisedMapPath].append(actorTag)
+        return result
+
+    @staticmethod
+    def _normaliseTelepoints(telepoints: Dict[str, List[Any]]) -> Dict[str, List[Tuple[int, int]]]:
+        result: Dict[str, List[Tuple[int, int]]] = {}
+        for mapPath, points in telepoints.items():
+            normalisedMapPath = GameInstance._normaliseMapPath(mapPath)
+            if normalisedMapPath not in result:
+                result[normalisedMapPath] = []
+            for point in points:
+                if isinstance(point, Vector2u):
+                    telepointValue = point.unpack()
+                elif isinstance(point, (tuple, list)) and len(point) >= 2:
+                    telepointValue = (int(point[0]), int(point[1]))
+                else:
+                    continue
+                if telepointValue not in result[normalisedMapPath]:
+                    result[normalisedMapPath].append(telepointValue)
+        return result
+
+    @staticmethod
+    def _normaliseMapPath(mapPath: str) -> str:
+        path = mapPath.replace("\\", "/")
+        while path.startswith("./"):
+            path = path[2:]
+        marker = "Data/Maps/"
+        markerIndex = path.find(marker)
+        if markerIndex != -1:
+            path = path[markerIndex + len(marker) :]
+        return path
 
     def getCachedNewItem(self, itemID: str) -> bool:
         r"""\brief Get the cached new item status for a player.
