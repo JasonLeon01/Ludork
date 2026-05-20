@@ -47,12 +47,20 @@ class WindowMenu(WindowCommand):
         self._windowEquipSlot = windowEquipSlot
         self._windowEquipSelect = windowEquipSelect
         self._windowSaveLoad = windowSaveLoad
+        self._moveRestoreGuard = lambda: True
         self._windowItem._onCloseCallback = self._onItemClose
         self._windowItem._onUseCallback = self._onItemUsed
         if self._windowEquipSlot is not None:
             self._windowEquipSlot._onCloseCallback = self._onEquipClose
         if self._windowEquipSelect is not None:
             self._windowEquipSelect._onEquipCallback = self._onEquipUsed
+
+    def setMoveRestoreGuard(self, guard) -> None:
+        r"""\brief Set a predicate that decides whether close restores player movement.
+
+        - \param guard Callable returning True when movement may be restored.
+        """
+        self._moveRestoreGuard = guard
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
         r"""\brief Handle cancel key to close the menu.
@@ -85,7 +93,8 @@ class WindowMenu(WindowCommand):
         r"""\brief Close the menu window and restore player movement."""
         self.setVisible(False)
         self.setActive(False)
-        self._player.setMoveEnabled(True)
+        if self._moveRestoreGuard():
+            self._player.setMoveEnabled(True)
 
     def isBlocking(self) -> bool:
         r"""\brief Return True when the menu or its sub-windows are blocking map input."""

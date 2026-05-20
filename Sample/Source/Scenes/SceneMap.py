@@ -16,7 +16,15 @@ from Source.Windows.WindowMenu import WindowMenu
 from Source.Windows.WindowItem import WindowItem
 from Source.Windows.WindowEquip import WindowEquipSlot, WindowEquipSelect
 from Source.Windows.WindowSaveLoad import WindowSaveLoad
+from Source.Windows.WindowShop import WindowShop
+from Source.Windows.WindowEnemyBook import WindowEnemyBook
 from Source.GameInstance import GameInstance
+
+
+_SHOP_WIDTH = 352
+_SHOP_COMMAND_HEIGHT = 64
+_SHOP_ITEM_SIZE = 352
+_ENEMY_BOOK_SIZE = 352
 
 
 class Scene(SceneBase):
@@ -43,6 +51,11 @@ class Scene(SceneBase):
         self._windowEquipSelect = WindowEquipSelect(((384, 0), (256, 256)), self.player)
         self._windowEquipSlot.setEquipSelectWindow(self._windowEquipSelect)
         self._windowEquipSelect.setEquipSlotWindow(self._windowEquipSlot)
+        shopCommandRect, shopItemRect = self._getShopRects()
+        self._shopMoveEnabledBeforeOpen = True
+        self._windowShop = WindowShop(self.player, shopCommandRect, shopItemRect, self._onShopClose)
+        self._enemyBookMoveEnabledBeforeOpen = True
+        self._windowEnemyBook = WindowEnemyBook(self._getEnemyBookRect(), self.player, self._onEnemyBookClose)
         self._windowSaveLoad = WindowSaveLoad(
             getSaveSource=self._getSaveSource,
             onClose=self._onSaveLoadClose,
@@ -56,12 +69,16 @@ class Scene(SceneBase):
             self._windowEquipSelect,
             self._windowSaveLoad,
         )
+        self._windowMenu.setMoveRestoreGuard(self._canRestoreMoveAfterMenuClose)
         self._uiManager.loadUI(self._playerHUD)
         self._uiManager.loadUI(self._messageWindow)
         self._uiManager.loadUI(self._windowMenu)
         self._uiManager.loadUI(self._windowItem)
         self._uiManager.loadUI(self._windowEquipSlot)
         self._uiManager.loadUI(self._windowEquipSelect)
+        self._uiManager.loadUI(self._windowShop.getCommandWindow())
+        self._uiManager.loadUI(self._windowShop.getItemWindow())
+        self._uiManager.loadUI(self._windowEnemyBook)
         commandWindow = self._windowSaveLoad.getCommandWindow()
         if commandWindow is not None:
             self._uiManager.loadUI(commandWindow)
@@ -77,6 +94,7 @@ class Scene(SceneBase):
         self._currentBgsMusic: Optional[Music] = None
         self._currentBgsFile: str = ""
         self._mapClickMoveBlockedUntilLateTick: bool = False
+        self._mapInputBlockFrames: int = 0
         self._pendingMenuOpen: bool = False
         startMap = self.inst._cachedMap or System.getStartMap()
         self.gotoMapAndPos(startMap)
@@ -110,7 +128,12 @@ class Scene(SceneBase):
         self._mapClickMoveBlockedUntilLateTick = self._isMapClickMoveBlocked()
         self._gameMap.onTick(deltaTime)
         self._gameMap.getTilemap().updateAutoTileAnimation(deltaTime)
-        if not self._windowMenu.isBlocking() and not self._messageWindow.isInDialogue():
+        if (
+            not self._windowMenu.isBlocking()
+            and not self._messageWindow.isInDialogue()
+            and not self._windowShop.getVisible()
+            and not self._windowEnemyBook.getVisible()
+        ):
             if not self._pendingMenuOpen and self._isMenuOpenTriggered():
                 self._pendingMenuOpen = True
         return super().onTick(deltaTime)
@@ -120,9 +143,12 @@ class Scene(SceneBase):
 
         - \param deltaTime Elapsed time in seconds.
         """
-        if self._mapClickMoveBlockedUntilLateTick:
+        if self._mapClickMoveBlockedUntilLateTick or self._isMapClickMoveBlocked():
             self._consumeMapClickMoveInput()
             self._mapClickMoveBlockedUntilLateTick = False
+        if self._mapInputBlockFrames > 0:
+            self._consumeMapClickMoveInput()
+            self._mapInputBlockFrames -= 1
         self._gameMap.onLateTick(deltaTime)
         return super().onLateTick(deltaTime)
 
@@ -166,18 +192,28 @@ class Scene(SceneBase):
                 assert camera
                 refPosition = actor.getPosition() - camera.getViewPosition()
         originMoveEnabled = self.player.getMoveEnabled()
+        restored = False
+
+        def restoreMove() -> None:
+            nonlocal restored
+            if restored:
+                return
+            restored = True
+            self.player.setMoveEnabled(originMoveEnabled)
+            self._blockMapInput(2)
+
         self.player.setMoveEnabled(False)
         self._messageWindow.setMessage(
             refPosition,
             name,
             message,
-            onFinished=lambda: self.player.setMoveEnabled(originMoveEnabled),
+            onFinished=restoreMove,
         )
 
         def condition() -> bool:
             if self._messageWindow.isInDialogue():
                 return False
-            self.player.setMoveEnabled(originMoveEnabled)
+            restoreMove()
             return True
 
         return condition
@@ -204,20 +240,30 @@ class Scene(SceneBase):
                 refPosition = actor.getPosition() - camera.getViewPosition()
 
         originMoveEnabled = self.player.getMoveEnabled()
+        restored = False
+
+        def restoreMove() -> None:
+            nonlocal restored
+            if restored:
+                return
+            restored = True
+            self.player.setMoveEnabled(originMoveEnabled)
+            self._blockMapInput(2)
+
         self.player.setMoveEnabled(False)
         self._messageWindow.setMessage(
             refPosition,
             name,
             options,
             allowCancel=allowCancel,
-            onFinished=lambda: self.player.setMoveEnabled(originMoveEnabled),
+            onFinished=restoreMove,
         )
 
         def condition() -> Optional[int]:
             selectionResult = self._messageWindow.getSelectionResult()
             if selectionResult is None:
                 return None
-            self.player.setMoveEnabled(originMoveEnabled)
+            restoreMove()
             return selectionResult
 
         return condition
@@ -243,7 +289,65 @@ class Scene(SceneBase):
         self._windowEquipSlot._player = self.player
         self._windowEquipSelect._player = self.player
         self._windowMenu._player = self.player
+        self._windowShop.setPlayer(self.player)
+        self._windowEnemyBook.setPlayer(self.player)
         self._playerHUD._player = self.player
+
+    @ExecSplit(default=(None,))
+    def showEnemyBook(self) -> None:
+        r"""\brief Show the current-map monster handbook."""
+        if not self._windowEnemyBook.getVisible():
+            self._enemyBookMoveEnabledBeforeOpen = (
+                True if self._windowMenu.isBlocking() else self.player.getMoveEnabled()
+            )
+            self.player.setMoveEnabled(False)
+        self._windowEnemyBook.open(self._gameMap)
+        self._blockMapInput(2)
+
+    def openShop(self, buyItemIDs: List[str], canSell: bool) -> Callable[[], bool]:
+        r"""\brief Open the map-bound shop and wait until it closes.
+
+        - \param buyItemIDs Item IDs available for purchase.
+        - \param canSell Whether selling is available.
+        - \return A condition callable that becomes True when the shop closes.
+        """
+        self._shopMoveEnabledBeforeOpen = True if self._windowMenu.isBlocking() else self.player.getMoveEnabled()
+        self.player.setMoveEnabled(False)
+        self._windowShop.open(buyItemIDs, canSell)
+
+        def condition() -> bool:
+            return not self._windowShop.getVisible()
+
+        return condition
+
+    def _onShopClose(self) -> None:
+        self.player.setMoveEnabled(self._shopMoveEnabledBeforeOpen)
+
+    def _onEnemyBookClose(self) -> None:
+        self.player.setMoveEnabled(self._enemyBookMoveEnabledBeforeOpen)
+        self._blockMapInput(1)
+
+    def _getShopRects(self):
+        gameSize = GlobalSystem.getGameSize()
+        totalHeight = _SHOP_COMMAND_HEIGHT + _SHOP_ITEM_SIZE
+        x = int((gameSize.x - _SHOP_WIDTH) / 2)
+        y = int((gameSize.y - totalHeight) / 2)
+        return (
+            ((x, y), (_SHOP_WIDTH, _SHOP_COMMAND_HEIGHT)),
+            ((x, y + _SHOP_COMMAND_HEIGHT), (_SHOP_WIDTH, _SHOP_ITEM_SIZE)),
+        )
+
+    def _getEnemyBookRect(self):
+        gameSize = GlobalSystem.getGameSize()
+        x = int((gameSize.x - _ENEMY_BOOK_SIZE) / 2)
+        y = int((gameSize.y - _ENEMY_BOOK_SIZE) / 2)
+        return ((x, y), (_ENEMY_BOOK_SIZE, _ENEMY_BOOK_SIZE))
+
+    def _canRestoreMoveAfterMenuClose(self) -> bool:
+        return not (self._windowShop.getVisible() or self._windowEnemyBook.getVisible())
+
+    def _blockMapInput(self, frames: int = 1) -> None:
+        self._mapInputBlockFrames = max(self._mapInputBlockFrames, frames)
 
     def _getSaveSource(self) -> GameInstance:
         r"""\brief Provide the GameInstance to persist when saving from this scene.
@@ -447,7 +551,13 @@ class Scene(SceneBase):
         return Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
 
     def _isMapClickMoveBlocked(self) -> bool:
-        return self._messageWindow.isInDialogue() or self._windowMenu.isBlocking()
+        return (
+            self._messageWindow.isInDialogue()
+            or self._windowMenu.isBlocking()
+            or self._windowShop.getVisible()
+            or self._windowEnemyBook.getVisible()
+            or self._mapInputBlockFrames > 0
+        )
 
     def _consumeMapClickMoveInput(self) -> None:
         Input.isMouseButtonTriggered(Input.Mouse.Button.Left, handled=True)

@@ -14,7 +14,8 @@
 .deepseek/
 .trae/
 .codebuddy/
-.rules/
+CLAUDE.md
+AGENTS.md
 ios_python/
 build_ios/
 lib/
