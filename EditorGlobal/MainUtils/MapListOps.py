@@ -82,6 +82,27 @@ class MapListOpsMixin:
                 return name
             i += 1
 
+    def _createEmptyLayerData(self, name: str, width: int, height: int, tilesetKey: str) -> dict:
+        tiles = [[None] * width for _ in range(height)]
+        autoTiles = [[None] * width for _ in range(height)]
+        return {
+            "layerName": name,
+            "layerTileset": tilesetKey,
+            "tiles": tiles,
+            "autoTiles": autoTiles,
+            "actors": [],
+        }
+
+    def _createDefaultMapLayers(self, width: int, height: int) -> dict:
+        tilesetKeys = list(GameData.tilesetData.keys())
+        if not tilesetKeys:
+            return {}
+        tilesetKey = tilesetKeys[0]
+        return {
+            "floor": self._createEmptyLayerData("floor", width, height, tilesetKey),
+            "default": self._createEmptyLayerData("default", width, height, tilesetKey),
+        }
+
     def _onCopyMap(self) -> None:
         item = self.leftList.currentItem()
         if not item:
@@ -174,6 +195,11 @@ class MapListOpsMixin:
             return
 
         filename = dlg.getFileName()
+        default_data["layers"] = self._createDefaultMapLayers(
+            int(default_data.get("width", 20)),
+            int(default_data.get("height", 15)),
+        )
+        default_data["actors"] = {name: [] for name in default_data["layers"].keys()}
         GameData.mapData[filename] = default_data
         self.refreshLeftList()
 
@@ -195,7 +221,7 @@ class MapListOpsMixin:
             return
 
         leftItem = self.leftList.currentItem()
-        wasActive = leftItem and leftItem.text() == mapKey
+        wasActive = self.editorPanel.mapKey == mapKey or bool(leftItem and leftItem.text() == mapKey)
 
         dlg = MapEditDialog(self, data, mapKey)
         if not dlg.execApply():
@@ -211,5 +237,6 @@ class MapListOpsMixin:
             items = self.leftList.findItems(newKey, QtCore.Qt.MatchExactly)
             if items:
                 self.leftList.setCurrentItem(items[0])
-                self.editorPanel.refreshMap(newKey)
-                self._refreshLayerBar()
+                self.leftListIndex = self.leftList.row(items[0])
+            self.editorPanel.refreshMap(newKey)
+            self._refreshLayerBar()

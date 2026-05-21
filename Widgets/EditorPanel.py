@@ -100,10 +100,11 @@ class EditorPanel(QtWidgets.QWidget):
         self._pixmap = None
         self._setSelectedLightIndex(None)
         self.ACTOR_SELECTION_CHANGED.emit(None, None, None)
-        self.setMinimumSize(0, 0)
-        self.resize(0, 0)
+        self.setFixedSize(0, 0)
+        self.updateGeometry()
         self._mapFilesRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
         self.mapFilePath = ""
+        self.mapKey = ""
         Utils.Panel.ClearPanel(self)
         if not mapFileName:
             return
@@ -332,13 +333,18 @@ class EditorPanel(QtWidgets.QWidget):
 
     def _updateContentSize(self) -> None:
         if self.mapData is None:
-            self.setMinimumSize(0, 0)
+            self.setFixedSize(0, 0)
+            self.updateGeometry()
             return
         tileSize = EditorStatus.CELLSIZE
         w = int(self.mapData.width * tileSize)
         h = int(self.mapData.height * tileSize)
-        self.setMinimumSize(w, h)
-        self.resize(w, h)
+        self.setFixedSize(w, h)
+        self.updateGeometry()
+        parent = self.parentWidget()
+        if parent is not None:
+            parent.updateGeometry()
+            parent.update()
 
     def getLayerNames(self) -> List[str]:
         if self.mapData is None:
@@ -666,6 +672,11 @@ class EditorPanel(QtWidgets.QWidget):
 
     def reorderLayers(self, new_order: List[str]) -> None:
         if self.mapData is None:
+            return
+        current_order = list(self.mapData.layers.keys())
+        if new_order == current_order:
+            return
+        if len(new_order) != len(current_order) or set(new_order) != set(current_order):
             return
         GameData.recordSnapshot()
         new_layers = {name: self.mapData.layers[name] for name in new_order}
@@ -1354,15 +1365,36 @@ class EditorPanel(QtWidgets.QWidget):
         if new in self.mapData.layers:
             return False
         GameData.recordSnapshot()
-        layer = self.mapData.layers.pop(old)
-        setattr(layer, "layerName", new)
-        self.mapData.layers[new] = layer
+        newLayers = {}
+        for layerName, layer in self.mapData.layers.items():
+            if layerName == old:
+                setattr(layer, "layerName", new)
+                newLayers[new] = layer
+            else:
+                newLayers[layerName] = layer
+        self.mapData.layers = newLayers
         if self.mapKey and self.mapKey in GameData.mapData:
-            layersDict = GameData.mapData[self.mapKey].get("layers", {})
-            if old in layersDict:
-                data = layersDict.pop(old)
-                data["layerName"] = new
-                layersDict[new] = data
+            mapDict = GameData.mapData[self.mapKey]
+            layersDict = mapDict.get("layers", {})
+            if isinstance(layersDict, dict):
+                newLayersDict = {}
+                for layerName, data in layersDict.items():
+                    if layerName == old:
+                        if isinstance(data, dict):
+                            data["layerName"] = new
+                        newLayersDict[new] = data
+                    else:
+                        newLayersDict[layerName] = data
+                mapDict["layers"] = newLayersDict
+            actorsDict = mapDict.get("actors")
+            if isinstance(actorsDict, dict) and old in actorsDict:
+                newActorsDict = {}
+                for layerName, actors in actorsDict.items():
+                    if layerName == old:
+                        newActorsDict[new] = actors
+                    else:
+                        newActorsDict[layerName] = actors
+                mapDict["actors"] = newActorsDict
         if self.selectedLayerName == old:
             self.selectedLayerName = new
         self._refreshTitle()

@@ -112,9 +112,9 @@ class System:
         cls._musicOn = data.getboolean("musicOn")
         cls._soundOn = data.getboolean("soundOn")
         cls._voiceOn = data.getboolean("voiceOn")
-        cls._musicVolume = data.getfloat("musicVolume")
-        cls._soundVolume = data.getfloat("soundVolume")
-        cls._voiceVolume = data.getfloat("voiceVolume")
+        cls._musicVolume = cls._clampVolume(data.getfloat("musicVolume"))
+        cls._soundVolume = cls._clampVolume(data.getfloat("soundVolume"))
+        cls._voiceVolume = cls._clampVolume(data.getfloat("voiceVolume"))
         cls._scenes = []
         with cls._pendingSceneLock:
             cls._pendingSceneReplace = None
@@ -543,7 +543,10 @@ class System:
 
         - \param musicOn True to enable music.
         """
+        from . import Manager
+
         cls._musicOn = musicOn
+        Manager.AudioManager.applyMusicVolumes()
         cls._setIniData("musicOn", cls._musicOn)
 
     @classmethod
@@ -565,6 +568,8 @@ class System:
         cls._soundOn = soundOn
         if not cls._soundOn:
             Manager.stopSound()
+        else:
+            Manager.AudioManager.applySoundVolumes()
         cls._setIniData("soundOn", cls._soundOn)
 
     @classmethod
@@ -600,7 +605,10 @@ class System:
 
         - \param musicVolume The music volume (0-100).
         """
-        cls._musicVolume = musicVolume
+        from . import Manager
+
+        cls._musicVolume = cls._clampVolume(musicVolume)
+        Manager.AudioManager.applyMusicVolumes()
         cls._setIniData("musicVolume", cls._musicVolume)
 
     @classmethod
@@ -617,7 +625,10 @@ class System:
 
         - \param soundVolume The sound volume (0-100).
         """
-        cls._soundVolume = soundVolume
+        from . import Manager
+
+        cls._soundVolume = cls._clampVolume(soundVolume)
+        Manager.AudioManager.applySoundVolumes()
         cls._setIniData("soundVolume", cls._soundVolume)
 
     @classmethod
@@ -634,7 +645,7 @@ class System:
 
         - \param voiceVolume The voice volume (0-100).
         """
-        cls._voiceVolume = voiceVolume
+        cls._voiceVolume = cls._clampVolume(voiceVolume)
         cls._setIniData("voiceVolume", cls._voiceVolume)
 
     @classmethod
@@ -967,6 +978,14 @@ class System:
         cls.__data.set("Main", key, str(value))
         with open(cls.__dataFilePath, "w", encoding="utf-8") as f:
             cls.__data.write(f)
+
+    @staticmethod
+    def _clampVolume(volume: float) -> float:
+        try:
+            value = float(volume)
+        except (TypeError, ValueError):
+            value = 100.0
+        return max(0.0, min(100.0, value))
 
     @classmethod
     def _updateFlash(cls, deltaTime: float) -> None:

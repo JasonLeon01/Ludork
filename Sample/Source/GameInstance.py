@@ -16,7 +16,7 @@ class GameInstance:
     and destroyed actor tracking.
     """
 
-    REGION_DICT: Dict[str, Dict[str, str]] = {"Mota": {"Map_01": "魔塔 1 层", "Map_02": "魔塔 2 层"}}
+    REGION_DICT: Dict[str, List[str]] = {"Mota": ["Map_01", "Map_02"]}
 
     def __init__(self) -> None:
         r"""\brief Construct a new game instance with a default player."""

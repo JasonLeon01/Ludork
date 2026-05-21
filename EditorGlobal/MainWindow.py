@@ -34,6 +34,76 @@ from .MainUtils import (
 )
 
 
+class LayerTabBar(QtWidgets.QTabBar):
+    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+        super().__init__(parent)
+        self._dragStartPos: Optional[QtCore.QPoint] = None
+        self._dragTabIndex = -1
+        self._draggingLayerTab = False
+
+    def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
+        if event.button() == QtCore.Qt.LeftButton:
+            index = self.tabAt(event.pos())
+            if index > 0:
+                self._dragStartPos = QtCore.QPoint(event.pos())
+                self._dragTabIndex = index
+                self._draggingLayerTab = False
+            else:
+                self._resetLayerDrag()
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
+        startPos = self._dragStartPos
+        if self._canDragLayerTab(event) and startPos is not None:
+            if not self._draggingLayerTab:
+                delta = event.pos() - startPos
+                if delta.manhattanLength() >= QtWidgets.QApplication.startDragDistance():
+                    self._draggingLayerTab = True
+
+            if self._draggingLayerTab:
+                target = self._targetLayerTabIndex(event.pos())
+                if target >= 1 and target != self._dragTabIndex:
+                    self.moveTab(self._dragTabIndex, target)
+                    self._dragTabIndex = target
+                    self.setCurrentIndex(target)
+                event.accept()
+                return
+
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
+        wasDragging = self._draggingLayerTab
+        self._resetLayerDrag()
+        if wasDragging:
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
+    def _canDragLayerTab(self, event: QtGui.QMouseEvent) -> bool:
+        return (
+            self._dragStartPos is not None
+            and self._dragTabIndex > 0
+            and self._dragTabIndex < self.count()
+            and bool(event.buttons() & QtCore.Qt.LeftButton)
+        )
+
+    def _targetLayerTabIndex(self, pos: QtCore.QPoint) -> int:
+        count = self.count()
+        if count <= 1:
+            return -1
+        index = self.tabAt(pos)
+        if index >= 0:
+            return max(1, index)
+        if pos.x() < self.tabRect(1).center().x():
+            return 1
+        return count - 1
+
+    def _resetLayerDrag(self) -> None:
+        self._dragStartPos = None
+        self._dragTabIndex = -1
+        self._draggingLayerTab = False
+
+
 class MainWindow(
     LayoutMixin,
     MenuBuilderMixin,
@@ -58,6 +128,7 @@ class MainWindow(
 
         self.topBar = QtWidgets.QWidget()
         self.layerList = QtWidgets.QTabWidget()
+        self.layerList.setTabBar(LayerTabBar(self.layerList))
         self._selectedLayerName: Optional[str] = None
         self.editorPanel = EditorPanel()
         self.editorPanel.DATA_CHANGED.connect(self._refreshUndoRedo)
@@ -179,9 +250,9 @@ class MainWindow(
 
     def _layerTabBar(self) -> QtWidgets.QTabBar:
         tabBar = self.layerList.tabBar()
-        if tabBar:
+        if isinstance(tabBar, LayerTabBar):
             return tabBar
-        tabBar = QtWidgets.QTabBar(self.layerList)
+        tabBar = LayerTabBar(self.layerList)
         self.layerList.setTabBar(tabBar)
         return tabBar
 

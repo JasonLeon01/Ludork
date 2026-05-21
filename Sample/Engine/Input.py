@@ -1371,6 +1371,28 @@ def isMouseButtonTriggered(
         return True
 
 
+def isMouseButtonDown(button: Mouse.Button) -> bool:
+    r"""
+    \brief Check if a mouse button is currently held down.
+
+    This ignores whether the matching press trigger was already handled, which
+    makes it suitable for drag interactions after another widget selects focus.
+
+    - button: The button to check.
+
+    \return True if the button is held, False otherwise.
+    """
+    with _StateLock:
+        if _EventState.MouseBlocked:
+            return False
+        entry = _EventState.MouseButtonTriggeredMap.get(button)
+        if entry is not None and entry[0] >= 1:
+            return True
+        if _UseInjectedMouseOnly:
+            return False
+    return Mouse.isButtonPressed(button)
+
+
 def getEnteredText() -> str:
     r"""
     \brief Get the text entered this frame.

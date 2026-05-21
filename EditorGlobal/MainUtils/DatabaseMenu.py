@@ -66,6 +66,7 @@ class DatabaseMenuMixin:
         if editor is not None and editor._modifiedAt is not None:
             fileMtime = os.path.getmtime(xlsxPath)
             if editor._modifiedAt > fileMtime:
+                editor._syncWorkbookFromTables()
                 editor._wb.save(xlsxPath)
                 editor._modifiedAt = None
             else:
@@ -222,50 +223,52 @@ class DatabaseMenuMixin:
         if selector.exec_() != QtWidgets.QDialog.Accepted:
             return
         parentClass = selector.getSelected()
+        clsObj = self._resolveBlueprintParentClass(parentClass)
+        if clsObj is None:
+            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("BLUEPRINT_PARENT_MUST_INHERIT_BPBASE"))
+            return
 
         startNodes = {}
         nodeGraph = {}
         attrs = {}
         try:
-            clsObj = GameData.classDict.get(parentClass, EditorStatus.PROJ_PATH)
-            if clsObj:
-                for name in dir(clsObj):
-                    attr = getattr(clsObj, name)
-                    if getattr(attr, "_eventSignature", False):
-                        startNodes[name] = None
-                        nodeGraph[name] = {"nodes": [], "links": []}
+            for name in dir(clsObj):
+                attr = getattr(clsObj, name)
+                if getattr(attr, "_eventSignature", False):
+                    startNodes[name] = None
+                    nodeGraph[name] = {"nodes": [], "links": []}
 
-                mro = inspect.getmro(clsObj)
-                for cls in reversed(mro):
-                    if cls is object:
-                        continue
+            mro = inspect.getmro(clsObj)
+            for cls in reversed(mro):
+                if cls is object:
+                    continue
 
-                    if getattr(cls, "_GENERATED_CLASS", False):
-                        for k, v in cls.__dict__.items():
-                            if (
-                                not k.startswith("_")
-                                and not inspect.isfunction(v)
-                                and not isinstance(v, (classmethod, staticmethod))
-                            ):
-                                attrs[k] = v
-                    else:
-                        for k, v in cls.__dict__.items():
-                            if (
-                                not k.startswith("_")
-                                and not callable(v)
-                                and not isinstance(v, (classmethod, staticmethod, property))
-                            ):
-                                attrs[k] = v
+                if getattr(cls, "_GENERATED_CLASS", False):
+                    for k, v in cls.__dict__.items():
+                        if (
+                            not k.startswith("_")
+                            and not inspect.isfunction(v)
+                            and not isinstance(v, (classmethod, staticmethod))
+                        ):
+                            attrs[k] = v
+                else:
+                    for k, v in cls.__dict__.items():
+                        if (
+                            not k.startswith("_")
+                            and not callable(v)
+                            and not isinstance(v, (classmethod, staticmethod, property))
+                        ):
+                            attrs[k] = v
 
-                        try:
-                            type_hints = get_type_hints(cls)
-                            for name, type_hint in type_hints.items():
-                                if name.startswith("_"):
-                                    continue
-                                if dataclasses.is_dataclass(type_hint):
-                                    attrs[name] = self._dataclassToDictDefaults(type_hint)
-                        except Exception as e:
-                            print(f"Error processing dataclass hints for {cls}: {e}")
+                    try:
+                        type_hints = get_type_hints(cls)
+                        for name, type_hint in type_hints.items():
+                            if name.startswith("_"):
+                                continue
+                            if dataclasses.is_dataclass(type_hint):
+                                attrs[name] = self._dataclassToDictDefaults(type_hint)
+                    except Exception as e:
+                        print(f"Error processing dataclass hints for {cls}: {e}")
         except Exception as e:
             print(f"Error resolving parent info: {e}")
 
@@ -281,6 +284,22 @@ class DatabaseMenuMixin:
         GameData.blueprintsData[key] = data
         self._refreshInfo()
         QtWidgets.QMessageBox.information(self, ELOC("SUCCESS"), ELOC("HINT_CREATE_BP_SUCCESS"))
+
+    def _resolveBlueprintParentClass(self, parentClass: str):
+        try:
+            clsObj = GameData.classDict.get(parentClass, EditorStatus.PROJ_PATH)
+            Engine = System.GetModule("Engine")
+            bpBase = getattr(Engine, "BPBase", None)
+            if not inspect.isclass(clsObj) or not inspect.isclass(bpBase):
+                return None
+            if clsObj is bpBase:
+                return None
+            if not issubclass(clsObj, bpBase):
+                return None
+            return clsObj
+        except Exception as e:
+            print(f"Error resolving blueprint parent {parentClass}: {e}", traceback.format_exc())
+            return None
 
     def _onNewAnimation(self, checked: bool = False) -> None:
         animationsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Animations")

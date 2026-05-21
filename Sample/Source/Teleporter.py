@@ -65,7 +65,7 @@ class Teleporter(Actor):
         if scene is None:
             return
         inst = scene.inst
-        regionMaps = list(GameInstance.REGION_DICT.get(inst.getCurrentRegion(), {}).keys())
+        regionMaps = GameInstance.REGION_DICT.get(inst.getCurrentRegion(), [])
         currentMap = scene._cachedMapFile
         if not currentMap:
             return

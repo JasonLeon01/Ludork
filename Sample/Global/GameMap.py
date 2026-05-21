@@ -11,6 +11,7 @@ from Engine import (
     Pair,
     RenderTexture,
     RenderStates,
+    RenderTarget,
     Vector2i,
     Vector2f,
     Vector2u,
@@ -79,7 +80,7 @@ class GameMap(GameMapExt):
     """
 
     DefaultCoverAlpha: int
-    MapViewOffset: Vector2f = Vector2f(0.0, 0.0)
+    MapViewOffset: Vector2f = Vector2f(192.0, 32.0)
 
     def __init__(self, mapName: str, tilemap: Tilemap, camera: Optional[Camera] = None) -> None:
         r"""\brief Construct a game map.
@@ -327,22 +328,24 @@ class GameMap(GameMapExt):
         return True
 
     @ExecSplit(default=(None,))
-    def spawnActor(self, actor: Actor, layer: str) -> None:
+    def spawnActor(self, actor: Actor, layer: str, emitCreateEvent: bool = True) -> None:
         r"""\brief Spawn an actor on a layer.
 
         - \param actor The actor to spawn.
         - \param layer The layer name to place the actor on.
+        - \param emitCreateEvent Whether to run the actor's onCreate blueprint event.
         """
         if layer not in self._actors:
             self._actors[layer] = []
         actor.setMap(self)
         self._actors[layer].append(actor)
-        Actor.BlueprintEvent(actor, Actor, "onCreate")
+        if emitCreateEvent:
+            Actor.BlueprintEvent(actor, Actor, "onCreate")
         children = actor.getChildren()
         if children:
             for child in children:
                 if not child in self._wholeActorList:
-                    self.spawnActor(child, layer)
+                    self.spawnActor(child, layer, emitCreateEvent)
         self.updateActorList()
         self._materialDirty = True
 
@@ -701,17 +704,39 @@ class GameMap(GameMapExt):
                 if actor.getTickable():
                     Actor.BlueprintEvent(actor, Actor, "onFixedTick", {"fixedDelta": fixedDelta})
 
+    def drawMapContent(
+        self,
+        target: RenderTarget,
+        states: Optional[RenderStates] = None,
+        applyPlayerCover: bool = False,
+    ) -> None:
+        r"""\brief Draw visible tile layers and actors to a render target.
+
+        - \param target Render target receiving the map content.
+        - \param states Optional render states for normal map draws.
+        - \param applyPlayerCover Whether to apply the player cover transparency pass.
+        """
+        if states is None:
+            states = RenderStates()
+        if applyPlayerCover:
+            self._resetTransparentTiles()
+        layers = self._tilemap.getAllLayers()
+        layerKeys = list(layers.keys())
+        playerLayerIndex = self._getPlayerLayerIndex(layerKeys) if applyPlayerCover else -1
+
+        for i, layerName in enumerate(layerKeys):
+            layer = layers[layerName]
+            if not layer.visible:
+                continue
+
+            if applyPlayerCover:
+                self._applyPlayerCover(layer, i, playerLayerIndex)
+
+            target.draw(layer, states)
+            self._drawLayerActors(target, states, layerName, i, playerLayerIndex, applyPlayerCover)
+
     def show(self) -> None:
         r"""\brief Render the full map including layers, actors, lights, and particles."""
-        if not hasattr(self, "_transparentTiles"):
-            self._transparentTiles = []
-
-        if self._transparentTiles:
-            for layer, x, y in self._transparentTiles:
-                if hasattr(layer, "resetTileColor"):
-                    layer.resetTileColor(x, y)
-            self._transparentTiles.clear()
-
         layers = self._tilemap.getAllLayers()
         layerKeys = list(layers.keys())
         System.setWindowMapView(GameMap.MapViewOffset)
@@ -720,56 +745,14 @@ class GameMap(GameMapExt):
         if self._lightMask:
             self._lightMask.clear()
 
-        playerLayerIndex = -1
-        if self._player:
-            for i, name in enumerate(layerKeys):
-                if name in self._actors and self._player in self._actors[name]:
-                    playerLayerIndex = i
-                    break
-
-        for i, layerName in enumerate(layerKeys):
-            layer = layers[layerName]
-            if not layer.visible:
-                continue
-
-            if self._player and i > playerLayerIndex and playerLayerIndex != -1:
-                playerPos = self._player.getMapPosition()
-                if layer.get(playerPos) is not None:
-                    if hasattr(layer, "floodFillTransparent"):
-                        processed = layer.floodFillTransparent(
-                            playerPos.x, playerPos.y, Color(255, 255, 255, GameMap.DefaultCoverAlpha)
-                        )
-                        for x, y in processed:
-                            self._transparentTiles.append((layer, x, y))
-                    elif hasattr(layer, "setTileColor"):
-                        layer.setTileColor(playerPos.x, playerPos.y, Color(255, 255, 255, GameMap.DefaultCoverAlpha))
-                        self._transparentTiles.append((layer, playerPos.x, playerPos.y))
-
-            if self._camera:
-                self._camera.render(layer)
-                if layerName in self._actors:
-                    for actor in self._actors[layerName]:
-                        actorAlpha = 255
-                        if self._player and i > playerLayerIndex and playerLayerIndex != -1:
-                            if actor != self._player and actor.intersects(self._player):
-                                actorAlpha = GameMap.DefaultCoverAlpha
-
-                        if actor.hasShaderError():
-                            actor.setColor(Color(255, 0, 255, actorAlpha))
-                            self._camera.render(actor)
-                        else:
-                            actor.setColor(Color(255, 255, 255, actorAlpha))
-                            actorShader = actor.getShader()
-                            if actorShader:
-                                try:
-                                    actorShader.setUniform("time", self._shaderTime)
-                                except Exception:
-                                    pass
-                                renderStates = RenderStates()
-                                renderStates.shader = actorShader
-                                self._camera._renderTexture.draw(actor, renderStates)
-                            else:
-                                self._camera.render(actor)
+        if self._camera:
+            self.drawMapContent(
+                self._camera.getRenderTexture(),
+                self._camera.getRenderStates(),
+                applyPlayerCover=True,
+            )
+        else:
+            self._resetTransparentTiles()
         for component in self._components:
             component.onRender(self._camera)
         useLightMaskShaders = self._tilemapLightMaskShader is not None and self._lightMaskShader is not None
@@ -832,10 +815,89 @@ class GameMap(GameMapExt):
                 self._lights,
                 self._ambientLight,
             )
+            if self._materialShader is not None:
+                self._materialShader.setUniform("mapViewOffset", GameMap.MapViewOffset)
 
     def markPassabilityDirty(self) -> None:
         r"""\brief Mark the passability cache as dirty for rebuild on next query."""
         self._materialDirty = True
+
+    def _resetTransparentTiles(self) -> None:
+        if not hasattr(self, "_transparentTiles"):
+            self._transparentTiles = []
+        if not self._transparentTiles:
+            return
+        for layer, x, y in self._transparentTiles:
+            if hasattr(layer, "resetTileColor"):
+                layer.resetTileColor(x, y)
+        self._transparentTiles.clear()
+
+    def _getPlayerLayerIndex(self, layerKeys: List[str]) -> int:
+        if not self._player:
+            return -1
+        for i, name in enumerate(layerKeys):
+            if name in self._actors and self._player in self._actors[name]:
+                return i
+        return -1
+
+    def _applyPlayerCover(self, layer: TileLayer, layerIndex: int, playerLayerIndex: int) -> None:
+        if not self._player or layerIndex <= playerLayerIndex or playerLayerIndex == -1:
+            return
+        playerPos = self._player.getMapPosition()
+        if layer.get(playerPos) is None:
+            return
+        if hasattr(layer, "floodFillTransparent"):
+            processed = layer.floodFillTransparent(
+                playerPos.x, playerPos.y, Color(255, 255, 255, GameMap.DefaultCoverAlpha)
+            )
+            for x, y in processed:
+                self._transparentTiles.append((layer, x, y))
+        elif hasattr(layer, "setTileColor"):
+            layer.setTileColor(playerPos.x, playerPos.y, Color(255, 255, 255, GameMap.DefaultCoverAlpha))
+            self._transparentTiles.append((layer, playerPos.x, playerPos.y))
+
+    def _drawLayerActors(
+        self,
+        target: RenderTarget,
+        states: RenderStates,
+        layerName: str,
+        layerIndex: int,
+        playerLayerIndex: int,
+        applyPlayerCover: bool,
+    ) -> None:
+        if layerName not in self._actors:
+            return
+        for actor in self._actors[layerName]:
+            actorAlpha = 255
+            if (
+                applyPlayerCover
+                and self._player
+                and layerIndex > playerLayerIndex
+                and playerLayerIndex != -1
+                and actor != self._player
+                and actor.intersects(self._player)
+            ):
+                actorAlpha = GameMap.DefaultCoverAlpha
+            self._drawActor(target, states, actor, actorAlpha)
+
+    def _drawActor(self, target: RenderTarget, states: RenderStates, actor: Actor, actorAlpha: int) -> None:
+        if actor.hasShaderError():
+            actor.setColor(Color(255, 0, 255, actorAlpha))
+            target.draw(actor, states)
+            return
+
+        actor.setColor(Color(255, 255, 255, actorAlpha))
+        actorShader = actor.getShader()
+        if actorShader:
+            try:
+                actorShader.setUniform("time", getattr(self, "_shaderTime", 0.0))
+            except Exception:
+                pass
+            renderStates = RenderStates()
+            renderStates.shader = actorShader
+            target.draw(actor, renderStates)
+            return
+        target.draw(actor, states)
 
     def _getMaterialPropertyTexture(
         self, functionName: str, invalidValue: Union[float, bool], smooth: bool = False

@@ -11,6 +11,9 @@ from .WindowBase import WindowBase
 from ...System import System as GameSystem
 
 
+_INACTIVE_SELECTION_RECT_OPACITY_MULTIPLIER = 0.35
+
+
 class WindowSelectable(WindowBase):
     r"""\brief Window with cursor-navigable selectable items.
 
@@ -89,6 +92,7 @@ class WindowSelectable(WindowBase):
                     ),
                     self._windowSkin,
                 )
+        self._rect.setOpacityMultiplier(1.0 if active else _INACTIVE_SELECTION_RECT_OPACITY_MULTIPLIER)
         if self._rect.getParent() is None:
             self.content.addChild(self._rect)
         if active and self._isHovered and self._listView:
@@ -96,26 +100,14 @@ class WindowSelectable(WindowBase):
                 if isinstance(child, FunctionalBase):
                     if child.isHovered():
                         self.index = index
-            for index, child in enumerate(self._listView.getChildren()):
-                if self.index == index:
-                    if isinstance(child, FunctionalBase):
-                        if self._judgeIfConfirm(child):
-                            child.onConfirm({})
+        if active and self._listView:
+            self._confirmMouseSelection()
         if active and self._listView and Input.isTouchBegan():
             beganPos = Input.getTouchBeganPosition()
             if beganPos is not None:
                 touchLocal = Math.ToVector2f(beganPos)
-                for index, child in enumerate(self._listView.getChildren()):
-                    if not isinstance(child, FunctionalBase):
-                        continue
-                    if not hasattr(child, "getAbsoluteBounds"):
-                        continue
-                    childBounds: FloatRect = child.getAbsoluteBounds()
-                    if childBounds.contains(touchLocal):
-                        self.index = index
-                        Input.isTouchBegan(handled=True)
-                        child.onConfirm({})
-                        break
+                if self._confirmSelectionAt(touchLocal):
+                    Input.isTouchBegan(handled=True)
         if self._oldIndex is None:
             self._oldIndex = self.index
         if self.index != self._oldIndex:
@@ -231,11 +223,29 @@ class WindowSelectable(WindowBase):
             originY = posY
         self.content.setView(View(Vector2f(originX, originY) + viewSize / 2, viewSize))
 
-    def _judgeIfConfirm(self, target: FunctionalBase) -> bool:
-        if (
-            target.isHovered()
-            and Input.isMouseInputMode()
-            and Input.isMouseButtonTriggered(Input.Mouse.Button.Left, True)
-        ):
+    def _confirmMouseSelection(self) -> bool:
+        if not Input.isMouseInputMode():
+            return False
+        if not Input.isMouseButtonTriggered(Input.Mouse.Button.Left):
+            return False
+        if self._confirmSelectionAt(Math.ToVector2f(Input.getMousePosition())):
+            Input.isMouseButtonTriggered(Input.Mouse.Button.Left, handled=True)
             return True
+        return False
+
+    def _confirmSelectionAt(self, position: Vector2f) -> bool:
+        if self._listView is None:
+            return False
+        if not self.getAbsoluteBounds().contains(position):
+            return False
+        for index, child in enumerate(self._listView.getChildren()):
+            if not isinstance(child, FunctionalBase):
+                continue
+            if not hasattr(child, "getAbsoluteBounds"):
+                continue
+            childBounds: FloatRect = child.getAbsoluteBounds()
+            if childBounds.contains(position):
+                self.index = index
+                child.onConfirm({})
+                return True
         return False

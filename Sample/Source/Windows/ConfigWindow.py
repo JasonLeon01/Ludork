@@ -6,12 +6,13 @@ from Engine import Pair, Image, IntRect, Vector2i, UI, Vector2f, Input, TypeAdap
 from Engine.UI import Canvas, ListView
 from Global import Manager, System
 from .Base import WindowSelectable
-from .General import ConfigCheckBoxRow, ConfigSettingRow
+from .General import ConfigCheckBoxRow, ConfigSettingRow, ConfigSliderRow
 
 
 _DEFAULT_RECT: Tuple[Pair[int], Pair[int]] = ((80, 48), (480, 320))
 _DROPBOX_WIDTH: int = 200
 _CHECKBOX_SIZE: int = 32
+_SLIDER_WIDTH: int = 160
 _ROW_HEIGHT: int = 32
 _LANGUAGE_ITEMS: List[str] = ["en_GB", "zh_CN"]
 _SCALE_ITEMS: List[str] = ["1", "1.25", "1.5", "2.0"]
@@ -90,6 +91,13 @@ class ConfigWindow(WindowSelectable):
             System.getMusicOn(),
             self._onMusicOnCheckedChanged,
         )
+        self._musicVolumeRow = ConfigSliderRow(
+            LOC("musicvolume"),
+            int(contentSize.x),
+            _SLIDER_WIDTH,
+            int(round(System.getMusicVolume())),
+            self._onMusicVolumeChanged,
+        )
         self._soundOnRow = ConfigCheckBoxRow(
             LOC("soundon"),
             int(contentSize.x),
@@ -97,6 +105,13 @@ class ConfigWindow(WindowSelectable):
             windowSkin,
             System.getSoundOn(),
             self._onSoundOnCheckedChanged,
+        )
+        self._soundVolumeRow = ConfigSliderRow(
+            LOC("soundvolume"),
+            int(contentSize.x),
+            _SLIDER_WIDTH,
+            int(round(System.getSoundVolume())),
+            self._onSoundVolumeChanged,
         )
         self._voiceOnRow = ConfigCheckBoxRow(
             LOC("voiceon"),
@@ -106,6 +121,13 @@ class ConfigWindow(WindowSelectable):
             System.getVoiceOn(),
             self._onVoiceOnCheckedChanged,
         )
+        self._voiceVolumeRow = ConfigSliderRow(
+            LOC("voicevolume"),
+            int(contentSize.x),
+            _SLIDER_WIDTH,
+            int(round(System.getVoiceVolume())),
+            self._onVoiceVolumeChanged,
+        )
         self._dropBoxRows = [self._languageRow, self._scaleRow, self._framerateRow]
         self._settingRows = [
             self._languageRow,
@@ -113,8 +135,11 @@ class ConfigWindow(WindowSelectable):
             self._framerateRow,
             self._verticalSyncRow,
             self._musicOnRow,
+            self._musicVolumeRow,
             self._soundOnRow,
+            self._soundVolumeRow,
             self._voiceOnRow,
+            self._voiceVolumeRow,
         ]
         for row in self._dropBoxRows:
             listView.addChild(row)
@@ -125,8 +150,11 @@ class ConfigWindow(WindowSelectable):
         self._framerateRow.getDropBox().setOnSelectedIndexChanged(self._onFrameRateSelectedIndexChanged)
         listView.addChild(self._verticalSyncRow)
         listView.addChild(self._musicOnRow)
+        listView.addChild(self._musicVolumeRow)
         listView.addChild(self._soundOnRow)
+        listView.addChild(self._soundVolumeRow)
         listView.addChild(self._voiceOnRow)
+        listView.addChild(self._voiceVolumeRow)
         self.setListView(listView)
         self.setVisible(False)
         self.setActive(False)
@@ -166,6 +194,13 @@ class ConfigWindow(WindowSelectable):
         """
         return self._musicOnRow.getCheckBox()
 
+    def getMusicVolumeSlider(self):
+        r"""\brief Get the music-volume Slider on the settings list.
+
+        - \return  Music-volume Slider coordinator
+        """
+        return self._musicVolumeRow.getSlider()
+
     def getSoundOnCheckBox(self):
         r"""\brief Get the sound-enabled CheckBox on the settings list.
 
@@ -173,12 +208,26 @@ class ConfigWindow(WindowSelectable):
         """
         return self._soundOnRow.getCheckBox()
 
+    def getSoundVolumeSlider(self):
+        r"""\brief Get the sound-volume Slider on the settings list.
+
+        - \return  Sound-volume Slider coordinator
+        """
+        return self._soundVolumeRow.getSlider()
+
     def getVoiceOnCheckBox(self):
         r"""\brief Get the voice-enabled CheckBox on the settings list.
 
         - \return  Voice-enabled CheckBox coordinator
         """
         return self._voiceOnRow.getCheckBox()
+
+    def getVoiceVolumeSlider(self):
+        r"""\brief Get the voice-volume Slider on the settings list.
+
+        - \return  Voice-volume Slider coordinator
+        """
+        return self._voiceVolumeRow.getSlider()
 
     def isOpen(self) -> bool:
         r"""\brief Check whether this window is currently open.
@@ -225,6 +274,8 @@ class ConfigWindow(WindowSelectable):
             return
         if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
             self.close()
+            return
+        if self._handleSelectedSliderKeyDown():
             return
         super().onKeyDown(kwargs)
 
@@ -282,16 +333,46 @@ class ConfigWindow(WindowSelectable):
     def _onMusicOnCheckedChanged(self, checked: bool) -> None:
         System.setMusicOn(checked)
 
+    def _onMusicVolumeChanged(self, value: int) -> None:
+        System.setMusicVolume(value)
+
     def _onSoundOnCheckedChanged(self, checked: bool) -> None:
         System.setSoundOn(checked)
 
+    def _onSoundVolumeChanged(self, value: int) -> None:
+        System.setSoundVolume(value)
+
     def _onVoiceOnCheckedChanged(self, checked: bool) -> None:
         System.setVoiceOn(checked)
+
+    def _onVoiceVolumeChanged(self, value: int) -> None:
+        System.setVoiceVolume(value)
 
     def _showRestartMindTip(self) -> None:
         scene = System.getScene()
         if scene is not None:
             scene.addCommonTip(LOC("CONFIG_MIND_RESTART"))
+
+    def _handleSelectedSliderKeyDown(self) -> bool:
+        row = self._getSelectedSettingRow()
+        if not isinstance(row, ConfigSliderRow):
+            return False
+        if Input.isActionTriggered(Input.getLeftKeys(), handled=True):
+            row.adjust(-1)
+            return True
+        if Input.isActionTriggered(Input.getRightKeys(), handled=True):
+            row.adjust(1)
+            return True
+        return False
+
+    def _getSelectedSettingRow(self):
+        listView = self.getListView()
+        if listView is None or self.index is None:
+            return None
+        children = listView.getChildren()
+        if 0 <= self.index < len(children):
+            return children[self.index]
+        return None
 
     @staticmethod
     def _findSelectedIndex(items: List[str], value: Union[str, int, float]) -> int:

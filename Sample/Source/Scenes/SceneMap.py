@@ -66,6 +66,7 @@ class Scene(SceneBase):
             self._buildFloorMapPreview,
             self._onFloorTeleporterConfirm,
             self._onFloorTeleporterClose,
+            self._getFloorTelepointTag,
         )
         self._windowSaveLoad = WindowSaveLoad(
             getSaveSource=self._getSaveSource,
@@ -681,7 +682,12 @@ class Scene(SceneBase):
             mapLayers.append(layer)
         return Tilemap(mapLayers)
 
-    def _generateGameMap(self, data: Dict[str, Any], camera: Optional[Camera] = None) -> GameMap:
+    def _generateGameMap(
+        self,
+        data: Dict[str, Any],
+        camera: Optional[Camera] = None,
+        emitCreateEvents: bool = True,
+    ) -> GameMap:
         mapName = data["mapName"]
         width = data["width"]
         height = data["height"]
@@ -699,7 +705,7 @@ class Scene(SceneBase):
                 actor = Data.genActorFromData(actorData, layerName)
                 if actor is None:
                     continue
-                result.spawnActor(actor, layerName)
+                result.spawnActor(actor, layerName, emitCreateEvents)
         return result
 
     def _buildFloorMapPreview(
@@ -708,11 +714,13 @@ class Scene(SceneBase):
         telepoint: Tuple[int, int],
         previewSize: int,
         previewScale: float,
+        showTelepointMarker: bool = False,
     ) -> Optional[Texture]:
         mapPath = self._resolveRegionMapPath(mapKey)
         try:
             mapData = File.loadData(os.path.join("./Data/Maps", mapPath))
-            tilemap = self._generateTilemap(mapData["layers"], mapData["width"], mapData["height"])
+            gameMap = self._generateGameMap(mapData, emitCreateEvents=False)
+            gameMap.removeActorsByTags(self.inst.getDestroyedActors(mapPath))
         except Exception:
             return None
         if previewScale <= 0.0:
@@ -743,19 +751,35 @@ class Scene(SceneBase):
             center = telepointCenter
         target.setView(View(center, viewSize))
         states = Render.CanvasRenderStates()
-        for layer in tilemap.getAllLayers().values():
-            if layer.visible:
-                target.draw(layer, states)
-        marker = RectangleShape(Vector2f(float(cellSize), float(cellSize)))
-        marker.setPosition(Vector2f(float(telepoint[0] * cellSize), float(telepoint[1] * cellSize)))
-        marker.setFillColor(Color(0, 255, 0, 64))
-        marker.setOutlineColor(Color(0, 255, 0, 255))
-        marker.setOutlineThickness(2.0)
-        target.draw(marker, states)
+        gameMap.drawMapContent(target, states)
+        if showTelepointMarker:
+            marker = RectangleShape(Vector2f(float(cellSize), float(cellSize)))
+            marker.setPosition(Vector2f(float(telepoint[0] * cellSize), float(telepoint[1] * cellSize)))
+            marker.setFillColor(Color(0, 255, 0, 64))
+            marker.setOutlineColor(Color(0, 255, 0, 255))
+            marker.setOutlineThickness(2.0)
+            target.draw(marker, states)
         target.display()
         texture = Texture(target.getTexture().copyToImage())
         texture.setSmooth(False)
         return texture
+
+    def _getFloorTelepointTag(self, mapKey: str, telepoint: Tuple[int, int]) -> Optional[str]:
+        mapPath = self._resolveRegionMapPath(mapKey)
+        try:
+            mapData = File.loadData(os.path.join("./Data/Maps", mapPath))
+        except Exception:
+            return None
+        targetPosition = [telepoint[0], telepoint[1]]
+        for actorDatas in mapData.get("actors", {}).values():
+            for actorData in actorDatas:
+                if actorData.get("position") != targetPosition:
+                    continue
+                bp = str(actorData.get("bp", ""))
+                if not bp.startswith("Data.Blueprints.Teleportations"):
+                    continue
+                return str(actorData.get("tag", ""))
+        return None
 
     def _resolveRegionMapPath(self, mapKey: str) -> str:
         if os.path.splitext(mapKey)[1]:

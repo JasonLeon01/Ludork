@@ -3,6 +3,7 @@ uniform sampler2D lightMask;
 
 uniform float screenScale;
 uniform vec2 screenSize;
+uniform vec2 mapViewOffset;
 uniform vec2 viewPos;
 uniform float viewRot;
 uniform vec2 gridSize;
@@ -116,7 +117,7 @@ vec3 CalculateLighting(vec2 pixelPosTL_world) {
 
 void main() {
     vec2 pixelPosBL_view = gl_FragCoord.xy / screenScale;
-    vec2 pixelPosTL_view = vec2(pixelPosBL_view.x, screenSize.y - pixelPosBL_view.y);
+    vec2 pixelPosTL_view = vec2(pixelPosBL_view.x, screenSize.y - pixelPosBL_view.y) - mapViewOffset;
     float rad = viewRot * 0.017453292519943295;
     vec2 center = viewPos + screenSize * 0.5;
     vec2 pixelPosTL_world = center + rotate2D(pixelPosTL_view - screenSize * 0.5, rad);

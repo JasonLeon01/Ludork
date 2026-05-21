@@ -5,18 +5,15 @@ from typing import Callable, Dict, List, Optional, Tuple, Any
 from Engine import (
     Color,
     Input,
-    IntRect,
     Pair,
     Text,
     Texture,
     UI,
     Vector2f,
-    Vector2i,
 )
-from Engine.UI import Canvas, ListView, Rect
+from Engine.UI import Canvas, ListView
 from Engine.UI.Base import FunctionalBase
 from Engine.UI.FunctionalUI import FImage, FPlainText
-from Engine.Utils import Math
 from Global import Manager, System as GlobalSystem
 from .Base import WindowSelectable
 from .WindowCommand import WindowCommand
@@ -174,16 +171,9 @@ class WindowShopItem(WindowSelectable):
         previousItemID = self.getCurrentItemID()
         self._itemIDs = itemIDs
         self._cellAvailable = []
-        contentWidth = self.content.getSize().x
-        contentHeight = self.content.getSize().y
-        cellWidth = int((contentWidth - 32) / _SHOP_ITEM_COLUMNS)
-        self._rectWidth = cellWidth
-        listView = ListView(
-            IntRect(Vector2i(0, 0), Vector2i(int(contentWidth), int(contentHeight))),
-            _SHOP_ITEM_ROW_HEIGHT,
-            True,
-            _SHOP_ITEM_COLUMNS,
-        )
+        listView = ListView(self.content.getNoTranslationRect(), _SHOP_ITEM_ROW_HEIGHT, True, _SHOP_ITEM_COLUMNS)
+        self.setListView(listView)
+        cellWidth = self._getRectWidth()
         members = Data.getGeneralData("Item").get("members", {})
         for itemID in itemIDs:
             member = members.get(itemID, {})
@@ -192,7 +182,6 @@ class WindowShopItem(WindowSelectable):
             cell = _ShopCell(cellWidth, _loadItemIcon(member.get("icon", "")), str(valueMap.get(itemID, 0)), available)
             cell.addConfirmCallback(lambda obj, kwargs: self._owner.confirmItem())
             listView.addChild(cell)
-        self.setListView(listView)
         if len(itemIDs) == 0:
             self.index = None
         elif previousItemID in itemIDs:
@@ -201,7 +190,8 @@ class WindowShopItem(WindowSelectable):
             self.index = min(previousIndex, len(itemIDs) - 1)
         else:
             self.index = 0
-        self._resetSelectionRect()
+        if self._rect.getParent() is not None:
+            self.content.removeChild(self._rect)
 
     def getCurrentItemID(self) -> Optional[str]:
         if self.index is None or self.index >= len(self._itemIDs):
@@ -212,20 +202,6 @@ class WindowShopItem(WindowSelectable):
         if self.index is None or self.index >= len(self._cellAvailable):
             return False
         return self._cellAvailable[self.index]
-
-    def _resetSelectionRect(self) -> None:
-        if self._rect.getParent() is not None:
-            self.content.removeChild(self._rect)
-        pos = self._getRectPosition()
-        if pos is None:
-            self._rect.setVisible(False)
-            return
-        self._rect = Rect(
-            IntRect(Math.ToVector2i(pos), Vector2i(self._rectWidth, self._rectHeight)),
-            self._windowSkin,
-        )
-        self._rect.setVisible(True)
-        self.content.addChild(self._rect)
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
         if not self.getActive():

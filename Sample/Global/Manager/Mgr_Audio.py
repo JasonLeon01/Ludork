@@ -179,6 +179,30 @@ class AudioManager:
             cls._cleanMusic(music, filePath)
 
     @classmethod
+    def applySoundVolumes(cls) -> None:
+        r"""\brief Apply current global sound settings to active sounds."""
+        for sound in list(cls._SoundRec):
+            if sound.getStatus() == Sound.Status.Stopped:
+                continue
+            base = cls._SoundBaseVolume.get(id(sound), sound.getVolume())
+            if not System.getSoundOn():
+                sound.stop()
+            else:
+                sound.setVolume(base * System.getSoundVolume() / 100.0)
+
+    @classmethod
+    def applyMusicVolumes(cls) -> None:
+        r"""\brief Apply current global music settings to active music."""
+        for _, music in list(cls._MusicRef.values()):
+            if music.getStatus() == Music.Status.Stopped:
+                continue
+            base = cls._MusicBaseVolume.get(id(music), music.getVolume())
+            if not System.getMusicOn():
+                music.setVolume(0.0)
+            else:
+                music.setVolume(base * System.getMusicVolume() / 100.0)
+
+    @classmethod
     def getMemory(cls) -> int:
         r"""\brief Get memory usage of audio resources.
         - \return: Memory usage in bytes.

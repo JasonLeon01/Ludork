@@ -3,6 +3,7 @@
 import os
 import sys
 import inspect
+import traceback
 from PyQt5 import QtWidgets, QtCore
 from Utils import System
 from EditorGlobal import EditorStatus
@@ -14,6 +15,8 @@ class ClassSelector(QtWidgets.QDialog):
         self.setWindowTitle(ELOC("CLASS_SELECTOR"))
         self.resize(800, 600)
         self.selectedPath = None
+        self._bpBaseClass = None
+        self._classDict = None
         self.initUI()
         self.loadData()
 
@@ -103,11 +106,13 @@ class ClassSelector(QtWidgets.QDialog):
                 is_ancestor = is_package and obj.__module__.startswith(modulePath + ".")
 
                 if is_definition or is_ancestor:
+                    if not self._isBlueprintBaseDerived(obj):
+                        continue
                     fullPath = f"{obj.__module__}.{name}"
                     self._updateBestPath(obj, fullPath, found_classes)
 
         except Exception as e:
-            print(f"Error scanning {modulePath}: {e}")
+            print(f"Error scanning {modulePath}: {e}", traceback.format_exc())
 
     def _updateBestPath(self, cls, path, found_classes):
         if cls not in found_classes:
@@ -122,6 +127,7 @@ class ClassSelector(QtWidgets.QDialog):
                 found_classes[cls] = path
 
     def scanBlueprints(self):
+        self.blueprintList.clear()
         blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
         if not os.path.exists(blueprintsRoot):
             return
@@ -137,7 +143,47 @@ class ClassSelector(QtWidgets.QDialog):
                         bpPath = os.path.join(relDir, namePart)
 
                     dotPath = "Data.Blueprints." + bpPath.replace(os.sep, ".")
+                    if not self._isBlueprintPathValid(dotPath):
+                        continue
                     self.blueprintList.addItem(dotPath)
+
+    def _getBPBaseClass(self):
+        if self._bpBaseClass is None:
+            try:
+                Engine = System.GetModule("Engine")
+                self._bpBaseClass = Engine.BPBase
+            except Exception as e:
+                print(f"Error loading BPBase: {e}", traceback.format_exc())
+        return self._bpBaseClass
+
+    def _getClassDict(self):
+        if self._classDict is None:
+            try:
+                Engine = System.GetModule("Engine")
+                self._classDict = Engine.NodeGraph.ClassDict()
+            except Exception as e:
+                print(f"Error loading ClassDict: {e}", traceback.format_exc())
+        return self._classDict
+
+    def _isBlueprintBaseDerived(self, cls):
+        bpBase = self._getBPBaseClass()
+        if bpBase is None or not inspect.isclass(cls):
+            return False
+        try:
+            return cls is not bpBase and issubclass(cls, bpBase)
+        except TypeError:
+            return False
+
+    def _isBlueprintPathValid(self, dotPath):
+        classDict = self._getClassDict()
+        if classDict is None:
+            return False
+        try:
+            cls = classDict.get(dotPath, EditorStatus.PROJ_PATH)
+            return self._isBlueprintBaseDerived(cls)
+        except Exception as e:
+            print(f"Error validating blueprint parent {dotPath}: {e}", traceback.format_exc())
+            return False
 
     def onClassSelected(self, item):
         self.blueprintList.clearSelection()

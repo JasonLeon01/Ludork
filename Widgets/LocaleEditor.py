@@ -79,6 +79,8 @@ class LocaleEditor(QtWidgets.QDialog):
         copyShortcut.activated.connect(lambda t=table: self._onCopy(t))
         pasteShortcut = QtWidgets.QShortcut(QtGui.QKeySequence.Paste, table, context=QtCore.Qt.WidgetShortcut)
         pasteShortcut.activated.connect(lambda t=table: self._onPaste(t))
+        deleteShortcut = QtWidgets.QShortcut(QtGui.QKeySequence.Delete, table, context=QtCore.Qt.WidgetShortcut)
+        deleteShortcut.activated.connect(lambda t=table: self._onDelete(t))
 
         table.blockSignals(True)
         for r in range(1, rows + 1):
@@ -131,6 +133,44 @@ class LocaleEditor(QtWidgets.QDialog):
     def _readCell(self, table: QtWidgets.QTableWidget, row: int, col: int) -> str:
         item = table.item(row, col)
         return item.text() if item else ""
+
+    def _writeCell(self, sheetName: str, row: int, col: int, val: str) -> None:
+        cell = self._wb[sheetName].cell(row=row + 1, column=col + 1)
+        cell.value = val if val.strip() else None
+
+    def _syncSheetFromTable(self, table: QtWidgets.QTableWidget) -> None:
+        sheetName = table.property("sheetName")
+        if not sheetName:
+            return
+        ws = self._wb[sheetName]
+        lastRow = 1
+        lastCol = 1
+        for row in range(table.rowCount()):
+            for col in range(table.columnCount()):
+                if self._readCell(table, row, col).strip():
+                    lastRow = max(lastRow, row + 1)
+                    lastCol = max(lastCol, col + 1)
+
+        maxRow = max(ws.max_row or 1, lastRow)
+        maxCol = max(ws.max_column or 1, lastCol)
+        for row in range(1, maxRow + 1):
+            for col in range(1, maxCol + 1):
+                ws.cell(row=row, column=col).value = None
+        for row in range(lastRow):
+            for col in range(lastCol):
+                val = self._readCell(table, row, col)
+                ws.cell(row=row + 1, column=col + 1).value = val if val.strip() else None
+
+        if ws.max_row > lastRow:
+            ws.delete_rows(lastRow + 1, ws.max_row - lastRow)
+        if ws.max_column > lastCol:
+            ws.delete_cols(lastCol + 1, ws.max_column - lastCol)
+
+    def _syncWorkbookFromTables(self) -> None:
+        for idx in range(self._tabWidget.count()):
+            widget = self._tabWidget.widget(idx)
+            if isinstance(widget, QtWidgets.QTableWidget):
+                self._syncSheetFromTable(widget)
 
     def _isFullRowSelection(
         self, table: QtWidgets.QTableWidget, rowStart: int, rowEnd: int, colStart: int, colEnd: int
@@ -187,7 +227,7 @@ class LocaleEditor(QtWidgets.QDialog):
             table.setItem(row, col, item)
         else:
             item.setText(val)
-        self._wb[sheetName].cell(row=row + 1, column=col + 1, value=val if val.strip() else None)
+        self._writeCell(sheetName, row, col, val)
 
     def _onTableContextMenu(self, pos: QtCore.QPoint) -> None:
         table = self.sender()
@@ -206,6 +246,11 @@ class LocaleEditor(QtWidgets.QDialog):
             pasteAction.setShortcut(QtGui.QKeySequence.Paste)
             pasteAction.setEnabled(LocaleEditor._clipboard is not None)
             pasteAction.triggered.connect(lambda: self._onPaste(table))
+        deleteAction = menu.addAction(ELOC("DELETE"))
+        if deleteAction is not None:
+            deleteAction.setShortcut(QtGui.QKeySequence.Delete)
+            deleteAction.setEnabled(self._getSelectionRect(table) is not None)
+            deleteAction.triggered.connect(lambda: self._onDelete(table))
         menu.exec_(cast(QtWidgets.QWidget, table.viewport()).mapToGlobal(pos))
 
     def _onCopy(self, table: Optional[QtWidgets.QTableWidget] = None) -> None:
@@ -275,6 +320,37 @@ class LocaleEditor(QtWidgets.QDialog):
         table.setCurrentCell(anchorRow, anchorCol)
         self._modifiedAt = time.time()
 
+    def _onDelete(self, table: Optional[QtWidgets.QTableWidget] = None) -> None:
+        table = table or self._activeTable()
+        if table is None:
+            return
+        rect = self._getSelectionRect(table)
+        if rect is None:
+            return
+        rowStart, colStart, rowEnd, colEnd = rect
+        sheetName = table.property("sheetName")
+        if not sheetName:
+            return
+
+        table.blockSignals(True)
+        try:
+            if self._isFullRowSelection(table, rowStart, rowEnd, colStart, colEnd):
+                deleteStart = max(rowStart, 1)
+                if deleteStart > rowEnd:
+                    return
+                for row in range(rowEnd, deleteStart - 1, -1):
+                    table.removeRow(row)
+                if table.rowCount() < 10:
+                    table.setRowCount(10)
+            else:
+                for idx in list(table.selectedIndexes()):
+                    self._setCellValue(table, sheetName, idx.row(), idx.column(), "")
+        finally:
+            table.blockSignals(False)
+
+        self._syncSheetFromTable(table)
+        self._modifiedAt = time.time()
+
     def _collectLanguages(self) -> List[str]:
         langs: List[str] = []
         seen: set[str] = set()
@@ -316,10 +392,9 @@ class LocaleEditor(QtWidgets.QDialog):
             ws.cell(row=1, column=col, value=value)
 
     def _onCellChanged(self, sheetName: str, row: int, col: int, table: QtWidgets.QTableWidget) -> None:
-        ws = self._wb[sheetName]
         item = table.item(row, col)
         val = item.text() if item else ""
-        ws.cell(row=row + 1, column=col + 1, value=val if val else None)
+        self._writeCell(sheetName, row, col, val)
         self._modifiedAt = time.time()
 
     def _onAddSheet(self) -> None:
@@ -382,6 +457,7 @@ class LocaleEditor(QtWidgets.QDialog):
     def _onSave(self) -> None:
         localeDir = os.path.dirname(self._xlsxPath)
         try:
+            self._syncWorkbookFromTables()
             self._wb.save(self._xlsxPath)
             self._modifiedAt = None
         except Exception as e:

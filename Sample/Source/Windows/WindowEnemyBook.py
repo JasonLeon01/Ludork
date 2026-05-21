@@ -4,10 +4,9 @@ from __future__ import annotations
 import copy
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from Engine import Color, Input, IntRect, Pair, Text, Texture, UI, Vector2f, Vector2i
-from Engine.UI import Canvas, ListView, Rect
+from Engine.UI import Canvas, ListView
 from Engine.UI.Base import FunctionalBase
 from Engine.UI.FunctionalUI import FImage, FPlainText
-from Engine.Utils import Math
 from Global import Manager
 from .Base import WindowSelectable
 from ..Battler import DamageType
@@ -207,7 +206,8 @@ class WindowEnemyBook(WindowSelectable):
             listView.addChild(cell)
         self.setListView(listView)
         self.index = 0 if entries else None
-        self._resetSelectionRect()
+        if self._rect.getParent() is not None:
+            self.content.removeChild(self._rect)
 
     def _buildEntry(self, enemy: Enemy) -> Dict[str, Any]:
         damageType, damage = enemy.getDamage(self._player)
@@ -251,20 +251,6 @@ class WindowEnemyBook(WindowSelectable):
             return str(name).format(**LOC_D())
         except Exception:
             return str(name)
-
-    def _resetSelectionRect(self) -> None:
-        if self._rect.getParent() is self.content:
-            self.content.removeChild(self._rect)
-        pos = self._getRectPosition()
-        if pos is None:
-            self._rect.setVisible(False)
-            return
-        self._rect = Rect(
-            IntRect(Math.ToVector2i(pos), Vector2i(self._rectWidth, self._rectHeight)),
-            self._windowSkin,
-        )
-        self._rect.setVisible(True)
-        self.content.addChild(self._rect)
 
     def _getRectPosition(self) -> Optional[Vector2f]:
         if self.index is None:

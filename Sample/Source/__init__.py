@@ -25,6 +25,7 @@ from .Item import Item
 from .Equip import Equip
 from .Teleporter import Teleporter
 from . import Scenes
+from . import Consumables
 
 __all__ = [
     "System",
@@ -37,4 +38,5 @@ __all__ = [
     "Equip",
     "Teleporter",
     "Scenes",
+    "Consumables",
 ]

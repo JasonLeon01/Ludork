@@ -48,14 +48,14 @@ class ModeToggle(QtWidgets.QWidget):
 
     def mouseMoveEvent(self, e):
         idx = 0 if e.x() < self.width() // 2 else 1
-        text = ELOC("EDIT_MAP") if idx == 0 else ELOC("TEST_GAME")
+        text = ELOC("MAPLIST_EDIT") if idx == 0 else ELOC("TEST_GAME")
         QtWidgets.QToolTip.showText(e.globalPos(), text, self)
         super().mouseMoveEvent(e)
 
     def event(self, e):
         if e.type() == QtCore.QEvent.ToolTip:
             idx = 0 if e.pos().x() < self.width() // 2 else 1
-            text = ELOC("EDIT_MAP") if idx == 0 else ELOC("TEST_GAME")
+            text = ELOC("MAPLIST_EDIT") if idx == 0 else ELOC("TEST_GAME")
             QtWidgets.QToolTip.showText(e.globalPos(), text, self)
             return True
         return super().event(e)
@@ -200,10 +200,24 @@ class EditModeToggle(QtWidgets.QWidget):
         p.setPen(pen2)
         ray = max(8, int(12 * s / 30))
         p.drawLine(cx, cy - max(ray + 2, int(14 * s / 30)), cx, cy - ray)
-        p.drawLine(cx - max(ray, int(12 * s / 30)), cy - max(1, int(2 * s / 30)), cx - ray, cy - max(1, int(2 * s / 30)))
-        p.drawLine(cx + ray, cy - max(1, int(2 * s / 30)), cx + max(ray, int(12 * s / 30)), cy - max(1, int(2 * s / 30)))
-        p.drawLine(cx - max(6, int(10 * s / 30)), cy - max(8, int(12 * s / 30)), cx - max(4, int(7 * s / 30)), cy - max(6, int(9 * s / 30)))
-        p.drawLine(cx + max(4, int(7 * s / 30)), cy - max(6, int(9 * s / 30)), cx + max(6, int(10 * s / 30)), cy - max(8, int(12 * s / 30)))
+        p.drawLine(
+            cx - max(ray, int(12 * s / 30)), cy - max(1, int(2 * s / 30)), cx - ray, cy - max(1, int(2 * s / 30))
+        )
+        p.drawLine(
+            cx + ray, cy - max(1, int(2 * s / 30)), cx + max(ray, int(12 * s / 30)), cy - max(1, int(2 * s / 30))
+        )
+        p.drawLine(
+            cx - max(6, int(10 * s / 30)),
+            cy - max(8, int(12 * s / 30)),
+            cx - max(4, int(7 * s / 30)),
+            cy - max(6, int(9 * s / 30)),
+        )
+        p.drawLine(
+            cx + max(4, int(7 * s / 30)),
+            cy - max(6, int(9 * s / 30)),
+            cx + max(6, int(10 * s / 30)),
+            cy - max(8, int(12 * s / 30)),
+        )
 
     def _drawActorIcon(self, p: QtGui.QPainter, rect: QtCore.QRect):
         s = self._iconSide(rect)

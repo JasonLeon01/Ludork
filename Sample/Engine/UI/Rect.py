@@ -55,7 +55,17 @@ class Rect(SpriteBase):
         self.setPosition(Math.ToVector2f(rect.position))
         self._fadeSpeed = fadeSpeed
         self._opacityRange = opacityRange
+        self._opacity = float(self.getColor().a)
+        self._opacityMultiplier = 1.0
         self._fading: bool = True
+
+    def setOpacityMultiplier(self, multiplier: float) -> None:
+        r"""\brief Set a multiplier applied to the animated opacity.
+
+        - \param multiplier  Opacity multiplier clamped between 0 and 1
+        """
+        self._opacityMultiplier = max(0.0, min(1.0, multiplier))
+        self._applyOpacity()
 
     def getSize(self) -> Vector2u:
         r"""\brief Get the rectangle size in logical UI units.
@@ -69,18 +79,22 @@ class Rect(SpriteBase):
 
         - \param deltaTime  Time elapsed since last update, in seconds
         """
-        color = copy.copy(self.getColor())
-        a = color.a
+        opacity = self._opacity
         opacityMin, opacityMax = self._opacityRange
         if self._fading:
-            a = max(opacityMin, a - self._fadeSpeed * deltaTime)
-            if a == opacityMin:
+            opacity = max(opacityMin, opacity - self._fadeSpeed * deltaTime)
+            if opacity == opacityMin:
                 self._fading = False
         else:
-            a = min(opacityMax, a + self._fadeSpeed * deltaTime)
-            if a == opacityMax:
+            opacity = min(opacityMax, opacity + self._fadeSpeed * deltaTime)
+            if opacity == opacityMax:
                 self._fading = True
-        color.a = int(a)
+        self._opacity = opacity
+        self._applyOpacity()
+
+    def _applyOpacity(self) -> None:
+        color = copy.copy(self.getColor())
+        color.a = int(self._opacity * self._opacityMultiplier)
         self.setColor(color)
 
     def _presave(self, target: List[Texture], area: List[IntRect]) -> None:

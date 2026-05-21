@@ -14,7 +14,7 @@ from Engine import (
     UI,
     Text,
 )
-from Engine.UI import Canvas, ListView, PlainText, Rect
+from Engine.UI import Canvas, ListView, PlainText
 from Engine.UI.Base import FunctionalBase
 from Engine.UI.FunctionalUI import FImage, FPlainText
 from Engine.Utils import Math
@@ -203,7 +203,6 @@ class WindowEquipSlot(WindowSelectable):
         self._windowEquipSelect = windowEquipSelect
         self._slotKeys: List[str] = []
         self._lastSlotIndex: Optional[int] = None
-        self._rectWidth = self._inRect.size.x - 32
         self._refreshSlots()
         self.setActive(False)
         self.setVisible(False)
@@ -231,15 +230,8 @@ class WindowEquipSlot(WindowSelectable):
         savedSlotKey = self._getCurrentSlotKey()
         classSlots = Data.getGeneralData("Class").get("members", {}).get(self._player.CLASS, {}).get("slot", {})
         self._slotKeys = list(classSlots.keys())
-        cellWidth = self._inRect.size.x - 32
-        self._rectWidth = cellWidth
-        contentHeight = self.content.getSize().y
-        listView = ListView(
-            IntRect(Vector2i(0, 0), Vector2i(cellWidth + 32, contentHeight)),
-            _SLOT_ROW_HEIGHT,
-            True,
-            1,
-        )
+        cellWidth = self._getRectWidth()
+        listView = ListView(self.content.getNoTranslationRect(), _SLOT_ROW_HEIGHT, True, 1)
         for slotKey in self._slotKeys:
             iconTex, label = self._getSlotCellData(slotKey)
             child = _SlotCell(cellWidth, label, iconTex)
@@ -252,23 +244,9 @@ class WindowEquipSlot(WindowSelectable):
         else:
             self.index = 0 if len(self._slotKeys) > 0 else None
         self._lastSlotIndex = self.index
-        self._resetSelectionRect()
-        self._redrawIfVisible()
-
-    def _resetSelectionRect(self) -> None:
-        r"""\brief Recreate the selection rectangle to avoid ghosting after list rebuild."""
         if self._rect.getParent() is not None:
             self.content.removeChild(self._rect)
-        pos = self._getRectPosition()
-        if pos is None:
-            self._rect.setVisible(False)
-            return
-        self._rect = Rect(
-            IntRect(Math.ToVector2i(pos), Vector2i(self._rectWidth, self._rectHeight)),
-            self._windowSkin,
-        )
-        self._rect.setVisible(True)
-        self.content.addChild(self._rect)
+        self._redrawIfVisible()
 
     def _redrawIfVisible(self) -> None:
         r"""\brief Force redraw while visible even when inactive."""
@@ -297,8 +275,6 @@ class WindowEquipSlot(WindowSelectable):
 
         - \param deltaTime Elapsed time in seconds.
         """
-        if self._rect.getParent() is not None:
-            self.content.removeChild(self._rect)
         super().update(deltaTime)
         if self._lastSlotIndex != self.index:
             self._lastSlotIndex = self.index

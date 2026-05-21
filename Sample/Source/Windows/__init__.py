@@ -20,6 +20,7 @@ for the Ludork sample engine.
 - ConfigWindow      Game configuration window
 - DropBox           Drop-down field and expanded list widgets
 - CheckBox          Boolean checkbox field widget
+- Slider            Integer slider field widget
 """
 
 from . import Base
@@ -33,7 +34,7 @@ from .WindowShop import WindowShop
 from .WindowEnemyBook import WindowEnemyBook
 from .WindowFloorTeleporter import WindowFloorTeleporter
 from .ConfigWindow import ConfigWindow
-from .General import DropBox, CheckBox
+from .General import DropBox, CheckBox, Slider
 
 __all__ = [
     "Base",
@@ -50,4 +51,5 @@ __all__ = [
     "ConfigWindow",
     "DropBox",
     "CheckBox",
+    "Slider",
 ]

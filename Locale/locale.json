@@ -328,8 +328,8 @@
         "en_GB": "Add Audio"
     },
     "EDIT_MAP": {
-        "zh_CN": "编辑地图",
-        "en_GB": "Edit Map"
+        "zh_CN": "地图名称",
+        "en_GB": "Map Name"
     },
     "TEST_GAME": {
         "zh_CN": "测试游戏",
@@ -930,6 +930,10 @@
     "BLUEPRINT_EXISTS": {
         "zh_CN": "蓝图已存在",
         "en_GB": "Blueprint already exists"
+    },
+    "BLUEPRINT_PARENT_MUST_INHERIT_BPBASE": {
+        "zh_CN": "蓝图父类必须是 BPBase 的派生类",
+        "en_GB": "Blueprint parent class must be derived from BPBase"
     },
     "SELECT_PARENT": {
         "zh_CN": "选择父类/蓝图",

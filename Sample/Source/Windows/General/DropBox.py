@@ -112,7 +112,7 @@ class DropBoxExpanded(WindowSelectable):
         - \param onCollapse     Callback with chosen index, or None when cancelled
         """
         outerHeight = _expandedOuterHeight(len(items))
-        super().__init__(((0, 0), (width, outerHeight)), None, width - 32, _ROW_HEIGHT, windowSkin)
+        super().__init__(((0, 0), (width, outerHeight)), None, None, _ROW_HEIGHT, windowSkin)
         self._items: List[str] = list(items)
         self._selectedIndex = max(0, min(selectedIndex, len(self._items) - 1)) if self._items else 0
         self._onCollapse = onCollapse
