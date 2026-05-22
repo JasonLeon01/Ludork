@@ -264,16 +264,90 @@ class GeneralDataPage(QtWidgets.QWidget):
         return data.get("linkedType", None)
 
     def _getLinkedEvents(self) -> list:
+        events = self._getDefaultLinkedEvents()
+        return events + self._getMemberCustomEvents(self._currentMemberKey, events)
+
+    def _getDefaultLinkedEvents(self) -> list:
         data = GameData.generalData.get(self.fileKey, {})
-        events = data.get("events", [])
-        if events:
-            return events
         linkedType = self._getLinkedType()
         if linkedType:
+            events = self._extractRegisteredEventsFromSource(linkedType)
+            if events is not None:
+                return events
             cls = self._resolveLinkedClass(linkedType)
             if cls:
                 return self._extractRegisteredEvents(cls)
-        return []
+        events = data.get("events", [])
+        return events if isinstance(events, list) else []
+
+    def _getMemberCustomEvents(self, memberKey: Optional[str], defaultEvents: list) -> list:
+        if not memberKey:
+            return []
+
+        fileData = GameData.generalData.get(self.fileKey, {})
+        memberData = fileData.get("members", {}).get(memberKey, {})
+        graph = memberData.get("_graph") if isinstance(memberData, dict) else None
+        if not isinstance(graph, dict):
+            return []
+
+        nodeGraph = graph.get("nodeGraph", {})
+        startNodes = graph.get("startNodes", {})
+        if not isinstance(nodeGraph, dict):
+            return []
+        if not isinstance(startNodes, dict):
+            startNodes = {}
+
+        defaultSet = set(defaultEvents)
+        events = []
+        for event, eventData in nodeGraph.items():
+            if event in defaultSet:
+                continue
+            if self._isNonEmptyGraphEvent(eventData, startNodes.get(event)):
+                events.append(event)
+        return events
+
+    @staticmethod
+    def _isNonEmptyGraphEvent(eventData: Any, startNode: Any) -> bool:
+        if startNode is not None:
+            return True
+        if not isinstance(eventData, dict):
+            return False
+        return bool(eventData.get("nodes") or eventData.get("links"))
+
+    @staticmethod
+    def _normalizeMemberGraph(memberData: dict, events: list) -> None:
+        graph = memberData.get("_graph")
+        if not isinstance(graph, dict):
+            graph = {}
+            memberData["_graph"] = graph
+
+        nodeGraph = graph.get("nodeGraph")
+        if not isinstance(nodeGraph, dict):
+            nodeGraph = {}
+            graph["nodeGraph"] = nodeGraph
+
+        startNodes = graph.get("startNodes")
+        if not isinstance(startNodes, dict):
+            startNodes = {}
+            graph["startNodes"] = startNodes
+
+        orderedEvents = []
+        for event in events:
+            if event not in orderedEvents:
+                orderedEvents.append(event)
+
+        for event in orderedEvents:
+            if event not in nodeGraph:
+                nodeGraph[event] = {"nodes": [], "links": []}
+            if event not in startNodes:
+                startNodes[event] = None
+
+        for event in list(nodeGraph.keys()):
+            if event not in orderedEvents:
+                del nodeGraph[event]
+        for event in list(startNodes.keys()):
+            if event not in orderedEvents:
+                del startNodes[event]
 
     def _resolveLinkedClass(self, typeName: str) -> Optional[type]:
         try:
@@ -303,6 +377,30 @@ class GeneralDataPage(QtWidgets.QWidget):
             attr = getattr(targetCls, name, None)
             if callable(attr) and getattr(attr, "_eventSignature", False):
                 events.append(name)
+        return events
+
+    @staticmethod
+    def _extractRegisteredEventsFromSource(typeName: str) -> Optional[list]:
+        sourcePath = os.path.join(EditorStatus.PROJ_PATH, "Source", "Infos", f"{typeName}.py")
+        if not os.path.exists(sourcePath):
+            return None
+        events = []
+        try:
+            with open(sourcePath, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+            for i, line in enumerate(lines):
+                if "@RegisterEvent" not in line:
+                    continue
+                for nextLine in lines[i + 1 :]:
+                    stripped = nextLine.strip()
+                    if not stripped or stripped.startswith("@"):
+                        continue
+                    match = re.match(r"\s*def\s+(\w+)\s*\(", nextLine)
+                    if match:
+                        events.append(match.group(1))
+                    break
+        except Exception:
+            return None
         return events
 
     def _updateLinkedTypeBar(self):
@@ -819,32 +917,6 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
 
         return infoTypes
 
-    def _getEventsFromType(self, typeName: str) -> list:
-        try:
-            cls = GameData.classDict.get(f"Source.Infos.{typeName}", EditorStatus.PROJ_PATH)
-            if cls and cls is not EditorStatus.PROJ_PATH:
-                return GeneralDataPage._extractRegisteredEvents(cls)
-        except Exception:
-            pass
-
-        sourcePath = os.path.join(EditorStatus.PROJ_PATH, "Source", "Infos", f"{typeName}.py")
-        if os.path.exists(sourcePath):
-            events = []
-            try:
-                with open(sourcePath, "r", encoding="utf-8") as f:
-                    lines = f.readlines()
-                for i, line in enumerate(lines):
-                    if "@RegisterEvent" in line:
-                        if i + 1 < len(lines):
-                            match = re.match(r"\s*def\s+(\w+)\s*\(", lines[i + 1])
-                            if match:
-                                events.append(match.group(1))
-            except Exception:
-                pass
-            return events
-
-        return []
-
     def _onTabContextMenu(self, position):
         menu = QtWidgets.QMenu(self)
 
@@ -906,9 +978,6 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
 
         if actualLinkedType:
             newEntry["linkedType"] = actualLinkedType
-            events = self._getEventsFromType(actualLinkedType)
-            if events:
-                newEntry["events"] = events
 
         data[text] = newEntry
         self._populateFiles()
@@ -947,10 +1016,7 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
 
         if isLinked:
             fileData["linkedType"] = linkedType
-            events = self._getEventsFromType(linkedType)
-            if events:
-                fileData["events"] = events
-            elif "events" in fileData:
+            if "events" in fileData:
                 del fileData["events"]
         else:
             if "linkedType" in fileData:
@@ -1015,18 +1081,8 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
         memberData = members.get(memberKey, {})
         linkedType = fileData.get("linkedType", "")
 
-        if "_graph" not in memberData:
-            nodeGraph = {}
-            startNodes = {}
-            for event in events:
-                nodeGraph[event] = {"nodes": [], "links": []}
-                startNodes[event] = None
-
-            memberData["_graph"] = {
-                "nodeGraph": nodeGraph,
-                "startNodes": startNodes,
-            }
-            members[memberKey] = memberData
+        GeneralDataPage._normalizeMemberGraph(memberData, events)
+        members[memberKey] = memberData
 
         bpData = {
             "parent": f"Source.{linkedType}" if linkedType else "",

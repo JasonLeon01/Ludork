@@ -2,7 +2,20 @@
 
 import os
 from typing import Callable, List, Union, Optional, Dict, Any, Tuple
-from Engine import Pair, Vector2u, Vector2f, Color, Filters, Music, Input, RenderTexture, Sprite, Texture, View, RectangleShape
+from Engine import (
+    Pair,
+    Vector2u,
+    Vector2f,
+    Color,
+    Filters,
+    Music,
+    Input,
+    RenderTexture,
+    Sprite,
+    Texture,
+    View,
+    RectangleShape,
+)
 import Engine
 from Engine.Gameplay import Tilemap, TileLayer, TileLayerData
 from Engine.Gameplay.Actors import Actor
@@ -26,6 +39,8 @@ _SHOP_WIDTH = 352
 _SHOP_COMMAND_HEIGHT = 64
 _SHOP_ITEM_SIZE = 352
 _ENEMY_BOOK_SIZE = 352
+_MAP_TRANSITION_NAME = ""
+_MAP_TRANSITION_TIME = 0.5
 
 
 class Scene(SceneBase):
@@ -111,7 +126,7 @@ class Scene(SceneBase):
         self._mapInputBlockFrames: int = 0
         self._pendingMenuOpen: bool = False
         startMap = self.inst._cachedMap or System.getStartMap()
-        self.gotoMapAndPos(startMap)
+        self.gotoMapAndPos(startMap, blockTransition=True)
 
     def getGameMap(self) -> GameMap:
         return self._gameMap
@@ -177,6 +192,8 @@ class Scene(SceneBase):
         mapData = File.loadData(mapDataPath)
         self._gameMap = self._generateGameMap(mapData)
         self._gameMap.setScene(self)
+        self._gameMap.setPersistentMapPath(mapFile)
+        self._gameMap.applyTerrainDestructions(self.inst.getTerrainDestructions(mapFile))
         destroyedActors = self.inst.getDestroyedActors(mapFile)
         self._gameMap.removeActorsByTags(destroyedActors)
         self._gameMap.spawnActor(self.player, "default")
@@ -357,7 +374,7 @@ class Scene(SceneBase):
     def _onFloorTeleporterConfirm(self, mapKey: str, telepoint: Tuple[int, int]) -> None:
         targetMap = self._resolveRegionMapPath(mapKey)
         self._windowFloorTeleporter.close()
-        self.gotoMapAndPos(targetMap, Vector2u(telepoint[0], telepoint[1]))
+        self.gotoMapAndPos(targetMap, Vector2u(*telepoint))
         self.player.setMoveEnabled(self._floorTeleporterMoveEnabledBeforeOpen)
         self._blockMapInput(2)
 
@@ -423,16 +440,24 @@ class Scene(SceneBase):
             return
         self._windowMenu.close()
 
-    def gotoMapAndPos(self, mapPath: str, pos: Optional[Union[Vector2u, Pair[int], List[int]]] = None) -> None:
+    def gotoMapAndPos(
+        self,
+        mapPath: str,
+        pos: Optional[Union[Vector2u, Pair[int], List[int]]] = None,
+        blockTransition: bool = False,
+    ) -> None:
         r"""\brief Transition to a map and set the player position.
 
         - \param mapPath Path to the map data file.
         - \param pos The position to place the player.
+        - \param blockTransition Whether to skip the map transition effect.
         """
         if mapPath and self._cachedMapFile != mapPath:
             self._cachedMapFile = mapPath
             self.loadMap(mapPath)
         self.inst.applyMapInfo(mapPath, pos)
+        if not blockTransition:
+            GlobalSystem.requestTransition(_MAP_TRANSITION_NAME, _MAP_TRANSITION_TIME)
 
     @ExecSplit(default=(None,))
     def recordDestroyedActor(self, actor: Actor) -> None:
@@ -663,6 +688,7 @@ class Scene(SceneBase):
                 tiles,
                 autoTileGrid,
                 autoTilePool,
+                [key for key, _ in sorted(autoTileIndexByKey.items(), key=lambda item: item[1])],
             )
             autoTileTextures = [Manager.loadAutotile(entry.fileName) for entry in autoTilePool]
             autoTileFrameCounts = []
@@ -720,6 +746,7 @@ class Scene(SceneBase):
         try:
             mapData = File.loadData(os.path.join("./Data/Maps", mapPath))
             gameMap = self._generateGameMap(mapData, emitCreateEvents=False)
+            gameMap.applyTerrainDestructions(self.inst.getTerrainDestructions(mapPath))
             gameMap.removeActorsByTags(self.inst.getDestroyedActors(mapPath))
         except Exception:
             return None

@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import deque
 import copy
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 import Engine
 from Engine import (
     Pair,
@@ -27,10 +27,12 @@ from Engine.Utils.Inner import IS_IOS_PLATFORM, warnIosShaderSkippedOnce
 from Engine.Gameplay import Tilemap, TileLayer, Material
 from Engine.Gameplay.Actors import Actor
 from . import SceneBase
+from . import Manager
 from .GlobalExt import GameMapExt
 from .Camera import Camera
 from .System import System
 from .Components import MapClickAutoPath, PathPreviewComponent, PathRouteState, ComponentBase
+from .CustomParticles import DamageTextParticle
 from .Weather import WeatherController
 from .Fog import FogController
 
@@ -90,6 +92,7 @@ class GameMap(GameMapExt):
         - \param camera Optional camera; a default one is created if not provided.
         """
         self.mapName = mapName
+        self._persistentMapPath = mapName
         self._scene: SceneBase = None
         self._tilemap = tilemap
         self._layersTopFirst = list(self._tilemap.getAllLayers().values())
@@ -382,6 +385,148 @@ class GameMap(GameMapExt):
         """
         return self._tilemap
 
+    @ReturnType(tileID=Any)
+    def getTerrainTile(self, layerName: str, position: Any) -> Union[int, str, None]:
+        r"""\brief Get the terrain tile ID at a layer position.
+
+        - \param layerName The tile layer to query.
+        - \param position The tile coordinate.
+        - \return The static tile ID, autotile key, or None.
+        """
+        layer = self._tilemap.getLayer(layerName)
+        if layer is None:
+            return None
+        terrainPosition = self._normaliseTerrainPosition(position)
+        if terrainPosition is None or not self._isTerrainPositionInLayer(layer, terrainPosition):
+            return None
+        return self._getTerrainTileID(layer, terrainPosition)
+
+    @ReturnType(positions=List[Vector2i])
+    def getTerrainTilePositions(self, layerName: str, tileID: Union[int, str, None]) -> List[Vector2i]:
+        r"""\brief Get all coordinates matching a terrain tile ID on one layer.
+
+        - \param layerName The tile layer to query.
+        - \param tileID The static tile ID, autotile key, or None to find empty cells.
+        - \return A list of matching tile coordinates.
+        """
+        layer = self._tilemap.getLayer(layerName)
+        if layer is None:
+            return []
+        try:
+            terrainTileID = self._normaliseTerrainTileID(tileID)
+        except (TypeError, ValueError):
+            return []
+        positions: List[Vector2i] = []
+        for y in range(layer._height):
+            for x in range(layer._width):
+                terrainPosition = Vector2i(x, y)
+                if self._getTerrainTileID(layer, terrainPosition) == terrainTileID:
+                    positions.append(terrainPosition)
+        return positions
+
+    def setPersistentMapPath(self, mapPath: str) -> None:
+        r"""\brief Set the persistent map path used when recording map changes.
+
+        - \param mapPath The map path stored by the current game instance.
+        """
+        self._persistentMapPath = mapPath
+
+    @ReturnType(success=bool)
+    def setTerrainTile(self, layerName: str, position: Any, tileID: Union[int, str, None]) -> bool:
+        r"""\brief Replace one terrain tile on the current map.
+
+        - \param layerName The tile layer to edit.
+        - \param position The tile coordinate.
+        - \param tileID The replacement tile ID, autotile key, or None to clear the tile.
+        - \return True if the tile was replaced.
+        """
+        return len(self._setTerrainTiles(layerName, [position], tileID)) > 0
+
+    @ReturnType(count=int)
+    def setTerrainTiles(self, layerName: str, positions: List[Any], tileID: Union[int, str, None]) -> int:
+        r"""\brief Replace multiple terrain tiles on the current map.
+
+        - \param layerName The tile layer to edit.
+        - \param positions The tile coordinates.
+        - \param tileID The replacement tile ID, autotile key, or None to clear the tiles.
+        - \return The number of replaced tiles.
+        """
+        return len(self._setTerrainTiles(layerName, positions, tileID))
+
+    def _setTerrainTiles(self, layerName: str, positions: List[Any], tileID: Union[int, str, None]) -> List[Vector2i]:
+        layer = self._tilemap.getLayer(layerName)
+        if layer is None:
+            return []
+        if not positions:
+            return []
+        terrainTileID = self._normaliseTerrainTileID(tileID)
+        changedPositions: List[Vector2i] = []
+        for position in positions:
+            terrainPosition = self._normaliseTerrainPosition(position)
+            if terrainPosition is None:
+                continue
+            if not self._isTerrainPositionInLayer(layer, terrainPosition):
+                continue
+            self._writeTerrainTile(layer, terrainPosition, terrainTileID)
+            changedPositions.append(terrainPosition)
+        if not changedPositions:
+            return []
+        self._replaceTerrainLayer(layerName, layer)
+        self.markPassabilityDirty()
+        return changedPositions
+
+    @ExecSplit(default=(None,))
+    def destroyTerrain(self, layerName: str, position: Any, tileID: Union[int, str, None]) -> None:
+        r"""\brief Replace one terrain tile and persist the change in the game instance.
+
+        - \param layerName The tile layer to edit.
+        - \param position The tile coordinate.
+        - \param tileID The replacement tile ID, autotile key, or None to clear the tile.
+        """
+        terrainTileID = self._normaliseTerrainTileID(tileID)
+        changedPositions = self._setTerrainTiles(layerName, [position], terrainTileID)
+        if not changedPositions:
+            return
+        if self._scene is not None and hasattr(self._scene, "inst"):
+            self._scene.inst.recordTerrainDestruction(
+                self._persistentMapPath,
+                layerName,
+                changedPositions[0],
+                terrainTileID,
+            )
+
+    @ExecSplit(default=(None,))
+    def destroyTerrainList(self, layerName: str, positions: List[Any], tileID: Union[int, str, None]) -> None:
+        r"""\brief Replace multiple terrain tiles and persist the changes in the game instance.
+
+        - \param layerName The tile layer to edit.
+        - \param positions The tile coordinates.
+        - \param tileID The replacement tile ID, autotile key, or None to clear the tiles.
+        """
+        terrainTileID = self._normaliseTerrainTileID(tileID)
+        changedPositions = self._setTerrainTiles(layerName, positions, terrainTileID)
+        if not changedPositions:
+            return
+        if self._scene is not None and hasattr(self._scene, "inst"):
+            for terrainPosition in changedPositions:
+                self._scene.inst.recordTerrainDestruction(
+                    self._persistentMapPath,
+                    layerName,
+                    terrainPosition,
+                    terrainTileID,
+                )
+
+    def applyTerrainDestructions(
+        self, terrainDestructions: Dict[str, Dict[Tuple[int, int], Union[int, str, None]]]
+    ) -> None:
+        r"""\brief Apply persisted terrain replacements to the current map.
+
+        - \param terrainDestructions Layer-indexed terrain replacement records.
+        """
+        for layerName, changes in terrainDestructions.items():
+            for position, tileID in changes.items():
+                self.setTerrainTile(layerName, position, tileID)
+
     @ReturnType(lights=List[Light])
     def getLights(self) -> List[Light]:
         r"""\brief Get all lights on the map.
@@ -546,6 +691,40 @@ class GameMap(GameMapExt):
         """
         if self._scene is not None:
             self._scene.addCommonTip(text)
+
+    @ExecSplit(default=(None,))
+    def addDamageText(
+        self,
+        text: str,
+        position: Union[Vector2f, Pair[float], List[float], Tuple[float, float]],
+        color: Optional[Union[Color, List[int], Tuple[int, ...]]] = None,
+        fontSize: int = 22,
+    ) -> None:
+        r"""\brief Display floating damage text in the map particle system.
+
+        - \param text Damage text content.
+        - \param position World position used as the spawn point.
+        - \param color Optional fill colour; defaults to opaque white.
+        - \param fontSize Character size; defaults to 28.
+        """
+        drawPosition = self._getParticleViewPosition(position)
+        DamageTextParticle(self._particleSystem, text, drawPosition, color, fontSize)
+
+    def _getParticleViewPosition(
+        self,
+        position: Union[Vector2f, Pair[float], List[float], Tuple[float, float]],
+    ) -> Vector2f:
+        if isinstance(position, Vector2f):
+            drawPosition = position
+        else:
+            drawPosition = Vector2f(float(position[0]), float(position[1]))
+        camera = self.getCamera()
+        if camera is None:
+            return Vector2f(drawPosition.x, drawPosition.y)
+        viewPosition = camera.getViewPosition()
+        if viewPosition is None:
+            return Vector2f(drawPosition.x, drawPosition.y)
+        return Vector2f(drawPosition.x - viewPosition.x, drawPosition.y - viewPosition.y)
 
     def getCollision(self, actor: Actor, targetPosition: Vector2i) -> List[Actor]:
         r"""\brief Get all actors colliding with a given actor at a target position.
@@ -821,6 +1000,137 @@ class GameMap(GameMapExt):
     def markPassabilityDirty(self) -> None:
         r"""\brief Mark the passability cache as dirty for rebuild on next query."""
         self._materialDirty = True
+
+    def _normaliseTerrainPosition(self, position: Any) -> Optional[Vector2i]:
+        try:
+            if isinstance(position, Vector2i):
+                return position
+            if hasattr(position, "x") and hasattr(position, "y"):
+                return Vector2i(int(position.x), int(position.y))
+            if isinstance(position, (tuple, list)) and len(position) >= 2:
+                return Vector2i(int(position[0]), int(position[1]))
+        except (TypeError, ValueError):
+            return None
+        return None
+
+    def _normaliseTerrainTileID(self, tileID: Any) -> Union[int, str, None]:
+        if tileID == "":
+            return None
+        if tileID is None or isinstance(tileID, str):
+            return tileID
+        return int(tileID)
+
+    def _isTerrainPositionInLayer(self, layer: TileLayer, position: Vector2i) -> bool:
+        return position.x >= 0 and position.y >= 0 and position.x < layer._width and position.y < layer._height
+
+    def _getTerrainTileID(self, layer: TileLayer, position: Vector2i) -> Union[int, str, None]:
+        autoTileID = self._getTerrainAutoTileID(layer, position)
+        if autoTileID is not None:
+            return autoTileID
+        return layer.get(position)
+
+    def _writeTerrainTile(self, layer: TileLayer, position: Vector2i, tileID: Union[int, str, None]) -> None:
+        x = position.x
+        y = position.y
+        self._ensureTerrainAutoTileGrid(layer)
+        if tileID is None:
+            layer._data.tiles[y][x] = None
+            layer._data.autoTiles[y][x] = None
+            return
+        if isinstance(tileID, str):
+            layer._data.tiles[y][x] = None
+            layer._data.autoTiles[y][x] = self._resolveAutoTileIndex(layer, tileID)
+            return
+        tileNumber = int(tileID)
+        if tileNumber < 0 or tileNumber >= len(layer._data.layerTileset.materials):
+            raise ValueError(f"Tile ID {tileNumber} is out of range for layer '{layer.getName()}'")
+        layer._data.tiles[y][x] = tileNumber
+        layer._data.autoTiles[y][x] = None
+
+    def _getTerrainAutoTileID(self, layer: TileLayer, position: Vector2i) -> Optional[str]:
+        autoTiles = layer.getAutoTiles()
+        if not autoTiles or position.y >= len(autoTiles):
+            return None
+        row = autoTiles[position.y]
+        if position.x >= len(row):
+            return None
+        autoTileIndex = row[position.x]
+        if autoTileIndex is None:
+            return None
+        autoTileKeys = getattr(layer._data, "autoTileKeys", [])
+        if 0 <= autoTileIndex < len(autoTileKeys):
+            return autoTileKeys[autoTileIndex]
+        autoTilePool = layer.getAutoTilePool()
+        if 0 <= autoTileIndex < len(autoTilePool):
+            return autoTilePool[autoTileIndex].name
+        return None
+
+    def _ensureTerrainAutoTileGrid(self, layer: TileLayer) -> None:
+        if not layer._data.autoTiles:
+            layer._data.autoTiles = [[None] * layer._width for _ in range(layer._height)]
+            return
+        while len(layer._data.autoTiles) < layer._height:
+            layer._data.autoTiles.append([None] * layer._width)
+        for row in layer._data.autoTiles:
+            while len(row) < layer._width:
+                row.append(None)
+
+    def _resolveAutoTileIndex(self, layer: TileLayer, autoTileName: str) -> int:
+        autoTileKeys = getattr(layer._data, "autoTileKeys", None)
+        if not autoTileKeys:
+            autoTileKeys = [entry.name for entry in layer._data.autoTilePool]
+            layer._data.autoTileKeys = autoTileKeys
+        if autoTileName in autoTileKeys:
+            index = autoTileKeys.index(autoTileName)
+            self._ensureAutoTileRuntimeData(layer)
+            return index
+        from Source import Data
+
+        if not Data.hasAutoTile(autoTileName):
+            raise ValueError(f"Autotile '{autoTileName}' not found")
+        autoTile = Data.getAutoTile(autoTileName)
+        layer._data.autoTilePool.append(autoTile)
+        layer._data.autoTileKeys.append(autoTileName)
+        self._ensureAutoTileRuntimeData(layer)
+        return len(layer._data.autoTilePool) - 1
+
+    def _ensureAutoTileRuntimeData(self, layer: TileLayer) -> None:
+        if not hasattr(layer, "_autoTileTextures"):
+            layer._autoTileTextures = []
+        if not hasattr(layer, "_autoTileFrameCounts"):
+            layer._autoTileFrameCounts = []
+        while len(layer._autoTileTextures) < len(layer._data.autoTilePool):
+            autoTile = layer._data.autoTilePool[len(layer._autoTileTextures)]
+            texture = Manager.loadAutotile(autoTile.fileName)
+            layer._autoTileTextures.append(texture)
+        while len(layer._autoTileFrameCounts) < len(layer._autoTileTextures):
+            texture = layer._autoTileTextures[len(layer._autoTileFrameCounts)]
+            layer._autoTileFrameCounts.append(self._getAutoTileFrameCount(texture))
+
+    @staticmethod
+    def _getAutoTileFrameCount(texture: Optional[Texture]) -> int:
+        if texture is None:
+            return 1
+        cellSize = Engine.CellSize
+        size = texture.getSize()
+        frames = size.x // (3 * cellSize) if cellSize > 0 else 1
+        return max(frames, 1)
+
+    def _replaceTerrainLayer(self, layerName: str, layer: TileLayer) -> None:
+        layers = self._tilemap.getAllLayers()
+        newLayer = TileLayer(
+            layer._data,
+            layer._texture,
+            list(getattr(layer, "_autoTileTextures", [])),
+            list(getattr(layer, "_autoTileFrameCounts", [])),
+            layer.visible,
+        )
+        layers[layerName] = newLayer
+        self._tilemap._tilesData[layerName] = newLayer.getTiles()
+        self._layersTopFirst = list(layers.values())
+        self._layersTopFirst.reverse()
+        if hasattr(self, "_transparentTiles"):
+            self._transparentTiles.clear()
 
     def _resetTransparentTiles(self) -> None:
         if not hasattr(self, "_transparentTiles"):

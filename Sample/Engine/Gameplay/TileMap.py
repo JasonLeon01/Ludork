@@ -68,6 +68,7 @@ class TileLayerData:
     tiles: List[List[Optional[int]]]  #: 2D grid of tile indices (None = empty)
     autoTiles: List[List[Optional[int]]] = field(default_factory=list)  #: 2D grid of autotile pool indices
     autoTilePool: List[AutoTile] = field(default_factory=list)  #: Autotile entries referenced by this layer
+    autoTileKeys: List[str] = field(default_factory=list)  #: Autotile data keys matching `autoTilePool`
 
 
 class TileLayer(TileLayerGraphics):
@@ -110,6 +111,8 @@ class TileLayer(TileLayerGraphics):
         self.visible = visible
 
         autoTilePool = list(self._data.autoTilePool or [])
+        if not self._data.autoTileKeys:
+            self._data.autoTileKeys = [entry.name for entry in autoTilePool]
         autoTileTextureList: List[Texture] = list(autoTileTextures or [])
         if len(autoTileTextureList) < len(autoTilePool):
             autoTileTextureList.extend([None] * (len(autoTilePool) - len(autoTileTextureList)))
@@ -118,6 +121,7 @@ class TileLayer(TileLayerGraphics):
         if len(autoTileFrames) < len(autoTilePool):
             autoTileFrames.extend([1] * (len(autoTilePool) - len(autoTileFrames)))
         self._autoTileTextures = autoTileTextureList
+        self._autoTileFrameCounts = autoTileFrames
         self._autoTileMaterialsRef = autoTileMaterials
 
         autoTileGrid: List[List[Optional[int]]] = []

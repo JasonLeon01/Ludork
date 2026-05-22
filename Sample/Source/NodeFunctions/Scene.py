@@ -1,24 +1,34 @@
 # -*- encoding: utf-8 -*-
 r"""\brief Blueprint scene nodes: map navigation and scene-level shortcuts."""
 
-from typing import Callable, List, Optional, Union
-from Engine import Vector2u
+from typing import Any, Callable, List, Optional, Union
+from Engine import Pair, Vector2i, Vector2u
 from Global import System
+
+
+def _evalTerrainTileID(tileID: Any) -> Union[int, str, None]:
+    if isinstance(tileID, str):
+        try:
+            return Eval(tileID)
+        except Exception:
+            return tileID
+    return tileID
 
 
 @Meta(DisplayName='LOC("GOTO_MAP")', DisplayDesc='LOC("GOTO_MAP_DESC")')
 @ExecSplit(default=(None,))
-def GotoMap(mapPath: str, x: Optional[int] = None, y: Optional[int] = None) -> None:
+def GotoMap(mapPath: str, blockTransition: bool, x: int, y: int) -> None:
     r"""\brief Transition to a map and optionally place the player at (x, y).
 
     - \param mapPath Path to the map data file (relative to Data/Maps/).
+    - \param blockTransition Whether to skip the map transition effect.
     - \param x Target tile column, or None to keep the current position.
     - \param y Target tile row, or None to keep the current position.
     """
     scene = System.getScene()
     if scene and hasattr(scene, "gotoMapAndPos"):
         pos = Vector2u(int(x), int(y)) if x is not None and y is not None else None
-        scene.gotoMapAndPos(mapPath, pos)
+        scene.gotoMapAndPos(mapPath, pos, blockTransition=bool(blockTransition))
 
 
 @Meta(DisplayName='LOC("RECORD_TELEPOINT")', DisplayDesc='LOC("RECORD_TELEPOINT_DESC")')
@@ -33,6 +43,72 @@ def RecordTelepoint(mapPath: str, x: int, y: int) -> None:
     scene = System.getScene()
     if scene and hasattr(scene, "inst"):
         scene.inst.recordTelepoint(mapPath, Vector2u(int(x), int(y)))
+
+
+@Meta(DisplayName='LOC("DESTROY_TERRAIN")', DisplayDesc='LOC("DESTROY_TERRAIN_DESC")')
+@ExecSplit(default=(None,))
+def DestroyTerrain(layerName: str, position: Union[Vector2i, Vector2u, Pair[int], List[int]], tileID: Any) -> None:
+    r"""\brief Replace and persist one terrain tile on the current map.
+
+    - \param layerName The tile layer to edit.
+    - \param position The tile coordinate.
+    - \param tileID The replacement tile expression, autotile key, or None.
+    """
+    scene = System.getScene()
+    if scene and hasattr(scene, "getGameMap"):
+        gameMap = scene.getGameMap()
+        if gameMap is not None:
+            gameMap.destroyTerrain(layerName, position, _evalTerrainTileID(tileID))
+
+
+@Meta(DisplayName='LOC("DESTROY_TERRAIN_LIST")', DisplayDesc='LOC("DESTROY_TERRAIN_LIST_DESC")')
+@ExecSplit(default=(None,))
+def DestroyTerrainList(layerName: str, positions: List[Any], tileID: Any) -> None:
+    r"""\brief Replace and persist multiple terrain tiles on the current map.
+
+    - \param layerName The tile layer to edit.
+    - \param positions The tile coordinates.
+    - \param tileID The replacement tile expression, autotile key, or None.
+    """
+    scene = System.getScene()
+    if scene and hasattr(scene, "getGameMap"):
+        gameMap = scene.getGameMap()
+        if gameMap is not None:
+            gameMap.destroyTerrainList(layerName, positions, _evalTerrainTileID(tileID))
+
+
+@Meta(DisplayName='LOC("GET_TERRAIN_TILE")', DisplayDesc='LOC("GET_TERRAIN_TILE_DESC")')
+@ReturnType(tileID=Any)
+def GetTerrainTile(layerName: str, position: Union[Vector2i, Vector2u, Pair[int], List[int]]) -> Any:
+    r"""\brief Get the terrain tile ID on the current map.
+
+    - \param layerName The tile layer to query.
+    - \param position The tile coordinate.
+    - \return The static tile ID, autotile key, or None.
+    """
+    scene = System.getScene()
+    if scene and hasattr(scene, "getGameMap"):
+        gameMap = scene.getGameMap()
+        if gameMap is not None:
+            return gameMap.getTerrainTile(layerName, position)
+    return None
+
+
+@Meta(DisplayName='LOC("GET_TERRAIN_TILE_POSITIONS")', DisplayDesc='LOC("GET_TERRAIN_TILE_POSITIONS_DESC")')
+@ReturnType(positions=List[Vector2i])
+def GetTerrainTilePositions(layerName: str, tileID: Any) -> List[Vector2i]:
+    r"""\brief Get all current-map coordinates that match a tile ID on one layer.
+
+    - \param layerName The tile layer to query.
+    - \param tileID The static tile ID expression, autotile key, or None.
+    - \return A list of matching tile coordinates.
+    """
+    scene = System.getScene()
+    if scene and hasattr(scene, "getGameMap"):
+        gameMap = scene.getGameMap()
+        if gameMap is not None:
+            return gameMap.getTerrainTilePositions(layerName, _evalTerrainTileID(tileID))
+    return []
 
 
 @Meta(DisplayName='LOC("OPEN_SHOP")', DisplayDesc='LOC("OPEN_SHOP_DESC")')

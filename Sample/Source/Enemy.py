@@ -82,6 +82,7 @@ class Enemy(Actor, EnemyInfo, Battler):
 
         won = damage < player.HP
         player.HP = max(0, player.HP - damage)
+        map.getGameMap().addDamageText(str(damage), player.getPosition())
 
         player.triggerStateEvent("onBattleEnd", opponent=self, won=won)
         self.triggerStateEvent("onBattleEnd", opponent=player, won=not won)

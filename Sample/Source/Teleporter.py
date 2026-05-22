@@ -108,8 +108,7 @@ class Teleporter(Actor):
         inst = scene.inst
         targetMap = self._floorTransferTargetMap
         anchorPos = self._floorTransferAnchorPos
-        self._startTransition()
-        scene.gotoMapAndPos(targetMap, anchorPos)
+        scene.gotoMapAndPos(targetMap, anchorPos, True)
         targetGameMap = scene.getGameMap()
         targetPlayer = targetGameMap.getPlayer()
         if targetPlayer is None:
@@ -124,9 +123,6 @@ class Teleporter(Actor):
         inst.recordTelepoint(targetMap, Vector2u(targetPos[0], targetPos[1]))
         targetPlayer.setMoveEnabled(self._floorTransferMoveEnabled)
         self._clearPendingFloorTransfer()
-
-    def _startTransition(self) -> None:
-        GlobalSystem.requestTransition(self.transitionName, self.transitionTime)
 
     def _cancelPendingFloorTransfer(self, scene) -> None:
         if scene is not None:

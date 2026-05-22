@@ -2,6 +2,7 @@
 r"""\brief Blueprint player nodes: inventory, equipment, attribute, gold, and EXP management."""
 
 from typing import Any, Optional
+from Engine import Direction, Vector2i
 from Global import System
 
 
@@ -20,6 +21,27 @@ def GetPlayer() -> Optional[object]:
     - \return The primary Player instance, or None if no active game scene.
     """
     return _getPlayer()
+
+
+@Meta(DisplayName='LOC("GET_PLAYER_FRONT_POSITION")', DisplayDesc='LOC("GET_PLAYER_FRONT_POSITION_DESC")')
+@ReturnType(position=Vector2i)
+def GetPlayerFrontPosition() -> Optional[Vector2i]:
+    r"""\brief Get the tile position in front of the player.
+
+    - \return The tile position in front of the player, or None if no active player exists.
+    """
+    player = _getPlayer()
+    if player is None:
+        return None
+    position = player.getMapPosition()
+    direction = getattr(player, "direction", Direction.DOWN)
+    if direction == Direction.UP:
+        return Vector2i(position.x, position.y - 1)
+    if direction == Direction.LEFT:
+        return Vector2i(position.x - 1, position.y)
+    if direction == Direction.RIGHT:
+        return Vector2i(position.x + 1, position.y)
+    return Vector2i(position.x, position.y + 1)
 
 
 @Meta(DisplayName='LOC("ADD_ITEM")', DisplayDesc='LOC("ADD_ITEM_DESC")')

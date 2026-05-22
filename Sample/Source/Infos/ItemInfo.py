@@ -9,7 +9,7 @@ class ItemInfo(InfoBase):
     r"""
     \brief Item data + logic layer.
 
-    Defines item-related blueprint events (onUse, onEquip, onDrop).
+    Defines item-related blueprint events (onUse, onGet).
     Independent of Actor; can be used standalone in inventory/shop UI.
     """
 
