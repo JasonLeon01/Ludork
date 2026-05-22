@@ -11,8 +11,8 @@ if TYPE_CHECKING:
 class LatentManager:
     r"""Singleton manager for latent (delayed) node execution.
 
-    Latent nodes pause execution until a condition becomes true,
-    then resume from the next connected node.
+    Latent nodes poll a condition for one or more result values,
+    then resume every connected branch matching those values.
     """
 
     _instance = None  #: Singleton instance
@@ -63,25 +63,44 @@ class LatentManager:
                 self._removeLatentsForNode(graph, key, index)
                 continue
             locals().update(localRef)
-            result = condition()
+            results = self._normaliseResults(condition())
             node = graph.getNodes(key)[index]
             nodeFunction = node.nodeFunction
-            matched = False
-            execIndex = -1
-            keys = list(nodeFunction._latents.keys())
-            for i, latentKey in enumerate(keys):
-                if result in nodeFunction._latents[latentKey]:
-                    matched = True
-                    execIndex = i
-                    break
-            if matched:
-                self._removeLatentsForNode(graph, key, index)
-                graph.onLatentResolved(key)
+            execIndexes = self._getLatentExecIndexes(nodeFunction, results)
+            if execIndexes:
+                isFinished = self._isConditionFinished(condition)
                 nextMap = graph.nodeNexts.get(key, {}).get(index, {})
-                if execIndex in nextMap:
+                for execIndex in execIndexes:
+                    if execIndex not in nextMap:
+                        continue
                     nextNodeIndex = nextMap[execIndex][0]
                     graph.execute(key, nextNodeIndex)
-                graph.completeExecution(key)
+                if isFinished:
+                    self._removeLatentsForNode(graph, key, index)
+                    graph.onLatentResolved(key)
+                    graph.completeExecution(key)
+
+    def _normaliseResults(self, result: Any) -> List[Any]:
+        if result is None:
+            return []
+        if isinstance(result, (list, tuple, set)):
+            return list(result)
+        return [result]
+
+    def _getLatentExecIndexes(self, nodeFunction: Callable, results: List[Any]) -> List[int]:
+        execIndexes: List[int] = []
+        keys = list(nodeFunction._latents.keys())
+        for result in results:
+            for i, latentKey in enumerate(keys):
+                if result in nodeFunction._latents[latentKey] and i not in execIndexes:
+                    execIndexes.append(i)
+        return execIndexes
+
+    def _isConditionFinished(self, condition: Callable) -> bool:
+        isFinished = getattr(condition, "isFinished", None)
+        if callable(isFinished):
+            return bool(isFinished())
+        return True
 
     def _removeLatentsForNode(self, graph: Optional[Graph], key: str, index: int) -> None:
         if graph is None:

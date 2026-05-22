@@ -48,7 +48,7 @@ class Scene(SceneBase):
 
     def onEnter(self) -> None:
         r"""\brief Start with a transition effect."""
-        GlobalSystem.setTransition(Manager.loadTransition("012-Random04.png"), 0.5)
+        GlobalSystem.setTransition()
 
     def setInst(self, inst: GameInstance) -> None:
         r"""\brief Set the game instance for this scene.

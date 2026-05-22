@@ -13,6 +13,7 @@ in the Ludork sample engine.
 - System     System-level helpers (audio, video, screen effects)
 - Player     Player inventory, equipment, attribute, gold and EXP management
 - Save       Save/load game state
+- Movement   Actor route and pathfinding movement helpers
 - Scene      Scene and map navigation
 - State      State context manipulation, host access, cross-battler state ops
 - Mota       Mota-specific scene shortcuts and region helpers
@@ -25,8 +26,9 @@ from . import Container
 from . import System
 from . import Player
 from . import Save
+from . import Movement
 from . import Scene
 from . import State
 from . import Mota
 
-__all__ = ["Utils", "Math", "String", "Container", "System", "Player", "Save", "Scene", "State", "Mota"]
+__all__ = ["Utils", "Math", "String", "Container", "System", "Player", "Save", "Movement", "Scene", "State", "Mota"]

@@ -867,6 +867,10 @@
         "zh_CN": "父类",
         "en_GB": "Parent"
     },
+    "META_RELY_TOOLTIP": {
+        "zh_CN": "需要 {source} 为 {value} 时可编辑",
+        "en_GB": "Editable when {source} is {value}"
+    },
     "ADD_ATTR": {
         "zh_CN": "添加属性",
         "en_GB": "Add Attribute"

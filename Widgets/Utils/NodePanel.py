@@ -9,9 +9,11 @@ from NodeGraphQt import NodeGraph, BaseNode
 from NodeGraphQt.widgets.viewer import NodeViewer
 from NodeGraphQt.widgets.node_widgets import NodeBaseWidget
 from NodeGraphQt.qgraphics.port import PortItem
+from NodeGraphQt.qgraphics.node_base import NodeItem
 from EditorGlobal import GameData
 from Utils import System
 from .FunctionPickerPopup import FunctionPickerPopup
+from .MetaRely import getRelyConditionDisplay, isRelyEditable, normaliseRelyMap, toBool
 
 if TYPE_CHECKING:
     import Sample.Engine.NodeGraph.Graph as Graph
@@ -41,6 +43,28 @@ MIN_VIEW_SCALE = 0.05
 MAX_VIEW_SCALE = 5.0
 TRACKPAD_ZOOM_WHEEL_BLOCK_MS = 200
 PAN_EMULATION_MODIFIER = QtCore.Qt.MetaModifier
+
+
+def _patchDetachedNodePaintGuard() -> None:
+    if getattr(NodeItem, "_ludorkDetachedPaintGuard", False):
+        return
+
+    originalPaint = NodeItem.paint
+
+    def safePaint(self, painter, option, widget):
+        scene = self.scene()
+        if scene is None:
+            return
+        viewer = scene.viewer() if hasattr(scene, "viewer") else None
+        if viewer is None:
+            return
+        return originalPaint(self, painter, option, widget)
+
+    NodeItem.paint = safePaint
+    NodeItem._ludorkDetachedPaintGuard = True
+
+
+_patchDetachedNodePaintGuard()
 
 
 _RESERVED_NODE_PROPERTIES = {
@@ -81,6 +105,28 @@ def MakeSafeNodePropertyName(name: str, usedNames: set) -> str:
         i += 1
     usedNames.add(safe)
     return safe
+
+
+def getWidgetValue(widget: QtWidgets.QWidget) -> Any:
+    if isinstance(widget, QtWidgets.QLineEdit):
+        return widget.text()
+    if isinstance(widget, (QtWidgets.QPlainTextEdit, QtWidgets.QTextEdit)):
+        return widget.toPlainText()
+    if isinstance(widget, QtWidgets.QCheckBox):
+        return widget.isChecked()
+    if isinstance(widget, (QtWidgets.QSpinBox, QtWidgets.QDoubleSpinBox)):
+        return widget.value()
+    if isinstance(widget, QtWidgets.QComboBox):
+        return widget.currentText()
+    return None
+
+
+def setEditorWidgetEditable(widget: QtWidgets.QWidget, editable: bool) -> None:
+    widget.setEnabled(editable)
+    if isinstance(widget, (QtWidgets.QLineEdit, QtWidgets.QPlainTextEdit, QtWidgets.QTextEdit)):
+        widget.setReadOnly(not editable)
+    if isinstance(widget, QtWidgets.QCheckBox):
+        widget.setStyleSheet("" if editable else "color: #888888;")
 
 
 class NodePlainTextEdit(QtWidgets.QPlainTextEdit):
@@ -159,6 +205,7 @@ def MakeInit(currNode):
 
         meta = getattr(currNode.nodeFunction, "_meta", {})
         dropBox = meta.get("DropBox", [])
+        self._relyMap = normaliseRelyMap(meta.get("Rely"))
         self.META = meta
 
         for i, name in enumerate(keys):
@@ -191,7 +238,13 @@ def MakeInit(currNode):
                         le.setCurrentText(str(init_val))
                     System.SetStyle(le, "nodeInput.qss")
             elif param_type is bool or param_type == "bool":
-                self.add_checkbox(name=widgetName, label=display_label, text="", state=bool(init_val))
+                boolVal = toBool(init_val)
+                self.add_checkbox(
+                    name=widgetName,
+                    label=display_label,
+                    text="",
+                    state=boolVal if boolVal is not None else bool(init_val),
+                )
             elif param_type is int or param_type == "int":
                 try:
                     val = int(init_val)
@@ -259,7 +312,7 @@ class NodePanel(QtWidgets.QWidget):
         graph: Graph,  # type: ignore
         key: str,
         name: str,
-        refreshCallable: Callable[[str], Dict[str, Any]],
+        refreshCallable: Callable[[str, Dict[str, Any]], None],
     ):
         super(NodePanel, self).__init__(parent)
         self._isLoading = True
@@ -292,7 +345,23 @@ class NodePanel(QtWidgets.QWidget):
         self._isLoading = False
 
     def setName(self, name: str):
-        self.name = name
+        oldName = self.key
+        if oldName == name:
+            return
+        for attrName in (
+            "dataNodes",
+            "nodes",
+            "links",
+            "startNodes",
+            "nodeRely",
+            "nodeNexts",
+            "_executionLocked",
+            "_latentPendingCount",
+        ):
+            data = getattr(self.nodeGraph, attrName, None)
+            if isinstance(data, dict) and oldName in data and name not in data:
+                data[name] = data.pop(oldName)
+        self.key = name
 
     def _setupLayout(self):
         main_layout = QtWidgets.QVBoxLayout(self)
@@ -331,7 +400,7 @@ class NodePanel(QtWidgets.QWidget):
     def _createNodes(self):
         start_idx = self._getStartIndex()
         for i, node in enumerate(self.nodeGraph.nodes[self.key]):
-            nodeInst = self.graph.create_node(f"{node.functionName}.Class", pos=node.position)
+            nodeInst = self.graph.create_node(f"{node.functionName}.Class", pos=node.position, push_undo=False)
 
             metaRefer: Dict[str, Any] = {}
             metaRefer["originalName"] = node.functionName
@@ -382,7 +451,8 @@ class NodePanel(QtWidgets.QWidget):
                             lambda n=i, p=paramIndex, widget=le: self.scheduleParamChanged(n, p, widget)
                         )
                     elif isinstance(le, QtWidgets.QCheckBox):
-                        le.setChecked(bool(val))
+                        boolVal = toBool(val)
+                        le.setChecked(boolVal if boolVal is not None else bool(val))
                         le.toggled.connect(
                             lambda checked, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
                         )
@@ -408,6 +478,66 @@ class NodePanel(QtWidgets.QWidget):
                             lambda idx, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
                         )
                 paramIndex += 1
+            self._applyNodeRely(i)
+
+    def _setNodeWidgetEditable(self, nodeWidget, editable: bool) -> None:
+        try:
+            nodeWidget.setEnabled(editable)
+        except AttributeError:
+            pass
+        customWidget = nodeWidget.get_custom_widget() if hasattr(nodeWidget, "get_custom_widget") else None
+        if isinstance(customWidget, QtWidgets.QWidget):
+            setEditorWidgetEditable(customWidget, editable)
+
+    def _getNodeParamValues(self, nodeInst: BaseNode, node) -> Dict[str, Any]:
+        values: Dict[str, Any] = {}
+        paramList = node.getParamList()
+        for paramIndex, name in enumerate(paramList.keys()):
+            widgetName = self.resolveWidgetName(nodeInst, name)
+            nodeWidget = nodeInst.get_widget(widgetName)
+            customWidget = (
+                nodeWidget.get_custom_widget()
+                if nodeWidget and hasattr(nodeWidget, "get_custom_widget")
+                else None
+            )
+            if isinstance(customWidget, QtWidgets.QWidget):
+                values[name] = getWidgetValue(customWidget)
+            elif paramIndex < len(node.params):
+                values[name] = node.params[paramIndex]
+        return values
+
+    def _applyNodeRely(self, nodeIndex: int) -> None:
+        if not (0 <= nodeIndex < len(self.nodes)):
+            return
+        if self.key not in self.nodeGraph.nodes or not (0 <= nodeIndex < len(self.nodeGraph.nodes[self.key])):
+            return
+        nodeInst = self.nodes[nodeIndex]
+        node = self.nodeGraph.nodes[self.key][nodeIndex]
+        meta = getattr(node.nodeFunction, "_meta", {})
+        relyMap = normaliseRelyMap(meta.get("Rely")) if isinstance(meta, dict) else {}
+        if not relyMap:
+            return
+        values = self._getNodeParamValues(nodeInst, node)
+        for name in relyMap.keys():
+            widgetName = self.resolveWidgetName(nodeInst, name)
+            nodeWidget = nodeInst.get_widget(widgetName)
+            if not nodeWidget:
+                continue
+            relyEditable = isRelyEditable(name, relyMap, values)
+            self._setNodeWidgetEditable(nodeWidget, relyEditable)
+            tip = ""
+            if not relyEditable:
+                condition = getRelyConditionDisplay(name, relyMap)
+                if condition:
+                    source, value = condition
+                    tip = ELOC("META_RELY_TOOLTIP").format(source=source, value=value)
+            try:
+                nodeWidget.setToolTip(tip)
+            except AttributeError:
+                pass
+            customWidget = nodeWidget.get_custom_widget() if hasattr(nodeWidget, "get_custom_widget") else None
+            if isinstance(customWidget, QtWidgets.QWidget):
+                customWidget.setToolTip(tip)
 
     def scheduleParamChanged(self, nodeIndex: int, paramIndex: int, widget: QtWidgets.QWidget):
         key = id(widget)
@@ -1203,17 +1333,7 @@ class NodePanel(QtWidgets.QWidget):
         self._refreshPanel()
 
     def _onParamChanged(self, nodeIndex: int, paramIndex: int, widget: QtWidgets.QWidget):
-        text = ""
-        if isinstance(widget, QtWidgets.QLineEdit):
-            text = widget.text()
-        elif isinstance(widget, (QtWidgets.QPlainTextEdit, QtWidgets.QTextEdit)):
-            text = widget.toPlainText()
-        elif isinstance(widget, QtWidgets.QCheckBox):
-            text = widget.isChecked()
-        elif isinstance(widget, (QtWidgets.QSpinBox, QtWidgets.QDoubleSpinBox)):
-            text = widget.value()
-        elif isinstance(widget, QtWidgets.QComboBox):
-            text = widget.currentText()
+        text = getWidgetValue(widget)
 
         changed = False
         if self.key in self.nodeGraph.dataNodes and 0 <= nodeIndex < len(self.nodeGraph.dataNodes[self.key]):
@@ -1232,6 +1352,7 @@ class NodePanel(QtWidgets.QWidget):
             GameData.recordSnapshot()
             self._refreshCallable(self.name, self.nodeGraph.asDict())
             self.MODIFIED.emit()
+        self._applyNodeRely(nodeIndex)
 
     def _getSelectedNodes(self):
         sels = self.graph.selected_nodes()
@@ -1241,14 +1362,28 @@ class NodePanel(QtWidgets.QWidget):
 
     def _refreshPanel(self):
         self._isLoading = True
-        self.graph.delete_nodes(self.graph.all_nodes())
-        self.graph.node_factory.clear_registered_nodes()
-        self.classDict.clear()
-        self.nodes.clear()
-        self._registerNodes()
-        self._createNodes()
-        self._createLinks()
-        self._isLoading = False
+        viewer = self.graph.viewer()
+        viewport = viewer.viewport() if viewer else None
+        if viewer:
+            viewer.setUpdatesEnabled(False)
+        if viewport:
+            viewport.setUpdatesEnabled(False)
+        try:
+            self.graph.delete_nodes(self.graph.all_nodes(), push_undo=False)
+            self.graph.node_factory.clear_registered_nodes()
+            self.classDict.clear()
+            self.nodes.clear()
+            self._registerNodes()
+            self._createNodes()
+            self._createLinks()
+        finally:
+            if viewport:
+                viewport.setUpdatesEnabled(True)
+                viewport.update()
+            if viewer:
+                viewer.setUpdatesEnabled(True)
+                viewer.update()
+            self._isLoading = False
 
     def _onUndo(self):
         self._parent._onUndo()

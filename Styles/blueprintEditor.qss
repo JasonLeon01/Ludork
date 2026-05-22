@@ -16,6 +16,12 @@ QLineEdit, QSpinBox, QDoubleSpinBox {
     padding: 4px;
 }
 
+QLineEdit:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled {
+    color: #888888;
+    background-color: #303030;
+    border: 1px solid #444444;
+}
+
 QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
     border: 1px solid #4a90e2;
 }
@@ -25,9 +31,19 @@ QCheckBox {
     spacing: 5px;
 }
 
+QCheckBox:disabled {
+    color: #888888;
+}
+
 QCheckBox::indicator {
     width: 16px;
     height: 16px;
+}
+
+QPushButton#PathBtn:disabled, QPushButton#RectBtn:disabled {
+    color: #888888;
+    background-color: #303030;
+    border: 1px solid #444444;
 }
 
 QSplitter::handle {

@@ -8,6 +8,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 from EditorGlobal import EditorStatus, GameData
 from Utils import System, File
 from Widgets.Utils import SingleRowDialog, NodePanel, Toast, RectViewer, DataclassWidget, FileSelectorDialog
+from Widgets.Utils.MetaRely import getRelyConditionDisplay, getRelySourceSet, isRelyEditable, normaliseRelyMap
 
 
 class BluePrintEditor(QtWidgets.QWidget):
@@ -29,6 +30,8 @@ class BluePrintEditor(QtWidgets.QWidget):
         rectMap = self._getRectRangeVars()
         self.rectRangeVars: Set[str] = set(rectMap.keys())
         self.rectRangeVarMap: Dict[str, str] = rectMap
+        self.attrRely: Dict[str, Any] = self._getMetaRely()
+        self.attrRelySources: Set[str] = getRelySourceSet(self.attrRely)
         self.setupUI()
         self.toast = Toast(self)
 
@@ -63,6 +66,42 @@ class BluePrintEditor(QtWidgets.QWidget):
         if isinstance(rects, dict):
             return dict(rects)
         return {}
+
+    def _getMetaRely(self) -> Dict[str, Any]:
+        cls = self._resolveClass()
+        if cls is None or not isinstance(cls, type):
+            return {}
+        result: Dict[str, Any] = {}
+        try:
+            mro = list(reversed(cls.mro()))
+        except:
+            mro = [cls]
+        for base in mro:
+            meta = getattr(base, "__dict__", {}).get("_meta")
+            if not isinstance(meta, dict):
+                continue
+            result.update(normaliseRelyMap(meta.get("Rely")))
+        return result
+
+    def _setWidgetEditable(self, widget: QtWidgets.QWidget, editable: bool) -> None:
+        widget.setEnabled(editable)
+        if isinstance(widget, (QtWidgets.QLineEdit, QtWidgets.QPlainTextEdit, QtWidgets.QTextEdit)):
+            widget.setReadOnly(not editable)
+
+    def _getRelyTooltip(self, key: str, relyEditable: bool) -> str:
+        if relyEditable:
+            return ""
+        condition = getRelyConditionDisplay(key, self.attrRely)
+        if not condition:
+            return ""
+        source, value = condition
+        return ELOC("META_RELY_TOOLTIP").format(source=source, value=value)
+
+    def _applyRelyTooltip(self, key: str, relyEditable: bool, *widgets: Optional[QtWidgets.QWidget]) -> None:
+        tip = self._getRelyTooltip(key, relyEditable)
+        for widget in widgets:
+            if widget is not None:
+                widget.setToolTip(tip)
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         super().resizeEvent(event)
@@ -193,12 +232,42 @@ class BluePrintEditor(QtWidgets.QWidget):
         remaining = [k for k in attrs.keys() if k not in seen]
         return ordered + remaining
 
+    def _copyAttrValue(self, value: Any) -> Any:
+        if dataclasses.is_dataclass(value) and not isinstance(value, type):
+            return dataclasses.asdict(value)
+        try:
+            return copy.deepcopy(value)
+        except:
+            return value
+
+    def _getParentDisplayAttrs(self, parent_cls: Optional[type], attrs: Dict[str, Any]) -> Dict[str, Any]:
+        if not parent_cls:
+            return {}
+
+        result = {}
+        for attr_name in dir(parent_cls):
+            if attr_name.startswith("_") or attr_name in attrs:
+                continue
+
+            try:
+                attr_val = getattr(parent_cls, attr_name)
+            except:
+                continue
+
+            if callable(attr_val):
+                continue
+
+            result[attr_name] = self._copyAttrValue(attr_val)
+        return result
+
     def refreshAttrs(self) -> None:
         while self.formLayout.rowCount() > 0:
             self.formLayout.removeRow(0)
 
 
         cls = self._resolveClass()
+        self.attrRely = self._getMetaRely()
+        self.attrRelySources = getRelySourceSet(self.attrRely)
         type_hints = {}
         parent_cls = None
         parent_hints = {}
@@ -215,35 +284,6 @@ class BluePrintEditor(QtWidgets.QWidget):
                 except:
                     parent_hints = getattr(parent_cls, "__annotations__", {})
 
-                if "attrs" not in self.data or not isinstance(self.data["attrs"], dict):
-                    self.data["attrs"] = {}
-
-                changed = False
-                for attr_name in dir(parent_cls):
-                    if attr_name.startswith("_"):
-                        continue
-
-                    try:
-                        attr_val = getattr(parent_cls, attr_name)
-                    except:
-                        continue
-
-                    if callable(attr_val):
-                        continue
-
-                    if attr_name not in self.data["attrs"]:
-                        if not changed:
-                            GameData.recordSnapshot()
-                            changed = True
-                        try:
-                            self.data["attrs"][attr_name] = copy.deepcopy(attr_val)
-                        except:
-                            self.data["attrs"][attr_name] = attr_val
-
-                if changed:
-                    GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
-                    self.MODIFIED.emit()
-
         parent_val = self.data.get("parent", "")
         label = QtWidgets.QLabel(ELOC("PARENT"))
         widget = self.createInputWidget("parent", parent_val, isAttr=False)
@@ -256,13 +296,17 @@ class BluePrintEditor(QtWidgets.QWidget):
 
         attrs = self.data.get("attrs")
         if not isinstance(attrs, dict):
-            return
+            attrs = {}
+            self.data["attrs"] = attrs
+
+        displayAttrs = self._getParentDisplayAttrs(parent_cls, attrs)
+        displayAttrs.update(attrs)
 
         target_cls = cls if (cls and cls is not EditorStatus.PROJ_PATH) else parent_cls
-        display_keys = self._getDisplayOrder(attrs, target_cls)
+        display_keys = self._getDisplayOrder(displayAttrs, target_cls)
 
         for key in display_keys:
-            value = attrs[key]
+            value = displayAttrs[key]
             label = QtWidgets.QLabel(str(key))
             container = QtWidgets.QWidget()
             hbox = QtWidgets.QHBoxLayout(container)
@@ -287,6 +331,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             isInvalid = key in self.invalidVars
             isRectRange = key in self.rectRangeVars and not isInvalid
             isPath = key in self.pathVars and not isInvalid and not isRectRange
+            relyEditable = isRelyEditable(key, self.attrRely, displayAttrs)
 
             if is_dc:
                 if isInvalid:
@@ -309,6 +354,12 @@ class BluePrintEditor(QtWidgets.QWidget):
                             e.setStyleSheet("background-color: #303030; color: #aaaaaa;")
                             e.setCursor(QtCore.Qt.ArrowCursor)
 
+            pathBtn = None
+            rectBtn = None
+
+            if not relyEditable:
+                self._setWidgetEditable(widget, False)
+
             hbox.addWidget(widget, 1)
 
             if isPath and isinstance(widget, QtWidgets.QLineEdit):
@@ -316,6 +367,7 @@ class BluePrintEditor(QtWidgets.QWidget):
                 pathBtn.setObjectName("PathBtn")
                 pathBtn.setFixedWidth(24)
                 pathBtn.clicked.connect(lambda _, k=key, w=widget: self.onSelectPath(k, w))
+                pathBtn.setEnabled(relyEditable)
                 hbox.addWidget(pathBtn, 0)
 
             if isRectRange:
@@ -323,7 +375,10 @@ class BluePrintEditor(QtWidgets.QWidget):
                 rectBtn.setObjectName("RectBtn")
                 rectBtn.setFixedWidth(24)
                 rectBtn.clicked.connect(lambda _, k=key: self.onEditRectRange(k))
+                rectBtn.setEnabled(relyEditable)
                 hbox.addWidget(rectBtn, 0)
+
+            self._applyRelyTooltip(key, relyEditable, label, container, widget, pathBtn, rectBtn)
 
             has_parent_attr = False
             if parent_cls:
@@ -524,6 +579,8 @@ class BluePrintEditor(QtWidgets.QWidget):
         GameData.recordSnapshot()
         GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
         self.MODIFIED.emit()
+        if isAttr and key in self.attrRelySources:
+            QtCore.QTimer.singleShot(0, self.refreshAttrs)
 
     def onDeleteAttr(self, key: str) -> None:
         if "attrs" in self.data and isinstance(self.data["attrs"], dict):

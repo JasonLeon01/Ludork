@@ -3,13 +3,31 @@ r"""\brief Blueprint system nodes: scene transitions, save/load, and game flow c
 
 from dataclasses import fields
 import os
-from typing import Any
+from typing import Any, Callable
 from Engine import Filters, Color
 from Global import Manager, playVideo, System as GlobalSystem
 from Global.Weather import WeatherType
 
 SoundFilter = Filters.SoundFilter()
 MusicFilter = Filters.MusicFilter()
+
+
+class _TransitionCondition:
+    def __init__(self) -> None:
+        self._started = False
+
+    def __call__(self) -> bool:
+        if GlobalSystem.isTransitionPending() or GlobalSystem.isInTransition():
+            self._started = True
+            return False
+        return self._started
+
+
+def _isTransitionBackgroundFrozen() -> bool:
+    return (
+        not GlobalSystem.isTransitionBackgroundFreezePending()
+        and GlobalSystem.isTransitionBackgroundFrozen()
+    )
 
 
 @Meta(
@@ -57,6 +75,33 @@ def PlayMusic(musicFileName: str, applyFilter: bool) -> None:
 def PlayVideo(videoFileName: str, mute: bool, skipable: bool) -> None:
     videoPath = os.path.join(os.getcwd(), "Assets", "Videos", videoFileName)
     playVideo(videoPath, mute, skipable)
+
+
+@Meta(
+    DisplayName='LOC("FREEZE_TRANSITION_BACKGROUND")',
+    DisplayDesc='LOC("FREEZE_TRANSITION_BACKGROUND_DESC")',
+)
+@Latent(Frozen=(True,))
+def FreezeTransitionBackground() -> Callable[[], bool]:
+    r"""\brief Freeze the current frame and wait until it is ready for a transition.
+
+    - \return A condition callable that becomes True when the frame has been captured.
+    """
+    GlobalSystem.freezeTransitionBackground()
+    return _isTransitionBackgroundFrozen
+
+
+@Meta(DisplayName='LOC("REQUEST_TRANSITION")', DisplayDesc='LOC("REQUEST_TRANSITION_DESC")')
+@Latent(Finished=(True,))
+def RequestTransition(transitionName: str, transitionTime: float) -> Callable[[], bool]:
+    r"""\brief Request a screen transition and wait until it finishes.
+
+    - \param transitionName Optional transition texture filename.
+    - \param transitionTime Transition duration in seconds.
+    - \return A condition callable that becomes True when the transition is finished.
+    """
+    GlobalSystem.requestTransition(transitionName, float(transitionTime))
+    return _TransitionCondition()
 
 
 @Meta(

@@ -845,6 +845,11 @@ class System:
         return cls._transitionFrozen
 
     @classmethod
+    def isTransitionBackgroundFreezePending(cls) -> bool:
+        r"""\brief Check whether a transition background freeze is queued."""
+        return cls._transitionFreezePending
+
+    @classmethod
     def cancelTransitionBackgroundFreeze(cls) -> None:
         r"""\brief Cancel a pending or frozen transition background."""
         cls._transitionFreezePending = False
@@ -865,6 +870,17 @@ class System:
         r"""\brief Cancel a queued transition that has not started yet."""
         with cls._pendingTransitionLock:
             cls._pendingTransition = None
+
+    @classmethod
+    def isTransitionPending(cls) -> bool:
+        r"""\brief Check whether a transition request is queued."""
+        with cls._pendingTransitionLock:
+            return cls._pendingTransition is not None
+
+    @classmethod
+    def isInTransition(cls) -> bool:
+        r"""\brief Check whether a transition effect is currently running."""
+        return cls._inTransition
 
     @classmethod
     def applyPendingTransition(cls) -> None:

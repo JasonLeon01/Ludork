@@ -37,6 +37,9 @@ from .Weather import WeatherController
 from .Fog import FogController
 
 
+MAX_SHADER_LIGHTS = 16
+
+
 @dataclass
 class Light:
     r"""\brief Light source with position, colour, radius, and intensity."""
@@ -983,6 +986,7 @@ class GameMap(GameMapExt):
             self._rebuildPassabilityCache()
             self._materialDirty = False
         if self._camera:
+            activeLights = self._getActiveLights()
             super().refreshShader(
                 self._lightMask,
                 System.getScale(),
@@ -991,11 +995,68 @@ class GameMap(GameMapExt):
                 self._camera.v_getViewRotation(),
                 Math.ToVector2f(self._tilemap.getSize()),
                 Engine.CellSize,
-                self._lights,
+                activeLights,
                 self._ambientLight,
             )
             if self._materialShader is not None:
                 self._materialShader.setUniform("mapViewOffset", GameMap.MapViewOffset)
+
+    def _getActiveLights(self) -> List[Light]:
+        lights = list(self._lights)
+        for actor in self.getAllActors():
+            if not getattr(actor, "bSelfLight", False):
+                continue
+            if actor.isDestroyed():
+                continue
+            try:
+                radius = float(getattr(actor, "lightRadius", 0.0))
+            except (TypeError, ValueError):
+                radius = 0.0
+            if radius <= 0.0:
+                continue
+            lights.append(
+                Light(
+                    self._getActorLightPosition(actor),
+                    self._toLightColor(getattr(actor, "lightColor", (255, 255, 255, 255))),
+                    radius,
+                    1.0,
+                )
+            )
+            if len(lights) >= MAX_SHADER_LIGHTS:
+                break
+        return lights[:MAX_SHADER_LIGHTS]
+
+    @staticmethod
+    def _getActorLightPosition(actor: Actor) -> Vector2f:
+        bounds = actor.getGlobalBounds()
+        return Vector2f(
+            bounds.position.x + bounds.size.x * 0.5,
+            bounds.position.y + bounds.size.y * 0.5,
+        )
+
+    @staticmethod
+    def _toLightColor(value: Any) -> Color:
+        if isinstance(value, Color):
+            return value
+        if hasattr(value, "r") and hasattr(value, "g") and hasattr(value, "b"):
+            alpha = getattr(value, "a", 255)
+            return Color(int(value.r), int(value.g), int(value.b), int(alpha))
+        if isinstance(value, str):
+            try:
+                value = Eval(value)
+            except Exception:
+                value = (255, 255, 255, 255)
+        if not isinstance(value, (list, tuple)):
+            value = (255, 255, 255, 255)
+        colorValues = list(value[:4])
+        while len(colorValues) < 4:
+            colorValues.append(255)
+        return Color(
+            int(Math.Clamp(float(colorValues[0]), 0.0, 255.0)),
+            int(Math.Clamp(float(colorValues[1]), 0.0, 255.0)),
+            int(Math.Clamp(float(colorValues[2]), 0.0, 255.0)),
+            int(Math.Clamp(float(colorValues[3]), 0.0, 255.0)),
+        )
 
     def markPassabilityDirty(self) -> None:
         r"""\brief Mark the passability cache as dirty for rebuild on next query."""

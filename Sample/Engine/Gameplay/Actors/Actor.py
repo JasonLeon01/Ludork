@@ -10,6 +10,7 @@ from .Base import _ActorBase
 
 @PathVars("texturePath")
 @RectRangeVars(defaultRect="texturePath")
+@Meta(Rely={"lightColor": ["bSelfLight", True], "lightRadius": ["bSelfLight", True]})
 class Actor(_ActorBase, BPBase):
     r"""
     \brief Game actor with collision, movement, and blueprint event support.
@@ -21,6 +22,9 @@ class Actor(_ActorBase, BPBase):
     collisionEnabled: bool = False  #: Whether this actor blocks movement
     tickable: bool = False  #: Whether tick events are dispatched
     speed: float = 64.0  #: Movement speed in pixels per second
+    bSelfLight: bool = False  #: Whether this actor emits light
+    lightColor: Tuple[int, int, int, int] = (255, 255, 255, 255)  #: Self light colour
+    lightRadius: float = 16.0  #: Self light radius in pixels
     ### Generation use only
     texturePath: str = ""  #: Asset path to the character texture
     defaultRect: Optional[Tuple[Pair[int], Pair[int]]] = ((0, 0), (32, 32))  #: Default texture rectangle (origin, size)

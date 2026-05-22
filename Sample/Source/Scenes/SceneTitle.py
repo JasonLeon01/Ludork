@@ -14,7 +14,7 @@ class Scene(SceneBase):
 
     def onEnter(self) -> None:
         r"""\brief Start with a blind transition effect."""
-        System.setTransition(Manager.loadTransition("001-Blind01.png"), 3)
+        System.setTransition(Manager.loadTransition("Flat.png"))
 
     def onCreate(self) -> None:
         r"""\brief Create background, command window, and load UI elements."""

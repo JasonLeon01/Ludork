@@ -2,7 +2,8 @@
 
 import os
 import copy
-from typing import Any, Callable, Dict, List, Optional
+import dataclasses
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 from Utils import File, System
 from . import EditorStatus
 
@@ -294,7 +295,7 @@ class GameData:
                     final_details["A"].append(key)
                 else:
                     final_details["U"].append(key)
-                cls._originData["systemConfigData"][key] = copy.deepcopy(payload)
+                cls._originData["systemConfigData"][key] = copy.deepcopy(data)
             except Exception:
                 final_details["Failed"].append(key)
 
@@ -437,8 +438,7 @@ class GameData:
             if bp is None:
                 final_details["Failed"].append(key)
                 continue
-            payload = copy.deepcopy(bp)
-            payload["type"] = "blueprint"
+            payload = cls._getBlueprintSavePayload(bp)
             try:
                 if "isJson" in payload:
                     del payload["isJson"]
@@ -531,6 +531,95 @@ class GameData:
             lines.append(f"Failed [{', '.join(final_details['Failed'])}]")
 
         return not bool(final_details["Failed"]), "\n" + "\n".join(lines)
+
+    @classmethod
+    def _getBlueprintSavePayload(cls, data: Dict[str, Any]) -> Dict[str, Any]:
+        payload = copy.deepcopy(data)
+        payload["type"] = "blueprint"
+        cls._trimBlueprintDefaultAttrs(payload)
+        return payload
+
+    @classmethod
+    def _trimBlueprintDefaultAttrs(cls, data: Dict[str, Any]) -> None:
+        attrs = data.get("attrs")
+        if not isinstance(attrs, dict):
+            return
+
+        parentClass = data.get("parent")
+        if not isinstance(parentClass, str) or not parentClass.strip():
+            return
+
+        trimmedAttrs = {}
+        for key, value in attrs.items():
+            found, parentValue = cls._getBlueprintDefaultAttr(parentClass, key, set())
+            if found and cls._isBlueprintValueEqual(value, parentValue):
+                continue
+            trimmedAttrs[key] = value
+        data["attrs"] = trimmedAttrs
+
+    @classmethod
+    def _getBlueprintDefaultAttr(cls, classPath: str, attrName: str, visited: Set[str]) -> Tuple[bool, Any]:
+        if classPath in visited:
+            return False, None
+        visited.add(classPath)
+
+        prefix = "Data.Blueprints."
+        if classPath.startswith(prefix):
+            key = classPath[len(prefix) :].replace(".", "/")
+            bpData = cls.blueprintsData.get(key)
+            if isinstance(bpData, dict):
+                attrs = bpData.get("attrs")
+                if isinstance(attrs, dict) and attrName in attrs:
+                    return True, attrs[attrName]
+
+                parentClass = bpData.get("parent")
+                if isinstance(parentClass, str) and parentClass.strip():
+                    return cls._getBlueprintDefaultAttr(parentClass, attrName, visited)
+
+        try:
+            parentCls = cls.classDict.get(classPath, EditorStatus.PROJ_PATH)
+        except Exception:
+            return False, None
+
+        if parentCls is not None and hasattr(parentCls, attrName):
+            try:
+                return True, getattr(parentCls, attrName)
+            except Exception:
+                return False, None
+        return False, None
+
+    @classmethod
+    def _isBlueprintValueEqual(cls, left: Any, right: Any) -> bool:
+        left = cls._normaliseBlueprintValue(left)
+        right = cls._normaliseBlueprintValue(right)
+
+        if isinstance(left, bool) or isinstance(right, bool):
+            return isinstance(left, bool) and isinstance(right, bool) and left == right
+
+        if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+            return abs(float(left) - float(right)) < 0.0001
+
+        if isinstance(left, (list, tuple)) and isinstance(right, (list, tuple)):
+            if len(left) != len(right):
+                return False
+            return all(cls._isBlueprintValueEqual(lv, rv) for lv, rv in zip(left, right))
+
+        if isinstance(left, dict) and isinstance(right, dict):
+            if set(left.keys()) != set(right.keys()):
+                return False
+            return all(cls._isBlueprintValueEqual(left[k], right[k]) for k in left.keys())
+
+        return left == right
+
+    @classmethod
+    def _normaliseBlueprintValue(cls, value: Any) -> Any:
+        if dataclasses.is_dataclass(value) and not isinstance(value, type):
+            return dataclasses.asdict(value)
+        if isinstance(value, dict):
+            return {k: cls._normaliseBlueprintValue(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [cls._normaliseBlueprintValue(v) for v in value]
+        return value
 
     @classmethod
     def asDict(cls) -> Dict[str, Any]:

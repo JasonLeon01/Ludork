@@ -67,10 +67,12 @@ def TypeAdapter(**typeMap: Union[Tuple[Union[Type, List[Type]], Type], Tuple[Uni
 
 def Meta(**kwargs):
     r"""
-    \brief Decorator for attaching metadata to a function.
+    \brief Decorator for attaching metadata to a function or class.
 
-    This decorator adds a _meta dictionary to the decorated function,
-    which can be used to store arbitrary metadata about the function.
+    This decorator adds a _meta dictionary to the decorated object,
+    which can be used to store arbitrary metadata about that object.
+    `Rely` can describe editor-side edit dependencies in the form
+    `{"target": ["source", expectedValue]}`.
 
     - kwargs: Key-value pairs to be stored as metadata.
 
