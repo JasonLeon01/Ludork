@@ -1,1 +1,63 @@
-{"parent": "Source.Consumables.Gem.Gem", "attrs": {"material": {"lightBlock": 0.2, "mirror": false, "reflectionStrength": 0.5, "opacity": 1.0, "speedRate": 1.0}, "collisionEnabled": true, "texturePath": "items/classic-gems.png", "ATTR_key": "ATK", "plus": 1, "bSelfLight": true, "lightColor": [255, 96, 96, 192], "lightRadius": 16.0}, "graph": {"nodeGraph": {"onCreate": {"nodes": [], "links": []}, "onDestroy": {"nodes": [], "links": []}, "onFixedTick": {"nodes": [], "links": []}, "onLateTick": {"nodes": [], "links": []}, "onOverlap": {"nodes": [], "links": []}, "onTick": {"nodes": [], "links": []}}, "startNodes": {"onCreate": null, "onDestroy": null, "onFixedTick": null, "onLateTick": null, "onOverlap": null, "onTick": null}}, "type": "blueprint"}
+{
+    "parent": "Source.Consumables.Gem.Gem",
+    "attrs": {
+        "material": {
+            "lightBlock": 0.20000000000000004,
+            "mirror": false,
+            "reflectionStrength": 0.5,
+            "opacity": 1.0,
+            "speedRate": 1.0
+        },
+        "collisionEnabled": true,
+        "texturePath": "items/classic-gems.png",
+        "ATTR_key": "ATK",
+        "plus": 1,
+        "lightComp": {
+            "bSelfLight": true,
+            "lightColor": [
+                255,
+                96,
+                96,
+                128
+            ],
+            "lightRadius": 16.0
+        }
+    },
+    "graph": {
+        "nodeGraph": {
+            "onCreate": {
+                "nodes": [],
+                "links": []
+            },
+            "onDestroy": {
+                "nodes": [],
+                "links": []
+            },
+            "onFixedTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onLateTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onOverlap": {
+                "nodes": [],
+                "links": []
+            },
+            "onTick": {
+                "nodes": [],
+                "links": []
+            }
+        },
+        "startNodes": {
+            "onCreate": null,
+            "onDestroy": null,
+            "onFixedTick": null,
+            "onLateTick": null,
+            "onOverlap": null,
+            "onTick": null
+        }
+    },
+    "type": "blueprint"
+}

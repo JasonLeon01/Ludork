@@ -6,6 +6,7 @@ Provides game objects, materials, tile maps, and actor classes
 for building Ludork game scenes.
 
 - Material     Tile material definition
+- Components   Editor-editable actor component data
 - InfoBase     Base class for serialisable game objects
 - Tilemap      Tile map and layer classes
 - AutoTile     Auto-tiling tile entry
@@ -13,9 +14,21 @@ for building Ludork game scenes.
 """
 
 from .Material import Material
+from .Components import Component, LightComponent
 from . import Actors
 from .InfoBase import InfoBase
 from .TileMap import Tileset, TileLayerData, TileLayer, Tilemap
 from .AutoTile import AutoTile
 
-__all__ = ["Material", "InfoBase", "Tileset", "TileLayerData", "TileLayer", "Tilemap", "AutoTile", "Actors"]
+__all__ = [
+    "Material",
+    "Component",
+    "LightComponent",
+    "InfoBase",
+    "Tileset",
+    "TileLayerData",
+    "TileLayer",
+    "Tilemap",
+    "AutoTile",
+    "Actors",
+]

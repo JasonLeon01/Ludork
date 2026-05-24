@@ -87,7 +87,7 @@ class ProjectConfigMixin:
         if name:
             self._projConfig["lastMap"] = name
             with open(self._projConfigPath, "w", encoding="utf-8") as f:
-                json.dump(self._projConfig, f, ensure_ascii=False)
+                json.dump(self._projConfig, f, ensure_ascii=False, indent=4)
 
     def _onFileExplorerPathChanged(self, path: str) -> None:
         if not self._projConfigPath:
@@ -99,7 +99,7 @@ class ProjectConfigMixin:
                     return
                 self._projConfig["lastFileExplorerPath"] = rel
                 with open(self._projConfigPath, "w", encoding="utf-8") as f:
-                    json.dump(self._projConfig, f, ensure_ascii=False)
+                    json.dump(self._projConfig, f, ensure_ascii=False, indent=4)
         except Exception as e:
             print(f"Error saving file explorer path: {e}")
 

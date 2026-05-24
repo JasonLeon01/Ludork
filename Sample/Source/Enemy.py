@@ -7,7 +7,7 @@ from Engine.Gameplay.Actors import Actor
 from Global import Animation
 from . import Data
 from .Infos.EnemyInfo import EnemyInfo
-from .Battler import Battler, DamageType
+from .Battler import Battler, DamageType, EnemyInfoComponent
 
 
 class Enemy(Actor, EnemyInfo, Battler):
@@ -19,12 +19,8 @@ class Enemy(Actor, EnemyInfo, Battler):
     """
 
     ID: str = "FILL_IT_BY_YOURSELF"
-    MAXHP: int = -1
-    ATK: int = -1
-    DEF: int = -1
-    EXP: int = -1
-    GOLD: int = -1
-    HP: int = -1
+    _componentTypes = {"infoComp": EnemyInfoComponent}
+    infoComp: EnemyInfoComponent = EnemyInfoComponent()
     tickable: bool = True
     collisionEnabled: bool = True
     animatable: bool = True
@@ -43,17 +39,18 @@ class Enemy(Actor, EnemyInfo, Battler):
         - \param tag Optional actor tag.
         """
         Actor.__init__(self, texture, rect, tag)
+        Battler.__init__(self)
         self._collectDefaultAttr: Dict[str, int] = {}
         for attr in ["MAXHP", "ATK", "DEF", "EXP", "GOLD"]:
-            if getattr(self, attr) != -1:
-                self._collectDefaultAttr[attr] = getattr(self, attr)
-        self._states = []
+            value = getattr(self.infoComp, attr)
+            if value != -1:
+                self._collectDefaultAttr[attr] = value
         self.initInfo(Data)
 
     @RegisterEvent
     def onCreate(self) -> None:
         for attr, value in self._collectDefaultAttr.items():
-            setattr(self, attr, value)
+            setattr(self.infoComp, attr, value)
 
     @ExecSplit(Win=(0,), Lose=(1,), Escape=(2,))
     def battle(self):
@@ -80,8 +77,8 @@ class Enemy(Actor, EnemyInfo, Battler):
             self.triggerStateEvent("onBattleEnd", opponent=player, won=True)
             return 1
 
-        won = damage < player.HP
-        player.HP = max(0, player.HP - damage)
+        won = damage < player.infoComp.HP
+        player.infoComp.HP = max(0, player.infoComp.HP - damage)
         map.getGameMap().addDamageText(str(damage), player.getPosition())
 
         player.triggerStateEvent("onBattleEnd", opponent=self, won=won)
@@ -90,17 +87,17 @@ class Enemy(Actor, EnemyInfo, Battler):
         if not won:
             return 1
         self.triggerEvent("onDefeat")
-        if player.ANIMATION_KEY:
-            animData = Data.getAnimation(player.ANIMATION_KEY)
+        if player.infoComp.ANIMATION_KEY:
+            animData = Data.getAnimation(player.infoComp.ANIMATION_KEY)
             if animData is None:
-                raise ValueError(f"Animation '{player.ANIMATION_KEY}' not found")
+                raise ValueError(f"Animation '{player.infoComp.ANIMATION_KEY}' not found")
             anim = Animation(animData)
             anim.setPosition(self.getPosition())
             map.addAnim(anim)
-        if self.ANIMATION_KEY:
-            animData = Data.getAnimation(self.ANIMATION_KEY)
+        if self.infoComp.ANIMATION_KEY:
+            animData = Data.getAnimation(self.infoComp.ANIMATION_KEY)
             if animData is None:
-                raise ValueError(f"Animation '{self.ANIMATION_KEY}' not found")
+                raise ValueError(f"Animation '{self.infoComp.ANIMATION_KEY}' not found")
             anim = Animation(animData)
             anim.setPosition(player.getPosition())
             map.addAnim(anim)
@@ -119,7 +116,7 @@ class Enemy(Actor, EnemyInfo, Battler):
             if result == 0:
                 map.recordDestroyedActor(self)
                 self.destroy()
-                player.GOLD += self.GOLD
-                player.EXP += self.EXP
+                player.infoComp.GOLD += self.infoComp.GOLD
+                player.infoComp.EXP += self.infoComp.EXP
             elif result == 1:
-                player.HP = 0
+                player.infoComp.HP = 0

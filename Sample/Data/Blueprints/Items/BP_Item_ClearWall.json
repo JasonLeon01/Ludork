@@ -1,1 +1,74 @@
-{"parent": "Source.Item", "attrs": {"material": {"lightBlock": 0.30000000000000004, "mirror": false, "reflectionStrength": 0.5, "opacity": 1.0, "emissive": 0.5, "speedRate": 1.0}, "collisionEnabled": true, "tickable": true, "texturePath": "items/classic-items.png", "defaultRect": [[192, 32], [32, 32]], "ID": "ClearWall"}, "graph": {"nodeGraph": {"onCollision": {"nodes": [], "links": []}, "onCreate": {"nodes": [], "links": []}, "onDestroy": {"nodes": [], "links": []}, "onFixedTick": {"nodes": [], "links": []}, "onLateTick": {"nodes": [], "links": []}, "onOverlap": {"nodes": [], "links": []}, "onTick": {"nodes": [], "links": []}, "onUse": {"nodes": [], "links": []}}, "startNodes": {"onCollision": null, "onCreate": null, "onDestroy": null, "onFixedTick": null, "onLateTick": null, "onOverlap": null, "onTick": null, "onUse": null}}, "type": "blueprint"}
+{
+    "parent": "Source.Item",
+    "attrs": {
+        "material": {
+            "lightBlock": 0.30000000000000004,
+            "mirror": false,
+            "reflectionStrength": 0.5,
+            "opacity": 1.0,
+            "emissive": 0.5,
+            "speedRate": 1.0
+        },
+        "collisionEnabled": true,
+        "tickable": true,
+        "texturePath": "items/classic-items.png",
+        "defaultRect": [
+            [
+                192,
+                32
+            ],
+            [
+                32,
+                32
+            ]
+        ],
+        "ID": "ClearWall"
+    },
+    "graph": {
+        "nodeGraph": {
+            "onCollision": {
+                "nodes": [],
+                "links": []
+            },
+            "onCreate": {
+                "nodes": [],
+                "links": []
+            },
+            "onDestroy": {
+                "nodes": [],
+                "links": []
+            },
+            "onFixedTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onLateTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onOverlap": {
+                "nodes": [],
+                "links": []
+            },
+            "onTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onUse": {
+                "nodes": [],
+                "links": []
+            }
+        },
+        "startNodes": {
+            "onCollision": null,
+            "onCreate": null,
+            "onDestroy": null,
+            "onFixedTick": null,
+            "onLateTick": null,
+            "onOverlap": null,
+            "onTick": null,
+            "onUse": null
+        }
+    },
+    "type": "blueprint"
+}

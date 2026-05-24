@@ -176,7 +176,7 @@ class System:
             if not os.path.exists(temp_dir):
                 os.makedirs(temp_dir)
             with open(os.path.join(temp_dir, "FPSHistory.json"), "w") as f:
-                json.dump(cls._fpsHistory, f)
+                json.dump(cls._fpsHistory, f, indent=4)
         except Exception as e:
             print(f"Failed to save FPS history: {e}")
 

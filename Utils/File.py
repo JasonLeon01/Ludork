@@ -62,7 +62,7 @@ def GetJSONData(filePath: str) -> Dict[str, Any]:
 
 def SaveJSONData(filePath: str, data: Dict[str, Any]) -> None:
     with open(filePath, "w", encoding="utf-8") as file:
-        json.dump(data, file, ensure_ascii=False)
+        json.dump(data, file, ensure_ascii=False, indent=4)
 
 
 def LoadData(filePath: str) -> Any:

@@ -103,6 +103,162 @@ class BluePrintEditor(QtWidgets.QWidget):
             if widget is not None:
                 widget.setToolTip(tip)
 
+    def _getComponentTypes(self, cls: Optional[type]) -> Dict[str, Any]:
+        if cls is None or not isinstance(cls, type):
+            return {}
+
+        result: Dict[str, Any] = {}
+        try:
+            mro = list(reversed(cls.mro()))
+        except:
+            mro = [cls]
+
+        for base in mro:
+            componentTypes = getattr(base, "__dict__", {}).get("_componentTypes")
+            if not isinstance(componentTypes, dict):
+                continue
+            for name, componentType in componentTypes.items():
+                if (
+                    isinstance(name, str)
+                    and isinstance(componentType, type)
+                    and dataclasses.is_dataclass(componentType)
+                ):
+                    result[name] = componentType
+        return result
+
+    def _getComponentFieldMap(self, componentTypes: Dict[str, Any]) -> Dict[str, str]:
+        result: Dict[str, str] = {}
+        for componentName, componentType in componentTypes.items():
+            for field in dataclasses.fields(componentType):
+                result[field.name] = componentName
+        return result
+
+    def _getComponentDefaults(self, componentType: Any) -> Dict[str, Any]:
+        result: Dict[str, Any] = {}
+        for field in dataclasses.fields(componentType):
+            if field.default is not dataclasses.MISSING:
+                result[field.name] = copy.deepcopy(field.default)
+            elif field.default_factory is not dataclasses.MISSING:
+                try:
+                    result[field.name] = field.default_factory()
+                except:
+                    pass
+        return result
+
+    def _normaliseComponentData(self, componentType: Any, value: Any) -> Dict[str, Any]:
+        if dataclasses.is_dataclass(value) and not isinstance(value, type):
+            value = dataclasses.asdict(value)
+        if not isinstance(value, dict):
+            value = {}
+        result = self._getComponentDefaults(componentType)
+        for field in dataclasses.fields(componentType):
+            if field.name in value:
+                result[field.name] = copy.deepcopy(value[field.name])
+        return result
+
+    def _normaliseComponentAttrs(self, cls: Optional[type], attrs: Dict[str, Any]) -> bool:
+        componentTypes = self._getComponentTypes(cls)
+        changed = False
+        for componentName, componentType in componentTypes.items():
+            componentData = self._normaliseComponentData(componentType, attrs.get(componentName))
+            moved = False
+            for field in dataclasses.fields(componentType):
+                if field.name not in attrs:
+                    continue
+                componentData[field.name] = attrs.pop(field.name)
+                moved = True
+            if moved:
+                attrs[componentName] = componentData
+                changed = True
+        return changed
+
+    def _addSeparator(self) -> None:
+        line = QtWidgets.QFrame()
+        line.setFrameShape(QtWidgets.QFrame.HLine)
+        line.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.formLayout.addRow(line)
+
+    def _getComponentValue(self, cls: Optional[type], componentName: str, componentType: Any, attrs: Dict[str, Any]):
+        if componentName in attrs:
+            return self._normaliseComponentData(componentType, attrs[componentName]), True
+        if cls is not None and hasattr(cls, componentName):
+            try:
+                return self._normaliseComponentData(componentType, getattr(cls, componentName)), False
+            except:
+                pass
+        return None, False
+
+    def _getAddableComponents(
+        self, cls: Optional[type], componentTypes: Dict[str, Any], attrs: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        result: Dict[str, Any] = {}
+        for componentName, componentType in componentTypes.items():
+            if componentName in attrs:
+                continue
+            if cls is not None and hasattr(cls, componentName):
+                continue
+            result[componentName] = componentType
+        return result
+
+    def _addComponentRows(self, cls: Optional[type], componentTypes: Dict[str, Any], attrs: Dict[str, Any]) -> None:
+        items = []
+        for componentName, componentType in componentTypes.items():
+            value, isLocal = self._getComponentValue(cls, componentName, componentType, attrs)
+            if value is None:
+                continue
+            items.append((componentName, componentType, isLocal))
+
+        addable = self._getAddableComponents(cls, componentTypes, attrs)
+        if not items and not addable:
+            return
+
+        container = QtWidgets.QWidget()
+        hbox = QtWidgets.QHBoxLayout(container)
+        hbox.setContentsMargins(0, 0, 0, 0)
+        hbox.setSpacing(4)
+
+        listWidget = QtWidgets.QListWidget()
+        listWidget.setFixedHeight(max(72, min(160, len(items) * 28 + 12)))
+        listWidget.itemDoubleClicked.connect(self.onEditComponentItem)
+        for componentName, componentType, isLocal in items:
+            item = QtWidgets.QListWidgetItem(componentName)
+            item.setData(QtCore.Qt.UserRole, componentName)
+            item.setData(QtCore.Qt.UserRole + 1, componentType)
+            item.setData(QtCore.Qt.UserRole + 2, isLocal)
+            listWidget.addItem(item)
+        hbox.addWidget(listWidget, 1)
+
+        btnBox = QtWidgets.QWidget()
+        btnLayout = QtWidgets.QVBoxLayout(btnBox)
+        btnLayout.setContentsMargins(0, 0, 0, 0)
+        btnLayout.setSpacing(4)
+
+        addCompBtn = QtWidgets.QPushButton("+")
+        addCompBtn.setToolTip(ELOC("ADD_COMPONENT"))
+        addCompBtn.setFixedWidth(24)
+        addCompBtn.setEnabled(bool(addable))
+        addCompBtn.clicked.connect(lambda *_: QtCore.QTimer.singleShot(0, self.onAddComponent))
+        btnLayout.addWidget(addCompBtn)
+
+        delCompBtn = QtWidgets.QPushButton("-")
+        delCompBtn.setObjectName("MinusBtn")
+        delCompBtn.setFixedWidth(24)
+        delCompBtn.clicked.connect(lambda _, w=listWidget: self.onDeleteSelectedComponent(w))
+        btnLayout.addWidget(delCompBtn)
+        btnLayout.addStretch()
+
+        def updateDeleteButton() -> None:
+            item = listWidget.currentItem()
+            delCompBtn.setEnabled(item is not None and bool(item.data(QtCore.Qt.UserRole + 2)))
+
+        listWidget.currentItemChanged.connect(lambda *_: updateDeleteButton())
+        updateDeleteButton()
+        hbox.addWidget(btnBox, 0)
+        self.formLayout.addRow(QtWidgets.QLabel(ELOC("COMPONENTS")), container)
+
+        if listWidget.count() > 0:
+            listWidget.setCurrentRow(0)
+
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         super().resizeEvent(event)
         if hasattr(self, "toast"):
@@ -254,7 +410,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             except:
                 continue
 
-            if callable(attr_val):
+            if callable(attr_val) or isinstance(attr_val, property):
                 continue
 
             result[attr_name] = self._copyAttrValue(attr_val)
@@ -263,7 +419,6 @@ class BluePrintEditor(QtWidgets.QWidget):
     def refreshAttrs(self) -> None:
         while self.formLayout.rowCount() > 0:
             self.formLayout.removeRow(0)
-
 
         cls = self._resolveClass()
         self.attrRely = self._getMetaRely()
@@ -288,21 +443,27 @@ class BluePrintEditor(QtWidgets.QWidget):
         label = QtWidgets.QLabel(ELOC("PARENT"))
         widget = self.createInputWidget("parent", parent_val, isAttr=False)
         self.formLayout.addRow(label, widget)
-
-        line = QtWidgets.QFrame()
-        line.setFrameShape(QtWidgets.QFrame.HLine)
-        line.setFrameShadow(QtWidgets.QFrame.Sunken)
-        self.formLayout.addRow(line)
+        self._addSeparator()
 
         attrs = self.data.get("attrs")
         if not isinstance(attrs, dict):
             attrs = {}
             self.data["attrs"] = attrs
 
+        target_cls = cls if (cls and cls is not EditorStatus.PROJ_PATH) else parent_cls
+        componentsChanged = self._normaliseComponentAttrs(target_cls, attrs)
+        if componentsChanged:
+            GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
+        componentTypes = self._getComponentTypes(target_cls)
+        componentFieldMap = self._getComponentFieldMap(componentTypes)
+        componentSkipKeys = set(componentTypes.keys()) | set(componentFieldMap.keys())
+        componentParentCls = parent_cls if parent_cls is not None else target_cls
+        self._addComponentRows(componentParentCls, componentTypes, attrs)
+        self._addSeparator()
+
         displayAttrs = self._getParentDisplayAttrs(parent_cls, attrs)
         displayAttrs.update(attrs)
-
-        target_cls = cls if (cls and cls is not EditorStatus.PROJ_PATH) else parent_cls
+        displayAttrs = {k: v for k, v in displayAttrs.items() if k not in componentSkipKeys}
         display_keys = self._getDisplayOrder(displayAttrs, target_cls)
 
         for key in display_keys:
@@ -591,6 +752,98 @@ class BluePrintEditor(QtWidgets.QWidget):
                 GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
                 self.MODIFIED.emit()
 
+    def onDeleteComponent(self, key: str) -> None:
+        self.onDeleteAttr(key)
+
+    def onDeleteSelectedComponent(self, listWidget: QtWidgets.QListWidget) -> None:
+        item = listWidget.currentItem()
+        if item is None or not bool(item.data(QtCore.Qt.UserRole + 2)):
+            return
+        key = item.data(QtCore.Qt.UserRole)
+        if isinstance(key, str):
+            QtCore.QTimer.singleShot(0, lambda k=key: self.onDeleteComponent(k))
+
+    def onEditComponentItem(self, item: QtWidgets.QListWidgetItem) -> None:
+        key = item.data(QtCore.Qt.UserRole)
+        if isinstance(key, str):
+            QtCore.QTimer.singleShot(0, lambda k=key: self.onEditComponent(k))
+
+    def onEditComponent(self, key: str) -> None:
+        attrs = self.data.get("attrs")
+        if not isinstance(attrs, dict):
+            attrs = {}
+            self.data["attrs"] = attrs
+
+        cls = self._resolveClass()
+        componentTypes = self._getComponentTypes(cls)
+        componentType = componentTypes.get(key)
+        if componentType is None:
+            return
+
+        parent_cls = None
+        if cls and hasattr(cls, "__bases__") and cls.__bases__:
+            parent_cls = cls.__bases__[0]
+        sourceCls = parent_cls if parent_cls is not None else cls
+        value, _ = self._getComponentValue(sourceCls, key, componentType, attrs)
+        if value is None:
+            value = self._getComponentDefaults(componentType)
+
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle(key)
+        layout = QtWidgets.QVBoxLayout(dlg)
+        widget = DataclassWidget(componentType, copy.deepcopy(value), dlg)
+        layout.addWidget(widget)
+        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        layout.addWidget(buttons)
+        if dlg.exec_() != QtWidgets.QDialog.Accepted:
+            return
+
+        GameData.recordSnapshot()
+        attrs[key] = copy.deepcopy(widget.data)
+        self.refreshAttrs()
+        GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
+        self.MODIFIED.emit()
+
+    def onAddComponent(self) -> None:
+        attrs = self.data.get("attrs")
+        if not isinstance(attrs, dict):
+            attrs = {}
+            self.data["attrs"] = attrs
+
+        cls = self._resolveClass()
+        componentTypes = self._getComponentTypes(cls)
+        parent_cls = None
+        if cls and hasattr(cls, "__bases__") and cls.__bases__:
+            parent_cls = cls.__bases__[0]
+        addable = self._getAddableComponents(parent_cls, componentTypes, attrs)
+        if not addable:
+            return
+
+        displayItems = [f"{name} ({componentType.__name__})" for name, componentType in addable.items()]
+        selected, ok = QtWidgets.QInputDialog.getItem(
+            self,
+            ELOC("ADD_COMPONENT"),
+            ELOC("COMPONENT_NAME"),
+            displayItems,
+            0,
+            False,
+        )
+        if not ok or not selected:
+            return
+
+        componentName = selected.split(" ", 1)[0]
+        componentType = addable.get(componentName)
+        if componentType is None:
+            return
+
+        GameData.recordSnapshot()
+        attrs[componentName] = self._getComponentDefaults(componentType)
+        self.refreshAttrs()
+        GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
+        self.MODIFIED.emit()
+
     def onAddAttr(self) -> None:
         dlg = SingleRowDialog(self, ELOC("ADD_ATTR"), ELOC("ATTR_NAME"), "", None)
         ok, key = dlg.execGetText()
@@ -609,6 +862,12 @@ class BluePrintEditor(QtWidgets.QWidget):
 
             if "attrs" not in self.data or not isinstance(self.data["attrs"], dict):
                 self.data["attrs"] = {}
+            cls = self._resolveClass()
+            componentTypes = self._getComponentTypes(cls)
+            componentFieldMap = self._getComponentFieldMap(componentTypes)
+            if key in componentTypes or key in componentFieldMap:
+                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("INVALID_NAME"))
+                return
             if key in self.data["attrs"]:
                 QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ATTR_EXISTS"))
                 return

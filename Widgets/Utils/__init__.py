@@ -14,5 +14,6 @@ from .FunctionPickerPopup import FunctionPickerPopup
 from .Timeline import TimelinePanel as TimeLine
 from .DataclassEditDialog import DataclassEditDialog
 from .DataclassWidget import DataclassWidget
+from .TypedValueEditor import TypedValueEditor
 from .FPSGraphDialog import FPSGraphDialog
 from .GameConfigDialog import GameConfigDialog

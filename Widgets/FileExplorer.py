@@ -56,6 +56,9 @@ class FileExplorer(QtWidgets.QWidget):
                 if not self._owner._interactive:
                     return
                 k = e.key()
+                if k == QtCore.Qt.Key_Delete:
+                    self._owner._deleteSelectedItems()
+                    return
                 if k in (QtCore.Qt.Key_Space, QtCore.Qt.Key_Return, QtCore.Qt.Key_Enter):
                     rows = self._owner._selectedSourceRows()
                     if rows:
@@ -314,10 +317,12 @@ class FileExplorer(QtWidgets.QWidget):
         actOpen = menu.addAction(ELOC("OPEN_FROM_SYSTEM"))
         actDuplicate = None
         actRename = None
+        actDelete = None
         if selectedPath:
             if not isDir:
                 actDuplicate = menu.addAction(ELOC("DUPLICATE_FILE"))
             actRename = menu.addAction(ELOC("RENAME_FILE"))
+            actDelete = menu.addAction(ELOC("DELETE"))
         viewport = self._view.viewport()
         if viewport is None:
             return
@@ -331,6 +336,8 @@ class FileExplorer(QtWidgets.QWidget):
             self._duplicateItem(selectedPath)
         elif actRename and r == actRename:
             self._renameItem(selectedPath)
+        elif actDelete and r == actDelete:
+            self._deleteSelectedItems()
 
     def _targetDirForNewFolder(self, selectedPath: str, isDir: bool) -> str:
         if selectedPath and isDir:
@@ -438,6 +445,81 @@ class FileExplorer(QtWidgets.QWidget):
                 ELOC("ERROR"),
                 ELOC("RENAME_FAILED") + "\n" + str(e),
             )
+
+    def _deleteSelectedItems(self) -> None:
+        paths = self._selectedDeletePaths()
+        if not paths:
+            return
+        ret = QtWidgets.QMessageBox.question(
+            self,
+            ELOC("CONFIRM_DELETE"),
+            ELOC("DELETE_CONFIRMATION"),
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+            QtWidgets.QMessageBox.No,
+        )
+        if ret != QtWidgets.QMessageBox.Yes:
+            return
+
+        deletedPaths = []
+        failedMessages = []
+        for path in paths:
+            try:
+                if os.path.isdir(path):
+                    shutil.rmtree(path)
+                else:
+                    os.remove(path)
+                deletedPaths.append(path)
+            except Exception as e:
+                failedMessages.append(f"{os.path.basename(path)}: {str(e)}")
+
+        if deletedPaths:
+            GameData.removeDataPaths(deletedPaths)
+            if self._dataPathsChanged(deletedPaths):
+                self.DATA_FILE_CHANGED.emit()
+            if not os.path.exists(self._current):
+                self._setCurrentPath(self._root)
+
+        if failedMessages:
+            QtWidgets.QMessageBox.warning(
+                self,
+                ELOC("DELETE_FAILED"),
+                ELOC("DELETE_FAILED_MESSAGE") + "\n" + "\n".join(failedMessages),
+            )
+
+    def _selectedDeletePaths(self) -> list[str]:
+        rows = self._selectedSourceRows()
+        paths = []
+        for row in rows:
+            path = self._model.filePath(row)
+            if not path or not self._isUnderRoot(path):
+                continue
+            if os.path.normcase(os.path.abspath(path)) == os.path.normcase(os.path.abspath(self._root)):
+                continue
+            if not os.path.exists(path):
+                continue
+            paths.append(os.path.abspath(path))
+        paths.sort(key=lambda p: len(os.path.normcase(p)))
+        result = []
+        for path in paths:
+            if any(self._isPathInside(path, parent) for parent in result):
+                continue
+            result.append(path)
+        return result
+
+    def _isPathInside(self, path: str, root: str) -> bool:
+        try:
+            p = os.path.normcase(os.path.abspath(path))
+            r = os.path.normcase(os.path.abspath(root))
+            return os.path.commonpath([p, r]) == r
+        except Exception:
+            return False
+
+    def _dataPathsChanged(self, paths: list[str]) -> bool:
+        dataRoot = os.path.join(self._root, "Data")
+        for path in paths:
+            if self._isPathInside(path, dataRoot) or self._isPathInside(dataRoot, path):
+                return True
+        return False
 
     def _onUp(self) -> None:
         if os.path.normcase(os.path.abspath(self._current)) == os.path.normcase(os.path.abspath(self._root)):

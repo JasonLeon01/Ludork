@@ -1004,12 +1004,13 @@ class GameMap(GameMapExt):
     def _getActiveLights(self) -> List[Light]:
         lights = list(self._lights)
         for actor in self.getAllActors():
-            if not getattr(actor, "bSelfLight", False):
+            lightComp = getattr(actor, "lightComp", None)
+            if lightComp is None or not lightComp.bSelfLight:
                 continue
             if actor.isDestroyed():
                 continue
             try:
-                radius = float(getattr(actor, "lightRadius", 0.0))
+                radius = float(lightComp.lightRadius)
             except (TypeError, ValueError):
                 radius = 0.0
             if radius <= 0.0:
@@ -1017,7 +1018,7 @@ class GameMap(GameMapExt):
             lights.append(
                 Light(
                     self._getActorLightPosition(actor),
-                    self._toLightColor(getattr(actor, "lightColor", (255, 255, 255, 255))),
+                    self._toLightColor(lightComp.lightColor),
                     radius,
                     1.0,
                 )

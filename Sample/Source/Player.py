@@ -6,7 +6,7 @@ from Engine import Texture, Input, Vector2u
 from Engine.Gameplay.Actors import Character
 from Global import Manager
 from . import Data
-from .Battler import Battler
+from .Battler import Battler, PlayerInfoComponent
 from .Infos.EquipInfo import EquipInfo
 
 
@@ -17,9 +17,8 @@ class Player(Character, Battler):
     (HP, ATK, DEF, states). Registers arrow-key input mappings on construction.
     """
 
-    LEVEL: int = 1  #: Current level
-    HP: int = 0  #: Current hit points, initialized to `MAXHP`
-    CLASS: str = ""  #: Current class
+    _componentTypes = {"infoComp": PlayerInfoComponent}
+    infoComp: PlayerInfoComponent = PlayerInfoComponent()
 
     def __init__(self, texture: Optional[Texture] = None, tag: str = "") -> None:
         Character.__init__(self, texture, tag)
@@ -28,7 +27,7 @@ class Player(Character, Battler):
         self.collisionEnabled = True
         self.animatable = True
         self.speed = 96
-        self.HP = self.MAXHP
+        self.infoComp.HP = self.infoComp.MAXHP
         self._items: Dict[str, int] = {}
         self._equips: Dict[str, int] = {}
         self._equipInfo: Dict[str, str] = {}
@@ -45,7 +44,7 @@ class Player(Character, Battler):
         Input.registerActionMapping(
             self, "playerMoveRight", Input.getRightKeys(), lambda obj, delta: obj.MapMove((1, 0)), triggerOnHold=True
         )
-        for slot, equipID in Data.getGeneralData("Class").get("members", {}).get(self.CLASS, {}).get("slot").items():
+        for slot, equipID in Data.getGeneralData("Class").get("members", {}).get(self.infoComp.CLASS, {}).get("slot").items():
             if equipID:
                 self.equip(equipID)
 
@@ -59,7 +58,7 @@ class Player(Character, Battler):
             "playerClass": self._classPath,
             "tag": self.tag,
             "position": self.getMapPosition().unpack(),
-            "attr": {k: getattr(self, k) for k in ["LEVEL", "HP", "MAXHP", "ATK", "DEF", "EXP", "GOLD"]},
+            "attr": {k: getattr(self.infoComp, k) for k in ["LEVEL", "HP", "MAXHP", "ATK", "DEF", "EXP", "GOLD"]},
             "items": self._items,
             "equips": self._equips,
             "equipInfo": self._equipInfo,
@@ -197,7 +196,7 @@ class Player(Character, Battler):
         - `equipID` - Equip identifier.
         """
         equipInfo = Data.getGeneralData("Equip").get("members", {}).get(equipID, {})
-        classInfo = Data.getGeneralData("Class").get("members", {}).get(self.CLASS, {})
+        classInfo = Data.getGeneralData("Class").get("members", {}).get(self.infoComp.CLASS, {})
         slot = equipInfo.get("slot", "")
         if slot not in classInfo.get("slot", {}):
             raise ValueError(f"Equip {equipID} is not in the player's class")
@@ -262,7 +261,7 @@ class Player(Character, Battler):
 
     def _updateEquipInfo(self, slot: str, equipID: str) -> None:
         tempEquipInfo = {}
-        classInfo = Data.getGeneralData("Class").get("members", {}).get(self.CLASS, {})
+        classInfo = Data.getGeneralData("Class").get("members", {}).get(self.infoComp.CLASS, {})
         for slot_ in classInfo.get("slot", {}).keys():
             if slot_ != slot:
                 tempEquipInfo[slot_] = self._equipInfo.get(slot_, "")

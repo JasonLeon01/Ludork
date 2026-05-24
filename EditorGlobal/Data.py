@@ -23,6 +23,16 @@ class GameData:
     redoStack: List[Dict[str, Any]]
 
     _originData: Dict[str, Any]
+    _DATA_PATH_SECTIONS = (
+        ("Configs", "systemConfigData"),
+        ("Tilesets", "tilesetData"),
+        ("AutoTiles", "autoTileData"),
+        ("Maps", "mapData"),
+        ("CommonFunctions", "commonFunctionsData"),
+        ("Blueprints", "blueprintsData"),
+        ("Animations", "animationsData"),
+        ("General", "generalData"),
+    )
 
     @classmethod
     def init(cls) -> None:
@@ -83,6 +93,52 @@ class GameData:
                             inData[namePart] = data
                     except Exception as e:
                         print(f"Error while loading config file {file}: {e}")
+
+    @classmethod
+    def removeDataPaths(cls, paths: List[str]) -> None:
+        dataRoot = os.path.abspath(os.path.join(EditorStatus.PROJ_PATH, "Data"))
+        for path in paths:
+            absPath = os.path.abspath(path)
+            if not cls._isPathInside(absPath, dataRoot):
+                continue
+            for dirName, attrName in cls._DATA_PATH_SECTIONS:
+                sectionRoot = os.path.join(dataRoot, dirName)
+                if not cls._isPathInside(absPath, sectionRoot):
+                    continue
+                data = getattr(cls, attrName, None)
+                if not isinstance(data, dict):
+                    break
+                keys = cls._getDataKeysForPath(absPath, sectionRoot, data)
+                for key in keys:
+                    data.pop(key, None)
+                origin = cls._originData.get(attrName) if hasattr(cls, "_originData") else None
+                if isinstance(origin, dict):
+                    for key in keys:
+                        origin.pop(key, None)
+                break
+
+    @classmethod
+    def _isPathInside(cls, path: str, root: str) -> bool:
+        try:
+            p = os.path.normcase(os.path.abspath(path))
+            r = os.path.normcase(os.path.abspath(root))
+            return os.path.commonpath([p, r]) == r
+        except Exception:
+            return False
+
+    @classmethod
+    def _getDataKeysForPath(cls, path: str, sectionRoot: str, data: Dict[str, Any]) -> List[str]:
+        relPath = os.path.relpath(path, sectionRoot)
+        namePart, ext = os.path.splitext(relPath)
+        relKey = namePart.replace("\\", "/")
+        if ext.lower() in (".dat", ".json"):
+            return [relKey] if relKey in data else []
+
+        prefix = relPath.replace("\\", "/").rstrip("/")
+        if prefix in ("", "."):
+            return list(data.keys())
+        prefix += "/"
+        return [key for key in list(data.keys()) if key.startswith(prefix)]
 
     @classmethod
     def checkModified(cls) -> bool:

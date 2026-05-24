@@ -5,12 +5,12 @@ from typing import List, Optional, Tuple, Union
 from ... import Pair, BPBase, Vector2f, Vector2i, Vector2u, IntRect, Texture
 from ...Utils import Math, Inner
 from ..Material import Material
+from ..Components import LightComponent, componentFromData
 from .Base import _ActorBase
 
 
 @PathVars("texturePath")
 @RectRangeVars(defaultRect="texturePath")
-@Meta(Rely={"lightColor": ["bSelfLight", True], "lightRadius": ["bSelfLight", True]})
 class Actor(_ActorBase, BPBase):
     r"""
     \brief Game actor with collision, movement, and blueprint event support.
@@ -22,9 +22,8 @@ class Actor(_ActorBase, BPBase):
     collisionEnabled: bool = False  #: Whether this actor blocks movement
     tickable: bool = False  #: Whether tick events are dispatched
     speed: float = 64.0  #: Movement speed in pixels per second
-    bSelfLight: bool = False  #: Whether this actor emits light
-    lightColor: Tuple[int, int, int, int] = (255, 255, 255, 255)  #: Self light colour
-    lightRadius: float = 16.0  #: Self light radius in pixels
+    _componentTypes = {"lightComp": LightComponent}
+    lightComp: LightComponent = LightComponent()  #: Self-light component
     ### Generation use only
     texturePath: str = ""  #: Asset path to the character texture
     defaultRect: Optional[Tuple[Pair[int], Pair[int]]] = ((0, 0), (32, 32))  #: Default texture rectangle (origin, size)
@@ -52,6 +51,7 @@ class Actor(_ActorBase, BPBase):
         """
         _ActorBase.__init__(self, texture, rect, tag)
         BPBase.__init__(self)
+        self._normaliseLightComp()
         self._isMoving: bool = False
         self._nextMoveOffset: Optional[Union[Vector2i, Pair[int]]] = None
         self._inRoute: bool = False
@@ -61,6 +61,54 @@ class Actor(_ActorBase, BPBase):
         self._destination: Optional[Vector2f] = None
         self._realSpeed: float = 0.0
         self._destroyed: bool = False
+
+    @property
+    def bSelfLight(self) -> bool:
+        comp = self._getLightComp()
+        return False if comp is None else comp.bSelfLight
+
+    @bSelfLight.setter
+    def bSelfLight(self, value: bool) -> None:
+        self._ensureLightComp().bSelfLight = bool(value)
+
+    @property
+    def lightColor(self) -> Tuple[int, int, int, int]:
+        comp = self._getLightComp()
+        return (255, 255, 255, 255) if comp is None else comp.lightColor
+
+    @lightColor.setter
+    def lightColor(self, value: Tuple[int, int, int, int]) -> None:
+        self._ensureLightComp().lightColor = value
+
+    @property
+    def lightRadius(self) -> float:
+        comp = self._getLightComp()
+        return 16.0 if comp is None else comp.lightRadius
+
+    @lightRadius.setter
+    def lightRadius(self, value: float) -> None:
+        self._ensureLightComp().lightRadius = float(value)
+
+    def _normaliseLightComp(self) -> None:
+        value = getattr(self, "lightComp", None)
+        if "lightComp" not in self.__dict__ or not isinstance(value, LightComponent):
+            self.lightComp = componentFromData(LightComponent, value)
+
+    def _getLightComp(self) -> Optional[LightComponent]:
+        value = getattr(self, "lightComp", None)
+        if value is None:
+            return None
+        if not isinstance(value, LightComponent):
+            value = componentFromData(LightComponent, value)
+            self.lightComp = value
+        return value
+
+    def _ensureLightComp(self) -> LightComponent:
+        value = self._getLightComp()
+        if value is None:
+            value = LightComponent()
+            self.lightComp = value
+        return value
 
     def fixedUpdate(self, fixedDelta: float) -> None:
         r"""Fixed-timestep update callback.

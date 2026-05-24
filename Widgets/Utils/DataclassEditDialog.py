@@ -1,13 +1,22 @@
 # -*- encoding: utf-8 -*-
 
-from PyQt5 import QtWidgets, QtCore
 import dataclasses
+from typing import get_type_hints
+
+from PyQt5 import QtWidgets
+
+from .TypedValueEditor import TypedValueEditor
+
 
 class DataclassEditDialog(QtWidgets.QDialog):
     def __init__(self, parent, data_obj, title="Edit Data"):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.data_obj = data_obj
+        try:
+            self._type_hints = get_type_hints(type(data_obj))
+        except Exception:
+            self._type_hints = {}
         self._initUI()
 
     def _initUI(self):
@@ -17,27 +26,11 @@ class DataclassEditDialog(QtWidgets.QDialog):
         fields = dataclasses.fields(self.data_obj)
         for field in fields:
             value = getattr(self.data_obj, field.name)
-            field_type = field.type
-            
-            widget = None
-            if field_type == bool:
-                widget = QtWidgets.QCheckBox()
-                widget.setChecked(bool(value))
-            elif field_type == float:
-                widget = QtWidgets.QDoubleSpinBox()
-                widget.setRange(-999999.0, 999999.0)
-                widget.setSingleStep(0.1)
-                widget.setValue(float(value))
-            elif field_type == int:
-                widget = QtWidgets.QSpinBox()
-                widget.setRange(-999999, 999999)
-                widget.setValue(int(value))
-            else:
-                widget = QtWidgets.QLineEdit()
-                widget.setText(str(value))
+            field_type = self._type_hints.get(field.name, field.type)
+            widget = TypedValueEditor(value, field_type, self)
             
             layout.addRow(field.name, widget)
-            self.inputs[field.name] = (field_type, widget)
+            self.inputs[field.name] = widget
             
         buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
@@ -45,15 +38,6 @@ class DataclassEditDialog(QtWidgets.QDialog):
         layout.addWidget(buttons)
 
     def accept(self):
-        for name, (ftype, widget) in self.inputs.items():
-            val = None
-            if ftype == bool:
-                val = widget.isChecked()
-            elif ftype == float:
-                val = widget.value()
-            elif ftype == int:
-                val = widget.value()
-            else:
-                val = widget.text()
-            setattr(self.data_obj, name, val)
+        for name, widget in self.inputs.items():
+            setattr(self.data_obj, name, widget.getValue())
         super().accept()

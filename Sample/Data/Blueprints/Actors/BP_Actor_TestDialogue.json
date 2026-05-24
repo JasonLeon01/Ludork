@@ -1,1 +1,231 @@
-{"parent": "Engine.Gameplay.Actors.Actor.Actor", "attrs": {"animatable": true, "material": {"lightBlock": 0.5, "mirror": false, "reflectionStrength": 0.5, "opacity": 1.0, "speedRate": 1.0}, "collisionEnabled": true, "tickable": true, "texturePath": "enemies/classic-enemies-01-rock-single.png", "defaultRect": [[0, 32], [32, 32]], "shaderPath": "Rainbow.frag"}, "graph": {"nodeGraph": {"onCollision": {"nodes": [{"nodeFunction": "NodeFunctions.Utils.GetScene", "params": [], "pos": [433.63996036872214, 261.26605734792213]}, {"nodeFunction": "Scenes.Map.showMessage", "params": ["", "", "TestName2", "Now you will see."], "pos": [166.4927861832898, 403.8991664816844]}, {"nodeFunction": "Scenes.Map.showMessage", "params": ["", "", "", "No name here."], "pos": [928.793523752229, 418.52396609788696]}, {"nodeFunction": "Scenes.Map.showSelection", "params": ["", "", "TestSelection", "[\"Test blinking\",\"Test shaking\",\"Test shop\",\"Test weather\"]", "True"], "pos": [284.5125227223511, 1031.786377583466]}, {"nodeFunction": "NodeFunctions.System.FlashScreen", "params": [255, 255, 255, 255, 1.0], "pos": [972.749519274591, 1031.3303144131564]}, {"nodeFunction": "NodeFunctions.System.ScreenShake", "params": [32.0, 64.0, 5.0], "pos": [977.3743188907936, 1378.1902856283436]}, {"nodeFunction": "NodeFunctions.System.SetWeather", "params": ["RAIN", 30, 50], "pos": [988.1655179952666, 1903.8758420033605]}, {"nodeFunction": "NodeFunctions.Scene.OpenShop", "params": ["[\"KEY_Y\", \"KEY_B\"]", true], "pos": [978.9159187628616, 1612.513466182603]}], "links": [{"left": 0, "right": 1, "leftOutPin": 0, "rightInPin": 0, "linkType": "Params"}, {"left": 1, "right": 2, "leftOutPin": 0, "rightInPin": 0, "linkType": "Exec"}, {"left": 0, "right": 2, "leftOutPin": 0, "rightInPin": 0, "linkType": "Params"}, {"left": 2, "right": 3, "leftOutPin": 0, "rightInPin": 0, "linkType": "Exec"}, {"left": 0, "right": 3, "leftOutPin": 0, "rightInPin": 0, "linkType": "Params"}, {"left": 3, "right": 4, "leftOutPin": 0, "rightInPin": 0, "linkType": "Exec"}, {"left": 3, "right": 5, "leftOutPin": 1, "rightInPin": 0, "linkType": "Exec"}, {"left": 3, "right": 6, "leftOutPin": 3, "rightInPin": 0, "linkType": "Exec"}, {"left": 3, "right": 7, "leftOutPin": 2, "rightInPin": 0, "linkType": "Exec"}]}, "onCreate": {"nodes": [], "links": []}, "onDestroy": {"nodes": [], "links": []}, "onFixedTick": {"nodes": [], "links": []}, "onLateTick": {"nodes": [], "links": []}, "onOverlap": {"nodes": [], "links": []}, "onTick": {"nodes": [], "links": []}}, "startNodes": {"onCollision": 1, "onCreate": null, "onDestroy": null, "onFixedTick": null, "onLateTick": null, "onOverlap": null, "onTick": null}}, "type": "blueprint"}
+{
+    "parent": "Engine.Gameplay.Actors.Actor.Actor",
+    "attrs": {
+        "animatable": true,
+        "material": {
+            "lightBlock": 0.5,
+            "mirror": false,
+            "reflectionStrength": 0.5,
+            "opacity": 1.0,
+            "speedRate": 1.0
+        },
+        "collisionEnabled": true,
+        "tickable": true,
+        "texturePath": "enemies/classic-enemies-01-rock-single.png",
+        "defaultRect": [
+            [
+                0,
+                32
+            ],
+            [
+                32,
+                32
+            ]
+        ],
+        "shaderPath": "Rainbow.frag"
+    },
+    "graph": {
+        "nodeGraph": {
+            "onCollision": {
+                "nodes": [
+                    {
+                        "nodeFunction": "NodeFunctions.Utils.GetScene",
+                        "params": [],
+                        "pos": [
+                            433.63996036872214,
+                            261.26605734792213
+                        ]
+                    },
+                    {
+                        "nodeFunction": "Scenes.Map.showMessage",
+                        "params": [
+                            "",
+                            "",
+                            "TestName2",
+                            "Now you will see."
+                        ],
+                        "pos": [
+                            166.4927861832898,
+                            403.8991664816844
+                        ]
+                    },
+                    {
+                        "nodeFunction": "Scenes.Map.showMessage",
+                        "params": [
+                            "",
+                            "",
+                            "",
+                            "No name here."
+                        ],
+                        "pos": [
+                            928.793523752229,
+                            418.52396609788696
+                        ]
+                    },
+                    {
+                        "nodeFunction": "Scenes.Map.showSelection",
+                        "params": [
+                            "",
+                            "",
+                            "TestSelection",
+                            "[\"Test blinking\",\"Test shaking\",\"Test shop\",\"Test weather\"]",
+                            "True"
+                        ],
+                        "pos": [
+                            284.5125227223511,
+                            1031.786377583466
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.System.FlashScreen",
+                        "params": [
+                            255,
+                            255,
+                            255,
+                            255,
+                            1.0
+                        ],
+                        "pos": [
+                            972.749519274591,
+                            1031.3303144131564
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.System.ScreenShake",
+                        "params": [
+                            32.0,
+                            64.0,
+                            5.0
+                        ],
+                        "pos": [
+                            977.3743188907936,
+                            1378.1902856283436
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.System.SetWeather",
+                        "params": [
+                            "RAIN",
+                            30,
+                            50
+                        ],
+                        "pos": [
+                            988.1655179952666,
+                            1903.8758420033605
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.Scene.OpenShop",
+                        "params": [
+                            "[\"KEY_Y\", \"KEY_B\"]",
+                            true
+                        ],
+                        "pos": [
+                            978.9159187628616,
+                            1612.513466182603
+                        ]
+                    }
+                ],
+                "links": [
+                    {
+                        "left": 0,
+                        "right": 1,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Params"
+                    },
+                    {
+                        "left": 1,
+                        "right": 2,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Exec"
+                    },
+                    {
+                        "left": 0,
+                        "right": 2,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Params"
+                    },
+                    {
+                        "left": 2,
+                        "right": 3,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Exec"
+                    },
+                    {
+                        "left": 0,
+                        "right": 3,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Params"
+                    },
+                    {
+                        "left": 3,
+                        "right": 4,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Exec"
+                    },
+                    {
+                        "left": 3,
+                        "right": 5,
+                        "leftOutPin": 1,
+                        "rightInPin": 0,
+                        "linkType": "Exec"
+                    },
+                    {
+                        "left": 3,
+                        "right": 6,
+                        "leftOutPin": 3,
+                        "rightInPin": 0,
+                        "linkType": "Exec"
+                    },
+                    {
+                        "left": 3,
+                        "right": 7,
+                        "leftOutPin": 2,
+                        "rightInPin": 0,
+                        "linkType": "Exec"
+                    }
+                ]
+            },
+            "onCreate": {
+                "nodes": [],
+                "links": []
+            },
+            "onDestroy": {
+                "nodes": [],
+                "links": []
+            },
+            "onFixedTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onLateTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onOverlap": {
+                "nodes": [],
+                "links": []
+            },
+            "onTick": {
+                "nodes": [],
+                "links": []
+            }
+        },
+        "startNodes": {
+            "onCollision": 1,
+            "onCreate": null,
+            "onDestroy": null,
+            "onFixedTick": null,
+            "onLateTick": null,
+            "onOverlap": null,
+            "onTick": null
+        }
+    },
+    "type": "blueprint"
+}

@@ -1,8 +1,11 @@
 # -*- encoding: utf-8 -*-
 
-from PyQt5 import QtWidgets, QtCore
 import dataclasses
-from typing import Dict, Any, Type
+from typing import Dict, Any, Type, get_type_hints
+
+from PyQt5 import QtWidgets, QtCore
+
+from .TypedValueEditor import TypedValueEditor
 
 
 class DataclassWidget(QtWidgets.QWidget):
@@ -12,6 +15,10 @@ class DataclassWidget(QtWidgets.QWidget):
         super().__init__(parent)
         self.dc_type = dc_type
         self.data = data if isinstance(data, dict) else {}
+        try:
+            self._type_hints = get_type_hints(dc_type)
+        except Exception:
+            self._type_hints = {}
         self._inputs = {}
         self._initUI()
 
@@ -28,18 +35,20 @@ class DataclassWidget(QtWidgets.QWidget):
                 elif field.default_factory is not dataclasses.MISSING:
                     try:
                         val = field.default_factory()
-                    except:
+                    except Exception:
                         pass
 
             if val is not None:
                 self.data[field.name] = val
 
             widget = self._createFieldWidget(field, val)
+            if isinstance(widget, TypedValueEditor) and val is not None:
+                self.data[field.name] = widget.getValue()
             layout.addRow(field.name, widget)
             self._inputs[field.name] = widget
 
     def _createFieldWidget(self, field: dataclasses.Field, value: Any):
-        ftype = field.type
+        ftype = self._type_hints.get(field.name, field.type)
 
         if dataclasses.is_dataclass(ftype):
             if not isinstance(value, dict):
@@ -58,28 +67,9 @@ class DataclassWidget(QtWidgets.QWidget):
             gb_layout.addWidget(dc_widget)
             return gb
 
-        if ftype == bool:
-            w = QtWidgets.QCheckBox()
-            w.setChecked(bool(value))
-            w.toggled.connect(lambda checked, k=field.name: self._onFieldChanged(k, checked))
-            return w
-        elif ftype == float:
-            w = QtWidgets.QDoubleSpinBox()
-            w.setRange(-999999.0, 999999.0)
-            w.setSingleStep(0.1)
-            w.setValue(float(value) if value is not None else 0.0)
-            w.valueChanged.connect(lambda v, k=field.name: self._onFieldChanged(k, v))
-            return w
-        elif ftype == int:
-            w = QtWidgets.QSpinBox()
-            w.setRange(-999999, 999999)
-            w.setValue(int(value) if value is not None else 0)
-            w.valueChanged.connect(lambda v, k=field.name: self._onFieldChanged(k, v))
-            return w
-        else:
-            w = QtWidgets.QLineEdit(str(value) if value is not None else "")
-            w.textChanged.connect(lambda v, k=field.name: self._onFieldChanged(k, v))
-            return w
+        w = TypedValueEditor(value, ftype, self)
+        w.VALUE_CHANGED.connect(lambda v, k=field.name: self._onFieldChanged(k, v))
+        return w
 
     def _onFieldChanged(self, key, value):
         self.data[key] = value

@@ -81,7 +81,17 @@ class ClassDict:
                 if not classData["parent"] in self._dict:
                     self.get(classData["parent"], root)
                 attrs = {"_GENERATED_CLASS": True}
-                classAttrs = classData.get("attrs", {})
+                parentClass = self._dict[classData["parent"]]
+                classAttrs = copy.deepcopy(classData.get("attrs", {}))
+                if not isinstance(classAttrs, dict):
+                    classAttrs = {}
+                try:
+                    from Engine.Gameplay.Components import migrateLegacyComponentAttrs
+
+                    migrateLegacyComponentAttrs(parentClass, classAttrs)
+                    classData["attrs"] = classAttrs
+                except Exception:
+                    pass
                 for key, value in classAttrs.items():
                     attrs[key] = value
 
@@ -97,11 +107,17 @@ class ClassDict:
                     for key, value in classAttrs.items():
                         setattr(self, key, _cloneAttrValue(value))
                     super(type(self), self).__init__(*args, **kwargs)
+                    try:
+                        from Engine.Gameplay.Components import normaliseInstanceComponents
+
+                        normaliseInstanceComponents(self)
+                    except Exception:
+                        pass
 
                 attrs["__init__"] = __init__
                 targetClass = type(
                     classPath.replace(".", "_"),
-                    (self._dict[classData["parent"]],),
+                    (parentClass,),
                     attrs,
                 )
                 self._dict[classPath] = targetClass

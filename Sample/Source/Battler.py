@@ -4,6 +4,7 @@ from __future__ import annotations
 from enum import IntEnum
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, Union
+from Engine.Gameplay.Components import Component, componentFromData
 from . import Data
 from .Infos import StateInfo
 
@@ -33,6 +34,39 @@ class DamageContext:
 
 
 @dataclass
+class BattlerInfoComponent(Component):
+    r"""\brief Editable battle attributes for any battling entity."""
+
+    MAXHP: int = 1000  #: Hit points
+    ATK: int = 10  #: Attack power
+    DEF: int = 10  #: Defense power
+    EXP: int = 0  #: Experience points
+    GOLD: int = 0  #: Currency
+    ANIMATION_KEY: str = ""  #: Animation key for this battler
+    HP: int = 0  #: Current hit points
+
+
+@dataclass
+class PlayerInfoComponent(BattlerInfoComponent):
+    r"""\brief Editable player identity and battle attributes."""
+
+    LEVEL: int = 1  #: Current level
+    CLASS: str = ""  #: Current class
+
+
+@dataclass
+class EnemyInfoComponent(BattlerInfoComponent):
+    r"""\brief Editable enemy battle attributes."""
+
+    MAXHP: int = -1
+    ATK: int = -1
+    DEF: int = -1
+    EXP: int = -1
+    GOLD: int = -1
+    HP: int = -1
+
+
+@dataclass
 class _BaseBattler:
     r"""\brief Base combat attributes for any battling entity."""
 
@@ -53,14 +87,41 @@ class Battler(_BaseBattler):
     """
 
     HP: int = 0  #: Current hit points (declared so all battlers expose it)
+    _componentTypes = {"infoComp": BattlerInfoComponent}
+    infoComp: BattlerInfoComponent = BattlerInfoComponent()
 
-    def __init__(self, attrs: Dict[str, Any] = {}) -> None:
+    def __init__(self, attrs: Optional[Dict[str, Any]] = None) -> None:
         r"""\brief Construct a battler with optional attribute overrides.
 
         - \param attrs Optional dictionary of attribute overrides.
         """
-        super().__init__(**attrs)
+        self._normaliseInfoComp()
+        if attrs:
+            for key, value in attrs.items():
+                setattr(self, key, value)
         self._states: List[StateInfo] = []  #: Active state effects
+
+    def _normaliseInfoComp(self) -> None:
+        value = getattr(self, "infoComp", None)
+        componentType = self._getInfoCompType()
+        if "infoComp" not in self.__dict__ or not isinstance(value, componentType):
+            self.infoComp = componentFromData(componentType, value)
+
+    def _getInfoCompType(self) -> type[BattlerInfoComponent]:
+        componentTypes = getattr(type(self), "_componentTypes", {})
+        componentType = componentTypes.get("infoComp", BattlerInfoComponent)
+        if not isinstance(componentType, type) or not issubclass(componentType, BattlerInfoComponent):
+            return BattlerInfoComponent
+        return componentType
+
+    def _getInfoField(self, key: str, default: Any) -> Any:
+        self._normaliseInfoComp()
+        return getattr(self.infoComp, key, default)
+
+    def _setInfoField(self, key: str, value: Any) -> None:
+        self._normaliseInfoComp()
+        if hasattr(self.infoComp, key):
+            setattr(self.infoComp, key, value)
 
     def hasState(self, state: Union[str, StateInfo]) -> bool:
         r"""\brief Check whether a state is currently active.
@@ -173,11 +234,13 @@ class Battler(_BaseBattler):
         - \param defender The battler receiving damage.
         - \return The populated `DamageContext` for this exchange.
         """
+        attacker._normaliseInfoComp()
+        defender._normaliseInfoComp()
         ctx = DamageContext(
             attacker=attacker,
             defender=defender,
-            atk=attacker.ATK,
-            deF=defender.DEF,
+            atk=attacker.infoComp.ATK,
+            deF=defender.infoComp.DEF,
         )
         attacker.triggerStateEvent("onTurnStart", context=ctx)
         defender.triggerStateEvent("onTurnStart", context=ctx)
@@ -208,11 +271,13 @@ class Battler(_BaseBattler):
         - \param battler The opposing battler (the attacker).
         - \return Tuple of (DamageType, accumulated damage on `battler`).
         """
+        self._normaliseInfoComp()
+        battler._normaliseInfoComp()
         attackCtx = battler.getDamagePerRound(battler, self)
         counterCtx = self.getDamagePerRound(self, battler)
         if attackCtx.damagePerRound <= 0:
             return (DamageType.UNDEFEATABLE, -1)
-        rounds = max(1, (self.MAXHP + attackCtx.damagePerRound - 1) // attackCtx.damagePerRound)
+        rounds = max(1, (self.infoComp.MAXHP + attackCtx.damagePerRound - 1) // attackCtx.damagePerRound)
         attackCtx.rounds = rounds
         counterCtx.rounds = rounds
         counterCtx.totalDamage = rounds * counterCtx.damagePerRound
@@ -246,3 +311,27 @@ class Battler(_BaseBattler):
             info.initInfo(Data)
             return info
         return None
+
+
+def _makeInfoProperty(key: str, default: Any):
+    def getter(self):
+        return self._getInfoField(key, default)
+
+    def setter(self, value):
+        self._setInfoField(key, value)
+
+    return property(getter, setter)
+
+
+for _key, _default in {
+    "MAXHP": 1000,
+    "ATK": 10,
+    "DEF": 10,
+    "EXP": 0,
+    "GOLD": 0,
+    "ANIMATION_KEY": "",
+    "HP": 0,
+    "LEVEL": 1,
+    "CLASS": "",
+}.items():
+    setattr(Battler, _key, _makeInfoProperty(_key, _default))

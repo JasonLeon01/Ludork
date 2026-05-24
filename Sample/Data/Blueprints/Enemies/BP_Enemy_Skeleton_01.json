@@ -1,1 +1,76 @@
-{"parent": "Source.Enemy", "attrs": {"material": {"lightBlock": 0.5, "mirror": false, "reflectionStrength": 2.7755575615628914e-17, "opacity": 1.0, "emissive": 0.0, "speedRate": 1.5000000000000004}, "texturePath": "enemies/classic-enemies-02-skeleton-single.png", "defaultRect": [[0, 256], [32, 32]], "ID": "Skeleton", "ANIMATION_KEY": "attack"}, "graph": {"nodeGraph": {"onCollision": {"nodes": [], "links": []}, "onCreate": {"nodes": [], "links": []}, "onDestroy": {"nodes": [], "links": []}, "onFixedTick": {"nodes": [], "links": []}, "onLateTick": {"nodes": [], "links": []}, "onOverlap": {"nodes": [], "links": []}, "onTick": {"nodes": [], "links": []}}, "startNodes": {"onCollision": null, "onCreate": null, "onDestroy": null, "onFixedTick": null, "onLateTick": null, "onOverlap": null, "onTick": null}}, "type": "blueprint"}
+{
+    "parent": "Source.Enemy",
+    "attrs": {
+        "material": {
+            "lightBlock": 0.5,
+            "mirror": false,
+            "reflectionStrength": 2.7755575615628914e-17,
+            "opacity": 1.0,
+            "emissive": 0.0,
+            "speedRate": 1.5000000000000004
+        },
+        "texturePath": "enemies/classic-enemies-02-skeleton-single.png",
+        "defaultRect": [
+            [
+                0,
+                256
+            ],
+            [
+                32,
+                32
+            ]
+        ],
+        "ID": "Skeleton",
+        "infoComp": {
+            "MAXHP": -1,
+            "ATK": -1,
+            "DEF": -1,
+            "EXP": -1,
+            "GOLD": -1,
+            "ANIMATION_KEY": "attack",
+            "HP": -1
+        }
+    },
+    "graph": {
+        "nodeGraph": {
+            "onCollision": {
+                "nodes": [],
+                "links": []
+            },
+            "onCreate": {
+                "nodes": [],
+                "links": []
+            },
+            "onDestroy": {
+                "nodes": [],
+                "links": []
+            },
+            "onFixedTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onLateTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onOverlap": {
+                "nodes": [],
+                "links": []
+            },
+            "onTick": {
+                "nodes": [],
+                "links": []
+            }
+        },
+        "startNodes": {
+            "onCollision": null,
+            "onCreate": null,
+            "onDestroy": null,
+            "onFixedTick": null,
+            "onLateTick": null,
+            "onOverlap": null,
+            "onTick": null
+        }
+    },
+    "type": "blueprint"
+}

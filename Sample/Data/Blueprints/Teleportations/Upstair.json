@@ -1,1 +1,92 @@
-{"parent": "Source.Teleporter.Teleporter", "attrs": {"material": {"lightBlock": 0.1, "mirror": false, "reflectionStrength": 0.5, "opacity": 1.0, "speedRate": 1.0}, "texturePath": "Blocks/stairs.png", "defaultRect": [[32, 0], [32, 32]]}, "graph": {"nodeGraph": {"onCollision": {"nodes": [], "links": []}, "onCreate": {"nodes": [], "links": []}, "onDestroy": {"nodes": [], "links": []}, "onFixedTick": {"nodes": [], "links": []}, "onLateTick": {"nodes": [], "links": []}, "onOverlap": {"nodes": [{"nodeFunction": "GoUpstairs", "params": [""], "pos": [255.9055787632047, 231.23998081012468]}, {"nodeFunction": "NodeFunctions.Utils.SELF", "params": [], "pos": [242.0311799145972, 126.41118950953485]}], "links": [{"left": 1, "right": 0, "leftOutPin": 0, "rightInPin": 0, "linkType": "Params"}]}, "onTick": {"nodes": [], "links": []}}, "startNodes": {"onCollision": null, "onCreate": null, "onDestroy": null, "onFixedTick": null, "onLateTick": null, "onOverlap": 0, "onTick": null}}, "type": "blueprint"}
+{
+    "parent": "Source.Teleporter.Teleporter",
+    "attrs": {
+        "material": {
+            "lightBlock": 0.2,
+            "mirror": false,
+            "reflectionStrength": 0.5,
+            "opacity": 1.0,
+            "speedRate": 1.0
+        },
+        "texturePath": "Blocks/stairs.png",
+        "defaultRect": [
+            [
+                32,
+                0
+            ],
+            [
+                32,
+                32
+            ]
+        ]
+    },
+    "graph": {
+        "nodeGraph": {
+            "onCollision": {
+                "nodes": [],
+                "links": []
+            },
+            "onCreate": {
+                "nodes": [],
+                "links": []
+            },
+            "onDestroy": {
+                "nodes": [],
+                "links": []
+            },
+            "onFixedTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onLateTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onOverlap": {
+                "nodes": [
+                    {
+                        "nodeFunction": "GoUpstairs",
+                        "params": [
+                            ""
+                        ],
+                        "pos": [
+                            255.9055787632047,
+                            231.23998081012468
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.Utils.SELF",
+                        "params": [],
+                        "pos": [
+                            242.0311799145972,
+                            126.41118950953485
+                        ]
+                    }
+                ],
+                "links": [
+                    {
+                        "left": 1,
+                        "right": 0,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Params"
+                    }
+                ]
+            },
+            "onTick": {
+                "nodes": [],
+                "links": []
+            }
+        },
+        "startNodes": {
+            "onCollision": null,
+            "onCreate": null,
+            "onDestroy": null,
+            "onFixedTick": null,
+            "onLateTick": null,
+            "onOverlap": 0,
+            "onTick": null
+        }
+    },
+    "type": "blueprint"
+}

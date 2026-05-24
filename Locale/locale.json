@@ -875,6 +875,18 @@
         "zh_CN": "添加属性",
         "en_GB": "Add Attribute"
     },
+    "ADD_COMPONENT": {
+        "zh_CN": "添加组件",
+        "en_GB": "Add Component"
+    },
+    "COMPONENT_NAME": {
+        "zh_CN": "组件名称",
+        "en_GB": "Component Name"
+    },
+    "COMPONENTS": {
+        "zh_CN": "组件",
+        "en_GB": "Components"
+    },
     "ATTR_NAME": {
         "zh_CN": "属性名称",
         "en_GB": "Attribute Name"

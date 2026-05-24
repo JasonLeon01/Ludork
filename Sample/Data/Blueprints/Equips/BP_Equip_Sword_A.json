@@ -1,1 +1,72 @@
-{"parent": "Source.Equip", "attrs": {"ID": "Sword_A", "material": {"lightBlock": 0.30000000000000004, "mirror": false, "reflectionStrength": 0.5, "opacity": 1.0, "speedRate": 1.0}, "collisionEnabled": true, "texturePath": "equips/classic-equips.png", "defaultRect": [[0, 64], [32, 32]]}, "graph": {"nodeGraph": {"onCreate": {"nodes": [], "links": []}, "onDestroy": {"nodes": [], "links": []}, "onEquip": {"nodes": [], "links": []}, "onFixedTick": {"nodes": [], "links": []}, "onLateTick": {"nodes": [], "links": []}, "onOverlap": {"nodes": [], "links": []}, "onTick": {"nodes": [], "links": []}, "onUnequip": {"nodes": [], "links": []}}, "startNodes": {"onCreate": null, "onDestroy": null, "onEquip": null, "onFixedTick": null, "onLateTick": null, "onOverlap": null, "onTick": null, "onUnequip": null}}, "type": "blueprint"}
+{
+    "parent": "Source.Equip",
+    "attrs": {
+        "ID": "Sword_A",
+        "material": {
+            "lightBlock": 0.30000000000000004,
+            "mirror": false,
+            "reflectionStrength": 0.5,
+            "opacity": 1.0,
+            "speedRate": 1.0
+        },
+        "collisionEnabled": true,
+        "texturePath": "equips/classic-equips.png",
+        "defaultRect": [
+            [
+                0,
+                64
+            ],
+            [
+                32,
+                32
+            ]
+        ]
+    },
+    "graph": {
+        "nodeGraph": {
+            "onCreate": {
+                "nodes": [],
+                "links": []
+            },
+            "onDestroy": {
+                "nodes": [],
+                "links": []
+            },
+            "onEquip": {
+                "nodes": [],
+                "links": []
+            },
+            "onFixedTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onLateTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onOverlap": {
+                "nodes": [],
+                "links": []
+            },
+            "onTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onUnequip": {
+                "nodes": [],
+                "links": []
+            }
+        },
+        "startNodes": {
+            "onCreate": null,
+            "onDestroy": null,
+            "onEquip": null,
+            "onFixedTick": null,
+            "onLateTick": null,
+            "onOverlap": null,
+            "onTick": null,
+            "onUnequip": null
+        }
+    },
+    "type": "blueprint"
+}

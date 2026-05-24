@@ -30,7 +30,7 @@ def SaveGame(filePath: str, instance: GameInstance) -> None:
 
     if ext == ".json":
         with open(filePath, "w", encoding="utf-8") as file:
-            json.dump(data, file, ensure_ascii=False, indent=2)
+            json.dump(data, file, ensure_ascii=False, indent=4)
     else:  # .dat or default
         saveData(filePath, data)
 
