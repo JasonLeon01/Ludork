@@ -6,6 +6,7 @@ import json
 import configparser
 from PyQt5 import QtWidgets
 from Utils import File, System
+from Utils.SystemConfigGenerator import generateSystemConfigBase
 from .. import EditorStatus
 from ..Data import GameData
 
@@ -212,10 +213,23 @@ class ProjectConfigMixin:
     def _saveAllChanges(self) -> tuple[bool, str]:
         okData, contentData = GameData.saveAllModified()
         okIni, iniResult = self._savePendingGameConfig()
+        okConfigBase = True
+        configBaseResult = ""
+        if okIni:
+            try:
+                configBasePath, changed = generateSystemConfigBase(EditorStatus.PROJ_PATH)
+                if changed:
+                    configBaseResult = os.path.relpath(configBasePath, EditorStatus.PROJ_PATH).replace("\\", "/")
+            except Exception as e:
+                okConfigBase = False
+                configBaseResult = f"Global/SystemConfigBase.py({str(e)})"
         details = contentData
         if iniResult:
             details += f"\nU [{iniResult}]"
-        return okData and okIni, details
+        if configBaseResult:
+            detailType = "U" if okConfigBase else "Failed"
+            details += f"\n{detailType} [{configBaseResult}]"
+        return okData and okIni and okConfigBase, details
 
     def _refreshInfo(self):
         title = System.GetTitle()

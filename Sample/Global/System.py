@@ -3,7 +3,6 @@ r"""\brief Global system: window management, scene transitions, rendering pipeli
 
 from __future__ import annotations
 import os
-import locale
 import json
 import random
 import threading
@@ -22,23 +21,21 @@ from Engine import (
     Sprite,
     Shader,
     Drawable,
-    Locale,
 )
 from Engine.Utils import Math, Render
 from Engine.Utils.Inner import IS_IOS_PLATFORM, warnIosShaderSkippedOnce
+from .SystemConfigBase import SystemConfigBase
 
 if TYPE_CHECKING:
     from .SceneBase import SceneBase
 
 
-class System:
+class System(SystemConfigBase):
     r"""\brief Global system managing the game window, scenes, transitions, and rendering.
 
     All methods are classmethods operating on shared class-level state.
     """
 
-    __data: configparser.ConfigParser
-    __dataFilePath: str
     __graphicsCanvases: List[RenderTexture] = []
     _window: RenderWindow
     _canvas: RenderTexture
@@ -47,16 +44,6 @@ class System:
     _transitionTempTexture: RenderTexture
     _transitionSprite: Sprite
     _graphicsShaders: List[Shader] = []
-    _mainScript: str = ""
-    _language: str = ""
-    _frameRate: int = 60
-    _verticalSync: bool = False
-    _musicOn: bool = True
-    _soundOn: bool = True
-    _voiceOn: bool = True
-    _musicVolume: float = 100
-    _soundVolume: float = 100
-    _voiceVolume: float = 100
     _transitionShader: Optional[Shader] = None
     _transitionResource: Optional[Texture] = None
     _inTransition: bool = False
@@ -95,26 +82,8 @@ class System:
         - \param inData ConfigParser instance with game settings.
         - \param dataFilePath Path to the configuration file for saving changes.
         """
-        cls.__data = inData
-        cls.__dataFilePath = dataFilePath
+        super().init(inData, dataFilePath)
         cls.__graphicsCanvases = []
-        data = inData["Main"]
-        cls._mainScript = data["script"]
-        _language = data["language"]
-        if _language is None or _language == "" or _language == "None":
-            lang, encoding = locale.getdefaultlocale()
-            _language = lang
-        cls._language = _language
-        Locale.LANGUAGE = _language
-        Engine.Scale = data.getfloat("scale")
-        cls._frameRate = data.getint("frameRate")
-        cls._verticalSync = data.getboolean("verticalSync")
-        cls._musicOn = data.getboolean("musicOn")
-        cls._soundOn = data.getboolean("soundOn")
-        cls._voiceOn = data.getboolean("voiceOn")
-        cls._musicVolume = cls._clampVolume(data.getfloat("musicVolume"))
-        cls._soundVolume = cls._clampVolume(data.getfloat("soundVolume"))
-        cls._voiceVolume = cls._clampVolume(data.getfloat("voiceVolume"))
         cls._scenes = []
         with cls._pendingSceneLock:
             cls._pendingSceneReplace = None
@@ -433,220 +402,6 @@ class System:
         if cls._inTransition:
             if cls._transitionTimeCount >= cls._transitionTime:
                 cls._inTransition = False
-
-    @classmethod
-    def getMainScript(cls) -> str:
-        r"""\brief Get the path of the main script.
-
-        - \return The main script path.
-        """
-        return cls._mainScript
-
-    @classmethod
-    def getLanguage(cls) -> str:
-        r"""\brief Get the current language code.
-
-        - \return The language code string.
-        """
-        return cls._language
-
-    @classmethod
-    def setLanguage(cls, language: str) -> None:
-        r"""\brief Set the current language code.
-
-        - \param language The language code to apply.
-        """
-        cls._language = language
-        Locale.LANGUAGE = language
-        cls._setIniData("language", cls._language)
-
-    @classmethod
-    def saveLanguage(cls, language: str) -> None:
-        r"""\brief Save the language code to configuration without applying it immediately.
-
-        - \param language The language code to persist for next restart.
-        """
-        cls._setIniData("language", language)
-
-    @classmethod
-    def setScale(cls, scale: float) -> None:
-        r"""\brief Set the game's display scale factor.
-
-        - \param scale The new scale factor.
-        """
-        Engine.Scale = scale
-        cls._setIniData("scale", scale)
-
-    @classmethod
-    def saveScale(cls, scale: float) -> None:
-        r"""\brief Save the display scale factor to configuration without applying it immediately.
-
-        - \param scale The scale factor to persist for next restart.
-        """
-        cls._setIniData("scale", scale)
-
-    @classmethod
-    def getScale(cls) -> float:
-        r"""\brief Get the game's display scale factor.
-
-        - \return The current scale factor.
-        """
-        return Engine.Scale
-
-    @classmethod
-    def getFrameRate(cls) -> int:
-        r"""\brief Get the target frame rate.
-
-        - \return The target frames per second.
-        """
-        return cls._frameRate
-
-    @classmethod
-    def setFrameRate(cls, frameRate: int) -> None:
-        r"""\brief Set the target frame rate.
-
-        - \param frameRate The target frames per second.
-        """
-        cls._frameRate = frameRate
-        cls._window.setFramerateLimit(cls._frameRate)
-        cls._setIniData("frameRate", cls._frameRate)
-
-    @classmethod
-    def getVerticalSync(cls) -> bool:
-        r"""\brief Check if vertical sync is enabled.
-
-        - \return True if vertical sync is enabled.
-        """
-        return cls._verticalSync
-
-    @classmethod
-    def setVerticalSync(cls, verticalSync: bool) -> None:
-        r"""\brief Enable or disable vertical sync.
-
-        - \param verticalSync True to enable vertical sync.
-        """
-        cls._verticalSync = verticalSync
-        cls._window.setVerticalSyncEnabled(cls._verticalSync)
-        cls._setIniData("verticalSync", cls._verticalSync)
-
-    @classmethod
-    def getMusicOn(cls) -> bool:
-        r"""\brief Check if music playback is enabled.
-
-        - \return True if music is enabled.
-        """
-        return cls._musicOn
-
-    @classmethod
-    def setMusicOn(cls, musicOn: bool) -> None:
-        r"""\brief Enable or disable music playback.
-
-        - \param musicOn True to enable music.
-        """
-        from . import Manager
-
-        cls._musicOn = musicOn
-        Manager.AudioManager.applyMusicVolumes()
-        cls._setIniData("musicOn", cls._musicOn)
-
-    @classmethod
-    def getSoundOn(cls) -> bool:
-        r"""\brief Check if sound effect playback is enabled.
-
-        - \return True if sound effects are enabled.
-        """
-        return cls._soundOn
-
-    @classmethod
-    def setSoundOn(cls, soundOn: bool) -> None:
-        r"""\brief Enable or disable sound effect playback.
-
-        - \param soundOn True to enable sound effects.
-        """
-        from . import Manager
-
-        cls._soundOn = soundOn
-        if not cls._soundOn:
-            Manager.stopSound()
-        else:
-            Manager.AudioManager.applySoundVolumes()
-        cls._setIniData("soundOn", cls._soundOn)
-
-    @classmethod
-    def getVoiceOn(cls) -> bool:
-        r"""\brief Check if voice playback is enabled.
-
-        - \return True if voice is enabled.
-        """
-        return cls._voiceOn
-
-    @classmethod
-    def setVoiceOn(cls, voiceOn: bool) -> None:
-        r"""\brief Enable or disable voice playback.
-
-        - \param voiceOn True to enable voice.
-        """
-        cls._voiceOn = voiceOn
-        if not cls._voiceOn:
-            pass
-        cls._setIniData("voiceOn", cls._voiceOn)
-
-    @classmethod
-    def getMusicVolume(cls) -> float:
-        r"""\brief Get the music volume level.
-
-        - \return The music volume (0-100).
-        """
-        return cls._musicVolume
-
-    @classmethod
-    def setMusicVolume(cls, musicVolume: float) -> None:
-        r"""\brief Set the music volume level.
-
-        - \param musicVolume The music volume (0-100).
-        """
-        from . import Manager
-
-        cls._musicVolume = cls._clampVolume(musicVolume)
-        Manager.AudioManager.applyMusicVolumes()
-        cls._setIniData("musicVolume", cls._musicVolume)
-
-    @classmethod
-    def getSoundVolume(cls) -> float:
-        r"""\brief Get the sound effect volume level.
-
-        - \return The sound volume (0-100).
-        """
-        return cls._soundVolume
-
-    @classmethod
-    def setSoundVolume(cls, soundVolume: float) -> None:
-        r"""\brief Set the sound effect volume level.
-
-        - \param soundVolume The sound volume (0-100).
-        """
-        from . import Manager
-
-        cls._soundVolume = cls._clampVolume(soundVolume)
-        Manager.AudioManager.applySoundVolumes()
-        cls._setIniData("soundVolume", cls._soundVolume)
-
-    @classmethod
-    def getVoiceVolume(cls) -> float:
-        r"""\brief Get the voice volume level.
-
-        - \return The voice volume (0-100).
-        """
-        return cls._voiceVolume
-
-    @classmethod
-    def setVoiceVolume(cls, voiceVolume: float) -> None:
-        r"""\brief Set the voice volume level.
-
-        - \param voiceVolume The voice volume (0-100).
-        """
-        cls._voiceVolume = cls._clampVolume(voiceVolume)
-        cls._setIniData("voiceVolume", cls._voiceVolume)
 
     @classmethod
     def addGraphicsShader(cls, shader: Optional[Shader], uniforms: Optional[Dict[str, Any]] = None) -> None:
@@ -988,20 +743,6 @@ class System:
         r"""\brief Pop and destroy all scenes in the stack."""
         while len(cls._scenes) > 0:
             cls.popScene()
-
-    @classmethod
-    def _setIniData(cls, key: str, value: Any) -> None:
-        cls.__data.set("Main", key, str(value))
-        with open(cls.__dataFilePath, "w", encoding="utf-8") as f:
-            cls.__data.write(f)
-
-    @staticmethod
-    def _clampVolume(volume: float) -> float:
-        try:
-            value = float(volume)
-        except (TypeError, ValueError):
-            value = 100.0
-        return max(0.0, min(100.0, value))
 
     @classmethod
     def _updateFlash(cls, deltaTime: float) -> None:
