@@ -46,7 +46,7 @@ def GetPlayerFrontPosition() -> Optional[Vector2i]:
 
 @Meta(DisplayName='LOC("ADD_ITEM")', DisplayDesc='LOC("ADD_ITEM_DESC")')
 @ExecSplit(default=(None,))
-def AddItem(itemID: str, count: int = 1) -> None:
+def AddItem(itemID: str, count: int) -> None:
     r"""\brief Add item(s) to the player's inventory.
 
     - \param itemID Item identifier.
@@ -59,7 +59,7 @@ def AddItem(itemID: str, count: int = 1) -> None:
 
 @Meta(DisplayName='LOC("REMOVE_ITEM")', DisplayDesc='LOC("REMOVE_ITEM_DESC")')
 @ExecSplit(Success=(0,), Failed=(1,))
-def RemoveItem(itemID: str, count: int = 1) -> int:
+def RemoveItem(itemID: str, count: int) -> int:
     r"""\brief Remove item(s) from the player's inventory.
 
     - \param itemID Item identifier.
@@ -111,7 +111,7 @@ def AddEquip(equipID: str, count: int = 1) -> None:
 
 @Meta(DisplayName='LOC("REMOVE_EQUIP")', DisplayDesc='LOC("REMOVE_EQUIP_DESC")')
 @ExecSplit(Success=(0,), Failed=(1,))
-def RemoveEquip(equipID: str, count: int = 1) -> int:
+def RemoveEquip(equipID: str, count: int) -> int:
     r"""\brief Remove equip(s) from the player's equipment bag.
 
     - \param equipID Equip identifier.

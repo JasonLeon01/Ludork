@@ -28,7 +28,7 @@ def GetStateOwner() -> Optional[object]:
 
 @Meta(DisplayName='LOC("GET_EVENT_ARG")', DisplayDesc='LOC("GET_EVENT_ARG_DESC")')
 @ReturnType(value=object)
-def GetEventArg(name: str, default: Any = None) -> Any:
+def GetEventArg(name: str, default: Any) -> Any:
     r"""\brief Get a keyword argument injected into the current blueprint event.
 
     Convenience wrapper that reads `__<name>__` from the local graph context.
@@ -54,7 +54,7 @@ def GetDamageContext() -> Any:
 
 @Meta(DisplayName='LOC("GET_CTX_FIELD")', DisplayDesc='LOC("GET_CTX_FIELD_DESC")')
 @ReturnType(value=object)
-def GetCtxField(context: Any, name: str, default: Any = None) -> Any:
+def GetCtxField(context: Any, name: str, default: Any) -> Any:
     r"""\brief Read a field from a `DamageContext` (e.g. atk, deF, damagePerRound, rounds, totalDamage).
 
     Falls back to `context.extra[name]` when the attribute does not exist.
@@ -115,7 +115,7 @@ def AddCtxField(context: Any, name: str, delta: Any) -> None:
 
 @Meta(DisplayName='LOC("GET_BATTLER_ATTR")', DisplayDesc='LOC("GET_BATTLER_ATTR_DESC")')
 @ReturnType(value=object)
-def GetBattlerAttr(battler: Any, attrName: str, default: Any = None) -> Any:
+def GetBattlerAttr(battler: Any, attrName: str, default: Any) -> Any:
     r"""\brief Read a named attribute from any battler (e.g. HP, MAXHP, ATK, DEF).
 
     - \param battler The target battler.

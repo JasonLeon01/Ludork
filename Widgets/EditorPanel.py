@@ -735,6 +735,9 @@ class EditorPanel(QtWidgets.QWidget):
         autoTiles = getattr(layer, "autoTiles", None)
         changed = False
         if autoKey is not None:
+            if layer.tiles[y][x] is not None:
+                layer.tiles[y][x] = None
+                changed = True
             if isinstance(autoTiles, list):
                 if autoTiles[y][x] != autoKey:
                     autoTiles[y][x] = autoKey
@@ -742,6 +745,9 @@ class EditorPanel(QtWidgets.QWidget):
         elif tileNum is not None:
             if layer.tiles[y][x] != tileNum:
                 layer.tiles[y][x] = tileNum
+                changed = True
+            if isinstance(autoTiles, list) and autoTiles[y][x] is not None:
+                autoTiles[y][x] = None
                 changed = True
         else:
             if layer.tiles[y][x] is not None:
