@@ -122,13 +122,30 @@ class MapClickAutoPath(ComponentBase):
         goalPassable = self._parent.isPassable(player, goal)
         player.stop()
         destination = goal if goalPassable else (route[-2] if len(route) >= 2 else start)
+        walkCount = self._getInstantWalkCount(route, destination)
         player.setMapPosition(Vector2u(destination.x, destination.y))
         self._dispatchInstantMoveOverlaps(player)
+        self._triggerInstantWalkStates(player, walkCount)
         fromPos = route[-2] if len(route) >= 2 else start
         self._setActorDirection(player, fromPos, goal, start == goal)
         if not goalPassable and destination != goal:
             bumpOffset = Vector2i(goal.x - destination.x, goal.y - destination.y)
             player.MapMove(bumpOffset)
+
+    def _getInstantWalkCount(self, route: List[Vector2i], destination: Vector2i) -> int:
+        for index, point in enumerate(route):
+            if point == destination:
+                return index + 1
+        return 0
+
+    def _triggerInstantWalkStates(self, player: Actor, walkCount: int) -> None:
+        if walkCount <= 0:
+            return
+        triggerStateWalk = getattr(player, "triggerStateWalk", None)
+        if not callable(triggerStateWalk):
+            return
+        for _ in range(walkCount):
+            triggerStateWalk()
 
     def _dispatchInstantMoveOverlaps(self, player: Actor) -> None:
         overlaps = self._parent.getOverlaps(player)
@@ -276,7 +293,7 @@ class MapClickAutoPath(ComponentBase):
         return Vector2i(int(worldPos.x // cellSize), int(worldPos.y // cellSize))
 
     def _toMapViewPixelPosition(self, pos: Vector2i) -> Vector2i:
-        mapOffset = self._parent.MapViewOffset
+        mapOffset = self._parent.getMapViewOffset()
         return Vector2i(int(pos.x - mapOffset.x), int(pos.y - mapOffset.y))
 
     def _isInMap(self, pos: Vector2i) -> bool:

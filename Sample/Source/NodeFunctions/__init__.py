@@ -15,7 +15,7 @@ in the Ludork sample engine.
 - Save       Save/load game state
 - Movement   Actor route and pathfinding movement helpers
 - Scene      Scene and map navigation
-- State      State context manipulation, host access, cross-battler state ops
+- State      State host access, battler attributes, and cross-battler state ops
 - Mota       Mota-specific scene shortcuts and region helpers
 """
 

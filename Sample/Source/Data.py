@@ -285,6 +285,76 @@ def getGeneralData(name: str) -> Dict[str, Any]:
     return _data.getGeneralData(name)
 
 
+def getGeneralClassData(key: str) -> Dict[str, Any]:
+    r"""\brief Get class data by its key.
+
+    - \param classKey The class key.
+    - \return Class data dictionary.
+    """
+    return _data.getGeneralData("Class").get("members", {}).get(key, {})
+
+
+def getGeneralEnemyData(key: str) -> Dict[str, Any]:
+    r"""\brief Get enemy data by its key.
+
+    - \param enemyKey The enemy key.
+    - \return Enemy data dictionary.
+    """
+    return _data.getGeneralData("Enemy").get("members", {}).get(key, {})
+
+
+def getAllGeneralEquipData() -> Dict[str, Dict[str, Any]]:
+    r"""\brief Get equip data by its key.
+
+    - \return Equip data dictionary.
+    """
+    return _data.getGeneralData("Equip").get("members", {})
+
+
+def getGeneralEquipData(key: str) -> Dict[str, Any]:
+    r"""\brief Get equip data by its key.
+
+    - \param equipKey The equip key.
+    - \return Equip data dictionary.
+    """
+    return _data.getGeneralData("Equip").get("members", {}).get(key, {})
+
+
+def getAllGeneralItemData() -> Dict[str, Dict[str, Any]]:
+    r"""\brief Get item data by its key.
+
+    - \return Item data dictionary.
+    """
+    return _data.getGeneralData("Item").get("members", {})
+
+
+def getGeneralItemData(key: str) -> Dict[str, Any]:
+    r"""\brief Get item data by its key.
+
+    - \param itemKey The item key.
+    - \return Item data dictionary.
+    """
+    return _data.getGeneralData("Item").get("members", {}).get(key, {})
+
+
+def getGeneralSpecialData(key: str) -> Dict[str, Any]:
+    r"""\brief Get special data by its key.
+
+    - \param specialKey The special key.
+    - \return Special data dictionary.
+    """
+    return _data.getGeneralData("Special").get("members", {}).get(key, {})
+
+
+def getGeneralStateData(key: str) -> Dict[str, Any]:
+    r"""\brief Get state data by its key.
+
+    - \param stateKey The state key.
+    - \return State data dictionary.
+    """
+    return _data.getGeneralData("State").get("members", {}).get(key, {})
+
+
 def getClass(classPath: str) -> type:
     r"""\brief Get a class by its blueprint path.
 

@@ -21,6 +21,7 @@ from Engine import (
     OppositeDirection,
     Shader,
     ParticleSystem,
+    ZeroVector2f,
 )
 from Engine.Utils import Math
 from Engine.Utils.Inner import IS_IOS_PLATFORM, warnIosShaderSkippedOnce
@@ -627,6 +628,21 @@ class GameMap(GameMapExt):
         """
         return self._tilemap.getSize()
 
+    def getMapViewOffset(self) -> Vector2f:
+        r"""\brief Get the effective map view offset.
+
+        - \return Manual offset, or an automatic centred offset for small maps.
+        """
+        offset = GameMap.MapViewOffset
+        if offset != ZeroVector2f:
+            return offset
+        gameSize = System.getGameSize()
+        mapSize = self._tilemap.getSize() * Engine.CellSize
+        return Vector2f(
+            float((gameSize.x - mapSize.x) / 2.0) if mapSize.x < gameSize.x else 0.0,
+            float((gameSize.y - mapSize.y) / 2.0) if mapSize.y < gameSize.y else 0.0,
+        )
+
     @ReturnType(topMaterial=Optional[Material])
     def getTopMaterial(self, pos: Vector2i) -> Optional[Material]:
         r"""\brief Get the topmost visible material at a position.
@@ -921,7 +937,8 @@ class GameMap(GameMapExt):
         r"""\brief Render the full map including layers, actors, lights, and particles."""
         layers = self._tilemap.getAllLayers()
         layerKeys = list(layers.keys())
-        System.setWindowMapView(GameMap.MapViewOffset)
+        mapViewOffset = self.getMapViewOffset()
+        System.setWindowMapView(mapViewOffset)
         if self._camera:
             self._camera.clear()
         if self._lightMask:
@@ -999,7 +1016,7 @@ class GameMap(GameMapExt):
                 self._ambientLight,
             )
             if self._materialShader is not None:
-                self._materialShader.setUniform("mapViewOffset", GameMap.MapViewOffset)
+                self._materialShader.setUniform("mapViewOffset", self.getMapViewOffset())
 
     def _getActiveLights(self) -> List[Light]:
         lights = list(self._lights)

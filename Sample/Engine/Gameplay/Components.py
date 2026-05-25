@@ -3,6 +3,7 @@
 from __future__ import annotations
 import copy
 import dataclasses
+import builtins
 from dataclasses import dataclass
 from typing import Any, Dict, Tuple, Type
 
@@ -52,6 +53,39 @@ def getComponentFieldMap(cls: Any) -> Dict[str, str]:
     return result
 
 
+def _getComponentFieldTarget(obj: Any, fieldName: str) -> Tuple[Any, str] | None:
+    componentName = getComponentFieldMap(type(obj)).get(fieldName)
+    if componentName is None:
+        return None
+    componentType = getComponentTypes(type(obj)).get(componentName)
+    if componentType is None:
+        return None
+    value = getattr(obj, componentName, None)
+    if not isinstance(value, componentType):
+        value = componentFromData(componentType, value)
+        setattr(obj, componentName, value)
+    return value, fieldName
+
+
+def getComponentFieldValue(obj: Any, fieldName: str, default: Any = None) -> Any:
+    target = _getComponentFieldTarget(obj, fieldName)
+    if target is None:
+        return default
+    component, componentField = target
+    return getattr(component, componentField, default)
+
+
+def setComponentFieldValue(obj: Any, fieldName: str, value: Any) -> bool:
+    target = _getComponentFieldTarget(obj, fieldName)
+    if target is None:
+        return False
+    component, componentField = target
+    if not hasattr(component, componentField):
+        return False
+    setattr(component, componentField, value)
+    return True
+
+
 def getComponentFieldDefaults(componentType: Type[Component]) -> Dict[str, Any]:
     defaults: Dict[str, Any] = {}
     for field in dataclasses.fields(componentType):
@@ -65,6 +99,16 @@ def getComponentFieldDefaults(componentType: Type[Component]) -> Dict[str, Any]:
     return defaults
 
 
+def _cloneComponentValue(value: Any) -> Any:
+    if isinstance(value, str):
+        try:
+            evaluator = getattr(builtins, "Eval", eval)
+            return evaluator(value)
+        except Exception:
+            return value
+    return copy.deepcopy(value)
+
+
 def componentFromData(componentType: Type[Component], data: Any = None) -> Component:
     if isinstance(data, componentType):
         return copy.deepcopy(data)
@@ -76,7 +120,7 @@ def componentFromData(componentType: Type[Component], data: Any = None) -> Compo
     values = getComponentFieldDefaults(componentType)
     for field in dataclasses.fields(componentType):
         if field.name in data:
-            values[field.name] = copy.deepcopy(data[field.name])
+            values[field.name] = _cloneComponentValue(data[field.name])
     return componentType(**values)
 
 
@@ -110,7 +154,7 @@ def migrateLegacyComponentAttrs(cls: Any, attrs: Dict[str, Any]) -> bool:
         for field in dataclasses.fields(componentType):
             if field.name not in attrs:
                 continue
-            componentData[field.name] = attrs.pop(field.name)
+            componentData[field.name] = _cloneComponentValue(attrs.pop(field.name))
             moved = True
         if moved:
             defaults = getComponentFieldDefaults(componentType)

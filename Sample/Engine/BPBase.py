@@ -135,6 +135,7 @@ class BPBase:
         - \param data       Member data dictionary from GeneralData
         - \param paramsType Parameter schema with type/defaultValue definitions
         """
+        from .Gameplay.Components import setComponentFieldValue
         from .Utils import Inner
 
         basicTypes = ["int", "float", "bool", "string", "list"]
@@ -145,9 +146,14 @@ class BPBase:
                 if paramsType[k]["type"] in basicTypes or re.match(r"tuple\[\d+\]", paramsType[k]["type"]):
                     if paramsType[k]["type"] == "string":
                         v = Inner.ApplyStringLocaleFormat(v)
+                    if setComponentFieldValue(obj, k, v):
+                        continue
                     setattr(obj, k, v)
                     continue
             try:
-                setattr(obj, k, Eval(v))
+                value = Eval(v)
+                if not setComponentFieldValue(obj, k, value):
+                    setattr(obj, k, value)
             except:
-                setattr(obj, k, v)
+                if not setComponentFieldValue(obj, k, v):
+                    setattr(obj, k, v)

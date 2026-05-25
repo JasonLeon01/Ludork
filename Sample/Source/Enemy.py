@@ -8,6 +8,7 @@ from Global import Animation
 from . import Data
 from .Infos.EnemyInfo import EnemyInfo
 from .Battler import Battler, DamageType, EnemyInfoComponent
+from Source.NodeFunctions.Player import MeetPlayer
 
 
 class Enemy(Actor, EnemyInfo, Battler):
@@ -56,9 +57,7 @@ class Enemy(Actor, EnemyInfo, Battler):
     def battle(self):
         r"""\brief Perform battle calculations against the player.
 
-        Fires `onBattleBegin`/`onBattleEnd` on both sides so each active state's
-        blueprint may react. On player victory, the enemy's `onDefeat` event is
-        also fired.
+        On player victory, the enemy's `onDefeat` event is also fired.
 
         - \return 0 for win, 1 for lose or undefeatable opponent.
         """
@@ -68,55 +67,77 @@ class Enemy(Actor, EnemyInfo, Battler):
         map = Cast(Map, System.getScene())
         player = map.inst.getPlayer()
 
-        player.triggerStateEvent("onBattleBegin", opponent=self)
-        self.triggerStateEvent("onBattleBegin", opponent=player)
-
         damageType, damage = self.getDamage(player)
         if damageType == DamageType.UNDEFEATABLE:
-            player.triggerStateEvent("onBattleEnd", opponent=self, won=False)
-            self.triggerStateEvent("onBattleEnd", opponent=player, won=True)
+            player.infoComp.HP = 0
+            self._gameOver()
             return 1
 
         won = damage < player.infoComp.HP
         player.infoComp.HP = max(0, player.infoComp.HP - damage)
         map.getGameMap().addDamageText(str(damage), player.getPosition())
 
-        player.triggerStateEvent("onBattleEnd", opponent=self, won=won)
-        self.triggerStateEvent("onBattleEnd", opponent=player, won=not won)
-
         if not won:
+            self._gameOver()
             return 1
         self.triggerEvent("onDefeat")
-        if player.infoComp.ANIMATION_KEY:
-            animData = Data.getAnimation(player.infoComp.ANIMATION_KEY)
-            if animData is None:
-                raise ValueError(f"Animation '{player.infoComp.ANIMATION_KEY}' not found")
-            anim = Animation(animData)
-            anim.setPosition(self.getPosition())
-            map.addAnim(anim)
-        if self.infoComp.ANIMATION_KEY:
-            animData = Data.getAnimation(self.infoComp.ANIMATION_KEY)
-            if animData is None:
-                raise ValueError(f"Animation '{self.infoComp.ANIMATION_KEY}' not found")
-            anim = Animation(animData)
-            anim.setPosition(player.getPosition())
-            map.addAnim(anim)
         return 0
+
+    def afterBattle(self, against: Battler) -> None:
+        from Source.Player import Player
+
+        player = Cast(Player, against)
+        if "Poisoning" in self.getSpecial():
+            player.addState("Poisoned")
+
+    def getSpecial(self) -> List[str]:
+        return list(self.infoComp.special)
+
+    def getDrops(self) -> List[str]:
+        return list(self.infoComp.drops)
 
     def onCollision(self, other: List[Actor]) -> None:
         from Source.Scenes import Map
         from Global import System
 
-        if self.isDestroyed():
-            return
         map = Cast(Map, System.getScene())
-        player = map.inst.getPlayer()
-        if player and player in other:
+        player = MeetPlayer(other)
+        if player:
+
+            def battleResult() -> None:
+                if result == 0:
+                    map.recordDestroyedActor(self)
+                    self.destroy()
+                    player.infoComp.GOLD += self.infoComp.GOLD
+                    player.infoComp.EXP += self.infoComp.EXP
+
+                    self.afterBattle(player)
+                elif result == 1:
+                    player.infoComp.HP = 0
+
             result = self.battle()
-            if result == 0:
-                map.recordDestroyedActor(self)
-                self.destroy()
-                player.infoComp.GOLD += self.infoComp.GOLD
-                player.infoComp.EXP += self.infoComp.EXP
-            elif result == 1:
-                player.infoComp.HP = 0
+            animLen = 0
+            if player.infoComp.ANIMATION_KEY:
+                animData = Data.getAnimation(player.infoComp.ANIMATION_KEY)
+                if animData is None:
+                    raise ValueError(f"Animation '{player.infoComp.ANIMATION_KEY}' not found")
+                anim = Animation(animData)
+                anim.setPosition(self.getPosition())
+                map.addAnim(anim)
+                animLen = max(animLen, anim.getDuration())
+            if self.infoComp.ANIMATION_KEY:
+                animData = Data.getAnimation(self.infoComp.ANIMATION_KEY)
+                if animData is None:
+                    raise ValueError(f"Animation '{self.infoComp.ANIMATION_KEY}' not found")
+                anim = Animation(animData)
+                anim.setPosition(player.getPosition())
+                map.addAnim(anim)
+                animLen = max(animLen, anim.getDuration())
+
+            map.addTimer("battleAnim", animLen, battleResult, [])
+
+    def _gameOver(self) -> None:
+        from Source.Scenes import GameOver
+        from Global import System
+
+        System.setScene(GameOver())

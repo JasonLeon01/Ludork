@@ -218,17 +218,16 @@ class WindowEquipSlot(WindowSelectable):
         equipID = self._player.getEquipInfo(slotKey)
         if not equipID:
             return None, LOC("EQUIP_UNEQUIPPED")
-        equipMembers = Data.getGeneralData("Equip").get("members", {})
-        member = equipMembers.get(equipID, {})
-        name = member.get("name", "")
+        equipInfo = Data.getGeneralEquipData(equipID)
+        name = equipInfo.get("name", "")
         label = name.format(**LOC_D()) if name else equipID
-        iconTex = _loadEquipIcon(member.get("icon", ""))
+        iconTex = _loadEquipIcon(equipInfo.get("icon", ""))
         return iconTex, label
 
     def _refreshSlots(self) -> None:
         r"""\brief Rebuild the slot list from the player's class slot order."""
         savedSlotKey = self._getCurrentSlotKey()
-        classSlots = Data.getGeneralData("Class").get("members", {}).get(self._player.CLASS, {}).get("slot", {})
+        classSlots = Data.getGeneralClassData(self._player.infoComp.CLASS).get("slot", {})
         self._slotKeys = list(classSlots.keys())
         cellWidth = self._getRectWidth()
         listView = ListView(self.content.getNoTranslationRect(), _SLOT_ROW_HEIGHT, True, 1)
@@ -398,16 +397,15 @@ class WindowEquipSelect(WindowSelectable):
             True,
             6,
         )
-        equipData = Data.getGeneralData("Equip")
-        members = equipData.get("members", {})
+        equipData = Data.getAllGeneralEquipData()
         playerEquips = self._player._equips if hasattr(self._player, "_equips") else {}
         currentEquipped = self._player.getEquipInfo(slotKey)
         orderedEquips: List[Optional[str]] = []
         if currentEquipped:
             orderedEquips.append(None)
         self._equipCounts = {}
-        for equipID in members.keys():
-            if equipID in playerEquips and members.get(equipID, {}).get("slot") == slotKey:
+        for equipID in equipData.keys():
+            if equipID in playerEquips and equipData.get(equipID, {}).get("slot") == slotKey:
                 orderedEquips.append(equipID)
                 self._equipCounts[equipID] = playerEquips[equipID]
         self._equipList = orderedEquips
@@ -415,7 +413,7 @@ class WindowEquipSelect(WindowSelectable):
             if entry is None:
                 cell = _UnequipCell()
             else:
-                member = members.get(entry, {})
+                member = equipData.get(entry, {})
                 iconPath = member.get("icon", "")
                 iconTex = _loadEquipIcon(iconPath)
                 cell = _EquipCell(iconTex, self._equipCounts.get(entry, 1))
@@ -449,9 +447,9 @@ class WindowEquipSelect(WindowSelectable):
             self._descNameText.setString(LOC("EQUIP_UNEQUIP"))
             self._descText.setString(_wrapDesc(LOC("EQUIP_UNEQUIP_DESC"), self._descMaxWidth))
             return
-        members = Data.getGeneralData("Equip").get("members", {})
-        self._descNameText.setString(members.get(entry, {}).get("name", "").format(**LOC_D()))
-        raw_desc = members.get(entry, {}).get("desc", "").format(**LOC_D())
+        equipInfo = Data.getGeneralEquipData(entry)
+        self._descNameText.setString(equipInfo.get("name", "").format(**LOC_D()))
+        raw_desc = equipInfo.get("desc", "").format(**LOC_D())
         self._descText.setString(_wrapDesc(raw_desc, self._descMaxWidth))
 
     def _focusSlotWindow(self) -> None:

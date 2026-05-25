@@ -218,7 +218,7 @@ class Scene(SceneBase):
                 actor = actors[0]
                 camera = self._gameMap.getCamera()
                 assert camera
-                refPosition = actor.getPosition() - camera.getViewPosition() + GameMap.MapViewOffset
+                refPosition = actor.getPosition() - camera.getViewPosition() + self._gameMap.getMapViewOffset()
         originMoveEnabled = self.player.getMoveEnabled()
         restored = False
 
@@ -265,7 +265,7 @@ class Scene(SceneBase):
                 actor = actors[0]
                 camera = self._gameMap.getCamera()
                 assert camera
-                refPosition = actor.getPosition() - camera.getViewPosition() + GameMap.MapViewOffset
+                refPosition = actor.getPosition() - camera.getViewPosition() + self._gameMap.getMapViewOffset()
 
         originMoveEnabled = self.player.getMoveEnabled()
         restored = False
@@ -508,7 +508,7 @@ class Scene(SceneBase):
             return
         camera = self._gameMap.getCamera()
         viewPos = camera.getViewPosition() if camera else None
-        GlobalSystem.setWindowMapView(GameMap.MapViewOffset)
+        GlobalSystem.setWindowMapView(self._gameMap.getMapViewOffset())
         for anim in animSnapshot:
             worldPosition = anim.getPosition()
             drawPosition = worldPosition

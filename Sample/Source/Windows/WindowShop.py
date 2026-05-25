@@ -174,9 +174,9 @@ class WindowShopItem(WindowSelectable):
         listView = ListView(self.content.getNoTranslationRect(), _SHOP_ITEM_ROW_HEIGHT, True, _SHOP_ITEM_COLUMNS)
         self.setListView(listView)
         cellWidth = self._getRectWidth()
-        members = Data.getGeneralData("Item").get("members", {})
+        itemData = Data.getAllGeneralItemData()
         for itemID in itemIDs:
-            member = members.get(itemID, {})
+            member = itemData.get(itemID, {})
             available = availableMap.get(itemID, True)
             self._cellAvailable.append(available)
             cell = _ShopCell(cellWidth, _loadItemIcon(member.get("icon", "")), str(valueMap.get(itemID, 0)), available)
@@ -360,11 +360,11 @@ class WindowShop:
             self._sellItem(itemID)
 
     def _normalizeBuyItems(self, buyItemIDs: List[str]) -> List[str]:
-        members = Data.getGeneralData("Item").get("members", {})
+        itemData = Data.getAllGeneralItemData()
         result: List[str] = []
         for itemID in buyItemIDs:
             itemKey = str(itemID)
-            if itemKey in members and itemKey not in result:
+            if itemKey in itemData and itemKey not in result:
                 result.append(itemKey)
         return result
 
@@ -380,28 +380,28 @@ class WindowShop:
         self._itemWindow.refreshItems(itemIDs, availableMap, valueMap)
 
     def _getSellableItems(self) -> List[str]:
-        members = Data.getGeneralData("Item").get("members", {})
+        itemData = Data.getAllGeneralItemData()
         playerItems = self._player._items if hasattr(self._player, "_items") else {}
         result: List[str] = []
-        for itemID in members.keys():
+        for itemID in itemData.keys():
             if itemID in playerItems and playerItems[itemID] > 0 and self._getItemPrice(itemID) > 0:
                 result.append(itemID)
         return result
 
     def _getItemPrice(self, itemID: str) -> int:
-        member = Data.getGeneralData("Item").get("members", {}).get(itemID, {})
-        return int(member.get("price", 0))
+        itemInfo = Data.getGeneralItemData(itemID)
+        return int(itemInfo.get("price", 0))
 
     def _canBuy(self, itemID: str) -> bool:
-        return getattr(self._player, "GOLD", 0) >= self._getItemPrice(itemID)
+        return self._player.infoComp.GOLD >= self._getItemPrice(itemID)
 
     def _buyItem(self, itemID: str) -> None:
         price = self._getItemPrice(itemID)
-        if not self._itemWindow.isCurrentAvailable() or getattr(self._player, "GOLD", 0) < price:
+        if not self._itemWindow.isCurrentAvailable() or self._player.infoComp.GOLD < price:
             Manager.playSE(GameSystem.getBuzzerSE())
             self._refreshItems()
             return
-        self._player.GOLD -= price
+        self._player.infoComp.GOLD -= price
         self._player.addItem(itemID, 1)
         Manager.playSE(GameSystem.getShopSE())
         self._refreshItems()
@@ -412,7 +412,7 @@ class WindowShop:
             Manager.playSE(GameSystem.getBuzzerSE())
             self._refreshItems()
             return
-        self._player.GOLD += price
+        self._player.infoComp.GOLD += price
         Manager.playSE(GameSystem.getShopSE())
         self._refreshItems()
 

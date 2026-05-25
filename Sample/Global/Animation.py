@@ -69,3 +69,6 @@ class Animation(AnimSprite):
             else:
                 remaining.append(entry)
         self.playingSounds = remaining
+
+    def getDuration(self) -> float:
+        return self._animationData.get("duration", 0.0)

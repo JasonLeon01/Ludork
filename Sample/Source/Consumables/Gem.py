@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Optional, Union, List, Tuple
 from Engine import Pair, Texture, IntRect
 from Engine.Gameplay.Actors import Actor
+from Engine.Gameplay.Components import getComponentFieldValue, setComponentFieldValue
 from Global import GameMap, Manager
 from Source import System
 
@@ -40,7 +41,11 @@ class Gem(Actor):
         player = inst.getPlayer()
         if player and player in other:
             Manager.playSE(System.getGetSE())
-            setattr(player, self.ATTR_key, getattr(player, self.ATTR_key) + self.plus)
+            originAttr = getComponentFieldValue(player, self.ATTR_key, None)
+            if originAttr is None:
+                setattr(player, self.ATTR_key, getattr(player, self.ATTR_key) + self.plus)
+            else:
+                setComponentFieldValue(player, self.ATTR_key, originAttr + self.plus)
         super().onCollision(other)
         scene.recordDestroyedActor(self)
         self.destroy()

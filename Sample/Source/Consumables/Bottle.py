@@ -39,10 +39,10 @@ class Bottle(Actor):
         player = inst.getPlayer()
         if player and player in other:
             Manager.playSE(System.getGetSE())
-            if player.MAXHP > 0:
-                player.HP = min(player.HP + self.HP_plus, player.MAXHP)
+            if player.infoComp.MAXHP > 0:
+                player.infoComp.HP = min(player.infoComp.HP + self.HP_plus, player.infoComp.MAXHP)
             else:
-                player.HP = player.HP + self.HP_plus
+                player.infoComp.HP = player.infoComp.HP + self.HP_plus
         super().onCollision(other)
         scene.recordDestroyedActor(self)
         self.destroy()

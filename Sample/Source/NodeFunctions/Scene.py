@@ -31,6 +31,15 @@ def GotoMap(mapPath: str, blockTransition: bool, x: int, y: int) -> None:
         scene.gotoMapAndPos(mapPath, pos, blockTransition=bool(blockTransition))
 
 
+@Meta(DisplayName='LOC("GAME_OVER")', DisplayDesc='LOC("GAME_OVER_DESC")')
+@ExecSplit(default=(None,))
+def GameOver() -> None:
+    r"""\brief Switch to the game over scene."""
+    from Source.Scenes import GameOver as GameOverScene
+
+    System.setScene(GameOverScene())
+
+
 @Meta(DisplayName='LOC("RECORD_TELEPOINT")', DisplayDesc='LOC("RECORD_TELEPOINT_DESC")')
 @ExecSplit(default=(None,))
 def RecordTelepoint(mapPath: str, x: int, y: int) -> None:

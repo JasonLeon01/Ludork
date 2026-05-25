@@ -142,16 +142,15 @@ class WindowItem(WindowSelectable):
             True,
             6,
         )
-        itemData = Data.getGeneralData("Item")
-        members = itemData.get("members", {})
+        itemData = Data.getAllGeneralItemData()
         playerItems = self._player._items if hasattr(self._player, "_items") else {}
         orderedItems = []
-        for itemID in members.keys():
+        for itemID in itemData.keys():
             if itemID in playerItems:
                 orderedItems.append((itemID, playerItems[itemID]))
         self._itemList = orderedItems
         for itemID, count in orderedItems:
-            member = members.get(itemID, {})
+            member = itemData.get(itemID, {})
             iconPath = member.get("icon", "")
             usable = member.get("usable", True)
             cost = member.get("cost", True)
@@ -224,10 +223,8 @@ class WindowItem(WindowSelectable):
             self._descText.setString("")
             return
         itemID, _ = self._itemList[self.index]
-        self._descNameText.setString(
-            Data.getGeneralData("Item").get("members", {}).get(itemID, {}).get("name", "").format(**LOC_D())
-        )
-        raw_desc = Data.getGeneralData("Item").get("members", {}).get(itemID, {}).get("desc", "").format(**LOC_D())
+        self._descNameText.setString(Data.getGeneralItemData(itemID).get("name", "").format(**LOC_D()))
+        raw_desc = Data.getGeneralItemData(itemID).get("desc", "").format(**LOC_D())
         self._descText.setString(self._wrapDesc(raw_desc))
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
@@ -264,10 +261,8 @@ class WindowItem(WindowSelectable):
         if self.index is None or not hasattr(self, "_itemList") or self.index >= len(self._itemList):
             return
         itemID, _ = self._itemList[self.index]
-        itemData = Data.getGeneralData("Item")
-        members = itemData.get("members", {})
-        member = members.get(itemID, {})
-        if not member.get("usable", True):
+        itemInfo = Data.getGeneralItemData(itemID)
+        if not itemInfo.get("usable", True):
             return
         Manager.playSE(GameSystem.getDecisionSE())
         info = ItemInfo()

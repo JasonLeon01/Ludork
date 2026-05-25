@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import List, Optional, Dict, Any, Tuple, Type, Union
 from Engine import Texture, Input, Vector2u
+from Engine.Gameplay.Components import setComponentFieldValue
 from Engine.Gameplay.Actors import Character
 from Global import Manager
 from . import Data
@@ -44,9 +45,17 @@ class Player(Character, Battler):
         Input.registerActionMapping(
             self, "playerMoveRight", Input.getRightKeys(), lambda obj, delta: obj.MapMove((1, 0)), triggerOnHold=True
         )
-        for slot, equipID in Data.getGeneralData("Class").get("members", {}).get(self.infoComp.CLASS, {}).get("slot").items():
+        for slot, equipID in Cast(dict, Data.getGeneralClassData(self.infoComp.CLASS).get("slot")).items():
             if equipID:
                 self.equip(equipID)
+
+    def _processMoving(self, fixedDelta: float) -> None:
+        wasMoving = self._isMoving
+        super()._processMoving(fixedDelta)
+        if wasMoving and not self._isMoving and self.hasState("Poisoned"):
+            state = self.getStateByID("Poisoned")
+            if state is not None:
+                state.triggerEvent("onWalk", battler=self)
 
     def asDict(self) -> Dict[str, Any]:
         r"""
@@ -112,7 +121,8 @@ class Player(Character, Battler):
         player.tag = data["tag"]
         player.setMapPosition(Vector2u(*data["position"]))
         for k, v in data["attr"].items():
-            setattr(player, k, v)
+            if not setComponentFieldValue(player, k, v):
+                setattr(player, k, v)
 
         player._items = data["items"]
         player._equips = data["equips"]
@@ -195,8 +205,8 @@ class Player(Character, Battler):
 
         - `equipID` - Equip identifier.
         """
-        equipInfo = Data.getGeneralData("Equip").get("members", {}).get(equipID, {})
-        classInfo = Data.getGeneralData("Class").get("members", {}).get(self.infoComp.CLASS, {})
+        equipInfo = Data.getGeneralEquipData(equipID)
+        classInfo = Data.getGeneralClassData(self.infoComp.CLASS)
         slot = equipInfo.get("slot", "")
         if slot not in classInfo.get("slot", {}):
             raise ValueError(f"Equip {equipID} is not in the player's class")
@@ -205,8 +215,12 @@ class Player(Character, Battler):
             self.unequip(slot)
         self._updateEquipInfo(slot, equipID)
         for attrKey, attrValue in equipInfo.get("attrPlus", {}).items():
-            originAttr = getattr(self, attrKey)
-            setattr(self, attrKey, originAttr + int(attrValue))
+            if hasattr(self.infoComp, attrKey):
+                originAttr = getattr(self.infoComp, attrKey)
+                setattr(self.infoComp, attrKey, originAttr + int(attrValue))
+            else:
+                originAttr = getattr(self, attrKey)
+                setattr(self, attrKey, originAttr + int(attrValue))
         info = EquipInfo()
         info.ID = equipID
         info.initInfo(Data)
@@ -222,10 +236,14 @@ class Player(Character, Battler):
         if not equipID:
             return
         self._updateEquipInfo(slotID, "")
-        equipInfo = Data.getGeneralData("Equip").get("members", {}).get(equipID, {})
+        equipInfo = Data.getGeneralEquipData(equipID)
         for attrKey, attrValue in equipInfo.get("attrPlus", {}).items():
-            originAttr = getattr(self, attrKey)
-            setattr(self, attrKey, originAttr - int(attrValue))
+            if hasattr(self.infoComp, attrKey):
+                originAttr = getattr(self.infoComp, attrKey)
+                setattr(self.infoComp, attrKey, originAttr - int(attrValue))
+            else:
+                originAttr = getattr(self, attrKey)
+                setattr(self, attrKey, originAttr - int(attrValue))
         info = EquipInfo()
         info.ID = equipID
         info.initInfo(Data)
@@ -261,7 +279,7 @@ class Player(Character, Battler):
 
     def _updateEquipInfo(self, slot: str, equipID: str) -> None:
         tempEquipInfo = {}
-        classInfo = Data.getGeneralData("Class").get("members", {}).get(self.infoComp.CLASS, {})
+        classInfo = Data.getGeneralClassData(self.infoComp.CLASS)
         for slot_ in classInfo.get("slot", {}).keys():
             if slot_ != slot:
                 tempEquipInfo[slot_] = self._equipInfo.get(slot_, "")

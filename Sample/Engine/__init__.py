@@ -17,6 +17,13 @@ GameRunning: bool = True
 CellSize: int = 32
 GameSize: Vector2u = Vector2u(640, 480)
 Scale: float = 1.0
+ZeroVector2f: Vector2f = Vector2f(0.0, 0.0)
+ZeroVector2i: Vector2i = Vector2i(0, 0)
+ZeroVector2u: Vector2u = Vector2u(0, 0)
+ZeroVector3f: Vector3f = Vector3f(0.0, 0.0, 0.0)
+ZeroVector3i: Vector3i = Vector3i(0, 0, 0)
+ZeroVector3u: Vector3u = Vector3u(0, 0, 0)
+
 type Pair[T] = tuple[T, T]
 type Tuple3[T] = tuple[T, T, T]
 type Tuple4[T] = tuple[T, T, T, T]

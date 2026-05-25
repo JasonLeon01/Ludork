@@ -5,8 +5,12 @@ from __future__ import annotations
 import inspect
 from typing import Any, Dict, Optional
 from Engine import Pair, Vector2f, degrees
+from Engine.Gameplay.Components import getComponentFieldValue, setComponentFieldValue
 from Global import System, SceneBase, Animation
 from .. import Data
+
+
+_MISSING = object()
 
 
 class _attrRef:
@@ -15,14 +19,18 @@ class _attrRef:
         self.name = name
 
     def get(self) -> Any:
+        value = getComponentFieldValue(self.obj, self.name, _MISSING)
+        if value is not _MISSING:
+            return value
         return getattr(self.obj, self.name)
 
     def set(self, value: Any) -> Any:
-        setattr(self.obj, self.name, value)
+        if not setComponentFieldValue(self.obj, self.name, value):
+            setattr(self.obj, self.name, value)
         return value
 
     def _val(self) -> Any:
-        return getattr(self.obj, self.name)
+        return self.get()
 
     def __int__(self) -> int:
         return int(self._val())
@@ -371,13 +379,17 @@ def GetAttrRef(obj: object, attrName: str) -> Any:
 @Meta(DisplayName='LOC("GET_ATTR")', DisplayDesc='LOC("GET_ATTR_DESC")')
 @ReturnType(value=object)
 def GetAttr(obj: object, attrName: str) -> Any:
+    value = getComponentFieldValue(obj, attrName, _MISSING)
+    if value is not _MISSING:
+        return value
     return getattr(obj, attrName)
 
 
 @Meta(DisplayName='LOC("SET_ATTR")', DisplayDesc='LOC("SET_ATTR_DESC")')
 @ExecSplit(default=(None,))
 def SetAttr(obj: object, attrName: str, value: Any) -> None:
-    setattr(obj, attrName, value)
+    if not setComponentFieldValue(obj, attrName, value):
+        setattr(obj, attrName, value)
 
 
 @Meta(DisplayName='LOC("GET_SCENE")', DisplayDesc='LOC("GET_SCENE_DESC")')

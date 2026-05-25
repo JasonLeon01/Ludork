@@ -6,24 +6,26 @@ from Engine import IntRect, Vector2f, Vector2i, Color, Text
 from Engine.UI import Canvas, Image, PlainText, SolidRect, RichText, TextStyle
 from ..Player import Player
 from ..System import System
+from .. import Data
 
 
 class PlayerAttrHUD(Canvas):
-    r"""\brief Player attribute HUD displaying level, HP bar, and stats.
+    r"""\brief Player attribute HUD displaying level, states, HP bar, and stats.
 
-    Shows the player's avatar, name, HP bar with value, and stat values.
+    Shows the player's avatar, states, HP bar with value, and stat values.
     """
 
     _AVATAR_MIN_SIZE = 32
     _FONT_SIZE = 12
     _HUD_POS_X = 16
     _HUD_POS_Y = 16
-    _HP_ROW_Y = 16
+    _STATE_ROW_Y = 16
+    _HP_ROW_Y = 32
     _HP_BAR_HEIGHT = 16
     _HP_BAR_WIDTH = 128
-    _STAT_ROW_1_Y = 32
-    _STAT_ROW_2_Y = 48
-    _STAT_ROW_3_Y = 64
+    _STAT_ROW_1_Y = 48
+    _STAT_ROW_2_Y = 64
+    _STAT_ROW_3_Y = 80
 
     def __init__(self, player: Player) -> None:
         r"""Construct a player attribute HUD bound to the given player instance.
@@ -74,6 +76,7 @@ class PlayerAttrHUD(Canvas):
 
     def _initLayout(self) -> None:
         self._hudWidth = max(self._infoStartX + self._hpBarWidth, self._hpBarWidth + self._AVATAR_MIN_SIZE)
+        self._hpBarWidth = self._hudWidth
         self._hudHeight = self._STAT_ROW_3_Y + self._FONT_SIZE + 4
 
     def _buildUI(self) -> None:
@@ -85,12 +88,16 @@ class PlayerAttrHUD(Canvas):
         self._levelText.setPosition((self._infoStartX, 0))
         self.addChild(self._levelText)
 
+        self._stateText = PlainText(self._font, "", self._FONT_SIZE)
+        self._stateText.setPosition((self._infoStartX, self._STATE_ROW_Y))
+        self.addChild(self._stateText)
+
         self._hpBack = SolidRect((self._hpBarWidth, self._HP_BAR_HEIGHT), Color(24, 24, 24, 220))
-        self._hpBack.setPosition((self._infoStartX, self._HP_ROW_Y))
+        self._hpBack.setPosition((0, self._HP_ROW_Y))
         self.addChild(self._hpBack)
 
         self._hpFill = SolidRect((self._hpBarWidth, self._HP_BAR_HEIGHT), Color(0, 192, 0, 255))
-        self._hpFill.setPosition((self._infoStartX, self._HP_ROW_Y))
+        self._hpFill.setPosition((0, self._HP_ROW_Y))
         self.addChild(self._hpFill)
 
         self._hpText = PlainText(self._font, "", self._FONT_SIZE)
@@ -109,16 +116,19 @@ class PlayerAttrHUD(Canvas):
         self.addChild(self._itemText)
 
     def _refresh(self) -> None:
-        hp = int(getattr(self._player, "HP", 0))
-        maxhp = max(1, int(getattr(self._player, "MAXHP", 1)))
-        hp = max(0, min(hp, maxhp))
-        level = int(getattr(self._player, "LEVEL", 1))
-        atk = int(getattr(self._player, "ATK", 0))
-        defense = int(getattr(self._player, "DEF", 0))
-        exp = int(getattr(self._player, "EXP", 0))
-        gold = int(getattr(self._player, "GOLD", 0))
+        hp = self._player.infoComp.HP
+        maxhp = self._player.infoComp.MAXHP
+        level = self._player.infoComp.LEVEL
+        atk = self._player.infoComp.ATK
+        defense = self._player.infoComp.DEF
+        exp = self._player.infoComp.EXP
+        gold = self._player.infoComp.GOLD
+        states = " ".join(self._player.getStateNames())
+        if not states:
+            states = LOC("NORMAL")
 
         self._levelText.setString(f"Lv. {level}")
+        self._stateText.setString(f"[{states}]")
         self._hpText.setString(f"{hp}/{maxhp}")
         self._statLine1.setString(f"ATK: {atk}\tDEF: {defense}")
         self._statLine2.setString(f"EXP: {exp}\tGOLD: {gold}")
@@ -127,7 +137,7 @@ class PlayerAttrHUD(Canvas):
         self._hpFill.setSize(Vector2f(self._hpBarWidth * hpRate, self._HP_BAR_HEIGHT))
 
         hpBounds = self._hpText.getLocalBounds()
-        textX = self._infoStartX + (self._hpBarWidth - hpBounds.size.x) / 2.0 - hpBounds.position.x
+        textX = (self._hpBarWidth - hpBounds.size.x) / 2.0 - hpBounds.position.x
         textY = self._HP_ROW_Y + (self._HP_BAR_HEIGHT - hpBounds.size.y) / 2.0 - hpBounds.position.y
         self._hpText.setPosition((textX, textY))
 

@@ -1,12 +1,18 @@
 # -*- encoding: utf-8 -*-
 r"""\brief Blueprint player nodes: inventory, equipment, attribute, gold, and EXP management."""
 
-from typing import Any, Optional
+from typing import Any, Optional, List
 from Engine import Direction, Vector2i
+from Engine.Gameplay.Actors import Actor
+from Engine.Gameplay.Components import getComponentFieldValue, setComponentFieldValue
 from Global import System
+from Source.Player import Player
 
 
-def _getPlayer():
+_MISSING = object()
+
+
+def _getPlayer() -> Optional[Player]:
     scene = System.getScene()
     if scene and hasattr(scene, "inst"):
         return scene.inst.getPlayer()
@@ -14,8 +20,8 @@ def _getPlayer():
 
 
 @Meta(DisplayName='LOC("GET_PLAYER")', DisplayDesc='LOC("GET_PLAYER_DESC")')
-@ReturnType(player=object)
-def GetPlayer() -> Optional[object]:
+@ReturnType(player=Player)
+def GetPlayer() -> Optional[Player]:
     r"""\brief Get the primary player from the current scene.
 
     - \return The primary Player instance, or None if no active game scene.
@@ -181,7 +187,12 @@ def GetPlayerAttr(attrName: str) -> Any:
     - \return The attribute value, or None if not found.
     """
     player = _getPlayer()
-    return getattr(player, attrName, None) if player else None
+    if player is None:
+        return None
+    value = getComponentFieldValue(player, attrName, _MISSING)
+    if value is not _MISSING:
+        return value
+    return getattr(player, attrName, None)
 
 
 @Meta(DisplayName='LOC("SET_PLAYER_ATTR")', DisplayDesc='LOC("SET_PLAYER_ATTR_DESC")')
@@ -194,7 +205,8 @@ def SetPlayerAttr(attrName: str, value: Any) -> None:
     """
     player = _getPlayer()
     if player:
-        setattr(player, attrName, value)
+        if not setComponentFieldValue(player, attrName, value):
+            setattr(player, attrName, value)
 
 
 @Meta(DisplayName='LOC("HEAL_PLAYER")', DisplayDesc='LOC("HEAL_PLAYER_DESC")')
@@ -206,7 +218,7 @@ def HealPlayer(amount: int) -> None:
     """
     player = _getPlayer()
     if player:
-        player.HP = min(player.HP + int(amount), player.MAXHP)
+        player.infoComp.HP = max(0, min(player.infoComp.HP + int(amount), player.infoComp.MAXHP))
 
 
 @Meta(DisplayName='LOC("DAMAGE_PLAYER")', DisplayDesc='LOC("DAMAGE_PLAYER_DESC")')
@@ -218,7 +230,7 @@ def DamagePlayer(amount: int) -> None:
     """
     player = _getPlayer()
     if player:
-        player.HP = max(player.HP - int(amount), 0)
+        player.infoComp.HP = max(player.infoComp.HP - int(amount), 0)
 
 
 @Meta(DisplayName='LOC("ADD_GOLD")', DisplayDesc='LOC("ADD_GOLD_DESC")')
@@ -230,7 +242,7 @@ def AddGold(amount: int) -> None:
     """
     player = _getPlayer()
     if player:
-        player.GOLD += int(amount)
+        player.infoComp.GOLD += int(amount)
 
 
 @Meta(DisplayName='LOC("ADD_EXP")', DisplayDesc='LOC("ADD_EXP_DESC")')
@@ -242,4 +254,17 @@ def AddEXP(amount: int) -> None:
     """
     player = _getPlayer()
     if player:
-        player.EXP += int(amount)
+        player.infoComp.EXP += int(amount)
+
+
+@Meta(DisplayName='LOC("MEET_PLAYER")', DisplayDesc='LOC("MEET_PLAYER_DESC")')
+@ReturnType(playerInfo=Player)
+def MeetPlayer(actors: List[Actor]) -> Optional[Player]:
+    from Source.Scenes import Map
+    from Global import System
+
+    map = Cast(Map, System.getScene())
+    player = map.inst.getPlayer()
+    if player and player in actors:
+        return player
+    return None

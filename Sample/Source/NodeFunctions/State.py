@@ -1,7 +1,11 @@
 # -*- encoding: utf-8 -*-
-r"""\brief Blueprint state nodes: damage context manipulation, host access, cross-battler state ops."""
+r"""\brief Blueprint state nodes: host access, battler attributes, and state ops."""
 
 from typing import Any, Optional
+from Engine.Gameplay.Components import getComponentFieldValue, setComponentFieldValue
+
+
+_MISSING = object()
 
 
 def _getOwnerFromGraph(refLocal) -> Optional[Any]:
@@ -32,7 +36,7 @@ def GetEventArg(name: str, default: Any) -> Any:
     r"""\brief Get a keyword argument injected into the current blueprint event.
 
     Convenience wrapper that reads `__<name>__` from the local graph context.
-    Useful keys for state events: "battler", "context", "opponent", "won".
+    Useful keys for state events: "battler".
 
     - \param name Argument name (without surrounding underscores).
     - \param default Value to return when the key is missing.
@@ -40,77 +44,6 @@ def GetEventArg(name: str, default: Any) -> Any:
     """
     key = f"__{name}__"
     return GetEventArg._refLocal.get(key, default)
-
-
-@Meta(DisplayName='LOC("GET_DAMAGE_CONTEXT")', DisplayDesc='LOC("GET_DAMAGE_CONTEXT_DESC")')
-@ReturnType(context=object)
-def GetDamageContext() -> Any:
-    r"""\brief Get the active `DamageContext` for the current event.
-
-    - \return The `DamageContext`, or None if the event has no context.
-    """
-    return GetDamageContext._refLocal.get("__context__")
-
-
-@Meta(DisplayName='LOC("GET_CTX_FIELD")', DisplayDesc='LOC("GET_CTX_FIELD_DESC")')
-@ReturnType(value=object)
-def GetCtxField(context: Any, name: str, default: Any) -> Any:
-    r"""\brief Read a field from a `DamageContext` (e.g. atk, deF, damagePerRound, rounds, totalDamage).
-
-    Falls back to `context.extra[name]` when the attribute does not exist.
-
-    - \param context The damage context.
-    - \param name Field name.
-    - \param default Default value when the field is absent.
-    - \return The field value or `default`.
-    """
-    if context is None:
-        return default
-    if hasattr(context, name):
-        return getattr(context, name)
-    extra = getattr(context, "extra", None)
-    if isinstance(extra, dict):
-        return extra.get(name, default)
-    return default
-
-
-@Meta(DisplayName='LOC("SET_CTX_FIELD")', DisplayDesc='LOC("SET_CTX_FIELD_DESC")')
-@ExecSplit(default=(None,))
-def SetCtxField(context: Any, name: str, value: Any) -> None:
-    r"""\brief Write a field on a `DamageContext`.
-
-    Known fields (atk, deF, damagePerRound, rounds, totalDamage, attacker,
-    defender) are set as attributes; any other name is stored under
-    `context.extra[name]`.
-
-    - \param context The damage context.
-    - \param name Field name.
-    - \param value New value.
-    """
-    if context is None:
-        return
-    known = {"atk", "deF", "damagePerRound", "rounds", "totalDamage", "attacker", "defender"}
-    if name in known:
-        setattr(context, name, value)
-        return
-    extra = getattr(context, "extra", None)
-    if isinstance(extra, dict):
-        extra[name] = value
-    else:
-        setattr(context, name, value)
-
-
-@Meta(DisplayName='LOC("ADD_CTX_FIELD")', DisplayDesc='LOC("ADD_CTX_FIELD_DESC")')
-@ExecSplit(default=(None,))
-def AddCtxField(context: Any, name: str, delta: Any) -> None:
-    r"""\brief Add `delta` to a numeric field on the `DamageContext`.
-
-    - \param context The damage context.
-    - \param name Field name (e.g. "totalDamage", "damagePerRound", "atk", "deF").
-    - \param delta Amount to add (negative to subtract).
-    """
-    current = GetCtxField(context, name, 0) or 0
-    SetCtxField(context, name, current + delta)
 
 
 @Meta(DisplayName='LOC("GET_BATTLER_ATTR")', DisplayDesc='LOC("GET_BATTLER_ATTR_DESC")')
@@ -125,6 +58,9 @@ def GetBattlerAttr(battler: Any, attrName: str, default: Any) -> Any:
     """
     if battler is None:
         return default
+    value = getComponentFieldValue(battler, attrName, _MISSING)
+    if value is not _MISSING:
+        return value
     return getattr(battler, attrName, default)
 
 
@@ -139,7 +75,8 @@ def SetBattlerAttr(battler: Any, attrName: str, value: Any) -> None:
     """
     if battler is None:
         return
-    setattr(battler, attrName, value)
+    if not setComponentFieldValue(battler, attrName, value):
+        setattr(battler, attrName, value)
 
 
 @Meta(DisplayName='LOC("DAMAGE_BATTLER")', DisplayDesc='LOC("DAMAGE_BATTLER_DESC")')
@@ -152,10 +89,10 @@ def DamageBattler(battler: Any, amount: int) -> None:
     """
     if battler is None:
         return
-    hp = getattr(battler, "HP", None)
+    hp = getComponentFieldValue(battler, "HP", None)
     if hp is None:
         return
-    battler.HP = max(0, int(hp) - int(amount))
+    setComponentFieldValue(battler, "HP", max(0, int(hp) - int(amount)))
 
 
 @Meta(DisplayName='LOC("HEAL_BATTLER")', DisplayDesc='LOC("HEAL_BATTLER_DESC")')
@@ -168,11 +105,11 @@ def HealBattler(battler: Any, amount: int) -> None:
     """
     if battler is None:
         return
-    hp = getattr(battler, "HP", None)
+    hp = getComponentFieldValue(battler, "HP", None)
     if hp is None:
         return
-    cap = getattr(battler, "MAXHP", int(hp) + int(amount))
-    battler.HP = min(int(hp) + int(amount), int(cap))
+    cap = getComponentFieldValue(battler, "MAXHP", int(hp) + int(amount))
+    setComponentFieldValue(battler, "HP", min(int(hp) + int(amount), int(cap)))
 
 
 @Meta(DisplayName='LOC("BATTLER_HAS_STATE")', DisplayDesc='LOC("BATTLER_HAS_STATE_DESC")')
@@ -192,7 +129,7 @@ def BattlerHasState(battler: Any, stateID: str) -> bool:
 @Meta(DisplayName='LOC("ADD_STATE_TO")', DisplayDesc='LOC("ADD_STATE_TO_DESC")')
 @ExecSplit(default=(None,))
 def AddStateTo(battler: Any, stateID: str) -> None:
-    r"""\brief Apply a state (by ID) to any battler, firing its onAdd blueprint.
+    r"""\brief Apply a state (by ID) to any battler.
 
     - \param battler The target battler.
     - \param stateID State identifier.
@@ -205,7 +142,7 @@ def AddStateTo(battler: Any, stateID: str) -> None:
 @Meta(DisplayName='LOC("REMOVE_STATE_FROM")', DisplayDesc='LOC("REMOVE_STATE_FROM_DESC")')
 @ExecSplit(default=(None,))
 def RemoveStateFrom(battler: Any, stateID: str) -> None:
-    r"""\brief Remove a state (by ID) from any battler, firing its onRemove blueprint.
+    r"""\brief Remove a state (by ID) from any battler.
 
     - \param battler The target battler.
     - \param stateID State identifier.

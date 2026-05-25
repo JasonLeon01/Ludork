@@ -7,6 +7,7 @@ from Engine.Gameplay.Actors import Actor
 from Global import GameMap, Manager
 from . import Data, System
 from .Infos.ItemInfo import ItemInfo
+from Source.NodeFunctions.Player import MeetPlayer
 
 
 class Item(Actor, ItemInfo):
@@ -35,14 +36,12 @@ class Item(Actor, ItemInfo):
         self.initInfo(Data)
 
     def onCollision(self, other: List[Actor]) -> None:
-        from .Scenes import Map
+        from Source.Scenes import Map
 
-        if self.isDestroyed():
-            return
-        scene = Cast(Map, Cast(GameMap, self.getMap()).getScene())
-        inst = scene.inst
-        player = inst.getPlayer()
-        if player and player in other:
+        player = MeetPlayer(other)
+        if player:
+            scene = Cast(Map, Cast(GameMap, self.getMap()).getScene())
+            inst = scene.inst
             Manager.playSE(System.getGetSE())
             player.addItem(self.ID)
             if not inst.getCachedNewItem(self.ID):

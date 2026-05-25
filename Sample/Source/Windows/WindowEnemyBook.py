@@ -212,12 +212,12 @@ class WindowEnemyBook(WindowSelectable):
     def _buildEntry(self, enemy: Enemy) -> Dict[str, Any]:
         damageType, damage = enemy.getDamage(self._player)
         return {
-            "name": self._formatName(getattr(enemy, "name", getattr(enemy, "ID", ""))),
-            "MAXHP": int(getattr(enemy, "MAXHP", 0)),
-            "ATK": int(getattr(enemy, "ATK", 0)),
-            "DEF": int(getattr(enemy, "DEF", 0)),
-            "EXP": int(getattr(enemy, "EXP", 0)),
-            "GOLD": int(getattr(enemy, "GOLD", 0)),
+            "name": self._formatName(enemy.infoComp.name or getattr(enemy, "ID", "")),
+            "MAXHP": int(enemy.infoComp.MAXHP),
+            "ATK": int(enemy.infoComp.ATK),
+            "DEF": int(enemy.infoComp.DEF),
+            "EXP": int(enemy.infoComp.EXP),
+            "GOLD": int(enemy.infoComp.GOLD),
             "damage": "--" if damageType == DamageType.UNDEFEATABLE else int(damage),
             "texture": enemy.getTexture(),
             "texturePath": getattr(enemy, "texturePath", ""),
