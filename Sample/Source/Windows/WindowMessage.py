@@ -7,6 +7,7 @@ import Engine
 from Engine import Color, Input, UI, Text, Vector2f, Vector2u, Vector2i, IntRect
 from Engine.UI import RichText, TextStyle, PlainText, ListView
 from Engine.UI.FunctionalUI import FPlainText
+from Engine.UI.Base import FunctionalBase
 from Engine.Utils import Math
 from Global import Manager, System as GlobalSystem
 from .Base import WindowSelectable, WindowBase
@@ -121,8 +122,6 @@ class WindowMessage(WindowSelectable):
 
         - \param kwargs Event data.
         """
-        if not self.getVisible():
-            return super().onKeyDown(kwargs)
         if (
             self._contentMode == ContentMode.SELECTION
             and self._allowCancel
@@ -133,7 +132,7 @@ class WindowMessage(WindowSelectable):
             children = self._selectionListView.getChildren()
             if 0 <= self.index < len(children):
                 child = children[self.index]
-                if hasattr(child, "onCancel"):
+                if isinstance(child, FunctionalBase):
                     child.onCancel({})
             return
         return super().onKeyDown(kwargs)
@@ -460,7 +459,7 @@ class WindowMessage(WindowSelectable):
         if self._selectionListView is not None:
             optionCount = len(self._selectionListView.getChildren())
             for child in self._selectionListView.getChildren():
-                optionText = child.getString() if hasattr(child, "getString") else ""
+                optionText = child.getString() if isinstance(child, (PlainText, RichText)) else ""
                 maxOptionTextWidth = max(
                     maxOptionTextWidth,
                     self._measurePlainTextWidth(optionText, self._OPTION_TEXT_SIZE),

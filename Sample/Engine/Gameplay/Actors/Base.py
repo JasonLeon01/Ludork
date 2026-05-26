@@ -60,6 +60,7 @@ class _ActorBase(Sprite):
 
         if not tag is None:
             self.tag = tag
+        self._mapTag: str = "" if tag is None else str(tag)
         self._map: Optional[GameMap] = None
         self._parent: Optional[_ActorBase] = None
         self._children: List[_ActorBase] = []

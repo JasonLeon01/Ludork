@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Any, Callable, Dict, Optional, Union, Tuple
+from typing import Any, Callable, Dict, List, Optional, Union, Tuple
 import Engine
 from Engine import (
     Pair,
@@ -115,6 +115,7 @@ class WindowItem(WindowSelectable):
         self._onUseCallback: Optional[Callable[[], None]] = None
         self._player = player
         self._lastDescIndex: Optional[int] = None
+        self._itemList: List[Tuple[Any, Any]] = []
         self._descNameText = PlainText(UI.DefaultFont, "", 18, Text.Style.Bold)
         self._descText = PlainText(UI.DefaultFont, "", 14)
         self.addChild(self._descNameText)
@@ -218,7 +219,7 @@ class WindowItem(WindowSelectable):
         return "\n".join(wrap_para(p) for p in text.split("\n"))
 
     def _updateDescription(self) -> None:
-        if self.index is None or not hasattr(self, "_itemList") or self.index >= len(self._itemList):
+        if self.index is None or self.index >= len(self._itemList):
             self._descNameText.setString("")
             self._descText.setString("")
             return
@@ -232,8 +233,6 @@ class WindowItem(WindowSelectable):
 
         - \param kwargs Event data.
         """
-        if not self.getActive():
-            return
         if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
             self._closeByCancel()
             return
@@ -258,7 +257,7 @@ class WindowItem(WindowSelectable):
         self.setActive(False)
 
     def _onUseItem(self) -> None:
-        if self.index is None or not hasattr(self, "_itemList") or self.index >= len(self._itemList):
+        if self.index is None or self.index >= len(self._itemList):
             return
         itemID, _ = self._itemList[self.index]
         itemInfo = Data.getGeneralItemData(itemID)

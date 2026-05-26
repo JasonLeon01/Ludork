@@ -1,24 +1,25 @@
 # -*- encoding: utf-8 -*-
 
+r"""
+\brief Editor-editable actor component package.
+
+Provides component data classes and helpers for serialising, normalising,
+and initialising actor components.
+
+- Component            Base marker for editor-editable actor components
+- LightComponent       Self-light settings attached to an actor
+- ChildActorComponent  Child actor spawn settings attached to an actor
+"""
+
 from __future__ import annotations
+import builtins
 import copy
 import dataclasses
-import builtins
-from dataclasses import dataclass
-from typing import Any, Dict, Tuple, Type
+from typing import Any, Dict, List, Type
 
-
-class Component:
-    r"""\brief Base marker for editor-editable actor components."""
-
-
-@dataclass
-class LightComponent(Component):
-    r"""\brief Self-light settings attached to an actor."""
-
-    bSelfLight: bool = False  #: Whether this actor emits light
-    lightColor: Tuple[int, int, int, int] = (255, 255, 255, 255)  #: Self light colour
-    lightRadius: float = 16.0  #: Self light radius in pixels
+from .ChildActorComponent import ChildActorComponent
+from .Component import Component
+from .LightComponent import LightComponent
 
 
 def isComponentType(value: Any) -> bool:
@@ -53,7 +54,7 @@ def getComponentFieldMap(cls: Any) -> Dict[str, str]:
     return result
 
 
-def _getComponentFieldTarget(obj: Any, fieldName: str) -> Tuple[Any, str] | None:
+def _getComponentFieldTarget(obj: Any, fieldName: str) -> tuple[Any, str] | None:
     componentName = getComponentFieldMap(type(obj)).get(fieldName)
     if componentName is None:
         return None
@@ -143,6 +144,31 @@ def normaliseInstanceComponents(obj: Any) -> None:
             setattr(obj, componentName, componentFromData(componentType, value))
 
 
+def initInstanceComponents(obj: Any) -> List[Any]:
+    r"""
+    \brief Initialise all component values attached to an actor instance.
+
+    - \param obj Actor instance whose components should be initialised.
+    - \return Actors spawned by component initialisation.
+    """
+    spawnedActors: List[Any] = []
+    for componentName, componentType in getComponentTypes(type(obj)).items():
+        if not hasattr(obj, componentName):
+            continue
+        value = getattr(obj, componentName)
+        if value is None:
+            continue
+        if not isinstance(value, componentType):
+            value = componentFromData(componentType, value)
+            setattr(obj, componentName, value)
+        if not isinstance(value, Component):
+            continue
+        spawned = value.init(obj)
+        if spawned:
+            spawnedActors.extend(spawned)
+    return spawnedActors
+
+
 def migrateLegacyComponentAttrs(cls: Any, attrs: Dict[str, Any]) -> bool:
     if not isinstance(attrs, dict):
         return False
@@ -162,3 +188,21 @@ def migrateLegacyComponentAttrs(cls: Any, attrs: Dict[str, Any]) -> bool:
             attrs[componentName] = defaults
             changed = True
     return changed
+
+
+__all__ = [
+    "Component",
+    "LightComponent",
+    "ChildActorComponent",
+    "isComponentType",
+    "getComponentTypes",
+    "getComponentFieldMap",
+    "getComponentFieldValue",
+    "setComponentFieldValue",
+    "getComponentFieldDefaults",
+    "componentFromData",
+    "componentToData",
+    "normaliseInstanceComponents",
+    "initInstanceComponents",
+    "migrateLegacyComponentAttrs",
+]

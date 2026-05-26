@@ -1015,7 +1015,7 @@ class EditorPanel(QtWidgets.QWidget):
 
         bpRel = newActor.get("bp", "")
         clsObj = self._resolveActorClass(bpRel)
-        newTag = self._makeDefaultTag(clsObj, bpRel, self.selectedLayerName, gx, gy)
+        newTag = self._makeUniqueDefaultTag(clsObj, bpRel, self.selectedLayerName, gx, gy)
         newActor["tag"] = newTag
 
         m = GameData.mapData[self.mapKey]
@@ -1174,7 +1174,7 @@ class EditorPanel(QtWidgets.QWidget):
                                     layerList = []
                                     actorsDict[layerKey] = layerList
                                 clsObj = self._resolveActorClass(bpRel)
-                                tagStr = self._makeDefaultTag(clsObj, bpRel, layerKey, gx, gy)
+                                tagStr = self._makeUniqueDefaultTag(clsObj, bpRel, layerKey, gx, gy)
                                 actorEntry = {
                                     "tag": tagStr,
                                     "bp": bpRel,
@@ -1317,9 +1317,15 @@ class EditorPanel(QtWidgets.QWidget):
                                                 int(oldPos[0]),
                                                 int(oldPos[1]),
                                             )
-                                            if isinstance(entry.get("tag"), str) and entry["tag"] == defOld:
-                                                entry["tag"] = self._makeDefaultTag(
-                                                    clsObj, bpRel, self._actorMoveDragLayerName, gx, gy
+                                            if self._getDefaultTagSuffix(entry.get("tag"), defOld) is not None:
+                                                entry["tag"] = self._makeUniqueDefaultTag(
+                                                    clsObj,
+                                                    bpRel,
+                                                    self._actorMoveDragLayerName,
+                                                    gx,
+                                                    gy,
+                                                    self._actorMoveDragLayerName,
+                                                    self._actorMoveDragIndex,
                                                 )
                                     except Exception:
                                         pass
@@ -1394,6 +1400,18 @@ class EditorPanel(QtWidgets.QWidget):
                 mapDict["layers"] = newLayersDict
             actorsDict = mapDict.get("actors")
             if isinstance(actorsDict, dict) and old in actorsDict:
+                oldActors = actorsDict.get(old)
+                if isinstance(oldActors, list):
+                    for index, entry in enumerate(oldActors):
+                        if not isinstance(entry, dict):
+                            continue
+                        oldBaseTag = self._getActorDefaultTagBase(entry, old)
+                        if self._getDefaultTagSuffix(entry.get("tag"), oldBaseTag) is None:
+                            continue
+                        newBaseTag = self._getActorDefaultTagBase(entry, new)
+                        if newBaseTag is None:
+                            continue
+                        entry["tag"] = self.makeUniqueActorTag(newBaseTag, old, index)
                 newActorsDict = {}
                 for layerName, actors in actorsDict.items():
                     if layerName == old:
@@ -1587,8 +1605,18 @@ class EditorPanel(QtWidgets.QWidget):
 
     def _makeDefaultTag(self, clsObj: Any, bpRel: str, layerName: str, gx: int, gy: int) -> str:
         prefix = None
+        hasBlueprintTagAttr = False
         try:
-            if hasattr(clsObj, "tag"):
+            if isinstance(bpRel, str) and bpRel.startswith("Data.Blueprints."):
+                found, t = GameData._getBlueprintDefaultAttr(bpRel, "tag", set())
+                if found:
+                    hasBlueprintTagAttr = True
+                    if isinstance(t, str) and t.strip():
+                        prefix = t.strip()
+        except Exception:
+            prefix = None
+        try:
+            if not hasBlueprintTagAttr and hasattr(clsObj, "tag"):
                 t = getattr(clsObj, "tag")
                 if isinstance(t, str) and t.strip():
                     prefix = t.strip()
@@ -1597,6 +1625,79 @@ class EditorPanel(QtWidgets.QWidget):
         if not isinstance(prefix, str) or not prefix:
             prefix = bpRel
         return f"{prefix}_{layerName}_{gx}_{gy}"
+
+    def makeUniqueActorTag(
+        self, tag: str, ignoreLayerName: Optional[str] = None, ignoreIndex: Optional[int] = None
+    ) -> str:
+        base = tag.strip() if isinstance(tag, str) else ""
+        if not base:
+            return ""
+        candidate = base
+        index = 2
+        while self._actorTagExists(candidate, ignoreLayerName, ignoreIndex):
+            candidate = f"{base}_{index}"
+            index += 1
+        return candidate
+
+    def _makeUniqueDefaultTag(
+        self,
+        clsObj: Any,
+        bpRel: str,
+        layerName: str,
+        gx: int,
+        gy: int,
+        ignoreLayerName: Optional[str] = None,
+        ignoreIndex: Optional[int] = None,
+    ) -> str:
+        return self.makeUniqueActorTag(
+            self._makeDefaultTag(clsObj, bpRel, layerName, gx, gy), ignoreLayerName, ignoreIndex
+        )
+
+    def _actorTagExists(
+        self, tag: str, ignoreLayerName: Optional[str] = None, ignoreIndex: Optional[int] = None
+    ) -> bool:
+        if not tag or not self.mapKey:
+            return False
+        mapData = GameData.mapData.get(self.mapKey)
+        if not isinstance(mapData, dict):
+            return False
+        actorsDict = mapData.get("actors")
+        if not isinstance(actorsDict, dict):
+            return False
+        for layerName, actors in actorsDict.items():
+            if not isinstance(actors, list):
+                continue
+            for index, entry in enumerate(actors):
+                if layerName == ignoreLayerName and index == ignoreIndex:
+                    continue
+                if isinstance(entry, dict) and entry.get("tag") == tag:
+                    return True
+        return False
+
+    def _getActorDefaultTagBase(self, entry: Dict[str, Any], layerName: str) -> Optional[str]:
+        pos = entry.get("position")
+        if not isinstance(pos, (list, tuple)) or len(pos) < 2:
+            return None
+        try:
+            gx = int(pos[0])
+            gy = int(pos[1])
+        except Exception:
+            return None
+        bpRel = entry.get("bp", "")
+        clsObj = self._resolveActorClass(bpRel)
+        return self._makeDefaultTag(clsObj, bpRel, layerName, gx, gy)
+
+    def _getDefaultTagSuffix(self, tag: Any, baseTag: Optional[str]) -> Optional[str]:
+        if not isinstance(tag, str) or not isinstance(baseTag, str) or not baseTag:
+            return None
+        if tag == baseTag:
+            return ""
+        prefix = f"{baseTag}_"
+        if tag.startswith(prefix):
+            suffix = tag[len(prefix) :]
+            if suffix.isdigit():
+                return suffix
+        return None
 
     def _hitTestActor(self, layerName: str, pos: QtCore.QPoint, tileSize: int) -> Optional[int]:
         actors = self._getActorListForLayer(layerName)
@@ -1750,15 +1851,7 @@ class EditorPanel(QtWidgets.QWidget):
                             if not isinstance(layerList, list):
                                 layerList = []
                                 actorsDict[layerKey] = layerList
-                            tagstr = ""
-                            if (
-                                hasattr(clsObj, "tag")
-                                and not getattr(clsObj, "tag") is None
-                                and getattr(clsObj, "tag") != ""
-                            ):
-                                tagStr = f"{getattr(clsObj, 'tag')}_{layerKey}_{gx}_{gy}"
-                            else:
-                                tagStr = f"{bpRel}_{layerKey}_{gx}_{gy}"
+                            tagStr = self._makeUniqueDefaultTag(clsObj, bpRel, layerKey, gx, gy)
                             actorEntry = {
                                 "tag": tagStr,
                                 "bp": bpRel,

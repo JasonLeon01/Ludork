@@ -20,6 +20,7 @@ class FunctionalBase:
         Initialises the hovered state to False.
         """
         self._isHovered: bool = False
+        self._active: bool = True
 
     def isHovered(self) -> bool:
         r"""\brief Check whether the mouse is hovering over this control.
@@ -27,6 +28,20 @@ class FunctionalBase:
         - \return  True if hovered, False otherwise
         """
         return self._isHovered
+
+    def getActive(self) -> bool:
+        r"""\brief Check whether this control is active.
+
+        - \return  True if active, False otherwise
+        """
+        return self._active
+
+    def setActive(self, active: bool) -> None:
+        r"""\brief Set the activity state of this control.
+
+        - \param active  True to activate, False to deactivate
+        """
+        self._active = active
 
     def onConfirm(self, kwargs: Dict[str, Any]) -> None:
         r"""\brief Called when the control is confirmed (e.g. mouse click).
@@ -181,13 +196,14 @@ class FunctionalBase:
         - \param deltaTime  Time elapsed since last frame, in seconds
         """
         from Engine import Input
+        from Engine.UI.Base import ControlBase
 
         self.onTick(deltaTime)
-        if not getattr(self, "getActive", lambda: True)():
+        if not self.getActive() or (isinstance(self, ControlBase) and not self.getVisible()):
             return
         localMousePos = Math.ToVector2f(Input.getMousePosition())
         hovered = False
-        if hasattr(self, "getAbsoluteBounds"):
+        if isinstance(self, ControlBase):
             bounds: FloatRect = self.getAbsoluteBounds()
             hovered = bounds.contains(localMousePos)
         if not Input.isMouseInputMode():
@@ -206,7 +222,7 @@ class FunctionalBase:
             if self._isHovered:
                 self._isHovered = False
                 self.onUnHover({"position": localMousePos})
-        if hasattr(self, "getAbsoluteBounds"):
+        if isinstance(self, ControlBase):
             bounds = self.getAbsoluteBounds()
             if Input.isTouchBegan():
                 beganPos = Input.getTouchBeganPosition()

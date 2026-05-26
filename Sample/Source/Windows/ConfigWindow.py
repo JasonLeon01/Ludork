@@ -270,8 +270,6 @@ class ConfigWindow(WindowSelectable):
 
         - \param kwargs  Event arguments
         """
-        if not self.getActive():
-            return
         if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
             self.close()
             return

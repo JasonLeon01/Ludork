@@ -89,6 +89,7 @@ class Player(Character, Battler):
         actor: Player = Cast(
             Player, actorClass.GenActor(actorClass, Manager.loadCharacter(texturePath), defaultRect, "yongshi")
         )
+        actor._mapTag = actor.tag
         actor._classPath = playerPath
         actor.setAnimatable(True, True)
         actor.setCollisionEnabled(True)

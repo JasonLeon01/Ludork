@@ -3,7 +3,7 @@
 from __future__ import annotations
 import logging
 from typing import Optional, List, Union, TYPE_CHECKING
-from ... import TypeAdapter, Pair, Drawable, Transformable, Vector2f, Angle, degrees, Transform
+from ... import TypeAdapter, Pair, Drawable, Transformable, Vector2f, Angle, degrees, Transform, FloatRect
 
 if TYPE_CHECKING:
     from Engine.UI import Canvas, ListView
@@ -21,7 +21,6 @@ class ControlBase(Drawable, Transformable):
         Drawable.__init__(self)
         Transformable.__init__(self)
         self._visible: bool = True
-        self._active: bool = True
         self._name: str = ""
         self._parent: Optional[Union[Canvas, ListView]] = None
 
@@ -38,20 +37,6 @@ class ControlBase(Drawable, Transformable):
         - \param visible  True to make visible, False to hide
         """
         self._visible = visible
-
-    def getActive(self) -> bool:
-        r"""\brief Check whether this control is active.
-
-        - \return  True if active, False otherwise
-        """
-        return self._active
-
-    def setActive(self, active: bool) -> None:
-        r"""\brief Set the activity state of this control.
-
-        - \param active  True to activate, False to deactivate
-        """
-        self._active = active
 
     def getName(self) -> str:
         r"""\brief Get the name of this control.
@@ -80,6 +65,48 @@ class ControlBase(Drawable, Transformable):
         - \param parent  New parent control, or None to detach
         """
         self._parent = parent
+
+    def getChildren(self) -> List["ControlBase"]:
+        r"""\brief Get child controls.
+
+        - \return  Empty list for leaf controls
+        """
+        return []
+
+    def getSize(self) -> Vector2f:
+        r"""\brief Get the control size.
+
+        - \return  Zero size for controls without explicit bounds
+        """
+        return Vector2f()
+
+    def getLocalBounds(self) -> FloatRect:
+        r"""\brief Get local bounds.
+
+        - \return  Bounds derived from the default size
+        """
+        return FloatRect(Vector2f(), self.getSize())
+
+    def getAbsoluteBounds(self) -> FloatRect:
+        r"""\brief Get absolute screen-space bounds after parent transforms.
+
+        - \return  Absolute bounds in screen space
+        """
+        from ... import Scale
+
+        transform = self._getScreenRenderTransform()
+        bounds = self.getLocalBounds()
+        realBounds = FloatRect(bounds.position * Scale, bounds.size * Scale)
+        return transform.transformRect(realBounds)
+
+    def getRenderStates(self):
+        r"""\brief Get default render states.
+
+        - \return  Default canvas render states
+        """
+        from ...Utils import Render
+
+        return Render.CanvasRenderStates()
 
     def v_getPosition(self) -> Pair[float]:
         r"""\brief Get the position as a plain pair.

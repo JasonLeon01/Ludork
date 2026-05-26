@@ -4,10 +4,10 @@ from __future__ import annotations
 from typing import List, Tuple, Union
 from .. import Pair, IntRect, RenderTarget, RenderStates, Transform
 from ..Utils import Math, Render
-from .Base import ControlBase
+from .Base import ControlBase, FunctionalBase
 
 
-class ListView(ControlBase):
+class ListView(ControlBase, FunctionalBase):
     r"""List view control that arranges child controls in a grid layout.
 
     Supports multiple columns and automatic item positioning.
@@ -28,6 +28,7 @@ class ListView(ControlBase):
         - \param columns           Number of columns in the grid
         """
         super().__init__()
+        FunctionalBase.__init__(self)
         self.size = rect.size
         self.setPosition(Math.ToVector2f(rect.position))
         self._defaultItemHeight: int = defaultItemHeight
@@ -92,15 +93,14 @@ class ListView(ControlBase):
         return self._renderStates
 
     def update(self, deltaTime: float) -> None:
-        r"""\brief Update active, visible children in the list view.
+        r"""\brief Update visible children in the list view.
 
         - \param deltaTime  Time elapsed since last update, in seconds
         """
         for child in self._children:
-            if not (child._visible and child._active):
+            if not (isinstance(child, FunctionalBase) and child.getVisible()):
                 continue
-            if hasattr(child, "update"):
-                child.update(deltaTime)
+            child.update(deltaTime)
 
     def lateUpdate(self, deltaTime: float) -> None:
         r"""\brief Run late update on children in the list view.
@@ -108,8 +108,9 @@ class ListView(ControlBase):
         - \param deltaTime  Time elapsed since last update, in seconds
         """
         for child in self._children:
-            if hasattr(child, "lateUpdate"):
-                child.lateUpdate(deltaTime)
+            if not (isinstance(child, FunctionalBase) and child.getVisible()):
+                continue
+            child.lateUpdate(deltaTime)
 
     def fixedUpdate(self, fixedDelta: float) -> None:
         r"""\brief Run fixed-timestep update on children in the list view.
@@ -117,8 +118,9 @@ class ListView(ControlBase):
         - \param fixedDelta  Fixed timestep duration, in seconds
         """
         for child in self._children:
-            if hasattr(child, "fixedUpdate"):
-                child.fixedUpdate(fixedDelta)
+            if not (isinstance(child, FunctionalBase) and child.getVisible()):
+                continue
+            child.fixedUpdate(fixedDelta)
 
     def draw(self, target: RenderTarget, states: RenderStates) -> None:
         r"""\brief Draw the list view and its children to a render target.
@@ -153,7 +155,7 @@ class ListView(ControlBase):
                 currentRowHeights = []
             itemHeight = 0
             itemWidth = 0
-            if hasattr(child, "getSize"):
+            if isinstance(child, ControlBase):
                 size = child.getSize()
                 itemHeight = size.y
                 itemWidth = size.x

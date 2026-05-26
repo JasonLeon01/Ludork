@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Callable, Optional
 from Engine import Image, IntRect, Vector2i, Vector2f, UI, Color
 from Engine.UI import Canvas, PlainText, Rect
+from Engine.UI.Base import FunctionalBase
 
 
 _BOX_SIZE: int = 32
@@ -66,7 +67,7 @@ class _CheckBoxField(Canvas):
         - \param deltaTime  Elapsed time in seconds
         """
         for child in self._childrenList:
-            if child.getActive() and child.getVisible() and hasattr(child, "update"):
+            if isinstance(child, FunctionalBase) and child.getVisible():
                 child.update(deltaTime)
         self._buildRenderQueue()
         self.render()

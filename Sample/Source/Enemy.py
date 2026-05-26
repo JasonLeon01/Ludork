@@ -41,17 +41,13 @@ class Enemy(Actor, EnemyInfo, Battler):
         """
         Actor.__init__(self, texture, rect, tag)
         Battler.__init__(self)
-        self._collectDefaultAttr: Dict[str, int] = {}
+        initAttrs: Dict[str, int] = {}
         for attr in ["MAXHP", "ATK", "DEF", "EXP", "GOLD"]:
             value = getattr(self.infoComp, attr)
             if value != -1:
-                self._collectDefaultAttr[attr] = value
+                initAttrs[attr] = value
+        self.infoComp.setInitAttrs(initAttrs)
         self.initInfo(Data)
-
-    @RegisterEvent
-    def onCreate(self) -> None:
-        for attr, value in self._collectDefaultAttr.items():
-            setattr(self.infoComp, attr, value)
 
     @ExecSplit(Win=(0,), Lose=(1,), Escape=(2,))
     def battle(self):

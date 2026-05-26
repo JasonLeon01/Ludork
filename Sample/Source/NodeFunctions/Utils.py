@@ -300,9 +300,7 @@ def _getActorByTag(actorTag: str):
     if scene and hasattr(scene, "getGameMap"):
         gameMap = scene.getGameMap()
         if gameMap is not None and actorTag:
-            actors = gameMap.getAllActorsByTag(actorTag)
-            if actors:
-                return actors[0]
+            return gameMap.getActorByTag(actorTag)
     return None
 
 

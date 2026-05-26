@@ -14,7 +14,7 @@ for building Ludork game scenes.
 """
 
 from .Material import Material
-from .Components import Component, LightComponent
+from .Components import ChildActorComponent, Component, LightComponent
 from . import Actors
 from .InfoBase import InfoBase
 from .TileMap import Tileset, TileLayerData, TileLayer, Tilemap
@@ -23,6 +23,7 @@ from .AutoTile import AutoTile
 __all__ = [
     "Material",
     "Component",
+    "ChildActorComponent",
     "LightComponent",
     "InfoBase",
     "Tileset",

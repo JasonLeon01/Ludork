@@ -8,7 +8,6 @@ from typing import List, Optional, Tuple, Union
 
 from Engine import IntRect, Pair, Texture, Vector2u
 from Engine.Gameplay.Actors import Actor
-from Global import System as GlobalSystem
 from Source.GameInstance import GameInstance
 
 
@@ -28,9 +27,6 @@ class Teleporter(Actor):
         r"""\brief Initialise a teleporter actor."""
         super().__init__(texture, rect, tag)
         self._floorTransferPending = False
-        self._floorTransferTargetMap = ""
-        self._floorTransferAnchorPos = (0, 0)
-        self._floorTransferMoveEnabled = True
 
     @ExecSplit(default=(None,))
     def GoUpstairs(self) -> None:
@@ -41,11 +37,6 @@ class Teleporter(Actor):
     def GoDownstairs(self) -> None:
         r"""\brief Move to the previous map in the current region."""
         self._goFloor(-1)
-
-    def fixedUpdate(self, fixedDelta: float) -> None:
-        r"""\brief Update movement and finish deferred floor transfer."""
-        super().fixedUpdate(fixedDelta)
-        self._processPendingFloorTransfer()
 
     def getTeleportPosition(self) -> Tuple[int, int]:
         r"""\brief Get this teleporter's map position plus Offset.
@@ -63,6 +54,10 @@ class Teleporter(Actor):
             return
         scene = self._map.getScene()
         if scene is None:
+            return
+        from Source.Scenes.SceneMap import Scene as MapScene
+
+        if not isinstance(scene, MapScene):
             return
         inst = scene.inst
         regionMaps = GameInstance.REGION_DICT.get(inst.getCurrentRegion(), [])
@@ -86,56 +81,12 @@ class Teleporter(Actor):
         inst.recordTelepoint(currentMap, Vector2u(anchorPos[0], anchorPos[1]))
 
         targetMap = self._resolveMapPath(regionMaps[targetIndex], currentMap)
-        self._floorTransferPending = True
-        self._floorTransferTargetMap = targetMap
-        self._floorTransferAnchorPos = anchorPos
-        self._floorTransferMoveEnabled = player.getMoveEnabled()
+        moveEnabled = player.getMoveEnabled()
         player.setMoveEnabled(False)
-        GlobalSystem.freezeTransitionBackground()
-
-    def _processPendingFloorTransfer(self) -> None:
-        if not self._floorTransferPending:
+        if scene.requestFloorTransfer(targetMap, anchorPos, moveEnabled):
+            self._floorTransferPending = True
             return
-        if not GlobalSystem.isTransitionBackgroundFrozen():
-            return
-        if not self._map:
-            self._cancelPendingFloorTransfer(None)
-            return
-        scene = self._map.getScene()
-        if scene is None:
-            self._cancelPendingFloorTransfer(scene)
-            return
-        inst = scene.inst
-        targetMap = self._floorTransferTargetMap
-        anchorPos = self._floorTransferAnchorPos
-        scene.gotoMapAndPos(targetMap, anchorPos, True)
-        targetGameMap = scene.getGameMap()
-        targetPlayer = targetGameMap.getPlayer()
-        if targetPlayer is None:
-            self._cancelPendingFloorTransfer(scene)
-            return
-        targetTeleporter = self._findNearestTeleporter(targetGameMap.getAllActors(), targetPlayer.getMapPosition())
-        if targetTeleporter is None:
-            self._cancelPendingFloorTransfer(scene)
-            return
-        targetPos = targetTeleporter.getTeleportPosition()
-        scene.gotoMapAndPos(targetMap, targetPos)
-        inst.recordTelepoint(targetMap, Vector2u(targetPos[0], targetPos[1]))
-        targetPlayer.setMoveEnabled(self._floorTransferMoveEnabled)
-        self._clearPendingFloorTransfer()
-
-    def _cancelPendingFloorTransfer(self, scene) -> None:
-        if scene is not None:
-            scene.player.setMoveEnabled(self._floorTransferMoveEnabled)
-        GlobalSystem.cancelTransitionBackgroundFreeze()
-        GlobalSystem.cancelPendingTransition()
-        self._clearPendingFloorTransfer()
-
-    def _clearPendingFloorTransfer(self) -> None:
-        self._floorTransferPending = False
-        self._floorTransferTargetMap = ""
-        self._floorTransferAnchorPos = (0, 0)
-        self._floorTransferMoveEnabled = True
+        player.setMoveEnabled(moveEnabled)
 
     def _normaliseOffset(self) -> Tuple[int, int]:
         offset = self.Offset

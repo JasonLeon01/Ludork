@@ -50,6 +50,31 @@ class EnemyInfoComponent(BattlerInfoComponent):
     GOLD: int = -1
     HP: int = -1
 
+    def __post_init__(self) -> None:
+        self._initAttrs: Dict[str, Any] = {}
+
+    def setInitAttrs(self, attrs: Dict[str, Any]) -> None:
+        r"""
+        \brief Store actor-instance attribute overrides for component initialisation.
+
+        - \param attrs Attribute values that should be applied after actor creation.
+        """
+        self._initAttrs = dict(attrs)
+
+    def init(self, owner: Any) -> List[Any]:
+        r"""
+        \brief Apply stored enemy attribute overrides during component initialisation.
+
+        - \param owner Actor that owns this component.
+        - \return No spawned actors.
+        """
+        initAttrs = self._initAttrs
+        if isinstance(initAttrs, dict):
+            for attr, value in initAttrs.items():
+                if hasattr(self, attr):
+                    setattr(self, attr, value)
+        return []
+
 
 class Battler:
     r"""\brief Mixin providing combat stats and state management.
@@ -75,13 +100,13 @@ class Battler:
         self._states: List[StateInfo] = []  #: Active state effects
 
     def _normaliseInfoComp(self) -> None:
-        value = getattr(self, "infoComp", None)
+        value = self.infoComp
         componentType = self._getInfoCompType()
         if "infoComp" not in self.__dict__ or not isinstance(value, componentType):
             self.infoComp = componentFromData(componentType, value)
 
     def _getInfoCompType(self) -> type[BattlerInfoComponent]:
-        componentTypes = getattr(type(self), "_componentTypes", {})
+        componentTypes = type(self)._componentTypes
         componentType = componentTypes.get("infoComp", BattlerInfoComponent)
         if not isinstance(componentType, type) or not issubclass(componentType, BattlerInfoComponent):
             return BattlerInfoComponent

@@ -78,8 +78,6 @@ class WindowFloorMapCommand(WindowCommand):
         self._owner.notifyMapIndexMaybeChanged(self.index)
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
-        if not self.getActive():
-            return
         if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
             self._owner.closeByCancel()
             return
@@ -162,8 +160,6 @@ class WindowFloorMapPreview(WindowSelectable):
             self._refreshSelectedPreview()
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
-        if not self.getActive():
-            return
         if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
             self._owner.activateMapList(True)
             return
@@ -402,7 +398,7 @@ class WindowFloorTeleporter:
         return result
 
     def _getTelepointsForMap(self, mapKey: str) -> List[Tuple[int, int]]:
-        telepoints = getattr(self._inst, "_cachedTelepoints", {})
+        telepoints = self._inst._cachedTelepoints
         if not isinstance(telepoints, dict):
             return []
         normalisedMapKey = self._normaliseMapName(mapKey)
@@ -434,10 +430,10 @@ class WindowFloorTeleporter:
 
     def _getVisitedMapNames(self) -> set[str]:
         visited = set()
-        cachedMap = getattr(self._inst, "_cachedMap", None)
+        cachedMap = self._inst._cachedMap
         if cachedMap:
             visited.add(self._normaliseMapName(cachedMap))
-        telepoints = getattr(self._inst, "_cachedTelepoints", {})
+        telepoints = self._inst._cachedTelepoints
         if isinstance(telepoints, dict):
             for mapPath in telepoints.keys():
                 visited.add(self._normaliseMapName(str(mapPath)))

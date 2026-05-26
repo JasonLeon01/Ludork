@@ -295,8 +295,6 @@ class WindowEquipSlot(WindowSelectable):
 
         - \param kwargs Event data.
         """
-        if not self.getActive():
-            return
         if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
             self._closeByCancel()
             return
@@ -470,8 +468,6 @@ class WindowEquipSelect(WindowSelectable):
 
         - \param kwargs Event data.
         """
-        if not self.getActive():
-            return
         if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
             self._closeByCancel()
             return

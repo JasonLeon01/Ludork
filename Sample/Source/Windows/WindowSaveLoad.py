@@ -75,8 +75,6 @@ class WindowSaveCommand(WindowCommand):
         self._owner = owner
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
-        if not self.getActive():
-            return
         if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
             self._owner.closeByCancel()
             return
@@ -112,8 +110,6 @@ class WindowSaveSlot(WindowSelectable):
         self.setListView(listView)
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
-        if not self.getActive():
-            return
         if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
             self._owner.cancelSlotSelection()
             return

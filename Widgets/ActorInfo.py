@@ -247,8 +247,17 @@ class ActorInfoPanel(QtWidgets.QWidget):
         data = self._getActorData()
         if data is None:
             return
+        tag = text
+        if self._editorPanel and hasattr(self._editorPanel, "makeUniqueActorTag"):
+            tag = self._editorPanel.makeUniqueActorTag(text, self._layerName, self._index)
+            if tag != text:
+                self._blockSignals = True
+                try:
+                    self.tagEdit.setText(tag)
+                finally:
+                    self._blockSignals = False
         GameData.recordSnapshot()
-        data["tag"] = text
+        data["tag"] = tag
         if self._editorPanel:
             self._editorPanel.DATA_CHANGED.emit()
 

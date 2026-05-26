@@ -129,7 +129,7 @@ class WindowSelectable(WindowBase):
             self.index = min(self._itemCount() - 1, self.index + 1)
         self._updateScroll()
         targetChild = self._listView.getChildren()[self.index]
-        if hasattr(targetChild, "getAbsoluteBounds"):
+        if isinstance(targetChild, ControlBase):
             bounds: FloatRect = targetChild.getAbsoluteBounds()
             Input.setMousePosition(Math.ToVector2i(bounds.position + bounds.size / 2), System.getWindow())
 
@@ -145,8 +145,6 @@ class WindowSelectable(WindowBase):
 
         - \param kwargs Event data.
         """
-        if not self.getActive():
-            return
         if not (self._listView and len(self._listView.getChildren()) > 0 and not self.index is None):
             return
 
@@ -199,7 +197,7 @@ class WindowSelectable(WindowBase):
         return self._listView.getColumns()
 
     def _applyItem(self, item: ControlBase) -> None:
-        if hasattr(item, "getLocalBounds"):
+        if isinstance(item, ControlBase):
             bounds = item.getLocalBounds()
             origin = Vector2f(bounds.position.x + bounds.size.x / 2, 0)
             item.setOrigin(origin)
@@ -241,7 +239,7 @@ class WindowSelectable(WindowBase):
         for index, child in enumerate(self._listView.getChildren()):
             if not isinstance(child, FunctionalBase):
                 continue
-            if not hasattr(child, "getAbsoluteBounds"):
+            if not isinstance(child, ControlBase):
                 continue
             childBounds: FloatRect = child.getAbsoluteBounds()
             if childBounds.contains(position):

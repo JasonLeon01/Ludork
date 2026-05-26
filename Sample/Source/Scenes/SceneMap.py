@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import os
+import threading
 from typing import Callable, List, Union, Optional, Dict, Any, Tuple
 from Engine import (
     Pair,
@@ -125,6 +126,9 @@ class Scene(SceneBase):
         self._mapClickMoveBlockedUntilLateTick: bool = False
         self._mapInputBlockFrames: int = 0
         self._pendingMenuOpen: bool = False
+        self._pendingFloorTransfer: Optional[Dict[str, Any]] = None
+        self._pendingFloorTransferLock = threading.Lock()
+        self._mapTransferInProgress: bool = False
         startMap = self.inst._cachedMap or System.getStartMap()
         self.gotoMapAndPos(startMap, blockTransition=True)
 
@@ -146,6 +150,8 @@ class Scene(SceneBase):
 
         - \param fixedDelta Fixed timestep in seconds.
         """
+        if self._mapTransferInProgress:
+            return super().onFixedTick(fixedDelta)
         self._gameMap.onFixedTick(fixedDelta)
         return super().onFixedTick(fixedDelta)
 
@@ -154,6 +160,8 @@ class Scene(SceneBase):
 
         - \param deltaTime Elapsed time in seconds.
         """
+        if self._mapTransferInProgress:
+            return super().onTick(deltaTime)
         self._mapClickMoveBlockedUntilLateTick = self._isMapClickMoveBlocked()
         self._gameMap.onTick(deltaTime)
         self._gameMap.getTilemap().updateAutoTileAnimation(deltaTime)
@@ -173,6 +181,8 @@ class Scene(SceneBase):
 
         - \param deltaTime Elapsed time in seconds.
         """
+        if self._mapTransferInProgress:
+            return super().onLateTick(deltaTime)
         if self._mapClickMoveBlockedUntilLateTick or self._isMapClickMoveBlocked():
             self._consumeMapClickMoveInput()
             self._mapClickMoveBlockedUntilLateTick = False
@@ -213,9 +223,8 @@ class Scene(SceneBase):
         """
         refPosition: Optional[Vector2f] = None
         if bool(refActorTag):
-            actors = self._gameMap.getAllActorsByTag(refActorTag)
-            if actors:
-                actor = actors[0]
+            actor = self._gameMap.getActorByTag(refActorTag)
+            if actor:
                 camera = self._gameMap.getCamera()
                 assert camera
                 refPosition = actor.getPosition() - camera.getViewPosition() + self._gameMap.getMapViewOffset()
@@ -260,9 +269,8 @@ class Scene(SceneBase):
         """
         refPosition: Optional[Vector2f] = None
         if bool(refActorTag):
-            actors = self._gameMap.getAllActorsByTag(refActorTag)
-            if actors:
-                actor = actors[0]
+            actor = self._gameMap.getActorByTag(refActorTag)
+            if actor:
                 camera = self._gameMap.getCamera()
                 assert camera
                 refPosition = actor.getPosition() - camera.getViewPosition() + self._gameMap.getMapViewOffset()
@@ -423,6 +431,59 @@ class Scene(SceneBase):
     def _blockMapInput(self, frames: int = 1) -> None:
         self._mapInputBlockFrames = max(self._mapInputBlockFrames, frames)
 
+    def requestFloorTransfer(self, targetMap: str, anchorPos: Tuple[int, int], moveEnabled: bool) -> bool:
+        with self._pendingFloorTransferLock:
+            if self._pendingFloorTransfer is not None:
+                return False
+            self._pendingFloorTransfer = {
+                "targetMap": targetMap,
+                "anchorPos": anchorPos,
+                "moveEnabled": moveEnabled,
+            }
+        GlobalSystem.freezeTransitionBackground()
+        return True
+
+    def _processPendingFloorTransfer(self) -> None:
+        with self._pendingFloorTransferLock:
+            if self._pendingFloorTransfer is None:
+                return
+            if not GlobalSystem.isTransitionBackgroundFrozen():
+                return
+            transferData = self._pendingFloorTransfer
+            self._pendingFloorTransfer = None
+
+        from Source.Teleporter import Teleporter
+
+        self._mapTransferInProgress = True
+        try:
+            targetMap = transferData["targetMap"]
+            anchorPos = transferData["anchorPos"]
+            moveEnabled = bool(transferData["moveEnabled"])
+            self.gotoMapAndPos(targetMap, anchorPos, True)
+            targetGameMap = self.getGameMap()
+            targetPlayer = targetGameMap.getPlayer()
+            if targetPlayer is None:
+                self._cancelFloorTransfer(moveEnabled)
+                return
+            targetTeleporter = Teleporter._findNearestTeleporter(
+                targetGameMap.getAllActors(),
+                targetPlayer.getMapPosition(),
+            )
+            if targetTeleporter is None:
+                self._cancelFloorTransfer(moveEnabled)
+                return
+            targetPos = targetTeleporter.getTeleportPosition()
+            self.gotoMapAndPos(targetMap, targetPos)
+            self.inst.recordTelepoint(targetMap, Vector2u(targetPos[0], targetPos[1]))
+            targetPlayer.setMoveEnabled(moveEnabled)
+        finally:
+            self._mapTransferInProgress = False
+
+    def _cancelFloorTransfer(self, moveEnabled: bool) -> None:
+        self.player.setMoveEnabled(moveEnabled)
+        GlobalSystem.cancelTransitionBackgroundFreeze()
+        GlobalSystem.cancelPendingTransition()
+
     def _getSaveSource(self) -> GameInstance:
         r"""\brief Provide the GameInstance to persist when saving from this scene.
 
@@ -522,6 +583,7 @@ class Scene(SceneBase):
     def _renderHandle(self, deltaTime: float) -> None:
         self._gameMap.show()
         super()._renderHandle(deltaTime)
+        self._processPendingFloorTransfer()
         if self._pendingMenuOpen:
             self._pendingMenuOpen = False
             self._captureScreenSnapshot()
@@ -731,7 +793,9 @@ class Scene(SceneBase):
                 actor = Data.genActorFromData(actorData, layerName)
                 if actor is None:
                     continue
-                result.spawnActor(actor, layerName, emitCreateEvents)
+                result.spawnActor(actor, layerName, False)
+        if emitCreateEvents:
+            result.initializeActorsAndComponents()
         return result
 
     def _buildFloorMapPreview(

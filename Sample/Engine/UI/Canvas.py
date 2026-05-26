@@ -205,13 +205,13 @@ class Canvas(SpriteBase, FunctionalBase):
         return self._zOrder
 
     def update(self, deltaTime: float) -> None:
-        r"""\brief Update this canvas and its active, visible children.
+        r"""\brief Update this canvas and its visible children.
 
         - \param deltaTime  Time elapsed since last update, in seconds
         """
         for child in self._childrenList:
-            if child.getActive() and child.getVisible():
-                if hasattr(child, "update"):
+            if child.getVisible():
+                if isinstance(child, FunctionalBase):
                     child.update(deltaTime)
         for anim in self._anims[:]:
             if anim.isFinished():
@@ -239,8 +239,9 @@ class Canvas(SpriteBase, FunctionalBase):
         - \param deltaTime  Time elapsed since last update, in seconds
         """
         for child in self._childrenList:
-            if child.getActive() and child.getVisible() and hasattr(child, "lateUpdate"):
-                child.lateUpdate(deltaTime)
+            if child.getVisible():
+                if isinstance(child, FunctionalBase):
+                    child.lateUpdate(deltaTime)
         FunctionalBase.lateUpdate(self, deltaTime)
 
     def fixedUpdate(self, fixedDelta: float) -> None:
@@ -249,19 +250,19 @@ class Canvas(SpriteBase, FunctionalBase):
         - \param fixedDelta  Fixed timestep duration, in seconds
         """
         for child in self._childrenList:
-            if child.getActive() and child.getVisible() and hasattr(child, "fixedUpdate"):
-                child.fixedUpdate(fixedDelta)
+            if child.getVisible():
+                if isinstance(child, FunctionalBase):
+                    child.fixedUpdate(fixedDelta)
         FunctionalBase.fixedUpdate(self, fixedDelta)
 
     def _appendRenderNode(self, node: ControlBase, parentStates) -> None:
         from .ListView import ListView
 
-        if hasattr(node, "applyPositions"):
+        if isinstance(node, ListView):
             node.applyPositions()
         nodeStates = copy.copy(parentStates)
-        if hasattr(node, "getRenderStates"):
-            nodeStates = copy.copy(node.getRenderStates())
-            nodeStates.transform *= parentStates.transform
+        nodeStates = copy.copy(node.getRenderStates())
+        nodeStates.transform *= parentStates.transform
         if not isinstance(node, ListView):
             self._renderQueue.append((node, nodeStates))
         if isinstance(node, Canvas):
@@ -269,10 +270,9 @@ class Canvas(SpriteBase, FunctionalBase):
             return
         childStates = copy.copy(parentStates)
         childStates.transform *= node._getRenderTransform()
-        if hasattr(node, "getChildren"):
-            for child in node.getChildren():
-                if child.getVisible():
-                    self._appendRenderNode(child, childStates)
+        for child in node.getChildren():
+            if child.getVisible():
+                self._appendRenderNode(child, childStates)
 
     def _buildRenderQueue(self) -> None:
         self._renderQueue.clear()

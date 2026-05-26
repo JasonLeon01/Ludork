@@ -105,6 +105,9 @@ class GameMap(GameMapExt):
         self._particleSystem: ParticleSystem = ParticleSystem()
         self._actorsOnDestroy: List[Actor] = []
         self._wholeActorList: Dict[str, List[Actor]] = {}
+        self._createInitializedActorIDs: set[int] = set()
+        self._componentInitializedActorIDs: set[int] = set()
+        self._initializingActors: bool = False
         self._camera = camera
         if self._camera is None:
             self._camera = Camera()
@@ -113,6 +116,8 @@ class GameMap(GameMapExt):
         self._ambientLight: Color = Color(255, 255, 255, 255)
         self._lightMask: Optional[RenderTexture] = None
         self._materialDirty: bool = True
+        self._shaderTime: float = 0.0
+        self._transparentTiles: List[Tuple[TileLayer, int, int]] = []
         self._tilePassableGrid: Optional[List[List[bool]]] = None
         self._occupancyMap: Dict[Pair[int], List[Actor]] = {}
         self._player: Optional[Actor] = None
@@ -179,6 +184,20 @@ class GameMap(GameMapExt):
             actors.extend(actorList)
         return actors
 
+    def getActorLayer(self, actor: Actor) -> Optional[str]:
+        r"""\brief Get the layer that directly contains an actor.
+
+        - \param actor Actor to look up.
+        - \return Layer name, or None when the actor is not on this map.
+        """
+        for layerName, actorList in self._actors.items():
+            if actor in actorList:
+                return layerName
+        for layerName, actorList in self._wholeActorList.items():
+            if actor in actorList:
+                return layerName
+        return None
+
     @ReturnType(actors=List[Actor])
     def getActorsByPosition(self, position: Vector2i) -> List[Actor]:
         r"""\brief Get actors at a specific map position.
@@ -219,7 +238,20 @@ class GameMap(GameMapExt):
                 actors.extend(self._occupancyMap.get((x, y), []))
         return actors
 
-    @ReturnType(actors=List[Actor])
+    @ReturnType(actor=Optional[Actor])
+    def getActorByTag(self, tag: str) -> Optional[Actor]:
+        r"""\brief Get the actor with a given tag.
+
+        - \param tag The tag to search for.
+
+        - \return The matching actor, or None.
+        """
+        for actorList in self._actors.values():
+            for actor in actorList:
+                if actor.tag == tag:
+                    return actor
+        return None
+
     def getAllActorsByTag(self, tag: str) -> List[Actor]:
         r"""\brief Get all actors with a given tag.
 
@@ -227,12 +259,8 @@ class GameMap(GameMapExt):
 
         - \return A list of matching actors.
         """
-        actors = []
-        for actorList in self._actors.values():
-            for actor in actorList:
-                if actor.tag == tag:
-                    actors.append(actor)
-        return actors
+        actor = self.getActorByTag(tag)
+        return [] if actor is None else [actor]
 
     def removeActorsByTags(self, tags: List[str]) -> None:
         r"""\brief Remove actors matching any tag from the map without replaying destroy events.
@@ -323,10 +351,11 @@ class GameMap(GameMapExt):
 
         occ = self._occupancyMap.get((x, y))
         if occ:
+            descendantActorIDs = self._getDescendantActorIDs(actor)
             for other in occ:
                 if other is actor:
                     continue
-                if other in actor.getChildren():
+                if id(other) in descendantActorIDs:
                     continue
                 if other.isDestroyed():
                     continue
@@ -342,19 +371,80 @@ class GameMap(GameMapExt):
         - \param layer The layer name to place the actor on.
         - \param emitCreateEvent Whether to run the actor's onCreate blueprint event.
         """
+        self._addActorTreeToLayer(actor, layer)
+        self.updateActorList()
+        self._materialDirty = True
+        if emitCreateEvent and not self._initializingActors:
+            self.initializeActorsAndComponents()
+
+    def initializeActorsAndComponents(self) -> None:
+        r"""\brief Initialise pending actor create events and actor components recursively."""
+        if self._initializingActors:
+            return
+        self._initializingActors = True
+        try:
+            while True:
+                createdAny = self._initializePendingActorCreateEvents()
+                componentAny = self._initializePendingActorComponents()
+                if not createdAny and not componentAny:
+                    break
+        finally:
+            self._initializingActors = False
+        self.updateActorList()
+        self._materialDirty = True
+
+    def _initializePendingActorCreateEvents(self) -> bool:
+        createdAny = False
+        while True:
+            pendingActors = [
+                actor
+                for actor in self.getAllActors()
+                if id(actor) not in self._createInitializedActorIDs and not actor.isDestroyed()
+            ]
+            if not pendingActors:
+                return createdAny
+            for actor in pendingActors:
+                actorID = id(actor)
+                if actorID in self._createInitializedActorIDs:
+                    continue
+                self._createInitializedActorIDs.add(actorID)
+                Actor.BlueprintEvent(actor, Actor, "onCreate")
+                createdAny = True
+
+    def _initializePendingActorComponents(self) -> bool:
+        from Engine.Gameplay.Components import initInstanceComponents
+
+        componentAny = False
+        pendingActors = [
+            actor
+            for actor in self.getAllActors()
+            if id(actor) not in self._componentInitializedActorIDs and not actor.isDestroyed()
+        ]
+        for actor in pendingActors:
+            actorID = id(actor)
+            if actorID in self._componentInitializedActorIDs:
+                continue
+            self._componentInitializedActorIDs.add(actorID)
+            initInstanceComponents(actor)
+            componentAny = True
+        return componentAny
+
+    def _addActorTreeToLayer(self, actor: Actor, layer: str) -> None:
+        self._addActorToLayer(actor, layer)
+        for child in actor.getChildren():
+            self._addActorTreeToLayer(child, layer)
+
+    def _addActorToLayer(self, actor: Actor, layer: str) -> None:
         if layer not in self._actors:
             self._actors[layer] = []
         actor.setMap(self)
-        self._actors[layer].append(actor)
-        if emitCreateEvent:
-            Actor.BlueprintEvent(actor, Actor, "onCreate")
-        children = actor.getChildren()
-        if children:
-            for child in children:
-                if not child in self._wholeActorList:
-                    self.spawnActor(child, layer, emitCreateEvent)
-        self.updateActorList()
-        self._materialDirty = True
+        if not hasattr(actor, "_mapTag"):
+            if getattr(type(actor), "_GENERATED_CLASS", False):
+                actor._mapTag = ""
+            else:
+                actor._mapTag = getattr(actor, "tag", "")
+        if actor not in self._actors[layer]:
+            self._actors[layer].append(actor)
 
     @ExecSplit(default=(None,))
     def destroyActor(self, actor: Actor) -> None:
@@ -756,13 +846,14 @@ class GameMap(GameMapExt):
         if not actor.getCollisionEnabled():
             return []
         result: List[Actor] = []
+        descendantActorIDs = self._getDescendantActorIDs(actor)
         for actorList in self._actors.values():
             for other in actorList:
                 if actor is other:
                     continue
                 if not other.getCollisionEnabled():
                     continue
-                if other in actor.getChildren():
+                if id(other) in descendantActorIDs:
                     continue
                 if other.isDestroyed():
                     continue
@@ -778,17 +869,31 @@ class GameMap(GameMapExt):
         - \return A list of overlapping actors.
         """
         result: List[Actor] = []
+        descendantActorIDs = self._getDescendantActorIDs(actor)
         for actorList in self._actors.values():
             for other in actorList:
                 if actor is other:
                     continue
-                if other in actor.getChildren():
+                if id(other) in descendantActorIDs:
                     continue
                 if other.isDestroyed():
                     continue
                 if actor.getMapPosition() == other.getMapPosition():
                     result.append(other)
         return result
+
+    @staticmethod
+    def _getDescendantActorIDs(actor: Actor) -> set[int]:
+        descendantActorIDs: set[int] = set()
+        stack = list(actor.getChildren())
+        while stack:
+            child = stack.pop()
+            childID = id(child)
+            if childID in descendantActorIDs:
+                continue
+            descendantActorIDs.add(childID)
+            stack.extend(child.getChildren())
+        return descendantActorIDs
 
     def updateActorList(self) -> None:
         r"""\brief Rebuild the flat actor list from all layers, including children."""
@@ -847,8 +952,6 @@ class GameMap(GameMapExt):
 
         - \param deltaTime Elapsed time in seconds.
         """
-        if not hasattr(self, "_shaderTime"):
-            self._shaderTime = 0.0
         self._shaderTime += deltaTime
         if self._camera:
             self._camera.onTick(deltaTime)
@@ -1208,12 +1311,9 @@ class GameMap(GameMapExt):
         self._tilemap._tilesData[layerName] = newLayer.getTiles()
         self._layersTopFirst = list(layers.values())
         self._layersTopFirst.reverse()
-        if hasattr(self, "_transparentTiles"):
-            self._transparentTiles.clear()
+        self._transparentTiles.clear()
 
     def _resetTransparentTiles(self) -> None:
-        if not hasattr(self, "_transparentTiles"):
-            self._transparentTiles = []
         if not self._transparentTiles:
             return
         for layer, x, y in self._transparentTiles:
@@ -1279,7 +1379,7 @@ class GameMap(GameMapExt):
         actorShader = actor.getShader()
         if actorShader:
             try:
-                actorShader.setUniform("time", getattr(self, "_shaderTime", 0.0))
+                actorShader.setUniform("time", self._shaderTime)
             except Exception:
                 pass
             renderStates = RenderStates()

@@ -129,8 +129,6 @@ class WindowShopCommand(WindowCommand):
             self._owner.setMode(SHOP_MODE_SELL if self.index == 1 else SHOP_MODE_BUY)
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
-        if not self.getActive():
-            return
         if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
             self._owner.closeByCancel()
             return
@@ -204,8 +202,6 @@ class WindowShopItem(WindowSelectable):
         return self._cellAvailable[self.index]
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
-        if not self.getActive():
-            return
         if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
             self._owner.cancelItemSelection()
             return

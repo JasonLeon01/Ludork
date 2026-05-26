@@ -67,12 +67,9 @@ class WindowMenu(WindowCommand):
 
         - \param kwargs Event data.
         """
-        if not self.getActive():
+        if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
+            self._closeByCancel()
             return
-        if self.getVisible():
-            if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
-                self._closeByCancel()
-                return
         return super().onKeyDown(kwargs)
 
     def onTick(self, deltaTime: float) -> None:

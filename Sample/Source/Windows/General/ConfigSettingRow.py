@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import List, Optional
 from Engine import Image, Vector2f, UI, FloatRect
-from Engine.UI import Canvas, PlainText
+from Engine.UI import Canvas, PlainText, ListView
 from Engine.UI.Base import FunctionalBase
 from .DropBox import DropBox, _expandedOuterHeight
 
@@ -100,8 +100,6 @@ class ConfigSettingRow(Canvas, FunctionalBase):
 
     def _onDropBoxLayoutChanged(self) -> None:
         parent = self.getParent()
-        if parent is not None:
-            if hasattr(parent, "_positionsSettled"):
-                parent._positionsSettled = False
-            if hasattr(parent, "applyPositions"):
-                parent.applyPositions()
+        if isinstance(parent, ListView):
+            parent._positionsSettled = False
+            parent.applyPositions()

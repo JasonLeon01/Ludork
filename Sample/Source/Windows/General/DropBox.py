@@ -74,7 +74,7 @@ class _DropBoxField(Canvas):
         - \param deltaTime  Elapsed time in seconds
         """
         for child in self._childrenList:
-            if child.getActive() and child.getVisible() and hasattr(child, "update"):
+            if isinstance(child, FunctionalBase) and child.getVisible():
                 child.update(deltaTime)
         self._buildRenderQueue()
         self.render()
@@ -161,8 +161,6 @@ class DropBoxExpanded(WindowSelectable):
 
         - \param kwargs  Event arguments
         """
-        if not self.getActive():
-            return
         if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
             if self._onCollapse is not None:
                 self._onCollapse(None)

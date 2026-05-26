@@ -9,14 +9,14 @@ from Engine import Pair, Color, Vector2f, RenderTexture, RectangleShape
 from Engine.Utils import Math
 from Engine.Animation import compressAnimation
 from Engine.Utils import File
-from Engine.UI.Base import SpriteBase
+from Engine.UI.Base import SpriteBase, FunctionalBase
 from Engine.UI import Image
 from Global import Manager, System, SceneBase
 from .. import Data
 from .SceneTitle import Scene as SceneTitle
 
 
-class ProgressBar(SpriteBase):
+class ProgressBar(SpriteBase, FunctionalBase):
     r"""\brief Progress bar for the initial loading scene."""
 
     def __init__(self, rect: Tuple[Pair[int], Pair[int]]) -> None:
@@ -35,7 +35,8 @@ class ProgressBar(SpriteBase):
         self.fillRect = RectangleShape(Vector2f(0, self.realSize.y))
         self.fillRect.setFillColor(Color.White)
         self.progressValue = 0.0
-        super().__init__(self.canvas.getTexture())
+        SpriteBase.__init__(self, self.canvas.getTexture())
+        FunctionalBase.__init__(self)
         self.setPosition((x, y))
 
     def setProgress(self, value: float) -> None:

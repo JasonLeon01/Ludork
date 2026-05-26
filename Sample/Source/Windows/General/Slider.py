@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Callable, Optional
 from Engine import FloatRect, Vector2f
 from Engine.UI import Canvas, Image as UIImage
+from Engine.UI.Base import FunctionalBase
 from Global import Manager
 
 
@@ -92,7 +93,7 @@ class _SliderField(Canvas):
         - \param deltaTime  Elapsed time in seconds
         """
         for child in self._childrenList:
-            if child.getActive() and child.getVisible() and hasattr(child, "update"):
+            if isinstance(child, FunctionalBase) and child.getVisible():
                 child.update(deltaTime)
         self._buildRenderQueue()
         self.render()

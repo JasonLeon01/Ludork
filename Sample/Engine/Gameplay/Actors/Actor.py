@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple, Union
 from ... import Pair, BPBase, Vector2f, Vector2i, Vector2u, IntRect, Texture
 from ...Utils import Math, Inner
 from ..Material import Material
-from ..Components import LightComponent, componentFromData
+from ..Components import ChildActorComponent, LightComponent, componentFromData
 from .Base import _ActorBase
 
 
@@ -22,7 +22,7 @@ class Actor(_ActorBase, BPBase):
     collisionEnabled: bool = False  #: Whether this actor blocks movement
     tickable: bool = False  #: Whether tick events are dispatched
     speed: float = 64.0  #: Movement speed in pixels per second
-    _componentTypes = {"lightComp": LightComponent}
+    _componentTypes = {"lightComp": LightComponent, "childActorComp": ChildActorComponent}
     lightComp: LightComponent = LightComponent()  #: Self-light component
     ### Generation use only
     texturePath: str = ""  #: Asset path to the character texture
@@ -90,16 +90,16 @@ class Actor(_ActorBase, BPBase):
         self._ensureLightComp().lightRadius = float(value)
 
     def _normaliseLightComp(self) -> None:
-        value = getattr(self, "lightComp", None)
+        value = self.lightComp
         if "lightComp" not in self.__dict__ or not isinstance(value, LightComponent):
             self.lightComp = componentFromData(LightComponent, value)
 
     def _getLightComp(self) -> Optional[LightComponent]:
-        value = getattr(self, "lightComp", None)
+        value = self.lightComp
         if value is None:
             return None
         if not isinstance(value, LightComponent):
-            value = componentFromData(LightComponent, value)
+            value = Cast(LightComponent, componentFromData(LightComponent, value))
             self.lightComp = value
         return value
 

@@ -135,6 +135,46 @@ class _Data:
     def getClassData(self, classPath: str) -> Dict[str, Any]:
         return self._classDict.getData(classPath)
 
+    def resolveClassPath(self, className: str) -> str:
+        if not isinstance(className, str):
+            return ""
+        className = className.strip()
+        if not className:
+            return ""
+        classDict = self._classDict._dict
+        if className in classDict:
+            return className
+        for cachedPath, cachedClass in classDict.items():
+            if cachedPath and getattr(cachedClass, "__name__", "") == className:
+                return cachedPath
+        blueprintPath = self._findBlueprintClassPath(className)
+        if blueprintPath:
+            return blueprintPath
+        return className
+
+    def _findBlueprintClassPath(self, className: str) -> Optional[str]:
+        matches = []
+        for classPath in self._iterBlueprintClassPaths():
+            if classPath.replace(".", "_") == className:
+                return classPath
+            if classPath.rsplit(".", 1)[-1] == className:
+                matches.append(classPath)
+        if len(matches) == 1:
+            return matches[0]
+        return None
+
+    def _iterBlueprintClassPaths(self):
+        blueprintsRoot = os.path.join(".", "Data", "Blueprints")
+        if not os.path.exists(blueprintsRoot):
+            return
+        for root, _, files in os.walk(blueprintsRoot):
+            for file in files:
+                name, ext = os.path.splitext(file)
+                if ext not in (".dat", ".json"):
+                    continue
+                relPath = os.path.relpath(os.path.join(root, name), blueprintsRoot)
+                yield "Data.Blueprints." + relPath.replace(os.sep, ".").replace("/", ".")
+
     def getCommonFunction(self, name: str) -> Graph:
         commonRoot = os.path.join(".", "Data", "CommonFunctions")
         datPath = os.path.join(commonRoot, f"{name}.dat")
@@ -169,6 +209,31 @@ class _Data:
             data["startNodes"],
         )
 
+    def genActorFromClassPath(self, classPath: str, tag: Optional[str] = None) -> Optional[Actor]:
+        if not classPath:
+            return None
+        classModel: Type[Actor] = self.getClass(classPath)
+        if classModel is None:
+            return None
+        texturePath = getattr(classModel, "texturePath", "")
+        defaultRect = getattr(classModel, "defaultRect", None)
+        texture = Manager.loadCharacter(texturePath) if texturePath else None
+        actor: Actor = classModel.GenActor(classModel, texture, defaultRect, tag)
+        actor._mapTag = "" if tag is None else str(tag)
+        actor.texturePath = texturePath
+        actor.setTranslation(Vector2f(*getattr(classModel, "defaultTranslation", [0, 0])))
+        actor.setRotation(float(getattr(classModel, "defaultRotation", 0.0)))
+        actor.setScale(tuple(getattr(classModel, "defaultScale", [1, 1])))
+        actor.setOrigin(tuple(getattr(classModel, "defaultOrigin", [0, 0])))
+        classData = self.getClassData(classPath)
+        graphData = classData.get("graph") if isinstance(classData, dict) else None
+        if graphData:
+            actor.setGraph(self.genGraphFromData(graphData, actor, classModel))
+        return actor
+
+    def genActorFromClassName(self, className: str, tag: Optional[str] = None) -> Optional[Actor]:
+        return self.genActorFromClassPath(self.resolveClassPath(className), tag)
+
     def genActorFromData(self, actorData: Dict[str, Any], layerName: str) -> Optional[Actor]:
         tag = actorData.get("tag", None)
         position = actorData.get("position", None)
@@ -180,26 +245,21 @@ class _Data:
         if bp is None:
             print(f"Actor {tag} in layer {layerName} has no bp")
             return None
+        bp = self.resolveClassPath(bp)
         classModel: Type[Actor] = self.getClass(bp)
-        texturePath = getattr(classModel, "texturePath")
-        defaultRect = getattr(classModel, "defaultRect")
-        actor: Actor = classModel.GenActor(classModel, Manager.loadCharacter(texturePath), defaultRect, tag)
-        actor.texturePath = texturePath
+        actor = self.genActorFromClassPath(bp, tag)
+        if actor is None:
+            return None
         if position is None:
             position = getattr(classModel, "defaultPosition", [0, 0])
-        if translation is None:
-            translation = getattr(classModel, "defaultTranslation", [0, 0])
-        if rotation is None:
-            rotation = getattr(classModel, "defaultRotation", 0.0)
-        if scale is None:
-            scale = getattr(classModel, "defaultScale", [1, 1])
-        if origin is None:
-            origin = getattr(classModel, "defaultOrigin", [0, 0])
-        actor.setTranslation(Vector2f(*translation))
-        actor.setRotation(float(rotation))
-        actor.setScale(tuple(scale))
-        actor.setOrigin(tuple(origin))
-        actor.setGraph(self.genGraphFromData(self.getClassData(bp)["graph"], actor, classModel))
+        if translation is not None:
+            actor.setTranslation(Vector2f(*translation))
+        if rotation is not None:
+            actor.setRotation(float(rotation))
+        if scale is not None:
+            actor.setScale(tuple(scale))
+        if origin is not None:
+            actor.setOrigin(tuple(origin))
         actor.setMapPosition(Vector2u(*position))
         return actor
 
@@ -371,6 +431,35 @@ def getClassData(classPath: str) -> Dict[str, Any]:
     - \return Class data dictionary.
     """
     return _data.getClassData(classPath)
+
+
+def resolveClassPath(className: str) -> str:
+    r"""\brief Resolve a class path from a path, class name, or generated blueprint class name.
+
+    - \param className Class path or generated class name.
+    - \return Resolved class path, or the original value when no mapping is found.
+    """
+    return _data.resolveClassPath(className)
+
+
+def genActorFromClassPath(classPath: str, tag: Optional[str] = None) -> Optional[Actor]:
+    r"""\brief Generate an actor from a resolved class path.
+
+    - \param classPath Actor class path.
+    - \param tag Optional actor tag.
+    - \return The generated Actor, or None.
+    """
+    return _data.genActorFromClassPath(classPath, tag)
+
+
+def genActorFromClassName(className: str, tag: Optional[str] = None) -> Optional[Actor]:
+    r"""\brief Generate an actor from a class path or generated blueprint class name.
+
+    - \param className Actor class path or generated blueprint class name.
+    - \param tag Optional actor tag.
+    - \return The generated Actor, or None.
+    """
+    return _data.genActorFromClassName(className, tag)
 
 
 def getCommonFunction(name: str) -> Graph:

@@ -5,7 +5,7 @@ import os
 from typing import Callable, List, Optional
 from Engine import Input
 from Engine.Utils import Math
-from Engine.UI import Canvas
+from Engine.UI.Base import ControlBase, FunctionalBase
 from . import Manager
 from .System import System
 
@@ -19,12 +19,12 @@ class UIManager:
 
     def __init__(self) -> None:
         r"""\brief Construct a UI manager with debug HUD if debug mode is enabled."""
-        self._UIs: List[Canvas] = []
+        self._UIs: List[ControlBase] = []
         self._debugHUDEnabled: bool = False
         if System.isDebugMode():
             from Engine.UI import DefaultFont, PlainText
 
-            self._debugHUDEnabled: bool = True
+            self._debugHUDEnabled = True
             self._debugHUD: PlainText = PlainText(DefaultFont, "", 12)
             self._totalTime: float = 0.0
             self._totalFrames: int = 0
@@ -37,23 +37,23 @@ class UIManager:
             self._fontMem: float = 0.0
 
     @ExecSplit(default=(None,))
-    def loadUI(self, ui: Canvas) -> None:
+    def loadUI(self, ui: ControlBase) -> None:
         r"""\brief Load a UI canvas into the manager.
 
         - \param ui The canvas to load.
         """
         self._UIs.append(ui)
 
-    @ReturnType(uis=List[Canvas])
-    def getUIs(self) -> List[Canvas]:
+    @ReturnType(uis=List[ControlBase])
+    def getUIs(self) -> List[ControlBase]:
         r"""\brief Get the list of all loaded UI canvases.
 
-        - \return A list of Canvas objects.
+        - \return A list of ControlBase objects.
         """
         return self._UIs
 
     @ExecSplit(default=(None,))
-    def removeUI(self, ui: Canvas) -> None:
+    def removeUI(self, ui: ControlBase) -> None:
         r"""\brief Remove a UI canvas from the manager.
 
         - \param ui The canvas to remove.
@@ -65,28 +65,34 @@ class UIManager:
             raise ValueError("UI not found")
 
     def _fixedLogicHandle(self, fixedDelta: float) -> None:
+        from Engine.UI import Canvas
+
         sortedUIs = sorted(
-            self._UIs, key=lambda item: item.getZOrder() if hasattr(item, "getZOrder") else 0, reverse=True
+            self._UIs, key=lambda item: item.getZOrder() if isinstance(item, Canvas) else 0, reverse=True
         )
         for ui in sortedUIs:
-            if ui.getActive() and ui.getVisible():
-                if hasattr(ui, "fixedUpdate"):
+            if ui.getVisible():
+                if isinstance(ui, FunctionalBase):
                     ui.fixedUpdate(fixedDelta)
 
     def _logicHandle(self, deltaTime: float) -> None:
+        from Engine.UI import Canvas
+
         sortedUIs = sorted(
-            self._UIs, key=lambda item: item.getZOrder() if hasattr(item, "getZOrder") else 0, reverse=True
+            self._UIs, key=lambda item: item.getZOrder() if isinstance(item, Canvas) else 0, reverse=True
         )
         for ui in sortedUIs:
             if ui.getVisible():
-                if hasattr(ui, "update"):
+                if isinstance(ui, FunctionalBase):
                     ui.update(deltaTime)
 
     def _renderHandle(self, deltaTime: float, overlayRenderer: Optional[Callable[[], None]] = None) -> None:
-        sortedUIs = sorted(self._UIs, key=lambda item: item.getZOrder() if hasattr(item, "getZOrder") else 0)
+        from Engine.UI import Canvas
+
+        sortedUIs = sorted(self._UIs, key=lambda item: item.getZOrder() if isinstance(item, Canvas) else 0)
         for ui in sortedUIs:
             if ui.getVisible():
-                if hasattr(ui, "render"):
+                if isinstance(ui, Canvas):
                     ui.render()
                 System.draw(ui)
         if System.isDebugMode() and self._debugHUDEnabled:
@@ -95,8 +101,8 @@ class UIManager:
             overlayRenderer()
         System.display(deltaTime)
         for ui in sortedUIs:
-            if ui.getActive() and ui.getVisible():
-                if hasattr(ui, "lateUpdate"):
+            if ui.getVisible():
+                if isinstance(ui, FunctionalBase):
                     ui.lateUpdate(deltaTime)
 
     def _updateDebugInfo(self, deltaTime: float) -> None:
