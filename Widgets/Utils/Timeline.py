@@ -4,8 +4,10 @@ import os
 import wave
 import contextlib
 from PyQt5 import QtWidgets, QtGui, QtCore, QtMultimedia
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 from EditorGlobal import EditorStatus
+
+FRAME_SEGMENT_DURATION = 0.05
 
 
 class TimelineCanvas(QtWidgets.QWidget):
@@ -32,6 +34,7 @@ class TimelineCanvas(QtWidgets.QWidget):
         self.dragStartPos = QtCore.QPoint()
         self.dragOriginalStart = 0.0
         self.dragOriginalEnd = 0.0
+        self.waveformCache: Dict[str, Tuple[float, int, float, List[float]]] = {}
 
     def setData(self, data: Dict[str, Any]):
         self.data = data
@@ -173,12 +176,21 @@ class TimelineCanvas(QtWidgets.QWidget):
 
                 isSelected = self.selectedSegment == (i, j)
 
+                isSound = seg.get("type") == "sound"
+
                 painter.setPen(QtCore.Qt.NoPen)
-                if isSelected:
+                if isSound:
+                    painter.setBrush(QtGui.QColor("#7a5a3c") if isSelected else QtGui.QColor("#5f4c38"))
+                elif isSelected:
                     painter.setBrush(QtGui.QColor("#7bafe6"))
                 else:
                     painter.setBrush(QtGui.QColor("#5a9fd6"))
                 painter.drawRoundedRect(segRect, 4, 4)
+
+                if isSound and 0 <= assetIdx < len(assets):
+                    name = assets[assetIdx]
+                    originalDuration = seg.get("originalDuration")
+                    self._drawSoundWaveform(painter, segRect, name, max(0.0, end - start), originalDuration)
 
                 painter.setBrush(QtCore.Qt.NoBrush)
                 if isSelected:
@@ -252,6 +264,117 @@ class TimelineCanvas(QtWidgets.QWidget):
     def _snapTime(self, time: float) -> float:
         step = 1.0 / self.frameRate
         return round(time / step) * step
+
+    def _isAudioAsset(self, assetName: str) -> bool:
+        ext = os.path.splitext(assetName)[1].lower()
+        return ext in [".wav", ".ogg", ".mp3"]
+
+    def _drawSoundWaveform(
+        self,
+        painter: QtGui.QPainter,
+        rect: QtCore.QRectF,
+        assetName: str,
+        duration: float,
+        originalDuration: Optional[float],
+    ):
+        audioDuration, peaks = self._getWaveformData(assetName)
+        if not peaks or audioDuration <= 0:
+            painter.save()
+            painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255, 90), 1))
+            y = rect.center().y()
+            painter.drawLine(QtCore.QPointF(rect.left() + 4, y), QtCore.QPointF(rect.right() - 4, y))
+            painter.restore()
+            return
+
+        left = int(rect.left()) + 4
+        right = int(rect.right()) - 4
+        if right <= left:
+            return
+
+        fullDuration = audioDuration
+        if isinstance(originalDuration, (int, float)) and originalDuration > 0:
+            fullDuration = min(audioDuration, float(originalDuration))
+        fullWidth = max(1.0, fullDuration * self.pixelsPerSecond)
+        midY = rect.center().y()
+        height = max(1.0, (rect.height() - 10.0) * 0.5)
+
+        painter.save()
+        painter.setClipRect(rect.adjusted(2, 2, -2, -2))
+        painter.setPen(QtGui.QPen(QtGui.QColor(255, 236, 178, 180), 1))
+        for x in range(left, right + 1):
+            sourceTime = ((x - left) / fullWidth) * fullDuration
+            if sourceTime > duration:
+                break
+            peakIdx = min(len(peaks) - 1, int((sourceTime / audioDuration) * len(peaks)))
+            peak = peaks[peakIdx]
+            painter.drawLine(QtCore.QPointF(x, midY - peak * height), QtCore.QPointF(x, midY + peak * height))
+        painter.restore()
+
+    def _getWaveformData(self, assetName: str) -> Tuple[float, List[float]]:
+        assetPath = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Sounds", assetName)
+        if not os.path.exists(assetPath):
+            return 0.0, []
+        stat = os.stat(assetPath)
+        cache = self.waveformCache.get(assetPath)
+        if cache and cache[0] == stat.st_mtime and cache[1] == stat.st_size:
+            return cache[2], cache[3]
+        duration, peaks = self._loadWaveformData(assetPath)
+        self.waveformCache[assetPath] = (stat.st_mtime, stat.st_size, duration, peaks)
+        return duration, peaks
+
+    def _loadWaveformData(self, assetPath: str) -> Tuple[float, List[float]]:
+        if os.path.splitext(assetPath)[1].lower() != ".wav":
+            return 0.0, []
+        try:
+            with contextlib.closing(wave.open(assetPath, "rb")) as reader:
+                frameCount = reader.getnframes()
+                frameRate = reader.getframerate()
+                sampleWidth = reader.getsampwidth()
+                channelCount = reader.getnchannels()
+                if frameCount <= 0 or frameRate <= 0 or sampleWidth not in (1, 2, 3, 4):
+                    return 0.0, []
+                duration = frameCount / float(frameRate)
+                peakCount = 4096
+                framesPerPeak = max(1, frameCount // peakCount)
+                peaks = []
+                framesRead = 0
+                while framesRead < frameCount:
+                    framesToRead = min(framesPerPeak, frameCount - framesRead)
+                    data = reader.readframes(framesToRead)
+                    if not data:
+                        break
+                    peaks.append(self._pcmPeak(data, sampleWidth, channelCount))
+                    framesRead += framesToRead
+                return duration, peaks
+        except Exception as e:
+            print(f"Error reading waveform: {e}")
+            return 0.0, []
+
+    def _pcmPeak(self, data: bytes, sampleWidth: int, channelCount: int) -> float:
+        if not data:
+            return 0.0
+        if sampleWidth == 1:
+            maxValue = 128.0
+            return min(1.0, max(abs(b - 128) for b in data) / maxValue)
+
+        maxValue = float(1 << (sampleWidth * 8 - 1))
+        peak = 0
+        step = max(1, sampleWidth)
+        usableLength = len(data) - (len(data) % (step * max(1, channelCount)))
+        for offset in range(0, usableLength, step):
+            value = int.from_bytes(data[offset : offset + step], "little", signed=True)
+            peak = max(peak, abs(value))
+        return min(1.0, peak / maxValue)
+
+    def _defaultDurationForAsset(self, assetName: str) -> float:
+        if self._isAudioAsset(assetName):
+            return 0.1
+        return FRAME_SEGMENT_DURATION
+
+    def _minSegmentDuration(self, seg: Dict[str, Any]) -> float:
+        if seg.get("type") == "sound":
+            return 1.0 / self.frameRate
+        return FRAME_SEGMENT_DURATION
 
     def _hitTest(self, pos: QtCore.QPoint) -> Tuple[int, int, int]:
         """Returns (trackIdx, segIdx, handle)
@@ -434,7 +557,7 @@ class TimelineCanvas(QtWidgets.QWidget):
             elif self.dragMode == 2:  # Resize Left
                 potentialStart = self._snapTime(self.dragOriginalStart + deltaTime)
                 limitLeft, _ = self._findBounds(trackIdx, segIdx)
-                maxStart = newEnd - (1.0 / self.frameRate)
+                maxStart = newEnd - self._minSegmentDuration(seg)
 
                 minStartDur = newEnd - maxDur
                 minStart = max(0.0, limitLeft, minStartDur)
@@ -442,7 +565,7 @@ class TimelineCanvas(QtWidgets.QWidget):
             elif self.dragMode == 3:  # Resize Right
                 potentialEnd = self._snapTime(self.dragOriginalEnd + deltaTime)
                 _, limitRight = self._findBounds(trackIdx, segIdx)
-                minEnd = newStart + (1.0 / self.frameRate)
+                minEnd = newStart + self._minSegmentDuration(seg)
 
                 maxEndDur = newStart + maxDur
                 maxEnd = min(limitRight, maxEndDur)
@@ -483,7 +606,9 @@ class TimelineCanvas(QtWidgets.QWidget):
             time = self._snapTime(time)
             if time < 0:
                 time = 0.0
-            if self._checkOverlap(trackIdx, time, time + 0.1):
+            assetName = event.mimeData().text()
+            duration = self._defaultDurationForAsset(assetName)
+            if self._checkOverlap(trackIdx, time, time + duration):
                 event.ignore()
                 return
 
@@ -568,16 +693,16 @@ class TimelineCanvas(QtWidgets.QWidget):
         if time < 0:
             time = 0.0
 
-        if trackIdx >= 0 and self._checkOverlap(trackIdx, time, time + 0.1):
+        isAudio = self._isAudioAsset(assetName)
+        duration = self._defaultDurationForAsset(assetName)
+
+        if trackIdx >= 0 and self._checkOverlap(trackIdx, time, time + duration):
             return
 
-        isAudio = False
-        duration = 0.1
         ext = os.path.splitext(assetName)[1].lower()
         assetPath = ""
 
-        if ext in [".wav", ".ogg", ".mp3"]:
-            isAudio = True
+        if isAudio:
             assetPath = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Sounds", assetName)
         else:
             assetPath = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Animations", assetName)
@@ -634,12 +759,23 @@ class TimelinePanel(QtWidgets.QWidget):
         self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
+        self._isPlaying = False
+        self._playbackEndTime = 0.0
+        self._playbackClock = QtCore.QElapsedTimer()
+        self._playbackTimer = QtCore.QTimer(self)
+        self._playbackTimer.setTimerType(QtCore.Qt.PreciseTimer)
+        self._playbackTimer.timeout.connect(self._onPlaybackTimeout)
+        self._soundPlayers: Dict[Tuple[int, int], QtMultimedia.QMediaPlayer] = {}
 
         self.toolbar = QtWidgets.QWidget()
         self.toolbar.setFixedHeight(28)
         self.toolbar.setStyleSheet("background-color: #333; border-bottom: 1px solid #222;")
         tbLayout = QtWidgets.QHBoxLayout(self.toolbar)
         tbLayout.setContentsMargins(8, 0, 8, 0)
+
+        self.btnPlay = QtWidgets.QPushButton(ELOC("PLAY_ANIMATION"))
+        self.btnPlay.setFixedHeight(22)
+        self.btnPlay.clicked.connect(self._onPlayClicked)
 
         lblZoom = QtWidgets.QLabel("Zoom")
         lblZoom.setStyleSheet("color: #aaa;")
@@ -649,6 +785,8 @@ class TimelinePanel(QtWidgets.QWidget):
         self.sliderZoom.setFixedWidth(120)
         self.sliderZoom.valueChanged.connect(self._onZoomChanged)
 
+        tbLayout.addWidget(self.btnPlay)
+        tbLayout.addSpacing(12)
         tbLayout.addWidget(lblZoom)
         tbLayout.addWidget(self.sliderZoom)
         tbLayout.addStretch(1)
@@ -673,6 +811,7 @@ class TimelinePanel(QtWidgets.QWidget):
         self.setMinimumHeight(desiredHeight)
 
     def setData(self, data):
+        self.stopPlayback()
         self.canvas.setData(data)
 
     def _onZoomChanged(self, value):
@@ -680,3 +819,117 @@ class TimelinePanel(QtWidgets.QWidget):
 
     def setSelectedSegment(self, trackIdx: int, segIdx: int):
         self.canvas.setSelectedSegment(trackIdx, segIdx)
+
+    def _onPlayClicked(self):
+        if self._isPlaying:
+            self.stopPlayback()
+            return
+        self.playOnce()
+
+    def playOnce(self):
+        duration = self._getContentDuration()
+        if duration <= 0:
+            self._setCurrentTime(0.0)
+            return
+
+        self._isPlaying = True
+        self._playbackEndTime = duration
+        self.btnPlay.setText(ELOC("STOP_ANIMATION"))
+        self._stopPlaybackSounds()
+        self._setCurrentTime(0.0)
+        self._playbackClock.restart()
+        interval = max(1, int(1000 / max(1, self.canvas.frameRate) / 2))
+        self._playbackTimer.start(interval)
+
+    def stopPlayback(self):
+        wasPlaying = self._isPlaying
+        self._isPlaying = False
+        self._playbackTimer.stop()
+        self._stopPlaybackSounds()
+        if wasPlaying:
+            self.btnPlay.setText(ELOC("PLAY_ANIMATION"))
+
+    def _onPlaybackTimeout(self):
+        time = self._playbackClock.elapsed() / 1000.0
+        if time >= self._playbackEndTime:
+            self._setCurrentTime(self._playbackEndTime)
+            self.stopPlayback()
+            return
+        self._setCurrentTime(time)
+
+    def _setCurrentTime(self, time: float):
+        self.canvas.currentTime = max(0.0, time)
+        self.canvas.TIME_CHANGED.emit(self.canvas.currentTime)
+        self.canvas.update()
+        self._ensureTimeVisible(self.canvas.currentTime)
+        if self._isPlaying:
+            self._syncPlaybackSounds(self.canvas.currentTime)
+
+    def _ensureTimeVisible(self, time: float):
+        x = int(time * self.canvas.pixelsPerSecond)
+        bar = self.scrollArea.horizontalScrollBar()
+        if x < bar.value():
+            bar.setValue(max(0, x - 24))
+        elif x > bar.value() + self.scrollArea.viewport().width():
+            bar.setValue(x - self.scrollArea.viewport().width() + 24)
+
+    def _getContentDuration(self) -> float:
+        duration = 0.0
+        if not self.canvas.data:
+            return duration
+        for timeline in self.canvas.data.get("timeLines", []):
+            for segment in timeline.get("timeSegments", []):
+                duration = max(duration, segment.get("endFrame", {}).get("time", 0.0))
+        return duration
+
+    def _syncPlaybackSounds(self, time: float):
+        activeKeys = set()
+        if self.canvas.data:
+            timeLines = self.canvas.data.get("timeLines", [])
+            assets = self.canvas.data.get("assets", [])
+            for trackIdx, timeline in enumerate(timeLines):
+                for segIdx, segment in enumerate(timeline.get("timeSegments", [])):
+                    if segment.get("type") != "sound":
+                        continue
+                    start = segment.get("startFrame", {}).get("time", 0.0)
+                    end = segment.get("endFrame", {}).get("time", 0.0)
+                    if not (start <= time < end):
+                        continue
+                    key = (trackIdx, segIdx)
+                    activeKeys.add(key)
+                    if key in self._soundPlayers:
+                        continue
+                    player = self._createSoundPlayer(segment, assets, time - start)
+                    if player:
+                        self._soundPlayers[key] = player
+                        player.play()
+
+        for key in list(self._soundPlayers.keys()):
+            if key not in activeKeys:
+                self._stopSoundPlayer(key)
+
+    def _createSoundPlayer(
+        self, segment: Dict[str, Any], assets: List[str], offset: float
+    ) -> Optional[QtMultimedia.QMediaPlayer]:
+        assetIdx = segment.get("asset", -1)
+        if assetIdx < 0 or assetIdx >= len(assets):
+            return None
+        assetName = assets[assetIdx]
+        assetPath = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Sounds", assetName)
+        if not os.path.exists(assetPath):
+            return None
+        player = QtMultimedia.QMediaPlayer(self)
+        player.setMedia(QtMultimedia.QMediaContent(QtCore.QUrl.fromLocalFile(assetPath)))
+        player.setPosition(max(0, int(offset * 1000)))
+        return player
+
+    def _stopSoundPlayer(self, key: Tuple[int, int]):
+        player = self._soundPlayers.pop(key, None)
+        if not player:
+            return
+        player.stop()
+        player.deleteLater()
+
+    def _stopPlaybackSounds(self):
+        for key in list(self._soundPlayers.keys()):
+            self._stopSoundPlayer(key)

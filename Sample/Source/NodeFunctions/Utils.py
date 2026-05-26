@@ -280,6 +280,32 @@ def RemovePlayerByClass(playerClass: str) -> None:
         scene.inst.removePlayerByClass(playerClass)
 
 
+def _spawnAnim(animName: str, position: Vector2f, rotation: float, scale: Pair[float]) -> None:
+    from Source import Data
+
+    animData = Data.getAnimation(animName)
+    if animData is None:
+        raise ValueError(f"Animation '{animName}' not found")
+    anim = Animation(animData)
+    anim.setPosition(position)
+    anim.setRotation(degrees(rotation))
+    anim.setScale(Vector2f(*scale))
+    scene = System.getScene()
+    if scene:
+        scene.addAnim(anim)
+
+
+def _getActorByTag(actorTag: str):
+    scene = System.getScene()
+    if scene and hasattr(scene, "getGameMap"):
+        gameMap = scene.getGameMap()
+        if gameMap is not None and actorTag:
+            actors = gameMap.getAllActorsByTag(actorTag)
+            if actors:
+                return actors[0]
+    return None
+
+
 @Meta(DisplayName='LOC("ADD_ANIM")', DisplayDesc='LOC("ADD_ANIM_DESC")')
 @ExecSplit(default=(None,))
 def AddAnim(animName: str, position: Pair[float], rotation: float, scale: Pair[float]) -> None:
@@ -290,18 +316,23 @@ def AddAnim(animName: str, position: Pair[float], rotation: float, scale: Pair[f
     - \param rotation The rotation in degrees.
     - \param scale The scale as (x, y).
     """
-    from Source import Data
+    _spawnAnim(animName, Vector2f(*position), rotation, scale)
 
-    animData = Data.getAnimation(animName)
-    if animData is None:
-        raise ValueError(f"Animation '{animName}' not found")
-    anim = Animation(animData)
-    anim.setPosition(Vector2f(*position))
-    anim.setRotation(degrees(rotation))
-    anim.setScale(Vector2f(*scale))
-    scene = System.getScene()
-    if scene:
-        scene.addAnim(anim)
+
+@Meta(DisplayName='LOC("ADD_ANIM_ON")', DisplayDesc='LOC("ADD_ANIM_ON_DESC")')
+@ExecSplit(default=(None,))
+def AddAnimOn(animName: str, actorTag: str, rotation: float, scale: Pair[float]) -> None:
+    r"""\brief Spawn an animation at an actor's current position.
+
+    - \param animName The animation name.
+    - \param actorTag The target actor tag.
+    - \param rotation The rotation in degrees.
+    - \param scale The scale as (x, y).
+    """
+    actor = _getActorByTag(actorTag)
+    if actor is None:
+        raise ValueError(f"Actor with tag '{actorTag}' not found")
+    _spawnAnim(animName, actor.getPosition(), rotation, scale)
 
 
 @Meta(DisplayName='LOC("GET_ANIM_LENGTH")', DisplayDesc='LOC("GET_ANIM_LENGTH_DESC")')

@@ -315,6 +315,18 @@
         "zh_CN": "帧率",
         "en_GB": "Frame Rate"
     },
+    "PLAY_ANIMATION": {
+        "zh_CN": "播放",
+        "en_GB": "Play"
+    },
+    "STOP_ANIMATION": {
+        "zh_CN": "停止",
+        "en_GB": "Stop"
+    },
+    "AUDIO_PREVIEW": {
+        "zh_CN": "音频预览",
+        "en_GB": "Audio Preview"
+    },
     "ASSETS": {
         "zh_CN": "素材",
         "en_GB": "Assets"

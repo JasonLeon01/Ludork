@@ -1,1 +1,163 @@
-{"type": "animation", "name": "attack", "frameRate": 30, "assets": ["mting-344.png", "mting-345.png", "mting-346.png", "mting-347.png"], "timeLines": [{"timeSegments": [{"type": "frame", "asset": 1, "startFrame": {"time": 0.10000000000000002, "position": [0.0, 0.0], "rotation": 0.0, "scale": [1.0, 1.0]}, "endFrame": {"time": 0.20000000000000007, "position": [0.0, 0.0], "rotation": 0.0, "scale": [1.0, 1.0]}}, {"type": "frame", "asset": 0, "startFrame": {"time": 0.0, "position": [0.0, 0.0], "rotation": 0.0, "scale": [1.0, 1.0]}, "endFrame": {"time": 0.10000000000000002, "position": [0.0, 0.0], "rotation": 0.0, "scale": [1.0, 1.0]}}, {"type": "frame", "asset": 2, "startFrame": {"time": 0.20000000000000007, "position": [0.0, 0.0], "rotation": 0.0, "scale": [1.0, 1.0]}, "endFrame": {"time": 0.3000000000000001, "position": [0.0, 0.0], "rotation": 0.0, "scale": [1.0, 1.0]}}, {"type": "frame", "asset": 3, "startFrame": {"time": 0.3000000000000001, "position": [0.0, 0.0], "rotation": 0.0, "scale": [1.0, 1.0]}, "endFrame": {"time": 0.4000000000000001, "position": [0.0, 0.0], "rotation": 0.0, "scale": [1.0, 1.0]}}]}, {"timeSegments": []}]}
+{
+    "name": "attack",
+    "frameRate": 30,
+    "assets": [
+        "mting-344.png",
+        "mting-345.png",
+        "mting-346.png",
+        "mting-347.png",
+        "mting-27.wav"
+    ],
+    "timeLines": [
+        {
+            "timeSegments": [
+                {
+                    "type": "frame",
+                    "asset": 1,
+                    "startFrame": {
+                        "time": 0.05,
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "endFrame": {
+                        "time": 0.1,
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    }
+                },
+                {
+                    "type": "frame",
+                    "asset": 0,
+                    "startFrame": {
+                        "time": 0.0,
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "endFrame": {
+                        "time": 0.05,
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    }
+                },
+                {
+                    "type": "frame",
+                    "asset": 2,
+                    "startFrame": {
+                        "time": 0.1,
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "endFrame": {
+                        "time": 0.15000000000000002,
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    }
+                },
+                {
+                    "type": "frame",
+                    "asset": 3,
+                    "startFrame": {
+                        "time": 0.15000000000000002,
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "endFrame": {
+                        "time": 0.20000000000000007,
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "timeSegments": [
+                {
+                    "type": "sound",
+                    "asset": 4,
+                    "startFrame": {
+                        "time": 0.0,
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "endFrame": {
+                        "time": 0.7666666666666666,
+                        "position": [
+                            0.0,
+                            0.0
+                        ],
+                        "rotation": 0.0,
+                        "scale": [
+                            1.0,
+                            1.0
+                        ]
+                    },
+                    "originalDuration": 1.5673459768295288
+                }
+            ]
+        }
+    ],
+    "type": "animation"
+}

@@ -16,7 +16,7 @@ class FilePreview(QtWidgets.QWidget):
         self._audioWidget = QtWidgets.QWidget(self)
         self._player = QtMultimedia.QMediaPlayer(self)
         self._playButton = QtWidgets.QToolButton(self)
-        self._playButton.setText("▶")
+        self._setPlayButtonIcon(False)
         self._positionSlider = QtWidgets.QSlider(QtCore.Qt.Horizontal, self)
         self._positionSlider.setRange(0, 0)
         self._timeLabel = QtWidgets.QLabel("00:00 / 00:00", self)
@@ -108,7 +108,7 @@ class FilePreview(QtWidgets.QWidget):
         except Exception as e:
             print(f"Error while setting player volume: {e}")
         self._player.pause()
-        self._playButton.setText("▶")
+        self._setPlayButtonIcon(False)
 
     def _updateImagePixmap(self) -> None:
         if self._origPixmap is None:
@@ -144,7 +144,12 @@ class FilePreview(QtWidgets.QWidget):
         self._player.setPosition(v)
 
     def _onStateChanged(self, s: QtMultimedia.QMediaPlayer.State) -> None:
-        self._playButton.setText("⏸" if s == QtMultimedia.QMediaPlayer.PlayingState else "▶")
+        self._setPlayButtonIcon(s == QtMultimedia.QMediaPlayer.PlayingState)
+
+    def _setPlayButtonIcon(self, playing: bool) -> None:
+        icon = QtWidgets.QStyle.SP_MediaPause if playing else QtWidgets.QStyle.SP_MediaPlay
+        self._playButton.setIcon(self.style().standardIcon(icon))
+        self._playButton.setToolTip(ELOC("STOP_ANIMATION" if playing else "PLAY_ANIMATION"))
 
     def _onMediaStatusChanged(self, st: QtMultimedia.QMediaPlayer.MediaStatus) -> None:
         if st == QtMultimedia.QMediaPlayer.InvalidMedia:

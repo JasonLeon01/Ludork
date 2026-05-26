@@ -7,9 +7,12 @@ from PyQt5 import QtCore, QtWidgets, QtGui, QtMultimedia
 from typing import Optional, Dict, Any, List
 from EditorGlobal import EditorStatus, GameData
 from .Utils import TimeLine
+from .Utils.Timeline import FRAME_SEGMENT_DURATION
 
 
 class AssetLabel(QtWidgets.QLabel):
+    DOUBLE_CLICKED = QtCore.pyqtSignal(str)
+
     def __init__(self, assetName: str, parent=None):
         super().__init__(parent)
         self.assetName = assetName
@@ -39,6 +42,13 @@ class AssetLabel(QtWidgets.QLabel):
             drag.setHotSpot(QtCore.QPoint(16, 16))
 
         drag.exec_(QtCore.Qt.CopyAction)
+
+    def mouseDoubleClickEvent(self, event):
+        if event.button() == QtCore.Qt.LeftButton:
+            self.DOUBLE_CLICKED.emit(self.assetName)
+            event.accept()
+            return
+        super().mouseDoubleClickEvent(event)
 
 
 class SegmentInspector(QtWidgets.QWidget):
@@ -207,7 +217,15 @@ class SegmentInspector(QtWidgets.QWidget):
         start["scale"] = [self.startSX.value(), self.startSY.value()]
 
         end = self.data.setdefault("endFrame", {})
-        end["time"] = self.endTime.value()
+        endTime = self.endTime.value()
+        if self.data.get("type") != "sound":
+            minEnd = start["time"] + FRAME_SEGMENT_DURATION
+            if endTime < minEnd:
+                endTime = minEnd
+                self.blockSignals = True
+                self.endTime.setValue(endTime)
+                self.blockSignals = False
+        end["time"] = endTime
         end["position"] = [self.endX.value(), self.endY.value()]
         end["rotation"] = self.endRot.value()
         end["scale"] = [self.endSX.value(), self.endSY.value()]
@@ -729,6 +747,7 @@ class AnimationWindow(QtWidgets.QMainWindow):
     ) -> None:
         super().__init__(parent)
         self._data = data if data is not None else {}
+        self._audioPreviewDialogs = []
 
         windowTitle = ELOC("ANIMATION_WINDOW")
         self.title = title
@@ -909,6 +928,36 @@ class AnimationWindow(QtWidgets.QMainWindow):
         self.timelinePanel.setData(self._data)
         self.MODIFIED.emit()
 
+    def _isAudioAsset(self, assetName: str) -> bool:
+        return os.path.splitext(assetName)[1].lower() in [".wav", ".ogg", ".mp3"]
+
+    def _onAssetDoubleClicked(self, assetName: str) -> None:
+        if not self._isAudioAsset(assetName):
+            return
+        assetPath = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Sounds", assetName)
+        if not os.path.exists(assetPath):
+            return
+
+        from .FilePreview import FilePreview
+
+        dialog = QtWidgets.QDialog(self)
+        dialog.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        dialog.setWindowTitle(f"{ELOC('AUDIO_PREVIEW')} - {assetName}")
+        layout = QtWidgets.QVBoxLayout(dialog)
+        preview = FilePreview(dialog)
+        preview.setFile(assetPath)
+        layout.addWidget(preview)
+        dialog.resize(480, 180)
+        self._audioPreviewDialogs.append(dialog)
+
+        def onFinished(_result):
+            preview.setFile("")
+            if dialog in self._audioPreviewDialogs:
+                self._audioPreviewDialogs.remove(dialog)
+
+        dialog.finished.connect(onFinished)
+        dialog.show()
+
     def _refreshAssets(self) -> None:
         while self.assetsLayout.count():
             item = self.assetsLayout.takeAt(0)
@@ -930,6 +979,7 @@ class AnimationWindow(QtWidgets.QMainWindow):
             label.setAlignment(QtCore.Qt.AlignCenter)
             label.setProperty("assetName", assetName)
             label.setToolTip(assetName)
+            label.DOUBLE_CLICKED.connect(self._onAssetDoubleClicked)
 
             ext = os.path.splitext(assetName)[1].lower()
             if ext in [".png", ".jpg", ".bmp"]:
