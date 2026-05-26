@@ -1,5 +1,7 @@
 # -*- encoding: utf-8 -*-
 
+from __future__ import annotations
+
 import os
 import wave
 import contextlib
@@ -15,7 +17,7 @@ class TimelineCanvas(QtWidgets.QWidget):
     SELECTION_CHANGED = QtCore.pyqtSignal(int, int)
     TIME_CHANGED = QtCore.pyqtSignal(float)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
         self.data: Dict[str, Any] = {}
         self.frameRate = 30
@@ -35,8 +37,9 @@ class TimelineCanvas(QtWidgets.QWidget):
         self.dragOriginalStart = 0.0
         self.dragOriginalEnd = 0.0
         self.waveformCache: Dict[str, Tuple[float, int, float, List[float]]] = {}
+        self._tempPlayers: List[QtMultimedia.QMediaPlayer] = []
 
-    def setData(self, data: Dict[str, Any]):
+    def setData(self, data: Dict[str, Any]) -> None:
         self.data = data
         if self.data:
             self.frameRate = self.data.get("frameRate", 30)
@@ -45,7 +48,7 @@ class TimelineCanvas(QtWidgets.QWidget):
         self.updateCanvasSize()
         self.update()
 
-    def setSelectedSegment(self, trackIdx: int, segIdx: int):
+    def setSelectedSegment(self, trackIdx: int, segIdx: int) -> None:
         newSelected = None
         if self.data and trackIdx >= 0 and segIdx >= 0:
             timeLines = self.data.get("timeLines", [])
@@ -64,13 +67,13 @@ class TimelineCanvas(QtWidgets.QWidget):
             self.SELECTION_CHANGED.emit(-1, -1)
         self.update()
 
-    def setZoom(self, zoom: float):
+    def setZoom(self, zoom: float) -> None:
         self.zoom = zoom
         self.pixelsPerSecond = self.basePixelsPerSecond * self.zoom
         self.updateCanvasSize()
         self.update()
 
-    def updateCanvasSize(self):
+    def updateCanvasSize(self) -> None:
         maxTime = 5.0
         if self.data:
             timelines = self.data.get("timeLines", [])
@@ -614,7 +617,7 @@ class TimelineCanvas(QtWidgets.QWidget):
 
         event.acceptProposedAction()
 
-    def _getAudioDuration(self, filePath: str, segment: Dict):
+    def _getAudioDuration(self, filePath: str, segment: Dict[str, Any]) -> None:
         if not os.path.exists(filePath):
             print(f"Audio file not found: {filePath}")
             return
@@ -650,25 +653,25 @@ class TimelineCanvas(QtWidgets.QWidget):
         player.durationChanged.connect(lambda d: self._onMediaDurationChanged(player, segment, d))
         player.error.connect(lambda: self._onMediaError(player))
 
-        if not hasattr(self, "_tempPlayers"):
-            self._tempPlayers = []
         self._tempPlayers.append(player)
 
-    def _onMediaError(self, player):
+    def _onMediaError(self, player: QtMultimedia.QMediaPlayer) -> None:
         print(f"Media player error: {player.errorString()}")
-        if hasattr(self, "_tempPlayers") and player in self._tempPlayers:
+        if player in self._tempPlayers:
             self._tempPlayers.remove(player)
         player.deleteLater()
 
-    def _onMediaDurationChanged(self, player, segment, durationMs):
+    def _onMediaDurationChanged(
+        self, player: QtMultimedia.QMediaPlayer, segment: Dict[str, Any], durationMs: int
+    ) -> None:
         if durationMs > 0:
             duration = durationMs / 1000.0
             self._updateSegmentDuration(segment, duration)
-            if hasattr(self, "_tempPlayers") and player in self._tempPlayers:
+            if player in self._tempPlayers:
                 self._tempPlayers.remove(player)
             player.deleteLater()
 
-    def _updateSegmentDuration(self, segment, duration):
+    def _updateSegmentDuration(self, segment: Dict[str, Any], duration: float) -> None:
         start = segment["startFrame"]["time"]
         segment["endFrame"]["time"] = start + duration
         segment["originalDuration"] = duration
@@ -676,7 +679,7 @@ class TimelineCanvas(QtWidgets.QWidget):
         self.update()
         self.DATA_CHANGED.emit()
 
-    def dropEvent(self, event):
+    def dropEvent(self, event: QtGui.QDropEvent) -> None:
         assetName = event.mimeData().text()
         assets = self.data.get("assets", [])
 
@@ -754,7 +757,7 @@ class TimelinePanel(QtWidgets.QWidget):
     DATA_CHANGED = QtCore.pyqtSignal()
     SELECTION_CHANGED = QtCore.pyqtSignal(int, int)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
         self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
@@ -810,23 +813,23 @@ class TimelinePanel(QtWidgets.QWidget):
         desiredHeight = self.toolbar.height() + self.canvas.headerHeight + self.canvas.trackHeight * 3 + 12
         self.setMinimumHeight(desiredHeight)
 
-    def setData(self, data):
+    def setData(self, data: Dict[str, Any]) -> None:
         self.stopPlayback()
         self.canvas.setData(data)
 
-    def _onZoomChanged(self, value):
+    def _onZoomChanged(self, value: int) -> None:
         self.canvas.setZoom(value / 100.0)
 
-    def setSelectedSegment(self, trackIdx: int, segIdx: int):
+    def setSelectedSegment(self, trackIdx: int, segIdx: int) -> None:
         self.canvas.setSelectedSegment(trackIdx, segIdx)
 
-    def _onPlayClicked(self):
+    def _onPlayClicked(self) -> None:
         if self._isPlaying:
             self.stopPlayback()
             return
         self.playOnce()
 
-    def playOnce(self):
+    def playOnce(self) -> None:
         duration = self._getContentDuration()
         if duration <= 0:
             self._setCurrentTime(0.0)
@@ -841,7 +844,7 @@ class TimelinePanel(QtWidgets.QWidget):
         interval = max(1, int(1000 / max(1, self.canvas.frameRate) / 2))
         self._playbackTimer.start(interval)
 
-    def stopPlayback(self):
+    def stopPlayback(self) -> None:
         wasPlaying = self._isPlaying
         self._isPlaying = False
         self._playbackTimer.stop()
@@ -849,7 +852,7 @@ class TimelinePanel(QtWidgets.QWidget):
         if wasPlaying:
             self.btnPlay.setText(ELOC("PLAY_ANIMATION"))
 
-    def _onPlaybackTimeout(self):
+    def _onPlaybackTimeout(self) -> None:
         time = self._playbackClock.elapsed() / 1000.0
         if time >= self._playbackEndTime:
             self._setCurrentTime(self._playbackEndTime)
@@ -857,7 +860,7 @@ class TimelinePanel(QtWidgets.QWidget):
             return
         self._setCurrentTime(time)
 
-    def _setCurrentTime(self, time: float):
+    def _setCurrentTime(self, time: float) -> None:
         self.canvas.currentTime = max(0.0, time)
         self.canvas.TIME_CHANGED.emit(self.canvas.currentTime)
         self.canvas.update()
@@ -865,7 +868,7 @@ class TimelinePanel(QtWidgets.QWidget):
         if self._isPlaying:
             self._syncPlaybackSounds(self.canvas.currentTime)
 
-    def _ensureTimeVisible(self, time: float):
+    def _ensureTimeVisible(self, time: float) -> None:
         x = int(time * self.canvas.pixelsPerSecond)
         bar = self.scrollArea.horizontalScrollBar()
         if x < bar.value():
@@ -882,7 +885,7 @@ class TimelinePanel(QtWidgets.QWidget):
                 duration = max(duration, segment.get("endFrame", {}).get("time", 0.0))
         return duration
 
-    def _syncPlaybackSounds(self, time: float):
+    def _syncPlaybackSounds(self, time: float) -> None:
         activeKeys = set()
         if self.canvas.data:
             timeLines = self.canvas.data.get("timeLines", [])
@@ -923,13 +926,13 @@ class TimelinePanel(QtWidgets.QWidget):
         player.setPosition(max(0, int(offset * 1000)))
         return player
 
-    def _stopSoundPlayer(self, key: Tuple[int, int]):
+    def _stopSoundPlayer(self, key: Tuple[int, int]) -> None:
         player = self._soundPlayers.pop(key, None)
         if not player:
             return
         player.stop()
         player.deleteLater()
 
-    def _stopPlaybackSounds(self):
+    def _stopPlaybackSounds(self) -> None:
         for key in list(self._soundPlayers.keys()):
             self._stopSoundPlayer(key)

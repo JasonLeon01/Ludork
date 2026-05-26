@@ -1,8 +1,11 @@
 # -*- encoding: utf-8 -*-
 
+from __future__ import annotations
+
 import os
 import sys
 import importlib
+from types import ModuleType
 from PyQt5 import QtCore, QtGui, QtWidgets
 from EditorGlobal import EditorStatus
 
@@ -128,18 +131,28 @@ def ApplyEditorFont(app: QtWidgets.QApplication) -> None:
         print(f"Error applying editor UI font: {e}")
 
 
-def GetModule(moduleName: str) -> object:
+def _initModuleLocale(module: ModuleType) -> None:
+    localeModule = getattr(module, "Locale", None)
+    if not isinstance(localeModule, ModuleType):
+        return
+    init = getattr(localeModule, "init", None)
+    if not callable(init):
+        return
+    init(os.path.join(EditorStatus.PROJ_PATH, "Data", "Locale"))
+    localeModule.LANGUAGE = EditorStatus.LANGUAGE
+
+
+def GetModule(moduleName: str) -> ModuleType:
     module = None
     if moduleName not in sys.modules:
         module = importlib.import_module(moduleName)
     module = sys.modules[moduleName]
-    if module and hasattr(module, "Locale"):
-        module.Locale.init(os.path.join(EditorStatus.PROJ_PATH, "Data", "Locale"))
-        module.Locale.LANGUAGE = EditorStatus.LANGUAGE
+    if isinstance(module, ModuleType):
+        _initModuleLocale(module)
     return module
 
 
-def ReloadModule(moduleName: str) -> object:
+def ReloadModule(moduleName: str) -> ModuleType:
     module = importlib.import_module(moduleName)
     if moduleName in sys.modules:
         print(f"Reloading module: {moduleName}")
@@ -159,7 +172,6 @@ def ReloadModule(moduleName: str) -> object:
                 importlib.reload(sys.modules[name])
             except Exception as e:
                 print(f"Failed to reload submodule {name}: {e}")
-    if module and hasattr(module, "Locale"):
-        module.Locale.init(os.path.join(EditorStatus.PROJ_PATH, "Data", "Locale"))
-        module.Locale.LANGUAGE = EditorStatus.LANGUAGE
+    if isinstance(module, ModuleType):
+        _initModuleLocale(module)
     return module

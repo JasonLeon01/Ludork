@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 from __future__ import annotations
 import os
-from typing import Optional, Dict
+from typing import Any, Optional, Dict
 from PyQt5 import QtCore, QtGui, QtWidgets
 from EditorGlobal import GameData, EditorStatus
 
@@ -16,7 +16,7 @@ MIN_HEIGHT_EXTRA_PADDING = 2
 class ActorQueuePanel(QtWidgets.QWidget):
     SELECTION_CHANGED = QtCore.pyqtSignal(object)
 
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None, dockMode: str = "horizontal"):
+    def __init__(self, parent: Optional[QtWidgets.QWidget] = None, dockMode: str = "horizontal") -> None:
         super().__init__(parent)
         self._dockMode = ""
         self._queue: list[str] = []
@@ -118,7 +118,7 @@ class ActorQueuePanel(QtWidgets.QWidget):
         name = s.split(".")[-1]
         return name
 
-    def _resolveTextureImage(self, texturePath: object) -> Optional[QtGui.QImage]:
+    def _resolveTextureImage(self, texturePath: str | None) -> Optional[QtGui.QImage]:
         path: Optional[str] = None
         if isinstance(texturePath, str) and texturePath.strip():
             p = texturePath.strip()
@@ -133,7 +133,7 @@ class ActorQueuePanel(QtWidgets.QWidget):
             return None
         return img
 
-    def _getBlueprintAttr(self, bpRel: object, attrName: str, default: object) -> object:
+    def _getBlueprintAttr(self, bpRel: str | None, attrName: str, default: Any) -> Any:
         if isinstance(bpRel, str):
             prefix = "Data.Blueprints."
             if bpRel.startswith(prefix):
@@ -145,8 +145,10 @@ class ActorQueuePanel(QtWidgets.QWidget):
                         return attrs.get(attrName, default)
         try:
             clsObj = GameData.classDict.get(bpRel, EditorStatus.PROJ_PATH) if isinstance(bpRel, str) else None
-            if clsObj is not None and hasattr(clsObj, attrName):
+            if isinstance(clsObj, type):
                 return getattr(clsObj, attrName)
+        except AttributeError:
+            return default
         except Exception:
             return default
         return default

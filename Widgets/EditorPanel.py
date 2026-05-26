@@ -11,7 +11,7 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 import Utils
 from EditorGlobal import EditorStatus, GameData
 from Utils import System
-from .Utils import AutoTileRenderer, computeMaskFromGrid
+from .Utils import AutoTileRenderer, Toast, computeMaskFromGrid
 
 
 _AUTOTILE_ANIMATION_INTERVAL_MS = 500
@@ -1487,9 +1487,14 @@ class EditorPanel(QtWidgets.QWidget):
         except Exception:
             return None
 
-    def _getClassAttr(self, cls: Any, name: str, default: Any) -> Any:
-        if hasattr(cls, name):
-            return getattr(cls, name)
+    def _getClassAttr(self, cls: Optional[type], name: str, default: Any) -> Any:
+        if isinstance(cls, type):
+            try:
+                return getattr(cls, name)
+            except AttributeError:
+                return default
+            except Exception:
+                return default
         return default
 
     def getBlueprintAttr(self, bpRel: Any, attrName: str, default: Any) -> Any:
@@ -1603,7 +1608,7 @@ class EditorPanel(QtWidgets.QWidget):
         self._actorMoveDragTitleRefreshed = False
         self.unsetCursor()
 
-    def _makeDefaultTag(self, clsObj: Any, bpRel: str, layerName: str, gx: int, gy: int) -> str:
+    def _makeDefaultTag(self, clsObj: Optional[type], bpRel: str, layerName: str, gx: int, gy: int) -> str:
         prefix = None
         hasBlueprintTagAttr = False
         try:
@@ -1616,7 +1621,7 @@ class EditorPanel(QtWidgets.QWidget):
         except Exception:
             prefix = None
         try:
-            if not hasBlueprintTagAttr and hasattr(clsObj, "tag"):
+            if not hasBlueprintTagAttr and isinstance(clsObj, type):
                 t = getattr(clsObj, "tag")
                 if isinstance(t, str) and t.strip():
                     prefix = t.strip()
@@ -1641,7 +1646,7 @@ class EditorPanel(QtWidgets.QWidget):
 
     def _makeUniqueDefaultTag(
         self,
-        clsObj: Any,
+        clsObj: Optional[type],
         bpRel: str,
         layerName: str,
         gx: int,
@@ -1871,6 +1876,7 @@ class EditorPanel(QtWidgets.QWidget):
                 msg = ELOC("NOT_ACTOR_TYPE")
         else:
             msg = ELOC("NOT_ACTOR_TYPE")
-        if msg and hasattr(w, "toast") and w and w.toast:
-            w.toast.showMessage(msg, 3000)
+        toast = getattr(w, "toast", None) if isinstance(w, QtWidgets.QWidget) else None
+        if msg and isinstance(toast, Toast):
+            toast.showMessage(msg, 3000)
         e.acceptProposedAction()

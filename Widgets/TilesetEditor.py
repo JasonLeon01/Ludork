@@ -1,23 +1,36 @@
 # -*- encoding: utf-8 -*-
 
+from __future__ import annotations
+
 import copy
+from typing import Optional
 from PyQt5 import QtWidgets, QtCore, QtGui
 from EditorGlobal import GameData
 from Utils import File, System
 from .Utils import TilesetPanel, AutoTilePanel, SingleRowDialog, Toast
 
 
+def _getGameplayType(typeName: str) -> Optional[type]:
+    try:
+        Engine = System.GetModule("Engine")
+        gameplay = getattr(Engine, "Gameplay", None)
+        dataType = getattr(gameplay, typeName, None)
+    except Exception:
+        return None
+    return dataType if isinstance(dataType, type) else None
+
+
 class _TilesetTab(QtWidgets.QWidget):
     MODIFIED = QtCore.pyqtSignal()
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
         self._tilesetClipboard = None
         self._tilesetClipboardName = None
         self._initUI()
         self._loadData()
 
-    def _initUI(self):
+    def _initUI(self) -> None:
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
@@ -50,7 +63,7 @@ class _TilesetTab(QtWidgets.QWidget):
         self.tilesetPanel.MODIFIED.connect(self.MODIFIED.emit)
         layout.addWidget(self.tilesetPanel, 1)
 
-    def _onSelectionChanged(self, row):
+    def _onSelectionChanged(self, row: int) -> None:
         if row < 0:
             self.tilesetPanel.setTilesetData(None)
             return
@@ -62,7 +75,7 @@ class _TilesetTab(QtWidgets.QWidget):
         data = GameData.tilesetData.get(key)
         self.tilesetPanel.setTilesetData(data)
 
-    def _showContextMenu(self, position):
+    def _showContextMenu(self, position: QtCore.QPoint) -> None:
         item = self.listWidget.itemAt(position)
         menu = QtWidgets.QMenu()
         if item is None:
@@ -100,7 +113,7 @@ class _TilesetTab(QtWidgets.QWidget):
             self.listWidget.setCurrentItem(item)
             self._deleteTileset()
 
-    def _addTileset(self):
+    def _addTileset(self) -> None:
         dlg = SingleRowDialog(self, ELOC("ADD_TILESET"), ELOC("ENTER_TILESET_FILE"), "")
         ok, text = dlg.execGetText()
         if not ok:
@@ -129,7 +142,7 @@ class _TilesetTab(QtWidgets.QWidget):
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", str(e))
 
-    def _copyTileset(self):
+    def _copyTileset(self) -> None:
         row = self.listWidget.currentRow()
         if row < 0:
             return
@@ -141,7 +154,7 @@ class _TilesetTab(QtWidgets.QWidget):
             self._tilesetClipboard = copy.deepcopy(GameData.tilesetData[key])
             self._tilesetClipboardName = key
 
-    def _pasteTileset(self):
+    def _pasteTileset(self) -> None:
         if not self._tilesetClipboard:
             return
 
@@ -159,7 +172,8 @@ class _TilesetTab(QtWidgets.QWidget):
                     break
                 i += 1
 
-        if hasattr(new_ts, "name"):
+        tilesetType = _getGameplayType("Tileset")
+        if isinstance(tilesetType, type) and isinstance(new_ts, tilesetType):
             new_ts.name = new_name
 
         try:
@@ -174,7 +188,7 @@ class _TilesetTab(QtWidgets.QWidget):
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", str(e))
 
-    def _renameTileset(self):
+    def _renameTileset(self) -> None:
         row = self.listWidget.currentRow()
         if row < 0:
             return
@@ -239,7 +253,8 @@ class _TilesetTab(QtWidgets.QWidget):
         try:
             GameData.recordSnapshot()
             data = GameData.tilesetData.pop(old_name)
-            if hasattr(data, "name"):
+            tilesetType = _getGameplayType("Tileset")
+            if isinstance(tilesetType, type) and isinstance(data, tilesetType):
                 data.name = new_name
             GameData.tilesetData[new_name] = data
 
@@ -249,7 +264,7 @@ class _TilesetTab(QtWidgets.QWidget):
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", str(e))
 
-    def _deleteTileset(self):
+    def _deleteTileset(self) -> None:
         row = self.listWidget.currentRow()
         if row < 0:
             return
@@ -280,7 +295,7 @@ class _TilesetTab(QtWidgets.QWidget):
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", str(e))
 
-    def reloadListPreserveSelection(self):
+    def reloadListPreserveSelection(self) -> None:
         current = None
         item = self.listWidget.currentItem()
         if item:
@@ -296,7 +311,7 @@ class _TilesetTab(QtWidgets.QWidget):
         if self.listWidget.count() > 0 and self.listWidget.currentRow() < 0:
             self.listWidget.setCurrentRow(0)
 
-    def _loadData(self):
+    def _loadData(self) -> None:
         self.listWidget.clear()
         if GameData.tilesetData:
             for key in GameData.tilesetData.keys():
@@ -308,14 +323,14 @@ class _TilesetTab(QtWidgets.QWidget):
 class _AutoTileTab(QtWidgets.QWidget):
     MODIFIED = QtCore.pyqtSignal()
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
         self._clipboard = None
         self._clipboardName = None
         self._initUI()
         self._loadData()
 
-    def _initUI(self):
+    def _initUI(self) -> None:
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
@@ -348,7 +363,7 @@ class _AutoTileTab(QtWidgets.QWidget):
         self.autoTilePanel.MODIFIED.connect(self.MODIFIED.emit)
         layout.addWidget(self.autoTilePanel, 1)
 
-    def _onSelectionChanged(self, row):
+    def _onSelectionChanged(self, row: int) -> None:
         if row < 0:
             self.autoTilePanel.setAutoTileData(None)
             return
@@ -359,7 +374,7 @@ class _AutoTileTab(QtWidgets.QWidget):
         data = GameData.autoTileData.get(key)
         self.autoTilePanel.setAutoTileData(data)
 
-    def _showContextMenu(self, position):
+    def _showContextMenu(self, position: QtCore.QPoint) -> None:
         item = self.listWidget.itemAt(position)
         menu = QtWidgets.QMenu()
         if item is None:
@@ -397,7 +412,7 @@ class _AutoTileTab(QtWidgets.QWidget):
             self.listWidget.setCurrentItem(item)
             self._delete()
 
-    def _add(self):
+    def _add(self) -> None:
         dlg = SingleRowDialog(self, ELOC("ADD_AUTOTILE"), ELOC("ENTER_AUTOTILE_NAME"), "")
         ok, text = dlg.execGetText()
         if not ok:
@@ -424,7 +439,7 @@ class _AutoTileTab(QtWidgets.QWidget):
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", str(e))
 
-    def _copy(self):
+    def _copy(self) -> None:
         row = self.listWidget.currentRow()
         if row < 0:
             return
@@ -436,7 +451,7 @@ class _AutoTileTab(QtWidgets.QWidget):
             self._clipboard = copy.deepcopy(GameData.autoTileData[key])
             self._clipboardName = key
 
-    def _paste(self):
+    def _paste(self) -> None:
         if not self._clipboard:
             return
         new_at = copy.deepcopy(self._clipboard)
@@ -451,7 +466,8 @@ class _AutoTileTab(QtWidgets.QWidget):
                     break
                 i += 1
 
-        if hasattr(new_at, "name"):
+        autoTileType = _getGameplayType("AutoTile")
+        if isinstance(autoTileType, type) and isinstance(new_at, autoTileType):
             new_at.name = new_name
 
         try:
@@ -465,7 +481,7 @@ class _AutoTileTab(QtWidgets.QWidget):
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", str(e))
 
-    def _rename(self):
+    def _rename(self) -> None:
         row = self.listWidget.currentRow()
         if row < 0:
             return
@@ -505,7 +521,8 @@ class _AutoTileTab(QtWidgets.QWidget):
         try:
             GameData.recordSnapshot()
             data = GameData.autoTileData.pop(old_name)
-            if hasattr(data, "name"):
+            autoTileType = _getGameplayType("AutoTile")
+            if isinstance(autoTileType, type) and isinstance(data, autoTileType):
                 data.name = new_name
             GameData.autoTileData[new_name] = data
             item.setText(new_name)
@@ -514,7 +531,7 @@ class _AutoTileTab(QtWidgets.QWidget):
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", str(e))
 
-    def _delete(self):
+    def _delete(self) -> None:
         row = self.listWidget.currentRow()
         if row < 0:
             return
@@ -545,7 +562,7 @@ class _AutoTileTab(QtWidgets.QWidget):
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", str(e))
 
-    def reloadListPreserveSelection(self):
+    def reloadListPreserveSelection(self) -> None:
         current = None
         item = self.listWidget.currentItem()
         if item:
@@ -561,7 +578,7 @@ class _AutoTileTab(QtWidgets.QWidget):
         if self.listWidget.count() > 0 and self.listWidget.currentRow() < 0:
             self.listWidget.setCurrentRow(0)
 
-    def _loadData(self):
+    def _loadData(self) -> None:
         self.listWidget.clear()
         if GameData.autoTileData:
             for key in GameData.autoTileData.keys():
@@ -573,7 +590,7 @@ class _AutoTileTab(QtWidgets.QWidget):
 class TilesetEditor(QtWidgets.QMainWindow):
     MODIFIED = QtCore.pyqtSignal()
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
         self.setWindowTitle(ELOC("TILESETS_DATA"))
         self.setMinimumSize(560, 480)
@@ -582,12 +599,13 @@ class TilesetEditor(QtWidgets.QMainWindow):
         self.toast = Toast(self)
         self._refreshUndoRedo()
 
-    def resizeEvent(self, event):
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         super().resizeEvent(event)
-        if hasattr(self, "toast"):
-            self.toast._updatePosition()
+        toast = getattr(self, "toast", None)
+        if isinstance(toast, Toast):
+            toast._updatePosition()
 
-    def _initUI(self):
+    def _initUI(self) -> None:
         central_widget = QtWidgets.QWidget()
         self.setCentralWidget(central_widget)
 
@@ -617,11 +635,11 @@ class TilesetEditor(QtWidgets.QMainWindow):
 
         self.MODIFIED.connect(self._refreshUndoRedo)
 
-    def _refreshUndoRedo(self):
+    def _refreshUndoRedo(self) -> None:
         self._actUndo.setEnabled(bool(GameData.undoStack))
         self._actRedo.setEnabled(bool(GameData.redoStack))
 
-    def _onUndo(self):
+    def _onUndo(self) -> None:
         diffs = GameData.undo()
         self._tilesetTab.reloadListPreserveSelection()
         self._autoTileTab.reloadListPreserveSelection()
@@ -631,7 +649,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
         if diffs:
             self.toast.showMessage("Undo:\n" + "\n".join(diffs))
 
-    def _onRedo(self):
+    def _onRedo(self) -> None:
         diffs = GameData.redo()
         self._tilesetTab.reloadListPreserveSelection()
         self._autoTileTab.reloadListPreserveSelection()

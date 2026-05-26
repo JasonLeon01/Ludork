@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import copy
 from PyQt5 import QtWidgets, QtCore, QtGui
 from Utils import File, System
@@ -14,7 +14,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
     _clipboard = None
     MODIFIED = QtCore.pyqtSignal()
 
-    def __init__(self, parent, data: Dict):
+    def __init__(self, parent: Optional[QtWidgets.QWidget], data: Dict[str, Any]) -> None:
         super().__init__(parent)
         self.setWindowTitle(ELOC("COMMON_FUNCTIONS"))
         self.setMinimumSize(1200, 800)
@@ -59,12 +59,13 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
             self._list.setCurrentRow(0)
         self.toast = Toast(self)
 
-    def resizeEvent(self, event):
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         super().resizeEvent(event)
-        if hasattr(self, "toast"):
-            self.toast._updatePosition()
+        toast = getattr(self, "toast", None)
+        if isinstance(toast, Toast):
+            toast._updatePosition()
 
-    def _showContextMenu(self, position):
+    def _showContextMenu(self, position: QtCore.QPoint) -> None:
         menu = QtWidgets.QMenu()
         item = self._list.itemAt(position)
 
@@ -92,7 +93,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
 
         menu.exec_(self._list.mapToGlobal(position))
 
-    def _onCopy(self):
+    def _onCopy(self) -> None:
         item = self._list.currentItem()
         if not item:
             return
@@ -100,7 +101,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
         if name in self._data:
             CommonFunctionWindow._clipboard = (name, copy.deepcopy(self._data[name]))
 
-    def _onRename(self):
+    def _onRename(self) -> None:
         item = self._list.currentItem()
         if not item:
             return
@@ -135,7 +136,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
             self._list.setCurrentItem(items[0])
         self.MODIFIED.emit()
 
-    def _onPaste(self):
+    def _onPaste(self) -> None:
         if CommonFunctionWindow._clipboard is None:
             return
 
@@ -159,7 +160,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
             self._list.setCurrentItem(items[0])
         self.MODIFIED.emit()
 
-    def _onDeleteCommonFunction(self, item=None):
+    def _onDeleteCommonFunction(self, item: Optional[QtWidgets.QListWidgetItem] = None) -> None:
         if item is None:
             item = self._list.currentItem()
         if not item:
@@ -184,7 +185,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
         self._refreshCurrentPanel()
         self.MODIFIED.emit()
 
-    def _onNewCommonFunction(self):
+    def _onNewCommonFunction(self) -> None:
         name, ok = QtWidgets.QInputDialog.getText(self, ELOC("NEW_COMMON_FUNC"), ELOC("ENTER_FUNC_NAME"))
         if not ok or not name:
             return

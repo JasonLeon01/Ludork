@@ -1,16 +1,32 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Any, Dict
-from PyQt5 import QtCore, QtWidgets, QtGui
 import inspect
 import sys
+from types import ModuleType
+from typing import Dict, TypedDict
+from PyQt5 import QtCore, QtWidgets, QtGui
+
+from .NodeFunctionMeta import NodeFunction, isSelectableNodeFunction
+
+
+FunctionSource = ModuleType | type
+
+
+class SearchItem(TypedDict):
+    name: str
+    hierarchy: str
+    path: str
+    is_parent: bool
+    displayName: str
 
 
 class FunctionPickerPopup(QtWidgets.QDialog):
     FUNCTION_SELECTED = QtCore.pyqtSignal(str, bool)
 
-    def __init__(self, parent: QtWidgets.QWidget, sources: Dict[str, object], filterExecOnly: bool = False) -> None:
+    def __init__(
+        self, parent: QtWidgets.QWidget, sources: Dict[str, FunctionSource], filterExecOnly: bool = False
+    ) -> None:
         super().__init__(parent)
         self.setModal(False)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
@@ -33,13 +49,13 @@ class FunctionPickerPopup(QtWidgets.QDialog):
         self._tree.setHeaderHidden(True)
         lay.addWidget(self._tree)
 
-        self._visited = set()
+        self._visited: set[str | int | None] = set()
         self._maxDepth = 4
         self._filterExecOnly = filterExecOnly
         self._build(sources)
 
-        self._searchCache = []
-        self._originalItems = []
+        self._searchCache: list[SearchItem] = []
+        self._originalItems: list[QtWidgets.QTreeWidgetItem] = []
         self._buildSearchCache()
 
         self._tree.itemDoubleClicked.connect(self._onDoubleClicked)
@@ -76,7 +92,7 @@ class FunctionPickerPopup(QtWidgets.QDialog):
             return
         super().keyPressEvent(e)
 
-    def _build(self, sources: Dict[str, object]) -> None:
+    def _build(self, sources: Dict[str, FunctionSource]) -> None:
         self._tree.clear()
         for label, obj in sources.items():
             if obj is None:
@@ -88,7 +104,7 @@ class FunctionPickerPopup(QtWidgets.QDialog):
                 self._tree.addTopLevelItem(root)
         self._tree.collapseAll()
 
-    def _handleChildren(self, n: str, a: Any, p: str, parent_item: QtWidgets.QTreeWidgetItem):
+    def _handleChildren(self, n: str, a: NodeFunction, p: str, parent_item: QtWidgets.QTreeWidgetItem) -> None:
         it = QtWidgets.QTreeWidgetItem([n])
         it.setData(0, QtCore.Qt.UserRole, p)
         it.setData(0, QtCore.Qt.UserRole + 2, True)
@@ -110,13 +126,13 @@ class FunctionPickerPopup(QtWidgets.QDialog):
     def _addChildren(
         self,
         parent_item: QtWidgets.QTreeWidgetItem,
-        obj: object,
+        obj: FunctionSource,
         base: str,
         is_parent: bool,
         depth: int = 0,
         root_name: str | None = None,
     ) -> bool:
-        def _aliasFirstKey(name):
+        def _aliasFirstKey(name: str) -> tuple[int, str]:
             try:
                 a = getattr(obj, name)
                 m = getattr(a, "__name__", None)
@@ -139,12 +155,7 @@ class FunctionPickerPopup(QtWidgets.QDialog):
                     a = getattr(obj, n)
                 except Exception:
                     continue
-                if (
-                    (inspect.isfunction(a) or inspect.ismethod(a))
-                    and hasattr(a, "_refLocal")
-                    and getattr(a, "_refLocal", None) is not None
-                    and (not self._filterExecOnly or (hasattr(a, "_execSplits") and getattr(a, "_execSplits", None)))
-                ):
+                if isSelectableNodeFunction(a, self._filterExecOnly):
                     self._handleChildren(n, a, p, parent_item)
                     found = True
             return found
@@ -192,12 +203,7 @@ class FunctionPickerPopup(QtWidgets.QDialog):
                 if self._addChildren(child_item, a, p, False, depth + 1, root_name):
                     parent_item.addChild(child_item)
                     found = True
-            elif (
-                (inspect.isfunction(a) or inspect.ismethod(a))
-                and hasattr(a, "_refLocal")
-                and getattr(a, "_refLocal", None) is not None
-                and (not self._filterExecOnly or (hasattr(a, "_execSplits") and getattr(a, "_execSplits", None)))
-            ):
+            elif isSelectableNodeFunction(a, self._filterExecOnly):
                 mod = getattr(a, "__module__", "")
                 if (root_name is None) or (isinstance(mod, str) and mod.startswith(root_name)):
                     self._handleChildren(n, a, p, parent_item)
@@ -222,6 +228,7 @@ class FunctionPickerPopup(QtWidgets.QDialog):
     def _collectSearchItems(self, item: QtWidgets.QTreeWidgetItem, parent_hierarchy: str) -> None:
         text = item.text(0)
         path = item.data(0, QtCore.Qt.UserRole)
+        displayName = item.data(0, QtCore.Qt.UserRole + 3)
 
         current_hierarchy = f"{parent_hierarchy}.{text}" if parent_hierarchy else text
 
@@ -232,7 +239,7 @@ class FunctionPickerPopup(QtWidgets.QDialog):
                     "hierarchy": parent_hierarchy,
                     "path": path,
                     "is_parent": bool(item.data(0, QtCore.Qt.UserRole + 2)),
-                    "displayName": item.data(0, QtCore.Qt.UserRole + 3),
+                    "displayName": displayName if isinstance(displayName, str) else text,
                 }
             )
 

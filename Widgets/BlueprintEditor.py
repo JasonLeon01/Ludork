@@ -1,5 +1,7 @@
 # -*- encoding: utf-8 -*-
 
+from __future__ import annotations
+
 import os
 import copy
 import dataclasses
@@ -35,14 +37,34 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.setupUI()
         self.toast = Toast(self)
 
-    def _resolveClass(self) -> Any:
+    def _resolveClass(self) -> Optional[type]:
         if self.title.startswith("__info__/"):
             return None
         key = os.path.join("Data", "Blueprints", self.title).replace("/", ".").replace("\\", ".")
         try:
-            return GameData.classDict.get(key, EditorStatus.PROJ_PATH)
+            cls = GameData.classDict.get(key, EditorStatus.PROJ_PATH)
         except (ImportError, Exception):
             return None
+        return cls if isinstance(cls, type) else None
+
+    def _getBaseClass(self, cls: Optional[type]) -> Optional[type]:
+        if isinstance(cls, type) and cls.__bases__:
+            return cls.__bases__[0]
+        return None
+
+    def _getClassAttrValue(self, cls: Optional[type], name: str) -> tuple[bool, Any]:
+        if not isinstance(cls, type):
+            return False, None
+        try:
+            return True, getattr(cls, name)
+        except AttributeError:
+            return False, None
+        except Exception:
+            return False, None
+
+    def _hasClassAttr(self, cls: Optional[type], name: str) -> bool:
+        found, _value = self._getClassAttrValue(cls, name)
+        return found
 
     def _getInvalidVars(self) -> Set[str]:
         cls = self._resolveClass()
@@ -178,12 +200,15 @@ class BluePrintEditor(QtWidgets.QWidget):
         line.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.formLayout.addRow(line)
 
-    def _getComponentValue(self, cls: Optional[type], componentName: str, componentType: Any, attrs: Dict[str, Any]):
+    def _getComponentValue(
+        self, cls: Optional[type], componentName: str, componentType: Any, attrs: Dict[str, Any]
+    ) -> tuple[Optional[Dict[str, Any]], bool]:
         if componentName in attrs:
             return self._normaliseComponentData(componentType, attrs[componentName]), True
-        if cls is not None and hasattr(cls, componentName):
+        found, value = self._getClassAttrValue(cls, componentName)
+        if found:
             try:
-                return self._normaliseComponentData(componentType, getattr(cls, componentName)), False
+                return self._normaliseComponentData(componentType, value), False
             except:
                 pass
         return None, False
@@ -195,7 +220,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         for componentName, componentType in componentTypes.items():
             if componentName in attrs:
                 continue
-            if cls is not None and hasattr(cls, componentName):
+            if self._hasClassAttr(cls, componentName):
                 continue
             result[componentName] = componentType
         return result
@@ -261,9 +286,10 @@ class BluePrintEditor(QtWidgets.QWidget):
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         super().resizeEvent(event)
-        if hasattr(self, "toast"):
-            self.toast._updatePosition()
-            self.toast.raise_()
+        toast = getattr(self, "toast", None)
+        if isinstance(toast, Toast):
+            toast._updatePosition()
+            toast.raise_()
 
     def setupUI(self) -> None:
         layout = QtWidgets.QHBoxLayout(self)
@@ -351,7 +377,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         if self.nodeGraphList.count() > 0:
             self.nodeGraphList.setCurrentRow(0)
 
-    def _getDisplayOrder(self, attrs: Dict[str, Any], cls: Optional[type]) -> list:
+    def _getDisplayOrder(self, attrs: Dict[str, Any], cls: Optional[type]) -> list[str]:
         if not cls or not isinstance(cls, type):
             return list(attrs.keys())
 
@@ -426,14 +452,14 @@ class BluePrintEditor(QtWidgets.QWidget):
         type_hints = {}
         parent_cls = None
         parent_hints = {}
-        if cls and cls is not EditorStatus.PROJ_PATH:
+        if cls is not None:
             try:
                 type_hints = get_type_hints(cls)
             except:
                 type_hints = getattr(cls, "__annotations__", {})
 
-            if hasattr(cls, "__bases__") and cls.__bases__:
-                parent_cls = cls.__bases__[0]
+            parent_cls = self._getBaseClass(cls)
+            if parent_cls is not None:
                 try:
                     parent_hints = get_type_hints(parent_cls)
                 except:
@@ -450,7 +476,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             attrs = {}
             self.data["attrs"] = attrs
 
-        target_cls = cls if (cls and cls is not EditorStatus.PROJ_PATH) else parent_cls
+        target_cls = cls if cls is not None else parent_cls
         componentsChanged = self._normaliseComponentAttrs(target_cls, attrs)
         if componentsChanged:
             GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
@@ -484,9 +510,9 @@ class BluePrintEditor(QtWidgets.QWidget):
                 widget.VALUE_CHANGED.connect(lambda val, k=key: self.onDataChanged(k, val, True))
                 is_dc = True
             else:
-                parent_val = None
-                if parent_cls and hasattr(parent_cls, key):
-                    parent_val = getattr(parent_cls, key)
+                foundParentValue, parent_val = self._getClassAttrValue(parent_cls, key)
+                if not foundParentValue:
+                    parent_val = None
                 widget = self.createInputWidget(key, value, type_hint=type_hint, parent_val=parent_val)
 
             isInvalid = key in self.invalidVars
@@ -543,7 +569,7 @@ class BluePrintEditor(QtWidgets.QWidget):
 
             has_parent_attr = False
             if parent_cls:
-                if hasattr(parent_cls, key):
+                if self._hasClassAttr(parent_cls, key):
                     has_parent_attr = True
                 elif key in parent_hints:
                     has_parent_attr = True
@@ -781,8 +807,8 @@ class BluePrintEditor(QtWidgets.QWidget):
             return
 
         parent_cls = None
-        if cls and hasattr(cls, "__bases__") and cls.__bases__:
-            parent_cls = cls.__bases__[0]
+        if cls is not None:
+            parent_cls = self._getBaseClass(cls)
         sourceCls = parent_cls if parent_cls is not None else cls
         value, _ = self._getComponentValue(sourceCls, key, componentType, attrs)
         if value is None:
@@ -815,8 +841,8 @@ class BluePrintEditor(QtWidgets.QWidget):
         cls = self._resolveClass()
         componentTypes = self._getComponentTypes(cls)
         parent_cls = None
-        if cls and hasattr(cls, "__bases__") and cls.__bases__:
-            parent_cls = cls.__bases__[0]
+        if cls is not None:
+            parent_cls = self._getBaseClass(cls)
         addable = self._getAddableComponents(parent_cls, componentTypes, attrs)
         if not addable:
             return

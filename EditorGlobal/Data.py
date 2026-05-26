@@ -1,5 +1,7 @@
 # -*- encoding: utf-8 -*-
 
+from __future__ import annotations
+
 import os
 import copy
 import dataclasses
@@ -22,7 +24,7 @@ class GameData:
     undoStack: List[Dict[str, Any]]
     redoStack: List[Dict[str, Any]]
 
-    _originData: Dict[str, Any]
+    _originData: Dict[str, Any] = {}
     _DATA_PATH_SECTIONS = (
         ("Configs", "systemConfigData"),
         ("Tilesets", "tilesetData"),
@@ -111,7 +113,7 @@ class GameData:
                 keys = cls._getDataKeysForPath(absPath, sectionRoot, data)
                 for key in keys:
                     data.pop(key, None)
-                origin = cls._originData.get(attrName) if hasattr(cls, "_originData") else None
+                origin = cls._originData.get(attrName)
                 if isinstance(origin, dict):
                     for key in keys:
                         origin.pop(key, None)
@@ -290,7 +292,7 @@ class GameData:
         return diffs
 
     @classmethod
-    def saveAllModified(cls):
+    def saveAllModified(cls) -> None:
         changes = cls.getChanges()
         final_details = {"A": [], "U": [], "D": [], "Failed": []}
 
@@ -637,9 +639,11 @@ class GameData:
         except Exception:
             return False, None
 
-        if parentCls is not None and hasattr(parentCls, attrName):
+        if isinstance(parentCls, type):
             try:
                 return True, getattr(parentCls, attrName)
+            except AttributeError:
+                return False, None
             except Exception:
                 return False, None
         return False, None
@@ -691,7 +695,7 @@ class GameData:
         }
 
     @classmethod
-    def recordSnapshot(cls):
+    def recordSnapshot(cls) -> None:
         snapshot = copy.deepcopy(cls.asDict())
         cls.undoStack.append(snapshot)
         cls.redoStack.clear()
@@ -723,12 +727,12 @@ class GameData:
         return diffs
 
     @classmethod
-    def _restoreSnapshot(cls, snapshot):
+    def _restoreSnapshot(cls, snapshot: Dict[str, Any]) -> None:
         for key, value in snapshot.items():
             setattr(cls, key, value)
 
     @classmethod
-    def genGraphFromData(cls, data: Dict[str, Any], parentClass=None):
+    def genGraphFromData(cls, data: Dict[str, Any], parentClass: Optional[type] = None) -> Any:
         from NodeGraph import EditorDataNode, EditorNode
 
         Engine = System.GetModule("Engine")

@@ -1,8 +1,13 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Optional, Dict, Any, Tuple
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional, Dict, Any, Tuple
 from PyQt5 import QtWidgets, QtCore, QtGui
 from EditorGlobal import GameData
+
+if TYPE_CHECKING:
+    from Widgets.EditorPanel import EditorPanel
 
 
 class ActorInfoPanel(QtWidgets.QWidget):
@@ -10,7 +15,7 @@ class ActorInfoPanel(QtWidgets.QWidget):
         super().__init__(parent)
         self._layerName: Optional[str] = None
         self._index: Optional[int] = None
-        self._editorPanel = None
+        self._editorPanel: Optional[EditorPanel] = None
         self._blockSignals = False
 
         self.setStyleSheet("")
@@ -126,7 +131,11 @@ class ActorInfoPanel(QtWidgets.QWidget):
                         lw.setVisible(False)
 
     def setActor(
-        self, layerName: Optional[str], index: Optional[int], data: Optional[Dict[str, Any]], editorPanel
+        self,
+        layerName: Optional[str],
+        index: Optional[int],
+        data: Optional[Dict[str, Any]],
+        editorPanel: Optional[EditorPanel],
     ) -> None:
         self._editorPanel = editorPanel
         self._layerName = layerName
@@ -177,7 +186,7 @@ class ActorInfoPanel(QtWidgets.QWidget):
 
         self._blockSignals = False
 
-    def _setFormVisible(self, visible: bool):
+    def _setFormVisible(self, visible: bool) -> None:
         for i in range(self.formLayout.count()):
             item = self.formLayout.itemAt(i)
             if item is None:
@@ -196,9 +205,10 @@ class ActorInfoPanel(QtWidgets.QWidget):
                         lw.setVisible(visible)
 
     def _getActorData(self) -> Optional[Dict[str, Any]]:
-        if not self._editorPanel or not self._layerName or self._index is None:
+        editorPanel = self._getEditorPanel()
+        if editorPanel is None or not self._layerName or self._index is None:
             return None
-        m = GameData.mapData.get(self._editorPanel.mapKey)
+        m = GameData.mapData.get(editorPanel.mapKey)
         if not isinstance(m, dict):
             return None
         actors = m.get("actors", {}).get(self._layerName)
@@ -235,21 +245,23 @@ class ActorInfoPanel(QtWidgets.QWidget):
         else:
             data[key] = value
 
-        if self._editorPanel:
-            self._editorPanel._refreshTitle()
-            self._editorPanel.DATA_CHANGED.emit()
-            self._editorPanel._renderFromMapData()
-            self._editorPanel.update()
+        editorPanel = self._getEditorPanel()
+        if editorPanel is not None:
+            editorPanel._refreshTitle()
+            editorPanel.DATA_CHANGED.emit()
+            editorPanel._renderFromMapData()
+            editorPanel.update()
 
-    def _onTagChanged(self, text: str):
+    def _onTagChanged(self, text: str) -> None:
         if self._blockSignals:
             return
         data = self._getActorData()
         if data is None:
             return
         tag = text
-        if self._editorPanel and hasattr(self._editorPanel, "makeUniqueActorTag"):
-            tag = self._editorPanel.makeUniqueActorTag(text, self._layerName, self._index)
+        editorPanel = self._getEditorPanel()
+        if editorPanel is not None:
+            tag = editorPanel.makeUniqueActorTag(text, self._layerName, self._index)
             if tag != text:
                 self._blockSignals = True
                 try:
@@ -258,10 +270,10 @@ class ActorInfoPanel(QtWidgets.QWidget):
                     self._blockSignals = False
         GameData.recordSnapshot()
         data["tag"] = tag
-        if self._editorPanel:
-            self._editorPanel.DATA_CHANGED.emit()
+        if editorPanel is not None:
+            editorPanel.DATA_CHANGED.emit()
 
-    def _onTranslationChanged(self):
+    def _onTranslationChanged(self) -> None:
         if self._blockSignals:
             return
         data = self._getActorData()
@@ -275,7 +287,7 @@ class ActorInfoPanel(QtWidgets.QWidget):
         val = [self.translationXSpin.value(), self.translationYSpin.value()]
         self._updateData("translation", val, list(defTrans))
 
-    def _onRotationChanged(self, val: float):
+    def _onRotationChanged(self, val: float) -> None:
         if self._blockSignals:
             return
         data = self._getActorData()
@@ -287,7 +299,7 @@ class ActorInfoPanel(QtWidgets.QWidget):
 
         self._updateData("rotation", val, float(defRot))
 
-    def _onScaleChanged(self):
+    def _onScaleChanged(self) -> None:
         if self._blockSignals:
             return
         data = self._getActorData()
@@ -301,7 +313,7 @@ class ActorInfoPanel(QtWidgets.QWidget):
         val = [self.scaleXSpin.value(), self.scaleYSpin.value()]
         self._updateData("scale", val, list(defScale))
 
-    def _onOriginChanged(self):
+    def _onOriginChanged(self) -> None:
         if self._blockSignals:
             return
         data = self._getActorData()
@@ -316,16 +328,19 @@ class ActorInfoPanel(QtWidgets.QWidget):
         self._updateData("origin", val, list(defOrigin))
 
     # Helpers copied/adapted from EditorPanel
-    def _getClassAttr(self, cls: Any, name: str, default: Any) -> Any:
-        if hasattr(cls, name):
-            return getattr(cls, name)
-        return default
+    def _getEditorPanel(self) -> Optional[EditorPanel]:
+        from Widgets.EditorPanel import EditorPanel
+
+        editorPanel = self._editorPanel
+        if isinstance(editorPanel, EditorPanel):
+            return editorPanel
+        return None
 
     def _getBlueprintAttr(self, bpRel: Any, name: str, default: Any) -> Any:
-        if self._editorPanel and hasattr(self._editorPanel, "getBlueprintAttr"):
-            return self._editorPanel.getBlueprintAttr(bpRel, name, default)
-        clsObj = self._editorPanel._resolveActorClass(bpRel) if self._editorPanel else None
-        return self._getClassAttr(clsObj, name, default)
+        editorPanel = self._getEditorPanel()
+        if editorPanel is not None:
+            return editorPanel.getBlueprintAttr(bpRel, name, default)
+        return default
 
     def _toVec2f(self, data: Any, defaultX: float = 0.0, defaultY: float = 0.0) -> Tuple[float, float]:
         if isinstance(data, (list, tuple)) and len(data) >= 2:

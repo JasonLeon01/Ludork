@@ -1,5 +1,7 @@
 # -*- encoding: utf-8 -*-
 
+from __future__ import annotations
+
 import os
 import configparser
 import subprocess
@@ -19,6 +21,7 @@ from Widgets import (
     ActorInfoPanel,
     GeneralDataEditor,
     ActorQueuePanel,
+    AspectRatioContainer,
 )
 from Widgets.Utils import Toast
 from . import EditorStatus, GameData
@@ -119,7 +122,7 @@ class MainWindow(
     DEFAULT_RIGHT_PANEL_MIN_WIDTH = 320
     DEFAULT_LOWER_AREA_MIN_HEIGHT = 160
 
-    def __init__(self, title: str):
+    def __init__(self, title: str) -> None:
         super().__init__()
         self.toast = Toast(self)
         self._engineProc: Optional[subprocess.Popen] = None
@@ -285,28 +288,42 @@ class MainWindow(
                     panelW, panelH = w, h
         self.gameSize = QSize(panelW, panelH)
         self.panelAspectRatio = (float(panelW) / float(panelH)) if panelH > 0 else (4.0 / 3.0)
-        if hasattr(self, "editorViewport"):
-            self.editorViewport.setAspectRatio(self.panelAspectRatio)
-            self.editorViewport.setMinimumSize(self.gameSize)
-        if hasattr(self, "gameViewport"):
-            self.gameViewport.setAspectRatio(self.panelAspectRatio)
-            self.gameViewport.setMinimumSize(self.gameSize)
-        if hasattr(self, "editorScroll"):
-            self.editorScroll.setMinimumSize(self.gameSize)
-        if hasattr(self, "gamePanel"):
-            self.gamePanel.setMinimumSize(self.gameSize)
-        if hasattr(self, "centerArea"):
-            self.centerArea.setMinimumWidth(self.gameSize.width())
-        if hasattr(self, "upperSplitter") and hasattr(self, "topBar") and hasattr(self, "lowerArea"):
+        editorViewport = getattr(self, "editorViewport", None)
+        if isinstance(editorViewport, AspectRatioContainer):
+            editorViewport.setAspectRatio(self.panelAspectRatio)
+            editorViewport.setMinimumSize(self.gameSize)
+        gameViewport = getattr(self, "gameViewport", None)
+        if isinstance(gameViewport, AspectRatioContainer):
+            gameViewport.setAspectRatio(self.panelAspectRatio)
+            gameViewport.setMinimumSize(self.gameSize)
+        editorScroll = getattr(self, "editorScroll", None)
+        if isinstance(editorScroll, QtWidgets.QScrollArea):
+            editorScroll.setMinimumSize(self.gameSize)
+        gamePanel = getattr(self, "gamePanel", None)
+        if isinstance(gamePanel, GamePanel):
+            gamePanel.setMinimumSize(self.gameSize)
+        centerArea = getattr(self, "centerArea", None)
+        if isinstance(centerArea, QtWidgets.QWidget):
+            centerArea.setMinimumWidth(self.gameSize.width())
+        upperSplitter = getattr(self, "upperSplitter", None)
+        topBar = getattr(self, "topBar", None)
+        lowerArea = getattr(self, "lowerArea", None)
+        if (
+            isinstance(upperSplitter, QtWidgets.QSplitter)
+            and isinstance(topBar, QtWidgets.QWidget)
+            and isinstance(lowerArea, QtWidgets.QWidget)
+        ):
             minLeft = self.DEFAULT_LEFT_PANEL_MIN_WIDTH
             minRight = self.DEFAULT_RIGHT_PANEL_MIN_WIDTH
-            if hasattr(self, "leftArea"):
-                minLeft = max(minLeft, int(self.leftArea.minimumWidth()))
-            if hasattr(self, "rightArea"):
-                minRight = max(minRight, int(self.rightArea.minimumWidth()))
-            lowerMinH = max(self.DEFAULT_LOWER_AREA_MIN_HEIGHT, int(self.lowerArea.minimumHeight()))
-            topHMin = int(self.topBar.minimumHeight()) + int(self.gameSize.height())
-            handleW = int(self.upperSplitter.handleWidth())
+            leftArea = getattr(self, "leftArea", None)
+            if isinstance(leftArea, QtWidgets.QWidget):
+                minLeft = max(minLeft, int(leftArea.minimumWidth()))
+            rightArea = getattr(self, "rightArea", None)
+            if isinstance(rightArea, QtWidgets.QWidget):
+                minRight = max(minRight, int(rightArea.minimumWidth()))
+            lowerMinH = max(self.DEFAULT_LOWER_AREA_MIN_HEIGHT, int(lowerArea.minimumHeight()))
+            topHMin = int(topBar.minimumHeight()) + int(self.gameSize.height())
+            handleW = int(upperSplitter.handleWidth())
             minW = minLeft + int(self.gameSize.width()) + minRight + handleW * 2 + 16
             minH = topHMin + lowerMinH + 8
             self.setMinimumSize(minW, minH)
@@ -368,11 +385,12 @@ class MainWindow(
     def getPanelHandle(self) -> int:
         return int(self.gamePanel.winId())
 
-    def setProjPath(self, projPath: str):
+    def setProjPath(self, projPath: str) -> None:
         self._mapFilesRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
         self.refreshGameSize()
-        if hasattr(self, "editorViewport"):
-            self.stacked.setCurrentWidget(self.editorViewport)
+        editorViewport = getattr(self, "editorViewport", None)
+        if isinstance(editorViewport, AspectRatioContainer):
+            self.stacked.setCurrentWidget(editorViewport)
         else:
             self.stacked.setCurrentWidget(self.editorScroll)
         self.editorPanel.refreshMap()

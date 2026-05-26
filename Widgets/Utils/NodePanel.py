@@ -3,10 +3,11 @@
 from __future__ import annotations
 import inspect
 import copy
-from typing import TYPE_CHECKING, Any, Callable, Dict, List
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 from PyQt5 import QtWidgets, QtCore, QtGui
 from NodeGraphQt import NodeGraph, BaseNode
 from NodeGraphQt.widgets.viewer import NodeViewer
+from NodeGraphQt.widgets.scene import NodeScene
 from NodeGraphQt.widgets.node_widgets import NodeBaseWidget
 from NodeGraphQt.qgraphics.port import PortItem
 from NodeGraphQt.qgraphics.node_base import NodeItem
@@ -14,9 +15,11 @@ from EditorGlobal import GameData
 from Utils import System
 from .FunctionPickerPopup import FunctionPickerPopup
 from .MetaRely import getRelyConditionDisplay, isRelyEditable, normaliseRelyMap, toBool
+from .NodeFunctionMeta import getExecSplits, getLatents, getReturnTypes, hasExecOutputs
 
 if TYPE_CHECKING:
-    import Sample.Engine.NodeGraph.Graph as Graph
+    from Engine.NodeGraph.Graph import Graph
+    from Engine.NodeGraph.Node import Node as GraphNode
 
 
 class CustomViewer(NodeViewer):
@@ -43,6 +46,7 @@ MIN_VIEW_SCALE = 0.05
 MAX_VIEW_SCALE = 5.0
 TRACKPAD_ZOOM_WHEEL_BLOCK_MS = 200
 PAN_EMULATION_MODIFIER = QtCore.Qt.MetaModifier
+WidgetValue = str | bool | int | float | None
 
 
 def _patchDetachedNodePaintGuard() -> None:
@@ -51,12 +55,17 @@ def _patchDetachedNodePaintGuard() -> None:
 
     originalPaint = NodeItem.paint
 
-    def safePaint(self, painter, option, widget):
+    def safePaint(
+        self: NodeItem,
+        painter: QtGui.QPainter,
+        option: QtWidgets.QStyleOptionGraphicsItem,
+        widget: Optional[QtWidgets.QWidget],
+    ) -> None:
         scene = self.scene()
-        if scene is None:
+        if not isinstance(scene, NodeScene):
             return
-        viewer = scene.viewer() if hasattr(scene, "viewer") else None
-        if viewer is None:
+        viewer = scene.viewer()
+        if not isinstance(viewer, NodeViewer):
             return
         return originalPaint(self, painter, option, widget)
 
@@ -107,7 +116,7 @@ def MakeSafeNodePropertyName(name: str, usedNames: set) -> str:
     return safe
 
 
-def getWidgetValue(widget: QtWidgets.QWidget) -> Any:
+def getWidgetValue(widget: QtWidgets.QWidget) -> WidgetValue:
     if isinstance(widget, QtWidgets.QLineEdit):
         return widget.text()
     if isinstance(widget, (QtWidgets.QPlainTextEdit, QtWidgets.QTextEdit)):
@@ -132,18 +141,18 @@ def setEditorWidgetEditable(widget: QtWidgets.QWidget, editable: bool) -> None:
 class NodePlainTextEdit(QtWidgets.QPlainTextEdit):
     EDITING_FINISHED = QtCore.pyqtSignal()
 
-    def __init__(self, parent: QtWidgets.QWidget = None):
+    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super(NodePlainTextEdit, self).__init__(parent)
         self.setLineWrapMode(QtWidgets.QPlainTextEdit.WidgetWidth)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
         self.setFixedHeight(60)
 
-    def focusOutEvent(self, event: QtGui.QFocusEvent):
+    def focusOutEvent(self, event: QtGui.QFocusEvent) -> None:
         super(NodePlainTextEdit, self).focusOutEvent(event)
         self.EDITING_FINISHED.emit()
 
-    def keyPressEvent(self, event: QtGui.QKeyEvent):
+    def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
         if event.key() in (QtCore.Qt.Key_Return, QtCore.Qt.Key_Enter) and (
             event.modifiers() & QtCore.Qt.ControlModifier
         ):
@@ -154,7 +163,9 @@ class NodePlainTextEdit(QtWidgets.QPlainTextEdit):
 
 
 class NodeMultiLineTextWidget(NodeBaseWidget):
-    def __init__(self, parent=None, name: str = "", label: str = "", text: str = ""):
+    def __init__(
+        self, parent: Optional[QtWidgets.QWidget] = None, name: str = "", label: str = "", text: str = ""
+    ) -> None:
         super(NodeMultiLineTextWidget, self).__init__(parent)
         self.set_name(name)
         self.set_label(label)
@@ -163,38 +174,45 @@ class NodeMultiLineTextWidget(NodeBaseWidget):
         self.set_custom_widget(editor)
         editor.textChanged.connect(self.on_value_changed)
 
-    def get_value(self):
+    def get_value(self) -> str:
         editor = self.get_custom_widget()
+        if not isinstance(editor, NodePlainTextEdit):
+            return ""
         return editor.toPlainText()
 
-    def set_value(self, value):
+    def set_value(self, value: WidgetValue) -> None:
         editor = self.get_custom_widget()
+        if not isinstance(editor, NodePlainTextEdit):
+            return
         wasBlocked = editor.blockSignals(True)
         editor.setPlainText("" if value is None else str(value))
         editor.blockSignals(wasBlocked)
 
 
-def MakeInit(currNode):
-    def subClassInit(self):
+def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
+    def subClassInit(self: BaseNode) -> None:
         super(self.__class__, self).__init__()
         self._port_types = {}
         self._widgetNameByPort = {}
         usedNames = set()
-        if hasattr(currNode.nodeFunction, "_latents") and len(currNode.nodeFunction._latents) > 0:
+        latents = getLatents(currNode.nodeFunction)
+        execSplits = getExecSplits(currNode.nodeFunction)
+        returnTypes = getReturnTypes(currNode.nodeFunction)
+        if latents:
             self.add_input("in")
             self._port_types["in"] = "Exec"
-            for key in currNode.nodeFunction._latents:
+            for key in latents:
                 self.add_output(f"out_{key}")
                 self._port_types[f"out_{key}"] = "Exec"
-        elif hasattr(currNode.nodeFunction, "_execSplits") and len(currNode.nodeFunction._execSplits) > 0:
+        elif execSplits:
             self.add_input("in")
             self._port_types["in"] = "Exec"
-            for key in currNode.nodeFunction._execSplits:
+            for key in execSplits:
                 self.add_output(f"out_{key}")
                 self._port_types[f"out_{key}"] = "Exec"
 
-        if hasattr(currNode.nodeFunction, "_returnTypes") and len(currNode.nodeFunction._returnTypes) > 0:
-            for name, r_type in currNode.nodeFunction._returnTypes.items():
+        if returnTypes:
+            for name, r_type in returnTypes.items():
                 self.add_output(name)
                 self._port_types[name] = "Params"
 
@@ -234,7 +252,7 @@ def MakeInit(currNode):
                 w = self.get_widget(widgetName)
                 if w:
                     le = w.get_custom_widget()
-                    if le and hasattr(le, "setCurrentText"):
+                    if isinstance(le, QtWidgets.QComboBox):
                         le.setCurrentText(str(init_val))
                     System.SetStyle(le, "nodeInput.qss")
             elif param_type is bool or param_type == "bool":
@@ -336,6 +354,7 @@ class NodePanel(QtWidgets.QWidget):
         self.classDict: Dict[str, type] = {}
         self.nodes: List[BaseNode] = []
         self._pending_conn = None
+        self._createNodeScenePos: Optional[QtCore.QPointF] = None
         self.paramChangeTimerByWidget: Dict[int, QtCore.QTimer] = {}
         self._setupLayout()
         self._registerNodes()
@@ -344,7 +363,7 @@ class NodePanel(QtWidgets.QWidget):
         self._createLinks()
         self._isLoading = False
 
-    def setName(self, name: str):
+    def setName(self, name: str) -> None:
         oldName = self.key
         if oldName == name:
             return
@@ -378,8 +397,11 @@ class NodePanel(QtWidgets.QWidget):
                 self.classDict[nodeFunctionName].NODE_NAME = nodeFunctionName
                 self.graph.register_node(self.classDict[nodeFunctionName])
 
-    def handleMeta(self, obj: object, defaultName: str, metaRefer: Dict[str, Any]):
-        meta: Dict[str, Any] = obj.META
+    def handleMeta(self, obj: BaseNode, defaultName: str, metaRefer: Dict[str, str]) -> None:
+        rawMeta = getattr(obj, "META", {})
+        if not isinstance(rawMeta, dict):
+            rawMeta = {}
+        meta: Dict[str, Any] = rawMeta
         obj.set_name(defaultName)
         for metaKey, metaValue in meta.items():
             try:
@@ -402,13 +424,13 @@ class NodePanel(QtWidgets.QWidget):
         for i, node in enumerate(self.nodeGraph.nodes[self.key]):
             nodeInst = self.graph.create_node(f"{node.functionName}.Class", pos=node.position, push_undo=False)
 
-            metaRefer: Dict[str, Any] = {}
+            metaRefer: Dict[str, str] = {}
             metaRefer["originalName"] = node.functionName
             parts = metaRefer["originalName"].split(".")
             if len(parts) > 1:
                 displayName = parts[-1]
             else:
-                displayName = f"(parent){metaRefer["originalName"]}"
+                displayName = f"(parent){metaRefer['originalName']}"
 
             nodeInst.view.setToolTip(metaRefer["originalName"])
             self.handleMeta(nodeInst, displayName, metaRefer)
@@ -443,8 +465,8 @@ class NodePanel(QtWidgets.QWidget):
                         wasBlocked = le.blockSignals(True)
                         le.setPlainText(str(val))
                         le.blockSignals(wasBlocked)
-                        if hasattr(le, "editingFinished"):
-                            le.editingFinished.connect(
+                        if isinstance(le, NodePlainTextEdit):
+                            le.EDITING_FINISHED.connect(
                                 lambda n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
                             )
                         le.textChanged.connect(
@@ -480,26 +502,22 @@ class NodePanel(QtWidgets.QWidget):
                 paramIndex += 1
             self._applyNodeRely(i)
 
-    def _setNodeWidgetEditable(self, nodeWidget, editable: bool) -> None:
+    def _setNodeWidgetEditable(self, nodeWidget: NodeBaseWidget, editable: bool) -> None:
         try:
             nodeWidget.setEnabled(editable)
         except AttributeError:
             pass
-        customWidget = nodeWidget.get_custom_widget() if hasattr(nodeWidget, "get_custom_widget") else None
+        customWidget = nodeWidget.get_custom_widget()
         if isinstance(customWidget, QtWidgets.QWidget):
             setEditorWidgetEditable(customWidget, editable)
 
-    def _getNodeParamValues(self, nodeInst: BaseNode, node) -> Dict[str, Any]:
+    def _getNodeParamValues(self, nodeInst: BaseNode, node: GraphNode) -> Dict[str, Any]:
         values: Dict[str, Any] = {}
         paramList = node.getParamList()
         for paramIndex, name in enumerate(paramList.keys()):
             widgetName = self.resolveWidgetName(nodeInst, name)
             nodeWidget = nodeInst.get_widget(widgetName)
-            customWidget = (
-                nodeWidget.get_custom_widget()
-                if nodeWidget and hasattr(nodeWidget, "get_custom_widget")
-                else None
-            )
+            customWidget = nodeWidget.get_custom_widget() if isinstance(nodeWidget, NodeBaseWidget) else None
             if isinstance(customWidget, QtWidgets.QWidget):
                 values[name] = getWidgetValue(customWidget)
             elif paramIndex < len(node.params):
@@ -524,7 +542,8 @@ class NodePanel(QtWidgets.QWidget):
             if not nodeWidget:
                 continue
             relyEditable = isRelyEditable(name, relyMap, values)
-            self._setNodeWidgetEditable(nodeWidget, relyEditable)
+            if isinstance(nodeWidget, NodeBaseWidget):
+                self._setNodeWidgetEditable(nodeWidget, relyEditable)
             tip = ""
             if not relyEditable:
                 condition = getRelyConditionDisplay(name, relyMap)
@@ -535,11 +554,11 @@ class NodePanel(QtWidgets.QWidget):
                 nodeWidget.setToolTip(tip)
             except AttributeError:
                 pass
-            customWidget = nodeWidget.get_custom_widget() if hasattr(nodeWidget, "get_custom_widget") else None
+            customWidget = nodeWidget.get_custom_widget() if isinstance(nodeWidget, NodeBaseWidget) else None
             if isinstance(customWidget, QtWidgets.QWidget):
                 customWidget.setToolTip(tip)
 
-    def scheduleParamChanged(self, nodeIndex: int, paramIndex: int, widget: QtWidgets.QWidget):
+    def scheduleParamChanged(self, nodeIndex: int, paramIndex: int, widget: QtWidgets.QWidget) -> None:
         key = id(widget)
         timer = self.paramChangeTimerByWidget.get(key)
         if not timer:
@@ -549,7 +568,7 @@ class NodePanel(QtWidgets.QWidget):
             self.paramChangeTimerByWidget[key] = timer
         timer.start(300)
 
-    def _getStartIndex(self):
+    def _getStartIndex(self) -> Optional[int]:
         start = self.nodeGraph.startNodes.get(self.key)
         if isinstance(start, int):
             if 0 <= start < len(self.nodeGraph.nodes.get(self.key, [])):
@@ -574,16 +593,18 @@ class NodePanel(QtWidgets.QWidget):
 
             linkType = link["linkType"]
             if linkType == "Exec":
-                if hasattr(leftNodeData.nodeFunction, "_latents"):
-                    keys = list(leftNodeData.nodeFunction._latents.keys())
+                latents = getLatents(leftNodeData.nodeFunction)
+                execSplits = getExecSplits(leftNodeData.nodeFunction)
+                if latents:
+                    keys = list(latents.keys())
                     if leftOutPin < len(keys):
                         out_name = f"out_{keys[leftOutPin]}"
                         left_port = leftNodeInst.get_output(out_name)
                         right_port = rightNodeInst.get_input("in")
                         if left_port and right_port:
                             left_port.connect_to(right_port)
-                elif hasattr(leftNodeData.nodeFunction, "_execSplits"):
-                    splits = list(leftNodeData.nodeFunction._execSplits.keys())
+                elif execSplits:
+                    splits = list(execSplits.keys())
                     if leftOutPin < len(splits):
                         out_name = f"out_{splits[leftOutPin]}"
                         left_port = leftNodeInst.get_output(out_name)
@@ -591,8 +612,9 @@ class NodePanel(QtWidgets.QWidget):
                         if left_port and right_port:
                             left_port.connect_to(right_port)
             elif linkType == "Params":
-                if hasattr(leftNodeData.nodeFunction, "_returnTypes"):
-                    return_names = list(leftNodeData.nodeFunction._returnTypes.keys())
+                returnTypes = getReturnTypes(leftNodeData.nodeFunction)
+                if returnTypes:
+                    return_names = list(returnTypes.keys())
                     if leftOutPin < len(return_names):
                         out_name = return_names[leftOutPin]
                         left_port = leftNodeInst.get_output(out_name)
@@ -646,15 +668,17 @@ class NodePanel(QtWidgets.QWidget):
             rightInPin = -1
 
             if linkType == "Exec":
-                if hasattr(leftNodeData.nodeFunction, "_latents"):
-                    keys = list(leftNodeData.nodeFunction._latents.keys())
+                latents = getLatents(leftNodeData.nodeFunction)
+                execSplits = getExecSplits(leftNodeData.nodeFunction)
+                if latents:
+                    keys = list(latents.keys())
                     out_name = portOut.name()
                     if out_name.startswith("out_"):
                         key = out_name[4:]
                         if key in keys:
                             leftOutPin = keys.index(key)
-                elif hasattr(leftNodeData.nodeFunction, "_execSplits"):
-                    keys = list(leftNodeData.nodeFunction._execSplits.keys())
+                elif execSplits:
+                    keys = list(execSplits.keys())
                     out_name = portOut.name()
                     if out_name.startswith("out_"):
                         key = out_name[4:]
@@ -662,8 +686,9 @@ class NodePanel(QtWidgets.QWidget):
                             leftOutPin = keys.index(key)
                 rightInPin = 0
             elif linkType == "Params":
-                if hasattr(leftNodeData.nodeFunction, "_returnTypes"):
-                    keys = list(leftNodeData.nodeFunction._returnTypes.keys())
+                returnTypes = getReturnTypes(leftNodeData.nodeFunction)
+                if returnTypes:
+                    keys = list(returnTypes.keys())
                     if portOut.name() in keys:
                         leftOutPin = keys.index(portOut.name())
 
@@ -709,18 +734,20 @@ class NodePanel(QtWidgets.QWidget):
         r_type = None
         out_name = start_port_view.name
         if type_out == "Exec":
-            if hasattr(leftNodeData.nodeFunction, "_execSplits"):
-                keys = list(leftNodeData.nodeFunction._execSplits.keys())
+            execSplits = getExecSplits(leftNodeData.nodeFunction)
+            if execSplits:
+                keys = list(execSplits.keys())
                 if out_name.startswith("out_"):
                     key = out_name[4:]
                     if key in keys:
                         leftOutPin = keys.index(key)
         elif type_out == "Params":
-            if hasattr(leftNodeData.nodeFunction, "_returnTypes"):
-                keys = list(leftNodeData.nodeFunction._returnTypes.keys())
+            returnTypes = getReturnTypes(leftNodeData.nodeFunction)
+            if returnTypes:
+                keys = list(returnTypes.keys())
                 if out_name in keys:
                     leftOutPin = keys.index(out_name)
-                    r_type = leftNodeData.nodeFunction._returnTypes.get(out_name)
+                    r_type = returnTypes.get(out_name)
         if leftOutPin == -1:
             self.graph.viewer().end_live_connection()
             return
@@ -832,15 +859,17 @@ class NodePanel(QtWidgets.QWidget):
             rightInPin = -1
 
             if linkType == "Exec":
-                if hasattr(leftNodeData.nodeFunction, "_latents"):
-                    keys = list(leftNodeData.nodeFunction._latents.keys())
+                latents = getLatents(leftNodeData.nodeFunction)
+                execSplits = getExecSplits(leftNodeData.nodeFunction)
+                if latents:
+                    keys = list(latents.keys())
                     out_name = portOut.name()
                     if out_name.startswith("out_"):
                         key = out_name[4:]
                         if key in keys:
                             leftOutPin = keys.index(key)
-                elif hasattr(leftNodeData.nodeFunction, "_execSplits"):
-                    keys = list(leftNodeData.nodeFunction._execSplits.keys())
+                elif execSplits:
+                    keys = list(execSplits.keys())
                     out_name = portOut.name()
                     if out_name.startswith("out_"):
                         key = out_name[4:]
@@ -848,8 +877,9 @@ class NodePanel(QtWidgets.QWidget):
                             leftOutPin = keys.index(key)
                 rightInPin = 0
             elif linkType == "Params":
-                if hasattr(leftNodeData.nodeFunction, "_returnTypes"):
-                    keys = list(leftNodeData.nodeFunction._returnTypes.keys())
+                returnTypes = getReturnTypes(leftNodeData.nodeFunction)
+                if returnTypes:
+                    keys = list(returnTypes.keys())
                     if portOut.name() in keys:
                         leftOutPin = keys.index(portOut.name())
 
@@ -891,7 +921,9 @@ class NodePanel(QtWidgets.QWidget):
 
             if self.key in self.nodeGraph.dataNodes and 0 <= idx < len(self.nodeGraph.dataNodes[self.key]):
                 dataNode = self.nodeGraph.dataNodes[self.key][idx]
-                if hasattr(dataNode, "pos"):
+                from NodeGraph import EditorDataNode
+
+                if isinstance(dataNode, EditorDataNode):
                     dataNode.pos = [node.pos().x(), node.pos().y()]
         GameData.recordSnapshot()
         self._refreshCallable(self.name, self.nodeGraph.asDict())
@@ -926,15 +958,9 @@ class NodePanel(QtWidgets.QWidget):
     def _sendMouseEventAsMiddleButton(
         self, target: QtWidgets.QWidget, originalEvent: QtGui.QMouseEvent, eventType: QtCore.QEvent.Type
     ) -> None:
-        localPos = originalEvent.localPos() if hasattr(originalEvent, "localPos") else QtCore.QPointF(originalEvent.pos())
-        windowPos = (
-            originalEvent.windowPos() if hasattr(originalEvent, "windowPos") else QtCore.QPointF(originalEvent.pos())
-        )
-        screenPos = (
-            originalEvent.screenPos()
-            if hasattr(originalEvent, "screenPos")
-            else QtCore.QPointF(originalEvent.globalPos())
-        )
+        localPos = originalEvent.localPos()
+        windowPos = originalEvent.windowPos()
+        screenPos = originalEvent.screenPos()
 
         if eventType == QtCore.QEvent.MouseMove:
             button = QtCore.Qt.NoButton
@@ -950,26 +976,26 @@ class NodePanel(QtWidgets.QWidget):
         emulatedEvent = QtGui.QMouseEvent(eventType, localPos, windowPos, screenPos, button, buttons, modifiers)
         QtCore.QCoreApplication.sendEvent(target, emulatedEvent)
 
-    def eventFilter(self, watched, event):
+    def eventFilter(self, watched: QtCore.QObject, event: QtCore.QEvent) -> bool:
         viewer = self.graph.viewer()
         viewport = viewer.viewport()
 
-        if watched == viewer and event.type() == QtCore.QEvent.KeyPress:
+        if watched == viewer and isinstance(event, QtGui.QKeyEvent) and event.type() == QtCore.QEvent.KeyPress:
             if event.key() == QtCore.Qt.Key_Space:
                 self._isSpacePressed = True
-        if watched == viewer and event.type() == QtCore.QEvent.KeyRelease:
+        if watched == viewer and isinstance(event, QtGui.QKeyEvent) and event.type() == QtCore.QEvent.KeyRelease:
             if event.key() == QtCore.Qt.Key_Space:
                 self._isSpacePressed = False
         if watched == viewer and event.type() == QtCore.QEvent.FocusOut:
             self._isSpacePressed = False
             self._isPanEmulationActive = False
 
-        if watched == viewport and event.type() == QtCore.QEvent.MouseButtonPress:
+        if watched == viewport and isinstance(event, QtGui.QMouseEvent) and event.type() == QtCore.QEvent.MouseButtonPress:
             if event.button() == QtCore.Qt.RightButton:
                 item = viewer.itemAt(event.pos())
                 node_found = None
                 while item:
-                    if hasattr(item, "id"):
+                    if isinstance(item, NodeItem):
                         node = self.graph.get_node_by_id(item.id)
                         if node:
                             if not node.selected():
@@ -991,45 +1017,53 @@ class NodePanel(QtWidgets.QWidget):
                 self._sendMouseEventAsMiddleButton(viewport, event, QtCore.QEvent.MouseButtonPress)
                 return True
 
-        if watched == viewport and event.type() == QtCore.QEvent.MouseMove and self._isPanEmulationActive:
+        if (
+            watched == viewport
+            and isinstance(event, QtGui.QMouseEvent)
+            and event.type() == QtCore.QEvent.MouseMove
+            and self._isPanEmulationActive
+        ):
             if event.buttons() & QtCore.Qt.LeftButton:
                 self._sendMouseEventAsMiddleButton(viewport, event, QtCore.QEvent.MouseMove)
                 return True
 
-        if watched == viewport and event.type() == QtCore.QEvent.MouseButtonRelease and self._isPanEmulationActive:
+        if (
+            watched == viewport
+            and isinstance(event, QtGui.QMouseEvent)
+            and event.type() == QtCore.QEvent.MouseButtonRelease
+            and self._isPanEmulationActive
+        ):
             if event.button() == QtCore.Qt.LeftButton:
                 self._isPanEmulationActive = False
                 self._sendMouseEventAsMiddleButton(viewport, event, QtCore.QEvent.MouseButtonRelease)
                 return True
 
-        if watched == viewport and event.type() == QtCore.QEvent.Wheel:
-            if hasattr(event, "source"):
-                source = event.source()
-                mouseNotSynthesized = getattr(QtCore.Qt, "MouseEventNotSynthesized", None)
-                if mouseNotSynthesized is None:
-                    mouseEventSourceEnum = getattr(QtCore.Qt, "MouseEventSource", None)
-                    if mouseEventSourceEnum is not None:
-                        mouseNotSynthesized = getattr(mouseEventSourceEnum, "MouseEventNotSynthesized", None)
-                if mouseNotSynthesized is not None:
-                    try:
-                        isRealMouseWheel = int(source) == int(mouseNotSynthesized)
-                    except Exception:
-                        isRealMouseWheel = source == mouseNotSynthesized
-                    if isRealMouseWheel:
-                        return super(NodePanel, self).eventFilter(watched, event)
-
-            if hasattr(event, "modifiers"):
-                modifiers = event.modifiers()
-                if modifiers & (QtCore.Qt.ControlModifier | QtCore.Qt.AltModifier | QtCore.Qt.MetaModifier):
+        if watched == viewport and isinstance(event, QtGui.QWheelEvent) and event.type() == QtCore.QEvent.Wheel:
+            source = event.source()
+            mouseNotSynthesized = getattr(QtCore.Qt, "MouseEventNotSynthesized", None)
+            if mouseNotSynthesized is None:
+                mouseEventSourceEnum = getattr(QtCore.Qt, "MouseEventSource", None)
+                if mouseEventSourceEnum is not None:
+                    mouseNotSynthesized = getattr(mouseEventSourceEnum, "MouseEventNotSynthesized", None)
+            if mouseNotSynthesized is not None:
+                try:
+                    isRealMouseWheel = int(source) == int(mouseNotSynthesized)
+                except Exception:
+                    isRealMouseWheel = source == mouseNotSynthesized
+                if isRealMouseWheel:
                     return super(NodePanel, self).eventFilter(watched, event)
+
+            modifiers = event.modifiers()
+            if modifiers & (QtCore.Qt.ControlModifier | QtCore.Qt.AltModifier | QtCore.Qt.MetaModifier):
+                return super(NodePanel, self).eventFilter(watched, event)
 
             if self._trackpadZoomWheelBlockUntilMs:
                 nowMs = int(QtCore.QDateTime.currentMSecsSinceEpoch())
                 if nowMs < self._trackpadZoomWheelBlockUntilMs:
                     event.accept()
                     return True
-            if hasattr(event, "pixelDelta") and event.pixelDelta() and not event.pixelDelta().isNull():
-                pixelDelta = event.pixelDelta()
+            pixelDelta = event.pixelDelta()
+            if pixelDelta and not pixelDelta.isNull():
                 h = viewer.horizontalScrollBar()
                 v = viewer.verticalScrollBar()
                 dx = int(pixelDelta.x())
@@ -1194,7 +1228,7 @@ class NodePanel(QtWidgets.QWidget):
             else:
                 params.append("")
 
-        if hasattr(self, "_createNodeScenePos") and self._createNodeScenePos is not None:
+        if self._createNodeScenePos is not None:
             scene_pos = self._createNodeScenePos
             self._createNodeScenePos = None
         else:
@@ -1228,10 +1262,7 @@ class NodePanel(QtWidgets.QWidget):
         if selectedNode in self.nodes:
             idx = self.nodes.index(selectedNode)
             dataNode = self.nodeGraph.nodes[self.key][idx]
-            if not (
-                (hasattr(dataNode.nodeFunction, "_execSplits") and len(dataNode.nodeFunction._execSplits) > 0)
-                or (hasattr(dataNode.nodeFunction, "_latents") and len(dataNode.nodeFunction._latents) > 0)
-            ):
+            if not hasExecOutputs(dataNode.nodeFunction):
                 QtWidgets.QMessageBox.information(self, "Hint", ELOC("UNABLE_TO_SET_START_NODE"))
                 return
 

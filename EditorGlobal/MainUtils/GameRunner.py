@@ -1,5 +1,7 @@
 # -*- encoding: utf-8 -*-
 
+from __future__ import annotations
+
 import os
 import sys
 import json
@@ -7,14 +9,15 @@ from typing import TextIO, cast
 import subprocess
 import configparser
 import psutil
-from PyQt5 import QtCore
+from PyQt5 import QtCore, QtWidgets
 from Utils import Panel, System
+from Widgets.AspectRatioContainer import AspectRatioContainer
 from Widgets.Utils import FPSGraphDialog
 from .. import EditorStatus
 
 
 class GameRunnerMixin:
-    def startGame(self):
+    def startGame(self) -> None:
         self.endGame()
         fpsFile = os.path.join(EditorStatus.PROJ_PATH, "Temp", "FPSHistory.json")
         if os.path.exists(fpsFile):
@@ -69,7 +72,7 @@ class GameRunnerMixin:
         self.raise_()
         self.gamePanel.setFocus(QtCore.Qt.OtherFocusReason)
 
-    def endGame(self, showFPS: bool = True):
+    def endGame(self, showFPS: bool = True) -> None:
         if self._engineMonitorTimer is not None:
             self._engineMonitorTimer.stop()
         proc = self._engineProc
@@ -172,35 +175,51 @@ class GameRunnerMixin:
             except Exception as e:
                 print(f"Failed to load FPS history: {e}")
 
-    def _getExec(self, scriptPath):
+    def _getExec(self, scriptPath: str) -> list[str]:
         if System.AlreadyPacked():
             return [sys.argv[0], scriptPath]
         return [sys.executable, "-u", scriptPath]
 
     def _lockGameViewportSize(self) -> None:
-        if not hasattr(self, "gameViewport") or not hasattr(self, "upperSplitter"):
+        gameViewport = getattr(self, "gameViewport", None)
+        upperSplitter = getattr(self, "upperSplitter", None)
+        centerArea = getattr(self, "centerArea", None)
+        topBar = getattr(self, "topBar", None)
+        if not (
+            isinstance(gameViewport, AspectRatioContainer)
+            and isinstance(upperSplitter, QtWidgets.QSplitter)
+            and isinstance(centerArea, QtWidgets.QWidget)
+            and isinstance(topBar, QtWidgets.QWidget)
+        ):
             return
-        vw = max(1, int(self.gameViewport.width()))
-        vh = max(1, int(self.gameViewport.height()))
+        vw = max(1, int(gameViewport.width()))
+        vh = max(1, int(gameViewport.height()))
         self._lockedViewportSize = QtCore.QSize(vw, vh)
-        self.gameViewport.setMinimumSize(vw, vh)
-        self.gameViewport.setMaximumSize(vw, vh)
-        self.centerArea.setMinimumWidth(vw)
-        self.centerArea.setMaximumWidth(vw)
-        topH = int(self.topBar.minimumHeight()) + vh
-        self.upperSplitter.setMinimumHeight(topH)
-        self.upperSplitter.setMaximumHeight(topH)
+        gameViewport.setMinimumSize(vw, vh)
+        gameViewport.setMaximumSize(vw, vh)
+        centerArea.setMinimumWidth(vw)
+        centerArea.setMaximumWidth(vw)
+        topH = int(topBar.minimumHeight()) + vh
+        upperSplitter.setMinimumHeight(topH)
+        upperSplitter.setMaximumHeight(topH)
         self._gameLockActive = True
 
     def _unlockGameViewportSize(self) -> None:
-        if not hasattr(self, "gameViewport") or not hasattr(self, "upperSplitter"):
+        gameViewport = getattr(self, "gameViewport", None)
+        upperSplitter = getattr(self, "upperSplitter", None)
+        centerArea = getattr(self, "centerArea", None)
+        if not (
+            isinstance(gameViewport, AspectRatioContainer)
+            and isinstance(upperSplitter, QtWidgets.QSplitter)
+            and isinstance(centerArea, QtWidgets.QWidget)
+        ):
             return
-        self.gameViewport.setMinimumSize(self.gameSize)
-        self.gameViewport.setMaximumSize(16777215, 16777215)
-        self.centerArea.setMinimumWidth(self.gameSize.width())
-        self.centerArea.setMaximumWidth(16777215)
-        self.upperSplitter.setMinimumHeight(0)
-        self.upperSplitter.setMaximumHeight(16777215)
+        gameViewport.setMinimumSize(self.gameSize)
+        gameViewport.setMaximumSize(16777215, 16777215)
+        centerArea.setMinimumWidth(self.gameSize.width())
+        centerArea.setMaximumWidth(16777215)
+        upperSplitter.setMinimumHeight(0)
+        upperSplitter.setMaximumHeight(16777215)
         self._lockedViewportSize = None
         self._gameLockActive = False
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import re
 import html
@@ -7,13 +9,13 @@ from Utils import File
 
 
 class MarkdownPreviewer(QWidget):
-    def __init__(self, parent=None, filePath: str = ""):
+    def __init__(self, parent: QtWidgets.QWidget | None = None, filePath: str = "") -> None:
         super().__init__(parent=parent)
         self.resize(1080, 600)
 
         self.setWindowFlags(QtCore.Qt.Window)
         self._dir = os.path.abspath(filePath) if filePath else ""
-        self._headings = []
+        self._headings: list[tuple[int, str]] = []
         self._list = QtWidgets.QListWidget(self)
         self._list.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self._toc = QtWidgets.QTreeWidget(self)
@@ -62,10 +64,10 @@ class MarkdownPreviewer(QWidget):
         self._list.currentRowChanged.connect(self._onCurrentRowChanged)
         self._populate()
 
-    def set_text(self, mdContent):
+    def set_text(self, mdContent: str) -> None:
         self._render(mdContent)
 
-    def _populate(self):
+    def _populate(self) -> None:
         files = []
         if self._dir and os.path.isdir(self._dir):
             for n in os.listdir(self._dir):
@@ -84,7 +86,7 @@ class MarkdownPreviewer(QWidget):
         else:
             self._preview.setPlainText("No markdown files")
 
-    def _onSelectionChanged(self):
+    def _onSelectionChanged(self) -> None:
         items = self._list.selectedItems()
         if not items:
             return
@@ -92,7 +94,7 @@ class MarkdownPreviewer(QWidget):
         name = item.data(QtCore.Qt.UserRole) or item.text()
         self._loadFile(name)
 
-    def _onCurrentRowChanged(self, row: int):
+    def _onCurrentRowChanged(self, row: int) -> None:
         if row < 0:
             return
         it = self._list.item(row)
@@ -101,7 +103,7 @@ class MarkdownPreviewer(QWidget):
         name = it.data(QtCore.Qt.UserRole) or it.text()
         self._loadFile(name)
 
-    def _loadFile(self, name: str):
+    def _loadFile(self, name: str) -> None:
         p = os.path.join(self._dir, name)
         try:
             with open(p, "r", encoding="utf-8") as f:
@@ -111,28 +113,23 @@ class MarkdownPreviewer(QWidget):
             return
         self._render(text)
 
-    def _render(self, text: str):
+    def _render(self, text: str) -> None:
         self._headings = self._extractHeadings(text)
         self._buildToc()
         self._useCustomHtml = False
         doc = self._preview.document()
         if not doc:
             return
-        if hasattr(doc, "setBaseUrl"):
+        if isinstance(doc, QtGui.QTextDocument):
             doc.setBaseUrl(QtCore.QUrl.fromLocalFile(self._dir))
-        setMdWidget = getattr(self._preview, "setMarkdown", None)
-        if callable(setMdWidget):
-            setMdWidget(text)
-            return
-        setMdDoc = getattr(doc, "setMarkdown", None)
-        if callable(setMdDoc):
-            setMdDoc(text)
+        if isinstance(self._preview, QtWidgets.QTextEdit):
+            self._preview.setMarkdown(text)
             return
         self._useCustomHtml = True
         self._preview.setHtml(self._md2html(text))
 
-    def _extractHeadings(self, text: str):
-        headings = []
+    def _extractHeadings(self, text: str) -> list[tuple[int, str]]:
+        headings: list[tuple[int, str]] = []
         in_code = False
         for ln in text.splitlines():
             stripped = ln.strip()
@@ -152,7 +149,7 @@ class MarkdownPreviewer(QWidget):
                 headings.append((level, title))
         return headings
 
-    def _buildToc(self):
+    def _buildToc(self) -> None:
         self._toc.clear()
         if not self._headings:
             self._toc.setVisible(False)
@@ -173,7 +170,7 @@ class MarkdownPreviewer(QWidget):
             stack.append((level, item))
         self._toc.expandAll()
 
-    def _onTocClicked(self, item, column):
+    def _onTocClicked(self, item: QtWidgets.QTreeWidgetItem, column: int) -> None:
         idx = item.data(0, QtCore.Qt.UserRole)
         if idx is None or idx < 0 or idx >= len(self._headings):
             return
@@ -200,14 +197,14 @@ class MarkdownPreviewer(QWidget):
             block = block.next()
         self._scrollToHeadingByIndex(idx)
 
-    def _countPriorMatches(self, title, idx):
+    def _countPriorMatches(self, title: str, idx: int) -> int:
         count = 0
         for i in range(idx):
             if self._headings[i][1] == title:
                 count += 1
         return count
 
-    def _scrollToHeadingByIndex(self, idx):
+    def _scrollToHeadingByIndex(self, idx: int) -> None:
         doc = self._preview.document()
         if not doc:
             return
@@ -233,7 +230,7 @@ class MarkdownPreviewer(QWidget):
         in_list = False
         heading_idx = 0
 
-        def flush_list():
+        def flush_list() -> None:
             nonlocal in_list
             if in_list:
                 out.append("</ul>")
