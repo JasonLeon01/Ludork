@@ -156,6 +156,7 @@ class PackSelectionDialog(QtWidgets.QDialog):
         layout.addWidget(self.lblDesc)
 
         self.platformRadios = {}
+        self._desktopIncludePyAV = False
 
         if sys.platform == "win32":
             rb = QtWidgets.QRadioButton(ELOC("PACK_PLATFORM_WIN32"))
@@ -172,6 +173,15 @@ class PackSelectionDialog(QtWidgets.QDialog):
             layout.addWidget(rbIOS)
             self.platformRadios[PackPlatform.IOS] = rbIOS
 
+        self.includePyAVCheck = QtWidgets.QCheckBox(ELOC("PACK_INCLUDE_PYAV"))
+        self.includePyAVCheck.setAttribute(QtCore.Qt.WA_AlwaysShowToolTips, True)
+        self.includePyAVCheck.toggled.connect(self._onIncludePyAVToggled)
+        layout.addWidget(self.includePyAVCheck)
+
+        for rb in self.platformRadios.values():
+            rb.toggled.connect(lambda _checked: self._refreshPyAVState())
+        self._refreshPyAVState()
+
         self.btnBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
         self.btnBox.accepted.connect(self.accept)
         self.btnBox.rejected.connect(self.reject)
@@ -186,6 +196,28 @@ class PackSelectionDialog(QtWidgets.QDialog):
         elif sys.platform == "darwin":
             return PackPlatform.MACOS_ARM
         return PackPlatform.WIN32
+
+    def getIncludePyAV(self) -> bool:
+        return self.getSelectedPlatform() != PackPlatform.IOS and self.includePyAVCheck.isChecked()
+
+    def _onIncludePyAVToggled(self, checked: bool) -> None:
+        if self.getSelectedPlatform() != PackPlatform.IOS:
+            self._desktopIncludePyAV = checked
+
+    def _refreshPyAVState(self) -> None:
+        isIOS = self.getSelectedPlatform() == PackPlatform.IOS
+        self.includePyAVCheck.blockSignals(True)
+        if isIOS:
+            if self.includePyAVCheck.isEnabled():
+                self._desktopIncludePyAV = self.includePyAVCheck.isChecked()
+            self.includePyAVCheck.setChecked(False)
+            self.includePyAVCheck.setEnabled(False)
+            self.includePyAVCheck.setToolTip(ELOC("PACK_PYAV_IOS_TIP"))
+        else:
+            self.includePyAVCheck.setEnabled(True)
+            self.includePyAVCheck.setChecked(self._desktopIncludePyAV)
+            self.includePyAVCheck.setToolTip(ELOC("PACK_PYAV_DESKTOP_TIP"))
+        self.includePyAVCheck.blockSignals(False)
 
 
 class LogDialog(QtWidgets.QDialog):
@@ -231,12 +263,20 @@ class PackWorker(QtCore.QThread):
     FINISHED_SIGNAL = QtCore.pyqtSignal(bool, str)
     IOS_OUTPUT_READY = QtCore.pyqtSignal(str)
 
-    def __init__(self, projPath: str, distPath: str, platform: PackPlatform, pythonExe: str = ""):
+    def __init__(
+        self,
+        projPath: str,
+        distPath: str,
+        platform: PackPlatform,
+        pythonExe: str = "",
+        includePyAV: bool = False,
+    ):
         super().__init__()
         self.projPath = projPath
         self.distPath = distPath
         self.platform = platform
         self.pythonExe = pythonExe
+        self.includePyAV = includePyAV
 
     def run(self):
         old_stdout = sys.stdout
@@ -280,6 +320,13 @@ class PackWorker(QtCore.QThread):
                 if not self._installNuitka(pythonExe):
                     self.FINISHED_SIGNAL.emit(False, ELOC("PACK_NUITKA_INSTALL_FAILED"))
                     return
+
+            if self.includePyAV:
+                if not self._checkPyAV(pythonExe):
+                    self.LOG_SIGNAL.emit(ELOC("PACK_PYAV_NOT_FOUND_INSTALLING") + "\n")
+                    if not self._installPyAV(pythonExe):
+                        self.FINISHED_SIGNAL.emit(False, ELOC("PACK_PYAV_INSTALL_FAILED"))
+                        return
 
             self._packNuitka(pythonExe)
 
@@ -337,6 +384,41 @@ class PackWorker(QtCore.QThread):
             self.LOG_SIGNAL.emit(str(e) + "\n")
             return False
 
+    def _checkPyAV(self, exe: str) -> bool:
+        try:
+            subprocess.check_call(
+                [
+                    exe,
+                    "-c",
+                    "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('av') else 1)",
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return True
+        except Exception:
+            return False
+
+    def _installPyAV(self, exe: str) -> bool:
+        try:
+            cmd = [exe, "-m", "pip", "install", "-U", "av"]
+            proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace"
+            )
+            stdout: Optional[TextIO] = cast(TextIO, proc.stdout)
+            if stdout is None:
+                return False
+            while True:
+                line = stdout.readline()
+                if not line and proc.poll() is not None:
+                    break
+                if line:
+                    self.LOG_SIGNAL.emit(line)
+            return proc.poll() == 0
+        except Exception as e:
+            self.LOG_SIGNAL.emit(str(e) + "\n")
+            return False
+
     def _packNuitka(self, pythonExe: str):
         entryPath = os.path.join(self.projPath, "Entry.py")
         if not os.path.exists(entryPath):
@@ -362,6 +444,8 @@ class PackWorker(QtCore.QThread):
             "--include-package=Global",
             "--include-package=Source",
         ]
+        if self.includePyAV:
+            cmd.append("--include-module=av")
 
         iconPath = None
         if self.platform == PackPlatform.WIN32:

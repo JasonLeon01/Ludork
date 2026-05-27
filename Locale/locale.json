@@ -115,6 +115,26 @@
         "zh_CN": "选择目标平台进行编译。编译将使用Nuitka生成独立可执行文件。",
         "en_GB": "Select target platform for compilation. Compilation uses Nuitka to generate a standalone executable."
     },
+    "PACK_INCLUDE_PYAV": {
+        "zh_CN": "包含 PyAV（视频播放）",
+        "en_GB": "Include PyAV (video playback)"
+    },
+    "PACK_PYAV_DESKTOP_TIP": {
+        "zh_CN": "勾选后会确保用户的 Python 3.12.0 已安装 PyAV，并在 Nuitka 打包时包含 av 模块。",
+        "en_GB": "When enabled, the user's Python 3.12.0 will have PyAV installed and the av module will be included in the Nuitka build."
+    },
+    "PACK_PYAV_IOS_TIP": {
+        "zh_CN": "移动端无法安装 PyAV，iOS 打包不支持包含。",
+        "en_GB": "Mobile targets cannot install PyAV, so iOS packaging cannot include it."
+    },
+    "PACK_PYAV_NOT_FOUND_INSTALLING": {
+        "zh_CN": "未检测到 PyAV，正在安装...",
+        "en_GB": "PyAV not found. Installing..."
+    },
+    "PACK_PYAV_INSTALL_FAILED": {
+        "zh_CN": "PyAV 安装失败",
+        "en_GB": "Failed to install PyAV"
+    },
     "PACK_TITLE": {
         "zh_CN": "打包",
         "en_GB": "Packaging"

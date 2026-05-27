@@ -7,6 +7,38 @@ from PyQt5 import QtCore, QtWidgets
 from EditorGlobal import EditorStatus
 
 
+class _WidePopupComboBox(QtWidgets.QComboBox):
+    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+        super().__init__(parent)
+        view = QtWidgets.QListView(self)
+        view.setTextElideMode(QtCore.Qt.ElideNone)
+        view.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setView(view)
+        self.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
+
+    def showPopup(self) -> None:
+        self._syncPopupWidth()
+        super().showPopup()
+        self._syncPopupWidth()
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._syncPopupWidth()
+
+    def _syncPopupWidth(self) -> None:
+        view = self.view()
+        if view is None:
+            return
+        frameWidth = view.frameWidth() * 2
+        contentWidth = max(0, view.sizeHintForColumn(0))
+        scrollWidth = view.verticalScrollBar().sizeHint().width() if self.count() > self.maxVisibleItems() else 0
+        popupWidth = max(self.width(), contentWidth + frameWidth + scrollWidth + 24)
+        view.setMinimumWidth(popupWidth)
+        popupWindow = view.window()
+        if popupWindow is not None and popupWindow.windowFlags() & QtCore.Qt.Popup:
+            popupWindow.setMinimumWidth(popupWidth)
+
+
 class GameConfigDialog(QtWidgets.QDialog):
     def __init__(
         self, parent: Optional[QtWidgets.QWidget] = None, initialData: Optional[dict[str, Any]] = None
@@ -109,13 +141,14 @@ class GameConfigDialog(QtWidgets.QDialog):
         form = QtWidgets.QFormLayout(self)
         form.setContentsMargins(12, 12, 12, 12)
         form.setSpacing(8)
+        form.setFieldGrowthPolicy(QtWidgets.QFormLayout.AllNonFixedFieldsGrow)
 
         self.scriptEdit = QtWidgets.QLineEdit(self)
         self.scriptEdit.setReadOnly(True)
         self.scriptEdit.setText(str(self._data["script"]))
         form.addRow(ELOC("script"), self.scriptEdit)
 
-        self.languageCombo = QtWidgets.QComboBox(self)
+        self.languageCombo = _WidePopupComboBox(self)
         langs = self._getLanguageOptions()
         currentLang = str(self._data["language"])
         if currentLang and currentLang not in langs:
@@ -128,7 +161,7 @@ class GameConfigDialog(QtWidgets.QDialog):
                 self.languageCombo.setCurrentIndex(idx)
         form.addRow(ELOC("language"), self.languageCombo)
 
-        self.scaleCombo = QtWidgets.QComboBox(self)
+        self.scaleCombo = _WidePopupComboBox(self)
         scaleItems = [1.0, 1.25, 1.5, 1.75, 2.0]
         currentScale = round(float(self._data["scale"]), 2)
         if currentScale not in scaleItems:
@@ -140,7 +173,7 @@ class GameConfigDialog(QtWidgets.QDialog):
             self.scaleCombo.setCurrentIndex(scaleIdx)
         form.addRow(ELOC("scale"), self.scaleCombo)
 
-        self.framerateCombo = QtWidgets.QComboBox(self)
+        self.framerateCombo = _WidePopupComboBox(self)
         frItems = [30, 60, 90, 120]
         currentFr = int(self._data["framerate"])
         if currentFr not in frItems:

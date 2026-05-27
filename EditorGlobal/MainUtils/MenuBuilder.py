@@ -167,6 +167,7 @@ class MenuBuilderMixin:
             return
 
         platform = selDlg.getSelectedPlatform()
+        includePyAV = selDlg.getIncludePyAV()
         distPath = os.path.join(projPath, "dist")
 
         python_exe = ""
@@ -201,7 +202,7 @@ class MenuBuilderMixin:
 
         self._packDialog = LogDialog(self)
         self._packDialog.setWindowModality(QtCore.Qt.ApplicationModal)
-        self._packWorker = PackWorker(projPath, distPath, platform, python_exe)
+        self._packWorker = PackWorker(projPath, distPath, platform, python_exe, includePyAV)
 
         self._packWorker.LOG_SIGNAL.connect(self._packDialog.appendLog)
         self._packWorker.FINISHED_SIGNAL.connect(self._packDialog.finish)
