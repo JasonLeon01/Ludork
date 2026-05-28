@@ -42,8 +42,11 @@ class CustomViewer(NodeViewer):
             return
         return super(CustomViewer, self).applyLiveConnection(event)
 
+
 MIN_VIEW_SCALE = 0.05
 MAX_VIEW_SCALE = 5.0
+DEFAULT_PARAM_NODE_IDENTIFIER = "!DefaultParam"
+DEFAULT_PARAM_NODE_TYPE = "!DefaultParam.DefaultParamNode"  # type_ = __identifier__ + '.' + __name__
 TRACKPAD_ZOOM_WHEEL_BLOCK_MS = 200
 PAN_EMULATION_MODIFIER = QtCore.Qt.MetaModifier
 WidgetValue = str | bool | int | float | None
@@ -353,6 +356,7 @@ class NodePanel(QtWidgets.QWidget):
         self._refreshCallable = refreshCallable
         self.classDict: Dict[str, type] = {}
         self.nodes: List[BaseNode] = []
+        self.defaultNodes: List[BaseNode] = []
         self._pending_conn = None
         self._createNodeScenePos: Optional[QtCore.QPointF] = None
         self.paramChangeTimerByWidget: Dict[int, QtCore.QTimer] = {}
@@ -389,6 +393,20 @@ class NodePanel(QtWidgets.QWidget):
         main_layout.addWidget(self.graphWidget)
 
     def _registerNodes(self):
+        # Register default parameter node type (once per panel)
+        if DEFAULT_PARAM_NODE_IDENTIFIER not in self.classDict:
+
+            def _defaultParamInit(self: BaseNode) -> None:
+                super(self.__class__, self).__init__()
+                self.add_output("value")
+                self._port_types = {"value": "Params"}
+
+            cls = type("DefaultParamNode", (BaseNode,), {"__init__": _defaultParamInit})
+            cls.__identifier__ = DEFAULT_PARAM_NODE_IDENTIFIER
+            cls.NODE_NAME = "EventParam"
+            self.classDict[DEFAULT_PARAM_NODE_IDENTIFIER] = cls
+            self.graph.register_node(cls)
+
         for node in self.nodeGraph.nodes[self.key]:
             nodeFunctionName = node.functionName
             if not nodeFunctionName in self.classDict:
@@ -419,7 +437,52 @@ class NodePanel(QtWidgets.QWidget):
             return widgetNameByPort.get(portName, portName)
         return portName
 
+    def _createDefaultParamNodes(self) -> None:
+        """Create visual nodes for event parameters (non-deletable, not stored in nodes[]).
+
+        These nodes show the parameter name/type and have a single Params output port
+        that other nodes can connect to. They are referenced as ``"default_0"`` etc. in links.
+        """
+        self.defaultNodes = []
+        eventParams = self.nodeGraph.eventParams.get(self.key, [])
+        if not eventParams:
+            return
+
+        parentClass = self.nodeGraph.parentClass
+        method = getattr(parentClass, self.key, None) if parentClass else None
+        paramTypes: Dict[str, Any] = {}
+        if method and callable(method):
+            try:
+                sig = inspect.signature(method)
+                for pname, pobj in sig.parameters.items():
+                    if pname == "self":
+                        continue
+                    ann = pobj.annotation
+                    if ann == inspect.Parameter.empty:
+                        ann = "Any"
+                    paramTypes[pname] = ann
+            except (ValueError, TypeError):
+                pass
+
+        for i, paramName in enumerate(eventParams):
+            paramType = paramTypes.get(paramName, "Any")
+            typeName = paramType.__name__ if hasattr(paramType, "__name__") else str(paramType)
+            displayName = f"{paramName} ({typeName})"
+
+            pos = [0.0, i * 64.0]
+
+            nodeInst = self.graph.create_node(
+                DEFAULT_PARAM_NODE_TYPE,
+                name=displayName,
+                pos=pos,
+                push_undo=False,
+            )
+            nodeInst.set_color(60, 100, 50)
+            nodeInst.view.setToolTip(f"Event parameter: {paramName} ({typeName})")
+            self.defaultNodes.append(nodeInst)
+
     def _createNodes(self):
+        self._createDefaultParamNodes()
         start_idx = self._getStartIndex()
         for i, node in enumerate(self.nodeGraph.nodes[self.key]):
             nodeInst = self.graph.create_node(f"{node.functionName}.Class", pos=node.position, push_undo=False)
@@ -579,6 +642,21 @@ class NodePanel(QtWidgets.QWidget):
             return data_list.index(start)
         return None
 
+    def _resolveLinkNodeRef(self, ref: Union[int, str]) -> Tuple[BaseNode, Optional[Any]]:
+        """Resolve a link endpoint reference to a visual node and its data node.
+
+        Returns ``(nodeInst, nodeData)``. For default parameter nodes (string refs),
+        ``nodeData`` is ``None``.
+        """
+        if isinstance(ref, str) and ref.startswith("default_"):
+            idx = int(ref.split("_")[1])
+            if 0 <= idx < len(self.defaultNodes):
+                return self.defaultNodes[idx], None
+            raise IndexError(f"Default param node index {idx} out of range")
+        if 0 <= ref < len(self.nodes):
+            return self.nodes[ref], self.nodeGraph.nodes[self.key][ref]
+        raise IndexError(f"Node index {ref} out of range")
+
     def _createLinks(self):
         for link in self.nodeGraph.links[self.key]:
             left = link["left"]
@@ -586,13 +664,13 @@ class NodePanel(QtWidgets.QWidget):
             leftOutPin = link["leftOutPin"]
             rightInPin = link["rightInPin"]
 
-            leftNodeInst = self.nodes[left]
-            rightNodeInst = self.nodes[right]
-            leftNodeData = self.nodeGraph.nodes[self.key][left]
-            rightNodeData = self.nodeGraph.nodes[self.key][right]
+            leftNodeInst, leftNodeData = self._resolveLinkNodeRef(left)
+            rightNodeInst, rightNodeData = self._resolveLinkNodeRef(right)
 
             linkType = link["linkType"]
             if linkType == "Exec":
+                if leftNodeData is None:
+                    continue  # Default nodes have no exec outputs
                 latents = getLatents(leftNodeData.nodeFunction)
                 execSplits = getExecSplits(leftNodeData.nodeFunction)
                 if latents:
@@ -612,22 +690,32 @@ class NodePanel(QtWidgets.QWidget):
                         if left_port and right_port:
                             left_port.connect_to(right_port)
             elif linkType == "Params":
-                returnTypes = getReturnTypes(leftNodeData.nodeFunction)
-                if returnTypes:
-                    return_names = list(returnTypes.keys())
-                    if leftOutPin < len(return_names):
-                        out_name = return_names[leftOutPin]
-                        left_port = leftNodeInst.get_output(out_name)
-                        param_names = [k for k in rightNodeData.getParamList().keys()]
-                        if rightInPin < len(param_names):
-                            in_name = param_names[rightInPin]
-                            right_port = rightNodeInst.get_input(in_name)
-
-                            if left_port and right_port:
-                                left_port.connect_to(right_port)
-                                widgetName = self.resolveWidgetName(rightNodeInst, in_name)
-                                if rightNodeInst.get_widget(widgetName):
-                                    rightNodeInst.hide_widget(widgetName, push_undo=False)
+                if leftNodeData is None:
+                    # Default parameter node — single "value" output
+                    out_name = "value"
+                else:
+                    returnTypes = getReturnTypes(leftNodeData.nodeFunction)
+                    if returnTypes:
+                        return_names = list(returnTypes.keys())
+                        if leftOutPin < len(return_names):
+                            out_name = return_names[leftOutPin]
+                        else:
+                            continue
+                    else:
+                        continue
+                left_port = leftNodeInst.get_output(out_name)
+                if left_port is None:
+                    continue
+                if rightNodeData is not None:
+                    param_names = [k for k in rightNodeData.getParamList().keys()]
+                    if rightInPin < len(param_names):
+                        in_name = param_names[rightInPin]
+                        right_port = rightNodeInst.get_input(in_name)
+                        if left_port and right_port:
+                            left_port.connect_to(right_port)
+                            widgetName = self.resolveWidgetName(rightNodeInst, in_name)
+                            if rightNodeInst.get_widget(widgetName):
+                                rightNodeInst.hide_widget(widgetName, push_undo=False)
             else:
                 raise ValueError(f"Unknown link type: {linkType}")
 
@@ -646,6 +734,16 @@ class NodePanel(QtWidgets.QWidget):
         QtWidgets.QShortcut(QtGui.QKeySequence.Undo, self, self._onUndo, context=QtCore.Qt.WidgetWithChildrenShortcut)
         QtWidgets.QShortcut(QtGui.QKeySequence.Redo, self, self._onRedo, context=QtCore.Qt.WidgetWithChildrenShortcut)
 
+    def _getNodeRef(self, nodeInst: BaseNode) -> Union[int, str]:
+        """Get the link reference for a visual node instance.
+
+        Returns an ``int`` index for regular nodes, or ``"default_N"`` for default param nodes.
+        """
+        if nodeInst in self.defaultNodes:
+            idx = self.defaultNodes.index(nodeInst)
+            return f"default_{idx}"
+        return self.nodes.index(nodeInst)
+
     def onPortConnected(self, portIn, portOut):
         node_in = portIn.node()
         node_out = portOut.node()
@@ -658,16 +756,18 @@ class NodePanel(QtWidgets.QWidget):
             return
 
         if not self._isLoading:
-            left = self.nodes.index(node_out)
-            right = self.nodes.index(node_in)
-            leftNodeData = self.nodeGraph.nodes[self.key][left]
-            rightNodeData = self.nodeGraph.nodes[self.key][right]
+            left = self._getNodeRef(node_out)
+            right = self._getNodeRef(node_in)
+            leftNodeData = None if isinstance(left, str) else self.nodeGraph.nodes[self.key][left]
+            rightNodeData = None if isinstance(right, str) else self.nodeGraph.nodes[self.key][right]
 
             linkType = type_out
             leftOutPin = -1
             rightInPin = -1
 
             if linkType == "Exec":
+                if leftNodeData is None:
+                    return  # Default nodes have no exec outputs
                 latents = getLatents(leftNodeData.nodeFunction)
                 execSplits = getExecSplits(leftNodeData.nodeFunction)
                 if latents:
@@ -686,15 +786,20 @@ class NodePanel(QtWidgets.QWidget):
                             leftOutPin = keys.index(key)
                 rightInPin = 0
             elif linkType == "Params":
-                returnTypes = getReturnTypes(leftNodeData.nodeFunction)
-                if returnTypes:
-                    keys = list(returnTypes.keys())
-                    if portOut.name() in keys:
-                        leftOutPin = keys.index(portOut.name())
+                if leftNodeData is None:
+                    # Default parameter node — output is always "value", pin 0
+                    leftOutPin = 0
+                else:
+                    returnTypes = getReturnTypes(leftNodeData.nodeFunction)
+                    if returnTypes:
+                        keys = list(returnTypes.keys())
+                        if portOut.name() in keys:
+                            leftOutPin = keys.index(portOut.name())
 
-                param_keys = [k for k in rightNodeData.getParamList().keys()]
-                if portIn.name() in param_keys:
-                    rightInPin = param_keys.index(portIn.name())
+                if rightNodeData is not None:
+                    param_keys = [k for k in rightNodeData.getParamList().keys()]
+                    if portIn.name() in param_keys:
+                        rightInPin = param_keys.index(portIn.name())
 
             if leftOutPin != -1 and rightInPin != -1:
                 link_data = {
@@ -725,15 +830,18 @@ class NodePanel(QtWidgets.QWidget):
         if not type_out:
             self.graph.viewer().end_live_connection()
             return
-        if node_out not in self.nodes:
+        if node_out not in self.nodes and node_out not in self.defaultNodes:
             self.graph.viewer().end_live_connection()
             return
-        left = self.nodes.index(node_out)
-        leftNodeData = self.nodeGraph.nodes[self.key][left]
+        left = self._getNodeRef(node_out)
+        leftNodeData = None if isinstance(left, str) else self.nodeGraph.nodes[self.key][left]
         leftOutPin = -1
         r_type = None
         out_name = start_port_view.name
         if type_out == "Exec":
+            if leftNodeData is None:
+                self.graph.viewer().end_live_connection()
+                return  # Default nodes have no exec outputs
             execSplits = getExecSplits(leftNodeData.nodeFunction)
             if execSplits:
                 keys = list(execSplits.keys())
@@ -742,12 +850,15 @@ class NodePanel(QtWidgets.QWidget):
                     if key in keys:
                         leftOutPin = keys.index(key)
         elif type_out == "Params":
-            returnTypes = getReturnTypes(leftNodeData.nodeFunction)
-            if returnTypes:
-                keys = list(returnTypes.keys())
-                if out_name in keys:
-                    leftOutPin = keys.index(out_name)
-                    r_type = returnTypes.get(out_name)
+            if leftNodeData is None:
+                leftOutPin = 0  # Default param node — single output
+            else:
+                returnTypes = getReturnTypes(leftNodeData.nodeFunction)
+                if returnTypes:
+                    keys = list(returnTypes.keys())
+                    if out_name in keys:
+                        leftOutPin = keys.index(out_name)
+                        r_type = returnTypes.get(out_name)
         if leftOutPin == -1:
             self.graph.viewer().end_live_connection()
             return
@@ -849,16 +960,18 @@ class NodePanel(QtWidgets.QWidget):
         if not self._isLoading and portIn and portOut:
             node_in = portIn.node()
             node_out = portOut.node()
-            left = self.nodes.index(node_out)
-            right = self.nodes.index(node_in)
-            leftNodeData = self.nodeGraph.nodes[self.key][left]
-            rightNodeData = self.nodeGraph.nodes[self.key][right]
+            left = self._getNodeRef(node_out)
+            right = self._getNodeRef(node_in)
+            leftNodeData = None if isinstance(left, str) else self.nodeGraph.nodes[self.key][left]
+            rightNodeData = None if isinstance(right, str) else self.nodeGraph.nodes[self.key][right]
 
             linkType = getattr(node_out, "_port_types", {}).get(portOut.name())
             leftOutPin = -1
             rightInPin = -1
 
             if linkType == "Exec":
+                if leftNodeData is None:
+                    return  # Default nodes have no exec outputs
                 latents = getLatents(leftNodeData.nodeFunction)
                 execSplits = getExecSplits(leftNodeData.nodeFunction)
                 if latents:
@@ -877,15 +990,19 @@ class NodePanel(QtWidgets.QWidget):
                             leftOutPin = keys.index(key)
                 rightInPin = 0
             elif linkType == "Params":
-                returnTypes = getReturnTypes(leftNodeData.nodeFunction)
-                if returnTypes:
-                    keys = list(returnTypes.keys())
-                    if portOut.name() in keys:
-                        leftOutPin = keys.index(portOut.name())
+                if leftNodeData is None:
+                    leftOutPin = 0
+                else:
+                    returnTypes = getReturnTypes(leftNodeData.nodeFunction)
+                    if returnTypes:
+                        keys = list(returnTypes.keys())
+                        if portOut.name() in keys:
+                            leftOutPin = keys.index(portOut.name())
 
-                param_keys = [k for k in rightNodeData.getParamList().keys()]
-                if portIn.name() in param_keys:
-                    rightInPin = param_keys.index(portIn.name())
+                if rightNodeData is not None:
+                    param_keys = [k for k in rightNodeData.getParamList().keys()]
+                    if portIn.name() in param_keys:
+                        rightInPin = param_keys.index(portIn.name())
 
             if leftOutPin != -1 and rightInPin != -1:
                 link_data = {
@@ -915,7 +1032,10 @@ class NodePanel(QtWidgets.QWidget):
         if self._isLoading:
             return
         for node, pos in movedInfo.items():
-            idx = self.nodes.index(self.graph.get_node_by_id(node.id))
+            nodeInst = self.graph.get_node_by_id(node.id)
+            if nodeInst in self.defaultNodes:
+                continue  # Default param node positions are not persisted
+            idx = self.nodes.index(nodeInst)
             nodeInst = self.nodeGraph.nodes[self.key][idx]
             nodeInst.position = [node.pos().x(), node.pos().y()]
 
@@ -990,7 +1110,11 @@ class NodePanel(QtWidgets.QWidget):
             self._isSpacePressed = False
             self._isPanEmulationActive = False
 
-        if watched == viewport and isinstance(event, QtGui.QMouseEvent) and event.type() == QtCore.QEvent.MouseButtonPress:
+        if (
+            watched == viewport
+            and isinstance(event, QtGui.QMouseEvent)
+            and event.type() == QtCore.QEvent.MouseButtonPress
+        ):
             if event.button() == QtCore.Qt.RightButton:
                 item = viewer.itemAt(event.pos())
                 node_found = None
@@ -1129,15 +1253,21 @@ class NodePanel(QtWidgets.QWidget):
         menu = QtWidgets.QMenu(self)
 
         is_start_node = False
+        is_default_node = False
         selectedNodes = self._getSelectedNodes()
         if selectedNodes:
             selectedNode = selectedNodes[0]
-            if selectedNode in self.nodes:
+            if selectedNode in self.defaultNodes:
+                is_default_node = True
+            elif selectedNode in self.nodes:
                 idx = self.nodes.index(selectedNode)
                 if idx == self.nodeGraph.startNodes.get(self.key):
                     is_start_node = True
 
-        if is_start_node:
+        if is_default_node:
+            # Default param nodes have no editable actions
+            pass
+        elif is_start_node:
             cancelStartNode_action = menu.addAction(ELOC("CANCEL_START_NODE"))
             if cancelStartNode_action is None:
                 return
@@ -1148,17 +1278,18 @@ class NodePanel(QtWidgets.QWidget):
                 return
             setAsStart_action.triggered.connect(self._onSetAsStart)
 
-        copy_action = menu.addAction(ELOC("COPY"))
-        delete_action = menu.addAction(ELOC("DELETE"))
+        if not is_default_node:
+            copy_action = menu.addAction(ELOC("COPY"))
+            delete_action = menu.addAction(ELOC("DELETE"))
 
-        if copy_action is None or delete_action is None:
-            return
+            if copy_action is None or delete_action is None:
+                return
 
-        copy_action.setShortcut(QtGui.QKeySequence.Copy)
-        copy_action.triggered.connect(self._onCopy)
+            copy_action.setShortcut(QtGui.QKeySequence.Copy)
+            copy_action.triggered.connect(self._onCopy)
 
-        delete_action.setShortcut(QtGui.QKeySequence.Delete)
-        delete_action.triggered.connect(self._onDelete)
+            delete_action.setShortcut(QtGui.QKeySequence.Delete)
+            delete_action.triggered.connect(self._onDelete)
 
         menu.exec_(global_pos)
 
@@ -1259,6 +1390,8 @@ class NodePanel(QtWidgets.QWidget):
         if selectedNodes is None:
             return
         selectedNode = selectedNodes[0]
+        if selectedNode in self.defaultNodes:
+            return  # Default param nodes cannot be start nodes
         if selectedNode in self.nodes:
             idx = self.nodes.index(selectedNode)
             dataNode = self.nodeGraph.nodes[self.key][idx]
@@ -1286,6 +1419,8 @@ class NodePanel(QtWidgets.QWidget):
 
         data_nodes = []
         for node in nowNodes:
+            if node in self.defaultNodes:
+                continue  # Don't copy default param nodes
             if node in self.nodes:
                 idx = self.nodes.index(node)
                 dataNode = self.nodeGraph.nodes[self.key][idx]
@@ -1317,6 +1452,10 @@ class NodePanel(QtWidgets.QWidget):
 
     def _onDelete(self):
         nowNodes = self._getSelectedNodes()
+        if not nowNodes:
+            return
+        # Filter out non-deletable default parameter nodes
+        nowNodes = [n for n in nowNodes if n not in self.defaultNodes]
         if not nowNodes:
             return
         originNodeMap = {}
@@ -1404,6 +1543,7 @@ class NodePanel(QtWidgets.QWidget):
             self.graph.node_factory.clear_registered_nodes()
             self.classDict.clear()
             self.nodes.clear()
+            self.defaultNodes.clear()
             self._registerNodes()
             self._createNodes()
             self._createLinks()

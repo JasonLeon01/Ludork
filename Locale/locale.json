@@ -1,1370 +1,1310 @@
 {
-    "ADD_TILESET": {
-        "zh_CN": "新增图块集",
-        "en_GB": "Add Tileset"
-    },
-    "ENTER_TILESET_FILE": {
-        "zh_CN": "请输入新图块集文件名",
-        "en_GB": "Enter new tileset file name"
-    },
-    "RENAME_TILESET": {
-        "zh_CN": "重命名图块集",
-        "en_GB": "Rename Tileset"
-    },
-    "TILESET_REFERENCED_WARNING": {
-        "zh_CN": "以下地图引用了该图块集：\n{maps}\n\n修改名称可能导致部分地图图层失效，是否继续？",
-        "en_GB": "The following maps reference this tileset:\n{maps}\n\nRenaming may cause partial map layers to become invalid. Continue?"
-    },
-    "TILESET_EXISTS": {
-        "zh_CN": "图块集已存在",
-        "en_GB": "Tileset already exists"
-    },
-    "FILE_NAME": {
-        "zh_CN": "文件名",
-        "en_GB": "File Name"
-    },
-    "TILESET_NAME": {
-        "zh_CN": "图块集名称",
-        "en_GB": "Tileset Name"
-    },
-    "AUTOTILES_DATA": {
-        "zh_CN": "自动图块",
-        "en_GB": "AutoTiles"
-    },
-    "ADD_AUTOTILE": {
-        "zh_CN": "新增自动图块",
-        "en_GB": "Add AutoTile"
-    },
-    "RENAME_AUTOTILE": {
-        "zh_CN": "重命名自动图块",
-        "en_GB": "Rename AutoTile"
-    },
-    "ENTER_AUTOTILE_NAME": {
-        "zh_CN": "请输入自动图块名称",
-        "en_GB": "Enter AutoTile name"
-    },
-    "AUTOTILE_EXISTS": {
-        "zh_CN": "自动图块已存在",
-        "en_GB": "AutoTile already exists"
-    },
-    "AUTOTILE_NAME": {
-        "zh_CN": "自动图块名称",
-        "en_GB": "AutoTile Name"
-    },
-    "AUTOTILE_FILE_INVALID": {
-        "zh_CN": "无法读取图片文件",
-        "en_GB": "Failed to load image file"
-    },
-    "AUTOTILE_FILE_SIZE_INVALID": {
-        "zh_CN": "自动图块尺寸必须为 96 × 128 起步，且宽度必须是 96 的倍数（当前 {w} × {h}）",
-        "en_GB": "AutoTile size must be at least 96 x 128 with width a multiple of 96 (current {w} x {h})"
-    },
-    "PASSABLE": {
-        "zh_CN": "通行",
-        "en_GB": "Passable"
-    },
-    "MATERIAL": {
-        "zh_CN": "材质",
-        "en_GB": "Material"
-    },
-    "DIR4": {
-        "zh_CN": "四方向",
-        "en_GB": "Dir4"
-    },
-    "EDIT_MATERIAL": {
-        "zh_CN": "编辑材质",
-        "en_GB": "Edit Material"
-    },
-    "FILE": {
-        "zh_CN": "文件",
-        "en_GB": "File"
-    },
-    "NEW_PROJECT": {
-        "zh_CN": "新建项目",
-        "en_GB": "New Project"
-    },
-    "OPEN_PROJECT": {
-        "zh_CN": "打开项目",
-        "en_GB": "Open Project"
-    },
-    "SAVE": {
-        "zh_CN": "保存",
-        "en_GB": "Save"
-    },
-    "PACK_PROJECT": {
-        "zh_CN": "打包项目",
-        "en_GB": "Pack Project"
-    },
-    "PACK_MODE_TITLE": {
-        "zh_CN": "选择编译平台",
-        "en_GB": "Select Compilation Platform"
-    },
-    "PACK_PLATFORM_WIN32": {
-        "zh_CN": "编译（win32）",
-        "en_GB": "Compile (win32)"
-    },
-    "PACK_PLATFORM_MACOS_ARM": {
-        "zh_CN": "编译（macOS(Apple Silicon)）",
-        "en_GB": "Compile (macOS(Apple Silicon))"
-    },
-    "PACK_PLATFORM_IOS": {
-        "zh_CN": "编译（iOS）",
-        "en_GB": "Compile (iOS)"
-    },
-    "PACK_MODE_DESC": {
-        "zh_CN": "选择目标平台进行编译。编译将使用Nuitka生成独立可执行文件。",
-        "en_GB": "Select target platform for compilation. Compilation uses Nuitka to generate a standalone executable."
-    },
-    "PACK_INCLUDE_PYAV": {
-        "zh_CN": "包含 PyAV（视频播放）",
-        "en_GB": "Include PyAV (video playback)"
-    },
-    "PACK_PYAV_DESKTOP_TIP": {
-        "zh_CN": "勾选后会确保用户的 Python 3.12.0 已安装 PyAV，并在 Nuitka 打包时包含 av 模块。",
-        "en_GB": "When enabled, the user's Python 3.12.0 will have PyAV installed and the av module will be included in the Nuitka build."
-    },
-    "PACK_PYAV_IOS_TIP": {
-        "zh_CN": "移动端无法安装 PyAV，iOS 打包不支持包含。",
-        "en_GB": "Mobile targets cannot install PyAV, so iOS packaging cannot include it."
-    },
-    "PACK_PYAV_NOT_FOUND_INSTALLING": {
-        "zh_CN": "未检测到 PyAV，正在安装...",
-        "en_GB": "PyAV not found. Installing..."
-    },
-    "PACK_PYAV_INSTALL_FAILED": {
-        "zh_CN": "PyAV 安装失败",
-        "en_GB": "Failed to install PyAV"
-    },
-    "PACK_TITLE": {
-        "zh_CN": "打包",
-        "en_GB": "Packaging"
-    },
-    "PACK_START": {
-        "zh_CN": "正在打包",
-        "en_GB": "Packaging..."
-    },
-    "PACK_SUCCESS": {
-        "zh_CN": "打包完成",
-        "en_GB": "Packaging completed"
-    },
-    "PACK_NO_PROJECT": {
-        "zh_CN": "未找到项目路径",
-        "en_GB": "Project path not found"
-    },
-    "PACK_UNSUPPORTED": {
-        "zh_CN": "当前系统不支持打包",
-        "en_GB": "Packaging not supported on this system"
-    },
-    "PACK_ENTRY_MISSING": {
-        "zh_CN": "未找到 Entry.py",
-        "en_GB": "Entry.py not found"
-    },
-    "FPS_HISTORY": {
-        "zh_CN": "帧率波动图",
-        "en_GB": "FPS History"
-    },
-    "PACK_NUITKA_MISSING": {
-        "zh_CN": "python3.12.0 环境未安装 nuitka",
-        "en_GB": "Nuitka is not installed in python3.12.0"
-    },
-    "PACK_PY312_PROMPT": {
-        "zh_CN": "未检测到 Python 3.12.0，是否前往下载页面？",
-        "en_GB": "Python 3.12.0 not found. Open the download page?"
-    },
-    "PACK_PY312_NOT_FOUND": {
-        "zh_CN": "未检测到 Python 3.12.0",
-        "en_GB": "Python 3.12.0 not found"
-    },
-    "PACK_NUITKA_PROMPT": {
-        "zh_CN": "未检测到 Nuitka，是否现在安装？",
-        "en_GB": "Nuitka not found. Install now?"
-    },
-    "PACK_NUITKA_INSTALLING": {
-        "zh_CN": "正在安装 Nuitka…",
-        "en_GB": "Installing Nuitka..."
-    },
-    "PACK_NUITKA_INSTALL_FAILED": {
-        "zh_CN": "Nuitka 安装失败",
-        "en_GB": "Failed to install Nuitka"
-    },
-    "PACK_NUITKA_FAILED": {
-        "zh_CN": "Nuitka 打包失败",
-        "en_GB": "Nuitka packaging failed"
-    },
-    "PACK_IOS_SCRIPT_MISSING": {
-        "zh_CN": "缺少 iOS 打包脚本 generateiOSApp.sh",
-        "en_GB": "iOS packaging script generateiOSApp.sh not found"
-    },
-    "PACK_IOS_FAILED": {
-        "zh_CN": "iOS 打包失败",
-        "en_GB": "iOS packaging failed"
-    },
-    "PACK_COPY_MISSING": {
-        "zh_CN": "缺少以下文件或目录：{items}",
-        "en_GB": "Missing files or folders: {items}"
-    },
-    "PACK_IOS_SHADER_WARNING": {
-        "zh_CN": "警告：SFML3 在 iOS 仅支持 OpenGL ES 1，无法使用 Shader。\n请确保项目中已去除所有 Shader 相关代码后再进行打包，否则将无法运行。",
-        "en_GB": "Warning: SFML3 on iOS only supports OpenGL ES 1 and cannot use Shaders.\nPlease ensure all Shader-related code is removed before packaging, otherwise the app will not run."
-    },
-    "PACK_IOS_CANCELLED": {
-        "zh_CN": "iOS 打包已取消",
-        "en_GB": "iOS packaging cancelled"
-    },
-    "PACK_TOOLCHAIN_MSVC_PROMPT": {
-        "zh_CN": "未检测到 MSVC 工具链，是否前往下载页面？",
-        "en_GB": "MSVC toolchain not found. Open the download page?"
-    },
-    "PACK_TOOLCHAIN_XCODE_MACOS_PROMPT": {
-        "zh_CN": "未检测到 Xcode 工具链（macOS），是否前往下载页面？",
-        "en_GB": "Xcode toolchain (macOS) not found. Open the download page?"
-    },
-    "PACK_TOOLCHAIN_XCODE_IOS_PROMPT": {
-        "zh_CN": "未检测到 Xcode 工具链（iOS），是否前往下载页面？",
-        "en_GB": "Xcode toolchain (iOS) not found. Open the download page?"
-    },
-    "EXIT": {
-        "zh_CN": "退出",
-        "en_GB": "Exit"
-    },
-    "EDIT": {
-        "zh_CN": "编辑",
-        "en_GB": "Edit"
-    },
-    "UNDO": {
-        "zh_CN": "撤销",
-        "en_GB": "Undo"
-    },
-    "REDO": {
-        "zh_CN": "重做",
-        "en_GB": "Redo"
-    },
-    "GAME": {
-        "zh_CN": "游戏",
-        "en_GB": "Game"
-    },
-    "GAME_SETTINGS": {
-        "zh_CN": "游戏设置",
-        "en_GB": "Game Settings"
-    },
-    "GAME_CONFIG": {
-        "zh_CN": "游戏配置",
-        "en_GB": "Game Config"
-    },
-    "script": {
-        "zh_CN": "入口脚本",
-        "en_GB": "Script"
-    },
-    "language": {
-        "zh_CN": "语言",
-        "en_GB": "Language"
-    },
-    "framerate": {
-        "zh_CN": "帧率上限",
-        "en_GB": "Frame Rate"
-    },
-    "verticalsync": {
-        "zh_CN": "垂直同步",
-        "en_GB": "Vertical Sync"
-    },
-    "musicon": {
-        "zh_CN": "音乐开关",
-        "en_GB": "Music Enabled"
-    },
-    "soundon": {
-        "zh_CN": "音效开关",
-        "en_GB": "Sound Enabled"
-    },
-    "voiceon": {
-        "zh_CN": "语音开关",
-        "en_GB": "Voice Enabled"
-    },
-    "musicvolume": {
-        "zh_CN": "音乐音量",
-        "en_GB": "Music Volume"
-    },
-    "soundvolume": {
-        "zh_CN": "音效音量",
-        "en_GB": "Sound Volume"
-    },
-    "voicevolume": {
-        "zh_CN": "语音音量",
-        "en_GB": "Voice Volume"
-    },
-    "GAME_CONFIG_LOAD_FAILED": {
-        "zh_CN": "读取游戏配置失败",
-        "en_GB": "Failed to load game config"
-    },
-    "GAME_CONFIG_SAVE_FAILED": {
-        "zh_CN": "保存游戏配置失败",
-        "en_GB": "Failed to save game config"
-    },
-    "DATABASE": {
-        "zh_CN": "数据库",
-        "en_GB": "Database"
-    },
-    "SYSTEM_CONFIG": {
-        "zh_CN": "系统配置",
-        "en_GB": "System Config"
-    },
-    "TILESETS_DATA": {
-        "zh_CN": "图块集数据",
-        "en_GB": "Tilesets Data"
-    },
-    "COMMON_FUNCTIONS": {
-        "zh_CN": "公共函数",
-        "en_GB": "Common Functions"
-    },
-    "HELP": {
-        "zh_CN": "帮助",
-        "en_GB": "Help"
-    },
-    "HELP_EXPLANATION": {
-        "zh_CN": "说明",
-        "en_GB": "Contents"
-    },
-    "ANIMATION_WINDOW": {
-        "zh_CN": "动画窗口",
-        "en_GB": "Animation Window"
-    },
-    "ANIMATION_NAME": {
-        "zh_CN": "动画名称",
-        "en_GB": "Animation Name"
-    },
-    "FRAME_RATE": {
-        "zh_CN": "帧率",
-        "en_GB": "Frame Rate"
-    },
-    "PLAY_ANIMATION": {
-        "zh_CN": "播放",
-        "en_GB": "Play"
-    },
-    "STOP_ANIMATION": {
-        "zh_CN": "停止",
-        "en_GB": "Stop"
-    },
-    "AUDIO_PREVIEW": {
-        "zh_CN": "音频预览",
-        "en_GB": "Audio Preview"
-    },
-    "ASSETS": {
-        "zh_CN": "素材",
-        "en_GB": "Assets"
-    },
-    "ADD_ASSET": {
-        "zh_CN": "添加素材",
-        "en_GB": "Add Asset"
-    },
-    "ADD_AUDIO": {
-        "zh_CN": "添加音频",
-        "en_GB": "Add Audio"
-    },
-    "EDIT_MAP": {
-        "zh_CN": "地图名称",
-        "en_GB": "Map Name"
-    },
-    "TEST_GAME": {
-        "zh_CN": "测试游戏",
-        "en_GB": "Test Game"
-    },
-    "TILE_MODE": {
-        "zh_CN": "图块模式",
-        "en_GB": "Tile Mode"
-    },
-    "LIGHT_MODE": {
-        "zh_CN": "光源模式",
-        "en_GB": "Light Source Mode"
-    },
-    "ACTOR_MODE": {
-        "zh_CN": "角色模式",
-        "en_GB": "Actor Mode"
-    },
-    "FILE_EXPLORER": {
-        "zh_CN": "文件浏览器",
-        "en_GB": "File Explorer"
-    },
-    "ADD_LAYER": {
-        "zh_CN": "添加图层",
-        "en_GB": "Add Layer"
-    },
-    "RENAME_LAYER": {
-        "zh_CN": "修改图层名",
-        "en_GB": "Rename Layer"
-    },
-    "ADD_ERROR": {
-        "zh_CN": "未加载地图",
-        "en_GB": "No map loaded"
-    },
-    "ADD_MESSAGE": {
-        "zh_CN": "输入添加的图层名称",
-        "en_GB": "Enter the name of the layer to add"
-    },
-    "RENAME_MESSAGE": {
-        "zh_CN": "输入新的图层名称",
-        "en_GB": "Enter the new layer name"
-    },
-    "ADD_EMPTY": {
-        "zh_CN": "图层名称不能为空",
-        "en_GB": "Layer name cannot be empty"
-    },
-    "ADD_DUPLICATE": {
-        "zh_CN": "图层名称已存在",
-        "en_GB": "Layer name already exists"
-    },
-    "CONFIRM_DELETE_LAYER": {
-        "zh_CN": "确认删除图层 '{name}' 吗？",
-        "en_GB": "Are you sure you want to delete the layer '{name}'?"
-    },
-    "CUT": {
-        "zh_CN": "剪切",
-        "en_GB": "Cut"
-    },
-    "COPY": {
-        "zh_CN": "复制",
-        "en_GB": "Copy"
-    },
-    "PASTE": {
-        "zh_CN": "粘贴",
-        "en_GB": "Paste"
-    },
-    "DELETE": {
-        "zh_CN": "删除",
-        "en_GB": "Delete"
-    },
-    "CONFIRM": {
-        "zh_CN": "确认",
-        "en_GB": "Confirm"
-    },
-    "CANCEL": {
-        "zh_CN": "取消",
-        "en_GB": "Cancel"
-    },
-    "CONFIRM_DELETE": {
-        "zh_CN": "确认删除",
-        "en_GB": "Confirm Delete"
-    },
-    "DELETE_CONFIRMATION": {
-        "zh_CN": "是否删除选中的文件/文件夹？",
-        "en_GB": "Are you sure you want to delete the selected files/folders?"
-    },
-    "DELETE_FAILED": {
-        "zh_CN": "删除失败",
-        "en_GB": "Delete Failed"
-    },
-    "DELETE_FAILED_MESSAGE": {
-        "zh_CN": "部分文件或文件夹删除失败",
-        "en_GB": "Some files or folders failed to delete"
-    },
-    "CONFIRMATION_YES": {
-        "zh_CN": "是",
-        "en_GB": "Yes"
-    },
-    "CONFIRMATION_NO": {
-        "zh_CN": "否",
-        "en_GB": "No"
-    },
-    "PLAY_ERROR": {
-        "zh_CN": "播放错误",
-        "en_GB": "Play Error"
-    },
-    "PLAY_ERROR_MESSAGE": {
-        "zh_CN": "当前系统不支持播放该音频",
-        "en_GB": "The current system does not support playing this audio"
-    },
-    "OPEN_FROM_SYSTEM": {
-        "zh_CN": "从系统打开",
-        "en_GB": "Open from System"
-    },
-    "NEW_FOLDER": {
-        "zh_CN": "新建文件夹",
-        "en_GB": "New Folder"
-    },
-    "NEW_FOLDER_PROMPT": {
-        "zh_CN": "输入文件夹名称",
-        "en_GB": "Enter folder name"
-    },
-    "CREATE_FOLDER_FAILED": {
-        "zh_CN": "创建文件夹失败",
-        "en_GB": "Failed to create folder"
-    },
-    "DUPLICATE_FILE": {
-        "zh_CN": "复制文件",
-        "en_GB": "Duplicate File"
-    },
-    "RENAME_FILE": {
-        "zh_CN": "重命名",
-        "en_GB": "Rename"
-    },
-    "RENAME_FILE_PROMPT": {
-        "zh_CN": "输入新的名称",
-        "en_GB": "Enter new name"
-    },
-    "FILE_ALREADY_EXISTS": {
-        "zh_CN": "'{name}' 已存在",
-        "en_GB": "'{name}' already exists"
-    },
-    "RENAME_FAILED": {
-        "zh_CN": "重命名失败",
-        "en_GB": "Rename failed"
-    },
-    "DUPLICATE_FAILED": {
-        "zh_CN": "复制失败",
-        "en_GB": "Duplicate failed"
-    },
-    "CONSOLE": {
-        "zh_CN": "控制台",
-        "en_GB": "Console"
-    },
-    "SEND": {
-        "zh_CN": "发送",
-        "en_GB": "Send"
-    },
-    "SEND_HINT": {
-        "zh_CN": "输入命令并按Enter发送",
-        "en_GB": "Enter command and press Enter"
-    },
-    "SEGMENT_PROPERTIES": {
-        "zh_CN": "片段属性",
-        "en_GB": "Segment Properties"
-    },
-    "startFrame": {
-        "zh_CN": "首帧数据",
-        "en_GB": "Start Frame"
-    },
-    "endFrame": {
-        "zh_CN": "尾帧数据",
-        "en_GB": "End Frame"
-    },
-    "time": {
-        "zh_CN": "时间",
-        "en_GB": "Time"
-    },
-    "rotation": {
-        "zh_CN": "旋转",
-        "en_GB": "Rotation"
-    },
-    "scale": {
-        "zh_CN": "缩放",
-        "en_GB": "Scale"
-    },
-    "asset": {
-        "zh_CN": "素材",
-        "en_GB": "Asset"
-    },
-    "MAP_LIST": {
-        "zh_CN": "地图列表",
-        "en_GB": "Map List"
-    },
-    "OVERVIEW": {
-        "zh_CN": "全貌",
-        "en_GB": "Overview"
-    },
-    "MAPLIST_EDIT": {
-        "zh_CN": "编辑地图",
-        "en_GB": "Edit Map"
-    },
-    "MAP_WIDTH": {
-        "zh_CN": "地图宽度",
-        "en_GB": "Map Width"
-    },
-    "MAP_HEIGHT": {
-        "zh_CN": "地图高度",
-        "en_GB": "Map Height"
-    },
-    "AMBIENT_LIGHT": {
-        "zh_CN": "环境光",
-        "en_GB": "Ambient Light"
-    },
-    "MAP_BGM": {
-        "zh_CN": "BGM（背景音乐）",
-        "en_GB": "BGM"
-    },
-    "MAP_BGS": {
-        "zh_CN": "BGS（背景音效）",
-        "en_GB": "BGS"
-    },
-    "MAP_FOG": {
-        "zh_CN": "雾效贴图",
-        "en_GB": "Fog Texture"
-    },
-    "MAP_FOG_POWER": {
-        "zh_CN": "雾强度",
-        "en_GB": "Fog Strength"
-    },
-    "MAP_FOG_OX": {
-        "zh_CN": "雾 X 速度",
-        "en_GB": "Fog Scroll X"
-    },
-    "MAP_FOG_OY": {
-        "zh_CN": "雾 Y 速度",
-        "en_GB": "Fog Scroll Y"
-    },
-    "MAP_FOG_DISTORT": {
-        "zh_CN": "雾扰动强度",
-        "en_GB": "Fog Distortion"
-    },
-    "CLEAR": {
-        "zh_CN": "清除",
-        "en_GB": "Clear"
-    },
-    "FILTER": {
-        "zh_CN": "滤镜",
-        "en_GB": "Filter"
-    },
-    "EDIT_BGM_FILTER": {
-        "zh_CN": "编辑BGM滤镜",
-        "en_GB": "Edit BGM Filter"
-    },
-    "EDIT_BGS_FILTER": {
-        "zh_CN": "编辑BGS滤镜",
-        "en_GB": "Edit BGS Filter"
-    },
-    "FILTER_LOOP": {
-        "zh_CN": "循环",
-        "en_GB": "Loop"
-    },
-    "FILTER_OFFSET": {
-        "zh_CN": "偏移（秒）",
-        "en_GB": "Offset (s)"
-    },
-    "FILTER_PITCH": {
-        "zh_CN": "音高",
-        "en_GB": "Pitch"
-    },
-    "FILTER_PAN": {
-        "zh_CN": "声道 (-1=左 1=右)",
-        "en_GB": "Pan (-1=Left 1=Right)"
-    },
-    "FILTER_VOLUME": {
-        "zh_CN": "音量",
-        "en_GB": "Volume"
-    },
-    "FILTER_LOOP_POINT": {
-        "zh_CN": "循环区间（起/止 秒）",
-        "en_GB": "Loop Point (start/end s)"
-    },
-    "SAVE_SUCCESS": {
-        "zh_CN": "保存成功！",
-        "en_GB": "Save Successfully! "
-    },
-    "SAVE_FAILED": {
-        "zh_CN": "保存失败！",
-        "en_GB": "Save Failed! "
-    },
-    "SAVE_PATH": {
-        "zh_CN": "已修改文件为： {}",
-        "en_GB": "Modified files: {}"
-    },
-    "MAP_DATA_NONE": {
-        "zh_CN": "地图数据为空",
-        "en_GB": "Map data is None yet."
-    },
-    "MAP_FILE_NONE": {
-        "zh_CN": "地图文件失效",
-        "en_GB": "The file path of this map is None yet."
-    },
-    "position": {
-        "zh_CN": "位置",
-        "en_GB": "Position"
-    },
-    "color": {
-        "zh_CN": "颜色",
-        "en_GB": "Color"
-    },
-    "radius": {
-        "zh_CN": "半径",
-        "en_GB": "Radius"
-    },
-    "intensity": {
-        "zh_CN": "强度",
-        "en_GB": "Intensity"
-    },
-    "title": {
-        "zh_CN": "游戏名称",
-        "en_GB": "Game Title"
-    },
-    "gameSize": {
-        "zh_CN": "游戏尺寸",
-        "en_GB": "Game Size"
-    },
-    "fonts": {
-        "zh_CN": "字体文件",
-        "en_GB": "Font Files"
-    },
-    "fontSize": {
-        "zh_CN": "字体大小",
-        "en_GB": "Font Size"
-    },
-    "icon": {
-        "zh_CN": "图标",
-        "en_GB": "Icon"
-    },
-    "cursor": {
-        "zh_CN": "光标",
-        "en_GB": "Cursor"
-    },
-    "windowskinName": {
-        "zh_CN": "窗口皮肤",
-        "en_GB": "Window Skin"
-    },
-    "cellSize": {
-        "zh_CN": "单元格尺寸",
-        "en_GB": "Cell Size"
-    },
-    "coverOpaqueAlpha": {
-        "zh_CN": "遮挡时不透明度",
-        "en_GB": "Alpha when covered"
-    },
-    "startMap": {
-        "zh_CN": "初始地图",
-        "en_GB": "Start Map"
-    },
-    "startPos": {
-        "zh_CN": "初始位置",
-        "en_GB": "Start Position"
-    },
-    "transitionShaderPath": {
-        "zh_CN": "转场着色器路径",
-        "en_GB": "Transition Shader Path"
-    },
-    "tilemapLightMaskShaderPath": {
-        "zh_CN": "瓦片地图光照遮罩着色器路径",
-        "en_GB": "Tilemap Light Mask Shader Path"
-    },
-    "lightMaskShaderPath": {
-        "zh_CN": "光照遮罩着色器路径",
-        "en_GB": "Light Mask Shader Path"
-    },
-    "materialShaderPath": {
-        "zh_CN": "材质着色器路径",
-        "en_GB": "Material Shader Path"
-    },
-    "cursorSE": {
-        "zh_CN": "光标音效",
-        "en_GB": "Cursor Sound"
-    },
-    "decisionSE": {
-        "zh_CN": "确认音效",
-        "en_GB": "Decision Sound"
-    },
-    "cancelSE": {
-        "zh_CN": "取消音效",
-        "en_GB": "Cancel Sound"
-    },
-    "buzzerSE": {
-        "zh_CN": "警告音效",
-        "en_GB": "Buzzer Sound"
-    },
-    "shopSE": {
-        "zh_CN": "商店音效",
-        "en_GB": "Shop Sound"
-    },
-    "saveSE": {
-        "zh_CN": "保存音效",
-        "en_GB": "Save Sound"
-    },
-    "loadSE": {
-        "zh_CN": "读取音效",
-        "en_GB": "Load Sound"
-    },
-    "gateSE": {
-        "zh_CN": "开门音效",
-        "en_GB": "Gate Sound"
-    },
-    "stairSE": {
-        "zh_CN": "楼梯音效",
-        "en_GB": "Stair Sound"
-    },
-    "getSE": {
-        "zh_CN": "获得物品音效",
-        "en_GB": "Get Item Sound"
-    },
-    "equipSE": {
-        "zh_CN": "装备音效",
-        "en_GB": "Equip Sound"
-    },
-    "titleBGM": {
-        "zh_CN": "标题音乐",
-        "en_GB": "Title Music"
-    },
-    "SELECT_PROJECT_DIR": {
-        "zh_CN": "选择项目路径",
-        "en_GB": "Select project directory"
-    },
-    "ENTER_PROJECT_NAME": {
-        "zh_CN": "请输入新项目名称",
-        "en_GB": "Please enter the new project name"
-    },
-    "SELECT_PROJ_FILE": {
-        "zh_CN": "选择项目文件",
-        "en_GB": "Select project file"
-    },
-    "INVALID_PROJ_FILE": {
-        "zh_CN": "请选择有效的 .proj 文件",
-        "en_GB": "Please select a valid .proj file"
-    },
-    "PROJECT_EXISTS": {
-        "zh_CN": "目标文件夹已存在",
-        "en_GB": "Target folder already exists"
-    },
-    "COPY_FAILED": {
-        "zh_CN": "复制项目失败",
-        "en_GB": "Failed to copy project"
-    },
-    "OPEN_FAILED": {
-        "zh_CN": "打开项目失败",
-        "en_GB": "Failed to open project"
-    },
-    "IndividualWindow": {
-        "zh_CN": "独立窗口",
-        "en_GB": "Individual Window"
-    },
-    "ShowFPSGraph": {
-        "zh_CN": "运行结束后显示 FPS 图表",
-        "en_GB": "Show FPS graph after game ends"
-    },
-    "CONFIRM_EXIT_WITH_UNSAVED_CHANGES": {
-        "zh_CN": "当前有未保存的修改，是否保存并退出？",
-        "en_GB": "There are unsaved changes. Save and exit?"
-    },
-    "SAVE_AND_EXIT": {
-        "zh_CN": "保存",
-        "en_GB": "Save"
-    },
-    "DISCARD_AND_EXIT": {
-        "zh_CN": "不保存",
-        "en_GB": "Discard"
-    },
-    "NEW_MAP": {
-        "zh_CN": "新建地图",
-        "en_GB": "Create New Map"
-    },
-    "NEW_MAP_DEFAULT_NAME": {
-        "zh_CN": "新地图",
-        "en_GB": "New Map"
-    },
-    "ADD_NODE": {
-        "zh_CN": "添加节点",
-        "en_GB": "Add Node"
-    },
-    "SET_AS_START": {
-        "zh_CN": "设置为起始节点",
-        "en_GB": "Set as Start Node"
-    },
-    "CANCEL_START_NODE": {
-        "zh_CN": "取消起始节点",
-        "en_GB": "Cancel Start Node"
-    },
-    "NEW_COMMON_FUNC": {
-        "zh_CN": "新建公共函数",
-        "en_GB": "New Common Function"
-    },
-    "ENTER_FUNC_NAME": {
-        "zh_CN": "请输入公共函数名称",
-        "en_GB": "Enter common function name"
-    },
-    "FUNC_NAME_EXISTS": {
-        "zh_CN": "公共函数名称已存在",
-        "en_GB": "Common function name already exists"
-    },
-    "INVALID_NAME": {
-        "zh_CN": "名称无效",
-        "en_GB": "Invalid Name"
-    },
-    "RENAME_FUNC": {
-        "zh_CN": "重命名公共函数",
-        "en_GB": "Rename Common Function"
-    },
-    "CONFIRM_DELETE_FUNC": {
-        "zh_CN": "确认删除公共函数 '{name}' 吗？",
-        "en_GB": "Are you sure you want to delete the common function '{name}'?"
-    },
-    "UNABLE_TO_SET_START_NODE": {
-        "zh_CN": "无法设置起始节点，起始节点需要是Exec或Latent类型节点",
-        "en_GB": "Unable to set start node. Start node must be of Exec or Latent type."
-    },
-    "NEW_LIGHT_SOURCE": {
-        "zh_CN": "新建光源",
-        "en_GB": "Create New Light Source"
-    },
-    "INVALID_DATA_FILE": {
-        "zh_CN": "数据文件无效",
-        "en_GB": "Invalid Data File"
-    },
-    "INVALID_DATA_FILE_MESSAGE": {
-        "zh_CN": "选中的 .dat 文件不是符合引擎规范的数据文件。",
-        "en_GB": "The selected .dat file is not a valid engine data file."
-    },
-    "PARENT": {
-        "zh_CN": "父类",
-        "en_GB": "Parent"
-    },
-    "META_RELY_TOOLTIP": {
-        "zh_CN": "需要 {source} 为 {value} 时可编辑",
-        "en_GB": "Editable when {source} is {value}"
-    },
-    "ADD_ATTR": {
-        "zh_CN": "添加属性",
-        "en_GB": "Add Attribute"
-    },
-    "ADD_COMPONENT": {
-        "zh_CN": "添加组件",
-        "en_GB": "Add Component"
-    },
-    "COMPONENT_NAME": {
-        "zh_CN": "组件名称",
-        "en_GB": "Component Name"
-    },
-    "COMPONENTS": {
-        "zh_CN": "组件",
-        "en_GB": "Components"
-    },
-    "ATTR_NAME": {
-        "zh_CN": "属性名称",
-        "en_GB": "Attribute Name"
-    },
-    "ATTR_EXISTS": {
-        "zh_CN": "属性已存在",
-        "en_GB": "Attribute already exists"
-    },
-    "INVALID_ATTR_NAME": {
-        "zh_CN": "属性名称无效",
-        "en_GB": "Invalid Attribute Name"
-    },
-    "ATTR_NAME_CANNOT_START_WITH_DIGIT": {
-        "zh_CN": "属性名称不能以数字开头",
-        "en_GB": "Attribute name cannot start with a digit"
-    },
-    "ERROR": {
-        "zh_CN": "错误",
-        "en_GB": "Error"
-    },
-    "UNEXPECTED_ERROR": {
-        "zh_CN": "发生了意外错误",
-        "en_GB": "An unexpected error occurred"
-    },
-    "NEW_EVENT": {
-        "zh_CN": "新建事件",
-        "en_GB": "New Event"
-    },
-    "ENTER_EVENT_NAME": {
-        "zh_CN": "请输入事件名称",
-        "en_GB": "Enter event name"
-    },
-    "EVENT_EXISTS": {
-        "zh_CN": "事件名称已存在",
-        "en_GB": "Event name already exists"
-    },
-    "RENAME_EVENT": {
-        "zh_CN": "重命名事件",
-        "en_GB": "Rename Event"
-    },
-    "DELETE_EVENT": {
-        "zh_CN": "删除事件",
-        "en_GB": "Delete Event"
-    },
-    "CONFIRM_DELETE_EVENT": {
-        "zh_CN": "确认删除事件 '{name}' 吗？",
-        "en_GB": "Are you sure you want to delete the event '{name}'?"
-    },
-    "NEW_BLUEPRINT": {
-        "zh_CN": "新建蓝图",
-        "en_GB": "New Blueprint"
-    },
-    "SELECT_BLUEPRINT_PATH": {
-        "zh_CN": "选择蓝图保存路径",
-        "en_GB": "Select blueprint save path"
-    },
-    "BLUEPRINT_EXISTS": {
-        "zh_CN": "蓝图已存在",
-        "en_GB": "Blueprint already exists"
-    },
-    "BLUEPRINT_PARENT_MUST_INHERIT_BPBASE": {
-        "zh_CN": "蓝图父类必须是 BPBase 的派生类",
-        "en_GB": "Blueprint parent class must be derived from BPBase"
-    },
-    "SELECT_PARENT": {
-        "zh_CN": "选择父类/蓝图",
-        "en_GB": "Select Parent Class/Blueprint"
-    },
-    "PROJECT_CLASSES": {
-        "zh_CN": "项目类",
-        "en_GB": "Project Classes"
-    },
-    "PROJECT_BLUEPRINT": {
-        "zh_CN": "项目蓝图",
-        "en_GB": "Project Blueprints"
-    },
-    "CLASS_SELECTOR": {
-        "zh_CN": "选择父级",
-        "en_GB": "Select Parent"
-    },
-    "HINT_CREATE_BP_SUCCESS": {
-        "zh_CN": "创建成功！请保存以应用文件生成。",
-        "en_GB": "Creation successful! Please save to apply file generation."
-    },
-    "NEW_ANIMATION": {
-        "zh_CN": "新建动画",
-        "en_GB": "New Animation"
-    },
-    "SELECT_ANIMATION_PATH": {
-        "zh_CN": "选择动画保存路径",
-        "en_GB": "Select animation save path"
-    },
-    "ANIMATION_EXISTS": {
-        "zh_CN": "动画已存在",
-        "en_GB": "Animation already exists"
-    },
-    "HINT_CREATE_ANIM_SUCCESS": {
-        "zh_CN": "创建成功！请保存以应用文件生成。",
-        "en_GB": "Creation successful! Please save to apply file generation."
-    },
-    "RELOAD_MODULE": {
-        "zh_CN": "重载模块",
-        "en_GB": "Reload Module"
-    },
-    "HINT_RELOAD_MODULE_SUCCESS": {
-        "zh_CN": "模块重载成功！",
-        "en_GB": "Module reload successful!"
-    },
-    "HINT_RELOAD_MODULE_FAILED": {
-        "zh_CN": "模块重载失败！",
-        "en_GB": "Module reload failed!"
-    },
-    "DRAG_INFO": {
-        "zh_CN": "蓝图：{file}被实例化到了：({x}, {y})",
-        "en_GB": "Blueprint: {file} instantiated at: ({x}, {y})"
-    },
-    "NOT_ACTOR_TYPE": {
-        "zh_CN": "不是符合规范的Actor类型",
-        "en_GB": "Not a valid Actor type"
-    },
-    "ACTOR_INFO": {
-        "zh_CN": "角色信息",
-        "en_GB": "Actor Info"
-    },
-    "TAG": {
-        "zh_CN": "标签",
-        "en_GB": "Tag"
-    },
-    "TRANSLATION": {
-        "zh_CN": "平移",
-        "en_GB": "Translation"
-    },
-    "ROTATION": {
-        "zh_CN": "旋转",
-        "en_GB": "Rotation"
-    },
-    "SCALE": {
-        "zh_CN": "缩放",
-        "en_GB": "Scale"
-    },
-    "ORIGIN": {
-        "zh_CN": "原点",
-        "en_GB": "Origin"
-    },
-    "NO_SELECTION": {
-        "zh_CN": "无选择",
-        "en_GB": "No Selection"
-    },
-    "HELP_LANGUAGE": {
-        "zh_CN": "语言",
-        "en_GB": "Language"
-    },
-    "LANGUAGE_CHANGE_RESTART": {
-        "zh_CN": "语言设置将在重启编辑器后生效。",
-        "en_GB": "Language changes will take effect after restarting the editor."
-    },
-    "CONFIRM_DELETE_PARAM": {
-        "zh_CN": "确认删除字段 '{}' 吗？\n这将从所有成员中移除该数据。",
-        "en_GB": "Are you sure you want to delete the field '{}'?\nThis will remove it from all members."
-    },
-    "NEW_DATA_TYPE": {
-        "zh_CN": "新建数据类型",
-        "en_GB": "New Data Type"
-    },
-    "RENAME_DATA_TYPE": {
-        "zh_CN": "重命名数据类型",
-        "en_GB": "Rename Data Type"
-    },
-    "DELETE_DATA_TYPE": {
-        "zh_CN": "删除数据类型",
-        "en_GB": "Delete Data Type"
-    },
-    "CONFIRM_DELETE_DATA_TYPE": {
-        "zh_CN": "确认删除数据类型 '{}' 吗？\n这将不可恢复。",
-        "en_GB": "Are you sure you want to delete data type '{}'?\nThis cannot be undone."
-    },
-    "ENTER_DATA_TYPE_NAME": {
-        "zh_CN": "请输入数据类型名称",
-        "en_GB": "Enter data type name"
-    },
-    "DATA_TYPE_EXISTS": {
-        "zh_CN": "数据类型已存在",
-        "en_GB": "Data type already exists"
-    },
-    "GENERAL_DATA": {
-        "zh_CN": "通用数据",
-        "en_GB": "General Data"
-    },
-    "PARAM_NAME": {
-        "zh_CN": "字段名",
-        "en_GB": "Field Name"
-    },
-    "PARAM_TYPE": {
-        "zh_CN": "字段类型",
-        "en_GB": "Field Type"
-    },
-    "DEFAULT_VALUE": {
-        "zh_CN": "默认值",
-        "en_GB": "Default Value"
-    },
-    "GENERAL_DATA_PARAM_NAME_TIP": {
-        "zh_CN": "字段名：保存到 GeneralData 成员里的键名，通常应与代码读取的属性名一致，例如 icon 或 price。",
-        "en_GB": "Field name: The key saved on each GeneralData member. It should usually match the attribute name read by code, such as icon or price."
-    },
-    "GENERAL_DATA_TYPE_TIP_STRING": {
-        "zh_CN": "string：普通文本字段，编辑时使用单行文本框。",
-        "en_GB": "string: A plain text field edited with a single-line text box."
-    },
-    "GENERAL_DATA_TYPE_TIP_INT": {
-        "zh_CN": "int：整数数字字段，编辑时使用整数输入框。",
-        "en_GB": "int: An integer numeric field edited with an integer spin box."
-    },
-    "GENERAL_DATA_TYPE_TIP_FLOAT": {
-        "zh_CN": "float：小数字段，编辑时使用浮点数输入框。",
-        "en_GB": "float: A decimal numeric field edited with a floating-point spin box."
-    },
-    "GENERAL_DATA_TYPE_TIP_BOOL": {
-        "zh_CN": "bool：真假值字段，编辑时使用勾选框。",
-        "en_GB": "bool: A true/false field edited with a checkbox."
-    },
-    "GENERAL_DATA_TYPE_TIP_FILE": {
-        "zh_CN": "file：素材文件字段，编辑时从 Assets 下选择文件，并保存相对 Assets 的路径。",
-        "en_GB": "file: An asset file field. It selects a file under Assets and saves the path relative to Assets."
-    },
-    "GENERAL_DATA_TYPE_TIP_LIST": {
-        "zh_CN": "list：列表字段，编辑时使用可增删行的列表编辑器。",
-        "en_GB": "list: A list field edited with a row-based list editor."
-    },
-    "GENERAL_DATA_TYPE_TIP_DICT": {
-        "zh_CN": "dict：字典字段，编辑时使用键值行编辑器，左侧为 key，右侧为 value。",
-        "en_GB": "dict: A dictionary field edited with key-value rows (key on the left, value on the right)."
-    },
-    "GENERAL_DATA_DEFAULT_TIP_STRING": {
-        "zh_CN": "string：新成员默认填入的文本。",
-        "en_GB": "string: Text assigned to new members by default."
-    },
-    "GENERAL_DATA_DEFAULT_TIP_INT": {
-        "zh_CN": "int：新成员默认填入的整数；留空时使用 0。",
-        "en_GB": "int: Integer assigned to new members by default; empty uses 0."
-    },
-    "GENERAL_DATA_DEFAULT_TIP_FLOAT": {
-        "zh_CN": "float：新成员默认填入的小数；留空时使用 0.0。",
-        "en_GB": "float: Decimal number assigned to new members by default; empty uses 0.0."
-    },
-    "GENERAL_DATA_DEFAULT_TIP_BOOL": {
-        "zh_CN": "bool：输入 true 表示勾选，其它内容都表示不勾选。",
-        "en_GB": "bool: Enter true for checked; any other value is unchecked."
-    },
-    "GENERAL_DATA_DEFAULT_TIP_FILE": {
-        "zh_CN": "file：填写 Assets 下的默认选择目录，例如 Icons；成员值会保存为相对 Assets 的文件路径。",
-        "en_GB": "file: Enter the default selection folder under Assets, such as Icons; member values are saved as paths relative to Assets."
-    },
-    "GENERAL_DATA_DEFAULT_TIP_LIST": {
-        "zh_CN": "list：输入 Python 列表格式作为默认值，例如 [\"A\", \"B\"]；留空时使用空列表。",
-        "en_GB": "list: Enter a Python list as the default, such as [\"A\", \"B\"]; empty uses an empty list."
-    },
-    "GENERAL_DATA_DEFAULT_TIP_DICT": {
-        "zh_CN": "dict：输入 Python 字典格式作为默认值，例如 {\"key\": \"value\"}；留空时使用空字典。",
-        "en_GB": "dict: Enter a Python dict as the default, such as {\"key\": \"value\"}; empty uses an empty dict."
-    },
-    "PARAM_EXISTS": {
-        "zh_CN": "字段已存在",
-        "en_GB": "Field already exists"
-    },
-    "GENERAL_DATA_EDITOR": {
-        "zh_CN": "通用数据编辑器",
-        "en_GB": "General Data Editor"
-    },
-    "ADD_MEMBER": {
-        "zh_CN": "添加成员",
-        "en_GB": "Add Member"
-    },
-    "REMOVE_MEMBER": {
-        "zh_CN": "删除成员",
-        "en_GB": "Remove Member"
-    },
-    "CHANGE_ID": {
-        "zh_CN": "更改ID",
-        "en_GB": "Change ID"
-    },
-    "TUPLE_SIZE_ERR": {
-        "zh_CN": "元组格式必须为tuple[SIZE]",
-        "en_GB": "Tuple format must be tuple[SIZE]"
-    },
-    "SELECT_FILE": {
-        "zh_CN": "选择文件",
-        "en_GB": "Select File"
-    },
-    "FILE_FILTER_ALL": {
-        "zh_CN": "所有文件 (*)",
-        "en_GB": "All Files (*)"
-    },
-    "FILE_FILTER_ALL_STAR": {
-        "zh_CN": "所有文件 (*.*)",
-        "en_GB": "All Files (*.*)"
-    },
-    "FILE_FILTER_AUDIO": {
-        "zh_CN": "音频文件 (*.ogg *.wav *.flac *.mp3)",
-        "en_GB": "Audio Files (*.ogg *.wav *.flac *.mp3)"
-    },
-    "FILE_FILTER_IMAGES": {
-        "zh_CN": "图像文件 (*.png *.jpg *.bmp *.jpeg)",
-        "en_GB": "Images (*.png *.jpg *.bmp *.jpeg)"
-    },
-    "FILE_FILTER_FILES": {
-        "zh_CN": "文件 ({patterns})",
-        "en_GB": "Files ({patterns})"
-    },
-    "FILE_DIALOG_LOOK_IN": {
-        "zh_CN": "查找范围:",
-        "en_GB": "Look in:"
-    },
-    "FILE_DIALOG_FILE_TYPE": {
-        "zh_CN": "文件类型:",
-        "en_GB": "Files of type:"
-    },
-    "FILE_DIALOG_OPEN": {
-        "zh_CN": "打开",
-        "en_GB": "Open"
-    },
-    "EXPORT_LOCALE": {
-        "zh_CN": "导出本地化表",
-        "en_GB": "Export Locale"
-    },
-    "LOCALE_DIR_NOT_FOUND": {
-        "zh_CN": "未找到 Locale 目录",
-        "en_GB": "Locale directory not found"
-    },
-    "LOCALE_XLSX_NOT_FOUND": {
-        "zh_CN": "未找到 Locale.xlsx",
-        "en_GB": "Locale.xlsx not found"
-    },
-    "LOCALE_XLSX_INVALID": {
-        "zh_CN": "Locale.xlsx 格式无效：首行需为 ID 与语言列",
-        "en_GB": "Invalid Locale.xlsx format: first row must be ID and language columns"
-    },
-    "EXPORT_LOCALE_SUCCESS": {
-        "zh_CN": "本地化表导出完成：{langs}",
-        "en_GB": "Locale export completed: {langs}"
-    },
-    "EXPORT_LOCALE_FAILED": {
-        "zh_CN": "本地化表导出失败",
-        "en_GB": "Locale export failed"
-    },
-    "VIEW_LOCALE_TABLE": {
-        "zh_CN": "查看本地化表",
-        "en_GB": "View Locale Table"
-    },
-    "LOCALE_EDITOR_IN_APP": {
-        "zh_CN": "编辑器内编辑",
-        "en_GB": "Edit in Editor"
-    },
-    "LOCALE_OPEN_FILE": {
-        "zh_CN": "打开本地化文件",
-        "en_GB": "Open Locale File"
-    },
-    "LOCALE_EDITOR_TITLE": {
-        "zh_CN": "本地化表编辑器",
-        "en_GB": "Locale Table Editor"
-    },
-    "LOCALE_ADD_SHEET": {
-        "zh_CN": "添加工作表",
-        "en_GB": "Add Sheet"
-    },
-    "LOCALE_DELETE_SHEET": {
-        "zh_CN": "删除工作表",
-        "en_GB": "Delete Sheet"
-    },
-    "LOCALE_RENAME_SHEET": {
-        "zh_CN": "重命名工作表",
-        "en_GB": "Rename Sheet"
-    },
-    "LOCALE_SHEET_NAME_PROMPT": {
-        "zh_CN": "请输入工作表名称：",
-        "en_GB": "Enter sheet name:"
-    },
-    "LOCALE_SHEET_EXISTS": {
-        "zh_CN": "工作表名已存在",
-        "en_GB": "Sheet name already exists"
-    },
-    "LOCALE_CANNOT_DELETE_LAST_SHEET": {
-        "zh_CN": "不能删除最后一个工作表",
-        "en_GB": "Cannot delete the last sheet"
-    },
-    "LOCALE_CONFIRM_DELETE_SHEET": {
-        "zh_CN": "确认删除工作表 \"{}\" ？",
-        "en_GB": "Confirm deleting sheet \"{}\"?"
-    },
-    "CLOSE": {
-        "zh_CN": "关闭",
-        "en_GB": "Close"
-    },
-    "NEW_MEMBER": {
-        "zh_CN": "新建成员",
-        "en_GB": "New Member"
-    },
-    "ENTER_ID": {
-        "zh_CN": "请输入ID",
-        "en_GB": "Enter ID"
-    },
-    "ADD_PARAM": {
-        "zh_CN": "添加字段",
-        "en_GB": "Add Field"
-    },
-    "EDIT_BLUEPRINT": {
-        "zh_CN": "编辑蓝图",
-        "en_GB": "Edit Blueprint"
-    },
-    "LINKED_TYPE": {
-        "zh_CN": "关联类型",
-        "en_GB": "Linked Type"
-    },
-    "NO_LINKED_TYPE": {
-        "zh_CN": "(无 - 不关联类型)",
-        "en_GB": "(None - No Linked Type)"
-    },
-    "SELECT_LINKED_TYPE": {
-        "zh_CN": "选择关联类型",
-        "en_GB": "Select Linked Type"
-    },
-    "SELECT_LINKED_TYPE_DESC": {
-        "zh_CN": "选择一个 InfoType 关联（或无）：",
-        "en_GB": "Choose a linked InfoType (or none):"
-    },
-    "SET_LINKED_TYPE": {
-        "zh_CN": "设置关联类型",
-        "en_GB": "Set Linked Type"
-    },
-    "ABOUT_MENU": {
-        "zh_CN": "关于",
-        "en_GB": "About"
-    },
-    "ABOUT_TITLE": {
-        "zh_CN": "关于 Ludork",
-        "en_GB": "About Ludork"
-    },
-    "ABOUT_DESC": {
-        "zh_CN": "Ludork 是一个基于 PyQt5 的 2D RPG 工具包，它通过 pybind11 将编辑器 UI 与由 SFML 绑定的轻量级运行时引擎配对。它专注于通过可视化脚本、资产工具和游戏基础进行快速迭代，以便创作者可以在不离开编辑器的情况下构建内容。",
-        "en_GB": "Ludork is a PyQt5-based 2D RPG toolkit that pairs an editor UI with a lightweight runtime engine powered by SFML bindings through pybind11. It focuses on fast iteration with visual scripting, asset tooling, and gameplay foundations so creators can build content without constantly leaving the editor."
-    },
-    "ABOUT_LICENSES": {
-        "zh_CN": "开源许可",
-        "en_GB": "Open Source Licenses"
-    },
-    "ABOUT_COPYRIGHT": {
-        "zh_CN": "© 2026 Ludork Team",
-        "en_GB": "© 2026 Ludork Team"
-    }
+  "ADD_TILESET": {
+    "zh_CN": "新增图块集",
+    "en_GB": "Add Tileset"
+  },
+  "ENTER_TILESET_FILE": {
+    "zh_CN": "请输入新图块集文件名",
+    "en_GB": "Enter new tileset file name"
+  },
+  "RENAME_TILESET": {
+    "zh_CN": "重命名图块集",
+    "en_GB": "Rename Tileset"
+  },
+  "TILESET_REFERENCED_WARNING": {
+    "zh_CN": "以下地图引用了该图块集：\n{maps}\n\n修改名称可能导致部分地图图层失效，是否继续？",
+    "en_GB": "The following maps reference this tileset:\n{maps}\n\nRenaming may cause partial map layers to become invalid. Continue?"
+  },
+  "TILESET_EXISTS": {
+    "zh_CN": "图块集已存在",
+    "en_GB": "Tileset already exists"
+  },
+  "FILE_NAME": {
+    "zh_CN": "文件名",
+    "en_GB": "File Name"
+  },
+  "TILESET_NAME": {
+    "zh_CN": "图块集名称",
+    "en_GB": "Tileset Name"
+  },
+  "AUTOTILES_DATA": {
+    "zh_CN": "自动图块",
+    "en_GB": "AutoTiles"
+  },
+  "ADD_AUTOTILE": {
+    "zh_CN": "新增自动图块",
+    "en_GB": "Add AutoTile"
+  },
+  "RENAME_AUTOTILE": {
+    "zh_CN": "重命名自动图块",
+    "en_GB": "Rename AutoTile"
+  },
+  "ENTER_AUTOTILE_NAME": {
+    "zh_CN": "请输入自动图块名称",
+    "en_GB": "Enter AutoTile name"
+  },
+  "AUTOTILE_EXISTS": {
+    "zh_CN": "自动图块已存在",
+    "en_GB": "AutoTile already exists"
+  },
+  "AUTOTILE_NAME": {
+    "zh_CN": "自动图块名称",
+    "en_GB": "AutoTile Name"
+  },
+  "AUTOTILE_FILE_INVALID": {
+    "zh_CN": "无法读取图片文件",
+    "en_GB": "Failed to load image file"
+  },
+  "AUTOTILE_FILE_SIZE_INVALID": {
+    "zh_CN": "自动图块尺寸必须为 96 × 128 起步，且宽度必须是 96 的倍数（当前 {w} × {h}）",
+    "en_GB": "AutoTile size must be at least 96 x 128 with width a multiple of 96 (current {w} x {h})"
+  },
+  "PASSABLE": {
+    "zh_CN": "通行",
+    "en_GB": "Passable"
+  },
+  "MATERIAL": {
+    "zh_CN": "材质",
+    "en_GB": "Material"
+  },
+  "DIR4": {
+    "zh_CN": "四方向",
+    "en_GB": "Dir4"
+  },
+  "EDIT_MATERIAL": {
+    "zh_CN": "编辑材质",
+    "en_GB": "Edit Material"
+  },
+  "FILE": {
+    "zh_CN": "文件",
+    "en_GB": "File"
+  },
+  "NEW_PROJECT": {
+    "zh_CN": "新建项目",
+    "en_GB": "New Project"
+  },
+  "OPEN_PROJECT": {
+    "zh_CN": "打开项目",
+    "en_GB": "Open Project"
+  },
+  "SAVE": {
+    "zh_CN": "保存",
+    "en_GB": "Save"
+  },
+  "PACK_PROJECT": {
+    "zh_CN": "打包项目",
+    "en_GB": "Pack Project"
+  },
+  "PACK_MODE_TITLE": {
+    "zh_CN": "选择编译平台",
+    "en_GB": "Select Compilation Platform"
+  },
+  "PACK_PLATFORM_WIN32": {
+    "zh_CN": "编译（win32）",
+    "en_GB": "Compile (win32)"
+  },
+  "PACK_PLATFORM_MACOS_ARM": {
+    "zh_CN": "编译（macOS(Apple Silicon)）",
+    "en_GB": "Compile (macOS(Apple Silicon))"
+  },
+  "PACK_PLATFORM_IOS": {
+    "zh_CN": "编译（iOS）",
+    "en_GB": "Compile (iOS)"
+  },
+  "PACK_MODE_DESC": {
+    "zh_CN": "选择目标平台进行编译。编译将使用Nuitka生成独立可执行文件。",
+    "en_GB": "Select target platform for compilation. Compilation uses Nuitka to generate a standalone executable."
+  },
+  "PACK_INCLUDE_PYAV": {
+    "zh_CN": "包含 PyAV（视频播放）",
+    "en_GB": "Include PyAV (video playback)"
+  },
+  "PACK_PYAV_DESKTOP_TIP": {
+    "zh_CN": "勾选后会确保用户的 Python 3.12.0 已安装 PyAV，并在 Nuitka 打包时包含 av 模块。",
+    "en_GB": "When enabled, the user's Python 3.12.0 will have PyAV installed and the av module will be included in the Nuitka build."
+  },
+  "PACK_PYAV_IOS_TIP": {
+    "zh_CN": "移动端无法安装 PyAV，iOS 打包不支持包含。",
+    "en_GB": "Mobile targets cannot install PyAV, so iOS packaging cannot include it."
+  },
+  "PACK_PYAV_NOT_FOUND_INSTALLING": {
+    "zh_CN": "未检测到 PyAV，正在安装...",
+    "en_GB": "PyAV not found. Installing..."
+  },
+  "PACK_PYAV_INSTALL_FAILED": {
+    "zh_CN": "PyAV 安装失败",
+    "en_GB": "Failed to install PyAV"
+  },
+  "PACK_TITLE": {
+    "zh_CN": "打包",
+    "en_GB": "Packaging"
+  },
+  "PACK_SUCCESS": {
+    "zh_CN": "打包完成",
+    "en_GB": "Packaging completed"
+  },
+  "PACK_NO_PROJECT": {
+    "zh_CN": "未找到项目路径",
+    "en_GB": "Project path not found"
+  },
+  "PACK_ENTRY_MISSING": {
+    "zh_CN": "未找到 Entry.py",
+    "en_GB": "Entry.py not found"
+  },
+  "FPS_HISTORY": {
+    "zh_CN": "帧率波动图",
+    "en_GB": "FPS History"
+  },
+  "PACK_PY312_PROMPT": {
+    "zh_CN": "未检测到 Python 3.12.0，是否前往下载页面？",
+    "en_GB": "Python 3.12.0 not found. Open the download page?"
+  },
+  "PACK_PY312_NOT_FOUND": {
+    "zh_CN": "未检测到 Python 3.12.0",
+    "en_GB": "Python 3.12.0 not found"
+  },
+  "PACK_NUITKA_INSTALL_FAILED": {
+    "zh_CN": "Nuitka 安装失败",
+    "en_GB": "Failed to install Nuitka"
+  },
+  "PACK_NUITKA_FAILED": {
+    "zh_CN": "Nuitka 打包失败",
+    "en_GB": "Nuitka packaging failed"
+  },
+  "PACK_IOS_SCRIPT_MISSING": {
+    "zh_CN": "缺少 iOS 打包脚本 generateiOSApp.sh",
+    "en_GB": "iOS packaging script generateiOSApp.sh not found"
+  },
+  "PACK_IOS_FAILED": {
+    "zh_CN": "iOS 打包失败",
+    "en_GB": "iOS packaging failed"
+  },
+  "PACK_IOS_SHADER_WARNING": {
+    "zh_CN": "警告：SFML3 在 iOS 仅支持 OpenGL ES 1，无法使用 Shader。\n请确保项目中已去除所有 Shader 相关代码后再进行打包，否则将无法运行。",
+    "en_GB": "Warning: SFML3 on iOS only supports OpenGL ES 1 and cannot use Shaders.\nPlease ensure all Shader-related code is removed before packaging, otherwise the app will not run."
+  },
+  "PACK_TOOLCHAIN_MSVC_PROMPT": {
+    "zh_CN": "未检测到 MSVC 工具链，是否前往下载页面？",
+    "en_GB": "MSVC toolchain not found. Open the download page?"
+  },
+  "PACK_TOOLCHAIN_XCODE_MACOS_PROMPT": {
+    "zh_CN": "未检测到 Xcode 工具链（macOS），是否前往下载页面？",
+    "en_GB": "Xcode toolchain (macOS) not found. Open the download page?"
+  },
+  "PACK_TOOLCHAIN_XCODE_IOS_PROMPT": {
+    "zh_CN": "未检测到 Xcode 工具链（iOS），是否前往下载页面？",
+    "en_GB": "Xcode toolchain (iOS) not found. Open the download page?"
+  },
+  "EXIT": {
+    "zh_CN": "退出",
+    "en_GB": "Exit"
+  },
+  "EDIT": {
+    "zh_CN": "编辑",
+    "en_GB": "Edit"
+  },
+  "UNDO": {
+    "zh_CN": "撤销",
+    "en_GB": "Undo"
+  },
+  "REDO": {
+    "zh_CN": "重做",
+    "en_GB": "Redo"
+  },
+  "GAME": {
+    "zh_CN": "游戏",
+    "en_GB": "Game"
+  },
+  "GAME_SETTINGS": {
+    "zh_CN": "游戏设置",
+    "en_GB": "Game Settings"
+  },
+  "GAME_CONFIG": {
+    "zh_CN": "游戏配置",
+    "en_GB": "Game Config"
+  },
+  "script": {
+    "zh_CN": "入口脚本",
+    "en_GB": "Script"
+  },
+  "language": {
+    "zh_CN": "语言",
+    "en_GB": "Language"
+  },
+  "framerate": {
+    "zh_CN": "帧率上限",
+    "en_GB": "Frame Rate"
+  },
+  "verticalsync": {
+    "zh_CN": "垂直同步",
+    "en_GB": "Vertical Sync"
+  },
+  "musicon": {
+    "zh_CN": "音乐开关",
+    "en_GB": "Music Enabled"
+  },
+  "soundon": {
+    "zh_CN": "音效开关",
+    "en_GB": "Sound Enabled"
+  },
+  "voiceon": {
+    "zh_CN": "语音开关",
+    "en_GB": "Voice Enabled"
+  },
+  "musicvolume": {
+    "zh_CN": "音乐音量",
+    "en_GB": "Music Volume"
+  },
+  "soundvolume": {
+    "zh_CN": "音效音量",
+    "en_GB": "Sound Volume"
+  },
+  "voicevolume": {
+    "zh_CN": "语音音量",
+    "en_GB": "Voice Volume"
+  },
+  "GAME_CONFIG_LOAD_FAILED": {
+    "zh_CN": "读取游戏配置失败",
+    "en_GB": "Failed to load game config"
+  },
+  "GAME_CONFIG_SAVE_FAILED": {
+    "zh_CN": "保存游戏配置失败",
+    "en_GB": "Failed to save game config"
+  },
+  "DATABASE": {
+    "zh_CN": "数据库",
+    "en_GB": "Database"
+  },
+  "SYSTEM_CONFIG": {
+    "zh_CN": "系统配置",
+    "en_GB": "System Config"
+  },
+  "TILESETS_DATA": {
+    "zh_CN": "图块集数据",
+    "en_GB": "Tilesets Data"
+  },
+  "COMMON_FUNCTIONS": {
+    "zh_CN": "公共函数",
+    "en_GB": "Common Functions"
+  },
+  "HELP": {
+    "zh_CN": "帮助",
+    "en_GB": "Help"
+  },
+  "HELP_EXPLANATION": {
+    "zh_CN": "说明",
+    "en_GB": "Contents"
+  },
+  "ANIMATION_WINDOW": {
+    "zh_CN": "动画窗口",
+    "en_GB": "Animation Window"
+  },
+  "ANIMATION_NAME": {
+    "zh_CN": "动画名称",
+    "en_GB": "Animation Name"
+  },
+  "FRAME_RATE": {
+    "zh_CN": "帧率",
+    "en_GB": "Frame Rate"
+  },
+  "PLAY_ANIMATION": {
+    "zh_CN": "播放",
+    "en_GB": "Play"
+  },
+  "STOP_ANIMATION": {
+    "zh_CN": "停止",
+    "en_GB": "Stop"
+  },
+  "AUDIO_PREVIEW": {
+    "zh_CN": "音频预览",
+    "en_GB": "Audio Preview"
+  },
+  "ASSETS": {
+    "zh_CN": "素材",
+    "en_GB": "Assets"
+  },
+  "ADD_ASSET": {
+    "zh_CN": "添加素材",
+    "en_GB": "Add Asset"
+  },
+  "ADD_AUDIO": {
+    "zh_CN": "添加音频",
+    "en_GB": "Add Audio"
+  },
+  "EDIT_MAP": {
+    "zh_CN": "地图名称",
+    "en_GB": "Map Name"
+  },
+  "TEST_GAME": {
+    "zh_CN": "测试游戏",
+    "en_GB": "Test Game"
+  },
+  "TILE_MODE": {
+    "zh_CN": "图块模式",
+    "en_GB": "Tile Mode"
+  },
+  "LIGHT_MODE": {
+    "zh_CN": "光源模式",
+    "en_GB": "Light Source Mode"
+  },
+  "ACTOR_MODE": {
+    "zh_CN": "角色模式",
+    "en_GB": "Actor Mode"
+  },
+  "FILE_EXPLORER": {
+    "zh_CN": "文件浏览器",
+    "en_GB": "File Explorer"
+  },
+  "ADD_LAYER": {
+    "zh_CN": "添加图层",
+    "en_GB": "Add Layer"
+  },
+  "RENAME_LAYER": {
+    "zh_CN": "修改图层名",
+    "en_GB": "Rename Layer"
+  },
+  "ADD_ERROR": {
+    "zh_CN": "未加载地图",
+    "en_GB": "No map loaded"
+  },
+  "ADD_MESSAGE": {
+    "zh_CN": "输入添加的图层名称",
+    "en_GB": "Enter the name of the layer to add"
+  },
+  "RENAME_MESSAGE": {
+    "zh_CN": "输入新的图层名称",
+    "en_GB": "Enter the new layer name"
+  },
+  "ADD_EMPTY": {
+    "zh_CN": "图层名称不能为空",
+    "en_GB": "Layer name cannot be empty"
+  },
+  "ADD_DUPLICATE": {
+    "zh_CN": "图层名称已存在",
+    "en_GB": "Layer name already exists"
+  },
+  "CONFIRM_DELETE_LAYER": {
+    "zh_CN": "确认删除图层 '{name}' 吗？",
+    "en_GB": "Are you sure you want to delete the layer '{name}'?"
+  },
+  "COPY": {
+    "zh_CN": "复制",
+    "en_GB": "Copy"
+  },
+  "PASTE": {
+    "zh_CN": "粘贴",
+    "en_GB": "Paste"
+  },
+  "DELETE": {
+    "zh_CN": "删除",
+    "en_GB": "Delete"
+  },
+  "CONFIRM": {
+    "zh_CN": "确认",
+    "en_GB": "Confirm"
+  },
+  "CANCEL": {
+    "zh_CN": "取消",
+    "en_GB": "Cancel"
+  },
+  "CONFIRM_DELETE": {
+    "zh_CN": "确认删除",
+    "en_GB": "Confirm Delete"
+  },
+  "DELETE_CONFIRMATION": {
+    "zh_CN": "是否删除选中的文件/文件夹？",
+    "en_GB": "Are you sure you want to delete the selected files/folders?"
+  },
+  "DELETE_FAILED": {
+    "zh_CN": "删除失败",
+    "en_GB": "Delete Failed"
+  },
+  "DELETE_FAILED_MESSAGE": {
+    "zh_CN": "部分文件或文件夹删除失败",
+    "en_GB": "Some files or folders failed to delete"
+  },
+  "PLAY_ERROR": {
+    "zh_CN": "播放错误",
+    "en_GB": "Play Error"
+  },
+  "OPEN_FROM_SYSTEM": {
+    "zh_CN": "从系统打开",
+    "en_GB": "Open from System"
+  },
+  "NEW_FOLDER": {
+    "zh_CN": "新建文件夹",
+    "en_GB": "New Folder"
+  },
+  "NEW_FOLDER_PROMPT": {
+    "zh_CN": "输入文件夹名称",
+    "en_GB": "Enter folder name"
+  },
+  "CREATE_FOLDER_FAILED": {
+    "zh_CN": "创建文件夹失败",
+    "en_GB": "Failed to create folder"
+  },
+  "DUPLICATE_FILE": {
+    "zh_CN": "复制文件",
+    "en_GB": "Duplicate File"
+  },
+  "RENAME_FILE": {
+    "zh_CN": "重命名",
+    "en_GB": "Rename"
+  },
+  "RENAME_FILE_PROMPT": {
+    "zh_CN": "输入新的名称",
+    "en_GB": "Enter new name"
+  },
+  "FILE_ALREADY_EXISTS": {
+    "zh_CN": "'{name}' 已存在",
+    "en_GB": "'{name}' already exists"
+  },
+  "RENAME_FAILED": {
+    "zh_CN": "重命名失败",
+    "en_GB": "Rename failed"
+  },
+  "DUPLICATE_FAILED": {
+    "zh_CN": "复制失败",
+    "en_GB": "Duplicate failed"
+  },
+  "CONSOLE": {
+    "zh_CN": "控制台",
+    "en_GB": "Console"
+  },
+  "SEND": {
+    "zh_CN": "发送",
+    "en_GB": "Send"
+  },
+  "SEND_HINT": {
+    "zh_CN": "输入命令并按Enter发送",
+    "en_GB": "Enter command and press Enter"
+  },
+  "SEGMENT_PROPERTIES": {
+    "zh_CN": "片段属性",
+    "en_GB": "Segment Properties"
+  },
+  "startFrame": {
+    "zh_CN": "首帧数据",
+    "en_GB": "Start Frame"
+  },
+  "endFrame": {
+    "zh_CN": "尾帧数据",
+    "en_GB": "End Frame"
+  },
+  "time": {
+    "zh_CN": "时间",
+    "en_GB": "Time"
+  },
+  "rotation": {
+    "zh_CN": "旋转",
+    "en_GB": "Rotation"
+  },
+  "scale": {
+    "zh_CN": "缩放",
+    "en_GB": "Scale"
+  },
+  "asset": {
+    "zh_CN": "素材",
+    "en_GB": "Asset"
+  },
+  "MAP_LIST": {
+    "zh_CN": "地图列表",
+    "en_GB": "Map List"
+  },
+  "OVERVIEW": {
+    "zh_CN": "全貌",
+    "en_GB": "Overview"
+  },
+  "MAPLIST_EDIT": {
+    "zh_CN": "编辑地图",
+    "en_GB": "Edit Map"
+  },
+  "MAP_WIDTH": {
+    "zh_CN": "地图宽度",
+    "en_GB": "Map Width"
+  },
+  "MAP_HEIGHT": {
+    "zh_CN": "地图高度",
+    "en_GB": "Map Height"
+  },
+  "AMBIENT_LIGHT": {
+    "zh_CN": "环境光",
+    "en_GB": "Ambient Light"
+  },
+  "MAP_BGM": {
+    "zh_CN": "BGM（背景音乐）",
+    "en_GB": "BGM"
+  },
+  "MAP_BGS": {
+    "zh_CN": "BGS（背景音效）",
+    "en_GB": "BGS"
+  },
+  "MAP_FOG": {
+    "zh_CN": "雾效贴图",
+    "en_GB": "Fog Texture"
+  },
+  "MAP_FOG_POWER": {
+    "zh_CN": "雾强度",
+    "en_GB": "Fog Strength"
+  },
+  "MAP_FOG_OX": {
+    "zh_CN": "雾 X 速度",
+    "en_GB": "Fog Scroll X"
+  },
+  "MAP_FOG_OY": {
+    "zh_CN": "雾 Y 速度",
+    "en_GB": "Fog Scroll Y"
+  },
+  "MAP_FOG_DISTORT": {
+    "zh_CN": "雾扰动强度",
+    "en_GB": "Fog Distortion"
+  },
+  "CLEAR": {
+    "zh_CN": "清除",
+    "en_GB": "Clear"
+  },
+  "FILTER": {
+    "zh_CN": "滤镜",
+    "en_GB": "Filter"
+  },
+  "EDIT_BGM_FILTER": {
+    "zh_CN": "编辑BGM滤镜",
+    "en_GB": "Edit BGM Filter"
+  },
+  "EDIT_BGS_FILTER": {
+    "zh_CN": "编辑BGS滤镜",
+    "en_GB": "Edit BGS Filter"
+  },
+  "FILTER_OFFSET": {
+    "zh_CN": "偏移（秒）",
+    "en_GB": "Offset (s)"
+  },
+  "FILTER_PITCH": {
+    "zh_CN": "音高",
+    "en_GB": "Pitch"
+  },
+  "FILTER_PAN": {
+    "zh_CN": "声道 (-1=左 1=右)",
+    "en_GB": "Pan (-1=Left 1=Right)"
+  },
+  "FILTER_VOLUME": {
+    "zh_CN": "音量",
+    "en_GB": "Volume"
+  },
+  "FILTER_LOOP_POINT": {
+    "zh_CN": "循环区间（起/止 秒）",
+    "en_GB": "Loop Point (start/end s)"
+  },
+  "SAVE_SUCCESS": {
+    "zh_CN": "保存成功！",
+    "en_GB": "Save Successfully! "
+  },
+  "SAVE_FAILED": {
+    "zh_CN": "保存失败！",
+    "en_GB": "Save Failed! "
+  },
+  "SAVE_PATH": {
+    "zh_CN": "已修改文件为： {}",
+    "en_GB": "Modified files: {}"
+  },
+  "MAP_DATA_NONE": {
+    "zh_CN": "地图数据为空",
+    "en_GB": "Map data is None yet."
+  },
+  "MAP_FILE_NONE": {
+    "zh_CN": "地图文件失效",
+    "en_GB": "The file path of this map is None yet."
+  },
+  "position": {
+    "zh_CN": "位置",
+    "en_GB": "Position"
+  },
+  "color": {
+    "zh_CN": "颜色",
+    "en_GB": "Color"
+  },
+  "radius": {
+    "zh_CN": "半径",
+    "en_GB": "Radius"
+  },
+  "intensity": {
+    "zh_CN": "强度",
+    "en_GB": "Intensity"
+  },
+  "title": {
+    "zh_CN": "游戏名称",
+    "en_GB": "Game Title"
+  },
+  "gameSize": {
+    "zh_CN": "游戏尺寸",
+    "en_GB": "Game Size"
+  },
+  "fonts": {
+    "zh_CN": "字体文件",
+    "en_GB": "Font Files"
+  },
+  "fontSize": {
+    "zh_CN": "字体大小",
+    "en_GB": "Font Size"
+  },
+  "icon": {
+    "zh_CN": "图标",
+    "en_GB": "Icon"
+  },
+  "cursor": {
+    "zh_CN": "光标",
+    "en_GB": "Cursor"
+  },
+  "windowskinName": {
+    "zh_CN": "窗口皮肤",
+    "en_GB": "Window Skin"
+  },
+  "cellSize": {
+    "zh_CN": "单元格尺寸",
+    "en_GB": "Cell Size"
+  },
+  "coverOpaqueAlpha": {
+    "zh_CN": "遮挡时不透明度",
+    "en_GB": "Alpha when covered"
+  },
+  "startMap": {
+    "zh_CN": "初始地图",
+    "en_GB": "Start Map"
+  },
+  "startPos": {
+    "zh_CN": "初始位置",
+    "en_GB": "Start Position"
+  },
+  "transitionShaderPath": {
+    "zh_CN": "转场着色器路径",
+    "en_GB": "Transition Shader Path"
+  },
+  "tilemapLightMaskShaderPath": {
+    "zh_CN": "瓦片地图光照遮罩着色器路径",
+    "en_GB": "Tilemap Light Mask Shader Path"
+  },
+  "lightMaskShaderPath": {
+    "zh_CN": "光照遮罩着色器路径",
+    "en_GB": "Light Mask Shader Path"
+  },
+  "materialShaderPath": {
+    "zh_CN": "材质着色器路径",
+    "en_GB": "Material Shader Path"
+  },
+  "cursorSE": {
+    "zh_CN": "光标音效",
+    "en_GB": "Cursor Sound"
+  },
+  "decisionSE": {
+    "zh_CN": "确认音效",
+    "en_GB": "Decision Sound"
+  },
+  "cancelSE": {
+    "zh_CN": "取消音效",
+    "en_GB": "Cancel Sound"
+  },
+  "buzzerSE": {
+    "zh_CN": "警告音效",
+    "en_GB": "Buzzer Sound"
+  },
+  "shopSE": {
+    "zh_CN": "商店音效",
+    "en_GB": "Shop Sound"
+  },
+  "saveSE": {
+    "zh_CN": "保存音效",
+    "en_GB": "Save Sound"
+  },
+  "loadSE": {
+    "zh_CN": "读取音效",
+    "en_GB": "Load Sound"
+  },
+  "gateSE": {
+    "zh_CN": "开门音效",
+    "en_GB": "Gate Sound"
+  },
+  "stairSE": {
+    "zh_CN": "楼梯音效",
+    "en_GB": "Stair Sound"
+  },
+  "getSE": {
+    "zh_CN": "获得物品音效",
+    "en_GB": "Get Item Sound"
+  },
+  "equipSE": {
+    "zh_CN": "装备音效",
+    "en_GB": "Equip Sound"
+  },
+  "titleBGM": {
+    "zh_CN": "标题音乐",
+    "en_GB": "Title Music"
+  },
+  "SELECT_PROJECT_DIR": {
+    "zh_CN": "选择项目路径",
+    "en_GB": "Select project directory"
+  },
+  "ENTER_PROJECT_NAME": {
+    "zh_CN": "请输入新项目名称",
+    "en_GB": "Please enter the new project name"
+  },
+  "SELECT_PROJ_FILE": {
+    "zh_CN": "选择项目文件",
+    "en_GB": "Select project file"
+  },
+  "INVALID_PROJ_FILE": {
+    "zh_CN": "请选择有效的 .proj 文件",
+    "en_GB": "Please select a valid .proj file"
+  },
+  "PROJECT_EXISTS": {
+    "zh_CN": "目标文件夹已存在",
+    "en_GB": "Target folder already exists"
+  },
+  "COPY_FAILED": {
+    "zh_CN": "复制项目失败",
+    "en_GB": "Failed to copy project"
+  },
+  "OPEN_FAILED": {
+    "zh_CN": "打开项目失败",
+    "en_GB": "Failed to open project"
+  },
+  "IndividualWindow": {
+    "zh_CN": "独立窗口",
+    "en_GB": "Individual Window"
+  },
+  "ShowFPSGraph": {
+    "zh_CN": "运行结束后显示 FPS 图表",
+    "en_GB": "Show FPS graph after game ends"
+  },
+  "CONFIRM_EXIT_WITH_UNSAVED_CHANGES": {
+    "zh_CN": "当前有未保存的修改，是否保存并退出？",
+    "en_GB": "There are unsaved changes. Save and exit?"
+  },
+  "SAVE_AND_EXIT": {
+    "zh_CN": "保存",
+    "en_GB": "Save"
+  },
+  "DISCARD_AND_EXIT": {
+    "zh_CN": "不保存",
+    "en_GB": "Discard"
+  },
+  "NEW_MAP": {
+    "zh_CN": "新建地图",
+    "en_GB": "Create New Map"
+  },
+  "NEW_MAP_DEFAULT_NAME": {
+    "zh_CN": "新地图",
+    "en_GB": "New Map"
+  },
+  "ADD_NODE": {
+    "zh_CN": "添加节点",
+    "en_GB": "Add Node"
+  },
+  "SET_AS_START": {
+    "zh_CN": "设置为起始节点",
+    "en_GB": "Set as Start Node"
+  },
+  "CANCEL_START_NODE": {
+    "zh_CN": "取消起始节点",
+    "en_GB": "Cancel Start Node"
+  },
+  "NEW_COMMON_FUNC": {
+    "zh_CN": "新建公共函数",
+    "en_GB": "New Common Function"
+  },
+  "ENTER_FUNC_NAME": {
+    "zh_CN": "请输入公共函数名称",
+    "en_GB": "Enter common function name"
+  },
+  "FUNC_NAME_EXISTS": {
+    "zh_CN": "公共函数名称已存在",
+    "en_GB": "Common function name already exists"
+  },
+  "INVALID_NAME": {
+    "zh_CN": "名称无效",
+    "en_GB": "Invalid Name"
+  },
+  "RENAME_FUNC": {
+    "zh_CN": "重命名公共函数",
+    "en_GB": "Rename Common Function"
+  },
+  "CONFIRM_DELETE_FUNC": {
+    "zh_CN": "确认删除公共函数 '{name}' 吗？",
+    "en_GB": "Are you sure you want to delete the common function '{name}'?"
+  },
+  "UNABLE_TO_SET_START_NODE": {
+    "zh_CN": "无法设置起始节点，起始节点需要是Exec或Latent类型节点",
+    "en_GB": "Unable to set start node. Start node must be of Exec or Latent type."
+  },
+  "NEW_LIGHT_SOURCE": {
+    "zh_CN": "新建光源",
+    "en_GB": "Create New Light Source"
+  },
+  "INVALID_DATA_FILE": {
+    "zh_CN": "数据文件无效",
+    "en_GB": "Invalid Data File"
+  },
+  "INVALID_DATA_FILE_MESSAGE": {
+    "zh_CN": "选中的 .dat 文件不是符合引擎规范的数据文件。",
+    "en_GB": "The selected .dat file is not a valid engine data file."
+  },
+  "PARENT": {
+    "zh_CN": "父类",
+    "en_GB": "Parent"
+  },
+  "META_RELY_TOOLTIP": {
+    "zh_CN": "需要 {source} 为 {value} 时可编辑",
+    "en_GB": "Editable when {source} is {value}"
+  },
+  "ADD_ATTR": {
+    "zh_CN": "添加属性",
+    "en_GB": "Add Attribute"
+  },
+  "ADD_COMPONENT": {
+    "zh_CN": "添加组件",
+    "en_GB": "Add Component"
+  },
+  "COMPONENT_NAME": {
+    "zh_CN": "组件名称",
+    "en_GB": "Component Name"
+  },
+  "COMPONENTS": {
+    "zh_CN": "组件",
+    "en_GB": "Components"
+  },
+  "ATTR_NAME": {
+    "zh_CN": "属性名称",
+    "en_GB": "Attribute Name"
+  },
+  "ATTR_EXISTS": {
+    "zh_CN": "属性已存在",
+    "en_GB": "Attribute already exists"
+  },
+  "ATTR_NAME_CANNOT_START_WITH_DIGIT": {
+    "zh_CN": "属性名称不能以数字开头",
+    "en_GB": "Attribute name cannot start with a digit"
+  },
+  "ERROR": {
+    "zh_CN": "错误",
+    "en_GB": "Error"
+  },
+  "UNEXPECTED_ERROR": {
+    "zh_CN": "发生了意外错误",
+    "en_GB": "An unexpected error occurred"
+  },
+  "NEW_EVENT": {
+    "zh_CN": "新建事件",
+    "en_GB": "New Event"
+  },
+  "ENTER_EVENT_NAME": {
+    "zh_CN": "请输入事件名称",
+    "en_GB": "Enter event name"
+  },
+  "EVENT_EXISTS": {
+    "zh_CN": "事件名称已存在",
+    "en_GB": "Event name already exists"
+  },
+  "RENAME_EVENT": {
+    "zh_CN": "重命名事件",
+    "en_GB": "Rename Event"
+  },
+  "DELETE_EVENT": {
+    "zh_CN": "删除事件",
+    "en_GB": "Delete Event"
+  },
+  "CONFIRM_DELETE_EVENT": {
+    "zh_CN": "确认删除事件 '{name}' 吗？",
+    "en_GB": "Are you sure you want to delete the event '{name}'?"
+  },
+  "NEW_BLUEPRINT": {
+    "zh_CN": "新建蓝图",
+    "en_GB": "New Blueprint"
+  },
+  "SELECT_BLUEPRINT_PATH": {
+    "zh_CN": "选择蓝图保存路径",
+    "en_GB": "Select blueprint save path"
+  },
+  "BLUEPRINT_EXISTS": {
+    "zh_CN": "蓝图已存在",
+    "en_GB": "Blueprint already exists"
+  },
+  "BLUEPRINT_PARENT_MUST_INHERIT_BPBASE": {
+    "zh_CN": "蓝图父类必须是 BPBase 的派生类",
+    "en_GB": "Blueprint parent class must be derived from BPBase"
+  },
+  "PROJECT_CLASSES": {
+    "zh_CN": "项目类",
+    "en_GB": "Project Classes"
+  },
+  "PROJECT_BLUEPRINT": {
+    "zh_CN": "项目蓝图",
+    "en_GB": "Project Blueprints"
+  },
+  "CLASS_SELECTOR": {
+    "zh_CN": "选择父级",
+    "en_GB": "Select Parent"
+  },
+  "HINT_CREATE_BP_SUCCESS": {
+    "zh_CN": "创建成功！请保存以应用文件生成。",
+    "en_GB": "Creation successful! Please save to apply file generation."
+  },
+  "NEW_ANIMATION": {
+    "zh_CN": "新建动画",
+    "en_GB": "New Animation"
+  },
+  "SELECT_ANIMATION_PATH": {
+    "zh_CN": "选择动画保存路径",
+    "en_GB": "Select animation save path"
+  },
+  "ANIMATION_EXISTS": {
+    "zh_CN": "动画已存在",
+    "en_GB": "Animation already exists"
+  },
+  "HINT_CREATE_ANIM_SUCCESS": {
+    "zh_CN": "创建成功！请保存以应用文件生成。",
+    "en_GB": "Creation successful! Please save to apply file generation."
+  },
+  "RELOAD_MODULE": {
+    "zh_CN": "重载模块",
+    "en_GB": "Reload Module"
+  },
+  "HINT_RELOAD_MODULE_SUCCESS": {
+    "zh_CN": "模块重载成功！",
+    "en_GB": "Module reload successful!"
+  },
+  "HINT_RELOAD_MODULE_FAILED": {
+    "zh_CN": "模块重载失败！",
+    "en_GB": "Module reload failed!"
+  },
+  "DRAG_INFO": {
+    "zh_CN": "蓝图：{file}被实例化到了：({x}, {y})",
+    "en_GB": "Blueprint: {file} instantiated at: ({x}, {y})"
+  },
+  "NOT_ACTOR_TYPE": {
+    "zh_CN": "不是符合规范的Actor类型",
+    "en_GB": "Not a valid Actor type"
+  },
+  "ACTOR_INFO": {
+    "zh_CN": "角色信息",
+    "en_GB": "Actor Info"
+  },
+  "TAG": {
+    "zh_CN": "标签",
+    "en_GB": "Tag"
+  },
+  "TRANSLATION": {
+    "zh_CN": "平移",
+    "en_GB": "Translation"
+  },
+  "ROTATION": {
+    "zh_CN": "旋转",
+    "en_GB": "Rotation"
+  },
+  "SCALE": {
+    "zh_CN": "缩放",
+    "en_GB": "Scale"
+  },
+  "ORIGIN": {
+    "zh_CN": "原点",
+    "en_GB": "Origin"
+  },
+  "NO_SELECTION": {
+    "zh_CN": "无选择",
+    "en_GB": "No Selection"
+  },
+  "HELP_LANGUAGE": {
+    "zh_CN": "语言",
+    "en_GB": "Language"
+  },
+  "LANGUAGE_CHANGE_RESTART": {
+    "zh_CN": "语言设置将在重启编辑器后生效。",
+    "en_GB": "Language changes will take effect after restarting the editor."
+  },
+  "CONFIRM_DELETE_PARAM": {
+    "zh_CN": "确认删除字段 '{}' 吗？\n这将从所有成员中移除该数据。",
+    "en_GB": "Are you sure you want to delete the field '{}'?\nThis will remove it from all members."
+  },
+  "NEW_DATA_TYPE": {
+    "zh_CN": "新建数据类型",
+    "en_GB": "New Data Type"
+  },
+  "RENAME_DATA_TYPE": {
+    "zh_CN": "重命名数据类型",
+    "en_GB": "Rename Data Type"
+  },
+  "DELETE_DATA_TYPE": {
+    "zh_CN": "删除数据类型",
+    "en_GB": "Delete Data Type"
+  },
+  "CONFIRM_DELETE_DATA_TYPE": {
+    "zh_CN": "确认删除数据类型 '{}' 吗？\n这将不可恢复。",
+    "en_GB": "Are you sure you want to delete data type '{}'?\nThis cannot be undone."
+  },
+  "ENTER_DATA_TYPE_NAME": {
+    "zh_CN": "请输入数据类型名称",
+    "en_GB": "Enter data type name"
+  },
+  "DATA_TYPE_EXISTS": {
+    "zh_CN": "数据类型已存在",
+    "en_GB": "Data type already exists"
+  },
+  "GENERAL_DATA": {
+    "zh_CN": "通用数据",
+    "en_GB": "General Data"
+  },
+  "PARAM_NAME": {
+    "zh_CN": "字段名",
+    "en_GB": "Field Name"
+  },
+  "PARAM_TYPE": {
+    "zh_CN": "字段类型",
+    "en_GB": "Field Type"
+  },
+  "DEFAULT_VALUE": {
+    "zh_CN": "默认值",
+    "en_GB": "Default Value"
+  },
+  "GENERAL_DATA_PARAM_NAME_TIP": {
+    "zh_CN": "字段名：保存到 GeneralData 成员里的键名，通常应与代码读取的属性名一致，例如 icon 或 price。",
+    "en_GB": "Field name: The key saved on each GeneralData member. It should usually match the attribute name read by code, such as icon or price."
+  },
+  "GENERAL_DATA_TYPE_TIP_STRING": {
+    "zh_CN": "string：普通文本字段，编辑时使用单行文本框。",
+    "en_GB": "string: A plain text field edited with a single-line text box."
+  },
+  "GENERAL_DATA_TYPE_TIP_INT": {
+    "zh_CN": "int：整数数字字段，编辑时使用整数输入框。",
+    "en_GB": "int: An integer numeric field edited with an integer spin box."
+  },
+  "GENERAL_DATA_TYPE_TIP_FLOAT": {
+    "zh_CN": "float：小数字段，编辑时使用浮点数输入框。",
+    "en_GB": "float: A decimal numeric field edited with a floating-point spin box."
+  },
+  "GENERAL_DATA_TYPE_TIP_BOOL": {
+    "zh_CN": "bool：真假值字段，编辑时使用勾选框。",
+    "en_GB": "bool: A true/false field edited with a checkbox."
+  },
+  "GENERAL_DATA_TYPE_TIP_FILE": {
+    "zh_CN": "file：素材文件字段，编辑时从 Assets 下选择文件，并保存相对 Assets 的路径。",
+    "en_GB": "file: An asset file field. It selects a file under Assets and saves the path relative to Assets."
+  },
+  "GENERAL_DATA_TYPE_TIP_LIST": {
+    "zh_CN": "list：列表字段，编辑时使用可增删行的列表编辑器。",
+    "en_GB": "list: A list field edited with a row-based list editor."
+  },
+  "GENERAL_DATA_TYPE_TIP_DICT": {
+    "zh_CN": "dict：字典字段，编辑时使用键值行编辑器，左侧为 key，右侧为 value。",
+    "en_GB": "dict: A dictionary field edited with key-value rows (key on the left, value on the right)."
+  },
+  "GENERAL_DATA_DEFAULT_TIP_STRING": {
+    "zh_CN": "string：新成员默认填入的文本。",
+    "en_GB": "string: Text assigned to new members by default."
+  },
+  "GENERAL_DATA_DEFAULT_TIP_INT": {
+    "zh_CN": "int：新成员默认填入的整数；留空时使用 0。",
+    "en_GB": "int: Integer assigned to new members by default; empty uses 0."
+  },
+  "GENERAL_DATA_DEFAULT_TIP_FLOAT": {
+    "zh_CN": "float：新成员默认填入的小数；留空时使用 0.0。",
+    "en_GB": "float: Decimal number assigned to new members by default; empty uses 0.0."
+  },
+  "GENERAL_DATA_DEFAULT_TIP_BOOL": {
+    "zh_CN": "bool：输入 true 表示勾选，其它内容都表示不勾选。",
+    "en_GB": "bool: Enter true for checked; any other value is unchecked."
+  },
+  "GENERAL_DATA_DEFAULT_TIP_FILE": {
+    "zh_CN": "file：填写 Assets 下的默认选择目录，例如 Icons；成员值会保存为相对 Assets 的文件路径。",
+    "en_GB": "file: Enter the default selection folder under Assets, such as Icons; member values are saved as paths relative to Assets."
+  },
+  "GENERAL_DATA_DEFAULT_TIP_LIST": {
+    "zh_CN": "list：输入 Python 列表格式作为默认值，例如 [\"A\", \"B\"]；留空时使用空列表。",
+    "en_GB": "list: Enter a Python list as the default, such as [\"A\", \"B\"]; empty uses an empty list."
+  },
+  "GENERAL_DATA_DEFAULT_TIP_DICT": {
+    "zh_CN": "dict：输入 Python 字典格式作为默认值，例如 {\"key\": \"value\"}；留空时使用空字典。",
+    "en_GB": "dict: Enter a Python dict as the default, such as {\"key\": \"value\"}; empty uses an empty dict."
+  },
+  "PARAM_EXISTS": {
+    "zh_CN": "字段已存在",
+    "en_GB": "Field already exists"
+  },
+  "GENERAL_DATA_EDITOR": {
+    "zh_CN": "通用数据编辑器",
+    "en_GB": "General Data Editor"
+  },
+  "REMOVE_MEMBER": {
+    "zh_CN": "删除成员",
+    "en_GB": "Remove Member"
+  },
+  "CHANGE_ID": {
+    "zh_CN": "更改ID",
+    "en_GB": "Change ID"
+  },
+  "TUPLE_SIZE_ERR": {
+    "zh_CN": "元组格式必须为tuple[SIZE]",
+    "en_GB": "Tuple format must be tuple[SIZE]"
+  },
+  "SELECT_FILE": {
+    "zh_CN": "选择文件",
+    "en_GB": "Select File"
+  },
+  "FILE_FILTER_ALL": {
+    "zh_CN": "所有文件 (*)",
+    "en_GB": "All Files (*)"
+  },
+  "FILE_FILTER_ALL_STAR": {
+    "zh_CN": "所有文件 (*.*)",
+    "en_GB": "All Files (*.*)"
+  },
+  "FILE_FILTER_AUDIO": {
+    "zh_CN": "音频文件 (*.ogg *.wav *.flac *.mp3)",
+    "en_GB": "Audio Files (*.ogg *.wav *.flac *.mp3)"
+  },
+  "FILE_FILTER_IMAGES": {
+    "zh_CN": "图像文件 (*.png *.jpg *.bmp *.jpeg)",
+    "en_GB": "Images (*.png *.jpg *.bmp *.jpeg)"
+  },
+  "FILE_FILTER_FILES": {
+    "zh_CN": "文件 ({patterns})",
+    "en_GB": "Files ({patterns})"
+  },
+  "FILE_DIALOG_LOOK_IN": {
+    "zh_CN": "查找范围:",
+    "en_GB": "Look in:"
+  },
+  "FILE_DIALOG_FILE_TYPE": {
+    "zh_CN": "文件类型:",
+    "en_GB": "Files of type:"
+  },
+  "FILE_DIALOG_OPEN": {
+    "zh_CN": "打开",
+    "en_GB": "Open"
+  },
+  "EXPORT_LOCALE": {
+    "zh_CN": "导出本地化表",
+    "en_GB": "Export Locale"
+  },
+  "LOCALE_DIR_NOT_FOUND": {
+    "zh_CN": "未找到 Locale 目录",
+    "en_GB": "Locale directory not found"
+  },
+  "LOCALE_XLSX_NOT_FOUND": {
+    "zh_CN": "未找到 Locale.xlsx",
+    "en_GB": "Locale.xlsx not found"
+  },
+  "LOCALE_XLSX_INVALID": {
+    "zh_CN": "Locale.xlsx 格式无效：首行需为 ID 与语言列",
+    "en_GB": "Invalid Locale.xlsx format: first row must be ID and language columns"
+  },
+  "EXPORT_LOCALE_SUCCESS": {
+    "zh_CN": "本地化表导出完成：{langs}",
+    "en_GB": "Locale export completed: {langs}"
+  },
+  "EXPORT_LOCALE_FAILED": {
+    "zh_CN": "本地化表导出失败",
+    "en_GB": "Locale export failed"
+  },
+  "VIEW_LOCALE_TABLE": {
+    "zh_CN": "查看本地化表",
+    "en_GB": "View Locale Table"
+  },
+  "LOCALE_EDITOR_IN_APP": {
+    "zh_CN": "编辑器内编辑",
+    "en_GB": "Edit in Editor"
+  },
+  "LOCALE_OPEN_FILE": {
+    "zh_CN": "打开本地化文件",
+    "en_GB": "Open Locale File"
+  },
+  "LOCALE_EDITOR_TITLE": {
+    "zh_CN": "本地化表编辑器",
+    "en_GB": "Locale Table Editor"
+  },
+  "LOCALE_ADD_SHEET": {
+    "zh_CN": "添加工作表",
+    "en_GB": "Add Sheet"
+  },
+  "LOCALE_DELETE_SHEET": {
+    "zh_CN": "删除工作表",
+    "en_GB": "Delete Sheet"
+  },
+  "LOCALE_RENAME_SHEET": {
+    "zh_CN": "重命名工作表",
+    "en_GB": "Rename Sheet"
+  },
+  "LOCALE_SHEET_NAME_PROMPT": {
+    "zh_CN": "请输入工作表名称：",
+    "en_GB": "Enter sheet name:"
+  },
+  "LOCALE_SHEET_EXISTS": {
+    "zh_CN": "工作表名已存在",
+    "en_GB": "Sheet name already exists"
+  },
+  "LOCALE_CANNOT_DELETE_LAST_SHEET": {
+    "zh_CN": "不能删除最后一个工作表",
+    "en_GB": "Cannot delete the last sheet"
+  },
+  "LOCALE_CONFIRM_DELETE_SHEET": {
+    "zh_CN": "确认删除工作表 \"{}\" ？",
+    "en_GB": "Confirm deleting sheet \"{}\"?"
+  },
+  "CLOSE": {
+    "zh_CN": "关闭",
+    "en_GB": "Close"
+  },
+  "NEW_MEMBER": {
+    "zh_CN": "新建成员",
+    "en_GB": "New Member"
+  },
+  "ENTER_ID": {
+    "zh_CN": "请输入ID",
+    "en_GB": "Enter ID"
+  },
+  "ADD_PARAM": {
+    "zh_CN": "添加字段",
+    "en_GB": "Add Field"
+  },
+  "EDIT_BLUEPRINT": {
+    "zh_CN": "编辑蓝图",
+    "en_GB": "Edit Blueprint"
+  },
+  "LINKED_TYPE": {
+    "zh_CN": "关联类型",
+    "en_GB": "Linked Type"
+  },
+  "NO_LINKED_TYPE": {
+    "zh_CN": "(无 - 不关联类型)",
+    "en_GB": "(None - No Linked Type)"
+  },
+  "SELECT_LINKED_TYPE": {
+    "zh_CN": "选择关联类型",
+    "en_GB": "Select Linked Type"
+  },
+  "SELECT_LINKED_TYPE_DESC": {
+    "zh_CN": "选择一个 InfoType 关联（或无）：",
+    "en_GB": "Choose a linked InfoType (or none):"
+  },
+  "SET_LINKED_TYPE": {
+    "zh_CN": "设置关联类型",
+    "en_GB": "Set Linked Type"
+  },
+  "ABOUT_MENU": {
+    "zh_CN": "关于",
+    "en_GB": "About"
+  },
+  "ABOUT_TITLE": {
+    "zh_CN": "关于 Ludork",
+    "en_GB": "About Ludork"
+  },
+  "ABOUT_DESC": {
+    "zh_CN": "Ludork 是一个基于 PyQt5 的 2D RPG 工具包，它通过 pybind11 将编辑器 UI 与由 SFML 绑定的轻量级运行时引擎配对。它专注于通过可视化脚本、资产工具和游戏基础进行快速迭代，以便创作者可以在不离开编辑器的情况下构建内容。",
+    "en_GB": "Ludork is a PyQt5-based 2D RPG toolkit that pairs an editor UI with a lightweight runtime engine powered by SFML bindings through pybind11. It focuses on fast iteration with visual scripting, asset tooling, and gameplay foundations so creators can build content without constantly leaving the editor."
+  },
+  "ABOUT_LICENSES": {
+    "zh_CN": "开源许可",
+    "en_GB": "Open Source Licenses"
+  },
+  "ABOUT_COPYRIGHT": {
+    "zh_CN": "© 2026 Ludork Team",
+    "en_GB": "© 2026 Ludork Team"
+  }
 }

@@ -167,12 +167,15 @@ class DropBoxExpanded(WindowSelectable):
             return
         super().onKeyDown(kwargs)
 
-    def onTick(self, deltaTime: float) -> None:
-        if not self.getActive() or not self.getVisible():
-            return
-        if Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True):
+    def onMouseButtonDown(self, kwargs: dict) -> bool:
+        r"""\brief Collapse on right click."""
+        if kwargs["button"] == Input.Mouse.Button.Right:
+            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
+            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
             if self._onCollapse is not None:
                 self._onCollapse(None)
+            return True
+        return False
 
     def _makeItemConfirmCallback(self, index: int) -> Callable:
         def _onItemConfirm(obj: FunctionalBase, kwargs: dict) -> None:

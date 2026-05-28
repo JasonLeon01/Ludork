@@ -143,6 +143,9 @@ class WindowSelectable(WindowBase):
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
         r"""\brief Handle keyboard navigation and confirmation.
 
+        Direction keys use repeat mode: immediate first press, then
+        after ~0.4 s they fire every ~0.1 s while held.
+
         - \param kwargs Event data.
         """
         if not (self._listView and len(self._listView.getChildren()) > 0 and not self.index is None):
@@ -156,21 +159,24 @@ class WindowSelectable(WindowBase):
                     child.onConfirm({})
             return
 
+        _REPEAT_DELAY = 0.4
+        _REPEAT_INTERVAL = 0.1
+
         columns = self._getColumns()
-        if Input.isActionTriggered(Input.getUpKeys(), handled=True):
+        if Input.isActionTriggered(Input.getUpKeys(), handled=True, repeatDelay=_REPEAT_DELAY, repeatInterval=_REPEAT_INTERVAL):
             if columns == 1:
                 self.index = (self.index - 1) % self._itemCount()
             else:
                 self.index = max(0, self.index - columns)
-        elif Input.isActionTriggered(Input.getDownKeys(), handled=True):
+        elif Input.isActionTriggered(Input.getDownKeys(), handled=True, repeatDelay=_REPEAT_DELAY, repeatInterval=_REPEAT_INTERVAL):
             if columns == 1:
                 self.index = (self.index + 1) % self._itemCount()
             else:
                 self.index = min(self._itemCount() - 1, self.index + columns)
-        elif Input.isActionTriggered(Input.getLeftKeys(), handled=True):
+        elif Input.isActionTriggered(Input.getLeftKeys(), handled=True, repeatDelay=_REPEAT_DELAY, repeatInterval=_REPEAT_INTERVAL):
             if columns != 1:
                 self.index = max(0, self.index - 1)
-        elif Input.isActionTriggered(Input.getRightKeys(), handled=True):
+        elif Input.isActionTriggered(Input.getRightKeys(), handled=True, repeatDelay=_REPEAT_DELAY, repeatInterval=_REPEAT_INTERVAL):
             if columns != 1:
                 self.index = min(self._itemCount() - 1, self.index + 1)
 

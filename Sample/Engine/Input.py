@@ -10,6 +10,7 @@ trigger/hold detection, and input blocking.
 import copy
 import logging
 import threading
+import time
 import traceback
 from enum import Enum
 from typing import Any, Dict, Optional, Tuple, Union, List, Callable
@@ -147,6 +148,15 @@ class _EventState:
         Tuple[str, List[Union[Key, Scan, JoystickButton, JoystickAxis]]],
         Tuple[object, Callable[[object, Optional[float]], None], bool],
     ] = {}  # Action name -> (object, callback, trigger_on_hold)
+
+    KeyRepeatStartTime: Dict[
+        Tuple[Keyboard.Key, bool, bool, bool, bool], float
+    ] = {}  # (key, alt, ctrl, shift, system) -> perf_counter when first triggered
+    KeyRepeatLastTime: Dict[
+        Tuple[Keyboard.Key, bool, bool, bool, bool], float
+    ] = {}  # (key, alt, ctrl, shift, system) -> perf_counter of last repeat fire
+    JoystickButtonRepeatStartTime: Dict[int, float] = {}  # button -> first trigger time
+    JoystickButtonRepeatLastTime: Dict[int, float] = {}  # button -> last repeat fire time
 
 
 _InjectedEvents = []
@@ -1227,6 +1237,8 @@ def isKeyTriggered(
     shift: bool = False,
     system: bool = False,
     handled: bool = False,
+    repeatDelay: float = 0.0,
+    repeatInterval: float = 0.0,
 ) -> bool:
     r"""
     \brief Check if a key is currently triggered (held since first press, not yet consumed).
@@ -1236,12 +1248,19 @@ def isKeyTriggered(
     This is thread-safe and decoupled from the per-frame KeyPressed flag,
     so concurrent threads observing input will agree on the trigger state.
 
+    When `repeatInterval` > 0.0 the function also supports repeat fires:
+    the first press returns True immediately (and is consumed via `handled`),
+    then after `repeatDelay` seconds of holding the same key it returns True
+    again at `repeatInterval`-second intervals until the key is released.
+
     - key: The key to check.
     - alt: Whether ALT modifier is required.
     - ctrl: Whether CTRL modifier is required.
     - shift: Whether SHIFT modifier is required.
     - system: Whether SYSTEM modifier is required.
     - handled: Whether to mark the key as handled (consumed) if triggered.
+    - repeatDelay: Seconds to wait after first press before repeat starts (0 = no repeat).
+    - repeatInterval: Seconds between repeat fires after the initial delay.
 
     \return True if the key is currently triggered and not yet handled, False otherwise.
     """
@@ -1251,8 +1270,28 @@ def isKeyTriggered(
         keyMap = (key, alt, ctrl, shift, system)
         entry = _EventState.KeyTriggeredMap.get(keyMap)
         if entry is None:
+            _EventState.KeyRepeatStartTime.pop(keyMap, None)
+            _EventState.KeyRepeatLastTime.pop(keyMap, None)
             return False
         count, handled_ = entry
+
+        if repeatInterval > 0.0:
+            if not handled_:
+                now = time.perf_counter()
+                _EventState.KeyRepeatStartTime[keyMap] = now
+                _EventState.KeyRepeatLastTime[keyMap] = now
+                if handled:
+                    _EventState.KeyTriggeredMap[keyMap] = (count, True)
+                return True
+            if Keyboard.isKeyPressed(key):
+                now = time.perf_counter()
+                startTime = _EventState.KeyRepeatStartTime.get(keyMap, 0.0)
+                lastTime = _EventState.KeyRepeatLastTime.get(keyMap, 0.0)
+                if now - startTime >= repeatDelay and now - lastTime >= repeatInterval:
+                    _EventState.KeyRepeatLastTime[keyMap] = now
+                    return True
+            return False
+
         if handled_ or count < 1:
             return False
         if handled:
@@ -1260,14 +1299,37 @@ def isKeyTriggered(
         return True
 
 
-def isAnyJoystickButtonTriggered(button: Union[int, JoystickButton], handled: bool = False) -> bool:
+def _isAnyJoystickButtonDown(button: int) -> bool:
+    r"""\brief Check whether any connected joystick has `button` held right now.
+
+    - \param button  Integer button index.
+
+    - \return True when at least one connected joystick reports the button pressed.
+    """
+    for jId in range(Joystick.Count):
+        if Joystick.isConnected(jId) and Joystick.isButtonPressed(jId, button):
+            return True
+    return False
+
+
+def isAnyJoystickButtonTriggered(
+    button: Union[int, JoystickButton],
+    handled: bool = False,
+    repeatDelay: float = 0.0,
+    repeatInterval: float = 0.0,
+) -> bool:
     r"""
     \brief Check if a joystick button is currently triggered (held since first press, not yet consumed).
 
     Persists across frames until the button is released or consumed via handled=True.
 
+    When `repeatInterval` > 0.0 the function also supports repeat fires
+    with the same timing semantics as `isKeyTriggered`.
+
     - button: The button to check.
     - handled: Whether to mark the button as handled (consumed) if triggered.
+    - repeatDelay: Seconds to wait after first press before repeat starts (0 = no repeat).
+    - repeatInterval: Seconds between repeat fires after the initial delay.
 
     \return True if the button is currently triggered and not yet handled, False otherwise.
     """
@@ -1278,8 +1340,28 @@ def isAnyJoystickButtonTriggered(button: Union[int, JoystickButton], handled: bo
             button = button.value
         entry = _EventState.JoystickButtonTriggeredMap.get(button)
         if entry is None:
+            _EventState.JoystickButtonRepeatStartTime.pop(button, None)
+            _EventState.JoystickButtonRepeatLastTime.pop(button, None)
             return False
         count, handled_ = entry
+
+        if repeatInterval > 0.0:
+            if not handled_:
+                now = time.perf_counter()
+                _EventState.JoystickButtonRepeatStartTime[button] = now
+                _EventState.JoystickButtonRepeatLastTime[button] = now
+                if handled:
+                    _EventState.JoystickButtonTriggeredMap[button] = (count, True)
+                return True
+            if _isAnyJoystickButtonDown(button):
+                now = time.perf_counter()
+                startTime = _EventState.JoystickButtonRepeatStartTime.get(button, 0.0)
+                lastTime = _EventState.JoystickButtonRepeatLastTime.get(button, 0.0)
+                if now - startTime >= repeatDelay and now - lastTime >= repeatInterval:
+                    _EventState.JoystickButtonRepeatLastTime[button] = now
+                    return True
+            return False
+
         if handled_ or count < 1:
             return False
         if handled:
@@ -1297,6 +1379,8 @@ def isActionTriggered(
         ]
     ],
     handled: bool = False,
+    repeatDelay: float = 0.0,
+    repeatInterval: float = 0.0,
 ) -> bool:
     r"""
     \brief Check whether any key in an action key set is currently triggered.
@@ -1304,8 +1388,13 @@ def isActionTriggered(
     Trigger state persists across frames until release or consumption (handled=True),
     and is consistent across threads via an internal lock.
 
+    When `repeatInterval` > 0.0, keyboard keys and joystick buttons in the
+    action set gain repeat-fire behaviour (see `isKeyTriggered` for timing).
+
     - actionKeys: List of keys/buttons/axes to check.
     - handled: Whether to mark the matching action keys as handled (consumed) if triggered.
+    - repeatDelay: Seconds to wait after first press before repeat starts (0 = no repeat).
+    - repeatInterval: Seconds between repeat fires after the initial delay.
 
     \return True if any action key is currently triggered and not yet handled, False otherwise.
     """
@@ -1313,10 +1402,10 @@ def isActionTriggered(
         triggered = False
         for key in actionKeys:
             if isinstance(key, (Key, Scan)):
-                if isKeyTriggered(key, handled=handled):
+                if isKeyTriggered(key, handled=handled, repeatDelay=repeatDelay, repeatInterval=repeatInterval):
                     triggered = True
             elif isinstance(key, JoystickButton):
-                if isAnyJoystickButtonTriggered(key, handled=handled):
+                if isAnyJoystickButtonTriggered(key, handled=handled, repeatDelay=repeatDelay, repeatInterval=repeatInterval):
                     triggered = True
             elif isinstance(key, tuple):
                 axis, threshold, condition = key

@@ -80,10 +80,13 @@ class WindowSaveCommand(WindowCommand):
             return
         super().onKeyDown(kwargs)
 
-    def onTick(self, deltaTime: float) -> None:
-        if self.getActive() and self.getVisible():
-            if Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True):
-                self._owner.closeByCancel()
+    def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
+        if kwargs["button"] == Input.Mouse.Button.Right:
+            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
+            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
+            self._owner.closeByCancel()
+            return True
+        return False
 
 
 class WindowSaveSlot(WindowSelectable):
@@ -118,9 +121,14 @@ class WindowSaveSlot(WindowSelectable):
     def onTick(self, deltaTime: float) -> None:
         super().onTick(deltaTime)
         self._owner.notifySlotIndexMaybeChanged(self.index)
-        if self.getActive() and self.getVisible():
-            if Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True):
-                self._owner.cancelSlotSelection()
+
+    def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
+        if kwargs["button"] == Input.Mouse.Button.Right:
+            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
+            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
+            self._owner.cancelSlotSelection()
+            return True
+        return False
 
 
 class WindowSaveDetail(WindowBase):

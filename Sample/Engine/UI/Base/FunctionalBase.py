@@ -64,6 +64,15 @@ class FunctionalBase:
         """
         pass
 
+    def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
+        r"""\brief Called when any mouse button is pressed, regardless of hover state.
+
+        - \param kwargs  Event arguments (includes position and button)
+
+        - \return True if the event was handled and should be consumed.
+        """
+        return False
+
     def onHover(self, kwargs: Dict[str, Any]) -> None:
         r"""\brief Called when the mouse starts hovering over the control.
 
@@ -148,6 +157,13 @@ class FunctionalBase:
         """
         self.onClick = callback_.__get__(self, type(self))
 
+    def addMouseButtonDownCallback(self, callback_: Callable) -> None:
+        r"""\brief Register a callback for the mouse-button-down action.
+
+        - \param callback_  Callback to invoke on mouse button down
+        """
+        self.onMouseButtonDown = callback_.__get__(self, type(self))
+
     def addHoverCallback(self, callback_: Callable) -> None:
         r"""\brief Register a callback for the hover action.
 
@@ -202,6 +218,13 @@ class FunctionalBase:
         if not self.getActive() or (isinstance(self, ControlBase) and not self.getVisible()):
             return
         localMousePos = Math.ToVector2f(Input.getMousePosition())
+        if Input.isMouseButtonPressed():
+            for btn in [Input.Mouse.Button.Left, Input.Mouse.Button.Right, Input.Mouse.Button.Middle]:
+                if not Input.getMouseButtonPressed(btn, handled=False):
+                    continue
+                if self.onMouseButtonDown({"position": localMousePos, "button": btn}):
+                    Input.getMouseButtonPressed(btn, handled=True)
+                    Input.isMouseButtonTriggered(btn, handled=True)
         hovered = False
         if isinstance(self, ControlBase):
             bounds: FloatRect = self.getAbsoluteBounds()

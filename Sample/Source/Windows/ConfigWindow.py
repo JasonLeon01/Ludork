@@ -277,12 +277,14 @@ class ConfigWindow(WindowSelectable):
             return
         super().onKeyDown(kwargs)
 
-    def onTick(self, deltaTime: float) -> None:
-        r"""\brief Close the window on right-click when visible and active."""
-        if not self.getActive() or not self.getVisible():
-            return
-        if Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True):
+    def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
+        r"""\brief Close the window on right-click."""
+        if kwargs["button"] == Input.Mouse.Button.Right:
+            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
+            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
             self.close()
+            return True
+        return False
 
     def _makeSettingRowConfirmCallback(self, row: ConfigSettingRow) -> Callable:
         def _onSettingRowConfirm(obj: ConfigSettingRow, kwargs: Dict[str, Any]) -> None:
@@ -355,10 +357,12 @@ class ConfigWindow(WindowSelectable):
         row = self._getSelectedSettingRow()
         if not isinstance(row, ConfigSliderRow):
             return False
-        if Input.isActionTriggered(Input.getLeftKeys(), handled=True):
+        _REPEAT_DELAY = 0.4
+        _REPEAT_INTERVAL = 0.05
+        if Input.isActionTriggered(Input.getLeftKeys(), handled=True, repeatDelay=_REPEAT_DELAY, repeatInterval=_REPEAT_INTERVAL):
             row.adjust(-1)
             return True
-        if Input.isActionTriggered(Input.getRightKeys(), handled=True):
+        if Input.isActionTriggered(Input.getRightKeys(), handled=True, repeatDelay=_REPEAT_DELAY, repeatInterval=_REPEAT_INTERVAL):
             row.adjust(1)
             return True
         return False

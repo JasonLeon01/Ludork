@@ -13,6 +13,7 @@ for the Ludork sample project.
 - Enemy          Enemy entity
 - Item           Item entity
 - Teleporter     Mota floor teleporter actor
+- Door           Door actor with one-shot open animation that self-destructs
 - Scenes         Scene definitions
 """
 
@@ -24,6 +25,7 @@ from .Enemy import Enemy
 from .Item import Item
 from .Equip import Equip
 from .Teleporter import Teleporter
+from .Door import Door
 from . import Scenes
 from . import Consumables
 
@@ -37,6 +39,7 @@ __all__ = [
     "Item",
     "Equip",
     "Teleporter",
+    "Door",
     "Scenes",
     "Consumables",
 ]

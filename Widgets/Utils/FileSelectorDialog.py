@@ -11,7 +11,7 @@ class FileSelectorDialog(QtWidgets.QFileDialog):
 
     @staticmethod
     def allFilesFilter(star: bool = False) -> str:
-        return ELOC("FILE_FILTER_ALL_STAR" if star else "FILE_FILTER_ALL")
+        return ELOC("FILE_FILTER_ALL_STAR") if star else ELOC("FILE_FILTER_ALL")
 
     @staticmethod
     def audioFilesFilter() -> str:
@@ -25,9 +25,7 @@ class FileSelectorDialog(QtWidgets.QFileDialog):
     def filesFilter(patterns: list[str]) -> str:
         return ELOC("FILE_FILTER_FILES").format(patterns=" ".join(patterns))
 
-    def __init__(
-        self, parent: QtWidgets.QWidget, root: str, filter_str: str, title: str | None = None
-    ) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, root: str, filter_str: str, title: str | None = None) -> None:
         super().__init__(parent, title or ELOC("SELECT_FILE"), root, filter_str)
         self._root = os.path.abspath(root)
         self._previewPixmap = None

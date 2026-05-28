@@ -172,12 +172,14 @@ class WindowEnemyBook(WindowSelectable):
             return
         super().onKeyDown(kwargs)
 
-    def onTick(self, deltaTime: float) -> None:
-        r"""\brief Close on right click while active."""
-        if not self.getActive() or not self.getVisible():
-            return
-        if Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True):
+    def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
+        r"""\brief Close on right click."""
+        if kwargs["button"] == Input.Mouse.Button.Right:
+            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
+            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
             self._closeByCancel()
+            return True
+        return False
 
     def _refreshEnemies(self, gameMap) -> None:
         entries: List[Dict[str, Any]] = []

@@ -303,12 +303,14 @@ class WindowEquipSlot(WindowSelectable):
             return
         return super().onKeyDown(kwargs)
 
-    def onTick(self, deltaTime: float) -> None:
+    def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
         r"""\brief Handle mouse cancel to close the slot window."""
-        if not self.getActive() or not self.getVisible():
-            return
-        if Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True):
+        if kwargs["button"] == Input.Mouse.Button.Right:
+            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
+            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
             self._closeByCancel()
+            return True
+        return False
 
     def open(self) -> None:
         r"""\brief Open the slot window, refreshing slot list first."""
@@ -461,7 +463,6 @@ class WindowEquipSelect(WindowSelectable):
         self.close()
         if self._windowEquipSlot is not None:
             self._windowEquipSlot.setActive(True)
-            self._windowEquipSlot._redrawIfVisible()
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
         r"""\brief Handle cancel, confirm, and focus-switch keys.
@@ -478,12 +479,14 @@ class WindowEquipSelect(WindowSelectable):
                 return
         return super().onKeyDown(kwargs)
 
-    def onTick(self, deltaTime: float) -> None:
+    def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
         r"""\brief Handle mouse cancel to close this window."""
-        if not self.getActive() or not self.getVisible():
-            return
-        if Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True):
+        if kwargs["button"] == Input.Mouse.Button.Right:
+            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
+            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
             self._closeByCancel()
+            return True
+        return False
 
     def open(self) -> None:
         r"""\brief Open the available-equip window without taking focus."""

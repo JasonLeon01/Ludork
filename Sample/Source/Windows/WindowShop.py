@@ -134,10 +134,13 @@ class WindowShopCommand(WindowCommand):
             return
         super().onKeyDown(kwargs)
 
-    def onTick(self, deltaTime: float) -> None:
-        if self.getActive() and self.getVisible():
-            if Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True):
-                self._owner.closeByCancel()
+    def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
+        if kwargs["button"] == Input.Mouse.Button.Right:
+            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
+            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
+            self._owner.closeByCancel()
+            return True
+        return False
 
 
 class WindowShopItem(WindowSelectable):
@@ -207,10 +210,13 @@ class WindowShopItem(WindowSelectable):
             return
         super().onKeyDown(kwargs)
 
-    def onTick(self, deltaTime: float) -> None:
-        if self.getActive() and self.getVisible():
-            if Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True):
-                self._owner.cancelItemSelection()
+    def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
+        if kwargs["button"] == Input.Mouse.Button.Right:
+            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
+            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
+            self._owner.cancelItemSelection()
+            return True
+        return False
 
 
 class WindowShop:

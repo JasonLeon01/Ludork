@@ -24,6 +24,7 @@ class Graph:
         links: Dict[str, List[Dict[str, Union[int, str]]]],
         nodeModel: Optional[type] = None,
         startNodes: Optional[Dict[str, int]] = None,
+        eventParams: Optional[Dict[str, List[str]]] = None,
     ) -> None:
         r"""Construct a graph and immediately build nodes and relations.
 
@@ -34,6 +35,7 @@ class Graph:
         - \param links            Event name -> list of link dictionaries
         - \param nodeModel        Node class to instantiate (default: `Node`)
         - \param startNodes       Event name -> index of the entry node (or None)
+        - \param eventParams      Event name -> list of parameter names for @RegisterEvent methods
         """
         import Engine, Global, Source
 
@@ -46,6 +48,7 @@ class Graph:
         self.nodes: Dict[str, List[Node]] = {}  # Instantiated nodes keyed by event name
         self.links = links  # Connection links between nodes
         self.startNodes = startNodes  # Entry node index for each event
+        self.eventParams: Dict[str, List[str]] = eventParams if eventParams is not None else {}  # Event parameter names
         self.nodeRely: Dict[str, Dict[int, Dict[int, Pair[int]]]] = {}  # Parameter dependency map
         self.nodeNexts: Dict[str, Dict[int, Dict[int, Pair[int]]]] = {}  # Execution order map
         if self.startNodes is None:
@@ -56,8 +59,33 @@ class Graph:
         self.doingPartKey: Optional[str] = None  # Current event key being executed
         self._executionLocked: Dict[str, bool] = {}  # Re-entrancy lock per event
         self._latentPendingCount: Dict[str, int] = {}  # Pending latent node count per event
+        self._deriveEventParamsFromParent()
         self.genNodesFromDataNodes()
         self.genRelationsFromLinks()
+
+    def _deriveEventParamsFromParent(self) -> None:
+        """Fill ``eventParams`` from the parent class's @RegisterEvent method signatures
+        for any event keys that don't already have entries.
+        """
+        if self.parentClass is None:
+            return
+        for key in self.dataNodes:
+            if key in self.eventParams:
+                continue
+            method = getattr(self.parentClass, key, None)
+            if method is None or not callable(method):
+                continue
+            try:
+                sig = inspect.signature(method)
+            except (ValueError, TypeError):
+                continue
+            params = []
+            for param_name, param_obj in sig.parameters.items():
+                if param_name == "self":
+                    continue
+                params.append(param_name)
+            if params:
+                self.eventParams[key] = params
 
     def genNodesFromDataNodes(self) -> None:
         """Instantiate Node objects from DataNode definitions, resolving function references."""
@@ -87,7 +115,11 @@ class Graph:
                     self.nodes[key].append(self.nodeModel(*paramList))
 
     def genRelationsFromLinks(self) -> None:
-        """Build execution order (nodeNexts) and parameter dependency (nodeRely) maps from links."""
+        """Build execution order (nodeNexts) and parameter dependency (nodeRely) maps from links.
+
+        Handles string ``left`` / ``right`` values (e.g. ``"default_0"``) that represent
+        event parameter nodes which are not stored in the nodes array.
+        """
         self.nodeRely.clear()
         self.nodeNexts.clear()
         self.nodeRely = {}
@@ -101,14 +133,16 @@ class Graph:
                 leftOutPin = link["leftOutPin"]
                 rightInPin = link["rightInPin"]
                 linkType = link["linkType"]
-                if not right in self.nodeRely[key]:
+                if isinstance(right, int) and right not in self.nodeRely[key]:
                     self.nodeRely[key][right] = {}
                 if linkType == "Params":
-                    self.nodeRely[key][right][rightInPin] = (left, leftOutPin)
+                    if isinstance(right, int):
+                        self.nodeRely[key][right][rightInPin] = (left, leftOutPin)
                 if linkType == "Exec":
-                    if not left in self.nodeNexts[key]:
-                        self.nodeNexts[key][left] = {}
-                    self.nodeNexts[key][left][leftOutPin] = (right, rightInPin)
+                    if isinstance(left, int):
+                        if left not in self.nodeNexts[key]:
+                            self.nodeNexts[key][left] = {}
+                        self.nodeNexts[key][left][leftOutPin] = (right, rightInPin)
 
     def execute(self, key: str, startNode: Optional[int] = None, limit=1000000) -> Optional[Tuple[Any, ...]]:
         r"""Execute the node graph from a start node, following execution links.
@@ -176,16 +210,23 @@ class Graph:
             if steps >= limit:
                 raise RuntimeError(f"Max steps {limit} exceeded while executing graph '{key}'")
 
-    def getRelyNodeIndexList(self, key: str, nodeIndex: int) -> List[int]:
-        """Recursively collect all upstream dependency node indices for a given node."""
+    def getRelyNodeIndexList(self, key: str, nodeIndex: Union[int, str]) -> List[Union[int, str]]:
+        """Recursively collect all upstream dependency node indices for a given node.
+
+        String indices (e.g. ``"default_0"``) are included as-is and not recursed further
+        since default parameter nodes have no upstream dependencies.
+        """
         rely = self.nodeRely.get(key, {})
         visited = set()
-        order: List[int] = []
+        order: List[Union[int, str]] = []
 
-        def dfs(n: int) -> None:
+        def dfs(n: Union[int, str]) -> None:
             if n in visited:
                 return
             visited.add(n)
+            # Default parameter nodes have no further dependencies
+            if isinstance(n, str) and n.startswith("default_"):
+                return
             depMap = rely.get(n, {})
             if depMap:
                 for inPin, src in sorted(depMap.items(), key=lambda item: item[0]):
@@ -206,14 +247,16 @@ class Graph:
         return self.nodes[key]
 
     def executeNode(
-        self, key: str, nodeIndex: int, _cache: Optional[Dict[int, Tuple[Any, ...]]] = None
+        self, key: str, nodeIndex: Union[int, str], _cache: Optional[Dict[Union[int, str], Tuple[Any, ...]]] = None
     ) -> Tuple[Any, ...]:
         r"""Execute a single node, resolving its input dependencies first.
 
         Recursively evaluates upstream nodes on which this node depends.
+        Handles string ``nodeIndex`` values (e.g. ``"default_0"``) by
+        resolving the event parameter from ``localGraph``.
 
         - \param key         Event key
-        - \param nodeIndex   Index of the node to execute
+        - \param nodeIndex   Index of the node to execute, or ``"default_N"`` string
         - \param _cache      Internal cache to avoid re-executing nodes
         - \return Tuple of return values from the node
         """
@@ -221,6 +264,22 @@ class Graph:
             _cache = {}
         if nodeIndex in _cache:
             return _cache[nodeIndex]
+
+        # Resolve default parameter nodes (event arguments)
+        if isinstance(nodeIndex, str) and nodeIndex.startswith("default_"):
+            param_idx = int(nodeIndex.split("_")[1])
+            param_names = self.eventParams.get(key, [])
+            if param_idx < len(param_names):
+                param_name = param_names[param_idx]
+                value = self.localGraph.get(f"__{param_name}__")
+                if value is None:
+                    value = self.localGraph.get(param_name)
+            else:
+                value = None
+            result: Tuple[Any, ...] = (value,)
+            _cache[nodeIndex] = result
+            return result
+
         relyKey = self.nodeRely.get(key, {})
         depMap = relyKey.get(nodeIndex, {})
         inputPinReplace: Dict[int, Any] = {}
@@ -299,6 +358,9 @@ class Graph:
 
     def asDict(self) -> Dict[str, Any]:
         r"""Serialize the graph to a dictionary for storage.
+
+        Includes ``eventParams`` when non-empty so that event parameter
+        metadata survives round-trips.
 
         - \return Dictionary containing parent class, nodes, links, and start nodes
         """
