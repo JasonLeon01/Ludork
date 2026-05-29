@@ -41,6 +41,9 @@ FLAGS = [
     "--include-module=av",
     "--include-module=openpyxl",
     "--include-module=PyQt5.QtSvg",
+    "--nofollow-import-to=Engine",
+    "--nofollow-import-to=Global",
+    "--nofollow-import-to=Source",
     "--lto=yes",
 ]
 

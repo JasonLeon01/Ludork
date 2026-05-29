@@ -119,6 +119,7 @@ def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
         sys.path.insert(0, EditorStatus.PROJ_PATH)
         importlib.invalidate_caches()
         print(f"Add {EditorStatus.PROJ_PATH} to sys.path")
+    System.EnsureProjectModulesFresh()
     try:
         GameData.init()
     except Exception as e:

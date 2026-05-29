@@ -5,9 +5,15 @@ from __future__ import annotations
 import os
 import sys
 import importlib
+import importlib.machinery
+import importlib.util
 from types import ModuleType
+from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
 from EditorGlobal import EditorStatus
+
+
+_PROJECT_MODULE_ROOTS = ("Engine", "Global", "Source")
 
 
 def AlreadyPacked() -> bool:
@@ -142,11 +148,114 @@ def _initModuleLocale(module: ModuleType) -> None:
     localeModule.LANGUAGE = EditorStatus.LANGUAGE
 
 
-def GetModule(moduleName: str) -> ModuleType:
-    module = None
+def _isPathInside(path: str, root: str) -> bool:
+    try:
+        p = os.path.normcase(os.path.abspath(path))
+        r = os.path.normcase(os.path.abspath(root))
+        return os.path.commonpath([p, r]) == r
+    except Exception:
+        return False
+
+
+def _modulePathInsideProject(module: ModuleType, projectPath: str) -> bool:
+    moduleFile = getattr(module, "__file__", None)
+    if isinstance(moduleFile, str) and moduleFile:
+        return _isPathInside(moduleFile, projectPath)
+
+    modulePaths = getattr(module, "__path__", None)
+    if modulePaths:
+        for modulePath in modulePaths:
+            if _isPathInside(str(modulePath), projectPath):
+                return True
+    return False
+
+
+def _clearModuleTree(moduleName: str) -> None:
+    prefix = moduleName + "."
+    for name in list(sys.modules.keys()):
+        if name == moduleName or name.startswith(prefix):
+            sys.modules.pop(name, None)
+
+
+def _getProjectRootName(moduleName: str) -> Optional[str]:
+    rootName = moduleName.split(".", 1)[0]
+    if rootName not in _PROJECT_MODULE_ROOTS or not EditorStatus.PROJ_PATH:
+        return None
+    return rootName
+
+
+def _getProjectRootSpec(rootName: str) -> Optional[importlib.machinery.ModuleSpec]:
+    try:
+        return importlib.machinery.PathFinder.find_spec(rootName, [EditorStatus.PROJ_PATH])
+    except Exception:
+        return None
+
+
+def _loadProjectRootModule(rootName: str) -> Optional[ModuleType]:
+    spec = _getProjectRootSpec(rootName)
+    if spec is None or spec.loader is None:
+        return None
+
+    _clearModuleTree(rootName)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[rootName] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        _clearModuleTree(rootName)
+        raise
+    return module
+
+
+def _ensureProjectModuleFresh(moduleName: str) -> None:
+    rootName = _getProjectRootName(moduleName)
+    if rootName is None:
+        return
+
+    module = sys.modules.get(rootName)
+    if not isinstance(module, ModuleType):
+        _clearModuleTree(rootName)
+        importlib.invalidate_caches()
+        return
+
+    if _modulePathInsideProject(module, EditorStatus.PROJ_PATH):
+        return
+
+    _clearModuleTree(rootName)
+    importlib.invalidate_caches()
+
+
+def _getProjectModule(moduleName: str) -> Optional[ModuleType]:
+    rootName = _getProjectRootName(moduleName)
+    if rootName is None:
+        return None
+
+    module = sys.modules.get(rootName)
+    if not isinstance(module, ModuleType) or not _modulePathInsideProject(module, EditorStatus.PROJ_PATH):
+        module = _loadProjectRootModule(rootName)
+        if module is None:
+            return None
+
+    if moduleName == rootName:
+        return module
+
     if moduleName not in sys.modules:
+        importlib.import_module(moduleName)
+    submodule = sys.modules.get(moduleName)
+    return submodule if isinstance(submodule, ModuleType) else None
+
+
+def EnsureProjectModulesFresh() -> None:
+    for moduleName in _PROJECT_MODULE_ROOTS:
+        _ensureProjectModuleFresh(moduleName)
+
+
+def GetModule(moduleName: str) -> ModuleType:
+    module = _getProjectModule(moduleName)
+    if module is None and moduleName not in sys.modules:
         module = importlib.import_module(moduleName)
-    module = sys.modules[moduleName]
+    if module is None:
+        module = sys.modules[moduleName]
     if isinstance(module, ModuleType):
         _initModuleLocale(module)
     return module

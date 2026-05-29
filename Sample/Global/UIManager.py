@@ -9,6 +9,8 @@ from Engine.UI.Base import ControlBase, FunctionalBase
 from . import Manager
 from .System import System
 
+_DEBUG_HUD_PADDING = 8.0
+
 
 class UIManager:
     r"""\brief Manages active UI canvases, event dispatch, and rendering order.
@@ -22,10 +24,12 @@ class UIManager:
         self._UIs: List[ControlBase] = []
         self._debugHUDEnabled: bool = False
         if System.isDebugMode():
+            from Engine import Text
             from Engine.UI import DefaultFont, PlainText
 
             self._debugHUDEnabled = True
             self._debugHUD: PlainText = PlainText(DefaultFont, "", 12)
+            self._debugHUD.setLineAlignment(Text.LineAlignment.Right)
             self._totalTime: float = 0.0
             self._totalFrames: int = 0
             self._averageFPS: float = 0.0
@@ -154,3 +158,13 @@ class UIManager:
         debugString += f"Font Memory: {fontMem / 1024 / 1024:.2f} MB\n"
 
         self._debugHUD.setString(debugString)
+        self._layoutDebugHUD()
+
+    def _layoutDebugHUD(self) -> None:
+        from Engine import Vector2f
+
+        bounds = self._debugHUD.getLocalBounds()
+        gameWidth = float(System.getGameSize().x)
+        self._debugHUD.setPosition(
+            Vector2f(gameWidth - _DEBUG_HUD_PADDING, _DEBUG_HUD_PADDING - bounds.position.y)
+        )
