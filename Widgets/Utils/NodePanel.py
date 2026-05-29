@@ -3,7 +3,7 @@
 from __future__ import annotations
 import inspect
 import copy
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union, Tuple
 from PyQt5 import QtWidgets, QtCore, QtGui
 from NodeGraphQt import NodeGraph, BaseNode
 from NodeGraphQt.widgets.viewer import NodeViewer
@@ -18,8 +18,8 @@ from .MetaRely import getRelyConditionDisplay, isRelyEditable, normaliseRelyMap,
 from .NodeFunctionMeta import getExecSplits, getLatents, getReturnTypes, hasExecOutputs
 
 if TYPE_CHECKING:
-    from Engine.NodeGraph.Graph import Graph
-    from Engine.NodeGraph.Node import Node as GraphNode
+    from Engine.NodeGraph.Graph import Graph  # type: ignore
+    from Engine.NodeGraph.Node import Node as GraphNode  # type: ignore
 
 
 class CustomViewer(NodeViewer):
@@ -1187,7 +1187,7 @@ class NodePanel(QtWidgets.QWidget):
                     event.accept()
                     return True
             pixelDelta = event.pixelDelta()
-            if pixelDelta and not pixelDelta.isNull():
+            if isinstance(pixelDelta, QtCore.QPoint) and not pixelDelta.isNull():
                 h = viewer.horizontalScrollBar()
                 v = viewer.verticalScrollBar()
                 dx = int(pixelDelta.x())
@@ -1470,13 +1470,27 @@ class NodePanel(QtWidgets.QWidget):
         links = []
         for link in self.nodeGraph.links[self.key]:
             cpLink = copy.deepcopy(link)
-            left = originNodeMap[cpLink["left"]]
-            right = originNodeMap[cpLink["right"]]
+            left = cpLink["left"]
+            right = cpLink["right"]
+            if isinstance(left, int):
+                leftNode = originNodeMap[left]
+            else:
+                leftNode = left
+            if isinstance(right, int):
+                rightNode = originNodeMap[right]
+            else:
+                rightNode = right
             leftIndex = None
             rightIndex = None
             try:
-                leftIndex = self.nodeGraph.dataNodes[self.key].index(left)
-                rightIndex = self.nodeGraph.dataNodes[self.key].index(right)
+                if isinstance(leftNode, str):
+                    leftIndex = leftNode
+                else:
+                    leftIndex = self.nodeGraph.dataNodes[self.key].index(leftNode)
+                if isinstance(rightNode, str):
+                    rightIndex = rightNode
+                else:
+                    rightIndex = self.nodeGraph.dataNodes[self.key].index(rightNode)
             except ValueError:
                 print(f"Link {cpLink} not found in dataNodes, which means the link is not connected to any node.")
                 continue

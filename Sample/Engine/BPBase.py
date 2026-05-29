@@ -1,7 +1,8 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Any, Dict
+import inspect
+from typing import Any, Dict, Optional
 import re
 import traceback
 
@@ -55,27 +56,7 @@ class BPBase:
             else:
                 if BPBase._tryExecuteInfoGraph(obj, eventName, kwargs):
                     return
-                cls = type(obj)
-                parent_cls = getattr(cls, "__base__", None)
-                if parent_cls is None or parent_cls is object:
-                    return
-                graph = getattr(parent_cls, "_graph", None)
-                if graph is None:
-                    try:
-                        getattr(parent_cls, eventName)(obj, **kwargs)
-                    except Exception as e:
-                        raise RuntimeError(
-                            "Parent class graph not found or something else went wrong. ", traceback.format_exc()
-                        ) from e
-                else:
-                    if not graph.tryLockExecution(eventName):
-                        return
-                    for key, value in kwargs.items():
-                        graph.localGraph[f"__{key}__"] = value
-                    try:
-                        graph.execute(eventName)
-                    finally:
-                        graph.completeExecution(eventName)
+                BPBase.ExecuteParentEvent(obj, type(obj), eventName, kwargs=kwargs)
         else:
             if BPBase._tryExecuteInfoGraph(obj, eventName, kwargs):
                 return
@@ -98,15 +79,123 @@ class BPBase:
             return False
         if eventName not in infoGraph.startNodes or infoGraph.startNodes[eventName] is None:
             return False
-        if not infoGraph.tryLockExecution(eventName):
+        return BPBase._executeGraph(infoGraph, eventName, kwargs)
+
+    @staticmethod
+    def ExecuteParentEvent(
+        obj: object,
+        cls: type,
+        eventName: str,
+        args: Optional[tuple] = None,
+        kwargs: Optional[Dict[str, Any]] = None,
+        localGraph: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        r"""
+        \brief Execute an event from the parent of the given class.
+
+        - \param obj        Target object instance.
+        - \param cls        Class whose parent should receive the event.
+        - \param eventName  Event name to execute.
+        - \param args       Positional event arguments.
+        - \param kwargs     Keyword event arguments.
+        - \param localGraph Local graph context to share with the parent graph.
+        - \return True if a parent graph or method handled the event.
+        """
+        parent_cls = getattr(cls, "__base__", None)
+        if parent_cls is None or parent_cls is object:
             return False
-        for key, value in kwargs.items():
-            infoGraph.localGraph[f"__{key}__"] = value
+
+        eventKwargs = BPBase._eventKwargsFromArgs(parent_cls, eventName, args or (), kwargs or {})
+        if hasattr(parent_cls, "_GENERATED_CLASS") and getattr(parent_cls, "_GENERATED_CLASS"):
+            parentGraphData = BPBase._getGeneratedClassGraphData(parent_cls)
+            if parentGraphData:
+                graph = BPBase._getGeneratedClassGraph(obj, parent_cls, parentGraphData)
+                if eventName in graph.startNodes and graph.startNodes[eventName] is not None:
+                    return BPBase._executeGraph(graph, eventName, eventKwargs, localGraph)
+            return BPBase.ExecuteParentEvent(obj, parent_cls, eventName, kwargs=eventKwargs, localGraph=localGraph)
+
+        graph = getattr(parent_cls, "_graph", None)
+        if graph is not None and graph.hasKey(eventName):
+            if eventName in graph.startNodes and graph.startNodes[eventName] is not None:
+                return BPBase._executeGraph(graph, eventName, eventKwargs, localGraph)
+            return BPBase.ExecuteParentEvent(obj, parent_cls, eventName, kwargs=eventKwargs, localGraph=localGraph)
+
+        method = getattr(parent_cls, eventName, None)
+        if method is None:
+            return BPBase.ExecuteParentEvent(obj, parent_cls, eventName, kwargs=eventKwargs, localGraph=localGraph)
         try:
-            infoGraph.execute(eventName)
-        finally:
-            infoGraph.completeExecution(eventName)
+            method(obj, **eventKwargs)
+        except Exception as e:
+            raise RuntimeError(
+                "Parent class graph not found or something else went wrong. ", traceback.format_exc()
+            ) from e
         return True
+
+    @staticmethod
+    def _executeGraph(
+        graph: object,
+        eventName: str,
+        kwargs: Dict[str, Any],
+        localGraph: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        if not graph.tryLockExecution(eventName):
+            return False
+        oldLocalGraph = graph.localGraph
+        if localGraph is not None:
+            graph.localGraph = localGraph
+        oldContextGraph = graph.localGraph.get("__graph__")
+        graph.localGraph["__graph__"] = graph
+        for key, value in kwargs.items():
+            graph.localGraph[f"__{key}__"] = value
+        try:
+            graph.execute(eventName)
+        finally:
+            graph.localGraph["__graph__"] = oldContextGraph
+            graph.localGraph = oldLocalGraph
+            graph.completeExecution(eventName)
+        return True
+
+    @staticmethod
+    def _eventKwargsFromArgs(cls: type, eventName: str, args: tuple, kwargs: Dict[str, Any]) -> Dict[str, Any]:
+        result = dict(kwargs)
+        if not args:
+            return result
+        method = getattr(cls, eventName, None)
+        if method is None or not callable(method):
+            return result
+        sig = inspect.signature(method)
+        paramNames = [name for name in sig.parameters if name != "self"]
+        for index, value in enumerate(args):
+            if index >= len(paramNames):
+                break
+            result.setdefault(paramNames[index], value)
+        return result
+
+    @staticmethod
+    def _getGeneratedClassGraphData(cls: type) -> Optional[Dict[str, Any]]:
+        from Source import Data
+
+        classPath = Data.resolveClassPath(getattr(cls, "__name__", ""))
+        classData = Data.getClassData(classPath)
+        if not isinstance(classData, dict):
+            return None
+        graphData = classData.get("graph")
+        return graphData if isinstance(graphData, dict) else None
+
+    @staticmethod
+    def _getGeneratedClassGraph(obj: object, cls: type, graphData: Dict[str, Any]) -> object:
+        from Source import Data
+
+        cache = getattr(obj, "_parentGraphs", None)
+        if not isinstance(cache, dict):
+            cache = {}
+            setattr(obj, "_parentGraphs", cache)
+        cacheKey = getattr(cls, "__name__", str(id(cls)))
+        graph = cache.get(cacheKey)
+        if graph is None:
+            graph = Data.genGraphFromData(graphData, obj, cls)
+            cache[cacheKey] = graph
+        return graph
 
     @staticmethod
     def ExecuteInfoGraph(obj: object, eventName: str, kwargs: Dict[str, Any] = None) -> None:

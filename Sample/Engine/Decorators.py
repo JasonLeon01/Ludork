@@ -223,6 +223,9 @@ def RegisterEvent(func=None):
 
     def decorator(f):
         f._eventSignature = True
+        f._execSplits = {"default": (None,)}
+        if not hasattr(f, "_refLocal"):
+            f._refLocal = {}
         return f
 
     if func is None:

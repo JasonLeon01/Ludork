@@ -183,9 +183,9 @@ class Graph:
             chosen = None
             splits = getattr(nodeFunc, "_execSplits", None)
             if splits and len(splits) > 0:
+                splitKeys = list(splits.keys())
                 for v in result:
                     matchFound = False
-                    splitKeys = list(splits.keys())
                     for i, outPin in enumerate(splitKeys):
                         pinValues = splits[outPin]
                         for cv in pinValues:
@@ -197,6 +197,10 @@ class Graph:
                             break
                     if matchFound:
                         break
+                if chosen is None and "default" in splits:
+                    defaultIndex = splitKeys.index("default")
+                    if defaultIndex in nextMap:
+                        chosen, _ = nextMap[defaultIndex]
             else:
                 if len(nextMap) == 1:
                     chosen, _ = list(nextMap.values())[0]

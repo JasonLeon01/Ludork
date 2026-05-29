@@ -5,6 +5,9 @@ from __future__ import annotations
 from typing import List, Optional, Tuple, Union
 from Engine import IntRect, Pair, RegisterEvent, Texture, Vector2i
 from Engine.Gameplay.Actors import Actor
+from Global import GameMap, Manager
+from Source import System
+from Source.Scenes import Map
 
 _LATENT_STARTED = 0
 _LATENT_FINISHED = 1
@@ -38,18 +41,18 @@ class Door(Actor):
 
     The texture should contain frames arranged horizontally (left to right).
     When `openDoor()` is called, the door advances through each frame at
-    `openInterval` seconds, pauses on the last frame for `openPostDelay`
-    seconds, then self-destructs. The door is NOT `animatable` — the open
+    `openInterval` seconds, then self-destructs. The door is NOT `animatable` — the open
     animation is driven manually in `onTick()`.
 
     `tickable` defaults to `True` so that `onTick` fires each frame.
     Calling `openDoor()` while already opening is a safe no-op.
     """
 
-    tickable: bool = True         #: Must be True for onTick to drive the animation
-    openFrameCount: int = 4       #: Number of frames in the sprite sheet
-    openInterval: float = 0.15    #: Seconds between frame advances
-    openPostDelay: float = 0.15   #: Seconds to pause on the last frame before destroy
+    collisionEnabled: bool = True  #: Whether the door blocks movement
+    tickable: bool = True  #: Must be True for onTick to drive the animation
+    openFrameCount: int = 4  #: Number of frames in the sprite sheet
+    openInterval: float = 0.05  #: Seconds between frame advances
+    opening: bool = False  #: Whether the door is currently opening
 
     def __init__(
         self,
@@ -64,7 +67,6 @@ class Door(Actor):
         - \param tag      Optional identifier tag
         """
         super().__init__(texture, rect, tag)
-        self._opening: bool = False
         self._openFrameIndex: int = 0
         self._openTimer: float = 0.0
         self._openFinished: bool = False
@@ -80,16 +82,16 @@ class Door(Actor):
         r"""Start the door-open animation (latent).
 
         Advances through each frame every `openInterval` seconds. After the
-        last frame, waits `openPostDelay` seconds then calls `destroy()`.
         Calling while already opening or destroyed is a safe no-op.
 
         - \return A condition callable for the LatentManager to poll
         """
-        if self._opening or self._openFinished or self.isDestroyed():
+        if self.opening or self._openFinished or self.isDestroyed():
             cond = _DoorOpenCondition(self)
             cond._finished = True
             return cond
-        self._opening = True
+        Manager.playSE(System.getGateSE())
+        self.opening = True
         self._openFrameIndex = 0
         self._openTimer = 0.0
         self._openFinished = False
@@ -107,7 +109,7 @@ class Door(Actor):
 
         - \param deltaTime  Seconds since the last frame
         """
-        if not self._opening:
+        if not self.opening:
             return
         self._openTimer += deltaTime
         frameCount = max(1, self.openFrameCount)
@@ -117,13 +119,16 @@ class Door(Actor):
                 self._openFrameIndex += 1
                 if self._openFrameIndex < frameCount:
                     self._advanceToFrame(self._openFrameIndex)
+                    if self._openFrameIndex == frameCount - 1:
+                        self._openTimer = 0.0
+                        self._openFrameIndex = frameCount
                 else:
                     self._openTimer = 0.0
         else:
-            if self._openTimer >= self.openPostDelay:
-                self._openFinished = True
-                self._opening = False
-                self.destroy()
+            self._openFinished = True
+            self.opening = False
+            self.destroy()
+            Cast(Map, Cast(GameMap, self.getMap()).getScene()).recordDestroyedActor(self)
 
     def _advanceToFrame(self, index: int) -> None:
         r"""Set the texture rect to the given frame index (0-based).

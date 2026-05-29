@@ -105,8 +105,10 @@ class ClassDict:
 
                 def __init__(self, *args, **kwargs) -> None:
                     for key, value in classAttrs.items():
+                        if key in self.__dict__:
+                            continue
                         setattr(self, key, _cloneAttrValue(value))
-                    super(type(self), self).__init__(*args, **kwargs)
+                    parentClass.__init__(self, *args, **kwargs)
                     try:
                         from Engine.Gameplay.Components import normaliseInstanceComponents
 

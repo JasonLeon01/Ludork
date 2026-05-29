@@ -50,16 +50,36 @@
                             ""
                         ],
                         "pos": [
-                            255.9055787632047,
-                            231.23998081012468
+                            225.0735813218547,
+                            191.15838413636982
                         ]
                     },
                     {
                         "nodeFunction": "NodeFunctions.Utils.SELF",
                         "params": [],
                         "pos": [
-                            242.0311799145972,
-                            126.41118950953485
+                            -4.624799616202495,
+                            205.03278298497736
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.Player.MeetPlayer",
+                        "params": [
+                            ""
+                        ],
+                        "pos": [
+                            6.166399488269974,
+                            81.70479321957741
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.Utils.IF",
+                        "params": [
+                            ""
+                        ],
+                        "pos": [
+                            228.15678106598975,
+                            86.32959283577986
                         ]
                     }
                 ],
@@ -70,6 +90,27 @@
                         "leftOutPin": 0,
                         "rightInPin": 0,
                         "linkType": "Params"
+                    },
+                    {
+                        "left": "default_0",
+                        "right": 2,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Params"
+                    },
+                    {
+                        "left": 2,
+                        "right": 3,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Params"
+                    },
+                    {
+                        "left": 3,
+                        "right": 0,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Exec"
                     }
                 ]
             },
@@ -84,7 +125,7 @@
             "onDestroy": null,
             "onFixedTick": null,
             "onLateTick": null,
-            "onOverlap": 0,
+            "onOverlap": 3,
             "onTick": null
         }
     },

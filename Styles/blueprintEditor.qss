@@ -46,6 +46,20 @@ QPushButton#PathBtn:disabled, QPushButton#RectBtn:disabled {
     border: 1px solid #444444;
 }
 
+QPushButton#RevertBtn {
+    background-color: transparent;
+    border: none;
+    border-radius: 3px;
+}
+
+QPushButton#RevertBtn:hover:enabled {
+    background-color: #3a3a3a;
+}
+
+QPushButton#RevertBtn:pressed:enabled {
+    background-color: #505050;
+}
+
 QSplitter::handle {
     background-color: #3a3a3a;
 }

@@ -99,7 +99,16 @@ class Node:
         if hasattr(self.nodeFunction, "_refLocal"):
             self.parentGraph.localGraph["__key__"] = self.parentGraph.doingPartKey
             self.nodeFunction._refLocal = self.parentGraph.localGraph
-        result = self.nodeFunction(*actualParams)
+        superFunctionName = self.functionName[5:] if self.functionName.startswith("self.") else self.functionName
+        if (
+            actualParams
+            and isinstance(superFunctionName, str)
+            and "." not in superFunctionName
+            and hasattr(actualParams[0], "_callSuperFunction")
+        ):
+            result = actualParams[0]._callSuperFunction(superFunctionName, *actualParams[1:])
+        else:
+            result = self.nodeFunction(*actualParams)
         if not isinstance(result, tuple):
             result = (result,)
         return result

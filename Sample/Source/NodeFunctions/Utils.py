@@ -2,7 +2,6 @@
 r"""\brief Blueprint utility nodes: conditionals, local/game variables, scene management, and reflection utilities."""
 
 from __future__ import annotations
-import inspect
 from typing import Any, Dict, Optional
 from Engine import Pair, Vector2f, degrees
 from Engine.Gameplay.Components import getComponentFieldValue, setComponentFieldValue
@@ -11,6 +10,34 @@ from .. import Data
 
 
 _MISSING = object()
+
+
+class _SuperProxy:
+    def __init__(self, obj: object, cls: type, localGraph: Dict[str, Any]) -> None:
+        self._obj = obj
+        self._cls = cls
+        self._localGraph = localGraph
+
+    def _callSuperFunction(self, name: str, *args, **kwargs) -> Any:
+        from Engine.BPBase import BPBase
+
+        BPBase.ExecuteParentEvent(
+            self._obj,
+            self._cls,
+            name,
+            args=args,
+            kwargs=kwargs,
+            localGraph=self._localGraph,
+        )
+
+    def __getattr__(self, name: str) -> Any:
+        parentCls = getattr(self._cls, "__base__", None)
+        if parentCls is None:
+            raise AttributeError(name)
+        attr = getattr(parentCls, name)
+        if callable(attr):
+            return lambda *args, **kwargs: self._callSuperFunction(name, *args, **kwargs)
+        return attr
 
 
 class _attrRef:
@@ -351,46 +378,13 @@ def GetAnimLength(animName: str) -> float:
 
 
 @Meta(DisplayName='LOC("SUPER")', DisplayDesc='LOC("SUPER_DESC")')
-@ExecSplit(default=(None,))
-def SUPER(obj: object) -> None:
-    key = SUPER._refLocal.get("__key__")
-    assert isinstance(key, str) and key
-    cls = type(obj)
-    parent_cls = getattr(cls, "__base__", None)
-    if parent_cls is None or parent_cls is object:
-        return
-    if hasattr(cls, "_GENERATED_CLASS") and getattr(cls, "_GENERATED_CLASS"):
-        graph = getattr(parent_cls, "_graph", None)
-        if graph is None:
-            from Engine.BPBase import BPBase
-
-            infoGraph = getattr(obj, "_infoGraph", None)
-            if infoGraph and infoGraph.hasKey(key):
-                if key in infoGraph.startNodes and infoGraph.startNodes[key] is not None:
-                    infoGraph.localGraph = SUPER._refLocal
-                    infoGraph.execute(key)
-                    return
-            try:
-                getattr(parent_cls, key)(obj, *SUPER._refLocal[f"__{key}__"])
-            except:
-                raise RuntimeError("Parent class graph not found")
-        else:
-            graph.localGraph = SUPER._refLocal
-            graph.execute(key)
-    else:
-        from Engine.BPBase import BPBase
-
-        infoGraph = getattr(obj, "_infoGraph", None)
-        if infoGraph and infoGraph.hasKey(key):
-            if key in infoGraph.startNodes and infoGraph.startNodes[key] is not None:
-                infoGraph.localGraph = SUPER._refLocal
-                infoGraph.execute(key)
-                return
-        method = getattr(obj, key, None)
-        if inspect.isfunction(method):
-            method()
-        else:
-            raise AttributeError(f"Method '{key}' not found on object")
+@ReturnType(value=object)
+def SUPER(obj: object) -> object:
+    graphContext = SUPER._refLocal.get("__graph__")
+    cls = getattr(graphContext, "parentClass", None)
+    if cls is None:
+        cls = type(obj)
+    return _SuperProxy(obj, cls, SUPER._refLocal)
 
 
 @Meta(DisplayName='LOC("SELF")', DisplayDesc='LOC("SELF_DESC")')

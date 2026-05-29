@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 import copy
 import dataclasses
@@ -11,6 +12,44 @@ from EditorGlobal import EditorStatus, GameData
 from Utils import System, File
 from Widgets.Utils import SingleRowDialog, NodePanel, Toast, RectViewer, DataclassWidget, FileSelectorDialog
 from Widgets.Utils.MetaRely import getRelyConditionDisplay, getRelySourceSet, isRelyEditable, normaliseRelyMap
+
+
+class RevertButton(QtWidgets.QPushButton):
+    """A small button with a UE-style curved revert arrow icon."""
+
+    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("RevertBtn")
+        self.setFixedSize(20, 20)
+        self.setCursor(QtCore.Qt.PointingHandCursor)
+
+    def paintEvent(self, event: QtGui.QPaintEvent) -> None:
+        super().paintEvent(event)
+        p = QtGui.QPainter(self)
+        p.setRenderHint(QtGui.QPainter.Antialiasing)
+
+        enabled = self.isEnabled()
+        color = QtGui.QColor("#c0c0c0") if enabled else QtGui.QColor("#585858")
+        pen = QtGui.QPen(color, 1.5, QtCore.Qt.SolidLine, QtCore.Qt.RoundCap, QtCore.Qt.RoundJoin)
+        p.setPen(pen)
+        p.setBrush(QtCore.Qt.NoBrush)
+
+        # Curved arrow body from (14,12) to (7,7), bowing left-bottom
+        path = QtGui.QPainterPath()
+        path.moveTo(14, 12)
+        path.cubicTo(14, 16.5, 3.5, 16, 3.5, 10.5)
+        path.cubicTo(3.5, 7.5, 6, 7.5, 7, 7)
+        p.drawPath(path)
+
+        # Arrowhead at (7,7) pointing up-left
+        p.setBrush(color)
+        p.setPen(QtCore.Qt.NoPen)
+        arrow = QtGui.QPainterPath()
+        arrow.moveTo(7, 7)
+        arrow.lineTo(3.5, 4.5)
+        arrow.lineTo(10, 4.5)
+        arrow.closeSubpath()
+        p.drawPath(arrow)
 
 
 class BluePrintEditor(QtWidgets.QWidget):
@@ -65,6 +104,117 @@ class BluePrintEditor(QtWidgets.QWidget):
     def _hasClassAttr(self, cls: Optional[type], name: str) -> bool:
         found, _value = self._getClassAttrValue(cls, name)
         return found
+
+    def _getWidgetCurrentValue(self, widget: QtWidgets.QWidget) -> Any:
+        """Extract the current value from any widget type created by createInputWidget."""
+        if isinstance(widget, QtWidgets.QCheckBox):
+            return widget.isChecked()
+        if isinstance(widget, QtWidgets.QSpinBox):
+            return widget.value()
+        if isinstance(widget, QtWidgets.QDoubleSpinBox):
+            return widget.value()
+        if isinstance(widget, QtWidgets.QLineEdit):
+            text = widget.text()
+            try:
+                return eval(text)
+            except Exception:
+                return text
+        if isinstance(widget, DataclassWidget):
+            return widget.data
+        elems = getattr(widget, "_elementWidgets", None)
+        if elems is not None:
+            values = []
+            for e in elems:
+                text = e.text()
+                try:
+                    values.append(eval(text))
+                except Exception:
+                    values.append(text)
+            if getattr(widget, "_listIsTuple", False):
+                return tuple(values)
+            return values
+        return None
+
+    def _updateRevertButtonState(
+        self, btn: RevertButton, current_val: Any, parent_val: Any
+    ) -> None:
+        """Enable or disable the revert button based on value comparison."""
+        equal = GameData._isBlueprintValueEqual(current_val, parent_val)
+        btn.setEnabled(not equal)
+
+    def _onRevertAttr(self, key: str, parent_val: Any, widget: QtWidgets.QWidget) -> None:
+        """Revert the attribute to its parent class value."""
+        # For complex widgets where direct set is unreliable, rebuild the form
+        is_complex = isinstance(widget, DataclassWidget) or hasattr(widget, "_elementWidgets")
+        if is_complex:
+            if isinstance(parent_val, (list, tuple)):
+                value = copy.deepcopy(list(parent_val))
+            elif dataclasses.is_dataclass(parent_val) and not isinstance(parent_val, type):
+                value = dataclasses.asdict(parent_val)
+            else:
+                value = copy.deepcopy(parent_val)
+            self.onDataChanged(key, value, True)
+            self.refreshAttrs()
+            return
+
+        # Simple widgets: set value directly
+        if isinstance(widget, QtWidgets.QCheckBox):
+            widget.setChecked(bool(parent_val))
+        elif isinstance(widget, QtWidgets.QSpinBox):
+            try:
+                widget.setValue(int(parent_val))
+            except (ValueError, TypeError):
+                pass
+        elif isinstance(widget, QtWidgets.QDoubleSpinBox):
+            try:
+                widget.setValue(float(parent_val))
+            except (ValueError, TypeError):
+                pass
+        elif isinstance(widget, QtWidgets.QLineEdit):
+            widget.setText(str(parent_val))
+        # onDataChanged will be triggered by the widget's own signal
+
+    def _connectRevertUpdate(
+        self, widget: QtWidgets.QWidget, revertBtn: RevertButton, parent_val: Any
+    ) -> None:
+        """Connect widget value-changed signals to keep the revert button state in sync."""
+        if isinstance(widget, QtWidgets.QCheckBox):
+            widget.toggled.connect(
+                lambda checked, b=revertBtn, pv=parent_val: self._updateRevertButtonState(b, checked, pv)
+            )
+        elif isinstance(widget, (QtWidgets.QSpinBox, QtWidgets.QDoubleSpinBox)):
+            widget.valueChanged.connect(
+                lambda val, b=revertBtn, pv=parent_val: self._updateRevertButtonState(b, val, pv)
+            )
+        elif isinstance(widget, QtWidgets.QLineEdit):
+            widget.textChanged.connect(
+                lambda text, b=revertBtn, pv=parent_val: self._onRevertTextChanged(b, text, pv)
+            )
+        elif isinstance(widget, DataclassWidget):
+            widget.VALUE_CHANGED.connect(
+                lambda data, b=revertBtn, pv=parent_val: self._updateRevertButtonState(b, data, pv)
+            )
+        else:
+            elems = getattr(widget, "_elementWidgets", None)
+            if elems is not None:
+                for e in elems:
+                    if isinstance(e, QtWidgets.QLineEdit):
+                        e.textChanged.connect(
+                            lambda text, b=revertBtn, pv=parent_val, w=widget: self._onContainerRevertChanged(b, w, pv)
+                        )
+
+    def _onRevertTextChanged(self, btn: RevertButton, text: str, parent_val: Any) -> None:
+        """Handle text changes from QLineEdit to update revert button state."""
+        try:
+            val = eval(text)
+        except Exception:
+            val = text
+        self._updateRevertButtonState(btn, val, parent_val)
+
+    def _onContainerRevertChanged(self, btn: RevertButton, widget: QtWidgets.QWidget, parent_val: Any) -> None:
+        """Handle changes from list/tuple container widgets to update revert button state."""
+        val = self._getWidgetCurrentValue(widget)
+        self._updateRevertButtonState(btn, val, parent_val)
 
     def _getInvalidVars(self) -> Set[str]:
         cls = self._resolveClass()
@@ -505,15 +655,16 @@ class BluePrintEditor(QtWidgets.QWidget):
             if type_hint is None and key in parent_hints:
                 type_hint = parent_hints[key]
 
+            found_attr_parent, attr_parent_val = self._getClassAttrValue(parent_cls, key)
+            if not found_attr_parent:
+                attr_parent_val = None
+
             if type_hint and dataclasses.is_dataclass(type_hint):
                 widget = DataclassWidget(type_hint, value)
                 widget.VALUE_CHANGED.connect(lambda val, k=key: self.onDataChanged(k, val, True))
                 is_dc = True
             else:
-                foundParentValue, parent_val = self._getClassAttrValue(parent_cls, key)
-                if not foundParentValue:
-                    parent_val = None
-                widget = self.createInputWidget(key, value, type_hint=type_hint, parent_val=parent_val)
+                widget = self.createInputWidget(key, value, type_hint=type_hint, parent_val=attr_parent_val)
 
             isInvalid = key in self.invalidVars
             isRectRange = key in self.rectRangeVars and not isInvalid
@@ -580,6 +731,17 @@ class BluePrintEditor(QtWidgets.QWidget):
                 minusBtn.setFixedWidth(24)
                 minusBtn.clicked.connect(lambda _, k=key: self.onDeleteAttr(k))
                 hbox.addWidget(minusBtn, 0)
+            else:
+                revertBtn = RevertButton()
+                revertBtn.setEnabled(relyEditable)
+                if relyEditable:
+                    current_val = self._getWidgetCurrentValue(widget)
+                    self._updateRevertButtonState(revertBtn, current_val, attr_parent_val)
+                revertBtn.clicked.connect(
+                    lambda _, k=key, pv=attr_parent_val, w=widget: self._onRevertAttr(k, pv, w)
+                )
+                self._connectRevertUpdate(widget, revertBtn, attr_parent_val)
+                hbox.addWidget(revertBtn, 0)
 
             self.formLayout.addRow(label, container)
 
@@ -927,6 +1089,12 @@ class BluePrintEditor(QtWidgets.QWidget):
         if not pathKey:
             return
         pathValue = attrs.get(pathKey)
+        if not isinstance(pathValue, str) or not pathValue:
+            cls = self._resolveClass()
+            if cls is not None:
+                found, parentVal = self._getClassAttrValue(cls, pathKey)
+                if found and isinstance(parentVal, str) and parentVal:
+                    pathValue = parentVal
         if not isinstance(pathValue, str) or not pathValue:
             return
         baseDir = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Characters")
