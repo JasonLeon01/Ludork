@@ -21,7 +21,7 @@ from Widgets import (
     GeneralDataEditor,
     LocaleEditor,
 )
-from Widgets.Utils import GameConfigDialog
+from Widgets.Utils import GameConfigDialog, FileSelectorDialog
 from .. import EditorStatus
 from ..Data import GameData
 
@@ -198,11 +198,9 @@ class DatabaseMenuMixin:
 
     def _onNewBlueprint(self, checked: bool = False) -> None:
         blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
-        dlg = QtWidgets.QFileDialog(self, ELOC("SELECT_BLUEPRINT_PATH"), blueprintsRoot, "JSON (*.json);;DAT (*.dat)")
-        dlg.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
-        dlg.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
-        System.SetStyle(dlg, "fileSelector.qss")
-        dlg.setDirectory(blueprintsRoot)
+        dlg = FileSelectorDialog(
+            self, blueprintsRoot, "JSON (*.json);;DAT (*.dat)", ELOC("SELECT_BLUEPRINT_PATH"), save=True
+        )
         if dlg.exec_() != QtWidgets.QDialog.Accepted:
             return
         sel = dlg.selectedFiles()
@@ -306,11 +304,9 @@ class DatabaseMenuMixin:
         if not os.path.exists(animationsRoot):
             os.makedirs(animationsRoot)
 
-        dlg = QtWidgets.QFileDialog(self, ELOC("SELECT_ANIMATION_PATH"), animationsRoot, "JSON (*.json);;DAT (*.dat)")
-        dlg.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
-        dlg.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
-        System.SetStyle(dlg, "fileSelector.qss")
-        dlg.setDirectory(animationsRoot)
+        dlg = FileSelectorDialog(
+            self, animationsRoot, "JSON (*.json);;DAT (*.dat)", ELOC("SELECT_ANIMATION_PATH"), save=True
+        )
         if dlg.exec_() != QtWidgets.QDialog.Accepted:
             return
         sel = dlg.selectedFiles()

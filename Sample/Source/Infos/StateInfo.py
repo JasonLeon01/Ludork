@@ -30,6 +30,14 @@ class StateInfo(InfoBase):
         r"""\brief Construct a state info with no host yet."""
         super().__init__()
         self._owner: Optional[Battler] = None  #: The hosting battler (set by Battler.addState)
+        self.stacks: int = 0  #: Stack count applied when the state was added
+
+    def getStacks(self) -> int:
+        r"""\brief Get the current stack count for this state.
+
+        - \return Active stack count.
+        """
+        return self.stacks
 
     def getOwner(self) -> Optional[Battler]:
         r"""\brief Get the battler currently affected by this state.

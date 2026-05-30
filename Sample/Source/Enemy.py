@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Dict, Optional, Union, List, Tuple
+from typing import Any, Dict, Optional, Union, List, Tuple
 from Engine import Pair, Texture, IntRect
 from Engine.Gameplay.Actors import Actor
 from Global import Animation
@@ -83,11 +83,28 @@ class Enemy(Actor, EnemyInfo, Battler):
         from Source.Player import Player
 
         player = Cast(Player, against)
-        if "Poisoning" in self.getSpecial():
-            player.addState("Poisoned")
+        for specialKey, stackValue in self.getSpecial().items():
+            specialType = {"Poisoning": "Poisoned", "Weaken": "Weak"}.get(specialKey, None)
+            if specialType:
+                stacks = self._resolveSpecialStacks(stackValue)
+                if stacks > 0:
+                    player.addState(specialType, stacks)
 
-    def getSpecial(self) -> List[str]:
-        return list(self.infoComp.special)
+    def _resolveSpecialStacks(self, stackValue: Any) -> int:
+        if isinstance(stackValue, str):
+            resolved = Eval(stackValue)
+        else:
+            resolved = stackValue
+        try:
+            return max(0, int(resolved))
+        except (TypeError, ValueError):
+            return 0
+
+    def getSpecial(self) -> Dict[str, Any]:
+        special = self.infoComp.special
+        if not isinstance(special, dict):
+            return {}
+        return dict(special)
 
     def getDrops(self) -> List[str]:
         return list(self.infoComp.drops)

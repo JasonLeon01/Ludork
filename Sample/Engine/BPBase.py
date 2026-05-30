@@ -213,6 +213,34 @@ class BPBase:
         BPBase._tryExecuteInfoGraph(obj, eventName, kwargs)
 
     @staticmethod
+    def _resolveGeneralDataDict(value: Any) -> Dict[str, Any]:
+        r"""
+        \brief Resolve a GeneralData dict field, evaluating string values when needed.
+
+        - \param value Raw dict value or string expression.
+        - \return Resolved dictionary.
+        """
+        if isinstance(value, dict):
+            resolved: Dict[str, Any] = {}
+            for key, item in value.items():
+                if isinstance(item, str):
+                    try:
+                        resolved[key] = Eval(item)
+                    except Exception:
+                        resolved[key] = item
+                else:
+                    resolved[key] = item
+            return resolved
+        if isinstance(value, str):
+            try:
+                evaluated = Eval(value)
+                if isinstance(evaluated, dict):
+                    return BPBase._resolveGeneralDataDict(evaluated)
+            except Exception:
+                pass
+        return {}
+
+    @staticmethod
     def ApplyGeneralData(obj: object, data: Dict[str, Any], paramsType: Dict[str, Any]) -> None:
         r"""
         \brief Apply key-value pairs from GeneralData onto an object's attributes.
@@ -232,8 +260,15 @@ class BPBase:
             if k.startswith("_"):
                 continue
             if k in paramsType:
-                if paramsType[k]["type"] in basicTypes or re.match(r"tuple\[\d+\]", paramsType[k]["type"]):
-                    if paramsType[k]["type"] == "string":
+                paramType = paramsType[k]["type"]
+                if paramType == "dict":
+                    value = BPBase._resolveGeneralDataDict(v)
+                    if setComponentFieldValue(obj, k, value):
+                        continue
+                    setattr(obj, k, value)
+                    continue
+                if paramType in basicTypes or re.match(r"tuple\[\d+\]", paramType):
+                    if paramType == "string":
                         v = Inner.ApplyStringLocaleFormat(v)
                     if setComponentFieldValue(obj, k, v):
                         continue

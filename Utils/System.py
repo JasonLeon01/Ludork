@@ -72,6 +72,22 @@ def SetStyle(widget: QtWidgets.QWidget, fileName: str) -> None:
             widget.setStyleSheet(f.read())
 
 
+def hideFileDialogSidebar(dlg: QtWidgets.QFileDialog) -> None:
+    sidebar = dlg.findChild(QtWidgets.QListView, "sidebar")
+    if sidebar is None:
+        return
+    sidebar.setVisible(False)
+    splitter = dlg.findChild(QtWidgets.QSplitter)
+    if splitter is None:
+        return
+    splitter.setCollapsible(0, True)
+    splitter.setStretchFactor(0, 0)
+    splitter.setStretchFactor(1, 1)
+    sizes = splitter.sizes()
+    if len(sizes) >= 2:
+        splitter.setSizes([0, max(sum(sizes), 1)])
+
+
 def _getRootPath() -> str:
     return os.path.dirname(sys.executable) if AlreadyPacked() else os.getcwd()
 

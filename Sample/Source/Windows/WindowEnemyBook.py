@@ -76,11 +76,11 @@ class _EnemyBookCell(Canvas, FunctionalBase):
 
         statTexts = [
             (Vector2f(64.0, 6.0), f"MAXHP:{entry.get('MAXHP', 0)}"),
-            (Vector2f(142.0, 6.0), f"ATK:{entry.get('ATK', 0)}"),
-            (Vector2f(212.0, 6.0), f"DEF:{entry.get('DEF', 0)}"),
+            (Vector2f(150.0, 6.0), f"ATK:{entry.get('ATK', 0)}"),
+            (Vector2f(236.0, 6.0), f"DEF:{entry.get('DEF', 0)}"),
             (Vector2f(64.0, 34.0), f"EXP:{entry.get('EXP', 0)}"),
-            (Vector2f(142.0, 34.0), f"GOLD:{entry.get('GOLD', 0)}"),
-            (Vector2f(222.0, 34.0), f"DMG:{entry.get('damage', '--')}"),
+            (Vector2f(150.0, 34.0), f"GOLD:{entry.get('GOLD', 0)}"),
+            (Vector2f(236.0, 34.0), f"DMG:{entry.get('damage', '--')}"),
         ]
         for position, value in statTexts:
             text = FPlainText(UI.DefaultFont, value, _TEXT_SIZE)

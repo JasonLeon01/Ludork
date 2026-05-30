@@ -52,10 +52,8 @@ class Player(Character, Battler):
     def _processMoving(self, fixedDelta: float) -> None:
         wasMoving = self._isMoving
         super()._processMoving(fixedDelta)
-        if wasMoving and not self._isMoving and self.hasState("Poisoned"):
-            state = self.getStateByID("Poisoned")
-            if state is not None:
-                state.triggerEvent("onWalk", battler=self)
+        if wasMoving and not self._isMoving:
+            self.triggerStateWalk()
 
     def asDict(self) -> Dict[str, Any]:
         r"""
@@ -71,7 +69,7 @@ class Player(Character, Battler):
             "items": self._items,
             "equips": self._equips,
             "equipInfo": self._equipInfo,
-            "states": self.getStateIDs(),
+            "states": self.getStateStacks(),
         }
 
     @staticmethod
@@ -128,7 +126,11 @@ class Player(Character, Battler):
         player._items = data["items"]
         player._equips = data["equips"]
         player._equipInfo = data["equipInfo"]
-        player.setStateIDs(data.get("states", []))
+        states = data.get("states", {})
+        if isinstance(states, list):
+            player.setStateIDs(states)
+        elif isinstance(states, dict):
+            player.setStateStacks(states)
         return player
 
     def addItem(self, itemID: str, count: int = 1) -> None:

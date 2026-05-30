@@ -128,15 +128,16 @@ def BattlerHasState(battler: Any, stateID: str) -> bool:
 
 @Meta(DisplayName='LOC("ADD_STATE_TO")', DisplayDesc='LOC("ADD_STATE_TO_DESC")')
 @ExecSplit(default=(None,))
-def AddStateTo(battler: Any, stateID: str) -> None:
+def AddStateTo(battler: Any, stateID: str, stacks: int) -> None:
     r"""\brief Apply a state (by ID) to any battler.
 
     - \param battler The target battler.
     - \param stateID State identifier.
+    - \param stacks Stack count to apply or add.
     """
     if battler is None or not hasattr(battler, "addState"):
         return
-    battler.addState(stateID)
+    battler.addState(stateID, stacks)
 
 
 @Meta(DisplayName='LOC("REMOVE_STATE_FROM")', DisplayDesc='LOC("REMOVE_STATE_FROM_DESC")')

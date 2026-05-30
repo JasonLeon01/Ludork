@@ -41,7 +41,7 @@ class EnemyInfoComponent(BattlerInfoComponent):
 
     name: str = ""
     desc: str = ""
-    special: List[str] = field(default_factory=list)
+    special: Dict[str, Any] = field(default_factory=dict)
     drops: List[str] = field(default_factory=list)
     MAXHP: int = -1
     ATK: int = -1
@@ -156,6 +156,19 @@ class Battler:
         """
         return [s.ID for s in self._states]
 
+    def getStateStacks(self) -> Dict[str, int]:
+        r"""\brief Get active state IDs mapped to stack counts (for serialization).
+
+        - \return Dictionary of state ID to stack count.
+        """
+        return {s.ID: s.stacks for s in self._states}
+
+    def _getStateStackCount(self, stateID: str) -> int:
+        state = self.getStateByID(stateID)
+        if state is None:
+            return 0
+        return state.stacks
+
     def getStateNames(self) -> List[str]:
         r"""\brief Get the names of all active states.
 
@@ -164,20 +177,30 @@ class Battler:
         return [LOC(s.name) for s in self._states]
 
     @ExecSplit(default=(None,))
-    def addState(self, state: Union[str, StateInfo]) -> None:
-        r"""\brief Apply a state to this battler if not already present.
+    def addState(self, state: Union[str, StateInfo], stacks: int) -> None:
+        r"""\brief Apply a state to this battler with the given stack count.
 
         Accepts either a state ID (string) or a pre-built `StateInfo`.
         When given an ID the corresponding `StateInfo` is built from
-        GeneralData.
+        GeneralData. If the state is already active and its GeneralData
+        marks it as stackable, the stack count is increased instead.
 
         - \param state State ID string or `StateInfo` instance.
+        - \param stacks Stack count to apply or add.
         """
         info = self._buildStateInfo(state)
         if info is None:
             return
-        if self.getStateByID(info.ID) is not None:
+        stackCount = max(0, int(stacks))
+        if stackCount <= 0:
             return
+        existing = self.getStateByID(info.ID)
+        if existing is not None:
+            stateData = Data.getGeneralStateData(info.ID)
+            if stateData.get("stackable"):
+                existing.stacks += stackCount
+            return
+        info.stacks = stackCount
         info.setOwner(self)
         self._states.append(info)
 
@@ -202,13 +225,24 @@ class Battler:
     def setStateIDs(self, stateIDs: List[str]) -> None:
         r"""\brief Replace active states by ID list (used during load).
 
-        Existing states are cleared first.
+        Existing states are cleared first. Each state receives one stack.
 
         - \param stateIDs List of state ID strings.
         """
         self.clearStates()
         for sid in stateIDs or []:
-            self.addState(sid)
+            self.addState(sid, 1)
+
+    def setStateStacks(self, stateStacks: Dict[str, int]) -> None:
+        r"""\brief Replace active states from an ID-to-stacks map (used during load).
+
+        Existing states are cleared first.
+
+        - \param stateStacks Mapping of state ID to stack count.
+        """
+        self.clearStates()
+        for sid, stacks in (stateStacks or {}).items():
+            self.addState(sid, stacks)
 
     def _triggerStateEvent(self, eventName: str, **kwargs) -> None:
         for s in list(self._states):
@@ -230,7 +264,7 @@ class Battler:
             return
         state.triggerEvent("onHookTriggered", battler=self)
 
-    def getDamagePerRound(self, attacker: Battler, defender: Battler) -> int:
+    def getDamagePerRound(self, defender: Battler) -> int:
         r"""\brief Calculate one attacker-to-defender exchange.
 
         Combat damage no longer invokes state blueprint events.
@@ -239,9 +273,20 @@ class Battler:
         - \param defender The battler receiving damage.
         - \return Damage per round dealt to the defender.
         """
-        attacker._normaliseInfoComp()
+        self._normaliseInfoComp()
         defender._normaliseInfoComp()
-        return max(0, attacker.infoComp.ATK - defender.infoComp.DEF)
+        attackerAtk = self.infoComp.ATK
+        defenderDef = defender.infoComp.DEF
+
+        if self.hasState("Weak"):
+            attackerAtk = max(0, attackerAtk - 2 * self._getStateStackCount("Weak"))
+        if defender.hasState("Weak"):
+            defenderDef = max(0, defenderDef - 2 * defender._getStateStackCount("Weak"))
+
+        basicDamage = max(0, attackerAtk - defenderDef)
+        if defender.hasState("Poisoned"):
+            basicDamage += 10 * defender._getStateStackCount("Poisoned")
+        return basicDamage
 
     def getDamage(self, battler: Battler) -> Tuple[DamageType, int]:
         r"""\brief Calculate accumulated damage taken by `battler` if it fights `self`.
@@ -261,8 +306,8 @@ class Battler:
         """
         self._normaliseInfoComp()
         battler._normaliseInfoComp()
-        attackDamage = battler.getDamagePerRound(battler, self)
-        counterDamage = self.getDamagePerRound(self, battler)
+        attackDamage = battler.getDamagePerRound(self)
+        counterDamage = self.getDamagePerRound(battler)
         if attackDamage <= 0:
             return (DamageType.UNDEFEATABLE, -1)
         rounds = max(1, (self.infoComp.MAXHP + attackDamage - 1) // attackDamage)

@@ -9,6 +9,41 @@ from Utils import Panel, File
 from .FilePreview import FilePreview
 
 
+_THUMB_SIZE = 80
+
+
+class _ThumbnailIconProvider(QtWidgets.QFileIconProvider):
+    _IMAGE_EXTS = {"png", "jpg", "jpeg", "bmp", "gif", "webp"}
+
+    def __init__(self, thumbSize: int = _THUMB_SIZE):
+        super().__init__()
+        self._thumbSize = thumbSize
+        self._cache: dict[str, QtGui.QIcon] = {}
+
+    def icon(self, info: QtCore.QFileInfo) -> QtGui.QIcon:
+        if not info.isDir():
+            ext = info.suffix().lower()
+            if ext in self._IMAGE_EXTS:
+                path = info.absoluteFilePath()
+                if path in self._cache:
+                    return self._cache[path]
+                pm = QtGui.QPixmap(path)
+                if not pm.isNull():
+                    scaled = pm.scaled(
+                        self._thumbSize,
+                        self._thumbSize,
+                        QtCore.Qt.KeepAspectRatio,
+                        QtCore.Qt.SmoothTransformation,
+                    )
+                    icon = QtGui.QIcon(scaled)
+                    self._cache[path] = icon
+                    return icon
+        return super().icon(info)
+
+    def clearCache(self) -> None:
+        self._cache.clear()
+
+
 class FileExplorer(QtWidgets.QWidget):
     PATH_CHANGED = QtCore.pyqtSignal(str)
     FILE_CLICKED = QtCore.pyqtSignal(str)
@@ -41,10 +76,20 @@ class FileExplorer(QtWidgets.QWidget):
                     return False
                 return True
 
-        class _View(QtWidgets.QTreeView):
+        class _View(QtWidgets.QListView):
             def __init__(self, owner: "FileExplorer"):
                 super().__init__(owner)
                 self._owner = owner
+                self.setViewMode(QtWidgets.QListView.IconMode)
+                self.setIconSize(QtCore.QSize(_THUMB_SIZE, _THUMB_SIZE))
+                self.setGridSize(QtCore.QSize(_THUMB_SIZE * 2, _THUMB_SIZE + 30))
+                self.setResizeMode(QtWidgets.QListView.Adjust)
+                self.setWordWrap(True)
+                self.setSpacing(4)
+                self.setUniformItemSizes(True)
+                self.setWrapping(True)
+                self.setFlow(QtWidgets.QListView.LeftToRight)
+                self.setMovement(QtWidgets.QListView.Static)
                 self.setDragEnabled(False)
                 self.setAcceptDrops(False)
                 self.setDragDropMode(QtWidgets.QAbstractItemView.NoDragDrop)
@@ -86,21 +131,20 @@ class FileExplorer(QtWidgets.QWidget):
             def dropEvent(self, e: QtGui.QDropEvent) -> None:
                 return
 
+        self._iconProvider = _ThumbnailIconProvider()
         self._model = QtWidgets.QFileSystemModel(self)
         self._model.setFilter(QtCore.QDir.AllEntries | QtCore.QDir.NoDotAndDotDot)
         self._model.setRootPath(self._root)
+        self._model.setIconProvider(self._iconProvider)
         self._proxy = _Proxy(self)
         self._proxy.setSourceModel(self._model)
         self._proxy.setDynamicSortFilter(True)
+        self._proxy.sort(0, QtCore.Qt.AscendingOrder)
         self._view = _View(self)
         self._view.setModel(self._proxy)
         self._view.setRootIndex(self._proxy.mapFromSource(self._model.index(self._root)))
         self._view.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self._view.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
-        self._view.setAnimated(True)
-        self._view.setSortingEnabled(True)
-        self._view.sortByColumn(0, QtCore.Qt.AscendingOrder)
-        self._view.setColumnWidth(0, 240)
         self._view.doubleClicked.connect(self._onDoubleClicked)
         self._view.clicked.connect(self._onClicked)
         self._view.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
@@ -142,6 +186,7 @@ class FileExplorer(QtWidgets.QWidget):
         super().changeEvent(e)
 
     def _refresh(self) -> None:
+        self._iconProvider.clearCache()
         self._view.setRootIndex(self._proxy.mapFromSource(self._model.index(self._current)))
 
     def _isUnderRoot(self, path: str) -> bool:
@@ -157,7 +202,7 @@ class FileExplorer(QtWidgets.QWidget):
             return
         self._current = os.path.abspath(path)
         self._pathEdit.setText(self._current)
-        self._view.setRootIndex(self._proxy.mapFromSource(self._model.index(self._current)))
+        self._refresh()
         self.PATH_CHANGED.emit(self._current)
 
     def setCurrentPath(self, path: str) -> None:
