@@ -11,7 +11,7 @@ The repository includes the toolkit application, the native extension build chai
 - `Sample/`: runnable RPG sample project, including game scripts, data, assets, save support, and runtime dependencies.
 - `Sample/Engine/`, `Sample/Global/`, `Sample/Source/`: game runtime and sample gameplay code.
 - `C_Extensions/`: pybind11 and SFML native extension sources.
-- `docs/en_GB/` and `docs/zh_CN/`: game scripting manual.
+- `docs/en_GB/` and `docs/zh_CN/`: editor workflow and runtime scripting manual.
 
 ## Requirements
 
@@ -56,10 +56,12 @@ python C_Extensions/build.py
 
 ## Documentation
 
-The manual focuses on the game runtime and sample project scripting:
+The manual is split into editor usage first, then runtime and scripting reference:
 
 - English: `docs/en_GB/`
 - Chinese: `docs/zh_CN/`
+
+Start with chapters `02`-`06` for editor workflows such as project setup, assets, maps, blueprints, data, localisation, nodes, and testing. Use chapters `07`-`17` for runtime structure, APIs, scripting, configuration, and packaging.
 
 ## License
 

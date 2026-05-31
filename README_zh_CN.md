@@ -11,7 +11,7 @@ Ludork 是一个 2D RPG 工具包，基于 Python、PyQt5、SFML/PySF 和 pybind
 - `Sample/`：可运行的 RPG 示例项目，包含游戏脚本、数据、资源、存档支持和运行时依赖。
 - `Sample/Engine/`、`Sample/Global/`、`Sample/Source/`：游戏运行时与示例玩法代码。
 - `C_Extensions/`：pybind11 和 SFML 原生扩展源码。
-- `docs/en_GB/` 和 `docs/zh_CN/`：游戏脚本手册。
+- `docs/en_GB/` 和 `docs/zh_CN/`：编辑器工作流与运行时脚本手册。
 
 ## 环境要求
 
@@ -56,10 +56,12 @@ python C_Extensions/build.py
 
 ## 文档
 
-手册侧重于游戏运行时和示例项目的脚本编写：
+手册先说明编辑器使用，再说明运行时和脚本参考：
 
 - 英文：`docs/en_GB/`
 - 中文：`docs/zh_CN/`
+
+从 `02`-`06` 章阅读编辑器工作流，包括项目设置、素材、地图、蓝图、数据、本地化、节点和测试。`07`-`17` 章用于查阅运行时结构、API、脚本、配置和打包。
 
 ## 许可证
 
