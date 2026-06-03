@@ -25,7 +25,6 @@
             "CLASS": "Warrior"
         },
         "lightComp": {
-            "bSelfLight": true,
             "lightColor": [
                 255,
                 255,

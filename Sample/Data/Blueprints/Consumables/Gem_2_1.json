@@ -23,7 +23,6 @@
         "ATTR_key": "DEF",
         "plus": 1,
         "lightComp": {
-            "bSelfLight": true,
             "lightColor": [
                 96,
                 96,

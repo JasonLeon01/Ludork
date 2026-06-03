@@ -1125,7 +1125,7 @@ class GameMap(GameMapExt):
         lights = list(self._lights)
         for actor in self.getAllActors():
             lightComp = getattr(actor, "lightComp", None)
-            if lightComp is None or not lightComp.bSelfLight:
+            if lightComp is None:
                 continue
             if actor.isDestroyed():
                 continue

@@ -37,6 +37,41 @@ from .MainUtils import (
 )
 
 
+class UpperSplitterHandle(QtWidgets.QSplitterHandle):
+    def __init__(self, orientation: QtCore.Qt.Orientation, parent: QtWidgets.QSplitter) -> None:
+        super().__init__(orientation, parent)
+        self._dragOffset = 0
+
+    def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
+        if event.button() == QtCore.Qt.LeftButton:
+            self._dragOffset = event.pos().x() if self.orientation() == QtCore.Qt.Horizontal else event.pos().y()
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
+        splitter = self.splitter()
+        if isinstance(splitter, UpperSplitter) and event.buttons() & QtCore.Qt.LeftButton:
+            if self.orientation() == QtCore.Qt.Horizontal:
+                pos = self.mapToParent(event.pos()).x() - self._dragOffset
+            else:
+                pos = self.mapToParent(event.pos()).y() - self._dragOffset
+            self.moveSplitter(splitter.clampHandlePosition(pos, splitter.indexOf(self)))
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+
+class UpperSplitter(QtWidgets.QSplitter):
+    def createHandle(self) -> QtWidgets.QSplitterHandle:
+        return UpperSplitterHandle(self.orientation(), self)
+
+    def clampHandlePosition(self, pos: int, index: int) -> int:
+        owner = self.parent()
+        clamp = getattr(owner, "_clampUpperSplitterHandlePosition", None)
+        if callable(clamp):
+            return int(clamp(index, pos))
+        return int(pos)
+
+
 class LayerTabBar(QtWidgets.QTabBar):
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
@@ -154,7 +189,7 @@ class MainWindow(
         self.actorInfo = ActorInfoPanel(self.rightArea)
         self._selectedLightMapKey = ""
         self._selectedLightIndex: Optional[int] = None
-        self.upperSplitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
+        self.upperSplitter = UpperSplitter(QtCore.Qt.Horizontal, self)
         self._savedLeftWidth: Optional[int] = None
         self._savedRightWidth: Optional[int] = None
         self.lowerArea = QtWidgets.QWidget()

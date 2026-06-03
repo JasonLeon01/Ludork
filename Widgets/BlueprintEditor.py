@@ -334,13 +334,25 @@ class BluePrintEditor(QtWidgets.QWidget):
         for componentName, componentType in componentTypes.items():
             componentData = self._normaliseComponentData(componentType, attrs.get(componentName))
             moved = False
+            skipDisabledLight = False
+            if componentType.__name__ == "LightComponent" and "bSelfLight" in attrs:
+                enabled = bool(attrs.pop("bSelfLight"))
+                moved = True
+                if enabled and componentName not in attrs:
+                    componentData = self._getComponentDefaults(componentType)
+                elif not enabled and componentName not in attrs:
+                    skipDisabledLight = True
             for field in dataclasses.fields(componentType):
                 if field.name not in attrs:
                     continue
-                componentData[field.name] = attrs.pop(field.name)
+                value = attrs.pop(field.name)
+                if not skipDisabledLight:
+                    componentData[field.name] = value
                 moved = True
-            if moved:
+            if moved and componentData and not skipDisabledLight:
                 attrs[componentName] = componentData
+                changed = True
+            elif moved:
                 changed = True
         return changed
 

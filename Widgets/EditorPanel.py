@@ -5,7 +5,7 @@ import os
 import copy
 from array import array
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 import importlib
 from PyQt5 import QtWidgets, QtGui, QtCore
 import Utils
@@ -15,6 +15,9 @@ from .Utils import AutoTileRenderer, Toast, computeMaskFromGrid
 
 
 _AUTOTILE_ANIMATION_INTERVAL_MS = 500
+_MAP_TILE_SIZE_MIN = 8
+_MAP_TILE_SIZE_MAX = 128
+_MAP_TILE_SIZE_STEP = 4
 
 
 @dataclass
@@ -68,10 +71,12 @@ class EditorPanel(QtWidgets.QWidget):
         self._pendingActorBpRel: Optional[str] = None
         self._autoTileRenderer = AutoTileRenderer()
         self._autoTileFrame: int = 0
+        self._tileSize = EditorStatus.CELLSIZE
         super().__init__(parent)
         self.setMouseTracking(True)
         self.setFocusPolicy(QtCore.Qt.ClickFocus)
         self.setAcceptDrops(False)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         Utils.Panel.ApplyDisabledOpacity(self)
         self._autoTileTimer = QtCore.QTimer(self)
         self._autoTileTimer.setInterval(_AUTOTILE_ANIMATION_INTERVAL_MS)
@@ -100,7 +105,8 @@ class EditorPanel(QtWidgets.QWidget):
         self._pixmap = None
         self._setSelectedLightIndex(None)
         self.ACTOR_SELECTION_CHANGED.emit(None, None, None)
-        self.setFixedSize(0, 0)
+        self.setMinimumSize(0, 0)
+        self.setMaximumSize(16777215, 16777215)
         self.updateGeometry()
         self._mapFilesRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
         self.mapFilePath = ""
@@ -149,7 +155,12 @@ class EditorPanel(QtWidgets.QWidget):
                 row: List[Optional[str]] = []
                 for x in range(width):
                     val = None
-                    if isinstance(rawAuto, list) and y < len(rawAuto) and isinstance(rawAuto[y], list) and x < len(rawAuto[y]):
+                    if (
+                        isinstance(rawAuto, list)
+                        and y < len(rawAuto)
+                        and isinstance(rawAuto[y], list)
+                        and x < len(rawAuto[y])
+                    ):
                         cell = rawAuto[y][x]
                         if isinstance(cell, str) and cell:
                             val = cell
@@ -162,17 +173,19 @@ class EditorPanel(QtWidgets.QWidget):
         self.mapData = MapData(mapName, width, height, mapLayers)
 
     def _renderFromMapData(self) -> None:
-        try:
-            from EditorExtensions.EditorExt import C_RenderTilemapRGBA
-
-            loadedExt = True
-        except ImportError as e:
-            loadedExt = False
-            print(f"Failed to load EditorExt, try to render map with python. Error: {e}")
         if self.mapData is None:
             self._pixmap = None
             return
-        tileSize = EditorStatus.CELLSIZE
+        sourceTileSize = EditorStatus.CELLSIZE
+        tileSize = self._getTileSize()
+        C_RenderTilemapRGBA = None
+        loadedExt = tileSize == sourceTileSize
+        if loadedExt:
+            try:
+                from EditorExtensions.EditorExt import C_RenderTilemapRGBA
+            except ImportError as e:
+                loadedExt = False
+                print(f"Failed to load EditorExt, try to render map with python. Error: {e}")
         w = self.mapData.width * tileSize
         h = self.mapData.height * tileSize
         img = QtGui.QImage(w, h, QtGui.QImage.Format_ARGB32)
@@ -194,6 +207,8 @@ class EditorPanel(QtWidgets.QWidget):
                 continue
             if loadedExt:
                 try:
+                    if C_RenderTilemapRGBA is None:
+                        raise RuntimeError()
                     tilesetRgba = tileset.convertToFormat(QtGui.QImage.Format_RGBA8888)
                     tsW = tilesetRgba.width()
                     tsH = tilesetRgba.height()
@@ -229,8 +244,8 @@ class EditorPanel(QtWidgets.QWidget):
                     painter.drawImage(0, 0, layerImg)
                 except Exception as e:
                     print(f"Failed to render tilemap by C extension: {e}")
-                    columns = tileset.width() // tileSize
-                    rows = tileset.height() // tileSize
+                    columns = tileset.width() // sourceTileSize
+                    rows = tileset.height() // sourceTileSize
                     total = columns * rows
                     for y in range(self.mapData.height):
                         for x in range(self.mapData.width):
@@ -242,13 +257,13 @@ class EditorPanel(QtWidgets.QWidget):
                                 continue
                             tu = n % columns
                             tv = n // columns
-                            src = QtCore.QRect(tu * tileSize, tv * tileSize, tileSize, tileSize)
+                            src = QtCore.QRect(tu * sourceTileSize, tv * sourceTileSize, sourceTileSize, sourceTileSize)
                             dst = QtCore.QRect(x * tileSize, y * tileSize, tileSize, tileSize)
                             painter.drawImage(dst, tileset, src)
-                painter.drawImage(0, 0, layerImg)
             else:
-                columns = tileset.width() // tileSize
-                rows = tileset.height() // tileSize
+                columns = tileset.width() // sourceTileSize
+                rows = tileset.height() // sourceTileSize
+                total = columns * rows
                 for y in range(self.mapData.height):
                     for x in range(self.mapData.width):
                         tileNumber = layer.tiles[y][x]
@@ -259,7 +274,7 @@ class EditorPanel(QtWidgets.QWidget):
                             continue
                         tu = n % columns
                         tv = n // columns
-                        src = QtCore.QRect(tu * tileSize, tv * tileSize, tileSize, tileSize)
+                        src = QtCore.QRect(tu * sourceTileSize, tv * sourceTileSize, sourceTileSize, sourceTileSize)
                         dst = QtCore.QRect(x * tileSize, y * tileSize, tileSize, tileSize)
                         painter.drawImage(dst, tileset, src)
             self._drawAutoTilesForLayer(painter, layer, tileSize)
@@ -333,18 +348,81 @@ class EditorPanel(QtWidgets.QWidget):
 
     def _updateContentSize(self) -> None:
         if self.mapData is None:
-            self.setFixedSize(0, 0)
+            self.setMinimumSize(0, 0)
+            self.setMaximumSize(16777215, 16777215)
             self.updateGeometry()
             return
-        tileSize = EditorStatus.CELLSIZE
-        w = int(self.mapData.width * tileSize)
-        h = int(self.mapData.height * tileSize)
-        self.setFixedSize(w, h)
+        size = self._mapPixelSize()
+        self.setMinimumSize(size)
+        self.setMaximumSize(16777215, 16777215)
         self.updateGeometry()
         parent = self.parentWidget()
         if parent is not None:
             parent.updateGeometry()
             parent.update()
+
+    def _getTileSize(self) -> int:
+        try:
+            return int(self._tileSize)
+        except Exception:
+            return int(EditorStatus.CELLSIZE)
+
+    def _setTileSize(self, size: int) -> bool:
+        size = max(_MAP_TILE_SIZE_MIN, min(_MAP_TILE_SIZE_MAX, int(size)))
+        if size == self._getTileSize():
+            return False
+        self._tileSize = size
+        if self.mapData is not None:
+            self._renderFromMapData()
+        self._updateContentSize()
+        self.update()
+        return True
+
+    def _showTileScaleToast(self) -> None:
+        w = self.window()
+        toast = getattr(w, "toast", None) if isinstance(w, QtWidgets.QWidget) else None
+        if not isinstance(toast, Toast):
+            return
+        scale = int(round(self._baseDisplayScale() * 100.0))
+        toast.showMessage(f"{ELOC('scale')}: {scale}%", 1000)
+
+    def _mapPixelSize(self) -> QtCore.QSize:
+        if self.mapData is None:
+            return QtCore.QSize(0, 0)
+        tileSize = self._getTileSize()
+        return QtCore.QSize(int(self.mapData.width * tileSize), int(self.mapData.height * tileSize))
+
+    def _mapOffset(self) -> QtCore.QPoint:
+        size = self._mapPixelSize()
+        x = max(0, int((self.width() - size.width()) / 2))
+        y = max(0, int((self.height() - size.height()) / 2))
+        return QtCore.QPoint(x, y)
+
+    def _mapDisplayPos(self, pos: QtCore.QPoint) -> QtCore.QPoint:
+        return pos - self._mapOffset()
+
+    def _baseDisplayScale(self) -> float:
+        baseTileSize = max(1, int(EditorStatus.CELLSIZE))
+        return float(self._getTileSize()) / float(baseTileSize)
+
+    def _mapBasePos(self, mapDisplayPos: QtCore.QPoint) -> QtCore.QPointF:
+        scale = self._baseDisplayScale()
+        if scale <= 0:
+            scale = 1.0
+        return QtCore.QPointF(float(mapDisplayPos.x()) / scale, float(mapDisplayPos.y()) / scale)
+
+    def _gridPosFromMapDisplayPos(self, mapDisplayPos: QtCore.QPoint) -> Optional[Tuple[int, int]]:
+        if self.mapData is None:
+            return None
+        tileSize = self._getTileSize()
+        gx = int(mapDisplayPos.x()) // tileSize
+        gy = int(mapDisplayPos.y()) // tileSize
+        if gx < 0 or gy < 0 or gx >= self.mapData.width or gy >= self.mapData.height:
+            return None
+        return gx, gy
+
+    def mapBasePosFromWidgetPos(self, pos: QtCore.QPoint) -> QtCore.QPointF:
+        return self._mapBasePos(self._mapDisplayPos(pos))
 
     def getLayerNames(self) -> List[str]:
         if self.mapData is None:
@@ -795,23 +873,34 @@ class EditorPanel(QtWidgets.QWidget):
 
     def paintEvent(self, e: QtGui.QPaintEvent) -> None:
         p = QtGui.QPainter(self)
-        r = self.rect()
+        opt = QtWidgets.QStyleOption()
+        opt.initFrom(self)
+        cast(QtWidgets.QStyle, self.style()).drawPrimitive(QtWidgets.QStyle.PE_Widget, opt, p, self)
+        mapOffset = self._mapOffset()
+        mapSize = self._mapPixelSize()
+        r = QtCore.QRect(mapOffset, mapSize)
         s = 16
         c1 = QtGui.QColor(220, 220, 220)
         c2 = QtGui.QColor(180, 180, 180)
-        y = 0
-        while y < r.height():
-            x = 0
-            while x < r.width():
+        p.save()
+        p.setClipRect(r)
+        y = r.top()
+        while y < r.bottom() + 1:
+            x = r.left()
+            while x < r.right() + 1:
                 c = c1 if (((x // s) + (y // s)) % 2 == 0) else c2
                 p.fillRect(QtCore.QRect(x, y, s, s), c)
                 x += s
             y += s
+        p.restore()
         if self._pixmap is not None:
-            p.drawPixmap(0, 0, self._pixmap)
+            p.drawPixmap(mapOffset, self._pixmap)
 
+        p.save()
+        p.translate(mapOffset)
         if self._lightOverlayEnabled:
             p.setRenderHint(QtGui.QPainter.Antialiasing, True)
+            displayScale = self._baseDisplayScale()
             lights = self._getLights()
             for i, light in enumerate(lights):
                 if not isinstance(light, dict):
@@ -820,9 +909,9 @@ class EditorPanel(QtWidgets.QWidget):
                 if not isinstance(pos, (list, tuple)) or len(pos) < 2:
                     continue
                 try:
-                    cx = float(pos[0])
-                    cy = float(pos[1])
-                    radius = float(light.get("radius", 0.0))
+                    cx = float(pos[0]) * displayScale
+                    cy = float(pos[1]) * displayScale
+                    radius = float(light.get("radius", 0.0)) * displayScale
                 except Exception:
                     continue
                 if radius <= 0:
@@ -852,7 +941,9 @@ class EditorPanel(QtWidgets.QWidget):
 
         if self.selectedPos is not None and self.selectedLayerName is not None:
             gx, gy = self.selectedPos
-            tileSize = EditorStatus.CELLSIZE
+            sourceTileSize = EditorStatus.CELLSIZE
+            tileSize = self._getTileSize()
+            displayScale = self._baseDisplayScale()
 
             if self.rectStartPos is not None:
                 sx, sy = self.rectStartPos
@@ -869,13 +960,13 @@ class EditorPanel(QtWidgets.QWidget):
                 and not self._cachedTilesetImage.isNull()
             ):
                 n = int(self.selectedTileNumber)
-                columns = self._cachedTilesetImage.width() // tileSize
-                rows = self._cachedTilesetImage.height() // tileSize
+                columns = self._cachedTilesetImage.width() // sourceTileSize
+                rows = self._cachedTilesetImage.height() // sourceTileSize
                 total = columns * rows
                 if 0 <= n < total:
                     tu = n % columns
                     tv = n // columns
-                    src = QtCore.QRect(tu * tileSize, tv * tileSize, tileSize, tileSize)
+                    src = QtCore.QRect(tu * sourceTileSize, tv * sourceTileSize, sourceTileSize, sourceTileSize)
 
                     p.setOpacity(0.5)
                     for y_idx in range(min_y, max_y + 1):
@@ -905,8 +996,8 @@ class EditorPanel(QtWidgets.QWidget):
             ):
                 gx0, gy0 = gx, gy
                 if self._hasActorAt(self.selectedLayerName, gx0, gy0):
-                    w = tileSize
-                    h = tileSize
+                    w = sourceTileSize
+                    h = sourceTileSize
                     defOrigin = self._toVec2f(
                         self.getBlueprintAttr(self._pendingActorBpRel, "defaultOrigin", (0.0, 0.0)), 0.0, 0.0
                     )
@@ -915,6 +1006,7 @@ class EditorPanel(QtWidgets.QWidget):
                     py = gy0 * tileSize
                     p.save()
                     p.translate(px, py)
+                    p.scale(displayScale, displayScale)
                     p.setOpacity(0.5)
                     color = QtGui.QColor(255, 0, 0, 120)
                     rr = QtCore.QRectF(-origin[0], -origin[1], w, h)
@@ -939,11 +1031,12 @@ class EditorPanel(QtWidgets.QWidget):
                     py = gy0 * tileSize
                     p.save()
                     p.translate(px, py)
+                    p.scale(displayScale, displayScale)
                     p.translate(translation[0], translation[1])
                     p.rotate(rotation)
                     p.scale(scaleVal[0], scaleVal[1])
-                    w = tileSize
-                    h = tileSize
+                    w = sourceTileSize
+                    h = sourceTileSize
                     sx = 0
                     sy = 0
                     if rectT:
@@ -967,6 +1060,7 @@ class EditorPanel(QtWidgets.QWidget):
             rect_h = (max_y - min_y + 1) * tileSize
             p.drawRect(min_x * tileSize, min_y * tileSize, rect_w - 1, rect_h - 1)
 
+        p.restore()
         p.end()
 
     def changeEvent(self, e: QtCore.QEvent) -> None:
@@ -980,6 +1074,23 @@ class EditorPanel(QtWidgets.QWidget):
         self.selectedPos = None
         self.update()
         super().leaveEvent(a0)
+
+    def resizeEvent(self, e: QtGui.QResizeEvent) -> None:
+        self.update()
+        super().resizeEvent(e)
+
+    def wheelEvent(self, e: QtGui.QWheelEvent) -> None:
+        if e.modifiers() & QtCore.Qt.ControlModifier:
+            delta = e.angleDelta().y()
+            if delta != 0:
+                stepCount = int(delta / 120)
+                if stepCount == 0:
+                    stepCount = 1 if delta > 0 else -1
+                self._setTileSize(self._getTileSize() + stepCount * _MAP_TILE_SIZE_STEP)
+                self._showTileScaleToast()
+                e.accept()
+                return
+        super().wheelEvent(e)
 
     def _hasActorAt(self, layerName: str, gx: int, gy: int) -> bool:
         actors = self._getActorListForLayer(layerName)
@@ -1054,14 +1165,14 @@ class EditorPanel(QtWidgets.QWidget):
     def mousePressEvent(self, e: QtGui.QMouseEvent) -> None:
         if self.mapData is None:
             return
-        x = int(e.pos().x())
-        y = int(e.pos().y())
+        mapPos = self._mapDisplayPos(e.pos())
+        basePos = self._mapBasePos(mapPos)
         if self._lightOverlayEnabled:
             if e.button() != QtCore.Qt.LeftButton:
                 return
 
             idx = self.selectedLightIndex if isinstance(self.selectedLightIndex, int) else None
-            if isinstance(idx, int) and self._isNearLightEdge(e.pos(), idx):
+            if isinstance(idx, int) and self._isNearLightEdge(basePos, idx):
                 lights = self._getLights()
                 if 0 <= idx < len(lights) and isinstance(lights[idx], dict):
                     cr = self._getLightCenterRadius(lights[idx])
@@ -1077,7 +1188,7 @@ class EditorPanel(QtWidgets.QWidget):
                         self.setCursor(QtCore.Qt.SizeAllCursor)
                         return
 
-            if isinstance(idx, int) and self._isInLightDisk(e.pos(), idx):
+            if isinstance(idx, int) and self._isInLightDisk(basePos, idx):
                 lights = self._getLights()
                 if 0 <= idx < len(lights) and isinstance(lights[idx], dict):
                     cr = self._getLightCenterRadius(lights[idx])
@@ -1087,14 +1198,14 @@ class EditorPanel(QtWidgets.QWidget):
                         self._lightMoveDragging = True
                         self._lightMoveDragMapKey = self.mapKey
                         self._lightMoveDragIndex = idx
-                        self._lightMoveDragOffset = (float(e.pos().x()) - cx, float(e.pos().y()) - cy)
+                        self._lightMoveDragOffset = (float(basePos.x()) - cx, float(basePos.y()) - cy)
                         self._lightMoveDragTitleRefreshed = False
                         self.setCursor(QtCore.Qt.SizeAllCursor)
                         return
 
-            hit = self._hitTestLight(e.pos())
+            hit = self._hitTestLight(basePos)
             self._setSelectedLightIndex(hit)
-            if isinstance(hit, int) and self._isInLightDisk(e.pos(), hit) and not self._isNearLightEdge(e.pos(), hit):
+            if isinstance(hit, int) and self._isInLightDisk(basePos, hit) and not self._isNearLightEdge(basePos, hit):
                 lights = self._getLights()
                 if 0 <= hit < len(lights) and isinstance(lights[hit], dict):
                     cr = self._getLightCenterRadius(lights[hit])
@@ -1104,21 +1215,21 @@ class EditorPanel(QtWidgets.QWidget):
                         self._lightMoveDragging = True
                         self._lightMoveDragMapKey = self.mapKey
                         self._lightMoveDragIndex = hit
-                        self._lightMoveDragOffset = (float(e.pos().x()) - cx, float(e.pos().y()) - cy)
+                        self._lightMoveDragOffset = (float(basePos.x()) - cx, float(basePos.y()) - cy)
                         self._lightMoveDragTitleRefreshed = False
                         self.setCursor(QtCore.Qt.SizeAllCursor)
                         return
             self.update()
             return
-        tileSize = EditorStatus.CELLSIZE
-        gx = x // tileSize
-        gy = y // tileSize
-        if gx < 0 or gy < 0 or gx >= self.mapData.width or gy >= self.mapData.height:
+        tileSize = self._getTileSize()
+        gridPos = self._gridPosFromMapDisplayPos(mapPos)
+        if gridPos is None:
             return
+        gx, gy = gridPos
         self.selectedPos = (gx, gy)
         if not self.tileModeEnabled:
             if self.selectedLayerName is not None:
-                hit = self._hitTestActor(self.selectedLayerName, e.pos(), tileSize)
+                hit = self._hitTestActor(self.selectedLayerName, mapPos, tileSize)
 
                 if e.button() == QtCore.Qt.RightButton:
                     menu = QtWidgets.QMenu(self)
@@ -1228,14 +1339,16 @@ class EditorPanel(QtWidgets.QWidget):
     def mouseMoveEvent(self, e: QtGui.QMouseEvent) -> None:
         if self.mapData is None:
             return
+        mapPos = self._mapDisplayPos(e.pos())
+        basePos = self._mapBasePos(mapPos)
         if self._lightOverlayEnabled:
             if self._lightMoveDragging:
                 idx = self._lightMoveDragIndex
                 offset = self._lightMoveDragOffset
                 if isinstance(idx, int) and isinstance(offset, tuple) and len(offset) == 2:
                     ox, oy = float(offset[0]), float(offset[1])
-                    x = float(e.pos().x()) - ox
-                    y = float(e.pos().y()) - oy
+                    x = float(basePos.x()) - ox
+                    y = float(basePos.y()) - oy
                     self._applyLightPosition(idx, x, y)
                     if not self._lightMoveDragTitleRefreshed:
                         self._lightMoveDragTitleRefreshed = True
@@ -1248,8 +1361,8 @@ class EditorPanel(QtWidgets.QWidget):
                 center = self._lightRadiusDragCenter
                 if isinstance(idx, int) and isinstance(center, tuple) and len(center) == 2:
                     cx, cy = float(center[0]), float(center[1])
-                    dx = float(e.pos().x()) - cx
-                    dy = float(e.pos().y()) - cy
+                    dx = float(basePos.x()) - cx
+                    dy = float(basePos.y()) - cy
                     radius = max(0.0, (dx * dx + dy * dy) ** 0.5)
                     last = self._lightRadiusDragLastRadius
                     if last is None or abs(radius - float(last)) >= 0.5:
@@ -1261,21 +1374,18 @@ class EditorPanel(QtWidgets.QWidget):
                         self.update()
                 return
 
-            if isinstance(self.selectedLightIndex, int) and self._isNearLightEdge(e.pos(), self.selectedLightIndex):
+            if isinstance(self.selectedLightIndex, int) and self._isNearLightEdge(basePos, self.selectedLightIndex):
                 self.setCursor(QtCore.Qt.SizeAllCursor)
             else:
                 self.unsetCursor()
             return
-        x = int(e.pos().x())
-        y = int(e.pos().y())
-        tileSize = EditorStatus.CELLSIZE
-        gx = x // tileSize
-        gy = y // tileSize
-        if gx < 0 or gy < 0 or gx >= self.mapData.width or gy >= self.mapData.height:
+        gridPos = self._gridPosFromMapDisplayPos(mapPos)
+        if gridPos is None:
             if self.selectedPos is not None:
                 self.selectedPos = None
                 self.update()
             return
+        gx, gy = gridPos
 
         if self.selectedPos != (gx, gy):
             self.selectedPos = (gx, gy)
@@ -1529,6 +1639,8 @@ class EditorPanel(QtWidgets.QWidget):
         actors = self._getActorListForLayer(layerName)
         if not actors:
             return
+        sourceTileSize = max(1, int(EditorStatus.CELLSIZE))
+        displayScale = float(tileSize) / float(sourceTileSize)
         oldOpacity = painter.opacity()
         painter.setOpacity(opacity)
         for entry in actors:
@@ -1565,12 +1677,13 @@ class EditorPanel(QtWidgets.QWidget):
 
             painter.save()
             painter.translate(px, py)
+            painter.scale(displayScale, displayScale)
             painter.translate(translation[0], translation[1])
             painter.rotate(rotation)
             painter.scale(scaleVal[0], scaleVal[1])
 
-            w = tileSize
-            h = tileSize
+            w = sourceTileSize
+            h = sourceTileSize
             sx = 0
             sy = 0
             if rectT:
@@ -1708,6 +1821,8 @@ class EditorPanel(QtWidgets.QWidget):
         actors = self._getActorListForLayer(layerName)
         if not actors:
             return None
+        sourceTileSize = max(1, int(EditorStatus.CELLSIZE))
+        displayScale = float(tileSize) / float(sourceTileSize)
         px = int(pos.x())
         py = int(pos.y())
         for i, entry in enumerate(actors):
@@ -1725,16 +1840,16 @@ class EditorPanel(QtWidgets.QWidget):
             rectT = self._toRectTuple(self.getBlueprintAttr(bpRel, "defaultRect", None))
             origin = self._toVec2f(self.getBlueprintAttr(bpRel, "defaultOrigin", (0.0, 0.0)), 0.0, 0.0)
             scale = self._toVec2f(self.getBlueprintAttr(bpRel, "defaultScale", (1.0, 1.0)), 1.0, 1.0)
-            w = tileSize
-            h = tileSize
+            w = sourceTileSize
+            h = sourceTileSize
             sx = 0
             sy = 0
             if rectT:
                 sx, sy, w, h = rectT
-            dw = int(w * scale[0])
-            dh = int(h * scale[1])
-            dx = int(gx * tileSize - origin[0] * scale[0])
-            dy = int(gy * tileSize - origin[1] * scale[1])
+            dw = int(w * scale[0] * displayScale)
+            dh = int(h * scale[1] * displayScale)
+            dx = int(gx * tileSize - origin[0] * scale[0] * displayScale)
+            dy = int(gy * tileSize - origin[1] * scale[1] * displayScale)
             rect = QtCore.QRect(dx, dy, dw, dh)
             if rect.contains(px, py):
                 return i
@@ -1797,12 +1912,11 @@ class EditorPanel(QtWidgets.QWidget):
         ext = os.path.splitext(path)[1].lower()
         if ext not in (".json", ".dat"):
             return
-        pos = e.pos()
-        tileSize = EditorStatus.CELLSIZE
-        gx = int(pos.x()) // tileSize
-        gy = int(pos.y()) // tileSize
-        if gx < 0 or gy < 0 or gx >= self.mapData.width or gy >= self.mapData.height:
+        mapPos = self._mapDisplayPos(e.pos())
+        gridPos = self._gridPosFromMapDisplayPos(mapPos)
+        if gridPos is None:
             return
+        gx, gy = gridPos
         w = self.window()
         msg = None
         data = None

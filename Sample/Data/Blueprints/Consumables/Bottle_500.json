@@ -22,7 +22,6 @@
         ],
         "HP_plus": 200,
         "lightComp": {
-            "bSelfLight": true,
             "lightColor": [
                 96,
                 96,

@@ -177,15 +177,27 @@ def migrateLegacyComponentAttrs(cls: Any, attrs: Dict[str, Any]) -> bool:
     for componentName, componentType in getComponentTypes(cls).items():
         componentData = componentToData(attrs.get(componentName))
         moved = False
+        skipDisabledLight = False
+        if componentType is LightComponent and "bSelfLight" in attrs:
+            enabled = bool(attrs.pop("bSelfLight"))
+            moved = True
+            if enabled and componentName not in attrs:
+                componentData = getComponentFieldDefaults(componentType)
+            elif not enabled and componentName not in attrs:
+                skipDisabledLight = True
         for field in dataclasses.fields(componentType):
             if field.name not in attrs:
                 continue
-            componentData[field.name] = _cloneComponentValue(attrs.pop(field.name))
+            value = attrs.pop(field.name)
+            if not skipDisabledLight:
+                componentData[field.name] = _cloneComponentValue(value)
             moved = True
-        if moved:
+        if moved and componentData and not skipDisabledLight:
             defaults = getComponentFieldDefaults(componentType)
             defaults.update(componentData)
             attrs[componentName] = defaults
+            changed = True
+        elif moved:
             changed = True
     return changed
 

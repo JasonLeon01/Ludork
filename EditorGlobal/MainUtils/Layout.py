@@ -29,13 +29,12 @@ class LayoutMixin:
 
         self.editorPanel.setObjectName("EditorPanel")
         self.editorPanel.setAttribute(QtCore.Qt.WA_NativeWindow, True)
-        self.editorPanel.setAutoFillBackground(True)
-        pal = self.editorPanel.palette()
-        pal.setColor(QtGui.QPalette.Window, QtGui.QColor.fromRgb(0, 0, 0))
-        self.editorPanel.setPalette(pal)
+        self.editorPanel.setAttribute(QtCore.Qt.WA_StyledBackground, True)
+        self.editorPanel.setAutoFillBackground(False)
         self.topBar.setMinimumHeight(32)
 
         self.editorScroll.setWidget(self.editorPanel)
+        self.editorScroll.setWidgetResizable(True)
         self.editorScroll.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
         self.editorScroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
         self.editorScroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
@@ -43,10 +42,8 @@ class LayoutMixin:
         self.editorScroll.setMinimumSize(self.gameSize)
         self.editorPanel.setObjectName("EditorPanel")
         self.editorPanel.setAttribute(QtCore.Qt.WA_NativeWindow, True)
-        self.editorPanel.setAutoFillBackground(True)
-        pal = self.editorPanel.palette()
-        pal.setColor(QtGui.QPalette.Window, QtGui.QColor.fromRgb(0, 0, 0))
-        self.editorPanel.setPalette(pal)
+        self.editorPanel.setAttribute(QtCore.Qt.WA_StyledBackground, True)
+        self.editorPanel.setAutoFillBackground(False)
 
         self.gamePanel.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         self.gamePanel.setMinimumSize(self.gameSize)
@@ -57,8 +54,7 @@ class LayoutMixin:
         pal.setColor(QtGui.QPalette.Window, QtGui.QColor.fromRgb(0, 0, 0))
         self.gamePanel.setPalette(pal)
 
-        self.editorViewport = AspectRatioContainer(self.editorScroll, self.panelAspectRatio)
-        self.editorViewport.setMinimumSize(self.gameSize)
+        self.editorViewport = self.editorScroll
         self.gameViewport = AspectRatioContainer(self.gamePanel, self.panelAspectRatio)
         self.gameViewport.setMinimumSize(self.gameSize)
 
@@ -212,3 +208,54 @@ class LayoutMixin:
             cfg[EditorStatus.APP_NAME]["UpperRightWidth"] = str(self._prevRightW)
             with open(cfg_path, "w") as f:
                 cfg.write(f)
+
+    def _clampUpperSplitterHandlePosition(self, index: int, pos: int) -> int:
+        sizes = self.upperSplitter.sizes()
+        if len(sizes) < 3 or index not in (1, 2):
+            return int(pos)
+        totalW = sum(sizes)
+        minLeftW, minCenterW, minRightW = self._upperSplitterMinWidths()
+        if totalW <= 0 or totalW < minLeftW + minCenterW + minRightW:
+            return int(pos)
+
+        if index == 1:
+            rightW = self._lockedUpperSideWidth(
+                getattr(self, "_prevRightW", sizes[2]), minRightW, totalW, minLeftW, minCenterW
+            )
+            minPos = minLeftW
+            maxPos = max(minPos, totalW - rightW - minCenterW)
+            return min(max(int(pos), minPos), maxPos)
+
+        leftW = self._lockedUpperSideWidth(
+            getattr(self, "_prevLeftW", sizes[0]), minLeftW, totalW, minCenterW, minRightW
+        )
+        handleW = int(self.upperSplitter.handleWidth())
+        minPos = leftW + handleW + minCenterW
+        maxPos = max(minPos, totalW + handleW - minRightW)
+        return min(max(int(pos), minPos), maxPos)
+
+    def _lockedUpperSideWidth(
+        self,
+        width: int,
+        minWidth: int,
+        totalWidth: int,
+        firstOtherMinWidth: int,
+        secondOtherMinWidth: int,
+    ) -> int:
+        maxWidth = max(minWidth, totalWidth - firstOtherMinWidth - secondOtherMinWidth)
+        return min(max(minWidth, int(width)), maxWidth)
+
+    def _upperSplitterMinWidths(self) -> tuple[int, int, int]:
+        minLeftW = self.DEFAULT_LEFT_PANEL_MIN_WIDTH
+        minCenterW = self.gameSize.width()
+        minRightW = self.DEFAULT_RIGHT_PANEL_MIN_WIDTH
+        leftArea = getattr(self, "leftArea", None)
+        centerArea = getattr(self, "centerArea", None)
+        rightArea = getattr(self, "rightArea", None)
+        if isinstance(leftArea, QtWidgets.QWidget):
+            minLeftW = max(minLeftW, int(leftArea.minimumWidth()))
+        if isinstance(centerArea, QtWidgets.QWidget):
+            minCenterW = max(minCenterW, int(centerArea.minimumWidth()))
+        if isinstance(rightArea, QtWidgets.QWidget):
+            minRightW = max(minRightW, int(rightArea.minimumWidth()))
+        return minLeftW, minCenterW, minRightW

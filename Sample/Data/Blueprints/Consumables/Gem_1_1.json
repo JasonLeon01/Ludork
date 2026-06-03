@@ -13,7 +13,6 @@
         "ATTR_key": "ATK",
         "plus": 1,
         "lightComp": {
-            "bSelfLight": true,
             "lightColor": [
                 255,
                 96,

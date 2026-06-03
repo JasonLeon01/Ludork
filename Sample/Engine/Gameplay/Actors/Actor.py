@@ -23,7 +23,6 @@ class Actor(_ActorBase, BPBase):
     tickable: bool = False  #: Whether tick events are dispatched
     speed: float = 64.0  #: Movement speed in pixels per second
     _componentTypes = {"lightComp": LightComponent, "childActorComp": ChildActorComponent}
-    lightComp: LightComponent = LightComponent()  #: Self-light component
     ### Generation use only
     texturePath: str = ""  #: Asset path to the character texture
     defaultRect: Optional[Tuple[Pair[int], Pair[int]]] = ((0, 0), (32, 32))  #: Default texture rectangle (origin, size)
@@ -63,15 +62,6 @@ class Actor(_ActorBase, BPBase):
         self._destroyed: bool = False
 
     @property
-    def bSelfLight(self) -> bool:
-        comp = self._getLightComp()
-        return False if comp is None else comp.bSelfLight
-
-    @bSelfLight.setter
-    def bSelfLight(self, value: bool) -> None:
-        self._ensureLightComp().bSelfLight = bool(value)
-
-    @property
     def lightColor(self) -> Tuple[int, int, int, int]:
         comp = self._getLightComp()
         return (255, 255, 255, 255) if comp is None else comp.lightColor
@@ -90,12 +80,14 @@ class Actor(_ActorBase, BPBase):
         self._ensureLightComp().lightRadius = float(value)
 
     def _normaliseLightComp(self) -> None:
-        value = self.lightComp
-        if "lightComp" not in self.__dict__ or not isinstance(value, LightComponent):
+        if "lightComp" not in self.__dict__:
+            return
+        value = self.__dict__.get("lightComp")
+        if value is not None and not isinstance(value, LightComponent):
             self.lightComp = componentFromData(LightComponent, value)
 
     def _getLightComp(self) -> Optional[LightComponent]:
-        value = self.lightComp
+        value = self.__dict__.get("lightComp")
         if value is None:
             return None
         if not isinstance(value, LightComponent):

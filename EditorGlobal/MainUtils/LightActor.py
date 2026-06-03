@@ -111,8 +111,9 @@ class LightActorMixin:
         y = 0.0
         clickPos = self._lastEditorPanelContextPos
         if isinstance(clickPos, QtCore.QPoint):
-            x = float(clickPos.x())
-            y = float(clickPos.y())
+            mapPos = self.editorPanel.mapBasePosFromWidgetPos(clickPos)
+            x = float(mapPos.x())
+            y = float(mapPos.y())
 
         lightData = {
             "position": [float(x), float(y)],
