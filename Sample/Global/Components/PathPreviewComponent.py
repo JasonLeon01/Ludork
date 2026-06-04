@@ -1,12 +1,5 @@
 # -*- encoding: utf-8 -*-
 
-r"""
-\brief PathPreviewComponent: renders a visual preview of the pathfinding route.
-
-This component renders a visual preview of the planned path
-on the game map, showing where the actor will move.
-"""
-
 from __future__ import annotations
 from typing import TYPE_CHECKING
 import Engine

@@ -15,5 +15,5 @@ from .Timeline import TimelinePanel as TimeLine
 from .DataclassEditDialog import DataclassEditDialog
 from .DataclassWidget import DataclassWidget
 from .TypedValueEditor import TypedValueEditor
-from .FPSGraphDialog import FPSGraphDialog
+from .PerformanceMonitorWindow import PerformanceMonitorWindow
 from .GameConfigDialog import GameConfigDialog

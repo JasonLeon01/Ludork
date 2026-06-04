@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-r"""\brief Blueprint string nodes: concatenation, formatting, splitting, and conversion."""
 
 from typing import Any, List, Optional
 from Engine import ReturnType

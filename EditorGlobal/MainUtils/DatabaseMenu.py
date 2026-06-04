@@ -13,7 +13,6 @@ from Utils import File, System
 from Widgets import (
     ConfigWindow,
     TilesetEditor,
-    SettingsWindow,
     CommonFunctionWindow,
     BluePrintEditor,
     ClassSelector,
@@ -149,15 +148,6 @@ class DatabaseMenuMixin:
 
     def _onAnimationModified(self) -> None:
         self._refreshInfo()
-
-    def _onGameSettings(self, checked: bool = False) -> None:
-        self._settingsWindow = SettingsWindow(self, self._projConfig)
-        self._settingsWindow.MODIFIED.connect(lambda: self._refreshInfo())
-        self._settingsWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
-        self._settingsWindow.setWindowModality(QtCore.Qt.ApplicationModal)
-        self._settingsWindow.activateWindow()
-        self._settingsWindow.raise_()
-        self._settingsWindow.show()
 
     def _onGameConfig(self, checked: bool = False) -> None:
         dlg = GameConfigDialog(self, self._pendingGameConfig)

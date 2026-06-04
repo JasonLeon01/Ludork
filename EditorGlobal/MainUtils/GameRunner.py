@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import sys
-import json
 from typing import TextIO, cast
 import subprocess
 import configparser
@@ -12,16 +11,14 @@ import psutil
 from PyQt5 import QtCore, QtWidgets
 from Utils import Panel, System
 from Widgets.AspectRatioContainer import AspectRatioContainer
-from Widgets.Utils import FPSGraphDialog
+from Widgets.Utils import PerformanceMonitorWindow
 from .. import EditorStatus
 
 
 class GameRunnerMixin:
     def startGame(self) -> None:
         self.endGame()
-        fpsFile = os.path.join(EditorStatus.PROJ_PATH, "Temp", "FPSHistory.json")
-        if os.path.exists(fpsFile):
-            os.remove(fpsFile)
+        self._resetPerformanceMonitorSession()
         self.consoleWidget.clear()
         self.stacked.setCurrentWidget(self.gameViewport)
         self._lockGameViewportSize()
@@ -42,7 +39,6 @@ class GameRunnerMixin:
         self._panelHandle = int(self.gamePanel.winId())
         windowhandle = str(self._panelHandle)
         individual = str(self._projConfig.get("IndividualWindow", False))
-        showFPSGraph = str(self._projConfig.get("ShowFPSGraph", False))
         self._engineProc = subprocess.Popen(
             self._getExec(scriptPath),
             cwd=EditorStatus.PROJ_PATH,
@@ -56,12 +52,12 @@ class GameRunnerMixin:
                 EditorStatus.CLEAN_ENVIRON,
                 WINDOWHANDLE=windowhandle,
                 INDIVIDUAL=individual,
-                SHOWFPSGRAPH=showFPSGraph,
                 PYTHONUNBUFFERED="1",
             ),
         )
         self.gamePanel.setEngineProcess(self._engineProc)
         self.consoleWidget.attach_process(self._engineProc)
+        self._syncPerformanceMonitorStreaming()
         self.tabWidget.setCurrentWidget(self.consoleWidget)
         if self._engineMonitorTimer is None:
             self._engineMonitorTimer = QtCore.QTimer(self)
@@ -77,6 +73,7 @@ class GameRunnerMixin:
             self._engineMonitorTimer.stop()
         proc = self._engineProc
         stdin = proc.stdin if proc else None
+        self._setPerformanceMonitorStreaming(False)
         if proc and stdin and proc.poll() is None:
             try:
                 stdin.write("Engine.GameRunning = False\n")
@@ -141,8 +138,6 @@ class GameRunnerMixin:
         Panel.ApplyDisabledOpacity(self.lightPanel)
         self.consoleWidget.detach_process()
         self.tabWidget.setCurrentWidget(self.fileExplorer)
-        if showFPS:
-            self._checkAndShowFPS()
 
     def _onEngineProcCheck(self) -> None:
         if self._engineProc is None:
@@ -160,25 +155,54 @@ class GameRunnerMixin:
         except Exception as e:
             print(f"Error checking engine process state: {e}")
 
-    def _checkAndShowFPS(self) -> None:
-        if self._closing:
-            return
-        fpsFile = os.path.join(EditorStatus.PROJ_PATH, "Temp", "FPSHistory.json")
-        if os.path.exists(fpsFile):
-            try:
-                with open(fpsFile, "r") as f:
-                    data = json.load(f)
-                if data:
-                    dlg = FPSGraphDialog(data, self)
-                    dlg.exec_()
-                os.remove(fpsFile)
-            except Exception as e:
-                print(f"Failed to load FPS history: {e}")
-
     def _getExec(self, scriptPath: str) -> list[str]:
         if System.AlreadyPacked():
             return [sys.argv[0], scriptPath]
         return [sys.executable, "-u", scriptPath]
+
+    def _onPerformanceMonitor(self, checked: bool = False) -> None:
+        monitor = self._performanceMonitorWindow
+        if isinstance(monitor, PerformanceMonitorWindow):
+            monitor.show()
+            monitor.raise_()
+            monitor.activateWindow()
+            return
+        monitor = PerformanceMonitorWindow(self)
+        monitor.CLOSED.connect(self._onPerformanceMonitorWindowClosed)
+        monitor.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        self._performanceMonitorWindow = monitor
+        monitor.show()
+        monitor.raise_()
+        monitor.activateWindow()
+        self._syncPerformanceMonitorStreaming()
+
+    def _onPerformanceMonitorWindowClosed(self) -> None:
+        self._setPerformanceMonitorStreaming(False)
+        self._performanceMonitorWindow = None
+
+    def _onPerformanceMonitorSample(self, fps: float, memoryMB: float) -> None:
+        monitor = self._performanceMonitorWindow
+        if isinstance(monitor, PerformanceMonitorWindow):
+            monitor.addSample(fps, memoryMB)
+
+    def _resetPerformanceMonitorSession(self) -> None:
+        monitor = self._performanceMonitorWindow
+        if isinstance(monitor, PerformanceMonitorWindow):
+            monitor.clearData()
+
+    def _syncPerformanceMonitorStreaming(self) -> None:
+        self._setPerformanceMonitorStreaming(isinstance(self._performanceMonitorWindow, PerformanceMonitorWindow))
+
+    def _setPerformanceMonitorStreaming(self, enabled: bool) -> None:
+        proc = self._engineProc
+        stdin = proc.stdin if proc else None
+        if proc is None or stdin is None or proc.poll() is not None:
+            return
+        try:
+            stdin.write(f"Global.System.setPerformanceMonitorEnabled({bool(enabled)})\n")
+            stdin.flush()
+        except Exception as e:
+            print(f"Error while setting performance monitor state: {e}")
 
     def _lockGameViewportSize(self) -> None:
         gameViewport = getattr(self, "gameViewport", None)

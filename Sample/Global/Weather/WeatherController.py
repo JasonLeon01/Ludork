@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-r"""\brief Screen-space weather controller with shader rendering and iOS particle fallback."""
 
 from __future__ import annotations
 

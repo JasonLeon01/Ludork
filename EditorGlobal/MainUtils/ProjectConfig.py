@@ -41,8 +41,8 @@ class ProjectConfigMixin:
             self._projConfig["IndividualWindow"] = False
             modified = True
 
-        if "ShowFPSGraph" not in self._projConfig:
-            self._projConfig["ShowFPSGraph"] = False
+        if "ShowFPSGraph" in self._projConfig:
+            self._projConfig.pop("ShowFPSGraph", None)
             modified = True
 
         if sys.platform == "darwin":
@@ -50,12 +50,12 @@ class ProjectConfigMixin:
                 self._projConfig["IndividualWindow"] = True
                 modified = True
 
-        if modified and chosen:
-            try:
-                with open(chosen, "w", encoding="utf-8") as f:
-                    json.dump(self._projConfig, f, ensure_ascii=False, indent=4)
-            except Exception as e:
-                print(f"Error saving project config: {e}")
+        if modified:
+            self._saveProjConfig()
+
+        syncToolActions = getattr(self, "_syncDevelopmentToolActions", None)
+        if callable(syncToolActions):
+            syncToolActions()
 
         last = self._projConfig.get("lastMap", None)
         targetRow = 0 if self.leftList.count() > 0 else -1
@@ -87,8 +87,7 @@ class ProjectConfigMixin:
             name = item.text()
         if name:
             self._projConfig["lastMap"] = name
-            with open(self._projConfigPath, "w", encoding="utf-8") as f:
-                json.dump(self._projConfig, f, ensure_ascii=False, indent=4)
+            self._saveProjConfig()
 
     def _onFileExplorerPathChanged(self, path: str) -> None:
         if not self._projConfigPath:
@@ -99,10 +98,18 @@ class ProjectConfigMixin:
                 if self._projConfig.get("lastFileExplorerPath") == rel:
                     return
                 self._projConfig["lastFileExplorerPath"] = rel
-                with open(self._projConfigPath, "w", encoding="utf-8") as f:
-                    json.dump(self._projConfig, f, ensure_ascii=False, indent=4)
+                self._saveProjConfig()
         except Exception as e:
             print(f"Error saving file explorer path: {e}")
+
+    def _saveProjConfig(self) -> None:
+        if not self._projConfigPath:
+            return
+        try:
+            with open(self._projConfigPath, "w", encoding="utf-8") as f:
+                json.dump(self._projConfig, f, ensure_ascii=False, indent=4)
+        except Exception as e:
+            print(f"Error saving project config: {e}")
 
     def _onDataFileChanged(self) -> None:
         GameData.init()

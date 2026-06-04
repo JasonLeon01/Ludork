@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-r"""\brief Blueprint player nodes: inventory, equipment, attribute, gold, and EXP management."""
 
 from typing import Any, Optional, List
 from Engine import Direction, Vector2i

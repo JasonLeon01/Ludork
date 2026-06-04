@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-r"""\brief Blueprint save/load nodes: persist and restore game state via slot-based save files."""
 
 from typing import Optional
 from Global import System

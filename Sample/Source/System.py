@@ -153,7 +153,6 @@ class System:
             window.setMouseCursor(cls._cursor)
         GlobalSystem.setGameSize(gameSize)
         GlobalSystem.setDebugMode(handle is not None)
-        GlobalSystem.setShowFPSGraph(os.environ.get("SHOWFPSGRAPH") == "True")
         GlobalSystem.initWindow(window)
         GlobalSystem.initCanvas(canvasSize)
         UI.DefaultFont = cls._fonts[0]

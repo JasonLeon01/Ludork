@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-r"""\brief Blueprint container nodes: list/dict operations (get, set, append, remove, iterate)."""
 
 from typing import Any, Dict, List
 

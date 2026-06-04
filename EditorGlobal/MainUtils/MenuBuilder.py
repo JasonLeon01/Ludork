@@ -36,6 +36,13 @@ class MenuBuilderMixin:
         _helpMenu = cast(QtWidgets.QMenu, self._menuBar.addMenu(ELOC("HELP")))
         _languageMenu = cast(QtWidgets.QMenu, _helpMenu.addMenu(ELOC("HELP_LANGUAGE")))
 
+        _devToolsMenu = cast(QtWidgets.QMenu, _editMenu.addMenu(ELOC("DEVELOPMENT_TOOLS_SETTINGS")))
+        self._actIndividualWindow.triggered.connect(self._onIndividualWindowToggled)
+        _devToolsMenu.addAction(self._actIndividualWindow)
+        self._actPerformanceMonitor.triggered.connect(self._onPerformanceMonitor)
+        _devToolsMenu.addAction(self._actPerformanceMonitor)
+        _editMenu.addSeparator()
+
         self._actUndo.setShortcut(QtGui.QKeySequence.StandardKey.Undo)
         self._actUndo.triggered.connect(self._onUndo)
         self._actRedo.setShortcut(QtGui.QKeySequence.StandardKey.Redo)
@@ -43,9 +50,6 @@ class MenuBuilderMixin:
         _editMenu.addAction(self._actUndo)
         _editMenu.addAction(self._actRedo)
 
-        self._actGameSettings.triggered.connect(self._onGameSettings)
-        self._actGameSettings.setShortcut(QtGui.QKeySequence("F2"))
-        _gameMenu.addAction(self._actGameSettings)
         self._actGameConfig.triggered.connect(self._onGameConfig)
         self._actGameConfig.setShortcut(QtGui.QKeySequence("F3"))
         _gameMenu.addAction(self._actGameConfig)
@@ -90,6 +94,27 @@ class MenuBuilderMixin:
             act.setData(lang)
             self._languageActionGroup.addAction(act)
         self._languageActionGroup.triggered.connect(self._onLanguageChanged)
+
+    def _syncDevelopmentToolActions(self) -> None:
+        if not isinstance(getattr(self, "_projConfig", None), dict):
+            return
+        checked = bool(self._projConfig.get("IndividualWindow", False))
+        locked = sys.platform == "darwin"
+        if locked:
+            checked = True
+        self._actIndividualWindow.blockSignals(True)
+        self._actIndividualWindow.setChecked(checked)
+        self._actIndividualWindow.setEnabled(not locked)
+        self._actIndividualWindow.blockSignals(False)
+
+    def _onIndividualWindowToggled(self, checked: bool = False) -> None:
+        if sys.platform == "darwin":
+            self._syncDevelopmentToolActions()
+            return
+        if not isinstance(getattr(self, "_projConfig", None), dict):
+            return
+        self._projConfig["IndividualWindow"] = bool(checked)
+        self._saveProjConfig()
 
     def _onLanguageChanged(self, action: QtWidgets.QAction) -> None:
         lang = action.data()

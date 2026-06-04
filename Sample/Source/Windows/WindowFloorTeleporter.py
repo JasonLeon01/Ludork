@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-r"""\brief Floor teleporter preview window for visited region maps."""
 
 from __future__ import annotations
 import os

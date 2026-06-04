@@ -292,7 +292,7 @@ class GameData:
         return diffs
 
     @classmethod
-    def saveAllModified(cls) -> None:
+    def saveAllModified(cls) -> Tuple[bool, str]:
         changes = cls.getChanges()
         final_details = {"A": [], "U": [], "D": [], "Failed": []}
 

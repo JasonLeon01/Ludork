@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-r"""\brief Blueprint mota nodes: monster handbook and floor-region helpers."""
 
 from Global import System
 

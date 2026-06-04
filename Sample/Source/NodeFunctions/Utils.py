@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-r"""\brief Blueprint utility nodes: conditionals, local/game variables, scene management, and reflection utilities."""
 
 from __future__ import annotations
 from typing import Any, Dict, Optional

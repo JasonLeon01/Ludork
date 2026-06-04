@@ -120,6 +120,10 @@ class _EventState:
     TouchBeganHandled: bool = False  # Whether the TouchBegan was handled this frame
     TouchTriggered: Tuple[int, bool] = (0, False)  # (press_count, handled); persists across frames while active
     TouchBlocked: bool = False  # Whether touch input is blocked
+    TouchFingerPositions: Dict[int, Vector2i] = {}  # Active touch fingers -> current position
+    TouchCancelMouseActive: bool = False  # Whether two-finger touch is holding virtual right mouse
+    TouchCancelMousePressedThisFrame: bool = False  # Whether virtual right mouse was pressed this frame
+    TouchCancelMouseReleasePending: Optional[Vector2i] = None  # Deferred virtual right mouse release position
 
     JoystickButtonPressed: bool = False  # Whether any joystick button was pressed this frame
     JoystickButtonReleased: bool = False  # Whether any joystick button was released this frame
@@ -149,12 +153,12 @@ class _EventState:
         Tuple[object, Callable[[object, Optional[float]], None], bool],
     ] = {}  # Action name -> (object, callback, trigger_on_hold)
 
-    KeyRepeatStartTime: Dict[
-        Tuple[Keyboard.Key, bool, bool, bool, bool], float
-    ] = {}  # (key, alt, ctrl, shift, system) -> perf_counter when first triggered
-    KeyRepeatLastTime: Dict[
-        Tuple[Keyboard.Key, bool, bool, bool, bool], float
-    ] = {}  # (key, alt, ctrl, shift, system) -> perf_counter of last repeat fire
+    KeyRepeatStartTime: Dict[Tuple[Keyboard.Key, bool, bool, bool, bool], float] = (
+        {}
+    )  # (key, alt, ctrl, shift, system) -> perf_counter when first triggered
+    KeyRepeatLastTime: Dict[Tuple[Keyboard.Key, bool, bool, bool, bool], float] = (
+        {}
+    )  # (key, alt, ctrl, shift, system) -> perf_counter of last repeat fire
     JoystickButtonRepeatStartTime: Dict[int, float] = {}  # button -> first trigger time
     JoystickButtonRepeatLastTime: Dict[int, float] = {}  # button -> last repeat fire time
 
@@ -182,6 +186,53 @@ def _pixelToWorld(window: WindowBase, pixel: Vector2i) -> Vector2i:
         return Vector2i(int(world.x), int(world.y))
     except Exception:
         return pixel
+
+
+def _setMouseButtonPressed(button: Mouse.Button, position: Vector2i) -> None:
+    _EventState.MouseButtonPressed = True
+    _EventState.MouseButtonPressedMap[button] = True
+    _EventState.MousePressedPosition = position
+    _EventState.MousePosition = position
+    if button not in _EventState.MouseButtonTriggeredMap:
+        _EventState.MouseButtonTriggeredMap[button] = (0, False)
+    count, handled = _EventState.MouseButtonTriggeredMap[button]
+    _EventState.MouseButtonTriggeredMap[button] = (count + 1, handled)
+
+
+def _setMouseButtonReleased(button: Mouse.Button, position: Vector2i) -> None:
+    _EventState.MouseButtonReleased = True
+    _EventState.MouseButtonReleasedMap[button] = True
+    _EventState.MouseReleasedPosition = position
+    _EventState.MousePosition = position
+    _EventState.MouseButtonTriggeredMap.pop(button, None)
+
+
+def _beginTwoFingerCancel(position: Vector2i) -> None:
+    if _EventState.TouchCancelMouseActive:
+        return
+    _setMouseButtonPressed(Mouse.Button.Right, position)
+    _EventState.TouchCancelMouseActive = True
+    _EventState.TouchCancelMousePressedThisFrame = True
+    _EventState.TouchBeganHandled = True
+    _EventState.TouchTriggered = (0, True)
+
+
+def _endTwoFingerCancel(position: Vector2i) -> None:
+    if not _EventState.TouchCancelMouseActive:
+        return
+    _EventState.TouchCancelMouseActive = False
+    if _EventState.TouchCancelMousePressedThisFrame:
+        _EventState.TouchCancelMouseReleasePending = position
+        return
+    _setMouseButtonReleased(Mouse.Button.Right, position)
+
+
+def _releasePendingTwoFingerCancel() -> None:
+    position = _EventState.TouchCancelMouseReleasePending
+    if position is None:
+        return
+    _EventState.TouchCancelMouseReleasePending = None
+    _setMouseButtonReleased(Mouse.Button.Right, position)
 
 
 def setUseInjectedMouseOnly(value: bool) -> None:
@@ -259,15 +310,7 @@ def _processInjectedEvents() -> None:
             y = data.get("y", 0)
             pos = Vector2i(x, y)
 
-            _EventState.MouseButtonPressed = True
-            _EventState.MouseButtonPressedMap[btn] = True
-            _EventState.MousePressedPosition = pos
-
-            if not btn in _EventState.MouseButtonTriggeredMap:
-                _EventState.MouseButtonTriggeredMap[btn] = (0, False)
-            count, handled = _EventState.MouseButtonTriggeredMap[btn]
-            count += 1
-            _EventState.MouseButtonTriggeredMap[btn] = (count, handled)
+            _setMouseButtonPressed(btn, pos)
 
         elif t == "MouseButtonReleased":
             btnName = data.get("button")
@@ -276,12 +319,7 @@ def _processInjectedEvents() -> None:
             y = data.get("y", 0)
             pos = Vector2i(x, y)
 
-            _EventState.MouseButtonReleased = True
-            _EventState.MouseButtonReleasedMap[btn] = True
-            _EventState.MouseReleasedPosition = pos
-
-            if btn in _EventState.MouseButtonTriggeredMap:
-                _EventState.MouseButtonTriggeredMap.pop(btn, None)
+            _setMouseButtonReleased(btn, pos)
 
         elif t == "MouseWheelScrolled":
             delta = data.get("delta", 0.0)
@@ -347,6 +385,7 @@ def update(window: WindowBase) -> None:
         _EventState.TouchEndedPosition = None
         _EventState.TouchMovedDelta = None
         _EventState.TouchBeganHandled = False
+        _EventState.TouchCancelMousePressedThisFrame = False
 
         _EventState.JoystickButtonPressed = False
         _EventState.JoystickButtonReleased = False
@@ -359,6 +398,7 @@ def update(window: WindowBase) -> None:
 
         _EventState.EnteredText = ""
 
+        _releasePendingTwoFingerCancel()
         _processInjectedEvents()
 
         try:
@@ -413,26 +453,19 @@ def update(window: WindowBase) -> None:
                         _EventState.MouseScrolledWheelDelta = mouseWheelEvent.delta
                         _EventState.MouseScrolledWheelPosition = _pixelToWorld(window, mouseWheelEvent.position)
                     if event.isMouseButtonPressed():
-                        _EventState.MouseButtonPressed = True
                         mouseButtonEvent = event.getIfMouseButtonPressed()
-                        _EventState.MouseButtonPressedMap[mouseButtonEvent.button] = True
-                        _EventState.MousePressedPosition = _pixelToWorld(window, mouseButtonEvent.position)
-                        if not mouseButtonEvent.button in _EventState.MouseButtonTriggeredMap:
-                            _EventState.MouseButtonTriggeredMap[mouseButtonEvent.button] = (0, False)
-                        count, handled = _EventState.MouseButtonTriggeredMap[mouseButtonEvent.button]
-                        count += 1
-                        _EventState.MouseButtonTriggeredMap[mouseButtonEvent.button] = (count, handled)
+                        _setMouseButtonPressed(
+                            mouseButtonEvent.button, _pixelToWorld(window, mouseButtonEvent.position)
+                        )
                     if event.isMouseButtonReleased():
-                        _EventState.MouseButtonReleased = True
                         mouseButtonEvent = event.getIfMouseButtonReleased()
-                        _EventState.MouseButtonReleasedMap[mouseButtonEvent.button] = True
-                        _EventState.MouseReleasedPosition = _pixelToWorld(window, mouseButtonEvent.position)
-                        if mouseButtonEvent.button in _EventState.MouseButtonTriggeredMap:
-                            _EventState.MouseButtonTriggeredMap.pop(mouseButtonEvent.button, None)
+                        _setMouseButtonReleased(
+                            mouseButtonEvent.button, _pixelToWorld(window, mouseButtonEvent.position)
+                        )
                     if event.isMouseMoved():
                         _EventState.MouseMoved = True
                         mouseMoveEvent = event.getIfMouseMoved()
-                        lastPosition: Vector2i = copy.copy(_EventState.MousePosition)
+                        lastPosition = copy.copy(_EventState.MousePosition)
                         _EventState.MousePosition = _pixelToWorld(window, mouseMoveEvent.position)
                         if _EventState.MousePosition != lastPosition:
                             _EventState.MouseMovedDelta = _EventState.MousePosition - lastPosition
@@ -443,32 +476,40 @@ def update(window: WindowBase) -> None:
                 if not _EventState.TouchBlocked:
                     if event.isTouchBegan():
                         touchEvent = event.getIfTouchBegan()
+                        worldPos = _pixelToWorld(window, touchEvent.position)
+                        _EventState.TouchFingerPositions[touchEvent.finger] = worldPos
                         if touchEvent.finger == 0:
                             _EventState.TouchBegan = True
                             _EventState.TouchActive = True
-                            worldPos = _pixelToWorld(window, touchEvent.position)
                             _EventState.TouchBeganPosition = worldPos
                             _EventState.TouchPosition = worldPos
                             count, _ = _EventState.TouchTriggered
                             _EventState.TouchTriggered = (count + 1, False)
+                        if len(_EventState.TouchFingerPositions) >= 2:
+                            _beginTwoFingerCancel(worldPos)
                     if event.isTouchMoved():
                         touchEvent = event.getIfTouchMoved()
+                        worldPos = _pixelToWorld(window, touchEvent.position)
+                        if touchEvent.finger in _EventState.TouchFingerPositions:
+                            _EventState.TouchFingerPositions[touchEvent.finger] = worldPos
                         if touchEvent.finger == 0:
                             _EventState.TouchMoved = True
                             lastPosition = Cast(Vector2i, _EventState.TouchPosition)
-                            worldPos = _pixelToWorld(window, touchEvent.position)
                             _EventState.TouchPosition = worldPos
                             if lastPosition is not None and worldPos != lastPosition:
                                 _EventState.TouchMovedDelta = worldPos - lastPosition
                     if event.isTouchEnded():
                         touchEvent = event.getIfTouchEnded()
+                        worldPos = _pixelToWorld(window, touchEvent.position)
+                        _EventState.TouchFingerPositions.pop(touchEvent.finger, None)
                         if touchEvent.finger == 0:
                             _EventState.TouchEnded = True
                             _EventState.TouchActive = False
-                            worldPos = _pixelToWorld(window, touchEvent.position)
                             _EventState.TouchEndedPosition = worldPos
                             _EventState.TouchPosition = worldPos
                             _EventState.TouchTriggered = (0, False)
+                        if _EventState.TouchCancelMouseActive and len(_EventState.TouchFingerPositions) < 2:
+                            _endTwoFingerCancel(worldPos)
                 if event.isJoystickButtonPressed():
                     _EventState.JoystickButtonPressed = True
                     joystickButtonEvent = event.getIfJoystickButtonPressed()
@@ -1405,7 +1446,9 @@ def isActionTriggered(
                 if isKeyTriggered(key, handled=handled, repeatDelay=repeatDelay, repeatInterval=repeatInterval):
                     triggered = True
             elif isinstance(key, JoystickButton):
-                if isAnyJoystickButtonTriggered(key, handled=handled, repeatDelay=repeatDelay, repeatInterval=repeatInterval):
+                if isAnyJoystickButtonTriggered(
+                    key, handled=handled, repeatDelay=repeatDelay, repeatInterval=repeatInterval
+                ):
                     triggered = True
             elif isinstance(key, tuple):
                 axis, threshold, condition = key

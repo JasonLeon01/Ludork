@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-r"""\brief Full-screen map fog with RMXP-style scrolling and optional PC shader distortion."""
 
 from __future__ import annotations
 

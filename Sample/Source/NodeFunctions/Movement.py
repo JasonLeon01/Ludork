@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-r"""\brief Blueprint movement nodes: actor routes and pathfinding movement."""
 
 from __future__ import annotations
 from typing import Any, Callable, List, Optional, Union

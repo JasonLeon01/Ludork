@@ -1,12 +1,5 @@
 # -*- encoding: utf-8 -*-
 
-r"""
-\brief MapClickAutoPath: component that pathfinds and moves an actor to the clicked tile.
-
-This component handles mouse click input and automatically pathfinds
-to the clicked map position, moving the player actor along the path.
-"""
-
 from __future__ import annotations
 from collections import deque
 from threading import Lock

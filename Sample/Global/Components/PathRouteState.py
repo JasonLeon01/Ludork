@@ -1,12 +1,5 @@
 # -*- encoding: utf-8 -*-
 
-r"""
-\brief PathRouteState: state machine for path movement execution (idle, moving, arrived).
-
-This module provides a thread-safe state container for storing
-and managing the planned path route for an actor.
-"""
-
 from __future__ import annotations
 from threading import Lock
 from typing import List

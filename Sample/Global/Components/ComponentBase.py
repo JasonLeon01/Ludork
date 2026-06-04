@@ -1,12 +1,5 @@
 # -*- encoding: utf-8 -*-
 
-r"""
-\brief ComponentBase: base class for attachable gameplay components.
-
-This module provides the base class for all components that can be
-attached to game objects to add reusable gameplay functionality.
-"""
-
 from __future__ import annotations
 from typing import Any
 

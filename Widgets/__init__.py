@@ -10,7 +10,6 @@ from .FileExplorer import FileExplorer
 from .FilePreview import FilePreview
 from .ConfigWindow import ConfigWindow
 from .TilesetEditor import TilesetEditor
-from .SettingsWindow import SettingsWindow
 from .CommonFunctionWindow import CommonFunctionWindow
 from .LightPanel import LightPanel
 from .BlueprintEditor import BluePrintEditor
@@ -47,7 +46,6 @@ __all__ = [
     "FilePreview",
     "ConfigWindow",
     "TilesetEditor",
-    "SettingsWindow",
     "CommonFunctionWindow",
     "LightPanel",
     "BluePrintEditor",

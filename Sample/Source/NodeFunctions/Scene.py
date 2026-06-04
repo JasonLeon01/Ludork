@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-r"""\brief Blueprint scene nodes: map navigation and scene-level shortcuts."""
 
 from typing import Any, Callable, List, Optional, Union
 from Engine import Pair, Vector2i, Vector2u

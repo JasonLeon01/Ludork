@@ -196,6 +196,7 @@ class MainWindow(
         self.fileExplorer = FileExplorer(EditorStatus.PROJ_PATH)
         self.actorQueuePanel = ActorQueuePanel(dockMode="vertical")
         self.consoleWidget = ConsoleWidget()
+        self.consoleWidget.PERFORMANCE_SAMPLE.connect(self._onPerformanceMonitorSample)
         self.tabWidget = QtWidgets.QTabWidget()
         self.lowerSplitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         self.topSplitter = QtWidgets.QSplitter(QtCore.Qt.Vertical)
@@ -215,8 +216,9 @@ class MainWindow(
         self._actRedo = QtWidgets.QAction(ELOC("REDO"), self)
         self._actRedo.setIcon(wstyle.standardIcon(QtWidgets.QStyle.SP_ArrowForward))
         self._actReloadModule = QtWidgets.QAction(ELOC("RELOAD_MODULE"), self)
-        self._actGameSettings = QtWidgets.QAction(ELOC("GAME_SETTINGS"), self)
-        self._actGameSettings.setIcon(wstyle.standardIcon(QtWidgets.QStyle.SP_FileDialogDetailedView))
+        self._actIndividualWindow = QtWidgets.QAction(ELOC("IndividualWindow"), self)
+        self._actIndividualWindow.setCheckable(True)
+        self._actPerformanceMonitor = QtWidgets.QAction(ELOC("PERFORMANCE_MONITOR"), self)
         self._actGameConfig = QtWidgets.QAction(ELOC("GAME_CONFIG"), self)
         self._actGameConfig.setIcon(wstyle.standardIcon(QtWidgets.QStyle.SP_FileDialogInfoView))
         self._actNewBlueprint = QtWidgets.QAction(ELOC("NEW_BLUEPRINT"), self)
@@ -280,6 +282,7 @@ class MainWindow(
         self._setStyle()
         self._initProjConfigAndSelection()
         self._engineMonitorTimer: Optional[QtCore.QTimer] = None
+        self._performanceMonitorWindow: Optional[QtWidgets.QWidget] = None
         self._gameLockActive: bool = False
         self._lockedViewportSize: Optional[QSize] = None
         self._gameConfigModified: bool = False

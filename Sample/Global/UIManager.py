@@ -1,44 +1,22 @@
 # -*- encoding: utf-8 -*-
 r"""\brief UIManager: manages active UI canvases, event dispatch, and rendering order."""
 
-import os
 from typing import Callable, List, Optional
-from Engine import Input
 from Engine.Utils import Math
 from Engine.UI.Base import ControlBase, FunctionalBase
 from . import Manager
 from .System import System
-
-_DEBUG_HUD_PADDING = 8.0
 
 
 class UIManager:
     r"""\brief Manages active UI canvases, event dispatch, and rendering order.
 
     Handles loading, removal, and sorted update/render of UI canvases.
-    Includes optional debug HUD with FPS and memory information.
     """
 
     def __init__(self) -> None:
-        r"""\brief Construct a UI manager with debug HUD if debug mode is enabled."""
+        r"""\brief Construct a UI manager."""
         self._UIs: List[ControlBase] = []
-        self._debugHUDEnabled: bool = False
-        if System.isDebugMode():
-            from Engine import Text
-            from Engine.UI import DefaultFont, PlainText
-
-            self._debugHUDEnabled = True
-            self._debugHUD: PlainText = PlainText(DefaultFont, "", 12)
-            self._debugHUD.setLineAlignment(Text.LineAlignment.Right)
-            self._totalTime: float = 0.0
-            self._totalFrames: int = 0
-            self._averageFPS: float = 0.0
-            self._debugUpdateTimer: float = 0.0
-            self._memRSS: float = 0.0
-            self._sceneMem: float = 0.0
-            self._textureMem: float = 0.0
-            self._audioMem: float = 0.0
-            self._fontMem: float = 0.0
 
     @ExecSplit(default=(None,))
     def loadUI(self, ui: ControlBase) -> None:
@@ -99,8 +77,6 @@ class UIManager:
                 if isinstance(ui, Canvas):
                     ui.render()
                 System.draw(ui)
-        if System.isDebugMode() and self._debugHUDEnabled:
-            System.draw(self._debugHUD)
         if overlayRenderer is not None:
             overlayRenderer()
         System.display(deltaTime)
@@ -109,62 +85,12 @@ class UIManager:
                 if isinstance(ui, FunctionalBase):
                     ui.lateUpdate(deltaTime)
 
-    def _updateDebugInfo(self, deltaTime: float) -> None:
+    def _updatePerformanceInfo(self, deltaTime: float) -> None:
         if not System.isDebugMode():
-            return
-        if Input.isKeyTriggered(Input.Key.F3, handled=False):
-            self._debugHUDEnabled = not self._debugHUDEnabled
-
-        if not self._debugHUDEnabled:
             return
         if Math.IsNearZero(Manager.TimeManager.getSpeed()):
             return
 
         realDeltaTime = deltaTime / Manager.TimeManager.getSpeed()
-        self._totalTime += realDeltaTime
         FPS = 1.0 / realDeltaTime
-        System.recordFPS(FPS)
-        self._totalFrames += 1
-        self._averageFPS = self._totalFrames / self._totalTime
-        self._debugUpdateTimer += realDeltaTime
-        if self._debugUpdateTimer >= 0.5:
-            import psutil  # type: ignore
-            from pympler import asizeof  # type: ignore
-
-            process = psutil.Process(os.getpid())
-            info = process.memory_info()
-            self._memRSS = info.rss * 1.0
-            self._sceneMem = asizeof.asizeof(self) * 1.0
-            self._textureMem = Manager.TextureManager.getMemory() * 1.0
-            self._audioMem = Manager.AudioManager.getMemory() * 1.0
-            self._fontMem = Manager.FontManager.getMemory() * 1.0
-            self._debugUpdateTimer = 0.0
-        import types
-
-        memInfo = types.SimpleNamespace(rss=self._memRSS)
-        sceneMem = self._sceneMem
-        textureMem = self._textureMem
-        audioMem = self._audioMem
-        fontMem = self._fontMem
-
-        debugString = ""
-        debugString += f"Total Time: {self._totalTime:.2f}s\n"
-        debugString += f"FPS: {FPS:.2f}\n"
-        debugString += f"Average FPS: {self._averageFPS:.2f}\n"
-        debugString += f"Memory: {memInfo.rss / 1024 / 1024:.2f} MB\n"
-        debugString += f"Scene Memory: {sceneMem / 1024 / 1024:.2f} MB\n"
-        debugString += f"Texture Memory: {textureMem / 1024 / 1024:.2f} MB\n"
-        debugString += f"Audio Memory: {audioMem / 1024 / 1024:.2f} MB\n"
-        debugString += f"Font Memory: {fontMem / 1024 / 1024:.2f} MB\n"
-
-        self._debugHUD.setString(debugString)
-        self._layoutDebugHUD()
-
-    def _layoutDebugHUD(self) -> None:
-        from Engine import Vector2f
-
-        bounds = self._debugHUD.getLocalBounds()
-        gameWidth = float(System.getGameSize().x)
-        self._debugHUD.setPosition(
-            Vector2f(gameWidth - _DEBUG_HUD_PADDING, _DEBUG_HUD_PADDING - bounds.position.y)
-        )
+        System.recordPerformance(FPS)

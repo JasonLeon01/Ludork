@@ -2,8 +2,8 @@
 r"""\brief Global system: window management, scene transitions, rendering pipeline, and game loop."""
 
 from __future__ import annotations
-import os
 import json
+import os
 import random
 import threading
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
@@ -70,10 +70,9 @@ class System(SystemConfigBase):
     _pendingTransitionLock: threading.Lock = threading.Lock()
     _sceneOpThreadIdent: Optional[int] = None
     _debugMode: bool = False
-    _showFPSGraph: bool = False
-    _fpsHistory: List[float] = []
-    _fpsAccumulator: float = 0.0
-    _fpsCount: int = 0
+    _performanceMonitorEnabled: bool = False
+    _performanceFPSAccumulator: float = 0.0
+    _performanceFPSCount: int = 0
 
     @classmethod
     def init(cls, inData: configparser.ConfigParser, dataFilePath: str) -> None:
@@ -114,40 +113,49 @@ class System(SystemConfigBase):
         cls._debugMode = debugMode
 
     @classmethod
-    def setShowFPSGraph(cls, showFPSGraph: bool) -> None:
-        r"""\brief Show or hide the FPS graph in debug mode.
+    def setPerformanceMonitorEnabled(cls, enabled: bool) -> None:
+        r"""\brief Enable or disable performance streaming for the editor monitor.
 
-        - \param showFPSGraph True to show the FPS graph.
+        - \param enabled True to stream performance samples to the editor.
         """
-        cls._showFPSGraph = showFPSGraph
+        cls._performanceMonitorEnabled = bool(enabled)
+        cls._performanceFPSAccumulator = 0.0
+        cls._performanceFPSCount = 0
 
     @classmethod
-    def recordFPS(cls, fps: float) -> None:
-        r"""\brief Record a frame's FPS value for averaging.
+    def isPerformanceMonitorEnabled(cls) -> bool:
+        r"""\brief Check whether the editor performance monitor is receiving samples.
+
+        - \return True if performance samples should be streamed.
+        """
+        return cls._performanceMonitorEnabled
+
+    @classmethod
+    def recordPerformance(cls, fps: float) -> None:
+        r"""\brief Record and stream a frame's performance values.
 
         - \param fps The frame's FPS value.
         """
-        if cls._debugMode and cls._showFPSGraph:
-            cls._fpsAccumulator += fps
-            cls._fpsCount += 1
-            if cls._fpsCount >= 30:
-                cls._fpsHistory.append(cls._fpsAccumulator / cls._fpsCount)
-                cls._fpsAccumulator = 0.0
-                cls._fpsCount = 0
+        if not cls._debugMode or not cls._performanceMonitorEnabled:
+            return
+        cls._performanceFPSAccumulator += fps
+        cls._performanceFPSCount += 1
+        if cls._performanceFPSCount >= 30:
+            sample = cls._performanceFPSAccumulator / cls._performanceFPSCount
+            payload = {"fps": sample, "memory": cls._getProcessMemoryMB()}
+            print(f"__LUDORK_PERF__:{json.dumps(payload, separators=(',', ':'))}", flush=True)
+            cls._performanceFPSAccumulator = 0.0
+            cls._performanceFPSCount = 0
 
     @classmethod
-    def saveFPSHistory(cls) -> None:
-        r"""\brief Save the FPS history to a JSON file."""
-        if not cls._debugMode or not cls._fpsHistory:
-            return
+    def _getProcessMemoryMB(cls) -> float:
         try:
-            temp_dir = "./Temp"
-            if not os.path.exists(temp_dir):
-                os.makedirs(temp_dir)
-            with open(os.path.join(temp_dir, "FPSHistory.json"), "w") as f:
-                json.dump(cls._fpsHistory, f, indent=4)
-        except Exception as e:
-            print(f"Failed to save FPS history: {e}")
+            import psutil  # type: ignore
+
+            process = psutil.Process(os.getpid())
+            return float(process.memory_info().rss) / 1024.0 / 1024.0
+        except Exception:
+            return 0.0
 
     @classmethod
     def getGameSize(cls) -> Vector2u:

@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-r"""\brief Blueprint state nodes: host access, battler attributes, and state ops."""
 
 from typing import Any, Optional
 from Engine.Gameplay.Components import getComponentFieldValue, setComponentFieldValue

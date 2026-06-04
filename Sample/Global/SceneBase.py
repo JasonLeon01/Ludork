@@ -175,7 +175,7 @@ class SceneBase:
             Input.update(System.getWindow())
             Manager.TimeManager.update()
             deltaTime = Manager.TimeManager.v_getDeltaTime()
-            self._uiManager._updateDebugInfo(deltaTime)
+            self._uiManager._updatePerformanceInfo(deltaTime)
             self._uiManager._logicHandle(deltaTime)
             self._renderHandle(deltaTime)
             System.clearCanvas()

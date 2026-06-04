@@ -215,10 +215,6 @@
     "zh_CN": "游戏",
     "en_GB": "Game"
   },
-  "GAME_SETTINGS": {
-    "zh_CN": "游戏设置",
-    "en_GB": "Game Settings"
-  },
   "GAME_CONFIG": {
     "zh_CN": "游戏配置",
     "en_GB": "Game Config"
@@ -771,9 +767,25 @@
     "zh_CN": "独立窗口",
     "en_GB": "Individual Window"
   },
-  "ShowFPSGraph": {
-    "zh_CN": "运行结束后显示 FPS 图表",
-    "en_GB": "Show FPS graph after game ends"
+  "DEVELOPMENT_TOOLS_SETTINGS": {
+    "zh_CN": "开发工具与设置",
+    "en_GB": "Development Tools and Settings"
+  },
+  "PERFORMANCE_MONITOR": {
+    "zh_CN": "性能监视器",
+    "en_GB": "Performance Monitor"
+  },
+  "PERFORMANCE_MONITOR_WAITING": {
+    "zh_CN": "等待性能数据",
+    "en_GB": "Waiting for performance data"
+  },
+  "PERFORMANCE_MONITOR_STATS": {
+    "zh_CN": "FPS 平均: {avg:.2f} | 最大: {max:.2f} | 最小: {min:.2f} | 内存: {memory:.2f} MB | 样本: {count}",
+    "en_GB": "FPS Avg: {avg:.2f} | Max: {max:.2f} | Min: {min:.2f} | Memory: {memory:.2f} MB | Samples: {count}"
+  },
+  "PERFORMANCE_MONITOR_POINT": {
+    "zh_CN": "时间: {time:.1f}s | FPS: {fps:.1f} | 内存: {memory:.2f} MB",
+    "en_GB": "Time: {time:.1f}s | FPS: {fps:.1f} | Memory: {memory:.2f} MB"
   },
   "CONFIRM_EXIT_WITH_UNSAVED_CHANGES": {
     "zh_CN": "当前有未保存的修改，是否保存并退出？",

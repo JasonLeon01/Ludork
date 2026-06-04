@@ -2,6 +2,7 @@
 
 import os
 import sys
+import builtins
 import logging
 import configparser
 import threading
@@ -16,14 +17,34 @@ def entry() -> None:
     import Global
     import Source
 
+    def _stdinHelp(obj=None) -> None:
+        if obj is None:
+            print("Use help(object) to print documentation in the console.")
+            return
+
+        import pydoc
+
+        print(pydoc.render_doc(obj, renderer=pydoc.plaintext))
+
     def _stdinWorker() -> None:
-        env = {"Engine": Engine, "Scenes": Source.Scenes, "Global": Global}
+        builtinEnv = dict(vars(builtins))
+        builtinEnv["help"] = _stdinHelp
+        env = {
+            "__builtins__": builtinEnv,
+            "Engine": Engine,
+            "Scenes": Source.Scenes,
+            "Global": Global,
+            "help": _stdinHelp,
+        }
         while True:
             line = sys.stdin.readline()
             if not line:
                 break
             cmd = line.strip()
             if not cmd:
+                continue
+            if cmd == "help":
+                _stdinHelp()
                 continue
             try:
                 r = eval(cmd, env)
@@ -61,7 +82,6 @@ def entry() -> None:
         scene = Global.System.getScene()
         if scene:
             scene.main()
-    Global.System.saveFPSHistory()
     print("Game exited successfully.")
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import io
+import json
 from typing import Optional, Union
 from PyQt5 import QtCore, QtGui, QtWidgets
 from psutil import Popen
@@ -54,6 +55,9 @@ class PipeReader(QtCore.QThread):
 
 
 class ConsoleWidget(QtWidgets.QWidget):
+    PERFORMANCE_SAMPLE = QtCore.pyqtSignal(float, float)
+    _PERFORMANCE_SAMPLE_PREFIX = "__LUDORK_PERF__:"
+
     def __init__(self):
         super().__init__()
         self._proc: Optional[object] = None
@@ -121,7 +125,7 @@ class ConsoleWidget(QtWidgets.QWidget):
         self._proc = proc
         self._stdout_reader = PipeReader(proc.stdout, None)
         self._stderr_reader = PipeReader(proc.stderr, None)
-        self._stdout_reader.NEW_LINE.connect(self._append_line)
+        self._stdout_reader.NEW_LINE.connect(self._handle_line)
         self._stderr_reader.NEW_LINE.connect(self._append_line)
         self._stdout_reader.start()
         self._stderr_reader.start()
@@ -178,6 +182,17 @@ class ConsoleWidget(QtWidgets.QWidget):
         cursor.insertText(text + "\n", tc)
         self._view.setTextCursor(cursor)
         self._view.ensureCursorVisible()
+
+    def _handle_line(self, text: str, level: str) -> None:
+        if text.startswith(self._PERFORMANCE_SAMPLE_PREFIX):
+            raw = text[len(self._PERFORMANCE_SAMPLE_PREFIX) :].strip()
+            try:
+                payload = json.loads(raw)
+                self.PERFORMANCE_SAMPLE.emit(float(payload.get("fps", 0.0)), float(payload.get("memory", 0.0)))
+            except Exception:
+                self._append_line(text, level)
+            return
+        self._append_line(text, level)
 
     def _onSend(self) -> None:
         t = self._input.text()
