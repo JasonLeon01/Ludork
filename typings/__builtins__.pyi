@@ -99,20 +99,6 @@ def InvalidVars(*args: str) -> Callable[[type[_T]], type[_T]]:
     """
     ...
 
-def PathVars(*args: str) -> Callable[[type[_T]], type[_T]]:
-    r"""
-    \brief Class decorator for marking path-type variables.
-
-    This decorator adds _pathVars attribute to the decorated class,
-    which specifies variables that represent file system paths and may
-    require special handling (e.g., relative path resolution).
-
-    - args: Variable names that represent paths.
-
-    \return A class decorator that attaches path variables metadata.
-    """
-    ...
-
 def RectRangeVars(**kwargs: Any) -> Callable[[type[_T]], type[_T]]:
     r"""
     \brief Class decorator for marking rectangle range variables.

@@ -73,6 +73,8 @@ def Meta(**kwargs):
     which can be used to store arbitrary metadata about that object.
     `Rely` can describe editor-side edit dependencies in the form
     `{"target": ["source", expectedValue]}`.
+    `PathVars` can describe editor-side path fields in the form
+    `[("texturePath", "Characters")]`.
 
     - kwargs: Key-value pairs to be stored as metadata.
 
@@ -80,7 +82,11 @@ def Meta(**kwargs):
     """
 
     def decorator(func):
-        func._meta = kwargs
+        meta = getattr(func, "_meta", None)
+        if not isinstance(meta, dict):
+            meta = {}
+        meta.update(kwargs)
+        func._meta = meta
         return func
 
     return decorator
@@ -168,26 +174,6 @@ def InvalidVars(*args):
     return decorator
 
 
-def PathVars(*args):
-    r"""
-    \brief Class decorator for marking path-type variables.
-
-    This decorator adds _pathVars attribute to the decorated class,
-    which specifies variables that represent file system paths and may
-    require special handling (e.g., relative path resolution).
-
-    - args: Variable names that represent paths.
-
-    \return A class decorator that attaches path variables metadata.
-    """
-
-    def decorator(cls):
-        cls._pathVars = args
-        return cls
-
-    return decorator
-
-
 def RectRangeVars(**kwargs):
     r"""
     \brief Class decorator for marking rectangle range variables.
@@ -240,7 +226,6 @@ __all__ = [
     "Latent",
     "ReturnType",
     "InvalidVars",
-    "PathVars",
     "RectRangeVars",
     "RegisterEvent",
 ]

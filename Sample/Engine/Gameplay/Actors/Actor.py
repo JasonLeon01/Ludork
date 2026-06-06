@@ -9,7 +9,7 @@ from ..Components import ChildActorComponent, LightComponent, componentFromData
 from .Base import _ActorBase
 
 
-@PathVars("texturePath")
+@Meta(PathVars=[("texturePath", "Characters")])
 @RectRangeVars(defaultRect="texturePath")
 class Actor(_ActorBase, BPBase):
     r"""

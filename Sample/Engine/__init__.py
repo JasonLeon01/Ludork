@@ -159,7 +159,6 @@ builtins.ExecSplit = ExecSplit
 builtins.Latent = Latent
 builtins.ReturnType = ReturnType
 builtins.InvalidVars = InvalidVars
-builtins.PathVars = PathVars
 builtins.RectRangeVars = RectRangeVars
 builtins.RegisterEvent = RegisterEvent
 builtins.Cast = Cast

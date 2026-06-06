@@ -10,7 +10,7 @@ import importlib
 from PyQt5 import QtWidgets, QtGui, QtCore
 import Utils
 from EditorGlobal import EditorStatus, GameData
-from Utils import System
+from Utils import System, SFMLRender
 from .Utils import AutoTileRenderer, Toast, computeMaskFromGrid
 
 
@@ -44,6 +44,7 @@ class EditorPanel(QtWidgets.QWidget):
         self.mapData: Optional[MapData] = None
         self._pixmap: Optional[QtGui.QPixmap] = None
         self._cachedTilesetImage: Optional[QtGui.QImage] = None
+        self._actorShaderImageCache: Dict[Tuple[str, str, Tuple[int, int, int, int], int, int], QtGui.QImage] = {}
         self.selectedLayerName: Optional[str] = None
         self.selectedTileNumber: Optional[int] = None
         self.selectedAutoTileKey: Optional[str] = None
@@ -1026,6 +1027,7 @@ class EditorPanel(QtWidgets.QWidget):
                     defOrigin = self._toVec2f(self.getBlueprintAttr(bpRel, "defaultOrigin", (0.0, 0.0)), 0.0, 0.0)
                     origin = self._toVec2f(defOrigin, defOrigin[0], defOrigin[1])
                     texPath = self.getBlueprintAttr(bpRel, "texturePath", "")
+                    shaderPath = self.getBlueprintAttr(bpRel, "shaderPath", "")
                     rectT = self._toRectTuple(self.getBlueprintAttr(bpRel, "defaultRect", None))
                     px = gx0 * tileSize
                     py = gy0 * tileSize
@@ -1042,8 +1044,15 @@ class EditorPanel(QtWidgets.QWidget):
                     if rectT:
                         sx, sy, w, h = rectT
                     imgGhost = self._resolveTextureImage(texPath)
+                    shaderGhost = self._renderActorShaderImage(
+                        texPath, shaderPath, rectT, imgGhost.width() if imgGhost is not None else 0
+                    )
                     p.setOpacity(0.5)
-                    if imgGhost is not None and rectT is not None:
+                    if shaderGhost is not None:
+                        src = QtCore.QRectF(0, 0, shaderGhost.width(), shaderGhost.height())
+                        dst = QtCore.QRectF(-origin[0], -origin[1], w, h)
+                        p.drawImage(dst, shaderGhost, src)
+                    elif imgGhost is not None and rectT is not None:
                         src = QtCore.QRectF(sx, sy, w, h)
                         dst = QtCore.QRectF(-origin[0], -origin[1], w, h)
                         p.drawImage(dst, imgGhost, src)
@@ -1538,8 +1547,6 @@ class EditorPanel(QtWidgets.QWidget):
 
     def _refreshTitle(self) -> None:
         try:
-            from Utils import System
-
             w = self.window()
             if not w:
                 return
@@ -1620,19 +1627,74 @@ class EditorPanel(QtWidgets.QWidget):
         clsObj = self._resolveActorClass(bpRel)
         return self._getClassAttr(clsObj, attrName, default)
 
-    def _resolveTextureImage(self, texturePath: Any) -> Optional[QtGui.QImage]:
-        path: Optional[str] = None
+    def _resolveTexturePath(self, texturePath: Any) -> str:
         if isinstance(texturePath, str) and texturePath.strip():
             p = texturePath.strip()
-            if os.path.isabs(p) or p.startswith("Assets/"):
-                path = p
-            else:
-                path = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Characters", p)
+            if os.path.isabs(p):
+                return p
+            if p.startswith("Assets/") or p.startswith("Assets\\"):
+                return os.path.join(EditorStatus.PROJ_PATH, p)
+            return os.path.join(EditorStatus.PROJ_PATH, "Assets", "Characters", p)
+        return ""
+
+    def _resolveShaderPath(self, shaderPath: Any) -> str:
+        if isinstance(shaderPath, str) and shaderPath.strip():
+            p = shaderPath.strip()
+            if os.path.isabs(p):
+                return p
+            if p.startswith("Assets/Shaders/") or p.startswith("Assets\\Shaders\\"):
+                return os.path.join(EditorStatus.PROJ_PATH, p)
+            return os.path.join(EditorStatus.PROJ_PATH, "Assets", "Shaders", p)
+        return ""
+
+    def _resolveTextureImage(self, texturePath: Any) -> Optional[QtGui.QImage]:
+        path = self._resolveTexturePath(texturePath)
         if not path:
             return None
         img = QtGui.QImage(path)
         if img.isNull():
             return None
+        return img
+
+    def _getFileMtimeNs(self, path: str) -> int:
+        try:
+            return int(os.stat(path).st_mtime_ns)
+        except OSError:
+            return 0
+
+    def _renderActorShaderImage(
+        self,
+        texturePath: Any,
+        shaderPath: Any,
+        rect: Optional[Tuple[int, int, int, int]],
+        textureWidth: int,
+    ) -> Optional[QtGui.QImage]:
+        textureAbs = self._resolveTexturePath(texturePath)
+        shaderAbs = self._resolveShaderPath(shaderPath)
+        if not textureAbs or not shaderAbs or rect is None or not SFMLRender.hasUsableShader(shaderAbs):
+            return None
+        key = (
+            os.path.normcase(os.path.abspath(textureAbs)),
+            os.path.normcase(os.path.abspath(shaderAbs)),
+            rect,
+            self._getFileMtimeNs(textureAbs),
+            self._getFileMtimeNs(shaderAbs),
+        )
+        cached = self._actorShaderImageCache.get(key)
+        if cached is not None and not cached.isNull():
+            return cached
+        encoded = SFMLRender.renderTextureWithShaderToMemory(
+            textureAbs,
+            shaderAbs,
+            rect,
+            textureWidth=textureWidth,
+        )
+        if encoded is None:
+            return None
+        img = QtGui.QImage()
+        if not img.loadFromData(encoded, "PNG"):
+            return None
+        self._actorShaderImageCache[key] = img
         return img
 
     def _drawActorsForLayer(self, painter: QtGui.QPainter, layerName: str, tileSize: int, opacity: float) -> None:
@@ -1670,6 +1732,7 @@ class EditorPanel(QtWidgets.QWidget):
             origin = self._toVec2f(entry.get("origin", defOrigin), defOrigin[0], defOrigin[1])
 
             texPath = self.getBlueprintAttr(bpRel, "texturePath", "")
+            shaderPath = self.getBlueprintAttr(bpRel, "shaderPath", "")
             rectT = self._toRectTuple(self.getBlueprintAttr(bpRel, "defaultRect", None))
 
             px = gx * tileSize
@@ -1690,7 +1753,12 @@ class EditorPanel(QtWidgets.QWidget):
                 sx, sy, w, h = rectT
 
             img = self._resolveTextureImage(texPath)
-            if img is not None and rectT is not None:
+            shaderImg = self._renderActorShaderImage(texPath, shaderPath, rectT, img.width() if img is not None else 0)
+            if shaderImg is not None:
+                src = QtCore.QRectF(0, 0, shaderImg.width(), shaderImg.height())
+                dst = QtCore.QRectF(-origin[0], -origin[1], w, h)
+                painter.drawImage(dst, shaderImg, src)
+            elif img is not None and rectT is not None:
                 src = QtCore.QRectF(sx, sy, w, h)
                 dst = QtCore.QRectF(-origin[0], -origin[1], w, h)
                 painter.drawImage(dst, img, src)

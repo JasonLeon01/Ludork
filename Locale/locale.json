@@ -315,6 +315,10 @@
     "zh_CN": "音频预览",
     "en_GB": "Audio Preview"
   },
+  "PREVIEW": {
+    "zh_CN": "预览",
+    "en_GB": "Preview"
+  },
   "ASSETS": {
     "zh_CN": "素材",
     "en_GB": "Assets"

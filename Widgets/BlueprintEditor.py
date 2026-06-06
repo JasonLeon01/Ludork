@@ -9,9 +9,13 @@ import dataclasses
 from typing import Any, Dict, Optional, Set, get_type_hints
 from PyQt5 import QtWidgets, QtCore, QtGui
 from EditorGlobal import EditorStatus, GameData
-from Utils import System, File
+from Utils import System, File, SFMLRender
 from Widgets.Utils import SingleRowDialog, NodePanel, Toast, RectViewer, DataclassWidget, FileSelectorDialog
 from Widgets.Utils.MetaRely import getRelyConditionDisplay, getRelySourceSet, isRelyEditable, normaliseRelyMap
+
+
+_GRAPH_TAB_KIND = "graph"
+_PREVIEW_TAB_KIND = "preview"
 
 
 class RevertButton(QtWidgets.QPushButton):
@@ -52,6 +56,126 @@ class RevertButton(QtWidgets.QPushButton):
         p.drawPath(arrow)
 
 
+class BluePrintPreviewWidget(QtWidgets.QWidget):
+    def __init__(self, editor: "BluePrintEditor") -> None:
+        super().__init__(editor)
+        self._editor = editor
+        self._image: Optional[QtGui.QImage] = None
+        self._shaderImage: Optional[QtGui.QImage] = None
+        self._rect = (0, 0, 32, 32)
+        self._animatable = False
+        self._switchInterval = 0.2
+        self._shaderTime = 0.0
+        self._frame = 0
+        self._accumulated = 0.0
+        self._clock = QtCore.QElapsedTimer()
+        self._timer = QtCore.QTimer(self)
+        self._timer.setInterval(50)
+        self._timer.timeout.connect(self._onTick)
+        self.setMinimumSize(240, 240)
+        self.refreshPreview()
+
+    def refreshPreview(self) -> None:
+        self._image = self._editor._getPreviewTextureImage()
+        self._rect = self._editor._getPreviewRectTuple()
+        self._animatable = bool(self._editor._getPreviewAttr("animatable", False))
+        try:
+            self._switchInterval = max(0.03, float(self._editor._getPreviewAttr("switchInterval", 0.2)))
+        except (TypeError, ValueError):
+            self._switchInterval = 0.2
+        if not self._animatable:
+            self._frame = 0
+            self._accumulated = 0.0
+            self._shaderTime = 0.0
+            self._clock.invalidate()
+        elif not self._clock.isValid():
+            self._clock.start()
+        textureWidth = self._image.width() if self._image is not None else 0
+        self._shaderImage = self._editor._renderPreviewShaderImage(
+            self._rect, self._frame, self._shaderTime, textureWidth
+        )
+        self._syncTimer()
+        self.update()
+
+    def _syncTimer(self) -> None:
+        if self._animatable and self._image is not None:
+            if not self._timer.isActive():
+                self._timer.start()
+            return
+        if self._timer.isActive():
+            self._timer.stop()
+
+    def _onTick(self) -> None:
+        if not self._animatable or self._image is None:
+            self._syncTimer()
+            return
+        if not self._clock.isValid():
+            self._clock.start()
+            return
+        elapsed = self._clock.restart() / 1000.0
+        self._shaderTime += max(0.0, elapsed)
+        self._accumulated += max(0.0, elapsed)
+        if self._accumulated < self._switchInterval:
+            if self._editor._hasPreviewShader():
+                textureWidth = self._image.width() if self._image is not None else 0
+                self._shaderImage = self._editor._renderPreviewShaderImage(
+                    self._rect, self._frame, self._shaderTime, textureWidth
+                )
+                self.update()
+            return
+        while self._accumulated >= self._switchInterval:
+            self._frame += 1
+            self._accumulated -= self._switchInterval
+        textureWidth = self._image.width() if self._image is not None else 0
+        self._shaderImage = self._editor._renderPreviewShaderImage(
+            self._rect, self._frame, self._shaderTime, textureWidth
+        )
+        self.update()
+
+    def paintEvent(self, event: QtGui.QPaintEvent) -> None:
+        painter = QtGui.QPainter(self)
+        painter.fillRect(self.rect(), QtGui.QColor(28, 28, 28))
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, False)
+        inner = self.rect().adjusted(24, 24, -24, -24)
+        displayImage = self._shaderImage if self._shaderImage is not None else self._image
+        if displayImage is None or inner.width() <= 0 or inner.height() <= 0:
+            self._drawEmptyPreview(painter, inner)
+            return
+
+        sx, sy, sw, sh = self._rect
+        sw = max(1, sw)
+        sh = max(1, sh)
+        if self._shaderImage is not None:
+            sx = 0
+            sy = 0
+            sw = max(1, self._shaderImage.width())
+            sh = max(1, self._shaderImage.height())
+        elif self._animatable and self._image is not None and self._image.width() > 0:
+            sx = (sx + self._frame * sw) % max(1, self._image.width())
+        src = QtCore.QRect(sx, sy, sw, sh)
+        scale = min(inner.width() / sw, inner.height() / sh)
+        scale = max(0.01, scale)
+        dstW = max(1, int(sw * scale))
+        dstH = max(1, int(sh * scale))
+        dst = QtCore.QRect(0, 0, dstW, dstH)
+        dst.moveCenter(inner.center())
+        painter.drawImage(dst, displayImage, src)
+        painter.setPen(QtGui.QPen(QtGui.QColor(90, 90, 90), 1))
+        painter.drawRect(dst.adjusted(0, 0, -1, -1))
+
+    def _drawEmptyPreview(self, painter: QtGui.QPainter, rect: QtCore.QRect) -> None:
+        size = min(rect.width(), rect.height(), 96)
+        if size <= 0:
+            return
+        box = QtCore.QRect(0, 0, size, size)
+        box.moveCenter(rect.center())
+        painter.fillRect(box, QtGui.QColor(42, 42, 42))
+        painter.setPen(QtGui.QPen(QtGui.QColor(90, 90, 90), 1, QtCore.Qt.DashLine))
+        painter.drawRect(box.adjusted(0, 0, -1, -1))
+        painter.drawLine(box.topLeft(), box.bottomRight())
+        painter.drawLine(box.topRight(), box.bottomLeft())
+
+
 class BluePrintEditor(QtWidgets.QWidget):
     MODIFIED = QtCore.pyqtSignal()
 
@@ -67,7 +191,8 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.data = copy.deepcopy(data)
         self.graphs: Dict[str, Any] = {}
         self.invalidVars: Set[str] = self._getInvalidVars()
-        self.pathVars: Set[str] = self._getPathVars()
+        self.pathVarMap: Dict[str, str] = self._getPathVarMap()
+        self.pathVars: Set[str] = set(self.pathVarMap.keys())
         rectMap = self._getRectRangeVars()
         self.rectRangeVars: Set[str] = set(rectMap.keys())
         self.rectRangeVarMap: Dict[str, str] = rectMap
@@ -223,12 +348,40 @@ class BluePrintEditor(QtWidgets.QWidget):
         invalid = getattr(cls, "_invalidVars", ())
         return set(invalid)
 
-    def _getPathVars(self) -> Set[str]:
+    def _getPathVarMap(self) -> Dict[str, str]:
         cls = self._resolveClass()
         if cls is None:
-            return set()
-        paths = getattr(cls, "_pathVars", ())
-        return set(paths)
+            return {}
+        paths: Dict[str, str] = {}
+        try:
+            mro = list(reversed(cls.mro()))
+        except Exception:
+            mro = [cls]
+        for base in mro:
+            meta = getattr(base, "__dict__", {}).get("_meta")
+            if not isinstance(meta, dict):
+                continue
+            self._collectPathVars(paths, meta.get("PathVars", ()))
+        return paths
+
+    def _collectPathVars(self, paths: Dict[str, str], value: Any) -> None:
+        if isinstance(value, str):
+            paths[value] = "Characters"
+            return
+        if isinstance(value, tuple) and len(value) >= 2 and isinstance(value[0], str):
+            paths[value[0]] = self._normalisePathVarAssetsDir(value[1])
+            return
+        if isinstance(value, (list, tuple, set)):
+            for item in value:
+                self._collectPathVars(paths, item)
+
+    def _normalisePathVarAssetsDir(self, value: Any) -> str:
+        if not isinstance(value, str):
+            return ""
+        value = value.replace("\\", "/").strip("/")
+        if value in ("", "."):
+            return ""
+        return value
 
     def _getRectRangeVars(self) -> Dict[str, str]:
         cls = self._resolveClass()
@@ -485,7 +638,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.nodeGraphList.setFlow(QtWidgets.QListWidget.LeftToRight)
         self.nodeGraphList.setFixedHeight(50)
         self.rightLayout.addWidget(self.nodeGraphList)
-        self.nodeGraphList.currentTextChanged.connect(self.onGraphSelected)
+        self.nodeGraphList.currentItemChanged.connect(self.onGraphItemSelected)
         self.nodeGraphList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.nodeGraphList.customContextMenuRequested.connect(self.onGraphListContextMenu)
         self._delShortcut = QtWidgets.QShortcut(
@@ -499,6 +652,8 @@ class BluePrintEditor(QtWidgets.QWidget):
 
         self.stackedWidget = QtWidgets.QStackedWidget()
         self.rightLayout.addWidget(self.stackedWidget)
+        self.previewWidget = BluePrintPreviewWidget(self)
+        self.stackedWidget.addWidget(self.previewWidget)
 
         self.splitter.addWidget(self.leftScroll)
         self.splitter.addWidget(self.rightPanel)
@@ -508,6 +663,18 @@ class BluePrintEditor(QtWidgets.QWidget):
 
         self.refreshAttrs()
         self.refreshGraphList()
+
+    def onGraphItemSelected(
+        self, current: Optional[QtWidgets.QListWidgetItem], previous: Optional[QtWidgets.QListWidgetItem]
+    ) -> None:
+        if current is None:
+            return
+        if current.data(QtCore.Qt.UserRole) == _PREVIEW_TAB_KIND:
+            self._refreshPreview()
+            self.stackedWidget.setCurrentWidget(self.previewWidget)
+            return
+        text = current.text()
+        self.onGraphSelected(text)
 
     def onGraphSelected(self, text: str) -> None:
         if not text:
@@ -530,11 +697,16 @@ class BluePrintEditor(QtWidgets.QWidget):
 
     def refreshGraphList(self) -> None:
         self.nodeGraphList.clear()
+        previewItem = QtWidgets.QListWidgetItem(ELOC("PREVIEW"))
+        previewItem.setData(QtCore.Qt.UserRole, _PREVIEW_TAB_KIND)
+        self.nodeGraphList.addItem(previewItem)
         if "graph" in self.data and isinstance(self.data["graph"], dict):
             nodeGraph = self.data["graph"].get("nodeGraph")
             if isinstance(nodeGraph, dict):
                 for key in nodeGraph.keys():
-                    self.nodeGraphList.addItem(key)
+                    item = QtWidgets.QListWidgetItem(key)
+                    item.setData(QtCore.Qt.UserRole, _GRAPH_TAB_KIND)
+                    self.nodeGraphList.addItem(item)
 
         if self.nodeGraphList.count() > 0:
             self.nodeGraphList.setCurrentRow(0)
@@ -760,6 +932,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         addBtn = QtWidgets.QPushButton("+")
         addBtn.clicked.connect(self.onAddAttr)
         self.formLayout.addRow(addBtn)
+        self._refreshPreview()
 
     def createInputWidget(
         self, key: str, value: Any, isAttr: bool = True, type_hint: Any = None, parent_val: Any = None
@@ -940,6 +1113,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         GameData.recordSnapshot()
         GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
         self.MODIFIED.emit()
+        self._refreshPreview()
         if isAttr and key in self.attrRelySources:
             QtCore.QTimer.singleShot(0, self.refreshAttrs)
 
@@ -951,6 +1125,7 @@ class BluePrintEditor(QtWidgets.QWidget):
                 self.refreshAttrs()
                 GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
                 self.MODIFIED.emit()
+                self._refreshPreview()
 
     def onDeleteComponent(self, key: str) -> None:
         self.onDeleteAttr(key)
@@ -1079,9 +1254,10 @@ class BluePrintEditor(QtWidgets.QWidget):
             self.MODIFIED.emit()
 
     def onSelectPath(self, key: str, widget: QtWidgets.QLineEdit) -> None:
-        baseDir = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Characters")
+        baseDir = self._getPathVarBaseDir(key)
         if not os.path.isdir(baseDir):
-            baseDir = EditorStatus.PROJ_PATH
+            assetsDir = os.path.join(EditorStatus.PROJ_PATH, "Assets")
+            baseDir = assetsDir if os.path.isdir(assetsDir) else EditorStatus.PROJ_PATH
         dlg = FileSelectorDialog(self, baseDir, FileSelectorDialog.allFilesFilter(star=True))
         filePath = dlg.execSelect()
         if not filePath:
@@ -1109,7 +1285,7 @@ class BluePrintEditor(QtWidgets.QWidget):
                     pathValue = parentVal
         if not isinstance(pathValue, str) or not pathValue:
             return
-        baseDir = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Characters")
+        baseDir = self._getPathVarBaseDir(pathKey)
         imagePath = os.path.join(baseDir, pathValue)
         rectValue = attrs.get(key)
         rectTuple = None
@@ -1137,6 +1313,109 @@ class BluePrintEditor(QtWidgets.QWidget):
         newValue = ((nx, ny), (nw, nh))
         self.onDataChanged(key, newValue, True)
         self.refreshAttrs()
+
+    def _getPathVarBaseDir(self, key: str) -> str:
+        assetsDir = os.path.join(EditorStatus.PROJ_PATH, "Assets")
+        subDir = self.pathVarMap.get(key, "")
+        if not subDir:
+            return assetsDir
+        baseDir = os.path.normpath(os.path.join(assetsDir, subDir))
+        try:
+            assetsAbs = os.path.normcase(os.path.abspath(assetsDir))
+            baseAbs = os.path.normcase(os.path.abspath(baseDir))
+            if os.path.commonpath([assetsAbs, baseAbs]) != assetsAbs:
+                return assetsDir
+        except ValueError:
+            return assetsDir
+        return baseDir
+
+    def _refreshPreview(self) -> None:
+        preview = getattr(self, "previewWidget", None)
+        if isinstance(preview, BluePrintPreviewWidget):
+            preview.refreshPreview()
+
+    def _getPreviewAttr(self, key: str, default: Any = None) -> Any:
+        attrs = self.data.get("attrs")
+        if isinstance(attrs, dict) and key in attrs:
+            return attrs.get(key, default)
+        found, value = self._getClassAttrValue(self._resolveClass(), key)
+        return value if found else default
+
+    def _getPreviewTextureImage(self) -> Optional[QtGui.QImage]:
+        path = self._getPreviewTexturePath()
+        if not path:
+            return None
+        img = QtGui.QImage(path)
+        if img.isNull():
+            return None
+        return img
+
+    def _getPreviewTexturePath(self) -> str:
+        texturePath = self._getPreviewAttr("texturePath", "")
+        if not isinstance(texturePath, str) or not texturePath.strip():
+            return ""
+        p = texturePath.strip()
+        if os.path.isabs(p):
+            return p
+        if p.startswith("Assets/") or p.startswith("Assets\\"):
+            return os.path.join(EditorStatus.PROJ_PATH, p)
+        return os.path.join(self._getPathVarBaseDir("texturePath"), p)
+
+    def _getPreviewShaderPath(self) -> str:
+        shaderPath = self._getPreviewAttr("shaderPath", "")
+        if not isinstance(shaderPath, str) or not shaderPath.strip():
+            return ""
+        p = shaderPath.strip()
+        if os.path.isabs(p):
+            return p
+        if p.startswith("Assets/Shaders/") or p.startswith("Assets\\Shaders\\"):
+            return os.path.join(EditorStatus.PROJ_PATH, p)
+        return os.path.join(EditorStatus.PROJ_PATH, "Assets", "Shaders", p)
+
+    def _hasPreviewShader(self) -> bool:
+        path = self._getPreviewShaderPath()
+        return SFMLRender.hasUsableShader(path)
+
+    def _renderPreviewShaderImage(
+        self, rect: tuple[int, int, int, int], frame: int, shaderTime: float, textureWidth: int = 0
+    ) -> Optional[QtGui.QImage]:
+        texturePath = self._getPreviewTexturePath()
+        shaderPath = self._getPreviewShaderPath()
+        encoded = SFMLRender.renderTextureWithShaderToMemory(
+            texturePath,
+            shaderPath,
+            rect,
+            frame=frame,
+            shaderTime=shaderTime,
+            textureWidth=textureWidth,
+        )
+        if encoded is None:
+            return None
+        renderedImage = QtGui.QImage()
+        if not renderedImage.loadFromData(encoded, "PNG"):
+            return None
+        return renderedImage
+
+    def _getPreviewRectTuple(self) -> tuple[int, int, int, int]:
+        rect = self._getPreviewAttr("defaultRect", None)
+        if isinstance(rect, (list, tuple)) and len(rect) >= 2:
+            pos = rect[0]
+            size = rect[1]
+            if isinstance(pos, (list, tuple)) and isinstance(size, (list, tuple)) and len(pos) >= 2 and len(size) >= 2:
+                try:
+                    x = int(pos[0])
+                    y = int(pos[1])
+                    w = max(1, int(size[0]))
+                    h = max(1, int(size[1]))
+                    return (x, y, w, h)
+                except (TypeError, ValueError):
+                    pass
+        cell = getattr(EditorStatus, "CELLSIZE", 32)
+        try:
+            cell = max(1, int(cell))
+        except (TypeError, ValueError):
+            cell = 32
+        return (0, 0, cell, cell)
 
     def _refreshListFromData(self) -> None:
         if self.title not in GameData.blueprintsData:
@@ -1183,6 +1462,16 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.data["graph"] = data
         self.MODIFIED.emit()
 
+    def _isPreviewGraphItem(self, item: Optional[QtWidgets.QListWidgetItem]) -> bool:
+        return item is not None and item.data(QtCore.Qt.UserRole) == _PREVIEW_TAB_KIND
+
+    def _findGraphListItem(self, name: str) -> Optional[QtWidgets.QListWidgetItem]:
+        for i in range(self.nodeGraphList.count()):
+            item = self.nodeGraphList.item(i)
+            if item is not None and item.data(QtCore.Qt.UserRole) == _GRAPH_TAB_KIND and item.text() == name:
+                return item
+        return None
+
     def onGraphListContextMenu(self, pos: QtCore.QPoint) -> None:
         index = self.nodeGraphList.indexAt(pos)
         has_item = index.isValid()
@@ -1193,7 +1482,8 @@ class BluePrintEditor(QtWidgets.QWidget):
         if action_new is None:
             return
         action_new.triggered.connect(self._onNewEvent)
-        if has_item:
+        item = self.nodeGraphList.currentItem() if has_item else None
+        if has_item and not self._isPreviewGraphItem(item):
             action_rename = menu.addAction(ELOC("RENAME_EVENT"))
             action_del = menu.addAction(ELOC("DELETE_EVENT"))
 
@@ -1236,14 +1526,14 @@ class BluePrintEditor(QtWidgets.QWidget):
         startNodes[name] = None
         GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
         self.refreshGraphList()
-        items = self.nodeGraphList.findItems(name, QtCore.Qt.MatchExactly)
-        if items:
-            self.nodeGraphList.setCurrentItem(items[0])
+        item = self._findGraphListItem(name)
+        if item is not None:
+            self.nodeGraphList.setCurrentItem(item)
         self.MODIFIED.emit()
 
     def _onDeleteEvent(self) -> None:
         item = self.nodeGraphList.currentItem()
-        if not item:
+        if not item or self._isPreviewGraphItem(item):
             return
         name = item.text()
         ret = QtWidgets.QMessageBox.question(
@@ -1276,7 +1566,7 @@ class BluePrintEditor(QtWidgets.QWidget):
 
     def _onRenameEvent(self) -> None:
         item = self.nodeGraphList.currentItem()
-        if not item:
+        if not item or self._isPreviewGraphItem(item):
             return
         old_name = item.text()
         dlg = SingleRowDialog(self, ELOC("RENAME_EVENT"), ELOC("ENTER_EVENT_NAME"), old_name, None)
@@ -1320,7 +1610,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             self.graphs[new_name] = panel
         GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
         self.refreshGraphList()
-        items = self.nodeGraphList.findItems(new_name, QtCore.Qt.MatchExactly)
-        if items:
-            self.nodeGraphList.setCurrentItem(items[0])
+        item = self._findGraphListItem(new_name)
+        if item is not None:
+            self.nodeGraphList.setCurrentItem(item)
         self.MODIFIED.emit()

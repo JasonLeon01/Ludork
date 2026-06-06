@@ -35,6 +35,8 @@ def Meta(**kwargs: Any) -> Callable[[_T], _T]:
     which can be used to store arbitrary metadata about that object.
     `Rely` can describe editor-side edit dependencies in the form
     `{"target": ["source", expectedValue]}`.
+    `PathVars` can describe editor-side path fields in the form
+    `[("texturePath", "Characters")]`.
 
     - kwargs: Key-value pairs to be stored as metadata.
 
@@ -91,20 +93,6 @@ def InvalidVars(*args: str) -> Callable[[type[_T]], type[_T]]:
     - args: Variable names that should be considered invalid.
 
     \return A class decorator that attaches invalid variables metadata.
-    """
-    ...
-
-def PathVars(*args: str) -> Callable[[type[_T]], type[_T]]:
-    r"""
-    \brief Class decorator for marking path-type variables.
-
-    This decorator adds _pathVars attribute to the decorated class,
-    which specifies variables that represent file system paths and may
-    require special handling (e.g., relative path resolution).
-
-    - args: Variable names that represent paths.
-
-    \return A class decorator that attaches path variables metadata.
     """
     ...
 
