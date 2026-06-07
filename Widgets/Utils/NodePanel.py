@@ -324,7 +324,7 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
 
 
 class NodePanel(QtWidgets.QWidget):
-    _COPY_BUFFER = None
+    _COPY_BUFFER: Optional[List[Any]] = None
     MODIFIED = QtCore.pyqtSignal()
 
     def __init__(
@@ -1308,7 +1308,7 @@ class NodePanel(QtWidgets.QWidget):
         paste_action.setShortcut(QtGui.QKeySequence.Paste)
         paste_action.triggered.connect(self._onPaste)
 
-        if self._COPY_BUFFER is None:
+        if NodePanel._COPY_BUFFER is None:
             paste_action.setEnabled(False)
 
         menu.exec_(global_pos)
@@ -1423,25 +1423,28 @@ class NodePanel(QtWidgets.QWidget):
                 continue  # Don't copy default param nodes
             if node in self.nodes:
                 idx = self.nodes.index(node)
-                dataNode = self.nodeGraph.nodes[self.key][idx]
-                data_nodes.append(dataNode)
+                dataList = self.nodeGraph.dataNodes.get(self.key, [])
+                if 0 <= idx < len(dataList):
+                    data_nodes.append(copy.deepcopy(dataList[idx]))
 
-        self._COPY_BUFFER = data_nodes
+        NodePanel._COPY_BUFFER = data_nodes or None
 
     def _onPaste(self):
         from NodeGraph import EditorDataNode
 
-        if self._COPY_BUFFER is None:
+        if NodePanel._COPY_BUFFER is None:
             return
-        for node in self._COPY_BUFFER:
-            pos = copy.copy(node.position)
+        if self.key not in self.nodeGraph.dataNodes:
+            self.nodeGraph.dataNodes[self.key] = []
+        for node in NodePanel._COPY_BUFFER:
+            pos = copy.copy(getattr(node, "pos", (0, 0)))
             if isinstance(pos, tuple):
                 pos = (pos[0] + 10, pos[1] + 10)
             else:
                 pos[0] += 10
                 pos[1] += 10
             self.nodeGraph.dataNodes[self.key].append(
-                EditorDataNode(node.functionName, copy.deepcopy(node.params), pos)
+                EditorDataNode(node.nodeFunction, copy.deepcopy(node.params), pos)
             )
         self.nodeGraph.genNodesFromDataNodes()
         self.nodeGraph.genRelationsFromLinks()

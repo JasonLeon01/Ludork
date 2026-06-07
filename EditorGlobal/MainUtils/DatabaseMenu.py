@@ -110,6 +110,19 @@ class DatabaseMenuMixin:
     def _onLocaleEditorDestroyed(self) -> None:
         self._localeEditor = None
 
+    def _getBlueprintEditors(self) -> Dict[str, Any]:
+        editors = getattr(self, "_blueprintEditors", None)
+        if not isinstance(editors, dict):
+            editors = {}
+            self._blueprintEditors = editors
+        return editors
+
+    def _onBlueprintEditorDestroyed(self, title: str) -> None:
+        editors = self._getBlueprintEditors()
+        editors.pop(title, None)
+        if getattr(self, "_blueprintEditor", None) is not None and not editors:
+            self._blueprintEditor = None
+
     def _onOpenLocaleFile(self, checked: bool = False) -> None:
         projPath = EditorStatus.PROJ_PATH
         xlsxPath = os.path.join(projPath, "Data", "Locale", "Locale.xlsx")
@@ -124,13 +137,26 @@ class DatabaseMenuMixin:
             subprocess.run(["xdg-open", xlsxPath])
 
     def _onDatabaseShowBlueprint(self, title: str, data: Dict[str, Any]) -> None:
-        self._blueprintEditor = BluePrintEditor(title, data, self)
-        self._blueprintEditor.MODIFIED.connect(self._onBlueprintModified)
-        self._blueprintEditor.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
-        self._blueprintEditor.setWindowModality(QtCore.Qt.ApplicationModal)
-        self._blueprintEditor.activateWindow()
-        self._blueprintEditor.raise_()
-        self._blueprintEditor.show()
+        editors = self._getBlueprintEditors()
+        editor = editors.get(title)
+        if editor is not None:
+            try:
+                editor.show()
+                editor.activateWindow()
+                editor.raise_()
+                return
+            except RuntimeError:
+                editors.pop(title, None)
+
+        editor = BluePrintEditor(title, data, self)
+        editor.MODIFIED.connect(self._onBlueprintModified)
+        editor.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        editor.destroyed.connect(lambda _obj=None, t=title: self._onBlueprintEditorDestroyed(t))
+        editors[title] = editor
+        self._blueprintEditor = editor
+        editor.activateWindow()
+        editor.raise_()
+        editor.show()
 
     def _onDataBaseShowAnimationWindow(self, title: str, data: Dict[str, Any]) -> None:
         self._animationWindow = AnimationWindow(self, title, data)
