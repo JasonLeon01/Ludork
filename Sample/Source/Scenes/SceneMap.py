@@ -8,22 +8,17 @@ from Engine import (
     Vector2u,
     Vector2f,
     Color,
-    Filters,
-    Music,
     Input,
     RenderTexture,
     Sprite,
     Texture,
-    View,
-    RectangleShape,
 )
-import Engine
-from Engine.Gameplay import Tilemap, TileLayer, TileLayerData
 from Engine.Gameplay.Actors import Actor
 from Engine.Utils import File, Render
-from Global import Manager, SceneBase, GameMap, Camera, Light
+from Global import SceneBase, GameMap
 from Global import System as GlobalSystem
-from Source import Data, System
+from Source import System
+from Source.SceneComponents import SceneMapAudioController, SceneMapBuilder
 from Source.Windows.HUDPlayerAttr import PlayerAttrHUD
 from Source.Windows.WindowMessage import WindowMessage
 from Source.Windows.WindowMenu import WindowMenu
@@ -61,6 +56,8 @@ class Scene(SceneBase):
     def onCreate(self) -> None:
         r"""\brief Create player HUD, message window, menu, and load the starting map."""
         self.player = self.inst.getPlayer()
+        self._mapBuilder = SceneMapBuilder()
+        self._mapAudio = SceneMapAudioController()
         self._playerHUD = PlayerAttrHUD(self.player)
         self._messageWindow = WindowMessage()
         self._windowItem = WindowItem(((192, 0), (256, 256)), self.player)
@@ -119,10 +116,6 @@ class Scene(SceneBase):
 
         self._gameMap: GameMap = None
         self._cachedMapFile: str = None
-        self._currentBgmMusic: Optional[Music] = None
-        self._currentBgmFile: str = ""
-        self._currentBgsMusic: Optional[Music] = None
-        self._currentBgsFile: str = ""
         self._mapClickMoveBlockedUntilLateTick: bool = False
         self._mapInputBlockFrames: int = 0
         self._pendingMenuOpen: bool = False
@@ -137,13 +130,13 @@ class Scene(SceneBase):
 
     def onQuit(self) -> None:
         r"""\brief Stop map BGM/BGS and weather when leaving this scene."""
-        self._stopMapAudio()
+        self._mapAudio.stopMapAudio()
         GlobalSystem.clearWeather()
         GlobalSystem.clearFog()
 
     def onDestroy(self) -> None:
         r"""\brief Ensure map BGM/BGS are stopped when scene is destroyed."""
-        self._stopMapAudio()
+        self._mapAudio.stopMapAudio()
 
     def onFixedTick(self, fixedDelta: float) -> None:
         r"""\brief Forward fixed timestep updates to the game map.
@@ -200,7 +193,7 @@ class Scene(SceneBase):
         mapFile = mapPath
         mapDataPath = os.path.join("./Data/Maps", mapFile)
         mapData = File.loadData(mapDataPath)
-        self._gameMap = self._generateGameMap(mapData)
+        self._gameMap = self._mapBuilder.generateGameMap(mapData)
         self._gameMap.setScene(self)
         self._gameMap.setPersistentMapPath(mapFile)
         self._gameMap.applyTerrainDestructions(self.inst.getTerrainDestructions(mapFile))
@@ -208,7 +201,7 @@ class Scene(SceneBase):
         self._gameMap.removeActorsByTags(destroyedActors)
         self._gameMap.spawnActor(self.player, "default")
         self._gameMap.setPlayer(self.player)
-        self._playMapAudio(mapData)
+        self._mapAudio.playMapAudio(mapData)
         GlobalSystem.clearFog()
         GlobalSystem.applyFogFromMapData(mapData)
 
@@ -534,16 +527,7 @@ class Scene(SceneBase):
         - \param attr The filter attribute name.
         - \param value The filter attribute value.
         """
-        if self._currentBgmMusic is None:
-            return
-        data: Dict[str, Any] = {attr: value}
-        if attr == "loopPoint" and isinstance(value, (Pair, tuple, list)):
-            data["loopPoint"] = {"start": value[0], "end": value[1]}
-        filterObj = self._buildMusicFilter(data)
-        if filterObj is not None:
-            from Global.Manager.Mgr_Audio import AudioManager
-
-            AudioManager.setMusicFilter(self._currentBgmMusic, filterObj)
+        self._mapAudio.setBgmFilter(attr, value)
 
     def setBgsFilter(self, attr: str, value: Any) -> None:
         r"""\brief Set a filter attribute on the current BGS music.
@@ -551,16 +535,7 @@ class Scene(SceneBase):
         - \param attr The filter attribute name.
         - \param value The filter attribute value.
         """
-        if self._currentBgsMusic is None:
-            return
-        data: Dict[str, Any] = {attr: value}
-        if attr == "loopPoint" and isinstance(value, (Pair, tuple, list)):
-            data["loopPoint"] = {"start": value[0], "end": value[1]}
-        filterObj = self._buildMusicFilter(data)
-        if filterObj is not None:
-            from Global.Manager.Mgr_Audio import AudioManager
-
-            AudioManager.setMusicFilter(self._currentBgsMusic, filterObj)
+        self._mapAudio.setBgsFilter(attr, value)
 
     def _drawSceneAnims(self) -> None:
         r"""\brief Draw map animations in screen space aligned with the camera view."""
@@ -608,87 +583,6 @@ class Scene(SceneBase):
         scaledRT.display()
         System.setSavedScreenImage(scaledRT.getTexture().copyToImage())
 
-    def _playMapAudio(self, mapData: Dict[str, Any]) -> None:
-        bgm = mapData.get("bgm", "")
-        bgmFilter = self._buildMusicFilter(mapData.get("bgmFilter", {}))
-        reuseBgm = bool(bgm) and self._currentBgmMusic is not None and self._currentBgmFile == bgm
-        if reuseBgm:
-            if bgmFilter is not None:
-                from Global.Manager.Mgr_Audio import AudioManager
-
-                AudioManager.setMusicFilter(self._currentBgmMusic, bgmFilter)
-            Cast(Music, self._currentBgmMusic).setLooping(True)
-        else:
-            if self._currentBgmMusic is not None:
-                Manager.stopMusic("BGM")
-                self._currentBgmMusic = None
-            self._currentBgmFile = ""
-        if bgm:
-            if not reuseBgm:
-                self._currentBgmMusic = Manager.playMusic("BGM", bgm, bgmFilter)
-                if self._currentBgmMusic is not None:
-                    self._currentBgmMusic.setLooping(True)
-                    self._currentBgmFile = bgm
-        bgs = mapData.get("bgs", "")
-        bgsFilter = self._buildMusicFilter(mapData.get("bgsFilter", {}))
-        reuseBgs = bool(bgs) and self._currentBgsMusic is not None and self._currentBgsFile == bgs
-        if reuseBgs:
-            if bgsFilter is not None:
-                from Global.Manager.Mgr_Audio import AudioManager
-
-                AudioManager.setMusicFilter(self._currentBgsMusic, bgsFilter)
-            Cast(Music, self._currentBgsMusic).setLooping(True)
-        else:
-            if self._currentBgsMusic is not None:
-                Manager.stopMusic("BGS")
-                self._currentBgsMusic = None
-            self._currentBgsFile = ""
-        if bgs:
-            if not reuseBgs:
-                self._currentBgsMusic = Manager.playMusic("BGS", bgs, bgsFilter)
-                if self._currentBgsMusic is not None:
-                    self._currentBgsMusic.setLooping(True)
-                    self._currentBgsFile = bgs
-
-    def _stopMapAudio(self) -> None:
-        if self._currentBgmMusic is not None:
-            Manager.stopMusic("BGM")
-            self._currentBgmMusic = None
-        self._currentBgmFile = ""
-        if self._currentBgsMusic is not None:
-            Manager.stopMusic("BGS")
-            self._currentBgsMusic = None
-        self._currentBgsFile = ""
-
-    def _buildSoundFilter(self, data: Dict[str, Any]) -> Optional[Filters.SoundFilter]:
-        if not data:
-            return None
-        kwargs: Dict[str, Any] = {}
-        for key in ("loop", "offset", "pitch", "pan", "volume"):
-            if key in data:
-                kwargs[key] = data[key]
-        if not kwargs:
-            return None
-        return Filters.SoundFilter(**kwargs)
-
-    def _buildMusicFilter(self, data: Dict[str, Any]) -> Optional[Filters.MusicFilter]:
-        if not data:
-            return None
-        kwargs: Dict[str, Any] = {}
-        for key in ("loop", "offset", "pitch", "pan", "volume"):
-            if key in data:
-                kwargs[key] = data[key]
-        if "loopPoint" in data and isinstance(data["loopPoint"], dict):
-            lp = data["loopPoint"]
-            kwargs["loopPoint"] = (float(lp.get("start", 0.0)), float(lp.get("end", 0.0)))
-            if "offset" not in kwargs:
-                start = float(lp.get("start", 0.0))
-                if start > 0.0:
-                    kwargs["offset"] = start
-        if not kwargs:
-            return None
-        return Filters.MusicFilter(**kwargs)
-
     def _isMenuOpenTriggered(self) -> bool:
         if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
             return True
@@ -709,95 +603,6 @@ class Scene(SceneBase):
         Input.isTouchBegan(handled=True)
         Input.isTouchTriggered(handled=True)
 
-    def _generateTilemap(self, data: Dict[str, List[List[Any]]], width: int, height: int) -> Tilemap:
-        mapLayers = []
-        for layerName, layerData in data.items():
-            name = layerData["layerName"]
-            layerTileset = Data.getTileset(layerData["layerTileset"])
-            layerTiles = layerData["tiles"]
-            tiles: List[List[Optional[int]]] = []
-            for y in range(height):
-                tiles.append([])
-                for x in range(width):
-                    tileNumber = layerTiles[y][x]
-                    tiles[-1].append(tileNumber)
-            rawAutoTiles = layerData.get("autoTiles")
-            autoTilePool = []
-            autoTileIndexByKey: Dict[str, int] = {}
-            autoTileGrid: List[List[Optional[int]]] = []
-            if isinstance(rawAutoTiles, list):
-                for y in range(height):
-                    row: List[Optional[int]] = []
-                    rawRow = rawAutoTiles[y] if y < len(rawAutoTiles) else None
-                    for x in range(width):
-                        cell = rawRow[x] if isinstance(rawRow, list) and x < len(rawRow) else None
-                        if isinstance(cell, str) and cell and Data.hasAutoTile(cell):
-                            if cell not in autoTileIndexByKey:
-                                autoTileIndexByKey[cell] = len(autoTilePool)
-                                autoTilePool.append(Data.getAutoTile(cell))
-                            row.append(autoTileIndexByKey[cell])
-                        elif isinstance(cell, int) and 0 <= cell < len(autoTilePool):
-                            row.append(cell)
-                        else:
-                            row.append(None)
-                    autoTileGrid.append(row)
-            else:
-                for _ in range(height):
-                    autoTileGrid.append([None] * width)
-            tileLayerData = TileLayerData(
-                name,
-                layerTileset,
-                tiles,
-                autoTileGrid,
-                autoTilePool,
-                [key for key, _ in sorted(autoTileIndexByKey.items(), key=lambda item: item[1])],
-            )
-            autoTileTextures = [Manager.loadAutotile(entry.fileName) for entry in autoTilePool]
-            autoTileFrameCounts = []
-            for texture in autoTileTextures:
-                size = texture.getSize()
-                cellSize = Engine.CellSize
-                frames = size.x // (3 * cellSize) if cellSize > 0 else 1
-                if frames < 1:
-                    frames = 1
-                autoTileFrameCounts.append(frames)
-            layer = TileLayer(
-                tileLayerData,
-                Manager.loadTileset(tileLayerData.layerTileset.fileName),
-                autoTileTextures,
-                autoTileFrameCounts,
-            )
-            mapLayers.append(layer)
-        return Tilemap(mapLayers)
-
-    def _generateGameMap(
-        self,
-        data: Dict[str, Any],
-        camera: Optional[Camera] = None,
-        emitCreateEvents: bool = True,
-    ) -> GameMap:
-        mapName = data["mapName"]
-        width = data["width"]
-        height = data["height"]
-        layers = data["layers"]
-        tilemap = self._generateTilemap(layers, width, height)
-        ambientLight = data.get("ambientLight", [255, 255, 255, 255])
-        lights = data.get("lights", [])
-        actors = data.get("actors", [])
-        result = GameMap(mapName, tilemap, camera)
-        result.setAmbientLight(Color(*ambientLight))
-        for lightData in lights:
-            result.addLight(Light.fromDict(lightData))
-        for layerName, actorDatas in actors.items():
-            for actorData in actorDatas:
-                actor = Data.genActorFromData(actorData, layerName)
-                if actor is None:
-                    continue
-                result.spawnActor(actor, layerName, False)
-        if emitCreateEvents:
-            result.initializeActorsAndComponents()
-        return result
-
     def _buildFloorMapPreview(
         self,
         mapKey: str,
@@ -806,82 +611,21 @@ class Scene(SceneBase):
         previewScale: float,
         showTelepointMarker: bool = False,
     ) -> Optional[Texture]:
-        mapPath = self._resolveRegionMapPath(mapKey)
-        try:
-            mapData = File.loadData(os.path.join("./Data/Maps", mapPath))
-            gameMap = self._generateGameMap(mapData, emitCreateEvents=False)
-            gameMap.applyTerrainDestructions(self.inst.getTerrainDestructions(mapPath))
-            gameMap.removeActorsByTags(self.inst.getDestroyedActors(mapPath))
-        except Exception:
-            return None
-        if previewScale <= 0.0:
-            previewScale = 1.0
-        target = RenderTexture(Vector2u(previewSize, previewSize))
-        target.clear(Color.Transparent)
-        viewSize = Vector2f(float(previewSize) / previewScale, float(previewSize) / previewScale)
-        mapPixelSize = Vector2f(
-            float(mapData["width"] * Engine.CellSize),
-            float(mapData["height"] * Engine.CellSize),
+        return self._mapBuilder.buildFloorMapPreview(
+            self.inst,
+            self._getCurrentRegionMap(),
+            mapKey,
+            telepoint,
+            previewSize,
+            previewScale,
+            showTelepointMarker,
         )
-        center = Vector2f(
-            viewSize.x / 2.0 if mapPixelSize.x >= viewSize.x else mapPixelSize.x / 2.0,
-            viewSize.y / 2.0 if mapPixelSize.y >= viewSize.y else mapPixelSize.y / 2.0,
-        )
-        cellSize = Engine.CellSize
-        telepointCenter = Vector2f(
-            (float(telepoint[0]) + 0.5) * cellSize,
-            (float(telepoint[1]) + 0.5) * cellSize,
-        )
-        halfView = viewSize / 2.0
-        if (
-            telepointCenter.x < center.x - halfView.x
-            or telepointCenter.x > center.x + halfView.x
-            or telepointCenter.y < center.y - halfView.y
-            or telepointCenter.y > center.y + halfView.y
-        ):
-            center = telepointCenter
-        target.setView(View(center, viewSize))
-        states = Render.CanvasRenderStates()
-        gameMap.drawMapContent(target, states)
-        if showTelepointMarker:
-            marker = RectangleShape(Vector2f(float(cellSize), float(cellSize)))
-            marker.setPosition(Vector2f(float(telepoint[0] * cellSize), float(telepoint[1] * cellSize)))
-            marker.setFillColor(Color(0, 255, 0, 64))
-            marker.setOutlineColor(Color(0, 255, 0, 255))
-            marker.setOutlineThickness(2.0)
-            target.draw(marker, states)
-        target.display()
-        texture = Texture(target.getTexture().copyToImage())
-        texture.setSmooth(False)
-        return texture
 
     def _getFloorTelepointTag(self, mapKey: str, telepoint: Tuple[int, int]) -> Optional[str]:
-        mapPath = self._resolveRegionMapPath(mapKey)
-        try:
-            mapData = File.loadData(os.path.join("./Data/Maps", mapPath))
-        except Exception:
-            return None
-        targetPosition = [telepoint[0], telepoint[1]]
-        for actorDatas in mapData.get("actors", {}).values():
-            for actorData in actorDatas:
-                if actorData.get("position") != targetPosition:
-                    continue
-                bp = str(actorData.get("bp", ""))
-                if not bp.startswith("Data.Blueprints.Teleportations"):
-                    continue
-                return str(actorData.get("tag", ""))
-        return None
+        return self._mapBuilder.getFloorTelepointTag(self._getCurrentRegionMap(), mapKey, telepoint)
 
     def _resolveRegionMapPath(self, mapKey: str) -> str:
-        if os.path.splitext(mapKey)[1]:
-            return mapKey
-        candidates: List[str] = []
-        currentMap = self._cachedMapFile or self.inst._cachedMap or System.getStartMap()
-        currentExt = os.path.splitext(currentMap)[1] if currentMap else ""
-        if currentExt:
-            candidates.append(f"{mapKey}{currentExt}")
-        candidates.extend([f"{mapKey}.dat", f"{mapKey}.json"])
-        for candidate in candidates:
-            if os.path.exists(os.path.join("./Data/Maps", candidate)):
-                return candidate
-        return candidates[0] if candidates else mapKey
+        return self._mapBuilder.resolveRegionMapPath(mapKey, self._getCurrentRegionMap())
+
+    def _getCurrentRegionMap(self) -> str:
+        return self._cachedMapFile or self.inst._cachedMap or System.getStartMap()
