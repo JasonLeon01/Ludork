@@ -25,7 +25,9 @@ pysf/
 Ludork.ini
 Locale/en_GB
 Locale/zh_CN
+Sample/Main.ini
 Sample/Main.proj
+Sample/Save/
 launcher.build/
 launcher.dist/
 launcher.onefile-build/

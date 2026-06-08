@@ -48,10 +48,10 @@ class GameConfigDialog(QtWidgets.QDialog):
         self._config = configparser.ConfigParser()
         self._data = {
             "script": "Entry.py",
-            "language": "",
-            "scale": 1.0,
-            "framerate": 60,
-            "verticalsync": False,
+            "language": "en_GB",
+            "scale": 2.0,
+            "framerate": 120,
+            "verticalsync": True,
             "musicon": True,
             "soundon": True,
             "voiceon": True,

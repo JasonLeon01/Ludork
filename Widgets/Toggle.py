@@ -1,7 +1,40 @@
 # -*- encoding: utf-8 -*-
 
+import os
+from typing import Dict
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Utils import Panel
+from Utils import File, Panel
+
+
+_ICON_CACHE: Dict[str, QtGui.QIcon] = {}
+
+
+def _accentColor(alpha: int = 255) -> QtGui.QColor:
+    color = QtWidgets.QApplication.palette().highlight().color()
+    color.setAlpha(alpha)
+    return color
+
+
+def _iconPath(name: str) -> str:
+    return os.path.join(File.GetRootPath(), "Resource", "icons", f"{name}.svg")
+
+
+def _modeIcon(name: str) -> QtGui.QIcon:
+    icon = _ICON_CACHE.get(name)
+    if icon is None:
+        icon = QtGui.QIcon(_iconPath(name))
+        _ICON_CACHE[name] = icon
+    return icon
+
+
+def _iconRect(rect: QtCore.QRect) -> QtCore.QRect:
+    side = min(22, max(18, int(min(rect.width(), rect.height()) * 0.72)))
+    center = rect.center()
+    return QtCore.QRect(center.x() - side // 2, center.y() - side // 2, side, side)
+
+
+def _paintIcon(p: QtGui.QPainter, icon: QtGui.QIcon, rect: QtCore.QRect) -> None:
+    icon.paint(p, _iconRect(rect), QtCore.Qt.AlignCenter, QtGui.QIcon.Normal, QtGui.QIcon.Off)
 
 
 class ModeToggle(QtWidgets.QWidget):
@@ -10,6 +43,8 @@ class ModeToggle(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._selected = 0
+        self._editorIcon = _modeIcon("mode_editor")
+        self._playIcon = _modeIcon("mode_play")
         self.setFixedSize(128, 32)
         self.setMouseTracking(True)
         Panel.ApplyDisabledOpacity(self)
@@ -33,11 +68,12 @@ class ModeToggle(QtWidgets.QWidget):
         bg = QtGui.QColor(40, 40, 40)
         p.fillRect(rectL, bg)
         p.fillRect(rectR, bg)
-        self._drawEditorIcon(p, rectL)
-        self._drawPlayIcon(p, rectR)
         sel = rectL if self._selected == 0 else rectR
-        overlay = QtGui.QColor(255, 255, 255, 80)
-        p.fillRect(sel, overlay)
+        p.fillRect(sel, _accentColor(70))
+        p.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255, 28)))
+        p.drawLine(half, 6, half, h - 6)
+        _paintIcon(p, self._editorIcon, rectL)
+        _paintIcon(p, self._playIcon, rectR)
 
     def mousePressEvent(self, e):
         idx = 0 if e.x() < self.width() // 2 else 1
@@ -69,69 +105,6 @@ class ModeToggle(QtWidgets.QWidget):
             Panel.ApplyDisabledOpacity(self)
         super().changeEvent(e)
 
-    def _fgColor(self) -> QtGui.QColor:
-        return QtGui.QColor(220, 220, 220)
-
-    def _iconSide(self, rect: QtCore.QRect) -> int:
-        side = min(int(rect.width()), int(rect.height()))
-        s = int(side * 0.62) - 2
-        return max(12, min(22, s))
-
-    def _drawEditorIcon(self, p: QtGui.QPainter, rect: QtCore.QRect):
-        s = self._iconSide(rect)
-        cx = rect.center().x()
-        cy = rect.center().y()
-        x0 = cx - s // 2
-        y0 = cy - s // 2
-        pen = QtGui.QPen(self._fgColor())
-        pen.setWidth(max(1, 2))
-        p.setPen(pen)
-        p.setBrush(QtCore.Qt.NoBrush)
-        r = QtCore.QRect(x0, y0, s, s)
-        p.drawRoundedRect(r, 4, 4)
-        fold = 6
-        path = QtGui.QPainterPath()
-        path.moveTo(x0 + s - fold, y0)
-        path.lineTo(x0 + s, y0)
-        path.lineTo(x0 + s, y0 + fold)
-        p.drawPath(path)
-        pb = QtGui.QPen(self._fgColor())
-        pb.setWidth(max(1, 2))
-        p.setPen(pb)
-        x1 = x0 + int(s * 0.25)
-        y1 = y0 + int(s * 0.70)
-        x2 = x0 + int(s * 0.85)
-        y2 = y0 + int(s * 0.35)
-        p.drawLine(x1, y1, x2, y2)
-        tip = QtGui.QPolygon(
-            [
-                QtCore.QPoint(x2, y2),
-                QtCore.QPoint(x2 - 6, y2 + 2),
-                QtCore.QPoint(x2 - 2, y2 + 6),
-            ]
-        )
-        p.drawPolygon(tip)
-
-    def _drawPlayIcon(self, p: QtGui.QPainter, rect: QtCore.QRect):
-        s = self._iconSide(rect)
-        cx = rect.center().x()
-        cy = rect.center().y()
-        r = s // 2
-        pen = QtGui.QPen(self._fgColor())
-        pen.setWidth(max(1, 2))
-        p.setPen(pen)
-        p.setBrush(QtCore.Qt.NoBrush)
-        p.drawEllipse(QtCore.QPoint(cx, cy), r, r)
-        tri = QtGui.QPolygon(
-            [
-                QtCore.QPoint(cx - int(r * 0.3), cy - int(r * 0.45)),
-                QtCore.QPoint(cx - int(r * 0.3), cy + int(r * 0.45)),
-                QtCore.QPoint(cx + int(r * 0.5), cy),
-            ]
-        )
-        p.setBrush(self._fgColor())
-        p.drawPolygon(tri)
-
 
 class EditModeToggle(QtWidgets.QWidget):
     SELECTION_CHANGED = QtCore.pyqtSignal(int)
@@ -139,6 +112,9 @@ class EditModeToggle(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._selected = 0
+        self._tileIcon = _modeIcon("mode_tilemap")
+        self._lightIcon = _modeIcon("mode_light")
+        self._actorIcon = _modeIcon("mode_actor")
         self.setFixedSize(192, 32)
         self.setMouseTracking(True)
         Panel.ApplyDisabledOpacity(self)
@@ -150,111 +126,6 @@ class EditModeToggle(QtWidgets.QWidget):
         if idx != self._selected:
             self._selected = idx
             self.update()
-
-    def _iconSide(self, rect: QtCore.QRect) -> int:
-        side = min(int(rect.width()), int(rect.height()))
-        s = int(side * 0.62) - 2
-        return max(12, min(22, s))
-
-    def _drawTileIcon(self, p: QtGui.QPainter, rect: QtCore.QRect):
-        s = self._iconSide(rect)
-        cx = rect.center().x()
-        cy = rect.center().y()
-        x0 = cx - s // 2
-        y0 = cy - s // 2
-        pen = QtGui.QPen(QtGui.QColor(200, 200, 200))
-        pen.setWidth(max(1, 2))
-        p.setPen(pen)
-        p.setBrush(QtGui.QBrush(QtGui.QColor(90, 90, 90)))
-        cols = 3
-        rows = 3
-        cell = s // cols
-        for j in range(rows):
-            for i in range(cols):
-                r = QtCore.QRect(x0 + i * cell + 2, y0 + j * cell + 2, cell - 4, cell - 4)
-                p.drawRoundedRect(r, 3, 3)
-
-    def _drawLightIcon(self, p: QtGui.QPainter, rect: QtCore.QRect):
-        s = self._iconSide(rect)
-        cx = rect.center().x()
-        cy = rect.center().y()
-        fg = QtGui.QColor(200, 200, 200)
-        pen = QtGui.QPen(fg)
-        pen.setWidth(max(1, 2))
-        p.setPen(pen)
-        p.setBrush(QtCore.Qt.NoBrush)
-
-        bulb_r = max(4, int(8 * s / 30))
-        bulb_center = QtCore.QPoint(cx, cy - max(1, int(2 * s / 30)))
-        p.drawEllipse(bulb_center, bulb_r, bulb_r)
-
-        base_w = max(6, int(10 * s / 30))
-        base_h = max(4, int(6 * s / 30))
-        base_rect = QtCore.QRect(cx - base_w // 2, cy + max(4, int(8 * s / 30)), base_w, base_h)
-        p.drawRoundedRect(base_rect, 2, 2)
-        p.drawLine(cx, cy + max(3, int(6 * s / 30)), cx, cy + max(4, int(8 * s / 30)))
-
-        acc = QtWidgets.QApplication.palette().highlight().color()
-        pen2 = QtGui.QPen(acc)
-        pen2.setWidth(max(1, 2))
-        p.setPen(pen2)
-        ray = max(8, int(12 * s / 30))
-        p.drawLine(cx, cy - max(ray + 2, int(14 * s / 30)), cx, cy - ray)
-        p.drawLine(
-            cx - max(ray, int(12 * s / 30)), cy - max(1, int(2 * s / 30)), cx - ray, cy - max(1, int(2 * s / 30))
-        )
-        p.drawLine(
-            cx + ray, cy - max(1, int(2 * s / 30)), cx + max(ray, int(12 * s / 30)), cy - max(1, int(2 * s / 30))
-        )
-        p.drawLine(
-            cx - max(6, int(10 * s / 30)),
-            cy - max(8, int(12 * s / 30)),
-            cx - max(4, int(7 * s / 30)),
-            cy - max(6, int(9 * s / 30)),
-        )
-        p.drawLine(
-            cx + max(4, int(7 * s / 30)),
-            cy - max(6, int(9 * s / 30)),
-            cx + max(6, int(10 * s / 30)),
-            cy - max(8, int(12 * s / 30)),
-        )
-
-    def _drawActorIcon(self, p: QtGui.QPainter, rect: QtCore.QRect):
-        s = self._iconSide(rect)
-        cx = rect.center().x()
-        cy = rect.center().y()
-        fg = QtGui.QColor(200, 200, 200)
-        pen = QtGui.QPen(fg)
-        pen.setWidth(max(1, 2))
-        p.setPen(pen)
-        p.setBrush(QtGui.QBrush(fg))
-        r_head = max(3, 6)
-        p.drawEllipse(QtCore.QPoint(cx, cy - int(s * 0.22)), r_head, r_head)
-        p.setBrush(QtCore.Qt.NoBrush)
-        shoulders = QtGui.QPainterPath()
-        bw = 18
-        bh = 10
-        x0 = cx - bw // 2
-        y0 = cy + int(s * 0.02)
-        shoulders.addRoundedRect(QtCore.QRectF(x0, y0, bw, bh), 4, 4)
-        p.drawPath(shoulders)
-        acc = QtWidgets.QApplication.palette().highlight().color()
-        star = QtGui.QPolygon(
-            [
-                QtCore.QPoint(cx + int(s * 0.22), cy - int(s * 0.05)),
-                QtCore.QPoint(cx + int(s * 0.16), cy + int(s * 0.02)),
-                QtCore.QPoint(cx + int(s * 0.26), cy + int(s * 0.02)),
-                QtCore.QPoint(cx + int(s * 0.18), cy + int(s * 0.08)),
-                QtCore.QPoint(cx + int(s * 0.24), cy + int(s * 0.16)),
-                QtCore.QPoint(cx + int(s * 0.14), cy + int(s * 0.12)),
-                QtCore.QPoint(cx + int(s * 0.06), cy + int(s * 0.18)),
-                QtCore.QPoint(cx + int(s * 0.08), cy + int(s * 0.08)),
-                QtCore.QPoint(cx - int(s * 0.02), cy + int(s * 0.1)),
-                QtCore.QPoint(cx + int(s * 0.06), cy + int(s * 0.02)),
-            ]
-        )
-        p.setBrush(acc)
-        p.drawPolygon(star)
 
     def paintEvent(self, e):
         p = QtGui.QPainter(self)
@@ -269,12 +140,14 @@ class EditModeToggle(QtWidgets.QWidget):
         p.fillRect(rectL, bg)
         p.fillRect(rectM, bg)
         p.fillRect(rectR, bg)
-        self._drawTileIcon(p, rectL)
-        self._drawLightIcon(p, rectM)
-        self._drawActorIcon(p, rectR)
         sel = rectL if self._selected == 0 else (rectM if self._selected == 1 else rectR)
-        overlay = QtGui.QColor(255, 255, 255, 80)
-        p.fillRect(sel, overlay)
+        p.fillRect(sel, _accentColor(70))
+        p.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255, 28)))
+        p.drawLine(third, 6, third, h - 6)
+        p.drawLine(third * 2, 6, third * 2, h - 6)
+        _paintIcon(p, self._tileIcon, rectL)
+        _paintIcon(p, self._lightIcon, rectM)
+        _paintIcon(p, self._actorIcon, rectR)
 
     def _idxFromX(self, x: int) -> int:
         w = self.width()

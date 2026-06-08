@@ -438,12 +438,13 @@ class PackWorker(QtCore.QThread):
             f"--output-filename={appName}",
             "--include-data-dir=Assets=Assets",
             "--include-data-dir=Data=Data",
-            "--include-data-file=Main.ini=Main.ini",
             "--include-package=pysf",
             "--include-package=Engine",
             "--include-package=Global",
             "--include-package=Source",
         ]
+        if os.path.exists(os.path.join(self.projPath, "Main.ini")):
+            cmd.append("--include-data-file=Main.ini=Main.ini")
         if self.includePyAV:
             cmd.append("--include-module=av")
 

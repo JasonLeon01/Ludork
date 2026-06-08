@@ -376,8 +376,11 @@ class SystemConfigBase:
     def _resolveLanguage(language: str) -> str:
         if language is None or language == "" or language == "None":
             lang, encoding = locale.getdefaultlocale()
-            return lang or "en_GB"
-        return str(language)
+            language = lang or "en_GB"
+        resolved = str(language)
+        if resolved in Locale.GetLocaleKeys():
+            return resolved
+        return "en_GB"
 
     @staticmethod
     def _toBool(value: Any) -> bool:

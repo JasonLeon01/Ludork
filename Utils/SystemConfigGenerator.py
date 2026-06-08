@@ -33,6 +33,19 @@ _COMPACT_KEY_WORDS = (
 )
 _BOOL_TRUE = {"1", "true", "yes", "on"}
 _BOOL_FALSE = {"0", "false", "no", "off"}
+_DEFAULT_MAIN_ITEMS: Tuple[Tuple[str, str], ...] = (
+    ("script", "Entry.py"),
+    ("language", "en_GB"),
+    ("scale", "2.0"),
+    ("framerate", "120"),
+    ("verticalsync", "True"),
+    ("musicon", "True"),
+    ("soundon", "True"),
+    ("voiceon", "True"),
+    ("musicvolume", "100.00"),
+    ("soundvolume", "100.00"),
+    ("voicevolume", "100.00"),
+)
 
 
 def generateSystemConfigBase(projectPath: str) -> tuple[str, bool]:
@@ -72,13 +85,14 @@ def _buildFields(iniPath: str) -> List[_ConfigField]:
 
 def _readMainItems(iniPath: str) -> List[Tuple[str, str]]:
     if not os.path.exists(iniPath):
-        return []
+        return list(_DEFAULT_MAIN_ITEMS)
     parser = configparser.ConfigParser()
     parser.optionxform = str
     parser.read(iniPath, encoding="utf-8")
     if "Main" not in parser:
-        return []
-    return [(str(key).strip(), str(value).strip()) for key, value in parser["Main"].items()]
+        return list(_DEFAULT_MAIN_ITEMS)
+    items = [(str(key).strip(), str(value).strip()) for key, value in parser["Main"].items()]
+    return items or list(_DEFAULT_MAIN_ITEMS)
 
 
 def _canonicalKey(key: str) -> str:
@@ -327,8 +341,11 @@ def _helperLines() -> List[str]:
         "    def _resolveLanguage(language: str) -> str:",
         "        if language is None or language == \"\" or language == \"None\":",
         "            lang, encoding = locale.getdefaultlocale()",
-        "            return lang or \"en_GB\"",
-        "        return str(language)",
+        "            language = lang or \"en_GB\"",
+        "        resolved = str(language)",
+        "        if resolved in Locale.GetLocaleKeys():",
+        "            return resolved",
+        "        return \"en_GB\"",
         "",
         "    @staticmethod",
         "    def _toBool(value: Any) -> bool:",

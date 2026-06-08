@@ -34,8 +34,11 @@ class GameRunnerMixin:
         Panel.ApplyDisabledOpacity(self.editModeToggle)
         iniPath = os.path.join(EditorStatus.PROJ_PATH, "Main.ini")
         iniFile = configparser.ConfigParser()
-        iniFile.read(iniPath, encoding="utf-8")
-        scriptPath = iniFile["Main"]["script"]
+        scriptPath = "Entry.py"
+        if os.path.exists(iniPath):
+            iniFile.read(iniPath, encoding="utf-8")
+            if "Main" in iniFile:
+                scriptPath = iniFile["Main"].get("script", scriptPath).strip() or scriptPath
         self._panelHandle = int(self.gamePanel.winId())
         windowhandle = str(self._panelHandle)
         individual = str(self._projConfig.get("IndividualWindow", False))

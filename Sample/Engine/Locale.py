@@ -9,7 +9,7 @@ for easy access to localized strings.
 
 import os
 import builtins
-from typing import Dict
+from typing import Dict, List
 
 LANGUAGE: str = "en_GB"
 
@@ -42,6 +42,15 @@ def init(localePath: str) -> None:
             _Locale.dataDict[fileName] = File.loadData(filePath)
 
 
+def GetLocaleKeys() -> List[str]:
+    r"""
+    \brief Get loaded locale identifiers.
+
+    \return List of locale identifiers.
+    """
+    return list(_Locale.dataDict.keys())
+
+
 def GetLocaleContent(localeKey: str, key: str) -> str:
     r"""
     \brief Get localized content for a specific locale.
@@ -62,7 +71,9 @@ def GetContent(key: str) -> str:
 
     \return The localized string, or the key itself if not found.
     """
-    return GetLocaleContent(LANGUAGE, key)
+    if LANGUAGE in _Locale.dataDict:
+        return GetLocaleContent(LANGUAGE, key)
+    return GetLocaleContent("en_GB", key)
 
 
 def GetLocaleDict() -> Dict[str, str]:
@@ -71,7 +82,9 @@ def GetLocaleDict() -> Dict[str, str]:
 
     \return The locale dictionary for the current language.
     """
-    return _Locale.dataDict.get(LANGUAGE, {})
+    if LANGUAGE in _Locale.dataDict:
+        return _Locale.dataDict.get(LANGUAGE, {})
+    return _Locale.dataDict.get("en_GB", {})
 
 
 builtins.LOC = GetContent

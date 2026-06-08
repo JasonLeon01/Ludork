@@ -24,6 +24,23 @@ def warnIosShaderSkippedOnce(key: str, message: str) -> None:
     warnings.warn(message, UserWarning, stacklevel=2)
 
 
+def getUserDataPath(APP_NAME: str) -> str:
+    r"""
+    \brief Get the platform-specific writable user data directory path.
+
+    On macOS and iOS, returns ~/Library/Application Support/<APP_NAME>.
+    On other platforms, returns <cwd>.
+
+    - \param APP_NAME Application name used to build the path (macOS and iOS only).
+    - \return Absolute path to the user data directory.
+    """
+    if sys.platform in ("darwin", "ios"):
+        path = Path.home() / "Library" / "Application Support" / APP_NAME
+        path.mkdir(parents=True, exist_ok=True)
+        return str(path)
+    return os.getcwd()
+
+
 def getSavePath(APP_NAME: str) -> str:
     r"""
     \brief Get the platform-specific save directory path.
@@ -31,14 +48,13 @@ def getSavePath(APP_NAME: str) -> str:
     On macOS and iOS, returns ~/Library/Application Support/<APP_NAME>/Save.
     On other platforms, returns <cwd>/Save.
 
-    - \param APP_NAME Application name used to build the path (macOS only).
+    - \param APP_NAME Application name used to build the path.
     - \return Absolute path to the save directory.
     """
+    path = os.path.join(getUserDataPath(APP_NAME), "Save")
     if sys.platform in ("darwin", "ios"):
-        path = Path.home() / "Library" / "Application Support" / APP_NAME / "Save"
-        path.mkdir(parents=True, exist_ok=True)
-        return str(path)
-    return os.path.join(os.getcwd(), "Save")
+        os.makedirs(path, exist_ok=True)
+    return path
 
 
 def filterDataClassParams(params: Dict[str, Any], type_: type) -> Dict[str, Any]:
