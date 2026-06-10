@@ -72,6 +72,7 @@ def entry() -> None:
     r"""
     \brief entry.
     """
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(message)s", force=True)
 
     import Engine
     import Global
@@ -79,12 +80,12 @@ def entry() -> None:
 
     def _stdinHelp(obj=None) -> None:
         if obj is None:
-            print("Use help(object) to print documentation in the console.")
+            logging.info("Use help(object) to print documentation in the console.")
             return
 
         import pydoc
 
-        print(pydoc.render_doc(obj, renderer=pydoc.plaintext))
+        logging.info("%s", pydoc.render_doc(obj, renderer=pydoc.plaintext))
 
     def _stdinWorker() -> None:
         builtinEnv = dict(vars(builtins))
@@ -109,7 +110,7 @@ def entry() -> None:
             try:
                 r = eval(cmd, env)
                 if r is not None:
-                    print(str(r))
+                    logging.info("%s", r)
             except Exception:
                 try:
                     exec(cmd, env)
@@ -125,7 +126,7 @@ def entry() -> None:
 
         debugpy.listen(("localhost", 2333))
     except ImportError:
-        print("Debugpy not found or this is a release build, not using it.")
+        logging.info("Debugpy not found or this is a release build, not using it.")
 
     Engine.Locale.init("./Data/Locale")
     iniFilePath = _ensureMainIni(Engine.Locale.GetLocaleKeys())
@@ -142,7 +143,7 @@ def entry() -> None:
         scene = Global.System.getScene()
         if scene:
             scene.main()
-    print("Game exited successfully.")
+    logging.info("Game exited successfully.")
 
 
 if __name__ == "__main__":

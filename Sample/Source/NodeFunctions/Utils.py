@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+import logging
 from typing import Any, Dict, Optional
 from Engine import Pair, Vector2f, degrees
 from Engine.Gameplay.Components import getComponentFieldValue, setComponentFieldValue
@@ -452,7 +453,7 @@ def BackToTitle() -> None:
 @Meta(DisplayName='LOC("PRINT")', DisplayDesc='LOC("PRINT_DESC")')
 @ExecSplit(default=(None,))
 def Print(message: Any) -> None:
-    print(message)
+    logging.info("%s", message)
 
 
 @Meta(DisplayName='LOC("EXEC")', DisplayDesc='LOC("EXEC_DESC")')

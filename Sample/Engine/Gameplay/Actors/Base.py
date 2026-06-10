@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import copy
+import logging
 import os
 import warnings
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
@@ -103,10 +104,10 @@ class _ActorBase(Sprite):
                     self._shader = Shader(fullPath, Shader.Type.Fragment)
                 else:
                     self._shaderError = True
-                    print(f"Warning: Shader file not found: {fullPath}")
+                    logging.warning("Shader file not found: %s", fullPath)
             except Exception as e:
                 self._shaderError = True
-                print(f"Warning: Shader load failed for {self.shaderPath}: {e}")
+                logging.warning("Shader load failed for %s: %s", self.shaderPath, e)
 
     @ExecSplit(default=(None,))
     def setShaderPath(self, shaderPath: str) -> None:

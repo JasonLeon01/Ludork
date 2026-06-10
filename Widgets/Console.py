@@ -3,6 +3,7 @@
 from __future__ import annotations
 import io
 import json
+import os
 from typing import Optional, Union
 from PyQt5 import QtCore, QtGui, QtWidgets
 from psutil import Popen
@@ -65,6 +66,8 @@ class ConsoleWidget(QtWidgets.QWidget):
         self._stderr_reader: Optional[PipeReader] = None
         self._history: list[str] = []
         self._history_index: Optional[int] = None
+        self._log_entries: list[tuple[str, str]] = []
+        self._log_file_path: Optional[str] = None
 
         self._view = QtWidgets.QTextEdit()
         self._view.setReadOnly(True)
@@ -82,6 +85,34 @@ class ConsoleWidget(QtWidgets.QWidget):
         self._send.setEnabled(False)
         self._input.setEnabled(False)
 
+        self._messageFilter = QtWidgets.QAction(ELOC("CONSOLE_FILTER_MESSAGE"), self)
+        self._warningFilter = QtWidgets.QAction(ELOC("CONSOLE_FILTER_WARNING"), self)
+        self._errorFilter = QtWidgets.QAction(ELOC("CONSOLE_FILTER_ERROR"), self)
+        for action in (self._messageFilter, self._warningFilter, self._errorFilter):
+            action.setCheckable(True)
+            action.setChecked(True)
+            action.toggled.connect(self._refreshView)
+
+        filterMenu = QtWidgets.QMenu(self)
+        filterMenu.addAction(self._messageFilter)
+        filterMenu.addAction(self._warningFilter)
+        filterMenu.addAction(self._errorFilter)
+
+        self._filterButton = QtWidgets.QToolButton()
+        self._filterButton.setText(ELOC("CONSOLE_FILTER_LOGS"))
+        self._filterButton.setPopupMode(QtWidgets.QToolButton.InstantPopup)
+        self._filterButton.setMenu(filterMenu)
+
+        self._search = QtWidgets.QLineEdit()
+        self._search.setPlaceholderText(ELOC("CONSOLE_SEARCH_HINT"))
+        self._search.textChanged.connect(self._refreshView)
+
+        tl = QtWidgets.QHBoxLayout()
+        tl.setContentsMargins(0, 0, 0, 0)
+        tl.setSpacing(8)
+        tl.addWidget(self._filterButton, 0)
+        tl.addWidget(self._search, 1)
+
         bl = QtWidgets.QHBoxLayout()
         bl.setContentsMargins(0, 0, 0, 0)
         bl.setSpacing(6)
@@ -91,6 +122,7 @@ class ConsoleWidget(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(8)
+        layout.addLayout(tl)
         layout.addWidget(self._view, 1)
         layout.addLayout(bl)
 
@@ -120,8 +152,9 @@ class ConsoleWidget(QtWidgets.QWidget):
             self._history_index = None
         return super().eventFilter(obj, event)
 
-    def attach_process(self, proc: Popen) -> None:
+    def attach_process(self, proc: Popen, logFilePath: Optional[str] = None, resetLog: bool = False) -> None:
         self.detach_process()
+        self.setLogFile(logFilePath, resetLog)
         self._proc = proc
         self._stdout_reader = PipeReader(proc.stdout, None)
         self._stderr_reader = PipeReader(proc.stderr, None)
@@ -161,11 +194,43 @@ class ConsoleWidget(QtWidgets.QWidget):
         self._input.setEnabled(False)
         Panel.ApplyDisabledOpacity(self._send)
         Panel.ApplyDisabledOpacity(self._input)
+        self.setLogFile(None)
 
     def clear(self) -> None:
+        self._log_entries.clear()
         self._view.clear()
 
+    def setLogFile(self, logFilePath: Optional[str], resetLog: bool = False) -> None:
+        self._log_file_path = logFilePath
+        if not logFilePath or not resetLog:
+            return
+        try:
+            logDir = os.path.dirname(logFilePath)
+            if logDir:
+                os.makedirs(logDir, exist_ok=True)
+            with open(logFilePath, "w", encoding="utf-8"):
+                pass
+        except Exception as e:
+            self._log_file_path = None
+            print(f"Error while resetting console log: {e}")
+
     def _append_line(self, text: str, level: str) -> None:
+        self._log_entries.append((text, level))
+        self._writeLogLine(text, level)
+        if not self._acceptsEntry(text, level):
+            return
+        self._insertLine(text, level)
+
+    def _writeLogLine(self, text: str, level: str) -> None:
+        if not self._log_file_path:
+            return
+        try:
+            with open(self._log_file_path, "a", encoding="utf-8") as logFile:
+                logFile.write(f"[{level}] {text}\n")
+        except Exception as e:
+            print(f"Error while writing console log: {e}")
+
+    def _insertLine(self, text: str, level: str) -> None:
         c = QtGui.QColor()
         if level == "ERROR":
             c = QtGui.QColor(200, 60, 60)
@@ -182,6 +247,31 @@ class ConsoleWidget(QtWidgets.QWidget):
         cursor.insertText(text + "\n", tc)
         self._view.setTextCursor(cursor)
         self._view.ensureCursorVisible()
+
+    def _refreshView(self) -> None:
+        self._view.clear()
+        for text, level in self._log_entries:
+            if self._acceptsEntry(text, level):
+                self._insertLine(text, level)
+
+    def _acceptsEntry(self, text: str, level: str) -> bool:
+        search = self._search.text().strip().lower()
+        if search and search not in text.lower():
+            return False
+
+        category = self._filterCategory(level)
+        if category == "ERROR":
+            return self._errorFilter.isChecked()
+        if category == "WARNING":
+            return self._warningFilter.isChecked()
+        return self._messageFilter.isChecked()
+
+    def _filterCategory(self, level: str) -> str:
+        if level == "ERROR":
+            return "ERROR"
+        if level == "WARNING":
+            return "WARNING"
+        return "MESSAGE"
 
     def _handle_line(self, text: str, level: str) -> None:
         if text.startswith(self._PERFORMANCE_SAMPLE_PREFIX):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, Optional
 
 import Engine
@@ -104,7 +105,7 @@ class FogController:
             cls._fogTexture = texture
             return True
         except Exception as exc:
-            print(f"Warning: Failed to load fog texture '{cls._graphic}': {exc}")
+            logging.warning("Failed to load fog texture '%s': %s", cls._graphic, exc)
             return False
 
     @classmethod

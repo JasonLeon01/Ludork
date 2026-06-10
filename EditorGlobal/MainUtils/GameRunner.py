@@ -59,7 +59,11 @@ class GameRunnerMixin:
             ),
         )
         self.gamePanel.setEngineProcess(self._engineProc)
-        self.consoleWidget.attach_process(self._engineProc)
+        self.consoleWidget.attach_process(
+            self._engineProc,
+            os.path.join(EditorStatus.PROJ_PATH, "Ludork.log") if windowhandle else None,
+            resetLog=True,
+        )
         self._syncPerformanceMonitorStreaming()
         self.tabWidget.setCurrentWidget(self.consoleWidget)
         if self._engineMonitorTimer is None:

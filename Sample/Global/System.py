@@ -3,8 +3,10 @@ r"""\brief Global system: window management, scene transitions, rendering pipeli
 
 from __future__ import annotations
 import json
+import logging
 import os
 import random
+import sys
 import threading
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 import configparser
@@ -143,7 +145,8 @@ class System(SystemConfigBase):
         if cls._performanceFPSCount >= 30:
             sample = cls._performanceFPSAccumulator / cls._performanceFPSCount
             payload = {"fps": sample, "memory": cls._getProcessMemoryMB()}
-            print(f"__LUDORK_PERF__:{json.dumps(payload, separators=(',', ':'))}", flush=True)
+            sys.stdout.write(f"__LUDORK_PERF__:{json.dumps(payload, separators=(',', ':'))}\n")
+            sys.stdout.flush()
             cls._performanceFPSAccumulator = 0.0
             cls._performanceFPSCount = 0
 
@@ -486,7 +489,7 @@ class System(SystemConfigBase):
                 cls._flashShader = Manager.ShaderManager.load("Flash.frag")
             except Exception:
                 cls._flashShader = None
-                print(LOC("FLASH_SHADER_LOAD_FAILED"))
+                logging.error("%s", LOC("FLASH_SHADER_LOAD_FAILED"))
                 return
             if cls._flashShader is None:
                 return

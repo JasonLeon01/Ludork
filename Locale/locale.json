@@ -479,6 +479,26 @@
     "zh_CN": "输入命令并按Enter发送",
     "en_GB": "Enter command and press Enter"
   },
+  "CONSOLE_FILTER_LOGS": {
+    "zh_CN": "筛选日志",
+    "en_GB": "Filter Logs"
+  },
+  "CONSOLE_FILTER_MESSAGE": {
+    "zh_CN": "消息",
+    "en_GB": "Message"
+  },
+  "CONSOLE_FILTER_WARNING": {
+    "zh_CN": "警告",
+    "en_GB": "Warning"
+  },
+  "CONSOLE_FILTER_ERROR": {
+    "zh_CN": "错误",
+    "en_GB": "Error"
+  },
+  "CONSOLE_SEARCH_HINT": {
+    "zh_CN": "搜索日志",
+    "en_GB": "Search logs"
+  },
   "SEGMENT_PROPERTIES": {
     "zh_CN": "片段属性",
     "en_GB": "Segment Properties"

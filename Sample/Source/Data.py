@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import copy
+import logging
 import os
 import zlib
 from typing import Any, Callable, Dict, Optional, Tuple, Type
@@ -243,7 +244,7 @@ class _Data:
         origin = actorData.get("origin", None)
         bp = actorData.get("bp", None)
         if bp is None:
-            print(f"Actor {tag} in layer {layerName} has no bp")
+            logging.warning("Actor %s in layer %s has no bp", tag, layerName)
             return None
         bp = self.resolveClassPath(bp)
         classModel: Type[Actor] = self.getClass(bp)
