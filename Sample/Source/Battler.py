@@ -169,6 +169,62 @@ class Battler:
             return 0
         return state.stacks
 
+    def hasSpecial(self, specialID: str) -> bool:
+        r"""\brief Check whether this battler has the given special flag.
+
+        - \param specialID Special identifier.
+        - \return True if the battler's info component contains the special.
+        """
+        self._normaliseInfoComp()
+        special = getattr(self.infoComp, "special", None)
+        if not isinstance(special, dict):
+            return False
+        return specialID in special
+
+    def _getSpecialIntValue(self, specialID: str, default: int = 0, minValue: int = 0) -> int:
+        self._normaliseInfoComp()
+        special = getattr(self.infoComp, "special", None)
+        if not isinstance(special, dict) or specialID not in special:
+            return max(minValue, default)
+        value = special.get(specialID, default)
+        if isinstance(value, str):
+            try:
+                value = Eval(value)
+            except Exception:
+                value = default
+        try:
+            return max(minValue, int(value))
+        except (TypeError, ValueError):
+            return max(minValue, default)
+
+    def getATK(self, opponent: Optional[Battler] = None) -> int:
+        r"""\brief Get the battler's effective attack value.
+
+        - \param opponent Optional opposing battler used for special calculations.
+        - \return Current attack value.
+        """
+        self._normaliseInfoComp()
+        attackerAtk = int(self.infoComp.ATK)
+        if self.hasState("Weak"):
+            attackerAtk = max(0, attackerAtk - 2 * self._getStateStackCount("Weak"))
+        if opponent is not None and self.hasSpecial("Compete"):
+            attackerAtk = max(attackerAtk, opponent.getATK())
+        return attackerAtk
+
+    def getDEF(self, attacker: Optional[Battler] = None) -> int:
+        r"""\brief Get the battler's effective defense value.
+
+        - \param attacker Optional opposing battler used for special calculations.
+        - \return Current defense value.
+        """
+        self._normaliseInfoComp()
+        defenderDef = int(self.infoComp.DEF)
+        if self.hasState("Weak"):
+            defenderDef = max(0, defenderDef - 2 * self._getStateStackCount("Weak"))
+        if attacker is not None and self.hasSpecial("Hard"):
+            defenderDef = max(defenderDef, attacker.getATK(self) - 1)
+        return defenderDef
+
     def getStateNames(self) -> List[str]:
         r"""\brief Get the names of all active states.
 
@@ -275,15 +331,14 @@ class Battler:
         """
         self._normaliseInfoComp()
         defender._normaliseInfoComp()
-        attackerAtk = self.infoComp.ATK
-        defenderDef = defender.infoComp.DEF
+        attackerAtk = self.getATK(defender)
+        defenderDef = defender.getDEF(self)
 
-        if self.hasState("Weak"):
-            attackerAtk = max(0, attackerAtk - 2 * self._getStateStackCount("Weak"))
-        if defender.hasState("Weak"):
-            defenderDef = max(0, defenderDef - 2 * defender._getStateStackCount("Weak"))
+        if self.hasSpecial("Magic"):
+            defenderDef = 0
 
-        basicDamage = max(0, attackerAtk - defenderDef)
+        hitCount = self._getSpecialIntValue("MultiHit", 1, 1)
+        basicDamage = max(0, attackerAtk - defenderDef) * hitCount
         if defender.hasState("Poisoned"):
             basicDamage += 10 * defender._getStateStackCount("Poisoned")
         return basicDamage
@@ -296,10 +351,10 @@ class Battler:
         suffers from `self`'s counter-attacks before defeating `self`.
 
         Pipeline:
-            1. attackDamage  = battler.getDamagePerRound(battler, self)
-            2. counterDamage = self.getDamagePerRound(self, battler)
-            3. rounds = ceil(self.infoComp.MAXHP / attackDamage)
-            4. totalDamage = rounds * counterDamage
+            1. attackDamage  = battler.getDamagePerRound(self)
+            2. counterDamage = self.getDamagePerRound(battler)
+            3. counterRounds = self.infoComp.MAXHP // attackDamage
+            4. totalDamage = counterRounds * counterDamage
 
         - \param battler The opposing battler (the attacker).
         - \return Tuple of (DamageType, accumulated damage on `battler`).
@@ -310,8 +365,8 @@ class Battler:
         counterDamage = self.getDamagePerRound(battler)
         if attackDamage <= 0:
             return (DamageType.UNDEFEATABLE, -1)
-        rounds = max(1, (self.infoComp.MAXHP + attackDamage - 1) // attackDamage)
-        return (DamageType.NORMAL, max(0, rounds * counterDamage))
+        counterRounds = max(0, int(self.infoComp.MAXHP) // attackDamage)
+        return (DamageType.NORMAL, max(0, counterRounds * counterDamage))
 
     @staticmethod
     def _resolveStateID(state: Union[str, StateInfo, None]) -> str:

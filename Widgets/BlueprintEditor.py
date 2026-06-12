@@ -1370,7 +1370,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             return p
         if p.startswith("Assets/Shaders/") or p.startswith("Assets\\Shaders\\"):
             return os.path.join(EditorStatus.PROJ_PATH, p)
-        return os.path.join(EditorStatus.PROJ_PATH, "Assets", "Shaders", p)
+        return os.path.join(self._getPathVarBaseDir("shaderPath"), p)
 
     def _hasPreviewShader(self) -> bool:
         path = self._getPreviewShaderPath()

@@ -336,7 +336,25 @@ class FileExplorer(QtWidgets.QWidget):
         if sm is None:
             return []
         rows = sm.selectedRows()
-        return [self._proxy.mapToSource(i) for i in rows]
+        if not rows:
+            rows = [i for i in sm.selectedIndexes() if i.column() == 0]
+        result = []
+        seen = set()
+        for idx in rows:
+            if not idx.isValid():
+                continue
+            if idx.column() != 0:
+                idx = idx.sibling(idx.row(), 0)
+            src = self._proxy.mapToSource(idx)
+            if not src.isValid():
+                continue
+            path = self._model.filePath(src)
+            key = os.path.normcase(os.path.abspath(path)) if path else (src.row(), src.column())
+            if key in seen:
+                continue
+            seen.add(key)
+            result.append(src)
+        return result
 
     def _onContextMenu(self, pos: QtCore.QPoint) -> None:
         if not self._interactive:

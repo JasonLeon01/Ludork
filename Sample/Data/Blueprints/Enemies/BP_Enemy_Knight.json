@@ -1,38 +1,35 @@
 {
-    "parent": "Source.Player",
+    "parent": "Source.Enemy",
     "attrs": {
         "material": {
             "lightBlock": 0.5,
             "mirror": false,
-            "reflectionStrength": 0.5,
+            "reflectionStrength": 0.0,
             "opacity": 1.0,
             "emissive": 0.0,
-            "speedRate": 1.0
+            "speedRate": 1.5
         },
-        "collisionEnabled": true,
-        "tickable": true,
-        "speed": 96,
-        "texturePath": "actors/classic-cha-braver01.png",
+        "texturePath": "enemies/classic-enemies-06-knight-single.png",
+        "ID": "Knight",
         "infoComp": {
-            "MAXHP": 1000,
-            "ATK": 10,
-            "DEF": 10,
-            "EXP": 0,
-            "GOLD": 0,
+            "MAXHP": -1,
+            "ATK": -1,
+            "DEF": -1,
+            "EXP": -1,
+            "GOLD": -1,
             "ANIMATION_KEY": "attack",
-            "HP": 1000,
-            "LEVEL": 1,
-            "CLASS": "Warrior"
+            "HP": -1
         },
-        "lightComp": {
-            "lightColor": [
-                255,
-                255,
-                255,
-                255
+        "defaultRect": [
+            [
+                0,
+                32
             ],
-            "lightRadius": 64.0
-        }
+            [
+                32,
+                32
+            ]
+        ]
     },
     "graph": {
         "nodeGraph": {

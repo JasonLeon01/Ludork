@@ -49,4 +49,5 @@ class Equip(Actor, EquipInfo):
                 inst.setCachedNewItem(self.ID)
                 scene.showMessage("", "", LOC("ITEM_NEW").format(name=self.name, desc=self.desc).replace("\\n", "\n"))
         super().onCollision(other)
+        scene.recordDestroyedActor(self)
         self.destroy()

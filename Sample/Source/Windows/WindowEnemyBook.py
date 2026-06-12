@@ -214,8 +214,8 @@ class WindowEnemyBook(WindowSelectable):
         return {
             "name": self._formatName(enemy.infoComp.name or getattr(enemy, "ID", "")),
             "MAXHP": int(enemy.infoComp.MAXHP),
-            "ATK": int(enemy.infoComp.ATK),
-            "DEF": int(enemy.infoComp.DEF),
+            "ATK": int(enemy.getATK(self._player)),
+            "DEF": int(enemy.getDEF(self._player)),
             "EXP": int(enemy.infoComp.EXP),
             "GOLD": int(enemy.infoComp.GOLD),
             "damage": "--" if damageType == DamageType.UNDEFEATABLE else int(damage),
