@@ -11,6 +11,7 @@ class GamePanel(QtWidgets.QWidget):
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.setMouseTracking(True)
         self._engineProc = None
+        self._engineCommandClient = None
         self._keyMap = self._initKeyMap()
 
     def _dpr(self) -> float:
@@ -23,6 +24,9 @@ class GamePanel(QtWidgets.QWidget):
 
     def setEngineProcess(self, proc):
         self._engineProc = proc
+
+    def setEngineCommandClient(self, client):
+        self._engineCommandClient = client
 
     def _initKeyMap(self):
         m = {}
@@ -76,8 +80,8 @@ class GamePanel(QtWidgets.QWidget):
             try:
                 msg = repr(eventData)
                 cmd = f"Engine.Input.injectEvent({msg})\n"
-                self._engineProc.stdin.write(cmd)
-                self._engineProc.stdin.flush()
+                if self._engineCommandClient is not None:
+                    self._engineCommandClient.sendLine(cmd)
             except Exception as e:
                 pass
 

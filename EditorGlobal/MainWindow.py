@@ -161,6 +161,9 @@ class MainWindow(
         super().__init__()
         self.toast = Toast(self)
         self._engineProc: Optional[subprocess.Popen] = None
+        self._engineCommandClient = None
+        self._engineCommandPort = None
+        self._engineMessagePort = None
         self.setWindowTitle(title)
         wstyle = cast(QtWidgets.QStyle, self.style())
 

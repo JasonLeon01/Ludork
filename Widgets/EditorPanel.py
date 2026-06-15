@@ -47,6 +47,7 @@ class EditorPanel(QtWidgets.QWidget):
         self._actorShaderImageCache: Dict[Tuple[str, str, Tuple[int, int, int, int], int, int], QtGui.QImage] = {}
         self.selectedLayerName: Optional[str] = None
         self.selectedTileNumber: Optional[int] = None
+        self.selectedTilePattern: Optional[List[List[int]]] = None
         self.selectedAutoTileKey: Optional[str] = None
         self.tileModeEnabled: bool = True
         self.rectStartPos: Optional[Tuple[int, int]] = None
@@ -466,14 +467,42 @@ class EditorPanel(QtWidgets.QWidget):
     def setSelectedTileNumber(self, num: Optional[int]) -> None:
         self.selectedTileNumber = None if num is None else int(num)
         if self.selectedTileNumber is not None:
+            self.selectedTilePattern = None
             self.selectedAutoTileKey = None
+        self.update()
+
+    def setSelectedTilePattern(self, pattern: Optional[List[List[int]]]) -> None:
+        if not pattern:
+            self.selectedTilePattern = None
+            self.update()
+            return
+        normalised: List[List[int]] = []
+        for row in pattern:
+            if not isinstance(row, list):
+                continue
+            normalisedRow: List[int] = []
+            for value in row:
+                try:
+                    normalisedRow.append(int(value))
+                except Exception:
+                    continue
+            if normalisedRow:
+                normalised.append(normalisedRow)
+        self.selectedTilePattern = normalised if normalised else None
+        if self.selectedTilePattern is not None:
+            self.selectedTileNumber = None
+            self.selectedAutoTileKey = None
+        self.update()
 
     def setSelectedAutoTileKey(self, key: Optional[str]) -> None:
         if key is None or not isinstance(key, str) or key == "":
             self.selectedAutoTileKey = None
+            self.update()
             return
         self.selectedAutoTileKey = key
         self.selectedTileNumber = None
+        self.selectedTilePattern = None
+        self.update()
 
     def clearLightSelection(self) -> None:
         self._stopLightRadiusDrag()
@@ -811,6 +840,9 @@ class EditorPanel(QtWidgets.QWidget):
     def _writeCellSelection(self, layer, x: int, y: int) -> bool:
         autoKey = self.selectedAutoTileKey
         tileNum = self.selectedTileNumber
+        return self._writeCellValue(layer, x, y, tileNum, autoKey)
+
+    def _writeCellValue(self, layer, x: int, y: int, tileNum: Optional[int], autoKey: Optional[str]) -> bool:
         autoTiles = getattr(layer, "autoTiles", None)
         changed = False
         if autoKey is not None:
@@ -851,6 +883,27 @@ class EditorPanel(QtWidgets.QWidget):
                             layerData["autoTiles"] = layerAuto
                     if isinstance(layerAuto, list) and isinstance(autoTiles, list):
                         layerAuto[y][x] = autoTiles[y][x]
+        return changed
+
+    def _writeTilePattern(self, layer, x: int, y: int) -> bool:
+        pattern = self.selectedTilePattern
+        if not pattern:
+            return False
+        if self.mapData is None:
+            return False
+        changed = False
+        for py, row in enumerate(pattern):
+            if not isinstance(row, list):
+                continue
+            targetY = y + py
+            if targetY < 0 or targetY >= self.mapData.height:
+                continue
+            for px, tileNum in enumerate(row):
+                targetX = x + px
+                if targetX < 0 or targetX >= self.mapData.width:
+                    continue
+                if self._writeCellValue(layer, targetX, targetY, int(tileNum), None):
+                    changed = True
         return changed
 
     def mouseReleaseEvent(self, e: QtGui.QMouseEvent) -> None:
@@ -954,8 +1007,17 @@ class EditorPanel(QtWidgets.QWidget):
                 min_x, max_x = gx, gx
                 min_y, max_y = gy, gy
 
+            tilePattern = self.selectedTilePattern if self.tileModeEnabled else None
+            if tilePattern is not None and self.rectStartPos is None:
+                patternHeight = len(tilePattern)
+                patternWidth = max((len(row) for row in tilePattern if isinstance(row, list)), default=0)
+                if patternWidth > 0 and patternHeight > 0:
+                    min_x, max_x = gx, gx + patternWidth - 1
+                    min_y, max_y = gy, gy + patternHeight - 1
+
             if (
                 self.tileModeEnabled
+                and tilePattern is None
                 and self.selectedTileNumber is not None
                 and self._cachedTilesetImage is not None
                 and not self._cachedTilesetImage.isNull()
@@ -973,6 +1035,36 @@ class EditorPanel(QtWidgets.QWidget):
                     for y_idx in range(min_y, max_y + 1):
                         for x_idx in range(min_x, max_x + 1):
                             dst = QtCore.QRect(x_idx * tileSize, y_idx * tileSize, tileSize, tileSize)
+                            p.drawImage(dst, self._cachedTilesetImage, src)
+                    p.setOpacity(1.0)
+
+            if (
+                self.tileModeEnabled
+                and tilePattern is not None
+                and self._cachedTilesetImage is not None
+                and not self._cachedTilesetImage.isNull()
+            ):
+                columns = self._cachedTilesetImage.width() // sourceTileSize
+                rows = self._cachedTilesetImage.height() // sourceTileSize
+                total = columns * rows
+                if total > 0:
+                    p.setOpacity(0.5)
+                    for py, row in enumerate(tilePattern):
+                        if not isinstance(row, list):
+                            continue
+                        for px, tileNumber in enumerate(row):
+                            try:
+                                n = int(tileNumber)
+                            except Exception:
+                                continue
+                            if n < 0 or n >= total:
+                                continue
+                            tu = n % max(1, columns)
+                            tv = n // max(1, columns)
+                            src = QtCore.QRect(
+                                tu * sourceTileSize, tv * sourceTileSize, sourceTileSize, sourceTileSize
+                            )
+                            dst = QtCore.QRect((gx + px) * tileSize, (gy + py) * tileSize, tileSize, tileSize)
                             p.drawImage(dst, self._cachedTilesetImage, src)
                     p.setOpacity(1.0)
 
@@ -1335,6 +1427,14 @@ class EditorPanel(QtWidgets.QWidget):
         if e.button() != QtCore.Qt.LeftButton:
             return
 
+        if self.selectedTilePattern is not None:
+            GameData.recordSnapshot()
+            if self._writeTilePattern(layer, gx, gy):
+                self._refreshTitle()
+                self._renderFromMapData()
+            self.update()
+            return
+
         if e.modifiers() & QtCore.Qt.ShiftModifier:
             self.rectStartPos = (gx, gy)
             return
@@ -1458,6 +1558,9 @@ class EditorPanel(QtWidgets.QWidget):
         if self.selectedLayerName is None:
             return
         if not (e.buttons() & QtCore.Qt.LeftButton):
+            return
+        if self.selectedTilePattern is not None:
+            self.update()
             return
         layer = self.mapData.layers.get(self.selectedLayerName)
         if not layer:

@@ -62,6 +62,8 @@ class ConsoleWidget(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
         self._proc: Optional[object] = None
+        self._command_sender: Optional[object] = None
+        self._message_server: Optional[QtCore.QThread] = None
         self._stdout_reader: Optional[PipeReader] = None
         self._stderr_reader: Optional[PipeReader] = None
         self._history: list[str] = []
@@ -152,17 +154,43 @@ class ConsoleWidget(QtWidgets.QWidget):
             self._history_index = None
         return super().eventFilter(obj, event)
 
-    def attach_process(self, proc: Popen, logFilePath: Optional[str] = None, resetLog: bool = False) -> None:
+    def startMessageServer(self, port: int) -> None:
+        self.stopMessageServer()
+        from EditorGlobal.MainUtils.LocalIpc import LocalMessageServer
+
+        server = LocalMessageServer(port=port)
+        server.LINE_RECEIVED.connect(self._append_line)
+        server.PERFORMANCE_SAMPLE.connect(self.PERFORMANCE_SAMPLE.emit)
+        self._message_server = server
+        server.start()
+
+    def stopMessageServer(self) -> None:
+        server = self._message_server
+        self._message_server = None
+        if isinstance(server, QtCore.QThread):
+            stop = getattr(server, "stop", None)
+            if callable(stop):
+                stop()
+            server.wait(500)
+
+    def attach_process(
+        self,
+        proc: Popen,
+        commandSender: Optional[object] = None,
+        logFilePath: Optional[str] = None,
+        resetLog: bool = False,
+    ) -> None:
         self.detach_process()
         self.setLogFile(logFilePath, resetLog)
         self._proc = proc
+        self._command_sender = commandSender
         self._stdout_reader = PipeReader(proc.stdout, None)
         self._stderr_reader = PipeReader(proc.stderr, None)
         self._stdout_reader.NEW_LINE.connect(self._handle_line)
         self._stderr_reader.NEW_LINE.connect(self._append_line)
         self._stdout_reader.start()
         self._stderr_reader.start()
-        ok = getattr(proc, "stdin", None) is not None
+        ok = commandSender is not None
         self._send.setEnabled(ok)
         self._input.setEnabled(ok)
         Panel.ApplyDisabledOpacity(self._send)
@@ -190,6 +218,7 @@ class ConsoleWidget(QtWidgets.QWidget):
                 pass
             finally:
                 self._proc = None
+        self._command_sender = None
         self._send.setEnabled(False)
         self._input.setEnabled(False)
         Panel.ApplyDisabledOpacity(self._send)
@@ -291,10 +320,9 @@ class ConsoleWidget(QtWidgets.QWidget):
         self._append_line(">>> " + t, "INFO")
         self._history.append(t)
         self._history_index = None
-        if self._proc and getattr(self._proc, "stdin", None) is not None:
+        if self._command_sender is not None:
             try:
-                self._proc.stdin.write(t + "\n")
-                self._proc.stdin.flush()
+                self._command_sender.sendLine(t)
             except Exception as e:
-                print(f"Error while writing to stdin: {e}")
+                print(f"Error while writing to command socket: {e}")
         self._input.clear()

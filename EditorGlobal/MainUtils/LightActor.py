@@ -8,6 +8,9 @@ class LightActorMixin:
     def _onTileSelected(self, tileNumber: int) -> None:
         self.editorPanel.setSelectedTileNumber(None if tileNumber < 0 else tileNumber)
 
+    def _onTilePatternSelected(self, pattern: list) -> None:
+        self.editorPanel.setSelectedTilePattern(pattern if pattern else None)
+
     def _onAutoTileSelected(self, key: str) -> None:
         self.editorPanel.setSelectedAutoTileKey(key if isinstance(key, str) and key else None)
 

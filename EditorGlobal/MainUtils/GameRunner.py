@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import TextIO, cast
 import subprocess
 import configparser
 import psutil
@@ -12,6 +11,7 @@ from PyQt5 import QtCore, QtWidgets
 from Utils import Panel, System
 from Widgets.AspectRatioContainer import AspectRatioContainer
 from Widgets.Utils import PerformanceMonitorWindow
+from .LocalIpc import DEFAULT_COMMAND_PORT, DEFAULT_MESSAGE_PORT, LocalCommandClient, findAvailableLocalPort
 from .. import EditorStatus
 
 
@@ -39,6 +39,11 @@ class GameRunnerMixin:
             iniFile.read(iniPath, encoding="utf-8")
             if "Main" in iniFile:
                 scriptPath = iniFile["Main"].get("script", scriptPath).strip() or scriptPath
+        commandPort = findAvailableLocalPort(DEFAULT_COMMAND_PORT)
+        messagePort = findAvailableLocalPort(DEFAULT_MESSAGE_PORT, excludedPorts=(commandPort,))
+        self._engineCommandPort = commandPort
+        self._engineMessagePort = messagePort
+        self.consoleWidget.startMessageServer(messagePort)
         self._panelHandle = int(self.gamePanel.winId())
         windowhandle = str(self._panelHandle)
         individual = str(self._projConfig.get("IndividualWindow", False))
@@ -48,20 +53,25 @@ class GameRunnerMixin:
             shell=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            stdin=subprocess.PIPE,
+            stdin=subprocess.DEVNULL,
             text=True,
             bufsize=1,
             env=dict(
                 EditorStatus.CLEAN_ENVIRON,
                 WINDOWHANDLE=windowhandle,
                 INDIVIDUAL=individual,
+                LUDORK_COMMAND_PORT=str(commandPort),
+                LUDORK_MESSAGE_PORT=str(messagePort),
                 PYTHONUNBUFFERED="1",
             ),
         )
+        self._engineCommandClient = LocalCommandClient(port=commandPort)
         self.gamePanel.setEngineProcess(self._engineProc)
+        self.gamePanel.setEngineCommandClient(self._engineCommandClient)
         self.consoleWidget.attach_process(
             self._engineProc,
-            os.path.join(EditorStatus.PROJ_PATH, "Ludork.log") if windowhandle else None,
+            commandSender=self._engineCommandClient,
+            logFilePath=os.path.join(EditorStatus.PROJ_PATH, "Ludork.log") if windowhandle else None,
             resetLog=True,
         )
         self._syncPerformanceMonitorStreaming()
@@ -79,18 +89,14 @@ class GameRunnerMixin:
         if self._engineMonitorTimer is not None:
             self._engineMonitorTimer.stop()
         proc = self._engineProc
-        stdin = proc.stdin if proc else None
+        commandClient = getattr(self, "_engineCommandClient", None)
         self._setPerformanceMonitorStreaming(False)
-        if proc and stdin and proc.poll() is None:
+        if proc and proc.poll() is None:
             try:
-                stdin.write("Engine.GameRunning = False\n")
-                stdin.flush()
+                if isinstance(commandClient, LocalCommandClient):
+                    commandClient.sendLine("Engine.GameRunning = False")
             except Exception as e:
                 print(f"Error while writing shutdown command: {e}")
-            try:
-                cast(TextIO, proc.stdin).close()
-            except Exception:
-                pass
             try:
                 proc.wait(timeout=0.2)
             except subprocess.TimeoutExpired:
@@ -129,7 +135,13 @@ class GameRunnerMixin:
                 print(f"Error while terminating engine process: {e}")
             finally:
                 self._engineProc = None
+        if isinstance(commandClient, LocalCommandClient):
+            commandClient.close()
+        self._engineCommandClient = None
+        self._engineCommandPort = None
+        self._engineMessagePort = None
         self.gamePanel.setEngineProcess(None)
+        self.gamePanel.setEngineCommandClient(None)
         Panel.ClearPanel(self.gamePanel)
         self.stacked.setCurrentWidget(self.editorViewport)
         self._unlockGameViewportSize()
@@ -144,6 +156,7 @@ class GameRunnerMixin:
         self.lightPanel.setEnabled(True)
         Panel.ApplyDisabledOpacity(self.lightPanel)
         self.consoleWidget.detach_process()
+        self.consoleWidget.stopMessageServer()
         self.tabWidget.setCurrentWidget(self.fileExplorer)
 
     def _onEngineProcCheck(self) -> None:
@@ -202,12 +215,11 @@ class GameRunnerMixin:
 
     def _setPerformanceMonitorStreaming(self, enabled: bool) -> None:
         proc = self._engineProc
-        stdin = proc.stdin if proc else None
-        if proc is None or stdin is None or proc.poll() is not None:
+        commandClient = getattr(self, "_engineCommandClient", None)
+        if proc is None or proc.poll() is not None or not isinstance(commandClient, LocalCommandClient):
             return
         try:
-            stdin.write(f"Global.System.setPerformanceMonitorEnabled({bool(enabled)})\n")
-            stdin.flush()
+            commandClient.sendLine(f"Global.System.setPerformanceMonitorEnabled({bool(enabled)})")
         except Exception as e:
             print(f"Error while setting performance monitor state: {e}")
 
