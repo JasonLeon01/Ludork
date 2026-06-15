@@ -43,3 +43,13 @@ QScrollBar::handle:horizontal:hover { background: #e6e6e6; }
 QPushButton, QToolButton, QTabBar::tab, QLabel, QHeaderView::section, QGroupBox, QGroupBox::title {
     text-transform: none;
 }
+
+QTreeView::branch:closed:has-children:has-siblings,
+QTreeView::branch:closed:has-children:!has-siblings {
+    image: url(Styles/branch-closed.svg);
+}
+
+QTreeView::branch:open:has-children:has-siblings,
+QTreeView::branch:open:has-children:!has-siblings {
+    image: url(Styles/branch-open.svg);
+}

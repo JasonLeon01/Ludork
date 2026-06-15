@@ -35,7 +35,7 @@ def initConfig():
         EditorStatus.editorConfig[EditorStatus.APP_NAME]["Language"] = (
             lang if lang in Locale.GetLocaleKeys() else "en_GB"
         )
-        EditorStatus.editorConfig[EditorStatus.APP_NAME]["Theme"] = "dark_blue.xml"
+        EditorStatus.editorConfig[EditorStatus.APP_NAME]["Theme"] = "dark_amber.xml"
         EditorStatus.editorConfig[EditorStatus.APP_NAME]["UIFont"] = "HarmonyOS_Sans_SC_Regular.ttf"
         EditorStatus.editorConfig[EditorStatus.APP_NAME]["UIFontSize"] = "12"
         with open(os.path.join(File.GetIniPath(), f"{EditorStatus.APP_NAME}.ini"), "w") as f:
@@ -91,10 +91,10 @@ def main():
     threading.excepthook = _thread_excepthook
     initConfig()
     screen = app.primaryScreen()
-    theme_raw = EditorStatus.editorConfig[EditorStatus.APP_NAME].get("Theme", "dark_blue.xml")
+    theme_raw = EditorStatus.editorConfig[EditorStatus.APP_NAME].get("Theme", "dark_amber.xml")
     t = theme_raw.strip().lower().replace(" ", "_").replace("-", "_")
     if t == "dark":
-        theme = "dark_blue.xml"
+        theme = "dark_amber.xml"
     elif t.endswith(".xml"):
         theme = t
     else:

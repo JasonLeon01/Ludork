@@ -39,6 +39,37 @@ def GameOver() -> None:
     System.setScene(GameOverScene())
 
 
+@Meta(DisplayName='LOC("LOCK_CAMERA")', DisplayDesc='LOC("LOCK_CAMERA_DESC")')
+@ExecSplit(default=(None,))
+def LockCamera() -> None:
+    r"""\brief Lock the current map camera to the player."""
+    scene = System.getScene()
+    if scene and hasattr(scene, "getGameMap"):
+        gameMap = scene.getGameMap()
+        if gameMap is not None:
+            camera = gameMap.getCamera()
+            player = gameMap.getPlayer()
+            if camera is not None and player is not None:
+                camera.setParent(player)
+                viewSize = camera.getViewSize()
+                if viewSize is not None:
+                    camera.setViewPosition(player.getPosition() - viewSize / 2)
+                    camera.fixViewPosition()
+
+
+@Meta(DisplayName='LOC("UNLOCK_CAMERA")', DisplayDesc='LOC("UNLOCK_CAMERA_DESC")')
+@ExecSplit(default=(None,))
+def UnlockCamera() -> None:
+    r"""\brief Unlock the current map camera from the player."""
+    scene = System.getScene()
+    if scene and hasattr(scene, "getGameMap"):
+        gameMap = scene.getGameMap()
+        if gameMap is not None:
+            camera = gameMap.getCamera()
+            if camera is not None:
+                camera.setParent(None)
+
+
 @Meta(DisplayName='LOC("RECORD_TELEPOINT")', DisplayDesc='LOC("RECORD_TELEPOINT_DESC")')
 @ExecSplit(default=(None,))
 def RecordTelepoint(mapPath: str, x: int, y: int) -> None:
