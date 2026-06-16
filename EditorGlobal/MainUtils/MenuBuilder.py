@@ -250,7 +250,7 @@ class MenuBuilderMixin:
 
     def _onHelpExplanation(self, checked: bool = False) -> None:
         filePath = File.GetDocPath()
-        self._explanationWindow = MarkdownPreviewer(self, filePath)
+        self._explanationWindow = MarkdownPreviewer(self, filePath, ELOC("HELP_EXPLANATION"))
         self._explanationWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._explanationWindow.setWindowModality(QtCore.Qt.ApplicationModal)
         self._explanationWindow.show()

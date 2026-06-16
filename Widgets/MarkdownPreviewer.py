@@ -11,15 +11,26 @@ import tokenize
 from typing import cast
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QWidget
+from .SearchLineEdit import addSearchIcon
 
 
 class MarkdownPreviewer(QWidget):
-    def __init__(self, parent: QtWidgets.QWidget | None = None, filePath: str = "") -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None, filePath: str = "", title: str = "") -> None:
         super().__init__(parent=parent)
         self.resize(1080, 600)
 
         self.setWindowFlags(QtCore.Qt.Window)
-        self._dir = os.path.abspath(filePath) if filePath else ""
+        if title:
+            self.setWindowTitle(title)
+        filePath = os.path.abspath(filePath) if filePath else ""
+        if filePath and os.path.isfile(filePath):
+            self._dir = os.path.dirname(filePath)
+            self._initialEntry = os.path.basename(filePath)
+            self._singleFile = True
+        else:
+            self._dir = filePath
+            self._initialEntry = ""
+            self._singleFile = False
         self._currentText = ""
         self._currentBaseDir = ""
         self._collapsedHeadings: set[str] = set()
@@ -66,6 +77,8 @@ class MarkdownPreviewer(QWidget):
         lay.setSpacing(4)
 
         self._search = QtWidgets.QLineEdit(bar)
+        addSearchIcon(self._search)
+        self._search.setPlaceholderText(ELOC("SEARCH"))
         self._search.setClearButtonEnabled(True)
         self._search.setFixedWidth(220)
         self._search.textChanged.connect(self._refreshSearch)
@@ -91,11 +104,23 @@ class MarkdownPreviewer(QWidget):
 
     def _populate(self) -> None:
         entries = []
-        if self._dir and os.path.isdir(self._dir):
+        if self._dir and self._singleFile:
+            base, _ = os.path.splitext(self._initialEntry)
+            entries = [
+                {
+                    "display": base,
+                    "path": self._initialEntry,
+                    "isDir": False,
+                    "depth": 0,
+                }
+            ]
+        elif self._dir and os.path.isdir(self._dir):
             entries = self._collectEntries(self._dir)
         self._list.clear()
         self._entrySearchCache.clear()
         firstItem = None
+        initialItem = None
+        initialEntry = None
         parents: dict[int, QtWidgets.QTreeWidgetItem] = {}
         for entry in entries:
             text = entry["display"] + ("/" if entry["isDir"] else "")
@@ -109,13 +134,18 @@ class MarkdownPreviewer(QWidget):
                     parents.pop(depth, None)
             if firstItem is None:
                 firstItem = item
+            if self._initialEntry and entry["path"] == self._initialEntry:
+                initialItem = item
+                initialEntry = entry
         if entries:
             self._list.expandAll()
-            if firstItem is not None:
+            selectedItem = initialItem or firstItem
+            selectedEntry = initialEntry or entries[0]
+            if selectedItem is not None:
                 self._suppressSelectionLoad = True
-                self._list.setCurrentItem(firstItem)
+                self._list.setCurrentItem(selectedItem)
                 self._suppressSelectionLoad = False
-            self._loadEntry(entries[0]["path"], entries[0]["isDir"])
+            self._loadEntry(selectedEntry["path"], selectedEntry["isDir"])
         else:
             self._preview.setPlainText("No markdown files")
 

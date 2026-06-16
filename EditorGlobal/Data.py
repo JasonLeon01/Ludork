@@ -20,11 +20,13 @@ class GameData:
     blueprintsData: Dict[str, Any]
     animationsData: Dict[str, Any]
     generalData: Dict[str, Any]
+    referenceIndex: Dict[str, Any]
 
     undoStack: List[Dict[str, Any]]
     redoStack: List[Dict[str, Any]]
 
     _originData: Dict[str, Any] = {}
+    _referenceIndexDirty: bool = True
     _DATA_PATH_SECTIONS = (
         ("Configs", "systemConfigData"),
         ("Tilesets", "tilesetData"),
@@ -65,6 +67,7 @@ class GameData:
         cls.redoStack = []
 
         cls._originData = copy.deepcopy(cls.asDict())
+        cls.rebuildReferenceIndex()
 
     @classmethod
     def loadData(
@@ -682,6 +685,616 @@ class GameData:
         return value
 
     @classmethod
+    def markReferencesDirty(cls) -> None:
+        cls._referenceIndexDirty = True
+
+    @classmethod
+    def ensureReferenceIndex(cls) -> None:
+        if cls._referenceIndexDirty or not isinstance(getattr(cls, "referenceIndex", None), dict):
+            cls.rebuildReferenceIndex()
+
+    @classmethod
+    def rebuildReferenceIndex(cls) -> None:
+        index: Dict[str, Any] = {
+            "nodes": {},
+            "referencesBySource": {},
+            "referencedByTarget": {},
+            "_seen": set(),
+        }
+        cls._buildReferenceNodes(index)
+        cls._buildReferenceEdges(index)
+        index.pop("_seen", None)
+        cls.referenceIndex = index
+        cls._referenceIndexDirty = False
+
+    @classmethod
+    def getReferenceNodeForPath(cls, path: str) -> Optional[str]:
+        if not isinstance(path, str) or not path:
+            return None
+        try:
+            absPath = os.path.abspath(path)
+            projPath = os.path.abspath(EditorStatus.PROJ_PATH)
+            if os.path.commonpath([absPath, projPath]) != projPath:
+                return None
+            rel = os.path.relpath(absPath, projPath).replace("\\", "/")
+        except Exception:
+            return None
+
+        lowerRel = rel.lower()
+        dataSections = {
+            "data/configs/": ("config", cls.systemConfigData),
+            "data/tilesets/": ("tileset", cls.tilesetData),
+            "data/autotiles/": ("autoTile", cls.autoTileData),
+            "data/maps/": ("map", cls.mapData),
+            "data/commonfunctions/": ("commonFunction", cls.commonFunctionsData),
+            "data/animations/": ("animation", cls.animationsData),
+            "data/general/": ("general", cls.generalData),
+        }
+        for prefix, (nodeType, data) in dataSections.items():
+            if lowerRel.startswith(prefix):
+                key = os.path.splitext(rel[len(prefix) :])[0].replace("\\", "/")
+                if key in data:
+                    return cls._referenceNodeId(nodeType, key)
+                return None
+
+        blueprintPrefix = "data/blueprints/"
+        if lowerRel.startswith(blueprintPrefix):
+            key = os.path.splitext(rel[len(blueprintPrefix) :])[0].replace("\\", "/")
+            if key in cls.blueprintsData:
+                return cls._blueprintNodeIdFromKey(key)
+            return None
+
+        assetsPrefix = "assets/"
+        if lowerRel.startswith(assetsPrefix):
+            candidate = cls._referenceNodeId("asset", rel)
+            cls.ensureReferenceIndex()
+            nodes = cls.referenceIndex.get("nodes", {})
+            if candidate in nodes:
+                return candidate
+            targetPath = os.path.normcase(os.path.abspath(os.path.join(projPath, rel)))
+            for indexedNodeId, node in nodes.items():
+                if not isinstance(node, dict) or node.get("type") != "asset":
+                    continue
+                key = node.get("key")
+                if not isinstance(key, str):
+                    continue
+                indexedPath = os.path.normcase(os.path.abspath(os.path.join(projPath, key.replace("/", os.sep))))
+                if indexedPath == targetPath:
+                    return str(indexedNodeId)
+            return candidate
+
+        return None
+
+    @classmethod
+    def getReferenceNodePath(cls, nodeId: str) -> str:
+        node = cls._getReferenceNode(nodeId)
+        if not node:
+            return ""
+        nodeType = node.get("type")
+        key = node.get("key")
+        if not isinstance(key, str):
+            return ""
+        if nodeType == "asset":
+            return os.path.join(EditorStatus.PROJ_PATH, key.replace("/", os.sep))
+        if nodeType == "blueprint":
+            prefix = "Data.Blueprints."
+            if key.startswith(prefix):
+                return cls._findDataPath("Blueprints", key[len(prefix) :].replace(".", "/"))
+        dataRoots = {
+            "config": "Configs",
+            "tileset": "Tilesets",
+            "autoTile": "AutoTiles",
+            "map": "Maps",
+            "commonFunction": "CommonFunctions",
+            "animation": "Animations",
+            "general": "General",
+        }
+        dataRoot = dataRoots.get(str(nodeType))
+        if dataRoot:
+            return cls._findDataPath(dataRoot, key)
+        if nodeType == "generalMember":
+            parts = key.split("/", 1)
+            if parts:
+                return cls._findDataPath("General", parts[0])
+        return ""
+
+    @classmethod
+    def getReferenceTree(cls, nodeId: str, direction: str, maxDepth: int = 8) -> Dict[str, Any]:
+        cls.ensureReferenceIndex()
+        if direction == "referencedBy":
+            relationKey = "referencedByTarget"
+            childKey = "source"
+        else:
+            relationKey = "referencesBySource"
+            childKey = "target"
+
+        def build(currentId: str, depth: int, stack: Set[str]) -> Dict[str, Any]:
+            records = cls.referenceIndex.get(relationKey, {}).get(currentId, [])
+            items = []
+            for record in cls._sortReferenceRecords(records, childKey):
+                childId = record.get(childKey)
+                if not isinstance(childId, str):
+                    continue
+                cycle = childId in stack
+                child = {"node": childId, "items": [], "cycle": cycle}
+                if not cycle and depth > 0:
+                    child = build(childId, depth - 1, stack | {childId})
+                items.append({"reference": record, "child": child})
+            return {"node": currentId, "items": items, "cycle": False}
+
+        return build(nodeId, max(0, int(maxDepth)), {nodeId})
+
+    @classmethod
+    def getReferenceNode(cls, nodeId: str) -> Dict[str, Any]:
+        cls.ensureReferenceIndex()
+        return cls._getReferenceNode(nodeId)
+
+    @classmethod
+    def _getReferenceNode(cls, nodeId: str) -> Dict[str, Any]:
+        nodes = getattr(cls, "referenceIndex", {}).get("nodes", {})
+        node = nodes.get(nodeId)
+        return node if isinstance(node, dict) else {}
+
+    @classmethod
+    def _findDataPath(cls, dataRoot: str, key: str) -> str:
+        root = os.path.join(EditorStatus.PROJ_PATH, "Data", dataRoot)
+        for ext in (".json", ".dat"):
+            path = os.path.join(root, key.replace("/", os.sep) + ext)
+            if os.path.exists(path):
+                return path
+        return os.path.join(root, key.replace("/", os.sep) + ".dat")
+
+    @classmethod
+    def _buildReferenceNodes(cls, index: Dict[str, Any]) -> None:
+        for key in cls.systemConfigData.keys():
+            cls._addReferenceNode(index, "config", key)
+        for key in cls.tilesetData.keys():
+            cls._addReferenceNode(index, "tileset", key)
+        for key in cls.autoTileData.keys():
+            cls._addReferenceNode(index, "autoTile", key)
+        for key in cls.mapData.keys():
+            cls._addReferenceNode(index, "map", key)
+        for key in cls.commonFunctionsData.keys():
+            cls._addReferenceNode(index, "commonFunction", key)
+        for key in cls.blueprintsData.keys():
+            cls._addReferenceNode(index, "blueprint", "Data.Blueprints." + key.replace("/", "."))
+        for key in cls.animationsData.keys():
+            cls._addReferenceNode(index, "animation", key)
+        for key, data in cls.generalData.items():
+            cls._addReferenceNode(index, "general", key)
+            if isinstance(data, dict):
+                members = data.get("members")
+                if isinstance(members, dict):
+                    for memberKey in members.keys():
+                        cls._addReferenceNode(index, "generalMember", f"{key}/{memberKey}")
+
+    @classmethod
+    def _buildReferenceEdges(cls, index: Dict[str, Any]) -> None:
+        for key, data in cls.systemConfigData.items():
+            cls._scanConfigReferences(index, cls._referenceNodeId("config", key), key, data)
+        for key, data in cls.tilesetData.items():
+            cls._scanTilesetReferences(index, cls._referenceNodeId("tileset", key), data)
+        for key, data in cls.autoTileData.items():
+            cls._scanAutoTileReferences(index, cls._referenceNodeId("autoTile", key), data)
+        for key, data in cls.mapData.items():
+            cls._scanMapReferences(index, cls._referenceNodeId("map", key), key, data)
+        for key, data in cls.commonFunctionsData.items():
+            sourceId = cls._referenceNodeId("commonFunction", key)
+            cls._scanNodeGraphReferences(index, sourceId, data, f"CommonFunctions/{key}")
+            cls._scanGenericReferences(index, sourceId, data, f"CommonFunctions/{key}")
+        for key, data in cls.blueprintsData.items():
+            cls._scanBlueprintReferences(index, key, data)
+        for key, data in cls.animationsData.items():
+            cls._scanAnimationReferences(index, cls._referenceNodeId("animation", key), data)
+        for key, data in cls.generalData.items():
+            cls._scanGeneralReferences(index, key, data)
+
+    @classmethod
+    def _scanConfigReferences(cls, index: Dict[str, Any], sourceId: str, key: str, data: Any) -> None:
+        if not isinstance(data, dict):
+            return
+        for settingKey, setting in data.items():
+            if not isinstance(setting, dict):
+                continue
+            valueType = setting.get("type")
+            if not isinstance(valueType, str) or not valueType.startswith("file"):
+                continue
+            values = setting.get("value")
+            valueList = values if isinstance(values, list) else [values]
+            root = setting.get("root", "Assets")
+            base = setting.get("base", "")
+            for i, value in enumerate(valueList):
+                refPath = f"Configs/{key}.{settingKey}[{i}]"
+                if root == "Data":
+                    cls._addDataFileReference(index, sourceId, str(base), value, "configFile", refPath)
+                else:
+                    cls._addAssetReference(index, sourceId, value, str(base), "configFile", refPath)
+
+    @classmethod
+    def _scanTilesetReferences(cls, index: Dict[str, Any], sourceId: str, data: Any) -> None:
+        dataDict = cls._asReferenceDict(data)
+        cls._addAssetReference(index, sourceId, dataDict.get("fileName"), "Tilesets", "asset", "fileName")
+
+    @classmethod
+    def _scanAutoTileReferences(cls, index: Dict[str, Any], sourceId: str, data: Any) -> None:
+        dataDict = cls._asReferenceDict(data)
+        cls._addAssetReference(index, sourceId, dataDict.get("fileName"), "Autotiles", "asset", "fileName")
+
+    @classmethod
+    def _scanMapReferences(cls, index: Dict[str, Any], sourceId: str, key: str, data: Any) -> None:
+        if not isinstance(data, dict):
+            return
+        layers = data.get("layers")
+        if isinstance(layers, dict):
+            for layerName, layerData in layers.items():
+                if not isinstance(layerData, dict):
+                    continue
+                tilesetKey = layerData.get("layerTileset")
+                if isinstance(tilesetKey, str) and tilesetKey:
+                    cls._addReference(
+                        index,
+                        sourceId,
+                        cls._referenceNodeId("tileset", tilesetKey),
+                        "tileset",
+                        f"Maps/{key}.layers.{layerName}.layerTileset",
+                    )
+                cls._scanAutoTileGridReferences(
+                    index, sourceId, layerData.get("autoTiles"), f"Maps/{key}.layers.{layerName}.autoTiles"
+                )
+                cls._scanMapActorReferences(
+                    index, sourceId, layerData.get("actors"), f"Maps/{key}.layers.{layerName}.actors"
+                )
+
+        actors = data.get("actors")
+        if isinstance(actors, dict):
+            for layerName, actorList in actors.items():
+                cls._scanMapActorReferences(index, sourceId, actorList, f"Maps/{key}.actors.{layerName}")
+        elif isinstance(actors, list):
+            cls._scanMapActorReferences(index, sourceId, actors, f"Maps/{key}.actors")
+
+        cls._addAssetReference(index, sourceId, data.get("bgm"), "Musics", "asset", f"Maps/{key}.bgm")
+        cls._addAssetReference(index, sourceId, data.get("bgs"), "Sounds", "asset", f"Maps/{key}.bgs")
+        cls._addAssetReference(index, sourceId, data.get("fog"), "Fogs", "asset", f"Maps/{key}.fog")
+
+    @classmethod
+    def _scanAutoTileGridReferences(cls, index: Dict[str, Any], sourceId: str, value: Any, path: str) -> None:
+        if isinstance(value, str) and value:
+            cls._addReference(index, sourceId, cls._referenceNodeId("autoTile", value), "autoTile", path)
+            return
+        if isinstance(value, (list, tuple)):
+            for i, item in enumerate(value):
+                cls._scanAutoTileGridReferences(index, sourceId, item, f"{path}[{i}]")
+
+    @classmethod
+    def _scanMapActorReferences(cls, index: Dict[str, Any], sourceId: str, actors: Any, path: str) -> None:
+        if not isinstance(actors, list):
+            return
+        for i, actor in enumerate(actors):
+            if not isinstance(actor, dict):
+                continue
+            bp = actor.get("bp")
+            targetId = cls._blueprintNodeIdFromClassPath(bp)
+            if targetId:
+                cls._addReference(index, sourceId, targetId, "mapActor", f"{path}[{i}].bp")
+            cls._scanGenericReferences(index, sourceId, actor, f"{path}[{i}]")
+
+    @classmethod
+    def _scanBlueprintReferences(cls, index: Dict[str, Any], key: str, data: Any) -> None:
+        sourceId = cls._blueprintNodeIdFromKey(key)
+        if not isinstance(data, dict):
+            return
+        parentId = cls._blueprintNodeIdFromClassPath(data.get("parent"))
+        if parentId:
+            cls._addReference(index, sourceId, parentId, "parent", f"Blueprints/{key}.parent")
+
+        attrs = data.get("attrs")
+        if isinstance(attrs, dict):
+            pathVars = cls._getBlueprintPathVarMap(key)
+            fallbackPathVars = {"texturePath": "Characters", "shaderPath": "Shaders"}
+            fallbackPathVars.update(pathVars)
+            for attrName, baseDir in fallbackPathVars.items():
+                if attrName in attrs:
+                    cls._addAssetReference(
+                        index,
+                        sourceId,
+                        attrs.get(attrName),
+                        baseDir,
+                        "asset",
+                        f"Blueprints/{key}.attrs.{attrName}",
+                    )
+            cls._scanGenericReferences(index, sourceId, attrs, f"Blueprints/{key}.attrs")
+
+        graph = data.get("graph")
+        if isinstance(graph, dict):
+            cls._scanNodeGraphReferences(index, sourceId, graph, f"Blueprints/{key}.graph")
+            cls._scanGenericReferences(index, sourceId, graph, f"Blueprints/{key}.graph")
+
+    @classmethod
+    def _scanAnimationReferences(cls, index: Dict[str, Any], sourceId: str, data: Any) -> None:
+        if not isinstance(data, dict):
+            return
+        assets = data.get("assets")
+        if isinstance(assets, list):
+            for i, assetName in enumerate(assets):
+                baseDir = "Sounds" if cls._isAudioAsset(assetName) else "Animations"
+                cls._addAssetReference(index, sourceId, assetName, baseDir, "animationAsset", f"assets[{i}]")
+        cls._scanGenericReferences(index, sourceId, data, "Animations")
+
+    @classmethod
+    def _scanGeneralReferences(cls, index: Dict[str, Any], key: str, data: Any) -> None:
+        sourceId = cls._referenceNodeId("general", key)
+        if not isinstance(data, dict):
+            return
+        members = data.get("members")
+        if not isinstance(members, dict):
+            return
+        for memberKey, memberData in members.items():
+            memberId = cls._referenceNodeId("generalMember", f"{key}/{memberKey}")
+            cls._addReference(index, sourceId, memberId, "member", f"General/{key}.members.{memberKey}")
+            if not isinstance(memberData, dict):
+                continue
+            cls._addAssetReference(index, memberId, memberData.get("icon"), "", "asset", "icon")
+            graph = memberData.get("_graph")
+            if isinstance(graph, dict):
+                cls._scanNodeGraphReferences(index, memberId, graph, f"General/{key}/{memberKey}._graph")
+                cls._scanGenericReferences(index, memberId, graph, f"General/{key}/{memberKey}._graph")
+
+    @classmethod
+    def _scanNodeGraphReferences(cls, index: Dict[str, Any], sourceId: str, graphData: Any, path: str) -> None:
+        if not isinstance(graphData, dict):
+            return
+        nodeGraph = graphData.get("nodeGraph")
+        if not isinstance(nodeGraph, dict):
+            return
+        for graphKey, graph in nodeGraph.items():
+            if not isinstance(graph, dict):
+                continue
+            nodes = graph.get("nodes")
+            if not isinstance(nodes, list):
+                continue
+            for i, node in enumerate(nodes):
+                if not isinstance(node, dict):
+                    continue
+                nodePath = f"{path}.nodeGraph.{graphKey}.nodes[{i}]"
+                nodeFunction = node.get("nodeFunction")
+                params = node.get("params")
+                cls._scanKnownNodeParamReferences(index, sourceId, nodeFunction, params, nodePath)
+                cls._scanGenericReferences(index, sourceId, params, f"{nodePath}.params")
+
+    @classmethod
+    def _scanKnownNodeParamReferences(
+        cls, index: Dict[str, Any], sourceId: str, nodeFunction: Any, params: Any, path: str
+    ) -> None:
+        if not isinstance(nodeFunction, str) or not isinstance(params, list):
+            return
+        rules = [
+            ((".AddPlayerByClass", ".RemovePlayerByClass"), 0, "blueprint", "", "nodeParam"),
+            ((".AddAnim", ".AddAnimOn", ".GetAnimLength"), 0, "animation", "", "nodeParam"),
+            ((".RunCommonFunction",), 0, "commonFunction", "", "nodeParam"),
+            ((".GotoMap",), 0, "map", "", "nodeParam"),
+            ((".PlaySound",), 0, "asset", "Sounds", "nodeParam"),
+            ((".PlayMusic",), 0, "asset", "Musics", "nodeParam"),
+            ((".PlayVideo",), 0, "asset", "Videos", "nodeParam"),
+            ((".GetItemCount", ".AddItem", ".RemoveItem", ".HasItem"), 0, "generalMember", "Item", "nodeParam"),
+            ((".AddEquip", ".RemoveEquip", ".HasEquip", ".EquipItem"), 0, "generalMember", "Equip", "nodeParam"),
+        ]
+        for suffixes, paramIndex, targetType, base, kind in rules:
+            if not any(nodeFunction.endswith(suffix) for suffix in suffixes):
+                continue
+            if paramIndex >= len(params):
+                continue
+            value = cls._normaliseReferenceParam(params[paramIndex])
+            refPath = f"{path}.params[{paramIndex}]"
+            if targetType == "blueprint":
+                targetId = cls._blueprintNodeIdFromClassPath(value)
+                if targetId:
+                    cls._addReference(index, sourceId, targetId, kind, refPath)
+            elif targetType == "asset":
+                cls._addAssetReference(index, sourceId, value, base, kind, refPath)
+            elif targetType == "map":
+                cls._addMapReference(index, sourceId, value, kind, refPath)
+            elif targetType == "generalMember":
+                if value:
+                    cls._addReference(index, sourceId, cls._referenceNodeId("generalMember", f"{base}/{value}"), kind, refPath)
+            else:
+                if value:
+                    cls._addReference(index, sourceId, cls._referenceNodeId(targetType, value), kind, refPath)
+
+    @classmethod
+    def _scanGenericReferences(cls, index: Dict[str, Any], sourceId: str, value: Any, path: str) -> None:
+        if isinstance(value, str):
+            targetId = cls._blueprintNodeIdFromClassPath(value)
+            if targetId:
+                cls._addReference(index, sourceId, targetId, "blueprintPath", path)
+                return
+            assetKey = cls._normaliseExplicitAssetPath(value)
+            if assetKey:
+                cls._addReference(index, sourceId, cls._referenceNodeId("asset", assetKey), "asset", path)
+            return
+        if isinstance(value, dict):
+            for key, item in value.items():
+                cls._scanGenericReferences(index, sourceId, item, f"{path}.{key}")
+            return
+        if isinstance(value, (list, tuple)):
+            for i, item in enumerate(value):
+                cls._scanGenericReferences(index, sourceId, item, f"{path}[{i}]")
+
+    @classmethod
+    def _addDataFileReference(
+        cls, index: Dict[str, Any], sourceId: str, dataRoot: str, value: Any, kind: str, path: str
+    ) -> None:
+        if dataRoot == "Maps":
+            cls._addMapReference(index, sourceId, value, kind, path)
+
+    @classmethod
+    def _addMapReference(cls, index: Dict[str, Any], sourceId: str, value: Any, kind: str, path: str) -> None:
+        key = cls._normaliseReferenceParam(value)
+        if not key:
+            return
+        key = os.path.splitext(key.replace("\\", "/"))[0]
+        cls._addReference(index, sourceId, cls._referenceNodeId("map", key), kind, path)
+
+    @classmethod
+    def _addAssetReference(
+        cls, index: Dict[str, Any], sourceId: str, value: Any, baseDir: str, kind: str, path: str
+    ) -> None:
+        assetKey = cls._normaliseAssetPath(value, baseDir)
+        if not assetKey:
+            return
+        cls._addReference(index, sourceId, cls._referenceNodeId("asset", assetKey), kind, path)
+
+    @classmethod
+    def _addReference(cls, index: Dict[str, Any], sourceId: str, targetId: str, kind: str, path: str) -> None:
+        if not sourceId or not targetId or sourceId == targetId:
+            return
+        cls._ensureReferenceNode(index, sourceId)
+        cls._ensureReferenceNode(index, targetId)
+        seen = index.get("_seen")
+        marker = (sourceId, targetId, kind, path)
+        if isinstance(seen, set):
+            if marker in seen:
+                return
+            seen.add(marker)
+        record = {"source": sourceId, "target": targetId, "kind": kind, "path": path}
+        index["referencesBySource"].setdefault(sourceId, []).append(record)
+        index["referencedByTarget"].setdefault(targetId, []).append(record)
+
+    @classmethod
+    def _addReferenceNode(cls, index: Dict[str, Any], nodeType: str, key: str) -> str:
+        nodeId = cls._referenceNodeId(nodeType, key)
+        index["nodes"][nodeId] = {"id": nodeId, "type": nodeType, "key": key}
+        return nodeId
+
+    @classmethod
+    def _ensureReferenceNode(cls, index: Dict[str, Any], nodeId: str) -> None:
+        if nodeId in index["nodes"]:
+            return
+        if ":" not in nodeId:
+            index["nodes"][nodeId] = {"id": nodeId, "type": "unknown", "key": nodeId}
+            return
+        nodeType, key = nodeId.split(":", 1)
+        index["nodes"][nodeId] = {"id": nodeId, "type": nodeType, "key": key}
+
+    @classmethod
+    def _referenceNodeId(cls, nodeType: str, key: str) -> str:
+        return f"{nodeType}:{str(key).replace(chr(92), '/')}"
+
+    @classmethod
+    def _blueprintNodeIdFromKey(cls, key: str) -> str:
+        return cls._referenceNodeId("blueprint", "Data.Blueprints." + key.replace("/", "."))
+
+    @classmethod
+    def _blueprintNodeIdFromClassPath(cls, value: Any) -> Optional[str]:
+        if not isinstance(value, str):
+            return None
+        value = value.strip()
+        prefix = "Data.Blueprints."
+        if not value.startswith(prefix):
+            return None
+        return cls._referenceNodeId("blueprint", value)
+
+    @classmethod
+    def _getBlueprintPathVarMap(cls, key: str) -> Dict[str, str]:
+        clsObj = None
+        try:
+            clsObj = cls.classDict.get("Data.Blueprints." + key.replace("/", "."), EditorStatus.PROJ_PATH)
+        except Exception:
+            clsObj = None
+        if not isinstance(clsObj, type):
+            return {}
+        paths: Dict[str, str] = {}
+        try:
+            mro = list(reversed(clsObj.mro()))
+        except Exception:
+            mro = [clsObj]
+        for base in mro:
+            meta = getattr(base, "__dict__", {}).get("_meta")
+            if isinstance(meta, dict):
+                cls._collectReferencePathVars(paths, meta.get("PathVars", ()))
+        return paths
+
+    @classmethod
+    def _collectReferencePathVars(cls, paths: Dict[str, str], value: Any) -> None:
+        if isinstance(value, str):
+            paths[value] = "Characters"
+            return
+        if isinstance(value, tuple) and len(value) >= 2 and isinstance(value[0], str):
+            paths[value[0]] = cls._normaliseAssetBaseDir(value[1])
+            return
+        if isinstance(value, (list, tuple, set)):
+            for item in value:
+                cls._collectReferencePathVars(paths, item)
+
+    @classmethod
+    def _normaliseAssetBaseDir(cls, value: Any) -> str:
+        if not isinstance(value, str):
+            return ""
+        return value.replace("\\", "/").strip("/")
+
+    @classmethod
+    def _normaliseAssetPath(cls, value: Any, baseDir: str) -> str:
+        value = cls._normaliseReferenceParam(value)
+        if not value:
+            return ""
+        value = value.replace("\\", "/").lstrip("/")
+        if value.startswith("./"):
+            value = value[2:]
+        if value.lower().startswith("assets/"):
+            return "Assets/" + value[7:].strip("/")
+        baseDir = cls._normaliseAssetBaseDir(baseDir)
+        if baseDir:
+            return "Assets/" + "/".join(part for part in (baseDir, value) if part).strip("/")
+        return "Assets/" + value.strip("/")
+
+    @classmethod
+    def _normaliseExplicitAssetPath(cls, value: str) -> str:
+        value = value.replace("\\", "/").strip()
+        if value.startswith("./"):
+            value = value[2:]
+        if value.lower().startswith("assets/"):
+            return "Assets/" + value[7:].strip("/")
+        return ""
+
+    @classmethod
+    def _normaliseReferenceParam(cls, value: Any) -> str:
+        if not isinstance(value, str):
+            return ""
+        text = value.strip()
+        if len(text) >= 2 and text[0] == text[-1] and text[0] in ("'", '"'):
+            text = text[1:-1].strip()
+        return text
+
+    @classmethod
+    def _asReferenceDict(cls, value: Any) -> Dict[str, Any]:
+        if isinstance(value, dict):
+            return value
+        asDict = getattr(value, "asDict", None)
+        if callable(asDict):
+            try:
+                data = asDict()
+                if isinstance(data, dict):
+                    return data
+            except Exception:
+                pass
+        valueDict = getattr(value, "__dict__", None)
+        return valueDict if isinstance(valueDict, dict) else {}
+
+    @classmethod
+    def _isAudioAsset(cls, value: Any) -> bool:
+        if not isinstance(value, str):
+            return False
+        return os.path.splitext(value)[1].lower() in (".wav", ".ogg", ".mp3", ".flac", ".aac", ".m4a")
+
+    @classmethod
+    def _sortReferenceRecords(cls, records: List[Dict[str, Any]], nodeKey: str) -> List[Dict[str, Any]]:
+        def sortKey(record: Dict[str, Any]) -> Tuple[str, str, str]:
+            nodeId = record.get(nodeKey, "")
+            node = cls._getReferenceNode(str(nodeId))
+            return (str(node.get("type", "")), str(node.get("key", "")), str(record.get("path", "")))
+
+        return sorted(records, key=sortKey)
+
+    @classmethod
     def asDict(cls) -> Dict[str, Any]:
         return {
             "systemConfigData": cls.systemConfigData,
@@ -699,6 +1312,7 @@ class GameData:
         snapshot = copy.deepcopy(cls.asDict())
         cls.undoStack.append(snapshot)
         cls.redoStack.clear()
+        cls.markReferencesDirty()
 
     @classmethod
     def undo(cls) -> List[str]:
@@ -730,6 +1344,7 @@ class GameData:
     def _restoreSnapshot(cls, snapshot: Dict[str, Any]) -> None:
         for key, value in snapshot.items():
             setattr(cls, key, value)
+        cls.markReferencesDirty()
 
     @classmethod
     def genGraphFromData(cls, data: Dict[str, Any], parentClass: Optional[type] = None) -> Any:

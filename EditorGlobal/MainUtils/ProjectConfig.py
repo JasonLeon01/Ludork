@@ -239,6 +239,7 @@ class ProjectConfigMixin:
         return okData and okIni and okConfigBase, details
 
     def _refreshInfo(self):
+        GameData.markReferencesDirty()
         title = System.GetTitle()
         if self._gameConfigModified and not title.endswith(" *"):
             title += " *"

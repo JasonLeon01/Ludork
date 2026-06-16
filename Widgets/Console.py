@@ -8,6 +8,7 @@ from typing import Optional, Union
 from PyQt5 import QtCore, QtGui, QtWidgets
 from psutil import Popen
 from Utils import Panel
+from .SearchLineEdit import addSearchIcon
 
 
 class PipeReader(QtCore.QThread):
@@ -106,6 +107,7 @@ class ConsoleWidget(QtWidgets.QWidget):
         self._filterButton.setMenu(filterMenu)
 
         self._search = QtWidgets.QLineEdit()
+        addSearchIcon(self._search)
         self._search.setPlaceholderText(ELOC("CONSOLE_SEARCH_HINT"))
         self._search.textChanged.connect(self._refreshView)
 

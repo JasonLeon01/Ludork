@@ -499,6 +499,10 @@
     "zh_CN": "搜索日志",
     "en_GB": "Search logs"
   },
+  "SEARCH": {
+    "zh_CN": "搜索",
+    "en_GB": "Search"
+  },
   "SEGMENT_PROPERTIES": {
     "zh_CN": "片段属性",
     "en_GB": "Segment Properties"
@@ -1342,5 +1346,125 @@
   "ABOUT_COPYRIGHT": {
     "zh_CN": "© 2026 Ludork Team",
     "en_GB": "© 2026 Ludork Team"
+  },
+  "SHOW_REFERENCE_TREE": {
+    "zh_CN": "显示引用树",
+    "en_GB": "Show Reference Tree"
+  },
+  "REFERENCE_TREE_TITLE": {
+    "zh_CN": "引用树 - {name}",
+    "en_GB": "Reference Tree - {name}"
+  },
+  "REFERENCE_OBJECT": {
+    "zh_CN": "对象",
+    "en_GB": "Object"
+  },
+  "REFERENCE_DETAIL": {
+    "zh_CN": "位置",
+    "en_GB": "Location"
+  },
+  "REFERENCE_REFERENCED_BY": {
+    "zh_CN": "被以下对象引用",
+    "en_GB": "Referenced By"
+  },
+  "REFERENCE_REFERENCES": {
+    "zh_CN": "引用以下对象",
+    "en_GB": "References"
+  },
+  "REFERENCE_NONE": {
+    "zh_CN": "无",
+    "en_GB": "None"
+  },
+  "REFERENCE_CYCLE": {
+    "zh_CN": "循环",
+    "en_GB": "Cycle"
+  },
+  "REFERENCE_TYPE_ASSET": {
+    "zh_CN": "资源",
+    "en_GB": "Asset"
+  },
+  "REFERENCE_TYPE_AUTOTILE": {
+    "zh_CN": "自动图块",
+    "en_GB": "AutoTile"
+  },
+  "REFERENCE_TYPE_BLUEPRINT": {
+    "zh_CN": "蓝图",
+    "en_GB": "Blueprint"
+  },
+  "REFERENCE_TYPE_COMMON_FUNCTION": {
+    "zh_CN": "公共函数",
+    "en_GB": "Common Function"
+  },
+  "REFERENCE_TYPE_CONFIG": {
+    "zh_CN": "设置",
+    "en_GB": "Config"
+  },
+  "REFERENCE_TYPE_GENERAL": {
+    "zh_CN": "通用数据",
+    "en_GB": "General Data"
+  },
+  "REFERENCE_TYPE_GENERAL_MEMBER": {
+    "zh_CN": "通用数据成员",
+    "en_GB": "General Member"
+  },
+  "REFERENCE_TYPE_MAP": {
+    "zh_CN": "地图",
+    "en_GB": "Map"
+  },
+  "REFERENCE_TYPE_ANIMATION": {
+    "zh_CN": "动画",
+    "en_GB": "Animation"
+  },
+  "REFERENCE_TYPE_TILESET": {
+    "zh_CN": "图块集",
+    "en_GB": "Tileset"
+  },
+  "REFERENCE_TYPE_UNKNOWN": {
+    "zh_CN": "未知",
+    "en_GB": "Unknown"
+  },
+  "REFERENCE_KIND_ANIMATION_ASSET": {
+    "zh_CN": "动画资源",
+    "en_GB": "Animation Asset"
+  },
+  "REFERENCE_KIND_ASSET": {
+    "zh_CN": "资源",
+    "en_GB": "Asset"
+  },
+  "REFERENCE_KIND_AUTOTILE": {
+    "zh_CN": "自动图块",
+    "en_GB": "AutoTile"
+  },
+  "REFERENCE_KIND_BLUEPRINT_PATH": {
+    "zh_CN": "蓝图路径",
+    "en_GB": "Blueprint Path"
+  },
+  "REFERENCE_KIND_CONFIG_FILE": {
+    "zh_CN": "设置文件字段",
+    "en_GB": "Config File Field"
+  },
+  "REFERENCE_KIND_MAP_ACTOR": {
+    "zh_CN": "地图 Actor",
+    "en_GB": "Map Actor"
+  },
+  "REFERENCE_KIND_MEMBER": {
+    "zh_CN": "成员",
+    "en_GB": "Member"
+  },
+  "REFERENCE_KIND_NODE_PARAM": {
+    "zh_CN": "节点参数",
+    "en_GB": "Node Parameter"
+  },
+  "REFERENCE_KIND_PARENT": {
+    "zh_CN": "父类",
+    "en_GB": "Parent"
+  },
+  "REFERENCE_KIND_TILESET": {
+    "zh_CN": "图块集",
+    "en_GB": "Tileset"
+  },
+  "REFERENCE_KIND_REFERENCE": {
+    "zh_CN": "引用",
+    "en_GB": "Reference"
   }
 }

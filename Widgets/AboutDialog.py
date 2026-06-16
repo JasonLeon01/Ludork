@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+import os
 from typing import Optional, cast
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Utils import File
@@ -44,13 +45,19 @@ class AboutDialog(QtWidgets.QDialog):
         layout.addStretch()
 
         btnBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
+        closeBtn = cast(QtWidgets.QAbstractButton, btnBox.button(QtWidgets.QDialogButtonBox.Close))
+        closeBtn.setText(ELOC("CLOSE"))
         licensesBtn = cast(QtWidgets.QAbstractButton, btnBox.addButton(ELOC("ABOUT_LICENSES"), QtWidgets.QDialogButtonBox.ActionRole))
         licensesBtn.clicked.connect(self._onOpenLicenses)
         btnBox.rejected.connect(self.reject)
         layout.addWidget(btnBox)
 
     def _onOpenLicenses(self) -> None:
-        self._licenseWindow = MarkdownPreviewer(self, File.GetRootPath())
+        self._licenseWindow = MarkdownPreviewer(
+            self,
+            os.path.join(File.GetRootPath(), "LICENSE.md"),
+            ELOC("ABOUT_LICENSES"),
+        )
         self._licenseWindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self._licenseWindow.setWindowModality(QtCore.Qt.ApplicationModal)
         self._licenseWindow.show()

@@ -54,6 +54,7 @@ class FileExplorer(QtWidgets.QWidget):
         self._root = os.path.abspath(root_path)
         self._current = self._root
         self._interactive = True
+        self._referenceDialogs: list[QtWidgets.QDialog] = []
 
         class _Proxy(QtCore.QSortFilterProxyModel):
             def filterAcceptsRow(self, source_row: int, source_parent: QtCore.QModelIndex) -> bool:
@@ -381,7 +382,10 @@ class FileExplorer(QtWidgets.QWidget):
         actDuplicate = None
         actRename = None
         actDelete = None
+        actReferenceTree = None
         if selectedPath:
+            if not isDir and GameData.getReferenceNodeForPath(selectedPath):
+                actReferenceTree = menu.addAction(ELOC("SHOW_REFERENCE_TREE"))
             if not isDir:
                 actDuplicate = menu.addAction(ELOC("DUPLICATE_FILE"))
             actRename = menu.addAction(ELOC("RENAME_FILE"))
@@ -392,6 +396,8 @@ class FileExplorer(QtWidgets.QWidget):
         r = menu.exec_(viewport.mapToGlobal(pos))
         if r == actNewFolder:
             self._createFolder(self._targetDirForNewFolder(selectedPath, isDir))
+        elif actReferenceTree and r == actReferenceTree:
+            self._showReferenceTree(selectedPath)
         elif r == actOpen:
             if selectedPath:
                 self._openSystemFile(selectedPath)
@@ -624,6 +630,24 @@ class FileExplorer(QtWidgets.QWidget):
         layout.addWidget(preview)
         dlg.resize(640, 360)
         dlg.setModal(False)
+        dlg.show()
+
+    def _showReferenceTree(self, p: str) -> None:
+        from .ReferenceTreeDialog import ReferenceTreeDialog
+
+        nodeId = GameData.getReferenceNodeForPath(p)
+        if not nodeId:
+            return
+        dlg = ReferenceTreeDialog(self, nodeId, self)
+        dlg.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        dlg.setModal(False)
+        self._referenceDialogs.append(dlg)
+
+        def _removeDialog(_obj=None, dialog=dlg) -> None:
+            if dialog in self._referenceDialogs:
+                self._referenceDialogs.remove(dialog)
+
+        dlg.destroyed.connect(_removeDialog)
         dlg.show()
 
     def setRootPath(self, root_path: str) -> None:

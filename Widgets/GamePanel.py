@@ -85,7 +85,18 @@ class GamePanel(QtWidgets.QWidget):
             except Exception as e:
                 pass
 
+    def _canForwardInputEvent(self) -> bool:
+        app = QtWidgets.QApplication.instance()
+        if app is None:
+            return True
+        if app.applicationState() != QtCore.Qt.ApplicationActive:
+            return False
+        return app.activeWindow() is not None
+
     def keyPressEvent(self, event: QtGui.QKeyEvent):
+        if not self._canForwardInputEvent():
+            event.accept()
+            return
         keyName = self._keyMap.get(event.key())
         if keyName:
             data = {
@@ -99,6 +110,9 @@ class GamePanel(QtWidgets.QWidget):
             self._sendEvent(data)
 
     def keyReleaseEvent(self, event: QtGui.QKeyEvent):
+        if not self._canForwardInputEvent():
+            event.accept()
+            return
         keyName = self._keyMap.get(event.key())
         if keyName:
             data = {
@@ -112,6 +126,9 @@ class GamePanel(QtWidgets.QWidget):
             self._sendEvent(data)
 
     def mousePressEvent(self, event: QtGui.QMouseEvent):
+        if not self._canForwardInputEvent():
+            event.accept()
+            return
         btn = "Left"
         if event.button() == QtCore.Qt.RightButton:
             btn = "Right"
@@ -127,6 +144,9 @@ class GamePanel(QtWidgets.QWidget):
         self._sendEvent(data)
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent):
+        if not self._canForwardInputEvent():
+            event.accept()
+            return
         btn = "Left"
         if event.button() == QtCore.Qt.RightButton:
             btn = "Right"
@@ -142,17 +162,25 @@ class GamePanel(QtWidgets.QWidget):
         self._sendEvent(data)
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent):
+        if not self._canForwardInputEvent():
+            event.accept()
+            return
         dpr = self._dpr()
         data = {"type": "MouseMoved", "x": int(event.x() * dpr), "y": int(event.y() * dpr)}
         self._sendEvent(data)
 
     def wheelEvent(self, event: QtGui.QWheelEvent):
+        if not self._canForwardInputEvent():
+            event.accept()
+            return
         delta = event.angleDelta().y() / 120.0
         dpr = self._dpr()
         data = {"type": "MouseWheelScrolled", "delta": delta, "x": int(event.x() * dpr), "y": int(event.y() * dpr)}
         self._sendEvent(data)
 
     def focusInEvent(self, event: QtGui.QFocusEvent):
+        if not self._canForwardInputEvent():
+            return
         self._sendEvent({"type": "FocusGained"})
 
     def focusOutEvent(self, event: QtGui.QFocusEvent):

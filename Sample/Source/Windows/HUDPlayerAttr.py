@@ -6,7 +6,6 @@ from Engine import IntRect, Vector2f, Vector2i, Color, Text
 from Engine.UI import Canvas, Image, PlainText, SolidRect, RichText, TextStyle
 from ..Player import Player
 from ..System import System
-from .. import Data
 
 
 class PlayerAttrHUD(Canvas):
@@ -16,16 +15,21 @@ class PlayerAttrHUD(Canvas):
     """
 
     _AVATAR_MIN_SIZE = 32
-    _FONT_SIZE = 12
+    _FONT_SIZE = 22
+    _HEADER_FONT_SIZE = 16
     _HUD_POS_X = 16
     _HUD_POS_Y = 16
-    _STATE_ROW_Y = 16
+    _STATE_OFFSET_X = 48
+    _HEADER_ROW_Y = 0
     _HP_ROW_Y = 32
     _HP_BAR_HEIGHT = 16
     _HP_BAR_WIDTH = 128
-    _STAT_ROW_1_Y = 48
-    _STAT_ROW_2_Y = 64
-    _STAT_ROW_3_Y = 80
+    _STAT_VALUE_X = 160
+    _ATK_ROW_Y = 64
+    _DEF_ROW_Y = 96
+    _EXP_ROW_Y = 160
+    _GOLD_ROW_Y = 192
+    _KEY_ROW_Y = 256
 
     def __init__(self, player: Player) -> None:
         r"""Construct a player attribute HUD bound to the given player instance.
@@ -75,21 +79,25 @@ class PlayerAttrHUD(Canvas):
         self._textStyles["Red"] = TextStyle(fillColor=Color.Red)
 
     def _initLayout(self) -> None:
-        self._hudWidth = max(self._infoStartX + self._hpBarWidth, self._hpBarWidth + self._AVATAR_MIN_SIZE)
+        self._hudWidth = max(
+            self._infoStartX + self._hpBarWidth,
+            self._hpBarWidth + self._AVATAR_MIN_SIZE,
+            self._STAT_VALUE_X,
+        )
         self._hpBarWidth = self._hudWidth
-        self._hudHeight = self._STAT_ROW_3_Y + self._FONT_SIZE + 4
+        self._hudHeight = self._KEY_ROW_Y + self._FONT_SIZE + 4
 
     def _buildUI(self) -> None:
         if self._avatar is not None:
             self._avatar.setPosition((0, 0))
             self.addChild(self._avatar)
 
-        self._levelText = PlainText(self._font, "", self._FONT_SIZE)
-        self._levelText.setPosition((self._infoStartX, 0))
+        self._levelText = PlainText(self._font, "", self._HEADER_FONT_SIZE)
+        self._levelText.setPosition((self._infoStartX, self._HEADER_ROW_Y))
         self.addChild(self._levelText)
 
-        self._stateText = PlainText(self._font, "", self._FONT_SIZE)
-        self._stateText.setPosition((self._infoStartX, self._STATE_ROW_Y))
+        self._stateText = PlainText(self._font, "", self._HEADER_FONT_SIZE)
+        self._stateText.setPosition((self._infoStartX + self._STATE_OFFSET_X, self._HEADER_ROW_Y))
         self.addChild(self._stateText)
 
         self._hpBack = SolidRect((self._hpBarWidth, self._HP_BAR_HEIGHT), Color(24, 24, 24, 220))
@@ -103,16 +111,25 @@ class PlayerAttrHUD(Canvas):
         self._hpText = PlainText(self._font, "", self._FONT_SIZE)
         self.addChild(self._hpText)
 
-        self._statLine1 = PlainText(self._font, "", self._FONT_SIZE)
-        self._statLine1.setPosition((0, self._STAT_ROW_1_Y))
-        self.addChild(self._statLine1)
+        self._statValueTexts: Dict[str, PlainText] = {}
+        for label, y in [
+            ("ATK:", self._ATK_ROW_Y),
+            ("DEF:", self._DEF_ROW_Y),
+            ("EXP:", self._EXP_ROW_Y),
+            ("GOLD:", self._GOLD_ROW_Y),
+        ]:
+            labelText = PlainText(self._font, label, self._FONT_SIZE)
+            labelText.setPosition((0, y))
+            self.addChild(labelText)
 
-        self._statLine2 = PlainText(self._font, "", self._FONT_SIZE)
-        self._statLine2.setPosition((0, self._STAT_ROW_2_Y))
-        self.addChild(self._statLine2)
+            valueText = PlainText(self._font, "", self._FONT_SIZE)
+            valueText.setLineAlignment(Text.LineAlignment.Right)
+            valueText.setPosition((self._STAT_VALUE_X, y))
+            self.addChild(valueText)
+            self._statValueTexts[label[:-1]] = valueText
 
         self._itemText = RichText(self._font, "", self._textStyles)
-        self._itemText.setPosition((0, self._STAT_ROW_3_Y))
+        self._itemText.setPosition((0, self._KEY_ROW_Y))
         self.addChild(self._itemText)
 
     def _refresh(self) -> None:
@@ -130,8 +147,10 @@ class PlayerAttrHUD(Canvas):
         self._levelText.setString(f"Lv. {level}")
         self._stateText.setString(f"[{states}]")
         self._hpText.setString(f"{hp}/{maxhp}")
-        self._statLine1.setString(f"ATK: {atk}\tDEF: {defense}")
-        self._statLine2.setString(f"EXP: {exp}\tGOLD: {gold}")
+        self._statValueTexts["ATK"].setString(f"{atk:02d}")
+        self._statValueTexts["DEF"].setString(f"{defense:02d}")
+        self._statValueTexts["EXP"].setString(f"{exp:02d}")
+        self._statValueTexts["GOLD"].setString(f"{gold:02d}")
 
         hpRate = hp / maxhp
         self._hpFill.setSize(Vector2f(self._hpBarWidth * hpRate, self._HP_BAR_HEIGHT))
@@ -145,6 +164,9 @@ class PlayerAttrHUD(Canvas):
         keyB_count = self._player.getItemCount("KEY_B")
         keyR_count = self._player.getItemCount("KEY_R")
         displayText = (
-            f"#default#KEYS: #Yellow#{keyY_count}#default#\t#Blue#{keyB_count}#default#\t#Red#{keyR_count}#default#"
+            f"#Yellow#{keyY_count:02d}#default#\t#Blue#{keyB_count:02d}#default#\t#Red#{keyR_count:02d}#default#"
         )
         self._itemText.setString(displayText)
+        itemBounds = self._itemText.getLocalBounds()
+        itemX = (self._hudWidth - itemBounds.size.x) / 2.0 - itemBounds.position.x
+        self._itemText.setPosition((itemX, self._KEY_ROW_Y))
