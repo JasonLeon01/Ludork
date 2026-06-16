@@ -8,6 +8,8 @@ from typing import Any, Callable, List, Dict, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from Engine.NodeGraph import Graph
 
+_MISSING = object()
+
 
 @dataclass
 class DataNode:
@@ -96,19 +98,30 @@ class Node:
                         actualParams.append(self.params[i])
                 else:
                     actualParams.append(self.params[i])
-        if hasattr(self.nodeFunction, "_refLocal"):
+        hasRefLocal = hasattr(self.nodeFunction, "_refLocal")
+        oldActiveNodeFunction = _MISSING
+        if hasRefLocal:
             self.parentGraph.localGraph["__key__"] = self.parentGraph.doingPartKey
+            oldActiveNodeFunction = self.parentGraph.localGraph.get("__activeNodeFunction__", _MISSING)
+            self.parentGraph.localGraph["__activeNodeFunction__"] = self.nodeFunction
             self.nodeFunction._refLocal = self.parentGraph.localGraph
         superFunctionName = self.functionName[5:] if self.functionName.startswith("self.") else self.functionName
-        if (
-            actualParams
-            and isinstance(superFunctionName, str)
-            and "." not in superFunctionName
-            and hasattr(actualParams[0], "_callSuperFunction")
-        ):
-            result = actualParams[0]._callSuperFunction(superFunctionName, *actualParams[1:])
-        else:
-            result = self.nodeFunction(*actualParams)
+        try:
+            if (
+                actualParams
+                and isinstance(superFunctionName, str)
+                and "." not in superFunctionName
+                and hasattr(actualParams[0], "_callSuperFunction")
+            ):
+                result = actualParams[0]._callSuperFunction(superFunctionName, *actualParams[1:])
+            else:
+                result = self.nodeFunction(*actualParams)
+        finally:
+            if hasRefLocal:
+                if oldActiveNodeFunction is _MISSING:
+                    self.parentGraph.localGraph.pop("__activeNodeFunction__", None)
+                else:
+                    self.parentGraph.localGraph["__activeNodeFunction__"] = oldActiveNodeFunction
         if not isinstance(result, tuple):
             result = (result,)
         return result

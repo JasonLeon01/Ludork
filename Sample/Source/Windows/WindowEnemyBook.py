@@ -8,6 +8,7 @@ from Engine.UI import Canvas, ListView
 from Engine.UI.Base import FunctionalBase
 from Engine.UI.FunctionalUI import FImage, FPlainText
 from Global import Manager
+from .. import Data
 from .Base import WindowSelectable
 from ..Battler import DamageType
 from ..Enemy import Enemy
@@ -18,8 +19,8 @@ _WINDOW_SIZE = 352
 _CELL_WIDTH = 320
 _CELL_HEIGHT = 64
 _ICON_AREA_WIDTH = 64
-_TEXT_SIZE = 11
-_NAME_TEXT_SIZE = 10
+_TEXT_SIZE = 12
+_NAME_TEXT_SIZE = 16
 
 
 class _EnemyBookCell(Canvas, FunctionalBase):
@@ -61,26 +62,40 @@ class _EnemyBookCell(Canvas, FunctionalBase):
         displayScale = Vector2f(max(0.01, abs(scale.x)), max(0.01, abs(scale.y)))
         iconW = max(1.0, float(self._rect.size.x) * displayScale.x)
         iconH = max(1.0, float(self._rect.size.y) * displayScale.y)
-        fit = min(1.0, (_ICON_AREA_WIDTH - 8) / iconW, (_CELL_HEIGHT - 20) / iconH)
+        fit = min(1.0, _ICON_AREA_WIDTH / iconW, _CELL_HEIGHT / iconH)
         displayScale = Vector2f(displayScale.x * fit, displayScale.y * fit)
         self._icon.setScale(displayScale)
         iconW = float(self._rect.size.x) * displayScale.x
         iconH = float(self._rect.size.y) * displayScale.y
-        self._icon.setPosition(Vector2f((_ICON_AREA_WIDTH - iconW) / 2.0, (48.0 - iconH) / 2.0))
+        self._icon.setPosition(Vector2f((_ICON_AREA_WIDTH - iconW) / 2.0, (_CELL_HEIGHT - iconH) / 2.0))
         self.addChild(self._icon)
 
     def _buildTexts(self, entry: Dict[str, Any]) -> None:
-        name = FPlainText(UI.DefaultFont, self._fitText(entry.get("name", ""), _ICON_AREA_WIDTH - 4), _NAME_TEXT_SIZE)
-        name.setPosition(Vector2f(0.0, 49.0))
+        specialText = entry.get("specialText", "")
+        nameMaxWidth = 96 if specialText else _CELL_WIDTH - _ICON_AREA_WIDTH
+        name = FPlainText(
+            UI.DefaultFont,
+            self._fitText(entry.get("name", ""), nameMaxWidth, _NAME_TEXT_SIZE),
+            _NAME_TEXT_SIZE,
+        )
+        name.setPosition(Vector2f(64.0, 0.0))
         self.addChild(name)
+        if specialText:
+            special = FPlainText(
+                UI.DefaultFont,
+                self._fitText(specialText, _CELL_WIDTH - 160, _NAME_TEXT_SIZE),
+                _NAME_TEXT_SIZE,
+            )
+            special.setPosition(Vector2f(160.0, 0.0))
+            self.addChild(special)
 
         statTexts = [
-            (Vector2f(64.0, 6.0), f"MAXHP:{entry.get('MAXHP', 0)}"),
-            (Vector2f(150.0, 6.0), f"ATK:{entry.get('ATK', 0)}"),
-            (Vector2f(236.0, 6.0), f"DEF:{entry.get('DEF', 0)}"),
-            (Vector2f(64.0, 34.0), f"EXP:{entry.get('EXP', 0)}"),
-            (Vector2f(150.0, 34.0), f"GOLD:{entry.get('GOLD', 0)}"),
-            (Vector2f(236.0, 34.0), f"DMG:{entry.get('damage', '--')}"),
+            (Vector2f(64.0, 24.0), f"MAXHP:{entry.get('MAXHP', 0)}"),
+            (Vector2f(150.0, 24.0), f"ATK:{entry.get('ATK', 0)}"),
+            (Vector2f(236.0, 24.0), f"DEF:{entry.get('DEF', 0)}"),
+            (Vector2f(64.0, 44.0), f"EXP:{entry.get('EXP', 0)}"),
+            (Vector2f(150.0, 44.0), f"GOLD:{entry.get('GOLD', 0)}"),
+            (Vector2f(236.0, 44.0), f"DMG:{entry.get('damage', '--')}"),
         ]
         for position, value in statTexts:
             text = FPlainText(UI.DefaultFont, value, _TEXT_SIZE)
@@ -89,20 +104,20 @@ class _EnemyBookCell(Canvas, FunctionalBase):
             text.setPosition(position)
             self.addChild(text)
 
-    def _fitText(self, text: str, maxWidth: int) -> str:
+    def _fitText(self, text: str, maxWidth: int, textSize: int) -> str:
         if not text:
             return ""
         result = text
-        while result and self._measureText(result) > maxWidth:
+        while result and self._measureText(result, textSize) > maxWidth:
             result = result[:-1]
         if result != text and len(result) > 1:
             result = result[:-1] + "."
         return result
 
-    def _measureText(self, text: str) -> float:
+    def _measureText(self, text: str, textSize: int) -> float:
         from Engine import Scale
 
-        charSize = int(_NAME_TEXT_SIZE * Scale)
+        charSize = int(textSize * Scale)
         return sum(UI.DefaultFont.getGlyph(ch, charSize, False).advance for ch in text) / Scale
 
     def _animateIcon(self, deltaTime: float) -> None:
@@ -219,6 +234,7 @@ class WindowEnemyBook(WindowSelectable):
             "EXP": int(enemy.infoComp.EXP),
             "GOLD": int(enemy.infoComp.GOLD),
             "damage": "--" if damageType == DamageType.UNDEFEATABLE else int(damage),
+            "specialText": self._formatSpecialText(enemy.getSpecial()),
             "texture": enemy.getTexture(),
             "texturePath": getattr(enemy, "texturePath", ""),
             "rect": copy.copy(enemy.getTextureRect()),
@@ -241,10 +257,22 @@ class WindowEnemyBook(WindowSelectable):
             entry.get("EXP", 0),
             entry.get("GOLD", 0),
             entry.get("damage", "--"),
+            entry.get("specialText", ""),
             entry.get("texturePath", ""),
             rectKey,
             (scale.x, scale.y),
         )
+
+    def _formatSpecialText(self, special: Dict[str, Any]) -> str:
+        if not isinstance(special, dict) or len(special) == 0:
+            return LOC("NORMAL_SPECIAL")
+        if len(special) > 3:
+            return LOC("MORE_SPECIAL")
+        names = []
+        for specialKey in special.keys():
+            specialData = Data.getGeneralSpecialData(str(specialKey))
+            names.append(self._formatName(specialData.get("name", specialKey)))
+        return " ".join(names)
 
     def _formatName(self, name: str) -> str:
         try:

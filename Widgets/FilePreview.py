@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Optional
+from typing import Optional, cast
 from PyQt5 import QtCore, QtGui, QtWidgets, QtMultimedia
 from Utils import Panel
 
@@ -148,7 +148,8 @@ class FilePreview(QtWidgets.QWidget):
 
     def _setPlayButtonIcon(self, playing: bool) -> None:
         icon = QtWidgets.QStyle.SP_MediaPause if playing else QtWidgets.QStyle.SP_MediaPlay
-        self._playButton.setIcon(self.style().standardIcon(icon))
+        style = cast(QtWidgets.QStyle, self.style())
+        self._playButton.setIcon(style.standardIcon(icon))
         self._playButton.setToolTip(ELOC("STOP_ANIMATION" if playing else "PLAY_ANIMATION"))
 
     def _onMediaStatusChanged(self, st: QtMultimedia.QMediaPlayer.MediaStatus) -> None:

@@ -6,7 +6,7 @@ from Engine import Pair, Image, IntRect, Vector2f, Vector2i, Input, View, FloatR
 from Engine.UI import Rect, ListView
 from Engine.Utils import Math
 from Engine.UI.Base import ControlBase, FunctionalBase
-from Global import Manager, System
+from Global import Manager
 from .WindowBase import WindowBase
 from ...System import System as GameSystem
 
@@ -95,11 +95,12 @@ class WindowSelectable(WindowBase):
         self._rect.setOpacityMultiplier(1.0 if active else _INACTIVE_SELECTION_RECT_OPACITY_MULTIPLIER)
         if self._rect.getParent() is None:
             self.content.addChild(self._rect)
-        if active and self._isHovered and self._listView:
-            for index, child in enumerate(self._listView.getChildren()):
-                if isinstance(child, FunctionalBase):
-                    if child.isHovered():
-                        self.index = index
+        if active and self._isHovered and self._listView and Input.isMouseInputMode() and Input.isMouseMoved():
+            mousePos = Math.ToVector2f(Input.getMousePosition())
+            for hoverIndex, child in enumerate(self._listView.getChildren()):
+                if isinstance(child, ControlBase):
+                    if child.getAbsoluteBounds().contains(mousePos):
+                        self.index = hoverIndex
         if active and self._listView:
             self._confirmMouseSelection()
         if active and self._listView and Input.isTouchBegan():
@@ -128,10 +129,6 @@ class WindowSelectable(WindowBase):
         elif delta < 0:
             self.index = min(self._itemCount() - 1, self.index + 1)
         self._updateScroll()
-        targetChild = self._listView.getChildren()[self.index]
-        if isinstance(targetChild, ControlBase):
-            bounds: FloatRect = targetChild.getAbsoluteBounds()
-            Input.setMousePosition(Math.ToVector2i(bounds.position + bounds.size / 2), System.getWindow())
 
     def onMouseMoved(self, kwargs: Dict[str, Any]) -> None:
         r"""\brief Handle mouse movement events.

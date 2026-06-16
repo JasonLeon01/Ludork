@@ -14,7 +14,7 @@ from Engine import (
     Texture,
 )
 from Engine.Gameplay.Actors import Actor
-from Engine.Utils import File, Render
+from Engine.Utils import File, Inner, Render
 from Global import SceneBase, GameMap
 from Global import System as GlobalSystem
 from Source import System
@@ -233,10 +233,11 @@ class Scene(SceneBase):
             self._blockMapInput(2)
 
         self.player.setMoveEnabled(False)
+        localVars = self._getDialogueLocalVars(type(self).showMessage)
         self._messageWindow.setMessage(
             refPosition,
-            name,
-            message,
+            self._formatDialogueText(name, localVars),
+            self._formatDialogueText(message, localVars),
             onFinished=restoreMove,
         )
 
@@ -280,10 +281,11 @@ class Scene(SceneBase):
             self._blockMapInput(2)
 
         self.player.setMoveEnabled(False)
+        localVars = self._getDialogueLocalVars(type(self).showSelection)
         self._messageWindow.setMessage(
             refPosition,
-            name,
-            options,
+            self._formatDialogueText(name, localVars),
+            [self._formatDialogueText(option, localVars) for option in options],
             allowCancel=allowCancel,
             onFinished=restoreMove,
         )
@@ -407,6 +409,24 @@ class Scene(SceneBase):
             ((x, y), (_SHOP_WIDTH, _SHOP_COMMAND_HEIGHT)),
             ((x, y + _SHOP_COMMAND_HEIGHT), (_SHOP_WIDTH, _SHOP_ITEM_SIZE)),
         )
+
+    def _getDialogueLocalVars(self, nodeFunction) -> Dict[str, Any]:
+        refLocal = getattr(nodeFunction, "_refLocal", {})
+        if not isinstance(refLocal, dict):
+            return {}
+        if refLocal.get("__activeNodeFunction__") is not nodeFunction:
+            return {}
+        return {key: value for key, value in refLocal.items() if isinstance(key, str) and not key.startswith("__")}
+
+    def _formatDialogueText(self, text: str, localVars: Dict[str, Any]) -> str:
+        if not isinstance(text, str):
+            return str(text)
+        text = Inner.ApplyStringLocaleFormat(text)
+        text = Inner.ApplyStringMappingFormat(text, localVars)
+        inst = getattr(self, "inst", None)
+        if inst is not None:
+            text = Inner.ApplyStringMappingFormat(text, inst.getVariables())
+        return text
 
     def _getEnemyBookRect(self):
         gameSize = GlobalSystem.getGameSize()

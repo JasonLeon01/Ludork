@@ -1,7 +1,6 @@
 # -*- encoding: utf-8 -*-
 
 import os
-import re
 import sys
 import warnings
 from pathlib import Path
@@ -68,6 +67,26 @@ def filterDataClassParams(params: Dict[str, Any], type_: type) -> Dict[str, Any]
     return {k: v for k, v in params.items() if hasattr(type_, k)}
 
 
+class _PreserveMissingFormatDict(dict):
+    def __missing__(self, key: str) -> str:
+        return "{" + key + "}"
+
+
+def ApplyStringMappingFormat(string: str, values: Dict[str, Any]) -> str:
+    r"""
+    \brief Replace known `{key}` placeholders with values from a mapping.
+
+    Unknown placeholders are preserved so later format passes can resolve them.
+
+    - \param string Source string containing placeholders.
+    - \param values Mapping used for replacement.
+    - \return Formatted string.
+    """
+    if not isinstance(string, str) or not values:
+        return string
+    return string.format_map(_PreserveMissingFormatDict(values))
+
+
 def ApplyStringLocaleFormat(string: str) -> str:
     r"""
     \brief Format a string by replacing placeholders with locale values.
@@ -77,6 +96,4 @@ def ApplyStringLocaleFormat(string: str) -> str:
     - \param string String containing {key} placeholders.
     - \return Formatted string with placeholders replaced by locale values.
     """
-    pattern = r"\{(.*?)\}"
-    matches = re.findall(pattern, string)
-    return string.format(**{match: LOC(match) for match in matches})
+    return ApplyStringMappingFormat(string, LOC_D())

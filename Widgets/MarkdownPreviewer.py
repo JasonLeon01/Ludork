@@ -8,9 +8,9 @@ import os
 import re
 import token
 import tokenize
+from typing import cast
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QWidget
-from Utils import File
 
 
 class MarkdownPreviewer(QWidget):
@@ -23,6 +23,10 @@ class MarkdownPreviewer(QWidget):
         self._currentText = ""
         self._currentBaseDir = ""
         self._collapsedHeadings: set[str] = set()
+        self._searchMatches: list[QtGui.QTextCursor] = []
+        self._entrySearchCache: dict[str, str] = {}
+        self._suppressSelectionLoad = False
+        self._shortcuts: list[QtWidgets.QShortcut] = []
         self._list = QtWidgets.QTreeWidget(self)
         self._list.setHeaderHidden(True)
         self._list.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
@@ -42,22 +46,55 @@ class MarkdownPreviewer(QWidget):
         splitter.setCollapsible(1, False)
         splitter.setSizes([max(72, int(self.width() * 0.2)), max(300, int(self.width() * 0.8))])
         self._list.setMinimumWidth(72)
-        lay = QtWidgets.QHBoxLayout(self)
+        lay = QtWidgets.QVBoxLayout(self)
         lay.setContentsMargins(8, 8, 8, 8)
         lay.setSpacing(8)
+        lay.addWidget(self._createToolbar())
         lay.addWidget(splitter, 1)
         self._list.currentItemChanged.connect(self._onCurrentItemChanged)
         self._preview.anchorClicked.connect(self._onAnchorClicked)
+        self._initShortcuts()
         self._populate()
 
     def set_text(self, mdContent: str) -> None:
         self._render(mdContent)
+
+    def _createToolbar(self) -> QtWidgets.QWidget:
+        bar = QtWidgets.QWidget(self)
+        lay = QtWidgets.QHBoxLayout(bar)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(4)
+
+        self._search = QtWidgets.QLineEdit(bar)
+        self._search.setClearButtonEnabled(True)
+        self._search.setFixedWidth(220)
+        self._search.textChanged.connect(self._refreshSearch)
+        lay.addWidget(self._search)
+
+        self._searchCountLabel = QtWidgets.QLabel("", bar)
+        self._searchCountLabel.setMinimumWidth(52)
+        self._searchCountLabel.setAlignment(QtCore.Qt.AlignCenter)
+        lay.addWidget(self._searchCountLabel)
+
+        lay.addStretch(1)
+
+        self._updateSearchState()
+        return bar
+
+    def _initShortcuts(self) -> None:
+        self._addShortcut(QtGui.QKeySequence.Find, self._focusSearch)
+
+    def _addShortcut(self, sequence: QtGui.QKeySequence, slot) -> None:
+        shortcut = QtWidgets.QShortcut(sequence, self)
+        shortcut.activated.connect(slot)
+        self._shortcuts.append(shortcut)
 
     def _populate(self) -> None:
         entries = []
         if self._dir and os.path.isdir(self._dir):
             entries = self._collectEntries(self._dir)
         self._list.clear()
+        self._entrySearchCache.clear()
         firstItem = None
         parents: dict[int, QtWidgets.QTreeWidgetItem] = {}
         for entry in entries:
@@ -75,7 +112,9 @@ class MarkdownPreviewer(QWidget):
         if entries:
             self._list.expandAll()
             if firstItem is not None:
+                self._suppressSelectionLoad = True
                 self._list.setCurrentItem(firstItem)
+                self._suppressSelectionLoad = False
             self._loadEntry(entries[0]["path"], entries[0]["isDir"])
         else:
             self._preview.setPlainText("No markdown files")
@@ -124,7 +163,7 @@ class MarkdownPreviewer(QWidget):
         current: QtWidgets.QTreeWidgetItem | None,
         previous: QtWidgets.QTreeWidgetItem | None,
     ) -> None:
-        if not current:
+        if not current or self._suppressSelectionLoad:
             return
         name = current.data(0, QtCore.Qt.UserRole) or current.text(0).strip()
         isDir = bool(current.data(0, QtCore.Qt.UserRole + 1))
@@ -133,8 +172,8 @@ class MarkdownPreviewer(QWidget):
     def _loadEntry(self, name: str, isDir: bool) -> None:
         if isDir:
             self._renderDirectory(name)
-            return
-        self._loadFile(name)
+        else:
+            self._loadFile(name)
 
     def _loadFile(self, name: str) -> None:
         p = os.path.join(self._dir, name)
@@ -169,13 +208,14 @@ class MarkdownPreviewer(QWidget):
         doc = self._preview.document()
         if not doc:
             return
+        doc = cast(QtGui.QTextDocument, doc)
         self._currentText = text
         self._currentBaseDir = baseDir or self._dir
         if not keepCollapse:
             self._collapsedHeadings.clear()
-        if isinstance(doc, QtGui.QTextDocument):
-            doc.setBaseUrl(QtCore.QUrl.fromLocalFile(self._currentBaseDir))
+        doc.setBaseUrl(QtCore.QUrl.fromLocalFile(self._currentBaseDir))
         self._preview.setHtml(self._md2html(text))
+        self._highlightSearchMatches()
 
     def _onAnchorClicked(self, url: QtCore.QUrl) -> None:
         if url.scheme() == "ludork-collapse":
@@ -197,6 +237,140 @@ class MarkdownPreviewer(QWidget):
         else:
             self._collapsedHeadings.add(headingId)
         self._render(self._currentText, self._currentBaseDir, True)
+
+    def _focusSearch(self) -> None:
+        self._search.setFocus()
+        self._search.selectAll()
+
+    def _refreshSearch(self) -> None:
+        if not hasattr(self, "_search"):
+            return
+        query = self._search.text().strip()
+        visibleCount = self._filterEntries(query)
+        current = self._list.currentItem()
+        if current is None or current.isHidden():
+            firstItem = self._firstVisibleItem()
+            if firstItem is not None:
+                self._suppressSelectionLoad = True
+                self._list.setCurrentItem(firstItem)
+                self._list.scrollToItem(firstItem)
+                self._suppressSelectionLoad = False
+                name = firstItem.data(0, QtCore.Qt.UserRole) or firstItem.text(0).strip()
+                isDir = bool(firstItem.data(0, QtCore.Qt.UserRole + 1))
+                self._loadEntry(name, isDir)
+        self._highlightSearchMatches()
+        self._updateSearchState(visibleCount)
+
+    def _filterEntries(self, query: str) -> int:
+        visibleCount = 0
+
+        def filterItem(item: QtWidgets.QTreeWidgetItem) -> bool:
+            nonlocal visibleCount
+            childVisible = False
+            for i in range(item.childCount()):
+                childVisible = filterItem(item.child(i)) or childVisible
+            itemVisible = not query or self._entryMatchesQuery(item, query)
+            visible = itemVisible or childVisible
+            item.setHidden(not visible)
+            if query and itemVisible:
+                visibleCount += 1
+            if visible:
+                if childVisible:
+                    item.setExpanded(True)
+            return visible
+
+        for i in range(self._list.topLevelItemCount()):
+            filterItem(self._list.topLevelItem(i))
+        return visibleCount
+
+    def _entryMatchesQuery(self, item: QtWidgets.QTreeWidgetItem, query: str) -> bool:
+        if not query:
+            return True
+        normalized = query.casefold()
+        if normalized in item.text(0).casefold():
+            return True
+        path = item.data(0, QtCore.Qt.UserRole)
+        if not isinstance(path, str) or bool(item.data(0, QtCore.Qt.UserRole + 1)):
+            return False
+        return normalized in self._entrySearchText(path)
+
+    def _entrySearchText(self, name: str) -> str:
+        if name in self._entrySearchCache:
+            return self._entrySearchCache[name]
+        p = os.path.join(self._dir, name)
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                text = f.read()
+        except OSError:
+            text = ""
+        text = text.casefold()
+        self._entrySearchCache[name] = text
+        return text
+
+    def _firstVisibleItem(self) -> QtWidgets.QTreeWidgetItem | None:
+        def findInItem(item: QtWidgets.QTreeWidgetItem) -> QtWidgets.QTreeWidgetItem | None:
+            isDir = bool(item.data(0, QtCore.Qt.UserRole + 1))
+            if not item.isHidden() and not isDir:
+                return item
+            for i in range(item.childCount()):
+                found = findInItem(item.child(i))
+                if found is not None:
+                    return found
+            return None
+
+        for i in range(self._list.topLevelItemCount()):
+            found = findInItem(self._list.topLevelItem(i))
+            if found is not None:
+                return found
+
+        def findAnyInItem(item: QtWidgets.QTreeWidgetItem) -> QtWidgets.QTreeWidgetItem | None:
+            if not item.isHidden():
+                return item
+            for i in range(item.childCount()):
+                found = findAnyInItem(item.child(i))
+                if found is not None:
+                    return found
+            return None
+
+        for i in range(self._list.topLevelItemCount()):
+            found = findAnyInItem(self._list.topLevelItem(i))
+            if found is not None:
+                return found
+        return None
+
+    def _highlightSearchMatches(self) -> None:
+        self._searchMatches.clear()
+        query = self._search.text().strip()
+        if query:
+            doc = self._preview.document()
+            if not doc:
+                self._applySearchHighlights()
+                return
+            doc = cast(QtGui.QTextDocument, doc)
+            cursor = QtGui.QTextCursor(doc)
+            while True:
+                cursor = doc.find(query, cursor)
+                if cursor.isNull():
+                    break
+                self._searchMatches.append(QtGui.QTextCursor(cursor))
+        self._applySearchHighlights()
+
+    def _applySearchHighlights(self) -> None:
+        selections = []
+        for cursor in self._searchMatches:
+            selection = QtWidgets.QTextEdit.ExtraSelection()
+            selection.cursor = cursor
+            fmt = QtGui.QTextCharFormat()
+            fmt.setBackground(QtGui.QColor("#c9a227"))
+            fmt.setForeground(QtGui.QColor("#111111"))
+            selection.format = fmt
+            selections.append(selection)
+        self._preview.setExtraSelections(selections)
+
+    def _updateSearchState(self, visibleCount: int | None = None) -> None:
+        hasQuery = bool(getattr(self, "_search", None) and self._search.text())
+        if hasattr(self, "_searchCountLabel"):
+            self._searchCountLabel.setText(str(visibleCount) if hasQuery and visibleCount is not None else "")
 
     def _md2html(self, text: str) -> str:
         lines = text.splitlines()
@@ -259,6 +433,10 @@ class MarkdownPreviewer(QWidget):
                 continue
             if hiddenLevels:
                 continue
+            if self._isThematicBreak(ln):
+                flush_list()
+                out.append("<hr>")
+                continue
             m = re.match(r"^\s*[-*]\s+(.*)$", ln)
             if m:
                 if not in_list:
@@ -284,11 +462,16 @@ class MarkdownPreviewer(QWidget):
             "pre{background:#1e1e1e;color:#dcdcdc;border:1px solid #444;padding:10px;margin:10px 0;}"
             "code{font-family:Consolas,monospace;}"
             "ul{padding-left:20px;}"
+            "hr{border:0;border-top:1px solid #555;margin:16px 0;}"
             "p{line-height:1.6;}"
             "a{color:#4aa3ff;text-decoration:none;}"
             "</style>"
         )
         return "<html><head>" + style + "</head><body>" + "\n".join(out) + "</body></html>"
+
+    def _isThematicBreak(self, line: str) -> bool:
+        compact = re.sub(r"[ \t]", "", line.strip())
+        return len(compact) >= 3 and compact[0] in "-_*" and set(compact) == {compact[0]}
 
     def _codeBlockHtml(self, lang: str, code: str) -> str:
         content = self._highlightCode(lang, code)
