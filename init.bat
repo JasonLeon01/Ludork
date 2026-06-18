@@ -122,6 +122,8 @@ if errorlevel 1 (
 )
 
 :RUN_APP
+call tools\apply_nodegraphqt_patch.bat
+if errorlevel 1 exit /b 1
 call build_C_Ext.bat
 
 cd ..

@@ -138,6 +138,7 @@ if [ ! -f "$ENV_DIR/bin/activate" ]; then
   fi
 fi
 
+bash tools/apply_nodegraphqt_patch.sh
 bash ./build_C_Ext.sh
 
 "$PY_CMD" main.py

@@ -1,0 +1,13 @@
+diff --git a/qgraphics/node_base.py b/qgraphics/node_base.py
+--- a/qgraphics/node_base.py
++++ b/qgraphics/node_base.py
+@@ -742,7 +742,8 @@ class NodeItem(AbstractNodeItem):
+         # width is the node width in screen
+         width = r.x() - l.x()
+ 
+-        self.set_proxy_mode(width < self._proxy_mode_threshold)
++        # Issue #411: keep proxy mode disabled to avoid embedded widget layout drift on zoom.
++        self.set_proxy_mode(False)
+ 
+     def set_proxy_mode(self, mode):
+         """

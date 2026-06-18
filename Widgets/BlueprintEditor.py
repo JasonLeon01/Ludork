@@ -11,6 +11,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 from EditorGlobal import EditorStatus, GameData
 from Utils import System, File, SFMLRender
 from Widgets.Utils import SingleRowDialog, NodePanel, Toast, RectViewer, DataclassWidget, FileSelectorDialog
+from Widgets.Utils.BlueprintPreview import isBlueprintPreviewable
 from Widgets.Utils.ColourPickerDialog import ColourVarEditor
 from Widgets.Utils.MetaRely import getRelyConditionDisplay, getRelySourceSet, isRelyEditable, normaliseRelyMap
 from Widgets.Utils.MetaVarTypes import getMetaVarTypes
@@ -708,6 +709,7 @@ class BluePrintEditor(QtWidgets.QWidget):
 
         self.rightPanel = QtWidgets.QWidget()
         self.rightLayout = QtWidgets.QVBoxLayout(self.rightPanel)
+        self.rightLayout.setSpacing(0)
 
         self.nodeGraphList = QtWidgets.QListWidget()
         self.nodeGraphList.setFlow(QtWidgets.QListWidget.LeftToRight)
@@ -770,11 +772,24 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.stackedWidget.addWidget(panel)
         self.stackedWidget.setCurrentWidget(panel)
 
+    def _supportsPreview(self) -> bool:
+        return isBlueprintPreviewable(self._resolveClass())
+
     def refreshGraphList(self) -> None:
+        current_kind = None
+        current_graph = None
+        current_item = self.nodeGraphList.currentItem()
+        if current_item is not None:
+            current_kind = current_item.data(QtCore.Qt.UserRole)
+            if current_kind == _GRAPH_TAB_KIND:
+                current_graph = current_item.text()
+
         self.nodeGraphList.clear()
-        previewItem = QtWidgets.QListWidgetItem(ELOC("PREVIEW"))
-        previewItem.setData(QtCore.Qt.UserRole, _PREVIEW_TAB_KIND)
-        self.nodeGraphList.addItem(previewItem)
+        preview_supported = self._supportsPreview()
+        if preview_supported:
+            previewItem = QtWidgets.QListWidgetItem(ELOC("PREVIEW"))
+            previewItem.setData(QtCore.Qt.UserRole, _PREVIEW_TAB_KIND)
+            self.nodeGraphList.addItem(previewItem)
         if "graph" in self.data and isinstance(self.data["graph"], dict):
             nodeGraph = self.data["graph"].get("nodeGraph")
             if isinstance(nodeGraph, dict):
@@ -783,8 +798,27 @@ class BluePrintEditor(QtWidgets.QWidget):
                     item.setData(QtCore.Qt.UserRole, _GRAPH_TAB_KIND)
                     self.nodeGraphList.addItem(item)
 
-        if self.nodeGraphList.count() > 0:
+        if self.nodeGraphList.count() <= 0:
+            return
+        if preview_supported and current_kind == _PREVIEW_TAB_KIND:
             self.nodeGraphList.setCurrentRow(0)
+            return
+        if isinstance(current_graph, str) and current_graph:
+            graph_item = self._findGraphListItem(current_graph)
+            if graph_item is not None:
+                self.nodeGraphList.setCurrentItem(graph_item)
+                return
+        self.nodeGraphList.setCurrentRow(0)
+
+    def onOrganizeGraph(self) -> None:
+        item = self.nodeGraphList.currentItem()
+        if item is None or self._isPreviewGraphItem(item):
+            return
+        self.onGraphSelected(item.text())
+        currentWidget = self.stackedWidget.currentWidget()
+        if not isinstance(currentWidget, NodePanel):
+            return
+        currentWidget.organizeLayout()
 
     def _getDisplayOrder(self, attrs: Dict[str, Any], cls: Optional[type]) -> list[str]:
         if not cls or not isinstance(cls, type):
@@ -1210,6 +1244,8 @@ class BluePrintEditor(QtWidgets.QWidget):
         GameData.recordSnapshot()
         GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
         self.MODIFIED.emit()
+        if not isAttr and key == "parent":
+            self.refreshGraphList()
         self._refreshPreview()
         if isAttr and key in self.attrRelySources:
             QtCore.QTimer.singleShot(0, self.refreshAttrs)
@@ -1433,6 +1469,8 @@ class BluePrintEditor(QtWidgets.QWidget):
         return baseDir
 
     def _refreshPreview(self) -> None:
+        if not self._supportsPreview():
+            return
         preview = getattr(self, "previewWidget", None)
         if isinstance(preview, BluePrintPreviewWidget):
             preview.refreshPreview()
@@ -1587,12 +1625,15 @@ class BluePrintEditor(QtWidgets.QWidget):
         action_new.triggered.connect(self._onNewEvent)
         item = self.nodeGraphList.currentItem() if has_item else None
         if has_item and not self._isPreviewGraphItem(item):
+            action_organise = menu.addAction(ELOC("ORGANIZE_GRAPH"))
             action_rename = menu.addAction(ELOC("RENAME_EVENT"))
             action_del = menu.addAction(ELOC("DELETE_EVENT"))
 
-            if action_rename is None or action_del is None:
+            if action_organise is None or action_rename is None or action_del is None:
                 return
 
+            action_organise.setToolTip(ELOC("ORGANIZE_GRAPH_TIP"))
+            action_organise.triggered.connect(self.onOrganizeGraph)
             action_rename.triggered.connect(self._onRenameEvent)
             action_del.triggered.connect(self._onDeleteEvent)
         menu.exec_(self.nodeGraphList.mapToGlobal(pos))

@@ -20,6 +20,7 @@ from .FileSelectorDialog import FileSelectorDialog
 from .FunctionPickerPopup import FunctionPickerPopup
 from .MetaRely import getRelyConditionDisplay, isRelyEditable, normaliseRelyMap, toBool
 from .MetaVarTypes import getMetaVarTypes
+from .GraphLayout import computeGraphLayoutPositions
 from .MoveRouteEditor import MoveRouteEditor
 from .NodeFunctionMeta import getExecSplits, getLatents, getReturnTypes, hasExecOutputs
 from .TransferPosEditor import TransferPosEditor
@@ -1111,6 +1112,58 @@ class NodePanel(QtWidgets.QWidget):
         if isinstance(data_list, list) and start in data_list:
             return data_list.index(start)
         return None
+
+    def organizeLayout(self) -> None:
+        if not self.nodes:
+            return
+        positions = self._computeOrganizedPositions()
+        if not positions:
+            return
+        self._applyOrganizedPositions(positions)
+        self.graph.clear_selection()
+        for nodeInst in self.nodes + self.defaultNodes:
+            nodeInst.set_selected(True)
+        QtCore.QTimer.singleShot(0, self.graph.fit_to_selection)
+        self.graph.clear_selection()
+
+    def _computeOrganizedPositions(self) -> Dict[Union[int, str], Tuple[float, float]]:
+        nodeRely = self.nodeGraph.nodeRely.get(self.key, {})
+        if not isinstance(nodeRely, dict):
+            nodeRely = {}
+        return computeGraphLayoutPositions(
+            len(self.nodes),
+            self.nodeGraph.links.get(self.key, []),
+            nodeRely,
+            self._getStartIndex(),
+            len(self.defaultNodes),
+        )
+
+    def _applyOrganizedPositions(self, positions: Dict[Union[int, str], Tuple[float, float]]) -> None:
+        from NodeGraph import EditorDataNode
+
+        for idx, nodeInst in enumerate(self.nodes):
+            if idx not in positions:
+                continue
+            x, y = positions[idx]
+            nodeInst.set_pos(x, y)
+            graphNode = self.nodeGraph.nodes[self.key][idx]
+            graphNode.position = [x, y]
+            dataNodes = self.nodeGraph.dataNodes.get(self.key, [])
+            if 0 <= idx < len(dataNodes):
+                dataNode = dataNodes[idx]
+                if isinstance(dataNode, EditorDataNode):
+                    dataNode.pos = [x, y]
+
+        for idx, nodeInst in enumerate(self.defaultNodes):
+            key = f"default_{idx}"
+            if key not in positions:
+                continue
+            x, y = positions[key]
+            nodeInst.set_pos(x, y)
+
+        GameData.recordSnapshot()
+        self._refreshCallable(self.name, self.nodeGraph.asDict())
+        self.MODIFIED.emit()
 
     def _resolveLinkNodeRef(self, ref: Union[int, str]) -> Tuple[BaseNode, Optional[Any]]:
         """Resolve a link endpoint reference to a visual node and its data node.

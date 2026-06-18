@@ -70,6 +70,11 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
         item = self._list.itemAt(position)
 
         if item:
+            organiseAction = QtWidgets.QAction(ELOC("ORGANIZE_GRAPH"), self)
+            organiseAction.setToolTip(ELOC("ORGANIZE_GRAPH_TIP"))
+            organiseAction.triggered.connect(self._onOrganizeGraph)
+            menu.addAction(organiseAction)
+
             copyAction = QtWidgets.QAction(ELOC("COPY"), self)
             copyAction.triggered.connect(self._onCopy)
             menu.addAction(copyAction)
@@ -92,6 +97,16 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
                 menu.addAction(pasteAction)
 
         menu.exec_(self._list.mapToGlobal(position))
+
+    def _onOrganizeGraph(self) -> None:
+        item = self._list.currentItem()
+        if not item:
+            return
+        name = item.text()
+        self._onSelect(name)
+        panel = self._panels.get(name)
+        if isinstance(panel, NodePanel):
+            panel.organizeLayout()
 
     def _onCopy(self) -> None:
         item = self._list.currentItem()

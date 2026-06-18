@@ -1423,6 +1423,14 @@
     "zh_CN": "编辑蓝图",
     "en_GB": "Edit Blueprint"
   },
+  "ORGANIZE_GRAPH": {
+    "zh_CN": "整理",
+    "en_GB": "Organise"
+  },
+  "ORGANIZE_GRAPH_TIP": {
+    "zh_CN": "自动整理蓝图节点布局，不影响节点数据和连接关系",
+    "en_GB": "Automatically arrange blueprint nodes without changing data or connections"
+  },
   "LINKED_TYPE": {
     "zh_CN": "关联类型",
     "en_GB": "Linked Type"
