@@ -40,7 +40,7 @@ class _DropBoxField(Canvas):
         self._frame = Rect(IntRect(Vector2i(0, 0), Vector2i(width, _ROW_HEIGHT)), windowSkin)
         self.addChild(self._frame)
         self._valueText = PlainText(UI.DefaultFont, self._labelAt(items, selectedIndex), _FONT_SIZE)
-        self._valueText.setPosition(Vector2f(_TEXT_PAD_X, self._centeredTextY(self._valueText)))
+        self._valueText.setPosition(Vector2f(_TEXT_PAD_X, self._centredTextY(self._valueText)))
         self.addChild(self._valueText)
         self._buildRenderQueue()
         self.render()
@@ -58,7 +58,7 @@ class _DropBoxField(Canvas):
         - \param text  New label text
         """
         self._valueText.setString(text)
-        self._valueText.setPosition(Vector2f(_TEXT_PAD_X, self._centeredTextY(self._valueText)))
+        self._valueText.setPosition(Vector2f(_TEXT_PAD_X, self._centredTextY(self._valueText)))
 
     def getLogicalSize(self) -> Vector2f:
         r"""\brief Get the field size in logical UI units.
@@ -68,14 +68,11 @@ class _DropBoxField(Canvas):
         size = self.getSize()
         return Vector2f(float(size.x), float(size.y))
 
-    def update(self, deltaTime: float) -> None:
+    def onTick(self, deltaTime: float) -> None:
         r"""\brief Refresh and render the collapsed field canvas without handling input.
 
         - \param deltaTime  Elapsed time in seconds
         """
-        for child in self._childrenList:
-            if isinstance(child, FunctionalBase) and child.getVisible():
-                child.update(deltaTime)
         self._buildRenderQueue()
         self.render()
 
@@ -87,7 +84,7 @@ class _DropBoxField(Canvas):
         return items[safeIndex]
 
     @staticmethod
-    def _centeredTextY(text: PlainText) -> float:
+    def _centredTextY(text: PlainText) -> float:
         bounds = text.getLocalBounds()
         return (float(_ROW_HEIGHT) - bounds.size.y) / 2.0
 

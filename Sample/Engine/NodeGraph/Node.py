@@ -53,7 +53,7 @@ class Node:
         self._isSelfFunction: bool = isinstance(self.functionName, str) and self.functionName.startswith(
             "self."
         )  # Whether the function is a method of parent
-        self._analyzeFunction()
+        self._analyseFunction()
 
     def getParamList(self) -> Dict[str, type]:
         """Get the parameter name-to-type mapping extracted from the function signature."""
@@ -135,7 +135,7 @@ class Node:
             result["pos"] = self.position
         return result
 
-    def _analyzeFunction(self) -> None:
+    def _analyseFunction(self) -> None:
         sig = inspect.signature(self.nodeFunction)
         self._funcInfo = self.nodeFunction.__name__
         self._paramList.clear()

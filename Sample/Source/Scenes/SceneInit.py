@@ -46,7 +46,7 @@ class ProgressBar(SpriteBase, FunctionalBase):
         """
         self.progressValue = Math.Clamp(value, 0.0, 1.0)
 
-    def update(self, deltaTime: float) -> None:
+    def onTick(self, deltaTime: float) -> None:
         r"""\brief Update the progress bar visual.
 
         - \param deltaTime Elapsed time in seconds.

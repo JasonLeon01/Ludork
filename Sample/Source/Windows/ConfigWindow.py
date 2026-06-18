@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import Any, Callable, Dict, List, Optional, Union, Tuple
 from Engine import Pair, Image, IntRect, Vector2i, UI, Vector2f, Input, TypeAdapter
-from Engine.UI import Canvas, ListView
+from Engine.UI import ListView
 from Global import Manager, System
 from .Base import WindowSelectable
 from .General import ConfigCheckBoxRow, ConfigSettingRow, ConfigSliderRow
@@ -251,19 +251,13 @@ class ConfigWindow(WindowSelectable):
         if self._onClose is not None:
             self._onClose()
 
-    def update(self, deltaTime: float) -> None:
+    def onTick(self, deltaTime: float) -> None:
         r"""\brief Update the window, delegating input to an expanded DropBox when needed.
 
         - \param deltaTime  Elapsed time in seconds
         """
-        expandedRow = self._getExpandedSettingRow()
-        if expandedRow is not None:
-            expandedRow.update(deltaTime)
-            Canvas.update(self, deltaTime)
-            self._rect.setVisible(False)
-            return
-        super().update(deltaTime)
         self._rect.setVisible(False)
+        super().onTick(deltaTime)
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
         r"""\brief Close the window on cancel when no DropBox is expanded.

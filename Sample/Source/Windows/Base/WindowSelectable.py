@@ -74,7 +74,7 @@ class WindowSelectable(WindowBase):
             self.content.addChild(listView)
         self._listView = listView
 
-    def update(self, deltaTime: float) -> None:
+    def onTick(self, deltaTime: float) -> None:
         r"""\brief Update selection rectangle position and handle hover.
 
         - \param deltaTime Elapsed time in seconds.
@@ -114,7 +114,7 @@ class WindowSelectable(WindowBase):
         if self.index != self._oldIndex:
             self._oldIndex = self.index
             Manager.playSE(GameSystem.getCursorSE())
-        super().update(deltaTime)
+        super().onTick(deltaTime)
 
     def onMouseWheelScrolled(self, kwargs: Dict[str, Any]) -> None:
         r"""\brief Handle mouse wheel scrolling.

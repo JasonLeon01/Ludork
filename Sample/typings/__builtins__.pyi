@@ -33,10 +33,24 @@ def Meta(**kwargs: Any) -> Callable[[_T], _T]:
 
     This decorator adds a _meta dictionary to the decorated object,
     which can be used to store arbitrary metadata about that object.
-    `Rely` can describe editor-side edit dependencies in the form
-    `{"target": ["source", expectedValue]}`.
-    `PathVars` can describe editor-side path fields in the form
-    `[("texturePath", "Characters")]`.
+    Editor-recognised keys include:
+    - DisplayName: node/function display name. Usually a string expression
+      such as `LOC("SAVE_GAME")`; the editor evaluates it when building node
+      titles and the function picker search cache.
+    - DisplayDesc: node/function tooltip or description. Usually a string
+      expression such as `LOC("SAVE_GAME_DESC")`.
+    - DropBox: node parameter combo-box options in the form
+      `{"paramName": ["optionA", "optionB"]}`.
+    - Rely: editor-side edit dependencies in the form
+      `{"target": ["source", expectedValue]}` or
+      `{"target": {"source": "source", "value": expectedValue}}`.
+      The dict form also accepts `key` or `var` instead of `source`.
+    - PathVars: path fields or node parameters in the form
+      `[("texturePath", "Characters")]`; string items such as
+      `["texturePath"]` default to the `Characters` assets directory.
+    - ColourVars: colour fields or parameters in the form
+      `["lightColour"]`. Values store RGBA tuples but display through a colour
+      swatch editor.
 
     - kwargs: Key-value pairs to be stored as metadata.
 

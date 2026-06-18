@@ -90,12 +90,12 @@ class ConfigSettingRow(Canvas, FunctionalBase):
         """
         return FloatRect(Vector2f(0.0, 0.0), self.getSize())
 
-    def update(self, deltaTime: float) -> None:
+    def onTick(self, deltaTime: float) -> None:
         r"""\brief Update nested widgets and render the row canvas.
 
         - \param deltaTime  Elapsed time in seconds
         """
-        super().update(deltaTime)
+        self._buildRenderQueue()
         self.render()
 
     def _onDropBoxLayoutChanged(self) -> None:

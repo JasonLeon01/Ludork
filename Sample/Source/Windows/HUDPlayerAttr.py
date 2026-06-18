@@ -21,15 +21,16 @@ class PlayerAttrHUD(Canvas):
     _HUD_POS_Y = 16
     _STATE_OFFSET_X = 48
     _HEADER_ROW_Y = 0
-    _HP_ROW_Y = 32
-    _HP_BAR_HEIGHT = 16
-    _HP_BAR_WIDTH = 128
-    _STAT_VALUE_X = 160
-    _ATK_ROW_Y = 64
-    _DEF_ROW_Y = 96
-    _EXP_ROW_Y = 160
-    _GOLD_ROW_Y = 192
-    _KEY_ROW_Y = 256
+    _HP_ROW_Y = 68
+    _HP_BAR_HEIGHT = 12
+    _HP_BAR_WIDTH = 96
+    _STAT_VALUE_X = 128
+    _DEBUFF_TEXT_OFFSET_X = 2
+    _ATK_ROW_Y = 96
+    _DEF_ROW_Y = 128
+    _EXP_ROW_Y = 192
+    _GOLD_ROW_Y = 224
+    _KEY_ROW_Y = 288
 
     def __init__(self, player: Player) -> None:
         r"""Construct a player attribute HUD bound to the given player instance.
@@ -49,13 +50,13 @@ class PlayerAttrHUD(Canvas):
         self._buildUI()
         self._refresh()
 
-    def update(self, deltaTime: float) -> None:
+    def onTick(self, deltaTime: float) -> None:
         r"""Update HUD texts and bars every frame to reflect current player attributes.
 
         - \param deltaTime  Elapsed frame time in seconds
         """
         self._refresh()
-        return super().update(deltaTime)
+        return super().onTick(deltaTime)
 
     def _initAvatar(self) -> None:
         texture = self._player.getTexture()
@@ -82,7 +83,7 @@ class PlayerAttrHUD(Canvas):
         self._hudWidth = max(
             self._infoStartX + self._hpBarWidth,
             self._hpBarWidth + self._AVATAR_MIN_SIZE,
-            self._STAT_VALUE_X,
+            self._STAT_VALUE_X + 16,
         )
         self._hpBarWidth = self._hudWidth
         self._hudHeight = self._KEY_ROW_Y + self._FONT_SIZE + 4
@@ -97,7 +98,7 @@ class PlayerAttrHUD(Canvas):
         self.addChild(self._levelText)
 
         self._stateText = PlainText(self._font, "", self._HEADER_FONT_SIZE)
-        self._stateText.setPosition((self._infoStartX + self._STATE_OFFSET_X, self._HEADER_ROW_Y))
+        self._stateText.setPosition((0, self._avatarSize))
         self.addChild(self._stateText)
 
         self._hpBack = SolidRect((self._hpBarWidth, self._HP_BAR_HEIGHT), Color(24, 24, 24, 220))
@@ -128,6 +129,16 @@ class PlayerAttrHUD(Canvas):
             self.addChild(valueText)
             self._statValueTexts[label[:-1]] = valueText
 
+        _purpleColor = Color(150, 0, 220, 255)
+        debuffX = self._STAT_VALUE_X + self._DEBUFF_TEXT_OFFSET_X
+        self._atkDebuffText = PlainText(self._font, "", 8, fillColor=_purpleColor)
+        self._atkDebuffText.setPosition((debuffX, self._ATK_ROW_Y))
+        self.addChild(self._atkDebuffText)
+
+        self._defDebuffText = PlainText(self._font, "", 8, fillColor=_purpleColor)
+        self._defDebuffText.setPosition((debuffX, self._DEF_ROW_Y))
+        self.addChild(self._defDebuffText)
+
         self._itemText = RichText(self._font, "", self._textStyles)
         self._itemText.setPosition((0, self._KEY_ROW_Y))
         self.addChild(self._itemText)
@@ -137,7 +148,7 @@ class PlayerAttrHUD(Canvas):
         maxhp = self._player.infoComp.MAXHP
         level = self._player.infoComp.LEVEL
         atk = self._player.infoComp.ATK
-        defense = self._player.infoComp.DEF
+        defence = self._player.infoComp.DEF
         exp = self._player.infoComp.EXP
         gold = self._player.infoComp.GOLD
         states = " ".join(self._player.getStateNames())
@@ -148,9 +159,14 @@ class PlayerAttrHUD(Canvas):
         self._stateText.setString(f"[{states}]")
         self._hpText.setString(f"{hp}/{maxhp}")
         self._statValueTexts["ATK"].setString(f"{atk:02d}")
-        self._statValueTexts["DEF"].setString(f"{defense:02d}")
+        self._statValueTexts["DEF"].setString(f"{defence:02d}")
         self._statValueTexts["EXP"].setString(f"{exp:02d}")
         self._statValueTexts["GOLD"].setString(f"{gold:02d}")
+
+        weakStacks = self._player.getStateStacks().get("Weak", 0)
+        debuffStr = f"(-{weakStacks})" if weakStacks > 0 else ""
+        self._atkDebuffText.setString(debuffStr)
+        self._defDebuffText.setString(debuffStr)
 
         hpRate = hp / maxhp
         self._hpFill.setSize(Vector2f(self._hpBarWidth * hpRate, self._HP_BAR_HEIGHT))

@@ -25,7 +25,7 @@ class LightPanel(QtWidgets.QWidget):
         layout.addLayout(self._form)
         layout.addStretch(1)
 
-        self._editMap: Dict[str, List[QtWidgets.QLineEdit]] = {}
+        self._editMap: Dict[str, Any] = {}
         self._isLoading = False
         self._lastData: Optional[Dict[str, Any]] = None
 
@@ -42,16 +42,22 @@ class LightPanel(QtWidgets.QWidget):
         self._isLoading = True
         for key, kind in self._fieldSchema():
             label = QtWidgets.QLabel(ELOC(key))
-            edits = self._createEditorsForKind(kind)
             values = self._extractValues(lightData, key, kind)
 
-            for i in range(len(edits)):
-                edits[i].setText(self._formatNumber(values[i]))
-                edits[i].editingFinished.connect(self._onAnyEditFinished)
+            if kind == "Color":
+                from Widgets.Utils.ColourPickerDialog import ColourVarEditor
 
-            rowWidget = self._packEditors(edits)
+                rowWidget = ColourVarEditor(values, self)
+                rowWidget.VALUE_CHANGED.connect(lambda _: self._onAnyEditFinished())
+                self._editMap[key] = rowWidget
+            else:
+                edits = self._createEditorsForKind(kind)
+                for i in range(len(edits)):
+                    edits[i].setText(self._formatNumber(values[i]))
+                    edits[i].editingFinished.connect(self._onAnyEditFinished)
+                rowWidget = self._packEditors(edits)
+                self._editMap[key] = edits
             self._form.addRow(label, rowWidget)
-            self._editMap[key] = edits
         self._isLoading = False
 
     def updateLight(self, lightData: Optional[Dict[str, Any]]) -> None:
@@ -64,12 +70,18 @@ class LightPanel(QtWidgets.QWidget):
 
         self._isLoading = True
         for key, kind in self._fieldSchema():
-            edits = self._editMap.get(key)
-            if not edits:
+            editor = self._editMap.get(key)
+            if editor is None:
                 continue
             values = self._extractValues(lightData, key, kind)
-            for i in range(min(len(edits), len(values))):
-                edits[i].setText(self._formatNumber(values[i]))
+            if kind == "Color":
+                from Widgets.Utils.ColourPickerDialog import ColourVarEditor
+
+                if isinstance(editor, ColourVarEditor):
+                    editor.setValue(values, emit=False)
+            elif isinstance(editor, list):
+                for i in range(min(len(editor), len(values))):
+                    editor[i].setText(self._formatNumber(values[i]))
         self._isLoading = False
         self._lastData = self._collectData()
 
@@ -97,26 +109,26 @@ class LightPanel(QtWidgets.QWidget):
 
         out: Dict[str, Any] = {}
         for key, kind in self._fieldSchema():
-            edits = self._editMap.get(key)
-            if not edits:
+            editor = self._editMap.get(key)
+            if editor is None:
                 continue
-            if kind == "Vector2":
-                out[key] = [self._parseFloat(edits[0].text()), self._parseFloat(edits[1].text())]
+            if kind == "Color":
+                from Widgets.Utils.ColourPickerDialog import ColourVarEditor
+
+                if isinstance(editor, ColourVarEditor):
+                    out[key] = list(editor.getValue())
+            elif not isinstance(editor, list):
+                continue
+            elif kind == "Vector2":
+                out[key] = [self._parseFloat(editor[0].text()), self._parseFloat(editor[1].text())]
             elif kind == "Vector3":
                 out[key] = [
-                    self._parseFloat(edits[0].text()),
-                    self._parseFloat(edits[1].text()),
-                    self._parseFloat(edits[2].text()),
-                ]
-            elif kind == "Color":
-                out[key] = [
-                    self._parseInt(edits[0].text()),
-                    self._parseInt(edits[1].text()),
-                    self._parseInt(edits[2].text()),
-                    self._parseInt(edits[3].text()),
+                    self._parseFloat(editor[0].text()),
+                    self._parseFloat(editor[1].text()),
+                    self._parseFloat(editor[2].text()),
                 ]
             else:
-                out[key] = self._parseFloat(edits[0].text())
+                out[key] = self._parseFloat(editor[0].text())
         return out
 
     def _parseFloat(self, text: str) -> float:
@@ -124,12 +136,6 @@ class LightPanel(QtWidgets.QWidget):
             return float(text)
         except Exception:
             return 0.0
-
-    def _parseInt(self, text: str) -> int:
-        try:
-            return int(float(text))
-        except Exception:
-            return 0
 
     def _clearRows(self) -> None:
         while self._form.count():
@@ -173,24 +179,11 @@ class LightPanel(QtWidgets.QWidget):
             return [self._createFloatEdit(), self._createFloatEdit()]
         if kind == "Vector3":
             return [self._createFloatEdit(), self._createFloatEdit(), self._createFloatEdit()]
-        if kind == "Color":
-            return [
-                self._createIntEdit(),
-                self._createIntEdit(),
-                self._createIntEdit(),
-                self._createIntEdit(),
-            ]
         return [self._createFloatEdit()]
 
     def _createFloatEdit(self) -> QtWidgets.QLineEdit:
         edit = QtWidgets.QLineEdit(self)
         edit.setValidator(QtGui.QDoubleValidator(edit))
-        edit.setText("0")
-        return edit
-
-    def _createIntEdit(self) -> QtWidgets.QLineEdit:
-        edit = QtWidgets.QLineEdit(self)
-        edit.setValidator(QtGui.QIntValidator(edit))
         edit.setText("0")
         return edit
 

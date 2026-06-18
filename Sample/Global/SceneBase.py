@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import threading
 import time
-from typing import Any, Callable, List, Dict, Optional
+from typing import Any, Callable, List, Optional
 from Engine import Input, ParticleSystem
 from Engine.Utils import Event
 from . import Manager
@@ -30,7 +30,7 @@ class SceneBase:
         self._fixedStep: float = 1.0 / 60.0
         self._maxFixedSteps: int = 5
         self._logicTargetFPS: int = 60
-        self._timerTasks: Dict[str, TimerTaskEntry] = {}
+        self._timerTasks: List[TimerTaskEntry] = []
         self._created = False
         self._animList: List[Animation] = []
         self._uiManager: UIManager = UIManager()
@@ -91,23 +91,20 @@ class SceneBase:
 
     @Latent(TimeUp=(True,))
     def addTimer(
-        self, key: str, interval: float, task: Optional[Callable] = None, params: Optional[List[Any]] = None
+        self, interval: float, task: Optional[Callable] = None, params: Optional[List[Any]] = None
     ) -> Callable[[], bool]:
         r"""\brief Add a timer that fires after the specified interval.
 
-        - \param key Unique key for the timer.
         - \param interval Time in seconds before the timer fires.
         - \param task Optional callable to invoke when the timer fires.
         - \param params Optional list of parameters passed to the task.
         - \return A callable condition function that returns True when the timer fires.
         """
         with self._logicDataLock:
-            if key in self._timerTasks:
-                raise ValueError("Timer key already exists")
             if params is None:
                 params = []
             taskEntry = TimerTaskEntry(interval, task, params)
-            self._timerTasks[key] = taskEntry
+            self._timerTasks.append(taskEntry)
 
         def condition() -> bool:
             return taskEntry.time <= 0
@@ -188,12 +185,12 @@ class SceneBase:
     def _logicHandle(self, deltaTime: float) -> None:
         Event.flush()
         with self._logicDataLock:
-            for key, taskEntry in self._timerTasks.copy().items():
+            for taskEntry in self._timerTasks[:]:
                 taskEntry.time = max(0, taskEntry.time - deltaTime)
                 if taskEntry.time <= 0:
-                    if not taskEntry.task is None and inspect.isfunction(taskEntry.task):
+                    if taskEntry.task is not None and inspect.isfunction(taskEntry.task):
                         taskEntry.task(*taskEntry.params)
-                    self._timerTasks.pop(key)
+                    self._timerTasks.remove(taskEntry)
             if len(self._animList) > 0:
                 for anim in self._animList[:]:
                     if anim.isFinished():

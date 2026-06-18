@@ -74,11 +74,12 @@ class FileSelectorDialog(QtWidgets.QFileDialog):
         *,
         save: bool = False,
     ) -> None:
-        super().__init__(parent, title or ELOC("SELECT_FILE"), root, filter_str)
+        super().__init__(parent)
+        self.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
         self._root = os.path.abspath(root)
         self._previewPixmap = None
+        self.setWindowTitle(title or ELOC("SELECT_FILE"))
         System.SetStyle(self, "fileSelector.qss")
-        self.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
         if save:
             self.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
             self.setFileMode(QtWidgets.QFileDialog.AnyFile)

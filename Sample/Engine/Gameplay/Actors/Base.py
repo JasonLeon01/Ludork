@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from Engine.NodeGraph import Graph
 
 
+@Meta(PathVars=[("shaderPath", "Shaders")])
 class _ActorBase(Sprite):
     """Base class for all scene entities.
 
@@ -109,6 +110,7 @@ class _ActorBase(Sprite):
                 self._shaderError = True
                 logging.warning("Shader load failed for %s: %s", self.shaderPath, e)
 
+    @Meta(PathVars=[("shaderPath", "Shaders")])
     @ExecSplit(default=(None,))
     def setShaderPath(self, shaderPath: str) -> None:
         r"""\brief Set the shader path and load the shader.

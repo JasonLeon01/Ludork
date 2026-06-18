@@ -16,7 +16,7 @@ class LatentManager:
     """
 
     _instance = None  #: Singleton instance
-    _instanceInitialized = False
+    _instanceInitialised = False
 
     def __new__(cls) -> LatentManager:
         r"""
@@ -32,11 +32,11 @@ class LatentManager:
 
         - \brief Ensures `_latents` list exists on the singleton instance.
         """
-        if type(self)._instanceInitialized:
+        if type(self)._instanceInitialised:
             return
         # (graph_ref, key, condition, localRef, index)
         self._latents: List[Tuple[weakref.ReferenceType[Graph], str, Callable, Dict[str, Any], int]] = []
-        type(self)._instanceInitialized = True
+        type(self)._instanceInitialised = True
 
     def add(self, graph: Graph, key: str, condition: Callable, localRef: Dict[str, Any], index: int) -> None:
         r"""Register a latent node to be checked each frame.

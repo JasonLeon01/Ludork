@@ -119,7 +119,7 @@ class SceneMapBuilder:
                     continue
                 result.spawnActor(actor, layerName, False)
         if emitCreateEvents:
-            result.initializeActorsAndComponents()
+            result.initialiseActorsAndComponents()
         return result
 
     def buildFloorMapPreview(
@@ -160,24 +160,24 @@ class SceneMapBuilder:
             float(mapData["width"] * Engine.CellSize),
             float(mapData["height"] * Engine.CellSize),
         )
-        center = Vector2f(
+        centre = Vector2f(
             viewSize.x / 2.0 if mapPixelSize.x >= viewSize.x else mapPixelSize.x / 2.0,
             viewSize.y / 2.0 if mapPixelSize.y >= viewSize.y else mapPixelSize.y / 2.0,
         )
         cellSize = Engine.CellSize
-        telepointCenter = Vector2f(
+        telepointCentre = Vector2f(
             (float(telepoint[0]) + 0.5) * cellSize,
             (float(telepoint[1]) + 0.5) * cellSize,
         )
         halfView = viewSize / 2.0
         if (
-            telepointCenter.x < center.x - halfView.x
-            or telepointCenter.x > center.x + halfView.x
-            or telepointCenter.y < center.y - halfView.y
-            or telepointCenter.y > center.y + halfView.y
+            telepointCentre.x < centre.x - halfView.x
+            or telepointCentre.x > centre.x + halfView.x
+            or telepointCentre.y < centre.y - halfView.y
+            or telepointCentre.y > centre.y + halfView.y
         ):
-            center = telepointCenter
-        target.setView(View(center, viewSize))
+            centre = telepointCentre
+        target.setView(View(centre, viewSize))
         states = Render.CanvasRenderStates()
         gameMap.drawMapContent(target, states)
         if showTelepointMarker:

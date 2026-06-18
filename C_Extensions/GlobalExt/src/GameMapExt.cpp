@@ -36,7 +36,7 @@ void GameMapExt::refreshShader(const sf::RenderTexture &lightMask, float screenS
     shader->setUniform("lightLen", int(lights.size()));
     for (int i = 0; i < lights.size(); ++i) {
         auto light = lights[i];
-        auto c = light.attr("color").cast<sf::Color>();
+        auto c = light.attr("colour").cast<sf::Color>();
         shader->setUniform(getUniformArrayName("lightPos", i), light.attr("position").cast<sf::Vector2f>());
         shader->setUniform(getUniformArrayName("lightColor", i), castFromColor(c));
         shader->setUniform(getUniformArrayName("lightRadius", i), light.attr("radius").cast<float>());

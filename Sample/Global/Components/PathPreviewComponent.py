@@ -29,8 +29,8 @@ class PathPreviewComponent(ComponentBase):
         """
         super().__init__(gameMap)
         self._routeState = routeState
-        self._fillColor = Color(80, 180, 255, 110)
-        self._outlineColor = Color(120, 220, 255, 180)
+        self._fillColour = Color(80, 180, 255, 110)
+        self._outlineColour = Color(120, 220, 255, 180)
 
     def onRender(self, camera: Camera) -> None:
         r"""
@@ -47,7 +47,7 @@ class PathPreviewComponent(ComponentBase):
         for cell in route:
             rect = RectangleShape(Vector2f(size, size))
             rect.setPosition(Vector2f(cell.x * cellSize + pad, cell.y * cellSize + pad))
-            rect.setFillColor(self._fillColor)
-            rect.setOutlineColor(self._outlineColor)
+            rect.setFillColor(self._fillColour)
+            rect.setOutlineColor(self._outlineColour)
             rect.setOutlineThickness(1.0)
             camera.render(rect)

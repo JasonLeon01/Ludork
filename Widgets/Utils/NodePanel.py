@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+import os
 import inspect
 import copy
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union, Tuple
@@ -11,10 +12,13 @@ from NodeGraphQt.widgets.scene import NodeScene
 from NodeGraphQt.widgets.node_widgets import NodeBaseWidget
 from NodeGraphQt.qgraphics.port import PortItem
 from NodeGraphQt.qgraphics.node_base import NodeItem
-from EditorGlobal import GameData
+from EditorGlobal import EditorStatus, GameData
 from Utils import System
+from .ColourPickerDialog import ColourVarEditor
+from .FileSelectorDialog import FileSelectorDialog
 from .FunctionPickerPopup import FunctionPickerPopup
 from .MetaRely import getRelyConditionDisplay, isRelyEditable, normaliseRelyMap, toBool
+from .MetaVarTypes import getMetaVarTypes
 from .NodeFunctionMeta import getExecSplits, getLatents, getReturnTypes, hasExecOutputs
 
 if TYPE_CHECKING:
@@ -49,7 +53,7 @@ DEFAULT_PARAM_NODE_IDENTIFIER = "!DefaultParam"
 DEFAULT_PARAM_NODE_TYPE = "!DefaultParam.DefaultParamNode"  # type_ = __identifier__ + '.' + __name__
 TRACKPAD_ZOOM_WHEEL_BLOCK_MS = 200
 PAN_EMULATION_MODIFIER = QtCore.Qt.MetaModifier
-WidgetValue = str | bool | int | float | None
+WidgetValue = Any
 
 
 def _patchDetachedNodePaintGuard() -> None:
@@ -119,7 +123,57 @@ def MakeSafeNodePropertyName(name: str, usedNames: set) -> str:
     return safe
 
 
+def getMetaPathVars(meta: Any) -> Dict[str, str]:
+    if not isinstance(meta, dict):
+        return {}
+
+    result: Dict[str, str] = {}
+    collectMetaPathVars(result, meta.get("PathVars", ()))
+    return result
+
+
+def collectMetaPathVars(paths: Dict[str, str], value: Any) -> None:
+    if isinstance(value, tuple) and len(value) >= 2 and isinstance(value[0], str):
+        paths[value[0]] = normalisePathVarAssetsDir(value[1])
+        return
+    if isinstance(value, (list, tuple, set)):
+        for item in value:
+            if isinstance(item, str):
+                paths[item] = "Characters"
+                continue
+            collectMetaPathVars(paths, item)
+
+
+def normalisePathVarAssetsDir(value: Any) -> str:
+    if not isinstance(value, str):
+        return ""
+    value = value.replace("\\", "/").strip("/")
+    if value in ("", "."):
+        return ""
+    return value
+
+
+def getPathVarBaseDir(pathVarMap: Dict[str, str], key: str) -> str:
+    assetsDir = os.path.join(EditorStatus.PROJ_PATH, "Assets")
+    subDir = pathVarMap.get(key, "")
+    if not subDir:
+        return assetsDir
+    baseDir = os.path.normpath(os.path.join(assetsDir, subDir))
+    try:
+        assetsAbs = os.path.normcase(os.path.abspath(assetsDir))
+        baseAbs = os.path.normcase(os.path.abspath(baseDir))
+        if os.path.commonpath([assetsAbs, baseAbs]) != assetsAbs:
+            return assetsDir
+    except ValueError:
+        return assetsDir
+    return baseDir
+
+
 def getWidgetValue(widget: QtWidgets.QWidget) -> WidgetValue:
+    if isinstance(widget, NodePathEditor):
+        return widget.getValue()
+    if isinstance(widget, ColourVarEditor):
+        return widget.getValue()
     if isinstance(widget, QtWidgets.QLineEdit):
         return widget.text()
     if isinstance(widget, (QtWidgets.QPlainTextEdit, QtWidgets.QTextEdit)):
@@ -134,6 +188,12 @@ def getWidgetValue(widget: QtWidgets.QWidget) -> WidgetValue:
 
 
 def setEditorWidgetEditable(widget: QtWidgets.QWidget, editable: bool) -> None:
+    if isinstance(widget, NodePathEditor):
+        widget.setEditable(editable)
+        return
+    if isinstance(widget, ColourVarEditor):
+        widget.setEditable(editable)
+        return
     widget.setEnabled(editable)
     if isinstance(widget, (QtWidgets.QLineEdit, QtWidgets.QPlainTextEdit, QtWidgets.QTextEdit)):
         widget.setReadOnly(not editable)
@@ -165,6 +225,99 @@ class NodePlainTextEdit(QtWidgets.QPlainTextEdit):
         super(NodePlainTextEdit, self).keyPressEvent(event)
 
 
+class NodePathEditor(QtWidgets.QWidget):
+    VALUE_CHANGED = QtCore.pyqtSignal(str)
+
+    def __init__(self, value: Any = None, baseDir: str = "", parent: Optional[QtWidgets.QWidget] = None) -> None:
+        super(NodePathEditor, self).__init__(parent)
+        self._baseDir = baseDir
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        self._pathEdit = QtWidgets.QLineEdit(self)
+        self._pathEdit.setText("" if value is None else str(value))
+        self._pathEdit.setReadOnly(True)
+        self._pathEdit.setCursor(QtCore.Qt.ArrowCursor)
+        self._pathEdit.setFocusPolicy(QtCore.Qt.NoFocus)
+        self._pathEdit.editingFinished.connect(self._emitValueChanged)
+        System.SetStyle(self._pathEdit, "nodeInput.qss")
+        layout.addWidget(self._pathEdit, 1)
+
+        self._browseBtn = QtWidgets.QPushButton("...", self)
+        self._browseBtn.setObjectName("PathBtn")
+        self._browseBtn.setFixedWidth(24)
+        self._browseBtn.clicked.connect(self._onBrowse)
+        layout.addWidget(self._browseBtn, 0)
+
+    def getValue(self) -> str:
+        return self._pathEdit.text()
+
+    def setValue(self, value: Any, emit: bool = True) -> None:
+        text = "" if value is None else str(value)
+        wasBlocked = self._pathEdit.blockSignals(True)
+        self._pathEdit.setText(text)
+        self._pathEdit.blockSignals(wasBlocked)
+        if emit:
+            self.VALUE_CHANGED.emit(text)
+
+    def setEditable(self, editable: bool) -> None:
+        self.setEnabled(editable)
+        self._pathEdit.setReadOnly(True)
+        self._browseBtn.setEnabled(editable)
+
+    def _getBaseDir(self) -> str:
+        baseDir = self._baseDir
+        if not os.path.isdir(baseDir):
+            assetsDir = os.path.join(EditorStatus.PROJ_PATH, "Assets")
+            baseDir = assetsDir if os.path.isdir(assetsDir) else EditorStatus.PROJ_PATH
+        return baseDir
+
+    def _onBrowse(self) -> None:
+        baseDir = self._getBaseDir()
+        dlg = FileSelectorDialog(QtWidgets.QApplication.activeWindow(), baseDir, FileSelectorDialog.allFilesFilter(star=True))
+        filePath = dlg.execSelect()
+        if not filePath:
+            return
+        try:
+            relPath = os.path.relpath(filePath, baseDir)
+        except ValueError:
+            relPath = filePath
+        self.setValue(relPath.replace("\\", "/"))
+
+    def _emitValueChanged(self) -> None:
+        self.VALUE_CHANGED.emit(self.getValue())
+
+
+class NodePathWidget(NodeBaseWidget):
+    def __init__(
+        self,
+        parent: Optional[QtWidgets.QWidget] = None,
+        name: str = "",
+        label: str = "",
+        value: Any = None,
+        baseDir: str = "",
+    ) -> None:
+        super(NodePathWidget, self).__init__(parent)
+        self.set_name(name)
+        self.set_label(label)
+        editor = NodePathEditor(value, baseDir)
+        self.set_custom_widget(editor)
+        editor.VALUE_CHANGED.connect(self.on_value_changed)
+
+    def get_value(self) -> str:
+        editor = self.get_custom_widget()
+        if not isinstance(editor, NodePathEditor):
+            return ""
+        return editor.getValue()
+
+    def set_value(self, value: WidgetValue) -> None:
+        editor = self.get_custom_widget()
+        if not isinstance(editor, NodePathEditor):
+            return
+        editor.setValue(value, emit=False)
+
+
 class NodeMultiLineTextWidget(NodeBaseWidget):
     def __init__(
         self, parent: Optional[QtWidgets.QWidget] = None, name: str = "", label: str = "", text: str = ""
@@ -190,6 +343,30 @@ class NodeMultiLineTextWidget(NodeBaseWidget):
         wasBlocked = editor.blockSignals(True)
         editor.setPlainText("" if value is None else str(value))
         editor.blockSignals(wasBlocked)
+
+
+class NodeColourWidget(NodeBaseWidget):
+    def __init__(
+        self, parent: Optional[QtWidgets.QWidget] = None, name: str = "", label: str = "", value: Any = None
+    ) -> None:
+        super(NodeColourWidget, self).__init__(parent)
+        self.set_name(name)
+        self.set_label(label)
+        editor = ColourVarEditor(value)
+        self.set_custom_widget(editor)
+        editor.VALUE_CHANGED.connect(self.on_value_changed)
+
+    def get_value(self) -> WidgetValue:
+        editor = self.get_custom_widget()
+        if not isinstance(editor, ColourVarEditor):
+            return None
+        return editor.getValue()
+
+    def set_value(self, value: WidgetValue) -> None:
+        editor = self.get_custom_widget()
+        if not isinstance(editor, ColourVarEditor):
+            return
+        editor.setValue(value, emit=False)
 
 
 def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
@@ -226,6 +403,8 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
 
         meta = getattr(currNode.nodeFunction, "_meta", {})
         dropBox = meta.get("DropBox", [])
+        varTypes = getMetaVarTypes(meta)
+        pathVarMap = getMetaPathVars(meta)
         self._relyMap = normaliseRelyMap(meta.get("Rely"))
         self.META = meta
 
@@ -239,13 +418,33 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
             self._port_types[name] = "Params"
 
             param_type = paramList[name]
+            varType = varTypes.get(name, "")
+            isPath = name in pathVarMap
 
             type_str = param_type.__name__ if isinstance(param_type, type) else str(param_type)
             if "." in type_str:
                 type_str = type_str.split(".")[-1]
+            if varType == "ColourVar":
+                type_str = "ColourVar"
+            elif isPath:
+                type_str = "Path"
             display_label = f"{name} ({type_str})"
 
-            if name in dropBox:
+            if varType == "ColourVar":
+                nodeWidget = NodeColourWidget(
+                    self.view, name=widgetName, label=display_label, value=init_val
+                )
+                self.add_custom_widget(nodeWidget)
+            elif isPath:
+                nodeWidget = NodePathWidget(
+                    self.view,
+                    name=widgetName,
+                    label=display_label,
+                    value=init_val,
+                    baseDir=getPathVarBaseDir(pathVarMap, name),
+                )
+                self.add_custom_widget(nodeWidget)
+            elif name in dropBox:
                 items = dropBox[name]
                 if isinstance(items, (list, tuple)):
                     items = [str(x) for x in items]
@@ -561,6 +760,16 @@ class NodePanel(QtWidgets.QWidget):
                         le.setCurrentText(str(val))
                         le.currentIndexChanged.connect(
                             lambda idx, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
+                        )
+                    elif isinstance(le, ColourVarEditor):
+                        le.setValue(val, emit=False)
+                        le.VALUE_CHANGED.connect(
+                            lambda _, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
+                        )
+                    elif isinstance(le, NodePathEditor):
+                        le.setValue(val, emit=False)
+                        le.VALUE_CHANGED.connect(
+                            lambda _, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
                         )
                 paramIndex += 1
             self._applyNodeRely(i)

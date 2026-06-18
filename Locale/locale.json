@@ -639,6 +639,14 @@
     "zh_CN": "地图文件失效",
     "en_GB": "The file path of this map is None yet."
   },
+  "MAP_FILE_NAME_EMPTY": {
+    "zh_CN": "文件名不能为空。",
+    "en_GB": "File name cannot be empty."
+  },
+  "MAP_FILE_NAME_EXISTS": {
+    "zh_CN": "文件名已存在。",
+    "en_GB": "File name already exists."
+  },
   "position": {
     "zh_CN": "位置",
     "en_GB": "Position"
@@ -646,6 +654,70 @@
   "color": {
     "zh_CN": "颜色",
     "en_GB": "Color"
+  },
+  "COLOUR_PICKER_TITLE": {
+    "zh_CN": "调色盘",
+    "en_GB": "Colour Picker"
+  },
+  "COLOUR_PICKER_RED": {
+    "zh_CN": "红色",
+    "en_GB": "Red"
+  },
+  "COLOUR_PICKER_GREEN": {
+    "zh_CN": "绿色",
+    "en_GB": "Green"
+  },
+  "COLOUR_PICKER_BLUE": {
+    "zh_CN": "蓝色",
+    "en_GB": "Blue"
+  },
+  "COLOUR_PICKER_ALPHA": {
+    "zh_CN": "透明度",
+    "en_GB": "Alpha"
+  },
+  "COLOUR_PICKER_HUE": {
+    "zh_CN": "色相",
+    "en_GB": "Hue"
+  },
+  "COLOUR_PICKER_SATURATION": {
+    "zh_CN": "饱和度",
+    "en_GB": "Saturation"
+  },
+  "COLOUR_PICKER_VALUE": {
+    "zh_CN": "明度",
+    "en_GB": "Value"
+  },
+  "COLOUR_PICKER_HTML": {
+    "zh_CN": "HTML",
+    "en_GB": "HTML"
+  },
+  "COLOUR_PICKER_CURRENT": {
+    "zh_CN": "当前颜色",
+    "en_GB": "Current"
+  },
+  "COLOUR_PICKER_NEW": {
+    "zh_CN": "新颜色",
+    "en_GB": "New"
+  },
+  "COLOUR_PICKER_BASIC_COLOURS": {
+    "zh_CN": "基础颜色",
+    "en_GB": "Basic Colours"
+  },
+  "COLOUR_PICKER_CUSTOM_COLOURS": {
+    "zh_CN": "自定义颜色",
+    "en_GB": "Custom Colours"
+  },
+  "COLOUR_PICKER_PICK_SCREEN": {
+    "zh_CN": "取屏幕颜色",
+    "en_GB": "Pick Screen Colour"
+  },
+  "COLOUR_PICKER_ADD_CUSTOM": {
+    "zh_CN": "添加到自定义颜色",
+    "en_GB": "Add to Custom Colours"
+  },
+  "COLOUR_PICKER_PICK_SCREEN_HINT": {
+    "zh_CN": "点击屏幕取色，按 Esc 取消。",
+    "en_GB": "Click to pick a screen colour. Press Esc to cancel."
   },
   "radius": {
     "zh_CN": "半径",

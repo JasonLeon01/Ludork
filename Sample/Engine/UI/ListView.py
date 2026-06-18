@@ -162,10 +162,10 @@ class ListView(ControlBase, FunctionalBase):
             itemHeight = max(itemHeight, self._defaultItemHeight)
             if self._fixItemHeight:
                 itemHeight = self._defaultItemHeight
-            colCenter = 16 + col * colWidth + colWidth / 2
+            colCentre = 16 + col * colWidth + colWidth / 2
             originX = child.getOrigin().x
             scaleX = child.getScale().x
-            posX = colCenter - itemWidth / 2 + originX * scaleX
+            posX = colCentre - itemWidth / 2 + originX * scaleX
             currentRowHeights.append(itemHeight)
             rowHeight = max(rowHeight, itemHeight)
             child.setPosition((posX, currentY))

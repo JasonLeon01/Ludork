@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Any, Dict, Optional, Union, List, Tuple
+from typing import Any, Callable, Dict, Optional, Union, List, Tuple
 from Engine import Pair, Texture, IntRect
 from Engine.Gameplay.Actors import Actor
 from Global import Animation
@@ -41,6 +41,7 @@ class Enemy(Actor, EnemyInfo, Battler):
         """
         Actor.__init__(self, texture, rect, tag)
         Battler.__init__(self)
+        self._battleCondition: Optional[Callable[[], bool]] = None
         initAttrs: Dict[str, int] = {}
         for attr in ["MAXHP", "ATK", "DEF", "EXP", "GOLD"]:
             value = getattr(self.infoComp, attr)
@@ -115,9 +116,11 @@ class Enemy(Actor, EnemyInfo, Battler):
 
         map = Cast(Map, System.getScene())
         player = MeetPlayer(other)
-        if player:
+        if player and (self._battleCondition is None or self._battleCondition()):
+            self._battleCondition = None
 
             def battleResult() -> None:
+                self._battleCondition = None
                 if result == 0:
                     map.recordDestroyedActor(self)
                     self.destroy()
@@ -147,7 +150,7 @@ class Enemy(Actor, EnemyInfo, Battler):
                 map.addAnim(anim)
                 animLen = max(animLen, anim.getDuration())
 
-            map.addTimer("battleAnim", animLen, battleResult, [])
+            self._battleCondition = map.addTimer(animLen, battleResult, [])
 
     def _gameOver(self) -> None:
         from Source.Scenes import GameOver

@@ -5,6 +5,8 @@ from typing import Dict, Any, Type, get_type_hints
 
 from PyQt5 import QtWidgets, QtCore
 
+from .ColourPickerDialog import ColourVarEditor
+from .MetaVarTypes import getMetaVarTypes
 from .TypedValueEditor import TypedValueEditor
 
 
@@ -19,6 +21,7 @@ class DataclassWidget(QtWidgets.QWidget):
             self._type_hints = get_type_hints(dc_type)
         except Exception:
             self._type_hints = {}
+        self._metaVarTypes = getMetaVarTypes(getattr(dc_type, "_meta", {}))
         self._inputs = {}
         self._initUI()
 
@@ -49,6 +52,11 @@ class DataclassWidget(QtWidgets.QWidget):
 
     def _createFieldWidget(self, field: dataclasses.Field, value: Any):
         ftype = self._type_hints.get(field.name, field.type)
+        varType = self._getFieldVarType(field)
+        if varType == "ColourVar":
+            w = ColourVarEditor(value, self)
+            w.VALUE_CHANGED.connect(lambda v, k=field.name: self._onFieldChanged(k, v))
+            return w
 
         if dataclasses.is_dataclass(ftype):
             if not isinstance(value, dict):
@@ -70,6 +78,12 @@ class DataclassWidget(QtWidgets.QWidget):
         w = TypedValueEditor(value, ftype, self)
         w.VALUE_CHANGED.connect(lambda v, k=field.name: self._onFieldChanged(k, v))
         return w
+
+    def _getFieldVarType(self, field: dataclasses.Field) -> str:
+        value = self._metaVarTypes.get(field.name)
+        if not value:
+            value = field.metadata.get("varType") or field.metadata.get("type")
+        return value if isinstance(value, str) else ""
 
     def _onFieldChanged(self, key, value):
         self.data[key] = value

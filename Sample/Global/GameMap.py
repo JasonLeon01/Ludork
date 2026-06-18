@@ -46,18 +46,18 @@ class Light:
     r"""\brief Light source with position, colour, radius, and intensity."""
 
     position: Vector2f
-    color: Color
+    colour: Color
     radius: float = 256.0
     intensity: float = 1.0
 
     def asDict(self) -> Dict[str, Any]:
         r"""\brief Serialize the light to a dictionary.
 
-        - \return A dictionary with position, color, radius, and intensity.
+        - \return A dictionary with position, colour, radius, and intensity.
         """
         return {
             "position": [self.position.x, self.position.y],
-            "color": [self.color.r, self.color.g, self.color.b, self.color.a],
+            "color": [self.colour.r, self.colour.g, self.colour.b, self.colour.a],
             "radius": self.radius,
             "intensity": self.intensity,
         }
@@ -105,9 +105,9 @@ class GameMap(GameMapExt):
         self._particleSystem: ParticleSystem = ParticleSystem()
         self._actorsOnDestroy: List[Actor] = []
         self._wholeActorList: Dict[str, List[Actor]] = {}
-        self._createInitializedActorIDs: set[int] = set()
-        self._componentInitializedActorIDs: set[int] = set()
-        self._initializingActors: bool = False
+        self._createInitialisedActorIDs: set[int] = set()
+        self._componentInitialisedActorIDs: set[int] = set()
+        self._initialisingActors: bool = False
         self._camera = camera
         if self._camera is None:
             self._camera = Camera()
@@ -374,57 +374,57 @@ class GameMap(GameMapExt):
         self._addActorTreeToLayer(actor, layer)
         self.updateActorList()
         self._materialDirty = True
-        if emitCreateEvent and not self._initializingActors:
-            self.initializeActorsAndComponents()
+        if emitCreateEvent and not self._initialisingActors:
+            self.initialiseActorsAndComponents()
 
-    def initializeActorsAndComponents(self) -> None:
+    def initialiseActorsAndComponents(self) -> None:
         r"""\brief Initialise pending actor create events and actor components recursively."""
-        if self._initializingActors:
+        if self._initialisingActors:
             return
-        self._initializingActors = True
+        self._initialisingActors = True
         try:
             while True:
-                createdAny = self._initializePendingActorCreateEvents()
-                componentAny = self._initializePendingActorComponents()
+                createdAny = self._initialisePendingActorCreateEvents()
+                componentAny = self._initialisePendingActorComponents()
                 if not createdAny and not componentAny:
                     break
         finally:
-            self._initializingActors = False
+            self._initialisingActors = False
         self.updateActorList()
         self._materialDirty = True
 
-    def _initializePendingActorCreateEvents(self) -> bool:
+    def _initialisePendingActorCreateEvents(self) -> bool:
         createdAny = False
         while True:
             pendingActors = [
                 actor
                 for actor in self.getAllActors()
-                if id(actor) not in self._createInitializedActorIDs and not actor.isDestroyed()
+                if id(actor) not in self._createInitialisedActorIDs and not actor.isDestroyed()
             ]
             if not pendingActors:
                 return createdAny
             for actor in pendingActors:
                 actorID = id(actor)
-                if actorID in self._createInitializedActorIDs:
+                if actorID in self._createInitialisedActorIDs:
                     continue
-                self._createInitializedActorIDs.add(actorID)
+                self._createInitialisedActorIDs.add(actorID)
                 Actor.BlueprintEvent(actor, Actor, "onCreate")
                 createdAny = True
 
-    def _initializePendingActorComponents(self) -> bool:
+    def _initialisePendingActorComponents(self) -> bool:
         from Engine.Gameplay.Components import initInstanceComponents
 
         componentAny = False
         pendingActors = [
             actor
             for actor in self.getAllActors()
-            if id(actor) not in self._componentInitializedActorIDs and not actor.isDestroyed()
+            if id(actor) not in self._componentInitialisedActorIDs and not actor.isDestroyed()
         ]
         for actor in pendingActors:
             actorID = id(actor)
-            if actorID in self._componentInitializedActorIDs:
+            if actorID in self._componentInitialisedActorIDs:
                 continue
-            self._componentInitializedActorIDs.add(actorID)
+            self._componentInitialisedActorIDs.add(actorID)
             initInstanceComponents(actor)
             componentAny = True
         return componentAny
@@ -664,15 +664,16 @@ class GameMap(GameMapExt):
         assert light in self._lights, "Light not found in map"
         light.position = position
 
+    @Meta(ColourVars=["colour"])
     @ExecSplit(default=(None,))
-    def setLightColor(self, light: Light, color: Color) -> None:
+    def setLightColour(self, light: Light, colour: Color) -> None:
         r"""\brief Set the colour of a light.
 
         - \param light The light to modify.
-        - \param color The new colour.
+        - \param colour The new colour.
         """
         assert light in self._lights, "Light not found in map"
-        light.color = color
+        light.colour = colour
 
     @ExecSplit(default=(None,))
     def setLightRadius(self, light: Light, radius: float) -> None:
@@ -702,6 +703,7 @@ class GameMap(GameMapExt):
         """
         return self._ambientLight
 
+    @Meta(ColourVars=["ambientLight"])
     @ExecSplit(default=(None,))
     def setAmbientLight(self, ambientLight: Color) -> None:
         r"""\brief Set the ambient light colour.
@@ -801,23 +803,24 @@ class GameMap(GameMapExt):
         if self._scene is not None:
             self._scene.addCommonTip(text)
 
+    @Meta(ColourVars=["colour"])
     @ExecSplit(default=(None,))
     def addDamageText(
         self,
         text: str,
         position: Union[Vector2f, Pair[float], List[float], Tuple[float, float]],
-        color: Optional[Union[Color, List[int], Tuple[int, ...]]] = None,
+        colour: Optional[Union[Color, List[int], Tuple[int, ...]]] = None,
         fontSize: int = 22,
     ) -> None:
         r"""\brief Display floating damage text in the map particle system.
 
         - \param text Damage text content.
         - \param position World position used as the spawn point.
-        - \param color Optional fill colour; defaults to opaque white.
+        - \param colour Optional fill colour; defaults to opaque white.
         - \param fontSize Character size; defaults to 28.
         """
         drawPosition = self._getParticleViewPosition(position)
-        DamageTextParticle(self._particleSystem, text, drawPosition, color, fontSize)
+        DamageTextParticle(self._particleSystem, text, drawPosition, colour, fontSize)
 
     def _getParticleViewPosition(
         self,
@@ -1138,7 +1141,7 @@ class GameMap(GameMapExt):
             lights.append(
                 Light(
                     self._getActorLightPosition(actor),
-                    self._toLightColor(lightComp.lightColor),
+                    self._toLightColour(lightComp.lightColour),
                     radius,
                     1.0,
                 )
@@ -1156,7 +1159,7 @@ class GameMap(GameMapExt):
         )
 
     @staticmethod
-    def _toLightColor(value: Any) -> Color:
+    def _toLightColour(value: Any) -> Color:
         if isinstance(value, Color):
             return value
         if hasattr(value, "r") and hasattr(value, "g") and hasattr(value, "b"):
@@ -1169,14 +1172,14 @@ class GameMap(GameMapExt):
                 value = (255, 255, 255, 255)
         if not isinstance(value, (list, tuple)):
             value = (255, 255, 255, 255)
-        colorValues = list(value[:4])
-        while len(colorValues) < 4:
-            colorValues.append(255)
+        colourValues = list(value[:4])
+        while len(colourValues) < 4:
+            colourValues.append(255)
         return Color(
-            int(Math.Clamp(float(colorValues[0]), 0.0, 255.0)),
-            int(Math.Clamp(float(colorValues[1]), 0.0, 255.0)),
-            int(Math.Clamp(float(colorValues[2]), 0.0, 255.0)),
-            int(Math.Clamp(float(colorValues[3]), 0.0, 255.0)),
+            int(Math.Clamp(float(colourValues[0]), 0.0, 255.0)),
+            int(Math.Clamp(float(colourValues[1]), 0.0, 255.0)),
+            int(Math.Clamp(float(colourValues[2]), 0.0, 255.0)),
+            int(Math.Clamp(float(colourValues[3]), 0.0, 255.0)),
         )
 
     def markPassabilityDirty(self) -> None:

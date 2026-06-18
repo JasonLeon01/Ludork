@@ -101,9 +101,9 @@ def GetSteelBlue() -> Color:
     return HexColor(0x566C8F)
 
 
-def GetDimGray() -> Color:
+def GetDimGrey() -> Color:
     r"""
-    \brief Return dim gray colour (#6a6a6a).
+    \brief Return dim grey colour (#6a6a6a).
     """
     return HexColor(0x6A6A6A)
 

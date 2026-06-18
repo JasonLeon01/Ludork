@@ -85,7 +85,7 @@ class WeatherType(IntEnum):
 
 
 _WEATHER_PARTICLE_PATH = os.path.join("./Assets", "Icons", "Potion-1-1-1-1.png")
-_STORM_FLASH_COLOR = Color(210, 220, 255, 120)
+_STORM_FLASH_COLOUR = Color(210, 220, 255, 120)
 
 
 class WeatherController:
@@ -161,7 +161,7 @@ class WeatherController:
             cls._stormFlashCooldown = max(0.0, cls._stormFlashCooldown - deltaTime)
             if cls._stormFlashCooldown <= 0.0 and random.random() < 0.02 * (cls._power / 100.0):
                 flashDuration = 0.08 + random.random() * 0.07
-                System.flashScreen(_STORM_FLASH_COLOR, flashDuration)
+                System.flashScreen(_STORM_FLASH_COLOUR, flashDuration)
                 cls._stormFlashCooldown = 0.35 + random.random() * 0.65
 
     @classmethod

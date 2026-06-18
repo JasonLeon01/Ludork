@@ -52,12 +52,12 @@ class _SlotCell(Canvas, FunctionalBase):
     def getChildren(self):
         return []
 
-    def update(self, deltaTime: float) -> None:
+    def onTick(self, deltaTime: float) -> None:
         r"""\brief Update the cell and render to internal texture.
 
         - \param deltaTime Elapsed time in seconds.
         """
-        super().update(deltaTime)
+        self._buildRenderQueue()
         self.render()
 
 
@@ -71,12 +71,12 @@ class _UnequipCell(Canvas, FunctionalBase):
     def getChildren(self):
         return []
 
-    def update(self, deltaTime: float) -> None:
+    def onTick(self, deltaTime: float) -> None:
         r"""\brief Update the cell and render to internal texture.
 
         - \param deltaTime Elapsed time in seconds.
         """
-        super().update(deltaTime)
+        self._buildRenderQueue()
         self.render()
 
 
@@ -105,12 +105,12 @@ class _EquipCell(Canvas, FunctionalBase):
     def getChildren(self):
         return []
 
-    def update(self, deltaTime: float) -> None:
+    def onTick(self, deltaTime: float) -> None:
         r"""\brief Update the cell and render to internal texture.
 
         - \param deltaTime Elapsed time in seconds.
         """
-        super().update(deltaTime)
+        self._buildRenderQueue()
         self.render()
 
 
@@ -269,12 +269,12 @@ class WindowEquipSlot(WindowSelectable):
         if slotKey is not None and self._windowEquipSelect is not None and self._windowEquipSelect.getVisible():
             self._windowEquipSelect.refreshForSlot(slotKey)
 
-    def update(self, deltaTime: float) -> None:
+    def onTick(self, deltaTime: float) -> None:
         r"""\brief Update slot window and notify slot change on index change.
 
         - \param deltaTime Elapsed time in seconds.
         """
-        super().update(deltaTime)
+        super().onTick(deltaTime)
         if self._lastSlotIndex != self.index:
             self._lastSlotIndex = self.index
             self._notifySlotChanged()
@@ -427,12 +427,12 @@ class WindowEquipSelect(WindowSelectable):
         self._descText.setPosition(Vector2f(16, float(contentHeight + 48)))
         self._updateDescription()
 
-    def update(self, deltaTime: float) -> None:
+    def onTick(self, deltaTime: float) -> None:
         r"""\brief Update equip window and refresh description on index change.
 
         - \param deltaTime Elapsed time in seconds.
         """
-        super().update(deltaTime)
+        super().onTick(deltaTime)
         if self._lastDescIndex != self.index:
             self._lastDescIndex = self.index
             self._updateDescription()

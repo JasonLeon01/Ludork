@@ -165,20 +165,20 @@ class MapClickAutoPath(ComponentBase):
             return None
         bestPlan: Optional[Dict[str, Any]] = None
         for offset in (Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)):
-            neighbor = Vector2i(goal.x + offset.x, goal.y + offset.y)
-            if not self._isInMap(neighbor):
+            neighbour = Vector2i(goal.x + offset.x, goal.y + offset.y)
+            if not self._isInMap(neighbour):
                 continue
-            if neighbor != start and not gameMap.isPassable(actor, neighbor):
+            if neighbour != start and not gameMap.isPassable(actor, neighbour):
                 continue
-            if neighbor == start:
+            if neighbour == start:
                 routine = []
                 route = [Vector2i(start.x, start.y)]
             else:
-                neighborPlan = self._buildPathToTarget(start, neighbor)
-                if neighborPlan is None or neighborPlan["route"][-1] != neighbor:
+                neighbourPlan = self._buildPathToTarget(start, neighbour)
+                if neighbourPlan is None or neighbourPlan["route"][-1] != neighbour:
                     continue
-                routine = neighborPlan["routine"]
-                route = neighborPlan["route"]
+                routine = neighbourPlan["routine"]
+                route = neighbourPlan["route"]
             if bestPlan is None or len(route) < len(bestPlan["route"]):
                 bestPlan = {"routine": routine, "route": route}
         if bestPlan is None:

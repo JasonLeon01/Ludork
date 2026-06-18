@@ -139,19 +139,19 @@ class PlainText(ControlBase):
 
         super().setOrigin(origin * Scale)
 
-    def getColor(self) -> Color:
+    def getColour(self) -> Color:
         r"""\brief Get the fill colour of this text.
 
         - \return  Current fill colour
         """
         return self._text.getFillColor()
 
-    def setColor(self, color: Color) -> None:
+    def setColour(self, colour: Color) -> None:
         r"""\brief Set the fill colour of this text.
 
-        - \param color  New fill colour
+        - \param colour  New fill colour
         """
-        self._text.setFillColor(color)
+        self._text.setFillColor(colour)
 
     def draw(self, target: RenderTarget, states: RenderStates) -> None:
         r"""\brief Draw this text control to the given render target.
@@ -274,7 +274,7 @@ class RichText(ControlBase):
         - \param styleCollection  Named styles used by the markup
         """
         self._font: Font = font
-        self._color: Color = Color.White
+        self._colour: Color = Color.White
         self._string: str = ""
         self._segments: List[Tuple[Text, TextStyle]] = []
         self._localBounds: FloatRect = FloatRect(Vector2f(), Vector2f())
@@ -289,7 +289,7 @@ class RichText(ControlBase):
         """
         self._string = text
         self._render(text, self._styleCollection)
-        self._refreshSegmentColors()
+        self._refreshSegmentColours()
 
     def getString(self) -> str:
         r"""\brief Get the current rich-text string.
@@ -298,20 +298,20 @@ class RichText(ControlBase):
         """
         return self._string
 
-    def setColor(self, color: Color) -> None:
+    def setColour(self, colour: Color) -> None:
         r"""\brief Set the modulation colour for all segments.
 
-        - \param color  New modulation colour
+        - \param colour  New modulation colour
         """
-        self._color = color
-        self._refreshSegmentColors()
+        self._colour = colour
+        self._refreshSegmentColours()
 
-    def getColor(self) -> Color:
+    def getColour(self) -> Color:
         r"""\brief Get the current modulation colour.
 
         - \return  Current modulation colour
         """
-        return self._color
+        return self._colour
 
     def getLocalBounds(self) -> FloatRect:
         r"""\brief Get the local bounds of this rich text in logical UI units.
@@ -368,7 +368,7 @@ class RichText(ControlBase):
         if not self.getVisible():
             return
         for text, style in self._segments:
-            self._applySegmentColor(text, style)
+            self._applySegmentColour(text, style)
             target.draw(text, states)
 
     def getAbsoluteBounds(self) -> FloatRect:
@@ -475,12 +475,12 @@ class RichText(ControlBase):
         return defaultStyle
 
     def _resolveStyleMarker(
-        self, marker: str, styleCollection: Dict[str, TextStyle], hexColorFactory
+        self, marker: str, styleCollection: Dict[str, TextStyle], hexColourFactory
     ) -> Optional[TextStyle]:
         if marker in styleCollection:
             return styleCollection[marker]
         try:
-            return TextStyle(fillColor=hexColorFactory(marker))
+            return TextStyle(fillColor=hexColourFactory(marker))
         except Exception:
             return None
 
@@ -499,20 +499,20 @@ class RichText(ControlBase):
         bounds = text.getLocalBounds()
         return bounds.position.x + bounds.size.x
 
-    def _refreshSegmentColors(self) -> None:
+    def _refreshSegmentColours(self) -> None:
         for text, style in self._segments:
-            self._applySegmentColor(text, style)
+            self._applySegmentColour(text, style)
 
-    def _applySegmentColor(self, text: Text, style: TextStyle) -> None:
+    def _applySegmentColour(self, text: Text, style: TextStyle) -> None:
         fillColor = style.fillColor if style.fillColor is not None else Color.White
         outlineColor = style.outlineColor if style.outlineColor is not None else Color.Black
-        text.setFillColor(self._modulateColor(fillColor, self._color))
-        text.setOutlineColor(self._modulateColor(outlineColor, self._color))
+        text.setFillColor(self._modulateColour(fillColor, self._colour))
+        text.setOutlineColor(self._modulateColour(outlineColor, self._colour))
 
-    def _modulateColor(self, baseColor: Color, factorColor: Color) -> Color:
+    def _modulateColour(self, baseColour: Color, factorColour: Color) -> Color:
         return Color(
-            int(baseColor.r * factorColor.r / 255),
-            int(baseColor.g * factorColor.g / 255),
-            int(baseColor.b * factorColor.b / 255),
-            int(baseColor.a * factorColor.a / 255),
+            int(baseColour.r * factorColour.r / 255),
+            int(baseColour.g * factorColour.g / 255),
+            int(baseColour.b * factorColour.b / 255),
+            int(baseColour.a * factorColour.a / 255),
         )

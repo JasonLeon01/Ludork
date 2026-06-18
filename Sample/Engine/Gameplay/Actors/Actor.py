@@ -62,13 +62,13 @@ class Actor(_ActorBase, BPBase):
         self._destroyed: bool = False
 
     @property
-    def lightColor(self) -> Tuple[int, int, int, int]:
+    def lightColour(self) -> Tuple[int, int, int, int]:
         comp = self._getLightComp()
-        return (255, 255, 255, 255) if comp is None else comp.lightColor
+        return (255, 255, 255, 255) if comp is None else comp.lightColour
 
-    @lightColor.setter
-    def lightColor(self, value: Tuple[int, int, int, int]) -> None:
-        self._ensureLightComp().lightColor = value
+    @lightColour.setter
+    def lightColour(self, value: Tuple[int, int, int, int]) -> None:
+        self._ensureLightComp().lightColour = value
 
     @property
     def lightRadius(self) -> float:

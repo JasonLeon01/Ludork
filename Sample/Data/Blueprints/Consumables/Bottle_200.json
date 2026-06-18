@@ -12,7 +12,7 @@
         "texturePath": "items/classic-potions.png",
         "HP_plus": 200,
         "lightComp": {
-            "lightColor": [
+            "lightColour": [
                 255,
                 96,
                 96,

@@ -49,7 +49,11 @@ def EditMusicFilter(attr: str, value: Any) -> None:
     setattr(MusicFilter, attr, value)
 
 
-@Meta(DisplayName='LOC("PLAY_SOUND")', DisplayDesc='LOC("PLAY_SOUND_DESC")')
+@Meta(
+    DisplayName='LOC("PLAY_SOUND")',
+    DisplayDesc='LOC("PLAY_SOUND_DESC")',
+    PathVars=[("soundFileName", "Sounds")],
+)
 @ExecSplit(default=(None,))
 def PlaySound(soundFileName: str, applyFilter: bool) -> None:
     global SoundFilter
@@ -59,7 +63,11 @@ def PlaySound(soundFileName: str, applyFilter: bool) -> None:
         Manager.playSE(soundFileName)
 
 
-@Meta(DisplayName='LOC("PLAY_MUSIC")', DisplayDesc='LOC("PLAY_MUSIC_DESC")')
+@Meta(
+    DisplayName='LOC("PLAY_MUSIC")',
+    DisplayDesc='LOC("PLAY_MUSIC_DESC")',
+    PathVars=[("musicFileName", "Musics")],
+)
 @ExecSplit(default=(None,))
 def PlayMusic(musicFileName: str, applyFilter: bool) -> None:
     global MusicFilter
@@ -69,7 +77,11 @@ def PlayMusic(musicFileName: str, applyFilter: bool) -> None:
         Manager.playMusic("bgm", musicFileName)
 
 
-@Meta(DisplayName='LOC("PLAY_VIDEO")', DisplayDesc='LOC("PLAY_VIDEO_DESC")')
+@Meta(
+    DisplayName='LOC("PLAY_VIDEO")',
+    DisplayDesc='LOC("PLAY_VIDEO_DESC")',
+    PathVars=[("videoFileName", "Videos")],
+)
 @ExecSplit(default=(None,))
 def PlayVideo(videoFileName: str, mute: bool, skipable: bool) -> None:
     videoPath = os.path.join(os.getcwd(), "Assets", "Videos", videoFileName)
@@ -90,7 +102,11 @@ def FreezeTransitionBackground() -> Callable[[], bool]:
     return _isTransitionBackgroundFrozen
 
 
-@Meta(DisplayName='LOC("REQUEST_TRANSITION")', DisplayDesc='LOC("REQUEST_TRANSITION_DESC")')
+@Meta(
+    DisplayName='LOC("REQUEST_TRANSITION")',
+    DisplayDesc='LOC("REQUEST_TRANSITION_DESC")',
+    PathVars=[("transitionName", "Transitions")],
+)
 @Latent(Finished=(True,))
 def RequestTransition(transitionName: str, transitionTime: float) -> Callable[[], bool]:
     r"""\brief Request a screen transition and wait until it finishes.

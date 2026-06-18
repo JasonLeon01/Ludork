@@ -48,7 +48,7 @@ class _ItemCell(Canvas, FunctionalBase):
         if iconTexture is not None:
             icon = FImage(iconTexture)
             if not usable:
-                icon.setColor(Color(255, 255, 255, _UNUSABLE_ICON_ALPHA))
+                icon.setColour(Color(255, 255, 255, _UNUSABLE_ICON_ALPHA))
             self.addChild(icon)
         if cost:
             text = FPlainText(UI.DefaultFont, str(count), 12)
@@ -62,12 +62,12 @@ class _ItemCell(Canvas, FunctionalBase):
     def getChildren(self):
         return []
 
-    def update(self, deltaTime: float) -> None:
+    def onTick(self, deltaTime: float) -> None:
         r"""\brief Update the cell and render to internal texture.
 
         - \param deltaTime Elapsed time in seconds.
         """
-        super().update(deltaTime)
+        self._buildRenderQueue()
         self.render()
 
 
@@ -166,12 +166,12 @@ class WindowItem(WindowSelectable):
         self._descText.setPosition(Vector2f(16, float(contentHeight + 48)))
         self._updateDescription()
 
-    def update(self, deltaTime: float) -> None:
+    def onTick(self, deltaTime: float) -> None:
         r"""\brief Update item window and render item cells.
 
         - \param deltaTime Elapsed time in seconds.
         """
-        super().update(deltaTime)
+        super().onTick(deltaTime)
         if self._lastDescIndex != self.index:
             self._lastDescIndex = self.index
             self._updateDescription()

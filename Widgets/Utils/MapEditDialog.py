@@ -51,29 +51,18 @@ class MapEditDialog(QtWidgets.QDialog):
             hLineEdit.setStyleSheet("")
         else:
             self.hSpin.setStyleSheet("")
-        form.addRow("File Name", self.fileEdit)
+        form.addRow(ELOC("FILE_NAME"), self.fileEdit)
         form.addRow(ELOC("EDIT_MAP"), self.nameEdit)
         form.addRow(ELOC("MAP_WIDTH"), self.wSpin)
         form.addRow(ELOC("MAP_HEIGHT"), self.hSpin)
 
-        self.ambientLayout = QtWidgets.QHBoxLayout()
-        self.rSpin = QtWidgets.QSpinBox(self)
-        self.gSpin = QtWidgets.QSpinBox(self)
-        self.bSpin = QtWidgets.QSpinBox(self)
-        self.aSpin = QtWidgets.QSpinBox(self)
         current_light = data.get("ambientLight", [255, 255, 255, 255])
         if not isinstance(current_light, (list, tuple)) or len(current_light) < 4:
             current_light = [255, 255, 255, 255]
-        for i, spin in enumerate((self.rSpin, self.gSpin, self.bSpin, self.aSpin)):
-            spin.setRange(0, 255)
-            spin.setValue(int(current_light[i]))
-            spinLineEdit = spin.lineEdit()
-            if spinLineEdit:
-                spinLineEdit.setStyleSheet("")
-            else:
-                spin.setStyleSheet("")
-            self.ambientLayout.addWidget(spin)
-        form.addRow(ELOC("AMBIENT_LIGHT"), self.ambientLayout)
+        from Widgets.Utils.ColourPickerDialog import ColourVarEditor
+
+        self.ambientEditor = ColourVarEditor(current_light, self)
+        form.addRow(ELOC("AMBIENT_LIGHT"), self.ambientEditor)
 
         self.bgmEdit = QtWidgets.QLineEdit(self)
         self.bgmEdit.setReadOnly(True)
@@ -265,7 +254,7 @@ class MapEditDialog(QtWidgets.QDialog):
     def accept(self) -> None:
         fname = self.fileEdit.text().strip()
         if not fname:
-            QtWidgets.QMessageBox.warning(self, "Hint", "File Name cannot be empty.")
+            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("MAP_FILE_NAME_EMPTY"))
             return
         if not fname.endswith(".dat"):
             fname += ".dat"
@@ -275,7 +264,7 @@ class MapEditDialog(QtWidgets.QDialog):
         if fname in existing:
             is_same = self._current_key and fname == self._current_key
             if not is_same:
-                QtWidgets.QMessageBox.warning(self, "Hint", "File Name already exists.")
+                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("MAP_FILE_NAME_EXISTS"))
                 return
 
         super().accept()
@@ -311,11 +300,7 @@ class MapEditDialog(QtWidgets.QDialog):
         if new_name:
             data["mapName"] = new_name
 
-        new_r = int(self.rSpin.value())
-        new_g = int(self.gSpin.value())
-        new_b = int(self.bSpin.value())
-        new_a = int(self.aSpin.value())
-        data["ambientLight"] = [new_r, new_g, new_b, new_a]
+        data["ambientLight"] = list(self.ambientEditor.getValue())
 
         bgm = self.bgmEdit.text().strip()
         data["bgm"] = bgm if bgm else ""

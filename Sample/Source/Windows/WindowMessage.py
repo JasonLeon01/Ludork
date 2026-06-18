@@ -59,8 +59,8 @@ class WindowMessage(WindowSelectable):
         self._pendingRefPosition: Optional[Vector2f] = None
 
         super().__init__(((48, 288), (544, 160)), None, None, self._OPTION_ITEM_HEIGHT)
-        self.setColor(Color(255, 255, 255, 0))
-        self._window.setColor(Color(255, 255, 255, 192))
+        self.setColour(Color(255, 255, 255, 0))
+        self._window.setColour(Color(255, 255, 255, 192))
         self._name = ""
         self._message = ""
         self._textStyles: Dict[str, TextStyle] = {}
@@ -87,7 +87,7 @@ class WindowMessage(WindowSelectable):
         self._messageListView.addChild(self._messageAdvancer)
 
     def onTick(self, deltaTime: float) -> None:
-        r"""\brief Update fade animations.
+        r"""\brief Update fade animations, layout, and selection cursor visibility.
 
         - \param deltaTime Elapsed time in seconds.
         """
@@ -95,13 +95,6 @@ class WindowMessage(WindowSelectable):
             self._fadeIn(deltaTime)
         if self._fadePhase == FadePhase.OUT:
             self._fadeOut(deltaTime)
-        return super().onTick(deltaTime)
-
-    def update(self, deltaTime: float) -> None:
-        r"""\brief Update the window, hiding selection cursor when not in selection mode.
-
-        - \param deltaTime Elapsed time in seconds.
-        """
         if self._pendingLayout:
             self._pendingLayout = False
             if self._contentMode == ContentMode.SELECTION:
@@ -114,8 +107,8 @@ class WindowMessage(WindowSelectable):
                 self._rect.setVisible(False)
                 if self._rect.getParent() is not None:
                     self.content.removeChild(self._rect)
-            return super(WindowSelectable, self).update(deltaTime)
-        super().update(deltaTime)
+            return super(WindowSelectable, self).onTick(deltaTime)
+        super().onTick(deltaTime)
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
         r"""\brief Handle keyboard input for selection cancel and option navigation.
@@ -183,7 +176,7 @@ class WindowMessage(WindowSelectable):
         - \param onFinished Optional callback invoked when the dialogue is confirmed/cancelled.
         """
         self.hidePauseMark()
-        self.setColor(Color(255, 255, 255, 0))
+        self.setColour(Color(255, 255, 255, 0))
         self.setVisible(True)
         self._inDialogue = True
         self._selectionResult = None
@@ -193,7 +186,7 @@ class WindowMessage(WindowSelectable):
         self._name = name
         self._nameText.setString(name)
         self._nameText.setVisible(bool(name.strip()))
-        self._nameText.setColor(Color(255, 255, 255, 0))
+        self._nameText.setColour(Color(255, 255, 255, 0))
         if isinstance(message, (list, tuple)):
             self._contentMode = ContentMode.SELECTION
             self._message = ""
@@ -201,14 +194,14 @@ class WindowMessage(WindowSelectable):
             self._setupSelectionList([str(item) for item in message])
             if self._selectionListView is not None:
                 for child in self._selectionListView.getChildren():
-                    child.setColor(Color(255, 255, 255, 0))
+                    child.setColour(Color(255, 255, 255, 0))
         else:
             self._contentMode = ContentMode.MESSAGE
             self._message = message
             self.setListView(self._messageListView)
             self.index = 0
             self._text.setVisible(True)
-            self._text.setColor(Color(255, 255, 255, 0))
+            self._text.setColour(Color(255, 255, 255, 0))
             self._text.setString(message)
         self._pendingLayout = True
         self._pendingRefPosition = refPosition
@@ -292,7 +285,7 @@ class WindowMessage(WindowSelectable):
         self._textStyles["Ochre"] = TextStyle(fillColor=UI.GetOchre())
         self._textStyles["FernGreen"] = TextStyle(fillColor=UI.GetFernGreen())
         self._textStyles["SteelBlue"] = TextStyle(fillColor=UI.GetSteelBlue())
-        self._textStyles["DimGray"] = TextStyle(fillColor=UI.GetDimGray())
+        self._textStyles["DimGrey"] = TextStyle(fillColor=UI.GetDimGrey())
         self._textStyles["Charcoal"] = TextStyle(fillColor=UI.GetCharcoal())
         self._textStyles["Black"] = TextStyle(fillColor=Color.Black)
         self._textStyles["Blue"] = TextStyle(fillColor=Color.Blue)
@@ -310,13 +303,13 @@ class WindowMessage(WindowSelectable):
         elif self._contentMode == ContentMode.SELECTION and self._selectionListView is not None:
             fadeTargets.extend(self._selectionListView.getChildren())
         for comp in fadeTargets:
-            a = comp.getColor().a
+            a = comp.getColour().a
             if a == 255:
                 continue
             deltaAlpha = self._fadeInSpeed * deltaTime
             a = int(min(a + deltaAlpha, 255))
-            comp.setColor(Color(255, 255, 255, a))
-        if all(comp.getColor().a == 255 for comp in fadeTargets):
+            comp.setColour(Color(255, 255, 255, a))
+        if all(comp.getColour().a == 255 for comp in fadeTargets):
             self._fadePhase = FadePhase.NOTHING
             self._onFadeInComplete()
 
@@ -326,7 +319,7 @@ class WindowMessage(WindowSelectable):
             self.showPauseMark()
 
     def _fadeOut(self, deltaTime: float) -> None:
-        a = self.getColor().a
+        a = self.getColour().a
         if a == 0:
             self._fadePhase = FadePhase.NOTHING
             self._inDialogue = False
@@ -334,7 +327,7 @@ class WindowMessage(WindowSelectable):
             return
         deltaAlpha = self._fadeOutSpeed * deltaTime
         a = int(max(a - deltaAlpha, 0))
-        self.setColor(Color(255, 255, 255, a))
+        self.setColour(Color(255, 255, 255, a))
         if a == 0:
             self._fadePhase = FadePhase.NOTHING
             self._inDialogue = False

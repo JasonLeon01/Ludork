@@ -54,7 +54,7 @@ class System(SystemConfigBase):
     _transitionFrozen: bool = False
     _transitionFreezePending: bool = False
     _flashShader: Optional[Shader] = None
-    _flashColor: Vector4f = Vector4f(1.0, 1.0, 1.0, 1.0)
+    _flashColour: Vector4f = Vector4f(1.0, 1.0, 1.0, 1.0)
     _flashDuration: float = 0.0
     _flashTimeCount: float = 0.0
     _flashActive: bool = False
@@ -493,7 +493,7 @@ class System(SystemConfigBase):
                 return
             if cls._flashShader is None:
                 return
-        cls._flashColor = Vector4f(
+        cls._flashColour = Vector4f(
             float(color.r) / 255.0,
             float(color.g) / 255.0,
             float(color.b) / 255.0,
@@ -504,7 +504,7 @@ class System(SystemConfigBase):
         if not cls._flashActive:
             cls.addGraphicsShader(cls._flashShader)
             cls._flashActive = True
-        cls._flashShader.setUniform("flashColor", cls._flashColor)
+        cls._flashShader.setUniform("flashColor", cls._flashColour)
         cls._flashShader.setUniform("intensity", 1.0)
 
     @classmethod
@@ -764,7 +764,7 @@ class System(SystemConfigBase):
             intensity = max(0.0, 1.0 - cls._flashTimeCount / cls._flashDuration)
         else:
             intensity = 0.0
-        cls._flashShader.setUniform("flashColor", cls._flashColor)
+        cls._flashShader.setUniform("flashColor", cls._flashColour)
         cls._flashShader.setUniform("intensity", intensity)
         if cls._flashTimeCount >= cls._flashDuration:
             cls.removeGraphicsShader(cls._flashShader)

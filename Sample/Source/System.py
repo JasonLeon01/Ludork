@@ -121,17 +121,17 @@ class System:
             canvasSize = Vector2u(canvasW, canvasH)
             offsetX = (screenSize.x - canvasW) / 2.0
             offsetY = (screenSize.y - canvasH) / 2.0
-            centeredView = View(
+            centredView = View(
                 Vector2f(canvasW / 2.0, canvasH / 2.0),
                 Vector2f(float(canvasW), float(canvasH)),
             )
-            centeredView.setViewport(
+            centredView.setViewport(
                 FloatRect(
                     Vector2f(offsetX / screenSize.x, offsetY / screenSize.y),
                     Vector2f(canvasW / screenSize.x, canvasH / screenSize.y),
                 )
             )
-            window.setView(centeredView)
+            window.setView(centredView)
         else:
             contextSettings = ContextSettings(antiAliasingLevel=8)
             window = RenderWindow(

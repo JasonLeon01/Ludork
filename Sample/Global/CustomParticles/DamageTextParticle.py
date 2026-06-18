@@ -26,7 +26,7 @@ class DamageTextParticle:
         particleSystem: ParticleSystem,
         text: str,
         position: Union[Vector2f, Pair[float], Sequence[float]],
-        color: Optional[Union[Color, Sequence[int]]] = None,
+        colour: Optional[Union[Color, Sequence[int]]] = None,
         fontSize: int = 28,
     ) -> None:
         r"""
@@ -35,13 +35,13 @@ class DamageTextParticle:
         - \param particleSystem Target particle system used to render the text.
         - \param text Text content, usually a damage number.
         - \param position Initial map-view position.
-        - \param color Optional fill colour; defaults to opaque white.
+        - \param colour Optional fill colour; defaults to opaque white.
         - \param fontSize Character size; defaults to 28.
         """
         self._particleSystem = particleSystem
         self._textParticle: Optional[EngineTextParticle] = None
         self._startPosition = self._toVector2f(position)
-        self._color = self._toColor(color)
+        self._colour = self._toColour(colour)
         self._fontSize = max(1, int(fontSize))
         self._destroyRequested = False
         self._destroyed = False
@@ -68,7 +68,7 @@ class DamageTextParticle:
             self._fontSize,
         )
         textParticle.setString(message)
-        textParticle.setFillColor(self._color)
+        textParticle.setFillColor(self._colour)
         self._textParticle = textParticle
         self._applyPosition(0.0)
         self._particleSystem.addText(textParticle)
@@ -103,7 +103,7 @@ class DamageTextParticle:
             return
         self._destroyRequested = True
         if self._textParticle is not None:
-            self._textParticle.setFillColor(Color(self._color.r, self._color.g, self._color.b, 0))
+            self._textParticle.setFillColor(Color(self._colour.r, self._colour.g, self._colour.b, 0))
         eventName = f"DamageTextParticle.destroy.{id(self)}"
         Event.once(eventName, lambda _: self.destroy())
         Event.post(eventName)
@@ -129,12 +129,12 @@ class DamageTextParticle:
         return Vector2f(float(position[0]), float(position[1]))
 
     @staticmethod
-    def _toColor(color: Optional[Union[Color, Sequence[int]]]) -> Color:
-        if color is None:
+    def _toColour(colour: Optional[Union[Color, Sequence[int]]]) -> Color:
+        if colour is None:
             return Color(255, 255, 255, 255)
-        if isinstance(color, Color):
-            return Color(color.r, color.g, color.b, color.a)
-        values = list(color)
+        if isinstance(colour, Color):
+            return Color(colour.r, colour.g, colour.b, colour.a)
+        values = list(colour)
         if len(values) == 3:
             return Color(int(values[0]), int(values[1]), int(values[2]), 255)
         return Color(int(values[0]), int(values[1]), int(values[2]), int(values[3]))

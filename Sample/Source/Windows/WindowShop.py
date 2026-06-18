@@ -30,7 +30,7 @@ _SHOP_WIDTH = 352
 _SHOP_ITEM_ROW_HEIGHT = 32
 _SHOP_ITEM_COLUMNS = 2
 _SHOP_DISABLED_ALPHA = 120
-_SHOP_DISABLED_TEXT_COLOR = Color(160, 160, 160, 255)
+_SHOP_DISABLED_TEXT_COLOUR = Color(160, 160, 160, 255)
 _SHOP_TEXT_SIZE = 12
 _SHOP_TEXT_RIGHT_PAD = 2
 _SHOP_TEXT_Y_OFFSET = 17
@@ -56,12 +56,12 @@ class _ShopCell(Canvas, FunctionalBase):
         if iconTexture is not None:
             icon = FImage(iconTexture)
             if not available:
-                icon.setColor(Color(255, 255, 255, _SHOP_DISABLED_ALPHA))
+                icon.setColour(Color(255, 255, 255, _SHOP_DISABLED_ALPHA))
             self.addChild(icon)
         text = FPlainText(UI.DefaultFont, textValue, _SHOP_TEXT_SIZE)
         text.setLineAlignment(Text.LineAlignment.Right)
         if not available:
-            text.setColor(_SHOP_DISABLED_TEXT_COLOR)
+            text.setColour(_SHOP_DISABLED_TEXT_COLOUR)
         text.setPosition(
             Vector2f(
                 width - _SHOP_TEXT_RIGHT_PAD,
@@ -73,12 +73,12 @@ class _ShopCell(Canvas, FunctionalBase):
     def getChildren(self):
         return []
 
-    def update(self, deltaTime: float) -> None:
+    def onTick(self, deltaTime: float) -> None:
         r"""\brief Update the cell and render to its internal texture.
 
         - \param deltaTime Elapsed time in seconds.
         """
-        super().update(deltaTime)
+        self._buildRenderQueue()
         self.render()
 
 
@@ -122,8 +122,8 @@ class WindowShopCommand(WindowCommand):
         self._owner = owner
         self._lastIndex = self.index
 
-    def update(self, deltaTime: float) -> None:
-        super().update(deltaTime)
+    def onTick(self, deltaTime: float) -> None:
+        super().onTick(deltaTime)
         if self.index != self._lastIndex:
             self._lastIndex = self.index
             self._owner.setMode(SHOP_MODE_SELL if self.index == 1 else SHOP_MODE_BUY)

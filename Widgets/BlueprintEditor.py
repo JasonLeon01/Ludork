@@ -11,7 +11,9 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 from EditorGlobal import EditorStatus, GameData
 from Utils import System, File, SFMLRender
 from Widgets.Utils import SingleRowDialog, NodePanel, Toast, RectViewer, DataclassWidget, FileSelectorDialog
+from Widgets.Utils.ColourPickerDialog import ColourVarEditor
 from Widgets.Utils.MetaRely import getRelyConditionDisplay, getRelySourceSet, isRelyEditable, normaliseRelyMap
+from Widgets.Utils.MetaVarTypes import getMetaVarTypes
 
 
 _GRAPH_TAB_KIND = "graph"
@@ -196,6 +198,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         rectMap = self._getRectRangeVars()
         self.rectRangeVars: Set[str] = set(rectMap.keys())
         self.rectRangeVarMap: Dict[str, str] = rectMap
+        self.attrVarTypes: Dict[str, str] = self._getMetaVarTypes()
         self.attrRely: Dict[str, Any] = self._getMetaRely()
         self.attrRelySources: Set[str] = getRelySourceSet(self.attrRely)
         self.setupUI()
@@ -246,6 +249,8 @@ class BluePrintEditor(QtWidgets.QWidget):
                 return text
         if isinstance(widget, DataclassWidget):
             return widget.data
+        if isinstance(widget, ColourVarEditor):
+            return widget.getValue()
         elems = getattr(widget, "_elementWidgets", None)
         if elems is not None:
             values = []
@@ -269,6 +274,10 @@ class BluePrintEditor(QtWidgets.QWidget):
 
     def _onRevertAttr(self, key: str, parent_val: Any, widget: QtWidgets.QWidget) -> None:
         """Revert the attribute to its parent class value."""
+        if isinstance(widget, ColourVarEditor):
+            widget.setValue(parent_val)
+            return
+
         # For complex widgets where direct set is unreliable, rebuild the form
         is_complex = isinstance(widget, DataclassWidget) or hasattr(widget, "_elementWidgets")
         if is_complex:
@@ -319,6 +328,10 @@ class BluePrintEditor(QtWidgets.QWidget):
             widget.VALUE_CHANGED.connect(
                 lambda data, b=revertBtn, pv=parent_val: self._updateRevertButtonState(b, data, pv)
             )
+        elif isinstance(widget, ColourVarEditor):
+            widget.VALUE_CHANGED.connect(
+                lambda data, b=revertBtn, pv=parent_val: self._updateRevertButtonState(b, data, pv)
+            )
         else:
             elems = getattr(widget, "_elementWidgets", None)
             if elems is not None:
@@ -365,14 +378,14 @@ class BluePrintEditor(QtWidgets.QWidget):
         return paths
 
     def _collectPathVars(self, paths: Dict[str, str], value: Any) -> None:
-        if isinstance(value, str):
-            paths[value] = "Characters"
-            return
         if isinstance(value, tuple) and len(value) >= 2 and isinstance(value[0], str):
             paths[value[0]] = self._normalisePathVarAssetsDir(value[1])
             return
         if isinstance(value, (list, tuple, set)):
             for item in value:
+                if isinstance(item, str):
+                    paths[item] = "Characters"
+                    continue
                 self._collectPathVars(paths, item)
 
     def _normalisePathVarAssetsDir(self, value: Any) -> str:
@@ -392,6 +405,22 @@ class BluePrintEditor(QtWidgets.QWidget):
             return dict(rects)
         return {}
 
+    def _getMetaVarTypes(self) -> Dict[str, str]:
+        cls = self._resolveClass()
+        if cls is None or not isinstance(cls, type):
+            return {}
+        result: Dict[str, str] = {}
+        try:
+            mro = list(reversed(cls.mro()))
+        except:
+            mro = [cls]
+        for base in mro:
+            meta = getattr(base, "__dict__", {}).get("_meta")
+            if not isinstance(meta, dict):
+                continue
+            result.update(getMetaVarTypes(meta))
+        return result
+
     def _getMetaRely(self) -> Dict[str, Any]:
         cls = self._resolveClass()
         if cls is None or not isinstance(cls, type):
@@ -409,6 +438,9 @@ class BluePrintEditor(QtWidgets.QWidget):
         return result
 
     def _setWidgetEditable(self, widget: QtWidgets.QWidget, editable: bool) -> None:
+        if isinstance(widget, ColourVarEditor):
+            widget.setEditable(editable)
+            return
         widget.setEnabled(editable)
         if isinstance(widget, (QtWidgets.QLineEdit, QtWidgets.QPlainTextEdit, QtWidgets.QTextEdit)):
             widget.setReadOnly(not editable)
@@ -781,6 +813,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             self.formLayout.removeRow(0)
 
         cls = self._resolveClass()
+        self.attrVarTypes = self._getMetaVarTypes()
         self.attrRely = self._getMetaRely()
         self.attrRelySources = getRelySourceSet(self.attrRely)
         type_hints = {}
@@ -848,7 +881,13 @@ class BluePrintEditor(QtWidgets.QWidget):
                 widget.VALUE_CHANGED.connect(lambda val, k=key: self.onDataChanged(k, val, True))
                 is_dc = True
             else:
-                widget = self.createInputWidget(key, value, type_hint=type_hint, parent_val=attr_parent_val)
+                widget = self.createInputWidget(
+                    key,
+                    value,
+                    type_hint=type_hint,
+                    parent_val=attr_parent_val,
+                    var_type=self.attrVarTypes.get(key, ""),
+                )
 
             isInvalid = key in self.invalidVars
             isRectRange = key in self.rectRangeVars and not isInvalid
@@ -935,8 +974,19 @@ class BluePrintEditor(QtWidgets.QWidget):
         self._refreshPreview()
 
     def createInputWidget(
-        self, key: str, value: Any, isAttr: bool = True, type_hint: Any = None, parent_val: Any = None
+        self,
+        key: str,
+        value: Any,
+        isAttr: bool = True,
+        type_hint: Any = None,
+        parent_val: Any = None,
+        var_type: Any = "",
     ) -> QtWidgets.QWidget:
+        if isAttr and var_type == "ColourVar":
+            w = ColourVarEditor(value, self)
+            w.VALUE_CHANGED.connect(lambda val, k=key: self.onDataChanged(k, val, True))
+            return w
+
         if isAttr and isinstance(value, bool):
             w = QtWidgets.QCheckBox()
             w.setChecked(bool(value))

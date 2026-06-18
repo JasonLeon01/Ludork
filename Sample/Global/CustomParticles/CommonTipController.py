@@ -175,10 +175,10 @@ class CommonTipController:
         if len(self._tips) == 0:
             return
         canvasWidth = float(System.getCanvas().getSize().x)
-        centerScreenX = canvasWidth * 0.5
+        centreScreenX = canvasWidth * 0.5
         for item in self._tips:
             bounds = item.textParticle.getLocalBounds()
-            screenX = centerScreenX - (float(bounds.position.x) + float(bounds.size.x) * 0.5)
+            screenX = centreScreenX - (float(bounds.position.x) + float(bounds.size.x) * 0.5)
             item.textParticle.setPosition(Vector2f(screenX, item.screenY))
             item.textParticle.setFillColor(Color(255, 255, 255, int(Math.Clamp(item.alpha, 0.0, 255.0))))
 

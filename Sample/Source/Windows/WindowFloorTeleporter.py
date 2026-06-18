@@ -72,8 +72,8 @@ class WindowFloorMapCommand(WindowCommand):
             return None
         return self._mapKeys[self.index]
 
-    def update(self, deltaTime: float) -> None:
-        super().update(deltaTime)
+    def onTick(self, deltaTime: float) -> None:
+        super().onTick(deltaTime)
         self._owner.notifyMapIndexMaybeChanged(self.index)
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
@@ -152,9 +152,9 @@ class WindowFloorMapPreview(WindowSelectable):
         self.index = max(0, min(selectedIndex, len(entries) - 1))
         self._refreshSelectedPreview()
 
-    def update(self, deltaTime: float) -> None:
+    def onTick(self, deltaTime: float) -> None:
         previousIndex = self.index
-        super().update(deltaTime)
+        super().onTick(deltaTime)
         if not self.getActive():
             self._rect.setVisible(False)
         if self.index != previousIndex:

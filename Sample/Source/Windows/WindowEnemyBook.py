@@ -45,13 +45,13 @@ class _EnemyBookCell(Canvas, FunctionalBase):
     def getChildren(self):
         return []
 
-    def update(self, deltaTime: float) -> None:
+    def onTick(self, deltaTime: float) -> None:
         r"""\brief Update animated icon and render this row to its canvas.
 
         - \param deltaTime Elapsed time in seconds.
         """
         self._animateIcon(deltaTime)
-        super().update(deltaTime)
+        self._buildRenderQueue()
         self.render()
 
     def _buildIcon(self, entry: Dict[str, Any]) -> None:
@@ -100,7 +100,7 @@ class _EnemyBookCell(Canvas, FunctionalBase):
         for position, value in statTexts:
             text = FPlainText(UI.DefaultFont, value, _TEXT_SIZE)
             if value.endswith("--"):
-                text.setColor(Color(255, 96, 96, 255))
+                text.setColour(Color(255, 96, 96, 255))
             text.setPosition(position)
             self.addChild(text)
 

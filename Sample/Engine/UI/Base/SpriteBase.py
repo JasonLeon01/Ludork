@@ -67,14 +67,14 @@ class SpriteBase(ControlBase):
         """
         return self._sprite.getTextureRect()
 
-    def setColor(self, color: Color) -> None:
+    def setColour(self, colour: Color) -> None:
         r"""\brief Set the colour of this sprite.
 
-        - \param color  New colour
+        - \param colour  New colour
         """
-        self._sprite.setColor(color)
+        self._sprite.setColor(colour)
 
-    def getColor(self) -> Color:
+    def getColour(self) -> Color:
         r"""\brief Get the colour of this sprite.
 
         - \return  Current colour

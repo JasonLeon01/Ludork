@@ -1215,14 +1215,14 @@ class GameData:
 
     @classmethod
     def _collectReferencePathVars(cls, paths: Dict[str, str], value: Any) -> None:
-        if isinstance(value, str):
-            paths[value] = "Characters"
-            return
         if isinstance(value, tuple) and len(value) >= 2 and isinstance(value[0], str):
             paths[value[0]] = cls._normaliseAssetBaseDir(value[1])
             return
         if isinstance(value, (list, tuple, set)):
             for item in value:
+                if isinstance(item, str):
+                    paths[item] = "Characters"
+                    continue
                 cls._collectReferencePathVars(paths, item)
 
     @classmethod

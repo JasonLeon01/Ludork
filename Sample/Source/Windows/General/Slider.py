@@ -87,14 +87,11 @@ class _SliderField(Canvas):
         self._buildRenderQueue()
         self.render()
 
-    def update(self, deltaTime: float) -> None:
+    def onTick(self, deltaTime: float) -> None:
         r"""\brief Refresh and render the slider field canvas.
 
         - \param deltaTime  Elapsed time in seconds
         """
-        for child in self._childrenList:
-            if isinstance(child, FunctionalBase) and child.getVisible():
-                child.update(deltaTime)
         self._buildRenderQueue()
         self.render()
 

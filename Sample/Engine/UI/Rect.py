@@ -55,7 +55,7 @@ class Rect(SpriteBase):
         self.setPosition(Math.ToVector2f(rect.position))
         self._fadeSpeed = fadeSpeed
         self._opacityRange = opacityRange
-        self._opacity = float(self.getColor().a)
+        self._opacity = float(self.getColour().a)
         self._opacityMultiplier = 1.0
         self._fading: bool = True
 
@@ -93,9 +93,9 @@ class Rect(SpriteBase):
         self._applyOpacity()
 
     def _applyOpacity(self) -> None:
-        color = copy.copy(self.getColor())
-        color.a = int(self._opacity * self._opacityMultiplier)
-        self.setColor(color)
+        colour = copy.copy(self.getColour())
+        colour.a = int(self._opacity * self._opacityMultiplier)
+        self.setColour(colour)
 
     def _presave(self, target: List[Texture], area: List[IntRect]) -> None:
         target.clear()

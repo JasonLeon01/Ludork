@@ -50,7 +50,7 @@ class _CheckBoxField(Canvas):
         - \param checked  True to show the checked mark
         """
         self._markText.setString(_CHECKED_MARK if checked else "")
-        self._markText.setColor(Color.Green if checked else Color.White)
+        self._markText.setColour(Color.Green if checked else Color.White)
         self._markText.setPosition(self._getMarkPosition())
 
     def getLogicalSize(self) -> Vector2f:
@@ -61,14 +61,11 @@ class _CheckBoxField(Canvas):
         size = self.getSize()
         return Vector2f(float(size.x), float(size.y))
 
-    def update(self, deltaTime: float) -> None:
+    def onTick(self, deltaTime: float) -> None:
         r"""\brief Refresh and render the checkbox field canvas.
 
         - \param deltaTime  Elapsed time in seconds
         """
-        for child in self._childrenList:
-            if isinstance(child, FunctionalBase) and child.getVisible():
-                child.update(deltaTime)
         self._buildRenderQueue()
         self.render()
 
