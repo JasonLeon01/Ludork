@@ -4,7 +4,7 @@ from __future__ import annotations
 import inspect
 import sys
 from types import ModuleType
-from typing import Dict, TypedDict
+from typing import Dict, Optional, TypedDict
 from PyQt5 import QtCore, QtWidgets, QtGui
 
 from .NodeFunctionMeta import NodeFunction, isSelectableNodeFunction
@@ -25,7 +25,7 @@ class FunctionPickerPopup(QtWidgets.QDialog):
     FUNCTION_SELECTED = QtCore.pyqtSignal(str, bool)
 
     def __init__(
-        self, parent: QtWidgets.QWidget, sources: Dict[str, FunctionSource], filterExecOnly: bool = False
+        self, parent: Optional[QtWidgets.QWidget], sources: Dict[str, FunctionSource], filterExecOnly: bool = False
     ) -> None:
         super().__init__(parent)
         self.setModal(False)

@@ -249,6 +249,7 @@ class _ActorBase(Sprite):
         """
         return self.getRelativeMapPosition().unpack()
 
+    @Meta(Vector2fVars=["position"])
     @ExecSplit(default=(None,))
     @TypeAdapter(position=([tuple, list], Vector2f))
     def setPosition(self, position: Union[Vector2f, Pair[float], List[float]]) -> None:
@@ -270,6 +271,7 @@ class _ActorBase(Sprite):
             for child in self.getChildren():
                 child._updatePositionFromParent()
 
+    @Meta(Vector2fVars=["position"])
     @ExecSplit(default=(None,))
     @TypeAdapter(position=([tuple, list], Vector2f))
     def setRelativePosition(self, position: Union[Vector2f, Pair[float], List[float]]) -> None:
@@ -283,6 +285,7 @@ class _ActorBase(Sprite):
             parentPosition = parent.getPosition()
         self.setPosition(parentPosition + position)
 
+    @Meta(Vector2uVars=["position"])
     @ExecSplit(default=(None,))
     @TypeAdapter(position=([tuple, list], Vector2u))
     def setMapPosition(self, position: Union[Vector2u, Pair[int], List[int]]) -> None:
@@ -294,6 +297,7 @@ class _ActorBase(Sprite):
 
         self.setPosition(Vector2f(position.x * CellSize, position.y * CellSize))
 
+    @Meta(Vector2uVars=["position"])
     @ExecSplit(default=(None,))
     @TypeAdapter(position=([tuple, list], Vector2u))
     def setRelativeMapPosition(self, position: Union[Vector2u, Pair[int], List[int]]) -> None:
@@ -305,6 +309,7 @@ class _ActorBase(Sprite):
 
         self.setRelativePosition(Vector2f(position.x * CellSize, position.y * CellSize))
 
+    @Meta(Vector2fVars=["offset"])
     @ExecSplit(default=(None,))
     @TypeAdapter(offset=([tuple, list], Vector2f))
     def move(self, offset: Union[Vector2f, Pair[float], List[float]]) -> None:
@@ -436,6 +441,7 @@ class _ActorBase(Sprite):
         """
         return self._relativeScale.unpack()
 
+    @Meta(Vector2fVars=["factors"])
     @ExecSplit(default=(None,))
     @TypeAdapter(factors=([tuple, list], Vector2f))
     def setScale(self, factors: Union[Vector2f, Pair[float], List[float]]) -> None:
@@ -457,6 +463,7 @@ class _ActorBase(Sprite):
             for child in self.getChildren():
                 child._updateScaleFromParent()
 
+    @Meta(Vector2fVars=["factor"])
     @ExecSplit(default=(None,))
     @TypeAdapter(factor=([tuple, list], Vector2f))
     def scale(self, factor: Union[Vector2f, Pair[float], List[float]]) -> None:
@@ -473,6 +480,7 @@ class _ActorBase(Sprite):
             for child in self.getChildren():
                 child._updateScaleFromParent()
 
+    @Meta(Vector2fVars=["scale"])
     @ExecSplit(default=(None,))
     @TypeAdapter(scale=([tuple, list], Vector2f))
     def setRelativeScale(self, scale: Union[Vector2f, Pair[float], List[float]]) -> None:
@@ -502,6 +510,7 @@ class _ActorBase(Sprite):
         """
         return super().getOrigin()
 
+    @Meta(Vector2fVars=["origin"])
     @ExecSplit(default=(None,))
     @TypeAdapter(origin=([tuple, list], Vector2f))
     def setOrigin(self, origin: Union[Vector2f, Pair[float], List[float]]) -> None:
@@ -522,6 +531,7 @@ class _ActorBase(Sprite):
         """
         return self._translation
 
+    @Meta(Vector2fVars=["translation"])
     @ExecSplit(default=(None,))
     @TypeAdapter(translation=([tuple, list], Vector2f))
     def setTranslation(self, translation: Union[Vector2f, Pair[float], List[float]]) -> None:
@@ -535,6 +545,7 @@ class _ActorBase(Sprite):
         self._translation = translation
         self.setPosition(self.getPosition())
 
+    @Meta(Vector2fVars=["alignment"])
     @ExecSplit(default=(None,))
     def setAlignment(self, alignment: Tuple) -> None:
         r"""\brief Set the origin based on alignment ratios.

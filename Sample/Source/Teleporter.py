@@ -11,6 +11,7 @@ from Engine.Gameplay.Actors import Actor
 from Source.GameInstance import GameInstance
 
 
+@Meta(Vector2iVars=["Offset"])
 class Teleporter(Actor):
     r"""\brief Actor used to move between neighbouring maps in the current region."""
 

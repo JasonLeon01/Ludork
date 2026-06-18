@@ -178,6 +178,7 @@ class TupleEditorWidget(QtWidgets.QWidget):
 class GeneralDataPage(QtWidgets.QWidget):
     MODIFIED = QtCore.pyqtSignal()
     REQUEST_BLUEPRINT_EDIT = QtCore.pyqtSignal(str, str, list)
+    READ_ONLY_LINE_EDIT_STYLE = "color: #909090;"
     PARAM_TYPE_OPTIONS = ["string", "int", "float", "bool", "file", "list", "dict"]
     PARAM_TYPE_TOOLTIP_KEYS = {
         "string": "GENERAL_DATA_TYPE_TIP_STRING",
@@ -313,6 +314,13 @@ class GeneralDataPage(QtWidgets.QWidget):
         if not isinstance(eventData, dict):
             return False
         return bool(eventData.get("nodes") or eventData.get("links"))
+
+    @classmethod
+    def _makeReadOnlyLineEdit(cls, text: str = "") -> QtWidgets.QLineEdit:
+        lineEdit = QtWidgets.QLineEdit(text)
+        lineEdit.setReadOnly(True)
+        lineEdit.setStyleSheet(cls.READ_ONLY_LINE_EDIT_STYLE)
+        return lineEdit
 
     @staticmethod
     def _normalizeMemberGraph(memberData: dict, events: list) -> None:
@@ -470,8 +478,7 @@ class GeneralDataPage(QtWidgets.QWidget):
         self._ignoreChanges = True
 
         idLabel = QtWidgets.QLabel("ID")
-        idWidget = QtWidgets.QLineEdit(self._currentMemberKey)
-        idWidget.setReadOnly(True)
+        idWidget = self._makeReadOnlyLineEdit(self._currentMemberKey)
         self.propertyLayout.addRow(idLabel, idWidget)
 
         for paramKey, paramDef in params.items():
@@ -579,6 +586,12 @@ class GeneralDataPage(QtWidgets.QWidget):
 
         btnBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
         form.addRow(btnBox)
+        ok_btn = btnBox.button(QtWidgets.QDialogButtonBox.Ok)
+        cancel_btn = btnBox.button(QtWidgets.QDialogButtonBox.Cancel)
+        if ok_btn:
+            ok_btn.setText(ELOC("CONFIRM"))
+        if cancel_btn:
+            cancel_btn.setText(ELOC("CANCEL"))
 
         btnBox.accepted.connect(dlg.accept)
         btnBox.rejected.connect(dlg.reject)
@@ -722,8 +735,7 @@ class GeneralDataPage(QtWidgets.QWidget):
             layout = QtWidgets.QHBoxLayout(container)
             layout.setContentsMargins(0, 0, 0, 0)
 
-            le = QtWidgets.QLineEdit(str(value) if value is not None else "")
-            le.setReadOnly(True)
+            le = self._makeReadOnlyLineEdit(str(value) if value is not None else "")
             layout.addWidget(le)
 
             btn = QtWidgets.QPushButton("...")

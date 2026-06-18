@@ -8,6 +8,7 @@ from PyQt5 import QtWidgets, QtCore
 from .ColourPickerDialog import ColourVarEditor
 from .MetaVarTypes import getMetaVarTypes
 from .TypedValueEditor import TypedValueEditor
+from .VectorVarEditor import VectorVarEditor, isVectorVarType
 
 
 class DataclassWidget(QtWidgets.QWidget):
@@ -55,6 +56,10 @@ class DataclassWidget(QtWidgets.QWidget):
         varType = self._getFieldVarType(field)
         if varType == "ColourVar":
             w = ColourVarEditor(value, self)
+            w.VALUE_CHANGED.connect(lambda v, k=field.name: self._onFieldChanged(k, v))
+            return w
+        if isVectorVarType(varType):
+            w = VectorVarEditor(varType, value, self)
             w.VALUE_CHANGED.connect(lambda v, k=field.name: self._onFieldChanged(k, v))
             return w
 

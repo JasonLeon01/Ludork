@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import os
-from typing import cast
+from typing import Optional, cast
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Utils import System
 
@@ -67,7 +67,7 @@ class FileSelectorDialog(QtWidgets.QFileDialog):
 
     def __init__(
         self,
-        parent: QtWidgets.QWidget,
+        parent: Optional[QtWidgets.QWidget],
         root: str,
         filter_str: str,
         title: str | None = None,

@@ -8,6 +8,7 @@ from PyQt5 import QtWidgets
 from .ColourPickerDialog import ColourVarEditor
 from .MetaVarTypes import getMetaVarTypes
 from .TypedValueEditor import TypedValueEditor
+from .VectorVarEditor import VectorVarEditor, isVectorVarType
 
 
 class DataclassEditDialog(QtWidgets.QDialog):
@@ -30,8 +31,11 @@ class DataclassEditDialog(QtWidgets.QDialog):
         for field in fields:
             value = getattr(self.data_obj, field.name)
             field_type = self._type_hints.get(field.name, field.type)
-            if self._getFieldVarType(field) == "ColourVar":
+            varType = self._getFieldVarType(field)
+            if varType == "ColourVar":
                 widget = ColourVarEditor(value, self)
+            elif isVectorVarType(varType):
+                widget = VectorVarEditor(varType, value, self)
             else:
                 widget = TypedValueEditor(value, field_type, self)
             
@@ -39,13 +43,19 @@ class DataclassEditDialog(QtWidgets.QDialog):
             self.inputs[field.name] = widget
             
         buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        ok_btn = buttons.button(QtWidgets.QDialogButtonBox.Ok)
+        cancel_btn = buttons.button(QtWidgets.QDialogButtonBox.Cancel)
+        if ok_btn:
+            ok_btn.setText(ELOC("CONFIRM"))
+        if cancel_btn:
+            cancel_btn.setText(ELOC("CANCEL"))
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
     def accept(self):
         for name, widget in self.inputs.items():
-            if isinstance(widget, (TypedValueEditor, ColourVarEditor)):
+            if isinstance(widget, (TypedValueEditor, ColourVarEditor, VectorVarEditor)):
                 setattr(self.data_obj, name, widget.getValue())
         super().accept()
 

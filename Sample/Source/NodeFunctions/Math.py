@@ -54,61 +54,61 @@ def IsNearZero(num: Union[int, float], epsilon: float = 0.1) -> bool:
     return Math.IsNearZero(num, epsilon)
 
 
-@Meta(DisplayName='LOC("IS_VECTOR2_NEAR_ZERO")', DisplayDesc='LOC("IS_VECTOR2_NEAR_ZERO_DESC")')
+@Meta(DisplayName='LOC("IS_VECTOR2_NEAR_ZERO")', DisplayDesc='LOC("IS_VECTOR2_NEAR_ZERO_DESC")', Vector2fVars=["v"])
 @ReturnType(value=bool)
 def IsVector2NearZero(v: Vector2f, epsilon: float = 0.1) -> bool:
     return Math.IsVector2NearZero(v, epsilon)
 
 
-@Meta(DisplayName='LOC("IS_VECTOR3_NEAR_ZERO")', DisplayDesc='LOC("IS_VECTOR3_NEAR_ZERO_DESC")')
+@Meta(DisplayName='LOC("IS_VECTOR3_NEAR_ZERO")', DisplayDesc='LOC("IS_VECTOR3_NEAR_ZERO_DESC")', Vector3fVars=["v"])
 @ReturnType(value=bool)
 def IsVector3NearZero(v: Vector3f, epsilon: float = 0.1) -> bool:
     return Math.IsVector3NearZero(v, epsilon)
 
 
-@Meta(DisplayName='LOC("VECTOR2F_ROUND")', DisplayDesc='LOC("VECTOR2F_ROUND_DESC")')
+@Meta(DisplayName='LOC("VECTOR2F_ROUND")', DisplayDesc='LOC("VECTOR2F_ROUND_DESC")', Vector2fVars=["v"])
 @ReturnType(value=Vector2f)
 def Vector2fRound(v: Vector2f) -> Vector2f:
     return Math.Vector2fRound(v)
 
 
-@Meta(DisplayName='LOC("VECTOR2F_FLOOR")', DisplayDesc='LOC("VECTOR2F_FLOOR_DESC")')
+@Meta(DisplayName='LOC("VECTOR2F_FLOOR")', DisplayDesc='LOC("VECTOR2F_FLOOR_DESC")', Vector2fVars=["v"])
 @ReturnType(value=Vector2f)
 def Vector2fFloor(v: Vector2f) -> Vector2f:
     return Math.Vector2fFloor(v)
 
 
-@Meta(DisplayName='LOC("VECTOR2F_CEIL")', DisplayDesc='LOC("VECTOR2F_CEIL_DESC")')
+@Meta(DisplayName='LOC("VECTOR2F_CEIL")', DisplayDesc='LOC("VECTOR2F_CEIL_DESC")', Vector2fVars=["v"])
 @ReturnType(value=Vector2f)
 def Vector2fCeil(v: Vector2f) -> Vector2f:
     return Math.Vector2fCeil(v)
 
 
-@Meta(DisplayName='LOC("TO_VECTOR2F")', DisplayDesc='LOC("TO_VECTOR2F_DESC")')
+@Meta(DisplayName='LOC("TO_VECTOR2F")', DisplayDesc='LOC("TO_VECTOR2F_DESC")', Vector2iVars=["v"])
 @ReturnType(value=Vector2f)
 def ToVector2f(v: Union[Vector2i, Vector2u]) -> Vector2f:
     return Math.ToVector2f(v)
 
 
-@Meta(DisplayName='LOC("TO_VECTOR2I")', DisplayDesc='LOC("TO_VECTOR2I_DESC")')
+@Meta(DisplayName='LOC("TO_VECTOR2I")', DisplayDesc='LOC("TO_VECTOR2I_DESC")', Vector2fVars=["v"])
 @ReturnType(value=Vector2i)
 def ToVector2i(v: Union[Vector2f, Vector2u]) -> Vector2i:
     return Math.ToVector2i(v)
 
 
-@Meta(DisplayName='LOC("TO_VECTOR2U")', DisplayDesc='LOC("TO_VECTOR2U_DESC")')
+@Meta(DisplayName='LOC("TO_VECTOR2U")', DisplayDesc='LOC("TO_VECTOR2U_DESC")', Vector2fVars=["v"])
 @ReturnType(value=Vector2u)
 def ToVector2u(v: Union[Vector2f, Vector2i]) -> Vector2u:
     return Math.ToVector2u(v)
 
 
-@Meta(DisplayName='LOC("TO_VECTOR3F")', DisplayDesc='LOC("TO_VECTOR3F_DESC")')
+@Meta(DisplayName='LOC("TO_VECTOR3F")', DisplayDesc='LOC("TO_VECTOR3F_DESC")', Vector3iVars=["v"])
 @ReturnType(value=Vector3f)
 def ToVector3f(v: Vector3i) -> Vector3f:
     return Math.ToVector3f(v)
 
 
-@Meta(DisplayName='LOC("TO_VECTOR3I")', DisplayDesc='LOC("TO_VECTOR3I_DESC")')
+@Meta(DisplayName='LOC("TO_VECTOR3I")', DisplayDesc='LOC("TO_VECTOR3I_DESC")', Vector3fVars=["v"])
 @ReturnType(value=Vector3i)
 def ToVector3i(v: Vector3f) -> Vector3i:
     return Math.ToVector3i(v)
@@ -180,85 +180,85 @@ def Pow(base: Union[int, float], exp: Union[int, float]) -> Union[int, float]:
     return math.pow(base, exp)
 
 
-@Meta(DisplayName='LOC("VECTOR2_DISTANCE")', DisplayDesc='LOC("VECTOR2_DISTANCE_DESC")')
+@Meta(DisplayName='LOC("VECTOR2_DISTANCE")', DisplayDesc='LOC("VECTOR2_DISTANCE_DESC")', Vector2Vars=["v1", "v2"])
 @ReturnType(value=float)
 def Vector2Distance(v1: Union[Vector2f, Vector2i, Vector2u], v2: Union[Vector2f, Vector2i, Vector2u]) -> float:
     return math.sqrt((v1.x - v2.x) ** 2 + (v1.y - v2.y) ** 2)
 
 
-@Meta(DisplayName='LOC("VECTOR3_DISTANCE")', DisplayDesc='LOC("VECTOR3_DISTANCE_DESC")')
+@Meta(DisplayName='LOC("VECTOR3_DISTANCE")', DisplayDesc='LOC("VECTOR3_DISTANCE_DESC")', Vector3fVars=["v1", "v2"])
 @ReturnType(value=float)
 def Vector3Distance(v1: Vector3f, v2: Vector3f) -> float:
     return math.sqrt((v1.x - v2.x) ** 2 + (v1.y - v2.y) ** 2 + (v1.z - v2.z) ** 2)
 
 
-@Meta(DisplayName='LOC("VECTOR2_DOT")', DisplayDesc='LOC("VECTOR2_DOT_DESC")')
+@Meta(DisplayName='LOC("VECTOR2_DOT")', DisplayDesc='LOC("VECTOR2_DOT_DESC")', Vector2Vars=["v1", "v2"])
 @ReturnType(value=float)
 def Vector2Dot(v1: Union[Vector2f, Vector2i, Vector2u], v2: Union[Vector2f, Vector2i, Vector2u]) -> float:
     return v1.dot(v2)
 
 
-@Meta(DisplayName='LOC("VECTOR3_DOT")', DisplayDesc='LOC("VECTOR3_DOT_DESC")')
+@Meta(DisplayName='LOC("VECTOR3_DOT")', DisplayDesc='LOC("VECTOR3_DOT_DESC")', Vector3Vars=["v1", "v2"])
 @ReturnType(value=float)
 def Vector3Dot(v1: Union[Vector3f, Vector3i], v2: Union[Vector3f, Vector3i]) -> float:
     return v1.dot(v2)
 
 
-@Meta(DisplayName='LOC("VECTOR2_CROSS")', DisplayDesc='LOC("VECTOR2_CROSS_DESC")')
+@Meta(DisplayName='LOC("VECTOR2_CROSS")', DisplayDesc='LOC("VECTOR2_CROSS_DESC")', Vector2Vars=["v1", "v2"])
 @ReturnType(value=Union[float, int])
 def Vector2Cross(v1: Union[Vector2f, Vector2i, Vector2u], v2: Union[Vector2f, Vector2i, Vector2u]) -> Union[float, int]:
     return v1.cross(v2)
 
 
-@Meta(DisplayName='LOC("VECTOR3_CROSS")', DisplayDesc='LOC("VECTOR3_CROSS_DESC")')
+@Meta(DisplayName='LOC("VECTOR3_CROSS")', DisplayDesc='LOC("VECTOR3_CROSS_DESC")', Vector3Vars=["v1", "v2"])
 @ReturnType(value=Union[Vector3f, Vector3i])
 def Vector3Cross(v1: Union[Vector3f, Vector3i], v2: Union[Vector3f, Vector3i]) -> Union[Vector3f, Vector3i]:
     return v1.cross(v2)
 
 
-@Meta(DisplayName='LOC("VECTOR2_LENGTH")', DisplayDesc='LOC("VECTOR2_LENGTH_DESC")')
+@Meta(DisplayName='LOC("VECTOR2_LENGTH")', DisplayDesc='LOC("VECTOR2_LENGTH_DESC")', Vector2fVars=["v"])
 @ReturnType(value=float)
 def Vector2Length(v: Vector2f) -> float:
     return v.length()
 
 
-@Meta(DisplayName='LOC("VECTOR3_LENGTH")', DisplayDesc='LOC("VECTOR3_LENGTH_DESC")')
+@Meta(DisplayName='LOC("VECTOR3_LENGTH")', DisplayDesc='LOC("VECTOR3_LENGTH_DESC")', Vector3fVars=["v"])
 @ReturnType(value=float)
 def Vector3Length(v: Vector3f) -> float:
     return v.length()
 
 
-@Meta(DisplayName='LOC("VECTOR2_LENGTH_SQUARED")', DisplayDesc='LOC("VECTOR2_LENGTH_SQUARED_DESC")')
+@Meta(DisplayName='LOC("VECTOR2_LENGTH_SQUARED")', DisplayDesc='LOC("VECTOR2_LENGTH_SQUARED_DESC")', Vector2Vars=["v"])
 @ReturnType(value=Union[float, int])
 def Vector2LengthSquared(v: Union[Vector2f, Vector2i, Vector2u]) -> Union[float, int]:
     return v.lengthSquared()
 
 
-@Meta(DisplayName='LOC("VECTOR3_LENGTH_SQUARED")', DisplayDesc='LOC("VECTOR3_LENGTH_SQUARED_DESC")')
+@Meta(DisplayName='LOC("VECTOR3_LENGTH_SQUARED")', DisplayDesc='LOC("VECTOR3_LENGTH_SQUARED_DESC")', Vector3Vars=["v"])
 @ReturnType(value=Union[float, int])
 def Vector3LengthSquared(v: Union[Vector3f, Vector3i]) -> Union[float, int]:
     return v.lengthSquared()
 
 
-@Meta(DisplayName='LOC("VECTOR2_NORMALIZED")', DisplayDesc='LOC("VECTOR2_NORMALIZED_DESC")')
+@Meta(DisplayName='LOC("VECTOR2_NORMALIZED")', DisplayDesc='LOC("VECTOR2_NORMALIZED_DESC")', Vector2fVars=["v"])
 @ReturnType(value=Vector2f)
 def Vector2Normalized(v: Vector2f) -> Vector2f:
     return v.normalized()
 
 
-@Meta(DisplayName='LOC("VECTOR3_NORMALIZED")', DisplayDesc='LOC("VECTOR3_NORMALIZED_DESC")')
+@Meta(DisplayName='LOC("VECTOR3_NORMALIZED")', DisplayDesc='LOC("VECTOR3_NORMALIZED_DESC")', Vector3fVars=["v"])
 @ReturnType(value=Vector3f)
 def Vector3Normalized(v: Vector3f) -> Vector3f:
     return v.normalized()
 
 
-@Meta(DisplayName='LOC("GET_ANGLE")', DisplayDesc='LOC("GET_ANGLE_DESC")')
+@Meta(DisplayName='LOC("GET_ANGLE")', DisplayDesc='LOC("GET_ANGLE_DESC")', Vector2fVars=["v"])
 @ReturnType(value=Angle)
 def GetAngle(v: Vector2f) -> Angle:
     return v.angle()
 
 
-@Meta(DisplayName='LOC("GET_ANGLE_TO")', DisplayDesc='LOC("GET_ANGLE_TO_DESC")')
+@Meta(DisplayName='LOC("GET_ANGLE_TO")', DisplayDesc='LOC("GET_ANGLE_TO_DESC")', Vector2fVars=["v1", "v2"])
 @ReturnType(value=Angle)
 def GetAngleTo(v1: Vector2f, v2: Vector2f) -> Angle:
     return v1.angleTo(v2)
@@ -276,7 +276,7 @@ def AsRadians(angle: Angle) -> float:
     return angle.asRadians()
 
 
-@Meta(DisplayName='LOC("VECTOR2_COMPONENT_WISE_DIV")', DisplayDesc='LOC("VECTOR2_COMPONENT_WISE_DIV_DESC")')
+@Meta(DisplayName='LOC("VECTOR2_COMPONENT_WISE_DIV")', DisplayDesc='LOC("VECTOR2_COMPONENT_WISE_DIV_DESC")', Vector2Vars=["v", "div"])
 @ReturnType(value=Union[Vector2f, Vector2i, Vector2u])
 def Vector2ComponentWiseDiv(
     v: Union[Vector2f, Vector2i, Vector2u, Vector3f, Vector3i],
@@ -285,7 +285,7 @@ def Vector2ComponentWiseDiv(
     return v.componentWiseDiv(div)
 
 
-@Meta(DisplayName='LOC("VECTOR2_COMPONENT_WISE_MUL")', DisplayDesc='LOC("VECTOR2_COMPONENT_WISE_MUL_DESC")')
+@Meta(DisplayName='LOC("VECTOR2_COMPONENT_WISE_MUL")', DisplayDesc='LOC("VECTOR2_COMPONENT_WISE_MUL_DESC")', Vector2Vars=["v", "mul"])
 @ReturnType(value=Union[Vector2f, Vector2i, Vector2u, Vector3f, Vector3i])
 def Vector2ComponentWiseMul(
     v: Union[Vector2f, Vector2i, Vector2u, Vector3f, Vector3i],
@@ -294,19 +294,19 @@ def Vector2ComponentWiseMul(
     return v.componentWiseMul(mul)
 
 
-@Meta(DisplayName='LOC("VECTOR2_PERPENDICULAR")', DisplayDesc='LOC("VECTOR2_PERPENDICULAR_DESC")')
+@Meta(DisplayName='LOC("VECTOR2_PERPENDICULAR")', DisplayDesc='LOC("VECTOR2_PERPENDICULAR_DESC")', Vector2Vars=["v"])
 @ReturnType(value=Union[Vector2f, Vector2i, Vector2u])
 def Vector2Perpendicular(v: Union[Vector2f, Vector2i, Vector2u]) -> Union[Vector2f, Vector2i, Vector2u]:
     return v.perpendicular()
 
 
-@Meta(DisplayName='LOC("VECTOR2_PROJECTED_ONTO")', DisplayDesc='LOC("VECTOR2_PROJECTED_ONTO_DESC")')
+@Meta(DisplayName='LOC("VECTOR2_PROJECTED_ONTO")', DisplayDesc='LOC("VECTOR2_PROJECTED_ONTO_DESC")', Vector2fVars=["v", "axis"])
 @ReturnType(value=Vector2f)
 def Vector2ProjectedOnto(v: Vector2f, axis: Vector2f) -> Vector2f:
     return v.projectedOnto(axis)
 
 
-@Meta(DisplayName='LOC("VECTOR2_ROTATED_BY")', DisplayDesc='LOC("VECTOR2_ROTATED_BY_DESC")')
+@Meta(DisplayName='LOC("VECTOR2_ROTATED_BY")', DisplayDesc='LOC("VECTOR2_ROTATED_BY_DESC")', Vector2fVars=["v"])
 @ReturnType(value=Vector2f)
 def Vector2RotatedBy(v: Vector2f, phi: Angle) -> Vector2f:
     return v.rotatedBy(phi)

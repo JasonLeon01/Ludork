@@ -89,6 +89,14 @@ def Meta(**kwargs):
     - ColourVars: colour fields or parameters in the form
       `["lightColour"]`. Values store RGBA tuples but display through a colour
       swatch editor.
+    - Vector2Vars / Vector2fVars / Vector2iVars / Vector2uVars and
+      PairVars / PairFloatVars / PairIntVars: two-component fields or node
+      parameters displayed with x/y numeric editors.
+    - Vector3Vars / Vector3fVars / Vector3iVars / Vector3uVars:
+      three-component fields or node parameters displayed with x/y/z numeric
+      editors.
+    - MoveRouteVars: movement-route node parameters displayed with a map
+      reference route editor. Values are stored as relative `(dx, dy)` steps.
 
     - kwargs: Key-value pairs to be stored as metadata.
 

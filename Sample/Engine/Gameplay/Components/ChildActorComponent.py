@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from Engine.Gameplay.Actors import Actor
 
 
+@Meta(Vector2fVars=["relativePosition"])
 @dataclass
 class ChildActorComponent(Component):
     r"""\brief Spawn one child actor relative to the owning actor."""

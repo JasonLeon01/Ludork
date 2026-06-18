@@ -4,7 +4,7 @@ import os
 import sys
 import json
 import configparser
-from PyQt5 import QtWidgets
+from PyQt5 import QtCore, QtWidgets
 from Utils import File, System
 from Utils.SystemConfigGenerator import generateSystemConfigBase
 from .. import EditorStatus
@@ -62,7 +62,7 @@ class ProjectConfigMixin:
         if last:
             for i in range(self.leftList.count()):
                 it = self.leftList.item(i)
-                if it and it.text() == last:
+                if it and it.data(QtCore.Qt.UserRole) == last:
                     targetRow = i
                     break
         if targetRow >= 0:
@@ -84,7 +84,7 @@ class ProjectConfigMixin:
         name = None
         item = self.leftList.currentItem()
         if item:
-            name = item.text()
+            name = item.data(QtCore.Qt.UserRole)
         if name:
             self._projConfig["lastMap"] = name
             self._saveProjConfig()

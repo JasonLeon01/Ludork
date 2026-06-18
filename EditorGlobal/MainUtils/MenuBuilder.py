@@ -155,7 +155,7 @@ class MenuBuilderMixin:
         if self.stacked.currentWidget() == self.editorViewport:
             item = self.leftList.currentItem()
             if item:
-                self.editorPanel.refreshMap(item.text())
+                self.editorPanel.refreshMap(item.data(QtCore.Qt.UserRole))
                 self._refreshLayerBar()
         self.editorPanel.clearLightSelection()
         self.lightPanel.setLight(None)

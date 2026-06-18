@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 from Engine import Pair, Vector2i, Vector2u
 from Global import System
 
@@ -14,20 +14,42 @@ def _evalTerrainTileID(tileID: Any) -> Union[int, str, None]:
     return tileID
 
 
-@Meta(DisplayName='LOC("GOTO_MAP")', DisplayDesc='LOC("GOTO_MAP_DESC")')
+def _posToVector2u(position: Any) -> Optional[Vector2u]:
+    if position is None:
+        return None
+    if isinstance(position, (list, tuple)) and len(position) >= 2:
+        try:
+            return Vector2u(int(position[0]), int(position[1]))
+        except (TypeError, ValueError):
+            return None
+    if hasattr(position, "x") and hasattr(position, "y"):
+        try:
+            return Vector2u(int(position.x), int(position.y))
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+@Meta(
+    DisplayName='LOC("GOTO_MAP")',
+    DisplayDesc='LOC("GOTO_MAP_DESC")',
+    Transfer=[("position", "mapPath")],
+)
 @ExecSplit(default=(None,))
-def GotoMap(mapPath: str, blockTransition: bool, x: int, y: int) -> None:
-    r"""\brief Transition to a map and optionally place the player at (x, y).
+def GotoMap(
+    mapPath: str,
+    blockTransition: bool,
+    position: Optional[Union[Vector2i, Pair[int], List[int], Tuple[int, int]]],
+) -> None:
+    r"""\brief Transition to a map and optionally place the player at a tile coordinate.
 
     - \param mapPath Path to the map data file (relative to Data/Maps/).
     - \param blockTransition Whether to skip the map transition effect.
-    - \param x Target tile column, or None to keep the current position.
-    - \param y Target tile row, or None to keep the current position.
+    - \param position Target tile coordinate as ``(x, y)``, or ``None`` to keep the current position.
     """
     scene = System.getScene()
     if scene and hasattr(scene, "gotoMapAndPos"):
-        pos = Vector2u(int(x), int(y)) if x is not None and y is not None else None
-        scene.gotoMapAndPos(mapPath, pos, blockTransition=bool(blockTransition))
+        scene.gotoMapAndPos(mapPath, _posToVector2u(position), blockTransition=bool(blockTransition))
 
 
 @Meta(DisplayName='LOC("GAME_OVER")', DisplayDesc='LOC("GAME_OVER_DESC")')
@@ -84,7 +106,7 @@ def RecordTelepoint(mapPath: str, x: int, y: int) -> None:
         scene.inst.recordTelepoint(mapPath, Vector2u(int(x), int(y)))
 
 
-@Meta(DisplayName='LOC("DESTROY_TERRAIN")', DisplayDesc='LOC("DESTROY_TERRAIN_DESC")')
+@Meta(DisplayName='LOC("DESTROY_TERRAIN")', DisplayDesc='LOC("DESTROY_TERRAIN_DESC")', Vector2iVars=["position"])
 @ExecSplit(default=(None,))
 def DestroyTerrain(layerName: str, position: Union[Vector2i, Vector2u, Pair[int], List[int]], tileID: Any) -> None:
     r"""\brief Replace and persist one terrain tile on the current map.
@@ -116,7 +138,7 @@ def DestroyTerrainList(layerName: str, positions: List[Any], tileID: Any) -> Non
             gameMap.destroyTerrainList(layerName, positions, _evalTerrainTileID(tileID))
 
 
-@Meta(DisplayName='LOC("GET_TERRAIN_TILE")', DisplayDesc='LOC("GET_TERRAIN_TILE_DESC")')
+@Meta(DisplayName='LOC("GET_TERRAIN_TILE")', DisplayDesc='LOC("GET_TERRAIN_TILE_DESC")', Vector2iVars=["position"])
 @ReturnType(tileID=Any)
 def GetTerrainTile(layerName: str, position: Union[Vector2i, Vector2u, Pair[int], List[int]]) -> Any:
     r"""\brief Get the terrain tile ID on the current map.

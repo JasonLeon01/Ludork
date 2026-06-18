@@ -93,6 +93,7 @@ class Camera(Drawable, Transformable):
         """
         return self._viewport and (self._viewport.position.x, self._viewport.position.y) or None
 
+    @Meta(Vector2fVars=["inPosition"])
     @ExecSplit(default=(None,))
     def setViewPosition(self, inPosition: Vector2f) -> None:
         r"""\brief Set the viewport position.
@@ -119,6 +120,7 @@ class Camera(Drawable, Transformable):
         """
         return self._viewport and (self._viewport.size.x, self._viewport.size.y) or None
 
+    @Meta(Vector2fVars=["inSize"])
     @ExecSplit(default=(None,))
     def setViewSize(self, inSize: Vector2f) -> None:
         r"""\brief Set the viewport size.
@@ -158,6 +160,7 @@ class Camera(Drawable, Transformable):
         for canvas in self._canvases:
             canvas.setView(view)
 
+    @Meta(Vector2fVars=["delta"])
     @ExecSplit(default=(None,))
     @TypeAdapter(delta=(tuple, Vector2f))
     def moveView(self, delta: Union[Vector2f, Pair[float]]) -> None:
@@ -199,6 +202,7 @@ class Camera(Drawable, Transformable):
         """
         return super().getPosition()
 
+    @Meta(Vector2fVars=["inPosition"])
     @ExecSplit(default=(None,))
     @TypeAdapter(inPosition=(tuple, Vector2f))
     def setPosition(self, inPosition: Union[Vector2f, Pair[float]]) -> None:
@@ -208,6 +212,7 @@ class Camera(Drawable, Transformable):
         """
         super().setPosition(inPosition)
 
+    @Meta(Vector2fVars=["delta"])
     @ExecSplit(default=(None,))
     @TypeAdapter(delta=(tuple, Vector2f))
     def move(self, delta: Union[Vector2f, Pair[float]]) -> None:
@@ -268,6 +273,7 @@ class Camera(Drawable, Transformable):
         """
         return super().getScale()
 
+    @Meta(Vector2fVars=["factors"])
     @ExecSplit(default=(None,))
     @TypeAdapter(factors=(tuple, Vector2f))
     def setScale(self, factors: Union[Vector2f, Pair[float]]) -> None:
@@ -277,6 +283,7 @@ class Camera(Drawable, Transformable):
         """
         super().setScale(factors)
 
+    @Meta(Vector2fVars=["delta"])
     @ExecSplit(default=(None,))
     @TypeAdapter(delta=(tuple, Vector2f))
     def scale(self, delta: Union[Vector2f, Pair[float]]) -> None:
@@ -346,6 +353,7 @@ class Camera(Drawable, Transformable):
         """
         self._renderStates = inRenderStates
 
+    @Meta(Vector2iVars=["point"])
     def mapPixelToCoords(self, point: Vector2i) -> Vector2f:
         r"""\brief Convert a pixel position to world coordinates.
 
@@ -354,6 +362,7 @@ class Camera(Drawable, Transformable):
         """
         return self._renderTexture.mapPixelToCoords(point, self._renderTexture.getView())
 
+    @Meta(Vector2fVars=["point"])
     def mapCoordsToPixel(self, point: Vector2f) -> Vector2i:
         r"""\brief Convert world coordinates to a pixel position.
 

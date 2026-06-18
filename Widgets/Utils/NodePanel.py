@@ -15,11 +15,15 @@ from NodeGraphQt.qgraphics.node_base import NodeItem
 from EditorGlobal import EditorStatus, GameData
 from Utils import System
 from .ColourPickerDialog import ColourVarEditor
+from .DialogUtils import getIndependentDialogParent
 from .FileSelectorDialog import FileSelectorDialog
 from .FunctionPickerPopup import FunctionPickerPopup
 from .MetaRely import getRelyConditionDisplay, isRelyEditable, normaliseRelyMap, toBool
 from .MetaVarTypes import getMetaVarTypes
+from .MoveRouteEditor import MoveRouteEditor
 from .NodeFunctionMeta import getExecSplits, getLatents, getReturnTypes, hasExecOutputs
+from .TransferPosEditor import TransferPosEditor
+from .VectorVarEditor import VectorVarEditor, isVectorVarType, normaliseVectorVarType
 
 if TYPE_CHECKING:
     from Engine.NodeGraph.Graph import Graph  # type: ignore
@@ -132,6 +136,32 @@ def getMetaPathVars(meta: Any) -> Dict[str, str]:
     return result
 
 
+def getMetaMoveRouteVars(meta: Any) -> set[str]:
+    if not isinstance(meta, dict):
+        return set()
+    rawVars = meta.get("MoveRouteVars")
+    if isinstance(rawVars, str):
+        return {rawVars}
+    if isinstance(rawVars, (list, tuple, set)):
+        return {name for name in rawVars if isinstance(name, str)}
+    return set()
+
+
+def getMetaTransferVars(meta: Any) -> Dict[str, str]:
+    if not isinstance(meta, dict):
+        return {}
+    rawVars = meta.get("Transfer")
+    if not isinstance(rawVars, (list, tuple)):
+        return {}
+    result: Dict[str, str] = {}
+    for item in rawVars:
+        if isinstance(item, (list, tuple)) and len(item) >= 2:
+            locName, mapName = str(item[0]), str(item[1])
+            if locName and mapName:
+                result[locName] = mapName
+    return result
+
+
 def collectMetaPathVars(paths: Dict[str, str], value: Any) -> None:
     if isinstance(value, tuple) and len(value) >= 2 and isinstance(value[0], str):
         paths[value[0]] = normalisePathVarAssetsDir(value[1])
@@ -174,6 +204,12 @@ def getWidgetValue(widget: QtWidgets.QWidget) -> WidgetValue:
         return widget.getValue()
     if isinstance(widget, ColourVarEditor):
         return widget.getValue()
+    if isinstance(widget, VectorVarEditor):
+        return widget.getValue()
+    if isinstance(widget, MoveRouteEditor):
+        return widget.getValue()
+    if isinstance(widget, TransferPosEditor):
+        return widget.getValue()
     if isinstance(widget, QtWidgets.QLineEdit):
         return widget.text()
     if isinstance(widget, (QtWidgets.QPlainTextEdit, QtWidgets.QTextEdit)):
@@ -192,6 +228,15 @@ def setEditorWidgetEditable(widget: QtWidgets.QWidget, editable: bool) -> None:
         widget.setEditable(editable)
         return
     if isinstance(widget, ColourVarEditor):
+        widget.setEditable(editable)
+        return
+    if isinstance(widget, VectorVarEditor):
+        widget.setEditable(editable)
+        return
+    if isinstance(widget, MoveRouteEditor):
+        widget.setEditable(editable)
+        return
+    if isinstance(widget, TransferPosEditor):
         widget.setEditable(editable)
         return
     widget.setEnabled(editable)
@@ -275,7 +320,7 @@ class NodePathEditor(QtWidgets.QWidget):
 
     def _onBrowse(self) -> None:
         baseDir = self._getBaseDir()
-        dlg = FileSelectorDialog(QtWidgets.QApplication.activeWindow(), baseDir, FileSelectorDialog.allFilesFilter(star=True))
+        dlg = FileSelectorDialog(getIndependentDialogParent(self), baseDir, FileSelectorDialog.allFilesFilter(star=True))
         filePath = dlg.execSelect()
         if not filePath:
             return
@@ -369,6 +414,88 @@ class NodeColourWidget(NodeBaseWidget):
         editor.setValue(value, emit=False)
 
 
+class NodeVectorWidget(NodeBaseWidget):
+    def __init__(
+        self,
+        parent: Optional[QtWidgets.QWidget] = None,
+        name: str = "",
+        label: str = "",
+        varType: str = "",
+        value: Any = None,
+    ) -> None:
+        super(NodeVectorWidget, self).__init__(parent)
+        self.set_name(name)
+        self.set_label(label)
+        editor = VectorVarEditor(varType, value)
+        self.set_custom_widget(editor)
+        editor.VALUE_CHANGED.connect(self.on_value_changed)
+
+    def get_value(self) -> WidgetValue:
+        editor = self.get_custom_widget()
+        if not isinstance(editor, VectorVarEditor):
+            return None
+        return editor.getValue()
+
+    def set_value(self, value: WidgetValue) -> None:
+        editor = self.get_custom_widget()
+        if not isinstance(editor, VectorVarEditor):
+            return
+        editor.setValue(value, emit=False)
+
+
+class NodeMoveRouteWidget(NodeBaseWidget):
+    def __init__(
+        self, parent: Optional[QtWidgets.QWidget] = None, name: str = "", label: str = "", value: Any = None
+    ) -> None:
+        super(NodeMoveRouteWidget, self).__init__(parent)
+        self.set_name(name)
+        self.set_label(label)
+        editor = MoveRouteEditor(value)
+        self.set_custom_widget(editor)
+        editor.VALUE_CHANGED.connect(self.on_value_changed)
+
+    def get_value(self) -> WidgetValue:
+        editor = self.get_custom_widget()
+        if not isinstance(editor, MoveRouteEditor):
+            return []
+        return editor.getValue()
+
+    def set_value(self, value: WidgetValue) -> None:
+        editor = self.get_custom_widget()
+        if not isinstance(editor, MoveRouteEditor):
+            return
+        editor.setValue(value, emit=False)
+
+
+class NodeTransferWidget(NodeBaseWidget):
+    def __init__(
+        self,
+        parent: Optional[QtWidgets.QWidget] = None,
+        name: str = "",
+        label: str = "",
+        editor: Optional[TransferPosEditor] = None,
+    ) -> None:
+        super(NodeTransferWidget, self).__init__(parent)
+        self.set_name(name)
+        self.set_label(label)
+        if editor is None:
+            editor = TransferPosEditor()
+        self.set_custom_widget(editor)
+        editor.VALUE_CHANGED.connect(self.on_value_changed)
+
+    def get_value(self) -> WidgetValue:
+        editor = self.get_custom_widget()
+        if not isinstance(editor, TransferPosEditor):
+            return None
+        return editor.getValue()
+
+    def set_value(self, value: WidgetValue) -> None:
+        editor = self.get_custom_widget()
+        if not isinstance(editor, TransferPosEditor):
+            return
+        editor.setValue(value, emit=False)
+
+
 def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
     def subClassInit(self: BaseNode) -> None:
         super(self.__class__, self).__init__()
@@ -405,8 +532,12 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
         dropBox = meta.get("DropBox", [])
         varTypes = getMetaVarTypes(meta)
         pathVarMap = getMetaPathVars(meta)
+        moveRouteVars = getMetaMoveRouteVars(meta)
+        transferVars = getMetaTransferVars(meta)
         self._relyMap = normaliseRelyMap(meta.get("Rely"))
         self.META = meta
+
+        _pendingTransferWires: List[Tuple[TransferPosEditor, str]] = []
 
         for i, name in enumerate(keys):
             if name in paramDefaults:
@@ -420,19 +551,44 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
             param_type = paramList[name]
             varType = varTypes.get(name, "")
             isPath = name in pathVarMap
+            isMoveRoute = name in moveRouteVars
+            isTransfer = name in transferVars
 
             type_str = param_type.__name__ if isinstance(param_type, type) else str(param_type)
             if "." in type_str:
                 type_str = type_str.split(".")[-1]
-            if varType == "ColourVar":
+            if isTransfer:
+                type_str = "TransferPos"
+            elif isMoveRoute:
+                type_str = "MoveRoute"
+            elif varType == "ColourVar":
                 type_str = "ColourVar"
+            elif isVectorVarType(varType):
+                type_str = normaliseVectorVarType(varType)
             elif isPath:
                 type_str = "Path"
             display_label = f"{name} ({type_str})"
 
-            if varType == "ColourVar":
+            if isTransfer:
+                editor = TransferPosEditor(value=init_val)
+                nodeWidget = NodeTransferWidget(
+                    self.view, name=widgetName, label=display_label, editor=editor
+                )
+                self.add_custom_widget(nodeWidget)
+                _pendingTransferWires.append((editor, transferVars[name]))
+            elif isMoveRoute:
+                nodeWidget = NodeMoveRouteWidget(
+                    self.view, name=widgetName, label=display_label, value=init_val
+                )
+                self.add_custom_widget(nodeWidget)
+            elif varType == "ColourVar":
                 nodeWidget = NodeColourWidget(
                     self.view, name=widgetName, label=display_label, value=init_val
+                )
+                self.add_custom_widget(nodeWidget)
+            elif isVectorVarType(varType):
+                nodeWidget = NodeVectorWidget(
+                    self.view, name=widgetName, label=display_label, varType=varType, value=init_val
                 )
                 self.add_custom_widget(nodeWidget)
             elif isPath:
@@ -509,6 +665,20 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
                     le = w.get_custom_widget()
                     System.SetStyle(le, "nodeInput.qss")
 
+        for _transferEditor, _mapParamName in _pendingTransferWires:
+            _selfRef = self
+            def _makeTransferGetter(selfRef: Any, mParam: str) -> Callable[[], str]:
+                def _getter() -> str:
+                    mapWidgetName = getattr(selfRef, "_widgetNameByPort", {}).get(mParam, mParam)
+                    w = selfRef.get_widget(mapWidgetName)
+                    if not w:
+                        return ""
+                    cw = w.get_custom_widget()
+                    v = getWidgetValue(cw)
+                    return str(v) if v is not None else ""
+                return _getter
+            _transferEditor.setMapKeyGetter(_makeTransferGetter(_selfRef, _mapParamName))
+
         self._string_mode = has_invalid
         if has_invalid:
             for i, name in enumerate(keys):
@@ -557,6 +727,8 @@ class NodePanel(QtWidgets.QWidget):
         self.nodes: List[BaseNode] = []
         self.defaultNodes: List[BaseNode] = []
         self._pending_conn = None
+        self._connectionPickerPopup: Optional[FunctionPickerPopup] = None
+        self._functionPickerPopup: Optional[FunctionPickerPopup] = None
         self._createNodeScenePos: Optional[QtCore.QPointF] = None
         self.paramChangeTimerByWidget: Dict[int, QtCore.QTimer] = {}
         self._setupLayout()
@@ -565,6 +737,10 @@ class NodePanel(QtWidgets.QWidget):
         self._setupSignals()
         self._createLinks()
         self._isLoading = False
+
+    def hideEvent(self, event: QtGui.QHideEvent) -> None:
+        self._closeFunctionPickerPopups()
+        super(NodePanel, self).hideEvent(event)
 
     def setName(self, name: str) -> None:
         oldName = self.key
@@ -766,6 +942,59 @@ class NodePanel(QtWidgets.QWidget):
                         le.VALUE_CHANGED.connect(
                             lambda _, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
                         )
+                    elif isinstance(le, VectorVarEditor):
+                        le.setValue(val, emit=False)
+                        le.VALUE_CHANGED.connect(
+                            lambda _, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
+                        )
+                    elif isinstance(le, MoveRouteEditor):
+                        le.setValue(val, emit=False)
+                        le.VALUE_CHANGED.connect(
+                            lambda _, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
+                        )
+                    elif isinstance(le, TransferPosEditor):
+                        le.setValue(val, emit=False)
+                        le.VALUE_CHANGED.connect(
+                            lambda _, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
+                        )
+                        _tvars = getMetaTransferVars(getattr(node.nodeFunction, "_meta", {}))
+                        _mapPN = _tvars.get(name, "")
+                        if _mapPN and _mapPN in paramList:
+                            _mapPI = list(paramList.keys()).index(_mapPN)
+
+                            def _makeMapKeySetter(
+                                _ni: int,
+                                _mpi: int,
+                                _nInst: Any,
+                                _mPN: str,
+                                _panelSelf: Any,
+                            ) -> Callable[[str], None]:
+                                def _onMapKeyChanged(_mapKey: str) -> None:
+                                    _mapWN = _panelSelf.resolveWidgetName(_nInst, _mPN)
+                                    _mw = _nInst.get_widget(_mapWN)
+                                    if not _mw:
+                                        return
+                                    _mcw = _mw.get_custom_widget()
+                                    if isinstance(_mcw, NodePlainTextEdit):
+                                        wasBlocked = _mcw.blockSignals(True)
+                                        _mcw.setPlainText(_mapKey)
+                                        _mcw.blockSignals(wasBlocked)
+                                    elif isinstance(_mcw, QtWidgets.QPlainTextEdit):
+                                        wasBlocked = _mcw.blockSignals(True)
+                                        _mcw.setPlainText(_mapKey)
+                                        _mcw.blockSignals(wasBlocked)
+                                    elif isinstance(_mcw, QtWidgets.QLineEdit):
+                                        wasBlocked = _mcw.blockSignals(True)
+                                        _mcw.setText(_mapKey)
+                                        _mcw.blockSignals(wasBlocked)
+                                    else:
+                                        return
+                                    _panelSelf._onParamChanged(_ni, _mpi, _mcw)
+                                return _onMapKeyChanged
+
+                            le.MAP_KEY_CHANGED.connect(
+                                _makeMapKeySetter(i, _mapPI, nodeInst, _mapPN, self)
+                            )
                     elif isinstance(le, NodePathEditor):
                         le.setValue(val, emit=False)
                         le.VALUE_CHANGED.connect(
@@ -943,6 +1172,34 @@ class NodePanel(QtWidgets.QWidget):
         QtWidgets.QShortcut(QtGui.QKeySequence.Undo, self, self._onUndo, context=QtCore.Qt.WidgetWithChildrenShortcut)
         QtWidgets.QShortcut(QtGui.QKeySequence.Redo, self, self._onRedo, context=QtCore.Qt.WidgetWithChildrenShortcut)
 
+    def _closeFunctionPickerPopup(self, attrName: str) -> None:
+        popup = getattr(self, attrName, None)
+        if not isinstance(popup, FunctionPickerPopup):
+            setattr(self, attrName, None)
+            return
+        try:
+            popup.FUNCTION_SELECTED.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+        try:
+            popup.destroyed.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+        try:
+            popup.close()
+        except RuntimeError:
+            pass
+        setattr(self, attrName, None)
+
+    def _closeFunctionPickerPopups(self) -> None:
+        self._closeFunctionPickerPopup("_connectionPickerPopup")
+        self._closeFunctionPickerPopup("_functionPickerPopup")
+        self._pending_conn = None
+        try:
+            self.graph.viewer().end_live_connection()
+        except RuntimeError:
+            pass
+
     def _getNodeRef(self, nodeInst: BaseNode) -> Union[int, str]:
         """Get the link reference for a visual node instance.
 
@@ -1085,7 +1342,8 @@ class NodePanel(QtWidgets.QWidget):
             sources["Parent"] = self.nodeGraph.parentClass
         if (type_out == "Params") and isinstance(r_type, type) and getattr(r_type, "__module__", "") != "builtins":
             sources["Parent"] = r_type
-        popup = FunctionPickerPopup(self, sources, filterExecOnly=(type_out == "Exec"))
+        self._closeFunctionPickerPopup("_connectionPickerPopup")
+        popup = FunctionPickerPopup(getIndependentDialogParent(self), sources, filterExecOnly=(type_out == "Exec"))
         self._connectionPickerPopup = popup
         popup.FUNCTION_SELECTED.connect(self._onFunctionSelectedFromPrompt)
         popup.destroyed.connect(self._onFunctionPickerClosed)
@@ -1537,7 +1795,8 @@ class NodePanel(QtWidgets.QWidget):
         for module in self.nodeGraph.modules_:
             sources[module.__name__] = module
 
-        popup = FunctionPickerPopup(self, sources)
+        self._closeFunctionPickerPopup("_functionPickerPopup")
+        popup = FunctionPickerPopup(getIndependentDialogParent(self), sources)
         self._functionPickerPopup = popup
         popup.FUNCTION_SELECTED.connect(self._onFunctionSelected)
         popup.destroyed.connect(lambda: setattr(self, "_functionPickerPopup", None))

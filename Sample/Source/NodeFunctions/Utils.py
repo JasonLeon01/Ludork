@@ -331,7 +331,7 @@ def _getActorByTag(actorTag: str):
     return None
 
 
-@Meta(DisplayName='LOC("ADD_ANIM")', DisplayDesc='LOC("ADD_ANIM_DESC")')
+@Meta(DisplayName='LOC("ADD_ANIM")', DisplayDesc='LOC("ADD_ANIM_DESC")', Vector2fVars=["position", "scale"])
 @ExecSplit(default=(None,))
 def AddAnim(animName: str, position: Pair[float], rotation: float, scale: Pair[float]) -> None:
     r"""\brief Spawn an animation at a given position.
@@ -344,7 +344,7 @@ def AddAnim(animName: str, position: Pair[float], rotation: float, scale: Pair[f
     _spawnAnim(animName, Vector2f(*position), rotation, scale)
 
 
-@Meta(DisplayName='LOC("ADD_ANIM_ON")', DisplayDesc='LOC("ADD_ANIM_ON_DESC")')
+@Meta(DisplayName='LOC("ADD_ANIM_ON")', DisplayDesc='LOC("ADD_ANIM_ON_DESC")', Vector2fVars=["scale"])
 @ExecSplit(default=(None,))
 def AddAnimOn(animName: str, actorTag: str, rotation: float, scale: Pair[float]) -> None:
     r"""\brief Spawn an animation at an actor's current position.

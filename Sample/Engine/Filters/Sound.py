@@ -9,6 +9,7 @@ from .. import Pair, Tuple3, Time, Vector3f, Angle, Sound, Music
 type EffectProcessor = Callable[[list[float], int, list[float], int, int], None]
 
 
+@Meta(Vector3fVars=["position", "direction", "velocity"])
 @dataclass
 class SoundFilter:
     r"""

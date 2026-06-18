@@ -39,11 +39,11 @@ def _toVector2i(value: Any) -> Optional[Vector2i]:
     return None
 
 
-def _normaliseRoutine(routine: Optional[List[Any]]) -> Optional[List[Vector2i]]:
-    if routine is None:
+def _normaliseRoute(route: Optional[List[Any]]) -> Optional[List[Vector2i]]:
+    if route is None:
         return None
     result: List[Vector2i] = []
-    for item in routine:
+    for item in route:
         step = _toVector2i(item)
         if step is not None:
             result.append(step)
@@ -112,21 +112,21 @@ def _isMovementFinished(actor: Optional[Actor]) -> bool:
     return not actor.isMoving() and not actor.isInRoute()
 
 
-@Meta(DisplayName='LOC("SET_MOVE_ROUTE")', DisplayDesc='LOC("SET_MOVE_ROUTE_DESC")')
+@Meta(DisplayName='LOC("SET_MOVE_ROUTE")', DisplayDesc='LOC("SET_MOVE_ROUTE_DESC")', MoveRouteVars=["route"])
 @Latent(Started=(_LATENT_STARTED,), Finished=(_LATENT_FINISHED,))
-def SetMoveRoute(actor: Actor, routine: Optional[List[Any]]) -> Callable[[], List[int]]:
+def SetMoveRoute(actor: Actor, route: Optional[List[Any]]) -> Callable[[], List[int]]:
     r"""\brief Set an actor route and wait until movement finishes.
 
     - \param actor The actor to move.
-    - \param routine List of grid offsets, or `None` to clear the routine.
+    - \param route List of grid offsets, or `None` to clear the route.
     - \return A condition callable that emits Started immediately and Finished after movement ends.
     """
     if actor is not None:
-        actor.setRoute(_normaliseRoutine(routine))
+        actor.setRoute(_normaliseRoute(route))
     return _MovementCondition(actor)
 
 
-@Meta(DisplayName='LOC("SET_AUTO_PATH_TO_DESTINATION")', DisplayDesc='LOC("SET_AUTO_PATH_TO_DESTINATION_DESC")')
+@Meta(DisplayName='LOC("SET_AUTO_PATH_TO_DESTINATION")', DisplayDesc='LOC("SET_AUTO_PATH_TO_DESTINATION_DESC")', Vector2iVars=["destination"])
 @Latent(Started=(_LATENT_STARTED,), Finished=(_LATENT_FINISHED,))
 def SetAutoPathToDestination(
     actor: Actor, destination: Union[Vector2i, Pair[int], List[int]]

@@ -99,7 +99,7 @@ class MapClickAutoPath(ComponentBase):
                 continue
             self._routeState.setRoute(plan["route"])
             self._trimPreviewRoute(start)
-            player.setRoute(plan["routine"])
+            player.setRoute(plan["routeSteps"])
             self._autoPathing = True
 
     def _finishAutoPathImmediately(
@@ -155,12 +155,12 @@ class MapClickAutoPath(ComponentBase):
         goal: Vector2i,
     ) -> Optional[Dict[str, Any]]:
         if start == goal:
-            return {"routine": [], "route": [Vector2i(start.x, start.y)], "goalPassable": True}
+            return {"routeSteps": [], "route": [Vector2i(start.x, start.y)], "goalPassable": True}
         gameMap = self._parent
         goalPassable = gameMap.isPassable(actor, goal)
         direct = self._buildPathToTarget(start, goal)
         if goalPassable and direct is not None and direct["route"][-1] == goal:
-            return {"routine": direct["routine"], "route": direct["route"], "goalPassable": True}
+            return {"routeSteps": direct["routeSteps"], "route": direct["route"], "goalPassable": True}
         if goalPassable:
             return None
         bestPlan: Optional[Dict[str, Any]] = None
@@ -171,42 +171,42 @@ class MapClickAutoPath(ComponentBase):
             if neighbour != start and not gameMap.isPassable(actor, neighbour):
                 continue
             if neighbour == start:
-                routine = []
+                routeSteps = []
                 route = [Vector2i(start.x, start.y)]
             else:
                 neighbourPlan = self._buildPathToTarget(start, neighbour)
                 if neighbourPlan is None or neighbourPlan["route"][-1] != neighbour:
                     continue
-                routine = neighbourPlan["routine"]
+                routeSteps = neighbourPlan["routeSteps"]
                 route = neighbourPlan["route"]
             if bestPlan is None or len(route) < len(bestPlan["route"]):
-                bestPlan = {"routine": routine, "route": route}
+                bestPlan = {"routeSteps": routeSteps, "route": route}
         if bestPlan is None:
             return None
         fullRoute = [Vector2i(p.x, p.y) for p in bestPlan["route"]]
         fullRoute.append(Vector2i(goal.x, goal.y))
-        routine = [Vector2i(p.x, p.y) for p in bestPlan["routine"]]
+        routeSteps = [Vector2i(p.x, p.y) for p in bestPlan["routeSteps"]]
         stopPos = fullRoute[-2]
-        routine.append(Vector2i(goal.x - stopPos.x, goal.y - stopPos.y))
-        return {"routine": routine, "route": fullRoute, "goalPassable": False}
+        routeSteps.append(Vector2i(goal.x - stopPos.x, goal.y - stopPos.y))
+        return {"routeSteps": routeSteps, "route": fullRoute, "goalPassable": False}
 
     def _buildPathToTarget(self, start: Vector2i, target: Vector2i) -> Optional[Dict[str, List[Vector2i]]]:
         rawPath = self._parent.findPath(start, target)
         candidates: List[List[Vector2i]] = []
-        routineFromOffset = self._convertPathAsOffset(rawPath)
-        if routineFromOffset is not None:
-            candidates.append(routineFromOffset)
-        routineFromPoint = self._convertPathAsPoint(start, rawPath)
-        if routineFromPoint is not None:
-            candidates.append(routineFromPoint)
+        routeStepsFromOffset = self._convertPathAsOffset(rawPath)
+        if routeStepsFromOffset is not None:
+            candidates.append(routeStepsFromOffset)
+        routeStepsFromPoint = self._convertPathAsPoint(start, rawPath)
+        if routeStepsFromPoint is not None:
+            candidates.append(routeStepsFromPoint)
         if len(candidates) == 0:
             return None
         best: Optional[Dict[str, List[Vector2i]]] = None
-        for routine in candidates:
-            route = self._buildRouteByRoute(start, routine)
+        for routeSteps in candidates:
+            route = self._buildRouteBySteps(start, routeSteps)
             if len(route) == 0:
                 continue
-            item = {"routine": routine, "route": route}
+            item = {"routeSteps": routeSteps, "route": route}
             if route[-1] == target:
                 if best is None or best["route"][-1] != target or len(route) < len(best["route"]):
                     best = item
@@ -215,7 +215,7 @@ class MapClickAutoPath(ComponentBase):
         return best
 
     def _convertPathAsOffset(self, rawPath: List[Vector2i]) -> Optional[List[Vector2i]]:
-        routine: List[Vector2i] = []
+        routeSteps: List[Vector2i] = []
         for step in rawPath:
             sx = 1 if step.x > 0 else (-1 if step.x < 0 else 0)
             sy = 1 if step.y > 0 else (-1 if step.y < 0 else 0)
@@ -225,15 +225,15 @@ class MapClickAutoPath(ComponentBase):
             if count == 0:
                 continue
             for _ in range(count):
-                routine.append(Vector2i(sx, sy))
-        return routine
+                routeSteps.append(Vector2i(sx, sy))
+        return routeSteps
 
     def _convertPathAsPoint(self, start: Vector2i, rawPath: List[Vector2i]) -> Optional[List[Vector2i]]:
         points: List[Vector2i] = [Vector2i(p.x, p.y) for p in rawPath]
         if len(points) > 0 and points[0] == start:
             points = points[1:]
         current = Vector2i(start.x, start.y)
-        routine: List[Vector2i] = []
+        routeSteps: List[Vector2i] = []
         for point in points:
             dx = point.x - current.x
             dy = point.y - current.y
@@ -245,14 +245,14 @@ class MapClickAutoPath(ComponentBase):
             sx = 1 if dx > 0 else (-1 if dx < 0 else 0)
             sy = 1 if dy > 0 else (-1 if dy < 0 else 0)
             for _ in range(steps):
-                routine.append(Vector2i(sx, sy))
+                routeSteps.append(Vector2i(sx, sy))
                 current = Vector2i(current.x + sx, current.y + sy)
-        return routine
+        return routeSteps
 
-    def _buildRouteByRoute(self, start: Vector2i, routine: List[Vector2i]) -> List[Vector2i]:
+    def _buildRouteBySteps(self, start: Vector2i, routeSteps: List[Vector2i]) -> List[Vector2i]:
         route: List[Vector2i] = [Vector2i(start.x, start.y)]
         current = Vector2i(start.x, start.y)
-        for step in routine:
+        for step in routeSteps:
             sx = 1 if step.x > 0 else (-1 if step.x < 0 else 0)
             sy = 1 if step.y > 0 else (-1 if step.y < 0 else 0)
             if sx != 0 and sy != 0:

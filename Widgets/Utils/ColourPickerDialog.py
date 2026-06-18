@@ -8,6 +8,8 @@ from typing import Any
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
+from .DialogUtils import getIndependentDialogParent, isWidgetValid
+
 
 def _loc(key: str) -> str:
     eloc = getattr(builtins, "ELOC", None)
@@ -671,7 +673,9 @@ class ColourVarEditor(QtWidgets.QWidget):
         self._swatch.setColour(QtGui.QColor(*self._value))
 
     def _openDialog(self) -> None:
-        dlg = ColourPickerDialog(QtWidgets.QApplication.activeWindow(), self._value)
+        dlg = ColourPickerDialog(getIndependentDialogParent(self), self._value)
         if dlg.exec_() != QtWidgets.QDialog.Accepted:
+            return
+        if not isWidgetValid(self):
             return
         self.setValue(dlg.getValue(), preserveContainer=True)

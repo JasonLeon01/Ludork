@@ -54,8 +54,22 @@ def Meta(**kwargs: Any) -> Callable[[_T], _T]:
       `[("texturePath", "Characters")]`; string items such as
       `["texturePath"]` default to the `Characters` assets directory.
     - ColourVars: colour fields or parameters in the form
-      `["lightColor"]`. Values store RGBA tuples but display through a colour
+      `["lightColour"]`. Values store RGBA tuples but display through a colour
       swatch editor.
+    - Vector2Vars / Vector2fVars / Vector2iVars / Vector2uVars and
+      PairVars / PairFloatVars / PairIntVars: two-component fields or node
+      parameters displayed with x/y numeric editors.
+    - Vector3Vars / Vector3fVars / Vector3iVars / Vector3uVars:
+      three-component fields or node parameters displayed with x/y/z numeric
+      editors.
+    - MoveRouteVars: movement-route node parameters displayed with a map
+      reference route editor. Values are stored as relative `(dx, dy)` steps.
+    - Transfer: map coordinate node parameters displayed with a map tile
+      picker dialog. Format: `[("posVarName", "mapVarName")]`. Each tuple
+      pairs the coordinate parameter with another parameter that supplies the
+      map key used to pre-select the map. If that map parameter is empty or
+      refers to a non-existent map when the dialog is confirmed, it is
+      automatically filled with the selected map key.
 
     - kwargs: Key-value pairs to be stored as metadata.
 

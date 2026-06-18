@@ -169,6 +169,7 @@ class System(SystemConfigBase):
         return Engine.GameSize
 
     @classmethod
+    @Meta(Vector2uVars=["gameSize"])
     def setGameSize(cls, gameSize: Vector2u) -> None:
         r"""\brief Set the game's logical resolution.
 
@@ -216,6 +217,7 @@ class System(SystemConfigBase):
         return cls._window
 
     @classmethod
+    @Meta(Vector2uVars=["size"])
     def initCanvas(cls, size: Vector2u) -> None:
         r"""\brief Initialise the main render canvas.
 
@@ -236,6 +238,7 @@ class System(SystemConfigBase):
         cls._canvas.clear(Color.Transparent)
 
     @classmethod
+    @Meta(Vector2fVars=["offset"])
     def setWindowMapView(cls, offset: Vector2f = Vector2f(0.0, 0.0)) -> None:
         r"""\brief Set the map canvas view to the game's logical size with a screen offset.
 

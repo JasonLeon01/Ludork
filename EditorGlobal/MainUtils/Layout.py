@@ -69,7 +69,7 @@ class LayoutMixin:
         self.leftList.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         self.refreshLeftList()
         self.leftList.itemClicked.connect(self._onLeftItemClicked)
-        self.leftList.itemActivated.connect(lambda item: self._onEditMap(item.text()))
+        self.leftList.itemActivated.connect(lambda item: self._onEditMap(item.data(QtCore.Qt.UserRole)))
         self.leftList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.leftList.customContextMenuRequested.connect(self._onLeftListContextMenu)
         self.leftList.addAction(self._actCopyMap)

@@ -9,14 +9,17 @@ from ..Components import ChildActorComponent, LightComponent, componentFromData
 from .Base import _ActorBase
 
 
-@Meta(PathVars=[("texturePath", "Characters"), ("shaderPath", "Shaders")])
+@Meta(
+    PathVars=[("texturePath", "Characters"), ("shaderPath", "Shaders")],
+    Vector2fVars=["defaultTranslation", "defaultScale", "defaultOrigin"],
+)
 @RectRangeVars(defaultRect="texturePath")
 class Actor(_ActorBase, BPBase):
     r"""
     \brief Game actor with collision, movement, and blueprint event support.
 
     Extends `_ActorBase` with grid-based movement, collision detection,
-    routine (pathfinding) execution, and blueprint event dispatching.
+    route (pathfinding) execution, and blueprint event dispatching.
     """
 
     collisionEnabled: bool = False  #: Whether this actor blocks movement
@@ -42,7 +45,7 @@ class Actor(_ActorBase, BPBase):
         \brief Initialise an Actor instance.
 
         Creates the actor with optional texture, texture rectangle, and tag.
-        Initialises movement and routine state.
+        Initialises movement and route state.
 
         - \param texture  Optional single texture or list of textures
         - \param rect     Optional texture rectangle or (origin, size) pair
@@ -54,7 +57,7 @@ class Actor(_ActorBase, BPBase):
         self._isMoving: bool = False
         self._nextMoveOffset: Optional[Union[Vector2i, Pair[int]]] = None
         self._inRoute: bool = False
-        self._routine: Optional[List[Vector2i]] = None
+        self._route: Optional[List[Vector2i]] = None
         self._moveEnabled: bool = True
         self._departure: Optional[Vector2f] = None
         self._destination: Optional[Vector2f] = None
@@ -105,19 +108,19 @@ class Actor(_ActorBase, BPBase):
     def fixedUpdate(self, fixedDelta: float) -> None:
         r"""Fixed-timestep update callback.
 
-        Processes routine movement and per-step motion. Computes real speed
+        Processes route movement and per-step motion. Computes real speed
         for the frame.
 
         - \param fixedDelta  Fixed timestep duration in seconds
         """
         startPosition = self.getPosition()
         if self._inRoute:
-            if len(self._routine) == 0:
+            if len(self._route) == 0:
                 self._inRoute = False
             else:
-                if not self._isMoving and self._routine:
-                    step = self._routine[0]
-                    self._routine.pop(0)
+                if not self._isMoving and self._route:
+                    step = self._route[0]
+                    self._route.pop(0)
                     if not self.MapMove(step):
                         self._inRoute = False
         if self._isMoving:
@@ -190,6 +193,7 @@ class Actor(_ActorBase, BPBase):
         r"""Check whether the actor has been destroyed."""
         return self._destroyed
 
+    @Meta(Vector2iVars=["offset"])
     @ExecSplit(success=(True,), fail=(False,))
     @TypeAdapter(offset=([tuple, list], Vector2i))
     def MapMove(self, offset: Union[Vector2i, Pair[int], List[int]]) -> bool:
@@ -316,28 +320,29 @@ class Actor(_ActorBase, BPBase):
 
     @ReturnType(isInRoute=bool)
     def isInRoute(self) -> bool:
-        r"""Check whether this actor is executing a movement routine.
+        r"""Check whether this actor is executing a movement route.
 
-        - \return  `True` if a routine is active, `False` otherwise
+        - \return  `True` if a route is active, `False` otherwise
         """
         return self._inRoute
 
     @ExecSplit(default=(None,))
-    def setRoute(self, routine: Optional[List[Vector2i]]) -> None:
+    @Meta(MoveRouteVars=["route"])
+    def setRoute(self, route: Optional[List[Vector2i]]) -> None:
         r"""Set a sequence of grid offsets to walk automatically.
 
-        - \param routine  List of grid offsets, or `None` to clear the routine
+        - \param route  List of grid offsets, or `None` to clear the route
         """
-        self._inRoute = routine is not None
-        self._routine = routine
+        self._inRoute = route is not None
+        self._route = route
 
-    @ReturnType(routine=Optional[List[Vector2i]])
+    @ReturnType(route=Optional[List[Vector2i]])
     def getRoute(self) -> Optional[List[Vector2i]]:
-        r"""Get the current movement routine.
+        r"""Get the current movement route.
 
         - \return  List of grid offsets, or `None` if inactive
         """
-        return self._routine
+        return self._route
 
     @ReturnType(moveEnabled=bool)
     def getMoveEnabled(self) -> bool:
@@ -361,13 +366,13 @@ class Actor(_ActorBase, BPBase):
 
     @ExecSplit(default=(None,))
     def stop(self) -> None:
-        r"""Immediately halt all movement and clear the current routine.
+        r"""Immediately halt all movement and clear the current route.
 
         Resets motion state and snaps map position to the current location.
         """
         self._isMoving = False
         self._inRoute = False
-        self._routine = None
+        self._route = None
         self._departure = None
         self._destination = None
         self._realSpeed = 0.0

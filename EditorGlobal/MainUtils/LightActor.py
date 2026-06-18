@@ -104,7 +104,7 @@ class LightActorMixin:
         mapKey = self.editorPanel.mapKey if getattr(self.editorPanel, "mapKey", "") else ""
         if not mapKey:
             item = self.leftList.currentItem()
-            mapKey = item.text() if item else ""
+            mapKey = item.data(QtCore.Qt.UserRole) if item else ""
 
         data = GameData.mapData.get(mapKey) if mapKey else None
         if not isinstance(data, dict):

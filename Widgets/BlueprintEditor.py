@@ -14,6 +14,7 @@ from Widgets.Utils import SingleRowDialog, NodePanel, Toast, RectViewer, Datacla
 from Widgets.Utils.ColourPickerDialog import ColourVarEditor
 from Widgets.Utils.MetaRely import getRelyConditionDisplay, getRelySourceSet, isRelyEditable, normaliseRelyMap
 from Widgets.Utils.MetaVarTypes import getMetaVarTypes
+from Widgets.Utils.VectorVarEditor import VectorVarEditor, isVectorVarType
 
 
 _GRAPH_TAB_KIND = "graph"
@@ -251,6 +252,8 @@ class BluePrintEditor(QtWidgets.QWidget):
             return widget.data
         if isinstance(widget, ColourVarEditor):
             return widget.getValue()
+        if isinstance(widget, VectorVarEditor):
+            return widget.getValue()
         elems = getattr(widget, "_elementWidgets", None)
         if elems is not None:
             values = []
@@ -275,6 +278,9 @@ class BluePrintEditor(QtWidgets.QWidget):
     def _onRevertAttr(self, key: str, parent_val: Any, widget: QtWidgets.QWidget) -> None:
         """Revert the attribute to its parent class value."""
         if isinstance(widget, ColourVarEditor):
+            widget.setValue(parent_val)
+            return
+        if isinstance(widget, VectorVarEditor):
             widget.setValue(parent_val)
             return
 
@@ -329,6 +335,10 @@ class BluePrintEditor(QtWidgets.QWidget):
                 lambda data, b=revertBtn, pv=parent_val: self._updateRevertButtonState(b, data, pv)
             )
         elif isinstance(widget, ColourVarEditor):
+            widget.VALUE_CHANGED.connect(
+                lambda data, b=revertBtn, pv=parent_val: self._updateRevertButtonState(b, data, pv)
+            )
+        elif isinstance(widget, VectorVarEditor):
             widget.VALUE_CHANGED.connect(
                 lambda data, b=revertBtn, pv=parent_val: self._updateRevertButtonState(b, data, pv)
             )
@@ -439,6 +449,9 @@ class BluePrintEditor(QtWidgets.QWidget):
 
     def _setWidgetEditable(self, widget: QtWidgets.QWidget, editable: bool) -> None:
         if isinstance(widget, ColourVarEditor):
+            widget.setEditable(editable)
+            return
+        if isinstance(widget, VectorVarEditor):
             widget.setEditable(editable)
             return
         widget.setEnabled(editable)
@@ -986,6 +999,10 @@ class BluePrintEditor(QtWidgets.QWidget):
             w = ColourVarEditor(value, self)
             w.VALUE_CHANGED.connect(lambda val, k=key: self.onDataChanged(k, val, True))
             return w
+        if isAttr and isVectorVarType(var_type):
+            w = VectorVarEditor(var_type, value, self)
+            w.VALUE_CHANGED.connect(lambda val, k=key: self.onDataChanged(k, val, True))
+            return w
 
         if isAttr and isinstance(value, bool):
             w = QtWidgets.QCheckBox()
@@ -1219,6 +1236,12 @@ class BluePrintEditor(QtWidgets.QWidget):
         widget = DataclassWidget(componentType, copy.deepcopy(value), dlg)
         layout.addWidget(widget)
         buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        ok_btn = buttons.button(QtWidgets.QDialogButtonBox.Ok)
+        cancel_btn = buttons.button(QtWidgets.QDialogButtonBox.Cancel)
+        if ok_btn:
+            ok_btn.setText(ELOC("CONFIRM"))
+        if cancel_btn:
+            cancel_btn.setText(ELOC("CANCEL"))
         buttons.accepted.connect(dlg.accept)
         buttons.rejected.connect(dlg.reject)
         layout.addWidget(buttons)

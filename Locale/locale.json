@@ -967,6 +967,50 @@
     "zh_CN": "需要 {source} 为 {value} 时可编辑",
     "en_GB": "Editable when {source} is {value}"
   },
+  "MOVE_ROUTE_EDITOR_TITLE": {
+    "zh_CN": "编辑移动路线",
+    "en_GB": "Edit Move Route"
+  },
+  "MOVE_ROUTE_EDITOR_HINT": {
+    "zh_CN": "地图仅作为设置参考路线，实际上的移动路线为Actor当前位置起，移动到设置的相对最终路线",
+    "en_GB": "The map is only a reference for setting the route. The actual movement starts from the Actor's current position and follows the configured relative route."
+  },
+  "MOVE_ROUTE_EDIT": {
+    "zh_CN": "编辑路线",
+    "en_GB": "Edit Route"
+  },
+  "MOVE_ROUTE_CLEAR": {
+    "zh_CN": "清空路线",
+    "en_GB": "Clear Route"
+  },
+  "MOVE_ROUTE_STEP_COUNT": {
+    "zh_CN": "路线步数：{count}",
+    "en_GB": "Route steps: {count}"
+  },
+  "TRANSFER_POS_EDITOR_TITLE": {
+    "zh_CN": "选择传送坐标",
+    "en_GB": "Select Transfer Position"
+  },
+  "TRANSFER_POS_EDITOR_HINT": {
+    "zh_CN": "点击地图上的格子以选择目标传送坐标，可在左侧切换地图。",
+    "en_GB": "Click a tile on the map to select the destination coordinate. Switch maps using the list on the left."
+  },
+  "TRANSFER_POS_EDIT": {
+    "zh_CN": "编辑坐标",
+    "en_GB": "Edit Position"
+  },
+  "TRANSFER_POS_CLEAR": {
+    "zh_CN": "清空坐标",
+    "en_GB": "Clear Position"
+  },
+  "TRANSFER_POS_NONE": {
+    "zh_CN": "（未设置）",
+    "en_GB": "(not set)"
+  },
+  "TRANSFER_POS_LABEL": {
+    "zh_CN": "坐标：({x}, {y})",
+    "en_GB": "Position: ({x}, {y})"
+  },
   "ADD_ATTR": {
     "zh_CN": "添加属性",
     "en_GB": "Add Attribute"

@@ -72,6 +72,7 @@ class Character(Actor):
         self._rectSize = rectangle.size
         return super().setTextureRect(rectangle)
 
+    @Meta(Vector2iVars=["offset"])
     @ExecSplit(success=(True,), fail=(False,))
     @TypeAdapter(offset=([tuple, list], Vector2i))
     def MapMove(self, offset: Union[Vector2i, Pair[int], List[int]]) -> bool:

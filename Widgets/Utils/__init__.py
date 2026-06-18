@@ -16,5 +16,8 @@ from .DataclassEditDialog import DataclassEditDialog
 from .DataclassWidget import DataclassWidget
 from .TypedValueEditor import TypedValueEditor
 from .ColourPickerDialog import ColourPickerDialog, ColourVarEditor
+from .VectorVarEditor import VectorVarEditor
+from .MoveRouteEditor import MoveRouteEditor
+from .TransferPosEditor import TransferPosEditor
 from .PerformanceMonitorWindow import PerformanceMonitorWindow
 from .GameConfigDialog import GameConfigDialog

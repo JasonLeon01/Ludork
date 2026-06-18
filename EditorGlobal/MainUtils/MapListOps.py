@@ -5,31 +5,68 @@ import copy
 from PyQt5 import QtCore, QtWidgets
 from Utils import File
 from Widgets.Utils import MapEditDialog
+from .. import EditorStatus
 from ..Data import GameData
+
+
+def _loadGameLocaleDict() -> dict:
+    try:
+        localeDir = os.path.join(EditorStatus.PROJ_PATH, "Data", "Locale")
+        lang = getattr(EditorStatus, "LANGUAGE", "en_GB")
+        localeFile = os.path.join(localeDir, lang)
+        if not os.path.isfile(localeFile):
+            localeFile = os.path.join(localeDir, "en_GB")
+        if os.path.isfile(localeFile):
+            return File.LoadData(localeFile)
+    except Exception:
+        pass
+    return {}
+
+
+def _formatGameString(s: str, localeDict: dict) -> str:
+    try:
+        return str(s).format(**localeDict)
+    except Exception:
+        return str(s)
 
 
 class MapListOpsMixin:
     def refreshLeftList(self):
         self.leftList.clear()
-        mapFiles = [k for k in GameData.mapData.keys()]
-        mapFiles.sort()
-        self.leftList.addItems(mapFiles)
+        localeDict = _loadGameLocaleDict()
+        for key in sorted(GameData.mapData.keys()):
+            data = GameData.mapData.get(key)
+            if not isinstance(data, dict):
+                continue
+            resolvedName = _formatGameString(str(data.get("mapName") or key), localeDict)
+            displayName = f"{key} ({resolvedName})" if resolvedName != key else key
+            item = QtWidgets.QListWidgetItem(displayName)
+            item.setData(QtCore.Qt.UserRole, key)
+            item.setToolTip(key)
+            self.leftList.addItem(item)
 
         if self.leftListIndex >= 0 and self.leftListIndex < self.leftList.count():
             self.leftList.setCurrentRow(self.leftListIndex)
         else:
             self.leftListIndex = -1
 
+    def _findItemByKey(self, key: str) -> QtWidgets.QListWidgetItem:
+        for i in range(self.leftList.count()):
+            item = self.leftList.item(i)
+            if item and item.data(QtCore.Qt.UserRole) == key:
+                return item
+        return None
+
     def _onEditCurrentMap(self, checked: bool = False) -> None:
         item = self.leftList.currentItem()
         if not item:
             return
-        self._onEditMap(item.text())
+        self._onEditMap(item.data(QtCore.Qt.UserRole))
 
     def _onLeftItemClicked(self, item: QtWidgets.QListWidgetItem) -> None:
         if item is None:
             return
-        name = item.text()
+        name = item.data(QtCore.Qt.UserRole)
         self.leftListIndex = self.leftList.row(item)
         self.editorPanel.refreshMap(name)
         self.editorPanel.clearLightSelection()
@@ -71,7 +108,7 @@ class MapListOpsMixin:
         menu.addAction(self._actDeleteMap)
         action = menu.exec_(self.leftList.mapToGlobal(pos))
         if action == actEdit:
-            self._onEditMap(item.text())
+            self._onEditMap(item.data(QtCore.Qt.UserRole))
 
     def _getNewMapFileName(self) -> str:
         existing = set(GameData.mapData.keys())
@@ -107,10 +144,10 @@ class MapListOpsMixin:
         item = self.leftList.currentItem()
         if not item:
             return
-        mapName = item.text()
-        if mapName in GameData.mapData:
-            self._mapClipboard = copy.deepcopy(GameData.mapData[mapName])
-            self._mapClipboard["__source_file__"] = mapName
+        mapKey = item.data(QtCore.Qt.UserRole)
+        if mapKey in GameData.mapData:
+            self._mapClipboard = copy.deepcopy(GameData.mapData[mapKey])
+            self._mapClipboard["__source_file__"] = mapKey
             self._actPasteMap.setEnabled(True)
 
     def _onPasteMap(self) -> None:
@@ -143,15 +180,15 @@ class MapListOpsMixin:
         self.refreshLeftList()
         self._refreshInfo()
 
-        items = self.leftList.findItems(newFileName, QtCore.Qt.MatchExactly)
-        if items:
-            self.leftList.setCurrentItem(items[0])
-            self._onLeftItemClicked(items[0])
+        found = self._findItemByKey(newFileName)
+        if found:
+            self.leftList.setCurrentItem(found)
+            self._onLeftItemClicked(found)
 
     def _onDeleteMapAction(self) -> None:
         item = self.leftList.currentItem()
         if item:
-            self._onDeleteMap(item.text())
+            self._onDeleteMap(item.data(QtCore.Qt.UserRole))
 
     def _onDeleteMap(self, mapName: str) -> None:
         if mapName not in GameData.mapData:
@@ -203,10 +240,10 @@ class MapListOpsMixin:
         GameData.mapData[filename] = default_data
         self.refreshLeftList()
 
-        items = self.leftList.findItems(filename, QtCore.Qt.MatchExactly)
-        if items:
-            self.leftList.setCurrentItem(items[0])
-            self._onLeftItemClicked(items[0])
+        found = self._findItemByKey(filename)
+        if found:
+            self.leftList.setCurrentItem(found)
+            self._onLeftItemClicked(found)
 
         self._refreshInfo()
 
@@ -221,7 +258,9 @@ class MapListOpsMixin:
             return
 
         leftItem = self.leftList.currentItem()
-        wasActive = self.editorPanel.mapKey == mapKey or bool(leftItem and leftItem.text() == mapKey)
+        wasActive = self.editorPanel.mapKey == mapKey or bool(
+            leftItem and leftItem.data(QtCore.Qt.UserRole) == mapKey
+        )
 
         dlg = MapEditDialog(self, data, mapKey)
         if not dlg.execApply():
@@ -234,9 +273,9 @@ class MapListOpsMixin:
             self.refreshLeftList()
 
         if wasActive:
-            items = self.leftList.findItems(newKey, QtCore.Qt.MatchExactly)
-            if items:
-                self.leftList.setCurrentItem(items[0])
-                self.leftListIndex = self.leftList.row(items[0])
+            found = self._findItemByKey(newKey)
+            if found:
+                self.leftList.setCurrentItem(found)
+                self.leftListIndex = self.leftList.row(found)
             self.editorPanel.refreshMap(newKey)
             self._refreshLayerBar()

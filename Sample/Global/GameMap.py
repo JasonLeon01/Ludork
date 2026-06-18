@@ -654,6 +654,7 @@ class GameMap(GameMapExt):
         self._lights.remove(light)
 
     @ExecSplit(default=(None,))
+    @Meta(Vector2fVars=["position"])
     @TypeAdapter(position=(tuple, Vector2f))
     def setLightPosition(self, light: Light, position: Union[Vector2f, Pair[float]]) -> None:
         r"""\brief Set the position of a light.
@@ -803,7 +804,7 @@ class GameMap(GameMapExt):
         if self._scene is not None:
             self._scene.addCommonTip(text)
 
-    @Meta(ColourVars=["colour"])
+    @Meta(ColourVars=["colour"], Vector2fVars=["position"])
     @ExecSplit(default=(None,))
     def addDamageText(
         self,

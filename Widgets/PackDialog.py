@@ -183,6 +183,12 @@ class PackSelectionDialog(QtWidgets.QDialog):
         self._refreshPyAVState()
 
         self.btnBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        ok_btn = self.btnBox.button(QtWidgets.QDialogButtonBox.Ok)
+        cancel_btn = self.btnBox.button(QtWidgets.QDialogButtonBox.Cancel)
+        if ok_btn:
+            ok_btn.setText(ELOC("CONFIRM"))
+        if cancel_btn:
+            cancel_btn.setText(ELOC("CANCEL"))
         self.btnBox.accepted.connect(self.accept)
         self.btnBox.rejected.connect(self.reject)
         layout.addWidget(self.btnBox)
@@ -238,6 +244,7 @@ class LogDialog(QtWidgets.QDialog):
         self.btnBox.rejected.connect(self.close)
         btn = self.btnBox.button(QtWidgets.QDialogButtonBox.Close)
         if btn is not None:
+            btn.setText(ELOC("CLOSE"))
             btn.setEnabled(False)
         layout.addWidget(self.btnBox)
 
