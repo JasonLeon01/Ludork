@@ -36,7 +36,7 @@ def LoadGame(filePath: str) -> int:
 
 @Meta(DisplayName='LOC("GET_SAVE_PATH")', DisplayDesc='LOC("GET_SAVE_PATH_DESC")')
 @ReturnType(path=str)
-def GetSavePath(slot: int, ext: str) -> str:
+def GetSavePath(slot: int = 1, ext: str = "dat") -> str:
     r"""\brief Get the platform-specific save file path for a given slot.
 
     - \param slot Save slot number (0 = default).

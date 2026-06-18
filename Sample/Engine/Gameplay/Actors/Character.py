@@ -8,7 +8,7 @@ from ..Material import Material
 from .Actor import Actor
 
 
-@InvalidVars("defaultRect")
+@Meta(InvalidVars=["defaultRect"])
 class Character(Actor):
     """Actor subclass with directional sprite-sheet animation.
 

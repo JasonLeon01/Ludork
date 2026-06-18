@@ -55,7 +55,7 @@ def EditMusicFilter(attr: str, value: Any) -> None:
     PathVars=[("soundFileName", "Sounds")],
 )
 @ExecSplit(default=(None,))
-def PlaySound(soundFileName: str, applyFilter: bool) -> None:
+def PlaySound(soundFileName: str, applyFilter: bool = False) -> None:
     global SoundFilter
     if applyFilter:
         Manager.playSE(soundFileName, SoundFilter)
@@ -69,7 +69,7 @@ def PlaySound(soundFileName: str, applyFilter: bool) -> None:
     PathVars=[("musicFileName", "Musics")],
 )
 @ExecSplit(default=(None,))
-def PlayMusic(musicFileName: str, applyFilter: bool) -> None:
+def PlayMusic(musicFileName: str, applyFilter: bool = False) -> None:
     global MusicFilter
     if applyFilter:
         Manager.playMusic("bgm", musicFileName, MusicFilter)
@@ -83,7 +83,7 @@ def PlayMusic(musicFileName: str, applyFilter: bool) -> None:
     PathVars=[("videoFileName", "Videos")],
 )
 @ExecSplit(default=(None,))
-def PlayVideo(videoFileName: str, mute: bool, skipable: bool) -> None:
+def PlayVideo(videoFileName: str, mute: bool = False, skipable: bool = True) -> None:
     videoPath = os.path.join(os.getcwd(), "Assets", "Videos", videoFileName)
     playVideo(videoPath, mute, skipable)
 
@@ -108,7 +108,7 @@ def FreezeTransitionBackground() -> Callable[[], bool]:
     PathVars=[("transitionName", "Transitions")],
 )
 @Latent(Finished=(True,))
-def RequestTransition(transitionName: str, transitionTime: float) -> Callable[[], bool]:
+def RequestTransition(transitionName: str = "", transitionTime: float = 1.0) -> Callable[[], bool]:
     r"""\brief Request a screen transition and wait until it finishes.
 
     - \param transitionName Optional transition texture filename.
@@ -145,7 +145,7 @@ def SetBgsFilter(attr: str, value: Any) -> None:
 
 @Meta(DisplayName='LOC("FLASH_SCREEN")', DisplayDesc='LOC("FLASH_SCREEN_DESC")')
 @ExecSplit(default=(None,))
-def FlashScreen(red: int, green: int, blue: int, alpha: int, duration: float) -> None:
+def FlashScreen(red: int = 255, green: int = 255, blue: int = 255, alpha: int = 255, duration: float = 0.5) -> None:
     GlobalSystem.flashScreen(Color(int(red), int(green), int(blue), int(alpha)), float(duration))
 
 
@@ -157,7 +157,7 @@ def StopFlashScreen() -> None:
 
 @Meta(DisplayName='LOC("SCREEN_SHAKE")', DisplayDesc='LOC("SCREEN_SHAKE_DESC")')
 @ExecSplit(default=(None,))
-def ScreenShake(power: float, speed: float, duration: float) -> None:
+def ScreenShake(power: float = 4.0, speed: float = 10.0, duration: float = 0.5) -> None:
     GlobalSystem.startShake(float(power), float(speed), float(duration))
 
 
@@ -173,7 +173,7 @@ def StopScreenShake() -> None:
     DropBox={"weatherType": WeatherType.dropBoxItems()},
 )
 @ExecSplit(default=(None,))
-def SetWeather(weatherType: WeatherType, power: int, maxCount: int) -> None:
+def SetWeather(weatherType: WeatherType, power: int = 40, maxCount: int = 80) -> None:
     GlobalSystem.setWeather(WeatherType.coerce(weatherType), int(power), int(maxCount))
 
 

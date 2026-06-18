@@ -38,8 +38,8 @@ def _posToVector2u(position: Any) -> Optional[Vector2u]:
 @ExecSplit(default=(None,))
 def GotoMap(
     mapPath: str,
-    blockTransition: bool,
-    position: Optional[Union[Vector2i, Pair[int], List[int], Tuple[int, int]]],
+    blockTransition: bool = False,
+    position: Optional[Union[Vector2i, Pair[int], List[int], Tuple[int, int]]] = None,
 ) -> None:
     r"""\brief Transition to a map and optionally place the player at a tile coordinate.
 
@@ -94,7 +94,7 @@ def UnlockCamera() -> None:
 
 @Meta(DisplayName='LOC("RECORD_TELEPOINT")', DisplayDesc='LOC("RECORD_TELEPOINT_DESC")')
 @ExecSplit(default=(None,))
-def RecordTelepoint(mapPath: str, x: int, y: int) -> None:
+def RecordTelepoint(mapPath: str, x: int = 0, y: int = 0) -> None:
     r"""\brief Record a telepoint in the current game instance.
 
     - \param mapPath The map path where the telepoint is located.
@@ -108,7 +108,11 @@ def RecordTelepoint(mapPath: str, x: int, y: int) -> None:
 
 @Meta(DisplayName='LOC("DESTROY_TERRAIN")', DisplayDesc='LOC("DESTROY_TERRAIN_DESC")', Vector2iVars=["position"])
 @ExecSplit(default=(None,))
-def DestroyTerrain(layerName: str, position: Union[Vector2i, Vector2u, Pair[int], List[int]], tileID: Any) -> None:
+def DestroyTerrain(
+    layerName: str,
+    position: Union[Vector2i, Vector2u, Pair[int], List[int]],
+    tileID: Any = None,
+) -> None:
     r"""\brief Replace and persist one terrain tile on the current map.
 
     - \param layerName The tile layer to edit.
@@ -124,7 +128,7 @@ def DestroyTerrain(layerName: str, position: Union[Vector2i, Vector2u, Pair[int]
 
 @Meta(DisplayName='LOC("DESTROY_TERRAIN_LIST")', DisplayDesc='LOC("DESTROY_TERRAIN_LIST_DESC")')
 @ExecSplit(default=(None,))
-def DestroyTerrainList(layerName: str, positions: List[Any], tileID: Any) -> None:
+def DestroyTerrainList(layerName: str, positions: List[Any], tileID: Any = None) -> None:
     r"""\brief Replace and persist multiple terrain tiles on the current map.
 
     - \param layerName The tile layer to edit.
@@ -157,7 +161,7 @@ def GetTerrainTile(layerName: str, position: Union[Vector2i, Vector2u, Pair[int]
 
 @Meta(DisplayName='LOC("GET_TERRAIN_TILE_POSITIONS")', DisplayDesc='LOC("GET_TERRAIN_TILE_POSITIONS_DESC")')
 @ReturnType(positions=List[Vector2i])
-def GetTerrainTilePositions(layerName: str, tileID: Any) -> List[Vector2i]:
+def GetTerrainTilePositions(layerName: str, tileID: Any = None) -> List[Vector2i]:
     r"""\brief Get all current-map coordinates that match a tile ID on one layer.
 
     - \param layerName The tile layer to query.
@@ -174,7 +178,7 @@ def GetTerrainTilePositions(layerName: str, tileID: Any) -> List[Vector2i]:
 
 @Meta(DisplayName='LOC("OPEN_SHOP")', DisplayDesc='LOC("OPEN_SHOP_DESC")')
 @Latent(Closed=(True,))
-def OpenShop(items: List[str], canSell: bool) -> Callable[[], bool]:
+def OpenShop(items: List[str], canSell: bool = True) -> Callable[[], bool]:
     r"""\brief Open the map-bound shop.
 
     - \param items Item IDs available for purchase.

@@ -60,6 +60,43 @@ PAN_EMULATION_MODIFIER = QtCore.Qt.MetaModifier
 WidgetValue = Any
 
 
+def isBasicPythonDefault(value: Any) -> bool:
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return True
+    if isinstance(value, (list, tuple)):
+        return all(isBasicPythonDefault(item) for item in value)
+    if isinstance(value, dict):
+        return all(isBasicPythonDefault(key) and isBasicPythonDefault(item) for key, item in value.items())
+    return False
+
+
+def formatNodeParamDefault(value: Any) -> str:
+    if value is inspect.Parameter.empty:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isBasicPythonDefault(value):
+        return repr(value)
+    return str(value)
+
+
+def makeNodeParamsFromSignature(func: Callable) -> List[str]:
+    sig = inspect.signature(func)
+    params: List[str] = []
+    for _name, param in sig.parameters.items():
+        params.append(formatNodeParamDefault(param.default))
+    return params
+
+
+def getNodeParamValue(node: GraphNode, paramIndex: int, paramName: str) -> Any:
+    if paramIndex < len(node.params):
+        return node.params[paramIndex]
+    paramDefaults = node.getParamDefaults()
+    if paramName in paramDefaults:
+        return formatNodeParamDefault(paramDefaults[paramName])
+    return ""
+
+
 def _patchDetachedNodePaintGuard() -> None:
     if getattr(NodeItem, "_ludorkDetachedPaintGuard", False):
         return
@@ -524,7 +561,6 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
                 self._port_types[name] = "Params"
 
         paramList = currNode.getParamList()
-        paramDefaults = currNode.getParamDefaults()
         keys = list(paramList.keys())
         has_invalid = False
 
@@ -540,11 +576,9 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
         _pendingTransferWires: List[Tuple[TransferPosEditor, str]] = []
 
         for i, name in enumerate(keys):
-            if name in paramDefaults:
-                continue
             widgetName = MakeSafeNodePropertyName(name, usedNames)
             self._widgetNameByPort[name] = widgetName
-            init_val = currNode.params[i] if i < len(currNode.params) else ""
+            init_val = getNodeParamValue(currNode, i, name)
             self.add_input(name, multi_input=False)
             self._port_types[name] = "Params"
 
@@ -887,13 +921,11 @@ class NodePanel(QtWidgets.QWidget):
             keys = list(paramList.keys())
             paramIndex = 0
             for name in keys:
-                if paramIndex >= len(node.params):
-                    break
                 widgetName = self.resolveWidgetName(nodeInst, name)
                 w = nodeInst.get_widget(widgetName)
                 if w:
                     le = w.get_custom_widget()
-                    val = node.params[paramIndex]
+                    val = getNodeParamValue(node, paramIndex, name)
                     if isinstance(le, QtWidgets.QLineEdit):
                         le.setText(str(val))
                         le.editingFinished.connect(
@@ -1369,13 +1401,7 @@ class NodePanel(QtWidgets.QWidget):
             self.graph.viewer().end_live_connection()
             self._pending_conn = None
             return
-        sig = inspect.signature(func)
-        params = []
-        for name, param in sig.parameters.items():
-            if param.default != inspect.Parameter.empty:
-                params.append(str(param.default))
-            else:
-                params.append("")
+        params = makeNodeParamsFromSignature(func)
         posf = self._pending_conn["scene_pos"]
         pos = (posf.x(), posf.y())
         node_data = EditorDataNode(path, params, pos)
@@ -1819,13 +1845,7 @@ class NodePanel(QtWidgets.QWidget):
         if not func:
             return
 
-        sig = inspect.signature(func)
-        params = []
-        for name, param in sig.parameters.items():
-            if param.default != inspect.Parameter.empty:
-                params.append(str(param.default))
-            else:
-                params.append("")
+        params = makeNodeParamsFromSignature(func)
 
         if self._createNodeScenePos is not None:
             scene_pos = self._createNodeScenePos
@@ -1993,12 +2013,22 @@ class NodePanel(QtWidgets.QWidget):
         changed = False
         if self.key in self.nodeGraph.dataNodes and 0 <= nodeIndex < len(self.nodeGraph.dataNodes[self.key]):
             dataNode = self.nodeGraph.dataNodes[self.key][nodeIndex]
+            if self.key in self.nodeGraph.nodes and 0 <= nodeIndex < len(self.nodeGraph.nodes[self.key]):
+                node = self.nodeGraph.nodes[self.key][nodeIndex]
+                paramNames = list(node.getParamList().keys())
+                while len(dataNode.params) <= paramIndex and len(dataNode.params) < len(paramNames):
+                    fillIndex = len(dataNode.params)
+                    dataNode.params.append(getNodeParamValue(node, fillIndex, paramNames[fillIndex]))
             if 0 <= paramIndex < len(dataNode.params):
                 if dataNode.params[paramIndex] != text:
                     dataNode.params[paramIndex] = text
                     changed = True
         if self.key in self.nodeGraph.nodes and 0 <= nodeIndex < len(self.nodeGraph.nodes[self.key]):
             node = self.nodeGraph.nodes[self.key][nodeIndex]
+            paramNames = list(node.getParamList().keys())
+            while len(node.params) <= paramIndex and len(node.params) < len(paramNames):
+                fillIndex = len(node.params)
+                node.params.append(getNodeParamValue(node, fillIndex, paramNames[fillIndex]))
             if 0 <= paramIndex < len(node.params):
                 if node.params[paramIndex] != text:
                     node.params[paramIndex] = text

@@ -114,7 +114,7 @@ def _isMovementFinished(actor: Optional[Actor]) -> bool:
 
 @Meta(DisplayName='LOC("SET_MOVE_ROUTE")', DisplayDesc='LOC("SET_MOVE_ROUTE_DESC")', MoveRouteVars=["route"])
 @Latent(Started=(_LATENT_STARTED,), Finished=(_LATENT_FINISHED,))
-def SetMoveRoute(actor: Actor, route: Optional[List[Any]]) -> Callable[[], List[int]]:
+def SetMoveRoute(actor: Actor, route: Optional[List[Any]] = None) -> Callable[[], List[int]]:
     r"""\brief Set an actor route and wait until movement finishes.
 
     - \param actor The actor to move.
@@ -129,7 +129,7 @@ def SetMoveRoute(actor: Actor, route: Optional[List[Any]]) -> Callable[[], List[
 @Meta(DisplayName='LOC("SET_AUTO_PATH_TO_DESTINATION")', DisplayDesc='LOC("SET_AUTO_PATH_TO_DESTINATION_DESC")', Vector2iVars=["destination"])
 @Latent(Started=(_LATENT_STARTED,), Finished=(_LATENT_FINISHED,))
 def SetAutoPathToDestination(
-    actor: Actor, destination: Union[Vector2i, Pair[int], List[int]]
+    actor: Actor, destination: Union[Vector2i, Pair[int], List[int]] = (0, 0)
 ) -> Callable[[], List[int]]:
     r"""\brief Pathfind an actor to a destination and wait until movement finishes.
 

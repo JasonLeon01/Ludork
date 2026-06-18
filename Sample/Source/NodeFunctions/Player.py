@@ -51,7 +51,7 @@ def GetPlayerFrontPosition() -> Optional[Vector2i]:
 
 @Meta(DisplayName='LOC("ADD_ITEM")', DisplayDesc='LOC("ADD_ITEM_DESC")')
 @ExecSplit(default=(None,))
-def AddItem(itemID: str, count: int) -> None:
+def AddItem(itemID: str, count: int = 1) -> None:
     r"""\brief Add item(s) to the player's inventory.
 
     - \param itemID Item identifier.
@@ -64,7 +64,7 @@ def AddItem(itemID: str, count: int) -> None:
 
 @Meta(DisplayName='LOC("REMOVE_ITEM")', DisplayDesc='LOC("REMOVE_ITEM_DESC")')
 @ExecSplit(Success=(0,), Failed=(1,))
-def RemoveItem(itemID: str, count: int) -> int:
+def RemoveItem(itemID: str, count: int = 1) -> int:
     r"""\brief Remove item(s) from the player's inventory.
 
     - \param itemID Item identifier.
@@ -116,7 +116,7 @@ def AddEquip(equipID: str, count: int = 1) -> None:
 
 @Meta(DisplayName='LOC("REMOVE_EQUIP")', DisplayDesc='LOC("REMOVE_EQUIP_DESC")')
 @ExecSplit(Success=(0,), Failed=(1,))
-def RemoveEquip(equipID: str, count: int) -> int:
+def RemoveEquip(equipID: str, count: int = 1) -> int:
     r"""\brief Remove equip(s) from the player's equipment bag.
 
     - \param equipID Equip identifier.
@@ -210,7 +210,7 @@ def SetPlayerAttr(attrName: str, value: Any) -> None:
 
 @Meta(DisplayName='LOC("HEAL_PLAYER")', DisplayDesc='LOC("HEAL_PLAYER_DESC")')
 @ExecSplit(default=(None,))
-def HealPlayer(amount: int) -> None:
+def HealPlayer(amount: int = 1) -> None:
     r"""\brief Restore HP to the player, capped at MAXHP.
 
     - \param amount Amount of HP to restore.
@@ -222,7 +222,7 @@ def HealPlayer(amount: int) -> None:
 
 @Meta(DisplayName='LOC("DAMAGE_PLAYER")', DisplayDesc='LOC("DAMAGE_PLAYER_DESC")')
 @ExecSplit(default=(None,))
-def DamagePlayer(amount: int) -> None:
+def DamagePlayer(amount: int = 1) -> None:
     r"""\brief Deal damage to the player, floored at 0.
 
     - \param amount Amount of HP to subtract.
@@ -234,7 +234,7 @@ def DamagePlayer(amount: int) -> None:
 
 @Meta(DisplayName='LOC("ADD_GOLD")', DisplayDesc='LOC("ADD_GOLD_DESC")')
 @ExecSplit(default=(None,))
-def AddGold(amount: int) -> None:
+def AddGold(amount: int = 1) -> None:
     r"""\brief Add gold to the player.
 
     - \param amount Amount of gold to add (can be negative to subtract).
@@ -246,7 +246,7 @@ def AddGold(amount: int) -> None:
 
 @Meta(DisplayName='LOC("ADD_EXP")', DisplayDesc='LOC("ADD_EXP_DESC")')
 @ExecSplit(default=(None,))
-def AddEXP(amount: int) -> None:
+def AddEXP(amount: int = 1) -> None:
     r"""\brief Add experience points to the player.
 
     - \param amount Amount of EXP to add.

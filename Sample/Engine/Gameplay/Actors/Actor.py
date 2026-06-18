@@ -12,8 +12,8 @@ from .Base import _ActorBase
 @Meta(
     PathVars=[("texturePath", "Characters"), ("shaderPath", "Shaders")],
     Vector2fVars=["defaultTranslation", "defaultScale", "defaultOrigin"],
+    RectRangeVars={"defaultRect": "texturePath"},
 )
-@RectRangeVars(defaultRect="texturePath")
 class Actor(_ActorBase, BPBase):
     r"""
     \brief Game actor with collision, movement, and blueprint event support.

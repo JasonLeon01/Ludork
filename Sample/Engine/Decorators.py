@@ -97,6 +97,12 @@ def Meta(**kwargs):
       editors.
     - MoveRouteVars: movement-route node parameters displayed with a map
       reference route editor. Values are stored as relative `(dx, dy)` steps.
+    - Transfer: map coordinate node parameters displayed with a map tile
+      picker. Format: `[("posVarName", "mapVarName")]`.
+    - InvalidVars: class variables hidden from the blueprint attribute editor.
+      This is the Meta form of `@InvalidVars(...)`.
+    - RectRangeVars: rectangle fields edited with an image range selector.
+      This is the Meta form of `@RectRangeVars(...)`.
 
     - kwargs: Key-value pairs to be stored as metadata.
 
@@ -109,6 +115,14 @@ def Meta(**kwargs):
             meta = {}
         meta.update(kwargs)
         func._meta = meta
+        invalidVars = kwargs.get("InvalidVars")
+        if isinstance(invalidVars, str):
+            func._invalidVars = (invalidVars,)
+        elif isinstance(invalidVars, (list, tuple, set)):
+            func._invalidVars = tuple(name for name in invalidVars if isinstance(name, str))
+        rectRangeVars = kwargs.get("RectRangeVars")
+        if isinstance(rectRangeVars, dict):
+            func._rectRangeVars = dict(rectRangeVars)
         return func
 
     return decorator

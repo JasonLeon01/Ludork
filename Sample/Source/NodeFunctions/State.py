@@ -31,7 +31,7 @@ def GetStateOwner() -> Optional[object]:
 
 @Meta(DisplayName='LOC("GET_EVENT_ARG")', DisplayDesc='LOC("GET_EVENT_ARG_DESC")')
 @ReturnType(value=object)
-def GetEventArg(name: str, default: Any) -> Any:
+def GetEventArg(name: str, default: Any = None) -> Any:
     r"""\brief Get a keyword argument injected into the current blueprint event.
 
     Convenience wrapper that reads `__<name>__` from the local graph context.
@@ -47,7 +47,7 @@ def GetEventArg(name: str, default: Any) -> Any:
 
 @Meta(DisplayName='LOC("GET_BATTLER_ATTR")', DisplayDesc='LOC("GET_BATTLER_ATTR_DESC")')
 @ReturnType(value=object)
-def GetBattlerAttr(battler: Any, attrName: str, default: Any) -> Any:
+def GetBattlerAttr(battler: Any, attrName: str, default: Any = None) -> Any:
     r"""\brief Read a named attribute from any battler (e.g. HP, MAXHP, ATK, DEF).
 
     - \param battler The target battler.
@@ -80,7 +80,7 @@ def SetBattlerAttr(battler: Any, attrName: str, value: Any) -> None:
 
 @Meta(DisplayName='LOC("DAMAGE_BATTLER")', DisplayDesc='LOC("DAMAGE_BATTLER_DESC")')
 @ExecSplit(default=(None,))
-def DamageBattler(battler: Any, amount: int) -> None:
+def DamageBattler(battler: Any, amount: int = 1) -> None:
     r"""\brief Subtract HP from any battler (floored at 0).
 
     - \param battler The target battler.
@@ -96,7 +96,7 @@ def DamageBattler(battler: Any, amount: int) -> None:
 
 @Meta(DisplayName='LOC("HEAL_BATTLER")', DisplayDesc='LOC("HEAL_BATTLER_DESC")')
 @ExecSplit(default=(None,))
-def HealBattler(battler: Any, amount: int) -> None:
+def HealBattler(battler: Any, amount: int = 1) -> None:
     r"""\brief Restore HP on any battler (capped at MAXHP when present).
 
     - \param battler The target battler.
@@ -127,7 +127,7 @@ def BattlerHasState(battler: Any, stateID: str) -> bool:
 
 @Meta(DisplayName='LOC("ADD_STATE_TO")', DisplayDesc='LOC("ADD_STATE_TO_DESC")')
 @ExecSplit(default=(None,))
-def AddStateTo(battler: Any, stateID: str, stacks: int) -> None:
+def AddStateTo(battler: Any, stateID: str, stacks: int = 1) -> None:
     r"""\brief Apply a state (by ID) to any battler.
 
     - \param battler The target battler.

@@ -20,31 +20,31 @@ from Engine.Utils import Math
 
 @Meta(DisplayName='LOC("BUILD_VECTOR2F")', DisplayDesc='LOC("BUILD_VECTOR2F_DESC")')
 @ReturnType(value=Vector2f)
-def BuildVector2f(x: float, y: float) -> Vector2f:
+def BuildVector2f(x: float = 0.0, y: float = 0.0) -> Vector2f:
     return Vector2f(float(x), float(y))
 
 
 @Meta(DisplayName='LOC("BUILD_VECTOR2I")', DisplayDesc='LOC("BUILD_VECTOR2I_DESC")')
 @ReturnType(value=Vector2i)
-def BuildVector2i(x: int, y: int) -> Vector2i:
+def BuildVector2i(x: int = 0, y: int = 0) -> Vector2i:
     return Vector2i(int(x), int(y))
 
 
 @Meta(DisplayName='LOC("BUILD_VECTOR2U")', DisplayDesc='LOC("BUILD_VECTOR2U_DESC")')
 @ReturnType(value=Vector2u)
-def BuildVector2u(x: int, y: int) -> Vector2u:
+def BuildVector2u(x: int = 0, y: int = 0) -> Vector2u:
     return Vector2u(int(x), int(y))
 
 
 @Meta(DisplayName='LOC("BUILD_VECTOR3F")', DisplayDesc='LOC("BUILD_VECTOR3F_DESC")')
 @ReturnType(value=Vector3f)
-def BuildVector3f(x: float, y: float, z: float) -> Vector3f:
+def BuildVector3f(x: float = 0.0, y: float = 0.0, z: float = 0.0) -> Vector3f:
     return Vector3f(float(x), float(y), float(z))
 
 
 @Meta(DisplayName='LOC("BUILD_VECTOR3I")', DisplayDesc='LOC("BUILD_VECTOR3I_DESC")')
 @ReturnType(value=Vector3i)
-def BuildVector3i(x: int, y: int, z: int) -> Vector3i:
+def BuildVector3i(x: int = 0, y: int = 0, z: int = 0) -> Vector3i:
     return Vector3i(int(x), int(y), int(z))
 
 
@@ -116,67 +116,71 @@ def ToVector3i(v: Vector3f) -> Vector3i:
 
 @Meta(DisplayName='LOC("TO_INT_RECT")', DisplayDesc='LOC("TO_INT_RECT_DESC")')
 @ReturnType(value=IntRect)
-def ToIntRect(x: int, y: int, width: int, height: int) -> IntRect:
+def ToIntRect(x: int = 0, y: int = 0, width: int = 32, height: int = 32) -> IntRect:
     return Math.ToIntRect(x, y, width, height)
 
 
 @Meta(DisplayName='LOC("TO_FLOAT_RECT")', DisplayDesc='LOC("TO_FLOAT_RECT_DESC")')
 @ReturnType(value=FloatRect)
-def ToFloatRect(x: float, y: float, width: float, height: float) -> FloatRect:
+def ToFloatRect(x: float = 0.0, y: float = 0.0, width: float = 32.0, height: float = 32.0) -> FloatRect:
     return Math.ToFloatRect(x, y, width, height)
 
 
 @Meta(DisplayName='LOC("CLAMP")', DisplayDesc='LOC("CLAMP_DESC")')
 @ReturnType(value=float)
-def Clamp(value, min_val, max_val) -> float:
+def Clamp(value=0.0, min_val=0.0, max_val=1.0) -> float:
     return Math.Clamp(value, min_val, max_val)
 
 
 @Meta(DisplayName='LOC("LERP")', DisplayDesc='LOC("LERP_DESC")')
 @ReturnType(value=float)
-def Lerp(a: float, b: float, t: float) -> float:
+def Lerp(a: float = 0.0, b: float = 1.0, t: float = 0.5) -> float:
     return Math.Lerp(a, b, t)
 
 
 @Meta(DisplayName='LOC("ABS")', DisplayDesc='LOC("ABS_DESC")')
 @ReturnType(value=Union[int, float])
-def Abs(value: Union[int, float]) -> Union[int, float]:
+def Abs(value: Union[int, float] = 0) -> Union[int, float]:
     return abs(value)
 
 
 @Meta(DisplayName='LOC("TO_INT")', DisplayDesc='LOC("TO_INT_DESC")')
 @ReturnType(value=Union[int, float])
-def ToInt(value: Union[int, float]) -> int:
+def ToInt(value: Union[int, float] = 0) -> int:
     return int(value)
 
 
 @Meta(DisplayName='LOC("TO_FLOAT")', DisplayDesc='LOC("TO_FLOAT_DESC")')
 @ReturnType(value=Union[int, float])
-def ToFloat(value: Union[int, float]) -> float:
+def ToFloat(value: Union[int, float] = 0) -> float:
     return float(value)
 
 
 @Meta(DisplayName='LOC("MAX")', DisplayDesc='LOC("MAX_DESC")')
 @ReturnType(value=List[Any])
-def Max(values: List[Any]) -> Any:
+def Max(values: List[Any] = None) -> Any:
+    if values is None:
+        values = [0]
     return max(values)
 
 
 @Meta(DisplayName='LOC("MIN")', DisplayDesc='LOC("MIN_DESC")')
 @ReturnType(value=List[Any])
-def Min(values: List[Any]) -> Any:
+def Min(values: List[Any] = None) -> Any:
+    if values is None:
+        values = [0]
     return min(values)
 
 
 @Meta(DisplayName='LOC("SQRT")', DisplayDesc='LOC("SQRT_DESC")')
 @ReturnType(value=Union[int, float])
-def Sqrt(value: Union[int, float]) -> Union[int, float]:
+def Sqrt(value: Union[int, float] = 0) -> Union[int, float]:
     return math.sqrt(value)
 
 
 @Meta(DisplayName='LOC("POW")', DisplayDesc='LOC("POW_DESC")')
 @ReturnType(value=Union[int, float])
-def Pow(base: Union[int, float], exp: Union[int, float]) -> Union[int, float]:
+def Pow(base: Union[int, float] = 1, exp: Union[int, float] = 2) -> Union[int, float]:
     return math.pow(base, exp)
 
 
@@ -314,157 +318,157 @@ def Vector2RotatedBy(v: Vector2f, phi: Angle) -> Vector2f:
 
 @Meta(DisplayName='LOC("DEGREES_TO_ANGLE")', DisplayDesc='LOC("DEGREES_TO_ANGLE_DESC")')
 @ReturnType(value=Angle)
-def DegreesToAngle(degrees_: float) -> Angle:
+def DegreesToAngle(degrees_: float = 0.0) -> Angle:
     return degrees(degrees_)
 
 
 @Meta(DisplayName='LOC("RADIANS_TO_ANGLE")', DisplayDesc='LOC("RADIANS_TO_ANGLE_DESC")')
 @ReturnType(value=float)
-def RadiansToAngle(radians_: float) -> Angle:
+def RadiansToAngle(radians_: float = 0.0) -> Angle:
     return radians(radians_)
 
 
 @Meta(DisplayName='LOC("RANDOM_INT")', DisplayDesc='LOC("RANDOM_INT_DESC")')
 @ReturnType(value=int)
-def RandomInt(min_val: int, max_val: int) -> int:
+def RandomInt(min_val: int = 0, max_val: int = 100) -> int:
     return random.randint(min_val, max_val)
 
 
 @Meta(DisplayName='LOC("RANDOM_FLOAT")', DisplayDesc='LOC("RANDOM_FLOAT_DESC")')
 @ReturnType(value=float)
-def RandomFloat(min_val: float, max_val: float) -> float:
+def RandomFloat(min_val: float = 0.0, max_val: float = 1.0) -> float:
     return random.uniform(min_val, max_val)
 
 
 @Meta(DisplayName='LOC("GCD")', DisplayDesc='LOC("GCD_DESC")')
 @ReturnType(value=int)
-def GCD(a: int, b: int) -> int:
+def GCD(a: int = 1, b: int = 1) -> int:
     return Math.GCD(a, b)
 
 
 @Meta(DisplayName='LOC("LCM")', DisplayDesc='LOC("LCM_DESC")')
 @ReturnType(value=int)
-def LCM(a: int, b: int) -> int:
+def LCM(a: int = 1, b: int = 1) -> int:
     return Math.LCM(a, b)
 
 
 @Meta(DisplayName='LOC("ADD")', DisplayDesc='LOC("ADD_DESC")')
 @ReturnType(value=Any)
-def ADD(a: Any, b: Any) -> Any:
+def ADD(a: Any = 0, b: Any = 0) -> Any:
     return a + b
 
 
 @Meta(DisplayName='LOC("SUB")', DisplayDesc='LOC("SUB_DESC")')
 @ReturnType(value=Any)
-def SUB(a: Any, b: Any) -> Any:
+def SUB(a: Any = 0, b: Any = 0) -> Any:
     return a - b
 
 
 @Meta(DisplayName='LOC("MUL")', DisplayDesc='LOC("MUL_DESC")')
 @ReturnType(value=Any)
-def MUL(a: Any, b: Any) -> Any:
+def MUL(a: Any = 1, b: Any = 1) -> Any:
     return a * b
 
 
 @Meta(DisplayName='LOC("DIV")', DisplayDesc='LOC("DIV_DESC")')
 @ReturnType(value=Any)
-def DIV(a: Any, b: Any) -> Any:
+def DIV(a: Any = 1, b: Any = 1) -> Any:
     return a / b
 
 
 @Meta(DisplayName='LOC("MOD")', DisplayDesc='LOC("MOD_DESC")')
 @ReturnType(value=Any)
-def MOD(a: Any, b: Any) -> Any:
+def MOD(a: Any = 0, b: Any = 1) -> Any:
     return a % b
 
 
 @Meta(DisplayName='LOC("POW_OP")', DisplayDesc='LOC("POW_OP_DESC")')
 @ReturnType(value=Any)
-def POW(a: Any, b: Any) -> Any:
+def POW(a: Any = 1, b: Any = 1) -> Any:
     return a**b
 
 
 @Meta(DisplayName='LOC("EQUALS")', DisplayDesc='LOC("EQUALS_DESC")')
 @ReturnType(value=bool)
-def EQUALS(a: Any, b: Any) -> bool:
+def EQUALS(a: Any = 0, b: Any = 0) -> bool:
     return a == b
 
 
 @Meta(DisplayName='LOC("NOT_EQUALS")', DisplayDesc='LOC("NOT_EQUALS_DESC")')
 @ReturnType(value=bool)
-def NOT_EQUALS(a: Any, b: Any) -> bool:
+def NOT_EQUALS(a: Any = 0, b: Any = 0) -> bool:
     return a != b
 
 
 @Meta(DisplayName='LOC("LESS")', DisplayDesc='LOC("LESS_DESC")')
 @ReturnType(value=bool)
-def LESS(a: Any, b: Any) -> bool:
+def LESS(a: Any = 0, b: Any = 0) -> bool:
     return a < b
 
 
 @Meta(DisplayName='LOC("LESS_EQUALS")', DisplayDesc='LOC("LESS_EQUALS_DESC")')
 @ReturnType(value=bool)
-def LESS_EQUALS(a: Any, b: Any) -> bool:
+def LESS_EQUALS(a: Any = 0, b: Any = 0) -> bool:
     return a <= b
 
 
 @Meta(DisplayName='LOC("GREATER")', DisplayDesc='LOC("GREATER_DESC")')
 @ReturnType(value=bool)
-def GREATER(a: Any, b: Any) -> bool:
+def GREATER(a: Any = 0, b: Any = 0) -> bool:
     return a > b
 
 
 @Meta(DisplayName='LOC("GREATER_EQUALS")', DisplayDesc='LOC("GREATER_EQUALS_DESC")')
 @ReturnType(value=bool)
-def GREATER_EQUALS(a: Any, b: Any) -> bool:
+def GREATER_EQUALS(a: Any = 0, b: Any = 0) -> bool:
     return a >= b
 
 
 @Meta(DisplayName='LOC("AND")', DisplayDesc='LOC("AND_DESC")')
 @ReturnType(value=bool)
-def AND(a: bool, b: bool) -> bool:
+def AND(a: bool = False, b: bool = False) -> bool:
     return a and b
 
 
 @Meta(DisplayName='LOC("OR")', DisplayDesc='LOC("OR_DESC")')
 @ReturnType(value=bool)
-def OR(a: bool, b: bool) -> bool:
+def OR(a: bool = False, b: bool = False) -> bool:
     return a or b
 
 
 @Meta(DisplayName='LOC("NOT")', DisplayDesc='LOC("NOT_DESC")')
 @ReturnType(value=bool)
-def NOT(a: bool) -> bool:
+def NOT(a: bool = False) -> bool:
     return not a
 
 
 @Meta(DisplayName='LOC("XOR")', DisplayDesc='LOC("XOR_DESC")')
 @ReturnType(value=bool)
-def XOR(a: bool, b: bool) -> bool:
+def XOR(a: bool = False, b: bool = False) -> bool:
     return a ^ b
 
 
 @Meta(DisplayName='LOC("NAND")', DisplayDesc='LOC("NAND_DESC")')
 @ReturnType(value=bool)
-def NAND(a: bool, b: bool) -> bool:
+def NAND(a: bool = False, b: bool = False) -> bool:
     return not (a and b)
 
 
 @Meta(DisplayName='LOC("NOR")', DisplayDesc='LOC("NOR_DESC")')
 @ReturnType(value=bool)
-def NOR(a: bool, b: bool) -> bool:
+def NOR(a: bool = False, b: bool = False) -> bool:
     return not (a or b)
 
 
 @Meta(DisplayName='LOC("XNOR")', DisplayDesc='LOC("XNOR_DESC")')
 @ReturnType(value=bool)
-def XNOR(a: bool, b: bool) -> bool:
+def XNOR(a: bool = False, b: bool = False) -> bool:
     return not (a ^ b)
 
 
 @Meta(DisplayName='LOC("IADD")', DisplayDesc='LOC("IADD_DESC")')
 @ExecSplit(default=(None,))
-def IADD(a: Any, b: Any) -> Any:
+def IADD(a: Any, b: Any = 1) -> Any:
     if isinstance(a, str) and hasattr(IADD, "_refLocal") and a in IADD._refLocal:
         IADD._refLocal[a] = IADD._refLocal[a] + b
         return
@@ -476,7 +480,7 @@ def IADD(a: Any, b: Any) -> Any:
 
 @Meta(DisplayName='LOC("ISUB")', DisplayDesc='LOC("ISUB_DESC")')
 @ExecSplit(default=(None,))
-def ISUB(a: Any, b: Any) -> Any:
+def ISUB(a: Any, b: Any = 1) -> Any:
     if isinstance(a, str) and hasattr(ISUB, "_refLocal") and a in ISUB._refLocal:
         ISUB._refLocal[a] = ISUB._refLocal[a] - b
         return
@@ -488,7 +492,7 @@ def ISUB(a: Any, b: Any) -> Any:
 
 @Meta(DisplayName='LOC("IMUL")', DisplayDesc='LOC("IMUL_DESC")')
 @ExecSplit(default=(None,))
-def IMUL(a: Any, b: Any) -> Any:
+def IMUL(a: Any, b: Any = 2) -> Any:
     if isinstance(a, str) and hasattr(IMUL, "_refLocal") and a in IMUL._refLocal:
         IMUL._refLocal[a] = IMUL._refLocal[a] * b
         return
@@ -500,7 +504,7 @@ def IMUL(a: Any, b: Any) -> Any:
 
 @Meta(DisplayName='LOC("IDIV")', DisplayDesc='LOC("IDIV_DESC")')
 @ExecSplit(default=(None,))
-def IDIV(a: Any, b: Any) -> Any:
+def IDIV(a: Any, b: Any = 2) -> Any:
     if isinstance(a, str) and hasattr(IDIV, "_refLocal") and a in IDIV._refLocal:
         IDIV._refLocal[a] = IDIV._refLocal[a] / b
         return
@@ -512,7 +516,7 @@ def IDIV(a: Any, b: Any) -> Any:
 
 @Meta(DisplayName='LOC("IMOD")', DisplayDesc='LOC("IMOD_DESC")')
 @ExecSplit(default=(None,))
-def IMOD(a: Any, b: Any) -> Any:
+def IMOD(a: Any, b: Any = 2) -> Any:
     if isinstance(a, str) and hasattr(IMOD, "_refLocal") and a in IMOD._refLocal:
         IMOD._refLocal[a] = IMOD._refLocal[a] % b
         return
@@ -524,7 +528,7 @@ def IMOD(a: Any, b: Any) -> Any:
 
 @Meta(DisplayName='LOC("IPOW")', DisplayDesc='LOC("IPOW_DESC")')
 @ExecSplit(default=(None,))
-def IPOW(a: Any, b: Any) -> Any:
+def IPOW(a: Any, b: Any = 2) -> Any:
     if isinstance(a, str) and hasattr(IPOW, "_refLocal") and a in IPOW._refLocal:
         IPOW._refLocal[a] = IPOW._refLocal[a] ** b
         return

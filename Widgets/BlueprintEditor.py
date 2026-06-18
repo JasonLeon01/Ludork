@@ -368,8 +368,26 @@ class BluePrintEditor(QtWidgets.QWidget):
         cls = self._resolveClass()
         if cls is None:
             return set()
-        invalid = getattr(cls, "_invalidVars", ())
-        return set(invalid)
+        result: Set[str] = set()
+        try:
+            mro = list(reversed(cls.mro()))
+        except Exception:
+            mro = [cls]
+        for base in mro:
+            invalid = getattr(base, "__dict__", {}).get("_invalidVars", ())
+            if isinstance(invalid, str):
+                result.add(invalid)
+            elif isinstance(invalid, (list, tuple, set)):
+                result.update(name for name in invalid if isinstance(name, str))
+            meta = getattr(base, "__dict__", {}).get("_meta")
+            if not isinstance(meta, dict):
+                continue
+            invalid = meta.get("InvalidVars", ())
+            if isinstance(invalid, str):
+                result.add(invalid)
+            elif isinstance(invalid, (list, tuple, set)):
+                result.update(name for name in invalid if isinstance(name, str))
+        return result
 
     def _getPathVarMap(self) -> Dict[str, str]:
         cls = self._resolveClass()
@@ -410,10 +428,22 @@ class BluePrintEditor(QtWidgets.QWidget):
         cls = self._resolveClass()
         if cls is None:
             return {}
-        rects = getattr(cls, "_rectRangeVars", {})
-        if isinstance(rects, dict):
-            return dict(rects)
-        return {}
+        result: Dict[str, str] = {}
+        try:
+            mro = list(reversed(cls.mro()))
+        except Exception:
+            mro = [cls]
+        for base in mro:
+            rects = getattr(base, "__dict__", {}).get("_rectRangeVars", {})
+            if isinstance(rects, dict):
+                result.update({str(name): str(pathName) for name, pathName in rects.items()})
+            meta = getattr(base, "__dict__", {}).get("_meta")
+            if not isinstance(meta, dict):
+                continue
+            rects = meta.get("RectRangeVars", {})
+            if isinstance(rects, dict):
+                result.update({str(name): str(pathName) for name, pathName in rects.items()})
+        return result
 
     def _getMetaVarTypes(self) -> Dict[str, str]:
         cls = self._resolveClass()

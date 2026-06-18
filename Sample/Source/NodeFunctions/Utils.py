@@ -211,7 +211,7 @@ class _localRef:
 
 @Meta(DisplayName='LOC("IF")', DisplayDesc='LOC("IF_DESC")')
 @ExecSplit(TRUE=(0,), FALSE=(1,))
-def IF(condition: bool) -> int:
+def IF(condition: bool = False) -> int:
     r"""\brief Blueprint conditional branch.
 
     - \param condition The condition to evaluate.
@@ -222,7 +222,7 @@ def IF(condition: bool) -> int:
 
 @Meta(DisplayName='LOC("SET_LOCAL_VALUE")', DisplayDesc='LOC("SET_LOCAL_VALUE_DESC")')
 @ExecSplit(default=(None,))
-def SetLocalValue(valueName: str, value: Any) -> None:
+def SetLocalValue(valueName: str, value: Any = None) -> None:
     r"""\brief Set a local variable value.
 
     - \param valueName The variable name.
@@ -257,7 +257,7 @@ def GetLocalValueRef(valueName: str, default: Any = None) -> Any:
 
 @Meta(DisplayName='LOC("SET_GAME_VARIABLE")', DisplayDesc='LOC("SET_GAME_VARIABLE_DESC")')
 @ExecSplit(default=(None,))
-def SetGameVariable(valueName: str, value: Any) -> None:
+def SetGameVariable(valueName: str, value: Any = None) -> None:
     r"""\brief Set a game variable on the current scene's game instance.
 
     - \param valueName The variable name.
@@ -333,7 +333,12 @@ def _getActorByTag(actorTag: str):
 
 @Meta(DisplayName='LOC("ADD_ANIM")', DisplayDesc='LOC("ADD_ANIM_DESC")', Vector2fVars=["position", "scale"])
 @ExecSplit(default=(None,))
-def AddAnim(animName: str, position: Pair[float], rotation: float, scale: Pair[float]) -> None:
+def AddAnim(
+    animName: str,
+    position: Pair[float] = (0.0, 0.0),
+    rotation: float = 0.0,
+    scale: Pair[float] = (1.0, 1.0),
+) -> None:
     r"""\brief Spawn an animation at a given position.
 
     - \param animName The animation name.
@@ -346,7 +351,7 @@ def AddAnim(animName: str, position: Pair[float], rotation: float, scale: Pair[f
 
 @Meta(DisplayName='LOC("ADD_ANIM_ON")', DisplayDesc='LOC("ADD_ANIM_ON_DESC")', Vector2fVars=["scale"])
 @ExecSplit(default=(None,))
-def AddAnimOn(animName: str, actorTag: str, rotation: float, scale: Pair[float]) -> None:
+def AddAnimOn(animName: str, actorTag: str, rotation: float = 0.0, scale: Pair[float] = (1.0, 1.0)) -> None:
     r"""\brief Spawn an animation at an actor's current position.
 
     - \param animName The animation name.
@@ -423,7 +428,7 @@ def GetScene() -> Optional[SceneBase]:
 
 @Meta(DisplayName='LOC("IS_VALID_VALUE")', DisplayDesc='LOC("IS_VALID_VALUE_DESC")')
 @ReturnType(value=bool)
-def IsValidValue(value: Any) -> bool:
+def IsValidValue(value: Any = None) -> bool:
     return value is not None
 
 
@@ -452,11 +457,11 @@ def BackToTitle() -> None:
 
 @Meta(DisplayName='LOC("PRINT")', DisplayDesc='LOC("PRINT_DESC")')
 @ExecSplit(default=(None,))
-def Print(message: Any) -> None:
+def Print(message: Any = "") -> None:
     logging.info("%s", message)
 
 
 @Meta(DisplayName='LOC("EXEC")', DisplayDesc='LOC("EXEC_DESC")')
 @ExecSplit(default=(None,))
-def EXEC(script: str) -> None:
+def EXEC(script: str = "") -> None:
     exec(script)

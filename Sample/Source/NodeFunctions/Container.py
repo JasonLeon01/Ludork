@@ -35,7 +35,7 @@ def DictContains(dict_: Dict, key: Any) -> bool:
 
 @Meta(DisplayName='LOC("LIST_GET")', DisplayDesc='LOC("LIST_GET_DESC")')
 @ReturnType(value=object)
-def ListGet(list_: List[Any], index: int) -> Any:
+def ListGet(list_: List[Any], index: int = 0) -> Any:
     return list_[index]
 
 
@@ -47,7 +47,7 @@ def ListAppend(list_: List[Any], value: Any) -> None:
 
 @Meta(DisplayName='LOC("LIST_REMOVE")', DisplayDesc='LOC("LIST_REMOVE_DESC")')
 @ExecSplit(default=(None,))
-def ListRemove(list_: List[Any], index: int) -> None:
+def ListRemove(list_: List[Any], index: int = 0) -> None:
     list_.pop(index)
 
 

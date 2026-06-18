@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import threading
 import time
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, List, Optional, cast
 from Engine import Input, ParticleSystem
 from Engine.Utils import Event
 from . import Manager
@@ -170,6 +170,7 @@ class SceneBase:
         while System.isActive() and System.getScene() == self:
             System.applyPendingSceneReplace()
             Input.update(System.getWindow())
+            self._hotKeyHandle()
             Manager.TimeManager.update()
             deltaTime = Manager.TimeManager.v_getDeltaTime()
             self._uiManager._updatePerformanceInfo(deltaTime)
@@ -260,3 +261,24 @@ class SceneBase:
             remain = logicFrameTime - elapsed
             if remain > 0:
                 time.sleep(remain)
+
+    def _hotKeyHandle(self) -> None:
+        from Source.Config import HotKey
+
+        for key, hotKeyConfig in HotKey.items():
+            sceneType = Cast(SceneBase, hotKeyConfig.get("Scene"))
+            if not isinstance(sceneType, type) or not isinstance(self, sceneType):
+                continue
+            functionWhenPressed = cast(Callable, hotKeyConfig.get("FunctionWhenPressed"))
+            AssertType(functionWhenPressed, Optional[Callable])
+            if self._isHotKeySceneMethod(sceneType, functionWhenPressed) and Input.getKeyPressed(key, handled=True):
+                functionWhenPressed(self)
+            functionWhenReleased = cast(Callable, hotKeyConfig.get("FunctionWhenReleased"))
+            AssertType(functionWhenReleased, Optional[Callable])
+            if self._isHotKeySceneMethod(sceneType, functionWhenReleased) and Input.getKeyReleased(key, handled=True):
+                functionWhenReleased(self)
+
+    def _isHotKeySceneMethod(self, sceneType: type, function: Optional[Callable]) -> bool:
+        if function is None or not callable(function):
+            return False
+        return any(function in cls.__dict__.values() for cls in sceneType.__mro__)

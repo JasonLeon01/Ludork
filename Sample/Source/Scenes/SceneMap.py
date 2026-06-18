@@ -37,6 +37,8 @@ _SHOP_ITEM_SIZE = 352
 _ENEMY_BOOK_SIZE = 352
 _MAP_TRANSITION_NAME = ""
 _MAP_TRANSITION_TIME = 0.5
+_ENEMY_BOOK_ITEM_ID = "EnemyBook"
+_FLOOR_TELEPORTER_ITEM_ID = "Teleport"
 
 
 class Scene(SceneBase):
@@ -327,6 +329,8 @@ class Scene(SceneBase):
     @ExecSplit(default=(None,))
     def showEnemyBook(self) -> None:
         r"""\brief Show the current-map monster handbook."""
+        if not self.player.hasItem(_ENEMY_BOOK_ITEM_ID):
+            return
         if not self._windowEnemyBook.getVisible():
             self._enemyBookMoveEnabledBeforeOpen = (
                 True if self._windowMenu.isBlocking() else self.player.getMoveEnabled()
@@ -338,6 +342,8 @@ class Scene(SceneBase):
     @ExecSplit(default=(None,))
     def showFloorTeleporter(self) -> None:
         r"""\brief Show the visited-floor teleporter preview window."""
+        if not self.player.hasItem(_FLOOR_TELEPORTER_ITEM_ID):
+            return
         if not self._windowFloorTeleporter.getVisible():
             self._floorTeleporterMoveEnabledBeforeOpen = (
                 True if self._windowMenu.isBlocking() else self.player.getMoveEnabled()
