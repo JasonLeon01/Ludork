@@ -7,6 +7,7 @@ from Engine.UI import Canvas, Image, PlainText, SolidRect, RichText, TextStyle
 from Engine.UI.Base import ControlBase
 from Global import Manager
 from .. import Data
+from ..NodeFunctions.Utils import ToShortNumber
 from ..Player import Player
 from ..System import System
 
@@ -155,6 +156,11 @@ class PlayerAttrHUD(Canvas):
         self._defDebuffText.setPosition((debuffX, self._DEF_ROW_Y))
         self.addChild(self._defDebuffText)
 
+        _poisonColor = Color(0, 192, 0, 255)
+        self._hpPoisonText = PlainText(self._font, "", 8, fillColor=_poisonColor)
+        self._hpPoisonText.setPosition((debuffX, self._HP_ROW_Y))
+        self.addChild(self._hpPoisonText)
+
         self._keyIcon: Optional[Image] = None
         try:
             keyTexture = Manager.loadSystem("Keys.png")
@@ -237,16 +243,19 @@ class PlayerAttrHUD(Canvas):
 
         self._levelText.setString(f"Lv. {level}")
         self._refreshStates()
-        self._hpText.setString(f"#default#{hp}/#max#{maxhp}#default#")
-        self._statValueTexts["ATK"].setString(f"{atk}")
-        self._statValueTexts["DEF"].setString(f"{defence}")
-        self._statValueTexts["EXP"].setString(f"{exp}")
-        self._statValueTexts["GOLD"].setString(f"{gold}")
+        self._hpText.setString(f"#default#{ToShortNumber(hp)}/#max#{ToShortNumber(maxhp)}#default#")
+        self._statValueTexts["ATK"].setString(f"{ToShortNumber(atk)}")
+        self._statValueTexts["DEF"].setString(f"{ToShortNumber(defence)}")
+        self._statValueTexts["EXP"].setString(f"{ToShortNumber(exp)}")
+        self._statValueTexts["GOLD"].setString(f"{ToShortNumber(gold)}")
 
         weakStacks = self._player.getStateStacks().get("Weak", 0)
         debuffStr = f"(-{weakStacks})" if weakStacks > 0 else ""
         self._atkDebuffText.setString(debuffStr)
         self._defDebuffText.setString(debuffStr)
+
+        poisonStacks = self._player.getStateStacks().get("Poisoned", 0)
+        self._hpPoisonText.setString(f"({poisonStacks})" if poisonStacks > 0 else "")
 
         hpRate = hp / maxhp
         self._hpFill.setSize(Vector2f(self._hpBarWidth * hpRate, self._HP_BAR_HEIGHT))
@@ -256,6 +265,7 @@ class PlayerAttrHUD(Canvas):
         textX = self._STAT_VALUE_X - hpBounds.size.x - hpBounds.position.x
         self._hpLabelText.setPosition((0, textY))
         self._hpText.setPosition((textX, textY))
+        self._hpPoisonText.setPosition((self._STAT_VALUE_X + self._DEBUFF_TEXT_OFFSET_X, textY))
 
         keyY_count = self._player.getItemCount("KEY_Y")
         keyB_count = self._player.getItemCount("KEY_B")

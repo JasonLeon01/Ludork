@@ -13,7 +13,11 @@ from Utils import System, SFMLRender
 from .Utils import AutoTileRenderer, TilemapRenderer, Toast
 
 
+_EDITOR_ANIMATION_TICK_MS = 100
 _AUTOTILE_ANIMATION_INTERVAL_MS = 500
+_DEFAULT_ACTOR_SWITCH_INTERVAL = 0.2
+_CHARACTER_SHEET_COLS = 4
+_CHARACTER_SHEET_ROWS = 4
 _MAP_TILE_SIZE_MIN = 8
 _MAP_TILE_SIZE_MAX = 128
 _MAP_TILE_SIZE_STEP = 4
@@ -73,6 +77,7 @@ class EditorPanel(QtWidgets.QWidget):
         self._autoTileRenderer = AutoTileRenderer()
         self._tilemapRenderer = TilemapRenderer(self._autoTileRenderer)
         self._autoTileFrame: int = 0
+        self._actorAnimationTime: float = 0.0
         self._tileSize = EditorStatus.CELLSIZE
         super().__init__(parent)
         self.setMouseTracking(True)
@@ -80,10 +85,12 @@ class EditorPanel(QtWidgets.QWidget):
         self.setAcceptDrops(False)
         self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         Utils.Panel.ApplyDisabledOpacity(self)
-        self._autoTileTimer = QtCore.QTimer(self)
-        self._autoTileTimer.setInterval(_AUTOTILE_ANIMATION_INTERVAL_MS)
-        self._autoTileTimer.timeout.connect(self._onAutoTileTick)
-        self._autoTileTimer.start()
+        self._animationClock = QtCore.QElapsedTimer()
+        self._animationClock.start()
+        self._animationTimer = QtCore.QTimer(self)
+        self._animationTimer.setInterval(_EDITOR_ANIMATION_TICK_MS)
+        self._animationTimer.timeout.connect(self._onAnimationTick)
+        self._animationTimer.start()
 
     def _updateCachedTileset(self) -> None:
         self._cachedTilesetImage = None
@@ -207,11 +214,16 @@ class EditorPanel(QtWidgets.QWidget):
         self._pixmap = QtGui.QPixmap.fromImage(img)
         self.update()
 
-    def _onAutoTileTick(self) -> None:
-        self._autoTileFrame = (self._autoTileFrame + 1) % 1024
+    def _onAnimationTick(self) -> None:
         if self.mapData is None:
             return
-        if not self._hasAnyAnimatedAutoTile():
+        oldAutoTileFrame = self._autoTileFrame
+        elapsed = max(0, self._animationClock.elapsed())
+        self._autoTileFrame = int(elapsed / _AUTOTILE_ANIMATION_INTERVAL_MS) % 1024
+        self._actorAnimationTime = float(elapsed) / 1000.0
+        hasAnimatedAutoTile = self._hasAnyAnimatedAutoTile()
+        hasAnimatedActor = self._hasAnyAnimatedActor()
+        if not hasAnimatedActor and (not hasAnimatedAutoTile or self._autoTileFrame == oldAutoTileFrame):
             return
         self._renderFromMapData()
 
@@ -235,6 +247,19 @@ class EditorPanel(QtWidgets.QWidget):
                         seenAnimated = True
                         return seenAnimated
         return seenAnimated
+
+    def _hasAnyAnimatedActor(self) -> bool:
+        if self.mapData is None:
+            return False
+        for layerName in self.mapData.layers.keys():
+            actors = self._getActorListForLayer(layerName)
+            for entry in actors:
+                if not isinstance(entry, dict):
+                    continue
+                bpRel = entry.get("bp")
+                if self._actorPreviewAnimatable(bpRel):
+                    return True
+        return False
 
     def invalidateAutoTileCache(self, key: Optional[str] = None) -> None:
         r"""Invalidate cached autotile renders.
@@ -1599,6 +1624,28 @@ class EditorPanel(QtWidgets.QWidget):
                 return (defaultX, defaultY)
         return (defaultX, defaultY)
 
+    def _toBool(self, data: Any, default: bool = False) -> bool:
+        if isinstance(data, bool):
+            return data
+        if isinstance(data, str):
+            text = data.strip().lower()
+            if text in ("true", "1", "yes", "on"):
+                return True
+            if text in ("false", "0", "no", "off"):
+                return False
+        if data is None:
+            return default
+        return bool(data)
+
+    def _toPositiveFloat(self, data: Any, default: float) -> float:
+        try:
+            value = float(data)
+        except (TypeError, ValueError):
+            value = float(default)
+        if value <= 0.0:
+            value = float(default)
+        return value
+
     def _resolveActorClass(self, bpRel: Any) -> Optional[type]:
         if not isinstance(bpRel, str) or not bpRel.strip():
             return None
@@ -1629,6 +1676,63 @@ class EditorPanel(QtWidgets.QWidget):
                         return attrs.get(attrName, default)
         clsObj = self._resolveActorClass(bpRel)
         return self._getClassAttr(clsObj, attrName, default)
+
+    def _isCharacterActor(self, bpRel: Any) -> bool:
+        clsObj = self._resolveActorClass(bpRel)
+        if not isinstance(clsObj, type):
+            return False
+        try:
+            Engine = System.GetModule("Engine")
+            Character = Engine.Gameplay.Actors.Character
+            return issubclass(clsObj, Character)
+        except Exception:
+            return False
+
+    def _actorPreviewAnimatable(self, bpRel: Any) -> bool:
+        if not self._toBool(self.getBlueprintAttr(bpRel, "animatable", False), False):
+            return False
+        if self._isCharacterActor(bpRel):
+            return self._toBool(self.getBlueprintAttr(bpRel, "animateWithoutMoving", False), False)
+        return True
+
+    def _actorAnimationFrame(self, bpRel: Any, frameWidth: int, textureWidth: int) -> int:
+        frameWidth = max(1, int(frameWidth))
+        textureWidth = max(1, int(textureWidth))
+        frameCount = max(1, textureWidth // frameWidth)
+        if frameCount <= 1:
+            return 0
+        interval = self._toPositiveFloat(
+            self.getBlueprintAttr(bpRel, "switchInterval", _DEFAULT_ACTOR_SWITCH_INTERVAL),
+            _DEFAULT_ACTOR_SWITCH_INTERVAL,
+        )
+        return int(self._actorAnimationTime / interval) % frameCount
+
+    def _actorPreviewRect(
+        self,
+        bpRel: Any,
+        image: Optional[QtGui.QImage],
+        rect: Optional[Tuple[int, int, int, int]],
+        sourceTileSize: int,
+    ) -> Tuple[int, int, int, int]:
+        if image is not None and not image.isNull() and self._isCharacterActor(bpRel):
+            w = max(1, image.width() // _CHARACTER_SHEET_COLS)
+            h = max(1, image.height() // _CHARACTER_SHEET_ROWS)
+            direction = self.getBlueprintAttr(bpRel, "direction", 0)
+            try:
+                row = max(0, min(_CHARACTER_SHEET_ROWS - 1, int(direction)))
+            except (TypeError, ValueError):
+                row = 0
+            frame = self._actorAnimationFrame(bpRel, w, image.width()) if self._actorPreviewAnimatable(bpRel) else 0
+            return (frame * w, row * h, w, h)
+        if rect is None:
+            if image is not None and not image.isNull():
+                return (0, 0, image.width(), image.height())
+            return (0, 0, sourceTileSize, sourceTileSize)
+        sx, sy, w, h = rect
+        if image is not None and not image.isNull() and self._actorPreviewAnimatable(bpRel):
+            frame = self._actorAnimationFrame(bpRel, w, image.width())
+            sx = (sx + frame * w) % max(1, image.width())
+        return (sx, sy, w, h)
 
     def _resolveTexturePath(self, texturePath: Any) -> str:
         if isinstance(texturePath, str) and texturePath.strip():
@@ -1671,11 +1775,13 @@ class EditorPanel(QtWidgets.QWidget):
         shaderPath: Any,
         rect: Optional[Tuple[int, int, int, int]],
         textureWidth: int,
+        shaderTime: float = 0.0,
     ) -> Optional[QtGui.QImage]:
         textureAbs = self._resolveTexturePath(texturePath)
         shaderAbs = self._resolveShaderPath(shaderPath)
         if not textureAbs or not shaderAbs or rect is None or not SFMLRender.hasUsableShader(shaderAbs):
             return None
+        hasTimeUniform = "time" in SFMLRender.getShaderUniforms(shaderAbs)
         key = (
             os.path.normcase(os.path.abspath(textureAbs)),
             os.path.normcase(os.path.abspath(shaderAbs)),
@@ -1683,13 +1789,15 @@ class EditorPanel(QtWidgets.QWidget):
             self._getFileMtimeNs(textureAbs),
             self._getFileMtimeNs(shaderAbs),
         )
-        cached = self._actorShaderImageCache.get(key)
-        if cached is not None and not cached.isNull():
-            return cached
+        if not hasTimeUniform:
+            cached = self._actorShaderImageCache.get(key)
+            if cached is not None and not cached.isNull():
+                return cached
         encoded = SFMLRender.renderTextureWithShaderToMemory(
             textureAbs,
             shaderAbs,
             rect,
+            shaderTime=shaderTime,
             textureWidth=textureWidth,
         )
         if encoded is None:
@@ -1697,7 +1805,8 @@ class EditorPanel(QtWidgets.QWidget):
         img = QtGui.QImage()
         if not img.loadFromData(encoded, "PNG"):
             return None
-        self._actorShaderImageCache[key] = img
+        if not hasTimeUniform:
+            self._actorShaderImageCache[key] = img
         return img
 
     def _drawActorsForLayer(self, painter: QtGui.QPainter, layerName: str, tileSize: int, opacity: float) -> None:
@@ -1748,20 +1857,21 @@ class EditorPanel(QtWidgets.QWidget):
             painter.rotate(rotation)
             painter.scale(scaleVal[0], scaleVal[1])
 
-            w = sourceTileSize
-            h = sourceTileSize
-            sx = 0
-            sy = 0
-            if rectT:
-                sx, sy, w, h = rectT
-
             img = self._resolveTextureImage(texPath)
-            shaderImg = self._renderActorShaderImage(texPath, shaderPath, rectT, img.width() if img is not None else 0)
+            sx, sy, w, h = self._actorPreviewRect(bpRel, img, rectT, sourceTileSize)
+            previewRect = (sx, sy, w, h)
+            shaderImg = self._renderActorShaderImage(
+                texPath,
+                shaderPath,
+                previewRect,
+                img.width() if img is not None else 0,
+                self._actorAnimationTime,
+            )
             if shaderImg is not None:
                 src = QtCore.QRectF(0, 0, shaderImg.width(), shaderImg.height())
                 dst = QtCore.QRectF(-origin[0], -origin[1], w, h)
                 painter.drawImage(dst, shaderImg, src)
-            elif img is not None and rectT is not None:
+            elif img is not None:
                 src = QtCore.QRectF(sx, sy, w, h)
                 dst = QtCore.QRectF(-origin[0], -origin[1], w, h)
                 painter.drawImage(dst, img, src)
@@ -1909,14 +2019,10 @@ class EditorPanel(QtWidgets.QWidget):
                 continue
             bpRel = entry.get("bp")
             rectT = self._toRectTuple(self.getBlueprintAttr(bpRel, "defaultRect", None))
+            img = self._resolveTextureImage(self.getBlueprintAttr(bpRel, "texturePath", ""))
             origin = self._toVec2f(self.getBlueprintAttr(bpRel, "defaultOrigin", (0.0, 0.0)), 0.0, 0.0)
             scale = self._toVec2f(self.getBlueprintAttr(bpRel, "defaultScale", (1.0, 1.0)), 1.0, 1.0)
-            w = sourceTileSize
-            h = sourceTileSize
-            sx = 0
-            sy = 0
-            if rectT:
-                sx, sy, w, h = rectT
+            sx, sy, w, h = self._actorPreviewRect(bpRel, img, rectT, sourceTileSize)
             dw = int(w * scale[0] * displayScale)
             dh = int(h * scale[1] * displayScale)
             dx = int(gx * tileSize - origin[0] * scale[0] * displayScale)

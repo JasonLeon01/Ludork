@@ -12,6 +12,7 @@ from .. import Data
 from .Base import WindowSelectable
 from ..Battler import DamageType
 from ..Enemy import Enemy
+from ..NodeFunctions.Utils import ToShortNumber
 from ..System import System as GameSystem
 
 if TYPE_CHECKING:
@@ -117,12 +118,12 @@ class _EnemyBookCell(Canvas, FunctionalBase):
             self._buildSpecials(specialDisplays)
 
         statTexts = [
-            (Vector2f(64.0, 24.0), f"{LOC('STAT_HP')}{entry.get('MAXHP', 0)}"),
-            (Vector2f(150.0, 24.0), f"{LOC('STAT_ATK')}{entry.get('ATK', 0)}"),
-            (Vector2f(236.0, 24.0), f"{LOC('STAT_DEF')}{entry.get('DEF', 0)}"),
-            (Vector2f(64.0, 44.0), f"{LOC('STAT_EXP')}{entry.get('EXP', 0)}"),
-            (Vector2f(150.0, 44.0), f"{LOC('STAT_GOLD')}{entry.get('GOLD', 0)}"),
-            (Vector2f(236.0, 44.0), f"{LOC('STAT_DMG')}{entry.get('damage', '--')}"),
+            (Vector2f(64.0, 24.0), f"{LOC('STAT_HP')}{ToShortNumber(entry.get('MAXHP', 0))}"),
+            (Vector2f(150.0, 24.0), f"{LOC('STAT_ATK')}{ToShortNumber(entry.get('ATK', 0))}"),
+            (Vector2f(236.0, 24.0), f"{LOC('STAT_DEF')}{ToShortNumber(entry.get('DEF', 0))}"),
+            (Vector2f(64.0, 44.0), f"{LOC('STAT_EXP')}{ToShortNumber(entry.get('EXP', 0))}"),
+            (Vector2f(150.0, 44.0), f"{LOC('STAT_GOLD')}{ToShortNumber(entry.get('GOLD', 0))}"),
+            (Vector2f(236.0, 44.0), f"{LOC('STAT_DMG')}{ToShortNumber(entry.get('damage', '--'))}"),
         ]
         for position, value in statTexts:
             text = FPlainText(UI.DefaultFont, value, _TEXT_SIZE)

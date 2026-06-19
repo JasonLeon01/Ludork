@@ -245,6 +245,22 @@ def setUseInjectedMouseOnly(value: bool) -> None:
     _UseInjectedMouseOnly = value
 
 
+def _canUseKeyboardInput() -> bool:
+    return _EventState.Focused and not _EventState.KeyboardBlocked
+
+
+def _clearKeyboardState() -> None:
+    _EventState.KeyPressed = False
+    _EventState.KeyReleased = False
+    _EventState.KeyPressedMap.clear()
+    _EventState.KeyReleasedMap.clear()
+    _EventState.KeyboardScanPressedMap.clear()
+    _EventState.KeyboardScanReleasedMap.clear()
+    _EventState.KeyTriggeredMap.clear()
+    _EventState.KeyRepeatStartTime.clear()
+    _EventState.KeyRepeatLastTime.clear()
+
+
 def injectEvent(data: Dict[str, Any]) -> None:
     r"""
     \brief Inject an artificial input event.
@@ -338,6 +354,7 @@ def _processInjectedEvents() -> None:
         elif t == "FocusLost":
             _EventState.Focused = False
             _EventState.FocusLost = True
+            _clearKeyboardState()
 
 
 def update(window: WindowBase) -> None:
@@ -411,6 +428,7 @@ def update(window: WindowBase) -> None:
                 if event.isFocusLost():
                     _EventState.Focused = False
                     _EventState.FocusLost = True
+                    _clearKeyboardState()
                 if event.isFocusGained():
                     _EventState.Focused = True
                     _EventState.FocusGained = True
@@ -630,7 +648,7 @@ def update(window: WindowBase) -> None:
 
                 actionKeys = list(actionKeysTuple)
                 for key in actionKeys:
-                    if not _EventState.KeyboardBlocked:
+                    if _canUseKeyboardInput():
                         if isinstance(key, Key):
                             triggered = False
                             if (key, False, False, False, False) in _EventState.KeyPressedMap:
@@ -720,7 +738,7 @@ def isKeyPressed() -> bool:
 
     \return True if any key was pressed and keyboard is not blocked, False otherwise.
     """
-    return _EventState.KeyPressed and not _EventState.KeyboardBlocked
+    return _EventState.KeyPressed and _canUseKeyboardInput()
 
 
 def isKeyReleased() -> bool:
@@ -729,7 +747,7 @@ def isKeyReleased() -> bool:
 
     \return True if any key was released and keyboard is not blocked, False otherwise.
     """
-    return _EventState.KeyReleased and not _EventState.KeyboardBlocked
+    return _EventState.KeyReleased and _canUseKeyboardInput()
 
 
 def getKeyPressed(
@@ -1306,7 +1324,7 @@ def isKeyTriggered(
     \return True if the key is currently triggered and not yet handled, False otherwise.
     """
     with _StateLock:
-        if _EventState.KeyboardBlocked:
+        if not _canUseKeyboardInput():
             return False
         keyMap = (key, alt, ctrl, shift, system)
         entry = _EventState.KeyTriggeredMap.get(keyMap)

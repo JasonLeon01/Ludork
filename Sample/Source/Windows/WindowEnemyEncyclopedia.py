@@ -7,6 +7,7 @@ from Engine import Input, IntRect, Pair, Text, Texture, UI, Vector2f
 from Engine.UI.FunctionalUI import FImage, FPlainText
 from Global import Manager
 from .Base import WindowBase
+from ..NodeFunctions.Utils import ToShortNumber
 from ..System import System as GameSystem
 
 
@@ -161,7 +162,7 @@ class WindowEnemyEncyclopedia(WindowBase):
         ]
         for rowIndex, row in enumerate(rows):
             for colIndex, (label, value) in enumerate(row):
-                self._addInfoPair(label, str(value), colIndex, y + rowIndex * _INFO_ROW_GAP)
+                self._addInfoPair(label, str(ToShortNumber(value)), colIndex, y + rowIndex * _INFO_ROW_GAP)
         criticalText = self._formatCriticalText(entry.get("critical", -2))
         hitCount = self._formatHitCount(entry.get("hitCount", None))
         criticalColIndex = 0
@@ -224,7 +225,7 @@ class WindowEnemyEncyclopedia(WindowBase):
             return ""
         if value == -1:
             return "???"
-        return str(value)
+        return str(ToShortNumber(value))
 
     def _formatHitCount(self, hitCount: Any) -> str:
         if hitCount is None:
@@ -233,7 +234,7 @@ class WindowEnemyEncyclopedia(WindowBase):
             value = int(hitCount)
         except (TypeError, ValueError):
             return ""
-        return str(max(1, value))
+        return str(ToShortNumber(max(1, value)))
 
     def _fitText(self, text: str, maxWidth: int, textSize: int) -> str:
         if not text:

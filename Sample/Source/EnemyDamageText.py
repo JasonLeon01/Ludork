@@ -18,6 +18,7 @@ from Engine import (
 )
 from Engine.Gameplay.Actors import Actor
 from .Battler import DamageType
+from .NodeFunctions.Utils import ToShortNumber
 
 if TYPE_CHECKING:
     from .Player import Player
@@ -29,7 +30,7 @@ class EnemyDamageText(Actor):
     tickable: bool = True  #: Update visibility and text every frame
     collisionEnabled: bool = False  #: Text overlay should not block movement
     requiredItemID: str = "EnemyBook"  #: Item required to reveal damage text
-    fontSize: int = 10  #: Damage text font size
+    fontSize: int = 8  #: Damage text font size
     damageTextOffset: Pair[float] = (0.0, 0.0)  #: Offset from the parent top-left corner
     fillColor: Tuple[int, int, int, int] = (255, 255, 255, 255)  #: Text colour
     shadowColor: Tuple[int, int, int, int] = (0, 0, 0, 255)  #: Shadow text colour
@@ -60,6 +61,7 @@ class EnemyDamageText(Actor):
         - \param deltaTime Time elapsed since the last frame.
         """
         from .Enemy import Enemy
+
         player = self._getPlayer()
         if player:
             parent: Enemy = Cast(Enemy, self.getParent())
@@ -80,7 +82,7 @@ class EnemyDamageText(Actor):
                 self._clearRenderedTexture()
                 return
             damageType, damage = parent.getDamage(player)
-            damageText = "???" if damageType == DamageType.UNDEFEATABLE else str(int(damage))
+            damageText = "???" if damageType == DamageType.UNDEFEATABLE else str(ToShortNumber(int(damage)))
             criticalText = self._formatCriticalText(parent.getCriticalValue(player))
             self._setOverlayText(
                 damageText,
@@ -103,14 +105,11 @@ class EnemyDamageText(Actor):
     def _setOverlayText(self, damageText: str, criticalText: str, damageColor: Color, overlaySize: Vector2u) -> None:
         colorKey = (damageColor.r, damageColor.g, damageColor.b, damageColor.a)
         sizeKey = (int(overlaySize.x), int(overlaySize.y))
-        if (
-            self._text is None
-            or (
-                damageText == self._currentDamageText
-                and criticalText == self._currentCriticalText
-                and colorKey == self._currentDamageColor
-                and sizeKey == self._currentOverlaySize
-            )
+        if self._text is None or (
+            damageText == self._currentDamageText
+            and criticalText == self._currentCriticalText
+            and colorKey == self._currentDamageColor
+            and sizeKey == self._currentOverlaySize
         ):
             return
         self._currentDamageText = damageText
@@ -228,7 +227,7 @@ class EnemyDamageText(Actor):
             return ""
         if criticalValue == -1:
             return "???"
-        return str(int(criticalValue))
+        return str(ToShortNumber(int(criticalValue)))
 
     @staticmethod
     def _makeColor(value: Union[Color, Tuple[int, int, int, int]]) -> Color:

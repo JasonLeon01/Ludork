@@ -19,8 +19,8 @@ class SystemConfigBase:
     _scale: float = 2.0
     _frameRate: int = 120
     _verticalSync: bool = True
-    _musicOn: bool = True
-    _soundOn: bool = True
+    _musicOn: bool = False
+    _soundOn: bool = False
     _voiceOn: bool = True
     _musicVolume: float = 100.0
     _soundVolume: float = 100.0

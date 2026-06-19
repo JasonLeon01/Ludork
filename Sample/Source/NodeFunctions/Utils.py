@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import logging
+from math import isfinite
 from typing import Any, Dict, Optional
 from Engine import Pair, Vector2f, degrees
 from Engine.Gameplay.Components import getComponentFieldValue, setComponentFieldValue
@@ -11,6 +12,11 @@ from .. import Data
 
 
 _MISSING = object()
+_SHORT_NUMBER_UNITS = (
+    (1_000_000_000, 1_000_000_000, "b"),
+    (1_000_000, 1_000_000, "m"),
+    (10_000, 1_000, "k"),
+)
 
 
 class _SuperProxy:
@@ -466,6 +472,36 @@ def GetScene() -> Optional[SceneBase]:
 @ReturnType(value=bool)
 def IsValidValue(value: Any = None) -> bool:
     return value is not None
+
+
+def _getShortNumberValue(value: Any) -> Optional[int | float]:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and isfinite(value):
+        return value
+    if isinstance(value, str) and value.isdigit():
+        return int(value)
+    return None
+
+
+@Meta(DisplayName='LOC("TO_SHORT_NUMBER")', DisplayDesc='LOC("TO_SHORT_NUMBER_DESC")')
+@ReturnType(value=Any)
+def ToShortNumber(value: Any = 0) -> Any:
+    r"""\brief Convert large numeric values to short display text.
+
+    - \param value Number or digit-only string to shorten.
+    - \return Shortened text for large numeric values, or the original value.
+    """
+    numericValue = _getShortNumberValue(value)
+    if numericValue is None:
+        return value
+    absValue = abs(float(numericValue))
+    for threshold, divisor, suffix in _SHORT_NUMBER_UNITS:
+        if absValue > threshold:
+            return f"{numericValue / divisor:.1f}{suffix}"
+    return numericValue
 
 
 @Meta(DisplayName='LOC("RUN_COMMON_FUNCTION")', DisplayDesc='LOC("RUN_COMMON_FUNCTION_DESC")')
