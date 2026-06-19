@@ -112,7 +112,7 @@ def main():
     fg.moveCenter(cp)
     start.move(fg.topLeft())
     if START_PROJ_FILE and os.path.isfile(START_PROJ_FILE) and START_PROJ_FILE.lower().endswith(".proj"):
-        File._openProjectPath(os.path.dirname(os.path.abspath(START_PROJ_FILE)), start)
+        File.OpenProjectFile(START_PROJ_FILE, start)
     else:
         start.show()
     sys.exit(app.exec_())

@@ -194,6 +194,17 @@ def NewProject(parent: QtWidgets.QWidget) -> None:
     _openProjectPath(target, parent)
 
 
+def OpenProjectFile(filePath: str, parent: QtWidgets.QWidget) -> bool:
+    fp = os.path.abspath(filePath)
+    if not fp.lower().endswith(".proj") or not os.path.isfile(fp):
+        QtWidgets.QMessageBox.warning(parent, "Hint", ELOC("INVALID_PROJ_FILE"))
+        return False
+    proj_dir = os.path.dirname(fp)
+    _setLastOpenPath(proj_dir)
+    _openProjectPath(proj_dir, parent)
+    return True
+
+
 def OpenProject(parent: QtWidgets.QWidget) -> None:
     root = _getLastPathOrHome()
     fp, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -204,12 +215,7 @@ def OpenProject(parent: QtWidgets.QWidget) -> None:
     )
     if not fp:
         return
-    if not fp.lower().endswith(".proj"):
-        QtWidgets.QMessageBox.warning(parent, "Hint", ELOC("INVALID_PROJ_FILE"))
-        return
-    proj_dir = os.path.dirname(fp)
-    _setLastOpenPath(proj_dir)
-    _openProjectPath(proj_dir, parent)
+    OpenProjectFile(fp, parent)
 
 
 def _resolveLocaleCellValue(valueCell: Any, rawCell: Any) -> Optional[str]:

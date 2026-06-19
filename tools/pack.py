@@ -33,6 +33,7 @@ FLAGS = [
     "--include-data-dir=Resource=Resource",
     "--include-data-dir=Locale=Locale",
     "--include-data-dir=Styles=Styles",
+    "--include-data-dir=BuildTools=BuildTools",
     "--include-module=NodeGraphQt",
     "--include-package=debugpy",
     "--include-module=asyncio",
@@ -152,14 +153,6 @@ def main():
                 print(f"[INFO] Copied iOSTemplate to {dst_ios_template}")
             else:
                 print(f"[WARNING] iOSTemplate directory not found at {src_ios_template}; iOS project generation will be unavailable.")
-
-            src_ios_script = ROOT / "generateiOSApp.sh"
-            if src_ios_script.exists():
-                dst_ios_script = OUTDIR / "main.app" / "Contents" / "MacOS" / "generateiOSApp.sh"
-                shutil.copy2(src_ios_script, dst_ios_script)
-                print(f"[INFO] Copied generateiOSApp.sh to {dst_ios_script}")
-            else:
-                print(f"[WARNING] generateiOSApp.sh not found; iOS project generation will be unavailable.")
 
     finally:
         print("[INFO] Cleaning up environment...")

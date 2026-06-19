@@ -12,7 +12,7 @@ set -euo pipefail
 #   -g <dir>  Game project root (the opened game repo). Output is written to:
 #             <game_project_root>/build/<project_name>/
 #             If omitted, uses env LUDORK_GAME_ROOT, otherwise the current working directory.
-#             The editor passes -g with EditorStatus.PROJ_PATH (see Widgets/PackDialog._packIOS).
+#             The editor passes -g with EditorStatus.PROJ_PATH (see BuildTools/pack_ios.sh).
 #
 #   -r <dir>  Icon directory. Searches in priority:
 #             1. icon.icns  ->  converted to PNG via sips
@@ -28,6 +28,7 @@ set -euo pipefail
 # ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LUDORK_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 fail() { echo "Error: $*" >&2; exit 1; }
 
@@ -77,12 +78,12 @@ fi
 GAME_ROOT="$(cd "${GAME_ROOT}" && pwd -P)" || fail "Game project root is not a directory: ${GAME_ROOT}"
 [ -d "${GAME_ROOT}" ] || fail "Game project root not found: ${GAME_ROOT}"
 
-SCRIPTS_DIR="${SCRIPTS_DIR:-${SCRIPT_DIR}/scripts}"
-IOS_PYTHON_DIR="${IOS_PYTHON_DIR:-${SCRIPT_DIR}/ios_python}"
-C_EXT_BUILD_DIR="${SCRIPT_DIR}/C_Extensions/build_ios"
-RESOURCE_DIR="${RESOURCE_DIR:-${SCRIPT_DIR}/resources}"
+SCRIPTS_DIR="${SCRIPTS_DIR:-${LUDORK_ROOT}/Sample}"
+IOS_PYTHON_DIR="${IOS_PYTHON_DIR:-${LUDORK_ROOT}/ios_python}"
+C_EXT_BUILD_DIR="${LUDORK_ROOT}/C_Extensions/build_ios"
+RESOURCE_DIR="${RESOURCE_DIR:-${LUDORK_ROOT}/resources}"
 
-TEMPLATE_DIR="${SCRIPT_DIR}/iOSTemplate"
+TEMPLATE_DIR="${LUDORK_ROOT}/iOSTemplate"
 OUTPUT_DIR="${GAME_ROOT}/build/${PROJECT_NAME}"
 
 [ -d "${SCRIPTS_DIR}" ]       || fail "scripts directory not found: ${SCRIPTS_DIR}"

@@ -74,14 +74,28 @@ def CheckMsvcToolchain() -> bool:
     r"""\brief Check if MSVC toolchain is available on Windows."""
     if sys.platform != "win32":
         return True
-    try:
-        subprocess.check_output(
-            ["cl.exe"],
-            stderr=subprocess.STDOUT,
-            stdout=subprocess.DEVNULL,
-            shell=True,
-        )
+    if shutil.which("cl"):
         return True
+    programFilesX86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
+    vswhere = os.path.join(programFilesX86, "Microsoft Visual Studio", "Installer", "vswhere.exe")
+    if not os.path.isfile(vswhere):
+        return False
+    try:
+        out = subprocess.check_output(
+            [
+                vswhere,
+                "-latest",
+                "-products",
+                "*",
+                "-requires",
+                "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+                "-find",
+                r"VC\Tools\MSVC\*\bin\Hostx64\x64\cl.exe",
+            ],
+            text=True,
+            stderr=subprocess.STDOUT,
+        ).strip()
+        return bool(out)
     except Exception:
         return False
 
@@ -252,6 +266,7 @@ class LogDialog(QtWidgets.QDialog):
         self.textEdit.moveCursor(QtGui.QTextCursor.End)
         self.textEdit.insertPlainText(text)
         self.textEdit.moveCursor(QtGui.QTextCursor.End)
+        QtWidgets.QApplication.processEvents(QtCore.QEventLoop.AllEvents, 50)
 
     def finish(self, success: bool, msg: str = ""):
         btn = self.btnBox.button(QtWidgets.QDialogButtonBox.Close)
@@ -321,21 +336,7 @@ class PackWorker(QtCore.QThread):
                 return
 
             self.LOG_SIGNAL.emit(f"Using Python: {pythonExe}\n")
-
-            if not self._checkNuitka(pythonExe):
-                self.LOG_SIGNAL.emit("Nuitka not found. Installing...\n")
-                if not self._installNuitka(pythonExe):
-                    self.FINISHED_SIGNAL.emit(False, ELOC("PACK_NUITKA_INSTALL_FAILED"))
-                    return
-
-            if self.includePyAV:
-                if not self._checkPyAV(pythonExe):
-                    self.LOG_SIGNAL.emit(ELOC("PACK_PYAV_NOT_FOUND_INSTALLING") + "\n")
-                    if not self._installPyAV(pythonExe):
-                        self.FINISHED_SIGNAL.emit(False, ELOC("PACK_PYAV_INSTALL_FAILED"))
-                        return
-
-            self._packNuitka(pythonExe)
+            self._packDesktop(pythonExe)
 
         except Exception as e:
             import traceback
@@ -347,155 +348,29 @@ class PackWorker(QtCore.QThread):
             sys.stdout = old_stdout
             sys.stderr = old_stderr
 
-    def _checkNuitka(self, exe: str) -> bool:
-        try:
-            subprocess.check_call(
-                [exe, "-m", "pip", "show", "nuitka"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-            )
-            return True
-        except subprocess.CalledProcessError:
-            return False
+    def _getBuildToolsPath(self) -> str:
+        from Utils import File
 
-    def _installNuitka(self, exe: str) -> bool:
-        try:
-            cmd = [exe, "-m", "pip", "install", "-U", "pip", "setuptools", "wheel"]
-            proc1 = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace"
-            )
-            stdout1: Optional[TextIO] = cast(TextIO, proc1.stdout)
-            if stdout1 is None:
-                return False
-            while True:
-                line = stdout1.readline()
-                if not line and proc1.poll() is not None:
-                    break
-                if line:
-                    self.LOG_SIGNAL.emit(line)
-            if proc1.poll() != 0:
-                return False
-            cmd2 = [exe, "-m", "pip", "install", "-U", "nuitka"]
-            proc2 = subprocess.Popen(
-                cmd2, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace"
-            )
-            stdout2: Optional[TextIO] = cast(TextIO, proc2.stdout)
-            if stdout2 is None:
-                return False
-            while True:
-                line = stdout2.readline()
-                if not line and proc2.poll() is not None:
-                    break
-                if line:
-                    self.LOG_SIGNAL.emit(line)
-            return proc2.poll() == 0
-        except Exception as e:
-            self.LOG_SIGNAL.emit(str(e) + "\n")
-            return False
+        return os.path.join(File.GetRootPath(), "BuildTools")
 
-    def _checkPyAV(self, exe: str) -> bool:
-        try:
-            subprocess.check_call(
-                [
-                    exe,
-                    "-c",
-                    "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('av') else 1)",
-                ],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            return True
-        except Exception:
-            return False
-
-    def _installPyAV(self, exe: str) -> bool:
-        try:
-            cmd = [exe, "-m", "pip", "install", "-U", "av"]
-            proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace"
-            )
-            stdout: Optional[TextIO] = cast(TextIO, proc.stdout)
-            if stdout is None:
-                return False
-            while True:
-                line = stdout.readline()
-                if not line and proc.poll() is not None:
-                    break
-                if line:
-                    self.LOG_SIGNAL.emit(line)
-            return proc.poll() == 0
-        except Exception as e:
-            self.LOG_SIGNAL.emit(str(e) + "\n")
-            return False
-
-    def _packNuitka(self, pythonExe: str):
-        entryPath = os.path.join(self.projPath, "Entry.py")
-        if not os.path.exists(entryPath):
-            self.FINISHED_SIGNAL.emit(False, ELOC("PACK_ENTRY_MISSING"))
-            return
-
-        appName = "Main"
-
-        cmd = [
-            pythonExe,
-            "-m",
-            "nuitka",
-            "--follow-imports",
-            "--remove-output",
-            "--assume-yes-for-downloads",
-            f"--output-dir={self.distPath}",
-            f"--output-filename={appName}",
-            "--include-data-dir=Assets=Assets",
-            "--include-data-dir=Data=Data",
-            "--include-package=pysf",
-            "--include-package=Engine",
-            "--include-package=Global",
-            "--include-package=Source",
-        ]
-        if os.path.exists(os.path.join(self.projPath, "Main.ini")):
-            cmd.append("--include-data-file=Main.ini=Main.ini")
-        if self.includePyAV:
-            cmd.append("--include-module=av")
-
-        iconPath = None
-        if self.platform == PackPlatform.WIN32:
-            possible = os.path.join(self.projPath, "Assets", "System", "icon.ico")
-            if os.path.exists(possible):
-                iconPath = possible
-        elif self.platform == PackPlatform.MACOS_ARM:
-            possible = os.path.join(self.projPath, "Assets", "System", "icon.icns")
-            if os.path.exists(possible):
-                iconPath = possible
-
-        if self.platform == PackPlatform.WIN32:
-            cmd.append("--standalone")
-            cmd.append("--windows-console-mode=disable")
-            if iconPath:
-                cmd.append(f"--windows-icon-from-ico={iconPath}")
-        elif self.platform == PackPlatform.MACOS_ARM:
-            cmd.append("--mode=app")
-            cmd.append(f"--macos-app-name={appName}")
-            if iconPath:
-                cmd.append(f"--macos-app-icon={iconPath}")
-        else:
-            self.FINISHED_SIGNAL.emit(False, ELOC("PACK_IOS_FAILED"))
-            return
-
-        cmd.append(entryPath)
-
-        self.LOG_SIGNAL.emit(f"Running Nuitka: {' '.join(cmd)}\n")
-
+    def _runCommand(self, cmd: list[str], cwd: Optional[str] = None) -> int:
+        self.LOG_SIGNAL.emit(f"Running: {' '.join(cmd)}\n")
+        env = os.environ.copy()
+        env["PYTHONUNBUFFERED"] = "1"
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            cwd=self.projPath,
+            cwd=cwd,
+            env=env,
             text=True,
             encoding="utf-8",
             errors="replace",
+            bufsize=1,
         )
         stdout: Optional[TextIO] = cast(TextIO, process.stdout)
         if stdout is None:
-            self.FINISHED_SIGNAL.emit(False, ELOC("PACK_NUITKA_FAILED"))
-            return
+            return -1
 
         while True:
             line = stdout.readline()
@@ -504,58 +379,52 @@ class PackWorker(QtCore.QThread):
             if line:
                 self.LOG_SIGNAL.emit(line)
 
-        rc = process.poll()
+        return process.poll() or 0
+
+    def _packDesktop(self, pythonExe: str) -> None:
+        buildTools = self._getBuildToolsPath()
+        script = os.path.join(buildTools, "pack_game.py")
+        cmd = [
+            pythonExe,
+            "-u",
+            script,
+            "--proj-path",
+            self.projPath,
+            "--dist-path",
+            self.distPath,
+            "--platform",
+            self.platform.value,
+            "--python",
+            pythonExe,
+        ]
+
+        if not os.path.isfile(script):
+            self.FINISHED_SIGNAL.emit(False, ELOC("PACK_ENTRY_MISSING"))
+            return
+
+        if self.includePyAV:
+            cmd.append("--include-pyav")
+
+        rc = self._runCommand(cmd, cwd=self.projPath)
         if rc == 0:
             self.FINISHED_SIGNAL.emit(True, "")
         else:
             self.FINISHED_SIGNAL.emit(False, ELOC("PACK_NUITKA_FAILED"))
 
-    def _packIOS(self):
-        from Utils import File
-
-        rootPath = File.GetRootPath()
-        scriptPath = os.path.join(rootPath, "generateiOSApp.sh")
+    def _packIOS(self) -> None:
+        buildTools = self._getBuildToolsPath()
+        scriptPath = os.path.join(buildTools, "pack_ios.sh")
 
         if not os.path.exists(scriptPath):
-            self.LOG_SIGNAL.emit("generateiOSApp.sh not found\n")
+            self.LOG_SIGNAL.emit("pack_ios.sh not found\n")
             self.FINISHED_SIGNAL.emit(False, ELOC("PACK_IOS_SCRIPT_MISSING"))
             return
 
-        projectName = os.path.basename(os.path.normpath(self.projPath))
-        scriptsDir = self.projPath
-        iosPythonDir = os.path.join(rootPath, "ios_python")
-        resourceDir = os.path.join(self.projPath, "Assets", "System")
+        cmd = ["bash", scriptPath, "--proj-path", self.projPath]
+        rc = self._runCommand(cmd, cwd=self.projPath)
 
-        # Game root = opened project (EditorStatus.PROJ_PATH); iOS output goes to <proj>/build/<name>/
-        cmd = ["bash", scriptPath, projectName, "-g", self.projPath, scriptsDir, iosPythonDir]
-        if os.path.isdir(resourceDir):
-            cmd.extend(["-r", resourceDir])
-
-        self.LOG_SIGNAL.emit(f"Running: {' '.join(cmd)}\n")
-
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            cwd=self.projPath,
-        )
-        stdout = cast(TextIO, process.stdout)
-        if stdout is None:
-            self.FINISHED_SIGNAL.emit(False, ELOC("PACK_IOS_FAILED"))
-            return
-
-        while True:
-            line = stdout.readline()
-            if not line and process.poll() is not None:
-                break
-            if line:
-                self.LOG_SIGNAL.emit(line)
-
-        rc = process.poll()
         if rc == 0:
+            projectName = os.path.basename(os.path.normpath(self.projPath))
             outputDir = os.path.join(self.projPath, "build", projectName)
             self.LOG_SIGNAL.emit(f"\niOS project generated: {outputDir}\n")
             self.IOS_OUTPUT_READY.emit(outputDir)

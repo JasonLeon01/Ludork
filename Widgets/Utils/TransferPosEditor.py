@@ -9,7 +9,8 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 
 from EditorGlobal import EditorStatus, GameData
 from Utils import System
-from .AutoTileRenderer import AutoTileRenderer, computeMaskFromGrid
+from .AutoTileRenderer import AutoTileRenderer
+from .TilemapRenderer import TilemapRenderer
 from .DialogUtils import getIndependentDialogParent, isWidgetValid
 from .MoveRouteEditor import _RouteMapData, _loadGameLocaleDict, _formatGameString
 
@@ -27,6 +28,7 @@ class TransferPosMapView(QtWidgets.QWidget):
         self._pixmap: Optional[QtGui.QPixmap] = None
         self._tileSize = max(16, int(getattr(EditorStatus, "CELLSIZE", 32)))
         self._autoTileRenderer = AutoTileRenderer()
+        self._tilemapRenderer = TilemapRenderer(self._autoTileRenderer)
         self._selectedCell: Optional[Tuple[int, int]] = None
         self._hoverCell: Optional[Tuple[int, int]] = None
         self.setMinimumSize(540, 360)
@@ -129,75 +131,20 @@ class TransferPosMapView(QtWidgets.QWidget):
         for layer in data.layers.values():
             if not isinstance(layer, dict):
                 continue
-            self._drawTileLayer(painter, layer, data.width, data.height, sourceTileSize)
-            self._drawAutoTiles(painter, layer)
+            layerImg = self._tilemapRenderer.renderLayer(
+                data.width,
+                data.height,
+                self._tileSize,
+                layer.get("tiles"),
+                layer.get("layerTileset"),
+                layer.get("autoTiles"),
+                0,
+                sourceTileSize,
+            )
+            if layerImg is not None and not layerImg.isNull():
+                painter.drawImage(0, 0, layerImg)
         painter.end()
         self._pixmap = QtGui.QPixmap.fromImage(image)
-
-    def _drawTileLayer(
-        self,
-        painter: QtGui.QPainter,
-        layer: Dict[str, Any],
-        width: int,
-        height: int,
-        sourceTileSize: int,
-    ) -> None:
-        tilesetKey = layer.get("layerTileset")
-        tilesetData = GameData.tilesetData.get(tilesetKey)
-        fileName = getattr(tilesetData, "fileName", "")
-        if not fileName:
-            return
-        imagePath = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Tilesets", fileName)
-        tileset = QtGui.QImage(imagePath)
-        if tileset.isNull():
-            return
-        columns = max(1, tileset.width() // sourceTileSize)
-        rows = max(1, tileset.height() // sourceTileSize)
-        total = columns * rows
-        tiles = layer.get("tiles")
-        if not isinstance(tiles, list):
-            return
-        for y in range(min(height, len(tiles))):
-            row = tiles[y]
-            if not isinstance(row, list):
-                continue
-            for x in range(min(width, len(row))):
-                tileNumber = row[x]
-                if tileNumber is None:
-                    continue
-                try:
-                    n = int(tileNumber)
-                except (TypeError, ValueError):
-                    continue
-                if n < 0 or n >= total:
-                    continue
-                src = QtCore.QRect(
-                    (n % columns) * sourceTileSize,
-                    (n // columns) * sourceTileSize,
-                    sourceTileSize,
-                    sourceTileSize,
-                )
-                dst = QtCore.QRect(x * self._tileSize, y * self._tileSize, self._tileSize, self._tileSize)
-                painter.drawImage(dst, tileset, src)
-
-    def _drawAutoTiles(self, painter: QtGui.QPainter, layer: Dict[str, Any]) -> None:
-        autoTiles = layer.get("autoTiles")
-        if not isinstance(autoTiles, list):
-            return
-        for y, row in enumerate(autoTiles):
-            if not isinstance(row, list):
-                continue
-            for x, key in enumerate(row):
-                if not isinstance(key, str) or not key:
-                    continue
-                mask = computeMaskFromGrid(autoTiles, x, y)
-                tile = self._autoTileRenderer.renderTile(key, mask, 0)
-                if tile is None or tile.isNull():
-                    continue
-                painter.drawImage(
-                    QtCore.QRect(x * self._tileSize, y * self._tileSize, self._tileSize, self._tileSize),
-                    tile,
-                )
 
     def _drawGrid(self, painter: QtGui.QPainter, offset: QtCore.QPoint) -> None:
         data = self._mapData

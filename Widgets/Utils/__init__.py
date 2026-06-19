@@ -9,6 +9,7 @@ from .FileSelectorDialog import FileSelectorDialog
 from .TilesetPanel import TilesetPanel
 from .AutoTilePanel import AutoTilePanel
 from .AutoTileRenderer import AutoTileRenderer, computeMaskFromGrid
+from .TilemapRenderer import TilemapRenderer
 from .RectViewer import RectViewer
 from .Toast import Toast
 from .NodePanel import NodePanel
