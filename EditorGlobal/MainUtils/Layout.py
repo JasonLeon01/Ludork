@@ -118,9 +118,7 @@ class LayoutMixin:
         self.editorPanel.AUTOTILE_PICKED.connect(self._onAutoTilePicked)
         self.editorPanel.LIGHT_SELECTION_CHANGED.connect(self._onLightSelectionChanged)
         self.editorPanel.LIGHT_DATA_CHANGED.connect(self._onLightDataChanged)
-        self.editorPanel.ACTOR_SELECTION_CHANGED.connect(
-            lambda l, i, d: self.actorInfo.setActor(l, i, d, self.editorPanel)
-        )
+        self.editorPanel.ACTOR_SELECTION_CHANGED.connect(self._onActorSelectionChanged)
         self.lightPanel.LIGHT_EDITED.connect(self._onLightEdited)
         self.editorPanel.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.editorPanel.customContextMenuRequested.connect(self._onEditorPanelContextMenu)
@@ -192,6 +190,7 @@ class LayoutMixin:
         self.actorQueuePanel.SELECTION_CHANGED.connect(
             lambda bpRel: self.editorPanel.setPendingActor(bpRel if isinstance(bpRel, str) else None)
         )
+        self.actorQueuePanel.BLUEPRINT_OPEN_REQUESTED.connect(self._onActorQueueBlueprintOpen)
 
     def _onUpperSplitterMoved(self, pos: int, index: int) -> None:
         sizes = self.upperSplitter.sizes()

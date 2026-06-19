@@ -17,6 +17,7 @@ from Widgets import (
     BluePrintEditor,
     ClassSelector,
     AnimationWindow,
+    AnimationOverview,
     GeneralDataEditor,
     LocaleEditor,
 )
@@ -158,6 +159,25 @@ class DatabaseMenuMixin:
         editor.raise_()
         editor.show()
 
+    def _onAnimationOverview(self, checked: bool = False) -> None:
+        overview = getattr(self, "_animationOverview", None)
+        if overview is not None:
+            overview.refreshFromGameData()
+            overview.show()
+            overview.activateWindow()
+            overview.raise_()
+            return
+        self._animationOverview = AnimationOverview(self)
+        self._animationOverview.MODIFIED.connect(self._onAnimationModified)
+        self._animationOverview.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        self._animationOverview.destroyed.connect(self._onAnimationOverviewDestroyed)
+        self._animationOverview.show()
+        self._animationOverview.activateWindow()
+        self._animationOverview.raise_()
+
+    def _onAnimationOverviewDestroyed(self) -> None:
+        self._animationOverview = None
+
     def _onDataBaseShowAnimationWindow(self, title: str, data: Dict[str, Any]) -> None:
         self._animationWindow = AnimationWindow(self, title, data)
         self._animationWindow.MODIFIED.connect(self._onAnimationModified)
@@ -171,6 +191,19 @@ class DatabaseMenuMixin:
         self._refreshInfo()
         self.editorPanel._renderFromMapData()
         self.editorPanel.update()
+
+    def _onActorQueueBlueprintOpen(self, bpRel: str) -> None:
+        if not isinstance(bpRel, str) or not bpRel.strip():
+            return
+        prefix = "Data.Blueprints."
+        s = bpRel.strip()
+        if not s.startswith(prefix):
+            return
+        key = s[len(prefix) :].replace(".", "/")
+        data = GameData.blueprintsData.get(key)
+        if not isinstance(data, dict):
+            return
+        self._onDatabaseShowBlueprint(key, data)
 
     def _onAnimationModified(self) -> None:
         self._refreshInfo()

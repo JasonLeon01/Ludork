@@ -13,6 +13,13 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QWidget
 from .SearchLineEdit import addSearchIcon
 
+_INLINE_CODE_STYLE = (
+    "font-family:Consolas,monospace;"
+    "background-color:#2d2d2d;"
+    "color:#ce9178;"
+    "padding:1px 4px;"
+)
+
 
 class MarkdownPreviewer(QWidget):
     def __init__(self, parent: QtWidgets.QWidget | None = None, filePath: str = "", title: str = "") -> None:
@@ -490,7 +497,7 @@ class MarkdownPreviewer(QWidget):
             "h1,h2,h3,h4,h5,h6{color:#f0f0f0;}"
             "h1{font-size:24px;margin:10px 0;}h2{font-size:20px;margin:10px 0;}h3{font-size:18px;}"
             "pre{background:#1e1e1e;color:#dcdcdc;border:1px solid #444;padding:10px;margin:10px 0;}"
-            "code{font-family:Consolas,monospace;}"
+            "pre code{background:transparent;color:#dcdcdc;padding:0;}"
             "ul{padding-left:20px;}"
             "hr{border:0;border-top:1px solid #555;margin:16px 0;}"
             "p{line-height:1.6;}"
@@ -577,6 +584,6 @@ class MarkdownPreviewer(QWidget):
         s = html.escape(s)
         s = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", s)
         s = re.sub(r"(?<!\*)\*(.+?)\*(?!\*)", r"<em>\1</em>", s)
-        s = re.sub(r"`(.+?)`", r"<code>\1</code>", s)
+        s = re.sub(r"`(.+?)`", rf'<code style="{_INLINE_CODE_STYLE}">\1</code>', s)
         s = re.sub(r"\[(.+?)\]\((.+?)\)", r'<a href="\2">\1</a>', s)
         return s

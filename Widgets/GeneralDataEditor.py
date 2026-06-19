@@ -1124,3 +1124,14 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
             page.MODIFIED.connect(self.MODIFIED.emit)
             page.REQUEST_BLUEPRINT_EDIT.connect(self._onBlueprintEditRequest)
             self.tabWidget.addTab(page, key)
+
+    def selectDataType(self, key: str) -> bool:
+        if key not in getattr(GameData, "generalData", {}):
+            return False
+        for i in range(self.tabWidget.count()):
+            if self.tabWidget.tabText(i) == key:
+                self.tabWidget.setCurrentIndex(i)
+                self.activateWindow()
+                self.raise_()
+                return True
+        return False

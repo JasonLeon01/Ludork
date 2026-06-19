@@ -1,0 +1,95 @@
+{
+    "parent": "Data.Blueprints.Enemies.BP_Enemy_Slime",
+    "attrs": {},
+    "graph": {
+        "nodeGraph": {
+            "onCreate": {
+                "nodes": [],
+                "links": []
+            },
+            "onDefeat": {
+                "nodes": [
+                    {
+                        "nodeFunction": "NodeFunctions.Utils.TriggerEventBus",
+                        "params": [
+                            "ExampleAutoOpen",
+                            ""
+                        ],
+                        "pos": [
+                            720.0,
+                            0.0
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.Utils.GetGameVariableRef",
+                        "params": [
+                            "MTExample",
+                            "0"
+                        ],
+                        "pos": [
+                            -720.0,
+                            250.0
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.Math.IADD",
+                        "params": [
+                            "",
+                            "1"
+                        ],
+                        "pos": [
+                            0.0,
+                            0.0
+                        ]
+                    }
+                ],
+                "links": [
+                    {
+                        "left": 1,
+                        "right": 2,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Params"
+                    },
+                    {
+                        "left": 2,
+                        "right": 0,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Exec"
+                    }
+                ]
+            },
+            "onDestroy": {
+                "nodes": [],
+                "links": []
+            },
+            "onFixedTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onLateTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onOverlap": {
+                "nodes": [],
+                "links": []
+            },
+            "onTick": {
+                "nodes": [],
+                "links": []
+            }
+        },
+        "startNodes": {
+            "onCreate": null,
+            "onDefeat": 2,
+            "onDestroy": null,
+            "onFixedTick": null,
+            "onLateTick": null,
+            "onOverlap": null,
+            "onTick": null
+        }
+    },
+    "type": "blueprint"
+}

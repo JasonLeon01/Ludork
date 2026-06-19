@@ -110,9 +110,8 @@ def Meta(**kwargs):
     """
 
     def decorator(func):
-        meta = getattr(func, "_meta", None)
-        if not isinstance(meta, dict):
-            meta = {}
+        existing = getattr(func, "_meta", None)
+        meta = dict(existing) if isinstance(existing, dict) else {}
         meta.update(kwargs)
         func._meta = meta
         invalidVars = kwargs.get("InvalidVars")

@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+from dataclasses import dataclass
 import io
 import json
 import os
@@ -9,6 +10,13 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from psutil import Popen
 from Utils import Panel
 from .SearchLineEdit import addSearchIcon
+
+
+@dataclass
+class ConsoleLogEntry:
+    text: str
+    level: str
+    count: int = 1
 
 
 class PipeReader(QtCore.QThread):
@@ -69,7 +77,8 @@ class ConsoleWidget(QtWidgets.QWidget):
         self._stderr_reader: Optional[PipeReader] = None
         self._history: list[str] = []
         self._history_index: Optional[int] = None
-        self._log_entries: list[tuple[str, str]] = []
+        self._log_entries: list[ConsoleLogEntry] = []
+        self._log_counts = {"MESSAGE": 0, "WARNING": 0, "ERROR": 0}
         self._log_file_path: Optional[str] = None
 
         self._view = QtWidgets.QTextEdit()
@@ -88,18 +97,23 @@ class ConsoleWidget(QtWidgets.QWidget):
         self._send.setEnabled(False)
         self._input.setEnabled(False)
 
-        self._messageFilter = QtWidgets.QAction(ELOC("CONSOLE_FILTER_MESSAGE"), self)
-        self._warningFilter = QtWidgets.QAction(ELOC("CONSOLE_FILTER_WARNING"), self)
-        self._errorFilter = QtWidgets.QAction(ELOC("CONSOLE_FILTER_ERROR"), self)
+        self._messageFilter = QtWidgets.QAction(self)
+        self._warningFilter = QtWidgets.QAction(self)
+        self._errorFilter = QtWidgets.QAction(self)
         for action in (self._messageFilter, self._warningFilter, self._errorFilter):
             action.setCheckable(True)
             action.setChecked(True)
             action.toggled.connect(self._refreshView)
+        self._collapseDuplicates = QtWidgets.QAction(ELOC("CONSOLE_COLLAPSE_DUPLICATES"), self)
+        self._collapseDuplicates.setCheckable(True)
+        self._collapseDuplicates.toggled.connect(self._refreshView)
 
         filterMenu = QtWidgets.QMenu(self)
         filterMenu.addAction(self._messageFilter)
         filterMenu.addAction(self._warningFilter)
         filterMenu.addAction(self._errorFilter)
+        filterMenu.addSeparator()
+        filterMenu.addAction(self._collapseDuplicates)
 
         self._filterButton = QtWidgets.QToolButton()
         self._filterButton.setText(ELOC("CONSOLE_FILTER_LOGS"))
@@ -129,6 +143,7 @@ class ConsoleWidget(QtWidgets.QWidget):
         layout.addLayout(tl)
         layout.addWidget(self._view, 1)
         layout.addLayout(bl)
+        self._updateFilterTexts()
 
     def eventFilter(self, obj, event):
         if obj is self._input and event.type() == QtCore.QEvent.KeyPress:
@@ -229,6 +244,9 @@ class ConsoleWidget(QtWidgets.QWidget):
 
     def clear(self) -> None:
         self._log_entries.clear()
+        for category in self._log_counts:
+            self._log_counts[category] = 0
+        self._updateFilterTexts()
         self._view.clear()
 
     def setLogFile(self, logFilePath: Optional[str], resetLog: bool = False) -> None:
@@ -246,11 +264,17 @@ class ConsoleWidget(QtWidgets.QWidget):
             print(f"Error while resetting console log: {e}")
 
     def _append_line(self, text: str, level: str) -> None:
-        self._log_entries.append((text, level))
+        entry = ConsoleLogEntry(text, level)
+        self._log_entries.append(entry)
+        self._log_counts[self._filterCategory(level)] += 1
+        self._updateFilterTexts()
         self._writeLogLine(text, level)
         if not self._acceptsEntry(text, level):
             return
-        self._insertLine(text, level)
+        if self._collapseDuplicates.isChecked():
+            self._refreshView()
+        else:
+            self._insertLine(entry)
 
     def _writeLogLine(self, text: str, level: str) -> None:
         if not self._log_file_path:
@@ -261,13 +285,13 @@ class ConsoleWidget(QtWidgets.QWidget):
         except Exception as e:
             print(f"Error while writing console log: {e}")
 
-    def _insertLine(self, text: str, level: str) -> None:
+    def _insertLine(self, entry: ConsoleLogEntry) -> None:
         c = QtGui.QColor()
-        if level == "ERROR":
+        if entry.level == "ERROR":
             c = QtGui.QColor(200, 60, 60)
-        elif level == "WARNING":
+        elif entry.level == "WARNING":
             c = QtGui.QColor(220, 180, 60)
-        elif level == "DEBUG":
+        elif entry.level == "DEBUG":
             c = QtGui.QColor(120, 120, 120)
         else:
             c = QtGui.QColor(220, 220, 220)
@@ -275,15 +299,39 @@ class ConsoleWidget(QtWidgets.QWidget):
         tc.setForeground(QtGui.QBrush(c))
         cursor = self._view.textCursor()
         cursor.movePosition(QtGui.QTextCursor.End)
-        cursor.insertText(text + "\n", tc)
+        cursor.insertText(self._formatEntryText(entry) + "\n", tc)
         self._view.setTextCursor(cursor)
         self._view.ensureCursorVisible()
 
     def _refreshView(self) -> None:
         self._view.clear()
-        for text, level in self._log_entries:
-            if self._acceptsEntry(text, level):
-                self._insertLine(text, level)
+        for entry in self._iterVisibleEntries():
+            self._insertLine(entry)
+
+    def _iterVisibleEntries(self):
+        collapse = self._collapseDuplicates.isChecked()
+        lastEntry: Optional[ConsoleLogEntry] = None
+        for entry in self._log_entries:
+            if not self._acceptsEntry(entry.text, entry.level):
+                continue
+            if collapse and lastEntry and lastEntry.text == entry.text and lastEntry.level == entry.level:
+                lastEntry.count += 1
+                continue
+            if lastEntry:
+                yield lastEntry
+            lastEntry = ConsoleLogEntry(entry.text, entry.level)
+        if lastEntry:
+            yield lastEntry
+
+    def _formatEntryText(self, entry: ConsoleLogEntry) -> str:
+        if entry.count <= 1:
+            return entry.text
+        return entry.text + ELOC("CONSOLE_REPEAT_SUFFIX").format(count=entry.count)
+
+    def _updateFilterTexts(self) -> None:
+        self._messageFilter.setText(ELOC("CONSOLE_COUNT_MESSAGE").format(count=self._log_counts["MESSAGE"]))
+        self._warningFilter.setText(ELOC("CONSOLE_COUNT_WARNING").format(count=self._log_counts["WARNING"]))
+        self._errorFilter.setText(ELOC("CONSOLE_COUNT_ERROR").format(count=self._log_counts["ERROR"]))
 
     def _acceptsEntry(self, text: str, level: str) -> bool:
         search = self._search.text().strip().lower()

@@ -295,6 +295,10 @@
     "zh_CN": "动画窗口",
     "en_GB": "Animation Window"
   },
+  "ANIMATION_OVERVIEW": {
+    "zh_CN": "动画总览",
+    "en_GB": "Animation Overview"
+  },
   "ANIMATION_NAME": {
     "zh_CN": "动画名称",
     "en_GB": "Animation Name"
@@ -354,6 +358,14 @@
   "FILE_EXPLORER": {
     "zh_CN": "文件浏览器",
     "en_GB": "File Explorer"
+  },
+  "FILE_EXPLORER_ICON_VIEW": {
+    "zh_CN": "图标视图",
+    "en_GB": "Icon View"
+  },
+  "FILE_EXPLORER_LIST_VIEW": {
+    "zh_CN": "列表视图",
+    "en_GB": "List View"
   },
   "ADD_LAYER": {
     "zh_CN": "添加图层",
@@ -431,6 +443,30 @@
     "zh_CN": "从系统打开",
     "en_GB": "Open from System"
   },
+  "EXTERNAL_EDITOR_VSCODE": {
+    "zh_CN": "VS Code",
+    "en_GB": "VS Code"
+  },
+  "EXTERNAL_EDITOR_CURSOR": {
+    "zh_CN": "Cursor",
+    "en_GB": "Cursor"
+  },
+  "OPEN_PROJECT_WITH_VSCODE": {
+    "zh_CN": "用 VS Code 打开工程",
+    "en_GB": "Open Project with VS Code"
+  },
+  "OPEN_PROJECT_WITH_CURSOR": {
+    "zh_CN": "用 Cursor 打开工程",
+    "en_GB": "Open Project with Cursor"
+  },
+  "EXTERNAL_EDITOR_NOT_FOUND": {
+    "zh_CN": "未找到 {app}，请确认已安装并配置命令行入口",
+    "en_GB": "{app} was not found. Make sure it is installed and its command-line launcher is available."
+  },
+  "OPEN_EXTERNAL_EDITOR_FAILED": {
+    "zh_CN": "无法启动 {app}",
+    "en_GB": "Failed to start {app}"
+  },
   "NEW_FOLDER": {
     "zh_CN": "新建文件夹",
     "en_GB": "New Folder"
@@ -498,6 +534,26 @@
   "CONSOLE_SEARCH_HINT": {
     "zh_CN": "搜索日志",
     "en_GB": "Search logs"
+  },
+  "CONSOLE_COUNT_MESSAGE": {
+    "zh_CN": "消息 ({count})",
+    "en_GB": "Message ({count})"
+  },
+  "CONSOLE_COUNT_WARNING": {
+    "zh_CN": "警告 ({count})",
+    "en_GB": "Warning ({count})"
+  },
+  "CONSOLE_COUNT_ERROR": {
+    "zh_CN": "错误 ({count})",
+    "en_GB": "Error ({count})"
+  },
+  "CONSOLE_COLLAPSE_DUPLICATES": {
+    "zh_CN": "折叠重复日志",
+    "en_GB": "Collapse duplicates"
+  },
+  "CONSOLE_REPEAT_SUFFIX": {
+    "zh_CN": " (重复 {count} 次)",
+    "en_GB": " (x{count})"
   },
   "SEARCH": {
     "zh_CN": "搜索",

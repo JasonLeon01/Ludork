@@ -31,6 +31,14 @@ class LightActorMixin:
         else:
             self.tileSelect.setSelectedAutoTileKey(None)
 
+    def _onActorSelectionChanged(self, layerName, index, actorData) -> None:
+        self.actorInfo.setActor(layerName, index, actorData, self.editorPanel)
+        if not isinstance(actorData, dict):
+            return
+        bpRel = actorData.get("bp")
+        if isinstance(bpRel, str) and bpRel.strip():
+            self.actorQueuePanel.addOrPromote(bpRel.strip())
+
     def _onLightSelectionChanged(self, mapKey: str, index, lightData) -> None:
         if not isinstance(mapKey, str):
             mapKey = ""

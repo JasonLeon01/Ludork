@@ -739,7 +739,7 @@ class AnimationPreview(QtWidgets.QWidget):
             self.DATA_CHANGED.emit()
 
 
-class AnimationWindow(QtWidgets.QMainWindow):
+class AnimationEditor(QtWidgets.QWidget):
     MODIFIED = QtCore.pyqtSignal()
 
     def __init__(
@@ -748,17 +748,10 @@ class AnimationWindow(QtWidgets.QMainWindow):
         super().__init__(parent)
         self._data = data if data is not None else {}
         self._audioPreviewDialogs = []
-
-        windowTitle = ELOC("ANIMATION_WINDOW")
         self.title = title
-        if title:
-            windowTitle += f" - {title}"
-        self.setWindowTitle(windowTitle)
-        self.resize(1200, 900)
 
-        central = QtWidgets.QWidget(self)
-        self.setCentralWidget(central)
-        mainLayout = QtWidgets.QHBoxLayout(central)
+        mainLayout = QtWidgets.QHBoxLayout(self)
+        mainLayout.setContentsMargins(0, 0, 0, 0)
 
         leftPanel = QtWidgets.QWidget()
         leftLayout = QtWidgets.QVBoxLayout(leftPanel)
@@ -1044,3 +1037,32 @@ class AnimationWindow(QtWidgets.QMainWindow):
         self.timelinePanel.canvas.update()
         self.preview.update()
         self.MODIFIED.emit()
+
+    def reloadData(self, title: str, data: Dict[str, Any]) -> None:
+        self.title = title
+        self._data = data
+        self.preview.setData(self._data)
+        self.timelinePanel.setData(self._data)
+        self.nameEdit.setText(self._data.get("name", ""))
+        currentFps = str(self._data.get("frameRate", 30))
+        fpsIndex = self.fpsCombo.findText(currentFps)
+        if fpsIndex >= 0:
+            self.fpsCombo.setCurrentIndex(fpsIndex)
+        self._refreshAssets()
+
+
+class AnimationWindow(QtWidgets.QMainWindow):
+    MODIFIED = QtCore.pyqtSignal()
+
+    def __init__(
+        self, parent: Optional[QtWidgets.QWidget] = None, title: str = "", data: Dict[str, Any] = None
+    ) -> None:
+        super().__init__(parent)
+        windowTitle = ELOC("ANIMATION_WINDOW")
+        if title:
+            windowTitle += f" - {title}"
+        self.setWindowTitle(windowTitle)
+        self.resize(1200, 900)
+        self._editor = AnimationEditor(self, title, data)
+        self._editor.MODIFIED.connect(self.MODIFIED.emit)
+        self.setCentralWidget(self._editor)

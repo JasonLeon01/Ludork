@@ -26,6 +26,7 @@ class Actor(_ActorBase, BPBase):
     tickable: bool = False  #: Whether tick events are dispatched
     speed: float = 64.0  #: Movement speed in pixels per second
     _componentTypes = {"lightComp": LightComponent, "childActorComp": ChildActorComponent}
+    lightComp: Optional[LightComponent] = None
     ### Generation use only
     texturePath: str = ""  #: Asset path to the character texture
     defaultRect: Optional[Tuple[Pair[int], Pair[int]]] = ((0, 0), (32, 32))  #: Default texture rectangle (origin, size)

@@ -15,6 +15,7 @@ MIN_HEIGHT_EXTRA_PADDING = 2
 
 class ActorQueuePanel(QtWidgets.QWidget):
     SELECTION_CHANGED = QtCore.pyqtSignal(object)
+    BLUEPRINT_OPEN_REQUESTED = QtCore.pyqtSignal(str)
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None, dockMode: str = "horizontal") -> None:
         super().__init__(parent)
@@ -22,6 +23,7 @@ class ActorQueuePanel(QtWidgets.QWidget):
         self._queue: list[str] = []
         self._itemMap: Dict[str, QtWidgets.QListWidgetItem] = {}
         self._currentBpRel: Optional[str] = None
+        self._pendingClickItem: Optional[QtWidgets.QListWidgetItem] = None
         self._list = QtWidgets.QListWidget(self)
         self._list.setViewMode(QtWidgets.QListView.IconMode)
         self._list.setMovement(QtWidgets.QListView.Static)
@@ -29,7 +31,11 @@ class ActorQueuePanel(QtWidgets.QWidget):
         self._list.setSpacing(8)
         self._list.setUniformItemSizes(True)
         self._list.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self._clickTimer = QtCore.QTimer(self)
+        self._clickTimer.setSingleShot(True)
+        self._clickTimer.timeout.connect(self._onSingleClickTimeout)
         self._list.itemClicked.connect(self._onItemClicked)
+        self._list.itemDoubleClicked.connect(self._onItemDoubleClicked)
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -252,6 +258,29 @@ class ActorQueuePanel(QtWidgets.QWidget):
             self.SELECTION_CHANGED.emit(None)
 
     def _onItemClicked(self, item: QtWidgets.QListWidgetItem) -> None:
+        self._pendingClickItem = item
+        self._clickTimer.start(QtWidgets.QApplication.doubleClickInterval())
+
+    def _onItemDoubleClicked(self, item: QtWidgets.QListWidgetItem) -> None:
+        self._clickTimer.stop()
+        self._pendingClickItem = None
+        self._requestOpenBlueprint(item)
+
+    def _onSingleClickTimeout(self) -> None:
+        item = self._pendingClickItem
+        self._pendingClickItem = None
+        if item is None:
+            return
+        self._toggleSelection(item)
+
+    def _requestOpenBlueprint(self, item: QtWidgets.QListWidgetItem) -> None:
+        if item is None:
+            return
+        bp = item.data(QtCore.Qt.UserRole)
+        if isinstance(bp, str) and bp.strip():
+            self.BLUEPRINT_OPEN_REQUESTED.emit(bp.strip())
+
+    def _toggleSelection(self, item: QtWidgets.QListWidgetItem) -> None:
         if item is None:
             return
         bp = item.data(QtCore.Qt.UserRole)

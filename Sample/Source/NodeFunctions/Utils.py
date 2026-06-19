@@ -5,6 +5,7 @@ import logging
 from typing import Any, Dict, Optional
 from Engine import Pair, Vector2f, degrees
 from Engine.Gameplay.Components import getComponentFieldValue, setComponentFieldValue
+from Engine.Utils import Event
 from Global import System, SceneBase, Animation
 from .. import Data
 
@@ -283,6 +284,24 @@ def GetGameVariable(valueName: str, default: Any = None) -> Any:
     return default
 
 
+@Meta(DisplayName='LOC("GET_GAME_VARIABLE_REF")', DisplayDesc='LOC("GET_GAME_VARIABLE_REF_DESC")')
+@ReturnType(value=Any)
+def GetGameVariableRef(valueName: str, default: Any = None) -> Any:
+    r"""\brief Get a reference wrapper for a game variable.
+
+    - \param valueName The variable name.
+    - \param default Default value if the variable is not found.
+    - \return A _localRef wrapper.
+    """
+    scene = System.getScene()
+    if scene and hasattr(scene, "inst"):
+        return _localRef(scene.inst.getVariables(), valueName, default)
+    return _localRef(GetGameVariableRef._fallbackVariables, valueName, default)
+
+
+GetGameVariableRef._fallbackVariables: Dict[str, Any] = {}
+
+
 @Meta(DisplayName='LOC("ADD_PLAYER_BY_CLASS")', DisplayDesc='LOC("ADD_PLAYER_BY_CLASS_DESC")')
 @ExecSplit(default=(None,))
 def AddPlayerByClass(playerClass: str) -> None:
@@ -445,6 +464,96 @@ def RunCommonFunction(commonFunctionName: str) -> Any:
         firstKey = sorted(commonGraph.startNodes.keys())[0]
         return commonGraph.execute(firstKey)
     raise KeyError(f"Common function '{commonFunctionName}' has no start nodes")
+
+
+def _coerceEventBusKwargs(kwargs: Any) -> Dict[str, Any]:
+    if kwargs is None or kwargs == "":
+        return {}
+    if isinstance(kwargs, dict):
+        return kwargs
+    raise TypeError("EventBus kwargs must be a dict or None")
+
+
+@Meta(DisplayName='LOC("REGISTER_EVENT_BUS")', DisplayDesc='LOC("REGISTER_EVENT_BUS_DESC")')
+@ExecSplit(default=(None,))
+def RegisterEventBus(key: str, obj: object, functionName: str) -> None:
+    r"""\brief Subscribe an object's event method to the shared EventBus.
+
+    - \param key EventBus key to subscribe to.
+    - \param obj Target object that owns the event or method.
+    - \param functionName Name of the event or method to invoke.
+    """
+    if obj is None:
+        raise ValueError("EventBus target object is None")
+    if not hasattr(obj, functionName) or not callable(getattr(obj, functionName)):
+        raise AttributeError(f"Object has no callable event '{functionName}'")
+
+    def handler(payload: Any) -> None:
+        from Engine.BPBase import BPBase
+
+        BPBase.BlueprintEvent(obj, type(obj), functionName, _coerceEventBusKwargs(payload))
+
+    Event.subscribeObjectHandler(key, obj, handler)
+
+
+@Meta(DisplayName='LOC("REGISTER_EVENT_BUS_EVENT")', DisplayDesc='LOC("REGISTER_EVENT_BUS_EVENT_DESC")')
+@ExecSplit(default=(None,))
+def RegisterEventBusEvent(key: str, obj: object, eventName: str) -> None:
+    r"""\brief Subscribe an object's blueprint event to the shared EventBus.
+
+    EventBus payload is ignored; the blueprint event is invoked without arguments.
+
+    - \param key EventBus key to subscribe to.
+    - \param obj Target object that owns the blueprint event.
+    - \param eventName Blueprint event name to invoke.
+    """
+    Event.subscribeBlueprintEvent(key, obj, eventName)
+
+
+@Meta(DisplayName='LOC("UNREGISTER_EVENT_BUS")', DisplayDesc='LOC("UNREGISTER_EVENT_BUS_DESC")')
+@ExecSplit(default=(None,))
+@ReturnType(value=bool)
+def UnregisterEventBus(key: str) -> bool:
+    r"""\brief Unsubscribe handlers from the shared EventBus by key.
+
+    - \param key EventBus key subscribed to.
+    - \return True if any handler was found and removed, False otherwise.
+    """
+    return Event.unsubscribeEvent(key)
+
+
+@Meta(DisplayName='LOC("UNREGISTER_EVENT_BUS_EVENT")', DisplayDesc='LOC("UNREGISTER_EVENT_BUS_EVENT_DESC")')
+@ExecSplit(default=(None,))
+@ReturnType(value=bool)
+def UnregisterEventBusEvent(key: str) -> bool:
+    r"""\brief Unsubscribe blueprint event handlers from the shared EventBus by key.
+
+    - \param key EventBus key subscribed to.
+    - \return True if any handler was found and removed, False otherwise.
+    """
+    return Event.unsubscribeEvent(key)
+
+
+@Meta(DisplayName='LOC("TRIGGER_EVENT_BUS")', DisplayDesc='LOC("TRIGGER_EVENT_BUS_DESC")')
+@ExecSplit(default=(None,))
+def TriggerEventBus(key: str, kwargs: Optional[Dict[str, Any]] = None) -> None:
+    r"""\brief Post an EventBus event with keyword arguments.
+
+    - \param key EventBus key to trigger.
+    - \param kwargs Keyword arguments passed to registered handlers.
+    """
+    Event.post(key, _coerceEventBusKwargs(kwargs))
+
+
+@Meta(DisplayName='LOC("TRIGGER_BLUEPRINT_EVENT")', DisplayDesc='LOC("TRIGGER_BLUEPRINT_EVENT_DESC")')
+@ExecSplit(default=(None,))
+def TriggerBlueprintEvent(obj: object, eventName: str) -> None:
+    r"""\brief Trigger a blueprint event on an object without arguments.
+
+    - \param obj Target object that owns the blueprint event.
+    - \param eventName Blueprint event name to invoke.
+    """
+    Event.triggerBlueprintEvent(obj, eventName)
 
 
 @Meta(DisplayName='LOC("BACK_TO_TITLE")', DisplayDesc='LOC("BACK_TO_TITLE_DESC")')

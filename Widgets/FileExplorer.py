@@ -2,6 +2,8 @@
 
 import os
 import shutil
+import subprocess
+import sys
 from typing import Callable, Optional, cast
 from PyQt5 import QtCore, QtGui, QtWidgets
 from EditorGlobal import EditorStatus, GameData
@@ -10,6 +12,19 @@ from .FilePreview import FilePreview
 
 
 _THUMB_SIZE = 80
+
+_EXTERNAL_EDITOR_COMMANDS = {
+    "vscode": ("code.cmd", "code.exe", "code"),
+    "cursor": ("cursor.cmd", "cursor.exe", "cursor"),
+}
+
+
+def _iconPath(name: str) -> str:
+    return os.path.join(File.GetRootPath(), "Resource", "icons", f"{name}.svg")
+
+
+def _resourceIcon(name: str) -> QtGui.QIcon:
+    return QtGui.QIcon(_iconPath(name))
 
 
 class _ThumbnailIconProvider(QtWidgets.QFileIconProvider):
@@ -153,19 +168,45 @@ class FileExplorer(QtWidgets.QWidget):
 
         style = cast(QtWidgets.QStyle, QtWidgets.QApplication.style())
         upIcon = style.standardIcon(QtWidgets.QStyle.SP_ArrowUp)
+        self._listViewIcon = style.standardIcon(QtWidgets.QStyle.SP_FileDialogListView)
+        self._iconViewIcon = style.standardIcon(QtWidgets.QStyle.SP_FileDialogContentsView)
+        vsCodeIcon = _resourceIcon("vscode")
+        cursorIcon = _resourceIcon("cursor")
         self._pathEdit = QtWidgets.QLineEdit(self)
         self._pathEdit.setReadOnly(True)
         self._pathEdit.setStyleSheet("")
         self._pathEdit.setText(self._current)
+        self._viewModeButton = QtWidgets.QToolButton(self)
+        self._viewModeButton.setCheckable(True)
+        self._viewModeButton.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
+        self._viewModeButton.setIcon(self._listViewIcon)
+        self._viewModeButton.setToolTip(ELOC("FILE_EXPLORER_LIST_VIEW"))
+        self._viewModeButton.toggled.connect(self._onViewModeToggled)
         self._upButton = QtWidgets.QToolButton(self)
         self._upButton.setIcon(upIcon)
         self._upButton.clicked.connect(self._onUp)
+        self._externalEditorButton = QtWidgets.QToolButton(self)
+        self._externalEditorButton.setPopupMode(QtWidgets.QToolButton.MenuButtonPopup)
+        self._externalEditorButton.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
+        self._externalEditorMenu = QtWidgets.QMenu(self._externalEditorButton)
+        self._openVSCodeAction = QtWidgets.QAction(vsCodeIcon, ELOC("EXTERNAL_EDITOR_VSCODE"), self)
+        self._openVSCodeAction.setToolTip(ELOC("OPEN_PROJECT_WITH_VSCODE"))
+        self._openVSCodeAction.triggered.connect(lambda _checked=False: self._openProjectInExternalEditor("vscode"))
+        self._openCursorAction = QtWidgets.QAction(cursorIcon, ELOC("EXTERNAL_EDITOR_CURSOR"), self)
+        self._openCursorAction.setToolTip(ELOC("OPEN_PROJECT_WITH_CURSOR"))
+        self._openCursorAction.triggered.connect(lambda _checked=False: self._openProjectInExternalEditor("cursor"))
+        self._externalEditorMenu.addAction(self._openVSCodeAction)
+        self._externalEditorMenu.addAction(self._openCursorAction)
+        self._externalEditorButton.setDefaultAction(self._openVSCodeAction)
+        self._externalEditorButton.setMenu(self._externalEditorMenu)
         topBar = QtWidgets.QWidget(self)
         topLayout = QtWidgets.QHBoxLayout(topBar)
         topLayout.setContentsMargins(0, 0, 0, 0)
         topLayout.setSpacing(4)
         topLayout.addWidget(self._pathEdit, 1)
+        topLayout.addWidget(self._viewModeButton, 0, alignment=QtCore.Qt.AlignRight)
         topLayout.addWidget(self._upButton, 0, alignment=QtCore.Qt.AlignRight)
+        topLayout.addWidget(self._externalEditorButton, 0, alignment=QtCore.Qt.AlignRight)
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -178,8 +219,12 @@ class FileExplorer(QtWidgets.QWidget):
         self._interactive = bool(enabled)
         fp = QtCore.Qt.StrongFocus if self._interactive else QtCore.Qt.NoFocus
         self._view.setFocusPolicy(fp)
+        self._viewModeButton.setEnabled(self._interactive)
         self._upButton.setEnabled(self._interactive)
+        self._externalEditorButton.setEnabled(self._interactive)
+        Panel.ApplyDisabledOpacity(self._viewModeButton)
         Panel.ApplyDisabledOpacity(self._upButton)
+        Panel.ApplyDisabledOpacity(self._externalEditorButton)
 
     def changeEvent(self, e: QtCore.QEvent) -> None:
         if e.type() == QtCore.QEvent.EnabledChange:
@@ -260,7 +305,31 @@ class FileExplorer(QtWidgets.QWidget):
                 ELOC("INVALID_DATA_FILE_MESSAGE"),
             )
             return False
-        if not isinstance(data, dict) or "type" not in data:
+        if not isinstance(data, dict):
+            QtWidgets.QMessageBox.warning(
+                self,
+                ELOC("INVALID_DATA_FILE"),
+                ELOC("INVALID_DATA_FILE_MESSAGE"),
+            )
+            return False
+        generalRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "General")
+        if self._isPathInside(path, generalRoot):
+            relPath = os.path.relpath(path, generalRoot)
+            key = os.path.splitext(relPath)[0].replace("\\", "/")
+            if key in GameData.generalData:
+                File.mainWindow._onGeneralDataEditor()
+                editor = File.mainWindow.generalDataEditor
+                if editor is None:
+                    return False
+                editor.selectDataType(key)
+            else:
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    ELOC("INVALID_DATA_FILE"),
+                    ELOC("INVALID_DATA_FILE_MESSAGE"),
+                )
+            return True
+        if "type" not in data:
             QtWidgets.QMessageBox.warning(
                 self,
                 ELOC("INVALID_DATA_FILE"),
@@ -270,22 +339,58 @@ class FileExplorer(QtWidgets.QWidget):
         dataType = data.get("type")
         baseName = os.path.splitext(os.path.basename(path))[0]
         if dataType == "map":
-            items = File.mainWindow.leftList.findItems(baseName, QtCore.Qt.MatchExactly)
-            if items:
-                item = items[0]
-                File.mainWindow.leftList.setCurrentItem(item)
-                File.mainWindow._onLeftItemClicked(item)
+            mapsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
+            relPath = os.path.relpath(path, mapsRoot)
+            key = os.path.splitext(relPath)[0].replace("\\", "/")
+            if key in GameData.mapData:
+                item = File.mainWindow._findItemByKey(key)
+                if item:
+                    File.mainWindow.leftList.setCurrentItem(item)
+                    File.mainWindow._onLeftItemClicked(item)
+                else:
+                    QtWidgets.QMessageBox.warning(
+                        self,
+                        ELOC("INVALID_DATA_FILE"),
+                        ELOC("INVALID_DATA_FILE_MESSAGE"),
+                    )
+            else:
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    ELOC("INVALID_DATA_FILE"),
+                    ELOC("INVALID_DATA_FILE_MESSAGE"),
+                )
         elif dataType == "tileset":
-            File.mainWindow._onDatabaseTilesetsData()
-            editor = File.mainWindow._tilesetEditor
-            if editor is None:
-                return False
-            items = editor.listWidget.findItems(baseName, QtCore.Qt.MatchExactly)
-            if items:
-                item = items[0]
-                editor.listWidget.setCurrentItem(item)
-                editor.activateWindow()
-                editor.raise_()
+            tilesetsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Tilesets")
+            relPath = os.path.relpath(path, tilesetsRoot)
+            key = os.path.splitext(relPath)[0].replace("\\", "/")
+            if key in GameData.tilesetData:
+                File.mainWindow._onDatabaseTilesetsData()
+                editor = File.mainWindow._tilesetEditor
+                if editor is None:
+                    return False
+                editor.selectTileset(key)
+            else:
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    ELOC("INVALID_DATA_FILE"),
+                    ELOC("INVALID_DATA_FILE_MESSAGE"),
+                )
+        elif dataType == "autoTile":
+            autoTilesRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "AutoTiles")
+            relPath = os.path.relpath(path, autoTilesRoot)
+            key = os.path.splitext(relPath)[0].replace("\\", "/")
+            if key in GameData.autoTileData:
+                File.mainWindow._onDatabaseTilesetsData()
+                editor = File.mainWindow._tilesetEditor
+                if editor is None:
+                    return False
+                editor.selectAutoTile(key)
+            else:
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    ELOC("INVALID_DATA_FILE"),
+                    ELOC("INVALID_DATA_FILE_MESSAGE"),
+                )
         elif dataType == "config":
             File.mainWindow._onDatabaseSystemConfig()
         elif dataType == "commonFunction":
@@ -590,6 +695,28 @@ class FileExplorer(QtWidgets.QWidget):
                 return True
         return False
 
+    def _onViewModeToggled(self, listMode: bool) -> None:
+        if listMode:
+            appStyle = cast(QtWidgets.QStyle, QtWidgets.QApplication.style())
+            listIconSize = appStyle.pixelMetric(QtWidgets.QStyle.PM_ListViewIconSize)
+            self._view.setViewMode(QtWidgets.QListView.ListMode)
+            self._view.setIconSize(QtCore.QSize(listIconSize, listIconSize))
+            self._view.setGridSize(QtCore.QSize())
+            self._view.setWordWrap(False)
+            self._view.setWrapping(False)
+            self._view.setFlow(QtWidgets.QListView.TopToBottom)
+            self._viewModeButton.setIcon(self._iconViewIcon)
+            self._viewModeButton.setToolTip(ELOC("FILE_EXPLORER_ICON_VIEW"))
+        else:
+            self._view.setViewMode(QtWidgets.QListView.IconMode)
+            self._view.setIconSize(QtCore.QSize(_THUMB_SIZE, _THUMB_SIZE))
+            self._view.setGridSize(QtCore.QSize(_THUMB_SIZE * 2, _THUMB_SIZE + 30))
+            self._view.setWordWrap(True)
+            self._view.setWrapping(True)
+            self._view.setFlow(QtWidgets.QListView.LeftToRight)
+            self._viewModeButton.setIcon(self._listViewIcon)
+            self._viewModeButton.setToolTip(ELOC("FILE_EXPLORER_LIST_VIEW"))
+
     def _onUp(self) -> None:
         if os.path.normcase(os.path.abspath(self._current)) == os.path.normcase(os.path.abspath(self._root)):
             return
@@ -606,6 +733,80 @@ class FileExplorer(QtWidgets.QWidget):
     def _isPreviewable(self, p: str) -> bool:
         ext = self._suffix(p)
         return ext in ("png", "jpg", "jpeg", "bmp", "gif", "webp", "mp3", "wav", "ogg", "flac", "aac", "m4a")
+
+    def _externalEditorLabel(self, editorId: str) -> str:
+        if editorId == "cursor":
+            return ELOC("EXTERNAL_EDITOR_CURSOR")
+        return ELOC("EXTERNAL_EDITOR_VSCODE")
+
+    def _externalEditorWindowsCandidates(self, editorId: str) -> list[str]:
+        localAppData = os.environ.get("LOCALAPPDATA", "")
+        programFiles = os.environ.get("ProgramFiles", "")
+        programFilesX86 = os.environ.get("ProgramFiles(x86)", "")
+        if editorId == "cursor":
+            candidates = [
+                (localAppData, "Programs", "Cursor", "Cursor.exe"),
+                (programFiles, "Cursor", "Cursor.exe"),
+                (programFilesX86, "Cursor", "Cursor.exe"),
+            ]
+        else:
+            candidates = [
+                (localAppData, "Programs", "Microsoft VS Code", "Code.exe"),
+                (programFiles, "Microsoft VS Code", "Code.exe"),
+                (programFilesX86, "Microsoft VS Code", "Code.exe"),
+            ]
+        return [os.path.join(*parts) for parts in candidates if parts[0]]
+
+    def _externalEditorCommandLine(self, editorId: str, projectPath: str) -> Optional[list[str]]:
+        if sys.platform == "win32":
+            for candidate in self._externalEditorWindowsCandidates(editorId):
+                if candidate and os.path.isfile(candidate):
+                    return [candidate, projectPath]
+
+        for command in _EXTERNAL_EDITOR_COMMANDS.get(editorId, ()):
+            executable = shutil.which(command)
+            if not executable:
+                continue
+            if sys.platform == "win32":
+                ext = os.path.splitext(executable)[1].lower()
+                if ext in (".cmd", ".bat") or ext != ".exe":
+                    return [os.environ.get("COMSPEC", "cmd.exe"), "/c", executable, projectPath]
+            return [executable, projectPath]
+        return None
+
+    def _openProjectInExternalEditor(self, editorId: str) -> None:
+        projectPath = os.path.abspath(self._root)
+        if not projectPath or not os.path.isdir(projectPath):
+            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("PACK_NO_PROJECT"))
+            return
+        appName = self._externalEditorLabel(editorId)
+        commandLine = self._externalEditorCommandLine(editorId, projectPath)
+        if not commandLine:
+            QtWidgets.QMessageBox.warning(
+                self,
+                ELOC("ERROR"),
+                ELOC("EXTERNAL_EDITOR_NOT_FOUND").format(app=appName),
+            )
+            return
+        try:
+            popenArgs = {
+                "cwd": projectPath,
+                "stdin": subprocess.DEVNULL,
+                "stdout": subprocess.DEVNULL,
+                "stderr": subprocess.DEVNULL,
+            }
+            if sys.platform == "win32":
+                popenArgs["creationflags"] = subprocess.CREATE_NO_WINDOW
+            subprocess.Popen(
+                commandLine,
+                **popenArgs,
+            )
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(
+                self,
+                ELOC("ERROR"),
+                ELOC("OPEN_EXTERNAL_EDITOR_FAILED").format(app=appName) + "\n" + str(e),
+            )
 
     def _openSystemFile(self, p: str) -> None:
         if not p:

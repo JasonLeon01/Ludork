@@ -227,6 +227,7 @@ class MainWindow(
         self._actNewBlueprint = QtWidgets.QAction(ELOC("NEW_BLUEPRINT"), self)
         self._actNewAnimation = QtWidgets.QAction(ELOC("NEW_ANIMATION"), self)
         self._actDatabaseSystemConfig = QtWidgets.QAction(ELOC("SYSTEM_CONFIG"), self)
+        self._actAnimationOverview = QtWidgets.QAction(ELOC("ANIMATION_OVERVIEW"), self)
         self._actDatabaseTilesetsData = QtWidgets.QAction(ELOC("TILESETS_DATA"), self)
         self._actDatabaseCommonFunctions = QtWidgets.QAction(ELOC("COMMON_FUNCTIONS"), self)
         self._actDatabaseGeneralData = QtWidgets.QAction(ELOC("GENERAL_DATA"), self)

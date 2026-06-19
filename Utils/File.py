@@ -212,13 +212,28 @@ def OpenProject(parent: QtWidgets.QWidget) -> None:
     _openProjectPath(proj_dir, parent)
 
 
+def _resolveLocaleCellValue(valueCell: Any, rawCell: Any) -> Optional[str]:
+    val = valueCell.value
+    if val is not None:
+        return str(val)
+    if getattr(rawCell, "data_type", None) != "f" or rawCell.value is None:
+        return None
+    text = str(rawCell.value)
+    if text.startswith("="):
+        text = text[1:]
+    text = text.strip()
+    return text or None
+
+
 def ExportLocale(parent: Optional[QtWidgets.QWidget], xlsxPath: str, localeDir: str) -> None:
-    wb = openpyxl.load_workbook(xlsxPath, data_only=True)
+    wbValues = openpyxl.load_workbook(xlsxPath, data_only=True)
+    wbCells = openpyxl.load_workbook(xlsxPath, data_only=False)
     langs: List[str] = []
     langMaps: Dict[str, Dict[str, str]] = {}
 
-    for ws in wb.worksheets:
-        headerRow = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), None)
+    for sheetIndex, wsValues in enumerate(wbValues.worksheets):
+        wsCells = wbCells.worksheets[sheetIndex]
+        headerRow = next(wsValues.iter_rows(min_row=1, max_row=1, values_only=True), None)
         if not headerRow:
             continue
         headers = ["" if cell is None else str(cell).strip() for cell in headerRow]
@@ -232,21 +247,24 @@ def ExportLocale(parent: Optional[QtWidgets.QWidget], xlsxPath: str, localeDir: 
                 langMaps[lang] = {}
                 langs.append(lang)
 
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            if not row:
+        for rowIndex, rowValues in enumerate(wsValues.iter_rows(min_row=2, values_only=True), start=2):
+            if not rowValues:
                 continue
-            key = row[0]
+            key = rowValues[0]
             if key is None:
                 continue
             keyStr = str(key).strip()
             if not keyStr:
                 continue
+            rawRow = next(wsCells.iter_rows(min_row=rowIndex, max_row=rowIndex), None)
             for i, lang in enumerate(sheetLangs):
                 idx = i + 1
-                val = row[idx] if idx < len(row) else None
+                valueCell = wsValues.cell(row=rowIndex, column=idx + 1)
+                rawCell = rawRow[idx] if rawRow and idx < len(rawRow) else valueCell
+                val = _resolveLocaleCellValue(valueCell, rawCell)
                 if val is None:
                     continue
-                langMaps[lang][keyStr] = str(val)
+                langMaps[lang][keyStr] = val
     for lang, mapping in langMaps.items():
         outPath = os.path.join(localeDir, lang)
         SaveData(outPath, mapping)

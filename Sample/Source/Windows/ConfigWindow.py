@@ -14,7 +14,7 @@ _DROPBOX_WIDTH: int = 200
 _CHECKBOX_SIZE: int = 32
 _SLIDER_WIDTH: int = 160
 _ROW_HEIGHT: int = 32
-_LANGUAGE_ITEMS: List[str] = ["en_GB", "zh_CN"]
+_LANGUAGE_VALUES: List[str] = ["en_GB", "zh_CN"]
 _SCALE_ITEMS: List[str] = ["1", "1.25", "1.5", "2.0"]
 _FRAMERATE_ITEMS: List[str] = ["30", "60", "90", "120"]
 
@@ -53,11 +53,11 @@ class ConfigWindow(WindowSelectable):
         )
         self._languageRow = ConfigSettingRow(
             LOC("language"),
-            _LANGUAGE_ITEMS,
+            [LOC(value) for value in _LANGUAGE_VALUES],
             int(contentSize.x),
             _DROPBOX_WIDTH,
             windowSkin,
-            self._findSelectedIndex(_LANGUAGE_ITEMS, System.getLanguage()),
+            self._findSelectedIndex(_LANGUAGE_VALUES, System.getLanguage()),
         )
         self._scaleRow = ConfigSettingRow(
             LOC("scale"),
@@ -314,7 +314,7 @@ class ConfigWindow(WindowSelectable):
         System.setVerticalSync(checked)
 
     def _onLanguageSelectedIndexChanged(self, index: int) -> None:
-        System.saveLanguage(_LANGUAGE_ITEMS[index])
+        System.saveLanguage(_LANGUAGE_VALUES[index])
         self._showRestartMindTip()
 
     def _onScaleSelectedIndexChanged(self, index: int) -> None:

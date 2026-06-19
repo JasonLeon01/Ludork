@@ -6,6 +6,7 @@ import openpyxl
 from typing import Any, Dict, List, Optional, Tuple, cast
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Utils import File
+from .SearchLineEdit import addSearchIcon
 
 
 class LocaleEditor(QtWidgets.QDialog):
@@ -24,6 +25,9 @@ class LocaleEditor(QtWidgets.QDialog):
         super().__init__(parent)
         self._xlsxPath = xlsxPath
         self._modifiedAt: Optional[float] = None
+        self._lastSearchQuery = ""
+        self._searchMatchIndex = -1
+        self._searchMatches: List[Tuple[int, int, int]] = []
         self._wb = openpyxl.load_workbook(xlsxPath)
         self._setupUI()
         self._loadSheets()
@@ -35,6 +39,17 @@ class LocaleEditor(QtWidgets.QDialog):
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(6)
+
+        searchLayout = QtWidgets.QHBoxLayout()
+        self._searchEdit = QtWidgets.QLineEdit()
+        addSearchIcon(self._searchEdit)
+        self._searchEdit.setPlaceholderText(ELOC("SEARCH"))
+        self._searchEdit.setClearButtonEnabled(True)
+        self._searchEdit.returnPressed.connect(self._onSearch)
+        self._btnSearch = QtWidgets.QPushButton(ELOC("SEARCH"))
+        self._btnSearch.clicked.connect(self._onSearch)
+        searchLayout.addWidget(self._searchEdit, 1)
+        searchLayout.addWidget(self._btnSearch)
 
         self._tabWidget = QtWidgets.QTabWidget()
         tabBar = cast(QtWidgets.QTabBar, self._tabWidget.tabBar())
@@ -51,6 +66,7 @@ class LocaleEditor(QtWidgets.QDialog):
         self._btnSave.clicked.connect(self._onSave)
         self._btnClose.clicked.connect(self.close)
 
+        layout.addLayout(searchLayout)
         layout.addWidget(self._tabWidget)
         layout.addLayout(btnLayout)
 
@@ -117,6 +133,47 @@ class LocaleEditor(QtWidgets.QDialog):
         if isinstance(widget, QtWidgets.QTableWidget):
             return widget
         return None
+
+    def _collectSearchMatches(self, query: str) -> List[Tuple[int, int, int]]:
+        normalized = query.casefold()
+        matches: List[Tuple[int, int, int]] = []
+        for tabIdx in range(self._tabWidget.count()):
+            table = self._tabWidget.widget(tabIdx)
+            if not isinstance(table, QtWidgets.QTableWidget):
+                continue
+            for row in range(table.rowCount()):
+                for col in range(table.columnCount()):
+                    if normalized in self._readCell(table, row, col).casefold():
+                        matches.append((tabIdx, row, col))
+        return matches
+
+    def _jumpToSearchMatch(self, matchIndex: int) -> None:
+        if matchIndex < 0 or matchIndex >= len(self._searchMatches):
+            return
+        tabIdx, row, col = self._searchMatches[matchIndex]
+        self._tabWidget.setCurrentIndex(tabIdx)
+        table = self._tabWidget.widget(tabIdx)
+        if not isinstance(table, QtWidgets.QTableWidget):
+            return
+        table.clearSelection()
+        table.setCurrentCell(row, col)
+        item = table.item(row, col)
+        if item is not None:
+            table.scrollToItem(item, QtWidgets.QAbstractItemView.PositionAtCenter)
+        table.setFocus()
+
+    def _onSearch(self) -> None:
+        query = self._searchEdit.text().strip()
+        if not query:
+            return
+        if query != self._lastSearchQuery:
+            self._lastSearchQuery = query
+            self._searchMatches = self._collectSearchMatches(query)
+            self._searchMatchIndex = -1
+        if not self._searchMatches:
+            return
+        self._searchMatchIndex = (self._searchMatchIndex + 1) % len(self._searchMatches)
+        self._jumpToSearchMatch(self._searchMatchIndex)
 
     def _getSelectionRect(self, table: QtWidgets.QTableWidget) -> Optional[Tuple[int, int, int, int]]:
         indexes = table.selectedIndexes()

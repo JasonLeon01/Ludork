@@ -15,7 +15,8 @@ from .LightPanel import LightPanel
 from .BlueprintEditor import BluePrintEditor
 from .ClassSelector import ClassSelector
 from .ActorInfo import ActorInfoPanel
-from .AnimationWindow import AnimationWindow
+from .AnimationWindow import AnimationWindow, AnimationEditor
+from .AnimationOverview import AnimationOverview
 from .PackDialog import (
     LogDialog,
     PackPlatform,
@@ -52,6 +53,8 @@ __all__ = [
     "ClassSelector",
     "ActorInfoPanel",
     "AnimationWindow",
+    "AnimationEditor",
+    "AnimationOverview",
     "LogDialog",
     "PackPlatform",
     "PackWorker",

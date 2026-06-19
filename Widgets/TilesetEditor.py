@@ -658,3 +658,27 @@ class TilesetEditor(QtWidgets.QMainWindow):
         self.MODIFIED.emit()
         if diffs:
             self.toast.showMessage("Redo:\n" + "\n".join(diffs))
+
+    def selectTileset(self, key: str) -> bool:
+        if key not in GameData.tilesetData:
+            return False
+        self._tabs.setCurrentWidget(self._tilesetTab)
+        items = self._tilesetTab.listWidget.findItems(key, QtCore.Qt.MatchExactly)
+        if not items:
+            return False
+        self._tilesetTab.listWidget.setCurrentItem(items[0])
+        self.activateWindow()
+        self.raise_()
+        return True
+
+    def selectAutoTile(self, key: str) -> bool:
+        if key not in GameData.autoTileData:
+            return False
+        self._tabs.setCurrentWidget(self._autoTileTab)
+        items = self._autoTileTab.listWidget.findItems(key, QtCore.Qt.MatchExactly)
+        if not items:
+            return False
+        self._autoTileTab.listWidget.setCurrentItem(items[0])
+        self.activateWindow()
+        self.raise_()
+        return True
