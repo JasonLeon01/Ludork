@@ -39,17 +39,6 @@ def _toVector2i(value: Any) -> Optional[Vector2i]:
     return None
 
 
-def _normaliseRoute(route: Optional[List[Any]]) -> Optional[List[Vector2i]]:
-    if route is None:
-        return None
-    result: List[Vector2i] = []
-    for item in route:
-        step = _toVector2i(item)
-        if step is not None:
-            result.append(step)
-    return result
-
-
 def _isUnitStep(value: Vector2i) -> bool:
     return abs(value.x) <= 1 and abs(value.y) <= 1 and not (value.x == 0 and value.y == 0)
 
@@ -114,7 +103,7 @@ def _isMovementFinished(actor: Optional[Actor]) -> bool:
 
 @Meta(DisplayName='LOC("SET_MOVE_ROUTE")', DisplayDesc='LOC("SET_MOVE_ROUTE_DESC")', MoveRouteVars=["route"])
 @Latent(Started=(_LATENT_STARTED,), Finished=(_LATENT_FINISHED,))
-def SetMoveRoute(actor: Actor, route: Optional[List[Any]] = None) -> Callable[[], List[int]]:
+def SetMoveRoute(actor: Actor, route: List[Vector2i] = []) -> Callable[[], List[int]]:
     r"""\brief Set an actor route and wait until movement finishes.
 
     - \param actor The actor to move.
@@ -122,11 +111,15 @@ def SetMoveRoute(actor: Actor, route: Optional[List[Any]] = None) -> Callable[[]
     - \return A condition callable that emits Started immediately and Finished after movement ends.
     """
     if actor is not None:
-        actor.setRoute(_normaliseRoute(route))
+        actor.setRoute(route)
     return _MovementCondition(actor)
 
 
-@Meta(DisplayName='LOC("SET_AUTO_PATH_TO_DESTINATION")', DisplayDesc='LOC("SET_AUTO_PATH_TO_DESTINATION_DESC")', Vector2iVars=["destination"])
+@Meta(
+    DisplayName='LOC("SET_AUTO_PATH_TO_DESTINATION")',
+    DisplayDesc='LOC("SET_AUTO_PATH_TO_DESTINATION_DESC")',
+    Vector2iVars=["destination"],
+)
 @Latent(Started=(_LATENT_STARTED,), Finished=(_LATENT_FINISHED,))
 def SetAutoPathToDestination(
     actor: Actor, destination: Union[Vector2i, Pair[int], List[int]] = (0, 0)

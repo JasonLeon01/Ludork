@@ -32,14 +32,20 @@ class AudioManager:
     _SoundBufferCount: Dict[str, int] = {}
     _SoundRec: List[Sound] = []
     _SoundParentMap: Dict[int, Transformable] = {}
+    _Voice: Optional[Sound] = None
+    _VoiceFilePath: str = ""
+    _VoiceRefActor: Optional[Transformable] = None
     _DefaultSoundEffect: Optional[Filters.EffectProcessor] = None
     __SoundBegin: bool = False
+    __VoiceBegin: bool = False
 
     _MusicRef: Dict[str, Tuple[str, Music]] = {}
     _SoundBaseVolume: Dict[int, float] = {}
+    _VoiceBaseVolume: float = 100.0
     _MusicBaseVolume: Dict[int, float] = {}
     _AsyncLoop: Optional[asyncio.AbstractEventLoop] = None
     _AsyncThread: Optional[threading.Thread] = None
+    _SPATIAL_MIN_DISTANCE: float = 64.0
 
     @classmethod
     def _ensureAsyncioLoop(cls) -> Optional[asyncio.AbstractEventLoop]:
@@ -115,6 +121,8 @@ class AudioManager:
         cls._SoundRec.append(sound)
         if not filter is None:
             cls.setSoundFilter(sound, filter)
+        if parent is None and (filter is None or filter.spatial is not True):
+            sound.setSpatializationEnabled(False)
         cls._SoundBaseVolume[id(sound)] = sound.getVolume()
         sv = System.getSoundVolume()
         if sv != 100:
@@ -136,6 +144,68 @@ class AudioManager:
         """
         cls._SoundParentMap[id(sound)] = parent
         sound.setPosition(parent.getPosition())
+
+    @classmethod
+    def playVoice(
+        cls,
+        filePath: str,
+        filter: Optional[Filters.SoundFilter] = None,
+        refActor: Optional[Transformable] = None,
+        minDistance: float = _SPATIAL_MIN_DISTANCE,
+    ) -> Optional[Sound]:
+        r"""\brief Play a voice clip from file.
+        - \param filePath: Path to the voice file.
+        - \param filter: Optional sound filter to apply.
+        - \param refActor: Optional reference actor for spatialization.
+        - \param minDistance: Minimum attenuation distance when refActor is set.
+        - \return: Playing Sound object, or None if voice is disabled.
+        """
+        if not System.getVoiceOn():
+            cls.stopVoice()
+            return None
+
+        cls.stopVoice()
+        buffer = cls.loadSound(filePath)
+        if filePath not in cls._SoundBufferRef:
+            cls._SoundBufferRef[filePath] = buffer
+        if filePath not in cls._SoundBufferCount:
+            cls._SoundBufferCount[filePath] = 0
+        cls._SoundBufferCount[filePath] += 1
+        voice = Sound(buffer)
+        if not filter is None:
+            cls.setSoundFilter(voice, filter)
+        cls._Voice = voice
+        cls._VoiceFilePath = filePath
+        cls._VoiceBaseVolume = voice.getVolume()
+        if not refActor is None:
+            cls.setVoiceRefActor(voice, refActor, minDistance)
+        if refActor is None and (filter is None or filter.spatial is not True):
+            voice.setSpatializationEnabled(False)
+        vv = System.getVoiceVolume()
+        if vv != 100:
+            voice.setVolume(cls._VoiceBaseVolume * vv / 100.0)
+
+        voice.play()
+        cls._monitorPlayEnd(voice, filePath, cls._voiceMonitor, cls._cleanVoice)
+        if not cls.__VoiceBegin:
+            cls.__VoiceBegin = True
+            cls._submit(AudioManager.updateAllVoicePositions())
+
+        return voice
+
+    @classmethod
+    def setVoiceRefActor(cls, voice: Sound, refActor: Transformable, minDistance: float = _SPATIAL_MIN_DISTANCE) -> None:
+        r"""\brief Set the reference actor for a voice clip.
+        - \param voice: The voice sound to set reference actor for.
+        - \param refActor: The actor whose world position drives the voice.
+        - \param minDistance: Minimum attenuation distance.
+        """
+        if voice is cls._Voice:
+            cls._VoiceRefActor = refActor
+        voice.setSpatializationEnabled(True)
+        voice.setRelativeToListener(False)
+        voice.setMinDistance(float(minDistance))
+        voice.setPosition(cls._getRefActorPosition(refActor))
 
     @classmethod
     def playMusic(cls, musicType: str, filePath: str, filter: Optional[Filters.MusicFilter] = None) -> Optional[Music]:
@@ -169,6 +239,16 @@ class AudioManager:
             sound.stop()
 
     @classmethod
+    def stopVoice(cls) -> None:
+        r"""\brief Stop the currently playing voice clip."""
+        voice = cls._Voice
+        if voice is None:
+            return
+        if voice.getStatus() != Sound.Status.Stopped:
+            voice.stop()
+        cls._cleanVoice(voice, cls._VoiceFilePath)
+
+    @classmethod
     def stopMusic(cls, musicType: str) -> None:
         r"""\brief Stop music of a specific type.
         - \param musicType: Type identifier for the music to stop.
@@ -191,6 +271,17 @@ class AudioManager:
                 sound.setVolume(base * System.getSoundVolume() / 100.0)
 
     @classmethod
+    def applyVoiceVolumes(cls) -> None:
+        r"""\brief Apply current global voice settings to the active voice clip."""
+        voice = cls._Voice
+        if voice is None or voice.getStatus() == Sound.Status.Stopped:
+            return
+        if not System.getVoiceOn():
+            cls.stopVoice()
+        else:
+            voice.setVolume(cls._VoiceBaseVolume * System.getVoiceVolume() / 100.0)
+
+    @classmethod
     def applyMusicVolumes(cls) -> None:
         r"""\brief Apply current global music settings to active music."""
         for _, music in list(cls._MusicRef.values()):
@@ -210,7 +301,15 @@ class AudioManager:
         from pympler import asizeof  # type: ignore
 
         return asizeof.asizeof(
-            [cls._SoundBufferRef, cls._SoundRec, cls._SoundParentMap, cls._DefaultSoundEffect, cls._MusicRef]
+            [
+                cls._SoundBufferRef,
+                cls._SoundRec,
+                cls._SoundParentMap,
+                cls._Voice,
+                cls._VoiceRefActor,
+                cls._DefaultSoundEffect,
+                cls._MusicRef,
+            ]
         )
 
     @classmethod
@@ -221,12 +320,32 @@ class AudioManager:
         GameRunning = Engine.GameRunning
         while GameRunning:
             GameRunning = Engine.GameRunning
-            sound_dict = {id(s): s for s in cls._SoundRec if s.getStatus() != Sound.Status.Stopped}
-            for sound_id, parent in cls._SoundParentMap.items():
+            sound_dict = {id(s): s for s in list(cls._SoundRec) if s.getStatus() != Sound.Status.Stopped}
+            for sound_id, parent in list(cls._SoundParentMap.items()):
                 sound = sound_dict.get(sound_id)
                 if sound:
                     sound.setPosition(parent.getPosition())
             await asyncio.sleep(0.016)
+
+    @classmethod
+    async def updateAllVoicePositions(cls) -> None:
+        r"""\brief Update the position of the active voice clip."""
+        import Engine
+
+        GameRunning = Engine.GameRunning
+        while GameRunning:
+            GameRunning = Engine.GameRunning
+            voice = cls._Voice
+            refActor = cls._VoiceRefActor
+            if not voice is None and not refActor is None and voice.getStatus() != Sound.Status.Stopped:
+                voice.setPosition(cls._getRefActorPosition(refActor))
+            await asyncio.sleep(0.016)
+
+    @staticmethod
+    def _getRefActorPosition(refActor: Transformable) -> Vector3f:
+        position = refActor.getPosition()
+        z = getattr(position, "z", 0.0)
+        return Vector3f(float(position.x), float(position.y), float(z))
 
     @classmethod
     def _monitorPlayEnd(
@@ -255,6 +374,12 @@ class AudioManager:
                     raise Exception(f"Invalid offset type: {type(offset)}")
             sound.setPlayingOffset(offset)
         cls._setAudioFilter(sound, filter)
+
+    @classmethod
+    def setVoiceFilter(cls, voice: Sound, filter: Filters.SoundFilter) -> None:
+        if voice is not cls._Voice:
+            return
+        cls.setSoundFilter(voice, filter)
 
     @classmethod
     def setMusicFilter(cls, music: Music, filter: Filters.MusicFilter) -> None:
@@ -302,8 +427,9 @@ class AudioManager:
         if not filter.pan is None:
             sound.setPan(filter.pan)
         if not filter.volume is None:
-            sound.setVolume(filter.volume)
-        sound.setSpatializationEnabled(filter.spatial)
+            cls._setFilteredVolume(sound, filter.volume)
+        if not filter.spatial is None:
+            sound.setSpatializationEnabled(filter.spatial)
         if not filter.position is None:
             position = filter.position
             assert isinstance(position, (Vector3f, tuple)), f"Invalid position type: {type(position)}"
@@ -337,9 +463,12 @@ class AudioManager:
             sound.setDopplerFactor(filter.dopplerFactor)
         if not filter.directionalAttenuationFactor is None:
             sound.setDirectionalAttenuationFactor(filter.directionalAttenuationFactor)
-        sound.setRelativeToListener(filter.relativeToListener)
+        if not filter.relativeToListener is None:
+            sound.setRelativeToListener(filter.relativeToListener)
         if not filter.minDistance is None:
             sound.setMinDistance(filter.minDistance)
+        elif filter.spatial is True:
+            sound.setMinDistance(cls._SPATIAL_MIN_DISTANCE)
         if not filter.maxDistance is None:
             sound.setMaxDistance(filter.maxDistance)
         if not filter.minGain is None:
@@ -348,6 +477,33 @@ class AudioManager:
             sound.setMaxGain(filter.maxGain)
         if not filter.attenuation is None:
             sound.setAttenuation(filter.attenuation)
+
+    @classmethod
+    def _setFilteredVolume(cls, sound: SoundSource, volume: float) -> None:
+        baseVolume = float(volume)
+        soundID = id(sound)
+        if soundID in cls._SoundBaseVolume:
+            cls._SoundBaseVolume[soundID] = baseVolume
+            if not System.getSoundOn():
+                sound.stop()
+            else:
+                sound.setVolume(baseVolume * System.getSoundVolume() / 100.0)
+            return
+        if sound is cls._Voice:
+            cls._VoiceBaseVolume = baseVolume
+            if not System.getVoiceOn():
+                sound.stop()
+            else:
+                sound.setVolume(baseVolume * System.getVoiceVolume() / 100.0)
+            return
+        if soundID in cls._MusicBaseVolume:
+            cls._MusicBaseVolume[soundID] = baseVolume
+            if not System.getMusicOn():
+                sound.setVolume(0.0)
+            else:
+                sound.setVolume(baseVolume * System.getMusicVolume() / 100.0)
+            return
+        sound.setVolume(baseVolume)
 
     @classmethod
     async def _soundMonitor(cls, sound: Sound) -> None:
@@ -373,6 +529,40 @@ class AudioManager:
         cls._SoundBaseVolume.pop(id(sound), None)
         if sound in cls._SoundRec:
             cls._SoundRec.remove(sound)
+        if filePath in cls._SoundBufferRef:
+            cls._SoundBufferCount[filePath] -= 1
+            if cls._SoundBufferCount[filePath] == 0:
+                cls._SoundBufferRef.pop(filePath, None)
+                cls._SoundBufferCount.pop(filePath, None)
+
+    @classmethod
+    async def _voiceMonitor(cls, voice: Sound) -> None:
+        import Engine
+
+        base = cls._VoiceBaseVolume if voice is cls._Voice else voice.getVolume()
+        last = -1
+        GameRunning = Engine.GameRunning
+        while GameRunning and voice.getStatus() != Sound.Status.Stopped:
+            GameRunning = Engine.GameRunning
+            if voice is not cls._Voice:
+                break
+            if not System.getVoiceOn():
+                voice.stop()
+                break
+            vv = System.getVoiceVolume()
+            if vv != last:
+                voice.setVolume(base * vv / 100.0)
+                last = vv
+            await asyncio.sleep(1)
+
+    @classmethod
+    def _cleanVoice(cls, voice: Sound, filePath: str) -> None:
+        if voice is not cls._Voice:
+            return
+        cls._Voice = None
+        cls._VoiceFilePath = ""
+        cls._VoiceRefActor = None
+        cls._VoiceBaseVolume = 100.0
         if filePath in cls._SoundBufferRef:
             cls._SoundBufferCount[filePath] -= 1
             if cls._SoundBufferCount[filePath] == 0:

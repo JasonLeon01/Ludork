@@ -164,7 +164,7 @@ class Enemy(Actor, EnemyInfo, Battler):
                 animData = Data.getAnimation(player.infoComp.ANIMATION_KEY)
                 if animData is None:
                     raise ValueError(f"Animation '{player.infoComp.ANIMATION_KEY}' not found")
-                anim = Animation(animData)
+                anim = Animation(animData, isSpatial=True)
                 anim.setPosition(self.getPosition())
                 map.addAnim(anim)
                 animLen = max(animLen, anim.getVisualDuration())
@@ -172,7 +172,7 @@ class Enemy(Actor, EnemyInfo, Battler):
                 animData = Data.getAnimation(self.infoComp.ANIMATION_KEY)
                 if animData is None:
                     raise ValueError(f"Animation '{self.infoComp.ANIMATION_KEY}' not found")
-                anim = Animation(animData)
+                anim = Animation(animData, isSpatial=True)
                 anim.setPosition(player.getPosition())
                 map.addAnim(anim)
                 animLen = max(animLen, anim.getVisualDuration())

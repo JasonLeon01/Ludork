@@ -2,7 +2,8 @@
 
 from typing import Any, Callable, List, Optional, Tuple, Union
 from Engine import Pair, Vector2i, Vector2u
-from Global import System
+from Engine.Gameplay.Actors import Actor
+from Global import Manager, System
 
 
 def _evalTerrainTileID(tileID: Any) -> Union[int, str, None]:
@@ -28,6 +29,14 @@ def _posToVector2u(position: Any) -> Optional[Vector2u]:
         except (TypeError, ValueError):
             return None
     return None
+
+
+def _getSceneMap():
+    from Source.Scenes import Map as SceneMap
+
+    scene = System.getScene()
+    assert isinstance(scene, SceneMap)
+    return scene
 
 
 @Meta(
@@ -59,6 +68,55 @@ def GameOver() -> None:
     from Source.Scenes import GameOver as GameOverScene
 
     System.setScene(GameOverScene())
+
+
+@Meta(DisplayName='LOC("SHOW_MESSAGE")', DisplayDesc='LOC("SHOW_MESSAGE_DESC")')
+@Latent(FinishedDialogue=(True,))
+def ShowMessage(
+    name: str,
+    message: str,
+    refActorTag: str = "",
+) -> Callable[[], bool]:
+    r"""\brief Show a dialogue message on the current map scene."""
+    scene = _getSceneMap()
+    return scene.showMessage(refActorTag, name, message)
+
+
+@Meta(
+    DisplayName='LOC("SHOW_VOICE_MESSAGE")',
+    DisplayDesc='LOC("SHOW_VOICE_MESSAGE_DESC")',
+    PathVars=[("voiceFileName", "Sounds")],
+    Rely={"minDistance": {"source": "refActor", "op": "!=", "value": None}},
+)
+@Latent(FinishedDialogue=(True,))
+def ShowVoiceMessage(
+    name: str,
+    message: str,
+    voiceFileName: str,
+    refActorTag: str = "",
+    refActor: Optional[Actor] = None,
+    minDistance: float = 64.0,
+) -> Callable[[], bool]:
+    r"""\brief Play a voice clip and show a dialogue message on the current map scene."""
+    scene = _getSceneMap()
+    if refActor is None:
+        Manager.playVoice(voiceFileName)
+    else:
+        Manager.playVoice(voiceFileName, refActor=refActor, minDistance=float(minDistance))
+    return scene.showMessage(refActorTag, name, message)
+
+
+@Meta(DisplayName='LOC("SHOW_SELECTION")', DisplayDesc='LOC("SHOW_SELECTION_DESC")')
+@Latent(Selected0=(0,), Selected1=(1,), Selected2=(2,), Selected3=(3,), Cancelled=(-1,))
+def ShowSelection(
+    name: str,
+    options: List[str],
+    refActorTag: str = "",
+    allowCancel: bool = True,
+) -> Callable[[], Optional[int]]:
+    r"""\brief Show a selection window on the current map scene."""
+    scene = _getSceneMap()
+    return scene.showSelection(refActorTag, name, options, bool(allowCancel))
 
 
 @Meta(DisplayName='LOC("LOCK_CAMERA")', DisplayDesc='LOC("LOCK_CAMERA_DESC")')

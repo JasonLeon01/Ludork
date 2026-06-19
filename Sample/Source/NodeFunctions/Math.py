@@ -157,18 +157,14 @@ def ToFloat(value: Union[int, float] = 0) -> float:
 
 
 @Meta(DisplayName='LOC("MAX")', DisplayDesc='LOC("MAX_DESC")')
-@ReturnType(value=List[Any])
-def Max(values: List[Any] = None) -> Any:
-    if values is None:
-        values = [0]
+@ReturnType(value=Any)
+def Max(values: List[Any] = []) -> Any:
     return max(values)
 
 
 @Meta(DisplayName='LOC("MIN")', DisplayDesc='LOC("MIN_DESC")')
-@ReturnType(value=List[Any])
-def Min(values: List[Any] = None) -> Any:
-    if values is None:
-        values = [0]
+@ReturnType(value=Any)
+def Min(values: List[Any] = []) -> Any:
     return min(values)
 
 
@@ -280,7 +276,11 @@ def AsRadians(angle: Angle) -> float:
     return angle.asRadians()
 
 
-@Meta(DisplayName='LOC("VECTOR2_COMPONENT_WISE_DIV")', DisplayDesc='LOC("VECTOR2_COMPONENT_WISE_DIV_DESC")', Vector2Vars=["v", "div"])
+@Meta(
+    DisplayName='LOC("VECTOR2_COMPONENT_WISE_DIV")',
+    DisplayDesc='LOC("VECTOR2_COMPONENT_WISE_DIV_DESC")',
+    Vector2Vars=["v", "div"],
+)
 @ReturnType(value=Union[Vector2f, Vector2i, Vector2u])
 def Vector2ComponentWiseDiv(
     v: Union[Vector2f, Vector2i, Vector2u, Vector3f, Vector3i],
@@ -289,7 +289,11 @@ def Vector2ComponentWiseDiv(
     return v.componentWiseDiv(div)
 
 
-@Meta(DisplayName='LOC("VECTOR2_COMPONENT_WISE_MUL")', DisplayDesc='LOC("VECTOR2_COMPONENT_WISE_MUL_DESC")', Vector2Vars=["v", "mul"])
+@Meta(
+    DisplayName='LOC("VECTOR2_COMPONENT_WISE_MUL")',
+    DisplayDesc='LOC("VECTOR2_COMPONENT_WISE_MUL_DESC")',
+    Vector2Vars=["v", "mul"],
+)
 @ReturnType(value=Union[Vector2f, Vector2i, Vector2u, Vector3f, Vector3i])
 def Vector2ComponentWiseMul(
     v: Union[Vector2f, Vector2i, Vector2u, Vector3f, Vector3i],
@@ -304,7 +308,11 @@ def Vector2Perpendicular(v: Union[Vector2f, Vector2i, Vector2u]) -> Union[Vector
     return v.perpendicular()
 
 
-@Meta(DisplayName='LOC("VECTOR2_PROJECTED_ONTO")', DisplayDesc='LOC("VECTOR2_PROJECTED_ONTO_DESC")', Vector2fVars=["v", "axis"])
+@Meta(
+    DisplayName='LOC("VECTOR2_PROJECTED_ONTO")',
+    DisplayDesc='LOC("VECTOR2_PROJECTED_ONTO_DESC")',
+    Vector2fVars=["v", "axis"],
+)
 @ReturnType(value=Vector2f)
 def Vector2ProjectedOnto(v: Vector2f, axis: Vector2f) -> Vector2f:
     return v.projectedOnto(axis)

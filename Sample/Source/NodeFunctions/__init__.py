@@ -14,7 +14,7 @@ in the Ludork sample engine.
 - Player     Player inventory, equipment, attribute, gold and EXP management
 - Save       Save/load game state
 - Movement   Actor route and pathfinding movement helpers
-- Scene      Scene and map navigation
+- Scene      Scene dialogue and map navigation
 - State      State host access, battler attributes, and cross-battler state ops
 - Mota       Mota-specific scene shortcuts and region helpers
 """

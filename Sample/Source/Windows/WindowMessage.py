@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 from enum import IntEnum
+import math
 from typing import Dict, Any, Optional, List, Union, Tuple, Callable
 import Engine
-from Engine import Color, Input, UI, Text, Vector2f, Vector2u, Vector2i, IntRect
+from Engine import Color, Input, UI, Text, Vector2f, Vector2u, Vector2i, IntRect, FloatRect
 from Engine.UI import RichText, TextStyle, PlainText, ListView
 from Engine.UI.FunctionalUI import FPlainText
 from Engine.UI.Base import FunctionalBase
@@ -40,6 +41,7 @@ class WindowMessage(WindowSelectable):
     _OPTION_TEXT_SIZE = 22
     _OPTION_ITEM_HEIGHT = 32
     _SELECTION_LIST_HORIZONTAL_INSET = 32
+    _TEXT_RENDER_GUTTER = 2
     _MAX_OPTIONS = 4
 
     def __init__(self) -> None:
@@ -66,6 +68,7 @@ class WindowMessage(WindowSelectable):
         self._textStyles: Dict[str, TextStyle] = {}
         self._initTextStyles()
         self._nameText = PlainText(System.getFonts()[0], "", self._NAME_TEXT_SIZE)
+        self._nameText.setLineAlignment(Text.LineAlignment.Center)
         self._nameText.setVisible(False)
         self.content.addChild(self._nameText)
         self._text = RichText(System.getFonts()[0], self._message, self._textStyles)
@@ -350,6 +353,15 @@ class WindowMessage(WindowSelectable):
         pixelWidth = sum(font.getGlyph(ch, charSize, False).advance for ch in text)
         return max(1, int(round(pixelWidth / Scale)))
 
+    def _getBoundsWidth(self, bounds: FloatRect) -> int:
+        return max(1, int(math.ceil(bounds.size.x)) + self._TEXT_RENDER_GUTTER * 2)
+
+    def _getBoundsHeight(self, bounds: FloatRect) -> int:
+        return max(1, int(math.ceil(bounds.size.y)) + self._TEXT_RENDER_GUTTER * 2)
+
+    def _getTextLineHeight(self, bounds: FloatRect) -> int:
+        return max(1, int(math.ceil(bounds.position.y + bounds.size.y)))
+
     def _wrapMessage(self, text: str, maxWidth: float) -> str:
         from Engine import Scale
 
@@ -398,8 +410,8 @@ class WindowMessage(WindowSelectable):
         nameWidth = 0
         nameHeight = 0
         if hasName:
-            nameWidth = max(1, int(nameBounds.size.x + nameBounds.position.x))
-            nameHeight = max(1, int(nameBounds.size.y + nameBounds.position.y))
+            nameWidth = self._getBoundsWidth(nameBounds)
+            nameHeight = self._getTextLineHeight(nameBounds)
 
         displayMessage = self._message
         maxContentWidth: Optional[int] = None
@@ -408,14 +420,14 @@ class WindowMessage(WindowSelectable):
 
         self._text.setString(displayMessage)
         textBounds = self._text.getLocalBounds()
-        textWidth = max(1, int(textBounds.size.x + textBounds.position.x))
+        textWidth = self._getBoundsWidth(textBounds)
         if maxContentWidth is not None and textWidth > maxContentWidth:
             displayMessage = self._wrapMessage(displayMessage, float(maxContentWidth))
             self._text.setString(displayMessage)
             textBounds = self._text.getLocalBounds()
-            textWidth = max(1, int(textBounds.size.x + textBounds.position.x))
+            textWidth = self._getBoundsWidth(textBounds)
 
-        textHeight = max(1, int(textBounds.size.y + textBounds.position.y))
+        textHeight = self._getBoundsHeight(textBounds)
         contentWidth = max(textWidth, nameWidth, WindowBase._PAUSE_MARK_SIZE)
         if maxContentWidth is not None:
             contentWidth = min(contentWidth, maxContentWidth)
@@ -432,10 +444,19 @@ class WindowMessage(WindowSelectable):
         self.content.setPosition(Vector2f(self._WINDOW_PADDING, self._WINDOW_PADDING))
         textY = 0.0
         if hasName:
-            nameX = (contentWidth - nameWidth) / 2.0
-            self._nameText.setPosition(Vector2f(nameX, 0.0))
+            self._nameText.setPosition(
+                Vector2f(
+                    float(contentWidth) / 2.0,
+                    0.0,
+                )
+            )
             textY = float(nameHeight + self._NAME_MESSAGE_GAP)
-        self._text.setPosition(Vector2f(0.0, textY))
+        self._text.setPosition(
+            Vector2f(
+                self._TEXT_RENDER_GUTTER - textBounds.position.x,
+                textY + self._TEXT_RENDER_GUTTER - textBounds.position.y,
+            )
+        )
         self.refreshPauseMarkLayout()
 
     def _updateLayoutBySelectionSize(self) -> None:
@@ -444,8 +465,8 @@ class WindowMessage(WindowSelectable):
         nameWidth = 0
         nameHeight = 0
         if hasName:
-            nameWidth = max(1, int(nameBounds.size.x + nameBounds.position.x))
-            nameHeight = max(1, int(nameBounds.size.y + nameBounds.position.y))
+            nameWidth = self._getBoundsWidth(nameBounds)
+            nameHeight = self._getTextLineHeight(nameBounds)
 
         maxOptionTextWidth = 1
         optionCount = 0
@@ -479,12 +500,17 @@ class WindowMessage(WindowSelectable):
         self.content.setPosition(Vector2f(self._WINDOW_PADDING, self._WINDOW_PADDING))
         currentY = 0.0
         if hasName:
-            nameX = (contentWidth - nameWidth) / 2.0
-            self._nameText.setPosition(Vector2f(nameX, 0.0))
+            self._nameText.setPosition(
+                Vector2f(
+                    float(contentWidth) / 2.0,
+                    0.0,
+                )
+            )
             currentY = float(nameHeight + self._NAME_MESSAGE_GAP)
         if self._selectionListView is not None:
-            self._selectionListView.size = Vector2i(contentWidth, optionCount * self._OPTION_ITEM_HEIGHT)
-            self._selectionListView.setPosition(Vector2f(0.0, currentY))
+            self._selectionListView.setSize(Vector2i(contentWidth, optionCount * self._OPTION_ITEM_HEIGHT))
+            self._selectionListView.setOrigin(Vector2f(float(contentWidth) / 2.0, 0.0))
+            self._selectionListView.setPosition(Vector2f(float(contentWidth) / 2.0, currentY))
         self.refreshPauseMarkLayout()
 
     def _getRectPosition(self) -> Optional[Vector2f]:
@@ -496,11 +522,12 @@ class WindowMessage(WindowSelectable):
         if columns <= 0:
             return super()._getRectPosition()
         listViewX, listViewY = self._selectionListView.v_getPosition()
-        colWidth = (float(self._selectionListView.size.x) - 32.0) / float(columns)
+        originX, originY = self._selectionListView.v_getOrigin()
+        colWidth = float(self._selectionListView.size.x) / float(columns)
         col = self.index % columns
         row = self.index // columns
-        x = float(listViewX) + 16.0 + float(col) * colWidth
-        y = float(listViewY) + float(row) * float(self._rectHeight)
+        x = float(listViewX) - float(originX) + float(col) * colWidth
+        y = float(listViewY) - float(originY) + float(row) * float(self._rectHeight)
         return Vector2f(x, y)
 
     def _getRectWidth(self) -> int:
@@ -509,7 +536,7 @@ class WindowMessage(WindowSelectable):
         columns = self._selectionListView.getColumns()
         if columns <= 0:
             return super()._getRectWidth()
-        return max(1, int(round((float(self._selectionListView.size.x) - 32.0) / float(columns))))
+        return max(1, int(round(float(self._selectionListView.size.x) / float(columns))))
 
     def _resizeCanvas(self, target, width: int, height: int) -> None:
         target._size = Vector2u(width, height)

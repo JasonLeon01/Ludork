@@ -1,18 +1,33 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import List, Optional, Tuple, Union
-from ... import Pair, BPBase, Vector2f, Vector2i, Vector2u, IntRect, Texture
+from dataclasses import dataclass
+from typing import Any, List, Optional, Tuple, Union
+from ... import Pair, BPBase, Vector2f, Vector2i, Vector2u, Vector3f, IntRect, Texture, Sound
 from ...Utils import Math, Inner
+from ...Filters import SoundFilter
 from ..Material import Material
 from ..Components import ChildActorComponent, LightComponent, componentFromData
 from .Base import _ActorBase
 
 
+@dataclass
+class AutoSoundParams:
+    r"""\brief Spatial audio parameters used by Actor automatic sound playback."""
+
+    volume: float = 100.0  #: Base sound volume
+    minDistance: float = 64.0  #: Distance before attenuation starts
+    attenuation: float = 1.0  #: Distance attenuation factor
+
+
 @Meta(
-    PathVars=[("texturePath", "Characters"), ("shaderPath", "Shaders")],
+    PathVars=[("texturePath", "Characters"), ("shaderPath", "Shaders"), ("autoSound", "Sounds")],
     Vector2fVars=["defaultTranslation", "defaultScale", "defaultOrigin"],
     RectRangeVars={"defaultRect": "texturePath"},
+    Rely={
+        "autoSoundInterval": {"source": "autoSound", "op": "!=", "value": ""},
+        "autoSoundParams": {"source": "autoSound", "op": "!=", "value": ""},
+    },
 )
 class Actor(_ActorBase, BPBase):
     r"""
@@ -25,6 +40,9 @@ class Actor(_ActorBase, BPBase):
     collisionEnabled: bool = False  #: Whether this actor blocks movement
     tickable: bool = False  #: Whether tick events are dispatched
     speed: float = 64.0  #: Movement speed in pixels per second
+    autoSound: str = ""  #: Sound asset played automatically as a spatial sound
+    autoSoundInterval: float = 0.0  #: Delay between one automatic sound ending and the next starting
+    autoSoundParams: AutoSoundParams = AutoSoundParams()  #: Parameters applied to the automatic spatial sound
     _componentTypes = {"lightComp": LightComponent, "childActorComp": ChildActorComponent}
     ### Generation use only
     texturePath: str = ""  #: Asset path to the character texture
@@ -54,15 +72,18 @@ class Actor(_ActorBase, BPBase):
         _ActorBase.__init__(self, texture, rect, tag)
         BPBase.__init__(self)
         self._normaliseLightComp()
+        self._normaliseAutoSoundParams()
         self._isMoving: bool = False
         self._nextMoveOffset: Optional[Union[Vector2i, Pair[int]]] = None
         self._inRoute: bool = False
-        self._route: Optional[List[Vector2i]] = None
+        self._route: List[Vector2i] = []
         self._moveEnabled: bool = True
         self._departure: Optional[Vector2f] = None
         self._destination: Optional[Vector2f] = None
         self._realSpeed: float = 0.0
         self._destroyed: bool = False
+        self._autoSoundObject: Optional[Sound] = None
+        self._autoSoundCooldown: float = 0.0
 
     @property
     def lightColour(self) -> Tuple[int, int, int, int]:
@@ -88,6 +109,16 @@ class Actor(_ActorBase, BPBase):
         value = self.__dict__.get("lightComp")
         if value is not None and not isinstance(value, LightComponent):
             self.lightComp = componentFromData(LightComponent, value)
+
+    def _normaliseAutoSoundParams(self) -> None:
+        value = getattr(self, "autoSoundParams", AutoSoundParams())
+        if isinstance(value, AutoSoundParams):
+            self.autoSoundParams = AutoSoundParams(value.volume, value.minDistance, value.attenuation)
+            return
+        if isinstance(value, dict):
+            self.autoSoundParams = AutoSoundParams(**Inner.filterDataClassParams(value, AutoSoundParams))
+            return
+        self.autoSoundParams = AutoSoundParams()
 
     def _getLightComp(self) -> Optional[LightComponent]:
         value = self.__dict__.get("lightComp")
@@ -130,6 +161,14 @@ class Actor(_ActorBase, BPBase):
             self._realSpeed = 0.0
         else:
             self._realSpeed = dist / fixedDelta
+
+    def update(self, deltaTime: float) -> None:
+        r"""\brief Update actor animation and automatic spatial sound.
+
+        - \param deltaTime Time elapsed since the last frame in seconds.
+        """
+        super().update(deltaTime)
+        self._updateAutoSound(deltaTime)
 
     @RegisterEvent
     def onCreate(self) -> None:
@@ -187,6 +226,7 @@ class Actor(_ActorBase, BPBase):
         if self._destroyed:
             return
         self._destroyed = True
+        self._stopAutoSound()
         for child in list(self.getChildren()):
             if isinstance(child, Actor):
                 child.destroy()
@@ -333,16 +373,16 @@ class Actor(_ActorBase, BPBase):
 
     @ExecSplit(default=(None,))
     @Meta(MoveRouteVars=["route"])
-    def setRoute(self, route: Optional[List[Vector2i]]) -> None:
+    def setRoute(self, route: List[Vector2i] = []) -> None:
         r"""Set a sequence of grid offsets to walk automatically.
 
         - \param route  List of grid offsets, or `None` to clear the route
         """
-        self._inRoute = route is not None
+        self._inRoute = len(route) > 0
         self._route = route
 
-    @ReturnType(route=Optional[List[Vector2i]])
-    def getRoute(self) -> Optional[List[Vector2i]]:
+    @ReturnType(route=List[Vector2i])
+    def getRoute(self) -> List[Vector2i]:
         r"""Get the current movement route.
 
         - \return  List of grid offsets, or `None` if inactive
@@ -462,3 +502,55 @@ class Actor(_ActorBase, BPBase):
         self.setMapPosition(Vector2u(x, y))
         if self._map:
             self._map.markPassabilityDirty()
+
+    def _updateAutoSound(self, deltaTime: float) -> None:
+        self._normaliseAutoSoundParams()
+        if not self.autoSound:
+            self._stopAutoSound()
+            self._autoSoundCooldown = 0.0
+            return
+        if self._autoSoundObject is not None:
+            if self._autoSoundObject.getStatus() == Sound.Status.Stopped:
+                self._autoSoundObject = None
+                self._autoSoundCooldown = max(0.0, float(self.autoSoundInterval))
+            else:
+                self._applyAutoSoundParams()
+                return
+        if self._autoSoundCooldown > 0.0:
+            self._autoSoundCooldown = max(0.0, self._autoSoundCooldown - deltaTime)
+            return
+        self._playAutoSound()
+
+    def _playAutoSound(self) -> None:
+        from Global import Manager
+
+        sound = Manager.playSE(self.autoSound, self._buildAutoSoundFilter())
+        self._autoSoundObject = sound
+
+    def _stopAutoSound(self) -> None:
+        if self._autoSoundObject is None:
+            return
+        if self._autoSoundObject.getStatus() != Sound.Status.Stopped:
+            self._autoSoundObject.stop()
+        self._autoSoundObject = None
+
+    def _applyAutoSoundParams(self) -> None:
+        if self._autoSoundObject is None:
+            return
+        from Global.Manager.Mgr_Audio import AudioManager
+
+        AudioManager.setSoundFilter(self._autoSoundObject, self._buildAutoSoundFilter())
+
+    def _buildAutoSoundFilter(self) -> SoundFilter:
+        from ... import Filters
+
+        params = self.autoSoundParams
+        position = self.getPosition()
+        return Filters.SoundFilter(
+            volume=float(params.volume),
+            spatial=True,
+            position=Vector3f(position.x, position.y, 0.0),
+            relativeToListener=False,
+            minDistance=float(params.minDistance),
+            attenuation=float(params.attenuation),
+        )

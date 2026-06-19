@@ -58,6 +58,14 @@ def getRelyCondition(rule: Any) -> Tuple[Optional[str], Any]:
     return None, None
 
 
+def getRelyOperator(rule: Any) -> str:
+    if isinstance(rule, dict):
+        op = rule.get("op") or rule.get("operator")
+        if isinstance(op, str):
+            return op
+    return "=="
+
+
 def getRelySourceSet(relyMap: Dict[str, Any]) -> Set[str]:
     sources = set()
     for rule in relyMap.values():
@@ -67,14 +75,16 @@ def getRelySourceSet(relyMap: Dict[str, Any]) -> Set[str]:
     return sources
 
 
-def metaValueMatches(actual: Any, expected: Any) -> bool:
+def metaValueMatches(actual: Any, expected: Any, operator: str = "==") -> bool:
     actual = parseMetaValue(actual)
     expected = parseMetaValue(expected)
     if isinstance(expected, bool):
         actualBool = toBool(actual)
         if actualBool is not None:
-            return actualBool == expected
-    return actual == expected
+            matched = actualBool == expected
+            return not matched if operator == "!=" else matched
+    matched = actual == expected
+    return not matched if operator == "!=" else matched
 
 
 def isRelyEditable(name: str, relyMap: Dict[str, Any], values: Dict[str, Any]) -> bool:
@@ -84,7 +94,7 @@ def isRelyEditable(name: str, relyMap: Dict[str, Any], values: Dict[str, Any]) -
     source, expected = getRelyCondition(rule)
     if not source:
         return True
-    return metaValueMatches(values.get(source), expected)
+    return metaValueMatches(values.get(source), expected, getRelyOperator(rule))
 
 
 def formatRelyExpectedValue(value: Any) -> str:
@@ -105,4 +115,10 @@ def getRelyConditionDisplay(name: str, relyMap: Dict[str, Any]) -> Optional[Tupl
     source, expected = getRelyCondition(rule)
     if not source:
         return None
-    return source, formatRelyExpectedValue(expected)
+    op = getRelyOperator(rule)
+    expectedText = formatRelyExpectedValue(expected)
+    if op == "!=":
+        if expectedText == "":
+            expectedText = '""'
+        expectedText = f"not {expectedText}"
+    return source, expectedText

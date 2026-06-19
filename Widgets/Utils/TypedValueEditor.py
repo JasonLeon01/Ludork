@@ -9,6 +9,52 @@ from typing import Any, Union, get_args, get_origin
 from PyQt5 import QtWidgets, QtCore
 
 
+def unwrapOptionalType(valueType: Any) -> tuple[Any, bool]:
+    origin = get_origin(valueType)
+    if origin not in (Union, UnionType):
+        return valueType, False
+    args = [arg for arg in get_args(valueType) if arg is not type(None)]
+    if len(args) == 1:
+        return args[0], True
+    return valueType, False
+
+
+def getSimpleContainerEditorType(paramType: Any) -> Any | None:
+    r"""\brief Return a type hint suitable for TypedValueEditor, or None for non-container params.
+
+    - \param paramType  Parameter annotation from the node function signature
+    - \return The annotation when it is a plain list/dict (optionally wrapped in Optional), else None
+    """
+    if paramType in (list, dict):
+        return paramType
+    unwrapped, _nullable = unwrapOptionalType(paramType)
+    origin = get_origin(unwrapped)
+    if origin in (list, dict) or unwrapped in (list, dict):
+        return paramType
+    return None
+
+
+def formatParamTypeName(paramType: Any) -> str:
+    if isinstance(paramType, type):
+        return paramType.__name__
+    text = str(paramType).replace("typing.", "")
+    if text.startswith("<class "):
+        return text.split(".")[-1].rstrip("'>")
+    return text
+
+
+def parseParamInitialValue(initVal: Any, paramType: Any) -> Any:
+    if not isinstance(initVal, str):
+        return initVal
+    text = initVal.strip()
+    if not text:
+        return None if unwrapOptionalType(paramType)[1] else initVal
+    try:
+        return ast.literal_eval(text)
+    except (ValueError, SyntaxError):
+        return initVal
+
+
 class TypedValueEditor(QtWidgets.QWidget):
     VALUE_CHANGED = QtCore.pyqtSignal(object)
 
@@ -20,6 +66,7 @@ class TypedValueEditor(QtWidgets.QWidget):
         self._editor = None
         self._childEditors = []
         self._rowWidgets = []
+        self._dictRows: list[tuple[QtWidgets.QLineEdit, TypedValueEditor]] = []
         self._initUI(value)
 
     def getValue(self) -> Any:
@@ -33,7 +80,15 @@ class TypedValueEditor(QtWidgets.QWidget):
             return tuple(editor.getValue() for editor in self._childEditors)
         if self._kind == "list":
             return [editor.getValue() for editor in self._childEditors]
+        if self._kind == "dict":
+            return self._buildDictValue()
         return self._coerceTextValue(self._editor.text())
+
+    def setValue(self, value: Any, emit: bool = False) -> None:
+        self._clearLayout()
+        self._initUI(value)
+        if emit:
+            self.VALUE_CHANGED.emit(self.getValue())
 
     def setEditable(self, editable: bool) -> None:
         self.setEnabled(editable)
@@ -60,8 +115,26 @@ class TypedValueEditor(QtWidgets.QWidget):
             self._initTupleEditor(value)
         elif kind == "list":
             self._initListEditor(value)
+        elif kind == "dict":
+            self._initDictEditor(value)
         else:
             self._initTextEditor(value)
+
+    def _clearLayout(self) -> None:
+        self._kind = ""
+        self._editor = None
+        self._childEditors = []
+        self._rowWidgets = []
+        self._dictRows = []
+        layout = self.layout()
+        if layout is not None:
+            while layout.count():
+                item = layout.takeAt(0)
+                widget = item.widget()
+                if widget is not None:
+                    widget.setParent(None)
+                    widget.deleteLater()
+            QtWidgets.QWidget().setLayout(layout)
 
     def _initBoolEditor(self, value: Any) -> None:
         self._kind = "bool"
@@ -130,6 +203,112 @@ class TypedValueEditor(QtWidgets.QWidget):
         layout.addWidget(addBtn)
         self._elementWidgets = self._editableWidgets()
 
+    def _initDictEditor(self, value: Any) -> None:
+        self._kind = "dict"
+        self._dictRows = []
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
+        keyType, valueType = self._getDictKeyValueTypes()
+        items = value.items() if isinstance(value, dict) else []
+        for key, item in items:
+            self._addDictRow(layout, key, item, keyType, valueType)
+        addBtn = QtWidgets.QPushButton("+", self)
+        addBtn.setFixedWidth(24)
+        addBtn.clicked.connect(lambda _: self._appendDictItem(layout, keyType, valueType))
+        layout.addWidget(addBtn)
+        self._elementWidgets = self._editableWidgets()
+
+    def _addDictRow(
+        self,
+        layout: QtWidgets.QVBoxLayout,
+        key: Any,
+        item: Any,
+        keyType: Any,
+        valueType: Any,
+    ) -> None:
+        row = QtWidgets.QWidget(self)
+        rowLayout = QtWidgets.QHBoxLayout(row)
+        rowLayout.setContentsMargins(0, 0, 0, 0)
+        rowLayout.setSpacing(2)
+        keyEdit = QtWidgets.QLineEdit(row)
+        keyEdit.setText(self._textFromValue(key))
+        keyEdit.textChanged.connect(lambda _: self.VALUE_CHANGED.emit(self.getValue()))
+        valueEditor = TypedValueEditor(item, valueType, row)
+        valueEditor.VALUE_CHANGED.connect(lambda _: self.VALUE_CHANGED.emit(self.getValue()))
+        self._childEditors.append(valueEditor)
+        self._dictRows.append((keyEdit, valueEditor))
+        self._rowWidgets.append(row)
+        rowLayout.addWidget(keyEdit, 1)
+        rowLayout.addWidget(valueEditor, 2)
+        removeBtn = QtWidgets.QPushButton("-", row)
+        removeBtn.setFixedWidth(24)
+        removeBtn.clicked.connect(lambda _: self._removeDictRow(row))
+        rowLayout.addWidget(removeBtn)
+        layout.insertWidget(max(0, layout.count() - 1), row)
+
+    def _appendDictItem(self, layout: QtWidgets.QVBoxLayout, keyType: Any, valueType: Any) -> None:
+        self._addDictRow(layout, self._defaultValueForType(keyType), self._defaultValueForType(valueType), keyType, valueType)
+        self._elementWidgets = self._editableWidgets()
+        self.VALUE_CHANGED.emit(self.getValue())
+
+    def _removeDictRow(self, row: QtWidgets.QWidget) -> None:
+        if row not in self._rowWidgets:
+            return
+        index = self._rowWidgets.index(row)
+        self._rowWidgets.pop(index)
+        self._dictRows.pop(index)
+        self._childEditors.pop(index)
+        row.setParent(None)
+        row.deleteLater()
+        self._elementWidgets = self._editableWidgets()
+        self.VALUE_CHANGED.emit(self.getValue())
+
+    def _buildDictValue(self) -> dict[Any, Any]:
+        keyType, valueType = self._getDictKeyValueTypes()
+        result: dict[Any, Any] = {}
+        for keyEdit, valueEditor in self._dictRows:
+            keyText = keyEdit.text()
+            key = self._coerceTextValueForType(keyText, keyType)
+            if keyText.strip() == "":
+                continue
+            result[key] = valueEditor.getValue()
+        return result
+
+    def _getDictKeyValueTypes(self) -> tuple[Any, Any]:
+        args = list(get_args(self._valueType))
+        if len(args) >= 2:
+            return args[0], args[1]
+        if len(args) == 1:
+            return args[0], Any
+        return str, Any
+
+    def _coerceTextValueForType(self, text: str, targetType: Any) -> Any:
+        targetType, nullable = unwrapOptionalType(targetType)
+        if nullable and text.strip().lower() in ("", "none", "null"):
+            return None
+        if targetType is str:
+            return text
+        if targetType is bool:
+            return text.strip().lower() in ("1", "true", "yes", "on")
+        if targetType is int:
+            try:
+                return int(text)
+            except ValueError:
+                return text
+        if targetType is float:
+            try:
+                return float(text)
+            except ValueError:
+                return text
+        origin = get_origin(targetType)
+        if origin in (list, tuple, dict) or targetType in (list, tuple, dict, Any):
+            try:
+                return ast.literal_eval(text)
+            except (ValueError, SyntaxError):
+                return text
+        return text
+
     def _addListRow(self, layout: QtWidgets.QVBoxLayout, item: Any, itemType: Any) -> None:
         row = QtWidgets.QWidget(self)
         rowLayout = QtWidgets.QHBoxLayout(row)
@@ -176,6 +355,8 @@ class TypedValueEditor(QtWidgets.QWidget):
             return "tuple"
         if origin is list or valueType is list:
             return "list"
+        if origin is dict or valueType is dict:
+            return "dict"
         if valueType is bool or isinstance(value, bool):
             return "bool"
         if valueType is int or (isinstance(value, int) and not isinstance(value, bool)):
@@ -186,6 +367,8 @@ class TypedValueEditor(QtWidgets.QWidget):
             return "tuple"
         if isinstance(value, list):
             return "list"
+        if isinstance(value, dict):
+            return "dict"
         return "text"
 
     def _normaliseSequence(self, value: Any, containerType: type) -> tuple[list, list]:
@@ -238,6 +421,8 @@ class TypedValueEditor(QtWidgets.QWidget):
             return tuple()
         if origin is list or valueType is list:
             return []
+        if origin is dict or valueType is dict:
+            return {}
         return ""
 
     def _coerceTextValue(self, text: str) -> Any:
@@ -274,18 +459,14 @@ class TypedValueEditor(QtWidgets.QWidget):
         return str(value)
 
     def _unwrapOptional(self, valueType: Any) -> tuple[Any, bool]:
-        origin = get_origin(valueType)
-        if origin not in (Union, UnionType):
-            return valueType, False
-        args = [arg for arg in get_args(valueType) if arg is not type(None)]
-        if len(args) == 1:
-            return args[0], True
-        return valueType, False
+        return unwrapOptionalType(valueType)
 
     def _editableWidgets(self) -> list:
         result = []
         if isinstance(self._editor, QtWidgets.QWidget):
             result.append(self._editor)
+        for keyEdit, _valueEditor in getattr(self, "_dictRows", []):
+            result.append(keyEdit)
         for child in self._childEditors:
             result.extend(child._editableWidgets())
         return result

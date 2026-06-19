@@ -23,10 +23,7 @@ class _TransitionCondition:
 
 
 def _isTransitionBackgroundFrozen() -> bool:
-    return (
-        not GlobalSystem.isTransitionBackgroundFreezePending()
-        and GlobalSystem.isTransitionBackgroundFrozen()
-    )
+    return not GlobalSystem.isTransitionBackgroundFreezePending() and GlobalSystem.isTransitionBackgroundFrozen()
 
 
 @Meta(

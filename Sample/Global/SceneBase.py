@@ -90,9 +90,7 @@ class SceneBase:
         pass
 
     @Latent(TimeUp=(True,))
-    def addTimer(
-        self, interval: float, task: Optional[Callable] = None, params: Optional[List[Any]] = None
-    ) -> Callable[[], bool]:
+    def addTimer(self, interval: float, task: Optional[Callable] = None, params: List[Any] = []) -> Callable[[], bool]:
         r"""\brief Add a timer that fires after the specified interval.
 
         - \param interval Time in seconds before the timer fires.
@@ -101,8 +99,6 @@ class SceneBase:
         - \return A callable condition function that returns True when the timer fires.
         """
         with self._logicDataLock:
-            if params is None:
-                params = []
             taskEntry = TimerTaskEntry(interval, task, params)
             self._timerTasks.append(taskEntry)
 

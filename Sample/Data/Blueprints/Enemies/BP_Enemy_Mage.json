@@ -10,7 +10,14 @@
             "speedRate": 1.5
         },
         "texturePath": "enemies/classic-enemies-04-magician-single.png",
-        "ID": "Mage"
+        "ID": "Mage",
+        "autoSound": "chuckle.wav",
+        "autoSoundInterval": 5.0,
+        "autoSoundParams": {
+            "volume": 100.0,
+            "minDistance": 64.0,
+            "attenuation": 10.0
+        }
     },
     "graph": {
         "nodeGraph": {

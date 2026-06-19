@@ -3,7 +3,7 @@ r"""\brief Door actor with a one-shot open animation that self-destructs."""
 
 from __future__ import annotations
 from typing import List, Optional, Tuple, Union
-from Engine import IntRect, Pair, RegisterEvent, Texture, Vector2i
+from Engine import Filters, IntRect, Pair, RegisterEvent, Texture, Vector2i, Vector3f
 from Engine.Gameplay.Actors import Actor
 from Global import GameMap, Manager
 from Source import System
@@ -90,7 +90,15 @@ class Door(Actor):
             cond = _DoorOpenCondition(self)
             cond._finished = True
             return cond
-        Manager.playSE(System.getGateSE())
+        position = self.getPosition()
+        Manager.playSE(
+            System.getGateSE(),
+            Filters.SoundFilter(
+                spatial=True,
+                position=Vector3f(position.x, position.y, 0.0),
+                relativeToListener=False,
+            ),
+        )
         self.opening = True
         self._openFrameIndex = 0
         self._openTimer = 0.0

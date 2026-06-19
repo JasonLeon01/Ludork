@@ -17,6 +17,7 @@ from Engine import (
     Font,
     Texture,
     Shader,
+    Transformable,
 )
 from .Mgr_Audio import AudioManager
 from .Mgr_Font import FontManager
@@ -45,6 +46,24 @@ def playSE(filename: str, filter: Optional[Filters.SoundFilter] = None) -> Optio
     return AudioManager.playSound(filePath, filter)
 
 
+def playVoice(
+    filename: str,
+    filter: Optional[Filters.SoundFilter] = None,
+    refActor: Optional[Transformable] = None,
+    minDistance: float = 64.0,
+) -> Optional[Sound]:
+    r"""
+    \brief Play a voice clip.
+    - \param filename Name of the voice file in Assets/Sounds.
+    - \param filter Optional sound filter to apply.
+    - \param refActor Optional reference actor for spatialization.
+    - \param minDistance Minimum attenuation distance when refActor is set.
+    - \return Playing voice object, or None if voice is disabled.
+    """
+    filePath = os.path.join("./Assets", "Sounds", filename)
+    return AudioManager.playVoice(filePath, filter, refActor, minDistance)
+
+
 def playMusic(musicType: str, filename: str, filter: Optional[Filters.MusicFilter] = None) -> Optional[Music]:
     r"""
     \brief Play music.
@@ -61,6 +80,12 @@ def stopSound() -> None:
     r"""
     \brief Stop all currently playing sounds."""
     AudioManager.stopSound()
+
+
+def stopVoice() -> None:
+    r"""
+    \brief Stop the currently playing voice clip."""
+    AudioManager.stopVoice()
 
 
 def stopMusic(musicType: str) -> None:

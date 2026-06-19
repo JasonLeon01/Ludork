@@ -24,6 +24,12 @@ from .GraphLayout import computeGraphLayoutPositions
 from .MoveRouteEditor import MoveRouteEditor
 from .NodeFunctionMeta import getExecSplits, getLatents, getReturnTypes, hasExecOutputs
 from .TransferPosEditor import TransferPosEditor
+from .TypedValueEditor import (
+    TypedValueEditor,
+    formatParamTypeName,
+    getSimpleContainerEditorType,
+    parseParamInitialValue,
+)
 from .VectorVarEditor import VectorVarEditor, isVectorVarType, normaliseVectorVarType
 
 if TYPE_CHECKING:
@@ -59,6 +65,7 @@ DEFAULT_PARAM_NODE_TYPE = "!DefaultParam.DefaultParamNode"  # type_ = __identifi
 TRACKPAD_ZOOM_WHEEL_BLOCK_MS = 200
 PAN_EMULATION_MODIFIER = QtCore.Qt.MetaModifier
 WidgetValue = Any
+CONNECTED_PARAM_VALUE = object()
 
 
 def isBasicPythonDefault(value: Any) -> bool:
@@ -248,6 +255,8 @@ def getWidgetValue(widget: QtWidgets.QWidget) -> WidgetValue:
         return widget.getValue()
     if isinstance(widget, TransferPosEditor):
         return widget.getValue()
+    if isinstance(widget, TypedValueEditor):
+        return widget.getValue()
     if isinstance(widget, QtWidgets.QLineEdit):
         return widget.text()
     if isinstance(widget, (QtWidgets.QPlainTextEdit, QtWidgets.QTextEdit)):
@@ -275,6 +284,9 @@ def setEditorWidgetEditable(widget: QtWidgets.QWidget, editable: bool) -> None:
         widget.setEditable(editable)
         return
     if isinstance(widget, TransferPosEditor):
+        widget.setEditable(editable)
+        return
+    if isinstance(widget, TypedValueEditor):
         widget.setEditable(editable)
         return
     widget.setEnabled(editable)
@@ -534,6 +546,35 @@ class NodeTransferWidget(NodeBaseWidget):
         editor.setValue(value, emit=False)
 
 
+class NodeTypedValueWidget(NodeBaseWidget):
+    def __init__(
+        self,
+        parent: Optional[QtWidgets.QWidget] = None,
+        name: str = "",
+        label: str = "",
+        value: Any = None,
+        valueType: Any = None,
+    ) -> None:
+        super(NodeTypedValueWidget, self).__init__(parent)
+        self.set_name(name)
+        self.set_label(label)
+        editor = TypedValueEditor(value, valueType)
+        self.set_custom_widget(editor)
+        editor.VALUE_CHANGED.connect(self.on_value_changed)
+
+    def get_value(self) -> WidgetValue:
+        editor = self.get_custom_widget()
+        if not isinstance(editor, TypedValueEditor):
+            return None
+        return editor.getValue()
+
+    def set_value(self, value: WidgetValue) -> None:
+        editor = self.get_custom_widget()
+        if not isinstance(editor, TypedValueEditor):
+            return
+        editor.setValue(value, emit=False)
+
+
 def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
     def subClassInit(self: BaseNode) -> None:
         super(self.__class__, self).__init__()
@@ -589,9 +630,7 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
             isMoveRoute = name in moveRouteVars
             isTransfer = name in transferVars
 
-            type_str = param_type.__name__ if isinstance(param_type, type) else str(param_type)
-            if "." in type_str:
-                type_str = type_str.split(".")[-1]
+            type_str = formatParamTypeName(param_type)
             if isTransfer:
                 type_str = "TransferPos"
             elif isMoveRoute:
@@ -603,6 +642,8 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
             elif isPath:
                 type_str = "Path"
             display_label = f"{name} ({type_str})"
+
+            containerEditorType = getSimpleContainerEditorType(param_type)
 
             if isTransfer:
                 editor = TransferPosEditor(value=init_val)
@@ -686,6 +727,20 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
                     max_value=999999999.0,
                     double=True,
                 )
+                w = self.get_widget(widgetName)
+                if w:
+                    le = w.get_custom_widget()
+                    System.SetStyle(le, "nodeInput.qss")
+            elif containerEditorType is not None:
+                parsedVal = parseParamInitialValue(init_val, param_type)
+                nodeWidget = NodeTypedValueWidget(
+                    self.view,
+                    name=widgetName,
+                    label=display_label,
+                    value=parsedVal,
+                    valueType=containerEditorType,
+                )
+                self.add_custom_widget(nodeWidget)
                 w = self.get_widget(widgetName)
                 if w:
                     le = w.get_custom_widget()
@@ -1033,6 +1088,11 @@ class NodePanel(QtWidgets.QWidget):
                         le.VALUE_CHANGED.connect(
                             lambda _, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
                         )
+                    elif isinstance(le, TypedValueEditor):
+                        le.setValue(parseParamInitialValue(val, paramList[name]), emit=False)
+                        le.VALUE_CHANGED.connect(
+                            lambda _, n=i, p=paramIndex, widget=le: self.scheduleParamChanged(n, p, widget)
+                        )
                 paramIndex += 1
             self._applyNodeRely(i)
 
@@ -1045,10 +1105,27 @@ class NodePanel(QtWidgets.QWidget):
         if isinstance(customWidget, QtWidgets.QWidget):
             setEditorWidgetEditable(customWidget, editable)
 
-    def _getNodeParamValues(self, nodeInst: BaseNode, node: GraphNode) -> Dict[str, Any]:
+    def _isNodeParamConnected(self, nodeIndex: int, nodeInst: BaseNode, name: str, paramIndex: int) -> bool:
+        nodeRely = self.nodeGraph.nodeRely.get(self.key, {})
+        if isinstance(nodeRely, dict):
+            depMap = nodeRely.get(nodeIndex, {})
+            if isinstance(depMap, dict) and paramIndex in depMap:
+                return True
+        port = nodeInst.get_input(name)
+        if port is None:
+            return False
+        try:
+            return bool(port.connected_ports())
+        except AttributeError:
+            return False
+
+    def _getNodeParamValues(self, nodeIndex: int, nodeInst: BaseNode, node: GraphNode) -> Dict[str, Any]:
         values: Dict[str, Any] = {}
         paramList = node.getParamList()
         for paramIndex, name in enumerate(paramList.keys()):
+            if self._isNodeParamConnected(nodeIndex, nodeInst, name, paramIndex):
+                values[name] = CONNECTED_PARAM_VALUE
+                continue
             widgetName = self.resolveWidgetName(nodeInst, name)
             nodeWidget = nodeInst.get_widget(widgetName)
             customWidget = nodeWidget.get_custom_widget() if isinstance(nodeWidget, NodeBaseWidget) else None
@@ -1069,7 +1146,7 @@ class NodePanel(QtWidgets.QWidget):
         relyMap = normaliseRelyMap(meta.get("Rely")) if isinstance(meta, dict) else {}
         if not relyMap:
             return
-        values = self._getNodeParamValues(nodeInst, node)
+        values = self._getNodeParamValues(nodeIndex, nodeInst, node)
         for name in relyMap.keys():
             widgetName = self.resolveWidgetName(nodeInst, name)
             nodeWidget = nodeInst.get_widget(widgetName)
@@ -1091,6 +1168,10 @@ class NodePanel(QtWidgets.QWidget):
             customWidget = nodeWidget.get_custom_widget() if isinstance(nodeWidget, NodeBaseWidget) else None
             if isinstance(customWidget, QtWidgets.QWidget):
                 customWidget.setToolTip(tip)
+
+    def _applyAllNodeRely(self) -> None:
+        for nodeIndex in range(len(self.nodes)):
+            self._applyNodeRely(nodeIndex)
 
     def scheduleParamChanged(self, nodeIndex: int, paramIndex: int, widget: QtWidgets.QWidget) -> None:
         key = id(widget)
@@ -1374,6 +1455,8 @@ class NodePanel(QtWidgets.QWidget):
             widgetName = self.resolveWidgetName(node, name)
             if node.get_widget(widgetName):
                 node.hide_widget(widgetName, push_undo=False)
+            if node in self.nodes:
+                self._applyNodeRely(self.nodes.index(node))
 
     def _onLiveConnectionPrompt(self, start_port_view, scene_pos):
         node_out = self.graph.get_node_by_id(start_port_view.node.id)
@@ -1573,6 +1656,8 @@ class NodePanel(QtWidgets.QWidget):
                 widgetName = self.resolveWidgetName(node, name)
                 if node.get_widget(widgetName):
                     node.show_widget(widgetName, push_undo=False)
+                if node in self.nodes:
+                    self._applyNodeRely(self.nodes.index(node))
 
     def onNodesMoved(self, movedInfo):
         if self._isLoading:
@@ -2115,6 +2200,7 @@ class NodePanel(QtWidgets.QWidget):
             self._registerNodes()
             self._createNodes()
             self._createLinks()
+            self._applyAllNodeRely()
         finally:
             if viewport:
                 viewport.setUpdatesEnabled(True)

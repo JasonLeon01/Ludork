@@ -15,10 +15,12 @@ from Engine import (
     Vector2i,
     Vector2f,
     Vector2u,
+    Vector3f,
     Color,
     Texture,
     Direction,
     OppositeDirection,
+    Listener,
     Shader,
     ParticleSystem,
     ZeroVector2f,
@@ -26,7 +28,7 @@ from Engine import (
 from Engine.Utils import Math
 from Engine.Utils.Inner import IS_IOS_PLATFORM, warnIosShaderSkippedOnce
 from Engine.Gameplay import Tilemap, TileLayer, Material
-from Engine.Gameplay.Actors import Actor
+from Engine.Gameplay.Actors import Actor, Character
 from . import SceneBase
 from . import Manager
 from .GlobalExt import GameMapExt
@@ -172,6 +174,7 @@ class GameMap(GameMapExt):
         if self._player is None:
             self._camera.setParent(player)
         self._player = player
+        self._updateAudioListener()
 
     @ReturnType(actors=List[Actor])
     def getAllActors(self) -> List[Actor]:
@@ -903,6 +906,28 @@ class GameMap(GameMapExt):
             stack.extend(child.getChildren())
         return descendantActorIDs
 
+    def _updateAudioListener(self) -> None:
+        if self._player is None:
+            return
+        position = self._player.getPosition()
+        Listener.setPosition(Vector3f(position.x, position.y, 0.0))
+        if isinstance(self._player, Character):
+            Listener.setDirection(self._getAudioListenerDirection(self._player.direction))
+            Listener.setUpVector(Vector3f(0.0, 0.0, -1.0))
+        else:
+            Listener.setDirection(Vector3f(0.0, 0.0, -1.0))
+            Listener.setUpVector(Vector3f(0.0, 1.0, 0.0))
+
+    @staticmethod
+    def _getAudioListenerDirection(direction: Direction) -> Vector3f:
+        if direction == Direction.UP:
+            return Vector3f(0.0, -1.0, 0.0)
+        if direction == Direction.LEFT:
+            return Vector3f(-1.0, 0.0, 0.0)
+        if direction == Direction.RIGHT:
+            return Vector3f(1.0, 0.0, 0.0)
+        return Vector3f(0.0, 1.0, 0.0)
+
     def updateActorList(self) -> None:
         r"""\brief Rebuild the flat actor list from all layers, including children."""
         self._wholeActorList.clear()
@@ -980,6 +1005,7 @@ class GameMap(GameMapExt):
                 actor.update(deltaTime)
                 if actor.getTickable():
                     Actor.BlueprintEvent(actor, Actor, "onTick", {"deltaTime": deltaTime})
+        self._updateAudioListener()
         self._particleSystem.onTick(deltaTime)
 
     def onLateTick(self, deltaTime: float) -> None:

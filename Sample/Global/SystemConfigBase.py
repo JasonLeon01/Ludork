@@ -19,8 +19,8 @@ class SystemConfigBase:
     _scale: float = 2.0
     _frameRate: int = 120
     _verticalSync: bool = True
-    _musicOn: bool = False
-    _soundOn: bool = False
+    _musicOn: bool = True
+    _soundOn: bool = True
     _voiceOn: bool = True
     _musicVolume: float = 100.0
     _soundVolume: float = 100.0
@@ -371,6 +371,17 @@ class SystemConfigBase:
             from . import Manager
 
             Manager.AudioManager.applySoundVolumes()
+        elif key == "voiceOn":
+            from . import Manager
+
+            if not cls._voiceOn:
+                Manager.stopVoice()
+            else:
+                Manager.AudioManager.applyVoiceVolumes()
+        elif key == "voiceVolume":
+            from . import Manager
+
+            Manager.AudioManager.applyVoiceVolumes()
 
     @staticmethod
     def _resolveLanguage(language: str) -> str:

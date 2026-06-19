@@ -29,54 +29,6 @@
             "onCollision": {
                 "nodes": [
                     {
-                        "nodeFunction": "NodeFunctions.Utils.GetScene",
-                        "params": [],
-                        "pos": [
-                            -720,
-                            564.0
-                        ]
-                    },
-                    {
-                        "nodeFunction": "Scenes.Map.showMessage",
-                        "params": [
-                            "",
-                            "",
-                            "TestName2",
-                            "Now you will see."
-                        ],
-                        "pos": [
-                            0,
-                            314.0
-                        ]
-                    },
-                    {
-                        "nodeFunction": "Scenes.Map.showMessage",
-                        "params": [
-                            "",
-                            "",
-                            "",
-                            "No name here."
-                        ],
-                        "pos": [
-                            720,
-                            564.0
-                        ]
-                    },
-                    {
-                        "nodeFunction": "Scenes.Map.showSelection",
-                        "params": [
-                            "",
-                            "",
-                            "TestSelection",
-                            "[\"Test blinking\",\"Test shaking\",\"Test shop\",\"Test weather\"]",
-                            "True"
-                        ],
-                        "pos": [
-                            1440,
-                            814.0
-                        ]
-                    },
-                    {
                         "nodeFunction": "NodeFunctions.System.FlashScreen",
                         "params": [
                             255,
@@ -86,8 +38,8 @@
                             1.0
                         ],
                         "pos": [
-                            2160,
-                            1064.0
+                            2160.0,
+                            -61.0
                         ]
                     },
                     {
@@ -98,20 +50,20 @@
                             5.0
                         ],
                         "pos": [
-                            2160,
-                            1314.0
+                            2160.0,
+                            189.0
                         ]
                     },
                     {
                         "nodeFunction": "NodeFunctions.System.SetWeather",
                         "params": [
-                            "RAIN",
+                            "STORM",
                             30,
                             50
                         ],
                         "pos": [
-                            2160,
-                            1814.0
+                            2160.0,
+                            689.0
                         ]
                     },
                     {
@@ -121,72 +73,131 @@
                             true
                         ],
                         "pos": [
-                            2160,
-                            1564.0
+                            2160.0,
+                            439.0
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.Scene.ShowVoiceMessage",
+                        "params": [
+                            "TestName2",
+                            "Now you will see.",
+                            "chuckle.wav",
+                            "",
+                            "None",
+                            128.0
+                        ],
+                        "pos": [
+                            0.0,
+                            314.0
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.Utils.SELF",
+                        "params": [],
+                        "pos": [
+                            -1440.0,
+                            564.0
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.Utils.GetAttr",
+                        "params": [
+                            "",
+                            "tag"
+                        ],
+                        "pos": [
+                            -720.0,
+                            564.0
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.Scene.ShowMessage",
+                        "params": [
+                            "",
+                            "No name here.",
+                            ""
+                        ],
+                        "pos": [
+                            720.0,
+                            314.0
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.Scene.ShowSelection",
+                        "params": [
+                            "TestSelection",
+                            "[\"Test blinking\",\"Test shaking\",\"Test shop\",\"Test weather\"]",
+                            "",
+                            "True"
+                        ],
+                        "pos": [
+                            1440.0,
+                            314.0
                         ]
                     }
                 ],
                 "links": [
                     {
-                        "left": 0,
-                        "right": 1,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Params"
-                    },
-                    {
-                        "left": 1,
-                        "right": 2,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Exec"
-                    },
-                    {
-                        "left": 0,
-                        "right": 2,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Params"
-                    },
-                    {
-                        "left": 2,
-                        "right": 3,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Exec"
-                    },
-                    {
-                        "left": 0,
-                        "right": 3,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Params"
-                    },
-                    {
-                        "left": 3,
+                        "left": 5,
                         "right": 4,
                         "leftOutPin": 0,
+                        "rightInPin": 4,
+                        "linkType": "Params"
+                    },
+                    {
+                        "left": 5,
+                        "right": 6,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Params"
+                    },
+                    {
+                        "left": 6,
+                        "right": 4,
+                        "leftOutPin": 0,
+                        "rightInPin": 3,
+                        "linkType": "Params"
+                    },
+                    {
+                        "left": 4,
+                        "right": 7,
+                        "leftOutPin": 0,
                         "rightInPin": 0,
                         "linkType": "Exec"
                     },
                     {
-                        "left": 3,
-                        "right": 5,
+                        "left": 7,
+                        "right": 8,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Exec"
+                    },
+                    {
+                        "left": 8,
+                        "right": 0,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Exec"
+                    },
+                    {
+                        "left": 8,
+                        "right": 1,
                         "leftOutPin": 1,
                         "rightInPin": 0,
                         "linkType": "Exec"
                     },
                     {
-                        "left": 3,
-                        "right": 6,
-                        "leftOutPin": 3,
+                        "left": 8,
+                        "right": 3,
+                        "leftOutPin": 2,
                         "rightInPin": 0,
                         "linkType": "Exec"
                     },
                     {
-                        "left": 3,
-                        "right": 7,
-                        "leftOutPin": 2,
+                        "left": 8,
+                        "right": 2,
+                        "leftOutPin": 3,
                         "rightInPin": 0,
                         "linkType": "Exec"
                     }
@@ -218,7 +229,7 @@
             }
         },
         "startNodes": {
-            "onCollision": 1,
+            "onCollision": 4,
             "onCreate": null,
             "onDestroy": null,
             "onFixedTick": null,
