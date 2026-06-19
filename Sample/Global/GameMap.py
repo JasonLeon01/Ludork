@@ -270,9 +270,17 @@ class GameMap(GameMapExt):
         if not tags:
             return
         tagSet = set(tags)
+        actorIDsToRemove: set[int] = set()
+        for actorList in self._actors.values():
+            for actor in actorList:
+                if actor.tag in tagSet:
+                    actorIDsToRemove.add(id(actor))
+                    actorIDsToRemove.update(self._getDescendantActorIDs(actor))
+        if not actorIDsToRemove:
+            return
         removed = False
         for layerName, actorList in self._actors.items():
-            keptActors = [actor for actor in actorList if actor.tag not in tagSet]
+            keptActors = [actor for actor in actorList if id(actor) not in actorIDsToRemove]
             if len(keptActors) != len(actorList):
                 self._actors[layerName] = keptActors
                 removed = True
@@ -438,11 +446,7 @@ class GameMap(GameMapExt):
         if layer not in self._actors:
             self._actors[layer] = []
         actor.setMap(self)
-        if not hasattr(actor, "_mapTag"):
-            if getattr(type(actor), "_GENERATED_CLASS", False):
-                actor._mapTag = ""
-            else:
-                actor._mapTag = getattr(actor, "tag", "")
+        actor.ensureMapTag()
         if actor not in self._actors[layer]:
             self._actors[layer].append(actor)
 

@@ -216,16 +216,16 @@ class _Data:
         classModel: Type[Actor] = self.getClass(classPath)
         if classModel is None:
             return None
-        texturePath = getattr(classModel, "texturePath", "")
-        defaultRect = getattr(classModel, "defaultRect", None)
+        texturePath = classModel.texturePath
+        defaultRect = classModel.defaultRect
         texture = Manager.loadCharacter(texturePath) if texturePath else None
         actor: Actor = classModel.GenActor(classModel, texture, defaultRect, tag)
-        actor._mapTag = "" if tag is None else str(tag)
+        actor.setMapTag("" if tag is None else str(tag))
         actor.texturePath = texturePath
-        actor.setTranslation(Vector2f(*getattr(classModel, "defaultTranslation", [0, 0])))
-        actor.setRotation(float(getattr(classModel, "defaultRotation", 0.0)))
-        actor.setScale(tuple(getattr(classModel, "defaultScale", [1, 1])))
-        actor.setOrigin(tuple(getattr(classModel, "defaultOrigin", [0, 0])))
+        actor.setTranslation(Vector2f(*classModel.defaultTranslation))
+        actor.setRotation(float(classModel.defaultRotation))
+        actor.setScale(tuple(classModel.defaultScale))
+        actor.setOrigin(tuple(classModel.defaultOrigin))
         classData = self.getClassData(classPath)
         graphData = classData.get("graph") if isinstance(classData, dict) else None
         if graphData:
@@ -362,6 +362,15 @@ def getGeneralEnemyData(key: str) -> Dict[str, Any]:
     - \return Enemy data dictionary.
     """
     return _data.getGeneralData("Enemy").get("members", {}).get(key, {})
+
+
+def getGeneralPlayerData(key: str) -> Dict[str, Any]:
+    r"""\brief Get player data by its key.
+
+    - \param playerKey The player key.
+    - \return Player data dictionary.
+    """
+    return _data.getGeneralData("Player").get("members", {}).get(key, {})
 
 
 def getAllGeneralEquipData() -> Dict[str, Dict[str, Any]]:

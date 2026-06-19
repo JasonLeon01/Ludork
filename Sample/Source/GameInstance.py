@@ -184,7 +184,7 @@ class GameInstance:
         if len(self._players) <= 1:
             return
         for i, p in enumerate(self._players):
-            if p._classPath == playerClass:
+            if p.getClassPath() == playerClass:
                 self._players.pop(i)
                 return
 

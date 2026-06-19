@@ -534,6 +534,70 @@ class BluePrintEditor(QtWidgets.QWidget):
                 result[field.name] = componentName
         return result
 
+    def _getInfoType(self, cls: Optional[type]) -> str:
+        if cls is None or not isinstance(cls, type):
+            return ""
+        for base in cls.mro():
+            getInfoType = getattr(base, "getInfoType", None)
+            if callable(getInfoType):
+                infoType = getInfoType()
+                if isinstance(infoType, str) and infoType:
+                    return infoType
+        return ""
+
+    def _getGeneralDataMember(self, infoType: str, memberID: Any) -> tuple[Dict[str, Any], Dict[str, Any]]:
+        data = GameData.generalData.get(infoType, {})
+        if not isinstance(data, dict):
+            return {}, {}
+        members = data.get("members", {})
+        params = data.get("params", {})
+        memberData: Dict[str, Any] = {}
+        if isinstance(memberID, str) and memberID and isinstance(members, dict):
+            rawMember = members.get(memberID, {})
+            if isinstance(rawMember, dict):
+                memberData = copy.deepcopy(rawMember)
+        paramSchema = params if isinstance(params, dict) else {}
+        return memberData, paramSchema
+
+    def _getGeneralDataParamKeys(self, infoType: str) -> Set[str]:
+        _, params = self._getGeneralDataMember(infoType, "")
+        return set(params.keys())
+
+    def _mergeGeneralDataIntoComponent(
+        self, cls: Optional[type], componentName: str, componentData: Dict[str, Any], attrs: Dict[str, Any]
+    ) -> tuple[Dict[str, Any], Set[str]]:
+        infoType = self._getInfoType(cls)
+        if not infoType or componentName != "infoComp":
+            return componentData, set()
+        memberData, params = self._getGeneralDataMember(infoType, attrs.get("ID", ""))
+        readOnlyFields = set(params.keys())
+        merged = copy.deepcopy(componentData)
+        for key in readOnlyFields:
+            if key in memberData:
+                merged[key] = copy.deepcopy(memberData[key])
+        return merged, readOnlyFields
+
+    def _stripGeneralDataFromComponent(
+        self, cls: Optional[type], componentName: str, componentData: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        infoType = self._getInfoType(cls)
+        if not infoType or componentName != "infoComp":
+            return componentData
+        readOnlyFields = self._getGeneralDataParamKeys(infoType)
+        result = copy.deepcopy(componentData)
+        for key in readOnlyFields:
+            result.pop(key, None)
+        return result
+
+    def _pruneComponentDataToStored(self, componentType: Any, componentData: Dict[str, Any]) -> Dict[str, Any]:
+        defaults = self._getComponentDefaults(componentType)
+        result: Dict[str, Any] = {}
+        for key, value in componentData.items():
+            if key in defaults and value == defaults[key]:
+                continue
+            result[key] = value
+        return result
+
     def _getComponentDefaults(self, componentType: Any) -> Dict[str, Any]:
         result: Dict[str, Any] = {}
         for field in dataclasses.fields(componentType):
@@ -579,7 +643,13 @@ class BluePrintEditor(QtWidgets.QWidget):
                     componentData[field.name] = value
                 moved = True
             if moved and componentData and not skipDisabledLight:
-                attrs[componentName] = componentData
+                if componentName == "infoComp":
+                    componentData = self._stripGeneralDataFromComponent(cls, componentName, componentData)
+                    componentData = self._pruneComponentDataToStored(componentType, componentData)
+                if componentData:
+                    attrs[componentName] = componentData
+                elif componentName in attrs:
+                    del attrs[componentName]
                 changed = True
             elif moved:
                 changed = True
@@ -1295,11 +1365,12 @@ class BluePrintEditor(QtWidgets.QWidget):
         value, _ = self._getComponentValue(sourceCls, key, componentType, attrs)
         if value is None:
             value = self._getComponentDefaults(componentType)
+        displayValue, readOnlyFields = self._mergeGeneralDataIntoComponent(cls, key, value, attrs)
 
         dlg = QtWidgets.QDialog(self)
         dlg.setWindowTitle(key)
         layout = QtWidgets.QVBoxLayout(dlg)
-        widget = DataclassWidget(componentType, copy.deepcopy(value), dlg)
+        widget = DataclassWidget(componentType, copy.deepcopy(displayValue), dlg, readOnlyFields=readOnlyFields)
         layout.addWidget(widget)
         buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
         ok_btn = buttons.button(QtWidgets.QDialogButtonBox.Ok)
@@ -1315,7 +1386,12 @@ class BluePrintEditor(QtWidgets.QWidget):
             return
 
         GameData.recordSnapshot()
-        attrs[key] = copy.deepcopy(widget.data)
+        saved = self._stripGeneralDataFromComponent(cls, key, copy.deepcopy(widget.data))
+        saved = self._pruneComponentDataToStored(componentType, saved)
+        if saved:
+            attrs[key] = saved
+        elif key in attrs:
+            del attrs[key]
         self.refreshAttrs()
         GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
         self.MODIFIED.emit()

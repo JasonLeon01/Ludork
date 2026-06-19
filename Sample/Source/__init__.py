@@ -11,6 +11,7 @@ for the Ludork sample project.
 - Infos          Info descriptor sub-package (ItemInfo, EnemyInfo)
 - Player         Player entity
 - Enemy          Enemy entity
+- EnemyDamageText Enemy child actor that displays handbook battle damage
 - Item           Item entity
 - Teleporter     Mota floor teleporter actor
 - Door           Door actor with one-shot open animation that self-destructs
@@ -22,6 +23,7 @@ from . import NodeFunctions
 from .Infos import ItemInfo, EnemyInfo
 from .Player import Player
 from .Enemy import Enemy
+from .EnemyDamageText import EnemyDamageText
 from .Item import Item
 from .Equip import Equip
 from .Teleporter import Teleporter
@@ -36,6 +38,7 @@ __all__ = [
     "EnemyInfo",
     "Player",
     "Enemy",
+    "EnemyDamageText",
     "Item",
     "Equip",
     "Teleporter",

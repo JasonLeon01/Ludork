@@ -1,8 +1,26 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import List
+from typing import Any, Dict, List, Optional, Protocol
 from ..BPBase import BPBase
+from ..NodeGraph import Graph
+
+
+class InfoDataProvider(Protocol):
+    r"""\brief Data provider used by `InfoBase.initInfo`."""
+
+    def getGeneralData(self, name: str) -> Dict[str, Any]:
+        r"""\brief Load a GeneralData table by type name."""
+        ...
+
+    def genGraphFromData(
+        self,
+        data: Dict[str, Any],
+        parent: Optional[object] = None,
+        parentClass: Optional[type] = None,
+    ) -> Graph:
+        r"""\brief Build a blueprint graph from serialised graph data."""
+        ...
 
 
 class InfoBase(BPBase):
@@ -19,12 +37,12 @@ class InfoBase(BPBase):
     """
 
     _infoType: str = ""
-    _infoGraph = None
-    _graph = None
+    _infoGraph: Optional[Graph] = None
+    _graph: Optional[Graph] = None
 
     ID: str = ""  #: Unique identifier for this info object
 
-    def initInfo(self, dataProvider) -> None:
+    def initInfo(self, dataProvider: InfoDataProvider) -> None:
         r"""Load attributes from GeneralData onto self.
 
         Also builds the info-layer Graph if _graph data exists in the member.
@@ -34,7 +52,7 @@ class InfoBase(BPBase):
         if not self._infoType:
             return
 
-        datas = dataProvider.getGeneralData(self._infoType)  # type: ignore
+        datas = dataProvider.getGeneralData(self._infoType)
         members = datas.get("members", {})
         params = datas.get("params", {})
         member_data = members.get(self.ID, {})
@@ -42,9 +60,9 @@ class InfoBase(BPBase):
             self.ApplyGeneralData(self, member_data, params)
             graphData = member_data.get("_graph")
             if graphData:
-                self._infoGraph = dataProvider.genGraphFromData(graphData, self, type(self))  # type: ignore
+                self._infoGraph = dataProvider.genGraphFromData(graphData, self, type(self))
 
-    def setInfoGraph(self, graph) -> None:
+    def setInfoGraph(self, graph: Optional[Graph]) -> None:
         r"""Set the info-layer blueprint Graph.
 
         This graph handles data-level events (onUse, onEquip, etc).
@@ -53,7 +71,21 @@ class InfoBase(BPBase):
         """
         self._infoGraph = graph
 
-    def triggerEvent(self, eventName: str, **kwargs) -> None:
+    def getInfoGraph(self) -> Optional[Graph]:
+        r"""\brief Get the info-layer blueprint graph.
+
+        - \return The info-layer graph, or None if unset.
+        """
+        return self._infoGraph
+
+    def hasInfoGraph(self) -> bool:
+        r"""\brief Check whether this info object has an info-layer graph.
+
+        - \return True if an info-layer graph is assigned.
+        """
+        return self._infoGraph is not None
+
+    def triggerEvent(self, eventName: str, **kwargs: Any) -> None:
         r"""Convenience method to trigger a blueprint event.
 
         For standalone Info objects, executes _infoGraph directly.
@@ -62,7 +94,9 @@ class InfoBase(BPBase):
         - \param eventName  Name of the event to trigger
         - \param kwargs     Additional keyword arguments passed to the event
         """
-        if hasattr(self, "_graph") and self._graph is not None:
+        from .Actors.Base import _ActorBase
+
+        if isinstance(self, _ActorBase) and self.getGraph() is not None:
             self.BlueprintEvent(self, type(self), eventName, kwargs if kwargs else None)
         else:
             self._tryExecuteInfoGraph(self, eventName, kwargs if kwargs else {})

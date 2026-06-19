@@ -92,6 +92,7 @@
                     {
                         "nodeFunction": "NodeFunctions.Utils.UnregisterEventBusEvent",
                         "params": [
+                            "",
                             ""
                         ],
                         "pos": [
@@ -132,6 +133,13 @@
                         "right": 1,
                         "leftOutPin": 0,
                         "rightInPin": 0,
+                        "linkType": "Params"
+                    },
+                    {
+                        "left": 2,
+                        "right": 0,
+                        "leftOutPin": 0,
+                        "rightInPin": 1,
                         "linkType": "Params"
                     }
                 ]
@@ -225,27 +233,6 @@
                             -2160.0,
                             250.0
                         ]
-                    },
-                    {
-                        "nodeFunction": "NodeFunctions.Utils.GetAttr",
-                        "params": [
-                            "",
-                            "eventBusName"
-                        ],
-                        "pos": [
-                            720.0,
-                            750.0
-                        ]
-                    },
-                    {
-                        "nodeFunction": "NodeFunctions.Utils.UnregisterEventBusEvent",
-                        "params": [
-                            ""
-                        ],
-                        "pos": [
-                            1440.0,
-                            0.0
-                        ]
                     }
                 ],
                 "links": [
@@ -304,27 +291,6 @@
                         "leftOutPin": 0,
                         "rightInPin": 1,
                         "linkType": "Params"
-                    },
-                    {
-                        "left": 4,
-                        "right": 7,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Params"
-                    },
-                    {
-                        "left": 7,
-                        "right": 8,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Params"
-                    },
-                    {
-                        "left": 3,
-                        "right": 8,
-                        "leftOutPin": 1,
-                        "rightInPin": 0,
-                        "linkType": "Exec"
                     }
                 ]
             }

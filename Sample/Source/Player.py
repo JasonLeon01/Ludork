@@ -9,15 +9,17 @@ from Global import Manager
 from . import Data
 from .Battler import Battler, PlayerInfoComponent
 from .Infos.EquipInfo import EquipInfo
+from .Infos.PlayerInfo import PlayerInfo
 
 
-class Player(Character, Battler):
+class Player(Character, PlayerInfo, Battler):
     r"""\brief Player-controlled character with input bindings and battle stats.
 
     Combines `Character` (directional movement/animation) with `Battler`
     (HP, ATK, DEF, states). Registers arrow-key input mappings on construction.
     """
 
+    ID: str = "FILL_IT_BY_YOURSELF"
     _componentTypes = {"infoComp": PlayerInfoComponent}
     infoComp: PlayerInfoComponent = PlayerInfoComponent()
 
@@ -28,7 +30,8 @@ class Player(Character, Battler):
         self.collisionEnabled = True
         self.animatable = True
         self.speed = 96
-        self.infoComp.HP = self.infoComp.MAXHP
+        self.initInfo(Data)
+        self._syncInitialHP()
         self._items: Dict[str, int] = {}
         self._equips: Dict[str, int] = {}
         self._equipInfo: Dict[str, str] = {}
@@ -49,6 +52,20 @@ class Player(Character, Battler):
             if equipID:
                 self.equip(equipID)
 
+    def getClassPath(self) -> str:
+        r"""\brief Get the blueprint class path used to create this player.
+
+        - \return Player class path string.
+        """
+        return self._classPath
+
+    def setClassPath(self, classPath: str) -> None:
+        r"""\brief Set the blueprint class path for this player.
+
+        - \param classPath Player class path string.
+        """
+        self._classPath = classPath
+
     def _processMoving(self, fixedDelta: float) -> None:
         wasMoving = self._isMoving
         super()._processMoving(fixedDelta)
@@ -65,7 +82,15 @@ class Player(Character, Battler):
             "playerClass": self._classPath,
             "tag": self.tag,
             "position": self.getMapPosition().unpack(),
-            "attr": {k: getattr(self.infoComp, k) for k in ["LEVEL", "HP", "MAXHP", "ATK", "DEF", "EXP", "GOLD"]},
+            "attr": {
+                "LEVEL": self.infoComp.LEVEL,
+                "HP": self.infoComp.HP,
+                "MAXHP": self.infoComp.MAXHP,
+                "ATK": self.infoComp.ATK,
+                "DEF": self.infoComp.DEF,
+                "EXP": self.infoComp.EXP,
+                "GOLD": self.infoComp.GOLD,
+            },
             "items": self._items,
             "equips": self._equips,
             "equipInfo": self._equipInfo,
@@ -82,13 +107,13 @@ class Player(Character, Battler):
         - \return A new `Player` instance initialized with the provided class path.
         """
         actorClass: Type[Player] = Data.getClass(playerPath)
-        texturePath = getattr(actorClass, "texturePath")
-        defaultRect = getattr(actorClass, "defaultRect")
+        texturePath = actorClass.texturePath
+        defaultRect = actorClass.defaultRect
         actor: Player = Cast(
             Player, actorClass.GenActor(actorClass, Manager.loadCharacter(texturePath), defaultRect, "yongshi")
         )
-        actor._mapTag = actor.tag
-        actor._classPath = playerPath
+        actor.setMapTag(actor.tag)
+        actor.setClassPath(playerPath)
         actor.setAnimatable(True, True)
         actor.setCollisionEnabled(True)
         actor.setGraph(

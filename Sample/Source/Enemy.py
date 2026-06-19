@@ -1,9 +1,11 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+from math import ceil
 from typing import Any, Callable, Dict, Optional, Union, List, Tuple
 from Engine import Pair, Texture, IntRect
 from Engine.Gameplay.Actors import Actor
+from Engine.Gameplay.Components import ChildActorComponent, componentFromData
 from Global import Animation
 from . import Data
 from .Infos.EnemyInfo import EnemyInfo
@@ -20,8 +22,12 @@ class Enemy(Actor, EnemyInfo, Battler):
     """
 
     ID: str = "FILL_IT_BY_YOURSELF"
-    _componentTypes = {"infoComp": EnemyInfoComponent}
+    _componentTypes = {**Actor._componentTypes, "infoComp": EnemyInfoComponent}
     infoComp: EnemyInfoComponent = EnemyInfoComponent()
+    childActorComp: ChildActorComponent = ChildActorComponent(
+        className="Source.EnemyDamageText.EnemyDamageText",
+        relativePosition=(0.0, 0.0),
+    )
     tickable: bool = True
     collisionEnabled: bool = True
     animatable: bool = True
@@ -40,15 +46,15 @@ class Enemy(Actor, EnemyInfo, Battler):
         - \param tag Optional actor tag.
         """
         Actor.__init__(self, texture, rect, tag)
+        self._normaliseChildActorComp()
         Battler.__init__(self)
         self._battleCondition: Optional[Callable[[], bool]] = None
-        initAttrs: Dict[str, int] = {}
-        for attr in ["MAXHP", "ATK", "DEF", "EXP", "GOLD"]:
-            value = getattr(self.infoComp, attr)
-            if value != -1:
-                initAttrs[attr] = value
-        self.infoComp.setInitAttrs(initAttrs)
         self.initInfo(Data)
+        self._syncInitialHP()
+
+    def _normaliseChildActorComp(self) -> None:
+        value = self.__dict__.get("childActorComp", self.childActorComp)
+        self.childActorComp = componentFromData(ChildActorComponent, value)
 
     @ExecSplit(Win=(0,), Lose=(1,), Escape=(2,))
     def battle(self):
@@ -110,6 +116,27 @@ class Enemy(Actor, EnemyInfo, Battler):
     def getDrops(self) -> List[str]:
         return list(self.infoComp.drops)
 
+    def getCriticalValue(self, battler: Battler) -> int:
+        r"""\brief Calculate the next attack threshold for this enemy.
+
+        - \param battler The opposing battler used as the attacker.
+        - \return Attack threshold value, or a negative special marker.
+        """
+        self._normaliseInfoComp()
+        battler.normaliseInfoComp()
+        ma = int(battler.getATK(self))
+        ed = int(self.getDEF(battler))
+        ehp = int(self.infoComp.MAXHP)
+        if ma <= ed:
+            return ed + 1
+        if ma >= ehp + ed:
+            return -2
+        if self.hasSpecial("Hard"):
+            return -1
+        mdam = ma - ed
+        eturn = max(ceil(ehp / mdam) - 1, 0)
+        return ceil(ehp / eturn) + ed
+
     def onCollision(self, other: List[Actor]) -> None:
         from Source.Scenes import Map
         from Global import System
@@ -140,7 +167,7 @@ class Enemy(Actor, EnemyInfo, Battler):
                 anim = Animation(animData)
                 anim.setPosition(self.getPosition())
                 map.addAnim(anim)
-                animLen = max(animLen, anim.getDuration())
+                animLen = max(animLen, anim.getVisualDuration())
             if self.infoComp.ANIMATION_KEY:
                 animData = Data.getAnimation(self.infoComp.ANIMATION_KEY)
                 if animData is None:
@@ -148,7 +175,7 @@ class Enemy(Actor, EnemyInfo, Battler):
                 anim = Animation(animData)
                 anim.setPosition(player.getPosition())
                 map.addAnim(anim)
-                animLen = max(animLen, anim.getDuration())
+                animLen = max(animLen, anim.getVisualDuration())
 
             self._battleCondition = map.addTimer(animLen, battleResult, [])
 

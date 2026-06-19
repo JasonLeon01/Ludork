@@ -8,6 +8,43 @@ from typing import List, Optional, Dict, Any
 from . import Sprite, Texture, Image, C_CompressAnimation
 
 
+def getAnimationVisualDuration(animationData: Dict[str, Any]) -> float:
+    r"""
+    \brief Get animation duration based on visual frame segments only.
+
+    - \param animationData Raw or compressed animation data dictionary.
+    - \return Visual duration in seconds, excluding sound track length.
+    """
+    visualDuration = animationData.get("visualDuration")
+    if visualDuration is not None:
+        return float(visualDuration)
+    visualFrameCount = animationData.get("visualFrameCount")
+    frameRate = int(animationData.get("frameRate", 30) or 30)
+    if frameRate <= 0:
+        frameRate = 30
+    if visualFrameCount is not None and frameRate > 0:
+        return float(visualFrameCount) / frameRate
+    if animationData.get("type") == "animation":
+        visualMaxTime = 0.0
+        for timeLine in animationData.get("timeLines", []):
+            for segment in timeLine.get("timeSegments", []):
+                if segment.get("type") != "frame":
+                    continue
+                endTime = segment.get("endFrame", {}).get("time", 0.0)
+                if endTime > visualMaxTime:
+                    visualMaxTime = endTime
+        if visualMaxTime > 0.0:
+            return max(1, int(math.ceil(visualMaxTime * frameRate))) / frameRate
+        return 0.0
+    duration = animationData.get("duration")
+    if duration is not None:
+        return float(duration)
+    frameCount = int(animationData.get("frameCount", 0) or 0)
+    if frameCount > 0 and frameRate > 0:
+        return float(frameCount) / frameRate
+    return 0.0
+
+
 class AnimSprite(Sprite):
     r"""
     \brief Sprite that plays frame-based animations from compressed data.
@@ -28,6 +65,8 @@ class AnimSprite(Sprite):
         self._frameCounter: float = 0.0
         self._frameIndex: int = 0
         self._finished: bool = False
+        self._duration: float = 0.0
+        self._visualDuration: float = 0.0
         self.setData(animationData)
         super().__init__(self._texture)
 
@@ -51,8 +90,28 @@ class AnimSprite(Sprite):
         self._frameCounter = 0.0
         self._frameIndex = 0
         self._finished = self._frameCount <= 0 or len(self._frames) == 0
+        self._duration = float(animationData.get("duration", 0.0) or 0.0)
+        if self._duration <= 0.0 and self._frameRate > 0 and self._frameCount > 0:
+            self._duration = float(self._frameCount) / self._frameRate
+        self._visualDuration = getAnimationVisualDuration(animationData)
         if not self._finished:
             self.applyFrame(0)
+
+    def getDuration(self) -> float:
+        r"""
+        \brief Get the full animation duration including sound track length.
+
+        - \return Duration in seconds.
+        """
+        return self._duration
+
+    def getVisualDuration(self) -> float:
+        r"""
+        \brief Get the visual duration based on frame segments only.
+
+        - \return Visual duration in seconds, excluding sound track length.
+        """
+        return self._visualDuration
 
     def isFinished(self) -> bool:
         r"""
@@ -133,7 +192,9 @@ def compressAnimation(
             "type": "compressedAnimation",
             "frameRate": 0,
             "frameCount": 0,
+            "visualFrameCount": 0,
             "duration": 0.0,
+            "visualDuration": 0.0,
             "frames": [],
             "sounds": [],
         }
@@ -147,13 +208,22 @@ def compressAnimation(
     assets: List[str] = animationData.get("assets", [])
 
     maxTime = 0.0
+    visualMaxTime = 0.0
     for timeLine in timeLines:
         for segment in timeLine.get("timeSegments", []):
             endTime = segment.get("endFrame", {}).get("time", 0.0)
             if endTime > maxTime:
                 maxTime = endTime
+            if segment.get("type") == "frame" and endTime > visualMaxTime:
+                visualMaxTime = endTime
 
     frameCount = max(1, int(math.ceil(maxTime * frameRate)))
+    if visualMaxTime > 0.0:
+        visualFrameCount = max(1, int(math.ceil(visualMaxTime * frameRate)))
+        visualDuration = float(visualFrameCount) / frameRate
+    else:
+        visualFrameCount = 0
+        visualDuration = 0.0
 
     if assetsRoot is None:
         assetsRoot = os.path.join("Assets", "Animations")
@@ -167,7 +237,9 @@ def compressAnimation(
         "name": animationData.get("name", ""),
         "frameRate": frameRate,
         "frameCount": frameCount,
+        "visualFrameCount": visualFrameCount,
         "duration": duration,
+        "visualDuration": visualDuration,
         "frames": frames,
         "sounds": sounds,
     }

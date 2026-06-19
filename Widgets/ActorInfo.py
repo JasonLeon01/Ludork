@@ -52,9 +52,7 @@ class ActorInfoPanel(QtWidgets.QWidget):
         self.translationYSpin.valueChanged.connect(self._onTranslationChanged)
 
         translationLayout = QtWidgets.QHBoxLayout()
-        translationLayout.addWidget(QtWidgets.QLabel("X:"))
         translationLayout.addWidget(self.translationXSpin)
-        translationLayout.addWidget(QtWidgets.QLabel("Y:"))
         translationLayout.addWidget(self.translationYSpin)
         self.formLayout.addRow(ELOC("TRANSLATION"), translationLayout)
 
@@ -77,9 +75,7 @@ class ActorInfoPanel(QtWidgets.QWidget):
         self.scaleYSpin.valueChanged.connect(self._onScaleChanged)
 
         scaleLayout = QtWidgets.QHBoxLayout()
-        scaleLayout.addWidget(QtWidgets.QLabel("X:"))
         scaleLayout.addWidget(self.scaleXSpin)
-        scaleLayout.addWidget(QtWidgets.QLabel("Y:"))
         scaleLayout.addWidget(self.scaleYSpin)
         self.formLayout.addRow(ELOC("SCALE"), scaleLayout)
 

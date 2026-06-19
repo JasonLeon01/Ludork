@@ -75,7 +75,7 @@ class ChildActorComponent(Component):
 
     @staticmethod
     def _makeChildTag(owner: Actor) -> str:
-        parentTag = owner._mapTag
+        parentTag = owner.getMapTag()
         if parentTag is None:
             parentTag = ""
         if not isinstance(parentTag, str):

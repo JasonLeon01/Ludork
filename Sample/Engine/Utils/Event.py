@@ -24,17 +24,24 @@ class EventBus:
         self._queue: Deque[Tuple[str, Any]] = deque()
         self._next_id: int = 1
         self._lock = threading.RLock()
-        self._subscriptionIndex: Dict[str, int] = {}
-        self._tokenIndex: Dict[int, str] = {}
+        self._objectSubscriptionIndex: Dict[Tuple[str, int], int] = {}
+        self._tokenObjectIndex: Dict[int, Tuple[str, int]] = {}
 
-    def _trackSubscription(self, token: int, event: str) -> None:
-        self._subscriptionIndex[event] = token
-        self._tokenIndex[token] = event
+    def _trackObjectSubscription(self, token: int, event: str, obj: object) -> None:
+        key = (event, id(obj))
+        self._objectSubscriptionIndex[key] = token
+        self._tokenObjectIndex[token] = key
 
     def _dropSubscriptionIndex(self, token: int) -> None:
-        event = self._tokenIndex.pop(token, None)
-        if event is not None:
-            self._subscriptionIndex.pop(event, None)
+        key = self._tokenObjectIndex.pop(token, None)
+        if key is not None:
+            self._objectSubscriptionIndex.pop(key, None)
+
+    def _dropObjectSubscriptionsForEvent(self, event: str) -> None:
+        for key, token in list(self._objectSubscriptionIndex.items()):
+            if key[0] == event:
+                self._objectSubscriptionIndex.pop(key, None)
+                self._tokenObjectIndex.pop(token, None)
 
     def _removeHandlerToken(self, token: int) -> bool:
         found = False
@@ -58,7 +65,7 @@ class EventBus:
         priority: int = 0,
     ) -> int:
         r"""
-        \brief Subscribe a handler and index it by event key.
+        \brief Subscribe a handler and index it by event key and object.
 
         - \param event Event name to subscribe to.
         - \param obj Target object associated with the handler.
@@ -67,16 +74,17 @@ class EventBus:
         - \return Subscription token that can be used to unsubscribe.
         """
         with self._lock:
-            oldToken = self._subscriptionIndex.pop(event, None)
+            key = (event, id(obj))
+            oldToken = self._objectSubscriptionIndex.get(key)
             if oldToken is not None:
-                self._tokenIndex.pop(oldToken, None)
+                self._dropSubscriptionIndex(oldToken)
                 self._removeHandlerToken(oldToken)
             token = self._next_id
             self._next_id += 1
             lst = self._handlers.setdefault(event, [])
             lst.append((priority, token, fn))
             lst.sort(key=lambda t: (-t[0], t[1]))
-            self._trackSubscription(token, event)
+            self._trackObjectSubscription(token, event, obj)
             return token
 
     def subscribe(self, event: str, fn: Callable[[Any], None], priority: int = 0) -> int:
@@ -181,10 +189,23 @@ class EventBus:
         with self._lock:
             hadHandlers = event in self._handlers
             self._handlers.pop(event, None)
-            token = self._subscriptionIndex.pop(event, None)
-            if token is not None:
-                self._tokenIndex.pop(token, None)
+            self._dropObjectSubscriptionsForEvent(event)
             return hadHandlers
+
+    def unsubscribeObjectHandler(self, event: str, obj: object) -> bool:
+        r"""
+        \brief Unsubscribe an object's handler for an event key.
+
+        - \param event Event name subscribed to.
+        - \param obj Target object associated with the handler.
+        - \return True if the handler was found and removed, False otherwise.
+        """
+        with self._lock:
+            token = self._objectSubscriptionIndex.get((event, id(obj)))
+            if token is not None:
+                self._dropSubscriptionIndex(token)
+                return self._removeHandlerToken(token)
+            return False
 
     def clear(self, event: Optional[str] = None) -> None:
         r"""
@@ -195,13 +216,11 @@ class EventBus:
         with self._lock:
             if event is None:
                 self._handlers.clear()
-                self._subscriptionIndex.clear()
-                self._tokenIndex.clear()
+                self._objectSubscriptionIndex.clear()
+                self._tokenObjectIndex.clear()
             else:
                 self._handlers.pop(event, None)
-                token = self._subscriptionIndex.pop(event, None)
-                if token is not None:
-                    self._tokenIndex.pop(token, None)
+                self._dropObjectSubscriptionsForEvent(event)
 
     def publish(self, event: str, payload: Any = None) -> None:
         r"""
@@ -254,11 +273,14 @@ class EventBus:
 def _validateBlueprintEventTarget(obj: object, eventName: str) -> None:
     if obj is None:
         raise ValueError("Blueprint event target object is None")
-    graph = getattr(obj, "_graph", None)
-    if graph is not None and hasattr(graph, "hasKey") and graph.hasKey(eventName):
+    from Engine.Gameplay.Actors.Base import _ActorBase
+    from Engine.Gameplay.InfoBase import InfoBase
+
+    graph = obj.getGraph() if isinstance(obj, _ActorBase) else None
+    if graph is not None and graph.hasKey(eventName):
         return
-    infoGraph = getattr(obj, "_infoGraph", None)
-    if infoGraph is not None and hasattr(infoGraph, "hasKey") and infoGraph.hasKey(eventName):
+    infoGraph = obj.getInfoGraph() if isinstance(obj, InfoBase) else None
+    if infoGraph is not None and infoGraph.hasKey(eventName):
         return
     if hasattr(obj, eventName) and callable(getattr(obj, eventName)):
         return
@@ -278,12 +300,12 @@ def triggerBlueprintEvent(obj: object, eventName: str) -> None:
 
     if getattr(obj, "isDestroyed", lambda: False)():
         return
-    graph = getattr(obj, "_graph", None)
+    from Engine.Gameplay.Actors.Base import _ActorBase
+
+    graph = obj.getGraph() if isinstance(obj, _ActorBase) else None
     if (
         graph is not None
-        and hasattr(graph, "hasKey")
         and graph.hasKey(eventName)
-        and hasattr(graph, "startNodes")
         and eventName in graph.startNodes
         and graph.startNodes[eventName] is not None
     ):
@@ -385,6 +407,17 @@ def unsubscribeEvent(event: str) -> bool:
     return _default_bus.unsubscribeEvent(event)
 
 
+def unsubscribeObjectHandler(event: str, obj: object) -> bool:
+    r"""
+    \brief Unsubscribe an object's handler on the default event bus.
+
+    - \param event Event name subscribed to.
+    - \param obj Target object associated with the handler.
+    - \return True if the handler was found and removed, False otherwise.
+    """
+    return _default_bus.unsubscribeObjectHandler(event, obj)
+
+
 def publish(event: str, payload: Any = None) -> None:
     r"""
     \brief Immediately publish an event on the default event bus.
@@ -433,6 +466,7 @@ __all__ = [
     "onceBlueprintEvent",
     "unsubscribe",
     "unsubscribeEvent",
+    "unsubscribeObjectHandler",
     "publish",
     "post",
     "flush",

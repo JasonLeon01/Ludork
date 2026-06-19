@@ -37,22 +37,24 @@ class BPBase:
             return
         if not isinstance(obj, objType) or not hasattr(obj, eventName) or not callable(getattr(obj, eventName)):
             return
+        from Engine.Gameplay.Actors.Base import _ActorBase
+
+        graph = obj.getGraph() if isinstance(obj, _ActorBase) else None
         if (
             hasattr(type(obj), "_GENERATED_CLASS")
             and type(obj)._GENERATED_CLASS
-            and hasattr(obj, "_graph")
-            and not obj._graph is None
-            and obj._graph.hasKey(eventName)
+            and graph is not None
+            and graph.hasKey(eventName)
         ):
-            if eventName in obj._graph.startNodes and not obj._graph.startNodes[eventName] is None:
-                if not obj._graph.tryLockExecution(eventName):
+            if eventName in graph.startNodes and graph.startNodes[eventName] is not None:
+                if not graph.tryLockExecution(eventName):
                     return
                 for key, value in kwargs.items():
-                    obj._graph.localGraph[f"__{key}__"] = value
+                    graph.localGraph[f"__{key}__"] = value
                 try:
-                    obj._graph.execute(eventName)
+                    graph.execute(eventName)
                 finally:
-                    obj._graph.completeExecution(eventName)
+                    graph.completeExecution(eventName)
             else:
                 if BPBase._tryExecuteInfoGraph(obj, eventName, kwargs):
                     return
@@ -72,7 +74,11 @@ class BPBase:
         - \param kwargs     Arguments passed to the event.
         - \return True if executed, False if no info graph or event not found.
         """
-        infoGraph = getattr(obj, "_infoGraph", None)
+        from Engine.Gameplay.InfoBase import InfoBase
+
+        if not isinstance(obj, InfoBase):
+            return False
+        infoGraph = obj.getInfoGraph()
         if infoGraph is None:
             return False
         if not infoGraph.hasKey(eventName):

@@ -20,16 +20,7 @@
                 32
             ]
         ],
-        "ID": "Skeleton",
-        "infoComp": {
-            "MAXHP": -1,
-            "ATK": -1,
-            "DEF": -1,
-            "EXP": -1,
-            "GOLD": -1,
-            "ANIMATION_KEY": "attack",
-            "HP": -1
-        }
+        "ID": "Skeleton"
     },
     "graph": {
         "nodeGraph": {

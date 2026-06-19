@@ -401,6 +401,23 @@ def GetAnimLength(animName: str) -> float:
     return float(duration)
 
 
+@Meta(DisplayName='LOC("GET_ANIM_VISUAL_LENGTH")', DisplayDesc='LOC("GET_ANIM_VISUAL_LENGTH_DESC")')
+@ReturnType(value=float)
+def GetAnimVisualLength(animName: str) -> float:
+    r"""\brief Get the visual duration of an animation, excluding sound track length.
+
+    - \param animName The animation name.
+    - \return The visual duration in seconds.
+    """
+    from Engine.Animation import getAnimationVisualDuration
+    from Source import Data
+
+    animData = Data.getAnimation(animName)
+    if animData is None:
+        raise ValueError(f"Animation '{animName}' not found")
+    return getAnimationVisualDuration(animData)
+
+
 @Meta(DisplayName='LOC("SUPER")', DisplayDesc='LOC("SUPER_DESC")')
 @ReturnType(value=object)
 def SUPER(obj: object) -> object:
@@ -525,12 +542,15 @@ def UnregisterEventBus(key: str) -> bool:
 @Meta(DisplayName='LOC("UNREGISTER_EVENT_BUS_EVENT")', DisplayDesc='LOC("UNREGISTER_EVENT_BUS_EVENT_DESC")')
 @ExecSplit(default=(None,))
 @ReturnType(value=bool)
-def UnregisterEventBusEvent(key: str) -> bool:
-    r"""\brief Unsubscribe blueprint event handlers from the shared EventBus by key.
+def UnregisterEventBusEvent(key: str, obj: Optional[object] = None) -> bool:
+    r"""\brief Unsubscribe blueprint event handlers from the shared EventBus.
 
     - \param key EventBus key subscribed to.
+    - \param obj Optional target object. If provided, only that object's handler is removed.
     - \return True if any handler was found and removed, False otherwise.
     """
+    if obj is not None:
+        return Event.unsubscribeObjectHandler(key, obj)
     return Event.unsubscribeEvent(key)
 
 

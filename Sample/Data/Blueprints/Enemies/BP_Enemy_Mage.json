@@ -10,16 +10,7 @@
             "speedRate": 1.5
         },
         "texturePath": "enemies/classic-enemies-04-magician-single.png",
-        "ID": "Mage",
-        "infoComp": {
-            "MAXHP": -1,
-            "ATK": -1,
-            "DEF": -1,
-            "EXP": -1,
-            "GOLD": -1,
-            "ANIMATION_KEY": "attack",
-            "HP": -1
-        }
+        "ID": "Mage"
     },
     "graph": {
         "nodeGraph": {

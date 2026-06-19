@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import dataclasses
-from typing import Dict, Any, Type, get_type_hints
+from typing import Dict, Any, Type, get_type_hints, Optional, Set
 
 from PyQt5 import QtWidgets, QtCore
 
@@ -14,10 +14,17 @@ from .VectorVarEditor import VectorVarEditor, isVectorVarType
 class DataclassWidget(QtWidgets.QWidget):
     VALUE_CHANGED = QtCore.pyqtSignal(dict)
 
-    def __init__(self, dc_type: Type, data: Dict[str, Any], parent=None):
+    def __init__(
+        self,
+        dc_type: Type,
+        data: Dict[str, Any],
+        parent=None,
+        readOnlyFields: Optional[Set[str]] = None,
+    ):
         super().__init__(parent)
         self.dc_type = dc_type
         self.data = data if isinstance(data, dict) else {}
+        self._readOnlyFields = readOnlyFields or set()
         try:
             self._type_hints = get_type_hints(dc_type)
         except Exception:
@@ -46,6 +53,8 @@ class DataclassWidget(QtWidgets.QWidget):
                 self.data[field.name] = val
 
             widget = self._createFieldWidget(field, val)
+            if field.name in self._readOnlyFields:
+                self._setFieldReadOnly(widget)
             if isinstance(widget, TypedValueEditor) and val is not None:
                 self.data[field.name] = widget.getValue()
             layout.addRow(field.name, widget)
@@ -75,7 +84,7 @@ class DataclassWidget(QtWidgets.QWidget):
             gb_layout = QtWidgets.QVBoxLayout(gb)
             gb_layout.setContentsMargins(0, 5, 0, 0)
 
-            dc_widget = DataclassWidget(ftype, value)
+            dc_widget = DataclassWidget(ftype, value, readOnlyFields=self._readOnlyFields)
             dc_widget.VALUE_CHANGED.connect(lambda v, k=field.name: self._onFieldChanged(k, v))
             gb_layout.addWidget(dc_widget)
             return gb
@@ -89,6 +98,26 @@ class DataclassWidget(QtWidgets.QWidget):
         if not value:
             value = field.metadata.get("varType") or field.metadata.get("type")
         return value if isinstance(value, str) else ""
+
+    def _setFieldReadOnly(self, widget: QtWidgets.QWidget) -> None:
+        if isinstance(widget, (ColourVarEditor, VectorVarEditor)):
+            widget.setEditable(False)
+            return
+        if isinstance(widget, QtWidgets.QGroupBox):
+            nested = widget.findChild(DataclassWidget)
+            if nested is not None:
+                nested.setReadOnly(True)
+            return
+        widget.setEnabled(False)
+        if isinstance(widget, (QtWidgets.QLineEdit, QtWidgets.QPlainTextEdit, QtWidgets.QTextEdit)):
+            widget.setReadOnly(True)
+
+    def setReadOnly(self, readOnly: bool) -> None:
+        for widget in self._inputs.values():
+            if readOnly:
+                self._setFieldReadOnly(widget)
+            else:
+                widget.setEnabled(True)
 
     def _onFieldChanged(self, key, value):
         self.data[key] = value

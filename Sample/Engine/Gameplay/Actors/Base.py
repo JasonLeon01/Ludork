@@ -836,6 +836,42 @@ class _ActorBase(Sprite):
         """
         self._graph = graph
 
+    def getGraph(self) -> Optional[Graph]:
+        r"""\brief Get the behaviour graph assigned to this actor.
+
+        - \return The actor-layer graph, or None if unset.
+        """
+        return self._graph
+
+    def hasGraph(self) -> bool:
+        r"""\brief Check whether this actor has an actor-layer graph.
+
+        - \return True if a behaviour graph is assigned.
+        """
+        return self._graph is not None
+
+    def getMapTag(self) -> str:
+        r"""\brief Get the map-persistence tag for this actor.
+
+        - \return Map tag string used for save/load bookkeeping.
+        """
+        return self._mapTag
+
+    def setMapTag(self, tag: str) -> None:
+        r"""\brief Set the map-persistence tag for this actor.
+
+        - \param tag Map tag string.
+        """
+        self._mapTag = "" if tag is None else str(tag)
+
+    def ensureMapTag(self) -> None:
+        r"""\brief Initialise `_mapTag` when the actor was created without one."""
+        if "_mapTag" not in self.__dict__:
+            if getattr(type(self), "_GENERATED_CLASS", False):
+                self._mapTag = ""
+            else:
+                self._mapTag = self.tag
+
     @TypeAdapter(offset=([tuple, list], Vector2f))
     def _superMove(self, offset: Union[Vector2f, Pair[float], List[float]]) -> None:
         super().move(offset)

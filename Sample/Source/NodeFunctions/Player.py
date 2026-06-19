@@ -39,7 +39,7 @@ def GetPlayerFrontPosition() -> Optional[Vector2i]:
     if player is None:
         return None
     position = player.getMapPosition()
-    direction = getattr(player, "direction", Direction.DOWN)
+    direction = player.direction
     if direction == Direction.UP:
         return Vector2i(position.x, position.y - 1)
     if direction == Direction.LEFT:

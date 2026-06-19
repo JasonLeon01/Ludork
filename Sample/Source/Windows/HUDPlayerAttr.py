@@ -1,9 +1,12 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Optional, Dict
-from Engine import IntRect, Vector2f, Vector2i, Color, Text
+from typing import Dict, List, Optional, Tuple
+from Engine import IntRect, Texture, Vector2f, Vector2i, Color, Text
 from Engine.UI import Canvas, Image, PlainText, SolidRect, RichText, TextStyle
+from Engine.UI.Base import ControlBase
+from Global import Manager
+from .. import Data
 from ..Player import Player
 from ..System import System
 
@@ -15,14 +18,18 @@ class PlayerAttrHUD(Canvas):
     """
 
     _AVATAR_MIN_SIZE = 32
-    _FONT_SIZE = 22
+    _FONT_SIZE = 18
+    _HP_MAX_FONT_SIZE = 12
     _HEADER_FONT_SIZE = 16
     _HUD_POS_X = 16
     _HUD_POS_Y = 16
-    _STATE_OFFSET_X = 48
+    _STATE_ICON_SIZE = 16
+    _STATE_GAP = 4
     _HEADER_ROW_Y = 0
     _HP_ROW_Y = 68
-    _HP_BAR_HEIGHT = 12
+    _HP_BAR_OFFSET_Y = 8
+    _HP_BAR_HEIGHT = 8
+    _HP_TEXT_LAYOUT_HEIGHT = 12
     _HP_BAR_WIDTH = 96
     _STAT_VALUE_X = 128
     _DEBUFF_TEXT_OFFSET_X = 2
@@ -31,6 +38,7 @@ class PlayerAttrHUD(Canvas):
     _EXP_ROW_Y = 192
     _GOLD_ROW_Y = 224
     _KEY_ROW_Y = 288
+    _KEY_ICON_HEIGHT = 32
 
     def __init__(self, player: Player) -> None:
         r"""Construct a player attribute HUD bound to the given player instance.
@@ -43,6 +51,9 @@ class PlayerAttrHUD(Canvas):
         self._infoStartX = self._AVATAR_MIN_SIZE
         self._hpBarWidth = self._HP_BAR_WIDTH
         self._font = System.getFonts()[0]
+        self._stateWidgets: List[ControlBase] = []
+        self._stateSignature: Optional[Tuple[str, ...]] = None
+        self._stateIconCache: Dict[str, Optional[Texture]] = {}
         self._initAvatar()
         self._initTextStyles()
         self._initLayout()
@@ -78,6 +89,9 @@ class PlayerAttrHUD(Canvas):
         self._textStyles["Yellow"] = TextStyle(fillColor=Color.Yellow)
         self._textStyles["Blue"] = TextStyle(fillColor=Color.Blue)
         self._textStyles["Red"] = TextStyle(fillColor=Color.Red)
+        self._hpTextStyles: Dict[str, TextStyle] = {}
+        self._hpTextStyles["default"] = TextStyle(self._FONT_SIZE, Text.Style.Regular, Color.White, None, 0.0)
+        self._hpTextStyles["max"] = TextStyle(self._HP_MAX_FONT_SIZE, Text.Style.Regular, Color.White, None, 0.0)
 
     def _initLayout(self) -> None:
         self._hudWidth = max(
@@ -86,7 +100,8 @@ class PlayerAttrHUD(Canvas):
             self._STAT_VALUE_X + 16,
         )
         self._hpBarWidth = self._hudWidth
-        self._hudHeight = self._KEY_ROW_Y + self._FONT_SIZE + 4
+        keyRowHeight = max(self._FONT_SIZE, self._KEY_ICON_HEIGHT)
+        self._hudHeight = self._KEY_ROW_Y + keyRowHeight + 4
 
     def _buildUI(self) -> None:
         if self._avatar is not None:
@@ -97,29 +112,30 @@ class PlayerAttrHUD(Canvas):
         self._levelText.setPosition((self._infoStartX, self._HEADER_ROW_Y))
         self.addChild(self._levelText)
 
-        self._stateText = PlainText(self._font, "", self._HEADER_FONT_SIZE)
-        self._stateText.setPosition((0, self._avatarSize))
-        self.addChild(self._stateText)
-
         self._hpBack = SolidRect((self._hpBarWidth, self._HP_BAR_HEIGHT), Color(24, 24, 24, 220))
-        self._hpBack.setPosition((0, self._HP_ROW_Y))
+        self._hpBack.setPosition((0, self._HP_ROW_Y + self._HP_BAR_OFFSET_Y))
         self.addChild(self._hpBack)
 
         self._hpFill = SolidRect((self._hpBarWidth, self._HP_BAR_HEIGHT), Color(0, 192, 0, 255))
-        self._hpFill.setPosition((0, self._HP_ROW_Y))
+        self._hpFill.setPosition((0, self._HP_ROW_Y + self._HP_BAR_OFFSET_Y))
         self.addChild(self._hpFill)
 
-        self._hpText = PlainText(self._font, "", self._FONT_SIZE)
+        self._hpLabelText = PlainText(self._font, LOC("STAT_HP"), self._FONT_SIZE)
+        self._hpLabelText.setPosition((0, self._HP_ROW_Y))
+        self.addChild(self._hpLabelText)
+
+        self._hpText = RichText(self._font, "", self._hpTextStyles)
+        self._hpText.setPosition((self._STAT_VALUE_X, self._HP_ROW_Y))
         self.addChild(self._hpText)
 
         self._statValueTexts: Dict[str, PlainText] = {}
-        for label, y in [
-            ("ATK:", self._ATK_ROW_Y),
-            ("DEF:", self._DEF_ROW_Y),
-            ("EXP:", self._EXP_ROW_Y),
-            ("GOLD:", self._GOLD_ROW_Y),
+        for locKey, statKey, y in [
+            ("STAT_ATK", "ATK", self._ATK_ROW_Y),
+            ("STAT_DEF", "DEF", self._DEF_ROW_Y),
+            ("STAT_EXP", "EXP", self._EXP_ROW_Y),
+            ("STAT_GOLD", "GOLD", self._GOLD_ROW_Y),
         ]:
-            labelText = PlainText(self._font, label, self._FONT_SIZE)
+            labelText = PlainText(self._font, LOC(locKey), self._FONT_SIZE)
             labelText.setPosition((0, y))
             self.addChild(labelText)
 
@@ -127,7 +143,7 @@ class PlayerAttrHUD(Canvas):
             valueText.setLineAlignment(Text.LineAlignment.Right)
             valueText.setPosition((self._STAT_VALUE_X, y))
             self.addChild(valueText)
-            self._statValueTexts[label[:-1]] = valueText
+            self._statValueTexts[statKey] = valueText
 
         _purpleColor = Color(150, 0, 220, 255)
         debuffX = self._STAT_VALUE_X + self._DEBUFF_TEXT_OFFSET_X
@@ -139,9 +155,76 @@ class PlayerAttrHUD(Canvas):
         self._defDebuffText.setPosition((debuffX, self._DEF_ROW_Y))
         self.addChild(self._defDebuffText)
 
+        self._keyIcon: Optional[Image] = None
+        try:
+            keyTexture = Manager.loadSystem("Keys.png")
+            self._keyIcon = Image(keyTexture)
+            self._keyIcon.setPosition((0, self._KEY_ROW_Y))
+            self.addChild(self._keyIcon)
+        except Exception:
+            self._keyIcon = None
+
         self._itemText = RichText(self._font, "", self._textStyles)
         self._itemText.setPosition((0, self._KEY_ROW_Y))
         self.addChild(self._itemText)
+
+    def _loadStateIcon(self, iconPath: str) -> Optional[Texture]:
+        if not iconPath:
+            return None
+        if iconPath in self._stateIconCache:
+            return self._stateIconCache[iconPath]
+        texture: Optional[Texture] = None
+        try:
+            if "/" in iconPath or "\\" in iconPath:
+                parts = iconPath.replace("\\", "/").split("/")
+                if len(parts) >= 2:
+                    subfolder = "/".join(parts[:-1])
+                    filename = parts[-1]
+                    texture = Manager.loadTexture(subfolder, filename)
+            else:
+                texture = Manager.loadTexture("Icons/States", iconPath)
+        except Exception:
+            texture = None
+        self._stateIconCache[iconPath] = texture
+        return texture
+
+    def _clearStateWidgets(self) -> None:
+        for widget in self._stateWidgets:
+            self.removeChild(widget)
+        self._stateWidgets.clear()
+
+    def _refreshStates(self) -> None:
+        states = self._player.getStates()
+        signature = tuple(state.ID for state in states)
+        if signature == self._stateSignature:
+            return
+        self._stateSignature = signature
+        self._clearStateWidgets()
+        if not states:
+            return
+
+        x = 0.0
+        y = float(self._avatarSize)
+        for state in states:
+            iconPath = state.icon or Data.getGeneralStateData(state.ID).get("icon", "")
+            texture = self._loadStateIcon(iconPath) if iconPath else None
+            if texture is not None:
+                icon = Image(texture)
+                texSize = texture.getSize()
+                scale = self._STATE_ICON_SIZE / max(float(texSize.x), float(texSize.y), 1.0)
+                icon.setScale(Vector2f(scale, scale))
+                icon.setPosition((x, y))
+                self.addChild(icon)
+                self._stateWidgets.append(icon)
+                x += self._STATE_ICON_SIZE + self._STATE_GAP
+                continue
+
+            nameText = PlainText(self._font, LOC(state.name), self._HEADER_FONT_SIZE)
+            nameText.setPosition((x, y))
+            self.addChild(nameText)
+            self._stateWidgets.append(nameText)
+            bounds = nameText.getLocalBounds()
+            x += bounds.size.x + self._STATE_GAP
 
     def _refresh(self) -> None:
         hp = self._player.infoComp.HP
@@ -151,17 +234,14 @@ class PlayerAttrHUD(Canvas):
         defence = self._player.infoComp.DEF
         exp = self._player.infoComp.EXP
         gold = self._player.infoComp.GOLD
-        states = " ".join(self._player.getStateNames())
-        if not states:
-            states = LOC("NORMAL")
 
         self._levelText.setString(f"Lv. {level}")
-        self._stateText.setString(f"[{states}]")
-        self._hpText.setString(f"{hp}/{maxhp}")
-        self._statValueTexts["ATK"].setString(f"{atk:02d}")
-        self._statValueTexts["DEF"].setString(f"{defence:02d}")
-        self._statValueTexts["EXP"].setString(f"{exp:02d}")
-        self._statValueTexts["GOLD"].setString(f"{gold:02d}")
+        self._refreshStates()
+        self._hpText.setString(f"#default#{hp}/#max#{maxhp}#default#")
+        self._statValueTexts["ATK"].setString(f"{atk}")
+        self._statValueTexts["DEF"].setString(f"{defence}")
+        self._statValueTexts["EXP"].setString(f"{exp}")
+        self._statValueTexts["GOLD"].setString(f"{gold}")
 
         weakStacks = self._player.getStateStacks().get("Weak", 0)
         debuffStr = f"(-{weakStacks})" if weakStacks > 0 else ""
@@ -172,17 +252,23 @@ class PlayerAttrHUD(Canvas):
         self._hpFill.setSize(Vector2f(self._hpBarWidth * hpRate, self._HP_BAR_HEIGHT))
 
         hpBounds = self._hpText.getLocalBounds()
-        textX = (self._hpBarWidth - hpBounds.size.x) / 2.0 - hpBounds.position.x
-        textY = self._HP_ROW_Y + (self._HP_BAR_HEIGHT - hpBounds.size.y) / 2.0 - hpBounds.position.y
+        textY = self._HP_ROW_Y + (self._HP_TEXT_LAYOUT_HEIGHT - hpBounds.size.y) / 2.0 - hpBounds.position.y
+        textX = self._STAT_VALUE_X - hpBounds.size.x - hpBounds.position.x
+        self._hpLabelText.setPosition((0, textY))
         self._hpText.setPosition((textX, textY))
 
         keyY_count = self._player.getItemCount("KEY_Y")
         keyB_count = self._player.getItemCount("KEY_B")
         keyR_count = self._player.getItemCount("KEY_R")
         displayText = (
-            f"#Yellow#{keyY_count:02d}#default#\t#Blue#{keyB_count:02d}#default#\t#Red#{keyR_count:02d}#default#"
+            f"#Yellow#{keyY_count:02d}#default#  #Blue#{keyB_count:02d}#default#  #Red#{keyR_count:02d}#default#"
         )
         self._itemText.setString(displayText)
         itemBounds = self._itemText.getLocalBounds()
-        itemX = (self._hudWidth - itemBounds.size.x) / 2.0 - itemBounds.position.x
-        self._itemText.setPosition((itemX, self._KEY_ROW_Y))
+        itemX = self._STAT_VALUE_X - itemBounds.size.x - itemBounds.position.x
+        keyRowHeight = max(self._FONT_SIZE, self._KEY_ICON_HEIGHT)
+        itemY = self._KEY_ROW_Y + (keyRowHeight - itemBounds.size.y) / 2.0 - itemBounds.position.y
+        self._itemText.setPosition((itemX, itemY))
+        if self._keyIcon is not None:
+            iconY = self._KEY_ROW_Y + (keyRowHeight - self._KEY_ICON_HEIGHT) / 2.0
+            self._keyIcon.setPosition((0, iconY))

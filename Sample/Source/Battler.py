@@ -31,6 +31,8 @@ class BattlerInfoComponent(Component):
 class PlayerInfoComponent(BattlerInfoComponent):
     r"""\brief Editable player identity and battle attributes."""
 
+    name: str = ""
+    desc: str = ""
     LEVEL: int = 1  #: Current level
     CLASS: str = ""  #: Current class
 
@@ -43,37 +45,6 @@ class EnemyInfoComponent(BattlerInfoComponent):
     desc: str = ""
     special: Dict[str, Any] = field(default_factory=dict)
     drops: List[str] = field(default_factory=list)
-    MAXHP: int = -1
-    ATK: int = -1
-    DEF: int = -1
-    EXP: int = -1
-    GOLD: int = -1
-    HP: int = -1
-
-    def __post_init__(self) -> None:
-        self._initAttrs: Dict[str, Any] = {}
-
-    def setInitAttrs(self, attrs: Dict[str, Any]) -> None:
-        r"""
-        \brief Store actor-instance attribute overrides for component initialisation.
-
-        - \param attrs Attribute values that should be applied after actor creation.
-        """
-        self._initAttrs = dict(attrs)
-
-    def init(self, owner: Any) -> List[Any]:
-        r"""
-        \brief Apply stored enemy attribute overrides during component initialisation.
-
-        - \param owner Actor that owns this component.
-        - \return No spawned actors.
-        """
-        initAttrs = self._initAttrs
-        if isinstance(initAttrs, dict):
-            for attr, value in initAttrs.items():
-                if hasattr(self, attr):
-                    setattr(self, attr, value)
-        return []
 
 
 class Battler:
@@ -105,6 +76,10 @@ class Battler:
         if "infoComp" not in self.__dict__ or not isinstance(value, componentType):
             self.infoComp = componentFromData(componentType, value)
 
+    def normaliseInfoComp(self) -> None:
+        r"""\brief Ensure `infoComp` matches this battler's expected component type."""
+        self._normaliseInfoComp()
+
     def _getInfoCompType(self) -> type[BattlerInfoComponent]:
         componentTypes = type(self)._componentTypes
         componentType = componentTypes.get("infoComp", BattlerInfoComponent)
@@ -120,6 +95,11 @@ class Battler:
         self._normaliseInfoComp()
         if hasattr(self.infoComp, key):
             setattr(self.infoComp, key, value)
+
+    def _syncInitialHP(self) -> None:
+        self._normaliseInfoComp()
+        if int(self.infoComp.HP) <= 0:
+            self.infoComp.HP = int(self.infoComp.MAXHP)
 
     def hasState(self, state: Union[str, StateInfo]) -> bool:
         r"""\brief Check whether a state is currently active.
@@ -168,6 +148,14 @@ class Battler:
         if state is None:
             return 0
         return state.stacks
+
+    def getStateStackCount(self, stateID: str) -> int:
+        r"""\brief Get the stack count for an active state.
+
+        - \param stateID State identifier.
+        - \return Stack count, or 0 if the state is not active.
+        """
+        return self._getStateStackCount(stateID)
 
     def hasSpecial(self, specialID: str) -> bool:
         r"""\brief Check whether this battler has the given special flag.
@@ -329,19 +317,26 @@ class Battler:
         - \param defender The battler receiving damage.
         - \return Damage per round dealt to the defender.
         """
-        self._normaliseInfoComp()
-        defender._normaliseInfoComp()
+        self.normaliseInfoComp()
+        defender.normaliseInfoComp()
         attackerAtk = self.getATK(defender)
         defenderDef = defender.getDEF(self)
 
         if self.hasSpecial("Magic"):
             defenderDef = 0
 
-        hitCount = self._getSpecialIntValue("MultiHit", 1, 1)
+        hitCount = self.getHitCount()
         basicDamage = max(0, attackerAtk - defenderDef) * hitCount
         if defender.hasState("Poisoned"):
-            basicDamage += 10 * defender._getStateStackCount("Poisoned")
+            basicDamage += 10 * defender.getStateStackCount("Poisoned")
         return basicDamage
+
+    def getHitCount(self) -> int:
+        r"""\brief Get the number of hits this battler deals per attack.
+
+        - \return Attack hit count.
+        """
+        return self._getSpecialIntValue("MultiHit", 1, 1)
 
     def getDamage(self, battler: Battler) -> Tuple[DamageType, int]:
         r"""\brief Calculate accumulated damage taken by `battler` if it fights `self`.
@@ -359,8 +354,8 @@ class Battler:
         - \param battler The opposing battler (the attacker).
         - \return Tuple of (DamageType, accumulated damage on `battler`).
         """
-        self._normaliseInfoComp()
-        battler._normaliseInfoComp()
+        self.normaliseInfoComp()
+        battler.normaliseInfoComp()
         attackDamage = battler.getDamagePerRound(self)
         counterDamage = self.getDamagePerRound(battler)
         if attackDamage <= 0:
@@ -374,14 +369,14 @@ class Battler:
             return ""
         if isinstance(state, str):
             return state
-        return getattr(state, "ID", "")
+        return state.ID
 
     @staticmethod
     def _buildStateInfo(state: Union[str, StateInfo, None]) -> Optional[StateInfo]:
         if state is None:
             return None
         if isinstance(state, StateInfo):
-            if not getattr(state, "_infoGraph", None) and state.ID:
+            if not state.hasInfoGraph() and state.ID:
                 state.initInfo(Data)
             return state
         if isinstance(state, str) and state:

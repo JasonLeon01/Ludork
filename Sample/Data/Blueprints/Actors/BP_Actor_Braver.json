@@ -13,17 +13,7 @@
         "tickable": true,
         "speed": 96,
         "texturePath": "actors/classic-cha-braver01.png",
-        "infoComp": {
-            "MAXHP": 1000,
-            "ATK": 10,
-            "DEF": 10,
-            "EXP": 0,
-            "GOLD": 0,
-            "ANIMATION_KEY": "attack",
-            "HP": 1000,
-            "LEVEL": 1,
-            "CLASS": "Warrior"
-        },
+        "ID": "Bravor",
         "lightComp": {
             "lightColour": [
                 255,
@@ -32,6 +22,9 @@
                 255
             ],
             "lightRadius": 64.0
+        },
+        "infoComp": {
+            "HP": 1000
         }
     },
     "graph": {

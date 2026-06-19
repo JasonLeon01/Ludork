@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import copy
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 from Engine import Color, Input, IntRect, Pair, Text, Texture, UI, Vector2f, Vector2i
 from Engine.UI import Canvas, ListView
 from Engine.UI.Base import FunctionalBase
@@ -14,6 +14,10 @@ from ..Battler import DamageType
 from ..Enemy import Enemy
 from ..System import System as GameSystem
 
+if TYPE_CHECKING:
+    from Global import GameMap
+    from ..Player import Player
+
 
 _WINDOW_SIZE = 352
 _CELL_WIDTH = 320
@@ -21,6 +25,34 @@ _CELL_HEIGHT = 64
 _ICON_AREA_WIDTH = 64
 _TEXT_SIZE = 12
 _NAME_TEXT_SIZE = 16
+_SPECIAL_TEXT_SIZE = 10
+_SPECIAL_ICON_SIZE = 16
+_SPECIAL_GAP = 4
+_SPECIAL_RIGHT_PAD = 4
+_SPECIAL_NAME_MAX_WIDTH = 80
+_specialIconCache: Dict[str, Optional[Texture]] = {}
+
+
+def _loadSpecialIcon(iconPath: str) -> Optional[Texture]:
+    if not iconPath:
+        return None
+    if iconPath in _specialIconCache:
+        return _specialIconCache[iconPath]
+    texture: Optional[Texture] = None
+    try:
+        if "/" in iconPath or "\\" in iconPath:
+            parts = iconPath.replace("\\", "/").split("/")
+            if len(parts) >= 2:
+                subfolder = "/".join(parts[:-1])
+                filename = parts[-1]
+                texture = Manager.loadTexture(subfolder, filename)
+        else:
+            filename = iconPath if "." in iconPath else f"{iconPath}.png"
+            texture = Manager.loadTexture("Icons/Specials", filename)
+    except Exception:
+        texture = None
+    _specialIconCache[iconPath] = texture
+    return texture
 
 
 class _EnemyBookCell(Canvas, FunctionalBase):
@@ -71,8 +103,9 @@ class _EnemyBookCell(Canvas, FunctionalBase):
         self.addChild(self._icon)
 
     def _buildTexts(self, entry: Dict[str, Any]) -> None:
-        specialText = entry.get("specialText", "")
-        nameMaxWidth = 96 if specialText else _CELL_WIDTH - _ICON_AREA_WIDTH
+        specialDisplays = entry.get("specialDisplays", [])
+        specialAreaWidth = self._measureSpecialAreaWidth(specialDisplays)
+        nameMaxWidth = max(32, int(_CELL_WIDTH - _ICON_AREA_WIDTH - specialAreaWidth))
         name = FPlainText(
             UI.DefaultFont,
             self._fitText(entry.get("name", ""), nameMaxWidth, _NAME_TEXT_SIZE),
@@ -80,29 +113,59 @@ class _EnemyBookCell(Canvas, FunctionalBase):
         )
         name.setPosition(Vector2f(64.0, 0.0))
         self.addChild(name)
-        if specialText:
-            special = FPlainText(
-                UI.DefaultFont,
-                self._fitText(specialText, _CELL_WIDTH - 160, _NAME_TEXT_SIZE),
-                _NAME_TEXT_SIZE,
-            )
-            special.setPosition(Vector2f(160.0, 0.0))
-            self.addChild(special)
+        if specialDisplays:
+            self._buildSpecials(specialDisplays)
 
         statTexts = [
-            (Vector2f(64.0, 24.0), f"MAXHP:{entry.get('MAXHP', 0)}"),
-            (Vector2f(150.0, 24.0), f"ATK:{entry.get('ATK', 0)}"),
-            (Vector2f(236.0, 24.0), f"DEF:{entry.get('DEF', 0)}"),
-            (Vector2f(64.0, 44.0), f"EXP:{entry.get('EXP', 0)}"),
-            (Vector2f(150.0, 44.0), f"GOLD:{entry.get('GOLD', 0)}"),
-            (Vector2f(236.0, 44.0), f"DMG:{entry.get('damage', '--')}"),
+            (Vector2f(64.0, 24.0), f"{LOC('STAT_HP')}{entry.get('MAXHP', 0)}"),
+            (Vector2f(150.0, 24.0), f"{LOC('STAT_ATK')}{entry.get('ATK', 0)}"),
+            (Vector2f(236.0, 24.0), f"{LOC('STAT_DEF')}{entry.get('DEF', 0)}"),
+            (Vector2f(64.0, 44.0), f"{LOC('STAT_EXP')}{entry.get('EXP', 0)}"),
+            (Vector2f(150.0, 44.0), f"{LOC('STAT_GOLD')}{entry.get('GOLD', 0)}"),
+            (Vector2f(236.0, 44.0), f"{LOC('STAT_DMG')}{entry.get('damage', '--')}"),
         ]
         for position, value in statTexts:
             text = FPlainText(UI.DefaultFont, value, _TEXT_SIZE)
-            if value.endswith("--"):
+            if value.endswith("???"):
                 text.setColour(Color(255, 96, 96, 255))
             text.setPosition(position)
             self.addChild(text)
+
+    def _measureSpecialAreaWidth(self, specialDisplays: List[Dict[str, Any]]) -> float:
+        if not specialDisplays:
+            return 0.0
+        width = float(_SPECIAL_RIGHT_PAD)
+        for index, item in enumerate(specialDisplays):
+            if index > 0:
+                width += _SPECIAL_GAP
+            if item.get("texture") is not None:
+                width += _SPECIAL_ICON_SIZE
+            else:
+                displayName = self._fitText(str(item.get("name", "")), _SPECIAL_NAME_MAX_WIDTH, _SPECIAL_TEXT_SIZE)
+                width += self._measureText(displayName, _SPECIAL_TEXT_SIZE)
+        return width
+
+    def _buildSpecials(self, specialDisplays: List[Dict[str, Any]]) -> None:
+        currentX = float(_CELL_WIDTH) - _SPECIAL_RIGHT_PAD
+        for item in reversed(specialDisplays):
+            texture = item.get("texture")
+            if texture is not None:
+                icon = FImage(texture)
+                texSize = texture.getSize()
+                scale = _SPECIAL_ICON_SIZE / max(float(texSize.x), float(texSize.y), 1.0)
+                icon.setScale(Vector2f(scale, scale))
+                iconX = currentX - _SPECIAL_ICON_SIZE
+                icon.setPosition(Vector2f(iconX, 0.0))
+                self.addChild(icon)
+                currentX = iconX - _SPECIAL_GAP
+                continue
+            displayName = self._fitText(str(item.get("name", "")), _SPECIAL_NAME_MAX_WIDTH, _SPECIAL_TEXT_SIZE)
+            textWidth = self._measureText(displayName, _SPECIAL_TEXT_SIZE)
+            text = FPlainText(UI.DefaultFont, displayName, _SPECIAL_TEXT_SIZE)
+            text.setLineAlignment(Text.LineAlignment.Right)
+            text.setPosition(Vector2f(currentX, 0.0))
+            self.addChild(text)
+            currentX -= textWidth + _SPECIAL_GAP
 
     def _fitText(self, text: str, maxWidth: int, textSize: int) -> str:
         if not text:
@@ -140,30 +203,33 @@ class WindowEnemyBook(WindowSelectable):
     def __init__(
         self,
         rect: Union[IntRect, Tuple[Pair[int], Pair[int]]],
-        player,
+        player: Player,
         onClose: Optional[Callable[[], None]] = None,
+        onConfirm: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> None:
         r"""\brief Construct the enemy handbook window.
 
         - \param rect Window rectangle.
         - \param player Player used to calculate displayed damage.
         - \param onClose Optional callback invoked when the window closes.
+        - \param onConfirm Optional callback invoked when an enemy is confirmed.
         """
         super().__init__(rect, None, _CELL_WIDTH, _CELL_HEIGHT)
-        self._player = player
+        self._player: Player = player
         self._onCloseCallback = onClose
+        self._onConfirmCallback = onConfirm
         self._enemies: List[Dict[str, Any]] = []
         self.setActive(False)
         self.setVisible(False)
 
-    def setPlayer(self, player) -> None:
+    def setPlayer(self, player: Player) -> None:
         r"""\brief Rebind the player used for damage preview.
 
         - \param player The current player instance.
         """
         self._player = player
 
-    def open(self, gameMap) -> None:
+    def open(self, gameMap: Optional[GameMap]) -> None:
         r"""\brief Open the handbook and rescan current-map enemies.
 
         - \param gameMap Current map to scan.
@@ -196,19 +262,18 @@ class WindowEnemyBook(WindowSelectable):
             return True
         return False
 
-    def _refreshEnemies(self, gameMap) -> None:
+    def _refreshEnemies(self, gameMap: Optional[GameMap]) -> None:
         entries: List[Dict[str, Any]] = []
-        seen = set()
+        seen: set[str] = set()
         if gameMap is not None:
             for actor in gameMap.getAllActors():
                 if not isinstance(actor, Enemy) or actor.isDestroyed():
                     continue
-                entry = self._buildEntry(actor)
-                key = self._entryKey(entry)
-                if key in seen:
+                enemyID = actor.ID
+                if enemyID in seen:
                     continue
-                seen.add(key)
-                entries.append(entry)
+                seen.add(enemyID)
+                entries.append(self._buildEntry(actor))
         self._enemies = entries
         listView = ListView(
             IntRect(Vector2i(0, 0), Vector2i(int(self.content.getSize().x), int(self.content.getSize().y))),
@@ -218,6 +283,7 @@ class WindowEnemyBook(WindowSelectable):
         )
         for entry in entries:
             cell = _EnemyBookCell(entry)
+            cell.addConfirmCallback(lambda obj, kwargs, enemyEntry=entry: self._confirmEnemy(enemyEntry))
             listView.addChild(cell)
         self.setListView(listView)
         self.index = 0 if entries else None
@@ -226,59 +292,62 @@ class WindowEnemyBook(WindowSelectable):
 
     def _buildEntry(self, enemy: Enemy) -> Dict[str, Any]:
         damageType, damage = enemy.getDamage(self._player)
+        special = enemy.getSpecial()
         return {
-            "name": self._formatName(enemy.infoComp.name or getattr(enemy, "ID", "")),
+            "name": self._formatName(enemy.infoComp.name or enemy.ID),
             "MAXHP": int(enemy.infoComp.MAXHP),
             "ATK": int(enemy.getATK(self._player)),
             "DEF": int(enemy.getDEF(self._player)),
             "EXP": int(enemy.infoComp.EXP),
             "GOLD": int(enemy.infoComp.GOLD),
-            "damage": "--" if damageType == DamageType.UNDEFEATABLE else int(damage),
-            "specialText": self._formatSpecialText(enemy.getSpecial()),
+            "damage": "???" if damageType == DamageType.UNDEFEATABLE else int(damage),
+            "critical": int(enemy.getCriticalValue(self._player)),
+            "hitCount": int(enemy.getHitCount()) if enemy.hasSpecial("MultiHit") else None,
+            "specialDisplays": self._buildSpecialDisplays(special),
+            "specialDetails": self._buildSpecialDetails(special),
             "texture": enemy.getTexture(),
-            "texturePath": getattr(enemy, "texturePath", ""),
+            "texturePath": enemy.texturePath,
             "rect": copy.copy(enemy.getTextureRect()),
             "scale": enemy.getScale(),
             "animatable": enemy.getAnimatable(),
-            "switchInterval": getattr(enemy, "switchInterval", 0.2),
+            "switchInterval": enemy.switchInterval,
         }
 
-    def _entryKey(self, entry: Dict[str, Any]) -> Tuple[Any, ...]:
-        rect = entry.get("rect")
-        rectKey = None
-        if rect is not None:
-            rectKey = (rect.position.x, rect.position.y, rect.size.x, rect.size.y)
-        scale = entry.get("scale", Vector2f(1.0, 1.0))
-        return (
-            entry.get("name", ""),
-            entry.get("MAXHP", 0),
-            entry.get("ATK", 0),
-            entry.get("DEF", 0),
-            entry.get("EXP", 0),
-            entry.get("GOLD", 0),
-            entry.get("damage", "--"),
-            entry.get("specialText", ""),
-            entry.get("texturePath", ""),
-            rectKey,
-            (scale.x, scale.y),
-        )
-
-    def _formatSpecialText(self, special: Dict[str, Any]) -> str:
+    def _buildSpecialDisplays(self, special: Dict[str, Any]) -> List[Dict[str, Any]]:
         if not isinstance(special, dict) or len(special) == 0:
-            return LOC("NORMAL_SPECIAL")
+            return []
         if len(special) > 3:
-            return LOC("MORE_SPECIAL")
-        names = []
+            return [{"texture": None, "name": LOC("MORE_SPECIAL")}]
+        displays: List[Dict[str, Any]] = []
         for specialKey in special.keys():
             specialData = Data.getGeneralSpecialData(str(specialKey))
-            names.append(self._formatName(specialData.get("name", specialKey)))
-        return " ".join(names)
+            name = self._formatName(specialData.get("name", specialKey))
+            iconPath = str(specialData.get("icon", "") or specialKey)
+            displays.append({"texture": _loadSpecialIcon(iconPath), "name": name})
+        return displays
+
+    def _buildSpecialDetails(self, special: Dict[str, Any]) -> List[Dict[str, str]]:
+        if not isinstance(special, dict) or len(special) == 0:
+            return []
+        details: List[Dict[str, str]] = []
+        for specialKey in special.keys():
+            specialData = Data.getGeneralSpecialData(str(specialKey))
+            details.append(
+                {
+                    "name": self._formatText(specialData.get("name", specialKey)),
+                    "desc": self._formatText(specialData.get("desc", "")),
+                }
+            )
+        return details
 
     def _formatName(self, name: str) -> str:
+        return self._formatText(name)
+
+    def _formatText(self, text: str) -> str:
         try:
-            return str(name).format(**LOC_D())
+            return str(text).format(**LOC_D()).replace("\\n", "\n")
         except Exception:
-            return str(name)
+            return str(text)
 
     def _getRectPosition(self) -> Optional[Vector2f]:
         if self.index is None:
@@ -293,3 +362,9 @@ class WindowEnemyBook(WindowSelectable):
         self.close()
         if self._onCloseCallback is not None:
             self._onCloseCallback()
+
+    def _confirmEnemy(self, entry: Dict[str, Any]) -> None:
+        Manager.playSE(GameSystem.getDecisionSE())
+        self.close()
+        if self._onConfirmCallback is not None:
+            self._onConfirmCallback(entry)

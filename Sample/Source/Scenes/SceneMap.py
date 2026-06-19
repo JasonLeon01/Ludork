@@ -27,6 +27,7 @@ from Source.Windows.WindowEquip import WindowEquipSlot, WindowEquipSelect
 from Source.Windows.WindowSaveLoad import WindowSaveLoad
 from Source.Windows.WindowShop import WindowShop
 from Source.Windows.WindowEnemyBook import WindowEnemyBook
+from Source.Windows.WindowEnemyEncyclopedia import WindowEnemyEncyclopedia
 from Source.Windows.WindowFloorTeleporter import GetDefaultFloorTeleporterRects, WindowFloorTeleporter
 from Source.GameInstance import GameInstance
 
@@ -35,6 +36,8 @@ _SHOP_WIDTH = 352
 _SHOP_COMMAND_HEIGHT = 64
 _SHOP_ITEM_SIZE = 352
 _ENEMY_BOOK_SIZE = 352
+_ENEMY_ENCYCLOPEDIA_WIDTH = 640
+_ENEMY_ENCYCLOPEDIA_HEIGHT = 480
 _MAP_TRANSITION_NAME = ""
 _MAP_TRANSITION_TIME = 0.5
 _ENEMY_BOOK_ITEM_ID = "EnemyBook"
@@ -71,7 +74,16 @@ class Scene(SceneBase):
         self._shopMoveEnabledBeforeOpen = True
         self._windowShop = WindowShop(self.player, shopCommandRect, shopItemRect, self._onShopClose)
         self._enemyBookMoveEnabledBeforeOpen = True
-        self._windowEnemyBook = WindowEnemyBook(self._getEnemyBookRect(), self.player, self._onEnemyBookClose)
+        self._windowEnemyBook = WindowEnemyBook(
+            self._getEnemyBookRect(),
+            self.player,
+            self._onEnemyBookClose,
+            self._onEnemyBookConfirm,
+        )
+        self._windowEnemyEncyclopedia = WindowEnemyEncyclopedia(
+            self._getEnemyEncyclopediaRect(),
+            self._onEnemyEncyclopediaClose,
+        )
         self._floorTeleporterMoveEnabledBeforeOpen = True
         floorListRect, floorPreviewRect = GetDefaultFloorTeleporterRects()
         self._windowFloorTeleporter = WindowFloorTeleporter(
@@ -106,6 +118,7 @@ class Scene(SceneBase):
         self._uiManager.loadUI(self._windowShop.getCommandWindow())
         self._uiManager.loadUI(self._windowShop.getItemWindow())
         self._uiManager.loadUI(self._windowEnemyBook)
+        self._uiManager.loadUI(self._windowEnemyEncyclopedia)
         self._uiManager.loadUI(self._windowFloorTeleporter.getCommandWindow())
         self._uiManager.loadUI(self._windowFloorTeleporter.getPreviewWindow())
         commandWindow = self._windowSaveLoad.getCommandWindow()
@@ -165,6 +178,7 @@ class Scene(SceneBase):
             and not self._messageWindow.isInDialogue()
             and not self._windowShop.getVisible()
             and not self._windowEnemyBook.getVisible()
+            and not self._windowEnemyEncyclopedia.getVisible()
             and not self._windowFloorTeleporter.getVisible()
         ):
             if not self._pendingMenuOpen and self._isMenuOpenTriggered():
@@ -376,6 +390,14 @@ class Scene(SceneBase):
         self.player.setMoveEnabled(self._enemyBookMoveEnabledBeforeOpen)
         self._blockMapInput(1)
 
+    def _onEnemyBookConfirm(self, entry: Dict[str, Any]) -> None:
+        self._windowEnemyEncyclopedia.open(entry)
+        self._blockMapInput(2)
+
+    def _onEnemyEncyclopediaClose(self) -> None:
+        self.player.setMoveEnabled(self._enemyBookMoveEnabledBeforeOpen)
+        self._blockMapInput(1)
+
     def _onFloorTeleporterClose(self) -> None:
         self.player.setMoveEnabled(self._floorTeleporterMoveEnabledBeforeOpen)
         self._blockMapInput(1)
@@ -440,10 +462,17 @@ class Scene(SceneBase):
         y = int((gameSize.y - _ENEMY_BOOK_SIZE) / 2)
         return ((x, y), (_ENEMY_BOOK_SIZE, _ENEMY_BOOK_SIZE))
 
+    def _getEnemyEncyclopediaRect(self):
+        gameSize = GlobalSystem.getGameSize()
+        x = int((gameSize.x - _ENEMY_ENCYCLOPEDIA_WIDTH) / 2)
+        y = int((gameSize.y - _ENEMY_ENCYCLOPEDIA_HEIGHT) / 2)
+        return ((x, y), (_ENEMY_ENCYCLOPEDIA_WIDTH, _ENEMY_ENCYCLOPEDIA_HEIGHT))
+
     def _canRestoreMoveAfterMenuClose(self) -> bool:
         return not (
             self._windowShop.getVisible()
             or self._windowEnemyBook.getVisible()
+            or self._windowEnemyEncyclopedia.getVisible()
             or self._windowFloorTeleporter.getVisible()
         )
 
@@ -620,6 +649,7 @@ class Scene(SceneBase):
             or self._windowMenu.isBlocking()
             or self._windowShop.getVisible()
             or self._windowEnemyBook.getVisible()
+            or self._windowEnemyEncyclopedia.getVisible()
             or self._windowFloorTeleporter.getVisible()
             or self._mapInputBlockFrames > 0
         )

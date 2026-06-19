@@ -447,18 +447,23 @@ class RichText(ControlBase):
 
             x = 0.0
             lineHeight = 0.0
+            pendingSegments: List[Tuple[Text, TextStyle, FloatRect]] = []
             for segmentText, segmentStyle in lineSegments:
                 textObj = self._buildText(segmentText, segmentStyle)
                 bounds = textObj.getLocalBounds()
-                textObj.setPosition(Vector2f(x, y))
+                pendingSegments.append((textObj, segmentStyle, bounds))
+                lineHeight = max(lineHeight, bounds.position.y + bounds.size.y)
+
+            for textObj, segmentStyle, bounds in pendingSegments:
+                segmentY = y + lineHeight - (bounds.position.y + bounds.size.y)
+                textObj.setPosition(Vector2f(x, segmentY))
                 self._segments.append((textObj, segmentStyle))
                 hasVisibleSegment = True
                 minX = min(minX, x + bounds.position.x)
-                minY = min(minY, y + bounds.position.y)
+                minY = min(minY, segmentY + bounds.position.y)
                 maxX = max(maxX, x + bounds.position.x + bounds.size.x)
-                maxY = max(maxY, y + bounds.position.y + bounds.size.y)
+                maxY = max(maxY, segmentY + bounds.position.y + bounds.size.y)
                 x += self._measureAdvance(textObj)
-                lineHeight = max(lineHeight, bounds.position.y + bounds.size.y)
             y += lineHeight
 
         if hasVisibleSegment:

@@ -26,7 +26,6 @@ class Actor(_ActorBase, BPBase):
     tickable: bool = False  #: Whether tick events are dispatched
     speed: float = 64.0  #: Movement speed in pixels per second
     _componentTypes = {"lightComp": LightComponent, "childActorComp": ChildActorComponent}
-    lightComp: Optional[LightComponent] = None
     ### Generation use only
     texturePath: str = ""  #: Asset path to the character texture
     defaultRect: Optional[Tuple[Pair[int], Pair[int]]] = ((0, 0), (32, 32))  #: Default texture rectangle (origin, size)
@@ -185,7 +184,12 @@ class Actor(_ActorBase, BPBase):
     @ExecSplit(default=(None,))
     def destroy(self) -> None:
         r"""Remove this actor from the current map and trigger `onDestroy`."""
+        if self._destroyed:
+            return
         self._destroyed = True
+        for child in list(self.getChildren()):
+            if isinstance(child, Actor):
+                child.destroy()
         if self._map:
             self._map.destroyActor(self)
 
