@@ -124,6 +124,7 @@ class LayoutMixin:
         self.editorPanel.customContextMenuRequested.connect(self._onEditorPanelContextMenu)
         self.editorPanel.addAction(self._actNewLightSource)
         self.editorPanel.addAction(self._actPasteLightSource)
+        self.editorPanel.addAction(self._actDeleteLightSource)
 
         self.upperSplitter.setChildrenCollapsible(False)
         self.upperSplitter.addWidget(self.leftArea)

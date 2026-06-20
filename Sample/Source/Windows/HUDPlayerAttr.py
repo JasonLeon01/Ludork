@@ -13,32 +13,34 @@ from ..System import System
 
 
 class PlayerAttrHUD(Canvas):
-    r"""\brief Player attribute HUD displaying level, states, HP bar, and stats.
+    r"""\brief Player attribute HUD displaying map name, level, states, HP bar, and stats.
 
-    Shows the player's avatar, states, HP bar with value, and stat values.
+    Shows the player's avatar, current map name, level, states, HP bar with value, and stat values.
     """
 
     _AVATAR_MIN_SIZE = 32
     _FONT_SIZE = 18
+    _MAP_NAME_FONT_SIZE = 22
     _HP_MAX_FONT_SIZE = 12
     _HEADER_FONT_SIZE = 16
     _HUD_POS_X = 16
     _HUD_POS_Y = 16
     _STATE_ICON_SIZE = 16
     _STATE_GAP = 4
+    _ROW_SHIFT = 32
     _HEADER_ROW_Y = 0
-    _HP_ROW_Y = 68
+    _HP_ROW_Y = 68 + _ROW_SHIFT
     _HP_BAR_OFFSET_Y = 8
     _HP_BAR_HEIGHT = 8
     _HP_TEXT_LAYOUT_HEIGHT = 12
     _HP_BAR_WIDTH = 96
     _STAT_VALUE_X = 128
     _DEBUFF_TEXT_OFFSET_X = 2
-    _ATK_ROW_Y = 96
-    _DEF_ROW_Y = 128
-    _EXP_ROW_Y = 192
-    _GOLD_ROW_Y = 224
-    _KEY_ROW_Y = 288
+    _ATK_ROW_Y = 96 + _ROW_SHIFT
+    _DEF_ROW_Y = 128 + _ROW_SHIFT
+    _EXP_ROW_Y = 192 + _ROW_SHIFT
+    _GOLD_ROW_Y = 224 + _ROW_SHIFT
+    _KEY_ROW_Y = 288 + _ROW_SHIFT
     _KEY_ICON_HEIGHT = 32
 
     def __init__(self, player: Player) -> None:
@@ -109,8 +111,12 @@ class PlayerAttrHUD(Canvas):
             self._avatar.setPosition((0, 0))
             self.addChild(self._avatar)
 
-        self._levelText = PlainText(self._font, "", self._HEADER_FONT_SIZE)
-        self._levelText.setPosition((self._infoStartX, self._HEADER_ROW_Y))
+        self._mapNameText = PlainText(self._font, "", self._MAP_NAME_FONT_SIZE)
+        self._mapNameText.setPosition((self._infoStartX, self._HEADER_ROW_Y))
+        self.addChild(self._mapNameText)
+
+        self._levelText = PlainText(self._font, "", self._FONT_SIZE)
+        self._levelText.setPosition((0, self._avatarSize))
         self.addChild(self._levelText)
 
         self._hpBack = SolidRect((self._hpBarWidth, self._HP_BAR_HEIGHT), Color(24, 24, 24, 220))
@@ -210,7 +216,7 @@ class PlayerAttrHUD(Canvas):
             return
 
         x = 0.0
-        y = float(self._avatarSize)
+        y = float(self._avatarSize) + self._ROW_SHIFT
         for state in states:
             iconPath = state.icon or Data.getGeneralStateData(state.ID).get("icon", "")
             texture = self._loadStateIcon(iconPath) if iconPath else None
@@ -232,6 +238,19 @@ class PlayerAttrHUD(Canvas):
             bounds = nameText.getLocalBounds()
             x += bounds.size.x + self._STATE_GAP
 
+    @staticmethod
+    def _formatMapName(mapName: str) -> str:
+        try:
+            return str(mapName).format(**LOC_D())
+        except Exception:
+            return str(mapName)
+
+    def _getMapDisplayName(self) -> str:
+        gameMap = self._player.getMap()
+        if gameMap is None:
+            return ""
+        return self._formatMapName(gameMap.mapName)
+
     def _refresh(self) -> None:
         hp = self._player.infoComp.HP
         maxhp = self._player.infoComp.MAXHP
@@ -241,6 +260,7 @@ class PlayerAttrHUD(Canvas):
         exp = self._player.infoComp.EXP
         gold = self._player.infoComp.GOLD
 
+        self._mapNameText.setString(self._getMapDisplayName())
         self._levelText.setString(f"Lv. {level}")
         self._refreshStates()
         self._hpText.setString(f"#default#{ToShortNumber(hp)}/#max#{ToShortNumber(maxhp)}#default#")

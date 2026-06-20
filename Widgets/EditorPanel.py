@@ -1188,6 +1188,34 @@ class EditorPanel(QtWidgets.QWidget):
             self._renderFromMapData()
             self.update()
 
+    def hitTestLightFromWidgetPos(self, pos: QtCore.QPoint) -> Optional[int]:
+        if not self._lightOverlayEnabled:
+            return None
+        basePos = self._mapBasePos(self._mapDisplayPos(pos))
+        return self._hitTestLight(basePos)
+
+    def deleteLight(self, index: int) -> None:
+        self._deleteLight(index)
+
+    def _deleteLight(self, index: int) -> None:
+        if not self._lightOverlayEnabled:
+            return
+        if not self.mapKey or self.mapKey not in GameData.mapData:
+            return
+        m = GameData.mapData[self.mapKey]
+        lights = m.get("lights")
+        if not isinstance(lights, list):
+            return
+        if not (0 <= index < len(lights)):
+            return
+        GameData.recordSnapshot()
+        lights.pop(index)
+        self._refreshTitle()
+        self.DATA_CHANGED.emit()
+        self._setSelectedLightIndex(None)
+        self._renderFromMapData()
+        self.update()
+
     def mousePressEvent(self, e: QtGui.QMouseEvent) -> None:
         if self.mapData is None:
             return

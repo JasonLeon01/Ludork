@@ -162,6 +162,9 @@ class WindowMessage(WindowSelectable):
         """
         return self._selectionResult
 
+    def _normalizeText(self, text: str) -> str:
+        return text.replace("\\n", "\n")
+
     def setMessage(
         self,
         refPosition: Optional[Vector2f],
@@ -186,26 +189,26 @@ class WindowMessage(WindowSelectable):
         self._allowCancel = allowCancel
         self._onFinished = onFinished
         self._fadePhase = FadePhase.IN
-        self._name = name
-        self._nameText.setString(name)
-        self._nameText.setVisible(bool(name.strip()))
+        self._name = self._normalizeText(name)
+        self._nameText.setString(self._name)
+        self._nameText.setVisible(bool(self._name.strip()))
         self._nameText.setColour(Color(255, 255, 255, 0))
         if isinstance(message, (list, tuple)):
             self._contentMode = ContentMode.SELECTION
             self._message = ""
             self._text.setVisible(False)
-            self._setupSelectionList([str(item) for item in message])
+            self._setupSelectionList([self._normalizeText(str(item)) for item in message])
             if self._selectionListView is not None:
                 for child in self._selectionListView.getChildren():
                     child.setColour(Color(255, 255, 255, 0))
         else:
             self._contentMode = ContentMode.MESSAGE
-            self._message = message
+            self._message = self._normalizeText(message)
             self.setListView(self._messageListView)
             self.index = 0
             self._text.setVisible(True)
             self._text.setColour(Color(255, 255, 255, 0))
-            self._text.setString(message)
+            self._text.setString(self._message)
         self._pendingLayout = True
         self._pendingRefPosition = refPosition
 

@@ -42,7 +42,7 @@ void GameMapExt::refreshShader(const sf::RenderTexture &lightMask, float screenS
         shader->setUniform(getUniformArrayName("lightRadius", i), light.attr("radius").cast<float>());
         shader->setUniform(getUniformArrayName("lightIntensity", i), light.attr("intensity").cast<float>());
     }
-    shader->setUniform("ambientColor", castFromColor(ambientColor));
+    shader->setUniform("ambientColor", castAmbientFromColor(ambientColor));
 }
 
 sf::Texture *GameMapExt::generateDataFromMap(const sf::Vector2u &size,
@@ -202,6 +202,11 @@ GameMapExt::rebuildPassabilityCache(const sf::Vector2u &size) {
 
 sf::Vector3f GameMapExt::castFromColor(const sf::Color &color) {
     return sf::Vector3f(color.r / 255.0f, color.g / 255.0f, color.b / 255.0f);
+}
+
+sf::Vector3f GameMapExt::castAmbientFromColor(const sf::Color &color) {
+    const float alpha = color.a / 255.0f;
+    return sf::Vector3f(color.r / 255.0f * alpha, color.g / 255.0f * alpha, color.b / 255.0f * alpha);
 }
 
 std::string GameMapExt::getUniformArrayName(const std::string &name, int count) {

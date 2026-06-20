@@ -72,6 +72,7 @@ class Window(SpriteBase):
     def _initUI(self) -> None:
         self._windowEdge = RenderTexture(self._canvas.getSize())
         self._windowEdgeSprite = Sprite(self._windowEdge.getTexture())
+        canvasSize = self._canvas.getSize()
         self._windowBack = Texture(
             self._windowSkin, False, Math.ToIntRect(0, 0, 128, 128)
         )
@@ -79,10 +80,9 @@ class Window(SpriteBase):
         self._windowBackSprite = Sprite(self._windowBack)
         if self._repeated:
             self._windowBackSprite.setTextureRect(
-                IntRect(Vector2i(0, 0), Math.ToVector2i(self.getLocalBounds().size))
+                IntRect(Vector2i(0, 0), Math.ToVector2i(canvasSize))
             )
         else:
-            canvasSize = self._canvas.getSize()
             self._windowBackSprite.setScale(
                 Vector2f(canvasSize.x / 128.0, canvasSize.y / 128.0)
             )

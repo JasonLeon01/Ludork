@@ -445,17 +445,22 @@ class RichText(ControlBase):
             if bufferedText:
                 lineSegments.append((bufferedText, copy.copy(style)))
 
-            x = 0.0
-            lineHeight = 0.0
-            pendingSegments: List[Tuple[Text, TextStyle, FloatRect]] = []
+            pendingSegments: List[Tuple[Text, TextStyle, FloatRect, float]] = []
             for segmentText, segmentStyle in lineSegments:
                 textObj = self._buildText(segmentText, segmentStyle)
                 bounds = textObj.getLocalBounds()
-                pendingSegments.append((textObj, segmentStyle, bounds))
-                lineHeight = max(lineHeight, bounds.position.y + bounds.size.y)
+                baseline = self._getBaseline(textObj)
+                pendingSegments.append((textObj, segmentStyle, bounds, baseline))
 
-            for textObj, segmentStyle, bounds in pendingSegments:
-                segmentY = y + lineHeight - (bounds.position.y + bounds.size.y)
+            if not pendingSegments:
+                continue
+
+            lineBaseline = max(baseline for _, _, _, baseline in pendingSegments)
+
+            x = 0.0
+            lineHeight = 0.0
+            for textObj, segmentStyle, bounds, baseline in pendingSegments:
+                segmentY = y + lineBaseline - baseline
                 textObj.setPosition(Vector2f(x, segmentY))
                 self._segments.append((textObj, segmentStyle))
                 hasVisibleSegment = True
@@ -463,6 +468,7 @@ class RichText(ControlBase):
                 minY = min(minY, segmentY + bounds.position.y)
                 maxX = max(maxX, x + bounds.position.x + bounds.size.x)
                 maxY = max(maxY, segmentY + bounds.position.y + bounds.size.y)
+                lineHeight = max(lineHeight, segmentY + bounds.position.y + bounds.size.y - y)
                 x += self._measureAdvance(textObj)
             y += lineHeight
 
@@ -496,6 +502,13 @@ class RichText(ControlBase):
         text = Text(self._font, inText, int(style.characterSize * Scale))
         style.enableStyle(text)
         return text
+
+    def _getBaseline(self, text: Text) -> float:
+        shapedGlyphs = text.getShapedGlyphs()
+        if shapedGlyphs:
+            return max(glyph.position.y for glyph in shapedGlyphs)
+        bounds = text.getLocalBounds()
+        return bounds.position.y + bounds.size.y
 
     def _measureAdvance(self, text: Text) -> float:
         shapedGlyphs = text.getShapedGlyphs()

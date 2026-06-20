@@ -5,5 +5,6 @@ r"""
 """
 
 from .HotKey import HotKey
+from .RegionDict import RegionDict
 
-__all__ = ["HotKey"]
+__all__ = ["HotKey", "RegionDict"]

@@ -187,6 +187,16 @@ private:
     sf::Vector3f castFromColor(const sf::Color &color);
 
     ////////////////////////////////////////////////////////////
+    /// \brief Convert ambient `sf::Color` into normalized shader vector
+    ///
+    /// - \param color Source color
+    ///
+    /// - \return Normalized RGB vector scaled by alpha
+    ///
+    ////////////////////////////////////////////////////////////
+    sf::Vector3f castAmbientFromColor(const sf::Color &color);
+
+    ////////////////////////////////////////////////////////////
     /// \brief Build and cache GLSL uniform array element names
     ///
     /// - \param name Uniform base name

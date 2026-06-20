@@ -9,6 +9,7 @@ from typing import List, Optional, Tuple, Union
 from Engine import IntRect, Pair, Texture, Vector2u
 from Engine.Gameplay.Actors import Actor
 from Source.GameInstance import GameInstance
+from Source.Config import RegionDict
 
 
 @Meta(Vector2iVars=["Offset"])
@@ -61,7 +62,7 @@ class Teleporter(Actor):
         if not isinstance(scene, MapScene):
             return
         inst = scene.inst
-        regionMaps = GameInstance.REGION_DICT.get(inst.getCurrentRegion(), [])
+        regionMaps = RegionDict.get(inst.getCurrentRegion(), [])
         currentMap = scene._cachedMapFile
         if not currentMap:
             return

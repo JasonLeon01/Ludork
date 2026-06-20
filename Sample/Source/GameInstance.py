@@ -16,8 +16,6 @@ class GameInstance:
     and destroyed actor tracking.
     """
 
-    REGION_DICT: Dict[str, List[str]] = {"Mota": ["Map_01", "Map_02"]}
-
     def __init__(self) -> None:
         r"""\brief Construct a new game instance with a default player."""
         self._players: List[Player] = []
@@ -249,9 +247,7 @@ class GameInstance:
             self._cachedTerrainDestructions[mapPath][layerName] = {}
         self._cachedTerrainDestructions[mapPath][layerName][terrainPosition] = self._normaliseTerrainTileID(tileID)
 
-    def getTerrainDestructions(
-        self, mapPath: str
-    ) -> Dict[str, Dict[Tuple[int, int], Union[int, str, None]]]:
+    def getTerrainDestructions(self, mapPath: str) -> Dict[str, Dict[Tuple[int, int], Union[int, str, None]]]:
         r"""\brief Get recorded terrain tile replacements for a map.
 
         - \param mapPath The map path.
@@ -318,7 +314,7 @@ class GameInstance:
 
     @staticmethod
     def _serialiseTerrainDestructions(
-        terrainDestructions: Dict[str, Dict[str, Dict[Tuple[int, int], Union[int, str, None]]]]
+        terrainDestructions: Dict[str, Dict[str, Dict[Tuple[int, int], Union[int, str, None]]]],
     ) -> Dict[str, Dict[str, List[Dict[str, Any]]]]:
         result: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
         for mapPath, layerChanges in terrainDestructions.items():
@@ -336,7 +332,7 @@ class GameInstance:
 
     @staticmethod
     def _normaliseTerrainDestructions(
-        terrainDestructions: Dict[str, Any]
+        terrainDestructions: Dict[str, Any],
     ) -> Dict[str, Dict[str, Dict[Tuple[int, int], Union[int, str, None]]]]:
         result: Dict[str, Dict[str, Dict[Tuple[int, int], Union[int, str, None]]]] = {}
         for mapPath, layerChanges in terrainDestructions.items():
@@ -367,8 +363,8 @@ class GameInstance:
                         if terrainPosition is None:
                             continue
                         tileID = change.get("tileID", change.get("tile"))
-                        result[normalisedMapPath][layerName][terrainPosition] = (
-                            GameInstance._normaliseTerrainTileID(tileID)
+                        result[normalisedMapPath][layerName][terrainPosition] = GameInstance._normaliseTerrainTileID(
+                            tileID
                         )
         return result
 

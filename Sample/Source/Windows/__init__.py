@@ -10,6 +10,7 @@ for the Ludork sample engine.
 - General       Reusable window controls
 - WindowCommand  Command-selection window
 - WindowMenu     In-game menu window
+- WindowMessage  Message window
 - WindowItem     Item inventory window
 - WindowEquipSlot   Equipped-slot list window
 - WindowEquipSelect Available-equip window
@@ -19,6 +20,7 @@ for the Ludork sample engine.
 - WindowEnemyEncyclopedia Enemy encyclopedia detail window
 - WindowFloorTeleporter Visited-floor list and map preview window
 - ConfigWindow      Game configuration window
+- PlayerAttrHUD     Player attribute HUD window
 - DropBox           Drop-down field and expanded list widgets
 - CheckBox          Boolean checkbox field widget
 - Slider            Integer slider field widget
@@ -28,6 +30,7 @@ from . import Base
 from . import General
 from .WindowCommand import WindowCommand
 from .WindowMenu import WindowMenu
+from .WindowMessage import WindowMessage
 from .WindowItem import WindowItem
 from .WindowEquip import WindowEquipSlot, WindowEquipSelect
 from .WindowSaveLoad import WindowSaveLoad
@@ -35,6 +38,7 @@ from .WindowShop import WindowShop
 from .WindowEnemyBook import WindowEnemyBook
 from .WindowEnemyEncyclopedia import WindowEnemyEncyclopedia
 from .WindowFloorTeleporter import WindowFloorTeleporter
+from .HUDPlayerAttr import PlayerAttrHUD
 from .ConfigWindow import ConfigWindow
 from .General import DropBox, CheckBox, Slider
 
@@ -43,6 +47,7 @@ __all__ = [
     "General",
     "WindowCommand",
     "WindowMenu",
+    "WindowMessage",
     "WindowItem",
     "WindowEquipSlot",
     "WindowEquipSelect",
@@ -51,6 +56,7 @@ __all__ = [
     "WindowEnemyBook",
     "WindowEnemyEncyclopedia",
     "WindowFloorTeleporter",
+    "PlayerAttrHUD",
     "ConfigWindow",
     "DropBox",
     "CheckBox",

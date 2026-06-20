@@ -19,16 +19,20 @@ from Global import SceneBase, GameMap
 from Global import System as GlobalSystem
 from Source import System
 from Source.SceneComponents import SceneMapAudioController, SceneMapBuilder
-from Source.Windows.HUDPlayerAttr import PlayerAttrHUD
-from Source.Windows.WindowMessage import WindowMessage
-from Source.Windows.WindowMenu import WindowMenu
-from Source.Windows.WindowItem import WindowItem
-from Source.Windows.WindowEquip import WindowEquipSlot, WindowEquipSelect
-from Source.Windows.WindowSaveLoad import WindowSaveLoad
-from Source.Windows.WindowShop import WindowShop
-from Source.Windows.WindowEnemyBook import WindowEnemyBook
-from Source.Windows.WindowEnemyEncyclopedia import WindowEnemyEncyclopedia
-from Source.Windows.WindowFloorTeleporter import GetDefaultFloorTeleporterRects, WindowFloorTeleporter
+from Source.Windows import (
+    PlayerAttrHUD,
+    WindowMessage,
+    WindowMenu,
+    WindowItem,
+    WindowEquipSlot,
+    WindowEquipSelect,
+    WindowSaveLoad,
+    WindowShop,
+    WindowEnemyBook,
+    WindowEnemyEncyclopedia,
+    WindowFloorTeleporter,
+)
+from Source.Windows.WindowFloorTeleporter import GetDefaultFloorTeleporterRects
 from Source.GameInstance import GameInstance
 
 

@@ -221,6 +221,8 @@ class AudioManager:
         cls._MusicRef[musicType] = (filePath, music)
         if not filter is None:
             cls.setMusicFilter(music, filter)
+        else:
+            music.setSpatializationEnabled(False)
         cls._MusicBaseVolume[id(music)] = music.getVolume()
         if not System.getMusicOn():
             music.setVolume(0)
@@ -411,6 +413,7 @@ class AudioManager:
                 raise Exception(f"Invalid loopPoint type: {type(lp)}")
             music.setLoopPoints(timespan)
         cls._setAudioFilter(music, filter)
+        music.setSpatializationEnabled(False)
 
     @classmethod
     def _setAudioFilter(cls, sound: SoundSource, filter: Filters.SoundFilter) -> None:

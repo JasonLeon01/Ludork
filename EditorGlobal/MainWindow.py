@@ -279,6 +279,12 @@ class MainWindow(
         self._actPasteLightSource.triggered.connect(self._onPasteLightSource)
         self._actPasteLightSource.setEnabled(False)
 
+        self._actDeleteLightSource = QtWidgets.QAction(ELOC("DELETE"), self)
+        self._actDeleteLightSource.setShortcut(QtGui.QKeySequence.Delete)
+        self._actDeleteLightSource.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        self._actDeleteLightSource.triggered.connect(self._onDeleteLightSource)
+        self._actDeleteLightSource.setEnabled(False)
+
         self.gameSize = QSize(640, 480)
         self.panelAspectRatio = 4.0 / 3.0
         self.refreshGameSize()

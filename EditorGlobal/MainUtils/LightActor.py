@@ -48,6 +48,7 @@ class LightActorMixin:
             self.lightPanel.setLight(lightData)
         else:
             self.lightPanel.setLight(None)
+        self._updateDeleteLightActionEnabled()
 
     def _onLightDataChanged(self, mapKey: str, index, lightData) -> None:
         if mapKey != self._selectedLightMapKey:
@@ -95,15 +96,38 @@ class LightActorMixin:
     def _setLightContextActionsEnabled(self, enabled: bool) -> None:
         self._actNewLightSource.setEnabled(bool(enabled))
         self._actPasteLightSource.setEnabled(bool(enabled))
+        if not enabled:
+            self._actDeleteLightSource.setEnabled(False)
+
+    def _updateDeleteLightActionEnabled(self) -> None:
+        enabled = (
+            self._editModeIdx == 1
+            and isinstance(self._selectedLightIndex, int)
+            and bool(self._selectedLightMapKey)
+        )
+        self._actDeleteLightSource.setEnabled(enabled)
 
     def _onEditorPanelContextMenu(self, pos: QtCore.QPoint) -> None:
         if self._editModeIdx != 1:
             return
         self._lastEditorPanelContextPos = pos
+        hit = self.editorPanel.hitTestLightFromWidgetPos(pos)
+        if isinstance(hit, int):
+            self.editorPanel.setSelectedLightIndex(hit)
         menu = QtWidgets.QMenu(self)
         menu.addAction(self._actNewLightSource)
         menu.addAction(self._actPasteLightSource)
+        menu.addAction(self._actDeleteLightSource)
         menu.exec_(self.editorPanel.mapToGlobal(pos))
+
+    def _onDeleteLightSource(self, checked: bool = False) -> None:
+        if self._editModeIdx != 1:
+            return
+        index = self._selectedLightIndex
+        if not isinstance(index, int):
+            return
+        self.editorPanel.deleteLight(index)
+        self._refreshInfo()
 
     def _onNewLightSource(self, checked: bool = False) -> None:
         if self._editModeIdx != 1:

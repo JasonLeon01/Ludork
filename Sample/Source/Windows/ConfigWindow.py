@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, List, Optional, Union, Tuple
 from Engine import Pair, Image, IntRect, Vector2i, UI, Vector2f, Input, TypeAdapter
 from Engine.UI import ListView
 from Global import Manager, System
+from ..System import System as GameSystem
 from .Base import WindowSelectable
 from .General import ConfigCheckBoxRow, ConfigSettingRow, ConfigSliderRow
 
@@ -251,6 +252,10 @@ class ConfigWindow(WindowSelectable):
         if self._onClose is not None:
             self._onClose()
 
+    def _closeByCancel(self) -> None:
+        Manager.playSE(GameSystem.getCancelSE())
+        self.close()
+
     def onTick(self, deltaTime: float) -> None:
         r"""\brief Update the window, delegating input to an expanded DropBox when needed.
 
@@ -265,7 +270,7 @@ class ConfigWindow(WindowSelectable):
         - \param kwargs  Event arguments
         """
         if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
-            self.close()
+            self._closeByCancel()
             return
         if self._handleSelectedSliderKeyDown():
             return
@@ -276,7 +281,7 @@ class ConfigWindow(WindowSelectable):
         if kwargs["button"] == Input.Mouse.Button.Right:
             Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
             Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
-            self.close()
+            self._closeByCancel()
             return True
         return False
 
