@@ -37,6 +37,12 @@
         "ext": ".png",
         "value": "cursor.png"
     },
+    "titleBackgroundFile": {
+        "type": "file",
+        "base": "System",
+        "ext": ".png",
+        "value": "GrassBackground.png"
+    },
     "windowskinName": {
         "type": "file",
         "base": "System",

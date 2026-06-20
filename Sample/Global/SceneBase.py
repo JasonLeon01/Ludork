@@ -39,6 +39,7 @@ class SceneBase:
         self._logicThread: Optional[threading.Thread] = None
         self._logicStopEvent: threading.Event = threading.Event()
         self._logicDataLock: threading.RLock = threading.RLock()
+        self._hotKeyFilter: Optional[str] = None
 
     def onEnter(self) -> None:
         r"""\brief Called when the scene becomes active.
@@ -88,6 +89,14 @@ class SceneBase:
         Override to release resources.
         """
         pass
+
+    @ExecSplit(default=(None,))
+    def setHotKeyFilter(self, hotKeyFilter: Optional[str]) -> None:
+        r"""\brief Set the active hotkey filter.
+
+        - \param hotKeyFilter Active filter name, or None to allow all scene hotkeys.
+        """
+        self._hotKeyFilter = hotKeyFilter
 
     @Latent(TimeUp=(True,))
     def addTimer(self, interval: float, task: Optional[Callable] = None, params: List[Any] = []) -> Callable[[], bool]:
@@ -242,7 +251,7 @@ class SceneBase:
         lastTime = time.perf_counter()
         while not self._logicStopEvent.is_set() and System.isActive() and System.getScene() == self:
             frameStart = time.perf_counter()
-            deltaTime = max(0.0, frameStart - lastTime)
+            deltaTime = max(0.0, frameStart - lastTime) * Manager.TimeManager.getSpeed()
             lastTime = frameStart
             self.onTick(deltaTime)
             self._logicHandle(deltaTime)
@@ -265,6 +274,8 @@ class SceneBase:
             sceneType = Cast(SceneBase, hotKeyConfig.get("Scene"))
             if not isinstance(sceneType, type) or not isinstance(self, sceneType):
                 continue
+            if not self._isHotKeyFilterMatched(hotKeyConfig.get("Filter", [])):
+                continue
             functionWhenPressed = cast(Callable, hotKeyConfig.get("FunctionWhenPressed"))
             AssertType(functionWhenPressed, Optional[Callable])
             if self._isHotKeySceneMethod(sceneType, functionWhenPressed) and Input.getKeyPressed(key, handled=True):
@@ -278,3 +289,10 @@ class SceneBase:
         if function is None or not callable(function):
             return False
         return any(function in cls.__dict__.values() for cls in sceneType.__mro__)
+
+    def _isHotKeyFilterMatched(self, hotKeyFilter: Any) -> bool:
+        if self._hotKeyFilter is None:
+            return True
+        if not isinstance(hotKeyFilter, list):
+            return False
+        return self._hotKeyFilter in hotKeyFilter

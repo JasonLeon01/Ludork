@@ -191,15 +191,22 @@ std::tuple<float, std::vector<py::bytes>, std::vector<py::dict>> C_CompressAnima
             }
             float startTime = segment["startFrame"]["time"].cast<float>();
             float endTime = segment["endFrame"]["time"].cast<float>();
+            float effectiveDuration = endTime - startTime;
             int startFrameIndex = std::max(0, static_cast<int>(std::floor(startTime * frameRate + 1e-5)));
             int endFrameIndex = std::max(0, static_cast<int>(std::ceil(endTime * frameRate - 1e-5)));
             py::dict soundEntry;
             soundEntry["asset"] = assetName;
             soundEntry["startFrame"] = startFrameIndex;
             soundEntry["endFrame"] = endFrameIndex;
+            bool stopAtEndFrame = false;
             if (segment.contains("originalDuration")) {
-                soundEntry["originalDuration"] = segment["originalDuration"];
+                float originalDuration = segment["originalDuration"].cast<float>();
+                soundEntry["originalDuration"] = originalDuration;
+                if (originalDuration > 0.0f) {
+                    stopAtEndFrame = effectiveDuration + 1e-5f < originalDuration;
+                }
             }
+            soundEntry["stopAtEndFrame"] = stopAtEndFrame;
             sounds.push_back(soundEntry);
         }
     }

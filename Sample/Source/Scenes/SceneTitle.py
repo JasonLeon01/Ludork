@@ -18,7 +18,7 @@ class Scene(SceneBase):
 
     def onCreate(self) -> None:
         r"""\brief Create background, command window, and load UI elements."""
-        self._bg = Image(Manager.loadSystem("GrassBackground.png"))
+        self._bg = Image(Manager.loadSystem(GameSystem.getTitleBackgroundFile()))
         self._windowCommand = WindowCommand(
             ((0, 0), (320, 96)),
             {

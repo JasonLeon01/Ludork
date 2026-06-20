@@ -827,13 +827,18 @@ class GameMap(GameMapExt):
         - \param colour Optional fill colour; defaults to opaque white.
         - \param fontSize Character size; defaults to 28.
         """
-        drawPosition = self._getParticleViewPosition(position)
+        drawPosition = self.worldToMapViewPosition(position)
         DamageTextParticle(self._particleSystem, text, drawPosition, colour, fontSize)
 
-    def _getParticleViewPosition(
+    def worldToMapViewPosition(
         self,
         position: Union[Vector2f, Pair[float], List[float], Tuple[float, float]],
     ) -> Vector2f:
+        r"""\brief Convert a world position for drawing while the map view is active.
+
+        - \param position World position to convert.
+        - \return Position relative to the current camera view.
+        """
         if isinstance(position, Vector2f):
             drawPosition = position
         else:
@@ -845,6 +850,32 @@ class GameMap(GameMapExt):
         if viewPosition is None:
             return Vector2f(drawPosition.x, drawPosition.y)
         return Vector2f(drawPosition.x - viewPosition.x, drawPosition.y - viewPosition.y)
+
+    def worldToUIScreenPosition(
+        self,
+        position: Union[Vector2f, Pair[float], List[float], Tuple[float, float]],
+    ) -> Vector2f:
+        r"""\brief Convert a world position to logical UI-screen coordinates.
+
+        - \param position World position to convert.
+        - \return Logical UI position aligned with map view offset.
+        """
+        mapPosition = self.worldToMapViewPosition(position)
+        mapOffset = self.getMapViewOffset()
+        return Vector2f(mapPosition.x + mapOffset.x, mapPosition.y + mapOffset.y)
+
+    def worldToCanvasPosition(
+        self,
+        position: Union[Vector2f, Pair[float], List[float], Tuple[float, float]],
+    ) -> Vector2f:
+        r"""\brief Convert a world position for raw drawing in the default canvas view.
+
+        - \param position World position to convert.
+        - \return Scaled canvas position aligned with the default view.
+        """
+        uiPosition = self.worldToUIScreenPosition(position)
+        scale = System.getScale()
+        return Vector2f(uiPosition.x * scale, uiPosition.y * scale)
 
     def getCollision(self, actor: Actor, targetPosition: Vector2i) -> List[Actor]:
         r"""\brief Get all actors colliding with a given actor at a target position.

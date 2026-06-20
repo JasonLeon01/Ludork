@@ -3,7 +3,7 @@
 from __future__ import annotations
 import copy
 from typing import List, Tuple, Union, TYPE_CHECKING
-from .. import TypeAdapter, Pair, IntRect, Vector2i, Vector2f, Vector2u, RenderTexture, Color, View
+from .. import TypeAdapter, Pair, IntRect, Vector2i, Vector2f, Vector2u, RenderTexture, Color, View, RenderStates
 from ..Animation import AnimSprite
 from ..Utils import Math, Render
 from .Base import SpriteBase, FunctionalBase
@@ -227,10 +227,10 @@ class Canvas(SpriteBase, FunctionalBase):
         Clears the canvas, draws all animations and queued nodes, and displays the result.
         """
         self._canvas.clear(Color.Transparent)
-        for anim in self._anims:
-            self._canvas.draw(anim, Render.CanvasRenderStates())
         for node, nodeStates in self._renderQueue:
             self._canvas.draw(node, copy.copy(nodeStates))
+        for anim in self._anims:
+            self._canvas.draw(anim, self._getAnimRenderStates())
         self._canvas.display()
 
     def lateUpdate(self, deltaTime: float) -> None:
@@ -280,3 +280,10 @@ class Canvas(SpriteBase, FunctionalBase):
         for child in self._childrenList:
             if child.getVisible():
                 self._appendRenderNode(child, baseStates)
+
+    def _getAnimRenderStates(self) -> RenderStates:
+        from .. import Scale
+
+        states = Render.CanvasRenderStates()
+        states.transform.scale(Vector2f(Scale, Scale))
+        return states

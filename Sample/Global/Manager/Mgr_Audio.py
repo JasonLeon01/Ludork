@@ -41,6 +41,7 @@ class AudioManager:
 
     _MusicRef: Dict[str, Tuple[str, Music]] = {}
     _SoundBaseVolume: Dict[int, float] = {}
+    _SoundBasePitch: Dict[int, float] = {}
     _VoiceBaseVolume: float = 100.0
     _MusicBaseVolume: Dict[int, float] = {}
     _AsyncLoop: Optional[asyncio.AbstractEventLoop] = None
@@ -121,6 +122,8 @@ class AudioManager:
         cls._SoundRec.append(sound)
         if not filter is None:
             cls.setSoundFilter(sound, filter)
+        else:
+            cls._applyPitch(sound, None)
         if parent is None and (filter is None or filter.spatial is not True):
             sound.setSpatializationEnabled(False)
         cls._SoundBaseVolume[id(sound)] = sound.getVolume()
@@ -364,6 +367,17 @@ class AudioManager:
         cls._submit(monitorWrapper())
 
     @classmethod
+    def _applyPitch(cls, sound: Sound, filterPitch: Optional[float]) -> None:
+        from .Mgr_Time import TimeManager
+
+        soundID = id(sound)
+        if filterPitch is not None:
+            cls._SoundBasePitch[soundID] = float(filterPitch)
+        elif soundID not in cls._SoundBasePitch:
+            cls._SoundBasePitch[soundID] = 1.0
+        sound.setPitch(cls._SoundBasePitch[soundID] * TimeManager.getSpeed())
+
+    @classmethod
     def setSoundFilter(cls, sound: Sound, filter: Filters.SoundFilter) -> None:
         if not filter.loop is None:
             sound.setLooping(filter.loop)
@@ -376,6 +390,11 @@ class AudioManager:
                     raise Exception(f"Invalid offset type: {type(offset)}")
             sound.setPlayingOffset(offset)
         cls._setAudioFilter(sound, filter)
+        if sound is cls._Voice:
+            if not filter.pitch is None:
+                sound.setPitch(filter.pitch)
+        else:
+            cls._applyPitch(sound, filter.pitch)
 
     @classmethod
     def setVoiceFilter(cls, voice: Sound, filter: Filters.SoundFilter) -> None:
@@ -413,6 +432,8 @@ class AudioManager:
                 raise Exception(f"Invalid loopPoint type: {type(lp)}")
             music.setLoopPoints(timespan)
         cls._setAudioFilter(music, filter)
+        if not filter.pitch is None:
+            music.setPitch(filter.pitch)
         music.setSpatializationEnabled(False)
 
     @classmethod
@@ -425,8 +446,6 @@ class AudioManager:
                     warnings.warn("No sound effect processor set!")
             else:
                 sound.setEffectProcessor(filter.soundEffect)
-        if not filter.pitch is None:
-            sound.setPitch(filter.pitch)
         if not filter.pan is None:
             sound.setPan(filter.pan)
         if not filter.volume is None:
@@ -530,6 +549,7 @@ class AudioManager:
     def _cleanSound(cls, sound: Sound, filePath: str) -> None:
         cls._SoundParentMap.pop(id(sound), None)
         cls._SoundBaseVolume.pop(id(sound), None)
+        cls._SoundBasePitch.pop(id(sound), None)
         if sound in cls._SoundRec:
             cls._SoundRec.remove(sound)
         if filePath in cls._SoundBufferRef:

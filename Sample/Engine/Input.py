@@ -57,6 +57,21 @@ JoyStickButtonName: Dict[JoystickButton, str] = {member: member.name for member 
 JoystickAxisName: Dict[JoystickAxis, str] = {member: member.name for member in JoystickAxis.__members__.values()}
 
 
+def _resolveKeyCode(keyCode: Key, scancode: Scan) -> Key:
+    r"""\brief Resolve a logical key from SFML key code and scancode.
+
+      SFML may report ``Key.Unknown`` while the scancode is valid; localize it so
+    ``KeyPressedMap`` lookups match ``getKeyPressed``.
+    """
+    if keyCode != Key.Unknown:
+        return keyCode
+    if scancode != Scan.Unknown:
+        localizedKey = Keyboard.localize(scancode)
+        if localizedKey != Key.Unknown:
+            return localizedKey
+    return keyCode
+
+
 class _EventState:
     r"""
     \brief Internal state container for input events.
@@ -441,7 +456,8 @@ def update(window: WindowBase) -> None:
                     ctrl = keyEvent.control
                     shift = keyEvent.shift
                     system = keyEvent.system
-                    keyMap = (keyEvent.code, alt, ctrl, shift, system)
+                    keyCode = _resolveKeyCode(keyEvent.code, keyEvent.scancode)
+                    keyMap = (keyCode, alt, ctrl, shift, system)
                     scanMap = (keyEvent.scancode, alt, ctrl, shift, system)
                     _EventState.KeyPressedMap[keyMap] = True
                     _EventState.KeyboardScanPressedMap[scanMap] = True
@@ -457,7 +473,8 @@ def update(window: WindowBase) -> None:
                     ctrl = keyEvent.control
                     shift = keyEvent.shift
                     system = keyEvent.system
-                    keyMap = (keyEvent.code, alt, ctrl, shift, system)
+                    keyCode = _resolveKeyCode(keyEvent.code, keyEvent.scancode)
+                    keyMap = (keyCode, alt, ctrl, shift, system)
                     scanMap = (keyEvent.scancode, alt, ctrl, shift, system)
                     _EventState.KeyReleasedMap[keyMap] = True
                     _EventState.KeyboardScanReleasedMap[scanMap] = True
@@ -779,7 +796,19 @@ def getKeyPressed(
             if result and handled:
                 _EventState.KeyPressedMap[mapKey] = False
             return result
-        return False
+        scan = Keyboard.delocalize(key)
+        if scan == Scan.Unknown:
+            return False
+        mapScan = (scan, alt, ctrl, shift, system)
+        if mapScan not in _EventState.KeyboardScanPressedMap:
+            return False
+        result = _EventState.KeyboardScanPressedMap[mapScan]
+        if result and handled:
+            _EventState.KeyboardScanPressedMap[mapScan] = False
+            unknownKey = (Key.Unknown, alt, ctrl, shift, system)
+            if unknownKey in _EventState.KeyPressedMap:
+                _EventState.KeyPressedMap[unknownKey] = False
+        return result
 
 
 def getScanPressed(
@@ -843,7 +872,19 @@ def getKeyReleased(
             if result and handled:
                 _EventState.KeyReleasedMap[mapKey] = False
             return result
-        return False
+        scan = Keyboard.delocalize(key)
+        if scan == Scan.Unknown:
+            return False
+        mapScan = (scan, alt, ctrl, shift, system)
+        if mapScan not in _EventState.KeyboardScanReleasedMap:
+            return False
+        result = _EventState.KeyboardScanReleasedMap[mapScan]
+        if result and handled:
+            _EventState.KeyboardScanReleasedMap[mapScan] = False
+            unknownKey = (Key.Unknown, alt, ctrl, shift, system)
+            if unknownKey in _EventState.KeyReleasedMap:
+                _EventState.KeyReleasedMap[unknownKey] = False
+        return result
 
 
 def getScanReleased(

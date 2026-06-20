@@ -62,7 +62,7 @@ class Animation(AnimSprite):
                 else:
                     sound = Manager.playSE(assetName)
                 endFrame = int(entry.get("endFrame", -1) or -1)
-                if sound and endFrame >= 0:
+                if sound and endFrame >= 0 and entry.get("stopAtEndFrame", False):
                     self.playingSounds.append({"sound": sound, "endFrame": endFrame})
             self.soundIndex += 1
 

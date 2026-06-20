@@ -4,6 +4,7 @@ import copy
 import logging
 import os
 import zlib
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable, Dict, Optional, Tuple, Type
 from Engine import Vector2f, Vector2u, Image
 from Engine.Gameplay import Tileset, AutoTile
@@ -24,27 +25,86 @@ class _Data:
         self._generalData: Dict[str, Dict[str, Any]] = {}
         self._classDict = ClassDict()
 
-    def loadAnimations(self) -> None:
+    def _loadAnimationFile(self, animationRoot: str, file: str) -> Tuple[str, Dict[str, Any]]:
+        namePart, _ = self.splitCompound(file)
+        logging.info("Loading Animations: %s", file)
+        payload = File.loadData(os.path.join(animationRoot, file))
+        assert payload
+        if "type" in payload:
+            del payload["type"]
+        return namePart, payload
+
+    def loadAnimations(self, onFileLoaded: Optional[Callable[[], None]] = None) -> None:
         animationRoot = os.path.join(".", "Data", "Animations")
-        self._loadData(animationRoot, self._animationData, ".anim.dat", {".anim.dat": File.loadData})
+        if not os.path.exists(animationRoot):
+            raise FileNotFoundError(f"Error: Data path {animationRoot} does not exist.")
+        files: list[str] = []
+        for file in os.listdir(animationRoot):
+            _, extensionPart = self.splitCompound(file)
+            if extensionPart != ".anim.dat":
+                continue
+            files.append(file)
+        if not files:
+            return
+        maxWorkers = min(len(files), os.cpu_count() or 4)
+        with ThreadPoolExecutor(max_workers=maxWorkers) as executor:
+            futures = [executor.submit(self._loadAnimationFile, animationRoot, file) for file in files]
+            for future in as_completed(futures):
+                namePart, payload = future.result()
+                self._animationData[namePart] = payload
+                if onFileLoaded is not None:
+                    onFileLoaded()
 
-    def loadCommonFunctions(self) -> None:
+    def loadCommonFunctions(self, onFileLoaded: Optional[Callable[[], None]] = None) -> None:
         commonRoot = os.path.join(".", "Data", "CommonFunctions")
-        self._loadData(commonRoot, self._commonFunctionsData, ".dat", {".dat": File.loadData})
+        self._loadData(
+            commonRoot, self._commonFunctionsData, ".dat", {".dat": File.loadData}, onFileLoaded=onFileLoaded
+        )
 
-    def loadTilesets(self) -> None:
+    def loadTilesets(self, onFileLoaded: Optional[Callable[[], None]] = None) -> None:
         tilesetRoot = os.path.join(".", "Data", "Tilesets")
-        self._loadData(tilesetRoot, self._tilesetData, defaultType={".dat": File.loadData}, wrapper=Tileset.fromData)
+        self._loadData(
+            tilesetRoot,
+            self._tilesetData,
+            defaultType={".dat": File.loadData},
+            wrapper=Tileset.fromData,
+            onFileLoaded=onFileLoaded,
+        )
 
-    def loadAutoTiles(self) -> None:
+    def loadAutoTiles(self, onFileLoaded: Optional[Callable[[], None]] = None) -> None:
         autoTileRoot = os.path.join(".", "Data", "AutoTiles")
         if not os.path.exists(autoTileRoot):
             return
-        self._loadData(autoTileRoot, self._autoTileData, defaultType={".dat": File.loadData}, wrapper=AutoTile.fromData)
+        self._loadData(
+            autoTileRoot,
+            self._autoTileData,
+            defaultType={".dat": File.loadData},
+            wrapper=AutoTile.fromData,
+            onFileLoaded=onFileLoaded,
+        )
 
-    def loadGeneralData(self) -> None:
+    def loadGeneralData(self, onFileLoaded: Optional[Callable[[], None]] = None) -> None:
         generalRoot = os.path.join(".", "Data", "General")
-        self._loadData(generalRoot, self._generalData)
+        self._loadData(generalRoot, self._generalData, onFileLoaded=onFileLoaded)
+
+    def countLoadableFiles(
+        self,
+        dataRoot: str,
+        needExt: Optional[str] = None,
+        defaultType: Dict[str, Callable] = {".dat": File.loadData, ".json": File.getJSONData},
+    ) -> int:
+        if not os.path.exists(dataRoot):
+            return 0
+        count = 0
+        for file in os.listdir(dataRoot):
+            _, extensionPart = self.splitCompound(file)
+            if needExt is not None and extensionPart != needExt:
+                continue
+            for ext in defaultType:
+                if extensionPart == ext or extensionPart.endswith(ext):
+                    count += 1
+                    break
+        return count
 
     def _loadData(
         self,
@@ -53,13 +113,16 @@ class _Data:
         needExt: Optional[str] = None,
         defaultType: Dict[str, Callable] = {".dat": File.loadData, ".json": File.getJSONData},
         wrapper: Optional[Callable[[Any], None]] = None,
+        onFileLoaded: Optional[Callable[[], None]] = None,
     ):
         if not os.path.exists(dataRoot):
             raise FileNotFoundError(f"Error: Data path {dataRoot} does not exist.")
+        category = os.path.basename(dataRoot.rstrip(os.sep))
         for file in os.listdir(dataRoot):
             namePart, extensionPart = self.splitCompound(file)
             if not needExt is None and extensionPart != needExt:
                 continue
+            logging.info("Loading %s: %s", category, file)
             data = self.__getData(extensionPart, dataRoot, file, defaultType)
             payload = copy.deepcopy(data)
             assert payload
@@ -69,6 +132,8 @@ class _Data:
                 dataVal[namePart] = payload
             else:
                 dataVal[namePart] = wrapper(payload)
+            if onFileLoaded is not None:
+                onFileLoaded()
 
     def _cacheAnimation(self, name: str, data: Dict[str, Any]) -> None:
         if name in self._animCache:
@@ -276,29 +341,60 @@ def getDataKinds() -> int:
     return _data.dataKinds
 
 
-def loadAnimations() -> None:
-    r"""\brief Load all animation data from the Data/Animations directory."""
-    _data.loadAnimations()
+def countLoadableFiles(
+    dataRoot: str,
+    needExt: Optional[str] = None,
+    defaultType: Dict[str, Callable] = {".dat": File.loadData, ".json": File.getJSONData},
+) -> int:
+    r"""\brief Count loadable data files under a directory.
+
+    - \param dataRoot Root directory to scan.
+    - \param needExt Optional required file extension filter.
+    - \param defaultType Extension-to-loader mapping used to decide loadable files.
+
+    - \return Number of loadable files.
+    """
+    return _data.countLoadableFiles(dataRoot, needExt, defaultType)
 
 
-def loadCommonFunctions() -> None:
-    r"""\brief Load all common function data from the Data/CommonFunctions directory."""
-    _data.loadCommonFunctions()
+def loadAnimations(onFileLoaded: Optional[Callable[[], None]] = None) -> None:
+    r"""\brief Load all animation data from the Data/Animations directory.
+
+    - \param onFileLoaded Optional callback invoked after each file is loaded.
+    """
+    _data.loadAnimations(onFileLoaded)
 
 
-def loadTilesets() -> None:
-    r"""\brief Load all tileset data from the Data/Tilesets directory."""
-    _data.loadTilesets()
+def loadCommonFunctions(onFileLoaded: Optional[Callable[[], None]] = None) -> None:
+    r"""\brief Load all common function data from the Data/CommonFunctions directory.
+
+    - \param onFileLoaded Optional callback invoked after each file is loaded.
+    """
+    _data.loadCommonFunctions(onFileLoaded)
 
 
-def loadAutoTiles() -> None:
-    r"""\brief Load all autotile data from the Data/AutoTiles directory."""
-    _data.loadAutoTiles()
+def loadTilesets(onFileLoaded: Optional[Callable[[], None]] = None) -> None:
+    r"""\brief Load all tileset data from the Data/Tilesets directory.
+
+    - \param onFileLoaded Optional callback invoked after each file is loaded.
+    """
+    _data.loadTilesets(onFileLoaded)
 
 
-def loadGeneralData() -> None:
-    r"""\brief Load all general data from the Data/General directory."""
-    _data.loadGeneralData()
+def loadAutoTiles(onFileLoaded: Optional[Callable[[], None]] = None) -> None:
+    r"""\brief Load all autotile data from the Data/AutoTiles directory.
+
+    - \param onFileLoaded Optional callback invoked after each file is loaded.
+    """
+    _data.loadAutoTiles(onFileLoaded)
+
+
+def loadGeneralData(onFileLoaded: Optional[Callable[[], None]] = None) -> None:
+    r"""\brief Load all general data from the Data/General directory.
+
+    - \param onFileLoaded Optional callback invoked after each file is loaded.
+    """
+    _data.loadGeneralData(onFileLoaded)
 
 
 def getAnimation(name: str) -> Dict[str, Any]:

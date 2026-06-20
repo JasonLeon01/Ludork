@@ -8,6 +8,22 @@ from typing import List, Optional, Dict, Any
 from . import Sprite, Texture, Image, C_CompressAnimation
 
 
+def _resolveSoundStopAtEndFrame(entry: Dict[str, Any], frameRate: int) -> None:
+    if entry.get("stopAtEndFrame") is not None:
+        return
+    originalDuration = entry.get("originalDuration")
+    if not isinstance(originalDuration, (int, float)) or float(originalDuration) <= 0.0:
+        entry["stopAtEndFrame"] = False
+        return
+    startFrame = int(entry.get("startFrame", 0) or 0)
+    endFrame = int(entry.get("endFrame", -1) or -1)
+    if endFrame < 0 or frameRate <= 0:
+        entry["stopAtEndFrame"] = False
+        return
+    effectiveDuration = (endFrame - startFrame) / frameRate
+    entry["stopAtEndFrame"] = effectiveDuration + 1e-5 < float(originalDuration)
+
+
 def getAnimationVisualDuration(animationData: Dict[str, Any]) -> float:
     r"""
     \brief Get animation duration based on visual frame segments only.
@@ -85,6 +101,8 @@ class AnimSprite(Sprite):
             self._frameCount = len(self._frames)
         self.soundEntries = list(animationData.get("sounds", []))
         self.soundEntries.sort(key=lambda entry: int(entry.get("startFrame", 0) or 0))
+        for entry in self.soundEntries:
+            _resolveSoundStopAtEndFrame(entry, self._frameRate)
         self.soundIndex = 0
         self.playingSounds = []
         self._frameCounter = 0.0

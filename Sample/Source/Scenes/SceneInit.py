@@ -1,8 +1,10 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+import logging
 import os
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Tuple
 import Engine
 from Engine import Pair, Color, Vector2f, RenderTexture, RectangleShape
@@ -12,8 +14,36 @@ from Engine.Utils import File
 from Engine.UI.Base import SpriteBase, FunctionalBase
 from Engine.UI import Image
 from Global import Manager, System, SceneBase
+from Source.System import System as GameSystem
 from .. import Data
 from .SceneTitle import Scene as SceneTitle
+
+
+def _splitCompound(fileName: str) -> Tuple[str, str]:
+    parts = fileName.split(".", 1)
+    if len(parts) == 2:
+        return parts[0], f".{parts[1]}"
+    return fileName, ""
+
+
+def _compressAnimationFile(file: str, animationRoot: str, assetsRoot: str) -> None:
+    namePart, extensionPart = _splitCompound(file)
+    sourcePath = os.path.join(animationRoot, file)
+    compressedPath = os.path.join(animationRoot, f"{namePart}.anim.dat")
+    needCompress = True
+    if os.path.exists(compressedPath):
+        if os.path.getmtime(compressedPath) >= os.path.getmtime(sourcePath):
+            needCompress = False
+    if needCompress:
+        logging.info("Compressing animation: %s", file)
+        if extensionPart == ".json":
+            payload = File.getJSONData(sourcePath)
+        else:
+            payload = File.loadData(sourcePath)
+        compressed = compressAnimation(payload, assetsRoot=assetsRoot)
+        File.saveData(compressedPath, compressed)
+    else:
+        logging.info("Animation up to date: %s", file)
 
 
 class ProgressBar(SpriteBase, FunctionalBase):
@@ -70,13 +100,15 @@ class Scene(SceneBase):
         barHeight = 12
         barX = int((gameSize.x - barWidth) / 2)
         barY = int(gameSize.y * 0.8)
-        self._bg = Image(Manager.loadSystem("GrassBackground.png"))
+        self._bg = Image(Manager.loadSystem(GameSystem.getTitleBackgroundFile()))
         self._uiManager.loadUI(self._bg)
         self.ProgressBar = ProgressBar(((barX, barY), (barWidth, barHeight)))
         self._uiManager.loadUI(self.ProgressBar)
         self.progressValue = 0.0
-        self.progressTotal = Data.getDataKinds()
+        self._displayProgress = 0.0
+        self.progressTotal = self._countInitWorkUnits()
         self.processedCount = 0
+        self._progressLock = threading.Lock()
         self.progressDone = False
         self.hasSwitched = False
         self.prepareThread = threading.Thread(target=self.prepareAssets, daemon=True)
@@ -88,10 +120,15 @@ class Scene(SceneBase):
         - \param deltaTime Elapsed time in seconds.
         """
         if self.progressTotal > 0:
-            self.ProgressBar.setProgress(self.progressValue)
+            with self._progressLock:
+                target = 1.0 if self.progressDone else self.progressValue
+            maxStep = max(1.0 / self.progressTotal, deltaTime * 1.5)
+            if self._displayProgress < target:
+                self._displayProgress = min(target, self._displayProgress + maxStep)
+            self.ProgressBar.setProgress(self._displayProgress)
         else:
             self.ProgressBar.setProgress(1.0 if self.progressDone else 0.0)
-        if self.progressDone and not self.hasSwitched:
+        if self.progressDone and not self.hasSwitched and self._displayProgress >= 0.999:
             self.hasSwitched = True
             System.setScene(SceneTitle())
 
@@ -102,10 +139,42 @@ class Scene(SceneBase):
 
         - \return A tuple of (name, extension).
         """
-        parts = fileName.split(".", 1)
-        if len(parts) == 2:
-            return parts[0], f".{parts[1]}"
-        return fileName, ""
+        return _splitCompound(fileName)
+
+    def _listAnimationSourceFiles(self, animationRoot: str) -> list[str]:
+        fileList: list[str] = []
+        for file in os.listdir(animationRoot):
+            if file.endswith(".anim.dat"):
+                continue
+            _, extensionPart = _splitCompound(file)
+            if extensionPart in [".json", ".dat"]:
+                fileList.append(file)
+        return fileList
+
+    def _countInitWorkUnits(self) -> int:
+        animationRoot = os.path.join(".", "Data", "Animations")
+        sourceCount = 0
+        loadAnimCount = 0
+        if os.path.exists(animationRoot):
+            sourceCount = len(self._listAnimationSourceFiles(animationRoot))
+            loadAnimCount = Data.countLoadableFiles(
+                animationRoot, ".anim.dat", {".anim.dat": File.loadData}
+            )
+        loadAnimCount = max(sourceCount, loadAnimCount)
+        total = sourceCount + loadAnimCount
+        total += Data.countLoadableFiles(
+            os.path.join(".", "Data", "CommonFunctions"), ".dat", {".dat": File.loadData}
+        )
+        total += Data.countLoadableFiles(os.path.join(".", "Data", "Tilesets"))
+        total += Data.countLoadableFiles(os.path.join(".", "Data", "AutoTiles"))
+        total += Data.countLoadableFiles(os.path.join(".", "Data", "General"))
+        return total
+
+    def _advanceProgress(self) -> None:
+        with self._progressLock:
+            self.processedCount += 1
+            if self.progressTotal > 0:
+                self.progressValue = self.processedCount / self.progressTotal
 
     def compressAnimations(self) -> None:
         r"""\brief Compress animation data files if source is newer than cached copies."""
@@ -113,56 +182,36 @@ class Scene(SceneBase):
         if not os.path.exists(animationRoot):
             raise FileNotFoundError(f"Error: Animation data path {animationRoot} does not exist.")
         assetsRoot = os.path.join(".", "Assets", "Animations")
-        fileList = []
-        for file in os.listdir(animationRoot):
-            if file.endswith(".anim.dat"):
-                continue
-            namePart, extensionPart = self.splitCompound(file)
-            if extensionPart not in [".json", ".dat"]:
-                continue
-            fileList.append(file)
-        self.progressTotal += len(fileList)
-        for file in fileList:
-            namePart, extensionPart = self.splitCompound(file)
-            sourcePath = os.path.join(animationRoot, file)
-            compressedPath = os.path.join(animationRoot, f"{namePart}.anim.dat")
-            needCompress = True
-            if os.path.exists(compressedPath):
-                if os.path.getmtime(compressedPath) >= os.path.getmtime(sourcePath):
-                    needCompress = False
-            if needCompress:
-                if extensionPart == ".json":
-                    payload = File.getJSONData(sourcePath)
-                else:
-                    payload = File.loadData(sourcePath)
-                compressed = compressAnimation(payload, assetsRoot=assetsRoot)
-                File.saveData(compressedPath, compressed)
-            self.processedCount += 1
-            if self.progressTotal > 0:
-                self.progressValue = self.processedCount / self.progressTotal
+        fileList = self._listAnimationSourceFiles(animationRoot)
+        if not fileList:
+            return
+        maxWorkers = min(len(fileList), os.cpu_count() or 4)
+        with ThreadPoolExecutor(max_workers=maxWorkers) as executor:
+            futures = [
+                executor.submit(_compressAnimationFile, file, animationRoot, assetsRoot) for file in fileList
+            ]
+            for future in as_completed(futures):
+                future.result()
+                self._advanceProgress()
 
     def loadGameData(self) -> None:
         r"""\brief Load all game data in sequence and update the progress bar."""
-        Data.loadAnimations()
-        self.processedCount += 1
-        if self.progressTotal > 0:
-            self.progressValue = self.processedCount / self.progressTotal
-        Data.loadCommonFunctions()
-        self.processedCount += 1
-        if self.progressTotal > 0:
-            self.progressValue = self.processedCount / self.progressTotal
-        Data.loadTilesets()
-        self.processedCount += 1
-        Data.loadAutoTiles()
-        self.processedCount += 1
-        Data.loadGeneralData()
-        self.processedCount += 1
-        if self.progressTotal > 0:
-            self.progressValue = self.processedCount / self.progressTotal
+        onProgress = self._advanceProgress
+        logging.info("Loading animations")
+        Data.loadAnimations(onFileLoaded=onProgress)
+        logging.info("Loading common functions")
+        Data.loadCommonFunctions(onFileLoaded=onProgress)
+        logging.info("Loading tilesets")
+        Data.loadTilesets(onFileLoaded=onProgress)
+        logging.info("Loading autotiles")
+        Data.loadAutoTiles(onFileLoaded=onProgress)
+        logging.info("Loading general data")
+        Data.loadGeneralData(onFileLoaded=onProgress)
 
     def prepareAssets(self) -> None:
         r"""\brief Background thread entry point: compress animations then load all data."""
         self.compressAnimations()
         self.loadGameData()
-        self.progressValue = 1.0
+        with self._progressLock:
+            self.progressValue = 1.0
         self.progressDone = True

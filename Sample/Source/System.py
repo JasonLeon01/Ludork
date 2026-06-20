@@ -34,6 +34,7 @@ class System:
     _icon: Image
     _cursor: Optional[Cursor] = None
     _windowskinName: str
+    _titleBackgroundFile: str = "GrassBackground.png"
     _coverOpaqueAlpha: int = 0
     _startMap: str = ""
     _startPos: Vector2u
@@ -81,6 +82,7 @@ class System:
                     f"Failed to create cursor from pixels; skipped. Path: {cursorPath}",
                 )
         cls._windowskinName = systemData["windowskinName"]["value"]
+        cls._titleBackgroundFile = systemData["titleBackgroundFile"]["value"]
         Engine.CellSize = systemData["cellSize"]["value"]
         coverOpaqueAlpha = systemData["coverOpaqueAlpha"]["value"]
         cls._startMap = systemData["startMap"]["value"]
@@ -204,6 +206,14 @@ class System:
         - \return The windowskin name.
         """
         return cls._windowskinName
+
+    @classmethod
+    def getTitleBackgroundFile(cls) -> str:
+        r"""\brief Get the title screen background texture name.
+
+        - \return The title background file name.
+        """
+        return cls._titleBackgroundFile
 
     @classmethod
     def setWindowskinName(cls, name: str) -> None:

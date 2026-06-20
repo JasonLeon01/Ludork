@@ -79,8 +79,16 @@ class Window(SpriteBase):
         self._windowBack.setRepeated(self._repeated)
         self._windowBackSprite = Sprite(self._windowBack)
         if self._repeated:
+            from .. import Scale
+
+            self._windowBackSprite.setScale(Vector2f(Scale, Scale))
             self._windowBackSprite.setTextureRect(
-                IntRect(Vector2i(0, 0), Math.ToVector2i(canvasSize))
+                IntRect(
+                    Vector2i(0, 0),
+                    Math.ToVector2i(
+                        Vector2f(canvasSize.x / Scale, canvasSize.y / Scale)
+                    ),
+                )
             )
         else:
             self._windowBackSprite.setScale(

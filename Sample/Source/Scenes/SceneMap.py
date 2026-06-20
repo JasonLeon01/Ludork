@@ -64,6 +64,7 @@ class Scene(SceneBase):
 
     def onCreate(self) -> None:
         r"""\brief Create player HUD, message window, menu, and load the starting map."""
+        self.setHotKeyFilter("casual")
         self.player = self.inst.getPlayer()
         self._mapBuilder = SceneMapBuilder()
         self._mapAudio = SceneMapAudioController()
@@ -177,16 +178,8 @@ class Scene(SceneBase):
         self._mapClickMoveBlockedUntilLateTick = self._isMapClickMoveBlocked()
         self._gameMap.onTick(deltaTime)
         self._gameMap.getTilemap().updateAutoTileAnimation(deltaTime)
-        if (
-            not self._windowMenu.isBlocking()
-            and not self._messageWindow.isInDialogue()
-            and not self._windowShop.getVisible()
-            and not self._windowEnemyBook.getVisible()
-            and not self._windowEnemyEncyclopedia.getVisible()
-            and not self._windowFloorTeleporter.getVisible()
-        ):
-            if not self._pendingMenuOpen and self._isMenuOpenTriggered():
-                self._pendingMenuOpen = True
+        if self._canOpenMenu() and self._isMenuOpenTriggered():
+            self.openMenu()
         return super().onTick(deltaTime)
 
     def onLateTick(self, deltaTime: float) -> None:
@@ -370,6 +363,13 @@ class Scene(SceneBase):
         self._recordCurrentFloorTelepoint()
         self._windowFloorTeleporter.open(self.inst)
         self._blockMapInput(2)
+
+    @ExecSplit(default=(None,))
+    def openMenu(self) -> None:
+        r"""\brief Request the in-game menu to open on the next render pass."""
+        if not self._canOpenMenu():
+            return
+        self._pendingMenuOpen = True
 
     def openShop(self, buyItemIDs: List[str], canSell: bool) -> Callable[[], bool]:
         r"""\brief Open the map-bound shop and wait until it closes.
@@ -601,14 +601,10 @@ class Scene(SceneBase):
         animSnapshot = self.getAnims()
         if not animSnapshot:
             return
-        camera = self._gameMap.getCamera()
-        viewPos = camera.getViewPosition() if camera else None
         GlobalSystem.setWindowMapView(self._gameMap.getMapViewOffset())
         for anim in animSnapshot:
             worldPosition = anim.getPosition()
-            drawPosition = worldPosition
-            if viewPos is not None:
-                drawPosition = worldPosition - viewPos
+            drawPosition = self._gameMap.worldToMapViewPosition(worldPosition)
             anim.setPosition(drawPosition)
             GlobalSystem.draw(anim)
             anim.setPosition(worldPosition)
@@ -643,9 +639,18 @@ class Scene(SceneBase):
         System.setSavedScreenImage(scaledRT.getTexture().copyToImage())
 
     def _isMenuOpenTriggered(self) -> bool:
-        if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
-            return True
         return Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
+
+    def _canOpenMenu(self) -> bool:
+        return (
+            not self._pendingMenuOpen
+            and not self._windowMenu.isBlocking()
+            and not self._messageWindow.isInDialogue()
+            and not self._windowShop.getVisible()
+            and not self._windowEnemyBook.getVisible()
+            and not self._windowEnemyEncyclopedia.getVisible()
+            and not self._windowFloorTeleporter.getVisible()
+        )
 
     def _isMapClickMoveBlocked(self) -> bool:
         return (

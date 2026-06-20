@@ -811,6 +811,10 @@
     "zh_CN": "窗口皮肤",
     "en_GB": "Window Skin"
   },
+  "titleBackgroundFile": {
+    "zh_CN": "标题背景",
+    "en_GB": "Title Background"
+  },
   "cellSize": {
     "zh_CN": "单元格尺寸",
     "en_GB": "Cell Size"

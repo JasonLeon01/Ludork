@@ -86,6 +86,10 @@ class Teleporter(Actor):
         moveEnabled = player.getMoveEnabled()
         player.setMoveEnabled(False)
         if scene.requestFloorTransfer(targetMap, anchorPos, moveEnabled):
+            from Global import Manager
+            from Source.System import System
+
+            Manager.playSE(System.getStairSE())
             self._floorTransferPending = True
             return
         player.setMoveEnabled(moveEnabled)
