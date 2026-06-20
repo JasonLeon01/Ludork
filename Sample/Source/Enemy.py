@@ -3,7 +3,7 @@
 from __future__ import annotations
 from math import ceil
 from typing import Any, Callable, Dict, Optional, Union, List, Tuple
-from Engine import Pair, Texture, IntRect
+from Engine import CellSize, Pair, Texture, IntRect, Vector2f
 from Engine.Gameplay.Actors import Actor
 from Engine.Gameplay.Components import ChildActorComponent, componentFromData
 from Global import Animation
@@ -160,12 +160,14 @@ class Enemy(Actor, EnemyInfo, Battler):
 
             result = self.battle()
             animLen = 0
+            halfCell = CellSize * 0.5
             if player.infoComp.ANIMATION_KEY:
                 animData = Data.getAnimation(player.infoComp.ANIMATION_KEY)
                 if animData is None:
                     raise ValueError(f"Animation '{player.infoComp.ANIMATION_KEY}' not found")
                 anim = Animation(animData, isSpatial=True)
-                anim.setPosition(self.getPosition())
+                enemyPos = self.getPosition()
+                anim.setPosition(Vector2f(enemyPos.x + halfCell, enemyPos.y + halfCell))
                 map.addAnim(anim)
                 animLen = max(animLen, anim.getVisualDuration())
             if self.infoComp.ANIMATION_KEY:
@@ -173,7 +175,8 @@ class Enemy(Actor, EnemyInfo, Battler):
                 if animData is None:
                     raise ValueError(f"Animation '{self.infoComp.ANIMATION_KEY}' not found")
                 anim = Animation(animData, isSpatial=True)
-                anim.setPosition(player.getPosition())
+                playerPos = player.getPosition()
+                anim.setPosition(Vector2f(playerPos.x + halfCell, playerPos.y + halfCell))
                 map.addAnim(anim)
                 animLen = max(animLen, anim.getVisualDuration())
 

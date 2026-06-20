@@ -1475,6 +1475,14 @@
     "zh_CN": "添加字段",
     "en_GB": "Add Field"
   },
+  "ADD_REFERENCE": {
+    "zh_CN": "增加引用",
+    "en_GB": "Add Reference"
+  },
+  "REMOVE_REFERENCE": {
+    "zh_CN": "移除引用",
+    "en_GB": "Remove Reference"
+  },
   "EDIT_BLUEPRINT": {
     "zh_CN": "编辑蓝图",
     "en_GB": "Edit Blueprint"

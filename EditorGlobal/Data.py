@@ -1025,6 +1025,8 @@ class GameData:
         sourceId = cls._referenceNodeId("general", key)
         if not isinstance(data, dict):
             return
+        params = data.get("params")
+        paramSchema = params if isinstance(params, dict) else {}
         members = data.get("members")
         if not isinstance(members, dict):
             return
@@ -1034,10 +1036,83 @@ class GameData:
             if not isinstance(memberData, dict):
                 continue
             cls._addAssetReference(index, memberId, memberData.get("icon"), "", "asset", "icon")
+            cls._scanGeneralParamReferences(index, memberId, key, memberKey, memberData, paramSchema)
             graph = memberData.get("_graph")
             if isinstance(graph, dict):
                 cls._scanNodeGraphReferences(index, memberId, graph, f"General/{key}/{memberKey}._graph")
                 cls._scanGenericReferences(index, memberId, graph, f"General/{key}/{memberKey}._graph")
+
+    @classmethod
+    def _scanGeneralParamReferences(
+        cls,
+        index: Dict[str, Any],
+        memberId: str,
+        dataKey: str,
+        memberKey: str,
+        memberData: Dict[str, Any],
+        paramSchema: Dict[str, Any],
+    ) -> None:
+        for paramKey, paramDef in paramSchema.items():
+            if not cls._isGeneralParamReferenceAllowed(paramDef):
+                continue
+            value = memberData.get(paramKey)
+            if isinstance(paramDef, dict) and paramDef.get("type") == "list":
+                if not isinstance(value, list):
+                    continue
+                for i, item in enumerate(value):
+                    target = cls._generalParamReferenceTarget(paramDef, item)
+                    if not target:
+                        continue
+                    kind, targetId = target
+                    cls._addReference(
+                        index, memberId, targetId, kind, f"General/{dataKey}/{memberKey}.{paramKey}[{i}]"
+                    )
+                continue
+
+            if isinstance(paramDef, dict) and paramDef.get("type") == "dict":
+                if not isinstance(value, dict):
+                    continue
+                for itemKey in value.keys():
+                    target = cls._generalParamReferenceTarget(paramDef, itemKey)
+                    if not target:
+                        continue
+                    kind, targetId = target
+                    cls._addReference(
+                        index, memberId, targetId, kind, f"General/{dataKey}/{memberKey}.{paramKey}.{itemKey}"
+                    )
+                continue
+
+            target = cls._generalParamReferenceTarget(paramDef, value)
+            if target:
+                kind, targetId = target
+                cls._addReference(index, memberId, targetId, kind, f"General/{dataKey}/{memberKey}.{paramKey}")
+
+    @classmethod
+    def _isGeneralParamReferenceAllowed(cls, paramDef: Any) -> bool:
+        if not isinstance(paramDef, dict):
+            return False
+        return paramDef.get("type", "string") in ("string", "list", "dict")
+
+    @classmethod
+    def _generalParamReferenceTarget(cls, paramDef: Any, value: Any) -> Optional[Tuple[str, str]]:
+        if not isinstance(value, str) or not value:
+            return None
+        if not isinstance(paramDef, dict):
+            return None
+        reference = paramDef.get("reference")
+        if not isinstance(reference, dict):
+            return None
+
+        refKind = reference.get("kind")
+        if refKind == "animation":
+            return ("reference", cls._referenceNodeId("animation", value))
+
+        if refKind == "general":
+            refKey = reference.get("key")
+            if isinstance(refKey, str) and refKey:
+                return ("member", cls._referenceNodeId("generalMember", f"{refKey}/{value}"))
+
+        return None
 
     @classmethod
     def _scanNodeGraphReferences(cls, index: Dict[str, Any], sourceId: str, graphData: Any, path: str) -> None:

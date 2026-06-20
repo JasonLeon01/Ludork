@@ -9,12 +9,17 @@ from EditorGlobal import EditorStatus, GameData
 from .Utils import FileSelectorDialog
 
 
+REFERENCE_KIND_GENERAL = "general"
+REFERENCE_KIND_ANIMATION = "animation"
+
+
 class ListEditorWidget(QtWidgets.QWidget):
     DATA_CHANGED = QtCore.pyqtSignal(list)
 
-    def __init__(self, data: list, parent=None):
+    def __init__(self, data: list, referenceOptions: Optional[list[str]] = None, parent=None):
         super().__init__(parent)
         self.dataList = list(data) if isinstance(data, list) else []
+        self.referenceOptions = referenceOptions
         self._setupUI()
 
     def _setupUI(self):
@@ -30,20 +35,40 @@ class ListEditorWidget(QtWidgets.QWidget):
             rowLayout = QtWidgets.QHBoxLayout(row)
             rowLayout.setContentsMargins(0, 0, 0, 0)
 
-            le = QtWidgets.QLineEdit(str(val))
-            le.textChanged.connect(lambda text, idx=i: self._onItemChanged(idx, text))
+            editor = self._createItemEditor(i, val)
 
             delBtn = QtWidgets.QPushButton("-")
             delBtn.setFixedWidth(24)
             delBtn.clicked.connect(lambda _, idx=i: self._onItemRemoved(idx))
 
-            rowLayout.addWidget(le)
+            rowLayout.addWidget(editor)
             rowLayout.addWidget(delBtn)
             layout.addWidget(row)
 
         addBtn = QtWidgets.QPushButton("+")
         addBtn.clicked.connect(self._onItemAdded)
         layout.addWidget(addBtn)
+
+    def _createItemEditor(self, index: int, value: Any) -> QtWidgets.QWidget:
+        if self.referenceOptions is None:
+            le = QtWidgets.QLineEdit(str(value))
+            le.textChanged.connect(lambda text, idx=index: self._onItemChanged(idx, text))
+            return le
+
+        combo = QtWidgets.QComboBox()
+        combo.setEditable(False)
+        currentValue = str(value) if value is not None else ""
+        combo.addItem(ELOC("NO_SELECTION"), "")
+        if currentValue and currentValue not in self.referenceOptions:
+            combo.addItem(currentValue, currentValue)
+        for option in self.referenceOptions:
+            combo.addItem(option, option)
+        currentIndex = combo.findData(currentValue)
+        combo.setCurrentIndex(currentIndex if currentIndex >= 0 else 0)
+        combo.currentIndexChanged.connect(
+            lambda idx, itemIndex=index, c=combo: self._onItemChanged(itemIndex, str(c.itemData(idx) or ""))
+        )
+        return combo
 
     def _onItemChanged(self, index, text):
         if 0 <= index < len(self.dataList):
@@ -65,8 +90,9 @@ class ListEditorWidget(QtWidgets.QWidget):
 class DictEditorWidget(QtWidgets.QWidget):
     DATA_CHANGED = QtCore.pyqtSignal(dict)
 
-    def __init__(self, data: dict, parent=None):
+    def __init__(self, data: dict, keyReferenceOptions: Optional[list[str]] = None, parent=None):
         super().__init__(parent)
+        self.keyReferenceOptions = keyReferenceOptions
         self.dataItems: list[list[str]] = []
         if isinstance(data, dict):
             for key, val in data.items():
@@ -86,8 +112,7 @@ class DictEditorWidget(QtWidgets.QWidget):
             rowLayout = QtWidgets.QHBoxLayout(row)
             rowLayout.setContentsMargins(0, 0, 0, 0)
 
-            keyEdit = QtWidgets.QLineEdit(pair[0])
-            keyEdit.textChanged.connect(lambda text, idx=i: self._onKeyChanged(idx, text))
+            keyEdit = self._createKeyEditor(i, pair[0])
             valueEdit = QtWidgets.QLineEdit(pair[1])
             valueEdit.textChanged.connect(lambda text, idx=i: self._onValueChanged(idx, text))
 
@@ -103,6 +128,27 @@ class DictEditorWidget(QtWidgets.QWidget):
         addBtn = QtWidgets.QPushButton("+")
         addBtn.clicked.connect(self._onItemAdded)
         layout.addWidget(addBtn)
+
+    def _createKeyEditor(self, index: int, value: Any) -> QtWidgets.QWidget:
+        if self.keyReferenceOptions is None:
+            keyEdit = QtWidgets.QLineEdit(str(value))
+            keyEdit.textChanged.connect(lambda text, idx=index: self._onKeyChanged(idx, text))
+            return keyEdit
+
+        combo = QtWidgets.QComboBox()
+        combo.setEditable(False)
+        currentValue = str(value) if value is not None else ""
+        combo.addItem(ELOC("NO_SELECTION"), "")
+        if currentValue and currentValue not in self.keyReferenceOptions:
+            combo.addItem(currentValue, currentValue)
+        for option in self.keyReferenceOptions:
+            combo.addItem(option, option)
+        currentIndex = combo.findData(currentValue)
+        combo.setCurrentIndex(currentIndex if currentIndex >= 0 else 0)
+        combo.currentIndexChanged.connect(
+            lambda idx, itemIndex=index, c=combo: self._onKeyChanged(itemIndex, str(c.itemData(idx) or ""))
+        )
+        return combo
 
     def _buildDict(self) -> dict:
         result: dict[str, str] = {}
@@ -198,6 +244,25 @@ class GeneralDataPage(QtWidgets.QWidget):
         "list": "GENERAL_DATA_DEFAULT_TIP_LIST",
         "dict": "GENERAL_DATA_DEFAULT_TIP_DICT",
     }
+
+    @staticmethod
+    def _getParamReference(paramDef: dict) -> Optional[dict[str, str]]:
+        if not GeneralDataPage._isParamReferenceAllowed(paramDef):
+            return None
+        reference = paramDef.get("reference")
+        if not isinstance(reference, dict):
+            return None
+        kind = reference.get("kind")
+        key = reference.get("key")
+        if kind == REFERENCE_KIND_ANIMATION:
+            return {"kind": REFERENCE_KIND_ANIMATION, "key": ""}
+        if kind == REFERENCE_KIND_GENERAL and isinstance(key, str) and key:
+            return {"kind": REFERENCE_KIND_GENERAL, "key": key}
+        return None
+
+    @staticmethod
+    def _isParamReferenceAllowed(paramDef: dict) -> bool:
+        return paramDef.get("type", "string") in ("string", "list", "dict")
 
     def __init__(self, fileKey: str, parent: Optional[QtWidgets.QWidget] = None):
         super().__init__(parent)
@@ -489,6 +554,16 @@ class GeneralDataPage(QtWidgets.QWidget):
             label = QtWidgets.QLabel(paramKey)
             if paramDesc:
                 label.setToolTip(paramDesc)
+            reference = self._getParamReference(paramDef)
+            if reference:
+                refLabel = self._formatReferenceLabel(reference)
+                label.setText(f"{paramKey} [{refLabel}]")
+                label.setToolTip(f"{label.toolTip()}\n{refLabel}" if label.toolTip() else refLabel)
+            if self._isParamReferenceAllowed(paramDef):
+                label.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+                label.customContextMenuRequested.connect(
+                    lambda pos, k=paramKey, l=label: self._onParamLabelContextMenu(k, l, pos)
+                )
 
             container = QtWidgets.QWidget()
             hLayout = QtWidgets.QHBoxLayout(container)
@@ -511,6 +586,64 @@ class GeneralDataPage(QtWidgets.QWidget):
         self.propertyLayout.addRow(QtWidgets.QLabel(""), addBtn)
 
         self._ignoreChanges = False
+
+    def _formatReferenceLabel(self, reference: dict[str, str]) -> str:
+        if reference.get("kind") == REFERENCE_KIND_ANIMATION:
+            return ELOC("REFERENCE_TYPE_ANIMATION")
+        return reference.get("key", "")
+
+    def _onParamLabelContextMenu(self, key: str, label: QtWidgets.QLabel, position: QtCore.QPoint):
+        fileData = GameData.generalData.get(self.fileKey, {})
+        params = fileData.get("params", {})
+        paramDef = params.get(key)
+        if not isinstance(paramDef, dict):
+            return
+        if not self._isParamReferenceAllowed(paramDef):
+            return
+
+        menu = QtWidgets.QMenu(self)
+        referenceMenu = menu.addMenu(ELOC("ADD_REFERENCE"))
+
+        for dataKey in sorted(GameData.generalData.keys()):
+            action = QtWidgets.QAction(dataKey, self)
+            action.triggered.connect(
+                lambda checked=False, k=key, target=dataKey: self._setParamReference(
+                    k, {"kind": REFERENCE_KIND_GENERAL, "key": target}
+                )
+            )
+            referenceMenu.addAction(action)
+
+        referenceMenu.addSeparator()
+        animationAction = QtWidgets.QAction(ELOC("REFERENCE_TYPE_ANIMATION"), self)
+        animationAction.triggered.connect(
+            lambda checked=False, k=key: self._setParamReference(k, {"kind": REFERENCE_KIND_ANIMATION})
+        )
+        referenceMenu.addAction(animationAction)
+
+        if self._getParamReference(paramDef):
+            menu.addSeparator()
+            clearAction = QtWidgets.QAction(ELOC("REMOVE_REFERENCE"), self)
+            clearAction.triggered.connect(lambda checked=False, k=key: self._setParamReference(k, None))
+            menu.addAction(clearAction)
+
+        menu.exec_(label.mapToGlobal(position))
+
+    def _setParamReference(self, key: str, reference: Optional[dict[str, str]]):
+        fileData = GameData.generalData.get(self.fileKey, {})
+        params = fileData.get("params", {})
+        paramDef = params.get(key)
+        if not isinstance(paramDef, dict):
+            return
+
+        if reference:
+            paramDef["reference"] = reference
+        elif "reference" in paramDef:
+            del paramDef["reference"]
+        else:
+            return
+
+        self.MODIFIED.emit()
+        self._buildPropertyForm()
 
     def _onRemoveParam(self, key: str):
         reply = QtWidgets.QMessageBox.question(
@@ -711,8 +844,44 @@ class GeneralDataPage(QtWidgets.QWidget):
             return assetsRoot
         return root
 
+    def _getReferenceOptions(self, reference: dict[str, str]) -> list[str]:
+        if reference.get("kind") == REFERENCE_KIND_ANIMATION:
+            return sorted(str(key) for key in GameData.animationsData.keys())
+
+        if reference.get("kind") == REFERENCE_KIND_GENERAL:
+            fileData = GameData.generalData.get(reference.get("key", ""), {})
+            members = fileData.get("members", {}) if isinstance(fileData, dict) else {}
+            if isinstance(members, dict):
+                return sorted(str(key) for key in members.keys())
+
+        return []
+
+    def _createReferenceCombo(self, key: str, reference: dict[str, str], value: Any) -> QtWidgets.QComboBox:
+        combo = QtWidgets.QComboBox()
+        combo.setEditable(False)
+        currentValue = str(value) if value is not None else ""
+        combo.addItem(ELOC("NO_SELECTION"), "")
+
+        options = self._getReferenceOptions(reference)
+        if currentValue and currentValue not in options:
+            combo.addItem(currentValue, currentValue)
+
+        for option in options:
+            combo.addItem(option, option)
+
+        index = combo.findData(currentValue)
+        combo.setCurrentIndex(index if index >= 0 else 0)
+        combo.currentIndexChanged.connect(
+            lambda idx, k=key, c=combo: self._onValueChanged(k, str(c.itemData(idx) or ""))
+        )
+        return combo
+
     def _createWidget(self, key: str, paramDef: dict, value: Any) -> QtWidgets.QWidget:
+        reference = self._getParamReference(paramDef)
         paramType = paramDef.get("type", "string")
+        if reference and paramType == "string":
+            return self._createReferenceCombo(key, reference, value)
+
         if paramType == "int":
             w = QtWidgets.QSpinBox()
             w.setRange(-999999, 999999)
@@ -744,11 +913,13 @@ class GeneralDataPage(QtWidgets.QWidget):
 
             return container
         elif paramType == "list":
-            w = ListEditorWidget(value if isinstance(value, list) else [])
+            options = self._getReferenceOptions(reference) if reference else None
+            w = ListEditorWidget(value if isinstance(value, list) else [], options)
             w.DATA_CHANGED.connect(lambda v, k=key: self._onValueChanged(k, v))
             return w
         elif paramType == "dict":
-            w = DictEditorWidget(value if isinstance(value, dict) else {})
+            options = self._getReferenceOptions(reference) if reference else None
+            w = DictEditorWidget(value if isinstance(value, dict) else {}, options)
             w.DATA_CHANGED.connect(lambda v, k=key: self._onValueChanged(k, v))
             return w
         elif paramType.startswith("tuple"):
@@ -900,6 +1071,8 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
         self.tabWidget = QtWidgets.QTabWidget()
         self.tabWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.tabWidget.customContextMenuRequested.connect(self._onTabContextMenu)
+        self.tabWidget.tabBar().setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.tabWidget.tabBar().customContextMenuRequested.connect(self._onTabBarContextMenu)
         mainLayout.addWidget(self.tabWidget)
 
         self._populateFiles()
@@ -929,17 +1102,23 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
 
         return infoTypes
 
-    def _onTabContextMenu(self, position):
+    def _onTabContextMenu(self, position: QtCore.QPoint):
+        tabBar = self.tabWidget.tabBar()
+        tabIndex = tabBar.tabAt(tabBar.mapFrom(self.tabWidget, position)) if tabBar else -1
+        self._showTabContextMenu(self.tabWidget.mapToGlobal(position), tabIndex)
+
+    def _onTabBarContextMenu(self, position: QtCore.QPoint):
+        tabBar = self.tabWidget.tabBar()
+        tabIndex = tabBar.tabAt(position) if tabBar else -1
+        self._showTabContextMenu(tabBar.mapToGlobal(position), tabIndex)
+
+    def _showTabContextMenu(self, globalPos: QtCore.QPoint, tabIndex: int):
         menu = QtWidgets.QMenu(self)
 
         addAction = QtWidgets.QAction(ELOC("NEW_DATA_TYPE"), self)
         addAction.triggered.connect(self._onAddDataType)
         menu.addAction(addAction)
 
-        tabBar = self.tabWidget.tabBar()
-        if not tabBar:
-            return
-        tabIndex = tabBar.tabAt(position)
         if tabIndex >= 0:
             menu.addSeparator()
 
@@ -957,7 +1136,7 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
             deleteAction.triggered.connect(lambda checked=False, idx=tabIndex: self._onRemoveDataType(idx))
             menu.addAction(deleteAction)
 
-        menu.exec_(self.tabWidget.mapToGlobal(position))
+        menu.exec_(globalPos)
 
     def _onAddDataType(self):
         infoTypes = self._scanInfoTypes()
