@@ -218,13 +218,27 @@ def OpenProject(parent: QtWidgets.QWidget) -> None:
     OpenProjectFile(fp, parent)
 
 
+def EscapeLocaleCellValue(value: str) -> str:
+    if value in ("=", "=="):
+        return f"'{value}"
+    return value
+
+
+def UnescapeLocaleCellValue(value: str) -> str:
+    if value in ("'=", "'=="):
+        return value[1:]
+    return value
+
+
 def _resolveLocaleCellValue(valueCell: Any, rawCell: Any) -> Optional[str]:
     val = valueCell.value
     if val is not None:
-        return str(val)
+        return UnescapeLocaleCellValue(str(val))
     if getattr(rawCell, "data_type", None) != "f" or rawCell.value is None:
         return None
     text = str(rawCell.value)
+    if text in ("=", "=="):
+        return text
     if text.startswith("="):
         text = text[1:]
     text = text.strip()

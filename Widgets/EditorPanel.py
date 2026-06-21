@@ -141,7 +141,7 @@ class EditorPanel(QtWidgets.QWidget):
 
     def applyMapData(self, data):
         Engine = System.GetModule("Engine")
-        TileLayerData = Engine.Gameplay.TileLayerData
+        TileLayerData = Engine.TileLayerData
         mapName = data["mapName"]
         width = data["width"]
         height = data["height"]
@@ -642,7 +642,7 @@ class EditorPanel(QtWidgets.QWidget):
             return None
         GameData.recordSnapshot()
         Engine: TempEngine = importlib.import_module("Engine")  # type: ignore
-        TileLayerData = Engine.Gameplay.TileLayerData
+        TileLayerData = Engine.TileLayerData
         width = self.mapData.width
         height = self.mapData.height
         if not name:
@@ -767,31 +767,56 @@ class EditorPanel(QtWidgets.QWidget):
         tileNum = self.selectedTileNumber
         return self._writeCellValue(layer, x, y, tileNum, autoKey)
 
+    def _copyGrid(self, grid: Any) -> List[List[Any]]:
+        if not isinstance(grid, list):
+            return []
+        result: List[List[Any]] = []
+        for row in grid:
+            result.append(list(row) if isinstance(row, list) else [])
+        return result
+
+    def _fitGridToTiles(self, grid: List[List[Any]], tiles: List[List[Any]]) -> List[List[Any]]:
+        result: List[List[Any]] = []
+        for y, tileRow in enumerate(tiles):
+            srcRow = grid[y] if y < len(grid) and isinstance(grid[y], list) else []
+            row: List[Any] = []
+            for x in range(len(tileRow)):
+                row.append(srcRow[x] if x < len(srcRow) else None)
+            result.append(row)
+        return result
+
     def _writeCellValue(self, layer, x: int, y: int, tileNum: Optional[int], autoKey: Optional[str]) -> bool:
-        autoTiles = getattr(layer, "autoTiles", None)
+        tiles = self._copyGrid(getattr(layer, "tiles", None))
+        if y < 0 or y >= len(tiles):
+            return False
+        if x < 0 or x >= len(tiles[y]):
+            return False
+        autoTiles = self._fitGridToTiles(self._copyGrid(getattr(layer, "autoTiles", None)), tiles)
         changed = False
         if autoKey is not None:
-            if layer.tiles[y][x] is not None:
-                layer.tiles[y][x] = None
+            if tiles[y][x] is not None:
+                tiles[y][x] = None
                 changed = True
-            if isinstance(autoTiles, list):
-                if autoTiles[y][x] != autoKey:
-                    autoTiles[y][x] = autoKey
-                    changed = True
+            if autoTiles[y][x] != autoKey:
+                autoTiles[y][x] = autoKey
+                changed = True
         elif tileNum is not None:
-            if layer.tiles[y][x] != tileNum:
-                layer.tiles[y][x] = tileNum
+            if tiles[y][x] != tileNum:
+                tiles[y][x] = tileNum
                 changed = True
-            if isinstance(autoTiles, list) and autoTiles[y][x] is not None:
+            if autoTiles[y][x] is not None:
                 autoTiles[y][x] = None
                 changed = True
         else:
-            if layer.tiles[y][x] is not None:
-                layer.tiles[y][x] = None
+            if tiles[y][x] is not None:
+                tiles[y][x] = None
                 changed = True
-            if isinstance(autoTiles, list) and autoTiles[y][x] is not None:
+            if autoTiles[y][x] is not None:
                 autoTiles[y][x] = None
                 changed = True
+        if changed:
+            layer.tiles = tiles
+            layer.autoTiles = autoTiles
         if changed and self.mapKey and self.selectedLayerName:
             mapEntry = GameData.mapData.get(self.mapKey)
             if isinstance(mapEntry, dict):
@@ -800,13 +825,12 @@ class EditorPanel(QtWidgets.QWidget):
                     layerData = layers[self.selectedLayerName]
                     layerTiles = layerData.get("tiles")
                     if isinstance(layerTiles, list):
-                        layerTiles[y][x] = None if layer.tiles[y][x] is None else int(layer.tiles[y][x])
+                        layerTiles[y][x] = None if tiles[y][x] is None else int(tiles[y][x])
                     layerAuto = layerData.get("autoTiles")
                     if not isinstance(layerAuto, list):
-                        layerAuto = [list(r) for r in autoTiles] if isinstance(autoTiles, list) else None
-                        if layerAuto is not None:
-                            layerData["autoTiles"] = layerAuto
-                    if isinstance(layerAuto, list) and isinstance(autoTiles, list):
+                        layerAuto = [list(r) for r in autoTiles]
+                        layerData["autoTiles"] = layerAuto
+                    if isinstance(layerAuto, list):
                         layerAuto[y][x] = autoTiles[y][x]
         return changed
 

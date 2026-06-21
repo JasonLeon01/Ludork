@@ -41,8 +41,8 @@ class GameData:
     @classmethod
     def init(cls) -> None:
         Engine = System.GetModule("Engine")
-        Tileset = Engine.Gameplay.Tileset  # type: ignore
-        AutoTile = Engine.Gameplay.AutoTile  # type: ignore
+        Tileset = Engine.Tileset  # type: ignore
+        AutoTile = Engine.AutoTile  # type: ignore
 
         cls.systemConfigData = {}
         cls.tilesetData = {}
@@ -147,11 +147,13 @@ class GameData:
 
     @classmethod
     def checkModified(cls) -> bool:
-        if cls.asDict() != cls._originData:
+        current = cls._comparisonDict(cls.asDict())
+        origin = cls._comparisonDict(cls._originData)
+        if current != origin:
             return True
-        for mapName, mapData in cls.asDict().get("mapData", {}).items():
+        for mapName, mapData in current.get("mapData", {}).items():
             layersKeys = list(mapData.get("layers", {}).keys())
-            originLayersKeys = list(cls._originData.get("mapData", {}).get(mapName, {}).get("layers", {}).keys())
+            originLayersKeys = list(origin.get("mapData", {}).get(mapName, {}).get("layers", {}).keys())
             if layersKeys != originLayersKeys:
                 return True
         return False
@@ -169,8 +171,8 @@ class GameData:
             "generalData": {"A": [], "D": [], "U": []},
         }
 
-        origin = cls._originData
-        current = cls.asDict()
+        origin = cls._comparisonDict(cls._originData)
+        current = cls._comparisonDict(cls.asDict())
 
         for section in [
             "systemConfigData",
@@ -233,8 +235,8 @@ class GameData:
             ts1 = oldTs.get(k)
             ts2 = newTs.get(k)
             if ts1 != ts2:
-                attrs1 = vars(ts1) if ts1 else {}
-                attrs2 = vars(ts2) if ts2 else {}
+                attrs1 = cls._asReferenceDict(ts1) if ts1 else {}
+                attrs2 = cls._asReferenceDict(ts2) if ts2 else {}
                 if attrs1 != attrs2:
                     changed_ts.add(k)
 
@@ -248,8 +250,8 @@ class GameData:
             at1 = oldAt.get(k)
             at2 = newAt.get(k)
             if at1 != at2:
-                attrs1 = vars(at1) if at1 else {}
-                attrs2 = vars(at2) if at2 else {}
+                attrs1 = cls._asReferenceDict(at1) if at1 else {}
+                attrs2 = cls._asReferenceDict(at2) if at2 else {}
                 if attrs1 != attrs2:
                     changed_at.add(k)
 
@@ -400,7 +402,7 @@ class GameData:
                     final_details["A"].append(key)
                 else:
                     final_details["U"].append(key)
-                cls._originData["tilesetData"][key] = copy.deepcopy(ts)
+                cls._originData["tilesetData"][key] = copy.deepcopy(cls._asReferenceDict(ts))
             except Exception:
                 final_details["Failed"].append(key)
 
@@ -436,7 +438,7 @@ class GameData:
                     final_details["A"].append(key)
                 else:
                     final_details["U"].append(key)
-                cls._originData["autoTileData"][key] = copy.deepcopy(at)
+                cls._originData["autoTileData"][key] = copy.deepcopy(cls._asReferenceDict(at))
             except Exception:
                 final_details["Failed"].append(key)
 
@@ -1353,6 +1355,17 @@ class GameData:
                 pass
         valueDict = getattr(value, "__dict__", None)
         return valueDict if isinstance(valueDict, dict) else {}
+
+    @classmethod
+    def _comparisonDict(cls, data: Dict[str, Any]) -> Dict[str, Any]:
+        result = dict(data)
+        for section in ("tilesetData", "autoTileData"):
+            sectionData = result.get(section)
+            if isinstance(sectionData, dict):
+                result[section] = {
+                    key: copy.deepcopy(cls._asReferenceDict(value)) for key, value in sectionData.items()
+                }
+        return result
 
     @classmethod
     def _isAudioAsset(cls, value: Any) -> bool:

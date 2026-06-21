@@ -6,8 +6,7 @@ import os
 import zlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable, Dict, Optional, Tuple, Type
-from Engine import Vector2f, Vector2u, Image
-from Engine.Gameplay import Tileset, AutoTile
+from Engine import Vector2f, Vector2u, Image, Tileset, AutoTile
 from Engine.Gameplay.Actors import Actor
 from Engine.Utils import File
 from Engine.NodeGraph import ClassDict, Graph, DataNode, Node

@@ -488,7 +488,10 @@ class FileExplorer(QtWidgets.QWidget):
         actRename = None
         actDelete = None
         actReferenceTree = None
+        actDeriveBlueprint = None
         if selectedPath:
+            if not isDir and self._blueprintKeyForPath(selectedPath):
+                actDeriveBlueprint = menu.addAction(ELOC("DERIVE_FROM_THIS_BLUEPRINT"))
             if not isDir and GameData.getReferenceNodeForPath(selectedPath):
                 actReferenceTree = menu.addAction(ELOC("SHOW_REFERENCE_TREE"))
             if not isDir:
@@ -501,6 +504,8 @@ class FileExplorer(QtWidgets.QWidget):
         r = menu.exec_(viewport.mapToGlobal(pos))
         if r == actNewFolder:
             self._createFolder(self._targetDirForNewFolder(selectedPath, isDir))
+        elif actDeriveBlueprint and r == actDeriveBlueprint:
+            self._deriveBlueprintFrom(selectedPath)
         elif actReferenceTree and r == actReferenceTree:
             self._showReferenceTree(selectedPath)
         elif r == actOpen:
@@ -519,6 +524,25 @@ class FileExplorer(QtWidgets.QWidget):
         if selectedPath and not isDir:
             return os.path.dirname(selectedPath)
         return self._current
+
+    def _blueprintKeyForPath(self, path: str) -> Optional[str]:
+        if not path or not os.path.isfile(path):
+            return None
+        blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
+        if not self._isPathInside(path, blueprintsRoot):
+            return None
+        relPath = os.path.relpath(path, blueprintsRoot)
+        key = os.path.splitext(relPath)[0].replace("\\", "/")
+        if key in GameData.blueprintsData:
+            return key
+        return None
+
+    def _deriveBlueprintFrom(self, path: str) -> None:
+        key = self._blueprintKeyForPath(path)
+        if not key:
+            return
+        parentClass = "Data.Blueprints." + key.replace("/", ".")
+        File.mainWindow._onNewBlueprint(parentClass=parentClass)
 
     def _createFolder(self, targetDir: str) -> None:
         if not targetDir or not self._isUnderRoot(targetDir):

@@ -1,5 +1,3 @@
-#include <pybind11/stl.h>
-
 #include <Graphics/TilemapGraphics.hpp>
 #include <SFML/Graphics/PrimitiveType.hpp>
 
@@ -69,21 +67,41 @@ std::array<int, 4> composeCellPattern(int mask) {
     return out;
 }
 
-bool sameAutoTileAt(const std::vector<std::vector<std::optional<int>>> &grid, int x, int y, int width, int height,
-                    int self) {
+std::optional<int> autoTileIndexAt(const AutoTileGrid &grid, int x, int y) {
+    if (y < 0 || y >= static_cast<int>(grid.size())) {
+        return std::nullopt;
+    }
+    const auto &row = grid[y];
+    if (x < 0 || x >= static_cast<int>(row.size())) {
+        return std::nullopt;
+    }
+    const auto &cell = row[x];
+    if (!cell.has_value()) {
+        return std::nullopt;
+    }
+    if (const auto index = std::get_if<int>(&cell.value())) {
+        return *index;
+    }
+    return std::nullopt;
+}
+
+bool sameAutoTileAt(const AutoTileGrid &grid, int x, int y, int width, int height, int self) {
     if (x < 0 || y < 0 || x >= width || y >= height) {
         return false;
     }
-    auto &cell = grid[y][x];
-    if (!cell.has_value()) {
+    auto cellIndex = autoTileIndexAt(grid, x, y);
+    if (!cellIndex.has_value()) {
         return false;
     }
-    return cell.value() == self;
+    return cellIndex.value() == self;
 }
 
-int computeAutoTileMask(const std::vector<std::vector<std::optional<int>>> &grid, int x, int y, int width,
-                        int height) {
-    int self = grid[y][x].value();
+int computeAutoTileMask(const AutoTileGrid &grid, int x, int y, int width, int height) {
+    auto selfIndex = autoTileIndexAt(grid, x, y);
+    if (!selfIndex.has_value()) {
+        return 0;
+    }
+    int self = selfIndex.value();
     int mask = 0;
     if (sameAutoTileAt(grid, x, y - 1, width, height, self)) mask |= MASK_TOP;
     if (sameAutoTileAt(grid, x + 1, y, width, height, self)) mask |= MASK_RIGHT;
@@ -99,21 +117,23 @@ int computeAutoTileMask(const std::vector<std::vector<std::optional<int>>> &grid
 }  // namespace
 
 TileLayerGraphics::TileLayerGraphics(int width, int height, int tileSize, sf::Texture *texture,
-                                     const std::vector<std::vector<std::optional<int>>> &tiles,
-                                     const std::vector<py::object> &materials,
-                                     const std::vector<std::vector<std::optional<int>>> &autoTiles,
+                                     const TileLayerData &data,
                                      const std::vector<sf::Texture *> &autoTileTextures,
-                                     const std::vector<py::object> &autoTileMaterials,
                                      const std::vector<int> &autoTileFrameCounts) {
     texture_ = texture;
     vertexArray_ = new sf::VertexArray(sf::PrimitiveType::Triangles, width * height * 6);
     size_ = sf::Vector2f(width, height);
     tileSize_ = tileSize;
-    tiles_ = tiles;
-    materials_ = materials;
-    autoTiles_ = autoTiles;
+    data_ = data;
+    tiles_ = data.tiles;
+    materials_ = data.layerTileset.materials;
+    autoTiles_ = data.autoTiles;
+    autoTilePool_ = data.autoTilePool;
     autoTileTextures_ = autoTileTextures;
-    autoTileMaterials_ = autoTileMaterials;
+    autoTileMaterials_.reserve(autoTilePool_.size());
+    for (const auto &autoTile : autoTilePool_) {
+        autoTileMaterials_.push_back(autoTile.material);
+    }
     autoTileFrameCounts_ = autoTileFrameCounts;
     autoTileCurrentFrames_.assign(autoTileTextures_.size(), 0);
     autoTileAnimationAccum_ = 0.0f;
@@ -147,7 +167,9 @@ void TileLayerGraphics::resetTileColor(int x, int y) {
     if (!tiles_[y][x].has_value()) return;
 
     int tileNumber = tiles_[y][x].value();
-    float opacity = materials_[tileNumber].attr("opacity").cast<float>();
+    if (tileNumber < 0 || tileNumber >= static_cast<int>(materials_.size())) return;
+
+    float opacity = materials_[tileNumber].opacity;
     sf::Color color = sf::Color::White;
     color.a = static_cast<std::uint8_t>(opacity * 255);
 
@@ -196,6 +218,113 @@ std::vector<std::pair<int, int>> TileLayerGraphics::floodFillTransparent(int sta
         }
     }
     return processedTiles;
+}
+
+bool TileLayerGraphics::inBounds(const sf::Vector2i &position) const {
+    return position.x >= 0 && position.y >= 0 && position.x < static_cast<int>(size_.x) &&
+           position.y < static_cast<int>(size_.y);
+}
+
+std::optional<int> TileLayerGraphics::getAutoTileIndex(const sf::Vector2i &position) const {
+    if (!inBounds(position)) {
+        return std::nullopt;
+    }
+    auto index = autoTileIndexAt(autoTiles_, position.x, position.y);
+    if (!index.has_value()) {
+        return std::nullopt;
+    }
+    if (index.value() < 0 || index.value() >= static_cast<int>(autoTilePool_.size())) {
+        return std::nullopt;
+    }
+    return index;
+}
+
+std::optional<int> TileLayerGraphics::get(const sf::Vector2i &position) const {
+    if (!inBounds(position)) {
+        return std::nullopt;
+    }
+    if (position.y >= static_cast<int>(tiles_.size())) {
+        return std::nullopt;
+    }
+    const auto &row = tiles_[position.y];
+    if (position.x >= static_cast<int>(row.size())) {
+        return std::nullopt;
+    }
+    return row[position.x];
+}
+
+std::optional<AutoTile> TileLayerGraphics::getAutoTileAt(const sf::Vector2i &position) const {
+    auto index = getAutoTileIndex(position);
+    if (!index.has_value()) {
+        return std::nullopt;
+    }
+    return autoTilePool_[index.value()];
+}
+
+bool TileLayerGraphics::isPassable(const sf::Vector2i &position) const {
+    if (!inBounds(position)) {
+        return false;
+    }
+    auto autoTile = getAutoTileAt(position);
+    if (autoTile.has_value()) {
+        return autoTile.value().passable;
+    }
+    auto tileNumber = get(position);
+    if (!tileNumber.has_value()) {
+        return true;
+    }
+    int index = tileNumber.value();
+    if (index < 0 || index >= static_cast<int>(data_.layerTileset.passable.size())) {
+        return false;
+    }
+    return data_.layerTileset.passable[index];
+}
+
+std::optional<Material> TileLayerGraphics::getMaterial(const sf::Vector2i &position) const {
+    if (!inBounds(position)) {
+        return std::nullopt;
+    }
+    auto autoTile = getAutoTileAt(position);
+    if (autoTile.has_value()) {
+        return autoTile.value().material;
+    }
+    auto tileNumber = get(position);
+    if (!tileNumber.has_value()) {
+        return std::nullopt;
+    }
+    int index = tileNumber.value();
+    if (index < 0 || index >= static_cast<int>(materials_.size())) {
+        return std::nullopt;
+    }
+    return materials_[index];
+}
+
+std::vector<std::vector<float>> TileLayerGraphics::getLightBlockMap() const {
+    int width = static_cast<int>(size_.x);
+    int height = static_cast<int>(size_.y);
+    std::vector<std::vector<float>> result(height, std::vector<float>(width, 0.0f));
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            auto material = getMaterial(sf::Vector2i(x, y));
+            result[y][x] = material.has_value() ? material.value().lightBlock : 0.0f;
+        }
+    }
+    return result;
+}
+
+std::vector<std::vector<float>> TileLayerGraphics::getReflectionStrengthMap() const {
+    int width = static_cast<int>(size_.x);
+    int height = static_cast<int>(size_.y);
+    std::vector<std::vector<float>> result(height, std::vector<float>(width, 0.0f));
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            auto material = getMaterial(sf::Vector2i(x, y));
+            if (material.has_value() && material.value().mirror) {
+                result[y][x] = material.value().reflectionStrength;
+            }
+        }
+    }
+    return result;
 }
 
 void TileLayerGraphics::updateAutoTileAnimation(float deltaTime, float frameInterval) {
@@ -250,12 +379,15 @@ void TileLayerGraphics::init(int tileSize) {
                 continue;
             }
             int tileNumber = tileNumberObj.value();
+            if (tileNumber < 0 || tileNumber >= static_cast<int>(materials_.size())) {
+                continue;
+            }
 
             int tu = tileNumber % columns;
             int tv = tileNumber / columns;
             int start = (x + y * width) * 6;
 
-            float opacity = materials_[tileNumber].attr("opacity").cast<float>();
+            float opacity = materials_[tileNumber].opacity;
             sf::Color color = sf::Color::White;
             color.a = static_cast<std::uint8_t>(opacity * 255);
 
@@ -307,9 +439,9 @@ void TileLayerGraphics::initAutoTiles(int tileSize) {
         auto &row = autoTiles_[y];
         for (int x = 0; x < width; ++x) {
             if (x >= static_cast<int>(row.size())) break;
-            auto &cell = row[x];
-            if (!cell.has_value()) continue;
-            int poolIndex = cell.value();
+            auto poolIndexValue = autoTileIndexAt(autoTiles_, x, y);
+            if (!poolIndexValue.has_value()) continue;
+            int poolIndex = poolIndexValue.value();
             if (poolIndex < 0 || poolIndex >= static_cast<int>(poolSize)) continue;
             int mask = computeAutoTileMask(autoTiles_, x, y, width, height);
             autoTileCells_[poolIndex].push_back({x, y});
@@ -342,10 +474,7 @@ void TileLayerGraphics::initAutoTiles(int tileSize) {
             }
         }
 
-        float opacity = 1.0f;
-        if (i < autoTileMaterials_.size() && !autoTileMaterials_[i].is_none()) {
-            opacity = autoTileMaterials_[i].attr("opacity").cast<float>();
-        }
+        float opacity = i < autoTileMaterials_.size() ? autoTileMaterials_[i].opacity : 1.0f;
         sf::Color color = sf::Color::White;
         color.a = static_cast<std::uint8_t>(opacity * 255);
         if (opacity < 1.0f) {

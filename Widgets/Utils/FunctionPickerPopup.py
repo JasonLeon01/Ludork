@@ -7,7 +7,7 @@ from types import ModuleType
 from typing import Dict, Optional, TypedDict
 from PyQt5 import QtCore, QtWidgets, QtGui
 
-from .NodeFunctionMeta import NodeFunction, isSelectableNodeFunction
+from .NodeFunctionMeta import NodeFunction, bindNodeFunctionMetadata, isSelectableNodeFunction
 
 
 FunctionSource = ModuleType | type
@@ -155,6 +155,7 @@ class FunctionPickerPopup(QtWidgets.QDialog):
                     a = getattr(obj, n)
                 except Exception:
                     continue
+                a = bindNodeFunctionMetadata(a, obj, n)
                 if isSelectableNodeFunction(a, self._filterExecOnly):
                     self._handleChildren(n, a, p, parent_item)
                     found = True
@@ -186,6 +187,7 @@ class FunctionPickerPopup(QtWidgets.QDialog):
                 a = getattr(obj, n)
             except Exception:
                 continue
+            a = bindNodeFunctionMetadata(a, obj, n)
             if inspect.ismodule(a):
                 mod_name = getattr(a, "__name__", "")
                 if root_name and isinstance(mod_name, str) and not mod_name.startswith(root_name):

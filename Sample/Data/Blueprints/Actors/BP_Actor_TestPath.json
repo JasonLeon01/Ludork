@@ -32,8 +32,8 @@
                         "nodeFunction": "NodeFunctions.Utils.SELF",
                         "params": [],
                         "pos": [
-                            -720,
-                            314.0
+                            -720.0,
+                            564.0
                         ]
                     },
                     {
@@ -43,7 +43,7 @@
                             "(9,9)"
                         ],
                         "pos": [
-                            0,
+                            0.0,
                             314.0
                         ]
                     },
@@ -53,8 +53,8 @@
                             "Start path!"
                         ],
                         "pos": [
-                            720,
-                            564.0
+                            720.0,
+                            189.0
                         ]
                     },
                     {
@@ -63,8 +63,19 @@
                             "End path"
                         ],
                         "pos": [
-                            720,
-                            814.0
+                            720.0,
+                            439.0
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.Utils.TriggerEventBus",
+                        "params": [
+                            "ExampleAutoTrigger",
+                            ""
+                        ],
+                        "pos": [
+                            1440.0,
+                            439.0
                         ]
                     }
                 ],
@@ -87,6 +98,13 @@
                         "left": 1,
                         "right": 3,
                         "leftOutPin": 1,
+                        "rightInPin": 0,
+                        "linkType": "Exec"
+                    },
+                    {
+                        "left": 3,
+                        "right": 4,
+                        "leftOutPin": 0,
                         "rightInPin": 0,
                         "linkType": "Exec"
                     }

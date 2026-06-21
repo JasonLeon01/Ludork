@@ -19,7 +19,7 @@ from ... import (
     Utils,
 )
 from ...Utils.Inner import IS_IOS_PLATFORM, warnIosShaderSkippedOnce
-from ..Material import Material
+from ... import Material
 
 if TYPE_CHECKING:
     from Engine import Texture

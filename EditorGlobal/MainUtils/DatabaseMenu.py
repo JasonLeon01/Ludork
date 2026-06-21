@@ -7,7 +7,7 @@ import dataclasses
 import subprocess
 import traceback
 import openpyxl
-from typing import Any, Dict, get_type_hints
+from typing import Any, Dict, Optional, get_type_hints
 from PyQt5 import QtCore, QtWidgets
 from Utils import File, System
 from Widgets import (
@@ -245,7 +245,7 @@ class DatabaseMenuMixin:
             data[field.name] = value
         return data
 
-    def _onNewBlueprint(self, checked: bool = False) -> None:
+    def _onNewBlueprint(self, checked: bool = False, parentClass: Optional[str] = None) -> None:
         blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
         dlg = FileSelectorDialog(
             self, blueprintsRoot, "JSON (*.json);;DAT (*.dat)", ELOC("SELECT_BLUEPRINT_PATH"), save=True
@@ -266,10 +266,13 @@ class DatabaseMenuMixin:
             QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("BLUEPRINT_EXISTS"))
             return
 
-        selector = ClassSelector(self)
-        if selector.exec_() != QtWidgets.QDialog.Accepted:
+        if parentClass is None:
+            selector = ClassSelector(self)
+            if selector.exec_() != QtWidgets.QDialog.Accepted:
+                return
+            parentClass = selector.getSelected()
+        if not parentClass:
             return
-        parentClass = selector.getSelected()
         clsObj = self._resolveBlueprintParentClass(parentClass)
         if clsObj is None:
             QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("BLUEPRINT_PARENT_MUST_INHERIT_BPBASE"))

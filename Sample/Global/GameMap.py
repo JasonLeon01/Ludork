@@ -4,7 +4,6 @@ r"""\brief GameMap: manages tile layers, actors, lights, collisions, and pathfin
 from __future__ import annotations
 from collections import deque
 import copy
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 import Engine
 from Engine import (
@@ -24,14 +23,14 @@ from Engine import (
     Shader,
     ParticleSystem,
     ZeroVector2f,
+    Material,
 )
 from Engine.Utils import Math
 from Engine.Utils.Inner import IS_IOS_PLATFORM, warnIosShaderSkippedOnce
-from Engine.Gameplay import Tilemap, TileLayer, Material
+from Engine.Gameplay import Tilemap, TileLayer
 from Engine.Gameplay.Actors import Actor, Character
-from . import SceneBase
-from . import Manager
-from .GlobalExt import GameMapExt
+from . import SceneBase, Manager
+from .GlobalExt import GameMapExt, Light
 from .Camera import Camera
 from .System import System
 from .Components import MapClickAutoPath, PathPreviewComponent, PathRouteState, ComponentBase
@@ -41,43 +40,6 @@ from .Fog import FogController
 
 
 MAX_SHADER_LIGHTS = 16
-
-
-@dataclass
-class Light:
-    r"""\brief Light source with position, colour, radius, and intensity."""
-
-    position: Vector2f
-    colour: Color
-    radius: float = 256.0
-    intensity: float = 1.0
-
-    def asDict(self) -> Dict[str, Any]:
-        r"""\brief Serialize the light to a dictionary.
-
-        - \return A dictionary with position, colour, radius, and intensity.
-        """
-        return {
-            "position": [self.position.x, self.position.y],
-            "color": [self.colour.r, self.colour.g, self.colour.b, self.colour.a],
-            "radius": self.radius,
-            "intensity": self.intensity,
-        }
-
-    @staticmethod
-    def fromDict(data: Dict[str, Any]) -> Light:
-        r"""\brief Deserialize a light from a dictionary.
-
-        - \param data The serialised light data.
-
-        - \return A new Light instance.
-        """
-        return Light(
-            Vector2f(*data["position"]),
-            Color(*data["color"]),
-            data.get("radius", 256.0),
-            data.get("intensity", 1.0),
-        )
 
 
 class GameMap(GameMapExt):
@@ -153,7 +115,6 @@ class GameMap(GameMapExt):
         self.getLayer = Tilemap.getLayer
         self.getMapPosition = Actor.getMapPosition
         self.getCollisionEnabled = Actor.getCollisionEnabled
-        self.TileLayerPassable = TileLayer.isPassable
 
     @ReturnType(player=Actor)
     def getPlayer(self) -> Optional[Actor]:
@@ -670,6 +631,8 @@ class GameMap(GameMapExt):
         - \param position The new position.
         """
         assert light in self._lights, "Light not found in map"
+        if not isinstance(position, Vector2f):
+            position = Vector2f(*position)
         light.position = position
 
     @Meta(ColourVars=["colour"])
@@ -1280,19 +1243,27 @@ class GameMap(GameMapExt):
         x = position.x
         y = position.y
         self._ensureTerrainAutoTileGrid(layer)
+        tiles = layer._data.tiles
+        autoTiles = layer._data.autoTiles
         if tileID is None:
-            layer._data.tiles[y][x] = None
-            layer._data.autoTiles[y][x] = None
+            tiles[y][x] = None
+            autoTiles[y][x] = None
+            layer._data.tiles = tiles
+            layer._data.autoTiles = autoTiles
             return
         if isinstance(tileID, str):
-            layer._data.tiles[y][x] = None
-            layer._data.autoTiles[y][x] = self._resolveAutoTileIndex(layer, tileID)
+            tiles[y][x] = None
+            autoTiles[y][x] = self._resolveAutoTileIndex(layer, tileID)
+            layer._data.tiles = tiles
+            layer._data.autoTiles = autoTiles
             return
         tileNumber = int(tileID)
         if tileNumber < 0 or tileNumber >= len(layer._data.layerTileset.materials):
             raise ValueError(f"Tile ID {tileNumber} is out of range for layer '{layer.getName()}'")
-        layer._data.tiles[y][x] = tileNumber
-        layer._data.autoTiles[y][x] = None
+        tiles[y][x] = tileNumber
+        autoTiles[y][x] = None
+        layer._data.tiles = tiles
+        layer._data.autoTiles = autoTiles
 
     def _getTerrainAutoTileID(self, layer: TileLayer, position: Vector2i) -> Optional[str]:
         autoTiles = layer.getAutoTiles()
@@ -1304,6 +1275,8 @@ class GameMap(GameMapExt):
         autoTileIndex = row[position.x]
         if autoTileIndex is None:
             return None
+        if isinstance(autoTileIndex, str):
+            return autoTileIndex or None
         autoTileKeys = getattr(layer._data, "autoTileKeys", [])
         if 0 <= autoTileIndex < len(autoTileKeys):
             return autoTileKeys[autoTileIndex]
@@ -1313,19 +1286,22 @@ class GameMap(GameMapExt):
         return None
 
     def _ensureTerrainAutoTileGrid(self, layer: TileLayer) -> None:
-        if not layer._data.autoTiles:
+        autoTiles = layer._data.autoTiles
+        if not autoTiles:
             layer._data.autoTiles = [[None] * layer._width for _ in range(layer._height)]
             return
-        while len(layer._data.autoTiles) < layer._height:
-            layer._data.autoTiles.append([None] * layer._width)
-        for row in layer._data.autoTiles:
+        while len(autoTiles) < layer._height:
+            autoTiles.append([None] * layer._width)
+        for row in autoTiles:
             while len(row) < layer._width:
                 row.append(None)
+        layer._data.autoTiles = autoTiles
 
     def _resolveAutoTileIndex(self, layer: TileLayer, autoTileName: str) -> int:
-        autoTileKeys = getattr(layer._data, "autoTileKeys", None)
+        autoTileKeys = list(getattr(layer._data, "autoTileKeys", None) or [])
+        autoTilePool = list(layer._data.autoTilePool)
         if not autoTileKeys:
-            autoTileKeys = [entry.name for entry in layer._data.autoTilePool]
+            autoTileKeys = [entry.name for entry in autoTilePool]
             layer._data.autoTileKeys = autoTileKeys
         if autoTileName in autoTileKeys:
             index = autoTileKeys.index(autoTileName)
@@ -1336,10 +1312,12 @@ class GameMap(GameMapExt):
         if not Data.hasAutoTile(autoTileName):
             raise ValueError(f"Autotile '{autoTileName}' not found")
         autoTile = Data.getAutoTile(autoTileName)
-        layer._data.autoTilePool.append(autoTile)
-        layer._data.autoTileKeys.append(autoTileName)
+        autoTilePool.append(autoTile)
+        autoTileKeys.append(autoTileName)
+        layer._data.autoTilePool = autoTilePool
+        layer._data.autoTileKeys = autoTileKeys
         self._ensureAutoTileRuntimeData(layer)
-        return len(layer._data.autoTilePool) - 1
+        return len(autoTilePool) - 1
 
     def _ensureAutoTileRuntimeData(self, layer: TileLayer) -> None:
         if not hasattr(layer, "_autoTileTextures"):
@@ -1462,10 +1440,16 @@ class GameMap(GameMapExt):
 
     def _rebuildPassabilityCache(self) -> None:
         size = self._tilemap.getSize()
-        layerKeysList = list(self._tilemap.getAllLayers().keys())
+        layers = self._tilemap.getAllLayers()
+        layerKeysList = list(layers.keys())
         layerKeysList.reverse()
         self.layerKeysRef = layerKeysList
         self.tileDataRef = self._tilemap.getTilesData()
         self.autoTileDataRef = self._tilemap.getAutoTilesData()
+        self.layerVisibleRef = {name: bool(layer.visible) for name, layer in layers.items()}
+        self.tilePassableRef = {name: list(layer._data.layerTileset.passable) for name, layer in layers.items()}
+        self.autoTilePassableRef = {
+            name: [bool(autoTile.passable) for autoTile in layer._data.autoTilePool] for name, layer in layers.items()
+        }
         self.actorsRef = self._actors
         self._tilePassableGrid, self._occupancyMap = self.rebuildPassabilityCache(size)

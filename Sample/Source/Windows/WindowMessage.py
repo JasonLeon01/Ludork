@@ -84,9 +84,7 @@ class WindowMessage(WindowSelectable):
             self._resolveSelection(0)
 
         self._messageAdvancer.addConfirmCallback(onConfirm)
-        self._messageListView = ListView(
-            IntRect(Vector2i(0, 0), Vector2i(1, 1)), self._OPTION_ITEM_HEIGHT, True, 1
-        )
+        self._messageListView = ListView(IntRect(Vector2i(0, 0), Vector2i(1, 1)), self._OPTION_ITEM_HEIGHT, True, 1)
         self._messageListView.addChild(self._messageAdvancer)
 
     def onTick(self, deltaTime: float) -> None:
@@ -236,11 +234,11 @@ class WindowMessage(WindowSelectable):
             item = FPlainText(System.getFonts()[0], optionText, self._OPTION_TEXT_SIZE)
 
             def onConfirm(_itemSelf, _kwargs, optionIndex=optionIndex) -> None:
-                Manager.playSE("decision1.ogg")
+                Manager.playSE(System.getDecisionSE())
                 self._resolveSelection(optionIndex)
 
             def onCancel(_itemSelf, _kwargs) -> None:
-                Manager.playSE("cancel.ogg")
+                Manager.playSE(System.getCancelSE())
                 self._resolveSelection(-1)
 
             item.addConfirmCallback(onConfirm)

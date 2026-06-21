@@ -1,12 +1,12 @@
 # -*- encoding: utf-8 -*-
 
-import dataclasses
 from typing import Dict, Any, Type, get_type_hints, Optional, Set
 
 from PyQt5 import QtWidgets, QtCore
 
 from .ColourPickerDialog import ColourVarEditor
 from .MetaVarTypes import getMetaVarTypes
+from .StructuredFields import isStructuredType, structuredFields, structuredValueToDict
 from .TypedValueEditor import TypedValueEditor
 from .VectorVarEditor import VectorVarEditor, isVectorVarType
 
@@ -23,7 +23,7 @@ class DataclassWidget(QtWidgets.QWidget):
     ):
         super().__init__(parent)
         self.dc_type = dc_type
-        self.data = data if isinstance(data, dict) else {}
+        self.data = data if isinstance(data, dict) else structuredValueToDict(data)
         self._readOnlyFields = readOnlyFields or set()
         try:
             self._type_hints = get_type_hints(dc_type)
@@ -37,17 +37,11 @@ class DataclassWidget(QtWidgets.QWidget):
         layout = QtWidgets.QFormLayout(self)
         layout.setContentsMargins(10, 0, 0, 0)
 
-        for field in dataclasses.fields(self.dc_type):
+        for field in structuredFields(self.dc_type, self.data):
             val = self.data.get(field.name)
 
             if val is None:
-                if field.default is not dataclasses.MISSING:
-                    val = field.default
-                elif field.default_factory is not dataclasses.MISSING:
-                    try:
-                        val = field.default_factory()
-                    except Exception:
-                        pass
+                val = field.default
 
             if val is not None:
                 self.data[field.name] = val
@@ -60,7 +54,7 @@ class DataclassWidget(QtWidgets.QWidget):
             layout.addRow(field.name, widget)
             self._inputs[field.name] = widget
 
-    def _createFieldWidget(self, field: dataclasses.Field, value: Any):
+    def _createFieldWidget(self, field, value: Any):
         ftype = self._type_hints.get(field.name, field.type)
         varType = self._getFieldVarType(field)
         if varType == "ColourVar":
@@ -72,9 +66,8 @@ class DataclassWidget(QtWidgets.QWidget):
             w.VALUE_CHANGED.connect(lambda v, k=field.name: self._onFieldChanged(k, v))
             return w
 
-        if dataclasses.is_dataclass(ftype):
-            if not isinstance(value, dict):
-                value = {}
+        if isStructuredType(ftype):
+            value = value if isinstance(value, dict) else structuredValueToDict(value)
 
             gb = QtWidgets.QGroupBox()
             gb.setFlat(True)
@@ -93,10 +86,10 @@ class DataclassWidget(QtWidgets.QWidget):
         w.VALUE_CHANGED.connect(lambda v, k=field.name: self._onFieldChanged(k, v))
         return w
 
-    def _getFieldVarType(self, field: dataclasses.Field) -> str:
+    def _getFieldVarType(self, field) -> str:
         value = self._metaVarTypes.get(field.name)
         if not value:
-            value = field.metadata.get("varType") or field.metadata.get("type")
+            value = getattr(field, "varType", "")
         return value if isinstance(value, str) else ""
 
     def _setFieldReadOnly(self, widget: QtWidgets.QWidget) -> None:

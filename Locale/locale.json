@@ -1135,6 +1135,10 @@
     "zh_CN": "新建蓝图",
     "en_GB": "New Blueprint"
   },
+  "DERIVE_FROM_THIS_BLUEPRINT": {
+    "zh_CN": "使用此蓝图派生",
+    "en_GB": "Derive from this Blueprint"
+  },
   "SELECT_BLUEPRINT_PATH": {
     "zh_CN": "选择蓝图保存路径",
     "en_GB": "Select blueprint save path"

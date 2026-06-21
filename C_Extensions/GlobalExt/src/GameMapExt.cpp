@@ -21,7 +21,7 @@ GameMapExt::GameMapExt(sf::Shader *shader) { materialShader_ = shader; }
 
 void GameMapExt::refreshShader(const sf::RenderTexture &lightMask, float screenScale, const sf::Vector2f &screenSize,
                                const sf::Vector2f &viewPos, float viewRot, const sf::Vector2f &gridSize, int cellSize,
-                               const std::vector<py::object> &lights, const sf::Color &ambientColor) {
+                               const std::vector<Light> &lights, const sf::Color &ambientColor) {
     if (!materialShader_) {
         return;
     }
@@ -35,12 +35,11 @@ void GameMapExt::refreshShader(const sf::RenderTexture &lightMask, float screenS
     shader->setUniform("cellSize", cellSize);
     shader->setUniform("lightLen", int(lights.size()));
     for (int i = 0; i < lights.size(); ++i) {
-        auto light = lights[i];
-        auto c = light.attr("colour").cast<sf::Color>();
-        shader->setUniform(getUniformArrayName("lightPos", i), light.attr("position").cast<sf::Vector2f>());
-        shader->setUniform(getUniformArrayName("lightColor", i), castFromColor(c));
-        shader->setUniform(getUniformArrayName("lightRadius", i), light.attr("radius").cast<float>());
-        shader->setUniform(getUniformArrayName("lightIntensity", i), light.attr("intensity").cast<float>());
+        const auto &light = lights[i];
+        shader->setUniform(getUniformArrayName("lightPos", i), light.position);
+        shader->setUniform(getUniformArrayName("lightColor", i), castFromColor(light.colour));
+        shader->setUniform(getUniformArrayName("lightRadius", i), light.radius);
+        shader->setUniform(getUniformArrayName("lightIntensity", i), light.intensity);
     }
     shader->setUniform("ambientColor", castAmbientFromColor(ambientColor));
 }
@@ -163,20 +162,10 @@ GameMapExt::rebuildPassabilityCache(const sf::Vector2u &size) {
         for (unsigned int x = 0; x < width; ++x) {
             bool passable = true;
             for (auto &layerName : layerKeysRef) {
-                auto tile = tileDataRef.at(layerName).at(y).at(x);
-                bool hasContent = tile.has_value();
-                if (!hasContent) {
-                    auto autoIt = autoTileDataRef.find(layerName);
-                    if (autoIt != autoTileDataRef.end()) {
-                        auto &autoGrid = autoIt->second;
-                        if (y < autoGrid.size() && x < autoGrid[y].size() && autoGrid[y][x].has_value()) {
-                            hasContent = true;
-                        }
-                    }
+                if (!layerVisible(layerName)) {
+                    continue;
                 }
-                if (hasContent) {
-                    auto layer = getLayer(tilemapRef, layerName);
-                    passable = TileLayerPassable(layer, sf::Vector2i(x, y)).cast<bool>();
+                if (tryGetLayerPassability(layerName, static_cast<int>(x), static_cast<int>(y), passable)) {
                     break;
                 }
             }
@@ -224,9 +213,7 @@ bool GameMapExt::passable(int x, int y, int sx, int sy, int gx, int gy) {
         return true;
     }
     for (auto &layerName : layerKeysRef) {
-        auto layer = getLayer(tilemapRef, layerName);
-        auto visible = layer.attr("visible").cast<bool>();
-        if (!visible) {
+        if (!layerVisible(layerName)) {
             continue;
         }
         auto position = sf::Vector2i(x, y);
@@ -240,23 +227,70 @@ bool GameMapExt::passable(int x, int y, int sx, int sy, int gx, int gy) {
                 }
             }
         }
-        auto tile = tileDataRef.at(layerName)[position.y][position.x];
-        bool hasContent = tile.has_value();
-        if (!hasContent) {
-            auto autoIt = autoTileDataRef.find(layerName);
-            if (autoIt != autoTileDataRef.end()) {
-                auto &autoGrid = autoIt->second;
-                if (static_cast<std::size_t>(position.y) < autoGrid.size() &&
-                    static_cast<std::size_t>(position.x) < autoGrid[position.y].size() &&
-                    autoGrid[position.y][position.x].has_value()) {
-                    hasContent = true;
-                }
-            }
-        }
-        if (hasContent) {
-            return TileLayerPassable(layer, position).cast<bool>();
+        bool layerPassable = true;
+        if (tryGetLayerPassability(layerName, position.x, position.y, layerPassable)) {
+            return layerPassable;
         }
     }
+    return true;
+}
+
+bool GameMapExt::layerVisible(const std::string &layerName) const {
+    auto it = layerVisibleRef.find(layerName);
+    if (it == layerVisibleRef.end()) {
+        return true;
+    }
+    return it->second;
+}
+
+bool GameMapExt::tryGetLayerPassability(const std::string &layerName, int x, int y, bool &outPassable) const {
+    if (x < 0 || y < 0) {
+        return false;
+    }
+    std::size_t ux = static_cast<std::size_t>(x);
+    std::size_t uy = static_cast<std::size_t>(y);
+
+    auto autoGridIt = autoTileDataRef.find(layerName);
+    if (autoGridIt != autoTileDataRef.end()) {
+        const auto &autoGrid = autoGridIt->second;
+        if (uy < autoGrid.size() && ux < autoGrid[uy].size() && autoGrid[uy][ux].has_value()) {
+            int autoTileIndex = autoGrid[uy][ux].value();
+            auto passableIt = autoTilePassableRef.find(layerName);
+            if (passableIt == autoTilePassableRef.end()) {
+                outPassable = false;
+                return true;
+            }
+            const auto &passableList = passableIt->second;
+            if (autoTileIndex < 0 || autoTileIndex >= static_cast<int>(passableList.size())) {
+                outPassable = false;
+                return true;
+            }
+            outPassable = passableList[autoTileIndex];
+            return true;
+        }
+    }
+
+    auto tileGridIt = tileDataRef.find(layerName);
+    if (tileGridIt == tileDataRef.end()) {
+        return false;
+    }
+    const auto &tileGrid = tileGridIt->second;
+    if (uy >= tileGrid.size() || ux >= tileGrid[uy].size() || !tileGrid[uy][ux].has_value()) {
+        return false;
+    }
+
+    int tileIndex = tileGrid[uy][ux].value();
+    auto passableIt = tilePassableRef.find(layerName);
+    if (passableIt == tilePassableRef.end()) {
+        outPassable = false;
+        return true;
+    }
+    const auto &passableList = passableIt->second;
+    if (tileIndex < 0 || tileIndex >= static_cast<int>(passableList.size())) {
+        outPassable = false;
+        return true;
+    }
+    outPassable = passableList[tileIndex];
     return true;
 }
 

@@ -1,12 +1,8 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from dataclasses import dataclass, asdict, field
 from typing import Any, Dict, List, Optional
 from .. import (
-    Tuple4,
-    VertexArray,
-    PrimitiveType,
     Vector2i,
     Vector2u,
     Color,
@@ -14,61 +10,9 @@ from .. import (
     Texture,
     ReturnType,
     TileLayerGraphics,
+    AutoTile,
+    TileLayerData,
 )
-from ..Utils import Inner
-from .Material import Material
-from .AutoTile import AutoTile
-
-
-@dataclass
-class Tileset:
-    r"""Tileset dataclass.
-
-    Defines a tileset image and per-tile properties.
-    """
-
-    name: str  #: Tileset name
-    fileName: str  #: Texture image file name
-    passable: List[bool]  #: Per-tile passability (True = can walk)
-    materials: List[Material]  #: Per-tile material references
-    dir4: List[Tuple4[bool]]  #: Per-tile 4-direction passability
-
-    def asDict(self) -> Dict[str, Any]:
-        r"""Serialize the tileset to a dictionary.
-
-        - \return  Dictionary containing all tileset fields
-        """
-        return asdict(self)
-
-    @staticmethod
-    def fromData(data: Dict[str, Any]) -> Tileset:
-        r"""Create a Tileset from a raw data dictionary.
-
-        - \param data  Raw dictionary, e.g. loaded from JSON
-        - \return      The created `Tileset` instance
-        """
-        if isinstance(data["materials"][0], dict):
-            data["materials"] = [
-                Material(**Inner.filterDataClassParams(materialData, Material)) for materialData in data["materials"]
-            ]
-        return Tileset(**data)
-
-
-@dataclass
-class TileLayerData:
-    r"""Tile layer data dataclass.
-
-    Stores the raw tile-index grid for one layer along with the
-    per-cell autotile assignments. Autotiles are referenced by their
-    index inside `autoTilePool`; cells with `None` carry no autotile.
-    """
-
-    layerName: str  #: Name of the layer
-    layerTileset: Tileset  #: Tileset used by this layer
-    tiles: List[List[Optional[int]]]  #: 2D grid of tile indices (None = empty)
-    autoTiles: List[List[Optional[int]]] = field(default_factory=list)  #: 2D grid of autotile pool indices
-    autoTilePool: List[AutoTile] = field(default_factory=list)  #: Autotile entries referenced by this layer
-    autoTileKeys: List[str] = field(default_factory=list)  #: Autotile data keys matching `autoTilePool`
 
 
 class TileLayer(TileLayerGraphics):
@@ -102,7 +46,6 @@ class TileLayer(TileLayerGraphics):
         self._data = data
         self._width = len(self._data.tiles[0]) if self._data.tiles else 0
         self._height = len(self._data.tiles)
-        self._vertexArray = VertexArray(PrimitiveType.Triangles, self._width * self._height * 6)
         self._texture = texture
         self._lightBlockMapCache: Optional[List[List[float]]] = None
         self._lightBlockImageCache: Optional[Image] = None
@@ -124,25 +67,13 @@ class TileLayer(TileLayerGraphics):
         self._autoTileFrameCounts = autoTileFrames
         self._autoTileMaterialsRef = autoTileMaterials
 
-        autoTileGrid: List[List[Optional[int]]] = []
-        if self._data.autoTiles and len(self._data.autoTiles) == self._height:
-            for y in range(self._height):
-                row = self._data.autoTiles[y]
-                autoTileGrid.append([row[x] if x < len(row) else None for x in range(self._width)])
-        else:
-            for _ in range(self._height):
-                autoTileGrid.append([None] * self._width)
-
         super().__init__(
             self._width,
             self._height,
             CellSize,
             self._texture,
-            self._data.tiles,
-            self._data.layerTileset.materials,
-            autoTileGrid,
+            self._data,
             autoTileTextureList,
-            autoTileMaterials,
             autoTileFrames,
         )
 
@@ -162,8 +93,8 @@ class TileLayer(TileLayerGraphics):
         """
         return self._data.tiles
 
-    @ReturnType(autoTiles=List[List[Optional[int]]])
-    def getAutoTiles(self) -> List[List[Optional[int]]]:
+    @ReturnType(autoTiles=List[List[Optional[int | str]]])
+    def getAutoTiles(self) -> List[List[Optional[int | str]]]:
         r"""Return the autotile pool-index grid.
 
         - \return  2D list of autotile pool indices (`None` = no autotile)
@@ -177,72 +108,6 @@ class TileLayer(TileLayerGraphics):
         - \return  List of `AutoTile` entries referenced by `autoTiles`
         """
         return self._data.autoTilePool
-
-    @ReturnType(tile=Optional[int])
-    def get(self, position: Vector2i) -> Optional[int]:
-        r"""Return the tile index at the given position.
-
-        - \param position  Grid position to query
-        - \return          Tile index, or `None` if out of bounds/empty
-        """
-        if position.x < 0 or position.y < 0 or position.x >= self._width or position.y >= self._height:
-            return None
-        return self._data.tiles[position.y][position.x]
-
-    @ReturnType(autoTile=Optional[AutoTile])
-    def getAutoTileAt(self, position: Vector2i) -> Optional[AutoTile]:
-        r"""Return the autotile entry at the given position.
-
-        - \param position  Grid position to query
-        - \return          `AutoTile`, or `None` if no autotile is present
-        """
-        if position.x < 0 or position.y < 0 or position.x >= self._width or position.y >= self._height:
-            return None
-        if not self._data.autoTiles:
-            return None
-        row = self._data.autoTiles[position.y]
-        if position.x >= len(row):
-            return None
-        index = row[position.x]
-        if index is None:
-            return None
-        if index < 0 or index >= len(self._data.autoTilePool):
-            return None
-        return self._data.autoTilePool[index]
-
-    @ReturnType(isPassable=bool)
-    def isPassable(self, position: Vector2i) -> bool:
-        r"""Check whether a cell is passable.
-
-        - \param position  Grid position to query
-        - \return        `True` if the cell can be walked on
-        """
-        if position.x < 0 or position.y < 0 or position.x >= self._width or position.y >= self._height:
-            return False
-        autoTile = self.getAutoTileAt(position)
-        if autoTile is not None:
-            return autoTile.passable
-        tileNumber = self._data.tiles[position.y][position.x]
-        if tileNumber is None:
-            return True
-        return self._data.layerTileset.passable[tileNumber]
-
-    @ReturnType(material=Optional[Material])
-    def getMaterial(self, position: Vector2i) -> Optional[Material]:
-        r"""Return the material at the given position.
-
-        - \param position  Grid position to query
-        - \return          `Material` instance, or `None`
-        """
-        if position.x < 0 or position.y < 0 or position.x >= self._width or position.y >= self._height:
-            return None
-        autoTile = self.getAutoTileAt(position)
-        if autoTile is not None:
-            return autoTile.material
-        tileNumber = self._data.tiles[position.y][position.x]
-        if tileNumber is None:
-            return None
-        return self._data.layerTileset.materials[tileNumber]
 
     @ReturnType(lightBlock=float)
     def getLightBlock(self, position: Vector2i) -> float:
@@ -296,10 +161,10 @@ class TileLayer(TileLayerGraphics):
         - \param propertyName  Name of the material attribute to read
         - \return              Property value, or `None` if no material
         """
-        result = self.getMaterial(position)
-        if result is None:
+        material = self.getMaterial(position)
+        if material is None:
             return None
-        return getattr(result, propertyName)
+        return getattr(material, propertyName, None)
 
     def getLightBlockMap(self) -> List[List[float]]:
         r"""Build or return the cached light-block map.
@@ -307,9 +172,7 @@ class TileLayer(TileLayerGraphics):
         - \return  2D grid of light-block values (0.0–1.0)
         """
         if self._lightBlockMapCache is None:
-            self._lightBlockMapCache = [
-                [(self.getLightBlock(Vector2i(x, y)) or 0.0) for x in range(self._width)] for y in range(self._height)
-            ]
+            self._lightBlockMapCache = super().getLightBlockMap()
         return self._lightBlockMapCache
 
     def getReflectionStrengthMap(self) -> List[List[float]]:
@@ -318,13 +181,7 @@ class TileLayer(TileLayerGraphics):
         - \return  2D grid of reflection strength values
         """
         if self._reflectionStrengthMapCache is None:
-            self._reflectionStrengthMapCache = [
-                [
-                    (self.getMirror(Vector2i(x, y)) and self.getReflectionStrength(Vector2i(x, y)) or 0.0)
-                    for x in range(self._width)
-                ]
-                for y in range(self._height)
-            ]
+            self._reflectionStrengthMapCache = super().getReflectionStrengthMap()
         return self._reflectionStrengthMapCache
 
     def getLightBlockImage(self) -> Image:
@@ -397,8 +254,8 @@ class Tilemap:
         """
         return self._tilesData
 
-    @ReturnType(autoTiles=Dict[str, List[List[Optional[int]]]])
-    def getAutoTilesData(self) -> Dict[str, List[List[Optional[int]]]]:
+    @ReturnType(autoTiles=Dict[str, List[List[Optional[int | str]]]])
+    def getAutoTilesData(self) -> Dict[str, List[List[Optional[int | str]]]]:
         r"""Return raw autotile pool-index data for every layer.
 
         - \return  Dictionary mapping layer name to autotile pool-index grid

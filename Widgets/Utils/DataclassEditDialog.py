@@ -1,12 +1,12 @@
 # -*- encoding: utf-8 -*-
 
-import dataclasses
 from typing import get_type_hints
 
 from PyQt5 import QtWidgets
 
 from .ColourPickerDialog import ColourVarEditor
 from .MetaVarTypes import getMetaVarTypes
+from .StructuredFields import structuredFields
 from .TypedValueEditor import TypedValueEditor
 from .VectorVarEditor import VectorVarEditor, isVectorVarType
 
@@ -26,8 +26,8 @@ class DataclassEditDialog(QtWidgets.QDialog):
     def _initUI(self):
         layout = QtWidgets.QFormLayout(self)
         self.inputs = {}
-        
-        fields = dataclasses.fields(self.data_obj)
+
+        fields = structuredFields(type(self.data_obj), self.data_obj)
         for field in fields:
             value = getattr(self.data_obj, field.name)
             field_type = self._type_hints.get(field.name, field.type)
@@ -59,8 +59,8 @@ class DataclassEditDialog(QtWidgets.QDialog):
                 setattr(self.data_obj, name, widget.getValue())
         super().accept()
 
-    def _getFieldVarType(self, field: dataclasses.Field) -> str:
+    def _getFieldVarType(self, field) -> str:
         value = self._metaVarTypes.get(field.name)
         if not value:
-            value = field.metadata.get("varType") or field.metadata.get("type")
+            value = getattr(field, "varType", "")
         return value if isinstance(value, str) else ""

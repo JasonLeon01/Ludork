@@ -1,11 +1,13 @@
 #pragma once
 #include <BindAnnotations.hpp>
+#include <Light.hpp>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
 #include <SFML/Graphics.hpp>
 #include <SFML/System.hpp>
 #include <map>
+#include <optional>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -14,6 +16,8 @@ namespace py = pybind11;
 using ActorDict = std::unordered_map<std::string, std::vector<py::object>>;
 using TileGrids = std::vector<std::vector<std::optional<int>>>;
 using IntPair = std::pair<int, int>;
+using LayerVisibleMap = std::unordered_map<std::string, bool>;
+using LayerPassableMap = std::unordered_map<std::string, std::vector<bool>>;
 
 ////////////////////////////////////////////////////////////
 /// \brief Accelerated game map helper for lighting and navigation
@@ -50,7 +54,7 @@ public:
     BIND_METHOD()
     void refreshShader(const sf::RenderTexture &lightMask, float screenScale, const sf::Vector2f &screenSize,
                        const sf::Vector2f &viewPos, float viewRot, const sf::Vector2f &gridSize, int cellSize,
-                       const std::vector<py::object> &lights, const sf::Color &ambientColor);
+                       const std::vector<Light> &lights, const sf::Color &ambientColor);
 
     ////////////////////////////////////////////////////////////
     /// \brief Build a grayscale texture from a material map
@@ -148,6 +152,27 @@ public:
     std::unordered_map<std::string, TileGrids> autoTileDataRef;
 
     ////////////////////////////////////////////////////////////
+    /// \brief Per-layer visibility state
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_PROPERTY()
+    LayerVisibleMap layerVisibleRef;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Per-layer static tile passability table
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_PROPERTY()
+    LayerPassableMap tilePassableRef;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Per-layer autotile passability table
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_PROPERTY()
+    LayerPassableMap autoTilePassableRef;
+
+    ////////////////////////////////////////////////////////////
     /// \brief Python callback for retrieving a layer object
     ///
     ////////////////////////////////////////////////////////////
@@ -167,13 +192,6 @@ public:
     ////////////////////////////////////////////////////////////
     BIND_PROPERTY()
     py::function getCollisionEnabled;
-
-    ////////////////////////////////////////////////////////////
-    /// \brief Python callback for tile passability lookup
-    ///
-    ////////////////////////////////////////////////////////////
-    BIND_PROPERTY()
-    py::function TileLayerPassable;
 
 private:
     ////////////////////////////////////////////////////////////
@@ -221,6 +239,27 @@ private:
     ///
     ////////////////////////////////////////////////////////////
     bool passable(int x, int y, int sx, int sy, int gx, int gy);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Check whether a layer should be considered for tile passability
+    ///
+    /// - \param layerName Layer key
+    /// - \return True if the layer is visible
+    ///
+    ////////////////////////////////////////////////////////////
+    bool layerVisible(const std::string &layerName) const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Resolve one layer cell passability from raw tile/autotile tables
+    ///
+    /// - \param layerName Layer key
+    /// - \param x Tile X coordinate
+    /// - \param y Tile Y coordinate
+    /// - \param outPassable Passability result when content exists
+    /// - \return True when the layer has tile or autotile content at the cell
+    ///
+    ////////////////////////////////////////////////////////////
+    bool tryGetLayerPassability(const std::string &layerName, int x, int y, bool &outPassable) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Query dynamic material property at one map position

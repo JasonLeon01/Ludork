@@ -6,6 +6,7 @@ from Engine.Gameplay.Actors import Actor
 from Engine.Gameplay.Components import getComponentFieldValue, setComponentFieldValue
 from Global import System
 from Source.Player import Player
+from .Utils import _attrRef
 
 
 _MISSING = object()
@@ -208,6 +209,20 @@ def SetPlayerAttr(attrName: str, value: Any) -> None:
             setattr(player, attrName, value)
 
 
+@Meta(DisplayName='LOC("GET_PLAYER_ATTR_REF")', DisplayDesc='LOC("GET_PLAYER_ATTR_REF_DESC")')
+@ReturnType(value=object)
+def GetPlayerAttrRef(attrName: str) -> Any:
+    r"""\brief Get a readable/writable reference to a player attribute.
+
+    - \param attrName The attribute name (e.g. HP, ATK, DEF, GOLD).
+    - \return An attribute reference wrapper, or None if no active player.
+    """
+    player = _getPlayer()
+    if player is None:
+        return None
+    return _attrRef(player, attrName)
+
+
 @Meta(DisplayName='LOC("HEAL_PLAYER")', DisplayDesc='LOC("HEAL_PLAYER_DESC")')
 @ExecSplit(default=(None,))
 def HealPlayer(amount: int = 1) -> None:
@@ -232,6 +247,18 @@ def DamagePlayer(amount: int = 1) -> None:
         player.infoComp.HP = max(player.infoComp.HP - int(amount), 0)
 
 
+@Meta(DisplayName='LOC("ADD_HP")', DisplayDesc='LOC("ADD_HP_DESC")')
+@ExecSplit(default=(None,))
+def AddHP(amount: int = 1) -> None:
+    r"""\brief Add HP to the player.
+
+    - \param amount Amount of HP to add (can be negative to subtract).
+    """
+    player = _getPlayer()
+    if player:
+        player.infoComp.HP += int(amount)
+
+
 @Meta(DisplayName='LOC("ADD_GOLD")', DisplayDesc='LOC("ADD_GOLD_DESC")')
 @ExecSplit(default=(None,))
 def AddGold(amount: int = 1) -> None:
@@ -242,6 +269,30 @@ def AddGold(amount: int = 1) -> None:
     player = _getPlayer()
     if player:
         player.infoComp.GOLD += int(amount)
+
+
+@Meta(DisplayName='LOC("ADD_ATK")', DisplayDesc='LOC("ADD_ATK_DESC")')
+@ExecSplit(default=(None,))
+def AddATK(amount: int = 1) -> None:
+    r"""\brief Add ATK to the player.
+
+    - \param amount Amount of ATK to add (can be negative to subtract).
+    """
+    player = _getPlayer()
+    if player:
+        player.infoComp.ATK += int(amount)
+
+
+@Meta(DisplayName='LOC("ADD_DEF")', DisplayDesc='LOC("ADD_DEF_DESC")')
+@ExecSplit(default=(None,))
+def AddDEF(amount: int = 1) -> None:
+    r"""\brief Add DEF to the player.
+
+    - \param amount Amount of DEF to add (can be negative to subtract).
+    """
+    player = _getPlayer()
+    if player:
+        player.infoComp.DEF += int(amount)
 
 
 @Meta(DisplayName='LOC("ADD_EXP")', DisplayDesc='LOC("ADD_EXP_DESC")')

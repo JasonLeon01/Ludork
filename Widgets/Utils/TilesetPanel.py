@@ -27,7 +27,7 @@ class TilesetImageView(QtWidgets.QWidget):
         self._mode = TilesetMode.PASSABLE
         self._key = None
         Engine = System.GetModule("Engine")
-        self.MaterialClass = Engine.Gameplay.Material
+        self.MaterialClass = Engine.Material
         self.setMouseTracking(True)
 
     def setData(self, data, image_path):
@@ -262,7 +262,7 @@ class TilesetPanel(QtWidgets.QWidget):
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
         System.SetStyle(self, "config.qss")
         Engine = System.GetModule("Engine")
-        self.MaterialClass = Engine.Gameplay.Material
+        self.MaterialClass = Engine.Material
         self._data = None
         self._initUI()
 

@@ -103,7 +103,7 @@ class LocaleEditor(QtWidgets.QDialog):
             for c in range(1, cols + 1):
                 cell = ws.cell(row=r, column=c)
                 val = cell.value
-                item = QtWidgets.QTableWidgetItem(str(val) if val is not None else "")
+                item = QtWidgets.QTableWidgetItem(File.UnescapeLocaleCellValue(str(val)) if val is not None else "")
                 table.setItem(r - 1, c - 1, item)
         table.blockSignals(False)
 
@@ -193,7 +193,7 @@ class LocaleEditor(QtWidgets.QDialog):
 
     def _writeCell(self, sheetName: str, row: int, col: int, val: str) -> None:
         cell = self._wb[sheetName].cell(row=row + 1, column=col + 1)
-        cell.value = val if val.strip() else None
+        cell.value = File.EscapeLocaleCellValue(val) if val.strip() else None
 
     def _syncSheetFromTable(self, table: QtWidgets.QTableWidget) -> None:
         sheetName = table.property("sheetName")
@@ -216,7 +216,7 @@ class LocaleEditor(QtWidgets.QDialog):
         for row in range(lastRow):
             for col in range(lastCol):
                 val = self._readCell(table, row, col)
-                ws.cell(row=row + 1, column=col + 1).value = val if val.strip() else None
+                ws.cell(row=row + 1, column=col + 1).value = File.EscapeLocaleCellValue(val) if val.strip() else None
 
         if ws.max_row > lastRow:
             ws.delete_rows(lastRow + 1, ws.max_row - lastRow)

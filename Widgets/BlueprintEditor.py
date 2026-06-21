@@ -15,6 +15,7 @@ from Widgets.Utils.BlueprintPreview import isBlueprintPreviewable
 from Widgets.Utils.ColourPickerDialog import ColourVarEditor
 from Widgets.Utils.MetaRely import getRelyConditionDisplay, getRelySourceSet, isRelyEditable, normaliseRelyMap
 from Widgets.Utils.MetaVarTypes import getMetaVarTypes
+from Widgets.Utils.StructuredFields import isStructuredType, isStructuredValue, structuredValueToDict
 from Widgets.Utils.VectorVarEditor import VectorVarEditor, isVectorVarType
 
 
@@ -290,8 +291,8 @@ class BluePrintEditor(QtWidgets.QWidget):
         if is_complex:
             if isinstance(parent_val, (list, tuple)):
                 value = copy.deepcopy(list(parent_val))
-            elif dataclasses.is_dataclass(parent_val) and not isinstance(parent_val, type):
-                value = dataclasses.asdict(parent_val)
+            elif isStructuredValue(parent_val):
+                value = structuredValueToDict(parent_val)
             else:
                 value = copy.deepcopy(parent_val)
             self.onDataChanged(key, value, True)
@@ -928,8 +929,8 @@ class BluePrintEditor(QtWidgets.QWidget):
         return ordered + remaining
 
     def _copyAttrValue(self, value: Any) -> Any:
-        if dataclasses.is_dataclass(value) and not isinstance(value, type):
-            return dataclasses.asdict(value)
+        if isStructuredValue(value):
+            return structuredValueToDict(value)
         try:
             return copy.deepcopy(value)
         except:
@@ -1023,7 +1024,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             if not found_attr_parent:
                 attr_parent_val = None
 
-            if type_hint and dataclasses.is_dataclass(type_hint):
+            if type_hint and isStructuredType(type_hint):
                 widget = DataclassWidget(type_hint, value)
                 widget.VALUE_CHANGED.connect(lambda val, k=key: self.onDataChanged(k, val, True))
                 is_dc = True

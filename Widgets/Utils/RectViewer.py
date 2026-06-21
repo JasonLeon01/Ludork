@@ -59,14 +59,26 @@ class RectCanvas(QtWidgets.QWidget):
         iw = self.image.width()
         ih = self.image.height()
         r = self.currentRect
-        x = max(0, min(r.x(), iw))
-        y = max(0, min(r.y(), ih))
-        w = max(0, min(r.width(), iw - x))
-        h = max(0, min(r.height(), ih - y))
-        if w < 0:
-            w = 0
-        if h < 0:
-            h = 0
+        w = max(0, r.width())
+        h = max(0, r.height())
+        if w > iw:
+            w = iw
+        if h > ih:
+            h = ih
+        x = r.x()
+        y = r.y()
+        if x < 0:
+            x = 0
+        if y < 0:
+            y = 0
+        if x + w > iw:
+            x = iw - w
+        if y + h > ih:
+            y = ih - h
+        if x < 0:
+            x = 0
+        if y < 0:
+            y = 0
         self.currentRect = QtCore.QRect(x, y, w, h)
 
     def sizeHint(self):
@@ -95,6 +107,19 @@ class RectCanvas(QtWidgets.QWidget):
             p.drawRect(r)
         p.end()
 
+    def _placeRectAtCenter(self, pos: QtCore.QPoint) -> None:
+        r = self.currentRect
+        step = self._stepSize()
+        w = r.width() if r.width() > 0 else step
+        h = r.height() if r.height() > 0 else step
+        cx = self._snap(pos.x())
+        cy = self._snap(pos.y())
+        nx = self._snap(cx - w // 2)
+        ny = self._snap(cy - h // 2)
+        self.currentRect = QtCore.QRect(nx, ny, w, h)
+        self._clampRectToImage()
+        self.update()
+
     def mousePressEvent(self, e: QtGui.QMouseEvent) -> None:
         if self.image is None or self.image.isNull():
             return
@@ -102,19 +127,20 @@ class RectCanvas(QtWidgets.QWidget):
             return
         pos = e.pos()
         r = self.currentRect
-        if r.width() <= 0 or r.height() <= 0:
-            return
         handleSize = 8
-        handleRect = QtCore.QRect(r.right() - handleSize + 1, r.bottom() - handleSize + 1, handleSize, handleSize)
-        if handleRect.contains(pos):
-            self.dragMode = "resize"
-        elif r.contains(pos):
-            self.dragMode = "move"
-        else:
-            self.dragMode = None
-            return
-        self.dragStartPos = QtCore.QPoint(pos)
-        self.dragStartRect = QtCore.QRect(self.currentRect)
+        if r.width() > 0 and r.height() > 0:
+            handleRect = QtCore.QRect(r.right() - handleSize + 1, r.bottom() - handleSize + 1, handleSize, handleSize)
+            if handleRect.contains(pos):
+                self.dragMode = "resize"
+                self.dragStartPos = QtCore.QPoint(pos)
+                self.dragStartRect = QtCore.QRect(self.currentRect)
+                return
+            if r.contains(pos):
+                self.dragMode = "move"
+                self.dragStartPos = QtCore.QPoint(pos)
+                self.dragStartRect = QtCore.QRect(self.currentRect)
+                return
+        self._placeRectAtCenter(pos)
 
     def mouseMoveEvent(self, e: QtGui.QMouseEvent) -> None:
         if self.image is None or self.image.isNull():

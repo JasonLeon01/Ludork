@@ -86,6 +86,7 @@ class BindAnnotation:
     kind: BindKind
     docstring: str = ""
     options: dict = field(default_factory=dict)
+    metadata: list[tuple[str, dict]] = field(default_factory=list)
 
 
 @dataclass
@@ -150,6 +151,10 @@ class ParsedHeader:
 
 
 _ANNOTATION_RE = re.compile(r"BIND_(CLASS|FUNCTION|METHOD|PROPERTY|INIT|IGNORE)(?:\(([^)]*)\))?")
+_METADATA_RE = re.compile(
+    r"BIND_(RETURNTYPE|EXECSPLIT|LATENT|META|REGISTER_EVENT|INVALID_VARS|RECT_RANGE_VARS)"
+    r"(?:\(([^)]*)\))?"
+)
 _OPTION_RE = re.compile(r'(\w+)\s*=\s*(?:"([^"]*)"|(\w+))')
 
 
@@ -202,11 +207,18 @@ def _parse_comment_block(raw_comment: str) -> Optional[BindAnnotation]:
 
     lines = raw_comment.strip().splitlines()
     annotation = None
+    metadata: list[tuple[str, dict]] = []
     normalized_lines: list[str] = []
 
     for line in lines:
         stripped = _normalize_comment_line(line)
         normalized_lines.append(stripped)
+
+        metadata_match = _METADATA_RE.search(stripped)
+        if metadata_match:
+            metadata_kind = metadata_match.group(1)
+            options_str = metadata_match.group(2) or ""
+            metadata.append((metadata_kind, _parse_annotation_options(options_str)))
 
         match = _ANNOTATION_RE.search(stripped)
         if match:
@@ -214,12 +226,13 @@ def _parse_comment_block(raw_comment: str) -> Optional[BindAnnotation]:
             options_str = match.group(2) or ""
             kind = BindKind[kind_str]
             options = _parse_annotation_options(options_str)
-            annotation = BindAnnotation(kind=kind, options=options)
+            annotation = BindAnnotation(kind=kind, options=options, metadata=list(metadata))
 
     if annotation is not None:
+        annotation.metadata = list(metadata)
         docstring_lines = []
         for stripped in normalized_lines:
-            if _ANNOTATION_RE.search(stripped):
+            if _ANNOTATION_RE.search(stripped) or _METADATA_RE.search(stripped):
                 continue
             if stripped:
                 docstring_lines.append(stripped)
@@ -228,7 +241,10 @@ def _parse_comment_block(raw_comment: str) -> Optional[BindAnnotation]:
     return annotation
 
 
-_ANNOTATION_MACRO_LINE_RE = re.compile(r"^\s*BIND_(CLASS|FUNCTION|METHOD|PROPERTY|INIT|IGNORE)(?:\([^)]*\))?\s*;?\s*$")
+_ANNOTATION_MACRO_LINE_RE = re.compile(
+    r"^\s*BIND_(CLASS|FUNCTION|METHOD|PROPERTY|INIT|IGNORE|RETURNTYPE|EXECSPLIT|LATENT|META|"
+    r"REGISTER_EVENT|INVALID_VARS|RECT_RANGE_VARS)(?:\([^)]*\))?\s*;?\s*$"
+)
 
 _MACRO_BIND_KIND = {
     "BIND_CLASS": BindKind.CLASS,

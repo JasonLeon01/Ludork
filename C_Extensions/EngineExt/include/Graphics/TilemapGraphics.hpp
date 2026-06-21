@@ -1,8 +1,8 @@
 #pragma once
 
 #include <BindAnnotations.hpp>
-
-#include <pybind11/pybind11.h>
+#include <General/Material.hpp>
+#include <General/TileLayerData.hpp>
 
 #include <SFML/Graphics/Drawable.hpp>
 #include <SFML/Graphics/RenderStates.hpp>
@@ -15,8 +15,6 @@
 #include <string>
 #include <vector>
 
-
-namespace py = pybind11;
 
 ////////////////////////////////////////////////////////////
 /// \brief GPU-accelerated tile layer renderer using vertex arrays
@@ -39,22 +37,15 @@ public:
     /// - \param height Tile count on Y axis
     /// - \param tileSize Tile size in pixels
     /// - \param texture Tileset texture
-    /// - \param tiles Tile id grid (`std::nullopt` for empty cells)
-    /// - \param materials Material metadata list (one per tile id)
-    /// - \param autoTiles Autotile pool index grid (`std::nullopt` for cells
-    ///                    that are not autotile)
+    /// - \param data Tile layer data object
     /// - \param autoTileTextures Per-autotile-pool texture pointers
-    /// - \param autoTileMaterials Per-autotile-pool material objects
     /// - \param autoTileFrameCounts Per-autotile-pool animation frame counts
     ///
     ////////////////////////////////////////////////////////////
     BIND_INIT()
     TileLayerGraphics(int width, int height, int tileSize, sf::Texture *texture,
-                      const std::vector<std::vector<std::optional<int>>> &tiles,
-                      const std::vector<py::object> &materials,
-                      const std::vector<std::vector<std::optional<int>>> &autoTiles,
+                      const TileLayerData &data,
                       const std::vector<sf::Texture *> &autoTileTextures,
-                      const std::vector<py::object> &autoTileMaterials,
                       const std::vector<int> &autoTileFrameCounts);
 
     ////////////////////////////////////////////////////////////
@@ -98,6 +89,66 @@ public:
     std::vector<std::pair<int, int>> floodFillTransparent(int startX, int startY, sf::Color color);
 
     ////////////////////////////////////////////////////////////
+    /// \brief Return the static tile index at a position
+    ///
+    /// - \param position Grid position
+    ///
+    /// - \return Tile index, or `std::nullopt`
+    ////////////////////////////////////////////////////////////
+    BIND_RETURNTYPE(tile="Optional[int]")
+    BIND_METHOD()
+    std::optional<int> get(const sf::Vector2i &position) const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Return the autotile entry at a position
+    ///
+    /// - \param position Grid position
+    ///
+    /// - \return Autotile entry, or `std::nullopt`
+    ////////////////////////////////////////////////////////////
+    BIND_RETURNTYPE(autoTile="Optional[AutoTile]")
+    BIND_METHOD()
+    std::optional<AutoTile> getAutoTileAt(const sf::Vector2i &position) const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Check whether one cell is passable
+    ///
+    /// - \param position Grid position
+    ///
+    /// - \return `true` if passable
+    ////////////////////////////////////////////////////////////
+    BIND_RETURNTYPE(isPassable="bool")
+    BIND_METHOD()
+    bool isPassable(const sf::Vector2i &position) const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Return the material at a position
+    ///
+    /// - \param position Grid position
+    ///
+    /// - \return Material, or `std::nullopt`
+    ////////////////////////////////////////////////////////////
+    BIND_RETURNTYPE(material="Optional[Material]")
+    BIND_METHOD()
+    std::optional<Material> getMaterial(const sf::Vector2i &position) const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Build a light-block grid
+    ///
+    /// - \return 2D light-block map
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
+    std::vector<std::vector<float>> getLightBlockMap() const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Build a reflection-strength grid
+    ///
+    /// - \return 2D reflection-strength map
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
+    std::vector<std::vector<float>> getReflectionStrengthMap() const;
+
+    ////////////////////////////////////////////////////////////
     /// \brief Advance autotile animation by an elapsed time
     ///
     /// Animation frames advance once per `frameInterval` seconds and the
@@ -137,6 +188,24 @@ private:
     void refreshAutoTileTexCoords(int poolIndex);
 
     ////////////////////////////////////////////////////////////
+    /// \brief Check whether a grid position is inside this layer
+    ///
+    /// - \param position Grid position
+    ///
+    /// - \return `true` if the position is valid
+    ////////////////////////////////////////////////////////////
+    bool inBounds(const sf::Vector2i &position) const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Return an autotile pool index at a position
+    ///
+    /// - \param position Grid position
+    ///
+    /// - \return Pool index, or `std::nullopt`
+    ////////////////////////////////////////////////////////////
+    std::optional<int> getAutoTileIndex(const sf::Vector2i &position) const;
+
+    ////////////////////////////////////////////////////////////
     /// \brief Draw tile vertices to a render target
     ///
     /// - \param target Destination render target
@@ -149,12 +218,14 @@ private:
     sf::Texture *texture_;
     sf::Vector2f size_;
     int tileSize_;
+    TileLayerData data_;
     std::vector<std::vector<std::optional<int>>> tiles_;
-    std::vector<py::object> materials_;
+    std::vector<Material> materials_;
 
-    std::vector<std::vector<std::optional<int>>> autoTiles_;
+    AutoTileGrid autoTiles_;
+    std::vector<AutoTile> autoTilePool_;
     std::vector<sf::Texture *> autoTileTextures_;
-    std::vector<py::object> autoTileMaterials_;
+    std::vector<Material> autoTileMaterials_;
     std::vector<int> autoTileFrameCounts_;
     std::vector<sf::VertexArray *> autoTileVertexArrays_;
     std::vector<std::vector<std::pair<int, int>>> autoTileCells_;

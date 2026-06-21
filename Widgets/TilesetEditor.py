@@ -13,8 +13,7 @@ from .Utils import TilesetPanel, AutoTilePanel, SingleRowDialog, Toast
 def _getGameplayType(typeName: str) -> Optional[type]:
     try:
         Engine = System.GetModule("Engine")
-        gameplay = getattr(Engine, "Gameplay", None)
-        dataType = getattr(gameplay, typeName, None)
+        dataType = getattr(Engine, typeName, None)
     except Exception:
         return None
     return dataType if isinstance(dataType, type) else None
@@ -129,7 +128,7 @@ class _TilesetTab(QtWidgets.QWidget):
 
         try:
             Engine = System.GetModule("Engine")
-            Tileset = Engine.Gameplay.Tileset
+            Tileset = Engine.Tileset
             new_ts = Tileset(name=text, fileName="", passable=[], materials=[], dir4=[])
 
             GameData.recordSnapshot()
@@ -425,8 +424,8 @@ class _AutoTileTab(QtWidgets.QWidget):
             return
         try:
             Engine = System.GetModule("Engine")
-            AutoTile = Engine.Gameplay.AutoTile
-            Material = Engine.Gameplay.Material
+            AutoTile = Engine.AutoTile
+            Material = Engine.Material
             new_at = AutoTile(name=text, fileName="", passable=True, material=Material())
 
             GameData.recordSnapshot()

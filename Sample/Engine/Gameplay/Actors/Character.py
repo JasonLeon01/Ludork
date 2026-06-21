@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Optional, Union, Tuple, List
 from ... import Direction, Pair, Texture, IntRect, Vector2i, Utils
 from ...Utils import Inner
-from ..Material import Material
+from ... import Material
 from .Actor import Actor
 
 
@@ -18,8 +18,8 @@ class Character(Actor):
     """
 
     direction: Direction = Direction.DOWN  #: Current facing direction
-    directionFix: bool = False             #: If `True`, direction never updates from movement
-    animateWithoutMoving: bool = False     #: If `True`, animation plays even when idle
+    directionFix: bool = False  #: If `True`, direction never updates from movement
+    animateWithoutMoving: bool = False  #: If `True`, animation plays even when idle
 
     def __init__(self, texture: Texture, tag: Optional[str] = None) -> None:
         r"""Construct a character from a 4-direction sprite-sheet texture.

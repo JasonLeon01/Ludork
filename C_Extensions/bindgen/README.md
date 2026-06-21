@@ -91,6 +91,7 @@ Mark a class or struct for export to Python.
 
 **Options:**
 - `module_name="Name"` — Python-side class name (defaults to the C++ class name)
+- `copyable=true` — Generate Python `__copy__` and `__deepcopy__` methods using the C++ copy constructor
 
 **Behaviour:**
 - Only `public` members are bound.
@@ -101,6 +102,10 @@ Mark a class or struct for export to Python.
 // BIND_CLASS(module_name="Map")
 // C++ accelerated implementation of the game map.
 class GameMapExt { ... };
+
+// BIND_CLASS(copyable=true)
+// Lightweight value object that can be copied from Python.
+struct Material { ... };
 ```
 
 ### `// BIND_METHOD`
@@ -119,6 +124,35 @@ Mark a method for export.
 // BIND_METHOD(return_policy="reference_internal")
 // Return a reference to the parent object.
 ParticleSystem* getParent() const;
+```
+
+### Blueprint metadata annotations
+
+Bindgen also understands lightweight metadata macros that mirror the Python
+decorators used by the blueprint node picker. Place them in the same annotation
+block as `BIND_METHOD`, `BIND_FUNCTION`, or `BIND_CLASS`.
+
+Supported macros:
+- `BIND_RETURNTYPE(name="TypeName")` -> `_returnTypes`
+- `BIND_EXECSPLIT(default="None")` -> `_execSplits`
+- `BIND_LATENT(default="None")` -> `_latents`
+- `BIND_META(Key="Value")` -> `_meta`
+- `BIND_REGISTER_EVENT()` -> event signature metadata
+- `BIND_INVALID_VARS(vars="fieldA,fieldB")` -> `_invalidVars`
+- `BIND_RECT_RANGE_VARS(field="rectName")` -> `_rectRangeVars`
+
+`TypeAdapter` is intentionally not mirrored in C++; keep those dynamic adapters
+on the Python side.
+
+Pybind11 method objects cannot reliably receive arbitrary Python attributes, so
+generated bindings store callable metadata in a class/module-level
+`__nodeFunctionMeta__` registry. Editor-side helpers resolve that registry when
+the node picker scans C++-backed callables.
+
+```cpp
+BIND_RETURNTYPE(autoTile="Optional[AutoTile]")
+BIND_METHOD()
+std::optional<AutoTile> getAutoTileAt(const sf::Vector2i &position) const;
 ```
 
 ### `// BIND_PROPERTY`

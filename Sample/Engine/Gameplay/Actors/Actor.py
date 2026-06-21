@@ -6,7 +6,7 @@ from typing import Any, List, Optional, Tuple, Union
 from ... import Pair, BPBase, Vector2f, Vector2i, Vector2u, Vector3f, IntRect, Texture, Sound
 from ...Utils import Math, Inner
 from ...Filters import SoundFilter
-from ..Material import Material
+from ... import Material
 from ..Components import ChildActorComponent, LightComponent, componentFromData
 from .Base import _ActorBase
 

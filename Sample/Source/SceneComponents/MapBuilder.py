@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import Engine
 from Engine import Color, RectangleShape, RenderTexture, Texture, Vector2f, Vector2u, View
-from Engine.Gameplay import TileLayer, TileLayerData, Tilemap
+from Engine import TileLayerData
+from Engine.Gameplay import TileLayer, Tilemap
 from Engine.Utils import File, Render
 from Global import Camera, GameMap, Light, Manager
 from Source import Data, System

@@ -1,1 +1,147 @@
-{"cursorSE": {"type": "file", "base": "Sounds", "ext": [".ogg", ".wav", ".mp3", ".aac", ".flac"], "value": "cursor.ogg"}, "decisionSE": {"type": "file", "base": "Sounds", "ext": [".ogg", ".wav", ".mp3", ".aac", ".flac"], "value": "decision1.ogg"}, "cancelSE": {"type": "file", "base": "Sounds", "ext": [".ogg", ".wav", ".mp3", ".aac", ".flac"], "value": "cancel.ogg"}, "buzzerSE": {"type": "file", "base": "Sounds", "ext": [".ogg", ".wav", ".mp3", ".aac", ".flac"], "value": "buzzer1.ogg"}, "shopSE": {"type": "file", "base": "Sounds", "ext": [".ogg", ".wav", ".mp3", ".aac", ".flac"], "value": "shop.ogg"}, "saveSE": {"type": "file", "base": "Sounds", "ext": [".ogg", ".wav", ".mp3", ".aac", ".flac"], "value": "save.ogg"}, "loadSE": {"type": "file", "base": "Sounds", "ext": [".ogg", ".wav", ".mp3", ".aac", ".flac"], "value": "load.ogg"}, "gateSE": {"type": "file", "base": "Sounds", "ext": [".ogg", ".wav", ".mp3", ".aac", ".flac"], "value": "open1.ogg"}, "stairSE": {"type": "file", "base": "Sounds", "ext": [".ogg", ".wav", ".mp3", ".aac", ".flac"], "value": "move.ogg"}, "getSE": {"type": "file", "base": "Sounds", "ext": [".ogg", ".wav", ".mp3", ".aac", ".flac"], "value": "item1.ogg"}, "equipSE": {"type": "file", "base": "Sounds", "ext": [".ogg", ".wav", ".mp3", ".aac", ".flac"], "value": "equip.ogg"}, "titleBGM": {"type": "file", "base": "Musics", "ext": [".ogg", ".wav", ".mp3", ".aac", ".flac"], "value": "To Walk the Unseen Path.mp3"}, "type": "system"}
+{
+    "cursorSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "cursor.ogg"
+    },
+    "decisionSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "decision1.ogg"
+    },
+    "cancelSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "cancel.ogg"
+    },
+    "buzzerSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "buzzer1.ogg"
+    },
+    "shopSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "shop.ogg"
+    },
+    "saveSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "save.ogg"
+    },
+    "loadSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "load.ogg"
+    },
+    "gateSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "open1.ogg"
+    },
+    "stairSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "move.ogg"
+    },
+    "getSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "item1.ogg"
+    },
+    "equipSE": {
+        "type": "file",
+        "base": "Sounds",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "equip.ogg"
+    },
+    "titleBGM": {
+        "type": "file",
+        "base": "Musics",
+        "ext": [
+            ".ogg",
+            ".wav",
+            ".mp3",
+            ".aac",
+            ".flac"
+        ],
+        "value": "To Walk the Unseen Path.mp3"
+    },
+    "type": "system"
+}

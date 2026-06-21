@@ -17,6 +17,14 @@ from .FunctionPickerPopup import FunctionPickerPopup
 from .Timeline import TimelinePanel as TimeLine
 from .DataclassEditDialog import DataclassEditDialog
 from .DataclassWidget import DataclassWidget
+from .StructuredFields import (
+    StructuredField,
+    defaultStructuredData,
+    isStructuredType,
+    isStructuredValue,
+    structuredFields,
+    structuredValueToDict,
+)
 from .TypedValueEditor import TypedValueEditor
 from .ColourPickerDialog import ColourPickerDialog, ColourVarEditor
 from .VectorVarEditor import VectorVarEditor

@@ -18,7 +18,7 @@ class _AutoTileImageView(QtWidgets.QWidget):
         self._data = None
         self._mode = 0
         Engine = System.GetModule("Engine")
-        self.MaterialClass = Engine.Gameplay.Material
+        self.MaterialClass = Engine.Material
         self.setMouseTracking(True)
 
     def setData(self, data, image_path):
@@ -127,7 +127,7 @@ class AutoTilePanel(QtWidgets.QWidget):
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
         System.SetStyle(self, "config.qss")
         Engine = System.GetModule("Engine")
-        self.MaterialClass = Engine.Gameplay.Material
+        self.MaterialClass = Engine.Material
         self._data = None
         self._key = None
         self._initUI()
