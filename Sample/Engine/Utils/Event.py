@@ -273,19 +273,11 @@ class EventBus:
 def _validateBlueprintEventTarget(obj: object, eventName: str) -> None:
     if obj is None:
         raise ValueError("Blueprint event target object is None")
-    from Engine.Gameplay.Actors.Base import _ActorBase
-    from Engine.Gameplay.InfoBase import InfoBase
+    from Engine.BPBase import BPBase
 
-    graph = obj.getGraph() if isinstance(obj, _ActorBase) else None
-    if graph is not None and graph.hasKey(eventName):
+    if BPBase.HasBlueprintEvent(obj, eventName):
         return
-    infoGraph = obj.getInfoGraph() if isinstance(obj, InfoBase) else None
-    if infoGraph is not None and infoGraph.hasKey(eventName):
-        return
-    if hasattr(obj, eventName) and callable(getattr(obj, eventName)):
-        return
-    else:
-        raise AttributeError(f"Object has no blueprint event '{eventName}'")
+    raise AttributeError(f"Object has no blueprint event '{eventName}'")
 
 
 def triggerBlueprintEvent(obj: object, eventName: str) -> None:

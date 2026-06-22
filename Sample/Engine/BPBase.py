@@ -35,34 +35,33 @@ class BPBase:
             kwargs = {}
         if getattr(obj, "isDestroyed", lambda: False)():
             return
-        if not isinstance(obj, objType) or not hasattr(obj, eventName) or not callable(getattr(obj, eventName)):
+        if not isinstance(obj, objType):
             return
         from Engine.Gameplay.Actors.Base import _ActorBase
 
         graph = obj.getGraph() if isinstance(obj, _ActorBase) else None
-        if (
-            hasattr(type(obj), "_GENERATED_CLASS")
-            and type(obj)._GENERATED_CLASS
-            and graph is not None
-            and graph.hasKey(eventName)
-        ):
-            if eventName in graph.startNodes and graph.startNodes[eventName] is not None:
-                if not graph.tryLockExecution(eventName):
+        isGenerated = hasattr(type(obj), "_GENERATED_CLASS") and type(obj)._GENERATED_CLASS
+        if isGenerated and graph is not None:
+            if graph.hasKey(eventName):
+                if eventName in graph.startNodes and graph.startNodes[eventName] is not None:
+                    BPBase._executeGraph(graph, eventName, kwargs)
                     return
-                for key, value in kwargs.items():
-                    graph.localGraph[f"__{key}__"] = value
-                try:
-                    graph.execute(eventName)
-                finally:
-                    graph.completeExecution(eventName)
-            else:
                 if BPBase._tryExecuteInfoGraph(obj, eventName, kwargs):
                     return
-                BPBase.ExecuteParentEvent(obj, type(obj), eventName, kwargs=kwargs)
-        else:
             if BPBase._tryExecuteInfoGraph(obj, eventName, kwargs):
                 return
-            getattr(obj, eventName)(**kwargs)
+            if BPBase.ExecuteParentEvent(obj, type(obj), eventName, kwargs=kwargs):
+                return
+            method = getattr(obj, eventName, None)
+            if callable(method):
+                method(**kwargs)
+            return
+
+        if BPBase._tryExecuteInfoGraph(obj, eventName, kwargs):
+            return
+        method = getattr(obj, eventName, None)
+        if callable(method):
+            method(**kwargs)
 
     @staticmethod
     def _tryExecuteInfoGraph(obj: object, eventName: str, kwargs: Dict[str, Any]) -> bool:
@@ -86,6 +85,47 @@ class BPBase:
         if eventName not in infoGraph.startNodes or infoGraph.startNodes[eventName] is None:
             return False
         return BPBase._executeGraph(infoGraph, eventName, kwargs)
+
+    @staticmethod
+    def HasBlueprintEvent(obj: object, eventName: str) -> bool:
+        if obj is None or not isinstance(eventName, str) or not eventName:
+            return False
+        from Engine.Gameplay.Actors.Base import _ActorBase
+        from Engine.Gameplay.InfoBase import InfoBase
+
+        graph = obj.getGraph() if isinstance(obj, _ActorBase) else None
+        if graph is not None and graph.hasKey(eventName):
+            return True
+        infoGraph = obj.getInfoGraph() if isinstance(obj, InfoBase) else None
+        if infoGraph is not None and infoGraph.hasKey(eventName):
+            return True
+        method = getattr(obj, eventName, None)
+        if callable(method):
+            return True
+        return BPBase._classHasBlueprintEvent(type(obj), eventName)
+
+    @staticmethod
+    def _classHasBlueprintEvent(cls: type, eventName: str) -> bool:
+        if not isinstance(cls, type) or cls is object:
+            return False
+        if hasattr(cls, "_GENERATED_CLASS") and getattr(cls, "_GENERATED_CLASS"):
+            graphData = BPBase._getGeneratedClassGraphData(cls)
+            if BPBase._graphDataHasEvent(graphData, eventName):
+                return True
+        graph = getattr(cls, "_graph", None)
+        if graph is not None and graph.hasKey(eventName):
+            return True
+        method = getattr(cls, eventName, None)
+        if callable(method):
+            return True
+        return BPBase._classHasBlueprintEvent(getattr(cls, "__base__", None), eventName)
+
+    @staticmethod
+    def _graphDataHasEvent(graphData: Optional[Dict[str, Any]], eventName: str) -> bool:
+        if not isinstance(graphData, dict):
+            return False
+        nodeGraph = graphData.get("nodeGraph")
+        return isinstance(nodeGraph, dict) and eventName in nodeGraph
 
     @staticmethod
     def ExecuteParentEvent(

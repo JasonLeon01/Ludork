@@ -212,7 +212,8 @@ NodeRelyMap buildNodeRelyMap(const py::dict &nodeRely) {
 }
 
 void ensureParamProvider(int providerIdx, int consumerIdx, double laneY, const NodeRelyMap &nodeRely,
-                         PositionStore &positions, const GraphLayoutOptions &options) {
+                         PositionStore &positions, int &nextLane, double startY,
+                         const GraphLayoutOptions &options) {
     if (!positions.hasNode(consumerIdx)) {
         return;
     }
@@ -233,9 +234,17 @@ void ensureParamProvider(int providerIdx, int consumerIdx, double laneY, const N
     if (relyIt == nodeRely.end()) {
         return;
     }
+    bool firstProvider = true;
+    double childLaneY = laneY;
     for (const auto &leftIdx : relyIt->second) {
         if (leftIdx.has_value()) {
-            ensureParamProvider(leftIdx.value(), providerIdx, laneY, nodeRely, positions, options);
+            if (!firstProvider) {
+                ++nextLane;
+                childLaneY = startY + nextLane * options.yStep;
+            }
+            ensureParamProvider(leftIdx.value(), providerIdx, childLaneY, nodeRely, positions, nextLane, startY,
+                                options);
+            firstProvider = false;
         }
     }
 }
@@ -264,9 +273,16 @@ void layoutParamProviders(const NodeRelyMap &nodeRely, PositionStore &positions,
     });
     for (int consumerIdx : laneConsumers) {
         double laneY = laneYByConsumer.at(consumerIdx);
+        bool firstProvider = true;
         for (const auto &leftIdx : nodeRely.at(consumerIdx)) {
             if (leftIdx.has_value()) {
-                ensureParamProvider(leftIdx.value(), consumerIdx, laneY, nodeRely, positions, options);
+                if (!firstProvider) {
+                    ++nextLane;
+                    laneY = startY + nextLane * options.yStep;
+                }
+                ensureParamProvider(leftIdx.value(), consumerIdx, laneY, nodeRely, positions, nextLane, startY,
+                                    options);
+                firstProvider = false;
             }
         }
     }
@@ -285,11 +301,13 @@ void layoutParamProviders(const NodeRelyMap &nodeRely, PositionStore &positions,
         if (relyIt == nodeRely.end() || relyIt->second.empty()) {
             continue;
         }
-        ++nextLane;
-        double laneY = startY + nextLane * options.yStep;
+        double laneY = 0.0;
         for (const auto &leftIdx : relyIt->second) {
             if (leftIdx.has_value()) {
-                ensureParamProvider(leftIdx.value(), consumerIdx, laneY, nodeRely, positions, options);
+                ++nextLane;
+                laneY = startY + nextLane * options.yStep;
+                ensureParamProvider(leftIdx.value(), consumerIdx, laneY, nodeRely, positions, nextLane, startY,
+                                    options);
             }
         }
     }

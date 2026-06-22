@@ -19,7 +19,6 @@
                 32
             ]
         ],
-        "eventBusName": "ExampleAutoOpen",
         "eventBusVariableName": "MTExample",
         "targetConditionValue": 2
     },
@@ -34,7 +33,7 @@
                     {
                         "nodeFunction": "NodeFunctions.Utils.RegisterEventBusEvent",
                         "params": [
-                            "",
+                            "ConditionalDoorAutoOpen",
                             "",
                             "AutoOpen"
                         ],
@@ -46,17 +45,6 @@
                     {
                         "nodeFunction": "NodeFunctions.Utils.SELF",
                         "params": [],
-                        "pos": [
-                            -1440.0,
-                            250.0
-                        ]
-                    },
-                    {
-                        "nodeFunction": "NodeFunctions.Utils.GetAttr",
-                        "params": [
-                            "",
-                            "eventBusName"
-                        ],
                         "pos": [
                             -720.0,
                             250.0
@@ -70,20 +58,6 @@
                         "leftOutPin": 0,
                         "rightInPin": 1,
                         "linkType": "Params"
-                    },
-                    {
-                        "left": 1,
-                        "right": 2,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Params"
-                    },
-                    {
-                        "left": 2,
-                        "right": 0,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Params"
                     }
                 ]
             },
@@ -92,7 +66,7 @@
                     {
                         "nodeFunction": "NodeFunctions.Utils.UnregisterEventBusEvent",
                         "params": [
-                            "",
+                            "ConditionalDoorAutoOpen",
                             ""
                         ],
                         "pos": [
@@ -101,21 +75,10 @@
                         ]
                     },
                     {
-                        "nodeFunction": "NodeFunctions.Utils.GetAttr",
-                        "params": [
-                            "",
-                            "eventBusName"
-                        ],
-                        "pos": [
-                            -720.0,
-                            250.0
-                        ]
-                    },
-                    {
                         "nodeFunction": "NodeFunctions.Utils.SELF",
                         "params": [],
                         "pos": [
-                            -1440.0,
+                            -720.0,
                             250.0
                         ]
                     }
@@ -123,20 +86,6 @@
                 "links": [
                     {
                         "left": 1,
-                        "right": 0,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Params"
-                    },
-                    {
-                        "left": 2,
-                        "right": 1,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Params"
-                    },
-                    {
-                        "left": 2,
                         "right": 0,
                         "leftOutPin": 0,
                         "rightInPin": 1,
@@ -230,8 +179,8 @@
                             "targetConditionValue"
                         ],
                         "pos": [
-                            -2160.0,
-                            250.0
+                            -1440.0,
+                            750.0
                         ]
                     }
                 ],
@@ -272,13 +221,6 @@
                         "linkType": "Params"
                     },
                     {
-                        "left": 5,
-                        "right": 0,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Params"
-                    },
-                    {
                         "left": 4,
                         "right": 6,
                         "leftOutPin": 0,
@@ -286,8 +228,15 @@
                         "linkType": "Params"
                     },
                     {
-                        "left": 6,
+                        "left": 5,
                         "right": 0,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Params"
+                    },
+                    {
+                        "left": 6,
+                        "right": 2,
                         "leftOutPin": 0,
                         "rightInPin": 1,
                         "linkType": "Params"

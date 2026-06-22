@@ -832,6 +832,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             self.stackedWidget.setCurrentWidget(self.graphs[text])
             return
 
+        self._ensureGraphEvent(text)
         parentCls = self._resolveClass()
 
         graph = GameData.genGraphFromData(
@@ -845,6 +846,65 @@ class BluePrintEditor(QtWidgets.QWidget):
 
     def _supportsPreview(self) -> bool:
         return isBlueprintPreviewable(self._resolveClass())
+
+    def _collectInheritedGraphKeys(self) -> list[str]:
+        result: list[str] = []
+        parentPath = self.data.get("parent")
+        self._collectBlueprintGraphKeys(parentPath, result, set())
+        return result
+
+    def _collectBlueprintGraphKeys(self, classPath: Any, result: list[str], visited: Set[str]) -> None:
+        if not isinstance(classPath, str):
+            return
+        prefix = "Data.Blueprints."
+        if not classPath.startswith(prefix):
+            return
+        key = classPath[len(prefix) :].replace(".", "/")
+        if key in visited:
+            return
+        visited.add(key)
+        data = GameData.blueprintsData.get(key)
+        if not isinstance(data, dict):
+            return
+        self._collectBlueprintGraphKeys(data.get("parent"), result, visited)
+        graph = data.get("graph")
+        if not isinstance(graph, dict):
+            return
+        nodeGraph = graph.get("nodeGraph")
+        if not isinstance(nodeGraph, dict):
+            return
+        for graphKey in nodeGraph.keys():
+            if isinstance(graphKey, str) and graphKey not in result:
+                result.append(graphKey)
+
+    def _getAvailableGraphKeys(self) -> list[str]:
+        result = self._collectInheritedGraphKeys()
+        graph = self.data.get("graph")
+        if isinstance(graph, dict):
+            nodeGraph = graph.get("nodeGraph")
+            if isinstance(nodeGraph, dict):
+                for key in nodeGraph.keys():
+                    if isinstance(key, str) and key not in result:
+                        result.append(key)
+        return result
+
+    def _ensureGraphEvent(self, name: str) -> None:
+        graph = self.data.get("graph")
+        if not isinstance(graph, dict):
+            graph = {}
+            self.data["graph"] = graph
+        nodeGraph = graph.get("nodeGraph")
+        if not isinstance(nodeGraph, dict):
+            nodeGraph = {}
+            graph["nodeGraph"] = nodeGraph
+        startNodes = graph.get("startNodes")
+        if not isinstance(startNodes, dict):
+            startNodes = {}
+            graph["startNodes"] = startNodes
+        if name not in nodeGraph:
+            nodeGraph[name] = {"nodes": [], "links": []}
+        if name not in startNodes:
+            startNodes[name] = None
 
     def refreshGraphList(self) -> None:
         current_kind = None
@@ -861,13 +921,10 @@ class BluePrintEditor(QtWidgets.QWidget):
             previewItem = QtWidgets.QListWidgetItem(ELOC("PREVIEW"))
             previewItem.setData(QtCore.Qt.UserRole, _PREVIEW_TAB_KIND)
             self.nodeGraphList.addItem(previewItem)
-        if "graph" in self.data and isinstance(self.data["graph"], dict):
-            nodeGraph = self.data["graph"].get("nodeGraph")
-            if isinstance(nodeGraph, dict):
-                for key in nodeGraph.keys():
-                    item = QtWidgets.QListWidgetItem(key)
-                    item.setData(QtCore.Qt.UserRole, _GRAPH_TAB_KIND)
-                    self.nodeGraphList.addItem(item)
+        for key in self._getAvailableGraphKeys():
+            item = QtWidgets.QListWidgetItem(key)
+            item.setData(QtCore.Qt.UserRole, _GRAPH_TAB_KIND)
+            self.nodeGraphList.addItem(item)
 
         if self.nodeGraphList.count() <= 0:
             return
@@ -1649,6 +1706,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         current_widget = self.stackedWidget.currentWidget()
         if isinstance(current_widget, NodePanel):
             graph_key = current_widget.name
+            self._ensureGraphEvent(graph_key)
             parentCls = self._resolveClass()
             graph = GameData.genGraphFromData(
                 self.data["graph"],
@@ -1739,7 +1797,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         if not isinstance(startNodes, dict):
             startNodes = {}
             graph["startNodes"] = startNodes
-        if name in nodeGraph:
+        if name in self._getAvailableGraphKeys():
             QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("EVENT_EXISTS"))
             return
         GameData.recordSnapshot()

@@ -137,6 +137,7 @@ class Enemy(Actor, EnemyInfo, Battler):
         eturn = max(ceil(ehp / mdam) - 1, 0)
         return ceil(ehp / eturn) + ed
 
+    @RegisterEvent
     def onCollision(self, other: List[Actor]) -> None:
         from Source.Scenes import Map
         from Global import System
