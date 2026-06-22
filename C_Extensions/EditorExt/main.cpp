@@ -28,9 +28,9 @@ PYBIND11_MODULE(EditorExt, m) {
     m.def("C_ComputeGraphLayoutPositions", &C_ComputeGraphLayoutPositions,
           "Compute organised node positions for a blueprint or common-function graph.",
           py::arg("nodeCount"), py::arg("links"), py::arg("nodeRely"), py::arg("startIdx"),
-          py::arg("defaultParamCount") = 0, py::arg("xStep") = 720.0, py::arg("yStep") = 250.0,
-          py::arg("defaultParamYStep") = 64.0, py::arg("defaultParamStartY") = 64.0,
-          py::arg("startGap") = 250.0);
+          py::arg("defaultParamCount") = 0, py::arg("nodeHeights") = std::vector<double>{},
+          py::arg("xStep") = 720.0, py::arg("yStep") = 320.0, py::arg("defaultParamYStep") = 64.0,
+          py::arg("defaultParamStartY") = 64.0, py::arg("startGap") = 250.0, py::arg("columnPadding") = 24.0);
     m.def("C_NormalizeAutoTileMask", &C_NormalizeAutoTileMask,
           "Normalise an 8-bit autotile neighbour mask.",
           py::arg("mask"));

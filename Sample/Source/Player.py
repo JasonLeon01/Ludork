@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import List, Optional, Dict, Any, Tuple, Type, Union
-from Engine import Texture, Input, Vector2u
+from Engine import Pair, Texture, Input, Vector2u
 from Engine.Gameplay.Components import setComponentFieldValue
 from Engine.Gameplay.Actors import Character
 from Global import Manager
@@ -24,6 +24,10 @@ class Player(Character, PlayerInfo, Battler):
     infoComp: PlayerInfoComponent = PlayerInfoComponent()
 
     def __init__(self, texture: Optional[Texture] = None, tag: str = "") -> None:
+        def PlayerMove(obj: Player, delta: Pair[int]) -> None:
+            if not obj.getForbiddenMoving() and not obj._isSceneInputBlocked():
+                obj.MapMove(delta)
+
         Character.__init__(self, texture, tag)
         Battler.__init__(self)
         self.tickable = True
@@ -36,17 +40,22 @@ class Player(Character, PlayerInfo, Battler):
         self._equips: Dict[str, int] = {}
         self._equipInfo: Dict[str, str] = {}
         self._classPath: str = ""
+        self._forbiddenMoving: bool = False
         Input.registerActionMapping(
-            self, "playerMoveUp", Input.getUpKeys(), lambda obj, delta: obj.MapMove((0, -1)), triggerOnHold=True
+            self, "playerMoveUp", Input.getUpKeys(), lambda obj, delta: PlayerMove(obj, (0, -1)), triggerOnHold=True
         )
         Input.registerActionMapping(
-            self, "playerMoveDown", Input.getDownKeys(), lambda obj, delta: obj.MapMove((0, 1)), triggerOnHold=True
+            self, "playerMoveDown", Input.getDownKeys(), lambda obj, delta: PlayerMove(obj, (0, 1)), triggerOnHold=True
         )
         Input.registerActionMapping(
-            self, "playerMoveLeft", Input.getLeftKeys(), lambda obj, delta: obj.MapMove((-1, 0)), triggerOnHold=True
+            self, "playerMoveLeft", Input.getLeftKeys(), lambda obj, delta: PlayerMove(obj, (-1, 0)), triggerOnHold=True
         )
         Input.registerActionMapping(
-            self, "playerMoveRight", Input.getRightKeys(), lambda obj, delta: obj.MapMove((1, 0)), triggerOnHold=True
+            self,
+            "playerMoveRight",
+            Input.getRightKeys(),
+            lambda obj, delta: PlayerMove(obj, (1, 0)),
+            triggerOnHold=True,
         )
         for slot, equipID in Cast(dict, Data.getGeneralClassData(self.infoComp.CLASS).get("slot")).items():
             if equipID:
@@ -158,6 +167,7 @@ class Player(Character, PlayerInfo, Battler):
             player.setStateStacks(states)
         return player
 
+    @ExecSplit(default=(None,))
     def addItem(self, itemID: str, count: int = 1) -> None:
         r"""\brief Add item(s) to the player's inventory.
 
@@ -169,6 +179,7 @@ class Player(Character, PlayerInfo, Battler):
         else:
             self._items[itemID] = count
 
+    @ExecSplit(success=(True,), failed=(False,))
     def removeItem(self, itemID: str, count: int = 1) -> bool:
         r"""\brief Remove item(s) from the player's inventory.
 
@@ -184,6 +195,7 @@ class Player(Character, PlayerInfo, Battler):
             del self._items[itemID]
         return True
 
+    @ReturnType(count=int)
     def getItemCount(self, itemID: str) -> int:
         r"""\brief Get the count of a specific item in the player's inventory.
 
@@ -193,6 +205,7 @@ class Player(Character, PlayerInfo, Battler):
         """
         return self._items.get(itemID, 0)
 
+    @ReturnType(value=bool)
     def hasItem(self, itemID: str) -> bool:
         r"""\brief Check whether the player owns at least one of the specified item.
 
@@ -202,6 +215,7 @@ class Player(Character, PlayerInfo, Battler):
         """
         return itemID in self._items and self._items[itemID] > 0
 
+    @ExecSplit(default=(None,))
     def addEquip(self, equipID: str, count: int = 1) -> None:
         r"""\brief Add equip(s) to the player's equipment.
 
@@ -213,6 +227,7 @@ class Player(Character, PlayerInfo, Battler):
         else:
             self._equips[equipID] = count
 
+    @ExecSplit(success=(True,), failed=(False,))
     def removeEquip(self, equipID: str, count: int = 1) -> bool:
         r"""\brief Remove equip(s) from the player's equipment.
 
@@ -228,6 +243,7 @@ class Player(Character, PlayerInfo, Battler):
             del self._equips[equipID]
         return True
 
+    @ExecSplit(default=(None,))
     def equip(self, equipID: str) -> None:
         r"""\brief Equip a specific equip to the player's equipment.
 
@@ -255,6 +271,7 @@ class Player(Character, PlayerInfo, Battler):
         info.triggerEvent("onEquip")
         self.removeEquip(equipID)
 
+    @ExecSplit(default=(None,))
     def unequip(self, slotID: str) -> None:
         r"""\brief Unequip a specific equip from the player's equipment.
 
@@ -278,6 +295,7 @@ class Player(Character, PlayerInfo, Battler):
         info.triggerEvent("onUnequip")
         self.addEquip(equipID)
 
+    @ReturnType(count=int)
     def getEquipCount(self, equipID: str) -> int:
         r"""\brief Get the count of a specific equip in the player's equipment.
 
@@ -287,6 +305,7 @@ class Player(Character, PlayerInfo, Battler):
         """
         return self._equips.get(equipID, 0)
 
+    @ReturnType(value=bool)
     def hasEquip(self, equipID: str) -> bool:
         r"""\brief Check whether the player owns at least one of the specified equip.
 
@@ -296,6 +315,7 @@ class Player(Character, PlayerInfo, Battler):
         """
         return equipID in self._equips and self._equips[equipID] > 0
 
+    @ReturnType(value=str)
     def getEquipInfo(self, slotID: str) -> str:
         r"""\brief Get the info of a specific equip in the player's equipment.
 
@@ -304,6 +324,21 @@ class Player(Character, PlayerInfo, Battler):
         - \return The info of the equip, or empty string if not found.
         """
         return self._equipInfo.get(slotID, "")
+
+    @ReturnType(value=None)
+    def getForbiddenMoving(self) -> bool:
+        return self._forbiddenMoving
+
+    @ExecSplit(default=(None,))
+    def setForbiddenMoving(self, value: bool) -> None:
+        self._forbiddenMoving = value
+
+    def _isSceneInputBlocked(self) -> bool:
+        gameMap = self.getMap()
+        if gameMap is None:
+            return False
+        scene = gameMap.getScene()
+        return scene is not None and scene.isInputBlocked()
 
     def _updateEquipInfo(self, slot: str, equipID: str) -> None:
         tempEquipInfo = {}

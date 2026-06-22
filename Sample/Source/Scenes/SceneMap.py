@@ -145,9 +145,6 @@ class Scene(SceneBase):
         startMap = self.inst._cachedMap or System.getStartMap()
         self.gotoMapAndPos(startMap, blockTransition=True)
 
-    def getGameMap(self) -> GameMap:
-        return self._gameMap
-
     def onQuit(self) -> None:
         r"""\brief Stop map BGM/BGS and weather when leaving this scene."""
         self._mapAudio.stopMapAudio()
@@ -217,6 +214,10 @@ class Scene(SceneBase):
         self._mapAudio.playMapAudio(mapData)
         GlobalSystem.clearFog()
         GlobalSystem.applyFogFromMapData(mapData)
+
+    @ReturnType(gameMap=GameMap)
+    def getGameMap(self) -> GameMap:
+        return self._gameMap
 
     @Latent(FinishedDialogue=(True,))
     def showMessage(self, refActorTag: str, name: str, message: str) -> Callable[[], bool]:

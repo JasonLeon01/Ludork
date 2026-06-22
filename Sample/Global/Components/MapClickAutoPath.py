@@ -44,7 +44,7 @@ class MapClickAutoPath(ComponentBase):
         the clicked map position to the pending goals queue.
         """
         player = self._parent.getPlayer()
-        if player is None or not player.getMoveEnabled():
+        if player is None or self._isAutoPathBlocked(player):
             return
         if Input.isMouseButtonTriggered(Mouse.Button.Left, True):
             goal = self._getMouseMapPosition()
@@ -67,7 +67,7 @@ class MapClickAutoPath(ComponentBase):
         """
         gameMap: GameMap = self._parent
         player = gameMap.getPlayer()
-        if player is None or not player.getMoveEnabled():
+        if player is None or self._isAutoPathBlocked(player):
             self._autoPathing = False
             self._routeState.clear()
             with self._pendingGoalsLock:
@@ -157,7 +157,8 @@ class MapClickAutoPath(ComponentBase):
         if start == goal:
             return {"routeSteps": [], "route": [Vector2i(start.x, start.y)], "goalPassable": True}
         gameMap = self._parent
-        goalPassable = gameMap.isPassable(actor, goal)
+        goalPassable = gameMap.isPathfindingPassable(actor, goal)
+        goalActuallyPassable = gameMap.isPassable(actor, goal)
         direct = self._buildPathToTarget(start, goal)
         if goalPassable and direct is not None and direct["route"][-1] == goal:
             return {"routeSteps": direct["routeSteps"], "route": direct["route"], "goalPassable": True}
@@ -168,7 +169,7 @@ class MapClickAutoPath(ComponentBase):
             neighbour = Vector2i(goal.x + offset.x, goal.y + offset.y)
             if not self._isInMap(neighbour):
                 continue
-            if neighbour != start and not gameMap.isPassable(actor, neighbour):
+            if neighbour != start and not gameMap.isPathfindingPassable(actor, neighbour):
                 continue
             if neighbour == start:
                 routeSteps = []
@@ -183,6 +184,8 @@ class MapClickAutoPath(ComponentBase):
                 bestPlan = {"routeSteps": routeSteps, "route": route}
         if bestPlan is None:
             return None
+        if goalActuallyPassable:
+            return {"routeSteps": bestPlan["routeSteps"], "route": bestPlan["route"], "goalPassable": False}
         fullRoute = [Vector2i(p.x, p.y) for p in bestPlan["route"]]
         fullRoute.append(Vector2i(goal.x, goal.y))
         routeSteps = [Vector2i(p.x, p.y) for p in bestPlan["routeSteps"]]
@@ -313,6 +316,15 @@ class MapClickAutoPath(ComponentBase):
             goals = list(self._pendingGoals)
             self._pendingGoals.clear()
         return goals
+
+    def _isAutoPathBlocked(self, player: Actor) -> bool:
+        if not player.getMoveEnabled():
+            return True
+        getForbiddenMoving = getattr(player, "getForbiddenMoving", None)
+        if callable(getForbiddenMoving) and getForbiddenMoving():
+            return True
+        scene = self._parent.getScene()
+        return scene is not None and scene.isInputBlocked()
 
     def _trimPreviewRoute(self, currentPos: Vector2i) -> None:
         route = self._routeState.getRoute()

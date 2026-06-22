@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+import dis
 import inspect
 from typing import Any, Dict, Optional
 import re
@@ -94,15 +95,20 @@ class BPBase:
         from Engine.Gameplay.InfoBase import InfoBase
 
         graph = obj.getGraph() if isinstance(obj, _ActorBase) else None
-        if graph is not None and graph.hasKey(eventName):
+        if BPBase._graphHasExecutableEvent(graph, eventName):
             return True
         infoGraph = obj.getInfoGraph() if isinstance(obj, InfoBase) else None
-        if infoGraph is not None and infoGraph.hasKey(eventName):
+        if BPBase._graphHasExecutableEvent(infoGraph, eventName):
             return True
-        method = getattr(obj, eventName, None)
-        if callable(method):
+        instanceDict = getattr(obj, "__dict__", {})
+        instanceMethod = instanceDict.get(eventName) if isinstance(instanceDict, dict) else None
+        if callable(instanceMethod) and BPBase._methodHasImplementation(instanceMethod):
             return True
         return BPBase._classHasBlueprintEvent(type(obj), eventName)
+
+    @staticmethod
+    def IsBlueprintEventEmpty(obj: object, eventName: str) -> bool:
+        return not BPBase.HasBlueprintEvent(obj, eventName)
 
     @staticmethod
     def _classHasBlueprintEvent(cls: type, eventName: str) -> bool:
@@ -110,22 +116,75 @@ class BPBase:
             return False
         if hasattr(cls, "_GENERATED_CLASS") and getattr(cls, "_GENERATED_CLASS"):
             graphData = BPBase._getGeneratedClassGraphData(cls)
-            if BPBase._graphDataHasEvent(graphData, eventName):
+            if BPBase._graphDataHasExecutableEvent(graphData, eventName):
                 return True
-        graph = getattr(cls, "_graph", None)
-        if graph is not None and graph.hasKey(eventName):
+            return BPBase._classHasBlueprintEvent(getattr(cls, "__base__", None), eventName)
+        graph = cls.__dict__.get("_graph")
+        if BPBase._graphHasExecutableEvent(graph, eventName):
             return True
-        method = getattr(cls, eventName, None)
-        if callable(method):
+        method = cls.__dict__.get(eventName)
+        if callable(method) and BPBase._methodHasImplementation(method):
             return True
         return BPBase._classHasBlueprintEvent(getattr(cls, "__base__", None), eventName)
 
     @staticmethod
-    def _graphDataHasEvent(graphData: Optional[Dict[str, Any]], eventName: str) -> bool:
+    def _graphHasExecutableEvent(graph: object, eventName: str) -> bool:
+        if graph is None:
+            return False
+        startNodes = getattr(graph, "startNodes", None)
+        nodes = getattr(graph, "nodes", None)
+        if not isinstance(startNodes, dict) or eventName not in startNodes:
+            return False
+        startNode = startNodes.get(eventName)
+        if startNode is None:
+            return False
+        if isinstance(nodes, dict) and eventName in nodes:
+            try:
+                return 0 <= int(startNode) < len(nodes.get(eventName, []))
+            except (TypeError, ValueError):
+                return False
+        return True
+
+    @staticmethod
+    def _graphDataHasExecutableEvent(graphData: Optional[Dict[str, Any]], eventName: str) -> bool:
         if not isinstance(graphData, dict):
             return False
         nodeGraph = graphData.get("nodeGraph")
-        return isinstance(nodeGraph, dict) and eventName in nodeGraph
+        startNodes = graphData.get("startNodes")
+        if not isinstance(nodeGraph, dict) or not isinstance(startNodes, dict):
+            return False
+        if eventName not in nodeGraph or startNodes.get(eventName) is None:
+            return False
+        eventGraph = nodeGraph.get(eventName)
+        nodes = eventGraph.get("nodes") if isinstance(eventGraph, dict) else None
+        if not isinstance(nodes, list):
+            return False
+        try:
+            return 0 <= int(startNodes[eventName]) < len(nodes)
+        except (TypeError, ValueError):
+            return False
+
+    @staticmethod
+    def _methodHasImplementation(method: object) -> bool:
+        func = getattr(method, "__func__", method)
+        try:
+            func = inspect.unwrap(func)
+        except (AttributeError, ValueError):
+            pass
+        code = getattr(func, "__code__", None)
+        if code is None:
+            return True
+        for instruction in dis.get_instructions(func):
+            if instruction.opname in {"CACHE", "COPY_FREE_VARS", "EXTENDED_ARG", "NOP", "RESUME"}:
+                continue
+            if instruction.opname == "LOAD_CONST" and instruction.argval is None:
+                continue
+            if instruction.opname == "RETURN_CONST" and instruction.argval is None:
+                continue
+            if instruction.opname == "RETURN_VALUE":
+                continue
+            return True
+        return False
 
     @staticmethod
     def ExecuteParentEvent(

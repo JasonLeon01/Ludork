@@ -374,7 +374,11 @@ def AddAnim(
     _spawnAnim(animName, Vector2f(*position), rotation, scale)
 
 
-@Meta(DisplayName='LOC("ADD_ANIM_ON")', DisplayDesc='LOC("ADD_ANIM_ON_DESC")', Vector2fVars=["scale"])
+@Meta(
+    DisplayName='LOC("ADD_ANIM_ON")',
+    DisplayDesc='LOC("ADD_ANIM_ON_DESC")',
+    Vector2fVars=["scale"],
+)
 @ExecSplit(default=(None,))
 def AddAnimOn(animName: str, actorTag: str, rotation: float = 0.0, scale: Pair[float] = (1.0, 1.0)) -> None:
     r"""\brief Spawn an animation at an actor's current position.
@@ -384,10 +388,17 @@ def AddAnimOn(animName: str, actorTag: str, rotation: float = 0.0, scale: Pair[f
     - \param rotation The rotation in degrees.
     - \param scale The scale as (x, y).
     """
+    from Engine import CellSize
+
     actor = _getActorByTag(actorTag)
     if actor is None:
         raise ValueError(f"Actor with tag '{actorTag}' not found")
-    _spawnAnim(animName, actor.getPosition(), rotation, scale)
+    _spawnAnim(
+        animName,
+        actor.getPosition() + Vector2f(CellSize, CellSize) * 0.5,
+        rotation,
+        scale,
+    )
 
 
 @Meta(DisplayName='LOC("GET_ANIM_LENGTH")', DisplayDesc='LOC("GET_ANIM_LENGTH_DESC")')

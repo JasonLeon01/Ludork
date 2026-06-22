@@ -101,6 +101,19 @@ def _isMovementFinished(actor: Optional[Actor]) -> bool:
     return not actor.isMoving() and not actor.isInRoute()
 
 
+def _isMovementBlocked(actor: Optional[Actor]) -> bool:
+    if actor is None:
+        return True
+    getForbiddenMoving = getattr(actor, "getForbiddenMoving", None)
+    if callable(getForbiddenMoving) and getForbiddenMoving():
+        return True
+    gameMap = actor.getMap()
+    if gameMap is None:
+        return False
+    scene = gameMap.getScene()
+    return scene is not None and scene.isInputBlocked()
+
+
 @Meta(DisplayName='LOC("SET_MOVE_ROUTE")', DisplayDesc='LOC("SET_MOVE_ROUTE_DESC")', MoveRouteVars=["route"])
 @Latent(Started=(_LATENT_STARTED,), Finished=(_LATENT_FINISHED,))
 def SetMoveRoute(actor: Actor, route: List[Vector2i] = []) -> Callable[[], List[int]]:
@@ -110,7 +123,7 @@ def SetMoveRoute(actor: Actor, route: List[Vector2i] = []) -> Callable[[], List[
     - \param route List of grid offsets, or `None` to clear the route.
     - \return A condition callable that emits Started immediately and Finished after movement ends.
     """
-    if actor is not None:
+    if actor is not None and not _isMovementBlocked(actor):
         actor.setRoute(route)
     return _MovementCondition(actor)
 
@@ -131,6 +144,6 @@ def SetAutoPathToDestination(
     - \return A condition callable that emits Started immediately and Finished after movement ends.
     """
     target = _toVector2i(destination)
-    if actor is not None and target is not None:
+    if actor is not None and target is not None and not _isMovementBlocked(actor):
         actor.setRoute(_buildRouteToDestination(actor, target))
     return _MovementCondition(actor)

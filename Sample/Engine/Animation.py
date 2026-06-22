@@ -83,8 +83,10 @@ class AnimSprite(Sprite):
         self._finished: bool = False
         self._duration: float = 0.0
         self._visualDuration: float = 0.0
+        self._spriteReady: bool = False
         self.setData(animationData)
         super().__init__(self._texture)
+        self._spriteReady = True
 
     def setData(self, animationData: Dict[str, Any]) -> None:
         r"""
@@ -189,7 +191,8 @@ class AnimSprite(Sprite):
             self._frames[frameIndex] = image
         if self._texture is None:
             self._texture = Texture(image)
-            self.setTexture(self._texture, True)
+            if self._spriteReady:
+                self.setTexture(self._texture, True)
             return
         self._texture.update(image)
 

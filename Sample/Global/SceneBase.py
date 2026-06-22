@@ -40,6 +40,7 @@ class SceneBase:
         self._logicStopEvent: threading.Event = threading.Event()
         self._logicDataLock: threading.RLock = threading.RLock()
         self._hotKeyFilter: Optional[str] = None
+        self._blockingTimerCount: int = 0
 
     def onEnter(self) -> None:
         r"""\brief Called when the scene becomes active.
@@ -99,22 +100,40 @@ class SceneBase:
         self._hotKeyFilter = hotKeyFilter
 
     @Latent(TimeUp=(True,))
-    def addTimer(self, interval: float, task: Optional[Callable] = None, params: List[Any] = []) -> Callable[[], bool]:
+    def addTimer(
+        self,
+        interval: float,
+        task: Optional[Callable] = None,
+        params: List[Any] = [],
+        blocking: bool = False,
+    ) -> Callable[[], bool]:
         r"""\brief Add a timer that fires after the specified interval.
 
         - \param interval Time in seconds before the timer fires.
         - \param task Optional callable to invoke when the timer fires.
         - \param params Optional list of parameters passed to the task.
+        - \param blocking Whether scene input should be blocked until this timer fires.
         - \return A callable condition function that returns True when the timer fires.
         """
         with self._logicDataLock:
-            taskEntry = TimerTaskEntry(interval, task, params)
+            taskEntry = TimerTaskEntry(interval, task, params, bool(blocking))
             self._timerTasks.append(taskEntry)
+            if taskEntry.blocking:
+                self._blockingTimerCount += 1
 
         def condition() -> bool:
             return taskEntry.time <= 0
 
         return condition
+
+    @ReturnType(blocked=bool)
+    def isInputBlocked(self) -> bool:
+        r"""\brief Check whether scene-level input is blocked by a timer.
+
+        - \return True while any blocking timer is still waiting.
+        """
+        with self._logicDataLock:
+            return self._blockingTimerCount > 0
 
     @ExecSplit(default=(None,))
     def addAnim(self, anim: Animation) -> None:
@@ -197,6 +216,7 @@ class SceneBase:
                     if taskEntry.task is not None and inspect.isfunction(taskEntry.task):
                         taskEntry.task(*taskEntry.params)
                     self._timerTasks.remove(taskEntry)
+                    self._releaseBlockingTimer(taskEntry)
             if len(self._animList) > 0:
                 for anim in self._animList[:]:
                     if anim.isFinished():
@@ -268,6 +288,8 @@ class SceneBase:
                 time.sleep(remain)
 
     def _hotKeyHandle(self) -> None:
+        if self.isInputBlocked():
+            return
         from Source.Config import HotKey
 
         for key, hotKeyConfig in HotKey.items():
@@ -296,3 +318,9 @@ class SceneBase:
         if not isinstance(hotKeyFilter, list):
             return False
         return self._hotKeyFilter in hotKeyFilter
+
+    def _releaseBlockingTimer(self, taskEntry: TimerTaskEntry) -> None:
+        if not taskEntry.blocking:
+            return
+        taskEntry.blocking = False
+        self._blockingTimerCount = max(0, self._blockingTimerCount - 1)

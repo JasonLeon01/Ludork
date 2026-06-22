@@ -7,10 +7,17 @@ from Engine import Time, Clock
 class TimerTaskEntry:
     r"""\brief Represents a scheduled timer task."""
 
-    def __init__(self, time: float, task: Optional[Callable], params: List[Any]) -> None:
+    def __init__(
+        self,
+        time: float,
+        task: Optional[Callable],
+        params: List[Any],
+        blocking: bool = False,
+    ) -> None:
         self.time = time
         self.task = task
         self.params = params
+        self.blocking = blocking
 
 
 class TimeManager:

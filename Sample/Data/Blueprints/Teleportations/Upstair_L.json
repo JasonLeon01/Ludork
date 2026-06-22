@@ -1,0 +1,137 @@
+{
+    "parent": "Source.Teleporter.Teleporter",
+    "attrs": {
+        "material": {
+            "lightBlock": 0.2,
+            "mirror": false,
+            "reflectionStrength": 0.5,
+            "opacity": 1.0,
+            "speedRate": 1.0
+        },
+        "texturePath": "Blocks/stairs.png",
+        "defaultRect": [
+            [
+                32,
+                0
+            ],
+            [
+                32,
+                32
+            ]
+        ],
+        "Offset": [
+            -1,
+            0
+        ]
+    },
+    "graph": {
+        "nodeGraph": {
+            "onCollision": {
+                "nodes": [],
+                "links": []
+            },
+            "onCreate": {
+                "nodes": [],
+                "links": []
+            },
+            "onDestroy": {
+                "nodes": [],
+                "links": []
+            },
+            "onFixedTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onLateTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onOverlap": {
+                "nodes": [
+                    {
+                        "nodeFunction": "GoUpstairs",
+                        "params": [
+                            ""
+                        ],
+                        "pos": [
+                            720,
+                            314
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.Utils.SELF",
+                        "params": [],
+                        "pos": [
+                            0,
+                            814
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.Player.MeetPlayer",
+                        "params": [
+                            ""
+                        ],
+                        "pos": [
+                            -720,
+                            564
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.Utils.IF",
+                        "params": [
+                            ""
+                        ],
+                        "pos": [
+                            0,
+                            314
+                        ]
+                    }
+                ],
+                "links": [
+                    {
+                        "left": 1,
+                        "right": 0,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Params"
+                    },
+                    {
+                        "left": "default_0",
+                        "right": 2,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Params"
+                    },
+                    {
+                        "left": 2,
+                        "right": 3,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Params"
+                    },
+                    {
+                        "left": 3,
+                        "right": 0,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Exec"
+                    }
+                ]
+            },
+            "onTick": {
+                "nodes": [],
+                "links": []
+            }
+        },
+        "startNodes": {
+            "onCollision": null,
+            "onCreate": null,
+            "onDestroy": null,
+            "onFixedTick": null,
+            "onLateTick": null,
+            "onOverlap": 3,
+            "onTick": null
+        }
+    },
+    "type": "blueprint"
+}

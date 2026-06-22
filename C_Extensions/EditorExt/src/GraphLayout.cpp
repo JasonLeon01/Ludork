@@ -15,10 +15,11 @@ namespace {
 
 struct GraphLayoutOptions {
     double xStep = 720.0;
-    double yStep = 250.0;
+    double yStep = 320.0;
     double defaultParamYStep = 64.0;
     double defaultParamStartY = 64.0;
     double startGap = 250.0;
+    double columnPadding = 24.0;
 };
 
 using Position = std::pair<double, double>;
@@ -211,6 +212,16 @@ NodeRelyMap buildNodeRelyMap(const py::dict &nodeRely) {
     return result;
 }
 
+double resolveNodeHeight(int nodeIdx, int nodeCount, const std::vector<double> &nodeHeights,
+                         const GraphLayoutOptions &options) {
+    if (nodeIdx >= 0 && nodeIdx < nodeCount &&
+        nodeIdx < static_cast<int>(nodeHeights.size()) &&
+        nodeHeights[static_cast<std::size_t>(nodeIdx)] > 0.0) {
+        return nodeHeights[static_cast<std::size_t>(nodeIdx)];
+    }
+    return options.yStep;
+}
+
 void ensureParamProvider(int providerIdx, int consumerIdx, double laneY, const NodeRelyMap &nodeRely,
                          PositionStore &positions, int &nextLane, double startY,
                          const GraphLayoutOptions &options) {
@@ -221,11 +232,7 @@ void ensureParamProvider(int providerIdx, int consumerIdx, double laneY, const N
     double targetX = consumerPos.first - options.xStep;
     if (positions.hasNode(providerIdx)) {
         Position &providerPos = positions.node(providerIdx);
-        if (std::abs(providerPos.second - laneY) < 1.0) {
-            providerPos = {std::min(providerPos.first, targetX), laneY};
-        } else {
-            providerPos = {std::min(providerPos.first, targetX), std::min(providerPos.second, laneY)};
-        }
+        providerPos.first = std::min(providerPos.first, targetX);
     } else {
         positions.setNode(providerIdx, targetX, laneY);
     }
@@ -353,12 +360,57 @@ int computeParamLaneCount(const PositionStore &positions, double startAnchorY, i
     return paramLaneCount;
 }
 
+void resolveColumnOverlaps(PositionStore &positions, int nodeCount, const std::vector<double> &nodeHeights,
+                           const GraphLayoutOptions &options) {
+    std::vector<int> keys = positions.sortedNodeKeysByPos();
+    if (keys.size() <= 1) {
+        return;
+    }
+
+    std::vector<int> column;
+    double columnX = positions.node(keys.front()).first;
+    const auto resolveColumn = [&]() {
+        if (column.size() <= 1) {
+            return;
+        }
+        std::sort(column.begin(), column.end(), [&positions](int left, int right) {
+            return positions.node(left).second < positions.node(right).second;
+        });
+        for (std::size_t index = 1; index < column.size(); ++index) {
+            int upperIdx = column[index - 1];
+            int lowerIdx = column[index];
+            double minLowerY = positions.node(upperIdx).second + resolveNodeHeight(upperIdx, nodeCount, nodeHeights, options) +
+                               options.columnPadding;
+            double &lowerY = positions.node(lowerIdx).second;
+            if (lowerY < minLowerY) {
+                lowerY = minLowerY;
+            }
+        }
+    };
+
+    for (int key : keys) {
+        double x = positions.node(key).first;
+        if (column.empty() || std::abs(x - columnX) < 1.0) {
+            if (column.empty()) {
+                columnX = x;
+            }
+            column.push_back(key);
+            continue;
+        }
+        resolveColumn();
+        column = {key};
+        columnX = x;
+    }
+    resolveColumn();
+}
+
 } // namespace
 
 py::dict C_ComputeGraphLayoutPositions(int nodeCount, py::list links, py::dict nodeRely, py::object startIdx,
-                                       int defaultParamCount, double xStep, double yStep, double defaultParamYStep,
-                                       double defaultParamStartY, double startGap) {
-    GraphLayoutOptions options{xStep, yStep, defaultParamYStep, defaultParamStartY, startGap};
+                                       int defaultParamCount, const std::vector<double> &nodeHeights, double xStep,
+                                       double yStep, double defaultParamYStep, double defaultParamStartY, double startGap,
+                                       double columnPadding) {
+    GraphLayoutOptions options{xStep, yStep, defaultParamYStep, defaultParamStartY, startGap, columnPadding};
     PositionStore positions;
     for (int idx = 0; idx < defaultParamCount; ++idx) {
         positions.setDefault(idx, 0.0, options.defaultParamStartY + idx * options.defaultParamYStep);
@@ -387,5 +439,6 @@ py::dict C_ComputeGraphLayoutPositions(int nodeCount, py::list links, py::dict n
     layoutParamProviders(parsedNodeRely, positions, startAnchorY, options);
     int paramLaneCount = computeParamLaneCount(positions, startAnchorY, execNodeCount, options);
     layoutRemainingNodes(nodeCount, positions, startAnchorY, paramLaneCount, options);
+    resolveColumnOverlaps(positions, nodeCount, nodeHeights, options);
     return positions.toDict();
 }

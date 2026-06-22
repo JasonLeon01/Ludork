@@ -39,6 +39,18 @@ def _getSceneMap():
     return scene
 
 
+def _getBlueprintOwner(refLocal) -> Optional[Any]:
+    graph = refLocal.get("__graph__")
+    if graph is None:
+        return None
+    parent = getattr(graph, "parent", None)
+    if parent is None:
+        return None
+    if hasattr(parent, "getOwner"):
+        return parent.getOwner()
+    return parent
+
+
 @Meta(
     DisplayName='LOC("GOTO_MAP")',
     DisplayDesc='LOC("GOTO_MAP_DESC")',
@@ -68,6 +80,25 @@ def GameOver() -> None:
     from Source.Scenes import GameOver as GameOverScene
 
     System.setScene(GameOverScene())
+
+
+@Meta(DisplayName='LOC("ADD_TIMER")', DisplayDesc='LOC("ADD_TIMER_DESC")')
+@Latent(TimeUp=(True,))
+def AddTimer(interval: float, blocking: bool = False) -> Callable[[], bool]:
+    r"""\brief Add a timer on the current scene.
+
+    - \param interval Time in seconds before the timer fires.
+    - \param blocking Whether scene input should be blocked until the timer fires.
+    - \return A condition callable that becomes True when the timer fires.
+    """
+    scene = System.getScene()
+    if scene is not None:
+        return scene.addTimer(float(interval), blocking=bool(blocking))
+
+    def condition() -> bool:
+        return True
+
+    return condition
 
 
 @Meta(DisplayName='LOC("SHOW_MESSAGE")', DisplayDesc='LOC("SHOW_MESSAGE_DESC")')
@@ -164,6 +195,47 @@ def RecordTelepoint(mapPath: str, x: int = 0, y: int = 0) -> None:
         scene.inst.recordTelepoint(mapPath, Vector2u(int(x), int(y)))
 
 
+@Meta(
+    DisplayName='LOC("CREATE_ACTOR_FROM_BP_PATH")',
+    DisplayDesc='LOC("CREATE_ACTOR_FROM_BP_PATH_DESC")',
+    Vector2iVars=["position"],
+)
+@ExecSplit(default=(None,))
+@ReturnType(actor=Optional[Actor])
+def CreateActorFromBPPath(
+    bpPath: str,
+    layerName: str = "default",
+    position: Optional[Union[Vector2i, Vector2u, Pair[int], List[int], Tuple[int, int]]] = None,
+    tag: Optional[str] = None,
+    emitCreateEvent: bool = True,
+) -> Optional[Actor]:
+    r"""\brief Create an actor from a blueprint path and spawn it on the current map.
+
+    - \param bpPath The blueprint class path, such as Data.Blueprints.Enemies.BP_Enemy_redKing.
+    - \param layerName The layer name to place the created actor on.
+    - \param position Optional tile coordinate for the created actor.
+    - \param tag Optional tag string for the created actor.
+    - \param emitCreateEvent Whether to run the actor's onCreate blueprint event.
+    - \return The created actor instance, or None when the actor cannot be created.
+    """
+    from Source import Data
+
+    scene = System.getScene()
+    if not scene or not hasattr(scene, "getGameMap"):
+        return None
+    gameMap = scene.getGameMap()
+    if gameMap is None:
+        return None
+    actor = Data.genActorFromClassPath(bpPath, tag)
+    if actor is None:
+        return None
+    mapPosition = _posToVector2u(position)
+    if mapPosition is not None:
+        actor.setMapPosition(mapPosition)
+    gameMap.spawnActor(actor, layerName, emitCreateEvent)
+    return actor
+
+
 @Meta(DisplayName='LOC("DESTROY_TERRAIN")', DisplayDesc='LOC("DESTROY_TERRAIN_DESC")', Vector2iVars=["position"])
 @ExecSplit(default=(None,))
 def DestroyTerrain(
@@ -232,6 +304,54 @@ def GetTerrainTilePositions(layerName: str, tileID: Any = None) -> List[Vector2i
         if gameMap is not None:
             return gameMap.getTerrainTilePositions(layerName, _evalTerrainTileID(tileID))
     return []
+
+
+@Meta(DisplayName='LOC("RECORD_DESTROYED_ACTOR")', DisplayDesc='LOC("RECORD_DESTROYED_ACTOR_DESC")')
+@ExecSplit(default=(None,))
+def RecordDestroyedActor(actor: Actor) -> None:
+    r"""\brief Record a destroyed actor for persistence on the current map scene.
+
+    - \param actor The destroyed actor.
+    """
+    scene = _getSceneMap()
+    scene.recordDestroyedActor(actor)
+
+
+@Meta(DisplayName='LOC("SELF_RECORD_DESTROYED")', DisplayDesc='LOC("SELF_RECORD_DESTROYED_DESC")')
+@ExecSplit(default=(None,))
+def SelfRecordDestroyed() -> None:
+    r"""\brief Record the blueprint owner as a destroyed actor for persistence on the current map scene.
+    """
+    actor = _getBlueprintOwner(SelfRecordDestroyed._refLocal)
+    if actor is None:
+        return
+    scene = _getSceneMap()
+    scene.recordDestroyedActor(actor)
+
+
+@Meta(DisplayName='LOC("RECORD_AND_DESTROY_ACTOR")', DisplayDesc='LOC("RECORD_AND_DESTROY_ACTOR_DESC")')
+@ExecSplit(default=(None,))
+def RecordAndDestroyActor(actor: Actor) -> None:
+    r"""\brief Record a destroyed actor for persistence and destroy it on the current map scene.
+
+    - \param actor The actor to record and destroy.
+    """
+    scene = _getSceneMap()
+    scene.recordDestroyedActor(actor)
+    actor.destroy()
+
+
+@Meta(DisplayName='LOC("SELF_RECORD_AND_DESTROY")', DisplayDesc='LOC("SELF_RECORD_AND_DESTROY_DESC")')
+@ExecSplit(default=(None,))
+def SelfRecordAndDestroy() -> None:
+    r"""\brief Record the blueprint owner as destroyed for persistence and destroy it on the current map scene.
+    """
+    actor = _getBlueprintOwner(SelfRecordAndDestroy._refLocal)
+    if actor is None:
+        return
+    scene = _getSceneMap()
+    scene.recordDestroyedActor(actor)
+    actor.destroy()
 
 
 @Meta(DisplayName='LOC("OPEN_SHOP")', DisplayDesc='LOC("OPEN_SHOP_DESC")')

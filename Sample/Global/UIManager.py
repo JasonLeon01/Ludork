@@ -71,6 +71,7 @@ class UIManager:
     def _renderHandle(self, deltaTime: float, overlayRenderer: Optional[Callable[[], None]] = None) -> None:
         from Engine.UI import Canvas
 
+        System.applyScreenTonePass()
         sortedUIs = sorted(self._UIs, key=lambda item: item.getZOrder() if isinstance(item, Canvas) else 0)
         for ui in sortedUIs:
             if ui.getVisible():

@@ -88,21 +88,53 @@ def formatNodeParamDefault(value: Any) -> str:
     return str(value)
 
 
-def makeNodeParamsFromSignature(func: Callable) -> List[str]:
+def isBoolParamType(paramType: Any) -> bool:
+    return paramType is bool or paramType == "bool"
+
+
+def formatNodeParamInitialValue(paramType: Any, default: Any) -> Any:
+    if default is inspect.Parameter.empty:
+        if isBoolParamType(paramType):
+            return False
+        return ""
+    if isBoolParamType(paramType):
+        boolVal = toBool(default)
+        if boolVal is not None:
+            return boolVal
+    return formatNodeParamDefault(default)
+
+
+def makeNodeParamsFromSignature(func: Callable) -> List[Any]:
     sig = inspect.signature(func)
-    params: List[str] = []
+    params: List[Any] = []
     for _name, param in sig.parameters.items():
-        params.append(formatNodeParamDefault(param.default))
+        paramType = param.annotation
+        if paramType == inspect.Parameter.empty:
+            paramType = type(None)
+        params.append(formatNodeParamInitialValue(paramType, param.default))
     return params
+
+
+def normaliseNodeParamValue(node: GraphNode, paramName: str, value: Any) -> Any:
+    paramType = node.getParamList().get(paramName)
+    if isBoolParamType(paramType):
+        boolVal = toBool(value)
+        if boolVal is not None:
+            return boolVal
+    return value
 
 
 def getNodeParamValue(node: GraphNode, paramIndex: int, paramName: str) -> Any:
     if paramIndex < len(node.params):
-        return node.params[paramIndex]
+        return normaliseNodeParamValue(node, paramName, node.params[paramIndex])
     paramDefaults = node.getParamDefaults()
     if paramName in paramDefaults:
-        return formatNodeParamDefault(paramDefaults[paramName])
-    return ""
+        return normaliseNodeParamValue(
+            node,
+            paramName,
+            formatNodeParamInitialValue(node.getParamList().get(paramName), paramDefaults[paramName]),
+        )
+    return formatNodeParamInitialValue(node.getParamList().get(paramName), inspect.Parameter.empty)
 
 
 def _patchDetachedNodePaintGuard() -> None:
@@ -982,6 +1014,8 @@ class NodePanel(QtWidgets.QWidget):
                 if w:
                     le = w.get_custom_widget()
                     val = getNodeParamValue(node, paramIndex, name)
+                    if paramIndex < len(node.params) and node.params[paramIndex] != val:
+                        node.params[paramIndex] = val
                     if isinstance(le, QtWidgets.QLineEdit):
                         le.setText(str(val))
                         le.editingFinished.connect(
@@ -1197,6 +1231,7 @@ class NodePanel(QtWidgets.QWidget):
     def organizeLayout(self) -> None:
         if not self.nodes:
             return
+        self.nodeGraph.genRelationsFromLinks()
         positions = self._computeOrganizedPositions()
         if not positions:
             return
@@ -1206,6 +1241,17 @@ class NodePanel(QtWidgets.QWidget):
             nodeInst.set_selected(True)
         QtCore.QTimer.singleShot(0, self.graph.fit_to_selection)
         self.graph.clear_selection()
+
+    def _estimateLayoutNodeHeights(self) -> List[float]:
+        baseHeight = 80.0
+        execHeader = 40.0
+        portRow = 34.0
+        heights: List[float] = []
+        for nodeInst in self.nodes:
+            inputs = nodeInst.inputs()
+            inputCount = len(inputs) if isinstance(inputs, dict) else 0
+            heights.append(baseHeight + execHeader + max(inputCount, 1) * portRow)
+        return heights
 
     def _computeOrganizedPositions(self) -> Dict[Union[int, str], Tuple[float, float]]:
         nodeRely = self.nodeGraph.nodeRely.get(self.key, {})
@@ -1217,6 +1263,7 @@ class NodePanel(QtWidgets.QWidget):
             nodeRely,
             self._getStartIndex(),
             len(self.defaultNodes),
+            self._estimateLayoutNodeHeights(),
         )
 
     def _applyOrganizedPositions(self, positions: Dict[Union[int, str], Tuple[float, float]]) -> None:

@@ -4,7 +4,7 @@ r"""\brief GameMap: manages tile layers, actors, lights, collisions, and pathfin
 from __future__ import annotations
 from collections import deque
 import copy
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 import Engine
 from Engine import (
     Pair,
@@ -25,7 +25,7 @@ from Engine import (
     ZeroVector2f,
     Material,
 )
-from Engine.Utils import Math
+from Engine.Utils import Inner, Math
 from Engine.Utils.Inner import IS_IOS_PLATFORM, warnIosShaderSkippedOnce
 from Engine.Gameplay import Tilemap, TileLayer
 from Engine.Gameplay.Actors import Actor, Character
@@ -348,6 +348,30 @@ class GameMap(GameMapExt):
         self._materialDirty = True
         if emitCreateEvent and not self._initialisingActors:
             self.initialiseActorsAndComponents()
+
+    @ExecSplit(default=(None,))
+    @ReturnType(actor=Actor)
+    def createActor(
+        self,
+        actorClass: Type[Actor],
+        layer: str,
+        kwargs: Optional[Dict[str, Any]] = None,
+        emitCreateEvent: bool = True,
+    ) -> Actor:
+        r"""\brief Create an actor instance from a class and spawn it on a layer.
+
+        - \param actorClass The actor class to instantiate.
+        - \param layer The layer name to place the created actor on.
+        - \param kwargs Optional keyword arguments passed to the actor constructor.
+        - \param emitCreateEvent Whether to run the actor's onCreate blueprint event.
+        - \return The created actor instance.
+        """
+        actorKwargs = {} if kwargs is None else dict(kwargs)
+        actor = actorClass(**actorKwargs)
+        if isinstance(actor.material, dict):
+            actor.material = Material(**Inner.filterDataClassParams(actor.material, Material))
+        self.spawnActor(actor, layer, emitCreateEvent)
+        return actor
 
     def initialiseActorsAndComponents(self) -> None:
         r"""\brief Initialise pending actor create events and actor components recursively."""
@@ -748,7 +772,56 @@ class GameMap(GameMapExt):
         self.tileDataRef = self._tilemap.getTilesData()
         self.autoTileDataRef = self._tilemap.getAutoTilesData()
         self.actorsRef = self._actors
-        return self.findPathExt(start, goal, size)
+        oldGetCollisionEnabled = self.getCollisionEnabled
+        self.getCollisionEnabled = self._getPathfindingCollisionEnabled
+        try:
+            return self.findPathExt(start, goal, size)
+        finally:
+            self.getCollisionEnabled = oldGetCollisionEnabled
+
+    @ReturnType(passable=bool)
+    def isPathfindingPassable(self, actor: Actor, targetPosition: Vector2i) -> bool:
+        r"""\brief Check if a target position is passable for automatic pathfinding.
+
+        Automatic pathfinding treats non-colliding actors with implemented
+        `onOverlap` events as blockers so routes do not step onto interactive
+        triggers by accident.
+
+        - \param actor The moving actor.
+        - \param targetPosition The target map position.
+        - \return True if automatic pathfinding may route through the position.
+        """
+        if not self.isPassable(actor, targetPosition):
+            return False
+        return not self.hasPathBlockingOverlapActor(actor, targetPosition)
+
+    @ReturnType(hasActor=bool)
+    def hasPathBlockingOverlapActor(self, actor: Actor, targetPosition: Vector2i) -> bool:
+        r"""\brief Check whether a cell contains an overlap-event actor that blocks auto pathfinding.
+
+        - \param actor The moving actor.
+        - \param targetPosition The target map position.
+        - \return True if the position has a non-colliding actor with implemented `onOverlap`.
+        """
+        if self._tilePassableGrid is None or self._occupancyMap is None or self._materialDirty:
+            self._rebuildPassabilityCache()
+            self._materialDirty = False
+        descendantActorIDs = self._getDescendantActorIDs(actor)
+        for other in self._occupancyMap.get((targetPosition.x, targetPosition.y), []):
+            if other is actor:
+                continue
+            if id(other) in descendantActorIDs:
+                continue
+            if other.isDestroyed():
+                continue
+            if self._getPathfindingCollisionEnabled(other) and not other.getCollisionEnabled():
+                return True
+        return False
+
+    def _getPathfindingCollisionEnabled(self, actor: Actor) -> bool:
+        if actor is None or actor.isDestroyed():
+            return False
+        return actor.getCollisionEnabled() or Actor.HasBlueprintEvent(actor, "onOverlap")
 
     @ReturnType(scene=SceneBase)
     def getScene(self) -> SceneBase:

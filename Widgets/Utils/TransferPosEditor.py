@@ -15,6 +15,35 @@ from .DialogUtils import getIndependentDialogParent, isWidgetValid
 from .MoveRouteEditor import _RouteMapData, _loadGameLocaleDict, _formatGameString
 
 
+def _normaliseMapKey(mapKey: str) -> str:
+    path = str(mapKey).replace("\\", "/")
+    while path.startswith("./"):
+        path = path[2:]
+    marker = "Data/Maps/"
+    markerIndex = path.find(marker)
+    if markerIndex != -1:
+        path = path[markerIndex + len(marker) :]
+    return os.path.splitext(path)[0]
+
+
+def _resolveMapFilePath(mapKey: str) -> str:
+    path = str(mapKey).replace("\\", "/")
+    while path.startswith("./"):
+        path = path[2:]
+    marker = "Data/Maps/"
+    markerIndex = path.find(marker)
+    if markerIndex != -1:
+        path = path[markerIndex + len(marker) :]
+    if os.path.splitext(path)[1]:
+        return path
+    mapsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
+    for ext in (".dat", ".json"):
+        candidate = f"{path}{ext}"
+        if os.path.isfile(os.path.join(mapsRoot, candidate)):
+            return candidate
+    return f"{path}.dat"
+
+
 class TransferPosMapView(QtWidgets.QWidget):
     r"""Map view widget for picking a single tile coordinate."""
 
@@ -324,6 +353,7 @@ class TransferPosPickDialog(QtWidgets.QDialog):
         self._mapList.clear()
         localeDict = _loadGameLocaleDict()
         preferRow = -1
+        preferMapKey = _normaliseMapKey(preferKey) if preferKey else ""
         for row, key in enumerate(sorted(GameData.mapData.keys())):
             data = GameData.mapData.get(key)
             if not isinstance(data, dict):
@@ -334,7 +364,7 @@ class TransferPosPickDialog(QtWidgets.QDialog):
             item.setData(QtCore.Qt.UserRole, key)
             item.setToolTip(key)
             self._mapList.addItem(item)
-            if key == preferKey:
+            if key == preferMapKey:
                 preferRow = self._mapList.count() - 1
 
         if preferRow >= 0:
@@ -451,7 +481,7 @@ class TransferPosEditor(QtWidgets.QWidget):
         if selectedMapKey:
             currentMapKey = self._mapKeyGetter()
             if not currentMapKey or not _mapKeyIsValid(currentMapKey):
-                self.MAP_KEY_CHANGED.emit(selectedMapKey)
+                self.MAP_KEY_CHANGED.emit(_resolveMapFilePath(selectedMapKey))
 
     def _refreshSummary(self) -> None:
         if self._value is None:
@@ -477,4 +507,5 @@ def _normalisePos(value: Any) -> Optional[Tuple[int, int]]:
 
 
 def _mapKeyIsValid(key: str) -> bool:
-    return bool(key) and GameData.mapData.get(key) is not None
+    mapKey = _normaliseMapKey(key)
+    return bool(mapKey) and GameData.mapData.get(mapKey) is not None

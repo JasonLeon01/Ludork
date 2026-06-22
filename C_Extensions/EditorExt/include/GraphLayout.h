@@ -17,12 +17,15 @@ namespace py = pybind11;
 /// - \param defaultParamYStep Vertical spacing between default parameter nodes
 /// - \param defaultParamStartY Starting Y for the first default parameter node
 /// - \param startGap Gap below default parameter nodes before exec layout
+/// - \param columnPadding Minimum vertical gap between nodes in the same column
 ///
 /// - \return Mapping of node index or ``default_N`` key to ``(x, y)`` positions
 ///
 ////////////////////////////////////////////////////////////
 py::dict C_ComputeGraphLayoutPositions(int nodeCount, py::list links, py::dict nodeRely,
                                        py::object startIdx, int defaultParamCount = 0,
-                                       double xStep = 720.0, double yStep = 250.0,
+                                       const std::vector<double> &nodeHeights = {},
+                                       double xStep = 720.0, double yStep = 320.0,
                                        double defaultParamYStep = 64.0,
-                                       double defaultParamStartY = 64.0, double startGap = 250.0);
+                                       double defaultParamStartY = 64.0, double startGap = 250.0,
+                                       double columnPadding = 24.0);

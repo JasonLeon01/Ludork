@@ -37,6 +37,8 @@ class _Data:
         animationRoot = os.path.join(".", "Data", "Animations")
         if not os.path.exists(animationRoot):
             raise FileNotFoundError(f"Error: Data path {animationRoot} does not exist.")
+        self._animationData.clear()
+        self._animCache.clear()
         files: list[str] = []
         for file in os.listdir(animationRoot):
             _, extensionPart = self.splitCompound(file)
@@ -51,6 +53,7 @@ class _Data:
             for future in as_completed(futures):
                 namePart, payload = future.result()
                 self._animationData[namePart] = payload
+                self._cacheAnimation(namePart, payload)
                 if onFileLoaded is not None:
                     onFileLoaded()
 
@@ -134,11 +137,19 @@ class _Data:
             if onFileLoaded is not None:
                 onFileLoaded()
 
+    def _cloneAnimationPayload(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        payload = data.copy()
+        if "frames" in payload:
+            payload["frames"] = list(payload.get("frames", []))
+        if "sounds" in payload:
+            payload["sounds"] = [entry.copy() for entry in payload.get("sounds", [])]
+        return payload
+
     def _cacheAnimation(self, name: str, data: Dict[str, Any]) -> None:
         if name in self._animCache:
             return
 
-        cachedData = copy.deepcopy(data)
+        cachedData = self._cloneAnimationPayload(data)
         frames = cachedData.get("frames", [])
         for i, frameData in enumerate(frames):
             if frameData and not isinstance(frameData, Image):
@@ -176,8 +187,10 @@ class _Data:
 
     def getAnimation(self, name: str) -> Dict[str, Any]:
         if name in self._animCache:
-            return self._animCache[name]
-        payload = copy.deepcopy(self._animationData[name])
+            source = self._animCache[name]
+        else:
+            source = self._animationData[name]
+        payload = self._cloneAnimationPayload(source)
         payload["cacheKey"] = name
         payload["cacheStore"] = self._animCache
         return payload

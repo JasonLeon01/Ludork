@@ -1145,7 +1145,7 @@ class GameData:
         if not isinstance(nodeFunction, str) or not isinstance(params, list):
             return
         rules = [
-            ((".AddPlayerByClass", ".RemovePlayerByClass"), 0, "blueprint", "", "nodeParam"),
+            ((".AddPlayerByClass", ".RemovePlayerByClass", ".CreateActorFromBPPath"), 0, "blueprint", "", "nodeParam"),
             ((".AddAnim", ".AddAnimOn", ".GetAnimLength"), 0, "animation", "", "nodeParam"),
             ((".RunCommonFunction",), 0, "commonFunction", "", "nodeParam"),
             ((".GotoMap",), 0, "map", "", "nodeParam"),

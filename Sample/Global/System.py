@@ -58,6 +58,15 @@ class System(SystemConfigBase):
     _flashDuration: float = 0.0
     _flashTimeCount: float = 0.0
     _flashActive: bool = False
+    _toneShader: Optional[Shader] = None
+    _toneCurrentColour: Vector4f = Vector4f(0.0, 0.0, 0.0, 0.0)
+    _toneStartColour: Vector4f = Vector4f(0.0, 0.0, 0.0, 0.0)
+    _toneTargetColour: Vector4f = Vector4f(0.0, 0.0, 0.0, 0.0)
+    _toneDuration: float = 0.0
+    _toneTimeCount: float = 0.0
+    _toneActive: bool = False
+    _toneBuffer: Optional[RenderTexture] = None
+    _toneBufferSprite: Optional[Sprite] = None
     _shakePower: float = 0.0
     _shakeSpeed: float = 0.0
     _shakeDuration: float = 0.0
@@ -333,6 +342,40 @@ class System(SystemConfigBase):
         cls._canvas.draw(drawable, states)
 
     @classmethod
+    def applyScreenTonePass(cls) -> None:
+        r"""\brief Apply the active screen tone to the main canvas before UI is drawn.
+
+        Tone is intentionally applied below UI so windows and HUD stay unaffected.
+        """
+        if IS_IOS_PLATFORM or not cls._toneActive or cls._toneShader is None:
+            return
+        if cls._isNeutralTone(cls._toneCurrentColour):
+            return
+
+        cls._canvas.display()
+        sourceTex = cls._canvas.getTexture()
+        size = cls._canvas.getSize()
+        buffer = cls._ensureToneBuffer(size)
+        sprite = cls._ensureToneBufferSprite()
+        sprite.setTexture(sourceTex, True)
+        sprite.setPosition(Vector2f(0.0, 0.0))
+        sprite.setScale(Vector2f(1.0, 1.0))
+        cls._toneShader.setUniform("screenTex", sourceTex)
+        cls._toneShader.setUniform("texSize", Math.ToVector2f(size))
+        cls._applyScreenToneUniform()
+        buffer.clear(Color.Transparent)
+        toneStates = Render.CanvasRenderStates()
+        toneStates.shader = cls._toneShader
+        buffer.draw(sprite, toneStates)
+        buffer.display()
+        savedView = cls._canvas.getView()
+        cls._canvas.clear(Color.Transparent)
+        cls._canvas.setView(cls._canvas.getDefaultView())
+        sprite.setTexture(buffer.getTexture(), True)
+        cls._canvas.draw(sprite, Render.CanvasRenderStates())
+        cls._canvas.setView(savedView)
+
+    @classmethod
     def display(cls, deltaTime: float) -> None:
         r"""\brief Display the canvas contents to the window.
 
@@ -343,6 +386,7 @@ class System(SystemConfigBase):
         if cls._inTransition:
             cls._transitionTimeCount = min(cls._transitionTimeCount + deltaTime, cls._transitionTime)
         cls._updateFlash(deltaTime)
+        cls._updateScreenTone(deltaTime)
         cls._updateShake(deltaTime)
         cls.updateWeather(deltaTime)
         cls.updateFog(deltaTime)
@@ -357,7 +401,7 @@ class System(SystemConfigBase):
                 if i > 0:
                     lastCanvas = cls.__graphicsCanvases[i - 1]
                 postShader = cls._graphicsShaders[i] if i < len(cls._graphicsShaders) else None
-                if postShader is None:
+                if postShader is None or postShader is cls._toneShader:
                     if IS_IOS_PLATFORM:
                         warnIosShaderSkippedOnce(
                             "System.display.postProcessShader",
@@ -366,9 +410,10 @@ class System(SystemConfigBase):
                     continue
                 postShader.setUniform("screenTex", lastCanvas.getTexture())
                 postShader.setUniform("texSize", Math.ToVector2f(lastCanvas.getTexture().getSize()))
-                states.shader = postShader
-                tempSprite = Sprite(canvas.getTexture())
-                canvas.draw(tempSprite, states)
+                postStates = Render.CanvasRenderStates()
+                postStates.shader = postShader
+                tempSprite = Sprite(lastCanvas.getTexture())
+                canvas.draw(tempSprite, postStates)
                 canvas.display()
             finalCanvas = cls.__graphicsCanvases[-1]
         cls._canvasSprite.setTexture(finalCanvas.getTexture())
@@ -389,7 +434,7 @@ class System(SystemConfigBase):
             )
         if cls._inTransition and cls._transitionShader:
             cls._transitionTempTexture.clear(Color.Transparent)
-            cls._transitionTempTexture.draw(cls._canvasSprite, states)
+            cls._transitionTempTexture.draw(cls._canvasSprite, Render.CanvasRenderStates())
             cls._transitionTempTexture.display()
             cls._transitionShader.setUniform("screenTex", cls._transitionTempTexture.getTexture())
             cls._transitionShader.setUniform("backTex", cls._transition)
@@ -404,7 +449,7 @@ class System(SystemConfigBase):
             transitionStates.shader = cls._transitionShader
             cls._window.draw(cls._transitionSprite, transitionStates)
         else:
-            cls._window.draw(cls._canvasSprite, states)
+            cls._window.draw(cls._canvasSprite, Render.CanvasRenderStates())
         if cls._shakeActive:
             cls._canvasSprite.setScale(Vector2f(1.0, 1.0))
             cls._canvasSprite.setPosition(Vector2f(0.0, 0.0))
@@ -526,6 +571,87 @@ class System(SystemConfigBase):
         - \return True if a flash is in progress.
         """
         return cls._flashActive
+
+    @classmethod
+    def changeScreenTone(
+        cls,
+        red: float = 0.0,
+        green: float = 0.0,
+        blue: float = 0.0,
+        gray: float = 0.0,
+        duration: float = 0.0,
+    ) -> None:
+        r"""\brief Change the screen tone over time using RMXP-style tone values.
+
+        Red, green, and blue shift the rendered screen by -255 to 255. Gray
+        desaturates the screen from 0 to 255. A duration of 0 applies the tone
+        immediately.
+
+        - \param red Red tone adjustment.
+        - \param green Green tone adjustment.
+        - \param blue Blue tone adjustment.
+        - \param gray Gray/desaturation amount.
+        - \param duration Time in seconds to reach the target tone.
+        """
+        if IS_IOS_PLATFORM:
+            warnIosShaderSkippedOnce(
+                "System.changeScreenTone",
+                "iOS: shaders are disabled; skipped screen tone effect",
+            )
+            return
+        if not cls._ensureToneShader():
+            return
+
+        targetColour = cls._makeToneColour(red, green, blue, gray)
+        cls._toneStartColour = cls._toneCurrentColour
+        cls._toneTargetColour = targetColour
+        cls._toneDuration = max(0.0, float(duration))
+        cls._toneTimeCount = 0.0
+
+        if not cls._toneActive:
+            cls._toneActive = True
+
+        if cls._toneDuration <= 0.0:
+            cls._toneCurrentColour = targetColour
+            cls._applyScreenToneUniform()
+            if cls._isNeutralTone(targetColour):
+                cls.stopScreenTone()
+        else:
+            cls._applyScreenToneUniform()
+
+    @classmethod
+    def clearScreenTone(cls, duration: float = 0.0) -> None:
+        r"""\brief Fade the screen tone back to normal.
+
+        - \param duration Time in seconds to return to the normal tone.
+        """
+        cls.changeScreenTone(0.0, 0.0, 0.0, 0.0, duration)
+
+    @classmethod
+    def stopScreenTone(cls) -> None:
+        r"""\brief Immediately remove any active screen tone effect."""
+        cls._toneCurrentColour = Vector4f(0.0, 0.0, 0.0, 0.0)
+        cls._toneStartColour = Vector4f(0.0, 0.0, 0.0, 0.0)
+        cls._toneTargetColour = Vector4f(0.0, 0.0, 0.0, 0.0)
+        cls._toneDuration = 0.0
+        cls._toneTimeCount = 0.0
+        cls._toneActive = False
+
+    @classmethod
+    def isScreenToneActive(cls) -> bool:
+        r"""\brief Check whether a screen tone effect is currently active.
+
+        - \return True if a non-neutral tone or tone transition is active.
+        """
+        return cls._toneActive
+
+    @classmethod
+    def isScreenToneTransitionComplete(cls) -> bool:
+        r"""\brief Check whether the current screen tone transition has finished.
+
+        - \return True when no timed tone transition is in progress.
+        """
+        return not cls._toneActive or cls._toneDuration <= 0.0
 
     @classmethod
     def startShake(cls, power: float = 4.0, speed: float = 10.0, duration: float = 0.5) -> None:
@@ -772,6 +898,79 @@ class System(SystemConfigBase):
         if cls._flashTimeCount >= cls._flashDuration:
             cls.removeGraphicsShader(cls._flashShader)
             cls._flashActive = False
+
+    @classmethod
+    def _updateScreenTone(cls, deltaTime: float) -> None:
+        if not cls._toneActive or cls._toneShader is None:
+            return
+        if cls._toneDuration > 0.0:
+            cls._toneTimeCount = min(cls._toneTimeCount + deltaTime, cls._toneDuration)
+            ratio = min(1.0, cls._toneTimeCount / cls._toneDuration)
+            cls._toneCurrentColour = Vector4f(
+                cls._toneStartColour.x + (cls._toneTargetColour.x - cls._toneStartColour.x) * ratio,
+                cls._toneStartColour.y + (cls._toneTargetColour.y - cls._toneStartColour.y) * ratio,
+                cls._toneStartColour.z + (cls._toneTargetColour.z - cls._toneStartColour.z) * ratio,
+                cls._toneStartColour.w + (cls._toneTargetColour.w - cls._toneStartColour.w) * ratio,
+            )
+        cls._applyScreenToneUniform()
+        if cls._toneDuration > 0.0 and cls._toneTimeCount >= cls._toneDuration:
+            cls._toneDuration = 0.0
+            if cls._isNeutralTone(cls._toneCurrentColour):
+                cls.stopScreenTone()
+
+    @classmethod
+    def _ensureToneShader(cls) -> bool:
+        if cls._toneShader is not None:
+            return True
+        from . import Manager
+
+        try:
+            cls._toneShader = Manager.ShaderManager.load("Tone.frag")
+        except Exception:
+            cls._toneShader = None
+            logging.error("%s", LOC("TONE_SHADER_LOAD_FAILED"))
+            return False
+        return cls._toneShader is not None
+
+    @classmethod
+    def _applyScreenToneUniform(cls) -> None:
+        if cls._toneShader is not None:
+            cls._toneShader.setUniform("toneColor", cls._toneCurrentColour)
+
+    @classmethod
+    def _ensureToneBuffer(cls, size) -> RenderTexture:
+        if cls._toneBuffer is None or cls._toneBuffer.getSize() != size:
+            cls._toneBuffer = RenderTexture(size)
+            cls._toneBufferSprite = Sprite(cls._toneBuffer.getTexture())
+        return cls._toneBuffer
+
+    @classmethod
+    def _ensureToneBufferSprite(cls) -> Sprite:
+        if cls._toneBufferSprite is None:
+            cls._toneBufferSprite = Sprite()
+        return cls._toneBufferSprite
+
+    @classmethod
+    def _makeToneColour(cls, red: float, green: float, blue: float, gray: float) -> Vector4f:
+        return Vector4f(
+            cls._clamp(float(red), -255.0, 255.0) / 255.0,
+            cls._clamp(float(green), -255.0, 255.0) / 255.0,
+            cls._clamp(float(blue), -255.0, 255.0) / 255.0,
+            cls._clamp(float(gray), 0.0, 255.0) / 255.0,
+        )
+
+    @classmethod
+    def _isNeutralTone(cls, toneColour: Vector4f) -> bool:
+        return (
+            abs(toneColour.x) <= 0.0001
+            and abs(toneColour.y) <= 0.0001
+            and abs(toneColour.z) <= 0.0001
+            and abs(toneColour.w) <= 0.0001
+        )
+
+    @classmethod
+    def _clamp(cls, value: float, minimum: float, maximum: float) -> float:
+        return max(minimum, min(maximum, value))
 
     @classmethod
     def _applyGraphicsShadersLength(cls) -> None:

@@ -152,6 +152,18 @@ def StopFlashScreen() -> None:
     GlobalSystem.stopFlash()
 
 
+@Meta(DisplayName='LOC("CHANGE_SCREEN_TONE")', DisplayDesc='LOC("CHANGE_SCREEN_TONE_DESC")')
+@ExecSplit(default=(None,))
+def ChangeScreenTone(red: int = 0, green: int = 0, blue: int = 0, gray: int = 0, duration: float = 0.0) -> None:
+    GlobalSystem.changeScreenTone(float(red), float(green), float(blue), float(gray), float(duration))
+
+
+@Meta(DisplayName='LOC("CLEAR_SCREEN_TONE")', DisplayDesc='LOC("CLEAR_SCREEN_TONE_DESC")')
+@ExecSplit(default=(None,))
+def ClearScreenTone(duration: float = 0.0) -> None:
+    GlobalSystem.clearScreenTone(float(duration))
+
+
 @Meta(DisplayName='LOC("SCREEN_SHAKE")', DisplayDesc='LOC("SCREEN_SHAKE_DESC")')
 @ExecSplit(default=(None,))
 def ScreenShake(power: float = 4.0, speed: float = 10.0, duration: float = 0.5) -> None:
