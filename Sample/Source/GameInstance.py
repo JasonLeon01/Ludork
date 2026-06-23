@@ -26,6 +26,8 @@ class GameInstance:
         self._variables: Dict[str, Any] = {}
         self._cachedMap: Optional[str] = None
         self._cachedNewItem: Dict[str, bool] = {}
+        self._cachedAddedActors: Dict[str, List[Dict[str, Any]]] = {}
+        self._cachedActorPositions: Dict[str, Dict[str, Tuple[int, int]]] = {}
         self._cachedDestroyedActors: Dict[str, List[str]] = {}
         self._cachedTerrainDestructions: Dict[str, Dict[str, Dict[Tuple[int, int], Union[int, str, None]]]] = {}
         self._cachedTelepoints: Dict[str, List[Tuple[int, int]]] = {}
@@ -41,6 +43,9 @@ class GameInstance:
             "players": [p.asDict() for p in self._players],
             "variables": self._variables,
             "map": Cast(str, self._cachedMap),
+            "obtainedItems": self._cachedNewItem,
+            "addedActors": self._cachedAddedActors,
+            "actorPositions": self._serialiseActorPositions(self._cachedActorPositions),
             "destroyedActors": self._cachedDestroyedActors,
             "destroyedTerrain": self._serialiseTerrainDestructions(self._cachedTerrainDestructions),
             "telepoints": self._cachedTelepoints,
@@ -63,9 +68,13 @@ class GameInstance:
         inst._players = [Player.FromDict(p) for p in data["players"]]
         inst._variables = data["variables"]
         inst._cachedMap = data["map"]
+        inst._cachedAddedActors = GameInstance._normaliseAddedActors(data.get("addedActors", {}))
+        inst._cachedActorPositions = GameInstance._normaliseActorPositions(data.get("actorPositions", {}))
         inst._cachedDestroyedActors = GameInstance._normaliseDestroyedActors(data["destroyedActors"])
         inst._cachedTerrainDestructions = GameInstance._normaliseTerrainDestructions(data.get("destroyedTerrain", {}))
-        inst._cachedNewItem = {}
+        inst._cachedNewItem = GameInstance._normaliseObtainedItems(
+            data.get("obtainedItems", data.get("cachedNewItem", {}))
+        )
         inst._cachedTelepoints = GameInstance._normaliseTelepoints(data.get("telepoints", {}))
         inst._screenshot = data.get("screenshot")
         return inst
@@ -197,6 +206,64 @@ class GameInstance:
         if pos:
             self._players[0].setMapPosition(pos)
 
+    def recordAddedActor(self, mapPath: str, actor: Actor, layerName: str) -> None:
+        r"""\brief Record an added actor for persistence.
+
+        - \param mapPath The map path where the actor was added.
+        - \param actor The added actor.
+        - \param layerName The actor layer name.
+        """
+        actorRecord = self._buildAddedActorRecord(actor, layerName)
+        if actorRecord is None:
+            return
+        mapPath = self._normaliseMapPath(mapPath)
+        actorTag = actorRecord["tag"]
+        if mapPath not in self._cachedAddedActors:
+            self._cachedAddedActors[mapPath] = []
+        self._cachedAddedActors[mapPath] = [
+            record for record in self._cachedAddedActors[mapPath] if record.get("tag") != actorTag
+        ]
+        self._cachedAddedActors[mapPath].append(actorRecord)
+
+    def getAddedActors(self, mapPath: str) -> List[Dict[str, Any]]:
+        r"""\brief Get added actor records for a map.
+
+        - \param mapPath The map path.
+        - \return A list of added actor records.
+        """
+        mapPath = self._normaliseMapPath(mapPath)
+        if mapPath not in self._cachedAddedActors:
+            return []
+        return self._cachedAddedActors[mapPath]
+
+    def recordActorPosition(self, mapPath: str, actor: Actor) -> None:
+        r"""\brief Record an actor position change for persistence.
+
+        - \param mapPath The map path where the actor moved.
+        - \param actor The moved actor.
+        """
+        mapPath = self._normaliseMapPath(mapPath)
+        actorTag = actor.tag
+        if not actorTag:
+            return
+        actorPosition = self._normaliseActorPosition(actor.getMapPosition())
+        if actorPosition is None:
+            return
+        if mapPath not in self._cachedActorPositions:
+            self._cachedActorPositions[mapPath] = {}
+        self._cachedActorPositions[mapPath][actorTag] = actorPosition
+
+    def getActorPositions(self, mapPath: str) -> Dict[str, Tuple[int, int]]:
+        r"""\brief Get actor position records for a map.
+
+        - \param mapPath The map path.
+        - \return Actor-tag-indexed position records.
+        """
+        mapPath = self._normaliseMapPath(mapPath)
+        if mapPath not in self._cachedActorPositions:
+            return {}
+        return self._cachedActorPositions[mapPath]
+
     def recordDestroyedActor(self, mapPath: str, actor: Actor) -> None:
         r"""\brief Record a destroyed actor for persistence.
 
@@ -281,6 +348,112 @@ class GameInstance:
         if not mapPath in self._cachedTelepoints:
             return []
         return self._cachedTelepoints[mapPath]
+
+    @staticmethod
+    def _buildAddedActorRecord(actor: Actor, layerName: str) -> Optional[Dict[str, Any]]:
+        actorTag = actor.tag
+        if not actorTag:
+            return None
+        actorPosition = GameInstance._normaliseActorPosition(actor.getMapPosition())
+        if actorPosition is None:
+            return None
+        bpPath = GameInstance._resolveActorClassPath(actor)
+        if not bpPath:
+            return None
+        return {
+            "bp": bpPath,
+            "layer": str(layerName or "default"),
+            "position": [actorPosition[0], actorPosition[1]],
+            "tag": actorTag,
+        }
+
+    @staticmethod
+    def _resolveActorClassPath(actor: Actor) -> str:
+        actorClass = type(actor)
+        if getattr(actorClass, "_GENERATED_CLASS", False):
+            from Source import Data
+
+            return Data.resolveClassPath(getattr(actorClass, "__name__", ""))
+        moduleName = getattr(actorClass, "__module__", "")
+        className = getattr(actorClass, "__name__", "")
+        if not moduleName or not className:
+            return ""
+        return f"{moduleName}.{className}"
+
+    @staticmethod
+    def _normaliseAddedActors(addedActors: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
+        result: Dict[str, List[Dict[str, Any]]] = {}
+        if not isinstance(addedActors, dict):
+            return result
+        for mapPath, records in addedActors.items():
+            normalisedMapPath = GameInstance._normaliseMapPath(mapPath)
+            if normalisedMapPath not in result:
+                result[normalisedMapPath] = []
+            if not isinstance(records, list):
+                continue
+            for record in records:
+                if not isinstance(record, dict):
+                    continue
+                bpPath = record.get("bp", record.get("classPath"))
+                actorTag = record.get("tag")
+                if not bpPath or not actorTag:
+                    continue
+                position = GameInstance._normaliseActorPosition(record.get("position", record.get("pos")))
+                if position is None:
+                    position = (0, 0)
+                actorRecord = {
+                    "bp": str(bpPath),
+                    "layer": str(record.get("layer", record.get("layerName", "default")) or "default"),
+                    "position": [position[0], position[1]],
+                    "tag": str(actorTag),
+                }
+                result[normalisedMapPath] = [
+                    item for item in result[normalisedMapPath] if item.get("tag") != actorRecord["tag"]
+                ]
+                result[normalisedMapPath].append(actorRecord)
+        return result
+
+    @staticmethod
+    def _normaliseActorPositions(actorPositions: Dict[str, Any]) -> Dict[str, Dict[str, Tuple[int, int]]]:
+        result: Dict[str, Dict[str, Tuple[int, int]]] = {}
+        if not isinstance(actorPositions, dict):
+            return result
+        for mapPath, records in actorPositions.items():
+            normalisedMapPath = GameInstance._normaliseMapPath(mapPath)
+            if normalisedMapPath not in result:
+                result[normalisedMapPath] = {}
+            if isinstance(records, dict):
+                for actorTag, position in records.items():
+                    actorPosition = GameInstance._normaliseActorPosition(position)
+                    if actorTag and actorPosition is not None:
+                        result[normalisedMapPath][str(actorTag)] = actorPosition
+                continue
+            if isinstance(records, list):
+                for record in records:
+                    if not isinstance(record, dict):
+                        continue
+                    actorTag = record.get("tag")
+                    actorPosition = GameInstance._normaliseActorPosition(record.get("position", record.get("pos")))
+                    if actorTag and actorPosition is not None:
+                        result[normalisedMapPath][str(actorTag)] = actorPosition
+        return result
+
+    @staticmethod
+    def _serialiseActorPositions(
+        actorPositions: Dict[str, Dict[str, Tuple[int, int]]],
+    ) -> Dict[str, Dict[str, List[int]]]:
+        result: Dict[str, Dict[str, List[int]]] = {}
+        for mapPath, records in actorPositions.items():
+            serialisedRecords: Dict[str, List[int]] = {}
+            for actorTag, position in records.items():
+                serialisedRecords[actorTag] = [position[0], position[1]]
+            if serialisedRecords:
+                result[mapPath] = serialisedRecords
+        return result
+
+    @staticmethod
+    def _normaliseActorPosition(position: Any) -> Optional[Tuple[int, int]]:
+        return GameInstance._normaliseTerrainPosition(position)
 
     @staticmethod
     def _normaliseDestroyedActors(destroyedActors: Dict[str, List[str]]) -> Dict[str, List[str]]:
@@ -404,18 +577,31 @@ class GameInstance:
             path = path[markerIndex + len(marker) :]
         return path
 
+    @staticmethod
+    def _normaliseObtainedItems(obtainedItems: Any) -> Dict[str, bool]:
+        result: Dict[str, bool] = {}
+        if isinstance(obtainedItems, dict):
+            for itemID, obtained in obtainedItems.items():
+                if itemID and bool(obtained):
+                    result[str(itemID)] = True
+            return result
+        if isinstance(obtainedItems, list):
+            for itemID in obtainedItems:
+                if itemID:
+                    result[str(itemID)] = True
+        return result
+
     def getCachedNewItem(self, itemID: str) -> bool:
-        r"""\brief Get the cached new item status for a player.
+        r"""\brief Check whether an item or equip has been obtained before.
 
         - \param itemID The item ID.
-        - \return True if the item is new, False otherwise.
+        - \return True if the item or equip has already been obtained.
         """
         return self._cachedNewItem.get(itemID, False)
 
     def setCachedNewItem(self, itemID: str) -> None:
-        r"""\brief Set the cached new item status for a player.
+        r"""\brief Mark an item or equip as obtained before.
 
         - \param itemID The item ID.
-        - \param isNew True if the item is new, False otherwise.
         """
         self._cachedNewItem[itemID] = True

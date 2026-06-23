@@ -207,6 +207,8 @@ class Scene(SceneBase):
         self._gameMap.setScene(self)
         self._gameMap.setPersistentMapPath(mapFile)
         self._gameMap.applyTerrainDestructions(self.inst.getTerrainDestructions(mapFile))
+        self._gameMap.applyAddedActors(self.inst.getAddedActors(mapFile))
+        self._gameMap.applyActorPositions(self.inst.getActorPositions(mapFile))
         destroyedActors = self.inst.getDestroyedActors(mapFile)
         self._gameMap.removeActorsByTags(destroyedActors)
         self._gameMap.spawnActor(self.player, "default")
@@ -572,6 +574,25 @@ class Scene(SceneBase):
         self.inst.applyMapInfo(mapPath, pos)
         if not blockTransition:
             GlobalSystem.requestTransition(_MAP_TRANSITION_NAME, _MAP_TRANSITION_TIME)
+
+    @ExecSplit(default=(None,))
+    def recordAddedActor(self, actor: Actor) -> None:
+        r"""\brief Record an added actor for persistence.
+
+        - \param actor The added actor.
+        """
+        layerName = self._gameMap.getActorLayer(actor)
+        if layerName is None:
+            return
+        self.inst.recordAddedActor(self._cachedMapFile, actor, layerName)
+
+    @ExecSplit(default=(None,))
+    def recordActorPosition(self, actor: Actor) -> None:
+        r"""\brief Record an actor position change for persistence.
+
+        - \param actor The moved actor.
+        """
+        self.inst.recordActorPosition(self._cachedMapFile, actor)
 
     @ExecSplit(default=(None,))
     def recordDestroyedActor(self, actor: Actor) -> None:

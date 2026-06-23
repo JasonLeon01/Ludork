@@ -200,7 +200,7 @@ NodeRelyMap buildNodeRelyMap(const py::dict &nodeRely) {
             entries.emplace_back(pinKey, resolveProviderIndex(leftRef));
         }
         std::sort(entries.begin(), entries.end(), [](const auto &left, const auto &right) {
-            return left.first.attr("__lt__")(right.first).cast<bool>();
+            return left.first.attr("__lt__")(right.first).template cast<bool>();
         });
         PinProviderList providers;
         providers.reserve(entries.size());

@@ -149,6 +149,8 @@ class SceneMapBuilder:
             mapData = File.loadData(os.path.join("./Data/Maps", mapPath))
             gameMap = self.generateGameMap(mapData, emitCreateEvents=False)
             gameMap.applyTerrainDestructions(inst.getTerrainDestructions(mapPath))
+            gameMap.applyAddedActors(inst.getAddedActors(mapPath), emitCreateEvents=False)
+            gameMap.applyActorPositions(inst.getActorPositions(mapPath))
             gameMap.removeActorsByTags(inst.getDestroyedActors(mapPath))
         except Exception:
             return None

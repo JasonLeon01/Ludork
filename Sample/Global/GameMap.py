@@ -252,6 +252,59 @@ class GameMap(GameMapExt):
             self.updateActorList()
             self._materialDirty = True
 
+    def applyAddedActors(self, addedActors: List[Dict[str, Any]], emitCreateEvents: bool = True) -> None:
+        r"""\brief Apply persisted added actors to the current map.
+
+        - \param addedActors Serialised added actor records.
+        - \param emitCreateEvents Whether added actor create events should run.
+        """
+        if not addedActors:
+            return
+        from Source import Data
+
+        addedAny = False
+        for actorRecord in addedActors:
+            if not isinstance(actorRecord, dict):
+                continue
+            actorTag = str(actorRecord.get("tag", ""))
+            bpPath = str(actorRecord.get("bp", actorRecord.get("classPath", "")))
+            if not actorTag or not bpPath or self.getActorByTag(actorTag) is not None:
+                continue
+            layerName = str(actorRecord.get("layer", actorRecord.get("layerName", "default")) or "default")
+            actorData = {
+                "bp": bpPath,
+                "position": actorRecord.get("position", actorRecord.get("pos", [0, 0])),
+                "tag": actorTag,
+            }
+            actor = Data.genActorFromData(actorData, layerName)
+            if actor is None:
+                continue
+            self.spawnActor(actor, layerName, False)
+            addedAny = True
+        if addedAny and emitCreateEvents:
+            self.initialiseActorsAndComponents()
+
+    def applyActorPositions(self, actorPositions: Dict[str, Tuple[int, int]]) -> None:
+        r"""\brief Apply persisted actor position changes to the current map.
+
+        - \param actorPositions Actor-tag-indexed tile positions.
+        """
+        if not actorPositions:
+            return
+        movedAny = False
+        for actorTag, position in actorPositions.items():
+            actor = self.getActorByTag(actorTag)
+            if actor is None:
+                continue
+            terrainPosition = self._normaliseTerrainPosition(position)
+            if terrainPosition is None:
+                continue
+            actor.setMapPosition(Vector2u(terrainPosition.x, terrainPosition.y))
+            movedAny = True
+        if movedAny:
+            self.updateActorList()
+            self.markPassabilityDirty()
+
     @ReturnType(passable=bool)
     def isPassable(self, actor: Actor, targetPosition: Vector2i) -> bool:
         r"""\brief Check if an actor can move to a target position.

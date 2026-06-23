@@ -306,6 +306,52 @@ def GetTerrainTilePositions(layerName: str, tileID: Any = None) -> List[Vector2i
     return []
 
 
+@Meta(DisplayName='LOC("RECORD_ADDED_ACTOR")', DisplayDesc='LOC("RECORD_ADDED_ACTOR_DESC")')
+@ExecSplit(default=(None,))
+def RecordAddedActor(actor: Actor) -> None:
+    r"""\brief Record an added actor for persistence on the current map scene.
+
+    - \param actor The added actor.
+    """
+    scene = _getSceneMap()
+    scene.recordAddedActor(actor)
+
+
+@Meta(DisplayName='LOC("SELF_RECORD_ADDED")', DisplayDesc='LOC("SELF_RECORD_ADDED_DESC")')
+@ExecSplit(default=(None,))
+def SelfRecordAdded() -> None:
+    r"""\brief Record the blueprint owner as an added actor for persistence on the current map scene.
+    """
+    actor = _getBlueprintOwner(SelfRecordAdded._refLocal)
+    if actor is None:
+        return
+    scene = _getSceneMap()
+    scene.recordAddedActor(actor)
+
+
+@Meta(DisplayName='LOC("RECORD_ACTOR_POSITION")', DisplayDesc='LOC("RECORD_ACTOR_POSITION_DESC")')
+@ExecSplit(default=(None,))
+def RecordActorPosition(actor: Actor) -> None:
+    r"""\brief Record an actor position change for persistence on the current map scene.
+
+    - \param actor The moved actor.
+    """
+    scene = _getSceneMap()
+    scene.recordActorPosition(actor)
+
+
+@Meta(DisplayName='LOC("SELF_RECORD_ACTOR_POSITION")', DisplayDesc='LOC("SELF_RECORD_ACTOR_POSITION_DESC")')
+@ExecSplit(default=(None,))
+def SelfRecordActorPosition() -> None:
+    r"""\brief Record the blueprint owner's position change for persistence on the current map scene.
+    """
+    actor = _getBlueprintOwner(SelfRecordActorPosition._refLocal)
+    if actor is None:
+        return
+    scene = _getSceneMap()
+    scene.recordActorPosition(actor)
+
+
 @Meta(DisplayName='LOC("RECORD_DESTROYED_ACTOR")', DisplayDesc='LOC("RECORD_DESTROYED_ACTOR_DESC")')
 @ExecSplit(default=(None,))
 def RecordDestroyedActor(actor: Actor) -> None:
