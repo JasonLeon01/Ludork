@@ -641,3 +641,85 @@ def Print(message: Any = "") -> None:
 @ExecSplit(default=(None,))
 def EXEC(script: str = "") -> None:
     exec(script)
+
+
+@Meta(DisplayName='LOC("GET_SELF_ATTR")', DisplayDesc='LOC("GET_SELF_ATTR_DESC")')
+@ReturnType(value=object)
+def GetSelfAttr(attrName: str) -> Any:
+    r"""\brief Get an attribute value from the blueprint owner.
+
+    - \param attrName The attribute name.
+    - \return The attribute value.
+    """
+    graph = GetSelfAttr._refLocal["__graph__"]
+    obj = graph.parent
+    value = getComponentFieldValue(obj, attrName, _MISSING)
+    if value is not _MISSING:
+        return value
+    return getattr(obj, attrName)
+
+
+@Meta(DisplayName='LOC("SET_SELF_ATTR")', DisplayDesc='LOC("SET_SELF_ATTR_DESC")')
+@ExecSplit(default=(None,))
+def SetSelfAttr(attrName: str, value: Any) -> None:
+    r"""\brief Set an attribute value on the blueprint owner.
+
+    - \param attrName The attribute name.
+    - \param value The value to set.
+    """
+    graph = SetSelfAttr._refLocal["__graph__"]
+    obj = graph.parent
+    if not setComponentFieldValue(obj, attrName, value):
+        setattr(obj, attrName, value)
+
+
+@Meta(DisplayName='LOC("IF_PLAYER_OVERLAPS")', DisplayDesc='LOC("IF_PLAYER_OVERLAPS_DESC")')
+@ReturnType(value=bool)
+def IfPlayerOverlaps() -> bool:
+    r"""\brief Check whether the player is overlapping the blueprint owner.
+
+    - \return True if the player shares the same cell as the owner.
+    """
+    from Source.Scenes import Map as SceneMap
+
+    graph = IfPlayerOverlaps._refLocal["__graph__"]
+    obj = graph.parent
+    scene = System.getScene()
+    if scene is None or not isinstance(scene, SceneMap):
+        return False
+    gameMap = scene.getGameMap()
+    if gameMap is None:
+        return False
+    player = gameMap.getPlayer()
+    if player is None:
+        return False
+    return obj in gameMap.getOverlaps(player)
+
+
+@Meta(DisplayName='LOC("IF_GAME_VAR")', DisplayDesc='LOC("IF_GAME_VAR_DESC")')
+@ExecSplit(TRUE=(True,), FALSE=(False,))
+def IfGameVar(varName: str, op: str = "==", value: Any = None) -> bool:
+    r"""\brief Compare a game variable with a value.
+
+    - \param varName The game variable name.
+    - \param op Comparison operator: "==", "!=", "<", "<=", ">", ">=".
+    - \param value The value to compare against.
+    - \return True if the comparison holds.
+    """
+    scene = System.getScene()
+    if scene is None or not hasattr(scene, "inst"):
+        return False
+    current = scene.inst.getVariable(varName)
+    if op == "==":
+        return current == value
+    if op == "!=":
+        return current != value
+    if op == "<":
+        return current < value
+    if op == "<=":
+        return current <= value
+    if op == ">":
+        return current > value
+    if op == ">=":
+        return current >= value
+    return False

@@ -17,6 +17,7 @@ in the Ludork sample engine.
 - Scene      Scene dialogue and map navigation
 - State      State host access, battler attributes, and cross-battler state ops
 - Mota       Mota-specific scene shortcuts and region helpers
+- GameMap    Current map actor query helpers
 """
 
 from . import Utils
@@ -30,5 +31,6 @@ from . import Movement
 from . import Scene
 from . import State
 from . import Mota
+from . import GameMap
 
-__all__ = ["Utils", "Math", "String", "Container", "System", "Player", "Save", "Movement", "Scene", "State", "Mota"]
+__all__ = ["Utils", "Math", "String", "Container", "System", "Player", "Save", "Movement", "Scene", "State", "Mota", "GameMap"]

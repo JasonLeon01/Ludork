@@ -110,14 +110,25 @@ def ShowMessage(
 ) -> Callable[[], bool]:
     r"""\brief Show a dialogue message on the current map scene."""
     scene = _getSceneMap()
-    return scene.showMessage(refActorTag, name, message)
+    return scene.showMessage(name, message, refActorTag)
+
+
+@Meta(DisplayName='LOC("SHOW_REF_MESSAGE")', DisplayDesc='LOC("SHOW_REF_MESSAGE_DESC")')
+@Latent(FinishedDialogue=(True,))
+def ShowRefMessage(
+    name: str,
+    message: str,
+    actor: Actor,
+) -> Callable[[], bool]:
+    r"""\brief Show a dialogue message on the current map scene positioned by a direct actor reference."""
+    scene = _getSceneMap()
+    return scene.showRefMessage(name, message, actor)
 
 
 @Meta(
     DisplayName='LOC("SHOW_VOICE_MESSAGE")',
     DisplayDesc='LOC("SHOW_VOICE_MESSAGE_DESC")',
     PathVars=[("voiceFileName", "Sounds")],
-    Rely={"minDistance": {"source": "refActor", "op": "!=", "value": None}},
 )
 @Latent(FinishedDialogue=(True,))
 def ShowVoiceMessage(
@@ -125,16 +136,30 @@ def ShowVoiceMessage(
     message: str,
     voiceFileName: str,
     refActorTag: str = "",
-    refActor: Optional[Actor] = None,
+) -> Callable[[], bool]:
+    r"""\brief Play a non-spatial voice clip and show a dialogue message on the current map scene."""
+    scene = _getSceneMap()
+    Manager.playVoice(voiceFileName)
+    return scene.showMessage(name, message, refActorTag)
+
+
+@Meta(
+    DisplayName='LOC("SHOW_VOICE_REF_MESSAGE")',
+    DisplayDesc='LOC("SHOW_VOICE_REF_MESSAGE_DESC")',
+    PathVars=[("voiceFileName", "Sounds")],
+)
+@Latent(FinishedDialogue=(True,))
+def ShowVoiceRefMessage(
+    name: str,
+    message: str,
+    voiceFileName: str,
+    refActor: Actor,
     minDistance: float = 64.0,
 ) -> Callable[[], bool]:
-    r"""\brief Play a voice clip and show a dialogue message on the current map scene."""
+    r"""\brief Play a spatial voice clip relative to an actor and show a dialogue message on the current map scene."""
     scene = _getSceneMap()
-    if refActor is None:
-        Manager.playVoice(voiceFileName)
-    else:
-        Manager.playVoice(voiceFileName, refActor=refActor, minDistance=float(minDistance))
-    return scene.showMessage(refActorTag, name, message)
+    Manager.playVoice(voiceFileName, refActor=refActor, minDistance=float(minDistance))
+    return scene.showMessage(name, message, "")
 
 
 @Meta(DisplayName='LOC("SHOW_SELECTION")', DisplayDesc='LOC("SHOW_SELECTION_DESC")')

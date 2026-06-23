@@ -35,9 +35,9 @@ class WindowMessage(WindowSelectable):
 
     _WINDOW_PADDING = 16
     _SCREEN_EDGE_MARGIN = 64
-    _NAME_TEXT_SIZE = 28
+    _NAME_TEXT_SIZE = 24
     _NAME_MESSAGE_GAP = 8
-    _MESSAGE_TEXT_SIZE = 22
+    _MESSAGE_TEXT_SIZE = 18
     _OPTION_TEXT_SIZE = 22
     _OPTION_ITEM_HEIGHT = 32
     _SELECTION_LIST_HORIZONTAL_INSET = 32
@@ -278,7 +278,7 @@ class WindowMessage(WindowSelectable):
             self.setPosition(Vector2f(posX, posY))
 
     def _initTextStyles(self) -> None:
-        self._textStyles["default"] = TextStyle(22, Text.Style.Regular, Color.White, Color.Transparent, 0.0)
+        self._textStyles["default"] = TextStyle(18, Text.Style.Regular, Color.White, Color.Transparent, 0.0)
         self._textStyles["RosyBrown"] = TextStyle(fillColor=UI.GetRosyBrown())
         self._textStyles["Copper"] = TextStyle(fillColor=UI.GetCopper())
         self._textStyles["Sage"] = TextStyle(fillColor=UI.GetSage())
