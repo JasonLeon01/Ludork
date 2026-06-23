@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from typing import Any, Callable, List, Optional, Tuple, Union
-from Engine import Pair, Vector2i, Vector2u
+from Engine import Pair, Vector2f, Vector2i, Vector2u
 from Engine.Gameplay.Actors import Actor
 from Global import Manager, System
 
@@ -31,12 +31,52 @@ def _posToVector2u(position: Any) -> Optional[Vector2u]:
     return None
 
 
+def _posToVector2f(position: Any) -> Optional[Vector2f]:
+    if position is None:
+        return None
+    if isinstance(position, (list, tuple)) and len(position) >= 2:
+        try:
+            return Vector2f(float(position[0]), float(position[1]))
+        except (TypeError, ValueError):
+            return None
+    if hasattr(position, "x") and hasattr(position, "y"):
+        try:
+            return Vector2f(float(position.x), float(position.y))
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
 def _getSceneMap():
     from Source.Scenes import Map as SceneMap
 
     scene = System.getScene()
     assert isinstance(scene, SceneMap)
     return scene
+
+
+def _getSceneCamera():
+    scene = System.getScene()
+    if not scene or not hasattr(scene, "getGameMap"):
+        return None
+    gameMap = scene.getGameMap()
+    if gameMap is None:
+        return None
+    return gameMap.getCamera()
+
+
+def _getActorByTag(scene: Any, refActorTag: str) -> Optional[Actor]:
+    if not bool(refActorTag):
+        return None
+    return scene.getGameMap().getActorByTag(refActorTag)
+
+
+def _snapCameraToActor(camera: Any, actor: Actor) -> None:
+    viewSize = camera.getViewSize()
+    if viewSize is None:
+        return
+    camera.setViewPosition(actor.getPosition() - viewSize / 2)
+    camera.fixViewPosition()
 
 
 def _getBlueprintOwner(refLocal) -> Optional[Any]:
@@ -110,7 +150,7 @@ def ShowMessage(
 ) -> Callable[[], bool]:
     r"""\brief Show a dialogue message on the current map scene."""
     scene = _getSceneMap()
-    return scene.showMessage(name, message, refActorTag)
+    return scene.showMessage(name, message, _getActorByTag(scene, refActorTag))
 
 
 @Meta(DisplayName='LOC("SHOW_REF_MESSAGE")', DisplayDesc='LOC("SHOW_REF_MESSAGE_DESC")')
@@ -122,7 +162,7 @@ def ShowRefMessage(
 ) -> Callable[[], bool]:
     r"""\brief Show a dialogue message on the current map scene positioned by a direct actor reference."""
     scene = _getSceneMap()
-    return scene.showRefMessage(name, message, actor)
+    return scene.showMessage(name, message, actor)
 
 
 @Meta(
@@ -140,7 +180,7 @@ def ShowVoiceMessage(
     r"""\brief Play a non-spatial voice clip and show a dialogue message on the current map scene."""
     scene = _getSceneMap()
     Manager.playVoice(voiceFileName)
-    return scene.showMessage(name, message, refActorTag)
+    return scene.showMessage(name, message, _getActorByTag(scene, refActorTag))
 
 
 @Meta(
@@ -159,7 +199,7 @@ def ShowVoiceRefMessage(
     r"""\brief Play a spatial voice clip relative to an actor and show a dialogue message on the current map scene."""
     scene = _getSceneMap()
     Manager.playVoice(voiceFileName, refActor=refActor, minDistance=float(minDistance))
-    return scene.showMessage(name, message, "")
+    return scene.showMessage(name, message, refActor)
 
 
 @Meta(DisplayName='LOC("SHOW_SELECTION")', DisplayDesc='LOC("SHOW_SELECTION_DESC")')
@@ -172,7 +212,20 @@ def ShowSelection(
 ) -> Callable[[], Optional[int]]:
     r"""\brief Show a selection window on the current map scene."""
     scene = _getSceneMap()
-    return scene.showSelection(refActorTag, name, options, bool(allowCancel))
+    return scene.showSelection(name, options, _getActorByTag(scene, refActorTag), bool(allowCancel))
+
+
+@Meta(DisplayName='LOC("SHOW_REF_SELECTION")', DisplayDesc='LOC("SHOW_REF_SELECTION_DESC")')
+@Latent(Selected0=(0,), Selected1=(1,), Selected2=(2,), Selected3=(3,), Cancelled=(-1,))
+def ShowRefSelection(
+    name: str,
+    options: List[str],
+    refActor: Actor,
+    allowCancel: bool = True,
+) -> Callable[[], Optional[int]]:
+    r"""\brief Show a selection window on the current map scene positioned by a direct actor reference."""
+    scene = _getSceneMap()
+    return scene.showSelection(name, options, refActor, bool(allowCancel))
 
 
 @Meta(DisplayName='LOC("LOCK_CAMERA")', DisplayDesc='LOC("LOCK_CAMERA_DESC")')
@@ -183,27 +236,52 @@ def LockCamera() -> None:
     if scene and hasattr(scene, "getGameMap"):
         gameMap = scene.getGameMap()
         if gameMap is not None:
-            camera = gameMap.getCamera()
+            camera = _getSceneCamera()
             player = gameMap.getPlayer()
             if camera is not None and player is not None:
                 camera.setParent(player)
-                viewSize = camera.getViewSize()
-                if viewSize is not None:
-                    camera.setViewPosition(player.getPosition() - viewSize / 2)
-                    camera.fixViewPosition()
+                _snapCameraToActor(camera, player)
 
 
 @Meta(DisplayName='LOC("UNLOCK_CAMERA")', DisplayDesc='LOC("UNLOCK_CAMERA_DESC")')
 @ExecSplit(default=(None,))
 def UnlockCamera() -> None:
     r"""\brief Unlock the current map camera from the player."""
-    scene = System.getScene()
-    if scene and hasattr(scene, "getGameMap"):
-        gameMap = scene.getGameMap()
-        if gameMap is not None:
-            camera = gameMap.getCamera()
-            if camera is not None:
-                camera.setParent(None)
+    camera = _getSceneCamera()
+    if camera is not None:
+        camera.setParent(None)
+
+
+@Meta(DisplayName='LOC("ATTACH_CAMERA")', DisplayDesc='LOC("ATTACH_CAMERA_DESC")')
+@ExecSplit(default=(None,))
+def AttachCamera(actor: Optional[Actor] = None) -> None:
+    r"""\brief Attach the current map camera to an actor, or detach it when None is passed.
+
+    - \param actor The actor for the camera to follow, or None to stop following.
+    """
+    camera = _getSceneCamera()
+    if camera is None:
+        return
+    camera.setParent(actor)
+    if actor is not None:
+        _snapCameraToActor(camera, actor)
+
+
+@Meta(DisplayName='LOC("MOVE_CAMERA")', DisplayDesc='LOC("MOVE_CAMERA_DESC")', Vector2fVars=["delta"])
+@ExecSplit(default=(None,))
+def MoveCamera(delta: Any) -> None:
+    r"""\brief Move the current map camera by a delta offset and clamp it to the map bounds.
+
+    - \param delta The viewport offset to apply as `(x, y)`.
+    """
+    camera = _getSceneCamera()
+    if camera is None:
+        return
+    deltaValue = _posToVector2f(delta)
+    if deltaValue is None:
+        return
+    camera.moveView(deltaValue)
+    camera.fixViewPosition()
 
 
 @Meta(DisplayName='LOC("RECORD_TELEPOINT")', DisplayDesc='LOC("RECORD_TELEPOINT_DESC")')

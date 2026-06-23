@@ -7,27 +7,36 @@ from Widgets.Utils import SingleRowDialog
 
 class LayerBarMixin:
     def _refreshLayerBar(self) -> None:
-        self.layerList.clear()
-        self.layerList.addTab(QtWidgets.QWidget(), ELOC("OVERVIEW"))
-        names = self.editorPanel.getLayerNames()
-        for n in names:
-            self.layerList.addTab(QtWidgets.QWidget(), n)
+        selectedLayerName = self._selectedLayerName
+        wasBlocked = self.layerList.blockSignals(True)
+        try:
+            self.layerList.clear()
+            self.layerList.addTab(QtWidgets.QWidget(), ELOC("OVERVIEW"))
+            names = self.editorPanel.getLayerNames()
+            for n in names:
+                self.layerList.addTab(QtWidgets.QWidget(), n)
 
-        if self._selectedLayerName:
-            found = False
-            for i in range(1, self.layerList.count()):
-                if self.layerList.tabText(i) == self._selectedLayerName:
-                    self.layerList.setCurrentIndex(i)
-                    found = True
-                    break
-            if not found:
-                self._selectedLayerName = None
-                self.layerList.setCurrentIndex(0)
-        else:
-            self.layerList.setCurrentIndex(0)
+            selectedIndex = 0
+            if selectedLayerName:
+                found = False
+                for i in range(1, self.layerList.count()):
+                    if self.layerList.tabText(i) == selectedLayerName:
+                        selectedIndex = i
+                        found = True
+                        break
+                if not found:
+                    selectedLayerName = None
 
-    def _clearLayerSelection(self) -> None:
-        if self._selectedLayerName is None:
+            self.layerList.setCurrentIndex(selectedIndex)
+        finally:
+            self.layerList.blockSignals(wasBlocked)
+        if selectedIndex == 0:
+            self._clearLayerSelection(True)
+        elif selectedLayerName != self._selectedLayerName:
+            self._selectLayer(selectedLayerName)
+
+    def _clearLayerSelection(self, force: bool = False) -> None:
+        if self._selectedLayerName is None and not force:
             return
         self._selectedLayerName = None
         self.editorPanel.setSelectedLayer(None)
@@ -35,6 +44,16 @@ class LayerBarMixin:
         self.tileSelect.clearSelection()
         if self._editModeIdx == 2:
             self.editorPanel.setAcceptDrops(False)
+
+    def _selectLayer(self, name: str) -> None:
+        self._selectedLayerName = name
+        self.editorPanel.setSelectedLayer(name)
+        key = self.editorPanel.getLayerTilesetKey(name)
+        if key:
+            self.tileSelect.setCurrentTilesetKey(key)
+        self.tileSelect.setLayerSelected(True)
+        if self._editModeIdx == 2:
+            self.editorPanel.setAcceptDrops(True)
 
     def _onLayerTabChanged(self, index: int) -> None:
         if index == 0:
@@ -45,14 +64,7 @@ class LayerBarMixin:
         if name == self._selectedLayerName:
             return
 
-        self._selectedLayerName = name
-        self.editorPanel.setSelectedLayer(name)
-        key = self.editorPanel.getLayerTilesetKey(name)
-        if key:
-            self.tileSelect.setCurrentTilesetKey(key)
-        self.tileSelect.setLayerSelected(True)
-        if self._editModeIdx == 2:
-            self.editorPanel.setAcceptDrops(True)
+        self._selectLayer(name)
 
     def _onLayerTabMoved(self, fromIndex: int, toIndex: int) -> None:
         overview_text = ELOC("OVERVIEW")

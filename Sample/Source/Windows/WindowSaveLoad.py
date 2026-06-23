@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import datetime
 import os
 from typing import Any, Callable, Dict, Optional, Union, Tuple
@@ -46,6 +47,47 @@ CloseReason = str
 CLOSE_REASON_CANCEL: CloseReason = "cancel"
 CLOSE_REASON_SAVED: CloseReason = "saved"
 CLOSE_REASON_LOADED: CloseReason = "loaded"
+
+
+def _getSaveFileMTime(slotIndex: int, filePath: str) -> Optional[Tuple[int, float]]:
+    try:
+        return slotIndex, os.path.getmtime(filePath)
+    except OSError:
+        return None
+
+
+def _isNewerSaveFile(candidate: Tuple[int, float], current: Optional[Tuple[int, float]]) -> bool:
+    if current is None:
+        return True
+    if candidate[1] != current[1]:
+        return candidate[1] > current[1]
+    return candidate[0] < current[0]
+
+
+def _findLatestSaveSlotIndex(maxSlots: int) -> Optional[int]:
+    saveFiles = [(idx, Save.GetSavePath(idx + 1)) for idx in range(maxSlots)]
+    latest: Optional[Tuple[int, float]] = None
+    try:
+        maxWorkers = min(32, max(1, maxSlots))
+        with ThreadPoolExecutor(max_workers=maxWorkers) as executor:
+            futures = [executor.submit(_getSaveFileMTime, idx, filePath) for idx, filePath in saveFiles]
+            for future in as_completed(futures):
+                result = future.result()
+                if result is None:
+                    continue
+                if _isNewerSaveFile(result, latest):
+                    latest = result
+    except Exception:
+        latest = None
+        for idx, filePath in saveFiles:
+            result = _getSaveFileMTime(idx, filePath)
+            if result is None:
+                continue
+            if _isNewerSaveFile(result, latest):
+                latest = result
+    if latest is None:
+        return None
+    return latest[0]
 
 
 class WindowSaveCommand(WindowCommand):
@@ -322,6 +364,7 @@ class WindowSaveLoad:
         self._detailWindow.setActive(False)
         self._detailWindow.setVisible(False)
         self._lastSlotIndex: Optional[int] = None
+        self._selectLatestSaveSlot()
 
     def getCommandWindow(self) -> Optional[WindowSaveCommand]:
         r"""\brief Get the horizontal load/save command window.
@@ -436,6 +479,11 @@ class WindowSaveLoad:
             return
         self._lastSlotIndex = index
         self._detailWindow.setSlot(index)
+
+    def _selectLatestSaveSlot(self) -> None:
+        latestIndex = _findLatestSaveSlotIndex(MAX_SAVE_SLOTS)
+        if latestIndex is not None:
+            self._slotWindow.index = latestIndex
 
     def onSlotConfirm(self, slot: int) -> None:
         r"""\brief Handle slot confirmation for saving or loading.

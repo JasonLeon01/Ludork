@@ -67,18 +67,22 @@ class MapListOpsMixin:
         if item is None:
             return
         name = item.data(QtCore.Qt.UserRole)
+        previousLayerName = self._selectedLayerName
         self.leftListIndex = self.leftList.row(item)
         self.editorPanel.refreshMap(name)
         self.editorPanel.clearLightSelection()
         self.lightPanel.setLight(None)
         self._selectedLightMapKey = ""
         self._selectedLightIndex = None
-        self._selectedLayerName = None
-        self.editorPanel.setSelectedLayer(None)
-        self.tileSelect.setLayerSelected(False)
-        self.tileSelect.clearSelection()
-        if self._editModeIdx == 2:
-            self.editorPanel.setAcceptDrops(False)
+        if isinstance(previousLayerName, str) and previousLayerName in self.editorPanel.getLayerNames():
+            self._selectLayer(previousLayerName)
+        else:
+            self._selectedLayerName = None
+            self.editorPanel.setSelectedLayer(None)
+            self.tileSelect.setLayerSelected(False)
+            self.tileSelect.clearSelection()
+            if self._editModeIdx == 2:
+                self.editorPanel.setAcceptDrops(False)
         self._refreshLayerBar()
 
     def _onLeftListContextMenu(self, pos: QtCore.QPoint) -> None:
@@ -111,12 +115,15 @@ class MapListOpsMixin:
             self._onEditMap(item.data(QtCore.Qt.UserRole))
 
     def _getNewMapFileName(self) -> str:
-        existing = set(GameData.mapData.keys())
+        existing = {
+            os.path.splitext(key)[0] if str(key).lower().endswith(".dat") else key
+            for key in GameData.mapData.keys()
+        }
         i = 1
         while True:
-            name = f"Map_{i:02d}.dat"
-            if name not in existing:
-                return name
+            key = f"Map_{i:02d}"
+            if key not in existing:
+                return f"{key}.dat"
             i += 1
 
     def _createEmptyLayerData(self, name: str, width: int, height: int, tilesetKey: str) -> dict:
@@ -216,8 +223,8 @@ class MapListOpsMixin:
     def _onNewMap(self) -> None:
         default_data = {
             "mapName": ELOC("NEW_MAP_DEFAULT_NAME"),
-            "width": 20,
-            "height": 15,
+            "width": 13,
+            "height": 13,
             "ambientLight": [255, 255, 255, 255],
             "fog": "",
             "fogPower": 0,
@@ -227,7 +234,7 @@ class MapListOpsMixin:
             "layers": {},
         }
         suggested_name = self._getNewMapFileName()
-        dlg = MapEditDialog(self, default_data, suggested_name, ELOC("NEW_MAP"))
+        dlg = MapEditDialog(self, default_data, suggested_name, ELOC("NEW_MAP"), allow_current_key=False)
         if not dlg.execApply():
             return
 

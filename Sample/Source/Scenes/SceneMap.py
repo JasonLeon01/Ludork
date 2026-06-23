@@ -222,21 +222,19 @@ class Scene(SceneBase):
         return self._gameMap
 
     @Latent(FinishedDialogue=(True,))
-    def showMessage(self, name: str, message: str, refActorTag: str = "") -> Callable[[], bool]:
+    def showMessage(self, name: str, message: str, refActor: Optional[Actor] = None) -> Callable[[], bool]:
         r"""\brief Show a dialogue message window.
 
         - \param name Speaker name.
         - \param message Message text.
-        - \param refActorTag Tag of the reference actor for positioning.
+        - \param refActor Optional reference actor for positioning.
         - \return A callable condition function that returns True when dialogue finishes.
         """
         refPosition: Optional[Vector2f] = None
-        if bool(refActorTag):
-            actor = self._gameMap.getActorByTag(refActorTag)
-            if actor:
-                camera = self._gameMap.getCamera()
-                assert camera
-                refPosition = actor.getPosition() - camera.getViewPosition() + self._gameMap.getMapViewOffset()
+        if refActor is not None:
+            camera = self._gameMap.getCamera()
+            assert camera
+            refPosition = refActor.getPosition() - camera.getViewPosition() + self._gameMap.getMapViewOffset()
         originMoveEnabled = self.player.getMoveEnabled()
         restored = False
 
@@ -265,65 +263,23 @@ class Scene(SceneBase):
 
         return condition
 
-    @Latent(FinishedDialogue=(True,))
-    def showRefMessage(self, name: str, message: str, refActor: Actor) -> Callable[[], bool]:
-        r"""\brief Show a dialogue message window positioned by a direct actor reference.
-
-        - \param name Speaker name.
-        - \param message Message text.
-        - \param refActor Reference actor for positioning.
-        - \return A callable condition function that returns True when dialogue finishes.
-        """
-        camera = self._gameMap.getCamera()
-        assert camera
-        refPosition = refActor.getPosition() - camera.getViewPosition() + self._gameMap.getMapViewOffset()
-        originMoveEnabled = self.player.getMoveEnabled()
-        restored = False
-
-        def restoreMove() -> None:
-            nonlocal restored
-            if restored:
-                return
-            restored = True
-            self.player.setMoveEnabled(originMoveEnabled)
-            self._blockMapInput(2)
-
-        self.player.setMoveEnabled(False)
-        localVars = self._getDialogueLocalVars(type(self).showRefMessage)
-        self._messageWindow.setMessage(
-            refPosition,
-            self._formatDialogueText(name, localVars),
-            self._formatDialogueText(message, localVars),
-            onFinished=restoreMove,
-        )
-
-        def condition() -> bool:
-            if self._messageWindow.isInDialogue():
-                return False
-            restoreMove()
-            return True
-
-        return condition
-
     @Latent(Selected0=(0,), Selected1=(1,), Selected2=(2,), Selected3=(3,), Cancelled=(-1,))
     def showSelection(
-        self, refActorTag: str, name: str, options: List[str], allowCancel: bool
+        self, name: str, options: List[str], refActor: Optional[Actor] = None, allowCancel: bool = True
     ) -> Callable[[], Optional[int]]:
         r"""\brief Show a selection window with multiple options.
 
-        - \param refActorTag Tag of the reference actor for positioning.
         - \param name Window title.
         - \param options List of option strings.
+        - \param refActor Optional reference actor for positioning.
         - \param allowCancel Whether the player can cancel.
         - \return A callable that returns the selected option index, or -1 for cancel.
         """
         refPosition: Optional[Vector2f] = None
-        if bool(refActorTag):
-            actor = self._gameMap.getActorByTag(refActorTag)
-            if actor:
-                camera = self._gameMap.getCamera()
-                assert camera
-                refPosition = actor.getPosition() - camera.getViewPosition() + self._gameMap.getMapViewOffset()
+        if refActor is not None:
+            camera = self._gameMap.getCamera()
+            assert camera
+            refPosition = refActor.getPosition() - camera.getViewPosition() + self._gameMap.getMapViewOffset()
 
         originMoveEnabled = self.player.getMoveEnabled()
         restored = False

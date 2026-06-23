@@ -260,6 +260,23 @@ class Battler:
         existing.setOwner(None)
         self._states.remove(existing)
 
+    @ExecSplit(default=(None,))
+    def reduceStateStacks(self, state: Union[str, StateInfo], stacks: int = 1) -> None:
+        r"""\brief Reduce stack count for an active state, removing it at zero.
+
+        - \param state State ID string or `StateInfo` instance.
+        - \param stacks Stack count to reduce.
+        """
+        existing = self.getStateByID(self._resolveStateID(state))
+        if existing is None:
+            return
+        stackCount = max(0, int(stacks))
+        if stackCount <= 0:
+            return
+        existing.stacks = max(0, int(existing.stacks) - stackCount)
+        if existing.stacks <= 0:
+            self.removeState(existing)
+
     def clearStates(self) -> None:
         r"""\brief Remove all active states."""
         for s in list(self._states):

@@ -150,3 +150,17 @@ def RemoveStateFrom(battler: Any, stateID: str) -> None:
     if battler is None or not hasattr(battler, "removeState"):
         return
     battler.removeState(stateID)
+
+
+@Meta(DisplayName='LOC("REDUCE_STATE_FROM")', DisplayDesc='LOC("REDUCE_STATE_FROM_DESC")')
+@ExecSplit(default=(None,))
+def ReduceStateFrom(battler: Any, stateID: str, stacks: int = 1) -> None:
+    r"""\brief Reduce a state stack count on any battler and remove it at zero.
+
+    - \param battler The target battler.
+    - \param stateID State identifier.
+    - \param stacks Stack count to reduce.
+    """
+    if battler is None or not hasattr(battler, "reduceStateStacks"):
+        return
+    battler.reduceStateStacks(stateID, stacks)

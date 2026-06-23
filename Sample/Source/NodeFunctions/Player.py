@@ -247,6 +247,31 @@ def DamagePlayer(amount: int = 1) -> None:
         player.infoComp.HP = max(player.infoComp.HP - int(amount), 0)
 
 
+@Meta(DisplayName='LOC("REMOVE_PLAYER_STATE")', DisplayDesc='LOC("REMOVE_PLAYER_STATE_DESC")')
+@ExecSplit(default=(None,))
+def RemovePlayerState(stateID: str) -> None:
+    r"""\brief Remove a state from the player.
+
+    - \param stateID State identifier.
+    """
+    player = _getPlayer()
+    if player:
+        player.removeState(stateID)
+
+
+@Meta(DisplayName='LOC("REDUCE_PLAYER_STATE")', DisplayDesc='LOC("REDUCE_PLAYER_STATE_DESC")')
+@ExecSplit(default=(None,))
+def ReducePlayerState(stateID: str, stacks: int = 1) -> None:
+    r"""\brief Reduce a state stack count on the player and remove it at zero.
+
+    - \param stateID State identifier.
+    - \param stacks Stack count to reduce.
+    """
+    player = _getPlayer()
+    if player:
+        player.reduceStateStacks(stateID, stacks)
+
+
 @Meta(DisplayName='LOC("ADD_HP")', DisplayDesc='LOC("ADD_HP_DESC")')
 @ExecSplit(default=(None,))
 def AddHP(amount: int = 1) -> None:
