@@ -10,6 +10,7 @@ from .Infos.ItemInfo import ItemInfo
 from Source.NodeFunctions.Player import MeetPlayer
 
 
+@Meta(GeneralDataVars=[("ID", "Item")])
 class Item(Actor, ItemInfo):
     r"""
     \brief Scene item entity.

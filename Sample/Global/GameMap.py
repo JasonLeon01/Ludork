@@ -1187,7 +1187,11 @@ class GameMap(GameMapExt):
             if applyPlayerCover:
                 self._applyPlayerCover(layer, i, playerLayerIndex)
 
-            target.draw(layer, states)
+            layerStates = states
+            if layer.shader is not None:
+                layerStates = copy.copy(states)
+                layerStates.shader = layer.shader
+            target.draw(layer, layerStates)
             self._drawLayerActors(target, states, layerName, i, playerLayerIndex, applyPlayerCover)
 
     def show(self) -> None:

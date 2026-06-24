@@ -356,7 +356,12 @@ def _getActorByTag(actorTag: str):
     return None
 
 
-@Meta(DisplayName='LOC("ADD_ANIM")', DisplayDesc='LOC("ADD_ANIM_DESC")', Vector2fVars=["position", "scale"])
+@Meta(
+    DisplayName='LOC("ADD_ANIM")',
+    DisplayDesc='LOC("ADD_ANIM_DESC")',
+    Vector2fVars=["position", "scale"],
+    GeneralDataVars=[("animName", "ANIMATION")],
+)
 @ExecSplit(default=(None,))
 def AddAnim(
     animName: str,
@@ -378,6 +383,7 @@ def AddAnim(
     DisplayName='LOC("ADD_ANIM_ON")',
     DisplayDesc='LOC("ADD_ANIM_ON_DESC")',
     Vector2fVars=["scale"],
+    GeneralDataVars=[("animName", "ANIMATION")],
 )
 @ExecSplit(default=(None,))
 def AddAnimOn(animName: str, actorTag: str, rotation: float = 0.0, scale: Pair[float] = (1.0, 1.0)) -> None:
@@ -401,7 +407,11 @@ def AddAnimOn(animName: str, actorTag: str, rotation: float = 0.0, scale: Pair[f
     )
 
 
-@Meta(DisplayName='LOC("GET_ANIM_LENGTH")', DisplayDesc='LOC("GET_ANIM_LENGTH_DESC")')
+@Meta(
+    DisplayName='LOC("GET_ANIM_LENGTH")',
+    DisplayDesc='LOC("GET_ANIM_LENGTH_DESC")',
+    GeneralDataVars=[("animName", "ANIMATION")],
+)
 @ReturnType(value=float)
 def GetAnimLength(animName: str) -> float:
     r"""\brief Get the duration of an animation.
@@ -418,7 +428,11 @@ def GetAnimLength(animName: str) -> float:
     return float(duration)
 
 
-@Meta(DisplayName='LOC("GET_ANIM_VISUAL_LENGTH")', DisplayDesc='LOC("GET_ANIM_VISUAL_LENGTH_DESC")')
+@Meta(
+    DisplayName='LOC("GET_ANIM_VISUAL_LENGTH")',
+    DisplayDesc='LOC("GET_ANIM_VISUAL_LENGTH_DESC")',
+    GeneralDataVars=[("animName", "ANIMATION")],
+)
 @ReturnType(value=float)
 def GetAnimVisualLength(animName: str) -> float:
     r"""\brief Get the visual duration of an animation, excluding sound track length.

@@ -99,6 +99,9 @@ def Meta(**kwargs):
       reference route editor. Values are stored as relative `(dx, dy)` steps.
     - Transfer: map coordinate node parameters displayed with a map tile
       picker. Format: `[("posVarName", "mapVarName")]`.
+    - GeneralDataVars: General Data member or animation-key fields and node
+      parameters in the form `[("itemID", "Item"), ("animKey", "ANIMATION")]`.
+      Values remain plain strings; the editor displays a data-backed combo box.
     - InvalidVars: class variables hidden from the blueprint attribute editor.
       This is the Meta form of `@InvalidVars(...)`.
     - RectRangeVars: rectangle fields edited with an image range selector.

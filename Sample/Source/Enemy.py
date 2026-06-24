@@ -13,6 +13,7 @@ from .Battler import Battler, DamageType, EnemyInfoComponent
 from Source.NodeFunctions.Player import MeetPlayer
 
 
+@Meta(GeneralDataVars=[("ID", "Enemy")])
 class Enemy(Actor, EnemyInfo, Battler):
     r"""
     \brief Scene enemy entity.

@@ -42,6 +42,9 @@ struct TileLayerData {
     BIND_PROPERTY()
     std::string layerTilesetKey = ""; ///< Editor-side tileset data key
 
+    BIND_PROPERTY()
+    std::string shaderPath = ""; ///< Shader path relative to Assets/Shaders
+
     ////////////////////////////////////////////////////////////
     /// \brief Construct layer data
     ///
@@ -51,9 +54,10 @@ struct TileLayerData {
     /// - \param autoTiles Autotile assignment grid
     /// - \param autoTilePool Autotile lookup pool
     /// - \param autoTileKeys Autotile data keys matching the pool
+    /// - \param shaderPath Shader path relative to Assets/Shaders
     ////////////////////////////////////////////////////////////
     BIND_INIT()
     TileLayerData(std::string layerName = "", Tileset layerTileset = Tileset(), TileGrid tiles = TileGrid(),
                   AutoTileGrid autoTiles = AutoTileGrid(), std::vector<AutoTile> autoTilePool = std::vector<AutoTile>(),
-                  std::vector<std::string> autoTileKeys = std::vector<std::string>());
+                  std::vector<std::string> autoTileKeys = std::vector<std::string>(), std::string shaderPath = "");
 };

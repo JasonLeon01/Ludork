@@ -69,6 +69,7 @@ class SceneMapBuilder:
                 autoTileGrid,
                 autoTilePool,
                 [key for key, _ in sorted(autoTileIndexByKey.items(), key=lambda item: item[1])],
+                str(layerData.get("shaderPath", "") or ""),
             )
             autoTileTextures = [Manager.loadAutotile(entry.fileName) for entry in autoTilePool]
             autoTileFrameCounts = []

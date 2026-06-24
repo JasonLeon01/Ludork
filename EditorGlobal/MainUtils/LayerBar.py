@@ -1,8 +1,9 @@
 # -*- encoding: utf-8 -*-
 
+import os
 from typing import Optional
 from PyQt5 import QtCore, QtWidgets
-from Widgets.Utils import SingleRowDialog
+from Widgets.Utils import FileSelectorDialog, SingleRowDialog
 
 
 class LayerBarMixin:
@@ -128,6 +129,11 @@ class LayerBarMixin:
         menu = QtWidgets.QMenu(self)
         actAdd = menu.addAction(ELOC("ADD_LAYER"))
         actRename = menu.addAction(ELOC("RENAME_LAYER"))
+        menu.addSeparator()
+        actSelectShader = menu.addAction(ELOC("SELECT_LAYER_SHADER"))
+        actClearShader = menu.addAction(ELOC("CLEAR_LAYER_SHADER"))
+        actClearShader.setEnabled(bool(self.editorPanel.getLayerShaderPath(name)))
+        menu.addSeparator()
         actDelete = menu.addAction(ELOC("DELETE"))
         action = menu.exec_(self.layerList.mapToGlobal(pos))
 
@@ -157,6 +163,14 @@ class LayerBarMixin:
                     self._selectedLayerName = newName
                 self._refreshLayerBar()
 
+        if action == actSelectShader:
+            self._selectLayerShader(name)
+            return
+
+        if action == actClearShader:
+            self.editorPanel.setLayerShaderPath(name, "")
+            return
+
         if action == actDelete:
             ret = QtWidgets.QMessageBox.question(
                 self,
@@ -172,3 +186,19 @@ class LayerBarMixin:
                         if self._editModeIdx == 2:
                             self.editorPanel.setAcceptDrops(False)
                     self._refreshLayerBar()
+
+    def _selectLayerShader(self, layerName: str) -> None:
+        from EditorGlobal import EditorStatus
+
+        shaderRoot = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Shaders")
+        dialog = FileSelectorDialog(
+            self,
+            shaderRoot,
+            FileSelectorDialog.filesFilter(["*.vert", "*.frag"]),
+            ELOC("SELECT_LAYER_SHADER"),
+        )
+        selectedPath = dialog.execSelect()
+        if not selectedPath:
+            return
+        shaderPath = os.path.relpath(selectedPath, shaderRoot).replace("\\", "/")
+        self.editorPanel.setLayerShaderPath(layerName, shaderPath)

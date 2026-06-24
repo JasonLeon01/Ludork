@@ -12,6 +12,7 @@ from .Infos.EquipInfo import EquipInfo
 from .Infos.PlayerInfo import PlayerInfo
 
 
+@Meta(GeneralDataVars=[("ID", "Player")])
 class Player(Character, PlayerInfo, Battler):
     r"""\brief Player-controlled character with input bindings and battle stats.
 
@@ -167,6 +168,7 @@ class Player(Character, PlayerInfo, Battler):
             player.setStateStacks(states)
         return player
 
+    @Meta(GeneralDataVars=[("itemID", "Item")])
     @ExecSplit(default=(None,))
     def addItem(self, itemID: str, count: int = 1) -> None:
         r"""\brief Add item(s) to the player's inventory.
@@ -179,6 +181,7 @@ class Player(Character, PlayerInfo, Battler):
         else:
             self._items[itemID] = count
 
+    @Meta(GeneralDataVars=[("itemID", "Item")])
     @ExecSplit(success=(True,), failed=(False,))
     def removeItem(self, itemID: str, count: int = 1) -> bool:
         r"""\brief Remove item(s) from the player's inventory.
@@ -195,6 +198,7 @@ class Player(Character, PlayerInfo, Battler):
             del self._items[itemID]
         return True
 
+    @Meta(GeneralDataVars=[("itemID", "Item")])
     @ReturnType(count=int)
     def getItemCount(self, itemID: str) -> int:
         r"""\brief Get the count of a specific item in the player's inventory.
@@ -205,6 +209,7 @@ class Player(Character, PlayerInfo, Battler):
         """
         return self._items.get(itemID, 0)
 
+    @Meta(GeneralDataVars=[("itemID", "Item")])
     @ReturnType(value=bool)
     def hasItem(self, itemID: str) -> bool:
         r"""\brief Check whether the player owns at least one of the specified item.
@@ -215,6 +220,7 @@ class Player(Character, PlayerInfo, Battler):
         """
         return itemID in self._items and self._items[itemID] > 0
 
+    @Meta(GeneralDataVars=[("equipID", "Equip")])
     @ExecSplit(default=(None,))
     def addEquip(self, equipID: str, count: int = 1) -> None:
         r"""\brief Add equip(s) to the player's equipment.
@@ -227,6 +233,7 @@ class Player(Character, PlayerInfo, Battler):
         else:
             self._equips[equipID] = count
 
+    @Meta(GeneralDataVars=[("equipID", "Equip")])
     @ExecSplit(success=(True,), failed=(False,))
     def removeEquip(self, equipID: str, count: int = 1) -> bool:
         r"""\brief Remove equip(s) from the player's equipment.
@@ -243,6 +250,7 @@ class Player(Character, PlayerInfo, Battler):
             del self._equips[equipID]
         return True
 
+    @Meta(GeneralDataVars=[("equipID", "Equip")])
     @ExecSplit(default=(None,))
     def equip(self, equipID: str) -> None:
         r"""\brief Equip a specific equip to the player's equipment.
@@ -295,6 +303,7 @@ class Player(Character, PlayerInfo, Battler):
         info.triggerEvent("onUnequip")
         self.addEquip(equipID)
 
+    @Meta(GeneralDataVars=[("equipID", "Equip")])
     @ReturnType(count=int)
     def getEquipCount(self, equipID: str) -> int:
         r"""\brief Get the count of a specific equip in the player's equipment.
@@ -305,6 +314,7 @@ class Player(Character, PlayerInfo, Battler):
         """
         return self._equips.get(equipID, 0)
 
+    @Meta(GeneralDataVars=[("equipID", "Equip")])
     @ReturnType(value=bool)
     def hasEquip(self, equipID: str) -> bool:
         r"""\brief Check whether the player owns at least one of the specified equip.

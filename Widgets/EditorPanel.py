@@ -158,6 +158,7 @@ class EditorPanel(QtWidgets.QWidget):
                     tiles[-1].append(layerTiles[y][x])
             layer = TileLayerData(name, layerTileset, tiles)
             setattr(layer, "layerTilesetKey", layerData["layerTileset"])
+            setattr(layer, "shaderPath", str(layerData.get("shaderPath", "") or ""))
             rawAuto = layerData.get("autoTiles")
             autoTiles: List[List[Optional[str]]] = []
             for y in range(height):
@@ -679,12 +680,33 @@ class EditorPanel(QtWidgets.QWidget):
                         "layerTileset": ts_key or next(iter(GameData.tilesetData)),
                         "tiles": tiles,
                         "autoTiles": [list(r) for r in autoTiles],
+                        "shaderPath": "",
                         "actors": [],
                     }
         self._refreshTitle()
         self._renderFromMapData()
         self.update()
         return name
+
+    def getLayerShaderPath(self, name: str) -> str:
+        if self.mapData is None or name not in self.mapData.layers:
+            return ""
+        return str(getattr(self.mapData.layers[name], "shaderPath", "") or "")
+
+    def setLayerShaderPath(self, name: str, shaderPath: str) -> bool:
+        if self.mapData is None or name not in self.mapData.layers:
+            return False
+        normalizedPath = str(shaderPath or "").replace("\\", "/").strip("/")
+        if self.getLayerShaderPath(name) == normalizedPath:
+            return False
+        GameData.recordSnapshot()
+        setattr(self.mapData.layers[name], "shaderPath", normalizedPath)
+        if self.mapKey and self.mapKey in GameData.mapData:
+            layerData = GameData.mapData[self.mapKey].get("layers", {}).get(name)
+            if isinstance(layerData, dict):
+                layerData["shaderPath"] = normalizedPath
+        self._refreshTitle()
+        return True
 
     def removeLayer(self, name: str) -> bool:
         if self.mapData is None:

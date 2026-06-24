@@ -19,7 +19,7 @@ from .DialogUtils import getIndependentDialogParent
 from .FileSelectorDialog import FileSelectorDialog
 from .FunctionPickerPopup import FunctionPickerPopup
 from .MetaRely import getRelyConditionDisplay, isRelyEditable, normaliseRelyMap, toBool
-from .MetaVarTypes import getMetaVarTypes
+from .MetaVarTypes import _GENERALDATA_VAR_TYPE, getGeneralDataVars, getMetaVarTypes
 from .GraphLayout import computeGraphLayoutPositions
 from .MoveRouteEditor import MoveRouteEditor
 from .NodeFunctionMeta import getExecSplits, getLatents, getReturnTypes, hasExecOutputs
@@ -66,6 +66,7 @@ TRACKPAD_ZOOM_WHEEL_BLOCK_MS = 200
 PAN_EMULATION_MODIFIER = QtCore.Qt.MetaModifier
 WidgetValue = Any
 CONNECTED_PARAM_VALUE = object()
+NODE_DROPDOWN_Z_VALUE = 1000.0
 
 
 def isBasicPythonDefault(value: Any) -> bool:
@@ -277,6 +278,8 @@ def getPathVarBaseDir(pathVarMap: Dict[str, str], key: str) -> str:
 
 
 def getWidgetValue(widget: QtWidgets.QWidget) -> WidgetValue:
+    if isinstance(widget, GeneralDataComboBox):
+        return widget.getValue()
     if isinstance(widget, NodePathEditor):
         return widget.getValue()
     if isinstance(widget, ColourVarEditor):
@@ -300,6 +303,43 @@ def getWidgetValue(widget: QtWidgets.QWidget) -> WidgetValue:
     if isinstance(widget, QtWidgets.QComboBox):
         return widget.currentText()
     return None
+
+
+def _loadGeneralDataMemberKeys(dataType: str) -> List[str]:
+    if dataType == "ANIMATION":
+        data = getattr(GameData, "animationsData", {})
+        return [""] + [str(key) for key in data.keys()] if isinstance(data, dict) else [""]
+
+    generalData = getattr(GameData, "generalData", {})
+    if not isinstance(generalData, dict):
+        return [""]
+    data = generalData.get(dataType)
+    if not isinstance(data, dict):
+        return [""]
+    members = data.get("members")
+    if not isinstance(members, dict):
+        return [""]
+    return [""] + [str(key) for key in members.keys()]
+
+
+class GeneralDataComboBox(QtWidgets.QComboBox):
+    def __init__(self, values: List[str], parent: Optional[QtWidgets.QWidget] = None) -> None:
+        super(GeneralDataComboBox, self).__init__(parent)
+        for value in values:
+            self.addItem(ELOC("GENERAL_DATA_PLACEHOLDER") if value == "" else value, value)
+        self._hasMembers = len(values) > 1
+        self.setToolTip(self.getDefaultToolTip())
+
+    def getDefaultToolTip(self) -> str:
+        return "" if self._hasMembers else ELOC("GENERAL_DATA_NO_MEMBERS")
+
+    def getValue(self) -> str:
+        value = self.currentData()
+        return value if isinstance(value, str) else ""
+
+    def setValue(self, value: Any) -> None:
+        index = self.findData("" if value is None else str(value))
+        self.setCurrentIndex(index if index >= 0 else 0)
 
 
 def setEditorWidgetEditable(widget: QtWidgets.QWidget, editable: bool) -> None:
@@ -607,6 +647,39 @@ class NodeTypedValueWidget(NodeBaseWidget):
         editor.setValue(value, emit=False)
 
 
+class NodeGeneralDataWidget(NodeBaseWidget):
+    def __init__(
+        self,
+        parent: Optional[QtWidgets.QWidget] = None,
+        name: str = "",
+        label: str = "",
+        value: Any = None,
+        dataType: str = "",
+    ) -> None:
+        super(NodeGeneralDataWidget, self).__init__(parent)
+        self.setZValue(NODE_DROPDOWN_Z_VALUE)
+        self.set_name(name)
+        self.set_label(label)
+        editor = GeneralDataComboBox(_loadGeneralDataMemberKeys(dataType))
+        editor.setValue(value)
+        self.set_custom_widget(editor)
+        editor.currentIndexChanged.connect(self.on_value_changed)
+
+    def get_value(self) -> str:
+        editor = self.get_custom_widget()
+        if not isinstance(editor, GeneralDataComboBox):
+            return ""
+        return editor.getValue()
+
+    def set_value(self, value: WidgetValue) -> None:
+        editor = self.get_custom_widget()
+        if not isinstance(editor, GeneralDataComboBox):
+            return
+        wasBlocked = editor.blockSignals(True)
+        editor.setValue(value)
+        editor.blockSignals(wasBlocked)
+
+
 def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
     def subClassInit(self: BaseNode) -> None:
         super(self.__class__, self).__init__()
@@ -640,6 +713,7 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
 
         meta = getattr(currNode.nodeFunction, "_meta", {})
         dropBox = meta.get("DropBox", [])
+        gdVars = getGeneralDataVars(meta)
         varTypes = getMetaVarTypes(meta)
         pathVarMap = getMetaPathVars(meta)
         moveRouteVars = getMetaMoveRouteVars(meta)
@@ -708,6 +782,16 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
                     baseDir=getPathVarBaseDir(pathVarMap, name),
                 )
                 self.add_custom_widget(nodeWidget)
+            elif varType == _GENERALDATA_VAR_TYPE and name in gdVars:
+                nodeWidget = NodeGeneralDataWidget(
+                    self.view,
+                    name=widgetName,
+                    label=display_label,
+                    value=init_val,
+                    dataType=gdVars[name],
+                )
+                self.add_custom_widget(nodeWidget)
+                System.SetStyle(nodeWidget.get_custom_widget(), "nodeInput.qss")
             elif name in dropBox:
                 items = dropBox[name]
                 if isinstance(items, (list, tuple)):
@@ -717,6 +801,7 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
                 self.add_combo_menu(name=widgetName, label=display_label, items=items)
                 w = self.get_widget(widgetName)
                 if w:
+                    w.setZValue(NODE_DROPDOWN_Z_VALUE)
                     le = w.get_custom_widget()
                     if isinstance(le, QtWidgets.QComboBox):
                         le.setCurrentText(str(init_val))
@@ -1200,7 +1285,9 @@ class NodePanel(QtWidgets.QWidget):
             except AttributeError:
                 pass
             customWidget = nodeWidget.get_custom_widget() if isinstance(nodeWidget, NodeBaseWidget) else None
-            if isinstance(customWidget, QtWidgets.QWidget):
+            if isinstance(customWidget, GeneralDataComboBox):
+                customWidget.setToolTip(tip or customWidget.getDefaultToolTip())
+            elif isinstance(customWidget, QtWidgets.QWidget):
                 customWidget.setToolTip(tip)
 
     def _applyAllNodeRely(self) -> None:

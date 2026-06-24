@@ -14,7 +14,8 @@ from Widgets.Utils import SingleRowDialog, NodePanel, Toast, RectViewer, Datacla
 from Widgets.Utils.BlueprintPreview import isBlueprintPreviewable
 from Widgets.Utils.ColourPickerDialog import ColourVarEditor
 from Widgets.Utils.MetaRely import getRelyConditionDisplay, getRelySourceSet, isRelyEditable, normaliseRelyMap
-from Widgets.Utils.MetaVarTypes import getMetaVarTypes
+from Widgets.Utils.NodePanel import GeneralDataComboBox, _loadGeneralDataMemberKeys
+from Widgets.Utils.MetaVarTypes import _GENERALDATA_VAR_TYPE, getGeneralDataVars, getMetaVarTypes
 from Widgets.Utils.StructuredFields import isStructuredType, isStructuredValue, structuredValueToDict
 from Widgets.Utils.VectorVarEditor import VectorVarEditor, isVectorVarType
 
@@ -202,6 +203,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.rectRangeVars: Set[str] = set(rectMap.keys())
         self.rectRangeVarMap: Dict[str, str] = rectMap
         self.attrVarTypes: Dict[str, str] = self._getMetaVarTypes()
+        self.attrGDVars: Dict[str, str] = self._getGeneralDataVars()
         self.attrRely: Dict[str, Any] = self._getMetaRely()
         self.attrRelySources: Set[str] = getRelySourceSet(self.attrRely)
         self.setupUI()
@@ -238,6 +240,8 @@ class BluePrintEditor(QtWidgets.QWidget):
 
     def _getWidgetCurrentValue(self, widget: QtWidgets.QWidget) -> Any:
         """Extract the current value from any widget type created by createInputWidget."""
+        if isinstance(widget, GeneralDataComboBox):
+            return widget.getValue()
         if isinstance(widget, QtWidgets.QCheckBox):
             return widget.isChecked()
         if isinstance(widget, QtWidgets.QSpinBox):
@@ -283,6 +287,9 @@ class BluePrintEditor(QtWidgets.QWidget):
             widget.setValue(parent_val)
             return
         if isinstance(widget, VectorVarEditor):
+            widget.setValue(parent_val)
+            return
+        if isinstance(widget, GeneralDataComboBox):
             widget.setValue(parent_val)
             return
 
@@ -331,6 +338,12 @@ class BluePrintEditor(QtWidgets.QWidget):
         elif isinstance(widget, QtWidgets.QLineEdit):
             widget.textChanged.connect(
                 lambda text, b=revertBtn, pv=parent_val: self._onRevertTextChanged(b, text, pv)
+            )
+        elif isinstance(widget, GeneralDataComboBox):
+            widget.currentIndexChanged.connect(
+                lambda _index, b=revertBtn, pv=parent_val, w=widget: self._updateRevertButtonState(
+                    b, w.getValue(), pv
+                )
             )
         elif isinstance(widget, DataclassWidget):
             widget.VALUE_CHANGED.connect(
@@ -463,6 +476,21 @@ class BluePrintEditor(QtWidgets.QWidget):
             result.update(getMetaVarTypes(meta))
         return result
 
+    def _getGeneralDataVars(self) -> Dict[str, str]:
+        cls = self._resolveClass()
+        if cls is None or not isinstance(cls, type):
+            return {}
+        result: Dict[str, str] = {}
+        try:
+            mro = list(reversed(cls.mro()))
+        except Exception:
+            mro = [cls]
+        for base in mro:
+            meta = getattr(base, "__dict__", {}).get("_meta")
+            if isinstance(meta, dict):
+                result.update(getGeneralDataVars(meta))
+        return result
+
     def _getMetaRely(self) -> Dict[str, Any]:
         cls = self._resolveClass()
         if cls is None or not isinstance(cls, type):
@@ -502,7 +530,9 @@ class BluePrintEditor(QtWidgets.QWidget):
     def _applyRelyTooltip(self, key: str, relyEditable: bool, *widgets: Optional[QtWidgets.QWidget]) -> None:
         tip = self._getRelyTooltip(key, relyEditable)
         for widget in widgets:
-            if widget is not None:
+            if isinstance(widget, GeneralDataComboBox):
+                widget.setToolTip(tip or widget.getDefaultToolTip())
+            elif widget is not None:
                 widget.setToolTip(tip)
 
     def _getComponentTypes(self, cls: Optional[type]) -> Dict[str, Any]:
@@ -1019,6 +1049,7 @@ class BluePrintEditor(QtWidgets.QWidget):
 
         cls = self._resolveClass()
         self.attrVarTypes = self._getMetaVarTypes()
+        self.attrGDVars = self._getGeneralDataVars()
         self.attrRely = self._getMetaRely()
         self.attrRelySources = getRelySourceSet(self.attrRely)
         type_hints = {}
@@ -1065,6 +1096,8 @@ class BluePrintEditor(QtWidgets.QWidget):
         display_keys = self._getDisplayOrder(displayAttrs, target_cls)
 
         for key in display_keys:
+            if key in self.invalidVars:
+                continue
             value = displayAttrs[key]
             label = QtWidgets.QLabel(str(key))
             container = QtWidgets.QWidget()
@@ -1081,7 +1114,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             if not found_attr_parent:
                 attr_parent_val = None
 
-            if type_hint and isStructuredType(type_hint):
+            if type_hint and isStructuredType(type_hint) and self.attrVarTypes.get(key) != _GENERALDATA_VAR_TYPE:
                 widget = DataclassWidget(type_hint, value)
                 widget.VALUE_CHANGED.connect(lambda val, k=key: self.onDataChanged(k, val, True))
                 is_dc = True
@@ -1178,6 +1211,14 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.formLayout.addRow(addBtn)
         self._refreshPreview()
 
+    def _createGeneralDataCombo(self, key: str, value: Any, dataType: str) -> QtWidgets.QComboBox:
+        w = GeneralDataComboBox(_loadGeneralDataMemberKeys(dataType), self)
+        w.setValue(value)
+        w.currentIndexChanged.connect(
+            lambda _index, k=key, combo=w: self.onDataChanged(k, combo.getValue(), True)
+        )
+        return w
+
     def createInputWidget(
         self,
         key: str,
@@ -1187,6 +1228,8 @@ class BluePrintEditor(QtWidgets.QWidget):
         parent_val: Any = None,
         var_type: Any = "",
     ) -> QtWidgets.QWidget:
+        if isAttr and var_type == _GENERALDATA_VAR_TYPE:
+            return self._createGeneralDataCombo(key, value, self.attrGDVars.get(key, ""))
         if isAttr and var_type == "ColourVar":
             w = ColourVarEditor(value, self)
             w.VALUE_CHANGED.connect(lambda val, k=key: self.onDataChanged(k, val, True))

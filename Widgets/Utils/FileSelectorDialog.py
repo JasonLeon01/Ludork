@@ -10,7 +10,7 @@ _THUMB_SIZE = 80
 _HIDDEN_TOOLBAR_BUTTONS = frozenset({"newFolderButton", "listModeButton", "detailModeButton"})
 _TEXT_SUFFIXES = {
     "txt", "json", "py", "md", "ini", "xml", "csv", "log", "yaml", "yml",
-    "html", "htm", "css", "qss", "bat", "sh", "toml", "cfg", "conf",
+    "html", "htm", "css", "qss", "bat", "sh", "toml", "cfg", "conf", "vert", "frag",
 }
 _MAX_TEXT_PREVIEW_BYTES = 256 * 1024
 

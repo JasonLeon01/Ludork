@@ -50,7 +50,11 @@ def GetPlayerFrontPosition() -> Optional[Vector2i]:
     return Vector2i(position.x, position.y + 1)
 
 
-@Meta(DisplayName='LOC("ADD_ITEM")', DisplayDesc='LOC("ADD_ITEM_DESC")')
+@Meta(
+    DisplayName='LOC("ADD_ITEM")',
+    DisplayDesc='LOC("ADD_ITEM_DESC")',
+    GeneralDataVars=[("itemID", "Item")],
+)
 @ExecSplit(default=(None,))
 def AddItem(itemID: str, count: int = 1) -> None:
     r"""\brief Add item(s) to the player's inventory.
@@ -63,7 +67,11 @@ def AddItem(itemID: str, count: int = 1) -> None:
         player.addItem(itemID, count)
 
 
-@Meta(DisplayName='LOC("REMOVE_ITEM")', DisplayDesc='LOC("REMOVE_ITEM_DESC")')
+@Meta(
+    DisplayName='LOC("REMOVE_ITEM")',
+    DisplayDesc='LOC("REMOVE_ITEM_DESC")',
+    GeneralDataVars=[("itemID", "Item")],
+)
 @ExecSplit(Success=(0,), Failed=(1,))
 def RemoveItem(itemID: str, count: int = 1) -> int:
     r"""\brief Remove item(s) from the player's inventory.
@@ -78,7 +86,11 @@ def RemoveItem(itemID: str, count: int = 1) -> int:
     return 1
 
 
-@Meta(DisplayName='LOC("HAS_ITEM")', DisplayDesc='LOC("HAS_ITEM_DESC")')
+@Meta(
+    DisplayName='LOC("HAS_ITEM")',
+    DisplayDesc='LOC("HAS_ITEM_DESC")',
+    GeneralDataVars=[("itemID", "Item")],
+)
 @ReturnType(value=bool)
 def HasItem(itemID: str) -> bool:
     r"""\brief Check whether the player owns at least one of the specified item.
@@ -90,7 +102,11 @@ def HasItem(itemID: str) -> bool:
     return bool(player and player.hasItem(itemID))
 
 
-@Meta(DisplayName='LOC("GET_ITEM_COUNT")', DisplayDesc='LOC("GET_ITEM_COUNT_DESC")')
+@Meta(
+    DisplayName='LOC("GET_ITEM_COUNT")',
+    DisplayDesc='LOC("GET_ITEM_COUNT_DESC")',
+    GeneralDataVars=[("itemID", "Item")],
+)
 @ReturnType(count=int)
 def GetItemCount(itemID: str) -> int:
     r"""\brief Get the count of a specific item in the player's inventory.
@@ -102,7 +118,11 @@ def GetItemCount(itemID: str) -> int:
     return player.getItemCount(itemID) if player else 0
 
 
-@Meta(DisplayName='LOC("ADD_EQUIP")', DisplayDesc='LOC("ADD_EQUIP_DESC")')
+@Meta(
+    DisplayName='LOC("ADD_EQUIP")',
+    DisplayDesc='LOC("ADD_EQUIP_DESC")',
+    GeneralDataVars=[("equipID", "Equip")],
+)
 @ExecSplit(default=(None,))
 def AddEquip(equipID: str, count: int = 1) -> None:
     r"""\brief Add equip(s) to the player's equipment bag.
@@ -115,7 +135,11 @@ def AddEquip(equipID: str, count: int = 1) -> None:
         player.addEquip(equipID, count)
 
 
-@Meta(DisplayName='LOC("REMOVE_EQUIP")', DisplayDesc='LOC("REMOVE_EQUIP_DESC")')
+@Meta(
+    DisplayName='LOC("REMOVE_EQUIP")',
+    DisplayDesc='LOC("REMOVE_EQUIP_DESC")',
+    GeneralDataVars=[("equipID", "Equip")],
+)
 @ExecSplit(Success=(0,), Failed=(1,))
 def RemoveEquip(equipID: str, count: int = 1) -> int:
     r"""\brief Remove equip(s) from the player's equipment bag.
@@ -130,7 +154,11 @@ def RemoveEquip(equipID: str, count: int = 1) -> int:
     return 1
 
 
-@Meta(DisplayName='LOC("HAS_EQUIP")', DisplayDesc='LOC("HAS_EQUIP_DESC")')
+@Meta(
+    DisplayName='LOC("HAS_EQUIP")',
+    DisplayDesc='LOC("HAS_EQUIP_DESC")',
+    GeneralDataVars=[("equipID", "Equip")],
+)
 @ReturnType(value=bool)
 def HasEquip(equipID: str) -> bool:
     r"""\brief Check whether the player owns at least one of the specified equip.
@@ -142,7 +170,11 @@ def HasEquip(equipID: str) -> bool:
     return bool(player and player.hasEquip(equipID))
 
 
-@Meta(DisplayName='LOC("EQUIP_ITEM")', DisplayDesc='LOC("EQUIP_ITEM_DESC")')
+@Meta(
+    DisplayName='LOC("EQUIP_ITEM")',
+    DisplayDesc='LOC("EQUIP_ITEM_DESC")',
+    GeneralDataVars=[("equipID", "Equip")],
+)
 @ExecSplit(default=(None,))
 def EquipItem(equipID: str) -> None:
     r"""\brief Equip a piece of equipment onto the player.
@@ -247,7 +279,11 @@ def DamagePlayer(amount: int = 1) -> None:
         player.infoComp.HP = max(player.infoComp.HP - int(amount), 0)
 
 
-@Meta(DisplayName='LOC("REMOVE_PLAYER_STATE")', DisplayDesc='LOC("REMOVE_PLAYER_STATE_DESC")')
+@Meta(
+    DisplayName='LOC("REMOVE_PLAYER_STATE")',
+    DisplayDesc='LOC("REMOVE_PLAYER_STATE_DESC")',
+    GeneralDataVars=[("stateID", "State")],
+)
 @ExecSplit(default=(None,))
 def RemovePlayerState(stateID: str) -> None:
     r"""\brief Remove a state from the player.
@@ -259,7 +295,11 @@ def RemovePlayerState(stateID: str) -> None:
         player.removeState(stateID)
 
 
-@Meta(DisplayName='LOC("REDUCE_PLAYER_STATE")', DisplayDesc='LOC("REDUCE_PLAYER_STATE_DESC")')
+@Meta(
+    DisplayName='LOC("REDUCE_PLAYER_STATE")',
+    DisplayDesc='LOC("REDUCE_PLAYER_STATE_DESC")',
+    GeneralDataVars=[("stateID", "State")],
+)
 @ExecSplit(default=(None,))
 def ReducePlayerState(stateID: str, stacks: int = 1) -> None:
     r"""\brief Reduce a state stack count on the player and remove it at zero.

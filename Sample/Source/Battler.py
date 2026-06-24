@@ -220,6 +220,7 @@ class Battler:
         """
         return [LOC(s.name) for s in self._states]
 
+    @Meta(GeneralDataVars=[("state", "State")])
     @ExecSplit(default=(None,))
     def addState(self, state: Union[str, StateInfo], stacks: int) -> None:
         r"""\brief Apply a state to this battler with the given stack count.
@@ -248,6 +249,7 @@ class Battler:
         info.setOwner(self)
         self._states.append(info)
 
+    @Meta(GeneralDataVars=[("state", "State")])
     @ExecSplit(default=(None,))
     def removeState(self, state: Union[str, StateInfo]) -> None:
         r"""\brief Remove an active state by ID or instance.
@@ -260,6 +262,7 @@ class Battler:
         existing.setOwner(None)
         self._states.remove(existing)
 
+    @Meta(GeneralDataVars=[("state", "State")])
     @ExecSplit(default=(None,))
     def reduceStateStacks(self, state: Union[str, StateInfo], stacks: int = 1) -> None:
         r"""\brief Reduce stack count for an active state, removing it at zero.
@@ -314,6 +317,7 @@ class Battler:
         r"""\brief Trigger the walking event on every active state."""
         self._triggerStateEvent("onWalk")
 
+    @Meta(GeneralDataVars=[("stateKey", "State")])
     @ExecSplit(default=(None,))
     def triggerStateHook(self, stateKey: str) -> None:
         r"""\brief Trigger the developer-controlled hook event on one active state.

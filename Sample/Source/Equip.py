@@ -9,6 +9,7 @@ from . import Data, System
 from .Infos.EquipInfo import EquipInfo
 
 
+@Meta(GeneralDataVars=[("ID", "Equip")])
 class Equip(Actor, EquipInfo):
     r"""
     \brief Scene equip entity.

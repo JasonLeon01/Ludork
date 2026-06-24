@@ -11,6 +11,7 @@ MAX_ICON_SIZE = 64
 ICON_SIZE_PADDING = 24
 GRID_SIZE_PADDING = 18
 MIN_HEIGHT_EXTRA_PADDING = 2
+MIN_PANEL_WIDTH = 180
 
 
 class ActorQueuePanel(QtWidgets.QWidget):
@@ -24,10 +25,14 @@ class ActorQueuePanel(QtWidgets.QWidget):
         self._itemMap: Dict[str, QtWidgets.QListWidgetItem] = {}
         self._currentBpRel: Optional[str] = None
         self._pendingClickItem: Optional[QtWidgets.QListWidgetItem] = None
+        self._title = QtWidgets.QLabel(ELOC("RECENTLY_PLACED"), self)
         self._list = QtWidgets.QListWidget(self)
-        self._list.setViewMode(QtWidgets.QListView.IconMode)
+        self._list.setViewMode(QtWidgets.QListView.ListMode)
+        self._list.setFlow(QtWidgets.QListView.TopToBottom)
+        self._list.setWrapping(False)
         self._list.setMovement(QtWidgets.QListView.Static)
-        self._list.setResizeMode(QtWidgets.QListView.Adjust)
+        self._list.setResizeMode(QtWidgets.QListView.Fixed)
+        self._list.setTextElideMode(QtCore.Qt.ElideMiddle)
         self._list.setSpacing(8)
         self._list.setUniformItemSizes(True)
         self._list.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
@@ -39,6 +44,7 @@ class ActorQueuePanel(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
+        layout.addWidget(self._title)
         layout.addWidget(self._list, 1)
         self.setDockMode(dockMode)
         QtCore.QTimer.singleShot(0, self._updateIconMetrics)
@@ -59,17 +65,13 @@ class ActorQueuePanel(QtWidgets.QWidget):
 
     def _applyDockMode(self) -> None:
         if self._dockMode == "vertical":
-            self._list.setFlow(QtWidgets.QListView.LeftToRight)
-            self._list.setWrapping(True)
-            oneColMinWidth = self._calculateOneColumnMinWidth()
+            oneColMinWidth = max(MIN_PANEL_WIDTH, self._calculateOneColumnMinWidth())
             self.setMinimumWidth(oneColMinWidth)
             self.setMaximumWidth(16777215)
             self.setMinimumHeight(0)
             self.setMaximumHeight(16777215)
             self.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Expanding)
             return
-        self._list.setFlow(QtWidgets.QListView.LeftToRight)
-        self._list.setWrapping(True)
         oneRowMinHeight = self._calculateOneRowMinHeight()
         self.setMinimumHeight(oneRowMinHeight)
         self.setMaximumHeight(oneRowMinHeight)
@@ -94,19 +96,8 @@ class ActorQueuePanel(QtWidgets.QWidget):
         return int(gridWidth + frameWidth + scrollBarWidth + MIN_HEIGHT_EXTRA_PADDING)
 
     def _updateIconMetrics(self) -> None:
-        viewport = self._list.viewport()
-        fontMetrics = self._list.fontMetrics()
-        textHeight = int(fontMetrics.height())
-        if self._dockMode == "vertical":
-            viewportWidth = viewport.width() if viewport is not None else self._list.width()
-            maxAllowedByWidth = int(viewportWidth - ICON_SIZE_PADDING)
-            iconSize = min(MAX_ICON_SIZE, maxAllowedByWidth)
-            iconSize = max(MIN_ICON_SIZE, iconSize)
-        else:
-            viewportHeight = viewport.height() if viewport is not None else self._list.height()
-            iconSize = max(MIN_ICON_SIZE, min(MAX_ICON_SIZE, int(viewportHeight - textHeight - ICON_SIZE_PADDING)))
+        iconSize = max(MIN_ICON_SIZE, min(MAX_ICON_SIZE, 48))
         self._list.setIconSize(QtCore.QSize(iconSize, iconSize))
-        self._list.setGridSize(QtCore.QSize(iconSize + GRID_SIZE_PADDING, iconSize + textHeight + GRID_SIZE_PADDING))
 
     def clearQueue(self) -> None:
         self._queue.clear()
@@ -232,6 +223,7 @@ class ActorQueuePanel(QtWidgets.QWidget):
             it.setText(self._displayName(bp))
             it.setToolTip(bp)
             it.setIcon(QtGui.QIcon(self._makePreview(bp)))
+            it.setSizeHint(QtCore.QSize(0, self._list.iconSize().height() + GRID_SIZE_PADDING))
             self._list.addItem(it)
             self._itemMap[bp] = it
         if existingSel and existingSel in self._itemMap:

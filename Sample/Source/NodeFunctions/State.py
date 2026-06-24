@@ -111,7 +111,11 @@ def HealBattler(battler: Any, amount: int = 1) -> None:
     setComponentFieldValue(battler, "HP", min(int(hp) + int(amount), int(cap)))
 
 
-@Meta(DisplayName='LOC("BATTLER_HAS_STATE")', DisplayDesc='LOC("BATTLER_HAS_STATE_DESC")')
+@Meta(
+    DisplayName='LOC("BATTLER_HAS_STATE")',
+    DisplayDesc='LOC("BATTLER_HAS_STATE_DESC")',
+    GeneralDataVars=[("stateID", "State")],
+)
 @ReturnType(value=bool)
 def BattlerHasState(battler: Any, stateID: str) -> bool:
     r"""\brief Check whether a battler currently carries the given state.
@@ -125,7 +129,11 @@ def BattlerHasState(battler: Any, stateID: str) -> bool:
     return bool(battler.hasState(stateID))
 
 
-@Meta(DisplayName='LOC("ADD_STATE_TO")', DisplayDesc='LOC("ADD_STATE_TO_DESC")')
+@Meta(
+    DisplayName='LOC("ADD_STATE_TO")',
+    DisplayDesc='LOC("ADD_STATE_TO_DESC")',
+    GeneralDataVars=[("stateID", "State")],
+)
 @ExecSplit(default=(None,))
 def AddStateTo(battler: Any, stateID: str, stacks: int = 1) -> None:
     r"""\brief Apply a state (by ID) to any battler.
@@ -139,7 +147,11 @@ def AddStateTo(battler: Any, stateID: str, stacks: int = 1) -> None:
     battler.addState(stateID, stacks)
 
 
-@Meta(DisplayName='LOC("REMOVE_STATE_FROM")', DisplayDesc='LOC("REMOVE_STATE_FROM_DESC")')
+@Meta(
+    DisplayName='LOC("REMOVE_STATE_FROM")',
+    DisplayDesc='LOC("REMOVE_STATE_FROM_DESC")',
+    GeneralDataVars=[("stateID", "State")],
+)
 @ExecSplit(default=(None,))
 def RemoveStateFrom(battler: Any, stateID: str) -> None:
     r"""\brief Remove a state (by ID) from any battler.
@@ -152,7 +164,11 @@ def RemoveStateFrom(battler: Any, stateID: str) -> None:
     battler.removeState(stateID)
 
 
-@Meta(DisplayName='LOC("REDUCE_STATE_FROM")', DisplayDesc='LOC("REDUCE_STATE_FROM_DESC")')
+@Meta(
+    DisplayName='LOC("REDUCE_STATE_FROM")',
+    DisplayDesc='LOC("REDUCE_STATE_FROM_DESC")',
+    GeneralDataVars=[("stateID", "State")],
+)
 @ExecSplit(default=(None,))
 def ReduceStateFrom(battler: Any, stateID: str, stacks: int = 1) -> None:
     r"""\brief Reduce a state stack count on any battler and remove it at zero.

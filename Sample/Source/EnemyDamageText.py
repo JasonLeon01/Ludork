@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from .Player import Player
 
 
+@Meta(GeneralDataVars=[("requiredItemID", "Item")])
 class EnemyDamageText(Actor):
     r"""\brief Text-only child actor showing enemy damage against the player."""
 

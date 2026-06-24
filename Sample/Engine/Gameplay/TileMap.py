@@ -1,6 +1,8 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+import logging
+import os
 from typing import Any, Dict, List, Optional
 from .. import (
     Vector2i,
@@ -12,7 +14,9 @@ from .. import (
     TileLayerGraphics,
     AutoTile,
     TileLayerData,
+    Shader,
 )
+from ..Utils.Inner import IS_IOS_PLATFORM, warnIosShaderSkippedOnce
 
 
 class TileLayer(TileLayerGraphics):
@@ -52,6 +56,12 @@ class TileLayer(TileLayerGraphics):
         self._reflectionStrengthMapCache: Optional[List[List[float]]] = None
         self._reflectionStrengthImageCache: Optional[Image] = None
         self.visible = visible
+        self.shaderPath: str = str(self._data.shaderPath or "")
+        self.shader: Optional[Shader] = None
+        self.shaderType: Optional[Shader.Type] = None
+        self._shaderTime: float = 0.0
+        self._shaderUsesTime: bool = False
+        self._loadShader()
 
         autoTilePool = list(self._data.autoTilePool or [])
         if not self._data.autoTileKeys:
@@ -76,6 +86,51 @@ class TileLayer(TileLayerGraphics):
             autoTileTextureList,
             autoTileFrames,
         )
+
+    def _loadShader(self) -> None:
+        if not self.shaderPath:
+            return
+        if IS_IOS_PLATFORM:
+            warnIosShaderSkippedOnce(
+                f"TileLayer.shaderPath:{self.shaderPath}",
+                f"iOS: shaders are disabled; skipped tile layer shader: {self.shaderPath}",
+            )
+            return
+        extension = os.path.splitext(self.shaderPath)[1].lower()
+        shaderTypes = {
+            ".vert": Shader.Type.Vertex,
+            ".frag": Shader.Type.Fragment,
+        }
+        shaderType = shaderTypes.get(extension)
+        if shaderType is None:
+            logging.warning("Unsupported tile layer shader extension: %s", self.shaderPath)
+            return
+        fullPath = self.shaderPath
+        normalizedPath = fullPath.replace("\\", "/").lstrip("./")
+        if not normalizedPath.lower().startswith("assets/shaders/"):
+            fullPath = os.path.join(".", "Assets", "Shaders", self.shaderPath)
+        if not os.path.exists(fullPath):
+            logging.warning("Tile layer shader file not found: %s", fullPath)
+            return
+        try:
+            with open(fullPath, "r", encoding="utf-8") as shaderFile:
+                self._shaderUsesTime = "uniform float time" in shaderFile.read()
+            self.shader = Shader(fullPath, shaderType)
+            self.shaderType = shaderType
+        except OSError as exc:
+            logging.warning("Tile layer shader file could not be read for %s: %s", self.shaderPath, exc)
+        except Exception as exc:
+            logging.warning("Tile layer shader load failed for %s: %s", self.shaderPath, exc)
+
+    def updateShader(self, deltaTime: float) -> None:
+        r"""Advance the conventional time uniform for this layer shader.
+
+        - \param deltaTime Elapsed time in seconds
+        """
+        if self.shader is None or not self._shaderUsesTime:
+            return
+        self._shaderTime += deltaTime
+        self.shader.setUniform("time", self._shaderTime)
 
     @ReturnType(name=str)
     def getName(self) -> str:
@@ -297,3 +352,4 @@ class Tilemap:
         """
         for layer in self._layers.values():
             layer.updateAutoTileAnimation(deltaTime, frameInterval)
+            layer.updateShader(deltaTime)

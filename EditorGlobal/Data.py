@@ -940,6 +940,14 @@ class GameData:
                         "tileset",
                         f"Maps/{key}.layers.{layerName}.layerTileset",
                     )
+                cls._addAssetReference(
+                    index,
+                    sourceId,
+                    layerData.get("shaderPath"),
+                    "Shaders",
+                    "asset",
+                    f"Maps/{key}.layers.{layerName}.shaderPath",
+                )
                 cls._scanAutoTileGridReferences(
                     index, sourceId, layerData.get("autoTiles"), f"Maps/{key}.layers.{layerName}.autoTiles"
                 )

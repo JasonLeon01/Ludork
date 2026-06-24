@@ -375,6 +375,14 @@
     "zh_CN": "修改图层名",
     "en_GB": "Rename Layer"
   },
+  "SELECT_LAYER_SHADER": {
+    "zh_CN": "选择图层着色器",
+    "en_GB": "Select Layer Shader"
+  },
+  "CLEAR_LAYER_SHADER": {
+    "zh_CN": "清除图层着色器",
+    "en_GB": "Clear Layer Shader"
+  },
   "ADD_ERROR": {
     "zh_CN": "未加载地图",
     "en_GB": "No map loaded"
@@ -1207,6 +1215,10 @@
     "zh_CN": "角色信息",
     "en_GB": "Actor Info"
   },
+  "RECENTLY_PLACED": {
+    "zh_CN": "最近放置",
+    "en_GB": "Recently Placed"
+  },
   "TAG": {
     "zh_CN": "标签",
     "en_GB": "Tag"
@@ -1266,6 +1278,14 @@
   "DATA_TYPE_EXISTS": {
     "zh_CN": "数据类型已存在",
     "en_GB": "Data type already exists"
+  },
+  "GENERAL_DATA_NO_MEMBERS": {
+    "zh_CN": "该数据类型暂无成员",
+    "en_GB": "No members in this data type"
+  },
+  "GENERAL_DATA_PLACEHOLDER": {
+    "zh_CN": "— 不选择 —",
+    "en_GB": "— None —"
   },
   "GENERAL_DATA": {
     "zh_CN": "通用数据",

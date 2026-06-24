@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Any, Dict
 
 
+_GENERALDATA_VAR_TYPE = "GeneralDataVar"
+
 _SHORTHAND_VAR_TYPES = {
     "PairVars": "Vector2Var",
     "PairFloatVars": "Vector2fVar",
@@ -18,6 +20,24 @@ _SHORTHAND_VAR_TYPES = {
     "Vector3iVars": "Vector3iVar",
     "Vector3uVars": "Vector3uVar",
 }
+
+
+def getGeneralDataVars(meta: Any) -> Dict[str, str]:
+    if not isinstance(meta, dict):
+        return {}
+
+    rawVars = meta.get("GeneralDataVars")
+    if not isinstance(rawVars, (list, tuple)):
+        return {}
+
+    result: Dict[str, str] = {}
+    for item in rawVars:
+        if not isinstance(item, (list, tuple)) or len(item) < 2:
+            continue
+        name, dataType = item[0], item[1]
+        if isinstance(name, str) and name and isinstance(dataType, str) and dataType:
+            result[name] = dataType
+    return result
 
 
 def _collectShorthandVars(result: Dict[str, str], rawVars: Any, valueType: str) -> None:
@@ -34,7 +54,7 @@ def getMetaVarTypes(meta: Any) -> Dict[str, str]:
     if not isinstance(meta, dict):
         return {}
 
-    result: Dict[str, str] = {}
+    result = {name: _GENERALDATA_VAR_TYPE for name in getGeneralDataVars(meta)}
     for key in ("VarTypes", "VariableTypes", "ParamTypes"):
         rawTypes = meta.get(key)
         if not isinstance(rawTypes, dict):

@@ -550,6 +550,26 @@ class BindingCodegen:
             self._emit(f'{record_name}["{attr_name}"] = py::tuple();')
 
     def _gen_record_meta_shortcuts(self, record_name: str, options: dict):
+        general_data_vars = options.get("GeneralDataVars")
+        if isinstance(general_data_vars, str):
+            tuple_items = []
+            for pair in general_data_vars.split(","):
+                if ":" not in pair:
+                    continue
+                name, data_type = pair.split(":", 1)
+                name = name.strip()
+                data_type = data_type.strip()
+                if name and data_type:
+                    tuple_items.append(
+                        f'py::make_tuple(py::str("{_escape_docstring(name)}"), '
+                        f'py::str("{_escape_docstring(data_type)}"))'
+                    )
+            value = f'py::make_tuple({", ".join(tuple_items)})' if tuple_items else "py::tuple()"
+            self._metadata_counter += 1
+            meta_name = f"metadataDict{self._metadata_counter}"
+            self._emit(f'py::dict {meta_name} = py::cast<py::dict>({record_name}["_meta"]);')
+            self._emit(f'{meta_name}["GeneralDataVars"] = {value};')
+
         invalid_vars = options.get("InvalidVars")
         if isinstance(invalid_vars, str):
             names = [name.strip() for name in invalid_vars.split(",") if name.strip()]
