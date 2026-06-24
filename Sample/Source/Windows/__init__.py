@@ -16,6 +16,7 @@ for the Ludork sample engine.
 - WindowEquipSelect Available-equip window
 - WindowSaveLoad    Integrated save/load window
 - WindowShop        Integrated buy/sell shop window
+- WindowAttrShop    Attribute upgrade shop window
 - WindowEnemyBook   Current-map monster handbook window
 - WindowEnemyEncyclopedia Enemy encyclopedia detail window
 - WindowFloorTeleporter Visited-floor list and map preview window
@@ -35,6 +36,7 @@ from .WindowItem import WindowItem
 from .WindowEquip import WindowEquipSlot, WindowEquipSelect
 from .WindowSaveLoad import WindowSaveLoad
 from .WindowShop import WindowShop
+from .WindowAttrShop import WindowAttrShop
 from .WindowEnemyBook import WindowEnemyBook
 from .WindowEnemyEncyclopedia import WindowEnemyEncyclopedia
 from .WindowFloorTeleporter import WindowFloorTeleporter
@@ -53,6 +55,7 @@ __all__ = [
     "WindowEquipSelect",
     "WindowSaveLoad",
     "WindowShop",
+    "WindowAttrShop",
     "WindowEnemyBook",
     "WindowEnemyEncyclopedia",
     "WindowFloorTeleporter",

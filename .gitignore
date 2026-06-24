@@ -11,9 +11,7 @@
 .claude/
 .codex/
 .cursor/
-.deepseek/
-.trae/
-.codebuddy/
+.harness/
 CLAUDE.md
 AGENTS.md
 ios_python/

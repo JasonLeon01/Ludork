@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from Engine import Pair, Vector2f, Vector2i, Vector2u
 from Engine.Gameplay.Actors import Actor
 from Global import Manager, System
@@ -168,7 +168,7 @@ def ShowRefMessage(
 @Meta(
     DisplayName='LOC("SHOW_VOICE_MESSAGE")',
     DisplayDesc='LOC("SHOW_VOICE_MESSAGE_DESC")',
-    PathVars=[("voiceFileName", "Sounds")],
+    PathVars=[("voiceFileName", "Voices")],
 )
 @Latent(FinishedDialogue=(True,))
 def ShowVoiceMessage(
@@ -186,7 +186,7 @@ def ShowVoiceMessage(
 @Meta(
     DisplayName='LOC("SHOW_VOICE_REF_MESSAGE")',
     DisplayDesc='LOC("SHOW_VOICE_REF_MESSAGE_DESC")',
-    PathVars=[("voiceFileName", "Sounds")],
+    PathVars=[("voiceFileName", "Voices")],
 )
 @Latent(FinishedDialogue=(True,))
 def ShowVoiceRefMessage(
@@ -423,8 +423,7 @@ def RecordAddedActor(actor: Actor) -> None:
 @Meta(DisplayName='LOC("SELF_RECORD_ADDED")', DisplayDesc='LOC("SELF_RECORD_ADDED_DESC")')
 @ExecSplit(default=(None,))
 def SelfRecordAdded() -> None:
-    r"""\brief Record the blueprint owner as an added actor for persistence on the current map scene.
-    """
+    r"""\brief Record the blueprint owner as an added actor for persistence on the current map scene."""
     actor = _getBlueprintOwner(SelfRecordAdded._refLocal)
     if actor is None:
         return
@@ -446,8 +445,7 @@ def RecordActorPosition(actor: Actor) -> None:
 @Meta(DisplayName='LOC("SELF_RECORD_ACTOR_POSITION")', DisplayDesc='LOC("SELF_RECORD_ACTOR_POSITION_DESC")')
 @ExecSplit(default=(None,))
 def SelfRecordActorPosition() -> None:
-    r"""\brief Record the blueprint owner's position change for persistence on the current map scene.
-    """
+    r"""\brief Record the blueprint owner's position change for persistence on the current map scene."""
     actor = _getBlueprintOwner(SelfRecordActorPosition._refLocal)
     if actor is None:
         return
@@ -469,8 +467,7 @@ def RecordDestroyedActor(actor: Actor) -> None:
 @Meta(DisplayName='LOC("SELF_RECORD_DESTROYED")', DisplayDesc='LOC("SELF_RECORD_DESTROYED_DESC")')
 @ExecSplit(default=(None,))
 def SelfRecordDestroyed() -> None:
-    r"""\brief Record the blueprint owner as a destroyed actor for persistence on the current map scene.
-    """
+    r"""\brief Record the blueprint owner as a destroyed actor for persistence on the current map scene."""
     actor = _getBlueprintOwner(SelfRecordDestroyed._refLocal)
     if actor is None:
         return
@@ -493,8 +490,7 @@ def RecordAndDestroyActor(actor: Actor) -> None:
 @Meta(DisplayName='LOC("SELF_RECORD_AND_DESTROY")', DisplayDesc='LOC("SELF_RECORD_AND_DESTROY_DESC")')
 @ExecSplit(default=(None,))
 def SelfRecordAndDestroy() -> None:
-    r"""\brief Record the blueprint owner as destroyed for persistence and destroy it on the current map scene.
-    """
+    r"""\brief Record the blueprint owner as destroyed for persistence and destroy it on the current map scene."""
     actor = _getBlueprintOwner(SelfRecordAndDestroy._refLocal)
     if actor is None:
         return
@@ -520,3 +516,88 @@ def OpenShop(items: List[str], canSell: bool = True) -> Callable[[], bool]:
         return True
 
     return condition
+
+
+@Meta(DisplayName='LOC("OPEN_ATTR_SHOP")', DisplayDesc='LOC("OPEN_ATTR_SHOP_DESC")')
+@Latent(Closed=(True,))
+def OpenAttrShop(
+    actor: Actor = None,
+    shopName: str = "",
+    shopDescription: str = "",
+    abilities: Dict[str, int] = {},
+    price: Union[int, List[int]] = 0,
+    priceIncrement: int = 1,
+    moneyName: str = "GOLD",
+) -> Callable[[], bool]:
+    r"""\brief Open an attribute shop on the current map scene.
+
+    - \param actor The actor whose avatar is shown.
+    - \param shopName Locale key for the shop name.
+    - \param shopDescription Locale key for the shop description.
+    - \param abilities Mapping of player attribute names to purchased increments.
+    - \param price Shared price, ordered price list, or game variable name containing either.
+    - \param priceIncrement Amount added to the price after each purchase.
+    - \param moneyName Player info component attribute used as currency.
+    - \return A condition callable that becomes True when the shop closes.
+    """
+
+    def condition() -> bool:
+        return True
+
+    from Source.Scenes import Map as SceneMap
+
+    scene = System.getScene()
+    if not isinstance(scene, SceneMap):
+        return condition
+    from Source.NodeFunctions.Utils import _localRef
+
+    if isinstance(price, str) and price:
+        priceRef = _localRef(scene.inst.getVariables(), price, 0)
+    else:
+        priceValue = 0 if price == "" else price
+        priceRef = _localRef({"price": priceValue}, "price", priceValue)
+    return scene.openAttrShop(
+        actor,
+        shopName,
+        shopDescription,
+        dict(abilities),
+        priceRef,
+        int(priceIncrement),
+        moneyName,
+    )
+
+
+@Meta(DisplayName='LOC("OPEN_ATTR_SHOP_BY_TAG")', DisplayDesc='LOC("OPEN_ATTR_SHOP_BY_TAG_DESC")')
+@Latent(Closed=(True,))
+def OpenAttrShopByTag(
+    actorTag: str = "",
+    shopName: str = "",
+    shopDescription: str = "",
+    abilities: Dict[str, int] = {},
+    price: Union[int, List[int]] = 0,
+    priceIncrement: int = 1,
+    moneyName: str = "GOLD",
+) -> Callable[[], bool]:
+    r"""\brief Open an attribute shop on the current map scene.
+
+    - \param actorTag Tag of the actor whose avatar is shown.
+    - \param shopName Locale key for the shop name.
+    - \param shopDescription Locale key for the shop description.
+    - \param abilities Mapping of player attribute names to purchased increments.
+    - \param price Shared price, ordered price list, or game variable name containing either.
+    - \param priceIncrement Amount added to the price after each purchase.
+    - \param moneyName Player info component attribute used as currency.
+    - \return A condition callable that becomes True when the shop closes.
+    """
+
+    def condition() -> bool:
+        return True
+
+    from Source.Scenes import Map as SceneMap
+
+    scene = System.getScene()
+    if not isinstance(scene, SceneMap):
+        return condition
+    actor = scene.getGameMap().getActorByTag(actorTag) if actorTag else None
+
+    return OpenAttrShop(actor, shopName, shopDescription, abilities, price, priceIncrement, moneyName)

@@ -47,7 +47,7 @@ class Item(Actor, ItemInfo):
             player.addItem(self.ID)
             if not inst.getCachedNewItem(self.ID):
                 inst.setCachedNewItem(self.ID)
-                scene.showMessage("", LOC("ITEM_NEW").format(name=self.name, desc=self.desc).replace("\\n", "\n"), "")
+                scene.showMessage("", LOC("ITEM_NEW").format(name=self.name, desc=self.desc).replace("\\n", "\n"), None)
         super().onCollision(other)
         scene.recordDestroyedActor(self)
         self.destroy()

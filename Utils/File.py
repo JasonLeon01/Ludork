@@ -9,6 +9,7 @@ import shutil
 import importlib
 import traceback
 import openpyxl
+from openpyxl.cell.cell import Cell
 from pathlib import Path
 from typing import Dict, Any, Optional, List, cast
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -78,7 +79,7 @@ def SaveData(filePath, data: Dict[str, Any]) -> None:
 def _homeDir() -> str:
     try:
         return QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.HomeLocation)
-    except Exception:
+    except (RuntimeError, AttributeError):
         return os.path.expanduser("~")
 
 
@@ -131,7 +132,7 @@ def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
     try:
         cfg_w = int(EditorStatus.editorConfig[EditorStatus.APP_NAME].get("Width", mainWindow.width()))
         cfg_h = int(EditorStatus.editorConfig[EditorStatus.APP_NAME].get("Height", mainWindow.height()))
-    except Exception:
+    except (ValueError, TypeError, KeyError):
         cfg_w, cfg_h = mainWindow.width(), mainWindow.height()
     min_size = mainWindow.minimumSize()
     mainWindow.resize(max(cfg_w, min_size.width()), max(cfg_h, min_size.height()))
@@ -230,7 +231,7 @@ def UnescapeLocaleCellValue(value: str) -> str:
     return value
 
 
-def _resolveLocaleCellValue(valueCell: Any, rawCell: Any) -> Optional[str]:
+def _resolveLocaleCellValue(valueCell: Cell, rawCell: Cell) -> Optional[str]:
     val = valueCell.value
     if val is not None:
         return UnescapeLocaleCellValue(str(val))

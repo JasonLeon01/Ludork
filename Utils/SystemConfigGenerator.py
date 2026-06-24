@@ -146,14 +146,11 @@ def _inferValue(value: str) -> tuple[str, Any]:
     lowered = value.strip().lower()
     if lowered in _BOOL_TRUE or lowered in _BOOL_FALSE:
         return "bool", lowered in _BOOL_TRUE
-    try:
-        if re.fullmatch(r"[+-]?\d+", value.strip()):
-            return "int", int(value)
-    except Exception:
-        pass
+    if re.fullmatch(r"[+-]?\d+", value.strip()):
+        return "int", int(value)
     try:
         return "float", float(value)
-    except Exception:
+    except ValueError:
         return "str", value
 
 

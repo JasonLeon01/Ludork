@@ -332,7 +332,7 @@ class ActorInfoPanel(QtWidgets.QWidget):
             return editorPanel
         return None
 
-    def _getBlueprintAttr(self, bpRel: Any, name: str, default: Any) -> Any:
+    def _getBlueprintAttr(self, bpRel: Optional[str], name: str, default: Any) -> Any:
         editorPanel = self._getEditorPanel()
         if editorPanel is not None:
             return editorPanel.getBlueprintAttr(bpRel, name, default)

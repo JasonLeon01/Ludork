@@ -106,7 +106,7 @@ class LayerBarMixin:
             names = [n for n in self.editorPanel.getLayerNames() if n != name]
             new_order = names[:insertAfterTabIndex] + [name] + names[insertAfterTabIndex:]
             self.editorPanel.reorderLayers(new_order)
-        self._selectedLayerName = name
+        self._selectLayer(name)
         self._refreshLayerBar()
 
     def _onLayerContextMenu(self, pos: QtCore.QPoint) -> None:

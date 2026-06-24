@@ -771,7 +771,7 @@ class GeneralDataPage(QtWidgets.QWidget):
                         defaultVal = []
                 else:
                     defaultVal = []
-            except:
+            except (ValueError, SyntaxError, TypeError):
                 defaultVal = []
         elif t == "dict":
             try:
@@ -785,7 +785,7 @@ class GeneralDataPage(QtWidgets.QWidget):
                         defaultVal = {str(k): str(v) for k, v in defaultVal.items()}
                 else:
                     defaultVal = {}
-            except:
+            except (ValueError, SyntaxError, TypeError):
                 defaultVal = {}
         elif t.startswith("tuple"):
             match = re.match(r"tuple\[(\d+)\]", t)
@@ -802,7 +802,7 @@ class GeneralDataPage(QtWidgets.QWidget):
                     defaultVal = list(val) if isinstance(val, (list, tuple)) else []
                 else:
                     defaultVal = []
-            except:
+            except (ValueError, SyntaxError, TypeError):
                 defaultVal = []
 
             defaultVal = defaultVal[:size]

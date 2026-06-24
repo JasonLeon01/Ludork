@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import os
 import re
-from typing import Optional, Set
+from typing import TYPE_CHECKING, Optional, Set
+
+if TYPE_CHECKING:
+    from pysf import Shader, Vector2u
 
 
 def hasUsableShader(shaderPath: str) -> bool:
@@ -79,7 +82,9 @@ def getShaderUniforms(shaderPath: str) -> Set[str]:
     return {name for name in uniforms if _isShaderUniformUsed(source, name)}
 
 
-def _normaliseRenderRect(rect: Optional[tuple[int, int, int, int]], textureSize: object) -> tuple[int, int, int, int]:
+def _normaliseRenderRect(
+    rect: Optional[tuple[int, int, int, int]], textureSize: Vector2u
+) -> tuple[int, int, int, int]:
     if rect is not None:
         x, y, w, h = rect
         return int(x), int(y), max(1, int(w)), max(1, int(h))
@@ -88,7 +93,7 @@ def _normaliseRenderRect(rect: Optional[tuple[int, int, int, int]], textureSize:
     return 0, 0, w, h
 
 
-def _applyShaderUniforms(shader: object, shaderPath: str, shaderTime: float, w: int, h: int) -> None:
+def _applyShaderUniforms(shader: Shader, shaderPath: str, shaderTime: float, w: int, h: int) -> None:
     from pysf import Shader, Vector2f
 
     uniforms = getShaderUniforms(shaderPath)

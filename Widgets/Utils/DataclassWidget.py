@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+import logging
 from typing import Dict, Any, Type, get_type_hints, Optional, Set
 
 from PyQt5 import QtWidgets, QtCore
@@ -9,6 +10,8 @@ from .MetaVarTypes import getMetaVarTypes
 from .StructuredFields import isStructuredType, structuredFields, structuredValueToDict
 from .TypedValueEditor import TypedValueEditor
 from .VectorVarEditor import VectorVarEditor, isVectorVarType
+
+log = logging.getLogger(__name__)
 
 
 class DataclassWidget(QtWidgets.QWidget):
@@ -27,7 +30,8 @@ class DataclassWidget(QtWidgets.QWidget):
         self._readOnlyFields = readOnlyFields or set()
         try:
             self._type_hints = get_type_hints(dc_type)
-        except Exception:
+        except (NameError, TypeError, AttributeError) as e:
+            log.warning("Failed to resolve type hints for %s: %s", dc_type, e)
             self._type_hints = {}
         self._metaVarTypes = getMetaVarTypes(getattr(dc_type, "_meta", {}))
         self._inputs = {}

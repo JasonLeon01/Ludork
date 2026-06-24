@@ -2,31 +2,35 @@
 
 import os
 import copy
+import logging
 from PyQt5 import QtCore, QtWidgets
 from Utils import File
 from Widgets.Utils import MapEditDialog
 from .. import EditorStatus
 from ..Data import GameData
 
+log = logging.getLogger(__name__)
+
 
 def _loadGameLocaleDict() -> dict:
-    try:
-        localeDir = os.path.join(EditorStatus.PROJ_PATH, "Data", "Locale")
-        lang = getattr(EditorStatus, "LANGUAGE", "en_GB")
-        localeFile = os.path.join(localeDir, lang)
-        if not os.path.isfile(localeFile):
-            localeFile = os.path.join(localeDir, "en_GB")
-        if os.path.isfile(localeFile):
+    localeDir = os.path.join(EditorStatus.PROJ_PATH, "Data", "Locale")
+    lang = getattr(EditorStatus, "LANGUAGE", "en_GB")
+    localeFile = os.path.join(localeDir, lang)
+    if not os.path.isfile(localeFile):
+        localeFile = os.path.join(localeDir, "en_GB")
+    if os.path.isfile(localeFile):
+        try:
             return File.LoadData(localeFile)
-    except Exception:
-        pass
+        except Exception as e:
+            log.warning("Failed to load game locale file %s: %s", localeFile, e)
     return {}
 
 
 def _formatGameString(s: str, localeDict: dict) -> str:
     try:
         return str(s).format(**localeDict)
-    except Exception:
+    except (KeyError, IndexError, ValueError) as e:
+        log.warning("Failed to format game string %r: %s", s, e)
         return str(s)
 
 

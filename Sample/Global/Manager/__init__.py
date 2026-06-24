@@ -54,13 +54,13 @@ def playVoice(
 ) -> Optional[Sound]:
     r"""
     \brief Play a voice clip.
-    - \param filename Name of the voice file in Assets/Sounds.
+    - \param filename Name of the voice file in Assets/Voices.
     - \param filter Optional sound filter to apply.
     - \param refActor Optional reference actor for spatialization.
     - \param minDistance Minimum attenuation distance when refActor is set.
     - \return Playing voice object, or None if voice is disabled.
     """
-    filePath = os.path.join("./Assets", "Sounds", filename)
+    filePath = os.path.join("./Assets", "Voices", filename)
     return AudioManager.playVoice(filePath, filter, refActor, minDistance)
 
 

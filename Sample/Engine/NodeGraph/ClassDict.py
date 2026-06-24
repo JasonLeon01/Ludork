@@ -4,6 +4,7 @@ import os
 import copy
 import importlib
 import importlib.util
+import sys
 import traceback
 from typing import Any, Dict, Optional
 
@@ -43,7 +44,7 @@ class ClassDict:
             loadDataClass = False
             try:
                 moduleSpec = importlib.util.find_spec(modulePath)
-            except:
+            except Exception:
                 loadDataClass = True
             if not loadDataClass:
                 module = None
@@ -90,8 +91,8 @@ class ClassDict:
 
                     migrateLegacyComponentAttrs(parentClass, classAttrs)
                     classData["attrs"] = classAttrs
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"Failed to migrate legacy component attributes for {classPath}: {e}", file=sys.stderr)
                 for key, value in classAttrs.items():
                     attrs[key] = value
 
@@ -99,7 +100,7 @@ class ClassDict:
                     if isinstance(value, str):
                         try:
                             return eval(value)
-                        except:
+                        except Exception:
                             return value
                     return copy.deepcopy(value)
 
@@ -113,8 +114,8 @@ class ClassDict:
                         from Engine.Gameplay.Components import normaliseInstanceComponents
 
                         normaliseInstanceComponents(self)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        print(f"Failed to normalise components for {classPath}: {e}", file=sys.stderr)
 
                 attrs["__init__"] = __init__
                 targetClass = type(

@@ -21,6 +21,8 @@ _CHARACTER_SHEET_ROWS = 4
 _MAP_TILE_SIZE_MIN = 8
 _MAP_TILE_SIZE_MAX = 128
 _MAP_TILE_SIZE_STEP = 4
+GridCell = Optional[int | str]
+Grid = List[List[GridCell]]
 
 
 @dataclass
@@ -789,19 +791,24 @@ class EditorPanel(QtWidgets.QWidget):
         tileNum = self.selectedTileNumber
         return self._writeCellValue(layer, x, y, tileNum, autoKey)
 
-    def _copyGrid(self, grid: Any) -> List[List[Any]]:
+    def _copyGrid(self, grid: object) -> Grid:
         if not isinstance(grid, list):
             return []
-        result: List[List[Any]] = []
+        result: Grid = []
         for row in grid:
-            result.append(list(row) if isinstance(row, list) else [])
+            if not isinstance(row, list):
+                result.append([])
+                continue
+            result.append(
+                [cell if isinstance(cell, (int, str)) or cell is None else None for cell in row]
+            )
         return result
 
-    def _fitGridToTiles(self, grid: List[List[Any]], tiles: List[List[Any]]) -> List[List[Any]]:
-        result: List[List[Any]] = []
+    def _fitGridToTiles(self, grid: Grid, tiles: Grid) -> Grid:
+        result: Grid = []
         for y, tileRow in enumerate(tiles):
             srcRow = grid[y] if y < len(grid) and isinstance(grid[y], list) else []
-            row: List[Any] = []
+            row: List[GridCell] = []
             for x in range(len(tileRow)):
                 row.append(srcRow[x] if x < len(srcRow) else None)
             result.append(row)
@@ -1720,7 +1727,7 @@ class EditorPanel(QtWidgets.QWidget):
             value = float(default)
         return value
 
-    def _resolveActorClass(self, bpRel: Any) -> Optional[type]:
+    def _resolveActorClass(self, bpRel: Optional[str]) -> Optional[type]:
         if not isinstance(bpRel, str) or not bpRel.strip():
             return None
         try:
@@ -1738,7 +1745,7 @@ class EditorPanel(QtWidgets.QWidget):
                 return default
         return default
 
-    def getBlueprintAttr(self, bpRel: Any, attrName: str, default: Any) -> Any:
+    def getBlueprintAttr(self, bpRel: Optional[str], attrName: str, default: Any) -> Any:
         if isinstance(bpRel, str):
             prefix = "Data.Blueprints."
             if bpRel.startswith(prefix):
@@ -1751,7 +1758,7 @@ class EditorPanel(QtWidgets.QWidget):
         clsObj = self._resolveActorClass(bpRel)
         return self._getClassAttr(clsObj, attrName, default)
 
-    def _isCharacterActor(self, bpRel: Any) -> bool:
+    def _isCharacterActor(self, bpRel: Optional[str]) -> bool:
         clsObj = self._resolveActorClass(bpRel)
         if not isinstance(clsObj, type):
             return False
@@ -1762,14 +1769,14 @@ class EditorPanel(QtWidgets.QWidget):
         except Exception:
             return False
 
-    def _actorPreviewAnimatable(self, bpRel: Any) -> bool:
+    def _actorPreviewAnimatable(self, bpRel: Optional[str]) -> bool:
         if not self._toBool(self.getBlueprintAttr(bpRel, "animatable", False), False):
             return False
         if self._isCharacterActor(bpRel):
             return self._toBool(self.getBlueprintAttr(bpRel, "animateWithoutMoving", False), False)
         return True
 
-    def _actorAnimationFrame(self, bpRel: Any, frameWidth: int, textureWidth: int) -> int:
+    def _actorAnimationFrame(self, bpRel: Optional[str], frameWidth: int, textureWidth: int) -> int:
         frameWidth = max(1, int(frameWidth))
         textureWidth = max(1, int(textureWidth))
         frameCount = max(1, textureWidth // frameWidth)
@@ -1783,7 +1790,7 @@ class EditorPanel(QtWidgets.QWidget):
 
     def _actorPreviewRect(
         self,
-        bpRel: Any,
+        bpRel: Optional[str],
         image: Optional[QtGui.QImage],
         rect: Optional[Tuple[int, int, int, int]],
         sourceTileSize: int,
@@ -1808,7 +1815,7 @@ class EditorPanel(QtWidgets.QWidget):
             sx = (sx + frame * w) % max(1, image.width())
         return (sx, sy, w, h)
 
-    def _resolveTexturePath(self, texturePath: Any) -> str:
+    def _resolveTexturePath(self, texturePath: Optional[str]) -> str:
         if isinstance(texturePath, str) and texturePath.strip():
             p = texturePath.strip()
             if os.path.isabs(p):
@@ -1818,7 +1825,7 @@ class EditorPanel(QtWidgets.QWidget):
             return os.path.join(EditorStatus.PROJ_PATH, "Assets", "Characters", p)
         return ""
 
-    def _resolveShaderPath(self, shaderPath: Any) -> str:
+    def _resolveShaderPath(self, shaderPath: Optional[str]) -> str:
         if isinstance(shaderPath, str) and shaderPath.strip():
             p = shaderPath.strip()
             if os.path.isabs(p):
@@ -1828,7 +1835,7 @@ class EditorPanel(QtWidgets.QWidget):
             return os.path.join(EditorStatus.PROJ_PATH, "Assets", "Shaders", p)
         return ""
 
-    def _resolveTextureImage(self, texturePath: Any) -> Optional[QtGui.QImage]:
+    def _resolveTextureImage(self, texturePath: Optional[str]) -> Optional[QtGui.QImage]:
         path = self._resolveTexturePath(texturePath)
         if not path:
             return None
@@ -1845,8 +1852,8 @@ class EditorPanel(QtWidgets.QWidget):
 
     def _renderActorShaderImage(
         self,
-        texturePath: Any,
-        shaderPath: Any,
+        texturePath: Optional[str],
+        shaderPath: Optional[str],
         rect: Optional[Tuple[int, int, int, int]],
         textureWidth: int,
         shaderTime: float = 0.0,
@@ -2060,7 +2067,7 @@ class EditorPanel(QtWidgets.QWidget):
         clsObj = self._resolveActorClass(bpRel)
         return self._makeDefaultTag(clsObj, bpRel, layerName, gx, gy)
 
-    def _getDefaultTagSuffix(self, tag: Any, baseTag: Optional[str]) -> Optional[str]:
+    def _getDefaultTagSuffix(self, tag: Optional[str], baseTag: Optional[str]) -> Optional[str]:
         if not isinstance(tag, str) or not isinstance(baseTag, str) or not baseTag:
             return None
         if tag == baseTag:

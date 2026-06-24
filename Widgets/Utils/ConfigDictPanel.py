@@ -51,14 +51,14 @@ class ConfigDictPanel(QtWidgets.QWidget):
 
     def _parse_type(self, t: str) -> Tuple[str, int | None]:
         if "[" in t and "]" in t:
+            inner = t[t.index("[") + 1 : t.index("]")]
+            base = t[: t.index("[")]
+            if inner == "":
+                return base + "[]", None
             try:
-                inner = t[t.index("[") + 1 : t.index("]")]
-                base = t[: t.index("[")]
-                if inner == "":
-                    return base + "[]", None
                 n = int(inner)
                 return base, n
-            except Exception:
+            except ValueError:
                 return t, None
         return t, None
 

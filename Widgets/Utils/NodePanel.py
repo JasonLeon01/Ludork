@@ -817,7 +817,7 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
             elif param_type is int or param_type == "int":
                 try:
                     val = int(init_val)
-                except:
+                except (ValueError, TypeError):
                     val = 0
                 self.add_spinbox(
                     name=widgetName,
@@ -834,7 +834,7 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
             elif param_type is float or param_type == "float":
                 try:
                     val = float(init_val)
-                except:
+                except (ValueError, TypeError):
                     val = 0.0
                 self.add_spinbox(
                     name=widgetName,
@@ -1006,7 +1006,7 @@ class NodePanel(QtWidgets.QWidget):
         for metaKey, metaValue in meta.items():
             try:
                 metaValue = eval(metaValue)
-            except:
+            except Exception:
                 pass
             if metaKey == "DisplayName":
                 obj.set_name(metaValue)
@@ -1126,7 +1126,7 @@ class NodePanel(QtWidgets.QWidget):
                     elif isinstance(le, QtWidgets.QSpinBox):
                         try:
                             le.setValue(int(val))
-                        except:
+                        except (ValueError, TypeError):
                             le.setValue(0)
                         le.valueChanged.connect(
                             lambda val, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
@@ -1134,7 +1134,7 @@ class NodePanel(QtWidgets.QWidget):
                     elif isinstance(le, QtWidgets.QDoubleSpinBox):
                         try:
                             le.setValue(float(val))
-                        except:
+                        except (ValueError, TypeError):
                             le.setValue(0.0)
                         le.valueChanged.connect(
                             lambda val, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)

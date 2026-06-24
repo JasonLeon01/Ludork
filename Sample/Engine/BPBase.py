@@ -383,6 +383,6 @@ class BPBase:
                 value = Eval(v)
                 if not setComponentFieldValue(obj, k, value):
                     setattr(obj, k, value)
-            except:
+            except Exception:
                 if not setComponentFieldValue(obj, k, v):
                     setattr(obj, k, v)

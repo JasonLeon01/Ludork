@@ -59,7 +59,7 @@ class GameConfigDialog(QtWidgets.QDialog):
             "soundvolume": 100.0,
             "voicevolume": 100.0,
         }
-        self._resultData: dict[str, object] = dict(self._data)
+        self._resultData: dict[str, Any] = dict(self._data)
         self._changed: bool = False
         self._load()
         if isinstance(initialData, dict):
@@ -69,7 +69,7 @@ class GameConfigDialog(QtWidgets.QDialog):
             self._resultData = dict(self._data)
         self._setupUi()
 
-    def _toInt(self, value: object, default: int) -> int:
+    def _toInt(self, value: Any, default: int) -> int:
         if isinstance(value, bool):
             return default
         try:
@@ -77,7 +77,7 @@ class GameConfigDialog(QtWidgets.QDialog):
         except Exception:
             return default
 
-    def _toFloat(self, value: object, default: float) -> float:
+    def _toFloat(self, value: Any, default: float) -> float:
         if isinstance(value, bool):
             return default
         try:
@@ -85,7 +85,7 @@ class GameConfigDialog(QtWidgets.QDialog):
         except Exception:
             return default
 
-    def _toBool(self, value: object, default: bool) -> bool:
+    def _toBool(self, value: Any, default: bool) -> bool:
         if isinstance(value, bool):
             return value
         if not isinstance(value, str):
@@ -234,7 +234,7 @@ class GameConfigDialog(QtWidgets.QDialog):
         self.btns.rejected.connect(self.reject)
         form.addRow(self.btns)
 
-    def _buildCurrentData(self) -> dict[str, object]:
+    def _buildCurrentData(self) -> dict[str, Any]:
         return {
             "script": str(self._data["script"]),
             "language": self.languageCombo.currentText().strip(),
@@ -260,5 +260,5 @@ class GameConfigDialog(QtWidgets.QDialog):
     def isChanged(self) -> bool:
         return self._changed
 
-    def getData(self) -> dict[str, object]:
+    def getData(self) -> dict[str, Any]:
         return dict(self._resultData)

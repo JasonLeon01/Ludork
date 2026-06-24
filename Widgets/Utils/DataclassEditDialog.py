@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+import logging
 from typing import get_type_hints
 
 from PyQt5 import QtWidgets
@@ -10,6 +11,8 @@ from .StructuredFields import structuredFields
 from .TypedValueEditor import TypedValueEditor
 from .VectorVarEditor import VectorVarEditor, isVectorVarType
 
+log = logging.getLogger(__name__)
+
 
 class DataclassEditDialog(QtWidgets.QDialog):
     def __init__(self, parent, data_obj, title="Edit Data"):
@@ -18,7 +21,8 @@ class DataclassEditDialog(QtWidgets.QDialog):
         self.data_obj = data_obj
         try:
             self._type_hints = get_type_hints(type(data_obj))
-        except Exception:
+        except (NameError, TypeError, AttributeError) as e:
+            log.warning("Failed to resolve type hints for %s: %s", type(data_obj), e)
             self._type_hints = {}
         self._metaVarTypes = getMetaVarTypes(getattr(type(data_obj), "_meta", {}))
         self._initUI()

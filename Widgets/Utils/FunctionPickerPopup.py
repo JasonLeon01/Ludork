@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import inspect
+import logging
 import sys
 from types import ModuleType
 from typing import Dict, Optional, TypedDict
@@ -11,6 +12,7 @@ from .NodeFunctionMeta import NodeFunction, bindNodeFunctionMetadata, isSelectab
 
 
 FunctionSource = ModuleType | type
+log = logging.getLogger(__name__)
 
 
 class SearchItem(TypedDict):
@@ -109,17 +111,15 @@ class FunctionPickerPopup(QtWidgets.QDialog):
         it.setData(0, QtCore.Qt.UserRole, p)
         it.setData(0, QtCore.Qt.UserRole + 2, True)
         displayName = None
-        try:
-            meta = getattr(a, "_meta", None)
-            if isinstance(meta, dict):
-                mv = meta.get("DisplayName")
-                if isinstance(mv, str):
-                    try:
-                        displayName = str(eval(mv))
-                    except Exception:
-                        displayName = mv
-        except Exception:
-            displayName = None
+        meta = getattr(a, "_meta", None)
+        if isinstance(meta, dict):
+            mv = meta.get("DisplayName")
+            if isinstance(mv, str):
+                try:
+                    displayName = str(eval(mv))
+                except Exception as e:
+                    log.debug("Failed to evaluate node display name %r: %s", mv, e)
+                    displayName = mv
         it.setData(0, QtCore.Qt.UserRole + 3, displayName if isinstance(displayName, str) else n)
         parent_item.addChild(it)
 
@@ -138,7 +138,8 @@ class FunctionPickerPopup(QtWidgets.QDialog):
                 m = getattr(a, "__name__", None)
                 if isinstance(m, str):
                     return (0 if name != m.split(".")[-1] else 1, str(name))
-            except Exception:
+            except (AttributeError, TypeError) as e:
+                log.debug("Failed to inspect function alias %s: %s", name, e)
                 return (1, str(name))
             return (1, str(name))
 
@@ -147,13 +148,14 @@ class FunctionPickerPopup(QtWidgets.QDialog):
             try:
                 raw = [n for n in dir(obj) if not str(n).startswith("_")]
                 names = sorted(raw, key=_aliasFirstKey)
-            except Exception:
+            except Exception as e:
+                log.warning("Failed to enumerate parent node functions from %s: %s", obj, e)
                 return False
             for n in names:
                 p = f"{base}.{n}" if base else n
                 try:
                     a = getattr(obj, n)
-                except Exception:
+                except AttributeError:
                     continue
                 a = bindNodeFunctionMetadata(a, obj, n)
                 if isSelectableNodeFunction(a, self._filterExecOnly):
@@ -178,14 +180,15 @@ class FunctionPickerPopup(QtWidgets.QDialog):
         try:
             raw = [n for n in dir(obj) if not str(n).startswith("_")]
             names = sorted(raw, key=_aliasFirstKey)
-        except Exception:
+        except Exception as e:
+            log.warning("Failed to enumerate node functions from %s: %s", obj, e)
             return False
         found = False
         for n in names:
             p = f"{base}.{n}" if base else n
             try:
                 a = getattr(obj, n)
-            except Exception:
+            except AttributeError:
                 continue
             a = bindNodeFunctionMetadata(a, obj, n)
             if inspect.ismodule(a):

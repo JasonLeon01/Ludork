@@ -14,6 +14,7 @@ class DamageType(IntEnum):
     UNDEFEATABLE = 1
 
 
+@Meta(GeneralDataVars=[("ANIMATION_KEY", "ANIMATION")])
 @dataclass
 class BattlerInfoComponent(Component):
     r"""\brief Editable battle attributes for any battling entity."""
@@ -27,6 +28,7 @@ class BattlerInfoComponent(Component):
     HP: int = 0  #: Current hit points
 
 
+@Meta(GeneralDataVars=[("CLASS", "Class")])
 @dataclass
 class PlayerInfoComponent(BattlerInfoComponent):
     r"""\brief Editable player identity and battle attributes."""

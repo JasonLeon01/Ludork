@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import builtins
 import os
 import sys
 import importlib
@@ -17,17 +18,7 @@ _PROJECT_MODULE_ROOTS = ("Engine", "Global", "Source")
 
 
 def AlreadyPacked() -> bool:
-    result = False
-    try:
-        result = __compiled__ is not None  # type: ignore
-    except Exception:
-        pass
-    if not result:
-        try:
-            result = __nuitka_binary_dir is not None  # type: ignore
-        except Exception:
-            pass
-    return result
+    return hasattr(builtins, "__compiled__") or hasattr(builtins, "__nuitka_binary_dir")
 
 
 def GetTitle() -> str:
@@ -164,24 +155,24 @@ def _initModuleLocale(module: ModuleType) -> None:
     localeModule.LANGUAGE = EditorStatus.LANGUAGE
 
 
-def _isPathInside(path: str, root: str) -> bool:
+def isPathInside(path: str, root: str) -> bool:
     try:
         p = os.path.normcase(os.path.abspath(path))
         r = os.path.normcase(os.path.abspath(root))
         return os.path.commonpath([p, r]) == r
-    except Exception:
+    except ValueError:
         return False
 
 
 def _modulePathInsideProject(module: ModuleType, projectPath: str) -> bool:
     moduleFile = getattr(module, "__file__", None)
     if isinstance(moduleFile, str) and moduleFile:
-        return _isPathInside(moduleFile, projectPath)
+        return isPathInside(moduleFile, projectPath)
 
     modulePaths = getattr(module, "__path__", None)
     if modulePaths:
         for modulePath in modulePaths:
-            if _isPathInside(str(modulePath), projectPath):
+            if isPathInside(str(modulePath), projectPath):
                 return True
     return False
 

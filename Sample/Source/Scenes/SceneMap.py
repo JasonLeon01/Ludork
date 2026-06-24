@@ -28,6 +28,7 @@ from Source.Windows import (
     WindowEquipSelect,
     WindowSaveLoad,
     WindowShop,
+    WindowAttrShop,
     WindowEnemyBook,
     WindowEnemyEncyclopedia,
     WindowFloorTeleporter,
@@ -78,6 +79,8 @@ class Scene(SceneBase):
         shopCommandRect, shopItemRect = self._getShopRects()
         self._shopMoveEnabledBeforeOpen = True
         self._windowShop = WindowShop(self.player, shopCommandRect, shopItemRect, self._onShopClose)
+        self._attrShopMoveEnabledBeforeOpen = True
+        self._windowAttrShop = WindowAttrShop(self.player, self._onAttrShopClose)
         self._enemyBookMoveEnabledBeforeOpen = True
         self._windowEnemyBook = WindowEnemyBook(
             self._getEnemyBookRect(),
@@ -122,6 +125,7 @@ class Scene(SceneBase):
         self._uiManager.loadUI(self._windowEquipSelect)
         self._uiManager.loadUI(self._windowShop.getCommandWindow())
         self._uiManager.loadUI(self._windowShop.getItemWindow())
+        self._uiManager.loadUI(self._windowAttrShop.getSelectable())
         self._uiManager.loadUI(self._windowEnemyBook)
         self._uiManager.loadUI(self._windowEnemyEncyclopedia)
         self._uiManager.loadUI(self._windowFloorTeleporter.getCommandWindow())
@@ -333,6 +337,7 @@ class Scene(SceneBase):
         self._windowEquipSelect._player = self.player
         self._windowMenu._player = self.player
         self._windowShop.setPlayer(self.player)
+        self._windowAttrShop.setPlayer(self.player)
         self._windowEnemyBook.setPlayer(self.player)
         self._playerHUD._player = self.player
 
@@ -386,8 +391,51 @@ class Scene(SceneBase):
 
         return condition
 
+    def openAttrShop(
+        self,
+        actor: Actor,
+        shopName: str,
+        shopDescription: str,
+        abilities: Dict[str, int],
+        priceRef: Union[int, List[int]],
+        priceIncrement: int,
+        moneyName: str,
+    ) -> Callable[[], bool]:
+        r"""\brief Open the map-bound attribute shop and wait until it closes.
+
+        - \param actor The actor whose avatar is shown.
+        - \param shopName Locale key for the shop name.
+        - \param shopDescription Locale key for the shop description.
+        - \param abilities Mapping of player attribute names to purchased increments.
+        - \param priceRef Mutable reference containing a shared price or ordered price list.
+        - \param priceIncrement Amount added to the price after each purchase.
+        - \param moneyName Player info component attribute used as currency.
+        - \return A condition callable that becomes True when the shop closes.
+        """
+        self._attrShopMoveEnabledBeforeOpen = True if self._windowMenu.isBlocking() else self.player.getMoveEnabled()
+        self.player.setMoveEnabled(False)
+        self._windowAttrShop.open(
+            actor,
+            shopName,
+            shopDescription,
+            abilities,
+            priceRef,
+            priceIncrement,
+            moneyName,
+            self._getAttrShopRect(),
+        )
+
+        def condition() -> bool:
+            return not self._windowAttrShop.getVisible()
+
+        return condition
+
     def _onShopClose(self) -> None:
         self.player.setMoveEnabled(self._shopMoveEnabledBeforeOpen)
+
+    def _onAttrShopClose(self) -> None:
+        self.player.setMoveEnabled(self._attrShopMoveEnabledBeforeOpen)
+        self._blockMapInput(1)
 
     def _onEnemyBookClose(self) -> None:
         self.player.setMoveEnabled(self._enemyBookMoveEnabledBeforeOpen)
@@ -441,6 +489,13 @@ class Scene(SceneBase):
             ((x, y + _SHOP_COMMAND_HEIGHT), (_SHOP_WIDTH, _SHOP_ITEM_SIZE)),
         )
 
+    def _getAttrShopRect(self):
+        gameSize = GlobalSystem.getGameSize()
+        size = WindowAttrShop._SIZE
+        x = int((gameSize.x - size) / 2)
+        y = int((gameSize.y - size) / 2)
+        return ((x, y), (size, size))
+
     def _getDialogueLocalVars(self, nodeFunction) -> Dict[str, Any]:
         refLocal = getattr(nodeFunction, "_refLocal", {})
         if not isinstance(refLocal, dict):
@@ -474,6 +529,7 @@ class Scene(SceneBase):
     def _canRestoreMoveAfterMenuClose(self) -> bool:
         return not (
             self._windowShop.getVisible()
+            or self._windowAttrShop.getVisible()
             or self._windowEnemyBook.getVisible()
             or self._windowEnemyEncyclopedia.getVisible()
             or self._windowFloorTeleporter.getVisible()
@@ -665,6 +721,7 @@ class Scene(SceneBase):
             and not self._windowMenu.isBlocking()
             and not self._messageWindow.isInDialogue()
             and not self._windowShop.getVisible()
+            and not self._windowAttrShop.getVisible()
             and not self._windowEnemyBook.getVisible()
             and not self._windowEnemyEncyclopedia.getVisible()
             and not self._windowFloorTeleporter.getVisible()
@@ -675,6 +732,7 @@ class Scene(SceneBase):
             self._messageWindow.isInDialogue()
             or self._windowMenu.isBlocking()
             or self._windowShop.getVisible()
+            or self._windowAttrShop.getVisible()
             or self._windowEnemyBook.getVisible()
             or self._windowEnemyEncyclopedia.getVisible()
             or self._windowFloorTeleporter.getVisible()

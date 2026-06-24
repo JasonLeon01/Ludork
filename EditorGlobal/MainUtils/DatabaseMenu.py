@@ -4,6 +4,7 @@ import os
 import sys
 import inspect
 import dataclasses
+import logging
 import subprocess
 import traceback
 import openpyxl
@@ -23,6 +24,8 @@ from Widgets import (
 )
 from Widgets.Utils import GameConfigDialog, FileSelectorDialog
 from .. import EditorStatus
+
+log = logging.getLogger(__name__)
 from ..Data import GameData
 
 
@@ -232,8 +235,8 @@ class DatabaseMenuMixin:
             elif field.default_factory is not dataclasses.MISSING:
                 try:
                     value = field.default_factory()
-                except:
-                    pass
+                except Exception as e:
+                    log.warning("Failed to create default for %s: %s", field.name, e)
 
             is_dc = dataclasses.is_dataclass(field.type)
             if is_dc:

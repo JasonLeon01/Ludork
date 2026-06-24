@@ -6,6 +6,7 @@ import math
 import os
 import copy
 import dataclasses
+import logging
 from typing import Any, Dict, Optional, Set, get_type_hints
 from PyQt5 import QtWidgets, QtCore, QtGui
 from EditorGlobal import EditorStatus, GameData
@@ -19,6 +20,8 @@ from Widgets.Utils.MetaVarTypes import _GENERALDATA_VAR_TYPE, getGeneralDataVars
 from Widgets.Utils.StructuredFields import isStructuredType, isStructuredValue, structuredValueToDict
 from Widgets.Utils.VectorVarEditor import VectorVarEditor, isVectorVarType
 
+
+log = logging.getLogger(__name__)
 
 _GRAPH_TAB_KIND = "graph"
 _PREVIEW_TAB_KIND = "preview"
@@ -381,13 +384,10 @@ class BluePrintEditor(QtWidgets.QWidget):
 
     def _getInvalidVars(self) -> Set[str]:
         cls = self._resolveClass()
-        if cls is None:
+        if not isinstance(cls, type):
             return set()
         result: Set[str] = set()
-        try:
-            mro = list(reversed(cls.mro()))
-        except Exception:
-            mro = [cls]
+        mro = list(reversed(cls.mro()))
         for base in mro:
             invalid = getattr(base, "__dict__", {}).get("_invalidVars", ())
             if isinstance(invalid, str):
@@ -406,13 +406,10 @@ class BluePrintEditor(QtWidgets.QWidget):
 
     def _getPathVarMap(self) -> Dict[str, str]:
         cls = self._resolveClass()
-        if cls is None:
+        if not isinstance(cls, type):
             return {}
         paths: Dict[str, str] = {}
-        try:
-            mro = list(reversed(cls.mro()))
-        except Exception:
-            mro = [cls]
+        mro = list(reversed(cls.mro()))
         for base in mro:
             meta = getattr(base, "__dict__", {}).get("_meta")
             if not isinstance(meta, dict):
@@ -441,13 +438,10 @@ class BluePrintEditor(QtWidgets.QWidget):
 
     def _getRectRangeVars(self) -> Dict[str, str]:
         cls = self._resolveClass()
-        if cls is None:
+        if not isinstance(cls, type):
             return {}
         result: Dict[str, str] = {}
-        try:
-            mro = list(reversed(cls.mro()))
-        except Exception:
-            mro = [cls]
+        mro = list(reversed(cls.mro()))
         for base in mro:
             rects = getattr(base, "__dict__", {}).get("_rectRangeVars", {})
             if isinstance(rects, dict):
@@ -465,10 +459,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         if cls is None or not isinstance(cls, type):
             return {}
         result: Dict[str, str] = {}
-        try:
-            mro = list(reversed(cls.mro()))
-        except:
-            mro = [cls]
+        mro = list(reversed(cls.mro()))
         for base in mro:
             meta = getattr(base, "__dict__", {}).get("_meta")
             if not isinstance(meta, dict):
@@ -481,10 +472,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         if cls is None or not isinstance(cls, type):
             return {}
         result: Dict[str, str] = {}
-        try:
-            mro = list(reversed(cls.mro()))
-        except Exception:
-            mro = [cls]
+        mro = list(reversed(cls.mro()))
         for base in mro:
             meta = getattr(base, "__dict__", {}).get("_meta")
             if isinstance(meta, dict):
@@ -496,10 +484,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         if cls is None or not isinstance(cls, type):
             return {}
         result: Dict[str, Any] = {}
-        try:
-            mro = list(reversed(cls.mro()))
-        except:
-            mro = [cls]
+        mro = list(reversed(cls.mro()))
         for base in mro:
             meta = getattr(base, "__dict__", {}).get("_meta")
             if not isinstance(meta, dict):
@@ -535,15 +520,12 @@ class BluePrintEditor(QtWidgets.QWidget):
             elif widget is not None:
                 widget.setToolTip(tip)
 
-    def _getComponentTypes(self, cls: Optional[type]) -> Dict[str, Any]:
+    def _getComponentTypes(self, cls: Optional[type]) -> Dict[str, type]:
         if cls is None or not isinstance(cls, type):
             return {}
 
-        result: Dict[str, Any] = {}
-        try:
-            mro = list(reversed(cls.mro()))
-        except:
-            mro = [cls]
+        result: Dict[str, type] = {}
+        mro = list(reversed(cls.mro()))
 
         for base in mro:
             componentTypes = getattr(base, "__dict__", {}).get("_componentTypes")
@@ -558,7 +540,7 @@ class BluePrintEditor(QtWidgets.QWidget):
                     result[name] = componentType
         return result
 
-    def _getComponentFieldMap(self, componentTypes: Dict[str, Any]) -> Dict[str, str]:
+    def _getComponentFieldMap(self, componentTypes: Dict[str, type]) -> Dict[str, str]:
         result: Dict[str, str] = {}
         for componentName, componentType in componentTypes.items():
             for field in dataclasses.fields(componentType):
@@ -576,7 +558,7 @@ class BluePrintEditor(QtWidgets.QWidget):
                     return infoType
         return ""
 
-    def _getGeneralDataMember(self, infoType: str, memberID: Any) -> tuple[Dict[str, Any], Dict[str, Any]]:
+    def _getGeneralDataMember(self, infoType: str, memberID: str) -> tuple[Dict[str, Any], Dict[str, Any]]:
         data = GameData.generalData.get(infoType, {})
         if not isinstance(data, dict):
             return {}, {}
@@ -620,7 +602,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             result.pop(key, None)
         return result
 
-    def _pruneComponentDataToStored(self, componentType: Any, componentData: Dict[str, Any]) -> Dict[str, Any]:
+    def _pruneComponentDataToStored(self, componentType: type, componentData: Dict[str, Any]) -> Dict[str, Any]:
         defaults = self._getComponentDefaults(componentType)
         result: Dict[str, Any] = {}
         for key, value in componentData.items():
@@ -629,7 +611,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             result[key] = value
         return result
 
-    def _getComponentDefaults(self, componentType: Any) -> Dict[str, Any]:
+    def _getComponentDefaults(self, componentType: type) -> Dict[str, Any]:
         result: Dict[str, Any] = {}
         for field in dataclasses.fields(componentType):
             if field.default is not dataclasses.MISSING:
@@ -637,11 +619,11 @@ class BluePrintEditor(QtWidgets.QWidget):
             elif field.default_factory is not dataclasses.MISSING:
                 try:
                     result[field.name] = field.default_factory()
-                except:
-                    pass
+                except Exception as e:
+                    log.warning("Failed to create default for %s.%s: %s", componentType.__name__, field.name, e)
         return result
 
-    def _normaliseComponentData(self, componentType: Any, value: Any) -> Dict[str, Any]:
+    def _normaliseComponentData(self, componentType: type, value: Any) -> Dict[str, Any]:
         if dataclasses.is_dataclass(value) and not isinstance(value, type):
             value = dataclasses.asdict(value)
         if not isinstance(value, dict):
@@ -693,7 +675,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.formLayout.addRow(line)
 
     def _getComponentValue(
-        self, cls: Optional[type], componentName: str, componentType: Any, attrs: Dict[str, Any]
+        self, cls: Optional[type], componentName: str, componentType: type, attrs: Dict[str, Any]
     ) -> tuple[Optional[Dict[str, Any]], bool]:
         if componentName in attrs:
             return self._normaliseComponentData(componentType, attrs[componentName]), True
@@ -701,14 +683,14 @@ class BluePrintEditor(QtWidgets.QWidget):
         if found:
             try:
                 return self._normaliseComponentData(componentType, value), False
-            except:
-                pass
+            except Exception as e:
+                log.warning("Failed to normalise inherited component %s: %s", componentName, e)
         return None, False
 
     def _getAddableComponents(
-        self, cls: Optional[type], componentTypes: Dict[str, Any], attrs: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        result: Dict[str, Any] = {}
+        self, cls: Optional[type], componentTypes: Dict[str, type], attrs: Dict[str, Any]
+    ) -> Dict[str, type]:
+        result: Dict[str, type] = {}
         for componentName, componentType in componentTypes.items():
             if componentName in attrs:
                 continue
@@ -717,7 +699,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             result[componentName] = componentType
         return result
 
-    def _addComponentRows(self, cls: Optional[type], componentTypes: Dict[str, Any], attrs: Dict[str, Any]) -> None:
+    def _addComponentRows(self, cls: Optional[type], componentTypes: Dict[str, type], attrs: Dict[str, Any]) -> None:
         items = []
         for componentName, componentType in componentTypes.items():
             value, isLocal = self._getComponentValue(cls, componentName, componentType, attrs)
@@ -883,7 +865,9 @@ class BluePrintEditor(QtWidgets.QWidget):
         self._collectBlueprintGraphKeys(parentPath, result, set())
         return result
 
-    def _collectBlueprintGraphKeys(self, classPath: Any, result: list[str], visited: Set[str]) -> None:
+    def _collectBlueprintGraphKeys(
+        self, classPath: Optional[str], result: list[str], visited: Set[str]
+    ) -> None:
         if not isinstance(classPath, str):
             return
         prefix = "Data.Blueprints."
@@ -983,10 +967,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             return list(attrs.keys())
 
         defined_order = []
-        try:
-            mro = list(reversed(cls.mro()))
-        except:
-            mro = [cls]
+        mro = list(reversed(cls.mro()))
 
         for base in mro:
             if base is object:
@@ -1006,8 +987,8 @@ class BluePrintEditor(QtWidgets.QWidget):
                     v = getattr(base, k)
                     if callable(v) or isinstance(v, property):
                         continue
-                except:
-                    pass
+                except Exception:
+                    continue
                 defined_order.append(k)
 
         ordered = [k for k in defined_order if k in attrs]
@@ -1020,7 +1001,8 @@ class BluePrintEditor(QtWidgets.QWidget):
             return structuredValueToDict(value)
         try:
             return copy.deepcopy(value)
-        except:
+        except TypeError as e:
+            log.warning("Failed to copy blueprint attribute value of type %s: %s", type(value).__name__, e)
             return value
 
     def _getParentDisplayAttrs(self, parent_cls: Optional[type], attrs: Dict[str, Any]) -> Dict[str, Any]:
@@ -1034,7 +1016,7 @@ class BluePrintEditor(QtWidgets.QWidget):
 
             try:
                 attr_val = getattr(parent_cls, attr_name)
-            except:
+            except Exception:
                 continue
 
             if callable(attr_val) or isinstance(attr_val, property):
@@ -1058,14 +1040,14 @@ class BluePrintEditor(QtWidgets.QWidget):
         if cls is not None:
             try:
                 type_hints = get_type_hints(cls)
-            except:
+            except (NameError, TypeError, AttributeError):
                 type_hints = getattr(cls, "__annotations__", {})
 
             parent_cls = self._getBaseClass(cls)
             if parent_cls is not None:
                 try:
                     parent_hints = get_type_hints(parent_cls)
-                except:
+                except (NameError, TypeError, AttributeError):
                     parent_hints = getattr(parent_cls, "__annotations__", {})
 
         parent_val = self.data.get("parent", "")
@@ -1224,9 +1206,9 @@ class BluePrintEditor(QtWidgets.QWidget):
         key: str,
         value: Any,
         isAttr: bool = True,
-        type_hint: Any = None,
+        type_hint: Optional[type] = None,
         parent_val: Any = None,
-        var_type: Any = "",
+        var_type: str = "",
     ) -> QtWidgets.QWidget:
         if isAttr and var_type == _GENERALDATA_VAR_TYPE:
             return self._createGeneralDataCombo(key, value, self.attrGDVars.get(key, ""))
@@ -1345,7 +1327,7 @@ class BluePrintEditor(QtWidgets.QWidget):
                 text = e.text()
                 try:
                     v = eval(text)
-                except:
+                except Exception:
                     v = text
                 values.append(v)
 
@@ -1359,7 +1341,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             text = e.text()
             try:
                 v = eval(text)
-            except:
+            except Exception:
                 v = text
             values.append(v)
 
@@ -1380,8 +1362,8 @@ class BluePrintEditor(QtWidgets.QWidget):
         elif values:
             try:
                 default_val = type(values[-1])()
-            except:
-                pass
+            except Exception:
+                default_val = ""
 
         values.append(default_val)
         self.onDataChanged(key, values, True)
@@ -1394,7 +1376,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             text = e.text()
             try:
                 v = eval(text)
-            except:
+            except Exception:
                 v = text
             values.append(v)
         if getattr(container, "_listIsTuple", False):
@@ -1405,7 +1387,7 @@ class BluePrintEditor(QtWidgets.QWidget):
     def onDataChanged(self, key: str, value: Any, isAttr: bool = True) -> None:
         try:
             value = eval(value)
-        except:
+        except Exception:
             pass
         if isAttr:
             if "attrs" in self.data and isinstance(self.data["attrs"], dict):

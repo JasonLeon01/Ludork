@@ -1,0 +1,123 @@
+{
+    "parent": "Engine.Gameplay.Actors.Actor.Actor",
+    "attrs": {
+        "animatable": true,
+        "material": {
+            "lightBlock": 0.5,
+            "mirror": false,
+            "reflectionStrength": 0.5,
+            "opacity": 1.0,
+            "speedRate": 1.0
+        },
+        "collisionEnabled": true,
+        "tickable": true,
+        "texturePath": "npcs/classic-npcs-50F-single.png",
+        "defaultRect": [
+            [
+                0,
+                160
+            ],
+            [
+                32,
+                32
+            ]
+        ]
+    },
+    "graph": {
+        "nodeGraph": {
+            "onCollision": {
+                "nodes": [
+                    {
+                        "nodeFunction": "NodeFunctions.Scene.OpenAttrShop",
+                        "params": [
+                            "None",
+                            "{SHOP_NAME}",
+                            "{SHOP_DESC}",
+                            {
+                                "HP": 400,
+                                "ATK": 2,
+                                "DEF": 2
+                            },
+                            "0",
+                            "1",
+                            "GOLD"
+                        ],
+                        "pos": [
+                            0.0,
+                            314.0
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.Utils.SELF",
+                        "params": [],
+                        "pos": [
+                            -720.0,
+                            634.0
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.Utils.GetGameVariableRef",
+                        "params": [
+                            "ShopPrice",
+                            "20"
+                        ],
+                        "pos": [
+                            -720.0,
+                            954.0
+                        ]
+                    }
+                ],
+                "links": [
+                    {
+                        "left": 1,
+                        "right": 0,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Params"
+                    },
+                    {
+                        "left": 2,
+                        "right": 0,
+                        "leftOutPin": 0,
+                        "rightInPin": 4,
+                        "linkType": "Params"
+                    }
+                ]
+            },
+            "onCreate": {
+                "nodes": [],
+                "links": []
+            },
+            "onDestroy": {
+                "nodes": [],
+                "links": []
+            },
+            "onFixedTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onLateTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onOverlap": {
+                "nodes": [],
+                "links": []
+            },
+            "onTick": {
+                "nodes": [],
+                "links": []
+            }
+        },
+        "startNodes": {
+            "onCollision": 0,
+            "onCreate": null,
+            "onDestroy": null,
+            "onFixedTick": null,
+            "onLateTick": null,
+            "onOverlap": null,
+            "onTick": null
+        }
+    },
+    "type": "blueprint"
+}

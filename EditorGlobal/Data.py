@@ -104,11 +104,11 @@ class GameData:
         dataRoot = os.path.abspath(os.path.join(EditorStatus.PROJ_PATH, "Data"))
         for path in paths:
             absPath = os.path.abspath(path)
-            if not cls._isPathInside(absPath, dataRoot):
+            if not System.isPathInside(absPath, dataRoot):
                 continue
             for dirName, attrName in cls._DATA_PATH_SECTIONS:
                 sectionRoot = os.path.join(dataRoot, dirName)
-                if not cls._isPathInside(absPath, sectionRoot):
+                if not System.isPathInside(absPath, sectionRoot):
                     continue
                 data = getattr(cls, attrName, None)
                 if not isinstance(data, dict):
@@ -121,15 +121,6 @@ class GameData:
                     for key in keys:
                         origin.pop(key, None)
                 break
-
-    @classmethod
-    def _isPathInside(cls, path: str, root: str) -> bool:
-        try:
-            p = os.path.normcase(os.path.abspath(path))
-            r = os.path.normcase(os.path.abspath(root))
-            return os.path.commonpath([p, r]) == r
-        except Exception:
-            return False
 
     @classmethod
     def _getDataKeysForPath(cls, path: str, sectionRoot: str, data: Dict[str, Any]) -> List[str]:
@@ -597,7 +588,7 @@ class GameData:
 
     @classmethod
     def _getBlueprintSavePayload(cls, data: Dict[str, Any]) -> Dict[str, Any]:
-        payload = copy.deepcopy(data)
+        payload = cls._normaliseBlueprintValue(copy.deepcopy(data))
         payload["type"] = "blueprint"
         cls._trimBlueprintDefaultAttrs(payload)
         return payload
@@ -679,7 +670,12 @@ class GameData:
     @classmethod
     def _normaliseBlueprintValue(cls, value: Any) -> Any:
         if dataclasses.is_dataclass(value) and not isinstance(value, type):
-            return dataclasses.asdict(value)
+            return cls._normaliseBlueprintValue(dataclasses.asdict(value))
+        asDict = None if isinstance(value, type) else getattr(value, "asDict", None)
+        if callable(asDict):
+            data = asDict()
+            if isinstance(data, dict):
+                return cls._normaliseBlueprintValue(data)
         if isinstance(value, dict):
             return {k: cls._normaliseBlueprintValue(v) for k, v in value.items()}
         if isinstance(value, (list, tuple)):
@@ -1158,6 +1154,7 @@ class GameData:
             ((".RunCommonFunction",), 0, "commonFunction", "", "nodeParam"),
             ((".GotoMap",), 0, "map", "", "nodeParam"),
             ((".PlaySound",), 0, "asset", "Sounds", "nodeParam"),
+            ((".ShowVoiceMessage", ".ShowVoiceRefMessage"), 2, "asset", "Voices", "nodeParam"),
             ((".PlayMusic",), 0, "asset", "Musics", "nodeParam"),
             ((".PlayVideo",), 0, "asset", "Videos", "nodeParam"),
             ((".GetItemCount", ".AddItem", ".RemoveItem", ".HasItem"), 0, "generalMember", "Item", "nodeParam"),

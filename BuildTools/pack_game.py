@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+import logging
 import os
 import shutil
 import subprocess
 import sys
 from typing import Mapping, Optional, TextIO, cast
+
+log = logging.getLogger(__name__)
 
 
 def _configureStreamOutput() -> None:
@@ -14,8 +17,8 @@ def _configureStreamOutput() -> None:
         if reconfigure is not None:
             try:
                 reconfigure(line_buffering=True, write_through=True)
-            except Exception:
-                pass
+            except (OSError, AttributeError) as e:
+                log.warning("Failed to configure output stream: %s", e)
 
 
 def _log(text: str) -> None:

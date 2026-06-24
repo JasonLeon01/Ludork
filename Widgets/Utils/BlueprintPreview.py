@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from typing import List, Optional
 
 from EditorGlobal import EditorStatus, GameData
+
+log = logging.getLogger(__name__)
 
 BLUEPRINT_PREVIEW_BASE_CLASSES: List[str] = [
     "Engine.Gameplay.Actors.Actor",
@@ -22,7 +25,8 @@ def getBlueprintPreviewBaseClasses() -> List[type]:
             continue
         try:
             cls = GameData.classDict.get(classPath.strip(), EditorStatus.PROJ_PATH)
-        except Exception:
+        except Exception as e:
+            log.warning("Failed to resolve blueprint preview base class %s: %s", classPath, e)
             continue
         if isinstance(cls, type):
             bases.append(cls)

@@ -85,7 +85,7 @@ class Node:
                 param = None
                 try:
                     param = eval(self.params[i], {}, eval_locals) if eval_locals is not None else eval(self.params[i])
-                except:
+                except Exception:
                     param = self.params[i]
                 actualParams.append(param)
             else:
@@ -94,7 +94,7 @@ class Node:
                         actualParams.append(
                             eval(self.params[i], {}, eval_locals) if eval_locals is not None else eval(self.params[i])
                         )
-                    except:
+                    except Exception:
                         actualParams.append(self.params[i])
                 else:
                     actualParams.append(self.params[i])

@@ -134,7 +134,7 @@ class LightPanel(QtWidgets.QWidget):
     def _parseFloat(self, text: str) -> float:
         try:
             return float(text)
-        except Exception:
+        except (ValueError, TypeError):
             return 0.0
 
     def _clearRows(self) -> None:

@@ -1,13 +1,16 @@
 # -*- encoding: utf-8 -*-
 
 import os
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
 from NodeGraphQt import BaseNode, NodeGraph
 from NodeGraphQt.constants import PipeLayoutEnum
 from NodeGraphQt.qgraphics.node_base import NodeItem
 from NodeGraphQt.widgets.node_widgets import NodeBaseWidget
 from EditorGlobal import GameData
+
+if TYPE_CHECKING:
+    from Widgets.FileExplorer import FileExplorer
 
 
 _REFERENCE_NODE_TYPE = "Ludork.Reference.ReferenceGraphNode"
@@ -95,7 +98,7 @@ class ReferenceGraphNode(BaseNode):
 
 
 class ReferenceTreeDialog(QtWidgets.QDialog):
-    def __init__(self, owner: Any, nodeId: str, parent: Optional[QtWidgets.QWidget] = None):
+    def __init__(self, owner: FileExplorer, nodeId: str, parent: Optional[QtWidgets.QWidget] = None):
         super().__init__(parent)
         self._owner = owner
         self._nodeId = nodeId
