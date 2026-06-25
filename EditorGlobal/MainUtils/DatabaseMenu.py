@@ -208,6 +208,29 @@ class DatabaseMenuMixin:
             return
         self._onDatabaseShowBlueprint(key, data)
 
+    def _onActorQueueBlueprintLocate(self, bpRel: str) -> None:
+        if not isinstance(bpRel, str) or not bpRel.strip():
+            return
+        prefix = "Data.Blueprints."
+        value = bpRel.strip()
+        if not value.startswith(prefix):
+            return
+        key = value[len(prefix) :].replace(".", "/")
+        data = GameData.blueprintsData.get(key)
+        if not isinstance(data, dict):
+            return
+        blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
+        extension = ".json" if data.get("isJson") else ".dat"
+        path = os.path.join(blueprintsRoot, key + extension)
+        if not os.path.isfile(path):
+            alternateExtension = ".dat" if extension == ".json" else ".json"
+            alternatePath = os.path.join(blueprintsRoot, key + alternateExtension)
+            if not os.path.isfile(alternatePath):
+                return
+            path = alternatePath
+        self.tabWidget.setCurrentWidget(self.fileExplorer)
+        self.fileExplorer.locatePath(path)
+
     def _onAnimationModified(self) -> None:
         self._refreshInfo()
 

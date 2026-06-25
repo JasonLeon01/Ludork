@@ -9,6 +9,7 @@ from Engine import (
     Input,
     IntRect,
     Pair,
+    Text,
     Texture,
     UI,
     Vector2f,
@@ -44,7 +45,8 @@ class _AttrShopCell(Canvas, FunctionalBase):
         Canvas.__init__(self, ((0, 0), (width, _ITEM_ROW_HEIGHT)))
         FunctionalBase.__init__(self)
         text = FPlainText(UI.DefaultFont, textValue, UI.DefaultFontSize)
-        text.setPosition(Vector2f(0.0, 8.0))
+        text.setLineAlignment(Text.LineAlignment.Center)
+        text.setPosition(Vector2f(float(width) / 2.0, 8.0))
         if not available:
             text.setColour(_DISABLED_COLOUR)
         self.addChild(text)

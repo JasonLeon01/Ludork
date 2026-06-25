@@ -127,7 +127,7 @@ class PlayerAttrHUD(Canvas):
         self._hpFill.setPosition((0, self._HP_ROW_Y + self._HP_BAR_OFFSET_Y))
         self.addChild(self._hpFill)
 
-        self._hpLabelText = PlainText(self._font, LOC("STAT_HP"), self._FONT_SIZE)
+        self._hpLabelText = PlainText(self._font, LOC("HP"), self._FONT_SIZE)
         self._hpLabelText.setPosition((0, self._HP_ROW_Y))
         self.addChild(self._hpLabelText)
 
@@ -136,13 +136,13 @@ class PlayerAttrHUD(Canvas):
         self.addChild(self._hpText)
 
         self._statValueTexts: Dict[str, PlainText] = {}
-        for locKey, statKey, y in [
-            ("STAT_ATK", "ATK", self._ATK_ROW_Y),
-            ("STAT_DEF", "DEF", self._DEF_ROW_Y),
-            ("STAT_EXP", "EXP", self._EXP_ROW_Y),
-            ("STAT_GOLD", "GOLD", self._GOLD_ROW_Y),
+        for statKey, y in [
+            ("ATK", self._ATK_ROW_Y),
+            ("DEF", self._DEF_ROW_Y),
+            ("EXP", self._EXP_ROW_Y),
+            ("GOLD", self._GOLD_ROW_Y),
         ]:
-            labelText = PlainText(self._font, LOC(locKey), self._FONT_SIZE)
+            labelText = PlainText(self._font, LOC(statKey), self._FONT_SIZE)
             labelText.setPosition((0, y))
             self.addChild(labelText)
 

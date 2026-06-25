@@ -959,7 +959,7 @@ class GameData:
             cls._scanMapActorReferences(index, sourceId, actors, f"Maps/{key}.actors")
 
         cls._addAssetReference(index, sourceId, data.get("bgm"), "Musics", "asset", f"Maps/{key}.bgm")
-        cls._addAssetReference(index, sourceId, data.get("bgs"), "Sounds", "asset", f"Maps/{key}.bgs")
+        cls._addAssetReference(index, sourceId, data.get("bgs"), "Musics", "asset", f"Maps/{key}.bgs")
         cls._addAssetReference(index, sourceId, data.get("fog"), "Fogs", "asset", f"Maps/{key}.fog")
 
     @classmethod

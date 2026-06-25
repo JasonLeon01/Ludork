@@ -194,13 +194,13 @@ class TypedValueEditor(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(2)
-        values, valueTypes = self._normaliseSequence(value, list)
-        for item, itemType in zip(values, valueTypes):
-            self._addListRow(layout, item, itemType)
         addBtn = QtWidgets.QPushButton("+", self)
         addBtn.setFixedWidth(24)
         addBtn.clicked.connect(lambda _: self._appendListItem(layout))
         layout.addWidget(addBtn)
+        values, valueTypes = self._normaliseSequence(value, list)
+        for item, itemType in zip(values, valueTypes):
+            self._addListRow(layout, item, itemType)
         self._elementWidgets = self._editableWidgets()
 
     def _initDictEditor(self, value: Any) -> None:
@@ -210,13 +210,13 @@ class TypedValueEditor(QtWidgets.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(2)
         keyType, valueType = self._getDictKeyValueTypes()
-        items = value.items() if isinstance(value, dict) else []
-        for key, item in items:
-            self._addDictRow(layout, key, item, keyType, valueType)
         addBtn = QtWidgets.QPushButton("+", self)
         addBtn.setFixedWidth(24)
         addBtn.clicked.connect(lambda _: self._appendDictItem(layout, keyType, valueType))
         layout.addWidget(addBtn)
+        items = value.items() if isinstance(value, dict) else []
+        for key, item in items:
+            self._addDictRow(layout, key, item, keyType, valueType)
         self._elementWidgets = self._editableWidgets()
 
     def _addDictRow(

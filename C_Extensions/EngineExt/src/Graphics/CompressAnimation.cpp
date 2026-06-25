@@ -80,10 +80,8 @@ std::tuple<float, std::vector<py::bytes>, std::vector<py::dict>> C_CompressAnima
     const std::vector<std::unordered_map<std::string, std::vector<py::dict>>> &timeLines,
     const std::vector<std::string> &assets, const std::string &assetsRoot, const std::string &imageFormat) {
     std::unordered_map<int, sf::Texture *> textureCache;
-    float minX = std::numeric_limits<float>::infinity();
-    float minY = std::numeric_limits<float>::infinity();
-    float maxX = -std::numeric_limits<float>::infinity();
-    float maxY = -std::numeric_limits<float>::infinity();
+    float maxAbsX = 0.0f;
+    float maxAbsY = 0.0f;
 
     for (int frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
         float frameTime = frameIndex * frameStep;
@@ -113,21 +111,15 @@ std::tuple<float, std::vector<py::bytes>, std::vector<py::dict>> C_CompressAnima
                 float right = curX + rotatedWidth / 2.0f;
                 float top = curY - rotatedHeight / 2.0f;
                 float bottom = curY + rotatedHeight / 2.0f;
-                minX = std::min(minX, left);
-                minY = std::min(minY, top);
-                maxX = std::max(maxX, right);
-                maxY = std::max(maxY, bottom);
+                maxAbsX = std::max(maxAbsX, std::abs(left));
+                maxAbsX = std::max(maxAbsX, std::abs(right));
+                maxAbsY = std::max(maxAbsY, std::abs(top));
+                maxAbsY = std::max(maxAbsY, std::abs(bottom));
             }
         }
     }
-    if (minX == std::numeric_limits<float>::infinity()) {
-        minX = 0.0f;
-        minY = 0.0f;
-        maxX = 1.0f;
-        maxY = 1.0f;
-    }
-    unsigned int canvasWidth = std::max(1, static_cast<int>(std::ceil(maxX - minX)));
-    unsigned int canvasHeight = std::max(1, static_cast<int>(std::ceil(maxY - minY)));
+    unsigned int canvasWidth = std::max(1u, static_cast<unsigned int>(std::ceil(maxAbsX * 2.0f)));
+    unsigned int canvasHeight = std::max(1u, static_cast<unsigned int>(std::ceil(maxAbsY * 2.0f)));
     sf::RenderTexture renderTexture(sf::Vector2u(canvasWidth, canvasHeight));
     if (!renderTexture.setActive(true)) {
         throw std::runtime_error("Failed to set active render texture");
@@ -159,7 +151,7 @@ std::tuple<float, std::vector<py::bytes>, std::vector<py::dict>> C_CompressAnima
                 sprite.setTexture(*texture, true);
                 sf::Vector2u size = texture->getSize();
                 sprite.setOrigin({size.x / 2.0f, size.y / 2.0f});
-                sprite.setPosition({curX - minX, curY - minY});
+                sprite.setPosition({curX + canvasWidth / 2.0f, curY + canvasHeight / 2.0f});
                 sprite.setRotation(sf::degrees(curRot));
                 sprite.setScale({curScaleX, curScaleY});
                 renderTexture.draw(sprite);

@@ -1,0 +1,105 @@
+{
+    "parent": "Engine.Gameplay.Actors.Actor.Actor",
+    "attrs": {
+        "animatable": true,
+        "material": {
+            "lightBlock": 0.5,
+            "mirror": false,
+            "reflectionStrength": 0.5,
+            "opacity": 1.0,
+            "speedRate": 1.0
+        },
+        "collisionEnabled": true,
+        "tickable": true,
+        "texturePath": "npcs/classic-npcs-50F-single.png",
+        "defaultRect": [
+            [
+                0,
+                128
+            ],
+            [
+                32,
+                32
+            ]
+        ]
+    },
+    "graph": {
+        "nodeGraph": {
+            "onCollision": {
+                "nodes": [
+                    {
+                        "nodeFunction": "NodeFunctions.Scene.OpenAttrShop",
+                        "params": [
+                            "None",
+                            "{EXP_SHOP_NAME}",
+                            "{EXP_SHOP_DESC}",
+                            {
+                                "LEVEL": 1,
+                                "ATK": 1,
+                                "DEF": 2
+                            },
+                            "[70, 20, 30]",
+                            0,
+                            "EXP"
+                        ],
+                        "pos": [
+                            0.0,
+                            314.0
+                        ]
+                    },
+                    {
+                        "nodeFunction": "NodeFunctions.Utils.SELF",
+                        "params": [],
+                        "pos": [
+                            -720.0,
+                            634.0
+                        ]
+                    }
+                ],
+                "links": [
+                    {
+                        "left": 1,
+                        "right": 0,
+                        "leftOutPin": 0,
+                        "rightInPin": 0,
+                        "linkType": "Params"
+                    }
+                ]
+            },
+            "onCreate": {
+                "nodes": [],
+                "links": []
+            },
+            "onDestroy": {
+                "nodes": [],
+                "links": []
+            },
+            "onFixedTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onLateTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onOverlap": {
+                "nodes": [],
+                "links": []
+            },
+            "onTick": {
+                "nodes": [],
+                "links": []
+            }
+        },
+        "startNodes": {
+            "onCollision": 0,
+            "onCreate": null,
+            "onDestroy": null,
+            "onFixedTick": null,
+            "onLateTick": null,
+            "onOverlap": null,
+            "onTick": null
+        }
+    },
+    "type": "blueprint"
+}

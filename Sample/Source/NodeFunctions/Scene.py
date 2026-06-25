@@ -549,9 +549,11 @@ def OpenAttrShop(
     scene = System.getScene()
     if not isinstance(scene, SceneMap):
         return condition
-    from Source.NodeFunctions.Utils import _localRef
+    from Source.NodeFunctions.Utils import _attrRef, _localRef
 
-    if isinstance(price, str) and price:
+    if isinstance(price, (_attrRef, _localRef)):
+        priceRef = price
+    elif isinstance(price, str) and price:
         priceRef = _localRef(scene.inst.getVariables(), price, 0)
     else:
         priceValue = 0 if price == "" else price

@@ -192,6 +192,7 @@ class LayoutMixin:
             lambda bpRel: self.editorPanel.setPendingActor(bpRel if isinstance(bpRel, str) else None)
         )
         self.actorQueuePanel.BLUEPRINT_OPEN_REQUESTED.connect(self._onActorQueueBlueprintOpen)
+        self.actorQueuePanel.BLUEPRINT_LOCATE_REQUESTED.connect(self._onActorQueueBlueprintLocate)
 
     def _onUpperSplitterMoved(self, pos: int, index: int) -> None:
         sizes = self.upperSplitter.sizes()

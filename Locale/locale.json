@@ -1219,6 +1219,14 @@
     "zh_CN": "最近放置",
     "en_GB": "Recently Placed"
   },
+  "REMOVE_FROM_RECENTLY_PLACED": {
+    "zh_CN": "从最近布置中移除",
+    "en_GB": "Remove from Recently Placed"
+  },
+  "LOCATE_BLUEPRINT": {
+    "zh_CN": "定位到蓝图",
+    "en_GB": "Locate Blueprint"
+  },
   "TAG": {
     "zh_CN": "标签",
     "en_GB": "Tag"

@@ -103,7 +103,7 @@ class MapEditDialog(QtWidgets.QDialog):
         self.bgsLayout.addWidget(self.bgsFilterBtn, 0)
 
         bgmRoot = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Musics")
-        bgsRoot = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Sounds")
+        bgsRoot = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Musics")
 
         def onBrowseBgm():
             dlg = FileSelectorDialog(self, bgmRoot, FileSelectorDialog.audioFilesFilter())

@@ -17,6 +17,7 @@ MIN_PANEL_WIDTH = 180
 class ActorQueuePanel(QtWidgets.QWidget):
     SELECTION_CHANGED = QtCore.pyqtSignal(object)
     BLUEPRINT_OPEN_REQUESTED = QtCore.pyqtSignal(str)
+    BLUEPRINT_LOCATE_REQUESTED = QtCore.pyqtSignal(str)
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None, dockMode: str = "horizontal") -> None:
         super().__init__(parent)
@@ -36,6 +37,8 @@ class ActorQueuePanel(QtWidgets.QWidget):
         self._list.setSpacing(8)
         self._list.setUniformItemSizes(True)
         self._list.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self._list.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self._list.customContextMenuRequested.connect(self._showContextMenu)
         self._clickTimer = QtCore.QTimer(self)
         self._clickTimer.setSingleShot(True)
         self._clickTimer.timeout.connect(self._onSingleClickTimeout)
@@ -271,6 +274,54 @@ class ActorQueuePanel(QtWidgets.QWidget):
         bp = item.data(QtCore.Qt.UserRole)
         if isinstance(bp, str) and bp.strip():
             self.BLUEPRINT_OPEN_REQUESTED.emit(bp.strip())
+
+    def _requestLocateBlueprint(self, item: QtWidgets.QListWidgetItem) -> None:
+        if item is None:
+            return
+        bp = item.data(QtCore.Qt.UserRole)
+        if isinstance(bp, str) and bp.strip():
+            self.BLUEPRINT_LOCATE_REQUESTED.emit(bp.strip())
+
+    def _removeFromQueue(self, bpRel: str) -> None:
+        b = bpRel.strip() if isinstance(bpRel, str) else ""
+        if not b:
+            return
+        if b in self._queue:
+            self._queue.remove(b)
+        self._itemMap.pop(b, None)
+        if self._currentBpRel == b:
+            self._currentBpRel = None
+        self._rebuildList()
+        if self._currentBpRel is None:
+            self._list.clearSelection()
+            self.SELECTION_CHANGED.emit(None)
+        else:
+            self.SELECTION_CHANGED.emit(self._currentBpRel)
+
+    def _showContextMenu(self, position: QtCore.QPoint) -> None:
+        item = self._list.itemAt(position)
+        if item is None:
+            return
+        bp = item.data(QtCore.Qt.UserRole)
+        if not isinstance(bp, str) or not bp.strip():
+            return
+        bpRel = bp.strip()
+        previousBpRel = self._currentBpRel
+        self._clickTimer.stop()
+        self._pendingClickItem = None
+        self._currentBpRel = bpRel
+        self._list.setCurrentItem(item)
+        self.SELECTION_CHANGED.emit(bpRel)
+        menu = QtWidgets.QMenu(self)
+        actRemove = menu.addAction(ELOC("REMOVE_FROM_RECENTLY_PLACED"))
+        actLocate = menu.addAction(ELOC("LOCATE_BLUEPRINT"))
+        action = menu.exec_(self._list.mapToGlobal(position))
+        if action == actRemove:
+            if previousBpRel != bpRel and previousBpRel in self._queue:
+                self._currentBpRel = previousBpRel
+            self._removeFromQueue(bpRel)
+        elif action == actLocate:
+            self._requestLocateBlueprint(item)
 
     def _toggleSelection(self, item: QtWidgets.QListWidgetItem) -> None:
         if item is None:

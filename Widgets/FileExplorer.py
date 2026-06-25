@@ -254,6 +254,34 @@ class FileExplorer(QtWidgets.QWidget):
     def setCurrentPath(self, path: str) -> None:
         self._setCurrentPath(path)
 
+    def locatePath(self, path: str) -> bool:
+        if not isinstance(path, str) or not path.strip():
+            return False
+        targetPath = os.path.abspath(path.strip())
+        if not self._isUnderRoot(targetPath) or not os.path.exists(targetPath):
+            return False
+        parentPath = os.path.dirname(targetPath)
+        if not parentPath or not self._isUnderRoot(parentPath):
+            return False
+        self._setCurrentPath(parentPath)
+        sourceIndex = self._model.index(targetPath)
+        if not sourceIndex.isValid():
+            return False
+        proxyIndex = self._proxy.mapFromSource(sourceIndex)
+        if not proxyIndex.isValid():
+            return False
+        selectionModel = self._view.selectionModel()
+        if selectionModel is None:
+            return False
+        selectionModel.select(
+            proxyIndex,
+            QtCore.QItemSelectionModel.ClearAndSelect | QtCore.QItemSelectionModel.Rows,
+        )
+        self._view.setCurrentIndex(proxyIndex)
+        self._view.scrollTo(proxyIndex, QtWidgets.QAbstractItemView.PositionAtCenter)
+        self._view.setFocus()
+        return True
+
     def _onDoubleClicked(self, index: QtCore.QModelIndex) -> None:
         if not self._interactive:
             return
