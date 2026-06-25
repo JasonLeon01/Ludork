@@ -83,9 +83,7 @@
                             "TestName2",
                             "Now you will see.",
                             "chuckle.wav",
-                            "",
-                            "None",
-                            128.0
+                            ""
                         ],
                         "pos": [
                             0.0,
@@ -138,13 +136,6 @@
                     }
                 ],
                 "links": [
-                    {
-                        "left": 5,
-                        "right": 4,
-                        "leftOutPin": 0,
-                        "rightInPin": 4,
-                        "linkType": "Params"
-                    },
                     {
                         "left": 5,
                         "right": 6,

@@ -421,6 +421,9 @@ class WindowAttrShop:
         price: int,
         moneyDisplayName: Optional[str] = None,
     ) -> str:
+        priceValue = self._getPriceValue()
+        if not isinstance(priceValue, (list, tuple)):
+            return f"{delta} {self.getAttributeDisplayName(abilityKey)}"
         if moneyDisplayName is None:
             moneyDisplayName = self.getAttributeDisplayName(self._moneyName)
         return f"{price} {moneyDisplayName} :  " f"{delta} {self.getAttributeDisplayName(abilityKey)}"

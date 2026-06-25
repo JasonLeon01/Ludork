@@ -215,7 +215,7 @@ class WeatherController:
             cls._shaderFailed = True
             return
         try:
-            cls._weatherShader = Manager.ShaderManager.load("Weather.frag")
+            cls._weatherShader = Manager.ShaderManager.load("Global/Weather.frag")
         except Exception:
             cls._weatherShader = None
             cls._shaderFailed = True

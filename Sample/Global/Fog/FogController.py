@@ -116,7 +116,7 @@ class FogController:
             cls._shaderFailed = True
             return
         try:
-            cls._fogShader = Manager.ShaderManager.load("Fog.frag")
+            cls._fogShader = Manager.ShaderManager.load("Global/Fog.frag")
         except Exception:
             cls._fogShader = None
             cls._shaderFailed = True

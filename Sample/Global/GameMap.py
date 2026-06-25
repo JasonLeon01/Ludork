@@ -102,9 +102,9 @@ class GameMap(GameMapExt):
             self._tilemapRenderStates = copy.copy(self._camera.getRenderStates())
             self._actorRenderStates = copy.copy(self._camera.getRenderStates())
         else:
-            self._tilemapLightMaskShader = Shader("./Assets/Shaders/Map/TilemapLightMask.frag", Shader.Type.Fragment)
-            self._lightMaskShader = Shader("./Assets/Shaders/Map/lightMask.frag", Shader.Type.Fragment)
-            self._materialShader = Shader("./Assets/Shaders/Map/Material.frag", Shader.Type.Fragment)
+            self._tilemapLightMaskShader = Shader("./Assets/Shaders/Global/TilemapLightMask.frag", Shader.Type.Fragment)
+            self._lightMaskShader = Shader("./Assets/Shaders/Global/LightMask.frag", Shader.Type.Fragment)
+            self._materialShader = Shader("./Assets/Shaders/Global/Material.frag", Shader.Type.Fragment)
             self._tilemapRenderStates = copy.copy(self._camera.getRenderStates())
             self._tilemapRenderStates.shader = self._tilemapLightMaskShader
             self._actorRenderStates = copy.copy(self._camera.getRenderStates())

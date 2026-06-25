@@ -105,7 +105,7 @@ class System(SystemConfigBase):
                 "iOS: shaders are disabled; skipped loading transition shader",
             )
         else:
-            cls._transitionShader = Shader("./Assets/Shaders/Transition.frag", Shader.Type.Fragment)
+            cls._transitionShader = Shader("./Assets/Shaders/Global/Transition.frag", Shader.Type.Fragment)
 
     @classmethod
     def isDebugMode(cls) -> bool:
@@ -534,7 +534,7 @@ class System(SystemConfigBase):
             from . import Manager
 
             try:
-                cls._flashShader = Manager.ShaderManager.load("Flash.frag")
+                cls._flashShader = Manager.ShaderManager.load("Global/Flash.frag")
             except Exception:
                 cls._flashShader = None
                 logging.error("%s", LOC("FLASH_SHADER_LOAD_FAILED"))
@@ -925,7 +925,7 @@ class System(SystemConfigBase):
         from . import Manager
 
         try:
-            cls._toneShader = Manager.ShaderManager.load("Tone.frag")
+            cls._toneShader = Manager.ShaderManager.load("Global/Tone.frag")
         except Exception:
             cls._toneShader = None
             logging.error("%s", LOC("TONE_SHADER_LOAD_FAILED"))
