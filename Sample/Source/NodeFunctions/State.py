@@ -91,7 +91,7 @@ def DamageBattler(battler: Any, amount: int = 1) -> None:
     hp = getComponentFieldValue(battler, "HP", None)
     if hp is None:
         return
-    setComponentFieldValue(battler, "HP", max(0, int(hp) - int(amount)))
+    setComponentFieldValue(battler, "HP", int(hp) - int(amount))
 
 
 @Meta(DisplayName='LOC("HEAL_BATTLER")', DisplayDesc='LOC("HEAL_BATTLER_DESC")')
@@ -107,8 +107,7 @@ def HealBattler(battler: Any, amount: int = 1) -> None:
     hp = getComponentFieldValue(battler, "HP", None)
     if hp is None:
         return
-    cap = getComponentFieldValue(battler, "MAXHP", int(hp) + int(amount))
-    setComponentFieldValue(battler, "HP", min(int(hp) + int(amount), int(cap)))
+    setComponentFieldValue(battler, "HP", int(hp) + int(amount))
 
 
 @Meta(

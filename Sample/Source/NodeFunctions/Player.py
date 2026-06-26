@@ -264,7 +264,7 @@ def HealPlayer(amount: int = 1) -> None:
     """
     player = _getPlayer()
     if player:
-        player.infoComp.HP = max(0, min(player.infoComp.HP + int(amount), player.infoComp.MAXHP))
+        player.infoComp.HP += int(amount)
 
 
 @Meta(DisplayName='LOC("DAMAGE_PLAYER")', DisplayDesc='LOC("DAMAGE_PLAYER_DESC")')
@@ -276,7 +276,7 @@ def DamagePlayer(amount: int = 1) -> None:
     """
     player = _getPlayer()
     if player:
-        player.infoComp.HP = max(player.infoComp.HP - int(amount), 0)
+        player.infoComp.HP -= int(amount)
 
 
 @Meta(

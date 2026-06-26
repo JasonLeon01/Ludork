@@ -5,6 +5,7 @@ from enum import IntEnum
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, Union
 from Engine.Gameplay.Components import Component, componentFromData, setComponentFieldValue
+from Engine.Utils.Monitor import monitor, _MISSING
 from . import Data
 from .Infos import StateInfo
 
@@ -49,6 +50,25 @@ class EnemyInfoComponent(BattlerInfoComponent):
     drops: List[str] = field(default_factory=list)
 
 
+def _onHPChange(old, new, battler):
+    r"""\brief Monitor callback – clamp HP to [0, MAXHP] whenever it is set."""
+    if new < 0:
+        battler.infoComp.HP = 0
+    elif new > battler.infoComp.MAXHP:
+        battler.infoComp.HP = battler.infoComp.MAXHP
+
+
+def _onMAXHPChange(old, new, battler):
+    r"""\brief Monitor callback – propagate MAXHP increases to HP and clamp overflow."""
+    if battler.infoComp.HP > new:
+        battler.infoComp.HP = new
+    if not battler._loading:
+        old_val = old if old is not _MISSING else 0
+        delta = new - old_val
+        if delta > 0:
+            battler.infoComp.HP += delta
+
+
 class Battler:
     r"""\brief Mixin providing combat stats and state management.
 
@@ -66,6 +86,9 @@ class Battler:
         - \param attrs Optional dictionary of attribute overrides.
         """
         self._normaliseInfoComp()
+        self._loading = False
+        monitor(self.infoComp, "HP", _onHPChange, [self])
+        monitor(self.infoComp, "MAXHP", _onMAXHPChange, [self])
         if attrs:
             for key, value in attrs.items():
                 if not setComponentFieldValue(self, key, value):

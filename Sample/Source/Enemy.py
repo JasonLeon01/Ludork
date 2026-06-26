@@ -78,7 +78,7 @@ class Enemy(Actor, EnemyInfo, Battler):
             return 1
 
         won = damage < player.infoComp.HP
-        player.infoComp.HP = max(0, player.infoComp.HP - damage)
+        player.infoComp.HP -= damage
         map.getGameMap().addDamageText(str(damage), player.getPosition())
 
         if not won:

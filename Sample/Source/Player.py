@@ -5,11 +5,16 @@ from typing import List, Optional, Dict, Any, Tuple, Type, Union
 from Engine import Pair, Texture, Input, Vector2u
 from Engine.Gameplay.Components import setComponentFieldValue
 from Engine.Gameplay.Actors import Character
+from Engine.Utils.Monitor import monitor, _MISSING
 from Global import Manager
 from . import Data
 from .Battler import Battler, PlayerInfoComponent
 from .Infos.EquipInfo import EquipInfo
 from .Infos.PlayerInfo import PlayerInfo
+
+_LEVEL_HP_GAIN = 400
+_LEVEL_ATK_GAIN = 2
+_LEVEL_DEF_GAIN = 2
 
 
 @Meta(GeneralDataVars=[("ID", "Player")])
@@ -37,6 +42,14 @@ class Player(Character, PlayerInfo, Battler):
         self.speed = 96
         self.initInfo(Data)
         self._syncInitialHP()
+
+        def _onLevelChange(old, new):
+            delta = new - (old if old is not _MISSING else 0)
+            self.infoComp.HP += delta * _LEVEL_HP_GAIN
+            self.infoComp.ATK += delta * _LEVEL_ATK_GAIN
+            self.infoComp.DEF += delta * _LEVEL_DEF_GAIN
+
+        monitor(self.infoComp, "LEVEL", _onLevelChange, [])
         self._items: Dict[str, int] = {}
         self._equips: Dict[str, int] = {}
         self._equipInfo: Dict[str, str] = {}

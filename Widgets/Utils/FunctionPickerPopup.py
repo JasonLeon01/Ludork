@@ -5,7 +5,7 @@ import inspect
 import logging
 import sys
 from types import ModuleType
-from typing import Dict, Optional, TypedDict
+from typing import Dict, Optional, TypedDict, get_type_hints
 from PyQt5 import QtCore, QtWidgets, QtGui
 
 from .NodeFunctionMeta import NodeFunction, bindNodeFunctionMetadata, isSelectableNodeFunction
@@ -27,13 +27,26 @@ class FunctionPickerPopup(QtWidgets.QDialog):
     FUNCTION_SELECTED = QtCore.pyqtSignal(str, bool)
 
     def __init__(
-        self, parent: Optional[QtWidgets.QWidget], sources: Dict[str, FunctionSource], filterExecOnly: bool = False
+        self,
+        parent: Optional[QtWidgets.QWidget],
+        sources: Dict[str, FunctionSource],
+        filterExecOnly: bool = False,
+        contextSensitive: bool = True,
+        contextClass: Optional[type] = None,
     ) -> None:
         super().__init__(parent)
         self.setModal(False)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self.setWindowFlags(QtCore.Qt.Tool | QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
         self._isMac = sys.platform == "darwin"
+
+        self._contextSensitive = contextSensitive
+        self._mroClasses: set[type] = set()
+        if contextClass is not None:
+            try:
+                self._mroClasses = set(inspect.getmro(contextClass))
+            except Exception:
+                self._mroClasses = set()
 
         lay = QtWidgets.QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
@@ -47,6 +60,14 @@ class FunctionPickerPopup(QtWidgets.QDialog):
         self._searchEdit.textChanged.connect(self._onSearch)
         lay.addWidget(self._searchEdit)
 
+        self._contextCheck = QtWidgets.QCheckBox(ELOC("CONTEXT_SENSITIVE"), self)  # type: ignore[name-defined]
+        self._contextCheck.setChecked(self._contextSensitive)
+        self._contextCheck.toggled.connect(self._onContextToggled)
+        self._contextCheck.setStyleSheet(
+            "QCheckBox { padding: 4px; color: #ccc; } QCheckBox::indicator:unchecked { background: #444; }"
+        )
+        lay.addWidget(self._contextCheck)
+
         self._tree = QtWidgets.QTreeWidget(self)
         self._tree.setHeaderHidden(True)
         lay.addWidget(self._tree)
@@ -54,6 +75,7 @@ class FunctionPickerPopup(QtWidgets.QDialog):
         self._visited: set[str | int | None] = set()
         self._maxDepth = 4
         self._filterExecOnly = filterExecOnly
+        self._sources = sources
         self._build(sources)
 
         self._searchCache: list[SearchItem] = []
@@ -123,6 +145,57 @@ class FunctionPickerPopup(QtWidgets.QDialog):
         it.setData(0, QtCore.Qt.UserRole + 3, displayName if isinstance(displayName, str) else n)
         parent_item.addChild(it)
 
+    def _isInNodeFunctions(
+        self,
+        base: str,
+        a: FunctionSource,
+        is_node_functions: bool,
+    ) -> bool:
+        if is_node_functions:
+            return True
+        mod_name = getattr(a, "__name__", "")
+        if isinstance(mod_name, str) and mod_name == "Source.NodeFunctions":
+            return True
+        return base == "NodeFunctions"
+
+    def _isFunctionContextRelevant(self, func: Any) -> bool:
+        if not self._mroClasses:
+            return False
+        try:
+            hints = get_type_hints(func)
+        except Exception:
+            return False
+        for hint in hints.values():
+            if hint in self._mroClasses:
+                return True
+            origin = getattr(hint, "__origin__", None)
+            if origin is not None:
+                args = getattr(hint, "__args__", ())
+                for arg in args:
+                    if arg in self._mroClasses:
+                        return True
+                    # Unwrap Optional[X] as Union[X, None]
+                    if isinstance(arg, type) and arg is type(None):
+                        continue
+                    inner_origin = getattr(arg, "__origin__", None)
+                    if inner_origin is not None:
+                        inner_args = getattr(arg, "__args__", ())
+                        for ia in inner_args:
+                            if ia in self._mroClasses:
+                                return True
+            if isinstance(hint, str):
+                for cls in self._mroClasses:
+                    if hint == cls.__name__:
+                        return True
+        return False
+
+    def _onContextToggled(self, checked: bool) -> None:
+        self._contextSensitive = checked
+        self._visited.clear()
+        self._originalItems = []
+        self._build(self._sources)
+        self._buildSearchCache()
+
     def _addChildren(
         self,
         parent_item: QtWidgets.QTreeWidgetItem,
@@ -131,6 +204,8 @@ class FunctionPickerPopup(QtWidgets.QDialog):
         is_parent: bool,
         depth: int = 0,
         root_name: str | None = None,
+        is_node_functions: bool = False,
+        is_in_mro_class: bool = False,
     ) -> bool:
         def _aliasFirstKey(name: str) -> tuple[int, str]:
             try:
@@ -196,7 +271,10 @@ class FunctionPickerPopup(QtWidgets.QDialog):
                 if root_name and isinstance(mod_name, str) and not mod_name.startswith(root_name):
                     continue
                 child_item = QtWidgets.QTreeWidgetItem([n])
-                if self._addChildren(child_item, a, p, False, depth + 1, root_name or mod_name):
+                child_node_functions = self._isInNodeFunctions(p, a, is_node_functions)
+                if self._addChildren(
+                    child_item, a, p, False, depth + 1, root_name or mod_name, child_node_functions, is_in_mro_class
+                ):
                     parent_item.addChild(child_item)
                     found = True
             elif inspect.isclass(a):
@@ -204,13 +282,18 @@ class FunctionPickerPopup(QtWidgets.QDialog):
                 if root_name and isinstance(mod_name, str) and not mod_name.startswith(root_name):
                     continue
                 child_item = QtWidgets.QTreeWidgetItem([n])
-                # Pass root_name down as is, because for a class, its name is not a module path prefix
-                if self._addChildren(child_item, a, p, False, depth + 1, root_name):
+                child_mro_class = is_in_mro_class or a in self._mroClasses
+                if self._addChildren(
+                    child_item, a, p, False, depth + 1, root_name, is_node_functions, child_mro_class
+                ):
                     parent_item.addChild(child_item)
                     found = True
             elif isSelectableNodeFunction(a, self._filterExecOnly):
                 mod = getattr(a, "__module__", "")
                 if (root_name is None) or (isinstance(mod, str) and mod.startswith(root_name)):
+                    if self._contextSensitive and not is_node_functions and not is_in_mro_class:
+                        if not self._isFunctionContextRelevant(a):
+                            continue
                     self._handleChildren(n, a, p, parent_item)
                     found = True
         return found

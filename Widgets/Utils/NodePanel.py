@@ -1645,7 +1645,15 @@ class NodePanel(QtWidgets.QWidget):
         if (type_out == "Params") and isinstance(r_type, type) and getattr(r_type, "__module__", "") != "builtins":
             sources["Parent"] = r_type
         self._closeFunctionPickerPopup("_connectionPickerPopup")
-        popup = FunctionPickerPopup(getIndependentDialogParent(self), sources, filterExecOnly=(type_out == "Exec"))
+        contextClass = self.nodeGraph.parentClass
+        if (type_out == "Params") and isinstance(r_type, type) and getattr(r_type, "__module__", "") != "builtins":
+            contextClass = r_type
+        popup = FunctionPickerPopup(
+            getIndependentDialogParent(self),
+            sources,
+            filterExecOnly=(type_out == "Exec"),
+            contextClass=contextClass,
+        )
         self._connectionPickerPopup = popup
         popup.FUNCTION_SELECTED.connect(self._onFunctionSelectedFromPrompt)
         popup.destroyed.connect(self._onFunctionPickerClosed)
@@ -2094,7 +2102,9 @@ class NodePanel(QtWidgets.QWidget):
             sources[module.__name__] = module
 
         self._closeFunctionPickerPopup("_functionPickerPopup")
-        popup = FunctionPickerPopup(getIndependentDialogParent(self), sources)
+        popup = FunctionPickerPopup(
+            getIndependentDialogParent(self), sources, contextClass=self.nodeGraph.parentClass
+        )
         self._functionPickerPopup = popup
         popup.FUNCTION_SELECTED.connect(self._onFunctionSelected)
         popup.destroyed.connect(lambda: setattr(self, "_functionPickerPopup", None))
