@@ -13,7 +13,7 @@ from EditorGlobal import EditorStatus, GameData
 from Utils import File, System
 from .AutoTileRenderer import AutoTileRenderer
 from .TilemapRenderer import TilemapRenderer
-from .DialogUtils import getIndependentDialogParent, isWidgetValid
+from .DialogUtils import GetIndependentDialogParent, IsWidgetValid
 
 
 @dataclass
@@ -407,10 +407,10 @@ class MoveRouteEditor(QtWidgets.QWidget):
         self._button.setEnabled(editable)
 
     def _openEditor(self) -> None:
-        dlg = MoveRouteEditDialog(self._value, getIndependentDialogParent(self))
+        dlg = MoveRouteEditDialog(self._value, GetIndependentDialogParent(self))
         if dlg.exec_() != QtWidgets.QDialog.Accepted:
             return
-        if not isWidgetValid(self):
+        if not IsWidgetValid(self):
             return
         self.setValue(dlg.getRoute())
 

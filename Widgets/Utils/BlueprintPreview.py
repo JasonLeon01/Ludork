@@ -14,11 +14,7 @@ BLUEPRINT_PREVIEW_BASE_CLASSES: List[str] = [
 ]
 
 
-def getBlueprintPreviewBaseClasses() -> List[type]:
-    r"""Resolve configured preview base classes from ``BLUEPRINT_PREVIEW_BASE_CLASSES``.
-
-    - \return Loaded base types that support blueprint texture preview
-    """
+def GetBlueprintPreviewBaseClasses() -> List[type]:
     bases: List[type] = []
     for classPath in BLUEPRINT_PREVIEW_BASE_CLASSES:
         if not isinstance(classPath, str) or not classPath.strip():
@@ -33,15 +29,10 @@ def getBlueprintPreviewBaseClasses() -> List[type]:
     return bases
 
 
-def isBlueprintPreviewable(cls: Optional[type]) -> bool:
-    r"""Return whether a blueprint class supports the editor preview tab.
-
-    - \param cls Resolved blueprint class, or ``None`` when unavailable
-    - \return ``True`` when ``cls`` inherits any configured preview base class
-    """
+def IsBlueprintPreviewable(cls: Optional[type]) -> bool:
     if not isinstance(cls, type):
         return False
-    bases = getBlueprintPreviewBaseClasses()
+    bases = GetBlueprintPreviewBaseClasses()
     if not bases:
         return False
     return any(issubclass(cls, base) for base in bases)

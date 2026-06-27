@@ -8,7 +8,7 @@ from typing import Any
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
-from .DialogUtils import getIndependentDialogParent, isWidgetValid
+from .DialogUtils import GetIndependentDialogParent, IsWidgetValid
 
 
 def _loc(key: str) -> str:
@@ -68,7 +68,7 @@ def _drawCheckerboard(painter: QtGui.QPainter, rect: QtCore.QRect, size: int = 5
             painter.fillRect(QtCore.QRect(x, y, size, size), colour)
 
 
-def colourTupleFromValue(value: Any) -> tuple[int, int, int, int]:
+def ColourTupleFromValue(value: Any) -> tuple[int, int, int, int]:
     if isinstance(value, QtGui.QColor):
         return value.red(), value.green(), value.blue(), value.alpha()
 
@@ -100,8 +100,8 @@ def colourTupleFromValue(value: Any) -> tuple[int, int, int, int]:
     return 255, 255, 255, 255
 
 
-def qColorFromValue(value: Any) -> QtGui.QColor:
-    return QtGui.QColor(*colourTupleFromValue(value))
+def QColorFromValue(value: Any) -> QtGui.QColor:
+    return QtGui.QColor(*ColourTupleFromValue(value))
 
 
 class _ColourPlane(QtWidgets.QWidget):
@@ -380,8 +380,8 @@ class ColourPickerDialog(QtWidgets.QDialog):
         System.SetStyle(self, "singleRow.qss")
         self._syncing = False
         self._screenOverlay: _ScreenColourOverlay | None = None
-        self._initialColour = qColorFromValue(value)
-        self._colour = qColorFromValue(value)
+        self._initialColour = QColorFromValue(value)
+        self._colour = QColorFromValue(value)
         hsv = self._colour.toHsv()
         self._hue = max(0, hsv.hue())
         self._saturation = hsv.saturation()
@@ -485,7 +485,7 @@ class ColourPickerDialog(QtWidgets.QDialog):
         self._syncWidgets()
 
     def getValue(self) -> tuple[int, int, int, int]:
-        return colourTupleFromValue(self._colour)
+        return ColourTupleFromValue(self._colour)
 
     def _createRangeSpin(self, minimum: int, maximum: int) -> QtWidgets.QSpinBox:
         spin = QtWidgets.QSpinBox(self)
@@ -639,7 +639,7 @@ class ColourVarEditor(QtWidgets.QWidget):
     def __init__(self, value: Any = None, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self._asTuple = not isinstance(value, list)
-        self._value = colourTupleFromValue(value)
+        self._value = ColourTupleFromValue(value)
 
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -657,7 +657,7 @@ class ColourVarEditor(QtWidgets.QWidget):
     def setValue(self, value: Any, emit: bool = True, preserveContainer: bool = False) -> None:
         if not preserveContainer:
             self._asTuple = not isinstance(value, list)
-        newValue = colourTupleFromValue(value)
+        newValue = ColourTupleFromValue(value)
         if newValue == self._value:
             return
         self._value = newValue
@@ -673,9 +673,9 @@ class ColourVarEditor(QtWidgets.QWidget):
         self._swatch.setColour(QtGui.QColor(*self._value))
 
     def _openDialog(self) -> None:
-        dlg = ColourPickerDialog(getIndependentDialogParent(self), self._value)
+        dlg = ColourPickerDialog(GetIndependentDialogParent(self), self._value)
         if dlg.exec_() != QtWidgets.QDialog.Accepted:
             return
-        if not isWidgetValid(self):
+        if not IsWidgetValid(self):
             return
         self.setValue(dlg.getValue(), preserveContainer=True)

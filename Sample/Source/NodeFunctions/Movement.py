@@ -114,6 +114,25 @@ def _isMovementBlocked(actor: Optional[Actor]) -> bool:
     return scene is not None and scene.isInputBlocked()
 
 
+@Meta(DisplayName='LOC("SET_MOVE_ENABLED_BY_TAG")', DisplayDesc='LOC("SET_MOVE_ENABLED_BY_TAG_DESC")')
+@ExecSplit(default=(None,))
+def SetMoveEnabledByTag(tag: str, enabled: bool = True) -> None:
+    r"""\brief Enable or disable movement for an actor identified by tag.
+
+    - \param tag The tag of the actor to modify.
+    - \param enabled Whether to enable movement.
+    """
+    from Source.Scenes import Map as SceneMap
+    from Global import System
+
+    scene = System.getScene()
+    if scene is None or not isinstance(scene, SceneMap):
+        return
+    actor = scene.getGameMap().getActorByTag(tag)
+    if actor is not None:
+        actor.setMoveEnabled(enabled)
+
+
 @Meta(DisplayName='LOC("SET_MOVE_ROUTE")', DisplayDesc='LOC("SET_MOVE_ROUTE_DESC")', MoveRouteVars=["route"])
 @Latent(Started=(_LATENT_STARTED,), Finished=(_LATENT_FINISHED,))
 def SetMoveRoute(actor: Actor, route: List[Vector2i] = []) -> Callable[[], List[int]]:

@@ -6,12 +6,12 @@ from typing import Any, Dict, List, Optional, Tuple
 from PyQt5 import QtGui
 from EditorGlobal import EditorStatus, GameData
 from .AutoTileRenderer import AutoTileRenderer
-from .MapRenderUtils import gridToStringGrid, qimageToRgbaTuple, rgbaBytesToQImage
+from .MapRenderUtils import GridToStringGrid, QImageToRgbaTuple, RgbaBytesToQImage
 
 _SOURCE_TILE_SIZE = 32
 
 
-def buildTilesBuffer(tiles: Any, mapW: int, mapH: int) -> array.array:
+def BuildTilesBuffer(tiles: Any, mapW: int, mapH: int) -> array.array:
     buf = array.array("i", [-1] * (mapW * mapH))
     if not isinstance(tiles, list):
         return buf
@@ -31,21 +31,15 @@ def buildTilesBuffer(tiles: Any, mapW: int, mapH: int) -> array.array:
 
 
 class TilemapRenderer:
-    r"""Renders editor map layers (tile indices and autotiles) via EditorExt."""
 
     def __init__(self, autoTileRenderer: AutoTileRenderer) -> None:
         self._autoTileRenderer = autoTileRenderer
         self._tilesetImages: Dict[str, QtGui.QImage] = {}
 
     def invalidate(self) -> None:
-        r"""Drop all cached tileset images."""
         self._tilesetImages.clear()
 
     def invalidateTileset(self, key: str) -> None:
-        r"""Drop the cached tileset image for a tileset key.
-
-        - \param key  Tileset data key.
-        """
         self._tilesetImages.pop(key, None)
 
     def renderLayer(
@@ -59,28 +53,16 @@ class TilemapRenderer:
         autoTileFrame: int = 0,
         sourceTileSize: int = _SOURCE_TILE_SIZE,
     ) -> Optional[QtGui.QImage]:
-        r"""Render one map layer (tiles + autotiles) into a single image.
-
-        - \param mapW            Layer width in tiles.
-        - \param mapH            Layer height in tiles.
-        - \param outputTileSize  Display tile size in pixels.
-        - \param tiles           2D tile index grid.
-        - \param tilesetKey      Tileset data key or object with fileName.
-        - \param autoTiles       2D autotile key grid.
-        - \param autoTileFrame   Autotile animation frame index.
-        - \param sourceTileSize  Tile size in source assets.
-        - \return                Composed layer image, or ``None`` when empty.
-        """
         from EditorExtensions.EditorExt import C_RenderMapLayerRGBA
 
         tilesetTuple: Optional[Tuple[bytes, int, int, int]] = None
         tilesBuffer: Optional[array.array] = None
         tilesetImage = self._loadTileset(tilesetKey)
         if tilesetImage is not None:
-            tilesetTuple = qimageToRgbaTuple(tilesetImage)
-            tilesBuffer = buildTilesBuffer(tiles, mapW, mapH)
+            tilesetTuple = QImageToRgbaTuple(tilesetImage)
+            tilesBuffer = BuildTilesBuffer(tiles, mapW, mapH)
 
-        stringGrid = gridToStringGrid(autoTiles) if isinstance(autoTiles, list) else []
+        stringGrid = GridToStringGrid(autoTiles) if isinstance(autoTiles, list) else []
         autoTileSources = self._collectAutoTileSources(stringGrid)
         hasTiles = tilesetTuple is not None and tilesBuffer is not None
         hasAutoTiles = bool(autoTileSources)
@@ -98,7 +80,7 @@ class TilemapRenderer:
             stringGrid if hasAutoTiles else None,
             autoTileSources if hasAutoTiles else None,
         )
-        return rgbaBytesToQImage(bytes(data), mapW * outputTileSize, mapH * outputTileSize)
+        return RgbaBytesToQImage(bytes(data), mapW * outputTileSize, mapH * outputTileSize)
 
     def _loadTileset(self, tilesetKey: Any) -> Optional[QtGui.QImage]:
         data = None
@@ -136,5 +118,5 @@ class TilemapRenderer:
             image = self._autoTileRenderer.getSourceImage(key)
             if image is None:
                 continue
-            sources[key] = qimageToRgbaTuple(image)
+            sources[key] = QImageToRgbaTuple(image)
         return sources

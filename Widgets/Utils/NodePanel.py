@@ -15,22 +15,22 @@ from NodeGraphQt.qgraphics.node_base import NodeItem
 from EditorGlobal import EditorStatus, GameData
 from Utils import System
 from .ColourPickerDialog import ColourVarEditor
-from .DialogUtils import getIndependentDialogParent
+from .DialogUtils import GetIndependentDialogParent
 from .FileSelectorDialog import FileSelectorDialog
 from .FunctionPickerPopup import FunctionPickerPopup
-from .MetaRely import getRelyConditionDisplay, isRelyEditable, normaliseRelyMap, toBool
-from .MetaVarTypes import _GENERALDATA_VAR_TYPE, getGeneralDataVars, getMetaVarTypes
-from .GraphLayout import computeGraphLayoutPositions
+from .MetaRely import GetRelyConditionDisplay, IsRelyEditable, NormaliseRelyMap, ToBool
+from .MetaVarTypes import _GENERALDATA_VAR_TYPE, GetGeneralDataVars, GetMetaVarTypes
+from .GraphLayout import ComputeGraphLayoutPositions
 from .MoveRouteEditor import MoveRouteEditor
-from .NodeFunctionMeta import getExecSplits, getLatents, getReturnTypes, hasExecOutputs
+from .NodeFunctionMeta import GetExecSplits, GetLatents, GetReturnTypes, HasExecOutputs
 from .TransferPosEditor import TransferPosEditor
 from .TypedValueEditor import (
     TypedValueEditor,
-    formatParamTypeName,
-    getSimpleContainerEditorType,
-    parseParamInitialValue,
+    FormatParamTypeName,
+    GetSimpleContainerEditorType,
+    ParseParamInitialValue,
 )
-from .VectorVarEditor import VectorVarEditor, isVectorVarType, normaliseVectorVarType
+from .VectorVarEditor import VectorVarEditor, IsVectorVarType, NormaliseVectorVarType
 
 if TYPE_CHECKING:
     from Engine.NodeGraph.Graph import Graph  # type: ignore
@@ -69,73 +69,73 @@ CONNECTED_PARAM_VALUE = object()
 NODE_DROPDOWN_Z_VALUE = 1000.0
 
 
-def isBasicPythonDefault(value: Any) -> bool:
+def IsBasicPythonDefault(value: Any) -> bool:
     if value is None or isinstance(value, (bool, int, float, str)):
         return True
     if isinstance(value, (list, tuple)):
-        return all(isBasicPythonDefault(item) for item in value)
+        return all(IsBasicPythonDefault(item) for item in value)
     if isinstance(value, dict):
-        return all(isBasicPythonDefault(key) and isBasicPythonDefault(item) for key, item in value.items())
+        return all(IsBasicPythonDefault(key) and IsBasicPythonDefault(item) for key, item in value.items())
     return False
 
 
-def formatNodeParamDefault(value: Any) -> str:
+def FormatNodeParamDefault(value: Any) -> str:
     if value is inspect.Parameter.empty:
         return ""
     if isinstance(value, str):
         return value
-    if isBasicPythonDefault(value):
+    if IsBasicPythonDefault(value):
         return repr(value)
     return str(value)
 
 
-def isBoolParamType(paramType: Any) -> bool:
+def IsBoolParamType(paramType: Any) -> bool:
     return paramType is bool or paramType == "bool"
 
 
-def formatNodeParamInitialValue(paramType: Any, default: Any) -> Any:
+def FormatNodeParamInitialValue(paramType: Any, default: Any) -> Any:
     if default is inspect.Parameter.empty:
-        if isBoolParamType(paramType):
+        if IsBoolParamType(paramType):
             return False
         return ""
-    if isBoolParamType(paramType):
-        boolVal = toBool(default)
+    if IsBoolParamType(paramType):
+        boolVal = ToBool(default)
         if boolVal is not None:
             return boolVal
-    return formatNodeParamDefault(default)
+    return FormatNodeParamDefault(default)
 
 
-def makeNodeParamsFromSignature(func: Callable) -> List[Any]:
+def MakeNodeParamsFromSignature(func: Callable) -> List[Any]:
     sig = inspect.signature(func)
     params: List[Any] = []
     for _name, param in sig.parameters.items():
         paramType = param.annotation
         if paramType == inspect.Parameter.empty:
             paramType = type(None)
-        params.append(formatNodeParamInitialValue(paramType, param.default))
+        params.append(FormatNodeParamInitialValue(paramType, param.default))
     return params
 
 
-def normaliseNodeParamValue(node: GraphNode, paramName: str, value: Any) -> Any:
+def NormaliseNodeParamValue(node: GraphNode, paramName: str, value: Any) -> Any:
     paramType = node.getParamList().get(paramName)
-    if isBoolParamType(paramType):
-        boolVal = toBool(value)
+    if IsBoolParamType(paramType):
+        boolVal = ToBool(value)
         if boolVal is not None:
             return boolVal
     return value
 
 
-def getNodeParamValue(node: GraphNode, paramIndex: int, paramName: str) -> Any:
+def GetNodeParamValue(node: GraphNode, paramIndex: int, paramName: str) -> Any:
     if paramIndex < len(node.params):
-        return normaliseNodeParamValue(node, paramName, node.params[paramIndex])
+        return NormaliseNodeParamValue(node, paramName, node.params[paramIndex])
     paramDefaults = node.getParamDefaults()
     if paramName in paramDefaults:
-        return normaliseNodeParamValue(
+        return NormaliseNodeParamValue(
             node,
             paramName,
-            formatNodeParamInitialValue(node.getParamList().get(paramName), paramDefaults[paramName]),
+            FormatNodeParamInitialValue(node.getParamList().get(paramName), paramDefaults[paramName]),
         )
-    return formatNodeParamInitialValue(node.getParamList().get(paramName), inspect.Parameter.empty)
+    return FormatNodeParamInitialValue(node.getParamList().get(paramName), inspect.Parameter.empty)
 
 
 def _patchDetachedNodePaintGuard() -> None:
@@ -205,16 +205,16 @@ def MakeSafeNodePropertyName(name: str, usedNames: set) -> str:
     return safe
 
 
-def getMetaPathVars(meta: Any) -> Dict[str, str]:
+def GetMetaPathVars(meta: Any) -> Dict[str, str]:
     if not isinstance(meta, dict):
         return {}
 
     result: Dict[str, str] = {}
-    collectMetaPathVars(result, meta.get("PathVars", ()))
+    CollectMetaPathVars(result, meta.get("PathVars", ()))
     return result
 
 
-def getMetaMoveRouteVars(meta: Any) -> set[str]:
+def GetMetaMoveRouteVars(meta: Any) -> set[str]:
     if not isinstance(meta, dict):
         return set()
     rawVars = meta.get("MoveRouteVars")
@@ -225,7 +225,7 @@ def getMetaMoveRouteVars(meta: Any) -> set[str]:
     return set()
 
 
-def getMetaTransferVars(meta: Any) -> Dict[str, str]:
+def GetMetaTransferVars(meta: Any) -> Dict[str, str]:
     if not isinstance(meta, dict):
         return {}
     rawVars = meta.get("Transfer")
@@ -240,19 +240,19 @@ def getMetaTransferVars(meta: Any) -> Dict[str, str]:
     return result
 
 
-def collectMetaPathVars(paths: Dict[str, str], value: Any) -> None:
+def CollectMetaPathVars(paths: Dict[str, str], value: Any) -> None:
     if isinstance(value, tuple) and len(value) >= 2 and isinstance(value[0], str):
-        paths[value[0]] = normalisePathVarAssetsDir(value[1])
+        paths[value[0]] = NormalisePathVarAssetsDir(value[1])
         return
     if isinstance(value, (list, tuple, set)):
         for item in value:
             if isinstance(item, str):
                 paths[item] = "Characters"
                 continue
-            collectMetaPathVars(paths, item)
+            CollectMetaPathVars(paths, item)
 
 
-def normalisePathVarAssetsDir(value: Any) -> str:
+def NormalisePathVarAssetsDir(value: Any) -> str:
     if not isinstance(value, str):
         return ""
     value = value.replace("\\", "/").strip("/")
@@ -261,7 +261,7 @@ def normalisePathVarAssetsDir(value: Any) -> str:
     return value
 
 
-def getPathVarBaseDir(pathVarMap: Dict[str, str], key: str) -> str:
+def GetPathVarBaseDir(pathVarMap: Dict[str, str], key: str) -> str:
     assetsDir = os.path.join(EditorStatus.PROJ_PATH, "Assets")
     subDir = pathVarMap.get(key, "")
     if not subDir:
@@ -277,7 +277,7 @@ def getPathVarBaseDir(pathVarMap: Dict[str, str], key: str) -> str:
     return baseDir
 
 
-def getWidgetValue(widget: QtWidgets.QWidget) -> WidgetValue:
+def GetWidgetValue(widget: QtWidgets.QWidget) -> WidgetValue:
     if isinstance(widget, GeneralDataComboBox):
         return widget.getValue()
     if isinstance(widget, NodePathEditor):
@@ -342,7 +342,7 @@ class GeneralDataComboBox(QtWidgets.QComboBox):
         self.setCurrentIndex(index if index >= 0 else 0)
 
 
-def setEditorWidgetEditable(widget: QtWidgets.QWidget, editable: bool) -> None:
+def SetEditorWidgetEditable(widget: QtWidgets.QWidget, editable: bool) -> None:
     if isinstance(widget, NodePathEditor):
         widget.setEditable(editable)
         return
@@ -442,7 +442,7 @@ class NodePathEditor(QtWidgets.QWidget):
 
     def _onBrowse(self) -> None:
         baseDir = self._getBaseDir()
-        dlg = FileSelectorDialog(getIndependentDialogParent(self), baseDir, FileSelectorDialog.allFilesFilter(star=True))
+        dlg = FileSelectorDialog(GetIndependentDialogParent(self), baseDir, FileSelectorDialog.allFilesFilter(star=True))
         filePath = dlg.execSelect()
         if not filePath:
             return
@@ -686,9 +686,9 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
         self._port_types = {}
         self._widgetNameByPort = {}
         usedNames = set()
-        latents = getLatents(currNode.nodeFunction)
-        execSplits = getExecSplits(currNode.nodeFunction)
-        returnTypes = getReturnTypes(currNode.nodeFunction)
+        latents = GetLatents(currNode.nodeFunction)
+        execSplits = GetExecSplits(currNode.nodeFunction)
+        returnTypes = GetReturnTypes(currNode.nodeFunction)
         if latents:
             self.add_input("in")
             self._port_types["in"] = "Exec"
@@ -713,12 +713,12 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
 
         meta = getattr(currNode.nodeFunction, "_meta", {})
         dropBox = meta.get("DropBox", [])
-        gdVars = getGeneralDataVars(meta)
-        varTypes = getMetaVarTypes(meta)
-        pathVarMap = getMetaPathVars(meta)
-        moveRouteVars = getMetaMoveRouteVars(meta)
-        transferVars = getMetaTransferVars(meta)
-        self._relyMap = normaliseRelyMap(meta.get("Rely"))
+        gdVars = GetGeneralDataVars(meta)
+        varTypes = GetMetaVarTypes(meta)
+        pathVarMap = GetMetaPathVars(meta)
+        moveRouteVars = GetMetaMoveRouteVars(meta)
+        transferVars = GetMetaTransferVars(meta)
+        self._relyMap = NormaliseRelyMap(meta.get("Rely"))
         self.META = meta
 
         _pendingTransferWires: List[Tuple[TransferPosEditor, str]] = []
@@ -726,7 +726,7 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
         for i, name in enumerate(keys):
             widgetName = MakeSafeNodePropertyName(name, usedNames)
             self._widgetNameByPort[name] = widgetName
-            init_val = getNodeParamValue(currNode, i, name)
+            init_val = GetNodeParamValue(currNode, i, name)
             self.add_input(name, multi_input=False)
             self._port_types[name] = "Params"
 
@@ -736,20 +736,20 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
             isMoveRoute = name in moveRouteVars
             isTransfer = name in transferVars
 
-            type_str = formatParamTypeName(param_type)
+            type_str = FormatParamTypeName(param_type)
             if isTransfer:
                 type_str = "TransferPos"
             elif isMoveRoute:
                 type_str = "MoveRoute"
             elif varType == "ColourVar":
                 type_str = "ColourVar"
-            elif isVectorVarType(varType):
-                type_str = normaliseVectorVarType(varType)
+            elif IsVectorVarType(varType):
+                type_str = NormaliseVectorVarType(varType)
             elif isPath:
                 type_str = "Path"
             display_label = f"{name} ({type_str})"
 
-            containerEditorType = getSimpleContainerEditorType(param_type)
+            containerEditorType = GetSimpleContainerEditorType(param_type)
 
             if isTransfer:
                 editor = TransferPosEditor(value=init_val)
@@ -768,7 +768,7 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
                     self.view, name=widgetName, label=display_label, value=init_val
                 )
                 self.add_custom_widget(nodeWidget)
-            elif isVectorVarType(varType):
+            elif IsVectorVarType(varType):
                 nodeWidget = NodeVectorWidget(
                     self.view, name=widgetName, label=display_label, varType=varType, value=init_val
                 )
@@ -779,7 +779,7 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
                     name=widgetName,
                     label=display_label,
                     value=init_val,
-                    baseDir=getPathVarBaseDir(pathVarMap, name),
+                    baseDir=GetPathVarBaseDir(pathVarMap, name),
                 )
                 self.add_custom_widget(nodeWidget)
             elif varType == _GENERALDATA_VAR_TYPE and name in gdVars:
@@ -807,7 +807,7 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
                         le.setCurrentText(str(init_val))
                     System.SetStyle(le, "nodeInput.qss")
             elif param_type is bool or param_type == "bool":
-                boolVal = toBool(init_val)
+                boolVal = ToBool(init_val)
                 self.add_checkbox(
                     name=widgetName,
                     label=display_label,
@@ -849,7 +849,7 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
                     le = w.get_custom_widget()
                     System.SetStyle(le, "nodeInput.qss")
             elif containerEditorType is not None:
-                parsedVal = parseParamInitialValue(init_val, param_type)
+                parsedVal = ParseParamInitialValue(init_val, param_type)
                 nodeWidget = NodeTypedValueWidget(
                     self.view,
                     name=widgetName,
@@ -881,7 +881,7 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
                     if not w:
                         return ""
                     cw = w.get_custom_widget()
-                    v = getWidgetValue(cw)
+                    v = GetWidgetValue(cw)
                     return str(v) if v is not None else ""
                 return _getter
             _transferEditor.setMapKeyGetter(_makeTransferGetter(_selfRef, _mapParamName))
@@ -1020,11 +1020,6 @@ class NodePanel(QtWidgets.QWidget):
         return portName
 
     def _createDefaultParamNodes(self) -> None:
-        """Create visual nodes for event parameters (non-deletable, not stored in nodes[]).
-
-        These nodes show the parameter name/type and have a single Params output port
-        that other nodes can connect to. They are referenced as ``"default_0"`` etc. in links.
-        """
         self.defaultNodes = []
         eventParams = self.nodeGraph.eventParams.get(self.key, [])
         if not eventParams:
@@ -1098,7 +1093,7 @@ class NodePanel(QtWidgets.QWidget):
                 w = nodeInst.get_widget(widgetName)
                 if w:
                     le = w.get_custom_widget()
-                    val = getNodeParamValue(node, paramIndex, name)
+                    val = GetNodeParamValue(node, paramIndex, name)
                     if paramIndex < len(node.params) and node.params[paramIndex] != val:
                         node.params[paramIndex] = val
                     if isinstance(le, QtWidgets.QLineEdit):
@@ -1118,7 +1113,7 @@ class NodePanel(QtWidgets.QWidget):
                             lambda n=i, p=paramIndex, widget=le: self.scheduleParamChanged(n, p, widget)
                         )
                     elif isinstance(le, QtWidgets.QCheckBox):
-                        boolVal = toBool(val)
+                        boolVal = ToBool(val)
                         le.setChecked(boolVal if boolVal is not None else bool(val))
                         le.toggled.connect(
                             lambda checked, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
@@ -1164,7 +1159,7 @@ class NodePanel(QtWidgets.QWidget):
                         le.VALUE_CHANGED.connect(
                             lambda _, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
                         )
-                        _tvars = getMetaTransferVars(getattr(node.nodeFunction, "_meta", {}))
+                        _tvars = GetMetaTransferVars(getattr(node.nodeFunction, "_meta", {}))
                         _mapPN = _tvars.get(name, "")
                         if _mapPN and _mapPN in paramList:
                             _mapPI = list(paramList.keys()).index(_mapPN)
@@ -1208,7 +1203,7 @@ class NodePanel(QtWidgets.QWidget):
                             lambda _, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
                         )
                     elif isinstance(le, TypedValueEditor):
-                        le.setValue(parseParamInitialValue(val, paramList[name]), emit=False)
+                        le.setValue(ParseParamInitialValue(val, paramList[name]), emit=False)
                         le.VALUE_CHANGED.connect(
                             lambda _, n=i, p=paramIndex, widget=le: self.scheduleParamChanged(n, p, widget)
                         )
@@ -1222,7 +1217,7 @@ class NodePanel(QtWidgets.QWidget):
             pass
         customWidget = nodeWidget.get_custom_widget()
         if isinstance(customWidget, QtWidgets.QWidget):
-            setEditorWidgetEditable(customWidget, editable)
+            SetEditorWidgetEditable(customWidget, editable)
 
     def _isNodeParamConnected(self, nodeIndex: int, nodeInst: BaseNode, name: str, paramIndex: int) -> bool:
         nodeRely = self.nodeGraph.nodeRely.get(self.key, {})
@@ -1249,7 +1244,7 @@ class NodePanel(QtWidgets.QWidget):
             nodeWidget = nodeInst.get_widget(widgetName)
             customWidget = nodeWidget.get_custom_widget() if isinstance(nodeWidget, NodeBaseWidget) else None
             if isinstance(customWidget, QtWidgets.QWidget):
-                values[name] = getWidgetValue(customWidget)
+                values[name] = GetWidgetValue(customWidget)
             elif paramIndex < len(node.params):
                 values[name] = node.params[paramIndex]
         return values
@@ -1262,7 +1257,7 @@ class NodePanel(QtWidgets.QWidget):
         nodeInst = self.nodes[nodeIndex]
         node = self.nodeGraph.nodes[self.key][nodeIndex]
         meta = getattr(node.nodeFunction, "_meta", {})
-        relyMap = normaliseRelyMap(meta.get("Rely")) if isinstance(meta, dict) else {}
+        relyMap = NormaliseRelyMap(meta.get("Rely")) if isinstance(meta, dict) else {}
         if not relyMap:
             return
         values = self._getNodeParamValues(nodeIndex, nodeInst, node)
@@ -1271,12 +1266,12 @@ class NodePanel(QtWidgets.QWidget):
             nodeWidget = nodeInst.get_widget(widgetName)
             if not nodeWidget:
                 continue
-            relyEditable = isRelyEditable(name, relyMap, values)
+            relyEditable = IsRelyEditable(name, relyMap, values)
             if isinstance(nodeWidget, NodeBaseWidget):
                 self._setNodeWidgetEditable(nodeWidget, relyEditable)
             tip = ""
             if not relyEditable:
-                condition = getRelyConditionDisplay(name, relyMap)
+                condition = GetRelyConditionDisplay(name, relyMap)
                 if condition:
                     source, value = condition
                     tip = ELOC("META_RELY_TOOLTIP").format(source=source, value=value)
@@ -1344,7 +1339,7 @@ class NodePanel(QtWidgets.QWidget):
         nodeRely = self.nodeGraph.nodeRely.get(self.key, {})
         if not isinstance(nodeRely, dict):
             nodeRely = {}
-        return computeGraphLayoutPositions(
+        return ComputeGraphLayoutPositions(
             len(self.nodes),
             self.nodeGraph.links.get(self.key, []),
             nodeRely,
@@ -1381,11 +1376,6 @@ class NodePanel(QtWidgets.QWidget):
         self.MODIFIED.emit()
 
     def _resolveLinkNodeRef(self, ref: Union[int, str]) -> Tuple[BaseNode, Optional[Any]]:
-        """Resolve a link endpoint reference to a visual node and its data node.
-
-        Returns ``(nodeInst, nodeData)``. For default parameter nodes (string refs),
-        ``nodeData`` is ``None``.
-        """
         if isinstance(ref, str) and ref.startswith("default_"):
             idx = int(ref.split("_")[1])
             if 0 <= idx < len(self.defaultNodes):
@@ -1402,15 +1392,18 @@ class NodePanel(QtWidgets.QWidget):
             leftOutPin = link["leftOutPin"]
             rightInPin = link["rightInPin"]
 
-            leftNodeInst, leftNodeData = self._resolveLinkNodeRef(left)
-            rightNodeInst, rightNodeData = self._resolveLinkNodeRef(right)
+            try:
+                leftNodeInst, leftNodeData = self._resolveLinkNodeRef(left)
+                rightNodeInst, rightNodeData = self._resolveLinkNodeRef(right)
+            except IndexError:
+                continue
 
             linkType = link["linkType"]
             if linkType == "Exec":
                 if leftNodeData is None:
                     continue  # Default nodes have no exec outputs
-                latents = getLatents(leftNodeData.nodeFunction)
-                execSplits = getExecSplits(leftNodeData.nodeFunction)
+                latents = GetLatents(leftNodeData.nodeFunction)
+                execSplits = GetExecSplits(leftNodeData.nodeFunction)
                 if latents:
                     keys = list(latents.keys())
                     if leftOutPin < len(keys):
@@ -1432,7 +1425,7 @@ class NodePanel(QtWidgets.QWidget):
                     # Default parameter node — single "value" output
                     out_name = "value"
                 else:
-                    returnTypes = getReturnTypes(leftNodeData.nodeFunction)
+                    returnTypes = GetReturnTypes(leftNodeData.nodeFunction)
                     if returnTypes:
                         return_names = list(returnTypes.keys())
                         if leftOutPin < len(return_names):
@@ -1501,10 +1494,6 @@ class NodePanel(QtWidgets.QWidget):
             pass
 
     def _getNodeRef(self, nodeInst: BaseNode) -> Union[int, str]:
-        """Get the link reference for a visual node instance.
-
-        Returns an ``int`` index for regular nodes, or ``"default_N"`` for default param nodes.
-        """
         if nodeInst in self.defaultNodes:
             idx = self.defaultNodes.index(nodeInst)
             return f"default_{idx}"
@@ -1534,8 +1523,8 @@ class NodePanel(QtWidgets.QWidget):
             if linkType == "Exec":
                 if leftNodeData is None:
                     return  # Default nodes have no exec outputs
-                latents = getLatents(leftNodeData.nodeFunction)
-                execSplits = getExecSplits(leftNodeData.nodeFunction)
+                latents = GetLatents(leftNodeData.nodeFunction)
+                execSplits = GetExecSplits(leftNodeData.nodeFunction)
                 if latents:
                     keys = list(latents.keys())
                     out_name = portOut.name()
@@ -1556,7 +1545,7 @@ class NodePanel(QtWidgets.QWidget):
                     # Default parameter node — output is always "value", pin 0
                     leftOutPin = 0
                 else:
-                    returnTypes = getReturnTypes(leftNodeData.nodeFunction)
+                    returnTypes = GetReturnTypes(leftNodeData.nodeFunction)
                     if returnTypes:
                         keys = list(returnTypes.keys())
                         if portOut.name() in keys:
@@ -1610,7 +1599,7 @@ class NodePanel(QtWidgets.QWidget):
             if leftNodeData is None:
                 self.graph.viewer().end_live_connection()
                 return  # Default nodes have no exec outputs
-            execSplits = getExecSplits(leftNodeData.nodeFunction)
+            execSplits = GetExecSplits(leftNodeData.nodeFunction)
             if execSplits:
                 keys = list(execSplits.keys())
                 if out_name.startswith("out_"):
@@ -1621,7 +1610,7 @@ class NodePanel(QtWidgets.QWidget):
             if leftNodeData is None:
                 leftOutPin = 0  # Default param node — single output
             else:
-                returnTypes = getReturnTypes(leftNodeData.nodeFunction)
+                returnTypes = GetReturnTypes(leftNodeData.nodeFunction)
                 if returnTypes:
                     keys = list(returnTypes.keys())
                     if out_name in keys:
@@ -1649,7 +1638,7 @@ class NodePanel(QtWidgets.QWidget):
         if (type_out == "Params") and isinstance(r_type, type) and getattr(r_type, "__module__", "") != "builtins":
             contextClass = r_type
         popup = FunctionPickerPopup(
-            getIndependentDialogParent(self),
+            GetIndependentDialogParent(self),
             sources,
             filterExecOnly=(type_out == "Exec"),
             contextClass=contextClass,
@@ -1679,7 +1668,7 @@ class NodePanel(QtWidgets.QWidget):
             self.graph.viewer().end_live_connection()
             self._pending_conn = None
             return
-        params = makeNodeParamsFromSignature(func)
+        params = MakeNodeParamsFromSignature(func)
         posf = self._pending_conn["scene_pos"]
         pos = (posf.x(), posf.y())
         node_data = EditorDataNode(path, params, pos)
@@ -1743,8 +1732,8 @@ class NodePanel(QtWidgets.QWidget):
             if linkType == "Exec":
                 if leftNodeData is None:
                     return  # Default nodes have no exec outputs
-                latents = getLatents(leftNodeData.nodeFunction)
-                execSplits = getExecSplits(leftNodeData.nodeFunction)
+                latents = GetLatents(leftNodeData.nodeFunction)
+                execSplits = GetExecSplits(leftNodeData.nodeFunction)
                 if latents:
                     keys = list(latents.keys())
                     out_name = portOut.name()
@@ -1764,7 +1753,7 @@ class NodePanel(QtWidgets.QWidget):
                 if leftNodeData is None:
                     leftOutPin = 0
                 else:
-                    returnTypes = getReturnTypes(leftNodeData.nodeFunction)
+                    returnTypes = GetReturnTypes(leftNodeData.nodeFunction)
                     if returnTypes:
                         keys = list(returnTypes.keys())
                         if portOut.name() in keys:
@@ -2103,7 +2092,7 @@ class NodePanel(QtWidgets.QWidget):
 
         self._closeFunctionPickerPopup("_functionPickerPopup")
         popup = FunctionPickerPopup(
-            getIndependentDialogParent(self), sources, contextClass=self.nodeGraph.parentClass
+            GetIndependentDialogParent(self), sources, contextClass=self.nodeGraph.parentClass
         )
         self._functionPickerPopup = popup
         popup.FUNCTION_SELECTED.connect(self._onFunctionSelected)
@@ -2127,7 +2116,7 @@ class NodePanel(QtWidgets.QWidget):
         if not func:
             return
 
-        params = makeNodeParamsFromSignature(func)
+        params = MakeNodeParamsFromSignature(func)
 
         if self._createNodeScenePos is not None:
             scene_pos = self._createNodeScenePos
@@ -2165,7 +2154,7 @@ class NodePanel(QtWidgets.QWidget):
         if selectedNode in self.nodes:
             idx = self.nodes.index(selectedNode)
             dataNode = self.nodeGraph.nodes[self.key][idx]
-            if not hasExecOutputs(dataNode.nodeFunction):
+            if not HasExecOutputs(dataNode.nodeFunction):
                 QtWidgets.QMessageBox.information(self, "Hint", ELOC("UNABLE_TO_SET_START_NODE"))
                 return
 
@@ -2290,7 +2279,7 @@ class NodePanel(QtWidgets.QWidget):
         self._refreshPanel()
 
     def _onParamChanged(self, nodeIndex: int, paramIndex: int, widget: QtWidgets.QWidget):
-        text = getWidgetValue(widget)
+        text = GetWidgetValue(widget)
 
         changed = False
         if self.key in self.nodeGraph.dataNodes and 0 <= nodeIndex < len(self.nodeGraph.dataNodes[self.key]):
@@ -2300,7 +2289,7 @@ class NodePanel(QtWidgets.QWidget):
                 paramNames = list(node.getParamList().keys())
                 while len(dataNode.params) <= paramIndex and len(dataNode.params) < len(paramNames):
                     fillIndex = len(dataNode.params)
-                    dataNode.params.append(getNodeParamValue(node, fillIndex, paramNames[fillIndex]))
+                    dataNode.params.append(GetNodeParamValue(node, fillIndex, paramNames[fillIndex]))
             if 0 <= paramIndex < len(dataNode.params):
                 if dataNode.params[paramIndex] != text:
                     dataNode.params[paramIndex] = text
@@ -2310,7 +2299,7 @@ class NodePanel(QtWidgets.QWidget):
             paramNames = list(node.getParamList().keys())
             while len(node.params) <= paramIndex and len(node.params) < len(paramNames):
                 fillIndex = len(node.params)
-                node.params.append(getNodeParamValue(node, fillIndex, paramNames[fillIndex]))
+                node.params.append(GetNodeParamValue(node, fillIndex, paramNames[fillIndex]))
             if 0 <= paramIndex < len(node.params):
                 if node.params[paramIndex] != text:
                     node.params[paramIndex] = text

@@ -8,7 +8,7 @@ from types import ModuleType
 from typing import Dict, Optional, TypedDict, get_type_hints
 from PyQt5 import QtCore, QtWidgets, QtGui
 
-from .NodeFunctionMeta import NodeFunction, bindNodeFunctionMetadata, isSelectableNodeFunction
+from .NodeFunctionMeta import NodeFunction, BindNodeFunctionMetadata, IsSelectableNodeFunction
 
 
 FunctionSource = ModuleType | type
@@ -52,21 +52,29 @@ class FunctionPickerPopup(QtWidgets.QDialog):
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
 
+        searchRow = QtWidgets.QHBoxLayout()
+        searchRow.setContentsMargins(0, 0, 0, 0)
+        searchRow.setSpacing(0)
+
         self._searchEdit = QtWidgets.QLineEdit(self)
         self._searchEdit.setPlaceholderText("Search...")
         self._searchEdit.setStyleSheet(
             "QLineEdit { background-color: #333; border: none; border-bottom: 1px solid #555; padding: 4px; }"
         )
         self._searchEdit.textChanged.connect(self._onSearch)
-        lay.addWidget(self._searchEdit)
+        searchRow.addWidget(self._searchEdit, 2)
 
+        font = self._searchEdit.font()
+        font.setPointSize(font.pointSize() - 1)
         self._contextCheck = QtWidgets.QCheckBox(ELOC("CONTEXT_SENSITIVE"), self)  # type: ignore[name-defined]
+        self._contextCheck.setFont(font)
         self._contextCheck.setChecked(self._contextSensitive)
         self._contextCheck.toggled.connect(self._onContextToggled)
         self._contextCheck.setStyleSheet(
             "QCheckBox { padding: 4px; color: #ccc; } QCheckBox::indicator:unchecked { background: #444; }"
         )
-        lay.addWidget(self._contextCheck)
+        searchRow.addWidget(self._contextCheck, 1)
+        lay.addLayout(searchRow)
 
         self._tree = QtWidgets.QTreeWidget(self)
         self._tree.setHeaderHidden(True)
@@ -232,8 +240,8 @@ class FunctionPickerPopup(QtWidgets.QDialog):
                     a = getattr(obj, n)
                 except AttributeError:
                     continue
-                a = bindNodeFunctionMetadata(a, obj, n)
-                if isSelectableNodeFunction(a, self._filterExecOnly):
+                a = BindNodeFunctionMetadata(a, obj, n)
+                if IsSelectableNodeFunction(a, self._filterExecOnly):
                     self._handleChildren(n, a, p, parent_item)
                     found = True
             return found
@@ -265,7 +273,7 @@ class FunctionPickerPopup(QtWidgets.QDialog):
                 a = getattr(obj, n)
             except AttributeError:
                 continue
-            a = bindNodeFunctionMetadata(a, obj, n)
+            a = BindNodeFunctionMetadata(a, obj, n)
             if inspect.ismodule(a):
                 mod_name = getattr(a, "__name__", "")
                 if root_name and isinstance(mod_name, str) and not mod_name.startswith(root_name):
@@ -288,7 +296,7 @@ class FunctionPickerPopup(QtWidgets.QDialog):
                 ):
                     parent_item.addChild(child_item)
                     found = True
-            elif isSelectableNodeFunction(a, self._filterExecOnly):
+            elif IsSelectableNodeFunction(a, self._filterExecOnly):
                 mod = getattr(a, "__module__", "")
                 if (root_name is None) or (isinstance(mod, str) and mod.startswith(root_name)):
                     if self._contextSensitive and not is_node_functions and not is_in_mro_class:

@@ -37,14 +37,14 @@ def _getOwnerMeta(owner: Any, name: str) -> Optional[NodeMetaMap]:
     return None
 
 
-def bindNodeFunctionMetadata(value: Any, owner: Any, name: str) -> Any:
+def BindNodeFunctionMetadata(value: Any, owner: Any, name: str) -> Any:
     meta = _getOwnerMeta(owner, name)
     if meta is not None:
         _BOUND_NODE_FUNCTION_META[id(value)] = meta
     return value
 
 
-def isNodeFunction(value: Any) -> bool:
+def IsNodeFunction(value: Any) -> bool:
     if inspect.isfunction(value) or inspect.ismethod(value):
         return True
     if not callable(value):
@@ -52,8 +52,8 @@ def isNodeFunction(value: Any) -> bool:
     return _getBoundMeta(value) is not None or any(hasattr(value, attrName) for attrName in _NODE_META_ATTRS)
 
 
-def getNodeMetaMap(value: Any, attrName: str) -> NodeMetaMap:
-    if not isNodeFunction(value):
+def GetNodeMetaMap(value: Any, attrName: str) -> NodeMetaMap:
+    if not IsNodeFunction(value):
         return {}
     meta = getattr(value, attrName, None)
     if isinstance(meta, dict):
@@ -66,20 +66,20 @@ def getNodeMetaMap(value: Any, attrName: str) -> NodeMetaMap:
     return {}
 
 
-def getLatents(value: Any) -> NodeMetaMap:
-    return getNodeMetaMap(value, "_latents")
+def GetLatents(value: Any) -> NodeMetaMap:
+    return GetNodeMetaMap(value, "_latents")
 
 
-def getExecSplits(value: Any) -> NodeMetaMap:
-    return getNodeMetaMap(value, "_execSplits")
+def GetExecSplits(value: Any) -> NodeMetaMap:
+    return GetNodeMetaMap(value, "_execSplits")
 
 
-def getReturnTypes(value: Any) -> NodeMetaMap:
-    return getNodeMetaMap(value, "_returnTypes")
+def GetReturnTypes(value: Any) -> NodeMetaMap:
+    return GetNodeMetaMap(value, "_returnTypes")
 
 
-def getRefLocal(value: Any) -> Optional[NodeMetaMap]:
-    if not isNodeFunction(value):
+def GetRefLocal(value: Any) -> Optional[NodeMetaMap]:
+    if not IsNodeFunction(value):
         return None
     refLocal = getattr(value, "_refLocal", None)
     if isinstance(refLocal, dict):
@@ -92,11 +92,11 @@ def getRefLocal(value: Any) -> Optional[NodeMetaMap]:
     return None
 
 
-def hasExecOutputs(value: Any) -> bool:
-    return bool(getLatents(value) or getExecSplits(value))
+def HasExecOutputs(value: Any) -> bool:
+    return bool(GetLatents(value) or GetExecSplits(value))
 
 
-def isSelectableNodeFunction(value: Any, requireExecSplit: bool = False) -> bool:
-    if getRefLocal(value) is None:
+def IsSelectableNodeFunction(value: Any, requireExecSplit: bool = False) -> bool:
+    if GetRefLocal(value) is None:
         return False
-    return not requireExecSplit or bool(getExecSplits(value))
+    return not requireExecSplit or bool(GetExecSplits(value))

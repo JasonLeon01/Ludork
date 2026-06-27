@@ -126,6 +126,14 @@ class ClassDict:
                 self._dict[classPath] = targetClass
         return self._dict.get(classPath)
 
+    def invalidate(self, classPath: str) -> None:
+        r"""Drop cached class and data entries for the given dot-path.
+
+        - \param classPath Dot-separated class path to evict from cache
+        """
+        self._dict.pop(classPath, None)
+        self._dataDict.pop(classPath, None)
+
     def getData(self, classPath: str) -> Dict[str, Any]:
         r"""Get the raw class data dictionary for a previously loaded class.
 

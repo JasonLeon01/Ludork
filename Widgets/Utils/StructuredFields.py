@@ -14,19 +14,19 @@ class StructuredField:
     varType: str = ""
 
 
-def isStructuredType(valueType: Any) -> bool:
+def IsStructuredType(valueType: Any) -> bool:
     if dataclasses.is_dataclass(valueType):
         return True
     return _isBoundStructType(valueType)
 
 
-def isStructuredValue(value: Any) -> bool:
+def IsStructuredValue(value: Any) -> bool:
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
         return True
     return _isBoundStructType(type(value))
 
 
-def structuredValueToDict(value: Any) -> Dict[str, Any]:
+def StructuredValueToDict(value: Any) -> Dict[str, Any]:
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
         return dataclasses.asdict(value)
     asDict = getattr(value, "asDict", None)
@@ -42,7 +42,7 @@ def structuredValueToDict(value: Any) -> Dict[str, Any]:
     return {}
 
 
-def structuredFields(valueType: Any, data: Any = None) -> List[StructuredField]:
+def StructuredFields(valueType: Any, data: Any = None) -> List[StructuredField]:
     if dataclasses.is_dataclass(valueType):
         return [
             StructuredField(field.name, field.type, _dataclassDefault(field), _dataclassVarType(field))
@@ -56,7 +56,7 @@ def structuredFields(valueType: Any, data: Any = None) -> List[StructuredField]:
     return [StructuredField(name, type(defaults.get(name)), copy.deepcopy(defaults.get(name))) for name in names]
 
 
-def defaultStructuredData(valueType: Any) -> Dict[str, Any]:
+def DefaultStructuredData(valueType: Any) -> Dict[str, Any]:
     if dataclasses.is_dataclass(valueType):
         result: Dict[str, Any] = {}
         for field in dataclasses.fields(valueType):
@@ -91,7 +91,7 @@ def _boundStructPropertyNames(valueType: Any) -> List[str]:
 
 def _defaultStructData(valueType: Any) -> Dict[str, Any]:
     try:
-        return structuredValueToDict(valueType())
+        return StructuredValueToDict(valueType())
     except Exception:
         return {}
 

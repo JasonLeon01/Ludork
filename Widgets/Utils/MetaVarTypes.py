@@ -22,7 +22,7 @@ _SHORTHAND_VAR_TYPES = {
 }
 
 
-def getGeneralDataVars(meta: Any) -> Dict[str, str]:
+def GetGeneralDataVars(meta: Any) -> Dict[str, str]:
     if not isinstance(meta, dict):
         return {}
 
@@ -50,11 +50,11 @@ def _collectShorthandVars(result: Dict[str, str], rawVars: Any, valueType: str) 
                 result[name] = valueType
 
 
-def getMetaVarTypes(meta: Any) -> Dict[str, str]:
+def GetMetaVarTypes(meta: Any) -> Dict[str, str]:
     if not isinstance(meta, dict):
         return {}
 
-    result = {name: _GENERALDATA_VAR_TYPE for name in getGeneralDataVars(meta)}
+    result = {name: _GENERALDATA_VAR_TYPE for name in GetGeneralDataVars(meta)}
     for key in ("VarTypes", "VariableTypes", "ParamTypes"):
         rawTypes = meta.get(key)
         if not isinstance(rawTypes, dict):

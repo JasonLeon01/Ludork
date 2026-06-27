@@ -6,10 +6,10 @@ from typing import Dict, Any, Type, get_type_hints, Optional, Set
 from PyQt5 import QtWidgets, QtCore
 
 from .ColourPickerDialog import ColourVarEditor
-from .MetaVarTypes import getMetaVarTypes
-from .StructuredFields import isStructuredType, structuredFields, structuredValueToDict
+from .MetaVarTypes import GetMetaVarTypes
+from .StructuredFields import IsStructuredType, StructuredFields, StructuredValueToDict
 from .TypedValueEditor import TypedValueEditor
-from .VectorVarEditor import VectorVarEditor, isVectorVarType
+from .VectorVarEditor import VectorVarEditor, IsVectorVarType
 
 log = logging.getLogger(__name__)
 
@@ -26,14 +26,14 @@ class DataclassWidget(QtWidgets.QWidget):
     ):
         super().__init__(parent)
         self.dc_type = dc_type
-        self.data = data if isinstance(data, dict) else structuredValueToDict(data)
+        self.data = data if isinstance(data, dict) else StructuredValueToDict(data)
         self._readOnlyFields = readOnlyFields or set()
         try:
             self._type_hints = get_type_hints(dc_type)
         except (NameError, TypeError, AttributeError) as e:
             log.warning("Failed to resolve type hints for %s: %s", dc_type, e)
             self._type_hints = {}
-        self._metaVarTypes = getMetaVarTypes(getattr(dc_type, "_meta", {}))
+        self._metaVarTypes = GetMetaVarTypes(getattr(dc_type, "_meta", {}))
         self._inputs = {}
         self._initUI()
 
@@ -41,7 +41,7 @@ class DataclassWidget(QtWidgets.QWidget):
         layout = QtWidgets.QFormLayout(self)
         layout.setContentsMargins(10, 0, 0, 0)
 
-        for field in structuredFields(self.dc_type, self.data):
+        for field in StructuredFields(self.dc_type, self.data):
             val = self.data.get(field.name)
 
             if val is None:
@@ -65,13 +65,13 @@ class DataclassWidget(QtWidgets.QWidget):
             w = ColourVarEditor(value, self)
             w.VALUE_CHANGED.connect(lambda v, k=field.name: self._onFieldChanged(k, v))
             return w
-        if isVectorVarType(varType):
+        if IsVectorVarType(varType):
             w = VectorVarEditor(varType, value, self)
             w.VALUE_CHANGED.connect(lambda v, k=field.name: self._onFieldChanged(k, v))
             return w
 
-        if isStructuredType(ftype):
-            value = value if isinstance(value, dict) else structuredValueToDict(value)
+        if IsStructuredType(ftype):
+            value = value if isinstance(value, dict) else StructuredValueToDict(value)
 
             gb = QtWidgets.QGroupBox()
             gb.setFlat(True)

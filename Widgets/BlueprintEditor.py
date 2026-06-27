@@ -12,13 +12,15 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 from EditorGlobal import EditorStatus, GameData
 from Utils import System, File, SFMLRender
 from Widgets.Utils import SingleRowDialog, NodePanel, Toast, RectViewer, DataclassWidget, FileSelectorDialog
-from Widgets.Utils.BlueprintPreview import isBlueprintPreviewable
+from Widgets.Utils.AiConfigDialog import AiConfigDialog, IsAiConfigured
+from Widgets.Utils.AiChatDialog import AiChatDialog
+from Widgets.Utils.BlueprintPreview import IsBlueprintPreviewable
 from Widgets.Utils.ColourPickerDialog import ColourVarEditor
-from Widgets.Utils.MetaRely import getRelyConditionDisplay, getRelySourceSet, isRelyEditable, normaliseRelyMap
+from Widgets.Utils.MetaRely import GetRelyConditionDisplay, GetRelySourceSet, IsRelyEditable, NormaliseRelyMap
 from Widgets.Utils.NodePanel import GeneralDataComboBox, _loadGeneralDataMemberKeys
-from Widgets.Utils.MetaVarTypes import _GENERALDATA_VAR_TYPE, getGeneralDataVars, getMetaVarTypes
-from Widgets.Utils.StructuredFields import isStructuredType, isStructuredValue, structuredValueToDict
-from Widgets.Utils.VectorVarEditor import VectorVarEditor, isVectorVarType
+from Widgets.Utils.MetaVarTypes import _GENERALDATA_VAR_TYPE, GetGeneralDataVars, GetMetaVarTypes
+from Widgets.Utils.StructuredFields import IsStructuredType, IsStructuredValue, StructuredValueToDict
+from Widgets.Utils.VectorVarEditor import VectorVarEditor, IsVectorVarType
 
 
 log = logging.getLogger(__name__)
@@ -28,7 +30,6 @@ _PREVIEW_TAB_KIND = "preview"
 
 
 class RevertButton(QtWidgets.QPushButton):
-    """A small button with a UE-style curved revert arrow icon."""
 
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
@@ -208,7 +209,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.attrVarTypes: Dict[str, str] = self._getMetaVarTypes()
         self.attrGDVars: Dict[str, str] = self._getGeneralDataVars()
         self.attrRely: Dict[str, Any] = self._getMetaRely()
-        self.attrRelySources: Set[str] = getRelySourceSet(self.attrRely)
+        self.attrRelySources: Set[str] = GetRelySourceSet(self.attrRely)
         self.setupUI()
         self.toast = Toast(self)
 
@@ -242,7 +243,6 @@ class BluePrintEditor(QtWidgets.QWidget):
         return found
 
     def _getWidgetCurrentValue(self, widget: QtWidgets.QWidget) -> Any:
-        """Extract the current value from any widget type created by createInputWidget."""
         if isinstance(widget, GeneralDataComboBox):
             return widget.getValue()
         if isinstance(widget, QtWidgets.QCheckBox):
@@ -280,12 +280,10 @@ class BluePrintEditor(QtWidgets.QWidget):
     def _updateRevertButtonState(
         self, btn: RevertButton, current_val: Any, parent_val: Any
     ) -> None:
-        """Enable or disable the revert button based on value comparison."""
         equal = GameData._isBlueprintValueEqual(current_val, parent_val)
         btn.setEnabled(not equal)
 
     def _onRevertAttr(self, key: str, parent_val: Any, widget: QtWidgets.QWidget) -> None:
-        """Revert the attribute to its parent class value."""
         if isinstance(widget, ColourVarEditor):
             widget.setValue(parent_val)
             return
@@ -301,8 +299,8 @@ class BluePrintEditor(QtWidgets.QWidget):
         if is_complex:
             if isinstance(parent_val, (list, tuple)):
                 value = copy.deepcopy(list(parent_val))
-            elif isStructuredValue(parent_val):
-                value = structuredValueToDict(parent_val)
+            elif IsStructuredValue(parent_val):
+                value = StructuredValueToDict(parent_val)
             else:
                 value = copy.deepcopy(parent_val)
             self.onDataChanged(key, value, True)
@@ -329,7 +327,6 @@ class BluePrintEditor(QtWidgets.QWidget):
     def _connectRevertUpdate(
         self, widget: QtWidgets.QWidget, revertBtn: RevertButton, parent_val: Any
     ) -> None:
-        """Connect widget value-changed signals to keep the revert button state in sync."""
         if isinstance(widget, QtWidgets.QCheckBox):
             widget.toggled.connect(
                 lambda checked, b=revertBtn, pv=parent_val: self._updateRevertButtonState(b, checked, pv)
@@ -370,7 +367,6 @@ class BluePrintEditor(QtWidgets.QWidget):
                         )
 
     def _onRevertTextChanged(self, btn: RevertButton, text: str, parent_val: Any) -> None:
-        """Handle text changes from QLineEdit to update revert button state."""
         try:
             val = eval(text)
         except Exception:
@@ -378,7 +374,6 @@ class BluePrintEditor(QtWidgets.QWidget):
         self._updateRevertButtonState(btn, val, parent_val)
 
     def _onContainerRevertChanged(self, btn: RevertButton, widget: QtWidgets.QWidget, parent_val: Any) -> None:
-        """Handle changes from list/tuple container widgets to update revert button state."""
         val = self._getWidgetCurrentValue(widget)
         self._updateRevertButtonState(btn, val, parent_val)
 
@@ -464,7 +459,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             meta = getattr(base, "__dict__", {}).get("_meta")
             if not isinstance(meta, dict):
                 continue
-            result.update(getMetaVarTypes(meta))
+            result.update(GetMetaVarTypes(meta))
         return result
 
     def _getGeneralDataVars(self) -> Dict[str, str]:
@@ -476,7 +471,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         for base in mro:
             meta = getattr(base, "__dict__", {}).get("_meta")
             if isinstance(meta, dict):
-                result.update(getGeneralDataVars(meta))
+                result.update(GetGeneralDataVars(meta))
         return result
 
     def _getMetaRely(self) -> Dict[str, Any]:
@@ -489,7 +484,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             meta = getattr(base, "__dict__", {}).get("_meta")
             if not isinstance(meta, dict):
                 continue
-            result.update(normaliseRelyMap(meta.get("Rely")))
+            result.update(NormaliseRelyMap(meta.get("Rely")))
         return result
 
     def _setWidgetEditable(self, widget: QtWidgets.QWidget, editable: bool) -> None:
@@ -506,7 +501,7 @@ class BluePrintEditor(QtWidgets.QWidget):
     def _getRelyTooltip(self, key: str, relyEditable: bool) -> str:
         if relyEditable:
             return ""
-        condition = getRelyConditionDisplay(key, self.attrRely)
+        condition = GetRelyConditionDisplay(key, self.attrRely)
         if not condition:
             return ""
         source, value = condition
@@ -794,10 +789,13 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.rightLayout = QtWidgets.QVBoxLayout(self.rightPanel)
         self.rightLayout.setSpacing(0)
 
+        tabBarLayout = QtWidgets.QHBoxLayout()
+        tabBarLayout.setSpacing(0)
+
         self.nodeGraphList = QtWidgets.QListWidget()
         self.nodeGraphList.setFlow(QtWidgets.QListWidget.LeftToRight)
         self.nodeGraphList.setFixedHeight(50)
-        self.rightLayout.addWidget(self.nodeGraphList)
+        tabBarLayout.addWidget(self.nodeGraphList, 1)
         self.nodeGraphList.currentItemChanged.connect(self.onGraphItemSelected)
         self.nodeGraphList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.nodeGraphList.customContextMenuRequested.connect(self.onGraphListContextMenu)
@@ -809,6 +807,13 @@ class BluePrintEditor(QtWidgets.QWidget):
             QtGui.QKeySequence(QtCore.Qt.Key_F2), self.nodeGraphList, context=QtCore.Qt.WidgetShortcut
         )
         self._renameShortcut.activated.connect(self._onRenameEvent)
+
+        self._chatAiButton = QtWidgets.QPushButton(ELOC("CHAT_WITH_AI"))
+        self._chatAiButton.setFixedHeight(50)
+        tabBarLayout.addWidget(self._chatAiButton)
+        self._chatAiButton.clicked.connect(self._onChatWithAi)
+
+        self.rightLayout.addLayout(tabBarLayout)
 
         self.stackedWidget = QtWidgets.QStackedWidget()
         self.rightLayout.addWidget(self.stackedWidget)
@@ -857,7 +862,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.stackedWidget.setCurrentWidget(panel)
 
     def _supportsPreview(self) -> bool:
-        return isBlueprintPreviewable(self._resolveClass())
+        return IsBlueprintPreviewable(self._resolveClass())
 
     def _collectInheritedGraphKeys(self) -> list[str]:
         result: list[str] = []
@@ -997,8 +1002,8 @@ class BluePrintEditor(QtWidgets.QWidget):
         return ordered + remaining
 
     def _copyAttrValue(self, value: Any) -> Any:
-        if isStructuredValue(value):
-            return structuredValueToDict(value)
+        if IsStructuredValue(value):
+            return StructuredValueToDict(value)
         try:
             return copy.deepcopy(value)
         except TypeError as e:
@@ -1033,7 +1038,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.attrVarTypes = self._getMetaVarTypes()
         self.attrGDVars = self._getGeneralDataVars()
         self.attrRely = self._getMetaRely()
-        self.attrRelySources = getRelySourceSet(self.attrRely)
+        self.attrRelySources = GetRelySourceSet(self.attrRely)
         type_hints = {}
         parent_cls = None
         parent_hints = {}
@@ -1096,7 +1101,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             if not found_attr_parent:
                 attr_parent_val = None
 
-            if type_hint and isStructuredType(type_hint) and self.attrVarTypes.get(key) != _GENERALDATA_VAR_TYPE:
+            if type_hint and IsStructuredType(type_hint) and self.attrVarTypes.get(key) != _GENERALDATA_VAR_TYPE:
                 widget = DataclassWidget(type_hint, value)
                 widget.VALUE_CHANGED.connect(lambda val, k=key: self.onDataChanged(k, val, True))
                 is_dc = True
@@ -1112,7 +1117,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             isInvalid = key in self.invalidVars
             isRectRange = key in self.rectRangeVars and not isInvalid
             isPath = key in self.pathVars and not isInvalid and not isRectRange
-            relyEditable = isRelyEditable(key, self.attrRely, displayAttrs)
+            relyEditable = IsRelyEditable(key, self.attrRely, displayAttrs)
 
             if is_dc:
                 if isInvalid:
@@ -1216,7 +1221,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             w = ColourVarEditor(value, self)
             w.VALUE_CHANGED.connect(lambda val, k=key: self.onDataChanged(k, val, True))
             return w
-        if isAttr and isVectorVarType(var_type):
+        if isAttr and IsVectorVarType(var_type):
             w = VectorVarEditor(var_type, value, self)
             w.VALUE_CHANGED.connect(lambda val, k=key: self.onDataChanged(k, val, True))
             return w
@@ -1717,6 +1722,56 @@ class BluePrintEditor(QtWidgets.QWidget):
             cell = 32
         return (0, 0, cell, cell)
 
+    def _reloadClassMetadata(self) -> None:
+        self.invalidVars = self._getInvalidVars()
+        self.pathVarMap = self._getPathVarMap()
+        self.pathVars = set(self.pathVarMap.keys())
+        rectMap = self._getRectRangeVars()
+        self.rectRangeVars = set(rectMap.keys())
+        self.rectRangeVarMap = rectMap
+        self.attrVarTypes = self._getMetaVarTypes()
+        self.attrGDVars = self._getGeneralDataVars()
+        self.attrRely = self._getMetaRely()
+        self.attrRelySources = GetRelySourceSet(self.attrRely)
+
+    def _clearGraphPanels(self) -> None:
+        for name in list(self.graphs.keys()):
+            panel = self.graphs.pop(name)
+            self.stackedWidget.removeWidget(panel)
+            panel.deleteLater()
+
+    def applyExternalBlueprintUpdate(self) -> None:
+        if self.title not in GameData.blueprintsData:
+            return
+        current_item = self.nodeGraphList.currentItem()
+        current_kind = current_item.data(QtCore.Qt.UserRole) if current_item is not None else None
+        current_graph = (
+            current_item.text()
+            if current_item is not None and current_kind == _GRAPH_TAB_KIND
+            else None
+        )
+        self.data = copy.deepcopy(GameData.blueprintsData[self.title])
+        self._reloadClassMetadata()
+        self._clearGraphPanels()
+        self.refreshAttrs()
+        self.refreshGraphList()
+        if current_kind == _PREVIEW_TAB_KIND and self._supportsPreview():
+            self.nodeGraphList.setCurrentRow(0)
+            self._refreshPreview()
+            self.MODIFIED.emit()
+            return
+        if isinstance(current_graph, str) and current_graph:
+            graph_item = self._findGraphListItem(current_graph)
+            if graph_item is not None:
+                self.nodeGraphList.setCurrentItem(graph_item)
+                self.onGraphSelected(current_graph)
+            elif self.nodeGraphList.count() > 0:
+                item = self.nodeGraphList.item(0)
+                if item is not None and item.data(QtCore.Qt.UserRole) == _GRAPH_TAB_KIND:
+                    self.onGraphSelected(item.text())
+        self._refreshPreview()
+        self.MODIFIED.emit()
+
     def _refreshListFromData(self) -> None:
         if self.title not in GameData.blueprintsData:
             return
@@ -1918,3 +1973,17 @@ class BluePrintEditor(QtWidgets.QWidget):
         if item is not None:
             self.nodeGraphList.setCurrentItem(item)
         self.MODIFIED.emit()
+
+    def _onChatWithAi(self) -> None:
+        if not IsAiConfigured():
+            dlg = AiConfigDialog(self)
+            if dlg.exec_() != QtWidgets.QDialog.Accepted:
+                return
+        bpFilePath = GameData._findDataPath("Blueprints", self.title)
+        self._chatDialog = AiChatDialog(self, blueprintName=self.title, blueprintFilePath=bpFilePath)
+        self._chatDialog.show()
+
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        if hasattr(self, "_chatDialog") and self._chatDialog is not None:
+            self._chatDialog.close()
+        super().closeEvent(event)

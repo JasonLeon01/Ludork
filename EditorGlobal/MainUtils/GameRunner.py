@@ -68,7 +68,7 @@ class GameRunnerMixin:
         self._engineCommandClient = LocalCommandClient(port=commandPort)
         self.gamePanel.setEngineProcess(self._engineProc)
         self.gamePanel.setEngineCommandClient(self._engineCommandClient)
-        self.consoleWidget.attach_process(
+        self.consoleWidget.attachProcess(
             self._engineProc,
             commandSender=self._engineCommandClient,
             logFilePath=os.path.join(EditorStatus.PROJ_PATH, "Ludork.log") if windowhandle else None,
@@ -155,7 +155,7 @@ class GameRunnerMixin:
         Panel.ApplyDisabledOpacity(self.tileSelect)
         self.lightPanel.setEnabled(True)
         Panel.ApplyDisabledOpacity(self.lightPanel)
-        self.consoleWidget.detach_process()
+        self.consoleWidget.detachProcess()
         self.consoleWidget.stopMessageServer()
         self.tabWidget.setCurrentWidget(self.fileExplorer)
 

@@ -23,7 +23,7 @@ class GraphLayoutOptions:
 DEFAULT_GRAPH_LAYOUT_OPTIONS = GraphLayoutOptions()
 
 
-def computeGraphLayoutPositions(
+def ComputeGraphLayoutPositions(
     nodeCount: int,
     links: List[Dict[str, Any]],
     nodeRely: GraphLayoutRelyMap,
@@ -32,17 +32,6 @@ def computeGraphLayoutPositions(
     nodeHeights: Optional[List[float]] = None,
     options: Optional[GraphLayoutOptions] = None,
 ) -> GraphLayoutPositions:
-    r"""Compute organised node positions for a blueprint or common-function graph.
-
-    - \param nodeCount  Number of persisted graph nodes in the event/function
-    - \param links      Link dictionaries for the graph key
-    - \param nodeRely   Parameter dependency map for the graph key
-    - \param startIdx   Entry node index, or None when unset
-    - \param defaultParamCount  Number of visual default parameter nodes
-    - \param nodeHeights  Estimated node heights used to resolve same-column overlaps
-    - \param options    Layout spacing options
-    - \return Mapping of node index or ``default_N`` key to ``(x, y)`` positions
-    """
     from EditorExtensions.EditorExt import C_ComputeGraphLayoutPositions
 
     layoutOptions = options or DEFAULT_GRAPH_LAYOUT_OPTIONS

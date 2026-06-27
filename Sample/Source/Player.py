@@ -133,7 +133,7 @@ class Player(Character, PlayerInfo, Battler):
         texturePath = actorClass.texturePath
         defaultRect = actorClass.defaultRect
         actor: Player = Cast(
-            Player, actorClass.GenActor(actorClass, Manager.loadCharacter(texturePath), defaultRect, "yongshi")
+            Player, actorClass.GenActor(actorClass, Manager.loadCharacter(texturePath), defaultRect, "PLAYER")
         )
         actor.setMapTag(actor.tag)
         actor.setClassPath(playerPath)

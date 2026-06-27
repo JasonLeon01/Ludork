@@ -38,6 +38,9 @@ def initConfig():
         EditorStatus.editorConfig[EditorStatus.APP_NAME]["Theme"] = "dark_amber.xml"
         EditorStatus.editorConfig[EditorStatus.APP_NAME]["UIFont"] = "HarmonyOS_Sans_SC_Regular.ttf"
         EditorStatus.editorConfig[EditorStatus.APP_NAME]["UIFontSize"] = "12"
+        EditorStatus.editorConfig[EditorStatus.APP_NAME]["Aiprovider"] = ""
+        EditorStatus.editorConfig[EditorStatus.APP_NAME]["Aimodel"] = ""
+        EditorStatus.editorConfig[EditorStatus.APP_NAME]["Apikey"] = ""
         with open(os.path.join(File.GetIniPath(), f"{EditorStatus.APP_NAME}.ini"), "w") as f:
             EditorStatus.editorConfig.write(f)
     else:

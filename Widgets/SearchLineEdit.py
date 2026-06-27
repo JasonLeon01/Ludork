@@ -11,7 +11,7 @@ from Utils import File
 _ICON_CACHE: Dict[str, QtGui.QIcon] = {}
 
 
-def addSearchIcon(lineEdit: QtWidgets.QLineEdit) -> None:
+def AddSearchIcon(lineEdit: QtWidgets.QLineEdit) -> None:
     lineEdit.addAction(_searchIcon(), QtWidgets.QLineEdit.LeadingPosition)
 
 

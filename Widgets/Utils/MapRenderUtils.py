@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple
 from PyQt5 import QtGui
 
 
-def qimageToRgbaTuple(image: QtGui.QImage) -> Tuple[bytes, int, int, int]:
+def QImageToRgbaTuple(image: QtGui.QImage) -> Tuple[bytes, int, int, int]:
     rgba = image.convertToFormat(QtGui.QImage.Format_RGBA8888)
     bits = rgba.bits()
     if not bits:
@@ -14,12 +14,12 @@ def qimageToRgbaTuple(image: QtGui.QImage) -> Tuple[bytes, int, int, int]:
     return bytes(bits.asstring(size)), rgba.width(), rgba.height(), stride
 
 
-def rgbaBytesToQImage(data: bytes, width: int, height: int) -> QtGui.QImage:
+def RgbaBytesToQImage(data: bytes, width: int, height: int) -> QtGui.QImage:
     image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGBA8888)
     return image.copy()
 
 
-def gridToStringGrid(autoTiles: List[List[Optional[str]]]) -> List[List[str]]:
+def GridToStringGrid(autoTiles: List[List[Optional[str]]]) -> List[List[str]]:
     out: List[List[str]] = []
     for row in autoTiles:
         if not isinstance(row, list):

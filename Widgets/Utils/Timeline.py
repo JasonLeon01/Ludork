@@ -380,9 +380,6 @@ class TimelineCanvas(QtWidgets.QWidget):
         return FRAME_SEGMENT_DURATION
 
     def _hitTest(self, pos: QtCore.QPoint) -> Tuple[int, int, int]:
-        """Returns (trackIdx, segIdx, handle)
-        handle: 0=None, 1=Body, 2=Left, 3=Right
-        """
         trackIdx = self._getTrackAt(pos.y())
         if trackIdx < 0:
             return -1, -1, 0

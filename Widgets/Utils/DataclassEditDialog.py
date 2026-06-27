@@ -6,10 +6,10 @@ from typing import get_type_hints
 from PyQt5 import QtWidgets
 
 from .ColourPickerDialog import ColourVarEditor
-from .MetaVarTypes import getMetaVarTypes
-from .StructuredFields import structuredFields
+from .MetaVarTypes import GetMetaVarTypes
+from .StructuredFields import StructuredFields
 from .TypedValueEditor import TypedValueEditor
-from .VectorVarEditor import VectorVarEditor, isVectorVarType
+from .VectorVarEditor import VectorVarEditor, IsVectorVarType
 
 log = logging.getLogger(__name__)
 
@@ -24,21 +24,21 @@ class DataclassEditDialog(QtWidgets.QDialog):
         except (NameError, TypeError, AttributeError) as e:
             log.warning("Failed to resolve type hints for %s: %s", type(data_obj), e)
             self._type_hints = {}
-        self._metaVarTypes = getMetaVarTypes(getattr(type(data_obj), "_meta", {}))
+        self._metaVarTypes = GetMetaVarTypes(getattr(type(data_obj), "_meta", {}))
         self._initUI()
 
     def _initUI(self):
         layout = QtWidgets.QFormLayout(self)
         self.inputs = {}
 
-        fields = structuredFields(type(self.data_obj), self.data_obj)
+        fields = StructuredFields(type(self.data_obj), self.data_obj)
         for field in fields:
             value = getattr(self.data_obj, field.name)
             field_type = self._type_hints.get(field.name, field.type)
             varType = self._getFieldVarType(field)
             if varType == "ColourVar":
                 widget = ColourVarEditor(value, self)
-            elif isVectorVarType(varType):
+            elif IsVectorVarType(varType):
                 widget = VectorVarEditor(varType, value, self)
             else:
                 widget = TypedValueEditor(value, field_type, self)

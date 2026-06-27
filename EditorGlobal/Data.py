@@ -185,7 +185,10 @@ class GameData:
             changes[section]["D"] = list(orig_keys - curr_keys)
 
             for key in curr_keys & orig_keys:
-                is_different = curr_sec[key] != orig_sec[key]
+                if section == "blueprintsData":
+                    is_different = not cls._isBlueprintValueEqual(curr_sec[key], orig_sec[key])
+                else:
+                    is_different = curr_sec[key] != orig_sec[key]
                 if not is_different and section == "mapData":
                     c_layers = list(curr_sec[key].get("layers", {}).keys())
                     o_layers = list(orig_sec[key].get("layers", {}).keys())
@@ -262,7 +265,7 @@ class GameData:
         newBps = newData.get("blueprintsData", {})
         changed_bps = set()
         for k in set(oldBps.keys()) | set(newBps.keys()):
-            if oldBps.get(k) != newBps.get(k):
+            if not cls._isBlueprintValueEqual(oldBps.get(k), newBps.get(k)):
                 changed_bps.add(k)
         if changed_bps:
             diffs.append(f"Blueprints: {', '.join(sorted(changed_bps))}")
@@ -503,7 +506,7 @@ class GameData:
                     final_details["A"].append(key)
                 else:
                     final_details["U"].append(key)
-                cls._originData["blueprintsData"][key] = copy.deepcopy(bp)
+                cls._originData["blueprintsData"][key] = cls._normaliseBlueprintForComparison(bp)
             except Exception:
                 final_details["Failed"].append(key)
 
@@ -668,6 +671,57 @@ class GameData:
         return left == right
 
     @classmethod
+    def _normaliseBlueprintForComparison(cls, data: Any) -> Any:
+        normalised = cls._normaliseBlueprintValue(copy.deepcopy(data))
+        normalised = cls._canonicaliseBlueprintComparableContainers(normalised)
+        if isinstance(normalised, dict):
+            normalised.pop("type", None)
+            normalised.pop("isJson", None)
+        return normalised
+
+    @classmethod
+    def _normaliseBindValue(cls, value: Any) -> Any:
+        if value is None or isinstance(value, (bool, str, int, float, type)):
+            return value
+
+        position = getattr(value, "position", None)
+        size = getattr(value, "size", None)
+        if (
+            position is not None
+            and size is not None
+            and hasattr(position, "x")
+            and hasattr(size, "x")
+            and not isinstance(position, (list, tuple, dict))
+            and not isinstance(size, (list, tuple, dict))
+        ):
+            return (
+                cls._normaliseBlueprintValue(position),
+                cls._normaliseBlueprintValue(size),
+            )
+
+        if hasattr(value, "x") and hasattr(value, "y") and not isinstance(value, (list, tuple, dict)):
+            coords: List[Any] = [
+                cls._normaliseBlueprintValue(value.x),
+                cls._normaliseBlueprintValue(value.y),
+            ]
+            if hasattr(value, "z"):
+                coords.append(cls._normaliseBlueprintValue(value.z))
+            return tuple(coords)
+
+        if (
+            hasattr(value, "r")
+            and hasattr(value, "g")
+            and hasattr(value, "b")
+            and not isinstance(value, (list, tuple, dict))
+            and not hasattr(value, "x")
+        ):
+            if hasattr(value, "a"):
+                return (int(value.r), int(value.g), int(value.b), int(value.a))
+            return (int(value.r), int(value.g), int(value.b))
+
+        return value
+
+    @classmethod
     def _normaliseBlueprintValue(cls, value: Any) -> Any:
         if dataclasses.is_dataclass(value) and not isinstance(value, type):
             return cls._normaliseBlueprintValue(dataclasses.asdict(value))
@@ -680,6 +734,14 @@ class GameData:
             return {k: cls._normaliseBlueprintValue(v) for k, v in value.items()}
         if isinstance(value, (list, tuple)):
             return [cls._normaliseBlueprintValue(v) for v in value]
+        return cls._normaliseBindValue(value)
+
+    @classmethod
+    def _canonicaliseBlueprintComparableContainers(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {k: cls._canonicaliseBlueprintComparableContainers(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple)):
+            return tuple(cls._canonicaliseBlueprintComparableContainers(v) for v in value)
         return value
 
     @classmethod
@@ -841,6 +903,88 @@ class GameData:
             if os.path.exists(path):
                 return path
         return os.path.join(root, key.replace("/", os.sep) + ".dat")
+
+    @classmethod
+    def _loadBlueprintPayloadFromFile(cls, filePath: str) -> Dict[str, Any]:
+        ext = os.path.splitext(filePath)[1].lower()
+        if ext == ".json":
+            data = File.GetJSONData(filePath)
+            data["isJson"] = True
+        else:
+            data = File.LoadData(filePath)
+        if not isinstance(data, dict):
+            raise ValueError(f"Blueprint file is not a valid object: {filePath}")
+        fileType = data.get("type")
+        if fileType is not None and fileType != "blueprint":
+            raise ValueError(f'Blueprint file has invalid type "{fileType}": {filePath}')
+        data.pop("type", None)
+        return data
+
+    @classmethod
+    def _collectBlueprintDescendantKeys(cls, rootKey: str) -> Set[str]:
+        rootClassPath = "Data.Blueprints." + rootKey.replace("/", ".")
+        affected: Set[str] = {rootKey}
+        classPaths = {rootClassPath}
+        changed = True
+        while changed:
+            changed = False
+            for key, data in cls.blueprintsData.items():
+                if key in affected:
+                    continue
+                if not isinstance(data, dict):
+                    continue
+                parent = data.get("parent")
+                if not isinstance(parent, str) or parent not in classPaths:
+                    continue
+                affected.add(key)
+                classPaths.add("Data.Blueprints." + key.replace("/", "."))
+                changed = True
+        return affected
+
+    @classmethod
+    def _evictClassDictPath(cls, classPath: str) -> None:
+        class_dict = cls.classDict
+        invalidate = getattr(class_dict, "invalidate", None)
+        if callable(invalidate):
+            invalidate(classPath)
+            return
+        cache_dict = getattr(class_dict, "_dict", None)
+        cache_data = getattr(class_dict, "_dataDict", None)
+        if isinstance(cache_dict, dict):
+            cache_dict.pop(classPath, None)
+        if isinstance(cache_data, dict):
+            cache_data.pop(classPath, None)
+
+    @classmethod
+    def invalidateBlueprintClassCache(cls, key: str) -> None:
+        if not isinstance(key, str) or not key:
+            return
+        for bpKey in cls._collectBlueprintDescendantKeys(key):
+            classPath = "Data.Blueprints." + bpKey.replace("/", ".")
+            cls._evictClassDictPath(classPath)
+
+    @classmethod
+    def applyBlueprintData(cls, key: str, data: Dict[str, Any]) -> None:
+        if not isinstance(key, str) or not key:
+            return
+        if not isinstance(data, dict):
+            return
+        stored = copy.deepcopy(data)
+        stored.pop("type", None)
+        cls.blueprintsData[key] = stored
+        cls.invalidateBlueprintClassCache(key)
+        cls.markReferencesDirty()
+
+    @classmethod
+    def applyBlueprintFileUpdate(cls, key: str, filePath: Optional[str] = None) -> None:
+        if not isinstance(key, str) or not key:
+            return
+        if not isinstance(filePath, str) or not filePath:
+            filePath = cls._findDataPath("Blueprints", key)
+        if not os.path.isfile(filePath):
+            return
+        data = cls._loadBlueprintPayloadFromFile(filePath)
+        cls.applyBlueprintData(key, data)
 
     @classmethod
     def _buildReferenceNodes(cls, index: Dict[str, Any]) -> None:
@@ -1370,6 +1514,11 @@ class GameData:
                 result[section] = {
                     key: copy.deepcopy(cls._asReferenceDict(value)) for key, value in sectionData.items()
                 }
+        blueprintsData = result.get("blueprintsData")
+        if isinstance(blueprintsData, dict):
+            result["blueprintsData"] = {
+                key: cls._normaliseBlueprintForComparison(value) for key, value in blueprintsData.items()
+            }
         return result
 
     @classmethod

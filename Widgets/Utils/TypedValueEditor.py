@@ -9,7 +9,7 @@ from typing import Any, Union, get_args, get_origin
 from PyQt5 import QtWidgets, QtCore
 
 
-def unwrapOptionalType(valueType: Any) -> tuple[Any, bool]:
+def UnwrapOptionalType(valueType: Any) -> tuple[Any, bool]:
     origin = get_origin(valueType)
     if origin not in (Union, UnionType):
         return valueType, False
@@ -19,22 +19,17 @@ def unwrapOptionalType(valueType: Any) -> tuple[Any, bool]:
     return valueType, False
 
 
-def getSimpleContainerEditorType(paramType: Any) -> Any | None:
-    r"""\brief Return a type hint suitable for TypedValueEditor, or None for non-container params.
-
-    - \param paramType  Parameter annotation from the node function signature
-    - \return The annotation when it is a plain list/dict (optionally wrapped in Optional), else None
-    """
+def GetSimpleContainerEditorType(paramType: Any) -> Any | None:
     if paramType in (list, dict):
         return paramType
-    unwrapped, _nullable = unwrapOptionalType(paramType)
+    unwrapped, _nullable = UnwrapOptionalType(paramType)
     origin = get_origin(unwrapped)
     if origin in (list, dict) or unwrapped in (list, dict):
         return paramType
     return None
 
 
-def formatParamTypeName(paramType: Any) -> str:
+def FormatParamTypeName(paramType: Any) -> str:
     if isinstance(paramType, type):
         return paramType.__name__
     text = str(paramType).replace("typing.", "")
@@ -43,12 +38,12 @@ def formatParamTypeName(paramType: Any) -> str:
     return text
 
 
-def parseParamInitialValue(initVal: Any, paramType: Any) -> Any:
+def ParseParamInitialValue(initVal: Any, paramType: Any) -> Any:
     if not isinstance(initVal, str):
         return initVal
     text = initVal.strip()
     if not text:
-        return None if unwrapOptionalType(paramType)[1] else initVal
+        return None if UnwrapOptionalType(paramType)[1] else initVal
     try:
         return ast.literal_eval(text)
     except (ValueError, SyntaxError):
@@ -284,7 +279,7 @@ class TypedValueEditor(QtWidgets.QWidget):
         return str, Any
 
     def _coerceTextValueForType(self, text: str, targetType: Any) -> Any:
-        targetType, nullable = unwrapOptionalType(targetType)
+        targetType, nullable = UnwrapOptionalType(targetType)
         if nullable and text.strip().lower() in ("", "none", "null"):
             return None
         if targetType is str:
@@ -459,7 +454,7 @@ class TypedValueEditor(QtWidgets.QWidget):
         return str(value)
 
     def _unwrapOptional(self, valueType: Any) -> tuple[Any, bool]:
-        return unwrapOptionalType(valueType)
+        return UnwrapOptionalType(valueType)
 
     def _editableWidgets(self) -> list:
         result = []

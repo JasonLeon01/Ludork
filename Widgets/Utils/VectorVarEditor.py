@@ -46,14 +46,14 @@ _VECTOR_VAR_SPECS = {
 _NUMBER_PATTERN = re.compile(r"[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][-+]?\d+)?")
 
 
-def normaliseVectorVarType(varType: Any) -> str:
+def NormaliseVectorVarType(varType: Any) -> str:
     if not isinstance(varType, str):
         return ""
     return _VECTOR_VAR_ALIASES.get(varType, "")
 
 
-def isVectorVarType(varType: Any) -> bool:
-    return bool(normaliseVectorVarType(varType))
+def IsVectorVarType(varType: Any) -> bool:
+    return bool(NormaliseVectorVarType(varType))
 
 
 class VectorVarEditor(QtWidgets.QWidget):
@@ -61,7 +61,7 @@ class VectorVarEditor(QtWidgets.QWidget):
 
     def __init__(self, varType: str, value: Any = None, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super(VectorVarEditor, self).__init__(parent)
-        self._varType = normaliseVectorVarType(varType)
+        self._varType = NormaliseVectorVarType(varType)
         self._count, self._numberType, self._minimum, self._maximum = _VECTOR_VAR_SPECS[self._varType]
         self._asTuple = not isinstance(value, list)
         self._spins: list[QtWidgets.QAbstractSpinBox] = []

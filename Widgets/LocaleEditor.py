@@ -6,18 +6,10 @@ import openpyxl
 from typing import Any, Dict, List, Optional, Tuple, cast
 from PyQt5 import QtCore, QtGui, QtWidgets
 from Utils import File
-from .SearchLineEdit import addSearchIcon
+from .SearchLineEdit import AddSearchIcon
 
 
 class LocaleEditor(QtWidgets.QDialog):
-    r"""
-    \brief Dialog for viewing and editing a Locale.xlsx workbook in-editor.
-
-    Displays each worksheet as a tab with an editable QTableWidget.
-    Supports adding, deleting and renaming worksheets via tab right-click menu.
-    Changes are held in memory until the user saves explicitly; saving also
-    triggers an automatic locale export.
-    """
 
     _clipboard: Optional[Dict[str, Any]] = None
 
@@ -42,7 +34,7 @@ class LocaleEditor(QtWidgets.QDialog):
 
         searchLayout = QtWidgets.QHBoxLayout()
         self._searchEdit = QtWidgets.QLineEdit()
-        addSearchIcon(self._searchEdit)
+        AddSearchIcon(self._searchEdit)
         self._searchEdit.setPlaceholderText(ELOC("SEARCH"))
         self._searchEdit.setClearButtonEnabled(True)
         self._searchEdit.returnPressed.connect(self._onSearch)

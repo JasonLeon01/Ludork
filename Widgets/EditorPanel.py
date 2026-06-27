@@ -265,10 +265,6 @@ class EditorPanel(QtWidgets.QWidget):
         return False
 
     def invalidateAutoTileCache(self, key: Optional[str] = None) -> None:
-        r"""Invalidate cached autotile renders.
-
-        - \param key  Optional autotile key; if `None` the entire cache is dropped.
-        """
         if key is None:
             self._autoTileRenderer.invalidate()
         else:

@@ -1,24 +1,12 @@
 from __future__ import annotations
 
-import builtins
-import html
-import io
-import keyword
 import os
 import re
-import token
-import tokenize
 from typing import cast
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QWidget
-from .SearchLineEdit import addSearchIcon
-
-_INLINE_CODE_STYLE = (
-    "font-family:Consolas,monospace;"
-    "background-color:#2d2d2d;"
-    "color:#ce9178;"
-    "padding:1px 4px;"
-)
+from .MarkdownRender import MarkdownToHtml
+from .SearchLineEdit import AddSearchIcon
 
 
 class MarkdownPreviewer(QWidget):
@@ -74,7 +62,7 @@ class MarkdownPreviewer(QWidget):
         self._initShortcuts()
         self._populate()
 
-    def set_text(self, mdContent: str) -> None:
+    def setText(self, mdContent: str) -> None:
         self._render(mdContent)
 
     def _createToolbar(self) -> QtWidgets.QWidget:
@@ -84,7 +72,7 @@ class MarkdownPreviewer(QWidget):
         lay.setSpacing(4)
 
         self._search = QtWidgets.QLineEdit(bar)
-        addSearchIcon(self._search)
+        AddSearchIcon(self._search)
         self._search.setPlaceholderText(ELOC("SEARCH"))
         self._search.setClearButtonEnabled(True)
         self._search.setFixedWidth(220)
@@ -251,7 +239,13 @@ class MarkdownPreviewer(QWidget):
         if not keepCollapse:
             self._collapsedHeadings.clear()
         doc.setBaseUrl(QtCore.QUrl.fromLocalFile(self._currentBaseDir))
-        self._preview.setHtml(self._md2html(text))
+        self._preview.setHtml(
+            MarkdownToHtml(
+                text,
+                collapsedHeadings=self._collapsedHeadings,
+                collapsibleHeadings=True,
+            )
+        )
         self._highlightSearchMatches()
 
     def _onAnchorClicked(self, url: QtCore.QUrl) -> None:
@@ -408,182 +402,3 @@ class MarkdownPreviewer(QWidget):
         hasQuery = bool(getattr(self, "_search", None) and self._search.text())
         if hasattr(self, "_searchCountLabel"):
             self._searchCountLabel.setText(str(visibleCount) if hasQuery and visibleCount is not None else "")
-
-    def _md2html(self, text: str) -> str:
-        lines = text.splitlines()
-        out = []
-        in_code = False
-        code_lang = ""
-        code_lines: list[str] = []
-        in_list = False
-        headingIndex = 0
-        hiddenLevels: list[int] = []
-
-        def flush_list() -> None:
-            nonlocal in_list
-            if in_list:
-                out.append("</ul>")
-                in_list = False
-
-        for ln in lines:
-            if ln.strip().startswith("```"):
-                if hiddenLevels:
-                    in_code = not in_code
-                    continue
-                if not in_code:
-                    flush_list()
-                    code_lang = ln.strip()[3:].strip()
-                    code_lines = []
-                    in_code = True
-                else:
-                    out.append(self._codeBlockHtml(code_lang, "\n".join(code_lines)))
-                    code_lang = ""
-                    code_lines = []
-                    in_code = False
-                continue
-            if in_code:
-                if hiddenLevels:
-                    continue
-                code_lines.append(ln)
-                continue
-            m = re.match(r"^ {0,3}(#{1,6})\s+(.*)$", ln)
-            if m:
-                level = len(m.group(1))
-                hiddenLevels = [hiddenLevel for hiddenLevel in hiddenLevels if hiddenLevel < level]
-                headingId = f"h{headingIndex}"
-                headingIndex += 1
-                if hiddenLevels:
-                    continue
-                flush_list()
-                content = self._inline_markup(m.group(2))
-                collapsed = headingId in self._collapsedHeadings
-                marker = "&#9654;" if collapsed else "&#9660;"
-                if collapsed:
-                    hiddenLevels.append(level)
-                out.append(
-                    f'<h{level} style="color:#ffffff;"><a style="color:#ffffff;text-decoration:none;" '
-                    f'href="ludork-collapse:{headingId}">'
-                    f'<span style="color:#ffffff;font-family:Consolas,monospace;">{marker}</span> '
-                    f'<span style="color:#ffffff;">{content}</span>'
-                    f"</a></h{level}>"
-                )
-                continue
-            if hiddenLevels:
-                continue
-            if self._isThematicBreak(ln):
-                flush_list()
-                out.append("<hr>")
-                continue
-            m = re.match(r"^\s*[-*]\s+(.*)$", ln)
-            if m:
-                if not in_list:
-                    out.append("<ul>")
-                    in_list = True
-                content = self._inline_markup(m.group(1))
-                out.append(f"<li>{content}</li>")
-                continue
-            if not ln.strip():
-                flush_list()
-                out.append("")
-                continue
-            flush_list()
-            out.append(f"<p>{self._inline_markup(ln)}</p>")
-        if in_code:
-            out.append(self._codeBlockHtml(code_lang, "\n".join(code_lines)))
-        flush_list()
-        style = (
-            "<style>"
-            "body{font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#dcdcdc;}"
-            "h1,h2,h3,h4,h5,h6{color:#f0f0f0;}"
-            "h1{font-size:24px;margin:10px 0;}h2{font-size:20px;margin:10px 0;}h3{font-size:18px;}"
-            "pre{background:#1e1e1e;color:#dcdcdc;border:1px solid #444;padding:10px;margin:10px 0;}"
-            "pre code{background:transparent;color:#dcdcdc;padding:0;}"
-            "ul{padding-left:20px;}"
-            "hr{border:0;border-top:1px solid #555;margin:16px 0;}"
-            "p{line-height:1.6;}"
-            "a{color:#4aa3ff;text-decoration:none;}"
-            "</style>"
-        )
-        return "<html><head>" + style + "</head><body>" + "\n".join(out) + "</body></html>"
-
-    def _isThematicBreak(self, line: str) -> bool:
-        compact = re.sub(r"[ \t]", "", line.strip())
-        return len(compact) >= 3 and compact[0] in "-_*" and set(compact) == {compact[0]}
-
-    def _codeBlockHtml(self, lang: str, code: str) -> str:
-        content = self._highlightCode(lang, code)
-        return f'<pre><code>{content}</code></pre>'
-
-    def _highlightCode(self, lang: str, code: str) -> str:
-        if self._isPythonLang(lang):
-            return self._highlightPythonCode(code)
-        return html.escape(code)
-
-    def _isPythonLang(self, lang: str) -> bool:
-        normalized = lang.strip().lower()
-        if normalized.startswith("{") and normalized.endswith("}"):
-            normalized = normalized[1:-1].strip()
-        if normalized:
-            normalized = normalized.split()[0]
-        return normalized in {"py", "python", "python3"}
-
-    def _highlightPythonCode(self, code: str) -> str:
-        lineOffsets = [0]
-        for line in code.splitlines(True):
-            lineOffsets.append(lineOffsets[-1] + len(line))
-
-        def toOffset(pos: tuple[int, int]) -> int:
-            line, col = pos
-            if line <= 0:
-                return 0
-            if line - 1 >= len(lineOffsets):
-                return len(code)
-            return min(lineOffsets[line - 1] + col, len(code))
-
-        result = []
-        cursor = 0
-        try:
-            for tok in tokenize.generate_tokens(io.StringIO(code).readline):
-                tokType, tokText, start, end, _ = tok
-                if tokType == token.ENDMARKER:
-                    continue
-                startOffset = toOffset(start)
-                endOffset = toOffset(end)
-                if startOffset > cursor:
-                    result.append(html.escape(code[cursor:startOffset]))
-                rendered = html.escape(tokText)
-                style = self._pythonTokenStyle(tokType, tokText)
-                if style:
-                    rendered = f'<span style="{style}">{rendered}</span>'
-                result.append(rendered)
-                cursor = max(cursor, endOffset)
-        except (tokenize.TokenError, IndentationError):
-            return html.escape(code)
-        if cursor < len(code):
-            result.append(html.escape(code[cursor:]))
-        return "".join(result)
-
-    def _pythonTokenStyle(self, tokType: int, tokText: str) -> str:
-        if tokType == token.NAME:
-            isSoftKeyword = getattr(keyword, "issoftkeyword", lambda value: False)
-            if keyword.iskeyword(tokText) or isSoftKeyword(tokText):
-                return "color:#c586c0;font-weight:600;"
-            if tokText in dir(builtins):
-                return "color:#4ec9b0;"
-        if tokType == token.STRING:
-            return "color:#ce9178;"
-        if tokType == token.NUMBER:
-            return "color:#b5cea8;"
-        if tokType == tokenize.COMMENT:
-            return "color:#6a9955;"
-        if tokType == token.OP:
-            return "color:#d4d4d4;"
-        return ""
-
-    def _inline_markup(self, s: str) -> str:
-        s = html.escape(s)
-        s = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", s)
-        s = re.sub(r"(?<!\*)\*(.+?)\*(?!\*)", r"<em>\1</em>", s)
-        s = re.sub(r"`(.+?)`", rf'<code style="{_INLINE_CODE_STYLE}">\1</code>', s)
-        s = re.sub(r"\[(.+?)\]\((.+?)\)", r'<a href="\2">\1</a>', s)
-        return s

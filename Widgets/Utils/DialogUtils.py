@@ -13,7 +13,7 @@ except ImportError:
     sip = None
 
 
-def isWidgetValid(widget: Optional[QtWidgets.QWidget]) -> bool:
+def IsWidgetValid(widget: Optional[QtWidgets.QWidget]) -> bool:
     if widget is None:
         return False
     if sip is None:
@@ -24,24 +24,24 @@ def isWidgetValid(widget: Optional[QtWidgets.QWidget]) -> bool:
         return False
 
 
-def getIndependentDialogParent(source: Optional[QtWidgets.QWidget] = None) -> Optional[QtWidgets.QWidget]:
+def GetIndependentDialogParent(source: Optional[QtWidgets.QWidget] = None) -> Optional[QtWidgets.QWidget]:
     fileModule = sys.modules.get("Utils.File")
     mainWindow = getattr(fileModule, "mainWindow", None)
 
     activeWindow = QtWidgets.QApplication.activeWindow()
     if (
         isinstance(activeWindow, QtWidgets.QWidget)
-        and isWidgetValid(activeWindow)
+        and IsWidgetValid(activeWindow)
         and isinstance(mainWindow, QtWidgets.QWidget)
         and activeWindow is not mainWindow
         and activeWindow.windowModality() == QtCore.Qt.ApplicationModal
     ):
         return activeWindow
 
-    if isinstance(mainWindow, QtWidgets.QWidget) and isWidgetValid(mainWindow):
+    if isinstance(mainWindow, QtWidgets.QWidget) and IsWidgetValid(mainWindow):
         return mainWindow
 
-    if isinstance(activeWindow, QtWidgets.QWidget) and isWidgetValid(activeWindow):
+    if isinstance(activeWindow, QtWidgets.QWidget) and IsWidgetValid(activeWindow):
         if source is None or not _isAncestorOf(activeWindow, source):
             return activeWindow
     return None

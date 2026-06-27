@@ -16,7 +16,6 @@ class PackPlatform(Enum):
 
 
 def FindPython3120ForPack() -> str:
-    r"""\brief Locate a Python 3.12.0 executable for Nuitka packaging (main thread or any thread; no GUI)."""
     if sys.platform == "win32":
         try:
             if shutil.which("py"):
@@ -57,7 +56,6 @@ def FindPython3120ForPack() -> str:
 
 
 def PromptInstallPython3120(parent: Optional[QtWidgets.QWidget]) -> None:
-    r"""\brief Show download prompt for Python 3.12.0; must run on the Qt GUI thread."""
     text = ELOC("PACK_PY312_PROMPT")
     res = QtWidgets.QMessageBox.question(
         parent,
@@ -71,7 +69,6 @@ def PromptInstallPython3120(parent: Optional[QtWidgets.QWidget]) -> None:
 
 
 def CheckMsvcToolchain() -> bool:
-    r"""\brief Check if MSVC toolchain is available on Windows."""
     if sys.platform != "win32":
         return True
     if shutil.which("cl"):
@@ -101,7 +98,6 @@ def CheckMsvcToolchain() -> bool:
 
 
 def CheckXcodeToolchainMacos() -> bool:
-    r"""\brief Check if Xcode toolchain is available for macOS builds."""
     if sys.platform != "darwin":
         return True
     try:
@@ -116,7 +112,6 @@ def CheckXcodeToolchainMacos() -> bool:
 
 
 def CheckXcodeToolchainIos() -> bool:
-    r"""\brief Check if Xcode toolchain is available for iOS builds."""
     if sys.platform != "darwin":
         return True
     try:
@@ -136,7 +131,6 @@ def CheckXcodeToolchainIos() -> bool:
 
 
 def PromptInstallToolchain(parent: Optional[QtWidgets.QWidget], platform: PackPlatform) -> None:
-    r"""\brief Show download prompt for missing toolchain; must run on the Qt GUI thread."""
     if platform == PackPlatform.IOS:
         text = ELOC("PACK_TOOLCHAIN_XCODE_IOS_PROMPT")
     elif platform == PackPlatform.MACOS_ARM:

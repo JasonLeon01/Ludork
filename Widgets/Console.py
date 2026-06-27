@@ -9,7 +9,7 @@ from typing import Optional, Union
 from PyQt5 import QtCore, QtGui, QtWidgets
 from psutil import Popen
 from Utils import Panel
-from .SearchLineEdit import addSearchIcon
+from .SearchLineEdit import AddSearchIcon
 
 
 @dataclass
@@ -121,7 +121,7 @@ class ConsoleWidget(QtWidgets.QWidget):
         self._filterButton.setMenu(filterMenu)
 
         self._search = QtWidgets.QLineEdit()
-        addSearchIcon(self._search)
+        AddSearchIcon(self._search)
         self._search.setPlaceholderText(ELOC("CONSOLE_SEARCH_HINT"))
         self._search.textChanged.connect(self._refreshView)
 
@@ -190,14 +190,14 @@ class ConsoleWidget(QtWidgets.QWidget):
                 stop()
             server.wait(500)
 
-    def attach_process(
+    def attachProcess(
         self,
         proc: Popen,
         commandSender: Optional[object] = None,
         logFilePath: Optional[str] = None,
         resetLog: bool = False,
     ) -> None:
-        self.detach_process()
+        self.detachProcess()
         self.setLogFile(logFilePath, resetLog)
         self._proc = proc
         self._command_sender = commandSender
@@ -213,7 +213,7 @@ class ConsoleWidget(QtWidgets.QWidget):
         Panel.ApplyDisabledOpacity(self._send)
         Panel.ApplyDisabledOpacity(self._input)
 
-    def detach_process(self) -> None:
+    def detachProcess(self) -> None:
         if self._stdout_reader:
             try:
                 self._stdout_reader.stop()

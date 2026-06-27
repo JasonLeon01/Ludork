@@ -5,7 +5,7 @@ import ast
 from typing import Any, Dict, Optional, Set, Tuple
 
 
-def parseMetaValue(value: Any) -> Any:
+def ParseMetaValue(value: Any) -> Any:
     if not isinstance(value, str):
         return value
     text = value.strip()
@@ -25,8 +25,8 @@ def parseMetaValue(value: Any) -> Any:
         return value
 
 
-def toBool(value: Any) -> Optional[bool]:
-    value = parseMetaValue(value)
+def ToBool(value: Any) -> Optional[bool]:
+    value = ParseMetaValue(value)
     if isinstance(value, bool):
         return value
     if isinstance(value, (int, float)):
@@ -40,13 +40,13 @@ def toBool(value: Any) -> Optional[bool]:
     return None
 
 
-def normaliseRelyMap(rawRely: Any) -> Dict[str, Any]:
+def NormaliseRelyMap(rawRely: Any) -> Dict[str, Any]:
     if not isinstance(rawRely, dict):
         return {}
     return {str(key): value for key, value in rawRely.items()}
 
 
-def getRelyCondition(rule: Any) -> Tuple[Optional[str], Any]:
+def GetRelyCondition(rule: Any) -> Tuple[Optional[str], Any]:
     if isinstance(rule, dict):
         for keyName in ("source", "key", "var"):
             source = rule.get(keyName)
@@ -58,7 +58,7 @@ def getRelyCondition(rule: Any) -> Tuple[Optional[str], Any]:
     return None, None
 
 
-def getRelyOperator(rule: Any) -> str:
+def GetRelyOperator(rule: Any) -> str:
     if isinstance(rule, dict):
         op = rule.get("op") or rule.get("operator")
         if isinstance(op, str):
@@ -66,20 +66,20 @@ def getRelyOperator(rule: Any) -> str:
     return "=="
 
 
-def getRelySourceSet(relyMap: Dict[str, Any]) -> Set[str]:
+def GetRelySourceSet(relyMap: Dict[str, Any]) -> Set[str]:
     sources = set()
     for rule in relyMap.values():
-        source, _ = getRelyCondition(rule)
+        source, _ = GetRelyCondition(rule)
         if source:
             sources.add(source)
     return sources
 
 
-def metaValueMatches(actual: Any, expected: Any, operator: str = "==") -> bool:
-    actual = parseMetaValue(actual)
-    expected = parseMetaValue(expected)
+def MetaValueMatches(actual: Any, expected: Any, operator: str = "==") -> bool:
+    actual = ParseMetaValue(actual)
+    expected = ParseMetaValue(expected)
     if isinstance(expected, bool):
-        actualBool = toBool(actual)
+        actualBool = ToBool(actual)
         if actualBool is not None:
             matched = actualBool == expected
             return not matched if operator == "!=" else matched
@@ -87,18 +87,18 @@ def metaValueMatches(actual: Any, expected: Any, operator: str = "==") -> bool:
     return not matched if operator == "!=" else matched
 
 
-def isRelyEditable(name: str, relyMap: Dict[str, Any], values: Dict[str, Any]) -> bool:
+def IsRelyEditable(name: str, relyMap: Dict[str, Any], values: Dict[str, Any]) -> bool:
     rule = relyMap.get(name)
     if rule is None:
         return True
-    source, expected = getRelyCondition(rule)
+    source, expected = GetRelyCondition(rule)
     if not source:
         return True
-    return metaValueMatches(values.get(source), expected, getRelyOperator(rule))
+    return MetaValueMatches(values.get(source), expected, GetRelyOperator(rule))
 
 
-def formatRelyExpectedValue(value: Any) -> str:
-    value = parseMetaValue(value)
+def FormatRelyExpectedValue(value: Any) -> str:
+    value = ParseMetaValue(value)
     if isinstance(value, bool):
         return "True" if value else "False"
     if value is None:
@@ -108,15 +108,15 @@ def formatRelyExpectedValue(value: Any) -> str:
     return repr(value)
 
 
-def getRelyConditionDisplay(name: str, relyMap: Dict[str, Any]) -> Optional[Tuple[str, str]]:
+def GetRelyConditionDisplay(name: str, relyMap: Dict[str, Any]) -> Optional[Tuple[str, str]]:
     rule = relyMap.get(name)
     if rule is None:
         return None
-    source, expected = getRelyCondition(rule)
+    source, expected = GetRelyCondition(rule)
     if not source:
         return None
-    op = getRelyOperator(rule)
-    expectedText = formatRelyExpectedValue(expected)
+    op = GetRelyOperator(rule)
+    expectedText = FormatRelyExpectedValue(expected)
     if op == "!=":
         if expectedText == "":
             expectedText = '""'

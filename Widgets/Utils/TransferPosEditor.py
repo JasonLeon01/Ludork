@@ -11,7 +11,7 @@ from EditorGlobal import EditorStatus, GameData
 from Utils import System
 from .AutoTileRenderer import AutoTileRenderer
 from .TilemapRenderer import TilemapRenderer
-from .DialogUtils import getIndependentDialogParent, isWidgetValid
+from .DialogUtils import GetIndependentDialogParent, IsWidgetValid
 from .MoveRouteEditor import _RouteMapData, _loadGameLocaleDict, _formatGameString
 
 
@@ -45,7 +45,6 @@ def _resolveMapFilePath(mapKey: str) -> str:
 
 
 class TransferPosMapView(QtWidgets.QWidget):
-    r"""Map view widget for picking a single tile coordinate."""
 
     POSITION_CHANGED = QtCore.pyqtSignal(object)
 
@@ -64,32 +63,19 @@ class TransferPosMapView(QtWidgets.QWidget):
         self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
 
     def setMapData(self, mapData: Optional[_RouteMapData]) -> None:
-        r"""Load map data and re-render.
-
-        - \param mapData Map data to display, or ``None`` to clear.
-        """
         self._mapData = mapData
         self._renderMap()
         self._updateContentSize()
         self.update()
 
     def getPosition(self) -> Optional[Tuple[int, int]]:
-        r"""Return the currently selected tile coordinate, or ``None``.
-
-        - \return ``(x, y)`` tuple or ``None``.
-        """
         return self._selectedCell
 
     def setPosition(self, pos: Any) -> None:
-        r"""Set the pre-selected coordinate.
-
-        - \param pos ``(x, y)`` tuple, list, or vector object.
-        """
         self._selectedCell = _normalisePos(pos)
         self.update()
 
     def clearPosition(self) -> None:
-        r"""Clear the selected coordinate."""
         self._selectedCell = None
         self.POSITION_CHANGED.emit(None)
         self.update()
@@ -252,7 +238,6 @@ class TransferPosMapView(QtWidgets.QWidget):
 
 
 class TransferPosPickDialog(QtWidgets.QDialog):
-    r"""Dialog for selecting a map tile coordinate."""
 
     def __init__(
         self,
@@ -278,17 +263,9 @@ class TransferPosPickDialog(QtWidgets.QDialog):
         self._updatePosLabel(self._mapView.getPosition())
 
     def getPosition(self) -> Optional[Tuple[int, int]]:
-        r"""Return the selected coordinate or ``None``.
-
-        - \return ``(x, y)`` or ``None``.
-        """
         return self._mapView.getPosition()
 
     def getMapKey(self) -> str:
-        r"""Return the key of the currently selected map.
-
-        - \return Map key string, or empty string if none selected.
-        """
         current = self._mapList.currentItem()
         if current is None:
             return ""
@@ -408,7 +385,6 @@ class TransferPosPickDialog(QtWidgets.QDialog):
 
 
 class TransferPosEditor(QtWidgets.QWidget):
-    r"""Inline editor for a map tile coordinate, backed by a picker dialog."""
 
     VALUE_CHANGED = QtCore.pyqtSignal(object)
     MAP_KEY_CHANGED = QtCore.pyqtSignal(str)
@@ -434,25 +410,12 @@ class TransferPosEditor(QtWidgets.QWidget):
         self._refreshSummary()
 
     def setMapKeyGetter(self, getter: Callable[[], str]) -> None:
-        r"""Provide a callable that returns the current map key at dialog-open time.
-
-        - \param getter Zero-argument callable returning a map key string.
-        """
         self._mapKeyGetter = getter
 
     def getValue(self) -> Optional[Tuple[int, int]]:
-        r"""Return the current coordinate or ``None``.
-
-        - \return ``(x, y)`` or ``None``.
-        """
         return self._value
 
     def setValue(self, value: Any, emit: bool = True) -> None:
-        r"""Set the coordinate value.
-
-        - \param value ``(x, y)`` tuple, list, vector object, or ``None``.
-        - \param emit Whether to emit ``VALUE_CHANGED``.
-        """
         oldValue = self.getValue()
         self._value = _normalisePos(value)
         self._refreshSummary()
@@ -460,23 +423,19 @@ class TransferPosEditor(QtWidgets.QWidget):
             self.VALUE_CHANGED.emit(self.getValue())
 
     def setEditable(self, editable: bool) -> None:
-        r"""Enable or disable editing.
-
-        - \param editable ``True`` to allow editing.
-        """
         self.setEnabled(editable)
         self._button.setEnabled(editable)
 
     def _openEditor(self) -> None:
         mapKey = self._mapKeyGetter()
-        dlg = TransferPosPickDialog(self._value, mapKey, getIndependentDialogParent(self))
+        dlg = TransferPosPickDialog(self._value, mapKey, GetIndependentDialogParent(self))
         if dlg.exec_() != QtWidgets.QDialog.Accepted:
             return
-        if not isWidgetValid(self):
+        if not IsWidgetValid(self):
             return
         selectedMapKey = dlg.getMapKey()
         self.setValue(dlg.getPosition())
-        if not isWidgetValid(self):
+        if not IsWidgetValid(self):
             return
         if selectedMapKey:
             currentMapKey = self._mapKeyGetter()

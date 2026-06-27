@@ -1694,5 +1694,89 @@
   "CONTEXT_SENSITIVE": {
     "zh_CN": "上下文关联",
     "en_GB": "Context Sensitive"
+  },
+  "CHAT_WITH_AI": {
+    "zh_CN": "与 AI 聊天",
+    "en_GB": "Chat with AI"
+  },
+  "AI_PROVIDER": {
+    "zh_CN": "AI 供应商",
+    "en_GB": "AI Provider"
+  },
+  "API_KEY": {
+    "zh_CN": "API 密钥",
+    "en_GB": "API Key"
+  },
+  "API_KEY_NOT_CONFIGURED": {
+    "zh_CN": "AI API 密钥未配置，请设置您的 API 供应商和密钥。",
+    "en_GB": "AI API key is not configured. Please set up your API provider and key."
+  },
+  "ENTER_API_KEY": {
+    "zh_CN": "AI API 配置",
+    "en_GB": "AI API Configuration"
+  },
+  "AI_MODEL": {
+    "zh_CN": "模型",
+    "en_GB": "Model"
+  },
+  "AI_CHAT_TITLE": {
+    "zh_CN": "AI 聊天",
+    "en_GB": "AI Chat"
+  },
+  "AI_SETTINGS": {
+    "zh_CN": "设置",
+    "en_GB": "Settings"
+  },
+  "AI_THINKING": {
+    "zh_CN": "AI 正在思考",
+    "en_GB": "AI is thinking"
+  },
+  "AI_INPUT_HINT": {
+    "zh_CN": "输入消息...",
+    "en_GB": "Type a message..."
+  },
+  "AI_STATUS_STARTING": {
+    "zh_CN": "正在启动 AI 工作流...",
+    "en_GB": "Starting AI workflow..."
+  },
+  "AI_STATUS_ITERATION": {
+    "zh_CN": "第 {n} 轮",
+    "en_GB": "Iteration {n}"
+  },
+  "AI_STATUS_CALLING_API": {
+    "zh_CN": "正在请求 AI...",
+    "en_GB": "Calling AI..."
+  },
+  "AI_STATUS_FILE_PROCESS": {
+    "zh_CN": "正在执行命令：{detail}",
+    "en_GB": "Running command: {detail}"
+  },
+  "AI_STATUS_FETCH_FILE": {
+    "zh_CN": "正在搜索：{detail}",
+    "en_GB": "Searching: {detail}"
+  },
+  "AI_STATUS_READ_FILE": {
+    "zh_CN": "正在读取：{detail}",
+    "en_GB": "Reading: {detail}"
+  },
+  "AI_STATUS_REPLACE_FILE": {
+    "zh_CN": "正在保存蓝图...",
+    "en_GB": "Saving blueprint..."
+  },
+  "AI_STATUS_PATCH_BLUEPRINT": {
+    "zh_CN": "正在应用蓝图补丁...",
+    "en_GB": "Applying blueprint patch..."
+  },
+  "AI_STATUS_VALIDATE": {
+    "zh_CN": "正在验证蓝图...",
+    "en_GB": "Validating blueprint..."
+  },
+  "AI_STATUS_FORMAT_RETRY": {
+    "zh_CN": "响应格式有误，正在重试...",
+    "en_GB": "Invalid response format, retrying..."
+  },
+  "AI_STATUS_CONTINUE_RETRY": {
+    "zh_CN": "任务尚未完成，继续执行...",
+    "en_GB": "Task not finished, continuing..."
   }
 }

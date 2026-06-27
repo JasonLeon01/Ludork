@@ -4,7 +4,7 @@ import os
 from typing import Dict, List, Optional, Tuple
 from PyQt5 import QtCore, QtGui
 from EditorGlobal import EditorStatus, GameData
-from .MapRenderUtils import gridToStringGrid, qimageToRgbaTuple, rgbaBytesToQImage
+from .MapRenderUtils import GridToStringGrid, QImageToRgbaTuple, RgbaBytesToQImage
 
 _CELL = 32
 
@@ -17,13 +17,6 @@ def _frameCount(image: QtGui.QImage, cellSize: int) -> int:
 
 
 class AutoTileRenderer:
-    r"""Renders RPG Maker XP-style autotile tiles to QImage tiles.
-
-    Implements the standard 48-state autotile composition by selecting one
-    16x16 source quadrant per 32x32 output tile, using both 4-direction and
-    diagonal neighbour information. Caches per `(key, mask, frame)` and per
-    loaded source image.
-    """
 
     def __init__(self) -> None:
         self._sourceImages: Dict[str, QtGui.QImage] = {}
@@ -31,16 +24,11 @@ class AutoTileRenderer:
         self._tileCache: Dict[Tuple[str, int, int], QtGui.QImage] = {}
 
     def invalidate(self) -> None:
-        r"""Drop all cached source images and rendered tiles."""
         self._sourceImages.clear()
         self._frameCounts.clear()
         self._tileCache.clear()
 
     def invalidateKey(self, key: str) -> None:
-        r"""Drop caches for a specific autotile key.
-
-        - \param key  The autotile key whose caches should be cleared.
-        """
         self._sourceImages.pop(key, None)
         self._frameCounts.pop(key, None)
         keysToDrop = [k for k in self._tileCache.keys() if k[0] == key]
@@ -48,11 +36,6 @@ class AutoTileRenderer:
             del self._tileCache[k]
 
     def frameCountFor(self, key: str) -> int:
-        r"""Return the number of animation frames in the autotile image.
-
-        - \param key  Autotile key.
-        - \return     Frame count (>=1).
-        """
         if key in self._frameCounts:
             return self._frameCounts[key]
         img = self._loadSource(key)
@@ -64,30 +47,15 @@ class AutoTileRenderer:
         return n
 
     def getSourceImage(self, key: str) -> Optional[QtGui.QImage]:
-        r"""Return the loaded source image for an autotile key.
-
-        - \param key  Autotile key.
-        - \return     Source `QImage`, or `None` when missing.
-        """
         return self._loadSource(key)
 
     def renderTile(self, key: str, mask: int, frame: int, tileSize: int = _CELL) -> Optional[QtGui.QImage]:
-        r"""Render one autotile composite tile.
-
-        - \param key      Autotile key.
-        - \param mask     8-bit neighbour mask: bit0 top, bit1 right, bit2 bottom,
-                          bit3 left, bit4 top-left, bit5 top-right, bit6 bottom-right,
-                          bit7 bottom-left.
-        - \param frame    Animation frame index (will be wrapped by frame count).
-        - \param tileSize Output tile size in pixels.
-        - \return         The composed `QImage`, or `None` when the source is missing.
-        """
         img = self._loadSource(key)
         if img is None:
             return None
         frames = self._frameCounts.get(key, 1)
         frameMod = frame % frames if frames > 0 else 0
-        normalized = normalizeMask(mask)
+        normalized = NormalizeMask(mask)
         cacheKey = (key, normalized, frameMod)
         cached = self._tileCache.get(cacheKey)
         if cached is not None:
@@ -122,34 +90,18 @@ class AutoTileRenderer:
     def _composeTile(self, source: QtGui.QImage, mask: int, frame: int) -> QtGui.QImage:
         from EditorExtensions.EditorExt import C_ComposeAutoTileRGBA
 
-        rgba, w, h, stride = qimageToRgbaTuple(source)
+        rgba, w, h, stride = QImageToRgbaTuple(source)
         data = C_ComposeAutoTileRGBA(rgba, w, h, stride, mask, frame, _CELL)
-        return rgbaBytesToQImage(bytes(data), _CELL, _CELL)
+        return RgbaBytesToQImage(bytes(data), _CELL, _CELL)
 
 
-def normalizeMask(mask: int) -> int:
-    r"""Normalise an 8-bit autotile neighbour mask.
-
-    - \param mask  Raw 8-bit mask.
-    - \return      Normalised mask suitable as a cache key.
-    """
+def NormalizeMask(mask: int) -> int:
     from EditorExtensions.EditorExt import C_NormalizeAutoTileMask
 
     return int(C_NormalizeAutoTileMask(mask))
 
 
-def computeMaskFromGrid(autoTiles: List[List[Optional[str]]], x: int, y: int) -> int:
-    r"""Compute the 8-direction connectivity mask for an autotile cell.
-
-    The mask packs neighbour matches as bit0=top, bit1=right, bit2=bottom,
-    bit3=left, bit4=top-left, bit5=top-right, bit6=bottom-right,
-    bit7=bottom-left. Cells outside the grid are treated as non-matching.
-
-    - \param autoTiles  2D grid of autotile keys.
-    - \param x          Grid x coordinate.
-    - \param y          Grid y coordinate.
-    - \return           8-bit neighbour mask (0..255).
-    """
+def ComputeMaskFromGrid(autoTiles: List[List[Optional[str]]], x: int, y: int) -> int:
     from EditorExtensions.EditorExt import C_ComputeAutoTileMaskFromGrid
 
-    return int(C_ComputeAutoTileMaskFromGrid(gridToStringGrid(autoTiles), x, y))
+    return int(C_ComputeAutoTileMaskFromGrid(GridToStringGrid(autoTiles), x, y))
