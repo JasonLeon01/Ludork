@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import ast
 from types import UnionType
-from typing import Any, Union, get_args, get_origin
+from typing import Any, Optional, Union, get_args, get_origin
 
 from PyQt5 import QtWidgets, QtCore
+
+
+CONTAINER_EDITOR_MIN_WIDTH = 180
+ROW_BUTTON_WIDTH = 24
 
 
 def UnwrapOptionalType(valueType: Any) -> tuple[Any, bool]:
@@ -186,11 +190,12 @@ class TypedValueEditor(QtWidgets.QWidget):
 
     def _initListEditor(self, value: Any) -> None:
         self._kind = "list"
+        self.setMinimumWidth(CONTAINER_EDITOR_MIN_WIDTH)
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(2)
         addBtn = QtWidgets.QPushButton("+", self)
-        addBtn.setFixedWidth(24)
+        addBtn.setFixedWidth(ROW_BUTTON_WIDTH)
         addBtn.clicked.connect(lambda _: self._appendListItem(layout))
         layout.addWidget(addBtn)
         values, valueTypes = self._normaliseSequence(value, list)
@@ -206,7 +211,7 @@ class TypedValueEditor(QtWidgets.QWidget):
         layout.setSpacing(2)
         keyType, valueType = self._getDictKeyValueTypes()
         addBtn = QtWidgets.QPushButton("+", self)
-        addBtn.setFixedWidth(24)
+        addBtn.setFixedWidth(ROW_BUTTON_WIDTH)
         addBtn.clicked.connect(lambda _: self._appendDictItem(layout, keyType, valueType))
         layout.addWidget(addBtn)
         items = value.items() if isinstance(value, dict) else []
@@ -237,7 +242,7 @@ class TypedValueEditor(QtWidgets.QWidget):
         rowLayout.addWidget(keyEdit, 1)
         rowLayout.addWidget(valueEditor, 2)
         removeBtn = QtWidgets.QPushButton("-", row)
-        removeBtn.setFixedWidth(24)
+        removeBtn.setFixedWidth(ROW_BUTTON_WIDTH)
         removeBtn.clicked.connect(lambda _: self._removeDictRow(row))
         rowLayout.addWidget(removeBtn)
         layout.insertWidget(max(0, layout.count() - 1), row)
@@ -310,12 +315,13 @@ class TypedValueEditor(QtWidgets.QWidget):
         rowLayout.setContentsMargins(0, 0, 0, 0)
         rowLayout.setSpacing(2)
         editor = TypedValueEditor(item, itemType, row)
+        editor.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         editor.VALUE_CHANGED.connect(lambda _: self.VALUE_CHANGED.emit(self.getValue()))
         self._childEditors.append(editor)
         self._rowWidgets.append(row)
         rowLayout.addWidget(editor, 1)
         removeBtn = QtWidgets.QPushButton("-", row)
-        removeBtn.setFixedWidth(24)
+        removeBtn.setFixedWidth(ROW_BUTTON_WIDTH)
         removeBtn.clicked.connect(lambda _: self._removeListRow(row))
         rowLayout.addWidget(removeBtn)
         layout.insertWidget(max(0, layout.count() - 1), row)
@@ -391,10 +397,18 @@ class TypedValueEditor(QtWidgets.QWidget):
         if not args:
             return Any
         if len(args) >= 2 and args[1] is Ellipsis:
-            return args[0]
+            return self._normaliseListItemType(args[0])
         if len(args) == 1:
-            return args[0]
+            return self._normaliseListItemType(args[0])
         return Any
+
+    def _normaliseListItemType(self, itemType: Any) -> Any:
+        itemType, nullable = self._unwrapOptional(itemType)
+        if itemType is Any:
+            itemType = str
+        if nullable:
+            return Optional[itemType]
+        return itemType
 
     def _defaultValueForType(self, valueType: Any) -> Any:
         valueType, nullable = self._unwrapOptional(valueType)

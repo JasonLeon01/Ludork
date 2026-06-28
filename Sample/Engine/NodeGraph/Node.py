@@ -3,12 +3,19 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import inspect
-from typing import Any, Callable, List, Dict, Optional, TYPE_CHECKING
+from typing import Any, Callable, List, Dict, Optional, TYPE_CHECKING, get_type_hints
 
 if TYPE_CHECKING:
     from Engine.NodeGraph import Graph
 
 _MISSING = object()
+
+
+def _getFunctionTypeHints(func: Callable) -> Dict[str, Any]:
+    try:
+        return get_type_hints(func)
+    except (AttributeError, NameError, SyntaxError, TypeError, ValueError):
+        return {}
 
 
 @dataclass
@@ -137,11 +144,12 @@ class Node:
 
     def _analyseFunction(self) -> None:
         sig = inspect.signature(self.nodeFunction)
+        typeHints = _getFunctionTypeHints(self.nodeFunction)
         self._funcInfo = self.nodeFunction.__name__
         self._paramList.clear()
         self._paramDefaults.clear()
         for paramName, paramObj in sig.parameters.items():
-            paramType = paramObj.annotation
+            paramType = typeHints.get(paramName, paramObj.annotation)
             if paramType == inspect.Parameter.empty:
                 paramType = type(None)
             self._paramList[paramName] = paramType

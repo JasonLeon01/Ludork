@@ -264,6 +264,17 @@ def _canUseKeyboardInput() -> bool:
     return _EventState.Focused and not _EventState.KeyboardBlocked
 
 
+def _setFocused(value: bool) -> None:
+    if _EventState.Focused == value:
+        return
+    _EventState.Focused = value
+    if value:
+        _EventState.FocusGained = True
+    else:
+        _EventState.FocusLost = True
+        _clearKeyboardState()
+
+
 def _clearKeyboardState() -> None:
     _EventState.KeyPressed = False
     _EventState.KeyReleased = False
@@ -291,6 +302,7 @@ def _processInjectedEvents() -> None:
         data = _InjectedEvents.pop(0)
         t = data.get("type")
         if t == "KeyPressed":
+            _setFocused(True)
             keyName = data.get("key")
             key = getattr(Keyboard.Key, keyName, Keyboard.Key.Unknown)
             scan = Keyboard.Scan.Unknown
@@ -312,6 +324,7 @@ def _processInjectedEvents() -> None:
             _EventState.KeyTriggeredMap[keyMap] = (count, handled)
 
         elif t == "KeyReleased":
+            _setFocused(True)
             keyName = data.get("key")
             key = getattr(Keyboard.Key, keyName, Keyboard.Key.Unknown)
             scan = Keyboard.Scan.Unknown
@@ -363,13 +376,20 @@ def _processInjectedEvents() -> None:
             _EventState.MouseScrolledWheelPosition = Vector2i(x, y)
 
         elif t == "FocusGained":
-            _EventState.Focused = True
-            _EventState.FocusGained = True
+            _setFocused(True)
 
         elif t == "FocusLost":
-            _EventState.Focused = False
-            _EventState.FocusLost = True
-            _clearKeyboardState()
+            _setFocused(False)
+
+
+def _syncNativeWindowFocus(window: WindowBase) -> None:
+    if _UseInjectedMouseOnly:
+        return
+    _setFocused(window.hasFocus())
+
+
+def _usesInjectedWindowInput() -> bool:
+    return _UseInjectedMouseOnly
 
 
 def update(window: WindowBase) -> None:
@@ -432,6 +452,7 @@ def update(window: WindowBase) -> None:
 
         _releasePendingTwoFingerCancel()
         _processInjectedEvents()
+        _syncNativeWindowFocus(window)
 
         try:
             while True:
@@ -441,15 +462,14 @@ def update(window: WindowBase) -> None:
                 if event.isClosed():
                     window.close()
                 if event.isFocusLost():
-                    _EventState.Focused = False
-                    _EventState.FocusLost = True
-                    _clearKeyboardState()
+                    if not _usesInjectedWindowInput():
+                        _setFocused(False)
                 if event.isFocusGained():
-                    _EventState.Focused = True
-                    _EventState.FocusGained = True
-                if not window.hasFocus():
+                    if not _usesInjectedWindowInput():
+                        _setFocused(True)
+                if not _usesInjectedWindowInput() and not window.hasFocus():
                     break
-                if event.isKeyPressed():
+                if not _usesInjectedWindowInput() and event.isKeyPressed():
                     _EventState.KeyPressed = True
                     keyEvent = event.getIfKeyPressed()
                     alt = keyEvent.alt
@@ -466,7 +486,7 @@ def update(window: WindowBase) -> None:
                     count, handled = _EventState.KeyTriggeredMap[keyMap]
                     count += 1
                     _EventState.KeyTriggeredMap[keyMap] = (count, handled)
-                if event.isKeyReleased():
+                if not _usesInjectedWindowInput() and event.isKeyReleased():
                     _EventState.KeyReleased = True
                     keyEvent = event.getIfKeyReleased()
                     alt = keyEvent.alt
@@ -593,7 +613,7 @@ def update(window: WindowBase) -> None:
                         del _EventState.JoystickButtonPressedMap[joystickDisconnectEvent.joystickId]
                     if joystickDisconnectEvent.joystickId in _EventState.JoystickButtonReleasedMap:
                         del _EventState.JoystickButtonReleasedMap[joystickDisconnectEvent.joystickId]
-                if event.isTextEntered():
+                if not _usesInjectedWindowInput() and event.isTextEntered():
                     _EventState.EnteredText += event.getIfTextEntered().unicode
 
             if window.hasFocus() and not _UseInjectedMouseOnly:

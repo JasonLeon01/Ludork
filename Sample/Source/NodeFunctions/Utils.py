@@ -3,7 +3,7 @@
 from __future__ import annotations
 import logging
 from math import isfinite
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from Engine import Pair, Vector2f, degrees
 from Engine.Gameplay.Components import getComponentFieldValue, setComponentFieldValue
 from Engine.Utils import Event
@@ -20,19 +20,27 @@ _SHORT_NUMBER_UNITS = (
 
 
 class _SuperProxy:
-    def __init__(self, obj: object, cls: type, localGraph: Dict[str, Any]) -> None:
+    def __init__(
+        self,
+        obj: object,
+        cls: type,
+        localGraph: Dict[str, Any],
+        defaultArgs: List[Any] = [],
+    ) -> None:
         self._obj = obj
         self._cls = cls
         self._localGraph = localGraph
+        self._defaultArgs = list(defaultArgs)
 
     def _callSuperFunction(self, name: str, *args, **kwargs) -> Any:
         from Engine.BPBase import BPBase
 
+        mergedArgs = tuple(self._defaultArgs) + args
         BPBase.ExecuteParentEvent(
             self._obj,
             self._cls,
             name,
-            args=args,
+            args=mergedArgs,
             kwargs=kwargs,
             localGraph=self._localGraph,
         )
@@ -449,14 +457,28 @@ def GetAnimVisualLength(animName: str) -> float:
     return getAnimationVisualDuration(animData)
 
 
+def _coerceSuperParams(params: Any) -> List[Any]:
+    if params is None or params == "":
+        return []
+    if isinstance(params, list):
+        return params
+    raise TypeError("SUPER params must be a list")
+
+
 @Meta(DisplayName='LOC("SUPER")', DisplayDesc='LOC("SUPER_DESC")')
-@ReturnType(value=object)
-def SUPER(obj: object) -> object:
+@ExecSplit(default=(None,))
+def SUPER(obj: object, params: List[Any] = []) -> object:
+    r"""\brief Get a proxy for calling the parent class implementation.
+
+    - \param obj    The object instance calling super.
+    - \param params Positional arguments forwarded to the parent event or method.
+    - \return A proxy object whose attributes invoke the parent implementation.
+    """
     graphContext = SUPER._refLocal.get("__graph__")
     cls = getattr(graphContext, "parentClass", None)
     if cls is None:
         cls = type(obj)
-    return _SuperProxy(obj, cls, SUPER._refLocal)
+    return _SuperProxy(obj, cls, SUPER._refLocal, _coerceSuperParams(params))
 
 
 @Meta(DisplayName='LOC("SELF")', DisplayDesc='LOC("SELF_DESC")')

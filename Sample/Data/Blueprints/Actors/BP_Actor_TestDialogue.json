@@ -78,7 +78,7 @@
                         ]
                     },
                     {
-                        "nodeFunction": "NodeFunctions.Scene.ShowVoiceMessage",
+                        "nodeFunction": "NodeFunctions.Scene.ShowVoiceMessageByTag",
                         "params": [
                             "TestName2",
                             "Now you will see.",
@@ -110,7 +110,7 @@
                         ]
                     },
                     {
-                        "nodeFunction": "NodeFunctions.Scene.ShowMessage",
+                        "nodeFunction": "NodeFunctions.Scene.ShowMessageByTag",
                         "params": [
                             "",
                             "No name here.",

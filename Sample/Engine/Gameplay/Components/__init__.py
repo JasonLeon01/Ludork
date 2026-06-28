@@ -133,6 +133,46 @@ def componentToData(value: Any) -> Dict[str, Any]:
     return {}
 
 
+def _isBlankValue(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, (int, float)):
+        return False
+    return not value
+
+
+def _mergeComponentDefaults(obj: Any) -> None:
+    r"""\brief Walk the MRO and fill blank component fields with parent class defaults.
+
+    When a derived blueprint explicitly sets a component field to a blank value
+    (e.g. ``""`` or ``None``), this helper walks up the class hierarchy and
+    fills the blank with the first non-blank value found on a parent class.
+    """
+    for componentName, componentType in getComponentTypes(type(obj)).items():
+        value = getattr(obj, componentName, None)
+        if value is None:
+            continue
+        if not isinstance(value, componentType):
+            value = componentFromData(componentType, value)
+            setattr(obj, componentName, value)
+
+        for cls in type(obj).__mro__:
+            if cls is type(obj):
+                continue
+            cls_value = cls.__dict__.get(componentName)
+            if cls_value is None:
+                continue
+            cls_comp = componentFromData(componentType, cls_value)
+            for field in dataclasses.fields(componentType):
+                current_val = getattr(value, field.name)
+                if _isBlankValue(current_val):
+                    parent_val = getattr(cls_comp, field.name)
+                    if not _isBlankValue(parent_val):
+                        setattr(value, field.name, parent_val)
+
+
 def normaliseInstanceComponents(obj: Any) -> None:
     for componentName, componentType in getComponentTypes(type(obj)).items():
         if not hasattr(obj, componentName):
@@ -142,16 +182,19 @@ def normaliseInstanceComponents(obj: Any) -> None:
             continue
         if not isinstance(value, componentType):
             setattr(obj, componentName, componentFromData(componentType, value))
+    _mergeComponentDefaults(obj)
 
 
 def initInstanceComponents(obj: Any) -> List[Any]:
     r"""
     \brief Initialise all component values attached to an actor instance.
 
+    Component values are first normalised and merged with parent defaults,
+    then each component's ``init`` method is called.
+
     - \param obj Actor instance whose components should be initialised.
     - \return Actors spawned by component initialisation.
     """
-    spawnedActors: List[Any] = []
     for componentName, componentType in getComponentTypes(type(obj)).items():
         if not hasattr(obj, componentName):
             continue
@@ -159,8 +202,12 @@ def initInstanceComponents(obj: Any) -> List[Any]:
         if value is None:
             continue
         if not isinstance(value, componentType):
-            value = componentFromData(componentType, value)
-            setattr(obj, componentName, value)
+            setattr(obj, componentName, componentFromData(componentType, value))
+    _mergeComponentDefaults(obj)
+
+    spawnedActors: List[Any] = []
+    for componentName, componentType in getComponentTypes(type(obj)).items():
+        value = getattr(obj, componentName, None)
         if not isinstance(value, Component):
             continue
         spawned = value.init(obj)

@@ -1,8 +1,8 @@
-The user requested a blueprint modification but no `patchblueprint` or `replacefile` has been executed yet.
+The user requested a blueprint modification but no `patch_blueprint` or `replace_blueprint` has been executed yet.
 
-- Do **not** use type `"reply"` to claim changes were made.
-- For small fixes use type `"patchblueprint"` with a JSON array of ops.
-- For large restructuring use type `"replacefile"` with the **complete** updated blueprint JSON.
+- Do **not** respond with text only to claim changes were made.
+- For small fixes use `patch_blueprint` with a JSON array of ops.
+- For large restructuring use `replace_blueprint` with the **complete** updated blueprint JSON.
 
 For `GetPlayer` + `setMoveEnabled`:
 

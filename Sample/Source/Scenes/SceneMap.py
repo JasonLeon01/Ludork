@@ -26,6 +26,7 @@ from Source.Windows import (
     WindowItem,
     WindowEquipSlot,
     WindowEquipSelect,
+    WindowEquipStatus,
     WindowSaveLoad,
     WindowShop,
     WindowAttrShop,
@@ -43,6 +44,10 @@ _SHOP_ITEM_SIZE = 352
 _ENEMY_BOOK_SIZE = 352
 _ENEMY_ENCYCLOPEDIA_WIDTH = 640
 _ENEMY_ENCYCLOPEDIA_HEIGHT = 480
+_EQUIP_SLOT_WIDTH = 196
+_EQUIP_SLOT_HEIGHT = 160
+_EQUIP_SELECT_HEIGHT = 192
+_EQUIP_STATUS_X = 384
 _MAP_TRANSITION_NAME = ""
 _MAP_TRANSITION_TIME = 0.5
 _ENEMY_BOOK_ITEM_ID = "EnemyBook"
@@ -72,10 +77,19 @@ class Scene(SceneBase):
         self._playerHUD = PlayerAttrHUD(self.player)
         self._messageWindow = WindowMessage()
         self._windowItem = WindowItem(((192, 0), (256, 256)), self.player)
-        self._windowEquipSlot = WindowEquipSlot(((192, 0), (196, 256)), self.player)
-        self._windowEquipSelect = WindowEquipSelect(((384, 0), (256, 256)), self.player)
+        self._windowEquipSlot = WindowEquipSlot(((192, 0), (_EQUIP_SLOT_WIDTH, _EQUIP_SLOT_HEIGHT)), self.player)
+        self._windowEquipSelect = WindowEquipSelect(
+            ((192, _EQUIP_SLOT_HEIGHT), (_EQUIP_SLOT_WIDTH, _EQUIP_SELECT_HEIGHT)),
+            self.player,
+        )
+        self._windowEquipStatus = WindowEquipStatus(
+            ((_EQUIP_STATUS_X, 0), (640 - _EQUIP_STATUS_X, _EQUIP_SLOT_HEIGHT + _EQUIP_SELECT_HEIGHT)),
+            self.player,
+        )
         self._windowEquipSlot.setEquipSelectWindow(self._windowEquipSelect)
+        self._windowEquipSlot.setEquipStatusWindow(self._windowEquipStatus)
         self._windowEquipSelect.setEquipSlotWindow(self._windowEquipSlot)
+        self._windowEquipSelect.setEquipStatusWindow(self._windowEquipStatus)
         shopCommandRect, shopItemRect = self._getShopRects()
         self._shopMoveEnabledBeforeOpen = True
         self._windowShop = WindowShop(self.player, shopCommandRect, shopItemRect, self._onShopClose)
@@ -123,6 +137,7 @@ class Scene(SceneBase):
         self._uiManager.loadUI(self._windowItem)
         self._uiManager.loadUI(self._windowEquipSlot)
         self._uiManager.loadUI(self._windowEquipSelect)
+        self._uiManager.loadUI(self._windowEquipStatus)
         self._uiManager.loadUI(self._windowShop.getCommandWindow())
         self._uiManager.loadUI(self._windowShop.getItemWindow())
         self._uiManager.loadUI(self._windowAttrShop.getSelectable())
@@ -335,6 +350,7 @@ class Scene(SceneBase):
         self._windowItem._player = self.player
         self._windowEquipSlot._player = self.player
         self._windowEquipSelect._player = self.player
+        self._windowEquipStatus.setPlayer(self.player)
         self._windowMenu._player = self.player
         self._windowShop.setPlayer(self.player)
         self._windowAttrShop.setPlayer(self.player)

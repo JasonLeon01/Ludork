@@ -13,6 +13,9 @@ from Engine.NodeGraph import ClassDict, Graph, DataNode, Node
 from Global import Manager
 
 
+_MAX_ANIMATION_LOAD_WORKERS = 4
+
+
 class _Data:
     def __init__(self) -> None:
         self.dataKinds = 5
@@ -26,12 +29,19 @@ class _Data:
 
     def _loadAnimationFile(self, animationRoot: str, file: str) -> Tuple[str, Dict[str, Any]]:
         namePart, _ = self.splitCompound(file)
-        logging.info("Loading Animations: %s", file)
+        logging.debug("Loading Animations: %s", file)
         payload = File.loadData(os.path.join(animationRoot, file))
         assert payload
         if "type" in payload:
             del payload["type"]
         return namePart, payload
+
+    def _loadCachedAnimationFile(
+        self, animationRoot: str, file: str
+    ) -> Tuple[str, Dict[str, Any], Dict[str, Any]]:
+        namePart, payload = self._loadAnimationFile(animationRoot, file)
+        cachedPayload = self._buildAnimationCachePayload(payload)
+        return namePart, payload, cachedPayload
 
     def loadAnimations(self, onFileLoaded: Optional[Callable[[], None]] = None) -> None:
         animationRoot = os.path.join(".", "Data", "Animations")
@@ -47,13 +57,15 @@ class _Data:
             files.append(file)
         if not files:
             return
-        maxWorkers = min(len(files), os.cpu_count() or 4)
+        maxWorkers = min(len(files), os.cpu_count() or _MAX_ANIMATION_LOAD_WORKERS, _MAX_ANIMATION_LOAD_WORKERS)
         with ThreadPoolExecutor(max_workers=maxWorkers) as executor:
-            futures = [executor.submit(self._loadAnimationFile, animationRoot, file) for file in files]
+            futures = [executor.submit(self._loadCachedAnimationFile, animationRoot, file) for file in files]
             for future in as_completed(futures):
-                namePart, payload = future.result()
+                namePart, payload, cachedPayload = future.result()
                 self._animationData[namePart] = payload
-                self._cacheAnimation(namePart, payload)
+                cachedPayload["cacheKey"] = namePart
+                cachedPayload["cacheStore"] = self._animCache
+                self._animCache[namePart] = cachedPayload
                 if onFileLoaded is not None:
                     onFileLoaded()
 
@@ -145,10 +157,7 @@ class _Data:
             payload["sounds"] = [entry.copy() for entry in payload.get("sounds", [])]
         return payload
 
-    def _cacheAnimation(self, name: str, data: Dict[str, Any]) -> None:
-        if name in self._animCache:
-            return
-
+    def _buildAnimationCachePayload(self, data: Dict[str, Any]) -> Dict[str, Any]:
         cachedData = self._cloneAnimationPayload(data)
         frames = cachedData.get("frames", [])
         for i, frameData in enumerate(frames):
@@ -160,7 +169,12 @@ class _Data:
                         frames[i] = image
                 except Exception:
                     pass
+        return cachedData
 
+    def _cacheAnimation(self, name: str, data: Dict[str, Any]) -> None:
+        if name in self._animCache:
+            return
+        cachedData = self._buildAnimationCachePayload(data)
         cachedData["cacheKey"] = name
         cachedData["cacheStore"] = self._animCache
         self._animCache[name] = cachedData

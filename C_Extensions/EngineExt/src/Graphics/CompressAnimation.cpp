@@ -148,12 +148,14 @@ std::tuple<float, std::vector<py::bytes>, std::vector<py::dict>> C_CompressAnima
                 }
                 auto transformData = transformDataObj.value();
                 auto [curX, curY, curRot, curScaleX, curScaleY] = transformData;
+                bool flipX = segment.contains("flipX") && segment["flipX"].cast<bool>();
+                float effectiveScaleX = curScaleX * (flipX ? -1.0f : 1.0f);
                 sprite.setTexture(*texture, true);
                 sf::Vector2u size = texture->getSize();
                 sprite.setOrigin({size.x / 2.0f, size.y / 2.0f});
                 sprite.setPosition({curX + canvasWidth / 2.0f, curY + canvasHeight / 2.0f});
                 sprite.setRotation(sf::degrees(curRot));
-                sprite.setScale({curScaleX, curScaleY});
+                sprite.setScale({effectiveScaleX, curScaleY});
                 renderTexture.draw(sprite);
             }
         }

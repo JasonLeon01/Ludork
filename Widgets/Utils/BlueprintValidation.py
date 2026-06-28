@@ -47,8 +47,11 @@ def ValidateBlueprint(
 
     _validateGraphStructure(graph, errors)
 
+    builtGraph = None
     if parentClass is not None and not errors:
-        _validateGraphBuild(graph, parentClass, errors)
+        builtGraph = _validateGraphBuild(graph, parentClass, errors)
+        if builtGraph is not None and not errors:
+            _validateLinkPins(builtGraph, graph, errors)
 
     return len(errors) == 0, errors
 
@@ -144,11 +147,81 @@ def _validateGraphBuild(
     graph: Dict[str, Any],
     parentClass: type,
     errors: List[str],
-) -> None:
+) -> Any:
     try:
-        GameData.genGraphFromData(graph, parentClass)
+        return GameData.genGraphFromData(graph, parentClass)
     except Exception as e:
         errors.append(f"Failed to build blueprint graph: {e}")
+        return None
+
+
+def _validateLinkPins(
+    builtGraph: Any,
+    graph: Dict[str, Any],
+    errors: List[str],
+) -> None:
+    from Widgets.Utils.NodeFunctionMeta import GetExecSplits, GetLatents, GetReturnTypes
+
+    nodeGraph = graph.get("nodeGraph")
+    if not isinstance(nodeGraph, dict):
+        return
+
+    for eventName, eventData in nodeGraph.items():
+        if not isinstance(eventData, dict):
+            continue
+        links = eventData.get("links")
+        nodes = eventData.get("nodes")
+        if not isinstance(links, list) or not isinstance(nodes, list):
+            continue
+        builtNodes = builtGraph.nodes.get(eventName, [])
+
+        for linkIndex, link in enumerate(links):
+            if not isinstance(link, dict):
+                continue
+            linkType = link.get("linkType")
+            left = link.get("left")
+            leftOutPin = link.get("leftOutPin")
+            if linkType not in ("Exec", "Params"):
+                continue
+            if not isinstance(left, int) or not (0 <= left < len(builtNodes)):
+                continue
+
+            leftNode = builtNodes[left]
+            leftFunc = leftNode.nodeFunction
+            functionName = leftNode.functionName
+
+            if linkType == "Params":
+                returnTypes = GetReturnTypes(leftFunc)
+                if not returnTypes:
+                    errors.append(
+                        f'graph.nodeGraph["{eventName}"].links[{linkIndex}]: Params link from '
+                        f'node {left} ({functionName}) has no data output pins'
+                    )
+                    continue
+                returnPinNames = list(returnTypes.keys())
+                if not isinstance(leftOutPin, int) or not (0 <= leftOutPin < len(returnPinNames)):
+                    errors.append(
+                        f'graph.nodeGraph["{eventName}"].links[{linkIndex}]: Params link leftOutPin '
+                        f'{leftOutPin!r} is invalid for {functionName} — data outputs are '
+                        f'{returnPinNames} (use indices 0-{len(returnPinNames) - 1}; '
+                        f'Exec pins are not counted in Params links)'
+                    )
+            elif linkType == "Exec":
+                latents = GetLatents(leftFunc)
+                execSplits = GetExecSplits(leftFunc)
+                execPinNames = list(latents.keys()) if latents else list(execSplits.keys())
+                if not execPinNames:
+                    errors.append(
+                        f'graph.nodeGraph["{eventName}"].links[{linkIndex}]: Exec link from '
+                        f'node {left} ({functionName}) has no execution output pins'
+                    )
+                    continue
+                if not isinstance(leftOutPin, int) or not (0 <= leftOutPin < len(execPinNames)):
+                    errors.append(
+                        f'graph.nodeGraph["{eventName}"].links[{linkIndex}]: Exec link leftOutPin '
+                        f'{leftOutPin!r} is invalid for {functionName} — exec outputs are '
+                        f'{execPinNames} (use indices 0-{len(execPinNames) - 1})'
+                    )
 
 
 def _isNodeIndexValid(index: int, nodeCount: int) -> bool:

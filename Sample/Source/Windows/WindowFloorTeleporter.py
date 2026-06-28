@@ -12,7 +12,6 @@ from .Base import WindowSelectable
 from .WindowCommand import WindowCommand
 from ..GameInstance import GameInstance
 from ..System import System as GameSystem
-from ..Config import RegionDict
 
 
 _LIST_ROW_HEIGHT = 32
@@ -395,6 +394,8 @@ class WindowFloorTeleporter:
         self._previewWindow.setMapKeyAndTelepoints(mapKey, entries, selectedIndex)
 
     def _getVisitedRegionEntries(self) -> List[Tuple[str, str]]:
+        from ..Config import RegionDict
+
         regionMaps = RegionDict.get(self._inst.getCurrentRegion(), [])
         visited = self._getVisitedMapNames()
         result: List[Tuple[str, str]] = []

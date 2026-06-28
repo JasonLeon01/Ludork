@@ -166,3 +166,28 @@ def SetAutoPathToDestination(
     if actor is not None and target is not None and not _isMovementBlocked(actor):
         actor.setRoute(_buildRouteToDestination(actor, target))
     return _MovementCondition(actor)
+
+
+@Meta(
+    DisplayName='LOC("SET_AUTO_PATH_TO_DESTINATION_BY_TAG")',
+    DisplayDesc='LOC("SET_AUTO_PATH_TO_DESTINATION_BY_TAG_DESC")',
+    Vector2iVars=["destination"],
+)
+@Latent(Started=(_LATENT_STARTED,), Finished=(_LATENT_FINISHED,))
+def SetAutoPathToDestinationByTag(
+    tag: str, destination: Union[Vector2i, Pair[int], List[int]] = (0, 0)
+) -> Callable[[], List[int]]:
+    r"""\brief Pathfind an actor identified by tag to a destination and wait until movement finishes.
+
+    - \param tag The tag of the actor to move.
+    - \param destination Target map position.
+    - \return A condition callable that emits Started immediately and Finished after movement ends.
+    """
+    from Source.Scenes import Map as SceneMap
+    from Global import System
+
+    actor = None
+    scene = System.getScene()
+    if scene is not None and isinstance(scene, SceneMap) and tag:
+        actor = scene.getGameMap().getActorByTag(tag)
+    return SetAutoPathToDestination(actor, destination)

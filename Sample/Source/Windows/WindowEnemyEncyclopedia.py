@@ -150,14 +150,14 @@ class WindowEnemyEncyclopedia(WindowBase):
     def _buildInfo(self, entry: Dict[str, Any], y: float) -> None:
         rows = [
             [
-                (LOC("STAT_HP"), entry.get("MAXHP", 0)),
-                (LOC("STAT_ATK"), entry.get("ATK", 0)),
-                (LOC("STAT_DEF"), entry.get("DEF", 0)),
+                (LOC("HP"), entry.get("MAXHP", 0)),
+                (LOC("ATK"), entry.get("ATK", 0)),
+                (LOC("DEF"), entry.get("DEF", 0)),
             ],
             [
-                (LOC("STAT_EXP"), entry.get("EXP", 0)),
-                (LOC("STAT_GOLD"), entry.get("GOLD", 0)),
-                (LOC("STAT_DMG"), entry.get("damage", "???")),
+                (LOC("EXP"), entry.get("EXP", 0)),
+                (LOC("GOLD"), entry.get("GOLD", 0)),
+                (LOC("DMG"), entry.get("damage", "???")),
             ],
         ]
         for rowIndex, row in enumerate(rows):
@@ -167,10 +167,10 @@ class WindowEnemyEncyclopedia(WindowBase):
         hitCount = self._formatHitCount(entry.get("hitCount", None))
         criticalColIndex = 0
         if hitCount:
-            self._addInfoPair(LOC("STAT_HIT"), hitCount, 0, y + 2 * _INFO_ROW_GAP)
+            self._addInfoPair(LOC("HIT"), hitCount, 0, y + 2 * _INFO_ROW_GAP)
             criticalColIndex = 1
         if criticalText:
-            self._addInfoPair(LOC("STAT_CRIT"), criticalText, criticalColIndex, y + 2 * _INFO_ROW_GAP)
+            self._addInfoPair(LOC("CRIT"), criticalText, criticalColIndex, y + 2 * _INFO_ROW_GAP)
 
     def _addInfoPair(self, label: str, value: str, colIndex: int, y: float) -> None:
         x = float(colIndex * _INFO_COLUMN_GAP)

@@ -1,0 +1,118 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "search_project",
+      "description": "Search blueprint data and project source by keywords. Use up to 4 keywords separated by spaces or commas. Do not pass file paths as keywords.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "keywords": {
+            "type": "string",
+            "description": "Keywords to search, e.g. \"ShowMessage, TriggerEventBus, SetAutoPathToDestination\""
+          }
+        },
+        "required": ["keywords"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "read_file",
+      "description": "Read the full content of a project source file by relative path.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Relative path, e.g. \"Source/NodeFunctions/Scene.py\""
+          }
+        },
+        "required": ["path"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "run_terminal",
+      "description": "Run a shell command in the project root. On Windows use python -c instead of cat or type.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string",
+            "description": "Shell command to execute"
+          }
+        },
+        "required": ["command"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "patch_blueprint",
+      "description": "Apply small incremental edits to the current blueprint. Preferred for pin fixes, param tweaks, and single-node edits.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "ops": {
+            "type": "array",
+            "description": "Array of patch operations",
+            "items": {
+              "type": "object",
+              "properties": {
+                "op": {
+                  "type": "string",
+                  "enum": ["updateLink", "updateNode", "setStartNode", "replaceEventGraph", "setAttrs"]
+                },
+                "event": { "type": "string" },
+                "linkIndex": { "type": "integer" },
+                "nodeIndex": { "type": "integer" },
+                "index": { "type": "integer" },
+                "left": { "type": "integer" },
+                "right": { "type": "integer" },
+                "leftOutPin": { "type": "integer" },
+                "rightInPin": { "type": "integer" },
+                "linkType": { "type": "string" },
+                "nodeFunction": { "type": "string" },
+                "params": { "type": "array", "items": {} },
+                "pos": { "type": "array", "items": { "type": "number" } },
+                "nodes": { "type": "array", "items": { "type": "object" } },
+                "links": { "type": "array", "items": { "type": "object" } },
+                "attrs": { "type": "object" }
+              },
+              "required": ["op"]
+            }
+          }
+        },
+        "required": ["ops"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "replace_blueprint",
+      "description": "Replace the entire blueprint JSON when rebuilding structure or adding/removing many nodes. Include only parent, attrs, and graph.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "blueprint": {
+            "type": "object",
+            "description": "Complete blueprint data with parent, attrs, and graph only",
+            "properties": {
+              "parent": { "type": "string" },
+              "attrs": { "type": "object" },
+              "graph": { "type": "object" }
+            },
+            "required": ["parent", "graph"]
+          }
+        },
+        "required": ["blueprint"]
+      }
+    }
+  }
+]

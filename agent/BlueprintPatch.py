@@ -110,6 +110,7 @@ def CompactBlueprintForAgent(data: Dict[str, Any]) -> Dict[str, Any]:
         hasNodes = len(nodesList) > 0
         hasLinks = len(linksList) > 0
         if not hasNodes and not hasLinks:
+            compactEvents[eventName] = {"nodes": [], "links": []}
             continue
         eventCopy: Dict[str, Any] = {}
         if hasNodes:
@@ -159,7 +160,14 @@ def _mergeGraph(
         mergedGraph["nodeGraph"] = baseNodeGraph
 
     if "startNodes" in partialGraph:
-        mergedGraph["startNodes"] = copy.deepcopy(partialGraph["startNodes"])
+        baseStartNodes = mergedGraph.get("startNodes")
+        if not isinstance(baseStartNodes, dict):
+            baseStartNodes = {}
+        partialStartNodes = partialGraph.get("startNodes")
+        if isinstance(partialStartNodes, dict):
+            for eventName, startIndex in partialStartNodes.items():
+                baseStartNodes[eventName] = copy.deepcopy(startIndex)
+        mergedGraph["startNodes"] = baseStartNodes
 
     return mergedGraph
 

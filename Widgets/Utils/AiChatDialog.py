@@ -22,22 +22,38 @@ log = logging.getLogger("Ludork.Agent")
 _node_index_cache: dict[str, tuple[str, str]] = {}
 
 
+def _append_ludork_ai_log(message: str) -> None:
+    if System.AlreadyPacked():
+        return
+    root = File.GetRootPath()
+    if not root:
+        return
+    log_path = os.path.join(root, "LudorkAI.log")
+    try:
+        import datetime
+
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S,") + f"{datetime.datetime.now().microsecond // 1000:03d}"
+        with open(log_path, "a", encoding="utf-8") as handle:
+            handle.write(f"{timestamp} [Ludork.Agent] {message}\n")
+            handle.flush()
+    except OSError:
+        pass
+
+
 def _ensure_log_handler() -> None:
     if not log.handlers:
         handler = logging.StreamHandler()
         handler.setFormatter(logging.Formatter("[%(name)s] %(message)s"))
         log.addHandler(handler)
         log.setLevel(logging.DEBUG)
-        if System.AlreadyPacked():
-            return
-        root = File.GetRootPath()
-        if root:
-            file_handler = logging.FileHandler(
-                os.path.join(root, "LudorkAI.log"),
-                encoding="utf-8",
-            )
-            file_handler.setFormatter(logging.Formatter("%(asctime)s [%(name)s] %(message)s"))
-            log.addHandler(file_handler)
+
+
+def _agent_log(message: str, *args: object) -> None:
+    if args:
+        message = message % args
+    _ensure_log_handler()
+    log.info(message)
+    _append_ludork_ai_log(message)
 
 
 def _get_cached_agent_context(project_path: str, parent_class: str) -> str:
@@ -254,6 +270,7 @@ class AiChatDialog(QtWidgets.QDialog):
         ctx.add_callable("pyFetchFile", self._pyFetchFile)
         ctx.add_callable("pyReadFile", self._pyReadFile)
         ctx.add_callable("pyReadAgentResource", self._pyReadAgentResource)
+        ctx.add_callable("pyGetAgentTools", self._pyGetAgentTools)
         ctx.add_callable("pyReplaceFile", self._pyReplaceFile)
         ctx.add_callable("pyPatchBlueprint", self._pyPatchBlueprint)
         ctx.add_callable("pyValidateBlueprint", self._pyValidateBlueprint)
@@ -301,16 +318,22 @@ class AiChatDialog(QtWidgets.QDialog):
 
         return LoadAgentResource(relPath)
 
+    def _pyGetAgentTools(self) -> str:
+        from agent.PromptResources import LoadAgentTools
+
+        return LoadAgentTools()
+
     def _resetLogFile(self) -> None:
         if System.AlreadyPacked():
             return
         root = File.GetRootPath()
         if not root:
             return
+        _ensure_log_handler()
         log_path = os.path.join(root, "LudorkAI.log")
         with open(log_path, "w", encoding="utf-8") as f:
             f.write("")
-        log.info("=== LudorkAI.log reset ===")
+        _append_ludork_ai_log("=== LudorkAI.log reset ===")
 
     def _pyFetch(self, url: str, apiKey: str, body: str) -> str:
         data = body.encode("utf-8")
@@ -324,7 +347,7 @@ class AiChatDialog(QtWidgets.QDialog):
             return json.dumps({"error": str(e)})
 
     def _pyLog(self, msg: str) -> None:
-        log.info(msg)
+        _agent_log(msg)
 
     def _pyReportStatus(self, payloadJson: str) -> None:
         QtCore.QMetaObject.invokeMethod(
@@ -547,6 +570,11 @@ class AiChatDialog(QtWidgets.QDialog):
             return parse_error
         if newData is None:
             return "Error: Blueprint replacement data must be a JSON object"
+        base_data = self._getCurrentBlueprintData()
+        if base_data is not None:
+            from agent.BlueprintPatch import MergeBlueprintWithBase
+
+            newData = MergeBlueprintWithBase(newData, base_data)
         return self._saveBlueprintData(newData)
 
     def _pyPatchBlueprint(self, opsJson: str) -> str:
@@ -617,7 +645,8 @@ class AiChatDialog(QtWidgets.QDialog):
         idx = self._msgLayout.count() - 1
         self._msgLayout.insertWidget(max(0, idx), bubble)
         self._messages.append((role, content))
-        log.info("[Conversation] %s: %s", role, content)
+        line = f"[Conversation] {role}: {content}"
+        _agent_log(line)
 
     def _startLoading(self) -> None:
         self._loading = True
@@ -650,8 +679,10 @@ class AiChatDialog(QtWidgets.QDialog):
         apiKey = GetAiApiKey()
         baseUrl = GetAiBaseUrl()
 
-        log.info("=== _callAi start | blueprint=%s | userInput=%s | provider=%s | model=%s",
-                 self._blueprintName, userInput, provider, model)
+        _agent_log(
+            "=== _callAi start | blueprint=%s | userInput=%s | provider=%s | model=%s",
+            self._blueprintName, userInput, provider, model,
+        )
 
         if not provider or not model or not apiKey:
             result = ELOC("API_KEY_NOT_CONFIGURED")
@@ -668,8 +699,10 @@ class AiChatDialog(QtWidgets.QDialog):
                 blueprintDataJson = self._getBlueprintDataJson()
                 fileTree = self._pyBuildFileTree()
 
-                log.info("systemPrompt=%d chars, fileTree=%d chars, blueprintData=%d chars",
-                         len(systemPrompt), len(fileTree), len(blueprintDataJson))
+                _agent_log(
+                    "systemPrompt=%d chars, fileTree=%d chars, blueprintData=%d chars",
+                    len(systemPrompt), len(fileTree), len(blueprintDataJson),
+                )
 
                 contextMessages: list[dict[str, str]] = []
                 msgs = list(self._messages)
@@ -679,12 +712,12 @@ class AiChatDialog(QtWidgets.QDialog):
                     contextMessages.append({"role": "assistant" if role == "ai" else role, "content": content})
 
                 if len(contextMessages) > 20:
-                    log.info("Compressing %d context messages...", len(contextMessages))
+                    _agent_log("Compressing %d context messages...", len(contextMessages))
                     jsCode = f"compressContext({json.dumps(provider)}, {json.dumps(model)}, {json.dumps(apiKey)}, {json.dumps(baseUrl)}, {json.dumps(json.dumps(contextMessages))})"
                     summary = cast(str, self._quickjsContext.eval(jsCode))
                     if summary:
                         contextMessages = [{"role": "system", "content": summary}]
-                        log.info("Compressed to %d chars summary", len(summary))
+                        _agent_log("Compressed to %d chars summary", len(summary))
 
                 contextJson = json.dumps(contextMessages)
                 expectsModification = _detect_modification_intent(userInput)
@@ -702,9 +735,9 @@ class AiChatDialog(QtWidgets.QDialog):
                     f"{json.dumps(expectsModification)}"
                     f")"
                 )
-                log.info("Calling runWorkflow (jsCode=%d chars)", len(jsCode))
+                _agent_log("Calling runWorkflow (jsCode=%d chars)", len(jsCode))
                 result = cast(str, self._quickjsContext.eval(jsCode))
-                log.info("runWorkflow result: %s", result)
+                _agent_log("runWorkflow result: %s", result)
             except Exception as e:
                 result = str(e)
 

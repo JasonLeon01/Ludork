@@ -40,8 +40,10 @@ class Player(Character, PlayerInfo, Battler):
         self.collisionEnabled = True
         self.animatable = True
         self.speed = 96
+        self._loading = True
         self.initInfo(Data)
         self._syncInitialHP()
+        self._loading = False
 
         def _onLevelChange(old, new):
             delta = new - (old if old is not _MISSING else 0)

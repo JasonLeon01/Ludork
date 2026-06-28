@@ -1,11 +1,11 @@
 The user requested a blueprint modification.
 
-- Prefer type `"patchblueprint"` with a JSON array of ops for small fixes.
-- Use type `"replacefile"` with the **complete** blueprint JSON only for large structural changes.
-- Do **not** use type `"reply"` until a save succeeds.
+- Prefer `patch_blueprint` with a JSON array of ops for small fixes.
+- Use `replace_blueprint` with the **complete** blueprint JSON only for large structural changes.
+- Do **not** respond with text only until a save succeeds.
 
-Example patch:
+Example patch op:
 
 ```json
-{"message":"Fixed pins.","type":"patchblueprint","terminal":[{"op":"updateLink","event":"onOverlap","linkIndex":0,"rightInPin":0}]}
+{"op":"updateLink","event":"onOverlap","linkIndex":0,"rightInPin":0}
 ```

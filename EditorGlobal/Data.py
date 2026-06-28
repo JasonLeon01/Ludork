@@ -1298,7 +1298,7 @@ class GameData:
             ((".RunCommonFunction",), 0, "commonFunction", "", "nodeParam"),
             ((".GotoMap",), 0, "map", "", "nodeParam"),
             ((".PlaySound",), 0, "asset", "Sounds", "nodeParam"),
-            ((".ShowVoiceMessage", ".ShowVoiceRefMessage"), 2, "asset", "Voices", "nodeParam"),
+            ((".ShowVoiceMessageByTag", ".ShowVoiceMessage"), 2, "asset", "Voices", "nodeParam"),
             ((".PlayMusic",), 0, "asset", "Musics", "nodeParam"),
             ((".PlayVideo",), 0, "asset", "Videos", "nodeParam"),
             ((".GetItemCount", ".AddItem", ".RemoveItem", ".HasItem"), 0, "generalMember", "Item", "nodeParam"),

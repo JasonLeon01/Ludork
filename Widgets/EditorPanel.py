@@ -81,6 +81,8 @@ class EditorPanel(QtWidgets.QWidget):
         self._autoTileFrame: int = 0
         self._actorAnimationTime: float = 0.0
         self._tileSize = EditorStatus.CELLSIZE
+        self._hoverGridPos: Optional[Tuple[int, int]] = None
+        self._hudLabel: Optional[QtWidgets.QLabel] = None
         super().__init__(parent)
         self.setMouseTracking(True)
         self.setFocusPolicy(QtCore.Qt.ClickFocus)
@@ -112,6 +114,8 @@ class EditorPanel(QtWidgets.QWidget):
 
     def refreshMap(self, mapFileName: Optional[str] = None):
         self.selectedPos = None
+        self._hoverGridPos = None
+        self._updateGridHud()
         self.mapData = None
         self._pixmap = None
         self._setSelectedLightIndex(None)
@@ -346,6 +350,42 @@ class EditorPanel(QtWidgets.QWidget):
         if gx < 0 or gy < 0 or gx >= self.mapData.width or gy >= self.mapData.height:
             return None
         return gx, gy
+
+    def _parentScrollArea(self) -> Optional[QtWidgets.QScrollArea]:
+        parent = self.parentWidget()
+        while parent is not None:
+            if isinstance(parent, QtWidgets.QScrollArea):
+                return parent
+            parent = parent.parentWidget()
+        return None
+
+    def _ensureHudLabel(self) -> Optional[QtWidgets.QLabel]:
+        scroll = self._parentScrollArea()
+        if scroll is None:
+            return None
+        label = self._hudLabel
+        if label is None or label.parent() is not scroll:
+            label = QtWidgets.QLabel(scroll)
+            label.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents, True)
+            label.setStyleSheet("color: rgba(255, 255, 255, 0.7); background: transparent;")
+            self._hudLabel = label
+        label.move(8, 8)
+        label.raise_()
+        return label
+
+    def _updateGridHud(self) -> None:
+        if self._hoverGridPos is None:
+            if self._hudLabel is not None:
+                self._hudLabel.hide()
+            return
+        label = self._ensureHudLabel()
+        if label is None:
+            return
+        gx, gy = self._hoverGridPos
+        label.setText(f"({gx}, {gy})")
+        label.adjustSize()
+        label.show()
+        label.raise_()
 
     def mapBasePosFromWidgetPos(self, pos: QtCore.QPoint) -> QtCore.QPointF:
         return self._mapBasePos(self._mapDisplayPos(pos))
@@ -1147,6 +1187,8 @@ class EditorPanel(QtWidgets.QWidget):
         self._stopLightRadiusDrag()
         self._stopLightMoveDrag()
         self.selectedPos = None
+        self._hoverGridPos = None
+        self._updateGridHud()
         self.update()
         super().leaveEvent(a0)
 
@@ -1452,6 +1494,10 @@ class EditorPanel(QtWidgets.QWidget):
             return
         mapPos = self._mapDisplayPos(e.pos())
         basePos = self._mapBasePos(mapPos)
+        gridPos = self._gridPosFromMapDisplayPos(mapPos)
+        if gridPos != self._hoverGridPos:
+            self._hoverGridPos = gridPos
+            self._updateGridHud()
         if self._lightOverlayEnabled:
             if self._lightMoveDragging:
                 idx = self._lightMoveDragIndex
@@ -1490,7 +1536,6 @@ class EditorPanel(QtWidgets.QWidget):
             else:
                 self.unsetCursor()
             return
-        gridPos = self._gridPosFromMapDisplayPos(mapPos)
         if gridPos is None:
             if self.selectedPos is not None:
                 self.selectedPos = None

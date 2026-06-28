@@ -69,6 +69,11 @@ class SegmentInspector(QtWidgets.QWidget):
         self.lblAsset = QtWidgets.QLabel()
         formLayout.addRow(ELOC("asset"), self.lblAsset)
 
+        self.flipXCheck = QtWidgets.QCheckBox()
+        self.flipXCheck.stateChanged.connect(self._onValueChanged)
+        self.flipXRowLabel = QtWidgets.QLabel(ELOC("flipX"))
+        formLayout.addRow(self.flipXRowLabel, self.flipXCheck)
+
         self.startGroup = QtWidgets.QGroupBox(ELOC("startFrame"))
         startLayout = QtWidgets.QFormLayout(self.startGroup)
         self.startTime = QtWidgets.QDoubleSpinBox()
@@ -184,6 +189,12 @@ class SegmentInspector(QtWidgets.QWidget):
         else:
             self.lblAsset.setText("Invalid")
 
+        isFrame = segment.get("type") == "frame"
+        self.flipXRowLabel.setVisible(isFrame)
+        self.flipXCheck.setVisible(isFrame)
+        if isFrame:
+            self.flipXCheck.setChecked(bool(segment.get("flipX", False)))
+
         start = segment.get("startFrame", {})
         self.startTime.setValue(start.get("time", 0.0))
         pos = start.get("position", [0.0, 0.0])
@@ -229,6 +240,9 @@ class SegmentInspector(QtWidgets.QWidget):
         end["position"] = [self.endX.value(), self.endY.value()]
         end["rotation"] = self.endRot.value()
         end["scale"] = [self.endSX.value(), self.endSY.value()]
+
+        if self.data.get("type") == "frame":
+            self.data["flipX"] = self.flipXCheck.isChecked()
 
         self.VALUE_CHANGED.emit()
 
@@ -343,6 +357,8 @@ class AnimationPreview(QtWidgets.QWidget):
                     es = end.get("scale", [1.0, 1.0])
                     curSX = ss[0] + (es[0] - ss[0]) * factor
                     curSY = ss[1] + (es[1] - ss[1]) * factor
+                    flipX = bool(seg.get("flipX", False))
+                    effectiveSX = curSX * (-1.0 if flipX else 1.0)
 
                     assetIdx = seg.get("asset", -1)
                     if 0 <= assetIdx < len(assets):
@@ -352,7 +368,7 @@ class AnimationPreview(QtWidgets.QWidget):
                             painter.save()
                             painter.translate(cx + curX, cy + curY)
                             painter.rotate(curRot)
-                            painter.scale(curSX, curSY)
+                            painter.scale(effectiveSX, curSY)
                             painter.drawPixmap(-pixmap.width() // 2, -pixmap.height() // 2, pixmap)
                             painter.restore()
 
@@ -360,7 +376,7 @@ class AnimationPreview(QtWidgets.QWidget):
                                 transform = QtGui.QTransform()
                                 transform.translate(cx + curX, cy + curY)
                                 transform.rotate(curRot)
-                                transform.scale(curSX, curSY)
+                                transform.scale(effectiveSX, curSY)
                                 rect = QtCore.QRectF(
                                     -pixmap.width() / 2, -pixmap.height() / 2, pixmap.width(), pixmap.height()
                                 )
@@ -409,6 +425,8 @@ class AnimationPreview(QtWidgets.QWidget):
         es = end.get("scale", [1.0, 1.0])
         curSX = ss[0] + (es[0] - ss[0]) * factor
         curSY = ss[1] + (es[1] - ss[1]) * factor
+        flipX = bool(seg.get("flipX", False))
+        effectiveSX = curSX * (-1.0 if flipX else 1.0)
         assetIdx = seg.get("asset", -1)
         assets = self.data.get("assets", [])
         if assetIdx < 0 or assetIdx >= len(assets):
@@ -426,6 +444,7 @@ class AnimationPreview(QtWidgets.QWidget):
             "curRot": curRot,
             "curSX": curSX,
             "curSY": curSY,
+            "effectiveSX": effectiveSX,
             "pixmap": pixmap,
         }
 
@@ -433,7 +452,7 @@ class AnimationPreview(QtWidgets.QWidget):
         transform = QtGui.QTransform()
         transform.translate(cx + state["curX"], cy + state["curY"])
         transform.rotate(state["curRot"])
-        transform.scale(state["curSX"], state["curSY"])
+        transform.scale(state["effectiveSX"], state["curSY"])
         pixmap = state["pixmap"]
         rect = QtCore.QRectF(-pixmap.width() / 2, -pixmap.height() / 2, pixmap.width(), pixmap.height())
         poly = transform.map(QtGui.QPolygonF(rect))

@@ -141,21 +141,21 @@ def AddTimer(interval: float, blocking: bool = False) -> Callable[[], bool]:
     return condition
 
 
-@Meta(DisplayName='LOC("SHOW_MESSAGE")', DisplayDesc='LOC("SHOW_MESSAGE_DESC")')
+@Meta(DisplayName='LOC("SHOW_MESSAGE_BY_TAG")', DisplayDesc='LOC("SHOW_MESSAGE_BY_TAG_DESC")')
 @Latent(FinishedDialogue=(True,))
-def ShowMessage(
+def ShowMessageByTag(
     name: str,
     message: str,
     refActorTag: str = "",
 ) -> Callable[[], bool]:
-    r"""\brief Show a dialogue message on the current map scene."""
+    r"""\brief Show a dialogue message on the current map scene by actor tag."""
     scene = _getSceneMap()
     return scene.showMessage(name, message, _getActorByTag(scene, refActorTag))
 
 
-@Meta(DisplayName='LOC("SHOW_REF_MESSAGE")', DisplayDesc='LOC("SHOW_REF_MESSAGE_DESC")')
+@Meta(DisplayName='LOC("SHOW_MESSAGE")', DisplayDesc='LOC("SHOW_MESSAGE_DESC")')
 @Latent(FinishedDialogue=(True,))
-def ShowRefMessage(
+def ShowMessage(
     name: str,
     message: str,
     actor: Actor,
@@ -166,30 +166,30 @@ def ShowRefMessage(
 
 
 @Meta(
-    DisplayName='LOC("SHOW_VOICE_MESSAGE")',
-    DisplayDesc='LOC("SHOW_VOICE_MESSAGE_DESC")',
+    DisplayName='LOC("SHOW_VOICE_MESSAGE_BY_TAG")',
+    DisplayDesc='LOC("SHOW_VOICE_MESSAGE_BY_TAG_DESC")',
     PathVars=[("voiceFileName", "Voices")],
 )
 @Latent(FinishedDialogue=(True,))
-def ShowVoiceMessage(
+def ShowVoiceMessageByTag(
     name: str,
     message: str,
     voiceFileName: str,
     refActorTag: str = "",
 ) -> Callable[[], bool]:
-    r"""\brief Play a non-spatial voice clip and show a dialogue message on the current map scene."""
+    r"""\brief Play a non-spatial voice clip and show a dialogue message on the current map scene by actor tag."""
     scene = _getSceneMap()
     Manager.playVoice(voiceFileName)
     return scene.showMessage(name, message, _getActorByTag(scene, refActorTag))
 
 
 @Meta(
-    DisplayName='LOC("SHOW_VOICE_REF_MESSAGE")',
-    DisplayDesc='LOC("SHOW_VOICE_REF_MESSAGE_DESC")',
+    DisplayName='LOC("SHOW_VOICE_MESSAGE")',
+    DisplayDesc='LOC("SHOW_VOICE_MESSAGE_DESC")',
     PathVars=[("voiceFileName", "Voices")],
 )
 @Latent(FinishedDialogue=(True,))
-def ShowVoiceRefMessage(
+def ShowVoiceMessage(
     name: str,
     message: str,
     voiceFileName: str,

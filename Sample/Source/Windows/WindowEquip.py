@@ -9,6 +9,7 @@ from Engine import (
     Vector2u,
     IntRect,
     Texture,
+    Color,
     Vector2f,
     Input,
     UI,
@@ -19,7 +20,7 @@ from Engine.UI.Base import FunctionalBase
 from Engine.UI.FunctionalUI import FImage, FPlainText
 from Engine.Utils import Math
 from Global import Manager
-from .Base import WindowSelectable
+from .Base import WindowBase, WindowSelectable
 from ..System import System as GameSystem
 from .. import Data
 
@@ -27,6 +28,16 @@ _SLOT_ROW_HEIGHT = 32
 _SLOT_FONT_SIZE = 14
 _SLOT_TEXT_PAD = 32
 SLOT_Y_OFFSET = 8
+_EQUIP_CELL_SIZE = 32
+_EQUIP_STATUS_FONT_SIZE = 16
+_EQUIP_STATUS_ROW_HEIGHT = 20
+_EQUIP_STATUS_MAX_ROWS = 3
+_EQUIP_STATUS_SLOT_DESC_NAME_Y = 0
+_EQUIP_STATUS_SLOT_DESC_TEXT_Y = 24
+_EQUIP_STATUS_DESC_NAME_Y = 76
+_EQUIP_STATUS_DESC_TEXT_Y = 100
+_EQUIP_STATUS_DESC_NAME_SIZE = 18
+_EQUIP_STATUS_DESC_SIZE = 14
 
 
 class _SlotCell(Canvas, FunctionalBase):
@@ -177,6 +188,159 @@ def _wrapDesc(text: str, maxWidth: float) -> str:
     return "\n".join(wrap_para(p) for p in text.split("\n"))
 
 
+class WindowEquipStatus(WindowBase):
+    r"""\brief Equipment detail window with stat delta preview and description."""
+
+    def __init__(
+        self,
+        rect: Union[IntRect, Tuple[Pair[int], Pair[int]]],
+        player,
+    ) -> None:
+        r"""\brief Construct the equipment status window.
+
+        - \param rect The window rectangle.
+        - \param player The player instance.
+        """
+        super().__init__(rect)
+        self._player = player
+        self._slotKey: str = ""
+        self._changeTexts: List[PlainText] = []
+        self._descNameText = PlainText(UI.DefaultFont, "", _EQUIP_STATUS_DESC_NAME_SIZE, Text.Style.Bold)
+        self._descText = PlainText(UI.DefaultFont, "", _EQUIP_STATUS_DESC_SIZE)
+        self._descNameText.setPosition(Vector2f(0.0, float(_EQUIP_STATUS_DESC_NAME_Y)))
+        self._descText.setPosition(Vector2f(0.0, float(_EQUIP_STATUS_DESC_TEXT_Y)))
+        self.content.addChild(self._descNameText)
+        self.content.addChild(self._descText)
+        self.setActive(False)
+        self.setVisible(False)
+
+    def setPlayer(self, player) -> None:
+        r"""\brief Rebind the player instance used for equipment comparisons.
+
+        - \param player The player instance.
+        """
+        self._player = player
+
+    def openForSlot(self, slotKey: str) -> None:
+        r"""\brief Open the detail window for the current equipment slot.
+
+        - \param slotKey Equipment slot identifier.
+        """
+        self.refreshForSlot(slotKey)
+        self.setVisible(True)
+        self.setActive(False)
+
+    def close(self) -> None:
+        r"""\brief Close the detail window."""
+        self.setVisible(False)
+        self.setActive(False)
+
+    def refreshForEquip(self, slotKey: str, candidateEquipID: Optional[str], showUnequip: bool = False) -> None:
+        r"""\brief Refresh stat changes and description for a selected equipment candidate.
+
+        - \param slotKey Equipment slot identifier.
+        - \param candidateEquipID Candidate equipment ID, or None for no candidate.
+        - \param showUnequip Whether the candidate is the unequip command.
+        """
+        self._slotKey = slotKey
+        currentEquipID = self._player.getEquipInfo(slotKey)
+        currentAttrs = self._getAttrPlus(currentEquipID)
+        candidateAttrs = {} if showUnequip else self._getAttrPlus(candidateEquipID)
+        self._refreshChangeRows(currentAttrs, candidateAttrs)
+        self._setDescriptionPosition(_EQUIP_STATUS_DESC_NAME_Y, _EQUIP_STATUS_DESC_TEXT_Y)
+        self._refreshDescription(candidateEquipID, showUnequip)
+
+    def refreshForSlot(self, slotKey: str) -> None:
+        r"""\brief Refresh description for the current equipped item in a slot.
+
+        - \param slotKey Equipment slot identifier.
+        """
+        self._slotKey = slotKey
+        self._clearChangeTexts()
+        self._setDescriptionPosition(_EQUIP_STATUS_SLOT_DESC_NAME_Y, _EQUIP_STATUS_SLOT_DESC_TEXT_Y)
+        currentEquipID = self._player.getEquipInfo(slotKey)
+        self._refreshDescription(currentEquipID or None, False)
+
+    def _refreshChangeRows(self, currentAttrs: Dict[str, int], candidateAttrs: Dict[str, int]) -> None:
+        self._clearChangeTexts()
+        rowIndex = 0
+        for attrKey in self._getAttrKeys(candidateAttrs, currentAttrs):
+            delta = candidateAttrs.get(attrKey, 0) - currentAttrs.get(attrKey, 0)
+            if delta == 0:
+                continue
+            self._addChangeRow(attrKey, delta, rowIndex)
+            rowIndex += 1
+            if rowIndex >= _EQUIP_STATUS_MAX_ROWS:
+                break
+
+    def _addChangeRow(self, attrKey: str, delta: int, rowIndex: int) -> None:
+        y = float(rowIndex * _EQUIP_STATUS_ROW_HEIGHT)
+        labelText = PlainText(UI.DefaultFont, LOC(attrKey), _EQUIP_STATUS_FONT_SIZE)
+        labelText.setPosition(Vector2f(0.0, y))
+        deltaText = PlainText(
+            UI.DefaultFont,
+            f"+{delta}" if delta > 0 else str(delta),
+            _EQUIP_STATUS_FONT_SIZE,
+            fillColor=Color.Green if delta > 0 else Color.Red,
+        )
+        self._setRightAligned(deltaText, y)
+        self.content.addChild(labelText)
+        self.content.addChild(deltaText)
+        self._changeTexts.extend([labelText, deltaText])
+
+    def _refreshDescription(self, candidateEquipID: Optional[str], showUnequip: bool) -> None:
+        descMaxWidth = max(1, int(self.content.getSize().x))
+        if showUnequip:
+            self._descNameText.setString(LOC("EQUIP_UNEQUIP"))
+            self._descText.setString(_wrapDesc(LOC("EQUIP_UNEQUIP_DESC"), descMaxWidth))
+            return
+        if candidateEquipID is None:
+            self._descNameText.setString("")
+            self._descText.setString("")
+            return
+        equipInfo = Data.getGeneralEquipData(candidateEquipID)
+        self._descNameText.setString(equipInfo.get("name", "").format(**LOC_D()))
+        rawDesc = equipInfo.get("desc", "").format(**LOC_D())
+        self._descText.setString(_wrapDesc(rawDesc, descMaxWidth))
+
+    def _clearChangeTexts(self) -> None:
+        for text in self._changeTexts:
+            if text.getParent() is self.content:
+                self.content.removeChild(text)
+        self._changeTexts = []
+
+    def _setDescriptionPosition(self, nameY: int, descY: int) -> None:
+        self._descNameText.setPosition(Vector2f(0.0, float(nameY)))
+        self._descText.setPosition(Vector2f(0.0, float(descY)))
+
+    def _getAttrPlus(self, equipID: Optional[str]) -> Dict[str, int]:
+        if not equipID:
+            return {}
+        attrPlus = Data.getGeneralEquipData(equipID).get("attrPlus", {})
+        if not isinstance(attrPlus, dict):
+            return {}
+        result: Dict[str, int] = {}
+        for attrKey, attrValue in attrPlus.items():
+            try:
+                result[str(attrKey)] = int(attrValue)
+            except (TypeError, ValueError):
+                continue
+        return result
+
+    def _getAttrKeys(self, firstAttrs: Dict[str, int], secondAttrs: Dict[str, int]) -> List[str]:
+        result: List[str] = []
+        for attrs in [firstAttrs, secondAttrs]:
+            for attrKey in attrs.keys():
+                if attrKey not in result:
+                    result.append(attrKey)
+        return result
+
+    def _setRightAligned(self, text: PlainText, y: float) -> None:
+        bounds = text.getLocalBounds()
+        contentWidth = float(self.content.getSize().x)
+        text.setPosition(Vector2f(contentWidth - bounds.size.x - bounds.position.x, y))
+
+
 class WindowEquipSlot(WindowSelectable):
     r"""\brief Equipped-slot list window ordered by class slot keys.
 
@@ -188,6 +352,7 @@ class WindowEquipSlot(WindowSelectable):
         rect: Union[IntRect, Tuple[Pair[int], Pair[int]]],
         player,
         windowEquipSelect: Optional["WindowEquipSelect"] = None,
+        windowEquipStatus: Optional[WindowEquipStatus] = None,
         onClose: Optional[Callable[[], None]] = None,
     ) -> None:
         r"""\brief Construct the equipped-slot window.
@@ -195,12 +360,14 @@ class WindowEquipSlot(WindowSelectable):
         - \param rect The window rectangle.
         - \param player The player instance.
         - \param windowEquipSelect The available-equip window to refresh on slot change.
+        - \param windowEquipStatus The detail window to refresh on slot change.
         - \param onClose Optional callback invoked when the window is closed.
         """
         super().__init__(rect, None, None, _SLOT_ROW_HEIGHT)
         self._onCloseCallback = onClose
         self._player = player
         self._windowEquipSelect = windowEquipSelect
+        self._windowEquipStatus = windowEquipStatus
         self._slotKeys: List[str] = []
         self._lastSlotIndex: Optional[int] = None
         self._refreshSlots()
@@ -213,6 +380,13 @@ class WindowEquipSlot(WindowSelectable):
         - \param windowEquipSelect The available-equip window.
         """
         self._windowEquipSelect = windowEquipSelect
+
+    def setEquipStatusWindow(self, windowEquipStatus: WindowEquipStatus) -> None:
+        r"""\brief Set the equipment detail window reference.
+
+        - \param windowEquipStatus The equipment detail window.
+        """
+        self._windowEquipStatus = windowEquipStatus
 
     def _getSlotCellData(self, slotKey: str) -> Tuple[Optional[Texture], str]:
         equipID = self._player.getEquipInfo(slotKey)
@@ -266,7 +440,11 @@ class WindowEquipSlot(WindowSelectable):
 
     def _notifySlotChanged(self) -> None:
         slotKey = self._getCurrentSlotKey()
-        if slotKey is not None and self._windowEquipSelect is not None and self._windowEquipSelect.getVisible():
+        if slotKey is None:
+            return
+        if self._windowEquipStatus is not None and self._windowEquipStatus.getVisible():
+            self._windowEquipStatus.refreshForSlot(slotKey)
+        if self._windowEquipSelect is not None and self._windowEquipSelect.getVisible():
             self._windowEquipSelect.refreshForSlot(slotKey)
 
     def onTick(self, deltaTime: float) -> None:
@@ -286,9 +464,13 @@ class WindowEquipSlot(WindowSelectable):
         slotKey = self._getCurrentSlotKey()
         if slotKey is not None:
             self._windowEquipSelect.refreshForSlot(slotKey)
+        if self._windowEquipStatus is not None and slotKey is not None:
+            self._windowEquipStatus.setVisible(True)
+            self._windowEquipStatus.refreshForSlot(slotKey)
         self.setActive(False)
         self._windowEquipSelect.setVisible(True)
         self._windowEquipSelect.setActive(True)
+        self._windowEquipSelect.updateStatus()
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
         r"""\brief Handle cancel, confirm, and focus-switch keys.
@@ -317,11 +499,27 @@ class WindowEquipSlot(WindowSelectable):
         self._refreshSlots()
         self.setVisible(True)
         self.setActive(True)
+        if self._windowEquipStatus is not None:
+            slotKey = self._getCurrentSlotKey()
+            if slotKey is not None:
+                self._windowEquipStatus.openForSlot(slotKey)
+            else:
+                self._windowEquipStatus.close()
+        if self._windowEquipSelect is not None:
+            slotKey = self._getCurrentSlotKey()
+            if slotKey is not None:
+                self._windowEquipSelect.refreshForSlot(slotKey)
+                self._windowEquipSelect.setVisible(True)
+                self._windowEquipSelect.setActive(False)
+            else:
+                self._windowEquipSelect.close()
 
     def close(self) -> None:
         r"""\brief Close the slot window."""
         self.setVisible(False)
         self.setActive(False)
+        if self._windowEquipStatus is not None:
+            self._windowEquipStatus.close()
 
     def _closeByCancel(self) -> None:
         Manager.playSE(GameSystem.getCancelSE())
@@ -335,7 +533,7 @@ class WindowEquipSlot(WindowSelectable):
 class WindowEquipSelect(WindowSelectable):
     r"""\brief Available-equip window with grid display filtered by slot.
 
-    Shows owned equips matching the selected slot with icons, counts, name and description.
+    Shows owned equips matching the selected slot with icons and counts.
     """
 
     def __init__(
@@ -343,6 +541,7 @@ class WindowEquipSelect(WindowSelectable):
         rect: Union[IntRect, Tuple[Pair[int], Pair[int]]],
         player,
         windowEquipSlot: Optional[WindowEquipSlot] = None,
+        windowEquipStatus: Optional[WindowEquipStatus] = None,
         onEquip: Optional[Callable[[], None]] = None,
     ) -> None:
         r"""\brief Construct the available-equip window.
@@ -350,20 +549,18 @@ class WindowEquipSelect(WindowSelectable):
         - \param rect The window rectangle.
         - \param player The player instance.
         - \param windowEquipSlot The equipped-slot window for focus switching and refresh.
+        - \param windowEquipStatus The detail window for stat changes and description.
         - \param onEquip Optional callback invoked after equipping an item.
         """
         super().__init__(rect, None, 32, 32)
         self._player = player
         self._windowEquipSlot = windowEquipSlot
+        self._windowEquipStatus = windowEquipStatus
         self._onEquipCallback = onEquip
         self._slotKey: str = ""
         self._equipList: List[Optional[str]] = []
         self._equipCounts: Dict[str, int] = {}
-        self._lastDescIndex: Optional[int] = None
-        self._descNameText = PlainText(UI.DefaultFont, "", 18, Text.Style.Bold)
-        self._descText = PlainText(UI.DefaultFont, "", 14)
-        self.addChild(self._descNameText)
-        self.addChild(self._descText)
+        self._lastStatusIndex: Optional[int] = None
         self.setActive(False)
         self.setVisible(False)
 
@@ -373,6 +570,13 @@ class WindowEquipSelect(WindowSelectable):
         - \param windowEquipSlot The equipped-slot window.
         """
         self._windowEquipSlot = windowEquipSlot
+
+    def setEquipStatusWindow(self, windowEquipStatus: WindowEquipStatus) -> None:
+        r"""\brief Set the equipment detail window reference.
+
+        - \param windowEquipStatus The equipment detail window.
+        """
+        self._windowEquipStatus = windowEquipStatus
 
     def _resizeCanvas(self, target: Canvas, width: int, height: int) -> None:
         target._size = Vector2u(width, height)
@@ -386,16 +590,14 @@ class WindowEquipSelect(WindowSelectable):
         - \param slotKey The equipment slot identifier to filter by.
         """
         self._slotKey = slotKey
-        descHeight = 64
         contentWidth = self._inRect.size.x - 32
-        self._descMaxWidth = contentWidth
-        contentHeight = self._inRect.size.y - 32 - descHeight
+        contentHeight = self._inRect.size.y - 32
         self._resizeCanvas(self.content, contentWidth, contentHeight)
         listView = ListView(
             IntRect(Vector2i(0, 0), Vector2i(contentWidth, contentHeight)),
-            32,
+            _EQUIP_CELL_SIZE,
             True,
-            6,
+            self._getGridColumns(contentWidth),
         )
         equipData = Data.getAllGeneralEquipData()
         playerEquips = self._player._equips if hasattr(self._player, "_equips") else {}
@@ -422,10 +624,9 @@ class WindowEquipSelect(WindowSelectable):
             listView.addChild(cell)
         self.setListView(listView)
         self.index = 0 if len(listView.getChildren()) > 0 else None
-        self._lastDescIndex = None
-        self._descNameText.setPosition(Vector2f(16, float(contentHeight + 24)))
-        self._descText.setPosition(Vector2f(16, float(contentHeight + 48)))
-        self._updateDescription()
+        self._lastStatusIndex = None
+        if self.getActive():
+            self.updateStatus()
 
     def onTick(self, deltaTime: float) -> None:
         r"""\brief Update equip window and refresh description on index change.
@@ -433,24 +634,23 @@ class WindowEquipSelect(WindowSelectable):
         - \param deltaTime Elapsed time in seconds.
         """
         super().onTick(deltaTime)
-        if self._lastDescIndex != self.index:
-            self._lastDescIndex = self.index
-            self._updateDescription()
+        if self._lastStatusIndex != self.index:
+            self._lastStatusIndex = self.index
+            if self.getActive():
+                self.updateStatus()
 
-    def _updateDescription(self) -> None:
+    def updateStatus(self) -> None:
+        r"""\brief Refresh the detail window from the current selected equipment."""
+        if self._windowEquipStatus is None:
+            return
         if self.index is None or self.index >= len(self._equipList):
-            self._descNameText.setString("")
-            self._descText.setString("")
+            self._windowEquipStatus.refreshForEquip(self._slotKey, None)
             return
         entry = self._equipList[self.index]
-        if entry is None:
-            self._descNameText.setString(LOC("EQUIP_UNEQUIP"))
-            self._descText.setString(_wrapDesc(LOC("EQUIP_UNEQUIP_DESC"), self._descMaxWidth))
-            return
-        equipInfo = Data.getGeneralEquipData(entry)
-        self._descNameText.setString(equipInfo.get("name", "").format(**LOC_D()))
-        raw_desc = equipInfo.get("desc", "").format(**LOC_D())
-        self._descText.setString(_wrapDesc(raw_desc, self._descMaxWidth))
+        self._windowEquipStatus.refreshForEquip(self._slotKey, entry, entry is None)
+
+    def _getGridColumns(self, contentWidth: int) -> int:
+        return max(1, int((contentWidth - _EQUIP_CELL_SIZE) / _EQUIP_CELL_SIZE))
 
     def _focusSlotWindow(self) -> None:
         if self._windowEquipSlot is None:
@@ -458,11 +658,14 @@ class WindowEquipSelect(WindowSelectable):
         self._closeByCancel()
 
     def _closeByCancel(self) -> None:
-        r"""\brief Close this window and return focus to the slot list."""
+        r"""\brief Return focus to the slot list while keeping this window visible."""
         Manager.playSE(GameSystem.getCancelSE())
-        self.close()
+        self.setActive(False)
+        self.setVisible(True)
         if self._windowEquipSlot is not None:
             self._windowEquipSlot.setActive(True)
+        if self._windowEquipStatus is not None and self._slotKey:
+            self._windowEquipStatus.refreshForSlot(self._slotKey)
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
         r"""\brief Handle cancel, confirm, and focus-switch keys.
@@ -490,7 +693,7 @@ class WindowEquipSelect(WindowSelectable):
 
     def open(self) -> None:
         r"""\brief Open the available-equip window without taking focus."""
-        self.setVisible(False)
+        self.setVisible(True)
         self.setActive(False)
 
     def close(self) -> None:

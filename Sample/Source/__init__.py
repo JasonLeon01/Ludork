@@ -14,7 +14,7 @@ for the Ludork sample project.
 - EnemyDamageText Enemy child actor that displays handbook battle damage
 - Item           Item entity
 - Teleporter     Mota floor teleporter actor
-- Door           Door actor with one-shot open animation that self-destructs
+- Door           Door actor with open/close sprite animations
 - Scenes         Scene definitions
 """
 

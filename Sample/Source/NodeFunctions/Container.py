@@ -3,6 +3,12 @@
 from typing import Any, Dict, List
 
 
+@Meta(DisplayName='LOC("CREATE_DICT")', DisplayDesc='LOC("CREATE_DICT_DESC")')
+@ReturnType(value=Dict[str, Any])
+def CreateDict() -> Dict[str, Any]:
+    return {}
+
+
 @Meta(DisplayName='LOC("DICT_GET")', DisplayDesc='LOC("DICT_GET_DESC")')
 @ReturnType(value=object)
 def DictGet(dict_: Dict, key: Any) -> Any:
@@ -31,6 +37,12 @@ def DictClear(dict_: Dict) -> None:
 @ReturnType(value=bool)
 def DictContains(dict_: Dict, key: Any) -> bool:
     return key in dict_
+
+
+@Meta(DisplayName='LOC("CREATE_LIST")', DisplayDesc='LOC("CREATE_LIST_DESC")')
+@ReturnType(value=List[Any])
+def CreateList() -> List[Any]:
+    return []
 
 
 @Meta(DisplayName='LOC("LIST_GET")', DisplayDesc='LOC("LIST_GET_DESC")')

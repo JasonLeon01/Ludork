@@ -118,12 +118,12 @@ class _EnemyBookCell(Canvas, FunctionalBase):
             self._buildSpecials(specialDisplays)
 
         statTexts = [
-            (Vector2f(64.0, 24.0), f"{LOC('STAT_HP')}{ToShortNumber(entry.get('MAXHP', 0))}"),
-            (Vector2f(150.0, 24.0), f"{LOC('STAT_ATK')}{ToShortNumber(entry.get('ATK', 0))}"),
-            (Vector2f(236.0, 24.0), f"{LOC('STAT_DEF')}{ToShortNumber(entry.get('DEF', 0))}"),
-            (Vector2f(64.0, 44.0), f"{LOC('STAT_EXP')}{ToShortNumber(entry.get('EXP', 0))}"),
-            (Vector2f(150.0, 44.0), f"{LOC('STAT_GOLD')}{ToShortNumber(entry.get('GOLD', 0))}"),
-            (Vector2f(236.0, 44.0), f"{LOC('STAT_DMG')}{ToShortNumber(entry.get('damage', '--'))}"),
+            (Vector2f(64.0, 24.0), f"{LOC('HP')}\t{ToShortNumber(entry.get('MAXHP', 0))}"),
+            (Vector2f(150.0, 24.0), f"{LOC('ATK')}\t{ToShortNumber(entry.get('ATK', 0))}"),
+            (Vector2f(236.0, 24.0), f"{LOC('DEF')}\t{ToShortNumber(entry.get('DEF', 0))}"),
+            (Vector2f(64.0, 44.0), f"{LOC('EXP')}\t{ToShortNumber(entry.get('EXP', 0))}"),
+            (Vector2f(150.0, 44.0), f"{LOC('GOLD')}\t{ToShortNumber(entry.get('GOLD', 0))}"),
+            (Vector2f(236.0, 44.0), f"{LOC('DMG')}\t{ToShortNumber(entry.get('damage', '--'))}"),
         ]
         for position, value in statTexts:
             text = FPlainText(UI.DefaultFont, value, _TEXT_SIZE)

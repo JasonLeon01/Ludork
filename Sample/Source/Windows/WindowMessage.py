@@ -337,9 +337,6 @@ class WindowMessage(WindowSelectable):
             self._inDialogue = False
             self.setVisible(False)
 
-    def _shouldAutoFitWidth(self) -> bool:
-        return not self._nameText.getVisible()
-
     def _getMaxWindowWidth(self) -> int:
         gameWidth = int(GlobalSystem.getGameSize().x)
         return max(1, gameWidth - self._SCREEN_EDGE_MARGIN)
@@ -415,14 +412,12 @@ class WindowMessage(WindowSelectable):
             nameHeight = self._getTextLineHeight(nameBounds)
 
         displayMessage = self._message
-        maxContentWidth: Optional[int] = None
-        if self._shouldAutoFitWidth():
-            maxContentWidth = max(32, self._getMaxWindowWidth() - self._WINDOW_PADDING * 2)
+        maxContentWidth = max(32, self._getMaxWindowWidth() - self._WINDOW_PADDING * 2)
 
         self._text.setString(displayMessage)
         textBounds = self._text.getLocalBounds()
         textWidth = self._getBoundsWidth(textBounds)
-        if maxContentWidth is not None and textWidth > maxContentWidth:
+        if textWidth > maxContentWidth:
             displayMessage = self._wrapMessage(displayMessage, float(maxContentWidth))
             self._text.setString(displayMessage)
             textBounds = self._text.getLocalBounds()
@@ -430,14 +425,12 @@ class WindowMessage(WindowSelectable):
 
         textHeight = self._getBoundsHeight(textBounds)
         contentWidth = max(textWidth, nameWidth, WindowBase._PAUSE_MARK_SIZE)
-        if maxContentWidth is not None:
-            contentWidth = min(contentWidth, maxContentWidth)
+        contentWidth = min(contentWidth, maxContentWidth)
         contentHeight = textHeight + WindowBase._PAUSE_MARK_SIZE
         if hasName:
             contentHeight += nameHeight + self._NAME_MESSAGE_GAP
         totalWidth = contentWidth + self._WINDOW_PADDING * 2
-        if maxContentWidth is not None:
-            totalWidth = min(totalWidth, self._getMaxWindowWidth())
+        totalWidth = min(totalWidth, self._getMaxWindowWidth())
         totalHeight = contentHeight + self._WINDOW_PADDING * 2
         self._resizeCanvas(self, totalWidth, totalHeight)
         self._resizeWindow(totalWidth, totalHeight)
@@ -485,15 +478,13 @@ class WindowMessage(WindowSelectable):
             nameWidth,
             maxOptionTextWidth + self._SELECTION_LIST_HORIZONTAL_INSET,
         )
-        if self._shouldAutoFitWidth():
-            maxContentWidth = max(32, self._getMaxWindowWidth() - self._WINDOW_PADDING * 2)
-            contentWidth = min(contentWidth, maxContentWidth)
+        maxContentWidth = max(32, self._getMaxWindowWidth() - self._WINDOW_PADDING * 2)
+        contentWidth = min(contentWidth, maxContentWidth)
         contentHeight = optionCount * self._OPTION_ITEM_HEIGHT
         if hasName:
             contentHeight += nameHeight + self._NAME_MESSAGE_GAP
         totalWidth = contentWidth + self._WINDOW_PADDING * 2
-        if self._shouldAutoFitWidth():
-            totalWidth = min(totalWidth, self._getMaxWindowWidth())
+        totalWidth = min(totalWidth, self._getMaxWindowWidth())
         totalHeight = contentHeight + self._WINDOW_PADDING * 2
         self._resizeCanvas(self, totalWidth, totalHeight)
         self._resizeWindow(totalWidth, totalHeight)

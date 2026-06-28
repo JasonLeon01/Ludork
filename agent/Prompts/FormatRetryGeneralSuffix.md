@@ -1,7 +1,1 @@
-Example:
-
-```json
-{"message":"...","type":"fetchfile","terminal":"ShowMessage, TriggerEventBus"}
-```
-
-Use type `"fetchfile"` to search, `"fileprocess"` to run commands, `"patchblueprint"` or `"replacefile"` to modify the blueprint, or `"reply"` only when the task is fully complete.
+Use `search_project` to search, `run_terminal` to run commands, `patch_blueprint` or `replace_blueprint` to modify the blueprint, or respond with plain text only when the task is fully complete.

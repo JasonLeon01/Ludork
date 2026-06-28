@@ -100,7 +100,10 @@ def _scanNodeFunctionsFile(absPath: str, relPath: str) -> List[str]:
         if kind is None:
             continue
         params = _formatParams(node)
-        pinText = ", ".join(pins) if pins else "(none)"
+        if isinstance(pins, list) and pins and isinstance(pins[0], str) and pins[0].startswith(("exec:", "return:")):
+            pinText = "; ".join(pins)
+        else:
+            pinText = ", ".join(pins) if pins else "(none)"
         results.append(
             f"{modulePath}.{node.name} | {kind} | pins: {pinText} | params: {params}"
         )
@@ -114,10 +117,26 @@ def _classifyFunction(node: ast.FunctionDef) -> Tuple[Optional[str], List[str]]:
         if name in nodeDecorators:
             found[name] = decorator
 
-    for kind in _decoratorPriority:
-        if kind not in found:
-            continue
-        return kind, _extractPins(found[kind], kind)
+    execKind: Optional[str] = None
+    execPins: List[str] = []
+    returnPins: List[str] = []
+    for kind in ("ExecSplit", "Latent"):
+        if kind in found:
+            execKind = kind
+            execPins = _extractPins(found[kind], kind)
+            break
+    if "ReturnType" in found:
+        returnPins = _extractPins(found["ReturnType"], "ReturnType")
+
+    if execKind is not None and returnPins:
+        pinParts = [f"exec: {', '.join(execPins)}", f"return: {', '.join(returnPins)}"]
+        return f"{execKind}+ReturnType", pinParts
+    if execKind is not None:
+        return execKind, execPins
+    if returnPins:
+        return "ReturnType", returnPins
+    if "RegisterEvent" in found:
+        return "RegisterEvent", _extractPins(found["RegisterEvent"], "RegisterEvent")
     return None, []
 
 

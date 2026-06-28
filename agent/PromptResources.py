@@ -54,6 +54,10 @@ def LoadAgentResource(relPath: str) -> str:
     return text
 
 
+def LoadAgentTools() -> str:
+    return LoadAgentResource("agent/Tools.json")
+
+
 def BuildSystemPrompt(blueprintName: str, parentClass: str) -> str:
     template = LoadAgentResource("agent/Prompts/SystemPrompt.md")
     parentDisplay = parentClass if parentClass else "(none)"

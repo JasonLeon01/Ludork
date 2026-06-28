@@ -14,6 +14,7 @@ for the Ludork sample engine.
 - WindowItem     Item inventory window
 - WindowEquipSlot   Equipped-slot list window
 - WindowEquipSelect Available-equip window
+- WindowEquipStatus Equipment detail and stat-delta window
 - WindowSaveLoad    Integrated save/load window
 - WindowShop        Integrated buy/sell shop window
 - WindowAttrShop    Attribute upgrade shop window
@@ -33,7 +34,7 @@ from .WindowCommand import WindowCommand
 from .WindowMenu import WindowMenu
 from .WindowMessage import WindowMessage
 from .WindowItem import WindowItem
-from .WindowEquip import WindowEquipSlot, WindowEquipSelect
+from .WindowEquip import WindowEquipSlot, WindowEquipSelect, WindowEquipStatus
 from .WindowSaveLoad import WindowSaveLoad
 from .WindowShop import WindowShop
 from .WindowAttrShop import WindowAttrShop
@@ -53,6 +54,7 @@ __all__ = [
     "WindowItem",
     "WindowEquipSlot",
     "WindowEquipSelect",
+    "WindowEquipStatus",
     "WindowSaveLoad",
     "WindowShop",
     "WindowAttrShop",

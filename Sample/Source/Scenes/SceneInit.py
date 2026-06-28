@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import os
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Tuple
 import Engine
@@ -19,6 +20,9 @@ from .. import Data
 from .SceneTitle import Scene as SceneTitle
 
 
+_MAX_INIT_WORKERS = 4
+
+
 def _splitCompound(fileName: str) -> Tuple[str, str]:
     parts = fileName.split(".", 1)
     if len(parts) == 2:
@@ -26,24 +30,30 @@ def _splitCompound(fileName: str) -> Tuple[str, str]:
     return fileName, ""
 
 
-def _compressAnimationFile(file: str, animationRoot: str, assetsRoot: str) -> None:
-    namePart, extensionPart = _splitCompound(file)
+def _getCompressedAnimationPath(file: str, animationRoot: str) -> str:
+    namePart, _ = _splitCompound(file)
+    return os.path.join(animationRoot, f"{namePart}.anim.dat")
+
+
+def _needsAnimationCompression(file: str, animationRoot: str) -> bool:
     sourcePath = os.path.join(animationRoot, file)
-    compressedPath = os.path.join(animationRoot, f"{namePart}.anim.dat")
-    needCompress = True
-    if os.path.exists(compressedPath):
-        if os.path.getmtime(compressedPath) >= os.path.getmtime(sourcePath):
-            needCompress = False
-    if needCompress:
-        logging.info("Compressing animation: %s", file)
-        if extensionPart == ".json":
-            payload = File.getJSONData(sourcePath)
-        else:
-            payload = File.loadData(sourcePath)
-        compressed = compressAnimation(payload, assetsRoot=assetsRoot)
-        File.saveData(compressedPath, compressed)
+    compressedPath = _getCompressedAnimationPath(file, animationRoot)
+    if not os.path.exists(compressedPath):
+        return True
+    return os.path.getmtime(compressedPath) < os.path.getmtime(sourcePath)
+
+
+def _compressAnimationFile(file: str, animationRoot: str, assetsRoot: str) -> None:
+    _, extensionPart = _splitCompound(file)
+    sourcePath = os.path.join(animationRoot, file)
+    compressedPath = _getCompressedAnimationPath(file, animationRoot)
+    logging.info("Compressing animation: %s", file)
+    if extensionPart == ".json":
+        payload = File.getJSONData(sourcePath)
     else:
-        logging.info("Animation up to date: %s", file)
+        payload = File.loadData(sourcePath)
+    compressed = compressAnimation(payload, assetsRoot=assetsRoot)
+    File.saveData(compressedPath, compressed)
 
 
 class ProgressBar(SpriteBase, FunctionalBase):
@@ -122,9 +132,7 @@ class Scene(SceneBase):
         if self.progressTotal > 0:
             with self._progressLock:
                 target = 1.0 if self.progressDone else self.progressValue
-            maxStep = max(1.0 / self.progressTotal, deltaTime * 1.5)
-            if self._displayProgress < target:
-                self._displayProgress = min(target, self._displayProgress + maxStep)
+            self._displayProgress = target
             self.ProgressBar.setProgress(self._displayProgress)
         else:
             self.ProgressBar.setProgress(1.0 if self.progressDone else 0.0)
@@ -182,10 +190,15 @@ class Scene(SceneBase):
         if not os.path.exists(animationRoot):
             raise FileNotFoundError(f"Error: Animation data path {animationRoot} does not exist.")
         assetsRoot = os.path.join(".", "Assets", "Animations")
-        fileList = self._listAnimationSourceFiles(animationRoot)
+        sourceFiles = self._listAnimationSourceFiles(animationRoot)
+        if not sourceFiles:
+            return
+        fileList = [file for file in sourceFiles if _needsAnimationCompression(file, animationRoot)]
+        for _ in range(len(sourceFiles) - len(fileList)):
+            self._advanceProgress()
         if not fileList:
             return
-        maxWorkers = min(len(fileList), os.cpu_count() or 4)
+        maxWorkers = min(len(fileList), os.cpu_count() or _MAX_INIT_WORKERS, _MAX_INIT_WORKERS)
         with ThreadPoolExecutor(max_workers=maxWorkers) as executor:
             futures = [
                 executor.submit(_compressAnimationFile, file, animationRoot, assetsRoot) for file in fileList
@@ -197,21 +210,29 @@ class Scene(SceneBase):
     def loadGameData(self) -> None:
         r"""\brief Load all game data in sequence and update the progress bar."""
         onProgress = self._advanceProgress
-        logging.info("Loading animations")
-        Data.loadAnimations(onFileLoaded=onProgress)
-        logging.info("Loading common functions")
-        Data.loadCommonFunctions(onFileLoaded=onProgress)
-        logging.info("Loading tilesets")
-        Data.loadTilesets(onFileLoaded=onProgress)
-        logging.info("Loading autotiles")
-        Data.loadAutoTiles(onFileLoaded=onProgress)
-        logging.info("Loading general data")
-        Data.loadGeneralData(onFileLoaded=onProgress)
+        phases = [
+            ("animations", Data.loadAnimations),
+            ("common functions", Data.loadCommonFunctions),
+            ("tilesets", Data.loadTilesets),
+            ("autotiles", Data.loadAutoTiles),
+            ("general data", Data.loadGeneralData),
+        ]
+        for phaseName, loadFn in phases:
+            startTime = time.perf_counter()
+            logging.info("Loading %s", phaseName)
+            loadFn(onFileLoaded=onProgress)
+            logging.info("Loaded %s in %.3fs", phaseName, time.perf_counter() - startTime)
 
     def prepareAssets(self) -> None:
         r"""\brief Background thread entry point: compress animations then load all data."""
+        startTime = time.perf_counter()
+        compressStartTime = time.perf_counter()
         self.compressAnimations()
+        logging.info("Prepared animation cache files in %.3fs", time.perf_counter() - compressStartTime)
+        loadStartTime = time.perf_counter()
         self.loadGameData()
+        logging.info("Loaded game data in %.3fs", time.perf_counter() - loadStartTime)
         with self._progressLock:
             self.progressValue = 1.0
         self.progressDone = True
+        logging.info("Init asset preparation finished in %.3fs", time.perf_counter() - startTime)

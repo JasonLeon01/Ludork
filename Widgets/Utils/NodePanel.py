@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import inspect
 import copy
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union, Tuple, get_type_hints
 from PyQt5 import QtWidgets, QtCore, QtGui
 from NodeGraphQt import NodeGraph, BaseNode
 from NodeGraphQt.widgets.viewer import NodeViewer
@@ -93,6 +93,13 @@ def IsBoolParamType(paramType: Any) -> bool:
     return paramType is bool or paramType == "bool"
 
 
+def GetFunctionTypeHints(func: Callable) -> Dict[str, Any]:
+    try:
+        return get_type_hints(func)
+    except (AttributeError, NameError, SyntaxError, TypeError, ValueError):
+        return {}
+
+
 def FormatNodeParamInitialValue(paramType: Any, default: Any) -> Any:
     if default is inspect.Parameter.empty:
         if IsBoolParamType(paramType):
@@ -107,9 +114,10 @@ def FormatNodeParamInitialValue(paramType: Any, default: Any) -> Any:
 
 def MakeNodeParamsFromSignature(func: Callable) -> List[Any]:
     sig = inspect.signature(func)
+    typeHints = GetFunctionTypeHints(func)
     params: List[Any] = []
-    for _name, param in sig.parameters.items():
-        paramType = param.annotation
+    for name, param in sig.parameters.items():
+        paramType = typeHints.get(name, param.annotation)
         if paramType == inspect.Parameter.empty:
             paramType = type(None)
         params.append(FormatNodeParamInitialValue(paramType, param.default))
@@ -1031,10 +1039,11 @@ class NodePanel(QtWidgets.QWidget):
         if method and callable(method):
             try:
                 sig = inspect.signature(method)
+                typeHints = GetFunctionTypeHints(method)
                 for pname, pobj in sig.parameters.items():
                     if pname == "self":
                         continue
-                    ann = pobj.annotation
+                    ann = typeHints.get(pname, pobj.annotation)
                     if ann == inspect.Parameter.empty:
                         ann = "Any"
                     paramTypes[pname] = ann
@@ -1684,13 +1693,14 @@ class NodePanel(QtWidgets.QWidget):
         rightInPin = 0
         if linkType == "Params":
             sig2 = inspect.signature(func)
+            typeHints = GetFunctionTypeHints(func)
             param_order = []
             match_idx = None
             for pname, p in sig2.parameters.items():
                 if pname == "self":
                     continue
                 param_order.append(pname)
-                ann = p.annotation
+                ann = typeHints.get(pname, p.annotation)
                 if ann is not inspect._empty and ann == self._pending_conn.get("r_type"):
                     match_idx = len(param_order) - 1
             if match_idx is not None:

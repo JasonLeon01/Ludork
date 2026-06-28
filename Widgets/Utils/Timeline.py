@@ -713,6 +713,8 @@ class TimelineCanvas(QtWidgets.QWidget):
             "startFrame": {"time": time, "position": [0.0, 0.0], "rotation": 0.0, "scale": [1.0, 1.0]},
             "endFrame": {"time": time + duration, "position": [0.0, 0.0], "rotation": 0.0, "scale": [1.0, 1.0]},
         }
+        if not isAudio:
+            newSeg["flipX"] = False
 
         if isAudio:
             newSeg["originalDuration"] = duration

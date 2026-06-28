@@ -591,6 +591,10 @@
     "zh_CN": "缩放",
     "en_GB": "Scale"
   },
+  "flipX": {
+    "zh_CN": "水平翻转",
+    "en_GB": "Flip Horizontal"
+  },
   "asset": {
     "zh_CN": "素材",
     "en_GB": "Asset"
