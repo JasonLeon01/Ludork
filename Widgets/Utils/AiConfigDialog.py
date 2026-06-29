@@ -32,7 +32,7 @@ def _section() -> str:
 
 
 def _config():
-    cfg = EditorStatus.editorConfig
+    cfg = EditorStatus.EDITOR_CONFIG
     if _section() not in cfg:
         cfg[_section()] = {}
     return cfg[_section()]
@@ -67,7 +67,7 @@ def _saveConfig(provider: str, model: str, apiKey: str) -> None:
     sec["apikey"] = apiKey
     cfgPath = os.path.join(File.GetIniPath(), f"{_section()}.ini")
     with open(cfgPath, "w", encoding="utf-8") as f:
-        EditorStatus.editorConfig.write(f)
+        EditorStatus.EDITOR_CONFIG.write(f)
 
 
 class AiConfigDialog(QtWidgets.QDialog):

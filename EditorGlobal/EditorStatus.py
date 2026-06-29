@@ -5,7 +5,7 @@ import configparser
 
 APP_NAME = "Ludork"
 VERSION = "0.1.0"
-editorConfig: configparser.ConfigParser
+EDITOR_CONFIG: configparser.ConfigParser
 SCREEN_LOW_RES = 0
 LANGUAGE = "en_GB"
 PROJ_PATH = ""

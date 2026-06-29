@@ -66,9 +66,8 @@ class UpperSplitter(QtWidgets.QSplitter):
 
     def clampHandlePosition(self, pos: int, index: int) -> int:
         owner = self.parent()
-        clamp = getattr(owner, "_clampUpperSplitterHandlePosition", None)
-        if callable(clamp):
-            return int(clamp(index, pos))
+        if isinstance(owner, LayoutMixin):
+            return int(owner._clampUpperSplitterHandlePosition(index, pos))
         return int(pos)
 
 
@@ -164,6 +163,8 @@ class MainWindow(
         self._engineCommandClient = None
         self._engineCommandPort = None
         self._engineMessagePort = None
+        self._projConfigPath: Optional[str] = None
+        self._projConfig: Dict[str, Any] = {}
         self.setWindowTitle(title)
         wstyle = cast(QtWidgets.QStyle, self.style())
 
@@ -174,6 +175,7 @@ class MainWindow(
         self.editorPanel = EditorPanel()
         self.editorPanel.DATA_CHANGED.connect(self._refreshUndoRedo)
         self.editorScroll = QtWidgets.QScrollArea()
+        self.editorViewport = self.editorScroll
         self.gamePanel = GamePanel()
         self.gamePanel.setFocusPolicy(QtCore.Qt.StrongFocus)
         self._panelHandle = int(self.gamePanel.winId())
@@ -195,6 +197,9 @@ class MainWindow(
         self.upperSplitter = UpperSplitter(QtCore.Qt.Horizontal, self)
         self._savedLeftWidth: Optional[int] = None
         self._savedRightWidth: Optional[int] = None
+        self._prevLeftW = self.DEFAULT_LEFT_PANEL_MIN_WIDTH
+        self._prevRightW = self.DEFAULT_RIGHT_PANEL_MIN_WIDTH
+        self._prevUpperW = 0
         self.lowerArea = QtWidgets.QWidget()
         self.fileExplorer = FileExplorer(EditorStatus.PROJ_PATH)
         self.actorQueuePanel = ActorQueuePanel(dockMode="vertical")
@@ -297,6 +302,10 @@ class MainWindow(
         self._lockedViewportSize: Optional[QSize] = None
         self._gameConfigModified: bool = False
         self._pendingGameConfig: Optional[Dict[str, Any]] = None
+        self._localeEditor: Optional[Any] = None
+        self._blueprintEditors: Dict[str, Any] = {}
+        self._blueprintEditor: Optional[Any] = None
+        self._animationOverview: Optional[Any] = None
         self._closing: bool = False
 
     def _layerTabBar(self) -> QtWidgets.QTabBar:
@@ -344,18 +353,18 @@ class MainWindow(
         if isinstance(gameViewport, AspectRatioContainer):
             gameViewport.setAspectRatio(self.panelAspectRatio)
             gameViewport.setMinimumSize(self.gameSize)
-        editorScroll = getattr(self, "editorScroll", None)
+        editorScroll = self.editorScroll
         if isinstance(editorScroll, QtWidgets.QScrollArea):
             editorScroll.setMinimumSize(self.gameSize)
-        gamePanel = getattr(self, "gamePanel", None)
+        gamePanel = self.gamePanel
         if isinstance(gamePanel, GamePanel):
             gamePanel.setMinimumSize(self.gameSize)
-        centerArea = getattr(self, "centerArea", None)
+        centerArea = self.centerArea
         if isinstance(centerArea, QtWidgets.QWidget):
             centerArea.setMinimumWidth(self.gameSize.width())
-        upperSplitter = getattr(self, "upperSplitter", None)
-        topBar = getattr(self, "topBar", None)
-        lowerArea = getattr(self, "lowerArea", None)
+        upperSplitter = self.upperSplitter
+        topBar = self.topBar
+        lowerArea = self.lowerArea
         if (
             isinstance(upperSplitter, QtWidgets.QSplitter)
             and isinstance(topBar, QtWidgets.QWidget)
@@ -363,10 +372,10 @@ class MainWindow(
         ):
             minLeft = self.DEFAULT_LEFT_PANEL_MIN_WIDTH
             minRight = self.DEFAULT_RIGHT_PANEL_MIN_WIDTH
-            leftArea = getattr(self, "leftArea", None)
+            leftArea = self.leftArea
             if isinstance(leftArea, QtWidgets.QWidget):
                 minLeft = max(minLeft, int(leftArea.minimumWidth()))
-            rightArea = getattr(self, "rightArea", None)
+            rightArea = self.rightArea
             if isinstance(rightArea, QtWidgets.QWidget):
                 minRight = max(minRight, int(rightArea.minimumWidth()))
             lowerMinH = max(self.DEFAULT_LOWER_AREA_MIN_HEIGHT, int(lowerArea.minimumHeight()))
@@ -436,7 +445,7 @@ class MainWindow(
     def setProjPath(self, projPath: str) -> None:
         self._mapFilesRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
         self.refreshGameSize()
-        editorViewport = getattr(self, "editorViewport", None)
+        editorViewport = self.editorViewport
         if isinstance(editorViewport, AspectRatioContainer):
             self.stacked.setCurrentWidget(editorViewport)
         else:

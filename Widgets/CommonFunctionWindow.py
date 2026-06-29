@@ -61,7 +61,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         super().resizeEvent(event)
-        toast = getattr(self, "toast", None)
+        toast = self.toast
         if isinstance(toast, Toast):
             toast._updatePosition()
 
@@ -135,7 +135,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
             self.toast.showMessage(ELOC("FUNC_NAME_EXISTS"))
             return
 
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
 
         self._data[new_name] = self._data.pop(old_name)
 
@@ -164,7 +164,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
                 i += 1
             new_name = f"{new_name}_{i}"
 
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
 
         self._data[new_name] = copy.deepcopy(data)
 
@@ -191,7 +191,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
         if ret != QtWidgets.QMessageBox.Yes:
             return
 
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
 
         if name in self._data:
             del self._data[name]
@@ -209,7 +209,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
             self.toast.showMessage(ELOC("FUNC_NAME_EXISTS"))
             return
 
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
 
         newData = {"parent": None, "nodeGraph": {"common": {"nodes": [], "links": []}}, "startNodes": {}}
         self._data[name] = newData
@@ -225,7 +225,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
             return
         panel = self._panels.get(name)
         if panel is None:
-            graph = GameData.genGraphFromData(self._data.get(name))
+            graph = GameData.GenGraphFromData(self._data.get(name))
             panel = NodePanel(self, graph, self._key, name, self._refreshData)
             panel.MODIFIED.connect(self.MODIFIED.emit)
             self._panels[name] = panel
@@ -239,7 +239,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
         name = item.text()
         self._data = GameData.commonFunctionsData
         old_panel = self._panels.get(name)
-        graph = GameData.genGraphFromData(self._data.get(name))
+        graph = GameData.GenGraphFromData(self._data.get(name))
         panel = NodePanel(self, graph, self._key, name, self._refreshData)
         panel.MODIFIED.connect(self.MODIFIED.emit)
         self._panels[name] = panel
@@ -276,7 +276,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
         self._list.blockSignals(False)
 
     def _onUndo(self) -> None:
-        diffs = GameData.undo()
+        diffs = GameData.Undo()
         self._refreshListFromData()
         self._refreshCurrentPanel()
         File.mainWindow.setWindowTitle(System.GetTitle())
@@ -284,7 +284,7 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
             self.toast.showMessage("Undo:\n" + "\n".join(diffs))
 
     def _onRedo(self) -> None:
-        diffs = GameData.redo()
+        diffs = GameData.Redo()
         self._refreshListFromData()
         self._refreshCurrentPanel()
         File.mainWindow.setWindowTitle(System.GetTitle())

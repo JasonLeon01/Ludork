@@ -110,9 +110,9 @@ class FunctionPickerPopup(QtWidgets.QDialog):
 
     def event(self, e: QtCore.QEvent) -> bool:
         if e.type() == QtCore.QEvent.WindowDeactivate:
-            if getattr(self, "_isMac", False):
+            if self._isMac:
                 return super().event(e)
-            if getattr(self, "_ignoreDeactivate", False):
+            if self._ignoreDeactivate:
                 return True
             self.close()
             return True

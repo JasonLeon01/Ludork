@@ -16,7 +16,7 @@ DEFAULT_MESSAGE_PORT = 3333
 IPC_HOST = "127.0.0.1"
 
 
-def findAvailableLocalPort(startPort: int, host: str = IPC_HOST, excludedPorts: Iterable[int] = ()) -> int:
+def FindAvailableLocalPort(startPort: int, host: str = IPC_HOST, excludedPorts: Iterable[int] = ()) -> int:
     excluded = set(excludedPorts)
     for port in range(int(startPort), 65536):
         if port in excluded:

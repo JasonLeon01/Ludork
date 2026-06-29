@@ -98,7 +98,7 @@ class _AutoTileImageView(QtWidgets.QWidget):
         if e.button() != QtCore.Qt.LeftButton:
             return
         if self._mode == 0:
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             current = bool(getattr(self._data, "passable", True))
             setattr(self._data, "passable", not current)
             self.DATA_CHANGED.emit()
@@ -113,7 +113,7 @@ class _AutoTileImageView(QtWidgets.QWidget):
             edit_mat = copy.deepcopy(mat)
             dlg = DataclassEditDialog(self, edit_mat, ELOC("EDIT_MATERIAL"))
             if dlg.exec_():
-                GameData.recordSnapshot()
+                GameData.RecordSnapshot()
                 setattr(self._data, "material", edit_mat)
                 self.DATA_CHANGED.emit()
                 self.update()
@@ -202,7 +202,7 @@ class AutoTilePanel(QtWidgets.QWidget):
 
     def _onNameChanged(self, text):
         if self._data:
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             self._data.name = text
             self.MODIFIED.emit()
 
@@ -221,7 +221,7 @@ class AutoTilePanel(QtWidgets.QWidget):
             return
         if not self._validateFile(fp):
             return
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         filename = os.path.basename(fp)
         self._data.fileName = filename
         if getattr(self._data, "material", None) is None and self.MaterialClass:

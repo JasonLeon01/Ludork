@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import List, Tuple, Union
+from typing import List, Union
 from .. import (
     TypeAdapter,
     Pair,
@@ -11,7 +11,6 @@ from .. import (
     FloatRect,
     RenderTarget,
     RenderStates,
-    Transform,
 )
 from .Base import ControlBase
 
@@ -139,29 +138,3 @@ class SolidRect(ControlBase):
         self._applyRenderStates(states)
         if self.getVisible():
             target.draw(self._shape, states)
-
-    def getAbsoluteBounds(self) -> FloatRect:
-        r"""\brief Get absolute screen-space bounds after parent transforms.
-
-        - \return Absolute bounds in screen space
-        """
-        from .. import Scale
-
-        transform = self._getScreenRenderTransform()
-        bounds = self.getLocalBounds()
-        realBounds = FloatRect(bounds.position * Scale, bounds.size * Scale)
-        return transform.transformRect(realBounds)
-
-    def _applyRenderStates(self, states: RenderStates) -> None:
-        from .. import Scale
-
-        states.transform *= self.getTransform()
-        states.transform.translate(self.getPosition() * (Scale - 1))
-
-    def _getRenderTransform(self) -> Transform:
-        from .. import Scale
-
-        transform = Transform()
-        transform *= self.getTransform()
-        transform.translate(self.getPosition() * (Scale - 1))
-        return transform

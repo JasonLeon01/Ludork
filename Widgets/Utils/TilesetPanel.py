@@ -197,7 +197,7 @@ class TilesetImageView(QtWidgets.QWidget):
         gy = y // cellSize
         if gx < 0 or gy < 0 or gx >= cols or gy >= rows:
             return
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         idx = gy * cols + gx
         count = cols * rows
         if self._mode == TilesetMode.PASSABLE:
@@ -218,7 +218,7 @@ class TilesetImageView(QtWidgets.QWidget):
                 edit_mat = copy.deepcopy(arr[idx])
                 dlg = DataclassEditDialog(self, edit_mat, ELOC("EDIT_MATERIAL"))
                 if dlg.exec_():
-                    GameData.recordSnapshot()
+                    GameData.RecordSnapshot()
                     arr[idx] = edit_mat
         elif self._mode == TilesetMode.DIR4:
             arrDir4 = getattr(self._data, "dir4", None)
@@ -337,7 +337,7 @@ class TilesetPanel(QtWidgets.QWidget):
 
     def _onNameChanged(self, text):
         if self._data:
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             self._data.name = text
             self.MODIFIED.emit()
 
@@ -351,7 +351,7 @@ class TilesetPanel(QtWidgets.QWidget):
         dlg = FileSelectorDialog(self, root, FileSelectorDialog.imageFilesFilter())
         fp = dlg.execSelect()
         if fp:
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             filename = os.path.basename(fp)
             self._data.fileName = filename
             cellSize = EditorStatus.CELLSIZE

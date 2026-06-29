@@ -12,7 +12,7 @@ from Utils import System
 from .AutoTileRenderer import AutoTileRenderer
 from .TilemapRenderer import TilemapRenderer
 from .DialogUtils import GetIndependentDialogParent, IsWidgetValid
-from .MoveRouteEditor import _RouteMapData, _loadGameLocaleDict, _formatGameString
+from .MoveRouteEditor import _RouteMapData, _LoadGameLocaleDict, _FormatGameString
 
 
 def _normaliseMapKey(mapKey: str) -> str:
@@ -328,14 +328,14 @@ class TransferPosPickDialog(QtWidgets.QDialog):
 
     def _loadMaps(self, preferKey: str) -> None:
         self._mapList.clear()
-        localeDict = _loadGameLocaleDict()
+        localeDict = _LoadGameLocaleDict()
         preferRow = -1
         preferMapKey = _normaliseMapKey(preferKey) if preferKey else ""
         for row, key in enumerate(sorted(GameData.mapData.keys())):
             data = GameData.mapData.get(key)
             if not isinstance(data, dict):
                 continue
-            resolvedName = _formatGameString(str(data.get("mapName") or key), localeDict)
+            resolvedName = _FormatGameString(str(data.get("mapName") or key), localeDict)
             displayName = f"{key} ({resolvedName})" if resolvedName != key else key
             item = QtWidgets.QListWidgetItem(displayName)
             item.setData(QtCore.Qt.UserRole, key)
@@ -365,8 +365,8 @@ class TransferPosPickDialog(QtWidgets.QDialog):
         if not isinstance(data, dict):
             return None
         try:
-            localeDict = _loadGameLocaleDict()
-            resolvedName = _formatGameString(str(data.get("mapName") or key), localeDict)
+            localeDict = _LoadGameLocaleDict()
+            resolvedName = _FormatGameString(str(data.get("mapName") or key), localeDict)
             return _RouteMapData(
                 key=key,
                 name=resolvedName if resolvedName != key else key,

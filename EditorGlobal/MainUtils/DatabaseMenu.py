@@ -25,7 +25,7 @@ from Widgets import (
 from Widgets.Utils import GameConfigDialog, FileSelectorDialog
 from .. import EditorStatus
 
-log = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 from ..Data import GameData
 
 
@@ -65,7 +65,7 @@ class DatabaseMenuMixin:
         if not os.path.exists(xlsxPath):
             QtWidgets.QMessageBox.warning(self, "Hint", ELOC("LOCALE_XLSX_NOT_FOUND"))
             return
-        editor = getattr(self, "_localeEditor", None)
+        editor = self._localeEditor
         if editor is not None and editor._modifiedAt is not None:
             fileMtime = os.path.getmtime(xlsxPath)
             if editor._modifiedAt > fileMtime:
@@ -94,7 +94,7 @@ class DatabaseMenuMixin:
         self.generalDataEditor.activateWindow()
 
     def _onLocaleEditor(self, checked: bool = False) -> None:
-        editor = getattr(self, "_localeEditor", None)
+        editor = self._localeEditor
         if editor is not None:
             editor.raise_()
             editor.activateWindow()
@@ -115,16 +115,12 @@ class DatabaseMenuMixin:
         self._localeEditor = None
 
     def _getBlueprintEditors(self) -> Dict[str, Any]:
-        editors = getattr(self, "_blueprintEditors", None)
-        if not isinstance(editors, dict):
-            editors = {}
-            self._blueprintEditors = editors
-        return editors
+        return self._blueprintEditors
 
     def _onBlueprintEditorDestroyed(self, title: str) -> None:
         editors = self._getBlueprintEditors()
         editors.pop(title, None)
-        if getattr(self, "_blueprintEditor", None) is not None and not editors:
+        if self._blueprintEditor is not None and not editors:
             self._blueprintEditor = None
 
     def _onOpenLocaleFile(self, checked: bool = False) -> None:
@@ -163,7 +159,7 @@ class DatabaseMenuMixin:
         editor.show()
 
     def _onAnimationOverview(self, checked: bool = False) -> None:
-        overview = getattr(self, "_animationOverview", None)
+        overview = self._animationOverview
         if overview is not None:
             overview.refreshFromGameData()
             overview.show()
@@ -246,12 +242,12 @@ class DatabaseMenuMixin:
         self._gameConfigModified = True
         self._refreshInfo()
 
-    def _dataclassToDictDefaults(self, dc_cls) -> Dict[str, Any]:
-        if not dataclasses.is_dataclass(dc_cls):
+    def _dataclassToDictDefaults(self, dcCls) -> Dict[str, Any]:
+        if not dataclasses.is_dataclass(dcCls):
             return {}
 
         data = {}
-        for field in dataclasses.fields(dc_cls):
+        for field in dataclasses.fields(dcCls):
             value = None
             if field.default is not dataclasses.MISSING:
                 value = field.default
@@ -259,7 +255,7 @@ class DatabaseMenuMixin:
                 try:
                     value = field.default_factory()
                 except Exception as e:
-                    log.warning("Failed to create default for %s: %s", field.name, e)
+                    LOG.warning("Failed to create default for %s: %s", field.name, e)
 
             is_dc = dataclasses.is_dataclass(field.type)
             if is_dc:
@@ -356,7 +352,7 @@ class DatabaseMenuMixin:
         }
         if ext.lower() == ".json":
             data["isJson"] = True
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         GameData.blueprintsData[key] = data
         self._refreshInfo()
         QtWidgets.QMessageBox.information(self, ELOC("SUCCESS"), ELOC("HINT_CREATE_BP_SUCCESS"))
@@ -411,7 +407,7 @@ class DatabaseMenuMixin:
         if ext.lower() == ".json":
             data["isJson"] = True
 
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         GameData.animationsData[key] = data
         self._refreshInfo()
         QtWidgets.QMessageBox.information(self, ELOC("SUCCESS"), ELOC("HINT_CREATE_ANIM_SUCCESS"))

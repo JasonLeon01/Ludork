@@ -16,7 +16,7 @@ import threading
 START_PROJ_FILE = None
 
 
-def initConfig():
+def InitConfig():
     from EditorGlobal import EditorStatus
 
     if not System.AlreadyPacked():
@@ -24,34 +24,34 @@ def initConfig():
             [sys.executable, "tools/localeTransfer.py", os.path.join(".", "Locale", "locale.json")], check=True
         )
     Locale.Init(os.path.join(File.GetRootPath(), "Locale"))
-    EditorStatus.editorConfig = configparser.ConfigParser()
+    EditorStatus.EDITOR_CONFIG = configparser.ConfigParser()
     if not os.path.exists(os.path.join(File.GetIniPath(), f"{EditorStatus.APP_NAME}.ini")):
-        EditorStatus.editorConfig[EditorStatus.APP_NAME] = {}
-        EditorStatus.editorConfig[EditorStatus.APP_NAME]["Width"] = "1280"
-        EditorStatus.editorConfig[EditorStatus.APP_NAME]["Height"] = "720"
-        EditorStatus.editorConfig[EditorStatus.APP_NAME]["UpperLeftWidth"] = "320"
-        EditorStatus.editorConfig[EditorStatus.APP_NAME]["UpperRightWidth"] = "320"
+        EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME] = {}
+        EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME]["Width"] = "1280"
+        EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME]["Height"] = "720"
+        EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME]["UpperLeftWidth"] = "320"
+        EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME]["UpperRightWidth"] = "320"
         lang, _ = locale.getdefaultlocale()
-        EditorStatus.editorConfig[EditorStatus.APP_NAME]["Language"] = (
+        EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME]["Language"] = (
             lang if lang in Locale.GetLocaleKeys() else "en_GB"
         )
-        EditorStatus.editorConfig[EditorStatus.APP_NAME]["Theme"] = "dark_amber.xml"
-        EditorStatus.editorConfig[EditorStatus.APP_NAME]["UIFont"] = "HarmonyOS_Sans_SC_Regular.ttf"
-        EditorStatus.editorConfig[EditorStatus.APP_NAME]["UIFontSize"] = "12"
-        EditorStatus.editorConfig[EditorStatus.APP_NAME]["Aiprovider"] = ""
-        EditorStatus.editorConfig[EditorStatus.APP_NAME]["Aimodel"] = ""
-        EditorStatus.editorConfig[EditorStatus.APP_NAME]["Apikey"] = ""
+        EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME]["Theme"] = "dark_amber.xml"
+        EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME]["UIFont"] = "HarmonyOS_Sans_SC_Regular.ttf"
+        EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME]["UIFontSize"] = "12"
+        EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME]["Aiprovider"] = ""
+        EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME]["Aimodel"] = ""
+        EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME]["Apikey"] = ""
         with open(os.path.join(File.GetIniPath(), f"{EditorStatus.APP_NAME}.ini"), "w") as f:
-            EditorStatus.editorConfig.write(f)
+            EditorStatus.EDITOR_CONFIG.write(f)
     else:
-        EditorStatus.editorConfig.read(
+        EditorStatus.EDITOR_CONFIG.read(
             os.path.join(File.GetIniPath(), f"{EditorStatus.APP_NAME}.ini"), encoding="utf-8"
         )
-    EditorStatus.LANGUAGE = EditorStatus.editorConfig[EditorStatus.APP_NAME]["Language"]
+    EditorStatus.LANGUAGE = EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME]["Language"]
 
 
-def _handleUnexpectedException(exc_type, exc_value, exc_tb):
-    traceback.print_exception(exc_type, exc_value, exc_tb, file=sys.stderr)
+def _HandleUnexpectedException(excType, excValue, excTb):
+    traceback.print_exception(excType, excValue, excTb, file=sys.stderr)
     try:
         sys.stderr.flush()
     except Exception:
@@ -59,7 +59,7 @@ def _handleUnexpectedException(exc_type, exc_value, exc_tb):
     QtWidgets.QMessageBox.critical(
         None,
         ELOC("ERROR"),
-        f"{ELOC('UNEXPECTED_ERROR')}\n\n{''.join(traceback.format_exception(exc_type, exc_value, exc_tb))}",
+        f"{ELOC('UNEXPECTED_ERROR')}\n\n{''.join(traceback.format_exception(excType, excValue, excTb))}",
     )
     sys.exit(1)
 
@@ -69,15 +69,15 @@ class App(QApplication):
         try:
             return super().notify(receiver, event)
         except Exception:
-            _handleUnexpectedException(*sys.exc_info())
+            _HandleUnexpectedException(*sys.exc_info())
             return False
 
 
-def _thread_excepthook(args):
-    _handleUnexpectedException(args.exc_type, args.exc_value, args.exc_traceback)
+def _ThreadExcepthook(args):
+    _HandleUnexpectedException(args.excType, args.excValue, args.exc_traceback)
 
 
-def main():
+def Main():
     from EditorGlobal import StartWindow, EditorStatus
 
     if System.AlreadyPacked():
@@ -90,11 +90,11 @@ def main():
     QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
     QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
     app = App(sys.argv)
-    sys.excepthook = _handleUnexpectedException
-    threading.excepthook = _thread_excepthook
-    initConfig()
+    sys.excepthook = _HandleUnexpectedException
+    threading.excepthook = _ThreadExcepthook
+    InitConfig()
     screen = app.primaryScreen()
-    theme_raw = EditorStatus.editorConfig[EditorStatus.APP_NAME].get("Theme", "dark_amber.xml")
+    theme_raw = EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME].get("Theme", "dark_amber.xml")
     t = theme_raw.strip().lower().replace(" ", "_").replace("-", "_")
     if t == "dark":
         theme = "dark_amber.xml"
@@ -104,7 +104,7 @@ def main():
         theme = f"{t}.xml"
     font_size_px = System.getEditorUIFontSize()
     apply_stylesheet(app, theme=theme, extra={"font_size": f"{font_size_px}px"})
-    System.ApplyStyle(app, "main.qss")
+    System.ApplyStyle(app, "Main.qss")
     System.ApplyEditorFont(app)
 
     app.setWindowIcon(QIcon(icon_path))

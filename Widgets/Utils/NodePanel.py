@@ -1380,7 +1380,7 @@ class NodePanel(QtWidgets.QWidget):
             x, y = positions[key]
             nodeInst.set_pos(x, y)
 
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         self._refreshCallable(self.name, self.nodeGraph.asDict())
         self.MODIFIED.emit()
 
@@ -1577,7 +1577,7 @@ class NodePanel(QtWidgets.QWidget):
                     self.nodeGraph.links[self.key].append(link_data)
                     self.nodeGraph.genNodesFromDataNodes()
                     self.nodeGraph.genRelationsFromLinks()
-                    GameData.recordSnapshot()
+                    GameData.RecordSnapshot()
                     self._refreshCallable(self.name, self.nodeGraph.asDict())
                     self.MODIFIED.emit()
 
@@ -1715,7 +1715,7 @@ class NodePanel(QtWidgets.QWidget):
         if link_data not in self.nodeGraph.links[self.key]:
             self.nodeGraph.links[self.key].append(link_data)
         self.nodeGraph.genRelationsFromLinks()
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         self._refreshCallable(self.name, self.nodeGraph.asDict())
         self.MODIFIED.emit()
         self._refreshPanel()
@@ -1786,7 +1786,7 @@ class NodePanel(QtWidgets.QWidget):
                     self.nodeGraph.links[self.key].remove(link_data)
                     self.nodeGraph.genNodesFromDataNodes()
                     self.nodeGraph.genRelationsFromLinks()
-                    GameData.recordSnapshot()
+                    GameData.RecordSnapshot()
                     self._refreshCallable(self.name, self.nodeGraph.asDict())
                     self.MODIFIED.emit()
 
@@ -1817,7 +1817,7 @@ class NodePanel(QtWidgets.QWidget):
 
                 if isinstance(dataNode, EditorDataNode):
                     dataNode.pos = [node.pos().x(), node.pos().y()]
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         self._refreshCallable(self.name, self.nodeGraph.asDict())
         self.MODIFIED.emit()
 
@@ -2148,7 +2148,7 @@ class NodePanel(QtWidgets.QWidget):
         self.nodeGraph.genNodesFromDataNodes()
         self.nodeGraph.genRelationsFromLinks()
 
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         self._refreshCallable(self.name, self.nodeGraph.asDict())
         self.MODIFIED.emit()
 
@@ -2169,14 +2169,14 @@ class NodePanel(QtWidgets.QWidget):
                 return
 
             self.nodeGraph.startNodes[self.key] = idx
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             self._refreshCallable(self.name, self.nodeGraph.asDict())
             self.MODIFIED.emit()
             self._refreshPanel()
 
     def _onCancelStartNode(self):
         self.nodeGraph.startNodes[self.key] = None
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         self._refreshCallable(self.name, self.nodeGraph.asDict())
         self.MODIFIED.emit()
         self._refreshPanel()
@@ -2217,7 +2217,7 @@ class NodePanel(QtWidgets.QWidget):
             )
         self.nodeGraph.genNodesFromDataNodes()
         self.nodeGraph.genRelationsFromLinks()
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         self._refreshCallable(self.name, self.nodeGraph.asDict())
         self.MODIFIED.emit()
         self._refreshPanel()
@@ -2283,7 +2283,7 @@ class NodePanel(QtWidgets.QWidget):
         self.nodeGraph.links[self.key] = links
         self.nodeGraph.genNodesFromDataNodes()
         self.nodeGraph.genRelationsFromLinks()
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         self._refreshCallable(self.name, self.nodeGraph.asDict())
         self.MODIFIED.emit()
         self._refreshPanel()
@@ -2315,7 +2315,7 @@ class NodePanel(QtWidgets.QWidget):
                     node.params[paramIndex] = text
                     changed = True
         if changed:
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             self._refreshCallable(self.name, self.nodeGraph.asDict())
             self.MODIFIED.emit()
         self._applyNodeRely(nodeIndex)

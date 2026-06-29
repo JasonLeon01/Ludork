@@ -53,9 +53,7 @@ class ProjectConfigMixin:
         if modified:
             self._saveProjConfig()
 
-        syncToolActions = getattr(self, "_syncDevelopmentToolActions", None)
-        if callable(syncToolActions):
-            syncToolActions()
+        self._syncDevelopmentToolActions()
 
         last = self._projConfig.get("lastMap", None)
         targetRow = 0 if self.leftList.count() > 0 else -1
@@ -112,7 +110,7 @@ class ProjectConfigMixin:
             print(f"Error saving project config: {e}")
 
     def _onDataFileChanged(self) -> None:
-        GameData.init()
+        GameData.Init()
         self.refreshLeftList()
         self.actorQueuePanel.purgeStale()
 
@@ -159,7 +157,7 @@ class ProjectConfigMixin:
             return
 
     def _checkUnsavedChanges(self) -> bool:
-        if not GameData.checkModified() and not self._gameConfigModified:
+        if not GameData.CheckModified() and not self._gameConfigModified:
             return True
 
         msgBox = QtWidgets.QMessageBox(self)
@@ -218,7 +216,7 @@ class ProjectConfigMixin:
             return False, f"Main.ini({str(e)})"
 
     def _saveAllChanges(self) -> tuple[bool, str]:
-        okData, contentData = GameData.saveAllModified()
+        okData, contentData = GameData.SaveAllModified()
         okIni, iniResult = self._savePendingGameConfig()
         okConfigBase = True
         configBaseResult = ""
@@ -239,7 +237,7 @@ class ProjectConfigMixin:
         return okData and okIni and okConfigBase, details
 
     def _refreshInfo(self):
-        GameData.markReferencesDirty()
+        GameData.MarkReferencesDirty()
         title = System.GetTitle()
         if self._gameConfigModified and not title.endswith(" *"):
             title += " *"

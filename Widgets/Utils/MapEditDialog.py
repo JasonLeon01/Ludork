@@ -235,7 +235,7 @@ class MapEditDialog(QtWidgets.QDialog):
         self.btns.rejected.connect(self.reject)
 
     @staticmethod
-    def _normaliseFileKey(name: str) -> str:
+    def _NormaliseFileKey(name: str) -> str:
         key = name.strip()
         if key.lower().endswith(".dat"):
             return os.path.splitext(key)[0]
@@ -274,9 +274,9 @@ class MapEditDialog(QtWidgets.QDialog):
             self.fileEdit.setText(fname)
 
         existing = GameData.mapData
-        key = self._normaliseFileKey(fname)
+        key = self._NormaliseFileKey(fname)
         if key in existing:
-            current_key = self._normaliseFileKey(self._current_key)
+            current_key = self._NormaliseFileKey(self._current_key)
             is_same = self._allow_current_key and current_key and key == current_key
             if not is_same:
                 QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("MAP_FILE_NAME_EXISTS"))
@@ -285,12 +285,12 @@ class MapEditDialog(QtWidgets.QDialog):
         super().accept()
 
     def getFileName(self) -> str:
-        return self._normaliseFileKey(self.fileEdit.text())
+        return self._NormaliseFileKey(self.fileEdit.text())
 
     def execApply(self) -> bool:
         if self.exec_() != QtWidgets.QDialog.Accepted:
             return False
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
 
         new_key = self.getFileName()
         if self._current_key and self._current_key in GameData.mapData and new_key != self._current_key:

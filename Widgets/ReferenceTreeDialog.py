@@ -147,7 +147,7 @@ class ReferenceTreeDialog(QtWidgets.QDialog):
         QtCore.QTimer.singleShot(0, self._graph.fit_to_selection)
 
     def _getTreeItems(self, direction: str) -> list:
-        tree = GameData.getReferenceTree(self._nodeId, direction, maxDepth=_REFERENCE_GRAPH_MAX_DEPTH)
+        tree = GameData.GetReferenceTree(self._nodeId, direction, maxDepth=_REFERENCE_GRAPH_MAX_DEPTH)
         items = tree.get("items", []) if isinstance(tree, dict) else []
         return items if isinstance(items, list) else []
 
@@ -198,7 +198,7 @@ class ReferenceTreeDialog(QtWidgets.QDialog):
         if cycle:
             content = f"{content} ({ELOC('REFERENCE_CYCLE')})"
         node = self._graph.create_node(_REFERENCE_NODE_TYPE, name=name, pos=[x, y], push_undo=False)
-        refNode = GameData.getReferenceNode(nodeId)
+        refNode = GameData.GetReferenceNode(nodeId)
         nodeType = str(refNode.get("type", "unknown"))
         color = _REFERENCE_NODE_COLORS.get(nodeType, _REFERENCE_NODE_COLORS["unknown"])
         if cycle:
@@ -288,20 +288,20 @@ class ReferenceTreeDialog(QtWidgets.QDialog):
         return f"{self._formatNodeTitle(nodeId)}: {self._formatNodeContent(nodeId)}"
 
     def _formatNodeTitle(self, nodeId: str) -> str:
-        node = GameData.getReferenceNode(nodeId)
+        node = GameData.GetReferenceNode(nodeId)
         nodeType = str(node.get("type", "unknown"))
         typeKey = _REFERENCE_TYPE_KEYS.get(nodeType, "REFERENCE_TYPE_UNKNOWN")
         return ELOC(typeKey)
 
     def _formatNodeContent(self, nodeId: str) -> str:
-        node = GameData.getReferenceNode(nodeId)
+        node = GameData.GetReferenceNode(nodeId)
         return str(node.get("key", nodeId))
 
     def _formatNodeTooltip(self, nodeId: str, record: Optional[Dict[str, Any]]) -> str:
         lines = [self._formatNode(nodeId)]
         if record:
             lines.append(self._formatRecord(record))
-        path = GameData.getReferenceNodePath(nodeId)
+        path = GameData.GetReferenceNodePath(nodeId)
         if path:
             lines.append(path)
         return "\n".join(lines)
@@ -318,6 +318,6 @@ class ReferenceTreeDialog(QtWidgets.QDialog):
         nodeId = self._nodeIdByVisualId.get(node.id)
         if not isinstance(nodeId, str):
             return
-        path = GameData.getReferenceNodePath(nodeId)
+        path = GameData.GetReferenceNodePath(nodeId)
         if path and os.path.exists(path):
             self._owner._openSystemFile(path)

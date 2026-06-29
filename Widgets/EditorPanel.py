@@ -662,7 +662,7 @@ class EditorPanel(QtWidgets.QWidget):
             return
         if key not in GameData.tilesetData:
             return
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         layer = self.mapData.layers.get(self.selectedLayerName)
         if not layer:
             return
@@ -679,7 +679,7 @@ class EditorPanel(QtWidgets.QWidget):
     def addEmptyLayer(self, name: Optional[str] = None, filePath: str = "") -> Optional[str]:
         if self.mapData is None:
             return None
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         Engine: TempEngine = importlib.import_module("Engine")  # type: ignore
         TileLayerData = Engine.TileLayerData
         width = self.mapData.width
@@ -737,7 +737,7 @@ class EditorPanel(QtWidgets.QWidget):
         normalizedPath = str(shaderPath or "").replace("\\", "/").strip("/")
         if self.getLayerShaderPath(name) == normalizedPath:
             return False
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         setattr(self.mapData.layers[name], "shaderPath", normalizedPath)
         if self.mapKey and self.mapKey in GameData.mapData:
             layerData = GameData.mapData[self.mapKey].get("layers", {}).get(name)
@@ -751,7 +751,7 @@ class EditorPanel(QtWidgets.QWidget):
             return False
         if name not in self.mapData.layers:
             return False
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         self.mapData.layers.pop(name, None)
         if self.mapKey and self.mapKey in GameData.mapData:
             GameData.mapData[self.mapKey].get("layers", {}).pop(name, None)
@@ -771,7 +771,7 @@ class EditorPanel(QtWidgets.QWidget):
             return
         if len(new_order) != len(current_order) or set(new_order) != set(current_order):
             return
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         new_layers = {name: self.mapData.layers[name] for name in new_order}
         self.mapData.layers = new_layers
         if self.mapKey and self.mapKey in GameData.mapData:
@@ -808,7 +808,7 @@ class EditorPanel(QtWidgets.QWidget):
             self.update()
             return
 
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         changed = False
         for y in range(min_y, max_y + 1):
             for x in range(min_x, max_x + 1):
@@ -1237,7 +1237,7 @@ class EditorPanel(QtWidgets.QWidget):
         if not self.mapKey or self.mapKey not in GameData.mapData:
             return
 
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         newActor = copy.deepcopy(self._actorClipboard)
         newActor["position"] = [gx, gy]
 
@@ -1271,7 +1271,7 @@ class EditorPanel(QtWidgets.QWidget):
         layerList = actorsDict.get(layerName)
 
         if isinstance(layerList, list) and 0 <= index < len(layerList):
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             layerList.pop(index)
             self._refreshTitle()
             self.DATA_CHANGED.emit()
@@ -1299,7 +1299,7 @@ class EditorPanel(QtWidgets.QWidget):
             return
         if not (0 <= index < len(lights)):
             return
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         lights.pop(index)
         self._refreshTitle()
         self.DATA_CHANGED.emit()
@@ -1323,7 +1323,7 @@ class EditorPanel(QtWidgets.QWidget):
                     cr = self._getLightCenterRadius(lights[idx])
                     if cr is not None:
                         cx, cy, r = cr
-                        GameData.recordSnapshot()
+                        GameData.RecordSnapshot()
                         self._lightRadiusDragging = True
                         self._lightRadiusDragMapKey = self.mapKey
                         self._lightRadiusDragIndex = idx
@@ -1339,7 +1339,7 @@ class EditorPanel(QtWidgets.QWidget):
                     cr = self._getLightCenterRadius(lights[idx])
                     if cr is not None:
                         cx, cy, _ = cr
-                        GameData.recordSnapshot()
+                        GameData.RecordSnapshot()
                         self._lightMoveDragging = True
                         self._lightMoveDragMapKey = self.mapKey
                         self._lightMoveDragIndex = idx
@@ -1356,7 +1356,7 @@ class EditorPanel(QtWidgets.QWidget):
                     cr = self._getLightCenterRadius(lights[hit])
                     if cr is not None:
                         cx, cy, _ = cr
-                        GameData.recordSnapshot()
+                        GameData.RecordSnapshot()
                         self._lightMoveDragging = True
                         self._lightMoveDragMapKey = self.mapKey
                         self._lightMoveDragIndex = hit
@@ -1405,7 +1405,7 @@ class EditorPanel(QtWidgets.QWidget):
                         if 0 <= hit < len(actors):
                             self.ACTOR_SELECTION_CHANGED.emit(self.selectedLayerName, hit, actors[hit])
 
-                        GameData.recordSnapshot()
+                        GameData.RecordSnapshot()
                         self._actorMoveDragging = True
                         self._actorMoveDragLayerName = self.selectedLayerName
                         self._actorMoveDragIndex = hit
@@ -1436,7 +1436,7 @@ class EditorPanel(QtWidgets.QWidget):
                                     "bp": bpRel,
                                     "position": [gx, gy],
                                 }
-                                GameData.recordSnapshot()
+                                GameData.RecordSnapshot()
                                 layerList.append(actorEntry)
                                 self._refreshTitle()
                                 self.DATA_CHANGED.emit()
@@ -1472,7 +1472,7 @@ class EditorPanel(QtWidgets.QWidget):
             return
 
         if self.selectedTilePattern is not None:
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             if self._writeTilePattern(layer, gx, gy):
                 self._refreshTitle()
                 self._renderFromMapData()
@@ -1483,7 +1483,7 @@ class EditorPanel(QtWidgets.QWidget):
             self.rectStartPos = (gx, gy)
             return
 
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         if self._writeCellSelection(layer, gx, gy):
             self._refreshTitle()
             self._renderFromMapData()
@@ -1645,7 +1645,7 @@ class EditorPanel(QtWidgets.QWidget):
             return False
         if new in self.mapData.layers:
             return False
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         newLayers = {}
         for layerName, layer in self.mapData.layers.items():
             if layerName == old:
@@ -2029,7 +2029,7 @@ class EditorPanel(QtWidgets.QWidget):
         hasBlueprintTagAttr = False
         try:
             if isinstance(bpRel, str) and bpRel.startswith("Data.Blueprints."):
-                found, t = GameData._getBlueprintDefaultAttr(bpRel, "tag", set())
+                found, t = GameData._GetBlueprintDefaultAttr(bpRel, "tag", set())
                 if found:
                     hasBlueprintTagAttr = True
                     if isinstance(t, str) and t.strip():
@@ -2258,7 +2258,7 @@ class EditorPanel(QtWidgets.QWidget):
                         bpRel = None
                     if bpRel:
                         if self.mapKey and self.mapKey in GameData.mapData:
-                            GameData.recordSnapshot()
+                            GameData.RecordSnapshot()
                             m = GameData.mapData[self.mapKey]
                             actorsDict = m.get("actors")
                             if not isinstance(actorsDict, dict):

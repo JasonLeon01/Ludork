@@ -520,7 +520,7 @@ class FileExplorer(QtWidgets.QWidget):
         if selectedPath:
             if not isDir and self._blueprintKeyForPath(selectedPath):
                 actDeriveBlueprint = menu.addAction(ELOC("DERIVE_FROM_THIS_BLUEPRINT"))
-            if not isDir and GameData.getReferenceNodeForPath(selectedPath):
+            if not isDir and GameData.GetReferenceNodeForPath(selectedPath):
                 actReferenceTree = menu.addAction(ELOC("SHOW_REFERENCE_TREE"))
             if not isDir:
                 actDuplicate = menu.addAction(ELOC("DUPLICATE_FILE"))
@@ -699,7 +699,7 @@ class FileExplorer(QtWidgets.QWidget):
                 failedMessages.append(f"{os.path.basename(path)}: {str(e)}")
 
         if deletedPaths:
-            GameData.removeDataPaths(deletedPaths)
+            GameData.RemoveDataPaths(deletedPaths)
             if self._dataPathsChanged(deletedPaths):
                 self.DATA_FILE_CHANGED.emit()
             if not os.path.exists(self._current):
@@ -888,7 +888,7 @@ class FileExplorer(QtWidgets.QWidget):
     def _showReferenceTree(self, p: str) -> None:
         from .ReferenceTreeDialog import ReferenceTreeDialog
 
-        nodeId = GameData.getReferenceNodeForPath(p)
+        nodeId = GameData.GetReferenceNodeForPath(p)
         if not nodeId:
             return
         dlg = ReferenceTreeDialog(self, nodeId, self)

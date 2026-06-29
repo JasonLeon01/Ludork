@@ -842,7 +842,7 @@ class AnimationEditor(QtWidgets.QWidget):
         self._refreshAssets()
 
     def _onTimelineChanged(self):
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         if self.title:
             GameData.animationsData[self.title] = copy.deepcopy(self._data)
         self.preview.update()
@@ -850,14 +850,14 @@ class AnimationEditor(QtWidgets.QWidget):
 
     def _onNameChanged(self, text: str) -> None:
         self._data["name"] = text
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         GameData.animationsData[self.title] = copy.deepcopy(self._data)
         self.MODIFIED.emit()
 
     def _onFpsChanged(self, text: str) -> None:
         if text:
             self._data["frameRate"] = int(text)
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             GameData.animationsData[self.title] = copy.deepcopy(self._data)
             self.timelinePanel.setData(self._data)
             self.MODIFIED.emit()
@@ -884,7 +884,7 @@ class AnimationEditor(QtWidgets.QWidget):
         menu.exec_(self.assetsContainer.mapToGlobal(position))
 
     def _addAssets(self, files: List[str]) -> None:
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         assets = self._data.get("assets")
         if not isinstance(assets, list):
             assets = []
@@ -917,7 +917,7 @@ class AnimationEditor(QtWidgets.QWidget):
             self._addAssets(files)
 
     def _onDeleteAsset(self, assetName: str) -> None:
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         assets = self._data.get("assets")
         if isinstance(assets, list) and assetName in assets:
             index = assets.index(assetName)
@@ -1041,14 +1041,14 @@ class AnimationEditor(QtWidgets.QWidget):
         self._onSelectionChanged(trackIdx, segIdx)
 
     def _onPreviewDataChanged(self) -> None:
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         if self.title:
             GameData.animationsData[self.title] = copy.deepcopy(self._data)
         self.preview.update()
         self.MODIFIED.emit()
 
     def _onInspectorValueChanged(self) -> None:
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         if self.title:
             GameData.animationsData[self.title] = copy.deepcopy(self._data)
 

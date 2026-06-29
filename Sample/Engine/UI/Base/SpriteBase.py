@@ -126,18 +126,6 @@ class SpriteBase(ControlBase):
         self._applyRenderStates(states)
         target.draw(self._sprite, states)
 
-    def getAbsoluteBounds(self) -> FloatRect:
-        r"""\brief Get absolute screen-space bounds after parent transforms.
-
-        - \return  Absolute bounds in screen space
-        """
-        from ... import Scale
-
-        transform = self._getScreenRenderTransform()
-        bounds = self.getLocalBounds()
-        realBounds = FloatRect(bounds.position * Scale, bounds.size * Scale)
-        return transform.transformRect(realBounds)
-
     def _applyRenderStates(self, states: RenderStates) -> None:
         from ... import Scale
 

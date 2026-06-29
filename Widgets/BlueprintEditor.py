@@ -280,7 +280,7 @@ class BluePrintEditor(QtWidgets.QWidget):
     def _updateRevertButtonState(
         self, btn: RevertButton, current_val: Any, parent_val: Any
     ) -> None:
-        equal = GameData._isBlueprintValueEqual(current_val, parent_val)
+        equal = GameData._IsBlueprintValueEqual(current_val, parent_val)
         btn.setEnabled(not equal)
 
     def _onRevertAttr(self, key: str, parent_val: Any, widget: QtWidgets.QWidget) -> None:
@@ -755,7 +755,7 @@ class BluePrintEditor(QtWidgets.QWidget):
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         super().resizeEvent(event)
-        toast = getattr(self, "toast", None)
+        toast = self.toast
         if isinstance(toast, Toast):
             toast._updatePosition()
             toast.raise_()
@@ -852,7 +852,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         self._ensureGraphEvent(text)
         parentCls = self._resolveClass()
 
-        graph = GameData.genGraphFromData(
+        graph = GameData.GenGraphFromData(
             self.data["graph"],
             parentCls,
         )
@@ -1399,7 +1399,7 @@ class BluePrintEditor(QtWidgets.QWidget):
                 self.data["attrs"][key] = value
         else:
             self.data[key] = value
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
         self.MODIFIED.emit()
         if not isAttr and key == "parent":
@@ -1411,7 +1411,7 @@ class BluePrintEditor(QtWidgets.QWidget):
     def onDeleteAttr(self, key: str) -> None:
         if "attrs" in self.data and isinstance(self.data["attrs"], dict):
             if key in self.data["attrs"]:
-                GameData.recordSnapshot()
+                GameData.RecordSnapshot()
                 del self.data["attrs"][key]
                 self.refreshAttrs()
                 GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
@@ -1473,7 +1473,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         if dlg.exec_() != QtWidgets.QDialog.Accepted:
             return
 
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         saved = self._stripGeneralDataFromComponent(cls, key, copy.deepcopy(widget.data))
         saved = self._pruneComponentDataToStored(componentType, saved)
         if saved:
@@ -1516,7 +1516,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         if componentType is None:
             return
 
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         attrs[componentName] = self._getComponentDefaults(componentType)
         self.refreshAttrs()
         GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
@@ -1550,7 +1550,7 @@ class BluePrintEditor(QtWidgets.QWidget):
                 QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ATTR_EXISTS"))
                 return
 
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             self.data["attrs"][key] = ""
             self.refreshAttrs()
             GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
@@ -1635,7 +1635,7 @@ class BluePrintEditor(QtWidgets.QWidget):
     def _refreshPreview(self) -> None:
         if not self._supportsPreview():
             return
-        preview = getattr(self, "previewWidget", None)
+        preview = self.previewWidget
         if isinstance(preview, BluePrintPreviewWidget):
             preview.refreshPreview()
 
@@ -1788,7 +1788,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             graph_key = current_widget.name
             self._ensureGraphEvent(graph_key)
             parentCls = self._resolveClass()
-            graph = GameData.genGraphFromData(
+            graph = GameData.GenGraphFromData(
                 self.data["graph"],
                 parentCls,
             )
@@ -1796,7 +1796,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             current_widget._refreshPanel()
 
     def _onUndo(self) -> None:
-        diffs = GameData.undo()
+        diffs = GameData.Undo()
         self._refreshListFromData()
         self._refreshCurrentPanel()
         File.mainWindow.setWindowTitle(System.GetTitle())
@@ -1804,7 +1804,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             self.toast.showMessage("Undo:\n" + "\n".join(diffs))
 
     def _onRedo(self) -> None:
-        diffs = GameData.redo()
+        diffs = GameData.Redo()
         self._refreshListFromData()
         self._refreshCurrentPanel()
         File.mainWindow.setWindowTitle(System.GetTitle())
@@ -1812,7 +1812,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             self.toast.showMessage("Redo:\n" + "\n".join(diffs))
 
     def _refreshData(self, name: str, data: Dict[str, Any]) -> None:
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         if name in GameData.blueprintsData:
             GameData.blueprintsData[name]["graph"] = data
         self.data["graph"] = data
@@ -1880,7 +1880,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         if name in self._getAvailableGraphKeys():
             QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("EVENT_EXISTS"))
             return
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         nodeGraph[name] = {"nodes": [], "links": []}
         startNodes[name] = None
         GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
@@ -1908,7 +1908,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             return
         nodeGraph = graph.get("nodeGraph")
         startNodes = graph.get("startNodes")
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         if isinstance(nodeGraph, dict) and name in nodeGraph:
             del nodeGraph[name]
         if isinstance(startNodes, dict) and name in startNodes:
@@ -1948,7 +1948,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         if new_name in nodeGraph:
             QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("EVENT_EXISTS"))
             return
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         new_nodeGraph = {}
         for k, v in nodeGraph.items():
             if k == old_name:
@@ -1979,7 +1979,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             dlg = AiConfigDialog(self)
             if dlg.exec_() != QtWidgets.QDialog.Accepted:
                 return
-        bpFilePath = GameData._findDataPath("Blueprints", self.title)
+        bpFilePath = GameData._FindDataPath("Blueprints", self.title)
         self._chatDialog = AiChatDialog(self, blueprintName=self.title, blueprintFilePath=bpFilePath)
         self._chatDialog.show()
 

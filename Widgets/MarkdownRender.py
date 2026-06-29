@@ -4,9 +4,13 @@ import builtins
 import html
 import io
 import keyword
+import os
 import re
+import sys
 import token
 import tokenize
+
+_STYLE_CACHE: dict[str, str] = {}
 
 _INLINE_CODE_STYLE = (
     "font-family:Consolas,monospace;"
@@ -24,6 +28,10 @@ _DOCUMENT_BODY_STYLE = (
     "ul{padding-left:20px;}"
     "hr{border:0;border-top:1px solid #555;margin:16px 0;}"
     "p{line-height:1.6;}"
+    "table.md-table{border-collapse:collapse;margin:10px 0;}"
+    "table.md-table th,table.md-table td{border:1px solid #555;padding:6px 8px;}"
+    "table.md-table th{background:#2d2d2d;color:#f0f0f0;font-weight:600;}"
+    "table.md-table td{background:#1f1f1f;color:#dcdcdc;}"
     "a{color:#4aa3ff;text-decoration:none;}"
 )
 
@@ -36,8 +44,38 @@ _COMPACT_BODY_STYLE = (
     "ul{margin:4px 0;padding-left:18px;}"
     "hr{border:0;border-top:1px solid #555;margin:10px 0;}"
     "p{margin:4px 0;line-height:1.5;}"
+    "table.md-table{border-collapse:collapse;margin:6px 0;}"
+    "table.md-table th,table.md-table td{border:1px solid #4a4a4a;padding:4px 6px;}"
+    "table.md-table th{background:#333;color:#f0f0f0;font-weight:600;}"
+    "table.md-table td{background:#252525;color:#e0e0e0;}"
     "a{color:#7ec8ff;text-decoration:none;}"
 )
+
+
+def _isPacked() -> bool:
+    return hasattr(builtins, "__compiled__") or hasattr(builtins, "__nuitka_binary_dir")
+
+
+def _loadStyleSheet(fileName: str, fallback: str) -> str:
+    cached = _STYLE_CACHE.get(fileName)
+    if cached is not None:
+        return cached
+    baseDir = os.path.dirname(sys.executable) if _isPacked() else os.getcwd()
+    paths = [
+        os.path.join(baseDir, "Styles", fileName),
+        os.path.join("Styles", fileName),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "Styles", fileName),
+    ]
+    for path in paths:
+        if os.path.isfile(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    _STYLE_CACHE[fileName] = f.read()
+                    return _STYLE_CACHE[fileName]
+            except OSError:
+                continue
+    _STYLE_CACHE[fileName] = fallback
+    return fallback
 
 
 def MarkdownToHtml(
@@ -55,7 +93,10 @@ def MarkdownToHtml(
     - \param compact - Use tighter spacing suitable for inline chat bubbles.
     - \return HTML document string.
     """
-    bodyStyle = _COMPACT_BODY_STYLE if compact else _DOCUMENT_BODY_STYLE
+    if compact:
+        bodyStyle = _loadStyleSheet("markdownCompact.qss", _COMPACT_BODY_STYLE)
+    else:
+        bodyStyle = _loadStyleSheet("markdownDocument.qss", _DOCUMENT_BODY_STYLE)
     body = _renderMarkdownBody(
         text,
         collapsedHeadings=collapsedHeadings or set(),
@@ -85,10 +126,13 @@ def _renderMarkdownBody(
             out.append("</ul>")
             inList = False
 
-    for ln in lines:
+    lineIndex = 0
+    while lineIndex < len(lines):
+        ln = lines[lineIndex]
         if ln.strip().startswith("```"):
             if hiddenLevels:
                 inCode = not inCode
+                lineIndex += 1
                 continue
             if not inCode:
                 flushList()
@@ -100,11 +144,14 @@ def _renderMarkdownBody(
                 codeLang = ""
                 codeLines = []
                 inCode = False
+            lineIndex += 1
             continue
         if inCode:
             if hiddenLevels:
+                lineIndex += 1
                 continue
             codeLines.append(ln)
+            lineIndex += 1
             continue
         headingMatch = re.match(r"^ {0,3}(#{1,6})\s+(.*)$", ln)
         if headingMatch:
@@ -113,6 +160,7 @@ def _renderMarkdownBody(
             headingId = f"h{headingIndex}"
             headingIndex += 1
             if hiddenLevels:
+                lineIndex += 1
                 continue
             flushList()
             content = _inlineMarkup(headingMatch.group(2))
@@ -130,12 +178,26 @@ def _renderMarkdownBody(
                 )
             else:
                 out.append(f"<h{level}>{content}</h{level}>")
+            lineIndex += 1
             continue
         if hiddenLevels:
+            lineIndex += 1
+            continue
+        if lineIndex + 1 < len(lines) and _isTableStart(ln, lines[lineIndex + 1]):
+            flushList()
+            headerLine = ln
+            separatorLine = lines[lineIndex + 1]
+            rowLines: list[str] = []
+            lineIndex += 2
+            while lineIndex < len(lines) and _isTableDataLine(lines[lineIndex]):
+                rowLines.append(lines[lineIndex])
+                lineIndex += 1
+            out.append(_tableHtml(headerLine, separatorLine, rowLines))
             continue
         if _isThematicBreak(ln):
             flushList()
             out.append("<hr>")
+            lineIndex += 1
             continue
         listMatch = re.match(r"^\s*[-*]\s+(.*)$", ln)
         if listMatch:
@@ -144,13 +206,16 @@ def _renderMarkdownBody(
                 inList = True
             content = _inlineMarkup(listMatch.group(1))
             out.append(f"<li>{content}</li>")
+            lineIndex += 1
             continue
         if not ln.strip():
             flushList()
             out.append("")
+            lineIndex += 1
             continue
         flushList()
         out.append(f"<p>{_inlineMarkup(ln)}</p>")
+        lineIndex += 1
     if inCode:
         out.append(_codeBlockHtml(codeLang, "\n".join(codeLines)))
     flushList()
@@ -160,6 +225,74 @@ def _renderMarkdownBody(
 def _isThematicBreak(line: str) -> bool:
     compact = re.sub(r"[ \t]", "", line.strip())
     return len(compact) >= 3 and compact[0] in "-_*" and set(compact) == {compact[0]}
+
+
+def _isTableStart(headerLine: str, separatorLine: str) -> bool:
+    headerCells = _splitTableRow(headerLine)
+    separatorCells = _splitTableRow(separatorLine)
+    return (
+        len(headerCells) >= 2
+        and len(headerCells) == len(separatorCells)
+        and all(_isTableSeparatorCell(cell) for cell in separatorCells)
+    )
+
+
+def _isTableDataLine(line: str) -> bool:
+    return "|" in line and bool(line.strip())
+
+
+def _splitTableRow(line: str) -> list[str]:
+    if "|" not in line:
+        return []
+    stripped = line.strip()
+    if stripped.startswith("|"):
+        stripped = stripped[1:]
+    if stripped.endswith("|"):
+        stripped = stripped[:-1]
+    return [cell.strip() for cell in stripped.split("|")]
+
+
+def _isTableSeparatorCell(cell: str) -> bool:
+    return re.match(r"^:?-{3,}:?$", cell.strip()) is not None
+
+
+def _tableHtml(headerLine: str, separatorLine: str, rowLines: list[str]) -> str:
+    headerCells = _splitTableRow(headerLine)
+    alignments = [_tableCellAlignment(cell) for cell in _splitTableRow(separatorLine)]
+    rows = [_normaliseTableRow(_splitTableRow(row), len(headerCells)) for row in rowLines]
+    htmlLines = ['<table class="md-table">', "<thead><tr>"]
+    for index, cell in enumerate(headerCells):
+        htmlLines.append(f'<th style="{_tableCellStyle(alignments[index])}">{_inlineMarkup(cell)}</th>')
+    htmlLines.append("</tr></thead>")
+    if rows:
+        htmlLines.append("<tbody>")
+        for row in rows:
+            htmlLines.append("<tr>")
+            for index, cell in enumerate(row):
+                htmlLines.append(f'<td style="{_tableCellStyle(alignments[index])}">{_inlineMarkup(cell)}</td>')
+            htmlLines.append("</tr>")
+        htmlLines.append("</tbody>")
+    htmlLines.append("</table>")
+    return "".join(htmlLines)
+
+
+def _tableCellAlignment(separatorCell: str) -> str:
+    stripped = separatorCell.strip()
+    if stripped.startswith(":") and stripped.endswith(":"):
+        return "center"
+    if stripped.endswith(":"):
+        return "right"
+    return "left"
+
+
+def _normaliseTableRow(cells: list[str], columnCount: int) -> list[str]:
+    if len(cells) < columnCount:
+        return cells + [""] * (columnCount - len(cells))
+    return cells[:columnCount]
+
+
+def _tableCellStyle(alignment: str) -> str:
+    return f"text-align:{alignment};"
 
 
 def _codeBlockHtml(lang: str, code: str) -> str:

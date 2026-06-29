@@ -474,7 +474,7 @@ class TypedValueEditor(QtWidgets.QWidget):
         result = []
         if isinstance(self._editor, QtWidgets.QWidget):
             result.append(self._editor)
-        for keyEdit, _valueEditor in getattr(self, "_dictRows", []):
+        for keyEdit, _valueEditor in self._dictRows:
             result.append(keyEdit)
         for child in self._childEditors:
             result.extend(child._editableWidgets())

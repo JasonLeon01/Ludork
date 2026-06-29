@@ -222,14 +222,14 @@ class LayoutMixin:
 
         if index == 1:
             rightW = self._lockedUpperSideWidth(
-                getattr(self, "_prevRightW", sizes[2]), minRightW, totalW, minLeftW, minCenterW
+                self._prevRightW, minRightW, totalW, minLeftW, minCenterW
             )
             minPos = minLeftW
             maxPos = max(minPos, totalW - rightW - minCenterW)
             return min(max(int(pos), minPos), maxPos)
 
         leftW = self._lockedUpperSideWidth(
-            getattr(self, "_prevLeftW", sizes[0]), minLeftW, totalW, minCenterW, minRightW
+            self._prevLeftW, minLeftW, totalW, minCenterW, minRightW
         )
         handleW = int(self.upperSplitter.handleWidth())
         minPos = leftW + handleW + minCenterW
@@ -251,9 +251,9 @@ class LayoutMixin:
         minLeftW = self.DEFAULT_LEFT_PANEL_MIN_WIDTH
         minCenterW = self.gameSize.width()
         minRightW = self.DEFAULT_RIGHT_PANEL_MIN_WIDTH
-        leftArea = getattr(self, "leftArea", None)
-        centerArea = getattr(self, "centerArea", None)
-        rightArea = getattr(self, "rightArea", None)
+        leftArea = self.leftArea
+        centerArea = self.centerArea
+        rightArea = self.rightArea
         if isinstance(leftArea, QtWidgets.QWidget):
             minLeftW = max(minLeftW, int(leftArea.minimumWidth()))
         if isinstance(centerArea, QtWidgets.QWidget):

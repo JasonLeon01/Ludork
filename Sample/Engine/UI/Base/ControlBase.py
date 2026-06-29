@@ -3,7 +3,7 @@
 from __future__ import annotations
 import logging
 from typing import Optional, List, Union, TYPE_CHECKING
-from ... import TypeAdapter, Pair, Drawable, Transformable, Vector2f, Angle, degrees, Transform, FloatRect
+from ... import TypeAdapter, Pair, Drawable, Transformable, Vector2f, Angle, degrees, Transform, FloatRect, RenderStates
 
 if TYPE_CHECKING:
     from Engine.UI import Canvas, ListView
@@ -204,8 +204,19 @@ class ControlBase(Drawable, Transformable):
             return self._parent._getScreenTransform() * transform
         return transform
 
+    def _applyRenderStates(self, states: RenderStates) -> None:
+        from ... import Scale
+
+        states.transform *= self.getTransform()
+        states.transform.translate(self.getPosition() * (Scale - 1))
+
     def _getRenderTransform(self) -> Transform:
-        return self.getTransform()
+        from ... import Scale
+
+        transform = Transform()
+        transform *= self.getTransform()
+        transform.translate(self.getPosition() * (Scale - 1))
+        return transform
 
     def _getScreenRenderTransform(self) -> Transform:
         transform = self._getRenderTransform()

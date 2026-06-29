@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import ast
+import json
 import os
 import re
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from agent.NodeIndex import (
     _classifyFunction,
@@ -13,37 +14,69 @@ from agent.NodeIndex import (
 
 _allowedRoots = ("Data", "Engine", "Global", "Source")
 _playerTagPattern = re.compile(r"""["']([A-Z][A-Z0-9_-]*)["']\s*\)\s*$""")
-_modificationHints = (
-    "改",
-    "修改",
-    "替换",
-    "添加",
-    "插入",
-    "删除",
-    "去掉",
-    "调整",
-    "换成",
-    "改为",
-    "设为",
-    "修复",
-    "replace",
-    "modify",
-    "change",
-    "add ",
-    "insert",
-    "remove",
-    "update",
-)
+
+_LIGHTWEIGHT_MODELS: Dict[str, str] = {
+    "DeepSeek": "deepseek-v4-flash",
+    "OpenAI": "gpt-4o-mini",
+    "Google": "gemini-2.0-flash",
+    "Anthropic": "claude-haiku-3-5-202510",
+}
 
 
-def DetectModificationIntent(userInput: str) -> bool:
-    text = userInput.strip().lower()
-    if not text:
-        return False
-    for hint in _modificationHints:
-        if hint in text:
-            return True
-    return False
+def ClassifyIntent(
+    userInput: str,
+    provider: str,
+    model: str,
+    apiKey: str,
+    baseUrl: str,
+) -> str:
+    if not userInput.strip():
+        return "general_query"
+
+    lightweight = _LIGHTWEIGHT_MODELS.get(provider, model)
+    classifyPrompt = (
+        "Classify the user message. Reply with exactly one label.\n\n"
+        "modify = user wants to edit, change, create, delete, or rebuild "
+        "blueprint nodes, links, params, attrs, or event graphs.\n"
+        "blueprint_query = user is asking about blueprints, node functions, "
+        "decorators, event graphs, or how to accomplish something with "
+        "blueprints without making immediate changes.\n"
+        "general_query = user is asking about anything else (project "
+        "structure, general coding, SFML, game design, editor usage, or "
+        "unrelated chat).\n\n"
+        f"User message: {userInput}\n\n"
+        "Label:"
+    )
+
+    postData = json.dumps({
+        "model": lightweight,
+        "temperature": 0.0,
+        "messages": [
+            {"role": "system", "content": "Reply with exactly one word: modify, blueprint_query, or general_query."},
+            {"role": "user", "content": classifyPrompt},
+        ],
+        "max_tokens": 10,
+    })
+
+    try:
+        import urllib.request
+
+        data = postData.encode("utf-8")
+        url = baseUrl.rstrip("/") + "/chat/completions"
+        req = urllib.request.Request(url, data=data)
+        req.add_header("Content-Type", "application/json")
+        req.add_header("Authorization", f"Bearer {apiKey}")
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            result: Any = json.loads(resp.read().decode("utf-8"))
+        content = str(
+            result.get("choices", [{}])[0].get("message", {}).get("content", "")
+        ).strip().lower()
+        for label in ("modify", "blueprint_query", "general_query"):
+            if label in content:
+                return label
+        return "blueprint_query"
+    except Exception:
+        return "blueprint_query"
 
 
 def BuildProjectTagHints(projectPath: str) -> str:

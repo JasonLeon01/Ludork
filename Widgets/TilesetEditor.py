@@ -131,7 +131,7 @@ class _TilesetTab(QtWidgets.QWidget):
             Tileset = Engine.Tileset
             new_ts = Tileset(name=text, fileName="", passable=[], materials=[], dir4=[])
 
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             GameData.tilesetData[text] = new_ts
             item = QtWidgets.QListWidgetItem(text)
             self.listWidget.addItem(item)
@@ -159,7 +159,7 @@ class _TilesetTab(QtWidgets.QWidget):
 
         new_ts = copy.deepcopy(self._tilesetClipboard)
 
-        base_name = getattr(self, "_tilesetClipboardName", "Tileset")
+        base_name = self._tilesetClipboardName or "Tileset"
 
         new_name = base_name + " (copy)"
         if new_name in GameData.tilesetData:
@@ -176,7 +176,7 @@ class _TilesetTab(QtWidgets.QWidget):
             new_ts.name = new_name
 
         try:
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             GameData.tilesetData[new_name] = new_ts
 
             item = QtWidgets.QListWidgetItem(new_name)
@@ -250,7 +250,7 @@ class _TilesetTab(QtWidgets.QWidget):
                 return
 
         try:
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             data = GameData.tilesetData.pop(old_name)
             tilesetType = _getGameplayType("Tileset")
             if isinstance(tilesetType, type) and isinstance(data, tilesetType):
@@ -281,7 +281,7 @@ class _TilesetTab(QtWidgets.QWidget):
         if ret != QtWidgets.QMessageBox.Yes:
             return
         try:
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             if key in GameData.tilesetData:
                 GameData.tilesetData.pop(key, None)
             self.listWidget.takeItem(row)
@@ -428,7 +428,7 @@ class _AutoTileTab(QtWidgets.QWidget):
             Material = Engine.Material
             new_at = AutoTile(name=text, fileName="", passable=True, material=Material())
 
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             GameData.autoTileData[text] = new_at
             item = QtWidgets.QListWidgetItem(text)
             self.listWidget.addItem(item)
@@ -470,7 +470,7 @@ class _AutoTileTab(QtWidgets.QWidget):
             new_at.name = new_name
 
         try:
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             GameData.autoTileData[new_name] = new_at
             item = QtWidgets.QListWidgetItem(new_name)
             self.listWidget.addItem(item)
@@ -518,7 +518,7 @@ class _AutoTileTab(QtWidgets.QWidget):
             break
 
         try:
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             data = GameData.autoTileData.pop(old_name)
             autoTileType = _getGameplayType("AutoTile")
             if isinstance(autoTileType, type) and isinstance(data, autoTileType):
@@ -548,7 +548,7 @@ class _AutoTileTab(QtWidgets.QWidget):
         if ret != QtWidgets.QMessageBox.Yes:
             return
         try:
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             if key in GameData.autoTileData:
                 GameData.autoTileData.pop(key, None)
             self.listWidget.takeItem(row)
@@ -600,7 +600,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         super().resizeEvent(event)
-        toast = getattr(self, "toast", None)
+        toast = self.toast
         if isinstance(toast, Toast):
             toast._updatePosition()
 
@@ -639,7 +639,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
         self._actRedo.setEnabled(bool(GameData.redoStack))
 
     def _onUndo(self) -> None:
-        diffs = GameData.undo()
+        diffs = GameData.Undo()
         self._tilesetTab.reloadListPreserveSelection()
         self._autoTileTab.reloadListPreserveSelection()
         File.mainWindow.tileSelect.initTilesets()
@@ -649,7 +649,7 @@ class TilesetEditor(QtWidgets.QMainWindow):
             self.toast.showMessage("Undo:\n" + "\n".join(diffs))
 
     def _onRedo(self) -> None:
-        diffs = GameData.redo()
+        diffs = GameData.Redo()
         self._tilesetTab.reloadListPreserveSelection()
         self._autoTileTab.reloadListPreserveSelection()
         File.mainWindow.tileSelect.initTilesets()

@@ -35,7 +35,7 @@ def GetTitle() -> str:
                 if isinstance(title, str) and title.strip():
                     titles.append(title.strip())
                     result = " - ".join(titles)
-                    if GameData.checkModified():
+                    if GameData.CheckModified():
                         result += " *"
     except Exception as e:
         print(f"Error while getting title: {e}")
@@ -101,9 +101,9 @@ def getEditorUIFontSize() -> int:
     - \return Editor UI font pixel size from ini, or 12 when unset or invalid.
     """
     try:
-        if not EditorStatus.editorConfig or EditorStatus.APP_NAME not in EditorStatus.editorConfig:
+        if not EditorStatus.EDITOR_CONFIG or EditorStatus.APP_NAME not in EditorStatus.EDITOR_CONFIG:
             return 12
-        raw = EditorStatus.editorConfig[EditorStatus.APP_NAME].get("UIFontSize", "12").strip()
+        raw = EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME].get("UIFontSize", "12").strip()
         return max(8, int(raw))
     except (TypeError, ValueError):
         return 12
@@ -116,9 +116,9 @@ def ApplyEditorFont(app: QtWidgets.QApplication) -> None:
     - \param app - QApplication instance.
     """
     try:
-        if not EditorStatus.editorConfig or EditorStatus.APP_NAME not in EditorStatus.editorConfig:
+        if not EditorStatus.EDITOR_CONFIG or EditorStatus.APP_NAME not in EditorStatus.EDITOR_CONFIG:
             return
-        sec = EditorStatus.editorConfig[EditorStatus.APP_NAME]
+        sec = EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME]
         font_spec = str(sec.get("UIFont", "HarmonyOS_Sans_SC_Regular.ttf")).strip()
         if not font_spec:
             return
@@ -148,10 +148,10 @@ def _initModuleLocale(module: ModuleType) -> None:
     localeModule = getattr(module, "Locale", None)
     if not isinstance(localeModule, ModuleType):
         return
-    init = getattr(localeModule, "init", None)
-    if not callable(init):
+    Init = getattr(localeModule, "init", None)
+    if not callable(Init):
         return
-    init(os.path.join(EditorStatus.PROJ_PATH, "Data", "Locale"))
+    Init(os.path.join(EditorStatus.PROJ_PATH, "Data", "Locale"))
     localeModule.LANGUAGE = EditorStatus.LANGUAGE
 
 

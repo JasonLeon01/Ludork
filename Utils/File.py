@@ -85,8 +85,8 @@ def _homeDir() -> str:
 
 def _getLastPathOrHome() -> str:
     sec = (
-        EditorStatus.editorConfig[EditorStatus.APP_NAME]
-        if EditorStatus.editorConfig and EditorStatus.APP_NAME in EditorStatus.editorConfig
+        EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME]
+        if EditorStatus.EDITOR_CONFIG and EditorStatus.APP_NAME in EditorStatus.EDITOR_CONFIG
         else None
     )
     p = sec.get("LastOpenPath") if sec else None
@@ -100,13 +100,13 @@ def _configPath() -> str:
 
 
 def _setLastOpenPath(path: str) -> None:
-    if not EditorStatus.editorConfig:
+    if not EditorStatus.EDITOR_CONFIG:
         return
-    if EditorStatus.APP_NAME not in EditorStatus.editorConfig:
-        EditorStatus.editorConfig[EditorStatus.APP_NAME] = {}
-    EditorStatus.editorConfig[EditorStatus.APP_NAME]["LastOpenPath"] = os.path.abspath(path)
+    if EditorStatus.APP_NAME not in EditorStatus.EDITOR_CONFIG:
+        EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME] = {}
+    EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME]["LastOpenPath"] = os.path.abspath(path)
     with open(_configPath(), "w", encoding="utf-8") as f:
-        EditorStatus.editorConfig.write(f)
+        EditorStatus.EDITOR_CONFIG.write(f)
 
 
 def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
@@ -122,7 +122,7 @@ def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
         print(f"Add {EditorStatus.PROJ_PATH} to sys.path")
     System.EnsureProjectModulesFresh()
     try:
-        GameData.init()
+        GameData.Init()
     except Exception as e:
         QtWidgets.QMessageBox.critical(
             None, "Error", ELOC("OPEN_FAILED") + "\n" + str(e) + "\n" + traceback.format_exc()
@@ -130,8 +130,8 @@ def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
         sys.exit(1)
     mainWindow = MainWindow(System.GetTitle())
     try:
-        cfg_w = int(EditorStatus.editorConfig[EditorStatus.APP_NAME].get("Width", mainWindow.width()))
-        cfg_h = int(EditorStatus.editorConfig[EditorStatus.APP_NAME].get("Height", mainWindow.height()))
+        cfg_w = int(EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME].get("Width", mainWindow.width()))
+        cfg_h = int(EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME].get("Height", mainWindow.height()))
     except (ValueError, TypeError, KeyError):
         cfg_w, cfg_h = mainWindow.width(), mainWindow.height()
     min_size = mainWindow.minimumSize()

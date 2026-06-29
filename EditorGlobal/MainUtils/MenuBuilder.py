@@ -99,7 +99,7 @@ class MenuBuilderMixin:
         self._languageActionGroup.triggered.connect(self._onLanguageChanged)
 
     def _syncDevelopmentToolActions(self) -> None:
-        if not isinstance(getattr(self, "_projConfig", None), dict):
+        if not isinstance(self._projConfig, dict):
             return
         checked = bool(self._projConfig.get("IndividualWindow", False))
         locked = sys.platform == "darwin"
@@ -114,7 +114,7 @@ class MenuBuilderMixin:
         if sys.platform == "darwin":
             self._syncDevelopmentToolActions()
             return
-        if not isinstance(getattr(self, "_projConfig", None), dict):
+        if not isinstance(self._projConfig, dict):
             return
         self._projConfig["IndividualWindow"] = bool(checked)
         self._saveProjConfig()
@@ -140,13 +140,13 @@ class MenuBuilderMixin:
         self._actRedo.setEnabled(bool(GameData.redoStack))
 
     def _onUndo(self, checked: bool = False) -> None:
-        diffs = GameData.undo()
+        diffs = GameData.Undo()
         self._refreshCurrentView()
         if diffs:
             self.toast.showMessage("Undo:\n" + "\n".join(diffs))
 
     def _onRedo(self, checked: bool = False) -> None:
-        diffs = GameData.redo()
+        diffs = GameData.Redo()
         self._refreshCurrentView()
         if diffs:
             self.toast.showMessage("Redo:\n" + "\n".join(diffs))

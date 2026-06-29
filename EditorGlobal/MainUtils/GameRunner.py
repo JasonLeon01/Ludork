@@ -11,7 +11,7 @@ from PyQt5 import QtCore, QtWidgets
 from Utils import Panel, System
 from Widgets.AspectRatioContainer import AspectRatioContainer
 from Widgets.Utils import PerformanceMonitorWindow
-from .LocalIpc import DEFAULT_COMMAND_PORT, DEFAULT_MESSAGE_PORT, LocalCommandClient, findAvailableLocalPort
+from .LocalIpc import DEFAULT_COMMAND_PORT, DEFAULT_MESSAGE_PORT, LocalCommandClient, FindAvailableLocalPort
 from .. import EditorStatus
 
 
@@ -39,8 +39,8 @@ class GameRunnerMixin:
             iniFile.read(iniPath, encoding="utf-8")
             if "Main" in iniFile:
                 scriptPath = iniFile["Main"].get("script", scriptPath).strip() or scriptPath
-        commandPort = findAvailableLocalPort(DEFAULT_COMMAND_PORT)
-        messagePort = findAvailableLocalPort(DEFAULT_MESSAGE_PORT, excludedPorts=(commandPort,))
+        commandPort = FindAvailableLocalPort(DEFAULT_COMMAND_PORT)
+        messagePort = FindAvailableLocalPort(DEFAULT_MESSAGE_PORT, excludedPorts=(commandPort,))
         self._engineCommandPort = commandPort
         self._engineMessagePort = messagePort
         self.consoleWidget.startMessageServer(messagePort)
@@ -89,7 +89,7 @@ class GameRunnerMixin:
         if self._engineMonitorTimer is not None:
             self._engineMonitorTimer.stop()
         proc = self._engineProc
-        commandClient = getattr(self, "_engineCommandClient", None)
+        commandClient = self._engineCommandClient
         self._setPerformanceMonitorStreaming(False)
         if proc and proc.poll() is None:
             try:
@@ -215,7 +215,7 @@ class GameRunnerMixin:
 
     def _setPerformanceMonitorStreaming(self, enabled: bool) -> None:
         proc = self._engineProc
-        commandClient = getattr(self, "_engineCommandClient", None)
+        commandClient = self._engineCommandClient
         if proc is None or proc.poll() is not None or not isinstance(commandClient, LocalCommandClient):
             return
         try:
@@ -224,10 +224,10 @@ class GameRunnerMixin:
             print(f"Error while setting performance monitor state: {e}")
 
     def _lockGameViewportSize(self) -> None:
-        gameViewport = getattr(self, "gameViewport", None)
-        upperSplitter = getattr(self, "upperSplitter", None)
-        centerArea = getattr(self, "centerArea", None)
-        topBar = getattr(self, "topBar", None)
+        gameViewport = self.gameViewport
+        upperSplitter = self.upperSplitter
+        centerArea = self.centerArea
+        topBar = self.topBar
         if not (
             isinstance(gameViewport, AspectRatioContainer)
             and isinstance(upperSplitter, QtWidgets.QSplitter)
@@ -248,9 +248,9 @@ class GameRunnerMixin:
         self._gameLockActive = True
 
     def _unlockGameViewportSize(self) -> None:
-        gameViewport = getattr(self, "gameViewport", None)
-        upperSplitter = getattr(self, "upperSplitter", None)
-        centerArea = getattr(self, "centerArea", None)
+        gameViewport = self.gameViewport
+        upperSplitter = self.upperSplitter
+        centerArea = self.centerArea
         if not (
             isinstance(gameViewport, AspectRatioContainer)
             and isinstance(upperSplitter, QtWidgets.QSplitter)

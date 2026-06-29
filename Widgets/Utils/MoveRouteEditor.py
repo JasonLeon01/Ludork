@@ -329,12 +329,12 @@ class MoveRouteEditDialog(QtWidgets.QDialog):
 
     def _loadMaps(self) -> None:
         self._mapList.clear()
-        localeDict = _loadGameLocaleDict()
+        localeDict = _LoadGameLocaleDict()
         for key in sorted(GameData.mapData.keys()):
             data = GameData.mapData.get(key)
             if not isinstance(data, dict):
                 continue
-            resolvedName = _formatGameString(str(data.get("mapName") or key), localeDict)
+            resolvedName = _FormatGameString(str(data.get("mapName") or key), localeDict)
             displayName = f"{key} ({resolvedName})" if resolvedName != key else key
             item = QtWidgets.QListWidgetItem(displayName)
             item.setData(QtCore.Qt.UserRole, key)
@@ -358,8 +358,8 @@ class MoveRouteEditDialog(QtWidgets.QDialog):
         if not isinstance(data, dict):
             return None
         try:
-            localeDict = _loadGameLocaleDict()
-            resolvedName = _formatGameString(str(data.get("mapName") or key), localeDict)
+            localeDict = _LoadGameLocaleDict()
+            resolvedName = _FormatGameString(str(data.get("mapName") or key), localeDict)
             return _RouteMapData(
                 key=key,
                 name=resolvedName if resolvedName != key else key,
@@ -418,7 +418,7 @@ class MoveRouteEditor(QtWidgets.QWidget):
         self._summary.setText(_formatRouteList(self._value))
 
 
-def _loadGameLocaleDict() -> dict:
+def _LoadGameLocaleDict() -> dict:
     try:
         localeDir = os.path.join(EditorStatus.PROJ_PATH, "Data", "Locale")
         lang = getattr(EditorStatus, "LANGUAGE", "en_GB")
@@ -432,7 +432,7 @@ def _loadGameLocaleDict() -> dict:
     return {}
 
 
-def _formatGameString(s: str, localeDict: dict) -> str:
+def _FormatGameString(s: str, localeDict: dict) -> str:
     try:
         return str(s).format(**localeDict)
     except Exception:

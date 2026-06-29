@@ -146,6 +146,8 @@ class Door(Actor):
         self._resolveFrameLayout()
         currentIndex = self._getCurrentFrameIndex()
         if currentIndex <= 0:
+            currentIndex = self._resolveClosingFrameIndex()
+        if currentIndex <= 0:
             condition = _DoorAnimationCondition(self, "_closeFinished")
             condition._finished = True
             return condition
@@ -232,6 +234,22 @@ class Door(Actor):
         if rect is None:
             return 0
         return max(0, (rect.position.x - self._startX) // self._frameWidth)
+
+    def _resolveClosingFrameIndex(self) -> int:
+        if self._frameWidth <= 0:
+            return 0
+        rect = self.getTextureRect()
+        if rect is None:
+            return 0
+        texture = self.getTexture()
+        if texture is not None and rect.position.x + self._frameWidth < texture.getSize().x:
+            return 0
+        stripStartX = rect.position.x % self._frameWidth
+        if stripStartX == self._startX:
+            return 0
+        self._startX = stripStartX
+        self._startY = rect.position.y
+        return self._getCurrentFrameIndex()
 
     def _finishOpening(self) -> None:
         self._openFinished = True

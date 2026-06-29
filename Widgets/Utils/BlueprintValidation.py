@@ -149,7 +149,7 @@ def _validateGraphBuild(
     errors: List[str],
 ) -> Any:
     try:
-        return GameData.genGraphFromData(graph, parentClass)
+        return GameData.GenGraphFromData(graph, parentClass)
     except Exception as e:
         errors.append(f"Failed to build blueprint graph: {e}")
         return None

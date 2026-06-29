@@ -37,19 +37,19 @@ class ConfigDictPanel(QtWidgets.QWidget):
             if not isinstance(val, dict):
                 continue
             t = str(val.get("type", "")).strip()
-            base_t, arr_len = self._parse_type(t)
+            base_t, arr_len = self._parseType(t)
             label = QtWidgets.QLabel(ELOC(key))
             if arr_len is None and base_t.endswith("[]"):
                 base_t = base_t[:-2]
             is_array = (arr_len is not None) or t.endswith("[]")
             if is_array:
-                w = self._create_array_widget(key, base_t, arr_len, val)
+                w = self._createArrayWidget(key, base_t, arr_len, val)
                 form.addRow(label, w)
             else:
-                w = self._create_single_widget(key, base_t, val)
+                w = self._createSingleWidget(key, base_t, val)
                 form.addRow(label, w)
 
-    def _parse_type(self, t: str) -> Tuple[str, int | None]:
+    def _parseType(self, t: str) -> Tuple[str, int | None]:
         if "[" in t and "]" in t:
             inner = t[t.index("[") + 1 : t.index("]")]
             base = t[: t.index("[")]
@@ -62,9 +62,9 @@ class ConfigDictPanel(QtWidgets.QWidget):
                 return t, None
         return t, None
 
-    def _create_line_edit(self, vtype: str, initial: Any, read_only: bool = False) -> QtWidgets.QLineEdit:
+    def _createLineEdit(self, vtype: str, initial: Any, readOnly: bool = False) -> QtWidgets.QLineEdit:
         edit = QtWidgets.QLineEdit(self)
-        edit.setReadOnly(read_only)
+        edit.setReadOnly(readOnly)
         if vtype == "int":
             edit.setValidator(QtGui.QIntValidator(edit))
             edit.setText(str(int(initial) if initial is not None and str(initial).strip() != "" else 0))
@@ -75,7 +75,37 @@ class ConfigDictPanel(QtWidgets.QWidget):
             edit.setText(str(initial if initial is not None else ""))
         return edit
 
-    def _create_file_row(
+    def _getFileFilters(self, ext: Any) -> List[str]:
+        filters: List[str] = []
+        if isinstance(ext, str) and ext:
+            filters.append(f"*{ext}")
+        elif isinstance(ext, list):
+            for e in ext:
+                if isinstance(e, str) and e:
+                    filters.append(f"*{e}")
+        return filters
+
+    def _selectFileName(self, val: dict[str, Any]) -> str | None:
+        base = str(val.get("base", "")).strip()
+        rootKey = val.get("root")
+        if rootKey:
+            root = os.path.join(EditorStatus.PROJ_PATH, str(rootKey).strip())
+        else:
+            root = os.path.join(EditorStatus.PROJ_PATH, "Assets")
+        if base:
+            root = os.path.join(root, base)
+        filters = self._getFileFilters(val.get("ext"))
+        filter_str = FileSelectorDialog.filesFilter(filters) if filters else FileSelectorDialog.allFilesFilter(star=True)
+        dlg = FileSelectorDialog(self, root, filter_str)
+        fp = dlg.execSelect()
+        if not fp:
+            return None
+        bn = os.path.basename(fp)
+        if filters and not any(bn.endswith(e.replace("*", "")) for e in filters):
+            return None
+        return bn
+
+    def _createFileRow(
         self,
         key: str,
         val: dict[str, Any],
@@ -87,41 +117,16 @@ class ConfigDictPanel(QtWidgets.QWidget):
         h = QtWidgets.QHBoxLayout(w)
         h.setContentsMargins(0, 0, 0, 0)
         h.setSpacing(6)
-        edit = self._create_line_edit("string", initial or "", read_only=True)
+        edit = self._createLineEdit("string", initial or "", readOnly=True)
         btn = QtWidgets.QPushButton("...")
         h.addWidget(edit, 1)
         h.addWidget(btn, 0)
 
         def on_browse():
-            base = str(val.get("base", "")).strip()
-            ext = val.get("ext")
-            rootKey = val.get("root")
-            if rootKey:
-                root = os.path.join(EditorStatus.PROJ_PATH, str(rootKey).strip())
-            else:
-                root = os.path.join(EditorStatus.PROJ_PATH, "Assets")
-            if base:
-                root = os.path.join(root, base)
-            filters: List[str] = []
-            if isinstance(ext, str) and ext:
-                filters.append(f"*{ext}")
-            elif isinstance(ext, list):
-                for e in ext:
-                    if isinstance(e, str) and e:
-                        filters.append(f"*{e}")
-            filter_str = (
-                FileSelectorDialog.filesFilter(filters) if filters else FileSelectorDialog.allFilesFilter(star=True)
-            )
-            dlg = FileSelectorDialog(self, root, filter_str)
-            fp = dlg.execSelect()
-            if not fp:
+            bn = self._selectFileName(val)
+            if bn is None:
                 return
-            bn = os.path.basename(fp)
-            if filters:
-                ok = any(bn.endswith(e.replace("*", "")) for e in filters)
-                if not ok:
-                    return
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             edit.setText(bn)
             if list_ref is not None and index is not None:
                 if index >= 0 and index < len(list_ref):
@@ -136,13 +141,13 @@ class ConfigDictPanel(QtWidgets.QWidget):
         btn.clicked.connect(on_browse)
         return w
 
-    def _create_single_widget(self, key: str, base_t: str, val: dict[str, Any]) -> QtWidgets.QWidget:
+    def _createSingleWidget(self, key: str, base_t: str, val: dict[str, Any]) -> QtWidgets.QWidget:
         if base_t == "file":
-            return self._create_file_row(key, val, val.get("value"))
-        edit = self._create_line_edit(base_t, val.get("value"))
+            return self._createFileRow(key, val, val.get("value"))
+        edit = self._createLineEdit(base_t, val.get("value"))
 
         def on_changed(text: str):
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             if base_t == "int":
                 try:
                     val["value"] = int(text) if text.strip() else 0
@@ -160,7 +165,7 @@ class ConfigDictPanel(QtWidgets.QWidget):
         edit.textChanged.connect(on_changed)
         return edit
 
-    def _create_array_widget(
+    def _createArrayWidget(
         self, key: str, base_t: str, arr_len: int | None, val: dict[str, Any]
     ) -> QtWidgets.QWidget:
         container = QtWidgets.QWidget(self)
@@ -187,8 +192,8 @@ class ConfigDictPanel(QtWidgets.QWidget):
             h.setContentsMargins(0, 0, 0, 0)
             h.setSpacing(6)
             if base_t == "file":
-                edit = self._create_line_edit(
-                    "string", initial_val if isinstance(initial_val, str) else "", read_only=True
+                edit = self._createLineEdit(
+                    "string", initial_val if isinstance(initial_val, str) else "", readOnly=True
                 )
                 browse = QtWidgets.QPushButton("...")
                 h.addWidget(edit, 1)
@@ -199,40 +204,13 @@ class ConfigDictPanel(QtWidgets.QWidget):
                     h.insertWidget(1, minus)
 
                 def on_browse():
-                    base = str(val.get("base", "")).strip()
-                    ext = val.get("ext")
-                    rootKey = val.get("root")
-                    if rootKey:
-                        root = os.path.join(EditorStatus.PROJ_PATH, str(rootKey).strip())
-                    else:
-                        root = os.path.join(EditorStatus.PROJ_PATH, "Assets")
-                    if base:
-                        root = os.path.join(root, base)
-                    filters: List[str] = []
-                    if isinstance(ext, str) and ext:
-                        filters.append(f"*{ext}")
-                    elif isinstance(ext, list):
-                        for e in ext:
-                            if isinstance(e, str) and e:
-                                filters.append(f"*{e}")
-                    filter_str = (
-                        FileSelectorDialog.filesFilter(filters)
-                        if filters
-                        else FileSelectorDialog.allFilesFilter(star=True)
-                    )
-                    dlg = FileSelectorDialog(self, root, filter_str)
-                    fp = dlg.execSelect()
-                    if not fp:
+                    bn = self._selectFileName(val)
+                    if bn is None:
                         return
-                    bn = os.path.basename(fp)
-                    if filters:
-                        ok = any(bn.endswith(e.replace("*", "")) for e in filters)
-                        if not ok:
-                            return
                     edit.setText(bn)
                     idx_now = v.indexOf(row)
                     if idx_now >= 0 and idx_now < len(values):
-                        GameData.recordSnapshot()
+                        GameData.RecordSnapshot()
                         values[idx_now] = bn
                         val["value"] = values
                         self.MODIFIED.emit()
@@ -243,7 +221,7 @@ class ConfigDictPanel(QtWidgets.QWidget):
                     def on_minus():
                         idx_now = v.indexOf(row)
                         if idx_now >= 0 and idx_now < len(values):
-                            GameData.recordSnapshot()
+                            GameData.RecordSnapshot()
                             values.pop(idx_now)
                             val["value"] = values
                         v.removeWidget(row)
@@ -254,7 +232,7 @@ class ConfigDictPanel(QtWidgets.QWidget):
 
                     minus.clicked.connect(on_minus)
             else:
-                edit = self._create_line_edit(base_t, initial_val)
+                edit = self._createLineEdit(base_t, initial_val)
                 h.addWidget(edit, 1)
                 if var_len:
                     minus = QtWidgets.QPushButton("-")
@@ -262,7 +240,7 @@ class ConfigDictPanel(QtWidgets.QWidget):
                     h.addWidget(minus, 0)
 
                 def on_changed(text: str):
-                    GameData.recordSnapshot()
+                    GameData.RecordSnapshot()
                     idx_now = v.indexOf(row)
                     if base_t == "int":
                         try:
@@ -286,7 +264,7 @@ class ConfigDictPanel(QtWidgets.QWidget):
                     def on_minus():
                         idx_now = v.indexOf(row)
                         if idx_now >= 0 and idx_now < len(values):
-                            GameData.recordSnapshot()
+                            GameData.RecordSnapshot()
                             values.pop(idx_now)
                             val["value"] = values
                         v.removeWidget(row)
@@ -312,7 +290,7 @@ class ConfigDictPanel(QtWidgets.QWidget):
             btn = QtWidgets.QPushButton("+")
 
             def on_add():
-                GameData.recordSnapshot()
+                GameData.RecordSnapshot()
                 values.append("")
                 val["value"] = values
                 add_row("", len(values) - 1)

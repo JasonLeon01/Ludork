@@ -82,10 +82,48 @@ def _get_cached_agent_context(project_path: str, parent_class: str) -> str:
     return context_text
 
 
-def _detect_modification_intent(user_input: str) -> bool:
-    from agent.BlueprintContext import DetectModificationIntent
+def _classify_intent(user_input: str, provider: str, model: str, apiKey: str, baseUrl: str) -> str:
+    from agent.BlueprintContext import ClassifyIntent
 
-    return DetectModificationIntent(user_input)
+    return ClassifyIntent(user_input, provider, model, apiKey, baseUrl)
+
+
+def _answer_general_query(user_input: str, provider: str, model: str, apiKey: str, baseUrl: str) -> str:
+    from agent.BlueprintContext import _LIGHTWEIGHT_MODELS
+
+    lightweight = _LIGHTWEIGHT_MODELS.get(provider, model)
+    postData = json.dumps({
+        "model": lightweight,
+        "temperature": 0.3,
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "You are a helpful AI assistant for Ludork, a 2D RPG game "
+                    "toolchain (PyQt5 editor + SFML/C++ runtime + Python). "
+                    "Answer concisely and accurately."
+                ),
+            },
+            {"role": "user", "content": user_input},
+        ],
+    })
+    try:
+        import urllib.request
+
+        data = postData.encode("utf-8")
+        url = baseUrl.rstrip("/") + "/chat/completions"
+        req = urllib.request.Request(url, data=data)
+        req.add_header("Content-Type", "application/json")
+        req.add_header("Authorization", f"Bearer {apiKey}")
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            result: Any = json.loads(resp.read().decode("utf-8"))
+        content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+        if isinstance(content, str) and content.strip():
+            return content.strip()
+        return ""
+    except Exception as e:
+        _agent_log("General query answer failed: %s", e)
+        return ""
 
 
 def _build_full_system_prompt(blueprint_name: str, parent_class: str, project_path: str) -> str:
@@ -300,7 +338,8 @@ class AiChatDialog(QtWidgets.QDialog):
             try:
                 self._quickjsContext = self._createQuickJsContext()
                 self._loadAgentJs()
-            except Exception:
+            except Exception as e:
+                _agent_log("QuickJS init failed: %s", e)
                 self._quickjsContext = None
                 self._agentJsMtimeKey = None
             return
@@ -309,7 +348,8 @@ class AiChatDialog(QtWidgets.QDialog):
             try:
                 self._quickjsContext = self._createQuickJsContext()
                 self._loadAgentJs()
-            except Exception:
+            except Exception as e:
+                _agent_log("QuickJS reload failed: %s", e)
                 self._quickjsContext = None
                 self._agentJsMtimeKey = None
 
@@ -532,7 +572,7 @@ class AiChatDialog(QtWidgets.QDialog):
 
         normalized = NormalizeBlueprintForSave(newData)
         try:
-            normalized = GameData._getBlueprintSavePayload(normalized)
+            normalized = GameData._GetBlueprintSavePayload(normalized)
         except Exception:
             pass
         valid, errors = ValidateBlueprint(self._blueprintName, normalized)
@@ -541,7 +581,7 @@ class AiChatDialog(QtWidgets.QDialog):
             return f"Error: Blueprint validation failed:\n{detail}"
 
         try:
-            GameData.recordSnapshot()
+            GameData.RecordSnapshot()
             ext = os.path.splitext(self._blueprintFilePath)[1].lower()
             if ext == ".dat":
                 with open(self._blueprintFilePath, "wb") as f:
@@ -551,7 +591,7 @@ class AiChatDialog(QtWidgets.QDialog):
                     json.dump(normalized, f, ensure_ascii=False, indent=4)
 
             if self._blueprintName:
-                GameData.applyBlueprintFileUpdate(self._blueprintName, self._blueprintFilePath)
+                GameData.ApplyBlueprintFileUpdate(self._blueprintName, self._blueprintFilePath)
 
             QtCore.QMetaObject.invokeMethod(
                 self,
@@ -691,6 +731,22 @@ class AiChatDialog(QtWidgets.QDialog):
 
         if not result and self._quickjsContext is not None:
             try:
+                intent = _classify_intent(userInput, provider, model, apiKey, baseUrl)
+                _agent_log("Intent classification: %s", intent)
+
+                if intent == "general_query":
+                    result = _answer_general_query(userInput, provider, model, apiKey, baseUrl)
+                    if not result:
+                        _agent_log("General query direct answer returned empty, routing to main workflow")
+                        intent = "blueprint_query"
+                    else:
+                        _agent_log("General query direct answer: %d chars", len(result))
+                        QtCore.QMetaObject.invokeMethod(
+                            self, "_onAiResponse", QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, result)
+                        )
+                        return
+
+                expectsModification = (intent == "modify")
                 systemPrompt = _build_full_system_prompt(
                     self._blueprintName,
                     self._getParentClass(),
@@ -720,7 +776,6 @@ class AiChatDialog(QtWidgets.QDialog):
                         _agent_log("Compressed to %d chars summary", len(summary))
 
                 contextJson = json.dumps(contextMessages)
-                expectsModification = _detect_modification_intent(userInput)
                 jsCode = (
                     f"runWorkflow("
                     f"{json.dumps(provider)}, "
@@ -742,7 +797,7 @@ class AiChatDialog(QtWidgets.QDialog):
                 result = str(e)
 
         if not result:
-            result = ""
+            result = "AI agent not available. Ensure the 'quickjs' module is installed and Start.js/Compress.js are accessible."
 
         QtCore.QMetaObject.invokeMethod(
             self, "_onAiResponse", QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, result)

@@ -12,7 +12,6 @@ from .. import (
     RenderTarget,
     RenderStates,
     FloatRect,
-    Transform,
 )
 from .Base import ControlBase
 
@@ -162,32 +161,6 @@ class PlainText(ControlBase):
         self._applyRenderStates(states)
         if self.getVisible():
             target.draw(self._text, states)
-
-    def getAbsoluteBounds(self) -> FloatRect:
-        r"""\brief Get the absolute bounds of this text in screen coordinates.
-
-        - \return  Absolute bounds rectangle in screen coordinates
-        """
-        from .. import Scale
-
-        transform = self._getScreenRenderTransform()
-        bounds = self.getLocalBounds()
-        realBounds = FloatRect(bounds.position * Scale, bounds.size * Scale)
-        return transform.transformRect(realBounds)
-
-    def _applyRenderStates(self, states: RenderStates) -> None:
-        from .. import Scale
-
-        states.transform *= self.getTransform()
-        states.transform.translate(self.getPosition() * (Scale - 1))
-
-    def _getRenderTransform(self) -> Transform:
-        from .. import Scale
-
-        transform = Transform()
-        transform *= self.getTransform()
-        transform.translate(self.getPosition() * (Scale - 1))
-        return transform
 
 
 class TextStyle:
@@ -370,32 +343,6 @@ class RichText(ControlBase):
         for text, style in self._segments:
             self._applySegmentColour(text, style)
             target.draw(text, states)
-
-    def getAbsoluteBounds(self) -> FloatRect:
-        r"""\brief Get the absolute bounds of this rich text in logical UI units.
-
-        - \return  Absolute bounds rectangle
-        """
-        from .. import Scale
-
-        transform = self._getScreenRenderTransform()
-        bounds = self.getLocalBounds()
-        realBounds = FloatRect(bounds.position * Scale, bounds.size * Scale)
-        return transform.transformRect(realBounds)
-
-    def _applyRenderStates(self, states: RenderStates) -> None:
-        from .. import Scale
-
-        states.transform *= self.getTransform()
-        states.transform.translate(self.getPosition() * (Scale - 1))
-
-    def _getRenderTransform(self) -> Transform:
-        from .. import Scale
-
-        transform = Transform()
-        transform *= self.getTransform()
-        transform.translate(self.getPosition() * (Scale - 1))
-        return transform
 
     def _render(self, text: str, styleCollection: Dict[str, TextStyle]) -> None:
         from . import HexColor

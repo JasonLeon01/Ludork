@@ -399,6 +399,5 @@ class MarkdownPreviewer(QWidget):
         self._preview.setExtraSelections(selections)
 
     def _updateSearchState(self, visibleCount: int | None = None) -> None:
-        hasQuery = bool(getattr(self, "_search", None) and self._search.text())
-        if hasattr(self, "_searchCountLabel"):
-            self._searchCountLabel.setText(str(visibleCount) if hasQuery and visibleCount is not None else "")
+        hasQuery = bool(self._search.text())
+        self._searchCountLabel.setText(str(visibleCount) if hasQuery and visibleCount is not None else "")

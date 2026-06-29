@@ -87,7 +87,7 @@ class LightActorMixin:
         if applyData == {k: old.get(k) for k in applyData.keys()}:
             return
 
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         for k, v in applyData.items():
             old[k] = v
         self._refreshInfo()
@@ -157,7 +157,7 @@ class LightActorMixin:
             "intensity": 1.0,
         }
 
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
 
         lights = data.get("lights")
         if not isinstance(lights, list):

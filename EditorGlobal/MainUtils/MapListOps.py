@@ -9,10 +9,10 @@ from Widgets.Utils import MapEditDialog
 from .. import EditorStatus
 from ..Data import GameData
 
-log = logging.getLogger(__name__)
+LOG = logging.getLogger(__name__)
 
 
-def _loadGameLocaleDict() -> dict:
+def _LoadGameLocaleDict() -> dict:
     localeDir = os.path.join(EditorStatus.PROJ_PATH, "Data", "Locale")
     lang = getattr(EditorStatus, "LANGUAGE", "en_GB")
     localeFile = os.path.join(localeDir, lang)
@@ -22,27 +22,27 @@ def _loadGameLocaleDict() -> dict:
         try:
             return File.LoadData(localeFile)
         except Exception as e:
-            log.warning("Failed to load game locale file %s: %s", localeFile, e)
+            LOG.warning("Failed to load game locale file %s: %s", localeFile, e)
     return {}
 
 
-def _formatGameString(s: str, localeDict: dict) -> str:
+def _FormatGameString(s: str, localeDict: dict) -> str:
     try:
         return str(s).format(**localeDict)
     except (KeyError, IndexError, ValueError) as e:
-        log.warning("Failed to format game string %r: %s", s, e)
+        LOG.warning("Failed to format game string %r: %s", s, e)
         return str(s)
 
 
 class MapListOpsMixin:
     def refreshLeftList(self):
         self.leftList.clear()
-        localeDict = _loadGameLocaleDict()
+        localeDict = _LoadGameLocaleDict()
         for key in sorted(GameData.mapData.keys()):
             data = GameData.mapData.get(key)
             if not isinstance(data, dict):
                 continue
-            resolvedName = _formatGameString(str(data.get("mapName") or key), localeDict)
+            resolvedName = _FormatGameString(str(data.get("mapName") or key), localeDict)
             displayName = f"{key} ({resolvedName})" if resolvedName != key else key
             item = QtWidgets.QListWidgetItem(displayName)
             item.setData(QtCore.Qt.UserRole, key)
@@ -185,7 +185,7 @@ class MapListOpsMixin:
         else:
             newFileName = self._getNewMapFileName()
 
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         GameData.mapData[newFileName] = newMapData
 
         self.refreshLeftList()
@@ -205,7 +205,7 @@ class MapListOpsMixin:
         if mapName not in GameData.mapData:
             return
 
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         del GameData.mapData[mapName]
 
         self.refreshLeftList()

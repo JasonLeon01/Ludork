@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import List, Tuple, Union
-from .. import Angle, Pair, IntRect, RenderTarget, RenderStates, Transform, TypeAdapter, Vector2f, Vector2i, degrees
+from .. import Pair, IntRect, RenderTarget, RenderStates, TypeAdapter, Vector2f, Vector2i
 from ..Utils import Math, Render
 from .Base import ControlBase, FunctionalBase
 
@@ -37,80 +37,6 @@ class ListView(ControlBase, FunctionalBase):
         self._children: List[ControlBase] = []
         self._renderStates: RenderStates = Render.CanvasRenderStates()
         self._positionsSettled: bool = False
-
-    def v_getPosition(self) -> Pair[float]:
-        r"""\brief Get the list view position as a plain pair.
-
-        - \return  Position as (x, y)
-        """
-        result = super().getPosition()
-        return (result.x, result.y)
-
-    @TypeAdapter(position=([tuple, list], Vector2f))
-    def setPosition(self, position: Union[Vector2f, Pair[float], List[float]]) -> None:
-        r"""\brief Set the list view position.
-
-        - \param position  New position in logical UI units
-        """
-        super().setPosition(position)
-
-    @TypeAdapter(offset=([tuple, list], Vector2f))
-    def move(self, offset: Union[Vector2f, Pair[float], List[float]]) -> None:
-        r"""\brief Move the list view by an offset.
-
-        - \param offset  Offset to add to the current position
-        """
-        super().move(offset)
-
-    def v_getRotation(self) -> float:
-        r"""\brief Get the list view rotation as a plain number.
-
-        - \return  Rotation in degrees
-        """
-        result = super().getRotation()
-        return result.asDegrees()
-
-    def setRotation(self, angle: Union[Angle, float]) -> None:
-        r"""\brief Set the list view rotation.
-
-        - \param angle  Rotation (Angle object or degrees)
-        """
-        if not isinstance(angle, Angle):
-            angle = degrees(angle)
-        super().setRotation(angle)
-
-    def rotate(self, angle: Union[Angle, float]) -> None:
-        r"""\brief Rotate the list view by an offset.
-
-        - \param angle  Rotation offset (Angle object or degrees)
-        """
-        if not isinstance(angle, Angle):
-            angle = degrees(angle)
-        super().rotate(angle)
-
-    def v_getScale(self) -> Pair[float]:
-        r"""\brief Get the list view scale as a plain pair.
-
-        - \return  Scale as (x, y)
-        """
-        result = super().getScale()
-        return (result.x, result.y)
-
-    @TypeAdapter(scale=([tuple, list], Vector2f))
-    def setScale(self, scale: Union[Vector2f, Pair[float], List[float]]) -> None:
-        r"""\brief Set the list view scale.
-
-        - \param scale  New scale
-        """
-        super().setScale(scale)
-
-    @TypeAdapter(factor=([tuple, list], Vector2f))
-    def scale(self, factor: Union[Vector2f, Pair[float], List[float]]) -> None:
-        r"""\brief Scale the list view by a factor.
-
-        - \param factor  Scale factor to multiply by
-        """
-        super().scale(factor)
 
     def v_getOrigin(self) -> Pair[float]:
         r"""\brief Get the list view origin as a plain pair.
@@ -279,11 +205,3 @@ class ListView(ControlBase, FunctionalBase):
             currentRowHeights.append(itemHeight)
             rowHeight = max(rowHeight, itemHeight)
             child.setPosition((posX, currentY))
-
-    def _getRenderTransform(self) -> Transform:
-        from .. import Scale
-
-        transform = Transform()
-        transform *= self.getTransform()
-        transform.translate(self.getPosition() * (Scale - 1))
-        return transform

@@ -219,7 +219,7 @@ class ActorInfoPanel(QtWidgets.QWidget):
         if data is None:
             return
 
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
 
         # Check if value equals default
         isDefault = False
@@ -264,7 +264,7 @@ class ActorInfoPanel(QtWidgets.QWidget):
                     self.tagEdit.setText(tag)
                 finally:
                     self._blockSignals = False
-        GameData.recordSnapshot()
+        GameData.RecordSnapshot()
         data["tag"] = tag
         if editorPanel is not None:
             editorPanel.DATA_CHANGED.emit()
