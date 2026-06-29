@@ -10,49 +10,12 @@ from Engine.Utils import Event
 from Global import System, SceneBase, Animation
 from .. import Data
 
-
 _MISSING = object()
 _SHORT_NUMBER_UNITS = (
     (1_000_000_000, 1_000_000_000, "b"),
     (1_000_000, 1_000_000, "m"),
     (10_000, 1_000, "k"),
 )
-
-
-class _SuperProxy:
-    def __init__(
-        self,
-        obj: object,
-        cls: type,
-        localGraph: Dict[str, Any],
-        defaultArgs: List[Any] = [],
-    ) -> None:
-        self._obj = obj
-        self._cls = cls
-        self._localGraph = localGraph
-        self._defaultArgs = list(defaultArgs)
-
-    def _callSuperFunction(self, name: str, *args, **kwargs) -> Any:
-        from Engine.BPBase import BPBase
-
-        mergedArgs = tuple(self._defaultArgs) + args
-        BPBase.ExecuteParentEvent(
-            self._obj,
-            self._cls,
-            name,
-            args=mergedArgs,
-            kwargs=kwargs,
-            localGraph=self._localGraph,
-        )
-
-    def __getattr__(self, name: str) -> Any:
-        parentCls = getattr(self._cls, "__base__", None)
-        if parentCls is None:
-            raise AttributeError(name)
-        attr = getattr(parentCls, name)
-        if callable(attr):
-            return lambda *args, **kwargs: self._callSuperFunction(name, *args, **kwargs)
-        return attr
 
 
 class _attrRef:
@@ -467,18 +430,30 @@ def _coerceSuperParams(params: Any) -> List[Any]:
 
 @Meta(DisplayName='LOC("SUPER")', DisplayDesc='LOC("SUPER_DESC")')
 @ExecSplit(default=(None,))
-def SUPER(obj: object, params: List[Any] = []) -> object:
-    r"""\brief Get a proxy for calling the parent class implementation.
+@ReturnType(value=bool)
+def SUPER(obj: object, params: List[Any] = []) -> bool:
+    r"""\brief Call the parent implementation of the current blueprint event.
 
     - \param obj    The object instance calling super.
-    - \param params Positional arguments forwarded to the parent event or method.
-    - \return A proxy object whose attributes invoke the parent implementation.
+    - \param params Positional arguments forwarded to the parent event.
+    - \return True if a parent graph or method handled the event.
     """
     graphContext = SUPER._refLocal.get("__graph__")
+    eventName = SUPER._refLocal.get("__key__")
+    if graphContext is None or not eventName:
+        raise RuntimeError("SUPER must be called from a blueprint event graph")
     cls = getattr(graphContext, "parentClass", None)
     if cls is None:
         cls = type(obj)
-    return _SuperProxy(obj, cls, SUPER._refLocal, _coerceSuperParams(params))
+    from Engine.BPBase import BPBase
+
+    return BPBase.ExecuteParentEvent(
+        obj,
+        cls,
+        eventName,
+        args=tuple(_coerceSuperParams(params)),
+        localGraph=SUPER._refLocal,
+    )
 
 
 @Meta(DisplayName='LOC("SELF")', DisplayDesc='LOC("SELF_DESC")')
@@ -639,7 +614,7 @@ def UnregisterEventBusEvent(key: str, obj: Optional[object] = None) -> bool:
 
 @Meta(DisplayName='LOC("TRIGGER_EVENT_BUS")', DisplayDesc='LOC("TRIGGER_EVENT_BUS_DESC")')
 @ExecSplit(default=(None,))
-def TriggerEventBus(key: str, kwargs: Optional[Dict[str, Any]] = None) -> None:
+def TriggerEventBus(key: str, kwargs: Dict[str, Any] = {}) -> None:
     r"""\brief Post an EventBus event with keyword arguments.
 
     - \param key EventBus key to trigger.

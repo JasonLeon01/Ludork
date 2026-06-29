@@ -309,7 +309,7 @@ def CreateActorFromBPPath(
     bpPath: str,
     layerName: str = "default",
     position: Optional[Union[Vector2i, Vector2u, Pair[int], List[int], Tuple[int, int]]] = None,
-    tag: Optional[str] = None,
+    tag: str = "",
     emitCreateEvent: bool = True,
 ) -> Optional[Actor]:
     r"""\brief Create an actor from a blueprint path and spawn it on the current map.

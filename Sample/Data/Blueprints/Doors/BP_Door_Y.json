@@ -21,18 +21,18 @@
                         "nodeFunction": "NodeFunctions.Utils.SELF",
                         "params": [],
                         "pos": [
-                            -1440,
-                            814
+                            -1440.0,
+                            954.0
                         ]
                     },
                     {
                         "nodeFunction": "NodeFunctions.Utils.IF",
                         "params": [
-                            ""
+                            false
                         ],
                         "pos": [
-                            720,
-                            314
+                            720.0,
+                            314.0
                         ]
                     },
                     {
@@ -42,8 +42,8 @@
                             "opening"
                         ],
                         "pos": [
-                            -720,
-                            814
+                            -720.0,
+                            954.0
                         ]
                     },
                     {
@@ -52,18 +52,18 @@
                             "KEY_Y"
                         ],
                         "pos": [
-                            0,
-                            1064
+                            0.0,
+                            1274.0
                         ]
                     },
                     {
                         "nodeFunction": "NodeFunctions.Utils.IF",
                         "params": [
-                            ""
+                            false
                         ],
                         "pos": [
-                            1440,
-                            314
+                            1440.0,
+                            314.0
                         ]
                     },
                     {
@@ -73,8 +73,8 @@
                             "1"
                         ],
                         "pos": [
-                            720,
-                            1064
+                            720.0,
+                            1274.0
                         ]
                     },
                     {
@@ -83,18 +83,18 @@
                             ""
                         ],
                         "pos": [
-                            -720,
-                            564
+                            -720.0,
+                            634.0
                         ]
                     },
                     {
                         "nodeFunction": "NodeFunctions.Utils.IF",
                         "params": [
-                            ""
+                            false
                         ],
                         "pos": [
-                            0,
-                            314
+                            0.0,
+                            314.0
                         ]
                     },
                     {
@@ -103,8 +103,8 @@
                             ""
                         ],
                         "pos": [
-                            2160,
-                            189.0
+                            2160.0,
+                            314.0
                         ]
                     },
                     {
@@ -114,19 +114,8 @@
                             "needKeyID"
                         ],
                         "pos": [
-                            -720,
-                            1064
-                        ]
-                    },
-                    {
-                        "nodeFunction": "onCollision",
-                        "params": [
-                            "",
-                            ""
-                        ],
-                        "pos": [
-                            2880,
-                            189.0
+                            -720.0,
+                            1274.0
                         ]
                     },
                     {
@@ -136,18 +125,18 @@
                             1
                         ],
                         "pos": [
-                            3600,
-                            189.0
+                            2880.0,
+                            314.0
                         ]
                     },
                     {
                         "nodeFunction": "NodeFunctions.Math.NOT",
                         "params": [
-                            ""
+                            false
                         ],
                         "pos": [
-                            0,
-                            814
+                            0.0,
+                            954.0
                         ]
                     }
                 ],
@@ -227,39 +216,11 @@
                         "right": 10,
                         "leftOutPin": 0,
                         "rightInPin": 0,
-                        "linkType": "Params"
-                    },
-                    {
-                        "left": "default_0",
-                        "right": 10,
-                        "leftOutPin": 0,
-                        "rightInPin": 1,
-                        "linkType": "Params"
-                    },
-                    {
-                        "left": 8,
-                        "right": 10,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Exec"
-                    },
-                    {
-                        "left": 10,
-                        "right": 11,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Exec"
-                    },
-                    {
-                        "left": 4,
-                        "right": 10,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
                         "linkType": "Exec"
                     },
                     {
                         "left": 9,
-                        "right": 11,
+                        "right": 10,
                         "leftOutPin": 0,
                         "rightInPin": 0,
                         "linkType": "Params"
@@ -273,13 +234,13 @@
                     },
                     {
                         "left": 2,
-                        "right": 12,
+                        "right": 11,
                         "leftOutPin": 0,
                         "rightInPin": 0,
                         "linkType": "Params"
                     },
                     {
-                        "left": 12,
+                        "left": 11,
                         "right": 1,
                         "leftOutPin": 0,
                         "rightInPin": 0,

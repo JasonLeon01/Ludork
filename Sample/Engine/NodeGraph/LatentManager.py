@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import weakref
-from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from Engine.NodeGraph import Graph
@@ -34,11 +34,28 @@ class LatentManager:
         """
         if type(self)._instanceInitialised:
             return
-        # (graph_ref, key, condition, localRef, index)
-        self._latents: List[Tuple[weakref.ReferenceType[Graph], str, Callable, Dict[str, Any], int]] = []
+        # (graph_ref, key, condition, localRef, index, cache)
+        self._latents: List[
+            Tuple[
+                weakref.ReferenceType[Graph],
+                str,
+                Callable,
+                Dict[str, Any],
+                int,
+                Dict[Union[int, str], Tuple[Any, ...]],
+            ]
+        ] = []
         type(self)._instanceInitialised = True
 
-    def add(self, graph: Graph, key: str, condition: Callable, localRef: Dict[str, Any], index: int) -> None:
+    def add(
+        self,
+        graph: Graph,
+        key: str,
+        condition: Callable,
+        localRef: Dict[str, Any],
+        index: int,
+        cache: Dict[Union[int, str], Tuple[Any, ...]],
+    ) -> None:
         r"""Register a latent node to be checked each frame.
 
         - \param graph      Graph containing the latent node
@@ -46,9 +63,10 @@ class LatentManager:
         - \param condition  Callable that returns the condition value
         - \param localRef   Local graph execution context
         - \param index      Index of the latent node in the graph
+        - \param cache      Node result cache from the suspended graph execution
         """
         graph.onLatentAdded(key)
-        self._latents.append((weakref.ref(graph), key, condition, localRef, index))
+        self._latents.append((weakref.ref(graph), key, condition, localRef, index, cache))
 
     def update(self) -> None:
         r"""Check all registered latent nodes and resume execution if conditions are met.
@@ -59,7 +77,7 @@ class LatentManager:
             if latent not in self._latents:
                 continue
 
-            graph_ref, key, condition, localRef, index = latent
+            graph_ref, key, condition, localRef, index, cache = latent
             graph = graph_ref()
             if graph is None:
                 self._removeLatentsForNode(graph, key, index)
@@ -76,7 +94,7 @@ class LatentManager:
                     if execIndex not in nextMap:
                         continue
                     nextNodeIndex = nextMap[execIndex][0]
-                    graph.execute(key, nextNodeIndex)
+                    graph.execute(key, nextNodeIndex, cache=cache)
                 if isFinished:
                     self._removeLatentsForNode(graph, key, index)
                     graph.onLatentResolved(key)

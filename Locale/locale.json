@@ -1151,6 +1151,10 @@
     "zh_CN": "使用此蓝图派生",
     "en_GB": "Derive from this Blueprint"
   },
+  "COPY_BLUEPRINT_CLASS_NAME": {
+    "zh_CN": "复制蓝图类名",
+    "en_GB": "Copy Blueprint Class Name"
+  },
   "SELECT_BLUEPRINT_PATH": {
     "zh_CN": "选择蓝图保存路径",
     "en_GB": "Select blueprint save path"

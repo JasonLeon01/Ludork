@@ -182,6 +182,56 @@ _InjectedEvents = []
 _UseInjectedMouseOnly: bool = False
 
 
+def _resetFrameState() -> None:
+    _EventState.FocusLost = False
+    _EventState.FocusGained = False
+
+    _EventState.KeyPressed = False
+    _EventState.KeyReleased = False
+    _EventState.KeyPressedMap.clear()
+    _EventState.KeyReleasedMap.clear()
+    _EventState.KeyboardScanPressedMap.clear()
+    _EventState.KeyboardScanReleasedMap.clear()
+
+    _EventState.MouseWheelScrolled = False
+    _EventState.MouseScrolledWheel = None
+    _EventState.MouseScrolledWheelDelta = 0.0
+    _EventState.MouseScrolledWheelPosition = None
+
+    _EventState.MouseButtonPressed = False
+    _EventState.MouseButtonReleased = False
+    _EventState.MouseButtonPressedMap.clear()
+    _EventState.MouseButtonReleasedMap.clear()
+    _EventState.MousePressedPosition = None
+    _EventState.MouseReleasedPosition = None
+
+    _EventState.MouseMoved = False
+    _EventState.MouseMovedDelta = None
+
+    _EventState.MouseEntered = False
+    _EventState.MouseLeft = False
+
+    _EventState.TouchBegan = False
+    _EventState.TouchEnded = False
+    _EventState.TouchMoved = False
+    _EventState.TouchBeganPosition = None
+    _EventState.TouchEndedPosition = None
+    _EventState.TouchMovedDelta = None
+    _EventState.TouchBeganHandled = False
+    _EventState.TouchCancelMousePressedThisFrame = False
+
+    _EventState.JoystickButtonPressed = False
+    _EventState.JoystickButtonReleased = False
+    _EventState.JoystickAxisMoved = False
+    _EventState.JoystickConnected = False
+    _EventState.JoystickDisconnected = False
+    _EventState.JoystickButtonPressedMap.clear()
+    _EventState.JoystickButtonReleasedMap.clear()
+    _EventState.JoystickAxisMovedMap.clear()
+
+    _EventState.EnteredText = ""
+
+
 def _pixelToWorld(window: WindowBase, pixel: Vector2i) -> Vector2i:
     r"""
     \brief Convert a window-pixel position to world (view) coordinates.
@@ -203,6 +253,78 @@ def _pixelToWorld(window: WindowBase, pixel: Vector2i) -> Vector2i:
         return pixel
 
 
+def _keyEventMaps(
+    key: Keyboard.Key,
+    scan: Keyboard.Scan,
+    alt: bool,
+    ctrl: bool,
+    shift: bool,
+    system: bool,
+) -> Tuple[
+    Tuple[Keyboard.Key, bool, bool, bool, bool],
+    Tuple[Keyboard.Scan, bool, bool, bool, bool],
+]:
+    return (key, alt, ctrl, shift, system), (scan, alt, ctrl, shift, system)
+
+
+def _setKeyPressed(
+    key: Keyboard.Key,
+    scan: Keyboard.Scan,
+    alt: bool,
+    ctrl: bool,
+    shift: bool,
+    system: bool,
+) -> None:
+    _EventState.KeyPressed = True
+    keyMap, scanMap = _keyEventMaps(key, scan, alt, ctrl, shift, system)
+    _EventState.KeyPressedMap[keyMap] = True
+    _EventState.KeyboardScanPressedMap[scanMap] = True
+
+    if keyMap not in _EventState.KeyTriggeredMap:
+        _EventState.KeyTriggeredMap[keyMap] = (0, False)
+    count, handled = _EventState.KeyTriggeredMap[keyMap]
+    _EventState.KeyTriggeredMap[keyMap] = (count + 1, handled)
+
+
+def _setKeyReleased(
+    key: Keyboard.Key,
+    scan: Keyboard.Scan,
+    alt: bool,
+    ctrl: bool,
+    shift: bool,
+    system: bool,
+) -> None:
+    _EventState.KeyReleased = True
+    keyMap, scanMap = _keyEventMaps(key, scan, alt, ctrl, shift, system)
+    _EventState.KeyReleasedMap[keyMap] = True
+    _EventState.KeyboardScanReleasedMap[scanMap] = True
+    _EventState.KeyTriggeredMap.pop(keyMap, None)
+
+
+def _parseInjectedKeyEvent(data: Dict[str, Any]) -> Tuple[Keyboard.Key, Keyboard.Scan, bool, bool, bool, bool]:
+    keyName = data.get("key")
+    key = getattr(Keyboard.Key, keyName, Keyboard.Key.Unknown)
+    return (
+        key,
+        Keyboard.Scan.Unknown,
+        data.get("alt", False),
+        data.get("control", False),
+        data.get("shift", False),
+        data.get("system", False),
+    )
+
+
+def _parseNativeKeyEvent(keyEvent: Any) -> Tuple[Keyboard.Key, Keyboard.Scan, bool, bool, bool, bool]:
+    return (
+        _resolveKeyCode(keyEvent.code, keyEvent.scancode),
+        keyEvent.scancode,
+        keyEvent.alt,
+        keyEvent.control,
+        keyEvent.shift,
+        keyEvent.system,
+    )
+
+
 def _setMouseButtonPressed(button: Mouse.Button, position: Vector2i) -> None:
     _EventState.MouseButtonPressed = True
     _EventState.MouseButtonPressedMap[button] = True
@@ -220,6 +342,12 @@ def _setMouseButtonReleased(button: Mouse.Button, position: Vector2i) -> None:
     _EventState.MouseReleasedPosition = position
     _EventState.MousePosition = position
     _EventState.MouseButtonTriggeredMap.pop(button, None)
+
+
+def _parseInjectedMouseButtonEvent(data: Dict[str, Any]) -> Tuple[Mouse.Button, Vector2i]:
+    btnName = data.get("button")
+    button = getattr(Mouse.Button, btnName, Mouse.Button.Left)
+    return button, Vector2i(data.get("x", 0), data.get("y", 0))
 
 
 def _beginTwoFingerCancel(position: Vector2i) -> None:
@@ -303,43 +431,11 @@ def _processInjectedEvents() -> None:
         t = data.get("type")
         if t == "KeyPressed":
             _setFocused(True)
-            keyName = data.get("key")
-            key = getattr(Keyboard.Key, keyName, Keyboard.Key.Unknown)
-            scan = Keyboard.Scan.Unknown
-            alt = data.get("alt", False)
-            ctrl = data.get("control", False)
-            shift = data.get("shift", False)
-            system = data.get("system", False)
-
-            _EventState.KeyPressed = True
-            keyMap = (key, alt, ctrl, shift, system)
-            scanMap = (scan, alt, ctrl, shift, system)
-            _EventState.KeyPressedMap[keyMap] = True
-            _EventState.KeyboardScanPressedMap[scanMap] = True
-
-            if not keyMap in _EventState.KeyTriggeredMap:
-                _EventState.KeyTriggeredMap[keyMap] = (0, False)
-            count, handled = _EventState.KeyTriggeredMap[keyMap]
-            count += 1
-            _EventState.KeyTriggeredMap[keyMap] = (count, handled)
+            _setKeyPressed(*_parseInjectedKeyEvent(data))
 
         elif t == "KeyReleased":
             _setFocused(True)
-            keyName = data.get("key")
-            key = getattr(Keyboard.Key, keyName, Keyboard.Key.Unknown)
-            scan = Keyboard.Scan.Unknown
-            alt = data.get("alt", False)
-            ctrl = data.get("control", False)
-            shift = data.get("shift", False)
-            system = data.get("system", False)
-
-            _EventState.KeyReleased = True
-            keyMap = (key, alt, ctrl, shift, system)
-            scanMap = (scan, alt, ctrl, shift, system)
-            _EventState.KeyReleasedMap[keyMap] = True
-            _EventState.KeyboardScanReleasedMap[scanMap] = True
-            if keyMap in _EventState.KeyTriggeredMap:
-                _EventState.KeyTriggeredMap.pop(keyMap, None)
+            _setKeyReleased(*_parseInjectedKeyEvent(data))
 
         elif t == "MouseMoved":
             x = data.get("x", 0)
@@ -348,22 +444,12 @@ def _processInjectedEvents() -> None:
             _EventState.MousePosition = Vector2i(x, y)
 
         elif t == "MouseButtonPressed":
-            btnName = data.get("button")
-            btn = getattr(Mouse.Button, btnName, Mouse.Button.Left)
-            x = data.get("x", 0)
-            y = data.get("y", 0)
-            pos = Vector2i(x, y)
-
-            _setMouseButtonPressed(btn, pos)
+            button, position = _parseInjectedMouseButtonEvent(data)
+            _setMouseButtonPressed(button, position)
 
         elif t == "MouseButtonReleased":
-            btnName = data.get("button")
-            btn = getattr(Mouse.Button, btnName, Mouse.Button.Left)
-            x = data.get("x", 0)
-            y = data.get("y", 0)
-            pos = Vector2i(x, y)
-
-            _setMouseButtonReleased(btn, pos)
+            button, position = _parseInjectedMouseButtonEvent(data)
+            _setMouseButtonReleased(button, position)
 
         elif t == "MouseWheelScrolled":
             delta = data.get("delta", 0.0)
@@ -392,6 +478,152 @@ def _usesInjectedWindowInput() -> bool:
     return _UseInjectedMouseOnly
 
 
+def _updateNativeKeyState(event: Any) -> None:
+    if event.isKeyPressed():
+        _setKeyPressed(*_parseNativeKeyEvent(event.getIfKeyPressed()))
+    if event.isKeyReleased():
+        _setKeyReleased(*_parseNativeKeyEvent(event.getIfKeyReleased()))
+
+
+def _updateJoystickDominantAxes() -> None:
+    for joyId, axes in _EventState.JoystickAxisStatus.items():
+        maxAxis = None
+        maxVal = 0.0
+        for axis, val in axes.items():
+            if abs(val) > maxVal:
+                maxVal = abs(val)
+                maxAxis = axis
+
+        lastAxis, lastVal = _EventState.JoystickLastDominantAxis.get(joyId, (None, 0.0))
+
+        if maxVal < 10.0:
+            maxAxis = None
+            maxVal = 0.0
+
+        if maxAxis != lastAxis:
+            if lastAxis is not None:
+                _EventState.JoystickAxisJustPressed.pop((joyId, lastAxis), None)
+            if maxAxis is not None:
+                _EventState.JoystickAxisJustPressed[(joyId, maxAxis)] = (axes[maxAxis], False)
+            _EventState.JoystickLastDominantAxis[joyId] = (maxAxis, maxVal)
+        elif maxAxis is not None:
+            _EventState.JoystickLastDominantAxis[joyId] = (maxAxis, axes[maxAxis])
+
+
+def _updateInputType(window: WindowBase) -> None:
+    newInputType = None
+    if _EventState.MouseMoved or _EventState.MouseButtonPressed or _EventState.MouseWheelScrolled:
+        newInputType = InputType.Mouse
+    elif _EventState.KeyPressed or _EventState.JoystickButtonPressed or len(_EventState.JoystickAxisJustPressed) > 0:
+        newInputType = InputType.Gamepad
+
+    if newInputType is None and _EventState.JoystickAxisMoved:
+        for joyId, axes in _EventState.JoystickAxisStatus.items():
+            for axis, val in axes.items():
+                if abs(val) > 10.0:
+                    newInputType = InputType.Gamepad
+                    break
+            if newInputType is not None:
+                break
+
+    if newInputType is not None and newInputType != _EventState.CurrentInputType:
+        _EventState.CurrentInputType = newInputType
+        try:
+            window.setMouseCursorVisible(newInputType == InputType.Mouse)
+        except AttributeError:
+            pass
+
+
+def _dispatchKeyboardAction(
+    key: Union[Key, Scan],
+    obj: object,
+    objCallable: Callable[[object, Optional[float]], None],
+    triggerOnHold: bool,
+) -> None:
+    if not _canUseKeyboardInput():
+        return
+    if isinstance(key, Key):
+        triggered = False
+        if (key, False, False, False, False) in _EventState.KeyPressedMap:
+            triggered = True
+        elif triggerOnHold and Keyboard.isKeyPressed(key):
+            triggered = True
+
+        if triggered:
+            objCallable(obj, None)
+    if isinstance(key, Scan):
+        if (key, False, False, False, False) in _EventState.KeyboardScanPressedMap:
+            objCallable(obj, None)
+
+
+def _dispatchJoystickButtonAction(
+    key: JoystickButton,
+    obj: object,
+    objCallable: Callable[[object, Optional[float]], None],
+    triggerOnHold: bool,
+) -> None:
+    if _EventState.JoystickBlocked:
+        return
+    triggered = False
+    for joyId, joystickDict in _EventState.JoystickButtonPressedMap.items():
+        if joystickDict.get(key.value, False):
+            triggered = True
+            break
+
+    if not triggered and triggerOnHold:
+        for jId in range(Joystick.Count):
+            if Joystick.isConnected(jId) and Joystick.isButtonPressed(jId, key.value):
+                triggered = True
+                break
+
+    if triggered:
+        objCallable(obj, None)
+
+
+def _collectJoystickAxisAction(
+    key: Tuple[JoystickAxis, float, Callable[[float, float], bool]],
+    obj: object,
+    objCallable: Callable[[object, Optional[float]], None],
+    moveActions: List[Tuple[Joystick.Axis, float, Callable, List[Any]]],
+) -> None:
+    if _EventState.JoystickBlocked:
+        return
+    axis, threshold, callable_ = key
+    if isinstance(axis, JoystickAxis):
+        for _, axisMap in _EventState.JoystickAxisStatus.items():
+            if axis in axisMap:
+                position = axisMap[axis]
+                if not Math.IsNearZero(position):
+                    if callable_(position, threshold):
+                        moveActions.append((axis, position, objCallable, [obj, position]))
+
+
+def _dispatchActionMappings() -> None:
+    moveActions: List[Tuple[Joystick.Axis, float, Callable, List[Any]]] = []
+    for actionType, callables in _EventState.ActionMappings.items():
+        _, actionKeysTuple = actionType
+        obj, objCallable, triggerOnHold = callables
+
+        actionKeys = list(actionKeysTuple)
+        for key in actionKeys:
+            if isinstance(key, (Key, Scan)):
+                _dispatchKeyboardAction(key, obj, objCallable, triggerOnHold)
+            if isinstance(key, JoystickButton):
+                _dispatchJoystickButtonAction(key, obj, objCallable, triggerOnHold)
+            if isinstance(key, tuple):
+                _collectJoystickAxisAction(key, obj, objCallable, moveActions)
+
+    finalMoveAction: Optional[Tuple[Callable, List[Any]]] = None
+    maxPosition = 0.0
+    for axis, position, objCallable, params in moveActions:
+        if position != 0 and abs(position) > maxPosition:
+            maxPosition = abs(position)
+            finalMoveAction = (objCallable, params)
+    if finalMoveAction:
+        callable_, params = finalMoveAction
+        callable_(*params)
+
+
 def update(window: WindowBase) -> None:
     r"""
     \brief Update input state for the current frame.
@@ -402,54 +634,7 @@ def update(window: WindowBase) -> None:
     - window: The window to poll events from.
     """
     with _StateLock:
-        _EventState.FocusLost = False
-        _EventState.FocusGained = False
-
-        _EventState.KeyPressed = False
-        _EventState.KeyReleased = False
-        _EventState.KeyPressedMap.clear()
-        _EventState.KeyReleasedMap.clear()
-        _EventState.KeyboardScanPressedMap.clear()
-        _EventState.KeyboardScanReleasedMap.clear()
-
-        _EventState.MouseWheelScrolled = False
-        _EventState.MouseScrolledWheel = None
-        _EventState.MouseScrolledWheelDelta = 0.0
-        _EventState.MouseScrolledWheelPosition = None
-
-        _EventState.MouseButtonPressed = False
-        _EventState.MouseButtonReleased = False
-        _EventState.MouseButtonPressedMap.clear()
-        _EventState.MouseButtonReleasedMap.clear()
-        _EventState.MousePressedPosition = None
-        _EventState.MouseReleasedPosition = None
-
-        _EventState.MouseMoved = False
-        _EventState.MouseMovedDelta = None
-
-        _EventState.MouseEntered = False
-        _EventState.MouseLeft = False
-
-        _EventState.TouchBegan = False
-        _EventState.TouchEnded = False
-        _EventState.TouchMoved = False
-        _EventState.TouchBeganPosition = None
-        _EventState.TouchEndedPosition = None
-        _EventState.TouchMovedDelta = None
-        _EventState.TouchBeganHandled = False
-        _EventState.TouchCancelMousePressedThisFrame = False
-
-        _EventState.JoystickButtonPressed = False
-        _EventState.JoystickButtonReleased = False
-        _EventState.JoystickAxisMoved = False
-        _EventState.JoystickConnected = False
-        _EventState.JoystickDisconnected = False
-        _EventState.JoystickButtonPressedMap.clear()
-        _EventState.JoystickButtonReleasedMap.clear()
-        _EventState.JoystickAxisMovedMap.clear()
-
-        _EventState.EnteredText = ""
-
+        _resetFrameState()
         _releasePendingTwoFingerCancel()
         _processInjectedEvents()
         _syncNativeWindowFocus(window)
@@ -469,37 +654,8 @@ def update(window: WindowBase) -> None:
                         _setFocused(True)
                 if not _usesInjectedWindowInput() and not window.hasFocus():
                     break
-                if not _usesInjectedWindowInput() and event.isKeyPressed():
-                    _EventState.KeyPressed = True
-                    keyEvent = event.getIfKeyPressed()
-                    alt = keyEvent.alt
-                    ctrl = keyEvent.control
-                    shift = keyEvent.shift
-                    system = keyEvent.system
-                    keyCode = _resolveKeyCode(keyEvent.code, keyEvent.scancode)
-                    keyMap = (keyCode, alt, ctrl, shift, system)
-                    scanMap = (keyEvent.scancode, alt, ctrl, shift, system)
-                    _EventState.KeyPressedMap[keyMap] = True
-                    _EventState.KeyboardScanPressedMap[scanMap] = True
-                    if not keyMap in _EventState.KeyTriggeredMap:
-                        _EventState.KeyTriggeredMap[keyMap] = (0, False)
-                    count, handled = _EventState.KeyTriggeredMap[keyMap]
-                    count += 1
-                    _EventState.KeyTriggeredMap[keyMap] = (count, handled)
-                if not _usesInjectedWindowInput() and event.isKeyReleased():
-                    _EventState.KeyReleased = True
-                    keyEvent = event.getIfKeyReleased()
-                    alt = keyEvent.alt
-                    ctrl = keyEvent.control
-                    shift = keyEvent.shift
-                    system = keyEvent.system
-                    keyCode = _resolveKeyCode(keyEvent.code, keyEvent.scancode)
-                    keyMap = (keyCode, alt, ctrl, shift, system)
-                    scanMap = (keyEvent.scancode, alt, ctrl, shift, system)
-                    _EventState.KeyReleasedMap[keyMap] = True
-                    _EventState.KeyboardScanReleasedMap[scanMap] = True
-                    if keyMap in _EventState.KeyTriggeredMap:
-                        _EventState.KeyTriggeredMap.pop(keyMap, None)
+                if not _usesInjectedWindowInput():
+                    _updateNativeKeyState(event)
                 if not _UseInjectedMouseOnly:
                     if event.isMouseWheelScrolled():
                         _EventState.MouseWheelScrolled = True
@@ -629,110 +785,9 @@ def update(window: WindowBase) -> None:
 
                 _EventState.EnteredText = Clipboard.getString()
 
-            for joyId, axes in _EventState.JoystickAxisStatus.items():
-                maxAxis = None
-                maxVal = 0.0
-                for axis, val in axes.items():
-                    if abs(val) > maxVal:
-                        maxVal = abs(val)
-                        maxAxis = axis
-
-                lastAxis, lastVal = _EventState.JoystickLastDominantAxis.get(joyId, (None, 0.0))
-
-                if maxVal < 10.0:
-                    maxAxis = None
-                    maxVal = 0.0
-
-                if maxAxis != lastAxis:
-                    if lastAxis is not None:
-                        _EventState.JoystickAxisJustPressed.pop((joyId, lastAxis), None)
-                    if maxAxis is not None:
-                        _EventState.JoystickAxisJustPressed[(joyId, maxAxis)] = (axes[maxAxis], False)
-                    _EventState.JoystickLastDominantAxis[joyId] = (maxAxis, maxVal)
-                elif maxAxis is not None:
-                    _EventState.JoystickLastDominantAxis[joyId] = (maxAxis, axes[maxAxis])
-
-            newInputType = None
-            if _EventState.MouseMoved or _EventState.MouseButtonPressed or _EventState.MouseWheelScrolled:
-                newInputType = InputType.Mouse
-            elif (
-                _EventState.KeyPressed
-                or _EventState.JoystickButtonPressed
-                or len(_EventState.JoystickAxisJustPressed) > 0
-            ):
-                newInputType = InputType.Gamepad
-
-            if newInputType is None and _EventState.JoystickAxisMoved:
-                for joyId, axes in _EventState.JoystickAxisStatus.items():
-                    for axis, val in axes.items():
-                        if abs(val) > 10.0:
-                            newInputType = InputType.Gamepad
-                            break
-                    if newInputType is not None:
-                        break
-
-            if newInputType is not None and newInputType != _EventState.CurrentInputType:
-                _EventState.CurrentInputType = newInputType
-                try:
-                    window.setMouseCursorVisible(newInputType == InputType.Mouse)
-                except AttributeError:
-                    pass
-
-            moveActions: List[Tuple[Joystick.Axis, float, Callable, List[Any]]] = []
-            for actionType, callables in _EventState.ActionMappings.items():
-                _, actionKeysTuple = actionType
-                obj, objCallable, triggerOnHold = callables
-
-                actionKeys = list(actionKeysTuple)
-                for key in actionKeys:
-                    if _canUseKeyboardInput():
-                        if isinstance(key, Key):
-                            triggered = False
-                            if (key, False, False, False, False) in _EventState.KeyPressedMap:
-                                triggered = True
-                            elif triggerOnHold and Keyboard.isKeyPressed(key):
-                                triggered = True
-
-                            if triggered:
-                                objCallable(obj, None)
-                        if isinstance(key, Scan):
-                            if (key, False, False, False, False) in _EventState.KeyboardScanPressedMap:
-                                objCallable(obj, None)
-                    if not _EventState.JoystickBlocked:
-                        if isinstance(key, JoystickButton):
-                            triggered = False
-                            for joyId, joystickDict in _EventState.JoystickButtonPressedMap.items():
-                                if joystickDict.get(key.value, False):
-                                    triggered = True
-                                    break
-
-                            if not triggered and triggerOnHold:
-                                for jId in range(Joystick.Count):
-                                    if Joystick.isConnected(jId) and Joystick.isButtonPressed(jId, key.value):
-                                        triggered = True
-                                        break
-
-                            if triggered:
-                                objCallable(obj, None)
-
-                        if isinstance(key, tuple):
-                            axis, threshold, callable_ = key
-                            if isinstance(axis, JoystickAxis):
-                                for _, axisMap in _EventState.JoystickAxisStatus.items():
-                                    if axis in axisMap:
-                                        position = axisMap[axis]
-                                        if not Math.IsNearZero(position):
-                                            if callable_(position, threshold):
-                                                moveActions.append((axis, position, objCallable, [obj, position]))
-            finalMoveAction: Optional[Tuple[Callable, List[Any]]] = None
-            maxPosition = 0.0
-            for axis, position, objCallable, params in moveActions:
-                if position != 0 and abs(position) > maxPosition:
-                    maxPosition = abs(position)
-                    finalMoveAction = (objCallable, params)
-            if finalMoveAction:
-                callable_, params = finalMoveAction
-                callable_(*params)
+            _updateJoystickDominantAxes()
+            _updateInputType(window)
+            _dispatchActionMappings()
 
         except Exception as e:
             logging.error(f"Error in Input.update: {e}\n {traceback.format_exc()}")
@@ -787,6 +842,52 @@ def isKeyReleased() -> bool:
     return _EventState.KeyReleased and _canUseKeyboardInput()
 
 
+def _consumeScanEvent(
+    eventMap: Dict[Tuple[Keyboard.Scan, bool, bool, bool, bool], bool],
+    scan: Keyboard.Scan,
+    handled: bool,
+    alt: bool,
+    ctrl: bool,
+    shift: bool,
+    system: bool,
+) -> bool:
+    mapScan = (scan, alt, ctrl, shift, system)
+    if mapScan in eventMap:
+        result = eventMap[mapScan]
+        if result and handled:
+            eventMap[mapScan] = False
+        return result
+    return False
+
+
+def _consumeKeyEvent(
+    keyEventMap: Dict[Tuple[Keyboard.Key, bool, bool, bool, bool], bool],
+    scanEventMap: Dict[Tuple[Keyboard.Scan, bool, bool, bool, bool], bool],
+    key: Keyboard.Key,
+    handled: bool,
+    alt: bool,
+    ctrl: bool,
+    shift: bool,
+    system: bool,
+) -> bool:
+    mapKey = (key, alt, ctrl, shift, system)
+    if mapKey in keyEventMap:
+        result = keyEventMap[mapKey]
+        if result and handled:
+            keyEventMap[mapKey] = False
+        return result
+
+    scan = Keyboard.delocalize(key)
+    if scan == Scan.Unknown:
+        return False
+    result = _consumeScanEvent(scanEventMap, scan, handled, alt, ctrl, shift, system)
+    if result and handled:
+        unknownKey = (Key.Unknown, alt, ctrl, shift, system)
+        if unknownKey in keyEventMap:
+            keyEventMap[unknownKey] = False
+    return result
+
+
 def getKeyPressed(
     key: Keyboard.Key,
     handled: bool,
@@ -810,25 +911,16 @@ def getKeyPressed(
     with _StateLock:
         if not isKeyPressed():
             return False
-        mapKey = (key, alt, ctrl, shift, system)
-        if mapKey in _EventState.KeyPressedMap:
-            result = _EventState.KeyPressedMap[mapKey]
-            if result and handled:
-                _EventState.KeyPressedMap[mapKey] = False
-            return result
-        scan = Keyboard.delocalize(key)
-        if scan == Scan.Unknown:
-            return False
-        mapScan = (scan, alt, ctrl, shift, system)
-        if mapScan not in _EventState.KeyboardScanPressedMap:
-            return False
-        result = _EventState.KeyboardScanPressedMap[mapScan]
-        if result and handled:
-            _EventState.KeyboardScanPressedMap[mapScan] = False
-            unknownKey = (Key.Unknown, alt, ctrl, shift, system)
-            if unknownKey in _EventState.KeyPressedMap:
-                _EventState.KeyPressedMap[unknownKey] = False
-        return result
+        return _consumeKeyEvent(
+            _EventState.KeyPressedMap,
+            _EventState.KeyboardScanPressedMap,
+            key,
+            handled,
+            alt,
+            ctrl,
+            shift,
+            system,
+        )
 
 
 def getScanPressed(
@@ -854,13 +946,7 @@ def getScanPressed(
     with _StateLock:
         if not isKeyPressed():
             return False
-        mapScan = (scan, alt, ctrl, shift, system)
-        if mapScan in _EventState.KeyboardScanPressedMap:
-            result = _EventState.KeyboardScanPressedMap[mapScan]
-            if result and handled:
-                _EventState.KeyboardScanPressedMap[mapScan] = False
-            return result
-        return False
+        return _consumeScanEvent(_EventState.KeyboardScanPressedMap, scan, handled, alt, ctrl, shift, system)
 
 
 def getKeyReleased(
@@ -886,25 +972,16 @@ def getKeyReleased(
     with _StateLock:
         if not isKeyReleased():
             return False
-        mapKey = (key, alt, ctrl, shift, system)
-        if mapKey in _EventState.KeyReleasedMap:
-            result = _EventState.KeyReleasedMap[mapKey]
-            if result and handled:
-                _EventState.KeyReleasedMap[mapKey] = False
-            return result
-        scan = Keyboard.delocalize(key)
-        if scan == Scan.Unknown:
-            return False
-        mapScan = (scan, alt, ctrl, shift, system)
-        if mapScan not in _EventState.KeyboardScanReleasedMap:
-            return False
-        result = _EventState.KeyboardScanReleasedMap[mapScan]
-        if result and handled:
-            _EventState.KeyboardScanReleasedMap[mapScan] = False
-            unknownKey = (Key.Unknown, alt, ctrl, shift, system)
-            if unknownKey in _EventState.KeyReleasedMap:
-                _EventState.KeyReleasedMap[unknownKey] = False
-        return result
+        return _consumeKeyEvent(
+            _EventState.KeyReleasedMap,
+            _EventState.KeyboardScanReleasedMap,
+            key,
+            handled,
+            alt,
+            ctrl,
+            shift,
+            system,
+        )
 
 
 def getScanReleased(
@@ -930,13 +1007,7 @@ def getScanReleased(
     with _StateLock:
         if not isKeyReleased():
             return False
-        mapScan = (scan, alt, ctrl, shift, system)
-        if mapScan in _EventState.KeyboardScanReleasedMap:
-            result = _EventState.KeyboardScanReleasedMap[mapScan]
-            if result and handled:
-                _EventState.KeyboardScanReleasedMap[mapScan] = False
-            return result
-        return False
+        return _consumeScanEvent(_EventState.KeyboardScanReleasedMap, scan, handled, alt, ctrl, shift, system)
 
 
 def isMouseWheelScrolled() -> bool:
@@ -1552,6 +1623,47 @@ def isActionTriggered(
                                 if condition(pos, threshold):
                                     triggered = True
         return triggered
+
+
+def isActionHeld(
+    actionKeys: List[
+        Union[
+            Key,
+            Scan,
+            JoystickButton,
+            Tuple[JoystickAxis, float, Callable[[float, float], bool]],
+        ]
+    ],
+) -> bool:
+    r"""
+    \brief Check whether any key in an action key set is currently held.
+
+    - actionKeys: List of keys/buttons/axes to check.
+
+    \return True if any action key is held, False otherwise.
+    """
+    with _StateLock:
+        for key in actionKeys:
+            if isinstance(key, Key):
+                if _canUseKeyboardInput() and Keyboard.isKeyPressed(key):
+                    return True
+            if isinstance(key, Scan):
+                if _canUseKeyboardInput() and Keyboard.isKeyPressed(key):
+                    return True
+            if isinstance(key, JoystickButton):
+                if not _EventState.JoystickBlocked and _isAnyJoystickButtonDown(key.value):
+                    return True
+            if isinstance(key, tuple):
+                axis, threshold, condition = key
+                if _EventState.JoystickBlocked:
+                    continue
+                if isinstance(axis, JoystickAxis):
+                    for _, axisMap in _EventState.JoystickAxisStatus.items():
+                        if axis in axisMap:
+                            position = axisMap[axis]
+                            if not Math.IsNearZero(position) and condition(position, threshold):
+                                return True
+        return False
 
 
 def isMouseButtonTriggered(

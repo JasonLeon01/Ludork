@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import List, Optional, Dict, Any, Tuple, Type, Union
-from Engine import Pair, Texture, Input, Vector2u
+from Engine import Pair, Texture, Input, Vector2u, RegisterEvent
 from Engine.Gameplay.Components import setComponentFieldValue
 from Engine.Gameplay.Actors import Character
 from Engine.Utils.Monitor import monitor, _MISSING
@@ -22,24 +22,20 @@ class Player(Character, PlayerInfo, Battler):
     r"""\brief Player-controlled character with input bindings and battle stats.
 
     Combines `Character` (directional movement/animation) with `Battler`
-    (HP, ATK, DEF, states). Registers arrow-key input mappings on construction.
+    (HP, ATK, DEF, states). Keyboard movement is polled during onFixedTick.
     """
 
     ID: str = "FILL_IT_BY_YOURSELF"
+    tickable: bool = True
+    collisionEnabled: bool = True
+    animatable: bool = True
+    speed: float = 96.0
     _componentTypes = {"infoComp": PlayerInfoComponent}
     infoComp: PlayerInfoComponent = PlayerInfoComponent()
 
     def __init__(self, texture: Optional[Texture] = None, tag: str = "") -> None:
-        def PlayerMove(obj: Player, delta: Pair[int]) -> None:
-            if not obj.getForbiddenMoving() and not obj._isSceneInputBlocked():
-                obj.MapMove(delta)
-
         Character.__init__(self, texture, tag)
         Battler.__init__(self)
-        self.tickable = True
-        self.collisionEnabled = True
-        self.animatable = True
-        self.speed = 96
         self._loading = True
         self.initInfo(Data)
         self._syncInitialHP()
@@ -57,22 +53,7 @@ class Player(Character, PlayerInfo, Battler):
         self._equipInfo: Dict[str, str] = {}
         self._classPath: str = ""
         self._forbiddenMoving: bool = False
-        Input.registerActionMapping(
-            self, "playerMoveUp", Input.getUpKeys(), lambda obj, delta: PlayerMove(obj, (0, -1)), triggerOnHold=True
-        )
-        Input.registerActionMapping(
-            self, "playerMoveDown", Input.getDownKeys(), lambda obj, delta: PlayerMove(obj, (0, 1)), triggerOnHold=True
-        )
-        Input.registerActionMapping(
-            self, "playerMoveLeft", Input.getLeftKeys(), lambda obj, delta: PlayerMove(obj, (-1, 0)), triggerOnHold=True
-        )
-        Input.registerActionMapping(
-            self,
-            "playerMoveRight",
-            Input.getRightKeys(),
-            lambda obj, delta: PlayerMove(obj, (1, 0)),
-            triggerOnHold=True,
-        )
+        self._wasMovingOnLastFixedTick: bool = False
         for slot, equipID in Cast(dict, Data.getGeneralClassData(self.infoComp.CLASS).get("slot")).items():
             if equipID:
                 self.equip(equipID)
@@ -91,11 +72,33 @@ class Player(Character, PlayerInfo, Battler):
         """
         self._classPath = classPath
 
-    def _processMoving(self, fixedDelta: float) -> None:
-        wasMoving = self._isMoving
-        super()._processMoving(fixedDelta)
-        if wasMoving and not self._isMoving:
+    @RegisterEvent
+    def onFixedTick(self, fixedDelta: float) -> None:
+        if self._wasMovingOnLastFixedTick and not self.isMoving():
             self.triggerStateWalk()
+        self._tryKeyboardMove()
+        self._wasMovingOnLastFixedTick = self.isMoving()
+
+    def _tryKeyboardMove(self) -> None:
+        if self._isMoving or self.isInRoute():
+            return
+        if self.getForbiddenMoving() or self._isSceneInputBlocked():
+            return
+        offset = self._getHeldKeyboardMoveOffset()
+        if offset is not None:
+            self.MapMove(offset)
+
+    def _getHeldKeyboardMoveOffset(self) -> Optional[Tuple[int, int]]:
+        heldMoves = (
+            (Input.getUpKeys(), (0, -1)),
+            (Input.getDownKeys(), (0, 1)),
+            (Input.getLeftKeys(), (-1, 0)),
+            (Input.getRightKeys(), (1, 0)),
+        )
+        for keys, offset in heldMoves:
+            if Input.isActionHeld(keys):
+                return offset
+        return None
 
     def asDict(self) -> Dict[str, Any]:
         r"""

@@ -144,7 +144,13 @@ class Graph:
                             self.nodeNexts[key][left] = {}
                         self.nodeNexts[key][left][leftOutPin] = (right, rightInPin)
 
-    def execute(self, key: str, startNode: Optional[int] = None, limit=1000000) -> Optional[Tuple[Any, ...]]:
+    def execute(
+        self,
+        key: str,
+        startNode: Optional[int] = None,
+        limit=1000000,
+        cache: Optional[Dict[Union[int, str], Tuple[Any, ...]]] = None,
+    ) -> Optional[Tuple[Any, ...]]:
         r"""Execute the node graph from a start node, following execution links.
 
         Handles latent nodes by delegating to LatentManager when encountered.
@@ -152,6 +158,7 @@ class Graph:
         - \param key         Event key to execute (e.g. "onUpdate")
         - \param startNode   Index of the entry node (uses startNodes[key] if None)
         - \param limit       Maximum number of steps before raising RuntimeError
+        - \param cache       Existing node result cache when resuming after a latent node
         - \return Tuple of return values from the final node, or None
         """
         from . import latentManager
@@ -168,14 +175,15 @@ class Graph:
             return None
         if not (0 <= curr < len(self.nodes[key])):
             raise IndexError(f"startIndex {curr} out of range for key '{key}'")
-        cache: Dict[int, Tuple[Any, ...]] = {}
+        if cache is None:
+            cache = {}
         steps = 0
         while True:
             result = self.executeNode(key, curr, cache)
             nodeFunc = self.nodes[key][curr].nodeFunction
             if hasattr(nodeFunc, "_latents"):
                 condition = result[0] if isinstance(result, tuple) and len(result) > 0 else result
-                latentManager.add(self, key, condition, self.localGraph, curr)
+                latentManager.add(self, key, condition, self.localGraph, curr, cache)
                 return result
             nextMap = self.nodeNexts.get(key, {}).get(curr, {})
             if not nextMap:

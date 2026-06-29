@@ -112,17 +112,8 @@ class Node:
             oldActiveNodeFunction = self.parentGraph.localGraph.get("__activeNodeFunction__", _MISSING)
             self.parentGraph.localGraph["__activeNodeFunction__"] = self.nodeFunction
             self.nodeFunction._refLocal = self.parentGraph.localGraph
-        superFunctionName = self.functionName[5:] if self.functionName.startswith("self.") else self.functionName
         try:
-            if (
-                actualParams
-                and isinstance(superFunctionName, str)
-                and "." not in superFunctionName
-                and hasattr(actualParams[0], "_callSuperFunction")
-            ):
-                result = actualParams[0]._callSuperFunction(superFunctionName, *actualParams[1:])
-            else:
-                result = self.nodeFunction(*actualParams)
+            result = self.nodeFunction(*actualParams)
         finally:
             if hasRefLocal:
                 if oldActiveNodeFunction is _MISSING:

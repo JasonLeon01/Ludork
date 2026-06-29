@@ -517,8 +517,13 @@ class FileExplorer(QtWidgets.QWidget):
         actDelete = None
         actReferenceTree = None
         actDeriveBlueprint = None
+        actCopyBlueprintClassName = None
+        blueprintClassName = ""
         if selectedPath:
-            if not isDir and self._blueprintKeyForPath(selectedPath):
+            if not isDir:
+                blueprintClassName = self._blueprintClassNameForPath(selectedPath) or ""
+            if blueprintClassName:
+                actCopyBlueprintClassName = menu.addAction(ELOC("COPY_BLUEPRINT_CLASS_NAME"))
                 actDeriveBlueprint = menu.addAction(ELOC("DERIVE_FROM_THIS_BLUEPRINT"))
             if not isDir and GameData.GetReferenceNodeForPath(selectedPath):
                 actReferenceTree = menu.addAction(ELOC("SHOW_REFERENCE_TREE"))
@@ -532,6 +537,8 @@ class FileExplorer(QtWidgets.QWidget):
         r = menu.exec_(viewport.mapToGlobal(pos))
         if r == actNewFolder:
             self._createFolder(self._targetDirForNewFolder(selectedPath, isDir))
+        elif actCopyBlueprintClassName and r == actCopyBlueprintClassName:
+            self._copyBlueprintClassName(blueprintClassName)
         elif actDeriveBlueprint and r == actDeriveBlueprint:
             self._deriveBlueprintFrom(selectedPath)
         elif actReferenceTree and r == actReferenceTree:
@@ -565,12 +572,22 @@ class FileExplorer(QtWidgets.QWidget):
             return key
         return None
 
-    def _deriveBlueprintFrom(self, path: str) -> None:
+    def _blueprintClassNameForPath(self, path: str) -> Optional[str]:
         key = self._blueprintKeyForPath(path)
         if not key:
+            return None
+        return "Data.Blueprints." + key.replace("/", ".")
+
+    def _copyBlueprintClassName(self, className: str) -> None:
+        if not className:
             return
-        parentClass = "Data.Blueprints." + key.replace("/", ".")
-        File.mainWindow._onNewBlueprint(parentClass=parentClass)
+        QtWidgets.QApplication.clipboard().setText(className)
+
+    def _deriveBlueprintFrom(self, path: str) -> None:
+        className = self._blueprintClassNameForPath(path)
+        if not className:
+            return
+        File.mainWindow._onNewBlueprint(parentClass=className)
 
     def _createFolder(self, targetDir: str) -> None:
         if not targetDir or not self._isUnderRoot(targetDir):

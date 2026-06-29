@@ -9,9 +9,7 @@
             "emissive": 0.0,
             "speedRate": 1.0
         },
-        "collisionEnabled": true,
-        "tickable": true,
-        "speed": 96,
+        "speed": 160,
         "texturePath": "actors/classic-cha-braver01.png",
         "ID": "Bravor",
         "lightComp": {
