@@ -433,34 +433,34 @@
                     null
                 ],
                 [
+                    127,
+                    127,
+                    127,
+                    127,
                     null,
                     null,
                     null,
                     null,
                     null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null
+                    127,
+                    127,
+                    127,
+                    127
                 ],
                 [
+                    135,
+                    135,
+                    135,
+                    135,
                     null,
                     null,
                     null,
                     null,
                     null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null
+                    135,
+                    135,
+                    135,
+                    135
                 ],
                 [
                     null,
@@ -817,19 +817,19 @@
             "layerTileset": "Tileset_01",
             "tiles": [
                 [
+                    119,
+                    119,
+                    119,
+                    119,
                     null,
                     null,
                     null,
                     null,
                     null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null
+                    119,
+                    119,
+                    119,
+                    119
                 ],
                 [
                     null,

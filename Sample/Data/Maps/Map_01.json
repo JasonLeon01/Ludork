@@ -542,8 +542,8 @@
             "layerTileset": "Tileset_01",
             "tiles": [
                 [
-                    null,
-                    null,
+                    256,
+                    257,
                     5,
                     null,
                     6,
@@ -553,12 +553,12 @@
                     6,
                     null,
                     5,
-                    null,
-                    null
+                    264,
+                    265
                 ],
                 [
-                    null,
-                    null,
+                    258,
+                    259,
                     5,
                     null,
                     null,
@@ -568,8 +568,8 @@
                     null,
                     null,
                     5,
-                    null,
-                    null
+                    266,
+                    267
                 ],
                 [
                     null,
@@ -1123,30 +1123,15 @@
                 [
                     null,
                     null,
+                    260,
+                    261,
+                    262,
+                    263,
                     null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
+                    268,
+                    269,
+                    270,
+                    271,
                     null,
                     null
                 ],
@@ -1252,6 +1237,21 @@
                     null,
                     null,
                     null,
+                    null,
+                    null
+                ],
+                [
+                    null,
+                    null,
+                    278,
+                    279,
+                    284,
+                    285,
+                    null,
+                    286,
+                    287,
+                    292,
+                    293,
                     null,
                     null
                 ],

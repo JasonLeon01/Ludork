@@ -1,14 +1,38 @@
 # -*- encoding: utf-8 -*-
 
 import importlib
-from PyQt5 import QtWidgets, QtGui, QtCore
+import copy
 import os
 from enum import Enum
+from typing import Any
+
+from PyQt5 import QtWidgets, QtGui, QtCore
+
 from EditorGlobal import EditorStatus, GameData
 from Utils import System, File
 from .FileSelectorDialog import FileSelectorDialog
 from .DataclassEditDialog import DataclassEditDialog
-import copy
+
+
+def _getListField(data: Any, fieldName: str) -> list:
+    value = getattr(data, fieldName, [])
+    if isinstance(value, list):
+        return list(value)
+    try:
+        return list(value)
+    except TypeError:
+        return []
+
+
+def _setListField(data: Any, fieldName: str, value: list) -> None:
+    setattr(data, fieldName, value)
+
+
+def _resizeList(value: list, size: int, defaultValue: Any) -> None:
+    if len(value) < size:
+        value.extend([copy.deepcopy(defaultValue) for _ in range(size - len(value))])
+    elif len(value) > size:
+        del value[size:]
 
 
 class TilesetMode(Enum):
@@ -201,32 +225,23 @@ class TilesetImageView(QtWidgets.QWidget):
         idx = gy * cols + gx
         count = cols * rows
         if self._mode == TilesetMode.PASSABLE:
-            arr = getattr(self._data, "passable", None)
-            if not isinstance(arr, list):
-                arr = []
-                setattr(self._data, "passable", arr)
-            if len(arr) < count:
-                arr.extend([False] * (count - len(arr)))
+            arr = _getListField(self._data, "passable")
+            _resizeList(arr, count, False)
             arr[idx] = not bool(arr[idx])
+            _setListField(self._data, "passable", arr)
         elif self._mode == TilesetMode.MATERIAL:
-            arr = getattr(self._data, "materials", None)
-            if not isinstance(arr, list):
-                arr = []
-                setattr(self._data, "materials", arr)
-
+            arr = _getListField(self._data, "materials")
             if self.MaterialClass:
+                _resizeList(arr, count, self.MaterialClass())
                 edit_mat = copy.deepcopy(arr[idx])
                 dlg = DataclassEditDialog(self, edit_mat, ELOC("EDIT_MATERIAL"))
                 if dlg.exec_():
                     GameData.RecordSnapshot()
                     arr[idx] = edit_mat
+                    _setListField(self._data, "materials", arr)
         elif self._mode == TilesetMode.DIR4:
-            arrDir4 = getattr(self._data, "dir4", None)
-            if not isinstance(arrDir4, list):
-                arrDir4 = []
-                setattr(self._data, "dir4", arrDir4)
-            if len(arrDir4) < count:
-                arrDir4.extend([(True, True, True, True)] * (count - len(arrDir4)))
+            arrDir4 = _getListField(self._data, "dir4")
+            _resizeList(arrDir4, count, (True, True, True, True))
 
             localX = x - gx * cellSize
             localY = y - gy * cellSize
@@ -250,6 +265,7 @@ class TilesetImageView(QtWidgets.QWidget):
             newVal = [bool(dir4Val[0]), bool(dir4Val[1]), bool(dir4Val[2]), bool(dir4Val[3])]
             newVal[dirIndex] = not newVal[dirIndex]
             arrDir4[idx] = (newVal[0], newVal[1], newVal[2], newVal[3])
+            _setListField(self._data, "dir4", arrDir4)
         self.DATA_CHANGED.emit()
         self.update()
 
@@ -362,33 +378,15 @@ class TilesetPanel(QtWidgets.QWidget):
                     cols = img.width() // cellSize
                     rows = img.height() // cellSize
                     new_count = max(0, cols * rows)
-            arr_p = getattr(self._data, "passable", [])
-            arr_m = getattr(self._data, "materials", [])
-            arrDir4 = getattr(self._data, "dir4", [])
-            if not isinstance(arr_p, list):
-                arr_p = []
-                setattr(self._data, "passable", arr_p)
-            if not isinstance(arr_m, list):
-                arr_m = []
-                setattr(self._data, "materials", arr_m)
-            if not isinstance(arrDir4, list):
-                arrDir4 = []
-                setattr(self._data, "dir4", arrDir4)
-            if len(arr_p) < new_count:
-                arr_p.extend([True] * (new_count - len(arr_p)))
-            elif len(arr_p) > new_count:
-                del arr_p[new_count:]
-            if len(arr_m) < new_count:
-                if self.MaterialClass:
-                    arr_m.extend([self.MaterialClass() for _ in range(new_count - len(arr_m))])
-                else:
-                    arr_m.extend([None] * (new_count - len(arr_m)))
-            elif len(arr_m) > new_count:
-                del arr_m[new_count:]
-            if len(arrDir4) < new_count:
-                arrDir4.extend([(True, True, True, True)] * (new_count - len(arrDir4)))
-            elif len(arrDir4) > new_count:
-                del arrDir4[new_count:]
+            arr_p = _getListField(self._data, "passable")
+            arr_m = _getListField(self._data, "materials")
+            arrDir4 = _getListField(self._data, "dir4")
+            _resizeList(arr_p, new_count, True)
+            _resizeList(arr_m, new_count, self.MaterialClass() if self.MaterialClass else None)
+            _resizeList(arrDir4, new_count, (True, True, True, True))
+            _setListField(self._data, "passable", arr_p)
+            _setListField(self._data, "materials", arr_m)
+            _setListField(self._data, "dir4", arrDir4)
             if self._key:
                 File.mainWindow.editorPanel._renderFromMapData()
                 File.mainWindow.editorPanel.update()

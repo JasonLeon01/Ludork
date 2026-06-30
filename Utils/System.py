@@ -144,14 +144,17 @@ def ApplyEditorFont(app: QtWidgets.QApplication) -> None:
         print(f"Error applying editor UI font: {e}")
 
 
-def _initModuleLocale(module: ModuleType) -> None:
+def _initModuleLocale(module: ModuleType, force: bool = False) -> None:
     localeModule = getattr(module, "Locale", None)
     if not isinstance(localeModule, ModuleType):
         return
     Init = getattr(localeModule, "init", None)
     if not callable(Init):
         return
-    Init(os.path.join(EditorStatus.PROJ_PATH, "Data", "Locale"))
+    localePath = os.path.abspath(os.path.join(EditorStatus.PROJ_PATH, "Data", "Locale"))
+    if force or getattr(localeModule, "_ludorkLocaleInitPath", None) != localePath:
+        Init(localePath)
+        localeModule._ludorkLocaleInitPath = localePath
     localeModule.LANGUAGE = EditorStatus.LANGUAGE
 
 
@@ -289,5 +292,5 @@ def ReloadModule(moduleName: str) -> ModuleType:
             except Exception as e:
                 print(f"Failed to reload submodule {name}: {e}")
     if isinstance(module, ModuleType):
-        _initModuleLocale(module)
+        _initModuleLocale(module, True)
     return module
