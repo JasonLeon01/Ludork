@@ -20,5 +20,6 @@ from . import File
 from . import Render
 from . import Event
 from . import Monitor
+from . import DataValue
 
-__all__ = ["Inner", "Math", "File", "Render", "Event", "Monitor"]
+__all__ = ["Inner", "Math", "File", "Render", "Event", "Monitor", "DataValue"]

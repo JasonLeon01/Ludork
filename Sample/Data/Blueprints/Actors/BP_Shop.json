@@ -30,7 +30,7 @@
                     {
                         "nodeFunction": "NodeFunctions.Scene.OpenAttrShop",
                         "params": [
-                            "None",
+                            null,
                             "{SHOP_NAME}",
                             "{SHOP_DESC}",
                             {
@@ -38,8 +38,8 @@
                                 "ATK": 2,
                                 "DEF": 2
                             },
-                            "0",
-                            "1",
+                            0,
+                            1,
                             "GOLD"
                         ],
                         "pos": [

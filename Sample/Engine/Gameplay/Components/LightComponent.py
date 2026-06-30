@@ -8,7 +8,17 @@ from ...Decorators import Meta
 from .Component import Component
 
 
-@Meta(ColourVars=["lightColour"])
+@Meta(
+    ColourVars=["lightColour"],
+    VariableDisplayNames={
+        "lightColour": 'LOC("LIGHT_COMP_VAR_LIGHT_COLOUR")',
+        "lightRadius": 'LOC("LIGHT_COMP_VAR_LIGHT_RADIUS")',
+    },
+    VariableDisplayDescs={
+        "lightColour": 'LOC("LIGHT_COMP_VAR_LIGHT_COLOUR_DESC")',
+        "lightRadius": 'LOC("LIGHT_COMP_VAR_LIGHT_RADIUS_DESC")',
+    },
+)
 @dataclass
 class LightComponent(Component):
     r"""\brief Self-light settings attached to an actor."""

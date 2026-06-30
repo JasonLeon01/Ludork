@@ -5,8 +5,11 @@ from __future__ import annotations
 import os
 import copy
 import dataclasses
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+import importlib
+import inspect
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, get_type_hints
 from Utils import File, System
+from Utils.DataValue import IsStandardValue, SerialiseTypedValueForData
 from . import EditorStatus
 
 
@@ -37,6 +40,12 @@ class GameData:
         ("Animations", "animationsData"),
         ("General", "generalData"),
     )
+    _CONVERTIBLE_FORMAT_SECTIONS = {
+        "Maps": ("mapData", "map"),
+        "Blueprints": ("blueprintsData", "blueprint"),
+        "Animations": ("animationsData", "animation"),
+    }
+    _MAP_ACTOR_INSTANCE_TRANSFORM_KEYS = ("translation", "rotation", "scale", "origin")
 
     @classmethod
     def Init(cls) -> None:
@@ -92,6 +101,8 @@ class GameData:
                             continue
                         if "type" in data:
                             del data["type"]
+                        if inRoot == "Maps":
+                            cls.CleanMapActorInstanceTransformData(data)
                         if initCb:
                             inData[namePart] = initCb(data)
                         else:
@@ -123,6 +134,73 @@ class GameData:
                 break
 
     @classmethod
+    def RenameDataPath(cls, oldPath: str, newPath: str) -> Dict[str, List[Tuple[str, str]]]:
+        dataRoot = os.path.abspath(os.path.join(EditorStatus.PROJ_PATH, "Data"))
+        oldAbs = os.path.abspath(oldPath)
+        newAbs = os.path.abspath(newPath)
+        result: Dict[str, List[Tuple[str, str]]] = {}
+        if not System.isPathInside(oldAbs, dataRoot) or not System.isPathInside(newAbs, dataRoot):
+            return result
+
+        for dirName, attrName in cls._DATA_PATH_SECTIONS:
+            sectionRoot = os.path.join(dataRoot, dirName)
+            if not System.isPathInside(oldAbs, sectionRoot) or not System.isPathInside(newAbs, sectionRoot):
+                continue
+            data = getattr(cls, attrName, None)
+            origin = cls._originData.get(attrName)
+            if not isinstance(data, dict):
+                return result
+            originKeys = origin.keys() if isinstance(origin, dict) else ()
+            mappings = cls._GetRenamedDataKeyMap(oldAbs, newAbs, sectionRoot, set(data.keys()) | set(originKeys))
+            if not mappings:
+                return result
+            applied: List[Tuple[str, str]] = []
+            for oldKey, newKey in mappings:
+                currentMoved = cls._RenameDataKey(data, oldKey, newKey)
+                originMoved = isinstance(origin, dict) and cls._RenameDataKey(origin, oldKey, newKey)
+                if currentMoved or originMoved:
+                    applied.append((oldKey, newKey))
+                    if attrName == "blueprintsData":
+                        cls._EvictClassDictPath("Data.Blueprints." + oldKey.replace("/", "."))
+                        cls.InvalidateBlueprintClassCache(newKey)
+            if applied:
+                result[attrName] = applied
+                cls.MarkReferencesDirty()
+            return result
+        return result
+
+    @classmethod
+    def _RenameDataKey(cls, data: Dict[str, Any], oldKey: str, newKey: str) -> bool:
+        if oldKey not in data:
+            return False
+        if oldKey != newKey:
+            data[newKey] = data.pop(oldKey)
+        return True
+
+    @classmethod
+    def _GetRenamedDataKeyMap(
+        cls, oldPath: str, newPath: str, sectionRoot: str, keys: Set[str]
+    ) -> List[Tuple[str, str]]:
+        oldRel = os.path.relpath(oldPath, sectionRoot).replace("\\", "/")
+        newRel = os.path.relpath(newPath, sectionRoot).replace("\\", "/")
+        oldName, oldExt = os.path.splitext(oldRel)
+        newName, newExt = os.path.splitext(newRel)
+        if oldExt.lower() in (".dat", ".json") and newExt.lower() in (".dat", ".json"):
+            return [(oldName, newName)] if oldName in keys else []
+
+        oldPrefix = oldRel.rstrip("/")
+        newPrefix = newRel.rstrip("/")
+        if oldPrefix in ("", ".") or newPrefix in ("", "."):
+            return []
+        oldPrefix += "/"
+        newPrefix += "/"
+        mappings = []
+        for key in sorted(keys):
+            if key.startswith(oldPrefix):
+                mappings.append((key, newPrefix + key[len(oldPrefix) :]))
+        return mappings
+
+    @classmethod
     def _GetDataKeysForPath(cls, path: str, sectionRoot: str, data: Dict[str, Any]) -> List[str]:
         relPath = os.path.relpath(path, sectionRoot)
         namePart, ext = os.path.splitext(relPath)
@@ -135,6 +213,174 @@ class GameData:
             return list(data.keys())
         prefix += "/"
         return [key for key in list(data.keys()) if key.startswith(prefix)]
+
+    @classmethod
+    def _GetConvertibleFormatPathInfo(cls, path: str) -> Optional[Tuple[str, str, str]]:
+        absPath = os.path.abspath(path)
+        dataRoot = os.path.abspath(os.path.join(EditorStatus.PROJ_PATH, "Data"))
+        if not System.isPathInside(absPath, dataRoot):
+            return None
+        ext = os.path.splitext(absPath)[1].lower()
+        if ext not in (".dat", ".json"):
+            return None
+        for dirName, (attrName, _dataType) in cls._CONVERTIBLE_FORMAT_SECTIONS.items():
+            sectionRoot = os.path.join(dataRoot, dirName)
+            if not System.isPathInside(absPath, sectionRoot):
+                continue
+            data = getattr(cls, attrName, None)
+            if not isinstance(data, dict):
+                return None
+            relPath = os.path.relpath(absPath, sectionRoot)
+            key = os.path.splitext(relPath)[0].replace("\\", "/")
+            if key not in data:
+                return None
+            return dirName, key, ext
+        return None
+
+    @classmethod
+    def GetConvertibleDataFormatForPath(cls, path: str) -> Optional[str]:
+        info = cls._GetConvertibleFormatPathInfo(path)
+        if info is None:
+            return None
+        return "json" if info[2] == ".json" else "dat"
+
+    @classmethod
+    def GetDataFormat(cls, dataRootName: str, key: str) -> Optional[str]:
+        section = cls._CONVERTIBLE_FORMAT_SECTIONS.get(dataRootName)
+        if section is None:
+            return None
+        data = getattr(cls, section[0], None)
+        if not isinstance(data, dict):
+            return None
+        value = data.get(key)
+        if not isinstance(value, dict):
+            return None
+        return "json" if value.get("isJson") else "dat"
+
+    @classmethod
+    def ConvertDataFormatForPath(cls, path: str) -> str:
+        info = cls._GetConvertibleFormatPathInfo(path)
+        if info is None:
+            raise ValueError(f"Data file cannot be converted: {path}")
+        dataRootName, key, ext = info
+        return cls.ConvertDataFormat(dataRootName, key, ext == ".dat", ext)
+
+    @classmethod
+    def ConvertDataFormat(
+        cls, dataRootName: str, key: str, toJson: bool, sourceExt: Optional[str] = None
+    ) -> str:
+        section = cls._CONVERTIBLE_FORMAT_SECTIONS.get(dataRootName)
+        if section is None:
+            raise ValueError(f"Data root cannot be converted: {dataRootName}")
+        attrName, dataType = section
+        data = getattr(cls, attrName, None)
+        if not isinstance(data, dict):
+            raise ValueError(f"Data root is not loaded: {dataRootName}")
+        value = data.get(key)
+        if not isinstance(value, dict):
+            raise ValueError(f"Data item cannot be converted: {key}")
+
+        currentExt = ".json" if value.get("isJson") else ".dat"
+        if sourceExt is not None and sourceExt.lower() in (".dat", ".json"):
+            currentExt = sourceExt.lower()
+        targetExt = ".json" if toJson else ".dat"
+        root = os.path.join(EditorStatus.PROJ_PATH, "Data", dataRootName)
+        relPath = key.replace("/", os.sep)
+        sourcePath = os.path.join(root, relPath + currentExt)
+        targetPath = os.path.join(root, relPath + targetExt)
+        os.makedirs(os.path.dirname(targetPath), exist_ok=True)
+
+        if dataRootName == "Maps":
+            cls.CleanMapActorInstanceTransformData(value)
+        payload = cls._GetFormatConversionPayload(dataRootName, value, dataType)
+        samePath = os.path.normcase(os.path.abspath(sourcePath)) == os.path.normcase(
+            os.path.abspath(targetPath)
+        )
+        if not samePath and os.path.exists(sourcePath):
+            os.remove(sourcePath)
+        if not samePath and os.path.exists(targetPath):
+            os.remove(targetPath)
+
+        if toJson:
+            File.SaveJSONData(targetPath, payload)
+            value["isJson"] = True
+        else:
+            File.SaveData(targetPath, payload)
+            value.pop("isJson", None)
+
+        origin = cls._originData.get(attrName)
+        if isinstance(origin, dict):
+            origin[key] = copy.deepcopy(value)
+        if attrName == "blueprintsData":
+            cls.InvalidateBlueprintClassCache(key)
+        cls.MarkReferencesDirty()
+        return targetPath
+
+    @classmethod
+    def _GetFormatConversionPayload(
+        cls, dataRootName: str, data: Dict[str, Any], dataType: str
+    ) -> Dict[str, Any]:
+        if dataRootName == "Blueprints":
+            payload = cls._GetBlueprintSavePayload(data)
+        elif dataRootName == "Maps":
+            payload = cls._GetMapSavePayload(data)
+        else:
+            payload = copy.deepcopy(data)
+            payload["type"] = dataType
+        payload.pop("isJson", None)
+        return payload
+
+    @classmethod
+    def CleanMapActorInstanceTransformData(cls, data: Dict[str, Any]) -> bool:
+        changed = False
+        actors = data.get("actors")
+        if isinstance(actors, dict):
+            for actorList in actors.values():
+                changed = cls._CleanMapActorListInstanceTransformData(actorList) or changed
+        elif isinstance(actors, list):
+            changed = cls._CleanMapActorListInstanceTransformData(actors) or changed
+
+        layers = data.get("layers")
+        if isinstance(layers, dict):
+            for layerData in layers.values():
+                if isinstance(layerData, dict):
+                    changed = cls._CleanMapActorListInstanceTransformData(layerData.get("actors")) or changed
+        root = data.get("BPClassVarChanged")
+        if isinstance(root, dict) and not root:
+            data.pop("BPClassVarChanged", None)
+            changed = True
+        return changed
+
+    @classmethod
+    def _CleanMapActorListInstanceTransformData(cls, actors: Any) -> bool:
+        if not isinstance(actors, list):
+            return False
+        changed = False
+        for actor in actors:
+            if not isinstance(actor, dict):
+                continue
+            changed = cls.CleanActorInstanceTransformData(actor) or changed
+        return changed
+
+    @classmethod
+    def CleanActorInstanceTransformData(cls, actor: Dict[str, Any]) -> bool:
+        changed = False
+        for key in cls._MAP_ACTOR_INSTANCE_TRANSFORM_KEYS:
+            if key in actor:
+                actor.pop(key, None)
+                changed = True
+        return changed
+
+    @classmethod
+    def GetMapSavePayload(cls, data: Dict[str, Any]) -> Dict[str, Any]:
+        payload = copy.deepcopy(data)
+        payload["type"] = "map"
+        cls.CleanMapActorInstanceTransformData(payload)
+        return payload
+
+    @classmethod
+    def _GetMapSavePayload(cls, data: Dict[str, Any]) -> Dict[str, Any]:
+        return cls.GetMapSavePayload(data)
 
     @classmethod
     def CheckModified(cls) -> bool:
@@ -300,12 +546,12 @@ class GameData:
         c_map = changes["mapData"]
         for key in c_map["A"] + c_map["U"]:
             data = cls.mapData.get(key)
-            payload = copy.deepcopy(data)
-            if not isinstance(payload, dict):
+            if not isinstance(data, dict):
                 final_details["Failed"].append(key)
                 continue
             try:
-                payload["type"] = "map"
+                cls.CleanMapActorInstanceTransformData(data)
+                payload = cls._GetMapSavePayload(data)
                 if "isJson" in payload:
                     del payload["isJson"]
                     File.SaveJSONData(os.path.join(mapsRoot, f"{key}.json"), payload)
@@ -593,8 +839,84 @@ class GameData:
     def _GetBlueprintSavePayload(cls, data: Dict[str, Any]) -> Dict[str, Any]:
         payload = cls._NormaliseBlueprintValue(copy.deepcopy(data))
         payload["type"] = "blueprint"
+        cls._NormaliseBlueprintGraphParamsForSave(payload)
         cls._TrimBlueprintDefaultAttrs(payload)
         return payload
+
+    @classmethod
+    def _NormaliseBlueprintGraphParamsForSave(cls, data: Dict[str, Any]) -> None:
+        graph = data.get("graph")
+        if not isinstance(graph, dict):
+            return
+        nodeGraph = graph.get("nodeGraph")
+        if not isinstance(nodeGraph, dict):
+            return
+        parentClass = data.get("parent")
+        for eventData in nodeGraph.values():
+            if not isinstance(eventData, dict):
+                continue
+            nodes = eventData.get("nodes")
+            if not isinstance(nodes, list):
+                continue
+            for node in nodes:
+                if not isinstance(node, dict):
+                    continue
+                params = node.get("params")
+                nodeFunction = node.get("nodeFunction")
+                if not isinstance(params, list) or not isinstance(nodeFunction, str):
+                    continue
+                func = cls._ResolveBlueprintNodeFunction(nodeFunction, parentClass)
+                if func is None:
+                    continue
+                paramTypes = cls._GetCallableParamTypes(func)
+                for index in range(len(params)):
+                    paramType = paramTypes[index] if index < len(paramTypes) else Any
+                    params[index] = SerialiseTypedValueForData(params[index], paramType)
+
+    @classmethod
+    def _ResolveBlueprintNodeFunction(cls, nodeFunction: str, parentClass: Any) -> Optional[Callable]:
+        if nodeFunction.startswith("self.") and isinstance(parentClass, str):
+            try:
+                parentCls = cls.classDict.get(parentClass, EditorStatus.PROJ_PATH)
+            except Exception:
+                parentCls = None
+            attrName = nodeFunction.split(".", 1)[1]
+            func = getattr(parentCls, attrName, None) if isinstance(parentCls, type) else None
+            return func if callable(func) else None
+        try:
+            modulePath, functionName = nodeFunction.rsplit(".", 1)
+        except ValueError:
+            return None
+        try:
+            module = System.GetModule(modulePath)
+        except Exception:
+            try:
+                importPath = f"Source.{modulePath}" if modulePath.startswith("NodeFunctions.") else modulePath
+                module = importlib.import_module(importPath)
+            except Exception:
+                return None
+        func = getattr(module, functionName, None)
+        return func if callable(func) else None
+
+    @classmethod
+    def _GetCallableParamTypes(cls, func: Callable) -> List[Any]:
+        try:
+            sig = inspect.signature(func)
+        except (TypeError, ValueError):
+            return []
+        try:
+            typeHints = get_type_hints(func)
+        except (AttributeError, NameError, SyntaxError, TypeError, ValueError):
+            typeHints = {}
+        result: List[Any] = []
+        for paramName, paramObj in sig.parameters.items():
+            if paramName == "self":
+                continue
+            paramType = typeHints.get(paramName, paramObj.annotation)
+            if paramType == inspect.Parameter.empty:
+                paramType = Any
+            result.append(paramType)
+        return result
 
     @classmethod
     def _TrimBlueprintDefaultAttrs(cls, data: Dict[str, Any]) -> None:
@@ -694,19 +1016,13 @@ class GameData:
             and not isinstance(position, (list, tuple, dict))
             and not isinstance(size, (list, tuple, dict))
         ):
-            return (
-                cls._NormaliseBlueprintValue(position),
-                cls._NormaliseBlueprintValue(size),
-            )
+            return f"{type(value).__name__}({cls._BindExpression(position)}, {cls._BindExpression(size)})"
 
         if hasattr(value, "x") and hasattr(value, "y") and not isinstance(value, (list, tuple, dict)):
-            coords: List[Any] = [
-                cls._NormaliseBlueprintValue(value.x),
-                cls._NormaliseBlueprintValue(value.y),
-            ]
+            coords: List[Any] = [value.x, value.y]
             if hasattr(value, "z"):
-                coords.append(cls._NormaliseBlueprintValue(value.z))
-            return tuple(coords)
+                coords.append(value.z)
+            return f"{type(value).__name__}({', '.join(repr(cls._NormaliseBlueprintValue(item)) for item in coords)})"
 
         if (
             hasattr(value, "r")
@@ -715,11 +1031,19 @@ class GameData:
             and not isinstance(value, (list, tuple, dict))
             and not hasattr(value, "x")
         ):
+            values = [int(value.r), int(value.g), int(value.b)]
             if hasattr(value, "a"):
-                return (int(value.r), int(value.g), int(value.b), int(value.a))
-            return (int(value.r), int(value.g), int(value.b))
+                values.append(int(value.a))
+            return f"{type(value).__name__}({', '.join(str(item) for item in values)})"
 
         return value
+
+    @classmethod
+    def _BindExpression(cls, value: Any) -> str:
+        normalised = cls._NormaliseBindValue(value)
+        if isinstance(normalised, str) and not IsStandardValue(value):
+            return normalised
+        return repr(cls._NormaliseBlueprintValue(value))
 
     @classmethod
     def _NormaliseBlueprintValue(cls, value: Any) -> Any:
@@ -1103,6 +1427,9 @@ class GameData:
         cls._AddAssetReference(index, sourceId, data.get("bgm"), "Musics", "asset", f"Maps/{key}.bgm")
         cls._AddAssetReference(index, sourceId, data.get("bgs"), "Musics", "asset", f"Maps/{key}.bgs")
         cls._AddAssetReference(index, sourceId, data.get("fog"), "Fogs", "asset", f"Maps/{key}.fog")
+        cls._ScanGenericReferences(
+            index, sourceId, data.get("BPClassVarChanged"), f"Maps/{key}.BPClassVarChanged"
+        )
 
     @classmethod
     def _ScanAutoTileGridReferences(cls, index: Dict[str, Any], sourceId: str, value: Any, path: str) -> None:
@@ -1291,7 +1618,18 @@ class GameData:
         if not isinstance(nodeFunction, str) or not isinstance(params, list):
             return
         rules = [
-            ((".AddPlayerByClass", ".RemovePlayerByClass", ".CreateActorFromBPPath"), 0, "blueprint", "", "nodeParam"),
+            (
+                (
+                    ".AddPlayerByClass",
+                    ".RemovePlayerByClass",
+                    ".CreateActorFromBPPath",
+                    ".CreateActorFromBPPathWithDefaults",
+                ),
+                0,
+                "blueprint",
+                "",
+                "nodeParam",
+            ),
             ((".AddAnim", ".AddAnimOn", ".GetAnimLength"), 0, "animation", "", "nodeParam"),
             ((".RunCommonFunction",), 0, "commonFunction", "", "nodeParam"),
             ((".GotoMap",), 0, "map", "", "nodeParam"),

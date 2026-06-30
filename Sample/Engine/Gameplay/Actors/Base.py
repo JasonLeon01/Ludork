@@ -27,7 +27,23 @@ if TYPE_CHECKING:
     from Engine.NodeGraph import Graph
 
 
-@Meta(PathVars=[("shaderPath", "Shaders")])
+@Meta(
+    PathVars=[("shaderPath", "Shaders")],
+    VariableDisplayNames={
+        "tag": 'LOC("ACTOR_VAR_TAG")',
+        "switchInterval": 'LOC("ACTOR_VAR_SWITCH_INTERVAL")',
+        "animatable": 'LOC("ACTOR_VAR_ANIMATABLE")',
+        "material": 'LOC("ACTOR_VAR_MATERIAL")',
+        "shaderPath": 'LOC("ACTOR_VAR_SHADER_PATH")',
+    },
+    VariableDisplayDescs={
+        "tag": 'LOC("ACTOR_VAR_TAG_DESC")',
+        "switchInterval": 'LOC("ACTOR_VAR_SWITCH_INTERVAL_DESC")',
+        "animatable": 'LOC("ACTOR_VAR_ANIMATABLE_DESC")',
+        "material": 'LOC("ACTOR_VAR_MATERIAL_DESC")',
+        "shaderPath": 'LOC("ACTOR_VAR_SHADER_PATH_DESC")',
+    },
+)
 class _ActorBase(Sprite):
     """Base class for all scene entities.
 

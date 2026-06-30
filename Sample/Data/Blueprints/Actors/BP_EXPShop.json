@@ -30,7 +30,7 @@
                     {
                         "nodeFunction": "NodeFunctions.Scene.OpenAttrShop",
                         "params": [
-                            "None",
+                            null,
                             "{EXP_SHOP_NAME}",
                             "{EXP_SHOP_DESC}",
                             {
@@ -38,7 +38,11 @@
                                 "ATK": 1,
                                 "DEF": 2
                             },
-                            "[70, 20, 30]",
+                            [
+                                70,
+                                20,
+                                30
+                            ],
                             0,
                             "EXP"
                         ],

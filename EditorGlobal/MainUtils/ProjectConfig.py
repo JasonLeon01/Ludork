@@ -114,6 +114,28 @@ class ProjectConfigMixin:
         self.refreshLeftList()
         self.actorQueuePanel.purgeStale()
 
+    def _onDataPathRenamed(self, oldPath: str, newPath: str) -> None:
+        renamed = GameData.RenameDataPath(oldPath, newPath)
+        blueprintRenames = renamed.get("blueprintsData", [])
+        if blueprintRenames:
+            self._onBlueprintDataKeysRenamed(blueprintRenames)
+        self.refreshLeftList()
+        self.actorQueuePanel.purgeStale()
+        self._refreshInfo()
+
+    def _onBlueprintDataKeysRenamed(self, renames: list[tuple[str, str]]) -> None:
+        editors = self._getBlueprintEditors()
+        for oldKey, newKey in renames:
+            editor = editors.pop(oldKey, None)
+            if editor is None:
+                continue
+            try:
+                editor.setBlueprintKey(newKey)
+            except RuntimeError:
+                continue
+            editors[newKey] = editor
+            self._blueprintEditor = editor
+
     def _onFileExplorerFileClicked(self, path: str) -> None:
         if not isinstance(path, str) or not path:
             return

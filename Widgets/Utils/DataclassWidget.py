@@ -9,6 +9,7 @@ from .ColourPickerDialog import ColourVarEditor
 from .MetaVarTypes import GetMetaVarTypes
 from .StructuredFields import IsStructuredType, StructuredFields, StructuredValueToDict
 from .TypedValueEditor import TypedValueEditor
+from .VariableNameLabel import VariableNameLabel
 from .VectorVarEditor import VectorVarEditor, IsVectorVarType
 
 log = logging.getLogger(__name__)
@@ -33,9 +34,53 @@ class DataclassWidget(QtWidgets.QWidget):
         except (NameError, TypeError, AttributeError) as e:
             log.warning("Failed to resolve type hints for %s: %s", dc_type, e)
             self._type_hints = {}
-        self._metaVarTypes = GetMetaVarTypes(getattr(dc_type, "_meta", {}))
+        meta = self._getMergedMeta(dc_type)
+        self._metaVarTypes = GetMetaVarTypes(meta)
+        self._displayNames = self._getVariableDisplayMap(meta, "VariableDisplayNames")
+        self._displayDescs = self._getVariableDisplayMap(meta, "VariableDisplayDescs")
         self._inputs = {}
         self._initUI()
+
+    def _getMergedMeta(self, dc_type: Type) -> Dict[str, Any]:
+        result: Dict[str, Any] = {}
+        for base in list(reversed(dc_type.mro())):
+            meta = getattr(base, "__dict__", {}).get("_meta")
+            if not isinstance(meta, dict):
+                continue
+            for key, value in meta.items():
+                if isinstance(value, dict) and isinstance(result.get(key), dict):
+                    merged = dict(result[key])
+                    merged.update(value)
+                    result[key] = merged
+                else:
+                    result[key] = value
+        return result
+
+    def _getVariableDisplayMap(self, meta: Any, metaKey: str) -> Dict[str, str]:
+        if not isinstance(meta, dict):
+            return {}
+        value = meta.get(metaKey)
+        if not isinstance(value, dict):
+            return {}
+        result: Dict[str, str] = {}
+        for name, expr in value.items():
+            if isinstance(name, str) and isinstance(expr, str):
+                result[name] = self._evalMetaText(expr)
+        return result
+
+    def _evalMetaText(self, value: str) -> str:
+        try:
+            return str(eval(value))
+        except Exception:
+            return value
+
+    def _getFieldDisplayName(self, name: str) -> str:
+        value = self._displayNames.get(name)
+        return value if isinstance(value, str) and value else name
+
+    def _getFieldDisplayDesc(self, name: str) -> str:
+        value = self._displayDescs.get(name)
+        return value if isinstance(value, str) else ""
 
     def _initUI(self):
         layout = QtWidgets.QFormLayout(self)
@@ -55,7 +100,12 @@ class DataclassWidget(QtWidgets.QWidget):
                 self._setFieldReadOnly(widget)
             if isinstance(widget, TypedValueEditor) and val is not None:
                 self.data[field.name] = widget.getValue()
-            layout.addRow(field.name, widget)
+            desc = self._getFieldDisplayDesc(field.name)
+            label = VariableNameLabel(self._getFieldDisplayName(field.name), field.name)
+            if desc:
+                label.setToolTip(desc)
+                widget.setToolTip(desc)
+            layout.addRow(label, widget)
             self._inputs[field.name] = widget
 
     def _createFieldWidget(self, field, value: Any):

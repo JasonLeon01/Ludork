@@ -1,13 +1,12 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-import os
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from Engine import Color, Image as EngineImage, Input, IntRect, Pair, Texture, UI, Vector2f, Vector2i, Vector2u
-from Engine.Utils import File
 from Engine.UI import Image as UIImage, ListView
 from Engine.UI.FunctionalUI import FPlainText
 from Global import Manager
+from Source.SceneComponents.MapBuilder import SceneMapBuilder
 from .Base import WindowSelectable
 from .WindowCommand import WindowCommand
 from ..GameInstance import GameInstance
@@ -464,21 +463,9 @@ class WindowFloorTeleporter:
             path = path[markerIndex + len(marker) :]
         return path
 
-    @staticmethod
-    def _resolveMapPath(mapKey: str) -> str:
-        path = WindowFloorTeleporter._normaliseMapPath(mapKey)
-        if os.path.splitext(path)[1]:
-            return path
-        candidates = [f"{path}.dat", f"{path}.json"]
-        for candidate in candidates:
-            if os.path.exists(os.path.join(".", "Data", "Maps", candidate)):
-                return candidate
-        return candidates[0]
-
     def _getMapDisplayName(self, mapKey: str) -> str:
-        mapPath = self._resolveMapPath(mapKey)
         try:
-            mapData = File.loadData(os.path.join(".", "Data", "Maps", mapPath))
+            _, mapData = SceneMapBuilder().loadMapData(mapKey, self._inst._cachedMap or GameSystem.getStartMap())
         except Exception:
             return self._formatMapName(mapKey)
         if not isinstance(mapData, dict):

@@ -39,6 +39,12 @@ def Meta(**kwargs: Any) -> Callable[[_T], _T]:
       titles and the function picker search cache.
     - DisplayDesc: node/function tooltip or description. Usually a string
       expression such as `LOC("SAVE_GAME_DESC")`.
+    - VariableDisplayNames: class-variable display names in the form
+      `{"fieldName": "LOC(\"FIELD_NAME\")"}`. Values are string expressions
+      evaluated like DisplayName.
+    - VariableDisplayDescs: class-variable tooltips/descriptions in the form
+      `{"fieldName": "LOC(\"FIELD_DESC\")"}`. Values are string expressions
+      evaluated like DisplayDesc.
     - DropBox: node parameter combo-box options in the form
       `{"paramName": ["optionA", "optionB"]}`.
     - Rely: editor-side edit dependencies in the form

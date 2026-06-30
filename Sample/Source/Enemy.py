@@ -33,6 +33,7 @@ class Enemy(Actor, EnemyInfo, Battler):
     collisionEnabled: bool = True
     animatable: bool = True
     animateWithoutMoving: bool = True
+    afterBattleVarChanges: Dict[str, Tuple[str, Any]] = {}
 
     def __init__(
         self,
@@ -183,6 +184,31 @@ class Enemy(Actor, EnemyInfo, Battler):
                 animLen = max(animLen, anim.getVisualDuration())
 
             self._battleCondition = map.addTimer(animLen, battleResult, [])
+
+    @RegisterEvent
+    def onDefeat(self) -> None:
+        r"""\brief Triggered when the enemy is defeated."""
+        from Source.NodeFunctions.Utils import SetGameVariable, GetGameVariable
+
+        if self.afterBattleVarChanges:
+            opDict = {
+                "+": "__add__",
+                "-": "__sub__",
+                "*": "__mul__",
+                "/": "__truediv__",
+                "//": "__floordiv__",
+                "%": "__mod__",
+                "**": "__pow__",
+            }
+            for key, (op, value) in self.afterBattleVarChanges.items():
+                defaultVal = 0
+                newValue = value
+                if op == "=":
+                    defaultVal = None
+                originValue = GetGameVariable(key, defaultVal)
+                if op != "=" and op in opDict:
+                    newValue = getattr(originValue, opDict[op])(value)
+                SetGameVariable(key, newValue)
 
     def _gameOver(self) -> None:
         from Source.Scenes import GameOver

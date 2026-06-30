@@ -45,7 +45,7 @@
                     {
                         "nodeFunction": "NodeFunctions.Utils.IF",
                         "params": [
-                            ""
+                            false
                         ],
                         "pos": [
                             0,
@@ -78,7 +78,7 @@
                     {
                         "nodeFunction": "NodeFunctions.Math.NOT",
                         "params": [
-                            ""
+                            false
                         ],
                         "pos": [
                             -720,

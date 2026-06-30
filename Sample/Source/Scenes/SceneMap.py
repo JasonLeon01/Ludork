@@ -1,6 +1,5 @@
 # -*- encoding: utf-8 -*-
 
-import os
 import threading
 from typing import Callable, List, Union, Optional, Dict, Any, Tuple
 from Engine import (
@@ -14,7 +13,7 @@ from Engine import (
     Texture,
 )
 from Engine.Gameplay.Actors import Actor
-from Engine.Utils import File, Inner, Render
+from Engine.Utils import Inner, Render
 from Global import SceneBase, GameMap
 from Global import System as GlobalSystem
 from Source import System
@@ -214,14 +213,13 @@ class Scene(SceneBase):
         self._gameMap.onLateTick(deltaTime)
         return super().onLateTick(deltaTime)
 
-    def loadMap(self, mapPath: str) -> None:
+    def loadMap(self, mapPath: str) -> str:
         r"""\brief Load and generate a game map from data.
 
         - \param mapPath Path to the map data file.
+        - \return Resolved map data file path.
         """
-        mapFile = mapPath
-        mapDataPath = os.path.join("./Data/Maps", mapFile)
-        mapData = File.loadData(mapDataPath)
+        mapFile, mapData = self._mapBuilder.loadMapData(mapPath, self._getCurrentRegionMap())
         self._gameMap = self._mapBuilder.generateGameMap(mapData)
         self._gameMap.setScene(self)
         self._gameMap.setPersistentMapPath(mapFile)
@@ -235,6 +233,7 @@ class Scene(SceneBase):
         self._mapAudio.playMapAudio(mapData)
         GlobalSystem.clearFog()
         GlobalSystem.applyFogFromMapData(mapData)
+        return mapFile
 
     @ReturnType(gameMap=GameMap)
     def getGameMap(self) -> GameMap:
@@ -470,7 +469,7 @@ class Scene(SceneBase):
         self._blockMapInput(1)
 
     def _onFloorTeleporterConfirm(self, mapKey: str, telepoint: Tuple[int, int]) -> None:
-        targetMap = self._resolveRegionMapPath(mapKey)
+        targetMap = self.resolveRegionMapPath(mapKey)
         self._windowFloorTeleporter.close()
         self.gotoMapAndPos(targetMap, Vector2u(*telepoint))
         self.player.setMoveEnabled(self._floorTeleporterMoveEnabledBeforeOpen)
@@ -597,7 +596,8 @@ class Scene(SceneBase):
                 return
             targetPos = targetTeleporter.getTeleportPosition()
             self.gotoMapAndPos(targetMap, targetPos)
-            self.inst.recordTelepoint(targetMap, Vector2u(targetPos[0], targetPos[1]))
+            if self._cachedMapFile:
+                self.inst.recordTelepoint(self._cachedMapFile, Vector2u(targetPos[0], targetPos[1]))
             targetPlayer.setMoveEnabled(moveEnabled)
         finally:
             self._mapTransferInProgress = False
@@ -636,10 +636,11 @@ class Scene(SceneBase):
         - \param pos The position to place the player.
         - \param blockTransition Whether to skip the map transition effect.
         """
-        if mapPath and self._cachedMapFile != mapPath:
-            self._cachedMapFile = mapPath
-            self.loadMap(mapPath)
-        self.inst.applyMapInfo(mapPath, pos)
+        targetMap = self._mapBuilder.resolveMapPath(mapPath, self._getCurrentRegionMap()) if mapPath else mapPath
+        if targetMap and self._cachedMapFile != targetMap:
+            targetMap = self.loadMap(targetMap)
+            self._cachedMapFile = targetMap
+        self.inst.applyMapInfo(targetMap, pos)
         if not blockTransition:
             GlobalSystem.requestTransition(_MAP_TRANSITION_NAME, _MAP_TRANSITION_TIME)
 
@@ -781,7 +782,7 @@ class Scene(SceneBase):
     def _getFloorTelepointTag(self, mapKey: str, telepoint: Tuple[int, int]) -> Optional[str]:
         return self._mapBuilder.getFloorTelepointTag(self._getCurrentRegionMap(), mapKey, telepoint)
 
-    def _resolveRegionMapPath(self, mapKey: str) -> str:
+    def resolveRegionMapPath(self, mapKey: str) -> str:
         return self._mapBuilder.resolveRegionMapPath(mapKey, self._getCurrentRegionMap())
 
     def _getCurrentRegionMap(self) -> str:

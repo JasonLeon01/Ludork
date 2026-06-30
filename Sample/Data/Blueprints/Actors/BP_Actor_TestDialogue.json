@@ -69,7 +69,10 @@
                     {
                         "nodeFunction": "NodeFunctions.Scene.OpenShop",
                         "params": [
-                            "[\"KEY_Y\", \"KEY_B\"]",
+                            [
+                                "KEY_Y",
+                                "KEY_B"
+                            ],
                             true
                         ],
                         "pos": [
@@ -125,9 +128,14 @@
                         "nodeFunction": "NodeFunctions.Scene.ShowSelection",
                         "params": [
                             "TestSelection",
-                            "[\"Test blinking\",\"Test shaking\",\"Test shop\",\"Test weather\"]",
+                            [
+                                "Test blinking",
+                                "Test shaking",
+                                "Test shop",
+                                "Test weather"
+                            ],
                             "",
-                            "True"
+                            true
                         ],
                         "pos": [
                             1440.0,

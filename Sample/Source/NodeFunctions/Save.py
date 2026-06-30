@@ -1,8 +1,16 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Optional
+from typing import Any
 from Global import System
 from Source import Save as _Save
+
+
+def _getSceneMap() -> Any:
+    from Source.Scenes import Map as SceneMap
+
+    scene = System.getScene()
+    assert isinstance(scene, SceneMap)
+    return scene
 
 
 @Meta(DisplayName='LOC("SAVE_GAME")', DisplayDesc='LOC("SAVE_GAME_DESC")')
@@ -12,9 +20,7 @@ def SaveGame(filePath: str) -> None:
 
     - \param filePath Path to the save file (.json for human-readable, .dat for binary).
     """
-    scene = System.getScene()
-    if scene and hasattr(scene, "inst"):
-        _Save.SaveGame(filePath, scene.inst)
+    _Save.SaveGame(filePath, _getSceneMap().inst)
 
 
 @Meta(DisplayName='LOC("LOAD_GAME")', DisplayDesc='LOC("LOAD_GAME_DESC")')
@@ -28,9 +34,7 @@ def LoadGame(filePath: str) -> int:
     inst = _Save.LoadGame(filePath)
     if inst is None:
         return 1
-    scene = System.getScene()
-    if scene and hasattr(scene, "inst"):
-        scene.inst = inst
+    _getSceneMap().inst = inst
     return 0
 
 

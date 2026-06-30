@@ -23,6 +23,14 @@ class InfoDataProvider(Protocol):
         ...
 
 
+@Meta(
+    VariableDisplayNames={
+        "ID": 'LOC("INFO_VAR_ID")',
+    },
+    VariableDisplayDescs={
+        "ID": 'LOC("INFO_VAR_ID_DESC")',
+    },
+)
 class InfoBase(BPBase):
     r"""Pure data-layer base class, independent of Actor.
 

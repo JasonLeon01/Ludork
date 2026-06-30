@@ -42,6 +42,16 @@ from .Fog import FogController
 MAX_SHADER_LIGHTS = 16
 
 
+@Meta(
+    VariableDisplayNames={
+        "DefaultCoverAlpha": 'LOC("GAME_MAP_VAR_DEFAULT_COVER_ALPHA")',
+        "MapViewOffset": 'LOC("GAME_MAP_VAR_MAP_VIEW_OFFSET")',
+    },
+    VariableDisplayDescs={
+        "DefaultCoverAlpha": 'LOC("GAME_MAP_VAR_DEFAULT_COVER_ALPHA_DESC")',
+        "MapViewOffset": 'LOC("GAME_MAP_VAR_MAP_VIEW_OFFSET_DESC")',
+    },
+)
 class GameMap(GameMapExt):
     r"""\brief Game map managing tile layers, actors, lights, collisions, and pathfinding.
 
@@ -276,7 +286,12 @@ class GameMap(GameMapExt):
                 "position": actorRecord.get("position", actorRecord.get("pos", [0, 0])),
                 "tag": actorTag,
             }
-            actor = Data.genActorFromData(actorData, layerName)
+            classVarChanges = actorRecord.get("classVarChanges")
+            actor = Data.genActorFromData(
+                actorData,
+                layerName,
+                classVarChanges if isinstance(classVarChanges, dict) else None,
+            )
             if actor is None:
                 continue
             self.spawnActor(actor, layerName, False)

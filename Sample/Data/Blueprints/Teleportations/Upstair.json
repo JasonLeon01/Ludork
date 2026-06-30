@@ -75,7 +75,7 @@
                     {
                         "nodeFunction": "NodeFunctions.Utils.IF",
                         "params": [
-                            ""
+                            false
                         ],
                         "pos": [
                             0,

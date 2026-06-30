@@ -7,7 +7,7 @@ import os
 import copy
 import dataclasses
 import logging
-from typing import Any, Dict, Optional, Set, get_type_hints
+from typing import Any, Dict, Optional, Set
 from PyQt5 import QtWidgets, QtCore, QtGui
 from EditorGlobal import EditorStatus, GameData
 from Utils import System, File, SFMLRender
@@ -15,12 +15,13 @@ from Widgets.Utils import SingleRowDialog, NodePanel, Toast, RectViewer, Datacla
 from Widgets.Utils.AiConfigDialog import AiConfigDialog, IsAiConfigured
 from Widgets.Utils.AiChatDialog import AiChatDialog
 from Widgets.Utils.BlueprintPreview import IsBlueprintPreviewable
+from Widgets.Utils.ClassDetailMixin import ClassDetailMixin
 from Widgets.Utils.ColourPickerDialog import ColourVarEditor
-from Widgets.Utils.MetaRely import GetRelyConditionDisplay, GetRelySourceSet, IsRelyEditable, NormaliseRelyMap
-from Widgets.Utils.NodePanel import GeneralDataComboBox, _loadGeneralDataMemberKeys
-from Widgets.Utils.MetaVarTypes import _GENERALDATA_VAR_TYPE, GetGeneralDataVars, GetMetaVarTypes
+from Widgets.Utils.NodePanel import GeneralDataComboBox
+from Widgets.Utils.MetaVarTypes import _GENERALDATA_VAR_TYPE
 from Widgets.Utils.StructuredFields import IsStructuredType, IsStructuredValue, StructuredValueToDict
-from Widgets.Utils.VectorVarEditor import VectorVarEditor, IsVectorVarType
+from Widgets.Utils.TypedValueEditor import TypedValueEditor
+from Widgets.Utils.VectorVarEditor import VectorVarEditor
 
 
 log = logging.getLogger(__name__)
@@ -186,7 +187,7 @@ class BluePrintPreviewWidget(QtWidgets.QWidget):
         painter.drawLine(box.topRight(), box.bottomLeft())
 
 
-class BluePrintEditor(QtWidgets.QWidget):
+class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
     MODIFIED = QtCore.pyqtSignal()
 
     def __init__(self, title: str, data: Dict[str, Any], parent: Optional[QtWidgets.QWidget] = None) -> None:
@@ -200,18 +201,30 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.title = title
         self.data = copy.deepcopy(data)
         self.graphs: Dict[str, Any] = {}
-        self.invalidVars: Set[str] = self._getInvalidVars()
-        self.pathVarMap: Dict[str, str] = self._getPathVarMap()
-        self.pathVars: Set[str] = set(self.pathVarMap.keys())
-        rectMap = self._getRectRangeVars()
-        self.rectRangeVars: Set[str] = set(rectMap.keys())
-        self.rectRangeVarMap: Dict[str, str] = rectMap
-        self.attrVarTypes: Dict[str, str] = self._getMetaVarTypes()
-        self.attrGDVars: Dict[str, str] = self._getGeneralDataVars()
-        self.attrRely: Dict[str, Any] = self._getMetaRely()
-        self.attrRelySources: Set[str] = GetRelySourceSet(self.attrRely)
+        self.invalidVars: Set[str] = set()
+        self.pathVarMap: Dict[str, str] = {}
+        self.pathVars: Set[str] = set()
+        self.rectRangeVars: Set[str] = set()
+        self.rectRangeVarMap: Dict[str, str] = {}
+        self.attrVarTypes: Dict[str, str] = {}
+        self.attrGDVars: Dict[str, str] = {}
+        self.attrRely: Dict[str, Any] = {}
+        self.attrRelySources: Set[str] = set()
+        self._reloadClassMetadata()
         self.setupUI()
         self.toast = Toast(self)
+
+    def setBlueprintKey(self, title: str) -> None:
+        if self.title == title:
+            return
+        self.title = title
+        self.setWindowTitle(title)
+        for panel in self.graphs.values():
+            if isinstance(panel, NodePanel):
+                panel.name = title
+        chatDialog = getattr(self, "_chatDialog", None)
+        if isinstance(chatDialog, AiChatDialog):
+            chatDialog.setBlueprintTarget(title, GameData._FindDataPath("Blueprints", title))
 
     def _resolveClass(self) -> Optional[type]:
         if self.title.startswith("__info__/"):
@@ -222,25 +235,6 @@ class BluePrintEditor(QtWidgets.QWidget):
         except (ImportError, Exception):
             return None
         return cls if isinstance(cls, type) else None
-
-    def _getBaseClass(self, cls: Optional[type]) -> Optional[type]:
-        if isinstance(cls, type) and cls.__bases__:
-            return cls.__bases__[0]
-        return None
-
-    def _getClassAttrValue(self, cls: Optional[type], name: str) -> tuple[bool, Any]:
-        if not isinstance(cls, type):
-            return False, None
-        try:
-            return True, getattr(cls, name)
-        except AttributeError:
-            return False, None
-        except Exception:
-            return False, None
-
-    def _hasClassAttr(self, cls: Optional[type], name: str) -> bool:
-        found, _value = self._getClassAttrValue(cls, name)
-        return found
 
     def _getWidgetCurrentValue(self, widget: QtWidgets.QWidget) -> Any:
         if isinstance(widget, GeneralDataComboBox):
@@ -262,6 +256,8 @@ class BluePrintEditor(QtWidgets.QWidget):
         if isinstance(widget, ColourVarEditor):
             return widget.getValue()
         if isinstance(widget, VectorVarEditor):
+            return widget.getValue()
+        if isinstance(widget, TypedValueEditor):
             return widget.getValue()
         elems = getattr(widget, "_elementWidgets", None)
         if elems is not None:
@@ -293,8 +289,10 @@ class BluePrintEditor(QtWidgets.QWidget):
         if isinstance(widget, GeneralDataComboBox):
             widget.setValue(parent_val)
             return
+        if isinstance(widget, TypedValueEditor):
+            widget.setValue(parent_val, emit=True)
+            return
 
-        # For complex widgets where direct set is unreliable, rebuild the form
         is_complex = isinstance(widget, DataclassWidget) or hasattr(widget, "_elementWidgets")
         if is_complex:
             if isinstance(parent_val, (list, tuple)):
@@ -307,7 +305,6 @@ class BluePrintEditor(QtWidgets.QWidget):
             self.refreshAttrs()
             return
 
-        # Simple widgets: set value directly
         if isinstance(widget, QtWidgets.QCheckBox):
             widget.setChecked(bool(parent_val))
         elif isinstance(widget, QtWidgets.QSpinBox):
@@ -357,6 +354,10 @@ class BluePrintEditor(QtWidgets.QWidget):
             widget.VALUE_CHANGED.connect(
                 lambda data, b=revertBtn, pv=parent_val: self._updateRevertButtonState(b, data, pv)
             )
+        elif isinstance(widget, TypedValueEditor):
+            widget.VALUE_CHANGED.connect(
+                lambda data, b=revertBtn, pv=parent_val: self._updateRevertButtonState(b, data, pv)
+            )
         else:
             elems = getattr(widget, "_elementWidgets", None)
             if elems is not None:
@@ -376,171 +377,6 @@ class BluePrintEditor(QtWidgets.QWidget):
     def _onContainerRevertChanged(self, btn: RevertButton, widget: QtWidgets.QWidget, parent_val: Any) -> None:
         val = self._getWidgetCurrentValue(widget)
         self._updateRevertButtonState(btn, val, parent_val)
-
-    def _getInvalidVars(self) -> Set[str]:
-        cls = self._resolveClass()
-        if not isinstance(cls, type):
-            return set()
-        result: Set[str] = set()
-        mro = list(reversed(cls.mro()))
-        for base in mro:
-            invalid = getattr(base, "__dict__", {}).get("_invalidVars", ())
-            if isinstance(invalid, str):
-                result.add(invalid)
-            elif isinstance(invalid, (list, tuple, set)):
-                result.update(name for name in invalid if isinstance(name, str))
-            meta = getattr(base, "__dict__", {}).get("_meta")
-            if not isinstance(meta, dict):
-                continue
-            invalid = meta.get("InvalidVars", ())
-            if isinstance(invalid, str):
-                result.add(invalid)
-            elif isinstance(invalid, (list, tuple, set)):
-                result.update(name for name in invalid if isinstance(name, str))
-        return result
-
-    def _getPathVarMap(self) -> Dict[str, str]:
-        cls = self._resolveClass()
-        if not isinstance(cls, type):
-            return {}
-        paths: Dict[str, str] = {}
-        mro = list(reversed(cls.mro()))
-        for base in mro:
-            meta = getattr(base, "__dict__", {}).get("_meta")
-            if not isinstance(meta, dict):
-                continue
-            self._collectPathVars(paths, meta.get("PathVars", ()))
-        return paths
-
-    def _collectPathVars(self, paths: Dict[str, str], value: Any) -> None:
-        if isinstance(value, tuple) and len(value) >= 2 and isinstance(value[0], str):
-            paths[value[0]] = self._normalisePathVarAssetsDir(value[1])
-            return
-        if isinstance(value, (list, tuple, set)):
-            for item in value:
-                if isinstance(item, str):
-                    paths[item] = "Characters"
-                    continue
-                self._collectPathVars(paths, item)
-
-    def _normalisePathVarAssetsDir(self, value: Any) -> str:
-        if not isinstance(value, str):
-            return ""
-        value = value.replace("\\", "/").strip("/")
-        if value in ("", "."):
-            return ""
-        return value
-
-    def _getRectRangeVars(self) -> Dict[str, str]:
-        cls = self._resolveClass()
-        if not isinstance(cls, type):
-            return {}
-        result: Dict[str, str] = {}
-        mro = list(reversed(cls.mro()))
-        for base in mro:
-            rects = getattr(base, "__dict__", {}).get("_rectRangeVars", {})
-            if isinstance(rects, dict):
-                result.update({str(name): str(pathName) for name, pathName in rects.items()})
-            meta = getattr(base, "__dict__", {}).get("_meta")
-            if not isinstance(meta, dict):
-                continue
-            rects = meta.get("RectRangeVars", {})
-            if isinstance(rects, dict):
-                result.update({str(name): str(pathName) for name, pathName in rects.items()})
-        return result
-
-    def _getMetaVarTypes(self) -> Dict[str, str]:
-        cls = self._resolveClass()
-        if cls is None or not isinstance(cls, type):
-            return {}
-        result: Dict[str, str] = {}
-        mro = list(reversed(cls.mro()))
-        for base in mro:
-            meta = getattr(base, "__dict__", {}).get("_meta")
-            if not isinstance(meta, dict):
-                continue
-            result.update(GetMetaVarTypes(meta))
-        return result
-
-    def _getGeneralDataVars(self) -> Dict[str, str]:
-        cls = self._resolveClass()
-        if cls is None or not isinstance(cls, type):
-            return {}
-        result: Dict[str, str] = {}
-        mro = list(reversed(cls.mro()))
-        for base in mro:
-            meta = getattr(base, "__dict__", {}).get("_meta")
-            if isinstance(meta, dict):
-                result.update(GetGeneralDataVars(meta))
-        return result
-
-    def _getMetaRely(self) -> Dict[str, Any]:
-        cls = self._resolveClass()
-        if cls is None or not isinstance(cls, type):
-            return {}
-        result: Dict[str, Any] = {}
-        mro = list(reversed(cls.mro()))
-        for base in mro:
-            meta = getattr(base, "__dict__", {}).get("_meta")
-            if not isinstance(meta, dict):
-                continue
-            result.update(NormaliseRelyMap(meta.get("Rely")))
-        return result
-
-    def _setWidgetEditable(self, widget: QtWidgets.QWidget, editable: bool) -> None:
-        if isinstance(widget, ColourVarEditor):
-            widget.setEditable(editable)
-            return
-        if isinstance(widget, VectorVarEditor):
-            widget.setEditable(editable)
-            return
-        widget.setEnabled(editable)
-        if isinstance(widget, (QtWidgets.QLineEdit, QtWidgets.QPlainTextEdit, QtWidgets.QTextEdit)):
-            widget.setReadOnly(not editable)
-
-    def _getRelyTooltip(self, key: str, relyEditable: bool) -> str:
-        if relyEditable:
-            return ""
-        condition = GetRelyConditionDisplay(key, self.attrRely)
-        if not condition:
-            return ""
-        source, value = condition
-        return ELOC("META_RELY_TOOLTIP").format(source=source, value=value)
-
-    def _applyRelyTooltip(self, key: str, relyEditable: bool, *widgets: Optional[QtWidgets.QWidget]) -> None:
-        tip = self._getRelyTooltip(key, relyEditable)
-        for widget in widgets:
-            if isinstance(widget, GeneralDataComboBox):
-                widget.setToolTip(tip or widget.getDefaultToolTip())
-            elif widget is not None:
-                widget.setToolTip(tip)
-
-    def _getComponentTypes(self, cls: Optional[type]) -> Dict[str, type]:
-        if cls is None or not isinstance(cls, type):
-            return {}
-
-        result: Dict[str, type] = {}
-        mro = list(reversed(cls.mro()))
-
-        for base in mro:
-            componentTypes = getattr(base, "__dict__", {}).get("_componentTypes")
-            if not isinstance(componentTypes, dict):
-                continue
-            for name, componentType in componentTypes.items():
-                if (
-                    isinstance(name, str)
-                    and isinstance(componentType, type)
-                    and dataclasses.is_dataclass(componentType)
-                ):
-                    result[name] = componentType
-        return result
-
-    def _getComponentFieldMap(self, componentTypes: Dict[str, type]) -> Dict[str, str]:
-        result: Dict[str, str] = {}
-        for componentName, componentType in componentTypes.items():
-            for field in dataclasses.fields(componentType):
-                result[field.name] = componentName
-        return result
 
     def _getInfoType(self, cls: Optional[type]) -> str:
         if cls is None or not isinstance(cls, type):
@@ -604,29 +440,6 @@ class BluePrintEditor(QtWidgets.QWidget):
             if key in defaults and value == defaults[key]:
                 continue
             result[key] = value
-        return result
-
-    def _getComponentDefaults(self, componentType: type) -> Dict[str, Any]:
-        result: Dict[str, Any] = {}
-        for field in dataclasses.fields(componentType):
-            if field.default is not dataclasses.MISSING:
-                result[field.name] = copy.deepcopy(field.default)
-            elif field.default_factory is not dataclasses.MISSING:
-                try:
-                    result[field.name] = field.default_factory()
-                except Exception as e:
-                    log.warning("Failed to create default for %s.%s: %s", componentType.__name__, field.name, e)
-        return result
-
-    def _normaliseComponentData(self, componentType: type, value: Any) -> Dict[str, Any]:
-        if dataclasses.is_dataclass(value) and not isinstance(value, type):
-            value = dataclasses.asdict(value)
-        if not isinstance(value, dict):
-            value = {}
-        result = self._getComponentDefaults(componentType)
-        for field in dataclasses.fields(componentType):
-            if field.name in value:
-                result[field.name] = copy.deepcopy(value[field.name])
         return result
 
     def _normaliseComponentAttrs(self, cls: Optional[type], attrs: Dict[str, Any]) -> bool:
@@ -715,10 +528,13 @@ class BluePrintEditor(QtWidgets.QWidget):
         listWidget.setFixedHeight(max(72, min(160, len(items) * 28 + 12)))
         listWidget.itemDoubleClicked.connect(self.onEditComponentItem)
         for componentName, componentType, isLocal in items:
-            item = QtWidgets.QListWidgetItem(componentName)
+            item = QtWidgets.QListWidgetItem(self._getClassAttrDisplayName(componentName))
             item.setData(QtCore.Qt.UserRole, componentName)
             item.setData(QtCore.Qt.UserRole + 1, componentType)
             item.setData(QtCore.Qt.UserRole + 2, isLocal)
+            desc = self._getClassAttrDisplayDesc(componentName)
+            if desc:
+                item.setToolTip(desc)
             listWidget.addItem(item)
         hbox.addWidget(listWidget, 1)
 
@@ -967,93 +783,18 @@ class BluePrintEditor(QtWidgets.QWidget):
             return
         currentWidget.organizeLayout()
 
-    def _getDisplayOrder(self, attrs: Dict[str, Any], cls: Optional[type]) -> list[str]:
-        if not cls or not isinstance(cls, type):
-            return list(attrs.keys())
-
-        defined_order = []
-        mro = list(reversed(cls.mro()))
-
-        for base in mro:
-            if base is object:
-                continue
-
-            ann = getattr(base, "__annotations__", {})
-            for k in ann:
-                if k not in defined_order:
-                    defined_order.append(k)
-
-            for k in getattr(base, "__dict__", {}):
-                if k.startswith("_"):
-                    continue
-                if k in defined_order:
-                    continue
-                try:
-                    v = getattr(base, k)
-                    if callable(v) or isinstance(v, property):
-                        continue
-                except Exception:
-                    continue
-                defined_order.append(k)
-
-        ordered = [k for k in defined_order if k in attrs]
-        seen = set(ordered)
-        remaining = [k for k in attrs.keys() if k not in seen]
-        return ordered + remaining
-
-    def _copyAttrValue(self, value: Any) -> Any:
-        if IsStructuredValue(value):
-            return StructuredValueToDict(value)
-        try:
-            return copy.deepcopy(value)
-        except TypeError as e:
-            log.warning("Failed to copy blueprint attribute value of type %s: %s", type(value).__name__, e)
-            return value
-
-    def _getParentDisplayAttrs(self, parent_cls: Optional[type], attrs: Dict[str, Any]) -> Dict[str, Any]:
-        if not parent_cls:
-            return {}
-
-        result = {}
-        for attr_name in dir(parent_cls):
-            if attr_name.startswith("_") or attr_name in attrs:
-                continue
-
-            try:
-                attr_val = getattr(parent_cls, attr_name)
-            except Exception:
-                continue
-
-            if callable(attr_val) or isinstance(attr_val, property):
-                continue
-
-            result[attr_name] = self._copyAttrValue(attr_val)
-        return result
-
     def refreshAttrs(self) -> None:
         while self.formLayout.rowCount() > 0:
             self.formLayout.removeRow(0)
 
         cls = self._resolveClass()
-        self.attrVarTypes = self._getMetaVarTypes()
-        self.attrGDVars = self._getGeneralDataVars()
-        self.attrRely = self._getMetaRely()
-        self.attrRelySources = GetRelySourceSet(self.attrRely)
-        type_hints = {}
+        self._reloadClassMetadata()
+        type_hints = self._getTypeHints(cls)
         parent_cls = None
         parent_hints = {}
         if cls is not None:
-            try:
-                type_hints = get_type_hints(cls)
-            except (NameError, TypeError, AttributeError):
-                type_hints = getattr(cls, "__annotations__", {})
-
             parent_cls = self._getBaseClass(cls)
-            if parent_cls is not None:
-                try:
-                    parent_hints = get_type_hints(parent_cls)
-                except (NameError, TypeError, AttributeError):
-                    parent_hints = getattr(parent_cls, "__annotations__", {})
+            parent_hints = self._getTypeHints(parent_cls)
 
         parent_val = self.data.get("parent", "")
         label = QtWidgets.QLabel(ELOC("PARENT"))
@@ -1086,7 +827,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             if key in self.invalidVars:
                 continue
             value = displayAttrs[key]
-            label = QtWidgets.QLabel(str(key))
+            label = self._createClassAttrLabel(key)
             container = QtWidgets.QWidget()
             hbox = QtWidgets.QHBoxLayout(container)
             hbox.setContentsMargins(0, 0, 0, 0)
@@ -1117,7 +858,7 @@ class BluePrintEditor(QtWidgets.QWidget):
             isInvalid = key in self.invalidVars
             isRectRange = key in self.rectRangeVars and not isInvalid
             isPath = key in self.pathVars and not isInvalid and not isRectRange
-            relyEditable = IsRelyEditable(key, self.attrRely, displayAttrs)
+            relyEditable = self._isRelyEditable(key, displayAttrs)
 
             if is_dc:
                 if isInvalid:
@@ -1198,14 +939,6 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.formLayout.addRow(addBtn)
         self._refreshPreview()
 
-    def _createGeneralDataCombo(self, key: str, value: Any, dataType: str) -> QtWidgets.QComboBox:
-        w = GeneralDataComboBox(_loadGeneralDataMemberKeys(dataType), self)
-        w.setValue(value)
-        w.currentIndexChanged.connect(
-            lambda _index, k=key, combo=w: self.onDataChanged(k, combo.getValue(), True)
-        )
-        return w
-
     def createInputWidget(
         self,
         key: str,
@@ -1215,179 +948,23 @@ class BluePrintEditor(QtWidgets.QWidget):
         parent_val: Any = None,
         var_type: str = "",
     ) -> QtWidgets.QWidget:
-        if isAttr and var_type == _GENERALDATA_VAR_TYPE:
-            return self._createGeneralDataCombo(key, value, self.attrGDVars.get(key, ""))
-        if isAttr and var_type == "ColourVar":
-            w = ColourVarEditor(value, self)
-            w.VALUE_CHANGED.connect(lambda val, k=key: self.onDataChanged(k, val, True))
-            return w
-        if isAttr and IsVectorVarType(var_type):
-            w = VectorVarEditor(var_type, value, self)
-            w.VALUE_CHANGED.connect(lambda val, k=key: self.onDataChanged(k, val, True))
-            return w
-
-        if isAttr and isinstance(value, bool):
-            w = QtWidgets.QCheckBox()
-            w.setChecked(bool(value))
-            w.toggled.connect(lambda checked, k=key: self.onDataChanged(k, checked, True))
-            return w
-
-        if isAttr and (type_hint is int or (isinstance(value, int) and not isinstance(value, bool))):
-            w = QtWidgets.QSpinBox()
-            w.setRange(-2147483648, 2147483647)
-            try:
-                w.setValue(int(value))
-            except (ValueError, TypeError):
-                w.setValue(0)
-            w.valueChanged.connect(lambda val, k=key: self.onDataChanged(k, val, True))
-            return w
-
-        if isAttr and (type_hint is float or isinstance(value, float)):
-            w = QtWidgets.QDoubleSpinBox()
-            w.setRange(-999999999.0, 999999999.0)
-            try:
-                w.setValue(float(value))
-            except (ValueError, TypeError):
-                w.setValue(0.0)
-            w.valueChanged.connect(lambda val, k=key: self.onDataChanged(k, val, True))
-            return w
-
-        is_list = False
         if isAttr:
-            if type_hint:
-                origin = getattr(type_hint, "__origin__", None)
-                if origin is list:
-                    is_list = True
-            elif parent_val is not None and isinstance(parent_val, list):
-                is_list = True
-            elif isinstance(value, list):
-                is_list = True
+            return self._createClassDetailInputWidget(
+                key,
+                value,
+                self._onAttrDetailChanged,
+                type_hint=type_hint,
+                parent_val=parent_val,
+                var_type=var_type,
+            )
+        widget = QtWidgets.QLineEdit(str(value))
+        widget.textChanged.connect(lambda val, k=key: self.onDataChanged(k, val, False))
+        return widget
 
-        if is_list:
-            container = QtWidgets.QWidget()
-            layout = QtWidgets.QVBoxLayout(container)
-            layout.setContentsMargins(0, 0, 0, 0)
-            layout.setSpacing(2)
-
-            if not isinstance(value, list):
-                if isinstance(value, tuple):
-                    value = list(value)
-                else:
-                    value = []
-
-            edits = []
-            for i, item in enumerate(value):
-                row = QtWidgets.QWidget()
-                row_layout = QtWidgets.QHBoxLayout(row)
-                row_layout.setContentsMargins(0, 0, 0, 0)
-                row_layout.setSpacing(2)
-
-                e = QtWidgets.QLineEdit(str(item))
-                e.textChanged.connect(lambda _, k=key, c=container: self._onListItemChanged(k, c))
-                row_layout.addWidget(e)
-                edits.append(e)
-
-                removeBtn = QtWidgets.QPushButton("-")
-                removeBtn.setFixedWidth(24)
-                removeBtn.clicked.connect(lambda _, idx=i, k=key, c=container: self._onRemoveListItem(k, c, idx))
-                row_layout.addWidget(removeBtn)
-
-                layout.addWidget(row)
-
-            addBtn = QtWidgets.QPushButton("+")
-            addBtn.clicked.connect(lambda _, k=key, c=container: self._onAddListItem(k, c))
-            layout.addWidget(addBtn)
-
-            container._elementWidgets = edits
-            container._listIsTuple = False
-            container._originalTypeHint = type_hint
-            return container
-
-        if isAttr and isinstance(value, tuple):
-            container = QtWidgets.QWidget()
-            layout = QtWidgets.QHBoxLayout(container)
-            layout.setContentsMargins(0, 0, 0, 0)
-            layout.setSpacing(2)
-            edits = []
-            for item in value:
-                e = QtWidgets.QLineEdit(str(item))
-                layout.addWidget(e)
-                edits.append(e)
-            container._elementWidgets = edits
-            container._listIsTuple = True
-            for _e in edits:
-                _e.textChanged.connect(lambda _, k=key, c=container: self._onListItemChanged(k, c))
-            return container
-        w = QtWidgets.QLineEdit(str(value))
-        w.textChanged.connect(lambda val, k=key, attr=isAttr: self.onDataChanged(k, val, attr))
-        return w
-
-    def _onRemoveListItem(self, key: str, container: QtWidgets.QWidget, index: int) -> None:
-        elems = getattr(container, "_elementWidgets", [])
-        if 0 <= index < len(elems):
-            values = []
-            for i, e in enumerate(elems):
-                if i == index:
-                    continue
-                text = e.text()
-                try:
-                    v = eval(text)
-                except Exception:
-                    v = text
-                values.append(v)
-
-            self.onDataChanged(key, values, True)
+    def _onAttrDetailChanged(self, key: str, value: Any, refresh: bool = False) -> None:
+        self.onDataChanged(key, value, True)
+        if refresh:
             self.refreshAttrs()
-
-    def _onAddListItem(self, key: str, container: QtWidgets.QWidget) -> None:
-        elems = getattr(container, "_elementWidgets", [])
-        values = []
-        for e in elems:
-            text = e.text()
-            try:
-                v = eval(text)
-            except Exception:
-                v = text
-            values.append(v)
-
-        default_val = ""
-        type_hint = getattr(container, "_originalTypeHint", None)
-        if type_hint:
-            args = getattr(type_hint, "__args__", [])
-            if args:
-                arg_type = args[0]
-                if arg_type is int:
-                    default_val = 0
-                elif arg_type is float:
-                    default_val = 0.0
-                elif arg_type is bool:
-                    default_val = False
-                elif arg_type is str:
-                    default_val = ""
-        elif values:
-            try:
-                default_val = type(values[-1])()
-            except Exception:
-                default_val = ""
-
-        values.append(default_val)
-        self.onDataChanged(key, values, True)
-        self.refreshAttrs()
-
-    def _onListItemChanged(self, key: str, container: QtWidgets.QWidget) -> None:
-        elems = getattr(container, "_elementWidgets", [])
-        values = []
-        for e in elems:
-            text = e.text()
-            try:
-                v = eval(text)
-            except Exception:
-                v = text
-            values.append(v)
-        if getattr(container, "_listIsTuple", False):
-            self.onDataChanged(key, tuple(values), True)
-        else:
-            self.onDataChanged(key, values, True)
 
     def onDataChanged(self, key: str, value: Any, isAttr: bool = True) -> None:
         try:
@@ -1456,7 +1033,7 @@ class BluePrintEditor(QtWidgets.QWidget):
         displayValue, readOnlyFields = self._mergeGeneralDataIntoComponent(cls, key, value, attrs)
 
         dlg = QtWidgets.QDialog(self)
-        dlg.setWindowTitle(key)
+        dlg.setWindowTitle(self._getClassAttrDisplayName(key))
         layout = QtWidgets.QVBoxLayout(dlg)
         widget = DataclassWidget(componentType, copy.deepcopy(displayValue), dlg, readOnlyFields=readOnlyFields)
         layout.addWidget(widget)
@@ -1617,21 +1194,6 @@ class BluePrintEditor(QtWidgets.QWidget):
         self.onDataChanged(key, newValue, True)
         self.refreshAttrs()
 
-    def _getPathVarBaseDir(self, key: str) -> str:
-        assetsDir = os.path.join(EditorStatus.PROJ_PATH, "Assets")
-        subDir = self.pathVarMap.get(key, "")
-        if not subDir:
-            return assetsDir
-        baseDir = os.path.normpath(os.path.join(assetsDir, subDir))
-        try:
-            assetsAbs = os.path.normcase(os.path.abspath(assetsDir))
-            baseAbs = os.path.normcase(os.path.abspath(baseDir))
-            if os.path.commonpath([assetsAbs, baseAbs]) != assetsAbs:
-                return assetsDir
-        except ValueError:
-            return assetsDir
-        return baseDir
-
     def _refreshPreview(self) -> None:
         if not self._supportsPreview():
             return
@@ -1721,18 +1283,6 @@ class BluePrintEditor(QtWidgets.QWidget):
         except (TypeError, ValueError):
             cell = 32
         return (0, 0, cell, cell)
-
-    def _reloadClassMetadata(self) -> None:
-        self.invalidVars = self._getInvalidVars()
-        self.pathVarMap = self._getPathVarMap()
-        self.pathVars = set(self.pathVarMap.keys())
-        rectMap = self._getRectRangeVars()
-        self.rectRangeVars = set(rectMap.keys())
-        self.rectRangeVarMap = rectMap
-        self.attrVarTypes = self._getMetaVarTypes()
-        self.attrGDVars = self._getGeneralDataVars()
-        self.attrRely = self._getMetaRely()
-        self.attrRelySources = GetRelySourceSet(self.attrRely)
 
     def _clearGraphPanels(self) -> None:
         for name in list(self.graphs.keys()):

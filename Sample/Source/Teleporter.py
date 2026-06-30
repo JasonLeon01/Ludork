@@ -83,7 +83,7 @@ class Teleporter(Actor):
         anchorPos = sourceTeleporter.getTeleportPosition()
         inst.recordTelepoint(currentMap, Vector2u(anchorPos[0], anchorPos[1]))
 
-        targetMap = self._resolveMapPath(regionMaps[targetIndex], currentMap)
+        targetMap = scene.resolveRegionMapPath(regionMaps[targetIndex])
         moveEnabled = player.getMoveEnabled()
         player.setMoveEnabled(False)
         if scene.requestFloorTransfer(targetMap, anchorPos, moveEnabled):
@@ -135,17 +135,3 @@ class Teleporter(Actor):
         if markerIndex != -1:
             path = path[markerIndex + len(marker) :]
         return os.path.splitext(os.path.basename(path))[0]
-
-    @staticmethod
-    def _resolveMapPath(targetMap: str, currentMap: str) -> str:
-        if os.path.splitext(targetMap)[1]:
-            return targetMap
-        currentExt = os.path.splitext(currentMap)[1]
-        candidates = []
-        if currentExt:
-            candidates.append(f"{targetMap}{currentExt}")
-        candidates.extend([f"{targetMap}.dat", f"{targetMap}.json"])
-        for candidate in candidates:
-            if os.path.exists(os.path.join(".", "Data", "Maps", candidate)):
-                return candidate
-        return candidates[0] if candidates else targetMap

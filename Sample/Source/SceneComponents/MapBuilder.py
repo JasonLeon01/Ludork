@@ -17,8 +17,85 @@ if TYPE_CHECKING:
     from Source.GameInstance import GameInstance
 
 
+_MAP_DATA_ROOT = os.path.join(".", "Data", "Maps")
+_MAP_DATA_EXTENSIONS = (".dat", ".json")
+
+
 class SceneMapBuilder:
     r"""\brief Build map runtime objects and floor-map previews for SceneMap."""
+
+    def resolveMapPath(self, mapPath: str, currentMap: Optional[str] = None) -> str:
+        r"""\brief Resolve a map key or file path to an existing map data file.
+
+        - \param mapPath Map key or map file path.
+        - \param currentMap Current map path used to inherit extension.
+        - \return Resolved map file path relative to ``Data/Maps``.
+        """
+        candidates = self._getMapPathCandidates(mapPath, currentMap)
+        for candidate in candidates:
+            if os.path.exists(self.getMapDataPath(candidate)):
+                return candidate
+        return candidates[0] if candidates else self._normaliseMapPath(mapPath)
+
+    def loadMapData(self, mapPath: str, currentMap: Optional[str] = None) -> Tuple[str, Dict[str, Any]]:
+        r"""\brief Load map data from either JSON or .dat format.
+
+        - \param mapPath Map key or map file path.
+        - \param currentMap Current map path used to inherit extension.
+        - \return Resolved map path and loaded map data.
+        """
+        resolvedPath = self.resolveMapPath(mapPath, currentMap)
+        ext = os.path.splitext(resolvedPath)[1].lower()
+        fullPath = self.getMapDataPath(resolvedPath)
+        if ext == ".json":
+            data = File.getJSONData(fullPath)
+        elif ext == ".dat":
+            data = File.loadData(fullPath)
+        else:
+            raise ValueError(f"Unsupported map data format: {resolvedPath}")
+        if not isinstance(data, dict):
+            raise TypeError(f"Map data must be a dictionary: {resolvedPath}")
+        return resolvedPath, data
+
+    def getMapDataPath(self, mapPath: str) -> str:
+        r"""\brief Convert a map path to an on-disk path under ``Data/Maps``.
+
+        - \param mapPath Map file path relative to ``Data/Maps``.
+        - \return On-disk map data path.
+        """
+        return os.path.join(_MAP_DATA_ROOT, self._normaliseMapPath(mapPath).replace("/", os.sep))
+
+    def _getMapPathCandidates(self, mapPath: str, currentMap: Optional[str]) -> List[str]:
+        mapPath = self._normaliseMapPath(mapPath)
+        if not mapPath:
+            return []
+        candidates: List[str] = []
+        ext = os.path.splitext(mapPath)[1].lower()
+        if ext:
+            candidates.append(mapPath)
+            if ext in _MAP_DATA_EXTENSIONS:
+                stem = mapPath[: -len(ext)]
+                for candidateExt in _MAP_DATA_EXTENSIONS:
+                    candidates.append(f"{stem}{candidateExt}")
+        else:
+            currentExt = os.path.splitext(self._normaliseMapPath(currentMap or System.getStartMap()))[1].lower()
+            if currentExt in _MAP_DATA_EXTENSIONS:
+                candidates.append(f"{mapPath}{currentExt}")
+            for candidateExt in _MAP_DATA_EXTENSIONS:
+                candidates.append(f"{mapPath}{candidateExt}")
+        return list(dict.fromkeys(candidates))
+
+    def _normaliseMapPath(self, mapPath: Optional[str]) -> str:
+        if mapPath is None:
+            return ""
+        path = str(mapPath).replace("\\", "/")
+        while path.startswith("./"):
+            path = path[2:]
+        marker = "Data/Maps/"
+        markerIndex = path.find(marker)
+        if markerIndex != -1:
+            path = path[markerIndex + len(marker) :]
+        return path
 
     def generateTilemap(self, data: Dict[str, Any], width: int, height: int) -> Tilemap:
         r"""\brief Generate a tilemap from map layer data.
@@ -110,13 +187,20 @@ class SceneMapBuilder:
         ambientLight = data.get("ambientLight", [255, 255, 255, 255])
         lights = data.get("lights", [])
         actors = data.get("actors", [])
+        classVarChanges = data.get("BPClassVarChanged")
         result = GameMap(mapName, tilemap, camera)
         result.setAmbientLight(Color(*ambientLight))
         for lightData in lights:
             result.addLight(Light.fromDict(lightData))
         for layerName, actorDatas in actors.items():
             for actorData in actorDatas:
-                actor = Data.genActorFromData(actorData, layerName)
+                actorChanges = None
+                if isinstance(actorData, dict) and isinstance(classVarChanges, dict):
+                    tag = str(actorData.get("tag", ""))
+                    changes = classVarChanges.get(tag)
+                    if isinstance(changes, dict):
+                        actorChanges = changes
+                actor = Data.genActorFromData(actorData, layerName, actorChanges)
                 if actor is None:
                     continue
                 result.spawnActor(actor, layerName, False)
@@ -145,9 +229,8 @@ class SceneMapBuilder:
         - \param showTelepointMarker Whether to draw the selected telepoint marker.
         - \return Preview texture, or None on failure.
         """
-        mapPath = self.resolveRegionMapPath(mapKey, currentMap)
         try:
-            mapData = File.loadData(os.path.join("./Data/Maps", mapPath))
+            mapPath, mapData = self.loadMapData(mapKey, currentMap)
             gameMap = self.generateGameMap(mapData, emitCreateEvents=False)
             gameMap.applyTerrainDestructions(inst.getTerrainDestructions(mapPath))
             gameMap.applyAddedActors(inst.getAddedActors(mapPath), emitCreateEvents=False)
@@ -209,9 +292,8 @@ class SceneMapBuilder:
         - \param telepoint Telepoint tile position.
         - \return Teleporter actor tag, or None.
         """
-        mapPath = self.resolveRegionMapPath(mapKey, currentMap)
         try:
-            mapData = File.loadData(os.path.join("./Data/Maps", mapPath))
+            _, mapData = self.loadMapData(mapKey, currentMap)
         except Exception:
             return None
         targetPosition = [telepoint[0], telepoint[1]]
@@ -232,15 +314,4 @@ class SceneMapBuilder:
         - \param currentMap Current map path used to inherit extension.
         - \return Resolved map file path.
         """
-        if os.path.splitext(mapKey)[1]:
-            return mapKey
-        candidates: List[str] = []
-        currentMap = currentMap or System.getStartMap()
-        currentExt = os.path.splitext(currentMap)[1] if currentMap else ""
-        if currentExt:
-            candidates.append(f"{mapKey}{currentExt}")
-        candidates.extend([f"{mapKey}.dat", f"{mapKey}.json"])
-        for candidate in candidates:
-            if os.path.exists(os.path.join("./Data/Maps", candidate)):
-                return candidate
-        return candidates[0] if candidates else mapKey
+        return self.resolveMapPath(mapKey, currentMap)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Tuple, List, Optional, Callable
+from typing import Any, Tuple, List, Optional, Callable
 from Utils import System
 
 try:
@@ -26,7 +26,7 @@ class EditorNode(Node):
         parent: Optional[object],
         functionName: str,
         nodeFunction: Callable,
-        params: List[str],
+        params: List[Any],
         position: Tuple[float, float],
     ) -> None:
         super().__init__(parentGraph, parent, functionName, nodeFunction, params)

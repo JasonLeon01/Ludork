@@ -9,8 +9,7 @@ def _getCurrentGameMap() -> Optional[GameMap]:
     from Source.Scenes import Map as SceneMap
 
     scene = System.getScene()
-    if scene is None or not isinstance(scene, SceneMap):
-        return None
+    assert isinstance(scene, SceneMap)
     return scene.getGameMap()
 
 

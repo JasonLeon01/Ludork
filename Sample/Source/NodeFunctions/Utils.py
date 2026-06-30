@@ -18,6 +18,14 @@ _SHORT_NUMBER_UNITS = (
 )
 
 
+def _getSceneMap() -> Any:
+    from Source.Scenes import Map as SceneMap
+
+    scene = System.getScene()
+    assert isinstance(scene, SceneMap)
+    return scene
+
+
 class _attrRef:
     def __init__(self, obj: object, name: str) -> None:
         self.obj = obj
@@ -195,6 +203,8 @@ def IF(condition: bool = False) -> int:
     - \param condition The condition to evaluate.
     - \return 0 if True, 1 if False.
     """
+    if isinstance(condition, (_attrRef, _localRef)):
+        condition = condition.get()
     return 0 if condition else 1
 
 
@@ -241,9 +251,9 @@ def SetGameVariable(valueName: str, value: Any = None) -> None:
     - \param valueName The variable name.
     - \param value The value to set.
     """
-    scene = System.getScene()
-    if scene and hasattr(scene, "inst"):
-        scene.inst.setVariable(valueName, value)
+    if isinstance(value, (_attrRef, _localRef)):
+        value = value.get()
+    _getSceneMap().inst.setVariable(valueName, value)
 
 
 @Meta(DisplayName='LOC("GET_GAME_VARIABLE")', DisplayDesc='LOC("GET_GAME_VARIABLE_DESC")')
@@ -255,10 +265,7 @@ def GetGameVariable(valueName: str, default: Any = None) -> Any:
     - \param default Default value if the variable is not found.
     - \return The variable value.
     """
-    scene = System.getScene()
-    if scene and hasattr(scene, "inst"):
-        return scene.inst.getVariable(valueName)
-    return default
+    return _getSceneMap().inst.getVariables().get(valueName, default)
 
 
 @Meta(DisplayName='LOC("GET_GAME_VARIABLE_REF")', DisplayDesc='LOC("GET_GAME_VARIABLE_REF_DESC")')
@@ -270,13 +277,7 @@ def GetGameVariableRef(valueName: str, default: Any = None) -> Any:
     - \param default Default value if the variable is not found.
     - \return A _localRef wrapper.
     """
-    scene = System.getScene()
-    if scene and hasattr(scene, "inst"):
-        return _localRef(scene.inst.getVariables(), valueName, default)
-    return _localRef(GetGameVariableRef._fallbackVariables, valueName, default)
-
-
-GetGameVariableRef._fallbackVariables: Dict[str, Any] = {}
+    return _localRef(_getSceneMap().inst.getVariables(), valueName, default)
 
 
 @Meta(DisplayName='LOC("ADD_PLAYER_BY_CLASS")', DisplayDesc='LOC("ADD_PLAYER_BY_CLASS_DESC")')
@@ -286,9 +287,7 @@ def AddPlayerByClass(playerClass: str) -> None:
 
     - \param playerClass The class path for the player blueprint.
     """
-    scene = System.getScene()
-    if scene and hasattr(scene, "inst"):
-        scene.inst.addPlayerByClass(playerClass)
+    _getSceneMap().inst.addPlayerByClass(playerClass)
 
 
 @Meta(DisplayName='LOC("REMOVE_PLAYER_BY_CLASS")', DisplayDesc='LOC("REMOVE_PLAYER_BY_CLASS_DESC")')
@@ -298,9 +297,7 @@ def RemovePlayerByClass(playerClass: str) -> None:
 
     - \param playerClass The class path to remove.
     """
-    scene = System.getScene()
-    if scene and hasattr(scene, "inst"):
-        scene.inst.removePlayerByClass(playerClass)
+    _getSceneMap().inst.removePlayerByClass(playerClass)
 
 
 def _spawnAnim(animName: str, position: Vector2f, rotation: float, scale: Pair[float]) -> None:
@@ -319,10 +316,9 @@ def _spawnAnim(animName: str, position: Vector2f, rotation: float, scale: Pair[f
 
 
 def _getActorByTag(actorTag: str):
-    scene = System.getScene()
-    if scene and hasattr(scene, "getGameMap"):
-        gameMap = scene.getGameMap()
-        if gameMap is not None and actorTag:
+    if actorTag:
+        gameMap = _getSceneMap().getGameMap()
+        if gameMap is not None:
             return gameMap.getActorByTag(actorTag)
     return None
 
@@ -442,7 +438,7 @@ def SUPER(obj: object, params: List[Any] = []) -> bool:
     eventName = SUPER._refLocal.get("__key__")
     if graphContext is None or not eventName:
         raise RuntimeError("SUPER must be called from a blueprint event graph")
-    cls = getattr(graphContext, "parentClass", None)
+    cls = graphContext.parentClass
     if cls is None:
         cls = type(obj)
     from Engine.BPBase import BPBase
@@ -560,7 +556,8 @@ def RegisterEventBus(key: str, obj: object, functionName: str) -> None:
     """
     if obj is None:
         raise ValueError("EventBus target object is None")
-    if not hasattr(obj, functionName) or not callable(getattr(obj, functionName)):
+    eventFunction = getattr(obj, functionName, None)
+    if not callable(eventFunction):
         raise AttributeError(f"Object has no callable event '{functionName}'")
 
     def handler(payload: Any) -> None:
@@ -691,13 +688,9 @@ def IfPlayerOverlaps() -> bool:
 
     - \return True if the player shares the same cell as the owner.
     """
-    from Source.Scenes import Map as SceneMap
-
     graph = IfPlayerOverlaps._refLocal["__graph__"]
     obj = graph.parent
-    scene = System.getScene()
-    if scene is None or not isinstance(scene, SceneMap):
-        return False
+    scene = _getSceneMap()
     gameMap = scene.getGameMap()
     if gameMap is None:
         return False
@@ -717,10 +710,7 @@ def IfGameVar(varName: str, op: str = "==", value: Any = None) -> bool:
     - \param value The value to compare against.
     - \return True if the comparison holds.
     """
-    scene = System.getScene()
-    if scene is None or not hasattr(scene, "inst"):
-        return False
-    current = scene.inst.getVariable(varName)
+    current = _getSceneMap().inst.getVariable(varName)
     if op == "==":
         return current == value
     if op == "!=":

@@ -188,6 +188,7 @@ class LayoutMixin:
 
         self.fileExplorer.FILE_CLICKED.connect(self._onFileExplorerFileClicked)
         self.fileExplorer.DATA_FILE_CHANGED.connect(self._onDataFileChanged)
+        self.fileExplorer.DATA_PATH_RENAMED.connect(self._onDataPathRenamed)
         self.actorQueuePanel.SELECTION_CHANGED.connect(
             lambda bpRel: self.editorPanel.setPendingActor(bpRel if isinstance(bpRel, str) else None)
         )

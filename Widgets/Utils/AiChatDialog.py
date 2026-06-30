@@ -298,6 +298,14 @@ class AiChatDialog(QtWidgets.QDialog):
         self._loadingTimer.timeout.connect(self._updateLoadingDots)
         self._loadingDots = 0
 
+    def setBlueprintTarget(self, blueprintName: str, blueprintFilePath: str) -> None:
+        self._blueprintName = blueprintName
+        self._blueprintFilePath = blueprintFilePath
+        title = ELOC("AI_CHAT_TITLE")
+        if self._blueprintName:
+            title = f"{title} - {self._blueprintName}"
+        self.setWindowTitle(title)
+
     def _createQuickJsContext(self) -> Any:
         import quickjs
 

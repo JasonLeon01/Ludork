@@ -7,6 +7,8 @@ from typing import Any, Dict, Optional
 import re
 import traceback
 
+from Engine.Utils.DataValue import evalDataExpression
+
 
 class BPBase:
     r"""
@@ -211,6 +213,8 @@ class BPBase:
             return False
 
         eventKwargs = BPBase._eventKwargsFromArgs(parent_cls, eventName, args or (), kwargs or {})
+        if localGraph is not None:
+            BPBase._mergeEventKwargsFromLocalGraph(parent_cls, eventName, eventKwargs, localGraph)
         if hasattr(parent_cls, "_GENERATED_CLASS") and getattr(parent_cls, "_GENERATED_CLASS"):
             parentGraphData = BPBase._getGeneratedClassGraphData(parent_cls)
             if parentGraphData:
@@ -277,6 +281,29 @@ class BPBase:
         return result
 
     @staticmethod
+    def _mergeEventKwargsFromLocalGraph(
+        cls: type,
+        eventName: str,
+        eventKwargs: Dict[str, Any],
+        localGraph: Dict[str, Any],
+    ) -> None:
+        method = getattr(cls, eventName, None)
+        if method is None or not callable(method):
+            return
+        try:
+            sig = inspect.signature(method)
+        except (TypeError, ValueError):
+            return
+        for paramName in sig.parameters:
+            if paramName == "self":
+                continue
+            if paramName in eventKwargs:
+                continue
+            key = f"__{paramName}__"
+            if key in localGraph:
+                eventKwargs[paramName] = localGraph[key]
+
+    @staticmethod
     def _getGeneratedClassGraphData(cls: type) -> Optional[Dict[str, Any]]:
         from Source import Data
 
@@ -329,20 +356,14 @@ class BPBase:
             resolved: Dict[str, Any] = {}
             for key, item in value.items():
                 if isinstance(item, str):
-                    try:
-                        resolved[key] = Eval(item)
-                    except Exception:
-                        resolved[key] = item
+                    resolved[key] = evalDataExpression(item)
                 else:
                     resolved[key] = item
             return resolved
         if isinstance(value, str):
-            try:
-                evaluated = Eval(value)
-                if isinstance(evaluated, dict):
-                    return BPBase._resolveGeneralDataDict(evaluated)
-            except Exception:
-                pass
+            evaluated = evalDataExpression(value)
+            if isinstance(evaluated, dict):
+                return BPBase._resolveGeneralDataDict(evaluated)
         return {}
 
     @staticmethod

@@ -65,7 +65,7 @@
             ".json",
             ".dat"
         ],
-        "value": "Map_01.dat"
+        "value": "Map_01.json"
     },
     "startPos": {
         "type": "int[2]",

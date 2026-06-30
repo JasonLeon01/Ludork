@@ -364,9 +364,8 @@ class Graph:
         self._latentPendingCount[key] = max(0, count - 1)
 
     def completeExecution(self, key: str) -> None:
-        """Unlock execution if no latent nodes are pending."""
-        if self._latentPendingCount.get(key, 0) <= 0:
-            self._executionLocked[key] = False
+        """Release the per-event execution lock after a graph run finishes."""
+        self._executionLocked[key] = False
 
     def asDict(self) -> Dict[str, Any]:
         r"""Serialize the graph to a dictionary for storage.

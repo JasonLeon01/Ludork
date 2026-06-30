@@ -7,6 +7,7 @@ import importlib.util
 import sys
 import traceback
 from typing import Any, Dict, Optional
+from Engine.Utils.DataValue import evalDataExpression, resolveAttrValueType, resolveTypedDataValue, shouldEvalValueType
 
 
 class ClassDict:
@@ -96,19 +97,19 @@ class ClassDict:
                 for key, value in classAttrs.items():
                     attrs[key] = value
 
-                def _cloneAttrValue(value: Any) -> Any:
-                    if isinstance(value, str):
-                        try:
-                            return eval(value)
-                        except Exception:
-                            return value
+                def _cloneAttrValue(key: str, value: Any) -> Any:
+                    targetType = resolveAttrValueType(parentClass, key)
+                    if isinstance(value, str) and shouldEvalValueType(targetType):
+                        return evalDataExpression(value)
+                    if targetType is not Any:
+                        return copy.deepcopy(resolveTypedDataValue(value, targetType))
                     return copy.deepcopy(value)
 
                 def __init__(self, *args, **kwargs) -> None:
                     for key, value in classAttrs.items():
                         if key in self.__dict__:
                             continue
-                        setattr(self, key, _cloneAttrValue(value))
+                        setattr(self, key, _cloneAttrValue(key, value))
                     parentClass.__init__(self, *args, **kwargs)
                     try:
                         from Engine.Gameplay.Components import normaliseInstanceComponents

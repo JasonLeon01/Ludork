@@ -8,7 +8,19 @@ from ... import Material
 from .Actor import Actor
 
 
-@Meta(InvalidVars=["defaultRect"])
+@Meta(
+    InvalidVars=["defaultRect"],
+    VariableDisplayNames={
+        "direction": 'LOC("CHARACTER_VAR_DIRECTION")',
+        "directionFix": 'LOC("CHARACTER_VAR_DIRECTION_FIX")',
+        "animateWithoutMoving": 'LOC("CHARACTER_VAR_ANIMATE_WITHOUT_MOVING")',
+    },
+    VariableDisplayDescs={
+        "direction": 'LOC("CHARACTER_VAR_DIRECTION_DESC")',
+        "directionFix": 'LOC("CHARACTER_VAR_DIRECTION_FIX_DESC")',
+        "animateWithoutMoving": 'LOC("CHARACTER_VAR_ANIMATE_WITHOUT_MOVING_DESC")',
+    },
+)
 class Character(Actor):
     """Actor subclass with directional sprite-sheet animation.
 

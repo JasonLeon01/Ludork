@@ -40,7 +40,7 @@
                         "nodeFunction": "NodeFunctions.Movement.SetAutoPathToDestination",
                         "params": [
                             "",
-                            "(9,9)"
+                            "(9, 9)"
                         ],
                         "pos": [
                             0.0,
@@ -66,17 +66,6 @@
                             720.0,
                             439.0
                         ]
-                    },
-                    {
-                        "nodeFunction": "NodeFunctions.Utils.TriggerEventBus",
-                        "params": [
-                            "ExampleAutoTrigger",
-                            ""
-                        ],
-                        "pos": [
-                            1440.0,
-                            439.0
-                        ]
                     }
                 ],
                 "links": [
@@ -98,13 +87,6 @@
                         "left": 1,
                         "right": 3,
                         "leftOutPin": 1,
-                        "rightInPin": 0,
-                        "linkType": "Exec"
-                    },
-                    {
-                        "left": 3,
-                        "right": 4,
-                        "leftOutPin": 0,
                         "rightInPin": 0,
                         "linkType": "Exec"
                     }

@@ -123,6 +123,14 @@ class DatabaseMenuMixin:
         if self._blueprintEditor is not None and not editors:
             self._blueprintEditor = None
 
+    def _onBlueprintEditorDestroyedByEditor(self, editor: Any) -> None:
+        editors = self._getBlueprintEditors()
+        for key, value in list(editors.items()):
+            if value is editor:
+                editors.pop(key, None)
+        if self._blueprintEditor is editor:
+            self._blueprintEditor = next(iter(editors.values()), None)
+
     def _onOpenLocaleFile(self, checked: bool = False) -> None:
         projPath = EditorStatus.PROJ_PATH
         xlsxPath = os.path.join(projPath, "Data", "Locale", "Locale.xlsx")
@@ -151,8 +159,8 @@ class DatabaseMenuMixin:
         editor = BluePrintEditor(title, data, self)
         editor.MODIFIED.connect(self._onBlueprintModified)
         editor.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
-        editor.destroyed.connect(lambda _obj=None, t=title: self._onBlueprintEditorDestroyed(t))
         editors[title] = editor
+        editor.destroyed.connect(lambda _obj=None, e=editor: self._onBlueprintEditorDestroyedByEditor(e))
         self._blueprintEditor = editor
         editor.activateWindow()
         editor.raise_()

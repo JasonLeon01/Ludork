@@ -11,6 +11,18 @@ from ..Components import ChildActorComponent, LightComponent, componentFromData
 from .Base import _ActorBase
 
 
+@Meta(
+    VariableDisplayNames={
+        "volume": 'LOC("AUTO_SOUND_VAR_VOLUME")',
+        "minDistance": 'LOC("AUTO_SOUND_VAR_MIN_DISTANCE")',
+        "attenuation": 'LOC("AUTO_SOUND_VAR_ATTENUATION")',
+    },
+    VariableDisplayDescs={
+        "volume": 'LOC("AUTO_SOUND_VAR_VOLUME_DESC")',
+        "minDistance": 'LOC("AUTO_SOUND_VAR_MIN_DISTANCE_DESC")',
+        "attenuation": 'LOC("AUTO_SOUND_VAR_ATTENUATION_DESC")',
+    },
+)
 @dataclass
 class AutoSoundParams:
     r"""\brief Spatial audio parameters used by Actor automatic sound playback."""
@@ -27,6 +39,38 @@ class AutoSoundParams:
     Rely={
         "autoSoundInterval": {"source": "autoSound", "op": "!=", "value": ""},
         "autoSoundParams": {"source": "autoSound", "op": "!=", "value": ""},
+    },
+    VariableDisplayNames={
+        "collisionEnabled": 'LOC("ACTOR_VAR_COLLISION_ENABLED")',
+        "tickable": 'LOC("ACTOR_VAR_TICKABLE")',
+        "speed": 'LOC("ACTOR_VAR_SPEED")',
+        "autoSound": 'LOC("ACTOR_VAR_AUTO_SOUND")',
+        "autoSoundInterval": 'LOC("ACTOR_VAR_AUTO_SOUND_INTERVAL")',
+        "autoSoundParams": 'LOC("ACTOR_VAR_AUTO_SOUND_PARAMS")',
+        "texturePath": 'LOC("ACTOR_VAR_TEXTURE_PATH")',
+        "defaultRect": 'LOC("ACTOR_VAR_DEFAULT_RECT")',
+        "defaultTranslation": 'LOC("ACTOR_VAR_DEFAULT_TRANSLATION")',
+        "defaultRotation": 'LOC("ACTOR_VAR_DEFAULT_ROTATION")',
+        "defaultScale": 'LOC("ACTOR_VAR_DEFAULT_SCALE")',
+        "defaultOrigin": 'LOC("ACTOR_VAR_DEFAULT_ORIGIN")',
+        "lightComp": 'LOC("ACTOR_VAR_LIGHT_COMP")',
+        "childActorComp": 'LOC("ACTOR_VAR_CHILD_ACTOR_COMP")',
+    },
+    VariableDisplayDescs={
+        "collisionEnabled": 'LOC("ACTOR_VAR_COLLISION_ENABLED_DESC")',
+        "tickable": 'LOC("ACTOR_VAR_TICKABLE_DESC")',
+        "speed": 'LOC("ACTOR_VAR_SPEED_DESC")',
+        "autoSound": 'LOC("ACTOR_VAR_AUTO_SOUND_DESC")',
+        "autoSoundInterval": 'LOC("ACTOR_VAR_AUTO_SOUND_INTERVAL_DESC")',
+        "autoSoundParams": 'LOC("ACTOR_VAR_AUTO_SOUND_PARAMS_DESC")',
+        "texturePath": 'LOC("ACTOR_VAR_TEXTURE_PATH_DESC")',
+        "defaultRect": 'LOC("ACTOR_VAR_DEFAULT_RECT_DESC")',
+        "defaultTranslation": 'LOC("ACTOR_VAR_DEFAULT_TRANSLATION_DESC")',
+        "defaultRotation": 'LOC("ACTOR_VAR_DEFAULT_ROTATION_DESC")',
+        "defaultScale": 'LOC("ACTOR_VAR_DEFAULT_SCALE_DESC")',
+        "defaultOrigin": 'LOC("ACTOR_VAR_DEFAULT_ORIGIN_DESC")',
+        "lightComp": 'LOC("ACTOR_VAR_LIGHT_COMP_DESC")',
+        "childActorComp": 'LOC("ACTOR_VAR_CHILD_ACTOR_COMP_DESC")',
     },
 )
 class Actor(_ActorBase, BPBase):

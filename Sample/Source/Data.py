@@ -6,9 +6,10 @@ import os
 import zlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable, Dict, Optional, Tuple, Type
-from Engine import Vector2f, Vector2u, Image, Tileset, AutoTile
+from Engine import Vector2f, Vector2u, Vector2i, IntRect, Image, Tileset, AutoTile, Material
 from Engine.Gameplay.Actors import Actor
-from Engine.Utils import File
+from Engine.Utils import File, Inner
+from Engine.Utils.DataValue import evalDataExpression, resolveAttrValueType, resolveTypedDataValue, shouldEvalValueType
 from Engine.NodeGraph import ClassDict, Graph, DataNode, Node
 from Global import Manager
 
@@ -301,7 +302,9 @@ class _Data:
             data["startNodes"],
         )
 
-    def genActorFromClassPath(self, classPath: str, tag: Optional[str] = None) -> Optional[Actor]:
+    def genActorFromClassPath(
+        self, classPath: str, tag: Optional[str] = None, classVarChanges: Optional[Dict[str, Any]] = None
+    ) -> Optional[Actor]:
         if not classPath:
             return None
         classModel: Type[Actor] = self.getClass(classPath)
@@ -313,47 +316,127 @@ class _Data:
         actor: Actor = classModel.GenActor(classModel, texture, defaultRect, tag)
         actor.setMapTag("" if tag is None else str(tag))
         actor.texturePath = texturePath
-        actor.setTranslation(Vector2f(*classModel.defaultTranslation))
-        actor.setRotation(float(classModel.defaultRotation))
-        actor.setScale(tuple(classModel.defaultScale))
-        actor.setOrigin(tuple(classModel.defaultOrigin))
+        self._applyActorGenerationClassVars(actor)
         classData = self.getClassData(classPath)
         graphData = classData.get("graph") if isinstance(classData, dict) else None
         if graphData:
             actor.setGraph(self.genGraphFromData(graphData, actor, classModel))
+        if isinstance(classVarChanges, dict):
+            self._applyActorClassVarChanges(actor, classVarChanges)
+            self._applyActorGenerationClassVars(actor)
         return actor
 
     def genActorFromClassName(self, className: str, tag: Optional[str] = None) -> Optional[Actor]:
         return self.genActorFromClassPath(self.resolveClassPath(className), tag)
 
-    def genActorFromData(self, actorData: Dict[str, Any], layerName: str) -> Optional[Actor]:
+    def genActorFromData(
+        self, actorData: Dict[str, Any], layerName: str, classVarChanges: Optional[Dict[str, Any]] = None
+    ) -> Optional[Actor]:
         tag = actorData.get("tag", None)
         position = actorData.get("position", None)
-        translation = actorData.get("translation", None)
-        rotation = actorData.get("rotation", None)
-        scale = actorData.get("scale", None)
-        origin = actorData.get("origin", None)
         bp = actorData.get("bp", None)
         if bp is None:
             logging.warning("Actor %s in layer %s has no bp", tag, layerName)
             return None
         bp = self.resolveClassPath(bp)
         classModel: Type[Actor] = self.getClass(bp)
-        actor = self.genActorFromClassPath(bp, tag)
+        actor = self.genActorFromClassPath(bp, tag, classVarChanges)
         if actor is None:
             return None
         if position is None:
-            position = getattr(classModel, "defaultPosition", [0, 0])
-        if translation is not None:
-            actor.setTranslation(Vector2f(*translation))
-        if rotation is not None:
-            actor.setRotation(float(rotation))
-        if scale is not None:
-            actor.setScale(tuple(scale))
-        if origin is not None:
-            actor.setOrigin(tuple(origin))
+            position = getattr(actor, "defaultPosition", getattr(classModel, "defaultPosition", [0, 0]))
+        self._applyActorGenerationClassVars(actor)
         actor.setMapPosition(Vector2u(*position))
         return actor
+
+    def _applyActorClassVarChanges(self, actor: Actor, changes: Dict[str, Any]) -> None:
+        storedChanges: Dict[str, Any] = {}
+        currentChanges = getattr(actor, "_classVarChanges", None)
+        if isinstance(currentChanges, dict):
+            storedChanges.update(copy.deepcopy(currentChanges))
+        for key, value in changes.items():
+            if not isinstance(key, str):
+                continue
+            storedChanges[key] = self._cloneClassVarChangeValue(value)
+            setattr(actor, key, self._resolveClassVarChangeValue(actor, key, value))
+        if storedChanges:
+            actor._classVarChanges = storedChanges
+        try:
+            from Engine.Gameplay.Components import normaliseInstanceComponents
+
+            normaliseInstanceComponents(actor)
+        except Exception as e:
+            logging.warning("Failed to normalise instance class vars for actor %s: %s", getattr(actor, "tag", ""), e)
+        self._normaliseActorClassVarObjects(actor)
+        if "shaderPath" in changes:
+            try:
+                actor.setShaderPath(getattr(actor, "shaderPath", ""))
+            except Exception as e:
+                logging.warning("Failed to apply actor shader override for %s: %s", getattr(actor, "tag", ""), e)
+        if "texturePath" in changes or "defaultRect" in changes:
+            self._applyActorTextureClassVars(actor, "defaultRect" in changes)
+
+    def _applyActorGenerationClassVars(self, actor: Actor) -> None:
+        actor.setTranslation(Vector2f(*getattr(actor, "defaultTranslation", (0.0, 0.0))))
+        actor.setRotation(float(getattr(actor, "defaultRotation", 0.0)))
+        actor.setScale(tuple(getattr(actor, "defaultScale", (1.0, 1.0))))
+        actor.setOrigin(tuple(getattr(actor, "defaultOrigin", (0.0, 0.0))))
+
+    def _normaliseActorClassVarObjects(self, actor: Actor) -> None:
+        try:
+            if isinstance(actor.material, dict):
+                actor.material = Material(**Inner.filterDataClassParams(actor.material, Material))
+        except Exception as e:
+            logging.warning("Failed to normalise material override for %s: %s", getattr(actor, "tag", ""), e)
+        try:
+            actor._normaliseAutoSoundParams()
+        except Exception as e:
+            logging.warning("Failed to normalise auto sound override for %s: %s", getattr(actor, "tag", ""), e)
+
+    def _cloneClassVarChangeValue(self, value: Any) -> Any:
+        return copy.deepcopy(value)
+
+    def _resolveClassVarChangeValue(self, actor: Actor, key: str, value: Any) -> Any:
+        targetType = resolveAttrValueType(type(actor), key)
+        if isinstance(value, str) and shouldEvalValueType(targetType):
+            return evalDataExpression(value)
+        if targetType is not Any:
+            return copy.deepcopy(resolveTypedDataValue(value, targetType))
+        return self._cloneClassVarChangeValue(value)
+
+    def _applyActorTextureClassVars(self, actor: Actor, applyRect: bool) -> None:
+        texturePath = getattr(actor, "texturePath", "")
+        texture = Manager.loadCharacter(texturePath) if isinstance(texturePath, str) and texturePath else None
+        if texture is not None:
+            try:
+                actor.setTexture(texture, True)
+            except TypeError:
+                actor.setTexture(texture)
+        rect = self._toIntRect(getattr(actor, "defaultRect", None))
+        if rect is not None and (applyRect or not self._isCharacterActor(actor)):
+            actor.setTextureRect(rect)
+
+    def _isCharacterActor(self, actor: Actor) -> bool:
+        try:
+            from Engine.Gameplay.Actors import Character
+
+            return isinstance(actor, Character)
+        except Exception:
+            return False
+
+    def _toIntRect(self, value: Any) -> Optional[IntRect]:
+        if not isinstance(value, (list, tuple)) or len(value) < 2:
+            return None
+        pos = value[0]
+        size = value[1]
+        if not isinstance(pos, (list, tuple)) or not isinstance(size, (list, tuple)):
+            return None
+        if len(pos) < 2 or len(size) < 2:
+            return None
+        try:
+            return IntRect(Vector2i(int(pos[0]), int(pos[1])), Vector2i(int(size[0]), int(size[1])))
+        except Exception:
+            return None
 
 
 _data = _Data()
@@ -574,14 +657,17 @@ def resolveClassPath(className: str) -> str:
     return _data.resolveClassPath(className)
 
 
-def genActorFromClassPath(classPath: str, tag: Optional[str] = None) -> Optional[Actor]:
+def genActorFromClassPath(
+    classPath: str, tag: Optional[str] = None, classVarChanges: Optional[Dict[str, Any]] = None
+) -> Optional[Actor]:
     r"""\brief Generate an actor from a resolved class path.
 
     - \param classPath Actor class path.
     - \param tag Optional actor tag.
+    - \param classVarChanges Optional blueprint instance variable overrides.
     - \return The generated Actor, or None.
     """
-    return _data.genActorFromClassPath(classPath, tag)
+    return _data.genActorFromClassPath(classPath, tag, classVarChanges)
 
 
 def genActorFromClassName(className: str, tag: Optional[str] = None) -> Optional[Actor]:
@@ -616,11 +702,14 @@ def genGraphFromData(
     return _data.genGraphFromData(data, parent, parentClass)
 
 
-def genActorFromData(actorData: Dict[str, Any], layerName: str) -> Optional[Actor]:
+def genActorFromData(
+    actorData: Dict[str, Any], layerName: str, classVarChanges: Optional[Dict[str, Any]] = None
+) -> Optional[Actor]:
     r"""\brief Generate an actor from data.
 
     - \param actorData The actor data dictionary.
     - \param layerName The layer to spawn the actor on.
+    - \param classVarChanges Optional blueprint instance variable overrides.
     - \return The generated Actor, or None.
     """
-    return _data.genActorFromData(actorData, layerName)
+    return _data.genActorFromData(actorData, layerName, classVarChanges)

@@ -123,9 +123,11 @@ def RequestTransition(transitionName: str = "", transitionTime: float = 1.0) -> 
 )
 @ExecSplit(default=(None,))
 def SetBgmFilter(attr: str, value: Any) -> None:
+    from Source.Scenes import Map as SceneMap
+
     scene = GlobalSystem.getScene()
-    if scene and hasattr(scene, "setBgmFilter"):
-        scene.setBgmFilter(attr, value)
+    assert isinstance(scene, SceneMap)
+    scene.setBgmFilter(attr, value)
 
 
 @Meta(
@@ -135,9 +137,11 @@ def SetBgmFilter(attr: str, value: Any) -> None:
 )
 @ExecSplit(default=(None,))
 def SetBgsFilter(attr: str, value: Any) -> None:
+    from Source.Scenes import Map as SceneMap
+
     scene = GlobalSystem.getScene()
-    if scene and hasattr(scene, "setBgsFilter"):
-        scene.setBgsFilter(attr, value)
+    assert isinstance(scene, SceneMap)
+    scene.setBgsFilter(attr, value)
 
 
 @Meta(DisplayName='LOC("FLASH_SCREEN")', DisplayDesc='LOC("FLASH_SCREEN_DESC")')

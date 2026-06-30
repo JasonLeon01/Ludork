@@ -2,6 +2,8 @@
 r"""\brief GameInstance: persistent game state container surviving across scene transitions."""
 
 from __future__ import annotations
+import copy
+import dataclasses
 from typing import Any, Dict, List, Optional, Tuple, Union
 from Engine import Vector2u
 from Engine.Gameplay.Actors import Actor
@@ -360,12 +362,16 @@ class GameInstance:
         bpPath = GameInstance._resolveActorClassPath(actor)
         if not bpPath:
             return None
-        return {
+        actorRecord = {
             "bp": bpPath,
             "layer": str(layerName or "default"),
             "position": [actorPosition[0], actorPosition[1]],
             "tag": actorTag,
         }
+        classVarChanges = GameInstance._normaliseClassVarChanges(getattr(actor, "_classVarChanges", None))
+        if classVarChanges:
+            actorRecord["classVarChanges"] = classVarChanges
+        return actorRecord
 
     @staticmethod
     def _resolveActorClassPath(actor: Actor) -> str:
@@ -407,11 +413,58 @@ class GameInstance:
                     "position": [position[0], position[1]],
                     "tag": str(actorTag),
                 }
+                classVarChanges = GameInstance._normaliseClassVarChanges(
+                    record.get("classVarChanges", record.get("defaults", record.get("BPClassVarChanged")))
+                )
+                if classVarChanges:
+                    actorRecord["classVarChanges"] = classVarChanges
                 result[normalisedMapPath] = [
                     item for item in result[normalisedMapPath] if item.get("tag") != actorRecord["tag"]
                 ]
                 result[normalisedMapPath].append(actorRecord)
         return result
+
+    @staticmethod
+    def _normaliseClassVarChanges(changes: Any) -> Dict[str, Any]:
+        result: Dict[str, Any] = {}
+        if not isinstance(changes, dict):
+            return result
+        for key, value in changes.items():
+            if not isinstance(key, str):
+                continue
+            result[key] = GameInstance._normaliseRecordValue(value)
+        return result
+
+    @staticmethod
+    def _normaliseRecordValue(value: Any) -> Any:
+        if dataclasses.is_dataclass(value) and not isinstance(value, type):
+            return GameInstance._normaliseRecordValue(dataclasses.asdict(value))
+        if isinstance(value, dict):
+            return {key: GameInstance._normaliseRecordValue(item) for key, item in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [GameInstance._normaliseRecordValue(item) for item in value]
+
+        position = getattr(value, "position", None)
+        size = getattr(value, "size", None)
+        if position is not None and size is not None:
+            return [GameInstance._normaliseRecordValue(position), GameInstance._normaliseRecordValue(size)]
+
+        if hasattr(value, "x") and hasattr(value, "y"):
+            coords = [value.x, value.y]
+            if hasattr(value, "z"):
+                coords.append(value.z)
+            return [GameInstance._normaliseRecordValue(item) for item in coords]
+
+        if hasattr(value, "r") and hasattr(value, "g") and hasattr(value, "b"):
+            values = [value.r, value.g, value.b]
+            if hasattr(value, "a"):
+                values.append(value.a)
+            return [GameInstance._normaliseRecordValue(item) for item in values]
+
+        try:
+            return copy.deepcopy(value)
+        except Exception:
+            return str(value)
 
     @staticmethod
     def _normaliseActorPositions(actorPositions: Dict[str, Any]) -> Dict[str, Dict[str, Tuple[int, int]]]:

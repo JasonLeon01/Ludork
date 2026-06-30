@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from Engine import Pair, Vector2f, Vector2i, Vector2u
 from Engine.Gameplay.Actors import Actor
 from Global import Manager, System
+from Source.Infos.StateInfo import StateInfo
 
 
 def _evalTerrainTileID(tileID: Any) -> Union[int, str, None]:
@@ -23,7 +24,7 @@ def _posToVector2u(position: Any) -> Optional[Vector2u]:
             return Vector2u(int(position[0]), int(position[1]))
         except (TypeError, ValueError):
             return None
-    if hasattr(position, "x") and hasattr(position, "y"):
+    if isinstance(position, (Vector2f, Vector2i, Vector2u)):
         try:
             return Vector2u(int(position.x), int(position.y))
         except (TypeError, ValueError):
@@ -39,7 +40,7 @@ def _posToVector2f(position: Any) -> Optional[Vector2f]:
             return Vector2f(float(position[0]), float(position[1]))
         except (TypeError, ValueError):
             return None
-    if hasattr(position, "x") and hasattr(position, "y"):
+    if isinstance(position, (Vector2f, Vector2i, Vector2u)):
         try:
             return Vector2f(float(position.x), float(position.y))
         except (TypeError, ValueError):
@@ -47,7 +48,7 @@ def _posToVector2f(position: Any) -> Optional[Vector2f]:
     return None
 
 
-def _getSceneMap():
+def _getSceneMap() -> Any:
     from Source.Scenes import Map as SceneMap
 
     scene = System.getScene()
@@ -55,10 +56,8 @@ def _getSceneMap():
     return scene
 
 
-def _getSceneCamera():
-    scene = System.getScene()
-    if not scene or not hasattr(scene, "getGameMap"):
-        return None
+def _getSceneCamera() -> Any:
+    scene = _getSceneMap()
     gameMap = scene.getGameMap()
     if gameMap is None:
         return None
@@ -83,10 +82,10 @@ def _getBlueprintOwner(refLocal) -> Optional[Any]:
     graph = refLocal.get("__graph__")
     if graph is None:
         return None
-    parent = getattr(graph, "parent", None)
+    parent = graph.parent
     if parent is None:
         return None
-    if hasattr(parent, "getOwner"):
+    if isinstance(parent, StateInfo):
         return parent.getOwner()
     return parent
 
@@ -108,9 +107,7 @@ def GotoMap(
     - \param blockTransition Whether to skip the map transition effect.
     - \param position Target tile coordinate as ``(x, y)``, or ``None`` to keep the current position.
     """
-    scene = System.getScene()
-    if scene and hasattr(scene, "gotoMapAndPos"):
-        scene.gotoMapAndPos(mapPath, _posToVector2u(position), blockTransition=bool(blockTransition))
+    _getSceneMap().gotoMapAndPos(mapPath, _posToVector2u(position), blockTransition=bool(blockTransition))
 
 
 @Meta(DisplayName='LOC("GAME_OVER")', DisplayDesc='LOC("GAME_OVER_DESC")')
@@ -232,15 +229,13 @@ def ShowRefSelection(
 @ExecSplit(default=(None,))
 def LockCamera() -> None:
     r"""\brief Lock the current map camera to the player."""
-    scene = System.getScene()
-    if scene and hasattr(scene, "getGameMap"):
-        gameMap = scene.getGameMap()
-        if gameMap is not None:
-            camera = _getSceneCamera()
-            player = gameMap.getPlayer()
-            if camera is not None and player is not None:
-                camera.setParent(player)
-                _snapCameraToActor(camera, player)
+    gameMap = _getSceneMap().getGameMap()
+    if gameMap is not None:
+        camera = _getSceneCamera()
+        player = gameMap.getPlayer()
+        if camera is not None and player is not None:
+            camera.setParent(player)
+            _snapCameraToActor(camera, player)
 
 
 @Meta(DisplayName='LOC("UNLOCK_CAMERA")', DisplayDesc='LOC("UNLOCK_CAMERA_DESC")')
@@ -293,9 +288,7 @@ def RecordTelepoint(mapPath: str, x: int = 0, y: int = 0) -> None:
     - \param x Telepoint tile column.
     - \param y Telepoint tile row.
     """
-    scene = System.getScene()
-    if scene and hasattr(scene, "inst"):
-        scene.inst.recordTelepoint(mapPath, Vector2u(int(x), int(y)))
+    _getSceneMap().inst.recordTelepoint(mapPath, Vector2u(int(x), int(y)))
 
 
 @Meta(
@@ -323,13 +316,50 @@ def CreateActorFromBPPath(
     """
     from Source import Data
 
-    scene = System.getScene()
-    if not scene or not hasattr(scene, "getGameMap"):
-        return None
-    gameMap = scene.getGameMap()
+    gameMap = _getSceneMap().getGameMap()
     if gameMap is None:
         return None
     actor = Data.genActorFromClassPath(bpPath, tag)
+    if actor is None:
+        return None
+    mapPosition = _posToVector2u(position)
+    if mapPosition is not None:
+        actor.setMapPosition(mapPosition)
+    gameMap.spawnActor(actor, layerName, emitCreateEvent)
+    return actor
+
+
+@Meta(
+    DisplayName='LOC("CREATE_ACTOR_FROM_BP_PATH_WITH_DEFAULTS")',
+    DisplayDesc='LOC("CREATE_ACTOR_FROM_BP_PATH_WITH_DEFAULTS_DESC")',
+    Vector2iVars=["position"],
+)
+@ExecSplit(default=(None,))
+@ReturnType(actor=Optional[Actor])
+def CreateActorFromBPPathWithDefaults(
+    bpPath: str,
+    defaults: Dict[str, Any] = {},
+    layerName: str = "default",
+    position: Optional[Union[Vector2i, Vector2u, Pair[int], List[int], Tuple[int, int]]] = None,
+    tag: str = "",
+    emitCreateEvent: bool = True,
+) -> Optional[Actor]:
+    r"""\brief Create an actor from a blueprint path with per-instance class default overrides.
+
+    - \param bpPath The blueprint class path, such as Data.Blueprints.Enemies.BP_Enemy_redKing.
+    - \param defaults Class attribute defaults to override on the created actor instance.
+    - \param layerName The layer name to place the created actor on.
+    - \param position Optional tile coordinate for the created actor.
+    - \param tag Optional tag string for the created actor.
+    - \param emitCreateEvent Whether to run the actor's onCreate blueprint event.
+    - \return The created actor instance, or None when the actor cannot be created.
+    """
+    from Source import Data
+
+    gameMap = _getSceneMap().getGameMap()
+    if gameMap is None:
+        return None
+    actor = Data.genActorFromClassPath(bpPath, tag, dict(defaults) if isinstance(defaults, dict) else None)
     if actor is None:
         return None
     mapPosition = _posToVector2u(position)
@@ -352,11 +382,9 @@ def DestroyTerrain(
     - \param position The tile coordinate.
     - \param tileID The replacement tile expression, autotile key, or None.
     """
-    scene = System.getScene()
-    if scene and hasattr(scene, "getGameMap"):
-        gameMap = scene.getGameMap()
-        if gameMap is not None:
-            gameMap.destroyTerrain(layerName, position, _evalTerrainTileID(tileID))
+    gameMap = _getSceneMap().getGameMap()
+    if gameMap is not None:
+        gameMap.destroyTerrain(layerName, position, _evalTerrainTileID(tileID))
 
 
 @Meta(DisplayName='LOC("DESTROY_TERRAIN_LIST")', DisplayDesc='LOC("DESTROY_TERRAIN_LIST_DESC")')
@@ -368,11 +396,9 @@ def DestroyTerrainList(layerName: str, positions: List[Any], tileID: Any = None)
     - \param positions The tile coordinates.
     - \param tileID The replacement tile expression, autotile key, or None.
     """
-    scene = System.getScene()
-    if scene and hasattr(scene, "getGameMap"):
-        gameMap = scene.getGameMap()
-        if gameMap is not None:
-            gameMap.destroyTerrainList(layerName, positions, _evalTerrainTileID(tileID))
+    gameMap = _getSceneMap().getGameMap()
+    if gameMap is not None:
+        gameMap.destroyTerrainList(layerName, positions, _evalTerrainTileID(tileID))
 
 
 @Meta(DisplayName='LOC("GET_TERRAIN_TILE")', DisplayDesc='LOC("GET_TERRAIN_TILE_DESC")', Vector2iVars=["position"])
@@ -384,11 +410,9 @@ def GetTerrainTile(layerName: str, position: Union[Vector2i, Vector2u, Pair[int]
     - \param position The tile coordinate.
     - \return The static tile ID, autotile key, or None.
     """
-    scene = System.getScene()
-    if scene and hasattr(scene, "getGameMap"):
-        gameMap = scene.getGameMap()
-        if gameMap is not None:
-            return gameMap.getTerrainTile(layerName, position)
+    gameMap = _getSceneMap().getGameMap()
+    if gameMap is not None:
+        return gameMap.getTerrainTile(layerName, position)
     return None
 
 
@@ -401,11 +425,9 @@ def GetTerrainTilePositions(layerName: str, tileID: Any = None) -> List[Vector2i
     - \param tileID The static tile ID expression, autotile key, or None.
     - \return A list of matching tile coordinates.
     """
-    scene = System.getScene()
-    if scene and hasattr(scene, "getGameMap"):
-        gameMap = scene.getGameMap()
-        if gameMap is not None:
-            return gameMap.getTerrainTilePositions(layerName, _evalTerrainTileID(tileID))
+    gameMap = _getSceneMap().getGameMap()
+    if gameMap is not None:
+        return gameMap.getTerrainTilePositions(layerName, _evalTerrainTileID(tileID))
     return []
 
 
@@ -508,14 +530,7 @@ def OpenShop(items: List[str], canSell: bool = True) -> Callable[[], bool]:
     - \param canSell Whether selling is available.
     - \return A condition callable that becomes True when the shop closes.
     """
-    scene = System.getScene()
-    if scene and hasattr(scene, "openShop"):
-        return scene.openShop(list(items), bool(canSell))
-
-    def condition() -> bool:
-        return True
-
-    return condition
+    return _getSceneMap().openShop(list(items), bool(canSell))
 
 
 @Meta(DisplayName='LOC("OPEN_ATTR_SHOP")', DisplayDesc='LOC("OPEN_ATTR_SHOP_DESC")')
@@ -541,14 +556,7 @@ def OpenAttrShop(
     - \return A condition callable that becomes True when the shop closes.
     """
 
-    def condition() -> bool:
-        return True
-
-    from Source.Scenes import Map as SceneMap
-
-    scene = System.getScene()
-    if not isinstance(scene, SceneMap):
-        return condition
+    scene = _getSceneMap()
     from Source.NodeFunctions.Utils import _attrRef, _localRef
 
     if isinstance(price, (_attrRef, _localRef)):
@@ -592,14 +600,7 @@ def OpenAttrShopByTag(
     - \return A condition callable that becomes True when the shop closes.
     """
 
-    def condition() -> bool:
-        return True
-
-    from Source.Scenes import Map as SceneMap
-
-    scene = System.getScene()
-    if not isinstance(scene, SceneMap):
-        return condition
+    scene = _getSceneMap()
     actor = scene.getGameMap().getActorByTag(actorTag) if actorTag else None
 
     return OpenAttrShop(actor, shopName, shopDescription, abilities, price, priceIncrement, moneyName)

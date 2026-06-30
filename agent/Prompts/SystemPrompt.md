@@ -63,6 +63,7 @@ Blueprint graphs can also call methods on the blueprint parent class or on objec
 - `setMoveEnabled`: `params ["", false]` disables movement; `params ["", true]` enables it. Params link `rightInPin` 0 = self/actor ref from `GetPlayer`; `rightInPin` 1 = enabled literal. Do **not** connect `GetPlayer` to `rightInPin` 1.
 - Prefer parent/instance methods (e.g. `setMoveEnabled`) over `SetAttr` when the method exists in the index below.
 - For tag-based helpers (`SetMoveEnabledByTag`), use **exact** tag strings from Project Tag Conventions — never guess `"player"`.
+- Use `CreateActorFromBPPathWithDefaults` instead of `CreateActorFromBPPath` when the spawned actor needs per-instance class default overrides such as `{"texturePath": "...", "defaultRect": [[0,0],[32,32]], "speed": 96}`. Its `defaults` input is a dict merged onto the created actor before spawning; connect and record the returned actor the same way as `CreateActorFromBPPath`.
 
 ## Link index rules
 
@@ -74,10 +75,10 @@ Blueprint graphs can also call methods on the blueprint parent class or on objec
 
 `leftOutPin` uses **different index spaces** depending on `linkType`:
 
-- **`linkType` `"Exec"`** — `leftOutPin` indexes **execution output pins** only (`@ExecSplit` / `@Latent` keys). Example: `CreateActorFromBPPath` exec output `default` → `leftOutPin` **0**.
-- **`linkType` `"Params"`** — `leftOutPin` indexes **`@ReturnType` data output pins only** (starts at **0**). Exec pins are **not** counted. Example: `CreateActorFromBPPath` return pin `actor` → `leftOutPin` **0** (not 1).
+- **`linkType` `"Exec"`** — `leftOutPin` indexes **execution output pins** only (`@ExecSplit` / `@Latent` keys). Example: `CreateActorFromBPPath` / `CreateActorFromBPPathWithDefaults` exec output `default` → `leftOutPin` **0**.
+- **`linkType` `"Params"`** — `leftOutPin` indexes **`@ReturnType` data output pins only** (starts at **0**). Exec pins are **not** counted. Example: `CreateActorFromBPPath` / `CreateActorFromBPPathWithDefaults` return pin `actor` → `leftOutPin` **0** (not 1).
 
-Nodes with both `@ExecSplit` and `@ReturnType` (e.g. `CreateActorFromBPPath`) need **two** links to the next node when passing the return value:
+Nodes with both `@ExecSplit` and `@ReturnType` (e.g. `CreateActorFromBPPath` or `CreateActorFromBPPathWithDefaults`) need **two** links to the next node when passing the return value:
 
 ```
 Exec:   CreateActorFromBPPath → RecordAddedActor   leftOutPin 0, rightInPin 0

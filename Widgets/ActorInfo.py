@@ -2,21 +2,40 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Dict, Any, Tuple
-from PyQt5 import QtWidgets, QtCore, QtGui
-from EditorGlobal import GameData
+import copy
+import os
+from typing import TYPE_CHECKING, Optional, Dict, Any, Set
+
+from PyQt5 import QtWidgets, QtCore
+
+from EditorGlobal import EditorStatus, GameData
+from Widgets.Utils import DataclassWidget, FileSelectorDialog, RectViewer
+from Widgets.Utils.ClassDetailMixin import ClassDetailMixin
+from Widgets.Utils.MetaVarTypes import _GENERALDATA_VAR_TYPE
+from Widgets.Utils.StructuredFields import IsStructuredType
 
 if TYPE_CHECKING:
     from Widgets.EditorPanel import EditorPanel
 
 
-class ActorInfoPanel(QtWidgets.QWidget):
+class ActorInfoPanel(ClassDetailMixin, QtWidgets.QWidget):
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
         super().__init__(parent)
         self._layerName: Optional[str] = None
         self._index: Optional[int] = None
         self._editorPanel: Optional[EditorPanel] = None
         self._blockSignals = False
+        self.invalidVars: Set[str] = set()
+        self.pathVarMap: Dict[str, str] = {}
+        self.pathVars: Set[str] = set()
+        self.rectRangeVars: Set[str] = set()
+        self.rectRangeVarMap: Dict[str, str] = {}
+        self.attrVarTypes: Dict[str, str] = {}
+        self.attrGDVars: Dict[str, str] = {}
+        self.attrRely: Dict[str, Any] = {}
+        self.attrRelySources: Set[str] = set()
+        self._classDefaultValues: Dict[str, Any] = {}
+        self._classDisplayValues: Dict[str, Any] = {}
 
         self.setStyleSheet("")
 
@@ -24,107 +43,59 @@ class ActorInfoPanel(QtWidgets.QWidget):
         self.mainLayout.setContentsMargins(4, 4, 4, 4)
         self.mainLayout.setSpacing(4)
 
-        # Title
         self.titleLabel = QtWidgets.QLabel(ELOC("ACTOR_INFO"))
         self.titleLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.titleLabel.setStyleSheet("font-weight: bold; background-color: #444; padding: 4px; border-radius: 4px;")
         self.mainLayout.addWidget(self.titleLabel)
 
-        # Content
+        self.scrollArea = QtWidgets.QScrollArea(self)
+        self.scrollArea.setWidgetResizable(True)
+        self.scrollArea.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.scrollArea.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.scrollArea.setFrameShape(QtWidgets.QFrame.NoFrame)
+        self.mainLayout.addWidget(self.scrollArea, 1)
+
+        self.contentWidget = QtWidgets.QWidget(self.scrollArea)
+        self.contentLayout = QtWidgets.QVBoxLayout(self.contentWidget)
+        self.contentLayout.setContentsMargins(0, 0, 0, 0)
+        self.contentLayout.setSpacing(4)
+
         self.formLayout = QtWidgets.QFormLayout()
         self.formLayout.setContentsMargins(0, 0, 0, 0)
         self.formLayout.setSpacing(4)
+        self.contentLayout.addLayout(self.formLayout)
 
-        # Tag
         self.tagEdit = QtWidgets.QLineEdit()
         self.tagEdit.textChanged.connect(self._onTagChanged)
         self.formLayout.addRow(ELOC("TAG"), self.tagEdit)
 
-        # Translation
-        self.translationXSpin = QtWidgets.QDoubleSpinBox()
-        self.translationXSpin.setRange(-10000.0, 10000.0)
-        self.translationXSpin.setSingleStep(1.0)
-        self.translationXSpin.valueChanged.connect(self._onTranslationChanged)
+        self.classSeparator = QtWidgets.QFrame()
+        self.classSeparator.setFrameShape(QtWidgets.QFrame.HLine)
+        self.classSeparator.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.contentLayout.addWidget(self.classSeparator)
 
-        self.translationYSpin = QtWidgets.QDoubleSpinBox()
-        self.translationYSpin.setRange(-10000.0, 10000.0)
-        self.translationYSpin.setSingleStep(1.0)
-        self.translationYSpin.valueChanged.connect(self._onTranslationChanged)
+        self.classTitleLabel = QtWidgets.QLabel(ELOC("CLASS_DETAIL"))
+        self.classTitleLabel.setStyleSheet("font-weight: bold; padding: 4px 0 2px 0;")
+        self.contentLayout.addWidget(self.classTitleLabel)
 
-        translationLayout = QtWidgets.QHBoxLayout()
-        translationLayout.addWidget(self.translationXSpin)
-        translationLayout.addWidget(self.translationYSpin)
-        self.formLayout.addRow(ELOC("TRANSLATION"), translationLayout)
-
-        # Rotation
-        self.rotationSpin = QtWidgets.QDoubleSpinBox()
-        self.rotationSpin.setRange(-360.0, 360.0)
-        self.rotationSpin.setSingleStep(15.0)
-        self.rotationSpin.valueChanged.connect(self._onRotationChanged)
-        self.formLayout.addRow(ELOC("ROTATION"), self.rotationSpin)
-
-        # Scale
-        self.scaleXSpin = QtWidgets.QDoubleSpinBox()
-        self.scaleXSpin.setRange(-100.0, 100.0)
-        self.scaleXSpin.setSingleStep(0.1)
-        self.scaleXSpin.valueChanged.connect(self._onScaleChanged)
-
-        self.scaleYSpin = QtWidgets.QDoubleSpinBox()
-        self.scaleYSpin.setRange(-100.0, 100.0)
-        self.scaleYSpin.setSingleStep(0.1)
-        self.scaleYSpin.valueChanged.connect(self._onScaleChanged)
-
-        scaleLayout = QtWidgets.QHBoxLayout()
-        scaleLayout.addWidget(self.scaleXSpin)
-        scaleLayout.addWidget(self.scaleYSpin)
-        self.formLayout.addRow(ELOC("SCALE"), scaleLayout)
-
-        # Origin
-        self.originXSpin = QtWidgets.QDoubleSpinBox()
-        self.originXSpin.setRange(-10000.0, 10000.0)
-        self.originXSpin.setSingleStep(1.0)
-        self.originXSpin.valueChanged.connect(self._onOriginChanged)
-
-        self.originYSpin = QtWidgets.QDoubleSpinBox()
-        self.originYSpin.setRange(-10000.0, 10000.0)
-        self.originYSpin.setSingleStep(1.0)
-        self.originYSpin.valueChanged.connect(self._onOriginChanged)
-
-        originLayout = QtWidgets.QHBoxLayout()
-        originLayout.addWidget(QtWidgets.QLabel("X:"))
-        originLayout.addWidget(self.originXSpin)
-        originLayout.addWidget(QtWidgets.QLabel("Y:"))
-        originLayout.addWidget(self.originYSpin)
-        self.formLayout.addRow(ELOC("ORIGIN"), originLayout)
-
-        self.mainLayout.addLayout(self.formLayout)
+        self.classFormContainer = QtWidgets.QWidget(self.contentWidget)
+        self.classFormLayout = QtWidgets.QFormLayout(self.classFormContainer)
+        self.classFormLayout.setContentsMargins(0, 0, 0, 0)
+        self.classFormLayout.setSpacing(4)
+        self.contentLayout.addWidget(self.classFormContainer)
+        self.contentLayout.addStretch()
+        self.scrollArea.setWidget(self.contentWidget)
 
         self.noSelectionLabel = QtWidgets.QLabel(ELOC("NO_SELECTION"))
         self.noSelectionLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.noSelectionLabel.setStyleSheet("color: #888; font-style: italic; margin-top: 20px;")
         self.mainLayout.addWidget(self.noSelectionLabel)
 
-        self.mainLayout.addStretch()
-
         self.setEnabled(False)
         self.noSelectionLabel.setVisible(True)
         self.titleLabel.setVisible(False)
-        for i in range(self.formLayout.count()):
-            item = self.formLayout.itemAt(i)
-            if item is None:
-                continue
-            w = item.widget()
-            if w:
-                w.setVisible(False)
-            l = item.layout()
-            if l:
-                for j in range(l.count()):
-                    litem = l.itemAt(j)
-                    if litem is None:
-                        continue
-                    lw = litem.widget()
-                    if lw:
-                        lw.setVisible(False)
+        self.scrollArea.setVisible(False)
+        self._setClassDetailVisible(False)
 
     def setActor(
         self,
@@ -141,64 +112,25 @@ class ActorInfoPanel(QtWidgets.QWidget):
             self.setEnabled(False)
             self.noSelectionLabel.setVisible(True)
             self.titleLabel.setVisible(False)
-            self._setFormVisible(False)
+            self.scrollArea.setVisible(False)
+            self._clearClassDetail()
             return
 
         self.setEnabled(True)
         self.noSelectionLabel.setVisible(False)
         self.titleLabel.setVisible(True)
-        self._setFormVisible(True)
+        self.scrollArea.setVisible(True)
 
         self._blockSignals = True
         try:
             self.tagEdit.setText(str(data.get("tag", "")))
 
-            bp = data.get("bp")
-
-            defTransData = self._getBlueprintAttr(bp, "defaultTranslation", (0.0, 0.0))
-            defTrans = self._toVec2f(defTransData, 0.0, 0.0)
-            curTrans = self._toVec2f(data.get("translation", defTrans), defTrans[0], defTrans[1])
-            self.translationXSpin.setValue(curTrans[0])
-            self.translationYSpin.setValue(curTrans[1])
-
-            defRot = self._getBlueprintAttr(bp, "defaultRotation", 0.0)
-            curRot = data.get("rotation", defRot)
-            self.rotationSpin.setValue(float(curRot))
-
-            defScaleData = self._getBlueprintAttr(bp, "defaultScale", (1.0, 1.0))
-            defScale = self._toVec2f(defScaleData, 1.0, 1.0)
-            curScale = self._toVec2f(data.get("scale", defScale), defScale[0], defScale[1])
-            self.scaleXSpin.setValue(curScale[0])
-            self.scaleYSpin.setValue(curScale[1])
-
-            defOriginData = self._getBlueprintAttr(bp, "defaultOrigin", (0.0, 0.0))
-            defOrigin = self._toVec2f(defOriginData, 0.0, 0.0)
-            curOrigin = self._toVec2f(data.get("origin", defOrigin), defOrigin[0], defOrigin[1])
-            self.originXSpin.setValue(curOrigin[0])
-            self.originYSpin.setValue(curOrigin[1])
-
+            self._refreshClassDetail(data)
         except Exception as e:
             print(f"Error setting actor info: {e}")
-
-        self._blockSignals = False
-
-    def _setFormVisible(self, visible: bool) -> None:
-        for i in range(self.formLayout.count()):
-            item = self.formLayout.itemAt(i)
-            if item is None:
-                continue
-            w = item.widget()
-            if w:
-                w.setVisible(visible)
-            l = item.layout()
-            if l:
-                for j in range(l.count()):
-                    litem = l.itemAt(j)
-                    if litem is None:
-                        continue
-                    lw = litem.widget()
-                    if lw:
-                        lw.setVisible(visible)
+            self._clearClassDetail()
+        finally:
+            self._blockSignals = False
 
     def _getActorData(self) -> Optional[Dict[str, Any]]:
         editorPanel = self._getEditorPanel()
@@ -212,41 +144,12 @@ class ActorInfoPanel(QtWidgets.QWidget):
             return None
         return actors[self._index]
 
-    def _updateData(self, key: str, value: Any, defaultVal: Any) -> None:
-        if self._blockSignals:
-            return
-        data = self._getActorData()
-        if data is None:
-            return
-
-        GameData.RecordSnapshot()
-
-        # Check if value equals default
-        isDefault = False
-        if isinstance(value, float) and isinstance(defaultVal, float):
-            isDefault = abs(value - defaultVal) < 0.0001
-        elif isinstance(value, (list, tuple)) and isinstance(defaultVal, (list, tuple)):
-            if len(value) == len(defaultVal):
-                isDefault = True
-                for i in range(len(value)):
-                    if abs(value[i] - defaultVal[i]) >= 0.0001:
-                        isDefault = False
-                        break
-        elif value == defaultVal:
-            isDefault = True
-
-        if isDefault:
-            if key in data:
-                del data[key]
-        else:
-            data[key] = value
-
+    def _getMapData(self) -> Optional[Dict[str, Any]]:
         editorPanel = self._getEditorPanel()
-        if editorPanel is not None:
-            editorPanel._refreshTitle()
-            editorPanel.DATA_CHANGED.emit()
-            editorPanel._renderFromMapData()
-            editorPanel.update()
+        if editorPanel is None:
+            return None
+        data = GameData.mapData.get(editorPanel.mapKey)
+        return data if isinstance(data, dict) else None
 
     def _onTagChanged(self, text: str) -> None:
         if self._blockSignals:
@@ -254,6 +157,7 @@ class ActorInfoPanel(QtWidgets.QWidget):
         data = self._getActorData()
         if data is None:
             return
+        oldTag = str(data.get("tag", ""))
         tag = text
         editorPanel = self._getEditorPanel()
         if editorPanel is not None:
@@ -266,64 +170,19 @@ class ActorInfoPanel(QtWidgets.QWidget):
                     self._blockSignals = False
         GameData.RecordSnapshot()
         data["tag"] = tag
-        if editorPanel is not None:
-            editorPanel.DATA_CHANGED.emit()
+        self._moveClassVarChanges(oldTag, tag)
+        self._notifyActorDataChanged(render=False)
 
-    def _onTranslationChanged(self) -> None:
-        if self._blockSignals:
+    def _notifyActorDataChanged(self, render: bool) -> None:
+        editorPanel = self._getEditorPanel()
+        if editorPanel is None:
             return
-        data = self._getActorData()
-        if data is None:
-            return
+        editorPanel._refreshTitle()
+        editorPanel.DATA_CHANGED.emit()
+        if render:
+            editorPanel._renderFromMapData()
+            editorPanel.update()
 
-        bp = data.get("bp")
-        defTransData = self._getBlueprintAttr(bp, "defaultTranslation", (0.0, 0.0))
-        defTrans = self._toVec2f(defTransData, 0.0, 0.0)
-
-        val = [self.translationXSpin.value(), self.translationYSpin.value()]
-        self._updateData("translation", val, list(defTrans))
-
-    def _onRotationChanged(self, val: float) -> None:
-        if self._blockSignals:
-            return
-        data = self._getActorData()
-        if data is None:
-            return
-
-        bp = data.get("bp")
-        defRot = self._getBlueprintAttr(bp, "defaultRotation", 0.0)
-
-        self._updateData("rotation", val, float(defRot))
-
-    def _onScaleChanged(self) -> None:
-        if self._blockSignals:
-            return
-        data = self._getActorData()
-        if data is None:
-            return
-
-        bp = data.get("bp")
-        defScaleData = self._getBlueprintAttr(bp, "defaultScale", (1.0, 1.0))
-        defScale = self._toVec2f(defScaleData, 1.0, 1.0)
-
-        val = [self.scaleXSpin.value(), self.scaleYSpin.value()]
-        self._updateData("scale", val, list(defScale))
-
-    def _onOriginChanged(self) -> None:
-        if self._blockSignals:
-            return
-        data = self._getActorData()
-        if data is None:
-            return
-
-        bp = data.get("bp")
-        defOriginData = self._getBlueprintAttr(bp, "defaultOrigin", (0.0, 0.0))
-        defOrigin = self._toVec2f(defOriginData, 0.0, 0.0)
-
-        val = [self.originXSpin.value(), self.originYSpin.value()]
-        self._updateData("origin", val, list(defOrigin))
-
-    # Helpers copied/adapted from EditorPanel
     def _getEditorPanel(self) -> Optional[EditorPanel]:
         from Widgets.EditorPanel import EditorPanel
 
@@ -332,16 +191,381 @@ class ActorInfoPanel(QtWidgets.QWidget):
             return editorPanel
         return None
 
-    def _getBlueprintAttr(self, bpRel: Optional[str], name: str, default: Any) -> Any:
-        editorPanel = self._getEditorPanel()
-        if editorPanel is not None:
-            return editorPanel.getBlueprintAttr(bpRel, name, default)
-        return default
+    def _clearClassDetail(self) -> None:
+        while self.classFormLayout.rowCount() > 0:
+            self.classFormLayout.removeRow(0)
+        self._classDefaultValues = {}
+        self._classDisplayValues = {}
+        self._setClassDetailVisible(False)
 
-    def _toVec2f(self, data: Any, defaultX: float = 0.0, defaultY: float = 0.0) -> Tuple[float, float]:
-        if isinstance(data, (list, tuple)) and len(data) >= 2:
-            try:
-                return (float(data[0]), float(data[1]))
-            except Exception:
-                return (defaultX, defaultY)
-        return (defaultX, defaultY)
+    def _setClassDetailVisible(self, visible: bool) -> None:
+        self.classSeparator.setVisible(visible)
+        self.classTitleLabel.setVisible(visible)
+        self.classFormContainer.setVisible(visible)
+
+    def _refreshClassDetail(self, actorData: Dict[str, Any]) -> None:
+        while self.classFormLayout.rowCount() > 0:
+            self.classFormLayout.removeRow(0)
+
+        cls = self._resolveActorClass(actorData.get("bp"))
+        if not isinstance(cls, type):
+            self._clearClassDetail()
+            return
+
+        self._reloadClassMetadata(cls)
+        bpData = self._getBlueprintData(actorData.get("bp"))
+        parentCls = self._getBaseClass(cls)
+        attrs = copy.deepcopy(bpData.get("attrs", {})) if isinstance(bpData, dict) else {}
+        if not isinstance(attrs, dict):
+            attrs = {}
+
+        if isinstance(bpData, dict):
+            displayAttrs = self._getParentDisplayAttrs(parentCls, attrs)
+            displayAttrs.update(attrs)
+            targetCls = cls if cls is not None else parentCls
+        else:
+            displayAttrs = self._getClassDisplayAttrs(cls)
+            targetCls = cls
+
+        componentTypes = self._getComponentTypes(targetCls)
+        componentFieldMap = self._getComponentFieldMap(componentTypes)
+        componentSkipKeys = set(componentTypes.keys()) | set(componentFieldMap.keys())
+
+        overrides = self._getClassVarChangesForActor(actorData, create=False)
+        if isinstance(overrides, dict):
+            for key, value in overrides.items():
+                if key in displayAttrs or key in componentTypes:
+                    defaultValue = displayAttrs.get(key)
+                    displayAttrs[key] = self._coerceOverrideForDisplay(defaultValue, value)
+
+        self._classDefaultValues = {}
+        if isinstance(bpData, dict):
+            self._classDefaultValues = self._getParentDisplayAttrs(parentCls, attrs)
+            self._classDefaultValues.update(attrs)
+        else:
+            self._classDefaultValues = self._getClassDisplayAttrs(cls)
+
+        self._classDisplayValues = copy.deepcopy(displayAttrs)
+
+        self._addComponentRows(componentTypes)
+
+        normalAttrs = {k: v for k, v in displayAttrs.items() if k not in componentSkipKeys}
+        displayKeys = self._getDisplayOrder(normalAttrs, targetCls)
+
+        typeHints = self._getTypeHints(cls)
+        parentHints = self._getTypeHints(parentCls)
+
+        for key in displayKeys:
+            if key in self.invalidVars:
+                continue
+            value = normalAttrs[key]
+            label = self._createClassAttrLabel(key)
+            container = QtWidgets.QWidget()
+            hbox = QtWidgets.QHBoxLayout(container)
+            hbox.setContentsMargins(0, 0, 0, 0)
+            hbox.setSpacing(4)
+
+            typeHint = typeHints.get(key)
+            if typeHint is None and key in parentHints:
+                typeHint = parentHints[key]
+
+            defaultValue = self._classDefaultValues.get(key)
+            if typeHint and IsStructuredType(typeHint) and self.attrVarTypes.get(key) != _GENERALDATA_VAR_TYPE:
+                widget = DataclassWidget(typeHint, value)
+                widget.VALUE_CHANGED.connect(lambda val, k=key: self._onClassVarChanged(k, val))
+            else:
+                widget = self._createClassInputWidget(
+                    key,
+                    value,
+                    type_hint=typeHint,
+                    parent_val=defaultValue,
+                    var_type=self.attrVarTypes.get(key, ""),
+                )
+
+            isInvalid = key in self.invalidVars
+            isRectRange = key in self.rectRangeVars and not isInvalid
+            isPath = key in self.pathVars and not isInvalid and not isRectRange
+            relyEditable = self._isRelyEditable(key, self._classDisplayValues)
+
+            if isinstance(widget, QtWidgets.QLineEdit):
+                if isInvalid or isPath or isRectRange:
+                    widget.setReadOnly(True)
+                    widget.setStyleSheet("background-color: #303030; color: #aaaaaa;")
+                    widget.setCursor(QtCore.Qt.ArrowCursor)
+            elif isinstance(widget, QtWidgets.QCheckBox):
+                if isInvalid:
+                    widget.setEnabled(False)
+                    widget.setStyleSheet("color: #aaaaaa;")
+            else:
+                elems = getattr(widget, "_elementWidgets", None)
+                if elems is not None and (isInvalid or isRectRange):
+                    for e in elems:
+                        if isinstance(e, QtWidgets.QLineEdit):
+                            e.setReadOnly(True)
+                            e.setStyleSheet("background-color: #303030; color: #aaaaaa;")
+                            e.setCursor(QtCore.Qt.ArrowCursor)
+
+            pathBtn = None
+            rectBtn = None
+            if not relyEditable:
+                self._setWidgetEditable(widget, False)
+
+            hbox.addWidget(widget, 1)
+
+            if isPath and isinstance(widget, QtWidgets.QLineEdit):
+                pathBtn = QtWidgets.QPushButton("...")
+                pathBtn.setObjectName("PathBtn")
+                pathBtn.setFixedWidth(24)
+                pathBtn.clicked.connect(lambda _, k=key, w=widget: self._onSelectPath(k, w))
+                pathBtn.setEnabled(relyEditable)
+                hbox.addWidget(pathBtn, 0)
+
+            if isRectRange:
+                rectBtn = QtWidgets.QPushButton("...")
+                rectBtn.setObjectName("RectBtn")
+                rectBtn.setFixedWidth(24)
+                rectBtn.clicked.connect(lambda _, k=key: self._onEditRectRange(k))
+                rectBtn.setEnabled(relyEditable)
+                hbox.addWidget(rectBtn, 0)
+
+            self._applyRelyTooltip(key, relyEditable, label, container, widget, pathBtn, rectBtn)
+            self.classFormLayout.addRow(label, container)
+
+        self._setClassDetailVisible(True)
+
+    def _coerceOverrideForDisplay(self, defaultValue: Any, value: Any) -> Any:
+        if isinstance(defaultValue, tuple) and isinstance(value, list):
+            return tuple(value)
+        return copy.deepcopy(value)
+
+    def _resolveActorClass(self, bpRel: Any) -> Optional[type]:
+        if not isinstance(bpRel, str) or not bpRel.strip():
+            return None
+        try:
+            cls = GameData.classDict.get(bpRel, EditorStatus.PROJ_PATH)
+        except Exception:
+            return None
+        return cls if isinstance(cls, type) else None
+
+    def _getBlueprintData(self, bpRel: Any) -> Optional[Dict[str, Any]]:
+        if not isinstance(bpRel, str):
+            return None
+        prefix = "Data.Blueprints."
+        if not bpRel.startswith(prefix):
+            return None
+        key = bpRel[len(prefix) :].replace(".", "/")
+        data = GameData.blueprintsData.get(key)
+        return data if isinstance(data, dict) else None
+
+    def _addComponentRows(self, componentTypes: Dict[str, type]) -> None:
+        items = []
+        for componentName, componentType in componentTypes.items():
+            if componentName not in self._classDisplayValues:
+                continue
+            value = self._classDisplayValues.get(componentName)
+            if value is None:
+                continue
+            items.append((componentName, componentType))
+
+        if not items:
+            return
+
+        container = QtWidgets.QWidget()
+        hbox = QtWidgets.QHBoxLayout(container)
+        hbox.setContentsMargins(0, 0, 0, 0)
+        hbox.setSpacing(4)
+
+        listWidget = QtWidgets.QListWidget()
+        listWidget.setFixedHeight(max(72, min(160, len(items) * 28 + 12)))
+        listWidget.itemDoubleClicked.connect(self._onEditComponentItem)
+        for componentName, componentType in items:
+            item = QtWidgets.QListWidgetItem(self._getClassAttrDisplayName(componentName))
+            item.setData(QtCore.Qt.UserRole, componentName)
+            item.setData(QtCore.Qt.UserRole + 1, componentType)
+            desc = self._getClassAttrDisplayDesc(componentName)
+            if desc:
+                item.setToolTip(desc)
+            listWidget.addItem(item)
+        hbox.addWidget(listWidget, 1)
+        self.classFormLayout.addRow(QtWidgets.QLabel(ELOC("COMPONENTS")), container)
+
+        if listWidget.count() > 0:
+            listWidget.setCurrentRow(0)
+
+    def _onEditComponentItem(self, item: QtWidgets.QListWidgetItem) -> None:
+        key = item.data(QtCore.Qt.UserRole)
+        componentType = item.data(QtCore.Qt.UserRole + 1)
+        if isinstance(key, str) and isinstance(componentType, type):
+            QtCore.QTimer.singleShot(0, lambda k=key, t=componentType: self._onEditComponent(k, t))
+
+    def _onEditComponent(self, key: str, componentType: type) -> None:
+        currentValue = self._classDisplayValues.get(key)
+        displayValue = self._normaliseComponentData(componentType, currentValue)
+
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle(self._getClassAttrDisplayName(key))
+        layout = QtWidgets.QVBoxLayout(dlg)
+        widget = DataclassWidget(componentType, copy.deepcopy(displayValue), dlg)
+        layout.addWidget(widget)
+        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        okBtn = buttons.button(QtWidgets.QDialogButtonBox.Ok)
+        cancelBtn = buttons.button(QtWidgets.QDialogButtonBox.Cancel)
+        if okBtn:
+            okBtn.setText(ELOC("CONFIRM"))
+        if cancelBtn:
+            cancelBtn.setText(ELOC("CANCEL"))
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        layout.addWidget(buttons)
+        if dlg.exec_() != QtWidgets.QDialog.Accepted:
+            return
+
+        self._onClassVarChanged(key, copy.deepcopy(widget.data), refresh=True)
+
+    def _createClassInputWidget(
+        self,
+        key: str,
+        value: Any,
+        type_hint: Optional[type] = None,
+        parent_val: Any = None,
+        var_type: str = "",
+    ) -> QtWidgets.QWidget:
+        return self._createClassDetailInputWidget(
+            key,
+            value,
+            self._onClassVarChanged,
+            type_hint=type_hint,
+            parent_val=parent_val,
+            var_type=var_type,
+        )
+
+    def _onClassVarChanged(self, key: str, value: Any, refresh: bool = False) -> None:
+        if self._blockSignals:
+            return
+        actorData = self._getActorData()
+        if actorData is None:
+            return
+
+        value = self._evalTextValue(value) if isinstance(value, str) else value
+        value = GameData._NormaliseBlueprintValue(copy.deepcopy(value))
+        defaultValue = self._classDefaultValues.get(key)
+        hasDefault = key in self._classDefaultValues
+        isDefault = hasDefault and GameData._IsBlueprintValueEqual(value, defaultValue)
+        changes = self._getClassVarChangesForActor(actorData, create=not isDefault)
+
+        if changes is None:
+            return
+
+        currentExists = key in changes
+        currentValue = changes.get(key)
+        if isDefault:
+            if not currentExists:
+                return
+        elif currentExists and GameData._IsBlueprintValueEqual(currentValue, value):
+            return
+
+        GameData.RecordSnapshot()
+        if isDefault:
+            changes.pop(key, None)
+            self._cleanupClassVarChanges(actorData)
+            self._classDisplayValues[key] = copy.deepcopy(defaultValue)
+        else:
+            changes[key] = value
+            self._classDisplayValues[key] = copy.deepcopy(value)
+        self._notifyActorDataChanged(render=True)
+
+        if refresh or key in self.attrRelySources:
+            QtCore.QTimer.singleShot(0, lambda: self._refreshClassDetail(actorData))
+
+    def _getClassVarChangesForActor(
+        self, actorData: Dict[str, Any], create: bool = False
+    ) -> Optional[Dict[str, Any]]:
+        mapData = self._getMapData()
+        if mapData is None:
+            return None
+        tag = str(actorData.get("tag", ""))
+        root = mapData.get("BPClassVarChanged")
+        if not isinstance(root, dict):
+            if not create:
+                return None
+            root = {}
+            mapData["BPClassVarChanged"] = root
+        changes = root.get(tag)
+        if not isinstance(changes, dict):
+            if not create:
+                return None
+            changes = {}
+            root[tag] = changes
+        return changes
+
+    def _cleanupClassVarChanges(self, actorData: Dict[str, Any]) -> None:
+        mapData = self._getMapData()
+        if mapData is None:
+            return
+        root = mapData.get("BPClassVarChanged")
+        if not isinstance(root, dict):
+            return
+        tag = str(actorData.get("tag", ""))
+        changes = root.get(tag)
+        if isinstance(changes, dict) and not changes:
+            root.pop(tag, None)
+        if not root:
+            mapData.pop("BPClassVarChanged", None)
+
+    def _moveClassVarChanges(self, oldTag: str, newTag: str) -> None:
+        if oldTag == newTag:
+            return
+        mapData = self._getMapData()
+        if mapData is None:
+            return
+        root = mapData.get("BPClassVarChanged")
+        if not isinstance(root, dict):
+            return
+        oldChanges = root.pop(oldTag, None)
+        if not isinstance(oldChanges, dict):
+            if not root:
+                mapData.pop("BPClassVarChanged", None)
+            return
+        newChanges = root.get(newTag)
+        if isinstance(newChanges, dict):
+            newChanges.update(oldChanges)
+        else:
+            root[newTag] = oldChanges
+        if not root:
+            mapData.pop("BPClassVarChanged", None)
+
+    def _onSelectPath(self, key: str, widget: QtWidgets.QLineEdit) -> None:
+        baseDir = self._getPathVarBaseDir(key)
+        if not os.path.isdir(baseDir):
+            assetsDir = os.path.join(EditorStatus.PROJ_PATH, "Assets")
+            baseDir = assetsDir if os.path.isdir(assetsDir) else EditorStatus.PROJ_PATH
+        dlg = FileSelectorDialog(self, baseDir, FileSelectorDialog.allFilesFilter(star=True))
+        filePath = dlg.execSelect()
+        if not filePath:
+            return
+        try:
+            relPath = os.path.relpath(filePath, baseDir)
+        except ValueError:
+            relPath = filePath
+        widget.setText(relPath.replace("\\", "/"))
+
+    def _onEditRectRange(self, key: str) -> None:
+        pathKey = self.rectRangeVarMap.get(key)
+        if not pathKey:
+            return
+        pathValue = self._classDisplayValues.get(pathKey)
+        if not isinstance(pathValue, str) or not pathValue:
+            return
+        imagePath = os.path.join(self._getPathVarBaseDir(pathKey), pathValue)
+        rectValue = self._classDisplayValues.get(key)
+        rectTuple = self._rectValueToTuple(rectValue)
+        if rectTuple is None:
+            cell = getattr(EditorStatus, "CELLSIZE", 0)
+            if not isinstance(cell, int) or cell <= 0:
+                cell = 32
+            rectTuple = (0, 0, cell, cell)
+        dlg = RectViewer(self, imagePath, rectTuple)
+        if dlg.exec_() != QtWidgets.QDialog.Accepted:
+            return
+        nx, ny, nw, nh = dlg.getRectTuple()
+        self._onClassVarChanged(key, ((nx, ny), (nw, nh)), refresh=True)

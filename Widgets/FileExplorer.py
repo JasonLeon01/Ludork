@@ -63,6 +63,7 @@ class FileExplorer(QtWidgets.QWidget):
     PATH_CHANGED = QtCore.pyqtSignal(str)
     FILE_CLICKED = QtCore.pyqtSignal(str)
     DATA_FILE_CHANGED = QtCore.pyqtSignal()
+    DATA_PATH_RENAMED = QtCore.pyqtSignal(str, str)
 
     def __init__(self, root_path: str, parent: Optional[QtWidgets.QWidget] = None):
         super().__init__(parent)
@@ -518,6 +519,7 @@ class FileExplorer(QtWidgets.QWidget):
         actReferenceTree = None
         actDeriveBlueprint = None
         actCopyBlueprintClassName = None
+        actConvertDataFormat = None
         blueprintClassName = ""
         if selectedPath:
             if not isDir:
@@ -527,6 +529,12 @@ class FileExplorer(QtWidgets.QWidget):
                 actDeriveBlueprint = menu.addAction(ELOC("DERIVE_FROM_THIS_BLUEPRINT"))
             if not isDir and GameData.GetReferenceNodeForPath(selectedPath):
                 actReferenceTree = menu.addAction(ELOC("SHOW_REFERENCE_TREE"))
+            if not isDir:
+                currentFormat = GameData.GetConvertibleDataFormatForPath(selectedPath)
+                if currentFormat == "dat":
+                    actConvertDataFormat = menu.addAction(ELOC("CONVERT_TO_JSON"))
+                elif currentFormat == "json":
+                    actConvertDataFormat = menu.addAction(ELOC("CONVERT_TO_DAT"))
             if not isDir:
                 actDuplicate = menu.addAction(ELOC("DUPLICATE_FILE"))
             actRename = menu.addAction(ELOC("RENAME_FILE"))
@@ -543,6 +551,8 @@ class FileExplorer(QtWidgets.QWidget):
             self._deriveBlueprintFrom(selectedPath)
         elif actReferenceTree and r == actReferenceTree:
             self._showReferenceTree(selectedPath)
+        elif actConvertDataFormat and r == actConvertDataFormat:
+            self._convertDataFileFormat(selectedPath)
         elif r == actOpen:
             if selectedPath:
                 self._openSystemFile(selectedPath)
@@ -552,6 +562,24 @@ class FileExplorer(QtWidgets.QWidget):
             self._renameItem(selectedPath)
         elif actDelete and r == actDelete:
             self._deleteSelectedItems()
+
+    def _convertDataFileFormat(self, path: str) -> None:
+        if not path or not os.path.isfile(path):
+            return
+        try:
+            newPath = GameData.ConvertDataFormatForPath(path)
+            self._refresh()
+            self.locatePath(newPath)
+            mainWindow = File.mainWindow
+            mainWindow.refreshLeftList()
+            mainWindow.actorQueuePanel.purgeStale()
+            mainWindow._refreshInfo()
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(
+                self,
+                ELOC("ERROR"),
+                ELOC("CONVERT_DATA_FORMAT_FAILED") + "\n" + str(e),
+            )
 
     def _targetDirForNewFolder(self, selectedPath: str, isDir: bool) -> str:
         if selectedPath and isDir:
@@ -681,7 +709,8 @@ class FileExplorer(QtWidgets.QWidget):
             return
         try:
             os.rename(path, newPath)
-            self.DATA_FILE_CHANGED.emit()
+            if self._dataPathsChanged([path, newPath]):
+                self.DATA_PATH_RENAMED.emit(path, newPath)
         except Exception as e:
             QtWidgets.QMessageBox.warning(
                 self,

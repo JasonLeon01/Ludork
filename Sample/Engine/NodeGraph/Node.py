@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import inspect
 from typing import Any, Callable, List, Dict, Optional, TYPE_CHECKING, get_type_hints
+from Engine.Utils.DataValue import resolveTypedDataValue
 
 if TYPE_CHECKING:
     from Engine.NodeGraph import Graph
@@ -20,17 +21,17 @@ def _getFunctionTypeHints(func: Callable) -> Dict[str, Any]:
 
 @dataclass
 class DataNode:
-    """Serialized representation of a node (function path + parameter strings)."""
+    """Serialized representation of a node (function path + parameter values)."""
 
     nodeFunction: str  #: Dot-path to the callable (e.g. "NodeFunctions.Utils.Print")
-    params: List[str]  #: List of parameter expressions as strings
+    params: List[Any]  #: List of serialised parameter values
 
 
 class Node:
     """Runtime representation of a blueprint node.
 
-    Wraps a callable function with its parameter expressions.
-    On `execute`, evaluates parameter strings and invokes the function.
+    Wraps a callable function with its serialized parameter values.
+    On `execute`, resolves values according to the callable signature.
     """
 
     def __init__(
@@ -39,7 +40,7 @@ class Node:
         parent: Optional[object],
         functionName: str,
         nodeFunction: Callable,
-        params: List[str],
+        params: List[Any],
     ) -> None:
         r"""Construct a node bound to a graph, a parent object, and a callable.
 
@@ -47,13 +48,12 @@ class Node:
         - \param parent         Actor/Info that owns this graph
         - \param functionName   Original dot-path string of the function
         - \param nodeFunction   Resolved callable reference
-        - \param params         List of parameter expressions (evaluated at execute time)
+        - \param params         List of serialised parameter values
         """
         self.parentGraph = parentGraph  # Owning graph instance
         self.parent = parent  # Actor/Info that owns this graph
         self.functionName = functionName  # Original dot-path string of the function
         self.nodeFunction = nodeFunction  # Resolved callable reference
-        self.params = params  # List of parameter expressions
         self._funcInfo: str = ""  # Function name for display
         self._paramList: Dict[str, type] = {}  # Parameter name-to-type mapping
         self._paramDefaults: Dict[str, Any] = {}  # Parameter name-to-default mapping
@@ -61,6 +61,7 @@ class Node:
             "self."
         )  # Whether the function is a method of parent
         self._analyseFunction()
+        self.params = self._resolveStoredParams(params)
 
     def getParamList(self) -> Dict[str, type]:
         """Get the parameter name-to-type mapping extracted from the function signature."""
@@ -81,30 +82,17 @@ class Node:
         """
         actualParams = []
         eval_locals = {"self": self.parent} if self._isSelfFunction else None
+        paramNames = list(self._paramList.keys())
         for i in range(len(self.params)):
             if i in inputPinReplace:
                 actualParams.append(inputPinReplace[i])
                 continue
-            paramKey = list(self._paramList.keys())[i]
-            if self.params[i] == "self":
+            value = self.params[i]
+            if value == "self":
                 actualParams.append(self.parent)
-            elif self._paramList[paramKey] == str:
-                param = None
-                try:
-                    param = eval(self.params[i], {}, eval_locals) if eval_locals is not None else eval(self.params[i])
-                except Exception:
-                    param = self.params[i]
-                actualParams.append(param)
-            else:
-                if isinstance(self.params[i], str):
-                    try:
-                        actualParams.append(
-                            eval(self.params[i], {}, eval_locals) if eval_locals is not None else eval(self.params[i])
-                        )
-                    except Exception:
-                        actualParams.append(self.params[i])
-                else:
-                    actualParams.append(self.params[i])
+                continue
+            paramType = self._paramList[paramNames[i]] if i < len(paramNames) else Any
+            actualParams.append(resolveTypedDataValue(value, paramType, eval_locals))
         hasRefLocal = hasattr(self.nodeFunction, "_refLocal")
         oldActiveNodeFunction = _MISSING
         if hasRefLocal:
@@ -142,10 +130,21 @@ class Node:
         for paramName, paramObj in sig.parameters.items():
             paramType = typeHints.get(paramName, paramObj.annotation)
             if paramType == inspect.Parameter.empty:
-                paramType = type(None)
+                paramType = Any
             self._paramList[paramName] = paramType
             if paramObj.default != inspect.Parameter.empty:
                 self._paramDefaults[paramName] = paramObj.default
+
+    def _resolveStoredParams(self, rawParams: List[Any]) -> List[Any]:
+        paramNames = list(self._paramList.keys())
+        resolved: List[Any] = []
+        for index, value in enumerate(rawParams):
+            if value == "self":
+                resolved.append("self")
+                continue
+            paramType = self._paramList[paramNames[index]] if index < len(paramNames) else Any
+            resolved.append(resolveTypedDataValue(value, paramType))
+        return resolved
 
     def __repr__(self) -> str:
         return f"{self._funcInfo}({self.params})"

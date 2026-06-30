@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 from typing import Any, Callable, List, Optional, Union
-from Engine import Pair, Vector2i
+from Engine import Pair, Vector2f, Vector2i, Vector2u
 from Engine.Gameplay.Actors import Actor
+from Source.Player import Player
 
 
 _LATENT_STARTED = 0
@@ -32,7 +33,7 @@ class _MovementCondition:
 def _toVector2i(value: Any) -> Optional[Vector2i]:
     if isinstance(value, Vector2i):
         return Vector2i(value.x, value.y)
-    if hasattr(value, "x") and hasattr(value, "y"):
+    if isinstance(value, (Vector2f, Vector2u)):
         return Vector2i(int(value.x), int(value.y))
     if isinstance(value, (tuple, list)) and len(value) >= 2:
         return Vector2i(int(value[0]), int(value[1]))
@@ -96,7 +97,7 @@ def _buildRouteToDestination(actor: Actor, destination: Vector2i) -> List[Vector
 def _isMovementFinished(actor: Optional[Actor]) -> bool:
     if actor is None:
         return True
-    if hasattr(actor, "isDestroyed") and actor.isDestroyed():
+    if actor.isDestroyed():
         return True
     return not actor.isMoving() and not actor.isInRoute()
 
@@ -104,8 +105,7 @@ def _isMovementFinished(actor: Optional[Actor]) -> bool:
 def _isMovementBlocked(actor: Optional[Actor]) -> bool:
     if actor is None:
         return True
-    getForbiddenMoving = getattr(actor, "getForbiddenMoving", None)
-    if callable(getForbiddenMoving) and getForbiddenMoving():
+    if isinstance(actor, Player) and actor.getForbiddenMoving():
         return True
     gameMap = actor.getMap()
     if gameMap is None:
@@ -126,8 +126,7 @@ def SetMoveEnabledByTag(tag: str, enabled: bool = True) -> None:
     from Global import System
 
     scene = System.getScene()
-    if scene is None or not isinstance(scene, SceneMap):
-        return
+    assert isinstance(scene, SceneMap)
     actor = scene.getGameMap().getActorByTag(tag)
     if actor is not None:
         actor.setMoveEnabled(enabled)
@@ -188,6 +187,7 @@ def SetAutoPathToDestinationByTag(
 
     actor = None
     scene = System.getScene()
-    if scene is not None and isinstance(scene, SceneMap) and tag:
+    assert isinstance(scene, SceneMap)
+    if tag:
         actor = scene.getGameMap().getActorByTag(tag)
     return SetAutoPathToDestination(actor, destination)

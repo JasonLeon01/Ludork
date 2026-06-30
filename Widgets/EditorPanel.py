@@ -75,6 +75,7 @@ class EditorPanel(QtWidgets.QWidget):
         self._actorMoveDragLastGrid: Optional[Tuple[int, int]] = None
         self._actorMoveDragTitleRefreshed = False
         self._actorClipboard = None
+        self._actorClassVarChangesClipboard: Optional[Dict[str, Any]] = None
         self._pendingActorBpRel: Optional[str] = None
         self._autoTileRenderer = AutoTileRenderer()
         self._tilemapRenderer = TilemapRenderer(self._autoTileRenderer)
@@ -139,6 +140,8 @@ class EditorPanel(QtWidgets.QWidget):
         if mapData is None:
             mapData = Utils.File.LoadData(self.mapFilePath)
             GameData.mapData[self.mapKey] = mapData
+        if isinstance(mapData, dict):
+            GameData.CleanMapActorInstanceTransformData(mapData)
         self.applyMapData(mapData)
         self._updateCachedTileset()
         self._renderFromMapData()
@@ -264,7 +267,7 @@ class EditorPanel(QtWidgets.QWidget):
                 if not isinstance(entry, dict):
                     continue
                 bpRel = entry.get("bp")
-                if self._actorPreviewAnimatable(bpRel):
+                if self._actorPreviewAnimatable(bpRel, entry):
                     return True
         return False
 
@@ -1229,7 +1232,13 @@ class EditorPanel(QtWidgets.QWidget):
     def _copyActor(self, layerName: str, index: int) -> None:
         actors = self._getActorListForLayer(layerName)
         if 0 <= index < len(actors):
-            self._actorClipboard = copy.deepcopy(actors[index])
+            actor = actors[index]
+            self._actorClipboard = copy.deepcopy(actor)
+            mapData = GameData.mapData.get(self.mapKey)
+            if isinstance(actor, dict) and isinstance(mapData, dict):
+                self._actorClassVarChangesClipboard = self._getActorClassVarChanges(mapData, str(actor.get("tag", "")))
+            else:
+                self._actorClassVarChangesClipboard = None
 
     def _pasteActor(self, gx: int, gy: int) -> None:
         if self._actorClipboard is None or self.selectedLayerName is None:
@@ -1245,6 +1254,7 @@ class EditorPanel(QtWidgets.QWidget):
         clsObj = self._resolveActorClass(bpRel)
         newTag = self._makeUniqueDefaultTag(clsObj, bpRel, self.selectedLayerName, gx, gy)
         newActor["tag"] = newTag
+        GameData.CleanActorInstanceTransformData(newActor)
 
         m = GameData.mapData[self.mapKey]
         actorsDict = m.get("actors")
@@ -1258,6 +1268,7 @@ class EditorPanel(QtWidgets.QWidget):
             actorsDict[self.selectedLayerName] = layerList
 
         layerList.append(newActor)
+        self._pasteActorClassVarChanges(m, newTag)
         self._refreshTitle()
         self.DATA_CHANGED.emit()
         self._renderFromMapData()
@@ -1272,12 +1283,61 @@ class EditorPanel(QtWidgets.QWidget):
 
         if isinstance(layerList, list) and 0 <= index < len(layerList):
             GameData.RecordSnapshot()
+            entry = layerList[index]
+            if isinstance(entry, dict):
+                self._removeActorClassVarChanges(m, str(entry.get("tag", "")))
             layerList.pop(index)
             self._refreshTitle()
             self.DATA_CHANGED.emit()
             self.ACTOR_SELECTION_CHANGED.emit(None, None, None)
             self._renderFromMapData()
             self.update()
+
+    def _removeActorClassVarChanges(self, mapData: Dict[str, Any], tag: str) -> None:
+        root = mapData.get("BPClassVarChanged")
+        if not isinstance(root, dict):
+            return
+        root.pop(tag, None)
+        if not root:
+            mapData.pop("BPClassVarChanged", None)
+
+    def _getActorClassVarChanges(self, mapData: Dict[str, Any], tag: str) -> Optional[Dict[str, Any]]:
+        root = mapData.get("BPClassVarChanged")
+        if not isinstance(root, dict):
+            return None
+        changes = root.get(tag)
+        if not isinstance(changes, dict) or not changes:
+            return None
+        return copy.deepcopy(changes)
+
+    def _pasteActorClassVarChanges(self, mapData: Dict[str, Any], tag: str) -> None:
+        changes = self._actorClassVarChangesClipboard
+        if not isinstance(changes, dict) or not changes or not tag:
+            return
+        root = mapData.get("BPClassVarChanged")
+        if not isinstance(root, dict):
+            root = {}
+            mapData["BPClassVarChanged"] = root
+        root[tag] = copy.deepcopy(changes)
+
+    def _moveActorClassVarChanges(self, mapData: Dict[str, Any], oldTag: str, newTag: str) -> None:
+        if oldTag == newTag:
+            return
+        root = mapData.get("BPClassVarChanged")
+        if not isinstance(root, dict):
+            return
+        oldChanges = root.pop(oldTag, None)
+        if not isinstance(oldChanges, dict):
+            if not root:
+                mapData.pop("BPClassVarChanged", None)
+            return
+        newChanges = root.get(newTag)
+        if isinstance(newChanges, dict):
+            newChanges.update(oldChanges)
+        else:
+            root[newTag] = oldChanges
+        if not root:
+            mapData.pop("BPClassVarChanged", None)
 
     def hitTestLightFromWidgetPos(self, pos: QtCore.QPoint) -> Optional[int]:
         if not self._lightOverlayEnabled:
@@ -1584,7 +1644,8 @@ class EditorPanel(QtWidgets.QWidget):
                                                 int(oldPos[1]),
                                             )
                                             if self._getDefaultTagSuffix(entry.get("tag"), defOld) is not None:
-                                                entry["tag"] = self._makeUniqueDefaultTag(
+                                                oldTag = str(entry.get("tag", ""))
+                                                newTag = self._makeUniqueDefaultTag(
                                                     clsObj,
                                                     bpRel,
                                                     self._actorMoveDragLayerName,
@@ -1593,6 +1654,8 @@ class EditorPanel(QtWidgets.QWidget):
                                                     self._actorMoveDragLayerName,
                                                     self._actorMoveDragIndex,
                                                 )
+                                                entry["tag"] = newTag
+                                                self._moveActorClassVarChanges(m, oldTag, newTag)
                                     except Exception:
                                         pass
                                     if not self._actorMoveDragTitleRefreshed:
@@ -1627,7 +1690,21 @@ class EditorPanel(QtWidgets.QWidget):
             return False, ELOC("MAP_FILE_NONE")
         try:
             if self.mapKey and self.mapKey in GameData.mapData:
-                Utils.File.SaveData(self.mapFilePath, GameData.mapData[self.mapKey])
+                mapData = GameData.mapData[self.mapKey]
+                if not isinstance(mapData, dict):
+                    return False, ELOC("MAP_DATA_NONE")
+                GameData.CleanMapActorInstanceTransformData(mapData)
+                payload = GameData.GetMapSavePayload(mapData)
+                isJson = bool(payload.pop("isJson", None)) or GameData.GetDataFormat("Maps", self.mapKey) == "json"
+                ext = ".json" if isJson else ".dat"
+                savePath = self.mapFilePath
+                if os.path.splitext(savePath)[1].lower() not in (".json", ".dat"):
+                    savePath = os.path.join(self._mapFilesRoot, self.mapKey + ext)
+                if isJson:
+                    Utils.File.SaveJSONData(savePath, payload)
+                else:
+                    Utils.File.SaveData(savePath, payload)
+                self.mapFilePath = savePath
             else:
                 return False, ELOC("MAP_DATA_NONE")
         except Exception as e:
@@ -1680,7 +1757,10 @@ class EditorPanel(QtWidgets.QWidget):
                         newBaseTag = self._getActorDefaultTagBase(entry, new)
                         if newBaseTag is None:
                             continue
-                        entry["tag"] = self.makeUniqueActorTag(newBaseTag, old, index)
+                        oldTag = str(entry.get("tag", ""))
+                        newTag = self.makeUniqueActorTag(newBaseTag, old, index)
+                        entry["tag"] = newTag
+                        self._moveActorClassVarChanges(mapDict, oldTag, newTag)
                 newActorsDict = {}
                 for layerName, actors in actorsDict.items():
                     if layerName == old:
@@ -1799,6 +1879,17 @@ class EditorPanel(QtWidgets.QWidget):
         clsObj = self._resolveActorClass(bpRel)
         return self._getClassAttr(clsObj, attrName, default)
 
+    def _getActorBlueprintAttr(self, actorData: Dict[str, Any], attrName: str, default: Any) -> Any:
+        mapData = GameData.mapData.get(self.mapKey)
+        if isinstance(mapData, dict):
+            root = mapData.get("BPClassVarChanged")
+            if isinstance(root, dict):
+                tag = str(actorData.get("tag", ""))
+                changes = root.get(tag)
+                if isinstance(changes, dict) and attrName in changes:
+                    return changes.get(attrName, default)
+        return self.getBlueprintAttr(actorData.get("bp"), attrName, default)
+
     def _isCharacterActor(self, bpRel: Optional[str]) -> bool:
         clsObj = self._resolveActorClass(bpRel)
         if not isinstance(clsObj, type):
@@ -1810,21 +1901,39 @@ class EditorPanel(QtWidgets.QWidget):
         except Exception:
             return False
 
-    def _actorPreviewAnimatable(self, bpRel: Optional[str]) -> bool:
-        if not self._toBool(self.getBlueprintAttr(bpRel, "animatable", False), False):
+    def _actorPreviewAnimatable(
+        self, bpRel: Optional[str], actorData: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        attrGetter = (
+            lambda name, default: self._getActorBlueprintAttr(actorData, name, default)
+            if isinstance(actorData, dict)
+            else self.getBlueprintAttr(bpRel, name, default)
+        )
+        if not self._toBool(attrGetter("animatable", False), False):
             return False
         if self._isCharacterActor(bpRel):
-            return self._toBool(self.getBlueprintAttr(bpRel, "animateWithoutMoving", False), False)
+            return self._toBool(attrGetter("animateWithoutMoving", False), False)
         return True
 
-    def _actorAnimationFrame(self, bpRel: Optional[str], frameWidth: int, textureWidth: int) -> int:
+    def _actorAnimationFrame(
+        self,
+        bpRel: Optional[str],
+        frameWidth: int,
+        textureWidth: int,
+        actorData: Optional[Dict[str, Any]] = None,
+    ) -> int:
         frameWidth = max(1, int(frameWidth))
         textureWidth = max(1, int(textureWidth))
         frameCount = max(1, textureWidth // frameWidth)
         if frameCount <= 1:
             return 0
+        intervalValue = (
+            self._getActorBlueprintAttr(actorData, "switchInterval", _DEFAULT_ACTOR_SWITCH_INTERVAL)
+            if isinstance(actorData, dict)
+            else self.getBlueprintAttr(bpRel, "switchInterval", _DEFAULT_ACTOR_SWITCH_INTERVAL)
+        )
         interval = self._toPositiveFloat(
-            self.getBlueprintAttr(bpRel, "switchInterval", _DEFAULT_ACTOR_SWITCH_INTERVAL),
+            intervalValue,
             _DEFAULT_ACTOR_SWITCH_INTERVAL,
         )
         return int(self._actorAnimationTime / interval) % frameCount
@@ -1835,24 +1944,33 @@ class EditorPanel(QtWidgets.QWidget):
         image: Optional[QtGui.QImage],
         rect: Optional[Tuple[int, int, int, int]],
         sourceTileSize: int,
+        actorData: Optional[Dict[str, Any]] = None,
     ) -> Tuple[int, int, int, int]:
         if image is not None and not image.isNull() and self._isCharacterActor(bpRel):
             w = max(1, image.width() // _CHARACTER_SHEET_COLS)
             h = max(1, image.height() // _CHARACTER_SHEET_ROWS)
-            direction = self.getBlueprintAttr(bpRel, "direction", 0)
+            direction = (
+                self._getActorBlueprintAttr(actorData, "direction", 0)
+                if isinstance(actorData, dict)
+                else self.getBlueprintAttr(bpRel, "direction", 0)
+            )
             try:
                 row = max(0, min(_CHARACTER_SHEET_ROWS - 1, int(direction)))
             except (TypeError, ValueError):
                 row = 0
-            frame = self._actorAnimationFrame(bpRel, w, image.width()) if self._actorPreviewAnimatable(bpRel) else 0
+            frame = (
+                self._actorAnimationFrame(bpRel, w, image.width(), actorData)
+                if self._actorPreviewAnimatable(bpRel, actorData)
+                else 0
+            )
             return (frame * w, row * h, w, h)
         if rect is None:
             if image is not None and not image.isNull():
                 return (0, 0, image.width(), image.height())
             return (0, 0, sourceTileSize, sourceTileSize)
         sx, sy, w, h = rect
-        if image is not None and not image.isNull() and self._actorPreviewAnimatable(bpRel):
-            frame = self._actorAnimationFrame(bpRel, w, image.width())
+        if image is not None and not image.isNull() and self._actorPreviewAnimatable(bpRel, actorData):
+            frame = self._actorAnimationFrame(bpRel, w, image.width(), actorData)
             sx = (sx + frame * w) % max(1, image.width())
         return (sx, sy, w, h)
 
@@ -1953,21 +2071,19 @@ class EditorPanel(QtWidgets.QWidget):
 
             bpRel = entry.get("bp")
 
-            defTrans = self._toVec2f(self.getBlueprintAttr(bpRel, "defaultTranslation", (0.0, 0.0)), 0.0, 0.0)
-            translation = self._toVec2f(entry.get("translation", defTrans), defTrans[0], defTrans[1])
+            translation = self._toVec2f(
+                self._getActorBlueprintAttr(entry, "defaultTranslation", (0.0, 0.0)), 0.0, 0.0
+            )
 
-            defRot = self.getBlueprintAttr(bpRel, "defaultRotation", 0.0)
-            rotation = float(entry.get("rotation", defRot))
+            rotation = float(self._getActorBlueprintAttr(entry, "defaultRotation", 0.0))
 
-            defScale = self._toVec2f(self.getBlueprintAttr(bpRel, "defaultScale", (1.0, 1.0)), 1.0, 1.0)
-            scaleVal = self._toVec2f(entry.get("scale", defScale), defScale[0], defScale[1])
+            scaleVal = self._toVec2f(self._getActorBlueprintAttr(entry, "defaultScale", (1.0, 1.0)), 1.0, 1.0)
 
-            defOrigin = self._toVec2f(self.getBlueprintAttr(bpRel, "defaultOrigin", (0.0, 0.0)), 0.0, 0.0)
-            origin = self._toVec2f(entry.get("origin", defOrigin), defOrigin[0], defOrigin[1])
+            origin = self._toVec2f(self._getActorBlueprintAttr(entry, "defaultOrigin", (0.0, 0.0)), 0.0, 0.0)
 
-            texPath = self.getBlueprintAttr(bpRel, "texturePath", "")
-            shaderPath = self.getBlueprintAttr(bpRel, "shaderPath", "")
-            rectT = self._toRectTuple(self.getBlueprintAttr(bpRel, "defaultRect", None))
+            texPath = self._getActorBlueprintAttr(entry, "texturePath", "")
+            shaderPath = self._getActorBlueprintAttr(entry, "shaderPath", "")
+            rectT = self._toRectTuple(self._getActorBlueprintAttr(entry, "defaultRect", None))
 
             px = gx * tileSize
             py = gy * tileSize
@@ -1980,7 +2096,7 @@ class EditorPanel(QtWidgets.QWidget):
             painter.scale(scaleVal[0], scaleVal[1])
 
             img = self._resolveTextureImage(texPath)
-            sx, sy, w, h = self._actorPreviewRect(bpRel, img, rectT, sourceTileSize)
+            sx, sy, w, h = self._actorPreviewRect(bpRel, img, rectT, sourceTileSize, entry)
             previewRect = (sx, sy, w, h)
             shaderImg = self._renderActorShaderImage(
                 texPath,

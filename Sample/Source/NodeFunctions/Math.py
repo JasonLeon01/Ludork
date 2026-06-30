@@ -16,6 +16,11 @@ from Engine import (
     radians,
 )
 from Engine.Utils import Math
+from .Utils import _attrRef, _localRef
+
+
+def _getRefLocal(func: Any) -> Any:
+    return func.__dict__.get("_refLocal")
 
 
 @Meta(DisplayName='LOC("BUILD_VECTOR2F")', DisplayDesc='LOC("BUILD_VECTOR2F_DESC")')
@@ -477,10 +482,11 @@ def XNOR(a: bool = False, b: bool = False) -> bool:
 @Meta(DisplayName='LOC("IADD")', DisplayDesc='LOC("IADD_DESC")')
 @ExecSplit(default=(None,))
 def IADD(a: Any, b: Any = 1) -> Any:
-    if isinstance(a, str) and hasattr(IADD, "_refLocal") and a in IADD._refLocal:
-        IADD._refLocal[a] = IADD._refLocal[a] + b
+    refLocal = _getRefLocal(IADD)
+    if isinstance(a, str) and refLocal is not None and a in refLocal:
+        refLocal[a] = refLocal[a] + b
         return
-    if hasattr(a, "get") and hasattr(a, "set"):
+    if isinstance(a, (_attrRef, _localRef)):
         a.set(a.get() + b)
         return
     a += b
@@ -489,10 +495,11 @@ def IADD(a: Any, b: Any = 1) -> Any:
 @Meta(DisplayName='LOC("ISUB")', DisplayDesc='LOC("ISUB_DESC")')
 @ExecSplit(default=(None,))
 def ISUB(a: Any, b: Any = 1) -> Any:
-    if isinstance(a, str) and hasattr(ISUB, "_refLocal") and a in ISUB._refLocal:
-        ISUB._refLocal[a] = ISUB._refLocal[a] - b
+    refLocal = _getRefLocal(ISUB)
+    if isinstance(a, str) and refLocal is not None and a in refLocal:
+        refLocal[a] = refLocal[a] - b
         return
-    if hasattr(a, "get") and hasattr(a, "set"):
+    if isinstance(a, (_attrRef, _localRef)):
         a.set(a.get() - b)
         return
     a -= b
@@ -501,10 +508,11 @@ def ISUB(a: Any, b: Any = 1) -> Any:
 @Meta(DisplayName='LOC("IMUL")', DisplayDesc='LOC("IMUL_DESC")')
 @ExecSplit(default=(None,))
 def IMUL(a: Any, b: Any = 2) -> Any:
-    if isinstance(a, str) and hasattr(IMUL, "_refLocal") and a in IMUL._refLocal:
-        IMUL._refLocal[a] = IMUL._refLocal[a] * b
+    refLocal = _getRefLocal(IMUL)
+    if isinstance(a, str) and refLocal is not None and a in refLocal:
+        refLocal[a] = refLocal[a] * b
         return
-    if hasattr(a, "get") and hasattr(a, "set"):
+    if isinstance(a, (_attrRef, _localRef)):
         a.set(a.get() * b)
         return
     a *= b
@@ -513,10 +521,11 @@ def IMUL(a: Any, b: Any = 2) -> Any:
 @Meta(DisplayName='LOC("IDIV")', DisplayDesc='LOC("IDIV_DESC")')
 @ExecSplit(default=(None,))
 def IDIV(a: Any, b: Any = 2) -> Any:
-    if isinstance(a, str) and hasattr(IDIV, "_refLocal") and a in IDIV._refLocal:
-        IDIV._refLocal[a] = IDIV._refLocal[a] / b
+    refLocal = _getRefLocal(IDIV)
+    if isinstance(a, str) and refLocal is not None and a in refLocal:
+        refLocal[a] = refLocal[a] / b
         return
-    if hasattr(a, "get") and hasattr(a, "set"):
+    if isinstance(a, (_attrRef, _localRef)):
         a.set(a.get() / b)
         return
     a /= b
@@ -525,10 +534,11 @@ def IDIV(a: Any, b: Any = 2) -> Any:
 @Meta(DisplayName='LOC("IMOD")', DisplayDesc='LOC("IMOD_DESC")')
 @ExecSplit(default=(None,))
 def IMOD(a: Any, b: Any = 2) -> Any:
-    if isinstance(a, str) and hasattr(IMOD, "_refLocal") and a in IMOD._refLocal:
-        IMOD._refLocal[a] = IMOD._refLocal[a] % b
+    refLocal = _getRefLocal(IMOD)
+    if isinstance(a, str) and refLocal is not None and a in refLocal:
+        refLocal[a] = refLocal[a] % b
         return
-    if hasattr(a, "get") and hasattr(a, "set"):
+    if isinstance(a, (_attrRef, _localRef)):
         a.set(a.get() % b)
         return
     a %= b
@@ -537,10 +547,11 @@ def IMOD(a: Any, b: Any = 2) -> Any:
 @Meta(DisplayName='LOC("IPOW")', DisplayDesc='LOC("IPOW_DESC")')
 @ExecSplit(default=(None,))
 def IPOW(a: Any, b: Any = 2) -> Any:
-    if isinstance(a, str) and hasattr(IPOW, "_refLocal") and a in IPOW._refLocal:
-        IPOW._refLocal[a] = IPOW._refLocal[a] ** b
+    refLocal = _getRefLocal(IPOW)
+    if isinstance(a, str) and refLocal is not None and a in refLocal:
+        refLocal[a] = refLocal[a] ** b
         return
-    if hasattr(a, "get") and hasattr(a, "set"):
+    if isinstance(a, (_attrRef, _localRef)):
         a.set(a.get() ** b)
         return
     a **= b

@@ -204,4 +204,11 @@ def _formatDefault(node: ast.expr) -> str:
     if isinstance(node, ast.List):
         elements = ", ".join(_formatDefault(element) for element in node.elts)
         return f"[{elements}]"
+    if isinstance(node, ast.Dict):
+        elements = []
+        for key, value in zip(node.keys, node.values):
+            if key is None:
+                continue
+            elements.append(f"{_formatDefault(key)}: {_formatDefault(value)}")
+        return "{" + ", ".join(elements) + "}"
     return "..."

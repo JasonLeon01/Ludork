@@ -1,9 +1,10 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-import builtins
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple, TYPE_CHECKING
+
+from Engine.Utils.DataValue import resolveTypedDataValue
 
 from .Component import Component
 
@@ -11,7 +12,17 @@ if TYPE_CHECKING:
     from Engine.Gameplay.Actors import Actor
 
 
-@Meta(Vector2fVars=["relativePosition"])
+@Meta(
+    Vector2fVars=["relativePosition"],
+    VariableDisplayNames={
+        "className": 'LOC("CHILD_ACTOR_COMP_VAR_CLASS_NAME")',
+        "relativePosition": 'LOC("CHILD_ACTOR_COMP_VAR_RELATIVE_POSITION")',
+    },
+    VariableDisplayDescs={
+        "className": 'LOC("CHILD_ACTOR_COMP_VAR_CLASS_NAME_DESC")',
+        "relativePosition": 'LOC("CHILD_ACTOR_COMP_VAR_RELATIVE_POSITION_DESC")',
+    },
+)
 @dataclass
 class ChildActorComponent(Component):
     r"""\brief Spawn one child actor relative to the owning actor."""
@@ -57,13 +68,7 @@ class ChildActorComponent(Component):
         return [childActor]
 
     def _normaliseRelativePosition(self) -> Tuple[float, float]:
-        value = self.relativePosition
-        if isinstance(value, str):
-            try:
-                evaluator = getattr(builtins, "Eval", eval)
-                value = evaluator(value)
-            except Exception:
-                value = (0.0, 0.0)
+        value = resolveTypedDataValue(self.relativePosition, tuple)
         if hasattr(value, "x") and hasattr(value, "y"):
             return (float(value.x), float(value.y))
         if isinstance(value, (list, tuple)) and len(value) >= 2:

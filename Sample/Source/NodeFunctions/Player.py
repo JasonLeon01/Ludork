@@ -12,11 +12,12 @@ from .Utils import _attrRef
 _MISSING = object()
 
 
-def _getPlayer() -> Optional[Player]:
+def _getPlayer() -> Player:
+    from Source.Scenes import Map as SceneMap
+
     scene = System.getScene()
-    if scene and hasattr(scene, "inst"):
-        return scene.inst.getPlayer()
-    return None
+    assert isinstance(scene, SceneMap)
+    return scene.inst.getPlayer()
 
 
 @Meta(DisplayName='LOC("GET_PLAYER")', DisplayDesc='LOC("GET_PLAYER_DESC")')
@@ -375,11 +376,12 @@ def AddEXP(amount: int = 1) -> None:
 @Meta(DisplayName='LOC("MEET_PLAYER")', DisplayDesc='LOC("MEET_PLAYER_DESC")')
 @ReturnType(playerInfo=Player)
 def MeetPlayer(actors: List[Actor]) -> Optional[Player]:
-    from Source.Scenes import Map
+    from Source.Scenes import Map as SceneMap
     from Global import System
 
-    map = Cast(Map, System.getScene())
-    player = map.inst.getPlayer()
+    scene = System.getScene()
+    assert isinstance(scene, SceneMap)
+    player = scene.inst.getPlayer()
     if player and player in actors:
         return player
     return None

@@ -9,7 +9,53 @@ from .. import Pair, Tuple3, Time, Vector3f, Angle, Sound, Music
 type EffectProcessor = Callable[[list[float], int, list[float], int, int], None]
 
 
-@Meta(Vector3fVars=["position", "direction", "velocity"])
+@Meta(
+    Vector3fVars=["position", "direction", "velocity"],
+    VariableDisplayNames={
+        "loop": 'LOC("SOUND_FILTER_VAR_LOOP")',
+        "offset": 'LOC("SOUND_FILTER_VAR_OFFSET")',
+        "needEffect": 'LOC("SOUND_FILTER_VAR_NEED_EFFECT")',
+        "soundEffect": 'LOC("SOUND_FILTER_VAR_SOUND_EFFECT")',
+        "pitch": 'LOC("SOUND_FILTER_VAR_PITCH")',
+        "pan": 'LOC("SOUND_FILTER_VAR_PAN")',
+        "volume": 'LOC("SOUND_FILTER_VAR_VOLUME")',
+        "spatial": 'LOC("SOUND_FILTER_VAR_SPATIAL")',
+        "position": 'LOC("SOUND_FILTER_VAR_POSITION")',
+        "direction": 'LOC("SOUND_FILTER_VAR_DIRECTION")',
+        "cone": 'LOC("SOUND_FILTER_VAR_CONE")',
+        "velocity": 'LOC("SOUND_FILTER_VAR_VELOCITY")',
+        "dopplerFactor": 'LOC("SOUND_FILTER_VAR_DOPPLER_FACTOR")',
+        "directionalAttenuationFactor": 'LOC("SOUND_FILTER_VAR_DIRECTIONAL_ATTENUATION_FACTOR")',
+        "relativeToListener": 'LOC("SOUND_FILTER_VAR_RELATIVE_TO_LISTENER")',
+        "minDistance": 'LOC("SOUND_FILTER_VAR_MIN_DISTANCE")',
+        "maxDistance": 'LOC("SOUND_FILTER_VAR_MAX_DISTANCE")',
+        "minGain": 'LOC("SOUND_FILTER_VAR_MIN_GAIN")',
+        "maxGain": 'LOC("SOUND_FILTER_VAR_MAX_GAIN")',
+        "attenuation": 'LOC("SOUND_FILTER_VAR_ATTENUATION")',
+    },
+    VariableDisplayDescs={
+        "loop": 'LOC("SOUND_FILTER_VAR_LOOP_DESC")',
+        "offset": 'LOC("SOUND_FILTER_VAR_OFFSET_DESC")',
+        "needEffect": 'LOC("SOUND_FILTER_VAR_NEED_EFFECT_DESC")',
+        "soundEffect": 'LOC("SOUND_FILTER_VAR_SOUND_EFFECT_DESC")',
+        "pitch": 'LOC("SOUND_FILTER_VAR_PITCH_DESC")',
+        "pan": 'LOC("SOUND_FILTER_VAR_PAN_DESC")',
+        "volume": 'LOC("SOUND_FILTER_VAR_VOLUME_DESC")',
+        "spatial": 'LOC("SOUND_FILTER_VAR_SPATIAL_DESC")',
+        "position": 'LOC("SOUND_FILTER_VAR_POSITION_DESC")',
+        "direction": 'LOC("SOUND_FILTER_VAR_DIRECTION_DESC")',
+        "cone": 'LOC("SOUND_FILTER_VAR_CONE_DESC")',
+        "velocity": 'LOC("SOUND_FILTER_VAR_VELOCITY_DESC")',
+        "dopplerFactor": 'LOC("SOUND_FILTER_VAR_DOPPLER_FACTOR_DESC")',
+        "directionalAttenuationFactor": 'LOC("SOUND_FILTER_VAR_DIRECTIONAL_ATTENUATION_FACTOR_DESC")',
+        "relativeToListener": 'LOC("SOUND_FILTER_VAR_RELATIVE_TO_LISTENER_DESC")',
+        "minDistance": 'LOC("SOUND_FILTER_VAR_MIN_DISTANCE_DESC")',
+        "maxDistance": 'LOC("SOUND_FILTER_VAR_MAX_DISTANCE_DESC")',
+        "minGain": 'LOC("SOUND_FILTER_VAR_MIN_GAIN_DESC")',
+        "maxGain": 'LOC("SOUND_FILTER_VAR_MAX_GAIN_DESC")',
+        "attenuation": 'LOC("SOUND_FILTER_VAR_ATTENUATION_DESC")',
+    },
+)
 @dataclass
 class SoundFilter:
     r"""
@@ -41,6 +87,14 @@ class SoundFilter:
     attenuation: Optional[float] = None  #: Attenuation factor
 
 
+@Meta(
+    VariableDisplayNames={
+        "loopPoint": 'LOC("MUSIC_FILTER_VAR_LOOP_POINT")',
+    },
+    VariableDisplayDescs={
+        "loopPoint": 'LOC("MUSIC_FILTER_VAR_LOOP_POINT_DESC")',
+    },
+)
 @dataclass
 class MusicFilter(SoundFilter):
     r"""

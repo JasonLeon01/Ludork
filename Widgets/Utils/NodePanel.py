@@ -14,6 +14,7 @@ from NodeGraphQt.qgraphics.port import PortItem
 from NodeGraphQt.qgraphics.node_base import NodeItem
 from EditorGlobal import EditorStatus, GameData
 from Utils import System
+from Utils.DataValue import IsStandardValue, SerialiseTypedValueForData, ShouldEvalValueType
 from .ColourPickerDialog import ColourVarEditor
 from .DialogUtils import GetIndependentDialogParent
 from .FileSelectorDialog import FileSelectorDialog
@@ -69,22 +70,12 @@ CONNECTED_PARAM_VALUE = object()
 NODE_DROPDOWN_Z_VALUE = 1000.0
 
 
-def IsBasicPythonDefault(value: Any) -> bool:
-    if value is None or isinstance(value, (bool, int, float, str)):
-        return True
-    if isinstance(value, (list, tuple)):
-        return all(IsBasicPythonDefault(item) for item in value)
-    if isinstance(value, dict):
-        return all(IsBasicPythonDefault(key) and IsBasicPythonDefault(item) for key, item in value.items())
-    return False
-
-
 def FormatNodeParamDefault(value: Any) -> str:
     if value is inspect.Parameter.empty:
         return ""
     if isinstance(value, str):
         return value
-    if IsBasicPythonDefault(value):
+    if IsStandardValue(value):
         return repr(value)
     return str(value)
 
@@ -105,11 +96,15 @@ def FormatNodeParamInitialValue(paramType: Any, default: Any) -> Any:
         if IsBoolParamType(paramType):
             return False
         return ""
+    if default is None:
+        return None
     if IsBoolParamType(paramType):
         boolVal = ToBool(default)
         if boolVal is not None:
             return boolVal
-    return FormatNodeParamDefault(default)
+    if ShouldEvalValueType(paramType):
+        return FormatNodeParamDefault(default)
+    return SerialiseTypedValueForData(default, paramType)
 
 
 def MakeNodeParamsFromSignature(func: Callable) -> List[Any]:
@@ -119,7 +114,7 @@ def MakeNodeParamsFromSignature(func: Callable) -> List[Any]:
     for name, param in sig.parameters.items():
         paramType = typeHints.get(name, param.annotation)
         if paramType == inspect.Parameter.empty:
-            paramType = type(None)
+            paramType = Any
         params.append(FormatNodeParamInitialValue(paramType, param.default))
     return params
 
@@ -130,6 +125,10 @@ def NormaliseNodeParamValue(node: GraphNode, paramName: str, value: Any) -> Any:
         boolVal = ToBool(value)
         if boolVal is not None:
             return boolVal
+    from Utils.DataValue import ResolveTypedDataValue, ShouldEvalValueType
+
+    if ShouldEvalValueType(paramType):
+        return ResolveTypedDataValue(value, paramType)
     return value
 
 

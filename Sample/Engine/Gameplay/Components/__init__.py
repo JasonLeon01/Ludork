@@ -12,10 +12,11 @@ and initialising actor components.
 """
 
 from __future__ import annotations
-import builtins
 import copy
 import dataclasses
 from typing import Any, Dict, List, Type
+
+from Engine.Utils.DataValue import evalDataExpression, resolveTypedDataValue, shouldEvalValueType
 
 from .ChildActorComponent import ChildActorComponent
 from .Component import Component
@@ -100,13 +101,11 @@ def getComponentFieldDefaults(componentType: Type[Component]) -> Dict[str, Any]:
     return defaults
 
 
-def _cloneComponentValue(value: Any) -> Any:
-    if isinstance(value, str):
-        try:
-            evaluator = getattr(builtins, "Eval", eval)
-            return evaluator(value)
-        except Exception:
-            return value
+def _cloneComponentValue(value: Any, valueType: Any = Any) -> Any:
+    if isinstance(value, str) and shouldEvalValueType(valueType):
+        return evalDataExpression(value)
+    if valueType is not Any:
+        return copy.deepcopy(resolveTypedDataValue(value, valueType))
     return copy.deepcopy(value)
 
 
@@ -121,7 +120,7 @@ def componentFromData(componentType: Type[Component], data: Any = None) -> Compo
     values = getComponentFieldDefaults(componentType)
     for field in dataclasses.fields(componentType):
         if field.name in data:
-            values[field.name] = _cloneComponentValue(data[field.name])
+            values[field.name] = _cloneComponentValue(data[field.name], field.type)
     return componentType(**values)
 
 
@@ -237,7 +236,7 @@ def migrateLegacyComponentAttrs(cls: Any, attrs: Dict[str, Any]) -> bool:
                 continue
             value = attrs.pop(field.name)
             if not skipDisabledLight:
-                componentData[field.name] = _cloneComponentValue(value)
+                componentData[field.name] = _cloneComponentValue(value, field.type)
             moved = True
         if moved and componentData and not skipDisabledLight:
             defaults = getComponentFieldDefaults(componentType)

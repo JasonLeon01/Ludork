@@ -1,24 +1,30 @@
 # -*- encoding: utf-8 -*-
 
+from typing import Any
+
 from Global import System
+
+
+def _getSceneMap() -> Any:
+    from Source.Scenes import Map as SceneMap
+
+    scene = System.getScene()
+    assert isinstance(scene, SceneMap)
+    return scene
 
 
 @Meta(DisplayName='LOC("OPEN_MONSTER_BOOK")', DisplayDesc='LOC("OPEN_MONSTER_BOOK_DESC")')
 @ExecSplit(default=(None,))
 def OpenMonsterBook() -> None:
     r"""\brief Open the current-map monster handbook."""
-    scene = System.getScene()
-    if scene and hasattr(scene, "showEnemyBook"):
-        scene.showEnemyBook()
+    _getSceneMap().showEnemyBook()
 
 
 @Meta(DisplayName='LOC("OPEN_FLOOR_TELEPORTER")', DisplayDesc='LOC("OPEN_FLOOR_TELEPORTER_DESC")')
 @ExecSplit(default=(None,))
 def OpenFloorTeleporter() -> None:
     r"""\brief Open the visited-floor teleporter preview window."""
-    scene = System.getScene()
-    if scene and hasattr(scene, "showFloorTeleporter"):
-        scene.showFloorTeleporter()
+    _getSceneMap().showFloorTeleporter()
 
 
 @Meta(DisplayName='LOC("GET_CURRENT_REGION")', DisplayDesc='LOC("GET_CURRENT_REGION_DESC")')
@@ -28,10 +34,7 @@ def GetCurrentRegion() -> str:
 
     - \return The current region, or an empty string when unavailable.
     """
-    scene = System.getScene()
-    if scene and hasattr(scene, "inst"):
-        return scene.inst.getCurrentRegion()
-    return ""
+    return _getSceneMap().inst.getCurrentRegion()
 
 
 @Meta(DisplayName='LOC("SET_CURRENT_REGION")', DisplayDesc='LOC("SET_CURRENT_REGION_DESC")')
@@ -41,6 +44,4 @@ def SetCurrentRegion(region: str) -> None:
 
     - \param region The region name to set.
     """
-    scene = System.getScene()
-    if scene and hasattr(scene, "inst"):
-        scene.inst.setCurrentRegion(region)
+    _getSceneMap().inst.setCurrentRegion(region)

@@ -112,11 +112,20 @@ class MapListOpsMixin:
 
         actLabel = ELOC("MAPLIST_EDIT")
         actEdit = menu.addAction(actLabel)
+        actConvertDataFormat = None
+        mapKey = item.data(QtCore.Qt.UserRole)
+        currentFormat = GameData.GetDataFormat("Maps", mapKey)
+        if currentFormat == "dat":
+            actConvertDataFormat = menu.addAction(ELOC("CONVERT_TO_JSON"))
+        elif currentFormat == "json":
+            actConvertDataFormat = menu.addAction(ELOC("CONVERT_TO_DAT"))
         menu.addAction(self._actCopyMap)
         menu.addAction(self._actDeleteMap)
         action = menu.exec_(self.leftList.mapToGlobal(pos))
         if action == actEdit:
-            self._onEditMap(item.data(QtCore.Qt.UserRole))
+            self._onEditMap(mapKey)
+        elif actConvertDataFormat and action == actConvertDataFormat:
+            self._convertMapDataFormat(mapKey)
 
     def _getNewMapFileName(self) -> str:
         existing = {
@@ -223,6 +232,30 @@ class MapListOpsMixin:
             if self._editModeIdx == 2:
                 self.editorPanel.setAcceptDrops(False)
             self._refreshLayerBar()
+
+    def _convertMapDataFormat(self, mapKey: str) -> None:
+        currentFormat = GameData.GetDataFormat("Maps", mapKey)
+        if currentFormat not in ("dat", "json"):
+            return
+        try:
+            GameData.ConvertDataFormat("Maps", mapKey, currentFormat == "dat")
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(
+                self,
+                ELOC("ERROR"),
+                ELOC("CONVERT_DATA_FORMAT_FAILED") + "\n" + str(e),
+            )
+            return
+
+        wasActive = self.editorPanel.mapKey == mapKey
+        self.refreshLeftList()
+        found = self._findItemByKey(mapKey)
+        if found:
+            self.leftList.setCurrentItem(found)
+            self.leftListIndex = self.leftList.row(found)
+        if wasActive:
+            self.editorPanel.refreshMap(mapKey)
+        self._refreshInfo()
 
     def _onNewMap(self) -> None:
         default_data = {

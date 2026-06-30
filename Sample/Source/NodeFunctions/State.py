@@ -2,6 +2,8 @@
 
 from typing import Any, Optional
 from Engine.Gameplay.Components import getComponentFieldValue, setComponentFieldValue
+from Source.Battler import Battler
+from Source.Infos.StateInfo import StateInfo
 
 
 _MISSING = object()
@@ -11,10 +13,10 @@ def _getOwnerFromGraph(refLocal) -> Optional[Any]:
     graph = refLocal.get("__graph__")
     if graph is None:
         return None
-    parent = getattr(graph, "parent", None)
+    parent = graph.parent
     if parent is None:
         return None
-    if hasattr(parent, "getOwner"):
+    if isinstance(parent, StateInfo):
         return parent.getOwner()
     return parent
 
@@ -123,7 +125,7 @@ def BattlerHasState(battler: Any, stateID: str) -> bool:
     - \param stateID State identifier.
     - \return True if active.
     """
-    if battler is None or not hasattr(battler, "hasState"):
+    if not isinstance(battler, Battler):
         return False
     return bool(battler.hasState(stateID))
 
@@ -141,7 +143,7 @@ def AddStateTo(battler: Any, stateID: str, stacks: int = 1) -> None:
     - \param stateID State identifier.
     - \param stacks Stack count to apply or add.
     """
-    if battler is None or not hasattr(battler, "addState"):
+    if not isinstance(battler, Battler):
         return
     battler.addState(stateID, stacks)
 
@@ -158,7 +160,7 @@ def RemoveStateFrom(battler: Any, stateID: str) -> None:
     - \param battler The target battler.
     - \param stateID State identifier.
     """
-    if battler is None or not hasattr(battler, "removeState"):
+    if not isinstance(battler, Battler):
         return
     battler.removeState(stateID)
 
@@ -176,6 +178,6 @@ def ReduceStateFrom(battler: Any, stateID: str, stacks: int = 1) -> None:
     - \param stateID State identifier.
     - \param stacks Stack count to reduce.
     """
-    if battler is None or not hasattr(battler, "reduceStateStacks"):
+    if not isinstance(battler, Battler):
         return
     battler.reduceStateStacks(stateID, stacks)
