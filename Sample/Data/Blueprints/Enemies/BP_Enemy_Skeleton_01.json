@@ -6,7 +6,6 @@
             "mirror": false,
             "reflectionStrength": 2.7755575615628914e-17,
             "opacity": 1.0,
-            "emissive": 0.0,
             "speedRate": 1.5000000000000004
         },
         "texturePath": "enemies/classic-enemies-02-skeleton-single.png",

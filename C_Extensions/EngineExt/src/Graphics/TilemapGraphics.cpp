@@ -327,6 +327,19 @@ std::vector<std::vector<float>> TileLayerGraphics::getReflectionStrengthMap() co
     return result;
 }
 
+std::vector<std::vector<float>> TileLayerGraphics::getIgnoreLightingMap() const {
+    int width = static_cast<int>(size_.x);
+    int height = static_cast<int>(size_.y);
+    std::vector<std::vector<float>> result(height, std::vector<float>(width, 0.0f));
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            auto material = getMaterial(sf::Vector2i(x, y));
+            result[y][x] = material.has_value() && material.value().ignoreLighting ? 1.0f : 0.0f;
+        }
+    }
+    return result;
+}
+
 void TileLayerGraphics::updateAutoTileAnimation(float deltaTime, float frameInterval) {
     if (autoTileVertexArrays_.empty() || frameInterval <= 0.0f) {
         return;

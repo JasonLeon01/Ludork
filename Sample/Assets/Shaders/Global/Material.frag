@@ -126,6 +126,12 @@ void main() {
     vec2 uv = clamp(gl_TexCoord[0].xy, 0.0, 1.0);
     vec3 pixelColor = texture2D(texture, uv).rgb;
 
+    float ignoreLighting = SampleLightMaskWorldTL(pixelPosTL_world).b;
+    if (ignoreLighting > 0.0) {
+        gl_FragColor = vec4(pixelColor, 1.0);
+        return;
+    }
+
     vec3 lighting = CalculateLighting(pixelPosTL_world);
     vec3 baseColor = pixelColor * lighting;
     vec4 reflection = GetReflectionSample(pixelPosTL_world, center, rad);

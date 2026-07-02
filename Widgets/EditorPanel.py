@@ -5,11 +5,10 @@ import os
 import copy
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, cast
-import importlib
 from PyQt5 import QtWidgets, QtGui, QtCore
 import Utils
 from EditorGlobal import EditorStatus, GameData
-from Utils import System, SFMLRender
+from Utils import EditorData, System, SFMLRender
 from .Utils import AutoTileRenderer, TilemapRenderer, Toast
 
 
@@ -31,6 +30,16 @@ class MapData:
     width: int
     height: int
     layers: Dict[str, Any]
+
+
+@dataclass
+class EditorLayerData:
+    layerName: str
+    layerTilesetKey: str
+    tiles: List[List[Optional[int]]]
+    autoTiles: List[List[Optional[str]]]
+    shaderPath: str = ""
+    visible: bool = True
 
 
 class EditorPanel(QtWidgets.QWidget):
@@ -104,11 +113,14 @@ class EditorPanel(QtWidgets.QWidget):
         layer = self.mapData.layers.get(self.selectedLayerName)
         if not layer:
             return
+        fileName = EditorData.TilesetFileName(GameData.tilesetData.get(layer.layerTilesetKey))
+        if not fileName:
+            return
         ts_path = os.path.join(
             EditorStatus.PROJ_PATH,
             "Assets",
             "Tilesets",
-            layer.layerTileset.fileName,
+            fileName,
         )
         if os.path.exists(ts_path):
             self._cachedTilesetImage = QtGui.QImage(ts_path)
@@ -149,8 +161,6 @@ class EditorPanel(QtWidgets.QWidget):
         self.update()
 
     def applyMapData(self, data):
-        Engine = System.GetModule("Engine")
-        TileLayerData = Engine.TileLayerData
         mapName = data["mapName"]
         width = data["width"]
         height = data["height"]
@@ -158,16 +168,13 @@ class EditorPanel(QtWidgets.QWidget):
         mapLayers = {}
         for layerName, layerData in layers.items():
             name = layerData["layerName"]
-            layerTileset = GameData.tilesetData[layerData["layerTileset"]]
+            layerTilesetKey = str(layerData.get("layerTileset", ""))
             layerTiles = layerData["tiles"]
             tiles: List[List[Optional[int]]] = []
             for y in range(height):
                 tiles.append([])
                 for x in range(width):
                     tiles[-1].append(layerTiles[y][x])
-            layer = TileLayerData(name, layerTileset, tiles)
-            setattr(layer, "layerTilesetKey", layerData["layerTileset"])
-            setattr(layer, "shaderPath", str(layerData.get("shaderPath", "") or ""))
             rawAuto = layerData.get("autoTiles")
             autoTiles: List[List[Optional[str]]] = []
             for y in range(height):
@@ -185,9 +192,15 @@ class EditorPanel(QtWidgets.QWidget):
                             val = cell
                     row.append(val)
                 autoTiles.append(row)
-            setattr(layer, "autoTiles", autoTiles)
             if not isinstance(layerData.get("autoTiles"), list):
                 layerData["autoTiles"] = [list(r) for r in autoTiles]
+            layer = EditorLayerData(
+                name,
+                layerTilesetKey,
+                tiles,
+                autoTiles,
+                str(layerData.get("shaderPath", "") or ""),
+            )
             mapLayers[layerName] = layer
         self.mapData = MapData(mapName, width, height, mapLayers)
 
@@ -204,16 +217,16 @@ class EditorPanel(QtWidgets.QWidget):
         painter = QtGui.QPainter(img)
         sel = self.selectedLayerName
         for layerName, layer in self.mapData.layers.items():
-            if not getattr(layer, "visible", True):
+            if not layer.visible:
                 continue
             painter.setOpacity(1.0 if (sel is None or layerName == sel) else 0.5)
             layerImg = self._tilemapRenderer.renderLayer(
                 self.mapData.width,
                 self.mapData.height,
                 tileSize,
-                getattr(layer, "tiles", None),
-                getattr(layer, "layerTileset", None),
-                getattr(layer, "autoTiles", None),
+                layer.tiles,
+                layer.layerTilesetKey,
+                layer.autoTiles,
                 self._autoTileFrame,
                 sourceTileSize,
             )
@@ -243,7 +256,7 @@ class EditorPanel(QtWidgets.QWidget):
         seenAnimated = False
         seenKeys: set = set()
         for layer in self.mapData.layers.values():
-            autoTiles = getattr(layer, "autoTiles", None)
+            autoTiles = layer.autoTiles
             if not isinstance(autoTiles, list):
                 continue
             for row in autoTiles:
@@ -650,13 +663,7 @@ class EditorPanel(QtWidgets.QWidget):
         if name not in self.mapData.layers:
             return None
         layer = self.mapData.layers[name]
-        key = getattr(layer, "layerTilesetKey", None)
-        if key:
-            return key
-        for k, ts in GameData.tilesetData.items():
-            if ts.fileName == layer.layerTileset.fileName:
-                return k
-        return None
+        return layer.layerTilesetKey or None
 
     def setLayerTilesetForSelectedLayer(self, key: str) -> None:
         if self.mapData is None:
@@ -669,9 +676,7 @@ class EditorPanel(QtWidgets.QWidget):
         layer = self.mapData.layers.get(self.selectedLayerName)
         if not layer:
             return
-        ts = GameData.tilesetData[key]
-        setattr(layer, "layerTileset", ts)
-        setattr(layer, "layerTilesetKey", key)
+        layer.layerTilesetKey = key
         if self.mapKey and self.selectedLayerName in GameData.mapData.get(self.mapKey, {}).get("layers", {}):
             GameData.mapData[self.mapKey]["layers"][self.selectedLayerName]["layerTileset"] = key
         self._refreshTitle()
@@ -683,8 +688,6 @@ class EditorPanel(QtWidgets.QWidget):
         if self.mapData is None:
             return None
         GameData.RecordSnapshot()
-        Engine: TempEngine = importlib.import_module("Engine")  # type: ignore
-        TileLayerData = Engine.TileLayerData
         width = self.mapData.width
         height = self.mapData.height
         if not name:
@@ -705,20 +708,17 @@ class EditorPanel(QtWidgets.QWidget):
         for y in range(height):
             autoTiles.append([None] * width)
         keys = list(GameData.tilesetData.keys())
-        ts_key = keys[0] if keys else None
-        ts = GameData.tilesetData.get(ts_key) if ts_key else None
-        layer = TileLayerData(
-            name, ts if ts is not None else GameData.tilesetData[next(iter(GameData.tilesetData))], tiles
-        )
-        setattr(layer, "layerTilesetKey", ts_key or next(iter(GameData.tilesetData)))
-        setattr(layer, "autoTiles", autoTiles)
+        if not keys:
+            return None
+        ts_key = keys[0]
+        layer = EditorLayerData(name, ts_key, tiles, autoTiles)
         self.mapData.layers[name] = layer
         if self.mapKey:
             if self.mapKey in GameData.mapData:
                 if "layers" in GameData.mapData[self.mapKey]:
                     GameData.mapData[self.mapKey]["layers"][name] = {
                         "layerName": name,
-                        "layerTileset": ts_key or next(iter(GameData.tilesetData)),
+                        "layerTileset": ts_key,
                         "tiles": tiles,
                         "autoTiles": [list(r) for r in autoTiles],
                         "shaderPath": "",
@@ -732,7 +732,7 @@ class EditorPanel(QtWidgets.QWidget):
     def getLayerShaderPath(self, name: str) -> str:
         if self.mapData is None or name not in self.mapData.layers:
             return ""
-        return str(getattr(self.mapData.layers[name], "shaderPath", "") or "")
+        return str(self.mapData.layers[name].shaderPath or "")
 
     def setLayerShaderPath(self, name: str, shaderPath: str) -> bool:
         if self.mapData is None or name not in self.mapData.layers:
@@ -741,7 +741,7 @@ class EditorPanel(QtWidgets.QWidget):
         if self.getLayerShaderPath(name) == normalizedPath:
             return False
         GameData.RecordSnapshot()
-        setattr(self.mapData.layers[name], "shaderPath", normalizedPath)
+        self.mapData.layers[name].shaderPath = normalizedPath
         if self.mapKey and self.mapKey in GameData.mapData:
             layerData = GameData.mapData[self.mapKey].get("layers", {}).get(name)
             if isinstance(layerData, dict):
@@ -854,12 +854,12 @@ class EditorPanel(QtWidgets.QWidget):
         return result
 
     def _writeCellValue(self, layer, x: int, y: int, tileNum: Optional[int], autoKey: Optional[str]) -> bool:
-        tiles = self._copyGrid(getattr(layer, "tiles", None))
+        tiles = self._copyGrid(layer.tiles)
         if y < 0 or y >= len(tiles):
             return False
         if x < 0 or x >= len(tiles[y]):
             return False
-        autoTiles = self._fitGridToTiles(self._copyGrid(getattr(layer, "autoTiles", None)), tiles)
+        autoTiles = self._fitGridToTiles(self._copyGrid(layer.autoTiles), tiles)
         changed = False
         if autoKey is not None:
             if tiles[y][x] is not None:
@@ -1512,7 +1512,7 @@ class EditorPanel(QtWidgets.QWidget):
             return
         if e.button() == QtCore.Qt.RightButton:
             try:
-                autoTiles = getattr(layer, "autoTiles", None)
+                autoTiles = layer.autoTiles
                 pickedAuto: Optional[str] = None
                 if isinstance(autoTiles, list) and 0 <= gy < len(autoTiles):
                     rowAuto = autoTiles[gy]
@@ -1726,7 +1726,7 @@ class EditorPanel(QtWidgets.QWidget):
         newLayers = {}
         for layerName, layer in self.mapData.layers.items():
             if layerName == old:
-                setattr(layer, "layerName", new)
+                layer.layerName = new
                 newLayers[new] = layer
             else:
                 newLayers[layerName] = layer

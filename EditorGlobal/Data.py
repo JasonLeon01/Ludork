@@ -8,7 +8,7 @@ import dataclasses
 import importlib
 import inspect
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, get_type_hints
-from Utils import File, System
+from Utils import EditorData, File, System
 from Utils.DataValue import IsStandardValue, SerialiseTypedValueForData
 from . import EditorStatus
 
@@ -50,8 +50,6 @@ class GameData:
     @classmethod
     def Init(cls) -> None:
         Engine = System.GetModule("Engine")
-        Tileset = Engine.Tileset  # type: ignore
-        AutoTile = Engine.AutoTile  # type: ignore
 
         cls.systemConfigData = {}
         cls.tilesetData = {}
@@ -62,8 +60,8 @@ class GameData:
         cls.animationsData = {}
         cls.generalData = {}
         cls.LoadData("Configs", cls.systemConfigData)
-        cls.LoadData("Tilesets", cls.tilesetData, Tileset.fromData, "tileset")
-        cls.LoadData("AutoTiles", cls.autoTileData, AutoTile.fromData, "autoTile")
+        cls.LoadData("Tilesets", cls.tilesetData, EditorData.NormaliseTilesetData, "tileset")
+        cls.LoadData("AutoTiles", cls.autoTileData, EditorData.NormaliseAutoTileData, "autoTile")
         cls.LoadData("Maps", cls.mapData, needType="map")
         cls.LoadData("CommonFunctions", cls.commonFunctionsData, needType="commonFunction")
         cls.LoadData("Blueprints", cls.blueprintsData, needType="blueprint")
@@ -630,7 +628,7 @@ class GameData:
                 final_details["Failed"].append(key)
                 continue
             try:
-                data = cls._RequireObjectDict(ts)
+                data = EditorData.NormaliseTilesetData(ts)
                 payload = copy.deepcopy(data)
                 payload["type"] = "tileset"
                 if "isJson" in payload:
@@ -642,15 +640,16 @@ class GameData:
                     final_details["A"].append(key)
                 else:
                     final_details["U"].append(key)
-                cls._originData["tilesetData"][key] = copy.deepcopy(cls._AsReferenceDict(ts))
+                cls._originData["tilesetData"][key] = copy.deepcopy(data)
             except Exception:
                 final_details["Failed"].append(key)
 
         for key in c_ts["D"]:
             try:
-                fp = os.path.join(tilesetsRoot, f"{key}.dat")
-                if os.path.exists(fp):
-                    os.remove(fp)
+                for ext in [".dat", ".json"]:
+                    fp = os.path.join(tilesetsRoot, f"{key}{ext}")
+                    if os.path.exists(fp):
+                        os.remove(fp)
                 final_details["D"].append(key)
                 if key in cls._originData["tilesetData"]:
                     del cls._originData["tilesetData"][key]
@@ -666,7 +665,7 @@ class GameData:
                 final_details["Failed"].append(key)
                 continue
             try:
-                data = cls._RequireObjectDict(at)
+                data = EditorData.NormaliseAutoTileData(at)
                 payload = copy.deepcopy(data)
                 payload["type"] = "autoTile"
                 if "isJson" in payload:
@@ -678,7 +677,7 @@ class GameData:
                     final_details["A"].append(key)
                 else:
                     final_details["U"].append(key)
-                cls._originData["autoTileData"][key] = copy.deepcopy(cls._AsReferenceDict(at))
+                cls._originData["autoTileData"][key] = copy.deepcopy(data)
             except Exception:
                 final_details["Failed"].append(key)
 

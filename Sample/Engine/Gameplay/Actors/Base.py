@@ -824,23 +824,21 @@ class _ActorBase(Sprite):
         """
         self.material.opacity = opacity
 
-    @ReturnType(emissive=float)
-    def getEmissive(self) -> float:
-        r"""\brief Get the emissive property of the material.
+    @ReturnType(ignoreLighting=bool)
+    def getIgnoreLighting(self) -> bool:
+        r"""\brief Get whether the material ignores ambient and direct lighting.
 
-        - \return Emissive factor (0.0 = no emission)
+        - \return True if lighting is ignored, False otherwise
         """
-        return self.material.emissive
+        return self.material.ignoreLighting
 
     @ExecSplit(default=(None,))
-    def setEmissive(self, emissive: float) -> None:
-        r"""\brief Set the emissive property of the material.
+    def setIgnoreLighting(self, ignoreLighting: bool) -> None:
+        r"""\brief Set whether the material ignores ambient and direct lighting.
 
-        Controls how much light the actor emits.
-
-        - \param emissive Emissive factor (0.0 = no emission)
+        - \param ignoreLighting True to render this actor unlit, False to use lighting
         """
-        self.material.emissive = emissive
+        self.material.ignoreLighting = ignoreLighting
 
     @ExecSplit(default=(None,))
     def setGraph(self, graph: Graph) -> None:

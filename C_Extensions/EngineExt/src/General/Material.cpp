@@ -17,17 +17,19 @@ bool assignIfPresent(const MaterialData& data, const std::string& key, T& target
 
 }  // namespace
 
-Material::Material(float lightBlock, bool mirror, float reflectionStrength, float opacity, float speedRate)
+Material::Material(float lightBlock, bool mirror, float reflectionStrength, float opacity, float speedRate,
+                   bool ignoreLighting)
     : lightBlock(lightBlock),
       mirror(mirror),
       reflectionStrength(reflectionStrength),
       opacity(opacity),
-      speedRate(speedRate) {}
+      speedRate(speedRate),
+      ignoreLighting(ignoreLighting) {}
 
 MaterialData Material::asDict() const {
     return {
         {"lightBlock", lightBlock}, {"mirror", mirror},       {"reflectionStrength", reflectionStrength},
-        {"opacity", opacity},       {"speedRate", speedRate},
+        {"opacity", opacity},       {"speedRate", speedRate}, {"ignoreLighting", ignoreLighting},
     };
 }
 
@@ -38,5 +40,6 @@ Material Material::fromData(MaterialData data) {
     assignIfPresent(data, "reflectionStrength", material.reflectionStrength);
     assignIfPresent(data, "opacity", material.opacity);
     assignIfPresent(data, "speedRate", material.speedRate);
+    assignIfPresent(data, "ignoreLighting", material.ignoreLighting);
     return material;
 }

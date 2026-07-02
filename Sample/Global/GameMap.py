@@ -1241,8 +1241,10 @@ class GameMap(GameMapExt):
                 cellSize = Engine.CellSize
                 lbTexture = Texture(layer.getLightBlockImage())
                 reflectionStrengthTexture = Texture(layer.getReflectionStrengthImage())
+                ignoreLightingTexture = Texture(layer.getIgnoreLightingImage())
                 tilemapLightMask.setUniform("lightBlockTex", lbTexture)
                 tilemapLightMask.setUniform("reflectionStrengthTex", reflectionStrengthTexture)
+                tilemapLightMask.setUniform("ignoreLightingTex", ignoreLightingTexture)
                 tilemapLightMask.setUniform("lightBlockSize", Vector2f(cellSize, cellSize))
                 tilemapLightMask.setUniform("mapSize", Vector2f(self._tilemap.getSize().x, self._tilemap.getSize().y))
                 if self._lightMask:
@@ -1254,6 +1256,7 @@ class GameMap(GameMapExt):
                                 actorLightMask.setUniform("reflectionStrength", actor.getReflectionStrength())
                             else:
                                 actorLightMask.setUniform("reflectionStrength", 0.0)
+                            actorLightMask.setUniform("ignoreLighting", 1.0 if actor.getIgnoreLighting() else 0.0)
                             self._lightMask.draw(actor, self._actorRenderStates)
         elif IS_IOS_PLATFORM:
             warnIosShaderSkippedOnce(

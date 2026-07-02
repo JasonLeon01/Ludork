@@ -6,17 +6,8 @@ import copy
 from typing import Optional
 from PyQt5 import QtWidgets, QtCore, QtGui
 from EditorGlobal import GameData
-from Utils import File, System
+from Utils import EditorData, File, System
 from .Utils import TilesetPanel, AutoTilePanel, SingleRowDialog, Toast
-
-
-def _getGameplayType(typeName: str) -> Optional[type]:
-    try:
-        Engine = System.GetModule("Engine")
-        dataType = getattr(Engine, typeName, None)
-    except Exception:
-        return None
-    return dataType if isinstance(dataType, type) else None
 
 
 class _TilesetTab(QtWidgets.QWidget):
@@ -126,20 +117,14 @@ class _TilesetTab(QtWidgets.QWidget):
             QtWidgets.QMessageBox.warning(self, ELOC("ADD_TILESET"), ELOC("TILESET_EXISTS"))
             return
 
-        try:
-            Engine = System.GetModule("Engine")
-            Tileset = Engine.Tileset
-            new_ts = Tileset(name=text, fileName="", passable=[], materials=[], dir4=[])
-
-            GameData.RecordSnapshot()
-            GameData.tilesetData[text] = new_ts
-            item = QtWidgets.QListWidgetItem(text)
-            self.listWidget.addItem(item)
-            self.listWidget.setCurrentItem(item)
-            File.mainWindow.tileSelect.initTilesets()
-            self.MODIFIED.emit()
-        except Exception as e:
-            QtWidgets.QMessageBox.critical(self, "Error", str(e))
+        GameData.RecordSnapshot()
+        Tileset = getattr(System.GetModule("Engine"), "Tileset", None)
+        GameData.tilesetData[text] = EditorData.NewDataForType(Tileset, {"name": text})
+        item = QtWidgets.QListWidgetItem(text)
+        self.listWidget.addItem(item)
+        self.listWidget.setCurrentItem(item)
+        File.mainWindow.tileSelect.initTilesets()
+        self.MODIFIED.emit()
 
     def _copyTileset(self) -> None:
         row = self.listWidget.currentRow()
@@ -157,7 +142,7 @@ class _TilesetTab(QtWidgets.QWidget):
         if not self._tilesetClipboard:
             return
 
-        new_ts = copy.deepcopy(self._tilesetClipboard)
+        new_ts = EditorData.NormaliseTilesetData(self._tilesetClipboard)
 
         base_name = self._tilesetClipboardName or "Tileset"
 
@@ -171,9 +156,7 @@ class _TilesetTab(QtWidgets.QWidget):
                     break
                 i += 1
 
-        tilesetType = _getGameplayType("Tileset")
-        if isinstance(tilesetType, type) and isinstance(new_ts, tilesetType):
-            new_ts.name = new_name
+        new_ts["name"] = new_name
 
         try:
             GameData.RecordSnapshot()
@@ -252,9 +235,7 @@ class _TilesetTab(QtWidgets.QWidget):
         try:
             GameData.RecordSnapshot()
             data = GameData.tilesetData.pop(old_name)
-            tilesetType = _getGameplayType("Tileset")
-            if isinstance(tilesetType, type) and isinstance(data, tilesetType):
-                data.name = new_name
+            EditorData.SetField(data, "name", new_name)
             GameData.tilesetData[new_name] = data
 
             item.setText(new_name)
@@ -422,21 +403,14 @@ class _AutoTileTab(QtWidgets.QWidget):
         if text in GameData.autoTileData:
             QtWidgets.QMessageBox.warning(self, ELOC("ADD_AUTOTILE"), ELOC("AUTOTILE_EXISTS"))
             return
-        try:
-            Engine = System.GetModule("Engine")
-            AutoTile = Engine.AutoTile
-            Material = Engine.Material
-            new_at = AutoTile(name=text, fileName="", passable=True, material=Material())
-
-            GameData.RecordSnapshot()
-            GameData.autoTileData[text] = new_at
-            item = QtWidgets.QListWidgetItem(text)
-            self.listWidget.addItem(item)
-            self.listWidget.setCurrentItem(item)
-            File.mainWindow.tileSelect.initAutoTiles()
-            self.MODIFIED.emit()
-        except Exception as e:
-            QtWidgets.QMessageBox.critical(self, "Error", str(e))
+        GameData.RecordSnapshot()
+        AutoTile = getattr(System.GetModule("Engine"), "AutoTile", None)
+        GameData.autoTileData[text] = EditorData.NewDataForType(AutoTile, {"name": text})
+        item = QtWidgets.QListWidgetItem(text)
+        self.listWidget.addItem(item)
+        self.listWidget.setCurrentItem(item)
+        File.mainWindow.tileSelect.initAutoTiles()
+        self.MODIFIED.emit()
 
     def _copy(self) -> None:
         row = self.listWidget.currentRow()
@@ -453,7 +427,7 @@ class _AutoTileTab(QtWidgets.QWidget):
     def _paste(self) -> None:
         if not self._clipboard:
             return
-        new_at = copy.deepcopy(self._clipboard)
+        new_at = EditorData.NormaliseAutoTileData(self._clipboard)
         base_name = self._clipboardName or "AutoTile"
         new_name = base_name + " (copy)"
         if new_name in GameData.autoTileData:
@@ -465,9 +439,7 @@ class _AutoTileTab(QtWidgets.QWidget):
                     break
                 i += 1
 
-        autoTileType = _getGameplayType("AutoTile")
-        if isinstance(autoTileType, type) and isinstance(new_at, autoTileType):
-            new_at.name = new_name
+        new_at["name"] = new_name
 
         try:
             GameData.RecordSnapshot()
@@ -520,9 +492,7 @@ class _AutoTileTab(QtWidgets.QWidget):
         try:
             GameData.RecordSnapshot()
             data = GameData.autoTileData.pop(old_name)
-            autoTileType = _getGameplayType("AutoTile")
-            if isinstance(autoTileType, type) and isinstance(data, autoTileType):
-                data.name = new_name
+            EditorData.SetField(data, "name", new_name)
             GameData.autoTileData[new_name] = data
             item.setText(new_name)
             File.mainWindow.tileSelect.initAutoTiles()

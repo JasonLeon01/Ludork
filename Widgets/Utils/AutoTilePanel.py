@@ -3,10 +3,9 @@
 import os
 from PyQt5 import QtWidgets, QtGui, QtCore
 from EditorGlobal import EditorStatus, GameData
-from Utils import System, File
+from Utils import EditorData, System, File
 from .FileSelectorDialog import FileSelectorDialog
 from .DataclassEditDialog import DataclassEditDialog
-import copy
 
 
 class _AutoTileImageView(QtWidgets.QWidget):
@@ -17,8 +16,7 @@ class _AutoTileImageView(QtWidgets.QWidget):
         self._image = None
         self._data = None
         self._mode = 0
-        Engine = System.GetModule("Engine")
-        self.MaterialClass = Engine.Material
+        self.MaterialType = getattr(System.GetModule("Engine"), "Material", None)
         self.setMouseTracking(True)
 
     def setData(self, data, image_path):
@@ -61,7 +59,7 @@ class _AutoTileImageView(QtWidgets.QWidget):
         frameRect = QtCore.QRect(0, 0, min(3, cols) * cellSize, min(4, rows) * cellSize)
 
         if self._mode == 0:
-            val = bool(getattr(self._data, "passable", True))
+            val = bool(EditorData.GetField(self._data, "passable", True))
             painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255, 220), 3))
             margin = max(8, cellSize // 3)
             drawRect = frameRect.adjusted(margin, margin, -margin, -margin)
@@ -71,26 +69,16 @@ class _AutoTileImageView(QtWidgets.QWidget):
                 painter.drawLine(drawRect.topLeft(), drawRect.bottomRight())
                 painter.drawLine(drawRect.topRight(), drawRect.bottomLeft())
         else:
-            mat = getattr(self._data, "material", None)
-            if mat and self.MaterialClass and isinstance(mat, self.MaterialClass):
-                is_default = True
-                matType = type(mat)
-                for attr in dir(mat):
-                    val = getattr(mat, attr)
-                    if not attr.startswith("_") and not callable(val):
-                        typeVal = getattr(matType, attr)
-                        if val != typeVal:
-                            is_default = False
-                            break
-                if not is_default:
-                    painter.setPen(QtGui.QPen(QtGui.QColor(100, 255, 100, 220), 3))
-                    painter.drawRect(frameRect.adjusted(6, 6, -6, -6))
-                    painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255)))
-                    f = painter.font()
-                    f.setPixelSize(max(12, cellSize // 2))
-                    f.setBold(True)
-                    painter.setFont(f)
-                    painter.drawText(frameRect, QtCore.Qt.AlignCenter, "M")
+            mat = EditorData.GetField(self._data, "material", None)
+            if not EditorData.IsDefaultMaterial(mat):
+                painter.setPen(QtGui.QPen(QtGui.QColor(100, 255, 100, 220), 3))
+                painter.drawRect(frameRect.adjusted(6, 6, -6, -6))
+                painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255)))
+                f = painter.font()
+                f.setPixelSize(max(12, cellSize // 2))
+                f.setBold(True)
+                painter.setFont(f)
+                painter.drawText(frameRect, QtCore.Qt.AlignCenter, "M")
 
     def mousePressEvent(self, e):
         if not self._image or not self._data:
@@ -99,22 +87,17 @@ class _AutoTileImageView(QtWidgets.QWidget):
             return
         if self._mode == 0:
             GameData.RecordSnapshot()
-            current = bool(getattr(self._data, "passable", True))
-            setattr(self._data, "passable", not current)
+            current = bool(EditorData.GetField(self._data, "passable", True))
+            EditorData.SetField(self._data, "passable", not current)
             self.DATA_CHANGED.emit()
             self.update()
         else:
-            mat = getattr(self._data, "material", None)
-            if mat is None and self.MaterialClass:
-                mat = self.MaterialClass()
-                setattr(self._data, "material", mat)
-            if mat is None:
-                return
-            edit_mat = copy.deepcopy(mat)
+            mat = EditorData.GetField(self._data, "material", None)
+            edit_mat = EditorData.MaterialEditorObject(mat, self.MaterialType)
             dlg = DataclassEditDialog(self, edit_mat, ELOC("EDIT_MATERIAL"))
             if dlg.exec_():
                 GameData.RecordSnapshot()
-                setattr(self._data, "material", edit_mat)
+                EditorData.SetField(self._data, "material", EditorData.MaterialDataFromEditorObject(edit_mat))
                 self.DATA_CHANGED.emit()
                 self.update()
 
@@ -126,8 +109,6 @@ class AutoTilePanel(QtWidgets.QWidget):
         super().__init__(parent)
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
         System.SetStyle(self, "config.qss")
-        Engine = System.GetModule("Engine")
-        self.MaterialClass = Engine.Material
         self._data = None
         self._key = None
         self._initUI()
@@ -188,14 +169,16 @@ class AutoTilePanel(QtWidgets.QWidget):
             return
 
         p = None
-        if autoTileData.fileName:
-            p = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Autotiles", autoTileData.fileName)
+        fileName = EditorData.AutoTileFileName(autoTileData)
+        if fileName:
+            p = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Autotiles", fileName)
             if not os.path.exists(p):
-                autoTileData.fileName = ""
+                EditorData.SetField(autoTileData, "fileName", "")
+                fileName = ""
                 p = None
 
-        self.nameEdit.setText(getattr(autoTileData, "name", ""))
-        self.fileEdit.setText(autoTileData.fileName)
+        self.nameEdit.setText(str(EditorData.GetField(autoTileData, "name", "") or ""))
+        self.fileEdit.setText(fileName)
         self.imageView.setData(autoTileData, p)
         self.imageView.setMode(self.modeList.currentRow())
         self.MODIFIED.emit()
@@ -203,7 +186,7 @@ class AutoTilePanel(QtWidgets.QWidget):
     def _onNameChanged(self, text):
         if self._data:
             GameData.RecordSnapshot()
-            self._data.name = text
+            EditorData.SetField(self._data, "name", text)
             self.MODIFIED.emit()
 
     def _onModeChanged(self, row):
@@ -223,9 +206,9 @@ class AutoTilePanel(QtWidgets.QWidget):
             return
         GameData.RecordSnapshot()
         filename = os.path.basename(fp)
-        self._data.fileName = filename
-        if getattr(self._data, "material", None) is None and self.MaterialClass:
-            self._data.material = self.MaterialClass()
+        EditorData.SetField(self._data, "fileName", filename)
+        if EditorData.GetField(self._data, "material", None) is None:
+            EditorData.SetField(self._data, "material", EditorData.NormaliseMaterialData())
         File.mainWindow.tileSelect.initAutoTiles()
         self.MODIFIED.emit()
         self.setAutoTileData(self._data)

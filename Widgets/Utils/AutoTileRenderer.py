@@ -4,6 +4,7 @@ import os
 from typing import Dict, List, Optional, Tuple
 from PyQt5 import QtCore, QtGui
 from EditorGlobal import EditorStatus, GameData
+from Utils import EditorData
 from .MapRenderUtils import GridToStringGrid, QImageToRgbaTuple, RgbaBytesToQImage
 
 _CELL = 32
@@ -74,7 +75,7 @@ class AutoTileRenderer:
         data = GameData.autoTileData.get(key)
         if data is None:
             return None
-        fileName = getattr(data, "fileName", "") or ""
+        fileName = EditorData.AutoTileFileName(data)
         if not fileName:
             return None
         path = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Autotiles", fileName)

@@ -5,6 +5,7 @@ import os
 from typing import Any, Dict, List, Optional, Tuple
 from PyQt5 import QtGui
 from EditorGlobal import EditorStatus, GameData
+from Utils import EditorData
 from .AutoTileRenderer import AutoTileRenderer
 from .MapRenderUtils import GridToStringGrid, QImageToRgbaTuple, RgbaBytesToQImage
 
@@ -90,10 +91,10 @@ class TilemapRenderer:
             data = tilesetKey
         if data is None:
             return None
-        cacheKey = getattr(data, "key", None) or getattr(data, "fileName", None) or str(tilesetKey)
+        fileName = EditorData.TilesetFileName(data)
+        cacheKey = EditorData.GetField(data, "key", None) or fileName or str(tilesetKey)
         if cacheKey in self._tilesetImages:
             return self._tilesetImages[cacheKey]
-        fileName = getattr(data, "fileName", "") or ""
         if not fileName:
             return None
         path = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Tilesets", fileName)

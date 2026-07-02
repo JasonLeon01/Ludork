@@ -4,6 +4,7 @@ import os
 from typing import Optional, List, Dict, Tuple
 from PyQt5 import QtCore, QtGui, QtWidgets
 from EditorGlobal import EditorStatus, GameData
+from Utils import EditorData
 from Utils import Panel
 
 
@@ -213,7 +214,7 @@ class _AutoTileBar(QtWidgets.QListWidget):
         pix = QtGui.QPixmap(size, size)
         pix.fill(QtGui.QColor(60, 60, 60))
         if data is not None:
-            fileName = getattr(data, "fileName", "") or ""
+            fileName = EditorData.AutoTileFileName(data)
             if fileName:
                 path = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Autotiles", fileName)
                 if os.path.exists(path):
@@ -389,7 +390,7 @@ class TileSelect(QtWidgets.QWidget):
         if ts is None:
             self._grid.setImage(None)
             return
-        p = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Tilesets", ts.fileName)
+        p = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Tilesets", EditorData.TilesetFileName(ts))
         img = QtGui.QImage(p)
         self._grid.setImage(img if not img.isNull() else None)
         self.TILESET_CHANGED.emit(self._currentKey)

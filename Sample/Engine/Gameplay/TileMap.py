@@ -55,6 +55,8 @@ class TileLayer(TileLayerGraphics):
         self._lightBlockImageCache: Optional[Image] = None
         self._reflectionStrengthMapCache: Optional[List[List[float]]] = None
         self._reflectionStrengthImageCache: Optional[Image] = None
+        self._ignoreLightingMapCache: Optional[List[List[float]]] = None
+        self._ignoreLightingImageCache: Optional[Image] = None
         self.visible = visible
         self.shaderPath: str = str(self._data.shaderPath or "")
         self.shader: Optional[Shader] = None
@@ -191,14 +193,14 @@ class TileLayer(TileLayerGraphics):
         """
         return self.getMaterialProperty(position, "reflectionStrength")
 
-    @ReturnType(emissive=float)
-    def getEmissive(self, position: Vector2i) -> float:
-        r"""Return the emissive value at the given position.
+    @ReturnType(ignoreLighting=bool)
+    def getIgnoreLighting(self, position: Vector2i) -> bool:
+        r"""Check whether the tile ignores ambient and direct lighting.
 
         - \param position  Grid position to query
-        - \return          Emissive lighting factor
+        - \return          `True` if the surface is rendered unlit
         """
-        return self.getMaterialProperty(position, "emissive")
+        return bool(self.getMaterialProperty(position, "ignoreLighting"))
 
     @ReturnType(speedRate=Optional[float])
     def getSpeedRate(self, position: Vector2i) -> Optional[float]:
@@ -239,6 +241,15 @@ class TileLayer(TileLayerGraphics):
             self._reflectionStrengthMapCache = super().getReflectionStrengthMap()
         return self._reflectionStrengthMapCache
 
+    def getIgnoreLightingMap(self) -> List[List[float]]:
+        r"""Build or return the cached ignore-lighting map.
+
+        - \return  2D grid of ignore-lighting values
+        """
+        if self._ignoreLightingMapCache is None:
+            self._ignoreLightingMapCache = super().getIgnoreLightingMap()
+        return self._ignoreLightingMapCache
+
     def getLightBlockImage(self) -> Image:
         r"""Build or return the cached light-block image.
 
@@ -268,6 +279,21 @@ class TileLayer(TileLayerGraphics):
                     img.setPixel(Vector2u(x, y), Color(g, g, g))
             self._reflectionStrengthImageCache = img
         return self._reflectionStrengthImageCache
+
+    def getIgnoreLightingImage(self) -> Image:
+        r"""Build or return the cached ignore-lighting image.
+
+        - \return  Grayscale `Image` where brightness = ignore-lighting
+        """
+        if self._ignoreLightingImageCache is None:
+            dataMap = self.getIgnoreLightingMap()
+            img = Image(Vector2u(self._width, self._height))
+            for y in range(self._height):
+                for x in range(self._width):
+                    g = int(dataMap[y][x] * 255)
+                    img.setPixel(Vector2u(x, y), Color(g, g, g))
+            self._ignoreLightingImageCache = img
+        return self._ignoreLightingImageCache
 
 
 class Tilemap:

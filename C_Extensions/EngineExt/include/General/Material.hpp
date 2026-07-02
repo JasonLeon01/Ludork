@@ -33,6 +33,9 @@ struct Material {
     BIND_PROPERTY()
     float speedRate = 1.0f;  ///< Movement speed multiplier for actors on this surface
 
+    BIND_PROPERTY()
+    bool ignoreLighting = false;  ///< Whether the surface is rendered without ambient or direct lighting
+
     ////////////////////////////////////////////////////////////
     /// \brief Construct a material object
     ///
@@ -41,10 +44,11 @@ struct Material {
     /// - \param inReflectionStrength Intensity of reflection if mirrored
     /// - \param inOpacity Visual opacity (0.0 = invisible, 1.0 = fully visible)
     /// - \param inSpeedRate Movement speed multiplier for actors on this surface
+    /// - \param inIgnoreLighting Whether to render without ambient or direct lighting
     ////////////////////////////////////////////////////////////
     BIND_INIT()
     Material(float lightBlock = 0.0f, bool mirror = false, float reflectionStrength = 0.5f, float opacity = 1.0f,
-             float speedRate = 1.0f);
+             float speedRate = 1.0f, bool ignoreLighting = false);
 
     ////////////////////////////////////////////////////////////
     /// \brief Serialize the material to a dictionary.

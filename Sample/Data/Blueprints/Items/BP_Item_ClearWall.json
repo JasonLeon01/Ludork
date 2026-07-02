@@ -6,7 +6,6 @@
             "mirror": false,
             "reflectionStrength": 0.5,
             "opacity": 1.0,
-            "emissive": 0.5,
             "speedRate": 1.0
         },
         "collisionEnabled": true,

@@ -149,6 +149,14 @@ public:
     std::vector<std::vector<float>> getReflectionStrengthMap() const;
 
     ////////////////////////////////////////////////////////////
+    /// \brief Build an ignore-lighting grid
+    ///
+    /// - \return 2D ignore-lighting map
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
+    std::vector<std::vector<float>> getIgnoreLightingMap() const;
+
+    ////////////////////////////////////////////////////////////
     /// \brief Advance autotile animation by an elapsed time
     ///
     /// Animation frames advance once per `frameInterval` seconds and the

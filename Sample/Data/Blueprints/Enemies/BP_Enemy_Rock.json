@@ -6,7 +6,6 @@
             "mirror": false,
             "reflectionStrength": 0.0,
             "opacity": 1.0,
-            "emissive": 0.0,
             "speedRate": 1.5
         },
         "texturePath": "enemies/classic-enemies-01-rock-single.png",

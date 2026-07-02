@@ -1,6 +1,5 @@
 # -*- encoding: utf-8 -*-
 
-import importlib
 import copy
 import os
 from enum import Enum
@@ -9,30 +8,21 @@ from typing import Any
 from PyQt5 import QtWidgets, QtGui, QtCore
 
 from EditorGlobal import EditorStatus, GameData
-from Utils import System, File
+from Utils import EditorData, System, File
 from .FileSelectorDialog import FileSelectorDialog
 from .DataclassEditDialog import DataclassEditDialog
 
 
 def _getListField(data: Any, fieldName: str) -> list:
-    value = getattr(data, fieldName, [])
-    if isinstance(value, list):
-        return list(value)
-    try:
-        return list(value)
-    except TypeError:
-        return []
+    return EditorData.GetListField(data, fieldName)
 
 
 def _setListField(data: Any, fieldName: str, value: list) -> None:
-    setattr(data, fieldName, value)
+    EditorData.SetField(data, fieldName, value)
 
 
 def _resizeList(value: list, size: int, defaultValue: Any) -> None:
-    if len(value) < size:
-        value.extend([copy.deepcopy(defaultValue) for _ in range(size - len(value))])
-    elif len(value) > size:
-        del value[size:]
+    EditorData.ResizeList(value, size, defaultValue)
 
 
 class TilesetMode(Enum):
@@ -50,8 +40,7 @@ class TilesetImageView(QtWidgets.QWidget):
         self._data = None
         self._mode = TilesetMode.PASSABLE
         self._key = None
-        Engine = System.GetModule("Engine")
-        self.MaterialClass = Engine.Material
+        self.MaterialType = getattr(System.GetModule("Engine"), "Material", None)
         self.setMouseTracking(True)
 
     def setData(self, data, image_path):
@@ -105,7 +94,7 @@ class TilesetImageView(QtWidgets.QWidget):
                     rect = QtCore.QRect(x, y, cellSize, cellSize)
 
                     if self._mode == TilesetMode.PASSABLE:
-                        passable_arr = getattr(self._data, "passable", [])
+                        passable_arr = _getListField(self._data, "passable")
                         val = False
                         if i < len(passable_arr):
                             val = bool(passable_arr[i])
@@ -121,26 +110,16 @@ class TilesetImageView(QtWidgets.QWidget):
                             painter.drawLine(draw_rect.topRight(), draw_rect.bottomLeft())
 
                     elif self._mode == TilesetMode.MATERIAL:
-                        materials = getattr(self._data, "materials", [])
+                        materials = _getListField(self._data, "materials")
                         if i < len(materials):
                             mat = materials[i]
-                            if mat and self.MaterialClass and isinstance(mat, self.MaterialClass):
-                                is_default = True
-                                matType = type(mat)
-                                for attr in dir(mat):
-                                    val = getattr(mat, attr)
-                                    if not attr.startswith("_") and not callable(val):
-                                        typeVal = getattr(matType, attr)
-                                        if val != typeVal:
-                                            is_default = False
-                                            break
-                                if not is_default:
-                                    painter.setPen(QtGui.QPen(QtGui.QColor(100, 255, 100, 200), 2))
-                                    painter.drawRect(rect.adjusted(4, 4, -4, -4))
-                                    painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255)))
-                                    painter.drawText(rect, QtCore.Qt.AlignCenter, "M")
+                            if not EditorData.IsDefaultMaterial(mat):
+                                painter.setPen(QtGui.QPen(QtGui.QColor(100, 255, 100, 200), 2))
+                                painter.drawRect(rect.adjusted(4, 4, -4, -4))
+                                painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255)))
+                                painter.drawText(rect, QtCore.Qt.AlignCenter, "M")
                     elif self._mode == TilesetMode.DIR4:
-                        dir4Arr = getattr(self._data, "dir4", [])
+                        dir4Arr = _getListField(self._data, "dir4")
                         dir4Val = (True, True, True, True)
                         if i < len(dir4Arr):
                             v = dir4Arr[i]
@@ -231,14 +210,13 @@ class TilesetImageView(QtWidgets.QWidget):
             _setListField(self._data, "passable", arr)
         elif self._mode == TilesetMode.MATERIAL:
             arr = _getListField(self._data, "materials")
-            if self.MaterialClass:
-                _resizeList(arr, count, self.MaterialClass())
-                edit_mat = copy.deepcopy(arr[idx])
-                dlg = DataclassEditDialog(self, edit_mat, ELOC("EDIT_MATERIAL"))
-                if dlg.exec_():
-                    GameData.RecordSnapshot()
-                    arr[idx] = edit_mat
-                    _setListField(self._data, "materials", arr)
+            _resizeList(arr, count, EditorData.NormaliseMaterialData())
+            edit_mat = EditorData.MaterialEditorObject(arr[idx], self.MaterialType)
+            dlg = DataclassEditDialog(self, edit_mat, ELOC("EDIT_MATERIAL"))
+            if dlg.exec_():
+                GameData.RecordSnapshot()
+                arr[idx] = EditorData.MaterialDataFromEditorObject(edit_mat)
+                _setListField(self._data, "materials", arr)
         elif self._mode == TilesetMode.DIR4:
             arrDir4 = _getListField(self._data, "dir4")
             _resizeList(arrDir4, count, (True, True, True, True))
@@ -277,8 +255,6 @@ class TilesetPanel(QtWidgets.QWidget):
         super().__init__(parent)
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
         System.SetStyle(self, "config.qss")
-        Engine = System.GetModule("Engine")
-        self.MaterialClass = Engine.Material
         self._data = None
         self._initUI()
 
@@ -329,7 +305,9 @@ class TilesetPanel(QtWidgets.QWidget):
         self._data = tilesetData
         self._key = None
         for k, v in GameData.tilesetData.items():
-            if v is tilesetData or (tilesetData and v.fileName == tilesetData.fileName):
+            if v is tilesetData or (
+                tilesetData and EditorData.TilesetFileName(v) == EditorData.TilesetFileName(tilesetData)
+            ):
                 self._key = k
                 break
         if not tilesetData:
@@ -338,14 +316,16 @@ class TilesetPanel(QtWidgets.QWidget):
             self.imageView.setData(None, None)
             return
         p = None
-        if tilesetData.fileName:
-            p = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Tilesets", tilesetData.fileName)
+        fileName = EditorData.TilesetFileName(tilesetData)
+        if fileName:
+            p = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Tilesets", fileName)
             if not os.path.exists(p):
-                tilesetData.fileName = ""
+                EditorData.SetField(tilesetData, "fileName", "")
+                fileName = ""
                 p = None
 
-        self.nameEdit.setText(getattr(tilesetData, "name", ""))
-        self.fileEdit.setText(tilesetData.fileName)
+        self.nameEdit.setText(str(EditorData.GetField(tilesetData, "name", "") or ""))
+        self.fileEdit.setText(fileName)
         self.imageView.setData(tilesetData, p)
         self.imageView.setTilesetKey(self._key)
         self.imageView.setMode(self.modeList.currentRow())
@@ -354,7 +334,7 @@ class TilesetPanel(QtWidgets.QWidget):
     def _onNameChanged(self, text):
         if self._data:
             GameData.RecordSnapshot()
-            self._data.name = text
+            EditorData.SetField(self._data, "name", text)
             self.MODIFIED.emit()
 
     def _onModeChanged(self, row):
@@ -369,7 +349,7 @@ class TilesetPanel(QtWidgets.QWidget):
         if fp:
             GameData.RecordSnapshot()
             filename = os.path.basename(fp)
-            self._data.fileName = filename
+            EditorData.SetField(self._data, "fileName", filename)
             cellSize = EditorStatus.CELLSIZE
             new_count = 0
             if isinstance(cellSize, int) and cellSize > 0:
@@ -382,7 +362,7 @@ class TilesetPanel(QtWidgets.QWidget):
             arr_m = _getListField(self._data, "materials")
             arrDir4 = _getListField(self._data, "dir4")
             _resizeList(arr_p, new_count, True)
-            _resizeList(arr_m, new_count, self.MaterialClass() if self.MaterialClass else None)
+            _resizeList(arr_m, new_count, EditorData.NormaliseMaterialData())
             _resizeList(arrDir4, new_count, (True, True, True, True))
             _setListField(self._data, "passable", arr_p)
             _setListField(self._data, "materials", arr_m)
