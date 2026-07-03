@@ -1,42 +1,21 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-import ast
 from typing import Any, Dict, Optional, Set, Tuple
+
+from Utils.DataValue import EvalDataExpression
 
 
 def ParseMetaValue(value: Any) -> Any:
     if not isinstance(value, str):
         return value
-    text = value.strip()
-    if text == "True":
-        return True
-    if text == "False":
-        return False
-    if text.lower() == "true":
-        return True
-    if text.lower() == "false":
-        return False
-    if text == "":
-        return value
-    try:
-        return ast.literal_eval(text)
-    except (ValueError, SyntaxError):
-        return value
+    return EvalDataExpression(value)
 
 
 def ToBool(value: Any) -> Optional[bool]:
     value = ParseMetaValue(value)
     if isinstance(value, bool):
         return value
-    if isinstance(value, (int, float)):
-        return bool(value)
-    if isinstance(value, str):
-        text = value.strip().lower()
-        if text in ("true", "1", "yes", "on"):
-            return True
-        if text in ("false", "0", "no", "off", ""):
-            return False
     return None
 
 

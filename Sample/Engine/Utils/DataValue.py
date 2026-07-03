@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import ast
-import sys
 from types import NoneType, UnionType
 from typing import Any, Dict, Optional, Union, get_args, get_origin, get_type_hints
 
@@ -68,15 +67,16 @@ def resolveTypedDataValue(
 
 
 def evalDataExpression(value: str, eval_locals: Optional[Dict[str, Any]] = None) -> Any:
-    text = value.strip()
-    if text in ("None", "null"):
-        return None
-    if not text:
-        return value
     try:
-        engineGlobals = getattr(sys.modules.get("Engine"), "__dict__", {})
+        return Eval(value, eval_locals)
+    except Exception:
+        pass
+    text = value.strip()
+    if not text:
+        return None
+    try:
         locals_ = dict(eval_locals) if eval_locals else {}
-        return eval(value, engineGlobals, locals_)
+        return eval(value, {}, locals_)
     except Exception:
         return value
 
@@ -147,18 +147,16 @@ def _coerceBool(value: Any) -> Any:
     if isinstance(value, bool):
         return value
     if isinstance(value, str):
-        text = value.strip().lower()
-        if text in ("true", "1", "yes", "on"):
-            return True
-        if text in ("false", "0", "no", "off"):
-            return False
-    return bool(value)
+        evaluated = evalDataExpression(value)
+        if evaluated is None or isinstance(evaluated, bool):
+            return evaluated
+    return value
 
 
 def _coerceInt(value: Any) -> Any:
     if isinstance(value, str):
         text = value.strip()
-        if text in ("None", "null"):
+        if text == "None":
             return None
         try:
             return int(text)
@@ -171,7 +169,7 @@ def _coerceInt(value: Any) -> Any:
 def _coerceFloat(value: Any) -> Any:
     if isinstance(value, str):
         text = value.strip()
-        if text in ("None", "null"):
+        if text == "None":
             return None
         try:
             return float(text)
@@ -192,9 +190,6 @@ def _coerceContainer(value: Any, containerType: type) -> Any:
 
 
 def _literalOrOriginal(value: str) -> Any:
-    text = value.strip()
-    if text in ("None", "null"):
-        return None
     try:
         return ast.literal_eval(value)
     except (ValueError, SyntaxError):

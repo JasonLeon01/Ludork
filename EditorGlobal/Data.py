@@ -1290,7 +1290,9 @@ class GameData:
             return
         if not isinstance(data, dict):
             return
-        stored = copy.deepcopy(data)
+        stored = cls._NormaliseBlueprintValue(copy.deepcopy(data))
+        if not isinstance(stored, dict):
+            return
         stored.pop("type", None)
         cls.blueprintsData[key] = stored
         cls.InvalidateBlueprintClassCache(key)

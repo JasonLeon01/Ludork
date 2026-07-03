@@ -8,6 +8,8 @@ from typing import Any, Optional, Union, get_args, get_origin
 
 from PyQt5 import QtWidgets, QtCore
 
+from Utils.DataValue import EvalDataExpression
+
 
 CONTAINER_EDITOR_MIN_WIDTH = 180
 ROW_BUTTON_WIDTH = 24
@@ -52,6 +54,13 @@ def ParseParamInitialValue(initVal: Any, paramType: Any) -> Any:
         return ast.literal_eval(text)
     except (ValueError, SyntaxError):
         return initVal
+
+
+def ParseBoolText(text: str) -> Any:
+    value = EvalDataExpression(text)
+    if value is None or isinstance(value, bool):
+        return value
+    return text
 
 
 class TypedValueEditor(QtWidgets.QWidget):
@@ -285,12 +294,12 @@ class TypedValueEditor(QtWidgets.QWidget):
 
     def _coerceTextValueForType(self, text: str, targetType: Any) -> Any:
         targetType, nullable = UnwrapOptionalType(targetType)
-        if nullable and text.strip().lower() in ("", "none", "null"):
+        if nullable and text.strip() in ("", "None"):
             return None
         if targetType is str:
             return text
         if targetType is bool:
-            return text.strip().lower() in ("1", "true", "yes", "on")
+            return ParseBoolText(text)
         if targetType is int:
             try:
                 return int(text)
@@ -436,12 +445,12 @@ class TypedValueEditor(QtWidgets.QWidget):
 
     def _coerceTextValue(self, text: str) -> Any:
         targetType = self._valueType
-        if self._nullable and text.strip().lower() in ("", "none", "null"):
+        if self._nullable and text.strip() in ("", "None"):
             return None
         if targetType is str:
             return text
         if targetType is bool:
-            return text.strip().lower() in ("1", "true", "yes", "on")
+            return ParseBoolText(text)
         if targetType is int:
             try:
                 return int(text)
@@ -462,7 +471,7 @@ class TypedValueEditor(QtWidgets.QWidget):
 
     def _textFromValue(self, value: Any) -> str:
         if self._nullable and value is None:
-            return "None"
+            return ""
         if value is None:
             return ""
         return str(value)

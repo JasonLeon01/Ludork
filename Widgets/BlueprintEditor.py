@@ -214,6 +214,13 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
         self.setupUI()
         self.toast = Toast(self)
 
+    def _normaliseBlueprintDataForMemory(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        normalised = GameData._NormaliseBlueprintValue(copy.deepcopy(data))
+        return normalised if isinstance(normalised, dict) else {}
+
+    def _storeBlueprintData(self) -> None:
+        GameData.blueprintsData[self.title] = self._normaliseBlueprintDataForMemory(self.data)
+
     def setBlueprintKey(self, title: str) -> None:
         if self.title == title:
             return
@@ -810,7 +817,7 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
         target_cls = cls if cls is not None else parent_cls
         componentsChanged = self._normaliseComponentAttrs(target_cls, attrs)
         if componentsChanged:
-            GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
+            self._storeBlueprintData()
         componentTypes = self._getComponentTypes(target_cls)
         componentFieldMap = self._getComponentFieldMap(componentTypes)
         componentSkipKeys = set(componentTypes.keys()) | set(componentFieldMap.keys())
@@ -972,12 +979,13 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
         except Exception:
             pass
         if isAttr:
+            value = GameData._NormaliseBlueprintValue(copy.deepcopy(value))
             if "attrs" in self.data and isinstance(self.data["attrs"], dict):
                 self.data["attrs"][key] = value
         else:
             self.data[key] = value
         GameData.RecordSnapshot()
-        GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
+        self._storeBlueprintData()
         self.MODIFIED.emit()
         if not isAttr and key == "parent":
             self.refreshGraphList()
@@ -991,7 +999,7 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
                 GameData.RecordSnapshot()
                 del self.data["attrs"][key]
                 self.refreshAttrs()
-                GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
+                self._storeBlueprintData()
                 self.MODIFIED.emit()
                 self._refreshPreview()
 
@@ -1053,12 +1061,13 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
         GameData.RecordSnapshot()
         saved = self._stripGeneralDataFromComponent(cls, key, copy.deepcopy(widget.data))
         saved = self._pruneComponentDataToStored(componentType, saved)
+        saved = GameData._NormaliseBlueprintValue(copy.deepcopy(saved))
         if saved:
             attrs[key] = saved
         elif key in attrs:
             del attrs[key]
         self.refreshAttrs()
-        GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
+        self._storeBlueprintData()
         self.MODIFIED.emit()
 
     def onAddComponent(self) -> None:
@@ -1094,9 +1103,10 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
             return
 
         GameData.RecordSnapshot()
-        attrs[componentName] = self._getComponentDefaults(componentType)
+        componentDefaults = self._getComponentDefaults(componentType)
+        attrs[componentName] = GameData._NormaliseBlueprintValue(copy.deepcopy(componentDefaults))
         self.refreshAttrs()
-        GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
+        self._storeBlueprintData()
         self.MODIFIED.emit()
 
     def onAddAttr(self) -> None:
@@ -1130,7 +1140,7 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
             GameData.RecordSnapshot()
             self.data["attrs"][key] = ""
             self.refreshAttrs()
-            GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
+            self._storeBlueprintData()
             self.MODIFIED.emit()
 
     def onSelectPath(self, key: str, widget: QtWidgets.QLineEdit) -> None:
@@ -1363,9 +1373,11 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
 
     def _refreshData(self, name: str, data: Dict[str, Any]) -> None:
         GameData.RecordSnapshot()
+        normalisedGraph = GameData._NormaliseBlueprintValue(copy.deepcopy(data))
+        graphData = normalisedGraph if isinstance(normalisedGraph, dict) else data
         if name in GameData.blueprintsData:
-            GameData.blueprintsData[name]["graph"] = data
-        self.data["graph"] = data
+            GameData.blueprintsData[name]["graph"] = graphData
+        self.data["graph"] = copy.deepcopy(graphData)
         self.MODIFIED.emit()
 
     def _isPreviewGraphItem(self, item: Optional[QtWidgets.QListWidgetItem]) -> bool:
@@ -1433,7 +1445,7 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
         GameData.RecordSnapshot()
         nodeGraph[name] = {"nodes": [], "links": []}
         startNodes[name] = None
-        GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
+        self._storeBlueprintData()
         self.refreshGraphList()
         item = self._findGraphListItem(name)
         if item is not None:
@@ -1467,7 +1479,7 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
             panel = self.graphs.pop(name)
             self.stackedWidget.removeWidget(panel)
             panel.deleteLater()
-        GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
+        self._storeBlueprintData()
         self.refreshGraphList()
         if self.nodeGraphList.count() > 0:
             self.nodeGraphList.setCurrentRow(0)
@@ -1517,7 +1529,7 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
             panel = self.graphs.pop(old_name)
             panel.setName(new_name)
             self.graphs[new_name] = panel
-        GameData.blueprintsData[self.title] = copy.deepcopy(self.data)
+        self._storeBlueprintData()
         self.refreshGraphList()
         item = self._findGraphListItem(new_name)
         if item is not None:

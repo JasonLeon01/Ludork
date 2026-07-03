@@ -3,7 +3,7 @@ r"""
 \brief Core engine package providing fundamental types, utilities and subsystem access.
 """
 
-from typing import Any, GenericAlias, List, cast, get_args, get_origin, Union
+from typing import Any, Dict, GenericAlias, List, Optional, cast, get_args, get_origin, Union
 from types import UnionType, NoneType
 from enum import IntEnum
 import builtins
@@ -141,15 +141,17 @@ def AssertType[T](obj: Any, type_: type[T]) -> None:
     assert isinstance(obj, type_), f"Assert failed: expected {type_.__name__}, " f"got {type(obj).__name__}"
 
 
-def Eval(expr: str) -> Any:
+def Eval(expr: str, eval_locals: Optional[Dict[str, Any]] = None) -> Any:
     r"""
     \brief Evaluate a string expression as Python Python code.
 
     - \param expr The expression to evaluate.
+    - \param eval_locals Optional local variables used during evaluation.
     - \return The result of the evaluation.
     """
     if isinstance(expr, str) and expr:
-        return eval(expr)
+        locals_ = dict(eval_locals) if eval_locals else {}
+        return eval(expr, globals(), locals_)
     return None
 
 

@@ -4,7 +4,8 @@ from __future__ import annotations
 import os
 import inspect
 import copy
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union, Tuple, get_type_hints
+from types import NoneType, UnionType
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union, Tuple, get_args, get_origin, get_type_hints
 from PyQt5 import QtWidgets, QtCore, QtGui
 from NodeGraphQt import NodeGraph, BaseNode
 from NodeGraphQt.widgets.viewer import NodeViewer
@@ -80,8 +81,48 @@ def FormatNodeParamDefault(value: Any) -> str:
     return str(value)
 
 
+def FormatNodeParamEditorText(value: Any) -> str:
+    return "" if value is None else str(value)
+
+
 def IsBoolParamType(paramType: Any) -> bool:
+    paramType = UnwrapOptionalParamType(paramType)
     return paramType is bool or paramType == "bool"
+
+
+def UnwrapOptionalParamType(paramType: Any) -> Any:
+    origin = get_origin(paramType)
+    if origin not in (Union, UnionType) and not isinstance(paramType, UnionType):
+        return paramType
+    args = [arg for arg in get_args(paramType) if arg is not NoneType]
+    return args[0] if len(args) == 1 else paramType
+
+
+def GetScalarParamKind(paramType: Any) -> str:
+    paramType = UnwrapOptionalParamType(paramType)
+    if paramType is bool or paramType == "bool":
+        return "bool"
+    if paramType is int or paramType == "int":
+        return "int"
+    if paramType is float or paramType == "float":
+        return "float"
+    origin = get_origin(paramType)
+    if origin not in (Union, UnionType) and not isinstance(paramType, UnionType):
+        return ""
+    args = [arg for arg in get_args(paramType) if arg is not NoneType]
+    if args and all(arg in (int, float) for arg in args):
+        return "float" if float in args else "int"
+    return ""
+
+
+def GetContainerParamKind(paramType: Any) -> str:
+    paramType = UnwrapOptionalParamType(paramType)
+    origin = get_origin(paramType)
+    if origin is list or paramType is list:
+        return "list"
+    if origin is dict or paramType is dict:
+        return "dict"
+    return ""
 
 
 def GetFunctionTypeHints(func: Callable) -> Dict[str, Any]:
@@ -93,8 +134,18 @@ def GetFunctionTypeHints(func: Callable) -> Dict[str, Any]:
 
 def FormatNodeParamInitialValue(paramType: Any, default: Any) -> Any:
     if default is inspect.Parameter.empty:
-        if IsBoolParamType(paramType):
+        scalarKind = GetScalarParamKind(paramType)
+        if scalarKind == "bool":
             return False
+        if scalarKind == "int":
+            return 0
+        if scalarKind == "float":
+            return 0.0
+        containerKind = GetContainerParamKind(paramType)
+        if containerKind == "list":
+            return []
+        if containerKind == "dict":
+            return {}
         return ""
     if default is None:
         return None
@@ -247,6 +298,17 @@ def GetMetaTransferVars(meta: Any) -> Dict[str, str]:
     return result
 
 
+def GetMetaStringVars(meta: Any, key: str) -> set[str]:
+    if not isinstance(meta, dict):
+        return set()
+    rawVars = meta.get(key)
+    if isinstance(rawVars, str):
+        return {rawVars}
+    if isinstance(rawVars, (list, tuple, set)):
+        return {name for name in rawVars if isinstance(name, str)}
+    return set()
+
+
 def CollectMetaPathVars(paths: Dict[str, str], value: Any) -> None:
     if isinstance(value, tuple) and len(value) >= 2 and isinstance(value[0], str):
         paths[value[0]] = NormalisePathVarAssetsDir(value[1])
@@ -285,6 +347,8 @@ def GetPathVarBaseDir(pathVarMap: Dict[str, str], key: str) -> str:
 
 
 def GetWidgetValue(widget: QtWidgets.QWidget) -> WidgetValue:
+    if isinstance(widget, NodeStringPickerEditor):
+        return widget.getValue()
     if isinstance(widget, GeneralDataComboBox):
         return widget.getValue()
     if isinstance(widget, NodePathEditor):
@@ -350,6 +414,9 @@ class GeneralDataComboBox(QtWidgets.QComboBox):
 
 
 def SetEditorWidgetEditable(widget: QtWidgets.QWidget, editable: bool) -> None:
+    if isinstance(widget, NodeStringPickerEditor):
+        widget.setEditable(editable)
+        return
     if isinstance(widget, NodePathEditor):
         widget.setEditable(editable)
         return
@@ -463,6 +530,128 @@ class NodePathEditor(QtWidgets.QWidget):
         self.VALUE_CHANGED.emit(self.getValue())
 
 
+class NodeStringPickerEditor(QtWidgets.QWidget):
+    VALUE_CHANGED = QtCore.pyqtSignal(str)
+
+    def __init__(self, value: Any = None, parent: Optional[QtWidgets.QWidget] = None) -> None:
+        super(NodeStringPickerEditor, self).__init__(parent)
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        self._lineEdit = QtWidgets.QLineEdit(self)
+        self._lineEdit.setText("" if value is None else str(value))
+        self._lineEdit.setReadOnly(True)
+        self._lineEdit.setCursor(QtCore.Qt.ArrowCursor)
+        self._lineEdit.setFocusPolicy(QtCore.Qt.NoFocus)
+        System.SetStyle(self._lineEdit, "nodeInput.qss")
+        layout.addWidget(self._lineEdit, 1)
+
+        self._browseBtn = QtWidgets.QPushButton("...", self)
+        self._browseBtn.setObjectName("PathBtn")
+        self._browseBtn.setFixedWidth(24)
+        self._browseBtn.clicked.connect(self._onBrowse)
+        layout.addWidget(self._browseBtn, 0)
+
+    def getValue(self) -> str:
+        return self._lineEdit.text()
+
+    def setValue(self, value: Any, emit: bool = True) -> None:
+        text = "" if value is None else str(value)
+        wasBlocked = self._lineEdit.blockSignals(True)
+        self._lineEdit.setText(text)
+        self._lineEdit.blockSignals(wasBlocked)
+        if emit:
+            self.VALUE_CHANGED.emit(text)
+
+    def setEditable(self, editable: bool) -> None:
+        self.setEnabled(editable)
+        self._lineEdit.setReadOnly(True)
+        self._browseBtn.setEnabled(editable)
+
+    def _onBrowse(self) -> None:
+        value = self.selectValue()
+        if value:
+            self.setValue(value)
+
+    def selectValue(self) -> str:
+        return ""
+
+
+class NodeBlueprintClassEditor(NodeStringPickerEditor):
+    def selectValue(self) -> str:
+        from Widgets.ClassSelector import ClassSelector
+
+        dlg = ClassSelector(GetIndependentDialogParent(self))
+        if dlg.exec_() != QtWidgets.QDialog.Accepted:
+            return ""
+        selected = dlg.getSelected()
+        return selected if isinstance(selected, str) else ""
+
+
+class CommonFunctionSelectorDialog(QtWidgets.QDialog):
+    def __init__(self, parent: Optional[QtWidgets.QWidget], currentValue: str = "") -> None:
+        super(CommonFunctionSelectorDialog, self).__init__(parent)
+        self.setWindowTitle(ELOC("COMMON_FUNCTIONS"))
+        self._selected = ""
+        self.resize(360, 420)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        self._searchEdit = QtWidgets.QLineEdit(self)
+        self._searchEdit.setPlaceholderText(ELOC("SEARCH"))
+        self._searchEdit.textChanged.connect(self._filterItems)
+        layout.addWidget(self._searchEdit)
+
+        self._listWidget = QtWidgets.QListWidget(self)
+        self._listWidget.itemDoubleClicked.connect(self._acceptItem)
+        layout.addWidget(self._listWidget, 1)
+
+        btnLayout = QtWidgets.QHBoxLayout()
+        btnLayout.addStretch()
+        okBtn = QtWidgets.QPushButton(ELOC("CONFIRM"), self)
+        okBtn.clicked.connect(self.accept)
+        cancelBtn = QtWidgets.QPushButton(ELOC("CANCEL"), self)
+        cancelBtn.clicked.connect(self.reject)
+        btnLayout.addWidget(okBtn)
+        btnLayout.addWidget(cancelBtn)
+        layout.addLayout(btnLayout)
+
+        self._items = sorted(str(key) for key in GameData.commonFunctionsData.keys())
+        self._filterItems("")
+        if currentValue:
+            matches = self._listWidget.findItems(currentValue, QtCore.Qt.MatchExactly)
+            if matches:
+                self._listWidget.setCurrentItem(matches[0])
+
+    def getSelected(self) -> str:
+        return self._selected
+
+    def accept(self) -> None:
+        item = self._listWidget.currentItem()
+        if item is not None:
+            self._selected = item.text()
+        super(CommonFunctionSelectorDialog, self).accept()
+
+    def _acceptItem(self, item: QtWidgets.QListWidgetItem) -> None:
+        self._selected = item.text()
+        super(CommonFunctionSelectorDialog, self).accept()
+
+    def _filterItems(self, text: str) -> None:
+        needle = text.strip().lower()
+        self._listWidget.clear()
+        for item in self._items:
+            if not needle or needle in item.lower():
+                self._listWidget.addItem(item)
+
+
+class NodeCommonFunctionEditor(NodeStringPickerEditor):
+    def selectValue(self) -> str:
+        dlg = CommonFunctionSelectorDialog(GetIndependentDialogParent(self), self.getValue())
+        if dlg.exec_() != QtWidgets.QDialog.Accepted:
+            return ""
+        return dlg.getSelected()
+
+
 class NodePathWidget(NodeBaseWidget):
     def __init__(
         self,
@@ -490,6 +679,44 @@ class NodePathWidget(NodeBaseWidget):
         if not isinstance(editor, NodePathEditor):
             return
         editor.setValue(value, emit=False)
+
+
+class NodeStringPickerWidget(NodeBaseWidget):
+    editorClass = NodeStringPickerEditor
+
+    def __init__(
+        self,
+        parent: Optional[QtWidgets.QWidget] = None,
+        name: str = "",
+        label: str = "",
+        value: Any = None,
+    ) -> None:
+        super(NodeStringPickerWidget, self).__init__(parent)
+        self.set_name(name)
+        self.set_label(label)
+        editor = self.editorClass(value)
+        self.set_custom_widget(editor)
+        editor.VALUE_CHANGED.connect(self.on_value_changed)
+
+    def get_value(self) -> str:
+        editor = self.get_custom_widget()
+        if not isinstance(editor, NodeStringPickerEditor):
+            return ""
+        return editor.getValue()
+
+    def set_value(self, value: WidgetValue) -> None:
+        editor = self.get_custom_widget()
+        if not isinstance(editor, NodeStringPickerEditor):
+            return
+        editor.setValue(value, emit=False)
+
+
+class NodeBlueprintClassWidget(NodeStringPickerWidget):
+    editorClass = NodeBlueprintClassEditor
+
+
+class NodeCommonFunctionWidget(NodeStringPickerWidget):
+    editorClass = NodeCommonFunctionEditor
 
 
 class NodeMultiLineTextWidget(NodeBaseWidget):
@@ -725,6 +952,8 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
         pathVarMap = GetMetaPathVars(meta)
         moveRouteVars = GetMetaMoveRouteVars(meta)
         transferVars = GetMetaTransferVars(meta)
+        blueprintClassVars = GetMetaStringVars(meta, "BlueprintClassVars")
+        commonFunctionVars = GetMetaStringVars(meta, "CommonFunctionVars")
         self._relyMap = NormaliseRelyMap(meta.get("Rely"))
         self.META = meta
 
@@ -742,6 +971,8 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
             isPath = name in pathVarMap
             isMoveRoute = name in moveRouteVars
             isTransfer = name in transferVars
+            isBlueprintClass = name in blueprintClassVars
+            isCommonFunction = name in commonFunctionVars
 
             type_str = FormatParamTypeName(param_type)
             if isTransfer:
@@ -754,6 +985,10 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
                 type_str = NormaliseVectorVarType(varType)
             elif isPath:
                 type_str = "Path"
+            elif isBlueprintClass:
+                type_str = "BlueprintClass"
+            elif isCommonFunction:
+                type_str = "CommonFunction"
             display_label = f"{name} ({type_str})"
 
             containerEditorType = GetSimpleContainerEditorType(param_type)
@@ -789,6 +1024,22 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
                     baseDir=GetPathVarBaseDir(pathVarMap, name),
                 )
                 self.add_custom_widget(nodeWidget)
+            elif isBlueprintClass:
+                nodeWidget = NodeBlueprintClassWidget(
+                    self.view,
+                    name=widgetName,
+                    label=display_label,
+                    value=init_val,
+                )
+                self.add_custom_widget(nodeWidget)
+            elif isCommonFunction:
+                nodeWidget = NodeCommonFunctionWidget(
+                    self.view,
+                    name=widgetName,
+                    label=display_label,
+                    value=init_val,
+                )
+                self.add_custom_widget(nodeWidget)
             elif varType == _GENERALDATA_VAR_TYPE and name in gdVars:
                 nodeWidget = NodeGeneralDataWidget(
                     self.view,
@@ -813,15 +1064,15 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
                     if isinstance(le, QtWidgets.QComboBox):
                         le.setCurrentText(str(init_val))
                     System.SetStyle(le, "nodeInput.qss")
-            elif param_type is bool or param_type == "bool":
+            elif GetScalarParamKind(param_type) == "bool":
                 boolVal = ToBool(init_val)
                 self.add_checkbox(
                     name=widgetName,
                     label=display_label,
                     text="",
-                    state=boolVal if boolVal is not None else bool(init_val),
+                    state=boolVal if boolVal is not None else False,
                 )
-            elif param_type is int or param_type == "int":
+            elif GetScalarParamKind(param_type) == "int":
                 try:
                     val = int(init_val)
                 except (ValueError, TypeError):
@@ -838,7 +1089,7 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
                 if w:
                     le = w.get_custom_widget()
                     System.SetStyle(le, "nodeInput.qss")
-            elif param_type is float or param_type == "float":
+            elif GetScalarParamKind(param_type) == "float":
                 try:
                     val = float(init_val)
                 except (ValueError, TypeError):
@@ -871,7 +1122,7 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
                     System.SetStyle(le, "nodeInput.qss")
             else:
                 nodeWidget = NodeMultiLineTextWidget(
-                    self.view, name=widgetName, label=display_label, text=str(init_val)
+                    self.view, name=widgetName, label=display_label, text=FormatNodeParamEditorText(init_val)
                 )
                 self.add_custom_widget(nodeWidget)
                 w = self.get_widget(widgetName)
@@ -1105,13 +1356,13 @@ class NodePanel(QtWidgets.QWidget):
                     if paramIndex < len(node.params) and node.params[paramIndex] != val:
                         node.params[paramIndex] = val
                     if isinstance(le, QtWidgets.QLineEdit):
-                        le.setText(str(val))
+                        le.setText(FormatNodeParamEditorText(val))
                         le.editingFinished.connect(
                             lambda n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
                         )
                     elif isinstance(le, QtWidgets.QPlainTextEdit):
                         wasBlocked = le.blockSignals(True)
-                        le.setPlainText(str(val))
+                        le.setPlainText(FormatNodeParamEditorText(val))
                         le.blockSignals(wasBlocked)
                         if isinstance(le, NodePlainTextEdit):
                             le.EDITING_FINISHED.connect(
@@ -1122,7 +1373,7 @@ class NodePanel(QtWidgets.QWidget):
                         )
                     elif isinstance(le, QtWidgets.QCheckBox):
                         boolVal = ToBool(val)
-                        le.setChecked(boolVal if boolVal is not None else bool(val))
+                        le.setChecked(boolVal if boolVal is not None else False)
                         le.toggled.connect(
                             lambda checked, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
                         )
@@ -1143,7 +1394,7 @@ class NodePanel(QtWidgets.QWidget):
                             lambda val, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
                         )
                     elif isinstance(le, QtWidgets.QComboBox):
-                        le.setCurrentText(str(val))
+                        le.setCurrentText(FormatNodeParamEditorText(val))
                         le.currentIndexChanged.connect(
                             lambda idx, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
                         )
@@ -1206,6 +1457,11 @@ class NodePanel(QtWidgets.QWidget):
                                 _makeMapKeySetter(i, _mapPI, nodeInst, _mapPN, self)
                             )
                     elif isinstance(le, NodePathEditor):
+                        le.setValue(val, emit=False)
+                        le.VALUE_CHANGED.connect(
+                            lambda _, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
+                        )
+                    elif isinstance(le, NodeStringPickerEditor):
                         le.setValue(val, emit=False)
                         le.VALUE_CHANGED.connect(
                             lambda _, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)

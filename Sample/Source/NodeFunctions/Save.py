@@ -15,7 +15,7 @@ def _getSceneMap() -> Any:
 
 @Meta(DisplayName='LOC("SAVE_GAME")', DisplayDesc='LOC("SAVE_GAME_DESC")')
 @ExecSplit(default=(None,))
-def SaveGame(filePath: str) -> None:
+def SaveGame(filePath: str = "") -> None:
     r"""\brief Save the current game state to a file.
 
     - \param filePath Path to the save file (.json for human-readable, .dat for binary).
@@ -25,7 +25,7 @@ def SaveGame(filePath: str) -> None:
 
 @Meta(DisplayName='LOC("LOAD_GAME")', DisplayDesc='LOC("LOAD_GAME_DESC")')
 @ExecSplit(Loaded=(0,), NotFound=(1,))
-def LoadGame(filePath: str) -> int:
+def LoadGame(filePath: str = "") -> int:
     r"""\brief Load game state from a file and apply it to the current scene.
 
     - \param filePath Path to the save file (.json or .dat).
@@ -38,7 +38,11 @@ def LoadGame(filePath: str) -> int:
     return 0
 
 
-@Meta(DisplayName='LOC("GET_SAVE_PATH")', DisplayDesc='LOC("GET_SAVE_PATH_DESC")')
+@Meta(
+    DisplayName='LOC("GET_SAVE_PATH")',
+    DisplayDesc='LOC("GET_SAVE_PATH_DESC")',
+    DropBox={"ext": ["dat", "json"]},
+)
 @ReturnType(path=str)
 def GetSavePath(slot: int = 1, ext: str = "dat") -> str:
     r"""\brief Get the platform-specific save file path for a given slot.

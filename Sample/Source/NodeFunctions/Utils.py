@@ -280,9 +280,13 @@ def GetGameVariableRef(valueName: str, default: Any = None) -> Any:
     return _localRef(_getSceneMap().inst.getVariables(), valueName, default)
 
 
-@Meta(DisplayName='LOC("ADD_PLAYER_BY_CLASS")', DisplayDesc='LOC("ADD_PLAYER_BY_CLASS_DESC")')
+@Meta(
+    DisplayName='LOC("ADD_PLAYER_BY_CLASS")',
+    DisplayDesc='LOC("ADD_PLAYER_BY_CLASS_DESC")',
+    BlueprintClassVars=["playerClass"],
+)
 @ExecSplit(default=(None,))
-def AddPlayerByClass(playerClass: str) -> None:
+def AddPlayerByClass(playerClass: str = "") -> None:
     r"""\brief Add a new player by class path.
 
     - \param playerClass The class path for the player blueprint.
@@ -290,9 +294,13 @@ def AddPlayerByClass(playerClass: str) -> None:
     _getSceneMap().inst.addPlayerByClass(playerClass)
 
 
-@Meta(DisplayName='LOC("REMOVE_PLAYER_BY_CLASS")', DisplayDesc='LOC("REMOVE_PLAYER_BY_CLASS_DESC")')
+@Meta(
+    DisplayName='LOC("REMOVE_PLAYER_BY_CLASS")',
+    DisplayDesc='LOC("REMOVE_PLAYER_BY_CLASS_DESC")',
+    BlueprintClassVars=["playerClass"],
+)
 @ExecSplit(default=(None,))
-def RemovePlayerByClass(playerClass: str) -> None:
+def RemovePlayerByClass(playerClass: str = "") -> None:
     r"""\brief Remove a player by class path.
 
     - \param playerClass The class path to remove.
@@ -522,9 +530,13 @@ def ToShortNumber(value: Any = 0) -> Any:
     return numericValue
 
 
-@Meta(DisplayName='LOC("RUN_COMMON_FUNCTION")', DisplayDesc='LOC("RUN_COMMON_FUNCTION_DESC")')
+@Meta(
+    DisplayName='LOC("RUN_COMMON_FUNCTION")',
+    DisplayDesc='LOC("RUN_COMMON_FUNCTION_DESC")',
+    CommonFunctionVars=["commonFunctionName"],
+)
 @ExecSplit(default=(None,))
-def RunCommonFunction(commonFunctionName: str) -> Any:
+def RunCommonFunction(commonFunctionName: str = "") -> Any:
     callerGraph = RunCommonFunction._refLocal.get("__graph__")
     commonGraph = Data.getCommonFunction(commonFunctionName)
     if callerGraph is not None:
@@ -700,9 +712,13 @@ def IfPlayerOverlaps() -> bool:
     return obj in gameMap.getOverlaps(player)
 
 
-@Meta(DisplayName='LOC("IF_GAME_VAR")', DisplayDesc='LOC("IF_GAME_VAR_DESC")')
+@Meta(
+    DisplayName='LOC("IF_GAME_VAR")',
+    DisplayDesc='LOC("IF_GAME_VAR_DESC")',
+    DropBox={"op": ["==", "!=", "<", "<=", ">", ">="]},
+)
 @ExecSplit(TRUE=(True,), FALSE=(False,))
-def IfGameVar(varName: str, op: str = "==", value: Any = None) -> bool:
+def IfGameVar(varName: str = "", op: str = "==", value: Any = None) -> bool:
     r"""\brief Compare a game variable with a value.
 
     - \param varName The game variable name.

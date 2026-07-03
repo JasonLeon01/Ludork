@@ -2,6 +2,7 @@
 
 import os
 import sys
+import copy
 import inspect
 import dataclasses
 import logging
@@ -330,7 +331,7 @@ class DatabaseMenuMixin:
                             and not inspect.isfunction(v)
                             and not isinstance(v, (classmethod, staticmethod))
                         ):
-                            attrs[k] = v
+                            attrs[k] = GameData._NormaliseBlueprintValue(copy.deepcopy(v))
                 else:
                     for k, v in cls.__dict__.items():
                         if (
@@ -338,7 +339,7 @@ class DatabaseMenuMixin:
                             and not callable(v)
                             and not isinstance(v, (classmethod, staticmethod, property))
                         ):
-                            attrs[k] = v
+                            attrs[k] = GameData._NormaliseBlueprintValue(copy.deepcopy(v))
 
                     try:
                         type_hints = get_type_hints(cls)
@@ -346,11 +347,17 @@ class DatabaseMenuMixin:
                             if name.startswith("_"):
                                 continue
                             if dataclasses.is_dataclass(type_hint):
-                                attrs[name] = self._dataclassToDictDefaults(type_hint)
+                                attrs[name] = GameData._NormaliseBlueprintValue(
+                                    self._dataclassToDictDefaults(type_hint)
+                                )
                     except Exception as e:
                         print(f"Error processing dataclass hints for {cls}: {e}")
         except Exception as e:
             print(f"Error resolving parent info: {e}")
+
+        attrs = GameData._NormaliseBlueprintValue(copy.deepcopy(attrs))
+        if not isinstance(attrs, dict):
+            attrs = {}
 
         data = {
             "type": "blueprint",
@@ -360,8 +367,11 @@ class DatabaseMenuMixin:
         }
         if ext.lower() == ".json":
             data["isJson"] = True
+        stored = GameData._NormaliseBlueprintValue(copy.deepcopy(data))
+        if not isinstance(stored, dict):
+            return
         GameData.RecordSnapshot()
-        GameData.blueprintsData[key] = data
+        GameData.blueprintsData[key] = stored
         self._refreshInfo()
         QtWidgets.QMessageBox.information(self, ELOC("SUCCESS"), ELOC("HINT_CREATE_BP_SUCCESS"))
 

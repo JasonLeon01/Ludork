@@ -66,10 +66,8 @@ def ResolveTypedDataValue(
 
 def EvalDataExpression(value: str, eval_locals: Optional[Dict[str, Any]] = None) -> Any:
     text = value.strip()
-    if text in ("None", "null"):
-        return None
     if not text:
-        return value
+        return None
     try:
         engineGlobals = getattr(sys.modules.get("Engine"), "__dict__", {})
         locals_ = dict(eval_locals) if eval_locals else {}
@@ -144,18 +142,16 @@ def _coerceBool(value: Any) -> Any:
     if isinstance(value, bool):
         return value
     if isinstance(value, str):
-        text = value.strip().lower()
-        if text in ("true", "1", "yes", "on"):
-            return True
-        if text in ("false", "0", "no", "off"):
-            return False
-    return bool(value)
+        evaluated = EvalDataExpression(value)
+        if evaluated is None or isinstance(evaluated, bool):
+            return evaluated
+    return value
 
 
 def _coerceInt(value: Any) -> Any:
     if isinstance(value, str):
         text = value.strip()
-        if text in ("None", "null"):
+        if text == "None":
             return None
         try:
             return int(text)
@@ -168,7 +164,7 @@ def _coerceInt(value: Any) -> Any:
 def _coerceFloat(value: Any) -> Any:
     if isinstance(value, str):
         text = value.strip()
-        if text in ("None", "null"):
+        if text == "None":
             return None
         try:
             return float(text)
@@ -189,9 +185,6 @@ def _coerceContainer(value: Any, containerType: type) -> Any:
 
 
 def _literalOrOriginal(value: str) -> Any:
-    text = value.strip()
-    if text in ("None", "null"):
-        return None
     try:
         return ast.literal_eval(value)
     except (ValueError, SyntaxError):

@@ -97,7 +97,7 @@ def _getBlueprintOwner(refLocal) -> Optional[Any]:
 )
 @ExecSplit(default=(None,))
 def GotoMap(
-    mapPath: str,
+    mapPath: str = "",
     blockTransition: bool = False,
     position: Optional[Union[Vector2i, Pair[int], List[int], Tuple[int, int]]] = None,
 ) -> None:
@@ -202,8 +202,8 @@ def ShowVoiceMessage(
 @Meta(DisplayName='LOC("SHOW_SELECTION")', DisplayDesc='LOC("SHOW_SELECTION_DESC")')
 @Latent(Selected0=(0,), Selected1=(1,), Selected2=(2,), Selected3=(3,), Cancelled=(-1,))
 def ShowSelection(
-    name: str,
-    options: List[str],
+    name: str = "",
+    options: List[str] = [],
     refActorTag: str = "",
     allowCancel: bool = True,
 ) -> Callable[[], Optional[int]]:
@@ -215,9 +215,9 @@ def ShowSelection(
 @Meta(DisplayName='LOC("SHOW_REF_SELECTION")', DisplayDesc='LOC("SHOW_REF_SELECTION_DESC")')
 @Latent(Selected0=(0,), Selected1=(1,), Selected2=(2,), Selected3=(3,), Cancelled=(-1,))
 def ShowRefSelection(
-    name: str,
-    options: List[str],
-    refActor: Actor,
+    name: str = "",
+    options: List[str] = [],
+    refActor: Actor = None,
     allowCancel: bool = True,
 ) -> Callable[[], Optional[int]]:
     r"""\brief Show a selection window on the current map scene positioned by a direct actor reference."""
@@ -281,7 +281,7 @@ def MoveCamera(delta: Any) -> None:
 
 @Meta(DisplayName='LOC("RECORD_TELEPOINT")', DisplayDesc='LOC("RECORD_TELEPOINT_DESC")')
 @ExecSplit(default=(None,))
-def RecordTelepoint(mapPath: str, x: int = 0, y: int = 0) -> None:
+def RecordTelepoint(mapPath: str = "", x: int = 0, y: int = 0) -> None:
     r"""\brief Record a telepoint in the current game instance.
 
     - \param mapPath The map path where the telepoint is located.
@@ -294,12 +294,13 @@ def RecordTelepoint(mapPath: str, x: int = 0, y: int = 0) -> None:
 @Meta(
     DisplayName='LOC("CREATE_ACTOR_FROM_BP_PATH")',
     DisplayDesc='LOC("CREATE_ACTOR_FROM_BP_PATH_DESC")',
+    BlueprintClassVars=["bpPath"],
     Vector2iVars=["position"],
 )
 @ExecSplit(default=(None,))
 @ReturnType(actor=Optional[Actor])
 def CreateActorFromBPPath(
-    bpPath: str,
+    bpPath: str = "",
     layerName: str = "default",
     position: Optional[Union[Vector2i, Vector2u, Pair[int], List[int], Tuple[int, int]]] = None,
     tag: str = "",
@@ -332,12 +333,13 @@ def CreateActorFromBPPath(
 @Meta(
     DisplayName='LOC("CREATE_ACTOR_FROM_BP_PATH_WITH_DEFAULTS")',
     DisplayDesc='LOC("CREATE_ACTOR_FROM_BP_PATH_WITH_DEFAULTS_DESC")',
+    BlueprintClassVars=["bpPath"],
     Vector2iVars=["position"],
 )
 @ExecSplit(default=(None,))
 @ReturnType(actor=Optional[Actor])
 def CreateActorFromBPPathWithDefaults(
-    bpPath: str,
+    bpPath: str = "",
     defaults: Dict[str, Any] = {},
     layerName: str = "default",
     position: Optional[Union[Vector2i, Vector2u, Pair[int], List[int], Tuple[int, int]]] = None,
@@ -389,7 +391,7 @@ def DestroyTerrain(
 
 @Meta(DisplayName='LOC("DESTROY_TERRAIN_LIST")', DisplayDesc='LOC("DESTROY_TERRAIN_LIST_DESC")')
 @ExecSplit(default=(None,))
-def DestroyTerrainList(layerName: str, positions: List[Any], tileID: Any = None) -> None:
+def DestroyTerrainList(layerName: str, positions: List[Any] = [], tileID: Any = None) -> None:
     r"""\brief Replace and persist multiple terrain tiles on the current map.
 
     - \param layerName The tile layer to edit.
@@ -523,7 +525,7 @@ def SelfRecordAndDestroy() -> None:
 
 @Meta(DisplayName='LOC("OPEN_SHOP")', DisplayDesc='LOC("OPEN_SHOP_DESC")')
 @Latent(Closed=(True,))
-def OpenShop(items: List[str], canSell: bool = True) -> Callable[[], bool]:
+def OpenShop(items: List[str] = [], canSell: bool = True) -> Callable[[], bool]:
     r"""\brief Open the map-bound shop.
 
     - \param items Item IDs available for purchase.
