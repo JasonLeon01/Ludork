@@ -206,6 +206,8 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
         self.pathVars: Set[str] = set()
         self.rectRangeVars: Set[str] = set()
         self.rectRangeVarMap: Dict[str, str] = {}
+        self.configVarMap: Dict[str, tuple[str, str]] = {}
+        self.configVars: Set[str] = set()
         self.attrVarTypes: Dict[str, str] = {}
         self.attrGDVars: Dict[str, str] = {}
         self.attrRely: Dict[str, Any] = {}
@@ -326,6 +328,8 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
                 pass
         elif isinstance(widget, QtWidgets.QLineEdit):
             widget.setText(str(parent_val))
+            if key in self.configVars and parent_val == "":
+                QtCore.QTimer.singleShot(0, self.refreshAttrs)
         # onDataChanged will be triggered by the widget's own signal
 
     def _connectRevertUpdate(
@@ -848,17 +852,19 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
             found_attr_parent, attr_parent_val = self._getClassAttrValue(parent_cls, key)
             if not found_attr_parent:
                 attr_parent_val = None
+            display_value = self._getConfigDisplayValue(key, value)
+            display_parent_val = self._getConfigDisplayValue(key, attr_parent_val)
 
             if type_hint and IsStructuredType(type_hint) and self.attrVarTypes.get(key) != _GENERALDATA_VAR_TYPE:
-                widget = DataclassWidget(type_hint, value)
+                widget = DataclassWidget(type_hint, display_value)
                 widget.VALUE_CHANGED.connect(lambda val, k=key: self.onDataChanged(k, val, True))
                 is_dc = True
             else:
                 widget = self.createInputWidget(
                     key,
-                    value,
+                    display_value,
                     type_hint=type_hint,
-                    parent_val=attr_parent_val,
+                    parent_val=display_parent_val,
                     var_type=self.attrVarTypes.get(key, ""),
                 )
 
@@ -932,11 +938,11 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
                 revertBtn.setEnabled(relyEditable)
                 if relyEditable:
                     current_val = self._getWidgetCurrentValue(widget)
-                    self._updateRevertButtonState(revertBtn, current_val, attr_parent_val)
+                    self._updateRevertButtonState(revertBtn, current_val, display_parent_val)
                 revertBtn.clicked.connect(
                     lambda _, k=key, pv=attr_parent_val, w=widget: self._onRevertAttr(k, pv, w)
                 )
-                self._connectRevertUpdate(widget, revertBtn, attr_parent_val)
+                self._connectRevertUpdate(widget, revertBtn, display_parent_val)
                 hbox.addWidget(revertBtn, 0)
 
             self.formLayout.addRow(label, container)

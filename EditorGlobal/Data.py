@@ -9,6 +9,7 @@ import importlib
 import inspect
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, get_type_hints
 from Utils import EditorData, File, System
+from Utils.DataConfig import DATA_FILE_EXTENSIONS, DATA_FORMAT_DAT, DATA_FORMAT_EXTENSIONS, DATA_FORMAT_JSON
 from Utils.DataValue import IsStandardValue, SerialiseTypedValueForData
 from . import EditorStatus
 
@@ -90,7 +91,7 @@ class GameData:
                     namePart = namePart.replace("\\", "/")
                     try:
                         data = None
-                        if extensionPart.lower() == ".json":
+                        if extensionPart.lower() == DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]:
                             data = File.GetJSONData(fullPath)
                             data["isJson"] = True
                         else:
@@ -183,7 +184,7 @@ class GameData:
         newRel = os.path.relpath(newPath, sectionRoot).replace("\\", "/")
         oldName, oldExt = os.path.splitext(oldRel)
         newName, newExt = os.path.splitext(newRel)
-        if oldExt.lower() in (".dat", ".json") and newExt.lower() in (".dat", ".json"):
+        if oldExt.lower() in DATA_FILE_EXTENSIONS and newExt.lower() in DATA_FILE_EXTENSIONS:
             return [(oldName, newName)] if oldName in keys else []
 
         oldPrefix = oldRel.rstrip("/")
@@ -203,7 +204,7 @@ class GameData:
         relPath = os.path.relpath(path, sectionRoot)
         namePart, ext = os.path.splitext(relPath)
         relKey = namePart.replace("\\", "/")
-        if ext.lower() in (".dat", ".json"):
+        if ext.lower() in DATA_FILE_EXTENSIONS:
             return [relKey] if relKey in data else []
 
         prefix = relPath.replace("\\", "/").rstrip("/")
@@ -219,7 +220,7 @@ class GameData:
         if not System.isPathInside(absPath, dataRoot):
             return None
         ext = os.path.splitext(absPath)[1].lower()
-        if ext not in (".dat", ".json"):
+        if ext not in DATA_FILE_EXTENSIONS:
             return None
         for dirName, (attrName, _dataType) in cls._CONVERTIBLE_FORMAT_SECTIONS.items():
             sectionRoot = os.path.join(dataRoot, dirName)
@@ -240,7 +241,7 @@ class GameData:
         info = cls._GetConvertibleFormatPathInfo(path)
         if info is None:
             return None
-        return "json" if info[2] == ".json" else "dat"
+        return DATA_FORMAT_JSON if info[2] == DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON] else DATA_FORMAT_DAT
 
     @classmethod
     def GetDataFormat(cls, dataRootName: str, key: str) -> Optional[str]:
@@ -253,7 +254,7 @@ class GameData:
         value = data.get(key)
         if not isinstance(value, dict):
             return None
-        return "json" if value.get("isJson") else "dat"
+        return DATA_FORMAT_JSON if value.get("isJson") else DATA_FORMAT_DAT
 
     @classmethod
     def ConvertDataFormatForPath(cls, path: str) -> str:
@@ -261,7 +262,7 @@ class GameData:
         if info is None:
             raise ValueError(f"Data file cannot be converted: {path}")
         dataRootName, key, ext = info
-        return cls.ConvertDataFormat(dataRootName, key, ext == ".dat", ext)
+        return cls.ConvertDataFormat(dataRootName, key, ext == DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT], ext)
 
     @classmethod
     def ConvertDataFormat(
@@ -278,10 +279,10 @@ class GameData:
         if not isinstance(value, dict):
             raise ValueError(f"Data item cannot be converted: {key}")
 
-        currentExt = ".json" if value.get("isJson") else ".dat"
-        if sourceExt is not None and sourceExt.lower() in (".dat", ".json"):
+        currentExt = DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON] if value.get("isJson") else DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]
+        if sourceExt is not None and sourceExt.lower() in DATA_FILE_EXTENSIONS:
             currentExt = sourceExt.lower()
-        targetExt = ".json" if toJson else ".dat"
+        targetExt = DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON] if toJson else DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]
         root = os.path.join(EditorStatus.PROJ_PATH, "Data", dataRootName)
         relPath = key.replace("/", os.sep)
         sourcePath = os.path.join(root, relPath + currentExt)
@@ -552,9 +553,9 @@ class GameData:
                 payload = cls._GetMapSavePayload(data)
                 if "isJson" in payload:
                     del payload["isJson"]
-                    File.SaveJSONData(os.path.join(mapsRoot, f"{key}.json"), payload)
+                    File.SaveJSONData(os.path.join(mapsRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]}"), payload)
                 else:
-                    File.SaveData(os.path.join(mapsRoot, f"{key}.dat"), payload)
+                    File.SaveData(os.path.join(mapsRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]}"), payload)
                 if key in c_map["A"]:
                     final_details["A"].append(key)
                 else:
@@ -565,7 +566,7 @@ class GameData:
 
         for key in c_map["D"]:
             try:
-                for ext in [".dat", ".json"]:
+                for ext in DATA_FILE_EXTENSIONS:
                     fp = os.path.join(mapsRoot, f"{key}{ext}")
                     if os.path.exists(fp):
                         os.remove(fp)
@@ -588,9 +589,9 @@ class GameData:
                 payload["type"] = "system"
                 if "isJson" in payload:
                     del payload["isJson"]
-                    File.SaveJSONData(os.path.join(configsRoot, f"{key}.json"), payload)
+                    File.SaveJSONData(os.path.join(configsRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]}"), payload)
                 else:
-                    File.SaveData(os.path.join(configsRoot, f"{key}.dat"), payload)
+                    File.SaveData(os.path.join(configsRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]}"), payload)
 
                 if key in c_cfg["A"]:
                     final_details["A"].append(key)
@@ -602,8 +603,8 @@ class GameData:
 
         for key in c_cfg["D"]:
             try:
-                fp_json = os.path.join(configsRoot, f"{key}.json")
-                fp_dat = os.path.join(configsRoot, f"{key}.dat")
+                fp_json = os.path.join(configsRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]}")
+                fp_dat = os.path.join(configsRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]}")
                 deleted = False
                 if os.path.exists(fp_json):
                     os.remove(fp_json)
@@ -633,9 +634,9 @@ class GameData:
                 payload["type"] = "tileset"
                 if "isJson" in payload:
                     del payload["isJson"]
-                    File.SaveJSONData(os.path.join(tilesetsRoot, f"{key}.json"), payload)
+                    File.SaveJSONData(os.path.join(tilesetsRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]}"), payload)
                 else:
-                    File.SaveData(os.path.join(tilesetsRoot, f"{key}.dat"), payload)
+                    File.SaveData(os.path.join(tilesetsRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]}"), payload)
                 if key in c_ts["A"]:
                     final_details["A"].append(key)
                 else:
@@ -646,7 +647,7 @@ class GameData:
 
         for key in c_ts["D"]:
             try:
-                for ext in [".dat", ".json"]:
+                for ext in DATA_FILE_EXTENSIONS:
                     fp = os.path.join(tilesetsRoot, f"{key}{ext}")
                     if os.path.exists(fp):
                         os.remove(fp)
@@ -670,9 +671,9 @@ class GameData:
                 payload["type"] = "autoTile"
                 if "isJson" in payload:
                     del payload["isJson"]
-                    File.SaveJSONData(os.path.join(autoTilesRoot, f"{key}.json"), payload)
+                    File.SaveJSONData(os.path.join(autoTilesRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]}"), payload)
                 else:
-                    File.SaveData(os.path.join(autoTilesRoot, f"{key}.dat"), payload)
+                    File.SaveData(os.path.join(autoTilesRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]}"), payload)
                 if key in c_at["A"]:
                     final_details["A"].append(key)
                 else:
@@ -683,7 +684,7 @@ class GameData:
 
         for key in c_at["D"]:
             try:
-                for ext in [".dat", ".json"]:
+                for ext in DATA_FILE_EXTENSIONS:
                     fp = os.path.join(autoTilesRoot, f"{key}{ext}")
                     if os.path.exists(fp):
                         os.remove(fp)
@@ -706,9 +707,9 @@ class GameData:
             try:
                 if "isJson" in payload:
                     del payload["isJson"]
-                    File.SaveJSONData(os.path.join(commonFunctionsRoot, f"{key}.json"), payload)
+                    File.SaveJSONData(os.path.join(commonFunctionsRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]}"), payload)
                 else:
-                    File.SaveData(os.path.join(commonFunctionsRoot, f"{key}.dat"), payload)
+                    File.SaveData(os.path.join(commonFunctionsRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]}"), payload)
                 if key in c_cfgs["A"]:
                     final_details["A"].append(key)
                 else:
@@ -719,10 +720,10 @@ class GameData:
 
         for key in c_cfgs["D"]:
             try:
-                fp = os.path.join(commonFunctionsRoot, f"{key}.dat")
+                fp = os.path.join(commonFunctionsRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]}")
                 if os.path.exists(fp):
                     os.remove(fp)
-                fp_json = os.path.join(commonFunctionsRoot, f"{key}.json")
+                fp_json = os.path.join(commonFunctionsRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]}")
                 if os.path.exists(fp_json):
                     os.remove(fp_json)
 
@@ -744,9 +745,9 @@ class GameData:
             try:
                 if "isJson" in payload:
                     del payload["isJson"]
-                    File.SaveJSONData(os.path.join(blueprintsRoot, f"{key}.json"), payload)
+                    File.SaveJSONData(os.path.join(blueprintsRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]}"), payload)
                 else:
-                    File.SaveData(os.path.join(blueprintsRoot, f"{key}.dat"), payload)
+                    File.SaveData(os.path.join(blueprintsRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]}"), payload)
                 if key in c_bps["A"]:
                     final_details["A"].append(key)
                 else:
@@ -768,9 +769,9 @@ class GameData:
             try:
                 if "isJson" in payload:
                     del payload["isJson"]
-                    File.SaveJSONData(os.path.join(animationsRoot, f"{key}.json"), payload)
+                    File.SaveJSONData(os.path.join(animationsRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]}"), payload)
                 else:
-                    File.SaveData(os.path.join(animationsRoot, f"{key}.dat"), payload)
+                    File.SaveData(os.path.join(animationsRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]}"), payload)
                 if key in c_anims["A"]:
                     final_details["A"].append(key)
                 else:
@@ -791,9 +792,9 @@ class GameData:
             try:
                 if "isJson" in payload:
                     del payload["isJson"]
-                    File.SaveJSONData(os.path.join(generalRoot, f"{key}.json"), payload)
+                    File.SaveJSONData(os.path.join(generalRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]}"), payload)
                 else:
-                    File.SaveData(os.path.join(generalRoot, f"{key}.dat"), payload)
+                    File.SaveData(os.path.join(generalRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]}"), payload)
 
                 if key in c_gen["A"]:
                     final_details["A"].append(key)
@@ -805,8 +806,8 @@ class GameData:
 
         for key in c_gen["D"]:
             try:
-                fp_json = os.path.join(generalRoot, f"{key}.json")
-                fp_dat = os.path.join(generalRoot, f"{key}.dat")
+                fp_json = os.path.join(generalRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]}")
+                fp_dat = os.path.join(generalRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]}")
                 deleted = False
                 if os.path.exists(fp_json):
                     os.remove(fp_json)
@@ -1219,16 +1220,16 @@ class GameData:
     @classmethod
     def _FindDataPath(cls, dataRoot: str, key: str) -> str:
         root = os.path.join(EditorStatus.PROJ_PATH, "Data", dataRoot)
-        for ext in (".json", ".dat"):
+        for ext in DATA_FILE_EXTENSIONS:
             path = os.path.join(root, key.replace("/", os.sep) + ext)
             if os.path.exists(path):
                 return path
-        return os.path.join(root, key.replace("/", os.sep) + ".dat")
+        return os.path.join(root, key.replace("/", os.sep) + DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT])
 
     @classmethod
     def _LoadBlueprintPayloadFromFile(cls, filePath: str) -> Dict[str, Any]:
         ext = os.path.splitext(filePath)[1].lower()
-        if ext == ".json":
+        if ext == DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]:
             data = File.GetJSONData(filePath)
             data["isJson"] = True
         else:

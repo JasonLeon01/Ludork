@@ -5,6 +5,7 @@ import copy
 import logging
 from PyQt5 import QtCore, QtWidgets
 from Utils import File
+from Utils.DataConfig import DATA_FILE_EXTENSIONS, DATA_FORMAT_EXTENSIONS, DATA_FORMAT_JSON
 from Widgets.Utils import MapEditDialog
 from .. import EditorStatus
 from ..Data import GameData
@@ -43,8 +44,7 @@ class MapListOpsMixin:
             if not isinstance(data, dict):
                 continue
             resolvedName = _FormatGameString(str(data.get("mapName") or key), localeDict)
-            displayName = f"{key} ({resolvedName})" if resolvedName != key else key
-            item = QtWidgets.QListWidgetItem(displayName)
+            item = QtWidgets.QListWidgetItem(resolvedName)
             item.setData(QtCore.Qt.UserRole, key)
             item.setToolTip(key)
             self.leftList.addItem(item)
@@ -129,14 +129,14 @@ class MapListOpsMixin:
 
     def _getNewMapFileName(self) -> str:
         existing = {
-            os.path.splitext(key)[0] if str(key).lower().endswith(".dat") else key
+            os.path.splitext(key)[0] if os.path.splitext(str(key))[1].lower() in DATA_FILE_EXTENSIONS else key
             for key in GameData.mapData.keys()
         }
         i = 1
         while True:
             key = f"Map_{i:02d}"
             if key not in existing:
-                return f"{key}.dat"
+                return f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]}"
             i += 1
 
     def _createEmptyLayerData(self, name: str, width: int, height: int, tilesetKey: str) -> dict:
@@ -271,7 +271,14 @@ class MapListOpsMixin:
             "layers": {},
         }
         suggested_name = self._getNewMapFileName()
-        dlg = MapEditDialog(self, default_data, suggested_name, ELOC("NEW_MAP"), allow_current_key=False)
+        dlg = MapEditDialog(
+            self,
+            default_data,
+            suggested_name,
+            ELOC("NEW_MAP"),
+            allow_current_key=False,
+            data_format=DATA_FORMAT_JSON,
+        )
         if not dlg.execApply():
             return
 

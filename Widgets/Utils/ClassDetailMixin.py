@@ -156,6 +156,94 @@ class ClassDetailMixin:
                 result.update(GetGeneralDataVars(meta))
         return result
 
+    def _getConfigVarMap(self, cls: Optional[type] = None) -> Dict[str, tuple[str, str]]:
+        cls = self._normaliseDetailClass(cls)
+        if not isinstance(cls, type):
+            return {}
+        result: Dict[str, tuple[str, str]] = {}
+        for base in list(reversed(cls.mro())):
+            meta = getattr(base, "__dict__", {}).get("_meta")
+            if isinstance(meta, dict):
+                result.update(self._getConfigVarsFromMeta(meta))
+        return result
+
+    def _getConfigVarsFromMeta(self, meta: Dict[str, Any]) -> Dict[str, tuple[str, str]]:
+        try:
+            from Utils import System
+
+            Engine = System.GetModule("Engine")
+            return Engine.GetConfigVars(meta)
+        except Exception:
+            return self._fallbackGetConfigVars(meta)
+
+    def _fallbackGetConfigVars(self, meta: Dict[str, Any]) -> Dict[str, tuple[str, str]]:
+        rawVars = meta.get("ConfigVars")
+        result: Dict[str, tuple[str, str]] = {}
+        if isinstance(rawVars, dict):
+            for name, ref in rawVars.items():
+                parsed = self._parseConfigVarRef(name, ref)
+                if parsed is not None:
+                    result[parsed[0]] = (parsed[1], parsed[2])
+            return result
+        if isinstance(rawVars, (list, tuple, set)):
+            for item in rawVars:
+                parsed = self._parseConfigVarItem(item)
+                if parsed is not None:
+                    result[parsed[0]] = (parsed[1], parsed[2])
+        return result
+
+    def _parseConfigVarItem(self, item: Any) -> tuple[str, str, str] | None:
+        if isinstance(item, str):
+            return (item, "System", item)
+        if not isinstance(item, (list, tuple)) or len(item) < 2:
+            return None
+        name = item[0]
+        if len(item) >= 3:
+            return self._parseConfigVarRef(name, (item[1], item[2]))
+        return self._parseConfigVarRef(name, item[1])
+
+    def _parseConfigVarRef(self, name: Any, ref: Any) -> tuple[str, str, str] | None:
+        if not isinstance(name, str) or not name:
+            return None
+        if isinstance(ref, str):
+            if "." in ref:
+                configName, settingName = ref.split(".", 1)
+                if configName and settingName:
+                    return (name, configName, settingName)
+            if ref:
+                return (name, ref, name)
+            return None
+        if isinstance(ref, (list, tuple)) and len(ref) >= 2 and isinstance(ref[0], str) and isinstance(ref[1], str):
+            if ref[0] and ref[1]:
+                return (name, ref[0], ref[1])
+        return None
+
+    def _getConfigDisplayValue(self, key: str, value: Any) -> Any:
+        if key not in self.configVars or not isinstance(value, str) or value:
+            return value
+        ref = self.configVarMap.get(key)
+        if ref is None:
+            return value
+        resolved = self._getProjectConfigValue(ref[0], ref[1])
+        if resolved is None:
+            return value
+        return resolved if isinstance(resolved, str) else str(resolved)
+
+    def _getProjectConfigValue(self, configName: str, settingName: str) -> Any:
+        try:
+            from EditorGlobal.Data import GameData
+
+            configData = getattr(GameData, "systemConfigData", {})
+            config = configData.get(configName)
+            if not isinstance(config, dict):
+                return None
+            setting = config.get(settingName)
+            if isinstance(setting, dict) and "value" in setting:
+                return setting["value"]
+        except Exception:
+            return None
+        return None
+
     def _getMetaRely(self, cls: Optional[type] = None) -> Dict[str, Any]:
         cls = self._normaliseDetailClass(cls)
         if not isinstance(cls, type):
@@ -221,6 +309,8 @@ class ClassDetailMixin:
         self.pathVars = set(self.pathVarMap.keys())
         self.rectRangeVarMap = self._getRectRangeVars(cls)
         self.rectRangeVars = set(self.rectRangeVarMap.keys())
+        self.configVarMap = self._getConfigVarMap(cls)
+        self.configVars = set(self.configVarMap.keys())
         self.attrVarTypes = self._getMetaVarTypes(cls)
         self.attrGDVars = self._getGeneralDataVars(cls)
         self.attrRely = self._getMetaRely(cls)

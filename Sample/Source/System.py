@@ -2,7 +2,7 @@
 r"""\brief Game system bootstrap: initialises engine, loads data, and starts the game loop."""
 
 import os
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 import Engine
 from Engine import (
     Vector2u,
@@ -50,6 +50,7 @@ class System:
     _getSE: str = ""
     _equipSE: str = ""
     _titleBGM: str = ""
+    _audioConfigValues: Dict[str, Any] = {}
     _savedScreenImage: Optional[Image] = None
 
     @classmethod
@@ -162,18 +163,39 @@ class System:
         UI.DefaultWindowskinName = cls._windowskinName
         GameMap.DefaultCoverAlpha = coverOpaqueAlpha
         audioData = File.getJSONData("./Data/Configs/Audio.json")
-        cls._cursorSE = audioData["cursorSE"]["value"]
-        cls._decisionSE = audioData["decisionSE"]["value"]
-        cls._cancelSE = audioData["cancelSE"]["value"]
-        cls._buzzerSE = audioData["buzzerSE"]["value"]
-        cls._shopSE = audioData["shopSE"]["value"]
-        cls._saveSE = audioData["saveSE"]["value"]
-        cls._loadSE = audioData["loadSE"]["value"]
-        cls._gateSE = audioData["gateSE"]["value"]
-        cls._stairSE = audioData["stairSE"]["value"]
-        cls._getSE = audioData["getSE"]["value"]
-        cls._equipSE = audioData["equipSE"]["value"]
-        cls._titleBGM = audioData["titleBGM"]["value"]
+        cls._audioConfigValues = cls._extractConfigValues(audioData)
+        cls._cursorSE = str(cls._audioConfigValues.get("cursorSE", ""))
+        cls._decisionSE = str(cls._audioConfigValues.get("decisionSE", ""))
+        cls._cancelSE = str(cls._audioConfigValues.get("cancelSE", ""))
+        cls._buzzerSE = str(cls._audioConfigValues.get("buzzerSE", ""))
+        cls._shopSE = str(cls._audioConfigValues.get("shopSE", ""))
+        cls._saveSE = str(cls._audioConfigValues.get("saveSE", ""))
+        cls._loadSE = str(cls._audioConfigValues.get("loadSE", ""))
+        cls._gateSE = str(cls._audioConfigValues.get("gateSE", ""))
+        cls._stairSE = str(cls._audioConfigValues.get("stairSE", ""))
+        cls._getSE = str(cls._audioConfigValues.get("getSE", ""))
+        cls._equipSE = str(cls._audioConfigValues.get("equipSE", ""))
+        cls._titleBGM = str(cls._audioConfigValues.get("titleBGM", ""))
+
+    @classmethod
+    def _extractConfigValues(cls, configData: Dict[str, Any]) -> Dict[str, Any]:
+        result: Dict[str, Any] = {}
+        for key, setting in configData.items():
+            if isinstance(key, str) and isinstance(setting, dict) and "value" in setting:
+                result[key] = setting["value"]
+        return result
+
+    @classmethod
+    def getConfigValue(cls, configName: str, settingName: str) -> Any:
+        r"""\brief Get a runtime config value by config file and setting key.
+
+        - \param configName The config data name, such as `Audio`.
+        - \param settingName The setting key inside that config.
+        - \return The resolved config value, or an empty string when missing.
+        """
+        if configName == "Audio":
+            return cls._audioConfigValues.get(settingName, "")
+        return ""
 
     @classmethod
     def getTitle(cls) -> str:

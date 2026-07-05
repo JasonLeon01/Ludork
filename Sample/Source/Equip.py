@@ -5,11 +5,15 @@ from typing import Optional, Union, List, Tuple
 from Engine import Pair, Texture, IntRect
 from Engine.Gameplay.Actors import Actor
 from Global import GameMap, Manager
-from . import Data, System
+from . import Data
 from .Infos.EquipInfo import EquipInfo
 
 
-@Meta(GeneralDataVars=[("ID", "Equip")])
+@Meta(
+    GeneralDataVars=[("ID", "Equip")],
+    PathVars=[("getSE", "Sounds")],
+    ConfigVars=[("getSE", "Audio", "getSE")],
+)
 class Equip(Actor, EquipInfo):
     r"""
     \brief Scene equip entity.
@@ -19,6 +23,7 @@ class Equip(Actor, EquipInfo):
     """
 
     ID: str = "FILL_IT_BY_YOURSELF"
+    getSE: str = ""  #: Equip pickup sound effect override; empty uses Audio.getSE
 
     def __init__(
         self,
@@ -44,7 +49,7 @@ class Equip(Actor, EquipInfo):
         inst = scene.inst
         player = inst.getPlayer()
         if player and player in other:
-            Manager.playSE(System.getGetSE())
+            Manager.playSE(self.getSE)
             player.addEquip(self.ID)
             if not inst.getCachedNewItem(self.ID):
                 inst.setCachedNewItem(self.ID)

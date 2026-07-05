@@ -11,6 +11,8 @@ from .SearchLineEdit import AddSearchIcon
 
 class LocaleEditor(QtWidgets.QDialog):
 
+    LOCALE_EXPORTED = QtCore.pyqtSignal()
+
     _clipboard: Optional[Dict[str, Any]] = None
 
     def __init__(self, parent, xlsxPath: str):
@@ -516,3 +518,5 @@ class LocaleEditor(QtWidgets.QDialog):
             File.ExportLocale(self, self._xlsxPath, localeDir)
         except Exception as e:
             QtWidgets.QMessageBox.warning(self, "Hint", ELOC("EXPORT_LOCALE_FAILED") + "\n" + str(e))
+            return
+        self.LOCALE_EXPORTED.emit()

@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Type, Union, Tuple, Callable, List
+from typing import Any, Dict, Type, Union, Tuple, Callable, List
 import functools
 
 
@@ -112,6 +112,9 @@ def Meta(**kwargs):
     - GeneralDataVars: General Data member or animation-key fields and node
       parameters in the form `[("itemID", "Item"), ("animKey", "ANIMATION")]`.
       Values remain plain strings; the editor displays a data-backed combo box.
+    - ConfigVars: class variables that use a config value when their stored
+      string is empty. Format: `[("gateSE", "Audio", "gateSE")]` or
+      `{"gateSE": ("Audio", "gateSE")}`.
     - InvalidVars: class variables hidden from the blueprint attribute editor.
       This is the Meta form of `@InvalidVars(...)`.
     - RectRangeVars: rectangle fields edited with an image range selector.
@@ -138,6 +141,61 @@ def Meta(**kwargs):
         return func
 
     return decorator
+
+
+ConfigVarRef = Tuple[str, str]
+
+
+def GetConfigVars(meta: Any) -> Dict[str, ConfigVarRef]:
+    r"""\brief Extract config-backed class-variable metadata from a meta dictionary.
+
+    - \param meta Metadata dictionary attached by `Meta`.
+    - \return Mapping from class-variable name to `(configName, settingName)`.
+    """
+    if not isinstance(meta, dict):
+        return {}
+    rawVars = meta.get("ConfigVars")
+    result: Dict[str, ConfigVarRef] = {}
+    if isinstance(rawVars, dict):
+        for name, ref in rawVars.items():
+            parsed = _parseConfigVarRef(name, ref)
+            if parsed is not None:
+                result[parsed[0]] = (parsed[1], parsed[2])
+        return result
+    if isinstance(rawVars, (list, tuple, set)):
+        for item in rawVars:
+            parsed = _parseConfigVarItem(item)
+            if parsed is not None:
+                result[parsed[0]] = (parsed[1], parsed[2])
+    return result
+
+
+def _parseConfigVarItem(item: Any) -> Tuple[str, str, str] | None:
+    if isinstance(item, str):
+        return (item, "System", item)
+    if not isinstance(item, (list, tuple)) or len(item) < 2:
+        return None
+    name = item[0]
+    if len(item) >= 3:
+        return _parseConfigVarRef(name, (item[1], item[2]))
+    return _parseConfigVarRef(name, item[1])
+
+
+def _parseConfigVarRef(name: Any, ref: Any) -> Tuple[str, str, str] | None:
+    if not isinstance(name, str) or not name:
+        return None
+    if isinstance(ref, str):
+        if "." in ref:
+            configName, settingName = ref.split(".", 1)
+            if configName and settingName:
+                return (name, configName, settingName)
+        if ref:
+            return (name, ref, name)
+        return None
+    if isinstance(ref, (list, tuple)) and len(ref) >= 2 and isinstance(ref[0], str) and isinstance(ref[1], str):
+        if ref[0] and ref[1]:
+            return (name, ref[0], ref[1])
+    return None
 
 
 def ExecSplit(**kwargs):

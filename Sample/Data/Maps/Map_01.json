@@ -1774,6 +1774,14 @@
                     7,
                     10
                 ]
+            },
+            {
+                "tag": "Data.Blueprints.Doors.BP_Door_General_default_6_1",
+                "bp": "Data.Blueprints.Doors.BP_Door_General",
+                "position": [
+                    6,
+                    1
+                ]
             }
         ]
     },
@@ -1792,6 +1800,20 @@
                 0,
                 1
             ]
+        },
+        "Data.Blueprints.Doors.BP_Door_General_default_6_1": {
+            "texturePath": "blocks/classic-doors-002-single.png",
+            "defaultRect": [
+                [
+                    0,
+                    64
+                ],
+                [
+                    32,
+                    32
+                ]
+            ],
+            "gateSE": "pickaxe.mp3"
         }
     },
     "type": "map"

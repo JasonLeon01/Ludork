@@ -12,6 +12,12 @@ import openpyxl
 from typing import Any, Dict, Optional, get_type_hints
 from PyQt5 import QtCore, QtWidgets
 from Utils import File, System
+from Utils.DataConfig import (
+    DATA_FILE_DIALOG_FILTER,
+    DATA_FORMAT_DAT,
+    DATA_FORMAT_EXTENSIONS,
+    DATA_FORMAT_JSON,
+)
 from Widgets import (
     ConfigWindow,
     TilesetEditor,
@@ -85,6 +91,8 @@ class DatabaseMenuMixin:
                 "Hint",
                 ELOC("EXPORT_LOCALE_FAILED") + "\n" + str(e) + "\n" + traceback.format_exc(),
             )
+            return
+        self._onLocaleExported()
 
     def _onGeneralDataEditor(self, checked: bool = False) -> None:
         self.generalDataEditor = GeneralDataEditor(self)
@@ -107,6 +115,7 @@ class DatabaseMenuMixin:
             return
         self._localeEditor = LocaleEditor(self, xlsxPath)
         self._localeEditor.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        self._localeEditor.LOCALE_EXPORTED.connect(self._onLocaleExported)
         self._localeEditor.destroyed.connect(self._onLocaleEditorDestroyed)
         self._localeEditor.show()
         self._localeEditor.raise_()
@@ -114,6 +123,10 @@ class DatabaseMenuMixin:
 
     def _onLocaleEditorDestroyed(self) -> None:
         self._localeEditor = None
+
+    def _onLocaleExported(self) -> None:
+        self.refreshLeftList()
+        self._refreshInfo()
 
     def _getBlueprintEditors(self) -> Dict[str, Any]:
         return self._blueprintEditors
@@ -225,10 +238,14 @@ class DatabaseMenuMixin:
         if not isinstance(data, dict):
             return
         blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
-        extension = ".json" if data.get("isJson") else ".dat"
+        extension = DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON] if data.get("isJson") else DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]
         path = os.path.join(blueprintsRoot, key + extension)
         if not os.path.isfile(path):
-            alternateExtension = ".dat" if extension == ".json" else ".json"
+            alternateExtension = (
+                DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]
+                if extension == DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]
+                else DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]
+            )
             alternatePath = os.path.join(blueprintsRoot, key + alternateExtension)
             if not os.path.isfile(alternatePath):
                 return
@@ -279,7 +296,7 @@ class DatabaseMenuMixin:
     def _onNewBlueprint(self, checked: bool = False, parentClass: Optional[str] = None) -> None:
         blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
         dlg = FileSelectorDialog(
-            self, blueprintsRoot, "JSON (*.json);;DAT (*.dat)", ELOC("SELECT_BLUEPRINT_PATH"), save=True
+            self, blueprintsRoot, DATA_FILE_DIALOG_FILTER, ELOC("SELECT_BLUEPRINT_PATH"), save=True
         )
         if dlg.exec_() != QtWidgets.QDialog.Accepted:
             return
@@ -291,7 +308,7 @@ class DatabaseMenuMixin:
         namePart, ext = os.path.splitext(rel)
         if not ext:
             nf = dlg.selectedNameFilter().lower()
-            ext = ".json" if "json" in nf else ".dat"
+            ext = DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON] if DATA_FORMAT_JSON in nf else DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]
         key = namePart.replace("\\", "/")
         if key in GameData.blueprintsData:
             QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("BLUEPRINT_EXISTS"))
@@ -365,7 +382,7 @@ class DatabaseMenuMixin:
             "attrs": attrs,
             "graph": {"nodeGraph": nodeGraph, "startNodes": startNodes},
         }
-        if ext.lower() == ".json":
+        if ext.lower() == DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]:
             data["isJson"] = True
         stored = GameData._NormaliseBlueprintValue(copy.deepcopy(data))
         if not isinstance(stored, dict):
@@ -397,7 +414,7 @@ class DatabaseMenuMixin:
             os.makedirs(animationsRoot)
 
         dlg = FileSelectorDialog(
-            self, animationsRoot, "JSON (*.json);;DAT (*.dat)", ELOC("SELECT_ANIMATION_PATH"), save=True
+            self, animationsRoot, DATA_FILE_DIALOG_FILTER, ELOC("SELECT_ANIMATION_PATH"), save=True
         )
         if dlg.exec_() != QtWidgets.QDialog.Accepted:
             return
@@ -409,7 +426,7 @@ class DatabaseMenuMixin:
         namePart, ext = os.path.splitext(rel)
         if not ext:
             nf = dlg.selectedNameFilter().lower()
-            ext = ".json" if "json" in nf else ".dat"
+            ext = DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON] if DATA_FORMAT_JSON in nf else DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]
         key = namePart.replace("\\", "/")
         if key in GameData.animationsData:
             QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ANIMATION_EXISTS"))
@@ -422,7 +439,7 @@ class DatabaseMenuMixin:
             "assets": [],
             "timeLines": [],
         }
-        if ext.lower() == ".json":
+        if ext.lower() == DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]:
             data["isJson"] = True
 
         GameData.RecordSnapshot()

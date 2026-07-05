@@ -1,13 +1,15 @@
 # -*- encoding: utf-8 -*-
 
+import copy
 import os
 import shutil
 import subprocess
 import sys
-from typing import Callable, Optional, cast
+from typing import Any, Callable, Optional, cast
 from PyQt5 import QtCore, QtGui, QtWidgets
 from EditorGlobal import EditorStatus, GameData
-from Utils import Panel, File
+from Utils import Panel, File, System
+from Utils.DataConfig import DATA_FILE_SUFFIXES, DATA_FORMAT_DAT, DATA_FORMAT_EXTENSIONS, DATA_FORMAT_JSON
 from .FilePreview import FilePreview
 
 
@@ -29,11 +31,13 @@ def _resourceIcon(name: str) -> QtGui.QIcon:
 
 class _ThumbnailIconProvider(QtWidgets.QFileIconProvider):
     _IMAGE_EXTS = {"png", "jpg", "jpeg", "bmp", "gif", "webp"}
+    _DATA_EXTS = set(DATA_FILE_SUFFIXES)
 
     def __init__(self, thumbSize: int = _THUMB_SIZE):
         super().__init__()
         self._thumbSize = thumbSize
         self._cache: dict[str, QtGui.QIcon] = {}
+        self._blueprintCache: dict[str, tuple[tuple[Any, ...], QtGui.QIcon]] = {}
 
     def icon(self, info: QtCore.QFileInfo) -> QtGui.QIcon:
         if not info.isDir():
@@ -53,10 +57,214 @@ class _ThumbnailIconProvider(QtWidgets.QFileIconProvider):
                     icon = QtGui.QIcon(scaled)
                     self._cache[path] = icon
                     return icon
+            if ext in self._DATA_EXTS:
+                icon = self._blueprintIcon(info.absoluteFilePath())
+                if icon is not None:
+                    return icon
         return super().icon(info)
 
     def clearCache(self) -> None:
         self._cache.clear()
+        self._blueprintCache.clear()
+
+    def _blueprintKeyForPath(self, path: str) -> Optional[str]:
+        blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
+        if not os.path.isfile(path) or not self._isPathInside(path, blueprintsRoot):
+            return None
+        relPath = os.path.relpath(path, blueprintsRoot)
+        return os.path.splitext(relPath)[0].replace("\\", "/")
+
+    def _blueprintIcon(self, path: str) -> Optional[QtGui.QIcon]:
+        key = self._blueprintKeyForPath(path)
+        if not key:
+            return None
+        data = self._blueprintData(key, path)
+        if not isinstance(data, dict):
+            return None
+        token = self._blueprintCacheToken(path, key, data)
+        cached = self._blueprintCache.get(path)
+        if cached is not None and cached[0] == token:
+            return cached[1]
+        pixmap = self._makeBlueprintPreview("Data.Blueprints." + key.replace("/", "."), data)
+        if pixmap.isNull():
+            return None
+        icon = QtGui.QIcon(pixmap.scaled(
+            self._thumbSize,
+            self._thumbSize,
+            QtCore.Qt.KeepAspectRatio,
+            QtCore.Qt.SmoothTransformation,
+        ))
+        self._blueprintCache[path] = (token, icon)
+        return icon
+
+    def _blueprintData(self, key: str, path: str) -> Optional[dict[str, Any]]:
+        data = getattr(GameData, "blueprintsData", {}).get(key)
+        if isinstance(data, dict):
+            return data
+        try:
+            ext = os.path.splitext(path)[1].lower()
+            loaded = File.GetJSONData(path) if ext == DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON] else File.LoadData(path)
+            if not isinstance(loaded, dict):
+                return None
+            fileType = loaded.get("type")
+            return loaded if fileType in (None, "blueprint") else None
+        except Exception:
+            return None
+
+    def _blueprintCacheToken(self, path: str, key: str, data: dict[str, Any]) -> tuple[Any, ...]:
+        try:
+            mtime = os.stat(path).st_mtime_ns
+        except OSError:
+            mtime = 0
+        return (
+            key,
+            mtime,
+            self._getBlueprintAttrFromData(data, "texturePath", ""),
+            repr(self._getBlueprintAttrFromData(data, "defaultRect", None)),
+            repr(self._getBlueprintAttrFromData(data, "defaultOrigin", (0.0, 0.0))),
+            repr(self._getBlueprintAttrFromData(data, "defaultScale", (1.0, 1.0))),
+        )
+
+    def _getBlueprintAttrFromData(self, data: dict[str, Any], attrName: str, default: Any) -> Any:
+        attrs = data.get("attrs")
+        if isinstance(attrs, dict) and attrName in attrs:
+            return attrs.get(attrName, default)
+        parentClass = data.get("parent")
+        if isinstance(parentClass, str) and parentClass.strip():
+            try:
+                found, value = GameData._GetBlueprintDefaultAttr(parentClass, attrName, set())
+                if found:
+                    return value
+            except Exception:
+                return default
+        return default
+
+    def _makeBlueprintPreview(self, bpRel: str, data: dict[str, Any]) -> QtGui.QPixmap:
+        tileSize = max(1, int(getattr(EditorStatus, "CELLSIZE", 32)))
+        texturePath = self._getBlueprintAttrFromData(data, "texturePath", "")
+        image = self._resolveTextureImage(texturePath)
+        rect = self._toRectTuple(self._getBlueprintAttrFromData(data, "defaultRect", None))
+        origin = self._toVec2f(self._getBlueprintAttrFromData(data, "defaultOrigin", (0.0, 0.0)), 0.0, 0.0)
+        scale = self._toVec2f(self._getBlueprintAttrFromData(data, "defaultScale", (1.0, 1.0)), 1.0, 1.0)
+        if rect is None:
+            if image is not None:
+                rect = self._defaultImageRect(bpRel, image, tileSize)
+            else:
+                return self._makeBlueprintFallbackIcon()
+        sx, sy, w, h = rect
+        dw = max(1, int(w * scale[0]))
+        dh = max(1, int(h * scale[1]))
+        pixmap = QtGui.QPixmap(dw, dh)
+        pixmap.fill(QtCore.Qt.transparent)
+        painter = QtGui.QPainter(pixmap)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, True)
+        if image is not None:
+            src = QtCore.QRect(sx, sy, w, h)
+            dst = QtCore.QRect(int(-origin[0] * scale[0]), int(-origin[1] * scale[1]), dw, dh)
+            painter.drawImage(dst, image, src)
+        else:
+            painter.end()
+            return self._makeBlueprintFallbackIcon()
+        painter.end()
+        return pixmap
+
+    def _makeBlueprintFallbackIcon(self) -> QtGui.QPixmap:
+        size = max(24, self._thumbSize)
+        pixmap = QtGui.QPixmap(size, size)
+        pixmap.fill(QtCore.Qt.transparent)
+        painter = QtGui.QPainter(pixmap)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
+        bg = QtCore.QRectF(8, 8, size - 16, size - 16)
+        painter.setPen(QtGui.QPen(QtGui.QColor(112, 160, 255, 210), 2))
+        painter.setBrush(QtGui.QColor(34, 54, 96, 220))
+        painter.drawRoundedRect(bg, 6, 6)
+        painter.setPen(QtGui.QPen(QtGui.QColor(210, 228, 255, 230), 2))
+        pad = size / 4
+        left = QtCore.QRectF(pad - 4, pad, 12, 10)
+        right = QtCore.QRectF(size - pad - 8, size / 2, 12, 10)
+        bottom = QtCore.QRectF(pad, size - pad - 6, 12, 10)
+        painter.drawRect(left)
+        painter.drawRect(right)
+        painter.drawRect(bottom)
+        painter.drawLine(left.center(), right.center())
+        painter.drawLine(left.center(), bottom.center())
+        painter.end()
+        return pixmap
+
+    def _defaultImageRect(self, bpRel: str, image: QtGui.QImage, tileSize: int) -> tuple[int, int, int, int]:
+        if self._isCharacterActor(bpRel, image):
+            return (0, 0, max(1, image.width() // 4), max(1, image.height() // 4))
+        return (0, 0, min(tileSize, image.width()), min(tileSize, image.height()))
+
+    def _isCharacterActor(self, bpRel: str, image: QtGui.QImage) -> bool:
+        if image.isNull() or image.width() < 4 or image.height() < 4:
+            return False
+        try:
+            clsObj = GameData.classDict.get(bpRel, EditorStatus.PROJ_PATH)
+            if not isinstance(clsObj, type):
+                return False
+            Engine = System.GetModule("Engine")
+            return issubclass(clsObj, Engine.Gameplay.Actors.Character)
+        except Exception:
+            return False
+
+    def _resolveTextureImage(self, texturePath: Any) -> Optional[QtGui.QImage]:
+        path = self._resolveTexturePath(texturePath)
+        if not path:
+            return None
+        image = QtGui.QImage(path)
+        return image if not image.isNull() else None
+
+    def _resolveTexturePath(self, texturePath: Any) -> str:
+        if isinstance(texturePath, str) and texturePath.strip():
+            path = texturePath.strip()
+            if os.path.isabs(path):
+                return path
+            if path.startswith("Assets/") or path.startswith("Assets\\"):
+                return os.path.join(EditorStatus.PROJ_PATH, path)
+            return os.path.join(EditorStatus.PROJ_PATH, "Assets", "Characters", path)
+        return ""
+
+    def _toVec2f(self, value: Any, defaultX: float, defaultY: float) -> tuple[float, float]:
+        if isinstance(value, (list, tuple)) and len(value) >= 2:
+            try:
+                return (float(value[0]), float(value[1]))
+            except (TypeError, ValueError):
+                return (defaultX, defaultY)
+        for attrX, attrY in (("x", "y"), ("X", "Y")):
+            try:
+                return (float(getattr(value, attrX)), float(getattr(value, attrY)))
+            except (AttributeError, TypeError, ValueError):
+                continue
+        return (defaultX, defaultY)
+
+    def _toRectTuple(self, value: Any) -> Optional[tuple[int, int, int, int]]:
+        normalised = GameData._NormaliseBlueprintValue(copy.deepcopy(value))
+        if isinstance(normalised, dict):
+            pos = normalised.get("position") or normalised.get("pos")
+            size = normalised.get("size")
+            if isinstance(pos, (list, tuple)) and isinstance(size, (list, tuple)) and len(pos) >= 2 and len(size) >= 2:
+                try:
+                    return (int(pos[0]), int(pos[1]), max(1, int(size[0])), max(1, int(size[1])))
+                except (TypeError, ValueError):
+                    return None
+        if isinstance(normalised, (list, tuple)) and len(normalised) >= 2:
+            pos = normalised[0]
+            size = normalised[1]
+            if isinstance(pos, (list, tuple)) and isinstance(size, (list, tuple)) and len(pos) >= 2 and len(size) >= 2:
+                try:
+                    return (int(pos[0]), int(pos[1]), max(1, int(size[0])), max(1, int(size[1])))
+                except (TypeError, ValueError):
+                    return None
+        return None
+
+    def _isPathInside(self, path: str, root: str) -> bool:
+        try:
+            p = os.path.normcase(os.path.abspath(path))
+            r = os.path.normcase(os.path.abspath(root))
+            return os.path.commonpath([p, r]) == r
+        except Exception:
+            return False
 
 
 class FileExplorer(QtWidgets.QWidget):
@@ -296,10 +504,10 @@ class FileExplorer(QtWidgets.QWidget):
             if not path:
                 return
             ext = os.path.splitext(path)[1].lower()
-            if ext == ".dat":
+            if ext == DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]:
                 self._handleDataFile(path, File.LoadData)
             else:
-                if ext == ".json":
+                if ext == DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]:
                     if self._handleDataFile(path, File.GetJSONData):
                         return
                 self._openSystemFile(path)

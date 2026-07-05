@@ -6,7 +6,6 @@ from typing import List, Optional, Tuple, Union
 from Engine import Filters, IntRect, Pair, RegisterEvent, Texture, Vector2i, Vector3f
 from Engine.Gameplay.Actors import Actor
 from Global import GameMap, Manager
-from Source import System
 from Source.Scenes import Map
 
 _LATENT_STARTED = 0
@@ -37,6 +36,7 @@ class _DoorAnimationCondition:
         return self._finished
 
 
+@Meta(PathVars=[("gateSE", "Sounds")], ConfigVars=[("gateSE", "Audio", "gateSE")])
 class Door(Actor):
     r"""A door actor that plays sprite-sheet open and close animations.
 
@@ -56,6 +56,7 @@ class Door(Actor):
     collisionEnabled: bool = True  #: Whether the door blocks movement
     tickable: bool = True  #: Must be True for onTick to drive the animation
     openInterval: float = 0.05  #: Seconds between frame advances
+    gateSE: str = ""  #: Door sound effect override; empty uses Audio.gateSE
     opening: bool = False  #: Whether the door is currently opening
     closing: bool = False  #: Whether the door is currently closing
 
@@ -79,15 +80,18 @@ class Door(Actor):
         self._frameWidth: int = 0
         self._startX: int = 0
         self._startY: int = 0
-        if rect is not None:
-            if isinstance(rect, IntRect):
-                self._frameWidth = rect.size.x
-                self._startX = rect.position.x
-                self._startY = rect.position.y
-            elif isinstance(rect, (tuple, list)):
-                self._frameWidth = rect[1][0]
-                self._startX = rect[0][0]
-                self._startY = rect[0][1]
+        self._captureClosedFrameLayout()
+
+    def setTextureRect(self, rect: IntRect) -> None:
+        r"""Set the texture sub-rectangle and keep the closed-frame layout in sync.
+
+        While the door is idle, the rect defines the animation strip origin.
+        During open/close playback the layout is held fixed so frame advances
+        do not overwrite it.
+        """
+        super().setTextureRect(rect)
+        if not self.opening and not self.closing:
+            self._captureClosedFrameLayout(rect)
 
     @Latent(Started=(_LATENT_STARTED,), Finished=(_LATENT_FINISHED,))
     def openDoor(self) -> _DoorAnimationCondition:
@@ -117,7 +121,6 @@ class Door(Actor):
         self._animTimer = 0.0
         self._openFinished = False
         self._closeFinished = False
-        self._resolveFrameLayout()
         self._advanceToFrame(0)
         return _DoorAnimationCondition(self, "_openFinished")
 
@@ -198,7 +201,7 @@ class Door(Actor):
     def _playGateSE(self) -> None:
         position = self.getPosition()
         Manager.playSE(
-            System.getGateSE(),
+            self.gateSE,
             Filters.SoundFilter(
                 spatial=True,
                 position=Vector3f(position.x, position.y, 0.0),
@@ -206,15 +209,19 @@ class Door(Actor):
             ),
         )
 
-    def _resolveFrameLayout(self) -> None:
-        if self._frameWidth > 0:
-            return
-        rect = self.getTextureRect()
+    def _captureClosedFrameLayout(self, rect: Optional[IntRect] = None) -> None:
+        if rect is None:
+            rect = self.getTextureRect()
         if rect is None:
             return
         self._frameWidth = rect.size.x
         self._startX = rect.position.x
         self._startY = rect.position.y
+
+    def _resolveFrameLayout(self) -> None:
+        if self._frameWidth > 0:
+            return
+        self._captureClosedFrameLayout()
 
     def _getFrameCount(self) -> int:
         self._resolveFrameLayout()

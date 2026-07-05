@@ -6,6 +6,7 @@ import inspect
 import traceback
 from PyQt5 import QtWidgets, QtCore
 from Utils import System
+from Utils.DataConfig import DATA_FILE_EXTENSIONS
 from EditorGlobal import EditorStatus
 
 
@@ -134,7 +135,7 @@ class ClassSelector(QtWidgets.QDialog):
 
         for dirpath, dirnames, filenames in os.walk(blueprintsRoot):
             for filename in filenames:
-                if filename.endswith(".json") or filename.endswith(".dat"):
+                if os.path.splitext(filename)[1].lower() in DATA_FILE_EXTENSIONS:
                     relDir = os.path.relpath(dirpath, blueprintsRoot)
                     namePart = os.path.splitext(filename)[0]
                     if relDir == ".":

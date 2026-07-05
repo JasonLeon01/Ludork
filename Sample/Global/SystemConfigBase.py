@@ -15,7 +15,7 @@ class SystemConfigBase:
     __data: configparser.ConfigParser
     __dataFilePath: str
     _script: str = 'Entry.py'
-    _language: str = 'en_GB'
+    _language: str = 'zh_CN'
     _scale: float = 2.0
     _frameRate: int = 120
     _verticalSync: bool = True

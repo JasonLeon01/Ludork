@@ -6,6 +6,7 @@ import json
 import configparser
 from PyQt5 import QtCore, QtWidgets
 from Utils import File, System
+from Utils.DataConfig import DATA_FILE_EXTENSIONS, DATA_FORMAT_EXTENSIONS, DATA_FORMAT_JSON
 from Utils.SystemConfigGenerator import generateSystemConfigBase
 from .. import EditorStatus
 from ..Data import GameData
@@ -140,10 +141,10 @@ class ProjectConfigMixin:
         if not isinstance(path, str) or not path:
             return
         ext = os.path.splitext(path)[1].lower()
-        if ext not in (".json", ".dat"):
+        if ext not in DATA_FILE_EXTENSIONS:
             return
         try:
-            if ext == ".json":
+            if ext == DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]:
                 data = File.GetJSONData(path)
             else:
                 data = File.LoadData(path)

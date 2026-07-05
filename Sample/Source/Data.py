@@ -397,12 +397,34 @@ class _Data:
         return copy.deepcopy(value)
 
     def _resolveClassVarChangeValue(self, actor: Actor, key: str, value: Any) -> Any:
+        resolvedConfigValue = self._resolveConfigClassVarValue(type(actor), key, value)
+        if resolvedConfigValue is not value:
+            return resolvedConfigValue
         targetType = resolveAttrValueType(type(actor), key)
         if isinstance(value, str) and shouldEvalValueType(targetType):
             return evalDataExpression(value)
         if targetType is not Any:
             return copy.deepcopy(resolveTypedDataValue(value, targetType))
         return self._cloneClassVarChangeValue(value)
+
+    def _resolveConfigClassVarValue(self, cls: type, key: str, value: Any) -> Any:
+        if not isinstance(value, str) or value:
+            return value
+        try:
+            from Engine.Decorators import GetConfigVars
+            from Source.System import System
+
+            configVars: Dict[str, tuple[str, str]] = {}
+            for base in reversed(cls.mro()):
+                meta = getattr(base, "__dict__", {}).get("_meta")
+                configVars.update(GetConfigVars(meta))
+            ref = configVars.get(key)
+            if ref is None:
+                return value
+            resolved = System.getConfigValue(ref[0], ref[1])
+        except Exception:
+            return value
+        return resolved if isinstance(resolved, str) else str(resolved)
 
     def _applyActorTextureClassVars(self, actor: Actor, applyRect: bool) -> None:
         texturePath = getattr(actor, "texturePath", "")

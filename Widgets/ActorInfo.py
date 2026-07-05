@@ -30,6 +30,8 @@ class ActorInfoPanel(ClassDetailMixin, QtWidgets.QWidget):
         self.pathVars: Set[str] = set()
         self.rectRangeVars: Set[str] = set()
         self.rectRangeVarMap: Dict[str, str] = {}
+        self.configVarMap: Dict[str, tuple[str, str]] = {}
+        self.configVars: Set[str] = set()
         self.attrVarTypes: Dict[str, str] = {}
         self.attrGDVars: Dict[str, str] = {}
         self.attrRely: Dict[str, Any] = {}
@@ -270,15 +272,17 @@ class ActorInfoPanel(ClassDetailMixin, QtWidgets.QWidget):
                 typeHint = parentHints[key]
 
             defaultValue = self._classDefaultValues.get(key)
+            displayValue = self._getConfigDisplayValue(key, value)
+            displayDefaultValue = self._getConfigDisplayValue(key, defaultValue)
             if typeHint and IsStructuredType(typeHint) and self.attrVarTypes.get(key) != _GENERALDATA_VAR_TYPE:
-                widget = DataclassWidget(typeHint, value)
+                widget = DataclassWidget(typeHint, displayValue)
                 widget.VALUE_CHANGED.connect(lambda val, k=key: self._onClassVarChanged(k, val))
             else:
                 widget = self._createClassInputWidget(
                     key,
-                    value,
+                    displayValue,
                     type_hint=typeHint,
-                    parent_val=defaultValue,
+                    parent_val=displayDefaultValue,
                     var_type=self.attrVarTypes.get(key, ""),
                 )
 

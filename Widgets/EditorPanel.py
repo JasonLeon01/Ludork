@@ -9,6 +9,7 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 import Utils
 from EditorGlobal import EditorStatus, GameData
 from Utils import EditorData, System, SFMLRender
+from Utils.DataConfig import DATA_FILE_EXTENSIONS, DATA_FORMAT_DAT, DATA_FORMAT_EXTENSIONS, DATA_FORMAT_JSON
 from .Utils import AutoTileRenderer, TilemapRenderer, Toast
 
 
@@ -1695,10 +1696,10 @@ class EditorPanel(QtWidgets.QWidget):
                     return False, ELOC("MAP_DATA_NONE")
                 GameData.CleanMapActorInstanceTransformData(mapData)
                 payload = GameData.GetMapSavePayload(mapData)
-                isJson = bool(payload.pop("isJson", None)) or GameData.GetDataFormat("Maps", self.mapKey) == "json"
-                ext = ".json" if isJson else ".dat"
+                isJson = bool(payload.pop("isJson", None)) or GameData.GetDataFormat("Maps", self.mapKey) == DATA_FORMAT_JSON
+                ext = DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON] if isJson else DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]
                 savePath = self.mapFilePath
-                if os.path.splitext(savePath)[1].lower() not in (".json", ".dat"):
+                if os.path.splitext(savePath)[1].lower() not in DATA_FILE_EXTENSIONS:
                     savePath = os.path.join(self._mapFilesRoot, self.mapKey + ext)
                 if isJson:
                     Utils.File.SaveJSONData(savePath, payload)
@@ -2285,7 +2286,7 @@ class EditorPanel(QtWidgets.QWidget):
             return
         path = urls[0].toLocalFile()
         ext = os.path.splitext(path)[1].lower()
-        if ext in (".json", ".dat"):
+        if ext in DATA_FILE_EXTENSIONS:
             e.acceptProposedAction()
 
     def dragMoveEvent(self, e: QtGui.QDragMoveEvent) -> None:
@@ -2303,7 +2304,7 @@ class EditorPanel(QtWidgets.QWidget):
             return
         path = urls[0].toLocalFile()
         ext = os.path.splitext(path)[1].lower()
-        if ext in (".json", ".dat"):
+        if ext in DATA_FILE_EXTENSIONS:
             e.acceptProposedAction()
 
     def dropEvent(self, e: QtGui.QDropEvent) -> None:
@@ -2325,7 +2326,7 @@ class EditorPanel(QtWidgets.QWidget):
             return
         path = urls[0].toLocalFile()
         ext = os.path.splitext(path)[1].lower()
-        if ext not in (".json", ".dat"):
+        if ext not in DATA_FILE_EXTENSIONS:
             return
         mapPos = self._mapDisplayPos(e.pos())
         gridPos = self._gridPosFromMapDisplayPos(mapPos)
@@ -2336,7 +2337,7 @@ class EditorPanel(QtWidgets.QWidget):
         msg = None
         data = None
         try:
-            if ext == ".json":
+            if ext == DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]:
                 data = Utils.File.GetJSONData(path)
             else:
                 data = Utils.File.LoadData(path)

@@ -13,6 +13,7 @@ from typing import Any, Optional, cast
 from PyQt5 import QtWidgets, QtCore, QtGui
 from EditorGlobal import EditorStatus, GameData
 from Utils import File, System
+from Utils.DataConfig import DATA_FORMAT_DAT, DATA_FORMAT_EXTENSIONS
 from ..MarkdownRender import MarkdownToHtml
 from .AiConfigDialog import AiConfigDialog, GetAiProvider, GetAiModel, GetAiApiKey, GetAiBaseUrl
 from .BlueprintValidation import ValidateBlueprint
@@ -532,7 +533,7 @@ class AiChatDialog(QtWidgets.QDialog):
             return None
         try:
             ext = os.path.splitext(self._blueprintFilePath)[1].lower()
-            if ext == ".dat":
+            if ext == DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]:
                 with open(self._blueprintFilePath, "rb") as f:
                     loaded = pickle.load(f)
             else:
@@ -591,7 +592,7 @@ class AiChatDialog(QtWidgets.QDialog):
         try:
             GameData.RecordSnapshot()
             ext = os.path.splitext(self._blueprintFilePath)[1].lower()
-            if ext == ".dat":
+            if ext == DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]:
                 with open(self._blueprintFilePath, "wb") as f:
                     pickle.dump(normalized, f)
             else:

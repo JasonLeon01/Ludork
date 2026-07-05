@@ -7,6 +7,7 @@ import importlib.util
 import sys
 import traceback
 from typing import Any, Dict, Optional
+from Engine.Decorators import GetConfigVars
 from Engine.Utils.DataValue import evalDataExpression, resolveAttrValueType, resolveTypedDataValue, shouldEvalValueType
 
 
@@ -94,6 +95,8 @@ class ClassDict:
                     classData["attrs"] = classAttrs
                 except Exception as e:
                     print(f"Failed to migrate legacy component attributes for {classPath}: {e}", file=sys.stderr)
+                configVarRefs = self._getConfigVarRefs(parentClass)
+                self._resolveConfigAttrValues(parentClass, classAttrs, configVarRefs)
                 for key, value in classAttrs.items():
                     attrs[key] = value
 
@@ -126,6 +129,36 @@ class ClassDict:
                 )
                 self._dict[classPath] = targetClass
         return self._dict.get(classPath)
+
+    def _getConfigVarRefs(self, cls: type) -> Dict[str, tuple[str, str]]:
+        result: Dict[str, tuple[str, str]] = {}
+        for base in reversed(cls.mro()):
+            meta = getattr(base, "__dict__", {}).get("_meta")
+            result.update(GetConfigVars(meta))
+        return result
+
+    def _resolveConfigAttrValues(
+        self, parentClass: type, classAttrs: Dict[str, Any], configVarRefs: Dict[str, tuple[str, str]]
+    ) -> None:
+        for key, ref in configVarRefs.items():
+            if key in classAttrs:
+                classAttrs[key] = self._resolveConfigStringValue(classAttrs[key], ref)
+                continue
+            parentValue = getattr(parentClass, key, "")
+            resolved = self._resolveConfigStringValue(parentValue, ref)
+            if resolved != parentValue:
+                classAttrs[key] = resolved
+
+    def _resolveConfigStringValue(self, value: Any, ref: tuple[str, str]) -> Any:
+        if not isinstance(value, str) or value:
+            return value
+        try:
+            from Source.System import System
+
+            resolved = System.getConfigValue(ref[0], ref[1])
+        except Exception:
+            return value
+        return resolved if isinstance(resolved, str) else str(resolved)
 
     def invalidate(self, classPath: str) -> None:
         r"""Drop cached class and data entries for the given dot-path.

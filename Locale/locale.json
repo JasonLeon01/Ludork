@@ -23,6 +23,10 @@
     "zh_CN": "文件名",
     "en_GB": "File Name"
   },
+  "DATA_FORMAT": {
+    "zh_CN": "数据格式",
+    "en_GB": "Data Format"
+  },
   "TILESET_NAME": {
     "zh_CN": "图块集名称",
     "en_GB": "Tileset Name"

@@ -5,12 +5,16 @@ from typing import Optional, Union, List, Tuple
 from Engine import Pair, Texture, IntRect
 from Engine.Gameplay.Actors import Actor
 from Global import GameMap, Manager
-from . import Data, System
+from . import Data
 from .Infos.ItemInfo import ItemInfo
 from Source.NodeFunctions.Player import MeetPlayer
 
 
-@Meta(GeneralDataVars=[("ID", "Item")])
+@Meta(
+    GeneralDataVars=[("ID", "Item")],
+    PathVars=[("getSE", "Sounds")],
+    ConfigVars=[("getSE", "Audio", "getSE")],
+)
 class Item(Actor, ItemInfo):
     r"""
     \brief Scene item entity.
@@ -20,6 +24,7 @@ class Item(Actor, ItemInfo):
     """
 
     ID: str = "FILL_IT_BY_YOURSELF"
+    getSE: str = ""  #: Item pickup sound effect override; empty uses Audio.getSE
 
     def __init__(
         self,
@@ -43,7 +48,7 @@ class Item(Actor, ItemInfo):
         if player:
             scene = Cast(Map, Cast(GameMap, self.getMap()).getScene())
             inst = scene.inst
-            Manager.playSE(System.getGetSE())
+            Manager.playSE(self.getSE)
             player.addItem(self.ID)
             if not inst.getCachedNewItem(self.ID):
                 inst.setCachedNewItem(self.ID)

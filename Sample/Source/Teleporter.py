@@ -11,11 +11,16 @@ from Engine.Gameplay.Actors import Actor
 from Source.GameInstance import GameInstance
 
 
-@Meta(Vector2iVars=["Offset"])
+@Meta(
+    Vector2iVars=["Offset"],
+    PathVars=[("stairSE", "Sounds")],
+    ConfigVars=[("stairSE", "Audio", "stairSE")],
+)
 class Teleporter(Actor):
     r"""\brief Actor used to move between neighbouring maps in the current region."""
 
     Offset: Pair[int] = (0, 0)  #: Tile offset applied to this teleporter's map position
+    stairSE: str = ""  #: Stair sound effect override; empty uses Audio.stairSE
     transitionName: str = ""  #: Transition mask used after floor movement
     transitionTime: float = 0.5  #: Transition duration after floor movement
 
@@ -88,9 +93,8 @@ class Teleporter(Actor):
         player.setMoveEnabled(False)
         if scene.requestFloorTransfer(targetMap, anchorPos, moveEnabled):
             from Global import Manager
-            from Source.System import System
 
-            Manager.playSE(System.getStairSE())
+            Manager.playSE(self.stairSE)
             self._floorTransferPending = True
             return
         player.setMoveEnabled(moveEnabled)

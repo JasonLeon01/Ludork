@@ -4,6 +4,13 @@ import os
 from typing import Any, Optional
 from PyQt5 import QtCore, QtWidgets
 from Utils import System
+from Utils.DataConfig import (
+    DATA_FILE_EXTENSIONS,
+    DATA_FORMAT_DAT,
+    DATA_FORMAT_EXTENSIONS,
+    DATA_FORMAT_JSON,
+    DATA_FORMAT_LABELS,
+)
 from EditorGlobal import GameData, EditorStatus
 from Widgets.Utils.FileSelectorDialog import FileSelectorDialog
 from Widgets.Utils.FilterEditDialog import EditFilterData
@@ -17,11 +24,14 @@ class MapEditDialog(QtWidgets.QDialog):
         current_key: str = "",
         title: Optional[str] = None,
         allow_current_key: bool = True,
+        data_format: Optional[str] = None,
     ) -> None:
         super().__init__(parent)
         self._data = data
         self._current_key = current_key
         self._allow_current_key = allow_current_key
+        existing_format = DATA_FORMAT_JSON if data.get("isJson") else DATA_FORMAT_DAT
+        self._data_format = self._NormaliseDataFormat(data_format or existing_format)
         old_name = str(data.get("mapName", ""))
         old_w = int(data.get("width", 0))
         old_h = int(data.get("height", 0))
@@ -36,6 +46,7 @@ class MapEditDialog(QtWidgets.QDialog):
         self.fileEdit = QtWidgets.QLineEdit(self)
         self.fileEdit.setText(current_key)
         self.fileEdit.setStyleSheet("")
+        self.dataFormatCombo: Optional[QtWidgets.QComboBox] = None
         self.nameEdit = QtWidgets.QLineEdit(self)
         self.nameEdit.setText(old_name)
         self.wSpin = QtWidgets.QSpinBox(self)
@@ -58,6 +69,15 @@ class MapEditDialog(QtWidgets.QDialog):
         else:
             self.hSpin.setStyleSheet("")
         form.addRow(ELOC("FILE_NAME"), self.fileEdit)
+        if data_format is not None:
+            self.dataFormatCombo = QtWidgets.QComboBox(self)
+            for dataFormat, label in DATA_FORMAT_LABELS.items():
+                self.dataFormatCombo.addItem(label, dataFormat)
+            currentIndex = self.dataFormatCombo.findData(self._data_format)
+            if currentIndex >= 0:
+                self.dataFormatCombo.setCurrentIndex(currentIndex)
+            self.dataFormatCombo.currentIndexChanged.connect(self._syncFileExtensionToSelectedFormat)
+            form.addRow(ELOC("DATA_FORMAT"), self.dataFormatCombo)
         form.addRow(ELOC("EDIT_MAP"), self.nameEdit)
         form.addRow(ELOC("MAP_WIDTH"), self.wSpin)
         form.addRow(ELOC("MAP_HEIGHT"), self.hSpin)
@@ -237,9 +257,24 @@ class MapEditDialog(QtWidgets.QDialog):
     @staticmethod
     def _NormaliseFileKey(name: str) -> str:
         key = name.strip()
-        if key.lower().endswith(".dat"):
+        if os.path.splitext(key)[1].lower() in DATA_FILE_EXTENSIONS:
             return os.path.splitext(key)[0]
         return key
+
+    @staticmethod
+    def _NormaliseDataFormat(dataFormat: Optional[str]) -> str:
+        if dataFormat in DATA_FORMAT_EXTENSIONS:
+            return dataFormat
+        return DATA_FORMAT_JSON
+
+    def _getFileExtensionForFormat(self) -> str:
+        return DATA_FORMAT_EXTENSIONS[self.getDataFormat()]
+
+    def _syncFileExtensionToSelectedFormat(self, _index: int = 0) -> None:
+        name = self.fileEdit.text().strip()
+        if not name:
+            return
+        self.fileEdit.setText(self._NormaliseFileKey(name) + self._getFileExtensionForFormat())
 
     def _hasFogGraphic(self) -> bool:
         return bool(self.fogEdit.text().strip())
@@ -269,9 +304,8 @@ class MapEditDialog(QtWidgets.QDialog):
         if not fname:
             QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("MAP_FILE_NAME_EMPTY"))
             return
-        if not fname.endswith(".dat"):
-            fname += ".dat"
-            self.fileEdit.setText(fname)
+        fname = self._NormaliseFileKey(fname) + self._getFileExtensionForFormat()
+        self.fileEdit.setText(fname)
 
         existing = GameData.mapData
         key = self._NormaliseFileKey(fname)
@@ -286,6 +320,13 @@ class MapEditDialog(QtWidgets.QDialog):
 
     def getFileName(self) -> str:
         return self._NormaliseFileKey(self.fileEdit.text())
+
+    def getDataFormat(self) -> str:
+        if self.dataFormatCombo is not None:
+            currentData = self.dataFormatCombo.currentData()
+            if currentData in DATA_FORMAT_EXTENSIONS:
+                return currentData
+        return self._data_format
 
     def execApply(self) -> bool:
         if self.exec_() != QtWidgets.QDialog.Accepted:
@@ -354,6 +395,10 @@ class MapEditDialog(QtWidgets.QDialog):
                 layer["tiles"] = resized
             data["width"] = new_w
             data["height"] = new_h
+        if self.getDataFormat() == DATA_FORMAT_JSON:
+            data["isJson"] = True
+        else:
+            data.pop("isJson", None)
         return True
 
 

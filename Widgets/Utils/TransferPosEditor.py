@@ -9,6 +9,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 
 from EditorGlobal import EditorStatus, GameData
 from Utils import System
+from Utils.DataConfig import DATA_FILE_EXTENSIONS_DAT_FIRST, DATA_FORMAT_DAT, DATA_FORMAT_EXTENSIONS
 from .AutoTileRenderer import AutoTileRenderer
 from .TilemapRenderer import TilemapRenderer
 from .DialogUtils import GetIndependentDialogParent, IsWidgetValid
@@ -37,11 +38,11 @@ def _resolveMapFilePath(mapKey: str) -> str:
     if os.path.splitext(path)[1]:
         return path
     mapsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Maps")
-    for ext in (".dat", ".json"):
+    for ext in DATA_FILE_EXTENSIONS_DAT_FIRST:
         candidate = f"{path}{ext}"
         if os.path.isfile(os.path.join(mapsRoot, candidate)):
             return candidate
-    return f"{path}.dat"
+    return f"{path}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]}"
 
 
 class TransferPosMapView(QtWidgets.QWidget):
@@ -336,8 +337,7 @@ class TransferPosPickDialog(QtWidgets.QDialog):
             if not isinstance(data, dict):
                 continue
             resolvedName = _FormatGameString(str(data.get("mapName") or key), localeDict)
-            displayName = f"{key} ({resolvedName})" if resolvedName != key else key
-            item = QtWidgets.QListWidgetItem(displayName)
+            item = QtWidgets.QListWidgetItem(resolvedName)
             item.setData(QtCore.Qt.UserRole, key)
             item.setToolTip(key)
             self._mapList.addItem(item)

@@ -335,8 +335,7 @@ class MoveRouteEditDialog(QtWidgets.QDialog):
             if not isinstance(data, dict):
                 continue
             resolvedName = _FormatGameString(str(data.get("mapName") or key), localeDict)
-            displayName = f"{key} ({resolvedName})" if resolvedName != key else key
-            item = QtWidgets.QListWidgetItem(displayName)
+            item = QtWidgets.QListWidgetItem(resolvedName)
             item.setData(QtCore.Qt.UserRole, key)
             item.setToolTip(key)
             self._mapList.addItem(item)

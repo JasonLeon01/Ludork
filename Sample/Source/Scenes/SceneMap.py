@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+import os
 import threading
 from typing import Callable, List, Union, Optional, Dict, Any, Tuple
 from Engine import (
@@ -10,8 +11,11 @@ from Engine import (
     Input,
     RenderTexture,
     Sprite,
+    Text,
     Texture,
+    UI,
 )
+from Engine.UI import RichText, TextStyle
 from Engine.Gameplay.Actors import Actor
 from Engine.Utils import Inner, Render
 from Global import SceneBase, GameMap
@@ -51,6 +55,10 @@ _MAP_TRANSITION_NAME = ""
 _MAP_TRANSITION_TIME = 0.5
 _ENEMY_BOOK_ITEM_ID = "EnemyBook"
 _FLOOR_TELEPORTER_ITEM_ID = "Teleport"
+_REGION_TITLE_FONT_SIZE = 96
+_REGION_TITLE_HOLD_TIME = 1.0
+_REGION_TITLE_FADE_TIME = 1.0
+_REGION_TITLE_TOTAL_TIME = _REGION_TITLE_HOLD_TIME + _REGION_TITLE_FADE_TIME
 
 
 class Scene(SceneBase):
@@ -130,6 +138,20 @@ class Scene(SceneBase):
             self._windowSaveLoad,
         )
         self._windowMenu.setMoveRestoreGuard(self._canRestoreMoveAfterMenuClose)
+        self._regionTitleText = RichText(
+            UI.DefaultFont,
+            "",
+            {
+                "default": TextStyle(
+                    _REGION_TITLE_FONT_SIZE,
+                    Text.Style.Bold,
+                    Color(232, 224, 204, 255),
+                    Color(0, 0, 0, 170),
+                    1.0,
+                )
+            },
+        )
+        self._regionTitleText.setVisible(False)
         self._uiManager.loadUI(self._playerHUD)
         self._uiManager.loadUI(self._messageWindow)
         self._uiManager.loadUI(self._windowMenu)
@@ -154,6 +176,8 @@ class Scene(SceneBase):
 
         self._gameMap: GameMap = None
         self._cachedMapFile: str = None
+        self._currentRegion: Optional[str] = None
+        self._regionTitleElapsed: float = _REGION_TITLE_TOTAL_TIME
         self._mapClickMoveBlockedUntilLateTick: bool = False
         self._mapInputBlockFrames: int = 0
         self._pendingMenuOpen: bool = False
@@ -193,6 +217,7 @@ class Scene(SceneBase):
         self._mapClickMoveBlockedUntilLateTick = self._isMapClickMoveBlocked()
         self._gameMap.onTick(deltaTime)
         self._gameMap.getTilemap().updateAutoTileAnimation(deltaTime)
+        self._updateRegionTitle(deltaTime)
         if self._canOpenMenu() and self._isMenuOpenTriggered():
             self.openMenu()
         return super().onTick(deltaTime)
@@ -233,6 +258,7 @@ class Scene(SceneBase):
         self._mapAudio.playMapAudio(mapData)
         GlobalSystem.clearFog()
         GlobalSystem.applyFogFromMapData(mapData)
+        self._updateCurrentRegion(mapFile)
         return mapFile
 
     @ReturnType(gameMap=GameMap)
@@ -342,6 +368,7 @@ class Scene(SceneBase):
         mapPath = inst._cachedMap or System.getStartMap()
         pos = self.player.getMapPosition().unpack()
         self._cachedMapFile = None
+        self._currentRegion = None
         self.gotoMapAndPos(mapPath, pos)
 
     def _rebindPlayerToUI(self) -> None:
@@ -701,6 +728,11 @@ class Scene(SceneBase):
             anim.setPosition(worldPosition)
         GlobalSystem.setWindowDefaultView()
 
+    def _drawCommonTipOverlay(self) -> None:
+        super()._drawCommonTipOverlay()
+        if self._regionTitleText.getVisible():
+            GlobalSystem.draw(self._regionTitleText)
+
     def _renderHandle(self, deltaTime: float) -> None:
         self._gameMap.show()
         super()._renderHandle(deltaTime)
@@ -787,3 +819,68 @@ class Scene(SceneBase):
 
     def _getCurrentRegionMap(self) -> str:
         return self._cachedMapFile or self.inst._cachedMap or System.getStartMap()
+
+    def _updateCurrentRegion(self, mapFile: str) -> None:
+        region = self._findRegionForMap(mapFile)
+        if region == self._currentRegion:
+            return
+        self._currentRegion = region
+        if region is None:
+            return
+        self.inst.setCurrentRegion(region)
+        self._showRegionTitle(region)
+
+    def _findRegionForMap(self, mapFile: str) -> Optional[str]:
+        from Source.Config.RegionDict import RegionDict
+
+        currentName = self._normaliseRegionMapName(mapFile)
+        currentBaseName = os.path.basename(currentName)
+        for region, regionMaps in RegionDict.items():
+            for regionMap in regionMaps:
+                regionMapName = self._normaliseRegionMapName(regionMap)
+                if regionMapName == currentName:
+                    return region
+                if "/" not in regionMapName and regionMapName == currentBaseName:
+                    return region
+        return None
+
+    @staticmethod
+    def _normaliseRegionMapName(mapPath: str) -> str:
+        path = str(mapPath).replace("\\", "/")
+        while path.startswith("./"):
+            path = path[2:]
+        marker = "Data/Maps/"
+        markerIndex = path.find(marker)
+        if markerIndex != -1:
+            path = path[markerIndex + len(marker) :]
+        path = os.path.splitext(path)[0]
+        return path
+
+    def _showRegionTitle(self, region: str) -> None:
+        self._regionTitleText.setString(LOC(region))
+        self._layoutRegionTitle()
+        self._regionTitleElapsed = 0.0
+        self._regionTitleText.setColour(Color(255, 255, 255, 255))
+        self._regionTitleText.setVisible(True)
+
+    def _layoutRegionTitle(self) -> None:
+        bounds = self._regionTitleText.getLocalBounds()
+        origin = Vector2f(bounds.position.x + bounds.size.x / 2.0, bounds.position.y + bounds.size.y / 2.0)
+        self._regionTitleText.setOrigin(origin)
+        gameSize = GlobalSystem.getGameSize()
+        self._regionTitleText.setPosition(Vector2f(float(gameSize.x) / 2.0, float(gameSize.y) / 2.0))
+
+    def _updateRegionTitle(self, deltaTime: float) -> None:
+        if not self._regionTitleText.getVisible():
+            return
+        if GlobalSystem.isTransitionPending() or GlobalSystem.isInTransition():
+            return
+        self._regionTitleElapsed += deltaTime
+        if self._regionTitleElapsed <= _REGION_TITLE_HOLD_TIME:
+            return
+        fadeElapsed = self._regionTitleElapsed - _REGION_TITLE_HOLD_TIME
+        if fadeElapsed >= _REGION_TITLE_FADE_TIME:
+            self._regionTitleText.setVisible(False)
+            return
+        alpha = int(255 * (1.0 - fadeElapsed / _REGION_TITLE_FADE_TIME))
+        self._regionTitleText.setColour(Color(255, 255, 255, alpha))
