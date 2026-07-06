@@ -163,15 +163,14 @@ class _WindowAttrShopSelectable(WindowSelectable):
         super().onTick(deltaTime)
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
-        if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
+        if Input.isActionTriggered(Input.getCancelKeys(), handled=False):
             self._owner.closeByCancel()
+            Input.isActionTriggered(Input.getCancelKeys(), handled=True)
             return
         super().onKeyDown(kwargs)
 
     def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
         if kwargs["button"] == Input.Mouse.Button.Right:
-            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
-            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
             self._owner.closeByCancel()
             return True
         return False

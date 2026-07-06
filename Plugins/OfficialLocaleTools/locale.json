@@ -1,0 +1,18 @@
+{
+    "en_GB": {
+        "OFFICIAL_LOCALE_MENU": "View Locale Table",
+        "OFFICIAL_LOCALE_EDIT": "Edit in Editor",
+        "OFFICIAL_LOCALE_OPEN_FILE": "Open Locale File",
+        "OFFICIAL_LOCALE_EXPORT": "Export Locale",
+        "LOCALE_DUPLICATE_ATTRKEY_WARNING": "Duplicate attrkey values found. Export will continue; later entries overwrite earlier ones:\n{duplicates}",
+        "LOCALE_DUPLICATE_ATTRKEY_MORE": "{count} more duplicate entries not shown"
+    },
+    "zh_CN": {
+        "OFFICIAL_LOCALE_MENU": "查看本地化表",
+        "OFFICIAL_LOCALE_EDIT": "在编辑器中编辑",
+        "OFFICIAL_LOCALE_OPEN_FILE": "打开本地化文件",
+        "OFFICIAL_LOCALE_EXPORT": "导出本地化",
+        "LOCALE_DUPLICATE_ATTRKEY_WARNING": "检测到重复的 attrkey，导出仍会继续，后面的条目会覆盖前面的条目：\n{duplicates}",
+        "LOCALE_DUPLICATE_ATTRKEY_MORE": "还有 {count} 处重复未显示"
+    }
+}

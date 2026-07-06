@@ -471,25 +471,22 @@ class WindowEquipSlot(WindowSelectable):
         self._windowEquipSelect.setVisible(True)
         self._windowEquipSelect.setActive(True)
         self._windowEquipSelect.updateStatus()
+        self._windowEquipSelect.requestKeyboardFocus()
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
         r"""\brief Handle cancel, confirm, and focus-switch keys.
 
         - \param kwargs Event data.
         """
-        if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
+        if Input.isActionTriggered(Input.getCancelKeys(), handled=False):
             self._closeByCancel()
-            return
-        if Input.isActionTriggered(Input.getRightKeys(), handled=True):
-            self._focusSelectWindow()
+            Input.isActionTriggered(Input.getCancelKeys(), handled=True)
             return
         return super().onKeyDown(kwargs)
 
     def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
         r"""\brief Handle mouse cancel to close the slot window."""
         if kwargs["button"] == Input.Mouse.Button.Right:
-            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
-            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
             self._closeByCancel()
             return True
         return False
@@ -652,41 +649,39 @@ class WindowEquipSelect(WindowSelectable):
     def _getGridColumns(self, contentWidth: int) -> int:
         return max(1, int((contentWidth - _EQUIP_CELL_SIZE) / _EQUIP_CELL_SIZE))
 
-    def _focusSlotWindow(self) -> None:
-        if self._windowEquipSlot is None:
-            return
-        self._closeByCancel()
+    def returnToSlotWindow(self, playSE: bool = True) -> None:
+        r"""\brief Return focus to the slot list while keeping this window visible.
 
-    def _closeByCancel(self) -> None:
-        r"""\brief Return focus to the slot list while keeping this window visible."""
-        Manager.playSE(GameSystem.getCancelSE())
+        - \param playSE Whether to play the cancel sound effect.
+        """
+        if playSE:
+            Manager.playSE(GameSystem.getCancelSE())
         self.setActive(False)
         self.setVisible(True)
         if self._windowEquipSlot is not None:
             self._windowEquipSlot.setActive(True)
+            self._windowEquipSlot.requestKeyboardFocus()
         if self._windowEquipStatus is not None and self._slotKey:
             self._windowEquipStatus.refreshForSlot(self._slotKey)
+
+    def _closeByCancel(self) -> None:
+        r"""\brief Handle cancel by returning focus to the slot list."""
+        self.returnToSlotWindow()
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
         r"""\brief Handle cancel, confirm, and focus-switch keys.
 
         - \param kwargs Event data.
         """
-        if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
+        if Input.isActionTriggered(Input.getCancelKeys(), handled=False):
             self._closeByCancel()
+            Input.isActionTriggered(Input.getCancelKeys(), handled=True)
             return
-        if Input.isActionTriggered(Input.getLeftKeys(), handled=True):
-            columns = self._getColumns()
-            if self.index is None or (columns != 1 and self.index % columns == 0):
-                self._focusSlotWindow()
-                return
         return super().onKeyDown(kwargs)
 
     def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
         r"""\brief Handle mouse cancel to close this window."""
         if kwargs["button"] == Input.Mouse.Button.Right:
-            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
-            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
             self._closeByCancel()
             return True
         return False

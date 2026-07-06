@@ -46,17 +46,19 @@ class MapClickAutoPath(ComponentBase):
         player = self._parent.getPlayer()
         if player is None or self._isAutoPathBlocked(player):
             return
-        if Input.isMouseButtonTriggered(Mouse.Button.Left, True):
+        if Input.isMouseButtonTriggered(Mouse.Button.Left, handled=False):
             goal = self._getMouseMapPosition()
             if goal is not None:
                 with self._pendingGoalsLock:
                     self._pendingGoals.append(goal)
+                Input.isMouseButtonTriggered(Mouse.Button.Left, handled=True)
             return
-        if Input.isTouchBegan(handled=True):
+        if Input.isTouchBegan(handled=False):
             goal = self._getTouchMapPosition()
             if goal is not None:
                 with self._pendingGoalsLock:
                     self._pendingGoals.append(goal)
+                Input.isTouchBegan(handled=True)
 
     def onTick(self) -> None:
         r"""

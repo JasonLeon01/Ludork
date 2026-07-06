@@ -118,6 +118,9 @@ class LayerBarMixin:
         if index <= 0:
             menu = QtWidgets.QMenu(self)
             actAdd = menu.addAction(ELOC("ADD_LAYER"))
+            from Utils import PluginSystem
+
+            PluginSystem.AddRightClickActions(menu, self, "layerTab", "empty", None)
             action = menu.exec_(self.layerList.mapToGlobal(pos))
             if action == actAdd:
                 self._onAddLayer()
@@ -135,6 +138,9 @@ class LayerBarMixin:
         actClearShader.setEnabled(bool(self.editorPanel.getLayerShaderPath(name)))
         menu.addSeparator()
         actDelete = menu.addAction(ELOC("DELETE"))
+        from Utils import PluginSystem
+
+        PluginSystem.AddRightClickActions(menu, self, "layerTab", "hit", name)
         action = menu.exec_(self.layerList.mapToGlobal(pos))
 
         if action == actAdd:

@@ -67,6 +67,8 @@ class EditorPanel(QtWidgets.QWidget):
         self.tileModeEnabled: bool = True
         self.rectStartPos: Optional[Tuple[int, int]] = None
         self.selectedLightIndex: Optional[int] = None
+        self.selectedActorLayerName: Optional[str] = None
+        self.selectedActorIndex: Optional[int] = None
         self._lightRadiusDragging = False
         self._lightRadiusDragMapKey = ""
         self._lightRadiusDragIndex: Optional[int] = None
@@ -106,6 +108,26 @@ class EditorPanel(QtWidgets.QWidget):
         self._animationTimer.setInterval(_EDITOR_ANIMATION_TICK_MS)
         self._animationTimer.timeout.connect(self._onAnimationTick)
         self._animationTimer.start()
+        self._actorShortcuts = [
+            QtWidgets.QShortcut(
+                QtGui.QKeySequence.Copy,
+                self,
+                self.copySelectedActor,
+                context=QtCore.Qt.WidgetWithChildrenShortcut,
+            ),
+            QtWidgets.QShortcut(
+                QtGui.QKeySequence.Paste,
+                self,
+                self.pasteActorAtSelectedPos,
+                context=QtCore.Qt.WidgetWithChildrenShortcut,
+            ),
+            QtWidgets.QShortcut(
+                QtGui.QKeySequence.Delete,
+                self,
+                self.deleteSelectedActor,
+                context=QtCore.Qt.WidgetWithChildrenShortcut,
+            ),
+        ]
 
     def _updateCachedTileset(self) -> None:
         self._cachedTilesetImage = None
@@ -133,7 +155,7 @@ class EditorPanel(QtWidgets.QWidget):
         self.mapData = None
         self._pixmap = None
         self._setSelectedLightIndex(None)
-        self.ACTOR_SELECTION_CHANGED.emit(None, None, None)
+        self._setSelectedActor(None, None)
         self.setMinimumSize(0, 0)
         self.setMaximumSize(16777215, 16777215)
         self.updateGeometry()
@@ -414,6 +436,8 @@ class EditorPanel(QtWidgets.QWidget):
 
     def setSelectedLayer(self, name: Optional[str]) -> None:
         self.selectedLayerName = name
+        if name != self.selectedActorLayerName:
+            self._setSelectedActor(None, None, render=False)
         self._updateCachedTileset()
         self._renderFromMapData()
 
@@ -424,7 +448,7 @@ class EditorPanel(QtWidgets.QWidget):
             self._stopLightMoveDrag()
             self._setSelectedLightIndex(None)
             self._setLightOverlayEnabled(False)
-            self.ACTOR_SELECTION_CHANGED.emit(None, None, None)
+            self._setSelectedActor(None, None)
         self.update()
 
     def setLightOverlayEnabled(self, enabled: bool) -> None:
@@ -440,10 +464,13 @@ class EditorPanel(QtWidgets.QWidget):
         if self._lightOverlayEnabled == enabled:
             return
         self._lightOverlayEnabled = enabled
+        if enabled:
+            self._setSelectedActor(None, None)
         if not enabled:
             self._stopLightRadiusDrag()
             self._stopLightMoveDrag()
             self._setSelectedLightIndex(None)
+            self._setSelectedActor(None, None)
 
     def setSelectedTileNumber(self, num: Optional[int]) -> None:
         self.selectedTileNumber = None if num is None else int(num)
@@ -496,6 +523,70 @@ class EditorPanel(QtWidgets.QWidget):
         self._stopLightMoveDrag()
         self._setSelectedLightIndex(index)
         self.update()
+
+    def _getSelectedActor(self) -> Optional[Dict[str, Any]]:
+        layerName = self.selectedActorLayerName
+        index = self.selectedActorIndex
+        if not isinstance(layerName, str) or not isinstance(index, int):
+            return None
+        actors = self._getActorListForLayer(layerName)
+        if not (0 <= index < len(actors)):
+            return None
+        actor = actors[index]
+        return actor if isinstance(actor, dict) else None
+
+    def _setSelectedActor(
+        self,
+        layerName: Optional[str],
+        index: Optional[int],
+        render: bool = True,
+    ) -> None:
+        actor = None
+        if isinstance(layerName, str) and isinstance(index, int):
+            actors = self._getActorListForLayer(layerName)
+            if 0 <= index < len(actors) and isinstance(actors[index], dict):
+                actor = actors[index]
+            else:
+                layerName = None
+                index = None
+        else:
+            layerName = None
+            index = None
+        if self.selectedActorLayerName == layerName and self.selectedActorIndex == index:
+            return
+        self.selectedActorLayerName = layerName
+        self.selectedActorIndex = index
+        self.ACTOR_SELECTION_CHANGED.emit(layerName, index, actor)
+        if render and self.mapData is not None:
+            self._renderFromMapData()
+        self.update()
+
+    def copySelectedActor(self) -> None:
+        actor = self._getSelectedActor()
+        if (
+            actor is None
+            or not isinstance(self.selectedActorLayerName, str)
+            or not isinstance(self.selectedActorIndex, int)
+        ):
+            return
+        self._copyActor(self.selectedActorLayerName, self.selectedActorIndex)
+
+    def pasteActorAtSelectedPos(self) -> None:
+        if self.tileModeEnabled or self._lightOverlayEnabled:
+            return
+        if self.selectedLayerName is None or self.selectedPos is None:
+            return
+        gx, gy = self.selectedPos
+        if self._hasActorAt(self.selectedLayerName, gx, gy):
+            return
+        self._pasteActor(gx, gy)
+
+    def deleteSelectedActor(self) -> None:
+        if self.tileModeEnabled or self._lightOverlayEnabled:
+            return
+        if not isinstance(self.selectedActorLayerName, str) or not isinstance(self.selectedActorIndex, int):
+            return
+        self._deleteActor(self.selectedActorLayerName, self.selectedActorIndex)
 
     def _getLights(self) -> List[Dict[str, Any]]:
         if not self.mapKey:
@@ -1270,6 +1361,7 @@ class EditorPanel(QtWidgets.QWidget):
 
         layerList.append(newActor)
         self._pasteActorClassVarChanges(m, newTag)
+        self._setSelectedActor(self.selectedLayerName, len(layerList) - 1, render=False)
         self._refreshTitle()
         self.DATA_CHANGED.emit()
         self._renderFromMapData()
@@ -1290,7 +1382,7 @@ class EditorPanel(QtWidgets.QWidget):
             layerList.pop(index)
             self._refreshTitle()
             self.DATA_CHANGED.emit()
-            self.ACTOR_SELECTION_CHANGED.emit(None, None, None)
+            self._setSelectedActor(None, None, render=False)
             self._renderFromMapData()
             self.update()
 
@@ -1438,6 +1530,8 @@ class EditorPanel(QtWidgets.QWidget):
                 hit = self._hitTestActor(self.selectedLayerName, mapPos, tileSize)
 
                 if e.button() == QtCore.Qt.RightButton:
+                    if isinstance(hit, int):
+                        self._setSelectedActor(self.selectedLayerName, hit)
                     menu = QtWidgets.QMenu(self)
 
                     actCopy = QtWidgets.QAction(ELOC("COPY"), self)
@@ -1457,14 +1551,27 @@ class EditorPanel(QtWidgets.QWidget):
                     actDelete.triggered.connect(lambda: self._deleteActor(self.selectedLayerName, hit))
                     menu.addAction(actDelete)
 
+                    itemData = {"layer": self.selectedLayerName, "grid": (gx, gy)}
+                    if isinstance(hit, int):
+                        actors = self._getActorListForLayer(self.selectedLayerName)
+                        if 0 <= hit < len(actors):
+                            itemData["index"] = hit
+                            itemData["actor"] = actors[hit]
+                    from Utils import PluginSystem
+
+                    PluginSystem.AddRightClickActions(
+                        menu,
+                        self,
+                        "editorPanel_actor",
+                        "hit" if isinstance(hit, int) else "empty",
+                        itemData,
+                    )
                     menu.exec_(e.globalPos())
                     return
 
                 if e.button() == QtCore.Qt.LeftButton:
                     if isinstance(hit, int):
-                        actors = self._getActorListForLayer(self.selectedLayerName)
-                        if 0 <= hit < len(actors):
-                            self.ACTOR_SELECTION_CHANGED.emit(self.selectedLayerName, hit, actors[hit])
+                        self._setSelectedActor(self.selectedLayerName, hit)
 
                         GameData.RecordSnapshot()
                         self._actorMoveDragging = True
@@ -1499,12 +1606,13 @@ class EditorPanel(QtWidgets.QWidget):
                                 }
                                 GameData.RecordSnapshot()
                                 layerList.append(actorEntry)
+                                self._setSelectedActor(layerKey, len(layerList) - 1, render=False)
                                 self._refreshTitle()
                                 self.DATA_CHANGED.emit()
                                 self._renderFromMapData()
                                 self.update()
                                 return
-                        self.ACTOR_SELECTION_CHANGED.emit(None, None, None)
+                        self._setSelectedActor(None, None)
             return
         if self.selectedLayerName is None:
             return
@@ -2058,7 +2166,7 @@ class EditorPanel(QtWidgets.QWidget):
         displayScale = float(tileSize) / float(sourceTileSize)
         oldOpacity = painter.opacity()
         painter.setOpacity(opacity)
-        for entry in actors:
+        for index, entry in enumerate(actors):
             if not isinstance(entry, dict):
                 continue
             pos = entry.get("position")
@@ -2120,6 +2228,13 @@ class EditorPanel(QtWidgets.QWidget):
                 painter.fillRect(r, color)
                 painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255, 220), 1))
                 painter.drawRect(r)
+
+            if self.selectedActorLayerName == layerName and self.selectedActorIndex == index:
+                pen = QtGui.QPen(QtGui.QColor(255, 220, 0, 255), 2)
+                pen.setCosmetic(True)
+                painter.setPen(pen)
+                painter.setBrush(QtCore.Qt.NoBrush)
+                painter.drawRect(QtCore.QRectF(-origin[0], -origin[1], w, h))
 
             painter.restore()
 

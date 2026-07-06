@@ -1,0 +1,25 @@
+{
+    "name": "OfficialLocaleTools",
+    "version": "1.0.0",
+    "author": "Ludork",
+    "description": "Official locale table editor and export tools.",
+    "minEditorVersion": "0.1.0",
+    "types": ["submenu"],
+    "hooks": {
+        "submenu": [
+            {
+                "parentMenu": "DATABASE",
+                "label": "VIEW_LOCALE_TABLE",
+                "localeKey": "OFFICIAL_LOCALE_MENU",
+                "separatorBefore": true
+            },
+            {
+                "parentMenu": "DATABASE",
+                "label": "EXPORT_LOCALE",
+                "localeKey": "OFFICIAL_LOCALE_EXPORT",
+                "shortcut": "F12",
+                "separatorAfter": true
+            }
+        ]
+    }
+}

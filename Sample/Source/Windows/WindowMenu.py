@@ -1,8 +1,9 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from Engine import Input
+from Engine.UI.Base import Direction, FunctionalBase
 from Global import Manager, System as GlobalSystem
 from .WindowCommand import WindowCommand
 from ..System import System as GameSystem
@@ -67,19 +68,49 @@ class WindowMenu(WindowCommand):
 
         - \param kwargs Event data.
         """
-        if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
+        if Input.isActionTriggered(Input.getCancelKeys(), handled=False):
+            if self._returnEquipSelectToSlot():
+                Input.isActionTriggered(Input.getCancelKeys(), handled=True)
+                return
+            if self._returnSaveSlotToCommand():
+                Input.isActionTriggered(Input.getCancelKeys(), handled=True)
+                return
+            if self._closeSubMenus():
+                self.requestKeyboardFocus()
+                Input.isActionTriggered(Input.getCancelKeys(), handled=True)
+                return
             self._closeByCancel()
+            Input.isActionTriggered(Input.getCancelKeys(), handled=True)
             return
         return super().onKeyDown(kwargs)
 
     def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
         r"""\brief Handle right-click cancel to close the menu."""
         if kwargs["button"] == Input.Mouse.Button.Right:
-            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
-            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
+            if self._returnEquipSelectToSlot():
+                return True
+            if self._returnSaveSlotToCommand():
+                return True
+            if self._closeSubMenus():
+                self.requestKeyboardFocus()
+                return True
             self._closeByCancel()
             return True
         return False
+
+    def onDirectionalKey(self, direction: Direction) -> bool:
+        r"""\brief Move menu cursor or jump to the currently opened submenu.
+
+        - \param direction Navigation direction.
+
+        - \return True if the direction was handled.
+        """
+        if direction == Direction.RIGHT:
+            target = self._getCurrentSubMenuFocusTarget()
+            if target is not None:
+                target.requestKeyboardFocus()
+                return True
+        return super().onDirectionalKey(direction)
 
     def open(self) -> None:
         r"""\brief Open the menu window and disable player movement."""
@@ -90,6 +121,7 @@ class WindowMenu(WindowCommand):
 
     def close(self) -> None:
         r"""\brief Close the menu window and restore player movement."""
+        self._closeSubMenus()
         self.setVisible(False)
         self.setActive(False)
         if self._moveRestoreGuard():
@@ -107,11 +139,12 @@ class WindowMenu(WindowCommand):
 
     def _onMenuItem(self, kwargs: Dict[str, Any] = {}) -> None:
         Manager.playSE(GameSystem.getDecisionSE())
-        self.setActive(False)
+        self._closeSubMenus(exceptName="item")
         self._windowItem.open()
+        self._windowItem.requestKeyboardFocus()
 
     def _onItemClose(self) -> None:
-        self.setActive(True)
+        self.requestKeyboardFocus()
 
     def _onItemUsed(self) -> None:
         self.close()
@@ -120,12 +153,13 @@ class WindowMenu(WindowCommand):
         if self._windowEquipSlot is None or self._windowEquipSelect is None:
             return
         Manager.playSE(GameSystem.getDecisionSE())
-        self.setActive(False)
+        self._closeSubMenus(exceptName="equip")
         self._windowEquipSelect.open()
         self._windowEquipSlot.open()
+        self._windowEquipSlot.requestKeyboardFocus()
 
     def _onEquipClose(self) -> None:
-        self.setActive(True)
+        self.requestKeyboardFocus()
 
     def _onEquipUsed(self) -> None:
         pass
@@ -134,13 +168,66 @@ class WindowMenu(WindowCommand):
         if self._windowSaveLoad is None:
             return
         Manager.playSE(GameSystem.getDecisionSE())
-        self.setActive(False)
+        self._closeSubMenus(exceptName="save")
         self._windowSaveLoad.open()
+        saveCommandWindow = self._windowSaveLoad.getCommandWindow()
+        if saveCommandWindow is not None and saveCommandWindow.getActive():
+            saveCommandWindow.requestKeyboardFocus()
+        else:
+            self._windowSaveLoad.getSlotWindow().requestKeyboardFocus()
 
     def _onSaveLoadClose(self) -> None:
-        self.setActive(True)
+        self.requestKeyboardFocus()
 
     def _onMenuExit(self, kwargs: Dict[str, Any] = {}) -> None:
         from Source.Scenes import Title
 
         GlobalSystem.setScene(Title())
+
+    def _getCurrentSubMenuFocusTarget(self) -> Optional[FunctionalBase]:
+        if self.index == 0 and self._windowItem.getVisible():
+            return self._windowItem
+        if self.index == 1 and self._windowEquipSlot is not None and self._windowEquipSlot.getVisible():
+            return self._windowEquipSlot
+        if self.index == 2 and self._windowSaveLoad is not None and self._windowSaveLoad.getVisible():
+            saveCommandWindow = self._windowSaveLoad.getCommandWindow()
+            if saveCommandWindow is not None and saveCommandWindow.getActive():
+                return saveCommandWindow
+            return self._windowSaveLoad.getSlotWindow()
+        return None
+
+    def _closeSubMenus(self, exceptName: str = "") -> bool:
+        closed = False
+        if exceptName != "item" and self._windowItem.getVisible():
+            self._windowItem.close()
+            closed = True
+        if exceptName != "equip" and self._windowEquipSlot is not None and self._windowEquipSlot.getVisible():
+            self._windowEquipSlot.close()
+            if self._windowEquipSelect is not None:
+                self._windowEquipSelect.close()
+            closed = True
+        if exceptName != "equip" and self._windowEquipSelect is not None and self._windowEquipSelect.getVisible():
+            self._windowEquipSelect.close()
+            closed = True
+        if exceptName != "save" and self._windowSaveLoad is not None and self._windowSaveLoad.getVisible():
+            self._windowSaveLoad.close()
+            closed = True
+        return closed
+
+    def _returnEquipSelectToSlot(self) -> bool:
+        if self._windowEquipSelect is None:
+            return False
+        if not self._windowEquipSelect.getVisible():
+            return False
+        if not (self._windowEquipSelect.getActive() or self._windowEquipSelect.getFocused()):
+            return False
+        self._windowEquipSelect.returnToSlotWindow()
+        return True
+
+    def _returnSaveSlotToCommand(self) -> bool:
+        if self._windowSaveLoad is None or not self._windowSaveLoad.getVisible():
+            return False
+        slotWindow = self._windowSaveLoad.getSlotWindow()
+        if not (slotWindow.getActive() or slotWindow.getFocused()):
+            return False
+        return self._windowSaveLoad.returnToCommandWindow()

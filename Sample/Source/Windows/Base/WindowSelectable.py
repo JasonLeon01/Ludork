@@ -1,17 +1,19 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Optional, Union, Tuple, Dict, Any
+from typing import Any, Dict, List, Optional, Union, Tuple
 from Engine import Pair, Image, IntRect, Vector2f, Vector2i, Input, View, FloatRect
 from Engine.UI import Rect, ListView
 from Engine.Utils import Math
-from Engine.UI.Base import ControlBase, FunctionalBase
+from Engine.UI.Base import ControlBase, Direction, FunctionalBase
 from Global import Manager
 from .WindowBase import WindowBase
 from ...System import System as GameSystem
 
 
 _INACTIVE_SELECTION_RECT_OPACITY_MULTIPLIER = 0.35
+_REPEAT_DELAY = 0.4
+_REPEAT_INTERVAL = 0.1
 
 
 class WindowSelectable(WindowBase):
@@ -41,6 +43,7 @@ class WindowSelectable(WindowBase):
         super().__init__(rect, windowSkin, repeated)
         self._oldIndex: Optional[int] = None
         self.index: Optional[int] = 0
+        self.setCanReceiveFocus(True)
         if not listView is None:
             self.content.addChild(listView)
         self._listView = listView
@@ -80,7 +83,8 @@ class WindowSelectable(WindowBase):
         - \param deltaTime Elapsed time in seconds.
         """
         active = self.getActive()
-        self._rect.setVisible((not self.index is None and self._itemCount() > 0))
+        focused = self._hasCursorFocus()
+        self._rect.setVisible((not self.index is None and self._itemCount() > 0 and focused))
         if self.index is not None:
             self._updateScroll()
             if self._rectWidth != self._getRectWidth():
@@ -92,10 +96,11 @@ class WindowSelectable(WindowBase):
                     ),
                     self._windowSkin,
                 )
-        self._rect.setOpacityMultiplier(1.0 if active else _INACTIVE_SELECTION_RECT_OPACITY_MULTIPLIER)
+        self._rect.setOpacityMultiplier(1.0 if focused else _INACTIVE_SELECTION_RECT_OPACITY_MULTIPLIER)
         if self._rect.getParent() is None:
             self.content.addChild(self._rect)
-        if active and self._isHovered and self._listView and Input.isMouseInputMode() and Input.isMouseMoved():
+        if self.canReceiveFocus() and self._isHovered and self._listView and Input.isMouseInputMode() and Input.isMouseMoved():
+            self.requestKeyboardFocus()
             mousePos = Math.ToVector2f(Input.getMousePosition())
             for hoverIndex, child in enumerate(self._listView.getChildren()):
                 if isinstance(child, ControlBase):
@@ -148,34 +153,52 @@ class WindowSelectable(WindowBase):
         if not (self._listView and len(self._listView.getChildren()) > 0 and not self.index is None):
             return
 
-        if Input.isActionTriggered(Input.getConfirmKeys(), handled=True):
+        if Input.isActionTriggered(Input.getConfirmKeys(), handled=False):
             children = self._listView.getChildren()
             if 0 <= self.index < len(children):
                 child = children[self.index]
                 if isinstance(child, FunctionalBase):
                     child.onConfirm({})
+                    Input.isActionTriggered(Input.getConfirmKeys(), handled=True)
             return
 
-        _REPEAT_DELAY = 0.4
-        _REPEAT_INTERVAL = 0.1
+        if self._handleDirectionalAction(Direction.UP, Input.getUpKeys()):
+            return
+        if self._handleDirectionalAction(Direction.DOWN, Input.getDownKeys()):
+            return
+        if self._handleDirectionalAction(Direction.LEFT, Input.getLeftKeys()):
+            return
+        self._handleDirectionalAction(Direction.RIGHT, Input.getRightKeys())
 
+    def onDirectionalKey(self, direction: Direction) -> bool:
+        r"""\brief Handle directional cursor movement.
+
+        - \param direction Direction pressed by keyboard or gamepad.
+
+        - \return True if the direction was handled inside this window.
+        """
+        if self.index is None or self._itemCount() <= 0:
+            return False
         columns = self._getColumns()
-        if Input.isActionTriggered(Input.getUpKeys(), handled=True, repeatDelay=_REPEAT_DELAY, repeatInterval=_REPEAT_INTERVAL):
+        if direction == Direction.UP:
             if columns == 1:
                 self.index = (self.index - 1) % self._itemCount()
-            else:
-                self.index = max(0, self.index - columns)
-        elif Input.isActionTriggered(Input.getDownKeys(), handled=True, repeatDelay=_REPEAT_DELAY, repeatInterval=_REPEAT_INTERVAL):
+                return True
+            return self._setIndexIfChanged(max(0, self.index - columns))
+        if direction == Direction.DOWN:
             if columns == 1:
                 self.index = (self.index + 1) % self._itemCount()
-            else:
-                self.index = min(self._itemCount() - 1, self.index + columns)
-        elif Input.isActionTriggered(Input.getLeftKeys(), handled=True, repeatDelay=_REPEAT_DELAY, repeatInterval=_REPEAT_INTERVAL):
-            if columns != 1:
-                self.index = max(0, self.index - 1)
-        elif Input.isActionTriggered(Input.getRightKeys(), handled=True, repeatDelay=_REPEAT_DELAY, repeatInterval=_REPEAT_INTERVAL):
-            if columns != 1:
-                self.index = min(self._itemCount() - 1, self.index + 1)
+                return True
+            return self._setIndexIfChanged(min(self._itemCount() - 1, self.index + columns))
+        if direction == Direction.LEFT:
+            if columns == 1 or self.index % columns == 0:
+                return False
+            return self._setIndexIfChanged(self.index - 1)
+        if direction == Direction.RIGHT:
+            if columns == 1 or self.index % columns == columns - 1 or self.index + 1 >= self._itemCount():
+                return False
+            return self._setIndexIfChanged(self.index + 1)
+        return False
 
     def _getRectPosition(self) -> Optional[Vector2f]:
         if self.index is None:
@@ -198,6 +221,37 @@ class WindowSelectable(WindowBase):
         if self._listView is None:
             return 1
         return self._listView.getColumns()
+
+    def _hasCursorFocus(self) -> bool:
+        if self.ownsKeyboardCursorFocus():
+            return True
+        return self.getActive() and self.shouldDispatchKeyboardInput()
+
+    def _handleDirectionalAction(self, direction: Direction, actionKeys: List[Any]) -> bool:
+        if not Input.isActionTriggered(
+            actionKeys,
+            handled=False,
+            repeatDelay=_REPEAT_DELAY,
+            repeatInterval=_REPEAT_INTERVAL,
+        ):
+            return False
+        handled = self.onDirectionalKey(direction)
+        if not handled:
+            handled = self.requestDirectionalFocusMove(direction)
+        if handled:
+            Input.isActionTriggered(
+                actionKeys,
+                handled=True,
+                repeatDelay=_REPEAT_DELAY,
+                repeatInterval=_REPEAT_INTERVAL,
+            )
+        return handled
+
+    def _setIndexIfChanged(self, index: int) -> bool:
+        if self.index == index:
+            return False
+        self.index = index
+        return True
 
     def _applyItem(self, item: ControlBase) -> None:
         if isinstance(item, ControlBase):
@@ -227,7 +281,7 @@ class WindowSelectable(WindowBase):
     def _confirmMouseSelection(self) -> bool:
         if not Input.isMouseInputMode():
             return False
-        if not Input.isMouseButtonTriggered(Input.Mouse.Button.Left):
+        if not Input.isMouseButtonTriggered(Input.Mouse.Button.Left, handled=False):
             return False
         if self._confirmSelectionAt(Math.ToVector2f(Input.getMousePosition())):
             Input.isMouseButtonTriggered(Input.Mouse.Button.Left, handled=True)

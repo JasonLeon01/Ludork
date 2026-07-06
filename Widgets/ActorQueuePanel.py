@@ -301,6 +301,11 @@ class ActorQueuePanel(QtWidgets.QWidget):
     def _showContextMenu(self, position: QtCore.QPoint) -> None:
         item = self._list.itemAt(position)
         if item is None:
+            menu = QtWidgets.QMenu(self)
+            from Utils import PluginSystem
+
+            if PluginSystem.AddRightClickActions(menu, self, "actorQueue", "empty", None) > 0:
+                menu.exec_(self._list.mapToGlobal(position))
             return
         bp = item.data(QtCore.Qt.UserRole)
         if not isinstance(bp, str) or not bp.strip():
@@ -315,6 +320,9 @@ class ActorQueuePanel(QtWidgets.QWidget):
         menu = QtWidgets.QMenu(self)
         actRemove = menu.addAction(ELOC("REMOVE_FROM_RECENTLY_PLACED"))
         actLocate = menu.addAction(ELOC("LOCATE_BLUEPRINT"))
+        from Utils import PluginSystem
+
+        PluginSystem.AddRightClickActions(menu, self, "actorQueue", "hit", bpRel)
         action = menu.exec_(self._list.mapToGlobal(position))
         if action == actRemove:
             if previousBpRel != bpRel and previousBpRel in self._queue:

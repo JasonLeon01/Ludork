@@ -238,16 +238,8 @@ class MainWindow(
         self._actDatabaseGeneralData = QtWidgets.QAction(ELOC("GENERAL_DATA"), self)
         self._actDatabaseGeneralData.setShortcut(QtGui.QKeySequence("F10"))
         self._actDatabaseGeneralData.triggered.connect(self._onGeneralDataEditor)
-        self._actLocaleEditorInApp = QtWidgets.QAction(ELOC("LOCALE_EDITOR_IN_APP"), self)
-        self._actLocaleEditorInApp.setShortcut(QtGui.QKeySequence("F11"))
-        self._actLocaleEditorInApp.triggered.connect(self._onLocaleEditor)
-        self._actLocaleOpenFile = QtWidgets.QAction(ELOC("LOCALE_OPEN_FILE"), self)
-        self._actLocaleOpenFile.triggered.connect(self._onOpenLocaleFile)
         self._actHelpExplanation = QtWidgets.QAction(ELOC("HELP_EXPLANATION"), self)
         self._languageActionGroup = QtWidgets.QActionGroup(self)
-        self._actDatabaseExportLocale = QtWidgets.QAction(ELOC("EXPORT_LOCALE"), self)
-        self._actDatabaseExportLocale.setShortcut(QtGui.QKeySequence("F12"))
-        self._actDatabaseExportLocale.triggered.connect(self._onDatabaseExportLocale)
 
         self._mapClipboard = None
         self._actCopyMap = QtWidgets.QAction(ELOC("COPY"), self)

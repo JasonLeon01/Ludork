@@ -76,6 +76,9 @@ class _TilesetTab(QtWidgets.QWidget):
             paste_action.setShortcut(QtGui.QKeySequence.Paste)
             if not self._tilesetClipboard:
                 paste_action.setEnabled(False)
+            from Utils import PluginSystem
+
+            PluginSystem.AddRightClickActions(menu, self, "tilesetList", "empty", None)
             action = menu.exec_(self.listWidget.mapToGlobal(position))
             if action == add_action:
                 self._addTileset()
@@ -92,6 +95,9 @@ class _TilesetTab(QtWidgets.QWidget):
         copy_action.setShortcut(QtGui.QKeySequence.Copy)
         delete_action.setShortcut(QtGui.QKeySequence.Delete)
 
+        from Utils import PluginSystem
+
+        PluginSystem.AddRightClickActions(menu, self, "tilesetList", "hit", item.text())
         action = menu.exec_(self.listWidget.mapToGlobal(position))
         if action == rename_action:
             self.listWidget.setCurrentItem(item)
@@ -365,6 +371,9 @@ class _AutoTileTab(QtWidgets.QWidget):
             paste_action.setShortcut(QtGui.QKeySequence.Paste)
             if not self._clipboard:
                 paste_action.setEnabled(False)
+            from Utils import PluginSystem
+
+            PluginSystem.AddRightClickActions(menu, self, "autotileList", "empty", None)
             action = menu.exec_(self.listWidget.mapToGlobal(position))
             if action == add_action:
                 self._add()
@@ -381,6 +390,9 @@ class _AutoTileTab(QtWidgets.QWidget):
         copy_action.setShortcut(QtGui.QKeySequence.Copy)
         delete_action.setShortcut(QtGui.QKeySequence.Delete)
 
+        from Utils import PluginSystem
+
+        PluginSystem.AddRightClickActions(menu, self, "autotileList", "hit", item.text())
         action = menu.exec_(self.listWidget.mapToGlobal(position))
         if action == rename_action:
             self.listWidget.setCurrentItem(item)

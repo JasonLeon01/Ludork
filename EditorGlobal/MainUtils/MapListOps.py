@@ -101,6 +101,9 @@ class MapListOpsMixin:
                 menu.addAction(self._actPasteMap)
                 self._actPasteMap.setEnabled(True)
 
+            from Utils import PluginSystem
+
+            PluginSystem.AddRightClickActions(menu, self, "mapList", "empty", None)
             action = menu.exec_(self.leftList.mapToGlobal(pos))
             if action == actNew:
                 self._onNewMap()
@@ -121,6 +124,9 @@ class MapListOpsMixin:
             actConvertDataFormat = menu.addAction(ELOC("CONVERT_TO_DAT"))
         menu.addAction(self._actCopyMap)
         menu.addAction(self._actDeleteMap)
+        from Utils import PluginSystem
+
+        PluginSystem.AddRightClickActions(menu, self, "mapList", "hit", mapKey)
         action = menu.exec_(self.leftList.mapToGlobal(pos))
         if action == actEdit:
             self._onEditMap(mapKey)

@@ -158,17 +158,16 @@ class DropBoxExpanded(WindowSelectable):
 
         - \param kwargs  Event arguments
         """
-        if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
+        if Input.isActionTriggered(Input.getCancelKeys(), handled=False):
             if self._onCollapse is not None:
                 self._onCollapse(None)
+                Input.isActionTriggered(Input.getCancelKeys(), handled=True)
             return
         super().onKeyDown(kwargs)
 
     def onMouseButtonDown(self, kwargs: dict) -> bool:
         r"""\brief Collapse on right click."""
         if kwargs["button"] == Input.Mouse.Button.Right:
-            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
-            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
             if self._onCollapse is not None:
                 self._onCollapse(None)
             return True
@@ -319,6 +318,8 @@ class DropBox:
         self._applyVisibility()
         self._notifyLayoutChanged()
         self._notifyExpandedChanged()
+        if expanded:
+            self._expandedView.requestKeyboardFocus()
 
     def getSize(self) -> Vector2f:
         r"""\brief Get the current logical size of the drop-box.

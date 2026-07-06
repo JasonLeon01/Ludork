@@ -874,6 +874,7 @@ class AnimationEditor(QtWidgets.QWidget):
         menu.addAction(actNewAudio)
 
         child = self.assetsContainer.childAt(position)
+        assetName = None
         if isinstance(child, QtWidgets.QLabel):
             assetName = child.property("assetName")
             if assetName:
@@ -881,6 +882,15 @@ class AnimationEditor(QtWidgets.QWidget):
                 actDelete.triggered.connect(lambda: self._onDeleteAsset(assetName))
                 menu.addAction(actDelete)
 
+        from Utils import PluginSystem
+
+        PluginSystem.AddRightClickActions(
+            menu,
+            self,
+            "animationAssets",
+            "hit" if assetName else "empty",
+            assetName,
+        )
         menu.exec_(self.assetsContainer.mapToGlobal(position))
 
     def _addAssets(self, files: List[str]) -> None:

@@ -129,15 +129,14 @@ class WindowShopCommand(WindowCommand):
             self._owner.setMode(SHOP_MODE_SELL if self.index == 1 else SHOP_MODE_BUY)
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
-        if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
+        if Input.isActionTriggered(Input.getCancelKeys(), handled=False):
             self._owner.closeByCancel()
+            Input.isActionTriggered(Input.getCancelKeys(), handled=True)
             return
         super().onKeyDown(kwargs)
 
     def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
         if kwargs["button"] == Input.Mouse.Button.Right:
-            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
-            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
             self._owner.closeByCancel()
             return True
         return False
@@ -205,15 +204,14 @@ class WindowShopItem(WindowSelectable):
         return self._cellAvailable[self.index]
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
-        if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
+        if Input.isActionTriggered(Input.getCancelKeys(), handled=False):
             self._owner.cancelItemSelection()
+            Input.isActionTriggered(Input.getCancelKeys(), handled=True)
             return
         super().onKeyDown(kwargs)
 
     def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
         if kwargs["button"] == Input.Mouse.Button.Right:
-            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
-            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
             self._owner.cancelItemSelection()
             return True
         return False

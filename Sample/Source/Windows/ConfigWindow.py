@@ -269,8 +269,9 @@ class ConfigWindow(WindowSelectable):
 
         - \param kwargs  Event arguments
         """
-        if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
+        if Input.isActionTriggered(Input.getCancelKeys(), handled=False):
             self._closeByCancel()
+            Input.isActionTriggered(Input.getCancelKeys(), handled=True)
             return
         if self._handleSelectedSliderKeyDown():
             return
@@ -279,8 +280,6 @@ class ConfigWindow(WindowSelectable):
     def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
         r"""\brief Close the window on right-click."""
         if kwargs["button"] == Input.Mouse.Button.Right:
-            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
-            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
             self._closeByCancel()
             return True
         return False
@@ -301,6 +300,7 @@ class ConfigWindow(WindowSelectable):
             self.setActive(True)
             for row in self._settingRows:
                 row.setActive(True)
+            self.requestKeyboardFocus()
 
     def _getExpandedSettingRow(self) -> Optional[ConfigSettingRow]:
         for row in self._dropBoxRows:
@@ -358,11 +358,13 @@ class ConfigWindow(WindowSelectable):
             return False
         _REPEAT_DELAY = 0.4
         _REPEAT_INTERVAL = 0.05
-        if Input.isActionTriggered(Input.getLeftKeys(), handled=True, repeatDelay=_REPEAT_DELAY, repeatInterval=_REPEAT_INTERVAL):
+        if Input.isActionTriggered(Input.getLeftKeys(), handled=False, repeatDelay=_REPEAT_DELAY, repeatInterval=_REPEAT_INTERVAL):
             row.adjust(-1)
+            Input.isActionTriggered(Input.getLeftKeys(), handled=True, repeatDelay=_REPEAT_DELAY, repeatInterval=_REPEAT_INTERVAL)
             return True
-        if Input.isActionTriggered(Input.getRightKeys(), handled=True, repeatDelay=_REPEAT_DELAY, repeatInterval=_REPEAT_INTERVAL):
+        if Input.isActionTriggered(Input.getRightKeys(), handled=False, repeatDelay=_REPEAT_DELAY, repeatInterval=_REPEAT_INTERVAL):
             row.adjust(1)
+            Input.isActionTriggered(Input.getRightKeys(), handled=True, repeatDelay=_REPEAT_DELAY, repeatInterval=_REPEAT_INTERVAL)
             return True
         return False
 

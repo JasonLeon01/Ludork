@@ -77,6 +77,24 @@ def run(cmd):
     subprocess.check_call([str(c) for c in cmd])
 
 
+def get_runtime_root() -> Path:
+    if sys.platform == "win32":
+        return OUTDIR / "main.dist"
+    return OUTDIR / "main.app" / "Contents" / "MacOS"
+
+
+def copy_asset_dir(name: str, ignore=None) -> None:
+    src = ROOT / name
+    if not src.exists():
+        print(f"[WARNING] Asset directory not found: {src}")
+        return
+    dst = get_runtime_root() / name
+    if dst.exists():
+        shutil.rmtree(dst)
+    shutil.copytree(src, dst, ignore=ignore)
+    print(f"[INFO] Copied {name} to {dst}")
+
+
 def main():
     if not PYTHON.exists():
         print(f"[ERROR] Python executable not found: {PYTHON}")
@@ -118,44 +136,21 @@ def main():
         run([PYTHON, "-m", "nuitka", *FLAGS, str(entry_script)])
 
         print("[INFO] Copying Sample directory...")
-        src_sample = ROOT / "Sample"
-        if sys.platform == "win32":
-            dst_sample = OUTDIR / "main.dist" / "Sample"
-        else:
-            dst_sample = OUTDIR / "main.app" / "Contents" / "MacOS" / "Sample"
+        copy_asset_dir("Sample", ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"))
 
-        if dst_sample.exists():
-            shutil.rmtree(dst_sample)
-
-        shutil.copytree(src_sample, dst_sample, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"))
-        print(f"[INFO] Copied Sample to {dst_sample}")
+        print("[INFO] Copying Plugins directory as runtime assets...")
+        copy_asset_dir("Plugins", ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"))
 
         if sys.platform == "darwin":
             src_ios_python = ROOT / "ios_python"
             if src_ios_python.exists():
-                dst_ios_python = OUTDIR / "main.app" / "Contents" / "MacOS" / "ios_python"
-                if dst_ios_python.exists():
-                    shutil.rmtree(dst_ios_python)
-                shutil.copytree(
-                    src_ios_python,
-                    dst_ios_python,
-                    ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
-                )
-                print(f"[INFO] Copied ios_python to {dst_ios_python}")
+                copy_asset_dir("ios_python", ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"))
             else:
                 print(f"[WARNING] ios_python directory not found at {src_ios_python}; iOS packaging from the editor will be unavailable.")
 
             src_ios_template = ROOT / "iOSTemplate"
             if src_ios_template.exists():
-                dst_ios_template = OUTDIR / "main.app" / "Contents" / "MacOS" / "iOSTemplate"
-                if dst_ios_template.exists():
-                    shutil.rmtree(dst_ios_template)
-                shutil.copytree(
-                    src_ios_template,
-                    dst_ios_template,
-                    ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
-                )
-                print(f"[INFO] Copied iOSTemplate to {dst_ios_template}")
+                copy_asset_dir("iOSTemplate", ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"))
             else:
                 print(f"[WARNING] iOSTemplate directory not found at {src_ios_template}; iOS project generation will be unavailable.")
 

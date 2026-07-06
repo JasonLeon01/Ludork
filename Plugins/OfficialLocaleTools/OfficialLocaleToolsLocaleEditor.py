@@ -5,8 +5,8 @@ import time
 import openpyxl
 from typing import Any, Dict, List, Optional, Tuple, cast
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Utils import File
-from .SearchLineEdit import AddSearchIcon
+import OfficialLocaleToolsLocaleIO as LocaleIO
+from Widgets.SearchLineEdit import AddSearchIcon
 
 
 class LocaleEditor(QtWidgets.QDialog):
@@ -97,7 +97,7 @@ class LocaleEditor(QtWidgets.QDialog):
             for c in range(1, cols + 1):
                 cell = ws.cell(row=r, column=c)
                 val = cell.value
-                item = QtWidgets.QTableWidgetItem(File.UnescapeLocaleCellValue(str(val)) if val is not None else "")
+                item = QtWidgets.QTableWidgetItem(LocaleIO.UnescapeLocaleCellValue(str(val)) if val is not None else "")
                 table.setItem(r - 1, c - 1, item)
         table.blockSignals(False)
 
@@ -114,6 +114,15 @@ class LocaleEditor(QtWidgets.QDialog):
         if idx >= 0:
             actRename = menu.addAction(ELOC("LOCALE_RENAME_SHEET"))
             actDelete = menu.addAction(ELOC("LOCALE_DELETE_SHEET"))
+        from Utils import PluginSystem
+
+        PluginSystem.AddRightClickActions(
+            menu,
+            self,
+            "localeSheetTab",
+            "hit" if idx >= 0 else "empty",
+            self._tabWidget.tabText(idx) if idx >= 0 else None,
+        )
         action = menu.exec_(tabBar.mapToGlobal(pos))
         if action == actAdd:
             self._onAddSheet()
@@ -187,7 +196,7 @@ class LocaleEditor(QtWidgets.QDialog):
 
     def _writeCell(self, sheetName: str, row: int, col: int, val: str) -> None:
         cell = self._wb[sheetName].cell(row=row + 1, column=col + 1)
-        cell.value = File.EscapeLocaleCellValue(val) if val.strip() else None
+        cell.value = LocaleIO.EscapeLocaleCellValue(val) if val.strip() else None
 
     def _syncSheetFromTable(self, table: QtWidgets.QTableWidget) -> None:
         sheetName = table.property("sheetName")
@@ -210,7 +219,9 @@ class LocaleEditor(QtWidgets.QDialog):
         for row in range(lastRow):
             for col in range(lastCol):
                 val = self._readCell(table, row, col)
-                ws.cell(row=row + 1, column=col + 1).value = File.EscapeLocaleCellValue(val) if val.strip() else None
+                ws.cell(row=row + 1, column=col + 1).value = (
+                    LocaleIO.EscapeLocaleCellValue(val) if val.strip() else None
+                )
 
         if ws.max_row > lastRow:
             ws.delete_rows(lastRow + 1, ws.max_row - lastRow)
@@ -302,6 +313,15 @@ class LocaleEditor(QtWidgets.QDialog):
             deleteAction.setShortcut(QtGui.QKeySequence.Delete)
             deleteAction.setEnabled(self._getSelectionRect(table) is not None)
             deleteAction.triggered.connect(lambda: self._onDelete(table))
+        from Utils import PluginSystem
+
+        PluginSystem.AddRightClickActions(
+            menu,
+            self,
+            "localeTable",
+            "always",
+            {"sheet": table.property("sheetName"), "selection": self._getSelectionRect(table)},
+        )
         menu.exec_(cast(QtWidgets.QWidget, table.viewport()).mapToGlobal(pos))
 
     def _onCopy(self, table: Optional[QtWidgets.QTableWidget] = None) -> None:
@@ -515,7 +535,8 @@ class LocaleEditor(QtWidgets.QDialog):
             QtWidgets.QMessageBox.warning(self, "Hint", ELOC("SAVE_FAILED") + "\n" + str(e))
             return
         try:
-            File.ExportLocale(self, self._xlsxPath, localeDir)
+            if not LocaleIO.ExportLocale(self, self._xlsxPath, localeDir):
+                return
         except Exception as e:
             QtWidgets.QMessageBox.warning(self, "Hint", ELOC("EXPORT_LOCALE_FAILED") + "\n" + str(e))
             return

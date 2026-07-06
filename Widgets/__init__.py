@@ -31,7 +31,6 @@ from .PackDialog import (
 )
 from .MarkdownPreviewer import MarkdownPreviewer
 from .GeneralDataEditor import GeneralDataEditor
-from .LocaleEditor import LocaleEditor
 from .AboutDialog import AboutDialog
 from .ActorQueuePanel import ActorQueuePanel
 
@@ -67,7 +66,6 @@ __all__ = [
     "PromptInstallToolchain",
     "MarkdownPreviewer",
     "GeneralDataEditor",
-    "LocaleEditor",
     "AboutDialog",
     "ActorQueuePanel",
 ]

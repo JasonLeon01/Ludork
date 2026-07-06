@@ -626,6 +626,15 @@ class GeneralDataPage(QtWidgets.QWidget):
             clearAction.triggered.connect(lambda checked=False, k=key: self._setParamReference(k, None))
             menu.addAction(clearAction)
 
+        from Utils import PluginSystem
+
+        PluginSystem.AddRightClickActions(
+            menu,
+            self,
+            "generalDataParamLabel",
+            "always",
+            {"key": key, "definition": paramDef},
+        )
         menu.exec_(label.mapToGlobal(position))
 
     def _setParamReference(self, key: str, reference: Optional[dict[str, str]]):
@@ -962,6 +971,11 @@ class GeneralDataPage(QtWidgets.QWidget):
     def _onMemberListContextMenu(self, position):
         item = self.memberList.itemAt(position)
         if not item:
+            menu = QtWidgets.QMenu(self)
+            from Utils import PluginSystem
+
+            if PluginSystem.AddRightClickActions(menu, self, "generalDataMember", "empty", None) > 0:
+                menu.exec_(self.memberList.mapToGlobal(position))
             return
 
         self.memberList.setCurrentItem(item)
@@ -984,6 +998,9 @@ class GeneralDataPage(QtWidgets.QWidget):
             bpAction.triggered.connect(self._onEditBlueprint)
             menu.addAction(bpAction)
 
+        from Utils import PluginSystem
+
+        PluginSystem.AddRightClickActions(menu, self, "generalDataMember", "hit", item.text())
         menu.exec_(self.memberList.mapToGlobal(position))
 
     def _changeMemberID(self):
@@ -1136,6 +1153,15 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
             deleteAction.triggered.connect(lambda checked=False, idx=tabIndex: self._onRemoveDataType(idx))
             menu.addAction(deleteAction)
 
+        from Utils import PluginSystem
+
+        PluginSystem.AddRightClickActions(
+            menu,
+            self,
+            "generalDataTab",
+            "hit" if tabIndex >= 0 else "empty",
+            self.tabWidget.tabText(tabIndex) if tabIndex >= 0 else None,
+        )
         menu.exec_(globalPos)
 
     def _onAddDataType(self):

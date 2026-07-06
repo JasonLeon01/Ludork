@@ -6,7 +6,7 @@ import configparser
 import subprocess
 from typing import cast
 from PyQt5 import QtCore, QtGui, QtWidgets
-from Utils import File, Locale
+from Utils import File, Locale, PluginSystem
 from Widgets import AboutDialog, LogDialog, PackWorker, PackSelectionDialog, MarkdownPreviewer, PackPlatform, FindPython3120ForPack, PromptInstallPython3120, CheckMsvcToolchain, CheckXcodeToolchainMacos, CheckXcodeToolchainIos, PromptInstallToolchain
 from .. import EditorStatus
 from ..Data import GameData
@@ -76,11 +76,6 @@ class MenuBuilderMixin:
         _dbMenu.addAction(self._actDatabaseTilesetsData)
         _dbMenu.addAction(self._actDatabaseCommonFunctions)
         _dbMenu.addAction(self._actDatabaseGeneralData)
-        _localeMenu = cast(QtWidgets.QMenu, _dbMenu.addMenu(ELOC("VIEW_LOCALE_TABLE")))
-        _localeMenu.addAction(self._actLocaleEditorInApp)
-        _localeMenu.addAction(self._actLocaleOpenFile)
-        _dbMenu.addAction(self._actDatabaseExportLocale)
-
         self._actHelpExplanation.triggered.connect(self._onHelpExplanation)
         self._actHelpExplanation.setShortcut(QtGui.QKeySequence("F1"))
         _helpMenu.addAction(self._actHelpExplanation)
@@ -97,6 +92,16 @@ class MenuBuilderMixin:
             act.setData(lang)
             self._languageActionGroup.addAction(act)
         self._languageActionGroup.triggered.connect(self._onLanguageChanged)
+        PluginSystem.InstallWindowPlugins(
+            self,
+            {
+                "FILE": _fileMenu,
+                "EDIT": _editMenu,
+                "GAME": _gameMenu,
+                "DATABASE": _dbMenu,
+                "HELP": _helpMenu,
+            },
+        )
 
     def _syncDevelopmentToolActions(self) -> None:
         if not isinstance(self._projConfig, dict):

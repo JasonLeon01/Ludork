@@ -2,25 +2,130 @@
 
 from __future__ import annotations
 import logging
-from typing import Callable, Dict, Any
+from typing import Callable, Dict, Any, Optional
 from ... import FloatRect
 from ...Utils import Math
+from .FocusableMixin import Direction, FocusableMixin
 
 
-class FunctionalBase:
+class FunctionalBase(FocusableMixin):
     """Mixin providing interactive event callbacks for UI controls.
 
     Handles hover detection and dispatches confirm, cancel, click, hover,
     mouse, keyboard, and tick events to registered callbacks.
     """
 
+    _keyboardFocusResolver: Optional[Callable[["FunctionalBase"], bool]] = None
+    _directionalFocusRequester: Optional[Callable[["FunctionalBase", Direction], bool]] = None
+    _keyboardFocusSetter: Optional[Callable[["FunctionalBase"], bool]] = None
+    _keyboardCursorResolver: Optional[Callable[["FunctionalBase"], bool]] = None
+
     def __init__(self) -> None:
         r"""\brief Construct a FunctionalBase mixin.
 
         Initialises the hovered state to False.
         """
+        FocusableMixin.__init__(self)
         self._isHovered: bool = False
         self._active: bool = True
+
+    @classmethod
+    def setKeyboardFocusResolver(
+        cls,
+        resolver: Optional[Callable[["FunctionalBase"], bool]],
+    ) -> None:
+        r"""\brief Set the global keyboard focus resolver.
+
+        - \param resolver Callback returning whether a control receives keyboard events.
+        """
+        cls._keyboardFocusResolver = resolver
+
+    @classmethod
+    def setDirectionalFocusRequester(
+        cls,
+        requester: Optional[Callable[["FunctionalBase", Direction], bool]],
+    ) -> None:
+        r"""\brief Set the global directional focus move requester.
+
+        - \param requester Callback used by controls when focus should leave them.
+        """
+        cls._directionalFocusRequester = requester
+
+    @classmethod
+    def setKeyboardFocusSetter(
+        cls,
+        setter: Optional[Callable[["FunctionalBase"], bool]],
+    ) -> None:
+        r"""\brief Set the global keyboard focus setter.
+
+        - \param setter Callback used by controls to request keyboard focus.
+        """
+        cls._keyboardFocusSetter = setter
+
+    @classmethod
+    def setKeyboardCursorResolver(
+        cls,
+        resolver: Optional[Callable[["FunctionalBase"], bool]],
+    ) -> None:
+        r"""\brief Set the global keyboard cursor owner resolver.
+
+        - \param resolver Callback returning whether a control owns the selection cursor.
+        """
+        cls._keyboardCursorResolver = resolver
+
+    def canReceiveFocus(self) -> bool:
+        r"""\brief Return whether this control can currently receive focus.
+
+        - \return True if the control is active, visible when applicable, and focusable.
+        """
+        from .ControlBase import ControlBase
+
+        if not self.getCanReceiveFocus() or not self.getActive():
+            return False
+        if isinstance(self, ControlBase) and not self.getVisible():
+            return False
+        return True
+
+    def shouldDispatchKeyboardInput(self) -> bool:
+        r"""\brief Return whether keyboard callbacks should be dispatched.
+
+        - \return True if no focus resolver blocks this control.
+        """
+        resolver = type(self)._keyboardFocusResolver
+        if resolver is None:
+            return True
+        return resolver(self)
+
+    def requestDirectionalFocusMove(self, direction: Direction) -> bool:
+        r"""\brief Request a focus move in a direction.
+
+        - \param direction Navigation direction.
+        - \return True if focus moved.
+        """
+        requester = type(self)._directionalFocusRequester
+        if requester is None:
+            return False
+        return requester(self, direction)
+
+    def requestKeyboardFocus(self) -> bool:
+        r"""\brief Request keyboard focus for this control.
+
+        - \return True if focus moved to this control.
+        """
+        setter = type(self)._keyboardFocusSetter
+        if setter is None:
+            return False
+        return setter(self)
+
+    def ownsKeyboardCursorFocus(self) -> bool:
+        r"""\brief Return whether this control owns the selection cursor.
+
+        - \return True if the current focus manager assigns cursor ownership to this control.
+        """
+        resolver = type(self)._keyboardCursorResolver
+        if resolver is None:
+            return self.getFocused()
+        return resolver(self)
 
     def isHovered(self) -> bool:
         r"""\brief Check whether the mouse is hovering over this control.
@@ -215,10 +320,14 @@ class FunctionalBase:
         from Engine.UI.Base import ControlBase
 
         self.onTick(deltaTime)
-        if not self.getActive() or (isinstance(self, ControlBase) and not self.getVisible()):
+        if isinstance(self, ControlBase) and not self.getVisible():
+            if self._isHovered:
+                self._isHovered = False
+                self.onUnHover({"position": Math.ToVector2f(Input.getMousePosition())})
             return
         localMousePos = Math.ToVector2f(Input.getMousePosition())
-        if Input.isMouseButtonPressed():
+        active = self.getActive()
+        if active and Input.isMouseButtonPressed():
             for btn in [Input.Mouse.Button.Left, Input.Mouse.Button.Right, Input.Mouse.Button.Middle]:
                 if not Input.getMouseButtonPressed(btn, handled=False):
                     continue
@@ -237,15 +346,15 @@ class FunctionalBase:
                 self.onHover({"position": localMousePos})
             if Input.isMouseMoved():
                 self.onMouseMoved({"position": localMousePos})
-            if Input.isMouseButtonPressed():
+            if active and Input.isMouseButtonPressed():
                 self.onClick({"position": localMousePos})
-            if Input.isMouseWheelScrolled():
+            if active and Input.isMouseWheelScrolled():
                 self.onMouseWheelScrolled({"position": localMousePos, "delta": Input.getMouseScrolledWheelDelta()})
         if not hovered:
             if self._isHovered:
                 self._isHovered = False
                 self.onUnHover({"position": localMousePos})
-        if isinstance(self, ControlBase):
+        if active and isinstance(self, ControlBase):
             bounds = self.getAbsoluteBounds()
             if Input.isTouchBegan():
                 beganPos = Input.getTouchBeganPosition()
@@ -259,10 +368,11 @@ class FunctionalBase:
                     touchLocal = Math.ToVector2f(touchPos)
                     if bounds.contains(touchLocal):
                         self.onMouseMoved({"position": touchLocal})
-        if Input.isKeyPressed() or Input.isJoystickButtonPressed() or Input.isJoystickAxisMoved():
-            self.onKeyDown({})
-        if Input.isKeyReleased() or Input.isJoystickButtonReleased():
-            self.onKeyUp({})
+        if self.shouldDispatchKeyboardInput():
+            if Input.isKeyPressed() or Input.isJoystickButtonPressed() or Input.isJoystickAxisMoved():
+                self.onKeyDown({})
+            if Input.isKeyReleased() or Input.isJoystickButtonReleased():
+                self.onKeyUp({})
 
     def lateUpdate(self, deltaTime: float) -> None:
         r"""\brief Run late-update tick callback.
@@ -283,5 +393,8 @@ class FunctionalBase:
 
         Logs at debug level when the object is collected.
         """
-        super().__del__()
+        try:
+            super().__del__()
+        except AttributeError:
+            pass
         logging.debug(f"FunctionalBase {self} deleted")

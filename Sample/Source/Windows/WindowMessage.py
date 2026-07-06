@@ -121,13 +121,14 @@ class WindowMessage(WindowSelectable):
             and self._allowCancel
             and self._selectionListView is not None
             and self.index is not None
-            and Input.isActionTriggered(Input.getCancelKeys(), handled=True)
+            and Input.isActionTriggered(Input.getCancelKeys(), handled=False)
         ):
             children = self._selectionListView.getChildren()
             if 0 <= self.index < len(children):
                 child = children[self.index]
                 if isinstance(child, FunctionalBase):
                     child.onCancel({})
+                    Input.isActionTriggered(Input.getCancelKeys(), handled=True)
             return
         return super().onKeyDown(kwargs)
 

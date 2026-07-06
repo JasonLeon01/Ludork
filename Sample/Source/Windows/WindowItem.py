@@ -233,16 +233,15 @@ class WindowItem(WindowSelectable):
 
         - \param kwargs Event data.
         """
-        if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
+        if Input.isActionTriggered(Input.getCancelKeys(), handled=False):
             self._closeByCancel()
+            Input.isActionTriggered(Input.getCancelKeys(), handled=True)
             return
         return super().onKeyDown(kwargs)
 
     def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
         r"""\brief Handle mouse cancel to close the item window."""
         if kwargs["button"] == Input.Mouse.Button.Right:
-            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
-            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
             self._closeByCancel()
             return True
         return False

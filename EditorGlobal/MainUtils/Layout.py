@@ -63,6 +63,26 @@ class LayoutMixin:
         topLayout.addWidget(self.modeToggle, 0, alignment=QtCore.Qt.AlignRight)
         self.editModeToggle.SELECTION_CHANGED.connect(self._onEditModeChanged)
         self.modeToggle.SELECTION_CHANGED.connect(self._onModeChanged)
+        self._editModeShortcuts = [
+            QtWidgets.QShortcut(
+                QtGui.QKeySequence("Ctrl+1"),
+                self,
+                lambda: self._setEditMode(0),
+                context=QtCore.Qt.WindowShortcut,
+            ),
+            QtWidgets.QShortcut(
+                QtGui.QKeySequence("Ctrl+2"),
+                self,
+                lambda: self._setEditMode(1),
+                context=QtCore.Qt.WindowShortcut,
+            ),
+            QtWidgets.QShortcut(
+                QtGui.QKeySequence("Ctrl+3"),
+                self,
+                lambda: self._setEditMode(2),
+                context=QtCore.Qt.WindowShortcut,
+            ),
+        ]
         self._menuBar.setNativeMenuBar(True)
 
         self.leftList.setMinimumWidth(self.DEFAULT_LEFT_PANEL_MIN_WIDTH)

@@ -300,12 +300,14 @@ class SceneBase:
                 continue
             functionWhenPressed = cast(Callable, hotKeyConfig.get("FunctionWhenPressed"))
             AssertType(functionWhenPressed, Optional[Callable])
-            if self._isHotKeySceneMethod(sceneType, functionWhenPressed) and Input.getKeyPressed(key, handled=True):
+            if self._isHotKeySceneMethod(sceneType, functionWhenPressed) and Input.getKeyPressed(key, handled=False):
                 functionWhenPressed(self)
+                Input.getKeyPressed(key, handled=True)
             functionWhenReleased = cast(Callable, hotKeyConfig.get("FunctionWhenReleased"))
             AssertType(functionWhenReleased, Optional[Callable])
-            if self._isHotKeySceneMethod(sceneType, functionWhenReleased) and Input.getKeyReleased(key, handled=True):
+            if self._isHotKeySceneMethod(sceneType, functionWhenReleased) and Input.getKeyReleased(key, handled=False):
                 functionWhenReleased(self)
+                Input.getKeyReleased(key, handled=True)
 
     def _isHotKeySceneMethod(self, sceneType: type, function: Optional[Callable]) -> bool:
         if function is None or not callable(function):

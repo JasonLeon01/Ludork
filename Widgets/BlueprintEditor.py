@@ -1419,6 +1419,16 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
             action_organise.triggered.connect(self.onOrganizeGraph)
             action_rename.triggered.connect(self._onRenameEvent)
             action_del.triggered.connect(self._onDeleteEvent)
+        from Utils import PluginSystem
+
+        condition = "hit" if has_item and not self._isPreviewGraphItem(item) else "empty"
+        PluginSystem.AddRightClickActions(
+            menu,
+            self,
+            "blueprintGraphList",
+            condition,
+            item.text() if item is not None and condition == "hit" else None,
+        )
         menu.exec_(self.nodeGraphList.mapToGlobal(pos))
 
     def _onNewEvent(self) -> None:

@@ -1,17 +1,14 @@
 # -*- encoding: utf-8 -*-
 
 import os
-import sys
 import copy
 import inspect
 import dataclasses
 import logging
-import subprocess
 import traceback
-import openpyxl
 from typing import Any, Dict, Optional, get_type_hints
 from PyQt5 import QtCore, QtWidgets
-from Utils import File, System
+from Utils import System
 from Utils.DataConfig import (
     DATA_FILE_DIALOG_FILTER,
     DATA_FORMAT_DAT,
@@ -27,7 +24,6 @@ from Widgets import (
     AnimationWindow,
     AnimationOverview,
     GeneralDataEditor,
-    LocaleEditor,
 )
 from Widgets.Utils import GameConfigDialog, FileSelectorDialog
 from .. import EditorStatus
@@ -62,38 +58,6 @@ class DatabaseMenuMixin:
         self._commonFunctionWindow.raise_()
         self._commonFunctionWindow.show()
 
-    def _onDatabaseExportLocale(self, checked: bool = False) -> None:
-        projPath = EditorStatus.PROJ_PATH
-        localeDir = os.path.join(projPath, "Data", "Locale")
-        xlsxPath = os.path.join(localeDir, "Locale.xlsx")
-        if not os.path.exists(localeDir):
-            QtWidgets.QMessageBox.warning(self, "Hint", ELOC("LOCALE_DIR_NOT_FOUND"))
-            return
-        if not os.path.exists(xlsxPath):
-            QtWidgets.QMessageBox.warning(self, "Hint", ELOC("LOCALE_XLSX_NOT_FOUND"))
-            return
-        editor = self._localeEditor
-        if editor is not None and editor._modifiedAt is not None:
-            fileMtime = os.path.getmtime(xlsxPath)
-            if editor._modifiedAt > fileMtime:
-                editor._syncWorkbookFromTables()
-                editor._wb.save(xlsxPath)
-                editor._modifiedAt = None
-            else:
-                editor._wb = openpyxl.load_workbook(xlsxPath)
-                editor._loadSheets()
-                editor._modifiedAt = None
-        try:
-            File.ExportLocale(self, xlsxPath, localeDir)
-        except Exception as e:
-            QtWidgets.QMessageBox.warning(
-                self,
-                "Hint",
-                ELOC("EXPORT_LOCALE_FAILED") + "\n" + str(e) + "\n" + traceback.format_exc(),
-            )
-            return
-        self._onLocaleExported()
-
     def _onGeneralDataEditor(self, checked: bool = False) -> None:
         self.generalDataEditor = GeneralDataEditor(self)
         self.generalDataEditor.MODIFIED.connect(self._refreshInfo)
@@ -101,32 +65,6 @@ class DatabaseMenuMixin:
         self.generalDataEditor.show()
         self.generalDataEditor.raise_()
         self.generalDataEditor.activateWindow()
-
-    def _onLocaleEditor(self, checked: bool = False) -> None:
-        editor = self._localeEditor
-        if editor is not None:
-            editor.raise_()
-            editor.activateWindow()
-            return
-        projPath = EditorStatus.PROJ_PATH
-        xlsxPath = os.path.join(projPath, "Data", "Locale", "Locale.xlsx")
-        if not os.path.exists(xlsxPath):
-            QtWidgets.QMessageBox.warning(self, "Hint", ELOC("LOCALE_XLSX_NOT_FOUND"))
-            return
-        self._localeEditor = LocaleEditor(self, xlsxPath)
-        self._localeEditor.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
-        self._localeEditor.LOCALE_EXPORTED.connect(self._onLocaleExported)
-        self._localeEditor.destroyed.connect(self._onLocaleEditorDestroyed)
-        self._localeEditor.show()
-        self._localeEditor.raise_()
-        self._localeEditor.activateWindow()
-
-    def _onLocaleEditorDestroyed(self) -> None:
-        self._localeEditor = None
-
-    def _onLocaleExported(self) -> None:
-        self.refreshLeftList()
-        self._refreshInfo()
 
     def _getBlueprintEditors(self) -> Dict[str, Any]:
         return self._blueprintEditors
@@ -144,19 +82,6 @@ class DatabaseMenuMixin:
                 editors.pop(key, None)
         if self._blueprintEditor is editor:
             self._blueprintEditor = next(iter(editors.values()), None)
-
-    def _onOpenLocaleFile(self, checked: bool = False) -> None:
-        projPath = EditorStatus.PROJ_PATH
-        xlsxPath = os.path.join(projPath, "Data", "Locale", "Locale.xlsx")
-        if not os.path.exists(xlsxPath):
-            QtWidgets.QMessageBox.warning(self, "Hint", ELOC("LOCALE_XLSX_NOT_FOUND"))
-            return
-        if sys.platform == "win32":
-            os.startfile(xlsxPath)
-        elif sys.platform == "darwin":
-            subprocess.run(["open", xlsxPath])
-        else:
-            subprocess.run(["xdg-open", xlsxPath])
 
     def _onDatabaseShowBlueprint(self, title: str, data: Dict[str, Any]) -> None:
         editors = self._getBlueprintEditors()

@@ -118,6 +118,15 @@ class LightActorMixin:
         menu.addAction(self._actNewLightSource)
         menu.addAction(self._actPasteLightSource)
         menu.addAction(self._actDeleteLightSource)
+        from Utils import PluginSystem
+
+        PluginSystem.AddRightClickActions(
+            menu,
+            self,
+            "editorPanel_light",
+            "hit" if isinstance(hit, int) else "empty",
+            hit,
+        )
         menu.exec_(self.editorPanel.mapToGlobal(pos))
 
     def _onDeleteLightSource(self, checked: bool = False) -> None:

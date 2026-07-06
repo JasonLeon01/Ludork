@@ -16,6 +16,7 @@ from Engine import (
     UI,
 )
 from Engine.UI import RichText, TextStyle
+from Engine.UI.Base import Direction
 from Engine.Gameplay.Actors import Actor
 from Engine.Utils import Inner, Render
 from Global import SceneBase, GameMap
@@ -37,6 +38,7 @@ from Source.Windows import (
     WindowEnemyEncyclopedia,
     WindowFloorTeleporter,
 )
+from Source.Windows.Base import FocusGroup, FocusNeighbor, FocusTransition
 from Source.Windows.WindowFloorTeleporter import GetDefaultFloorTeleporterRects
 from Source.GameInstance import GameInstance
 
@@ -78,6 +80,7 @@ class Scene(SceneBase):
     def onCreate(self) -> None:
         r"""\brief Create player HUD, message window, menu, and load the starting map."""
         self.setHotKeyFilter("casual")
+        self._uiManager.setFocusNavigationEnabled(True)
         self.player = self.inst.getPlayer()
         self._mapBuilder = SceneMapBuilder()
         self._mapAudio = SceneMapAudioController()
@@ -138,6 +141,7 @@ class Scene(SceneBase):
             self._windowSaveLoad,
         )
         self._windowMenu.setMoveRestoreGuard(self._canRestoreMoveAfterMenuClose)
+        self._registerFocusGroups()
         self._regionTitleText = RichText(
             UI.DefaultFont,
             "",
@@ -186,6 +190,92 @@ class Scene(SceneBase):
         self._mapTransferInProgress: bool = False
         startMap = self.inst._cachedMap or System.getStartMap()
         self.gotoMapAndPos(startMap, blockTransition=True)
+
+    def _registerFocusGroups(self) -> None:
+        menuGroup = FocusGroup("menu", [self._windowMenu], self._windowMenu)
+        itemGroup = FocusGroup("item", [self._windowItem], self._windowItem)
+        itemGroup.setNeighbor(Direction.LEFT, menuGroup)
+
+        equipSlotGroup = FocusGroup("equip-slot", [self._windowEquipSlot], self._windowEquipSlot)
+        equipSelectGroup = FocusGroup("equip-select", [self._windowEquipSelect], self._windowEquipSelect)
+        equipSlotGroup.setNeighbor(Direction.LEFT, menuGroup)
+        equipSlotGroup.setNeighbor(
+            Direction.RIGHT,
+            FocusNeighbor(equipSelectGroup, FocusTransition.EXPLICIT),
+        )
+        equipSelectGroup.setNeighbor(
+            Direction.LEFT,
+            FocusNeighbor(equipSlotGroup, FocusTransition.EXPLICIT),
+        )
+
+        shopCommandWindow = self._windowShop.getCommandWindow()
+        shopItemWindow = self._windowShop.getItemWindow()
+        shopCommandGroup = FocusGroup("shop-command", [shopCommandWindow], shopCommandWindow)
+        shopItemGroup = FocusGroup("shop-item", [shopItemWindow], shopItemWindow)
+        shopCommandGroup.setNeighbor(
+            Direction.DOWN,
+            FocusNeighbor(shopItemGroup, FocusTransition.EXPLICIT),
+        )
+        shopItemGroup.setNeighbor(
+            Direction.UP,
+            FocusNeighbor(shopCommandGroup, FocusTransition.EXPLICIT),
+        )
+
+        floorCommandGroup = FocusGroup(
+            "floor-command",
+            [self._windowFloorTeleporter.getCommandWindow()],
+            self._windowFloorTeleporter.getCommandWindow(),
+        )
+        floorPreviewGroup = FocusGroup(
+            "floor-preview",
+            [self._windowFloorTeleporter.getPreviewWindow()],
+            self._windowFloorTeleporter.getPreviewWindow(),
+        )
+        floorCommandGroup.setNeighbor(
+            Direction.RIGHT,
+            FocusNeighbor(floorPreviewGroup, FocusTransition.EXPLICIT),
+        )
+        floorPreviewGroup.setNeighbor(
+            Direction.LEFT,
+            FocusNeighbor(floorCommandGroup, FocusTransition.EXPLICIT),
+        )
+
+        saveCommandWindow = self._windowSaveLoad.getCommandWindow()
+        if saveCommandWindow is not None:
+            saveCommandGroup = FocusGroup(
+                "save-command",
+                [saveCommandWindow],
+                saveCommandWindow,
+            )
+            saveSlotGroup = FocusGroup(
+                "save-slot",
+                [self._windowSaveLoad.getSlotWindow()],
+                self._windowSaveLoad.getSlotWindow(),
+            )
+            saveCommandGroup.setNeighbor(
+                Direction.DOWN,
+                FocusNeighbor(saveSlotGroup, FocusTransition.EXPLICIT),
+            )
+            saveCommandGroup.setNeighbor(Direction.LEFT, menuGroup)
+            saveSlotGroup.setNeighbor(
+                Direction.UP,
+                FocusNeighbor(saveCommandGroup, FocusTransition.EXPLICIT),
+            )
+            saveSlotGroup.setNeighbor(Direction.LEFT, menuGroup)
+            self._uiManager.registerFocusGroup(saveCommandGroup)
+            self._uiManager.registerFocusGroup(saveSlotGroup)
+
+        for group in [
+            menuGroup,
+            itemGroup,
+            equipSlotGroup,
+            equipSelectGroup,
+            shopCommandGroup,
+            shopItemGroup,
+            floorCommandGroup,
+            floorPreviewGroup,
+        ]:
+            self._uiManager.registerFocusGroup(group)
 
     def onQuit(self) -> None:
         r"""\brief Stop map BGM/BGS and weather when leaving this scene."""

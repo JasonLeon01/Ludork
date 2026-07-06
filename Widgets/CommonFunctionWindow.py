@@ -96,6 +96,15 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
                 pasteAction.triggered.connect(self._onPaste)
                 menu.addAction(pasteAction)
 
+        from Utils import PluginSystem
+
+        PluginSystem.AddRightClickActions(
+            menu,
+            self,
+            "commonFunction",
+            "hit" if item else "empty",
+            item.text() if item else None,
+        )
         menu.exec_(self._list.mapToGlobal(position))
 
     def _onOrganizeGraph(self) -> None:

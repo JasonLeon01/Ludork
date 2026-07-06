@@ -4,6 +4,7 @@ r"""\brief UIManager: manages active UI canvases, event dispatch, and rendering 
 from typing import Callable, List, Optional
 from Engine.Utils import Math
 from Engine.UI.Base import ControlBase, FunctionalBase
+from .FocusManager import FocusGroup, FocusManager
 from . import Manager
 from .System import System
 
@@ -17,6 +18,32 @@ class UIManager:
     def __init__(self) -> None:
         r"""\brief Construct a UI manager."""
         self._UIs: List[ControlBase] = []
+        self._focusManager: FocusManager = FocusManager()
+        FunctionalBase.setKeyboardFocusResolver(self._focusManager.shouldDispatchKeyboardTo)
+        FunctionalBase.setDirectionalFocusRequester(self._focusManager.requestDirectionalMove)
+        FunctionalBase.setKeyboardFocusSetter(self._focusManager.setFocus)
+        FunctionalBase.setKeyboardCursorResolver(self._focusManager.isCursorFocusOwner)
+
+    def getFocusManager(self) -> FocusManager:
+        r"""\brief Get the keyboard focus manager.
+
+        - \return Focus manager owned by this UI manager.
+        """
+        return self._focusManager
+
+    def setFocusNavigationEnabled(self, enabled: bool) -> None:
+        r"""\brief Enable or disable focus-based keyboard navigation.
+
+        - \param enabled True to route keyboard input by focused control.
+        """
+        self._focusManager.setNavigationEnabled(enabled)
+
+    def registerFocusGroup(self, group: FocusGroup) -> None:
+        r"""\brief Register an explicit focus group.
+
+        - \param group Focus group to register.
+        """
+        self._focusManager.registerFocusGroup(group)
 
     @ExecSplit(default=(None,))
     def loadUI(self, ui: ControlBase) -> None:
@@ -25,6 +52,8 @@ class UIManager:
         - \param ui The canvas to load.
         """
         self._UIs.append(ui)
+        if isinstance(ui, FunctionalBase):
+            self._focusManager.registerElement(ui)
 
     @ReturnType(uis=List[ControlBase])
     def getUIs(self) -> List[ControlBase]:
@@ -43,6 +72,8 @@ class UIManager:
         """
         if ui in self._UIs:
             self._UIs.remove(ui)
+            if isinstance(ui, FunctionalBase):
+                self._focusManager.unregisterElement(ui)
         else:
             raise ValueError("UI not found")
 
@@ -60,6 +91,11 @@ class UIManager:
     def _logicHandle(self, deltaTime: float) -> None:
         from Engine.UI import Canvas
 
+        FunctionalBase.setKeyboardFocusResolver(self._focusManager.shouldDispatchKeyboardTo)
+        FunctionalBase.setDirectionalFocusRequester(self._focusManager.requestDirectionalMove)
+        FunctionalBase.setKeyboardFocusSetter(self._focusManager.setFocus)
+        FunctionalBase.setKeyboardCursorResolver(self._focusManager.isCursorFocusOwner)
+        self._focusManager.prepareFrame()
         sortedUIs = sorted(
             self._UIs, key=lambda item: item.getZOrder() if isinstance(item, Canvas) else 0, reverse=True
         )

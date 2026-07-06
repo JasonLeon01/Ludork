@@ -287,6 +287,19 @@ class GameRunnerMixin:
             self._setLayerListInteractive(True)
             self.toActorMode()
         self._setLightContextActionsEnabled(idx == 1)
+        from Utils import PluginSystem
+
+        PluginSystem.ApplyPanelForEditMode(self, idx)
+
+    def _setEditMode(self, idx: int) -> None:
+        if idx not in (0, 1, 2):
+            return
+        if not self.editModeToggle.isEnabled():
+            return
+        if idx == self._editModeIdx:
+            return
+        self.editModeToggle.setSelected(idx)
+        self._onEditModeChanged(idx)
 
     def toTileMode(self) -> None:
         self.editorPanel.setTileMode(True)

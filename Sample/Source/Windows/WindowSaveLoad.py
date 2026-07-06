@@ -117,15 +117,14 @@ class WindowSaveCommand(WindowCommand):
         self._owner = owner
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
-        if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
+        if Input.isActionTriggered(Input.getCancelKeys(), handled=False):
             self._owner.closeByCancel()
+            Input.isActionTriggered(Input.getCancelKeys(), handled=True)
             return
         super().onKeyDown(kwargs)
 
     def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
         if kwargs["button"] == Input.Mouse.Button.Right:
-            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
-            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
             self._owner.closeByCancel()
             return True
         return False
@@ -155,8 +154,9 @@ class WindowSaveSlot(WindowSelectable):
         self.setListView(listView)
 
     def onKeyDown(self, kwargs: Dict[str, Any]) -> None:
-        if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
+        if Input.isActionTriggered(Input.getCancelKeys(), handled=False):
             self._owner.cancelSlotSelection()
+            Input.isActionTriggered(Input.getCancelKeys(), handled=True)
             return
         super().onKeyDown(kwargs)
 
@@ -166,8 +166,6 @@ class WindowSaveSlot(WindowSelectable):
 
     def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
         if kwargs["button"] == Input.Mouse.Button.Right:
-            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
-            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
             self._owner.cancelSlotSelection()
             return True
         return False
@@ -441,10 +439,21 @@ class WindowSaveLoad:
         In load-only mode this closes the UI; otherwise focus returns to the
         command bar so the user can pick a different mode.
         """
-        if self._loadOnly:
+        if not self.returnToCommandWindow():
             self.closeByCancel()
-            return
+
+    def returnToCommandWindow(self, playSE: bool = True) -> bool:
+        r"""\brief Return focus from the slot list to the command bar.
+
+        - \param playSE Whether to play the cancel sound effect.
+        - \return True if a command window was available and focused.
+        """
+        if self._loadOnly or self._commandWindow is None:
+            return False
+        if playSE:
+            Manager.playSE(GameSystem.getCancelSE())
         self.focusCommand()
+        return True
 
     def onCommandConfirm(self, mode: str) -> None:
         r"""\brief Confirm the load/save command and switch focus to the slot list.
@@ -462,6 +471,7 @@ class WindowSaveLoad:
         self._slotWindow.setActive(True)
         self._lastSlotIndex = None
         self.notifySlotIndexMaybeChanged(self._slotWindow.index)
+        self._slotWindow.requestKeyboardFocus()
 
     def focusCommand(self) -> None:
         r"""\brief Switch focus from the slot list to the command bar."""
@@ -469,6 +479,7 @@ class WindowSaveLoad:
             return
         self._commandWindow.setActive(True)
         self._slotWindow.setActive(False)
+        self._commandWindow.requestKeyboardFocus()
 
     def notifySlotIndexMaybeChanged(self, index: Optional[int]) -> None:
         r"""\brief Notify the coordinator that the slot list cursor index may have changed.

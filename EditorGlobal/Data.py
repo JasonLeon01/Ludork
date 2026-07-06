@@ -7,6 +7,7 @@ import copy
 import dataclasses
 import importlib
 import inspect
+import re
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, get_type_hints
 from Utils import EditorData, File, System
 from Utils.DataConfig import DATA_FILE_EXTENSIONS, DATA_FORMAT_DAT, DATA_FORMAT_EXTENSIONS, DATA_FORMAT_JSON
@@ -46,6 +47,8 @@ class GameData:
         "Blueprints": ("blueprintsData", "blueprint"),
         "Animations": ("animationsData", "animation"),
     }
+    _PLUGIN_DATA_TYPES: Dict[str, Dict[str, Any]] = {}
+    _PLUGIN_DATA_HANDLERS: Dict[str, Dict[str, Any]] = {}
     _MAP_ACTOR_INSTANCE_TRANSFORM_KEYS = ("translation", "rotation", "scale", "origin")
 
     @classmethod
@@ -60,6 +63,7 @@ class GameData:
         cls.blueprintsData = {}
         cls.animationsData = {}
         cls.generalData = {}
+        cls.ClearPluginData()
         cls.LoadData("Configs", cls.systemConfigData)
         cls.LoadData("Tilesets", cls.tilesetData, EditorData.NormaliseTilesetData, "tileset")
         cls.LoadData("AutoTiles", cls.autoTileData, EditorData.NormaliseAutoTileData, "autoTile")
@@ -68,6 +72,7 @@ class GameData:
         cls.LoadData("Blueprints", cls.blueprintsData, needType="blueprint")
         cls.LoadData("Animations", cls.animationsData, needType="animation")
         cls.LoadData("General", cls.generalData)
+        cls.LoadPluginData()
 
         cls.classDict = Engine.NodeGraph.ClassDict()  # type: ignore
 
@@ -76,6 +81,96 @@ class GameData:
 
         cls._originData = copy.deepcopy(cls.AsDict())
         cls.RebuildReferenceIndex()
+
+    @classmethod
+    def SetPluginDataTypes(cls, entries: List[tuple[str, Dict[str, Any], Dict[str, Any]]]) -> None:
+        cls.ClearPluginData()
+        cls._PLUGIN_DATA_TYPES = {}
+        cls._PLUGIN_DATA_HANDLERS = {}
+        for pluginName, config, handlers in entries:
+            typeName = config.get("typeName")
+            extension = config.get("extension")
+            if not isinstance(typeName, str) or not typeName or not isinstance(extension, str) or not extension:
+                continue
+            attrName = cls._PluginDataAttrName(typeName)
+            spec = dict(config)
+            spec["pluginName"] = pluginName
+            spec["typeName"] = typeName
+            spec["extension"] = extension if extension.startswith(".") else "." + extension
+            spec["attrName"] = attrName
+            cls._PLUGIN_DATA_TYPES[typeName] = spec
+            cls._PLUGIN_DATA_HANDLERS[typeName] = handlers
+            if not hasattr(cls, attrName):
+                setattr(cls, attrName, {})
+
+    @classmethod
+    def ClearPluginData(cls) -> None:
+        for attrName in cls._PluginDataSectionAttrs():
+            setattr(cls, attrName, {})
+
+    @staticmethod
+    def _PluginDataAttrName(typeName: str) -> str:
+        parts = [part for part in re.split(r"[^0-9A-Za-z]+", typeName) if part]
+        if not parts:
+            return "pluginData"
+        first = parts[0][:1].lower() + parts[0][1:]
+        return first + "".join(part[:1].upper() + part[1:] for part in parts[1:]) + "Data"
+
+    @classmethod
+    def _DataPathSections(cls) -> List[tuple[str, str]]:
+        sections = list(cls._DATA_PATH_SECTIONS)
+        for typeName, spec in cls._PLUGIN_DATA_TYPES.items():
+            sections.append((typeName, spec["attrName"]))
+        return sections
+
+    @classmethod
+    def _PluginDataSectionAttrs(cls) -> List[str]:
+        return [spec["attrName"] for spec in cls._PLUGIN_DATA_TYPES.values()]
+
+    @classmethod
+    def _KnownDataFileExtensions(cls) -> set[str]:
+        exts = set(DATA_FILE_EXTENSIONS)
+        for spec in cls._PLUGIN_DATA_TYPES.values():
+            ext = spec.get("extension")
+            if isinstance(ext, str) and ext:
+                exts.add(ext.lower())
+        return exts
+
+    @classmethod
+    def LoadPluginData(cls) -> None:
+        for typeName, spec in cls._PLUGIN_DATA_TYPES.items():
+            attrName = spec["attrName"]
+            data: Dict[str, Any] = {}
+            setattr(cls, attrName, data)
+            dataRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", typeName)
+            extension = str(spec.get("extension", "")).lower()
+            if not extension or not os.path.isdir(dataRoot):
+                continue
+            handlers = cls._PLUGIN_DATA_HANDLERS.get(typeName, {})
+            loader = handlers.get("loader")
+            for root, _dirs, files in os.walk(dataRoot):
+                for file in files:
+                    if os.path.splitext(file)[1].lower() != extension:
+                        continue
+                    fullPath = os.path.join(root, file)
+                    relPath = os.path.relpath(fullPath, dataRoot)
+                    key = os.path.splitext(relPath)[0].replace("\\", "/")
+                    try:
+                        if callable(loader):
+                            payload = loader(fullPath)
+                        elif spec.get("defaultFormat", DATA_FORMAT_JSON) == DATA_FORMAT_DAT:
+                            payload = File.LoadData(fullPath)
+                        else:
+                            payload = File.GetJSONData(fullPath)
+                        if not isinstance(payload, dict):
+                            continue
+                        payload = copy.deepcopy(payload)
+                        if "type" in payload and payload["type"] != typeName:
+                            continue
+                        payload.pop("type", None)
+                        data[key] = payload
+                    except Exception as e:
+                        print(f"Error while loading plugin data file {file}: {e}")
 
     @classmethod
     def LoadData(
@@ -116,7 +211,7 @@ class GameData:
             absPath = os.path.abspath(path)
             if not System.isPathInside(absPath, dataRoot):
                 continue
-            for dirName, attrName in cls._DATA_PATH_SECTIONS:
+            for dirName, attrName in cls._DataPathSections():
                 sectionRoot = os.path.join(dataRoot, dirName)
                 if not System.isPathInside(absPath, sectionRoot):
                     continue
@@ -141,7 +236,7 @@ class GameData:
         if not System.isPathInside(oldAbs, dataRoot) or not System.isPathInside(newAbs, dataRoot):
             return result
 
-        for dirName, attrName in cls._DATA_PATH_SECTIONS:
+        for dirName, attrName in cls._DataPathSections():
             sectionRoot = os.path.join(dataRoot, dirName)
             if not System.isPathInside(oldAbs, sectionRoot) or not System.isPathInside(newAbs, sectionRoot):
                 continue
@@ -184,7 +279,7 @@ class GameData:
         newRel = os.path.relpath(newPath, sectionRoot).replace("\\", "/")
         oldName, oldExt = os.path.splitext(oldRel)
         newName, newExt = os.path.splitext(newRel)
-        if oldExt.lower() in DATA_FILE_EXTENSIONS and newExt.lower() in DATA_FILE_EXTENSIONS:
+        if oldExt.lower() in cls._KnownDataFileExtensions() and newExt.lower() in cls._KnownDataFileExtensions():
             return [(oldName, newName)] if oldName in keys else []
 
         oldPrefix = oldRel.rstrip("/")
@@ -204,7 +299,7 @@ class GameData:
         relPath = os.path.relpath(path, sectionRoot)
         namePart, ext = os.path.splitext(relPath)
         relKey = namePart.replace("\\", "/")
-        if ext.lower() in DATA_FILE_EXTENSIONS:
+        if ext.lower() in cls._KnownDataFileExtensions():
             return [relKey] if relKey in data else []
 
         prefix = relPath.replace("\\", "/").rstrip("/")
@@ -396,30 +491,12 @@ class GameData:
 
     @classmethod
     def GetChanges(cls) -> Dict[str, Dict[str, List[str]]]:
-        changes = {
-            "systemConfigData": {"A": [], "D": [], "U": []},
-            "tilesetData": {"A": [], "D": [], "U": []},
-            "autoTileData": {"A": [], "D": [], "U": []},
-            "mapData": {"A": [], "D": [], "U": []},
-            "commonFunctionsData": {"A": [], "D": [], "U": []},
-            "blueprintsData": {"A": [], "D": [], "U": []},
-            "animationsData": {"A": [], "D": [], "U": []},
-            "generalData": {"A": [], "D": [], "U": []},
-        }
+        changes = {attrName: {"A": [], "D": [], "U": []} for _dirName, attrName in cls._DataPathSections()}
 
         origin = cls._ComparisonDict(cls._originData)
         current = cls._ComparisonDict(cls.AsDict())
 
-        for section in [
-            "systemConfigData",
-            "tilesetData",
-            "autoTileData",
-            "mapData",
-            "commonFunctionsData",
-            "blueprintsData",
-            "animationsData",
-            "generalData",
-        ]:
+        for section in changes.keys():
             curr_sec = current.get(section, {})
             orig_sec = origin.get(section, {})
 
@@ -532,6 +609,18 @@ class GameData:
                 changed_gen.add(k)
         if changed_gen:
             diffs.append(f"General: {', '.join(sorted(changed_gen))}")
+
+        for typeName, spec in cls._PLUGIN_DATA_TYPES.items():
+            attrName = spec["attrName"]
+            oldPluginData = oldData.get(attrName, {})
+            newPluginData = newData.get(attrName, {})
+            changed = {
+                key
+                for key in set(oldPluginData.keys()) | set(newPluginData.keys())
+                if oldPluginData.get(key) != newPluginData.get(key)
+            }
+            if changed:
+                diffs.append(f"{typeName}: {', '.join(sorted(changed))}")
 
         return diffs
 
@@ -823,6 +912,55 @@ class GameData:
             except Exception:
                 final_details["Failed"].append(key)
 
+        for typeName, spec in cls._PLUGIN_DATA_TYPES.items():
+            attrName = spec["attrName"]
+            extension = str(spec.get("extension", ""))
+            root = os.path.join(EditorStatus.PROJ_PATH, "Data", typeName)
+            dataDict = getattr(cls, attrName, {})
+            if not isinstance(dataDict, dict):
+                continue
+            c_plugin = changes.get(attrName, {"A": [], "U": [], "D": []})
+            handlers = cls._PLUGIN_DATA_HANDLERS.get(typeName, {})
+            saver = handlers.get("saver")
+            for key in c_plugin["A"] + c_plugin["U"]:
+                data = dataDict.get(key)
+                if data is None:
+                    final_details["Failed"].append(f"{typeName}:{key}")
+                    continue
+                payload = copy.deepcopy(data)
+                if isinstance(payload, dict):
+                    payload["type"] = typeName
+                path = os.path.join(root, f"{key}{extension}")
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                try:
+                    if callable(saver):
+                        saver(path, payload)
+                    elif spec.get("defaultFormat", DATA_FORMAT_JSON) == DATA_FORMAT_DAT:
+                        File.SaveData(path, payload)
+                    else:
+                        File.SaveJSONData(path, payload)
+                    if key in c_plugin["A"]:
+                        final_details["A"].append(f"{typeName}:{key}")
+                    else:
+                        final_details["U"].append(f"{typeName}:{key}")
+                    origin = cls._originData.get(attrName)
+                    if isinstance(origin, dict):
+                        origin[key] = copy.deepcopy(data)
+                except Exception:
+                    final_details["Failed"].append(f"{typeName}:{key}")
+
+            for key in c_plugin["D"]:
+                try:
+                    path = os.path.join(root, f"{key}{extension}")
+                    if os.path.exists(path):
+                        os.remove(path)
+                        final_details["D"].append(f"{typeName}:{key}")
+                    origin = cls._originData.get(attrName)
+                    if isinstance(origin, dict) and key in origin:
+                        del origin[key]
+                except Exception:
+                    final_details["Failed"].append(f"{typeName}:{key}")
+
         lines = []
         if final_details["A"]:
             lines.append(f"A [{', '.join(final_details['A'])}]")
@@ -1112,6 +1250,10 @@ class GameData:
             "data/animations/": ("animation", cls.animationsData),
             "data/general/": ("general", cls.generalData),
         }
+        for typeName, spec in cls._PLUGIN_DATA_TYPES.items():
+            data = getattr(cls, spec["attrName"], None)
+            if isinstance(data, dict):
+                dataSections[f"data/{typeName.lower()}/"] = (typeName, data)
         for prefix, (nodeType, data) in dataSections.items():
             if lowerRel.startswith(prefix):
                 key = os.path.splitext(rel[len(prefix) :])[0].replace("\\", "/")
@@ -1171,6 +1313,8 @@ class GameData:
             "animation": "Animations",
             "general": "General",
         }
+        for typeName in cls._PLUGIN_DATA_TYPES.keys():
+            dataRoots[typeName] = typeName
         dataRoot = dataRoots.get(str(nodeType))
         if dataRoot:
             return cls._FindDataPath(dataRoot, key)
@@ -1220,6 +1364,10 @@ class GameData:
     @classmethod
     def _FindDataPath(cls, dataRoot: str, key: str) -> str:
         root = os.path.join(EditorStatus.PROJ_PATH, "Data", dataRoot)
+        spec = cls._PLUGIN_DATA_TYPES.get(dataRoot)
+        if isinstance(spec, dict):
+            ext = str(spec.get("extension", ""))
+            return os.path.join(root, key.replace("/", os.sep) + ext)
         for ext in DATA_FILE_EXTENSIONS:
             path = os.path.join(root, key.replace("/", os.sep) + ext)
             if os.path.exists(path):
@@ -1333,6 +1481,11 @@ class GameData:
                 if isinstance(members, dict):
                     for memberKey in members.keys():
                         cls._AddReferenceNode(index, "generalMember", f"{key}/{memberKey}")
+        for typeName, spec in cls._PLUGIN_DATA_TYPES.items():
+            pluginData = getattr(cls, spec["attrName"], None)
+            if isinstance(pluginData, dict):
+                for key in pluginData.keys():
+                    cls._AddReferenceNode(index, typeName, key)
 
     @classmethod
     def _BuildReferenceEdges(cls, index: Dict[str, Any]) -> None:
@@ -1354,6 +1507,12 @@ class GameData:
             cls._ScanAnimationReferences(index, cls._ReferenceNodeId("animation", key), data)
         for key, data in cls.generalData.items():
             cls._ScanGeneralReferences(index, key, data)
+        for typeName, spec in cls._PLUGIN_DATA_TYPES.items():
+            pluginData = getattr(cls, spec["attrName"], None)
+            if not isinstance(pluginData, dict):
+                continue
+            for key, data in pluginData.items():
+                cls._ScanGenericReferences(index, cls._ReferenceNodeId(typeName, key), data, f"{typeName}/{key}")
 
     @classmethod
     def _ScanConfigReferences(cls, index: Dict[str, Any], sourceId: str, key: str, data: Any) -> None:
@@ -1893,7 +2052,7 @@ class GameData:
 
     @classmethod
     def AsDict(cls) -> Dict[str, Any]:
-        return {
+        data = {
             "systemConfigData": cls.systemConfigData,
             "tilesetData": cls.tilesetData,
             "autoTileData": cls.autoTileData,
@@ -1903,6 +2062,11 @@ class GameData:
             "animationsData": cls.animationsData,
             "generalData": cls.generalData,
         }
+        for attrName in cls._PluginDataSectionAttrs():
+            value = getattr(cls, attrName, None)
+            if isinstance(value, dict):
+                data[attrName] = value
+        return data
 
     @classmethod
     def RecordSnapshot(cls) -> None:

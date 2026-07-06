@@ -86,17 +86,17 @@ class WindowEnemyEncyclopedia(WindowBase):
 
         - \param kwargs Event data.
         """
-        if Input.isActionTriggered(Input.getConfirmKeys(), handled=True):
+        if Input.isActionTriggered(Input.getConfirmKeys(), handled=False):
             self._closeByInput()
+            Input.isActionTriggered(Input.getConfirmKeys(), handled=True)
             return
-        if Input.isActionTriggered(Input.getCancelKeys(), handled=True):
+        if Input.isActionTriggered(Input.getCancelKeys(), handled=False):
             self._closeByInput()
+            Input.isActionTriggered(Input.getCancelKeys(), handled=True)
 
     def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
         r"""\brief Close on right click."""
         if kwargs["button"] == Input.Mouse.Button.Right:
-            Input.getMouseButtonPressed(Input.Mouse.Button.Right, handled=True)
-            Input.isMouseButtonTriggered(Input.Mouse.Button.Right, handled=True)
             self._closeByInput()
             return True
         return False

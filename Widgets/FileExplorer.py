@@ -510,6 +510,11 @@ class FileExplorer(QtWidgets.QWidget):
                 if ext == DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]:
                     if self._handleDataFile(path, File.GetJSONData):
                         return
+                from Utils import PluginSystem
+
+                pluginData = PluginSystem.LoadPluginDataFile(path)
+                if pluginData is not None and PluginSystem.HandleDataFile(self, path, pluginData):
+                    return
                 self._openSystemFile(path)
 
     def _onClicked(self, index: QtCore.QModelIndex) -> None:
@@ -549,6 +554,10 @@ class FileExplorer(QtWidgets.QWidget):
                 ELOC("INVALID_DATA_FILE_MESSAGE"),
             )
             return False
+        from Utils import PluginSystem
+
+        if PluginSystem.HandleDataFile(self, path, data):
+            return True
         generalRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "General")
         if self._isPathInside(path, generalRoot):
             relPath = os.path.relpath(path, generalRoot)
@@ -750,6 +759,15 @@ class FileExplorer(QtWidgets.QWidget):
         viewport = self._view.viewport()
         if viewport is None:
             return
+        from Utils import PluginSystem
+
+        PluginSystem.AddRightClickActions(
+            menu,
+            self,
+            "fileExplorer",
+            "hit" if selectedPath else "empty",
+            selectedPath or None,
+        )
         r = menu.exec_(viewport.mapToGlobal(pos))
         if r == actNewFolder:
             self._createFolder(self._targetDirForNewFolder(selectedPath, isDir))
