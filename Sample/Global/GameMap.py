@@ -30,7 +30,7 @@ from Engine.Utils.Inner import IS_IOS_PLATFORM, warnIosShaderSkippedOnce
 from Engine.Gameplay import Tilemap, TileLayer
 from Engine.Gameplay.Actors import Actor, Character
 from . import SceneBase, Manager
-from .GlobalExt import GameMapExt, Light
+from .GlobalExt import GameMapExt, Light, PathResult
 from .Camera import Camera
 from .System import System
 from .Components import MapClickAutoPath, PathPreviewComponent, PathRouteState, ComponentBase
@@ -93,7 +93,6 @@ class GameMap(GameMapExt):
         self._shaderTime: float = 0.0
         self._transparentTiles: List[Tuple[TileLayer, int, int]] = []
         self._tilePassableGrid: Optional[List[List[bool]]] = None
-        self._occupancyMap: Dict[Pair[int], List[Actor]] = {}
         self._player: Optional[Actor] = None
         self._pathRouteState = PathRouteState()
         self._components: List[ComponentBase] = [
@@ -180,7 +179,10 @@ class GameMap(GameMapExt):
 
         - \return A list of actors at the given position.
         """
-        return self._occupancyMap.get((position.x, position.y), [])
+        if self._tilePassableGrid is None or self._materialDirty:
+            self._rebuildPassabilityCache()
+            self._materialDirty = False
+        return self.getActorsAt(position.x, position.y)
 
     @ReturnType(actor=Actor)
     def getActorByLayerAndPosition(self, layer: str, position: Vector2i) -> Optional[Actor]:
@@ -206,11 +208,10 @@ class GameMap(GameMapExt):
 
         - \return A list of actors within the range.
         """
-        actors = []
-        for x in range(position.x - radius, position.x + radius + 1):
-            for y in range(position.y - radius, position.y + radius + 1):
-                actors.extend(self._occupancyMap.get((x, y), []))
-        return actors
+        if self._tilePassableGrid is None or self._materialDirty:
+            self._rebuildPassabilityCache()
+            self._materialDirty = False
+        return self.getActorsInRange(position.x, position.y, radius)
 
     @ReturnType(actor=Optional[Actor])
     def getActorByTag(self, tag: str) -> Optional[Actor]:
@@ -338,7 +339,7 @@ class GameMap(GameMapExt):
         y = targetPosition.y
         if x < 0 or y < 0 or x >= size.x or y >= size.y:
             return False
-        if self._tilePassableGrid is None or self._occupancyMap is None or self._materialDirty:
+        if self._tilePassableGrid is None or self._materialDirty:
             self._rebuildPassabilityCache()
             self._materialDirty = False
         if self._tilePassableGrid and not self._tilePassableGrid[y][x]:
@@ -389,18 +390,8 @@ class GameMap(GameMapExt):
                 if currBlocked and nextBlocked:
                     break
 
-        occ = self._occupancyMap.get((x, y))
-        if occ:
-            descendantActorIDs = self._getDescendantActorIDs(actor)
-            for other in occ:
-                if other is actor:
-                    continue
-                if id(other) in descendantActorIDs:
-                    continue
-                if other.isDestroyed():
-                    continue
-                if other.getCollisionEnabled():
-                    return False
+        if self.getCollisionAt(x, y, actor):
+            return False
         return True
 
     @ExecSplit(default=(None,))
@@ -824,14 +815,13 @@ class GameMap(GameMapExt):
                 return material
         return None
 
-    @ReturnType(path=List[Vector2i])
-    def findPath(self, start: Vector2i, goal: Vector2i) -> List[Vector2i]:
+    def findPathResult(self, start: Vector2i, goal: Vector2i) -> PathResult:
         r"""\brief Find a path from start to goal using pathfinding.
 
         - \param start The starting position.
         - \param goal The goal position.
 
-        - \return A list of positions forming the path.
+        - \return Path data containing offsets, points, and route.
         """
         size = self._tilemap.getSize()
         layerKeys = list(self._tilemap.getAllLayers().keys())
@@ -846,6 +836,17 @@ class GameMap(GameMapExt):
             return self.findPathExt(start, goal, size)
         finally:
             self.getCollisionEnabled = oldGetCollisionEnabled
+
+    @ReturnType(path=List[Vector2i])
+    def findPath(self, start: Vector2i, goal: Vector2i) -> List[Vector2i]:
+        r"""\brief Find a path from start to goal using pathfinding.
+
+        - \param start The starting position.
+        - \param goal The goal position.
+
+        - \return A list of per-step movement offsets.
+        """
+        return self.findPathResult(start, goal).offsets
 
     @ReturnType(passable=bool)
     def isPathfindingPassable(self, actor: Actor, targetPosition: Vector2i) -> bool:
@@ -871,17 +872,10 @@ class GameMap(GameMapExt):
         - \param targetPosition The target map position.
         - \return True if the position has a non-colliding actor with implemented `onOverlap`.
         """
-        if self._tilePassableGrid is None or self._occupancyMap is None or self._materialDirty:
+        if self._tilePassableGrid is None or self._materialDirty:
             self._rebuildPassabilityCache()
             self._materialDirty = False
-        descendantActorIDs = self._getDescendantActorIDs(actor)
-        for other in self._occupancyMap.get((targetPosition.x, targetPosition.y), []):
-            if other is actor:
-                continue
-            if id(other) in descendantActorIDs:
-                continue
-            if other.isDestroyed():
-                continue
+        for other in self.getOverlapsAt(targetPosition.x, targetPosition.y, actor):
             if self._getPathfindingCollisionEnabled(other) and not other.getCollisionEnabled():
                 return True
         return False
@@ -991,21 +985,10 @@ class GameMap(GameMapExt):
         """
         if not actor.getCollisionEnabled():
             return []
-        result: List[Actor] = []
-        descendantActorIDs = self._getDescendantActorIDs(actor)
-        for actorList in self._actors.values():
-            for other in actorList:
-                if actor is other:
-                    continue
-                if not other.getCollisionEnabled():
-                    continue
-                if id(other) in descendantActorIDs:
-                    continue
-                if other.isDestroyed():
-                    continue
-                if other.getMapPosition() == targetPosition:
-                    result.append(other)
-        return result
+        if self._tilePassableGrid is None or self._materialDirty:
+            self._rebuildPassabilityCache()
+            self._materialDirty = False
+        return self.getCollisionAt(targetPosition.x, targetPosition.y, actor)
 
     def getOverlaps(self, actor: Actor) -> List[Actor]:
         r"""\brief Get all actors overlapping with the given actor.
@@ -1014,19 +997,11 @@ class GameMap(GameMapExt):
 
         - \return A list of overlapping actors.
         """
-        result: List[Actor] = []
-        descendantActorIDs = self._getDescendantActorIDs(actor)
-        for actorList in self._actors.values():
-            for other in actorList:
-                if actor is other:
-                    continue
-                if id(other) in descendantActorIDs:
-                    continue
-                if other.isDestroyed():
-                    continue
-                if actor.getMapPosition() == other.getMapPosition():
-                    result.append(other)
-        return result
+        if self._tilePassableGrid is None or self._materialDirty:
+            self._rebuildPassabilityCache()
+            self._materialDirty = False
+        position = actor.getMapPosition()
+        return self.getOverlapsAt(position.x, position.y, actor)
 
     @staticmethod
     def _getDescendantActorIDs(actor: Actor) -> set[int]:
@@ -1600,4 +1575,4 @@ class GameMap(GameMapExt):
             name: [bool(autoTile.passable) for autoTile in layer._data.autoTilePool] for name, layer in layers.items()
         }
         self.actorsRef = self._actors
-        self._tilePassableGrid, self._occupancyMap = self.rebuildPassabilityCache(size)
+        self._tilePassableGrid = self.rebuildPassabilityCache(size)

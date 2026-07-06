@@ -9,6 +9,12 @@ using Node = std::pair<int, IntPair>;
 
 inline bool inBounds(int x, int y, int width, int height) { return x >= 0 && x < width && y >= 0 && y < height; }
 
+std::size_t IntPairHash::operator()(const IntPair &value) const {
+    std::size_t xHash = std::hash<int>{}(value.first);
+    std::size_t yHash = std::hash<int>{}(value.second);
+    return xHash ^ (yHash + 0x9e3779b9 + (xHash << 6) + (xHash >> 2));
+}
+
 inline int getNodeFScore(const std::map<IntPair, int> &fScore, const IntPair &node) {
     auto iter = fScore.find(node);
     if (iter == fScore.end()) {
@@ -67,8 +73,7 @@ sf::Texture *GameMapExt::generateDataFromMap(const sf::Vector2u &size,
     return texture;
 }
 
-std::vector<sf::Vector2i> GameMapExt::findPathExt(const sf::Vector2i &start, const sf::Vector2i &goal,
-                                                  const sf::Vector2u &size) {
+PathResult GameMapExt::findPathExt(const sf::Vector2i &start, const sf::Vector2i &goal, const sf::Vector2u &size) {
     int sx = start.x;
     int sy = start.y;
     int gx = goal.x;
@@ -78,8 +83,10 @@ std::vector<sf::Vector2i> GameMapExt::findPathExt(const sf::Vector2i &start, con
     IntPair dirs[4] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
     IntPair start_t = {sx, sy};
     IntPair goal_t = {gx, gy};
+    PathResult result;
     if (start_t == goal_t) {
-        return {};
+        result.route.emplace_back(sx, sy);
+        return result;
     }
     std::map<IntPair, IntPair> cameFrom;
     std::map<IntPair, int> gScore;
@@ -103,15 +110,20 @@ std::vector<sf::Vector2i> GameMapExt::findPathExt(const sf::Vector2i &start, con
                 c = cameFrom[c];
             }
             std::reverse(pathPosition.begin(), pathPosition.end());
-            std::vector<sf::Vector2i> moves;
+            result.offsets.reserve(pathPosition.size());
+            result.points.reserve(pathPosition.size());
+            result.route.reserve(pathPosition.size() + 1);
+            result.route.emplace_back(sx, sy);
             int px = sx;
             int py = sy;
             for (auto &[x, y] : pathPosition) {
-                moves.emplace_back(x - px, y - py);
+                result.offsets.emplace_back(x - px, y - py);
+                result.points.emplace_back(x, y);
+                result.route.emplace_back(x, y);
                 px = x;
                 py = y;
             }
-            return moves;
+            return result;
         }
         auto [cx, cy] = current;
         for (auto &[dx, dy] : dirs) {
@@ -135,7 +147,7 @@ std::vector<sf::Vector2i> GameMapExt::findPathExt(const sf::Vector2i &start, con
             }
         }
     }
-    return {};
+    return result;
 }
 
 std::vector<std::vector<py::object>> GameMapExt::getMaterialPropertyMapExt(int width, int height,
@@ -151,12 +163,11 @@ std::vector<std::vector<py::object>> GameMapExt::getMaterialPropertyMapExt(int w
     return materialPropertyMap;
 }
 
-std::pair<std::vector<std::vector<bool>>, std::map<std::pair<int, int>, std::vector<py::object>>>
-GameMapExt::rebuildPassabilityCache(const sf::Vector2u &size) {
+std::vector<std::vector<bool>> GameMapExt::rebuildPassabilityCache(const sf::Vector2u &size) {
     unsigned int width = size.x;
     unsigned int height = size.y;
     std::vector<std::vector<bool>> tilePassableGrid(height);
-    std::map<std::pair<int, int>, std::vector<py::object>> occupancyMap;
+    occupancyMap_.clear();
     for (unsigned int y = 0; y < height; ++y) {
         std::vector<bool> row(width);
         for (unsigned int x = 0; x < width; ++x) {
@@ -175,18 +186,86 @@ GameMapExt::rebuildPassabilityCache(const sf::Vector2u &size) {
     }
     for (auto &[_, actorList] : actorsRef) {
         for (auto &other : actorList) {
-            if (!getCollisionEnabled(other).cast<bool>()) {
-                continue;
-            }
             auto pos = getMapPosition(other).cast<sf::Vector2i>();
             auto key = std::make_pair(pos.x, pos.y);
-            if (occupancyMap.find(key) == occupancyMap.end()) {
-                occupancyMap[key] = std::vector<py::object>();
+            if (occupancyMap_.find(key) == occupancyMap_.end()) {
+                occupancyMap_[key] = std::vector<py::object>();
             }
-            occupancyMap[key].push_back(other);
+            occupancyMap_[key].push_back(other);
         }
     }
-    return {tilePassableGrid, occupancyMap};
+    return tilePassableGrid;
+}
+
+std::vector<py::object> GameMapExt::getActorsAt(int x, int y) {
+    auto it = occupancyMap_.find({x, y});
+    if (it == occupancyMap_.end()) {
+        return {};
+    }
+    return it->second;
+}
+
+std::vector<py::object> GameMapExt::getActorsInRange(int x, int y, int radius) {
+    std::vector<py::object> result;
+    for (int ix = x - radius; ix <= x + radius; ++ix) {
+        for (int iy = y - radius; iy <= y + radius; ++iy) {
+            auto it = occupancyMap_.find({ix, iy});
+            if (it == occupancyMap_.end()) {
+                continue;
+            }
+            result.insert(result.end(), it->second.begin(), it->second.end());
+        }
+    }
+    return result;
+}
+
+std::vector<py::object> GameMapExt::getCollisionAt(int x, int y, const py::object &selfActor) {
+    if (!getCollisionEnabled(selfActor).cast<bool>()) {
+        return {};
+    }
+    std::vector<py::object> result;
+    auto it = occupancyMap_.find({x, y});
+    if (it == occupancyMap_.end()) {
+        return result;
+    }
+    auto descendantActors = getDescendantActorPointers(selfActor);
+    for (auto &other : it->second) {
+        if (other.ptr() == selfActor.ptr()) {
+            continue;
+        }
+        if (descendantActors.find(other.ptr()) != descendantActors.end()) {
+            continue;
+        }
+        if (actorDestroyed(other)) {
+            continue;
+        }
+        if (getCollisionEnabled(other).cast<bool>()) {
+            result.push_back(other);
+        }
+    }
+    return result;
+}
+
+std::vector<py::object> GameMapExt::getOverlapsAt(int x, int y, const py::object &selfActor) {
+    std::vector<py::object> result;
+    auto it = occupancyMap_.find({x, y});
+    if (it == occupancyMap_.end()) {
+        return result;
+    }
+    auto descendantActors = getDescendantActorPointers(selfActor);
+    for (auto &other : it->second) {
+        if (other.ptr() == selfActor.ptr()) {
+            continue;
+        }
+        if (descendantActors.find(other.ptr()) != descendantActors.end()) {
+            continue;
+        }
+        if (actorDestroyed(other)) {
+            continue;
+        }
+        result.push_back(other);
+    }
+    return result;
 }
 
 sf::Vector3f GameMapExt::castFromColor(const sf::Color &color) {
@@ -292,6 +371,27 @@ bool GameMapExt::tryGetLayerPassability(const std::string &layerName, int x, int
     }
     outPassable = passableList[tileIndex];
     return true;
+}
+
+bool GameMapExt::actorDestroyed(const py::object &actor) const { return actor.attr("isDestroyed")().cast<bool>(); }
+
+std::unordered_set<PyObject *> GameMapExt::getDescendantActorPointers(const py::object &actor) const {
+    std::unordered_set<PyObject *> descendantActors;
+    std::vector<py::object> stack;
+    for (py::handle child : actor.attr("getChildren")()) {
+        stack.emplace_back(py::reinterpret_borrow<py::object>(child));
+    }
+    while (!stack.empty()) {
+        py::object child = stack.back();
+        stack.pop_back();
+        if (!descendantActors.insert(child.ptr()).second) {
+            continue;
+        }
+        for (py::handle nextChild : child.attr("getChildren")()) {
+            stack.emplace_back(py::reinterpret_borrow<py::object>(nextChild));
+        }
+    }
+    return descendantActors;
 }
 
 py::object GameMapExt::getMaterialProperty(const sf::Vector2i pos, const std::string &functionName,

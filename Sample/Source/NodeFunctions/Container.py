@@ -3,6 +3,22 @@
 from typing import Any, Dict, List
 
 
+@Meta(DisplayName='LOC("FOR_LOOP")', DisplayDesc='LOC("FOR_LOOP_DESC")')
+@LoopNode("ForLoop")
+@ExecSplit(LoopBody=("__loop_body__",), Completed=("__loop_completed__",))
+@ReturnType(index=int)
+def ForLoop(firstIndex: int = 0, lastIndex: int = 0, step: int = 1) -> tuple[int, int, int]:
+    return firstIndex, lastIndex, step
+
+
+@Meta(DisplayName='LOC("FOR_EACH")', DisplayDesc='LOC("FOR_EACH_DESC")')
+@LoopNode("ForEach")
+@ExecSplit(LoopBody=("__loop_body__",), Completed=("__loop_completed__",))
+@ReturnType(element=object, index=int)
+def ForEach(list_: List[Any]) -> tuple[List[Any]]:
+    return (list_,)
+
+
 @Meta(DisplayName='LOC("CREATE_DICT")', DisplayDesc='LOC("CREATE_DICT_DESC")')
 @ReturnType(value=Dict[str, Any])
 def CreateDict() -> Dict[str, Any]:

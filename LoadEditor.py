@@ -5,15 +5,20 @@ import sys
 import locale
 import configparser
 import subprocess
+import traceback
+import threading
+from types import TracebackType
+
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QApplication
 from qt_material import apply_stylesheet
 from PyQt5.QtGui import QIcon
+
 from Utils import Locale, System, File
-import traceback
-import threading
 
 START_PROJ_FILE = None
+_UNEXPECTED_EXCEPTION_HANDLED = False
+_UNEXPECTED_EXCEPTION_LOCK = threading.Lock()
 
 
 def InitConfig():
@@ -50,18 +55,41 @@ def InitConfig():
     EditorStatus.LANGUAGE = EditorStatus.EDITOR_CONFIG[EditorStatus.APP_NAME]["Language"]
 
 
-def _HandleUnexpectedException(excType, excValue, excTb):
+def _ShowUnexpectedException(excType: type[BaseException], excValue: BaseException, excTb: TracebackType | None) -> None:
+    global _UNEXPECTED_EXCEPTION_HANDLED
+
     traceback.print_exception(excType, excValue, excTb, file=sys.stderr)
     try:
         sys.stderr.flush()
     except Exception:
         pass
+    with _UNEXPECTED_EXCEPTION_LOCK:
+        if _UNEXPECTED_EXCEPTION_HANDLED:
+            return
+        _UNEXPECTED_EXCEPTION_HANDLED = True
     QtWidgets.QMessageBox.critical(
         None,
         ELOC("ERROR"),
         f"{ELOC('UNEXPECTED_ERROR')}\n\n{''.join(traceback.format_exception(excType, excValue, excTb))}",
     )
-    sys.exit(1)
+
+
+def _ExitApplication(exitCode: int) -> None:
+    app = QtWidgets.QApplication.instance()
+    if app is not None:
+        QtCore.QTimer.singleShot(0, lambda: app.exit(exitCode))
+
+
+def _HandleUnexpectedException(
+    excType: type[BaseException],
+    excValue: BaseException,
+    excTb: TracebackType | None,
+    exitProcess: bool = True,
+) -> None:
+    _ShowUnexpectedException(excType, excValue, excTb)
+    if exitProcess:
+        sys.exit(1)
+    _ExitApplication(1)
 
 
 class App(QApplication):
@@ -69,12 +97,12 @@ class App(QApplication):
         try:
             return super().notify(receiver, event)
         except Exception:
-            _HandleUnexpectedException(*sys.exc_info())
+            _HandleUnexpectedException(*sys.exc_info(), exitProcess=False)
             return False
 
 
 def _ThreadExcepthook(args):
-    _HandleUnexpectedException(args.excType, args.excValue, args.exc_traceback)
+    _HandleUnexpectedException(args.exc_type, args.exc_value, args.exc_traceback, exitProcess=False)
 
 
 def Main():

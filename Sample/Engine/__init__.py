@@ -159,6 +159,7 @@ builtins.TypeAdapter = TypeAdapter
 builtins.Meta = Meta
 builtins.ExecSplit = ExecSplit
 builtins.Latent = Latent
+builtins.LoopNode = LoopNode
 builtins.ReturnType = ReturnType
 builtins.InvalidVars = InvalidVars
 builtins.RectRangeVars = RectRangeVars

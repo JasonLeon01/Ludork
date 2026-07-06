@@ -104,6 +104,16 @@ def Latent(**kwargs: Any) -> Callable[[_F], _F]:
     """
     ...
 
+def LoopNode(kind: str) -> Callable[[_F], _F]:
+    r"""
+    \brief Decorator for marking a node function as a synchronous loop controller.
+
+    - kind: Loop controller kind.
+
+    \return A decorator function that attaches loop metadata.
+    """
+    ...
+
 def ReturnType(**kwargs: Any) -> Callable[[_F], _F]:
     r"""
     \brief Decorator for specifying return types of a function.

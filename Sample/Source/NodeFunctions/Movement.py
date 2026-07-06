@@ -40,40 +40,6 @@ def _toVector2i(value: Any) -> Optional[Vector2i]:
     return None
 
 
-def _isUnitStep(value: Vector2i) -> bool:
-    return abs(value.x) <= 1 and abs(value.y) <= 1 and not (value.x == 0 and value.y == 0)
-
-
-def _routeFromOffsets(start: Vector2i, goal: Vector2i, rawPath: List[Vector2i]) -> Optional[List[Vector2i]]:
-    if not all(_isUnitStep(step) for step in rawPath):
-        return None
-    current = Vector2i(start.x, start.y)
-    for step in rawPath:
-        current = Vector2i(current.x + step.x, current.y + step.y)
-    if current != goal:
-        return None
-    return [Vector2i(step.x, step.y) for step in rawPath]
-
-
-def _routeFromPoints(start: Vector2i, goal: Vector2i, rawPath: List[Vector2i]) -> Optional[List[Vector2i]]:
-    points = [Vector2i(point.x, point.y) for point in rawPath]
-    if points and points[0] == start:
-        points = points[1:]
-    if not points:
-        return [] if start == goal else None
-    if points[-1] != goal:
-        return None
-    current = Vector2i(start.x, start.y)
-    route: List[Vector2i] = []
-    for point in points:
-        step = Vector2i(point.x - current.x, point.y - current.y)
-        if not _isUnitStep(step):
-            return None
-        route.append(step)
-        current = point
-    return route
-
-
 def _buildRouteToDestination(actor: Actor, destination: Vector2i) -> List[Vector2i]:
     gameMap = actor.getMap()
     if gameMap is None:
@@ -82,16 +48,10 @@ def _buildRouteToDestination(actor: Actor, destination: Vector2i) -> List[Vector
     goal = Vector2i(destination.x, destination.y)
     if start == goal:
         return []
-    rawPath = [_toVector2i(point) for point in gameMap.findPath(start, goal)]
-    rawPath = [point for point in rawPath if point is not None]
-    if not rawPath:
+    pathResult = gameMap.findPathResult(start, goal)
+    if len(pathResult.route) == 0 or pathResult.route[-1] != goal:
         return []
-    byOffset = _routeFromOffsets(start, goal, rawPath)
-    byPoint = _routeFromPoints(start, goal, rawPath)
-    candidates = [route for route in (byOffset, byPoint) if route is not None]
-    if not candidates:
-        return []
-    return min(candidates, key=len)
+    return pathResult.offsets
 
 
 def _isMovementFinished(actor: Optional[Actor]) -> bool:

@@ -6,7 +6,7 @@ import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Tuple
+from typing import Callable, Optional, Tuple
 import Engine
 from Engine import Pair, Color, Vector2f, RenderTexture, RectangleShape
 from Engine.Utils import Math
@@ -208,7 +208,7 @@ class Scene(SceneBase):
                 self._advanceProgress()
 
     def loadGameData(self) -> None:
-        r"""\brief Load all game data in sequence and update the progress bar."""
+        r"""\brief Load all independent game data phases and update the progress bar."""
         onProgress = self._advanceProgress
         phases = [
             ("animations", Data.loadAnimations),
@@ -217,11 +217,22 @@ class Scene(SceneBase):
             ("autotiles", Data.loadAutoTiles),
             ("general data", Data.loadGeneralData),
         ]
-        for phaseName, loadFn in phases:
-            startTime = time.perf_counter()
-            logging.info("Loading %s", phaseName)
-            loadFn(onFileLoaded=onProgress)
-            logging.info("Loaded %s in %.3fs", phaseName, time.perf_counter() - startTime)
+        maxWorkers = min(len(phases), os.cpu_count() or _MAX_INIT_WORKERS, _MAX_INIT_WORKERS)
+        with ThreadPoolExecutor(max_workers=maxWorkers) as executor:
+            futures = {
+                executor.submit(self._loadGameDataPhase, phaseName, loadFn, onProgress): phaseName
+                for phaseName, loadFn in phases
+            }
+            for future in as_completed(futures):
+                future.result()
+
+    def _loadGameDataPhase(
+        self, phaseName: str, loadFn: Callable[[Optional[Callable[[], None]]], None], onProgress: Callable[[], None]
+    ) -> None:
+        startTime = time.perf_counter()
+        logging.info("Loading %s", phaseName)
+        loadFn(onProgress)
+        logging.info("Loaded %s in %.3fs", phaseName, time.perf_counter() - startTime)
 
     def prepareAssets(self) -> None:
         r"""\brief Background thread entry point: compress animations then load all data."""

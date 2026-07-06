@@ -15,6 +15,7 @@ from Global import Manager
 
 
 _MAX_ANIMATION_LOAD_WORKERS = 4
+_MAX_DATA_LOAD_WORKERS = 4
 
 
 class _Data:
@@ -127,28 +128,57 @@ class _Data:
         dataVal: Dict[str, Any],
         needExt: Optional[str] = None,
         defaultType: Dict[str, Callable] = {".dat": File.loadData, ".json": File.getJSONData},
-        wrapper: Optional[Callable[[Any], None]] = None,
+        wrapper: Optional[Callable[[Any], Any]] = None,
         onFileLoaded: Optional[Callable[[], None]] = None,
-    ):
+    ) -> None:
         if not os.path.exists(dataRoot):
             raise FileNotFoundError(f"Error: Data path {dataRoot} does not exist.")
         category = os.path.basename(dataRoot.rstrip(os.sep))
+        files: list[str] = []
         for file in os.listdir(dataRoot):
-            namePart, extensionPart = self.splitCompound(file)
+            _, extensionPart = self.splitCompound(file)
             if not needExt is None and extensionPart != needExt:
                 continue
-            logging.info("Loading %s: %s", category, file)
-            data = self.__getData(extensionPart, dataRoot, file, defaultType)
-            payload = copy.deepcopy(data)
-            assert payload
-            if "type" in payload:
-                del payload["type"]
-            if wrapper is None:
+            for ext in defaultType:
+                if extensionPart == ext or extensionPart.endswith(ext):
+                    files.append(file)
+                    break
+        if not files:
+            return
+        maxWorkers = min(len(files), os.cpu_count() or _MAX_DATA_LOAD_WORKERS, _MAX_DATA_LOAD_WORKERS)
+        results: list[Optional[Tuple[str, Any]]] = [None] * len(files)
+        with ThreadPoolExecutor(max_workers=maxWorkers) as executor:
+            futures = {
+                executor.submit(self._loadDataFile, dataRoot, file, defaultType, wrapper, category): index
+                for index, file in enumerate(files)
+            }
+            for future in as_completed(futures):
+                results[futures[future]] = future.result()
+                if onFileLoaded is not None:
+                    onFileLoaded()
+        for result in results:
+            if result is not None:
+                namePart, payload = result
                 dataVal[namePart] = payload
-            else:
-                dataVal[namePart] = wrapper(payload)
-            if onFileLoaded is not None:
-                onFileLoaded()
+
+    def _loadDataFile(
+        self,
+        dataRoot: str,
+        file: str,
+        defaultType: Dict[str, Callable],
+        wrapper: Optional[Callable[[Any], Any]],
+        category: str,
+    ) -> Tuple[str, Any]:
+        namePart, extensionPart = self.splitCompound(file)
+        logging.info("Loading %s: %s", category, file)
+        data = self.__getData(extensionPart, dataRoot, file, defaultType)
+        payload = copy.deepcopy(data)
+        assert payload
+        if "type" in payload:
+            del payload["type"]
+        if wrapper is None:
+            return namePart, payload
+        return namePart, wrapper(payload)
 
     def _cloneAnimationPayload(self, data: Dict[str, Any]) -> Dict[str, Any]:
         payload = data.copy()

@@ -240,6 +240,23 @@ def Latent(**kwargs):
     return decorator
 
 
+def LoopNode(kind: str):
+    r"""
+    \brief Decorator for marking a node function as a synchronous loop controller.
+
+    - \param kind Loop controller kind.
+    \return A decorator function that attaches loop metadata.
+    """
+
+    def decorator(func):
+        func._loopNode = kind
+        if not hasattr(func, "_refLocal"):
+            func._refLocal = {}
+        return func
+
+    return decorator
+
+
 def ReturnType(**kwargs):
     r"""
     \brief Decorator for specifying return types of a function.
@@ -330,6 +347,7 @@ __all__ = [
     "Meta",
     "ExecSplit",
     "Latent",
+    "LoopNode",
     "ReturnType",
     "InvalidVars",
     "RectRangeVars",

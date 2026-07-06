@@ -160,7 +160,7 @@ class MapClickAutoPath(ComponentBase):
         goalPassable = gameMap.isPathfindingPassable(actor, goal)
         goalActuallyPassable = gameMap.isPassable(actor, goal)
         direct = self._buildPathToTarget(start, goal)
-        if goalPassable and direct is not None and direct["route"][-1] == goal:
+        if goalActuallyPassable and direct is not None and direct["route"][-1] == goal:
             return {"routeSteps": direct["routeSteps"], "route": direct["route"], "goalPassable": True}
         if goalPassable:
             return None
@@ -194,77 +194,10 @@ class MapClickAutoPath(ComponentBase):
         return {"routeSteps": routeSteps, "route": fullRoute, "goalPassable": False}
 
     def _buildPathToTarget(self, start: Vector2i, target: Vector2i) -> Optional[Dict[str, List[Vector2i]]]:
-        rawPath = self._parent.findPath(start, target)
-        candidates: List[List[Vector2i]] = []
-        routeStepsFromOffset = self._convertPathAsOffset(rawPath)
-        if routeStepsFromOffset is not None:
-            candidates.append(routeStepsFromOffset)
-        routeStepsFromPoint = self._convertPathAsPoint(start, rawPath)
-        if routeStepsFromPoint is not None:
-            candidates.append(routeStepsFromPoint)
-        if len(candidates) == 0:
+        pathResult = self._parent.findPathResult(start, target)
+        if len(pathResult.route) == 0:
             return None
-        best: Optional[Dict[str, List[Vector2i]]] = None
-        for routeSteps in candidates:
-            route = self._buildRouteBySteps(start, routeSteps)
-            if len(route) == 0:
-                continue
-            item = {"routeSteps": routeSteps, "route": route}
-            if route[-1] == target:
-                if best is None or best["route"][-1] != target or len(route) < len(best["route"]):
-                    best = item
-            elif best is None:
-                best = item
-        return best
-
-    def _convertPathAsOffset(self, rawPath: List[Vector2i]) -> Optional[List[Vector2i]]:
-        routeSteps: List[Vector2i] = []
-        for step in rawPath:
-            sx = 1 if step.x > 0 else (-1 if step.x < 0 else 0)
-            sy = 1 if step.y > 0 else (-1 if step.y < 0 else 0)
-            if sx != 0 and sy != 0:
-                return None
-            count = abs(step.x) + abs(step.y)
-            if count == 0:
-                continue
-            for _ in range(count):
-                routeSteps.append(Vector2i(sx, sy))
-        return routeSteps
-
-    def _convertPathAsPoint(self, start: Vector2i, rawPath: List[Vector2i]) -> Optional[List[Vector2i]]:
-        points: List[Vector2i] = [Vector2i(p.x, p.y) for p in rawPath]
-        if len(points) > 0 and points[0] == start:
-            points = points[1:]
-        current = Vector2i(start.x, start.y)
-        routeSteps: List[Vector2i] = []
-        for point in points:
-            dx = point.x - current.x
-            dy = point.y - current.y
-            if dx != 0 and dy != 0:
-                return None
-            steps = abs(dx) + abs(dy)
-            if steps == 0:
-                continue
-            sx = 1 if dx > 0 else (-1 if dx < 0 else 0)
-            sy = 1 if dy > 0 else (-1 if dy < 0 else 0)
-            for _ in range(steps):
-                routeSteps.append(Vector2i(sx, sy))
-                current = Vector2i(current.x + sx, current.y + sy)
-        return routeSteps
-
-    def _buildRouteBySteps(self, start: Vector2i, routeSteps: List[Vector2i]) -> List[Vector2i]:
-        route: List[Vector2i] = [Vector2i(start.x, start.y)]
-        current = Vector2i(start.x, start.y)
-        for step in routeSteps:
-            sx = 1 if step.x > 0 else (-1 if step.x < 0 else 0)
-            sy = 1 if step.y > 0 else (-1 if step.y < 0 else 0)
-            if sx != 0 and sy != 0:
-                return route
-            if sx == 0 and sy == 0:
-                continue
-            current = Vector2i(current.x + sx, current.y + sy)
-            route.append(current)
-        return route
+        return {"routeSteps": pathResult.offsets, "route": pathResult.route}
 
     def _getMouseMapPosition(self) -> Optional[Vector2i]:
         mousePos = Input.getMousePosition()

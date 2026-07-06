@@ -3,6 +3,7 @@
 from __future__ import annotations
 import dis
 import inspect
+from types import CodeType
 from typing import Any, Dict, Optional
 import re
 import traceback
@@ -18,6 +19,21 @@ class BPBase:
     node graphs, applying GeneralData attributes, and managing the
     info-layer graph fallback mechanism.
     """
+
+    _emptyImplementationOpnames = {"CACHE", "COPY_FREE_VARS", "EXTENDED_ARG", "NOP", "RESUME"}
+    _implementationCodeCache: Dict[CodeType, bool] = {}
+    _hasImplementation: Dict[str, bool] = {}
+    _hasImplementationCodes: Dict[str, Optional[CodeType]] = {}
+    _hasImplementationOwner: Optional[type] = None
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        r"""\brief Precompute blueprint method implementation metadata for subclasses."""
+        super().__init_subclass__(**kwargs)
+        BPBase._prepareImplementationCache(cls)
+
+    def __init__(self) -> None:
+        r"""\brief Ensure implementation metadata is ready for the instance class."""
+        BPBase._prepareImplementationCache(type(self))
 
     @staticmethod
     def BlueprintEvent(obj: object, objType: type, eventName: str, kwargs: Dict[str, Any] = None) -> None:
@@ -125,7 +141,7 @@ class BPBase:
         if BPBase._graphHasExecutableEvent(graph, eventName):
             return True
         method = cls.__dict__.get(eventName)
-        if callable(method) and BPBase._methodHasImplementation(method):
+        if callable(method) and BPBase._classMethodHasImplementation(cls, eventName, method):
             return True
         return BPBase._classHasBlueprintEvent(getattr(cls, "__base__", None), eventName)
 
@@ -168,16 +184,60 @@ class BPBase:
 
     @staticmethod
     def _methodHasImplementation(method: object) -> bool:
+        code = BPBase._methodCode(method)
+        if code is None:
+            return True
+        return BPBase._codeHasImplementation(code)
+
+    @staticmethod
+    def _classMethodHasImplementation(cls: type, eventName: str, method: object) -> bool:
+        BPBase._prepareImplementationCache(cls)
+        cache = cls.__dict__.get("_hasImplementation")
+        codeCache = cls.__dict__.get("_hasImplementationCodes")
+        code = BPBase._methodCode(method)
+        if isinstance(cache, dict) and isinstance(codeCache, dict):
+            if eventName in cache and codeCache.get(eventName) is code:
+                return cache[eventName]
+            hasImplementation = True if code is None else BPBase._codeHasImplementation(code)
+            cache[eventName] = hasImplementation
+            codeCache[eventName] = code
+            return hasImplementation
+        return True if code is None else BPBase._codeHasImplementation(code)
+
+    @staticmethod
+    def _prepareImplementationCache(cls: type) -> None:
+        if not isinstance(cls, type):
+            return
+        if cls.__dict__.get("_hasImplementationOwner") is cls:
+            return
+        cache: Dict[str, bool] = {}
+        codeCache: Dict[str, Optional[CodeType]] = {}
+        for name, method in cls.__dict__.items():
+            if not callable(method):
+                continue
+            code = BPBase._methodCode(method)
+            cache[name] = True if code is None else BPBase._codeHasImplementation(code)
+            codeCache[name] = code
+        setattr(cls, "_hasImplementation", cache)
+        setattr(cls, "_hasImplementationCodes", codeCache)
+        setattr(cls, "_hasImplementationOwner", cls)
+
+    @staticmethod
+    def _methodCode(method: object) -> Optional[CodeType]:
         func = getattr(method, "__func__", method)
         try:
             func = inspect.unwrap(func)
         except (AttributeError, ValueError):
             pass
         code = getattr(func, "__code__", None)
-        if code is None:
-            return True
-        for instruction in dis.get_instructions(func):
-            if instruction.opname in {"CACHE", "COPY_FREE_VARS", "EXTENDED_ARG", "NOP", "RESUME"}:
+        return code if isinstance(code, CodeType) else None
+
+    @staticmethod
+    def _codeHasImplementation(code: CodeType) -> bool:
+        if code in BPBase._implementationCodeCache:
+            return BPBase._implementationCodeCache[code]
+        for instruction in dis.get_instructions(code):
+            if instruction.opname in BPBase._emptyImplementationOpnames:
                 continue
             if instruction.opname == "LOAD_CONST" and instruction.argval is None:
                 continue
@@ -185,7 +245,9 @@ class BPBase:
                 continue
             if instruction.opname == "RETURN_VALUE":
                 continue
+            BPBase._implementationCodeCache[code] = True
             return True
+        BPBase._implementationCodeCache[code] = False
         return False
 
     @staticmethod

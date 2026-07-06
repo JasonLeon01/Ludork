@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import inspect
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 from .. import Pair
 from .Node import DataNode, Node
 
@@ -185,6 +185,14 @@ class Graph:
                 condition = result[0] if isinstance(result, tuple) and len(result) > 0 else result
                 latentManager.add(self, key, condition, self.localGraph, curr, cache)
                 return result
+            if hasattr(nodeFunc, "_loopNode"):
+                curr, result, loopSteps = self._executeLoopNode(key, curr, result, cache, limit)
+                steps += loopSteps
+                if steps >= limit:
+                    raise RuntimeError(f"Max steps {limit} exceeded while executing graph '{key}'")
+                if curr is None:
+                    return result
+                continue
             nextMap = self.nodeNexts.get(key, {}).get(curr, {})
             if not nextMap:
                 return result
@@ -221,6 +229,121 @@ class Graph:
             steps += 1
             if steps >= limit:
                 raise RuntimeError(f"Max steps {limit} exceeded while executing graph '{key}'")
+
+    def _executeLoopNode(
+        self,
+        key: str,
+        nodeIndex: int,
+        controlResult: Tuple[Any, ...],
+        cache: Dict[Union[int, str], Tuple[Any, ...]],
+        limit: int,
+    ) -> Tuple[Optional[int], Tuple[Any, ...], int]:
+        nodeFunc = self.nodes[key][nodeIndex].nodeFunction
+        nextMap = self.nodeNexts.get(key, {}).get(nodeIndex, {})
+        bodyPin = self._getNamedExecPinIndex(nodeFunc, "LoopBody")
+        completedPin = self._getNamedExecPinIndex(nodeFunc, "Completed")
+        bodyNext = nextMap.get(bodyPin) if bodyPin is not None else None
+        completedNext = nextMap.get(completedPin) if completedPin is not None else None
+        lastResult = self._getLoopEmptyResult(nodeFunc)
+        loopSteps = 0
+
+        if bodyNext is not None and isinstance(bodyNext[0], int):
+            bodyStart = bodyNext[0]
+            self._validateLoopBodyIsSynchronous(key, bodyStart)
+            bodyCacheKeys = self._getLoopBodyCacheKeys(key, bodyStart)
+            for loopResult in self._iterLoopResults(nodeFunc, controlResult):
+                iterationCache = dict(cache)
+                for cacheKey in bodyCacheKeys:
+                    iterationCache.pop(cacheKey, None)
+                iterationCache[nodeIndex] = loopResult
+                self.execute(key, bodyStart, limit=limit, cache=iterationCache)
+                lastResult = loopResult
+                loopSteps += 1
+                if loopSteps >= limit:
+                    raise RuntimeError(f"Max steps {limit} exceeded while executing graph '{key}'")
+
+        cache[nodeIndex] = lastResult
+        if completedNext is not None and isinstance(completedNext[0], int):
+            return completedNext[0], lastResult, loopSteps
+        return None, lastResult, loopSteps
+
+    def _getNamedExecPinIndex(self, nodeFunc: Callable, pinName: str) -> Optional[int]:
+        splits = getattr(nodeFunc, "_execSplits", None)
+        if not isinstance(splits, dict):
+            return None
+        keys = list(splits.keys())
+        return keys.index(pinName) if pinName in keys else None
+
+    def _getLoopEmptyResult(self, nodeFunc: Callable) -> Tuple[Any, ...]:
+        loopKind = getattr(nodeFunc, "_loopNode", "")
+        if loopKind == "ForEach":
+            return (None, -1)
+        return (0,)
+
+    def _iterLoopResults(self, nodeFunc: Callable, controlResult: Tuple[Any, ...]) -> Iterator[Tuple[Any, ...]]:
+        loopKind = getattr(nodeFunc, "_loopNode", "")
+        if loopKind == "ForEach":
+            values = controlResult[0] if controlResult else []
+            if values is None:
+                return
+            try:
+                items = list(values)
+            except TypeError:
+                return
+            for index, element in enumerate(items):
+                yield (element, index)
+            return
+        if loopKind == "ForLoop":
+            firstIndex = int(controlResult[0]) if len(controlResult) > 0 else 0
+            lastIndex = int(controlResult[1]) if len(controlResult) > 1 else 0
+            step = int(controlResult[2]) if len(controlResult) > 2 else 1
+            if step == 0:
+                raise ValueError("ForLoop step cannot be 0")
+            current = firstIndex
+            if step > 0:
+                while current <= lastIndex:
+                    yield (current,)
+                    current += step
+            else:
+                while current >= lastIndex:
+                    yield (current,)
+                    current += step
+
+    def _validateLoopBodyIsSynchronous(self, key: str, startNode: int) -> None:
+        visited = set()
+        stack = [startNode]
+        while stack:
+            nodeIndex = stack.pop()
+            if nodeIndex in visited:
+                continue
+            visited.add(nodeIndex)
+            if not isinstance(nodeIndex, int):
+                continue
+            nodeFunc = self.nodes[key][nodeIndex].nodeFunction
+            if hasattr(nodeFunc, "_latents"):
+                raise RuntimeError("Latent nodes are not supported inside ForLoop/ForEach body")
+            for nextNode, _ in self.nodeNexts.get(key, {}).get(nodeIndex, {}).values():
+                if isinstance(nextNode, int) and nextNode not in visited:
+                    stack.append(nextNode)
+
+    def _getLoopBodyCacheKeys(self, key: str, startNode: int) -> set[Union[int, str]]:
+        result: set[Union[int, str]] = set()
+        visited = set()
+        stack = [startNode]
+        while stack:
+            nodeIndex = stack.pop()
+            if nodeIndex in visited:
+                continue
+            visited.add(nodeIndex)
+            if not isinstance(nodeIndex, int):
+                continue
+            result.add(nodeIndex)
+            for relyNode in self.getRelyNodeIndexList(key, nodeIndex):
+                result.add(relyNode)
+            for nextNode, _ in self.nodeNexts.get(key, {}).get(nodeIndex, {}).values():
+                if isinstance(nextNode, int) and nextNode not in visited:
+                    stack.append(nextNode)
+        return result
 
     def getRelyNodeIndexList(self, key: str, nodeIndex: Union[int, str]) -> List[Union[int, str]]:
         """Recursively collect all upstream dependency node indices for a given node.

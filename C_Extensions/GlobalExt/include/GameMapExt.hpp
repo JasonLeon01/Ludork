@@ -9,6 +9,7 @@
 #include <map>
 #include <optional>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -16,8 +17,40 @@ namespace py = pybind11;
 using ActorDict = std::unordered_map<std::string, std::vector<py::object>>;
 using TileGrids = std::vector<std::vector<std::optional<int>>>;
 using IntPair = std::pair<int, int>;
+struct IntPairHash {
+    std::size_t operator()(const IntPair &value) const;
+};
+using OccupancyMap = std::unordered_map<IntPair, std::vector<py::object>, IntPairHash>;
 using LayerVisibleMap = std::unordered_map<std::string, bool>;
 using LayerPassableMap = std::unordered_map<std::string, std::vector<bool>>;
+
+////////////////////////////////////////////////////////////
+/// \brief Pathfinding result in all runtime path formats
+///
+////////////////////////////////////////////////////////////
+BIND_CLASS(copyable = true)
+struct PathResult {
+    ////////////////////////////////////////////////////////////
+    /// \brief Per-step movement offsets
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_PROPERTY()
+    std::vector<sf::Vector2i> offsets;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Absolute path points excluding the start position
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_PROPERTY()
+    std::vector<sf::Vector2i> points;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Absolute route including the start position
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_PROPERTY()
+    std::vector<sf::Vector2i> route;
+};
 
 ////////////////////////////////////////////////////////////
 /// \brief Accelerated game map helper for lighting and navigation
@@ -71,18 +104,17 @@ public:
                                      bool smooth = false);
 
     ////////////////////////////////////////////////////////////
-    /// \brief Find path moves between two grid positions using A*
+    /// \brief Find path data between two grid positions using A*
     ///
     /// - \param start Start position
     /// - \param goal Goal position
     /// - \param size Grid dimensions
     ///
-    /// - \return Sequence of per-step movement vectors
+    /// - \return Pathfinding result containing offsets, points, and route
     ///
     ////////////////////////////////////////////////////////////
     BIND_METHOD()
-    std::vector<sf::Vector2i> findPathExt(const sf::Vector2i &start, const sf::Vector2i &goal,
-                                          const sf::Vector2u &size);
+    PathResult findPathExt(const sf::Vector2i &start, const sf::Vector2i &goal, const sf::Vector2u &size);
 
     ////////////////////////////////////////////////////////////
     /// \brief Build a 2D map of dynamic material property values
@@ -105,12 +137,62 @@ public:
     ///
     /// - \param size Grid dimensions
     ///
-    /// - \return Pair of passability grid and occupancy map
+    /// - \return Tile passability grid
     ///
     ////////////////////////////////////////////////////////////
     BIND_METHOD()
-    std::pair<std::vector<std::vector<bool>>, std::map<std::pair<int, int>, std::vector<py::object>>>
-    rebuildPassabilityCache(const sf::Vector2u &size);
+    std::vector<std::vector<bool>> rebuildPassabilityCache(const sf::Vector2u &size);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Get actors cached at one map position
+    ///
+    /// - \param x Tile X coordinate
+    /// - \param y Tile Y coordinate
+    ///
+    /// - \return Actors at the requested position
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
+    std::vector<py::object> getActorsAt(int x, int y);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Get actors cached inside a square tile range
+    ///
+    /// - \param x Centre tile X coordinate
+    /// - \param y Centre tile Y coordinate
+    /// - \param radius Range radius in tiles
+    ///
+    /// - \return Actors inside the requested range
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
+    std::vector<py::object> getActorsInRange(int x, int y, int radius);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Get colliding actors cached at one map position
+    ///
+    /// - \param x Tile X coordinate
+    /// - \param y Tile Y coordinate
+    /// - \param selfActor Actor excluded from the result
+    ///
+    /// - \return Colliding actors at the requested position
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
+    std::vector<py::object> getCollisionAt(int x, int y, const py::object &selfActor);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Get overlapping actors cached at one map position
+    ///
+    /// - \param x Tile X coordinate
+    /// - \param y Tile Y coordinate
+    /// - \param selfActor Actor excluded from the result
+    ///
+    /// - \return Overlapping actors at the requested position
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
+    std::vector<py::object> getOverlapsAt(int x, int y, const py::object &selfActor);
 
     ////////////////////////////////////////////////////////////
     /// \brief Python tilemap object reference
@@ -262,6 +344,26 @@ private:
     bool tryGetLayerPassability(const std::string &layerName, int x, int y, bool &outPassable) const;
 
     ////////////////////////////////////////////////////////////
+    /// \brief Check whether an actor object has been destroyed
+    ///
+    /// - \param actor Actor object to query
+    ///
+    /// - \return `true` when the actor reports destroyed
+    ///
+    ////////////////////////////////////////////////////////////
+    bool actorDestroyed(const py::object &actor) const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Collect descendant actor identities for filtering child actors
+    ///
+    /// - \param actor Root actor object
+    ///
+    /// - \return Set of descendant Python object pointers
+    ///
+    ////////////////////////////////////////////////////////////
+    std::unordered_set<PyObject *> getDescendantActorPointers(const py::object &actor) const;
+
+    ////////////////////////////////////////////////////////////
     /// \brief Query dynamic material property at one map position
     ///
     /// - \param pos Tile position
@@ -274,5 +376,6 @@ private:
     py::object getMaterialProperty(const sf::Vector2i pos, const std::string &functionName,
                                    const py::object &invalidValue);
     sf::Shader *materialShader_;
+    OccupancyMap occupancyMap_;
     std::map<std::pair<std::string, int>, std::string> uniformArrayNameCache_;
 };
