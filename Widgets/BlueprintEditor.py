@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import colorsys
 import math
 import os
 import copy
@@ -19,6 +20,7 @@ from Widgets.Utils.ClassDetailMixin import ClassDetailMixin
 from Widgets.Utils.ColourPickerDialog import ColourVarEditor
 from Widgets.Utils.NodePanel import GeneralDataComboBox
 from Widgets.Utils.MetaVarTypes import _GENERALDATA_VAR_TYPE
+from Widgets.Utils.ProgressVarEditor import ProgressVarEditor
 from Widgets.Utils.StructuredFields import IsStructuredType, IsStructuredValue, StructuredValueToDict
 from Widgets.Utils.TypedValueEditor import TypedValueEditor
 from Widgets.Utils.VectorVarEditor import VectorVarEditor
@@ -76,6 +78,7 @@ class BluePrintPreviewWidget(QtWidgets.QWidget):
         self._rect = (0, 0, 32, 32)
         self._animatable = False
         self._switchInterval = 0.2
+        self._hue = 0.0
         self._shaderTime = 0.0
         self._frame = 0
         self._accumulated = 0.0
@@ -90,6 +93,7 @@ class BluePrintPreviewWidget(QtWidgets.QWidget):
         self._image = self._editor._getPreviewTextureImage()
         self._rect = self._editor._getPreviewRectTuple()
         self._animatable = bool(self._editor._getPreviewAttr("animatable", False))
+        self._hue = self._editor._normalisePreviewHue(self._editor._getPreviewAttr("hue", 0.0))
         try:
             self._switchInterval = max(0.03, float(self._editor._getPreviewAttr("switchInterval", 0.2)))
         except (TypeError, ValueError):
@@ -152,6 +156,7 @@ class BluePrintPreviewWidget(QtWidgets.QWidget):
         if displayImage is None or inner.width() <= 0 or inner.height() <= 0:
             self._drawEmptyPreview(painter, inner)
             return
+        displayImage = self._editor._applyPreviewHueToImage(displayImage, self._hue)
 
         sx, sy, sw, sh = self._rect
         sw = max(1, sw)
@@ -266,6 +271,8 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
             return widget.getValue()
         if isinstance(widget, VectorVarEditor):
             return widget.getValue()
+        if isinstance(widget, ProgressVarEditor):
+            return widget.getValue()
         if isinstance(widget, TypedValueEditor):
             return widget.getValue()
         elems = getattr(widget, "_elementWidgets", None)
@@ -293,6 +300,9 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
             widget.setValue(parent_val)
             return
         if isinstance(widget, VectorVarEditor):
+            widget.setValue(parent_val)
+            return
+        if isinstance(widget, ProgressVarEditor):
             widget.setValue(parent_val)
             return
         if isinstance(widget, GeneralDataComboBox):
@@ -362,6 +372,10 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
                 lambda data, b=revertBtn, pv=parent_val: self._updateRevertButtonState(b, data, pv)
             )
         elif isinstance(widget, VectorVarEditor):
+            widget.VALUE_CHANGED.connect(
+                lambda data, b=revertBtn, pv=parent_val: self._updateRevertButtonState(b, data, pv)
+            )
+        elif isinstance(widget, ProgressVarEditor):
             widget.VALUE_CHANGED.connect(
                 lambda data, b=revertBtn, pv=parent_val: self._updateRevertButtonState(b, data, pv)
             )
@@ -1223,6 +1237,32 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
             return attrs.get(key, default)
         found, value = self._getClassAttrValue(self._resolveClass(), key)
         return value if found else default
+
+    def _normalisePreviewHue(self, hue: Any) -> float:
+        try:
+            return float(hue) % 360.0
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _isNeutralPreviewHue(self, hue: float) -> bool:
+        hue = self._normalisePreviewHue(hue)
+        return hue <= 0.0001 or abs(hue - 360.0) <= 0.0001
+
+    def _applyPreviewHueToImage(self, image: QtGui.QImage, hue: float) -> QtGui.QImage:
+        if image.isNull() or self._isNeutralPreviewHue(hue):
+            return image
+        result = image.convertToFormat(QtGui.QImage.Format_ARGB32)
+        hueOffset = self._normalisePreviewHue(hue) / 360.0
+        for y in range(result.height()):
+            for x in range(result.width()):
+                color = result.pixelColor(x, y)
+                if color.alpha() == 0:
+                    continue
+                h, s, v = colorsys.rgb_to_hsv(color.redF(), color.greenF(), color.blueF())
+                r, g, b = colorsys.hsv_to_rgb((h + hueOffset) % 1.0, s, v)
+                color.setRgbF(r, g, b, color.alphaF())
+                result.setPixelColor(x, y, color)
+        return result
 
     def _getPreviewTextureImage(self) -> Optional[QtGui.QImage]:
         path = self._getPreviewTexturePath()

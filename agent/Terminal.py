@@ -3,11 +3,33 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
+import sys
+
+
+_pythonCCommandPattern = re.compile(
+    r"^python(?:\.exe)?\s+-c\s+(.+)$",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _extractPythonCCode(command: str) -> str | None:
+    match = _pythonCCommandPattern.match(command.strip())
+    if match is None:
+        return None
+    code = match.group(1).strip()
+    if len(code) >= 2 and code[0] == code[-1] and code[0] in ("'", '"'):
+        return code[1:-1]
+    return code
 
 
 def RunTerminal(command: str, cwd: str, timeout: int = 120) -> str:
-    if os.name == "nt":
+    command = command.strip()
+    pythonCode = _extractPythonCCode(command)
+    if pythonCode is not None:
+        shellCmd: list[str] = [sys.executable, "-c", pythonCode]
+    elif os.name == "nt":
         shellCmd = ["cmd", "/c", command]
     else:
         shellCmd = ["bash", "-c", command]

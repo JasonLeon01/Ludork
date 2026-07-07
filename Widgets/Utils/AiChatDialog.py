@@ -504,11 +504,26 @@ class AiChatDialog(QtWidgets.QDialog):
             return f'No matches found for "{keyword}"'
         return "\n".join(results[:30])
 
-    def _pyReadFile(self, relPath: str) -> str:
+    def _pyReadFile(
+        self,
+        relPath: str,
+        startLine: int = 0,
+        endLine: int = 0,
+        symbol: str = "",
+    ) -> str:
         try:
             from agent.ProjectSearch import ReadProjectFile
             proj = EditorStatus.PROJ_PATH or ""
-            return ReadProjectFile(proj, relPath)
+            start = int(startLine or 0)
+            end = int(endLine or 0)
+            symbolText = str(symbol or "").strip()
+            return ReadProjectFile(
+                proj,
+                relPath,
+                startLine=start,
+                endLine=end,
+                symbol=symbolText,
+            )
         except Exception as exc:
             return f"Error reading file: {exc}"
 

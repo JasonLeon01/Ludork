@@ -1411,6 +1411,14 @@
     "zh_CN": "删除成员",
     "en_GB": "Remove Member"
   },
+  "DUPLICATE_MEMBER": {
+    "zh_CN": "复制成员",
+    "en_GB": "Duplicate Member"
+  },
+  "ID_ALREADY_EXISTS": {
+    "zh_CN": "ID已存在",
+    "en_GB": "ID already exists"
+  },
   "CHANGE_ID": {
     "zh_CN": "更改ID",
     "en_GB": "Change ID"

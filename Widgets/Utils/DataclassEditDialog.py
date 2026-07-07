@@ -6,7 +6,8 @@ from typing import get_type_hints
 from PyQt5 import QtWidgets
 
 from .ColourPickerDialog import ColourVarEditor
-from .MetaVarTypes import GetMetaVarTypes
+from .MetaVarTypes import _PROGRESS_VAR_TYPE, GetMetaVarTypes, GetProgressVarRanges
+from .ProgressVarEditor import ProgressVarEditor
 from .StructuredFields import StructuredFields
 from .TypedValueEditor import TypedValueEditor
 from .VectorVarEditor import VectorVarEditor, IsVectorVarType
@@ -24,7 +25,9 @@ class DataclassEditDialog(QtWidgets.QDialog):
         except (NameError, TypeError, AttributeError) as e:
             log.warning("Failed to resolve type hints for %s: %s", type(data_obj), e)
             self._type_hints = {}
-        self._metaVarTypes = GetMetaVarTypes(getattr(type(data_obj), "_meta", {}))
+        meta = getattr(type(data_obj), "_meta", {})
+        self._metaVarTypes = GetMetaVarTypes(meta)
+        self._progressVarRanges = GetProgressVarRanges(meta)
         self._initUI()
 
     def _initUI(self):
@@ -40,6 +43,8 @@ class DataclassEditDialog(QtWidgets.QDialog):
                 widget = ColourVarEditor(value, self)
             elif IsVectorVarType(varType):
                 widget = VectorVarEditor(varType, value, self)
+            elif varType == _PROGRESS_VAR_TYPE:
+                widget = ProgressVarEditor(value, self._progressVarRanges.get(field.name), self)
             else:
                 widget = TypedValueEditor(value, field_type, self)
             
@@ -59,7 +64,7 @@ class DataclassEditDialog(QtWidgets.QDialog):
 
     def accept(self):
         for name, widget in self.inputs.items():
-            if isinstance(widget, (TypedValueEditor, ColourVarEditor, VectorVarEditor)):
+            if isinstance(widget, (TypedValueEditor, ColourVarEditor, VectorVarEditor, ProgressVarEditor)):
                 setattr(self.data_obj, name, widget.getValue())
         super().accept()
 

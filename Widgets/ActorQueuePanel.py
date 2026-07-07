@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 from __future__ import annotations
+import colorsys
 import os
 from typing import Any, Optional, Dict
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -159,6 +160,7 @@ class ActorQueuePanel(QtWidgets.QWidget):
         rect = self._getBlueprintAttr(bpRel, "defaultRect", None)
         origin = self._getBlueprintAttr(bpRel, "defaultOrigin", (0.0, 0.0))
         scale = self._getBlueprintAttr(bpRel, "defaultScale", (1.0, 1.0))
+        hue = self._normaliseActorHue(self._getBlueprintAttr(bpRel, "hue", 0.0))
         if isinstance(rect, (list, tuple)) and len(rect) >= 2:
             try:
                 a, b = rect[0], rect[1]
@@ -190,7 +192,11 @@ class ActorQueuePanel(QtWidgets.QWidget):
         if srcImg is not None and isinstance(rect, (list, tuple)) and len(rect) >= 2:
             src = QtCore.QRect(sx, sy, w, h)
             dst = QtCore.QRect(-ox, -oy, dw, dh)
-            p.drawImage(dst, srcImg, src)
+            if self._isNeutralActorHue(hue):
+                p.drawImage(dst, srcImg, src)
+            else:
+                drawImg = self._applyActorHueToImage(srcImg.copy(src), hue)
+                p.drawImage(dst, drawImg, QtCore.QRect(0, 0, drawImg.width(), drawImg.height()))
         else:
             color = QtGui.QColor(0, 120, 255, 160)
             r = QtCore.QRect(-ox, -oy, dw, dh)
@@ -199,6 +205,32 @@ class ActorQueuePanel(QtWidgets.QWidget):
             p.drawRect(r)
         p.end()
         return QtGui.QPixmap.fromImage(img)
+
+    def _normaliseActorHue(self, hue: Any) -> float:
+        try:
+            return float(hue) % 360.0
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _isNeutralActorHue(self, hue: float) -> bool:
+        hue = self._normaliseActorHue(hue)
+        return hue <= 0.0001 or abs(hue - 360.0) <= 0.0001
+
+    def _applyActorHueToImage(self, image: QtGui.QImage, hue: float) -> QtGui.QImage:
+        if image.isNull() or self._isNeutralActorHue(hue):
+            return image
+        result = image.convertToFormat(QtGui.QImage.Format_ARGB32)
+        hueOffset = self._normaliseActorHue(hue) / 360.0
+        for y in range(result.height()):
+            for x in range(result.width()):
+                color = result.pixelColor(x, y)
+                if color.alpha() == 0:
+                    continue
+                h, s, v = colorsys.rgb_to_hsv(color.redF(), color.greenF(), color.blueF())
+                r, g, b = colorsys.hsv_to_rgb((h + hueOffset) % 1.0, s, v)
+                color.setRgbF(r, g, b, color.alphaF())
+                result.setPixelColor(x, y, color)
+        return result
 
     def addOrPromote(self, bpRel: str) -> None:
         b = bpRel.strip() if isinstance(bpRel, str) else ""
@@ -253,12 +285,29 @@ class ActorQueuePanel(QtWidgets.QWidget):
             self.SELECTION_CHANGED.emit(None)
 
     def _onItemClicked(self, item: QtWidgets.QListWidgetItem) -> None:
+        if item is None:
+            return
+        bp = item.data(QtCore.Qt.UserRole)
+        val = bp.strip() if isinstance(bp, str) else ""
+        if val and self._currentBpRel != val:
+            self._clickTimer.stop()
+            self._pendingClickItem = None
+            self._currentBpRel = val
+            self._list.setCurrentItem(item)
+            self.SELECTION_CHANGED.emit(val)
+            return
         self._pendingClickItem = item
         self._clickTimer.start(QtWidgets.QApplication.doubleClickInterval())
 
     def _onItemDoubleClicked(self, item: QtWidgets.QListWidgetItem) -> None:
         self._clickTimer.stop()
         self._pendingClickItem = None
+        bp = item.data(QtCore.Qt.UserRole) if item is not None else None
+        val = bp.strip() if isinstance(bp, str) else ""
+        if val and self._currentBpRel != val:
+            self._currentBpRel = val
+            self._list.setCurrentItem(item)
+            self.SELECTION_CHANGED.emit(val)
         self._requestOpenBlueprint(item)
 
     def _onSingleClickTimeout(self) -> None:

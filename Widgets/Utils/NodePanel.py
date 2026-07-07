@@ -21,10 +21,18 @@ from .DialogUtils import GetIndependentDialogParent
 from .FileSelectorDialog import FileSelectorDialog
 from .FunctionPickerPopup import FunctionPickerPopup
 from .MetaRely import GetRelyConditionDisplay, IsRelyEditable, NormaliseRelyMap, ToBool
-from .MetaVarTypes import _GENERALDATA_VAR_TYPE, GetGeneralDataVars, GetMetaVarTypes
+from .MetaVarTypes import (
+    _GENERALDATA_VAR_TYPE,
+    _PROGRESS_VAR_TYPE,
+    GetGeneralDataVars,
+    GetMetaVarTypes,
+    GetProgressVarRanges,
+    ProgressRange,
+)
 from .GraphLayout import ComputeGraphLayoutPositions
 from .MoveRouteEditor import MoveRouteEditor
 from .NodeFunctionMeta import GetExecSplits, GetLatents, GetReturnTypes, HasExecOutputs
+from .ProgressVarEditor import ProgressVarEditor
 from .TransferPosEditor import TransferPosEditor
 from .TypedValueEditor import (
     TypedValueEditor,
@@ -357,6 +365,8 @@ def GetWidgetValue(widget: QtWidgets.QWidget) -> WidgetValue:
         return widget.getValue()
     if isinstance(widget, VectorVarEditor):
         return widget.getValue()
+    if isinstance(widget, ProgressVarEditor):
+        return widget.getValue()
     if isinstance(widget, MoveRouteEditor):
         return widget.getValue()
     if isinstance(widget, TransferPosEditor):
@@ -424,6 +434,9 @@ def SetEditorWidgetEditable(widget: QtWidgets.QWidget, editable: bool) -> None:
         widget.setEditable(editable)
         return
     if isinstance(widget, VectorVarEditor):
+        widget.setEditable(editable)
+        return
+    if isinstance(widget, ProgressVarEditor):
         widget.setEditable(editable)
         return
     if isinstance(widget, MoveRouteEditor):
@@ -799,6 +812,35 @@ class NodeVectorWidget(NodeBaseWidget):
         editor.setValue(value, emit=False)
 
 
+class NodeProgressWidget(NodeBaseWidget):
+    def __init__(
+        self,
+        parent: Optional[QtWidgets.QWidget] = None,
+        name: str = "",
+        label: str = "",
+        value: Any = None,
+        valueRange: ProgressRange | None = None,
+    ) -> None:
+        super(NodeProgressWidget, self).__init__(parent)
+        self.set_name(name)
+        self.set_label(label)
+        editor = ProgressVarEditor(value, valueRange)
+        self.set_custom_widget(editor)
+        editor.VALUE_CHANGED.connect(self.on_value_changed)
+
+    def get_value(self) -> WidgetValue:
+        editor = self.get_custom_widget()
+        if not isinstance(editor, ProgressVarEditor):
+            return None
+        return editor.getValue()
+
+    def set_value(self, value: WidgetValue) -> None:
+        editor = self.get_custom_widget()
+        if not isinstance(editor, ProgressVarEditor):
+            return
+        editor.setValue(value, emit=False)
+
+
 class NodeMoveRouteWidget(NodeBaseWidget):
     def __init__(
         self, parent: Optional[QtWidgets.QWidget] = None, name: str = "", label: str = "", value: Any = None
@@ -949,6 +991,7 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
         dropBox = meta.get("DropBox", [])
         gdVars = GetGeneralDataVars(meta)
         varTypes = GetMetaVarTypes(meta)
+        progressVarRanges = GetProgressVarRanges(meta)
         pathVarMap = GetMetaPathVars(meta)
         moveRouteVars = GetMetaMoveRouteVars(meta)
         transferVars = GetMetaTransferVars(meta)
@@ -983,6 +1026,8 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
                 type_str = "ColourVar"
             elif IsVectorVarType(varType):
                 type_str = NormaliseVectorVarType(varType)
+            elif varType == _PROGRESS_VAR_TYPE:
+                type_str = "ProgressVar"
             elif isPath:
                 type_str = "Path"
             elif isBlueprintClass:
@@ -1013,6 +1058,15 @@ def MakeInit(currNode: GraphNode) -> Callable[[BaseNode], None]:
             elif IsVectorVarType(varType):
                 nodeWidget = NodeVectorWidget(
                     self.view, name=widgetName, label=display_label, varType=varType, value=init_val
+                )
+                self.add_custom_widget(nodeWidget)
+            elif varType == _PROGRESS_VAR_TYPE:
+                nodeWidget = NodeProgressWidget(
+                    self.view,
+                    name=widgetName,
+                    label=display_label,
+                    value=init_val,
+                    valueRange=progressVarRanges.get(name),
                 )
                 self.add_custom_widget(nodeWidget)
             elif isPath:
@@ -1404,6 +1458,11 @@ class NodePanel(QtWidgets.QWidget):
                             lambda _, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
                         )
                     elif isinstance(le, VectorVarEditor):
+                        le.setValue(val, emit=False)
+                        le.VALUE_CHANGED.connect(
+                            lambda _, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)
+                        )
+                    elif isinstance(le, ProgressVarEditor):
                         le.setValue(val, emit=False)
                         le.VALUE_CHANGED.connect(
                             lambda _, n=i, p=paramIndex, widget=le: self._onParamChanged(n, p, widget)

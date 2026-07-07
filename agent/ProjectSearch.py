@@ -40,22 +40,87 @@ def _resolveProjectFile(projectPath: str, relPath: str) -> Optional[str]:
     return absPath
 
 
-def ReadProjectFile(projectPath: str, relPath: str, maxChars: int = _maxReadChars) -> str:
+def _formatNumberedLines(lines: List[str], startIndex: int = 0) -> str:
+    return "".join(f"{startIndex + offset + 1:4d}| {lines[offset]}" for offset in range(len(lines)))
+
+
+def _extractSymbolBlock(lines: List[str], symbol: str) -> Optional[str]:
+    defPattern = re.compile(rf"^\s*def\s+{re.escape(symbol)}\s*\(")
+    classPattern = re.compile(rf"^\s*class\s+{re.escape(symbol)}\s*[\(:]")
+    startIndex: Optional[int] = None
+    for index, line in enumerate(lines):
+        if defPattern.match(line) or classPattern.match(line):
+            startIndex = index
+            break
+    if startIndex is None:
+        return None
+
+    baseIndent = len(lines[startIndex]) - len(lines[startIndex].lstrip())
+    endIndex = startIndex + 1
+    while endIndex < len(lines):
+        line = lines[endIndex]
+        stripped = line.strip()
+        if not stripped:
+            endIndex += 1
+            continue
+        if stripped.startswith("@") or stripped.startswith("#"):
+            endIndex += 1
+            continue
+        indent = len(line) - len(line.lstrip())
+        if indent <= baseIndent and endIndex > startIndex:
+            break
+        endIndex += 1
+
+    block = lines[startIndex:endIndex]
+    return _formatNumberedLines(block, startIndex)
+
+
+def ReadProjectFile(
+    projectPath: str,
+    relPath: str,
+    maxChars: int = _maxReadChars,
+    startLine: int = 0,
+    endLine: int = 0,
+    symbol: str = "",
+) -> str:
     absPath = _resolveProjectFile(projectPath, relPath)
     if absPath is None:
         return f'Error: File not found or not allowed: "{relPath}"'
     try:
         with open(absPath, "r", encoding="utf-8") as handle:
-            content = handle.read()
+            lines = handle.readlines()
     except UnicodeDecodeError:
         return f'Error: File is not UTF-8 text: "{relPath}"'
     except OSError as exc:
         return f'Error reading "{relPath}": {exc}'
+
     relDisplay = _normalizeRelPath(relPath)
+    symbolName = symbol.strip()
+    if symbolName:
+        extracted = _extractSymbolBlock(lines, symbolName)
+        if extracted is None:
+            return f'Error: Symbol "{symbolName}" not found in "{relDisplay}"'
+        header = f'=== File: {relDisplay} (symbol {symbolName}) ===\n'
+        content = extracted
+    elif startLine > 0 or endLine > 0:
+        totalLines = len(lines)
+        start = max(1, startLine) if startLine > 0 else 1
+        end = min(totalLines, endLine) if endLine > 0 else totalLines
+        if start > totalLines:
+            return f'Error: start_line {start} is beyond file length ({totalLines} lines) for "{relDisplay}"'
+        if end < start:
+            return f'Error: end_line {end} is before start_line {start} for "{relDisplay}"'
+        selected = lines[start - 1 : end]
+        header = f"=== File: {relDisplay} (lines {start}-{end} of {totalLines}) ===\n"
+        content = _formatNumberedLines(selected, start - 1)
+    else:
+        header = f"=== File: {relDisplay} ===\n"
+        content = "".join(lines)
+
     if len(content) <= maxChars:
-        return f'=== File: {relDisplay} ===\n{content}'
+        return header + content
     return (
-        f'=== File: {relDisplay} (truncated to {maxChars} chars) ===\n'
+        f"{header}(truncated to {maxChars} chars)\n"
         f"{content[:maxChars]}\n... [truncated]"
     )
 

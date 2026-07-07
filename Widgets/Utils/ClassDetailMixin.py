@@ -13,8 +13,16 @@ from PyQt5 import QtWidgets
 from EditorGlobal import EditorStatus
 from Widgets.Utils.ColourPickerDialog import ColourVarEditor
 from Widgets.Utils.MetaRely import GetRelyConditionDisplay, GetRelySourceSet, IsRelyEditable, NormaliseRelyMap
-from Widgets.Utils.MetaVarTypes import _GENERALDATA_VAR_TYPE, GetGeneralDataVars, GetMetaVarTypes
+from Widgets.Utils.MetaVarTypes import (
+    _GENERALDATA_VAR_TYPE,
+    _PROGRESS_VAR_TYPE,
+    GetGeneralDataVars,
+    GetMetaVarTypes,
+    GetProgressVarRanges,
+    ProgressRange,
+)
 from Widgets.Utils.NodePanel import GeneralDataComboBox, _loadGeneralDataMemberKeys
+from Widgets.Utils.ProgressVarEditor import ProgressVarEditor
 from Widgets.Utils.StructuredFields import IsStructuredValue, StructuredValueToDict
 from Widgets.Utils.TypedValueEditor import TypedValueEditor, UnwrapOptionalType
 from Widgets.Utils.VariableNameLabel import VariableNameLabel
@@ -143,6 +151,17 @@ class ClassDetailMixin:
             meta = getattr(base, "__dict__", {}).get("_meta")
             if isinstance(meta, dict):
                 result.update(GetMetaVarTypes(meta))
+        return result
+
+    def _getProgressVarRanges(self, cls: Optional[type] = None) -> Dict[str, ProgressRange]:
+        cls = self._normaliseDetailClass(cls)
+        if not isinstance(cls, type):
+            return {}
+        result: Dict[str, ProgressRange] = {}
+        for base in list(reversed(cls.mro())):
+            meta = getattr(base, "__dict__", {}).get("_meta")
+            if isinstance(meta, dict):
+                result.update(GetProgressVarRanges(meta))
         return result
 
     def _getGeneralDataVars(self, cls: Optional[type] = None) -> Dict[str, str]:
@@ -312,6 +331,7 @@ class ClassDetailMixin:
         self.configVarMap = self._getConfigVarMap(cls)
         self.configVars = set(self.configVarMap.keys())
         self.attrVarTypes = self._getMetaVarTypes(cls)
+        self.attrProgressRanges = self._getProgressVarRanges(cls)
         self.attrGDVars = self._getGeneralDataVars(cls)
         self.attrRely = self._getMetaRely(cls)
         self.attrRelySources = GetRelySourceSet(self.attrRely)
@@ -394,6 +414,9 @@ class ClassDetailMixin:
             widget.setEditable(editable)
             return
         if isinstance(widget, VectorVarEditor):
+            widget.setEditable(editable)
+            return
+        if isinstance(widget, ProgressVarEditor):
             widget.setEditable(editable)
             return
         if isinstance(widget, TypedValueEditor):
@@ -499,6 +522,11 @@ class ClassDetailMixin:
             return widget
         if IsVectorVarType(var_type):
             widget = VectorVarEditor(var_type, value, self)
+            widget.VALUE_CHANGED.connect(lambda val, k=key: onChanged(k, val, False))
+            return widget
+        if var_type == _PROGRESS_VAR_TYPE:
+            ranges = getattr(self, "attrProgressRanges", {})
+            widget = ProgressVarEditor(value, ranges.get(key), self)
             widget.VALUE_CHANGED.connect(lambda val, k=key: onChanged(k, val, False))
             return widget
 

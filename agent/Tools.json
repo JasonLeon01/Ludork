@@ -20,13 +20,25 @@
     "type": "function",
     "function": {
       "name": "read_file",
-      "description": "Read the full content of a project source file by relative path.",
+      "description": "Read a project source file by relative path. Use symbol to extract one function/class, or start_line/end_line (1-based) for a line range.",
       "parameters": {
         "type": "object",
         "properties": {
           "path": {
             "type": "string",
             "description": "Relative path, e.g. \"Source/NodeFunctions/Scene.py\""
+          },
+          "start_line": {
+            "type": "integer",
+            "description": "Optional 1-based start line when reading a range"
+          },
+          "end_line": {
+            "type": "integer",
+            "description": "Optional 1-based end line when reading a range"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "Optional function or class name to extract, e.g. \"GetAttr\""
           }
         },
         "required": ["path"]

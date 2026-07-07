@@ -4,7 +4,7 @@
     "author": "Ludork",
     "description": "Official locale table editor and export tools.",
     "minEditorVersion": "0.1.0",
-    "types": ["submenu"],
+    "types": ["submenu", "textInputHint"],
     "hooks": {
         "submenu": [
             {

@@ -29,12 +29,14 @@ if TYPE_CHECKING:
 
 @Meta(
     PathVars=[("shaderPath", "Shaders")],
+    ProgressVars={"hue": (0.0, 360.0, 1.0)},
     VariableDisplayNames={
         "tag": 'LOC("ACTOR_VAR_TAG")',
         "switchInterval": 'LOC("ACTOR_VAR_SWITCH_INTERVAL")',
         "animatable": 'LOC("ACTOR_VAR_ANIMATABLE")',
         "material": 'LOC("ACTOR_VAR_MATERIAL")',
         "shaderPath": 'LOC("ACTOR_VAR_SHADER_PATH")',
+        "hue": 'LOC("ACTOR_VAR_HUE")',
     },
     VariableDisplayDescs={
         "tag": 'LOC("ACTOR_VAR_TAG_DESC")',
@@ -42,6 +44,7 @@ if TYPE_CHECKING:
         "animatable": 'LOC("ACTOR_VAR_ANIMATABLE_DESC")',
         "material": 'LOC("ACTOR_VAR_MATERIAL_DESC")',
         "shaderPath": 'LOC("ACTOR_VAR_SHADER_PATH_DESC")',
+        "hue": 'LOC("ACTOR_VAR_HUE_DESC")',
     },
 )
 class _ActorBase(Sprite):
@@ -57,6 +60,7 @@ class _ActorBase(Sprite):
     animatable: bool = False  #: Whether sprite-sheet animation is enabled
     material: Material = Material()  #: Surface material (lighting, speed, opacity)
     shaderPath: str = ""  #: Path to a fragment shader applied to this actor
+    hue: float = 0.0  #: Hue rotation in degrees
 
     @TypeAdapter(rect=([tuple, list], IntRect, lambda pos, size: IntRect(Vector2i(*pos), Vector2i(*size))))
     def __init__(

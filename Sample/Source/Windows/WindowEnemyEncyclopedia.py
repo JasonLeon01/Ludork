@@ -23,6 +23,9 @@ _INFO_VALUE_OFFSET = 176
 _INFO_ROW_GAP = 32
 _INFO_LABEL_WIDTH = 96
 _INFO_VALUE_WIDTH = 104
+_DESC_TOP_MARGIN = 8
+_DESC_LINE_GAP = 22
+_DESC_MAX_LINES = 2
 _SPECIAL_TOP_MARGIN = 16
 _SPECIAL_NAME_X = 0
 _SPECIAL_DESC_X = 64
@@ -70,7 +73,10 @@ class WindowEnemyEncyclopedia(WindowBase):
         nameBottom = self._buildName(str(entry.get("name", "")))
         infoY = nameBottom + _INFO_TOP_MARGIN
         self._buildInfo(entry, infoY)
-        self._buildSpecials(entry, infoY + 3 * _INFO_ROW_GAP + _SPECIAL_TOP_MARGIN)
+        descY = infoY + 3 * _INFO_ROW_GAP + _DESC_TOP_MARGIN
+        self._buildDesc(str(entry.get("desc", "")), descY)
+        specialY = descY + _DESC_MAX_LINES * _DESC_LINE_GAP + _SPECIAL_TOP_MARGIN
+        self._buildSpecials(entry, specialY)
         self.setVisible(True)
         self.setActive(True)
 
@@ -187,6 +193,15 @@ class WindowEnemyEncyclopedia(WindowBase):
         self.content.addChild(infoText)
         return infoText
 
+    def _buildDesc(self, desc: str, y: float) -> None:
+        descWidth = max(1, int(self.content.getSize().x))
+        displayDesc = self._limitLines(self._wrapText(desc, descWidth, _INFO_TEXT_SIZE), _DESC_MAX_LINES, descWidth)
+        descText = FPlainText(UI.DefaultFont, displayDesc, _INFO_TEXT_SIZE)
+        descText.setLineAlignment(Text.LineAlignment.Left)
+        descText.setPosition(Vector2f(0.0, y))
+        self.content.addChild(descText)
+        self._infoTexts.append(descText)
+
     def _buildSpecials(self, entry: Dict[str, Any], y: float) -> None:
         specialDetails = entry.get("specialDetails", [])
         if not isinstance(specialDetails, list):
@@ -281,6 +296,17 @@ class WindowEnemyEncyclopedia(WindowBase):
             return lines
 
         return "\n".join(line for para in text.split("\n") for line in wrapPara(para))
+
+    def _limitLines(self, text: str, maxLines: int, maxWidth: int) -> str:
+        if not text:
+            return ""
+        lines = text.split("\n")
+        if len(lines) <= maxLines:
+            return text
+        limitedLines = lines[:maxLines]
+        if limitedLines:
+            limitedLines[-1] = self._fitText(f"{limitedLines[-1]}.", maxWidth, _INFO_TEXT_SIZE)
+        return "\n".join(limitedLines)
 
     def _measureText(self, text: str, textSize: int) -> float:
         from Engine import Scale

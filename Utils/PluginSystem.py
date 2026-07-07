@@ -19,7 +19,7 @@ from EditorGlobal import EditorStatus
 from . import Locale
 
 
-_PLUGIN_TYPES = {"submenu", "rightclick", "panel", "tab", "toolbar", "datatype"}
+_PLUGIN_TYPES = {"submenu", "rightclick", "panel", "tab", "toolbar", "datatype", "textInputHover", "textInputHint"}
 _MENU_NAMES = {"FILE", "EDIT", "GAME", "DATABASE", "HELP"}
 
 
@@ -49,6 +49,8 @@ class PluginManager:
     _records: List[_PluginRecord] = []
     _rightClickHooks: List[tuple[_PluginRecord, Dict[str, Any]]] = []
     _datatypeHooks: List[tuple[_PluginRecord, Dict[str, Any], Dict[str, Any]]] = []
+    _textInputHoverHooks: List[tuple[_PluginRecord, Callable[..., Any]]] = []
+    _textInputHintHooks: List[tuple[_PluginRecord, Callable[..., Any]]] = []
     _mainWindow: Optional[Any] = None
 
     @classmethod
@@ -60,6 +62,8 @@ class PluginManager:
         cls._records = []
         cls._rightClickHooks = []
         cls._datatypeHooks = []
+        cls._textInputHoverHooks = []
+        cls._textInputHintHooks = []
         cls._mainWindow = mainWindow
         from . import File
 
@@ -75,6 +79,8 @@ class PluginManager:
                 cls._records.append(record)
         cls._collectRightClickHooks()
         cls._registerDatatypeHooks()
+        cls._registerTextInputHoverHooks()
+        cls._registerTextInputHintHooks()
 
     @classmethod
     def SetMainWindow(cls, mainWindow: Optional[Any]) -> None:
@@ -96,6 +102,55 @@ class PluginManager:
         cls._installPanels(window)
         cls._installTabs(window)
         cls._installConsoleFilter(window)
+        cls._installTextInputHover()
+        cls._installTextInputHint()
+
+    @classmethod
+    def ResolveTextInputHintSuffix(
+        cls,
+        widget: QtWidgets.QWidget,
+        text: str,
+        cursorIndex: int,
+    ) -> Optional[str]:
+        cls.Init(cls._mainWindow)
+        window = cls._mainWindow
+        for record, func in cls._textInputHintHooks:
+            try:
+                result = func(window, widget, text, cursorIndex)
+            except Exception:
+                cls._warn(
+                    cls._mainWindow,
+                    f"Text input hint hook failed in plugin {record.name}:\n{traceback.format_exc()}",
+                )
+                continue
+            if isinstance(result, str) and result:
+                return result
+        return None
+
+    @classmethod
+    def ResolveTextInputHoverTooltip(
+        cls,
+        widget: QtWidgets.QWidget,
+        text: str,
+        cursorIndex: int,
+    ) -> Optional[str]:
+        cls.Init(cls._mainWindow)
+        parts: List[str] = []
+        window = cls._mainWindow
+        for record, func in cls._textInputHoverHooks:
+            try:
+                result = func(window, widget, text, cursorIndex)
+            except Exception:
+                cls._warn(
+                    cls._mainWindow,
+                    f"Text input hover hook failed in plugin {record.name}:\n{traceback.format_exc()}",
+                )
+                continue
+            if isinstance(result, str) and result.strip():
+                parts.append(result.strip())
+        if not parts:
+            return None
+        return "\n\n".join(parts)
 
     @classmethod
     def AddRightClickActions(
@@ -309,6 +364,38 @@ class PluginManager:
             from EditorGlobal import GameData
 
             GameData.SetPluginDataTypes(cls.PluginDataHooks())
+
+    @classmethod
+    def _registerTextInputHoverHooks(cls) -> None:
+        cls._textInputHoverHooks = []
+        for record in cls._records:
+            if "textInputHover" not in record.config.get("types", []):
+                continue
+            func = record.namespace.get("hook_text_input_hover")
+            if callable(func):
+                cls._textInputHoverHooks.append((record, func))
+
+    @classmethod
+    def _registerTextInputHintHooks(cls) -> None:
+        cls._textInputHintHooks = []
+        for record in cls._records:
+            if "textInputHint" not in record.config.get("types", []):
+                continue
+            func = record.namespace.get("hook_text_input_hint")
+            if callable(func):
+                cls._textInputHintHooks.append((record, func))
+
+    @classmethod
+    def _installTextInputHover(cls) -> None:
+        from . import TextInputHover
+
+        TextInputHover.InstallApplicationFilter()
+
+    @classmethod
+    def _installTextInputHint(cls) -> None:
+        from . import TextInputHint
+
+        TextInputHint.InstallApplicationFilter()
 
     @classmethod
     def _installSubmenus(cls, window: Any, menuMap: Dict[str, QtWidgets.QMenu]) -> None:
@@ -676,3 +763,19 @@ def HandleDataFile(parent: QtWidgets.QWidget, path: str, data: Dict[str, Any]) -
 
 def LoadPluginDataFile(path: str) -> Optional[Dict[str, Any]]:
     return PluginManager.LoadPluginDataFile(path)
+
+
+def ResolveTextInputHoverTooltip(
+    widget: QtWidgets.QWidget,
+    text: str,
+    cursorIndex: int,
+) -> Optional[str]:
+    return PluginManager.ResolveTextInputHoverTooltip(widget, text, cursorIndex)
+
+
+def ResolveTextInputHintSuffix(
+    widget: QtWidgets.QWidget,
+    text: str,
+    cursorIndex: int,
+) -> Optional[str]:
+    return PluginManager.ResolveTextInputHintSuffix(widget, text, cursorIndex)

@@ -4,6 +4,7 @@ r"""\brief GameMap: manages tile layers, actors, lights, collisions, and pathfin
 from __future__ import annotations
 from collections import deque
 import copy
+import logging
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 import Engine
 from Engine import (
@@ -11,6 +12,7 @@ from Engine import (
     RenderTexture,
     RenderStates,
     RenderTarget,
+    Sprite,
     Vector2i,
     Vector2f,
     Vector2u,
@@ -89,6 +91,10 @@ class GameMap(GameMapExt):
         self._lights: List[Light] = []
         self._ambientLight: Color = Color(255, 255, 255, 255)
         self._lightMask: Optional[RenderTexture] = None
+        self._actorHueShader: Optional[Shader] = None
+        self._actorShaderBuffer: Optional[RenderTexture] = None
+        self._actorHueBuffer: Optional[RenderTexture] = None
+        self._actorHueSourceSprite: Optional[Sprite] = None
         self._materialDirty: bool = True
         self._shaderTime: float = 0.0
         self._transparentTiles: List[Tuple[TileLayer, int, int]] = []
@@ -108,12 +114,18 @@ class GameMap(GameMapExt):
             self._tilemapLightMaskShader = None
             self._lightMaskShader = None
             self._materialShader = None
+            self._actorHueShader = None
             self._tilemapRenderStates = copy.copy(self._camera.getRenderStates())
             self._actorRenderStates = copy.copy(self._camera.getRenderStates())
         else:
             self._tilemapLightMaskShader = Shader("./Assets/Shaders/Global/TilemapLightMask.frag", Shader.Type.Fragment)
             self._lightMaskShader = Shader("./Assets/Shaders/Global/LightMask.frag", Shader.Type.Fragment)
             self._materialShader = Shader("./Assets/Shaders/Global/Material.frag", Shader.Type.Fragment)
+            try:
+                self._actorHueShader = Shader("./Assets/Shaders/Global/Hue.frag", Shader.Type.Fragment)
+            except Exception as e:
+                self._actorHueShader = None
+                logging.warning("Actor hue shader load failed: %s", e)
             self._tilemapRenderStates = copy.copy(self._camera.getRenderStates())
             self._tilemapRenderStates.shader = self._tilemapLightMaskShader
             self._actorRenderStates = copy.copy(self._camera.getRenderStates())
@@ -1536,6 +1548,8 @@ class GameMap(GameMapExt):
             self._drawActor(target, states, actor, actorAlpha)
 
     def _drawActor(self, target: RenderTarget, states: RenderStates, actor: Actor, actorAlpha: int) -> None:
+        hue = self._normaliseActorHue(getattr(actor, "hue", 0.0))
+        hasHue = self._actorHueShader is not None and not self._isNeutralHue(hue)
         if actor.hasShaderError():
             actor.setColor(Color(255, 0, 255, actorAlpha))
             target.draw(actor, states)
@@ -1548,11 +1562,97 @@ class GameMap(GameMapExt):
                 actorShader.setUniform("time", self._shaderTime)
             except Exception:
                 pass
+            if hasHue and self._drawActorShaderWithHue(target, actor, actorShader, hue, actorAlpha):
+                return
             renderStates = RenderStates()
             renderStates.shader = actorShader
             target.draw(actor, renderStates)
             return
+        if hasHue:
+            self._applyActorHueUniform(hue)
+            renderStates = copy.copy(states)
+            renderStates.shader = self._actorHueShader
+            target.draw(actor, renderStates)
+            return
         target.draw(actor, states)
+
+    def _drawActorShaderWithHue(
+        self,
+        target: RenderTarget,
+        actor: Actor,
+        actorShader: Shader,
+        hue: float,
+        actorAlpha: int,
+    ) -> bool:
+        if self._actorHueShader is None:
+            return False
+        try:
+            texture = actor.getTexture()
+            rect = actor.getTextureRect()
+            w = max(1, int(rect.size.x))
+            h = max(1, int(rect.size.y))
+            size = Vector2u(w, h)
+            shaderBuffer = self._ensureActorShaderBuffer(size)
+            hueBuffer = self._ensureActorHueBuffer(size)
+            localSprite = Sprite(texture, rect)
+            localSprite.setColor(Color(255, 255, 255, actorAlpha))
+
+            shaderStates = RenderStates()
+            shaderStates.shader = actorShader
+            shaderBuffer.clear(Color.Transparent)
+            shaderBuffer.draw(localSprite, shaderStates)
+            shaderBuffer.display()
+
+            self._applyActorHueUniform(hue)
+            hueStates = RenderStates()
+            hueStates.shader = self._actorHueShader
+            sourceSprite = self._ensureActorHueSourceSprite()
+            sourceSprite.setTexture(shaderBuffer.getTexture(), True)
+            sourceSprite.setColor(Color(255, 255, 255, 255))
+            hueBuffer.clear(Color.Transparent)
+            hueBuffer.draw(sourceSprite, hueStates)
+            hueBuffer.display()
+
+            resultSprite = Sprite(hueBuffer.getTexture())
+            renderStates = RenderStates()
+            renderStates.transform *= actor.getTransform()
+            target.draw(resultSprite, renderStates)
+            return True
+        except Exception as e:
+            logging.warning("Actor hue render failed for %s: %s", getattr(actor, "tag", ""), e)
+            return False
+
+    def _ensureActorShaderBuffer(self, size: Vector2u) -> RenderTexture:
+        if self._actorShaderBuffer is None or self._actorShaderBuffer.getSize() != size:
+            self._actorShaderBuffer = RenderTexture(size)
+        return self._actorShaderBuffer
+
+    def _ensureActorHueBuffer(self, size: Vector2u) -> RenderTexture:
+        if self._actorHueBuffer is None or self._actorHueBuffer.getSize() != size:
+            self._actorHueBuffer = RenderTexture(size)
+        return self._actorHueBuffer
+
+    def _ensureActorHueSourceSprite(self) -> Sprite:
+        if self._actorHueSourceSprite is None:
+            self._actorHueSourceSprite = Sprite()
+        return self._actorHueSourceSprite
+
+    def _applyActorHueUniform(self, hue: float) -> None:
+        if self._actorHueShader is None:
+            return
+        self._actorHueShader.setUniform("screenTex", Shader.CurrentTexture)
+        self._actorHueShader.setUniform("hue", hue)
+
+    def _normaliseActorHue(self, hue: Any) -> float:
+        try:
+            value = float(hue)
+        except (TypeError, ValueError):
+            return 0.0
+        return value % 360.0
+
+    def _isNeutralHue(self, hue: float) -> bool:
+        hue = self._normaliseActorHue(hue)
+        return hue <= 0.0001 or abs(hue - 360.0) <= 0.0001
 
     def _getMaterialPropertyTexture(
         self, functionName: str, invalidValue: Union[float, bool], smooth: bool = False

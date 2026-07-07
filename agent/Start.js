@@ -1,5 +1,6 @@
 var MAX_WORKFLOW_ITERATIONS = 30;
 var MAX_FORMAT_RETRIES = 5;
+var MAX_RESEARCH_ITERATIONS = 8;
 var MODIFICATION_MAX_TOKENS = 8192;
 var WORKFLOW_LOG_MAX_CHARS = 12000;
 var WORKFLOW_TOOL_RESULT_MAX_CHARS = 8000;
@@ -135,6 +136,10 @@ function _buildPrematureReplyMessage(expectsModification) {
     return _loadAgentPrompt("agent/Prompts/PrematureReplyGeneral.md");
 }
 
+function _buildResearchLimitMessage() {
+    return _loadAgentPrompt("agent/Prompts/ResearchLimitModification.md");
+}
+
 function _shouldBlockModificationReply(expectsModification, blueprintModified) {
     return expectsModification && !blueprintModified;
 }
@@ -177,8 +182,17 @@ function _executeToolCall(toolCall, iteration) {
         if (!path.trim()) {
             return { error: "read_file requires a non-empty path argument.", terminate: false, statusKey: "format_retry" };
         }
+        var startLine = args && args.start_line != null ? Number(args.start_line) : 0;
+        var endLine = args && args.end_line != null ? Number(args.end_line) : 0;
+        var symbol = args && args.symbol ? String(args.symbol) : "";
+        if (!isFinite(startLine) || startLine < 0) {
+            startLine = 0;
+        }
+        if (!isFinite(endLine) || endLine < 0) {
+            endLine = 0;
+        }
         _reportStatus("readfile", path, iteration);
-        var readResult = pyReadFile(path);
+        var readResult = pyReadFile(path, startLine, endLine, symbol);
         pyLog("[Agent] -> read_file result length=" + readResult.length);
         return { content: readResult, terminate: false, statusKey: "readfile" };
     }
@@ -290,6 +304,7 @@ function runWorkflow(provider, model, apiKey, baseUrl, systemPrompt, fileTree, b
     var iteration = 0;
     var blueprintModified = false;
     var formatRetryCount = 0;
+    var researchOnlyCount = 0;
 
     function _validateBlueprintAfterModify() {
         _reportStatus("validate", "", iteration);
@@ -442,11 +457,19 @@ function runWorkflow(provider, model, apiKey, baseUrl, systemPrompt, fileTree, b
         var terminateResult = null;
         var terminateContent = choiceMessage.content || "";
         var hadFormatError = false;
+        var hadResearchTool = false;
+        var hadModifyTool = false;
 
         for (var t = 0; t < toolCalls.length; t++) {
             var toolCall = toolCalls[t];
             var toolId = toolCall.id || ("call_" + iteration + "_" + t);
             var toolName = (toolCall.function && toolCall.function.name) ? toolCall.function.name : "unknown";
+            if (toolName === "search_project" || toolName === "read_file") {
+                hadResearchTool = true;
+            }
+            if (toolName === "patch_blueprint" || toolName === "replace_blueprint") {
+                hadModifyTool = true;
+            }
             var execResult = _executeToolCall(toolCall, iteration);
 
             if (execResult.error) {
@@ -492,6 +515,22 @@ function runWorkflow(provider, model, apiKey, baseUrl, systemPrompt, fileTree, b
             formatRetryCount += 1;
             if (formatRetryCount > MAX_FORMAT_RETRIES) {
                 return "Error: AI repeatedly failed to provide valid tool call arguments.";
+            }
+        }
+
+        if (expectsModification && !blueprintModified) {
+            if (hadResearchTool && !hadModifyTool) {
+                researchOnlyCount += 1;
+            } else if (hadModifyTool) {
+                researchOnlyCount = 0;
+            }
+            if (researchOnlyCount >= MAX_RESEARCH_ITERATIONS) {
+                pyLog("[Agent] -> research-only limit reached, requesting blueprint modification");
+                _reportStatus("continue_retry", "", iteration);
+                var researchLimitMsg = _buildResearchLimitMessage();
+                _logWorkflowMessage("user/research_limit", researchLimitMsg, iteration);
+                conversationMessages.push({ role: "user", content: researchLimitMsg });
+                researchOnlyCount = 0;
             }
         }
 

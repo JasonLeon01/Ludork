@@ -95,6 +95,9 @@ def Meta(**kwargs):
     - ColourVars: colour fields or parameters in the form
       `["lightColour"]`. Values store RGBA tuples but display through a colour
       swatch editor.
+    - ProgressVars / SliderVars / RangeVars: numeric fields or parameters
+      displayed with a draggable slider and value box. Dict values define
+      `(min, max, step)`, for example `{"hue": (0.0, 360.0, 1.0)}`.
     - Vector2Vars / Vector2fVars / Vector2iVars / Vector2uVars and
       PairVars / PairFloatVars / PairIntVars: two-component fields or node
       parameters displayed with x/y numeric editors.

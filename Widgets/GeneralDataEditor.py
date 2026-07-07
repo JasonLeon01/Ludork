@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from typing import Any, Optional
+import copy
 import os
 import re
 import sys
@@ -986,6 +987,10 @@ class GeneralDataPage(QtWidgets.QWidget):
         changeIdAction.triggered.connect(self._changeMemberID)
         menu.addAction(changeIdAction)
 
+        duplicateAction = QtWidgets.QAction(ELOC("DUPLICATE_MEMBER"), self)
+        duplicateAction.triggered.connect(self._onDuplicateMember)
+        menu.addAction(duplicateAction)
+
         removeAction = QtWidgets.QAction(ELOC("REMOVE_MEMBER"), self)
         removeAction.triggered.connect(self._onRemoveMember)
         menu.addAction(removeAction)
@@ -1017,7 +1022,7 @@ class GeneralDataPage(QtWidgets.QWidget):
             fileData = GameData.generalData.get(self.fileKey, {})
             members = fileData.get("members", {})
             if newID in members:
-                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), "ID already exists!")
+                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ID_ALREADY_EXISTS"))
                 return
 
             if oldID in members:
@@ -1030,6 +1035,53 @@ class GeneralDataPage(QtWidgets.QWidget):
 
                 self.MODIFIED.emit()
 
+    def _getDuplicateMemberID(self, sourceID: str, members: dict) -> str:
+        baseID = f"{sourceID}_copy"
+        if baseID not in members:
+            return baseID
+
+        index = 2
+        while f"{baseID}{index}" in members:
+            index += 1
+        return f"{baseID}{index}"
+
+    def _onDuplicateMember(self) -> None:
+        current = self.memberList.currentItem()
+        if not current or not self.fileKey:
+            return
+
+        sourceID = current.text()
+        fileData = GameData.generalData.get(self.fileKey, {})
+        members = fileData.get("members", {})
+        if sourceID not in members:
+            return
+
+        defaultID = self._getDuplicateMemberID(sourceID, members)
+        newID, ok = QtWidgets.QInputDialog.getText(
+            self, ELOC("DUPLICATE_MEMBER"), ELOC("ENTER_ID"), QtWidgets.QLineEdit.Normal, defaultID
+        )
+        newID = newID.strip()
+        if not ok or not newID:
+            return
+
+        if newID in members:
+            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ID_ALREADY_EXISTS"))
+            return
+
+        newMember = copy.deepcopy(members[sourceID])
+        orderedMembers = {}
+        for memberID, memberData in members.items():
+            orderedMembers[memberID] = memberData
+            if memberID == sourceID:
+                orderedMembers[newID] = newMember
+        members.clear()
+        members.update(orderedMembers)
+
+        row = self.memberList.currentRow()
+        self.memberList.insertItem(row + 1, newID)
+        self.memberList.setCurrentRow(row + 1)
+        self.MODIFIED.emit()
+
     def _onAddMember(self):
         if not self.fileKey:
             return
@@ -1039,7 +1091,7 @@ class GeneralDataPage(QtWidgets.QWidget):
             fileData = GameData.generalData.get(self.fileKey, {})
             members = fileData.get("members", {})
             if text in members:
-                QtWidgets.QMessageBox.warning(self, "Error", "ID already exists!")
+                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ID_ALREADY_EXISTS"))
                 return
 
             params = fileData.get("params", {})

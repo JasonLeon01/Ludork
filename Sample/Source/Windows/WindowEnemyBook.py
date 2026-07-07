@@ -296,6 +296,7 @@ class WindowEnemyBook(WindowSelectable):
         special = enemy.getSpecial()
         return {
             "name": self._formatName(enemy.infoComp.name or enemy.ID),
+            "desc": self._formatText(enemy.infoComp.desc),
             "MAXHP": int(enemy.infoComp.MAXHP),
             "ATK": int(enemy.getATK(self._player)),
             "DEF": int(enemy.getDEF(self._player)),

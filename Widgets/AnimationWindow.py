@@ -10,6 +10,9 @@ from .Utils import TimeLine
 from .Utils.Timeline import FRAME_SEGMENT_DURATION
 
 
+POSITION_SNAP_GRID = 16.0
+
+
 class AssetLabel(QtWidgets.QLabel):
     DOUBLE_CLICKED = QtCore.pyqtSignal(str)
 
@@ -477,6 +480,22 @@ class AnimationPreview(QtWidgets.QWidget):
             edgeY = "top" if distTop <= distBottom else "bottom"
         return edgeX, edgeY
 
+    def _snapCoordinate(self, value: float) -> float:
+        scaled = value / POSITION_SNAP_GRID
+        if scaled >= 0:
+            return math.floor(scaled + 0.5) * POSITION_SNAP_GRID
+        return math.ceil(scaled - 0.5) * POSITION_SNAP_GRID
+
+    def _snapPosition(self, x: float, y: float) -> List[float]:
+        return [self._snapCoordinate(x), self._snapCoordinate(y)]
+
+    def _getSegmentTimeFactor(self, start: Dict[str, Any], end: Dict[str, Any]) -> float:
+        st = start.get("time", 0.0)
+        et = end.get("time", 0.0)
+        if et - st <= 0.0001:
+            return 0.0
+        return (self.currentTime - st) / (et - st)
+
     def mousePressEvent(self, event):
         if event.button() == QtCore.Qt.RightButton:
             if not self.data or not self.selectedSegment:
@@ -721,12 +740,18 @@ class AnimationPreview(QtWidgets.QWidget):
                 end["scale"] = [max(0.01, esx + deltaSx), max(0.01, esy + deltaSy)]
         else:
             if self.dragMode == "start":
-                start["position"] = [spx + dx, spy + dy]
+                start["position"] = self._snapPosition(spx + dx, spy + dy)
             elif self.dragMode == "end":
-                end["position"] = [epx + dx, epy + dy]
+                end["position"] = self._snapPosition(epx + dx, epy + dy)
             else:
-                start["position"] = [spx + dx, spy + dy]
-                end["position"] = [epx + dx, epy + dy]
+                factor = self._getSegmentTimeFactor(start, end)
+                curX = spx + (epx - spx) * factor
+                curY = spy + (epy - spy) * factor
+                snappedX, snappedY = self._snapPosition(curX + dx, curY + dy)
+                snappedDx = snappedX - curX
+                snappedDy = snappedY - curY
+                start["position"] = [spx + snappedDx, spy + snappedDy]
+                end["position"] = [epx + snappedDx, epy + snappedDy]
 
         self.SEGMENT_UPDATED.emit(trackIdx, segIdx)
         self.update()

@@ -326,8 +326,7 @@ class MapListOpsMixin:
         newKey = dlg.getFileName()
         self._refreshInfo()
 
-        if newKey != mapKey:
-            self.refreshLeftList()
+        self.refreshLeftList()
 
         if wasActive:
             found = self._findItemByKey(newKey)

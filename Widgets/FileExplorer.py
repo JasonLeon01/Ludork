@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import copy
+import colorsys
 import os
 import shutil
 import subprocess
@@ -123,6 +124,7 @@ class _ThumbnailIconProvider(QtWidgets.QFileIconProvider):
             repr(self._getBlueprintAttrFromData(data, "defaultRect", None)),
             repr(self._getBlueprintAttrFromData(data, "defaultOrigin", (0.0, 0.0))),
             repr(self._getBlueprintAttrFromData(data, "defaultScale", (1.0, 1.0))),
+            repr(self._getBlueprintAttrFromData(data, "hue", 0.0)),
         )
 
     def _getBlueprintAttrFromData(self, data: dict[str, Any], attrName: str, default: Any) -> Any:
@@ -146,6 +148,7 @@ class _ThumbnailIconProvider(QtWidgets.QFileIconProvider):
         rect = self._toRectTuple(self._getBlueprintAttrFromData(data, "defaultRect", None))
         origin = self._toVec2f(self._getBlueprintAttrFromData(data, "defaultOrigin", (0.0, 0.0)), 0.0, 0.0)
         scale = self._toVec2f(self._getBlueprintAttrFromData(data, "defaultScale", (1.0, 1.0)), 1.0, 1.0)
+        hue = self._normaliseActorHue(self._getBlueprintAttrFromData(data, "hue", 0.0))
         if rect is None:
             if image is not None:
                 rect = self._defaultImageRect(bpRel, image, tileSize)
@@ -161,7 +164,11 @@ class _ThumbnailIconProvider(QtWidgets.QFileIconProvider):
         if image is not None:
             src = QtCore.QRect(sx, sy, w, h)
             dst = QtCore.QRect(int(-origin[0] * scale[0]), int(-origin[1] * scale[1]), dw, dh)
-            painter.drawImage(dst, image, src)
+            if self._isNeutralActorHue(hue):
+                painter.drawImage(dst, image, src)
+            else:
+                drawImage = self._applyActorHueToImage(image.copy(src), hue)
+                painter.drawImage(dst, drawImage, QtCore.QRect(0, 0, drawImage.width(), drawImage.height()))
         else:
             painter.end()
             return self._makeBlueprintFallbackIcon()
@@ -214,6 +221,32 @@ class _ThumbnailIconProvider(QtWidgets.QFileIconProvider):
             return None
         image = QtGui.QImage(path)
         return image if not image.isNull() else None
+
+    def _normaliseActorHue(self, hue: Any) -> float:
+        try:
+            return float(hue) % 360.0
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _isNeutralActorHue(self, hue: float) -> bool:
+        hue = self._normaliseActorHue(hue)
+        return hue <= 0.0001 or abs(hue - 360.0) <= 0.0001
+
+    def _applyActorHueToImage(self, image: QtGui.QImage, hue: float) -> QtGui.QImage:
+        if image.isNull() or self._isNeutralActorHue(hue):
+            return image
+        result = image.convertToFormat(QtGui.QImage.Format_ARGB32)
+        hueOffset = self._normaliseActorHue(hue) / 360.0
+        for y in range(result.height()):
+            for x in range(result.width()):
+                color = result.pixelColor(x, y)
+                if color.alpha() == 0:
+                    continue
+                h, s, v = colorsys.rgb_to_hsv(color.redF(), color.greenF(), color.blueF())
+                r, g, b = colorsys.hsv_to_rgb((h + hueOffset) % 1.0, s, v)
+                color.setRgbF(r, g, b, color.alphaF())
+                result.setPixelColor(x, y, color)
+        return result
 
     def _resolveTexturePath(self, texturePath: Any) -> str:
         if isinstance(texturePath, str) and texturePath.strip():

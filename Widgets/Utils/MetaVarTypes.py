@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 
 _GENERALDATA_VAR_TYPE = "GeneralDataVar"
+_PROGRESS_VAR_TYPE = "ProgressVar"
+ProgressRange = Tuple[float, float, float]
+DEFAULT_PROGRESS_RANGE: ProgressRange = (0.0, 100.0, 1.0)
 
 _SHORTHAND_VAR_TYPES = {
     "PairVars": "Vector2Var",
@@ -50,6 +53,53 @@ def _collectShorthandVars(result: Dict[str, str], rawVars: Any, valueType: str) 
                 result[name] = valueType
 
 
+def _normaliseProgressRangeSpec(spec: Any) -> ProgressRange:
+    if isinstance(spec, (int, float)) and not isinstance(spec, bool):
+        return (0.0, float(spec), 1.0)
+    if not isinstance(spec, (list, tuple)):
+        return DEFAULT_PROGRESS_RANGE
+    values = list(spec)
+    try:
+        minimum = float(values[0]) if len(values) >= 1 else DEFAULT_PROGRESS_RANGE[0]
+        maximum = float(values[1]) if len(values) >= 2 else DEFAULT_PROGRESS_RANGE[1]
+        step = float(values[2]) if len(values) >= 3 else DEFAULT_PROGRESS_RANGE[2]
+    except (TypeError, ValueError):
+        return DEFAULT_PROGRESS_RANGE
+    if maximum < minimum:
+        minimum, maximum = maximum, minimum
+    if step <= 0:
+        step = DEFAULT_PROGRESS_RANGE[2]
+    return (minimum, maximum, step)
+
+
+def _collectProgressVarRanges(result: Dict[str, ProgressRange], rawVars: Any) -> None:
+    if isinstance(rawVars, str):
+        result[rawVars] = DEFAULT_PROGRESS_RANGE
+        return
+    if isinstance(rawVars, dict):
+        for name, spec in rawVars.items():
+            if isinstance(name, str) and name:
+                result[name] = _normaliseProgressRangeSpec(spec)
+        return
+    if not isinstance(rawVars, (list, tuple, set)):
+        return
+    for item in rawVars:
+        if isinstance(item, str):
+            result[item] = DEFAULT_PROGRESS_RANGE
+        elif isinstance(item, (list, tuple)) and item and isinstance(item[0], str):
+            spec = item[1] if len(item) == 2 and isinstance(item[1], (list, tuple)) else item[1:]
+            result[item[0]] = _normaliseProgressRangeSpec(spec)
+
+
+def GetProgressVarRanges(meta: Any) -> Dict[str, ProgressRange]:
+    if not isinstance(meta, dict):
+        return {}
+    result: Dict[str, ProgressRange] = {}
+    for key in ("ProgressVars", "SliderVars", "RangeVars"):
+        _collectProgressVarRanges(result, meta.get(key))
+    return result
+
+
 def GetMetaVarTypes(meta: Any) -> Dict[str, str]:
     if not isinstance(meta, dict):
         return {}
@@ -69,5 +119,8 @@ def GetMetaVarTypes(meta: Any) -> Dict[str, str]:
 
     for key, valueType in _SHORTHAND_VAR_TYPES.items():
         _collectShorthandVars(result, meta.get(key), valueType)
+
+    for name in GetProgressVarRanges(meta):
+        result[name] = _PROGRESS_VAR_TYPE
 
     return result

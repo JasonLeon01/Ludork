@@ -1,1 +1,1 @@
-Use `search_project` to search, `run_terminal` to run commands, `patch_blueprint` or `replace_blueprint` to modify the blueprint, or respond with plain text only when the task is fully complete.
+Use `search_project` to search, `run_terminal` to run commands, `patch_blueprint` or `replace_blueprint` to modify the blueprint, or respond with plain text only when the task is fully complete. For large files use `read_file` with `symbol` (e.g. `"GetAttr"`) or `start_line`/`end_line` instead of reading the whole file.

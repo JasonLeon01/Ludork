@@ -6,7 +6,8 @@ from typing import Dict, Any, Type, get_type_hints, Optional, Set
 from PyQt5 import QtWidgets, QtCore
 
 from .ColourPickerDialog import ColourVarEditor
-from .MetaVarTypes import GetMetaVarTypes
+from .MetaVarTypes import _PROGRESS_VAR_TYPE, GetMetaVarTypes, GetProgressVarRanges
+from .ProgressVarEditor import ProgressVarEditor
 from .StructuredFields import IsStructuredType, StructuredFields, StructuredValueToDict
 from .TypedValueEditor import TypedValueEditor
 from .VariableNameLabel import VariableNameLabel
@@ -36,6 +37,7 @@ class DataclassWidget(QtWidgets.QWidget):
             self._type_hints = {}
         meta = self._getMergedMeta(dc_type)
         self._metaVarTypes = GetMetaVarTypes(meta)
+        self._progressVarRanges = GetProgressVarRanges(meta)
         self._displayNames = self._getVariableDisplayMap(meta, "VariableDisplayNames")
         self._displayDescs = self._getVariableDisplayMap(meta, "VariableDisplayDescs")
         self._inputs = {}
@@ -119,6 +121,10 @@ class DataclassWidget(QtWidgets.QWidget):
             w = VectorVarEditor(varType, value, self)
             w.VALUE_CHANGED.connect(lambda v, k=field.name: self._onFieldChanged(k, v))
             return w
+        if varType == _PROGRESS_VAR_TYPE:
+            w = ProgressVarEditor(value, self._progressVarRanges.get(field.name), self)
+            w.VALUE_CHANGED.connect(lambda v, k=field.name: self._onFieldChanged(k, v))
+            return w
 
         if IsStructuredType(ftype):
             value = value if isinstance(value, dict) else StructuredValueToDict(value)
@@ -147,7 +153,7 @@ class DataclassWidget(QtWidgets.QWidget):
         return value if isinstance(value, str) else ""
 
     def _setFieldReadOnly(self, widget: QtWidgets.QWidget) -> None:
-        if isinstance(widget, (ColourVarEditor, VectorVarEditor)):
+        if isinstance(widget, (ColourVarEditor, VectorVarEditor, ProgressVarEditor)):
             widget.setEditable(False)
             return
         if isinstance(widget, QtWidgets.QGroupBox):

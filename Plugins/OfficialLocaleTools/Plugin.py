@@ -3,16 +3,64 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 import traceback
-from typing import Any, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import openpyxl
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 import OfficialLocaleToolsLocaleIO as LocaleIO
 from OfficialLocaleToolsLocaleEditor import LocaleEditor
+from EditorGlobal import EditorStatus
+from Utils import File
+
+_LOCALE_KEY_PATTERN = re.compile(r"\{([A-Z][A-Z0-9_]*)\}")
+_gameLocaleCache: Dict[Tuple[str, str], Dict[str, str]] = {}
+
+
+def invalidateGameLocaleCache() -> None:
+    _gameLocaleCache.clear()
+    try:
+        from Utils import TextInputHint
+
+        TextInputHint.refreshAll()
+    except Exception:
+        pass
+
+
+def _localeKeyAt(text: str, cursorIndex: int) -> Optional[str]:
+    if cursorIndex < 0:
+        return None
+    for match in _LOCALE_KEY_PATTERN.finditer(text):
+        if match.start() <= cursorIndex < match.end():
+            return match.group(1)
+    return None
+
+
+def _loadGameLocaleDict() -> Dict[str, str]:
+    projectPath = str(EDITOR.project_path or "")
+    language = str(getattr(EditorStatus, "LANGUAGE", "en_GB") or "en_GB")
+    cacheKey = (projectPath, language)
+    if cacheKey in _gameLocaleCache:
+        return _gameLocaleCache[cacheKey]
+    localeDict: Dict[str, str] = {}
+    if projectPath:
+        localeDir = os.path.join(projectPath, "Data", "Locale")
+        localeFile = os.path.join(localeDir, language)
+        if not os.path.isfile(localeFile):
+            localeFile = os.path.join(localeDir, "en_GB")
+        if os.path.isfile(localeFile):
+            try:
+                loaded = File.LoadData(localeFile)
+                if isinstance(loaded, dict):
+                    localeDict = {str(key): str(value) for key, value in loaded.items()}
+            except Exception:
+                localeDict = {}
+    _gameLocaleCache[cacheKey] = localeDict
+    return localeDict
 
 
 def _xlsxPath() -> str:
@@ -35,6 +83,7 @@ def _existingEditor(window: QtWidgets.QMainWindow) -> Optional[Any]:
 
 
 def _onLocaleExported(window: QtWidgets.QMainWindow) -> None:
+    invalidateGameLocaleCache()
     if hasattr(window, "refreshLeftList"):
         window.refreshLeftList()
     if hasattr(window, "_refreshInfo"):
@@ -110,6 +159,29 @@ def _exportLocale(window: QtWidgets.QMainWindow) -> None:
         )
         return
     _onLocaleExported(window)
+
+
+def _resolveLocaleHint(text: str, cursorIndex: int) -> Optional[str]:
+    localeKey = _localeKeyAt(text, cursorIndex)
+    if not localeKey:
+        match = _LOCALE_KEY_PATTERN.fullmatch(text.strip())
+        if match:
+            localeKey = match.group(1)
+        else:
+            return None
+    resolved = _loadGameLocaleDict().get(localeKey, "")
+    if not resolved:
+        return None
+    return resolved
+
+
+def hook_text_input_hint(
+    window: QtWidgets.QMainWindow,
+    widget: QtWidgets.QWidget,
+    text: str,
+    cursorIndex: int,
+) -> Optional[str]:
+    return _resolveLocaleHint(text, cursorIndex)
 
 
 def hook_submenu_view_locale_table(window: QtWidgets.QMainWindow) -> QtWidgets.QAction:

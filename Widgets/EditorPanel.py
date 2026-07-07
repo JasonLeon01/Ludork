@@ -3,6 +3,7 @@
 from __future__ import annotations
 import os
 import copy
+import colorsys
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, cast
 from PyQt5 import QtWidgets, QtGui, QtCore
@@ -456,8 +457,14 @@ class EditorPanel(QtWidgets.QWidget):
         self.update()
 
     def setPendingActor(self, bpRel: Optional[str]) -> None:
-        self._pendingActorBpRel = bpRel if isinstance(bpRel, str) and bpRel.strip() else None
-        self.update()
+        pending = bpRel.strip() if isinstance(bpRel, str) and bpRel.strip() else None
+        if self._pendingActorBpRel == pending:
+            return
+        self._pendingActorBpRel = pending
+        if self.selectedPos is not None:
+            self.repaint()
+        else:
+            self.update()
 
     def _setLightOverlayEnabled(self, enabled: bool) -> None:
         enabled = bool(enabled)
@@ -1229,6 +1236,7 @@ class EditorPanel(QtWidgets.QWidget):
                     origin = self._toVec2f(defOrigin, defOrigin[0], defOrigin[1])
                     texPath = self.getBlueprintAttr(bpRel, "texturePath", "")
                     shaderPath = self.getBlueprintAttr(bpRel, "shaderPath", "")
+                    hue = self._normaliseActorHue(self.getBlueprintAttr(bpRel, "hue", 0.0))
                     rectT = self._toRectTuple(self.getBlueprintAttr(bpRel, "defaultRect", None))
                     px = gx0 * tileSize
                     py = gy0 * tileSize
@@ -1250,13 +1258,19 @@ class EditorPanel(QtWidgets.QWidget):
                     )
                     p.setOpacity(0.5)
                     if shaderGhost is not None:
-                        src = QtCore.QRectF(0, 0, shaderGhost.width(), shaderGhost.height())
+                        drawImg = self._applyActorHueToImage(shaderGhost, hue)
+                        src = QtCore.QRectF(0, 0, drawImg.width(), drawImg.height())
                         dst = QtCore.QRectF(-origin[0], -origin[1], w, h)
-                        p.drawImage(dst, shaderGhost, src)
+                        p.drawImage(dst, drawImg, src)
                     elif imgGhost is not None and rectT is not None:
-                        src = QtCore.QRectF(sx, sy, w, h)
                         dst = QtCore.QRectF(-origin[0], -origin[1], w, h)
-                        p.drawImage(dst, imgGhost, src)
+                        if self._isNeutralActorHue(hue):
+                            src = QtCore.QRectF(sx, sy, w, h)
+                            p.drawImage(dst, imgGhost, src)
+                        else:
+                            drawImg = self._applyActorHueToImage(imgGhost.copy(sx, sy, w, h), hue)
+                            src = QtCore.QRectF(0, 0, drawImg.width(), drawImg.height())
+                            p.drawImage(dst, drawImg, src)
                     else:
                         color = QtGui.QColor(0, 120, 255, 120)
                         rr = QtCore.QRectF(-origin[0], -origin[1], w, h)
@@ -2158,6 +2172,32 @@ class EditorPanel(QtWidgets.QWidget):
             self._actorShaderImageCache[key] = img
         return img
 
+    def _normaliseActorHue(self, hue: Any) -> float:
+        try:
+            return float(hue) % 360.0
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _isNeutralActorHue(self, hue: float) -> bool:
+        hue = self._normaliseActorHue(hue)
+        return hue <= 0.0001 or abs(hue - 360.0) <= 0.0001
+
+    def _applyActorHueToImage(self, image: QtGui.QImage, hue: float) -> QtGui.QImage:
+        if image.isNull() or self._isNeutralActorHue(hue):
+            return image
+        result = image.convertToFormat(QtGui.QImage.Format_ARGB32)
+        hueOffset = self._normaliseActorHue(hue) / 360.0
+        for y in range(result.height()):
+            for x in range(result.width()):
+                color = result.pixelColor(x, y)
+                if color.alpha() == 0:
+                    continue
+                h, s, v = colorsys.rgb_to_hsv(color.redF(), color.greenF(), color.blueF())
+                r, g, b = colorsys.hsv_to_rgb((h + hueOffset) % 1.0, s, v)
+                color.setRgbF(r, g, b, color.alphaF())
+                result.setPixelColor(x, y, color)
+        return result
+
     def _drawActorsForLayer(self, painter: QtGui.QPainter, layerName: str, tileSize: int, opacity: float) -> None:
         actors = self._getActorListForLayer(layerName)
         if not actors:
@@ -2192,6 +2232,7 @@ class EditorPanel(QtWidgets.QWidget):
 
             texPath = self._getActorBlueprintAttr(entry, "texturePath", "")
             shaderPath = self._getActorBlueprintAttr(entry, "shaderPath", "")
+            hue = self._normaliseActorHue(self._getActorBlueprintAttr(entry, "hue", 0.0))
             rectT = self._toRectTuple(self._getActorBlueprintAttr(entry, "defaultRect", None))
 
             px = gx * tileSize
@@ -2215,13 +2256,19 @@ class EditorPanel(QtWidgets.QWidget):
                 self._actorAnimationTime,
             )
             if shaderImg is not None:
-                src = QtCore.QRectF(0, 0, shaderImg.width(), shaderImg.height())
+                drawImg = self._applyActorHueToImage(shaderImg, hue)
+                src = QtCore.QRectF(0, 0, drawImg.width(), drawImg.height())
                 dst = QtCore.QRectF(-origin[0], -origin[1], w, h)
-                painter.drawImage(dst, shaderImg, src)
+                painter.drawImage(dst, drawImg, src)
             elif img is not None:
-                src = QtCore.QRectF(sx, sy, w, h)
                 dst = QtCore.QRectF(-origin[0], -origin[1], w, h)
-                painter.drawImage(dst, img, src)
+                if self._isNeutralActorHue(hue):
+                    src = QtCore.QRectF(sx, sy, w, h)
+                    painter.drawImage(dst, img, src)
+                else:
+                    drawImg = self._applyActorHueToImage(img.copy(sx, sy, w, h), hue)
+                    src = QtCore.QRectF(0, 0, drawImg.width(), drawImg.height())
+                    painter.drawImage(dst, drawImg, src)
             else:
                 color = QtGui.QColor(0, 120, 255, 160)
                 r = QtCore.QRectF(-origin[0], -origin[1], w, h)

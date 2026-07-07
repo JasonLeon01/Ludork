@@ -59,12 +59,17 @@ float GetObstructionAttenuation(vec2 from, vec2 to, vec2 gridSize) {
     vec2 step = delta / float(steps);
     float jitter = hash(gl_FragCoord.xy);
     vec2 curr = fromGrid + step * jitter;
+    vec2 sourceCell = floor(fromGrid);
 
     float attenuation = 0.0;
 
     for (int i = 0; i < 128; ++i) {
         if (i >= steps) {
             break;
+        }
+        if (all(equal(floor(curr), sourceCell))) {
+            curr += step;
+            continue;
         }
         vec2 sampleUV = curr / gridSize;
         float r = texture2D(lightMask, vec2(sampleUV.x, 1.0 - sampleUV.y)).r;

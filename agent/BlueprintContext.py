@@ -22,6 +22,44 @@ _LIGHTWEIGHT_MODELS: Dict[str, str] = {
     "Anthropic": "claude-haiku-3-5-202510",
 }
 
+_modifyVerbPattern = re.compile(
+    r"(?:修改|更改|变更|添加|增加|删除|移除|替换|重建|创建|生成|连接|断开|设置|改成|改为|"
+    r"spawn|patch|replace|insert|add\s+node|remove\s+node|"
+    r"记录(?:新增|添加)|"
+    r"在.{0,48}(?:spawn|创建|生成|放置|添加))",
+    re.IGNORECASE,
+)
+_eventGraphNamePattern = re.compile(
+    r"\bon(?:Destroy|Create|Tick|Overlap|Collision|LateTick|FixedTick)\b",
+    re.IGNORECASE,
+)
+_blueprintTopicPattern = re.compile(
+    r"(?:蓝图|blueprint|node\s*function|节点函数|事件图|event\s*graph|"
+    r"NodeFunctions|onDestroy|onCreate|onTick)",
+    re.IGNORECASE,
+)
+
+
+def _classifyIntentHeuristic(userInput: str) -> Optional[str]:
+    text = userInput.strip()
+    if not text:
+        return "general_query"
+    if _modifyVerbPattern.search(text):
+        return "modify"
+    if _eventGraphNamePattern.search(text) and re.search(
+        r"(?:spawn|创建|生成|添加|记录|放置|连接|设置)",
+        text,
+        re.IGNORECASE,
+    ):
+        return "modify"
+    if _blueprintTopicPattern.search(text) and re.search(
+        r"^(?:什么是|是什么|怎么|如何|为什么|能否|可以吗|解释|介绍)",
+        text,
+        re.IGNORECASE,
+    ):
+        return "blueprint_query"
+    return None
+
 
 def ClassifyIntent(
     userInput: str,
@@ -32,6 +70,10 @@ def ClassifyIntent(
 ) -> str:
     if not userInput.strip():
         return "general_query"
+
+    heuristic = _classifyIntentHeuristic(userInput)
+    if heuristic is not None:
+        return heuristic
 
     lightweight = _LIGHTWEIGHT_MODELS.get(provider, model)
     classifyPrompt = (
@@ -74,9 +116,11 @@ def ClassifyIntent(
         for label in ("modify", "blueprint_query", "general_query"):
             if label in content:
                 return label
-        return "blueprint_query"
+        fallback = _classifyIntentHeuristic(userInput)
+        return fallback if fallback is not None else "blueprint_query"
     except Exception:
-        return "blueprint_query"
+        fallback = _classifyIntentHeuristic(userInput)
+        return fallback if fallback is not None else "blueprint_query"
 
 
 def BuildProjectTagHints(projectPath: str) -> str:
