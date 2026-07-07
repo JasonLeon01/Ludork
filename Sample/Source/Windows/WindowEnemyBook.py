@@ -9,6 +9,7 @@ from Engine.UI.Base import FunctionalBase
 from Engine.UI.FunctionalUI import FImage, FPlainText
 from Global import Manager
 from .. import Data
+from ..Configs.GeneralEnum import Special
 from .Base import WindowSelectable
 from ..Battler import DamageType
 from ..Enemy import Enemy
@@ -302,7 +303,7 @@ class WindowEnemyBook(WindowSelectable):
             "GOLD": int(enemy.infoComp.GOLD),
             "damage": "???" if damageType == DamageType.UNDEFEATABLE else int(damage),
             "critical": int(enemy.getCriticalValue(self._player)),
-            "hitCount": int(enemy.getHitCount()) if enemy.hasSpecial("MultiHit") else None,
+            "hitCount": int(enemy.getHitCount()) if enemy.hasSpecial(Special.MultiHit) else None,
             "specialDisplays": self._buildSpecialDisplays(special),
             "specialDetails": self._buildSpecialDetails(special),
             "texture": enemy.getTexture(),

@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 from Engine import RegisterEvent
 from Engine.Gameplay.InfoBase import InfoBase
+from Source.Configs.GeneralEnum import GeneralDataKey
 
 if TYPE_CHECKING:
     from ..Battler import Battler
@@ -24,7 +25,7 @@ class StateInfo(InfoBase):
     Independent of Actor; can be used standalone in inventory/shop UI.
     """
 
-    _infoType: str = "State"
+    _infoType: str = GeneralDataKey.State
 
     def __init__(self) -> None:
         r"""\brief Construct a state info with no host yet."""

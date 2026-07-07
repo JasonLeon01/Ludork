@@ -347,12 +347,19 @@ class PackWorker(QtCore.QThread):
 
         return os.path.join(File.GetRootPath(), "BuildTools")
 
+    def _getPackagingScriptsPath(self) -> str:
+        from Utils import File
+
+        return os.path.join(File.GetRootPath(), "BuildTools", "packaging")
+
     def _runCommand(self, cmd: list[str], cwd: Optional[str] = None) -> int:
         self.LOG_SIGNAL.emit(f"Running: {' '.join(cmd)}\n")
         env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"
+        env["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
         process = subprocess.Popen(
             cmd,
+            stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             cwd=cwd,
@@ -376,21 +383,36 @@ class PackWorker(QtCore.QThread):
         return process.poll() or 0
 
     def _packDesktop(self, pythonExe: str) -> None:
-        buildTools = self._getBuildToolsPath()
-        script = os.path.join(buildTools, "pack_game.py")
-        cmd = [
-            pythonExe,
-            "-u",
-            script,
-            "--proj-path",
-            self.projPath,
-            "--dist-path",
-            self.distPath,
-            "--platform",
-            self.platform.value,
-            "--python",
-            pythonExe,
-        ]
+        packagingPath = self._getPackagingScriptsPath()
+        if sys.platform == "win32":
+            script = os.path.join(packagingPath, "pack-game.bat")
+            cmd = [
+                os.environ.get("ComSpec", "cmd.exe"),
+                "/d",
+                "/s",
+                "/c",
+                "call",
+                script,
+            ]
+        else:
+            script = os.path.join(packagingPath, "pack-game.sh")
+            cmd = [
+                "bash",
+                script,
+            ]
+
+        cmd.extend(
+            [
+                "--proj-path",
+                self.projPath,
+                "--dist-path",
+                self.distPath,
+                "--platform",
+                self.platform.value,
+                "--python",
+                pythonExe,
+            ]
+        )
 
         if not os.path.isfile(script):
             self.FINISHED_SIGNAL.emit(False, ELOC("PACK_ENTRY_MISSING"))

@@ -3,6 +3,7 @@
 from __future__ import annotations
 from Engine import RegisterEvent
 from Engine.Gameplay.InfoBase import InfoBase
+from Source.Configs.GeneralEnum import GeneralDataKey
 
 
 class EnemyInfo(InfoBase):
@@ -13,7 +14,7 @@ class EnemyInfo(InfoBase):
     Independent of Actor; can be used standalone in battle systems.
     """
 
-    _infoType: str = "Enemy"
+    _infoType: str = GeneralDataKey.Enemy
 
     @RegisterEvent
     def onDefeat(self) -> None:

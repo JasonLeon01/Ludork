@@ -10,9 +10,9 @@ shift
 set "ARGS="
 :parse_args
 if "%~1"=="" goto run
-set "ARGS=!ARGS! %1"
+set "ARGS=!ARGS! "%~1""
 shift
 goto parse_args
 :run
-"%PYTHON_EXE%" "%SCRIPT_DIR%pack_game.py"!ARGS!
+call "%SCRIPT_DIR%packaging\pack-game.bat" --python "%PYTHON_EXE%" !ARGS!
 exit /b %ERRORLEVEL%

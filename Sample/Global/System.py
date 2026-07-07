@@ -339,7 +339,12 @@ class System(SystemConfigBase):
         states = Render.CanvasRenderStates()
         if shader:
             states.shader = shader
-        cls._canvas.draw(drawable, states)
+        from Engine.UI.Base import ControlBase
+
+        if isinstance(drawable, ControlBase):
+            drawable.draw(cls._canvas, states)
+        else:
+            cls._canvas.draw(drawable, states)
 
     @classmethod
     def applyScreenTonePass(cls) -> None:

@@ -6,11 +6,12 @@ from Engine import Pair, Texture, IntRect
 from Engine.Gameplay.Actors import Actor
 from Global import GameMap, Manager
 from . import Data
+from .Configs.GeneralEnum import GeneralDataKey
 from .Infos.EquipInfo import EquipInfo
 
 
 @Meta(
-    GeneralDataVars=[("ID", "Equip")],
+    GeneralDataVars=[("ID", GeneralDataKey.Equip)],
     PathVars=[("getSE", "Sounds")],
     ConfigVars=[("getSE", "Audio", "getSE")],
 )

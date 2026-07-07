@@ -1,0 +1,67 @@
+{
+    "parent": "Source.Enemy",
+    "attrs": {
+        "material": {
+            "lightBlock": 0.5,
+            "mirror": false,
+            "reflectionStrength": 0.0,
+            "opacity": 1.0,
+            "speedRate": 1.5,
+            "ignoreLighting": false
+        },
+        "texturePath": "enemies/classic-enemies-04-magician-single.png",
+        "ID": "Wizard",
+        "defaultRect": [
+            [
+                0,
+                896
+            ],
+            [
+                32,
+                32
+            ]
+        ]
+    },
+    "graph": {
+        "nodeGraph": {
+            "onCollision": {
+                "nodes": [],
+                "links": []
+            },
+            "onCreate": {
+                "nodes": [],
+                "links": []
+            },
+            "onDestroy": {
+                "nodes": [],
+                "links": []
+            },
+            "onFixedTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onLateTick": {
+                "nodes": [],
+                "links": []
+            },
+            "onOverlap": {
+                "nodes": [],
+                "links": []
+            },
+            "onTick": {
+                "nodes": [],
+                "links": []
+            }
+        },
+        "startNodes": {
+            "onCollision": null,
+            "onCreate": null,
+            "onDestroy": null,
+            "onFixedTick": null,
+            "onLateTick": null,
+            "onOverlap": null,
+            "onTick": null
+        }
+    },
+    "type": "blueprint"
+}

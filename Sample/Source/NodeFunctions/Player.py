@@ -5,6 +5,7 @@ from Engine import Direction, Vector2i
 from Engine.Gameplay.Actors import Actor
 from Engine.Gameplay.Components import getComponentFieldValue, setComponentFieldValue
 from Global import System
+from Source.Configs.GeneralEnum import GeneralDataKey
 from Source.Player import Player
 from .Utils import _attrRef
 
@@ -54,7 +55,7 @@ def GetPlayerFrontPosition() -> Optional[Vector2i]:
 @Meta(
     DisplayName='LOC("ADD_ITEM")',
     DisplayDesc='LOC("ADD_ITEM_DESC")',
-    GeneralDataVars=[("itemID", "Item")],
+    GeneralDataVars=[("itemID", GeneralDataKey.Item)],
 )
 @ExecSplit(default=(None,))
 def AddItem(itemID: str, count: int = 1) -> None:
@@ -71,7 +72,7 @@ def AddItem(itemID: str, count: int = 1) -> None:
 @Meta(
     DisplayName='LOC("REMOVE_ITEM")',
     DisplayDesc='LOC("REMOVE_ITEM_DESC")',
-    GeneralDataVars=[("itemID", "Item")],
+    GeneralDataVars=[("itemID", GeneralDataKey.Item)],
 )
 @ExecSplit(Success=(0,), Failed=(1,))
 def RemoveItem(itemID: str, count: int = 1) -> int:
@@ -90,7 +91,7 @@ def RemoveItem(itemID: str, count: int = 1) -> int:
 @Meta(
     DisplayName='LOC("HAS_ITEM")',
     DisplayDesc='LOC("HAS_ITEM_DESC")',
-    GeneralDataVars=[("itemID", "Item")],
+    GeneralDataVars=[("itemID", GeneralDataKey.Item)],
 )
 @ReturnType(value=bool)
 def HasItem(itemID: str) -> bool:
@@ -106,7 +107,7 @@ def HasItem(itemID: str) -> bool:
 @Meta(
     DisplayName='LOC("GET_ITEM_COUNT")',
     DisplayDesc='LOC("GET_ITEM_COUNT_DESC")',
-    GeneralDataVars=[("itemID", "Item")],
+    GeneralDataVars=[("itemID", GeneralDataKey.Item)],
 )
 @ReturnType(count=int)
 def GetItemCount(itemID: str) -> int:
@@ -122,7 +123,7 @@ def GetItemCount(itemID: str) -> int:
 @Meta(
     DisplayName='LOC("ADD_EQUIP")',
     DisplayDesc='LOC("ADD_EQUIP_DESC")',
-    GeneralDataVars=[("equipID", "Equip")],
+    GeneralDataVars=[("equipID", GeneralDataKey.Equip)],
 )
 @ExecSplit(default=(None,))
 def AddEquip(equipID: str, count: int = 1) -> None:
@@ -139,7 +140,7 @@ def AddEquip(equipID: str, count: int = 1) -> None:
 @Meta(
     DisplayName='LOC("REMOVE_EQUIP")',
     DisplayDesc='LOC("REMOVE_EQUIP_DESC")',
-    GeneralDataVars=[("equipID", "Equip")],
+    GeneralDataVars=[("equipID", GeneralDataKey.Equip)],
 )
 @ExecSplit(Success=(0,), Failed=(1,))
 def RemoveEquip(equipID: str, count: int = 1) -> int:
@@ -158,7 +159,7 @@ def RemoveEquip(equipID: str, count: int = 1) -> int:
 @Meta(
     DisplayName='LOC("HAS_EQUIP")',
     DisplayDesc='LOC("HAS_EQUIP_DESC")',
-    GeneralDataVars=[("equipID", "Equip")],
+    GeneralDataVars=[("equipID", GeneralDataKey.Equip)],
 )
 @ReturnType(value=bool)
 def HasEquip(equipID: str) -> bool:
@@ -174,7 +175,7 @@ def HasEquip(equipID: str) -> bool:
 @Meta(
     DisplayName='LOC("EQUIP_ITEM")',
     DisplayDesc='LOC("EQUIP_ITEM_DESC")',
-    GeneralDataVars=[("equipID", "Equip")],
+    GeneralDataVars=[("equipID", GeneralDataKey.Equip)],
 )
 @ExecSplit(default=(None,))
 def EquipItem(equipID: str) -> None:
@@ -283,7 +284,7 @@ def DamagePlayer(amount: int = 1) -> None:
 @Meta(
     DisplayName='LOC("REMOVE_PLAYER_STATE")',
     DisplayDesc='LOC("REMOVE_PLAYER_STATE_DESC")',
-    GeneralDataVars=[("stateID", "State")],
+    GeneralDataVars=[("stateID", GeneralDataKey.State)],
 )
 @ExecSplit(default=(None,))
 def RemovePlayerState(stateID: str) -> None:
@@ -299,7 +300,7 @@ def RemovePlayerState(stateID: str) -> None:
 @Meta(
     DisplayName='LOC("REDUCE_PLAYER_STATE")',
     DisplayDesc='LOC("REDUCE_PLAYER_STATE_DESC")',
-    GeneralDataVars=[("stateID", "State")],
+    GeneralDataVars=[("stateID", GeneralDataKey.State)],
 )
 @ExecSplit(default=(None,))
 def ReducePlayerState(stateID: str, stacks: int = 1) -> None:

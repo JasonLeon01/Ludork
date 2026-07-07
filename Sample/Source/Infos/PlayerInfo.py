@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from Engine.Gameplay.InfoBase import InfoBase
+from Source.Configs.GeneralEnum import GeneralDataKey
 
 
 class PlayerInfo(InfoBase):
@@ -12,4 +13,4 @@ class PlayerInfo(InfoBase):
     Independent of Actor; bridged via multiple inheritance on `Player`.
     """
 
-    _infoType: str = "Player"
+    _infoType: str = GeneralDataKey.Player

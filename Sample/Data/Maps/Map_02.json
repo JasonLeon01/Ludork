@@ -1329,6 +1329,62 @@
                     7,
                     7
                 ]
+            },
+            {
+                "tag": "Data.Blueprints.Enemies.BP_Enemy_Wizard_default_10_10",
+                "bp": "Data.Blueprints.Enemies.BP_Enemy_Wizard",
+                "position": [
+                    10,
+                    10
+                ]
+            },
+            {
+                "tag": "Data.Blueprints.Enemies.BP_Enemy_WhiteKing_default_10_6",
+                "bp": "Data.Blueprints.Enemies.BP_Enemy_WhiteKing",
+                "position": [
+                    10,
+                    6
+                ]
+            },
+            {
+                "tag": "Data.Blueprints.Enemies.BP_Enemy_WhiteKing_default_12_6",
+                "bp": "Data.Blueprints.Enemies.BP_Enemy_WhiteKing",
+                "position": [
+                    12,
+                    6
+                ]
+            },
+            {
+                "tag": "Data.Blueprints.Enemies.BP_Enemy_WhiteKing_default_0_6",
+                "bp": "Data.Blueprints.Enemies.BP_Enemy_WhiteKing",
+                "position": [
+                    0,
+                    6
+                ]
+            },
+            {
+                "tag": "Data.Blueprints.Enemies.BP_Enemy_WhiteKing_default_2_6",
+                "bp": "Data.Blueprints.Enemies.BP_Enemy_WhiteKing",
+                "position": [
+                    2,
+                    6
+                ]
+            },
+            {
+                "tag": "Data.Blueprints.Enemies.BP_Enemy_BigWizard_default_6_3",
+                "bp": "Data.Blueprints.Enemies.BP_Enemy_BigWizard",
+                "position": [
+                    6,
+                    3
+                ]
+            },
+            {
+                "tag": "Data.Blueprints.Enemies.BP_Enemy_BigWizard_default_6_11",
+                "bp": "Data.Blueprints.Enemies.BP_Enemy_BigWizard",
+                "position": [
+                    6,
+                    11
+                ]
             }
         ]
     },
@@ -1388,6 +1444,9 @@
         "Data.Blueprints.Doors.ConditionDoors.BP_Door_Condition_default_7_7": {
             "openConditionName": "MTExample",
             "openConditionVal": 2
+        },
+        "Data.Blueprints.Enemies.BP_Enemy_BigWizard_default_6_11": {
+            "shaderPath": "Rainbow.frag"
         }
     },
     "type": "map"

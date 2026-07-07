@@ -7,6 +7,7 @@ import copy
 import dataclasses
 import importlib
 import inspect
+import keyword
 import re
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, get_type_hints
 from Utils import EditorData, File, System
@@ -912,6 +913,12 @@ class GameData:
             except Exception:
                 final_details["Failed"].append(key)
 
+        if c_gen["A"] or c_gen["U"] or c_gen["D"]:
+            try:
+                cls._SaveGeneralEnumConfig()
+            except Exception:
+                final_details["Failed"].append("GeneralEnum.py")
+
         for typeName, spec in cls._PLUGIN_DATA_TYPES.items():
             attrName = spec["attrName"]
             extension = str(spec.get("extension", ""))
@@ -972,6 +979,102 @@ class GameData:
             lines.append(f"Failed [{', '.join(final_details['Failed'])}]")
 
         return not bool(final_details["Failed"]), "\n" + "\n".join(lines)
+
+    @classmethod
+    def _SaveGeneralEnumConfig(cls) -> None:
+        configRoot = os.path.join(EditorStatus.PROJ_PATH, "Source", "Configs")
+        os.makedirs(configRoot, exist_ok=True)
+        enumPath = os.path.join(configRoot, "GeneralEnum.py")
+        with open(enumPath, "w", encoding="utf-8") as f:
+            f.write(cls._BuildGeneralEnumConfig())
+
+    @classmethod
+    def _BuildGeneralEnumConfig(cls) -> str:
+        dataKeys = sorted(key for key in cls.generalData.keys() if isinstance(key, str) and key)
+        classNames: Dict[str, str] = {}
+        usedClassNames = {"GeneralDataKey"}
+        for dataKey in dataKeys:
+            classNames[dataKey] = cls._UniquePythonIdentifier(
+                cls._ToPythonClassIdentifier(dataKey),
+                usedClassNames,
+            )
+
+        lines = [
+            "# -*- encoding: utf-8 -*-",
+            "",
+            "from __future__ import annotations",
+            "",
+            'r"""',
+            "\\brief Auto-generated General Data key constants.",
+            '"""',
+            "",
+            "",
+            "class GeneralDataKey:",
+            '    r"""\\brief General Data table keys."""',
+        ]
+
+        cls._AppendEnumConstants(lines, dataKeys)
+        for dataKey in dataKeys:
+            data = cls.generalData.get(dataKey)
+            members = data.get("members", {}) if isinstance(data, dict) else {}
+            memberKeys = sorted(key for key in members.keys() if isinstance(key, str) and key)
+            lines.extend(["", "", f"class {classNames[dataKey]}:", f'    r"""\\brief {dataKey} member keys."""'])
+            cls._AppendEnumConstants(lines, memberKeys)
+
+        lines.extend(["", "", "__all__ = [", '    "GeneralDataKey",'])
+        for dataKey in dataKeys:
+            lines.append(f'    "{classNames[dataKey]}",')
+        lines.extend(["]", ""])
+        return "\n".join(lines)
+
+    @classmethod
+    def _AppendEnumConstants(cls, lines: List[str], keys: List[str]) -> None:
+        if not keys:
+            lines.append("    pass")
+            return
+
+        usedNames: Set[str] = set()
+        for key in keys:
+            varName = cls._UniquePythonIdentifier(cls._SanitisePythonIdentifier(key, "Key"), usedNames)
+            lines.append(f"    {varName}: str = {cls._PythonStringLiteral(key)}")
+
+    @staticmethod
+    def _ToPythonClassIdentifier(value: str) -> str:
+        parts = [part for part in re.split(r"[^0-9A-Za-z]+", value) if part]
+        result = "".join(part[:1].upper() + part[1:] for part in parts)
+        if not result:
+            result = "GeneralData"
+        if result[0].isdigit():
+            result = f"GeneralData{result}"
+        if keyword.iskeyword(result):
+            result = f"{result}Data"
+        return result
+
+    @staticmethod
+    def _SanitisePythonIdentifier(value: str, fallback: str) -> str:
+        result = re.sub(r"[^0-9A-Za-z_]", "_", value).strip("_")
+        if not result:
+            result = fallback
+        if result[0].isdigit():
+            result = f"_{result}"
+        if keyword.iskeyword(result):
+            result = f"{result}_"
+        return result
+
+    @staticmethod
+    def _UniquePythonIdentifier(value: str, usedNames: Set[str]) -> str:
+        base = value
+        candidate = base
+        index = 2
+        while candidate in usedNames:
+            candidate = f"{base}_{index}"
+            index += 1
+        usedNames.add(candidate)
+        return candidate
+
+    @staticmethod
+    def _PythonStringLiteral(value: str) -> str:
+        return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
     @classmethod
     def _GetBlueprintSavePayload(cls, data: Dict[str, Any]) -> Dict[str, Any]:

@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from Engine.Gameplay.Components import Component, componentFromData, setComponentFieldValue
 from Engine.Utils.Monitor import monitor, _MISSING
 from . import Data
+from .Configs.GeneralEnum import GeneralDataKey, Special, State
 from .Infos import StateInfo
 
 
@@ -29,7 +30,7 @@ class BattlerInfoComponent(Component):
     HP: int = 0  #: Current hit points
 
 
-@Meta(GeneralDataVars=[("CLASS", "Class")])
+@Meta(GeneralDataVars=[("CLASS", GeneralDataKey.Class)])
 @dataclass
 class PlayerInfoComponent(BattlerInfoComponent):
     r"""\brief Editable player identity and battle attributes."""
@@ -218,9 +219,9 @@ class Battler:
         """
         self._normaliseInfoComp()
         attackerAtk = int(self.infoComp.ATK)
-        if self.hasState("Weak"):
-            attackerAtk = max(0, attackerAtk - 2 * self._getStateStackCount("Weak"))
-        if opponent is not None and self.hasSpecial("Compete"):
+        if self.hasState(State.Weak):
+            attackerAtk = max(0, attackerAtk - 2 * self._getStateStackCount(State.Weak))
+        if opponent is not None and self.hasSpecial(Special.Compete):
             attackerAtk = max(attackerAtk, opponent.getATK())
         return attackerAtk
 
@@ -232,9 +233,9 @@ class Battler:
         """
         self._normaliseInfoComp()
         defenderDef = int(self.infoComp.DEF)
-        if self.hasState("Weak"):
-            defenderDef = max(0, defenderDef - 2 * self._getStateStackCount("Weak"))
-        if attacker is not None and self.hasSpecial("Hard"):
+        if self.hasState(State.Weak):
+            defenderDef = max(0, defenderDef - 2 * self._getStateStackCount(State.Weak))
+        if attacker is not None and self.hasSpecial(Special.Hard):
             defenderDef = max(defenderDef, attacker.getATK(self) - 1)
         return defenderDef
 
@@ -245,7 +246,7 @@ class Battler:
         """
         return [LOC(s.name) for s in self._states]
 
-    @Meta(GeneralDataVars=[("state", "State")])
+    @Meta(GeneralDataVars=[("state", GeneralDataKey.State)])
     @ExecSplit(default=(None,))
     def addState(self, state: Union[str, StateInfo], stacks: int) -> None:
         r"""\brief Apply a state to this battler with the given stack count.
@@ -274,7 +275,7 @@ class Battler:
         info.setOwner(self)
         self._states.append(info)
 
-    @Meta(GeneralDataVars=[("state", "State")])
+    @Meta(GeneralDataVars=[("state", GeneralDataKey.State)])
     @ExecSplit(default=(None,))
     def removeState(self, state: Union[str, StateInfo]) -> None:
         r"""\brief Remove an active state by ID or instance.
@@ -287,7 +288,7 @@ class Battler:
         existing.setOwner(None)
         self._states.remove(existing)
 
-    @Meta(GeneralDataVars=[("state", "State")])
+    @Meta(GeneralDataVars=[("state", GeneralDataKey.State)])
     @ExecSplit(default=(None,))
     def reduceStateStacks(self, state: Union[str, StateInfo], stacks: int = 1) -> None:
         r"""\brief Reduce stack count for an active state, removing it at zero.
@@ -342,7 +343,7 @@ class Battler:
         r"""\brief Trigger the walking event on every active state."""
         self._triggerStateEvent("onWalk")
 
-    @Meta(GeneralDataVars=[("stateKey", "State")])
+    @Meta(GeneralDataVars=[("stateKey", GeneralDataKey.State)])
     @ExecSplit(default=(None,))
     def triggerStateHook(self, stateKey: str) -> None:
         r"""\brief Trigger the developer-controlled hook event on one active state.
@@ -368,13 +369,13 @@ class Battler:
         attackerAtk = self.getATK(defender)
         defenderDef = defender.getDEF(self)
 
-        if self.hasSpecial("Magic"):
+        if self.hasSpecial(Special.Magic):
             defenderDef = 0
 
         hitCount = self.getHitCount()
         basicDamage = max(0, attackerAtk - defenderDef) * hitCount
-        if defender.hasState("Poisoned"):
-            basicDamage += 10 * defender.getStateStackCount("Poisoned")
+        if defender.hasState(State.Poisoned):
+            basicDamage += 10 * defender.getStateStackCount(State.Poisoned)
         return basicDamage
 
     def getHitCount(self) -> int:
@@ -382,7 +383,7 @@ class Battler:
 
         - \return Attack hit count.
         """
-        return self._getSpecialIntValue("MultiHit", 1, 1)
+        return self._getSpecialIntValue(Special.MultiHit, 1, 1)
 
     def getDamage(self, battler: Battler) -> Tuple[DamageType, int]:
         r"""\brief Calculate accumulated damage taken by `battler` if it fights `self`.

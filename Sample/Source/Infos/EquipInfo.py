@@ -3,6 +3,7 @@
 from __future__ import annotations
 from Engine import RegisterEvent
 from Engine.Gameplay.InfoBase import InfoBase
+from Source.Configs.GeneralEnum import GeneralDataKey
 
 
 class EquipInfo(InfoBase):
@@ -13,7 +14,7 @@ class EquipInfo(InfoBase):
     Independent of Actor; can be used standalone in inventory/shop UI.
     """
 
-    _infoType: str = "Equip"
+    _infoType: str = GeneralDataKey.Equip
 
     @RegisterEvent
     def onEquip(self) -> None:

@@ -12,6 +12,7 @@ from Engine.Utils import File, Inner
 from Engine.Utils.DataValue import evalDataExpression, resolveAttrValueType, resolveTypedDataValue, shouldEvalValueType
 from Engine.NodeGraph import ClassDict, Graph, DataNode, Node
 from Global import Manager
+from .Configs.GeneralEnum import GeneralDataKey
 
 
 _MAX_ANIMATION_LOAD_WORKERS = 4
@@ -609,7 +610,7 @@ def getGeneralClassData(key: str) -> Dict[str, Any]:
     - \param classKey The class key.
     - \return Class data dictionary.
     """
-    return _data.getGeneralData("Class").get("members", {}).get(key, {})
+    return _data.getGeneralData(GeneralDataKey.Class).get("members", {}).get(key, {})
 
 
 def getGeneralEnemyData(key: str) -> Dict[str, Any]:
@@ -618,7 +619,7 @@ def getGeneralEnemyData(key: str) -> Dict[str, Any]:
     - \param enemyKey The enemy key.
     - \return Enemy data dictionary.
     """
-    return _data.getGeneralData("Enemy").get("members", {}).get(key, {})
+    return _data.getGeneralData(GeneralDataKey.Enemy).get("members", {}).get(key, {})
 
 
 def getGeneralPlayerData(key: str) -> Dict[str, Any]:
@@ -627,7 +628,7 @@ def getGeneralPlayerData(key: str) -> Dict[str, Any]:
     - \param playerKey The player key.
     - \return Player data dictionary.
     """
-    return _data.getGeneralData("Player").get("members", {}).get(key, {})
+    return _data.getGeneralData(GeneralDataKey.Player).get("members", {}).get(key, {})
 
 
 def getAllGeneralEquipData() -> Dict[str, Dict[str, Any]]:
@@ -635,7 +636,7 @@ def getAllGeneralEquipData() -> Dict[str, Dict[str, Any]]:
 
     - \return Equip data dictionary.
     """
-    return _data.getGeneralData("Equip").get("members", {})
+    return _data.getGeneralData(GeneralDataKey.Equip).get("members", {})
 
 
 def getGeneralEquipData(key: str) -> Dict[str, Any]:
@@ -644,7 +645,7 @@ def getGeneralEquipData(key: str) -> Dict[str, Any]:
     - \param equipKey The equip key.
     - \return Equip data dictionary.
     """
-    return _data.getGeneralData("Equip").get("members", {}).get(key, {})
+    return _data.getGeneralData(GeneralDataKey.Equip).get("members", {}).get(key, {})
 
 
 def getAllGeneralItemData() -> Dict[str, Dict[str, Any]]:
@@ -652,7 +653,7 @@ def getAllGeneralItemData() -> Dict[str, Dict[str, Any]]:
 
     - \return Item data dictionary.
     """
-    return _data.getGeneralData("Item").get("members", {})
+    return _data.getGeneralData(GeneralDataKey.Item).get("members", {})
 
 
 def getGeneralItemData(key: str) -> Dict[str, Any]:
@@ -661,7 +662,7 @@ def getGeneralItemData(key: str) -> Dict[str, Any]:
     - \param itemKey The item key.
     - \return Item data dictionary.
     """
-    return _data.getGeneralData("Item").get("members", {}).get(key, {})
+    return _data.getGeneralData(GeneralDataKey.Item).get("members", {}).get(key, {})
 
 
 def getGeneralSpecialData(key: str) -> Dict[str, Any]:
@@ -670,7 +671,7 @@ def getGeneralSpecialData(key: str) -> Dict[str, Any]:
     - \param specialKey The special key.
     - \return Special data dictionary.
     """
-    return _data.getGeneralData("Special").get("members", {}).get(key, {})
+    return _data.getGeneralData(GeneralDataKey.Special).get("members", {}).get(key, {})
 
 
 def getGeneralStateData(key: str) -> Dict[str, Any]:
@@ -679,7 +680,7 @@ def getGeneralStateData(key: str) -> Dict[str, Any]:
     - \param stateKey The state key.
     - \return State data dictionary.
     """
-    return _data.getGeneralData("State").get("members", {}).get(key, {})
+    return _data.getGeneralData(GeneralDataKey.State).get("members", {}).get(key, {})
 
 
 def getClass(classPath: str) -> type:

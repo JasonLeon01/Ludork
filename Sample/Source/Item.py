@@ -6,12 +6,13 @@ from Engine import Pair, Texture, IntRect
 from Engine.Gameplay.Actors import Actor
 from Global import GameMap, Manager
 from . import Data
+from .Configs.GeneralEnum import GeneralDataKey
 from .Infos.ItemInfo import ItemInfo
 from Source.NodeFunctions.Player import MeetPlayer
 
 
 @Meta(
-    GeneralDataVars=[("ID", "Item")],
+    GeneralDataVars=[("ID", GeneralDataKey.Item)],
     PathVars=[("getSE", "Sounds")],
     ConfigVars=[("getSE", "Audio", "getSE")],
 )

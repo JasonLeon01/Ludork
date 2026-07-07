@@ -18,6 +18,7 @@ from Engine import (
 )
 from Engine.Gameplay.Actors import Actor
 from .Battler import DamageType
+from .Configs.GeneralEnum import GeneralDataKey, Item
 from .NodeFunctions.Utils import ToShortNumber
 
 if TYPE_CHECKING:
@@ -25,7 +26,7 @@ if TYPE_CHECKING:
 
 
 @Meta(
-    GeneralDataVars=[("requiredItemID", "Item")],
+    GeneralDataVars=[("requiredItemID", GeneralDataKey.Item)],
     ColourVars=["fillColor", "shadowColor"],
     Vector2fVars=["damageTextOffset"],
 )
@@ -34,7 +35,7 @@ class EnemyDamageText(Actor):
 
     tickable: bool = True  #: Update visibility and text every frame
     collisionEnabled: bool = False  #: Text overlay should not block movement
-    requiredItemID: str = "EnemyBook"  #: Item required to reveal damage text
+    requiredItemID: str = Item.EnemyBook  #: Item required to reveal damage text
     fontSize: int = 8  #: Damage text font size
     damageTextOffset: Pair[float] = (0.0, 0.0)  #: Offset from the parent top-left corner
     fillColor: Tuple[int, int, int, int] = (255, 255, 255, 255)  #: Text colour

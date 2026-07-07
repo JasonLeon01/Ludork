@@ -7,6 +7,7 @@ from Engine.UI import Canvas, Image, PlainText, SolidRect, RichText, TextStyle
 from Engine.UI.Base import ControlBase
 from Global import Manager
 from .. import Data
+from ..Configs.GeneralEnum import Item, State
 from ..NodeFunctions.Utils import ToShortNumber
 from ..Player import Player
 from ..System import System
@@ -269,12 +270,12 @@ class PlayerAttrHUD(Canvas):
         self._statValueTexts["EXP"].setString(f"{ToShortNumber(exp)}")
         self._statValueTexts["GOLD"].setString(f"{ToShortNumber(gold)}")
 
-        weakStacks = self._player.getStateStacks().get("Weak", 0)
+        weakStacks = self._player.getStateStacks().get(State.Weak, 0)
         debuffStr = f"(-{weakStacks})" if weakStacks > 0 else ""
         self._atkDebuffText.setString(debuffStr)
         self._defDebuffText.setString(debuffStr)
 
-        poisonStacks = self._player.getStateStacks().get("Poisoned", 0)
+        poisonStacks = self._player.getStateStacks().get(State.Poisoned, 0)
         self._hpPoisonText.setString(f"({poisonStacks})" if poisonStacks > 0 else "")
 
         hpRate = hp / maxhp
@@ -287,9 +288,9 @@ class PlayerAttrHUD(Canvas):
         self._hpText.setPosition((textX, textY))
         self._hpPoisonText.setPosition((self._STAT_VALUE_X + self._DEBUFF_TEXT_OFFSET_X, textY))
 
-        keyY_count = self._player.getItemCount("KEY_Y")
-        keyB_count = self._player.getItemCount("KEY_B")
-        keyR_count = self._player.getItemCount("KEY_R")
+        keyY_count = self._player.getItemCount(Item.KEY_Y)
+        keyB_count = self._player.getItemCount(Item.KEY_B)
+        keyR_count = self._player.getItemCount(Item.KEY_R)
         displayText = (
             f"#Yellow#{keyY_count:02d}#default#  #Blue#{keyB_count:02d}#default#  #Red#{keyR_count:02d}#default#"
         )

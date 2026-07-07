@@ -8,12 +8,13 @@ from Engine.Gameplay.Actors import Actor
 from Engine.Gameplay.Components import ChildActorComponent, componentFromData
 from Global import Animation
 from . import Data
+from .Configs.GeneralEnum import GeneralDataKey, Special, State
 from .Infos.EnemyInfo import EnemyInfo
 from .Battler import Battler, DamageType, EnemyInfoComponent
 from Source.NodeFunctions.Player import MeetPlayer
 
 
-@Meta(GeneralDataVars=[("ID", "Enemy")])
+@Meta(GeneralDataVars=[("ID", GeneralDataKey.Enemy)])
 class Enemy(Actor, EnemyInfo, Battler):
     r"""
     \brief Scene enemy entity.
@@ -93,7 +94,7 @@ class Enemy(Actor, EnemyInfo, Battler):
 
         player = Cast(Player, against)
         for specialKey, stackValue in self.getSpecial().items():
-            specialType = {"Poisoning": "Poisoned", "Weaken": "Weak"}.get(specialKey, None)
+            specialType = {Special.Poisoning: State.Poisoned, Special.Weaken: State.Weak}.get(specialKey, None)
             if specialType:
                 stacks = self._resolveSpecialStacks(stackValue)
                 if stacks > 0:
@@ -133,7 +134,7 @@ class Enemy(Actor, EnemyInfo, Battler):
             return ed + 1
         if ma >= ehp + ed:
             return -2
-        if self.hasSpecial("Hard"):
+        if self.hasSpecial(Special.Hard):
             return -1
         mdam = ma - ed
         eturn = max(ceil(ehp / mdam) - 1, 0)

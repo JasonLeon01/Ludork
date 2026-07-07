@@ -22,6 +22,7 @@ from Engine.Utils import Inner, Render
 from Global import SceneBase, GameMap
 from Global import System as GlobalSystem
 from Source import System
+from Source.Configs.GeneralEnum import Item
 from Source.SceneComponents import SceneMapAudioController, SceneMapBuilder
 from Source.Windows import (
     PlayerAttrHUD,
@@ -55,8 +56,8 @@ _EQUIP_SELECT_HEIGHT = 192
 _EQUIP_STATUS_X = 384
 _MAP_TRANSITION_NAME = ""
 _MAP_TRANSITION_TIME = 0.5
-_ENEMY_BOOK_ITEM_ID = "EnemyBook"
-_FLOOR_TELEPORTER_ITEM_ID = "Teleport"
+_ENEMY_BOOK_ITEM_ID = Item.EnemyBook
+_FLOOR_TELEPORTER_ITEM_ID = Item.Teleport
 _REGION_TITLE_FONT_SIZE = 96
 _REGION_TITLE_HOLD_TIME = 1.0
 _REGION_TITLE_FADE_TIME = 1.0
