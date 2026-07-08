@@ -527,6 +527,10 @@
     "zh_CN": "复制失败",
     "en_GB": "Duplicate failed"
   },
+  "MOVE_FILE_FAILED": {
+    "zh_CN": "移动失败",
+    "en_GB": "Move failed"
+  },
   "CONSOLE": {
     "zh_CN": "控制台",
     "en_GB": "Console"

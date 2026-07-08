@@ -34,6 +34,7 @@ from .MainUtils import (
     DatabaseMenuMixin,
     ProjectConfigMixin,
     LayoutMixin,
+    PluginHostMixin,
 )
 
 
@@ -150,6 +151,7 @@ class MainWindow(
     LayerBarMixin,
     LightActorMixin,
     GameRunnerMixin,
+    PluginHostMixin,
     QtWidgets.QMainWindow,
 ):
     DEFAULT_LEFT_PANEL_MIN_WIDTH = 160

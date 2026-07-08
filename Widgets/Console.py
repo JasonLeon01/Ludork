@@ -145,6 +145,10 @@ class ConsoleWidget(QtWidgets.QWidget):
         layout.addLayout(bl)
         self._updateFilterTexts()
 
+    def filterMenu(self) -> Optional[QtWidgets.QMenu]:
+        menu = self._filterButton.menu()
+        return menu if isinstance(menu, QtWidgets.QMenu) else None
+
     def eventFilter(self, obj, event):
         if obj is self._input and event.type() == QtCore.QEvent.KeyPress:
             key = event.key()

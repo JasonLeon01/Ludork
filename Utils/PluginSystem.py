@@ -51,6 +51,9 @@ class PluginManager:
     _datatypeHooks: List[tuple[_PluginRecord, Dict[str, Any], Dict[str, Any]]] = []
     _textInputHoverHooks: List[tuple[_PluginRecord, Callable[..., Any]]] = []
     _textInputHintHooks: List[tuple[_PluginRecord, Callable[..., Any]]] = []
+    _panelEntries: List[Dict[str, Any]] = []
+    _installedWindowIds: set[int] = set()
+    _consoleFilterInstalledIds: set[int] = set()
     _mainWindow: Optional[Any] = None
 
     @classmethod
@@ -64,6 +67,7 @@ class PluginManager:
         cls._datatypeHooks = []
         cls._textInputHoverHooks = []
         cls._textInputHintHooks = []
+        cls._panelEntries = []
         cls._mainWindow = mainWindow
         from . import File
 
@@ -94,9 +98,9 @@ class PluginManager:
     @classmethod
     def InstallWindowPlugins(cls, window: Any, menuMap: Dict[str, QtWidgets.QMenu]) -> None:
         cls.Init(window)
-        if bool(getattr(window, "_pluginSystemInstalled", False)):
+        if id(window) in cls._installedWindowIds:
             return
-        setattr(window, "_pluginSystemInstalled", True)
+        cls._installedWindowIds.add(id(window))
         cls._installSubmenus(window, menuMap)
         cls._installToolbars(window)
         cls._installPanels(window)
@@ -182,12 +186,11 @@ class PluginManager:
 
     @classmethod
     def ApplyPanelForEditMode(cls, window: Any, editMode: int) -> bool:
-        panels = getattr(window, "_pluginPanels", [])
-        for entry in panels:
+        for entry in cls._panelEntries:
             modes = entry.get("editModes")
             widget = entry.get("widget")
             if isinstance(widget, QtWidgets.QWidget) and editMode in modes:
-                window.rightStack.setCurrentWidget(widget)
+                window.setActivePluginPanel(widget)
                 return True
         return False
 
@@ -419,9 +422,6 @@ class PluginManager:
 
     @classmethod
     def _installToolbars(cls, window: Any) -> None:
-        topLayout = window.topBar.layout()
-        if not isinstance(topLayout, QtWidgets.QHBoxLayout):
-            return
         for record in cls._records:
             entries = record.config.get("hooks", {}).get("toolbar", [])
             if not isinstance(entries, list):
@@ -432,8 +432,7 @@ class PluginManager:
                 widget = cls._createToolbarWidget(record, entry, window)
                 if widget is None:
                     continue
-                index = cls._toolbarInsertIndex(topLayout, window)
-                topLayout.insertWidget(index, widget, 0, alignment=QtCore.Qt.AlignRight)
+                window.addPluginToolbarWidget(widget)
 
     @classmethod
     def _installPanels(cls, window: Any) -> None:
@@ -457,13 +456,13 @@ class PluginManager:
                     continue
                 if not isinstance(widget, QtWidgets.QWidget):
                     continue
-                window.rightStack.addWidget(widget)
+                window.addPluginPanel(widget)
                 modes = entry.get("editModes", [0, 1, 2])
                 if not isinstance(modes, list):
                     modes = [0, 1, 2]
                 installed.append({"widget": widget, "editModes": [int(v) for v in modes if isinstance(v, int)]})
-        setattr(window, "_pluginPanels", installed)
-        cls.ApplyPanelForEditMode(window, int(getattr(window, "_editModeIdx", 0)))
+        cls._panelEntries = installed
+        cls.ApplyPanelForEditMode(window, window.currentEditModeIndex())
 
     @classmethod
     def _installTabs(cls, window: Any) -> None:
@@ -488,26 +487,17 @@ class PluginManager:
                     continue
                 label = cls._text(entry)
                 icon = cls._icon(record, entry.get("icon"))
-                if icon is not None:
-                    window.tabWidget.addTab(widget, icon, label)
-                else:
-                    window.tabWidget.addTab(widget, label)
+                window.addPluginTab(widget, label, icon)
 
     @classmethod
     def _installConsoleFilter(cls, window: Any) -> None:
-        consoleWidget = getattr(window, "consoleWidget", None)
-        if not isinstance(consoleWidget, QtWidgets.QWidget):
+        if id(window) in cls._consoleFilterInstalledIds:
             return
-        if bool(getattr(consoleWidget, "_pluginConsoleFilterInstalled", False)):
-            return
-        filterButton = getattr(consoleWidget, "_filterButton", None)
-        if not isinstance(filterButton, QtWidgets.QToolButton):
-            return
-        menu = filterButton.menu()
+        menu = window.pluginConsoleFilterMenu()
         if not isinstance(menu, QtWidgets.QMenu):
             return
-        cls.AddRightClickActions(menu, consoleWidget, "consoleFilter", "always", None)
-        setattr(consoleWidget, "_pluginConsoleFilterInstalled", True)
+        cls.AddRightClickActions(menu, menu, "consoleFilter", "always", None)
+        cls._consoleFilterInstalledIds.add(id(window))
 
     @classmethod
     def _createConfiguredAction(
@@ -706,14 +696,6 @@ class PluginManager:
             if os.path.exists(path):
                 return QtGui.QIcon(path)
         return None
-
-    @staticmethod
-    def _toolbarInsertIndex(layout: QtWidgets.QHBoxLayout, window: Any) -> int:
-        for i in range(layout.count()):
-            item = layout.itemAt(i)
-            if item is not None and item.widget() is window.editModeToggle:
-                return i
-        return layout.count()
 
     @staticmethod
     def _isPluginDataPath(path: str, typeName: str) -> bool:

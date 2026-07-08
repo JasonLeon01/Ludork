@@ -117,12 +117,20 @@ class ProjectConfigMixin:
 
     def _onDataPathRenamed(self, oldPath: str, newPath: str) -> None:
         renamed = GameData.RenameDataPath(oldPath, newPath)
+        if not renamed and self._isDataPathMove(oldPath, newPath):
+            GameData.Init()
         blueprintRenames = renamed.get("blueprintsData", [])
         if blueprintRenames:
             self._onBlueprintDataKeysRenamed(blueprintRenames)
         self.refreshLeftList()
         self.actorQueuePanel.purgeStale()
         self._refreshInfo()
+
+    def _isDataPathMove(self, oldPath: str, newPath: str) -> bool:
+        dataRoot = os.path.abspath(os.path.join(EditorStatus.PROJ_PATH, "Data"))
+        return System.isPathInside(os.path.abspath(oldPath), dataRoot) or System.isPathInside(
+            os.path.abspath(newPath), dataRoot
+        )
 
     def _onBlueprintDataKeysRenamed(self, renames: list[tuple[str, str]]) -> None:
         editors = self._getBlueprintEditors()

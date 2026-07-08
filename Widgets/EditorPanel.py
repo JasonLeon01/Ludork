@@ -826,6 +826,7 @@ class EditorPanel(QtWidgets.QWidget):
         self._refreshTitle()
         self._renderFromMapData()
         self.update()
+        self.DATA_CHANGED.emit()
         return name
 
     def getLayerShaderPath(self, name: str) -> str:
@@ -846,6 +847,7 @@ class EditorPanel(QtWidgets.QWidget):
             if isinstance(layerData, dict):
                 layerData["shaderPath"] = normalizedPath
         self._refreshTitle()
+        self.DATA_CHANGED.emit()
         return True
 
     def removeLayer(self, name: str) -> bool:
@@ -863,6 +865,7 @@ class EditorPanel(QtWidgets.QWidget):
             self._updateCachedTileset()
         self._renderFromMapData()
         self.update()
+        self.DATA_CHANGED.emit()
         return True
 
     def reorderLayers(self, new_order: List[str]) -> None:
@@ -883,6 +886,7 @@ class EditorPanel(QtWidgets.QWidget):
         self._refreshTitle()
         self._renderFromMapData()
         self.update()
+        self.DATA_CHANGED.emit()
 
     def _commitRectangle(self, endPos: Optional[Tuple[int, int]]) -> None:
         if self.mapData is None or not getattr(self.mapData, "layers", None):
@@ -1381,6 +1385,42 @@ class EditorPanel(QtWidgets.QWidget):
         self._renderFromMapData()
         self.update()
 
+    def _placeActorBlueprintAt(self, bpRel: str, gx: int, gy: int) -> bool:
+        if self.tileModeEnabled or self._lightOverlayEnabled:
+            return False
+        if self.selectedLayerName is None or not self.mapKey or self.mapKey not in GameData.mapData:
+            return False
+        if self._hasActorAt(self.selectedLayerName, gx, gy):
+            return False
+        bpRel = bpRel.strip() if isinstance(bpRel, str) else ""
+        if not bpRel:
+            return False
+        m = GameData.mapData[self.mapKey]
+        actorsDict = m.get("actors")
+        if not isinstance(actorsDict, dict):
+            actorsDict = {}
+            m["actors"] = actorsDict
+        layerKey = self.selectedLayerName
+        layerList = actorsDict.get(layerKey)
+        if not isinstance(layerList, list):
+            layerList = []
+            actorsDict[layerKey] = layerList
+        clsObj = self._resolveActorClass(bpRel)
+        tagStr = self._makeUniqueDefaultTag(clsObj, bpRel, layerKey, gx, gy)
+        actorEntry = {
+            "tag": tagStr,
+            "bp": bpRel,
+            "position": [gx, gy],
+        }
+        GameData.RecordSnapshot()
+        layerList.append(actorEntry)
+        self._setSelectedActor(layerKey, len(layerList) - 1, render=False)
+        self._refreshTitle()
+        self.DATA_CHANGED.emit()
+        self._renderFromMapData()
+        self.update()
+        return True
+
     def _deleteActor(self, layerName: str, index: int) -> None:
         if not self.mapKey or self.mapKey not in GameData.mapData:
             return
@@ -1597,34 +1637,7 @@ class EditorPanel(QtWidgets.QWidget):
                         return
                     else:
                         if isinstance(self._pendingActorBpRel, str) and self._pendingActorBpRel.strip():
-                            if self.mapKey and self.mapKey in GameData.mapData:
-                                if self._hasActorAt(self.selectedLayerName, gx, gy):
-                                    return
-                                bpRel = self._pendingActorBpRel
-                                m = GameData.mapData[self.mapKey]
-                                actorsDict = m.get("actors")
-                                if not isinstance(actorsDict, dict):
-                                    actorsDict = {}
-                                    m["actors"] = actorsDict
-                                layerKey = self.selectedLayerName
-                                layerList = actorsDict.get(layerKey)
-                                if not isinstance(layerList, list):
-                                    layerList = []
-                                    actorsDict[layerKey] = layerList
-                                clsObj = self._resolveActorClass(bpRel)
-                                tagStr = self._makeUniqueDefaultTag(clsObj, bpRel, layerKey, gx, gy)
-                                actorEntry = {
-                                    "tag": tagStr,
-                                    "bp": bpRel,
-                                    "position": [gx, gy],
-                                }
-                                GameData.RecordSnapshot()
-                                layerList.append(actorEntry)
-                                self._setSelectedActor(layerKey, len(layerList) - 1, render=False)
-                                self._refreshTitle()
-                                self.DATA_CHANGED.emit()
-                                self._renderFromMapData()
-                                self.update()
+                            if self._placeActorBlueprintAt(self._pendingActorBpRel, gx, gy):
                                 return
                         self._setSelectedActor(None, None)
             return
@@ -1896,6 +1909,7 @@ class EditorPanel(QtWidgets.QWidget):
         self._refreshTitle()
         self._renderFromMapData()
         self.update()
+        self.DATA_CHANGED.emit()
         return True
 
     def _refreshTitle(self) -> None:
@@ -2506,7 +2520,6 @@ class EditorPanel(QtWidgets.QWidget):
         except Exception as ex:
             msg = ELOC("NOT_ACTOR_TYPE")
         okDict = isinstance(data, dict)
-        bpPath = None
         if okDict and data.get("type") == "blueprint":
             parentClass = data.get("parent")
             clsObj = None
@@ -2536,30 +2549,14 @@ class EditorPanel(QtWidgets.QWidget):
                     except Exception:
                         bpRel = None
                     if bpRel:
-                        if self.mapKey and self.mapKey in GameData.mapData:
-                            GameData.RecordSnapshot()
-                            m = GameData.mapData[self.mapKey]
-                            actorsDict = m.get("actors")
-                            if not isinstance(actorsDict, dict):
-                                actorsDict = {}
-                                m["actors"] = actorsDict
-                            layerKey = self.selectedLayerName
-                            layerList = actorsDict.get(layerKey)
-                            if not isinstance(layerList, list):
-                                layerList = []
-                                actorsDict[layerKey] = layerList
-                            tagStr = self._makeUniqueDefaultTag(clsObj, bpRel, layerKey, gx, gy)
-                            actorEntry = {
-                                "tag": tagStr,
-                                "bp": bpRel,
-                                "position": [gx, gy],
-                            }
-                            layerList.append(actorEntry)
-                            self._refreshTitle()
-                            self.DATA_CHANGED.emit()
-                            self._renderFromMapData()
-                            self.update()
-                        msg = ELOC("DRAG_INFO").format(file=os.path.basename(path), x=gx, y=gy)
+                        mainWindow = getattr(Utils.File, "mainWindow", None)
+                        actorQueuePanel = getattr(mainWindow, "actorQueuePanel", None)
+                        if actorQueuePanel is not None:
+                            actorQueuePanel.addOrPromote(bpRel)
+                        if self._placeActorBlueprintAt(bpRel, gx, gy):
+                            msg = ELOC("DRAG_INFO").format(file=os.path.basename(path), x=gx, y=gy)
+                        else:
+                            msg = ELOC("NOT_ACTOR_TYPE")
                     else:
                         msg = ELOC("NOT_ACTOR_TYPE")
                 else:

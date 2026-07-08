@@ -312,6 +312,8 @@ class FileExplorer(QtWidgets.QWidget):
         self._current = self._root
         self._interactive = True
         self._referenceDialogs: list[QtWidgets.QDialog] = []
+        self._dragPaths: list[str] = []
+        self._pathButtons: list[QtWidgets.QToolButton] = []
 
         class _Proxy(QtCore.QSortFilterProxyModel):
             def filterAcceptsRow(self, source_row: int, source_parent: QtCore.QModelIndex) -> bool:
@@ -348,12 +350,49 @@ class FileExplorer(QtWidgets.QWidget):
                 self.setWrapping(True)
                 self.setFlow(QtWidgets.QListView.LeftToRight)
                 self.setMovement(QtWidgets.QListView.Static)
-                self.setDragEnabled(False)
-                self.setAcceptDrops(False)
-                self.setDragDropMode(QtWidgets.QAbstractItemView.NoDragDrop)
+                self.setDragEnabled(True)
+                self.setAcceptDrops(True)
+                self.setDropIndicatorShown(True)
+                self.setDragDropMode(QtWidgets.QAbstractItemView.DragDrop)
+                self.setDefaultDropAction(QtCore.Qt.MoveAction)
+                viewport = self.viewport()
+                if viewport is not None:
+                    viewport.setAcceptDrops(True)
+                    viewport.installEventFilter(self)
+
+            def eventFilter(self, obj: QtCore.QObject, e: QtCore.QEvent) -> bool:
+                if obj is self.viewport():
+                    if e.type() == QtCore.QEvent.DragEnter:
+                        dragEvent = cast(QtGui.QDragEnterEvent, e)
+                        return self._handleDragEnter(dragEvent)
+                    if e.type() == QtCore.QEvent.DragMove:
+                        dragEvent = cast(QtGui.QDragMoveEvent, e)
+                        return self._handleDragMove(dragEvent)
+                    if e.type() == QtCore.QEvent.Drop:
+                        dropEvent = cast(QtGui.QDropEvent, e)
+                        return self._handleDrop(dropEvent)
+                return super().eventFilter(obj, e)
 
             def startDrag(self, supportedActions: QtCore.Qt.DropActions) -> None:
-                return
+                if not self._owner._interactive:
+                    return
+                paths = self._owner._selectedPathsForDrag()
+                if not paths:
+                    return
+                mimeData = QtCore.QMimeData()
+                mimeData.setUrls([QtCore.QUrl.fromLocalFile(path) for path in paths])
+                drag = QtGui.QDrag(self)
+                drag.setMimeData(mimeData)
+                self._owner._dragPaths = list(paths)
+                if len(paths) == 1:
+                    icon = self._owner._iconForPath(paths[0])
+                    pixmap = icon.pixmap(self.iconSize())
+                    if not pixmap.isNull():
+                        drag.setPixmap(pixmap)
+                try:
+                    drag.exec_(QtCore.Qt.CopyAction | QtCore.Qt.MoveAction, QtCore.Qt.MoveAction)
+                finally:
+                    self._owner._dragPaths = []
 
             def keyPressEvent(self, e: QtGui.QKeyEvent) -> None:
                 if not self._owner._interactive:
@@ -381,13 +420,64 @@ class FileExplorer(QtWidgets.QWidget):
                 super().keyPressEvent(e)
 
             def dragEnterEvent(self, e: QtGui.QDragEnterEvent) -> None:
-                return
+                if self._handleDragEnter(e):
+                    return
+                super().dragEnterEvent(e)
 
             def dragMoveEvent(self, e: QtGui.QDragMoveEvent) -> None:
-                return
+                if self._handleDragMove(e):
+                    return
+                super().dragMoveEvent(e)
 
             def dropEvent(self, e: QtGui.QDropEvent) -> None:
-                return
+                if self._handleDrop(e):
+                    return
+                super().dropEvent(e)
+
+            def _handleDragEnter(self, e: QtGui.QDragEnterEvent) -> bool:
+                if self._owner._canAcceptDroppedPaths(
+                    e.mimeData(),
+                    self._dropTargetDir(e.pos()),
+                    self._isOwnDragEvent(e),
+                ):
+                    e.setDropAction(QtCore.Qt.MoveAction)
+                    e.accept()
+                    return True
+                return False
+
+            def _handleDragMove(self, e: QtGui.QDragMoveEvent) -> bool:
+                if self._owner._canAcceptDroppedPaths(
+                    e.mimeData(),
+                    self._dropTargetDir(e.pos()),
+                    self._isOwnDragEvent(e),
+                ):
+                    e.setDropAction(QtCore.Qt.MoveAction)
+                    e.accept()
+                    return True
+                return False
+
+            def _handleDrop(self, e: QtGui.QDropEvent) -> bool:
+                targetDir = self._dropTargetDir(e.pos())
+                if self._owner._moveDroppedPaths(e.mimeData(), targetDir, self._isOwnDragEvent(e)):
+                    e.setDropAction(QtCore.Qt.MoveAction)
+                    e.accept()
+                    return True
+                return False
+
+            def _isOwnDragEvent(self, e: QtCore.QEvent) -> bool:
+                sourceCallable = getattr(e, "source", None)
+                source = sourceCallable() if callable(sourceCallable) else None
+                return source is self or source is self.viewport()
+
+            def _dropTargetDir(self, pos: QtCore.QPoint) -> str:
+                idx = self.indexAt(pos)
+                if idx.isValid():
+                    src = self._owner._proxy.mapToSource(idx)
+                    if src.isValid():
+                        path = self._owner._model.filePath(src)
+                        if path and self._owner._model.isDir(src):
+                            return path
+                return self._owner._current
 
         self._iconProvider = _ThumbnailIconProvider()
         self._model = QtWidgets.QFileSystemModel(self)
@@ -414,10 +504,16 @@ class FileExplorer(QtWidgets.QWidget):
         self._iconViewIcon = style.standardIcon(QtWidgets.QStyle.SP_FileDialogContentsView)
         vsCodeIcon = _resourceIcon("vscode")
         cursorIcon = _resourceIcon("cursor")
-        self._pathEdit = QtWidgets.QLineEdit(self)
-        self._pathEdit.setReadOnly(True)
-        self._pathEdit.setStyleSheet("")
-        self._pathEdit.setText(self._current)
+        self._pathScroll = QtWidgets.QScrollArea(self)
+        self._pathScroll.setWidgetResizable(True)
+        self._pathScroll.setFrameShape(QtWidgets.QFrame.NoFrame)
+        self._pathScroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self._pathScroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self._pathCrumbWidget = QtWidgets.QWidget(self._pathScroll)
+        self._pathCrumbLayout = QtWidgets.QHBoxLayout(self._pathCrumbWidget)
+        self._pathCrumbLayout.setContentsMargins(2, 0, 2, 0)
+        self._pathCrumbLayout.setSpacing(2)
+        self._pathScroll.setWidget(self._pathCrumbWidget)
         self._viewModeButton = QtWidgets.QToolButton(self)
         self._viewModeButton.setCheckable(True)
         self._viewModeButton.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
@@ -445,7 +541,7 @@ class FileExplorer(QtWidgets.QWidget):
         topLayout = QtWidgets.QHBoxLayout(topBar)
         topLayout.setContentsMargins(0, 0, 0, 0)
         topLayout.setSpacing(4)
-        topLayout.addWidget(self._pathEdit, 1)
+        topLayout.addWidget(self._pathScroll, 1)
         topLayout.addWidget(self._viewModeButton, 0, alignment=QtCore.Qt.AlignRight)
         topLayout.addWidget(self._upButton, 0, alignment=QtCore.Qt.AlignRight)
         topLayout.addWidget(self._externalEditorButton, 0, alignment=QtCore.Qt.AlignRight)
@@ -454,6 +550,7 @@ class FileExplorer(QtWidgets.QWidget):
         layout.setSpacing(0)
         layout.addWidget(topBar, 0)
         layout.addWidget(self._view, 1)
+        self._refreshPathCrumbs()
         self.setMinimumHeight(160)
         Panel.ApplyDisabledOpacity(self)
 
@@ -464,9 +561,12 @@ class FileExplorer(QtWidgets.QWidget):
         self._viewModeButton.setEnabled(self._interactive)
         self._upButton.setEnabled(self._interactive)
         self._externalEditorButton.setEnabled(self._interactive)
+        for button in self._pathButtons:
+            button.setEnabled(self._interactive)
         Panel.ApplyDisabledOpacity(self._viewModeButton)
         Panel.ApplyDisabledOpacity(self._upButton)
         Panel.ApplyDisabledOpacity(self._externalEditorButton)
+        Panel.ApplyDisabledOpacity(self._pathScroll)
 
     def changeEvent(self, e: QtCore.QEvent) -> None:
         if e.type() == QtCore.QEvent.EnabledChange:
@@ -489,7 +589,7 @@ class FileExplorer(QtWidgets.QWidget):
         if not self._isUnderRoot(path):
             return
         self._current = os.path.abspath(path)
-        self._pathEdit.setText(self._current)
+        self._refreshPathCrumbs()
         self._refresh()
         self.PATH_CHANGED.emit(self._current)
 
@@ -740,6 +840,160 @@ class FileExplorer(QtWidgets.QWidget):
             seen.add(key)
             result.append(src)
         return result
+
+    def _selectedPathsForDrag(self) -> list[str]:
+        paths = []
+        rootPath = os.path.normcase(os.path.abspath(self._root))
+        for row in self._selectedSourceRows():
+            path = self._model.filePath(row)
+            if not path or not os.path.exists(path):
+                continue
+            absPath = os.path.abspath(path)
+            if os.path.normcase(absPath) == rootPath:
+                continue
+            if not self._isUnderRoot(absPath):
+                continue
+            paths.append(absPath)
+        return paths
+
+    def _iconForPath(self, path: str) -> QtGui.QIcon:
+        return self._iconProvider.icon(QtCore.QFileInfo(path))
+
+    def _pathsFromMimeData(self, mimeData: Optional[QtCore.QMimeData]) -> list[str]:
+        if mimeData is None or not mimeData.hasUrls():
+            return []
+        paths = []
+        seen = set()
+        for url in mimeData.urls():
+            if not url.isLocalFile():
+                continue
+            path = os.path.abspath(url.toLocalFile())
+            key = os.path.normcase(path)
+            if key in seen:
+                continue
+            seen.add(key)
+            paths.append(path)
+        return paths
+
+    def _pathsForDrop(self, mimeData: Optional[QtCore.QMimeData], allowSelectionFallback: bool = False) -> list[str]:
+        paths = self._pathsFromMimeData(mimeData)
+        if paths:
+            return paths
+        paths = [path for path in self._dragPaths if path and os.path.exists(path)]
+        if paths:
+            return paths
+        return self._selectedPathsForDrag() if allowSelectionFallback else []
+
+    def _canAcceptDroppedPaths(
+        self,
+        mimeData: Optional[QtCore.QMimeData],
+        targetDir: str,
+        allowSelectionFallback: bool = False,
+    ) -> bool:
+        if not self._interactive:
+            return False
+        if not targetDir or not os.path.isdir(targetDir) or not self._isUnderRoot(targetDir):
+            return False
+        for path in self._pathsForDrop(mimeData, allowSelectionFallback):
+            if self._canMovePathTo(path, targetDir):
+                return True
+        return False
+
+    def _canMovePathTo(self, path: str, targetDir: str) -> bool:
+        if not path or not os.path.exists(path) or not self._isUnderRoot(path):
+            return False
+        absPath = os.path.abspath(path)
+        rootPath = os.path.normcase(os.path.abspath(self._root))
+        if os.path.normcase(absPath) == rootPath:
+            return False
+        targetAbs = os.path.abspath(targetDir)
+        newPath = os.path.join(targetAbs, os.path.basename(absPath))
+        if os.path.normcase(absPath) == os.path.normcase(os.path.abspath(newPath)):
+            return False
+        if os.path.isdir(absPath) and self._isPathInside(targetAbs, absPath):
+            return False
+        return True
+
+    def _moveDroppedPaths(
+        self,
+        mimeData: Optional[QtCore.QMimeData],
+        targetDir: str,
+        allowSelectionFallback: bool = False,
+    ) -> bool:
+        if not self._canAcceptDroppedPaths(mimeData, targetDir, allowSelectionFallback):
+            return False
+        moved = []
+        failedMessages = []
+        targetAbs = os.path.abspath(targetDir)
+        paths = sorted(
+            self._pathsForDrop(mimeData, allowSelectionFallback),
+            key=lambda p: len(os.path.normcase(p)),
+        )
+        for path in paths:
+            if not self._canMovePathTo(path, targetAbs):
+                continue
+            newPath = os.path.join(targetAbs, os.path.basename(path))
+            if os.path.exists(newPath):
+                failedMessages.append(
+                    f"{os.path.basename(path)}: {ELOC('FILE_ALREADY_EXISTS').format(name=os.path.basename(newPath))}"
+                )
+                continue
+            try:
+                os.rename(path, newPath)
+                moved.append((path, newPath))
+            except Exception as e:
+                failedMessages.append(f"{os.path.basename(path)}: {str(e)}")
+
+        for oldPath, newPath in moved:
+            if self._dataPathsChanged([oldPath, newPath]):
+                self.DATA_PATH_RENAMED.emit(oldPath, newPath)
+            else:
+                self.DATA_FILE_CHANGED.emit()
+        if moved:
+            self._refresh()
+        if failedMessages:
+            QtWidgets.QMessageBox.warning(
+                self,
+                ELOC("ERROR"),
+                ELOC("MOVE_FILE_FAILED") + "\n" + "\n".join(failedMessages),
+            )
+        return bool(moved)
+
+    def _refreshPathCrumbs(self) -> None:
+        while self._pathCrumbLayout.count():
+            item = self._pathCrumbLayout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+        self._pathButtons = []
+        for index, (label, path) in enumerate(self._pathCrumbItems()):
+            if index > 0:
+                sep = QtWidgets.QLabel(">", self._pathCrumbWidget)
+                sep.setAlignment(QtCore.Qt.AlignCenter)
+                self._pathCrumbLayout.addWidget(sep, 0)
+            button = QtWidgets.QToolButton(self._pathCrumbWidget)
+            button.setText(label)
+            button.setToolTip(path)
+            button.setAutoRaise(True)
+            button.setToolButtonStyle(QtCore.Qt.ToolButtonTextOnly)
+            button.clicked.connect(lambda _checked=False, p=path: self._setCurrentPath(p))
+            button.setEnabled(self._interactive)
+            self._pathCrumbLayout.addWidget(button, 0)
+            self._pathButtons.append(button)
+        self._pathCrumbLayout.addStretch(1)
+
+    def _pathCrumbItems(self) -> list[tuple[str, str]]:
+        items = [(self._root, self._root)]
+        relPath = os.path.relpath(self._current, self._root)
+        if relPath in ("", "."):
+            return items
+        current = self._root
+        for part in relPath.replace("\\", os.sep).replace("/", os.sep).split(os.sep):
+            if not part:
+                continue
+            current = os.path.join(current, part)
+            items.append((part, current))
+        return items
 
     def _onContextMenu(self, pos: QtCore.QPoint) -> None:
         if not self._interactive:

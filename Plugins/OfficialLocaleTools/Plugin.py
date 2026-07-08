@@ -84,10 +84,7 @@ def _existingEditor(window: QtWidgets.QMainWindow) -> Optional[Any]:
 
 def _onLocaleExported(window: QtWidgets.QMainWindow) -> None:
     invalidateGameLocaleCache()
-    if hasattr(window, "refreshLeftList"):
-        window.refreshLeftList()
-    if hasattr(window, "_refreshInfo"):
-        window._refreshInfo()
+    window.notifyPluginDataChanged()
 
 
 def _openLocaleEditor(window: QtWidgets.QMainWindow) -> None:

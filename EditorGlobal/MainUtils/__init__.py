@@ -8,6 +8,7 @@ from .MenuBuilder import MenuBuilderMixin
 from .DatabaseMenu import DatabaseMenuMixin
 from .ProjectConfig import ProjectConfigMixin
 from .Layout import LayoutMixin
+from .PluginHost import PluginHostMixin
 
 __all__ = [
     "GameRunnerMixin",
@@ -18,4 +19,5 @@ __all__ = [
     "DatabaseMenuMixin",
     "ProjectConfigMixin",
     "LayoutMixin",
+    "PluginHostMixin",
 ]

@@ -119,6 +119,16 @@ class EditModeToggle(QtWidgets.QWidget):
         self.setMouseTracking(True)
         Panel.ApplyDisabledOpacity(self)
 
+    def _tooltipText(self, idx: int) -> str:
+        if idx == 0:
+            return f"{ELOC('TILE_MODE')} (Ctrl+1)"
+        if idx == 1:
+            return f"{ELOC('LIGHT_MODE')} (Ctrl+2)"
+        return f"{ELOC('ACTOR_MODE')} (Ctrl+3)"
+
+    def _shortcutText(self, idx: int) -> str:
+        return f"Ctrl+{idx + 1}"
+
     def sizeHint(self):
         return QtCore.QSize(192, 32)
 
@@ -145,9 +155,17 @@ class EditModeToggle(QtWidgets.QWidget):
         p.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255, 28)))
         p.drawLine(third, 6, third, h - 6)
         p.drawLine(third * 2, 6, third * 2, h - 6)
-        _paintIcon(p, self._tileIcon, rectL)
-        _paintIcon(p, self._lightIcon, rectM)
-        _paintIcon(p, self._actorIcon, rectR)
+        _paintIcon(p, self._tileIcon, rectL.adjusted(0, -6, 0, -6))
+        _paintIcon(p, self._lightIcon, rectM.adjusted(0, -6, 0, -6))
+        _paintIcon(p, self._actorIcon, rectR.adjusted(0, -6, 0, -6))
+        font = p.font()
+        font.setPixelSize(8)
+        p.setFont(font)
+        p.setPen(QtGui.QColor(220, 220, 220, 190))
+        labelFlags = QtCore.Qt.AlignHCenter | QtCore.Qt.AlignBottom
+        p.drawText(rectL.adjusted(0, 0, 0, -2), labelFlags, self._shortcutText(0))
+        p.drawText(rectM.adjusted(0, 0, 0, -2), labelFlags, self._shortcutText(1))
+        p.drawText(rectR.adjusted(0, 0, 0, -2), labelFlags, self._shortcutText(2))
 
     def _idxFromX(self, x: int) -> int:
         w = self.width()
@@ -171,25 +189,13 @@ class EditModeToggle(QtWidgets.QWidget):
 
     def mouseMoveEvent(self, e):
         idx = self._idxFromX(e.x())
-        if idx == 0:
-            text = ELOC("TILE_MODE")
-        elif idx == 1:
-            text = ELOC("LIGHT_MODE")
-        else:
-            text = ELOC("ACTOR_MODE")
-        QtWidgets.QToolTip.showText(e.globalPos(), text, self)
+        QtWidgets.QToolTip.showText(e.globalPos(), self._tooltipText(idx), self)
         super().mouseMoveEvent(e)
 
     def event(self, e):
         if e.type() == QtCore.QEvent.ToolTip:
             idx = self._idxFromX(e.pos().x())
-            if idx == 0:
-                text = ELOC("TILE_MODE")
-            elif idx == 1:
-                text = ELOC("LIGHT_MODE")
-            else:
-                text = ELOC("ACTOR_MODE")
-            QtWidgets.QToolTip.showText(e.globalPos(), text, self)
+            QtWidgets.QToolTip.showText(e.globalPos(), self._tooltipText(idx), self)
             return True
         return super().event(e)
 
