@@ -370,8 +370,32 @@ private:
     ////////////////////////////////////////////////////////////
     py::object getMaterialProperty(const sf::Vector2i pos, const std::string &functionName,
                                    const py::object &invalidValue);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Resolve an actor's layer index in top-first layer order
+    ///
+    /// - \param core Actor core to query
+    ///
+    /// - \return Layer index, or a large value when unknown
+    ///
+    ////////////////////////////////////////////////////////////
+    int getActorLayerIndex(const ActorCore *core) const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Resolve the topmost occupant layer index at one cell
+    ///
+    /// - \param actorsAtCell Actors cached at the cell
+    /// - \param selfCore Actor excluded from the lookup, or `nullptr` to consider all occupants
+    ///
+    /// - \return Topmost layer index, or a large value when empty
+    ///
+    ////////////////////////////////////////////////////////////
+    int getTopmostOccupantLayerIndex(const std::vector<ActorCore *> &actorsAtCell,
+                                     const ActorCore *selfCore) const;
+
     sf::Shader *materialShader_;
     OccupancyMap occupancyMap_;
     ActorCoreDict actorsCoreRef_;
+    std::unordered_map<ActorCore *, std::string> actorCoreLayerRef_;
     std::map<std::pair<std::string, int>, std::string> uniformArrayNameCache_;
 };

@@ -62,6 +62,8 @@ def _lineEditTextEndRect(lineEdit: QtWidgets.QLineEdit) -> QtCore.QRect:
     xEnd = contents.left() + textWidth
     if text and textWidth > contents.width():
         savedPosition = lineEdit.cursorPosition()
+        selectionStart = lineEdit.selectionStart()
+        hasSelection = lineEdit.hasSelectedText()
         lineEdit.blockSignals(True)
         try:
             lineEdit.setCursorPosition(len(text))
@@ -69,7 +71,10 @@ def _lineEditTextEndRect(lineEdit: QtWidgets.QLineEdit) -> QtCore.QRect:
             if scrolledEnd > contents.left():
                 xEnd = scrolledEnd
         finally:
-            lineEdit.setCursorPosition(savedPosition)
+            if hasSelection:
+                lineEdit.setSelection(selectionStart, abs(savedPosition - selectionStart))
+            else:
+                lineEdit.setCursorPosition(savedPosition)
             lineEdit.blockSignals(False)
     return QtCore.QRect(max(xEnd, contents.left()), y, 1, lineHeight)
 
@@ -83,12 +88,9 @@ def _plainTextEndRect(plainEdit: Union[QtWidgets.QPlainTextEdit, QtWidgets.QText
     lineHeight = max(1, fontMetrics.height())
     if not text:
         return QtCore.QRect(0, 0, 0, lineHeight)
-    cursor = plainEdit.textCursor()
-    oldPosition = cursor.position()
-    cursor.setPosition(len(text))
-    endRect = plainEdit.cursorRect(cursor)
-    cursor.setPosition(oldPosition)
-    plainEdit.setTextCursor(cursor)
+    layoutCursor = QtGui.QTextCursor(plainEdit.document())
+    layoutCursor.setPosition(len(text))
+    endRect = plainEdit.cursorRect(layoutCursor)
     if endRect.height() > 0:
         return endRect
     textWidth = fontMetrics.horizontalAdvance(text)

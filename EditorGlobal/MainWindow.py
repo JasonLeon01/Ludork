@@ -239,7 +239,7 @@ class MainWindow(
         self._actDatabaseTilesetsData = QtWidgets.QAction(ELOC("TILESETS_DATA"), self)
         self._actDatabaseCommonFunctions = QtWidgets.QAction(ELOC("COMMON_FUNCTIONS"), self)
         self._actDatabaseGeneralData = QtWidgets.QAction(ELOC("GENERAL_DATA"), self)
-        self._actDatabaseGeneralData.setShortcut(QtGui.QKeySequence("F10"))
+        self._actDatabaseGeneralData.setShortcut(QtGui.QKeySequence("F9"))
         self._actDatabaseGeneralData.triggered.connect(self._onGeneralDataEditor)
         self._actHelpExplanation = QtWidgets.QAction(ELOC("HELP_EXPLANATION"), self)
         self._languageActionGroup = QtWidgets.QActionGroup(self)

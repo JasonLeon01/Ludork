@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <map>
 #include <queue>
 
@@ -168,11 +169,14 @@ std::vector<std::vector<py::object>> GameMapExt::getMaterialPropertyMapExt(int w
 
 void GameMapExt::syncActorsRef(const ActorDict &actors) {
     actorsCoreRef_.clear();
+    actorCoreLayerRef_.clear();
     for (const auto &[layerName, actorList] : actors) {
         auto &cores = actorsCoreRef_[layerName];
         cores.reserve(actorList.size());
         for (const py::object &actor : actorList) {
-            cores.push_back(&actor.cast<ActorCore &>());
+            ActorCore &core = actor.cast<ActorCore &>();
+            cores.push_back(&core);
+            actorCoreLayerRef_[&core] = layerName;
         }
     }
 }
@@ -239,13 +243,18 @@ std::vector<py::object> GameMapExt::getCollisionAt(int x, int y, ActorCore &self
     if (!selfCore.getCollisionEnabled()) {
         return {};
     }
-    std::vector<py::object> result;
     auto it = occupancyMap_.find({x, y});
     if (it == occupancyMap_.end()) {
-        return result;
+        return {};
+    }
+    const auto &actorsAtCell = it->second;
+    const int topmostLayerIndex = getTopmostOccupantLayerIndex(actorsAtCell, &selfCore);
+    if (topmostLayerIndex == std::numeric_limits<int>::max()) {
+        return {};
     }
     const auto &descendantActors = selfCore.getDescendantIds();
-    for (ActorCore *otherCore : it->second) {
+    std::vector<py::object> result;
+    for (ActorCore *otherCore : actorsAtCell) {
         if (otherCore == &selfCore) {
             continue;
         }
@@ -255,21 +264,30 @@ std::vector<py::object> GameMapExt::getCollisionAt(int x, int y, ActorCore &self
         if (otherCore->isDestroyed()) {
             continue;
         }
-        if (otherCore->getCollisionEnabled()) {
-            result.push_back(otherCore->getPythonActor());
+        if (getActorLayerIndex(otherCore) != topmostLayerIndex) {
+            continue;
         }
+        if (!otherCore->getCollisionEnabled()) {
+            continue;
+        }
+        result.push_back(otherCore->getPythonActor());
     }
     return result;
 }
 
 std::vector<py::object> GameMapExt::getOverlapsAt(int x, int y, ActorCore &selfCore) {
-    std::vector<py::object> result;
     auto it = occupancyMap_.find({x, y});
     if (it == occupancyMap_.end()) {
-        return result;
+        return {};
+    }
+    const auto &actorsAtCell = it->second;
+    const int topmostLayerIndex = getTopmostOccupantLayerIndex(actorsAtCell, &selfCore);
+    if (topmostLayerIndex == std::numeric_limits<int>::max()) {
+        return {};
     }
     const auto &descendantActors = selfCore.getDescendantIds();
-    for (ActorCore *otherCore : it->second) {
+    std::vector<py::object> result;
+    for (ActorCore *otherCore : actorsAtCell) {
         if (otherCore == &selfCore) {
             continue;
         }
@@ -277,6 +295,9 @@ std::vector<py::object> GameMapExt::getOverlapsAt(int x, int y, ActorCore &selfC
             continue;
         }
         if (otherCore->isDestroyed()) {
+            continue;
+        }
+        if (getActorLayerIndex(otherCore) != topmostLayerIndex) {
             continue;
         }
         result.push_back(otherCore->getPythonActor());
@@ -309,12 +330,18 @@ bool GameMapExt::passable(int x, int y, int sx, int sy, int gx, int gy) {
     }
     auto occupancyIt = occupancyMap_.find({x, y});
     if (occupancyIt != occupancyMap_.end()) {
-        for (ActorCore *core : occupancyIt->second) {
-            if (core->isDestroyed()) {
-                continue;
-            }
-            if (core->blocksPassability()) {
-                return false;
+        const int topmostLayerIndex = getTopmostOccupantLayerIndex(occupancyIt->second, nullptr);
+        if (topmostLayerIndex != std::numeric_limits<int>::max()) {
+            for (ActorCore *core : occupancyIt->second) {
+                if (core->isDestroyed()) {
+                    continue;
+                }
+                if (getActorLayerIndex(core) != topmostLayerIndex) {
+                    continue;
+                }
+                if (core->blocksPassability()) {
+                    return false;
+                }
             }
         }
     }
@@ -328,6 +355,46 @@ bool GameMapExt::passable(int x, int y, int sx, int sy, int gx, int gy) {
         }
     }
     return true;
+}
+
+int GameMapExt::getActorLayerIndex(const ActorCore *core) const {
+    if (core == nullptr) {
+        return std::numeric_limits<int>::max();
+    }
+    auto layerIt = actorCoreLayerRef_.find(const_cast<ActorCore *>(core));
+    if (layerIt == actorCoreLayerRef_.end()) {
+        return std::numeric_limits<int>::max();
+    }
+    const auto layerIndexIt = std::find(layerKeysRef.begin(), layerKeysRef.end(), layerIt->second);
+    if (layerIndexIt == layerKeysRef.end()) {
+        return std::numeric_limits<int>::max();
+    }
+    return static_cast<int>(layerIndexIt - layerKeysRef.begin());
+}
+
+int GameMapExt::getTopmostOccupantLayerIndex(const std::vector<ActorCore *> &actorsAtCell,
+                                             const ActorCore *selfCore) const {
+    const std::unordered_set<ActorCore *> *descendantActors = nullptr;
+    if (selfCore != nullptr) {
+        descendantActors = &selfCore->getDescendantIds();
+    }
+    int topmostLayerIndex = std::numeric_limits<int>::max();
+    for (ActorCore *core : actorsAtCell) {
+        if (selfCore != nullptr && core == selfCore) {
+            continue;
+        }
+        if (descendantActors != nullptr && descendantActors->find(core) != descendantActors->end()) {
+            continue;
+        }
+        if (core->isDestroyed()) {
+            continue;
+        }
+        const int layerIndex = getActorLayerIndex(core);
+        if (layerIndex < topmostLayerIndex) {
+            topmostLayerIndex = layerIndex;
+        }
+    }
+    return topmostLayerIndex;
 }
 
 void GameMapExt::registerActorOccupancy(ActorCore &core) {
