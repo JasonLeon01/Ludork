@@ -3,7 +3,7 @@
 from __future__ import annotations
 import weakref
 from typing import ClassVar, List, Optional, Sequence, Union
-from Engine import Color, Pair, ParticleBase, ParticleSystem, TextParticle as EngineTextParticle, UI, Vector2f
+from Engine import Color, Curve, Pair, ParticleBase, ParticleSystem, TextParticle as EngineTextParticle, UI, Vector2f
 from Engine.Utils import Event
 
 
@@ -11,15 +11,15 @@ class DamageTextParticle:
     r"""
     \brief Floating damage text particle for the map particle system.
 
-    The particle starts from the given map-view position, moves 32px right,
-    rises 16px, falls 32px, and removes itself after 0.5 seconds.
+    The particle starts from the given map-view position, moves 32px right at a fixed
+    speed, animates vertical offset via a curve, and removes itself after 0.5 seconds.
     """
 
     _MOVE_X = 32.0
-    _RISE = 16.0
-    _FALL = 32.0
     _DURATION = 0.5
+    _SPEED_CURVE_KEY = "Global/DamageTextSpeed"
     _active: ClassVar[List["DamageTextParticle"]] = []
+    _speedCurve: ClassVar[Optional[Curve]] = None
 
     def __init__(
         self,
@@ -93,9 +93,8 @@ class DamageTextParticle:
     def _update(self, countTime: float) -> None:
         if self._destroyed:
             return
-        progress = min(1.0, countTime / self._DURATION)
-        self._applyPosition(progress)
-        if progress >= 1.0:
+        self._applyPosition(countTime)
+        if countTime >= self._DURATION:
             self._requestDestroy()
 
     def _requestDestroy(self) -> None:
@@ -108,19 +107,24 @@ class DamageTextParticle:
         Event.once(eventName, lambda _: self.destroy())
         Event.post(eventName)
 
-    def _applyPosition(self, progress: float) -> None:
+    def _applyPosition(self, countTime: float) -> None:
         if self._textParticle is None:
             return
+        xProgress = min(1.0, countTime / self._DURATION)
+        yOffset = self._getSpeedCurve().evaluate(countTime)
         position = Vector2f(
-            self._startPosition.x + self._MOVE_X * progress,
-            self._startPosition.y + self._getYOffset(progress),
+            self._startPosition.x + self._MOVE_X * xProgress,
+            self._startPosition.y + yOffset,
         )
         self._textParticle.setPosition(position)
 
-    def _getYOffset(self, progress: float) -> float:
-        if progress <= 0.5:
-            return -self._RISE * (progress / 0.5)
-        return -self._RISE + self._FALL * ((progress - 0.5) / 0.5)
+    @classmethod
+    def _getSpeedCurve(cls) -> Curve:
+        if cls._speedCurve is None:
+            from Source import Data
+
+            cls._speedCurve = Data.getCurve(cls._SPEED_CURVE_KEY)
+        return cls._speedCurve
 
     @staticmethod
     def _toVector2f(position: Union[Vector2f, Pair[float], Sequence[float]]) -> Vector2f:

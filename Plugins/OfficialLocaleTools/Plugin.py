@@ -10,7 +10,7 @@ import traceback
 from typing import Any, Dict, Optional, Tuple
 
 import openpyxl
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtWidgets
 
 import OfficialLocaleToolsLocaleIO as LocaleIO
 from OfficialLocaleToolsLocaleEditor import LocaleEditor
@@ -184,7 +184,6 @@ def hook_text_input_hint(
 def hook_submenu_view_locale_table(window: QtWidgets.QMainWindow) -> QtWidgets.QAction:
     menu = QtWidgets.QMenu(ELOC("OFFICIAL_LOCALE_MENU"), window)
     editAction = QtWidgets.QAction(ELOC("OFFICIAL_LOCALE_EDIT"), window)
-    editAction.setShortcut(QtGui.QKeySequence("F11"))
     editAction.triggered.connect(lambda checked=False: _openLocaleEditor(window))
     openAction = QtWidgets.QAction(ELOC("OFFICIAL_LOCALE_OPEN_FILE"), window)
     openAction.triggered.connect(lambda checked=False: _openLocaleFile(window))
@@ -195,6 +194,5 @@ def hook_submenu_view_locale_table(window: QtWidgets.QMainWindow) -> QtWidgets.Q
 
 def hook_submenu_export_locale(window: QtWidgets.QMainWindow) -> QtWidgets.QAction:
     action = QtWidgets.QAction(ELOC("OFFICIAL_LOCALE_EXPORT"), window)
-    action.setShortcut(QtGui.QKeySequence("F12"))
     action.triggered.connect(lambda checked=False: _exportLocale(window))
     return action

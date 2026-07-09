@@ -233,6 +233,7 @@ class MainWindow(
         self._actGameConfig.setIcon(wstyle.standardIcon(QtWidgets.QStyle.SP_FileDialogInfoView))
         self._actNewBlueprint = QtWidgets.QAction(ELOC("NEW_BLUEPRINT"), self)
         self._actNewAnimation = QtWidgets.QAction(ELOC("NEW_ANIMATION"), self)
+        self._actNewCurve = QtWidgets.QAction(ELOC("NEW_CURVE"), self)
         self._actDatabaseSystemConfig = QtWidgets.QAction(ELOC("SYSTEM_CONFIG"), self)
         self._actAnimationOverview = QtWidgets.QAction(ELOC("ANIMATION_OVERVIEW"), self)
         self._actDatabaseTilesetsData = QtWidgets.QAction(ELOC("TILESETS_DATA"), self)
@@ -299,6 +300,7 @@ class MainWindow(
         self._localeEditor: Optional[Any] = None
         self._blueprintEditors: Dict[str, Any] = {}
         self._blueprintEditor: Optional[Any] = None
+        self._curveEditors: Dict[str, Any] = {}
         self._animationOverview: Optional[Any] = None
         self._closing: bool = False
 

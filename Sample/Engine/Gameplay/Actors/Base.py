@@ -10,6 +10,7 @@ from ... import (
     Pair,
     Sprite,
     IntRect,
+    FloatRect,
     Vector2i,
     Vector2u,
     Vector2f,
@@ -17,6 +18,7 @@ from ... import (
     Angle,
     degrees,
     Utils,
+    ActorCore,
 )
 from ...Utils.Inner import IS_IOS_PLATFORM, warnIosShaderSkippedOnce
 from ... import Material
@@ -37,6 +39,7 @@ if TYPE_CHECKING:
         "material": 'LOC("ACTOR_VAR_MATERIAL")',
         "shaderPath": 'LOC("ACTOR_VAR_SHADER_PATH")',
         "hue": 'LOC("ACTOR_VAR_HUE")',
+        "collisionEnabled": 'LOC("ACTOR_VAR_COLLISION_ENABLED")',
     },
     VariableDisplayDescs={
         "tag": 'LOC("ACTOR_VAR_TAG_DESC")',
@@ -45,9 +48,10 @@ if TYPE_CHECKING:
         "material": 'LOC("ACTOR_VAR_MATERIAL_DESC")',
         "shaderPath": 'LOC("ACTOR_VAR_SHADER_PATH_DESC")',
         "hue": 'LOC("ACTOR_VAR_HUE_DESC")',
+        "collisionEnabled": 'LOC("ACTOR_VAR_COLLISION_ENABLED_DESC")',
     },
 )
-class _ActorBase(Sprite):
+class _ActorBase(ActorCore, Sprite):
     """Base class for all scene entities.
 
     Extends the SFML Sprite with transform hierarchy, material system,
@@ -55,7 +59,6 @@ class _ActorBase(Sprite):
     Not intended to be instantiated directly; use `Actor` instead.
     """
 
-    tag: str = ""  #: Identifier tag for lookups
     switchInterval: float = 0.2  #: Frame switch interval for sprite animation (seconds)
     animatable: bool = False  #: Whether sprite-sheet animation is enabled
     material: Material = Material()  #: Surface material (lighting, speed, opacity)
@@ -78,14 +81,15 @@ class _ActorBase(Sprite):
         args = [texture]
         if not rect is None:
             args.append(rect)
-        super().__init__(*args)
+        from ... import CellSize
 
-        if not tag is None:
+        ActorCore.__init__(self, CellSize)
+        Sprite.__init__(self, *args)
+
+        if tag is not None:
             self.tag = tag
         self._mapTag: str = "" if tag is None else str(tag)
         self._map: Optional[GameMap] = None
-        self._parent: Optional[_ActorBase] = None
-        self._children: List[_ActorBase] = []
         self._translation: Vector2f = Vector2f(0, 0)
         self._visible: bool = True
         self._texture: Optional[Texture] = texture
@@ -97,6 +101,10 @@ class _ActorBase(Sprite):
         self._shader: Optional[Shader] = None
         self._shaderError: bool = False
         self._loadShader()
+        self._syncMapCore()
+
+    def _syncMapCore(self) -> None:
+        self.syncFromGlobalBounds(self.getPosition(), Sprite.getGlobalBounds(self))
 
     def __eq__(self, other: object) -> bool:
         return self is other
@@ -233,12 +241,8 @@ class _ActorBase(Sprite):
 
         - \return Grid cell position as Vector2i
         """
-        from ... import CellSize
-
-        return Vector2i(
-            int(self.getPosition().x * 1.0 / CellSize + 0.5),
-            int(self.getPosition().y * 1.0 / CellSize + 0.5),
-        )
+        self._syncMapCore()
+        return ActorCore.getMapPosition(self)
 
     @ReturnType(pos=Pair[int])
     def v_getMapPosition(self) -> Pair[int]:
@@ -247,6 +251,35 @@ class _ActorBase(Sprite):
         - \return Grid cell position as a tuple of (x, y) integers
         """
         return self.getMapPosition().unpack()
+
+    @ReturnType(cells=List[Vector2i])
+    def getOccupiedMapCells(self, worldPosition: Optional[Vector2f] = None) -> List[Vector2i]:
+        r"""\brief Get all grid cells intersecting the actor bounds.
+
+        - \param worldPosition Optional hypothetical world position for the actor anchor.
+        - \return Grid cells occupied by the actor bounds.
+        """
+        self._syncMapCore()
+        if worldPosition is None:
+            return ActorCore.getOccupiedMapCells(self)
+        delta = worldPosition - self.getPosition()
+        from ... import CellSize
+
+        mapDelta = Vector2i(
+            int(round(delta.x / CellSize)),
+            int(round(delta.y / CellSize)),
+        )
+        return ActorCore.getOccupiedMapCellsAtMapPosition(self, self.getMapPosition() + mapDelta)
+
+    @ReturnType(cells=List[Vector2i])
+    def getOccupiedMapCellsAtMapPosition(self, mapPosition: Vector2i) -> List[Vector2i]:
+        r"""\brief Get grid cells occupied when the actor anchor is at a map position.
+
+        - \param mapPosition Target anchor map position.
+        - \return Grid cells occupied at that anchor position.
+        """
+        self._syncMapCore()
+        return ActorCore.getOccupiedMapCellsAtMapPosition(self, mapPosition)
 
     @ReturnType(pos=Vector2i)
     def getRelativeMapPosition(self) -> Vector2i:
@@ -290,6 +323,7 @@ class _ActorBase(Sprite):
         if self.getChildren():
             for child in self.getChildren():
                 child._updatePositionFromParent()
+        self._syncMapCore()
 
     @Meta(Vector2fVars=["position"])
     @ExecSplit(default=(None,))
@@ -344,6 +378,7 @@ class _ActorBase(Sprite):
         if self.getChildren():
             for child in self.getChildren():
                 child._updatePositionFromParent()
+        self._syncMapCore()
 
     @ReturnType(angle=Angle)
     def getRotation(self) -> Angle:
@@ -398,6 +433,7 @@ class _ActorBase(Sprite):
         if self.getChildren():
             for child in self.getChildren():
                 child._updateRotationFromParent()
+        self._syncMapCore()
 
     @ExecSplit(default=(None,))
     def rotate(self, angle: Union[Angle, float]) -> None:
@@ -414,6 +450,7 @@ class _ActorBase(Sprite):
         if self.getChildren():
             for child in self.getChildren():
                 child._updateRotationFromParent()
+        self._syncMapCore()
 
     @ExecSplit(default=(None,))
     def setRelativeRotation(self, angle: Union[Angle, float]) -> None:
@@ -482,6 +519,7 @@ class _ActorBase(Sprite):
         if self.getChildren():
             for child in self.getChildren():
                 child._updateScaleFromParent()
+        self._syncMapCore()
 
     @Meta(Vector2fVars=["factor"])
     @ExecSplit(default=(None,))
@@ -499,6 +537,7 @@ class _ActorBase(Sprite):
         if self.getChildren():
             for child in self.getChildren():
                 child._updateScaleFromParent()
+        self._syncMapCore()
 
     @Meta(Vector2fVars=["scale"])
     @ExecSplit(default=(None,))
@@ -541,7 +580,8 @@ class _ActorBase(Sprite):
 
         - \param origin New origin point as Vector2f, tuple, or list
         """
-        return super().setOrigin(origin)
+        super().setOrigin(origin)
+        self._syncMapCore()
 
     @ReturnType(translation=Vector2f)
     def getTranslation(self) -> Vector2f:
@@ -598,30 +638,6 @@ class _ActorBase(Sprite):
         """
         self._map = inMap
 
-    @ReturnType(parent=Optional["_ActorBase"])
-    def getParent(self) -> Optional[_ActorBase]:
-        r"""\brief Get the parent actor in the hierarchy.
-
-        - \return Parent actor, or None if this is the root
-        """
-        return self._parent
-
-    @ExecSplit(default=(None,))
-    def setParent(self, parent: Optional[_ActorBase]) -> None:
-        r"""\brief Set the parent actor.
-
-        - \param parent The parent actor to assign, or None to detach
-        """
-        self._parent = parent
-
-    @ReturnType(children=List["_ActorBase"])
-    def getChildren(self) -> List[_ActorBase]:
-        r"""\brief Get the list of child actors.
-
-        - \return List of child actors
-        """
-        return self._children
-
     @ExecSplit(default=(None,))
     def addChild(self, child: _ActorBase) -> None:
         r"""\brief Attach a child actor to this actor's hierarchy.
@@ -631,26 +647,13 @@ class _ActorBase(Sprite):
 
         - \param child The child actor to attach
         """
-        if child in self._children:
+        if child in self.getChildren():
             warnings.warn("Child already exists")
             return
-        self._children.append(child)
-        child.setParent(self)
+        super().addChild(child)
         if self._map:
             child.setMap(self._map)
             self._map.updateActorList()
-
-    @ExecSplit(default=(None,))
-    def removeChild(self, child: _ActorBase) -> None:
-        r"""\brief Remove a child actor from this actor's hierarchy.
-
-        - \param child The child actor to remove
-
-        - \throw ValueError If the child is not found in the hierarchy
-        """
-        if child not in self._children:
-            raise ValueError("Child not found")
-        self._children.remove(child)
 
     @ReturnType(visible=bool)
     def getVisible(self) -> bool:
@@ -724,6 +727,7 @@ class _ActorBase(Sprite):
         - \param resetRect If True, reset the texture rectangle to the texture size
         """
         super().setTexture(texture, resetRect)
+        self._syncMapCore()
 
     @ExecSplit(default=(None,))
     def setTexture(self, texture: Texture, resetRect: bool = False) -> None:
@@ -883,12 +887,12 @@ class _ActorBase(Sprite):
         self._mapTag = "" if tag is None else str(tag)
 
     def ensureMapTag(self) -> None:
-        r"""\brief Initialise `_mapTag` when the actor was created without one."""
-        if "_mapTag" not in self.__dict__:
-            if getattr(type(self), "_GENERATED_CLASS", False):
-                self._mapTag = ""
-            else:
-                self._mapTag = self.tag
+        r"""\brief Initialise map tag when the actor was created without one."""
+        if self._mapTag:
+            return
+        if getattr(type(self), "_GENERATED_CLASS", False):
+            return
+        self._mapTag = self.tag
 
     @TypeAdapter(offset=([tuple, list], Vector2f))
     def _superMove(self, offset: Union[Vector2f, Pair[float], List[float]]) -> None:
@@ -936,3 +940,4 @@ class _ActorBase(Sprite):
             if self._switchTimer >= self.switchInterval:
                 self._switchTimer = 0.0
                 self.setTextureRect(newRect)
+                self._syncMapCore()

@@ -12,6 +12,7 @@ from .BPBase import BPBase
 from .EngineExt import *
 from .Modified import *
 from .Decorators import *
+from .Curve import Curve
 
 GameRunning: bool = True
 CellSize: int = 32

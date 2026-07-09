@@ -17,6 +17,7 @@ from .ClassSelector import ClassSelector
 from .ActorInfo import ActorInfoPanel
 from .AnimationWindow import AnimationWindow, AnimationEditor
 from .AnimationOverview import AnimationOverview
+from .CurveWindow import CurveWindow, CurveEditor
 from .PackDialog import (
     LogDialog,
     PackPlatform,
@@ -54,6 +55,8 @@ __all__ = [
     "AnimationWindow",
     "AnimationEditor",
     "AnimationOverview",
+    "CurveWindow",
+    "CurveEditor",
     "LogDialog",
     "PackPlatform",
     "PackWorker",

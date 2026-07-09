@@ -41,7 +41,6 @@ class AutoSoundParams:
         "autoSoundParams": {"source": "autoSound", "op": "!=", "value": ""},
     },
     VariableDisplayNames={
-        "collisionEnabled": 'LOC("ACTOR_VAR_COLLISION_ENABLED")',
         "tickable": 'LOC("ACTOR_VAR_TICKABLE")',
         "speed": 'LOC("ACTOR_VAR_SPEED")',
         "autoSound": 'LOC("ACTOR_VAR_AUTO_SOUND")',
@@ -57,7 +56,6 @@ class AutoSoundParams:
         "childActorComp": 'LOC("ACTOR_VAR_CHILD_ACTOR_COMP")',
     },
     VariableDisplayDescs={
-        "collisionEnabled": 'LOC("ACTOR_VAR_COLLISION_ENABLED_DESC")',
         "tickable": 'LOC("ACTOR_VAR_TICKABLE_DESC")',
         "speed": 'LOC("ACTOR_VAR_SPEED_DESC")',
         "autoSound": 'LOC("ACTOR_VAR_AUTO_SOUND_DESC")',
@@ -81,7 +79,6 @@ class Actor(_ActorBase, BPBase):
     route (pathfinding) execution, and blueprint event dispatching.
     """
 
-    collisionEnabled: bool = False  #: Whether this actor blocks movement
     tickable: bool = False  #: Whether tick events are dispatched
     speed: float = 64.0  #: Movement speed in pixels per second
     autoSound: str = ""  #: Sound asset played automatically as a spatial sound
@@ -125,9 +122,22 @@ class Actor(_ActorBase, BPBase):
         self._departure: Optional[Vector2f] = None
         self._destination: Optional[Vector2f] = None
         self._realSpeed: float = 0.0
-        self._destroyed: bool = False
         self._autoSoundObject: Optional[Sound] = None
         self._autoSoundCooldown: float = 0.0
+        self._applyCollisionEnabledClassDefault()
+
+    def _applyCollisionEnabledClassDefault(self) -> None:
+        for cls in type(self).__mro__:
+            if cls is object:
+                break
+            if cls.__name__ == "ActorCore":
+                continue
+            if "collisionEnabled" not in cls.__dict__:
+                continue
+            default = cls.__dict__["collisionEnabled"]
+            if isinstance(default, bool):
+                self.setCollisionEnabled(default)
+                return
 
     @property
     def lightColour(self) -> Tuple[int, int, int, int]:
@@ -267,20 +277,15 @@ class Actor(_ActorBase, BPBase):
     @ExecSplit(default=(None,))
     def destroy(self) -> None:
         r"""Remove this actor from the current map and trigger `onDestroy`."""
-        if self._destroyed:
+        if self.isDestroyed():
             return
-        self._destroyed = True
+        self.destroyed = True
         self._stopAutoSound()
         for child in list(self.getChildren()):
             if isinstance(child, Actor):
                 child.destroy()
         if self._map:
             self._map.destroyActor(self)
-
-    @ReturnType(destroyed=bool)
-    def isDestroyed(self) -> bool:
-        r"""Check whether the actor has been destroyed."""
-        return self._destroyed
 
     @Meta(Vector2iVars=["offset"])
     @ExecSplit(success=(True,), fail=(False,))
@@ -350,45 +355,6 @@ class Actor(_ActorBase, BPBase):
                 for child in self.getChildren():
                     if isinstance(child, Actor):
                         child.setTickable(tickable, applyToChildren)
-
-    @ReturnType(visible=bool)
-    def getVisible(self) -> bool:
-        r"""Check whether this actor is visible.
-
-        - \return  `True` if visible, `False` otherwise
-        """
-        return self._visible
-
-    @ExecSplit(default=(None,))
-    def setVisible(self, visible: bool, applyToChildren: bool = True) -> None:
-        r"""Set actor visibility.
-
-        Optionally propagates the setting to all child actors.
-
-        - \param visible          Whether the actor should be visible
-        - \param applyToChildren  If `True`, propagate to all child actors
-        """
-        self._visible = visible
-        if applyToChildren:
-            if self.getChildren():
-                for child in self.getChildren():
-                    child.setVisible(visible, applyToChildren)
-
-    @ReturnType(collisionEnabled=bool)
-    def getCollisionEnabled(self) -> bool:
-        r"""Check whether this actor blocks movement of others.
-
-        - \return  `True` if collision is enabled, `False` otherwise
-        """
-        return self.collisionEnabled
-
-    @ExecSplit(default=(None,))
-    def setCollisionEnabled(self, enabled: bool) -> None:
-        r"""Enable or disable collision blocking.
-
-        - \param enabled  Whether to enable collision blocking
-        """
-        self.collisionEnabled = enabled
 
     @ReturnType(intersects=bool)
     def intersects(self, other: Actor) -> bool:

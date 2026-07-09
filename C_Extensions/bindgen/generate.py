@@ -132,11 +132,16 @@ def generate_extension(ext_key: str, ext_config: dict) -> bool:
     print(f"  [GEN] {os.path.relpath(generated_path, C_EXT_DIR)}")
 
     source_files = collect_source_files(ext_dir)
+    for rel_source in bindgen_conf.get("extra_sources", []):
+        source_path = os.path.join(C_EXT_DIR, rel_source.replace("\\", "/"))
+        if os.path.isfile(source_path):
+            source_files.append(os.path.relpath(source_path, ext_dir).replace("\\", "/"))
     cmake_gen = CMakeGen(project_name=name)
     cmake_content = cmake_gen.generate(
         source_files=source_files,
         generated_binding="_generated_bindings.cpp",
         needs_sfml=needs_sfml,
+        extra_include_dirs=include_dirs,
     )
 
     cmake_path = os.path.join(ext_dir, "CMakeLists.txt")

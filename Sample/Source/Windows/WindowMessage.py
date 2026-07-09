@@ -3,9 +3,9 @@
 from __future__ import annotations
 from enum import IntEnum
 import math
-from typing import Dict, Any, Optional, List, Union, Tuple, Callable
+from typing import ClassVar, Dict, Any, Optional, List, Union, Tuple, Callable
 import Engine
-from Engine import Color, Input, UI, Text, Vector2f, Vector2u, Vector2i, IntRect, FloatRect
+from Engine import Color, Curve, Input, UI, Text, Vector2f, Vector2u, Vector2i, IntRect, FloatRect
 from Engine.UI import RichText, TextStyle, PlainText, ListView
 from Engine.UI.FunctionalUI import FPlainText
 from Engine.UI.Base import FunctionalBase
@@ -26,6 +26,11 @@ class ContentMode(IntEnum):
     SELECTION = 1
 
 
+_FADE_IN_CURVE_KEY = "WindowMessageFadeIn"
+_FADE_OUT_CURVE_KEY = "WindowMessageFadeOut"
+_FALLBACK_FADE_SPEED = 1000.0
+
+
 class WindowMessage(WindowSelectable):
     r"""\brief Dialogue message window with typewriter effect and selection branches.
 
@@ -43,6 +48,7 @@ class WindowMessage(WindowSelectable):
     _SELECTION_LIST_HORIZONTAL_INSET = 32
     _TEXT_RENDER_GUTTER = 2
     _MAX_OPTIONS = 4
+    _fadeCurves: ClassVar[Dict[str, Optional[Curve]]] = {}
 
     def __init__(self) -> None:
         r"""\brief Construct a message window with default fade and layout settings."""
@@ -55,8 +61,7 @@ class WindowMessage(WindowSelectable):
         self._allowCancel: bool = True
         self._onFinished: Optional[Callable[[], None]] = None
         self._fadePhase: FadePhase = FadePhase.NOTHING
-        self._fadeInSpeed = 1000.0
-        self._fadeOutSpeed = 1000.0
+        self._fadeTime: float = 0.0
         self._pendingLayout: bool = False
         self._pendingRefPosition: Optional[Vector2f] = None
 
@@ -188,6 +193,7 @@ class WindowMessage(WindowSelectable):
         self._allowCancel = allowCancel
         self._onFinished = onFinished
         self._fadePhase = FadePhase.IN
+        self._fadeTime = 0.0
         self._name = self._normalizeText(name)
         self._nameText.setString(self._name)
         self._nameText.setVisible(bool(self._name.strip()))
@@ -218,6 +224,7 @@ class WindowMessage(WindowSelectable):
         self._selectionResult = selectionResult
         self._inDialogue = False
         self._fadePhase = FadePhase.OUT
+        self._fadeTime = 0.0
         if self._onFinished is not None:
             onFinished = self._onFinished
             self._onFinished = None
@@ -307,14 +314,17 @@ class WindowMessage(WindowSelectable):
             fadeTargets.append(self._text)
         elif self._contentMode == ContentMode.SELECTION and self._selectionListView is not None:
             fadeTargets.extend(self._selectionListView.getChildren())
+        self._fadeTime += deltaTime
+        curve = self._getFadeCurve(_FADE_IN_CURVE_KEY)
+        if curve is not None and curve.keys:
+            alpha = int(max(0.0, min(255.0, curve.evaluate(self._fadeTime))))
+            duration = self._getCurveDuration(curve)
+        else:
+            alpha = int(min(255.0, self._fadeTime * _FALLBACK_FADE_SPEED))
+            duration = 255.0 / _FALLBACK_FADE_SPEED
         for comp in fadeTargets:
-            a = comp.getColour().a
-            if a == 255:
-                continue
-            deltaAlpha = self._fadeInSpeed * deltaTime
-            a = int(min(a + deltaAlpha, 255))
-            comp.setColour(Color(255, 255, 255, a))
-        if all(comp.getColour().a == 255 for comp in fadeTargets):
+            comp.setColour(Color(255, 255, 255, alpha))
+        if self._fadeTime >= duration:
             self._fadePhase = FadePhase.NOTHING
             self._onFadeInComplete()
 
@@ -324,19 +334,38 @@ class WindowMessage(WindowSelectable):
             self.showPauseMark()
 
     def _fadeOut(self, deltaTime: float) -> None:
-        a = self.getColour().a
-        if a == 0:
+        self._fadeTime += deltaTime
+        curve = self._getFadeCurve(_FADE_OUT_CURVE_KEY)
+        if curve is not None and curve.keys:
+            alpha = int(max(0.0, min(255.0, curve.evaluate(self._fadeTime))))
+            duration = self._getCurveDuration(curve)
+        else:
+            alpha = int(max(0.0, 255.0 - self._fadeTime * _FALLBACK_FADE_SPEED))
+            duration = 255.0 / _FALLBACK_FADE_SPEED
+        self.setColour(Color(255, 255, 255, alpha))
+        if self._fadeTime >= duration or alpha == 0:
             self._fadePhase = FadePhase.NOTHING
             self._inDialogue = False
             self.setVisible(False)
-            return
-        deltaAlpha = self._fadeOutSpeed * deltaTime
-        a = int(max(a - deltaAlpha, 0))
-        self.setColour(Color(255, 255, 255, a))
-        if a == 0:
-            self._fadePhase = FadePhase.NOTHING
-            self._inDialogue = False
-            self.setVisible(False)
+
+    @classmethod
+    def _getFadeCurve(cls, key: str) -> Optional[Curve]:
+        if key in cls._fadeCurves:
+            return cls._fadeCurves[key]
+        try:
+            from Source import Data
+
+            curve = Data.getCurve(key)
+        except KeyError:
+            curve = None
+        cls._fadeCurves[key] = curve
+        return curve
+
+    @staticmethod
+    def _getCurveDuration(curve: Optional[Curve]) -> float:
+        if curve is None or len(curve.keys) < 2:
+            return 0.0
+        return float(curve.keys[-1]["time"]) - float(curve.keys[0]["time"])
 
     def _getMaxWindowWidth(self) -> int:
         gameWidth = int(GlobalSystem.getGameSize().x)

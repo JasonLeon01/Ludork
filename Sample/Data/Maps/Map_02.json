@@ -863,80 +863,9 @@
                 ],
                 [
                     null,
-                    null,
-                    null,
-                    null,
-                    null,
                     203,
                     204,
                     205,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    211,
-                    212,
-                    213,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    219,
-                    220,
-                    221,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    227,
-                    228,
-                    229,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null
-                ],
-                [
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null
-                ],
-                [
                     null,
                     null,
                     null,
@@ -945,13 +874,13 @@
                     200,
                     201,
                     202,
-                    null,
-                    null,
-                    null,
-                    null,
                     null
                 ],
                 [
+                    null,
+                    211,
+                    212,
+                    213,
                     null,
                     null,
                     null,
@@ -960,13 +889,13 @@
                     208,
                     209,
                     210,
-                    null,
-                    null,
-                    null,
-                    null,
                     null
                 ],
                 [
+                    null,
+                    219,
+                    220,
+                    221,
                     null,
                     null,
                     null,
@@ -975,6 +904,32 @@
                     216,
                     217,
                     218,
+                    null
+                ],
+                [
+                    null,
+                    227,
+                    228,
+                    229,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    224,
+                    225,
+                    226,
+                    null
+                ],
+                [
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
                     null,
                     null,
                     null,
@@ -987,9 +942,54 @@
                     null,
                     null,
                     null,
-                    224,
-                    225,
-                    226,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                [
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                [
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+                ],
+                [
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
                     null,
                     null,
                     null,
@@ -1379,11 +1379,19 @@
                 ]
             },
             {
-                "tag": "Data.Blueprints.Enemies.BP_Enemy_BigWizard_default_6_11",
+                "tag": "Data.Blueprints.Enemies.BP_Enemy_BigWizard_default_6_5",
                 "bp": "Data.Blueprints.Enemies.BP_Enemy_BigWizard",
                 "position": [
                     6,
-                    11
+                    5
+                ]
+            },
+            {
+                "tag": "Data.Blueprints.Enemies.BP_Enemy_GreatIron_default_6_10",
+                "bp": "Data.Blueprints.Enemies.BP_Enemy_GreatIron",
+                "position": [
+                    6,
+                    10
                 ]
             }
         ]
@@ -1445,8 +1453,22 @@
             "openConditionName": "MTExample",
             "openConditionVal": 2
         },
-        "Data.Blueprints.Enemies.BP_Enemy_BigWizard_default_6_11": {
+        "Data.Blueprints.Enemies.BP_Enemy_BigWizard_default_6_5": {
             "shaderPath": "Rainbow.frag"
+        },
+        "Data.Blueprints.Enemies.BP_Enemy_GreatIron_default_6_10": {
+            "defaultTranslation": [
+                16.0,
+                0.0
+            ],
+            "defaultOrigin": [
+                16.0,
+                16.0
+            ],
+            "defaultScale": [
+                3.0,
+                3.0
+            ]
         }
     },
     "type": "map"

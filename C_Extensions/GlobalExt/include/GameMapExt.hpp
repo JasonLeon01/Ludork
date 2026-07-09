@@ -14,13 +14,15 @@
 #include <vector>
 
 namespace py = pybind11;
+class ActorCore;
 using ActorDict = std::unordered_map<std::string, std::vector<py::object>>;
+using ActorCoreDict = std::unordered_map<std::string, std::vector<ActorCore *>>;
 using TileGrids = std::vector<std::vector<std::optional<int>>>;
 using IntPair = std::pair<int, int>;
 struct IntPairHash {
     std::size_t operator()(const IntPair &value) const;
 };
-using OccupancyMap = std::unordered_map<IntPair, std::vector<py::object>, IntPairHash>;
+using OccupancyMap = std::unordered_map<IntPair, std::vector<ActorCore *>, IntPairHash>;
 using LayerVisibleMap = std::unordered_map<std::string, bool>;
 using LayerPassableMap = std::unordered_map<std::string, std::vector<bool>>;
 
@@ -114,7 +116,8 @@ public:
     ///
     ////////////////////////////////////////////////////////////
     BIND_METHOD()
-    PathResult findPathExt(const sf::Vector2i &start, const sf::Vector2i &goal, const sf::Vector2u &size);
+    PathResult findPathExt(const sf::Vector2i &start, const sf::Vector2i &goal, const sf::Vector2u &size,
+                           ActorCore &movingActor);
 
     ////////////////////////////////////////////////////////////
     /// \brief Build a 2D map of dynamic material property values
@@ -179,7 +182,7 @@ public:
     ///
     ////////////////////////////////////////////////////////////
     BIND_METHOD()
-    std::vector<py::object> getCollisionAt(int x, int y, const py::object &selfActor);
+    std::vector<py::object> getCollisionAt(int x, int y, ActorCore &selfActor);
 
     ////////////////////////////////////////////////////////////
     /// \brief Get overlapping actors cached at one map position
@@ -192,7 +195,7 @@ public:
     ///
     ////////////////////////////////////////////////////////////
     BIND_METHOD()
-    std::vector<py::object> getOverlapsAt(int x, int y, const py::object &selfActor);
+    std::vector<py::object> getOverlapsAt(int x, int y, ActorCore &selfActor);
 
     ////////////////////////////////////////////////////////////
     /// \brief Python tilemap object reference
@@ -209,11 +212,13 @@ public:
     std::vector<std::string> layerKeysRef;
 
     ////////////////////////////////////////////////////////////
-    /// \brief Layer to actor list mapping
+    /// \brief Synchronise cached actor core pointers from Python actor lists
+    ///
+    /// - \param actors Layer name to Python actor list mapping
     ///
     ////////////////////////////////////////////////////////////
-    BIND_PROPERTY()
-    ActorDict actorsRef;
+    BIND_METHOD()
+    void syncActorsRef(const ActorDict &actors);
 
     ////////////////////////////////////////////////////////////
     /// \brief Layered tile data references
@@ -260,20 +265,6 @@ public:
     ////////////////////////////////////////////////////////////
     BIND_PROPERTY()
     py::function getLayer;
-
-    ////////////////////////////////////////////////////////////
-    /// \brief Python callback for querying actor map position
-    ///
-    ////////////////////////////////////////////////////////////
-    BIND_PROPERTY()
-    py::function getMapPosition;
-
-    ////////////////////////////////////////////////////////////
-    /// \brief Python callback for actor collision enable flag
-    ///
-    ////////////////////////////////////////////////////////////
-    BIND_PROPERTY()
-    py::function getCollisionEnabled;
 
 private:
     ////////////////////////////////////////////////////////////
@@ -323,6 +314,30 @@ private:
     bool passable(int x, int y, int sx, int sy, int gx, int gy);
 
     ////////////////////////////////////////////////////////////
+    /// \brief Register one actor into all occupied cells in the occupancy map
+    ///
+    /// - \param actor Actor object to register
+    ///
+    ////////////////////////////////////////////////////////////
+    void registerActorOccupancy(ActorCore &actor);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Check whether a pathfinding anchor node is passable for a moving actor
+    ///
+    /// - \param x Node anchor X coordinate
+    /// - \param y Node anchor Y coordinate
+    /// - \param sx Start anchor X coordinate
+    /// - \param sy Start anchor Y coordinate
+    /// - \param gx Goal anchor X coordinate
+    /// - \param gy Goal anchor Y coordinate
+    /// - \param movingActor Moving actor used for footprint checks
+    ///
+    /// - \return `true` when the node is passable
+    ///
+    ////////////////////////////////////////////////////////////
+    bool nodePassableForActor(int x, int y, int sx, int sy, int gx, int gy, const ActorCore &movingActor);
+
+    ////////////////////////////////////////////////////////////
     /// \brief Check whether a layer should be considered for tile passability
     ///
     /// - \param layerName Layer key
@@ -344,26 +359,6 @@ private:
     bool tryGetLayerPassability(const std::string &layerName, int x, int y, bool &outPassable) const;
 
     ////////////////////////////////////////////////////////////
-    /// \brief Check whether an actor object has been destroyed
-    ///
-    /// - \param actor Actor object to query
-    ///
-    /// - \return `true` when the actor reports destroyed
-    ///
-    ////////////////////////////////////////////////////////////
-    bool actorDestroyed(const py::object &actor) const;
-
-    ////////////////////////////////////////////////////////////
-    /// \brief Collect descendant actor identities for filtering child actors
-    ///
-    /// - \param actor Root actor object
-    ///
-    /// - \return Set of descendant Python object pointers
-    ///
-    ////////////////////////////////////////////////////////////
-    std::unordered_set<PyObject *> getDescendantActorPointers(const py::object &actor) const;
-
-    ////////////////////////////////////////////////////////////
     /// \brief Query dynamic material property at one map position
     ///
     /// - \param pos Tile position
@@ -377,5 +372,6 @@ private:
                                    const py::object &invalidValue);
     sf::Shader *materialShader_;
     OccupancyMap occupancyMap_;
+    ActorCoreDict actorsCoreRef_;
     std::map<std::pair<std::string, int>, std::string> uniformArrayNameCache_;
 };

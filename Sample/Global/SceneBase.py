@@ -199,6 +199,7 @@ class SceneBase:
             deltaTime = Manager.TimeManager.v_getDeltaTime()
             self._uiManager._updatePerformanceInfo(deltaTime)
             self._uiManager._logicHandle(deltaTime)
+            self._updateCommonTipOverlay(deltaTime)
             self._renderHandle(deltaTime)
             System.clearCanvas()
             self.onLateTick(deltaTime)
@@ -223,8 +224,11 @@ class SceneBase:
                         self._animList.remove(anim)
                 for anim in self._animList:
                     anim.update(deltaTime)
-            self._commonTipController.onTick(deltaTime)
-            self._commonTipParticleSystem.onTick(deltaTime)
+
+    def _updateCommonTipOverlay(self, deltaTime: float) -> None:
+        r"""\brief Update common tip overlay state on the main thread before rendering."""
+        self._commonTipController.onTick(deltaTime)
+        self._commonTipParticleSystem.onTick(deltaTime)
 
     def _fixedLogicHandle(self, fixedDelta: float) -> None:
         self._uiManager._fixedLogicHandle(fixedDelta)

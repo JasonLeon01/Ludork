@@ -22,7 +22,7 @@ from .Canvas import Canvas
 from .Text import TextStyle, PlainText, RichText
 from .Image import Image
 from .Window import Window
-from .Rect import Rect
+from .Rect import Rect, SELECTION_RECT_OPACITY_CURVE_KEY
 from .SolidRect import SolidRect
 from .ListView import ListView
 

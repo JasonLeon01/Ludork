@@ -1219,6 +1219,74 @@
     "zh_CN": "创建成功！请保存以应用文件生成。",
     "en_GB": "Creation successful! Please save to apply file generation."
   },
+  "NEW_CURVE": {
+    "zh_CN": "新建曲线",
+    "en_GB": "New Curve"
+  },
+  "SELECT_CURVE_PATH": {
+    "zh_CN": "选择曲线保存路径",
+    "en_GB": "Select curve save path"
+  },
+  "CURVE_EXISTS": {
+    "zh_CN": "曲线已存在",
+    "en_GB": "Curve already exists"
+  },
+  "HINT_CREATE_CURVE_SUCCESS": {
+    "zh_CN": "创建成功！请保存以应用文件生成。",
+    "en_GB": "Creation successful! Please save to apply file generation."
+  },
+  "CURVE_WINDOW": {
+    "zh_CN": "曲线窗口",
+    "en_GB": "Curve Window"
+  },
+  "CURVE_NAME": {
+    "zh_CN": "曲线名称",
+    "en_GB": "Curve Name"
+  },
+  "CURVE_DEFAULT_VALUE": {
+    "zh_CN": "默认值",
+    "en_GB": "Default Value"
+  },
+  "CURVE_PRE_INFINITY": {
+    "zh_CN": "前置外推",
+    "en_GB": "Pre Infinity"
+  },
+  "CURVE_POST_INFINITY": {
+    "zh_CN": "后置外推",
+    "en_GB": "Post Infinity"
+  },
+  "CURVE_VALUE": {
+    "zh_CN": "值",
+    "en_GB": "Value"
+  },
+  "CURVE_INTERPOLATION": {
+    "zh_CN": "插值",
+    "en_GB": "Interpolation"
+  },
+  "CURVE_ARRIVE_TANGENT": {
+    "zh_CN": "到达切线",
+    "en_GB": "Arrive Tangent"
+  },
+  "CURVE_LEAVE_TANGENT": {
+    "zh_CN": "离开切线",
+    "en_GB": "Leave Tangent"
+  },
+  "CURVE_ADD_KEY": {
+    "zh_CN": "添加关键帧",
+    "en_GB": "Add Key"
+  },
+  "CURVE_KEY_PROPERTIES": {
+    "zh_CN": "关键帧属性",
+    "en_GB": "Key Properties"
+  },
+  "CURVE_FIT_VIEW": {
+    "zh_CN": "适应视图",
+    "en_GB": "Fit View"
+  },
+  "CURVE_CANVAS_HINT": {
+    "zh_CN": "双击添加关键帧 · 拖拽左右蓝色切线调整曲率 · 滚轮缩放时间 · Ctrl+滚轮缩放值 · 中键平移",
+    "en_GB": "Double-click to add key · Drag blue tangents to adjust curvature · Wheel zooms time · Ctrl+wheel zooms value · Middle-drag to pan"
+  },
   "RELOAD_MODULE": {
     "zh_CN": "重载模块",
     "en_GB": "Reload Module"

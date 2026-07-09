@@ -17,7 +17,6 @@
                 "parentMenu": "DATABASE",
                 "label": "EXPORT_LOCALE",
                 "localeKey": "OFFICIAL_LOCALE_EXPORT",
-                "shortcut": "F12",
                 "separatorAfter": true
             }
         ]

@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import List
-from Engine import Color, ParticleSystem, TextParticle, UI, Vector2f
+from typing import ClassVar, Dict, List, Optional
+from Engine import Color, Curve, ParticleSystem, TextParticle, UI, Vector2f
 from Engine.Utils import Math
+
+
+_ALPHA_IN_CURVE_KEY = "Global/CommonTipAlphaIn"
+_ALPHA_OUT_CURVE_KEY = "Global/CommonTipAlphaOut"
+_RISE_CURVE_KEY = "Global/CommonTipRise"
 
 
 @dataclass
@@ -39,6 +44,7 @@ class CommonTipController:
     _HOLD_TOP = 0.5
     _FADE_OUT = 0.35
     _RISE = 16.0
+    _curves: ClassVar[Dict[str, Optional[Curve]]] = {}
 
     def __init__(self, particleSystem: ParticleSystem, fontSize: int = 20) -> None:
         r"""
@@ -68,7 +74,6 @@ class CommonTipController:
         if font is None:
             return
 
-        # Construct with an empty string and then set content to reduce encoding issues in some bindings.
         textParticle = TextParticle(
             self._particleSystem,
             lambda _a, _b, _p: None,
@@ -83,7 +88,6 @@ class CommonTipController:
 
         index = len(self._tips)
         targetY = self._getScaledScreenY(index)
-        # All tips start with fade_in to have fade-in animation
         self._tips.append(
             _TipItem(
                 textParticle=textParticle,
@@ -120,9 +124,9 @@ class CommonTipController:
 
         top = self._tips[0]
         if top.phase == "fade_in":
-            top.fadeProgress = min(1.0, top.fadeProgress + deltaTime / max(0.001, self._FADE_IN))
-            top.alpha = 255.0 * top.fadeProgress
-            if top.fadeProgress >= 1.0:
+            top.fadeProgress += deltaTime
+            top.alpha = self._evaluateFadeInAlpha(top.fadeProgress)
+            if top.fadeProgress >= self._getFadeInDuration():
                 top.alpha = 255.0
                 top.phase = "wait" if not self._shifting else "queued"
                 top.timer = 0.0
@@ -137,19 +141,20 @@ class CommonTipController:
                 top.phase = "fade_out"
                 top.fadeProgress = 0.0
         elif top.phase == "fade_out":
-            top.fadeProgress = min(1.0, top.fadeProgress + deltaTime / max(0.001, self._FADE_OUT))
-            top.alpha = 255.0 * (1.0 - top.fadeProgress)
-            top.screenY = top.targetScreenY - self._getScaledDistance(self._RISE) * top.fadeProgress
-            if top.fadeProgress >= 1.0:
+            top.fadeProgress += deltaTime
+            top.alpha = self._evaluateFadeOutAlpha(top.fadeProgress)
+            riseOffset = self._evaluateFadeOutRise(top.fadeProgress)
+            top.screenY = top.targetScreenY - self._getScaledDistance(riseOffset)
+            if top.fadeProgress >= self._getFadeOutDuration():
                 self._removeTopTip()
                 if len(self._tips) == 0:
                     return
 
         for item in self._tips[1:]:
             if item.phase == "fade_in":
-                item.fadeProgress = min(1.0, item.fadeProgress + deltaTime / max(0.001, self._FADE_IN))
-                item.alpha = 255.0 * item.fadeProgress
-                if item.fadeProgress >= 1.0:
+                item.fadeProgress += deltaTime
+                item.alpha = self._evaluateFadeInAlpha(item.fadeProgress)
+                if item.fadeProgress >= self._getFadeInDuration():
                     item.alpha = 255.0
                     item.phase = "queued"
             elif item.phase == "queued":
@@ -181,6 +186,60 @@ class CommonTipController:
             screenX = centreScreenX - (float(bounds.position.x) + float(bounds.size.x) * 0.5)
             item.textParticle.setPosition(Vector2f(screenX, item.screenY))
             item.textParticle.setFillColor(Color(255, 255, 255, int(Math.Clamp(item.alpha, 0.0, 255.0))))
+
+    def _evaluateFadeInAlpha(self, elapsed: float) -> float:
+        curve = self._getCurve(_ALPHA_IN_CURVE_KEY)
+        if curve is not None and curve.keys:
+            return max(0.0, min(255.0, curve.evaluate(elapsed)))
+        progress = min(1.0, elapsed / max(0.001, self._FADE_IN))
+        return 255.0 * progress
+
+    def _evaluateFadeOutAlpha(self, elapsed: float) -> float:
+        curve = self._getCurve(_ALPHA_OUT_CURVE_KEY)
+        if curve is not None and curve.keys:
+            return max(0.0, min(255.0, curve.evaluate(elapsed)))
+        progress = min(1.0, elapsed / max(0.001, self._FADE_OUT))
+        return 255.0 * (1.0 - progress)
+
+    def _evaluateFadeOutRise(self, elapsed: float) -> float:
+        curve = self._getCurve(_RISE_CURVE_KEY)
+        if curve is not None and curve.keys:
+            return max(0.0, curve.evaluate(elapsed))
+        progress = min(1.0, elapsed / max(0.001, self._FADE_OUT))
+        return self._RISE * progress
+
+    def _getFadeInDuration(self) -> float:
+        curve = self._getCurve(_ALPHA_IN_CURVE_KEY)
+        duration = self._getCurveDuration(curve)
+        return duration if duration > 0.0 else self._FADE_IN
+
+    def _getFadeOutDuration(self) -> float:
+        curve = self._getCurve(_RISE_CURVE_KEY)
+        duration = self._getCurveDuration(curve)
+        if duration > 0.0:
+            return duration
+        curve = self._getCurve(_ALPHA_OUT_CURVE_KEY)
+        duration = self._getCurveDuration(curve)
+        return duration if duration > 0.0 else self._FADE_OUT
+
+    @classmethod
+    def _getCurve(cls, key: str) -> Optional[Curve]:
+        if key in cls._curves:
+            return cls._curves[key]
+        try:
+            from Source import Data
+
+            curve = Data.getCurve(key)
+        except KeyError:
+            curve = None
+        cls._curves[key] = curve
+        return curve
+
+    @staticmethod
+    def _getCurveDuration(curve: Optional[Curve]) -> float:
+        if curve is None or len(curve.keys) < 2:
+            return 0.0
+        return float(curve.keys[-1]["time"]) - float(curve.keys[0]["time"])
 
     def _getScaledFontSize(self) -> int:
         from Global import System

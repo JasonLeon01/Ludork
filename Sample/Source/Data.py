@@ -6,7 +6,7 @@ import os
 import zlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable, Dict, Optional, Tuple, Type
-from Engine import Vector2f, Vector2u, Vector2i, IntRect, Image, Tileset, AutoTile, Material
+from Engine import Vector2f, Vector2u, Vector2i, IntRect, Image, Tileset, AutoTile, Material, Curve
 from Engine.Gameplay.Actors import Actor
 from Engine.Utils import File, Inner
 from Engine.Utils.DataValue import evalDataExpression, resolveAttrValueType, resolveTypedDataValue, shouldEvalValueType
@@ -21,8 +21,9 @@ _MAX_DATA_LOAD_WORKERS = 4
 
 class _Data:
     def __init__(self) -> None:
-        self.dataKinds = 5
+        self.dataKinds = 6
         self._animationData: Dict[str, Dict[str, Any]] = {}
+        self._curveData: Dict[str, Curve] = {}
         self._commonFunctionsData: Dict[str, Dict[str, Any]] = {}
         self._tilesetData: Dict[str, Tileset] = {}
         self._autoTileData: Dict[str, AutoTile] = {}
@@ -104,15 +105,35 @@ class _Data:
         generalRoot = os.path.join(".", "Data", "General")
         self._loadData(generalRoot, self._generalData, onFileLoaded=onFileLoaded)
 
+    def loadCurves(self, onFileLoaded: Optional[Callable[[], None]] = None) -> None:
+        curveRoot = os.path.join(".", "Data", "Curves")
+        self._curveData.clear()
+        if not os.path.exists(curveRoot):
+            return
+        self._loadRecursiveData(curveRoot, self._curveData, wrapper=Curve.fromData, onFileLoaded=onFileLoaded)
+
     def countLoadableFiles(
         self,
         dataRoot: str,
         needExt: Optional[str] = None,
         defaultType: Dict[str, Callable] = {".dat": File.loadData, ".json": File.getJSONData},
+        recursive: bool = False,
     ) -> int:
         if not os.path.exists(dataRoot):
             return 0
         count = 0
+        if recursive:
+            for root, _, files in os.walk(dataRoot):
+                for file in files:
+                    relPath = os.path.relpath(os.path.join(root, file), dataRoot).replace("\\", "/")
+                    _, extensionPart = self.splitCompound(relPath)
+                    if needExt is not None and extensionPart != needExt:
+                        continue
+                    for ext in defaultType:
+                        if extensionPart == ext or extensionPart.endswith(ext):
+                            count += 1
+                            break
+            return count
         for file in os.listdir(dataRoot):
             _, extensionPart = self.splitCompound(file)
             if needExt is not None and extensionPart != needExt:
@@ -144,6 +165,47 @@ class _Data:
                 if extensionPart == ext or extensionPart.endswith(ext):
                     files.append(file)
                     break
+        if not files:
+            return
+        maxWorkers = min(len(files), os.cpu_count() or _MAX_DATA_LOAD_WORKERS, _MAX_DATA_LOAD_WORKERS)
+        results: list[Optional[Tuple[str, Any]]] = [None] * len(files)
+        with ThreadPoolExecutor(max_workers=maxWorkers) as executor:
+            futures = {
+                executor.submit(self._loadDataFile, dataRoot, file, defaultType, wrapper, category): index
+                for index, file in enumerate(files)
+            }
+            for future in as_completed(futures):
+                results[futures[future]] = future.result()
+                if onFileLoaded is not None:
+                    onFileLoaded()
+        for result in results:
+            if result is not None:
+                namePart, payload = result
+                dataVal[namePart] = payload
+
+    def _loadRecursiveData(
+        self,
+        dataRoot: str,
+        dataVal: Dict[str, Any],
+        needExt: Optional[str] = None,
+        defaultType: Dict[str, Callable] = {".dat": File.loadData, ".json": File.getJSONData},
+        wrapper: Optional[Callable[[Any], Any]] = None,
+        onFileLoaded: Optional[Callable[[], None]] = None,
+    ) -> None:
+        if not os.path.exists(dataRoot):
+            raise FileNotFoundError(f"Error: Data path {dataRoot} does not exist.")
+        category = os.path.basename(dataRoot.rstrip(os.sep))
+        files: list[str] = []
+        for root, _, dirFiles in os.walk(dataRoot):
+            for file in dirFiles:
+                relPath = os.path.relpath(os.path.join(root, file), dataRoot).replace("\\", "/")
+                _, extensionPart = self.splitCompound(relPath)
+                if needExt is not None and extensionPart != needExt:
+                    continue
+                for ext in defaultType:
+                    if extensionPart == ext or extensionPart.endswith(ext):
+                        files.append(relPath)
+                        break
         if not files:
             return
         maxWorkers = min(len(files), os.cpu_count() or _MAX_DATA_LOAD_WORKERS, _MAX_DATA_LOAD_WORKERS)
@@ -240,6 +302,9 @@ class _Data:
         payload["cacheKey"] = name
         payload["cacheStore"] = self._animCache
         return payload
+
+    def getCurve(self, name: str) -> Curve:
+        return self._curveData[name]
 
     def getTileset(self, name: str) -> Tileset:
         return self._tilesetData[name]
@@ -507,16 +572,18 @@ def countLoadableFiles(
     dataRoot: str,
     needExt: Optional[str] = None,
     defaultType: Dict[str, Callable] = {".dat": File.loadData, ".json": File.getJSONData},
+    recursive: bool = False,
 ) -> int:
     r"""\brief Count loadable data files under a directory.
 
     - \param dataRoot Root directory to scan.
     - \param needExt Optional required file extension filter.
     - \param defaultType Extension-to-loader mapping used to decide loadable files.
+    - \param recursive Whether to scan subdirectories recursively.
 
     - \return Number of loadable files.
     """
-    return _data.countLoadableFiles(dataRoot, needExt, defaultType)
+    return _data.countLoadableFiles(dataRoot, needExt, defaultType, recursive)
 
 
 def loadAnimations(onFileLoaded: Optional[Callable[[], None]] = None) -> None:
@@ -559,6 +626,14 @@ def loadGeneralData(onFileLoaded: Optional[Callable[[], None]] = None) -> None:
     _data.loadGeneralData(onFileLoaded)
 
 
+def loadCurves(onFileLoaded: Optional[Callable[[], None]] = None) -> None:
+    r"""\brief Load all curve data from the Data/Curves directory.
+
+    - \param onFileLoaded Optional callback invoked after each file is loaded.
+    """
+    _data.loadCurves(onFileLoaded)
+
+
 def getAnimation(name: str) -> Dict[str, Any]:
     r"""\brief Get animation data by name.
 
@@ -566,6 +641,15 @@ def getAnimation(name: str) -> Dict[str, Any]:
     - \return Animation configuration dictionary.
     """
     return _data.getAnimation(name)
+
+
+def getCurve(name: str) -> Curve:
+    r"""\brief Get a curve by name.
+
+    - \param name The curve name.
+    - \return The Curve object.
+    """
+    return _data.getCurve(name)
 
 
 def getTileset(name: str) -> Tileset:

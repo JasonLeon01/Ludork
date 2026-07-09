@@ -1,0 +1,30 @@
+{
+    "type": "curve",
+    "name": "SelectionRectOpacity",
+    "defaultValue": 255.0,
+    "preInfinity": "constant",
+    "postInfinity": "constant",
+    "keys": [
+        {
+            "time": 0.0,
+            "value": 255.0,
+            "interpolation": "linear",
+            "arriveTangent": 0.0,
+            "leaveTangent": 0.0
+        },
+        {
+            "time": 1.3229166667,
+            "value": 128.0,
+            "interpolation": "linear",
+            "arriveTangent": 0.0,
+            "leaveTangent": 0.0
+        },
+        {
+            "time": 2.6458333333,
+            "value": 255.0,
+            "interpolation": "linear",
+            "arriveTangent": 0.0,
+            "leaveTangent": 0.0
+        }
+    ]
+}

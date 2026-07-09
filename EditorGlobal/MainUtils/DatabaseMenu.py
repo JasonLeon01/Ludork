@@ -23,6 +23,7 @@ from Widgets import (
     ClassSelector,
     AnimationWindow,
     AnimationOverview,
+    CurveWindow,
     GeneralDataEditor,
 )
 from Widgets.Utils import GameConfigDialog, FileSelectorDialog
@@ -180,6 +181,17 @@ class DatabaseMenuMixin:
 
     def _onAnimationModified(self) -> None:
         self._refreshInfo()
+
+    def _onCurveModified(self) -> None:
+        self._refreshInfo()
+
+    def _getCurveEditors(self) -> Dict[str, Any]:
+        return self._curveEditors
+
+    def _onCurveEditorDestroyedByEditor(self, editor: Any) -> None:
+        for key, value in list(self._curveEditors.items()):
+            if value is editor:
+                self._curveEditors.pop(key, None)
 
     def _onGameConfig(self, checked: bool = False) -> None:
         dlg = GameConfigDialog(self, self._pendingGameConfig)
@@ -371,6 +383,84 @@ class DatabaseMenuMixin:
         GameData.animationsData[key] = data
         self._refreshInfo()
         QtWidgets.QMessageBox.information(self, ELOC("SUCCESS"), ELOC("HINT_CREATE_ANIM_SUCCESS"))
+
+    def _onNewCurve(self, checked: bool = False) -> None:
+        curvesRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Curves")
+        if not os.path.exists(curvesRoot):
+            os.makedirs(curvesRoot)
+
+        dlg = FileSelectorDialog(
+            self, curvesRoot, DATA_FILE_DIALOG_FILTER, ELOC("SELECT_CURVE_PATH"), save=True
+        )
+        if dlg.exec_() != QtWidgets.QDialog.Accepted:
+            return
+        sel = dlg.selectedFiles()
+        if not sel:
+            return
+        fp = os.path.abspath(sel[0])
+        rel = os.path.relpath(fp, curvesRoot)
+        namePart, ext = os.path.splitext(rel)
+        if not ext:
+            nf = dlg.selectedNameFilter().lower()
+            ext = DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON] if DATA_FORMAT_JSON in nf else DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]
+        key = namePart.replace("\\", "/")
+        if key in GameData.curvesData:
+            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("CURVE_EXISTS"))
+            return
+
+        data = {
+            "type": "curve",
+            "name": os.path.basename(namePart),
+            "defaultValue": 0.0,
+            "preInfinity": "constant",
+            "postInfinity": "constant",
+            "keys": [
+                {
+                    "time": 0.0,
+                    "value": 0.0,
+                    "interpolation": "linear",
+                    "arriveTangent": 0.0,
+                    "leaveTangent": 0.0,
+                },
+                {
+                    "time": 1.0,
+                    "value": 1.0,
+                    "interpolation": "linear",
+                    "arriveTangent": 0.0,
+                    "leaveTangent": 0.0,
+                },
+            ],
+        }
+        if ext.lower() == DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]:
+            data["isJson"] = True
+
+        GameData.RecordSnapshot()
+        GameData.curvesData[key] = data
+        self._refreshInfo()
+        self._onDataBaseShowCurveWindow(key, GameData.curvesData[key])
+        QtWidgets.QMessageBox.information(self, ELOC("SUCCESS"), ELOC("HINT_CREATE_CURVE_SUCCESS"))
+
+    def _onDataBaseShowCurveWindow(self, title: str, data: Dict[str, Any]) -> None:
+        editors = self._getCurveEditors()
+        editor = editors.get(title)
+        if editor is not None:
+            try:
+                editor.reloadData(title, data)
+                editor.show()
+                editor.activateWindow()
+                editor.raise_()
+                return
+            except RuntimeError:
+                editors.pop(title, None)
+
+        editor = CurveWindow(self, title, data)
+        editor.MODIFIED.connect(self._onCurveModified)
+        editor.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        editors[title] = editor
+        editor.destroyed.connect(lambda _obj=None, e=editor: self._onCurveEditorDestroyedByEditor(e))
+        editor.activateWindow()
+        editor.raise_()
+        editor.show()
 
     def _onReloadModule(self, checked: bool = False) -> None:
         try:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import copy
-from typing import List, Tuple, Union, TYPE_CHECKING
+from typing import ClassVar, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 from .. import (
     TypeAdapter,
     Pair,
@@ -13,6 +13,7 @@ from .. import (
     Texture,
     RenderTexture,
     RectBase,
+    Curve,
 )
 from ..Utils import Math, Render
 from .Base import SpriteBase
@@ -21,27 +22,32 @@ if TYPE_CHECKING:
     from Engine import Vector2u, Image
 
 
+SELECTION_RECT_OPACITY_CURVE_KEY = "UI/SelectionRectOpacity"
+_FALLBACK_FADE_SPEED = 96.0
+_FALLBACK_OPACITY_RANGE: Tuple[float, float] = (128.0, 255.0)
+
+
 class Rect(SpriteBase):
     r"""Rectangle widget with a fading opacity effect and skin-based rendering.
 
     Renders a rectangular area using a window skin texture with support
-    for opacity fading animation.
+    for opacity fading animation driven by a curve asset.
     """
+
+    _opacityCurves: ClassVar[Dict[str, Curve]] = {}
 
     @TypeAdapter(rect=([tuple, list], IntRect, lambda pos, size: IntRect(Vector2i(*pos), Vector2i(*size))))
     def __init__(
         self,
         rect: Union[IntRect, Tuple[Pair[int], Pair[int]], List[List[int]]],
         windowSkin: Image,
-        fadeSpeed: float = 96,
-        opacityRange: Pair[float] = (128, 255),
+        opacityCurveKey: str = SELECTION_RECT_OPACITY_CURVE_KEY,
     ) -> None:
-        r"""\brief Construct a Rect widget with fading opacity.
+        r"""\brief Construct a Rect widget with curve-driven opacity.
 
-        - \param rect          Logical position and size of the rectangle
-        - \param windowSkin    Texture used for rendering the rectangle skin
-        - \param fadeSpeed    Speed of opacity fading (units per second)
-        - \param opacityRange  Min and max opacity values for fading
+        - \param rect             Logical position and size of the rectangle
+        - \param windowSkin       Texture used for rendering the rectangle skin
+        - \param opacityCurveKey  Curve asset key under Data/Curves
         """
         from .. import Scale
 
@@ -53,11 +59,11 @@ class Rect(SpriteBase):
         self._initUI()
         SpriteBase.__init__(self, self._canvas.getTexture())
         self.setPosition(Math.ToVector2f(rect.position))
-        self._fadeSpeed = fadeSpeed
-        self._opacityRange = opacityRange
+        self._opacityCurveKey = opacityCurveKey
+        self._opacityTime = 0.0
         self._opacity = float(self.getColour().a)
         self._opacityMultiplier = 1.0
-        self._fading: bool = True
+        self._fading = True
 
     def setOpacityMultiplier(self, multiplier: float) -> None:
         r"""\brief Set a multiplier applied to the animated opacity.
@@ -75,26 +81,56 @@ class Rect(SpriteBase):
         return self._size
 
     def update(self, deltaTime: float) -> None:
-        r"""\brief Update the fading opacity animation.
+        r"""\brief Update the curve-driven opacity animation.
 
         - \param deltaTime  Time elapsed since last update, in seconds
         """
+        curve = self._getOpacityCurve()
+        if curve is not None and curve.keys:
+            duration = self._getOpacityDuration(curve)
+            if duration > 0.0:
+                self._opacityTime = (self._opacityTime + deltaTime) % duration
+                sampleTime = float(curve.keys[0]["time"]) + self._opacityTime
+                self._opacity = curve.evaluate(sampleTime)
+            else:
+                self._opacity = curve.evaluate(float(curve.keys[0]["time"]))
+        else:
+            self._updateFallbackOpacity(deltaTime)
+        self._applyOpacity()
+
+    def _getOpacityCurve(self) -> Optional[Curve]:
+        if self._opacityCurveKey in Rect._opacityCurves:
+            return Rect._opacityCurves[self._opacityCurveKey]
+        try:
+            from Source import Data
+
+            curve = Data.getCurve(self._opacityCurveKey)
+        except KeyError:
+            return None
+        Rect._opacityCurves[self._opacityCurveKey] = curve
+        return curve
+
+    def _getOpacityDuration(self, curve: Curve) -> float:
+        if len(curve.keys) < 2:
+            return 0.0
+        return float(curve.keys[-1]["time"]) - float(curve.keys[0]["time"])
+
+    def _updateFallbackOpacity(self, deltaTime: float) -> None:
         opacity = self._opacity
-        opacityMin, opacityMax = self._opacityRange
+        opacityMin, opacityMax = _FALLBACK_OPACITY_RANGE
         if self._fading:
-            opacity = max(opacityMin, opacity - self._fadeSpeed * deltaTime)
+            opacity = max(opacityMin, opacity - _FALLBACK_FADE_SPEED * deltaTime)
             if opacity == opacityMin:
                 self._fading = False
         else:
-            opacity = min(opacityMax, opacity + self._fadeSpeed * deltaTime)
+            opacity = min(opacityMax, opacity + _FALLBACK_FADE_SPEED * deltaTime)
             if opacity == opacityMax:
                 self._fading = True
         self._opacity = opacity
-        self._applyOpacity()
 
     def _applyOpacity(self) -> None:
         colour = copy.copy(self.getColour())
-        colour.a = int(self._opacity * self._opacityMultiplier)
+        colour.a = int(max(0.0, min(255.0, self._opacity * self._opacityMultiplier)))
         self.setColour(colour)
 
     def _presave(self, target: List[Texture], area: List[IntRect]) -> None:

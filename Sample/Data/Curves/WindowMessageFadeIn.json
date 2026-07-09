@@ -1,0 +1,23 @@
+{
+    "type": "curve",
+    "name": "WindowMessageFadeIn",
+    "defaultValue": 0.0,
+    "preInfinity": "constant",
+    "postInfinity": "constant",
+    "keys": [
+        {
+            "time": 0.0,
+            "value": 0.0,
+            "interpolation": "linear",
+            "arriveTangent": 0.0,
+            "leaveTangent": 0.0
+        },
+        {
+            "time": 0.255,
+            "value": 255.0,
+            "interpolation": "linear",
+            "arriveTangent": 0.0,
+            "leaveTangent": 0.0
+        }
+    ]
+}

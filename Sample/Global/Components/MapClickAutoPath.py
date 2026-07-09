@@ -161,7 +161,7 @@ class MapClickAutoPath(ComponentBase):
         gameMap = self._parent
         goalPassable = gameMap.isPathfindingPassable(actor, goal)
         goalActuallyPassable = gameMap.isPassable(actor, goal)
-        direct = self._buildPathToTarget(start, goal)
+        direct = self._buildPathToTarget(actor, start, goal)
         if goalActuallyPassable and direct is not None and direct["route"][-1] == goal:
             return {"routeSteps": direct["routeSteps"], "route": direct["route"], "goalPassable": True}
         if goalPassable:
@@ -177,7 +177,7 @@ class MapClickAutoPath(ComponentBase):
                 routeSteps = []
                 route = [Vector2i(start.x, start.y)]
             else:
-                neighbourPlan = self._buildPathToTarget(start, neighbour)
+                neighbourPlan = self._buildPathToTarget(actor, start, neighbour)
                 if neighbourPlan is None or neighbourPlan["route"][-1] != neighbour:
                     continue
                 routeSteps = neighbourPlan["routeSteps"]
@@ -195,8 +195,8 @@ class MapClickAutoPath(ComponentBase):
         routeSteps.append(Vector2i(goal.x - stopPos.x, goal.y - stopPos.y))
         return {"routeSteps": routeSteps, "route": fullRoute, "goalPassable": False}
 
-    def _buildPathToTarget(self, start: Vector2i, target: Vector2i) -> Optional[Dict[str, List[Vector2i]]]:
-        pathResult = self._parent.findPathResult(start, target)
+    def _buildPathToTarget(self, actor: Actor, start: Vector2i, target: Vector2i) -> Optional[Dict[str, List[Vector2i]]]:
+        pathResult = self._parent.findPathResult(start, target, actor)
         if len(pathResult.route) == 0:
             return None
         return {"routeSteps": pathResult.offsets, "route": pathResult.route}

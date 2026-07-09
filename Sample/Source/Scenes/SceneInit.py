@@ -176,6 +176,7 @@ class Scene(SceneBase):
         total += Data.countLoadableFiles(os.path.join(".", "Data", "Tilesets"))
         total += Data.countLoadableFiles(os.path.join(".", "Data", "AutoTiles"))
         total += Data.countLoadableFiles(os.path.join(".", "Data", "General"))
+        total += Data.countLoadableFiles(os.path.join(".", "Data", "Curves"), recursive=True)
         return total
 
     def _advanceProgress(self) -> None:
@@ -216,6 +217,7 @@ class Scene(SceneBase):
             ("tilesets", Data.loadTilesets),
             ("autotiles", Data.loadAutoTiles),
             ("general data", Data.loadGeneralData),
+            ("curves", Data.loadCurves),
         ]
         maxWorkers = min(len(phases), os.cpu_count() or _MAX_INIT_WORKERS, _MAX_INIT_WORKERS)
         with ThreadPoolExecutor(max_workers=maxWorkers) as executor:

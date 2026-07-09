@@ -25,6 +25,7 @@ class GameData:
     commonFunctionsData: Dict[str, Any]
     blueprintsData: Dict[str, Any]
     animationsData: Dict[str, Any]
+    curvesData: Dict[str, Any]
     generalData: Dict[str, Any]
     referenceIndex: Dict[str, Any]
 
@@ -41,12 +42,14 @@ class GameData:
         ("CommonFunctions", "commonFunctionsData"),
         ("Blueprints", "blueprintsData"),
         ("Animations", "animationsData"),
+        ("Curves", "curvesData"),
         ("General", "generalData"),
     )
     _CONVERTIBLE_FORMAT_SECTIONS = {
         "Maps": ("mapData", "map"),
         "Blueprints": ("blueprintsData", "blueprint"),
         "Animations": ("animationsData", "animation"),
+        "Curves": ("curvesData", "curve"),
     }
     _PLUGIN_DATA_TYPES: Dict[str, Dict[str, Any]] = {}
     _PLUGIN_DATA_HANDLERS: Dict[str, Dict[str, Any]] = {}
@@ -63,6 +66,7 @@ class GameData:
         cls.commonFunctionsData = {}
         cls.blueprintsData = {}
         cls.animationsData = {}
+        cls.curvesData = {}
         cls.generalData = {}
         cls.ClearPluginData()
         cls.LoadData("Configs", cls.systemConfigData)
@@ -72,6 +76,7 @@ class GameData:
         cls.LoadData("CommonFunctions", cls.commonFunctionsData, needType="commonFunction")
         cls.LoadData("Blueprints", cls.blueprintsData, needType="blueprint")
         cls.LoadData("Animations", cls.animationsData, needType="animation")
+        cls.LoadData("Curves", cls.curvesData, needType="curve")
         cls.LoadData("General", cls.generalData)
         cls.LoadPluginData()
 
@@ -602,6 +607,15 @@ class GameData:
         if changed_anims:
             diffs.append(f"Animations: {', '.join(sorted(changed_anims))}")
 
+        oldCurves = oldData.get("curvesData", {})
+        newCurves = newData.get("curvesData", {})
+        changed_curves = set()
+        for k in set(oldCurves.keys()) | set(newCurves.keys()):
+            if oldCurves.get(k) != newCurves.get(k):
+                changed_curves.add(k)
+        if changed_curves:
+            diffs.append(f"Curves: {', '.join(sorted(changed_curves))}")
+
         oldGen = oldData.get("generalData", {})
         newGen = newData.get("generalData", {})
         changed_gen = set()
@@ -867,6 +881,43 @@ class GameData:
                 else:
                     final_details["U"].append(key)
                 cls._originData["animationsData"][key] = copy.deepcopy(anim)
+            except Exception:
+                final_details["Failed"].append(key)
+
+        # Curves
+        curvesRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Curves")
+        os.makedirs(curvesRoot, exist_ok=True)
+        c_curves = changes["curvesData"]
+        for key in c_curves["A"] + c_curves["U"]:
+            curve = cls.curvesData.get(key)
+            if curve is None:
+                final_details["Failed"].append(key)
+                continue
+            payload = copy.deepcopy(curve)
+            payload["type"] = "curve"
+            try:
+                if "isJson" in payload:
+                    del payload["isJson"]
+                    File.SaveJSONData(os.path.join(curvesRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]}"), payload)
+                else:
+                    File.SaveData(os.path.join(curvesRoot, f"{key}{DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]}"), payload)
+                if key in c_curves["A"]:
+                    final_details["A"].append(key)
+                else:
+                    final_details["U"].append(key)
+                cls._originData["curvesData"][key] = copy.deepcopy(curve)
+            except Exception:
+                final_details["Failed"].append(key)
+
+        for key in c_curves["D"]:
+            try:
+                for ext in DATA_FILE_EXTENSIONS:
+                    fp = os.path.join(curvesRoot, f"{key}{ext}")
+                    if os.path.exists(fp):
+                        os.remove(fp)
+                final_details["D"].append(key)
+                if key in cls._originData["curvesData"]:
+                    del cls._originData["curvesData"][key]
             except Exception:
                 final_details["Failed"].append(key)
 
@@ -1351,6 +1402,7 @@ class GameData:
             "data/maps/": ("map", cls.mapData),
             "data/commonfunctions/": ("commonFunction", cls.commonFunctionsData),
             "data/animations/": ("animation", cls.animationsData),
+            "data/curves/": ("curve", cls.curvesData),
             "data/general/": ("general", cls.generalData),
         }
         for typeName, spec in cls._PLUGIN_DATA_TYPES.items():
@@ -1414,6 +1466,7 @@ class GameData:
             "map": "Maps",
             "commonFunction": "CommonFunctions",
             "animation": "Animations",
+            "curve": "Curves",
             "general": "General",
         }
         for typeName in cls._PLUGIN_DATA_TYPES.keys():
@@ -1577,6 +1630,8 @@ class GameData:
             cls._AddReferenceNode(index, "blueprint", "Data.Blueprints." + key.replace("/", "."))
         for key in cls.animationsData.keys():
             cls._AddReferenceNode(index, "animation", key)
+        for key in cls.curvesData.keys():
+            cls._AddReferenceNode(index, "curve", key)
         for key, data in cls.generalData.items():
             cls._AddReferenceNode(index, "general", key)
             if isinstance(data, dict):
@@ -1608,6 +1663,8 @@ class GameData:
             cls._ScanBlueprintReferences(index, key, data)
         for key, data in cls.animationsData.items():
             cls._ScanAnimationReferences(index, cls._ReferenceNodeId("animation", key), data)
+        for key, data in cls.curvesData.items():
+            cls._ScanGenericReferences(index, cls._ReferenceNodeId("curve", key), data, f"Curves/{key}")
         for key, data in cls.generalData.items():
             cls._ScanGeneralReferences(index, key, data)
         for typeName, spec in cls._PLUGIN_DATA_TYPES.items():
@@ -2163,6 +2220,7 @@ class GameData:
             "commonFunctionsData": cls.commonFunctionsData,
             "blueprintsData": cls.blueprintsData,
             "animationsData": cls.animationsData,
+            "curvesData": cls.curvesData,
             "generalData": cls.generalData,
         }
         for attrName in cls._PluginDataSectionAttrs():

@@ -62,6 +62,9 @@ class MenuBuilderMixin:
         self._actNewAnimation.triggered.connect(self._onNewAnimation)
         self._actNewAnimation.setShortcut(QtGui.QKeySequence("F5"))
         _gameMenu.addAction(self._actNewAnimation)
+        self._actNewCurve.triggered.connect(self._onNewCurve)
+        self._actNewCurve.setShortcut(QtGui.QKeySequence("F11"))
+        _gameMenu.addAction(self._actNewCurve)
 
         self._actDatabaseSystemConfig.triggered.connect(self._onDatabaseSystemConfig)
         self._actDatabaseSystemConfig.setShortcut(QtGui.QKeySequence("F6"))

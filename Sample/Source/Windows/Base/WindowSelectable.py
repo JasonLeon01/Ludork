@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Union, Tuple
 from Engine import Pair, Image, IntRect, Vector2f, Vector2i, Input, View, FloatRect
 from Engine.UI import Rect, ListView
+from Engine.UI.Rect import SELECTION_RECT_OPACITY_CURVE_KEY
 from Engine.Utils import Math
 from Engine.UI.Base import ControlBase, Direction, FunctionalBase
 from Global import Manager
@@ -57,6 +58,7 @@ class WindowSelectable(WindowBase):
                 Vector2i(self._rectWidth, self._rectHeight),
             ),
             self._windowSkin,
+            SELECTION_RECT_OPACITY_CURVE_KEY,
         )
 
     def getListView(self) -> Optional[ListView]:
@@ -95,7 +97,9 @@ class WindowSelectable(WindowBase):
                         Vector2i(self._rectWidth, self._rectHeight),
                     ),
                     self._windowSkin,
+                    SELECTION_RECT_OPACITY_CURVE_KEY,
                 )
+        self._rect.update(deltaTime)
         self._rect.setOpacityMultiplier(1.0 if focused else _INACTIVE_SELECTION_RECT_OPACITY_MULTIPLIER)
         if self._rect.getParent() is None:
             self.content.addChild(self._rect)

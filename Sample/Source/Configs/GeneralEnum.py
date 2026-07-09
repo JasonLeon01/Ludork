@@ -27,6 +27,7 @@ class Enemy:
     r"""\brief Enemy member keys."""
     Bat: str = "Bat"
     BigWizard: str = "BigWizard"
+    GreatIron: str = "GreatIron"
     Knight: str = "Knight"
     Mage: str = "Mage"
     Rock: str = "Rock"

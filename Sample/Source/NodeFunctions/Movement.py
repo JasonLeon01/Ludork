@@ -48,7 +48,7 @@ def _buildRouteToDestination(actor: Actor, destination: Vector2i) -> List[Vector
     goal = Vector2i(destination.x, destination.y)
     if start == goal:
         return []
-    pathResult = gameMap.findPathResult(start, goal)
+    pathResult = gameMap.findPathResult(start, goal, actor)
     if len(pathResult.route) == 0 or pathResult.route[-1] != goal:
         return []
     return pathResult.offsets

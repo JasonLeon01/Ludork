@@ -132,10 +132,47 @@ class GameMap(GameMapExt):
             self._actorRenderStates.shader = self._lightMaskShader
         super().__init__(self._materialShader)
         self.tilemapRef = self._tilemap
-        self.actorsRef = self._actors
+        self.syncActorsRef(self._actors)
         self.getLayer = Tilemap.getLayer
-        self.getMapPosition = Actor.getMapPosition
-        self.getCollisionEnabled = Actor.getCollisionEnabled
+
+    def _syncActorsForMapCache(self) -> None:
+        for actor in self.getAllActors():
+            actor._syncMapCore()
+            actor.refreshDescendantIds()
+
+    def _syncActorsForPathfinding(self) -> None:
+        for actor in self.getAllActors():
+            actor.setPathfindingBlocks(self._getPathfindingCollisionEnabled(actor) and not actor.getCollisionEnabled())
+
+    def _checkDir4Between(self, fromPosition: Vector2i, toPosition: Vector2i, direction: Direction) -> bool:
+        dirIndex = int(direction)
+        oppIndex = int(OppositeDirection(direction))
+        fromBlocked = False
+        toBlocked = False
+        for layer in self._layersTopFirst:
+            if not layer.visible:
+                continue
+            if not fromBlocked:
+                tileFrom = layer.get(fromPosition)
+                if tileFrom is not None:
+                    tileset = layer._data.layerTileset
+                    dir4 = tileset.dir4[tileFrom] if tileFrom < len(tileset.dir4) else None
+                    if isinstance(dir4, (list, tuple)) and len(dir4) == 4:
+                        if not dir4[dirIndex]:
+                            return False
+                    fromBlocked = True
+            if not toBlocked:
+                tileTo = layer.get(toPosition)
+                if tileTo is not None:
+                    tileset = layer._data.layerTileset
+                    dir4 = tileset.dir4[tileTo] if tileTo < len(tileset.dir4) else None
+                    if isinstance(dir4, (list, tuple)) and len(dir4) == 4:
+                        if not dir4[oppIndex]:
+                            return False
+                    toBlocked = True
+            if fromBlocked and toBlocked:
+                break
+        return True
 
     @ReturnType(player=Actor)
     def getPlayer(self) -> Optional[Actor]:
@@ -347,19 +384,20 @@ class GameMap(GameMapExt):
         if not actor.getCollisionEnabled():
             return True
         size = self._tilemap.getSize()
-        x = targetPosition.x
-        y = targetPosition.y
-        if x < 0 or y < 0 or x >= size.x or y >= size.y:
-            return False
         if self._tilePassableGrid is None or self._materialDirty:
             self._rebuildPassabilityCache()
             self._materialDirty = False
-        if self._tilePassableGrid and not self._tilePassableGrid[y][x]:
-            return False
+
+        occupied = actor.getOccupiedMapCellsAtMapPosition(targetPosition)
+        for cell in occupied:
+            if cell.x < 0 or cell.y < 0 or cell.x >= size.x or cell.y >= size.y:
+                return False
+            if self._tilePassableGrid and not self._tilePassableGrid[cell.y][cell.x]:
+                return False
 
         currentPosition = actor.getMapPosition()
-        direction = None
         delta = targetPosition - currentPosition
+        direction = None
         if delta.x == 0 and delta.y == 1:
             direction = Direction.DOWN
         elif delta.x == 0 and delta.y == -1:
@@ -370,40 +408,18 @@ class GameMap(GameMapExt):
             direction = Direction.LEFT
 
         if direction is not None:
-            dirIndex = int(direction)
-            oppIndex = int(OppositeDirection(direction))
-            currBlocked = False
-            nextBlocked = False
+            currentCells = {(cell.x, cell.y) for cell in actor.getOccupiedMapCellsAtMapPosition(currentPosition)}
+            targetCells = {(cell.x, cell.y) for cell in occupied}
+            newCells = targetCells - currentCells
+            for cellX, cellY in newCells:
+                previousX = cellX - delta.x
+                previousY = cellY - delta.y
+                if not self._checkDir4Between(Vector2i(previousX, previousY), Vector2i(cellX, cellY), direction):
+                    return False
 
-            for layer in self._layersTopFirst:
-                if not layer.visible:
-                    continue
-
-                if not currBlocked:
-                    tileCurr = layer.get(currentPosition)
-                    if tileCurr is not None:
-                        ts = layer._data.layerTileset
-                        d4 = ts.dir4[tileCurr] if hasattr(ts, "dir4") and tileCurr < len(ts.dir4) else None
-                        if isinstance(d4, (list, tuple)) and len(d4) == 4:
-                            if not d4[dirIndex]:
-                                return False
-                        currBlocked = True
-
-                if not nextBlocked:
-                    tileNext = layer.get(targetPosition)
-                    if tileNext is not None:
-                        ts = layer._data.layerTileset
-                        d4 = ts.dir4[tileNext] if hasattr(ts, "dir4") and tileNext < len(ts.dir4) else None
-                        if isinstance(d4, (list, tuple)) and len(d4) == 4:
-                            if not d4[oppIndex]:
-                                return False
-                        nextBlocked = True
-
-                if currBlocked and nextBlocked:
-                    break
-
-        if self.getCollisionAt(x, y, actor):
-            return False
+        for cell in occupied:
+            if self.getCollisionAt(cell.x, cell.y, actor):
+                return False
         return True
 
     @ExecSplit(default=(None,))
@@ -827,11 +843,12 @@ class GameMap(GameMapExt):
                 return material
         return None
 
-    def findPathResult(self, start: Vector2i, goal: Vector2i) -> PathResult:
+    def findPathResult(self, start: Vector2i, goal: Vector2i, actor: Actor) -> PathResult:
         r"""\brief Find a path from start to goal using pathfinding.
 
         - \param start The starting position.
         - \param goal The goal position.
+        - \param actor The moving actor used for multi-cell footprint checks.
 
         - \return Path data containing offsets, points, and route.
         """
@@ -841,24 +858,28 @@ class GameMap(GameMapExt):
         self.layerKeysRef = layerKeys
         self.tileDataRef = self._tilemap.getTilesData()
         self.autoTileDataRef = self._tilemap.getAutoTilesData()
-        self.actorsRef = self._actors
-        oldGetCollisionEnabled = self.getCollisionEnabled
-        self.getCollisionEnabled = self._getPathfindingCollisionEnabled
+        self.syncActorsRef(self._actors)
+        self._syncActorsForPathfinding()
         try:
-            return self.findPathExt(start, goal, size)
+            return self.findPathExt(start, goal, size, actor)
         finally:
-            self.getCollisionEnabled = oldGetCollisionEnabled
+            self._clearActorsPathfindingBlocks()
+
+    def _clearActorsPathfindingBlocks(self) -> None:
+        for actor in self.getAllActors():
+            actor.setPathfindingBlocks(False)
 
     @ReturnType(path=List[Vector2i])
-    def findPath(self, start: Vector2i, goal: Vector2i) -> List[Vector2i]:
+    def findPath(self, start: Vector2i, goal: Vector2i, actor: Actor) -> List[Vector2i]:
         r"""\brief Find a path from start to goal using pathfinding.
 
         - \param start The starting position.
         - \param goal The goal position.
+        - \param actor The moving actor used for multi-cell footprint checks.
 
         - \return A list of per-step movement offsets.
         """
-        return self.findPathResult(start, goal).offsets
+        return self.findPathResult(start, goal, actor).offsets
 
     @ReturnType(passable=bool)
     def isPathfindingPassable(self, actor: Actor, targetPosition: Vector2i) -> bool:
@@ -887,9 +908,10 @@ class GameMap(GameMapExt):
         if self._tilePassableGrid is None or self._materialDirty:
             self._rebuildPassabilityCache()
             self._materialDirty = False
-        for other in self.getOverlapsAt(targetPosition.x, targetPosition.y, actor):
-            if self._getPathfindingCollisionEnabled(other) and not other.getCollisionEnabled():
-                return True
+        for cell in actor.getOccupiedMapCellsAtMapPosition(targetPosition):
+            for other in self.getOverlapsAt(cell.x, cell.y, actor):
+                if self._getPathfindingCollisionEnabled(other) and not other.getCollisionEnabled():
+                    return True
         return False
 
     def _getPathfindingCollisionEnabled(self, actor: Actor) -> bool:
@@ -1000,7 +1022,16 @@ class GameMap(GameMapExt):
         if self._tilePassableGrid is None or self._materialDirty:
             self._rebuildPassabilityCache()
             self._materialDirty = False
-        return self.getCollisionAt(targetPosition.x, targetPosition.y, actor)
+        collisions: List[Actor] = []
+        seen: set[int] = set()
+        for cell in actor.getOccupiedMapCellsAtMapPosition(targetPosition):
+            for other in self.getCollisionAt(cell.x, cell.y, actor):
+                otherID = id(other)
+                if otherID in seen:
+                    continue
+                seen.add(otherID)
+                collisions.append(other)
+        return collisions
 
     def getOverlaps(self, actor: Actor) -> List[Actor]:
         r"""\brief Get all actors overlapping with the given actor.
@@ -1012,8 +1043,16 @@ class GameMap(GameMapExt):
         if self._tilePassableGrid is None or self._materialDirty:
             self._rebuildPassabilityCache()
             self._materialDirty = False
-        position = actor.getMapPosition()
-        return self.getOverlapsAt(position.x, position.y, actor)
+        overlaps: List[Actor] = []
+        seen: set[int] = set()
+        for cell in actor.getOccupiedMapCells():
+            for other in self.getOverlapsAt(cell.x, cell.y, actor):
+                otherID = id(other)
+                if otherID in seen:
+                    continue
+                seen.add(otherID)
+                overlaps.append(other)
+        return overlaps
 
     @staticmethod
     def _getDescendantActorIDs(actor: Actor) -> set[int]:
@@ -1081,7 +1120,7 @@ class GameMap(GameMapExt):
         self.layerKeysRef = layerKeys
         self.tileDataRef = self._tilemap.getTilesData()
         self.autoTileDataRef = self._tilemap.getAutoTilesData()
-        self.actorsRef = self._actors
+        self.syncActorsRef(self._actors)
         return self.getMaterialPropertyMapExt(width, height, functionName, invalidValue)
 
     def getActorLayerLightBlockMap(self, layerName: str, size: Vector2u) -> Optional[List[List[float]]]:
@@ -1674,5 +1713,6 @@ class GameMap(GameMapExt):
         self.autoTilePassableRef = {
             name: [bool(autoTile.passable) for autoTile in layer._data.autoTilePool] for name, layer in layers.items()
         }
-        self.actorsRef = self._actors
+        self.syncActorsRef(self._actors)
+        self._syncActorsForMapCache()
         self._tilePassableGrid = self.rebuildPassabilityCache(size)

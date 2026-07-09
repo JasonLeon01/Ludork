@@ -795,6 +795,18 @@ class FileExplorer(QtWidgets.QWidget):
                     ELOC("INVALID_DATA_FILE"),
                     ELOC("INVALID_DATA_FILE_MESSAGE"),
                 )
+        elif dataType == "curve":
+            curvesRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Curves")
+            relPath = os.path.relpath(path, curvesRoot)
+            key = os.path.splitext(relPath)[0].replace("\\", "/")
+            if key in GameData.curvesData:
+                File.mainWindow._onDataBaseShowCurveWindow(key, GameData.curvesData[key])
+            else:
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    ELOC("INVALID_DATA_FILE"),
+                    ELOC("INVALID_DATA_FILE_MESSAGE"),
+                )
         elif dataType == "blueprint":
             blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
             relPath = os.path.relpath(path, blueprintsRoot)

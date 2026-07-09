@@ -632,8 +632,9 @@ class CMakeGen:
         if extra_include_dirs:
             lines.append("")
             for inc_dir in extra_include_dirs:
+                cmake_inc_dir = inc_dir.replace("\\", "/")
                 lines.append(f"target_include_directories({self.project_name} PRIVATE")
-                lines.append(f'    "{inc_dir}"')
+                lines.append(f'    "{cmake_inc_dir}"')
                 lines.append(")")
 
         lines.append("")
