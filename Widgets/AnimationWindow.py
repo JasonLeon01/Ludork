@@ -4,7 +4,7 @@ import copy
 import os
 import math
 from PyQt5 import QtCore, QtWidgets, QtGui, QtMultimedia
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from EditorGlobal import EditorStatus, GameData
 from .Utils import TimeLine
 from .Utils.Timeline import FRAME_SEGMENT_DURATION
@@ -254,6 +254,7 @@ class AnimationPreview(QtWidgets.QWidget):
     SELECTION_CHANGED = QtCore.pyqtSignal(int, int)
     DATA_CHANGED = QtCore.pyqtSignal()
     SEGMENT_UPDATED = QtCore.pyqtSignal(int, int)
+    DELETE_SEGMENT = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -278,6 +279,9 @@ class AnimationPreview(QtWidgets.QWidget):
         self.rotateCenter = None
         self.rotateMousePos = None
         self.setMouseTracking(True)
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
+        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._onContextMenu)
 
     def setData(self, data):
         self.data = data
@@ -495,6 +499,27 @@ class AnimationPreview(QtWidgets.QWidget):
         if et - st <= 0.0001:
             return 0.0
         return (self.currentTime - st) / (et - st)
+
+    def _onContextMenu(self, position: QtCore.QPoint) -> None:
+        if not self.selectedSegment:
+            return
+        menu = QtWidgets.QMenu(self)
+        actDelete = menu.addAction(ELOC("DELETE"))
+        if actDelete is not None:
+            actDelete.triggered.connect(self._onDeleteSelected)
+        menu.exec_(self.mapToGlobal(position))
+
+    def _onDeleteSelected(self) -> None:
+        if self.selectedSegment:
+            self.DELETE_SEGMENT.emit()
+
+    def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
+        if event.key() in (QtCore.Qt.Key_Delete, QtCore.Qt.Key_Backspace):
+            if self.selectedSegment:
+                self._onDeleteSelected()
+                event.accept()
+                return
+        super().keyPressEvent(event)
 
     def mousePressEvent(self, event):
         if event.button() == QtCore.Qt.RightButton:
@@ -785,6 +810,7 @@ class AnimationPreview(QtWidgets.QWidget):
 
 class AnimationEditor(QtWidgets.QWidget):
     MODIFIED = QtCore.pyqtSignal()
+    _segmentClipboard: Optional[Tuple[int, Dict[str, Any]]] = None
 
     def __init__(
         self, parent: Optional[QtWidgets.QWidget] = None, title: str = "", data: Dict[str, Any] = None
@@ -817,6 +843,7 @@ class AnimationEditor(QtWidgets.QWidget):
         self.preview.SELECTION_CHANGED.connect(self.onPreviewSelectionChanged)
         self.preview.DATA_CHANGED.connect(self._onPreviewDataChanged)
         self.preview.SEGMENT_UPDATED.connect(self.onPreviewSegmentUpdated)
+        self.preview.DELETE_SEGMENT.connect(self._onDeleteSelectedSegment)
         self.rightSplitter.addWidget(self.preview)
 
         self.timelinePanel = TimeLine()
@@ -865,6 +892,126 @@ class AnimationEditor(QtWidgets.QWidget):
         leftLayout.addWidget(self.inspector)
 
         self._refreshAssets()
+        self._setupShortcuts()
+
+    def _shouldHandlePlaybackShortcut(self) -> bool:
+        focusWidget = QtWidgets.QApplication.focusWidget()
+        if focusWidget is None:
+            return True
+        if isinstance(
+            focusWidget,
+            (QtWidgets.QLineEdit, QtWidgets.QTextEdit, QtWidgets.QPlainTextEdit, QtWidgets.QAbstractSpinBox, QtWidgets.QComboBox),
+        ):
+            return False
+        return True
+
+    def _setupShortcuts(self) -> None:
+        shortcutContext = QtCore.Qt.WidgetWithChildrenShortcut
+
+        QtWidgets.QShortcut(QtGui.QKeySequence.Save, self, self._onSave, context=shortcutContext)
+        QtWidgets.QShortcut(QtGui.QKeySequence(QtCore.Qt.Key_F2), self, self._onFocusRename, context=shortcutContext)
+        QtWidgets.QShortcut(QtGui.QKeySequence.Copy, self, self._onCopySegment, context=shortcutContext)
+        QtWidgets.QShortcut(QtGui.QKeySequence.Cut, self, self._onCutSegment, context=shortcutContext)
+        QtWidgets.QShortcut(QtGui.QKeySequence.Paste, self, self._onPasteSegment, context=shortcutContext)
+        QtWidgets.QShortcut(QtGui.QKeySequence("Ctrl+D"), self, self._onDuplicateSegment, context=shortcutContext)
+
+        QtWidgets.QShortcut(QtCore.Qt.Key_Space, self, self._onTogglePlayback, context=shortcutContext)
+        QtWidgets.QShortcut(QtCore.Qt.Key_Home, self, self._onJumpToStart, context=shortcutContext)
+        QtWidgets.QShortcut(QtCore.Qt.Key_End, self, self._onJumpToEnd, context=shortcutContext)
+        QtWidgets.QShortcut(QtCore.Qt.Key_Left, self, lambda: self._onStepFrame(-1), context=shortcutContext)
+        QtWidgets.QShortcut(QtCore.Qt.Key_Right, self, lambda: self._onStepFrame(1), context=shortcutContext)
+        QtWidgets.QShortcut(QtCore.Qt.Key_Comma, self, lambda: self._onStepFrame(-1), context=shortcutContext)
+        QtWidgets.QShortcut(QtCore.Qt.Key_Period, self, lambda: self._onStepFrame(1), context=shortcutContext)
+        QtWidgets.QShortcut(QtCore.Qt.Key_Plus, self, lambda: self.timelinePanel.adjustZoom(10), context=shortcutContext)
+        QtWidgets.QShortcut(QtCore.Qt.Key_Equal, self, lambda: self.timelinePanel.adjustZoom(10), context=shortcutContext)
+        QtWidgets.QShortcut(QtCore.Qt.Key_Minus, self, lambda: self.timelinePanel.adjustZoom(-10), context=shortcutContext)
+
+        QtWidgets.QShortcut(
+            QtGui.QKeySequence(QtCore.Qt.Key_Left | QtCore.Qt.AltModifier),
+            self,
+            lambda: self._onNudgeSegment(-1),
+            context=shortcutContext,
+        )
+        QtWidgets.QShortcut(
+            QtGui.QKeySequence(QtCore.Qt.Key_Right | QtCore.Qt.AltModifier),
+            self,
+            lambda: self._onNudgeSegment(1),
+            context=shortcutContext,
+        )
+
+    def _onSave(self) -> None:
+        if self.title:
+            GameData.animationsData[self.title] = copy.deepcopy(self._data)
+        ok, content = GameData.SaveAllModified()
+        if ok:
+            QtWidgets.QMessageBox.information(
+                self, "Hint", ELOC("SAVE_SUCCESS") + ELOC("SAVE_PATH").format(content)
+            )
+        else:
+            QtWidgets.QMessageBox.warning(self, "Hint", ELOC("SAVE_FAILED") + ELOC("SAVE_PATH").format(content))
+        self.MODIFIED.emit()
+
+    def _onFocusRename(self) -> None:
+        self.nameEdit.setFocus(QtCore.Qt.ShortcutFocusReason)
+        self.nameEdit.selectAll()
+
+    def _onTogglePlayback(self) -> None:
+        if not self._shouldHandlePlaybackShortcut():
+            return
+        self.timelinePanel.togglePlayback()
+
+    def _onJumpToStart(self) -> None:
+        if not self._shouldHandlePlaybackShortcut():
+            return
+        self.timelinePanel.jumpToStart()
+
+    def _onJumpToEnd(self) -> None:
+        if not self._shouldHandlePlaybackShortcut():
+            return
+        self.timelinePanel.jumpToEnd()
+
+    def _onStepFrame(self, delta: int) -> None:
+        if not self._shouldHandlePlaybackShortcut():
+            return
+        if QtWidgets.QApplication.keyboardModifiers() & QtCore.Qt.AltModifier:
+            return
+        self.timelinePanel.stepFrame(delta)
+
+    def _onNudgeSegment(self, frameDelta: int) -> None:
+        if not (QtWidgets.QApplication.keyboardModifiers() & QtCore.Qt.AltModifier):
+            return
+        if self.timelinePanel.canvas.nudgeSelectedSegment(frameDelta):
+            self._onTimelineChanged()
+
+    def _onCopySegment(self) -> None:
+        clip = self.timelinePanel.canvas.getSelectedSegmentData()
+        if clip is not None:
+            AnimationEditor._segmentClipboard = clip
+
+    def _onCutSegment(self) -> None:
+        clip = self.timelinePanel.canvas.getSelectedSegmentData()
+        if clip is None:
+            return
+        AnimationEditor._segmentClipboard = clip
+        self._onDeleteSelectedSegment()
+
+    def _onPasteSegment(self) -> None:
+        if AnimationEditor._segmentClipboard is None:
+            return
+        trackIdx, segment = AnimationEditor._segmentClipboard
+        pasteTime = self.timelinePanel.canvas.currentTime
+        result = self.timelinePanel.canvas.insertSegmentAt(trackIdx, copy.deepcopy(segment), pasteTime)
+        if result is not None:
+            self._onTimelineChanged()
+
+    def _onDuplicateSegment(self) -> None:
+        if self.timelinePanel.canvas.duplicateSelectedSegment():
+            self._onTimelineChanged()
+
+    def _onDeleteSelectedSegment(self) -> None:
+        self.timelinePanel.canvas.deleteSelectedSegment()
+        self.inspector.setSegment({}, [])
+        self.preview.setSelectedSegment(-1, -1)
 
     def _onTimelineChanged(self):
         GameData.RecordSnapshot()

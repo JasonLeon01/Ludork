@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import os
 import wave
 import contextlib
@@ -38,6 +39,7 @@ class TimelineCanvas(QtWidgets.QWidget):
         self.dragOriginalEnd = 0.0
         self.waveformCache: Dict[str, Tuple[float, int, float, List[float]]] = {}
         self._tempPlayers: List[QtMultimedia.QMediaPlayer] = []
+        self._timelinePanel: Optional["TimelinePanel"] = None
 
     def setData(self, data: Dict[str, Any]) -> None:
         self.data = data
@@ -466,7 +468,7 @@ class TimelineCanvas(QtWidgets.QWidget):
                 actDelete.triggered.connect(self.deleteSelectedSegment)
             menu.exec_(event.globalPos())
 
-    def deleteSelectedSegment(self):
+    def deleteSelectedSegment(self) -> None:
         if self.selectedSegment:
             trackIdx, segIdx = self.selectedSegment
             if self.data and "timeLines" in self.data:
@@ -481,9 +483,133 @@ class TimelineCanvas(QtWidgets.QWidget):
                         self.updateCanvasSize()
                         self.update()
 
-    def keyPressEvent(self, event):
+    def getSelectedSegmentData(self) -> Optional[Tuple[int, Dict[str, Any]]]:
+        if not self.selectedSegment or not self.data:
+            return None
+        trackIdx, segIdx = self.selectedSegment
+        timeLines = self.data.get("timeLines", [])
+        if trackIdx < 0 or trackIdx >= len(timeLines):
+            return None
+        segments = timeLines[trackIdx].get("timeSegments", [])
+        if segIdx < 0 or segIdx >= len(segments):
+            return None
+        return trackIdx, copy.deepcopy(segments[segIdx])
+
+    def _offsetSegmentTimes(self, segment: Dict[str, Any], newStart: float) -> None:
+        start = segment.get("startFrame", {})
+        end = segment.get("endFrame", {})
+        oldStart = start.get("time", 0.0)
+        oldEnd = end.get("time", 0.0)
+        duration = oldEnd - oldStart
+        start["time"] = newStart
+        end["time"] = newStart + duration
+
+    def _clampSegmentStart(self, trackIdx: int, segIdx: int, start: float, duration: float) -> float:
+        self.dragOriginalStart = start
+        self.dragOriginalEnd = start + duration
+        limitLeft, limitRight = self._findBounds(trackIdx, segIdx)
+        maxStart = limitRight - duration
+        minStart = max(0.0, limitLeft)
+        return max(minStart, min(start, maxStart))
+
+    def insertSegmentAt(self, trackIdx: int, segment: Dict[str, Any], startTime: float) -> Optional[Tuple[int, int]]:
+        if not self.data:
+            return None
+        timeLines = self.data.setdefault("timeLines", [])
+        while len(timeLines) <= trackIdx:
+            timeLines.append({"timeSegments": []})
+        segments = timeLines[trackIdx].setdefault("timeSegments", [])
+        oldStart = segment.get("startFrame", {}).get("time", 0.0)
+        oldEnd = segment.get("endFrame", {}).get("time", 0.0)
+        duration = oldEnd - oldStart
+        newStart = self._snapTime(max(0.0, startTime))
+        newStart = self._clampSegmentStart(trackIdx, -1, newStart, duration)
+        newEnd = newStart + duration
+        if self._checkOverlap(trackIdx, newStart, newEnd):
+            return None
+        self._offsetSegmentTimes(segment, newStart)
+        segments.append(segment)
+        newSegIdx = len(segments) - 1
+        self.selectedSegment = (trackIdx, newSegIdx)
+        self.SELECTION_CHANGED.emit(trackIdx, newSegIdx)
+        self.updateCanvasSize()
+        self.update()
+        self.DATA_CHANGED.emit()
+        return trackIdx, newSegIdx
+
+    def duplicateSelectedSegment(self) -> bool:
+        if not self.selectedSegment or not self.data:
+            return False
+        trackIdx, segIdx = self.selectedSegment
+        timeLines = self.data.get("timeLines", [])
+        if trackIdx < 0 or trackIdx >= len(timeLines):
+            return False
+        segments = timeLines[trackIdx].get("timeSegments", [])
+        if segIdx < 0 or segIdx >= len(segments):
+            return False
+        source = segments[segIdx]
+        newSeg = copy.deepcopy(source)
+        start = source.get("startFrame", {}).get("time", 0.0)
+        end = source.get("endFrame", {}).get("time", 0.0)
+        duration = end - start
+        newStart = self._snapTime(end)
+        newStart = self._clampSegmentStart(trackIdx, segIdx, newStart, duration)
+        newEnd = newStart + duration
+        if self._checkOverlap(trackIdx, newStart, newEnd, segIdx):
+            return False
+        self._offsetSegmentTimes(newSeg, newStart)
+        segments.append(newSeg)
+        newSegIdx = len(segments) - 1
+        self.selectedSegment = (trackIdx, newSegIdx)
+        self.SELECTION_CHANGED.emit(trackIdx, newSegIdx)
+        self.updateCanvasSize()
+        self.update()
+        self.DATA_CHANGED.emit()
+        return True
+
+    def nudgeSelectedSegment(self, frameDelta: int) -> bool:
+        if not self.selectedSegment or not self.data:
+            return False
+        trackIdx, segIdx = self.selectedSegment
+        timeLines = self.data.get("timeLines", [])
+        if trackIdx < 0 or trackIdx >= len(timeLines):
+            return False
+        segments = timeLines[trackIdx].get("timeSegments", [])
+        if segIdx < 0 or segIdx >= len(segments):
+            return False
+        seg = segments[segIdx]
+        start = seg.get("startFrame", {}).get("time", 0.0)
+        end = seg.get("endFrame", {}).get("time", 0.0)
+        duration = end - start
+        delta = frameDelta / max(1, self.frameRate)
+        newStart = self._snapTime(start + delta)
+        newStart = self._clampSegmentStart(trackIdx, segIdx, newStart, duration)
+        if abs(newStart - start) < 0.0001:
+            return False
+        seg.setdefault("startFrame", {})["time"] = newStart
+        seg.setdefault("endFrame", {})["time"] = newStart + duration
+        self.updateCanvasSize()
+        self.update()
+        self.DATA_CHANGED.emit()
+        return True
+
+    def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
         if event.key() == QtCore.Qt.Key_Delete or event.key() == QtCore.Qt.Key_Backspace:
             self.deleteSelectedSegment()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+    def wheelEvent(self, event: QtGui.QWheelEvent) -> None:
+        if event.modifiers() & QtCore.Qt.ControlModifier:
+            panel = self._timelinePanel
+            if panel is not None:
+                delta = event.angleDelta().y()
+                if delta != 0:
+                    panel.adjustZoom(10 if delta > 0 else -10)
+            event.accept()
+            return
+        super().wheelEvent(event)
 
     def mousePressEvent(self, event):
         if event.button() == QtCore.Qt.LeftButton:
@@ -802,6 +928,7 @@ class TimelinePanel(QtWidgets.QWidget):
         self.scrollArea.setStyleSheet("QScrollArea { border: none; }")
 
         self.canvas = TimelineCanvas()
+        self.canvas._timelinePanel = self
         self.scrollArea.setWidget(self.canvas)
 
         self.canvas.DATA_CHANGED.connect(self.DATA_CHANGED.emit)
@@ -819,8 +946,34 @@ class TimelinePanel(QtWidgets.QWidget):
     def _onZoomChanged(self, value: int) -> None:
         self.canvas.setZoom(value / 100.0)
 
+    def adjustZoom(self, delta: int) -> None:
+        newValue = max(self.sliderZoom.minimum(), min(self.sliderZoom.maximum(), self.sliderZoom.value() + delta))
+        self.sliderZoom.setValue(newValue)
+
     def setSelectedSegment(self, trackIdx: int, segIdx: int) -> None:
         self.canvas.setSelectedSegment(trackIdx, segIdx)
+
+    def togglePlayback(self) -> None:
+        self._onPlayClicked()
+
+    def stepFrame(self, delta: int) -> None:
+        if self._isPlaying:
+            self.stopPlayback()
+        step = 1.0 / max(1, self.canvas.frameRate)
+        duration = self._getContentDuration()
+        newTime = self.canvas.currentTime + delta * step
+        newTime = max(0.0, min(newTime, duration))
+        self._setCurrentTime(newTime)
+
+    def jumpToStart(self) -> None:
+        if self._isPlaying:
+            self.stopPlayback()
+        self._setCurrentTime(0.0)
+
+    def jumpToEnd(self) -> None:
+        if self._isPlaying:
+            self.stopPlayback()
+        self._setCurrentTime(self._getContentDuration())
 
     def _onPlayClicked(self) -> None:
         if self._isPlaying:

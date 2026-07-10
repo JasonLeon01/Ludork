@@ -305,6 +305,8 @@ class FileExplorer(QtWidgets.QWidget):
     FILE_CLICKED = QtCore.pyqtSignal(str)
     DATA_FILE_CHANGED = QtCore.pyqtSignal()
     DATA_PATH_RENAMED = QtCore.pyqtSignal(str, str)
+    _clipboardPaths: list[str] = []
+    _clipboardCut: bool = False
 
     def __init__(self, root_path: str, parent: Optional[QtWidgets.QWidget] = None):
         super().__init__(parent)
@@ -553,6 +555,19 @@ class FileExplorer(QtWidgets.QWidget):
         self._refreshPathCrumbs()
         self.setMinimumHeight(160)
         Panel.ApplyDisabledOpacity(self)
+        self._setupShortcuts()
+
+    def _setupShortcuts(self) -> None:
+        shortcutContext = QtCore.Qt.WidgetWithChildrenShortcut
+        view = self._view
+        QtWidgets.QShortcut(QtGui.QKeySequence.Copy, view, self._onCopySelected, context=shortcutContext)
+        QtWidgets.QShortcut(QtGui.QKeySequence.Cut, view, self._onCutSelected, context=shortcutContext)
+        QtWidgets.QShortcut(QtGui.QKeySequence.Paste, view, self._onPasteClipboard, context=shortcutContext)
+        QtWidgets.QShortcut(QtGui.QKeySequence.SelectAll, view, view.selectAll, context=shortcutContext)
+        QtWidgets.QShortcut(QtGui.QKeySequence("Ctrl+D"), view, self._onDuplicateSelected, context=shortcutContext)
+        QtWidgets.QShortcut(QtGui.QKeySequence("Ctrl+Shift+N"), view, self._onNewFolderShortcut, context=shortcutContext)
+        QtWidgets.QShortcut(QtCore.Qt.Key_Backspace, view, self._onUp, context=shortcutContext)
+        QtWidgets.QShortcut(QtCore.Qt.Key_F5, view, self._onRefresh, context=shortcutContext)
 
     def setInteractive(self, enabled: bool) -> None:
         self._interactive = bool(enabled)
@@ -576,6 +591,11 @@ class FileExplorer(QtWidgets.QWidget):
     def _refresh(self) -> None:
         self._iconProvider.clearCache()
         self._view.setRootIndex(self._proxy.mapFromSource(self._model.index(self._current)))
+
+    def _onRefresh(self) -> None:
+        if not self._interactive:
+            return
+        self._refresh()
 
     def _isUnderRoot(self, path: str) -> bool:
         try:
@@ -934,14 +954,19 @@ class FileExplorer(QtWidgets.QWidget):
     ) -> bool:
         if not self._canAcceptDroppedPaths(mimeData, targetDir, allowSelectionFallback):
             return False
-        moved = []
-        failedMessages = []
-        targetAbs = os.path.abspath(targetDir)
         paths = sorted(
             self._pathsForDrop(mimeData, allowSelectionFallback),
             key=lambda p: len(os.path.normcase(p)),
         )
-        for path in paths:
+        return self._movePaths(paths, targetDir)
+
+    def _movePaths(self, paths: list[str], targetDir: str) -> bool:
+        if not targetDir or not os.path.isdir(targetDir) or not self._isUnderRoot(targetDir):
+            return False
+        moved: list[tuple[str, str]] = []
+        failedMessages: list[str] = []
+        targetAbs = os.path.abspath(targetDir)
+        for path in sorted(paths, key=lambda p: len(os.path.normcase(p))):
             if not self._canMovePathTo(path, targetAbs):
                 continue
             newPath = os.path.join(targetAbs, os.path.basename(path))
@@ -970,6 +995,115 @@ class FileExplorer(QtWidgets.QWidget):
                 ELOC("MOVE_FILE_FAILED") + "\n" + "\n".join(failedMessages),
             )
         return bool(moved)
+
+    def _copyPathsTo(self, paths: list[str], targetDir: str) -> bool:
+        if not targetDir or not os.path.isdir(targetDir) or not self._isUnderRoot(targetDir):
+            return False
+        copied: list[str] = []
+        failedMessages: list[str] = []
+        targetAbs = os.path.abspath(targetDir)
+        for path in sorted(paths, key=lambda p: len(os.path.normcase(p))):
+            if not path or not os.path.exists(path) or not self._isUnderRoot(path):
+                continue
+            absPath = os.path.abspath(path)
+            rootPath = os.path.normcase(os.path.abspath(self._root))
+            if os.path.normcase(absPath) == rootPath:
+                continue
+            destPath = os.path.join(targetAbs, os.path.basename(absPath))
+            if os.path.normcase(absPath) == os.path.normcase(os.path.abspath(destPath)):
+                continue
+            if os.path.isdir(absPath) and self._isPathInside(targetAbs, absPath):
+                failedMessages.append(f"{os.path.basename(path)}: {ELOC('MOVE_FILE_FAILED')}")
+                continue
+            if os.path.exists(destPath):
+                failedMessages.append(
+                    f"{os.path.basename(path)}: {ELOC('FILE_ALREADY_EXISTS').format(name=os.path.basename(destPath))}"
+                )
+                continue
+            try:
+                if os.path.isdir(absPath):
+                    shutil.copytree(absPath, destPath)
+                else:
+                    shutil.copy2(absPath, destPath)
+                copied.append(destPath)
+            except Exception as e:
+                failedMessages.append(f"{os.path.basename(path)}: {str(e)}")
+
+        if copied:
+            self.DATA_FILE_CHANGED.emit()
+            self._refresh()
+        if failedMessages:
+            QtWidgets.QMessageBox.warning(
+                self,
+                ELOC("ERROR"),
+                ELOC("DUPLICATE_FAILED") + "\n" + "\n".join(failedMessages),
+            )
+        return bool(copied)
+
+    def _pasteTargetDir(self) -> str:
+        rows = self._selectedSourceRows()
+        if rows:
+            path = self._model.filePath(rows[0])
+            isDir = self._model.isDir(rows[0])
+            return self._targetDirForNewFolder(path, isDir)
+        return self._current
+
+    def _onCopySelected(self) -> None:
+        if not self._interactive:
+            return
+        paths = self._selectedPathsForDrag()
+        if not paths:
+            return
+        FileExplorer._clipboardPaths = list(paths)
+        FileExplorer._clipboardCut = False
+
+    def _onCutSelected(self) -> None:
+        if not self._interactive:
+            return
+        paths = self._selectedPathsForDrag()
+        if not paths:
+            return
+        FileExplorer._clipboardPaths = list(paths)
+        FileExplorer._clipboardCut = True
+
+    def _onPasteClipboard(self) -> None:
+        if not self._interactive:
+            return
+        paths = [path for path in FileExplorer._clipboardPaths if path and os.path.exists(path)]
+        if not paths:
+            FileExplorer._clipboardPaths = []
+            FileExplorer._clipboardCut = False
+            return
+        targetDir = self._pasteTargetDir()
+        if FileExplorer._clipboardCut:
+            if self._movePaths(paths, targetDir):
+                FileExplorer._clipboardPaths = []
+                FileExplorer._clipboardCut = False
+        else:
+            self._copyPathsTo(paths, targetDir)
+
+    def _onDuplicateSelected(self) -> None:
+        if not self._interactive:
+            return
+        duplicated = False
+        for path in self._selectedPathsForDrag():
+            if os.path.isfile(path):
+                self._duplicateItem(path)
+                duplicated = True
+        if duplicated:
+            self._refresh()
+
+    def _onNewFolderShortcut(self) -> None:
+        if not self._interactive:
+            return
+        rows = self._selectedSourceRows()
+        if rows:
+            path = self._model.filePath(rows[0])
+            isDir = self._model.isDir(rows[0])
+            targetDir = self._targetDirForNewFolder(path, isDir)
+        else:
+            targetDir = self._current
+        self._createFolder(targetDir)
 
     def _refreshPathCrumbs(self) -> None:
         while self._pathCrumbLayout.count():
@@ -1028,7 +1162,10 @@ class FileExplorer(QtWidgets.QWidget):
                 isDir = self._model.isDir(i0)
         menu = QtWidgets.QMenu(self)
         actNewFolder = menu.addAction(ELOC("NEW_FOLDER"))
-        actOpen = menu.addAction(ELOC("OPEN_FROM_SYSTEM"))
+        actCopy = None
+        actCut = None
+        actPaste = None
+        actOpen = None
         actDuplicate = None
         actRename = None
         actDelete = None
@@ -1038,6 +1175,14 @@ class FileExplorer(QtWidgets.QWidget):
         actConvertDataFormat = None
         blueprintClassName = ""
         if selectedPath:
+            menu.addSeparator()
+            actCopy = menu.addAction(ELOC("COPY"))
+            actCut = menu.addAction(ELOC("CUT"))
+        if FileExplorer._clipboardPaths:
+            actPaste = menu.addAction(ELOC("PASTE"))
+        if selectedPath:
+            menu.addSeparator()
+            actOpen = menu.addAction(ELOC("OPEN_FROM_SYSTEM"))
             if not isDir:
                 blueprintClassName = self._blueprintClassNameForPath(selectedPath) or ""
             if blueprintClassName:
@@ -1055,6 +1200,9 @@ class FileExplorer(QtWidgets.QWidget):
                 actDuplicate = menu.addAction(ELOC("DUPLICATE_FILE"))
             actRename = menu.addAction(ELOC("RENAME_FILE"))
             actDelete = menu.addAction(ELOC("DELETE"))
+        elif FileExplorer._clipboardPaths:
+            menu.addSeparator()
+            actPaste = menu.addAction(ELOC("PASTE"))
         viewport = self._view.viewport()
         if viewport is None:
             return
@@ -1070,6 +1218,12 @@ class FileExplorer(QtWidgets.QWidget):
         r = menu.exec_(viewport.mapToGlobal(pos))
         if r == actNewFolder:
             self._createFolder(self._targetDirForNewFolder(selectedPath, isDir))
+        elif actCopy and r == actCopy:
+            self._onCopySelected()
+        elif actCut and r == actCut:
+            self._onCutSelected()
+        elif actPaste and r == actPaste:
+            self._onPasteClipboard()
         elif actCopyBlueprintClassName and r == actCopyBlueprintClassName:
             self._copyBlueprintClassName(blueprintClassName)
         elif actDeriveBlueprint and r == actDeriveBlueprint:
@@ -1078,7 +1232,7 @@ class FileExplorer(QtWidgets.QWidget):
             self._showReferenceTree(selectedPath)
         elif actConvertDataFormat and r == actConvertDataFormat:
             self._convertDataFileFormat(selectedPath)
-        elif r == actOpen:
+        elif actOpen and r == actOpen:
             if selectedPath:
                 self._openSystemFile(selectedPath)
         elif actDuplicate and r == actDuplicate:
@@ -1194,6 +1348,7 @@ class FileExplorer(QtWidgets.QWidget):
         try:
             shutil.copy2(path, candidate)
             self.DATA_FILE_CHANGED.emit()
+            self._refresh()
         except Exception as e:
             QtWidgets.QMessageBox.warning(
                 self,

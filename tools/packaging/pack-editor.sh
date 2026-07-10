@@ -56,7 +56,7 @@ NUITKA_FLAGS=(
     "--file-description=Ludork Editor"
     "--copyright=Copyright (c) 2026 Ludork"
     --enable-plugin=pyqt5
-    --include-qt-plugins=platforms,styles,iconengines,imageformats
+    --include-qt-plugins=platforms,styles,iconengines,imageformats,qml
     --include-package-data=qt_material
     --include-module=EditorGlobal
     --include-package=Widgets
@@ -64,6 +64,7 @@ NUITKA_FLAGS=(
     "--include-data-dir=$ROOT/Resource=Resource"
     "--include-data-dir=$ROOT/Locale=Locale"
     "--include-data-dir=$ROOT/Styles=Styles"
+    "--include-data-dir=$ROOT/EditorGlobal/Qml=EditorGlobal/Qml"
     "--include-data-dir=$ROOT/BuildTools=BuildTools"
     --include-module=NodeGraphQt
     --include-package=debugpy

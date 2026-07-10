@@ -363,6 +363,10 @@
     "zh_CN": "文件浏览器",
     "en_GB": "File Explorer"
   },
+  "FILE_EXPLORER_REFRESH": {
+    "zh_CN": "刷新",
+    "en_GB": "Refresh"
+  },
   "FILE_EXPLORER_ICON_VIEW": {
     "zh_CN": "图标视图",
     "en_GB": "Icon View"
@@ -414,6 +418,10 @@
   "COPY": {
     "zh_CN": "复制",
     "en_GB": "Copy"
+  },
+  "CUT": {
+    "zh_CN": "剪切",
+    "en_GB": "Cut"
   },
   "PASTE": {
     "zh_CN": "粘贴",
