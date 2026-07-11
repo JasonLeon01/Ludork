@@ -4,7 +4,8 @@ import copy
 import logging
 import os
 import zlib
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures._base import as_completed
+from concurrent.futures.thread import ThreadPoolExecutor
 from typing import Any, Callable, Dict, Optional, Tuple, Type
 from Engine import Vector2f, Vector2u, Vector2i, IntRect, Image, Tileset, AutoTile, Material, Curve
 from Engine.Gameplay.Actors import Actor
@@ -48,7 +49,7 @@ class _Data:
         return namePart, payload, cachedPayload
 
     def loadAnimations(self, onFileLoaded: Optional[Callable[[], None]] = None) -> None:
-        animationRoot = os.path.join(".", "Data", "Animations")
+        animationRoot = Inner.getAnimationCacheRoot()
         if not os.path.exists(animationRoot):
             raise FileNotFoundError(f"Error: Data path {animationRoot} does not exist.")
         self._animationData.clear()

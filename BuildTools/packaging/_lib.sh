@@ -48,6 +48,13 @@ pip_ensure_with_exe() {
     local package="$2"
     local extra_args="${3:-}"
 
+    if [ -n "$extra_args" ]; then
+        step "Updating $package..."
+        # shellcheck disable=SC2086
+        "$python_exe" -m pip install $extra_args "$package"
+        return
+    fi
+
     if ! "$python_exe" -m pip show "$package" >/dev/null 2>&1; then
         step "Installing $package..."
         # shellcheck disable=SC2086

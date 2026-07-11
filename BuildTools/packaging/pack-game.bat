@@ -89,6 +89,18 @@ if "%INCLUDE_PYAV%"=="1" (
     if !ERRORLEVEL! neq 0 exit /b !ERRORLEVEL!
 )
 
+set "PACK_PROFILE=low"
+set "PACK_JOBS="
+set "PACK_LTO=no"
+set "PACK_JOBS_LABEL=all"
+set "REMOVABLE_FILES="
+for /f "tokens=1,* delims==" %%A in ('call "%PYTHON_EXE%" "%ROOT%\tools\packaging\pack_profile.py"') do (
+    if /I "%%A"=="PROFILE" set "PACK_PROFILE=%%B"
+    if /I "%%A"=="JOBS" set "PACK_JOBS=%%B"
+    if /I "%%A"=="LTO" set "PACK_LTO=%%B"
+    if /I "%%A"=="JOBS_LABEL" set "PACK_JOBS_LABEL=%%B"
+)
+
 set "FLAGS=--remove-output"
 set "FLAGS=%FLAGS% --assume-yes-for-downloads"
 set "FLAGS=%FLAGS% "--output-dir=%DIST_PATH%""
@@ -96,12 +108,19 @@ set "FLAGS=%FLAGS% --output-filename=Main"
 set "FLAGS=%FLAGS% --include-data-dir=Assets=Assets"
 set "FLAGS=%FLAGS% --include-data-dir=Data=Data"
 set "FLAGS=%FLAGS% --include-package=pysf"
-if exist "%PROJ_PATH%\Main.ini" set "FLAGS=%FLAGS% --include-data-file=Main.ini=Main.ini"
 if "%INCLUDE_PYAV%"=="1" set "FLAGS=%FLAGS% --include-module=av"
+for /f "tokens=1,* delims==" %%A in ('call "%PYTHON_EXE%" "%ROOT%\tools\packaging\game_nuitka_slim.py" --platform "%PLATFORM%"') do (
+    if /I "%%A"=="NOFOLLOW" set "FLAGS=!FLAGS! --nofollow-import-to=%%B"
+    if /I "%%A"=="NOINCLUDE_DATA" set "FLAGS=!FLAGS! --noinclude-data-files=%%B"
+    if /I "%%A"=="NOINCLUDE_DLL" set "FLAGS=!FLAGS! --noinclude-dlls=%%B"
+    if /I "%%A"=="REMOVE_FILE" set "REMOVABLE_FILES=!REMOVABLE_FILES! %%B"
+)
+if defined PACK_JOBS set "FLAGS=%FLAGS% --jobs=%PACK_JOBS%"
+set "FLAGS=%FLAGS% --lto=%PACK_LTO%"
 set "FLAGS=%FLAGS% --standalone --windows-console-mode=disable"
 if exist "%PROJ_PATH%\Assets\System\icon.ico" set "FLAGS=%FLAGS% "--windows-icon-from-ico=%PROJ_PATH%\Assets\System\icon.ico""
 
-call "%LIB%" step "Running Nuitka build for game..."
+call "%LIB%" step "Running Nuitka build for game (profile: %PACK_PROFILE%, jobs: %PACK_JOBS_LABEL%, lto: %PACK_LTO%)..."
 pushd "%PROJ_PATH%"
 echo Running Nuitka: "%PYTHON_EXE%" -u -m nuitka %FLAGS% %ENTRY_NAME%.py
 "%PYTHON_EXE%" -u -m nuitka %FLAGS% %ENTRY_NAME%.py
@@ -109,6 +128,11 @@ set "PACK_RC=%ERRORLEVEL%"
 popd
 
 if "%PACK_RC%"=="0" (
+    for %%F in (!REMOVABLE_FILES!) do (
+        if exist "%DIST_PATH%\%ENTRY_NAME%.dist\%%F" del /q "%DIST_PATH%\%ENTRY_NAME%.dist\%%F"
+    )
+    call "%LIB%" step "Pruning dev-only data files from package..."
+    "%PYTHON_EXE%" "%ROOT%\tools\packaging\game_nuitka_slim.py" --prune-dist "%DIST_PATH%\%ENTRY_NAME%.dist"
     call "%LIB%" log "Game packaging complete. Output: %DIST_PATH%\%ENTRY_NAME%.dist"
 )
 exit /b %PACK_RC%

@@ -4,8 +4,7 @@ from __future__ import annotations
 import asyncio
 import warnings
 import threading
-import concurrent.futures
-from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Dict, List, Optional, Tuple, Union
 from Engine import (
     SoundBuffer,
     Sound,
@@ -20,6 +19,9 @@ from Engine import (
     Transformable,
 )
 from ..System import System
+
+if TYPE_CHECKING:
+    from concurrent.futures import Future
 
 
 class AudioManager:
@@ -72,7 +74,7 @@ class AudioManager:
     @classmethod
     def _submit(
         cls, coro: Coroutine[Any, Any, Any]
-    ) -> Optional[Union[asyncio.Task[Any], concurrent.futures.Future[Any]]]:
+    ) -> Optional[Union[asyncio.Task[Any], Future[Any]]]:
         try:
             loop = asyncio.get_running_loop()
             return loop.create_task(coro)

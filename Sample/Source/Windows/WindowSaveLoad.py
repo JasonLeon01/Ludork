@@ -1,7 +1,8 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures._base import as_completed
+from concurrent.futures.thread import ThreadPoolExecutor
 import datetime
 import os
 from typing import Any, Callable, Dict, Optional, Union, Tuple

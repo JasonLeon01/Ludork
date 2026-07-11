@@ -5,11 +5,12 @@ import logging
 import os
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures._base import as_completed
+from concurrent.futures.thread import ThreadPoolExecutor
 from typing import Callable, Optional, Tuple
 import Engine
 from Engine import Pair, Color, Vector2f, RenderTexture, RectangleShape
-from Engine.Utils import Math
+from Engine.Utils import Inner, Math
 from Engine.Animation import compressAnimation
 from Engine.Utils import File
 from Engine.UI.Base import SpriteBase, FunctionalBase
@@ -30,23 +31,23 @@ def _splitCompound(fileName: str) -> Tuple[str, str]:
     return fileName, ""
 
 
-def _getCompressedAnimationPath(file: str, animationRoot: str) -> str:
+def _getCompressedAnimationPath(file: str, cacheRoot: str) -> str:
     namePart, _ = _splitCompound(file)
-    return os.path.join(animationRoot, f"{namePart}.anim.dat")
+    return os.path.join(cacheRoot, f"{namePart}.anim.dat")
 
 
-def _needsAnimationCompression(file: str, animationRoot: str) -> bool:
-    sourcePath = os.path.join(animationRoot, file)
-    compressedPath = _getCompressedAnimationPath(file, animationRoot)
+def _needsAnimationCompression(file: str, sourceRoot: str, cacheRoot: str) -> bool:
+    sourcePath = os.path.join(sourceRoot, file)
+    compressedPath = _getCompressedAnimationPath(file, cacheRoot)
     if not os.path.exists(compressedPath):
         return True
     return os.path.getmtime(compressedPath) < os.path.getmtime(sourcePath)
 
 
-def _compressAnimationFile(file: str, animationRoot: str, assetsRoot: str) -> None:
+def _compressAnimationFile(file: str, sourceRoot: str, cacheRoot: str, assetsRoot: str) -> None:
     _, extensionPart = _splitCompound(file)
-    sourcePath = os.path.join(animationRoot, file)
-    compressedPath = _getCompressedAnimationPath(file, animationRoot)
+    sourcePath = os.path.join(sourceRoot, file)
+    compressedPath = _getCompressedAnimationPath(file, cacheRoot)
     logging.info("Compressing animation: %s", file)
     if extensionPart == ".json":
         payload = File.getJSONData(sourcePath)
@@ -160,13 +161,14 @@ class Scene(SceneBase):
         return fileList
 
     def _countInitWorkUnits(self) -> int:
-        animationRoot = os.path.join(".", "Data", "Animations")
+        animationSourceRoot = Inner.getAnimationSourceRoot()
+        animationCacheRoot = Inner.getAnimationCacheRoot()
         sourceCount = 0
         loadAnimCount = 0
-        if os.path.exists(animationRoot):
-            sourceCount = len(self._listAnimationSourceFiles(animationRoot))
+        if os.path.exists(animationSourceRoot):
+            sourceCount = len(self._listAnimationSourceFiles(animationSourceRoot))
             loadAnimCount = Data.countLoadableFiles(
-                animationRoot, ".anim.dat", {".anim.dat": File.loadData}
+                animationCacheRoot, ".anim.dat", {".anim.dat": File.loadData}
             )
         loadAnimCount = max(sourceCount, loadAnimCount)
         total = sourceCount + loadAnimCount
@@ -187,14 +189,17 @@ class Scene(SceneBase):
 
     def compressAnimations(self) -> None:
         r"""\brief Compress animation data files if source is newer than cached copies."""
-        animationRoot = os.path.join(".", "Data", "Animations")
-        if not os.path.exists(animationRoot):
-            raise FileNotFoundError(f"Error: Animation data path {animationRoot} does not exist.")
+        animationSourceRoot = Inner.getAnimationSourceRoot()
+        animationCacheRoot = Inner.getAnimationCacheRoot()
+        if not os.path.exists(animationSourceRoot):
+            raise FileNotFoundError(f"Error: Animation data path {animationSourceRoot} does not exist.")
         assetsRoot = os.path.join(".", "Assets", "Animations")
-        sourceFiles = self._listAnimationSourceFiles(animationRoot)
+        sourceFiles = self._listAnimationSourceFiles(animationSourceRoot)
         if not sourceFiles:
             return
-        fileList = [file for file in sourceFiles if _needsAnimationCompression(file, animationRoot)]
+        fileList = [
+            file for file in sourceFiles if _needsAnimationCompression(file, animationSourceRoot, animationCacheRoot)
+        ]
         for _ in range(len(sourceFiles) - len(fileList)):
             self._advanceProgress()
         if not fileList:
@@ -202,7 +207,8 @@ class Scene(SceneBase):
         maxWorkers = min(len(fileList), os.cpu_count() or _MAX_INIT_WORKERS, _MAX_INIT_WORKERS)
         with ThreadPoolExecutor(max_workers=maxWorkers) as executor:
             futures = [
-                executor.submit(_compressAnimationFile, file, animationRoot, assetsRoot) for file in fileList
+                executor.submit(_compressAnimationFile, file, animationSourceRoot, animationCacheRoot, assetsRoot)
+                for file in fileList
             ]
             for future in as_completed(futures):
                 future.result()

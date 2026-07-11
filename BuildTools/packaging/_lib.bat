@@ -29,6 +29,11 @@ exit /b 1
 set "PYTHON_EXE=%~2"
 set "PACKAGE=%~3"
 set "EXTRA_ARGS=%~4"
+if not "%EXTRA_ARGS%"=="" (
+    echo [STEP] Updating %PACKAGE%...
+    "%PYTHON_EXE%" -m pip --disable-pip-version-check install %EXTRA_ARGS% "%PACKAGE%"
+    exit /b %ERRORLEVEL%
+)
 "%PYTHON_EXE%" -m pip --disable-pip-version-check show "%PACKAGE%" >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     echo [STEP] Installing %PACKAGE%...

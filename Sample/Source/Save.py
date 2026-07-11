@@ -69,5 +69,5 @@ def GetSavePath(slot: int = 1, ext: str = "dat") -> str:
     - \param ext File extension ('json' or 'dat').
     - \return Full path to the save file.
     """
-    saveDir: str = getSavePath("Ludork")
+    saveDir: str = getSavePath()
     return os.path.join(saveDir, f"Save_{slot}.{ext}")

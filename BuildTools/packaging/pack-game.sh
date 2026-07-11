@@ -72,6 +72,20 @@ if [ -n "$INCLUDE_PYAV" ]; then
     pip_ensure_with_exe "$PYTHON_EXE" av "-U"
 fi
 
+PACK_PROFILE="low"
+PACK_JOBS=""
+PACK_LTO="no"
+PACK_JOBS_LABEL="all"
+REMOVABLE_FILES=()
+while IFS='=' read -r key value; do
+    case "$key" in
+        PROFILE) PACK_PROFILE="$value" ;;
+        JOBS) PACK_JOBS="$value" ;;
+        LTO) PACK_LTO="$value" ;;
+        JOBS_LABEL) PACK_JOBS_LABEL="$value" ;;
+    esac
+done < <("$PYTHON_EXE" "$ROOT/tools/packaging/pack_profile.py")
+
 NUITKA_FLAGS=(
     --remove-output
     --assume-yes-for-downloads
@@ -82,8 +96,17 @@ NUITKA_FLAGS=(
     --include-package=pysf
 )
 
-[ -f "$PROJ_PATH/Main.ini" ] && NUITKA_FLAGS+=(--include-data-file=Main.ini=Main.ini)
 [ -n "$INCLUDE_PYAV" ] && NUITKA_FLAGS+=(--include-module=av)
+while IFS='=' read -r key value; do
+    case "$key" in
+        NOFOLLOW) NUITKA_FLAGS+=("--nofollow-import-to=$value") ;;
+        NOINCLUDE_DATA) NUITKA_FLAGS+=("--noinclude-data-files=$value") ;;
+        NOINCLUDE_DLL) NUITKA_FLAGS+=("--noinclude-dlls=$value") ;;
+        REMOVE_FILE) REMOVABLE_FILES+=("$value") ;;
+    esac
+done < <("$PYTHON_EXE" "$ROOT/tools/packaging/game_nuitka_slim.py" --platform "$PLATFORM")
+[ -n "$PACK_JOBS" ] && NUITKA_FLAGS+=("--jobs=$PACK_JOBS")
+NUITKA_FLAGS+=("--lto=$PACK_LTO")
 
 if [ "$PLATFORM" = "win32" ]; then
     NUITKA_FLAGS+=(--standalone --windows-console-mode=disable)
@@ -93,11 +116,22 @@ else
     [ -f "$PROJ_PATH/Assets/System/icon.icns" ] && NUITKA_FLAGS+=("--macos-app-icon=$PROJ_PATH/Assets/System/icon.icns")
 fi
 
-step "Running Nuitka build for game..."
+step "Running Nuitka build for game (profile: $PACK_PROFILE, jobs: $PACK_JOBS_LABEL, lto: $PACK_LTO)..."
 printf 'Running Nuitka:'
 printf ' %q' "$PYTHON_EXE" -u -m nuitka "${NUITKA_FLAGS[@]}" "$ENTRY_NAME.py"
 printf '\n'
 (cd "$PROJ_PATH" && "$PYTHON_EXE" -u -m nuitka "${NUITKA_FLAGS[@]}" "$ENTRY_NAME.py")
+
+for file_name in "${REMOVABLE_FILES[@]}"; do
+    rm -f "$DIST_PATH/$ENTRY_NAME.dist/$file_name"
+done
+
+step "Pruning dev-only data files from package..."
+if [ "$PLATFORM" = "win32" ]; then
+    "$PYTHON_EXE" "$ROOT/tools/packaging/game_nuitka_slim.py" --prune-dist "$DIST_PATH/$ENTRY_NAME.dist"
+else
+    "$PYTHON_EXE" "$ROOT/tools/packaging/game_nuitka_slim.py" --prune-dist "$DIST_PATH/Main.app"
+fi
 
 if [ "$PLATFORM" = "win32" ]; then
     log "Game packaging complete. Output: $DIST_PATH/$ENTRY_NAME.dist"
