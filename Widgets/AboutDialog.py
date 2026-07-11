@@ -1,58 +1,35 @@
 # -*- encoding: utf-8 -*-
 
 import os
-from typing import Optional, cast
-from PyQt5 import QtCore, QtGui, QtWidgets
-from Utils import File
-from .MarkdownPreviewer import MarkdownPreviewer
+from typing import Optional
+
+from PyQt5 import QtCore, QtWidgets
+
 from EditorGlobal import EditorStatus
+from EditorGlobal.QmlDialogHost import QmlDialogHost
+from Utils import File
 
 
-class AboutDialog(QtWidgets.QDialog):
-    def __init__(self, parent: Optional[QtWidgets.QWidget] = None):
-        super().__init__(parent)
-        self.setWindowTitle(ELOC("ABOUT_TITLE"))
-        self.setFixedSize(500, 400)
-        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowContextHelpButtonHint)
-        self._licenseWindow: Optional[MarkdownPreviewer] = None
+class AboutDialog(QmlDialogHost):
+    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+        super().__init__(
+            parent,
+            ELOC("ABOUT_TITLE"),
+            QtCore.QSize(500, 360),
+            QtCore.QSize(400, 280),
+        )
+        self._licenseWindow: Optional[QtWidgets.QWidget] = None
+        self.loadQml(
+            "Dialogs/AboutDialog.qml",
+            {
+                "aboutAppName": EditorStatus.APP_NAME,
+                "aboutVersion": f"Version {EditorStatus.VERSION}",
+            },
+        )
 
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(15)
-
-        titleLabel = QtWidgets.QLabel(EditorStatus.APP_NAME)
-        font = QtGui.QFont()
-        font.setPointSize(24)
-        font.setBold(True)
-        titleLabel.setFont(font)
-        titleLabel.setAlignment(QtCore.Qt.AlignCenter)
-        layout.addWidget(titleLabel)
-
-        versionLabel = QtWidgets.QLabel(f"Version {EditorStatus.VERSION}")
-        versionLabel.setAlignment(QtCore.Qt.AlignCenter)
-        layout.addWidget(versionLabel)
-
-        descLabel = QtWidgets.QLabel(ELOC("ABOUT_DESC"))
-        descLabel.setWordWrap(True)
-        descLabel.setAlignment(QtCore.Qt.AlignCenter)
-        layout.addWidget(descLabel)
-
-        copyrightLabel = QtWidgets.QLabel(ELOC("ABOUT_COPYRIGHT"))
-        copyrightLabel.setAlignment(QtCore.Qt.AlignCenter)
-        copyrightLabel.setStyleSheet("color: gray;")
-        layout.addWidget(copyrightLabel)
-
-        layout.addStretch()
-
-        btnBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
-        closeBtn = cast(QtWidgets.QAbstractButton, btnBox.button(QtWidgets.QDialogButtonBox.Close))
-        closeBtn.setText(ELOC("CLOSE"))
-        licensesBtn = cast(QtWidgets.QAbstractButton, btnBox.addButton(ELOC("ABOUT_LICENSES"), QtWidgets.QDialogButtonBox.ActionRole))
-        licensesBtn.clicked.connect(self._onOpenLicenses)
-        btnBox.rejected.connect(self.reject)
-        layout.addWidget(btnBox)
-
-    def _onOpenLicenses(self) -> None:
+    @QtCore.pyqtSlot()
+    def openLicenses(self) -> None:
+        from Widgets.MarkdownPreviewer import MarkdownPreviewer
         self._licenseWindow = MarkdownPreviewer(
             self,
             os.path.join(File.GetRootPath(), "LICENSE.md"),

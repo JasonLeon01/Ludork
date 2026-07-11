@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Optional, Dict, Any, Set
 from PyQt5 import QtWidgets, QtCore
 
 from EditorGlobal import EditorStatus, GameData
-from Widgets.Utils import DataclassWidget, FileSelectorDialog, RectViewer
+from Widgets.Utils import DataclassWidget, FileSelectorDialog, OpenDataclassWidgetDialog, RectViewer
 from Widgets.Utils.ClassDetailMixin import ClassDetailMixin
 from Widgets.Utils.MetaVarTypes import _GENERALDATA_VAR_TYPE
 from Widgets.Utils.StructuredFields import IsStructuredType
@@ -406,25 +406,13 @@ class ActorInfoPanel(ClassDetailMixin, QtWidgets.QWidget):
         currentValue = self._classDisplayValues.get(key)
         displayValue = self._normaliseComponentData(componentType, currentValue)
 
-        dlg = QtWidgets.QDialog(self)
-        dlg.setWindowTitle(self._getClassAttrDisplayName(key))
-        layout = QtWidgets.QVBoxLayout(dlg)
-        widget = DataclassWidget(componentType, copy.deepcopy(displayValue), dlg)
-        layout.addWidget(widget)
-        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
-        okBtn = buttons.button(QtWidgets.QDialogButtonBox.Ok)
-        cancelBtn = buttons.button(QtWidgets.QDialogButtonBox.Cancel)
-        if okBtn:
-            okBtn.setText(ELOC("CONFIRM"))
-        if cancelBtn:
-            cancelBtn.setText(ELOC("CANCEL"))
-        buttons.accepted.connect(dlg.accept)
-        buttons.rejected.connect(dlg.reject)
-        layout.addWidget(buttons)
-        if dlg.exec_() != QtWidgets.QDialog.Accepted:
-            return
-
-        self._onClassVarChanged(key, copy.deepcopy(widget.data), refresh=True)
+        OpenDataclassWidgetDialog(
+            self,
+            self._getClassAttrDisplayName(key),
+            componentType,
+            copy.deepcopy(displayValue),
+            onAccepted=lambda dlg: self._onClassVarChanged(key, copy.deepcopy(dlg.widget.data), refresh=True),
+        )
 
     def _createClassInputWidget(
         self,
@@ -544,7 +532,9 @@ class ActorInfoPanel(ClassDetailMixin, QtWidgets.QWidget):
             assetsDir = os.path.join(EditorStatus.PROJ_PATH, "Assets")
             baseDir = assetsDir if os.path.isdir(assetsDir) else EditorStatus.PROJ_PATH
         dlg = FileSelectorDialog(self, baseDir, FileSelectorDialog.allFilesFilter(star=True))
-        filePath = dlg.execSelect()
+        dlg.openSelect(lambda filePath: self._applySelectedPath(filePath, baseDir, widget))
+
+    def _applySelectedPath(self, filePath: str, baseDir: str, widget: QtWidgets.QLineEdit) -> None:
         if not filePath:
             return
         try:

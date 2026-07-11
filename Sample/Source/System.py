@@ -176,6 +176,9 @@ class System:
         cls._getSE = str(cls._audioConfigValues.get("getSE", ""))
         cls._equipSE = str(cls._audioConfigValues.get("equipSE", ""))
         cls._titleBGM = str(cls._audioConfigValues.get("titleBGM", ""))
+        from Source.MovementSpecials import registerHandlers
+
+        registerHandlers()
 
     @classmethod
     def _extractConfigValues(cls, configData: Dict[str, Any]) -> Dict[str, Any]:

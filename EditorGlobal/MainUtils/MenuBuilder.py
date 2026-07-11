@@ -198,12 +198,24 @@ class MenuBuilderMixin:
             QtWidgets.QMessageBox.warning(self, ELOC("PACK_TITLE"), ELOC("PACK_ENTRY_MISSING"))
             return
 
-        selDlg = PackSelectionDialog(self)
-        if selDlg.exec_() != QtWidgets.QDialog.Accepted:
+        currentDialog = getattr(self, "_packSelectionDialog", None)
+        if isinstance(currentDialog, PackSelectionDialog):
+            currentDialog.raise_()
+            currentDialog.activateWindow()
+            return
+        self._packSelectionDialog = PackSelectionDialog(self)
+        self._packSelectionDialog.accepted.connect(self._onPackSelectionAccepted)
+        self._packSelectionDialog.finished.connect(self._onPackSelectionFinished)
+        self._packSelectionDialog.open()
+
+    def _onPackSelectionAccepted(self) -> None:
+        selDlg = getattr(self, "_packSelectionDialog", None)
+        if not isinstance(selDlg, PackSelectionDialog):
             return
 
         platform = selDlg.getSelectedPlatform()
         includePyAV = selDlg.getIncludePyAV()
+        projPath = EditorStatus.PROJ_PATH
         distPath = os.path.join(projPath, "dist")
 
         python_exe = ""
@@ -244,8 +256,11 @@ class MenuBuilderMixin:
         self._packWorker.FINISHED_SIGNAL.connect(self._packDialog.finish)
         self._packWorker.IOS_OUTPUT_READY.connect(self._onIOSOutputReady)
 
-        self._packDialog.show()
+        self._packDialog.open()
         self._packWorker.start()
+
+    def _onPackSelectionFinished(self, _result: int) -> None:
+        self._packSelectionDialog = None
 
     def _onIOSOutputReady(self, outputDir: str) -> None:
         if os.path.exists(outputDir):
@@ -268,4 +283,4 @@ class MenuBuilderMixin:
 
     def _onAbout(self, checked: bool = False) -> None:
         dlg = AboutDialog(self)
-        dlg.exec_()
+        dlg.open()

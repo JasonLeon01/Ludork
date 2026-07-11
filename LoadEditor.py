@@ -106,6 +106,9 @@ def _ThreadExcepthook(args):
 
 
 def Main():
+    QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
+    QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
+    QApplication.setAttribute(QtCore.Qt.AA_ShareOpenGLContexts, True)
     from EditorGlobal import StartWindow, EditorStatus
 
     if System.AlreadyPacked():
@@ -115,8 +118,6 @@ def Main():
     icon_path = os.path.join(File.GetRootPath(), "Resource", "icon.icns" if sys.platform == "darwin" else "icon.ico")
     if not os.path.exists(icon_path):
         icon_path = os.path.join(File.GetRootPath(), "Resource", "icon.ico")
-    QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
-    QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
     app = App(sys.argv)
     sys.excepthook = _HandleUnexpectedException
     threading.excepthook = _ThreadExcepthook
@@ -144,6 +145,7 @@ def Main():
     start.move(fg.topLeft())
     if START_PROJ_FILE and os.path.isfile(START_PROJ_FILE) and START_PROJ_FILE.lower().endswith(".proj"):
         File.OpenProjectFile(START_PROJ_FILE, start)
+        start = None
     else:
         start.show()
     sys.exit(app.exec_())

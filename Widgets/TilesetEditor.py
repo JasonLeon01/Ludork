@@ -7,7 +7,7 @@ from typing import Optional
 from PyQt5 import QtWidgets, QtCore, QtGui
 from EditorGlobal import GameData
 from Utils import EditorData, File, System
-from .Utils import TilesetPanel, AutoTilePanel, SingleRowDialog, Toast
+from .Utils import TilesetPanel, AutoTilePanel, OpenSingleRowDialog, Toast
 
 
 class _TilesetTab(QtWidgets.QWidget):
@@ -110,27 +110,23 @@ class _TilesetTab(QtWidgets.QWidget):
             self._deleteTileset()
 
     def _addTileset(self) -> None:
-        dlg = SingleRowDialog(self, ELOC("ADD_TILESET"), ELOC("ENTER_TILESET_FILE"), "")
-        ok, text = dlg.execGetText()
-        if not ok:
-            return
+        def onAccepted(text: str) -> None:
+            text = text.strip()
+            if not text:
+                return
+            if text in GameData.tilesetData:
+                QtWidgets.QMessageBox.warning(self, ELOC("ADD_TILESET"), ELOC("TILESET_EXISTS"))
+                return
+            GameData.RecordSnapshot()
+            Tileset = getattr(System.GetModule("Engine"), "Tileset", None)
+            GameData.tilesetData[text] = EditorData.NewDataForType(Tileset, {"name": text})
+            item = QtWidgets.QListWidgetItem(text)
+            self.listWidget.addItem(item)
+            self.listWidget.setCurrentItem(item)
+            File.mainWindow.tileSelect.initTilesets()
+            self.MODIFIED.emit()
 
-        text = text.strip()
-        if not text:
-            return
-
-        if text in GameData.tilesetData:
-            QtWidgets.QMessageBox.warning(self, ELOC("ADD_TILESET"), ELOC("TILESET_EXISTS"))
-            return
-
-        GameData.RecordSnapshot()
-        Tileset = getattr(System.GetModule("Engine"), "Tileset", None)
-        GameData.tilesetData[text] = EditorData.NewDataForType(Tileset, {"name": text})
-        item = QtWidgets.QListWidgetItem(text)
-        self.listWidget.addItem(item)
-        self.listWidget.setCurrentItem(item)
-        File.mainWindow.tileSelect.initTilesets()
-        self.MODIFIED.emit()
+        OpenSingleRowDialog(self, ELOC("ADD_TILESET"), ELOC("ENTER_TILESET_FILE"), "", onAccepted=onAccepted)
 
     def _copyTileset(self) -> None:
         row = self.listWidget.currentRow()
@@ -188,35 +184,45 @@ class _TilesetTab(QtWidgets.QWidget):
         existing = set(GameData.tilesetData.keys())
         if old_name in existing:
             existing.remove(old_name)
+        self._promptRenameTileset(old_name, existing, item)
 
-        while True:
-            dlg = SingleRowDialog(
-                self,
-                ELOC("RENAME_TILESET"),
-                ELOC("ENTER_TILESET_FILE"),
-                old_name,
-            )
-            ok, new_name = dlg.execGetText()
-            if not ok:
-                return
-
+    def _promptRenameTileset(
+        self,
+        old_name: str,
+        existing: set[str],
+        item: QtWidgets.QListWidgetItem,
+    ) -> None:
+        def onAccepted(new_name: str) -> None:
             new_name = new_name.strip()
             if not new_name:
-                continue
-
+                self._promptRenameTileset(old_name, existing, item)
+                return
             if new_name in existing:
                 QtWidgets.QMessageBox.warning(
                     self,
                     ELOC("RENAME_TILESET"),
                     ELOC("TILESET_EXISTS"),
                 )
-                continue
-
+                self._promptRenameTileset(old_name, existing, item)
+                return
             if new_name == old_name:
                 return
+            self._confirmRenameTileset(old_name, new_name, item)
 
-            break
+        OpenSingleRowDialog(
+            self,
+            ELOC("RENAME_TILESET"),
+            ELOC("ENTER_TILESET_FILE"),
+            old_name,
+            onAccepted=onAccepted,
+        )
 
+    def _confirmRenameTileset(
+        self,
+        old_name: str,
+        new_name: str,
+        item: QtWidgets.QListWidgetItem,
+    ) -> None:
         affected_maps = []
         if getattr(GameData, "mapData", None):
             for map_key, map_content in GameData.mapData.items():
@@ -405,24 +411,23 @@ class _AutoTileTab(QtWidgets.QWidget):
             self._delete()
 
     def _add(self) -> None:
-        dlg = SingleRowDialog(self, ELOC("ADD_AUTOTILE"), ELOC("ENTER_AUTOTILE_NAME"), "")
-        ok, text = dlg.execGetText()
-        if not ok:
-            return
-        text = text.strip()
-        if not text:
-            return
-        if text in GameData.autoTileData:
-            QtWidgets.QMessageBox.warning(self, ELOC("ADD_AUTOTILE"), ELOC("AUTOTILE_EXISTS"))
-            return
-        GameData.RecordSnapshot()
-        AutoTile = getattr(System.GetModule("Engine"), "AutoTile", None)
-        GameData.autoTileData[text] = EditorData.NewDataForType(AutoTile, {"name": text})
-        item = QtWidgets.QListWidgetItem(text)
-        self.listWidget.addItem(item)
-        self.listWidget.setCurrentItem(item)
-        File.mainWindow.tileSelect.initAutoTiles()
-        self.MODIFIED.emit()
+        def onAccepted(text: str) -> None:
+            text = text.strip()
+            if not text:
+                return
+            if text in GameData.autoTileData:
+                QtWidgets.QMessageBox.warning(self, ELOC("ADD_AUTOTILE"), ELOC("AUTOTILE_EXISTS"))
+                return
+            GameData.RecordSnapshot()
+            AutoTile = getattr(System.GetModule("Engine"), "AutoTile", None)
+            GameData.autoTileData[text] = EditorData.NewDataForType(AutoTile, {"name": text})
+            item = QtWidgets.QListWidgetItem(text)
+            self.listWidget.addItem(item)
+            self.listWidget.setCurrentItem(item)
+            File.mainWindow.tileSelect.initAutoTiles()
+            self.MODIFIED.emit()
+
+        OpenSingleRowDialog(self, ELOC("ADD_AUTOTILE"), ELOC("ENTER_AUTOTILE_NAME"), "", onAccepted=onAccepted)
 
     def _copy(self) -> None:
         row = self.listWidget.currentRow()
@@ -476,41 +481,47 @@ class _AutoTileTab(QtWidgets.QWidget):
         existing = set(GameData.autoTileData.keys())
         if old_name in existing:
             existing.remove(old_name)
+        self._promptRenameAutoTile(old_name, existing, item)
 
-        while True:
-            dlg = SingleRowDialog(
-                self,
-                ELOC("RENAME_AUTOTILE"),
-                ELOC("ENTER_AUTOTILE_NAME"),
-                old_name,
-            )
-            ok, new_name = dlg.execGetText()
-            if not ok:
-                return
+    def _promptRenameAutoTile(
+        self,
+        old_name: str,
+        existing: set[str],
+        item: QtWidgets.QListWidgetItem,
+    ) -> None:
+        def onAccepted(new_name: str) -> None:
             new_name = new_name.strip()
             if not new_name:
-                continue
+                self._promptRenameAutoTile(old_name, existing, item)
+                return
             if new_name in existing:
                 QtWidgets.QMessageBox.warning(
                     self,
                     ELOC("RENAME_AUTOTILE"),
                     ELOC("AUTOTILE_EXISTS"),
                 )
-                continue
+                self._promptRenameAutoTile(old_name, existing, item)
+                return
             if new_name == old_name:
                 return
-            break
+            try:
+                GameData.RecordSnapshot()
+                data = GameData.autoTileData.pop(old_name)
+                EditorData.SetField(data, "name", new_name)
+                GameData.autoTileData[new_name] = data
+                item.setText(new_name)
+                File.mainWindow.tileSelect.initAutoTiles()
+                self.MODIFIED.emit()
+            except Exception as e:
+                QtWidgets.QMessageBox.critical(self, "Error", str(e))
 
-        try:
-            GameData.RecordSnapshot()
-            data = GameData.autoTileData.pop(old_name)
-            EditorData.SetField(data, "name", new_name)
-            GameData.autoTileData[new_name] = data
-            item.setText(new_name)
-            File.mainWindow.tileSelect.initAutoTiles()
-            self.MODIFIED.emit()
-        except Exception as e:
-            QtWidgets.QMessageBox.critical(self, "Error", str(e))
+        OpenSingleRowDialog(
+            self,
+            ELOC("RENAME_AUTOTILE"),
+            ELOC("ENTER_AUTOTILE_NAME"),
+            old_name,
+            onAccepted=onAccepted,
+        )
 
     def _delete(self) -> None:
         row = self.listWidget.currentRow()

@@ -12,7 +12,17 @@ from typing import Any, Dict, Optional, Set
 from PyQt5 import QtWidgets, QtCore, QtGui
 from EditorGlobal import EditorStatus, GameData
 from Utils import System, File, SFMLRender
-from Widgets.Utils import SingleRowDialog, NodePanel, Toast, RectViewer, DataclassWidget, FileSelectorDialog
+from Widgets.Utils import (
+    DataclassWidget,
+    DataclassWidgetDialog,
+    FileSelectorDialog,
+    NodePanel,
+    OpenDataclassWidgetDialog,
+    OpenItemSelectorDialog,
+    OpenSingleRowDialog,
+    RectViewer,
+    Toast,
+)
 from Widgets.Utils.AiConfigDialog import AiConfigDialog, IsAiConfigured
 from Widgets.Utils.AiChatDialog import AiChatDialog
 from Widgets.Utils.BlueprintPreview import IsBlueprintPreviewable
@@ -217,6 +227,8 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
         self.attrGDVars: Dict[str, str] = {}
         self.attrRely: Dict[str, Any] = {}
         self.attrRelySources: Set[str] = set()
+        self._aiConfigDialog: Optional[AiConfigDialog] = None
+        self._chatDialog: Optional[AiChatDialog] = None
         self._reloadClassMetadata()
         self.setupUI()
         self.toast = Toast(self)
@@ -1060,26 +1072,25 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
             value = self._getComponentDefaults(componentType)
         displayValue, readOnlyFields = self._mergeGeneralDataIntoComponent(cls, key, value, attrs)
 
-        dlg = QtWidgets.QDialog(self)
-        dlg.setWindowTitle(self._getClassAttrDisplayName(key))
-        layout = QtWidgets.QVBoxLayout(dlg)
-        widget = DataclassWidget(componentType, copy.deepcopy(displayValue), dlg, readOnlyFields=readOnlyFields)
-        layout.addWidget(widget)
-        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
-        ok_btn = buttons.button(QtWidgets.QDialogButtonBox.Ok)
-        cancel_btn = buttons.button(QtWidgets.QDialogButtonBox.Cancel)
-        if ok_btn:
-            ok_btn.setText(ELOC("CONFIRM"))
-        if cancel_btn:
-            cancel_btn.setText(ELOC("CANCEL"))
-        buttons.accepted.connect(dlg.accept)
-        buttons.rejected.connect(dlg.reject)
-        layout.addWidget(buttons)
-        if dlg.exec_() != QtWidgets.QDialog.Accepted:
-            return
+        OpenDataclassWidgetDialog(
+            self,
+            self._getClassAttrDisplayName(key),
+            componentType,
+            copy.deepcopy(displayValue),
+            readOnlyFields,
+            onAccepted=lambda dlg: self._saveEditedComponent(cls, key, componentType, attrs, dlg),
+        )
 
+    def _saveEditedComponent(
+        self,
+        cls: type | None,
+        key: str,
+        componentType: type,
+        attrs: dict[str, Any],
+        dlg: DataclassWidgetDialog,
+    ) -> None:
         GameData.RecordSnapshot()
-        saved = self._stripGeneralDataFromComponent(cls, key, copy.deepcopy(widget.data))
+        saved = self._stripGeneralDataFromComponent(cls, key, copy.deepcopy(dlg.widget.data))
         saved = self._pruneComponentDataToStored(componentType, saved)
         saved = GameData._NormaliseBlueprintValue(copy.deepcopy(saved))
         if saved:
@@ -1106,22 +1117,24 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
             return
 
         displayItems = [f"{name} ({componentType.__name__})" for name, componentType in addable.items()]
-        selected, ok = QtWidgets.QInputDialog.getItem(
+        OpenItemSelectorDialog(
             self,
             ELOC("ADD_COMPONENT"),
             ELOC("COMPONENT_NAME"),
             displayItems,
-            0,
-            False,
+            onAccepted=lambda selected: self._addComponent(selected, addable),
         )
-        if not ok or not selected:
-            return
 
+    def _addComponent(self, selected: str, addable: Dict[str, type]) -> None:
+        if not selected:
+            return
         componentName = selected.split(" ", 1)[0]
         componentType = addable.get(componentName)
         if componentType is None:
             return
-
+        attrs = self.data.get("attrs")
+        if not isinstance(attrs, dict):
+            return
         GameData.RecordSnapshot()
         componentDefaults = self._getComponentDefaults(componentType)
         attrs[componentName] = GameData._NormaliseBlueprintValue(copy.deepcopy(componentDefaults))
@@ -1130,9 +1143,7 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
         self.MODIFIED.emit()
 
     def onAddAttr(self) -> None:
-        dlg = SingleRowDialog(self, ELOC("ADD_ATTR"), ELOC("ATTR_NAME"), "", None)
-        ok, key = dlg.execGetText()
-        if ok:
+        def onAccepted(key: str) -> None:
             key = key.strip()
             if not key:
                 return
@@ -1163,13 +1174,22 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
             self._storeBlueprintData()
             self.MODIFIED.emit()
 
+        OpenSingleRowDialog(self, ELOC("ADD_ATTR"), ELOC("ATTR_NAME"), "", onAccepted=onAccepted)
+
     def onSelectPath(self, key: str, widget: QtWidgets.QLineEdit) -> None:
         baseDir = self._getPathVarBaseDir(key)
         if not os.path.isdir(baseDir):
             assetsDir = os.path.join(EditorStatus.PROJ_PATH, "Assets")
             baseDir = assetsDir if os.path.isdir(assetsDir) else EditorStatus.PROJ_PATH
         dlg = FileSelectorDialog(self, baseDir, FileSelectorDialog.allFilesFilter(star=True))
-        filePath = dlg.execSelect()
+        dlg.openSelect(lambda filePath: self._applyBlueprintPathSelection(filePath, baseDir, widget))
+
+    def _applyBlueprintPathSelection(
+        self,
+        filePath: str,
+        baseDir: str,
+        widget: QtWidgets.QLineEdit,
+    ) -> None:
         if not filePath:
             return
         try:
@@ -1472,41 +1492,40 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
         menu.exec_(self.nodeGraphList.mapToGlobal(pos))
 
     def _onNewEvent(self) -> None:
-        dlg = SingleRowDialog(self, ELOC("NEW_EVENT"), ELOC("ENTER_EVENT_NAME"), "", None)
-        ok, name = dlg.execGetText()
-        if not ok:
-            return
-        name = name.strip()
-        if not name:
-            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("INVALID_NAME"))
-            return
-        if name[0].isdigit():
-            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ATTR_NAME_CANNOT_START_WITH_DIGIT"))
-            return
-        graph = self.data.get("graph")
-        if not isinstance(graph, dict):
-            graph = {}
-            self.data["graph"] = graph
-        nodeGraph = graph.get("nodeGraph")
-        if not isinstance(nodeGraph, dict):
-            nodeGraph = {}
-            graph["nodeGraph"] = nodeGraph
-        startNodes = graph.get("startNodes")
-        if not isinstance(startNodes, dict):
-            startNodes = {}
-            graph["startNodes"] = startNodes
-        if name in self._getAvailableGraphKeys():
-            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("EVENT_EXISTS"))
-            return
-        GameData.RecordSnapshot()
-        nodeGraph[name] = {"nodes": [], "links": []}
-        startNodes[name] = None
-        self._storeBlueprintData()
-        self.refreshGraphList()
-        item = self._findGraphListItem(name)
-        if item is not None:
-            self.nodeGraphList.setCurrentItem(item)
-        self.MODIFIED.emit()
+        def onAccepted(name: str) -> None:
+            name = name.strip()
+            if not name:
+                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("INVALID_NAME"))
+                return
+            if name[0].isdigit():
+                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ATTR_NAME_CANNOT_START_WITH_DIGIT"))
+                return
+            graph = self.data.get("graph")
+            if not isinstance(graph, dict):
+                graph = {}
+                self.data["graph"] = graph
+            nodeGraph = graph.get("nodeGraph")
+            if not isinstance(nodeGraph, dict):
+                nodeGraph = {}
+                graph["nodeGraph"] = nodeGraph
+            startNodes = graph.get("startNodes")
+            if not isinstance(startNodes, dict):
+                startNodes = {}
+                graph["startNodes"] = startNodes
+            if name in self._getAvailableGraphKeys():
+                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("EVENT_EXISTS"))
+                return
+            GameData.RecordSnapshot()
+            nodeGraph[name] = {"nodes": [], "links": []}
+            startNodes[name] = None
+            self._storeBlueprintData()
+            self.refreshGraphList()
+            item = self._findGraphListItem(name)
+            if item is not None:
+                self.nodeGraphList.setCurrentItem(item)
+            self.MODIFIED.emit()
+
+        OpenSingleRowDialog(self, ELOC("NEW_EVENT"), ELOC("ENTER_EVENT_NAME"), "", onAccepted=onAccepted)
 
     def _onDeleteEvent(self) -> None:
         item = self.nodeGraphList.currentItem()
@@ -1546,62 +1565,82 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
         if not item or self._isPreviewGraphItem(item):
             return
         old_name = item.text()
-        dlg = SingleRowDialog(self, ELOC("RENAME_EVENT"), ELOC("ENTER_EVENT_NAME"), old_name, None)
-        ok, new_name = dlg.execGetText()
-        if not ok:
-            return
-        new_name = new_name.strip()
-        if not new_name or new_name == old_name:
-            return
-        if new_name[0].isdigit():
-            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ATTR_NAME_CANNOT_START_WITH_DIGIT"))
-            return
-        graph = self.data.get("graph")
-        if not isinstance(graph, dict):
-            return
-        nodeGraph = graph.get("nodeGraph")
-        startNodes = graph.get("startNodes")
-        if not isinstance(nodeGraph, dict) or not isinstance(startNodes, dict):
-            return
-        if new_name in nodeGraph:
-            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("EVENT_EXISTS"))
-            return
-        GameData.RecordSnapshot()
-        new_nodeGraph = {}
-        for k, v in nodeGraph.items():
-            if k == old_name:
-                new_nodeGraph[new_name] = v
-            else:
-                new_nodeGraph[k] = v
-        graph["nodeGraph"] = new_nodeGraph
-        new_startNodes = {}
-        for k, v in startNodes.items():
-            if k == old_name:
-                new_startNodes[new_name] = v
-            else:
-                new_startNodes[k] = v
-        graph["startNodes"] = new_startNodes
-        if old_name in self.graphs:
-            panel = self.graphs.pop(old_name)
-            panel.setName(new_name)
-            self.graphs[new_name] = panel
-        self._storeBlueprintData()
-        self.refreshGraphList()
-        item = self._findGraphListItem(new_name)
-        if item is not None:
-            self.nodeGraphList.setCurrentItem(item)
-        self.MODIFIED.emit()
+
+        def onAccepted(new_name: str) -> None:
+            new_name = new_name.strip()
+            if not new_name or new_name == old_name:
+                return
+            if new_name[0].isdigit():
+                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ATTR_NAME_CANNOT_START_WITH_DIGIT"))
+                return
+            graph = self.data.get("graph")
+            if not isinstance(graph, dict):
+                return
+            nodeGraph = graph.get("nodeGraph")
+            startNodes = graph.get("startNodes")
+            if not isinstance(nodeGraph, dict) or not isinstance(startNodes, dict):
+                return
+            if new_name in nodeGraph:
+                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("EVENT_EXISTS"))
+                return
+            GameData.RecordSnapshot()
+            new_nodeGraph = {}
+            for k, v in nodeGraph.items():
+                if k == old_name:
+                    new_nodeGraph[new_name] = v
+                else:
+                    new_nodeGraph[k] = v
+            graph["nodeGraph"] = new_nodeGraph
+            new_startNodes = {}
+            for k, v in startNodes.items():
+                if k == old_name:
+                    new_startNodes[new_name] = v
+                else:
+                    new_startNodes[k] = v
+            graph["startNodes"] = new_startNodes
+            if old_name in self.graphs:
+                panel = self.graphs.pop(old_name)
+                panel.setName(new_name)
+                self.graphs[new_name] = panel
+            self._storeBlueprintData()
+            self.refreshGraphList()
+            renamedItem = self._findGraphListItem(new_name)
+            if renamedItem is not None:
+                self.nodeGraphList.setCurrentItem(renamedItem)
+            self.MODIFIED.emit()
+
+        OpenSingleRowDialog(
+            self,
+            ELOC("RENAME_EVENT"),
+            ELOC("ENTER_EVENT_NAME"),
+            old_name,
+            onAccepted=onAccepted,
+        )
 
     def _onChatWithAi(self) -> None:
-        if not IsAiConfigured():
-            dlg = AiConfigDialog(self)
-            if dlg.exec_() != QtWidgets.QDialog.Accepted:
-                return
+        if IsAiConfigured():
+            self._openAiChatDialog()
+            return
+        if isinstance(self._aiConfigDialog, AiConfigDialog):
+            self._aiConfigDialog.raise_()
+            self._aiConfigDialog.activateWindow()
+            return
+        self._aiConfigDialog = AiConfigDialog(self)
+        self._aiConfigDialog.accepted.connect(self._openAiChatDialog)
+        self._aiConfigDialog.finished.connect(self._onAiConfigDialogFinished)
+        self._aiConfigDialog.open()
+
+    def _openAiChatDialog(self) -> None:
         bpFilePath = GameData._FindDataPath("Blueprints", self.title)
         self._chatDialog = AiChatDialog(self, blueprintName=self.title, blueprintFilePath=bpFilePath)
         self._chatDialog.show()
 
+    def _onAiConfigDialogFinished(self, _result: int) -> None:
+        self._aiConfigDialog = None
+
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
-        if hasattr(self, "_chatDialog") and self._chatDialog is not None:
+        if self._aiConfigDialog is not None:
+            self._aiConfigDialog.close()
+        if self._chatDialog is not None:
             self._chatDialog.close()
         super().closeEvent(event)

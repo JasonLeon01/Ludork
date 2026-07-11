@@ -14,15 +14,15 @@ class _StartWindowBridge(QtCore.QObject):
 
     @QtCore.pyqtSlot()
     def requestNewProject(self) -> None:
-        self.newProjectRequested.emit()
+        QtCore.QTimer.singleShot(0, self.newProjectRequested.emit)
 
     @QtCore.pyqtSlot()
     def requestOpenProject(self) -> None:
-        self.openProjectRequested.emit()
+        QtCore.QTimer.singleShot(0, self.openProjectRequested.emit)
 
     @QtCore.pyqtSlot(str)
     def openDroppedProject(self, url: str) -> None:
-        self.projectDropped.emit(url)
+        QtCore.QTimer.singleShot(0, lambda: self.projectDropped.emit(url))
 
 
 class StartWindow(QtWidgets.QWidget):
@@ -84,3 +84,9 @@ class StartWindow(QtWidgets.QWidget):
 
     def _onOpenProject(self) -> None:
         File.OpenProject(self)
+
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        self._quickWidget.hide()
+        self._quickWidget.setParent(None)
+        self._quickWidget.deleteLater()
+        super().closeEvent(event)

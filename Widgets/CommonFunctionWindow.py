@@ -5,8 +5,7 @@ from typing import Dict, Any, Optional
 import copy
 from PyQt5 import QtWidgets, QtCore, QtGui
 from Utils import File, System
-from Widgets.Utils import NodePanel
-from Widgets.Utils import Toast
+from Widgets.Utils import NodePanel, OpenSingleRowDialog, Toast
 from EditorGlobal import GameData
 
 
@@ -130,32 +129,28 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
         if not item:
             return
         old_name = item.text()
-        new_name, ok = QtWidgets.QInputDialog.getText(
+        OpenSingleRowDialog(
             self,
             ELOC("RENAME_FUNC"),
             ELOC("ENTER_FUNC_NAME"),
-            QtWidgets.QLineEdit.Normal,
             old_name,
+            onAccepted=lambda newName: self._renameCommonFunction(old_name, newName),
         )
-        if not ok or not new_name or new_name == old_name:
-            return
 
-        if new_name in self._data:
+    def _renameCommonFunction(self, oldName: str, newName: str) -> None:
+        if not newName or newName == oldName:
+            return
+        if newName in self._data:
             self.toast.showMessage(ELOC("FUNC_NAME_EXISTS"))
             return
-
         GameData.RecordSnapshot()
-
-        self._data[new_name] = self._data.pop(old_name)
-
-        if old_name in self._panels:
-            panel = self._panels.pop(old_name)
-            panel.setName(new_name)
-            self._panels[new_name] = panel
-
+        self._data[newName] = self._data.pop(oldName)
+        if oldName in self._panels:
+            panel = self._panels.pop(oldName)
+            panel.setName(newName)
+            self._panels[newName] = panel
         self._refreshListFromData()
-
-        items = self._list.findItems(new_name, QtCore.Qt.MatchExactly)
+        items = self._list.findItems(newName, QtCore.Qt.MatchExactly)
         if items:
             self._list.setCurrentItem(items[0])
         self.MODIFIED.emit()
@@ -210,16 +205,20 @@ class CommonFunctionWindow(QtWidgets.QMainWindow):
         self.MODIFIED.emit()
 
     def _onNewCommonFunction(self) -> None:
-        name, ok = QtWidgets.QInputDialog.getText(self, ELOC("NEW_COMMON_FUNC"), ELOC("ENTER_FUNC_NAME"))
-        if not ok or not name:
-            return
+        OpenSingleRowDialog(
+            self,
+            ELOC("NEW_COMMON_FUNC"),
+            ELOC("ENTER_FUNC_NAME"),
+            onAccepted=self._createCommonFunction,
+        )
 
+    def _createCommonFunction(self, name: str) -> None:
+        if not name:
+            return
         if name in self._data:
             self.toast.showMessage(ELOC("FUNC_NAME_EXISTS"))
             return
-
         GameData.RecordSnapshot()
-
         newData = {"parent": None, "nodeGraph": {"common": {"nodes": [], "links": []}}, "startNodes": {}}
         self._data[name] = newData
         self._list.addItem(name)

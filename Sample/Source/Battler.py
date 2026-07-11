@@ -4,6 +4,7 @@ from __future__ import annotations
 from enum import IntEnum
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, Union
+from Engine import CellSize, Vector2f
 from Engine.Gameplay.Components import Component, componentFromData, setComponentFieldValue
 from Engine.Utils.Monitor import monitor, _MISSING
 from . import Data
@@ -354,6 +355,28 @@ class Battler:
         if state is None:
             return
         state.triggerEvent("onHookTriggered", battler=self)
+
+    def playAttackAnimationAt(self, scene: Any, targetPosition: Vector2f) -> float:
+        r"""\brief Play this battler's attack animation at a world position.
+
+        - \param scene The scene that owns the animation list.
+        - \param targetPosition World position used as the animation anchor.
+        - \return Visual duration in seconds, or 0 when no animation is configured.
+        """
+        from Global import Animation
+
+        self._normaliseInfoComp()
+        animationKey = self.infoComp.ANIMATION_KEY
+        if not animationKey:
+            return 0.0
+        animData = Data.getAnimation(animationKey)
+        if animData is None:
+            raise ValueError(f"Animation '{animationKey}' not found")
+        anim = Animation(animData, isSpatial=True)
+        halfCell = CellSize * 0.5
+        anim.setPosition(Vector2f(targetPosition.x + halfCell, targetPosition.y + halfCell))
+        scene.addAnim(anim)
+        return anim.getVisualDuration()
 
     def getDamagePerRound(self, defender: Battler) -> int:
         r"""\brief Calculate one attacker-to-defender exchange.

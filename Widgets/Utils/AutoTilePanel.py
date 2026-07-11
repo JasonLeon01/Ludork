@@ -5,7 +5,7 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 from EditorGlobal import EditorStatus, GameData
 from Utils import EditorData, System, File
 from .FileSelectorDialog import FileSelectorDialog
-from .DataclassEditDialog import DataclassEditDialog
+from .DataclassEditDialog import OpenDataclassEditDialog
 
 
 class _AutoTileImageView(QtWidgets.QWidget):
@@ -94,12 +94,14 @@ class _AutoTileImageView(QtWidgets.QWidget):
         else:
             mat = EditorData.GetField(self._data, "material", None)
             edit_mat = EditorData.MaterialEditorObject(mat, self.MaterialType)
-            dlg = DataclassEditDialog(self, edit_mat, ELOC("EDIT_MATERIAL"))
-            if dlg.exec_():
+
+            def onAccepted() -> None:
                 GameData.RecordSnapshot()
                 EditorData.SetField(self._data, "material", EditorData.MaterialDataFromEditorObject(edit_mat))
                 self.DATA_CHANGED.emit()
                 self.update()
+
+            OpenDataclassEditDialog(self, edit_mat, ELOC("EDIT_MATERIAL"), onAccepted=onAccepted)
 
 
 class AutoTilePanel(QtWidgets.QWidget):
@@ -199,7 +201,9 @@ class AutoTilePanel(QtWidgets.QWidget):
         if not os.path.exists(root):
             os.makedirs(root, exist_ok=True)
         dlg = FileSelectorDialog(self, root, FileSelectorDialog.imageFilesFilter())
-        fp = dlg.execSelect()
+        dlg.openSelect(lambda fp: self._applyBrowseFile(fp))
+
+    def _applyBrowseFile(self, fp: str) -> None:
         if not fp:
             return
         if not self._validateFile(fp):

@@ -6,7 +6,10 @@ import shutil
 import subprocess
 from enum import Enum
 from typing import Optional, TextIO, cast
+
 from PyQt5 import QtCore, QtGui, QtWidgets
+
+from EditorGlobal.QmlDialogHost import QmlDialogHost
 
 
 class PackPlatform(Enum):
@@ -151,121 +154,78 @@ def PromptInstallToolchain(parent: Optional[QtWidgets.QWidget], platform: PackPl
             QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://visualstudio.microsoft.com/visual-cpp-build-tools/"))
 
 
-class PackSelectionDialog(QtWidgets.QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle(ELOC("PACK_MODE_TITLE"))
-        self.resize(400, 300)
+class PackSelectionDialog(QmlDialogHost):
+    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+        super().__init__(
+            parent,
+            ELOC("PACK_MODE_TITLE"),
+            QtCore.QSize(400, 300),
+        )
+        platformOptions = self._getPlatformOptions()
+        self._selectedPlatform = PackPlatform(platformOptions[0]["value"])
+        self._includePyAV = False
+        self.loadQml(
+            "Dialogs/PackDialog.qml",
+            {
+                "packPlatformOptions": platformOptions,
+                "packDefaultPlatform": self._selectedPlatform.value,
+            },
+        )
 
-        layout = QtWidgets.QVBoxLayout(self)
+    def _getPlatformOptions(self) -> list[dict[str, str]]:
+        if sys.platform == "darwin":
+            return [
+                {"value": PackPlatform.MACOS_ARM.value, "label": ELOC("PACK_PLATFORM_MACOS_ARM")},
+                {"value": PackPlatform.IOS.value, "label": ELOC("PACK_PLATFORM_IOS")},
+            ]
+        return [{"value": PackPlatform.WIN32.value, "label": ELOC("PACK_PLATFORM_WIN32")}]
 
-        self.lblDesc = QtWidgets.QLabel(ELOC("PACK_MODE_DESC"))
-        self.lblDesc.setWordWrap(True)
-        layout.addWidget(self.lblDesc)
-
-        self.platformRadios = {}
-        self._desktopIncludePyAV = False
-
-        if sys.platform == "win32":
-            rb = QtWidgets.QRadioButton(ELOC("PACK_PLATFORM_WIN32"))
-            rb.setChecked(True)
-            layout.addWidget(rb)
-            self.platformRadios[PackPlatform.WIN32] = rb
-        elif sys.platform == "darwin":
-            rbMac = QtWidgets.QRadioButton(ELOC("PACK_PLATFORM_MACOS_ARM"))
-            rbMac.setChecked(True)
-            layout.addWidget(rbMac)
-            self.platformRadios[PackPlatform.MACOS_ARM] = rbMac
-
-            rbIOS = QtWidgets.QRadioButton(ELOC("PACK_PLATFORM_IOS"))
-            layout.addWidget(rbIOS)
-            self.platformRadios[PackPlatform.IOS] = rbIOS
-
-        self.includePyAVCheck = QtWidgets.QCheckBox(ELOC("PACK_INCLUDE_PYAV"))
-        self.includePyAVCheck.setAttribute(QtCore.Qt.WA_AlwaysShowToolTips, True)
-        self.includePyAVCheck.toggled.connect(self._onIncludePyAVToggled)
-        layout.addWidget(self.includePyAVCheck)
-
-        for rb in self.platformRadios.values():
-            rb.toggled.connect(lambda _checked: self._refreshPyAVState())
-        self._refreshPyAVState()
-
-        self.btnBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
-        ok_btn = self.btnBox.button(QtWidgets.QDialogButtonBox.Ok)
-        cancel_btn = self.btnBox.button(QtWidgets.QDialogButtonBox.Cancel)
-        if ok_btn:
-            ok_btn.setText(ELOC("CONFIRM"))
-        if cancel_btn:
-            cancel_btn.setText(ELOC("CANCEL"))
-        self.btnBox.accepted.connect(self.accept)
-        self.btnBox.rejected.connect(self.reject)
-        layout.addWidget(self.btnBox)
+    def _applyResult(self, result: object) -> bool:
+        if not isinstance(result, dict):
+            return False
+        platformValue = str(result.get("platform", self._selectedPlatform.value))
+        try:
+            self._selectedPlatform = PackPlatform(platformValue)
+        except ValueError:
+            return False
+        self._includePyAV = self._selectedPlatform != PackPlatform.IOS and bool(result.get("includePyAV", False))
+        return True
 
     def getSelectedPlatform(self) -> PackPlatform:
-        for platform, rb in self.platformRadios.items():
-            if rb.isChecked():
-                return platform
-        if sys.platform == "win32":
-            return PackPlatform.WIN32
-        elif sys.platform == "darwin":
-            return PackPlatform.MACOS_ARM
-        return PackPlatform.WIN32
+        return self._selectedPlatform
 
     def getIncludePyAV(self) -> bool:
-        return self.getSelectedPlatform() != PackPlatform.IOS and self.includePyAVCheck.isChecked()
-
-    def _onIncludePyAVToggled(self, checked: bool) -> None:
-        if self.getSelectedPlatform() != PackPlatform.IOS:
-            self._desktopIncludePyAV = checked
-
-    def _refreshPyAVState(self) -> None:
-        isIOS = self.getSelectedPlatform() == PackPlatform.IOS
-        self.includePyAVCheck.blockSignals(True)
-        if isIOS:
-            if self.includePyAVCheck.isEnabled():
-                self._desktopIncludePyAV = self.includePyAVCheck.isChecked()
-            self.includePyAVCheck.setChecked(False)
-            self.includePyAVCheck.setEnabled(False)
-            self.includePyAVCheck.setToolTip(ELOC("PACK_PYAV_IOS_TIP"))
-        else:
-            self.includePyAVCheck.setEnabled(True)
-            self.includePyAVCheck.setChecked(self._desktopIncludePyAV)
-            self.includePyAVCheck.setToolTip(ELOC("PACK_PYAV_DESKTOP_TIP"))
-        self.includePyAVCheck.blockSignals(False)
+        return self._includePyAV
 
 
-class LogDialog(QtWidgets.QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle(ELOC("PACK_TITLE"))
-        self.resize(800, 600)
-        layout = QtWidgets.QVBoxLayout(self)
-        self.textEdit = QtWidgets.QPlainTextEdit(self)
-        self.textEdit.setReadOnly(True)
-        self.textEdit.setStyleSheet("background-color: #1e1e1e; color: #d4d4d4;")
-        font = QtGui.QFont("Consolas", 10)
-        font.setStyleHint(QtGui.QFont.Monospace)
-        self.textEdit.setFont(font)
-        layout.addWidget(self.textEdit)
+class LogDialog(QmlDialogHost):
+    logAppended = QtCore.pyqtSignal(str)
+    closeEnabledChanged = QtCore.pyqtSignal()
 
-        self.btnBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Close)
-        self.btnBox.rejected.connect(self.close)
-        btn = self.btnBox.button(QtWidgets.QDialogButtonBox.Close)
-        if btn is not None:
-            btn.setText(ELOC("CLOSE"))
-            btn.setEnabled(False)
-        layout.addWidget(self.btnBox)
+    def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
+        super().__init__(
+            parent,
+            ELOC("PACK_TITLE"),
+            QtCore.QSize(800, 600),
+        )
+        self._closeEnabled = False
+        self.loadQml("Dialogs/PackLogDialog.qml")
 
-    def appendLog(self, text: str):
-        self.textEdit.moveCursor(QtGui.QTextCursor.End)
-        self.textEdit.insertPlainText(text)
-        self.textEdit.moveCursor(QtGui.QTextCursor.End)
-        QtWidgets.QApplication.processEvents(QtCore.QEventLoop.AllEvents, 50)
+    @QtCore.pyqtProperty(bool, notify=closeEnabledChanged)
+    def closeEnabled(self) -> bool:
+        return self._closeEnabled
 
-    def finish(self, success: bool, msg: str = ""):
-        btn = self.btnBox.button(QtWidgets.QDialogButtonBox.Close)
-        if btn is not None:
-            btn.setEnabled(True)
+    def _canReject(self) -> bool:
+        return self._closeEnabled
+
+    @QtCore.pyqtSlot(str)
+    def appendLog(self, text: str) -> None:
+        self.logAppended.emit(text)
+
+    @QtCore.pyqtSlot(bool, str)
+    def finish(self, success: bool, msg: str = "") -> None:
+        self._closeEnabled = True
+        self.closeEnabledChanged.emit()
         if msg:
             self.appendLog("\n" + msg + "\n")
         if success:

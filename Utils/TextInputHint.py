@@ -30,6 +30,9 @@ def refreshAll() -> None:
             _controllers.discard(ref)
             continue
         controller.refresh()
+    from EditorGlobal.QmlDialogHost import QmlDialogHost
+
+    QmlDialogHost.refreshTextInputHints()
 
 
 def _applyHintStyle(label: QtWidgets.QLabel) -> None:

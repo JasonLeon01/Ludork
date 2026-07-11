@@ -8,12 +8,28 @@ venv_activate
 pip_ensure nuitka "-U"
 
 OUTDIR="$ROOT/build"
+QML_SOURCE="$ROOT/EditorGlobal/Qml"
+QML_PACK_DIR="$OUTDIR/editor_qml_pack/EditorGlobal/Qml"
 LOCALE_JSON="$ROOT/Locale/locale.json"
 LOCALE_BAK="$ROOT/locale.json.bak"
 PROJ="$ROOT/Sample/Main.proj"
 PROJ_BAK="$ROOT/Main.proj.bak"
 PLATFORM="$("$PYTHON" -c 'import sys; print(sys.platform)')"
 PROJ_REPLACED=0
+PACK_PROFILE_ARG="${1:-}"
+
+while IFS='=' read -r key value; do
+    case "$key" in
+        PROFILE) PACK_PROFILE="$value" ;;
+        JOBS) PACK_JOBS="$value" ;;
+        LTO) PACK_LTO="$value" ;;
+        JOBS_LABEL) PACK_JOBS_LABEL="$value" ;;
+    esac
+done < <("$PYTHON" "$ROOT/tools/packaging/pack_profile.py" "$PACK_PROFILE_ARG")
+
+PACK_PROFILE="${PACK_PROFILE:-low}"
+PACK_LTO="${PACK_LTO:-no}"
+PACK_JOBS_LABEL="${PACK_JOBS_LABEL:-${PACK_JOBS:-all}}"
 
 [ -f "$LOCALE_JSON" ] || err "Locale JSON file not found: $LOCALE_JSON"
 
@@ -37,6 +53,12 @@ trap cleanup EXIT
 step "Generating locale pickles..."
 "$PYTHON" "$ROOT/tools/localeTransfer.py" "$LOCALE_JSON"
 
+step "Preparing Qt QML tools..."
+"$PYTHON" "$ROOT/tools/packaging/ensure_qml_tools.py"
+
+step "Preparing editor QML resources..."
+"$PYTHON" "$ROOT/tools/packaging/prepare_editor_qml.py" "$QML_SOURCE" "$QML_PACK_DIR"
+
 if [ -f "$LOCALE_JSON" ]; then
     mv "$LOCALE_JSON" "$LOCALE_BAK"
 fi
@@ -45,6 +67,11 @@ if [ -f "$PROJ" ]; then
 fi
 printf '{}' > "$PROJ"
 PROJ_REPLACED=1
+
+if [ -d "$ROOT/BuildTools/Qt515" ]; then
+    step "Removing legacy Qt tool cache from BuildTools..."
+    rm -rf "$ROOT/BuildTools/Qt515"
+fi
 
 NUITKA_FLAGS=(
     --remove-output
@@ -64,7 +91,7 @@ NUITKA_FLAGS=(
     "--include-data-dir=$ROOT/Resource=Resource"
     "--include-data-dir=$ROOT/Locale=Locale"
     "--include-data-dir=$ROOT/Styles=Styles"
-    "--include-data-dir=$ROOT/EditorGlobal/Qml=EditorGlobal/Qml"
+    "--include-data-dir=$QML_PACK_DIR=EditorGlobal/Qml"
     "--include-data-dir=$ROOT/BuildTools=BuildTools"
     --include-module=NodeGraphQt
     --include-package=debugpy
@@ -82,8 +109,12 @@ NUITKA_FLAGS=(
     --nofollow-import-to=Engine
     --nofollow-import-to=Global
     --nofollow-import-to=Source
-    --lto=yes
 )
+
+if [ -n "$PACK_JOBS" ]; then
+    NUITKA_FLAGS+=(--jobs="$PACK_JOBS")
+fi
+NUITKA_FLAGS+=(--lto="$PACK_LTO")
 
 if [ "$PLATFORM" = "win32" ]; then
     [ -f "$ROOT/Resource/icon.ico" ] && NUITKA_FLAGS+=("--windows-icon-from-ico=$ROOT/Resource/icon.ico")
@@ -95,7 +126,7 @@ else
     err "Unsupported OS: $PLATFORM"
 fi
 
-step "Running Nuitka build..."
+step "Running Nuitka build (profile: $PACK_PROFILE, jobs: $PACK_JOBS_LABEL, lto: $PACK_LTO)..."
 (cd "$ROOT" && "$PYTHON" -m nuitka "${NUITKA_FLAGS[@]}" "$ROOT/main.py")
 
 if [ "$PLATFORM" = "win32" ]; then

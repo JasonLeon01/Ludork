@@ -6,7 +6,7 @@ import logging
 from PyQt5 import QtCore, QtWidgets
 from Utils import File
 from Utils.DataConfig import DATA_FILE_EXTENSIONS, DATA_FORMAT_EXTENSIONS, DATA_FORMAT_JSON
-from Widgets.Utils import MapEditDialog
+from Widgets.Utils.MapEditDialog import MapEditDialog, OpenMapEditDialog
 from .. import EditorStatus
 from ..Data import GameData
 
@@ -277,32 +277,33 @@ class MapListOpsMixin:
             "layers": {},
         }
         suggested_name = self._getNewMapFileName()
-        dlg = MapEditDialog(
+
+        def onAccepted(dlg: MapEditDialog) -> None:
+            filename = dlg.getFileName()
+            default_data["layers"] = self._createDefaultMapLayers(
+                int(default_data.get("width", 20)),
+                int(default_data.get("height", 15)),
+            )
+            default_data["actors"] = {name: [] for name in default_data["layers"].keys()}
+            GameData.mapData[filename] = default_data
+            self.refreshLeftList()
+
+            found = self._findItemByKey(filename)
+            if found:
+                self.leftList.setCurrentItem(found)
+                self._onLeftItemClicked(found)
+
+            self._refreshInfo()
+
+        OpenMapEditDialog(
             self,
             default_data,
             suggested_name,
             ELOC("NEW_MAP"),
             allow_current_key=False,
             data_format=DATA_FORMAT_JSON,
+            onAccepted=onAccepted,
         )
-        if not dlg.execApply():
-            return
-
-        filename = dlg.getFileName()
-        default_data["layers"] = self._createDefaultMapLayers(
-            int(default_data.get("width", 20)),
-            int(default_data.get("height", 15)),
-        )
-        default_data["actors"] = {name: [] for name in default_data["layers"].keys()}
-        GameData.mapData[filename] = default_data
-        self.refreshLeftList()
-
-        found = self._findItemByKey(filename)
-        if found:
-            self.leftList.setCurrentItem(found)
-            self._onLeftItemClicked(found)
-
-        self._refreshInfo()
 
     def _onEditMap(self, mapKey: str) -> None:
         data = GameData.mapData.get(mapKey)
@@ -319,19 +320,18 @@ class MapListOpsMixin:
             leftItem and leftItem.data(QtCore.Qt.UserRole) == mapKey
         )
 
-        dlg = MapEditDialog(self, data, mapKey)
-        if not dlg.execApply():
-            return
+        def onAccepted(dlg: MapEditDialog) -> None:
+            newKey = dlg.getFileName()
+            self._refreshInfo()
 
-        newKey = dlg.getFileName()
-        self._refreshInfo()
+            self.refreshLeftList()
 
-        self.refreshLeftList()
+            if wasActive:
+                found = self._findItemByKey(newKey)
+                if found:
+                    self.leftList.setCurrentItem(found)
+                    self.leftListIndex = self.leftList.row(found)
+                self.editorPanel.refreshMap(newKey)
+                self._refreshLayerBar()
 
-        if wasActive:
-            found = self._findItemByKey(newKey)
-            if found:
-                self.leftList.setCurrentItem(found)
-                self.leftListIndex = self.leftList.row(found)
-            self.editorPanel.refreshMap(newKey)
-            self._refreshLayerBar()
+        OpenMapEditDialog(self, data, mapKey, onAccepted=onAccepted)

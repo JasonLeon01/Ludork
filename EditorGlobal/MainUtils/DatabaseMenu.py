@@ -20,7 +20,6 @@ from Widgets import (
     TilesetEditor,
     CommonFunctionWindow,
     BluePrintEditor,
-    ClassSelector,
     AnimationWindow,
     AnimationOverview,
     CurveWindow,
@@ -194,12 +193,26 @@ class DatabaseMenuMixin:
                 self._curveEditors.pop(key, None)
 
     def _onGameConfig(self, checked: bool = False) -> None:
-        dlg = GameConfigDialog(self, self._pendingGameConfig)
-        if dlg.exec_() != QtWidgets.QDialog.Accepted:
+        currentDialog = getattr(self, "_gameConfigDialog", None)
+        if isinstance(currentDialog, GameConfigDialog):
+            currentDialog.raise_()
+            currentDialog.activateWindow()
+            return
+        self._gameConfigDialog = GameConfigDialog(self, self._pendingGameConfig)
+        self._gameConfigDialog.accepted.connect(self._onGameConfigAccepted)
+        self._gameConfigDialog.finished.connect(self._onGameConfigFinished)
+        self._gameConfigDialog.open()
+
+    def _onGameConfigAccepted(self) -> None:
+        dlg = getattr(self, "_gameConfigDialog", None)
+        if not isinstance(dlg, GameConfigDialog):
             return
         if dlg.isChanged():
             self._pendingGameConfig = dlg.getData()
             self._onGameConfigModified()
+
+    def _onGameConfigFinished(self, _result: int) -> None:
+        self._gameConfigDialog = None
 
     def _onGameConfigModified(self) -> None:
         self._gameConfigModified = True
@@ -235,12 +248,20 @@ class DatabaseMenuMixin:
         dlg = FileSelectorDialog(
             self, blueprintsRoot, DATA_FILE_DIALOG_FILTER, ELOC("SELECT_BLUEPRINT_PATH"), save=True
         )
-        if dlg.exec_() != QtWidgets.QDialog.Accepted:
+        dlg.openSelect(
+            lambda path: self._onNewBlueprintPathSelected(path, parentClass, dlg, blueprintsRoot)
+        )
+
+    def _onNewBlueprintPathSelected(
+        self,
+        fp: str,
+        parentClass: Optional[str],
+        dlg: FileSelectorDialog,
+        blueprintsRoot: str,
+    ) -> None:
+        if not fp:
             return
-        sel = dlg.selectedFiles()
-        if not sel:
-            return
-        fp = os.path.abspath(sel[0])
+        fp = os.path.abspath(fp)
         rel = os.path.relpath(fp, blueprintsRoot)
         namePart, ext = os.path.splitext(rel)
         if not ext:
@@ -252,10 +273,13 @@ class DatabaseMenuMixin:
             return
 
         if parentClass is None:
-            selector = ClassSelector(self)
-            if selector.exec_() != QtWidgets.QDialog.Accepted:
-                return
-            parentClass = selector.getSelected()
+            from Widgets.ClassSelector import OpenClassSelector
+
+            OpenClassSelector(self, lambda selected: self._finalizeNewBlueprint(key, ext, selected))
+            return
+        self._finalizeNewBlueprint(key, ext, parentClass)
+
+    def _finalizeNewBlueprint(self, key: str, ext: str, parentClass: str) -> None:
         if not parentClass:
             return
         clsObj = self._resolveBlueprintParentClass(parentClass)
@@ -353,12 +377,17 @@ class DatabaseMenuMixin:
         dlg = FileSelectorDialog(
             self, animationsRoot, DATA_FILE_DIALOG_FILTER, ELOC("SELECT_ANIMATION_PATH"), save=True
         )
-        if dlg.exec_() != QtWidgets.QDialog.Accepted:
+        dlg.openSelect(lambda path: self._onNewAnimationPathSelected(path, dlg, animationsRoot))
+
+    def _onNewAnimationPathSelected(
+        self,
+        fp: str,
+        dlg: FileSelectorDialog,
+        animationsRoot: str,
+    ) -> None:
+        if not fp:
             return
-        sel = dlg.selectedFiles()
-        if not sel:
-            return
-        fp = os.path.abspath(sel[0])
+        fp = os.path.abspath(fp)
         rel = os.path.relpath(fp, animationsRoot)
         namePart, ext = os.path.splitext(rel)
         if not ext:
@@ -392,12 +421,17 @@ class DatabaseMenuMixin:
         dlg = FileSelectorDialog(
             self, curvesRoot, DATA_FILE_DIALOG_FILTER, ELOC("SELECT_CURVE_PATH"), save=True
         )
-        if dlg.exec_() != QtWidgets.QDialog.Accepted:
+        dlg.openSelect(lambda path: self._onNewCurvePathSelected(path, dlg, curvesRoot))
+
+    def _onNewCurvePathSelected(
+        self,
+        fp: str,
+        dlg: FileSelectorDialog,
+        curvesRoot: str,
+    ) -> None:
+        if not fp:
             return
-        sel = dlg.selectedFiles()
-        if not sel:
-            return
-        fp = os.path.abspath(sel[0])
+        fp = os.path.abspath(fp)
         rel = os.path.relpath(fp, curvesRoot)
         namePart, ext = os.path.splitext(rel)
         if not ext:

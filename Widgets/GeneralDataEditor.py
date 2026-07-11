@@ -7,7 +7,7 @@ import re
 import sys
 from PyQt5 import QtCore, QtWidgets
 from EditorGlobal import EditorStatus, GameData
-from .Utils import FileSelectorDialog
+from .Utils import FileSelectorDialog, OpenFormDialog, OpenItemSelectorDialog, OpenSingleRowDialog
 
 
 REFERENCE_KIND_GENERAL = "general"
@@ -680,69 +680,46 @@ class GeneralDataPage(QtWidgets.QWidget):
 
             self._buildPropertyForm()
 
+    def _addParamFormFields(self) -> list[dict[str, object]]:
+        return [
+            {
+                "name": "name",
+                "label": ELOC("PARAM_NAME"),
+                "type": "text",
+                "tooltipKey": "GENERAL_DATA_PARAM_NAME_TIP",
+            },
+            {
+                "name": "type",
+                "label": ELOC("PARAM_TYPE"),
+                "type": "combo",
+                "options": self.PARAM_TYPE_OPTIONS,
+                "initialValue": self.PARAM_TYPE_OPTIONS[0] if self.PARAM_TYPE_OPTIONS else "",
+                "tooltipKeys": self.PARAM_TYPE_TOOLTIP_KEYS,
+            },
+            {
+                "name": "defaultValue",
+                "label": ELOC("DEFAULT_VALUE"),
+                "type": "text",
+                "tooltipSourceField": "type",
+                "tooltipKeys": self.PARAM_DEFAULT_TOOLTIP_KEYS,
+            },
+        ]
+
     def _onAddParam(self):
         if not self.fileKey or not self._currentMemberKey:
             return
-        dlg = QtWidgets.QDialog(self)
-        dlg.setWindowTitle(ELOC("ADD_PARAM"))
-        form = QtWidgets.QFormLayout(dlg)
+        OpenFormDialog(
+            self,
+            ELOC("ADD_PARAM"),
+            self._addParamFormFields(),
+            onAccepted=lambda result: self._addParam(
+                str(result.get("name", "")).strip(),
+                str(result.get("type", "")).strip(),
+                str(result.get("defaultValue", "")),
+            ),
+        )
 
-        nameEdit = QtWidgets.QLineEdit()
-        typeEdit = QtWidgets.QComboBox()
-        typeEdit.setEditable(False)
-        typeEdit.addItems(self.PARAM_TYPE_OPTIONS)
-        defaultEdit = QtWidgets.QLineEdit()
-        nameLabel = QtWidgets.QLabel(ELOC("PARAM_NAME"))
-        typeLabel = QtWidgets.QLabel(ELOC("PARAM_TYPE"))
-        defaultLabel = QtWidgets.QLabel(ELOC("DEFAULT_VALUE"))
-
-        nameTip = ELOC("GENERAL_DATA_PARAM_NAME_TIP")
-        nameLabel.setToolTip(nameTip)
-        nameLabel.setWhatsThis(nameTip)
-        nameEdit.setToolTip(nameTip)
-        nameEdit.setWhatsThis(nameTip)
-
-        form.addRow(nameLabel, nameEdit)
-        form.addRow(typeLabel, typeEdit)
-        form.addRow(defaultLabel, defaultEdit)
-
-        def updateTypeTip(_text: str = ""):
-            tipKey = self.PARAM_TYPE_TOOLTIP_KEYS.get(typeEdit.currentText().strip(), "")
-            tip = ELOC(tipKey) if tipKey else ""
-            typeLabel.setToolTip(tip)
-            typeLabel.setWhatsThis(tip)
-            typeEdit.setToolTip(tip)
-            typeEdit.setWhatsThis(tip)
-
-        def updateDefaultTip(_text: str = ""):
-            tipKey = self.PARAM_DEFAULT_TOOLTIP_KEYS.get(typeEdit.currentText().strip(), "")
-            tip = ELOC(tipKey) if tipKey else ""
-            defaultLabel.setToolTip(tip)
-            defaultLabel.setWhatsThis(tip)
-            defaultEdit.setToolTip(tip)
-            defaultEdit.setWhatsThis(tip)
-
-        typeEdit.currentTextChanged.connect(updateTypeTip)
-        typeEdit.currentTextChanged.connect(updateDefaultTip)
-        updateTypeTip()
-        updateDefaultTip()
-
-        btnBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
-        form.addRow(btnBox)
-        ok_btn = btnBox.button(QtWidgets.QDialogButtonBox.Ok)
-        cancel_btn = btnBox.button(QtWidgets.QDialogButtonBox.Cancel)
-        if ok_btn:
-            ok_btn.setText(ELOC("CONFIRM"))
-        if cancel_btn:
-            cancel_btn.setText(ELOC("CANCEL"))
-
-        btnBox.accepted.connect(dlg.accept)
-        btnBox.rejected.connect(dlg.reject)
-
-        if dlg.exec_() != QtWidgets.QDialog.Accepted:
-            return
-
-        name = nameEdit.text().strip()
+    def _addParam(self, name: str, t: str, defaultValStr: str) -> None:
         if not name:
             QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("INVALID_NAME"))
             return
@@ -755,8 +732,6 @@ class GeneralDataPage(QtWidgets.QWidget):
             QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("PARAM_EXISTS"))
             return
 
-        t = typeEdit.currentText().strip()
-        defaultValStr = defaultEdit.text()
         defaultVal = defaultValStr
 
         if t == "int":
@@ -962,12 +937,23 @@ class GeneralDataPage(QtWidgets.QWidget):
         assetsRoot = os.path.abspath(os.path.join(EditorStatus.PROJ_PATH, "Assets"))
         startDir = self._getFileBrowseRoot(paramDef)
         dialog = FileSelectorDialog(self, startDir, FileSelectorDialog.allFilesFilter())
-        path = dialog.execSelect()
-        if path:
-            relPath = os.path.relpath(path, assetsRoot)
-            relPath = relPath.replace("\\", "/")
-            lineEdit.setText(relPath)
-            self._onValueChanged(key, relPath)
+        dialog.openSelect(
+            lambda path: self._applyFileBrowseSelection(key, lineEdit, path, assetsRoot)
+        )
+
+    def _applyFileBrowseSelection(
+        self,
+        key: str,
+        lineEdit: QtWidgets.QLineEdit,
+        path: str,
+        assetsRoot: str,
+    ) -> None:
+        if not path:
+            return
+        relPath = os.path.relpath(path, assetsRoot)
+        relPath = relPath.replace("\\", "/")
+        lineEdit.setText(relPath)
+        self._onValueChanged(key, relPath)
 
     def _onMemberListContextMenu(self, position):
         item = self.memberList.itemAt(position)
@@ -1014,26 +1000,34 @@ class GeneralDataPage(QtWidgets.QWidget):
             return
 
         oldID = current.text()
-        newID, ok = QtWidgets.QInputDialog.getText(
-            self, ELOC("CHANGE_ID"), ELOC("ENTER_ID"), QtWidgets.QLineEdit.Normal, oldID
+        OpenSingleRowDialog(
+            self,
+            ELOC("CHANGE_ID"),
+            ELOC("ENTER_ID"),
+            oldID,
+            onAccepted=lambda newID: self._changeMemberIDNamed(oldID, newID),
         )
 
-        if ok and newID and newID != oldID:
-            fileData = GameData.generalData.get(self.fileKey, {})
-            members = fileData.get("members", {})
-            if newID in members:
-                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ID_ALREADY_EXISTS"))
-                return
+    def _changeMemberIDNamed(self, oldID: str, newID: str) -> None:
+        if not newID or newID == oldID:
+            return
+        fileData = GameData.generalData.get(self.fileKey, {})
+        members = fileData.get("members", {})
+        if newID in members:
+            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ID_ALREADY_EXISTS"))
+            return
 
-            if oldID in members:
-                members[newID] = members.pop(oldID)
+        if oldID in members:
+            members[newID] = members.pop(oldID)
 
-                current.setText(newID)
-                self._currentMemberKey = newID
+            items = self.memberList.findItems(oldID, QtCore.Qt.MatchExactly)
+            if items:
+                items[0].setText(newID)
+            self._currentMemberKey = newID
 
-                self._buildPropertyForm()
+            self._buildPropertyForm()
 
-                self.MODIFIED.emit()
+            self.MODIFIED.emit()
 
     def _getDuplicateMemberID(self, sourceID: str, members: dict) -> str:
         baseID = f"{sourceID}_copy"
@@ -1057,17 +1051,25 @@ class GeneralDataPage(QtWidgets.QWidget):
             return
 
         defaultID = self._getDuplicateMemberID(sourceID, members)
-        newID, ok = QtWidgets.QInputDialog.getText(
-            self, ELOC("DUPLICATE_MEMBER"), ELOC("ENTER_ID"), QtWidgets.QLineEdit.Normal, defaultID
+        OpenSingleRowDialog(
+            self,
+            ELOC("DUPLICATE_MEMBER"),
+            ELOC("ENTER_ID"),
+            defaultID,
+            onAccepted=lambda newID: self._duplicateMember(sourceID, newID),
         )
-        newID = newID.strip()
-        if not ok or not newID:
-            return
 
+    def _duplicateMember(self, sourceID: str, newID: str) -> None:
+        newID = newID.strip()
+        if not newID or not self.fileKey:
+            return
+        fileData = GameData.generalData.get(self.fileKey, {})
+        members = fileData.get("members", {})
+        if sourceID not in members:
+            return
         if newID in members:
             QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ID_ALREADY_EXISTS"))
             return
-
         newMember = copy.deepcopy(members[sourceID])
         orderedMembers = {}
         for memberID, memberData in members.items():
@@ -1086,23 +1088,29 @@ class GeneralDataPage(QtWidgets.QWidget):
         if not self.fileKey:
             return
 
-        text, ok = QtWidgets.QInputDialog.getText(self, ELOC("NEW_MEMBER"), ELOC("ENTER_ID"))
-        if ok and text:
-            fileData = GameData.generalData.get(self.fileKey, {})
-            members = fileData.get("members", {})
-            if text in members:
-                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ID_ALREADY_EXISTS"))
-                return
+        OpenSingleRowDialog(
+            self,
+            ELOC("NEW_MEMBER"),
+            ELOC("ENTER_ID"),
+            onAccepted=self._addMember,
+        )
 
-            params = fileData.get("params", {})
-            newMember = {}
-            for pk, pv in params.items():
-                newMember[pk] = self._getDefaultMemberValue(pv)
-
-            members[text] = newMember
-            self.memberList.addItem(text)
-            self.memberList.setCurrentRow(self.memberList.count() - 1)
-            self.MODIFIED.emit()
+    def _addMember(self, text: str) -> None:
+        if not text or not self.fileKey:
+            return
+        fileData = GameData.generalData.get(self.fileKey, {})
+        members = fileData.get("members", {})
+        if text in members:
+            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ID_ALREADY_EXISTS"))
+            return
+        params = fileData.get("params", {})
+        newMember = {}
+        for pk, pv in params.items():
+            newMember[pk] = self._getDefaultMemberValue(pv)
+        members[text] = newMember
+        self.memberList.addItem(text)
+        self.memberList.setCurrentRow(self.memberList.count() - 1)
+        self.MODIFIED.emit()
 
     def _onRemoveMember(self):
         row = self.memberList.currentRow()
@@ -1220,34 +1228,33 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
         infoTypes = self._scanInfoTypes()
         options = [ELOC("NO_LINKED_TYPE")] + infoTypes
 
-        linkedType, ok = QtWidgets.QInputDialog.getItem(
+        OpenItemSelectorDialog(
             self,
             ELOC("SELECT_LINKED_TYPE"),
             ELOC("SELECT_LINKED_TYPE_DESC"),
             options,
-            0,
-            False,
+            onAccepted=lambda linkedType: self._requestDataTypeName(linkedType, options[0]),
         )
-        if not ok:
+
+    def _requestDataTypeName(self, linkedType: str, noLinkedType: str) -> None:
+        actualLinkedType = linkedType if linkedType != noLinkedType else None
+        OpenSingleRowDialog(
+            self,
+            ELOC("NEW_DATA_TYPE"),
+            ELOC("ENTER_DATA_TYPE_NAME"),
+            onAccepted=lambda text: self._addDataType(text, actualLinkedType),
+        )
+
+    def _addDataType(self, text: str, linkedType: Optional[str]) -> None:
+        if not text:
             return
-
-        isLinked = linkedType != options[0]
-        actualLinkedType = linkedType if isLinked else None
-
-        text, ok = QtWidgets.QInputDialog.getText(self, ELOC("NEW_DATA_TYPE"), ELOC("ENTER_DATA_TYPE_NAME"))
-        if not (ok and text):
-            return
-
         data = getattr(GameData, "generalData", {})
         if text in data:
             QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("DATA_TYPE_EXISTS"))
             return
-
         newEntry = {"params": {}, "members": {}}
-
-        if actualLinkedType:
-            newEntry["linkedType"] = actualLinkedType
-
+        if linkedType:
+            newEntry["linkedType"] = linkedType
         data[text] = newEntry
         self._populateFiles()
         for i in range(self.tabWidget.count()):
@@ -1270,19 +1277,20 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
         if currentLinked in infoTypes:
             currentIndex = infoTypes.index(currentLinked) + 1
 
-        linkedType, ok = QtWidgets.QInputDialog.getItem(
+        OpenItemSelectorDialog(
             self,
             ELOC("SET_LINKED_TYPE"),
             ELOC("SELECT_LINKED_TYPE_DESC"),
             options,
             currentIndex,
-            False,
+            onAccepted=lambda linkedType: self._setLinkedType(index, linkedType, options[0]),
         )
-        if not ok:
-            return
 
-        isLinked = linkedType != options[0]
-
+    def _setLinkedType(self, index: int, linkedType: str, noLinkedType: str) -> None:
+        key = self.tabWidget.tabText(index)
+        data = getattr(GameData, "generalData", {})
+        fileData = data.get(key, {})
+        isLinked = linkedType != noLinkedType
         if isLinked:
             fileData["linkedType"] = linkedType
             if "events" in fileData:
@@ -1300,29 +1308,29 @@ class GeneralDataEditor(QtWidgets.QMainWindow):
     def _onRenameDataType(self, index: int):
         oldKey = self.tabWidget.tabText(index)
 
-        text, ok = QtWidgets.QInputDialog.getText(
+        OpenSingleRowDialog(
             self,
             ELOC("RENAME_DATA_TYPE"),
             ELOC("ENTER_DATA_TYPE_NAME"),
-            QtWidgets.QLineEdit.Normal,
             oldKey,
+            onAccepted=lambda text: self._renameDataType(oldKey, text),
         )
-        if ok and text and text != oldKey:
-            data = getattr(GameData, "generalData", {})
-            if text in data:
-                QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("DATA_TYPE_EXISTS"))
-                return
 
-            if oldKey in data:
-                data[text] = data.pop(oldKey)
-
-            self._populateFiles()
-            for i in range(self.tabWidget.count()):
-                if self.tabWidget.tabText(i) == text:
-                    self.tabWidget.setCurrentIndex(i)
-                    break
-
-            self.MODIFIED.emit()
+    def _renameDataType(self, oldKey: str, text: str) -> None:
+        if not text or text == oldKey:
+            return
+        data = getattr(GameData, "generalData", {})
+        if text in data:
+            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("DATA_TYPE_EXISTS"))
+            return
+        if oldKey in data:
+            data[text] = data.pop(oldKey)
+        self._populateFiles()
+        for i in range(self.tabWidget.count()):
+            if self.tabWidget.tabText(i) == text:
+                self.tabWidget.setCurrentIndex(i)
+                break
+        self.MODIFIED.emit()
 
     def _onRemoveDataType(self, index: int):
         key = self.tabWidget.tabText(index)

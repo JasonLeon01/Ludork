@@ -530,7 +530,9 @@ class NodePathEditor(QtWidgets.QWidget):
     def _onBrowse(self) -> None:
         baseDir = self._getBaseDir()
         dlg = FileSelectorDialog(GetIndependentDialogParent(self), baseDir, FileSelectorDialog.allFilesFilter(star=True))
-        filePath = dlg.execSelect()
+        dlg.openSelect(lambda filePath: self._applyBrowseSelection(filePath, baseDir))
+
+    def _applyBrowseSelection(self, filePath: str, baseDir: str) -> None:
         if not filePath:
             return
         try:
@@ -583,86 +585,28 @@ class NodeStringPickerEditor(QtWidgets.QWidget):
         self._browseBtn.setEnabled(editable)
 
     def _onBrowse(self) -> None:
-        value = self.selectValue()
+        self.selectValue(self._applySelectedValue)
+
+    def _applySelectedValue(self, value: str) -> None:
         if value:
             self.setValue(value)
 
-    def selectValue(self) -> str:
-        return ""
+    def selectValue(self, onSelected: Callable[[str], None]) -> None:
+        onSelected("")
 
 
 class NodeBlueprintClassEditor(NodeStringPickerEditor):
-    def selectValue(self) -> str:
-        from Widgets.ClassSelector import ClassSelector
+    def selectValue(self, onSelected: Callable[[str], None]) -> None:
+        from Widgets.ClassSelector import OpenClassSelector
 
-        dlg = ClassSelector(GetIndependentDialogParent(self))
-        if dlg.exec_() != QtWidgets.QDialog.Accepted:
-            return ""
-        selected = dlg.getSelected()
-        return selected if isinstance(selected, str) else ""
-
-
-class CommonFunctionSelectorDialog(QtWidgets.QDialog):
-    def __init__(self, parent: Optional[QtWidgets.QWidget], currentValue: str = "") -> None:
-        super(CommonFunctionSelectorDialog, self).__init__(parent)
-        self.setWindowTitle(ELOC("COMMON_FUNCTIONS"))
-        self._selected = ""
-        self.resize(360, 420)
-
-        layout = QtWidgets.QVBoxLayout(self)
-        self._searchEdit = QtWidgets.QLineEdit(self)
-        self._searchEdit.setPlaceholderText(ELOC("SEARCH"))
-        self._searchEdit.textChanged.connect(self._filterItems)
-        layout.addWidget(self._searchEdit)
-
-        self._listWidget = QtWidgets.QListWidget(self)
-        self._listWidget.itemDoubleClicked.connect(self._acceptItem)
-        layout.addWidget(self._listWidget, 1)
-
-        btnLayout = QtWidgets.QHBoxLayout()
-        btnLayout.addStretch()
-        okBtn = QtWidgets.QPushButton(ELOC("CONFIRM"), self)
-        okBtn.clicked.connect(self.accept)
-        cancelBtn = QtWidgets.QPushButton(ELOC("CANCEL"), self)
-        cancelBtn.clicked.connect(self.reject)
-        btnLayout.addWidget(okBtn)
-        btnLayout.addWidget(cancelBtn)
-        layout.addLayout(btnLayout)
-
-        self._items = sorted(str(key) for key in GameData.commonFunctionsData.keys())
-        self._filterItems("")
-        if currentValue:
-            matches = self._listWidget.findItems(currentValue, QtCore.Qt.MatchExactly)
-            if matches:
-                self._listWidget.setCurrentItem(matches[0])
-
-    def getSelected(self) -> str:
-        return self._selected
-
-    def accept(self) -> None:
-        item = self._listWidget.currentItem()
-        if item is not None:
-            self._selected = item.text()
-        super(CommonFunctionSelectorDialog, self).accept()
-
-    def _acceptItem(self, item: QtWidgets.QListWidgetItem) -> None:
-        self._selected = item.text()
-        super(CommonFunctionSelectorDialog, self).accept()
-
-    def _filterItems(self, text: str) -> None:
-        needle = text.strip().lower()
-        self._listWidget.clear()
-        for item in self._items:
-            if not needle or needle in item.lower():
-                self._listWidget.addItem(item)
+        OpenClassSelector(GetIndependentDialogParent(self), onSelected)
 
 
 class NodeCommonFunctionEditor(NodeStringPickerEditor):
-    def selectValue(self) -> str:
-        dlg = CommonFunctionSelectorDialog(GetIndependentDialogParent(self), self.getValue())
-        if dlg.exec_() != QtWidgets.QDialog.Accepted:
-            return ""
-        return dlg.getSelected()
+    def selectValue(self, onSelected: Callable[[str], None]) -> None:
+        from Widgets.Utils.CommonFunctionSelectorDialog import OpenCommonFunctionSelector
+
+        OpenCommonFunctionSelector(GetIndependentDialogParent(self), self.getValue(), onSelected)
 
 
 class NodePathWidget(NodeBaseWidget):

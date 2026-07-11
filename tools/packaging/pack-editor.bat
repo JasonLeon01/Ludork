@@ -16,12 +16,27 @@ call "%LIB%" pip_ensure "%PYTHON%" nuitka "-U"
 if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 
 set "OUTDIR=%ROOT%\build"
+set "QML_SOURCE=%ROOT%\EditorGlobal\Qml"
+set "QML_PACK_DIR=%OUTDIR%\editor_qml_pack\EditorGlobal\Qml"
 set "LOCALE_JSON=%ROOT%\Locale\locale.json"
 set "LOCALE_BAK=%ROOT%\locale.json.bak"
 set "PROJ=%ROOT%\Sample\Main.proj"
 set "PROJ_BAK=%ROOT%\Main.proj.bak"
 set "PACK_RC=0"
 set "PROJ_REPLACED=0"
+set "PACK_PROFILE_ARG=%~1"
+
+for /f "tokens=1,* delims==" %%A in ('"%PYTHON%" "%ROOT%\tools\packaging\pack_profile.py" %PACK_PROFILE_ARG%') do (
+    if /I "%%A"=="PROFILE" set "PACK_PROFILE=%%B"
+    if /I "%%A"=="JOBS" set "PACK_JOBS=%%B"
+    if /I "%%A"=="LTO" set "PACK_LTO=%%B"
+    if /I "%%A"=="JOBS_LABEL" set "PACK_JOBS_LABEL=%%B"
+)
+if not defined PACK_PROFILE set "PACK_PROFILE=low"
+if not defined PACK_LTO set "PACK_LTO=no"
+if not defined PACK_JOBS_LABEL (
+    if defined PACK_JOBS (set "PACK_JOBS_LABEL=%PACK_JOBS%") else (set "PACK_JOBS_LABEL=all")
+)
 
 if not exist "%LOCALE_JSON%" (
     call "%LIB%" err "Locale JSON file not found: %LOCALE_JSON%"
@@ -35,10 +50,29 @@ if %ERRORLEVEL% neq 0 (
     goto cleanup
 )
 
+call "%LIB%" step "Preparing Qt QML tools..."
+"%PYTHON%" "%ROOT%\tools\packaging\ensure_qml_tools.py"
+if %ERRORLEVEL% neq 0 (
+    set "PACK_RC=%ERRORLEVEL%"
+    goto cleanup
+)
+
+call "%LIB%" step "Preparing editor QML resources..."
+"%PYTHON%" "%ROOT%\tools\packaging\prepare_editor_qml.py" "%QML_SOURCE%" "%QML_PACK_DIR%"
+if %ERRORLEVEL% neq 0 (
+    set "PACK_RC=%ERRORLEVEL%"
+    goto cleanup
+)
+
 if exist "%LOCALE_JSON%" move /Y "%LOCALE_JSON%" "%LOCALE_BAK%" >nul
 if exist "%PROJ%" move /Y "%PROJ%" "%PROJ_BAK%" >nul
 > "%PROJ%" echo {}
 set "PROJ_REPLACED=1"
+
+if exist "%ROOT%\BuildTools\Qt515" (
+    call "%LIB%" step "Removing legacy Qt tool cache from BuildTools..."
+    rmdir /S /Q "%ROOT%\BuildTools\Qt515"
+)
 
 set "NUITKA_FLAGS=--remove-output"
 set "NUITKA_FLAGS=%NUITKA_FLAGS% "--output-dir=%OUTDIR%""
@@ -57,7 +91,7 @@ set "NUITKA_FLAGS=%NUITKA_FLAGS% --include-package=Utils"
 set "NUITKA_FLAGS=%NUITKA_FLAGS% "--include-data-dir=%ROOT%\Resource=Resource""
 set "NUITKA_FLAGS=%NUITKA_FLAGS% "--include-data-dir=%ROOT%\Locale=Locale""
 set "NUITKA_FLAGS=%NUITKA_FLAGS% "--include-data-dir=%ROOT%\Styles=Styles""
-set "NUITKA_FLAGS=%NUITKA_FLAGS% "--include-data-dir=%ROOT%\EditorGlobal\Qml=EditorGlobal\Qml""
+set "NUITKA_FLAGS=%NUITKA_FLAGS% "--include-data-dir=%QML_PACK_DIR%=EditorGlobal\Qml""
 set "NUITKA_FLAGS=%NUITKA_FLAGS% "--include-data-dir=%ROOT%\BuildTools=BuildTools""
 set "NUITKA_FLAGS=%NUITKA_FLAGS% --include-module=NodeGraphQt"
 set "NUITKA_FLAGS=%NUITKA_FLAGS% --include-package=debugpy"
@@ -75,11 +109,12 @@ set "NUITKA_FLAGS=%NUITKA_FLAGS% --include-module=PyQt5.QtSvg"
 set "NUITKA_FLAGS=%NUITKA_FLAGS% --nofollow-import-to=Engine"
 set "NUITKA_FLAGS=%NUITKA_FLAGS% --nofollow-import-to=Global"
 set "NUITKA_FLAGS=%NUITKA_FLAGS% --nofollow-import-to=Source"
-set "NUITKA_FLAGS=%NUITKA_FLAGS% --lto=yes"
+if defined PACK_JOBS set "NUITKA_FLAGS=%NUITKA_FLAGS% --jobs=%PACK_JOBS%"
+set "NUITKA_FLAGS=%NUITKA_FLAGS% --lto=%PACK_LTO%"
 if exist "%ROOT%\Resource\icon.ico" set "NUITKA_FLAGS=%NUITKA_FLAGS% "--windows-icon-from-ico=%ROOT%\Resource\icon.ico""
 set "NUITKA_FLAGS=%NUITKA_FLAGS% --windows-console-mode=disable --standalone"
 
-call "%LIB%" step "Running Nuitka build..."
+call "%LIB%" step "Running Nuitka build (profile: %PACK_PROFILE%, jobs: %PACK_JOBS_LABEL%, lto: %PACK_LTO%)..."
 pushd "%ROOT%"
 "%PYTHON%" -m nuitka %NUITKA_FLAGS% "%ROOT%\main.py"
 set "PACK_RC=%ERRORLEVEL%"

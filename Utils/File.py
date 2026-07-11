@@ -151,6 +151,9 @@ def _openProjectPath(path: str, widget: QtWidgets.QWidget) -> None:
         app.aboutToQuit.connect(mainWindow.endGame)
     mainWindow.show()
     widget.close()
+    widget.deleteLater()
+    if app:
+        app.processEvents(QtCore.QEventLoop.ProcessEventsFlag.AllEvents, 200)
 
 
 def NewProject(parent: QtWidgets.QWidget) -> None:

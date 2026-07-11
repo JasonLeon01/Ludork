@@ -63,6 +63,7 @@ def NormaliseMaterialData(value: Any = None) -> Dict[str, Any]:
 def MaterialEditorObject(value: Any = None, valueType: Any = None) -> Any:
     data = NormaliseMaterialData(value)
     propertyNames = BoundStructPropertyNames(valueType)
+    prototypeDefaults = NormaliseMaterialData(valueType() if valueType else None)
     names = list(propertyNames)
     for name in data.keys():
         if name not in names:
@@ -73,11 +74,13 @@ def MaterialEditorObject(value: Any = None, valueType: Any = None) -> Any:
     for name in names:
         if not _isValidFieldName(name):
             continue
-        fieldValue = data.get(name)
+        fieldValue = data.get(name, prototypeDefaults.get(name))
         defaultValue = copy.deepcopy(fieldValue)
         fieldType = typeHints.get(name, Any)
         if fieldType is Any and fieldValue is not None:
             fieldType = type(fieldValue)
+        elif fieldType is Any and name in prototypeDefaults:
+            fieldType = type(prototypeDefaults[name])
         fields.append(
             (
                 name,

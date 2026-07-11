@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+from collections.abc import Callable
 from typing import Any, List, Tuple
 import os
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -85,7 +86,7 @@ class ConfigDictPanel(QtWidgets.QWidget):
                     filters.append(f"*{e}")
         return filters
 
-    def _selectFileName(self, val: dict[str, Any]) -> str | None:
+    def _selectFileName(self, val: dict[str, Any], onSelected: Callable[[str], None]) -> None:
         base = str(val.get("base", "")).strip()
         rootKey = val.get("root")
         if rootKey:
@@ -97,13 +98,36 @@ class ConfigDictPanel(QtWidgets.QWidget):
         filters = self._getFileFilters(val.get("ext"))
         filter_str = FileSelectorDialog.filesFilter(filters) if filters else FileSelectorDialog.allFilesFilter(star=True)
         dlg = FileSelectorDialog(self, root, filter_str)
-        fp = dlg.execSelect()
-        if not fp:
-            return None
-        bn = os.path.basename(fp)
-        if filters and not any(bn.endswith(e.replace("*", "")) for e in filters):
-            return None
-        return bn
+
+        def onPathSelected(fp: str) -> None:
+            if not fp:
+                return
+            bn = os.path.basename(fp)
+            if filters and not any(bn.endswith(e.replace("*", "")) for e in filters):
+                return
+            onSelected(bn)
+
+        dlg.openSelect(onPathSelected)
+
+    def _applySelectedFileName(
+        self,
+        bn: str,
+        edit: QtWidgets.QLineEdit,
+        val: dict[str, Any],
+        list_ref: List[str] | None,
+        index: int | None,
+    ) -> None:
+        GameData.RecordSnapshot()
+        edit.setText(bn)
+        if list_ref is not None and index is not None:
+            if index >= 0 and index < len(list_ref):
+                list_ref[index] = bn
+            else:
+                list_ref.append(bn)
+            val["value"] = list_ref
+        else:
+            val["value"] = bn
+        self.MODIFIED.emit()
 
     def _createFileRow(
         self,
@@ -123,20 +147,10 @@ class ConfigDictPanel(QtWidgets.QWidget):
         h.addWidget(btn, 0)
 
         def on_browse():
-            bn = self._selectFileName(val)
-            if bn is None:
-                return
-            GameData.RecordSnapshot()
-            edit.setText(bn)
-            if list_ref is not None and index is not None:
-                if index >= 0 and index < len(list_ref):
-                    list_ref[index] = bn
-                else:
-                    list_ref.append(bn)
-                val["value"] = list_ref
-            else:
-                val["value"] = bn
-            self.MODIFIED.emit()
+            self._selectFileName(
+                val,
+                lambda bn: self._applySelectedFileName(bn, edit, val, list_ref, index),
+            )
 
         btn.clicked.connect(on_browse)
         return w
@@ -204,16 +218,17 @@ class ConfigDictPanel(QtWidgets.QWidget):
                     h.insertWidget(1, minus)
 
                 def on_browse():
-                    bn = self._selectFileName(val)
-                    if bn is None:
-                        return
-                    edit.setText(bn)
-                    idx_now = v.indexOf(row)
-                    if idx_now >= 0 and idx_now < len(values):
-                        GameData.RecordSnapshot()
-                        values[idx_now] = bn
-                        val["value"] = values
-                        self.MODIFIED.emit()
+                    row_index = v.indexOf(row)
+
+                    def onSelected(bn: str) -> None:
+                        edit.setText(bn)
+                        if row_index >= 0 and row_index < len(values):
+                            GameData.RecordSnapshot()
+                            values[row_index] = bn
+                            val["value"] = values
+                            self.MODIFIED.emit()
+
+                    self._selectFileName(val, onSelected)
 
                 browse.clicked.connect(on_browse)
                 if var_len:

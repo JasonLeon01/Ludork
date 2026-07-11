@@ -98,7 +98,7 @@ set "FLAGS=%FLAGS% --include-data-dir=Data=Data"
 set "FLAGS=%FLAGS% --include-package=pysf"
 if exist "%PROJ_PATH%\Main.ini" set "FLAGS=%FLAGS% --include-data-file=Main.ini=Main.ini"
 if "%INCLUDE_PYAV%"=="1" set "FLAGS=%FLAGS% --include-module=av"
-set "FLAGS=%FLAGS% --standalone"
+set "FLAGS=%FLAGS% --standalone --windows-console-mode=disable"
 if exist "%PROJ_PATH%\Assets\System\icon.ico" set "FLAGS=%FLAGS% "--windows-icon-from-ico=%PROJ_PATH%\Assets\System\icon.ico""
 
 call "%LIB%" step "Running Nuitka build for game..."

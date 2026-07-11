@@ -3,7 +3,8 @@
 import os
 from typing import Optional
 from PyQt5 import QtCore, QtWidgets
-from Widgets.Utils import FileSelectorDialog, SingleRowDialog
+from Widgets.Utils.FileSelectorDialog import FileSelectorDialog
+from Widgets.Utils.SingleRowDialog import OpenSingleRowDialog
 
 
 class LayerBarMixin:
@@ -88,26 +89,32 @@ class LayerBarMixin:
             QtWidgets.QMessageBox.warning(self, "Hint", ELOC("ADD_ERROR"))
             return
         existing = set(self.editorPanel.getLayerNames())
-        while True:
-            dlg = SingleRowDialog(self, ELOC("ADD_LAYER"), ELOC("ADD_MESSAGE"))
-            ok, name = dlg.execGetText()
-            if not ok:
-                return
+        self._promptAddLayerName(existing, insertAfterTabIndex)
+
+    def _promptAddLayerName(
+        self,
+        existing: set[str],
+        insertAfterTabIndex: Optional[int] = None,
+    ) -> None:
+        def onAccepted(name: str) -> None:
             name = name.strip()
             if not name:
                 QtWidgets.QMessageBox.warning(self, "Hint", ELOC("ADD_EMPTY"))
-                continue
+                self._promptAddLayerName(existing, insertAfterTabIndex)
+                return
             if name in existing:
                 QtWidgets.QMessageBox.warning(self, "Hint", ELOC("ADD_DUPLICATE"))
-                continue
-            break
-        self.editorPanel.addEmptyLayer(name)
-        if insertAfterTabIndex is not None and insertAfterTabIndex >= 1:
-            names = [n for n in self.editorPanel.getLayerNames() if n != name]
-            new_order = names[:insertAfterTabIndex] + [name] + names[insertAfterTabIndex:]
-            self.editorPanel.reorderLayers(new_order)
-        self._selectLayer(name)
-        self._refreshLayerBar()
+                self._promptAddLayerName(existing, insertAfterTabIndex)
+                return
+            self.editorPanel.addEmptyLayer(name)
+            if insertAfterTabIndex is not None and insertAfterTabIndex >= 1:
+                names = [n for n in self.editorPanel.getLayerNames() if n != name]
+                new_order = names[:insertAfterTabIndex] + [name] + names[insertAfterTabIndex:]
+                self.editorPanel.reorderLayers(new_order)
+            self._selectLayer(name)
+            self._refreshLayerBar()
+
+        OpenSingleRowDialog(self, ELOC("ADD_LAYER"), ELOC("ADD_MESSAGE"), onAccepted=onAccepted)
 
     def _onLayerContextMenu(self, pos: QtCore.QPoint) -> None:
         tabBar = self._layerTabBar()
@@ -151,23 +158,8 @@ class LayerBarMixin:
             existing = set(self.editorPanel.getLayerNames())
             if name in existing:
                 existing.remove(name)
-            while True:
-                dlg = SingleRowDialog(self, ELOC("RENAME_LAYER"), ELOC("RENAME_MESSAGE"), str(name))
-                ok, newName = dlg.execGetText()
-                if not ok:
-                    return
-                newName = newName.strip()
-                if not newName:
-                    QtWidgets.QMessageBox.warning(self, "Hint", ELOC("ADD_EMPTY"))
-                    continue
-                if newName in existing:
-                    QtWidgets.QMessageBox.warning(self, "Hint", ELOC("ADD_DUPLICATE"))
-                    continue
-                break
-            if self.editorPanel.renameLayer(name, newName):
-                if self._selectedLayerName == name:
-                    self._selectedLayerName = newName
-                self._refreshLayerBar()
+            self._promptRenameLayer(name, existing)
+            return
 
         if action == actSelectShader:
             self._selectLayerShader(name)
@@ -193,6 +185,30 @@ class LayerBarMixin:
                             self.editorPanel.setAcceptDrops(False)
                     self._refreshLayerBar()
 
+    def _promptRenameLayer(self, oldName: str, existing: set[str]) -> None:
+        def onAccepted(newName: str) -> None:
+            newName = newName.strip()
+            if not newName:
+                QtWidgets.QMessageBox.warning(self, "Hint", ELOC("ADD_EMPTY"))
+                self._promptRenameLayer(oldName, existing)
+                return
+            if newName in existing:
+                QtWidgets.QMessageBox.warning(self, "Hint", ELOC("ADD_DUPLICATE"))
+                self._promptRenameLayer(oldName, existing)
+                return
+            if self.editorPanel.renameLayer(oldName, newName):
+                if self._selectedLayerName == oldName:
+                    self._selectedLayerName = newName
+                self._refreshLayerBar()
+
+        OpenSingleRowDialog(
+            self,
+            ELOC("RENAME_LAYER"),
+            ELOC("RENAME_MESSAGE"),
+            oldName,
+            onAccepted=onAccepted,
+        )
+
     def _selectLayerShader(self, layerName: str) -> None:
         from EditorGlobal import EditorStatus
 
@@ -203,7 +219,11 @@ class LayerBarMixin:
             FileSelectorDialog.filesFilter(["*.vert", "*.frag"]),
             ELOC("SELECT_LAYER_SHADER"),
         )
-        selectedPath = dialog.execSelect()
+        dialog.openSelect(
+            lambda selectedPath: self._applyLayerShaderSelection(layerName, selectedPath, shaderRoot)
+        )
+
+    def _applyLayerShaderSelection(self, layerName: str, selectedPath: str, shaderRoot: str) -> None:
         if not selectedPath:
             return
         shaderPath = os.path.relpath(selectedPath, shaderRoot).replace("\\", "/")

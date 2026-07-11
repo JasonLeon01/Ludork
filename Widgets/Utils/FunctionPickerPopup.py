@@ -1,29 +1,151 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
+
 import inspect
 import logging
 import sys
+from dataclasses import dataclass, field
 from types import ModuleType
-from typing import Dict, Optional, TypedDict, get_type_hints
-from PyQt5 import QtCore, QtWidgets, QtGui
+from typing import Any, Dict, Optional, get_type_hints
 
-from .NodeFunctionMeta import NodeFunction, BindNodeFunctionMetadata, IsSelectableNodeFunction
+from PyQt5 import QtCore, QtGui, QtWidgets
+
+from EditorGlobal.QmlDialogHost import QmlDialogHost
+
+from .NodeFunctionMeta import BindNodeFunctionMetadata, IsSelectableNodeFunction, NodeFunction
 
 
 FunctionSource = ModuleType | type
 log = logging.getLogger(__name__)
 
 
-class SearchItem(TypedDict):
+@dataclass
+class FunctionItem:
     name: str
-    hierarchy: str
-    path: str
-    is_parent: bool
-    displayName: str
+    path: str = ""
+    isParent: bool = False
+    displayName: str = ""
+    hierarchy: str = ""
+    children: list[FunctionItem] = field(default_factory=list)
+    expanded: bool = False
 
 
-class FunctionPickerPopup(QtWidgets.QDialog):
+class FunctionPickerModel(QtCore.QAbstractListModel):
+    NameRole = QtCore.Qt.UserRole + 1
+    PathRole = QtCore.Qt.UserRole + 2
+    IsParentRole = QtCore.Qt.UserRole + 3
+    DepthRole = QtCore.Qt.UserRole + 4
+    ExpandableRole = QtCore.Qt.UserRole + 5
+    ExpandedRole = QtCore.Qt.UserRole + 6
+    HierarchyRole = QtCore.Qt.UserRole + 7
+
+    def __init__(self, parent: QtCore.QObject | None = None) -> None:
+        super().__init__(parent)
+        self._roots: list[FunctionItem] = []
+        self._rows: list[tuple[FunctionItem, int]] = []
+        self._searchItems: list[FunctionItem] = []
+        self._searchText = ""
+
+    def roleNames(self) -> dict[int, bytes]:
+        return {
+            self.NameRole: b"itemName",
+            self.PathRole: b"itemPath",
+            self.IsParentRole: b"isParentFunction",
+            self.DepthRole: b"itemDepth",
+            self.ExpandableRole: b"isExpandable",
+            self.ExpandedRole: b"isExpanded",
+            self.HierarchyRole: b"itemHierarchy",
+        }
+
+    def rowCount(self, parent: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
+        return 0 if parent.isValid() else len(self._rows)
+
+    def data(self, index: QtCore.QModelIndex, role: int = QtCore.Qt.DisplayRole) -> object:
+        if not index.isValid() or not 0 <= index.row() < len(self._rows):
+            return None
+        item, depth = self._rows[index.row()]
+        if role in (QtCore.Qt.DisplayRole, self.NameRole):
+            if self._searchText and item.hierarchy:
+                return f"{item.name} ({item.hierarchy})"
+            return item.name
+        if role == self.PathRole:
+            return item.path
+        if role == self.IsParentRole:
+            return item.isParent
+        if role == self.DepthRole:
+            return depth
+        if role == self.ExpandableRole:
+            return bool(item.children) and not self._searchText
+        if role == self.ExpandedRole:
+            return item.expanded
+        if role == self.HierarchyRole:
+            return item.hierarchy
+        return None
+
+    def setRoots(self, roots: list[FunctionItem]) -> None:
+        self.beginResetModel()
+        self._roots = roots
+        self._searchItems = []
+        for root in roots:
+            self._collectSearchItems(root, "")
+        self._rebuildRows()
+        self.endResetModel()
+
+    def setSearchText(self, text: str) -> None:
+        normalised = text.strip().casefold()
+        if normalised == self._searchText:
+            return
+        self.beginResetModel()
+        self._searchText = normalised
+        self._rebuildRows()
+        self.endResetModel()
+
+    def toggle(self, row: int) -> None:
+        item = self.item(row)
+        if item is None or not item.children or self._searchText:
+            return
+        item.expanded = not item.expanded
+        self.beginResetModel()
+        self._rebuildRows()
+        self.endResetModel()
+
+    def item(self, row: int) -> FunctionItem | None:
+        if 0 <= row < len(self._rows):
+            return self._rows[row][0]
+        return None
+
+    def _collectSearchItems(self, item: FunctionItem, parentHierarchy: str) -> None:
+        currentHierarchy = f"{parentHierarchy}.{item.name}" if parentHierarchy else item.name
+        if item.path:
+            item.hierarchy = parentHierarchy
+            self._searchItems.append(item)
+        for child in item.children:
+            self._collectSearchItems(child, currentHierarchy)
+
+    def _rebuildRows(self) -> None:
+        if self._searchText:
+            self._rows = [
+                (item, 0)
+                for item in self._searchItems
+                if self._searchText in item.name.casefold()
+                or self._searchText in item.displayName.casefold()
+            ]
+            return
+        rows: list[tuple[FunctionItem, int]] = []
+
+        def appendVisible(item: FunctionItem, depth: int) -> None:
+            rows.append((item, depth))
+            if item.expanded:
+                for child in item.children:
+                    appendVisible(child, depth + 1)
+
+        for root in self._roots:
+            appendVisible(root, 0)
+        self._rows = rows
+
+
+class FunctionPickerPopup(QmlDialogHost):
     FUNCTION_SELECTED = QtCore.pyqtSignal(str, bool)
 
     def __init__(
@@ -34,334 +156,215 @@ class FunctionPickerPopup(QtWidgets.QDialog):
         contextSensitive: bool = True,
         contextClass: Optional[type] = None,
     ) -> None:
-        super().__init__(parent)
-        self.setModal(False)
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
-        self.setWindowFlags(QtCore.Qt.Tool | QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
-        self._isMac = sys.platform == "darwin"
-
+        self._sources = sources
+        self._filterExecOnly = filterExecOnly
         self._contextSensitive = contextSensitive
         self._mroClasses: set[type] = set()
         if contextClass is not None:
             try:
                 self._mroClasses = set(inspect.getmro(contextClass))
-            except Exception:
+            except TypeError:
                 self._mroClasses = set()
-
-        lay = QtWidgets.QVBoxLayout(self)
-        lay.setContentsMargins(0, 0, 0, 0)
-        lay.setSpacing(0)
-
-        searchRow = QtWidgets.QHBoxLayout()
-        searchRow.setContentsMargins(0, 0, 0, 0)
-        searchRow.setSpacing(0)
-
-        self._searchEdit = QtWidgets.QLineEdit(self)
-        self._searchEdit.setPlaceholderText("Search...")
-        self._searchEdit.setStyleSheet(
-            "QLineEdit { background-color: #333; border: none; border-bottom: 1px solid #555; padding: 4px; }"
-        )
-        self._searchEdit.textChanged.connect(self._onSearch)
-        searchRow.addWidget(self._searchEdit, 2)
-
-        font = self._searchEdit.font()
-        font.setPointSize(font.pointSize() - 1)
-        self._contextCheck = QtWidgets.QCheckBox(ELOC("CONTEXT_SENSITIVE"), self)  # type: ignore[name-defined]
-        self._contextCheck.setFont(font)
-        self._contextCheck.setChecked(self._contextSensitive)
-        self._contextCheck.toggled.connect(self._onContextToggled)
-        self._contextCheck.setStyleSheet(
-            "QCheckBox { padding: 4px; color: #ccc; } QCheckBox::indicator:unchecked { background: #444; }"
-        )
-        searchRow.addWidget(self._contextCheck, 1)
-        lay.addLayout(searchRow)
-
-        self._tree = QtWidgets.QTreeWidget(self)
-        self._tree.setHeaderHidden(True)
-        lay.addWidget(self._tree)
-
         self._visited: set[str | int | None] = set()
         self._maxDepth = 4
-        self._filterExecOnly = filterExecOnly
-        self._sources = sources
-        self._build(sources)
+        self._isMac = sys.platform == "darwin"
 
-        self._searchCache: list[SearchItem] = []
-        self._originalItems: list[QtWidgets.QTreeWidgetItem] = []
-        self._buildSearchCache()
-
-        self._tree.itemDoubleClicked.connect(self._onDoubleClicked)
-        self.resize(320, 420)
-        self.setAttribute(QtCore.Qt.WA_InputMethodEnabled, True)
-        self._searchEdit.setAttribute(QtCore.Qt.WA_InputMethodEnabled, True)
-        self._searchEdit.setFocusPolicy(QtCore.Qt.StrongFocus)
+        super().__init__(parent, "", QtCore.QSize(320, 420), QtCore.QSize(260, 280))
+        self.setModal(False)
+        self.setWindowModality(QtCore.Qt.NonModal)
+        self.setWindowFlags(QtCore.Qt.Tool | QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
+        self._model = FunctionPickerModel(self)
+        self._rebuildModel()
+        self.loadQml(
+            "Dialogs/FunctionPickerPopup.qml",
+            {
+                "functionPickerModel": self._model,
+                "functionPickerContextSensitive": self._contextSensitive,
+            },
+        )
         self._ignoreDeactivate = True
 
-    def showEvent(self, e: QtCore.QEvent) -> None:
-        super().showEvent(e)
-        self._searchEdit.setFocus(QtCore.Qt.OtherFocusReason)
+    def showEvent(self, event: QtGui.QShowEvent) -> None:
+        super().showEvent(event)
         self.activateWindow()
         self.raise_()
         self._ignoreDeactivate = True
         QtCore.QTimer.singleShot(150, self._clearIgnoreDeactivate)
 
-    def _clearIgnoreDeactivate(self) -> None:
-        self._ignoreDeactivate = False
-
-    def event(self, e: QtCore.QEvent) -> bool:
-        if e.type() == QtCore.QEvent.WindowDeactivate:
-            if self._isMac:
-                return super().event(e)
+    def event(self, event: QtCore.QEvent) -> bool:
+        if event.type() == QtCore.QEvent.WindowDeactivate and not self._isMac:
             if self._ignoreDeactivate:
                 return True
             self.close()
             return True
-        return super().event(e)
+        return super().event(event)
 
-    def keyPressEvent(self, e: QtGui.QKeyEvent) -> None:
-        if e.key() == QtCore.Qt.Key_Escape:
+    def _clearIgnoreDeactivate(self) -> None:
+        self._ignoreDeactivate = False
+
+    @QtCore.pyqtSlot(str)
+    def setSearchText(self, text: str) -> None:
+        self._model.setSearchText(text)
+
+    @QtCore.pyqtSlot(bool)
+    def setContextSensitive(self, checked: bool) -> None:
+        if self._contextSensitive == checked:
+            return
+        self._contextSensitive = checked
+        self._rebuildModel()
+
+    @QtCore.pyqtSlot(int)
+    def activateRow(self, row: int) -> None:
+        item = self._model.item(row)
+        if item is None:
+            return
+        if item.path:
+            self.FUNCTION_SELECTED.emit(item.path, item.isParent)
             self.close()
             return
-        super().keyPressEvent(e)
+        self._model.toggle(row)
 
-    def _build(self, sources: Dict[str, FunctionSource]) -> None:
-        self._tree.clear()
-        for label, obj in sources.items():
-            if obj is None:
+    @QtCore.pyqtSlot(int)
+    def toggleRow(self, row: int) -> None:
+        self._model.toggle(row)
+
+    def _rebuildModel(self) -> None:
+        self._visited.clear()
+        roots: list[FunctionItem] = []
+        for label, source in self._sources.items():
+            if source is None:
                 continue
-            root = QtWidgets.QTreeWidgetItem([label])
-            root.setData(0, QtCore.Qt.UserRole + 2, label == "Parent")
-            root_name = getattr(obj, "__name__", None)
-            if self._addChildren(root, obj, "", label == "Parent", 0, root_name):
-                self._tree.addTopLevelItem(root)
-        self._tree.collapseAll()
+            root = FunctionItem(label)
+            rootName = getattr(source, "__name__", None)
+            if self._addChildren(root, source, "", label == "Parent", 0, rootName):
+                roots.append(root)
+        self._model.setRoots(roots)
 
-    def _handleChildren(self, n: str, a: NodeFunction, p: str, parent_item: QtWidgets.QTreeWidgetItem) -> None:
-        it = QtWidgets.QTreeWidgetItem([n])
-        it.setData(0, QtCore.Qt.UserRole, p)
-        it.setData(0, QtCore.Qt.UserRole + 2, True)
-        displayName = None
-        meta = getattr(a, "_meta", None)
+    def _functionItem(self, name: str, function: NodeFunction, path: str, isParent: bool) -> FunctionItem:
+        displayName = name
+        meta = getattr(function, "_meta", None)
         if isinstance(meta, dict):
-            mv = meta.get("DisplayName")
-            if isinstance(mv, str):
+            metaValue = meta.get("DisplayName")
+            if isinstance(metaValue, str):
                 try:
-                    displayName = str(eval(mv))
-                except Exception as e:
-                    log.debug("Failed to evaluate node display name %r: %s", mv, e)
-                    displayName = mv
-        it.setData(0, QtCore.Qt.UserRole + 3, displayName if isinstance(displayName, str) else n)
-        parent_item.addChild(it)
+                    displayName = str(eval(metaValue))
+                except Exception as error:
+                    log.debug("Failed to evaluate node display name %r: %s", metaValue, error)
+                    displayName = metaValue
+        return FunctionItem(name, path, isParent, displayName)
 
-    def _isInNodeFunctions(
-        self,
-        base: str,
-        a: FunctionSource,
-        is_node_functions: bool,
-    ) -> bool:
-        if is_node_functions:
+    def _isInNodeFunctions(self, base: str, source: FunctionSource, inherited: bool) -> bool:
+        if inherited:
             return True
-        mod_name = getattr(a, "__name__", "")
-        if isinstance(mod_name, str) and mod_name == "Source.NodeFunctions":
-            return True
-        return base == "NodeFunctions"
+        moduleName = getattr(source, "__name__", "")
+        return moduleName == "Source.NodeFunctions" or base == "NodeFunctions"
 
-    def _isFunctionContextRelevant(self, func: Any) -> bool:
+    def _isFunctionContextRelevant(self, function: Any) -> bool:
         if not self._mroClasses:
             return False
         try:
-            hints = get_type_hints(func)
+            hints = get_type_hints(function)
         except Exception:
             return False
         for hint in hints.values():
             if hint in self._mroClasses:
                 return True
-            origin = getattr(hint, "__origin__", None)
-            if origin is not None:
-                args = getattr(hint, "__args__", ())
-                for arg in args:
-                    if arg in self._mroClasses:
+            for argument in getattr(hint, "__args__", ()):
+                if argument in self._mroClasses:
+                    return True
+                for inner in getattr(argument, "__args__", ()):
+                    if inner in self._mroClasses:
                         return True
-                    # Unwrap Optional[X] as Union[X, None]
-                    if isinstance(arg, type) and arg is type(None):
-                        continue
-                    inner_origin = getattr(arg, "__origin__", None)
-                    if inner_origin is not None:
-                        inner_args = getattr(arg, "__args__", ())
-                        for ia in inner_args:
-                            if ia in self._mroClasses:
-                                return True
-            if isinstance(hint, str):
-                for cls in self._mroClasses:
-                    if hint == cls.__name__:
-                        return True
+            if isinstance(hint, str) and any(hint == cls.__name__ for cls in self._mroClasses):
+                return True
         return False
-
-    def _onContextToggled(self, checked: bool) -> None:
-        self._contextSensitive = checked
-        self._visited.clear()
-        self._originalItems = []
-        self._build(self._sources)
-        self._buildSearchCache()
 
     def _addChildren(
         self,
-        parent_item: QtWidgets.QTreeWidgetItem,
-        obj: FunctionSource,
+        parentItem: FunctionItem,
+        source: FunctionSource,
         base: str,
-        is_parent: bool,
+        isParent: bool,
         depth: int = 0,
-        root_name: str | None = None,
-        is_node_functions: bool = False,
-        is_in_mro_class: bool = False,
+        rootName: str | None = None,
+        isNodeFunctions: bool = False,
+        isInMroClass: bool = False,
     ) -> bool:
-        def _aliasFirstKey(name: str) -> tuple[int, str]:
+        def aliasFirstKey(name: str) -> tuple[int, str]:
             try:
-                a = getattr(obj, name)
-                m = getattr(a, "__name__", None)
-                if isinstance(m, str):
-                    return (0 if name != m.split(".")[-1] else 1, str(name))
-            except (AttributeError, TypeError) as e:
-                log.debug("Failed to inspect function alias %s: %s", name, e)
-                return (1, str(name))
-            return (1, str(name))
+                value = getattr(source, name)
+                actualName = getattr(value, "__name__", None)
+                if isinstance(actualName, str):
+                    return 0 if name != actualName.split(".")[-1] else 1, name
+            except (AttributeError, TypeError) as error:
+                log.debug("Failed to inspect function alias %s: %s", name, error)
+            return 1, name
 
-        if is_parent:
-            found = False
-            try:
-                raw = [n for n in dir(obj) if not str(n).startswith("_")]
-                names = sorted(raw, key=_aliasFirstKey)
-            except Exception as e:
-                log.warning("Failed to enumerate parent node functions from %s: %s", obj, e)
-                return False
-            for n in names:
-                p = f"{base}.{n}" if base else n
+        try:
+            names = sorted((name for name in dir(source) if not name.startswith("_")), key=aliasFirstKey)
+        except Exception as error:
+            log.warning("Failed to enumerate node functions from %s: %s", source, error)
+            return False
+
+        if isParent:
+            for name in names:
+                path = f"{base}.{name}" if base else name
                 try:
-                    a = getattr(obj, n)
+                    value = BindNodeFunctionMetadata(getattr(source, name), source, name)
                 except AttributeError:
                     continue
-                a = BindNodeFunctionMetadata(a, obj, n)
-                if IsSelectableNodeFunction(a, self._filterExecOnly):
-                    self._handleChildren(n, a, p, parent_item)
-                    found = True
-            return found
+                if IsSelectableNodeFunction(value, self._filterExecOnly):
+                    parentItem.children.append(self._functionItem(name, value, path, True))
+            return bool(parentItem.children)
+
         if depth > self._maxDepth:
             return False
-        visitKey = None
-        if inspect.ismodule(obj):
-            visitKey = getattr(obj, "__name__", None)
-        elif inspect.isclass(obj):
-            modName = getattr(obj, "__module__", "")
-            qualName = getattr(obj, "__qualname__", getattr(obj, "__name__", ""))
-            visitKey = f"{modName}.{qualName}" if modName else qualName
+        if inspect.ismodule(source):
+            visitKey: str | int | None = getattr(source, "__name__", None)
+        elif inspect.isclass(source):
+            moduleName = getattr(source, "__module__", "")
+            qualifiedName = getattr(source, "__qualname__", getattr(source, "__name__", ""))
+            visitKey = f"{moduleName}.{qualifiedName}" if moduleName else qualifiedName
         else:
-            visitKey = id(obj)
-
+            visitKey = id(source)
         if visitKey in self._visited:
             return False
         self._visited.add(visitKey)
-        try:
-            raw = [n for n in dir(obj) if not str(n).startswith("_")]
-            names = sorted(raw, key=_aliasFirstKey)
-        except Exception as e:
-            log.warning("Failed to enumerate node functions from %s: %s", obj, e)
-            return False
-        found = False
-        for n in names:
-            p = f"{base}.{n}" if base else n
+
+        for name in names:
+            path = f"{base}.{name}" if base else name
             try:
-                a = getattr(obj, n)
+                value = BindNodeFunctionMetadata(getattr(source, name), source, name)
             except AttributeError:
                 continue
-            a = BindNodeFunctionMetadata(a, obj, n)
-            if inspect.ismodule(a):
-                mod_name = getattr(a, "__name__", "")
-                if root_name and isinstance(mod_name, str) and not mod_name.startswith(root_name):
+            if inspect.ismodule(value):
+                moduleName = getattr(value, "__name__", "")
+                if rootName and isinstance(moduleName, str) and not moduleName.startswith(rootName):
                     continue
-                child_item = QtWidgets.QTreeWidgetItem([n])
-                child_node_functions = self._isInNodeFunctions(p, a, is_node_functions)
+                child = FunctionItem(name)
+                childNodeFunctions = self._isInNodeFunctions(path, value, isNodeFunctions)
                 if self._addChildren(
-                    child_item, a, p, False, depth + 1, root_name or mod_name, child_node_functions, is_in_mro_class
+                    child, value, path, False, depth + 1, rootName or moduleName,
+                    childNodeFunctions, isInMroClass,
                 ):
-                    parent_item.addChild(child_item)
-                    found = True
-            elif inspect.isclass(a):
-                mod_name = getattr(a, "__module__", "")
-                if root_name and isinstance(mod_name, str) and not mod_name.startswith(root_name):
+                    parentItem.children.append(child)
+            elif inspect.isclass(value):
+                moduleName = getattr(value, "__module__", "")
+                if rootName and isinstance(moduleName, str) and not moduleName.startswith(rootName):
                     continue
-                child_item = QtWidgets.QTreeWidgetItem([n])
-                child_mro_class = is_in_mro_class or a in self._mroClasses
+                child = FunctionItem(name)
+                childInMro = isInMroClass or value in self._mroClasses
                 if self._addChildren(
-                    child_item, a, p, False, depth + 1, root_name, is_node_functions, child_mro_class
+                    child, value, path, False, depth + 1, rootName,
+                    isNodeFunctions, childInMro,
                 ):
-                    parent_item.addChild(child_item)
-                    found = True
-            elif IsSelectableNodeFunction(a, self._filterExecOnly):
-                mod = getattr(a, "__module__", "")
-                if (root_name is None) or (isinstance(mod, str) and mod.startswith(root_name)):
-                    if self._contextSensitive and not is_node_functions and not is_in_mro_class:
-                        if not self._isFunctionContextRelevant(a):
-                            continue
-                    self._handleChildren(n, a, p, parent_item)
-                    found = True
-        return found
-
-    def _onDoubleClicked(self, item: QtWidgets.QTreeWidgetItem, col: int) -> None:
-        path = item.data(0, QtCore.Qt.UserRole)
-        if isinstance(path, str) and path.strip():
-            is_parent = bool(item.data(0, QtCore.Qt.UserRole + 2))
-            self.FUNCTION_SELECTED.emit(path, is_parent)
-            self.close()
-
-    def _buildSearchCache(self) -> None:
-        self._searchCache = []
-        root = self._tree.invisibleRootItem()
-        if not root:
-            return
-        for i in range(root.childCount()):
-            self._collectSearchItems(root.child(i), "")
-
-    def _collectSearchItems(self, item: QtWidgets.QTreeWidgetItem, parent_hierarchy: str) -> None:
-        text = item.text(0)
-        path = item.data(0, QtCore.Qt.UserRole)
-        displayName = item.data(0, QtCore.Qt.UserRole + 3)
-
-        current_hierarchy = f"{parent_hierarchy}.{text}" if parent_hierarchy else text
-
-        if isinstance(path, str) and path:
-            self._searchCache.append(
-                {
-                    "name": text,
-                    "hierarchy": parent_hierarchy,
-                    "path": path,
-                    "is_parent": bool(item.data(0, QtCore.Qt.UserRole + 2)),
-                    "displayName": displayName if isinstance(displayName, str) else text,
-                }
-            )
-
-        for i in range(item.childCount()):
-            self._collectSearchItems(item.child(i), current_hierarchy)
-
-    def _onSearch(self, text: str) -> None:
-        text = text.strip().lower()
-        if not text:
-            if self._originalItems:
-                self._tree.clear()
-                self._tree.addTopLevelItems(self._originalItems)
-                self._originalItems = []
-            return
-
-        if not self._originalItems:
-            self._originalItems = [self._tree.takeTopLevelItem(0) for _ in range(self._tree.topLevelItemCount())]
-
-        self._tree.clear()
-
-        for item_data in self._searchCache:
-            dn = item_data.get("displayName")
-            dn_str = dn.lower() if isinstance(dn, str) else ""
-            if text in item_data["name"].lower() or (dn_str and text in dn_str):
-                display_text = f"{item_data['name']} ({item_data['hierarchy']})"
-                item = QtWidgets.QTreeWidgetItem([display_text])
-                item.setData(0, QtCore.Qt.UserRole, item_data["path"])
-                item.setData(0, QtCore.Qt.UserRole + 2, item_data["is_parent"])
-                self._tree.addTopLevelItem(item)
+                    parentItem.children.append(child)
+            elif IsSelectableNodeFunction(value, self._filterExecOnly):
+                moduleName = getattr(value, "__module__", "")
+                if rootName is not None and (not isinstance(moduleName, str) or not moduleName.startswith(rootName)):
+                    continue
+                if self._contextSensitive and not isNodeFunctions and not isInMroClass:
+                    if not self._isFunctionContextRelevant(value):
+                        continue
+                parentItem.children.append(self._functionItem(name, value, path, False))
+        return bool(parentItem.children)

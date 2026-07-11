@@ -12,6 +12,7 @@ from EditorGlobal import EditorStatus, GameData
 from Utils import Panel, File, System
 from Utils.DataConfig import DATA_FILE_SUFFIXES, DATA_FORMAT_DAT, DATA_FORMAT_EXTENSIONS, DATA_FORMAT_JSON
 from .FilePreview import FilePreview
+from .Utils import OpenSingleRowDialog
 
 
 _THUMB_SIZE = 80
@@ -1299,13 +1300,14 @@ class FileExplorer(QtWidgets.QWidget):
     def _createFolder(self, targetDir: str) -> None:
         if not targetDir or not self._isUnderRoot(targetDir):
             return
-        name, ok = QtWidgets.QInputDialog.getText(
+        OpenSingleRowDialog(
             self,
             ELOC("NEW_FOLDER"),
             ELOC("NEW_FOLDER_PROMPT"),
+            onAccepted=lambda name: self._createFolderNamed(targetDir, name),
         )
-        if not ok:
-            return
+
+    def _createFolderNamed(self, targetDir: str, name: str) -> None:
         name = name.strip()
         if not name:
             return
@@ -1361,14 +1363,17 @@ class FileExplorer(QtWidgets.QWidget):
             return
         currentName = os.path.basename(path)
         dirPath = os.path.dirname(path)
-        newName, ok = QtWidgets.QInputDialog.getText(
+        OpenSingleRowDialog(
             self,
             ELOC("RENAME_FILE"),
             ELOC("RENAME_FILE_PROMPT"),
-            text=currentName,
+            currentName,
+            onAccepted=lambda newName: self._renameItemNamed(path, newName),
         )
-        if not ok:
-            return
+
+    def _renameItemNamed(self, path: str, newName: str) -> None:
+        currentName = os.path.basename(path)
+        dirPath = os.path.dirname(path)
         newName = newName.strip()
         if not newName or newName == currentName:
             return

@@ -3,8 +3,10 @@
 from .BlueprintPreview import BLUEPRINT_PREVIEW_BASE_CLASSES, GetBlueprintPreviewBaseClasses, IsBlueprintPreviewable
 from .BlueprintValidation import ValidateBlueprint
 from .GraphLayout import GraphLayoutOptions, ComputeGraphLayoutPositions
-from .MapEditDialog import MapEditDialog
-from .SingleRowDialog import SingleRowDialog
+from .MapEditDialog import MapEditDialog, OpenMapEditDialog
+from .SingleRowDialog import SingleRowDialog, OpenSingleRowDialog, OpenItemSelectorDialog
+from .FormDialog import FormDialog, OpenFormDialog
+from .SearchSelectorDialog import OpenSearchSelectorDialog, SearchSelectorDialog
 from .ConfigDictPanel import ConfigDictPanel
 from .FileSelectorDialog import FileSelectorDialog
 from .TilesetPanel import TilesetPanel
@@ -16,7 +18,12 @@ from .Toast import Toast
 from .NodePanel import NodePanel
 from .FunctionPickerPopup import FunctionPickerPopup
 from .Timeline import TimelinePanel as TimeLine
-from .DataclassEditDialog import DataclassEditDialog
+from .DataclassEditDialog import (
+    DataclassEditDialog,
+    DataclassWidgetDialog,
+    OpenDataclassEditDialog,
+    OpenDataclassWidgetDialog,
+)
 from .DataclassWidget import DataclassWidget
 from .StructuredFields import (
     StructuredField,

@@ -126,6 +126,9 @@ class MapClickAutoPath(ComponentBase):
         if not goalPassable and destination != goal:
             bumpOffset = Vector2i(goal.x - destination.x, goal.y - destination.y)
             player.MapMove(bumpOffset)
+        from Source.MovementSpecials import notifyPlayerMovementFinished
+
+        notifyPlayerMovementFinished(player)
 
     def _getInstantWalkCount(self, route: List[Vector2i], destination: Vector2i) -> int:
         for index, point in enumerate(route):

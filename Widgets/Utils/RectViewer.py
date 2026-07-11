@@ -1,206 +1,79 @@
-﻿# -*- encoding: utf-8 -*-
+# -*- encoding: utf-8 -*-
 
-from PyQt5 import QtWidgets, QtGui, QtCore
+from __future__ import annotations
+
 import os
+from typing import Any
+
+from PyQt5 import QtCore, QtGui, QtWidgets
+
 from EditorGlobal import EditorStatus
-from Utils import File, System
+from EditorGlobal.QmlDialogHost import QmlDialogHost
+from Utils import File
 
 
-class RectCanvas(QtWidgets.QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.image = None
-        self.currentRect = QtCore.QRect(0, 0, 0, 0)
-        self.dragMode = None
-        self.dragStartPos = QtCore.QPoint(0, 0)
-        self.dragStartRect = QtCore.QRect(0, 0, 0, 0)
+class RectViewer(QmlDialogHost):
+    def __init__(self, parent: QtWidgets.QWidget, imagePath: str, rectTuple: Any) -> None:
+        image = QtGui.QImage(imagePath) if imagePath and os.path.isfile(imagePath) else QtGui.QImage()
+        imageWidth = image.width() if not image.isNull() else 0
+        imageHeight = image.height() if not image.isNull() else 0
+        initialRect = self._normaliseRect(rectTuple, imageWidth, imageHeight)
+        cellSize = getattr(EditorStatus, "CELLSIZE", 0)
+        step = cellSize // 2 if isinstance(cellSize, int) else 1
+        self._rect = initialRect
 
-    def setImageAndRect(self, imagePath: str, rectTuple) -> None:
-        if imagePath and os.path.exists(imagePath):
-            img = QtGui.QImage(imagePath)
-            if not img.isNull():
-                self.image = img
-        if isinstance(rectTuple, tuple) and len(rectTuple) >= 4:
-            x, y, w, h = rectTuple[0], rectTuple[1], rectTuple[2], rectTuple[3]
-            try:
-                x = int(x)
-                y = int(y)
-                w = int(w)
-                h = int(h)
-            except Exception:
-                x, y, w, h = 0, 0, 0, 0
-            self.currentRect = QtCore.QRect(x, y, max(0, w), max(0, h))
-        self._clampRectToImage()
-        self.update()
-        self.adjustSize()
-
-    def getRectTuple(self):
-        r = self.currentRect
-        return (int(r.x()), int(r.y()), int(r.width()), int(r.height()))
-
-    def _stepSize(self) -> int:
-        cell = getattr(EditorStatus, "CELLSIZE", 0)
-        if not isinstance(cell, int):
-            cell = 0
-        step = cell // 2
-        if step <= 0:
-            step = 1
-        return step
-
-    def _snap(self, value: int) -> int:
-        step = self._stepSize()
-        if step <= 0:
-            return int(value)
-        return int(round(float(value) / float(step)) * float(step))
-
-    def _clampRectToImage(self) -> None:
-        if self.image is None or self.image.isNull():
-            return
-        iw = self.image.width()
-        ih = self.image.height()
-        r = self.currentRect
-        w = max(0, r.width())
-        h = max(0, r.height())
-        if w > iw:
-            w = iw
-        if h > ih:
-            h = ih
-        x = r.x()
-        y = r.y()
-        if x < 0:
-            x = 0
-        if y < 0:
-            y = 0
-        if x + w > iw:
-            x = iw - w
-        if y + h > ih:
-            y = ih - h
-        if x < 0:
-            x = 0
-        if y < 0:
-            y = 0
-        self.currentRect = QtCore.QRect(x, y, w, h)
-
-    def sizeHint(self):
-        if self.image and not self.image.isNull():
-            return self.image.size()
-        return super().sizeHint()
-
-    def minimumSizeHint(self) -> QtCore.QSize:
-        return self.sizeHint()
-
-    def paintEvent(self, event):
-        p = QtGui.QPainter(self)
-        p.fillRect(self.rect(), QtGui.QColor(30, 30, 30))
-        if self.image is None or self.image.isNull():
-            p.end()
-            return
-        p.drawImage(QtCore.QPoint(0, 0), self.image)
-        r = self.currentRect
-        if r.width() > 0 and r.height() > 0:
-            fillColor = QtGui.QColor(0, 200, 255, 60)
-            borderColor = QtGui.QColor(0, 200, 255)
-            p.setBrush(fillColor)
-            pen = QtGui.QPen(borderColor)
-            pen.setWidth(2)
-            p.setPen(pen)
-            p.drawRect(r)
-        p.end()
-
-    def _placeRectAtCenter(self, pos: QtCore.QPoint) -> None:
-        r = self.currentRect
-        step = self._stepSize()
-        w = r.width() if r.width() > 0 else step
-        h = r.height() if r.height() > 0 else step
-        cx = self._snap(pos.x())
-        cy = self._snap(pos.y())
-        nx = self._snap(cx - w // 2)
-        ny = self._snap(cy - h // 2)
-        self.currentRect = QtCore.QRect(nx, ny, w, h)
-        self._clampRectToImage()
-        self.update()
-
-    def mousePressEvent(self, e: QtGui.QMouseEvent) -> None:
-        if self.image is None or self.image.isNull():
-            return
-        if e.button() != QtCore.Qt.LeftButton:
-            return
-        pos = e.pos()
-        r = self.currentRect
-        handleSize = 8
-        if r.width() > 0 and r.height() > 0:
-            handleRect = QtCore.QRect(r.right() - handleSize + 1, r.bottom() - handleSize + 1, handleSize, handleSize)
-            if handleRect.contains(pos):
-                self.dragMode = "resize"
-                self.dragStartPos = QtCore.QPoint(pos)
-                self.dragStartRect = QtCore.QRect(self.currentRect)
-                return
-            if r.contains(pos):
-                self.dragMode = "move"
-                self.dragStartPos = QtCore.QPoint(pos)
-                self.dragStartRect = QtCore.QRect(self.currentRect)
-                return
-        self._placeRectAtCenter(pos)
-
-    def mouseMoveEvent(self, e: QtGui.QMouseEvent) -> None:
-        if self.image is None or self.image.isNull():
-            return
-        if self.dragMode is None:
-            return
-        pos = e.pos()
-        dx = int(pos.x() - self.dragStartPos.x())
-        dy = int(pos.y() - self.dragStartPos.y())
-        r = QtCore.QRect(self.dragStartRect)
-        if self.dragMode == "move":
-            nx = self._snap(r.x() + dx)
-            ny = self._snap(r.y() + dy)
-            self.currentRect = QtCore.QRect(nx, ny, r.width(), r.height())
-        elif self.dragMode == "resize":
-            nw = self._snap(r.width() + dx)
-            nh = self._snap(r.height() + dy)
-            if nw < self._stepSize():
-                nw = self._stepSize()
-            if nh < self._stepSize():
-                nh = self._stepSize()
-            self.currentRect = QtCore.QRect(r.x(), r.y(), nw, nh)
-        self._clampRectToImage()
-        self.update()
-
-    def mouseReleaseEvent(self, e: QtGui.QMouseEvent) -> None:
-        if e.button() != QtCore.Qt.LeftButton:
-            return
-        self.dragMode = None
-
-
-class RectViewer(QtWidgets.QDialog):
-    def __init__(self, parent: QtWidgets.QWidget, imagePath: str, rectTuple) -> None:
-        super().__init__(parent)
+        mainWindow = File.mainWindow
+        minimumWidth = max(480, mainWindow.width() // 2) if isinstance(mainWindow, QtWidgets.QWidget) else 640
+        minimumHeight = max(320, mainWindow.height() // 2) if isinstance(mainWindow, QtWidgets.QWidget) else 420
+        super().__init__(
+            parent,
+            ELOC("RECT_VIEWER_TITLE"),
+            QtCore.QSize(minimumWidth, minimumHeight),
+            QtCore.QSize(minimumWidth, minimumHeight),
+        )
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.Window)
-        self.setWindowTitle("Rect Viewer")
-        self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
-        System.SetStyle(self, "config.qss")
-        self.canvas = RectCanvas(self)
-        self.canvas.setImageAndRect(imagePath, rectTuple)
-        self.setMinimumHeight(File.mainWindow.height() // 2)
-        self.setMinimumWidth(File.mainWindow.width() // 2)
-        self.scrollArea = QtWidgets.QScrollArea(self)
-        self.scrollArea.setWidgetResizable(True)
-        self.scrollArea.setWidget(self.canvas)
-        self.scrollArea.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        self.scrollArea.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.loadQml(
+            "Dialogs/RectViewer.qml",
+            {
+                "rectViewerImageSource": QtCore.QUrl.fromLocalFile(os.path.abspath(imagePath)).toString()
+                if not image.isNull()
+                else "",
+                "rectViewerImageWidth": imageWidth,
+                "rectViewerImageHeight": imageHeight,
+                "rectViewerInitialRect": list(initialRect),
+                "rectViewerStep": max(1, step),
+            },
+        )
 
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(5, 5, 5, 5)
-        layout.addWidget(self.scrollArea, 1)
-        btnLayout = QtWidgets.QHBoxLayout()
-        btnLayout.addStretch()
-        okBtn = QtWidgets.QPushButton(ELOC("CONFIRM"))
-        cancelBtn = QtWidgets.QPushButton(ELOC("CANCEL"))
-        okBtn.clicked.connect(self.accept)
-        cancelBtn.clicked.connect(self.reject)
-        btnLayout.addWidget(okBtn)
-        btnLayout.addWidget(cancelBtn)
-        layout.addLayout(btnLayout)
+    def getRectTuple(self) -> tuple[int, int, int, int]:
+        return self._rect
 
-    def getRectTuple(self):
-        return self.canvas.getRectTuple()
+    def _applyResult(self, result: object) -> bool:
+        if not isinstance(result, dict):
+            return False
+        try:
+            self._rect = (
+                int(result.get("x", 0)),
+                int(result.get("y", 0)),
+                max(0, int(result.get("width", 0))),
+                max(0, int(result.get("height", 0))),
+            )
+        except (TypeError, ValueError):
+            return False
+        return True
+
+    def _normaliseRect(
+        self, rectTuple: Any, imageWidth: int, imageHeight: int
+    ) -> tuple[int, int, int, int]:
+        if isinstance(rectTuple, (list, tuple)) and len(rectTuple) >= 4:
+            try:
+                x, y, width, height = (int(rectTuple[index]) for index in range(4))
+            except (TypeError, ValueError):
+                x, y, width, height = 0, 0, 0, 0
+        else:
+            x, y, width, height = 0, 0, 0, 0
+        width = min(max(0, width), imageWidth) if imageWidth else max(0, width)
+        height = min(max(0, height), imageHeight) if imageHeight else max(0, height)
+        x = max(0, min(x, max(0, imageWidth - width))) if imageWidth else max(0, x)
+        y = max(0, min(y, max(0, imageHeight - height))) if imageHeight else max(0, y)
+        return x, y, width, height

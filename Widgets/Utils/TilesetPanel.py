@@ -10,7 +10,7 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 from EditorGlobal import EditorStatus, GameData
 from Utils import EditorData, System, File
 from .FileSelectorDialog import FileSelectorDialog
-from .DataclassEditDialog import DataclassEditDialog
+from .DataclassEditDialog import OpenDataclassEditDialog
 
 
 def _getListField(data: Any, fieldName: str) -> list:
@@ -212,11 +212,14 @@ class TilesetImageView(QtWidgets.QWidget):
             arr = _getListField(self._data, "materials")
             _resizeList(arr, count, EditorData.NormaliseMaterialData())
             edit_mat = EditorData.MaterialEditorObject(arr[idx], self.MaterialType)
-            dlg = DataclassEditDialog(self, edit_mat, ELOC("EDIT_MATERIAL"))
-            if dlg.exec_():
+            cellIdx = idx
+
+            def onAccepted() -> None:
                 GameData.RecordSnapshot()
-                arr[idx] = EditorData.MaterialDataFromEditorObject(edit_mat)
+                arr[cellIdx] = EditorData.MaterialDataFromEditorObject(edit_mat)
                 _setListField(self._data, "materials", arr)
+
+            OpenDataclassEditDialog(self, edit_mat, ELOC("EDIT_MATERIAL"), onAccepted=onAccepted)
         elif self._mode == TilesetMode.DIR4:
             arrDir4 = _getListField(self._data, "dir4")
             _resizeList(arrDir4, count, (True, True, True, True))
@@ -345,32 +348,35 @@ class TilesetPanel(QtWidgets.QWidget):
             return
         root = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Tilesets")
         dlg = FileSelectorDialog(self, root, FileSelectorDialog.imageFilesFilter())
-        fp = dlg.execSelect()
-        if fp:
-            GameData.RecordSnapshot()
-            filename = os.path.basename(fp)
-            EditorData.SetField(self._data, "fileName", filename)
-            cellSize = EditorStatus.CELLSIZE
-            new_count = 0
-            if isinstance(cellSize, int) and cellSize > 0:
-                img = QtGui.QImage(fp)
-                if not img.isNull():
-                    cols = img.width() // cellSize
-                    rows = img.height() // cellSize
-                    new_count = max(0, cols * rows)
-            arr_p = _getListField(self._data, "passable")
-            arr_m = _getListField(self._data, "materials")
-            arrDir4 = _getListField(self._data, "dir4")
-            _resizeList(arr_p, new_count, True)
-            _resizeList(arr_m, new_count, EditorData.NormaliseMaterialData())
-            _resizeList(arrDir4, new_count, (True, True, True, True))
-            _setListField(self._data, "passable", arr_p)
-            _setListField(self._data, "materials", arr_m)
-            _setListField(self._data, "dir4", arrDir4)
-            if self._key:
-                File.mainWindow.editorPanel._renderFromMapData()
-                File.mainWindow.editorPanel.update()
-                ts = File.mainWindow.tileSelect
-                ts.initTilesets()
-            self.MODIFIED.emit()
-            self.setTilesetData(self._data)
+        dlg.openSelect(lambda fp: self._applyBrowseFile(fp))
+
+    def _applyBrowseFile(self, fp: str) -> None:
+        if not fp:
+            return
+        GameData.RecordSnapshot()
+        filename = os.path.basename(fp)
+        EditorData.SetField(self._data, "fileName", filename)
+        cellSize = EditorStatus.CELLSIZE
+        new_count = 0
+        if isinstance(cellSize, int) and cellSize > 0:
+            img = QtGui.QImage(fp)
+            if not img.isNull():
+                cols = img.width() // cellSize
+                rows = img.height() // cellSize
+                new_count = max(0, cols * rows)
+        arr_p = _getListField(self._data, "passable")
+        arr_m = _getListField(self._data, "materials")
+        arrDir4 = _getListField(self._data, "dir4")
+        _resizeList(arr_p, new_count, True)
+        _resizeList(arr_m, new_count, EditorData.NormaliseMaterialData())
+        _resizeList(arrDir4, new_count, (True, True, True, True))
+        _setListField(self._data, "passable", arr_p)
+        _setListField(self._data, "materials", arr_m)
+        _setListField(self._data, "dir4", arrDir4)
+        if self._key:
+            File.mainWindow.editorPanel._renderFromMapData()
+            File.mainWindow.editorPanel.update()
+            ts = File.mainWindow.tileSelect
+            ts.initTilesets()
+        self.MODIFIED.emit()
+        self.setTilesetData(self._data)

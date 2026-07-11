@@ -10,7 +10,7 @@
             "ignoreLighting": false
         },
         "texturePath": "enemies/classic-enemies-04-magician-single.png",
-        "ID": "Wizard",
+        "ID": "BigWizard",
         "defaultRect": [
             [
                 0,

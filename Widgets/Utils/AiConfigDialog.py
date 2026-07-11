@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import os
 from typing import Optional
-from PyQt5 import QtWidgets
+
+from PyQt5 import QtCore, QtWidgets
+
 from EditorGlobal import EditorStatus
+from EditorGlobal.QmlDialogHost import QmlDialogHost
 from Utils import File
 
 _PROVIDERS = ["OpenAI", "DeepSeek", "Google", "Anthropic", "Custom"]
@@ -70,76 +73,32 @@ def _saveConfig(provider: str, model: str, apiKey: str) -> None:
         EditorStatus.EDITOR_CONFIG.write(f)
 
 
-class AiConfigDialog(QtWidgets.QDialog):
+class AiConfigDialog(QmlDialogHost):
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None) -> None:
-        super().__init__(parent)
-        self._setupUi()
+        super().__init__(
+            parent,
+            ELOC("ENTER_API_KEY"),
+            QtCore.QSize(272, 188),
+            formLabels=(ELOC("AI_PROVIDER"), ELOC("AI_MODEL"), ELOC("API_KEY")),
+        )
+        self.loadQml(
+            "Dialogs/AiConfigDialog.qml",
+            {
+                "aiProviders": list(_PROVIDERS),
+                "aiProviderModels": {key: list(value) for key, value in _PROVIDER_MODELS.items()},
+                "aiCurrentProvider": GetAiProvider(),
+                "aiCurrentModel": GetAiModel(),
+                "aiCurrentApiKey": GetAiApiKey(),
+            },
+        )
 
-    def _setupUi(self) -> None:
-        self.setWindowTitle(ELOC("ENTER_API_KEY"))
-        form = QtWidgets.QFormLayout(self)
-        form.setContentsMargins(12, 12, 12, 12)
-        form.setSpacing(8)
-
-        self._providerCombo = QtWidgets.QComboBox(self)
-        self._providerCombo.setEditable(False)
-        self._providerCombo.addItems(_PROVIDERS)
-        currentProvider = GetAiProvider()
-        if currentProvider in _PROVIDERS:
-            idx = _PROVIDERS.index(currentProvider)
-            self._providerCombo.setCurrentIndex(idx)
-        form.addRow(ELOC("AI_PROVIDER"), self._providerCombo)
-
-        self._modelCombo = QtWidgets.QComboBox(self)
-        self._modelCombo.setEditable(False)
-        form.addRow(ELOC("AI_MODEL"), self._modelCombo)
-
-        self._keyEdit = QtWidgets.QLineEdit(self)
-        self._keyEdit.setPlaceholderText(ELOC("API_KEY"))
-        self._keyEdit.setText(GetAiApiKey())
-        form.addRow(ELOC("API_KEY"), self._keyEdit)
-
-        btns = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel, self)
-        self._okBtn = btns.button(QtWidgets.QDialogButtonBox.Ok)
-        cancelBtn = btns.button(QtWidgets.QDialogButtonBox.Cancel)
-        if self._okBtn:
-            self._okBtn.setText(ELOC("CONFIRM"))
-        if cancelBtn:
-            cancelBtn.setText(ELOC("CANCEL"))
-        btns.accepted.connect(self.accept)
-        btns.rejected.connect(self.reject)
-        form.addRow(btns)
-
-        self._refreshModels()
-        self._providerCombo.currentTextChanged.connect(self._onProviderChanged)
-        self._providerCombo.currentTextChanged.connect(self._validate)
-        self._modelCombo.currentTextChanged.connect(self._validate)
-        self._keyEdit.textChanged.connect(self._validate)
-        self._validate()
-
-    def _onProviderChanged(self, _text: str) -> None:
-        self._refreshModels()
-
-    def _refreshModels(self) -> None:
-        provider = self._providerCombo.currentText().strip()
-        models = _PROVIDER_MODELS.get(provider, [])
-        self._modelCombo.clear()
-        if models:
-            self._modelCombo.addItems(models)
-        currentModel = GetAiModel()
-        if currentModel:
-            idx = self._modelCombo.findText(currentModel)
-            if idx >= 0:
-                self._modelCombo.setCurrentIndex(idx)
-
-    def _validate(self) -> None:
-        if self._okBtn:
-            valid = bool(self._providerCombo.currentText().strip()) and bool(self._modelCombo.currentText().strip()) and bool(self._keyEdit.text().strip())
-            self._okBtn.setEnabled(valid)
-
-    def accept(self) -> None:
-        provider = self._providerCombo.currentText().strip()
-        model = self._modelCombo.currentText().strip()
-        key = self._keyEdit.text().strip()
-        _saveConfig(provider, model, key)
-        super().accept()
+    def _applyResult(self, result: object) -> bool:
+        if not isinstance(result, dict):
+            return False
+        provider = str(result.get("provider", "")).strip()
+        model = str(result.get("model", "")).strip()
+        apiKey = str(result.get("apiKey", "")).strip()
+        if not provider or not model or not apiKey:
+            return False
+        _saveConfig(provider, model, apiKey)
+        return True

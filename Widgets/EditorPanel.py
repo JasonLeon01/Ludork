@@ -16,6 +16,7 @@ from .Utils import AutoTileRenderer, TilemapRenderer, Toast
 
 _EDITOR_ANIMATION_TICK_MS = 100
 _AUTOTILE_ANIMATION_INTERVAL_MS = 500
+_TILE_BRUSH_RENDER_INTERVAL_MS = 16
 _DEFAULT_ACTOR_SWITCH_INTERVAL = 0.2
 _CHARACTER_SHEET_COLS = 4
 _CHARACTER_SHEET_ROWS = 4
@@ -97,6 +98,10 @@ class EditorPanel(QtWidgets.QWidget):
         self._tileSize = EditorStatus.CELLSIZE
         self._hoverGridPos: Optional[Tuple[int, int]] = None
         self._hudLabel: Optional[QtWidgets.QLabel] = None
+        self._tileBrushDragging = False
+        self._brushBaseImage: Optional[QtGui.QImage] = None
+        self._brushLayerImage: Optional[QtGui.QImage] = None
+        self._tileBrushRenderPending = False
         super().__init__(parent)
         self.setMouseTracking(True)
         self.setFocusPolicy(QtCore.Qt.ClickFocus)
@@ -109,6 +114,10 @@ class EditorPanel(QtWidgets.QWidget):
         self._animationTimer.setInterval(_EDITOR_ANIMATION_TICK_MS)
         self._animationTimer.timeout.connect(self._onAnimationTick)
         self._animationTimer.start()
+        self._tileBrushRenderTimer = QtCore.QTimer(self)
+        self._tileBrushRenderTimer.setSingleShot(True)
+        self._tileBrushRenderTimer.setInterval(_TILE_BRUSH_RENDER_INTERVAL_MS)
+        self._tileBrushRenderTimer.timeout.connect(self._onTileBrushRenderTick)
         self._actorShortcuts = [
             QtWidgets.QShortcut(
                 QtGui.QKeySequence.Copy,
@@ -228,10 +237,9 @@ class EditorPanel(QtWidgets.QWidget):
             mapLayers[layerName] = layer
         self.mapData = MapData(mapName, width, height, mapLayers)
 
-    def _renderFromMapData(self) -> None:
+    def _buildMapImage(self, skipLayerName: Optional[str] = None) -> Optional[QtGui.QImage]:
         if self.mapData is None:
-            self._pixmap = None
-            return
+            return None
         sourceTileSize = EditorStatus.CELLSIZE
         tileSize = self._getTileSize()
         w = self.mapData.width * tileSize
@@ -243,7 +251,10 @@ class EditorPanel(QtWidgets.QWidget):
         for layerName, layer in self.mapData.layers.items():
             if not layer.visible:
                 continue
-            painter.setOpacity(1.0 if (sel is None or layerName == sel) else 0.5)
+            if layerName == skipLayerName:
+                continue
+            layerOpacity = 1.0 if (sel is None or layerName == sel) else 0.5
+            painter.setOpacity(layerOpacity)
             layerImg = self._tilemapRenderer.renderLayer(
                 self.mapData.width,
                 self.mapData.height,
@@ -256,13 +267,231 @@ class EditorPanel(QtWidgets.QWidget):
             )
             if layerImg is not None and not layerImg.isNull():
                 painter.drawImage(0, 0, layerImg)
-            self._drawActorsForLayer(painter, layerName, tileSize, 1.0 if (sel is None or layerName == sel) else 0.5)
+            self._drawActorsForLayer(painter, layerName, tileSize, layerOpacity)
+        painter.end()
+        return img
+
+    def _renderFromMapData(self) -> None:
+        self._brushBaseImage = None
+        self._brushLayerImage = None
+        img = self._buildMapImage()
+        if img is None:
+            self._pixmap = None
+            return
+        self._pixmap = QtGui.QPixmap.fromImage(img)
+        self.update()
+
+    def _renderFromMapDataDuringBrush(self) -> None:
+        self._brushLayerImage = None
+        if self.mapData is None:
+            self._pixmap = None
+            return
+        layerName = self.selectedLayerName
+        if layerName is None:
+            self._renderFromMapData()
+            return
+        layer = self.mapData.layers.get(layerName)
+        if layer is None or not layer.visible:
+            self._renderFromMapData()
+            return
+        if self._brushBaseImage is None:
+            self._brushBaseImage = self._buildMapImage(skipLayerName=layerName)
+            if self._brushBaseImage is None:
+                self._renderFromMapData()
+                return
+        sourceTileSize = EditorStatus.CELLSIZE
+        tileSize = self._getTileSize()
+        w = self.mapData.width * tileSize
+        h = self.mapData.height * tileSize
+        img = QtGui.QImage(w, h, QtGui.QImage.Format_ARGB32)
+        img.fill(QtCore.Qt.transparent)
+        painter = QtGui.QPainter(img)
+        painter.drawImage(0, 0, self._brushBaseImage)
+        painter.setOpacity(1.0)
+        layerImg = self._tilemapRenderer.renderLayer(
+            self.mapData.width,
+            self.mapData.height,
+            tileSize,
+            layer.tiles,
+            layer.layerTilesetKey,
+            layer.autoTiles,
+            self._autoTileFrame,
+            sourceTileSize,
+        )
+        if layerImg is not None and not layerImg.isNull():
+            painter.drawImage(0, 0, layerImg)
+        self._drawActorsForLayer(painter, layerName, tileSize, 1.0)
         painter.end()
         self._pixmap = QtGui.QPixmap.fromImage(img)
         self.update()
 
+    def _scheduleTileBrushRender(self) -> None:
+        self._tileBrushRenderPending = True
+        if not self._tileBrushRenderTimer.isActive():
+            self._tileBrushRenderTimer.start(_TILE_BRUSH_RENDER_INTERVAL_MS)
+
+    def _onTileBrushRenderTick(self) -> None:
+        if not self._tileBrushRenderPending:
+            return
+        self._tileBrushRenderPending = False
+        if self._tileBrushDragging:
+            self._renderFromMapDataDuringBrush()
+        else:
+            self._renderFromMapData()
+        if self._tileBrushRenderPending:
+            self._tileBrushRenderTimer.start(0)
+
+    def _finishTileBrushRender(self) -> None:
+        self._tileBrushRenderTimer.stop()
+        self._tileBrushRenderPending = False
+        self._brushBaseImage = None
+        self._brushLayerImage = None
+        self._renderFromMapData()
+
+    def _canIncrementalBrushPatch(self) -> bool:
+        return (
+            self.selectedAutoTileKey is None
+            and self.selectedTilePattern is None
+            and self._cachedTilesetImage is not None
+            and not self._cachedTilesetImage.isNull()
+        )
+
+    def _initBrushLayerCache(self) -> bool:
+        if self.mapData is None or self.selectedLayerName is None:
+            return False
+        layerName = self.selectedLayerName
+        layer = self.mapData.layers.get(layerName)
+        if layer is None or not layer.visible:
+            return False
+        if self._brushBaseImage is None:
+            self._brushBaseImage = self._buildMapImage(skipLayerName=layerName)
+        if self._brushBaseImage is None:
+            return False
+        if self._brushLayerImage is not None:
+            return True
+        sourceTileSize = EditorStatus.CELLSIZE
+        tileSize = self._getTileSize()
+        layerImg = self._tilemapRenderer.renderLayer(
+            self.mapData.width,
+            self.mapData.height,
+            tileSize,
+            layer.tiles,
+            layer.layerTilesetKey,
+            layer.autoTiles,
+            self._autoTileFrame,
+            sourceTileSize,
+        )
+        if layerImg is None or layerImg.isNull():
+            self._brushLayerImage = QtGui.QImage(
+                self._brushBaseImage.width(),
+                self._brushBaseImage.height(),
+                QtGui.QImage.Format_ARGB32,
+            )
+            self._brushLayerImage.fill(QtCore.Qt.transparent)
+        else:
+            self._brushLayerImage = layerImg.copy()
+        return True
+
+    def _patchBrushLayerTile(self, gx: int, gy: int, tileNum: Optional[int]) -> None:
+        if self._brushLayerImage is None:
+            return
+        tileSize = self._getTileSize()
+        sourceTileSize = EditorStatus.CELLSIZE
+        dst = QtCore.QRect(gx * tileSize, gy * tileSize, tileSize, tileSize)
+        painter = QtGui.QPainter(self._brushLayerImage)
+        painter.setCompositionMode(QtGui.QPainter.CompositionMode_Source)
+        if tileNum is None:
+            painter.fillRect(dst, QtCore.Qt.transparent)
+        else:
+            columns = self._cachedTilesetImage.width() // sourceTileSize
+            rows = self._cachedTilesetImage.height() // sourceTileSize
+            n = int(tileNum)
+            if columns <= 0 or rows <= 0 or n < 0 or n >= columns * rows:
+                painter.fillRect(dst, QtCore.Qt.transparent)
+            else:
+                tu = n % columns
+                tv = n // columns
+                src = QtCore.QRect(tu * sourceTileSize, tv * sourceTileSize, sourceTileSize, sourceTileSize)
+                painter.drawImage(dst, self._cachedTilesetImage, src)
+        painter.end()
+
+    def _compositeBrushPixmap(self) -> None:
+        if self._brushBaseImage is None or self._brushLayerImage is None:
+            self._renderFromMapDataDuringBrush()
+            return
+        img = QtGui.QImage(
+            self._brushBaseImage.width(),
+            self._brushBaseImage.height(),
+            QtGui.QImage.Format_ARGB32,
+        )
+        img.fill(QtCore.Qt.transparent)
+        painter = QtGui.QPainter(img)
+        painter.drawImage(0, 0, self._brushBaseImage)
+        painter.drawImage(0, 0, self._brushLayerImage)
+        layerName = self.selectedLayerName
+        if layerName is not None:
+            tileSize = self._getTileSize()
+            self._drawActorsForLayer(painter, layerName, tileSize, 1.0)
+        painter.end()
+        self._pixmap = QtGui.QPixmap.fromImage(img)
+        self.update()
+
+    def _applyIncrementalBrushCell(self, layer: Any, gx: int, gy: int) -> None:
+        if not self._initBrushLayerCache():
+            self._scheduleTileBrushRender()
+            return
+        tiles = layer.tiles
+        tileNum: Optional[int] = None
+        if isinstance(tiles, list) and 0 <= gy < len(tiles):
+            row = tiles[gy]
+            if isinstance(row, list) and 0 <= gx < len(row):
+                cell = row[gx]
+                if isinstance(cell, int):
+                    tileNum = cell
+        self._patchBrushLayerTile(gx, gy, tileNum)
+        self._compositeBrushPixmap()
+
+    def _applyIncrementalBrushPattern(self, layer: Any, gx: int, gy: int) -> None:
+        pattern = self.selectedTilePattern
+        if not pattern or not self._initBrushLayerCache():
+            self._scheduleTileBrushRender()
+            return
+        if self.mapData is None:
+            return
+        for py, row in enumerate(pattern):
+            if not isinstance(row, list):
+                continue
+            targetY = gy + py
+            if targetY < 0 or targetY >= self.mapData.height:
+                continue
+            for px, tileNumber in enumerate(row):
+                targetX = gx + px
+                if targetX < 0 or targetX >= self.mapData.width:
+                    continue
+                try:
+                    self._patchBrushLayerTile(targetX, targetY, int(tileNumber))
+                except (TypeError, ValueError):
+                    continue
+        self._compositeBrushPixmap()
+
+    def _afterBrushCellWrite(self, layer: Any, gx: int, gy: int) -> None:
+        self._refreshTitleAfterTileBrush()
+        if self._canIncrementalBrushPatch():
+            self._applyIncrementalBrushCell(layer, gx, gy)
+        else:
+            self._scheduleTileBrushRender()
+
+    def _afterBrushPatternWrite(self, layer: Any, gx: int, gy: int) -> None:
+        self._refreshTitleAfterTileBrush()
+        if self._canIncrementalBrushPatch():
+            self._applyIncrementalBrushPattern(layer, gx, gy)
+        else:
+            self._scheduleTileBrushRender()
+
     def _onAnimationTick(self) -> None:
         if self.mapData is None:
+            return
+        if self._tileBrushDragging:
             return
         oldAutoTileFrame = self._autoTileFrame
         elapsed = max(0, self._animationClock.elapsed())
@@ -956,38 +1185,56 @@ class EditorPanel(QtWidgets.QWidget):
             result.append(row)
         return result
 
+    def _ensureAutoTileCell(self, layer: Any, y: int, x: int) -> List[Optional[str]]:
+        tiles = layer.tiles
+        autoTiles = layer.autoTiles
+        if not isinstance(autoTiles, list):
+            autoTiles = []
+            layer.autoTiles = autoTiles
+        mapH = len(tiles) if isinstance(tiles, list) else 0
+        while len(autoTiles) < mapH:
+            srcRow = tiles[len(autoTiles)] if isinstance(tiles[len(autoTiles)], list) else []
+            autoTiles.append([None] * len(srcRow))
+        row = autoTiles[y]
+        if not isinstance(row, list):
+            srcRow = tiles[y] if isinstance(tiles[y], list) else []
+            row = [None] * len(srcRow)
+            autoTiles[y] = row
+        rowLen = len(tiles[y]) if isinstance(tiles[y], list) else len(row)
+        while len(row) < rowLen:
+            row.append(None)
+        return row
+
     def _writeCellValue(self, layer, x: int, y: int, tileNum: Optional[int], autoKey: Optional[str]) -> bool:
-        tiles = self._copyGrid(layer.tiles)
-        if y < 0 or y >= len(tiles):
+        tiles = layer.tiles
+        if not isinstance(tiles, list) or y < 0 or y >= len(tiles):
             return False
-        if x < 0 or x >= len(tiles[y]):
+        row = tiles[y]
+        if not isinstance(row, list) or x < 0 or x >= len(row):
             return False
-        autoTiles = self._fitGridToTiles(self._copyGrid(layer.autoTiles), tiles)
+        autoRow = self._ensureAutoTileCell(layer, y, x)
         changed = False
         if autoKey is not None:
-            if tiles[y][x] is not None:
-                tiles[y][x] = None
+            if row[x] is not None:
+                row[x] = None
                 changed = True
-            if autoTiles[y][x] != autoKey:
-                autoTiles[y][x] = autoKey
+            if autoRow[x] != autoKey:
+                autoRow[x] = autoKey
                 changed = True
         elif tileNum is not None:
-            if tiles[y][x] != tileNum:
-                tiles[y][x] = tileNum
+            if row[x] != tileNum:
+                row[x] = tileNum
                 changed = True
-            if autoTiles[y][x] is not None:
-                autoTiles[y][x] = None
+            if autoRow[x] is not None:
+                autoRow[x] = None
                 changed = True
         else:
-            if tiles[y][x] is not None:
-                tiles[y][x] = None
+            if row[x] is not None:
+                row[x] = None
                 changed = True
-            if autoTiles[y][x] is not None:
-                autoTiles[y][x] = None
+            if autoRow[x] is not None:
+                autoRow[x] = None
                 changed = True
-        if changed:
-            layer.tiles = tiles
-            layer.autoTiles = autoTiles
         if changed and self.mapKey and self.selectedLayerName:
             mapEntry = GameData.mapData.get(self.mapKey)
             if isinstance(mapEntry, dict):
@@ -996,13 +1243,13 @@ class EditorPanel(QtWidgets.QWidget):
                     layerData = layers[self.selectedLayerName]
                     layerTiles = layerData.get("tiles")
                     if isinstance(layerTiles, list):
-                        layerTiles[y][x] = None if tiles[y][x] is None else int(tiles[y][x])
+                        layerTiles[y][x] = None if row[x] is None else int(row[x])
                     layerAuto = layerData.get("autoTiles")
                     if not isinstance(layerAuto, list):
                         layerAuto = [list(r) for r in autoTiles]
                         layerData["autoTiles"] = layerAuto
                     if isinstance(layerAuto, list):
-                        layerAuto[y][x] = autoTiles[y][x]
+                        layerAuto[y][x] = autoRow[x]
         return changed
 
     def _writeTilePattern(self, layer, x: int, y: int) -> bool:
@@ -1036,6 +1283,10 @@ class EditorPanel(QtWidgets.QWidget):
             return
         if e.button() == QtCore.Qt.LeftButton and self.rectStartPos is not None:
             self._commitRectangle(self.selectedPos)
+        if e.button() == QtCore.Qt.LeftButton and self._tileBrushDragging:
+            self._tileBrushDragging = False
+            self._finishTileBrushRender()
+            self._refreshTitle()
         if e.button() == QtCore.Qt.LeftButton and self._actorMoveDragging:
             self._stopActorMoveDrag()
         super().mouseReleaseEvent(e)
@@ -1668,10 +1919,12 @@ class EditorPanel(QtWidgets.QWidget):
             return
 
         if self.selectedTilePattern is not None:
+            self._tileBrushDragging = True
+            self._brushBaseImage = None
+            self._brushLayerImage = None
             GameData.RecordSnapshot()
             if self._writeTilePattern(layer, gx, gy):
-                self._refreshTitle()
-                self._renderFromMapData()
+                self._afterBrushPatternWrite(layer, gx, gy)
             self.update()
             return
 
@@ -1679,10 +1932,12 @@ class EditorPanel(QtWidgets.QWidget):
             self.rectStartPos = (gx, gy)
             return
 
+        self._tileBrushDragging = True
+        self._brushBaseImage = None
+        self._brushLayerImage = None
         GameData.RecordSnapshot()
         if self._writeCellSelection(layer, gx, gy):
-            self._refreshTitle()
-            self._renderFromMapData()
+            self._afterBrushCellWrite(layer, gx, gy)
         self.update()
 
     def mouseMoveEvent(self, e: QtGui.QMouseEvent) -> None:
@@ -1813,8 +2068,7 @@ class EditorPanel(QtWidgets.QWidget):
             return
         try:
             if self._writeCellSelection(layer, gx, gy):
-                self._refreshTitle()
-                self._renderFromMapData()
+                self._afterBrushCellWrite(layer, gx, gy)
         except Exception:
             return
         self.update()
@@ -1921,6 +2175,11 @@ class EditorPanel(QtWidgets.QWidget):
             self.DATA_CHANGED.emit()
         except Exception as e:
             print(f"Error while refreshing title: {e}")
+
+    def _refreshTitleAfterTileBrush(self) -> None:
+        if self._tileBrushDragging:
+            return
+        self._refreshTitle()
 
     def _getActorListForLayer(self, layerName: str) -> List[Dict[str, Any]]:
         if not self.mapKey or not isinstance(layerName, str):

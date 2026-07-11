@@ -218,6 +218,7 @@ class AiChatDialog(QtWidgets.QDialog):
         self._agentJsMtimeKey: Optional[str] = None
         self._blueprintName = blueprintName
         self._blueprintFilePath = blueprintFilePath
+        self._settingsDialog: Optional[AiConfigDialog] = None
         self._setupUi()
         self._resetLogFile()
         self._ensureAgentJs()
@@ -691,8 +692,16 @@ class AiChatDialog(QtWidgets.QDialog):
         return ""
 
     def _openSettings(self) -> None:
-        dlg = AiConfigDialog(self)
-        dlg.exec_()
+        if isinstance(self._settingsDialog, AiConfigDialog):
+            self._settingsDialog.raise_()
+            self._settingsDialog.activateWindow()
+            return
+        self._settingsDialog = AiConfigDialog(self)
+        self._settingsDialog.finished.connect(self._onSettingsDialogFinished)
+        self._settingsDialog.open()
+
+    def _onSettingsDialogFinished(self, _result: int) -> None:
+        self._settingsDialog = None
 
     def _onSend(self) -> None:
         text = self._inputEdit.text().strip()

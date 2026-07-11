@@ -1811,6 +1811,10 @@
     "zh_CN": "上下文关联",
     "en_GB": "Context Sensitive"
   },
+  "RECT_VIEWER_TITLE": {
+    "zh_CN": "矩形选择器",
+    "en_GB": "Rect Viewer"
+  },
   "CHAT_WITH_AI": {
     "zh_CN": "与 AI 聊天",
     "en_GB": "Chat with AI"

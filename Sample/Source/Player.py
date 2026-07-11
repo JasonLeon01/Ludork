@@ -1,20 +1,17 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, List, Optional, Dict, Any, Tuple, Type, Union
-from Engine import Pair, Texture, Input, Vector2i, Vector2u, RegisterEvent
+from typing import List, Optional, Dict, Any, Tuple, Type, Union
+from Engine import Pair, Texture, Input, Vector2u, RegisterEvent
 from Engine.Gameplay.Components import setComponentFieldValue
 from Engine.Gameplay.Actors import Character
 from Engine.Utils.Monitor import monitor, _MISSING
 from Global import Manager
 from . import Data
 from .Battler import Battler, PlayerInfoComponent
-from .Configs.GeneralEnum import GeneralDataKey, Special
+from .Configs.GeneralEnum import GeneralDataKey
 from .Infos.EquipInfo import EquipInfo
 from .Infos.PlayerInfo import PlayerInfo
-
-if TYPE_CHECKING:
-    from .Enemy import Enemy
 
 _LEVEL_HP_GAIN = 400
 _LEVEL_ATK_GAIN = 2
@@ -80,98 +77,11 @@ class Player(Character, PlayerInfo, Battler):
     def onFixedTick(self, fixedDelta: float) -> None:
         if self._wasMovingOnLastFixedTick and not self.isMoving():
             self.triggerStateWalk()
-            self._checkMovementSpecials()
+            from Source.MovementSpecials import notifyPlayerMovementFinished
+
+            notifyPlayerMovementFinished(self)
         self._tryKeyboardMove()
         self._wasMovingOnLastFixedTick = self.isMoving()
-
-    def _checkMovementSpecials(self) -> None:
-        gameMap = self.getMap()
-        if gameMap is None:
-            return
-
-        from Source.Enemy import Enemy
-
-        enemies: List[Enemy] = [
-            actor for actor in gameMap.getAllActors() if isinstance(actor, Enemy) and actor.getSpecial()
-        ]
-        if not enemies:
-            return
-
-        playerPos = self.getMapPosition()
-        totalDamage = 0
-
-        for enemy in enemies:
-            enemyPos = enemy.getMapPosition()
-            dist = self._getManhattanDistance(playerPos, enemyPos)
-
-            if enemy.hasSpecial(Special.Domain):
-                domainRange = enemy._getSpecialIntValue(Special.Domain, 0, 1)
-                if dist < domainRange:
-                    totalDamage += enemy.getDamagePerRound(self)
-
-            if enemy.hasSpecial(Special.Blockade) and dist == 1:
-                totalDamage += enemy.getDamagePerRound(self)
-                self._doBlockadeRetreat(enemy, playerPos)
-
-        flankEnemies = [enemy for enemy in enemies if enemy.hasSpecial(Special.Flank)]
-        if len(flankEnemies) >= 2:
-            totalDamage += self._checkFlankDamage(flankEnemies, playerPos)
-
-        if totalDamage <= 0:
-            return
-
-        self.infoComp.HP -= totalDamage
-        gameMap.addDamageText(str(totalDamage), self.getPosition())
-
-        if self.infoComp.HP <= 0:
-            from Source.Scenes import GameOver
-            from Global import System
-
-            System.setScene(GameOver())
-
-    def _doBlockadeRetreat(self, enemy: Enemy, playerPos: Vector2i) -> None:
-        enemyPos = enemy.getMapPosition()
-        moveX = self._getSign(int(enemyPos.x) - int(playerPos.x))
-        moveY = self._getSign(int(enemyPos.y) - int(playerPos.y))
-        offset = Vector2i(moveX, moveY)
-
-        moved = enemy.MapMove(offset)
-        newPos = enemyPos + offset if moved else enemyPos
-
-        from Source.NodeFunctions.Utils import SetGameVariable
-
-        tag = enemy.tag or enemy.ID
-        SetGameVariable(f"Blockade_{tag}_X", int(newPos.x))
-        SetGameVariable(f"Blockade_{tag}_Y", int(newPos.y))
-
-    def _checkFlankDamage(self, flankEnemies: List[Enemy], playerPos: Vector2i) -> int:
-        playerX = int(playerPos.x)
-        playerY = int(playerPos.y)
-        posMap: Dict[Tuple[int, int], Enemy] = {}
-
-        for enemy in flankEnemies:
-            enemyPos = enemy.getMapPosition()
-            relPos = (int(enemyPos.x) - playerX, int(enemyPos.y) - playerY)
-            posMap[relPos] = enemy
-
-        totalDamage = 0
-        if (-1, 0) in posMap and (1, 0) in posMap:
-            totalDamage += posMap[(-1, 0)].getDamagePerRound(self)
-            totalDamage += posMap[(1, 0)].getDamagePerRound(self)
-        if (0, -1) in posMap and (0, 1) in posMap:
-            totalDamage += posMap[(0, -1)].getDamagePerRound(self)
-            totalDamage += posMap[(0, 1)].getDamagePerRound(self)
-        return totalDamage
-
-    def _getManhattanDistance(self, a: Vector2i, b: Vector2i) -> int:
-        return abs(int(a.x) - int(b.x)) + abs(int(a.y) - int(b.y))
-
-    def _getSign(self, value: int) -> int:
-        if value > 0:
-            return 1
-        if value < 0:
-            return -1
-        return 0
 
     def _tryKeyboardMove(self) -> None:
         if self._isMoving or self.isInRoute():

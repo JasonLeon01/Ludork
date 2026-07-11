@@ -22,8 +22,12 @@ from Widgets import (
     GeneralDataEditor,
     ActorQueuePanel,
     AspectRatioContainer,
+    LogDialog,
+    PackSelectionDialog,
+    PackWorker,
 )
 from Widgets.Utils import Toast
+from Widgets.Utils.GameConfigDialog import GameConfigData, GameConfigDialog
 from . import EditorStatus, GameData
 from .MainUtils import (
     GameRunnerMixin,
@@ -36,7 +40,6 @@ from .MainUtils import (
     LayoutMixin,
     PluginHostMixin,
 )
-
 
 class UpperSplitterHandle(QtWidgets.QSplitterHandle):
     def __init__(self, orientation: QtCore.Qt.Orientation, parent: QtWidgets.QSplitter) -> None:
@@ -296,7 +299,11 @@ class MainWindow(
         self._gameLockActive: bool = False
         self._lockedViewportSize: Optional[QSize] = None
         self._gameConfigModified: bool = False
-        self._pendingGameConfig: Optional[Dict[str, Any]] = None
+        self._pendingGameConfig: Optional[GameConfigData] = None
+        self._gameConfigDialog: Optional[GameConfigDialog] = None
+        self._packSelectionDialog: Optional[PackSelectionDialog] = None
+        self._packDialog: Optional[LogDialog] = None
+        self._packWorker: Optional[PackWorker] = None
         self._localeEditor: Optional[Any] = None
         self._blueprintEditors: Dict[str, Any] = {}
         self._blueprintEditor: Optional[Any] = None

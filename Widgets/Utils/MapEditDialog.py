@@ -1,9 +1,12 @@
 # -*- encoding: utf-8 -*-
 
 import os
-from typing import Any, Optional
-from PyQt5 import QtCore, QtWidgets
-from Utils import System
+from typing import Any, Callable, Optional
+
+from PyQt5 import QtCore, QtGui, QtWidgets
+
+from EditorGlobal import EditorStatus, GameData
+from EditorGlobal.QmlDialogHost import QmlDialogHost
 from Utils.DataConfig import (
     DATA_FILE_EXTENSIONS,
     DATA_FORMAT_DAT,
@@ -11,12 +14,21 @@ from Utils.DataConfig import (
     DATA_FORMAT_JSON,
     DATA_FORMAT_LABELS,
 )
-from EditorGlobal import GameData, EditorStatus
-from Widgets.Utils.FileSelectorDialog import FileSelectorDialog
-from Widgets.Utils.FilterEditDialog import EditFilterData
+from Widgets.Utils.FilterEditDialog import EditFilterData, FilterData
 
 
-class MapEditDialog(QtWidgets.QDialog):
+class MapEditDialog(QmlDialogHost):
+    bgmPathSelected = QtCore.pyqtSignal(str, arguments=("path",))
+    bgsPathSelected = QtCore.pyqtSignal(str, arguments=("path",))
+    fogPathSelected = QtCore.pyqtSignal(str, arguments=("path",))
+    ambientColourPicked = QtCore.pyqtSignal(
+        int,
+        int,
+        int,
+        int,
+        arguments=("red", "green", "blue", "alpha"),
+    )
+
     def __init__(
         self,
         parent: QtWidgets.QWidget,
@@ -26,353 +38,216 @@ class MapEditDialog(QtWidgets.QDialog):
         allow_current_key: bool = True,
         data_format: Optional[str] = None,
     ) -> None:
-        super().__init__(parent)
-        self._data = data
-        self._current_key = current_key
-        self._allow_current_key = allow_current_key
+        if title is None:
+            title = ELOC("MAPLIST_EDIT")
+
         existing_format = DATA_FORMAT_JSON if data.get("isJson") else DATA_FORMAT_DAT
         self._data_format = self._NormaliseDataFormat(data_format or existing_format)
+        show_data_format = data_format is not None
+
         old_name = str(data.get("mapName", ""))
         old_w = int(data.get("width", 0))
         old_h = int(data.get("height", 0))
-        if title is None:
-            title = ELOC("MAPLIST_EDIT")
-        self.setWindowTitle(title)
-        self.setMinimumWidth(640)
-        form = QtWidgets.QFormLayout(self)
-        form.setContentsMargins(12, 12, 12, 12)
-        form.setSpacing(8)
-        System.SetStyle(self, "mapEdit.qss")
-        self.fileEdit = QtWidgets.QLineEdit(self)
-        self.fileEdit.setText(current_key)
-        self.fileEdit.setStyleSheet("")
-        self.dataFormatCombo: Optional[QtWidgets.QComboBox] = None
-        self.nameEdit = QtWidgets.QLineEdit(self)
-        self.nameEdit.setText(old_name)
-        self.wSpin = QtWidgets.QSpinBox(self)
-        self.hSpin = QtWidgets.QSpinBox(self)
-        self.wSpin.setMinimum(1)
-        self.hSpin.setMinimum(1)
-        self.wSpin.setMaximum(1 << 15)
-        self.hSpin.setMaximum(1 << 15)
-        self.wSpin.setValue(max(1, old_w))
-        self.hSpin.setValue(max(1, old_h))
-        self.nameEdit.setStyleSheet("")
-        wLineEdit = self.wSpin.lineEdit()
-        hLineEdit = self.hSpin.lineEdit()
-        if wLineEdit:
-            wLineEdit.setStyleSheet("")
-        else:
-            self.wSpin.setStyleSheet("")
-        if hLineEdit:
-            hLineEdit.setStyleSheet("")
-        else:
-            self.hSpin.setStyleSheet("")
-        form.addRow(ELOC("FILE_NAME"), self.fileEdit)
-        if data_format is not None:
-            self.dataFormatCombo = QtWidgets.QComboBox(self)
-            for dataFormat, label in DATA_FORMAT_LABELS.items():
-                self.dataFormatCombo.addItem(label, dataFormat)
-            currentIndex = self.dataFormatCombo.findData(self._data_format)
-            if currentIndex >= 0:
-                self.dataFormatCombo.setCurrentIndex(currentIndex)
-            self.dataFormatCombo.currentIndexChanged.connect(self._syncFileExtensionToSelectedFormat)
-            form.addRow(ELOC("DATA_FORMAT"), self.dataFormatCombo)
-        form.addRow(ELOC("EDIT_MAP"), self.nameEdit)
-        form.addRow(ELOC("MAP_WIDTH"), self.wSpin)
-        form.addRow(ELOC("MAP_HEIGHT"), self.hSpin)
-
         current_light = data.get("ambientLight", [255, 255, 255, 255])
         if not isinstance(current_light, (list, tuple)) or len(current_light) < 4:
             current_light = [255, 255, 255, 255]
-        from Widgets.Utils.ColourPickerDialog import ColourVarEditor
 
-        self.ambientEditor = ColourVarEditor(current_light, self)
-        form.addRow(ELOC("AMBIENT_LIGHT"), self.ambientEditor)
+        labels = [
+            ELOC("FILE_NAME"),
+            ELOC("EDIT_MAP"),
+            ELOC("MAP_WIDTH"),
+            ELOC("MAP_HEIGHT"),
+            ELOC("AMBIENT_LIGHT"),
+            ELOC("MAP_BGM"),
+            ELOC("MAP_BGS"),
+            ELOC("MAP_FOG"),
+        ]
+        if show_data_format:
+            labels.append(ELOC("DATA_FORMAT"))
+        for fog_label in ("MAP_FOG_POWER", "MAP_FOG_OX", "MAP_FOG_OY", "MAP_FOG_DISTORT"):
+            labels.append(ELOC(fog_label))
 
-        self.bgmEdit = QtWidgets.QLineEdit(self)
-        self.bgmEdit.setReadOnly(True)
-        self.bgmEdit.setStyleSheet("")
-        self.bgmEdit.setText(data.get("bgm", ""))
-        self.bgmBtn = QtWidgets.QPushButton("...", self)
-        self.bgmFilterBtn = QtWidgets.QPushButton(ELOC("FILTER"), self)
-        self._bgmFilterData = data.get("bgmFilter") if "bgmFilter" in data else {}
-        self.bgmLayout = QtWidgets.QHBoxLayout()
-        self.bgmLayout.setContentsMargins(0, 0, 0, 0)
-        self.bgmLayout.setSpacing(6)
-        self.bgmClearBtn = QtWidgets.QPushButton(ELOC("CLEAR"), self)
-        self.bgmLayout.addWidget(self.bgmEdit, 1)
-        self.bgmLayout.addWidget(self.bgmBtn, 0)
-        self.bgmLayout.addWidget(self.bgmClearBtn, 0)
-        self.bgmLayout.addWidget(self.bgmFilterBtn, 0)
+        super().__init__(parent, title, QtCore.QSize(640, 560), QtCore.QSize(540, 300), labels)
 
-        self.bgsEdit = QtWidgets.QLineEdit(self)
-        self.bgsEdit.setReadOnly(True)
-        self.bgsEdit.setStyleSheet("")
-        self.bgsEdit.setText(data.get("bgs", ""))
-        self.bgsBtn = QtWidgets.QPushButton("...", self)
-        self.bgsFilterBtn = QtWidgets.QPushButton(ELOC("FILTER"), self)
-        self._bgsFilterData = data.get("bgsFilter") if "bgsFilter" in data else {}
-        self.bgsLayout = QtWidgets.QHBoxLayout()
-        self.bgsLayout.setContentsMargins(0, 0, 0, 0)
-        self.bgsLayout.setSpacing(6)
-        self.bgsClearBtn = QtWidgets.QPushButton(ELOC("CLEAR"), self)
-        self.bgsLayout.addWidget(self.bgsEdit, 1)
-        self.bgsLayout.addWidget(self.bgsBtn, 0)
-        self.bgsLayout.addWidget(self.bgsClearBtn, 0)
-        self.bgsLayout.addWidget(self.bgsFilterBtn, 0)
+        self._data = data
+        self._current_key = current_key
+        self._allow_current_key = allow_current_key
+        self._bgmFilterData: FilterData = data.get("bgmFilter") if "bgmFilter" in data else {}  # type: ignore[assignment]
+        self._bgsFilterData: FilterData = data.get("bgsFilter") if "bgsFilter" in data else {}  # type: ignore[assignment]
+        self._resultFileName = ""
+        self._resultDataFormat = self._data_format
+        self._bgmFilterDialog: Optional[QtWidgets.QWidget] = None
+        self._bgsFilterDialog: Optional[QtWidgets.QWidget] = None
 
-        bgmRoot = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Musics")
-        bgsRoot = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Musics")
+        data_format_items = [
+            {"label": label, "value": fmt}
+            for fmt, label in DATA_FORMAT_LABELS.items()
+        ]
 
-        def onBrowseBgm():
-            dlg = FileSelectorDialog(self, bgmRoot, FileSelectorDialog.audioFilesFilter())
-            fp = dlg.execSelect()
-            if fp:
-                self.bgmEdit.setText(os.path.basename(fp))
+        proj_path = EditorStatus.PROJ_PATH
+        self._bgmRoot = os.path.join(proj_path, "Assets", "Musics")
+        self._bgsRoot = os.path.join(proj_path, "Assets", "Musics")
+        self._fogRoot = os.path.join(proj_path, "Assets", "Fogs")
 
-        def onClearBgm():
-            self.bgmEdit.clear()
+        initial_data = {
+            "fileName": current_key,
+            "mapName": old_name,
+            "width": max(1, old_w),
+            "height": max(1, old_h),
+            "ambientLight": [
+                int(current_light[0]),
+                int(current_light[1]),
+                int(current_light[2]),
+                int(current_light[3]),
+            ],
+            "ambientR": int(current_light[0]),
+            "ambientG": int(current_light[1]),
+            "ambientB": int(current_light[2]),
+            "ambientA": int(current_light[3]),
+            "bgm": str(data.get("bgm", "")),
+            "bgs": str(data.get("bgs", "")),
+            "fog": str(data.get("fog", "")),
+            "fogPower": int(data.get("fogPower", 0)),
+            "fogOx": float(data.get("fogOx", 0)),
+            "fogOy": float(data.get("fogOy", 0)),
+            "fogDistort": int(data.get("fogDistort", 0)),
+        }
 
-        def onBrowseBgs():
-            dlg = FileSelectorDialog(self, bgsRoot, FileSelectorDialog.audioFilesFilter())
-            fp = dlg.execSelect()
-            if fp:
-                self.bgsEdit.setText(os.path.basename(fp))
-
-        def onClearBgs():
-            self.bgsEdit.clear()
-
-        def onEditBgmFilter():
-            result = EditFilterData(self, self._bgmFilterData, "bgm")
-            if result is not None:
-                self._bgmFilterData = result
-
-        def onEditBgsFilter():
-            result = EditFilterData(self, self._bgsFilterData, "bgs")
-            if result is not None:
-                self._bgsFilterData = result
-
-        self.bgmBtn.clicked.connect(onBrowseBgm)
-        self.bgmClearBtn.clicked.connect(onClearBgm)
-        self.bgsBtn.clicked.connect(onBrowseBgs)
-        self.bgsClearBtn.clicked.connect(onClearBgs)
-        self.bgmFilterBtn.clicked.connect(onEditBgmFilter)
-        self.bgsFilterBtn.clicked.connect(onEditBgsFilter)
-        form.addRow(ELOC("MAP_BGM"), self.bgmLayout)
-        form.addRow(ELOC("MAP_BGS"), self.bgsLayout)
-
-        self.fogEdit = QtWidgets.QLineEdit(self)
-        self.fogEdit.setReadOnly(True)
-        self.fogEdit.setStyleSheet("")
-        self.fogEdit.setText(data.get("fog", ""))
-        self.fogBtn = QtWidgets.QPushButton("...", self)
-        self.fogClearBtn = QtWidgets.QPushButton(ELOC("CLEAR"), self)
-        self.fogLayout = QtWidgets.QHBoxLayout()
-        self.fogLayout.setContentsMargins(0, 0, 0, 0)
-        self.fogLayout.setSpacing(6)
-        self.fogLayout.addWidget(self.fogEdit, 1)
-        self.fogLayout.addWidget(self.fogBtn, 0)
-        self.fogLayout.addWidget(self.fogClearBtn, 0)
-        fogRoot = os.path.join(EditorStatus.PROJ_PATH, "Assets", "Fogs")
-
-        def onBrowseFog():
-            dlg = FileSelectorDialog(self, fogRoot, FileSelectorDialog.imageFilesFilter())
-            fp = dlg.execSelect()
-            if fp:
-                self.fogEdit.setText(os.path.basename(fp))
-                self._updateFogOptionsVisible()
-
-        def onClearFog():
-            self.fogEdit.clear()
-            self._updateFogOptionsVisible()
-
-        self.fogBtn.clicked.connect(onBrowseFog)
-        self.fogClearBtn.clicked.connect(onClearFog)
-        form.addRow(ELOC("MAP_FOG"), self.fogLayout)
-
-        self._fogOptionsWidget = QtWidgets.QWidget(self)
-        self._fogOptionsWidget.setSizePolicy(
-            QtWidgets.QSizePolicy.Preferred,
-            QtWidgets.QSizePolicy.Minimum,
+        self.loadQml(
+            "Dialogs/MapEditDialog.qml",
+            {
+                "mapEditInitialData": initial_data,
+                "mapEditShowDataFormat": show_data_format,
+                "mapEditDataFormats": data_format_items,
+            },
         )
-        fogOptionsForm = QtWidgets.QFormLayout(self._fogOptionsWidget)
-        fogOptionsForm.setContentsMargins(0, 0, 0, 0)
-        fogOptionsForm.setSpacing(8)
-        fogOptionsForm.setFieldGrowthPolicy(QtWidgets.QFormLayout.AllNonFixedFieldsGrow)
 
-        self.fogPowerSpin = QtWidgets.QSpinBox(self)
-        self.fogPowerSpin.setRange(0, 100)
-        self.fogPowerSpin.setValue(int(data.get("fogPower", 0)))
-        fogPowerLineEdit = self.fogPowerSpin.lineEdit()
-        if fogPowerLineEdit:
-            fogPowerLineEdit.setStyleSheet("")
-        else:
-            self.fogPowerSpin.setStyleSheet("")
-        fogOptionsForm.addRow(ELOC("MAP_FOG_POWER"), self.fogPowerSpin)
+    @QtCore.pyqtSlot()
+    def browseBgm(self) -> None:
+        from Widgets.Utils.FileSelectorDialog import FileSelectorDialog
+        dlg = FileSelectorDialog(self, self._bgmRoot, FileSelectorDialog.audioFilesFilter())
+        dlg.openSelect(lambda path: self.bgmPathSelected.emit(os.path.basename(path) if path else ""))
 
-        self.fogOxSpin = QtWidgets.QDoubleSpinBox(self)
-        self.fogOySpin = QtWidgets.QDoubleSpinBox(self)
-        for spin in (self.fogOxSpin, self.fogOySpin):
-            spin.setRange(-9999.0, 9999.0)
-            spin.setDecimals(2)
-            spin.setSingleStep(1.0)
-            lineEdit = spin.lineEdit()
-            if lineEdit:
-                lineEdit.setStyleSheet("")
-            else:
-                spin.setStyleSheet("")
-        self.fogOxSpin.setValue(float(data.get("fogOx", 0)))
-        self.fogOySpin.setValue(float(data.get("fogOy", 0)))
-        fogOptionsForm.addRow(ELOC("MAP_FOG_OX"), self.fogOxSpin)
-        fogOptionsForm.addRow(ELOC("MAP_FOG_OY"), self.fogOySpin)
+    @QtCore.pyqtSlot()
+    def browseBgs(self) -> None:
+        from Widgets.Utils.FileSelectorDialog import FileSelectorDialog
+        dlg = FileSelectorDialog(self, self._bgsRoot, FileSelectorDialog.audioFilesFilter())
+        dlg.openSelect(lambda path: self.bgsPathSelected.emit(os.path.basename(path) if path else ""))
 
-        self.fogDistortSpin = QtWidgets.QSpinBox(self)
-        self.fogDistortSpin.setRange(0, 100)
-        self.fogDistortSpin.setValue(int(data.get("fogDistort", 0)))
-        fogDistortLineEdit = self.fogDistortSpin.lineEdit()
-        if fogDistortLineEdit:
-            fogDistortLineEdit.setStyleSheet("")
-        else:
-            self.fogDistortSpin.setStyleSheet("")
-        fogOptionsForm.addRow(ELOC("MAP_FOG_DISTORT"), self.fogDistortSpin)
+    @QtCore.pyqtSlot()
+    def browseFog(self) -> None:
+        from Widgets.Utils.FileSelectorDialog import FileSelectorDialog
+        dlg = FileSelectorDialog(self, self._fogRoot, FileSelectorDialog.imageFilesFilter())
+        dlg.openSelect(lambda path: self.fogPathSelected.emit(os.path.basename(path) if path else ""))
 
-        form.addRow(self._fogOptionsWidget)
-        self.fogEdit.textChanged.connect(self._updateFogOptionsVisible)
+    @QtCore.pyqtSlot(int, int, int, int)
+    def pickAmbientColour(self, r: int, g: int, b: int, a: int) -> None:
+        from Widgets.Utils.ColourPickerDialog import ColourPickerDialog
+        from Widgets.Utils.DialogUtils import GetIndependentDialogParent
+        dlg = ColourPickerDialog(GetIndependentDialogParent(self), (r, g, b, a))
 
-        self.btns = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel, self)
-        form.addRow(self.btns)
-        self._updateFogOptionsVisible()
-        confirm_label = ELOC("CONFIRM")
-        cancel_label = ELOC("CANCEL")
-        ok_btn = self.btns.button(QtWidgets.QDialogButtonBox.Ok)
-        cancel_btn = self.btns.button(QtWidgets.QDialogButtonBox.Cancel)
-        if ok_btn:
-            ok_btn.setText(confirm_label)
-        if cancel_btn:
-            cancel_btn.setText(cancel_label)
-        self.btns.accepted.connect(self.accept)
-        self.btns.rejected.connect(self.reject)
+        def _onFinished(code: int) -> None:
+            dlg.finished.disconnect(_onFinished)
+            if code == QtWidgets.QDialog.Accepted:
+                value = dlg.getValue()
+                self.ambientColourPicked.emit(int(value[0]), int(value[1]), int(value[2]), int(value[3]))
 
-    @staticmethod
-    def _NormaliseFileKey(name: str) -> str:
-        key = name.strip()
-        if os.path.splitext(key)[1].lower() in DATA_FILE_EXTENSIONS:
-            return os.path.splitext(key)[0]
-        return key
+        dlg.finished.connect(_onFinished)
+        dlg.open()
 
-    @staticmethod
-    def _NormaliseDataFormat(dataFormat: Optional[str]) -> str:
-        if dataFormat in DATA_FORMAT_EXTENSIONS:
-            return dataFormat
-        return DATA_FORMAT_JSON
+    @QtCore.pyqtSlot()
+    def editBgmFilter(self) -> None:
+        def _onAccepted(result: FilterData) -> None:
+            self._bgmFilterData = result
 
-    def _getFileExtensionForFormat(self) -> str:
-        return DATA_FORMAT_EXTENSIONS[self.getDataFormat()]
+        self._bgmFilterDialog = EditFilterData(
+            self, self._bgmFilterData, "bgm", onAccepted=_onAccepted
+        )
 
-    def _syncFileExtensionToSelectedFormat(self, _index: int = 0) -> None:
-        name = self.fileEdit.text().strip()
-        if not name:
-            return
-        self.fileEdit.setText(self._NormaliseFileKey(name) + self._getFileExtensionForFormat())
+    @QtCore.pyqtSlot()
+    def editBgsFilter(self) -> None:
+        def _onAccepted(result: FilterData) -> None:
+            self._bgsFilterData = result
 
-    def _hasFogGraphic(self) -> bool:
-        return bool(self.fogEdit.text().strip())
+        self._bgsFilterDialog = EditFilterData(
+            self, self._bgsFilterData, "bgs", onAccepted=_onAccepted
+        )
 
-    def _updateFogOptionsVisible(self) -> None:
-        visible = self._hasFogGraphic()
-        self._fogOptionsWidget.setVisible(visible)
-        if visible:
-            self._fogOptionsWidget.setMinimumHeight(self._fogOptionsWidget.sizeHint().height())
-        else:
-            self._fogOptionsWidget.setMinimumHeight(0)
-        self._relayoutDialog()
+    def _resultErrorText(self) -> str:
+        return ELOC("GAME_CONFIG_SAVE_FAILED")
 
-    def _relayoutDialog(self) -> None:
-        layout = self.layout()
-        if layout is not None:
-            layout.activate()
-        self.adjustSize()
-        hint = self.sizeHint()
-        w = max(640, hint.width())
-        h = hint.height()
-        self.setMinimumSize(w, h)
-        self.resize(w, h)
+    def _applyResult(self, result: object) -> bool:
+        if not isinstance(result, dict):
+            return False
 
-    def accept(self) -> None:
-        fname = self.fileEdit.text().strip()
+        fname = str(result.get("fileName", "")).strip()
         if not fname:
             QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("MAP_FILE_NAME_EMPTY"))
-            return
-        fname = self._NormaliseFileKey(fname) + self._getFileExtensionForFormat()
-        self.fileEdit.setText(fname)
+            return False
+
+        data_format_raw = result.get("dataFormat")
+        data_format = self._NormaliseDataFormat(str(data_format_raw) if data_format_raw else self._data_format)
+        ext = DATA_FORMAT_EXTENSIONS[data_format]
+        key = self._NormaliseFileKey(fname)
+        fname = key + ext
 
         existing = GameData.mapData
-        key = self._NormaliseFileKey(fname)
         if key in existing:
             current_key = self._NormaliseFileKey(self._current_key)
             is_same = self._allow_current_key and current_key and key == current_key
             if not is_same:
                 QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("MAP_FILE_NAME_EXISTS"))
-                return
+                return False
 
-        super().accept()
+        self._resultFileName = fname
+        self._resultDataFormat = data_format
 
-    def getFileName(self) -> str:
-        return self._NormaliseFileKey(self.fileEdit.text())
+        ambient = result.get("ambientLight", [255, 255, 255, 255])
+        if not isinstance(ambient, (list, tuple)) or len(ambient) < 4:
+            ambient = [255, 255, 255, 255]
 
-    def getDataFormat(self) -> str:
-        if self.dataFormatCombo is not None:
-            currentData = self.dataFormatCombo.currentData()
-            if currentData in DATA_FORMAT_EXTENSIONS:
-                return currentData
-        return self._data_format
+        data = self._data
+        old_key = self._NormaliseFileKey(self._current_key)
 
-    def execApply(self) -> bool:
-        if self.exec_() != QtWidgets.QDialog.Accepted:
-            return False
         GameData.RecordSnapshot()
-
-        new_key = self.getFileName()
-        if self._current_key and self._current_key in GameData.mapData and new_key != self._current_key:
-            new_map = {}
+        if old_key and old_key in GameData.mapData and key != old_key:
+            new_map: dict[str, Any] = {}
             for k, v in GameData.mapData.items():
-                if k == self._current_key:
-                    new_map[new_key] = v
-                else:
-                    new_map[k] = v
+                new_map[key if k == old_key else k] = v
             GameData.mapData.clear()
             GameData.mapData.update(new_map)
 
-        data = self._data
-        old_w = int(data.get("width", 0))
-        old_h = int(data.get("height", 0))
-        new_name = self.nameEdit.text().strip()
-        new_w = int(self.wSpin.value())
-        new_h = int(self.hSpin.value())
+        new_name = str(result.get("mapName", "")).strip()
         if new_name:
             data["mapName"] = new_name
 
-        data["ambientLight"] = list(self.ambientEditor.getValue())
+        data["ambientLight"] = list(ambient[:4])
 
-        bgm = self.bgmEdit.text().strip()
-        data["bgm"] = bgm if bgm else ""
+        bgm = str(result.get("bgm", "")).strip()
+        data["bgm"] = bgm
         data["bgmFilter"] = self._bgmFilterData
-        bgs = self.bgsEdit.text().strip()
-        data["bgs"] = bgs if bgs else ""
+
+        bgs = str(result.get("bgs", "")).strip()
+        data["bgs"] = bgs
         data["bgsFilter"] = self._bgsFilterData
-        fog = self.fogEdit.text().strip()
-        data["fog"] = fog if fog else ""
+
+        fog = str(result.get("fog", "")).strip()
+        data["fog"] = fog
         if fog:
-            data["fogPower"] = int(self.fogPowerSpin.value())
-            data["fogOx"] = float(self.fogOxSpin.value())
-            data["fogOy"] = float(self.fogOySpin.value())
-            data["fogDistort"] = int(self.fogDistortSpin.value())
+            data["fogPower"] = int(result.get("fogPower", 0))
+            data["fogOx"] = float(result.get("fogOx", 0))
+            data["fogOy"] = float(result.get("fogOy", 0))
+            data["fogDistort"] = int(result.get("fogDistort", 0))
         else:
             data["fogPower"] = 0
             data["fogOx"] = 0
             data["fogOy"] = 0
             data["fogDistort"] = 0
+
+        old_w = int(data.get("width", 0))
+        old_h = int(data.get("height", 0))
+        new_w = int(result.get("width", old_w))
+        new_h = int(result.get("height", old_h))
 
         if new_w != old_w or new_h != old_h:
             layers = data.get("layers", {})
@@ -389,19 +264,50 @@ class MapEditDialog(QtWidgets.QDialog):
                     elif new_w > len(row):
                         row.extend([None] * (new_w - len(row)))
                     resized.append(row)
-                if new_h > len(resized):
-                    for _ in range(new_h - len(resized)):
-                        resized.append([None] * new_w)
+                for _ in range(new_h - len(resized)):
+                    resized.append([None] * new_w)
                 layer["tiles"] = resized
             data["width"] = new_w
             data["height"] = new_h
-        if self.getDataFormat() == DATA_FORMAT_JSON:
+
+        if data_format == DATA_FORMAT_JSON:
             data["isJson"] = True
         else:
             data.pop("isJson", None)
+
         return True
 
+    def getFileName(self) -> str:
+        return self._NormaliseFileKey(self._resultFileName)
 
-def EditMapInfo(parent: QtWidgets.QWidget, data: dict[str, Any], current_key: str = "") -> bool:
-    dlg = MapEditDialog(parent, data, current_key)
-    return dlg.execApply()
+    def getDataFormat(self) -> str:
+        return self._resultDataFormat
+
+    @staticmethod
+    def _NormaliseFileKey(name: str) -> str:
+        key = name.strip()
+        if os.path.splitext(key)[1].lower() in DATA_FILE_EXTENSIONS:
+            return os.path.splitext(key)[0]
+        return key
+
+    @staticmethod
+    def _NormaliseDataFormat(data_format: Optional[str]) -> str:
+        if data_format in DATA_FORMAT_EXTENSIONS:
+            return data_format
+        return DATA_FORMAT_JSON
+
+
+def OpenMapEditDialog(
+    parent: QtWidgets.QWidget,
+    data: dict[str, Any],
+    current_key: str = "",
+    title: Optional[str] = None,
+    allow_current_key: bool = True,
+    data_format: Optional[str] = None,
+    onAccepted: Optional[Callable[[MapEditDialog], None]] = None,
+) -> MapEditDialog:
+    dlg = MapEditDialog(parent, data, current_key, title, allow_current_key, data_format)
+    if onAccepted is not None:
+        dlg.accepted.connect(lambda: onAccepted(dlg))
+    dlg.open()
+    return dlg
