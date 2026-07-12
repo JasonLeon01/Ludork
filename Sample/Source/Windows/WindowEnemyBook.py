@@ -239,6 +239,7 @@ class WindowEnemyBook(WindowSelectable):
         self._refreshEnemies(gameMap)
         self.setVisible(True)
         self.setActive(True)
+        self.requestKeyboardFocus()
 
     def close(self) -> None:
         r"""\brief Close the handbook."""
@@ -351,10 +352,8 @@ class WindowEnemyBook(WindowSelectable):
         except Exception:
             return str(text)
 
-    def _getRectPosition(self) -> Optional[Vector2f]:
-        if self.index is None:
-            return None
-        return Vector2f(0.0, float(self.index * _CELL_HEIGHT))
+    def _getRectPositionForIndex(self, index: int) -> Vector2f:
+        return Vector2f(0.0, float(index * _CELL_HEIGHT))
 
     def _getRectWidth(self) -> int:
         return _CELL_WIDTH

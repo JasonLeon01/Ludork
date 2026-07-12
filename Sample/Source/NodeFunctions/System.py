@@ -68,10 +68,16 @@ def PlaySound(soundFileName: str, applyFilter: bool = False) -> None:
 @ExecSplit(default=(None,))
 def PlayMusic(musicFileName: str, applyFilter: bool = False) -> None:
     global MusicFilter
-    if applyFilter:
-        Manager.playMusic("bgm", musicFileName, MusicFilter)
-    else:
-        Manager.playMusic("bgm", musicFileName)
+    from Source.Scenes import Map as SceneMap
+
+    scene = GlobalSystem.getScene()
+    musicFilter = MusicFilter if applyFilter else None
+    if isinstance(scene, SceneMap):
+        scene.playBgm(musicFileName, musicFilter)
+        return
+    music = Manager.playMusic("BGM", musicFileName, musicFilter)
+    if music is not None:
+        music.setLooping(True)
 
 
 @Meta(

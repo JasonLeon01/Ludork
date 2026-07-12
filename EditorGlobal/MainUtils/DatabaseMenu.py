@@ -243,8 +243,16 @@ class DatabaseMenuMixin:
             data[field.name] = value
         return data
 
-    def _onNewBlueprint(self, checked: bool = False, parentClass: Optional[str] = None) -> None:
+    def _onNewBlueprint(
+        self,
+        checked: bool = False,
+        parentClass: Optional[str] = None,
+        path: Optional[str] = None,
+    ) -> None:
         blueprintsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")
+        if path:
+            self._onNewBlueprintPathSelected(path, parentClass, None, blueprintsRoot)
+            return
         dlg = FileSelectorDialog(
             self, blueprintsRoot, DATA_FILE_DIALOG_FILTER, ELOC("SELECT_BLUEPRINT_PATH"), save=True
         )
@@ -256,7 +264,7 @@ class DatabaseMenuMixin:
         self,
         fp: str,
         parentClass: Optional[str],
-        dlg: FileSelectorDialog,
+        dlg: Optional[FileSelectorDialog],
         blueprintsRoot: str,
     ) -> None:
         if not fp:
@@ -265,8 +273,11 @@ class DatabaseMenuMixin:
         rel = os.path.relpath(fp, blueprintsRoot)
         namePart, ext = os.path.splitext(rel)
         if not ext:
-            nf = dlg.selectedNameFilter().lower()
-            ext = DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON] if DATA_FORMAT_JSON in nf else DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]
+            if dlg is None:
+                ext = DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]
+            else:
+                nf = dlg.selectedNameFilter().lower()
+                ext = DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON] if DATA_FORMAT_JSON in nf else DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]
         key = namePart.replace("\\", "/")
         if key in GameData.blueprintsData:
             QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("BLUEPRINT_EXISTS"))
@@ -369,10 +380,13 @@ class DatabaseMenuMixin:
             print(f"Error resolving blueprint parent {parentClass}: {e}", traceback.format_exc())
             return None
 
-    def _onNewAnimation(self, checked: bool = False) -> None:
+    def _onNewAnimation(self, checked: bool = False, path: Optional[str] = None) -> None:
         animationsRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Animations")
         if not os.path.exists(animationsRoot):
             os.makedirs(animationsRoot)
+        if path:
+            self._onNewAnimationPathSelected(path, None, animationsRoot)
+            return
 
         dlg = FileSelectorDialog(
             self, animationsRoot, DATA_FILE_DIALOG_FILTER, ELOC("SELECT_ANIMATION_PATH"), save=True
@@ -382,7 +396,7 @@ class DatabaseMenuMixin:
     def _onNewAnimationPathSelected(
         self,
         fp: str,
-        dlg: FileSelectorDialog,
+        dlg: Optional[FileSelectorDialog],
         animationsRoot: str,
     ) -> None:
         if not fp:
@@ -391,8 +405,11 @@ class DatabaseMenuMixin:
         rel = os.path.relpath(fp, animationsRoot)
         namePart, ext = os.path.splitext(rel)
         if not ext:
-            nf = dlg.selectedNameFilter().lower()
-            ext = DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON] if DATA_FORMAT_JSON in nf else DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]
+            if dlg is None:
+                ext = DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]
+            else:
+                nf = dlg.selectedNameFilter().lower()
+                ext = DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON] if DATA_FORMAT_JSON in nf else DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]
         key = namePart.replace("\\", "/")
         if key in GameData.animationsData:
             QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("ANIMATION_EXISTS"))
@@ -413,10 +430,13 @@ class DatabaseMenuMixin:
         self._refreshInfo()
         QtWidgets.QMessageBox.information(self, ELOC("SUCCESS"), ELOC("HINT_CREATE_ANIM_SUCCESS"))
 
-    def _onNewCurve(self, checked: bool = False) -> None:
+    def _onNewCurve(self, checked: bool = False, path: Optional[str] = None) -> None:
         curvesRoot = os.path.join(EditorStatus.PROJ_PATH, "Data", "Curves")
         if not os.path.exists(curvesRoot):
             os.makedirs(curvesRoot)
+        if path:
+            self._onNewCurvePathSelected(path, None, curvesRoot)
+            return
 
         dlg = FileSelectorDialog(
             self, curvesRoot, DATA_FILE_DIALOG_FILTER, ELOC("SELECT_CURVE_PATH"), save=True
@@ -426,7 +446,7 @@ class DatabaseMenuMixin:
     def _onNewCurvePathSelected(
         self,
         fp: str,
-        dlg: FileSelectorDialog,
+        dlg: Optional[FileSelectorDialog],
         curvesRoot: str,
     ) -> None:
         if not fp:
@@ -435,8 +455,11 @@ class DatabaseMenuMixin:
         rel = os.path.relpath(fp, curvesRoot)
         namePart, ext = os.path.splitext(rel)
         if not ext:
-            nf = dlg.selectedNameFilter().lower()
-            ext = DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON] if DATA_FORMAT_JSON in nf else DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]
+            if dlg is None:
+                ext = DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]
+            else:
+                nf = dlg.selectedNameFilter().lower()
+                ext = DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON] if DATA_FORMAT_JSON in nf else DATA_FORMAT_EXTENSIONS[DATA_FORMAT_DAT]
         key = namePart.replace("\\", "/")
         if key in GameData.curvesData:
             QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("CURVE_EXISTS"))

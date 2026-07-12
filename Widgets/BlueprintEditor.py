@@ -28,7 +28,7 @@ from Widgets.Utils.AiChatDialog import AiChatDialog
 from Widgets.Utils.BlueprintPreview import IsBlueprintPreviewable
 from Widgets.Utils.ClassDetailMixin import ClassDetailMixin
 from Widgets.Utils.ColourPickerDialog import ColourVarEditor
-from Widgets.Utils.NodePanel import GeneralDataComboBox
+from Widgets.Utils.NodePanel import GeneralDataComboBox, NodeBlueprintClassEditor
 from Widgets.Utils.MetaVarTypes import _GENERALDATA_VAR_TYPE
 from Widgets.Utils.ProgressVarEditor import ProgressVarEditor
 from Widgets.Utils.StructuredFields import IsStructuredType, IsStructuredValue, StructuredValueToDict
@@ -996,6 +996,10 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
                 parent_val=parent_val,
                 var_type=var_type,
             )
+        if key == "parent":
+            widget = NodeBlueprintClassEditor(value)
+            widget.VALUE_CHANGED.connect(lambda val, k=key: self.onDataChanged(k, val, False))
+            return widget
         widget = QtWidgets.QLineEdit(str(value))
         widget.textChanged.connect(lambda val, k=key: self.onDataChanged(k, val, False))
         return widget
@@ -1020,7 +1024,9 @@ class BluePrintEditor(ClassDetailMixin, QtWidgets.QWidget):
         self._storeBlueprintData()
         self.MODIFIED.emit()
         if not isAttr and key == "parent":
+            self._clearGraphPanels()
             self.refreshGraphList()
+            QtCore.QTimer.singleShot(0, self.refreshAttrs)
         self._refreshPreview()
         if isAttr and key in self.attrRelySources:
             QtCore.QTimer.singleShot(0, self.refreshAttrs)

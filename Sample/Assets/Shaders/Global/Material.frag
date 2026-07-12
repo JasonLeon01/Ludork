@@ -51,7 +51,7 @@ float GetObstructionAttenuation(vec2 from, vec2 to, vec2 gridSize) {
     vec2 toGrid = to / float(cellSize);
     vec2 delta = toGrid - fromGrid;
 
-    int steps = int(clamp(max(abs(delta.x), abs(delta.y)) * 1.5, 8.0, 128.0));
+    int steps = int(clamp(max(abs(delta.x), abs(delta.y)) * 1.5, 4.0, 16.0));
     if (steps <= 0) {
         return 1.0;
     }
@@ -63,7 +63,7 @@ float GetObstructionAttenuation(vec2 from, vec2 to, vec2 gridSize) {
 
     float attenuation = 0.0;
 
-    for (int i = 0; i < 128; ++i) {
+    for (int i = 0; i < 16; ++i) {
         if (i >= steps) {
             break;
         }
@@ -113,7 +113,10 @@ vec3 CalculateLighting(vec2 pixelPosTL_world) {
         if (dist >= lightRadius[i]) continue;
 
         float atten = 1.0 - dist / lightRadius[i];
-        float obs = GetObstructionAttenuation(lightPos[i], pixelPosTL_world, gridSize);
+        float obs = 1.0;
+        if (atten >= 0.05) {
+            obs = GetObstructionAttenuation(lightPos[i], pixelPosTL_world, gridSize);
+        }
 
         totalLight += lightColor[i] * lightIntensity[i] * atten * obs;
     }

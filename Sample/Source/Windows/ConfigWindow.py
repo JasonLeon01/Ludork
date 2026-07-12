@@ -242,6 +242,7 @@ class ConfigWindow(WindowSelectable):
         self._open = True
         self.setVisible(True)
         self.setActive(True)
+        self.requestKeyboardFocus()
 
     def close(self) -> None:
         r"""\brief Hide and deactivate the configuration window."""
@@ -401,14 +402,13 @@ class ConfigWindow(WindowSelectable):
         """
         return int(self.content.getSize().x)
 
-    def _getRectPosition(self) -> Optional[Vector2f]:
+    def _getRectPositionForIndex(self, index: int) -> Vector2f:
         r"""\brief Selection rect in content space; rows are full-width without ListView column inset.
 
-        - \return  Top-left of the selection rectangle, or None when no index
+        - \param index  Zero-based item index.
+        - \return  Top-left of the selection rectangle in content space.
         """
-        if self.index is None:
-            return None
         columns = self._getColumns()
-        x = (self.index % columns) * self._rectWidth
-        y = (self.index // columns) * self._rectHeight
+        x = (index % columns) * self._rectWidth
+        y = (index // columns) * self._rectHeight
         return Vector2f(float(x), float(y))

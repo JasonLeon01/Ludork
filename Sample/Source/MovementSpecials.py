@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, cast
 from Engine import Vector2i
 from Engine.Utils import Event
 from Source.Configs.EventKeys import EventKeys
@@ -23,13 +23,21 @@ def registerHandlers() -> None:
     _handlersRegistered = True
 
 
-def notifyPlayerMovementFinished(player: Player) -> None:
-    r"""\brief Notify listeners that the player has finished a movement step.
+def notifyPlayerMovementFinished(
+    player: Player,
+    pathPositions: Optional[List[Vector2i]] = None,
+) -> None:
+    r"""\brief Notify listeners that the player has finished a movement sequence.
 
     - \param player The player that just stopped moving.
+    - \param pathPositions Optional arrived cells to evaluate. When omitted, uses
+      cells recorded during walking, or the player's current cell as fallback.
     """
     registerHandlers()
-    Event.publish(EventKeys.PlayerMovementFinished, {"player": player})
+    Event.publish(
+        EventKeys.PlayerMovementFinished,
+        {"player": player, "pathPositions": pathPositions},
+    )
 
 
 def _onPlayerMovementFinished(payload: Any) -> None:
@@ -38,10 +46,17 @@ def _onPlayerMovementFinished(payload: Any) -> None:
     player = cast("Player", payload.get("player"))
     if player is None:
         return
-    _applyMovementSpecials(player)
+    pathPositions = payload.get("pathPositions")
+    if pathPositions is None:
+        pathPositions = player.consumeMovementSpecialPath()
+    else:
+        player.consumeMovementSpecialPath()
+    if not pathPositions:
+        pathPositions = [player.getMapPosition()]
+    _applyMovementSpecials(player, pathPositions)
 
 
-def _applyMovementSpecials(player: Player) -> None:
+def _applyMovementSpecials(player: Player, pathPositions: List[Vector2i]) -> None:
     from Source.Enemy import Enemy
 
     gameMap = player.getMap()
@@ -54,7 +69,43 @@ def _applyMovementSpecials(player: Player) -> None:
     if not enemies:
         return
 
-    playerPos = player.getMapPosition()
+    totalDamage = 0
+    damagingEnemies: List[Enemy] = []
+
+    for playerPos in pathPositions:
+        stepDamage, stepAttackers = _collectSpecialsAtPosition(enemies, player, playerPos)
+        totalDamage += stepDamage
+        damagingEnemies.extend(stepAttackers)
+
+    if totalDamage <= 0:
+        return
+
+    scene = gameMap.getScene()
+    if scene is not None:
+        playerPosition = player.getPosition()
+        seenEnemies: set[int] = set()
+        for enemy in damagingEnemies:
+            enemyKey = id(enemy)
+            if enemyKey in seenEnemies:
+                continue
+            seenEnemies.add(enemyKey)
+            enemy.playAttackAnimationAt(scene, playerPosition)
+
+    player.infoComp.HP -= totalDamage
+    gameMap.addDamageText(str(totalDamage), player.getPosition())
+
+    if player.infoComp.HP <= 0:
+        from Source.Scenes import GameOver
+        from Global import System
+
+        System.setScene(GameOver())
+
+
+def _collectSpecialsAtPosition(
+    enemies: List[Enemy],
+    player: Player,
+    playerPos: Vector2i,
+) -> Tuple[int, List[Enemy]]:
     totalDamage = 0
     damagingEnemies: List[Enemy] = []
 
@@ -79,28 +130,7 @@ def _applyMovementSpecials(player: Player) -> None:
         totalDamage += flankDamage
         damagingEnemies.extend(flankAttackers)
 
-    if totalDamage <= 0:
-        return
-
-    scene = gameMap.getScene()
-    if scene is not None:
-        playerPosition = player.getPosition()
-        seenEnemies: set[int] = set()
-        for enemy in damagingEnemies:
-            enemyKey = id(enemy)
-            if enemyKey in seenEnemies:
-                continue
-            seenEnemies.add(enemyKey)
-            enemy.playAttackAnimationAt(scene, playerPosition)
-
-    player.infoComp.HP -= totalDamage
-    gameMap.addDamageText(str(totalDamage), player.getPosition())
-
-    if player.infoComp.HP <= 0:
-        from Source.Scenes import GameOver
-        from Global import System
-
-        System.setScene(GameOver())
+    return totalDamage, damagingEnemies
 
 
 def _doBlockadeRetreat(enemy: Enemy, playerPos: Vector2i) -> None:

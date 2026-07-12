@@ -186,6 +186,7 @@ std::vector<std::vector<bool>> GameMapExt::rebuildPassabilityCache(const sf::Vec
     unsigned int height = size.y;
     std::vector<std::vector<bool>> tilePassableGrid(height);
     occupancyMap_.clear();
+    registeredOccupancyCells_.clear();
     for (unsigned int y = 0; y < height; ++y) {
         std::vector<bool> row(width);
         for (unsigned int x = 0; x < width; ++x) {
@@ -398,13 +399,49 @@ int GameMapExt::getTopmostOccupantLayerIndex(const std::vector<ActorCore *> &act
 }
 
 void GameMapExt::registerActorOccupancy(ActorCore &core) {
-    for (const sf::Vector2i &cell : core.getOccupiedMapCells()) {
+    const std::vector<sf::Vector2i> cells = core.getOccupiedMapCells();
+    registeredOccupancyCells_[&core] = cells;
+    for (const sf::Vector2i &cell : cells) {
         auto key = std::make_pair(cell.x, cell.y);
         auto &actorsAtCell = occupancyMap_[key];
         if (std::find(actorsAtCell.begin(), actorsAtCell.end(), &core) == actorsAtCell.end()) {
             actorsAtCell.push_back(&core);
         }
     }
+}
+
+void GameMapExt::unregisterActorOccupancy(ActorCore &core) {
+    auto registeredIt = registeredOccupancyCells_.find(&core);
+    if (registeredIt != registeredOccupancyCells_.end()) {
+        for (const sf::Vector2i &cell : registeredIt->second) {
+            auto key = std::make_pair(cell.x, cell.y);
+            auto occupancyIt = occupancyMap_.find(key);
+            if (occupancyIt == occupancyMap_.end()) {
+                continue;
+            }
+            auto &actorsAtCell = occupancyIt->second;
+            actorsAtCell.erase(std::remove(actorsAtCell.begin(), actorsAtCell.end(), &core), actorsAtCell.end());
+            if (actorsAtCell.empty()) {
+                occupancyMap_.erase(occupancyIt);
+            }
+        }
+        registeredOccupancyCells_.erase(registeredIt);
+        return;
+    }
+    for (auto it = occupancyMap_.begin(); it != occupancyMap_.end();) {
+        auto &actorsAtCell = it->second;
+        actorsAtCell.erase(std::remove(actorsAtCell.begin(), actorsAtCell.end(), &core), actorsAtCell.end());
+        if (actorsAtCell.empty()) {
+            it = occupancyMap_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+void GameMapExt::updateActorOccupancy(ActorCore &core) {
+    unregisterActorOccupancy(core);
+    registerActorOccupancy(core);
 }
 
 bool GameMapExt::nodePassableForActor(int x, int y, int sx, int sy, int gx, int gy, const ActorCore &movingCore) {

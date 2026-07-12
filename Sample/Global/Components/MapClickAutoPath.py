@@ -84,7 +84,12 @@ class MapClickAutoPath(ComponentBase):
         if len(goals) == 0:
             return
         if self._autoPathing:
-            self._finishAutoPathImmediately(player, currentPos)
+            clickedGoal = goals[-1]
+            route = self._routeState.getRoute()
+            if len(route) > 0 and clickedGoal == route[-1]:
+                self._finishAutoPathImmediately(player, currentPos)
+            else:
+                player.stop()
             self._autoPathing = False
             self._routeState.clear()
             return
@@ -109,16 +114,27 @@ class MapClickAutoPath(ComponentBase):
         player: Actor,
         start: Vector2i,
     ) -> None:
+        from Source.MovementSpecials import notifyPlayerMovementFinished
+        from Source.Player import Player
+
         route = self._routeState.getRoute()
+        walkedPath: List[Vector2i] = []
+        if isinstance(player, Player):
+            walkedPath = player.consumeMovementSpecialPath()
         if len(route) == 0:
             player.stop()
+            self._dispatchInstantMoveOverlaps(player)
+            pathPositions = walkedPath if walkedPath else [Vector2i(int(start.x), int(start.y))]
+            notifyPlayerMovementFinished(player, pathPositions)
             return
         goal = route[-1]
         goalPassable = self._parent.isPassable(player, goal)
         player.stop()
         destination = goal if goalPassable else (route[-2] if len(route) >= 2 else start)
         walkCount = self._getInstantWalkCount(route, destination)
+        teleportPath = self._getTeleportPathPositions(route, destination)
         player.setMapPosition(Vector2u(destination.x, destination.y))
+        self._parent.updateActorOccupancy(player)
         self._dispatchInstantMoveOverlaps(player)
         self._triggerInstantWalkStates(player, walkCount)
         fromPos = route[-2] if len(route) >= 2 else start
@@ -126,9 +142,18 @@ class MapClickAutoPath(ComponentBase):
         if not goalPassable and destination != goal:
             bumpOffset = Vector2i(goal.x - destination.x, goal.y - destination.y)
             player.MapMove(bumpOffset)
-        from Source.MovementSpecials import notifyPlayerMovementFinished
+        pathPositions = walkedPath + teleportPath
+        if not pathPositions:
+            pathPositions = [Vector2i(int(destination.x), int(destination.y))]
+        notifyPlayerMovementFinished(player, pathPositions)
 
-        notifyPlayerMovementFinished(player)
+    def _getTeleportPathPositions(self, route: List[Vector2i], destination: Vector2i) -> List[Vector2i]:
+        path: List[Vector2i] = []
+        for point in route:
+            path.append(Vector2i(int(point.x), int(point.y)))
+            if point == destination:
+                break
+        return path
 
     def _getInstantWalkCount(self, route: List[Vector2i], destination: Vector2i) -> int:
         for index, point in enumerate(route):

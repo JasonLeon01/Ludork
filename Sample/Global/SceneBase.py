@@ -270,10 +270,12 @@ class SceneBase:
         self._logicThread = None
 
     def _logicLoop(self) -> None:
-        logicFrameTime = 1.0 / max(1, self._logicTargetFPS)
         self._fixedAccumulator = 0.0
         lastTime = time.perf_counter()
         while not self._logicStopEvent.is_set() and System.isActive() and System.getScene() == self:
+            targetFps = max(1, System.getFrameRate())
+            logicFrameTime = 1.0 / targetFps
+            self._fixedStep = 1.0 / targetFps
             frameStart = time.perf_counter()
             deltaTime = max(0.0, frameStart - lastTime) * Manager.TimeManager.getSpeed()
             lastTime = frameStart

@@ -96,6 +96,7 @@ class GameMap(GameMapExt):
         self._actorHueBuffer: Optional[RenderTexture] = None
         self._actorHueSourceSprite: Optional[Sprite] = None
         self._materialDirty: bool = True
+        self._layerMaskTextureCache: dict = {}
         self._shaderTime: float = 0.0
         self._transparentTiles: List[Tuple[TileLayer, int, int]] = []
         self._tilePassableGrid: Optional[List[List[bool]]] = None
@@ -142,7 +143,9 @@ class GameMap(GameMapExt):
 
     def _syncActorsForPathfinding(self) -> None:
         for actor in self.getAllActors():
-            actor.setPathfindingBlocks(self._getPathfindingCollisionEnabled(actor) and not actor.getCollisionEnabled())
+            actor.setPathfindingBlocks(
+                Actor.HasBlueprintEvent(actor, "onOverlap") and not actor.getCollisionEnabled()
+            )
 
     def _checkDir4Between(self, fromPosition: Vector2i, toPosition: Vector2i, direction: Direction) -> bool:
         dirIndex = int(direction)
@@ -885,9 +888,10 @@ class GameMap(GameMapExt):
     def isPathfindingPassable(self, actor: Actor, targetPosition: Vector2i) -> bool:
         r"""\brief Check if a target position is passable for automatic pathfinding.
 
-        Automatic pathfinding treats non-colliding actors with implemented
-        `onOverlap` events as blockers so routes do not step onto interactive
-        triggers by accident.
+        Automatic pathfinding treats non-colliding actors with an implemented
+        `onOverlap` event as blockers so routes do not step onto interactive
+        triggers by accident. Actors whose `onOverlap` has no executable content
+        do not block.
 
         - \param actor The moving actor.
         - \param targetPosition The target map position.
@@ -910,14 +914,9 @@ class GameMap(GameMapExt):
             self._materialDirty = False
         for cell in actor.getOccupiedMapCellsAtMapPosition(targetPosition):
             for other in self.getOverlapsAt(cell.x, cell.y, actor):
-                if self._getPathfindingCollisionEnabled(other) and not other.getCollisionEnabled():
+                if Actor.HasBlueprintEvent(other, "onOverlap") and not other.getCollisionEnabled():
                     return True
         return False
-
-    def _getPathfindingCollisionEnabled(self, actor: Actor) -> bool:
-        if actor is None or actor.isDestroyed():
-            return False
-        return actor.getCollisionEnabled() or Actor.HasBlueprintEvent(actor, "onOverlap")
 
     @ReturnType(scene=SceneBase)
     def getScene(self) -> SceneBase:
@@ -1190,8 +1189,6 @@ class GameMap(GameMapExt):
 
         - \param fixedDelta Fixed timestep in seconds.
         """
-        if self._camera:
-            self._camera.onFixedTick(fixedDelta)
         for component in self._components:
             component.onFixedTick()
         for actorList in self._actors.values():
@@ -1199,6 +1196,18 @@ class GameMap(GameMapExt):
                 actor.fixedUpdate(fixedDelta)
                 if actor.getTickable():
                     Actor.BlueprintEvent(actor, Actor, "onFixedTick", {"fixedDelta": fixedDelta})
+        if self._camera:
+            self._camera.onFixedTick(fixedDelta)
+
+    def _syncCameraToFollowTarget(self) -> None:
+        if self._camera is None:
+            return
+        parent = self._camera.getParent()
+        viewport = self._camera._viewport
+        if parent is None or viewport is None:
+            return
+        self._camera.setViewPosition(parent.getPosition() - viewport.size / 2)
+        self._camera.fixViewPosition()
 
     def drawMapContent(
         self,
@@ -1237,6 +1246,7 @@ class GameMap(GameMapExt):
 
     def show(self) -> None:
         r"""\brief Render the full map including layers, actors, lights, and particles."""
+        self._syncCameraToFollowTarget()
         layers = self._tilemap.getAllLayers()
         layerKeys = list(layers.keys())
         mapViewOffset = self.getMapViewOffset()
@@ -1265,9 +1275,17 @@ class GameMap(GameMapExt):
                 if not layer.visible:
                     continue
                 cellSize = Engine.CellSize
-                lbTexture = Texture(layer.getLightBlockImage())
-                reflectionStrengthTexture = Texture(layer.getReflectionStrengthImage())
-                ignoreLightingTexture = Texture(layer.getIgnoreLightingImage())
+                lbImage = layer.getLightBlockImage()
+                rsImage = layer.getReflectionStrengthImage()
+                ilImage = layer.getIgnoreLightingImage()
+                cached = self._layerMaskTextureCache.get(layerName)
+                if cached is None or cached[0] is not lbImage or cached[1] is not rsImage or cached[2] is not ilImage:
+                    lbTexture = Texture(lbImage)
+                    reflectionStrengthTexture = Texture(rsImage)
+                    ignoreLightingTexture = Texture(ilImage)
+                    self._layerMaskTextureCache[layerName] = (lbImage, rsImage, ilImage, lbTexture, reflectionStrengthTexture, ignoreLightingTexture)
+                else:
+                    lbTexture, reflectionStrengthTexture, ignoreLightingTexture = cached[3], cached[4], cached[5]
                 tilemapLightMask.setUniform("lightBlockTex", lbTexture)
                 tilemapLightMask.setUniform("reflectionStrengthTex", reflectionStrengthTexture)
                 tilemapLightMask.setUniform("ignoreLightingTex", ignoreLightingTexture)
@@ -1325,6 +1343,7 @@ class GameMap(GameMapExt):
 
     def _getActiveLights(self) -> List[Light]:
         lights = list(self._lights)
+        viewport = self._camera.getViewport() if self._camera else None
         for actor in self.getAllActors():
             lightComp = getattr(actor, "lightComp", None)
             if lightComp is None:
@@ -1337,14 +1356,17 @@ class GameMap(GameMapExt):
                 radius = 0.0
             if radius <= 0.0:
                 continue
-            lights.append(
-                Light(
-                    self._getActorLightPosition(actor),
-                    self._toLightColour(lightComp.lightColour),
-                    radius,
-                    1.0,
-                )
-            )
+            pos = self._getActorLightPosition(actor)
+            if viewport is not None:
+                vx = viewport.position.x
+                vy = viewport.position.y
+                vw = viewport.size.x
+                vh = viewport.size.y
+                if pos.x + radius < vx or pos.x - radius > vx + vw:
+                    continue
+                if pos.y + radius < vy or pos.y - radius > vy + vh:
+                    continue
+            lights.append(Light(pos, self._toLightColour(lightComp.lightColour), radius, 1.0))
             if len(lights) >= MAX_SHADER_LIGHTS:
                 break
         return lights[:MAX_SHADER_LIGHTS]
@@ -1384,6 +1406,18 @@ class GameMap(GameMapExt):
     def markPassabilityDirty(self) -> None:
         r"""\brief Mark the passability cache as dirty for rebuild on next query."""
         self._materialDirty = True
+
+    def updateActorOccupancy(self, actor: Actor) -> None:
+        r"""\brief Refresh one actor's occupancy without rebuilding tile passability.
+
+        - \param actor The actor whose cached occupancy should be refreshed.
+        """
+        if self._tilePassableGrid is None or self._materialDirty:
+            self._rebuildPassabilityCache()
+            self._materialDirty = False
+            return
+        actor._syncMapCore()
+        super().updateActorOccupancy(actor)
 
     def _normaliseTerrainPosition(self, position: Any) -> Optional[Vector2i]:
         try:

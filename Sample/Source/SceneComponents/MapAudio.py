@@ -17,6 +17,23 @@ class SceneMapAudioController:
         self._currentBgsMusic: Optional[Music] = None
         self._currentBgsFile: str = ""
 
+    def playBgm(self, bgm: str, bgmFilter: Optional[Filters.MusicFilter] = None) -> None:
+        r"""\brief Replace the current BGM with a new track.
+
+        - \param bgm Music filename under Assets/Musics.
+        - \param bgmFilter Optional music filter to apply.
+        """
+        if self._currentBgmMusic is not None:
+            Manager.stopMusic("BGM")
+            self._currentBgmMusic = None
+        self._currentBgmFile = ""
+        if not bgm:
+            return
+        self._currentBgmMusic = Manager.playMusic("BGM", bgm, bgmFilter)
+        if self._currentBgmMusic is not None:
+            self._currentBgmMusic.setLooping(True)
+            self._currentBgmFile = bgm
+
     def setBgmFilter(self, attr: str, value: Any) -> None:
         r"""\brief Set a filter attribute on the current BGM music.
 

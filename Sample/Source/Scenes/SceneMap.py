@@ -320,7 +320,9 @@ class Scene(SceneBase):
         """
         if self._mapTransferInProgress:
             return super().onLateTick(deltaTime)
-        if self._mapClickMoveBlockedUntilLateTick or self._isMapClickMoveBlocked():
+        if self._tryConfirmMessageByScreenClick():
+            self._mapClickMoveBlockedUntilLateTick = False
+        elif self._mapClickMoveBlockedUntilLateTick or self._isMapClickMoveBlocked():
             self._consumeMapClickMoveInput()
             self._mapClickMoveBlockedUntilLateTick = False
         if self._mapInputBlockFrames > 0:
@@ -477,6 +479,8 @@ class Scene(SceneBase):
     @ExecSplit(default=(None,))
     def showEnemyBook(self) -> None:
         r"""\brief Show the current-map monster handbook."""
+        if not self._canOpenMenu():
+            return
         if not self.player.hasItem(_ENEMY_BOOK_ITEM_ID):
             return
         if not self._windowEnemyBook.getVisible():
@@ -490,7 +494,11 @@ class Scene(SceneBase):
     @ExecSplit(default=(None,))
     def showFloorTeleporter(self) -> None:
         r"""\brief Show the visited-floor teleporter preview window."""
+        if not self._canOpenMenu():
+            return
         if not self.player.hasItem(_FLOOR_TELEPORTER_ITEM_ID):
+            return
+        if not self._canUseFloorTeleporterByAsideConstraint():
             return
         if not self._windowFloorTeleporter.getVisible():
             self._floorTeleporterMoveEnabledBeforeOpen = (
@@ -500,6 +508,25 @@ class Scene(SceneBase):
         self._recordCurrentFloorTelepoint()
         self._windowFloorTeleporter.open(self.inst)
         self._blockMapInput(2)
+
+    def _canUseFloorTeleporterByAsideConstraint(self) -> bool:
+        from Engine.Utils.DataValue import evalDataExpression
+        from Source import Data
+        from Source.Teleporter import Teleporter
+
+        itemData = Data.getGeneralItemData(_FLOOR_TELEPORTER_ITEM_ID)
+        kwargs = itemData.get("kwargs") or {}
+        if not isinstance(kwargs, dict):
+            return True
+        flag = kwargs.get("CanOnlyUseAsideTeleporter", False)
+        if isinstance(flag, str):
+            flag = evalDataExpression(flag)
+        if not flag:
+            return True
+        player = self._gameMap.getPlayer()
+        if player is None:
+            return False
+        return Teleporter.isAsideOrOverlapping(self._gameMap.getAllActors(), player.getMapPosition())
 
     @ExecSplit(default=(None,))
     def openMenu(self) -> None:
@@ -789,6 +816,14 @@ class Scene(SceneBase):
         """
         self.inst.recordDestroyedActor(self._cachedMapFile, actor)
 
+    def playBgm(self, bgm: str, bgmFilter: Any = None) -> None:
+        r"""\brief Replace the current map BGM.
+
+        - \param bgm Music filename under Assets/Musics.
+        - \param bgmFilter Optional music filter to apply.
+        """
+        self._mapAudio.playBgm(bgm, bgmFilter)
+
     def setBgmFilter(self, attr: str, value: Any) -> None:
         r"""\brief Set a filter attribute on the current BGM music.
 
@@ -883,6 +918,17 @@ class Scene(SceneBase):
         Input.isMouseButtonTriggered(Input.Mouse.Button.Left, handled=True)
         Input.isTouchBegan(handled=True)
         Input.isTouchTriggered(handled=True)
+
+    def _tryConfirmMessageByScreenClick(self) -> bool:
+        if not self._messageWindow.isAwaitingMessageConfirm():
+            return False
+        clicked = Input.isMouseButtonTriggered(Input.Mouse.Button.Left, handled=False)
+        touched = Input.isTouchBegan(handled=False)
+        if not clicked and not touched:
+            return False
+        self._messageWindow.confirmMessage()
+        self._consumeMapClickMoveInput()
+        return True
 
     def _buildFloorMapPreview(
         self,

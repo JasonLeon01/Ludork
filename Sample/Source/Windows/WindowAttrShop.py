@@ -175,11 +175,8 @@ class _WindowAttrShopSelectable(WindowSelectable):
             return True
         return False
 
-    def _getRectPosition(self) -> Optional[Vector2f]:
-        position = super()._getRectPosition()
-        if position is None:
-            return None
-        return position + Vector2f(0.0, float(_ITEM_LIST_Y))
+    def _getRectPositionForIndex(self, index: int) -> Vector2f:
+        return super()._getRectPositionForIndex(index) + Vector2f(0.0, float(_ITEM_LIST_Y))
 
 
 class WindowAttrShop:
@@ -285,6 +282,7 @@ class WindowAttrShop:
         self._closed = False
         self._selectable.setVisible(True)
         self._selectable.setActive(True)
+        self._selectable.requestKeyboardFocus()
 
     def refreshPriceText(self) -> None:
         r"""\brief Refresh the shared price label for scalar prices."""

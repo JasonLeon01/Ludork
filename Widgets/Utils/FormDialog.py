@@ -21,10 +21,18 @@ class FormDialog(QmlDialogHost):
     ) -> None:
         labels = [str(field.get("label", "")) for field in fields]
         rowHeight = 42
+        popupItemHeight = 36
+        comboPopupExtra = 0
+        for field in fields:
+            if field.get("type") != "combo":
+                continue
+            optionCount = len(field.get("options") or ())
+            if optionCount > 0:
+                comboPopupExtra = max(comboPopupExtra, max(0, optionCount * popupItemHeight - 80))
         if size is None:
-            size = QtCore.QSize(460, max(160, 100 + len(fields) * rowHeight))
+            size = QtCore.QSize(460, max(160, 100 + len(fields) * rowHeight + comboPopupExtra))
         if minimumSize is None:
-            minimumSize = QtCore.QSize(400, max(140, 80 + len(fields) * rowHeight))
+            minimumSize = QtCore.QSize(400, max(140, 80 + len(fields) * rowHeight + comboPopupExtra))
         super().__init__(parent, title, size, minimumSize, labels)
         self._result: dict[str, Any] = {}
         self.loadQml("Dialogs/FormDialog.qml", {"formFields": list(fields)})

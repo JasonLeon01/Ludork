@@ -220,6 +220,10 @@ class AudioManager:
         - \param filter: Optional music filter to apply.
         - \return: Playing Music object, or None if music is disabled.
         """
+        cls.stopMusic(musicType)
+        aliasType = musicType.upper() if musicType != musicType.upper() else musicType.lower()
+        if aliasType != musicType:
+            cls.stopMusic(aliasType)
         music = Music()
         if not music.openFromFile(filePath):
             raise Exception(f"Failed to load music from file: {filePath}")

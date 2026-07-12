@@ -1162,6 +1162,10 @@ class FileExplorer(QtWidgets.QWidget):
                 selectedPath = self._model.filePath(i0)
                 isDir = self._model.isDir(i0)
         menu = QtWidgets.QMenu(self)
+        targetDir = self._targetDirForNewFolder(selectedPath, isDir)
+        newDataActions: list[tuple[QtWidgets.QAction, str]] = []
+        for dataType, localeKey in self._newDataTypesForTarget(targetDir):
+            newDataActions.append((menu.addAction(ELOC(localeKey)), dataType))
         actNewFolder = menu.addAction(ELOC("NEW_FOLDER"))
         actCopy = None
         actCut = None
@@ -1217,8 +1221,12 @@ class FileExplorer(QtWidgets.QWidget):
             selectedPath or None,
         )
         r = menu.exec_(viewport.mapToGlobal(pos))
+        for action, dataType in newDataActions:
+            if r == action:
+                self._createNewDataFile(targetDir, dataType)
+                return
         if r == actNewFolder:
-            self._createFolder(self._targetDirForNewFolder(selectedPath, isDir))
+            self._createFolder(targetDir)
         elif actCopy and r == actCopy:
             self._onCopySelected()
         elif actCut and r == actCut:
@@ -1267,6 +1275,54 @@ class FileExplorer(QtWidgets.QWidget):
         if selectedPath and not isDir:
             return os.path.dirname(selectedPath)
         return self._current
+
+    def _newDataTypesForTarget(self, targetDir: str) -> list[tuple[str, str]]:
+        dataRoots = (
+            ("blueprint", "NEW_BLUEPRINT", os.path.join(EditorStatus.PROJ_PATH, "Data", "Blueprints")),
+            ("animation", "NEW_ANIMATION", os.path.join(EditorStatus.PROJ_PATH, "Data", "Animations")),
+            ("curve", "NEW_CURVE", os.path.join(EditorStatus.PROJ_PATH, "Data", "Curves")),
+        )
+        return [
+            (dataType, localeKey)
+            for dataType, localeKey, dataRoot in dataRoots
+            if self._isPathInside(targetDir, dataRoot)
+        ]
+
+    def _createNewDataFile(self, targetDir: str, dataType: str) -> None:
+        localeKeys = {
+            "blueprint": "NEW_BLUEPRINT",
+            "animation": "NEW_ANIMATION",
+            "curve": "NEW_CURVE",
+        }
+        localeKey = localeKeys.get(dataType)
+        if localeKey is None:
+            return
+        OpenSingleRowDialog(
+            self,
+            ELOC(localeKey),
+            ELOC("FILE_NAME"),
+            onAccepted=lambda name: self._createNewDataFileNamed(targetDir, dataType, name),
+        )
+
+    def _createNewDataFileNamed(self, targetDir: str, dataType: str, name: str) -> None:
+        name = name.strip()
+        if not name or name in (".", "..") or os.sep in name or "/" in name or "\\" in name:
+            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("INVALID_FILE_NAME"))
+            return
+        extension = os.path.splitext(name)[1].lower()
+        if not extension:
+            name += DATA_FORMAT_EXTENSIONS[DATA_FORMAT_JSON]
+        elif extension[1:] not in DATA_FILE_SUFFIXES:
+            QtWidgets.QMessageBox.warning(self, ELOC("ERROR"), ELOC("INVALID_FILE_NAME"))
+            return
+        path = os.path.join(targetDir, name)
+        mainWindow = File.mainWindow
+        if dataType == "blueprint":
+            mainWindow._onNewBlueprint(path=path)
+        elif dataType == "animation":
+            mainWindow._onNewAnimation(path=path)
+        elif dataType == "curve":
+            mainWindow._onNewCurve(path=path)
 
     def _blueprintKeyForPath(self, path: str) -> Optional[str]:
         if not path or not os.path.isfile(path):

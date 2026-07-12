@@ -298,6 +298,7 @@ class WindowShop:
             self._commandWindow.setActive(True)
             self._itemWindow.setPosition(self._itemTopLeft)
             self._itemWindow.setActive(False)
+            self._commandWindow.requestKeyboardFocus()
         else:
             gameSize = GlobalSystem.getGameSize()
             topLeft = Vector2f(float((gameSize.x - _SHOP_ITEM_SIZE) / 2), float((gameSize.y - _SHOP_ITEM_SIZE) / 2))
@@ -305,6 +306,7 @@ class WindowShop:
             self._commandWindow.setVisible(False)
             self._commandWindow.setActive(False)
             self._itemWindow.setActive(True)
+            self._itemWindow.requestKeyboardFocus()
         self._itemWindow.setVisible(True)
 
     def close(self) -> None:
@@ -338,6 +340,7 @@ class WindowShop:
         Manager.playSE(GameSystem.getDecisionSE())
         self._commandWindow.setActive(False)
         self._itemWindow.setActive(True)
+        self._itemWindow.requestKeyboardFocus()
 
     def cancelItemSelection(self) -> None:
         r"""\brief Cancel item selection, returning to command bar or closing shop."""
@@ -347,6 +350,7 @@ class WindowShop:
             return
         self._itemWindow.setActive(False)
         self._commandWindow.setActive(True)
+        self._commandWindow.requestKeyboardFocus()
 
     def confirmItem(self) -> None:
         r"""\brief Confirm the selected item and perform buy/sell."""

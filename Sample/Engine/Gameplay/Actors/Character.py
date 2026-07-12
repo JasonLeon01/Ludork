@@ -139,8 +139,8 @@ class Character(Actor):
             return
         if self.isMoving() or self.animateWithoutMoving:
             self._switchTimer += deltaTime
-            if self._switchTimer >= self.switchInterval:
-                self._switchTimer = 0.0
+            while self._switchTimer >= self.switchInterval:
+                self._switchTimer -= self.switchInterval
                 self._sx = (self._sx + self._rectSize.x) % spriteTexture.getSize().x
         else:
             self._sx = 0

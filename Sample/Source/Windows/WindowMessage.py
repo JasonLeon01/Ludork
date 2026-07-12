@@ -144,12 +144,9 @@ class WindowMessage(WindowSelectable):
         """
         if not self.getVisible():
             return super().onClick(kwargs)
-        if self._contentMode != ContentMode.MESSAGE:
+        if not self.isAwaitingMessageConfirm():
             return super().onClick(kwargs)
-        if self._fadePhase == FadePhase.OUT:
-            return super().onClick(kwargs)
-        if self._messageAdvancer is not None:
-            self._messageAdvancer.onConfirm({})
+        self.confirmMessage()
         return super().onClick(kwargs)
 
     def isInDialogue(self) -> bool:
@@ -158,6 +155,29 @@ class WindowMessage(WindowSelectable):
         - \return True if in dialogue mode.
         """
         return self._inDialogue
+
+    def isAwaitingMessageConfirm(self) -> bool:
+        r"""\brief Check if a plain message dialogue can be advanced by confirm input.
+
+        - \return True when a non-option message is waiting for confirm.
+        """
+        return (
+            self._inDialogue
+            and self._contentMode == ContentMode.MESSAGE
+            and self._fadePhase != FadePhase.OUT
+            and self._selectionResult is None
+        )
+
+    def confirmMessage(self) -> bool:
+        r"""\brief Confirm the current plain message dialogue if it is waiting.
+
+        - \return True if the message was confirmed.
+        """
+        if not self.isAwaitingMessageConfirm():
+            return False
+        if self._messageAdvancer is not None:
+            self._messageAdvancer.onConfirm({})
+        return True
 
     def getSelectionResult(self) -> Optional[int]:
         r"""\brief Get the result of a selection dialogue.
@@ -216,13 +236,13 @@ class WindowMessage(WindowSelectable):
             self._text.setString(self._message)
         self._pendingLayout = True
         self._pendingRefPosition = refPosition
+        self.requestKeyboardFocus()
 
     def _resolveSelection(self, selectionResult: int) -> None:
         if self._selectionResult is not None:
             return
         self.hidePauseMark()
         self._selectionResult = selectionResult
-        self._inDialogue = False
         self._fadePhase = FadePhase.OUT
         self._fadeTime = 0.0
         if self._onFinished is not None:
@@ -535,19 +555,17 @@ class WindowMessage(WindowSelectable):
             self._selectionListView.setPosition(Vector2f(float(contentWidth) / 2.0, currentY))
         self.refreshPauseMarkLayout()
 
-    def _getRectPosition(self) -> Optional[Vector2f]:
-        if self.index is None:
-            return None
+    def _getRectPositionForIndex(self, index: int) -> Vector2f:
         if self._contentMode != ContentMode.SELECTION or self._selectionListView is None:
-            return super()._getRectPosition()
+            return super()._getRectPositionForIndex(index)
         columns = self._selectionListView.getColumns()
         if columns <= 0:
-            return super()._getRectPosition()
+            return super()._getRectPositionForIndex(index)
         listViewX, listViewY = self._selectionListView.v_getPosition()
         originX, originY = self._selectionListView.v_getOrigin()
         colWidth = float(self._selectionListView.size.x) / float(columns)
-        col = self.index % columns
-        row = self.index // columns
+        col = index % columns
+        row = index // columns
         x = float(listViewX) - float(originX) + float(col) * colWidth
         y = float(listViewY) - float(originY) + float(row) * float(self._rectHeight)
         return Vector2f(x, y)

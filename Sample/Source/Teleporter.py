@@ -122,6 +122,20 @@ class Teleporter(Actor):
         return nearest
 
     @staticmethod
+    def isAsideOrOverlapping(actors: List[Actor], position) -> bool:
+        r"""\brief Whether ``position`` is on or orthogonally adjacent to a teleporter.
+
+        - \param actors Actors to search.
+        - \param position Map tile position to test.
+        - \return True when a teleporter shares the tile or is one step away (4-dir).
+        """
+        nearest = Teleporter._findNearestTeleporter(actors, position)
+        if nearest is None:
+            return False
+        actorPosition = nearest.getMapPosition()
+        return abs(actorPosition.x - position.x) + abs(actorPosition.y - position.y) <= 1
+
+    @staticmethod
     def _findCurrentMapIndex(regionMaps: List[str], currentMap: str) -> Optional[int]:
         currentName = Teleporter._normaliseMapName(currentMap)
         for index, mapPath in enumerate(regionMaps):

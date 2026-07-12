@@ -147,6 +147,18 @@ public:
     std::vector<std::vector<bool>> rebuildPassabilityCache(const sf::Vector2u &size);
 
     ////////////////////////////////////////////////////////////
+    /// \brief Refresh one actor's occupancy without rebuilding tile passability
+    ///
+    /// Removes the actor from all cached cells, then registers it at its
+    /// current occupied cells. Use this after an actor changes map position.
+    ///
+    /// - \param actor Actor whose occupancy should be refreshed
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
+    void updateActorOccupancy(ActorCore &actor);
+
+    ////////////////////////////////////////////////////////////
     /// \brief Get actors cached at one map position
     ///
     /// - \param x Tile X coordinate
@@ -322,6 +334,14 @@ private:
     void registerActorOccupancy(ActorCore &actor);
 
     ////////////////////////////////////////////////////////////
+    /// \brief Remove one actor from every cell in the occupancy map
+    ///
+    /// - \param actor Actor object to unregister
+    ///
+    ////////////////////////////////////////////////////////////
+    void unregisterActorOccupancy(ActorCore &actor);
+
+    ////////////////////////////////////////////////////////////
     /// \brief Check whether a pathfinding anchor node is passable for a moving actor
     ///
     /// - \param x Node anchor X coordinate
@@ -395,6 +415,7 @@ private:
 
     sf::Shader *materialShader_;
     OccupancyMap occupancyMap_;
+    std::unordered_map<ActorCore *, std::vector<sf::Vector2i>> registeredOccupancyCells_;
     ActorCoreDict actorsCoreRef_;
     std::unordered_map<ActorCore *, std::string> actorCoreLayerRef_;
     std::map<std::pair<std::string, int>, std::string> uniformArrayNameCache_;

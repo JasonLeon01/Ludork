@@ -31,6 +31,8 @@ class WindowSelectable(WindowBase):
         rectHeight: int = 32,
         windowSkin: Optional[Image] = None,
         repeated: bool = False,
+        hitRectWidth: Optional[int] = None,
+        hitRectHeight: Optional[int] = None,
     ) -> None:
         r"""\brief Construct a selectable window.
 
@@ -40,6 +42,8 @@ class WindowSelectable(WindowBase):
         - \param rectHeight Height of each selection item.
         - \param windowSkin Optional window skin image.
         - \param repeated Whether the window skin is repeated.
+        - \param hitRectWidth Override hit detection width; defaults to selection rect width.
+        - \param hitRectHeight Override hit detection height; defaults to selection rect height.
         """
         super().__init__(rect, windowSkin, repeated)
         self._oldIndex: Optional[int] = None
@@ -52,6 +56,8 @@ class WindowSelectable(WindowBase):
             rectWidth = self._getRectWidth()
         self._rectWidth = rectWidth
         self._rectHeight = rectHeight
+        self._hitRectWidth: Optional[int] = hitRectWidth
+        self._hitRectHeight: Optional[int] = hitRectHeight
         self._rect = Rect(
             IntRect(
                 Math.ToVector2i(self._getRectPosition()),
@@ -108,7 +114,7 @@ class WindowSelectable(WindowBase):
             mousePos = Math.ToVector2f(Input.getMousePosition())
             for hoverIndex, child in enumerate(self._listView.getChildren()):
                 if isinstance(child, ControlBase):
-                    if child.getAbsoluteBounds().contains(mousePos):
+                    if self._getItemHitAbsoluteBounds(hoverIndex).contains(mousePos):
                         self.index = hoverIndex
         if active and self._listView:
             self._confirmMouseSelection()
@@ -204,13 +210,51 @@ class WindowSelectable(WindowBase):
             return self._setIndexIfChanged(self.index + 1)
         return False
 
+    def _getRectPositionForIndex(self, index: int) -> Vector2f:
+        r"""\brief Compute the selection rectangle position for a given item index.
+
+        - \param index  Zero-based item index.
+        - \return  Top-left position of the selection rectangle in content space.
+        """
+        columns = self._getColumns()
+        x = (index % columns) * self._rectWidth + 16
+        y = (index // columns) * self._rectHeight
+        return Vector2f(x, y)
+
     def _getRectPosition(self) -> Optional[Vector2f]:
         if self.index is None:
             return None
-        columns = self._getColumns()
-        x = (self.index % columns) * self._rectWidth + 16
-        y = (self.index // columns) * self._rectHeight
-        return Vector2f(x, y)
+        return self._getRectPositionForIndex(self.index)
+
+    def _getItemHitSize(self) -> Vector2i:
+        r"""\brief Get the hit detection size for each selectable item.
+
+        - \return  Width and height used for mouse/touch hit testing.
+        """
+        w = self._hitRectWidth if self._hitRectWidth is not None else self._rectWidth
+        h = self._hitRectHeight if self._hitRectHeight is not None else self._rectHeight
+        return Vector2i(w, h)
+
+    def _getItemHitAbsoluteBounds(self, index: int) -> FloatRect:
+        r"""\brief Get the screen-space hit rectangle for a given item index.
+
+        Temporarily repositions the selection rect sprite to the target cell,
+        reads absolute screen bounds through the content canvas transform
+        (including scroll and Scale), then restores the original position.
+
+        - \param index  Zero-based item index.
+        - \return  Absolute screen-space bounds used for hit testing.
+        """
+        savedPos = self._rect.v_getPosition()
+        self._rect.setPosition(self._getRectPositionForIndex(index))
+        rectAbs = self._rect.getAbsoluteBounds()
+        self._rect.setPosition(savedPos)
+        hitSize = self._getItemHitSize()
+        if hitSize.x == self._rectWidth and hitSize.y == self._rectHeight:
+            return rectAbs
+        scaleX = rectAbs.size.x / float(self._rectWidth) if self._rectWidth != 0 else 1.0
+        scaleY = rectAbs.size.y / float(self._rectHeight) if self._rectHeight != 0 else 1.0
+        return FloatRect(rectAbs.position, Vector2f(hitSize.x * scaleX, hitSize.y * scaleY))
 
     def _getRectWidth(self) -> int:
         columns = self._getColumns()
@@ -302,8 +346,7 @@ class WindowSelectable(WindowBase):
                 continue
             if not isinstance(child, ControlBase):
                 continue
-            childBounds: FloatRect = child.getAbsoluteBounds()
-            if childBounds.contains(position):
+            if self._getItemHitAbsoluteBounds(index).contains(position):
                 self.index = index
                 child.onConfirm({})
                 return True

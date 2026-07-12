@@ -164,7 +164,11 @@ class WindowFloorMapPreview(WindowSelectable):
             self._owner.activateMapList(True)
             Input.isActionTriggered(Input.getCancelKeys(), handled=True)
             return
+        previousIndex = self.index
         super().onKeyDown(kwargs)
+        if self.index != previousIndex:
+            self._owner.notifyTelepointIndexMaybeChanged(self.index)
+            self._refreshSelectedPreview()
 
     def onMouseButtonDown(self, kwargs: Dict[str, Any]) -> bool:
         if kwargs["button"] == Input.Mouse.Button.Right:
@@ -291,11 +295,13 @@ class WindowFloorTeleporter:
         if inst is not None:
             self._inst = inst
         self._telepointEntriesCache.clear()
+        self._lastMapKey = None
         self._commandWindow.refreshMaps(self._getVisitedRegionEntries())
         self._commandWindow.setVisible(True)
         self._commandWindow.setActive(True)
         self._previewWindow.setVisible(True)
         self._previewWindow.setActive(False)
+        self._commandWindow.requestKeyboardFocus()
 
     def close(self) -> None:
         r"""\brief Close and deactivate both child windows."""
@@ -320,6 +326,7 @@ class WindowFloorTeleporter:
         Manager.playSE(GameSystem.getDecisionSE())
         self._commandWindow.setActive(False)
         self._previewWindow.setActive(True)
+        self._previewWindow.requestKeyboardFocus()
 
     def activateMapList(self, playCancelSE: bool = False) -> None:
         r"""\brief Move input focus back to the visited-map list.
@@ -330,6 +337,7 @@ class WindowFloorTeleporter:
             Manager.playSE(GameSystem.getCancelSE())
         self._previewWindow.setActive(False)
         self._commandWindow.setActive(True)
+        self._commandWindow.requestKeyboardFocus()
 
     def confirmSelectedTelepoint(self) -> None:
         r"""\brief Confirm the selected map telepoint."""
@@ -377,10 +385,11 @@ class WindowFloorTeleporter:
         - \param index Current selected index, or None.
         """
         mapKey = self._commandWindow.getCurrentMapKey() if index is not None else None
-        if mapKey != self._lastMapKey:
-            self._lastMapKey = mapKey
-            if mapKey is not None and mapKey not in self._telepointIndexes:
-                self._telepointIndexes[mapKey] = 0
+        if mapKey == self._lastMapKey:
+            return
+        self._lastMapKey = mapKey
+        if mapKey is not None and mapKey not in self._telepointIndexes:
+            self._telepointIndexes[mapKey] = 0
         self._refreshPreview()
 
     def _refreshPreview(self) -> None:

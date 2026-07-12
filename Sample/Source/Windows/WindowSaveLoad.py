@@ -415,10 +415,12 @@ class WindowSaveLoad:
         if self._loadOnly:
             self._mode = "load"
             self._slotWindow.setActive(True)
+            self._slotWindow.requestKeyboardFocus()
         else:
             assert self._commandWindow is not None
             self._commandWindow.setActive(True)
             self._slotWindow.setActive(False)
+            self._commandWindow.requestKeyboardFocus()
         self.notifySlotIndexMaybeChanged(self._slotWindow.index)
 
     def close(self) -> None:

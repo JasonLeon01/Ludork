@@ -161,7 +161,7 @@ class BPBase:
                 return 0 <= int(startNode) < len(nodes.get(eventName, []))
             except (TypeError, ValueError):
                 return False
-        return True
+        return False
 
     @staticmethod
     def _graphDataHasExecutableEvent(graphData: Optional[Dict[str, Any]], eventName: str) -> bool:

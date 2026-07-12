@@ -1,10 +1,12 @@
 import QtQuick 2.15
+import QtQuick.Window 2.15
 import QtQuick.Controls 2.15
 
 ComboBox {
     id: control
 
     property var dialogForm: null
+    readonly property int popupItemHeight: 36
 
     LayoutMirroring.enabled: false
     implicitHeight: 34
@@ -21,7 +23,7 @@ ComboBox {
 
     delegate: ItemDelegate {
         width: ListView.view.width
-        height: 36
+        height: control.popupItemHeight
         hoverEnabled: true
         highlighted: control.highlightedIndex === index
 
@@ -91,26 +93,48 @@ ComboBox {
     }
 
     popup: Popup {
+        id: popup
+
         objectName: "formComboPopup"
-        y: control.height - 1
         width: control.width
-        height: Math.min(contentItem.implicitHeight, 300)
         padding: 2
+        topMargin: 6
+        bottomMargin: 6
+
+        readonly property int wantedHeight: control.count * control.popupItemHeight + topPadding + bottomPadding
+        readonly property real comboY: control.mapToItem(null, 0, 0).y
+        readonly property real spaceBelow: Math.max(0, control.Window.height - (comboY + control.height) - bottomMargin)
+        readonly property real spaceAbove: Math.max(0, comboY - topMargin)
+        readonly property real spaceFromComboTop: Math.max(0, control.Window.height - comboY - bottomMargin)
+        readonly property bool fitsBelow: wantedHeight <= spaceBelow
+        readonly property bool fitsAbove: wantedHeight <= spaceAbove
+
+        y: fitsBelow ? control.height - 1 : (fitsAbove ? 1 - height : 0)
+        height: Math.min(
+            wantedHeight,
+            fitsBelow ? spaceBelow : (fitsAbove ? spaceAbove : spaceFromComboTop),
+            300
+        )
 
         contentItem: ListView {
             clip: true
             implicitHeight: contentHeight
+            boundsBehavior: Flickable.StopAtBounds
             model: control.popup.visible ? control.delegateModel : null
             currentIndex: control.highlightedIndex
             highlightMoveDuration: 0
 
-            ScrollIndicator.vertical: ScrollIndicator {
-                id: scrollIndicator
+            ScrollBar.vertical: ScrollBar {
+                id: scrollBar
+
+                policy: popup.height + 0.5 < popup.wantedHeight ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
 
                 contentItem: Rectangle {
                     implicitWidth: 5
                     radius: 2
-                    color: scrollIndicator.active ? dialogTheme.accentColor : dialogTheme.focusOverlayColor
+                    color: scrollBar.pressed || scrollBar.hovered
+                        ? dialogTheme.accentColor
+                        : dialogTheme.focusOverlayColor
                 }
             }
         }

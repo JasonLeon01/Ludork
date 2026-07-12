@@ -80,6 +80,7 @@ class Scene(SceneBase):
         if reason == "loaded":
             return
         self._windowCommand.setActive(True)
+        self._windowCommand.requestKeyboardFocus()
 
     def _onSaveLoadLoaded(self, inst: GameInstance) -> None:
         from .SceneMap import Scene as SceneMap
@@ -99,6 +100,7 @@ class Scene(SceneBase):
 
     def _onConfigClose(self) -> None:
         self._windowCommand.setActive(True)
+        self._windowCommand.requestKeyboardFocus()
 
     @staticmethod
     def _exitGame(obj: FunctionalBase, kwargs: Dict[str, Any]) -> None:

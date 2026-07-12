@@ -118,6 +118,7 @@ class WindowMenu(WindowCommand):
         self._player.setMoveEnabled(False)
         self.setVisible(True)
         self.setActive(True)
+        self.requestKeyboardFocus()
 
     def close(self) -> None:
         r"""\brief Close the menu window and restore player movement."""

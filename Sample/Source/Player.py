@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from typing import List, Optional, Dict, Any, Tuple, Type, Union
-from Engine import Pair, Texture, Input, Vector2u, RegisterEvent
+from Engine import Pair, Texture, Input, Vector2i, Vector2u, RegisterEvent
 from Engine.Gameplay.Components import setComponentFieldValue
 from Engine.Gameplay.Actors import Character
 from Engine.Utils.Monitor import monitor, _MISSING
@@ -55,9 +55,23 @@ class Player(Character, PlayerInfo, Battler):
         self._classPath: str = ""
         self._forbiddenMoving: bool = False
         self._wasMovingOnLastFixedTick: bool = False
+        self._movementSpecialPath: List[Vector2i] = []
         for slot, equipID in Cast(dict, Data.getGeneralClassData(self.infoComp.CLASS).get("slot")).items():
             if equipID:
                 self.equip(equipID)
+
+    def _onArrivedAtMapCell(self) -> None:
+        pos = self.getMapPosition()
+        self._movementSpecialPath.append(Vector2i(int(pos.x), int(pos.y)))
+
+    def consumeMovementSpecialPath(self) -> List[Vector2i]:
+        r"""\brief Take and clear the map cells arrived at during the current move.
+
+        - \return Arrived map cells in order, excluding the movement start cell.
+        """
+        path = self._movementSpecialPath
+        self._movementSpecialPath = []
+        return path
 
     def getClassPath(self) -> str:
         r"""\brief Get the blueprint class path used to create this player.
@@ -75,22 +89,20 @@ class Player(Character, PlayerInfo, Battler):
 
     @RegisterEvent
     def onFixedTick(self, fixedDelta: float) -> None:
-        if self._wasMovingOnLastFixedTick and not self.isMoving():
-            self.triggerStateWalk()
+        if self._movementSpecialPath:
             from Source.MovementSpecials import notifyPlayerMovementFinished
 
-            notifyPlayerMovementFinished(self)
-        self._tryKeyboardMove()
+            notifyPlayerMovementFinished(self, self.consumeMovementSpecialPath())
+        if self._wasMovingOnLastFixedTick and not self.isMoving():
+            self.triggerStateWalk()
         self._wasMovingOnLastFixedTick = self.isMoving()
 
-    def _tryKeyboardMove(self) -> None:
-        if self._isMoving or self.isInRoute():
-            return
+    def _getContinueMoveOffset(self) -> Optional[Tuple[int, int]]:
+        if self.isInRoute():
+            return None
         if self.getForbiddenMoving() or self._isSceneInputBlocked():
-            return
-        offset = self._getHeldKeyboardMoveOffset()
-        if offset is not None:
-            self.MapMove(offset)
+            return None
+        return self._getHeldKeyboardMoveOffset()
 
     def _getHeldKeyboardMoveOffset(self) -> Optional[Tuple[int, int]]:
         heldMoves = (

@@ -3,7 +3,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple, Union
-from ... import Pair, BPBase, Vector2f, Vector2i, Vector2u, Vector3f, IntRect, Texture, Sound
+from ... import Pair, BPBase, Vector2f, Vector2i, Vector2u, Vector3f, IntRect, Texture, Sound, Listener
 from ...Utils import Math, Inner
 from ...Filters import SoundFilter
 from ... import Material
@@ -30,6 +30,8 @@ class AutoSoundParams:
     volume: float = 100.0  #: Base sound volume
     minDistance: float = 64.0  #: Distance before attenuation starts
     attenuation: float = 1.0  #: Distance attenuation factor
+    loop: bool = False  #: Loop playback continuously
+    maxDistance: float = 0.0  #: Stop beyond this listener distance; 0 means unlimited
 
 
 @Meta(
@@ -115,15 +117,16 @@ class Actor(_ActorBase, BPBase):
         self._normaliseLightComp()
         self._normaliseAutoSoundParams()
         self._isMoving: bool = False
-        self._nextMoveOffset: Optional[Union[Vector2i, Pair[int]]] = None
         self._inRoute: bool = False
         self._route: List[Vector2i] = []
         self._moveEnabled: bool = True
         self._departure: Optional[Vector2f] = None
         self._destination: Optional[Vector2f] = None
+        self._moveOriginMapPos: Optional[Vector2i] = None
         self._realSpeed: float = 0.0
         self._autoSoundObject: Optional[Sound] = None
         self._autoSoundCooldown: float = 0.0
+        self._autoSoundLastPosition: Optional[Vector3f] = None
         self._applyCollisionEnabledClassDefault()
 
     def _applyCollisionEnabledClassDefault(self) -> None:
@@ -167,7 +170,13 @@ class Actor(_ActorBase, BPBase):
     def _normaliseAutoSoundParams(self) -> None:
         value = getattr(self, "autoSoundParams", AutoSoundParams())
         if isinstance(value, AutoSoundParams):
-            self.autoSoundParams = AutoSoundParams(value.volume, value.minDistance, value.attenuation)
+            self.autoSoundParams = AutoSoundParams(
+                value.volume,
+                value.minDistance,
+                value.attenuation,
+                value.loop,
+                value.maxDistance,
+            )
             return
         if isinstance(value, dict):
             self.autoSoundParams = AutoSoundParams(**Inner.filterDataClassParams(value, AutoSoundParams))
@@ -199,22 +208,37 @@ class Actor(_ActorBase, BPBase):
         - \param fixedDelta  Fixed timestep duration in seconds
         """
         startPosition = self.getPosition()
-        if self._inRoute:
-            if len(self._route) == 0:
-                self._inRoute = False
-            else:
-                if not self._isMoving and self._route:
-                    step = self._route[0]
-                    self._route.pop(0)
-                    if not self.MapMove(step):
-                        self._inRoute = False
-        if self._isMoving:
-            self._processMoving(fixedDelta)
+        remaining = fixedDelta
+        while remaining > 0.0:
+            if not self._isMoving:
+                self._tryStartNextRouteStep()
+            if not self._isMoving:
+                continueOffset = self._getContinueMoveOffset()
+                if continueOffset is not None:
+                    self.MapMove(continueOffset)
+            if not self._isMoving:
+                break
+            remaining = self._processMoving(remaining)
         dist = (self.getPosition() - startPosition).length()
         if fixedDelta <= 0.0 or Math.IsNearZero(dist, 0.001):
             self._realSpeed = 0.0
         else:
             self._realSpeed = dist / fixedDelta
+
+    def _getContinueMoveOffset(self) -> Optional[Union[Vector2i, Pair[int], List[int]]]:
+        return None
+
+    def _tryStartNextRouteStep(self) -> None:
+        if not self._inRoute:
+            return
+        if not self._route:
+            self._inRoute = False
+            self._route = []
+            return
+        step = self._route.pop(0)
+        if not self.MapMove(step):
+            self._inRoute = False
+            self._route = []
 
     def update(self, deltaTime: float) -> None:
         r"""\brief Update actor animation and automatic spatial sound.
@@ -325,6 +349,7 @@ class Actor(_ActorBase, BPBase):
                     Actor.BlueprintEvent(collision, Actor, "onCollision", {"other": [self]})
             return False
         self._isMoving = True
+        self._moveOriginMapPos = Vector2i(self.getMapPosition().x, self.getMapPosition().y)
         self._departure = self.getPosition()
         self._destination = Vector2f(
             self.getPosition().x + offset.x * CellSize,
@@ -371,7 +396,20 @@ class Actor(_ActorBase, BPBase):
 
         - \return  `True` if moving or has non-zero real speed
         """
-        return self._isMoving or self._realSpeed > 0.0
+        return self._isMoving or self._realSpeed > 0.0 or self._inRoute
+
+    @ReturnType(pos=Vector2i)
+    def getMapPosition(self) -> Vector2i:
+        r"""\brief Get the grid cell position.
+
+        While a one-cell move is in progress, keep reporting the departure
+        cell so cover/path preview do not jump at the halfway point.
+
+        - \return Grid cell position as Vector2i
+        """
+        if self._isMoving and self._moveOriginMapPos is not None:
+            return Vector2i(self._moveOriginMapPos.x, self._moveOriginMapPos.y)
+        return super().getMapPosition()
 
     @ReturnType(isInRoute=bool)
     def isInRoute(self) -> bool:
@@ -430,6 +468,7 @@ class Actor(_ActorBase, BPBase):
         self._route = None
         self._departure = None
         self._destination = None
+        self._moveOriginMapPos = None
         self._realSpeed = 0.0
         self._autoFixMapPosition()
 
@@ -471,37 +510,36 @@ class Actor(_ActorBase, BPBase):
             actor.material = Material(**Inner.filterDataClassParams(actor.material, Material))
         return actor
 
-    def _processMoving(self, fixedDelta: float) -> None:
+    def _processMoving(self, fixedDelta: float) -> float:
         velocity = self.getVelocity()
         if velocity is None:
-            return
-        offset = velocity * fixedDelta
-        self.move(offset)
-        if (
-            self._destination
-            and self._departure
-            and self._map
-            and (
-                (
-                    Math.IsNearZero(self.getPosition().x - self._destination.x, 0.1)
-                    and Math.IsNearZero(self.getPosition().y - self._destination.y, 0.1)
-                )
-                or (
-                    (self._destination.x - self._departure.x) * (self.getPosition().x - self._destination.x) > 0
-                    or (self._destination.y - self._departure.y) * (self.getPosition().y - self._destination.y) > 0
-                )
-            )
-        ):
-            self.setPosition(Vector2f(self._destination.x, self._destination.y))
-            self._autoFixMapPosition()
-            self._isMoving = False
-            self._departure = None
-            self._destination = None
-            overlaps = self._map.getOverlaps(self)
-            if overlaps:
-                Actor.BlueprintEvent(self, Actor, "onOverlap", {"other": overlaps})
-                for overlap in overlaps:
-                    Actor.BlueprintEvent(overlap, Actor, "onOverlap", {"other": [self]})
+            return 0.0
+        if self._destination is None or self._departure is None or self._map is None:
+            return 0.0
+        remainingDist = (self._destination - self.getPosition()).length()
+        speed = velocity.length()
+        if speed <= 0.0:
+            return 0.0
+        timeToDestination = remainingDist / speed
+        if timeToDestination > fixedDelta:
+            self.move(velocity * fixedDelta)
+            return 0.0
+        self.setPosition(Vector2f(self._destination.x, self._destination.y))
+        self._isMoving = False
+        self._departure = None
+        self._destination = None
+        self._moveOriginMapPos = None
+        self._autoFixMapPosition()
+        overlaps = self._map.getOverlaps(self)
+        if overlaps:
+            Actor.BlueprintEvent(self, Actor, "onOverlap", {"other": overlaps})
+            for overlap in overlaps:
+                Actor.BlueprintEvent(overlap, Actor, "onOverlap", {"other": [self]})
+        self._onArrivedAtMapCell()
+        return max(0.0, fixedDelta - timeToDestination)
+
+    def _onArrivedAtMapCell(self) -> None:
+        return
 
     def _autoFixMapPosition(self) -> None:
         from ... import CellSize
@@ -509,9 +547,17 @@ class Actor(_ActorBase, BPBase):
         pos = self.getPosition()
         x = int(pos.x * 1.0 / CellSize + 0.5)
         y = int(pos.y * 1.0 / CellSize + 0.5)
+        self._moveOriginMapPos = None
         self.setMapPosition(Vector2u(x, y))
         if self._map:
-            self._map.markPassabilityDirty()
+            self._map.updateActorOccupancy(self)
+
+    def _getAutoSoundListenerDistance(self) -> float:
+        listenerPos = Listener.getPosition()
+        actorPos = self.getPosition()
+        dx = float(actorPos.x) - float(listenerPos.x)
+        dy = float(actorPos.y) - float(listenerPos.y)
+        return (dx * dx + dy * dy) ** 0.5
 
     def _updateAutoSound(self, deltaTime: float) -> None:
         self._normaliseAutoSoundParams()
@@ -519,6 +565,16 @@ class Actor(_ActorBase, BPBase):
             self._stopAutoSound()
             self._autoSoundCooldown = 0.0
             return
+        stopDistance = float(self.autoSoundParams.maxDistance)
+        if stopDistance > 0.0:
+            distance = self._getAutoSoundListenerDistance()
+            startDistance = stopDistance * 0.85
+            if distance > stopDistance:
+                self._stopAutoSound()
+                self._autoSoundCooldown = 0.0
+                return
+            if self._autoSoundObject is None and distance > startDistance:
+                return
         if self._autoSoundObject is not None:
             if self._autoSoundObject.getStatus() == Sound.Status.Stopped:
                 self._autoSoundObject = None
@@ -536,6 +592,8 @@ class Actor(_ActorBase, BPBase):
 
         sound = Manager.playSE(self.autoSound, self._buildAutoSoundFilter())
         self._autoSoundObject = sound
+        pos = self.getPosition()
+        self._autoSoundLastPosition = Vector3f(pos.x, pos.y, 0.0)
 
     def _stopAutoSound(self) -> None:
         if self._autoSoundObject is None:
@@ -543,12 +601,18 @@ class Actor(_ActorBase, BPBase):
         if self._autoSoundObject.getStatus() != Sound.Status.Stopped:
             self._autoSoundObject.stop()
         self._autoSoundObject = None
+        self._autoSoundLastPosition = None
 
     def _applyAutoSoundParams(self) -> None:
         if self._autoSoundObject is None:
             return
         from Global.Manager.Mgr_Audio import AudioManager
 
+        pos = self.getPosition()
+        newPos = Vector3f(pos.x, pos.y, 0.0)
+        if self._autoSoundLastPosition is not None and self._autoSoundLastPosition == newPos:
+            return
+        self._autoSoundLastPosition = newPos
         AudioManager.setSoundFilter(self._autoSoundObject, self._buildAutoSoundFilter())
 
     def _buildAutoSoundFilter(self) -> SoundFilter:
@@ -556,6 +620,7 @@ class Actor(_ActorBase, BPBase):
 
         params = self.autoSoundParams
         position = self.getPosition()
+        maxDistance = float(params.maxDistance)
         return Filters.SoundFilter(
             volume=float(params.volume),
             spatial=True,
@@ -563,4 +628,6 @@ class Actor(_ActorBase, BPBase):
             relativeToListener=False,
             minDistance=float(params.minDistance),
             attenuation=float(params.attenuation),
+            loop=True if params.loop else None,
+            maxDistance=maxDistance if maxDistance > 0.0 else None,
         )

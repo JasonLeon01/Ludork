@@ -55,6 +55,7 @@ class WindowEnemyEncyclopedia(WindowBase):
         self._animatable = False
         self._switchInterval = 0.2
         self._switchTimer = 0.0
+        self.setCanReceiveFocus(True)
         self.setActive(False)
         self.setVisible(False)
 
@@ -79,6 +80,7 @@ class WindowEnemyEncyclopedia(WindowBase):
         self._buildSpecials(entry, specialY)
         self.setVisible(True)
         self.setActive(True)
+        self.requestKeyboardFocus()
 
     def close(self) -> None:
         r"""\brief Close the enemy encyclopedia window."""

@@ -23,6 +23,10 @@
     "zh_CN": "文件名",
     "en_GB": "File Name"
   },
+  "INVALID_FILE_NAME": {
+    "zh_CN": "文件名无效",
+    "en_GB": "Invalid file name"
+  },
   "DATA_FORMAT": {
     "zh_CN": "数据格式",
     "en_GB": "Data Format"
