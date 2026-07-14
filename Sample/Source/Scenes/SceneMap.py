@@ -2,7 +2,7 @@
 
 import os
 import threading
-from typing import Callable, List, Union, Optional, Dict, Any, Tuple
+from typing import Callable, List, Union, Optional, Dict, Any, Tuple, cast
 from Engine import (
     Pair,
     Vector2u,
@@ -80,7 +80,6 @@ class Scene(SceneBase):
 
     def onCreate(self) -> None:
         r"""\brief Create player HUD, message window, menu, and load the starting map."""
-        self.setHotKeyFilter("casual")
         self._uiManager.setFocusNavigationEnabled(True)
         self.player = self.inst.getPlayer()
         self._mapBuilder = SceneMapBuilder()
@@ -297,6 +296,33 @@ class Scene(SceneBase):
             return super().onFixedTick(fixedDelta)
         self._gameMap.onFixedTick(fixedDelta)
         return super().onFixedTick(fixedDelta)
+
+    def onInput(self) -> None:
+        r"""\brief Handle map hotkeys on the window thread."""
+        if self.isInputBlocked():
+            return
+        from Source.Config import HotKey
+
+        for key, hotKeyConfig in HotKey.items():
+            sceneType = hotKeyConfig.get("Scene")
+            if not isinstance(sceneType, type) or not isinstance(self, sceneType):
+                continue
+            hotKeyFilter = hotKeyConfig.get("Filter", [])
+            if not isinstance(hotKeyFilter, list) or "casual" not in hotKeyFilter:
+                continue
+            functionWhenPressed = cast(Optional[Callable], hotKeyConfig.get("FunctionWhenPressed"))
+            if self._isHotKeySceneMethod(sceneType, functionWhenPressed) and Input.getKeyPressed(key, handled=False):
+                functionWhenPressed(self)
+                Input.getKeyPressed(key, handled=True)
+            functionWhenReleased = cast(Optional[Callable], hotKeyConfig.get("FunctionWhenReleased"))
+            if self._isHotKeySceneMethod(sceneType, functionWhenReleased) and Input.getKeyReleased(key, handled=False):
+                functionWhenReleased(self)
+                Input.getKeyReleased(key, handled=True)
+
+    def _isHotKeySceneMethod(self, sceneType: type, function: Optional[Callable]) -> bool:
+        if function is None or not callable(function):
+            return False
+        return any(function in cls.__dict__.values() for cls in sceneType.__mro__)
 
     def onTick(self, deltaTime: float) -> None:
         r"""\brief Forward per-frame updates to the game map and handle menu open trigger.

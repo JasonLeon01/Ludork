@@ -12,6 +12,7 @@ for the Ludork sample project.
 - Player         Player entity
 - Enemy          Enemy entity
 - EnemyDamageText Enemy child actor that displays handbook battle damage
+- Components     Game-specific actor components
 - Item           Item entity
 - Teleporter     Mota floor teleporter actor
 - Door           Door actor with open/close sprite animations
@@ -20,6 +21,7 @@ for the Ludork sample project.
 
 from .System import System
 from . import NodeFunctions
+from . import Components
 from .Infos import ItemInfo, EnemyInfo
 from .Player import Player
 from .Enemy import Enemy
@@ -39,6 +41,7 @@ __all__ = [
     "Player",
     "Enemy",
     "EnemyDamageText",
+    "Components",
     "Item",
     "Equip",
     "Teleporter",

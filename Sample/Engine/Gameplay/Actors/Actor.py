@@ -7,7 +7,7 @@ from ... import Pair, BPBase, Vector2f, Vector2i, Vector2u, Vector3f, IntRect, T
 from ...Utils import Math, Inner
 from ...Filters import SoundFilter
 from ... import Material
-from ..Components import ChildActorComponent, LightComponent, componentFromData
+from ..Components import LightComponent, componentFromData
 from .Base import _ActorBase
 
 
@@ -55,7 +55,6 @@ class AutoSoundParams:
         "defaultScale": 'LOC("ACTOR_VAR_DEFAULT_SCALE")',
         "defaultOrigin": 'LOC("ACTOR_VAR_DEFAULT_ORIGIN")',
         "lightComp": 'LOC("ACTOR_VAR_LIGHT_COMP")',
-        "childActorComp": 'LOC("ACTOR_VAR_CHILD_ACTOR_COMP")',
     },
     VariableDisplayDescs={
         "tickable": 'LOC("ACTOR_VAR_TICKABLE_DESC")',
@@ -70,7 +69,6 @@ class AutoSoundParams:
         "defaultScale": 'LOC("ACTOR_VAR_DEFAULT_SCALE_DESC")',
         "defaultOrigin": 'LOC("ACTOR_VAR_DEFAULT_ORIGIN_DESC")',
         "lightComp": 'LOC("ACTOR_VAR_LIGHT_COMP_DESC")',
-        "childActorComp": 'LOC("ACTOR_VAR_CHILD_ACTOR_COMP_DESC")',
     },
 )
 class Actor(_ActorBase, BPBase):
@@ -86,7 +84,7 @@ class Actor(_ActorBase, BPBase):
     autoSound: str = ""  #: Sound asset played automatically as a spatial sound
     autoSoundInterval: float = 0.0  #: Delay between one automatic sound ending and the next starting
     autoSoundParams: AutoSoundParams = AutoSoundParams()  #: Parameters applied to the automatic spatial sound
-    _componentTypes = {"lightComp": LightComponent, "childActorComp": ChildActorComponent}
+    _componentTypes = {"lightComp": LightComponent}
     ### Generation use only
     texturePath: str = ""  #: Asset path to the character texture
     defaultRect: Optional[Tuple[Pair[int], Pair[int]]] = ((0, 0), (32, 32))  #: Default texture rectangle (origin, size)

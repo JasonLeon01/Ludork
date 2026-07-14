@@ -5,15 +5,20 @@ from math import ceil
 from typing import Any, Callable, Dict, Optional, Union, List, Tuple
 from Engine import Pair, Texture, IntRect
 from Engine.Gameplay.Actors import Actor
-from Engine.Gameplay.Components import ChildActorComponent, componentFromData
+from Engine.Gameplay.Components import componentFromData
 from . import Data
+from .Components import ChildActorComponent
 from .Configs.GeneralEnum import GeneralDataKey, Special, State
 from .Infos.EnemyInfo import EnemyInfo
 from .Battler import Battler, DamageType, EnemyInfoComponent
 from Source.NodeFunctions.Player import MeetPlayer
 
 
-@Meta(GeneralDataVars=[("ID", GeneralDataKey.Enemy)])
+@Meta(
+    GeneralDataVars=[("ID", GeneralDataKey.Enemy)],
+    VariableDisplayNames={"childActorComp": 'LOC("ACTOR_VAR_CHILD_ACTOR_COMP")'},
+    VariableDisplayDescs={"childActorComp": 'LOC("ACTOR_VAR_CHILD_ACTOR_COMP_DESC")'},
+)
 class Enemy(Actor, EnemyInfo, Battler):
     r"""
     \brief Scene enemy entity.
@@ -23,7 +28,11 @@ class Enemy(Actor, EnemyInfo, Battler):
     """
 
     ID: str = "FILL_IT_BY_YOURSELF"
-    _componentTypes = {**Actor._componentTypes, "infoComp": EnemyInfoComponent}
+    _componentTypes = {
+        **Actor._componentTypes,
+        "childActorComp": ChildActorComponent,
+        "infoComp": EnemyInfoComponent,
+    }
     infoComp: EnemyInfoComponent = EnemyInfoComponent()
     childActorComp: ChildActorComponent = ChildActorComponent(
         className="Source.EnemyDamageText.EnemyDamageText",

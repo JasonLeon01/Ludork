@@ -4,9 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple, TYPE_CHECKING
 
+from Engine.Gameplay.Components import Component
 from Engine.Utils.DataValue import resolveTypedDataValue
-
-from .Component import Component
 
 if TYPE_CHECKING:
     from Engine.Gameplay.Actors import Actor

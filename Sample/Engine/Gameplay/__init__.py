@@ -11,14 +11,13 @@ for building Ludork game scenes.
 - Actors       Actor and Character base classes
 """
 
-from .Components import ChildActorComponent, Component, LightComponent
+from .Components import Component, LightComponent
 from . import Actors
 from .InfoBase import InfoBase
 from .TileMap import TileLayerData, TileLayer, Tilemap
 
 __all__ = [
     "Component",
-    "ChildActorComponent",
     "LightComponent",
     "InfoBase",
     "TileLayerData",

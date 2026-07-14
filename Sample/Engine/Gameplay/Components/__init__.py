@@ -8,7 +8,6 @@ and initialising actor components.
 
 - Component            Base marker for editor-editable actor components
 - LightComponent       Self-light settings attached to an actor
-- ChildActorComponent  Child actor spawn settings attached to an actor
 """
 
 from __future__ import annotations
@@ -18,7 +17,6 @@ from typing import Any, Dict, List, Type
 
 from Engine.Utils.DataValue import evalDataExpression, resolveTypedDataValue, shouldEvalValueType
 
-from .ChildActorComponent import ChildActorComponent
 from .Component import Component
 from .LightComponent import LightComponent
 
@@ -251,7 +249,6 @@ def migrateLegacyComponentAttrs(cls: Any, attrs: Dict[str, Any]) -> bool:
 __all__ = [
     "Component",
     "LightComponent",
-    "ChildActorComponent",
     "isComponentType",
     "getComponentTypes",
     "getComponentFieldMap",

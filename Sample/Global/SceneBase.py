@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import threading
 import time
-from typing import Any, Callable, List, Optional, cast
+from typing import Any, Callable, List, Optional
 from Engine import Input, ParticleSystem
 from Engine.Utils import Event
 from . import Manager
@@ -19,8 +19,8 @@ from .UIManager import UIManager
 class SceneBase:
     r"""\brief Abstract base class for all game scenes.
 
-    Provides lifecycle hooks (onCreate, onEnter, onTick, onFixedTick, onLateTick,
-    onDestroy, onQuit), timer management, animation list management,
+    Provides lifecycle hooks (onCreate, onEnter, onInput, onTick, onFixedTick,
+    onLateTick, onDestroy, onQuit), timer management, animation list management,
     and a threaded logic loop.
     """
 
@@ -39,7 +39,6 @@ class SceneBase:
         self._logicThread: Optional[threading.Thread] = None
         self._logicStopEvent: threading.Event = threading.Event()
         self._logicDataLock: threading.RLock = threading.RLock()
-        self._hotKeyFilter: Optional[str] = None
         self._blockingTimerCount: int = 0
 
     def onEnter(self) -> None:
@@ -61,6 +60,10 @@ class SceneBase:
 
         Override to initialise scene resources and state.
         """
+        pass
+
+    def onInput(self) -> None:
+        r"""\brief Handle scene-specific input on the window thread."""
         pass
 
     def onTick(self, deltaTime: float) -> None:
@@ -90,14 +93,6 @@ class SceneBase:
         Override to release resources.
         """
         pass
-
-    @ExecSplit(default=(None,))
-    def setHotKeyFilter(self, hotKeyFilter: Optional[str]) -> None:
-        r"""\brief Set the active hotkey filter.
-
-        - \param hotKeyFilter Active filter name, or None to allow all scene hotkeys.
-        """
-        self._hotKeyFilter = hotKeyFilter
 
     @Latent(TimeUp=(True,))
     def addTimer(
@@ -194,7 +189,7 @@ class SceneBase:
         while System.isActive() and System.getScene() == self:
             System.applyPendingSceneReplace()
             Input.update(System.getWindow())
-            self._hotKeyHandle()
+            self.onInput()
             Manager.TimeManager.update()
             deltaTime = Manager.TimeManager.v_getDeltaTime()
             self._uiManager._updatePerformanceInfo(deltaTime)
@@ -292,40 +287,6 @@ class SceneBase:
             remain = logicFrameTime - elapsed
             if remain > 0:
                 time.sleep(remain)
-
-    def _hotKeyHandle(self) -> None:
-        if self.isInputBlocked():
-            return
-        from Source.Config import HotKey
-
-        for key, hotKeyConfig in HotKey.items():
-            sceneType = Cast(SceneBase, hotKeyConfig.get("Scene"))
-            if not isinstance(sceneType, type) or not isinstance(self, sceneType):
-                continue
-            if not self._isHotKeyFilterMatched(hotKeyConfig.get("Filter", [])):
-                continue
-            functionWhenPressed = cast(Callable, hotKeyConfig.get("FunctionWhenPressed"))
-            AssertType(functionWhenPressed, Optional[Callable])
-            if self._isHotKeySceneMethod(sceneType, functionWhenPressed) and Input.getKeyPressed(key, handled=False):
-                functionWhenPressed(self)
-                Input.getKeyPressed(key, handled=True)
-            functionWhenReleased = cast(Callable, hotKeyConfig.get("FunctionWhenReleased"))
-            AssertType(functionWhenReleased, Optional[Callable])
-            if self._isHotKeySceneMethod(sceneType, functionWhenReleased) and Input.getKeyReleased(key, handled=False):
-                functionWhenReleased(self)
-                Input.getKeyReleased(key, handled=True)
-
-    def _isHotKeySceneMethod(self, sceneType: type, function: Optional[Callable]) -> bool:
-        if function is None or not callable(function):
-            return False
-        return any(function in cls.__dict__.values() for cls in sceneType.__mro__)
-
-    def _isHotKeyFilterMatched(self, hotKeyFilter: Any) -> bool:
-        if self._hotKeyFilter is None:
-            return True
-        if not isinstance(hotKeyFilter, list):
-            return False
-        return self._hotKeyFilter in hotKeyFilter
 
     def _releaseBlockingTimer(self, taskEntry: TimerTaskEntry) -> None:
         if not taskEntry.blocking:
