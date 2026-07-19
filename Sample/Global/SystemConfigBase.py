@@ -118,9 +118,17 @@ class SystemConfigBase:
 
         - \param scale The configuration value to apply.
         """
-        cls._scale = float(scale)
+        cls.applyScale(scale)
         cls._setIniData("scale", cls._scale)
-        cls._afterConfigChanged("scale")
+
+    @classmethod
+    def applyScale(cls, scale: float) -> None:
+        r"""\brief Apply the scale at runtime without writing Main.ini.
+
+        - \param scale The configuration value to apply.
+        """
+        cls._scale = float(scale)
+        Engine.Scale = cls._scale
 
     @classmethod
     def saveScale(cls, scale: float) -> None:

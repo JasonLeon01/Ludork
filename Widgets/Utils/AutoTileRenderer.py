@@ -62,12 +62,12 @@ class AutoTileRenderer:
         if cached is not None:
             if tileSize == _CELL:
                 return cached
-            return cached.scaled(tileSize, tileSize, QtCore.Qt.IgnoreAspectRatio, QtCore.Qt.SmoothTransformation)
+            return cached.scaled(tileSize, tileSize, QtCore.Qt.IgnoreAspectRatio, QtCore.Qt.FastTransformation)
         result = self._composeTile(img, normalized, frameMod)
         self._tileCache[cacheKey] = result
         if tileSize == _CELL:
             return result
-        return result.scaled(tileSize, tileSize, QtCore.Qt.IgnoreAspectRatio, QtCore.Qt.SmoothTransformation)
+        return result.scaled(tileSize, tileSize, QtCore.Qt.IgnoreAspectRatio, QtCore.Qt.FastTransformation)
 
     def _loadSource(self, key: str) -> Optional[QtGui.QImage]:
         if key in self._sourceImages:

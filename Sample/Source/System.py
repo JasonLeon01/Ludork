@@ -96,11 +96,11 @@ class System:
         individual: Optional[str] = os.environ.get("INDIVIDUAL")
         canvasSize: Vector2u
         if handle and individual != "True":
-            contextSettings = ContextSettings(antiAliasingLevel=8)
+            contextSettings = ContextSettings(antiAliasingLevel=0)
             window = RenderWindow(int(handle), settings=contextSettings)
             windowSize = window.getSize()
             scale = min(windowSize.x / gameSize.x, windowSize.y / gameSize.y)
-            GlobalSystem.setScale(scale)
+            GlobalSystem.applyScale(scale)
             canvasSize = windowSize
             if handle:
                 from Engine import Input as EngineInput
@@ -118,7 +118,7 @@ class System:
             )
             screenSize = window.getSize()
             scale = min(screenSize.x / gameSize.x, screenSize.y / gameSize.y)
-            GlobalSystem.setScale(scale)
+            GlobalSystem.applyScale(scale)
             canvasW = int(gameSize.x * scale)
             canvasH = int(gameSize.y * scale)
             canvasSize = Vector2u(canvasW, canvasH)
@@ -136,7 +136,7 @@ class System:
             )
             window.setView(centredView)
         else:
-            contextSettings = ContextSettings(antiAliasingLevel=8)
+            contextSettings = ContextSettings(antiAliasingLevel=0)
             window = RenderWindow(
                 VideoMode(realSize),
                 cls._title,

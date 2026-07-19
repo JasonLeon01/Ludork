@@ -233,10 +233,12 @@ class System(SystemConfigBase):
         - \param size The canvas size in pixels.
         """
         cls._canvas = RenderTexture(size)
+        cls._canvas.setSmooth(False)
         cls._canvas.clear(Color.Transparent)
         cls._canvasSprite = Sprite(cls._canvas.getTexture())
         cls._transition = Texture(size)
         cls._transitionTempTexture = RenderTexture(size)
+        cls._transitionTempTexture.setSmooth(False)
         cls._transitionTempTexture.clear(Color.Transparent)
         cls._transitionSprite = Sprite(cls._transitionTempTexture.getTexture())
 

@@ -1496,6 +1496,7 @@ class EditorPanel(QtWidgets.QWidget):
                     px = gx0 * tileSize
                     py = gy0 * tileSize
                     p.save()
+                    p.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, False)
                     p.translate(px, py)
                     p.scale(displayScale, displayScale)
                     p.translate(translation[0], translation[1])
@@ -2512,6 +2513,7 @@ class EditorPanel(QtWidgets.QWidget):
             py = gy * tileSize
 
             painter.save()
+            painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, False)
             painter.translate(px, py)
             painter.scale(displayScale, displayScale)
             painter.translate(translation[0], translation[1])

@@ -1,32 +1,29 @@
 #include <MapImageBuffer.h>
 
 #include <algorithm>
-#include <cmath>
 #include <cstring>
 
 namespace {
 
-void sampleBilinearRGBA(const std::uint8_t *src, int srcW, int srcH, int srcStride, float fx,
-                        float fy, std::uint8_t out[4]) {
-    fx = std::max(0.0f, std::min(fx, static_cast<float>(srcW - 1)));
-    fy = std::max(0.0f, std::min(fy, static_cast<float>(srcH - 1)));
-    int x0 = static_cast<int>(fx);
-    int y0 = static_cast<int>(fy);
-    int x1 = std::min(x0 + 1, srcW - 1);
-    int y1 = std::min(y0 + 1, srcH - 1);
-    float tx = fx - static_cast<float>(x0);
-    float ty = fy - static_cast<float>(y0);
-
-    for (int c = 0; c < 4; ++c) {
-        float v00 = static_cast<float>(src[y0 * srcStride + x0 * 4 + c]);
-        float v10 = static_cast<float>(src[y0 * srcStride + x1 * 4 + c]);
-        float v01 = static_cast<float>(src[y1 * srcStride + x0 * 4 + c]);
-        float v11 = static_cast<float>(src[y1 * srcStride + x1 * 4 + c]);
-        float top = v00 + (v10 - v00) * tx;
-        float bottom = v01 + (v11 - v01) * tx;
-        float value = top + (bottom - top) * ty;
-        out[c] = static_cast<std::uint8_t>(std::max(0.0f, std::min(255.0f, value)));
+void sampleNearestRGBA(const std::uint8_t *src, int srcW, int srcH, int srcStride, float fx,
+                       float fy, std::uint8_t out[4]) {
+    int x = static_cast<int>(fx);
+    int y = static_cast<int>(fy);
+    if (x < 0) {
+        x = 0;
+    } else if (x >= srcW) {
+        x = srcW - 1;
     }
+    if (y < 0) {
+        y = 0;
+    } else if (y >= srcH) {
+        y = srcH - 1;
+    }
+    const std::uint8_t *sp = src + y * srcStride + x * 4;
+    out[0] = sp[0];
+    out[1] = sp[1];
+    out[2] = sp[2];
+    out[3] = sp[3];
 }
 
 }  // namespace
@@ -92,7 +89,7 @@ void blitRectScaled(const RgbaImageView &src, int srcX, int srcY, int srcW, int 
             float sampleX = static_cast<float>(srcX) + fx;
             float sampleY = static_cast<float>(srcY) + fy;
             std::uint8_t pixel[4];
-            sampleBilinearRGBA(src.data, src.w, src.h, src.stride, sampleX, sampleY, pixel);
+            sampleNearestRGBA(src.data, src.w, src.h, src.stride, sampleX, sampleY, pixel);
             if (pixel[3] == 0) {
                 continue;
             }

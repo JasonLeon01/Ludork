@@ -50,14 +50,12 @@ class Camera(Drawable, Transformable):
             self._viewport = FloatRect(Vector2f(0, 0), Math.ToVector2f(System.getGameSize()))
         self._renderTexture: RenderTexture
         assert isinstance(self._viewport, FloatRect)
-        size = Math.ToVector2u(self._viewport.size)
-        self._renderTexture = RenderTexture(size)
-        self._renderTexture.setView(View(self._viewport))
-        self._renderSprite = Sprite(self._renderTexture.getTexture())
+        self._renderSprite: Sprite
         self._canvases: List[RenderTexture] = []
         self._renderStates = Render.CanvasRenderStates()
         self._parent: Optional[Actor] = None
         self._map: Optional[GameMap] = None
+        self._rebuildRenderTexture()
 
     @ExecSplit(default=(None,))
     def setViewport(self, inViewport: FloatRect) -> None:
@@ -355,21 +353,25 @@ class Camera(Drawable, Transformable):
 
     @Meta(Vector2iVars=["point"])
     def mapPixelToCoords(self, point: Vector2i) -> Vector2f:
-        r"""\brief Convert a pixel position to world coordinates.
+        r"""\brief Convert a logical pixel position to world coordinates.
 
-        - \param point The pixel position.
+        - \param point The pixel position in logical game units.
         - \return The world coordinate position.
         """
-        return self._renderTexture.mapPixelToCoords(point, self._renderTexture.getView())
+        scale = self._displayScale()
+        scaled = Vector2i(int(round(point.x * scale)), int(round(point.y * scale)))
+        return self._renderTexture.mapPixelToCoords(scaled, self._renderTexture.getView())
 
     @Meta(Vector2fVars=["point"])
     def mapCoordsToPixel(self, point: Vector2f) -> Vector2i:
-        r"""\brief Convert world coordinates to a pixel position.
+        r"""\brief Convert world coordinates to a logical pixel position.
 
         - \param point The world coordinate position.
-        - \return The pixel position.
+        - \return The pixel position in logical game units.
         """
-        return self._renderTexture.mapCoordsToPixel(point, self._renderTexture.getView())
+        scale = self._displayScale()
+        scaled = self._renderTexture.mapCoordsToPixel(point, self._renderTexture.getView())
+        return Vector2i(int(round(scaled.x / scale)), int(round(scaled.y / scale)))
 
     def getTexture(self) -> Texture:
         r"""\brief Get the render texture.
@@ -450,8 +452,45 @@ class Camera(Drawable, Transformable):
     def display(self) -> None:
         self._renderTexture.display()
 
+    def _displayScale(self) -> float:
+        scale = float(System.getScale())
+        if scale <= 0.0:
+            return 1.0
+        return scale
+
+    def _renderPixelSize(self) -> Vector2u:
+        assert isinstance(self._viewport, FloatRect)
+        scale = self._displayScale()
+        return Math.ToVector2u(
+            Vector2f(
+                max(1.0, self._viewport.size.x * scale),
+                max(1.0, self._viewport.size.y * scale),
+            )
+        )
+
+    def _rebuildRenderTexture(self) -> None:
+        assert isinstance(self._viewport, FloatRect)
+        size = self._renderPixelSize()
+        self._renderTexture = RenderTexture(size)
+        self._renderTexture.setSmooth(False)
+        self._renderTexture.setView(View(self._viewport))
+        self._renderSprite = Sprite(self._renderTexture.getTexture())
+        scale = self._displayScale()
+        self._renderSprite.setScale(Vector2f(1.0 / scale, 1.0 / scale))
+        for i, canvas in enumerate(self._canvases):
+            if canvas.getSize() != size:
+                self._canvases[i] = RenderTexture(size)
+                self._canvases[i].setSmooth(False)
+            self._canvases[i].setView(View(self._viewport))
+
     def _refreshView(self) -> None:
+        assert isinstance(self._viewport, FloatRect)
+        if self._renderTexture.getSize() != self._renderPixelSize():
+            self._rebuildRenderTexture()
+            return
         view = View(self._viewport)
         self._renderTexture.setView(view)
+        scale = self._displayScale()
+        self._renderSprite.setScale(Vector2f(1.0 / scale, 1.0 / scale))
         for canvas in self._canvases:
             canvas.setView(view)

@@ -241,7 +241,9 @@ def _accessorLines(field: _ConfigField) -> List[str]:
     valueType = _typeAnnotation(field.valueType)
     member = field.member
     suffix = field.methodSuffix
-    getterReturn = "Engine.Scale" if field.key == "scale" else f"cls._{member}"
+    if field.key == "scale":
+        return _scaleAccessorLines(field)
+    getterReturn = f"cls._{member}"
     setterValue = _setterValue(field, member)
     saveValue = _saveValue(field, member)
     return [
@@ -262,6 +264,50 @@ def _accessorLines(field: _ConfigField) -> List[str]:
         f"        cls._{member} = {setterValue}",
         f"        cls._setIniData(\"{field.key}\", cls._{member})",
         f"        cls._afterConfigChanged(\"{field.key}\")",
+        "",
+        "    @classmethod",
+        f"    def save{suffix}(cls, {member}: {valueType}) -> None:",
+        f"        r\"\"\"\\brief Persist the {field.key} configuration value without applying it.",
+        "",
+        f"        - \\param {member} The configuration value to persist.",
+        "        \"\"\"",
+        f"        cls._setIniData(\"{field.key}\", {saveValue})",
+        "",
+    ]
+
+
+def _scaleAccessorLines(field: _ConfigField) -> List[str]:
+    valueType = _typeAnnotation(field.valueType)
+    member = field.member
+    suffix = field.methodSuffix
+    setterValue = _setterValue(field, member)
+    saveValue = _saveValue(field, member)
+    return [
+        "    @classmethod",
+        f"    def get{suffix}(cls) -> {valueType}:",
+        f"        r\"\"\"\\brief Get the {field.key} configuration value.",
+        "",
+        "        - \\return The current configuration value.",
+        "        \"\"\"",
+        "        return Engine.Scale",
+        "",
+        "    @classmethod",
+        f"    def set{suffix}(cls, {member}: {valueType}) -> None:",
+        f"        r\"\"\"\\brief Set and persist the {field.key} configuration value.",
+        "",
+        f"        - \\param {member} The configuration value to apply.",
+        "        \"\"\"",
+        f"        cls.apply{suffix}({member})",
+        f"        cls._setIniData(\"{field.key}\", cls._{member})",
+        "",
+        "    @classmethod",
+        f"    def apply{suffix}(cls, {member}: {valueType}) -> None:",
+        f"        r\"\"\"\\brief Apply the {field.key} at runtime without writing Main.ini.",
+        "",
+        f"        - \\param {member} The configuration value to apply.",
+        "        \"\"\"",
+        f"        cls._{member} = {setterValue}",
+        "        Engine.Scale = cls._scale",
         "",
         "    @classmethod",
         f"    def save{suffix}(cls, {member}: {valueType}) -> None:",
