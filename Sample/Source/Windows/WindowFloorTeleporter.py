@@ -226,7 +226,7 @@ class WindowFloorMapPreview(WindowSelectable):
             width = rect.size.x
         else:
             width = int(rect[1][0])
-        return max(1, int((width - 32) / 2))
+        return max(1, int((width - 64) / 2))
 
 
 class WindowFloorTeleporter:
