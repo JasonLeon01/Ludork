@@ -54,7 +54,7 @@
                         "nodeFunction": "NodeFunctions.Utils.GetGameVariableRef",
                         "params": [
                             "",
-                            "0"
+                            0
                         ],
                         "pos": [
                             0.0,

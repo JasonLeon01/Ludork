@@ -1902,5 +1902,29 @@
   "AI_STATUS_CONTINUE_RETRY": {
     "zh_CN": "任务尚未完成，继续执行...",
     "en_GB": "Task not finished, continuing..."
+  },
+  "CENTER_SYMMETRIC_TELEPORT": {
+    "zh_CN": "中心对称传送",
+    "en_GB": "Center-Symmetric Teleport"
+  },
+  "CENTER_SYMMETRIC_TELEPORT_DESC": {
+    "zh_CN": "将玩家传送到当前地图的中心对称格，目标必须可通行。",
+    "en_GB": "Teleport the player to the center-symmetric tile on the current map if passable."
+  },
+  "GO_UPSTAIRS_SAME_POS": {
+    "zh_CN": "上楼同坐标",
+    "en_GB": "Upstairs Same Position"
+  },
+  "GO_UPSTAIRS_SAME_POS_DESC": {
+    "zh_CN": "传送到上一层相同坐标，目标地图须存在且该格可通行。",
+    "en_GB": "Warp to the same coordinates on the floor above if the map exists and the tile is passable."
+  },
+  "GO_DOWNSTAIRS_SAME_POS": {
+    "zh_CN": "下楼同坐标",
+    "en_GB": "Downstairs Same Position"
+  },
+  "GO_DOWNSTAIRS_SAME_POS_DESC": {
+    "zh_CN": "传送到下一层相同坐标，目标地图须存在且该格可通行。",
+    "en_GB": "Warp to the same coordinates on the floor below if the map exists and the tile is passable."
   }
 }

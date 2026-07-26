@@ -2,9 +2,26 @@
 
 from __future__ import annotations
 import inspect
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Tuple, Union
 from .. import Pair
 from .Node import DataNode, Node
+
+
+@dataclass
+class _LoopFrame:
+    """Suspended ForLoop/ForEach state waiting for a latent body to finish."""
+
+    key: str
+    loopNodeIndex: int
+    remainingResults: List[Tuple[Any, ...]]
+    bodyStart: int
+    bodyCacheKeys: Set[Union[int, str]]
+    baseCache: Dict[Union[int, str], Tuple[Any, ...]]
+    lastResult: Tuple[Any, ...]
+    loopSteps: int
+    completedNext: Optional[int]
+    limit: int
 
 
 class Graph:
@@ -59,6 +76,9 @@ class Graph:
         self.doingPartKey: Optional[str] = None  # Current event key being executed
         self._executionLocked: Dict[str, bool] = {}  # Re-entrancy lock per event
         self._latentPendingCount: Dict[str, int] = {}  # Pending latent node count per event
+        self._executionCompleteCallbacks: Dict[str, List[Callable[[], None]]] = {}
+        self._suspendedByLatent: bool = False  # Set when execute hits a latent (or nested loop suspends)
+        self._loopFrames: List[_LoopFrame] = []  # Nested loop frames waiting on latent body completion
         self._deriveEventParamsFromParent()
         self.genNodesFromDataNodes()
         self.genRelationsFromLinks()
@@ -184,12 +204,15 @@ class Graph:
             if hasattr(nodeFunc, "_latents"):
                 condition = result[0] if isinstance(result, tuple) and len(result) > 0 else result
                 latentManager.add(self, key, condition, self.localGraph, curr, cache)
+                self._suspendedByLatent = True
                 return result
             if hasattr(nodeFunc, "_loopNode"):
                 curr, result, loopSteps = self._executeLoopNode(key, curr, result, cache, limit)
                 steps += loopSteps
                 if steps >= limit:
                     raise RuntimeError(f"Max steps {limit} exceeded while executing graph '{key}'")
+                if self._suspendedByLatent:
+                    return result
                 if curr is None:
                     return result
                 continue
@@ -244,28 +267,102 @@ class Graph:
         completedPin = self._getNamedExecPinIndex(nodeFunc, "Completed")
         bodyNext = nextMap.get(bodyPin) if bodyPin is not None else None
         completedNext = nextMap.get(completedPin) if completedPin is not None else None
+        completedNextIndex = completedNext[0] if completedNext is not None and isinstance(completedNext[0], int) else None
         lastResult = self._getLoopEmptyResult(nodeFunc)
         loopSteps = 0
 
         if bodyNext is not None and isinstance(bodyNext[0], int):
             bodyStart = bodyNext[0]
-            self._validateLoopBodyIsSynchronous(key, bodyStart)
             bodyCacheKeys = self._getLoopBodyCacheKeys(key, bodyStart)
-            for loopResult in self._iterLoopResults(nodeFunc, controlResult):
-                iterationCache = dict(cache)
-                for cacheKey in bodyCacheKeys:
-                    iterationCache.pop(cacheKey, None)
-                iterationCache[nodeIndex] = loopResult
-                self.execute(key, bodyStart, limit=limit, cache=iterationCache)
+            resultsIter = iter(list(self._iterLoopResults(nodeFunc, controlResult)))
+            for loopResult in resultsIter:
+                suspended = self._runLoopBodyIteration(
+                    key, nodeIndex, bodyStart, bodyCacheKeys, cache, loopResult, limit
+                )
                 lastResult = loopResult
                 loopSteps += 1
                 if loopSteps >= limit:
                     raise RuntimeError(f"Max steps {limit} exceeded while executing graph '{key}'")
+                if suspended:
+                    self._loopFrames.append(
+                        _LoopFrame(
+                            key=key,
+                            loopNodeIndex=nodeIndex,
+                            remainingResults=list(resultsIter),
+                            bodyStart=bodyStart,
+                            bodyCacheKeys=bodyCacheKeys,
+                            baseCache=cache,
+                            lastResult=lastResult,
+                            loopSteps=loopSteps,
+                            completedNext=completedNextIndex,
+                            limit=limit,
+                        )
+                    )
+                    self._suspendedByLatent = True
+                    return None, lastResult, loopSteps
 
         cache[nodeIndex] = lastResult
-        if completedNext is not None and isinstance(completedNext[0], int):
-            return completedNext[0], lastResult, loopSteps
+        if completedNextIndex is not None:
+            return completedNextIndex, lastResult, loopSteps
         return None, lastResult, loopSteps
+
+    def _runLoopBodyIteration(
+        self,
+        key: str,
+        loopNodeIndex: int,
+        bodyStart: int,
+        bodyCacheKeys: Set[Union[int, str]],
+        baseCache: Dict[Union[int, str], Tuple[Any, ...]],
+        loopResult: Tuple[Any, ...],
+        limit: int,
+    ) -> bool:
+        """Run one loop-body iteration. Returns True if suspended on a latent."""
+        iterationCache = dict(baseCache)
+        for cacheKey in bodyCacheKeys:
+            iterationCache.pop(cacheKey, None)
+        iterationCache[loopNodeIndex] = loopResult
+        self._suspendedByLatent = False
+        previousPartKey = self.doingPartKey
+        try:
+            self.execute(key, bodyStart, limit=limit, cache=iterationCache)
+        finally:
+            self.doingPartKey = previousPartKey
+        return self._suspendedByLatent
+
+    def resumeSuspendedLoops(self, key: str) -> None:
+        """Continue ForLoop/ForEach frames after a latent body iteration finishes."""
+        while self._loopFrames:
+            frame = self._loopFrames[-1]
+            if frame.key != key:
+                break
+            while frame.remainingResults:
+                loopResult = frame.remainingResults.pop(0)
+                suspended = self._runLoopBodyIteration(
+                    key,
+                    frame.loopNodeIndex,
+                    frame.bodyStart,
+                    frame.bodyCacheKeys,
+                    frame.baseCache,
+                    loopResult,
+                    frame.limit,
+                )
+                frame.lastResult = loopResult
+                frame.loopSteps += 1
+                if frame.loopSteps >= frame.limit:
+                    raise RuntimeError(f"Max steps {frame.limit} exceeded while executing graph '{key}'")
+                if suspended:
+                    return
+            self._loopFrames.pop()
+            frame.baseCache[frame.loopNodeIndex] = frame.lastResult
+            if frame.completedNext is not None:
+                self._suspendedByLatent = False
+                previousPartKey = self.doingPartKey
+                try:
+                    self.execute(key, frame.completedNext, limit=frame.limit, cache=frame.baseCache)
+                finally:
+                    self.doingPartKey = previousPartKey
+                if self._suspendedByLatent:
+                    return
 
     def _getNamedExecPinIndex(self, nodeFunc: Callable, pinName: str) -> Optional[int]:
         splits = getattr(nodeFunc, "_execSplits", None)
@@ -308,23 +405,6 @@ class Graph:
                 while current >= lastIndex:
                     yield (current,)
                     current += step
-
-    def _validateLoopBodyIsSynchronous(self, key: str, startNode: int) -> None:
-        visited = set()
-        stack = [startNode]
-        while stack:
-            nodeIndex = stack.pop()
-            if nodeIndex in visited:
-                continue
-            visited.add(nodeIndex)
-            if not isinstance(nodeIndex, int):
-                continue
-            nodeFunc = self.nodes[key][nodeIndex].nodeFunction
-            if hasattr(nodeFunc, "_latents"):
-                raise RuntimeError("Latent nodes are not supported inside ForLoop/ForEach body")
-            for nextNode, _ in self.nodeNexts.get(key, {}).get(nodeIndex, {}).values():
-                if isinstance(nextNode, int) and nextNode not in visited:
-                    stack.append(nextNode)
 
     def _getLoopBodyCacheKeys(self, key: str, startNode: int) -> set[Union[int, str]]:
         result: set[Union[int, str]] = set()
@@ -486,9 +566,27 @@ class Graph:
         count = self._latentPendingCount.get(key, 0)
         self._latentPendingCount[key] = max(0, count - 1)
 
+    def getLatentPendingCount(self, key: str) -> int:
+        """Return the number of unfinished latent nodes for an event."""
+        return self._latentPendingCount.get(key, 0)
+
+    def addExecutionCompleteCallback(self, key: str, callback: Callable[[], None]) -> None:
+        """Register a callback to run when execution for `key` fully completes."""
+        self._executionCompleteCallbacks.setdefault(key, []).append(callback)
+
     def completeExecution(self, key: str) -> None:
-        """Release the per-event execution lock after a graph run finishes."""
+        """Release the per-event execution lock after a graph run finishes.
+
+        Always unlocks re-entrancy so tick/events can continue driving latent
+        conditions (e.g. door openDoor via onTick SUPER). Completion callbacks
+        fire only after all pending latents for this event have resolved.
+        """
         self._executionLocked[key] = False
+        if self._latentPendingCount.get(key, 0) > 0:
+            return
+        callbacks = self._executionCompleteCallbacks.pop(key, [])
+        for callback in callbacks:
+            callback()
 
     def asDict(self) -> Dict[str, Any]:
         r"""Serialize the graph to a dictionary for storage.

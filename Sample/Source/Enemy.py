@@ -71,8 +71,6 @@ class Enemy(Actor, EnemyInfo, Battler):
     def battle(self):
         r"""\brief Perform battle calculations against the player.
 
-        On player victory, the enemy's `onDefeat` event is also fired.
-
         - \return 0 for win, 1 for lose or undefeatable opponent.
         """
         from Source.Scenes import Map
@@ -94,7 +92,6 @@ class Enemy(Actor, EnemyInfo, Battler):
         if not won:
             self._gameOver()
             return 1
-        self.triggerEvent("onDefeat")
         return 0
 
     def afterBattle(self, against: Battler) -> None:
@@ -161,12 +158,17 @@ class Enemy(Actor, EnemyInfo, Battler):
             def battleResult() -> None:
                 self._battleCondition = None
                 if result == 0:
-                    map.recordDestroyedActor(self)
-                    self.destroy()
-                    player.infoComp.GOLD += self.infoComp.GOLD
-                    player.infoComp.EXP += self.infoComp.EXP
+                    gold = self.infoComp.GOLD
+                    exp = self.infoComp.EXP
 
-                    self.afterBattle(player)
+                    def afterDefeat() -> None:
+                        map.recordDestroyedActor(self)
+                        self.destroy()
+                        player.infoComp.GOLD += gold
+                        player.infoComp.EXP += exp
+                        self.afterBattle(player)
+
+                    self.triggerEvent("onDefeat", onComplete=afterDefeat)
                 elif result == 1:
                     player.infoComp.HP = 0
 

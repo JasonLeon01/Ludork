@@ -301,6 +301,7 @@ class Actor(_ActorBase, BPBase):
         r"""Remove this actor from the current map and trigger `onDestroy`."""
         if self.isDestroyed():
             return
+        Actor.BlueprintEvent(self, Actor, "onDestroy")
         self.destroyed = True
         self._stopAutoSound()
         for child in list(self.getChildren()):

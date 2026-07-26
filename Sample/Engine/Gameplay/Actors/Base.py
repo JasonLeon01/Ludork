@@ -59,6 +59,8 @@ class _ActorBase(ActorCore, Sprite):
     Not intended to be instantiated directly; use `Actor` instead.
     """
 
+    collisionEnabled: bool = False  #: Whether collision blocking is enabled
+    tag: str = ""  #: Identifier tag
     switchInterval: float = 0.2  #: Frame switch interval for sprite animation (seconds)
     animatable: bool = False  #: Whether sprite-sheet animation is enabled
     material: Material = Material()  #: Surface material (lighting, speed, opacity)

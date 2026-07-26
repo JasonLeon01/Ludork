@@ -118,7 +118,7 @@ Rectangle {
                             if (onHandle) {
                                 root.dragMode = "resize"
                             } else if (inside && root.rectWidth > 0 && root.rectHeight > 0) {
-                                root.dragMode = "move"
+                                root.dragMode = (mouse.modifiers & Qt.ShiftModifier) ? "resize" : "move"
                             } else {
                                 var width = root.rectWidth > 0 ? root.rectWidth : rectViewerStep
                                 var height = root.rectHeight > 0 ? root.rectHeight : rectViewerStep

@@ -419,7 +419,8 @@ class Battler:
             1. attackDamage  = battler.getDamagePerRound(self)
             2. counterDamage = self.getDamagePerRound(battler)
             3. counterRounds = self.infoComp.MAXHP // attackDamage
-            4. totalDamage = counterRounds * counterDamage
+            4. if First: counterRounds += 1
+            5. totalDamage = counterRounds * counterDamage
 
         - \param battler The opposing battler (the attacker).
         - \return Tuple of (DamageType, accumulated damage on `battler`).
@@ -431,6 +432,8 @@ class Battler:
         if attackDamage <= 0:
             return (DamageType.UNDEFEATABLE, -1)
         counterRounds = max(0, int(self.infoComp.MAXHP) // attackDamage)
+        if self.hasSpecial(Special.First):
+            counterRounds += 1
         return (DamageType.NORMAL, max(0, counterRounds * counterDamage))
 
     @staticmethod

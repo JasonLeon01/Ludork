@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any, Callable, Dict, List, Optional, Protocol
 from ..BPBase import BPBase
 from ..NodeGraph import Graph
 
@@ -93,21 +93,30 @@ class InfoBase(BPBase):
         """
         return self._infoGraph is not None
 
-    def triggerEvent(self, eventName: str, **kwargs: Any) -> None:
+    def triggerEvent(
+        self,
+        eventName: str,
+        onComplete: Optional[Callable[[], None]] = None,
+        **kwargs: Any,
+    ) -> None:
         r"""Convenience method to trigger a blueprint event.
 
         For standalone Info objects, executes _infoGraph directly.
         For Actor-bridged objects, delegates to BPBase.BlueprintEvent.
 
         - \param eventName  Name of the event to trigger
+        - \param onComplete Optional callback invoked when the event fully finishes
+                            (including after any latent nodes resolve)
         - \param kwargs     Additional keyword arguments passed to the event
         """
         from .Actors.Base import _ActorBase
 
         if isinstance(self, _ActorBase) and self.getGraph() is not None:
-            self.BlueprintEvent(self, type(self), eventName, kwargs if kwargs else None)
-        else:
-            self._tryExecuteInfoGraph(self, eventName, kwargs if kwargs else {})
+            self.BlueprintEvent(
+                self, type(self), eventName, kwargs if kwargs else None, onComplete=onComplete
+            )
+        elif not self._tryExecuteInfoGraph(self, eventName, kwargs if kwargs else {}, onComplete=onComplete):
+            BPBase._invokeComplete(onComplete)
 
     @classmethod
     def getRegisteredEvents(cls) -> List[str]:

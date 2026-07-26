@@ -98,6 +98,8 @@ class LatentManager:
                 if isFinished:
                     self._removeLatentsForNode(graph, key, index)
                     graph.onLatentResolved(key)
+                    if graph.getLatentPendingCount(key) == 0:
+                        graph.resumeSuspendedLoops(key)
                     graph.completeExecution(key)
 
     def _normaliseResults(self, result: Any) -> List[Any]:

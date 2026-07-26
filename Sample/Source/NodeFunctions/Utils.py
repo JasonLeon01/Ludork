@@ -731,6 +731,9 @@ def IfGameVar(varName: str = "", op: str = "==", value: Any = None) -> bool:
         return current == value
     if op == "!=":
         return current != value
+    # Unset vars are treated as 0 for ordering, matching Enemy.afterBattleVarChanges.
+    if current is None:
+        current = 0
     if op == "<":
         return current < value
     if op == "<=":

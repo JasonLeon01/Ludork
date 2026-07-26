@@ -4,7 +4,7 @@ from __future__ import annotations
 import dis
 import inspect
 from types import CodeType
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 import re
 import traceback
 
@@ -36,7 +36,18 @@ class BPBase:
         BPBase._prepareImplementationCache(type(self))
 
     @staticmethod
-    def BlueprintEvent(obj: object, objType: type, eventName: str, kwargs: Dict[str, Any] = None) -> None:
+    def _invokeComplete(onComplete: Optional[Callable[[], None]]) -> None:
+        if onComplete is not None:
+            onComplete()
+
+    @staticmethod
+    def BlueprintEvent(
+        obj: object,
+        objType: type,
+        eventName: str,
+        kwargs: Dict[str, Any] = None,
+        onComplete: Optional[Callable[[], None]] = None,
+    ) -> None:
         r"""
         \brief Dispatch a blueprint event on the given object.
 
@@ -49,12 +60,16 @@ class BPBase:
         - \param objType    Expected type (used for isinstance check)
         - \param eventName  Name of the event to trigger (e.g. "onUse", "onCreate")
         - \param kwargs     Arguments passed to the event
+        - \param onComplete Optional callback invoked when the event fully finishes
+                            (including after any latent nodes resolve)
         """
         if kwargs is None:
             kwargs = {}
         if getattr(obj, "isDestroyed", lambda: False)():
+            BPBase._invokeComplete(onComplete)
             return
         if not isinstance(obj, objType):
+            BPBase._invokeComplete(onComplete)
             return
         from Engine.Gameplay.Actors.Base import _ActorBase
 
@@ -63,33 +78,42 @@ class BPBase:
         if isGenerated and graph is not None:
             if graph.hasKey(eventName):
                 if eventName in graph.startNodes and graph.startNodes[eventName] is not None:
-                    BPBase._executeGraph(graph, eventName, kwargs)
+                    if not BPBase._executeGraph(graph, eventName, kwargs, onComplete=onComplete):
+                        BPBase._invokeComplete(onComplete)
                     return
-                if BPBase._tryExecuteInfoGraph(obj, eventName, kwargs):
+                if BPBase._tryExecuteInfoGraph(obj, eventName, kwargs, onComplete=onComplete):
                     return
-            if BPBase._tryExecuteInfoGraph(obj, eventName, kwargs):
+            if BPBase._tryExecuteInfoGraph(obj, eventName, kwargs, onComplete=onComplete):
                 return
-            if BPBase.ExecuteParentEvent(obj, type(obj), eventName, kwargs=kwargs):
+            if BPBase.ExecuteParentEvent(obj, type(obj), eventName, kwargs=kwargs, onComplete=onComplete):
                 return
             method = getattr(obj, eventName, None)
             if callable(method):
                 method(**kwargs)
+            BPBase._invokeComplete(onComplete)
             return
 
-        if BPBase._tryExecuteInfoGraph(obj, eventName, kwargs):
+        if BPBase._tryExecuteInfoGraph(obj, eventName, kwargs, onComplete=onComplete):
             return
         method = getattr(obj, eventName, None)
         if callable(method):
             method(**kwargs)
+        BPBase._invokeComplete(onComplete)
 
     @staticmethod
-    def _tryExecuteInfoGraph(obj: object, eventName: str, kwargs: Dict[str, Any]) -> bool:
+    def _tryExecuteInfoGraph(
+        obj: object,
+        eventName: str,
+        kwargs: Dict[str, Any],
+        onComplete: Optional[Callable[[], None]] = None,
+    ) -> bool:
         r"""
         \brief Try to execute an event from the info-layer graph.
 
         - \param obj        Target object instance.
         - \param eventName  Name of the event to trigger.
         - \param kwargs     Arguments passed to the event.
+        - \param onComplete Optional callback invoked when the event fully finishes.
         - \return True if executed, False if no info graph or event not found.
         """
         from Engine.Gameplay.InfoBase import InfoBase
@@ -103,7 +127,9 @@ class BPBase:
             return False
         if eventName not in infoGraph.startNodes or infoGraph.startNodes[eventName] is None:
             return False
-        return BPBase._executeGraph(infoGraph, eventName, kwargs)
+        if not BPBase._executeGraph(infoGraph, eventName, kwargs, onComplete=onComplete):
+            BPBase._invokeComplete(onComplete)
+        return True
 
     @staticmethod
     def HasBlueprintEvent(obj: object, eventName: str) -> bool:
@@ -258,6 +284,7 @@ class BPBase:
         args: Optional[tuple] = None,
         kwargs: Optional[Dict[str, Any]] = None,
         localGraph: Optional[Dict[str, Any]] = None,
+        onComplete: Optional[Callable[[], None]] = None,
     ) -> bool:
         r"""
         \brief Execute an event from the parent of the given class.
@@ -268,6 +295,7 @@ class BPBase:
         - \param args       Positional event arguments.
         - \param kwargs     Keyword event arguments.
         - \param localGraph Local graph context to share with the parent graph.
+        - \param onComplete Optional callback invoked when the event fully finishes.
         - \return True if a parent graph or method handled the event.
         """
         parent_cls = getattr(cls, "__base__", None)
@@ -282,24 +310,39 @@ class BPBase:
             if parentGraphData:
                 graph = BPBase._getGeneratedClassGraph(obj, parent_cls, parentGraphData)
                 if eventName in graph.startNodes and graph.startNodes[eventName] is not None:
-                    return BPBase._executeGraph(graph, eventName, eventKwargs, localGraph)
-            return BPBase.ExecuteParentEvent(obj, parent_cls, eventName, kwargs=eventKwargs, localGraph=localGraph)
+                    if not BPBase._executeGraph(
+                        graph, eventName, eventKwargs, localGraph, onComplete=onComplete
+                    ):
+                        BPBase._invokeComplete(onComplete)
+                    return True
+            return BPBase.ExecuteParentEvent(
+                obj, parent_cls, eventName, kwargs=eventKwargs, localGraph=localGraph, onComplete=onComplete
+            )
 
         graph = getattr(parent_cls, "_graph", None)
         if graph is not None and graph.hasKey(eventName):
             if eventName in graph.startNodes and graph.startNodes[eventName] is not None:
-                return BPBase._executeGraph(graph, eventName, eventKwargs, localGraph)
-            return BPBase.ExecuteParentEvent(obj, parent_cls, eventName, kwargs=eventKwargs, localGraph=localGraph)
+                if not BPBase._executeGraph(
+                    graph, eventName, eventKwargs, localGraph, onComplete=onComplete
+                ):
+                    BPBase._invokeComplete(onComplete)
+                return True
+            return BPBase.ExecuteParentEvent(
+                obj, parent_cls, eventName, kwargs=eventKwargs, localGraph=localGraph, onComplete=onComplete
+            )
 
         method = getattr(parent_cls, eventName, None)
         if method is None:
-            return BPBase.ExecuteParentEvent(obj, parent_cls, eventName, kwargs=eventKwargs, localGraph=localGraph)
+            return BPBase.ExecuteParentEvent(
+                obj, parent_cls, eventName, kwargs=eventKwargs, localGraph=localGraph, onComplete=onComplete
+            )
         try:
             method(obj, **eventKwargs)
         except Exception as e:
             raise RuntimeError(
                 "Parent class graph not found or something else went wrong. ", traceback.format_exc()
             ) from e
+        BPBase._invokeComplete(onComplete)
         return True
 
     @staticmethod
@@ -308,9 +351,12 @@ class BPBase:
         eventName: str,
         kwargs: Dict[str, Any],
         localGraph: Optional[Dict[str, Any]] = None,
+        onComplete: Optional[Callable[[], None]] = None,
     ) -> bool:
         if not graph.tryLockExecution(eventName):
             return False
+        if onComplete is not None:
+            graph.addExecutionCompleteCallback(eventName, onComplete)
         oldLocalGraph = graph.localGraph
         if localGraph is not None:
             graph.localGraph = localGraph

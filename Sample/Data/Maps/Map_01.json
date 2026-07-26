@@ -1782,6 +1782,30 @@
                     6,
                     1
                 ]
+            },
+            {
+                "tag": "Data.Blueprints.Items.BP_Item_CentreFly_default_11_11",
+                "bp": "Data.Blueprints.Items.BP_Item_CentreFly",
+                "position": [
+                    11,
+                    11
+                ]
+            },
+            {
+                "tag": "Data.Blueprints.Items.BP_Item_FloorUp_default_12_11",
+                "bp": "Data.Blueprints.Items.BP_Item_FloorUp",
+                "position": [
+                    12,
+                    11
+                ]
+            },
+            {
+                "tag": "Data.Blueprints.Items.BP_Item_FloorDown_default_10_12",
+                "bp": "Data.Blueprints.Items.BP_Item_FloorDown",
+                "position": [
+                    10,
+                    12
+                ]
             }
         ]
     },

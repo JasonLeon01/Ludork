@@ -5,6 +5,7 @@ import threading
 from typing import Callable, List, Union, Optional, Dict, Any, Tuple, cast
 from Engine import (
     Pair,
+    Vector2i,
     Vector2u,
     Vector2f,
     Color,
@@ -814,6 +815,60 @@ class Scene(SceneBase):
         self.inst.applyMapInfo(targetMap, pos)
         if not blockTransition:
             GlobalSystem.requestTransition(_MAP_TRANSITION_NAME, _MAP_TRANSITION_TIME)
+
+    def tryCenterSymmetricTeleport(self) -> bool:
+        r"""\brief Teleport the player to the center-symmetric tile if passable.
+
+        - \return True when the teleport succeeds.
+        """
+        gameMap = self.getGameMap()
+        player = gameMap.getPlayer()
+        if player is None:
+            return False
+        size = gameMap.getSize()
+        pos = player.getMapPosition()
+        target = Vector2i(int(size.x) - 1 - int(pos.x), int(size.y) - 1 - int(pos.y))
+        if not gameMap.isPassable(player, target):
+            return False
+        player.setMapPosition(Vector2u(target.x, target.y))
+        return True
+
+    def tryAdjacentFloorSamePos(self, step: int) -> bool:
+        r"""\brief Warp to the same coordinates on an adjacent region floor if passable.
+
+        - \param step Region list offset; ``+1`` upstairs, ``-1`` downstairs.
+        - \return True when the warp succeeds.
+        """
+        from Source.Config.RegionDict import RegionDict
+        from Source.Teleporter import Teleporter
+
+        gameMap = self.getGameMap()
+        player = gameMap.getPlayer()
+        if player is None:
+            return False
+        sourceMap = self._cachedMapFile
+        if not sourceMap:
+            return False
+        regionMaps = RegionDict.get(self.inst.getCurrentRegion(), [])
+        currentIndex = Teleporter._findCurrentMapIndex(regionMaps, sourceMap)
+        if currentIndex is None:
+            return False
+        targetIndex = currentIndex + step
+        if targetIndex < 0 or targetIndex >= len(regionMaps):
+            return False
+        targetMap = self.resolveRegionMapPath(regionMaps[targetIndex])
+        if not os.path.exists(self._mapBuilder.getMapDataPath(targetMap)):
+            return False
+        sourcePos = player.getMapPosition()
+        targetPos = Vector2u(int(sourcePos.x), int(sourcePos.y))
+        self.gotoMapAndPos(targetMap, targetPos, True)
+        targetGameMap = self.getGameMap()
+        targetPlayer = targetGameMap.getPlayer()
+        if targetPlayer is None or not targetGameMap.isPassable(targetPlayer, targetPlayer.getMapPosition()):
+            self.gotoMapAndPos(sourceMap, Vector2u(int(sourcePos.x), int(sourcePos.y)), True)
+            return False
+        GlobalSystem.requestTransition(_MAP_TRANSITION_NAME, _MAP_TRANSITION_TIME)
+        return True
 
     @ExecSplit(default=(None,))
     def recordAddedActor(self, actor: Actor) -> None:
