@@ -1,12 +1,38 @@
 {
-    "version":"0.2.0",
+    "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch Ludork Project",
-            "type": "debugpy",
+            "name": "Ludork: Build and Launch Debug (Windows)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/Debug/Main.exe",
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false,
+            "externalConsole": false,
+            "preLaunchTask": "Ludork: Build Debug (Windows)"
+        },
+        {
+            "name": "Ludork: Attach to Editor Run (Windows)",
+            "type": "cppvsdbg",
             "request": "attach",
-            "port": 2333,
-            "host": "localhost"
+            "program": "${workspaceFolder}/bin/Debug/Main.exe",
+            "cwd": "${workspaceFolder}",
+            "processId": "${command:pickProcess}"
+        },
+        {
+            "name": "Ludork: Build and Launch Debug (macOS)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/Debug/Main",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "Ludork: Build Debug (macOS)"
+        },
+        {
+            "name": "Ludork: Attach to Editor Run (macOS)",
+            "type": "lldb",
+            "request": "attach",
+            "program": "${workspaceFolder}/bin/Debug/Main",
+            "pid": "${command:pickMyProcess}"
         }
     ]
 }

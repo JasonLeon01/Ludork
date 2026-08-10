@@ -1,0 +1,225 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 640,
+    "height": 480
+  },
+  "palette": {
+    "exposed": true,
+    "displayName": "Window Enemy Encyclopedia",
+    "category": "Windows"
+  },
+  "root": {
+    "id": "ab0ece77-af4e-4a1c-8b00-6ed887185a9b",
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        640,
+        480
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "id": "89008bc8-346d-4a58-abfa-b6cae9f7e816",
+        "name": "WindowFrame",
+        "controlId": "Engine.Window",
+        "properties": {
+          "size": [
+            640,
+            480
+          ],
+          "windowSkin": "",
+          "repeated": false
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [1.0, 1.0]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": false,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "id": "34584a2d-ee38-4e5b-892b-82c53a42e332",
+        "name": "Content",
+        "controlId": "Engine.Canvas",
+        "properties": {
+          "size": [
+            608,
+            448
+          ]
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [1.0, 1.0]
+          },
+          "offsets": {
+            "left": 16.0,
+            "top": 16.0,
+            "right": 16.0,
+            "bottom": 16.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": false,
+          "zOrder": 1
+        },
+        "editor": {},
+        "children": [
+          {
+            "id": "c86ecb12-3665-4a02-b47d-8f98cc9f9292",
+            "name": "Portrait",
+            "controlId": "Engine.FunctionalImage",
+            "properties": {
+              "texture": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [0.0, 0.0],
+                "max": [0.0, 0.0]
+              },
+              "offsets": {
+                "left": 304.0,
+                "top": 0.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [0.5, 0.0],
+              "autoSize": true,
+              "zOrder": 0
+            },
+            "editor": {},
+            "children": []
+          },
+          {
+            "id": "18b41ebd-8a06-401f-a0a3-9d3d3587d4ad",
+            "name": "Name",
+            "controlId": "Engine.FunctionalPlainText",
+            "properties": {
+              "textConfig": "UI/Text20",
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [0.5, 0.0],
+                "max": [0.5, 0.0]
+              },
+              "offsets": {
+                "left": 0.0,
+                "top": 168.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [0.5, 0.0],
+              "autoSize": true,
+              "zOrder": 1
+            },
+            "editor": {
+              "previewText": "Ancient Dragon"
+            },
+            "children": []
+          },
+          {
+            "id": "3193170a-35cf-428e-9c5e-10f9ca648089",
+            "name": "InfoLayer",
+            "controlId": "Engine.Canvas",
+            "properties": {
+              "size": [
+                608,
+                96
+              ]
+            },
+            "slot": {
+              "anchors": {
+                "min": [0.0, 0.0],
+                "max": [0.0, 0.0]
+              },
+              "offsets": {
+                "left": 0.0,
+                "top": 196.0,
+                "right": 608.0,
+                "bottom": 96.0
+              },
+              "alignment": [0.0, 0.0],
+              "autoSize": false,
+              "zOrder": 2
+            },
+            "editor": {},
+            "children": []
+          },
+          {
+            "id": "008503cc-78f7-4bda-aa92-16b7e5f60498",
+            "name": "Description",
+            "controlId": "Engine.FunctionalPlainText",
+            "properties": {
+              "textConfig": "UI/LeftText16",
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [0.0, 0.0],
+                "max": [0.0, 0.0]
+              },
+              "offsets": {
+                "left": 0.0,
+                "top": 300.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [0.0, 0.0],
+              "autoSize": true,
+              "zOrder": 3
+            },
+            "editor": {
+              "previewText": "A fearsome enemy from the deepest floor."
+            },
+            "children": []
+          },
+          {
+            "id": "4e4ecb85-939e-4821-8121-98fc7edb26ba",
+            "name": "SpecialList",
+            "controlId": "Engine.ListView",
+            "properties": {
+              "size": [
+                608,
+                96
+              ],
+              "defaultItemHeight": 32,
+              "fixItemHeight": false,
+              "columns": 1
+            },
+            "slot": {
+              "anchors": {
+                "min": [0.0, 0.0],
+                "max": [1.0, 1.0]
+              },
+              "offsets": {
+                "left": 0.0,
+                "top": 360.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [0.0, 0.0],
+              "autoSize": false,
+              "zOrder": 4
+            },
+            "editor": {},
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

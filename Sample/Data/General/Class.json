@@ -1,0 +1,27 @@
+{
+    "params": {
+        "name": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "desc": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "slot": {
+            "type": "dict",
+            "defaultValue": {}
+        }
+    },
+    "members": {
+        "Warrior": {
+            "name": "{WARRIOR}",
+            "desc": "{WARRIOR_DESC}",
+            "slot": {
+                "weapon": "",
+                "shield": "",
+                "accessory": ""
+            }
+        }
+    }
+}

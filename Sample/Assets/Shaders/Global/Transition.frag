@@ -1,3 +1,10 @@
+#ifdef GL_ES
+precision highp float;
+varying mediump vec4 sf_TexCoord0;
+#else
+varying vec4 sf_TexCoord0;
+#endif
+
 uniform sampler2D screenTex;
 uniform sampler2D backTex;
 uniform sampler2D transitionResource;
@@ -9,7 +16,7 @@ void main()
 {
     float t = totalTime <= 0.0 ? 1.0 : clamp(progress / totalTime, 0.0, 1.0);
 
-    vec2 uv = gl_TexCoord[0].xy;
+    vec2 uv = sf_TexCoord0.xy;
     vec3 front = texture2D(screenTex, clamp(uv, 0.0, 1.0)).rgb;
     vec3 back = texture2D(backTex, clamp(uv, 0.0, 1.0)).rgb;
 

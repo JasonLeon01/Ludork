@@ -2,21 +2,19 @@
     "parent": "Source.Item",
     "attrs": {
         "material": {
-            "lightBlock": 0.30000000000000004,
+            "lightBlock": 0.24,
             "mirror": false,
             "reflectionStrength": 0.5,
             "opacity": 1.0,
             "speedRate": 1.0
         },
         "collisionEnabled": true,
-        "tickable": true,
+        "tickable": false,
         "texturePath": "items/classic-items.png",
         "defaultRect": [
             [
                 192,
-                32
-            ],
-            [
+                32,
                 32,
                 32
             ]

@@ -1,0 +1,45 @@
+---@meta Source.Windows.WindowItem
+---
+--- Shows player inventory items in a grid with icons and counts.
+--- Uses WindowSelectable for keyboard/mouse navigation.
+---@class Source.Windows.WindowItem: Source.Windows.Base.WindowSelectable
+---@field _onCloseCallback function | nil
+---@field _onUseCallback function | nil
+---@field new fun(rect: sf.IntRect, player: Source.Player.Player, onClose?: function): Source.Windows.WindowItem
+---@field _player Source.Player.Player
+local WindowItem = {}
+
+--- @brief Construct the item window.
+---
+--- - @param rect The window rectangle.
+--- - @param player The player instance with inventory.
+--- - @param onClose Optional callback invoked when the window is closed.
+---@param rect    sf.IntRect
+---@param player  Source.Player.Player
+---@param onClose function | nil
+function WindowItem:init(rect, player, onClose) end
+
+--- @brief Update item window and render item cells.
+---
+--- - @param deltaTime Elapsed time in seconds.
+---@param deltaTime number
+function WindowItem:onTick(deltaTime) end
+
+--- @brief Handle cancel and confirm keys for the item window.
+---
+--- - @param kwargs Event data.
+---@param kwargs table
+function WindowItem:onKeyDown(kwargs) end
+
+--- @brief Handle mouse cancel to close the item window.
+---@param kwargs table
+---@return boolean
+function WindowItem:onMouseButtonDown(kwargs) end
+
+--- @brief Open the item window, refreshing inventory first.
+function WindowItem:open() end
+
+--- @brief Close the item window.
+function WindowItem:close() end
+
+return WindowItem

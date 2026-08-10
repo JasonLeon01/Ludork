@@ -1,0 +1,129 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:nodify="clr-namespace:NodifyM.Avalonia.Controls;assembly=NodifyM.Avalonia"
+             xmlns:converters="clr-namespace:NodifyM.Avalonia.Converters;assembly=NodifyM.Avalonia"
+             xmlns:local="clr-namespace:Ludork.Views.Utils.BlueprintGraph"
+             x:Class="Ludork.Views.Utils.BlueprintGraph.BlueprintGraphControl"
+             x:DataType="local:BlueprintGraphEditorViewModel"
+             Focusable="True">
+    <Grid Background="#1c1c1c">
+        <nodify:NodifyEditor x:Name="Editor"
+                             ItemsSource="{Binding Nodes}"
+                             SelectedItems="{Binding SelectedNodes}"
+                             Connections="{Binding Connections}"
+                             PendingConnection="{Binding PendingConnection}"
+                             DisconnectConnectorCommand="{Binding DisconnectConnectorCommand}"
+                             Background="Transparent">
+            <nodify:NodifyEditor.Resources>
+                <converters:FlowToDirectionConverter x:Key="FlowToDirectionConverter" />
+            </nodify:NodifyEditor.Resources>
+            <nodify:NodifyEditor.GridLineTemplate>
+                <DataTemplate>
+                    <nodify:LargeGridLine Width="{Binding $parent[nodify:NodifyEditor].Bounds.Width}"
+                                          Height="{Binding $parent[nodify:NodifyEditor].Bounds.Height}"
+                                          OffsetX="{Binding $parent[nodify:NodifyEditor].OffsetX}"
+                                          OffsetY="{Binding $parent[nodify:NodifyEditor].OffsetY}"
+                                          Zoom="{Binding $parent[nodify:NodifyEditor].Zoom}"
+                                          Spacing="32"
+                                          Thickness="0.5"
+                                          Brush="#353535"
+                                          ZIndex="-2" />
+                </DataTemplate>
+            </nodify:NodifyEditor.GridLineTemplate>
+            <nodify:NodifyEditor.ConnectionTemplate>
+                <DataTemplate x:DataType="local:BlueprintGraphConnectionViewModel">
+                    <nodify:Connection Source="{Binding Source.Anchor}"
+                                       Target="{Binding Target.Anchor}"
+                                       Stroke="{Binding Stroke}"
+                                       StrokeThickness="3"
+                                       Focusable="True"
+                                       DisconnectCommand="{Binding DisconnectConnectionCommand}"
+                                       Direction="{Binding ., Converter={StaticResource FlowToDirectionConverter}}" />
+                </DataTemplate>
+            </nodify:NodifyEditor.ConnectionTemplate>
+            <nodify:NodifyEditor.PendingConnectionTemplate>
+                <DataTemplate x:DataType="local:BlueprintPendingConnectionViewModel">
+                    <nodify:PendingConnection StartedCommand="{Binding StartCommand}"
+                                              CompletedCommand="{Binding CompleteCommand}"
+                                              EnablePreview="True"
+                                              EnableSnapping="True"
+                                              Stroke="#ffd740"
+                                              Background="#ccffd740"
+                                              Direction="{Binding Source.Flow, Converter={StaticResource FlowToDirectionConverter}}"
+                                              PreviewTarget="{Binding PreviewTarget, Mode=OneWayToSource}" />
+                </DataTemplate>
+            </nodify:NodifyEditor.PendingConnectionTemplate>
+            <nodify:NodifyEditor.ItemTemplate>
+                <DataTemplate x:DataType="local:BlueprintGraphNodeViewModel">
+                    <nodify:Node Input="{Binding Input}"
+                                 Output="{Binding Output}"
+                                 Location="{Binding Location, Mode=TwoWay}"
+                                 HeaderBrush="{Binding HeaderBrush}"
+                                 IsResize="False"
+                                 ToolTip.Tip="{Binding ToolTip}">
+                        <nodify:Node.ContentBrush>
+                            <SolidColorBrush Color="#2a2a2a" />
+                        </nodify:Node.ContentBrush>
+                        <nodify:Node.Header>
+                            <Grid ColumnDefinitions="24,*,Auto"
+                                  MinWidth="190">
+                                <TextBlock Grid.Column="0"
+                                           Text="{Binding StartMarker}"
+                                           Foreground="#ffd740"
+                                           FontSize="16"
+                                           FontWeight="Bold"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Title}"
+                                           FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="2"
+                                           Text="!"
+                                           IsVisible="{Binding IsUnresolved}"
+                                           Foreground="#ff8a80"
+                                           FontWeight="Bold"
+                                           Margin="8,0,0,0"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+                        </nodify:Node.Header>
+                        <nodify:Node.InputConnectorTemplate>
+                            <DataTemplate x:DataType="local:BlueprintGraphPortViewModel">
+                                <nodify:NodeInput IsConnected="{Binding IsConnected}"
+                                                  Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                                  BorderBrush="{Binding Brush}">
+                                    <nodify:NodeInput.Header>
+                                        <StackPanel Spacing="3"
+                                                    MinWidth="180"
+                                                    MaxWidth="300">
+                                            <TextBlock Text="{Binding DisplayTitle}"
+                                                       Foreground="#eeeeee"
+                                                       TextWrapping="Wrap" />
+                                            <ContentControl Content="{Binding Editor}"
+                                                            IsVisible="{Binding IsEditorVisible}"
+                                                            HorizontalContentAlignment="Stretch" />
+                                        </StackPanel>
+                                    </nodify:NodeInput.Header>
+                                </nodify:NodeInput>
+                            </DataTemplate>
+                        </nodify:Node.InputConnectorTemplate>
+                        <nodify:Node.OutputConnectorTemplate>
+                            <DataTemplate x:DataType="local:BlueprintGraphPortViewModel">
+                                <nodify:NodeOutput IsConnected="{Binding IsConnected}"
+                                                   Anchor="{Binding Anchor, Mode=OneWayToSource}"
+                                                   BorderBrush="{Binding Brush}">
+                                    <nodify:NodeOutput.Header>
+                                        <TextBlock Text="{Binding DisplayTitle}"
+                                                   Foreground="#eeeeee"
+                                                   TextWrapping="Wrap"
+                                                   MaxWidth="220" />
+                                    </nodify:NodeOutput.Header>
+                                </nodify:NodeOutput>
+                            </DataTemplate>
+                        </nodify:Node.OutputConnectorTemplate>
+                    </nodify:Node>
+                </DataTemplate>
+            </nodify:NodifyEditor.ItemTemplate>
+        </nodify:NodifyEditor>
+    </Grid>
+</UserControl>

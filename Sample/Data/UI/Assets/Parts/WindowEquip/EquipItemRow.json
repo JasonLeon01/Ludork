@@ -1,0 +1,97 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 32,
+    "height": 32
+  },
+  "palette": {
+    "exposed": false,
+    "displayName": "Equip Item Row",
+    "category": "Windows"
+  },
+  "root": {
+    "id": "dd6c8b18-c411-49cb-8f71-81ec7f540f83",
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        32,
+        32
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "id": "15bfbe0f-9f34-462d-8bd4-886af6c7892d",
+        "name": "Icon",
+        "controlId": "Engine.FunctionalImage",
+        "properties": {
+          "texture": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              0.0,
+              0.0
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": true,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "id": "0d361e04-9333-4946-83ef-31f0a1a24e35",
+        "name": "Count",
+        "controlId": "Engine.FunctionalPlainText",
+        "properties": {
+          "textConfig": "UI/RightText12",
+          "text": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              1.0,
+              1.0
+            ],
+            "max": [
+              1.0,
+              1.0
+            ]
+          },
+          "offsets": {
+            "left": -1.0,
+            "top": -1.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            1.0,
+            1.0
+          ],
+          "autoSize": true,
+          "zOrder": 1
+        },
+        "editor": {
+          "previewText": "99"
+        },
+        "children": []
+      }
+    ]
+  }
+}

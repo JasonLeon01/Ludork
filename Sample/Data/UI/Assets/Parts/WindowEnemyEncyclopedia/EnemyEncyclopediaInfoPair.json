@@ -1,0 +1,82 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 200,
+    "height": 32
+  },
+  "palette": {
+    "exposed": false,
+    "displayName": "Enemy Encyclopedia Info Pair",
+    "category": "Rows"
+  },
+  "root": {
+    "id": "930bebc9-7dd3-463c-a062-fe8eb295ba15",
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        200,
+        32
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "id": "93f242a5-4f28-4ba2-9c99-0b3cab58c7e8",
+        "name": "Label",
+        "controlId": "Engine.FunctionalPlainText",
+        "properties": {
+          "textConfig": "UI/LeftText16",
+          "text": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 0
+        },
+        "editor": {
+          "previewText": "HP"
+        },
+        "children": []
+      },
+      {
+        "id": "f9444892-64c8-4f97-b5ab-c3b41440791f",
+        "name": "Value",
+        "controlId": "Engine.FunctionalPlainText",
+        "properties": {
+          "textConfig": "UI/RightText16",
+          "text": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 176.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 1
+        },
+        "editor": {
+          "previewText": "999"
+        },
+        "children": []
+      }
+    ]
+  }
+}

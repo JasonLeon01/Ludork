@@ -3,7 +3,7 @@
     "attrs": {
         "ID": "Sword_A",
         "material": {
-            "lightBlock": 0.30000000000000004,
+            "lightBlock": 0.24,
             "mirror": false,
             "reflectionStrength": 0.5,
             "opacity": 1.0,
@@ -14,9 +14,7 @@
         "defaultRect": [
             [
                 0,
-                64
-            ],
-            [
+                64,
                 32,
                 32
             ]

@@ -1,8 +1,10 @@
 {
-    "parent": "Source.Consumables.Bottle.Bottle",
+    "parent": "Engine.Actor",
     "attrs": {
+        "scriptMixin": true,
+        "scriptPath": "Consumables/Bottle.lua",
         "material": {
-            "lightBlock": 0.20000000000000004,
+            "lightBlock": 0.16,
             "mirror": false,
             "reflectionStrength": 0.5,
             "opacity": 1.0,

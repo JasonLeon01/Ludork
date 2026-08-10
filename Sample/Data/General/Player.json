@@ -1,0 +1,65 @@
+{
+    "params": {
+        "name": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "desc": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "CLASS": {
+            "type": "string",
+            "defaultValue": "",
+            "reference": {
+                "kind": "general",
+                "key": "Class"
+            }
+        },
+        "MAXHP": {
+            "type": "int",
+            "defaultValue": 1000
+        },
+        "ATK": {
+            "type": "int",
+            "defaultValue": 10
+        },
+        "DEF": {
+            "type": "int",
+            "defaultValue": 10
+        },
+        "EXP": {
+            "type": "int",
+            "defaultValue": 0
+        },
+        "GOLD": {
+            "type": "int",
+            "defaultValue": 0
+        },
+        "LEVEL": {
+            "type": "int",
+            "defaultValue": 1
+        },
+        "ANIMATION_KEY": {
+            "type": "string",
+            "defaultValue": "",
+            "reference": {
+                "kind": "animation"
+            }
+        }
+    },
+    "members": {
+        "Bravor": {
+            "name": "{BRAVOR}",
+            "desc": "{BRAVOR_DESC}",
+            "CLASS": "Warrior",
+            "MAXHP": 2000,
+            "ATK": 10,
+            "DEF": 10,
+            "EXP": 0,
+            "GOLD": 0,
+            "LEVEL": 1,
+            "ANIMATION_KEY": "attack"
+        }
+    }
+}

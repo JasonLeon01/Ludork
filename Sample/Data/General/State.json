@@ -1,0 +1,71 @@
+{
+    "params": {
+        "name": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "desc": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "icon": {
+            "type": "file",
+            "defaultValue": "Icons"
+        },
+        "stackable": {
+            "type": "bool",
+            "defaultValue": false
+        }
+    },
+    "members": {
+        "Poisoned": {
+            "name": "{POISONED}",
+            "desc": "{POISONED_DESC}",
+            "_graph": {
+                "nodeGraph": {
+                    "onWalk": {
+                        "nodes": [],
+                        "links": []
+                    },
+                    "onHookTriggered": {
+                        "nodes": [],
+                        "links": []
+                    }
+                },
+                "startNodes": {
+                    "onWalk": null,
+                    "onHookTriggered": null
+                }
+            },
+            "icon": "Icons/States/Poisoned.png",
+            "stackable": true
+        },
+        "Weak": {
+            "name": "{WEAK}",
+            "desc": "{WEAK_DESC}",
+            "icon": "Icons/States/Weak.png",
+            "_graph": {
+                "nodeGraph": {
+                    "onWalk": {
+                        "nodes": [],
+                        "links": []
+                    },
+                    "onHookTriggered": {
+                        "nodes": [],
+                        "links": []
+                    }
+                },
+                "startNodes": {
+                    "onWalk": null,
+                    "onHookTriggered": null
+                }
+            },
+            "stackable": true
+        }
+    },
+    "linkedType": "StateInfo",
+    "events": [
+        "onWalk",
+        "onHookTriggered"
+    ]
+}

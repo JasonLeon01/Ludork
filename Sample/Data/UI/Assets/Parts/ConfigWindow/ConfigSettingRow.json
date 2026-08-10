@@ -1,0 +1,104 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 320,
+    "height": 32
+  },
+  "palette": {
+    "exposed": false,
+    "displayName": "Config Setting Row",
+    "category": "General"
+  },
+  "root": {
+    "id": "3efc93da-80ce-4220-9aed-c635bbd7e038",
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        320,
+        32
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "id": "51eb3203-c7e4-4fea-8653-6c1e03c1761b",
+        "name": "Label",
+        "controlId": "Engine.PlainText",
+        "properties": {
+          "textConfig": "UI/Text20",
+          "text": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              0.0,
+              0.0
+            ]
+          },
+          "offsets": {
+            "left": 32.0,
+            "top": 16.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.5
+          ],
+          "autoSize": true,
+          "zOrder": 0
+        },
+        "editor": {
+          "previewText": "Setting"
+        },
+        "children": []
+      },
+      {
+        "id": "835c8f25-09fd-495d-ba0b-c6a0e2ad90a5",
+        "name": "DropBox",
+        "controlId": "Engine.DropBox",
+        "properties": {
+          "size": [
+            200.0,
+            32.0
+          ],
+          "windowSkin": "",
+          "textConfig": "UI/Text20"
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.5,
+              0.0
+            ],
+            "max": [
+              0.5,
+              0.0
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": true,
+          "zOrder": 1
+        },
+        "editor": {
+          "previewText": "Option"
+        },
+        "children": []
+      }
+    ]
+  }
+}

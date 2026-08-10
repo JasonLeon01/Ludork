@@ -1,0 +1,39 @@
+{
+    "C_Cpp.default.cppStandard": "c++20",
+    "C_Cpp.default.includePath": [
+        "${workspaceFolder}/include",
+        "${workspaceFolder}/Core/include",
+        "${workspaceFolder}/Core/Engine/include",
+        "${workspaceFolder}/Core/Global/include",
+        "${workspaceFolder}/Core/GlobalFunctions/include",
+        "${workspaceFolder}/Core/System/include",
+        "${workspaceFolder}/Standard/include",
+        "${workspaceFolder}/Standard/src",
+        "${workspaceFolder}/build/LuaSF/generated_include",
+        "${workspaceFolder}/LuaSF/include",
+        "${workspaceFolder}/LuaSF/third_party/sol2/include",
+        "${workspaceFolder}/LuaSF/third_party/Lua/src",
+        "${workspaceFolder}/LuaSF/third_party/SFML/include",
+        "${workspaceFolder}/LuaSF/third_party/SFML/src",
+        "${workspaceFolder}/zlib",
+        "${workspaceFolder}/build/zlib",
+        "${workspaceFolder}/build/cmake/FFmpeg/external/install/include"
+    ],
+    "Lua.workspace.library": [
+        "${workspaceFolder}/Scripts/stub"
+    ],
+    "Lua.workspace.checkThirdParty": false,
+    "[cpp]": {
+        "editor.defaultFormatter": "ms-vscode.cpptools",
+        "editor.formatOnSave": true
+    },
+    "[c]": {
+        "editor.defaultFormatter": "ms-vscode.cpptools",
+        "editor.formatOnSave": true
+    },
+    "C_Cpp.clang_format_style": "file",
+    "[lua]": {
+        "editor.defaultFormatter": "tangzx.emmylua",
+        "editor.formatOnSave": true
+    }
+}

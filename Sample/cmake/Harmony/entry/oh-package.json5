@@ -1,0 +1,9 @@
+{
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "Ludork HarmonyOS mobile HAP",
+  "main": "",
+  "author": "Ludork",
+  "license": "",
+  "dependencies": {}
+}

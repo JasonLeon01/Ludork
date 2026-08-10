@@ -2,13 +2,13 @@
     "parent": "Source.Teleporter.Teleporter",
     "attrs": {
         "material": {
-            "lightBlock": 0.2,
+            "lightBlock": 0.16,
             "mirror": false,
             "reflectionStrength": 0.5,
             "opacity": 1.0,
             "speedRate": 1.0
         },
-        "texturePath": "Blocks/stairs.png"
+        "texturePath": "blocks/stairs.png"
     },
     "graph": {
         "nodeGraph": {

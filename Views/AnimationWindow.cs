@@ -1,0 +1,67 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Ludork.Controls;
+using Ludork.Services;
+using Ludork.Views.Utils;
+using System.Text.Json.Nodes;
+
+namespace Ludork.Views;
+
+public sealed class AnimationWindow : Window
+{
+    private readonly AnimationEditor editor;
+    private readonly GameDataService gameData;
+    private readonly ProjectSaveService projectSave;
+    private readonly string key;
+    private readonly Toast toast;
+
+    public AnimationWindow(
+        GameDataService gameData,
+        ProjectSaveService projectSave,
+        string key,
+        JsonObject data)
+    {
+        this.gameData = gameData;
+        this.projectSave = projectSave;
+        this.key = key;
+        Title = $"{LocaleService.Get("ANIMATION_WINDOW")} - {key}";
+        Width = 1200;
+        Height = 900;
+        MinWidth = 900;
+        MinHeight = 640;
+        WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        Background = Avalonia.Media.Brushes.Black;
+        EditorWindowIcon.Apply(this);
+        editor = new AnimationEditor(gameData, key, data);
+        Content = editor;
+        toast = new Toast(this);
+        AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
+        gameData.DataRestored += onDataRestored;
+        Closed += (_, _) => gameData.DataRestored -= onDataRestored;
+    }
+
+    private void onDataRestored(object? sender, System.EventArgs args)
+    {
+        if (gameData.AnimationsData.TryGetValue(key, out JsonObject? data))
+            editor.Reload(data);
+    }
+
+    private async void onKeyDown(object? sender, KeyEventArgs args)
+    {
+        if (!EditorShortcuts.HasPrimaryModifier(args.KeyModifiers))
+            return;
+        if (args.Key == Key.S)
+        {
+            await EditorSaveWorkflow.TrySaveAsync(this, projectSave);
+        }
+        else if (args.Key == Key.Z)
+            EditorFeedback.ShowHistory(toast, "Undo", gameData.Undo());
+        else if (args.Key == Key.Y)
+            EditorFeedback.ShowHistory(toast, "Redo", gameData.Redo());
+        else
+            return;
+        args.Handled = true;
+    }
+}

@@ -1,0 +1,13 @@
+{
+    "name": "galaxy",
+    "fileName": "102-CF_Lava02.png",
+    "passable": false,
+    "material": {
+        "lightBlock": 1.0,
+        "mirror": true,
+        "reflectionStrength": 0.5,
+        "opacity": 1.0,
+        "speedRate": 1.0
+    },
+    "type": "autoTile"
+}

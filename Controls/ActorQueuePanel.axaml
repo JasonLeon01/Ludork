@@ -1,0 +1,34 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Ludork.ViewModels"
+             xmlns:controls="using:Ludork.Controls"
+             x:Class="Ludork.Controls.ActorQueuePanel"
+             x:DataType="vm:ActorQueueViewModel">
+    <ListBox x:Name="Queue"
+             ItemsSource="{Binding Items}"
+             SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+             DoubleTapped="onDoubleTapped">
+        <ListBox.ItemsPanel>
+            <ItemsPanelTemplate>
+                <StackPanel Spacing="8" />
+            </ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+        <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:ActorQueueItemViewModel">
+                <Grid Height="66"
+                      ColumnDefinitions="Auto,*"
+                      ColumnSpacing="6"
+                      ToolTip.Tip="{Binding BlueprintReference}">
+                    <Image Source="{Binding Icon}"
+                           Width="48"
+                           Height="48"
+                           Stretch="Uniform"
+                           VerticalAlignment="Center" />
+                    <controls:MiddleEllipsisTextBlock Grid.Column="1"
+                                                       SourceText="{Binding DisplayName}"
+                                                       VerticalAlignment="Center" />
+                </Grid>
+            </DataTemplate>
+        </ListBox.ItemTemplate>
+    </ListBox>
+</UserControl>

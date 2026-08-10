@@ -1,0 +1,143 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 160,
+    "height": 256
+  },
+  "palette": {
+    "exposed": true,
+    "displayName": "Window Save Slot",
+    "category": "Windows"
+  },
+  "root": {
+    "id": "1c12ac1d-074d-440d-9a56-9628426dd578",
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        160,
+        256
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "id": "96860dc1-6e63-4f42-98a2-3ab9f30388f8",
+        "name": "WindowFrame",
+        "controlId": "Engine.Window",
+        "properties": {
+          "size": [
+            160,
+            256
+          ],
+          "windowSkin": "",
+          "repeated": false
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              1.0,
+              1.0
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": false,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "id": "dd64be07-ea16-43d1-ac18-b5ed2c4f04e5",
+        "name": "Content",
+        "controlId": "Engine.Canvas",
+        "properties": {
+          "size": [
+            128,
+            224
+          ]
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              1.0,
+              1.0
+            ]
+          },
+          "offsets": {
+            "left": 16.0,
+            "top": 16.0,
+            "right": 16.0,
+            "bottom": 16.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": false,
+          "zOrder": 1
+        },
+        "editor": {},
+        "children": [
+          {
+            "id": "e14cc133-5a97-4276-ad3c-689e3fdc583f",
+            "name": "SlotList",
+            "controlId": "Engine.ListView",
+            "properties": {
+              "size": [
+                128.0,
+                224.0
+              ],
+              "defaultItemHeight": 32,
+              "fixItemHeight": true,
+              "columns": 1
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  1.0,
+                  1.0
+                ]
+              },
+              "offsets": {
+                "left": 0.0,
+                "top": 0.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": false,
+              "zOrder": 0
+            },
+            "editor": {},
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

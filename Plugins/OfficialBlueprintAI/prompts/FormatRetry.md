@@ -1,0 +1,1 @@
+Your previous tool call did not satisfy the strict schema or returned invalid JSON. Correct only the malformed tool call. Do not invent missing project data and do not claim that a Blueprint was changed.

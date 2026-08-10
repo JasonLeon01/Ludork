@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "Ludork.OfficialRandomMap",
+  "name": "Official Random Map",
+  "version": "1.0.0",
+  "minimumEditorVersion": "1.0.0",
+  "entryType": "Ludork.Plugins.OfficialRandomMap.OfficialRandomMapPlugin"
+}

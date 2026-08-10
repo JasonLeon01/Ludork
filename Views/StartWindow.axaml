@@ -1,0 +1,88 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Ludork.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        d:DesignWidth="480"
+        d:DesignHeight="320"
+        x:Class="Ludork.Views.StartWindow"
+        x:DataType="vm:StartViewModel"
+        Width="480"
+        Height="320"
+        MinWidth="480"
+        MaxWidth="480"
+        MinHeight="320"
+        MaxHeight="320"
+        CanResize="False"
+        WindowDecorations="None"
+        WindowStartupLocation="CenterScreen"
+        Background="#121212"
+        FontFamily="avares://Ludork/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC"
+        Icon="/Assets/icon.ico"
+        Title="Ludork">
+
+    <NativeMenu.Menu>
+        <NativeMenu>
+            <NativeMenuItem Header="{Binding Plugins}">
+                <NativeMenu>
+                    <NativeMenuItem Header="{Binding ImportPlugin}" Click="onImportPlugin" />
+                    <NativeMenuItem Header="{Binding ManagePlugins}" Click="onManagePlugins" />
+                </NativeMenu>
+            </NativeMenuItem>
+        </NativeMenu>
+    </NativeMenu.Menu>
+
+    <Window.Styles>
+        <Style Selector="Button.startAction">
+            <Setter Property="Height" Value="48" />
+            <Setter Property="Background" Value="#1f1f1f" />
+            <Setter Property="Foreground" Value="#ffffff" />
+            <Setter Property="BorderBrush" Value="#3a3a3a" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.startAction:pointerover">
+            <Setter Property="Background" Value="#96ffffff" />
+            <Setter Property="Foreground" Value="#111111" />
+            <Setter Property="BorderBrush" Value="#dcffffff" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+        <Style Selector="Button.startAction:pressed">
+            <Setter Property="Background" Value="#c8ffffff" />
+        </Style>
+    </Window.Styles>
+
+    <Panel>
+        <Canvas>
+            <TextBlock Canvas.Top="24"
+                       Width="480"
+                       HorizontalAlignment="Center"
+                       Text="{Binding AppName}"
+                       TextAlignment="Center"
+                       Foreground="#ffffff"
+                       FontSize="37.333"
+                       FontWeight="Bold" />
+            <StackPanel Canvas.Left="24"
+                        Canvas.Top="149"
+                        Width="432"
+                        Spacing="16">
+                <Button Classes="startAction"
+                        Width="432"
+                        Content="{Binding NewProject}"
+                        Click="onNewProject" />
+                <Button Classes="startAction"
+                        Width="432"
+                        Content="{Binding OpenProject}"
+                        Click="onOpenProject" />
+            </StackPanel>
+        </Canvas>
+        <NativeMenuBar VerticalAlignment="Top"
+                       HorizontalAlignment="Stretch"
+                       Height="32"
+                       MaxHeight="64" />
+    </Panel>
+</Window>

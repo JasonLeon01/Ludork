@@ -2,7 +2,7 @@
     "parent": "Source.Player",
     "attrs": {
         "material": {
-            "lightBlock": 0.5,
+            "lightBlock": 0.4,
             "mirror": false,
             "reflectionStrength": 0.5,
             "opacity": 1.0,

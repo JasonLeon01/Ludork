@@ -23,10 +23,6 @@
     "zh_CN": "文件名",
     "en_GB": "File Name"
   },
-  "INVALID_FILE_NAME": {
-    "zh_CN": "文件名无效",
-    "en_GB": "Invalid file name"
-  },
   "DATA_FORMAT": {
     "zh_CN": "数据格式",
     "en_GB": "Data Format"
@@ -87,9 +83,349 @@
     "zh_CN": "文件",
     "en_GB": "File"
   },
+  "PLUGINS": {
+    "zh_CN": "插件",
+    "en_GB": "Plugins"
+  },
+  "IMPORT_PLUGIN": {
+    "zh_CN": "引入插件...",
+    "en_GB": "Import Plugin..."
+  },
+  "MANAGE_PLUGINS": {
+    "zh_CN": "插件管理...",
+    "en_GB": "Manage Plugins..."
+  },
+  "PLUGIN_MANAGER_TITLE": {
+    "zh_CN": "插件管理",
+    "en_GB": "Plugin Manager"
+  },
+  "PLUGIN_EMPTY": {
+    "zh_CN": "尚未引入任何插件。",
+    "en_GB": "No plugins have been imported."
+  },
+  "PLUGIN_FULL_TRUST_TITLE": {
+    "zh_CN": "确认引入插件",
+    "en_GB": "Confirm Plugin Import"
+  },
+  "PLUGIN_FULL_TRUST_WARNING": {
+    "zh_CN": "插件“{name}”（{id}）将以编辑器进程的完整权限运行。\n\n来源：{path}\n\n仅引入你信任的插件目录。是否继续？",
+    "en_GB": "Plugin \"{name}\" ({id}) will run with the editor process's full permissions.\n\nSource: {path}\n\nOnly import plugin directories that you trust. Continue?"
+  },
+  "PLUGIN_IMPORT_FAILED": {
+    "zh_CN": "引入插件失败",
+    "en_GB": "Plugin Import Failed"
+  },
+  "PLUGIN_IMPORT_SUCCESS": {
+    "zh_CN": "插件已引入",
+    "en_GB": "Plugin Imported"
+  },
+  "PLUGIN_RESTART_REQUIRED": {
+    "zh_CN": "请手动重启编辑器以使插件更改生效。",
+    "en_GB": "Restart the editor manually for the plugin change to take effect."
+  },
+  "PLUGIN_ID": {
+    "zh_CN": "插件 ID",
+    "en_GB": "Plugin ID"
+  },
+  "PLUGIN_VERSION": {
+    "zh_CN": "版本",
+    "en_GB": "Version"
+  },
+  "PLUGIN_SOURCE": {
+    "zh_CN": "安装路径",
+    "en_GB": "Install Path"
+  },
+  "PLUGIN_DIAGNOSTICS": {
+    "zh_CN": "诊断",
+    "en_GB": "Diagnostics"
+  },
+  "PLUGIN_UNINSTALL": {
+    "zh_CN": "卸载...",
+    "en_GB": "Uninstall..."
+  },
+  "PLUGIN_UNINSTALL_TITLE": {
+    "zh_CN": "卸载插件",
+    "en_GB": "Uninstall Plugin"
+  },
+  "PLUGIN_UNINSTALL_PROMPT": {
+    "zh_CN": "要卸载插件“{name}”吗？\n\n安装位置：{path}\n\n你可以仅取消注册，也可以在下次启动时删除插件文件。插件数据和历史不会被删除。",
+    "en_GB": "Uninstall plugin \"{name}\"?\n\nInstall location: {path}\n\nYou can only unregister it, or delete its files on the next startup. Plugin data and history are retained."
+  },
+  "PLUGIN_UNREGISTER_ONLY": {
+    "zh_CN": "仅取消注册",
+    "en_GB": "Unregister Only"
+  },
+  "PLUGIN_UNREGISTER_DELETE": {
+    "zh_CN": "取消注册并删除插件文件",
+    "en_GB": "Unregister and Delete Plugin Files"
+  },
+  "PLUGIN_OPERATION_FAILED": {
+    "zh_CN": "插件操作失败",
+    "en_GB": "Plugin Operation Failed"
+  },
+  "PLUGIN_UNINSTALL_SUCCESS": {
+    "zh_CN": "插件已卸载",
+    "en_GB": "Plugin Uninstalled"
+  },
+  "PLUGIN_STATUS_LOADED": {
+    "zh_CN": "已加载",
+    "en_GB": "Loaded"
+  },
+  "PLUGIN_STATUS_MANIFEST_INVALID": {
+    "zh_CN": "清单无效",
+    "en_GB": "Invalid Manifest"
+  },
+  "PLUGIN_STATUS_COMPILE_FAILED": {
+    "zh_CN": "编译失败",
+    "en_GB": "Compilation Failed"
+  },
+  "PLUGIN_STATUS_INITIALIZATION_FAILED": {
+    "zh_CN": "初始化失败",
+    "en_GB": "Initialization Failed"
+  },
+  "PLUGIN_STATUS_PENDING_RESTART": {
+    "zh_CN": "等待重启加载",
+    "en_GB": "Pending Restart"
+  },
+  "PLUGIN_STATUS_UNREGISTERED_PENDING_RESTART": {
+    "zh_CN": "已取消注册，重启前仍在运行",
+    "en_GB": "Unregistered; Active Until Restart"
+  },
+  "PLUGIN_STATUS_PENDING_DELETION": {
+    "zh_CN": "等待下次启动删除",
+    "en_GB": "Pending Deletion"
+  },
+  "PLUGIN_STATUS_UNKNOWN": {
+    "zh_CN": "未知状态",
+    "en_GB": "Unknown Status"
+  },
+  "PLUGIN_STARTUP_FAILURES_TITLE": {
+    "zh_CN": "部分插件未能加载",
+    "en_GB": "Some Plugins Failed to Load"
+  },
   "NEW_PROJECT": {
     "zh_CN": "新建项目",
     "en_GB": "New Project"
+  },
+  "NEW_PROJECT_SUBTITLE": {
+    "zh_CN": "选择适合的模板，并配置工程的保存位置。",
+    "en_GB": "Choose a template and configure where the project will be created."
+  },
+  "NEW_PROJECT_CHOOSE_TEMPLATE": {
+    "zh_CN": "工程模板",
+    "en_GB": "Project Templates"
+  },
+  "NEW_PROJECT_STANDALONE": {
+    "zh_CN": "Standalone",
+    "en_GB": "Standalone"
+  },
+  "NEW_PROJECT_STANDALONE_SUMMARY": {
+    "zh_CN": "已完成编译，可直接开始制作和运行。",
+    "en_GB": "Precompiled and ready to create and run."
+  },
+  "NEW_PROJECT_RECOMMENDED": {
+    "zh_CN": "推荐",
+    "en_GB": "Recommended"
+  },
+  "NEW_PROJECT_NO_COMPILER": {
+    "zh_CN": "无需编译器",
+    "en_GB": "No Compiler"
+  },
+  "NEW_PROJECT_CPP": {
+    "zh_CN": "C++ 源码版",
+    "en_GB": "C++ Source"
+  },
+  "NEW_PROJECT_CPP_SUMMARY": {
+    "zh_CN": "包含完整源码，适合原生开发与调试。",
+    "en_GB": "Full source for native development and debugging."
+  },
+  "NEW_PROJECT_ADVANCED": {
+    "zh_CN": "高级",
+    "en_GB": "Advanced"
+  },
+  "NEW_PROJECT_FULL_SOURCE": {
+    "zh_CN": "完整源码",
+    "en_GB": "Full Source"
+  },
+  "NEW_PROJECT_READY_TO_RUN": {
+    "zh_CN": "可直接运行",
+    "en_GB": "Ready to Run"
+  },
+  "NEW_PROJECT_NATIVE_DEBUG": {
+    "zh_CN": "原生调试",
+    "en_GB": "Native Debugging"
+  },
+  "NEW_PROJECT_FEATURES": {
+    "zh_CN": "包含内容",
+    "en_GB": "Included"
+  },
+  "NEW_PROJECT_REQUIREMENTS": {
+    "zh_CN": "环境要求",
+    "en_GB": "Requirements"
+  },
+  "NEW_PROJECT_SETTINGS": {
+    "zh_CN": "工程设置",
+    "en_GB": "Project Settings"
+  },
+  "NEW_PROJECT_LOCATION": {
+    "zh_CN": "工程位置",
+    "en_GB": "Project Location"
+  },
+  "NEW_PROJECT_NAME": {
+    "zh_CN": "工程名称",
+    "en_GB": "Project Name"
+  },
+  "NEW_PROJECT_FINAL_PATH": {
+    "zh_CN": "完整路径：",
+    "en_GB": "Full Path:"
+  },
+  "NEW_PROJECT_FFMPEG": {
+    "zh_CN": "启用视频播放（FFmpeg）",
+    "en_GB": "Enable video playback (FFmpeg)"
+  },
+  "NEW_PROJECT_FFMPEG_SUMMARY": {
+    "zh_CN": "加入精简的 H.264 / AAC MP4 播放支持；默认关闭。",
+    "en_GB": "Adds trimmed H.264 / AAC MP4 playback support; disabled by default."
+  },
+  "NEW_PROJECT_FFMPEG_APPLE_HINT": {
+    "zh_CN": "Apple 平台提示：Standalone FFmpeg 模板仅面向 macOS；iOS 15.0 或更高版本请使用 C++ 源码版构建。",
+    "en_GB": "Apple platform note: the Standalone FFmpeg template targets macOS only; use C++ Source for iOS 15.0 or newer."
+  },
+  "BROWSE": {
+    "zh_CN": "浏览...",
+    "en_GB": "Browse..."
+  },
+  "CREATE": {
+    "zh_CN": "创建",
+    "en_GB": "Create"
+  },
+  "NEW_PROJECT_CREATING": {
+    "zh_CN": "正在创建工程...",
+    "en_GB": "Creating project..."
+  },
+  "NEW_PROJECT_NAME_INVALID": {
+    "zh_CN": "工程名称包含无效字符。",
+    "en_GB": "The project name contains invalid characters."
+  },
+  "PROJECT_TEMPLATE_MISSING": {
+    "zh_CN": "未找到所选工程模板，请先生成或安装模板。",
+    "en_GB": "The selected project template is missing. Generate or install the templates first."
+  },
+  "NEW_PROJECT_STANDALONE_DESCRIPTION": {
+    "zh_CN": "适合第一次使用 Ludork 的用户。工程已包含编译完成的运行时，无需配置 C++ 工具链即可编辑 Lua、资源和数据并立即运行。",
+    "en_GB": "Best for new Ludork users. The compiled runtime is included, so Lua, assets, and data can be edited and run without a C++ toolchain."
+  },
+  "NEW_PROJECT_STANDALONE_FEATURE_1": {
+    "zh_CN": "完整的游戏运行时与 Lua 脚本",
+    "en_GB": "Complete game runtime and Lua scripts"
+  },
+  "NEW_PROJECT_STANDALONE_FEATURE_2": {
+    "zh_CN": "可编辑 Assets、Data 与 Scripts",
+    "en_GB": "Editable Assets, Data, and Scripts"
+  },
+  "NEW_PROJECT_STANDALONE_FEATURE_3": {
+    "zh_CN": "编辑器内运行无需等待编译",
+    "en_GB": "Run from the editor without compiling"
+  },
+  "NEW_PROJECT_STANDALONE_REQUIREMENT_1": {
+    "zh_CN": "Windows 10 或更高版本（x64）",
+    "en_GB": "Windows 10 or newer on x64"
+  },
+  "NEW_PROJECT_STANDALONE_REQUIREMENT_2": {
+    "zh_CN": "无需 CMake 或 Visual Studio",
+    "en_GB": "No CMake or Visual Studio required"
+  },
+  "NEW_PROJECT_STANDALONE_REQUIREMENT_3": {
+    "zh_CN": "仅需足够的工程存储空间",
+    "en_GB": "Only sufficient project storage is required"
+  },
+  "NEW_PROJECT_STANDALONE_REQUIREMENT_1_MACOS": {
+    "zh_CN": "macOS 13.3 或更高版本（Apple Silicon）",
+    "en_GB": "macOS 13.3 or newer on Apple Silicon"
+  },
+  "NEW_PROJECT_STANDALONE_REQUIREMENT_2_MACOS": {
+    "zh_CN": "无需 CMake 或 Xcode",
+    "en_GB": "No CMake or Xcode required"
+  },
+  "NEW_PROJECT_STANDALONE_REQUIREMENT_3_MACOS": {
+    "zh_CN": "仅需足够的工程存储空间",
+    "en_GB": "Only sufficient project storage is required"
+  },
+  "NEW_PROJECT_CPP_DESCRIPTION": {
+    "zh_CN": "适合需要修改引擎、原生模块或进行 C++ 断点调试的开发者。编辑器运行前会自动执行 Debug 构建。",
+    "en_GB": "For developers modifying the engine or native modules and debugging C++. The editor performs a Debug build before running."
+  },
+  "NEW_PROJECT_CPP_FEATURE_1": {
+    "zh_CN": "完整的 C++、Lua 与 CMake 源码",
+    "en_GB": "Complete C++, Lua, and CMake source"
+  },
+  "NEW_PROJECT_CPP_FEATURE_2": {
+    "zh_CN": "Debug 与 Release 独立输出目录",
+    "en_GB": "Separate Debug and Release output directories"
+  },
+  "NEW_PROJECT_CPP_FEATURE_3": {
+    "zh_CN": "VS Code 启动与附加调试配置",
+    "en_GB": "VS Code launch and attach debugging"
+  },
+  "NEW_PROJECT_CPP_REQUIREMENT_1": {
+    "zh_CN": "CMake 3.21 或更高版本",
+    "en_GB": "CMake 3.21 or newer"
+  },
+  "NEW_PROJECT_CPP_REQUIREMENT_2": {
+    "zh_CN": "Visual Studio 2022 MSVC 工具链",
+    "en_GB": "Visual Studio 2022 MSVC toolchain"
+  },
+  "NEW_PROJECT_CPP_REQUIREMENT_3": {
+    "zh_CN": "Python 3.12",
+    "en_GB": "Python 3.12"
+  },
+  "NEW_PROJECT_CPP_REQUIREMENT_1_MACOS": {
+    "zh_CN": "CMake 3.21 或更高版本",
+    "en_GB": "CMake 3.21 or newer"
+  },
+  "NEW_PROJECT_CPP_REQUIREMENT_2_MACOS": {
+    "zh_CN": "Apple Clang 与 Xcode Command Line Tools",
+    "en_GB": "Apple Clang and Xcode Command Line Tools"
+  },
+  "NEW_PROJECT_CPP_REQUIREMENT_3_MACOS": {
+    "zh_CN": "Python 3.12",
+    "en_GB": "Python 3.12"
+  },
+  "RUN_PROJECT_INVALID": {
+    "zh_CN": "工程路径无效或缺少必要文件。",
+    "en_GB": "The project path is invalid or required files are missing."
+  },
+  "RUN_PLUGIN_PREPARATION_FAILED": {
+    "zh_CN": "运行前插件准备失败。",
+    "en_GB": "A plugin failed while preparing to run the project."
+  },
+  "RUN_BUILD_TOOL_MISSING": {
+    "zh_CN": "未找到 C++ Debug 构建脚本。",
+    "en_GB": "The C++ Debug build script was not found."
+  },
+  "RUN_BUILD_FAILED": {
+    "zh_CN": "C++ Debug 构建失败。",
+    "en_GB": "The C++ Debug build failed."
+  },
+  "RUN_EXECUTABLE_MISSING": {
+    "zh_CN": "未找到要运行的游戏程序。",
+    "en_GB": "The game executable was not found."
+  },
+  "RUN_LAUNCH_FAILED": {
+    "zh_CN": "无法启动构建工具或游戏程序。",
+    "en_GB": "The build tool or game executable could not be started."
+  },
+  "RUN_GAME_FAILED": {
+    "zh_CN": "游戏程序异常退出。",
+    "en_GB": "The game exited with an error."
+  },
+  "RUN_EMBED_HANDLE_UNAVAILABLE": {
+    "zh_CN": "无法取得游戏投射面板的原生窗口句柄。",
+    "en_GB": "The native window handle for the game panel is unavailable."
+  },
+  "RUN_PROTOCOL_MISMATCH": {
+    "zh_CN": "编辑器与游戏运行时的通信协议版本不匹配。",
+    "en_GB": "The editor and game runtime protocol versions do not match."
   },
   "OPEN_PROJECT": {
     "zh_CN": "打开项目",
@@ -108,40 +444,64 @@
     "en_GB": "Select Compilation Platform"
   },
   "PACK_PLATFORM_WIN32": {
-    "zh_CN": "编译（win32）",
-    "en_GB": "Compile (win32)"
+    "zh_CN": "打包（Win32）",
+    "en_GB": "Package (Win32)"
   },
-  "PACK_PLATFORM_MACOS_ARM": {
-    "zh_CN": "编译（macOS(Apple Silicon)）",
-    "en_GB": "Compile (macOS(Apple Silicon))"
+  "PACK_PLATFORM_MACOS": {
+    "zh_CN": "打包（macOS Apple Silicon）",
+    "en_GB": "Package (macOS Apple Silicon)"
   },
   "PACK_PLATFORM_IOS": {
-    "zh_CN": "编译（iOS）",
-    "en_GB": "Compile (iOS)"
+    "zh_CN": "打包（iOS）",
+    "en_GB": "Package (iOS)"
+  },
+  "PACK_PLATFORM_HARMONYOS": {
+    "zh_CN": "打包（HarmonyOS）",
+    "en_GB": "Package (HarmonyOS)"
+  },
+  "PACK_HARMONY_DEVICE_MOBILE": {
+    "zh_CN": "Mobile",
+    "en_GB": "Mobile"
+  },
+  "PACK_HARMONY_DEVICE_TWO_IN_ONE": {
+    "zh_CN": "2in1",
+    "en_GB": "2in1"
+  },
+  "PACK_HARMONY_DEVICE_TEMPORARILY_UNAVAILABLE": {
+    "zh_CN": "该设备形态暂不可用",
+    "en_GB": "This device form is temporarily unavailable"
+  },
+  "PACK_EXPORT_TO_HARMONY_DEVICE": {
+    "zh_CN": "导出到移动设备",
+    "en_GB": "Export to mobile device"
+  },
+  "PACK_PLATFORM_NOT_IMPLEMENTED": {
+    "zh_CN": "暂未实现",
+    "en_GB": "Not implemented yet"
+  },
+  "PACK_IOS_REQUIREMENTS": {
+    "zh_CN": "iOS 打包需要完整 Xcode 和开发签名；仅导出到 iPhone 时需要一台已解锁、信任此 Mac 并启用开发者模式的 iPhone",
+    "en_GB": "iOS packaging requires full Xcode and development signing. Exporting to iPhone also requires one unlocked iPhone that trusts this Mac and has Developer Mode enabled"
+  },
+  "PACK_EXPORT_TO_IPHONE": {
+    "zh_CN": "是否导出到iPhone",
+    "en_GB": "Export to iPhone"
+  },
+  "PACK_USE_LUAC": {
+    "zh_CN": "使用 luac 编译脚本",
+    "en_GB": "Compile scripts with luac"
+  },
+  "PACK_ENCRYPT_SHADERS": {
+    "zh_CN": "加密着色器代码",
+    "en_GB": "Encrypt shader code"
+  },
+  "PACK_ENCRYPT_DATA": {
+    "zh_CN": "加密 JSON 数据",
+    "en_GB": "Encrypt JSON data"
   },
   "PACK_MODE_DESC": {
-    "zh_CN": "选择目标平台进行编译。编译将使用Nuitka生成独立可执行文件。",
-    "en_GB": "Select target platform for compilation. Compilation uses Nuitka to generate a standalone executable."
-  },
-  "PACK_INCLUDE_PYAV": {
-    "zh_CN": "包含 PyAV（视频播放）",
-    "en_GB": "Include PyAV (video playback)"
-  },
-  "PACK_PYAV_DESKTOP_TIP": {
-    "zh_CN": "勾选后会确保用户的 Python 3.12.0 已安装 PyAV，并在 Nuitka 打包时包含 av 模块。",
-    "en_GB": "When enabled, the user's Python 3.12.0 will have PyAV installed and the av module will be included in the Nuitka build."
-  },
-  "PACK_PYAV_IOS_TIP": {
-    "zh_CN": "移动端无法安装 PyAV，iOS 打包不支持包含。",
-    "en_GB": "Mobile targets cannot install PyAV, so iOS packaging cannot include it."
-  },
-  "PACK_PYAV_NOT_FOUND_INSTALLING": {
-    "zh_CN": "未检测到 PyAV，正在安装...",
-    "en_GB": "PyAV not found. Installing..."
-  },
-  "PACK_PYAV_INSTALL_FAILED": {
-    "zh_CN": "PyAV 安装失败",
-    "en_GB": "Failed to install PyAV"
+    "zh_CN": "选择目标平台和打包选项。",
+    "en_GB": "Select the target platform and packaging options."
   },
   "PACK_TITLE": {
     "zh_CN": "打包",
@@ -156,52 +516,72 @@
     "en_GB": "Project path not found"
   },
   "PACK_ENTRY_MISSING": {
-    "zh_CN": "未找到 Entry.py",
-    "en_GB": "Entry.py not found"
+    "zh_CN": "未找到 Main.proj",
+    "en_GB": "Main.proj not found"
+  },
+  "PACK_APP_NAME_UNCHANGED": {
+    "zh_CN": "请先在 Scripts/Entry.lua 中将 APP_NAME 的默认值 LudorkSample 修改为游戏专属名称，然后重新打包",
+    "en_GB": "Change the default APP_NAME value LudorkSample in Scripts/Entry.lua to a name unique to your game, then package again"
+  },
+  "PACK_PLUGIN_PREPARATION_FAILED": {
+    "zh_CN": "打包前插件准备失败",
+    "en_GB": "A plugin failed while preparing to package the project"
+  },
+  "PACK_CANCELLED": {
+    "zh_CN": "打包已取消",
+    "en_GB": "Packaging cancelled"
+  },
+  "PACK_SCRIPT_MISSING": {
+    "zh_CN": "未找到当前平台的游戏打包脚本",
+    "en_GB": "The game packaging script for this platform was not found"
+  },
+  "PACK_LAUNCH_FAILED": {
+    "zh_CN": "无法启动游戏打包脚本",
+    "en_GB": "The game packaging script could not be started"
+  },
+  "PACK_IOS_TOOLCHAIN_UNAVAILABLE": {
+    "zh_CN": "iOS 打包工具链不可用，请安装完整 Xcode 并完成首次启动设置",
+    "en_GB": "The iOS packaging toolchain is unavailable. Install full Xcode and complete its first-launch setup"
+  },
+  "PACK_IOS_DEVICE_UNAVAILABLE": {
+    "zh_CN": "未找到唯一可用的 iPhone，请连接并解锁设备、信任此 Mac，并启用开发者模式",
+    "en_GB": "No single available iPhone was found. Connect and unlock the device, trust this Mac, and enable Developer Mode"
+  },
+  "PACK_IOS_SIGNING_UNAVAILABLE": {
+    "zh_CN": "没有可用的唯一 Apple Development 签名团队，请在 Xcode 中配置开发者账号",
+    "en_GB": "No unique Apple Development signing team is available. Configure a developer account in Xcode"
+  },
+  "PACK_IOS_PROJECT_UNSUPPORTED": {
+    "zh_CN": "iOS 打包只支持包含完整 CMake 源码的 C++ 项目",
+    "en_GB": "iOS packaging requires a C++ project with complete CMake sources"
+  },
+  "PACK_HARMONY_TOOLCHAIN_UNAVAILABLE": {
+    "zh_CN": "HarmonyOS 打包工具链不可用，请安装 DevEco Studio 并完成首次启动设置",
+    "en_GB": "The HarmonyOS packaging toolchain is unavailable. Install DevEco Studio and complete its first-launch setup"
+  },
+  "PACK_HARMONY_DEVICE_UNAVAILABLE": {
+    "zh_CN": "未找到唯一可用的 HarmonyOS 移动设备，请连接并解锁设备，并启用开发者模式",
+    "en_GB": "No single available HarmonyOS mobile device was found. Connect and unlock the device, and enable Developer Mode"
+  },
+  "PACK_HARMONY_SIGNING_UNAVAILABLE": {
+    "zh_CN": "HarmonyOS 签名未完成或签名无效，请查看上方日志并在 DevEco Studio 中重新完成自动签名",
+    "en_GB": "HarmonyOS signing did not complete or is invalid. Review the log above and complete automatic signing again in DevEco Studio"
+  },
+  "PACK_HARMONY_PROJECT_UNSUPPORTED": {
+    "zh_CN": "HarmonyOS 打包只支持包含完整 CMake 源码的 C++ 项目",
+    "en_GB": "HarmonyOS packaging requires a C++ project with complete CMake sources"
+  },
+  "PACK_EXIT_CODE": {
+    "zh_CN": "游戏打包进程退出码：{0}",
+    "en_GB": "Game packaging process exit code: {0}"
+  },
+  "PACK_FAILED": {
+    "zh_CN": "打包失败",
+    "en_GB": "Packaging failed"
   },
   "FPS_HISTORY": {
     "zh_CN": "帧率波动图",
     "en_GB": "FPS History"
-  },
-  "PACK_PY312_PROMPT": {
-    "zh_CN": "未检测到 Python 3.12.0，是否前往下载页面？",
-    "en_GB": "Python 3.12.0 not found. Open the download page?"
-  },
-  "PACK_PY312_NOT_FOUND": {
-    "zh_CN": "未检测到 Python 3.12.0",
-    "en_GB": "Python 3.12.0 not found"
-  },
-  "PACK_NUITKA_INSTALL_FAILED": {
-    "zh_CN": "Nuitka 安装失败",
-    "en_GB": "Failed to install Nuitka"
-  },
-  "PACK_NUITKA_FAILED": {
-    "zh_CN": "Nuitka 打包失败",
-    "en_GB": "Nuitka packaging failed"
-  },
-  "PACK_IOS_SCRIPT_MISSING": {
-    "zh_CN": "缺少 iOS 打包脚本 generateiOSApp.sh",
-    "en_GB": "iOS packaging script generateiOSApp.sh not found"
-  },
-  "PACK_IOS_FAILED": {
-    "zh_CN": "iOS 打包失败",
-    "en_GB": "iOS packaging failed"
-  },
-  "PACK_IOS_SHADER_WARNING": {
-    "zh_CN": "警告：SFML3 在 iOS 仅支持 OpenGL ES 1，无法使用 Shader。\n请确保项目中已去除所有 Shader 相关代码后再进行打包，否则将无法运行。",
-    "en_GB": "Warning: SFML3 on iOS only supports OpenGL ES 1 and cannot use Shaders.\nPlease ensure all Shader-related code is removed before packaging, otherwise the app will not run."
-  },
-  "PACK_TOOLCHAIN_MSVC_PROMPT": {
-    "zh_CN": "未检测到 MSVC 工具链，是否前往下载页面？",
-    "en_GB": "MSVC toolchain not found. Open the download page?"
-  },
-  "PACK_TOOLCHAIN_XCODE_MACOS_PROMPT": {
-    "zh_CN": "未检测到 Xcode 工具链（macOS），是否前往下载页面？",
-    "en_GB": "Xcode toolchain (macOS) not found. Open the download page?"
-  },
-  "PACK_TOOLCHAIN_XCODE_IOS_PROMPT": {
-    "zh_CN": "未检测到 Xcode 工具链（iOS），是否前往下载页面？",
-    "en_GB": "Xcode toolchain (iOS) not found. Open the download page?"
   },
   "EXIT": {
     "zh_CN": "退出",
@@ -343,6 +723,18 @@
     "zh_CN": "添加音频",
     "en_GB": "Add Audio"
   },
+  "ADD_TIME_TAG": {
+    "zh_CN": "添加时间标签",
+    "en_GB": "Add Time Tag"
+  },
+  "RENAME_TIME_TAG": {
+    "zh_CN": "重命名时间标签",
+    "en_GB": "Rename Time Tag"
+  },
+  "TIME_TAG_NAME": {
+    "zh_CN": "标签名称",
+    "en_GB": "Tag Name"
+  },
   "EDIT_MAP": {
     "zh_CN": "地图名称",
     "en_GB": "Map Name"
@@ -423,6 +815,10 @@
     "zh_CN": "复制",
     "en_GB": "Copy"
   },
+  "DUPLICATE": {
+    "zh_CN": "创建副本",
+    "en_GB": "Duplicate"
+  },
   "CUT": {
     "zh_CN": "剪切",
     "en_GB": "Cut"
@@ -466,6 +862,14 @@
   "OPEN_FROM_SYSTEM": {
     "zh_CN": "从系统打开",
     "en_GB": "Open from System"
+  },
+  "OPEN_CONTAINING_FOLDER": {
+    "zh_CN": "打开所在文件夹",
+    "en_GB": "Open Containing Folder"
+  },
+  "OPEN_CONTAINING_FOLDER_FAILED": {
+    "zh_CN": "无法打开所在文件夹",
+    "en_GB": "Failed to open the containing folder"
   },
   "EXTERNAL_EDITOR_VSCODE": {
     "zh_CN": "VS Code",
@@ -554,6 +958,10 @@
   "SEND_HINT": {
     "zh_CN": "输入命令并按Enter发送",
     "en_GB": "Enter command and press Enter"
+  },
+  "CONSOLE_SEND_FAILED": {
+    "zh_CN": "控制台命令发送失败，连接可能已断开。",
+    "en_GB": "The console command could not be sent because the connection was lost."
   },
   "CONSOLE_FILTER_LOGS": {
     "zh_CN": "筛选日志",
@@ -979,6 +1387,58 @@
     "zh_CN": "性能监视器",
     "en_GB": "Performance Monitor"
   },
+  "PERFORMANCE_MONITOR_DROPPED_LOGIC_TICKS": {
+    "zh_CN": "丢弃: {count}",
+    "en_GB": "Dropped: {count}"
+  },
+  "PERFORMANCE_MONITOR_FRAME_STATS": {
+    "zh_CN": "逐帧 FPS  平均 {avg:.1f} | 最大 {max:.1f} | 最小 {min:.1f} | 内存 {memory:.1f} MB | 帧 {count}",
+    "en_GB": "Per-frame FPS  Avg {avg:.1f} | Max {max:.1f} | Min {min:.1f} | Memory {memory:.1f} MB | Frames {count}"
+  },
+  "PERFORMANCE_MONITOR_INTERACTION_HINT": {
+    "zh_CN": "移动预览 · 单击锁定 · 再次单击同一帧恢复实时",
+    "en_GB": "Move to preview · Click to lock · Click the same frame again to resume live"
+  },
+  "PERFORMANCE_MONITOR_LIVE_ACTION": {
+    "zh_CN": "实时跟随",
+    "en_GB": "Live Follow"
+  },
+  "PERFORMANCE_MONITOR_LIVE": {
+    "zh_CN": "实时",
+    "en_GB": "Live"
+  },
+  "PERFORMANCE_MONITOR_PREVIEW": {
+    "zh_CN": "预览",
+    "en_GB": "Preview"
+  },
+  "PERFORMANCE_MONITOR_LOCKED": {
+    "zh_CN": "已锁定",
+    "en_GB": "Locked"
+  },
+  "PERFORMANCE_MONITOR_SELECTED_FRAME": {
+    "zh_CN": "{mode} | 主帧 {time:.3f}s | {fps:.1f} FPS | Frame Time {active:.2f} ms | 距上一帧起点 {interval:.2f} ms | 内存 {memory:.2f} MB",
+    "en_GB": "{mode} | Main frame {time:.3f}s | {fps:.1f} FPS | Frame Time {active:.2f} ms | Since previous start {interval:.2f} ms | Memory {memory:.2f} MB"
+  },
+  "PERFORMANCE_MONITOR_MAIN_THREAD": {
+    "zh_CN": "Main Thread（独立） | Active {active:.2f} ms",
+    "en_GB": "Main Thread (independent) | Active {active:.2f} ms"
+  },
+  "PERFORMANCE_MONITOR_LOGIC_THREAD": {
+    "zh_CN": "Logic Thread（独立） | {count} ticks | Iteration Σ {iteration:.2f} ms",
+    "en_GB": "Logic Thread (independent) | {count} ticks | Iteration Σ {iteration:.2f} ms"
+  },
+  "PERFORMANCE_MONITOR_NO_LOGIC_TICKS": {
+    "zh_CN": "Logic Thread（独立） | 本帧区间无 Tick",
+    "en_GB": "Logic Thread (independent) | No tick in this frame interval"
+  },
+  "PERFORMANCE_MONITOR_INCOMPLETE": {
+    "zh_CN": "数据不完整",
+    "en_GB": "Incomplete"
+  },
+  "PERFORMANCE_MONITOR_THREADS_INDEPENDENT": {
+    "zh_CN": "Main 与 Logic 为独立线程；Update / FixedUpdate 来自该主帧区间内的 Logic Tick，不与主线程耗时相加。",
+    "en_GB": "Main and Logic are independent threads; Update / FixedUpdate come from Logic ticks in this frame interval and are not added to Main timings."
+  },
   "PERFORMANCE_MONITOR_WAITING": {
     "zh_CN": "等待性能数据",
     "en_GB": "Waiting for performance data"
@@ -1062,6 +1522,10 @@
   "INVALID_DATA_FILE_MESSAGE": {
     "zh_CN": "选中的 .dat 文件不是符合引擎规范的数据文件。",
     "en_GB": "The selected .dat file is not a valid engine data file."
+  },
+  "INVALID_JSON_FILE_MESSAGE": {
+    "zh_CN": "以下 JSON 文件无法解析或数据类型无效，已跳过：\n{0}",
+    "en_GB": "The following JSON files could not be parsed or have an invalid data type and were skipped:\n{0}"
   },
   "PARENT": {
     "zh_CN": "父类",
@@ -1235,6 +1699,38 @@
     "zh_CN": "新建曲线",
     "en_GB": "New Curve"
   },
+  "NEW_VECTOR2_CURVE": {
+    "zh_CN": "新建二维向量曲线",
+    "en_GB": "New Vector 2 Curve"
+  },
+  "NEW_VECTOR3_CURVE": {
+    "zh_CN": "新建三维向量曲线",
+    "en_GB": "New Vector 3 Curve"
+  },
+  "NEW_VECTOR4_CURVE": {
+    "zh_CN": "新建四维向量曲线",
+    "en_GB": "New Vector 4 Curve"
+  },
+  "CURVE_TYPE": {
+    "zh_CN": "曲线类型",
+    "en_GB": "Curve Type"
+  },
+  "CURVE_TYPE_FLOAT": {
+    "zh_CN": "浮点曲线",
+    "en_GB": "Float Curve"
+  },
+  "CURVE_TYPE_VECTOR2": {
+    "zh_CN": "二维向量曲线",
+    "en_GB": "Vector 2 Curve"
+  },
+  "CURVE_TYPE_VECTOR3": {
+    "zh_CN": "三维向量曲线",
+    "en_GB": "Vector 3 Curve"
+  },
+  "CURVE_TYPE_VECTOR4": {
+    "zh_CN": "四维向量曲线",
+    "en_GB": "Vector 4 Curve"
+  },
   "SELECT_CURVE_PATH": {
     "zh_CN": "选择曲线保存路径",
     "en_GB": "Select curve save path"
@@ -1246,6 +1742,202 @@
   "HINT_CREATE_CURVE_SUCCESS": {
     "zh_CN": "创建成功！请保存以应用文件生成。",
     "en_GB": "Creation successful! Please save to apply file generation."
+  },
+  "NEW_PLAIN_TEXT_CONFIG": {
+    "zh_CN": "新建纯文本配置",
+    "en_GB": "New Plain Text Config"
+  },
+  "NEW_RICH_TEXT_CONFIG": {
+    "zh_CN": "新建富文本配置",
+    "en_GB": "New Rich Text Config"
+  },
+  "NEW_TEXT_CONFIG": {
+    "zh_CN": "新建文字配置",
+    "en_GB": "New Text Config"
+  },
+  "TEXT_CONFIG_TYPE": {
+    "zh_CN": "类型",
+    "en_GB": "Type"
+  },
+  "TEXT_CONFIG_TYPE_PLAIN": {
+    "zh_CN": "纯文本",
+    "en_GB": "Plain Text"
+  },
+  "TEXT_CONFIG_TYPE_RICH": {
+    "zh_CN": "富文本",
+    "en_GB": "Rich Text"
+  },
+  "TEXT_CONFIG_PATH": {
+    "zh_CN": "保存路径",
+    "en_GB": "Save Path"
+  },
+  "SELECT_TEXT_CONFIG_PATH": {
+    "zh_CN": "选择文字配置保存路径",
+    "en_GB": "Select text config save path"
+  },
+  "TEXT_CONFIG_EXISTS": {
+    "zh_CN": "文字配置已存在或路径无效",
+    "en_GB": "Text config already exists or the path is invalid"
+  },
+  "HINT_CREATE_TEXT_CONFIG_SUCCESS": {
+    "zh_CN": "创建成功！请保存以应用文件生成。",
+    "en_GB": "Creation successful! Please save to apply file generation."
+  },
+  "TEXT_CONFIG_EDITOR": {
+    "zh_CN": "文字配置编辑器",
+    "en_GB": "Text Config Editor"
+  },
+  "TEXT_CONFIG_PREVIEW": {
+    "zh_CN": "文字效果预览",
+    "en_GB": "Text Preview"
+  },
+  "TEXT_CONFIG_PREVIEW_TEXT": {
+    "zh_CN": "预览文字",
+    "en_GB": "Preview Text"
+  },
+  "TEXT_CONFIG_GENERAL": {
+    "zh_CN": "基础设置",
+    "en_GB": "General"
+  },
+  "TEXT_CONFIG_NAME": {
+    "zh_CN": "配置名称",
+    "en_GB": "Config Name"
+  },
+  "TEXT_CONFIG_DEFAULT_STYLE": {
+    "zh_CN": "默认样式",
+    "en_GB": "Default Style"
+  },
+  "TEXT_CONFIG_NAMED_STYLES": {
+    "zh_CN": "命名样式",
+    "en_GB": "Named Styles"
+  },
+  "TEXT_CONFIG_FONT": {
+    "zh_CN": "字体",
+    "en_GB": "Font"
+  },
+  "TEXT_CONFIG_CHARACTER_SIZE": {
+    "zh_CN": "字号",
+    "en_GB": "Character Size"
+  },
+  "TEXT_CONFIG_FILL_COLOR": {
+    "zh_CN": "填充颜色",
+    "en_GB": "Fill Color"
+  },
+  "TEXT_CONFIG_LETTER_SPACING": {
+    "zh_CN": "字间距",
+    "en_GB": "Letter Spacing"
+  },
+  "TEXT_CONFIG_LINE_SPACING": {
+    "zh_CN": "行距",
+    "en_GB": "Line Spacing"
+  },
+  "TEXT_CONFIG_LINE_ALIGNMENT": {
+    "zh_CN": "行对齐",
+    "en_GB": "Line Alignment"
+  },
+  "TEXT_CONFIG_OUTLINE": {
+    "zh_CN": "描边",
+    "en_GB": "Outline"
+  },
+  "TEXT_CONFIG_OUTLINE_COLOR": {
+    "zh_CN": "描边颜色",
+    "en_GB": "Outline Color"
+  },
+  "TEXT_CONFIG_OUTLINE_THICKNESS": {
+    "zh_CN": "描边粗细",
+    "en_GB": "Outline Thickness"
+  },
+  "TEXT_CONFIG_GLOW": {
+    "zh_CN": "光晕",
+    "en_GB": "Glow"
+  },
+  "TEXT_CONFIG_GRADIENT": {
+    "zh_CN": "渐变",
+    "en_GB": "Gradient"
+  },
+  "TEXT_CONFIG_DIRECTION": {
+    "zh_CN": "渐变方向",
+    "en_GB": "Gradient Direction"
+  },
+  "TEXT_CONFIG_START_COLOR": {
+    "zh_CN": "起始颜色",
+    "en_GB": "Start Color"
+  },
+  "TEXT_CONFIG_END_COLOR": {
+    "zh_CN": "结束颜色",
+    "en_GB": "End Color"
+  },
+  "TEXT_CONFIG_CURVE": {
+    "zh_CN": "曲线",
+    "en_GB": "Curve"
+  },
+  "TEXT_CONFIG_SHADER": {
+    "zh_CN": "着色器",
+    "en_GB": "Shader"
+  },
+  "TEXT_CONFIG_RADIUS": {
+    "zh_CN": "半径",
+    "en_GB": "Radius"
+  },
+  "TEXT_CONFIG_INTENSITY": {
+    "zh_CN": "强度",
+    "en_GB": "Intensity"
+  },
+  "TEXT_CONFIG_INVALID_REFERENCES": {
+    "zh_CN": "存在无效引用，请修正后再保存：{details}",
+    "en_GB": "Invalid references must be fixed before saving: {details}"
+  },
+  "INVALID_TEXT_CONFIG_TYPE": {
+    "zh_CN": "文字配置缺少有效的 type，必须是 plainTextConfig 或 richTextConfig：{path}",
+    "en_GB": "The text config has no valid type. Expected plainTextConfig or richTextConfig: {path}"
+  },
+  "TEXT_CONFIG_NO_LONGER_EXISTS": {
+    "zh_CN": "文字配置已被删除或重命名，无法保存。",
+    "en_GB": "The text config was deleted or renamed and cannot be saved."
+  },
+  "TEXT_CONFIG_ADD_STYLE": {
+    "zh_CN": "添加样式",
+    "en_GB": "Add Style"
+  },
+  "TEXT_CONFIG_RENAME_STYLE": {
+    "zh_CN": "重命名样式",
+    "en_GB": "Rename Style"
+  },
+  "TEXT_CONFIG_STYLE_NAME": {
+    "zh_CN": "样式名称",
+    "en_GB": "Style Name"
+  },
+  "TEXT_CONFIG_OVERRIDE": {
+    "zh_CN": "覆盖",
+    "en_GB": "Override"
+  },
+  "TEXT_CONFIG_BOLD": {
+    "zh_CN": "粗体",
+    "en_GB": "Bold"
+  },
+  "TEXT_CONFIG_ITALIC": {
+    "zh_CN": "斜体",
+    "en_GB": "Italic"
+  },
+  "TEXT_CONFIG_SLANT_ANGLE": {
+    "zh_CN": "倾斜角度",
+    "en_GB": "Slant Angle"
+  },
+  "TEXT_CONFIG_UNDERLINED": {
+    "zh_CN": "下划线",
+    "en_GB": "Underlined"
+  },
+  "TEXT_CONFIG_STRIKE_THROUGH": {
+    "zh_CN": "删除线",
+    "en_GB": "Strike Through"
+  },
+  "TEXT_CONFIG_ENABLED": {
+    "zh_CN": "启用",
+    "en_GB": "Enabled"
+  },
+  "TEXT_CONFIG_COLOR": {
+    "zh_CN": "颜色",
+    "en_GB": "Color"
   },
   "CURVE_WINDOW": {
     "zh_CN": "曲线窗口",
@@ -1291,6 +1983,10 @@
     "zh_CN": "关键帧属性",
     "en_GB": "Key Properties"
   },
+  "CURVE_COMPONENT": {
+    "zh_CN": "通道",
+    "en_GB": "Channel"
+  },
   "CURVE_FIT_VIEW": {
     "zh_CN": "适应视图",
     "en_GB": "Fit View"
@@ -1298,6 +1994,10 @@
   "CURVE_CANVAS_HINT": {
     "zh_CN": "双击添加关键帧 · 拖拽左右蓝色切线调整曲率 · 滚轮缩放时间 · Ctrl+滚轮缩放值 · 中键平移",
     "en_GB": "Double-click to add key · Drag blue tangents to adjust curvature · Wheel zooms time · Ctrl+wheel zooms value · Middle-drag to pan"
+  },
+  "CURVE_CANVAS_HINT_MACOS": {
+    "zh_CN": "双击添加关键帧 · 拖拽左右蓝色切线调整曲率 · 双指捏合缩放 · 双指滑动平移 · ⌘+滚轮缩放",
+    "en_GB": "Double-click to add key · Drag blue tangents to adjust curvature · Pinch to zoom · Two-finger scroll to pan · ⌘+wheel to zoom"
   },
   "RELOAD_MODULE": {
     "zh_CN": "重载模块",
@@ -1322,6 +2022,10 @@
   "ACTOR_INFO": {
     "zh_CN": "角色信息",
     "en_GB": "Actor Info"
+  },
+  "WORLD_OUTLINER": {
+    "zh_CN": "世界大纲",
+    "en_GB": "World Outliner"
   },
   "CLASS_DETAIL": {
     "zh_CN": "类变量详细信息",
@@ -1370,6 +2074,10 @@
   "LANGUAGE_CHANGE_RESTART": {
     "zh_CN": "语言设置将在重启编辑器后生效。",
     "en_GB": "Language changes will take effect after restarting the editor."
+  },
+  "HINT": {
+    "zh_CN": "提示",
+    "en_GB": "Hint"
   },
   "CONFIRM_DELETE_PARAM": {
     "zh_CN": "确认删除字段 '{}' 吗？\n这将从所有成员中移除该数据。",
@@ -1643,6 +2351,26 @@
     "zh_CN": "编辑蓝图",
     "en_GB": "Edit Blueprint"
   },
+  "VALIDATE_BLUEPRINT": {
+    "zh_CN": "校验蓝图",
+    "en_GB": "Validate Blueprint"
+  },
+  "BLUEPRINT_VALIDATION_TITLE": {
+    "zh_CN": "蓝图校验",
+    "en_GB": "Blueprint Validation"
+  },
+  "BLUEPRINT_VALIDATION_SUCCESS": {
+    "zh_CN": "蓝图校验通过。",
+    "en_GB": "Blueprint validation passed."
+  },
+  "BLUEPRINT_VALIDATION_SAVE_WARNING": {
+    "zh_CN": "以下蓝图存在校验错误。仍然保存可能导致运行时错误。",
+    "en_GB": "The following blueprints contain validation errors. Saving anyway may cause runtime errors."
+  },
+  "SAVE_ANYWAY": {
+    "zh_CN": "仍然保存",
+    "en_GB": "Save Anyway"
+  },
   "ORGANIZE_GRAPH": {
     "zh_CN": "整理",
     "en_GB": "Organise"
@@ -1679,17 +2407,13 @@
     "zh_CN": "关于 Ludork",
     "en_GB": "About Ludork"
   },
-  "ABOUT_DESC": {
-    "zh_CN": "Ludork 是一个基于 PyQt5 的 2D RPG 工具包，它通过 pybind11 将编辑器 UI 与由 SFML 绑定的轻量级运行时引擎配对。它专注于通过可视化脚本、资产工具和游戏基础进行快速迭代，以便创作者可以在不离开编辑器的情况下构建内容。",
-    "en_GB": "Ludork is a PyQt5-based 2D RPG toolkit that pairs an editor UI with a lightweight runtime engine powered by SFML bindings through pybind11. It focuses on fast iteration with visual scripting, asset tooling, and gameplay foundations so creators can build content without constantly leaving the editor."
-  },
   "ABOUT_LICENSES": {
-    "zh_CN": "开源许可",
-    "en_GB": "Open Source Licenses"
+    "zh_CN": "许可证与第三方声明",
+    "en_GB": "Licences and Third-Party Notices"
   },
   "ABOUT_COPYRIGHT": {
-    "zh_CN": "© 2026 Ludork Team",
-    "en_GB": "© 2026 Ludork Team"
+    "zh_CN": "© 2026 JasonLeon",
+    "en_GB": "© 2026 JasonLeon"
   },
   "SHOW_REFERENCE_TREE": {
     "zh_CN": "显示引用树",
@@ -1819,112 +2543,344 @@
     "zh_CN": "矩形选择器",
     "en_GB": "Rect Viewer"
   },
-  "CHAT_WITH_AI": {
-    "zh_CN": "与 AI 聊天",
-    "en_GB": "Chat with AI"
+  "SCRIPT_MIXIN_GRAPH_CONFLICT": {
+    "zh_CN": "ScriptMixin 与蓝图模式冲突",
+    "en_GB": "ScriptMixin conflicts with Blueprint graph mode"
   },
-  "AI_PROVIDER": {
-    "zh_CN": "AI 供应商",
-    "en_GB": "AI Provider"
+  "SCRIPT_MIXIN_METADATA_INVALID": {
+    "zh_CN": "Mixin metadata 无效：{error}",
+    "en_GB": "Invalid Mixin metadata: {error}"
   },
-  "API_KEY": {
-    "zh_CN": "API 密钥",
-    "en_GB": "API Key"
+  "SCRIPT_MIXIN_INHERITANCE_CONFLICT": {
+    "zh_CN": "蓝图继承链不能混用 ScriptMixin 与蓝图逻辑模式。",
+    "en_GB": "A blueprint inheritance chain cannot mix ScriptMixin and Blueprint graph modes."
   },
-  "API_KEY_NOT_CONFIGURED": {
-    "zh_CN": "AI API 密钥未配置，请设置您的 API 供应商和密钥。",
-    "en_GB": "AI API key is not configured. Please set up your API provider and key."
+  "SCRIPT_MIXIN_TITLE": {
+    "zh_CN": "ScriptMixin",
+    "en_GB": "ScriptMixin"
   },
-  "ENTER_API_KEY": {
-    "zh_CN": "AI API 配置",
-    "en_GB": "AI API Configuration"
+  "SCRIPT_MIXIN_REMOVE_FIELDS": {
+    "zh_CN": "更换 Mixin 会删除以下本地变量：\n{fields}\n\n是否继续？",
+    "en_GB": "Changing the Mixin will remove these local variables:\n{fields}\n\nContinue?"
   },
-  "AI_MODEL": {
-    "zh_CN": "模型",
-    "en_GB": "Model"
+  "NEW_UI_ASSET": {
+    "zh_CN": "新建 UI 资产",
+    "en_GB": "New UI Asset"
   },
-  "AI_CHAT_TITLE": {
-    "zh_CN": "AI 聊天",
-    "en_GB": "AI Chat"
+  "SELECT_UI_ASSET_PATH": {
+    "zh_CN": "选择 UI 资产路径",
+    "en_GB": "Select UI Asset Path"
   },
-  "AI_SETTINGS": {
-    "zh_CN": "设置",
-    "en_GB": "Settings"
+  "UI_ASSET_EXISTS": {
+    "zh_CN": "UI 资产已存在或路径无效",
+    "en_GB": "The UI asset already exists or its path is invalid"
   },
-  "AI_THINKING": {
-    "zh_CN": "AI 正在思考",
-    "en_GB": "AI is thinking"
+  "HINT_CREATE_UI_ASSET_SUCCESS": {
+    "zh_CN": "UI 资产创建成功",
+    "en_GB": "UI asset created successfully"
   },
-  "AI_INPUT_HINT": {
-    "zh_CN": "输入消息...",
-    "en_GB": "Type a message..."
+  "UI_ASSET_EDITOR": {
+    "zh_CN": "UI 资产编辑器",
+    "en_GB": "UI Asset Editor"
   },
-  "AI_STATUS_STARTING": {
-    "zh_CN": "正在启动 AI 工作流...",
-    "en_GB": "Starting AI workflow..."
+  "UI_PALETTE": {
+    "zh_CN": "控件面板",
+    "en_GB": "Palette"
   },
-  "AI_STATUS_ITERATION": {
-    "zh_CN": "第 {n} 轮",
-    "en_GB": "Iteration {n}"
+  "UI_HIERARCHY": {
+    "zh_CN": "层级",
+    "en_GB": "Hierarchy"
   },
-  "AI_STATUS_CALLING_API": {
-    "zh_CN": "正在请求 AI...",
-    "en_GB": "Calling AI..."
+  "UI_DESIGNER": {
+    "zh_CN": "设计器",
+    "en_GB": "Designer"
   },
-  "AI_STATUS_FILE_PROCESS": {
-    "zh_CN": "正在执行命令：{detail}",
-    "en_GB": "Running command: {detail}"
+  "DETAILS": {
+    "zh_CN": "细节",
+    "en_GB": "Details"
   },
-  "AI_STATUS_FETCH_FILE": {
-    "zh_CN": "正在搜索：{detail}",
-    "en_GB": "Searching: {detail}"
+  "RESET_VIEW": {
+    "zh_CN": "重置视图",
+    "en_GB": "Reset View"
   },
-  "AI_STATUS_READ_FILE": {
-    "zh_CN": "正在读取：{detail}",
-    "en_GB": "Reading: {detail}"
+  "VALIDATE": {
+    "zh_CN": "验证",
+    "en_GB": "Validate"
   },
-  "AI_STATUS_REPLACE_FILE": {
-    "zh_CN": "正在保存蓝图...",
-    "en_GB": "Saving blueprint..."
+  "REFRESH_PREVIEW": {
+    "zh_CN": "刷新预览",
+    "en_GB": "Refresh Preview"
   },
-  "AI_STATUS_PATCH_BLUEPRINT": {
-    "zh_CN": "正在应用蓝图补丁...",
-    "en_GB": "Applying blueprint patch..."
+  "MOVE_UP": {
+    "zh_CN": "上移",
+    "en_GB": "Move Up"
   },
-  "AI_STATUS_VALIDATE": {
-    "zh_CN": "正在验证蓝图...",
-    "en_GB": "Validating blueprint..."
+  "MOVE_DOWN": {
+    "zh_CN": "下移",
+    "en_GB": "Move Down"
   },
-  "AI_STATUS_FORMAT_RETRY": {
-    "zh_CN": "响应格式有误，正在重试...",
-    "en_GB": "Invalid response format, retrying..."
+  "OUTDENT": {
+    "zh_CN": "移出父级",
+    "en_GB": "Outdent"
   },
-  "AI_STATUS_CONTINUE_RETRY": {
-    "zh_CN": "任务尚未完成，继续执行...",
-    "en_GB": "Task not finished, continuing..."
+  "INDENT": {
+    "zh_CN": "移入上一项",
+    "en_GB": "Indent"
   },
-  "CENTER_SYMMETRIC_TELEPORT": {
-    "zh_CN": "中心对称传送",
-    "en_GB": "Center-Symmetric Teleport"
+  "UI_ASSET": {
+    "zh_CN": "UI 资产",
+    "en_GB": "UI Asset"
   },
-  "CENTER_SYMMETRIC_TELEPORT_DESC": {
-    "zh_CN": "将玩家传送到当前地图的中心对称格，目标必须可通行。",
-    "en_GB": "Teleport the player to the center-symmetric tile on the current map if passable."
+  "ASSET_PATH": {
+    "zh_CN": "资产路径",
+    "en_GB": "Asset Path"
   },
-  "GO_UPSTAIRS_SAME_POS": {
-    "zh_CN": "上楼同坐标",
-    "en_GB": "Upstairs Same Position"
+  "WIDTH": {
+    "zh_CN": "宽度",
+    "en_GB": "Width"
   },
-  "GO_UPSTAIRS_SAME_POS_DESC": {
-    "zh_CN": "传送到上一层相同坐标，目标地图须存在且该格可通行。",
-    "en_GB": "Warp to the same coordinates on the floor above if the map exists and the tile is passable."
+  "HEIGHT": {
+    "zh_CN": "高度",
+    "en_GB": "Height"
   },
-  "GO_DOWNSTAIRS_SAME_POS": {
-    "zh_CN": "下楼同坐标",
-    "en_GB": "Downstairs Same Position"
+  "EXPOSE_TO_PALETTE": {
+    "zh_CN": "显示在控件面板",
+    "en_GB": "Expose to Palette"
   },
-  "GO_DOWNSTAIRS_SAME_POS_DESC": {
-    "zh_CN": "传送到下一层相同坐标，目标地图须存在且该格可通行。",
-    "en_GB": "Warp to the same coordinates on the floor below if the map exists and the tile is passable."
+  "DISPLAY_NAME": {
+    "zh_CN": "显示名称",
+    "en_GB": "Display Name"
+  },
+  "CATEGORY": {
+    "zh_CN": "分类",
+    "en_GB": "Category"
+  },
+  "WIDGET": {
+    "zh_CN": "控件",
+    "en_GB": "Widget"
+  },
+  "NAME": {
+    "zh_CN": "名称",
+    "en_GB": "Name"
+  },
+  "CONTROL": {
+    "zh_CN": "控件类型",
+    "en_GB": "Control"
+  },
+  "UI_SOURCE_ASSET": {
+    "zh_CN": "源资产",
+    "en_GB": "Source Asset"
+  },
+  "OPEN_SOURCE_ASSET": {
+    "zh_CN": "打开源资产",
+    "en_GB": "Open Source Asset"
+  },
+  "SLOT": {
+    "zh_CN": "父级 Slot",
+    "en_GB": "Parent Slot"
+  },
+  "ANCHORS": {
+    "zh_CN": "锚点",
+    "en_GB": "Anchors"
+  },
+  "POSITION_X": {
+    "zh_CN": "位置 X",
+    "en_GB": "Position X"
+  },
+  "POSITION_Y": {
+    "zh_CN": "位置 Y",
+    "en_GB": "Position Y"
+  },
+  "SIZE_X": {
+    "zh_CN": "尺寸 X",
+    "en_GB": "Size X"
+  },
+  "SIZE_Y": {
+    "zh_CN": "尺寸 Y",
+    "en_GB": "Size Y"
+  },
+  "OFFSET_LEFT": {
+    "zh_CN": "左侧偏移",
+    "en_GB": "Offset Left"
+  },
+  "OFFSET_TOP": {
+    "zh_CN": "顶部偏移",
+    "en_GB": "Offset Top"
+  },
+  "OFFSET_RIGHT": {
+    "zh_CN": "右侧偏移",
+    "en_GB": "Offset Right"
+  },
+  "OFFSET_BOTTOM": {
+    "zh_CN": "底部偏移",
+    "en_GB": "Offset Bottom"
+  },
+  "UI_LIST_SLOT_ORDERED": {
+    "zh_CN": "该 Slot 由层级顺序决定位置。",
+    "en_GB": "This slot is positioned by hierarchy order."
+  },
+  "ANCHOR_MIN": {
+    "zh_CN": "锚点最小值",
+    "en_GB": "Anchor Min"
+  },
+  "ANCHOR_MAX": {
+    "zh_CN": "锚点最大值",
+    "en_GB": "Anchor Max"
+  },
+  "OFFSETS": {
+    "zh_CN": "偏移",
+    "en_GB": "Offsets"
+  },
+  "ALIGNMENT": {
+    "zh_CN": "对齐",
+    "en_GB": "Alignment"
+  },
+  "AUTO_SIZE": {
+    "zh_CN": "自动尺寸",
+    "en_GB": "Auto Size"
+  },
+  "Z_ORDER": {
+    "zh_CN": "层级顺序",
+    "en_GB": "Z Order"
+  },
+  "UI_SELECT_CONTAINER": {
+    "zh_CN": "请先选择可以包含子控件的节点。",
+    "en_GB": "Select a node that can contain children."
+  },
+  "UI_CONTAINER_REJECTS_CHILD": {
+    "zh_CN": "该控件不能包含子控件。",
+    "en_GB": "This control cannot contain child controls."
+  },
+  "UI_ASSET_CYCLE": {
+    "zh_CN": "该嵌套会形成 UI 资产循环引用。",
+    "en_GB": "This nesting would create a UI asset cycle."
+  },
+  "UI_NAME_MUST_BE_UNIQUE": {
+    "zh_CN": "控件名称不能为空，并且必须在资产内唯一。",
+    "en_GB": "The widget name must be non-empty and unique within the asset."
+  },
+  "UI_VALIDATION_SUCCEEDED": {
+    "zh_CN": "UI 资产验证通过。",
+    "en_GB": "UI asset validation succeeded."
+  },
+  "UI_VALIDATION_FAILED": {
+    "zh_CN": "UI 资产验证失败",
+    "en_GB": "UI Asset Validation Failed"
+  },
+  "UI_PREVIEW_READY": {
+    "zh_CN": "原生预览就绪",
+    "en_GB": "Native preview ready"
+  },
+  "UI_PREVIEW_RENDERING": {
+    "zh_CN": "正在渲染原生预览",
+    "en_GB": "Rendering native preview"
+  },
+  "UI_PREVIEW_STARTING": {
+    "zh_CN": "正在启动原生预览",
+    "en_GB": "Starting native preview"
+  },
+  "UI_PREVIEW_FAILED": {
+    "zh_CN": "原生预览失败",
+    "en_GB": "Native preview failed"
+  },
+  "UI_PREVIEW_UNAVAILABLE": {
+    "zh_CN": "原生预览不可用",
+    "en_GB": "Native preview unavailable"
+  },
+  "UI_PREVIEW_HOST_REQUIRED": {
+    "zh_CN": "编辑器发行包中未找到 UiPreviewHost。层级与细节编辑仍然可用。",
+    "en_GB": "UiPreviewHost was not found in the editor distribution. Hierarchy and Details editing remain available."
+  },
+  "ACTOR_PREVIEW_HOST_UNAVAILABLE": {
+    "zh_CN": "Actor Shader 实时预览不可用，已回退到本地纹理：{0}",
+    "en_GB": "Live Actor shader preview is unavailable. Local texture rendering is being used: {0}"
+  },
+  "UI_ASSET_DELETE_REFERENCED": {
+    "zh_CN": "待删除内容仍存在以下 UI 相关入向引用，已取消删除：\n{references}",
+    "en_GB": "Deletion was cancelled because the selected content still has these UI-related incoming references:\n{references}"
+  },
+  "ANCHOR_PRESETS": {
+    "zh_CN": "锚点预设",
+    "en_GB": "Anchor Presets"
+  },
+  "ANCHOR_TOP_LEFT": {
+    "zh_CN": "左上",
+    "en_GB": "Top Left"
+  },
+  "ANCHOR_TOP_CENTER": {
+    "zh_CN": "顶部居中",
+    "en_GB": "Top Center"
+  },
+  "ANCHOR_TOP_RIGHT": {
+    "zh_CN": "右上",
+    "en_GB": "Top Right"
+  },
+  "ANCHOR_CENTER_LEFT": {
+    "zh_CN": "左侧居中",
+    "en_GB": "Center Left"
+  },
+  "ANCHOR_CENTER": {
+    "zh_CN": "居中",
+    "en_GB": "Center"
+  },
+  "ANCHOR_CENTER_RIGHT": {
+    "zh_CN": "右侧居中",
+    "en_GB": "Center Right"
+  },
+  "ANCHOR_BOTTOM_LEFT": {
+    "zh_CN": "左下",
+    "en_GB": "Bottom Left"
+  },
+  "ANCHOR_BOTTOM_CENTER": {
+    "zh_CN": "底部居中",
+    "en_GB": "Bottom Center"
+  },
+  "ANCHOR_BOTTOM_RIGHT": {
+    "zh_CN": "右下",
+    "en_GB": "Bottom Right"
+  },
+  "ANCHOR_STRETCH_HORIZONTAL_TOP": {
+    "zh_CN": "顶部横向拉伸",
+    "en_GB": "Stretch Horizontal Top"
+  },
+  "ANCHOR_STRETCH_HORIZONTAL_CENTER": {
+    "zh_CN": "居中横向拉伸",
+    "en_GB": "Stretch Horizontal Center"
+  },
+  "ANCHOR_STRETCH_HORIZONTAL_BOTTOM": {
+    "zh_CN": "底部横向拉伸",
+    "en_GB": "Stretch Horizontal Bottom"
+  },
+  "ANCHOR_STRETCH_VERTICAL_LEFT": {
+    "zh_CN": "左侧纵向拉伸",
+    "en_GB": "Stretch Vertical Left"
+  },
+  "ANCHOR_STRETCH_VERTICAL_CENTER": {
+    "zh_CN": "居中纵向拉伸",
+    "en_GB": "Stretch Vertical Center"
+  },
+  "ANCHOR_STRETCH_VERTICAL_RIGHT": {
+    "zh_CN": "右侧纵向拉伸",
+    "en_GB": "Stretch Vertical Right"
+  },
+  "ANCHOR_STRETCH_HORIZONTAL": {
+    "zh_CN": "横向拉伸",
+    "en_GB": "Stretch H"
+  },
+  "ANCHOR_STRETCH_VERTICAL": {
+    "zh_CN": "纵向拉伸",
+    "en_GB": "Stretch V"
+  },
+  "ANCHOR_STRETCH_ALL": {
+    "zh_CN": "全拉伸",
+    "en_GB": "Stretch All"
+  },
+  "VISIBILITY": {
+    "zh_CN": "可见性",
+    "en_GB": "Visibility"
+  },
+  "LOCK": {
+    "zh_CN": "锁定设计器变换",
+    "en_GB": "Lock Designer Transform"
   }
 }

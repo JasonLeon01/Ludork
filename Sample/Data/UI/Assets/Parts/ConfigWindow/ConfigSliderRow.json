@@ -1,0 +1,142 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 320,
+    "height": 32
+  },
+  "palette": {
+    "exposed": false,
+    "displayName": "Config Slider Row",
+    "category": "General"
+  },
+  "root": {
+    "id": "639bc157-2d03-4f09-b56b-253326cd3102",
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        320,
+        32
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "id": "9bd9fdde-046b-4248-aa52-1f3dd8be8288",
+        "name": "Label",
+        "controlId": "Engine.PlainText",
+        "properties": {
+          "textConfig": "UI/Text20",
+          "text": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.5
+            ],
+            "max": [
+              0.0,
+              0.5
+            ]
+          },
+          "offsets": {
+            "left": 32.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.5
+          ],
+          "autoSize": true,
+          "zOrder": 0
+        },
+        "editor": {
+          "previewText": "Volume"
+        },
+        "children": []
+      },
+      {
+        "id": "d59fdc1b-c2a7-424d-8e4a-9b959312dc24",
+        "name": "Slider",
+        "controlId": "Engine.Slider",
+        "properties": {
+          "size": [
+            160.0,
+            8.0
+          ],
+          "minValue": 0,
+          "maxValue": 100,
+          "value": 0,
+          "lineTexture": "Assets/System/SliderLine.png",
+          "handleTexture": "Assets/System/SliderHandle.png"
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.5,
+              0.5
+            ],
+            "max": [
+              0.5,
+              0.5
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.5
+          ],
+          "autoSize": true,
+          "zOrder": 1
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "id": "a84a1093-b31b-4ca3-819e-e2bc77862cdc",
+        "name": "ValueText",
+        "controlId": "Engine.PlainText",
+        "properties": {
+          "textConfig": "UI/Text20",
+          "text": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.5,
+              0.5
+            ],
+            "max": [
+              0.5,
+              0.5
+            ]
+          },
+          "offsets": {
+            "left": 80.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.5
+          ],
+          "autoSize": true,
+          "zOrder": 2
+        },
+        "editor": {
+          "previewText": "100"
+        },
+        "children": []
+      }
+    ]
+  }
+}

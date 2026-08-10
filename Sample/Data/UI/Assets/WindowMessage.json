@@ -1,0 +1,177 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 544,
+    "height": 160
+  },
+  "palette": {
+    "exposed": true,
+    "displayName": "Window Message",
+    "category": "Windows"
+  },
+  "root": {
+    "id": "4d7c409b-674c-4f56-b43e-d5270dc39eec",
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        544,
+        160
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "id": "6614d87d-80c0-4506-bf33-ca14435ce686",
+        "name": "WindowFrame",
+        "controlId": "Engine.Window",
+        "properties": {
+          "size": [
+            544,
+            160
+          ],
+          "windowSkin": "",
+          "repeated": false
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              1.0,
+              1.0
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": false,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "id": "0f71cc41-8c94-4954-aeb3-020de8d0e059",
+        "name": "Content",
+        "controlId": "Engine.Canvas",
+        "properties": {
+          "size": [
+            512,
+            128
+          ]
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              1.0,
+              1.0
+            ]
+          },
+          "offsets": {
+            "left": 16.0,
+            "top": 16.0,
+            "right": 16.0,
+            "bottom": 16.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": false,
+          "zOrder": 1
+        },
+        "editor": {},
+        "children": [
+          {
+            "id": "12a99d6d-479e-4138-b13a-3394e0652778",
+            "name": "NameText",
+            "controlId": "Engine.PlainText",
+            "properties": {
+              "textConfig": "UI/CenterText24",
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.5,
+                  0.0
+                ],
+                "max": [
+                  0.5,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 0.0,
+                "top": 0.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                0.5,
+                0.0
+              ],
+              "autoSize": true,
+              "zOrder": 0
+            },
+            "editor": {
+              "previewText": "Speaker"
+            },
+            "children": []
+          },
+          {
+            "id": "64df2fc0-04a0-4fe5-baf3-9093e97fb0a6",
+            "name": "MessageText",
+            "controlId": "Engine.RichText",
+            "properties": {
+              "textConfig": "UI/Message",
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 2.0,
+                "top": 40.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": true,
+              "zOrder": 1
+            },
+            "editor": {
+              "previewText": "This is a preview message."
+            },
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

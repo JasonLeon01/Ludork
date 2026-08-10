@@ -1,0 +1,1 @@
+The read-only research budget is exhausted. Use the information already collected. If a safe Blueprint proposal is possible, submit one now. Otherwise explain exactly which current-project fact is missing without claiming a change.

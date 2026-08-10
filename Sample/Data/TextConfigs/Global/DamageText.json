@@ -1,0 +1,47 @@
+{
+  "type": "plainTextConfig",
+  "name": "DamageText",
+  "font": "",
+  "characterSize": 22,
+  "style": {
+    "bold": true,
+    "italic": false,
+    "underlined": false,
+    "strikeThrough": false
+  },
+  "slantAngle": 15,
+  "fillColor": [
+    255,
+    255,
+    255,
+    255
+  ],
+  "letterSpacing": 1,
+  "lineSpacing": 1.0,
+  "lineAlignment": "default",
+  "outline": {
+    "color": [
+      90,
+      0,
+      0,
+      255
+    ],
+    "thickness": 1.5
+  },
+  "glow": {
+    "enabled": true,
+    "color": [
+      255,
+      32,
+      32,
+      128
+    ],
+    "radius": 2.0,
+    "intensity": 0.5
+  },
+  "gradient": {
+    "enabled": true,
+    "direction": "vertical",
+    "curve": "Global/DamageTextGradient"
+  }
+}

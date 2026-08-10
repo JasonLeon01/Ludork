@@ -1,0 +1,20 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ludork.Views.ConfigWindow"
+        MinWidth="800"
+        MinHeight="600"
+        WindowStartupLocation="CenterOwner"
+        Background="#121212"
+        FontFamily="avares://Ludork/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC"
+        Icon="/Assets/icon.ico">
+    <Grid Margin="8">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+            <Grid x:Name="PanelGrid"
+                  Margin="0,32"
+                  ColumnDefinitions="*,*"
+                  ColumnSpacing="8"
+                  RowSpacing="32" />
+        </ScrollViewer>
+    </Grid>
+</Window>

@@ -1,0 +1,58 @@
+{
+  "name": "DamageTextGradient",
+  "defaultValue": [
+    255,
+    255,
+    255,
+    255
+  ],
+  "preInfinity": "constant",
+  "postInfinity": "constant",
+  "keys": [
+    {
+      "time": 0,
+      "value": [
+        255,
+        59,
+        59,
+        255
+      ],
+      "interpolation": "linear",
+      "arriveTangent": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "leaveTangent": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "time": 1,
+      "value": [
+        254,
+        252,
+        255,
+        255
+      ],
+      "interpolation": "linear",
+      "arriveTangent": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "leaveTangent": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "type": "vector4Curve"
+}

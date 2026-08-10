@@ -1,0 +1,59 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Ludork: Build Debug (Windows)",
+            "type": "process",
+            "command": "${env:ComSpec}",
+            "args": [
+                "/d",
+                "/c",
+                "call",
+                "${workspaceFolder}\\..\\tools\\build_cpp.bat",
+                "${workspaceFolder}",
+                "Debug"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "Ludork: Configure Debug (macOS)",
+            "type": "shell",
+            "command": "/Applications/CMake.app/Contents/bin/cmake",
+            "args": [
+                "-S",
+                "${workspaceFolder}",
+                "-B",
+                "${workspaceFolder}/build",
+                "-DCMAKE_BUILD_TYPE=Debug",
+                "-DCMAKE_OSX_ARCHITECTURES=arm64",
+                "-DCMAKE_OSX_DEPLOYMENT_TARGET=13.3"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Ludork: Build Debug (macOS)",
+            "type": "shell",
+            "command": "/Applications/CMake.app/Contents/bin/cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/build",
+                "--config",
+                "Debug",
+                "--target",
+                "Main",
+                "--parallel"
+            ],
+            "dependsOn": "Ludork: Configure Debug (macOS)",
+            "dependsOrder": "sequence",
+            "group": "build",
+            "problemMatcher": "$gcc"
+        }
+    ]
+}

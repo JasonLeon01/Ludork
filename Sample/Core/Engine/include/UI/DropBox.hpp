@@ -1,0 +1,205 @@
+#pragma once
+
+#include <BindAnnotations.hpp>
+#include <EngineRuntimeApi.hpp>
+#include <Runtime/RuntimeValue.hpp>
+#include <UI/ControlBase.hpp>
+#include <UI/FunctionalBase.hpp>
+#include <UI/Text.hpp>
+
+#include <SFML/Graphics/Image.hpp>
+#include <SFML/Graphics/RenderStates.hpp>
+#include <SFML/Graphics/RenderTarget.hpp>
+#include <SFML/System/Vector2.hpp>
+
+#include <functional>
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
+
+class PlainText;
+class Rect;
+class Window;
+
+BIND_CLASS(callbacks =
+               "getSize,update,onConfirm,onCancel,onClick,onMouseButtonDown,"
+               "onMouseMoved,onMouseWheelScrolled,onKeyDown,draw")
+class LUDORK_ENGINE_API DropBox : public ControlBase, public FunctionalBase {
+public:
+    BIND_INIT(defaults = {{}, 0, false})
+    DropBox(const sf::Vector2f& collapsedSize, const sf::Image& windowSkin,
+            std::shared_ptr<PlainTextConfig> textConfig,
+            std::vector<std::string> items = {}, int selectedIndex = 0,
+            bool repeated = false);
+    virtual ~DropBox();
+
+    DropBox(const DropBox&) = delete;
+    DropBox& operator=(const DropBox&) = delete;
+    DropBox(DropBox&&) = delete;
+    DropBox& operator=(DropBox&&) = delete;
+
+    BIND_METHOD(Pure = true)
+    virtual sf::Vector2f getSize() const override;
+
+    BIND_METHOD(Pure = true)
+    sf::Vector2f getCollapsedSize() const;
+
+    BIND_METHOD()
+    void resize(const sf::Vector2f& size);
+
+    BIND_METHOD()
+    void setCollapsedSize(const sf::Vector2f& size);
+
+    BIND_METHOD(defaults = {false})
+    void setWindowSkin(const sf::Image& windowSkin, bool repeated = false);
+
+    BIND_METHOD()
+    void setTextConfig(std::shared_ptr<PlainTextConfig> textConfig);
+
+    BIND_METHOD(Pure = true)
+    std::vector<std::string> getItems() const;
+
+    BIND_METHOD()
+    void setItems(const std::vector<std::string>& items);
+
+    BIND_METHOD(Pure = true)
+    int getSelectedIndex() const;
+
+    BIND_METHOD()
+    void setSelectedIndex(int index);
+
+    BIND_METHOD(Pure = true)
+    std::string getSelectedItem() const;
+
+    BIND_METHOD(Pure = true)
+    bool isExpanded() const;
+
+    BIND_METHOD()
+    void setExpanded(bool expanded);
+
+    BIND_METHOD()
+    void open();
+
+    BIND_METHOD()
+    void cancel();
+
+    BIND_METHOD()
+    void setOnSelectedIndexChanged(std::function<void(int)> callback);
+
+    BIND_METHOD()
+    void setOnExpandedChanged(std::function<void(bool)> callback);
+
+    BIND_METHOD()
+    void setOnLayoutChanged(std::function<void()> callback);
+
+    BIND_METHOD()
+    void setOpenSound(const std::string& filename);
+
+    BIND_METHOD(Pure = true)
+    const std::string& getOpenSound() const;
+
+    BIND_METHOD()
+    void setCursorSound(const std::string& filename);
+
+    BIND_METHOD(Pure = true)
+    const std::string& getCursorSound() const;
+
+    BIND_METHOD()
+    void setSelectSound(const std::string& filename);
+
+    BIND_METHOD(Pure = true)
+    const std::string& getSelectSound() const;
+
+    BIND_METHOD()
+    void setCancelSound(const std::string& filename);
+
+    BIND_METHOD(Pure = true)
+    const std::string& getCancelSound() const;
+
+    BIND_METHOD()
+    virtual void update(float deltaTime) override;
+
+    BIND_METHOD()
+    virtual void onConfirm(const RuntimeValue::Map& arguments) override;
+
+    BIND_METHOD()
+    virtual void onCancel(const RuntimeValue::Map& arguments) override;
+
+    BIND_METHOD()
+    virtual void onClick(const RuntimeValue::Map& arguments) override;
+
+    BIND_METHOD()
+    virtual bool onMouseButtonDown(const RuntimeValue::Map& arguments) override;
+
+    BIND_METHOD()
+    virtual void onMouseMoved(const RuntimeValue::Map& arguments) override;
+
+    BIND_METHOD()
+    virtual void onMouseWheelScrolled(
+        const RuntimeValue::Map& arguments) override;
+
+    BIND_METHOD()
+    virtual void onKeyDown(const RuntimeValue::Map& arguments) override;
+
+protected:
+    BIND_METHOD()
+    virtual void draw(sf::RenderTarget& target,
+                      sf::RenderStates states) const override;
+
+private:
+    static constexpr float RowHeight = 32.0f;
+    static constexpr float ExpandedBorderHeight = 32.0f;
+
+    static sf::Vector2f normalizedSize(const sf::Vector2f& size);
+    static sf::Vector2i roundedSize(const sf::Vector2f& size);
+    static std::optional<sf::Vector2f> pointerPosition(
+        const RuntimeValue::Map& arguments);
+    static std::optional<int> pointerButton(const RuntimeValue::Map& arguments);
+
+    int clampedIndex(int index) const;
+    float expandedHeight() const;
+    void setExpandedState(bool expanded);
+    void confirmCurrentSelection();
+    bool moveCursor(int offset, bool wrap);
+    bool handlePointerAction(const sf::Vector2f& screenPosition,
+                             std::optional<int> button);
+    std::optional<int> itemIndexAt(const sf::Vector2f& localPosition) const;
+    sf::Vector2f toLocalPosition(const sf::Vector2f& screenPosition) const;
+    void restoreParentFocus();
+
+    void markVisualsDirty();
+    void ensureVisuals() const;
+    void rebuildVisuals() const;
+    void updateSelectionVisual() const;
+    void positionCollapsedText() const;
+    void positionItemText(PlainText& text, int index) const;
+
+    sf::Vector2f collapsedSize_;
+    sf::Image windowSkin_;
+    std::shared_ptr<PlainTextConfig> textConfig_;
+    std::vector<std::string> items_;
+    int selectedIndex_ = 0;
+    int cursorIndex_ = 0;
+    bool expanded_ = false;
+    bool repeated_ = false;
+    bool suppressNextClick_ = false;
+    bool focusabilityOverridden_ = false;
+    bool previousCanReceiveFocus_ = true;
+
+    std::function<void(int)> selectedIndexChangedCallback_;
+    std::function<void(bool)> expandedChangedCallback_;
+    std::function<void()> layoutChangedCallback_;
+
+    std::string openSound_;
+    std::string cursorSound_;
+    std::string selectSound_;
+    std::string cancelSound_;
+
+    mutable bool visualsDirty_ = true;
+    mutable std::unique_ptr<Rect> collapsedFrame_;
+    mutable std::unique_ptr<PlainText> collapsedText_;
+    mutable std::unique_ptr<Window> expandedWindow_;
+    mutable std::unique_ptr<Rect> selectionRect_;
+    mutable std::vector<std::unique_ptr<PlainText>> itemTexts_;
+};

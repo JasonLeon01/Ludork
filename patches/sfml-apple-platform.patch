@@ -1,0 +1,44 @@
+diff --git a/third_party/SFML/src/SFML/Window/iOS/WindowImplUIKit.hpp b/third_party/SFML/src/SFML/Window/iOS/WindowImplUIKit.hpp
+--- a/third_party/SFML/src/SFML/Window/iOS/WindowImplUIKit.hpp
++++ b/third_party/SFML/src/SFML/Window/iOS/WindowImplUIKit.hpp
+@@ -51,0 +52,3 @@ public:
++    ////////////////////////////////////////////////////////////
++    ~WindowImplUIKit() override;
++
+diff --git a/third_party/SFML/src/SFML/Window/iOS/WindowImplUIKit.mm b/third_party/SFML/src/SFML/Window/iOS/WindowImplUIKit.mm
+--- a/third_party/SFML/src/SFML/Window/iOS/WindowImplUIKit.mm
++++ b/third_party/SFML/src/SFML/Window/iOS/WindowImplUIKit.mm
+@@ -90,0 +91,8 @@ WindowImplUIKit::WindowImplUIKit(VideoMode mode,
++////////////////////////////////////////////////////////////
++WindowImplUIKit::~WindowImplUIKit()
++{
++    if ([SFAppDelegate getInstance].sfWindow == this)
++        [SFAppDelegate getInstance].sfWindow = nullptr;
++}
++
++
+diff --git a/third_party/SFML/src/SFML/Window/iOS/SFAppDelegate.mm b/third_party/SFML/src/SFML/Window/iOS/SFAppDelegate.mm
+--- a/third_party/SFML/src/SFML/Window/iOS/SFAppDelegate.mm
++++ b/third_party/SFML/src/SFML/Window/iOS/SFAppDelegate.mm
+@@ -29,0 +30 @@
++#include <cstdlib>
+@@ -78 +79 @@ SFAppDelegate* delegateInstance = nullptr;
+-    sfmlMain(*_NSGetArgc(), *_NSGetArgv());
++    const int status = sfmlMain(*_NSGetArgc(), *_NSGetArgv());
+@@ -80 +81 @@ SFAppDelegate* delegateInstance = nullptr;
+-    sfmlMain(0, nullptr);
++    const int status = sfmlMain(0, nullptr);
+@@ -81,0 +83 @@ SFAppDelegate* delegateInstance = nullptr;
++    std::exit(status);
+diff --git a/third_party/SFML/src/SFML/Window/macOS/SFWindowController.mm b/third_party/SFML/src/SFML/Window/macOS/SFWindowController.mm
+--- a/third_party/SFML/src/SFML/Window/macOS/SFWindowController.mm
++++ b/third_party/SFML/src/SFML/Window/macOS/SFWindowController.mm
+@@ -106 +106 @@
+-        m_highDpi       = NO;
++        m_highDpi       = YES;
+@@ -118 +118 @@
+-        m_oglView = [[SFOpenGLView alloc] initWithFrame:[[m_window contentView] frame] fullscreen:NO highDpi:NO];
++        m_oglView = [[SFOpenGLView alloc] initWithFrame:[[m_window contentView] frame] fullscreen:NO highDpi:m_highDpi];
+@@ -159 +159 @@
+-        m_highDpi       = NO;
++        m_highDpi       = YES;

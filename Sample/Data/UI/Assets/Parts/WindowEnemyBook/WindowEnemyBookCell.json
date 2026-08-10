@@ -1,0 +1,426 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 320,
+    "height": 64
+  },
+  "palette": {
+    "exposed": false,
+    "displayName": "Window Enemy Book Cell",
+    "category": "Windows"
+  },
+  "root": {
+    "id": "b4a614dc-0a27-4f1b-8eb3-89c2245d95d0",
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        320,
+        64
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "id": "3dae00eb-2fc7-4e3d-86a0-1a6a23b2da66",
+        "name": "EnemyIcon",
+        "controlId": "Engine.FunctionalImage",
+        "properties": {
+          "texture": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "id": "768e28b4-a2a3-4b88-bdb9-e84d12c019a0",
+        "name": "Name",
+        "controlId": "Engine.FunctionalPlainText",
+        "properties": {
+          "textConfig": "UI/Text16",
+          "text": "",
+          "outlineColor": [0, 0, 0, 255],
+          "outlineThickness": 1.0
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 64.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 1
+        },
+        "editor": {
+          "previewText": "Slime"
+        },
+        "children": []
+      },
+      {
+        "id": "fd6b6adf-4d14-44c0-bef5-bc254e736116",
+        "name": "SpecialIcon1",
+        "controlId": "Engine.FunctionalImage",
+        "properties": {
+          "texture": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 300.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 2
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "id": "bfc22c0a-e507-4159-a5e7-97d990f3eb36",
+        "name": "SpecialText1",
+        "controlId": "Engine.FunctionalPlainText",
+        "properties": {
+          "textConfig": "UI/RightText10",
+          "text": "",
+          "outlineColor": [0, 0, 0, 255],
+          "outlineThickness": 1.0
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 316.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 3
+        },
+        "editor": {
+          "previewText": "Poison"
+        },
+        "children": []
+      },
+      {
+        "id": "3f6e02c2-3d02-413b-8594-5665a1836438",
+        "name": "SpecialIcon2",
+        "controlId": "Engine.FunctionalImage",
+        "properties": {
+          "texture": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 280.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 4
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "id": "aaec3b70-1b8d-4a37-bf64-eaa6bb47afdb",
+        "name": "SpecialText2",
+        "controlId": "Engine.FunctionalPlainText",
+        "properties": {
+          "textConfig": "UI/RightText10",
+          "text": "",
+          "outlineColor": [0, 0, 0, 255],
+          "outlineThickness": 1.0
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 270.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 5
+        },
+        "editor": {
+          "previewText": "Hard"
+        },
+        "children": []
+      },
+      {
+        "id": "38ac6fcc-b3e7-4256-a4ba-d22c70ad578f",
+        "name": "SpecialIcon3",
+        "controlId": "Engine.FunctionalImage",
+        "properties": {
+          "texture": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 260.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 6
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "id": "8ee1f3d5-be9b-47a7-b4d2-1475bc732ff6",
+        "name": "SpecialText3",
+        "controlId": "Engine.FunctionalPlainText",
+        "properties": {
+          "textConfig": "UI/RightText10",
+          "text": "",
+          "outlineColor": [0, 0, 0, 255],
+          "outlineThickness": 1.0
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 224.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 7
+        },
+        "editor": {
+          "previewText": "Magic"
+        },
+        "children": []
+      },
+      {
+        "id": "da7bc3d7-e874-4a21-98b1-5c2a331c1221",
+        "name": "HPText",
+        "controlId": "Engine.FunctionalPlainText",
+        "properties": {
+          "textConfig": "UI/Text12",
+          "text": "",
+          "outlineColor": [0, 0, 0, 255],
+          "outlineThickness": 1.0
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 64.0,
+            "top": 24.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 8
+        },
+        "editor": {
+          "previewText": "HP\t999"
+        },
+        "children": []
+      },
+      {
+        "id": "c257a8f0-cbc0-498d-a461-ba2159cd960a",
+        "name": "ATKText",
+        "controlId": "Engine.FunctionalPlainText",
+        "properties": {
+          "textConfig": "UI/Text12",
+          "text": "",
+          "outlineColor": [0, 0, 0, 255],
+          "outlineThickness": 1.0
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 150.0,
+            "top": 24.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 9
+        },
+        "editor": {
+          "previewText": "ATK\t99"
+        },
+        "children": []
+      },
+      {
+        "id": "b3a8992b-55fa-43ff-89e6-d5d46eda8579",
+        "name": "DEFText",
+        "controlId": "Engine.FunctionalPlainText",
+        "properties": {
+          "textConfig": "UI/Text12",
+          "text": "",
+          "outlineColor": [0, 0, 0, 255],
+          "outlineThickness": 1.0
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 236.0,
+            "top": 24.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 10
+        },
+        "editor": {
+          "previewText": "DEF\t99"
+        },
+        "children": []
+      },
+      {
+        "id": "fc733ef5-a93e-4625-a40e-ae39afaa5185",
+        "name": "EXPText",
+        "controlId": "Engine.FunctionalPlainText",
+        "properties": {
+          "textConfig": "UI/Text12",
+          "text": "",
+          "outlineColor": [0, 0, 0, 255],
+          "outlineThickness": 1.0
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 64.0,
+            "top": 44.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 11
+        },
+        "editor": {
+          "previewText": "EXP\t120"
+        },
+        "children": []
+      },
+      {
+        "id": "a8aaf9fd-5af0-4879-ba1a-7465d35b1bc2",
+        "name": "GOLDText",
+        "controlId": "Engine.FunctionalPlainText",
+        "properties": {
+          "textConfig": "UI/Text12",
+          "text": "",
+          "outlineColor": [0, 0, 0, 255],
+          "outlineThickness": 1.0
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 150.0,
+            "top": 44.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 12
+        },
+        "editor": {
+          "previewText": "GOLD\t30"
+        },
+        "children": []
+      },
+      {
+        "id": "c3c7ee17-43bf-4d4e-ba09-c951abc58e22",
+        "name": "DamageText",
+        "controlId": "Engine.FunctionalPlainText",
+        "properties": {
+          "textConfig": "UI/Text12",
+          "text": "",
+          "outlineColor": [0, 0, 0, 255],
+          "outlineThickness": 1.0
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 236.0,
+            "top": 44.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 13
+        },
+        "editor": {
+          "previewText": "DMG\t???"
+        },
+        "children": []
+      }
+    ]
+  }
+}

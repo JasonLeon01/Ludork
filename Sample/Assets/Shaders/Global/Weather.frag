@@ -1,3 +1,10 @@
+#ifdef GL_ES
+precision highp float;
+varying mediump vec4 sf_TexCoord0;
+#else
+varying vec4 sf_TexCoord0;
+#endif
+
 uniform sampler2D screenTex;
 uniform vec2 texSize;
 uniform float time;
@@ -52,7 +59,7 @@ float snowFlake(vec2 uv, float t, float density, vec2 scroll)
 
 void main()
 {
-    vec2 uv = gl_TexCoord[0].xy;
+    vec2 uv = sf_TexCoord0.xy;
     vec3 src = texture2D(screenTex, clamp(uv, 0.0, 1.0)).rgb;
     float p = clamp(power, 0.0, 1.0);
     float m = clamp(maxScale, 0.1, 2.0);

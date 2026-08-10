@@ -1,8 +1,10 @@
 {
-    "parent": "Source.Door.Door",
+    "parent": "Source.DoorBase.DoorBase",
     "attrs": {
+        "scriptMixin": true,
+        "scriptPath": "Doors/Door.lua",
         "material": {
-            "lightBlock": 0.8,
+            "lightBlock": 0.64,
             "mirror": false,
             "reflectionStrength": 0.5,
             "opacity": 1.0,
@@ -12,166 +14,11 @@
         "defaultRect": [
             [
                 0,
-                128
-            ],
-            [
+                128,
                 32,
                 32
             ]
         ]
-    },
-    "graph": {
-        "nodeGraph": {
-            "onCollision": {
-                "nodes": [
-                    {
-                        "nodeFunction": "openDoor",
-                        "params": [
-                            ""
-                        ],
-                        "pos": [
-                            720,
-                            314
-                        ]
-                    },
-                    {
-                        "nodeFunction": "NodeFunctions.Utils.SELF",
-                        "params": [],
-                        "pos": [
-                            -2160,
-                            564
-                        ]
-                    },
-                    {
-                        "nodeFunction": "NodeFunctions.Utils.IF",
-                        "params": [
-                            false
-                        ],
-                        "pos": [
-                            0,
-                            314
-                        ]
-                    },
-                    {
-                        "nodeFunction": "NodeFunctions.Utils.GetAttr",
-                        "params": [
-                            "",
-                            "opening"
-                        ],
-                        "pos": [
-                            -1440,
-                            564
-                        ]
-                    },
-                    {
-                        "nodeFunction": "NodeFunctions.Utils.SetAttr",
-                        "params": [
-                            "",
-                            "opening",
-                            "True"
-                        ],
-                        "pos": [
-                            1440,
-                            314
-                        ]
-                    },
-                    {
-                        "nodeFunction": "NodeFunctions.Math.NOT",
-                        "params": [
-                            false
-                        ],
-                        "pos": [
-                            -720,
-                            564
-                        ]
-                    }
-                ],
-                "links": [
-                    {
-                        "left": 1,
-                        "right": 3,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Params"
-                    },
-                    {
-                        "left": 2,
-                        "right": 0,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Exec"
-                    },
-                    {
-                        "left": 1,
-                        "right": 4,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Params"
-                    },
-                    {
-                        "left": 1,
-                        "right": 0,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Params"
-                    },
-                    {
-                        "left": 0,
-                        "right": 4,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Exec"
-                    },
-                    {
-                        "left": 3,
-                        "right": 5,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Params"
-                    },
-                    {
-                        "left": 5,
-                        "right": 2,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Params"
-                    }
-                ]
-            },
-            "onCreate": {
-                "nodes": [],
-                "links": []
-            },
-            "onDestroy": {
-                "nodes": [],
-                "links": []
-            },
-            "onFixedTick": {
-                "nodes": [],
-                "links": []
-            },
-            "onLateTick": {
-                "nodes": [],
-                "links": []
-            },
-            "onOverlap": {
-                "nodes": [],
-                "links": []
-            },
-            "onTick": {
-                "nodes": [],
-                "links": []
-            }
-        },
-        "startNodes": {
-            "onCollision": 2,
-            "onCreate": null,
-            "onDestroy": null,
-            "onFixedTick": null,
-            "onLateTick": null,
-            "onOverlap": null,
-            "onTick": null
-        }
     },
     "type": "blueprint"
 }

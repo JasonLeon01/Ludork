@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "Runs __LUDORK_GAME_NAME__ on Ludork"
+    },
+    {
+      "name": "ability_desc",
+      "value": "Runs __LUDORK_GAME_NAME__"
+    },
+    {
+      "name": "ability_label",
+      "value": "__LUDORK_GAME_NAME__"
+    },
+    {
+      "name": "permission_microphone",
+      "value": "Allow audio recording when the game uses microphone input"
+    },
+    {
+      "name": "permission_clipboard",
+      "value": "Allow the game to read text from the clipboard"
+    },
+    {
+      "name": "permission_sensor",
+      "value": "Allow the game to read motion sensor data"
+    }
+  ]
+}

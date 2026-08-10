@@ -1,0 +1,97 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 32,
+    "height": 32
+  },
+  "palette": {
+    "exposed": false,
+    "displayName": "Item Row",
+    "category": "Windows"
+  },
+  "root": {
+    "id": "51400dc2-f933-4334-8763-63128b050840",
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        32,
+        32
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "id": "3596e575-1a97-4404-abe1-a84120f4066e",
+        "name": "Icon",
+        "controlId": "Engine.FunctionalImage",
+        "properties": {
+          "texture": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              1.0,
+              1.0
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": false,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "id": "3977da6b-6507-4691-b1a1-01f69628037c",
+        "name": "Count",
+        "controlId": "Engine.FunctionalPlainText",
+        "properties": {
+          "textConfig": "UI/RightText12",
+          "text": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              1.0,
+              1.0
+            ],
+            "max": [
+              1.0,
+              1.0
+            ]
+          },
+          "offsets": {
+            "left": -1.0,
+            "top": -1.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            1.0,
+            1.0
+          ],
+          "autoSize": true,
+          "zOrder": 1
+        },
+        "editor": {
+          "previewText": "99"
+        },
+        "children": []
+      }
+    ]
+  }
+}

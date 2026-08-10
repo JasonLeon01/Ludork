@@ -1,0 +1,65 @@
+{
+    "params": {
+        "name": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "desc": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "icon": {
+            "type": "file",
+            "defaultValue": "Icons"
+        },
+        "slot": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "attrPlus": {
+            "type": "dict",
+            "defaultValue": {}
+        }
+    },
+    "members": {
+        "Sword_A": {
+            "name": "{SWORD_A}",
+            "desc": "{SWORD_A_DESC}",
+            "icon": "Icons/classic-equips-2-0.png",
+            "slot": "weapon",
+            "attrPlus": {
+                "ATK": "10"
+            },
+            "_graph": {
+                "nodeGraph": {
+                    "onEquip": {
+                        "nodes": [],
+                        "links": []
+                    },
+                    "onUnequip": {
+                        "nodes": [],
+                        "links": []
+                    }
+                },
+                "startNodes": {
+                    "onEquip": null,
+                    "onUnequip": null
+                }
+            }
+        },
+        "Shield_A": {
+            "name": "{SHIELD_A}",
+            "desc": "{SHIELD_A_DESC}",
+            "icon": "Icons/classic-equips-3-0.png",
+            "slot": "shield",
+            "attrPlus": {
+                "DEF": "10"
+            }
+        }
+    },
+    "linkedType": "EquipInfo",
+    "events": [
+        "onEquip",
+        "onUnequip"
+    ]
+}

@@ -1,0 +1,97 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 132,
+    "height": 32
+  },
+  "palette": {
+    "exposed": false,
+    "displayName": "Equip Slot Row",
+    "category": "Windows"
+  },
+  "root": {
+    "id": "3d2495b7-2b34-4108-9623-df89adfffe94",
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        132,
+        32
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "id": "12b0ce2d-9aa5-4e9e-b6b6-50eab52bd4b8",
+        "name": "Icon",
+        "controlId": "Engine.FunctionalImage",
+        "properties": {
+          "texture": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              0.0,
+              0.0
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": true,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "id": "19c4b5c7-0f8a-48c6-becb-77a5f5c9c8dd",
+        "name": "Label",
+        "controlId": "Engine.FunctionalPlainText",
+        "properties": {
+          "textConfig": "UI/RightText14",
+          "text": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              1.0,
+              0.0
+            ],
+            "max": [
+              1.0,
+              0.0
+            ]
+          },
+          "offsets": {
+            "left": -32.0,
+            "top": 8.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": true,
+          "zOrder": 1
+        },
+        "editor": {
+          "previewText": "Iron Sword"
+        },
+        "children": []
+      }
+    ]
+  }
+}

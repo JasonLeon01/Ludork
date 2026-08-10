@@ -1,0 +1,10 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ludork.Views.FilePreviewDialog"
+        Width="640" Height="480"
+        WindowStartupLocation="CenterOwner"
+        Icon="/Assets/icon.ico">
+    <Border Padding="12" Background="#121212">
+        <Image x:Name="PreviewImage" Stretch="Uniform" />
+    </Border>
+</Window>

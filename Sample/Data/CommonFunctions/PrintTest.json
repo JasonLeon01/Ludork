@@ -1,0 +1,24 @@
+{
+    "parent": null,
+    "nodeGraph": {
+        "common": {
+            "nodes": [
+                {
+                    "nodeFunction": "NodeFunctions.Utils.Print",
+                    "params": [
+                        "Start testing print!"
+                    ],
+                    "pos": [
+                        0.0,
+                        0.0
+                    ]
+                }
+            ],
+            "links": []
+        }
+    },
+    "startNodes": {
+        "common": 0
+    },
+    "type": "commonFunction"
+}

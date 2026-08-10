@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="500" viewBox="0 0 760 500">
+  <defs>
+    <linearGradient id="page" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#f1f3f8"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#f04b45"/>
+      <stop offset="1" stop-color="#d62435"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="5" stdDeviation="8" flood-color="#172033" flood-opacity="0.10"/>
+    </filter>
+  </defs>
+  <rect width="760" height="500" fill="url(#page)"/>
+  <text x="380" y="54" fill="#171a22" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="25" font-weight="700" text-anchor="middle">Install Ludork</text>
+
+  <rect x="30" y="78" width="700" height="202" rx="20" fill="#ffffff" filter="url(#shadow)"/>
+  <circle cx="66" cy="108" r="17" fill="url(#accent)"/>
+  <text x="66" y="114" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="17" font-weight="700" text-anchor="middle">1</text>
+  <text x="94" y="116" fill="#222631" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="16" font-weight="650">Drag Ludork to Applications</text>
+  <path d="M282 187 H475" fill="none" stroke="url(#accent)" stroke-width="5" stroke-linecap="round"/>
+  <path d="M475 187 L451 170 V204 Z" fill="#d62435"/>
+
+  <rect x="30" y="298" width="700" height="151" rx="20" fill="#ffffff" filter="url(#shadow)"/>
+  <circle cx="66" cy="328" r="17" fill="url(#accent)"/>
+  <text x="66" y="334" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="17" font-weight="700" text-anchor="middle">2</text>
+  <text x="94" y="331" fill="#222631" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="16" font-weight="650">Double-click to install official plug-ins</text>
+  <text x="94" y="355" fill="#747c8e" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12">Installs to ~/Ludork — not Applications.</text>
+  <text x="94" y="385" fill="#50586a" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12">You’ll confirm before existing plug-ins are replaced.</text>
+
+  <text x="380" y="479" fill="#9a4250" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11" text-anchor="middle">Replacing the plug-in payload removes existing third-party plug-ins and .data.</text>
+</svg>

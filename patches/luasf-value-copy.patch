@@ -1,0 +1,49 @@
+diff --git a/include/utils.inl b/include/utils.inl
+index 2e9f2e4..5eafae3 100644
+--- a/include/utils.inl
++++ b/include/utils.inl
+@@ -4,0 +5,6 @@
++template <typename T>
++void enableValueCopy(sol::usertype<T> &type) {
++  static_assert(std::is_copy_constructible_v<T>);
++  type.set_function("__copy", [](const T &value) { return T(value); });
++}
++
+diff --git a/src/System/bind_Vector2.cpp b/src/System/bind_Vector2.cpp
+--- a/src/System/bind_Vector2.cpp
++++ b/src/System/bind_Vector2.cpp
+@@ -14,0 +15 @@
++    lua_sf::enableValueCopy(type_sf__Vector2_int_);
+@@ -115,0 +117 @@
++    lua_sf::enableValueCopy(type_sf__Vector2_unsigned_int_);
+@@ -216,0 +219 @@
++    lua_sf::enableValueCopy(type_sf__Vector2_float_);
+diff --git a/src/System/bind_Vector3.cpp b/src/System/bind_Vector3.cpp
+--- a/src/System/bind_Vector3.cpp
++++ b/src/System/bind_Vector3.cpp
+@@ -14,0 +15 @@
++    lua_sf::enableValueCopy(type_sf__Vector3_int_);
+@@ -118,0 +120 @@
++    lua_sf::enableValueCopy(type_sf__Vector3_unsigned_int_);
+@@ -222,0 +225 @@
++    lua_sf::enableValueCopy(type_sf__Vector3_float_);
+diff --git a/src/Graphics/bind_Rect.cpp b/src/Graphics/bind_Rect.cpp
+--- a/src/Graphics/bind_Rect.cpp
++++ b/src/Graphics/bind_Rect.cpp
+@@ -14,0 +15 @@
++    lua_sf::enableValueCopy(type_sf__Rect_int_);
+@@ -69,0 +71 @@
++    lua_sf::enableValueCopy(type_sf__Rect_float_);
+diff --git a/src/Graphics/bind_Glsl.cpp b/src/Graphics/bind_Glsl.cpp
+--- a/src/Graphics/bind_Glsl.cpp
++++ b/src/Graphics/bind_Glsl.cpp
+@@ -19,0 +20 @@
++    lua_sf::enableValueCopy(type_sf__Vector2_bool_);
+@@ -57,0 +59 @@
++    lua_sf::enableValueCopy(type_sf__Vector3_bool_);
+@@ -94,0 +97 @@
++    lua_sf::enableValueCopy(type_sf__priv__Vector4_float_);
+@@ -136,0 +140 @@
++    lua_sf::enableValueCopy(type_sf__priv__Vector4_int_);
+@@ -206,0 +211 @@
++    lua_sf::enableValueCopy(type_sf__priv__Vector4_bool_);

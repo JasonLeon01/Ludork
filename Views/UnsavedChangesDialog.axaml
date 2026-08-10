@@ -1,0 +1,26 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ludork.Views.UnsavedChangesDialog"
+        Width="520"
+        Height="190"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="#121212"
+        FontFamily="avares://Ludork/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC"
+        Icon="/Assets/icon.ico">
+    <Grid Margin="24" RowDefinitions="*,Auto">
+        <TextBlock x:Name="MessageText"
+                   Grid.Row="0"
+                   TextWrapping="Wrap"
+                   VerticalAlignment="Center"
+                   FontSize="16" />
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button x:Name="SaveButton" Click="onSave" />
+            <Button x:Name="DiscardButton" Click="onDiscard" />
+            <Button x:Name="CancelButton" Click="onCancel" />
+        </StackPanel>
+    </Grid>
+</Window>

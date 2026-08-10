@@ -1,0 +1,100 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 224,
+    "height": 20
+  },
+  "palette": {
+    "exposed": false,
+    "displayName": "Equip Status Row",
+    "category": "Windows"
+  },
+  "root": {
+    "id": "b8146e4d-23b7-410d-b452-2bbd4f112248",
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        224,
+        20
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "id": "e1eb59f5-50be-4e2d-a79a-be115f2ddb04",
+        "name": "Label",
+        "controlId": "Engine.PlainText",
+        "properties": {
+          "textConfig": "UI/Text16",
+          "text": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              0.0,
+              0.0
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": true,
+          "zOrder": 0
+        },
+        "editor": {
+          "previewText": "Attack"
+        },
+        "children": []
+      },
+      {
+        "id": "124b4061-e64c-43b5-a087-8db2c54feb81",
+        "name": "Delta",
+        "controlId": "Engine.PlainText",
+        "properties": {
+          "textConfig": "UI/Text16",
+          "text": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              1.0,
+              0.0
+            ],
+            "max": [
+              1.0,
+              0.0
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            1.0,
+            0.0
+          ],
+          "autoSize": true,
+          "zOrder": 1
+        },
+        "editor": {
+          "previewText": "+10"
+        },
+        "children": []
+      }
+    ]
+  }
+}

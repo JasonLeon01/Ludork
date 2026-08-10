@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "Ludork.OfficialBlueprintAI",
+  "name": "Official Blueprint AI",
+  "version": "1.0.0",
+  "minimumEditorVersion": "1.0.0",
+  "entryType": "Ludork.Plugins.OfficialBlueprintAI.OfficialBlueprintAIPlugin"
+}

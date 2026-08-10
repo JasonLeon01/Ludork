@@ -1,0 +1,82 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 608,
+    "height": 32
+  },
+  "palette": {
+    "exposed": false,
+    "displayName": "Enemy Encyclopedia Special Row",
+    "category": "Rows"
+  },
+  "root": {
+    "id": "1c35c860-ecfd-4314-9705-2cbf4f617976",
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        608,
+        32
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "id": "52db3a65-5e1b-4e02-b6bd-d2fc5890b0f7",
+        "name": "Name",
+        "controlId": "Engine.FunctionalPlainText",
+        "properties": {
+          "textConfig": "UI/LeftText16",
+          "text": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 0
+        },
+        "editor": {
+          "previewText": "Magic"
+        },
+        "children": []
+      },
+      {
+        "id": "16b83256-09aa-4aba-a0de-620a8e175741",
+        "name": "Description",
+        "controlId": "Engine.FunctionalPlainText",
+        "properties": {
+          "textConfig": "UI/LeftText16",
+          "text": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 64.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 1
+        },
+        "editor": {
+          "previewText": "Uses powerful elemental attacks."
+        },
+        "children": []
+      }
+    ]
+  }
+}

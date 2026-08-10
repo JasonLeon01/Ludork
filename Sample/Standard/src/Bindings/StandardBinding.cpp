@@ -1,0 +1,133 @@
+#include <Standard.hpp>
+#include <LudorkPlatform.hpp>
+#include <LuaError.hpp>
+#include <RuntimeSession.hpp>
+#include <LuaSF.hpp>
+
+#include "Bindings.hpp"
+#include "Runtime/ClassRuntime.hpp"
+#include "Runtime/EditorConsole.hpp"
+
+#include <sol2/sol.hpp>
+
+#include <stdexcept>
+
+namespace {
+
+int updateFromLua(lua_State* state) {
+    ludork::standard::update(state);
+    return 0;
+}
+
+int enterLuaSFState(lua_State* state, void*) {
+    return ludork::standard::enterRuntimeSession(state);
+}
+
+void leaveLuaSFState(lua_State* state, void*) {
+    ludork::standard::leaveRuntimeSession(state);
+}
+
+}  // namespace
+
+namespace ludork::standard {
+
+void initialize(lua_State* state) {
+    if (state == nullptr) {
+        return;
+    }
+    installLuaErrorHandler(state);
+    initializeRuntimeSession(state);
+    if (LuaSF_set_state_execution_hooks(state, enterLuaSFState, leaveLuaSFState,
+                                        nullptr) != 0) {
+        throw std::runtime_error("Failed to install LuaSF execution hooks");
+    }
+    sol::state_view lua(state);
+    lua["PLATFORM"] = LUDORK_PLATFORM;
+#if defined(LUDORK_MOBILE)
+    lua["LUDORK_MOBILE"] = true;
+    lua["LUDORK_DESKTOP"] = false;
+#else
+    lua["LUDORK_MOBILE"] = false;
+    lua["LUDORK_DESKTOP"] = true;
+#endif
+    binding::registerClass(lua);
+    binding::registerConfigParser(lua);
+    binding::registerSystemServices(lua);
+    binding::registerAsyncio(lua);
+    binding::registerFileBatch(lua);
+    binding::registerString(lua);
+    binding::registerTable(lua);
+    const sol::object rawRequire =
+        lua.globals().raw_get<sol::object>("require");
+    if (!rawRequire.is<sol::protected_function>()) {
+        throw std::runtime_error("Lua require function is not defined");
+    }
+    sol::protected_function require = rawRequire.as<sol::protected_function>();
+    sol::protected_function_result loaded = require("cjson");
+    if (!loaded.valid()) {
+        const sol::error error = loaded;
+        throw std::runtime_error(error.what());
+    }
+    const sol::object rawCjson = loaded.get<sol::object>();
+    if (!rawCjson.is<sol::table>()) {
+        throw std::runtime_error("cjson module did not return a table");
+    }
+    sol::table cjson = rawCjson.as<sol::table>();
+    lua.registry().raw_set("LuaSF.JsonNullSentinel",
+                           cjson.raw_get<sol::object>("null"));
+    const sol::object jsonArrayMetatable =
+        cjson.raw_get<sol::object>("array_mt");
+    if (jsonArrayMetatable.get_type() != sol::type::table) {
+        throw std::runtime_error("cjson array metatable is not defined");
+    }
+    lua.registry().raw_set("LuaSF.JsonArrayMetatable", jsonArrayMetatable);
+    const sol::object jsonEmptyArrayMetatable =
+        cjson.raw_get<sol::object>("empty_array_mt");
+    if (jsonEmptyArrayMetatable.get_type() != sol::type::table) {
+        throw std::runtime_error("cjson empty-array metatable is not defined");
+    }
+    lua.registry().raw_set("LuaSF.JsonEmptyArrayMetatable",
+                           jsonEmptyArrayMetatable);
+    binding::registerContainers(lua);
+    const sol::object jsonDecode =
+        rawCjson.as<sol::table>().raw_get<sol::object>("decode");
+    if (!jsonDecode.is<sol::protected_function>()) {
+        throw std::runtime_error("cjson decode function is not defined");
+    }
+    jsonDecode.push();
+    runtime::initializeEditorConsole(state, -1);
+    lua_pop(state, 1);
+    lua_pushcfunction(state, updateFromLua);
+    lua_setglobal(state, "_LUDORK_STANDARD_UPDATE");
+}
+
+void update(lua_State* state) {
+    if (state == nullptr) {
+        return;
+    }
+    runtime::updateEditorConsole(state);
+    binding::updateAsyncio(sol::state_view(state));
+}
+
+void shutdown(lua_State* state) noexcept {
+    if (state == nullptr) {
+        return;
+    }
+    runRuntimeCleanups(state);
+    LuaSF_quiesce_state(state);
+    LuaExecutionScope execution(state);
+    if (!execution.active()) {
+        return;
+    }
+    sol::state_view lua(state);
+    runtime::shutdownEditorConsole(state);
+    binding::shutdownFileBatch(lua);
+    binding::shutdownAsyncio(lua);
+    binding::shutdownContainers(state);
+    class_runtime::shutdown(state);
+    clearRuntimeRegistryReferences(state);
+    LuaSF_shutdown_state(state);
+    releaseRuntimeSession(state);
+}
+
+}  // namespace ludork::standard

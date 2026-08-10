@@ -1,0 +1,46 @@
+{
+  "type": "plainTextConfig",
+  "name": "Debuff",
+  "font": "",
+  "characterSize": 8,
+  "style": {
+    "bold": false,
+    "italic": false,
+    "underlined": false,
+    "strikeThrough": false
+  },
+  "fillColor": [
+    150,
+    0,
+    220,
+    255
+  ],
+  "letterSpacing": 1.0,
+  "lineSpacing": 1.0,
+  "lineAlignment": "default",
+  "outline": {
+    "color": [
+      0,
+      0,
+      0,
+      255
+    ],
+    "thickness": 0.0
+  },
+  "glow": {
+    "enabled": false,
+    "color": [
+      150,
+      0,
+      220,
+      0
+    ],
+    "radius": 0.0,
+    "intensity": 0
+  },
+  "gradient": {
+    "enabled": false,
+    "direction": "vertical",
+    "curve": ""
+  }
+}

@@ -1,0 +1,267 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ludork.Views.NewProjectWindow"
+        Width="980" Height="780" MinWidth="880" MinHeight="680"
+        WindowStartupLocation="CenterOwner"
+        Background="#111315"
+        FontFamily="avares://Ludork/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC"
+        Icon="/Assets/icon.ico"
+        Closing="onClosing"
+        Title="New Project">
+    <Window.Styles>
+        <Style Selector="ToggleButton.templateCard">
+            <Setter Property="MinHeight" Value="146" />
+            <Setter Property="Padding" Value="18" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Background" Value="#1b1e21" />
+            <Setter Property="BorderBrush" Value="#34383d" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+        <Style Selector="ToggleButton.templateCard:pointerover">
+            <Setter Property="Background" Value="#23272b" />
+            <Setter Property="BorderBrush" Value="#59616a" />
+        </Style>
+        <Style Selector="ToggleButton.templateCard:checked">
+            <Setter Property="Background" Value="#202a32" />
+            <Setter Property="BorderBrush" Value="{DynamicResource LudorkPrimaryBrush}" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+        <Style Selector="Border.templateIcon">
+            <Setter Property="Width" Value="58" />
+            <Setter Property="Height" Value="58" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Background" Value="#292d32" />
+        </Style>
+        <Style Selector="Border.badge">
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="9,3" />
+            <Setter Property="Background" Value="#30353a" />
+        </Style>
+        <Style Selector="TextBlock.badgeText">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#d7dce2" />
+        </Style>
+        <Style Selector="TextBlock.sectionCaption">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#9ba3ac" />
+        </Style>
+        <Style Selector="Button.footerButton">
+            <Setter Property="MinWidth" Value="108" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Padding" Value="20,0" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto">
+        <Border Grid.Row="0" Background="#17191c" BorderBrush="#303338"
+                BorderThickness="0,0,0,1" Padding="28,22">
+            <Grid ColumnDefinitions="52,*" ColumnSpacing="16">
+                <Border Width="52" Height="52" CornerRadius="12" Background="#262c31">
+                    <Viewbox Width="30" Height="30">
+                        <Canvas Width="32" Height="32">
+                            <Path Data="M5 8.5L16 3l11 5.5v15L16 29 5 23.5z"
+                                  Stroke="{DynamicResource LudorkPrimaryBrush}" StrokeThickness="2" />
+                            <Path Data="M5 8.5L16 14l11-5.5 M16 14v15"
+                                  Stroke="#dce3e9" StrokeThickness="1.5" />
+                        </Canvas>
+                    </Viewbox>
+                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+                    <TextBlock x:Name="HeaderTitle" FontSize="26" FontWeight="Bold" Foreground="#f4f6f8" />
+                    <TextBlock x:Name="HeaderSubtitle" FontSize="13" Foreground="#a8b0b8" TextWrapping="Wrap" />
+                </StackPanel>
+            </Grid>
+        </Border>
+        <Grid x:Name="TemplateAndDetails" Grid.Row="1" Margin="28,22,28,20"
+              ColumnDefinitions="310,*" ColumnSpacing="20">
+            <Grid Grid.Column="0" RowDefinitions="Auto,*" RowSpacing="10">
+                <TextBlock x:Name="ChooseTemplateText" Classes="sectionCaption" />
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="12" Margin="0,0,5,0">
+                    <ToggleButton x:Name="StandaloneTemplateButton" Classes="templateCard"
+                                  IsChecked="True" Click="onStandaloneTemplateClick">
+                        <Grid ColumnDefinitions="58,*" ColumnSpacing="15">
+                            <Border Classes="templateIcon">
+                                <Viewbox Width="36" Height="36">
+                                    <Canvas Width="40" Height="40">
+                                        <Rectangle Canvas.Left="5" Canvas.Top="6" Width="30" Height="28"
+                                                   RadiusX="5" RadiusY="5" Stroke="#dce3e9" StrokeThickness="2" />
+                                        <Path Data="M17 14v12l10-6z" Fill="{DynamicResource LudorkPrimaryBrush}" />
+                                    </Canvas>
+                                </Viewbox>
+                            </Border>
+                            <StackPanel Grid.Column="1" Spacing="7">
+                                <TextBlock x:Name="StandaloneTitle" FontSize="18"
+                                           FontWeight="Bold" Foreground="#f3f5f7" />
+                                <WrapPanel>
+                                    <Border Classes="badge" Background="#244538">
+                                        <TextBlock x:Name="StandaloneBadge" Classes="badgeText" Foreground="#9ce4bd" />
+                                    </Border>
+                                    <Border Classes="badge" Margin="6,0,0,0">
+                                        <TextBlock x:Name="StandaloneNoCompilerBadge" Classes="badgeText" />
+                                    </Border>
+                                    <Border Classes="badge" Margin="6,0,0,0">
+                                        <TextBlock x:Name="StandaloneReadyBadge" Classes="badgeText" />
+                                    </Border>
+                                </WrapPanel>
+                                <TextBlock x:Name="StandaloneSummary" Foreground="#aeb5bd" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Grid>
+                    </ToggleButton>
+                    <ToggleButton x:Name="CppTemplateButton" Classes="templateCard"
+                                  Click="onCppTemplateClick">
+                        <Grid ColumnDefinitions="58,*" ColumnSpacing="15">
+                            <Border Classes="templateIcon">
+                                <Viewbox Width="42" Height="30">
+                                    <Canvas Width="48" Height="34">
+                                        <Path Data="M14 6L4 17l10 11 M34 6l10 11-10 11"
+                                              Stroke="#dce3e9" StrokeThickness="3" />
+                                        <Path Data="M29 4L20 30"
+                                              Stroke="{DynamicResource LudorkPrimaryBrush}" StrokeThickness="3" />
+                                    </Canvas>
+                                </Viewbox>
+                            </Border>
+                            <StackPanel Grid.Column="1" Spacing="7">
+                                <TextBlock x:Name="CppTitle" FontSize="18"
+                                           FontWeight="Bold" Foreground="#f3f5f7" />
+                                <WrapPanel>
+                                    <Border Classes="badge" Background="#3a3048">
+                                        <TextBlock x:Name="CppBadge" Classes="badgeText" Foreground="#cfb3f4" />
+                                    </Border>
+                                    <Border Classes="badge" Margin="6,0,0,0">
+                                        <TextBlock x:Name="CppSourceBadge" Classes="badgeText" />
+                                    </Border>
+                                    <Border Classes="badge" Margin="6,0,0,0">
+                                        <TextBlock x:Name="CppDebugBadge" Classes="badgeText" />
+                                    </Border>
+                                </WrapPanel>
+                                <TextBlock x:Name="CppSummary" Foreground="#aeb5bd" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Grid>
+                    </ToggleButton>
+                </StackPanel>
+                </ScrollViewer>
+            </Grid>
+            <Border Grid.Column="1" Background="#191c1f" BorderBrush="#34383d"
+                    BorderThickness="1" CornerRadius="9" Padding="26">
+                <Grid RowDefinitions="Auto,*,Auto" RowSpacing="18">
+                    <Grid ColumnDefinitions="86,*" ColumnSpacing="20">
+                        <Border Width="86" Height="86" CornerRadius="18" Background="#252a2f">
+                            <Grid>
+                                <Viewbox x:Name="StandaloneHeroIcon" Width="54" Height="54">
+                                    <Canvas Width="60" Height="60">
+                                        <Rectangle Canvas.Left="7" Canvas.Top="8" Width="46" Height="42"
+                                                   RadiusX="8" RadiusY="8" Stroke="#dce3e9" StrokeThickness="3" />
+                                        <Path Data="M24 20v18l16-9z" Fill="{DynamicResource LudorkPrimaryBrush}" />
+                                    </Canvas>
+                                </Viewbox>
+                                <Viewbox x:Name="CppHeroIcon" Width="62" Height="48" IsVisible="False">
+                                    <Canvas Width="72" Height="52">
+                                        <Path Data="M22 7L6 26l16 19 M50 7l16 19-16 19"
+                                              Stroke="#dce3e9" StrokeThickness="4" />
+                                        <Path Data="M43 4L29 48"
+                                              Stroke="{DynamicResource LudorkPrimaryBrush}" StrokeThickness="4" />
+                                    </Canvas>
+                                </Viewbox>
+                            </Grid>
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="8">
+                            <TextBlock x:Name="DetailTitle" FontSize="24" FontWeight="Bold" Foreground="#f4f6f8" />
+                            <WrapPanel>
+                                <Border Classes="badge">
+                                    <TextBlock x:Name="DetailPrimaryBadge" Classes="badgeText" />
+                                </Border>
+                                <Border Classes="badge" Margin="8,0,0,0">
+                                    <TextBlock x:Name="DetailSecondaryBadge" Classes="badgeText" />
+                                </Border>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Grid>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel Spacing="15">
+                            <TextBlock x:Name="DetailDescription" FontSize="14" Foreground="#c0c6cc"
+                                       TextWrapping="Wrap" LineHeight="22" />
+                            <TextBlock x:Name="FeaturesTitle" Classes="sectionCaption" />
+                            <TextBlock x:Name="DetailFeature1" Foreground="#d9dde1" TextWrapping="Wrap" />
+                            <TextBlock x:Name="DetailFeature2" Foreground="#d9dde1" TextWrapping="Wrap" />
+                            <TextBlock x:Name="DetailFeature3" Foreground="#d9dde1" TextWrapping="Wrap" />
+                            <TextBlock x:Name="RequirementsTitle" Classes="sectionCaption" Margin="0,5,0,0" />
+                            <TextBlock x:Name="DetailRequirement1" Foreground="#9fa7af" TextWrapping="Wrap" />
+                            <TextBlock x:Name="DetailRequirement2" Foreground="#9fa7af" TextWrapping="Wrap" />
+                            <TextBlock x:Name="DetailRequirement3" Foreground="#9fa7af" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </ScrollViewer>
+                    <Border x:Name="CompatibilityPanel"
+                            Grid.Row="2"
+                            Background="#202428"
+                            CornerRadius="6"
+                            Padding="13,10"
+                            IsVisible="False">
+                        <TextBlock x:Name="CompatibilityText" Foreground="#aeb6be" TextWrapping="Wrap" />
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+        <Border x:Name="ProjectSettingsPanel" Grid.Row="2" Background="#17191c"
+                BorderBrush="#303338" BorderThickness="0,1,0,0" Padding="28,18">
+            <StackPanel Spacing="10">
+                <TextBlock x:Name="ProjectSettingsTitle" FontSize="15"
+                           FontWeight="Bold" Foreground="#eef1f4" />
+                <Grid ColumnDefinitions="3*,2*" ColumnSpacing="18">
+                    <StackPanel Spacing="6">
+                        <TextBlock x:Name="LocationLabel" Classes="sectionCaption" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <TextBox x:Name="ProjectLocationBox" />
+                            <Button x:Name="BrowseButton" Grid.Column="1"
+                                    MinWidth="92" Click="onBrowse" />
+                        </Grid>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="6">
+                        <TextBlock x:Name="NameLabel" Classes="sectionCaption" />
+                        <TextBox x:Name="ProjectNameBox" />
+                    </StackPanel>
+                </Grid>
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="7">
+                    <TextBlock x:Name="FinalPathCaption" Foreground="#7f8891" />
+                    <TextBlock x:Name="FinalPathText" Grid.Column="1"
+                               Foreground="#aeb6be" TextTrimming="CharacterEllipsis" />
+                </Grid>
+                <Border Background="#202428" BorderBrush="#34383d" BorderThickness="1"
+                        CornerRadius="6" Padding="13,10">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                        <StackPanel Spacing="3">
+                            <TextBlock x:Name="FfmpegTitle" FontWeight="SemiBold"
+                                       Foreground="#e1e5e9" />
+                            <TextBlock x:Name="FfmpegSummary" FontSize="12"
+                                       Foreground="#929ba4" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <ToggleSwitch x:Name="FfmpegToggle" Grid.Column="1"
+                                      VerticalAlignment="Center" IsChecked="False" />
+                    </Grid>
+                </Border>
+                <TextBlock x:Name="ValidationText" MinHeight="18"
+                           Foreground="#ff7777" TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+        <Border Grid.Row="3" Background="#121416" BorderBrush="#303338"
+                BorderThickness="0,1,0,0" Padding="28,14">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                <StackPanel VerticalAlignment="Center" Spacing="5">
+                    <TextBlock x:Name="ProgressText" Foreground="#aeb6be" IsVisible="False" />
+                    <ProgressBar x:Name="CopyProgress" Width="260" Height="4"
+                                 HorizontalAlignment="Left" IsIndeterminate="True" IsVisible="False" />
+                </StackPanel>
+                <Button x:Name="CancelButton" Grid.Column="1"
+                        Classes="footerButton" Click="onCancel" />
+                <Button x:Name="CreateButton" Grid.Column="2" Classes="footerButton"
+                        Background="{DynamicResource LudorkPrimaryBrush}" Foreground="#101214"
+                        FontWeight="Bold" Click="onCreate" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

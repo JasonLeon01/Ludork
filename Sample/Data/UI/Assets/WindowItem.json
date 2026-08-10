@@ -1,0 +1,100 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 256,
+    "height": 256
+  },
+  "palette": {
+    "exposed": false,
+    "displayName": "Window Item",
+    "category": "Windows"
+  },
+  "root": {
+    "id": "9cf88d60-388e-4e28-a132-73f438af3239",
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        256,
+        256
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "id": "34ee604f-9100-44c1-8b41-c4623b877f0c",
+        "name": "ItemName",
+        "controlId": "Engine.PlainText",
+        "properties": {
+          "textConfig": "UI/BoldText18",
+          "text": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              1.0
+            ],
+            "max": [
+              0.0,
+              1.0
+            ]
+          },
+          "offsets": {
+            "left": 16.0,
+            "top": -72.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": true,
+          "zOrder": 0
+        },
+        "editor": {
+          "previewText": "Item Name"
+        },
+        "children": []
+      },
+      {
+        "id": "74baeb56-7588-4e64-893a-bc9785b63aad",
+        "name": "Description",
+        "controlId": "Engine.PlainText",
+        "properties": {
+          "textConfig": "UI/Text14",
+          "text": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              1.0
+            ],
+            "max": [
+              0.0,
+              1.0
+            ]
+          },
+          "offsets": {
+            "left": 16.0,
+            "top": -48.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": true,
+          "zOrder": 1
+        },
+        "editor": {
+          "previewText": "Item description"
+        },
+        "children": []
+      }
+    ]
+  }
+}

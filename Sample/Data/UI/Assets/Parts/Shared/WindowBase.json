@@ -1,0 +1,144 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 160,
+    "height": 96
+  },
+  "palette": {
+    "exposed": false,
+    "displayName": "Window Base",
+    "category": "Base"
+  },
+  "root": {
+    "id": "9791e634-feef-4249-874d-f13dbe6994b3",
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        160,
+        96
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "id": "3083557f-d317-4c3d-94f4-4acc676114a6",
+        "name": "WindowFrame",
+        "controlId": "Engine.Window",
+        "properties": {
+          "size": [
+            160,
+            96
+          ],
+          "windowSkin": "",
+          "repeated": false
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              1.0,
+              1.0
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": false,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "id": "115b56c8-f129-4ba1-9311-5d64f64557c4",
+        "name": "Content",
+        "controlId": "Engine.Canvas",
+        "properties": {
+          "size": [
+            128,
+            64
+          ]
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              1.0,
+              1.0
+            ]
+          },
+          "offsets": {
+            "left": 16.0,
+            "top": 16.0,
+            "right": 16.0,
+            "bottom": 16.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": false,
+          "zOrder": 1
+        },
+        "editor": {},
+        "children": [
+          {
+            "id": "c8a75584-7ec4-4c70-91f5-999634a609f7",
+            "name": "PauseMark",
+            "controlId": "Engine.Image",
+            "properties": {
+              "texture": "",
+              "textureRect": [
+                0,
+                0,
+                16,
+                16
+              ],
+              "visible": false
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 0.0,
+                "top": 0.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": true,
+              "zOrder": 0
+            },
+            "editor": {},
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

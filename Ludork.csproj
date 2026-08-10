@@ -1,0 +1,115 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <RuntimeFrameworkVersion Condition="'$(SelfContained)' == 'true'">9.0.15</RuntimeFrameworkVersion>
+    <Version>1.0.0</Version>
+    <Nullable>enable</Nullable>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <DefaultItemExcludes>$(DefaultItemExcludes);dist\**;**\bin\**;**\obj\**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">
+    <LudorkTargetPlatform>macOS</LudorkTargetPlatform>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'win-x64'">
+    <LudorkTargetPlatform>Windows</LudorkTargetPlatform>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(LudorkTargetPlatform)' == '' and $([MSBuild]::IsOSPlatform('OSX'))">
+    <LudorkTargetPlatform>macOS</LudorkTargetPlatform>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(LudorkTargetPlatform)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">
+    <LudorkTargetPlatform>Windows</LudorkTargetPlatform>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(LudorkTargetPlatform)' == 'macOS'">
+    <DefineConstants>$(DefineConstants);LUDORK_MACOS</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(LudorkTargetPlatform)' == 'Windows'">
+    <DefineConstants>$(DefineConstants);LUDORK_WINDOWS</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="Models\" />
+    <Compile Remove="Controls\MacOSAnimationAudioPlayback.cs" Condition="'$(LudorkTargetPlatform)' != 'macOS'" />
+    <Compile Remove="Controls\WindowsAnimationAudioPlayback.cs" Condition="'$(LudorkTargetPlatform)' != 'Windows'" />
+    <Compile Remove="Ludork.Plugin.Abstractions\**\*.cs" />
+    <Compile Remove="Ludork.Plugin.Avalonia\**\*.cs" />
+    <Compile Remove="Plugins\**\*.cs" />
+    <Compile Remove="Sample\zlib\**\*.cs" />
+    <Compile Remove="Templates\**\*.cs" />
+    <None Include="Plugins\**\*.cs" />
+    <AvaloniaResource Include="Assets\**" />
+    <Content Include="Locale\**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="docs\_images\**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="docs\en_GB\**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="docs\zh_CN\**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="About_*.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="LICENSE.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="README.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="README_zh_CN.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="THIRD_PARTY_NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="THIRD_PARTY_NOTICES_zh_CN.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Licenses\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="Ludork.Plugin.Abstractions\Ludork.Plugin.Abstractions.csproj" />
+    <ProjectReference Include="Ludork.Plugin.Avalonia\Ludork.Plugin.Avalonia.csproj" />
+    <PackageReference Include="Avalonia" Version="12.1.0" />
+    <PackageReference Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
+    <PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.1.0" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.0" />
+    <PackageReference Include="Material.Avalonia" Version="3.17.0" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.0" />
+    <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3">
+      <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+      <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="MoonSharp" Version="2.0.0" />
+    <PackageReference Include="NAudio" Version="2.2.1" Condition="'$(LudorkTargetPlatform)' == 'Windows'" />
+    <PackageReference Include="NAudio.Core" Version="2.2.1" />
+    <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />
+    <PackageReference Include="NodifyM.Avalonia" Version="12.0.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.6.0" />
+  </ItemGroup>
+
+  <Target
+      Name="CleanPublicDocumentationOutput"
+      BeforeTargets="GetCopyToOutputDirectoryItems"
+      Condition="'$(DesignTimeBuild)' != 'true'">
+    <RemoveDir Directories="$(TargetDir)docs" />
+  </Target>
+
+  <Target
+      Name="CleanPublicDocumentationPublishOutput"
+      BeforeTargets="ComputeFilesToPublish"
+      Condition="'$(DesignTimeBuild)' != 'true'">
+    <RemoveDir Directories="$(PublishDir)docs" />
+  </Target>
+
+  <Target
+      Name="WriteLudorkDevelopmentPluginMarker"
+      AfterTargets="Build"
+      Condition="'$(DesignTimeBuild)' != 'true'">
+    <WriteLinesToFile
+        File="$(TargetDir).ludork-development"
+        Lines="$(MSBuildProjectDirectory)"
+        Overwrite="true"
+        Encoding="UTF-8" />
+  </Target>
+
+  <Target
+      Name="RemoveLudorkDevelopmentPluginMarkerFromPublish"
+      AfterTargets="Publish">
+    <Delete Files="$(PublishDir).ludork-development" />
+  </Target>
+</Project>

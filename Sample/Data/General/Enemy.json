@@ -1,0 +1,216 @@
+{
+  "params": {
+    "name": {
+      "type": "string",
+      "desc": "The name of enemy.",
+      "defaultValue": "NEW ENEMY"
+    },
+    "desc": {
+      "type": "string",
+      "desc": "The description of enemy.",
+      "defaultValue": "NEW ENEMY DESC"
+    },
+    "MAXHP": {
+      "type": "int",
+      "defaultValue": 0
+    },
+    "ATK": {
+      "type": "int",
+      "defaultValue": 0
+    },
+    "DEF": {
+      "type": "int",
+      "defaultValue": 0
+    },
+    "EXP": {
+      "type": "int",
+      "defaultValue": 0
+    },
+    "GOLD": {
+      "type": "int",
+      "defaultValue": 0
+    },
+    "drops": {
+      "type": "list",
+      "defaultValue": [],
+      "reference": {
+        "kind": "general",
+        "key": "Item"
+      }
+    },
+    "special": {
+      "type": "dict",
+      "defaultValue": {},
+      "reference": {
+        "kind": "general",
+        "key": "Special"
+      }
+    },
+    "ANIMATION_KEY": {
+      "type": "string",
+      "defaultValue": "",
+      "reference": {
+        "kind": "animation"
+      }
+    }
+  },
+  "members": {
+    "Skeleton": {
+      "name": "{SKELETON_SODIER}",
+      "desc": "{SKELETON_SODIER_DESC}",
+      "_graph": {
+        "nodeGraph": {
+          "onDefeat": {
+            "nodes": [],
+            "links": []
+          }
+        },
+        "startNodes": {
+          "onDefeat": null
+        }
+      },
+      "MAXHP": 100,
+      "ATK": 70,
+      "DEF": 0,
+      "EXP": 1,
+      "GOLD": 2,
+      "drops": [],
+      "special": {
+        "Poisoning": "1"
+      },
+      "ANIMATION_KEY": "attack"
+    },
+    "Slime": {
+      "name": "{SLIME}",
+      "desc": "{SLIME_DESC}",
+      "MAXHP": 60,
+      "ATK": 15,
+      "DEF": 2,
+      "EXP": 1000,
+      "GOLD": 1000,
+      "drops": [],
+      "special": {
+        "Weaken": "2"
+      },
+      "ANIMATION_KEY": "attack"
+    },
+    "Rock": {
+      "name": "{ROCK}",
+      "desc": "{ROCK_DESC}",
+      "MAXHP": 10,
+      "ATK": 15,
+      "DEF": 10,
+      "EXP": 1,
+      "GOLD": 3,
+      "drops": [],
+      "special": {
+        "Hard": ""
+      },
+      "ANIMATION_KEY": "attack"
+    },
+    "Mage": {
+      "name": "{MAGE}",
+      "desc": "{MAGE_DESC}",
+      "MAXHP": 100,
+      "ATK": 10,
+      "DEF": 12,
+      "EXP": 3,
+      "GOLD": 3,
+      "drops": [],
+      "special": {
+        "Magic": ""
+      },
+      "ANIMATION_KEY": "attack"
+    },
+    "Bat": {
+      "name": "{BAT}",
+      "desc": "{BAT_DESC}",
+      "MAXHP": 100,
+      "ATK": 20,
+      "DEF": 5,
+      "EXP": 4,
+      "GOLD": 4,
+      "drops": [],
+      "special": {},
+      "ANIMATION_KEY": "attack"
+    },
+    "Knight": {
+      "name": "{KNIGHT}",
+      "desc": "{KNIGHT_DESC}",
+      "MAXHP": 66,
+      "ATK": 13,
+      "DEF": 5,
+      "EXP": 3,
+      "GOLD": 6,
+      "drops": [],
+      "special": {
+        "Compete": ""
+      },
+      "ANIMATION_KEY": "attack"
+    },
+    "Wizard": {
+      "name": "{WIZARD}",
+      "desc": "{WIZARD_DESC}",
+      "MAXHP": 500,
+      "ATK": 60,
+      "DEF": 30,
+      "EXP": 5,
+      "GOLD": 8,
+      "drops": [],
+      "special": {
+        "Magic": "",
+        "Domain": "2"
+      },
+      "ANIMATION_KEY": "attack"
+    },
+    "WhiteKing": {
+      "name": "{WHITE_KING}",
+      "desc": "{WHITE_KING_DESC}",
+      "MAXHP": 600,
+      "ATK": 120,
+      "DEF": 50,
+      "EXP": 20,
+      "GOLD": 60,
+      "drops": [],
+      "special": {
+        "Flank": ""
+      },
+      "ANIMATION_KEY": "attack"
+    },
+    "BigWizard": {
+      "name": "{BIG_WIZARD}",
+      "desc": "{BIG_WIZARD_DESC}",
+      "MAXHP": 700,
+      "ATK": 90,
+      "DEF": 30,
+      "EXP": 8,
+      "GOLD": 8,
+      "drops": [],
+      "special": {
+        "Magic": "",
+        "Blockade": ""
+      },
+      "ANIMATION_KEY": "attack"
+    },
+    "GreatIron": {
+      "name": "{GREATIRON}",
+      "desc": "{GREATIRON_DESC}",
+      "MAXHP": 1000,
+      "ATK": 20,
+      "DEF": 0,
+      "EXP": 3,
+      "GOLD": 6,
+      "drops": [],
+      "special": {
+        "MultiHit": "8",
+        "Hard": ""
+      },
+      "ANIMATION_KEY": "attack"
+    }
+  },
+  "linkedType": "EnemyInfo",
+  "events": [
+    "onDefeat",
+    "onEncounter"
+  ]
+}

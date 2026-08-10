@@ -1,3 +1,10 @@
+#ifdef GL_ES
+precision highp float;
+varying mediump vec4 sf_TexCoord0;
+#else
+varying vec4 sf_TexCoord0;
+#endif
+
 uniform sampler2D screenTex;
 uniform float hue;
 
@@ -19,7 +26,7 @@ vec3 hsvToRgb(vec3 c)
 
 void main()
 {
-    vec2 uv = gl_TexCoord[0].xy;
+    vec2 uv = sf_TexCoord0.xy;
     vec4 src = texture2D(screenTex, clamp(uv, 0.0, 1.0));
     vec3 hsv = rgbToHsv(src.rgb);
     hsv.x = fract(hsv.x + hue / 360.0);

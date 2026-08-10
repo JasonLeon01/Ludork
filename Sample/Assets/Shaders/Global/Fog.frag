@@ -1,3 +1,10 @@
+#ifdef GL_ES
+precision highp float;
+varying mediump vec4 sf_TexCoord0;
+#else
+varying vec4 sf_TexCoord0;
+#endif
+
 uniform sampler2D screenTex;
 uniform sampler2D fogTex;
 uniform vec2 texSize;
@@ -41,7 +48,7 @@ vec2 flowWarp(vec2 uv, float strength, float t, float phase)
 
 void main()
 {
-    vec2 uv = gl_TexCoord[0].xy;
+    vec2 uv = sf_TexCoord0.xy;
     vec3 src = texture2D(screenTex, clamp(uv, 0.0, 1.0)).rgb;
     float p = clamp(power, 0.0, 1.0);
     if (p <= 0.001)

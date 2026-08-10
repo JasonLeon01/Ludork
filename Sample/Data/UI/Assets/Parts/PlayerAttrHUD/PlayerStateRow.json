@@ -1,0 +1,98 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 128,
+    "height": 24
+  },
+  "palette": {
+    "exposed": false,
+    "displayName": "Player State Row",
+    "category": "HUD"
+  },
+  "root": {
+    "id": "caf12ff3-067a-4072-9f9e-932baff3f895",
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        128,
+        24
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "id": "e8c55bda-533a-4851-8ddd-469e9f3163ac",
+        "name": "Icon",
+        "controlId": "Engine.Image",
+        "properties": {
+          "texture": "",
+          "visible": false
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              0.0,
+              0.0
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": true,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "id": "11b9bfb5-4e3d-4d54-984a-d1fefafc846a",
+        "name": "StateName",
+        "controlId": "Engine.PlainText",
+        "properties": {
+          "textConfig": "UI/Text16",
+          "text": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              0.0,
+              0.0
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": true,
+          "zOrder": 1
+        },
+        "editor": {
+          "previewText": "Poisoned"
+        },
+        "children": []
+      }
+    ]
+  }
+}

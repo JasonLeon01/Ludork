@@ -1,241 +1,281 @@
 {
-    "parent": "Engine.Gameplay.Actors.Actor.Actor",
-    "attrs": {
-        "animatable": true,
-        "material": {
-            "lightBlock": 0.5,
-            "mirror": false,
-            "reflectionStrength": 0.5,
-            "opacity": 1.0,
-            "speedRate": 1.0
-        },
-        "collisionEnabled": true,
-        "tickable": true,
-        "texturePath": "enemies/classic-enemies-01-rock-single.png",
-        "defaultRect": [
-            [
-                0,
-                32
+  "parent": "Engine.Actor",
+  "attrs": {
+    "animatable": true,
+    "material": {
+      "lightBlock": 0.4,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1.0,
+      "speedRate": 1.0
+    },
+    "collisionEnabled": true,
+    "tickable": false,
+    "texturePath": "enemies/classic-enemies-01-rock-single.png",
+    "defaultRect": [
+      [
+        0,
+        32,
+        32,
+        32
+      ]
+    ],
+    "shaderPath": "Rainbow.frag"
+  },
+  "graph": {
+    "nodeGraph": {
+      "onCollision": {
+        "nodes": [
+          {
+            "nodeFunction": "NodeFunctions.System.FlashScreen",
+            "params": [
+              255,
+              255,
+              255,
+              255,
+              1.0
             ],
-            [
-                32,
-                32
+            "pos": [
+              2160,
+              -166
             ]
+          },
+          {
+            "nodeFunction": "NodeFunctions.System.ScreenShake",
+            "params": [
+              32.0,
+              64.0,
+              5.0
+            ],
+            "pos": [
+              2160,
+              182
+            ]
+          },
+          {
+            "nodeFunction": "NodeFunctions.System.SetWeather",
+            "params": [
+              "STORM",
+              30,
+              50
+            ],
+            "pos": [
+              2880,
+              634
+            ]
+          },
+          {
+            "nodeFunction": "NodeFunctions.Scene.OpenShop",
+            "params": [
+              [
+                "KEY_Y",
+                "KEY_B"
+              ],
+              true
+            ],
+            "pos": [
+              2160,
+              474
+            ]
+          },
+          {
+            "nodeFunction": "NodeFunctions.Scene.ShowVoiceMessageByTag",
+            "params": [
+              "TestName2",
+              "Now you will see.",
+              "chuckle.wav",
+              ""
+            ],
+            "pos": [
+              0,
+              314
+            ]
+          },
+          {
+            "nodeFunction": "NodeFunctions.Utils.SELF",
+            "params": [],
+            "pos": [
+              -1440,
+              634
+            ]
+          },
+          {
+            "nodeFunction": "NodeFunctions.Utils.GetAttr",
+            "params": [
+              "",
+              "tag"
+            ],
+            "pos": [
+              -720,
+              634
+            ]
+          },
+          {
+            "nodeFunction": "NodeFunctions.Scene.ShowMessageByTag",
+            "params": [
+              "",
+              "No name here.",
+              ""
+            ],
+            "pos": [
+              720,
+              314
+            ]
+          },
+          {
+            "nodeFunction": "NodeFunctions.Scene.ShowSelection",
+            "params": [
+              "TestSelection",
+              [
+                "Test blinking",
+                "Test shaking",
+                "Test shop",
+                "More..."
+              ],
+              "",
+              true
+            ],
+            "pos": [
+              1440,
+              314
+            ]
+          },
+          {
+            "nodeFunction": "NodeFunctions.Scene.ShowSelection",
+            "params": [
+              "TestSelection",
+              [
+                "Test weather",
+                "Test Video"
+              ],
+              "",
+              true
+            ],
+            "pos": [
+              2160,
+              794
+            ]
+          },
+          {
+            "nodeFunction": "NodeFunctions.System.PlayVideo",
+            "params": [
+              "sample-5mb.mp4",
+              false,
+              true
+            ],
+            "pos": [
+              2880,
+              954
+            ]
+          }
         ],
-        "shaderPath": "Rainbow.frag"
+        "links": [
+          {
+            "left": 5,
+            "right": 6,
+            "leftOutPin": 0,
+            "rightInPin": 0,
+            "linkType": "Params"
+          },
+          {
+            "left": 6,
+            "right": 4,
+            "leftOutPin": 0,
+            "rightInPin": 3,
+            "linkType": "Params"
+          },
+          {
+            "left": 4,
+            "right": 7,
+            "leftOutPin": 0,
+            "rightInPin": 0,
+            "linkType": "Exec"
+          },
+          {
+            "left": 7,
+            "right": 8,
+            "leftOutPin": 0,
+            "rightInPin": 0,
+            "linkType": "Exec"
+          },
+          {
+            "left": 8,
+            "right": 0,
+            "leftOutPin": 0,
+            "rightInPin": 0,
+            "linkType": "Exec"
+          },
+          {
+            "left": 8,
+            "right": 1,
+            "leftOutPin": 1,
+            "rightInPin": 0,
+            "linkType": "Exec"
+          },
+          {
+            "left": 8,
+            "right": 3,
+            "leftOutPin": 2,
+            "rightInPin": 0,
+            "linkType": "Exec"
+          },
+          {
+            "left": 8,
+            "right": 9,
+            "leftOutPin": 3,
+            "rightInPin": 0,
+            "linkType": "Exec"
+          },
+          {
+            "left": 9,
+            "right": 2,
+            "leftOutPin": 0,
+            "rightInPin": 0,
+            "linkType": "Exec"
+          },
+          {
+            "left": 9,
+            "right": 10,
+            "leftOutPin": 1,
+            "rightInPin": 0,
+            "linkType": "Exec"
+          }
+        ]
+      },
+      "onCreate": {
+        "nodes": [],
+        "links": []
+      },
+      "onDestroy": {
+        "nodes": [],
+        "links": []
+      },
+      "onFixedTick": {
+        "nodes": [],
+        "links": []
+      },
+      "onLateTick": {
+        "nodes": [],
+        "links": []
+      },
+      "onOverlap": {
+        "nodes": [],
+        "links": []
+      },
+      "onTick": {
+        "nodes": [],
+        "links": []
+      }
     },
-    "graph": {
-        "nodeGraph": {
-            "onCollision": {
-                "nodes": [
-                    {
-                        "nodeFunction": "NodeFunctions.System.FlashScreen",
-                        "params": [
-                            255,
-                            255,
-                            255,
-                            255,
-                            1.0
-                        ],
-                        "pos": [
-                            2160.0,
-                            -61.0
-                        ]
-                    },
-                    {
-                        "nodeFunction": "NodeFunctions.System.ScreenShake",
-                        "params": [
-                            32.0,
-                            64.0,
-                            5.0
-                        ],
-                        "pos": [
-                            2160.0,
-                            189.0
-                        ]
-                    },
-                    {
-                        "nodeFunction": "NodeFunctions.System.SetWeather",
-                        "params": [
-                            "STORM",
-                            30,
-                            50
-                        ],
-                        "pos": [
-                            2160.0,
-                            689.0
-                        ]
-                    },
-                    {
-                        "nodeFunction": "NodeFunctions.Scene.OpenShop",
-                        "params": [
-                            [
-                                "KEY_Y",
-                                "KEY_B"
-                            ],
-                            true
-                        ],
-                        "pos": [
-                            2160.0,
-                            439.0
-                        ]
-                    },
-                    {
-                        "nodeFunction": "NodeFunctions.Scene.ShowVoiceMessageByTag",
-                        "params": [
-                            "TestName2",
-                            "Now you will see.",
-                            "chuckle.wav",
-                            ""
-                        ],
-                        "pos": [
-                            0.0,
-                            314.0
-                        ]
-                    },
-                    {
-                        "nodeFunction": "NodeFunctions.Utils.SELF",
-                        "params": [],
-                        "pos": [
-                            -1440.0,
-                            564.0
-                        ]
-                    },
-                    {
-                        "nodeFunction": "NodeFunctions.Utils.GetAttr",
-                        "params": [
-                            "",
-                            "tag"
-                        ],
-                        "pos": [
-                            -720.0,
-                            564.0
-                        ]
-                    },
-                    {
-                        "nodeFunction": "NodeFunctions.Scene.ShowMessageByTag",
-                        "params": [
-                            "",
-                            "No name here.",
-                            ""
-                        ],
-                        "pos": [
-                            720.0,
-                            314.0
-                        ]
-                    },
-                    {
-                        "nodeFunction": "NodeFunctions.Scene.ShowSelection",
-                        "params": [
-                            "TestSelection",
-                            [
-                                "Test blinking",
-                                "Test shaking",
-                                "Test shop",
-                                "Test weather"
-                            ],
-                            "",
-                            true
-                        ],
-                        "pos": [
-                            1440.0,
-                            314.0
-                        ]
-                    }
-                ],
-                "links": [
-                    {
-                        "left": 5,
-                        "right": 6,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Params"
-                    },
-                    {
-                        "left": 6,
-                        "right": 4,
-                        "leftOutPin": 0,
-                        "rightInPin": 3,
-                        "linkType": "Params"
-                    },
-                    {
-                        "left": 4,
-                        "right": 7,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Exec"
-                    },
-                    {
-                        "left": 7,
-                        "right": 8,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Exec"
-                    },
-                    {
-                        "left": 8,
-                        "right": 0,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Exec"
-                    },
-                    {
-                        "left": 8,
-                        "right": 1,
-                        "leftOutPin": 1,
-                        "rightInPin": 0,
-                        "linkType": "Exec"
-                    },
-                    {
-                        "left": 8,
-                        "right": 3,
-                        "leftOutPin": 2,
-                        "rightInPin": 0,
-                        "linkType": "Exec"
-                    },
-                    {
-                        "left": 8,
-                        "right": 2,
-                        "leftOutPin": 3,
-                        "rightInPin": 0,
-                        "linkType": "Exec"
-                    }
-                ]
-            },
-            "onCreate": {
-                "nodes": [],
-                "links": []
-            },
-            "onDestroy": {
-                "nodes": [],
-                "links": []
-            },
-            "onFixedTick": {
-                "nodes": [],
-                "links": []
-            },
-            "onLateTick": {
-                "nodes": [],
-                "links": []
-            },
-            "onOverlap": {
-                "nodes": [],
-                "links": []
-            },
-            "onTick": {
-                "nodes": [],
-                "links": []
-            }
-        },
-        "startNodes": {
-            "onCollision": 4,
-            "onCreate": null,
-            "onDestroy": null,
-            "onFixedTick": null,
-            "onLateTick": null,
-            "onOverlap": null,
-            "onTick": null
-        }
-    },
-    "type": "blueprint"
+    "startNodes": {
+      "onCollision": 4,
+      "onCreate": null,
+      "onDestroy": null,
+      "onFixedTick": null,
+      "onLateTick": null,
+      "onOverlap": null,
+      "onTick": null
+    }
+  },
+  "type": "blueprint"
 }

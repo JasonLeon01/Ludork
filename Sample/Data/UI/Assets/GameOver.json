@@ -1,0 +1,103 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 640,
+    "height": 480
+  },
+  "palette": {
+    "exposed": true,
+    "displayName": "Game Over",
+    "category": "Scenes"
+  },
+  "root": {
+    "id": "3fbb2abc-cfef-4f6b-a700-18b8d275ed72",
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        640,
+        480
+      ],
+      "visible": true
+    },
+    "editor": {},
+    "children": [
+      {
+        "id": "47b1228d-e0bb-41a5-bad7-8f38a326df14",
+        "name": "Background",
+        "controlId": "Engine.SolidRect",
+        "properties": {
+          "fillColor": [
+            0,
+            0,
+            0,
+            255
+          ]
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              1.0,
+              1.0
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": false,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "id": "69d8e2ca-3b8f-4da2-a4d4-ae287e82da25",
+        "name": "Message",
+        "controlId": "Engine.PlainText",
+        "properties": {
+          "textConfig": "UI/GameOver",
+          "text": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.5,
+              0.5
+            ],
+            "max": [
+              0.5,
+              0.5
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.5,
+            0.5
+          ],
+          "autoSize": true,
+          "zOrder": 1
+        },
+        "editor": {
+          "previewText": "GAME OVER"
+        },
+        "children": []
+      }
+    ]
+  }
+}

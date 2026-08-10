@@ -1,0 +1,110 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 640,
+    "height": 480
+  },
+  "palette": {
+    "exposed": true,
+    "displayName": "Init",
+    "category": "Scenes"
+  },
+  "root": {
+    "id": "f553b725-bf62-4b14-8fee-1c19ae69e8b7",
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        640,
+        480
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "id": "9a302f87-0b0c-4678-bc95-1414ba082efa",
+        "name": "Background",
+        "controlId": "Engine.Image",
+        "properties": {
+          "texture": "Assets/System/GrassBackground.png"
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              1.0,
+              1.0
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": false,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "id": "39ed9a1a-1086-44c4-9525-70d41e719979",
+        "name": "ProgressBar",
+        "controlId": "Engine.ProgressBar",
+        "properties": {
+          "size": [
+            384.0,
+            12.0
+          ],
+          "progress": 0,
+          "backgroundColor": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "fillColor": [
+            0,
+            255,
+            34,
+            255
+          ]
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.2,
+              0.8
+            ],
+            "max": [
+              0.8,
+              0.8
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 12.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": false,
+          "zOrder": 1
+        },
+        "editor": {},
+        "children": []
+      }
+    ]
+  }
+}

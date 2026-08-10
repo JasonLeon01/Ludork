@@ -1,0 +1,402 @@
+local cjson = require("cjson")
+local CoreSystem = require("CoreSystem")
+local Engine = require("Engine")
+local GlobalCore = require("GlobalCore")
+local Logging = require("Global.Utils.Logging")
+local Path = require("Global.Utils.Path")
+local Data = require("Source.Data")
+local SceneInitUI = require("Source.UI.Init")
+
+local GlobalSystem = GlobalCore.System
+local SceneBase = GlobalCore.SceneBase
+
+local ANIMATION_SOURCE_SUFFIX = ".json"
+local ENCRYPTED_DATA_SUFFIX = ".ldc"
+local ANIMATION_CACHE_SUFFIX = ".anim.json"
+local ENCRYPTED_ANIMATION_CACHE_SUFFIX = ".anim.ldc"
+local ANIMATION_PROGRESS_WEIGHT = 0.5
+
+---@param value  string
+---@param suffix string
+---@return string
+local function stripExactSuffix(value, suffix)
+    local normalized = Path.NormaliseSeparators(tostring(value or ""))
+    assert(normalized:sub(-#suffix) == suffix, "Unexpected animation file suffix: " .. normalized)
+    return normalized:sub(1, #normalized - #suffix)
+end
+
+---@param payload      Engine.AnimationSourceData
+---@param assetsRoot   string
+---@param relativePath string
+---@return Source.Scenes.SceneInit.FrameAsset[]
+local function getFrameAssetPaths(payload, assetsRoot, relativePath)
+    local result = {}
+    local seen = {}
+    local assets = payload.assets or {}
+    for _, timeLine in ipairs(payload.timeLines or {}) do
+        for _, segment in ipairs(timeLine.timeSegments or {}) do
+            if segment.type == "frame" then
+                local assetIndex = tonumber(segment.asset)
+                assert(
+                    assetIndex ~= nil and assetIndex >= 0 and assetIndex % 1 == 0,
+                    "Invalid frame asset index in animation: " .. relativePath
+                )
+                local assetName = assets[assetIndex + 1]
+                assert(
+                    type(assetName) == "string" and bool(assetName),
+                    string.format("Frame asset index %d is unavailable in animation: %s", assetIndex, relativePath)
+                )
+                if not seen[assetName] then
+                    seen[assetName] = true
+                    result[#result + 1] = { name = assetName, path = os.path.join(assetsRoot, assetName) }
+                end
+            end
+        end
+    end
+    return result
+end
+
+---@param sourcePath  string
+---@param cachePath   string
+---@param frameAssets Source.Scenes.SceneInit.FrameAsset[]
+---@return boolean
+local function needsAnimationCompression(sourcePath, cachePath, frameAssets)
+    if not CoreSystem.exists(cachePath) then
+        return true
+    end
+    local cacheTime = os.path.getmtime(cachePath)
+    if cacheTime < os.path.getmtime(sourcePath) then
+        return true
+    end
+    for _, asset in ipairs(frameAssets) do
+        if not CoreSystem.exists(asset.path) then
+            return true
+        end
+        if cacheTime < os.path.getmtime(asset.path) then
+            return true
+        end
+    end
+    return false
+end
+
+---@class Source.Scenes.SceneInit.SceneInit
+local Scene = {}
+
+function Scene:onCreate()
+    local gameSize = GlobalSystem.getGameSize()
+    self._ui = SceneInitUI.new(self, gameSize)
+    self._ui:mount(self:getUIManager(), gameSize)
+    self._bg = self._ui:getBackground()
+    self.progressValue = 0.0
+    self._displayProgress = 0.0
+    self.progressTotal = 0
+    self.processedCount = 0
+    self.progressDone = false
+    self.hasSwitched = false
+    self._loadCancelled = false
+    self._loadStage = Data.beginInitialLoad()
+    self._activeBatch = nil
+    self._animationSourceKeys = {}
+    self._loadTask = asyncio.create_task(function ()
+        self:prepareAssets()
+        self._loadTask = nil
+    end)
+end
+
+function Scene:onTick(_)
+    local target = self.progressDone and 1.0 or self.progressValue
+    if target ~= self._displayProgress then
+        self._displayProgress = target
+        SceneInitUI.publish({
+            progress = target
+        })
+    end
+    if self.progressDone and not self.hasSwitched and self._displayProgress >= 0.999 then
+        local SceneTitle = require("Source.Scenes.SceneTitle")
+
+        self.hasSwitched = true
+        GlobalSystem.setScene(SceneTitle.new())
+    end
+end
+
+function Scene:onQuit()
+    self._loadCancelled = true
+    if self._activeBatch ~= nil then
+        asyncio.cancel_file_batch(self._activeBatch)
+        self._activeBatch = nil
+    end
+    if self._loadTask ~= nil then
+        asyncio.cancel_task(self._loadTask)
+        self._loadTask = nil
+    end
+    if self._loadStage ~= nil and not self.progressDone then
+        Data.abortInitialLoad(self._loadStage)
+        self._loadStage = nil
+    end
+end
+
+function Scene.splitCompound(fileName)
+    local name, extension = tostring(fileName):match("^(.-)(%..+)$")
+    if name == nil then
+        return tostring(fileName), ""
+    end
+    return name, extension or ""
+end
+
+function Scene:loadGameData()
+    self.progressTotal = 0
+    self.processedCount = 0
+    self._activeBatch = asyncio.start_file_batch({
+        {
+            category = "animations",
+            root = Engine.getAnimationCacheRoot(),
+            suffix = ANIMATION_CACHE_SUFFIX,
+            recursive = true,
+            required = true
+        },
+        {
+            category = "commonFunctions",
+            root = os.path.join(".", "Data", "CommonFunctions"),
+            suffix = ".json",
+            recursive = false,
+            required = true
+        },
+        {
+            category = "tilesets",
+            root = os.path.join(".", "Data", "Tilesets"),
+            suffix = ".json",
+            recursive = false,
+            required = true
+        },
+        {
+            category = "autoTiles",
+            root = os.path.join(".", "Data", "AutoTiles"),
+            suffix = ".json",
+            recursive = false,
+            required = false
+        },
+        {
+            category = "general",
+            root = os.path.join(".", "Data", "General"),
+            suffix = ".json",
+            recursive = false,
+            required = true
+        },
+        {
+            category = "curves",
+            root = os.path.join(".", "Data", "Curves"),
+            suffix = ".json",
+            recursive = true,
+            required = false
+        },
+        {
+            category = "textConfigs",
+            root = os.path.join(".", "Data", "TextConfigs"),
+            suffix = ".json",
+            recursive = true,
+            required = true
+        }
+    })
+    self:_pumpInitialLoad()
+end
+
+function Scene:prepareAssets()
+    local startTime = perfCounter()
+    Logging.info("Preparing initial assets")
+    Logging.info("Preparing animation cache")
+    local animationStartTime = perfCounter()
+    self:compressAnimations()
+    if self:_isLoadCancelled() then
+        return
+    end
+    Logging.info("Prepared animation cache files in %.3fs", perfCounter() - animationStartTime)
+    Logging.info("Loading game data")
+    local loadStartTime = perfCounter()
+    self:loadGameData()
+    if self:_isLoadCancelled() then
+        return
+    end
+    Logging.info("Loaded game data in %.3fs", perfCounter() - loadStartTime)
+    Logging.info("Init asset preparation finished in %.3fs", perfCounter() - startTime)
+end
+
+function Scene:onDestroy()
+    self._ui:dispose()
+end
+
+---@return boolean
+function Scene:_isLoadCancelled()
+    return self._loadCancelled
+end
+
+---@param errorData FileBatchError | nil
+---@return string
+function Scene._formatBatchError(errorData)
+    if errorData == nil then
+        return "File batch failed"
+    end
+    return string.format(
+        "%s failed for %s: %s", errorData.operation, errorData.path, errorData.message
+    )
+end
+
+---@param offset number
+---@param weight number
+function Scene:_setPhaseProgress(offset, weight)
+    local fraction = 0.0
+    if self.progressTotal > 0 then
+        fraction = self.processedCount / self.progressTotal
+    end
+    local value = offset + weight * Engine.Clamp(fraction, 0.0, 1.0)
+    self.progressValue = math.max(self.progressValue, value)
+end
+
+---@param item       FileBatchItem
+---@param sourceRoot string
+---@param cacheRoot  string
+---@param assetsRoot string
+function Scene:_processAnimationSource(item, sourceRoot, cacheRoot, assetsRoot)
+    local relativePath = Path.NormaliseSeparators(tostring(item.relativePath or ""))
+    local sourceKey = stripExactSuffix(relativePath, ANIMATION_SOURCE_SUFFIX)
+    local encryptedSource = item.encryptedData == true
+    assert(bool(sourceKey), "Animation source filename must not be empty")
+    assert(not self._animationSourceKeys[sourceKey], "Duplicate animation source key: " .. sourceKey)
+    local payload = cjson.decode(item.content)
+    ---@cast payload Engine.AnimationSourceData
+    assert(payload.type == "animation", "Animation source has invalid type: " .. relativePath)
+    self._animationSourceKeys[sourceKey] = true
+
+    local sourceRelativePath = encryptedSource and sourceKey .. ENCRYPTED_DATA_SUFFIX or relativePath
+    local sourcePath = os.path.join(sourceRoot, sourceRelativePath)
+    local cacheRelativePath = sourceKey
+        .. (encryptedSource and ENCRYPTED_ANIMATION_CACHE_SUFFIX or ANIMATION_CACHE_SUFFIX)
+    local cachePath = os.path.join(cacheRoot, cacheRelativePath)
+    local frameAssets = getFrameAssetPaths(payload, assetsRoot, relativePath)
+    if needsAnimationCompression(sourcePath, cachePath, frameAssets) then
+        for _, asset in ipairs(frameAssets) do
+            assert(
+                CoreSystem.exists(asset.path),
+                string.format(
+                    "Cannot compress animation %s: referenced frame asset is missing: %s", relativePath, asset.name
+                )
+            )
+        end
+        CoreSystem.createDirectories(os.path.dirname(cachePath))
+        Logging.debug("Compressing animation: %s", relativePath)
+        local compressed = Engine.compressAnimation(payload, assetsRoot, "png")
+        Engine.writeJSON(cachePath, compressed)
+    end
+    local alternateCachePath = os.path.join(
+        cacheRoot, sourceKey .. (encryptedSource and ANIMATION_CACHE_SUFFIX or ENCRYPTED_ANIMATION_CACHE_SUFFIX)
+    )
+    if CoreSystem.exists(alternateCachePath) then
+        local removed, message = os.remove(alternateCachePath)
+        assert(
+            removed,
+            string.format(
+                "Cannot remove alternate animation cache %s: %s", alternateCachePath,
+                tostring(message or "unknown error")
+            )
+        )
+    end
+end
+
+function Scene:compressAnimations()
+    local sourceRoot = Engine.getAnimationSourceRoot()
+    local cacheRoot = Engine.getAnimationCacheRoot()
+    local assetsRoot = os.path.join(".", "Assets", "Animations")
+    self.progressTotal = 0
+    self.processedCount = 0
+    self._activeBatch = asyncio.start_file_batch({
+        {
+            category = "animationSources",
+            root = sourceRoot,
+            suffix = ANIMATION_SOURCE_SUFFIX,
+            excludeSuffix = ANIMATION_CACHE_SUFFIX,
+            recursive = true,
+            required = true
+        }
+    })
+    while not self._loadCancelled do
+        local snapshot = asyncio.poll_file_batch(self._activeBatch, 1)
+        self.progressTotal = snapshot.total
+        if snapshot.state == "failed" then
+            error(Scene._formatBatchError(snapshot.error))
+        end
+        if snapshot.state == "cancelled" then
+            error("Animation source file batch was cancelled")
+        end
+        local item = snapshot.items ~= nil and snapshot.items[1] or nil
+        if item ~= nil then
+            self:_processAnimationSource(item, sourceRoot, cacheRoot, assetsRoot)
+            self.processedCount = self.processedCount + 1
+            self:_setPhaseProgress(0.0, ANIMATION_PROGRESS_WEIGHT)
+        end
+        if snapshot.state == "completed" and snapshot.drained and self.processedCount == snapshot.total then
+            self._activeBatch = nil
+            self.progressValue = math.max(self.progressValue, ANIMATION_PROGRESS_WEIGHT)
+            return
+        end
+        asyncio.sleep(0.0)
+    end
+end
+
+---@param item FileBatchItem
+---@return boolean
+function Scene:_removeOrphanedAnimation(item)
+    if item.category ~= "animations" then
+        return false
+    end
+    local relativePath = Path.NormaliseSeparators(tostring(item.relativePath or ""))
+    local sourceKey = stripExactSuffix(relativePath, ANIMATION_CACHE_SUFFIX)
+    if self._animationSourceKeys[sourceKey] then
+        return false
+    end
+    local cacheRelativePath = item.encryptedData == true and sourceKey .. ENCRYPTED_ANIMATION_CACHE_SUFFIX
+        or relativePath
+    local cachePath = os.path.join(Engine.getAnimationCacheRoot(), cacheRelativePath)
+    local removed, message = os.remove(cachePath)
+    assert(
+        removed,
+        string.format(
+            "Cannot remove orphaned animation cache %s: %s", relativePath, tostring(message or "unknown error")
+        )
+    )
+    return true
+end
+
+function Scene:_pumpInitialLoad()
+    local activeBatch = self._activeBatch
+    ---@cast activeBatch userdata
+    local loadStage = self._loadStage
+    ---@cast loadStage Source.Data.InitialLoadStage
+    while not self._loadCancelled do
+        local snapshot = asyncio.poll_file_batch(activeBatch, 1)
+        self.progressTotal = snapshot.total
+        if snapshot.state == "failed" then
+            error(Scene._formatBatchError(snapshot.error))
+        end
+        if snapshot.state == "cancelled" then
+            error("Initial data file batch was cancelled")
+        end
+        local item = snapshot.items ~= nil and snapshot.items[1] or nil
+        if item ~= nil then
+            if not self:_removeOrphanedAnimation(item) then
+                Data.applyInitialLoadItem(loadStage, item)
+            end
+            self.processedCount = self.processedCount + 1
+            self:_setPhaseProgress(ANIMATION_PROGRESS_WEIGHT, 1.0 - ANIMATION_PROGRESS_WEIGHT)
+        end
+        if snapshot.state == "completed" and snapshot.drained and self.processedCount == snapshot.total then
+            Data.commitInitialLoad(loadStage)
+            self._loadStage = nil
+            self._activeBatch = nil
+            self.progressValue = 1.0
+            self.progressDone = true
+            return
+        end
+        asyncio.sleep(0.0)
+    end
+end
+
+return class(Scene, SceneBase)

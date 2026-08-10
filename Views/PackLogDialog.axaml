@@ -1,0 +1,32 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ludork.Views.PackLogDialog"
+        Width="800"
+        Height="600"
+        MinWidth="640"
+        MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        Background="#121212"
+        FontFamily="avares://Ludork/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC"
+        Icon="/Assets/icon.ico">
+    <Grid Margin="16" RowDefinitions="*,Auto">
+        <TextBox x:Name="LogArea"
+                 Grid.Row="0"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 TextWrapping="NoWrap"
+                 Background="#101010"
+                 BorderBrush="#3a3a3a"
+                 BorderThickness="1"
+                 Padding="12"
+                 FontFamily="Cascadia Mono,Menlo,Monaco,Consolas"
+                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto" />
+        <Button x:Name="CloseButton"
+                Grid.Row="1"
+                Margin="0,12,0,0"
+                HorizontalAlignment="Right"
+                IsEnabled="False"
+                Click="onClose" />
+    </Grid>
+</Window>

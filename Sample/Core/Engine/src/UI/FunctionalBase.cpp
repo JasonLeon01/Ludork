@@ -1,0 +1,419 @@
+#include <UI/FunctionalBase.hpp>
+
+#include <UI/ControlBase.hpp>
+
+#include <array>
+#include <cstdint>
+
+FunctionalInputProvider* FunctionalBase::inputProvider_ = nullptr;
+FunctionalBase::FocusResolver FunctionalBase::keyboardFocusResolver_;
+FunctionalBase::DirectionalFocusRequester
+    FunctionalBase::directionalFocusRequester_;
+FunctionalBase::FocusSetter FunctionalBase::keyboardFocusSetter_;
+FunctionalBase::FocusResolver FunctionalBase::keyboardCursorResolver_;
+
+void FunctionalBase::setInputProvider(FunctionalInputProvider* provider) {
+    inputProvider_ = provider;
+}
+
+void FunctionalBase::setKeyboardFocusResolver(FocusResolver resolver) {
+    keyboardFocusResolver_ = std::move(resolver);
+}
+
+void FunctionalBase::setDirectionalFocusRequester(
+    DirectionalFocusRequester requester) {
+    directionalFocusRequester_ = std::move(requester);
+}
+
+void FunctionalBase::setKeyboardFocusSetter(FocusSetter setter) {
+    keyboardFocusSetter_ = std::move(setter);
+}
+
+void FunctionalBase::setKeyboardCursorResolver(FocusResolver resolver) {
+    keyboardCursorResolver_ = std::move(resolver);
+}
+
+void FunctionalBase::resetRuntimeCallbacks() noexcept {
+    inputProvider_ = nullptr;
+    keyboardFocusResolver_ = {};
+    directionalFocusRequester_ = {};
+    keyboardFocusSetter_ = {};
+    keyboardCursorResolver_ = {};
+}
+
+bool FunctionalBase::canReceiveFocus() const {
+    if (!getCanReceiveFocus() || !active_) {
+        return false;
+    }
+    const ControlBase* control = dynamic_cast<const ControlBase*>(this);
+    return control == nullptr || control->getVisible();
+}
+
+bool FunctionalBase::shouldDispatchKeyboardInput() const {
+    return !keyboardFocusResolver_ || keyboardFocusResolver_(*this);
+}
+
+bool FunctionalBase::requestDirectionalFocusMove(const std::string& direction) {
+    return directionalFocusRequester_ &&
+           directionalFocusRequester_(*this, direction);
+}
+
+bool FunctionalBase::requestKeyboardFocus() {
+    return keyboardFocusSetter_ && keyboardFocusSetter_(*this);
+}
+
+bool FunctionalBase::ownsKeyboardCursorFocus() const {
+    return keyboardCursorResolver_ ? keyboardCursorResolver_(*this)
+                                   : getFocused();
+}
+
+bool FunctionalBase::isHovered() const {
+    return hovered_;
+}
+
+bool FunctionalBase::isPressed() const {
+    return pressed_;
+}
+
+bool FunctionalBase::getActive() const {
+    return active_;
+}
+
+void FunctionalBase::setActive(bool active) {
+    if (active_ == active) {
+        return;
+    }
+    active_ = active;
+    if (!active_) {
+        pressed_ = false;
+        pointerSource_ = PointerSource::None;
+        pressedMouseButton_.reset();
+    }
+    onInteractionStateChanged();
+}
+
+void FunctionalBase::addConfirmCallback(EventCallback callback) {
+    confirmCallback_ = std::move(callback);
+}
+
+void FunctionalBase::addCancelCallback(EventCallback callback) {
+    cancelCallback_ = std::move(callback);
+}
+
+void FunctionalBase::addClickCallback(EventCallback callback) {
+    clickCallback_ = std::move(callback);
+}
+
+void FunctionalBase::addMouseButtonDownCallback(HandledEventCallback callback) {
+    mouseButtonDownCallback_ = std::move(callback);
+}
+
+void FunctionalBase::addHoverCallback(EventCallback callback) {
+    hoverCallback_ = std::move(callback);
+}
+
+void FunctionalBase::addUnHoverCallback(EventCallback callback) {
+    unHoverCallback_ = std::move(callback);
+}
+
+void FunctionalBase::addMouseMovedCallback(EventCallback callback) {
+    mouseMovedCallback_ = std::move(callback);
+}
+
+void FunctionalBase::addMouseWheelScrolledCallback(EventCallback callback) {
+    mouseWheelScrolledCallback_ = std::move(callback);
+}
+
+void FunctionalBase::addKeyDownCallback(EventCallback callback) {
+    keyDownCallback_ = std::move(callback);
+}
+
+void FunctionalBase::addKeyUpCallback(EventCallback callback) {
+    keyUpCallback_ = std::move(callback);
+}
+
+void FunctionalBase::update(float deltaTime) {
+    onTick(deltaTime);
+    if (inputProvider_ == nullptr) {
+        resetPointerInteraction();
+        return;
+    }
+    ControlBase* control = dynamic_cast<ControlBase*>(this);
+    const sf::Vector2f mousePosition(inputProvider_->getMousePosition());
+    if (control != nullptr && !control->getVisible()) {
+        setHovered(false, mousePosition);
+        endPointerPress();
+        return;
+    }
+
+    static constexpr std::array buttons = {
+        sf::Mouse::Button::Left,
+        sf::Mouse::Button::Right,
+        sf::Mouse::Button::Middle,
+    };
+    std::array<bool, buttons.size()> mousePressed = {};
+    bool mousePressReceived = false;
+    if (active_ && inputProvider_->isMouseButtonPressed()) {
+        for (std::size_t index = 0; index < buttons.size(); ++index) {
+            const sf::Mouse::Button button = buttons[index];
+            mousePressed[index] =
+                inputProvider_->getMouseButtonPressed(button, false);
+            mousePressReceived = mousePressReceived || mousePressed[index];
+            if (mousePressed[index] && onMouseButtonDown(mouseButtonArguments(
+                                           mousePosition, button))) {
+                inputProvider_->getMouseButtonPressed(button, true);
+                inputProvider_->isMouseButtonTriggered(button, true);
+            }
+        }
+    }
+
+    bool hovered = control != nullptr &&
+                   control->getAbsoluteBounds().contains(mousePosition);
+    if (!inputProvider_->isMouseInputMode()) {
+        hovered = false;
+    }
+    setHovered(hovered, mousePosition);
+    if (hovered) {
+        if (active_ && pointerSource_ == PointerSource::None) {
+            for (std::size_t index = 0; index < buttons.size(); ++index) {
+                if (mousePressed[index]) {
+                    beginMousePress(buttons[index]);
+                    break;
+                }
+            }
+        }
+        if (inputProvider_->isMouseMoved()) {
+            onMouseMoved(pointerArguments(mousePosition));
+        }
+        if (active_ && mousePressReceived) {
+            onClick(pointerArguments(mousePosition));
+        }
+        if (active_ && inputProvider_->isMouseWheelScrolled()) {
+            onMouseWheelScrolled(mouseWheelArguments(
+                mousePosition, inputProvider_->getMouseScrolledWheelDelta()));
+        }
+    }
+
+    if (pointerSource_ == PointerSource::Mouse) {
+        const sf::Mouse::Button button = *pressedMouseButton_;
+        const bool released =
+            inputProvider_->isMouseButtonReleased() &&
+            inputProvider_->getMouseButtonReleased(button, false);
+        if (!active_ || !hovered || released ||
+            !inputProvider_->isMouseButtonDown(button)) {
+            endPointerPress();
+        }
+    }
+
+    if (active_ && control != nullptr) {
+        const sf::FloatRect bounds = control->getAbsoluteBounds();
+        const bool acceptsTouchTap = getCanReceiveFocus() ||
+                                     static_cast<bool>(confirmCallback_) ||
+                                     static_cast<bool>(clickCallback_);
+        if (pointerSource_ == PointerSource::None && acceptsTouchTap &&
+            inputProvider_->isTouchBegan(false)) {
+            const std::optional<sf::Vector2i> beganPosition =
+                inputProvider_->getTouchBeganPosition();
+            if (beganPosition.has_value() &&
+                bounds.contains(sf::Vector2f(*beganPosition))) {
+                beginTouchPress();
+                inputProvider_->isTouchBegan(true);
+            }
+        }
+        if (inputProvider_->isTouchMoved()) {
+            const std::optional<sf::Vector2i> position =
+                inputProvider_->getTouchPosition();
+            if (position.has_value() &&
+                bounds.contains(sf::Vector2f(*position))) {
+                onMouseMoved(pointerArguments(sf::Vector2f(*position)));
+            }
+        }
+        if (pointerSource_ == PointerSource::Touch) {
+            const std::optional<sf::Vector2i> position =
+                inputProvider_->getTouchPosition();
+            if (inputProvider_->isTouchEnded()) {
+                const std::optional<sf::Vector2i> endedPosition =
+                    inputProvider_->getTouchEndedPosition();
+                if (inputProvider_->isTouchTap(false) &&
+                    endedPosition.has_value() &&
+                    bounds.contains(sf::Vector2f(*endedPosition))) {
+                    const RuntimeValue::Map arguments =
+                        pointerArguments(sf::Vector2f(*endedPosition));
+                    if (confirmCallback_) {
+                        onConfirm(arguments);
+                    } else {
+                        onClick(arguments);
+                    }
+                    inputProvider_->isTouchTap(true);
+                }
+                endPointerPress();
+            } else if (!inputProvider_->isTouchActive() ||
+                       !position.has_value() ||
+                       !bounds.contains(sf::Vector2f(*position))) {
+                endPointerPress();
+            }
+        }
+    } else if (pointerSource_ == PointerSource::Touch) {
+        endPointerPress();
+    }
+
+    if (shouldDispatchKeyboardInput()) {
+        if (inputProvider_->isKeyPressed() ||
+            inputProvider_->isJoystickButtonPressed() ||
+            inputProvider_->isJoystickAxisMoved()) {
+            onKeyDown({});
+        }
+        if (inputProvider_->isKeyReleased() ||
+            inputProvider_->isJoystickButtonReleased()) {
+            onKeyUp({});
+        }
+    }
+}
+
+void FunctionalBase::lateUpdate(float deltaTime) {
+    onLateTick(deltaTime);
+}
+
+void FunctionalBase::fixedUpdate(float fixedDelta) {
+    onFixedTick(fixedDelta);
+}
+
+void FunctionalBase::onConfirm(const RuntimeValue::Map& arguments) {
+    if (confirmCallback_) {
+        confirmCallback_(*this, arguments);
+    }
+}
+
+void FunctionalBase::onCancel(const RuntimeValue::Map& arguments) {
+    if (cancelCallback_) {
+        cancelCallback_(*this, arguments);
+    }
+}
+
+void FunctionalBase::onClick(const RuntimeValue::Map& arguments) {
+    if (clickCallback_) {
+        clickCallback_(*this, arguments);
+    }
+}
+
+bool FunctionalBase::onMouseButtonDown(const RuntimeValue::Map& arguments) {
+    return mouseButtonDownCallback_ &&
+           mouseButtonDownCallback_(*this, arguments);
+}
+
+void FunctionalBase::onHover(const RuntimeValue::Map& arguments) {
+    if (hoverCallback_) {
+        hoverCallback_(*this, arguments);
+    }
+}
+
+void FunctionalBase::onUnHover(const RuntimeValue::Map& arguments) {
+    if (unHoverCallback_) {
+        unHoverCallback_(*this, arguments);
+    }
+}
+
+void FunctionalBase::onMouseMoved(const RuntimeValue::Map& arguments) {
+    if (mouseMovedCallback_) {
+        mouseMovedCallback_(*this, arguments);
+    }
+}
+
+void FunctionalBase::onMouseWheelScrolled(const RuntimeValue::Map& arguments) {
+    if (mouseWheelScrolledCallback_) {
+        mouseWheelScrolledCallback_(*this, arguments);
+    }
+}
+
+void FunctionalBase::onKeyDown(const RuntimeValue::Map& arguments) {
+    if (keyDownCallback_) {
+        keyDownCallback_(*this, arguments);
+    }
+}
+
+void FunctionalBase::onKeyUp(const RuntimeValue::Map& arguments) {
+    if (keyUpCallback_) {
+        keyUpCallback_(*this, arguments);
+    }
+}
+
+void FunctionalBase::onTick(float) {}
+
+void FunctionalBase::onLateTick(float) {}
+
+void FunctionalBase::onFixedTick(float) {}
+
+FunctionalInputProvider* FunctionalBase::inputProvider() {
+    return inputProvider_;
+}
+
+void FunctionalBase::resetPointerInteraction() {
+    if (!hovered_ && !pressed_) {
+        return;
+    }
+    hovered_ = false;
+    pressed_ = false;
+    pointerSource_ = PointerSource::None;
+    pressedMouseButton_.reset();
+    onInteractionStateChanged();
+}
+
+void FunctionalBase::onInteractionStateChanged() {}
+
+RuntimeValue::Map FunctionalBase::pointerArguments(
+    const sf::Vector2f& position) {
+    return {{"position",
+             RuntimeValue(RuntimeValue::Map{{"x", RuntimeValue(position.x)},
+                                            {"y", RuntimeValue(position.y)}})}};
+}
+
+RuntimeValue::Map FunctionalBase::mouseButtonArguments(
+    const sf::Vector2f& position, sf::Mouse::Button button) {
+    RuntimeValue::Map result = pointerArguments(position);
+    result.emplace("button", RuntimeValue(static_cast<std::int64_t>(button)));
+    return result;
+}
+
+RuntimeValue::Map FunctionalBase::mouseWheelArguments(
+    const sf::Vector2f& position, float delta) {
+    RuntimeValue::Map result = pointerArguments(position);
+    result.emplace("delta", RuntimeValue(static_cast<double>(delta)));
+    return result;
+}
+
+void FunctionalBase::setHovered(bool hovered, const sf::Vector2f& position) {
+    if (hovered_ == hovered) {
+        return;
+    }
+    hovered_ = hovered;
+    onInteractionStateChanged();
+    if (hovered_) {
+        onHover(pointerArguments(position));
+    } else {
+        onUnHover(pointerArguments(position));
+    }
+}
+
+void FunctionalBase::beginMousePress(sf::Mouse::Button button) {
+    pressed_ = true;
+    pointerSource_ = PointerSource::Mouse;
+    pressedMouseButton_ = button;
+    onInteractionStateChanged();
+}
+
+void FunctionalBase::beginTouchPress() {
+    pressed_ = true;
+    pointerSource_ = PointerSource::Touch;
+    pressedMouseButton_.reset();
+    onInteractionStateChanged();
+}
+
+void FunctionalBase::endPointerPress() {
+    if (!pressed_) {
+        return;
+    }
+    pressed_ = false;
+    pointerSource_ = PointerSource::None;
+    pressedMouseButton_.reset();
+    onInteractionStateChanged();
+}

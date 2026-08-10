@@ -1,10 +1,17 @@
+#ifdef GL_ES
+precision highp float;
+varying mediump vec4 sf_TexCoord0;
+#else
+varying vec4 sf_TexCoord0;
+#endif
+
 uniform sampler2D screenTex;
 uniform float intensity;
 uniform vec2 texSize;
 
 void main()
 {
-    vec2 uv = gl_TexCoord[0].xy;
+    vec2 uv = sf_TexCoord0.xy;
     if (intensity <= 0.0) {
         vec3 c = texture2D(screenTex, clamp(uv, 0.0, 1.0)).rgb;
         gl_FragColor = vec4(c, 1.0);

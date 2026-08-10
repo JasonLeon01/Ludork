@@ -2,7 +2,7 @@
     "parent": "Source.Enemy",
     "attrs": {
         "material": {
-            "lightBlock": 0.5,
+            "lightBlock": 0.4,
             "mirror": false,
             "reflectionStrength": 2.7755575615628914e-17,
             "opacity": 1.0,
@@ -12,9 +12,7 @@
         "defaultRect": [
             [
                 0,
-                256
-            ],
-            [
+                256,
                 32,
                 32
             ]

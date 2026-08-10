@@ -1,0 +1,18 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ludork.Views.Utils.AlertDialog"
+        Width="440"
+        Height="180"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="#121212"
+        FontFamily="avares://Ludork/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC"
+        Icon="/Assets/icon.ico">
+    <Grid Margin="24" RowDefinitions="*,Auto">
+        <TextBlock x:Name="MessageText" TextWrapping="Wrap" VerticalAlignment="Center" />
+        <Button x:Name="ConfirmButton"
+                Grid.Row="1"
+                HorizontalAlignment="Right"
+                Click="onConfirm" />
+    </Grid>
+</Window>

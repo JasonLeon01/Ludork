@@ -1,0 +1,60 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 640,
+    "height": 480
+  },
+  "palette": {
+    "exposed": true,
+    "displayName": "Title",
+    "category": "Scenes"
+  },
+  "root": {
+    "id": "b87fcbcd-98bc-4c15-bea2-f265e39b0459",
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        640,
+        480
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "id": "58fa2e81-4c6f-4dff-98e1-47e4e8aef8aa",
+        "name": "Background",
+        "controlId": "Engine.Image",
+        "properties": {
+          "texture": "Assets/System/GrassBackground.png"
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              1.0,
+              1.0
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": false,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      }
+    ]
+  }
+}

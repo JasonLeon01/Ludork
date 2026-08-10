@@ -1,0 +1,109 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Ludork.ViewModels"
+             xmlns:controls="using:Ludork.Controls"
+             x:Class="Ludork.Views.TileSelectPanel"
+             x:DataType="vm:TileSelectViewModel">
+    <UserControl.Styles>
+        <Style Selector="ListBox.autoTiles">
+            <Setter Property="Background" Value="{DynamicResource LudorkSurfaceBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="ListBox.autoTiles > ListBoxItem">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Margin" Value="1" />
+            <Setter Property="Padding" Value="2" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="ListBox.autoTiles > ListBoxItem:pointerover">
+            <Setter Property="Background" Value="{DynamicResource LudorkPrimaryMutedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource LudorkPrimaryBrush}" />
+        </Style>
+        <Style Selector="ListBox.autoTiles > ListBoxItem:selected">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="{DynamicResource LudorkPrimaryBrush}" />
+        </Style>
+        <Style Selector="TabStrip.tilesetTabs">
+            <Setter Property="Background" Value="{DynamicResource LudorkSurfaceBrush}" />
+        </Style>
+        <Style Selector="TabStrip.tilesetTabs > TabStripItem">
+            <Setter Property="Height" Value="36" />
+            <Setter Property="MinWidth" Value="48" />
+            <Setter Property="Padding" Value="16,0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource LudorkTextBrush}" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0,0,0,2" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TabStrip.tilesetTabs > TabStripItem:pointerover">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource LudorkPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource LudorkPrimaryBrush}" />
+        </Style>
+        <Style Selector="TabStrip.tilesetTabs > TabStripItem:selected">
+            <Setter Property="Foreground" Value="{DynamicResource LudorkPrimaryBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="{DynamicResource LudorkPrimaryBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="48,36,*" RowSpacing="4">
+        <ListBox Grid.Row="0"
+                 Classes="autoTiles"
+                 Height="48"
+                 Padding="0,4"
+                 Opacity="{Binding SelectionOpacity}"
+                 IsEnabled="{Binding IsLayerSelected}"
+                 ItemsSource="{Binding AutoTiles}"
+                 SelectedItem="{Binding SelectedAutoTile, Mode=TwoWay}"
+                 SelectionMode="Single"
+                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                 ScrollViewer.VerticalScrollBarVisibility="Disabled">
+            <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" Spacing="2" />
+                </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:AutoTileItemViewModel">
+                    <controls:AutoTilePreview Width="32"
+                                              Height="32"
+                                              CellSize="32"
+                                              ImagePath="{Binding ImagePath}"
+                                              ToolTip.Tip="{Binding Key}" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <TabStrip Grid.Row="1"
+                  Classes="tilesetTabs"
+                  Height="36"
+                  HorizontalAlignment="Left"
+                  ItemsSource="{Binding Tilesets}"
+                  SelectedItem="{Binding SelectedTileset, Mode=TwoWay}">
+            <TabStrip.ItemTemplate>
+                <DataTemplate x:DataType="vm:TilesetTabViewModel">
+                    <TextBlock Text="{Binding Key}" TextTrimming="CharacterEllipsis" />
+                </DataTemplate>
+            </TabStrip.ItemTemplate>
+        </TabStrip>
+
+        <ScrollViewer Grid.Row="2"
+                      HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Auto"
+                      Opacity="{Binding SelectionOpacity}"
+                      IsEnabled="{Binding IsLayerSelected}">
+            <controls:TileGridView DataContext="{Binding}" />
+        </ScrollViewer>
+    </Grid>
+</UserControl>

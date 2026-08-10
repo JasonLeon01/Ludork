@@ -1,0 +1,1 @@
+"""Ludork Core binding generator."""

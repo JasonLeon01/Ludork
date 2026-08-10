@@ -1,19 +1,21 @@
-uniform sampler2D texture;
-uniform sampler2D lightMask;
+#ifdef GL_ES
+precision highp float;
+varying mediump vec4 sf_TexCoord0;
+#else
+varying vec4 sf_TexCoord0;
+#endif
 
-uniform float screenScale;
+uniform sampler2D texture;
+uniform sampler2D surfaceMask;
+uniform sampler2D directLight;
+uniform sampler2D staticDirectLight;
+uniform float useStaticDirectLight;
+
 uniform vec2 screenSize;
-uniform vec2 mapViewOffset;
 uniform vec2 viewPos;
 uniform float viewRot;
 uniform vec2 gridSize;
-uniform int cellSize;
-
-uniform int lightLen;
-uniform vec2 lightPos[16];
-uniform vec3 lightColor[16];
-uniform float lightRadius[16];
-uniform float lightIntensity[16];
+uniform float cellSize;
 
 uniform vec3 ambientColor;
 
@@ -24,18 +26,14 @@ vec2 rotate2D(vec2 v, float a) {
     return vec2(v.x * c - v.y * s, v.x * s + v.y * c);
 }
 
-float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
-}
-
 vec2 ToMaskUV(vec2 worldPosTL) {
-    vec2 gridPos = worldPosTL / float(cellSize);
-    vec2 uv = gridPos / gridSize;
+    vec2 worldSize = gridSize * float(cellSize);
+    vec2 uv = worldPosTL / worldSize;
     return vec2(clamp(uv.x, 0.0, 1.0), clamp(1.0 - uv.y, 0.0, 1.0));
 }
 
-vec4 SampleLightMaskWorldTL(vec2 worldPosTL) {
-    return texture2D(lightMask, ToMaskUV(worldPosTL));
+vec4 SampleSurfaceMaskWorldTL(vec2 worldPosTL) {
+    return texture2D(surfaceMask, ToMaskUV(worldPosTL));
 }
 
 vec2 WorldTLToSceneUV(vec2 worldPosTL, vec2 center, float rad) {
@@ -46,104 +44,70 @@ vec2 WorldTLToSceneUV(vec2 worldPosTL, vec2 center, float rad) {
     );
 }
 
-float GetObstructionAttenuation(vec2 from, vec2 to, vec2 gridSize) {
-    vec2 fromGrid = from / float(cellSize);
-    vec2 toGrid = to / float(cellSize);
-    vec2 delta = toGrid - fromGrid;
-
-    int steps = int(clamp(max(abs(delta.x), abs(delta.y)) * 1.5, 4.0, 16.0));
-    if (steps <= 0) {
-        return 1.0;
-    }
-
-    vec2 step = delta / float(steps);
-    float jitter = hash(gl_FragCoord.xy);
-    vec2 curr = fromGrid + step * jitter;
-    vec2 sourceCell = floor(fromGrid);
-
-    float attenuation = 0.0;
-
-    for (int i = 0; i < 16; ++i) {
-        if (i >= steps) {
-            break;
-        }
-        if (all(equal(floor(curr), sourceCell))) {
-            curr += step;
-            continue;
-        }
-        vec2 sampleUV = curr / gridSize;
-        float r = texture2D(lightMask, vec2(sampleUV.x, 1.0 - sampleUV.y)).r;
-        attenuation = max(attenuation, r * 0.8);
-        curr += step;
-    }
-
-    return clamp(1.0 - attenuation, 0.0, 1.0);
-}
-
-vec4 GetReflectionSample(vec2 pixelPosTL_world, vec2 center, float rad) {
-    vec2 cellPos = floor(pixelPosTL_world / float(cellSize));
-    vec2 localPos = fract(pixelPosTL_world / float(cellSize));
-    float reflectionStrength = SampleLightMaskWorldTL(pixelPosTL_world).g;
-    if (reflectionStrength <= 0.0) {
+vec4 GetReflectionSample(
+    vec2 pixelPosTLWorld,
+    vec2 center,
+    float rad,
+    float reflectionStrength
+) {
+    vec2 cellPos = floor(pixelPosTLWorld / float(cellSize));
+    vec2 localPos = fract(pixelPosTLWorld / float(cellSize));
+    reflectionStrength = clamp(reflectionStrength, 0.0, 1.0);
+    if (reflectionStrength <= 0.0 || cellPos.y <= 0.0) {
         return vec4(0.0);
     }
-    if (cellPos.y <= 0.0) {
-        return vec4(0.0);
-    }
-    vec2 sourceCell = cellPos + vec2(0.0, -1.0);
+
+    vec2 reflectionSourceCell = cellPos + vec2(0.0, -1.0);
     vec2 sourceLocal = vec2(localPos.x, 1.0 - localPos.y);
-    vec2 sourceWorldPosTL = (sourceCell + sourceLocal) * float(cellSize);
-    float sourceBlock = SampleLightMaskWorldTL(sourceWorldPosTL).r;
-    float reflectAlpha = clamp(sourceBlock * reflectionStrength, 0.0, 1.0);
+    vec2 sourceWorldPosTL =
+        (reflectionSourceCell + sourceLocal) * float(cellSize);
+    float sourceBlock = clamp(
+        SampleSurfaceMaskWorldTL(sourceWorldPosTL).r,
+        0.0,
+        1.0
+    );
+    float reflectAlpha = sourceBlock * reflectionStrength;
     if (reflectAlpha <= 0.0) {
         return vec4(0.0);
     }
+
     vec2 sourceUV = WorldTLToSceneUV(sourceWorldPosTL, center, rad);
     vec4 sourceColor = texture2D(texture, sourceUV);
     return vec4(sourceColor.rgb, sourceColor.a * reflectAlpha);
 }
 
-vec3 CalculateLighting(vec2 pixelPosTL_world) {
-    vec3 totalLight = ambientColor;
-
-    for (int i = 0; i < 16; ++i) {
-        if (i >= lightLen) break;
-
-        float dist = length(pixelPosTL_world - lightPos[i]);
-        if (dist >= lightRadius[i]) continue;
-
-        float atten = 1.0 - dist / lightRadius[i];
-        float obs = 1.0;
-        if (atten >= 0.05) {
-            obs = GetObstructionAttenuation(lightPos[i], pixelPosTL_world, gridSize);
-        }
-
-        totalLight += lightColor[i] * lightIntensity[i] * atten * obs;
-    }
-    return clamp(totalLight, 0.0, 1.0);
-}
-
 void main() {
-    vec2 pixelPosBL_view = gl_FragCoord.xy / screenScale;
-    vec2 pixelPosTL_view = vec2(pixelPosBL_view.x, screenSize.y - pixelPosBL_view.y) - mapViewOffset;
+    vec2 uv = clamp(sf_TexCoord0.xy, 0.0, 1.0);
+    vec2 pixelPosTLView =
+        vec2(uv.x, 1.0 - uv.y) * screenSize;
     float rad = viewRot * 0.017453292519943295;
     vec2 center = viewPos + screenSize * 0.5;
-    vec2 pixelPosTL_world = center + rotate2D(pixelPosTL_view - screenSize * 0.5, rad);
-    vec2 pixelPosBL_world = center + rotate2D(pixelPosBL_view - screenSize * 0.5, rad);
+    vec2 pixelPosTLWorld =
+        center + rotate2D(pixelPosTLView - screenSize * 0.5, rad);
 
-    vec2 uv = clamp(gl_TexCoord[0].xy, 0.0, 1.0);
-    vec3 pixelColor = texture2D(texture, uv).rgb;
-
-    float ignoreLighting = SampleLightMaskWorldTL(pixelPosTL_world).b;
-    if (ignoreLighting > 0.0) {
-        gl_FragColor = vec4(pixelColor, 1.0);
-        return;
+    vec4 pixel = texture2D(texture, uv);
+    vec3 direct;
+    if (useStaticDirectLight > 0.5) {
+        direct = texture2D(
+            staticDirectLight,
+            ToMaskUV(pixelPosTLWorld)
+        ).rgb;
+    } else {
+        direct = texture2D(directLight, uv).rgb;
     }
+    vec3 lighting = clamp(ambientColor + direct, 0.0, 1.0);
+    vec3 litColor = pixel.rgb * lighting;
 
-    vec3 lighting = CalculateLighting(pixelPosTL_world);
-    vec3 baseColor = pixelColor * lighting;
-    vec4 reflection = GetReflectionSample(pixelPosTL_world, center, rad);
-    vec3 finalColor = mix(baseColor, reflection.rgb, reflection.a);
+    vec4 surface = SampleSurfaceMaskWorldTL(pixelPosTLWorld);
+    vec4 reflection = GetReflectionSample(
+        pixelPosTLWorld,
+        center,
+        rad,
+        surface.g
+    );
+    vec3 reflectedColor = mix(litColor, reflection.rgb, reflection.a);
+    float ignoreLighting = clamp(surface.b, 0.0, 1.0);
+    vec3 finalColor = mix(reflectedColor, pixel.rgb, ignoreLighting);
 
     gl_FragColor = vec4(finalColor, 1.0);
 }

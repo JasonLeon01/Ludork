@@ -1,0 +1,97 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 144,
+    "height": 32
+  },
+  "palette": {
+    "exposed": false,
+    "displayName": "Window Shop Cell",
+    "category": "Windows"
+  },
+  "root": {
+    "id": "52e3453f-4ee6-4b6f-8533-df5549ef9e8a",
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        144,
+        32
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "id": "630e05df-2ddf-4d36-a5c5-f4b1cdbe6317",
+        "name": "Icon",
+        "controlId": "Engine.FunctionalImage",
+        "properties": {
+          "texture": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              0.0,
+              0.0
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": true,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "id": "8627b513-86fb-4e17-8e45-e6676457647e",
+        "name": "ValueText",
+        "controlId": "Engine.FunctionalPlainText",
+        "properties": {
+          "textConfig": "UI/RightText12",
+          "text": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              1.0,
+              0.0
+            ],
+            "max": [
+              1.0,
+              0.0
+            ]
+          },
+          "offsets": {
+            "left": -2.0,
+            "top": 17.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": true,
+          "zOrder": 1
+        },
+        "editor": {
+          "previewText": "999"
+        },
+        "children": []
+      }
+    ]
+  }
+}

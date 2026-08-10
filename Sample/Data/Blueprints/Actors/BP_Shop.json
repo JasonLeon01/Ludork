@@ -1,23 +1,21 @@
 {
-    "parent": "Engine.Gameplay.Actors.Actor.Actor",
+    "parent": "Engine.Actor",
     "attrs": {
         "animatable": true,
         "material": {
-            "lightBlock": 0.5,
+            "lightBlock": 0.4,
             "mirror": false,
             "reflectionStrength": 0.5,
             "opacity": 1.0,
             "speedRate": 1.0
         },
         "collisionEnabled": true,
-        "tickable": true,
+        "tickable": false,
         "texturePath": "npcs/classic-npcs-50F-single.png",
         "defaultRect": [
             [
                 0,
-                160
-            ],
-            [
+                160,
                 32,
                 32
             ]

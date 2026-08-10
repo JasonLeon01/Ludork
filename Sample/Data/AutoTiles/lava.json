@@ -1,0 +1,13 @@
+{
+    "name": "lava",
+    "fileName": "101-CF_Lava01.png",
+    "passable": false,
+    "material": {
+        "lightBlock": 0.4,
+        "mirror": true,
+        "reflectionStrength": 0.5,
+        "opacity": 1.0,
+        "speedRate": 1.0
+    },
+    "type": "autoTile"
+}

@@ -1,0 +1,56 @@
+#pragma once
+
+#include <BindAnnotations.hpp>
+#include <FocusManager.hpp>
+#include <UI/ControlBase.hpp>
+
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <vector>
+
+BIND_CLASS()
+class UIManager {
+public:
+    BIND_INIT()
+    UIManager();
+    ~UIManager();
+
+    BIND_METHOD(Pure = true)
+    std::shared_ptr<FocusManager> getFocusManager() const;
+
+    BIND_METHOD()
+    void setFocusNavigationEnabled(bool enabled);
+
+    BIND_METHOD()
+    void registerFocusGroup(const std::shared_ptr<FocusGroup>& group);
+
+    BIND_METHOD(outpins(default = nil))
+    void loadUI(const std::shared_ptr<ControlBase>& ui);
+
+    BIND_METHOD(Pure = true, returns = "uis")
+    std::vector<std::shared_ptr<ControlBase>> getUIs() const;
+
+    BIND_METHOD(outpins(default = nil))
+    void removeUI(const std::shared_ptr<ControlBase>& ui);
+
+    void fixedLogicHandle(float fixedDelta);
+    void logicHandle(float deltaTime);
+    void renderHandle(float deltaTime,
+                      const std::function<void()>& overlayRenderer = {});
+
+    BIND_IGNORE()
+    static void shutdown() noexcept;
+
+private:
+    std::vector<std::shared_ptr<ControlBase>> sortedUIs(bool descending) const;
+    void activateFocusResolvers();
+    static std::shared_ptr<FunctionalBase> functionalUI(
+        const std::shared_ptr<ControlBase>& ui);
+
+    std::vector<std::shared_ptr<ControlBase>> uis_;
+    std::shared_ptr<FocusManager> focusManager_;
+    mutable std::mutex mutex_;
+
+    static UIManager* activeManager_;
+};
