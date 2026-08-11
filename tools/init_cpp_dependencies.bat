@@ -63,25 +63,44 @@ if errorlevel 1 exit /b %errorlevel%
 
 :luasf_ready
 
+set "LUASF_GIT_ROOT="
+set "LUASF_GIT_DIRECTORY="
+for /f "usebackq delims=" %%I in (`git -C "%LUASF_DIR%" rev-parse --show-toplevel 2^>nul`) do set "LUASF_GIT_ROOT=%%I"
+if defined LUASF_GIT_ROOT (
+    for /f "usebackq delims=" %%I in (`git -C "%LUASF_DIR%" rev-parse --show-prefix 2^>nul`) do set "LUASF_GIT_DIRECTORY=%%I"
+)
+
 set "VALUE_COPY_PATCH=%CD%\patches\luasf-value-copy.patch"
 echo Applying LuaSF native value copy patch if needed...
-pushd "%LUASF_DIR%"
-git apply --unidiff-zero --reverse --check "%VALUE_COPY_PATCH%" >nul 2>&1
+call :apply_luasf_patch --reverse --check "%VALUE_COPY_PATCH%" >nul 2>&1
 if errorlevel 1 (
-    git apply --unidiff-zero --check "%VALUE_COPY_PATCH%"
+    call :apply_luasf_patch --check "%VALUE_COPY_PATCH%"
     if errorlevel 1 (
-        popd
         exit /b 1
     )
-    git apply --unidiff-zero "%VALUE_COPY_PATCH%"
+    call :apply_luasf_patch "%VALUE_COPY_PATCH%"
     if errorlevel 1 (
-        popd
         exit /b 1
     )
 ) else (
     echo LuaSF native value copy patch is already applied.
 )
-popd
+
+set "ANDROID_CMAKE_PATCH=%CD%\patches\luasf-android-cmake.patch"
+echo Applying LuaSF Android CMake patch if needed...
+call :apply_luasf_patch --reverse --check "%ANDROID_CMAKE_PATCH%" >nul 2>&1
+if errorlevel 1 (
+    call :apply_luasf_patch --check "%ANDROID_CMAKE_PATCH%"
+    if errorlevel 1 (
+        exit /b 1
+    )
+    call :apply_luasf_patch "%ANDROID_CMAKE_PATCH%"
+    if errorlevel 1 (
+        exit /b 1
+    )
+) else (
+    echo LuaSF Android CMake patch is already applied.
+)
 
 echo Downloading lua-cjson %LUA_CJSON_VERSION%...
 powershell -Command "Invoke-WebRequest -Uri 'https://github.com/openresty/lua-cjson/archive/refs/tags/%LUA_CJSON_VERSION%.zip' -OutFile '%LUA_CJSON_ZIP%'"
@@ -115,3 +134,11 @@ if errorlevel 1 exit /b %errorlevel%
 
 echo C++ dependencies are ready in %CPP_DIR%
 exit /b 0
+
+:apply_luasf_patch
+if defined LUASF_GIT_DIRECTORY (
+    git -C "%LUASF_GIT_ROOT%" apply --unidiff-zero --directory="%LUASF_GIT_DIRECTORY%" %*
+) else (
+    git -C "%LUASF_DIR%" apply --unidiff-zero %*
+)
+exit /b %errorlevel%

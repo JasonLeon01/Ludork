@@ -422,7 +422,6 @@ public sealed class ProjectRunnerService : IDisposable
         };
         startInfo.Environment["PYTHONUTF8"] = "1";
         startInfo.Environment["PYTHONIOENCODING"] = "utf-8";
-        startInfo.Environment["LUDORK_SKIP_SCRIPT_TOOLS_BUILD"] = "1";
         if (OperatingSystem.IsWindows())
         {
             startInfo.ArgumentList.Add("/d");

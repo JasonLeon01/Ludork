@@ -44,6 +44,9 @@ function ConfigWindow:getLanguageDropBox()
 end
 
 function ConfigWindow:getScaleDropBox()
+    if self._scaleRow == nil then
+        return nil
+    end
     return self._scaleRow:getDropBox()
 end
 

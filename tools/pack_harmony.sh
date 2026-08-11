@@ -8,6 +8,5 @@ if [ "$(uname -s)" != "Darwin" ]; then
     exit 20
 fi
 
-sh "$PROJECT_ROOT/tools/build_script_tools.sh"
 SCRIPT_TOOLS=$(resolve_script_tools)
 exec "$SCRIPT_TOOLS" harmony-pack "$@"

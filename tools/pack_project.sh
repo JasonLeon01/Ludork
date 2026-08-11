@@ -37,7 +37,6 @@ if [ "$(uname -s)" != "Darwin" ]; then
     exit 1
 fi
 
-sh "$PROJECT_ROOT/tools/build_script_tools.sh"
 SCRIPT_TOOLS=$(resolve_script_tools)
 PROJECT_DIR=$(absolute_path "$1")
 DEFAULT_DIST="$PROJECT_DIR/dist"

@@ -70,6 +70,9 @@ public partial class PackLogDialog : Window
                 ProjectPackFailure.HarmonySigningUnavailable => LocaleService.Get("PACK_HARMONY_SIGNING_UNAVAILABLE"),
                 ProjectPackFailure.HarmonyProjectUnsupported => LocaleService.Get("PACK_HARMONY_PROJECT_UNSUPPORTED"),
                 ProjectPackFailure.HarmonyDeviceFormUnsupported => LocaleService.Get("PACK_HARMONY_DEVICE_TEMPORARILY_UNAVAILABLE"),
+                ProjectPackFailure.AndroidToolchainUnavailable => LocaleService.Get("PACK_ANDROID_TOOLCHAIN_UNAVAILABLE"),
+                ProjectPackFailure.AndroidSigningUnavailable => LocaleService.Get("PACK_ANDROID_SIGNING_UNAVAILABLE"),
+                ProjectPackFailure.AndroidProjectUnsupported => LocaleService.Get("PACK_ANDROID_PROJECT_UNSUPPORTED"),
                 ProjectPackFailure.PackFailed => string.Format(LocaleService.Get("PACK_EXIT_CODE"), result.Detail),
                 _ => result.Detail,
             };

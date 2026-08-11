@@ -33,11 +33,6 @@ if not exist "%CPP_DIR%\CMakeLists.txt" (
     exit /b 1
 )
 
-if /I "%LUDORK_SKIP_SCRIPT_TOOLS_BUILD%"=="1" goto script_tools_ready
-call "%CD%\tools\build_script_tools.bat"
-if errorlevel 1 exit /b %errorlevel%
-:script_tools_ready
-
 set "SCRIPT_TOOLS=%CD%\.tools\ScriptTools\ScriptTools.exe"
 set "LUAC_CACHE=%CD%\.tools\Lua\luac.exe"
 if not exist "%SCRIPT_TOOLS%" (

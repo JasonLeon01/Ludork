@@ -13,6 +13,26 @@ option(
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/LudorkBuild.cmake")
 
+if(ANDROID)
+    if(NOT CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
+        message(FATAL_ERROR
+            "The Android package supports only the arm64-v8a ABI.")
+    endif()
+    if(NOT ANDROID_PLATFORM_LEVEL STREQUAL "24")
+        message(FATAL_ERROR
+            "The Android package requires API level 24.")
+    endif()
+    if(DEFINED CMAKE_ANDROID_STL_TYPE
+       AND NOT CMAKE_ANDROID_STL_TYPE STREQUAL "c++_static")
+        message(FATAL_ERROR
+            "The Android package requires the c++_static runtime.")
+    endif()
+    if(DEFINED ANDROID_STL AND NOT ANDROID_STL STREQUAL "c++_static")
+        message(FATAL_ERROR
+            "The Android package requires ANDROID_STL=c++_static.")
+    endif()
+endif()
+
 set(LUASF_LUA_STUB_OUTPUT
     "${CMAKE_CURRENT_SOURCE_DIR}/Scripts/stub/LuaSF.d.lua")
 add_subdirectory(LuaSF)
@@ -37,7 +57,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "iOS"
-   OR CMAKE_SYSTEM_NAME STREQUAL "OHOS")
+   OR CMAKE_SYSTEM_NAME STREQUAL "OHOS"
+   OR ANDROID)
     foreach(mobile_dependency IN ITEMS
         freetype
         ogg
@@ -169,6 +190,11 @@ if(CMAKE_SYSTEM_NAME STREQUAL "OHOS")
         src/Application.cpp
         src/main.cpp)
     set(LUDORK_APPLICATION_TARGET entry)
+elseif(ANDROID)
+    add_library(Main SHARED
+        src/Application.cpp
+        src/main.cpp)
+    set(LUDORK_APPLICATION_TARGET Main)
 else()
     add_executable(Main
         src/Application.cpp
@@ -197,6 +223,32 @@ if(LUDORK_STATIC_LUA_MODULES)
         lua_cjson
         CoreSystem
         GlobalFunctions)
+endif()
+if(ANDROID)
+    if(NOT DEFINED LUDORK_ANDROID_RUNTIME_HASH
+       OR LUDORK_ANDROID_RUNTIME_HASH STREQUAL "")
+        message(FATAL_ERROR
+            "LUDORK_ANDROID_RUNTIME_HASH is required for an Android build.")
+    endif()
+    string(LENGTH "${LUDORK_ANDROID_RUNTIME_HASH}"
+        LUDORK_ANDROID_RUNTIME_HASH_LENGTH)
+    if(NOT LUDORK_ANDROID_RUNTIME_HASH_LENGTH EQUAL 64
+       OR NOT LUDORK_ANDROID_RUNTIME_HASH MATCHES "^[0-9a-f]+$")
+        message(FATAL_ERROR
+            "LUDORK_ANDROID_RUNTIME_HASH must be a lowercase SHA-256 hash.")
+    endif()
+    set_target_properties(Main PROPERTIES OUTPUT_NAME ludork)
+    target_compile_definitions(Main PRIVATE
+        LUDORK_ANDROID_RUNTIME_HASH=\"${LUDORK_ANDROID_RUNTIME_HASH}\")
+    target_link_libraries(Main PRIVATE
+        android
+        log
+        "-Wl,--whole-archive"
+        SFML::Main
+        "-Wl,--no-whole-archive")
+    target_link_options(Main PRIVATE
+        "-Wl,-z,max-page-size=16384"
+        "-Wl,-z,common-page-size=16384")
 endif()
 if(APPLE)
     find_library(COREFOUNDATION_FRAMEWORK CoreFoundation REQUIRED)

@@ -459,6 +459,78 @@
     "zh_CN": "打包（HarmonyOS）",
     "en_GB": "Package (HarmonyOS)"
   },
+  "PACK_PLATFORM_ANDROID": {
+    "zh_CN": "打包（Android）",
+    "en_GB": "Package (Android)"
+  },
+  "PACK_ANDROID_SIGN_APK": {
+    "zh_CN": "签名 APK",
+    "en_GB": "Sign APK"
+  },
+  "PACK_ANDROID_SIGNING_TITLE": {
+    "zh_CN": "Android APK 签名",
+    "en_GB": "Android APK Signing"
+  },
+  "PACK_ANDROID_SIGNING_DESCRIPTION": {
+    "zh_CN": "请输入本次打包使用的签名信息。这些信息不会被保存。",
+    "en_GB": "Enter the signing information for this packaging run. These details will not be saved."
+  },
+  "PACK_ANDROID_KEYSTORE": {
+    "zh_CN": "Keystore 文件",
+    "en_GB": "Keystore File"
+  },
+  "PACK_ANDROID_KEY_ALIAS": {
+    "zh_CN": "Key alias",
+    "en_GB": "Key Alias"
+  },
+  "PACK_ANDROID_KEYSTORE_PASSWORD": {
+    "zh_CN": "Keystore 密码",
+    "en_GB": "Keystore Password"
+  },
+  "PACK_ANDROID_KEY_PASSWORD_SAME": {
+    "zh_CN": "Key 密码与 Keystore 密码相同",
+    "en_GB": "Key password is the same as the keystore password"
+  },
+  "PACK_ANDROID_KEY_PASSWORD": {
+    "zh_CN": "Key 密码",
+    "en_GB": "Key Password"
+  },
+  "PACK_ANDROID_SELECT_KEYSTORE": {
+    "zh_CN": "选择 Keystore 文件",
+    "en_GB": "Select Keystore File"
+  },
+  "PACK_ANDROID_KEYSTORE_FILES": {
+    "zh_CN": "JKS / PKCS12 密钥库",
+    "en_GB": "JKS / PKCS12 Keystores"
+  },
+  "PACK_ANDROID_ALL_FILES": {
+    "zh_CN": "所有文件",
+    "en_GB": "All Files"
+  },
+  "PACK_ANDROID_KEYSTORE_INVALID": {
+    "zh_CN": "请选择存在、可读且使用绝对路径的 Keystore 文件。",
+    "en_GB": "Select an existing, readable keystore file with an absolute path."
+  },
+  "PACK_ANDROID_KEY_ALIAS_REQUIRED": {
+    "zh_CN": "请输入 Key alias。",
+    "en_GB": "Enter the key alias."
+  },
+  "PACK_ANDROID_KEY_ALIAS_INVALID": {
+    "zh_CN": "Key alias 不能包含换行符。",
+    "en_GB": "The key alias cannot contain line breaks."
+  },
+  "PACK_ANDROID_KEYSTORE_PASSWORD_REQUIRED": {
+    "zh_CN": "请输入 Keystore 密码。",
+    "en_GB": "Enter the keystore password."
+  },
+  "PACK_ANDROID_KEY_PASSWORD_REQUIRED": {
+    "zh_CN": "请输入 Key 密码。",
+    "en_GB": "Enter the key password."
+  },
+  "PACK_ANDROID_PASSWORD_LINE_BREAK": {
+    "zh_CN": "签名密码不能包含换行符。",
+    "en_GB": "Signing passwords cannot contain line breaks."
+  },
   "PACK_HARMONY_DEVICE_MOBILE": {
     "zh_CN": "Mobile",
     "en_GB": "Mobile"
@@ -570,6 +642,18 @@
   "PACK_HARMONY_PROJECT_UNSUPPORTED": {
     "zh_CN": "HarmonyOS 打包只支持包含完整 CMake 源码的 C++ 项目",
     "en_GB": "HarmonyOS packaging requires a C++ project with complete CMake sources"
+  },
+  "PACK_ANDROID_TOOLCHAIN_UNAVAILABLE": {
+    "zh_CN": "Android 打包工具链不可用。请安装 Android Studio、SDK Platform 36、Build Tools 36.0.0、完整 NDK r27+ 及本机 CMake 3.28+；详情见打包日志",
+    "en_GB": "The Android packaging toolchain is unavailable. Install Android Studio, SDK Platform 36, Build Tools 36.0.0, a complete NDK r27+, and system CMake 3.28+; see the package log for details"
+  },
+  "PACK_ANDROID_SIGNING_UNAVAILABLE": {
+    "zh_CN": "Android APK 签名失败。请检查 Keystore、Key alias 和密码，并查看上方日志了解详情",
+    "en_GB": "Android APK signing failed. Check the keystore, key alias, and passwords, and review the log above for details"
+  },
+  "PACK_ANDROID_PROJECT_UNSUPPORTED": {
+    "zh_CN": "Android 打包只支持包含完整 CMake 源码的 C++ 项目",
+    "en_GB": "Android packaging requires a C++ project with complete CMake sources"
   },
   "PACK_EXIT_CODE": {
     "zh_CN": "游戏打包进程退出码：{0}",

@@ -76,10 +76,10 @@ std::filesystem::path userDataPath(
         homePath() / "Library" / "Application Support" / resolvedName;
     std::filesystem::create_directories(path);
     return path;
-#elif defined(SFML_SYSTEM_HARMONY)
+#elif defined(SFML_SYSTEM_HARMONY) || defined(SFML_SYSTEM_ANDROID)
     const std::string root = environmentValue("LUDORK_USER_DATA_ROOT");
     if (root.empty()) {
-        throw std::runtime_error("Harmony user data root is not configured");
+        throw std::runtime_error("User data root is not configured");
     }
     const std::filesystem::path resolvedName =
         ludork::standard::pathFromUtf8(resolveAppName(appNameOverride));

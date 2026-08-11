@@ -57,6 +57,16 @@
                                TextWrapping="Wrap" />
                 </StackPanel>
             </StackPanel>
+            <StackPanel x:Name="AndroidPanel"
+                        IsVisible="False"
+                        Spacing="4">
+                <RadioButton x:Name="AndroidOption"
+                             GroupName="PackPlatform" />
+                <CheckBox x:Name="AndroidSigningOption"
+                          Margin="28,0,0,0"
+                          IsChecked="False"
+                          IsVisible="False" />
+            </StackPanel>
             <CheckBox x:Name="LuacOption"
                       IsChecked="False" />
             <CheckBox x:Name="EncryptShadersOption"

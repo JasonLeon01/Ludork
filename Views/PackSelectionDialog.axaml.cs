@@ -8,6 +8,7 @@ namespace Ludork.Views;
 
 public partial class PackSelectionDialog : Window
 {
+    private const string AndroidStudioPath = "/Applications/Android Studio.app";
     private const string DevEcoStudioPath = "/Applications/DevEco-Studio.app";
     private const string DevEcoStudioEnvironment = "LUDORK_DEVECO_STUDIO";
 
@@ -29,6 +30,8 @@ public partial class PackSelectionDialog : Window
         HarmonyTwoInOneOption.Content = LocaleService.Get("PACK_HARMONY_DEVICE_TWO_IN_ONE");
         HarmonyTwoInOneStatusText.Text = LocaleService.Get("PACK_HARMONY_DEVICE_TEMPORARILY_UNAVAILABLE");
         ExportToHarmonyDeviceOption.Content = LocaleService.Get("PACK_EXPORT_TO_HARMONY_DEVICE");
+        AndroidOption.Content = LocaleService.Get("PACK_PLATFORM_ANDROID");
+        AndroidSigningOption.Content = LocaleService.Get("PACK_ANDROID_SIGN_APK");
         ExportToIPhoneOption.Content = LocaleService.Get("PACK_EXPORT_TO_IPHONE");
         LuacOption.Content = LocaleService.Get("PACK_USE_LUAC");
         EncryptShadersOption.Content = LocaleService.Get("PACK_ENCRYPT_SHADERS");
@@ -39,12 +42,15 @@ public partial class PackSelectionDialog : Window
         IosOption.IsCheckedChanged += (_, _) => updateExportToIPhoneVisibility();
         HarmonyOption.IsCheckedChanged += (_, _) => updateHarmonyDeviceVisibility();
         HarmonyMobileOption.IsCheckedChanged += (_, _) => updateHarmonyDeviceVisibility();
+        AndroidOption.IsCheckedChanged += (_, _) => updateAndroidSigningVisibility();
         Win32Option.IsVisible = OperatingSystem.IsWindows();
         MacOSOption.IsVisible = OperatingSystem.IsMacOS();
         bool sourceProjectOnMacOS = OperatingSystem.IsMacOS() && !isStandalone;
         IosPanel.IsVisible = sourceProjectOnMacOS;
         HarmonyPanel.IsVisible = sourceProjectOnMacOS
             && hasDevEcoStudio();
+        AndroidPanel.IsVisible = sourceProjectOnMacOS
+            && hasAndroidStudio();
         if (sourceProjectOnMacOS)
             MinHeight = 387;
         if (OperatingSystem.IsWindows())
@@ -60,6 +66,16 @@ public partial class PackSelectionDialog : Window
             else if (OperatingSystem.IsMacOS())
                 MacOSOption.Focus();
         };
+    }
+
+    private static bool hasAndroidStudio()
+    {
+        string userApplicationsPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            "Applications",
+            "Android Studio.app");
+        return Directory.Exists(AndroidStudioPath)
+            || Directory.Exists(userApplicationsPath);
     }
 
     private static bool hasDevEcoStudio()
@@ -87,7 +103,7 @@ public partial class PackSelectionDialog : Window
             || Directory.Exists(userApplicationsPath);
     }
 
-    private void onConfirm(object? sender, RoutedEventArgs args)
+    private async void onConfirm(object? sender, RoutedEventArgs args)
     {
         if (Win32Option.IsChecked == true)
             Close(new ProjectPackOptions(
@@ -123,6 +139,31 @@ public partial class PackSelectionDialog : Window
                 ExportToHarmonyDevice = ExportToHarmonyDeviceOption.IsChecked == true,
             });
         }
+        else if (AndroidOption.IsChecked == true)
+        {
+            AndroidSigningOptions? signing = null;
+            if (AndroidSigningOption.IsChecked == true)
+            {
+                AndroidSigningDialog signingDialog = new();
+                signing = await signingDialog.ShowDialog<AndroidSigningOptions?>(this);
+                if (signing is null)
+                    return;
+            }
+            Close(new ProjectPackOptions(
+                ProjectPackPlatform.Android,
+                LuacOption.IsChecked == true,
+                EncryptShadersOption.IsChecked == true,
+                EncryptDataOption.IsChecked == true)
+            {
+                AndroidSigning = signing,
+            });
+        }
+    }
+
+    private void updateAndroidSigningVisibility()
+    {
+        AndroidSigningOption.IsVisible = AndroidOption.IsVisible
+            && AndroidOption.IsChecked == true;
     }
 
     private void updateHarmonyDeviceVisibility()

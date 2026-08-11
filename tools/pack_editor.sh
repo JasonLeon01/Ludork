@@ -484,6 +484,7 @@ validate_package() {
     require_package_executable "$package_resources/tools/pack_project.sh"
     require_package_executable "$package_resources/tools/pack_ios.sh"
     require_package_executable "$package_resources/tools/pack_harmony.sh"
+    require_package_executable "$package_resources/tools/pack_android.sh"
     require_package_executable "$package_resources/tools/unregister_editor.sh"
     require_package_file "$package_resources/tools/common.sh"
     require_package_executable "$package_resources/tools/ScriptTools"
@@ -733,10 +734,23 @@ validate_package() {
         require_package_file "$template_dir/Licenses/LuaSF/LICENSE.txt"
         require_package_file "$template_dir/Licenses/SFML/LICENSE.txt"
         require_package_file "$template_dir/Licenses/NativeDependencies/SFML-THIRD-PARTY.md"
-        require_package_file "$template_dir/Licenses/HarmonyOSSans/LICENSE.txt"
-        require_package_file "$template_dir/Licenses/SampleMusic/NOTICE.md"
         require_package_file "$template_dir/Assets/Fonts/LICENSE.txt"
         require_package_file "$template_dir/Assets/Musics/LICENSE.md"
+        for excluded_licence_directory in \
+            Avalonia \
+            DotNet \
+            DotNetPackages \
+            EditorPackages \
+            GNUMake \
+            HarmonyOSSans \
+            MicrosoftVisualCppRuntime \
+            SampleMusic \
+            ScriptTools; do
+            if [ -e "$template_dir/Licenses/$excluded_licence_directory" ]; then
+                echo "Non-runtime licence directory was found in a project template: $template_dir/Licenses/$excluded_licence_directory" >&2
+                exit 1
+            fi
+        done
         validate_absent_pattern "$template_dir" 'UiPreviewHost*'
         validate_absent_pattern "$template_dir" 'UiPreviewCurveResolver*'
         for runtime_path in \
@@ -832,7 +846,6 @@ require_command xattr
 require_file /usr/bin/lipo
 
 require_file "$PROJECT_ROOT/tools/create_templates.sh"
-require_file "$PROJECT_ROOT/tools/build_script_tools.sh"
 require_file "$PROJECT_ROOT/tools/build_ui_preview_host.sh"
 require_file "$PROJECT_ROOT/tools/editor_runtime/common.sh"
 require_file "$PROJECT_ROOT/tools/editor_runtime/build_cpp.sh"
@@ -840,6 +853,7 @@ require_file "$PROJECT_ROOT/tools/editor_runtime/build_standalone.sh"
 require_file "$PROJECT_ROOT/tools/editor_runtime/pack_project.sh"
 require_file "$PROJECT_ROOT/tools/editor_runtime/pack_ios.sh"
 require_file "$PROJECT_ROOT/tools/editor_runtime/pack_harmony.sh"
+require_file "$PROJECT_ROOT/tools/editor_runtime/pack_android.sh"
 require_file "$PROJECT_ROOT/tools/editor_runtime/unregister_editor.sh"
 require_file "$DMG_ASSET_DIR/background.svg"
 require_file "$DMG_ASSET_DIR/installer_icon.svg"
@@ -869,9 +883,6 @@ if hdiutil info | grep -Fq "$WORK_DIR" \
     echo "An earlier editor DMG is still mounted; detach it before packaging again." >&2
     exit 1
 fi
-
-echo "Building ScriptTools..."
-sh "$PROJECT_ROOT/tools/build_script_tools.sh"
 
 require_file "$SCRIPT_TOOLS"
 require_file "$SCRIPT_TOOLS_VERSION_REPORT"
@@ -978,6 +989,7 @@ cp "$PROJECT_ROOT/tools/editor_runtime/build_standalone.sh" "$RESOURCES_DIR/tool
 cp "$PROJECT_ROOT/tools/editor_runtime/pack_project.sh" "$RESOURCES_DIR/tools/pack_project.sh"
 cp "$PROJECT_ROOT/tools/editor_runtime/pack_ios.sh" "$RESOURCES_DIR/tools/pack_ios.sh"
 cp "$PROJECT_ROOT/tools/editor_runtime/pack_harmony.sh" "$RESOURCES_DIR/tools/pack_harmony.sh"
+cp "$PROJECT_ROOT/tools/editor_runtime/pack_android.sh" "$RESOURCES_DIR/tools/pack_android.sh"
 cp "$PROJECT_ROOT/tools/editor_runtime/unregister_editor.sh" "$RESOURCES_DIR/tools/unregister_editor.sh"
 require_file "$LUAC"
 cp "$SCRIPT_TOOLS" "$RESOURCES_DIR/tools/ScriptTools"
@@ -1007,6 +1019,7 @@ chmod +x \
     "$RESOURCES_DIR/tools/pack_project.sh" \
     "$RESOURCES_DIR/tools/pack_ios.sh" \
     "$RESOURCES_DIR/tools/pack_harmony.sh" \
+    "$RESOURCES_DIR/tools/pack_android.sh" \
     "$RESOURCES_DIR/tools/unregister_editor.sh" \
     "$RESOURCES_DIR/tools/ScriptTools" \
     "$RESOURCES_DIR/tools/luac" \

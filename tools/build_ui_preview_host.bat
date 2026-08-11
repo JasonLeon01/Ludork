@@ -9,9 +9,6 @@ if "%CONFIG%"=="" set "CONFIG=Release"
 if not "%~2"=="" goto usage
 if /I not "%CONFIG%"=="Debug" if /I not "%CONFIG%"=="Release" goto usage
 
-call "%CD%\tools\build_script_tools.bat"
-if errorlevel 1 exit /b %errorlevel%
-
 set "PROJECT_DIR=%CD%\UiPreviewHost"
 set "BUILD_DIR=%CD%\.tools\UiPreviewHost\build"
 set "SCRIPT_TOOLS=%CD%\.tools\ScriptTools\ScriptTools.exe"

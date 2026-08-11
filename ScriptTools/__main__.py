@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 from collections.abc import Callable
 
+from ScriptTools import android_pack
 from ScriptTools import compile_lua
 from ScriptTools import configure_project_template
 from ScriptTools import editor_macos_metadata
@@ -23,6 +24,7 @@ from ScriptTools.core_bindgen import generate
 Command = Callable[[list[str] | None], int]
 
 COMMANDS: dict[str, Command] = {
+    "android-pack": android_pack.main,
     "core-bindgen": generate.main,
     "configure-project-template": configure_project_template.main,
     "editor-macos-metadata": editor_macos_metadata.main,

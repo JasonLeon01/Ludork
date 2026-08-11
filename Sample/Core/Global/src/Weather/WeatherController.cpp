@@ -24,7 +24,7 @@ const int WeatherTypeSnow = 3;
 
 namespace {
 constexpr std::string_view WeatherParticlePath =
-    "./Assets/Icons/Potion-1-1-1-1.png";
+    "Assets/Icons/Potion-1-1-1-1.png";
 const sf::Color StormFlashColour{210, 220, 255, 120};
 
 std::string trim(std::string value) {

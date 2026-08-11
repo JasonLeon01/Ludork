@@ -10,7 +10,7 @@ namespace ludork::global::manager {
 inline std::string assetFile(const std::string& folder,
                              const std::string& filename) {
     return ludork::standard::pathToUtf8(
-        std::filesystem::path("./Assets") /
+        std::filesystem::path("Assets") /
         ludork::standard::pathFromUtf8(folder) /
         ludork::standard::pathFromUtf8(filename));
 }

@@ -461,7 +461,7 @@ void configureRuntimePaths(const std::filesystem::path& runtimeRoot,
         normalizedAbsolutePath(runtimeRoot);
     if (!isRuntimeRoot(normalizedRuntimeRoot)) {
         throw std::invalid_argument(
-            "Harmony runtime root must contain Assets, Data, and "
+            "Runtime root must contain Assets, Data, and "
             "Scripts/Entry.lua or Scripts/Entry.luac: " +
             normalizedRuntimeRoot.generic_string());
     }
@@ -469,13 +469,13 @@ void configureRuntimePaths(const std::filesystem::path& runtimeRoot,
     const std::filesystem::path normalizedUserDataRoot =
         normalizedAbsolutePath(userDataRoot);
     if (normalizedUserDataRoot.empty()) {
-        throw std::invalid_argument("Harmony user data root must not be empty");
+        throw std::invalid_argument("User data root must not be empty");
     }
     std::error_code error;
     std::filesystem::create_directories(normalizedUserDataRoot, error);
     if (error || !std::filesystem::is_directory(normalizedUserDataRoot)) {
         throw std::runtime_error(
-            "Unable to create Harmony user data root: " +
+            "Unable to create user data root: " +
             normalizedUserDataRoot.generic_string() +
             (error ? " (" + error.message() + ")" : std::string{}));
     }
@@ -483,26 +483,25 @@ void configureRuntimePaths(const std::filesystem::path& runtimeRoot,
 #if defined(_WIN32)
     if (_putenv_s("LUDORK_USER_DATA_ROOT",
                   normalizedUserDataRoot.string().c_str()) != 0) {
-        throw std::runtime_error("Unable to configure Harmony user data root");
+        throw std::runtime_error("Unable to configure user data root");
     }
 #else
     if (setenv("LUDORK_USER_DATA_ROOT",
                normalizedUserDataRoot.string().c_str(), 1) != 0) {
         throw std::system_error(errno, std::generic_category(),
-                                "Unable to configure Harmony user data root");
+                                "Unable to configure user data root");
     }
 #endif
     std::filesystem::current_path(normalizedRuntimeRoot, error);
     if (error) {
-        throw std::system_error(error, "Unable to use Harmony runtime root");
+        throw std::system_error(error, "Unable to use runtime root");
     }
     configuredRuntimeRoot = normalizedRuntimeRoot;
 }
 
 void configureSystemLocale(const std::string& systemLocale) {
     if (systemLocale.empty()) {
-        throw std::invalid_argument(
-            "Harmony system locale must not be empty");
+        throw std::invalid_argument("System locale must not be empty");
     }
     ludork::standard::setDefaultLocale(systemLocale);
 }

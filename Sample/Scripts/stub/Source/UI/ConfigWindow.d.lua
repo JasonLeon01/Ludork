@@ -7,7 +7,7 @@
 ---@field _content Engine.Canvas
 ---@field _listView Engine.ListView
 ---@field _languageRow Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
----@field _scaleRow Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
+---@field _scaleRow Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI | nil
 ---@field _framerateRow Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
 ---@field _verticalSyncRow Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
 ---@field _musicOnRow Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
@@ -48,7 +48,7 @@ function ConfigWindowUI:getListView() end
 ---@return Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
 function ConfigWindowUI:getLanguageRow() end
 
----@return Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
+---@return Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI | nil
 function ConfigWindowUI:getScaleRow() end
 
 ---@return Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI

@@ -61,6 +61,52 @@ if(CMAKE_SYSTEM_NAME STREQUAL "OHOS")
         "${LUDORK_FFMPEG_INSTALL_DIR}"
         "${LUDORK_GNU_MAKE_EXECUTABLE}"
         "${OHOS_SDK_NATIVE}")
+elseif(ANDROID)
+    if(NOT CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
+        message(FATAL_ERROR
+            "The FFmpeg Android build supports only arm64-v8a.")
+    endif()
+    if(NOT ANDROID_PLATFORM_LEVEL STREQUAL "24")
+        message(FATAL_ERROR
+            "The FFmpeg Android build requires API level 24.")
+    endif()
+    get_filename_component(
+        LUDORK_ANDROID_TOOLCHAIN_BIN
+        "${CMAKE_C_COMPILER}"
+        DIRECTORY)
+    get_filename_component(
+        LUDORK_ANDROID_TOOLCHAIN_ROOT
+        "${LUDORK_ANDROID_TOOLCHAIN_BIN}"
+        DIRECTORY)
+    if(NOT EXISTS "${LUDORK_ANDROID_TOOLCHAIN_ROOT}/bin/clang"
+       OR NOT EXISTS "${LUDORK_ANDROID_TOOLCHAIN_ROOT}/sysroot")
+        message(FATAL_ERROR
+            "The Android NDK LLVM toolchain was not found: "
+            "${LUDORK_ANDROID_TOOLCHAIN_ROOT}")
+    endif()
+    if(NOT DEFINED CMAKE_MAKE_PROGRAM
+       OR CMAKE_MAKE_PROGRAM STREQUAL ""
+       OR NOT EXISTS "${CMAKE_MAKE_PROGRAM}")
+        message(FATAL_ERROR
+            "CMAKE_MAKE_PROGRAM must name the validated GNU Make executable "
+            "for the Android FFmpeg build.")
+    endif()
+    set(LUDORK_GNU_MAKE_EXECUTABLE "${CMAKE_MAKE_PROGRAM}")
+    set(FFMPEG_LIBRARY_TYPE STATIC)
+    set(FFMPEG_AVUTIL_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/lib/libavutil.a")
+    set(FFMPEG_AVCODEC_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/lib/libavcodec.a")
+    set(FFMPEG_AVFORMAT_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/lib/libavformat.a")
+    set(FFMPEG_SWSCALE_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/lib/libswscale.a")
+    set(FFMPEG_SWRESAMPLE_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/lib/libswresample.a")
+    set(FFMPEG_CONFIGURE_COMMAND
+        sh
+        "${CMAKE_CURRENT_SOURCE_DIR}/build_android.sh"
+        "${LUDORK_FFMPEG_SOURCE_DIR}"
+        "${LUDORK_FFMPEG_BUILD_DIR}"
+        "${LUDORK_FFMPEG_INSTALL_DIR}"
+        "${LUDORK_GNU_MAKE_EXECUTABLE}"
+        "${LUDORK_ANDROID_TOOLCHAIN_ROOT}"
+        "${ANDROID_PLATFORM_LEVEL}")
 elseif(WIN32)
     set(FFMPEG_LIBRARY_TYPE SHARED)
     if(NOT LUDORK_GNU_MAKE_EXECUTABLE)
@@ -111,7 +157,8 @@ elseif(APPLE)
         "${FFMPEG_APPLE_PLATFORM}"
         "${FFMPEG_APPLE_DEPLOYMENT_TARGET}")
 else()
-    message(FATAL_ERROR "The trimmed FFmpeg subproject supports Windows, macOS, iOS, and OHOS.")
+    message(FATAL_ERROR
+        "The trimmed FFmpeg subproject supports Windows, macOS, iOS, Android, and OHOS.")
 endif()
 
 ExternalProject_Add(LudorkFFmpegExternal
@@ -152,6 +199,17 @@ if(CMAKE_SYSTEM_NAME STREQUAL "OHOS")
     target_link_libraries(FFmpeg::avformat INTERFACE FFmpeg::avcodec FFmpeg::avutil)
     target_link_libraries(FFmpeg::swscale INTERFACE FFmpeg::avutil)
     target_link_libraries(FFmpeg::swresample INTERFACE FFmpeg::avutil)
+elseif(ANDROID)
+    target_link_libraries(FFmpeg::avutil INTERFACE
+        Threads::Threads
+        m
+        atomic)
+    target_link_libraries(FFmpeg::avcodec INTERFACE FFmpeg::avutil)
+    target_link_libraries(FFmpeg::avformat INTERFACE
+        FFmpeg::avcodec
+        FFmpeg::avutil)
+    target_link_libraries(FFmpeg::swscale INTERFACE FFmpeg::avutil)
+    target_link_libraries(FFmpeg::swresample INTERFACE FFmpeg::avutil)
 endif()
 
 set(LUDORK_FFMPEG_RUNTIME_FILES
@@ -163,7 +221,9 @@ set(LUDORK_FFMPEG_RUNTIME_FILES
     PARENT_SCOPE)
 
 function(ludork_copy_ffmpeg_runtime target)
-    if(CMAKE_SYSTEM_NAME STREQUAL "iOS" OR CMAKE_SYSTEM_NAME STREQUAL "OHOS")
+    if(CMAKE_SYSTEM_NAME STREQUAL "iOS"
+       OR CMAKE_SYSTEM_NAME STREQUAL "OHOS"
+       OR ANDROID)
         return()
     endif()
     foreach(runtime_file IN LISTS LUDORK_FFMPEG_RUNTIME_FILES)

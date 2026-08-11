@@ -23,9 +23,6 @@ if [ ! -f "$CPP_DIR/CMakeLists.txt" ]; then
     echo "CMakeLists.txt was not found: $CPP_DIR" >&2
     exit 1
 fi
-if [ "${LUDORK_SKIP_SCRIPT_TOOLS_BUILD:-}" != "1" ]; then
-    sh "$PROJECT_ROOT/tools/build_script_tools.sh"
-fi
 SCRIPT_TOOLS=$(resolve_script_tools)
 LUAC_CACHE="$PROJECT_ROOT/.tools/Lua/luac"
 if [ ! -x "$SCRIPT_TOOLS" ]; then

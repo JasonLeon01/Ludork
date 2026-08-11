@@ -47,8 +47,6 @@ set "SCRIPT_TOOLS_VERSION_REPORT=%ROOT_DIR%\.tools\ScriptTools\runtime-versions.
 
 call :require_file "%ROOT_DIR%\tools\create_templates.bat"
 if errorlevel 1 exit /b 1
-call :require_file "%ROOT_DIR%\tools\build_script_tools.bat"
-if errorlevel 1 exit /b 1
 call :require_file "%ROOT_DIR%\tools\build_ui_preview_host.bat"
 if errorlevel 1 exit /b 1
 call :require_file "%ROOT_DIR%\tools\editor_runtime\build_cpp.bat"
@@ -56,10 +54,6 @@ if errorlevel 1 exit /b 1
 call :require_file "%ROOT_DIR%\tools\editor_runtime\build_standalone.bat"
 if errorlevel 1 exit /b 1
 call :require_file "%ROOT_DIR%\tools\editor_runtime\pack_project.bat"
-if errorlevel 1 exit /b 1
-
-echo Building ScriptTools...
-call "%ROOT_DIR%\tools\build_script_tools.bat"
 if errorlevel 1 exit /b 1
 
 call :require_file "%SCRIPT_TOOLS%"
@@ -599,14 +593,14 @@ for %%T in (Cpp Cpp-ffmpeg Standalone Standalone-ffmpeg) do (
     if errorlevel 1 exit /b 1
     call :require_file "%PACKAGE_DIR%\Templates\%%T\Licenses\NativeDependencies\SFML-THIRD-PARTY.md"
     if errorlevel 1 exit /b 1
-    call :require_file "%PACKAGE_DIR%\Templates\%%T\Licenses\HarmonyOSSans\LICENSE.txt"
-    if errorlevel 1 exit /b 1
-    call :require_file "%PACKAGE_DIR%\Templates\%%T\Licenses\SampleMusic\NOTICE.md"
-    if errorlevel 1 exit /b 1
     call :require_file "%PACKAGE_DIR%\Templates\%%T\Assets\Fonts\LICENSE.txt"
     if errorlevel 1 exit /b 1
     call :require_file "%PACKAGE_DIR%\Templates\%%T\Assets\Musics\LICENSE.md"
     if errorlevel 1 exit /b 1
+    for %%L in (Avalonia DotNet DotNetPackages EditorPackages GNUMake HarmonyOSSans MicrosoftVisualCppRuntime SampleMusic ScriptTools) do if exist "%PACKAGE_DIR%\Templates\%%T\Licenses\%%L" (
+        echo Non-runtime licence directory was found in a project template: %PACKAGE_DIR%\Templates\%%T\Licenses\%%L
+        exit /b 1
+    )
     call :validate_no_ui_preview_host "%PACKAGE_DIR%\Templates\%%T"
     if errorlevel 1 exit /b 1
 )

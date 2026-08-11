@@ -448,6 +448,13 @@ def copy_runtime_resources(context: PackContext, destination: pathlib.Path) -> N
             destination / name,
             ignore=shutil.ignore_patterns(".DS_Store", "*.anim.json"),
         )
+    licenses = context.project_dir / "Licenses"
+    if licenses.is_dir():
+        shutil.copytree(
+            licenses,
+            destination / "Licenses",
+            ignore=shutil.ignore_patterns(".DS_Store"),
+        )
     for name in ("LICENSE.md", "THIRD_PARTY_NOTICES.md", "THIRD_PARTY_NOTICES_zh_CN.md"):
         source = context.project_dir / name
         if source.is_file():

@@ -16,6 +16,7 @@ All scripts switch to the repository root before doing work. Use `.bat` on Windo
 | `run_standalone` | Run a flat standalone project |
 | `create_templates` | Recreate Cpp and Standalone template variants |
 | `pack_project` | Produce the platform distribution layout |
+| `pack_android.sh` | Build an Android arm64-v8a Release APK from a C++ Source project, unsigned by default with optional signing |
 | `pack_editor.bat` | Publish and validate the self-contained Windows 10-or-newer x64 editor package with official plug-ins |
 | `pack_editor.sh` | Publish and validate the self-contained macOS Apple Silicon editor DMG |
 
@@ -27,6 +28,7 @@ Typical commands:
 ./tools/build_cpp.sh Sample Debug
 ./tools/run_cpp.sh Sample Debug
 ./tools/pack_project.sh Sample Sample/dist
+./tools/pack_android.sh Sample
 ./tools/pack_editor.sh
 ```
 
@@ -82,15 +84,22 @@ LaunchServices entry before deleting the app:
 
 Shell files only coordinate commands. Metadata generation, project inspection,
 version checks, packaging helpers, and Lua bytecode compilation are implemented
-by the standalone ScriptTools executable. Python is only needed by `init` to
-build ScriptTools with Nuitka and is not required by an installed editor.
+by the standalone ScriptTools executable. Python is needed only when `init` or
+`build_script_tools` builds ScriptTools with Nuitka. Development build and
+packaging commands consume the initialized executable; rerun `init` or
+`build_script_tools` explicitly after changing ScriptTools. Python is not
+required by an installed editor.
 
 Low-level build and pack scripts do not export `Data/Locale/Locale.xlsx`. The Official Locale Tools editor plug-in performs export through before-run and before-pack hooks. Run or pack from the editor, or provide an equivalent deliberate export step when automating outside it.
 
 `pack_harmony.sh` produces an arm64-v8a mobile HAP for HarmonyOS 6.0.1 / API 21 or newer. It requires Apple Silicon macOS, a C++ Source project, and DevEco Studio with the OpenHarmony native SDK.
 
+`pack_android.sh` produces an arm64-v8a Release APK for Android 7.0 / API 24 or newer. It requires Apple Silicon macOS, Android Studio at one of its two standard application locations, SDK Platform 36, Build Tools 36.0.0, a complete stable NDK r27 or newer under the locally installed SDK, system CMake 3.28 or newer with Unix Makefiles support, and `/usr/bin/make`. The SDK is resolved from `ANDROID_SDK_ROOT`, then `ANDROID_HOME`, then `~/Library/Android/sdk`. The packer selects the highest complete stable NDK under that SDK's `ndk` directory; projects and editor packages never carry an SDK or NDK. Set `LUDORK_CMAKE` only when selecting a particular system CMake executable. The tool does not use an SDK-bundled CMake, Ninja, SDK Manager, an emulator, AVD or adb. It runs `ScriptTools android-pack`, packages the prebuilt `libludork.so` with Gradle and, by default, writes `dist/<game>-android-arm64-v8a-unsigned.apk` without installing or launching it.
+
+Optional signing uses `--sign --keystore <absolute-path> --key-alias <alias>`. Supply exactly two UTF-8, newline-delimited values on standard input: the keystore password followed by the key password; supply the same value twice when both passwords are identical. Never place either password in command-line arguments. With `--check`, the same arguments and standard-input protocol validate the environment and signing credentials without building or publishing an APK. The signing flow validates the keystore and alias, builds and validates the unsigned APK, signs it with Android SDK `apksigner`, verifies the result and atomically publishes only `dist/<game>-android-arm64-v8a-signed.apk`. The unsigned APK remains build-intermediate data. Keystore details and passwords are not written to the project, settings, Gradle files, logs or a system keychain. Keep the keystore and credentials secure and reuse the same signing key for every later version that must update an installed application. A signed package is still not installed or launched.
+
 `pack_project` refuses a project whose `Scripts/Entry.lua` still uses the Sample `APP_NAME = "LudorkSample"`; set a unique application name first.
 With `--compile-lua`, every packaged `Scripts/**/*.lua` file is compiled with
 `luac -s`, renamed to `.luac`, and written to `dist`.
 
-`Templates/Cpp` is the reusable source template; `Templates/Standalone` is the flat packaged-runtime target. FFmpeg variants carry the video-capable runtime and its separate licensing material. The standard `init` command without a custom C++ project builds the editor-owned Release `UiPreviewHost` into `.tools/UiPreviewHost`; `build_ui_preview_host` remains available for explicit Debug builds or refreshes, and Debug is preferred by the development editor when both configurations exist. The Host is distributed once under the editor's `tools/UiPreviewHost`; it is not part of any project template or game package. macOS packaging does not sign or notarise the result.
+`Templates/Cpp` is the reusable source template; `Templates/Standalone` is the flat packaged-runtime target. `Sample` carries the Ludork licence and a game-runtime legal set containing native runtime, optional FFmpeg and bundled-asset materials. Template generation refreshes that set in both C++ templates and carries it into the derived Standalone templates; editor, managed-runtime, preview-host and build-tool notices remain only in the editor distribution. The standard `init` command without a custom C++ project builds the editor-owned Release `UiPreviewHost` into `.tools/UiPreviewHost`; `build_ui_preview_host` remains available for explicit Debug builds or refreshes, and Debug is preferred by the development editor when both configurations exist. The Host is distributed once under the editor's `tools/UiPreviewHost`; it is not part of any project template or game package. macOS packaging does not sign or notarise the result.

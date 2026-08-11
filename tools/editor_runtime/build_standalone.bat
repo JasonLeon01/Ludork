@@ -49,6 +49,10 @@ if exist "%CPP_DIR%\ThirdPartySource" (
         if errorlevel 8 exit /b %errorlevel%
     )
 )
+for %%F in (LICENSE.md THIRD_PARTY_NOTICES.md THIRD_PARTY_NOTICES_zh_CN.md) do if exist "%CPP_DIR%\%%F" (
+    copy /Y "%CPP_DIR%\%%F" "%STANDALONE_DIR%\%%F" >nul
+    if errorlevel 1 exit /b %errorlevel%
+)
 
 call :remove_ui_preview_host_entries "%STANDALONE_DIR%"
 if errorlevel 1 exit /b %errorlevel%

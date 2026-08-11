@@ -1,0 +1,58 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ludork.Views.AndroidSigningDialog"
+        Width="620"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="#121212"
+        FontFamily="avares://Ludork/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC"
+        Icon="/Assets/icon.ico">
+    <Grid Margin="24" RowDefinitions="*,Auto">
+        <StackPanel Grid.Row="0" Spacing="14">
+            <TextBlock x:Name="DescriptionText"
+                       Foreground="#aaaaaa"
+                       TextWrapping="Wrap" />
+            <StackPanel Spacing="6">
+                <TextBlock x:Name="KeystoreLabel" />
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <TextBox x:Name="KeystorePathBox" />
+                    <Button x:Name="BrowseButton"
+                            Grid.Column="1"
+                            MinWidth="92"
+                            Click="onBrowse" />
+                </Grid>
+            </StackPanel>
+            <StackPanel Spacing="6">
+                <TextBlock x:Name="KeyAliasLabel" />
+                <TextBox x:Name="KeyAliasBox" />
+            </StackPanel>
+            <StackPanel Spacing="6">
+                <TextBlock x:Name="KeystorePasswordLabel" />
+                <TextBox x:Name="KeystorePasswordBox"
+                         PasswordChar="●" />
+            </StackPanel>
+            <CheckBox x:Name="SameKeyPasswordOption"
+                      IsChecked="True" />
+            <StackPanel x:Name="KeyPasswordPanel"
+                        IsVisible="False"
+                        Spacing="6">
+                <TextBlock x:Name="KeyPasswordLabel" />
+                <TextBox x:Name="KeyPasswordBox"
+                         PasswordChar="●" />
+            </StackPanel>
+            <TextBlock x:Name="ValidationText"
+                       MinHeight="18"
+                       Foreground="#ff6e6e"
+                       TextWrapping="Wrap" />
+        </StackPanel>
+        <StackPanel Grid.Row="1"
+                    Margin="0,20,0,0"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button x:Name="ConfirmButton" Click="onConfirm" />
+            <Button x:Name="CancelButton" Click="onCancel" />
+        </StackPanel>
+    </Grid>
+</Window>

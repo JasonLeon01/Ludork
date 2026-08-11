@@ -25,8 +25,10 @@ function ConfigWindow:getLanguageDropBox() end
 
 --- @brief Get the scale DropBox on the scale settings row.
 ---
---- - @return  Scale DropBox coordinator
----@return Engine.DropBox
+--- Mobile builds do not create this row.
+---
+--- - @return  Scale DropBox coordinator, or nil on mobile
+---@return Engine.DropBox | nil
 function ConfigWindow:getScaleDropBox() end
 
 --- @brief Get the framerate DropBox on the framerate settings row.

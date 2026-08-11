@@ -43,8 +43,8 @@ function System.init()
         System._fonts[#System._fonts + 1] = ManagerFunctions.loadFont(font)
     end
     System._fontSize = systemData.fontSize.value
-    local iconPath = os.path.join("./Assets", systemData.icon.base, systemData.icon.value)
-    local cursorPath = os.path.join("./Assets", systemData.cursor.base, systemData.cursor.value)
+    local iconPath = os.path.join("Assets", systemData.icon.base, systemData.icon.value)
+    local cursorPath = os.path.join("Assets", systemData.cursor.base, systemData.cursor.value)
     System._windowskinName = systemData.windowskinName.value
     System._titleBackgroundFile = systemData.titleBackgroundFile.value
     Engine.CellSize = systemData.cellSize.value

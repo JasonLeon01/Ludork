@@ -2,7 +2,7 @@
 
 `Sample/Core` contains the C++20 implementation and binding declarations for the Sample runtime.
 
-Supported release targets require Windows 10 or newer on x64, macOS 13.3 or newer on Apple Silicon, iOS 15.0 or newer on arm64, or HarmonyOS 6.0.1 / API 21 or newer on arm64-v8a.
+Supported release targets require Windows 10 or newer on x64, macOS 13.3 or newer on Apple Silicon, iOS 15.0 or newer on arm64, HarmonyOS 6.0.1 / API 21 or newer on arm64-v8a, or Android 7.0 / API 24 or newer on arm64-v8a.
 
 ## Modules and dependency direction
 

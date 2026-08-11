@@ -3,6 +3,8 @@ obj/
 .venv/
 .tools/
 **/__pycache__/
+**/test/
+**/tests/
 **.log
 Log/
 Temp/

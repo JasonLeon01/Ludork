@@ -31,15 +31,15 @@ validate_no_ui_preview_host() {
     fi
 }
 
-copy_release_legal_files() {
+copy_runtime_legal_files() {
     template_dir=$1
     mkdir -p "$template_dir/Licenses"
     rsync -a --delete --exclude '.DS_Store' \
-        "$PROJECT_ROOT/Licenses/" "$template_dir/Licenses/"
-    cp "$PROJECT_ROOT/LICENSE.md" "$template_dir/LICENSE.md"
-    cp "$PROJECT_ROOT/THIRD_PARTY_NOTICES.md" \
+        "$SOURCE_DIR/Licenses/" "$template_dir/Licenses/"
+    cp "$SOURCE_DIR/LICENSE.md" "$template_dir/LICENSE.md"
+    cp "$SOURCE_DIR/THIRD_PARTY_NOTICES.md" \
         "$template_dir/THIRD_PARTY_NOTICES.md"
-    cp "$PROJECT_ROOT/THIRD_PARTY_NOTICES_zh_CN.md" \
+    cp "$SOURCE_DIR/THIRD_PARTY_NOTICES_zh_CN.md" \
         "$template_dir/THIRD_PARTY_NOTICES_zh_CN.md"
 }
 
@@ -124,8 +124,8 @@ chmod +x \
 
 "$SCRIPT_TOOLS" configure-project-template "$CPP_TEMPLATE_DIR/Main.proj" true false
 "$SCRIPT_TOOLS" configure-project-template "$CPP_FFMPEG_TEMPLATE_DIR/Main.proj" true true
-copy_release_legal_files "$CPP_TEMPLATE_DIR"
-copy_release_legal_files "$CPP_FFMPEG_TEMPLATE_DIR"
+copy_runtime_legal_files "$CPP_TEMPLATE_DIR"
+copy_runtime_legal_files "$CPP_FFMPEG_TEMPLATE_DIR"
 
 sh "$TOOLS_DIR/build_standalone.sh" "$CPP_TEMPLATE_DIR" "$STANDALONE_TEMPLATE_DIR" "$CONFIG"
 LUDORK_DEPENDENCY_CACHE="$CPP_TEMPLATE_DIR/build/_deps" \

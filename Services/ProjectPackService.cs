@@ -32,6 +32,9 @@ public enum ProjectPackFailure
     HarmonySigningUnavailable,
     HarmonyProjectUnsupported,
     HarmonyDeviceFormUnsupported,
+    AndroidToolchainUnavailable,
+    AndroidSigningUnavailable,
+    AndroidProjectUnsupported,
     PackFailed,
 }
 
@@ -41,12 +44,23 @@ public enum ProjectPackPlatform
     MacOS,
     IOS,
     HarmonyOS,
+    Android,
 }
 
 public enum HarmonyDeviceForm
 {
     Mobile,
     TwoInOne,
+}
+
+public sealed record AndroidSigningOptions(
+    string KeystorePath,
+    string KeyAlias,
+    string KeystorePassword,
+    string KeyPassword)
+{
+    public override string ToString() =>
+        nameof(AndroidSigningOptions) + " { Redacted }";
 }
 
 public sealed record ProjectPackOptions(
@@ -59,6 +73,7 @@ public sealed record ProjectPackOptions(
     public bool ExportToHarmonyDevice { get; init; }
     public HarmonyDeviceForm HarmonyDeviceForm { get; init; } =
         global::Ludork.Services.HarmonyDeviceForm.Mobile;
+    public AndroidSigningOptions? AndroidSigning { get; init; }
 }
 
 public sealed record ProjectPackResult(
@@ -104,6 +119,8 @@ public sealed class ProjectPackService
             return "pack_ios.sh";
         if (platform == ProjectPackPlatform.HarmonyOS && OperatingSystem.IsMacOS())
             return "pack_harmony.sh";
+        if (platform == ProjectPackPlatform.Android && OperatingSystem.IsMacOS())
+            return "pack_android.sh";
         return null;
     }
 
@@ -140,8 +157,18 @@ public sealed class ProjectPackService
         HarmonyDeviceForm? harmonyDeviceForm = options.Platform == ProjectPackPlatform.HarmonyOS
             ? options.HarmonyDeviceForm
             : null;
+        AndroidSigningOptions? androidSigning = null;
+        if (options.Platform == ProjectPackPlatform.Android
+            && options.AndroidSigning is { } signing)
+        {
+            androidSigning = signing with
+            {
+                KeystorePath = Path.GetFullPath(signing.KeystorePath),
+            };
+        }
         bool requiresPreflight = options.Platform == ProjectPackPlatform.IOS
-            || options.Platform == ProjectPackPlatform.HarmonyOS;
+            || options.Platform == ProjectPackPlatform.HarmonyOS
+            || options.Platform == ProjectPackPlatform.Android;
         ProjectPackaging packaging = new(projectPath, options.UseLuac);
         if (requiresPreflight)
         {
@@ -154,6 +181,7 @@ public sealed class ProjectPackService
                 exportToIPhone,
                 exportToHarmonyDevice,
                 harmonyDeviceForm,
+                androidSigning,
                 packaging,
                 cancellationToken);
             ProjectPackResult? preflightFailure = executionFailure(preflight, options.Platform);
@@ -196,6 +224,7 @@ public sealed class ProjectPackService
                 exportToIPhone,
                 exportToHarmonyDevice,
                 harmonyDeviceForm,
+                androidSigning,
                 packaging,
                 cancellationToken);
             ProjectPackResult? buildPreflightFailure = executionFailure(
@@ -214,6 +243,7 @@ public sealed class ProjectPackService
             exportToIPhone,
             exportToHarmonyDevice,
             harmonyDeviceForm,
+            androidSigning,
             packaging,
             cancellationToken);
         return executionFailure(execution, options.Platform)
@@ -231,6 +261,10 @@ public sealed class ProjectPackService
                 ProjectPackFailure.HarmonyDeviceFormUnsupported,
                 options.HarmonyDeviceForm.ToString());
         }
+
+        ProjectPackResult? signingFailure = validateAndroidSigning(options);
+        if (signingFailure is not null)
+            return signingFailure;
 
         ProjectPackResult? projectFailure = inspectProject(
             projectFilePath,
@@ -250,6 +284,36 @@ public sealed class ProjectPackService
             return ProjectPackResult.Failed(
                 ProjectPackFailure.HarmonyProjectUnsupported,
                 projectFilePath);
+        }
+        if (options.Platform == ProjectPackPlatform.Android)
+        {
+            return ProjectPackResult.Failed(
+                ProjectPackFailure.AndroidProjectUnsupported,
+                projectFilePath);
+        }
+        return null;
+    }
+
+    private static ProjectPackResult? validateAndroidSigning(ProjectPackOptions options)
+    {
+        AndroidSigningOptions? signing = options.AndroidSigning;
+        if (signing is null)
+            return null;
+        if (options.Platform != ProjectPackPlatform.Android
+            || string.IsNullOrWhiteSpace(signing.KeystorePath)
+            || !Path.IsPathFullyQualified(signing.KeystorePath)
+            || signing.KeystorePath.IndexOfAny(['\r', '\n']) >= 0
+            || !File.Exists(signing.KeystorePath)
+            || string.IsNullOrWhiteSpace(signing.KeyAlias)
+            || signing.KeyAlias.IndexOfAny(['\r', '\n']) >= 0
+            || string.IsNullOrEmpty(signing.KeystorePassword)
+            || signing.KeystorePassword.IndexOfAny(['\r', '\n']) >= 0
+            || string.IsNullOrEmpty(signing.KeyPassword)
+            || signing.KeyPassword.IndexOfAny(['\r', '\n']) >= 0)
+        {
+            return ProjectPackResult.Failed(
+                ProjectPackFailure.AndroidSigningUnavailable,
+                string.Empty);
         }
         return null;
     }
@@ -304,6 +368,7 @@ public sealed class ProjectPackService
         bool exportToIPhone,
         bool exportToHarmonyDevice,
         HarmonyDeviceForm? harmonyDeviceForm,
+        AndroidSigningOptions? androidSigning,
         ProjectPackaging packaging,
         CancellationToken cancellationToken)
     {
@@ -316,6 +381,7 @@ public sealed class ProjectPackService
             exportToIPhone,
             exportToHarmonyDevice,
             harmonyDeviceForm,
+            androidSigning,
             packaging);
         using Process process = createProcess(startInfo);
         Task outputTask = Task.CompletedTask;
@@ -327,7 +393,8 @@ public sealed class ProjectPackService
             + (exportToHarmonyDevice ? " --export-to-device" : string.Empty)
             + (harmonyDeviceForm == HarmonyDeviceForm.Mobile
                 ? " --device-form mobile"
-                : string.Empty);
+                : string.Empty)
+            + (androidSigning is not null ? " --sign" : string.Empty);
         writeOutput(checkOnly
             ? $"> {scriptPath} --check{optionText} \"{projectPath}\""
             : $"> {scriptPath}{optionText} \"{projectPath}\"");
@@ -336,9 +403,19 @@ public sealed class ProjectPackService
         {
             if (!process.Start())
                 return ScriptExecutionResult.LaunchFailed(startInfo.FileName);
+            process.StandardInput.NewLine = "\n";
+            if (androidSigning is not null)
+            {
+                await process.StandardInput.WriteLineAsync(
+                    androidSigning.KeystorePassword).ConfigureAwait(false);
+                await process.StandardInput.WriteLineAsync(
+                    androidSigning.KeyPassword).ConfigureAwait(false);
+                await process.StandardInput.FlushAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
             process.StandardInput.Close();
-            outputTask = readOutputAsync(process.StandardOutput);
-            errorTask = readOutputAsync(process.StandardError);
+            outputTask = readOutputAsync(process.StandardOutput, androidSigning);
+            errorTask = readOutputAsync(process.StandardError, androidSigning);
             await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
             await Task.WhenAll(outputTask, errorTask).ConfigureAwait(false);
             return ScriptExecutionResult.Exited(process.ExitCode);
@@ -351,11 +428,19 @@ public sealed class ProjectPackService
         }
         catch (Win32Exception exception)
         {
-            return ScriptExecutionResult.LaunchFailed(exception.Message);
+            return ScriptExecutionResult.LaunchFailed(
+                redactAndroidSigning(exception.Message, androidSigning));
         }
         catch (InvalidOperationException exception)
         {
-            return ScriptExecutionResult.LaunchFailed(exception.Message);
+            return ScriptExecutionResult.LaunchFailed(
+                redactAndroidSigning(exception.Message, androidSigning));
+        }
+        catch (IOException exception)
+        {
+            stopProcess(process);
+            return ScriptExecutionResult.LaunchFailed(
+                redactAndroidSigning(exception.Message, androidSigning));
         }
     }
 
@@ -395,6 +480,17 @@ public sealed class ProjectPackService
                 21 => ProjectPackFailure.HarmonyDeviceUnavailable,
                 22 => ProjectPackFailure.HarmonySigningUnavailable,
                 23 => ProjectPackFailure.HarmonyProjectUnsupported,
+                _ => ProjectPackFailure.PackFailed,
+            };
+            return ProjectPackResult.Failed(failure, execution.ExitCode.ToString());
+        }
+        if (platform == ProjectPackPlatform.Android)
+        {
+            ProjectPackFailure failure = execution.ExitCode switch
+            {
+                20 => ProjectPackFailure.AndroidToolchainUnavailable,
+                22 => ProjectPackFailure.AndroidSigningUnavailable,
+                23 => ProjectPackFailure.AndroidProjectUnsupported,
                 _ => ProjectPackFailure.PackFailed,
             };
             return ProjectPackResult.Failed(failure, execution.ExitCode.ToString());
@@ -442,6 +538,7 @@ public sealed class ProjectPackService
         bool exportToIPhone,
         bool exportToHarmonyDevice,
         HarmonyDeviceForm? harmonyDeviceForm,
+        AndroidSigningOptions? androidSigning,
         ProjectPackaging packaging)
     {
         ProcessStartInfo startInfo = new()
@@ -456,6 +553,7 @@ public sealed class ProjectPackService
             RedirectStandardError = true,
             StandardOutputEncoding = utf8,
             StandardErrorEncoding = utf8,
+            StandardInputEncoding = utf8,
             CreateNoWindow = true,
         };
         startInfo.Environment["PYTHONUTF8"] = "1";
@@ -497,6 +595,14 @@ public sealed class ProjectPackService
             startInfo.ArgumentList.Add("--device-form");
             startInfo.ArgumentList.Add("mobile");
         }
+        if (androidSigning is not null)
+        {
+            startInfo.ArgumentList.Add("--sign");
+            startInfo.ArgumentList.Add("--keystore");
+            startInfo.ArgumentList.Add(Path.GetFullPath(androidSigning.KeystorePath));
+            startInfo.ArgumentList.Add("--key-alias");
+            startInfo.ArgumentList.Add(androidSigning.KeyAlias);
+        }
         startInfo.ArgumentList.Add(projectPath);
         return startInfo;
     }
@@ -524,10 +630,35 @@ public sealed class ProjectPackService
         }
     }
 
-    private async Task readOutputAsync(StreamReader reader)
+    private async Task readOutputAsync(
+        StreamReader reader,
+        AndroidSigningOptions? androidSigning)
     {
         while (await reader.ReadLineAsync().ConfigureAwait(false) is { } line)
-            writeOutput(line);
+            writeOutput(redactAndroidSigning(line, androidSigning));
+    }
+
+    private static string redactAndroidSigning(
+        string text,
+        AndroidSigningOptions? androidSigning)
+    {
+        if (androidSigning is null)
+            return text;
+        string[] values =
+        [
+            androidSigning.KeystorePath,
+            androidSigning.KeyAlias,
+            androidSigning.KeystorePassword,
+            androidSigning.KeyPassword,
+        ];
+        foreach (string value in values
+            .Where(value => value.Length != 0)
+            .Distinct(StringComparer.Ordinal)
+            .OrderByDescending(value => value.Length))
+        {
+            text = text.Replace(value, "[REDACTED]", StringComparison.Ordinal);
+        }
+        return text;
     }
 
     private void writeOutput(string text)

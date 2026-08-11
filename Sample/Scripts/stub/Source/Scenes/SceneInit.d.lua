@@ -23,11 +23,17 @@ local Scene = {}
 --- @brief Create progress bar UI and start asset preparation thread.
 function Scene:onCreate() end
 
---- @brief Update the progress bar and transition when done.
+--- @brief Transition after the displayed progress completes.
 ---
 --- - @param deltaTime Elapsed time in seconds.
 ---@param _ number
 function Scene:onTick(_) end
+
+--- @brief Publish pending progress on the render thread.
+---
+--- - @param deltaTime Elapsed time in seconds.
+---@param _ number
+function Scene:onLateTick(_) end
 
 function Scene:onQuit() end
 

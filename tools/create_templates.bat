@@ -68,9 +68,9 @@ if errorlevel 1 exit /b %errorlevel%
 "%SCRIPT_TOOLS%" configure-project-template "%CPP_FFMPEG_TEMPLATE_DIR%\Main.proj" true true
 if errorlevel 1 exit /b %errorlevel%
 
-call :copy_release_legal_files "%CPP_TEMPLATE_DIR%"
+call :copy_runtime_legal_files "%CPP_TEMPLATE_DIR%"
 if errorlevel 1 exit /b %errorlevel%
-call :copy_release_legal_files "%CPP_FFMPEG_TEMPLATE_DIR%"
+call :copy_runtime_legal_files "%CPP_FFMPEG_TEMPLATE_DIR%"
 if errorlevel 1 exit /b %errorlevel%
 
 call "%CD%\tools\build_standalone.bat" "%CPP_TEMPLATE_DIR%" "%STANDALONE_TEMPLATE_DIR%" "%CONFIG%"
@@ -123,15 +123,15 @@ if errorlevel 1 exit /b %errorlevel%
 copy /Y "%COPY_SOURCE%\.gitignore" "%COPY_TARGET%\.gitignore" >nul
 exit /b %errorlevel%
 
-:copy_release_legal_files
+:copy_runtime_legal_files
 set "LEGAL_TARGET=%~1"
-robocopy "%CD%\Licenses" "%LEGAL_TARGET%\Licenses" /E /NFL /NDL /NJH /NJS /NP
+robocopy "%SOURCE_DIR%\Licenses" "%LEGAL_TARGET%\Licenses" /E /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 exit /b %errorlevel%
-copy /Y "%CD%\LICENSE.md" "%LEGAL_TARGET%\LICENSE.md" >nul
+copy /Y "%SOURCE_DIR%\LICENSE.md" "%LEGAL_TARGET%\LICENSE.md" >nul
 if errorlevel 1 exit /b %errorlevel%
-copy /Y "%CD%\THIRD_PARTY_NOTICES.md" "%LEGAL_TARGET%\THIRD_PARTY_NOTICES.md" >nul
+copy /Y "%SOURCE_DIR%\THIRD_PARTY_NOTICES.md" "%LEGAL_TARGET%\THIRD_PARTY_NOTICES.md" >nul
 if errorlevel 1 exit /b %errorlevel%
-copy /Y "%CD%\THIRD_PARTY_NOTICES_zh_CN.md" "%LEGAL_TARGET%\THIRD_PARTY_NOTICES_zh_CN.md" >nul
+copy /Y "%SOURCE_DIR%\THIRD_PARTY_NOTICES_zh_CN.md" "%LEGAL_TARGET%\THIRD_PARTY_NOTICES_zh_CN.md" >nul
 exit /b %errorlevel%
 
 :validate_no_ui_preview_host

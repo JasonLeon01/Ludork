@@ -21,9 +21,11 @@ local _LANGUAGE_VALUES = MainConfig.SupportedLanguages
 local _SCALE_VALUES = { 0.0, 1.0, 1.25, 1.5, 1.75, 2.0 }
 local _FRAMERATE_ITEMS = { "30", "60", "90", "120" }
 local _SETTING_LOCALE_KEYS = {
-    "language", "scale", "framerate", "verticalsync", "musicon", "musicvolume", "soundon", "soundvolume", "voiceon",
-    "voicevolume"
+    "language", "framerate", "verticalsync", "musicon", "musicvolume", "soundon", "soundvolume", "voiceon", "voicevolume"
 }
+if not LUDORK_MOBILE then
+    table.insert(_SETTING_LOCALE_KEYS, 2, "scale")
+end
 
 local function _getLanguageLabels()
     local languageLabels = {}
@@ -59,7 +61,9 @@ function ConfigWindowUI:refresh()
         rowUI:setLabelText(LOC(assert(_SETTING_LOCALE_KEYS[index])))
     end
     self._languageRow:setItems(_getLanguageLabels())
-    self._scaleRow:setItems(getScaleLabels())
+    if self._scaleRow ~= nil then
+        self._scaleRow:setItems(getScaleLabels())
+    end
 end
 
 function ConfigWindowUI:prepare()
@@ -193,19 +197,21 @@ function ConfigWindowUI:dispose()
 end
 
 function ConfigWindowUI:_createRows()
-    local configuredScale = System.getConfiguredScale()
-    local scaleIndex = self.model._findSelectedIndex(_SCALE_VALUES, configuredScale)
-    if _SCALE_VALUES[scaleIndex + 1] ~= configuredScale then
-        scaleIndex = self.model._findSelectedIndex(_SCALE_VALUES, 1.0)
-    end
     self._languageRow = ConfigSettingRowUI.new(
         LOC("language"), _getLanguageLabels(), _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
         self.model._findSelectedIndex(_LANGUAGE_VALUES, System.getLanguage())
     )
-    self._scaleRow = ConfigSettingRowUI.new(
-        LOC("scale"), getScaleLabels(), _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
-        scaleIndex
-    )
+    if not LUDORK_MOBILE then
+        local configuredScale = System.getConfiguredScale()
+        local scaleIndex = self.model._findSelectedIndex(_SCALE_VALUES, configuredScale)
+        if _SCALE_VALUES[scaleIndex + 1] ~= configuredScale then
+            scaleIndex = self.model._findSelectedIndex(_SCALE_VALUES, 1.0)
+        end
+        self._scaleRow = ConfigSettingRowUI.new(
+            LOC("scale"), getScaleLabels(), _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
+            scaleIndex
+        )
+    end
     self._framerateRow = ConfigSettingRowUI.new(
         LOC("framerate"), _FRAMERATE_ITEMS, _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
         self.model._findSelectedIndex(_FRAMERATE_ITEMS, System.getFrameRate())
@@ -277,11 +283,15 @@ function ConfigWindowUI:_createRows()
             ConfigWindowUI.onVoiceVolumeChanged(value)
         end
     )
-    self._dropBoxRows = { self._languageRow, self._scaleRow, self._framerateRow }
+    self._dropBoxRows = { self._languageRow, self._framerateRow }
     self._settingRows = {
-        self._languageRow, self._scaleRow, self._framerateRow, self._verticalSyncRow, self._musicOnRow,
-        self._musicVolumeRow, self._soundOnRow, self._soundVolumeRow, self._voiceOnRow, self._voiceVolumeRow
+        self._languageRow, self._framerateRow, self._verticalSyncRow, self._musicOnRow, self._musicVolumeRow,
+        self._soundOnRow, self._soundVolumeRow, self._voiceOnRow, self._voiceVolumeRow
     }
+    if self._scaleRow ~= nil then
+        table.insert(self._dropBoxRows, 2, self._scaleRow)
+        table.insert(self._settingRows, 2, self._scaleRow)
+    end
     for _, rowUI in ipairs(self._settingRows) do
         self._listView:addChild(rowUI:prepare())
     end
@@ -294,9 +304,11 @@ function ConfigWindowUI:_createRows()
     self._languageRow:getDropBox():setOnSelectedIndexChanged(function (index)
         ConfigWindowUI.onLanguageSelectedIndexChanged(index)
     end)
-    self._scaleRow:getDropBox():setOnSelectedIndexChanged(function (index)
-        ConfigWindowUI.onScaleSelectedIndexChanged(index)
-    end)
+    if self._scaleRow ~= nil then
+        self._scaleRow:getDropBox():setOnSelectedIndexChanged(function (index)
+            ConfigWindowUI.onScaleSelectedIndexChanged(index)
+        end)
+    end
     self._framerateRow:getDropBox():setOnSelectedIndexChanged(function (index)
         ConfigWindowUI.onFrameRateSelectedIndexChanged(index)
     end)

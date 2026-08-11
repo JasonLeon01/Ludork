@@ -32,8 +32,6 @@ if "%~2"=="" (
 )
 
 set "PROJECT_FILE=%PROJECT_DIR%\Main.proj"
-call "%CD%\tools\build_script_tools.bat"
-if errorlevel 1 exit /b %errorlevel%
 set "SCRIPT_TOOLS=%CD%\.tools\ScriptTools\ScriptTools.exe"
 if not exist "%SCRIPT_TOOLS%" (
     echo ScriptTools was not found. Run tools\init.bat first.

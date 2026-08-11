@@ -104,18 +104,21 @@ function Scene:onCreate()
 end
 
 function Scene:onTick(_)
+    if self.progressDone and not self.hasSwitched and self._displayProgress >= 0.999 then
+        local SceneTitle = require("Source.Scenes.SceneTitle")
+
+        self.hasSwitched = true
+        GlobalSystem.setScene(SceneTitle.new())
+    end
+end
+
+function Scene:onLateTick(_)
     local target = self.progressDone and 1.0 or self.progressValue
     if target ~= self._displayProgress then
         self._displayProgress = target
         SceneInitUI.publish({
             progress = target
         })
-    end
-    if self.progressDone and not self.hasSwitched and self._displayProgress >= 0.999 then
-        local SceneTitle = require("Source.Scenes.SceneTitle")
-
-        self.hasSwitched = true
-        GlobalSystem.setScene(SceneTitle.new())
     end
 end
 

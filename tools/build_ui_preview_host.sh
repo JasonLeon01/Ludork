@@ -9,8 +9,6 @@ if [ "$#" -gt 1 ] || { [ "$CONFIG" != "Debug" ] && [ "$CONFIG" != "Release" ]; }
     exit 1
 fi
 
-sh "$PROJECT_ROOT/tools/build_script_tools.sh"
-
 PROJECT_DIR="$PROJECT_ROOT/UiPreviewHost"
 BUILD_DIR="$PROJECT_ROOT/.tools/UiPreviewHost/build"
 SCRIPT_TOOLS="$PROJECT_ROOT/.tools/ScriptTools/ScriptTools"

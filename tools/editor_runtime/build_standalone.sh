@@ -44,6 +44,11 @@ if [ -d "$CPP_DIR/ThirdPartySource" ]; then
         rsync -a --delete --exclude '.DS_Store' "$CPP_DIR/cmake/FFmpeg/" "$STANDALONE_DIR/ThirdPartySource/FFmpeg-Build/"
     fi
 fi
+for legal_name in LICENSE.md THIRD_PARTY_NOTICES.md THIRD_PARTY_NOTICES_zh_CN.md; do
+    if [ -f "$CPP_DIR/$legal_name" ]; then
+        cp "$CPP_DIR/$legal_name" "$STANDALONE_DIR/$legal_name"
+    fi
+done
 find "$STANDALONE_DIR" -depth \
     \( -name 'UiPreviewHost*' -o -name 'UiPreviewCurveResolver*' \) \
     -exec rm -rf {} +

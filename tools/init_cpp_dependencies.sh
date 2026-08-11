@@ -95,6 +95,15 @@ else
     apply_luasf_patch "$VALUE_COPY_PATCH"
 fi
 
+ANDROID_CMAKE_PATCH="$PROJECT_ROOT/patches/luasf-android-cmake.patch"
+echo "Applying LuaSF Android CMake patch if needed..."
+if apply_luasf_patch --reverse --check "$ANDROID_CMAKE_PATCH" >/dev/null 2>&1; then
+    echo "LuaSF Android CMake patch is already applied."
+else
+    apply_luasf_patch --check "$ANDROID_CMAKE_PATCH"
+    apply_luasf_patch "$ANDROID_CMAKE_PATCH"
+fi
+
 if [ "$(uname -s)" = "Darwin" ]; then
     SFML_PATCH="$PROJECT_ROOT/patches/sfml-apple-platform.patch"
     echo "Applying SFML Apple platform patch if needed..."
