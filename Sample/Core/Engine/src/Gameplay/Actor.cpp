@@ -554,8 +554,11 @@ void Actor::setTexture(std::shared_ptr<sf::Texture> texture, bool resetRect) {
 }
 
 void Actor::setTextureRect(const sf::IntRect& rectangle) {
+    const sf::Vector2i previousSize = sf::Sprite::getTextureRect().size;
     sf::Sprite::setTextureRect(rectangle);
-    syncMapCache();
+    if (previousSize != rectangle.size) {
+        syncMapCache();
+    }
 }
 
 sf::IntRect Actor::getTextureRect() const {
@@ -715,11 +718,14 @@ void Actor::_animate(float deltaTime) {
     if (width == 0) {
         return;
     }
-    setTextureRect({{(currentRect.position.x + currentRect.size.x) %
-                         static_cast<int>(width),
-                     currentRect.position.y},
-                    currentRect.size});
-    syncMapCache();
+    const sf::IntRect nextRect(
+        {(currentRect.position.x + currentRect.size.x) %
+             static_cast<int>(width),
+         currentRect.position.y},
+        currentRect.size);
+    if (nextRect != currentRect) {
+        setTextureRect(nextRect);
+    }
 }
 
 void shutdownActorResources() noexcept {

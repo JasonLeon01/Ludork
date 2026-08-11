@@ -21,6 +21,7 @@ namespace Ludork.Views.Utils.BlueprintGraph;
 public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
 {
     private static BlueprintGraphClipboard? clipboard;
+    private readonly GameDataService gameData;
     private readonly BlueprintGraphDocument document;
     private readonly BlueprintVariableFieldBuilder fieldBuilder;
     private readonly BlueprintNodeParameterEditorFactory parameterEditorFactory;
@@ -31,6 +32,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
     private readonly Dictionary<Guid, BlueprintGraphPortViewModel> portsById = [];
 
     public BlueprintGraphEditorViewModel(
+        GameDataService gameData,
         BlueprintGraphDocument document,
         IReadOnlyList<BlueprintGraphNodeDefinition> definitions,
         BlueprintVariableFieldBuilder fieldBuilder,
@@ -39,6 +41,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         int cellSize,
         bool isReadOnly)
     {
+        this.gameData = gameData;
         this.document = document;
         this.definitions = definitions;
         this.fieldBuilder = fieldBuilder;
@@ -57,6 +60,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
     public BlueprintGraphDocument Document => document;
     public IReadOnlyList<BlueprintGraphNodeDefinition> Definitions => definitions;
     public BlueprintPendingConnectionViewModel BlueprintPendingConnection { get; }
+    public event EventHandler? ParameterEdited;
     public bool IsReadOnly { get; private set; }
     public bool CanPaste => !IsReadOnly && clipboard is not null && clipboard.Nodes.Count != 0;
     public bool CanCopySelected => SelectedNodes
@@ -368,6 +372,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         foreach (BlueprintGraphPort port in node.Inputs)
         {
             BlueprintGraphPortViewModel portViewModel = new(
+                gameData,
                 port,
                 fieldBuilder,
                 parameterEditorFactory,
@@ -383,6 +388,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         foreach (BlueprintGraphPort port in node.Outputs)
         {
             BlueprintGraphPortViewModel portViewModel = new(
+                gameData,
                 port,
                 fieldBuilder,
                 parameterEditorFactory,
@@ -396,7 +402,10 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
             portsById[port.Id] = portViewModel;
         }
         foreach (BlueprintGraphPortViewModel port in viewModel.Input.OfType<BlueprintGraphPortViewModel>())
+        {
             port.ParameterValueChanged += (_, _) => synchronizeNodeParameters(node.Id);
+            port.ParameterEdited += (_, _) => ParameterEdited?.Invoke(this, EventArgs.Empty);
+        }
         Nodes.Add(viewModel);
         nodesById[node.Id] = viewModel;
         synchronizeNodeParameters(node.Id);
@@ -626,6 +635,7 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
     private bool disposed;
 
     public BlueprintGraphPortViewModel(
+        GameDataService gameData,
         BlueprintGraphPort model,
         BlueprintVariableFieldBuilder fieldBuilder,
         BlueprintNodeParameterEditorFactory parameterEditorFactory,
@@ -657,6 +667,7 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
                 AssetsDirectory = assetsDirectory,
                 ProjectDirectory = Path.GetDirectoryName(assetsDirectory) ?? string.Empty,
                 CellSize = cellSize,
+                HistoryGameData = gameData,
                 IsReadOnly = isReadOnly(),
                 ShowFieldNames = false,
                 MinWidth = 180,
@@ -676,6 +687,7 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
                 model.Value = args.Value?.DeepClone();
                 document.NotifyChanged();
                 ParameterValueChanged?.Invoke(this, EventArgs.Empty);
+                ParameterEdited?.Invoke(this, EventArgs.Empty);
             };
             Editor = form;
             ParameterForm = form;
@@ -687,6 +699,7 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
     public Control? Editor { get; }
     public BlueprintVariableForm? ParameterForm { get; }
     public event EventHandler? ParameterValueChanged;
+    public event EventHandler? ParameterEdited;
     public string DisplayTitle => Model.Kind == BlueprintGraphPortKind.Params
         ? $"{Title} ({displayTypeName})"
         : Title;
@@ -711,6 +724,7 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
         ParameterForm?.SetFieldValue(Model.Name, value);
         document.NotifyChanged();
         ParameterValueChanged?.Invoke(this, EventArgs.Empty);
+        ParameterEdited?.Invoke(this, EventArgs.Empty);
     }
 
     public void SetReadOnly(bool value)

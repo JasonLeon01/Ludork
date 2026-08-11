@@ -219,7 +219,9 @@ public sealed class GameConfigService
         {
             Script = script.Length == 0 ? defaults.Script : script,
             Language = language,
-            Scale = Math.Round(double.IsFinite(data.Scale) ? data.Scale : 1.0, 2),
+            Scale = Math.Round(double.IsFinite(data.Scale) && data.Scale >= 0.0
+                ? data.Scale
+                : 1.0, 2),
             FrameRate = Math.Max(1, data.FrameRate),
             MusicVolume = volume(data.MusicVolume),
             SoundVolume = volume(data.SoundVolume),

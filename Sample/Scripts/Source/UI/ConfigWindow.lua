@@ -18,7 +18,7 @@ local _DROPBOX_WIDTH = 200
 local _CHECKBOX_SIZE = 32
 local _SLIDER_WIDTH = 160
 local _LANGUAGE_VALUES = MainConfig.SupportedLanguages
-local _SCALE_ITEMS = { "1", "1.25", "1.5", "2.0" }
+local _SCALE_VALUES = { 0.0, 1.0, 1.25, 1.5, 1.75, 2.0 }
 local _FRAMERATE_ITEMS = { "30", "60", "90", "120" }
 local _SETTING_LOCALE_KEYS = {
     "language", "scale", "framerate", "verticalsync", "musicon", "musicvolume", "soundon", "soundvolume", "voiceon",
@@ -31,6 +31,10 @@ local function _getLanguageLabels()
         languageLabels[index] = LOC(value)
     end
     return languageLabels
+end
+
+local function getScaleLabels()
+    return { LOC("fullscreen"), "1", "1.25", "1.5", "1.75", "2" }
 end
 
 ---@class Source.UI.ConfigWindow
@@ -55,6 +59,7 @@ function ConfigWindowUI:refresh()
         rowUI:setLabelText(LOC(assert(_SETTING_LOCALE_KEYS[index])))
     end
     self._languageRow:setItems(_getLanguageLabels())
+    self._scaleRow:setItems(getScaleLabels())
 end
 
 function ConfigWindowUI:prepare()
@@ -137,10 +142,9 @@ function ConfigWindowUI.onLanguageSelectedIndexChanged(index)
 end
 
 function ConfigWindowUI.onScaleSelectedIndexChanged(index)
-    local scale = tonumber(_SCALE_ITEMS[index + 1])
+    local scale = _SCALE_VALUES[index + 1]
     ---@cast scale number
-    System.saveScale(scale)
-    ConfigWindowUI._showRestartMindTip()
+    System.setScale(scale)
 end
 
 function ConfigWindowUI.onFrameRateSelectedIndexChanged(index)
@@ -171,10 +175,6 @@ function ConfigWindowUI.onVoiceVolumeChanged(value)
     System.setVoiceVolume(value)
 end
 
-function ConfigWindowUI.showRestartMindTip()
-    ConfigWindowUI._showRestartMindTip()
-end
-
 function ConfigWindowUI:tick(deltaTime)
     for _, rowUI in ipairs(self._settingRows) do
         rowUI:onTick(deltaTime)
@@ -193,13 +193,18 @@ function ConfigWindowUI:dispose()
 end
 
 function ConfigWindowUI:_createRows()
+    local configuredScale = System.getConfiguredScale()
+    local scaleIndex = self.model._findSelectedIndex(_SCALE_VALUES, configuredScale)
+    if _SCALE_VALUES[scaleIndex + 1] ~= configuredScale then
+        scaleIndex = self.model._findSelectedIndex(_SCALE_VALUES, 1.0)
+    end
     self._languageRow = ConfigSettingRowUI.new(
         LOC("language"), _getLanguageLabels(), _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
         self.model._findSelectedIndex(_LANGUAGE_VALUES, System.getLanguage())
     )
     self._scaleRow = ConfigSettingRowUI.new(
-        LOC("scale"), _SCALE_ITEMS, _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
-        self.model._findSelectedIndex(_SCALE_ITEMS, System.getConfiguredScale())
+        LOC("scale"), getScaleLabels(), _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
+        scaleIndex
     )
     self._framerateRow = ConfigSettingRowUI.new(
         LOC("framerate"), _FRAMERATE_ITEMS, _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
@@ -295,13 +300,6 @@ function ConfigWindowUI:_createRows()
     self._framerateRow:getDropBox():setOnSelectedIndexChanged(function (index)
         ConfigWindowUI.onFrameRateSelectedIndexChanged(index)
     end)
-end
-
-function ConfigWindowUI._showRestartMindTip()
-    local scene = System.getScene()
-    if scene ~= nil then
-        scene:addCommonTip(LOC("CONFIG_MIND_RESTART"))
-    end
 end
 
 return Ui.define("ConfigWindow", ConfigWindowUI)

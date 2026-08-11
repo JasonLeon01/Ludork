@@ -325,15 +325,16 @@ protected:
 private:
     float displayScale() const;
     sf::Vector2u renderPixelSize() const;
-    void rebuildRenderTexture();
-    void syncDisplayScale();
+    void rebuildRenderTexture(bool preserveView) const;
+    void syncDisplayScale() const;
     void refreshView();
 
     std::optional<sf::FloatRect> viewport_;
-    std::shared_ptr<sf::RenderTexture> renderTexture_;
-    std::optional<sf::Sprite> renderSprite_;
-    std::vector<std::shared_ptr<sf::RenderTexture>> canvases_;
+    mutable std::shared_ptr<sf::RenderTexture> renderTexture_;
+    mutable std::optional<sf::Sprite> renderSprite_;
+    mutable std::vector<std::shared_ptr<sf::RenderTexture>> canvases_;
     sf::RenderStates renderStates_;
     std::weak_ptr<Actor> parent_;
     std::weak_ptr<GameMapBase> map_;
+    mutable bool defaultViewActive_ = false;
 };

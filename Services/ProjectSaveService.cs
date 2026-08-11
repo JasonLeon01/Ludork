@@ -73,6 +73,7 @@ public sealed class ProjectSaveService
         foreach (IProjectSaveParticipant participant in participants.ToArray())
             participant.FlushPendingChanges();
         SavePreparing?.Invoke(this, EventArgs.Empty);
+        gameData.BreakHistoryGesture();
         IReadOnlyList<UiAssetValidationResult> uiValidationResults = uiAssetValidation.ValidateAll();
         bool hasUiValidationErrors = uiValidationResults.Any(result => !result.IsValid);
         if (hasUiValidationErrors)

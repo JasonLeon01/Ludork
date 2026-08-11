@@ -1,6 +1,7 @@
 ---@meta Global.Components.PathRouteState
 ---@class PathRouteState
 ---@field _route sf.Vector2i[]
+---@field _revision integer
 local PathRouteState = {}
 
 ---@return PathRouteState
@@ -26,5 +27,10 @@ function PathRouteState:clear() end
 --- @return A copy of the current route list.
 ---@return sf.Vector2i[]
 function PathRouteState:getRoute() end
+
+--- @brief Get the current route revision.
+--- @return The revision incremented after each route change.
+---@return integer
+function PathRouteState:getRevision() end
 
 return PathRouteState

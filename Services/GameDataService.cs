@@ -11,6 +11,7 @@ namespace Ludork.Services;
 
 public sealed class GameDataService
 {
+    private const int MaximumHistoryEntries = 100;
     private static readonly JsonSerializerOptions WriteOptions = new()
     {
         WriteIndented = true,
@@ -34,6 +35,9 @@ public sealed class GameDataService
     private readonly Stack<Dictionary<string, Dictionary<string, JsonObject>>> undoStack = new();
     private readonly Stack<Dictionary<string, Dictionary<string, JsonObject>>> redoStack = new();
     private readonly List<string> invalidLoadPaths = [];
+    private long nextHistoryGestureId;
+    private long activeHistoryGestureId;
+    private bool activeHistoryGestureHasSnapshot;
     private bool isModified;
 
     public GameDataService(string projectPath)
@@ -472,30 +476,6 @@ public sealed class GameDataService
         }
     }
 
-    public bool IsActorBlueprint(string blueprintReference)
-    {
-        const string prefix = "Data.Blueprints.";
-        if (!blueprintReference.StartsWith(prefix, StringComparison.Ordinal))
-            return false;
-        string key = blueprintReference[prefix.Length..].Replace('.', '/');
-        HashSet<string> visited = new HashSet<string>(StringComparer.Ordinal);
-        while (visited.Add(key) && BlueprintsData.TryGetValue(key, out JsonObject? blueprint))
-        {
-            if (key.StartsWith("Actors/", StringComparison.OrdinalIgnoreCase))
-                return true;
-            string? parent = blueprint["parent"]?.GetValue<string>();
-            if (string.IsNullOrWhiteSpace(parent))
-                return false;
-            if (parent.Equals("Actor", StringComparison.OrdinalIgnoreCase)
-                || parent.StartsWith("Source.", StringComparison.OrdinalIgnoreCase))
-                return true;
-            key = parent.StartsWith(prefix, StringComparison.Ordinal)
-                ? parent[prefix.Length..].Replace('.', '/')
-                : parent.Replace('.', '/');
-        }
-        return false;
-    }
-
     public JsonObject? getMap(string key)
     {
         return sections["Maps"].Data.TryGetValue(key, out JsonObject? value) ? value : null;
@@ -865,6 +845,23 @@ public sealed class GameDataService
         return true;
     }
 
+    public bool SetLayerVisible(string mapKey, string layerName, bool visible)
+    {
+        JsonObject? layer = getMap(mapKey)?["layers"]?[layerName] as JsonObject;
+        if (layer is null)
+            return false;
+        bool current = layer["visible"]?.GetValue<bool?>() ?? true;
+        if (current == visible)
+            return false;
+        RecordSnapshot();
+        if (visible)
+            layer.Remove("visible");
+        else
+            layer["visible"] = false;
+        refreshModifiedState();
+        return true;
+    }
+
     public JsonObject? copyLayer(string mapKey, string layerName)
     {
         return getMap(mapKey)?["layers"]?[layerName] is JsonObject layer
@@ -1035,6 +1032,7 @@ public sealed class GameDataService
 
     public SaveResult SaveAllModified()
     {
+        BreakHistoryGesture();
         List<string> added = [];
         List<string> updated = [];
         List<string> deleted = [];
@@ -1092,6 +1090,7 @@ public sealed class GameDataService
         JsonArray tiles,
         JsonArray autoTiles)
     {
+        BreakHistoryGesture();
         Dictionary<string, JsonObject> maps = sections["Maps"].Data;
         if (!maps.TryGetValue(mapKey, out JsonObject? current)
             || current["layers"]?[layerName] is not JsonObject)
@@ -1180,18 +1179,50 @@ public sealed class GameDataService
 
     public void RecordSnapshot()
     {
-        undoStack.Push(cloneAllData());
+        if (activeHistoryGestureId != 0 && activeHistoryGestureHasSnapshot)
+            return;
+        pushHistory(undoStack, cloneAllData());
+        if (activeHistoryGestureId != 0)
+            activeHistoryGestureHasSnapshot = true;
         redoStack.Clear();
         UndoRedoStateChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    public long BeginHistoryGesture()
+    {
+        clearHistoryGesture();
+        nextHistoryGestureId += 1;
+        if (nextHistoryGestureId == 0)
+            nextHistoryGestureId = 1;
+        activeHistoryGestureId = nextHistoryGestureId;
+        return activeHistoryGestureId;
+    }
+
+    public void EndHistoryGesture(long gestureId)
+    {
+        if (gestureId == 0 || gestureId != activeHistoryGestureId)
+            return;
+        clearHistoryGesture();
+    }
+
+    public void BreakHistoryGesture()
+    {
+        activeHistoryGestureHasSnapshot = false;
+    }
+
+    internal bool IsHistoryGestureActive(long gestureId)
+    {
+        return gestureId != 0 && gestureId == activeHistoryGestureId;
+    }
+
     public IReadOnlyList<string> Undo()
     {
+        BreakHistoryGesture();
         if (undoStack.Count == 0)
             return Array.Empty<string>();
         Dictionary<string, Dictionary<string, JsonObject>> current = cloneAllData();
         Dictionary<string, Dictionary<string, JsonObject>> snapshot = undoStack.Pop();
-        redoStack.Push(current);
+        pushHistory(redoStack, current);
         IReadOnlyList<string> differences = getDiff(current, snapshot);
         restoreSnapshot(snapshot);
         return differences;
@@ -1199,11 +1230,12 @@ public sealed class GameDataService
 
     public IReadOnlyList<string> Redo()
     {
+        BreakHistoryGesture();
         if (redoStack.Count == 0)
             return Array.Empty<string>();
         Dictionary<string, Dictionary<string, JsonObject>> current = cloneAllData();
         Dictionary<string, Dictionary<string, JsonObject>> snapshot = redoStack.Pop();
-        undoStack.Push(current);
+        pushHistory(undoStack, current);
         IReadOnlyList<string> differences = getDiff(current, snapshot);
         restoreSnapshot(snapshot);
         return differences;
@@ -1259,6 +1291,7 @@ public sealed class GameDataService
         }
         originData = cloneAllData();
         isModified = false;
+        clearHistoryGesture();
         undoStack.Clear();
         redoStack.Clear();
         UndoRedoStateChanged?.Invoke(this, EventArgs.Empty);
@@ -2121,7 +2154,28 @@ public sealed class GameDataService
     {
         history.Clear();
         for (int index = snapshots.Count - 1; index >= 0; index--)
-            history.Push(cloneData(snapshots[index]));
+            pushHistory(history, cloneData(snapshots[index]));
+    }
+
+    private static void pushHistory(
+        Stack<Dictionary<string, Dictionary<string, JsonObject>>> history,
+        Dictionary<string, Dictionary<string, JsonObject>> snapshot)
+    {
+        history.Push(snapshot);
+        if (history.Count <= MaximumHistoryEntries)
+            return;
+        Dictionary<string, Dictionary<string, JsonObject>>[] newest = history
+            .Take(MaximumHistoryEntries)
+            .ToArray();
+        history.Clear();
+        for (int index = newest.Length - 1; index >= 0; index--)
+            history.Push(newest[index]);
+    }
+
+    private void clearHistoryGesture()
+    {
+        activeHistoryGestureId = 0;
+        activeHistoryGestureHasSnapshot = false;
     }
 
     private void restoreSnapshot(

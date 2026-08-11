@@ -155,6 +155,9 @@ void SceneBase::systemMain() {
                     window != nullptr) {
                     inputService().update(*window);
                 }
+                if (uiManager_ != nullptr) {
+                    uiManager_->refreshDisplayScale();
+                }
                 systemInput();
                 if (profile) {
                     const auto phaseEnd = std::chrono::steady_clock::now();
@@ -186,7 +189,6 @@ void SceneBase::systemMain() {
                 if (profile) {
                     phaseStart = std::chrono::steady_clock::now();
                 }
-                System::completeFrame();
                 System::clearCanvas();
                 if (profile) {
                     const auto phaseEnd = std::chrono::steady_clock::now();
@@ -212,6 +214,15 @@ void SceneBase::systemMain() {
                         measurement.uiUpdateMilliseconds +=
                             durationMilliseconds(phaseEnd - phaseStart);
                     }
+                }
+                if (profile) {
+                    phaseStart = std::chrono::steady_clock::now();
+                }
+                System::completeFrame();
+                if (profile) {
+                    const auto phaseEnd = std::chrono::steady_clock::now();
+                    measurement.renderMilliseconds +=
+                        durationMilliseconds(phaseEnd - phaseStart);
                 }
             }
             if (profile) {

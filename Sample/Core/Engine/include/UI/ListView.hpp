@@ -76,6 +76,9 @@ public:
     BIND_METHOD()
     virtual void applyPositions();
 
+    BIND_IGNORE()
+    void refreshDisplayScale() override;
+
 protected:
     BIND_METHOD()
     virtual void draw(sf::RenderTarget& target,
@@ -91,4 +94,5 @@ private:
     std::vector<std::shared_ptr<ControlBase>> children_;
     sf::RenderStates renderStates_;
     bool positionsSettled_ = false;
+    float displayScale_ = 1.0f;
 };

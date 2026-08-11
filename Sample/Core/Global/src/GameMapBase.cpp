@@ -83,8 +83,11 @@ std::shared_ptr<sf::Texture> GameMapBase::generateDataFromMap(
 PathResult GameMapBase::findPathExt(const sf::Vector2i& start,
                                     const sf::Vector2i& goal,
                                     const sf::Vector2u& size,
-                                    Actor& movingActor) {
+                                    Actor& movingActor,
+                                    const std::vector<sf::Vector2i>&
+                                        excludedAnchors) {
     ensurePassabilityCache();
+    refreshActorOccupancyCache();
     int sx = start.x;
     int sy = start.y;
     int gx = goal.x;
@@ -94,6 +97,11 @@ PathResult GameMapBase::findPathExt(const sf::Vector2i& start,
     IntPair dirs[4] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
     IntPair start_t = {sx, sy};
     IntPair goal_t = {gx, gy};
+    std::unordered_set<IntPair, IntPairHash> excludedAnchorSet;
+    excludedAnchorSet.reserve(excludedAnchors.size());
+    for (const sf::Vector2i& anchor : excludedAnchors) {
+        excludedAnchorSet.emplace(anchor.x, anchor.y);
+    }
     PathResult result;
     if (start_t == goal_t) {
         result.route.emplace_back(sx, sy);
@@ -143,10 +151,15 @@ PathResult GameMapBase::findPathExt(const sf::Vector2i& start,
             if (!inBounds(nx, ny, width, height)) {
                 continue;
             }
-            if (!nodePassableForActor(nx, ny, sx, sy, gx, gy, movingActor)) {
+            const IntPair nt = {nx, ny};
+            if (nt != start_t &&
+                excludedAnchorSet.find(nt) != excludedAnchorSet.end()) {
                 continue;
             }
-            IntPair nt = {nx, ny};
+            if (!nodePassableForActor(nx, ny, sx, sy, gx, gy, width, height,
+                                      movingActor)) {
+                continue;
+            }
             int tentative = gScore[current] + 1;
             int prevG = (gScore.count(nt)) ? gScore[nt] : (1 << 30);
             if (tentative < prevG) {
@@ -512,15 +525,31 @@ std::vector<Actor*> GameMapBase::getOverlapsAt(int x, int y, Actor& selfActor) {
 }
 
 bool GameMapBase::passable(int x, int y, int sx, int sy, int gx, int gy) {
+    return passableForActor(x, y, sx, sy, gx, gy, nullptr);
+}
+
+bool GameMapBase::passableForActor(int x, int y, int sx, int sy, int gx,
+                                   int gy, const Actor* excludedActor) {
     if ((x == sx && y == sy) || (x == gx && y == gy)) {
         return true;
     }
     auto occupancyIt = occupancyMap_.find({x, y});
     if (occupancyIt != occupancyMap_.end()) {
         const int topmostLayerIndex =
-            getTopmostOccupantLayerIndex(occupancyIt->second, nullptr);
+            getTopmostOccupantLayerIndex(occupancyIt->second, excludedActor);
+        const std::unordered_set<Actor*>* descendantActors = nullptr;
+        if (excludedActor != nullptr) {
+            descendantActors = &excludedActor->getDescendantActors();
+        }
         if (topmostLayerIndex != std::numeric_limits<int>::max()) {
             for (Actor* actor : occupancyIt->second) {
+                if (actor == excludedActor) {
+                    continue;
+                }
+                if (descendantActors != nullptr &&
+                    descendantActors->find(actor) != descendantActors->end()) {
+                    continue;
+                }
                 if (actor->isDestroyed()) {
                     continue;
                 }
@@ -651,15 +680,52 @@ void GameMapBase::ensurePassabilityCache() const {
     self->rebuildPassabilityCache(size);
 }
 
+void GameMapBase::refreshActorOccupancyCache() {
+    std::unordered_set<Actor*> seenActors;
+    for (const auto& [_, actorList] : actorsRef_) {
+        for (const ActorPtr& actor : actorList) {
+            if (!actor || !seenActors.insert(actor.get()).second) {
+                continue;
+            }
+            const auto registeredIt =
+                registeredOccupancyCells_.find(actor.get());
+            if (actor->isDestroyed()) {
+                if (registeredIt != registeredOccupancyCells_.end()) {
+                    unregisterActorOccupancy(*actor);
+                }
+                continue;
+            }
+            const std::vector<sf::Vector2i> occupiedCells =
+                actor->getOccupiedMapCells();
+            if (registeredIt != registeredOccupancyCells_.end() &&
+                registeredIt->second == occupiedCells) {
+                continue;
+            }
+            if (registeredIt != registeredOccupancyCells_.end()) {
+                unregisterActorOccupancy(*actor);
+            }
+            registerActorOccupancy(*actor);
+        }
+    }
+}
+
 bool GameMapBase::nodePassableForActor(int x, int y, int sx, int sy, int gx,
-                                       int gy, const Actor& movingActor) {
+                                       int gy, unsigned int width,
+                                       unsigned int height,
+                                       const Actor& movingActor) {
     const std::vector<sf::Vector2i> cells =
         movingActor.getOccupiedMapCellsAtMapPosition({x, y});
     if (cells.empty()) {
         return passable(x, y, sx, sy, gx, gy);
     }
     for (const sf::Vector2i& cell : cells) {
-        if (!passable(cell.x, cell.y, sx, sy, gx, gy)) {
+        if (cell.x < 0 || cell.y < 0 ||
+            cell.x >= static_cast<int>(width) ||
+            cell.y >= static_cast<int>(height)) {
+            return false;
+        }
+        if (!passableForActor(cell.x, cell.y, sx, sy, gx, gy,
+                              &movingActor)) {
             return false;
         }
     }

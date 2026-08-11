@@ -213,6 +213,9 @@ public:
     BIND_METHOD()
     void setColour(const sf::Color& colour);
 
+    BIND_IGNORE()
+    void refreshDisplayScale() override;
+
 protected:
     BIND_METHOD()
     virtual void draw(sf::RenderTarget& target,
@@ -230,6 +233,7 @@ private:
     void applyConfig();
     void refreshDirectColours();
     void invalidateEffects();
+    void syncDisplayScale() const;
     sf::FloatRect getPixelBounds() const;
     void ensureEffects() const;
 
@@ -237,6 +241,7 @@ private:
     sf::Color colour_ = sf::Color::White;
     sf::Text text_;
     mutable std::unique_ptr<EffectCache> effects_;
+    float displayScale_ = 1.0f;
 };
 
 BIND_CLASS(callbacks =
@@ -282,6 +287,9 @@ public:
     BIND_METHOD()
     virtual void setOrigin(const sf::Vector2f& origin) override;
 
+    BIND_IGNORE()
+    void refreshDisplayScale() override;
+
 protected:
     BIND_METHOD()
     virtual void draw(sf::RenderTarget& target,
@@ -318,6 +326,7 @@ private:
     void refreshSegmentColours();
     void applySegmentColour(sf::Text& text, const TextStyle& style) const;
     void invalidateEffects();
+    void syncDisplayScale() const;
     void ensureEffects() const;
     sf::FloatRect getPixelBounds() const;
 
@@ -327,4 +336,5 @@ private:
     std::vector<Segment> segments_;
     sf::FloatRect localBounds_;
     mutable std::unique_ptr<EffectCache> effects_;
+    float displayScale_ = 1.0f;
 };

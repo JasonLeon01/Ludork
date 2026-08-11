@@ -15,7 +15,7 @@ namespace Ludork.Views;
 
 public sealed class GameConfigWindow : Window
 {
-    private static readonly double[] scaleValues = [1.0, 1.25, 1.5, 1.75, 2.0];
+    private static readonly double[] scaleValues = [0.0, 1.0, 1.25, 1.5, 1.75, 2.0];
     private static readonly int[] frameRateValues = [30, 60, 90, 120];
     private readonly GameConfigData initialData;
     private readonly ComboBox languageBox;
@@ -46,13 +46,15 @@ public sealed class GameConfigWindow : Window
             language => language.Equals(initialData.Language, StringComparison.Ordinal));
 
         string[] scales = scaleValues
-            .Select(value => value.ToString("F2", CultureInfo.InvariantCulture))
+            .Select(value => value == 0.0
+                ? LocaleService.Get("FULLSCREEN")
+                : value.ToString("F2", CultureInfo.InvariantCulture))
             .ToArray();
         scaleBox = createComboBox(scales.Cast<object>().ToArray());
         double selectedScale = scaleValues.Contains(Math.Round(initialData.Scale, 2))
             ? Math.Round(initialData.Scale, 2)
             : 1.0;
-        scaleBox.SelectedItem = selectedScale.ToString("F2", CultureInfo.InvariantCulture);
+        scaleBox.SelectedIndex = Array.IndexOf(scaleValues, selectedScale);
 
         string[] frameRates = frameRateValues
             .Select(value => value.ToString(CultureInfo.InvariantCulture))
@@ -146,10 +148,9 @@ public sealed class GameConfigWindow : Window
         string language = languageBox.SelectedItem?.ToString()?.Trim() ?? string.Empty;
         if (language.Length == 0)
             return;
-        double scale = double.Parse(
-            scaleBox.SelectedItem?.ToString() ?? "1.00",
-            NumberStyles.Float,
-            CultureInfo.InvariantCulture);
+        double scale = scaleBox.SelectedIndex >= 0
+            ? scaleValues[scaleBox.SelectedIndex]
+            : 1.0;
         int frameRate = int.Parse(
             frameRateBox.SelectedItem?.ToString() ?? "60",
             NumberStyles.Integer,

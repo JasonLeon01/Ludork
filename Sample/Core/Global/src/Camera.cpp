@@ -6,6 +6,7 @@
 #include <Utils/Render.hpp>
 
 #include <algorithm>
+#include <stdexcept>
 #include <utility>
 
 Camera::Camera(std::optional<sf::FloatRect> viewport)
@@ -16,7 +17,7 @@ Camera::Camera(std::optional<sf::FloatRect> viewport)
                                   sf::Vector2f(static_cast<float>(gameSize.x),
                                                static_cast<float>(gameSize.y)));
     }
-    rebuildRenderTexture();
+    rebuildRenderTexture(false);
 }
 
 void Camera::setViewport(const sf::FloatRect& inViewport) {
@@ -25,6 +26,7 @@ void Camera::setViewport(const sf::FloatRect& inViewport) {
 }
 
 sf::View Camera::getView() const {
+    syncDisplayScale();
     return renderTexture_->getView();
 }
 
@@ -59,13 +61,15 @@ void Camera::setViewSize(const sf::Vector2f& inSize) {
 }
 
 sf::Angle Camera::getViewRotation() const {
-    return renderTexture_->getView().getRotation();
+    return getView().getRotation();
 }
 
 void Camera::setViewRotation(sf::Angle inRotation) {
+    syncDisplayScale();
     sf::View view = renderTexture_->getView();
     view.setRotation(inRotation);
     renderTexture_->setView(view);
+    defaultViewActive_ = false;
     for (const std::shared_ptr<sf::RenderTexture>& canvas : canvases_) {
         canvas->setView(view);
     }
@@ -83,7 +87,12 @@ void Camera::rotateView(sf::Angle delta) {
 }
 
 void Camera::resumeViewport() {
+    syncDisplayScale();
     renderTexture_->setView(renderTexture_->getDefaultView());
+    for (const std::shared_ptr<sf::RenderTexture>& canvas : canvases_) {
+        canvas->setView(canvas->getDefaultView());
+    }
+    defaultViewActive_ = true;
 }
 
 sf::Vector2f Camera::getPosition() const {
@@ -139,6 +148,7 @@ std::shared_ptr<GameMapBase> Camera::getMap() const {
 }
 
 void Camera::render(const sf::Drawable& object) {
+    syncDisplayScale();
     renderTexture_->draw(object, renderStates_);
 }
 
@@ -155,6 +165,7 @@ void Camera::setRenderStates(const sf::RenderStates& inRenderStates) {
 }
 
 sf::Vector2f Camera::mapPixelToCoords(const sf::Vector2i& point) const {
+    syncDisplayScale();
     const float scale = displayScale();
     const sf::Vector2i scaled(
         static_cast<int>(roundNumber(static_cast<double>(point.x) * scale)),
@@ -163,6 +174,7 @@ sf::Vector2f Camera::mapPixelToCoords(const sf::Vector2i& point) const {
 }
 
 sf::Vector2i Camera::mapCoordsToPixel(const sf::Vector2f& point) const {
+    syncDisplayScale();
     const float scale = displayScale();
     const sf::Vector2i scaled =
         renderTexture_->mapCoordsToPixel(point, renderTexture_->getView());
@@ -173,14 +185,17 @@ sf::Vector2i Camera::mapCoordsToPixel(const sf::Vector2f& point) const {
 }
 
 const sf::Texture& Camera::getTexture() const {
+    syncDisplayScale();
     return renderTexture_->getTexture();
 }
 
 std::shared_ptr<sf::RenderTexture> Camera::getRenderTexture() const {
+    syncDisplayScale();
     return renderTexture_;
 }
 
 sf::Image Camera::getImage() const {
+    syncDisplayScale();
     return renderTexture_->getTexture().copyToImage();
 }
 
@@ -222,14 +237,17 @@ void Camera::fixViewPosition() {
 }
 
 void Camera::clear() {
+    syncDisplayScale();
     renderTexture_->clear(sf::Color::Transparent);
 }
 
 void Camera::display() {
+    syncDisplayScale();
     renderTexture_->display();
 }
 
 void Camera::draw(sf::RenderTarget& target, sf::RenderStates states) const {
+    syncDisplayScale();
     states.transform.combine(getTransform());
     target.draw(*renderSprite_, states);
 }
@@ -247,30 +265,64 @@ sf::Vector2u Camera::renderPixelSize() const {
             static_cast<unsigned int>(height)};
 }
 
-void Camera::rebuildRenderTexture() {
+void Camera::rebuildRenderTexture(bool preserveView) const {
     const sf::Vector2u size = renderPixelSize();
-    renderTexture_ = std::make_shared<sf::RenderTexture>(size);
+    std::optional<sf::View> preservedView;
+    std::vector<std::optional<sf::View>> preservedCanvasViews;
+    if (renderTexture_ == nullptr) {
+        renderTexture_ = std::make_shared<sf::RenderTexture>(size);
+    } else {
+        if (preserveView && !defaultViewActive_) {
+            preservedView = renderTexture_->getView();
+        }
+        if (renderTexture_->getSize() != size &&
+            !renderTexture_->resize(size)) {
+            throw std::runtime_error("Failed to resize Camera render target");
+        }
+    }
     renderTexture_->setSmooth(false);
-    renderTexture_->setView(sf::View(*viewport_));
-    renderSprite_.emplace(renderTexture_->getTexture());
+    renderTexture_->setView(
+        defaultViewActive_ ? renderTexture_->getDefaultView()
+                           : preservedView.value_or(sf::View(*viewport_)));
+    renderTexture_->clear(sf::Color::Transparent);
+    renderTexture_->display();
+    if (renderSprite_.has_value()) {
+        renderSprite_->setTexture(renderTexture_->getTexture(), true);
+    } else {
+        renderSprite_.emplace(renderTexture_->getTexture());
+    }
     const float scale = displayScale();
     renderSprite_->setScale({1.0f / scale, 1.0f / scale});
+    preservedCanvasViews.reserve(canvases_.size());
     for (std::shared_ptr<sf::RenderTexture>& canvas : canvases_) {
-        if (canvas->getSize() != size) {
-            canvas = std::make_shared<sf::RenderTexture>(size);
-            canvas->setSmooth(false);
+        if (preserveView && !defaultViewActive_) {
+            preservedCanvasViews.emplace_back(canvas->getView());
+        } else {
+            preservedCanvasViews.emplace_back(std::nullopt);
         }
-        canvas->setView(sf::View(*viewport_));
+        if (canvas->getSize() != size) {
+            if (!canvas->resize(size)) {
+                throw std::runtime_error(
+                    "Failed to resize Camera auxiliary render target");
+            }
+        }
+        canvas->setSmooth(false);
+        canvas->setView(
+            defaultViewActive_
+                ? canvas->getDefaultView()
+                : preservedCanvasViews.back().value_or(sf::View(*viewport_)));
+        canvas->clear(sf::Color::Transparent);
+        canvas->display();
     }
 }
 
-void Camera::syncDisplayScale() {
+void Camera::syncDisplayScale() const {
     if (!viewport_.has_value()) {
         return;
     }
     if (renderTexture_ == nullptr ||
         renderTexture_->getSize() != renderPixelSize()) {
-        rebuildRenderTexture();
+        rebuildRenderTexture(true);
         return;
     }
     const float scale = displayScale();
@@ -281,12 +333,15 @@ void Camera::refreshView() {
     if (!viewport_.has_value()) {
         return;
     }
+    sf::View view = renderTexture_ == nullptr ? sf::View(*viewport_)
+                                               : renderTexture_->getView();
+    view.setCenter(viewport_->getCenter());
+    view.setSize(viewport_->size);
+    defaultViewActive_ = false;
     if (renderTexture_ == nullptr ||
         renderTexture_->getSize() != renderPixelSize()) {
-        rebuildRenderTexture();
-        return;
+        rebuildRenderTexture(true);
     }
-    const sf::View view(*viewport_);
     renderTexture_->setView(view);
     const float scale = displayScale();
     renderSprite_->setScale({1.0f / scale, 1.0f / scale});

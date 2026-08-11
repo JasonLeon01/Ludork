@@ -111,8 +111,6 @@ function ConfigWindowUI.onVoiceOnCheckedChanged(checked) end
 ---@param value integer
 function ConfigWindowUI.onVoiceVolumeChanged(value) end
 
-function ConfigWindowUI.showRestartMindTip() end
-
 ---@param deltaTime number
 function ConfigWindowUI:tick(deltaTime) end
 

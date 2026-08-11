@@ -11,12 +11,18 @@
 ---@class Source.SceneComponents.MapClickAutoPath: ComponentBase
 ---@field _parent GameMap
 ---@field _routeState PathRouteState
+---@field _dangerState Source.SceneComponents.MovementDangerState
 ---@field _autoPathing boolean
+---@field _activeGoal sf.Vector2i | nil
+---@field _routeDangerRevision integer | nil
 ---@field _pendingGoals sf.Vector2i[]
+---@field _previewMapX integer|nil
+---@field _previewMapY integer|nil
 local MapClickAutoPath = {}
 
----@param gameMap GameMap
----@param routeState PathRouteState
+---@param gameMap     GameMap
+---@param routeState  PathRouteState
+---@param dangerState Source.SceneComponents.MovementDangerState
 ---@return Source.SceneComponents.MapClickAutoPath
 function MapClickAutoPath.new(...) end
 
@@ -28,9 +34,11 @@ function MapClickAutoPath.new(...) end
 --- @brief Initialize the MapClickAutoPath component.
 --- - gameMap: The game map this component operates on.
 --- - routeState: The path route state to use for path preview.
----@param gameMap    GameMap
----@param routeState PathRouteState
-function MapClickAutoPath:init(gameMap, routeState) end
+--- - dangerState: The current movement-special danger grid.
+---@param gameMap     GameMap
+---@param routeState  PathRouteState
+---@param dangerState Source.SceneComponents.MovementDangerState
+function MapClickAutoPath:init(gameMap, routeState, dangerState) end
 
 --- @brief Handle mouse click input to set pathfinding goals.
 ---

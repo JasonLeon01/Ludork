@@ -27,6 +27,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
     private PixelPoint pickerPosition;
     private bool hasInsertionPoint;
     private bool hasPendingChange;
+    private bool parameterFlushScheduled;
     private bool viewportInitialized;
     private bool pickerOpen;
     private bool disposed;
@@ -51,6 +52,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
     }
 
     public BlueprintGraphControl(
+        GameDataService gameData,
         BlueprintGraphDocument document,
         IReadOnlyList<BlueprintGraphNodeDefinition> definitions,
         BlueprintVariableFieldBuilder fieldBuilder,
@@ -60,6 +62,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         bool isReadOnly = false) : this()
     {
         viewModel = new BlueprintGraphEditorViewModel(
+            gameData,
             document,
             definitions,
             fieldBuilder,
@@ -69,6 +72,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
             isReadOnly);
         DataContext = viewModel;
         document.Changed += onDocumentChanged;
+        viewModel.ParameterEdited += onParameterEdited;
         viewModel.BlueprintPendingConnection.EmptyDropRequested += onEmptyDropRequested;
     }
 
@@ -113,6 +117,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         changeTimer.Stop();
         Loaded -= onLoaded;
         Document.Changed -= onDocumentChanged;
+        viewModel.ParameterEdited -= onParameterEdited;
         viewModel.BlueprintPendingConnection.EmptyDropRequested -= onEmptyDropRequested;
         RemoveHandler(PointerPressedEvent, onPointerPressed);
         RemoveHandler(PointerReleasedEvent, onPointerReleased);
@@ -136,6 +141,21 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         hasPendingChange = true;
         changeTimer.Stop();
         changeTimer.Start();
+    }
+
+    private void onParameterEdited(object? sender, EventArgs args)
+    {
+        if (parameterFlushScheduled)
+            return;
+        parameterFlushScheduled = true;
+        Dispatcher.UIThread.Post(flushParameterEdits, DispatcherPriority.Input);
+    }
+
+    private void flushParameterEdits()
+    {
+        parameterFlushScheduled = false;
+        if (!disposed)
+            FlushPendingChanges();
     }
 
     private void onLoaded(object? sender, RoutedEventArgs args)

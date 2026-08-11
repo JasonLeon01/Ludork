@@ -30,8 +30,11 @@ public sealed class BlueprintVariableForm : UserControl
     private readonly Dictionary<string, JsonNode?> values = new(StringComparer.Ordinal);
     private readonly Dictionary<string, BlueprintVariableRow> rows = new(StringComparer.Ordinal);
     private readonly HashSet<string> dependencySources = new(StringComparer.Ordinal);
+    private readonly List<Control> historyControls = [];
+    private readonly List<BlueprintVariableForm> nestedHistoryForms = [];
     private string assetsDirectory = string.Empty;
     private string projectDirectory = string.Empty;
+    private GameDataService? historyGameData;
     private int cellSize = 32;
     private bool isReadOnly;
     private bool showFieldNames = true;
@@ -51,6 +54,28 @@ public sealed class BlueprintVariableForm : UserControl
     public Func<BlueprintVariableField, Control?>? FieldActionFactory { get; set; }
     public Func<BlueprintVariableEditorRequest, Control?>? CustomValueEditorFactory { get; set; }
     public Func<BlueprintVariableField, bool>? CanRemoveComponent { get; set; }
+
+    public GameDataService? HistoryGameData
+    {
+        get => historyGameData;
+        set
+        {
+            if (ReferenceEquals(historyGameData, value))
+                return;
+            historyGameData = value;
+            if (historyGameData is null)
+                return;
+            foreach (Control control in historyControls)
+            {
+                if (control is TextBox text)
+                    HistoryMergeBehavior.Attach(text, historyGameData);
+                else if (control is NumericUpDown number)
+                    HistoryMergeBehavior.Attach(number, historyGameData);
+            }
+            foreach (BlueprintVariableForm nested in nestedHistoryForms)
+                nested.HistoryGameData = historyGameData;
+        }
+    }
 
     public string AssetsDirectory
     {
@@ -96,6 +121,8 @@ public sealed class BlueprintVariableForm : UserControl
         values.Clear();
         rows.Clear();
         dependencySources.Clear();
+        historyControls.Clear();
+        nestedHistoryForms.Clear();
         form.Children.Clear();
         form.RowDefinitions.Clear();
 
@@ -404,6 +431,7 @@ public sealed class BlueprintVariableForm : UserControl
             int.MaxValue,
             1);
         box.FormatString = "0";
+        attachHistory(box);
         box.ValueChanged += (_, _) => changed(JsonValue.Create(decimal.ToInt32(box.Value ?? 0)), false);
         return box;
     }
@@ -416,6 +444,7 @@ public sealed class BlueprintVariableForm : UserControl
             999999999m,
             0.1m);
         box.FormatString = "0.00";
+        attachHistory(box);
         box.ValueChanged += (_, _) => changed(JsonValue.Create(decimal.ToDouble(box.Value ?? 0)), false);
         return box;
     }
@@ -427,6 +456,7 @@ public sealed class BlueprintVariableForm : UserControl
     {
         TextBox box = EditorInputs.CreateEditableTextBox(formatTextValue(value, nilAsNull));
         box.HorizontalAlignment = HorizontalAlignment.Stretch;
+        attachHistory(box);
         box.TextChanged += (_, _) =>
         {
             string text = box.Text ?? string.Empty;
@@ -439,6 +469,7 @@ public sealed class BlueprintVariableForm : UserControl
     {
         TextBox box = EditorInputs.CreateEditableTextBox(formatAnyValue(value));
         box.HorizontalAlignment = HorizontalAlignment.Stretch;
+        attachHistory(box);
         box.TextChanged += (_, _) =>
         {
             string text = box.Text ?? string.Empty;
@@ -478,6 +509,7 @@ public sealed class BlueprintVariableForm : UserControl
         box.HorizontalAlignment = HorizontalAlignment.Stretch;
         box.MinWidth = 220;
         IBrush? normalBorder = box.BorderBrush;
+        attachHistory(box);
         box.TextChanged += (_, _) =>
         {
             string current = box.Text ?? string.Empty;
@@ -555,6 +587,7 @@ public sealed class BlueprintVariableForm : UserControl
                 spec.Maximum,
                 spec.IsInteger ? 1 : 0.1m);
             box.FormatString = spec.IsInteger ? "0" : "0.00";
+            attachHistory(box);
             boxes.Add(box);
             Grid.SetColumn(box, index);
             grid.Children.Add(box);
@@ -598,6 +631,7 @@ public sealed class BlueprintVariableForm : UserControl
                 stretch: false);
             box.Width = 86;
             box.FormatString = "0";
+            attachHistory(box);
             boxes.Add(box);
             Grid.SetColumn(box, index);
             grid.Children.Add(box);
@@ -628,6 +662,7 @@ public sealed class BlueprintVariableForm : UserControl
             && isWhole(range.Maximum)
             && isWhole(range.Step);
         BlueprintProgressEditor editor = new(value, range, returnInteger);
+        attachHistory(editor.NumberInput);
         editor.ValueChanged += (_, args) => changed(args.Value, false);
         return editor;
     }
@@ -911,6 +946,7 @@ public sealed class BlueprintVariableForm : UserControl
                 string currentKey = entry.Key;
                 JsonNode? rowValue = cloneNode(entry.Value);
                 TextBox keyBox = EditorInputs.CreateEditableTextBox(currentKey);
+                attachHistory(keyBox);
                 BlueprintVariableField valueField = createContainerItemField(
                     field,
                     valueType,
@@ -994,7 +1030,9 @@ public sealed class BlueprintVariableForm : UserControl
             AssetsDirectory = AssetsDirectory,
             CellSize = CellSize,
             IsReadOnly = isReadOnly || field.IsReadOnly,
+            HistoryGameData = HistoryGameData,
         };
+        nestedHistoryForms.Add(nested);
         List<BlueprintVariableField> nestedFields = materializeStructureFields(field);
         JsonObject value = buildStructureValue(nestedFields);
         nested.ValueChanged += (_, args) =>
@@ -1010,6 +1048,20 @@ public sealed class BlueprintVariableForm : UserControl
             Padding = new Thickness(10, 5, 0, 0),
             Child = nested,
         };
+    }
+
+    private void attachHistory(TextBox control)
+    {
+        historyControls.Add(control);
+        if (HistoryGameData is GameDataService gameData)
+            HistoryMergeBehavior.Attach(control, gameData);
+    }
+
+    private void attachHistory(NumericUpDown control)
+    {
+        historyControls.Add(control);
+        if (HistoryGameData is GameDataService gameData)
+            HistoryMergeBehavior.Attach(control, gameData);
     }
 
     private void commit(BlueprintVariableField field, JsonNode? value, bool refresh)
@@ -1964,6 +2016,7 @@ internal sealed class BlueprintProgressEditor : Grid
     }
 
     public event EventHandler<BlueprintProgressValueChangedEventArgs>? ValueChanged;
+    public NumericUpDown NumberInput => number;
 
     private void setValue(double value, bool emit)
     {

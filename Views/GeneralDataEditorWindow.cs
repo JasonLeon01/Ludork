@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -26,7 +27,11 @@ public sealed class GeneralDataEditorWindow : Window
     private readonly BlueprintPreviewService previewService;
     private readonly Toast toast;
     private readonly TabControl tabControl;
+    private readonly DeferredWindowInitializer initializer;
     private readonly Dictionary<string, BlueprintEditorWindow> blueprintWindows = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, GeneralDataPageSessionState> pageStates = new(StringComparer.Ordinal);
+    private string? pendingTypeKey;
+    private bool buildingTabs;
 
     public GeneralDataEditorWindow(
         GameDataService gameData,
@@ -55,10 +60,21 @@ public sealed class GeneralDataEditorWindow : Window
             Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
         };
         tabControl.AddHandler(PointerPressedEvent, onTabPointerPressed, RoutingStrategies.Bubble);
+        tabControl.SelectionChanged += (_, _) =>
+        {
+            if (!buildingTabs)
+                ensureSelectedPage();
+        };
 
-        Content = tabControl;
+        Content = DeferredWindowInitializer.CreateLoadingContent();
+        HistoryMergeBehavior.AttachBoundary(this, gameData);
         toast = new Toast(this);
-        buildTabs(null);
+        initializer = new DeferredWindowInitializer(this, () =>
+        {
+            Content = tabControl;
+            buildTabs(pendingTypeKey);
+            pendingTypeKey = null;
+        });
 
         gameData.DataRestored += onDataRestored;
         gameData.DataReloaded += onDataReloaded;
@@ -72,6 +88,16 @@ public sealed class GeneralDataEditorWindow : Window
 
     public void selectDataType(string key)
     {
+        if (!initializer.IsInitialized)
+        {
+            pendingTypeKey = key;
+            return;
+        }
+        selectDataTypeCore(key);
+    }
+
+    private void selectDataTypeCore(string key)
+    {
         foreach (TabItem tab in tabControl.Items.OfType<TabItem>())
         {
             if (tab.Tag is string tabKey && string.Equals(tabKey, key, StringComparison.Ordinal))
@@ -84,12 +110,15 @@ public sealed class GeneralDataEditorWindow : Window
 
     public void refresh()
     {
+        if (!initializer.IsInitialized)
+            return;
         string? selectedKey = (tabControl.SelectedItem as TabItem)?.Tag as string;
         buildTabs(selectedKey);
     }
 
     private void buildTabs(string? preserveKey)
     {
+        buildingTabs = true;
         tabControl.Items.Clear();
         foreach (KeyValuePair<string, JsonObject> entry in gameData.GeneralData.OrderBy(e => e.Key, StringComparer.Ordinal))
         {
@@ -97,7 +126,6 @@ public sealed class GeneralDataEditorWindow : Window
             {
                 Header = entry.Key,
                 Tag = entry.Key,
-                Content = new GeneralDataPage(this, gameData, entry.Key, entry.Value),
             };
             tabControl.Items.Add(tab);
             if (string.Equals(entry.Key, preserveKey, StringComparison.Ordinal))
@@ -105,16 +133,50 @@ public sealed class GeneralDataEditorWindow : Window
         }
         if (tabControl.SelectedItem is null && tabControl.Items.Count > 0)
             tabControl.SelectedItem = tabControl.Items[0];
+        buildingTabs = false;
+        ensureSelectedPage();
+        foreach (string staleKey in pageStates.Keys.Except(gameData.GeneralData.Keys, StringComparer.Ordinal).ToArray())
+            pageStates.Remove(staleKey);
+    }
+
+    private void ensureSelectedPage()
+    {
+        if (tabControl.SelectedItem is not TabItem { Tag: string typeKey } tab
+            || tab.Content is not null
+            || !gameData.GeneralData.TryGetValue(typeKey, out JsonObject? data))
+        {
+            return;
+        }
+        tab.Content = new GeneralDataPage(
+            this,
+            gameData,
+            typeKey,
+            data,
+            getPageState(typeKey));
+    }
+
+    private GeneralDataPageSessionState getPageState(string typeKey)
+    {
+        if (!pageStates.TryGetValue(typeKey, out GeneralDataPageSessionState? state))
+        {
+            state = new GeneralDataPageSessionState();
+            pageStates[typeKey] = state;
+        }
+        return state;
     }
 
     private void onDataRestored(object? sender, EventArgs args)
     {
+        if (!initializer.IsInitialized)
+            return;
         string? selectedKey = (tabControl.SelectedItem as TabItem)?.Tag as string;
         buildTabs(selectedKey);
     }
 
     private void onDataReloaded(object? sender, EventArgs args)
     {
+        if (!initializer.IsInitialized)
+            return;
         string? selectedKey = (tabControl.SelectedItem as TabItem)?.Tag as string;
         buildTabs(selectedKey);
     }
@@ -269,6 +331,8 @@ public sealed class GeneralDataEditorWindow : Window
             return;
         closeBlueprintEditors(typeKey);
         gameData.RenameGeneralType(typeKey, newName);
+        if (pageStates.Remove(typeKey, out GeneralDataPageSessionState? state))
+            pageStates[newName] = state;
         buildTabs(newName);
     }
 
@@ -310,6 +374,7 @@ public sealed class GeneralDataEditorWindow : Window
             return;
         closeBlueprintEditors(typeKey);
         gameData.DeleteGeneralType(typeKey);
+        pageStates.Remove(typeKey);
         buildTabs(null);
     }
 
@@ -325,35 +390,73 @@ public sealed class GeneralDataEditorWindow : Window
     }
 }
 
+internal enum GeneralDataViewMode
+{
+    Form,
+    Table,
+}
+
+internal sealed class GeneralDataPageSessionState
+{
+    public string SearchText { get; set; } = string.Empty;
+    public GeneralDataViewMode ViewMode { get; set; }
+    public string? SelectedMemberId { get; set; }
+}
+
 internal sealed class GeneralDataPage : Grid
 {
+    private const double TableIdColumnWidth = 180;
+    private const double TableFieldColumnWidth = 200;
     private readonly GeneralDataEditorWindow owner;
     private readonly GameDataService gameData;
     private readonly string typeKey;
     private readonly JsonObject typeData;
+    private readonly GeneralDataPageSessionState sessionState;
+    private readonly TextBox searchBox;
     private readonly ListBox memberList;
     private readonly Border linkedTypeBar;
     private readonly TextBlock linkedTypeLabel;
     private readonly Button editBlueprintButton;
+    private readonly Button formViewButton;
+    private readonly Button tableViewButton;
     private readonly ScrollViewer formScroll;
     private readonly StackPanel formContent;
+    private readonly ScrollViewer tableScroll;
+    private readonly Grid tableSurface;
+    private readonly Grid tableHeader;
+    private readonly ListBox tableList;
+    private List<GeneralDataTableColumn> tableColumns = [];
 
     private string? selectedMemberId;
+    private bool syncingSelection;
 
     public GeneralDataPage(
         GeneralDataEditorWindow owner,
         GameDataService gameData,
         string typeKey,
-        JsonObject typeData)
+        JsonObject typeData,
+        GeneralDataPageSessionState sessionState)
     {
         this.owner = owner;
         this.gameData = gameData;
         this.typeKey = typeKey;
         this.typeData = typeData;
+        this.sessionState = sessionState;
 
         ColumnDefinitions = new ColumnDefinitions("240,4,*");
 
-        Grid leftGrid = new() { RowDefinitions = new RowDefinitions("*,Auto") };
+        Grid leftGrid = new() { RowDefinitions = new RowDefinitions("Auto,*,Auto") };
+        searchBox = EditorInputs.CreateEditableTextBox(sessionState.SearchText);
+        searchBox.PlaceholderText = LocaleService.Get("SEARCH");
+        searchBox.Margin = new Thickness(4);
+        searchBox.TextChanged += (_, _) =>
+        {
+            sessionState.SearchText = searchBox.Text ?? string.Empty;
+            populateMemberList(sessionState.SelectedMemberId);
+        };
+        Grid.SetRow(searchBox, 0);
+        leftGrid.Children.Add(searchBox);
+
         memberList = new ListBox
         {
             Background = new SolidColorBrush(Color.FromRgb(40, 40, 40)),
@@ -362,7 +465,7 @@ internal sealed class GeneralDataPage : Grid
         };
         memberList.SelectionChanged += onMemberSelectionChanged;
         memberList.AddHandler(PointerPressedEvent, onMemberListPointerPressed, RoutingStrategies.Bubble);
-        Grid.SetRow(memberList, 0);
+        Grid.SetRow(memberList, 1);
         leftGrid.Children.Add(memberList);
 
         Button addMemberBtn = new()
@@ -372,7 +475,7 @@ internal sealed class GeneralDataPage : Grid
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
         addMemberBtn.Click += async (_, _) => await onAddMemberAsync();
-        Grid.SetRow(addMemberBtn, 1);
+        Grid.SetRow(addMemberBtn, 2);
         leftGrid.Children.Add(addMemberBtn);
         Children.Add(leftGrid);
 
@@ -390,7 +493,6 @@ internal sealed class GeneralDataPage : Grid
         {
             Background = new SolidColorBrush(Color.FromRgb(45, 45, 45)),
             Padding = new Thickness(8, 6),
-            IsVisible = false,
         };
         linkedTypeLabel = new TextBlock
         {
@@ -404,13 +506,29 @@ internal sealed class GeneralDataPage : Grid
             IsEnabled = false,
         };
         editBlueprintButton.Click += (_, _) => openSelectedBlueprint();
+        formViewButton = new Button
+        {
+            Content = LocaleService.Get("GENERAL_DATA_FORM_VIEW"),
+            MinWidth = 72,
+        };
+        formViewButton.Click += (_, _) => setViewMode(GeneralDataViewMode.Form);
+        tableViewButton = new Button
+        {
+            Content = LocaleService.Get("GENERAL_DATA_TABLE_VIEW"),
+            MinWidth = 72,
+        };
+        tableViewButton.Click += (_, _) => setViewMode(GeneralDataViewMode.Table);
         Grid linkedTypeContent = new()
         {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("*,Auto,8,Auto,4,Auto"),
         };
         linkedTypeContent.Children.Add(linkedTypeLabel);
         Grid.SetColumn(editBlueprintButton, 1);
         linkedTypeContent.Children.Add(editBlueprintButton);
+        Grid.SetColumn(formViewButton, 3);
+        linkedTypeContent.Children.Add(formViewButton);
+        Grid.SetColumn(tableViewButton, 5);
+        linkedTypeContent.Children.Add(tableViewButton);
         linkedTypeBar.Child = linkedTypeContent;
         Grid.SetRow(linkedTypeBar, 0);
         rightGrid.Children.Add(linkedTypeBar);
@@ -424,25 +542,67 @@ internal sealed class GeneralDataPage : Grid
         Grid.SetRow(formScroll, 1);
         rightGrid.Children.Add(formScroll);
 
+        tableHeader = new Grid
+        {
+            Background = new SolidColorBrush(Color.Parse("#333333")),
+        };
+        tableList = new ListBox
+        {
+            Background = new SolidColorBrush(Color.FromRgb(40, 40, 40)),
+            SelectionMode = SelectionMode.Single,
+            ItemTemplate = new FuncDataTemplate<GeneralDataTableRow>(buildTableRow),
+        };
+        tableList.SelectionChanged += onTableSelectionChanged;
+        tableList.AddHandler(PointerPressedEvent, onTablePointerPressed, RoutingStrategies.Tunnel);
+        tableSurface = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,*"),
+            HorizontalAlignment = HorizontalAlignment.Left,
+        };
+        tableSurface.Children.Add(tableHeader);
+        Grid.SetRow(tableList, 1);
+        tableSurface.Children.Add(tableList);
+        tableScroll = new ScrollViewer
+        {
+            Content = tableSurface,
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+            IsVisible = false,
+        };
+        Grid.SetRow(tableScroll, 1);
+        rightGrid.Children.Add(tableScroll);
+
         Grid.SetColumn(rightGrid, 2);
         Children.Add(rightGrid);
 
-        populateMemberList();
+        populateMemberList(sessionState.SelectedMemberId);
         updateLinkedTypeBar();
+        updateViewMode();
     }
 
-    private void populateMemberList()
+    private void populateMemberList(string? preferredMemberId = null)
     {
-        memberList.Items.Clear();
+        List<string> memberIds = [];
         if (typeData["members"] is JsonObject members)
         {
-            foreach (string id in members.Select(e => e.Key).OrderBy(k => k, StringComparer.Ordinal))
-                memberList.Items.Add(id);
+            memberIds = members
+                .Where(entry => entry.Value is JsonObject member && matchesSearch(entry.Key, member))
+                .Select(entry => entry.Key)
+                .OrderBy(id => id, StringComparer.Ordinal)
+                .ToList();
         }
-        if (memberList.Items.Count > 0)
-            memberList.SelectedItem = memberList.Items[0];
-        else
-            buildForm(null);
+        string? nextSelection = preferredMemberId is not null && memberIds.Contains(preferredMemberId)
+            ? preferredMemberId
+            : sessionState.SelectedMemberId is not null && memberIds.Contains(sessionState.SelectedMemberId)
+                ? sessionState.SelectedMemberId
+                : memberIds.FirstOrDefault();
+        syncingSelection = true;
+        memberList.ItemsSource = memberIds;
+        memberList.SelectedItem = nextSelection;
+        syncingSelection = false;
+        selectMember(nextSelection);
+        if (sessionState.ViewMode == GeneralDataViewMode.Table)
+            rebuildTable();
     }
 
     private void updateLinkedTypeBar()
@@ -450,21 +610,378 @@ internal sealed class GeneralDataPage : Grid
         string? linked = typeData["linkedType"]?.GetValue<string>();
         if (string.IsNullOrWhiteSpace(linked))
         {
-            linkedTypeBar.IsVisible = false;
+            linkedTypeLabel.IsVisible = false;
+            editBlueprintButton.IsVisible = false;
         }
         else
         {
             linkedTypeLabel.Text = LocaleService.Get("LINKED_TYPE") + ": " + linked;
-            linkedTypeBar.IsVisible = true;
+            linkedTypeLabel.IsVisible = true;
+            editBlueprintButton.IsVisible = true;
         }
         updateEditBlueprintButton();
     }
 
     private void onMemberSelectionChanged(object? sender, SelectionChangedEventArgs args)
     {
-        selectedMemberId = memberList.SelectedItem as string;
-        buildForm(selectedMemberId);
+        if (!syncingSelection)
+            selectMember(memberList.SelectedItem as string);
+    }
+
+    private bool matchesSearch(string memberId, JsonObject member)
+    {
+        string query = sessionState.SearchText.Trim();
+        if (query.Length == 0 || memberId.Contains(query, StringComparison.OrdinalIgnoreCase))
+            return true;
+        foreach (JsonNode? value in member.Select(entry => entry.Value))
+        {
+            if (value is JsonValue scalar
+                && scalar.ToJsonString().Contains(query, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void selectMember(string? memberId)
+    {
+        selectedMemberId = memberId;
+        sessionState.SelectedMemberId = memberId;
+        syncingSelection = true;
+        if (!Equals(memberList.SelectedItem, memberId))
+            memberList.SelectedItem = memberId;
+        if (tableList.ItemsSource is IEnumerable<GeneralDataTableRow> rows)
+        {
+            GeneralDataTableRow? row = memberId is null
+                ? null
+                : rows.FirstOrDefault(item => item.Id == memberId);
+            if (!Equals(tableList.SelectedItem, row))
+                tableList.SelectedItem = row;
+        }
+        syncingSelection = false;
+        if (sessionState.ViewMode == GeneralDataViewMode.Form)
+            buildForm(memberId);
         updateEditBlueprintButton();
+    }
+
+    private void setViewMode(GeneralDataViewMode mode)
+    {
+        if (sessionState.ViewMode == mode)
+            return;
+        sessionState.ViewMode = mode;
+        updateViewMode();
+    }
+
+    private void updateViewMode()
+    {
+        bool showForm = sessionState.ViewMode == GeneralDataViewMode.Form;
+        formScroll.IsVisible = showForm;
+        tableScroll.IsVisible = !showForm;
+        formViewButton.IsEnabled = !showForm;
+        tableViewButton.IsEnabled = showForm;
+        if (showForm)
+            buildForm(selectedMemberId);
+        else
+            rebuildTable();
+    }
+
+    private void rebuildTable()
+    {
+        tableColumns = [];
+        if (typeData["params"] is JsonObject paramsObj)
+        {
+            foreach (KeyValuePair<string, JsonNode?> entry in paramsObj)
+            {
+                if (entry.Value is JsonObject definition)
+                    tableColumns.Add(new GeneralDataTableColumn(entry.Key, definition));
+            }
+        }
+        string definitions = string.Join(
+            ",",
+            new[] { TableIdColumnWidth }.Concat(Enumerable.Repeat(TableFieldColumnWidth, tableColumns.Count)));
+        tableHeader.ColumnDefinitions = new ColumnDefinitions(definitions);
+        tableHeader.Children.Clear();
+        tableHeader.Children.Add(buildTableHeaderCell("ID", 0));
+        for (int index = 0; index < tableColumns.Count; index++)
+            tableHeader.Children.Add(buildTableHeaderCell(tableColumns[index].Name, index + 1));
+        tableSurface.Width = TableIdColumnWidth + tableColumns.Count * TableFieldColumnWidth;
+
+        GeneralDataTableRow[] rows = typeData["members"] is JsonObject members
+            ? members
+                .Where(entry => entry.Value is JsonObject member && matchesSearch(entry.Key, member))
+                .OrderBy(entry => entry.Key, StringComparer.Ordinal)
+                .Select(entry => new GeneralDataTableRow(entry.Key, (JsonObject)entry.Value!))
+                .ToArray()
+            : [];
+        syncingSelection = true;
+        tableList.ItemsSource = rows;
+        tableList.SelectedItem = selectedMemberId is null
+            ? null
+            : rows.FirstOrDefault(row => row.Id == selectedMemberId);
+        syncingSelection = false;
+    }
+
+    private static Border buildTableHeaderCell(string text, int column)
+    {
+        Border border = new()
+        {
+            BorderBrush = new SolidColorBrush(Color.Parse("#464646")),
+            BorderThickness = new Thickness(0, 0, 1, 1),
+            Padding = new Thickness(8, 6),
+            Child = new TextBlock
+            {
+                Text = text,
+                FontWeight = FontWeight.Bold,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            },
+        };
+        Grid.SetColumn(border, column);
+        return border;
+    }
+
+    private Control? buildTableRow(GeneralDataTableRow? row, INameScope? scope)
+    {
+        if (row is null)
+            return null;
+        string definitions = string.Join(
+            ",",
+            new[] { TableIdColumnWidth }.Concat(Enumerable.Repeat(TableFieldColumnWidth, tableColumns.Count)));
+        Grid grid = new()
+        {
+            ColumnDefinitions = new ColumnDefinitions(definitions),
+            Width = TableIdColumnWidth + tableColumns.Count * TableFieldColumnWidth,
+        };
+        grid.AddHandler(
+            PointerPressedEvent,
+            (_, _) => tableList.SelectedItem = row,
+            RoutingStrategies.Tunnel);
+        grid.Children.Add(buildTableCell(
+            new TextBlock
+            {
+                Text = row.Id,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            },
+            0));
+        for (int index = 0; index < tableColumns.Count; index++)
+        {
+            Control editor = buildTableEditor(row, tableColumns[index]);
+            grid.Children.Add(buildTableCell(editor, index + 1));
+        }
+        return grid;
+    }
+
+    private static Border buildTableCell(Control content, int column)
+    {
+        Border border = new()
+        {
+            BorderBrush = new SolidColorBrush(Color.Parse("#464646")),
+            BorderThickness = new Thickness(0, 0, 1, 1),
+            Padding = new Thickness(6, 4),
+            MinHeight = 42,
+            Child = content,
+        };
+        Grid.SetColumn(border, column);
+        return border;
+    }
+
+    private Control buildTableEditor(GeneralDataTableRow row, GeneralDataTableColumn column)
+    {
+        string type = column.Definition["type"]?.GetValue<string>() ?? "string";
+        JsonNode? rawValue = row.Member[column.Name];
+        if (type == "bool")
+        {
+            CheckBox check = new()
+            {
+                IsChecked = rawValue?.GetValue<bool?>() ?? false,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            check.IsCheckedChanged += (_, _) =>
+            {
+                bool next = check.IsChecked ?? false;
+                if ((row.Member[column.Name]?.GetValue<bool?>() ?? false) == next)
+                    return;
+                gameData.RecordSnapshot();
+                row.Member[column.Name] = next;
+                gameData.refreshModifiedState();
+            };
+            return check;
+        }
+        if (type == "int")
+        {
+            NumericUpDown number = EditorInputs.CreateNumericUpDown(
+                rawValue?.GetValue<int?>() ?? 0,
+                -999999,
+                999999,
+                1);
+            HistoryMergeBehavior.Attach(number, gameData);
+            number.ValueChanged += (_, _) =>
+            {
+                int next = (int)(number.Value ?? 0);
+                if ((row.Member[column.Name]?.GetValue<int?>() ?? 0) == next)
+                    return;
+                gameData.RecordSnapshot();
+                row.Member[column.Name] = next;
+                gameData.refreshModifiedState();
+            };
+            return number;
+        }
+        if (type == "float")
+        {
+            NumericUpDown number = EditorInputs.CreateNumericUpDown(
+                (decimal)(rawValue?.GetValue<double?>() ?? 0.0),
+                -999999,
+                999999,
+                0.01m);
+            HistoryMergeBehavior.Attach(number, gameData);
+            number.ValueChanged += (_, _) =>
+            {
+                double next = (double)(number.Value ?? 0);
+                if (Math.Abs((row.Member[column.Name]?.GetValue<double?>() ?? 0.0) - next) < 1e-10)
+                    return;
+                gameData.RecordSnapshot();
+                row.Member[column.Name] = next;
+                gameData.refreshModifiedState();
+            };
+            return number;
+        }
+        if (type == "string")
+        {
+            string current = rawValue?.GetValue<string>() ?? string.Empty;
+            JsonObject? reference = getParamReference(column.Definition);
+            string refKind = reference?["kind"]?.GetValue<string>() ?? string.Empty;
+            string refKey = reference?["key"]?.GetValue<string>() ?? string.Empty;
+            List<string>? options = getRefOptions(refKind, refKey);
+            if (options is not null)
+            {
+                ComboBox combo = createReferenceCombo(current, options);
+                combo.SelectionChanged += (_, _) =>
+                {
+                    string next = combo.SelectedItem as string ?? string.Empty;
+                    if ((row.Member[column.Name]?.GetValue<string>() ?? string.Empty) == next)
+                        return;
+                    gameData.RecordSnapshot();
+                    row.Member[column.Name] = next;
+                    gameData.refreshModifiedState();
+                };
+                return combo;
+            }
+            TextBox text = EditorInputs.CreateEditableTextBox(current);
+            HistoryMergeBehavior.Attach(text, gameData);
+            text.TextChanged += (_, _) =>
+            {
+                string next = text.Text ?? string.Empty;
+                if ((row.Member[column.Name]?.GetValue<string>() ?? string.Empty) == next)
+                    return;
+                gameData.RecordSnapshot();
+                row.Member[column.Name] = next;
+                gameData.refreshModifiedState();
+            };
+            return text;
+        }
+        Grid complex = new()
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            ColumnSpacing = 4,
+        };
+        TextBlock summary = new()
+        {
+            Text = summarizeComplexValue(type, rawValue),
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        complex.Children.Add(summary);
+        Button edit = new()
+        {
+            Content = LocaleService.Get("EDIT"),
+            MinWidth = 54,
+        };
+        edit.Click += (_, _) => showMemberInForm(row.Id);
+        Grid.SetColumn(edit, 1);
+        complex.Children.Add(edit);
+        return complex;
+    }
+
+    private static ComboBox createReferenceCombo(string current, List<string> options)
+    {
+        ComboBox combo = new()
+        {
+            MinHeight = EditorInputs.FieldMinHeight,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        List<string> items = new() { string.Empty };
+        if (current.Length > 0 && !options.Contains(current))
+            items.Add(current);
+        items.AddRange(options);
+        combo.ItemsSource = items;
+        combo.SelectedItem = items.Contains(current) ? current : string.Empty;
+        return combo;
+    }
+
+    private static string summarizeComplexValue(string type, JsonNode? value)
+    {
+        if (type == "file")
+            return value?.GetValue<string>() ?? string.Empty;
+        if (value is JsonArray array)
+            return $"[{array.Count}]";
+        if (value is JsonObject obj)
+            return $"{{{obj.Count}}}";
+        return value?.ToJsonString() ?? "—";
+    }
+
+    private void showMemberInForm(string memberId)
+    {
+        if (typeData["members"]?[memberId] is JsonObject member && !matchesSearch(memberId, member))
+        {
+            sessionState.SearchText = string.Empty;
+            searchBox.Text = string.Empty;
+        }
+        sessionState.SelectedMemberId = memberId;
+        sessionState.ViewMode = GeneralDataViewMode.Form;
+        populateMemberList(memberId);
+        updateViewMode();
+    }
+
+    private void revealMember(string memberId)
+    {
+        if (typeData["members"]?[memberId] is JsonObject member && !matchesSearch(memberId, member))
+        {
+            sessionState.SearchText = string.Empty;
+            searchBox.Text = string.Empty;
+        }
+        sessionState.SelectedMemberId = memberId;
+        populateMemberList(memberId);
+    }
+
+    private void onTableSelectionChanged(object? sender, SelectionChangedEventArgs args)
+    {
+        if (!syncingSelection && tableList.SelectedItem is GeneralDataTableRow row)
+            selectMember(row.Id);
+    }
+
+    private void onTablePointerPressed(object? sender, PointerPressedEventArgs args)
+    {
+        if (!args.GetCurrentPoint(this).Properties.IsRightButtonPressed)
+            return;
+        string? hitId = null;
+        if (args.Source is Visual source)
+        {
+            Visual? current = source;
+            while (current is not null)
+            {
+                if (current is ListBoxItem item && item.Content is GeneralDataTableRow row)
+                {
+                    hitId = row.Id;
+                    break;
+                }
+                current = current.GetVisualParent();
+            }
+        }
+        if (hitId is not null)
+            selectMember(hitId);
+        args.Handled = true;
+        showMemberContextMenu(hitId, tableList);
     }
 
     private void onMemberListPointerPressed(object? sender, PointerPressedEventArgs args)
@@ -486,10 +1003,10 @@ internal sealed class GeneralDataPage : Grid
             }
         }
         args.Handled = true;
-        showMemberContextMenu(hitId);
+        showMemberContextMenu(hitId, memberList);
     }
 
-    private void showMemberContextMenu(string? memberId)
+    private void showMemberContextMenu(string? memberId, Control anchor)
     {
         ContextMenu menu = new();
         if (memberId is not null)
@@ -515,7 +1032,7 @@ internal sealed class GeneralDataPage : Grid
             removeItem.Click += (_, _) => onRemoveMember(memberId);
             menu.Items.Add(removeItem);
         }
-        menu.Open(memberList);
+        menu.Open(anchor);
     }
 
     private void updateEditBlueprintButton()
@@ -559,8 +1076,7 @@ internal sealed class GeneralDataPage : Grid
         members[id] = newMember;
         typeData["members"] = members;
         gameData.refreshModifiedState();
-        populateMemberList();
-        memberList.SelectedItem = id;
+        revealMember(id);
     }
 
     private async Task onChangeMemberIdAsync(string oldId)
@@ -580,8 +1096,7 @@ internal sealed class GeneralDataPage : Grid
         gameData.RecordSnapshot();
         reorderMemberKey(members, oldId, newId);
         gameData.refreshModifiedState();
-        populateMemberList();
-        memberList.SelectedItem = newId;
+        revealMember(newId);
     }
 
     private async Task onDuplicateMemberAsync(string sourceId)
@@ -604,8 +1119,7 @@ internal sealed class GeneralDataPage : Grid
         gameData.RecordSnapshot();
         members[confirmedId] = (JsonObject)source.DeepClone();
         gameData.refreshModifiedState();
-        populateMemberList();
-        memberList.SelectedItem = confirmedId;
+        revealMember(confirmedId);
     }
 
     private void onRemoveMember(string memberId)
@@ -627,7 +1141,9 @@ internal sealed class GeneralDataPage : Grid
         {
             TextBlock placeholder = new()
             {
-                Text = LocaleService.Get("GENERAL_DATA_NO_MEMBERS"),
+                Text = LocaleService.Get(sessionState.SearchText.Trim().Length == 0
+                    ? "GENERAL_DATA_NO_MEMBERS"
+                    : "GENERAL_DATA_NO_MATCHES"),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 40),
@@ -766,6 +1282,8 @@ internal sealed class GeneralDataPage : Grid
 
     private void setParamReference(JsonObject paramDef, JsonObject? reference)
     {
+        if (JsonNode.DeepEquals(paramDef["reference"], reference))
+            return;
         gameData.RecordSnapshot();
         if (reference is null)
             paramDef.Remove("reference");
@@ -864,10 +1382,11 @@ internal sealed class GeneralDataPage : Grid
             check.IsCheckedChanged += (_, _) =>
             {
                 bool next = check.IsChecked ?? false;
-                if ((rawValue?.GetValue<bool?>() ?? false) == next)
+                if ((member[paramName]?.GetValue<bool?>() ?? false) == next)
                     return;
                 gameData.RecordSnapshot();
                 member[paramName] = next;
+                rawValue = member[paramName];
                 gameData.refreshModifiedState();
             };
             return check;
@@ -877,6 +1396,7 @@ internal sealed class GeneralDataPage : Grid
         {
             int current = rawValue?.GetValue<int?>() ?? 0;
             NumericUpDown num = EditorInputs.CreateNumericUpDown(current, -999999, 999999, 1);
+            HistoryMergeBehavior.Attach(num, gameData);
             num.ValueChanged += (_, _) =>
             {
                 int next = (int)(num.Value ?? 0);
@@ -894,6 +1414,7 @@ internal sealed class GeneralDataPage : Grid
         {
             double current = rawValue?.GetValue<double?>() ?? 0.0;
             NumericUpDown num = EditorInputs.CreateNumericUpDown((decimal)current, -999999, 999999, 0.01m);
+            HistoryMergeBehavior.Attach(num, gameData);
             num.ValueChanged += (_, _) =>
             {
                 double next = (double)(num.Value ?? 0);
@@ -925,6 +1446,8 @@ internal sealed class GeneralDataPage : Grid
                 if (path is null)
                     return;
                 string rel = Path.GetRelativePath(assetsRoot, path).Replace('\\', '/');
+                if (string.Equals(rawValue?.GetValue<string>() ?? string.Empty, rel, StringComparison.Ordinal))
+                    return;
                 gameData.RecordSnapshot();
                 member[paramName] = rel;
                 rawValue = member[paramName];
@@ -968,6 +1491,7 @@ internal sealed class GeneralDataPage : Grid
             {
                 int captured = i;
                 TextBox box = EditorInputs.CreateEditableTextBox(tupleVal[captured]?.GetValue<string>() ?? string.Empty);
+                HistoryMergeBehavior.Attach(box, gameData);
                 box.TextChanged += (_, _) =>
                 {
                     gameData.RecordSnapshot();
@@ -1013,6 +1537,7 @@ internal sealed class GeneralDataPage : Grid
                 return combo;
             }
             TextBox box = EditorInputs.CreateEditableTextBox(current);
+            HistoryMergeBehavior.Attach(box, gameData);
             box.TextChanged += (_, _) =>
             {
                 string next = box.Text ?? string.Empty;
@@ -1092,6 +1617,10 @@ internal sealed class GeneralDataPage : Grid
     }
 }
 
+internal sealed record GeneralDataTableColumn(string Name, JsonObject Definition);
+
+internal sealed record GeneralDataTableRow(string Id, JsonObject Member);
+
 internal sealed class ListFieldEditor : StackPanel
 {
     private readonly GameDataService gameData;
@@ -1108,7 +1637,6 @@ internal sealed class ListFieldEditor : StackPanel
         this.data = data;
         this.refOptions = refOptions;
         Spacing = 4;
-        member[paramName] = data;
         rebuild();
     }
 
@@ -1141,8 +1669,8 @@ internal sealed class ListFieldEditor : StackPanel
                     if ((data[captured]?.GetValue<string>() ?? string.Empty) == next)
                         return;
                     gameData.RecordSnapshot();
+                    attachData();
                     data[captured] = next;
-                    member[paramName] = data;
                     gameData.refreshModifiedState();
                 };
                 editor = combo;
@@ -1150,14 +1678,15 @@ internal sealed class ListFieldEditor : StackPanel
             else
             {
                 TextBox box = EditorInputs.CreateEditableTextBox(current);
+                HistoryMergeBehavior.Attach(box, gameData);
                 box.TextChanged += (_, _) =>
                 {
                     string next = box.Text ?? string.Empty;
                     if ((data[captured]?.GetValue<string>() ?? string.Empty) == next)
                         return;
                     gameData.RecordSnapshot();
+                    attachData();
                     data[captured] = next;
-                    member[paramName] = data;
                     gameData.refreshModifiedState();
                 };
                 editor = box;
@@ -1167,8 +1696,8 @@ internal sealed class ListFieldEditor : StackPanel
             del.Click += (_, _) =>
             {
                 gameData.RecordSnapshot();
+                attachData();
                 data.RemoveAt(captured);
-                member[paramName] = data;
                 gameData.refreshModifiedState();
                 rebuild();
             };
@@ -1185,12 +1714,18 @@ internal sealed class ListFieldEditor : StackPanel
         add.Click += (_, _) =>
         {
             gameData.RecordSnapshot();
+            attachData();
             data.Add(string.Empty);
-            member[paramName] = data;
             gameData.refreshModifiedState();
             rebuild();
         };
         Children.Add(add);
+    }
+
+    private void attachData()
+    {
+        if (!ReferenceEquals(member[paramName], data))
+            member[paramName] = data;
     }
 }
 
@@ -1210,7 +1745,6 @@ internal sealed class DictFieldEditor : StackPanel
         this.data = data;
         this.keyOptions = keyOptions;
         Spacing = 4;
-        member[paramName] = data;
         rebuild();
     }
 
@@ -1245,10 +1779,10 @@ internal sealed class DictFieldEditor : StackPanel
                     if (newKey == capturedKey || string.IsNullOrEmpty(newKey))
                         return;
                     gameData.RecordSnapshot();
+                    attachData();
                     string val = data[capturedKey]?.GetValue<string>() ?? string.Empty;
                     data.Remove(capturedKey);
                     data[newKey] = val;
-                    member[paramName] = data;
                     gameData.refreshModifiedState();
                     rebuild();
                 };
@@ -1257,6 +1791,7 @@ internal sealed class DictFieldEditor : StackPanel
             else
             {
                 TextBox keyBox = EditorInputs.CreateEditableTextBox(entryKey);
+                HistoryMergeBehavior.Attach(keyBox, gameData);
                 string capturedKey = entryKey;
                 keyBox.LostFocus += (_, _) =>
                 {
@@ -1264,10 +1799,10 @@ internal sealed class DictFieldEditor : StackPanel
                     if (string.IsNullOrEmpty(newKey) || newKey == capturedKey || data.ContainsKey(newKey))
                         return;
                     gameData.RecordSnapshot();
+                    attachData();
                     string val = data[capturedKey]?.GetValue<string>() ?? string.Empty;
                     data.Remove(capturedKey);
                     data[newKey] = val;
-                    member[paramName] = data;
                     gameData.refreshModifiedState();
                     rebuild();
                 };
@@ -1276,6 +1811,7 @@ internal sealed class DictFieldEditor : StackPanel
             row.Children.Add(keyEditor);
 
             TextBox valBox = EditorInputs.CreateEditableTextBox(entryValue);
+            HistoryMergeBehavior.Attach(valBox, gameData);
             string capturedEntryKey = entryKey;
             valBox.TextChanged += (_, _) =>
             {
@@ -1285,8 +1821,8 @@ internal sealed class DictFieldEditor : StackPanel
                 if ((data[capturedEntryKey]?.GetValue<string>() ?? string.Empty) == next)
                     return;
                 gameData.RecordSnapshot();
+                attachData();
                 data[capturedEntryKey] = next;
-                member[paramName] = data;
                 gameData.refreshModifiedState();
             };
             Grid.SetColumn(valBox, 2);
@@ -1297,8 +1833,8 @@ internal sealed class DictFieldEditor : StackPanel
             del.Click += (_, _) =>
             {
                 gameData.RecordSnapshot();
+                attachData();
                 data.Remove(capturedDelKey);
-                member[paramName] = data;
                 gameData.refreshModifiedState();
                 rebuild();
             };
@@ -1319,11 +1855,17 @@ internal sealed class DictFieldEditor : StackPanel
             while (data.ContainsKey(newKey))
                 newKey = "key" + n++;
             gameData.RecordSnapshot();
+            attachData();
             data[newKey] = string.Empty;
-            member[paramName] = data;
             gameData.refreshModifiedState();
             rebuild();
         };
         Children.Add(add);
+    }
+
+    private void attachData()
+    {
+        if (!ReferenceEquals(member[paramName], data))
+            member[paramName] = data;
     }
 }

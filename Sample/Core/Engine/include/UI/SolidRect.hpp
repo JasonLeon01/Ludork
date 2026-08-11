@@ -46,6 +46,9 @@ public:
     BIND_METHOD(Pure = true)
     virtual sf::FloatRect getGlobalBounds() const;
 
+    BIND_IGNORE()
+    void refreshDisplayScale() override;
+
 protected:
     BIND_METHOD()
     virtual void draw(sf::RenderTarget& target,
@@ -54,4 +57,5 @@ protected:
 private:
     sf::Vector2f size_;
     sf::RectangleShape shape_;
+    float outlineThickness_ = 0.0f;
 };

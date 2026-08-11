@@ -26,10 +26,11 @@ public sealed class CommonFunctionWindow : Window
     private readonly ProjectSaveService projectSave;
     private readonly BlueprintVariableFieldBuilder fieldBuilder;
     private readonly BlueprintNodeParameterEditorFactory parameterEditorFactory;
-    private readonly BlueprintNodeDefinitionCatalog nodeDefinitionCatalog;
-    private readonly ListBox functionList;
-    private readonly Border graphHost;
-    private readonly Toast toast;
+    private BlueprintNodeDefinitionCatalog? nodeDefinitionCatalog;
+    private ListBox functionList = null!;
+    private Border graphHost = null!;
+    private Toast toast = null!;
+    private readonly DeferredWindowInitializer initializer;
     private CommonFunctionEditorDocument? currentDocument;
     private BlueprintGraphControl? graphControl;
     private bool refreshing;
@@ -47,10 +48,6 @@ public sealed class CommonFunctionWindow : Window
             gameData,
             metadataService,
             classResolver);
-        nodeDefinitionCatalog = BlueprintNodeDefinitionCatalog.CreateGlobal(
-            metadataService,
-            classResolver);
-
         Title = LocaleService.Get("COMMON_FUNCTIONS");
         Width = 1200;
         Height = 800;
@@ -61,6 +58,27 @@ public sealed class CommonFunctionWindow : Window
         FontFamily = FontFamily.Parse("avares://Ludork/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC");
         EditorWindowIcon.Apply(this);
 
+        Content = DeferredWindowInitializer.CreateLoadingContent();
+
+        gameData.DataRestored += onDataRestored;
+        gameData.DataReloaded += onDataReloaded;
+        Closed += onClosed;
+        Deactivated += (_, _) => flushGraph();
+        AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
+        HistoryMergeBehavior.AttachBoundary(this, gameData);
+        initializer = new DeferredWindowInitializer(this, () =>
+        {
+            nodeDefinitionCatalog = BlueprintNodeDefinitionCatalog.CreateGlobal(
+                metadataService,
+                classResolver);
+            Content = createEditorContent();
+            toast = new Toast(this);
+            refreshList(null);
+        });
+    }
+
+    private Control createEditorContent()
+    {
         functionList = new ListBox
         {
             MinWidth = 200,
@@ -87,15 +105,7 @@ public sealed class CommonFunctionWindow : Window
         root.Children.Add(functionList);
         Grid.SetColumn(graphHost, 1);
         root.Children.Add(graphHost);
-        Content = root;
-
-        toast = new Toast(this);
-        gameData.DataRestored += onDataRestored;
-        gameData.DataReloaded += onDataReloaded;
-        Closed += onClosed;
-        Deactivated += (_, _) => flushGraph();
-        AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
-        refreshList(null);
+        return root;
     }
 
     public void FlushPendingChanges()
@@ -120,7 +130,7 @@ public sealed class CommonFunctionWindow : Window
         JsonObject eventGraph = currentDocument.GetEventGraph();
         JsonObject startNodes = currentDocument.GetStartNodes();
         IReadOnlyList<BlueprintGraphNodeDefinition> definitions =
-            nodeDefinitionCatalog.GetNodeDefinitions();
+            nodeDefinitionCatalog!.GetNodeDefinitions();
         BlueprintGraphDocument graphDocument = BlueprintGraphCodec.Load(
             "common",
             eventGraph,
@@ -128,6 +138,7 @@ public sealed class CommonFunctionWindow : Window
             definitions,
             []);
         graphControl = new BlueprintGraphControl(
+            gameData,
             graphDocument,
             definitions,
             fieldBuilder,
@@ -305,6 +316,8 @@ public sealed class CommonFunctionWindow : Window
 
     private async void onKeyDown(object? sender, KeyEventArgs args)
     {
+        if (!initializer.IsInitialized)
+            return;
         if (functionList.IsKeyboardFocusWithin)
         {
             if (args.Key == Key.Delete)
@@ -368,12 +381,16 @@ public sealed class CommonFunctionWindow : Window
 
     private void onDataRestored(object? sender, EventArgs args)
     {
+        if (!initializer.IsInitialized)
+            return;
         disposeGraph(true);
         refreshList(functionList.SelectedItem as string);
     }
 
     private void onDataReloaded(object? sender, EventArgs args)
     {
+        if (!initializer.IsInitialized)
+            return;
         disposeGraph(true);
         refreshList(functionList.SelectedItem as string);
     }
@@ -388,7 +405,8 @@ public sealed class CommonFunctionWindow : Window
         if (graphControl is null)
         {
             currentDocument = null;
-            graphHost.Child = null;
+            if (initializer.IsInitialized)
+                graphHost.Child = null;
             return;
         }
         if (discardPendingChanges)

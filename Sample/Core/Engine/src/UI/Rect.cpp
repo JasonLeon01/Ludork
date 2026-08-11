@@ -98,6 +98,11 @@ void Rect::update(float deltaTime) {
     applyOpacity();
 }
 
+void Rect::refreshDisplayScale() {
+    resize(size_);
+    ControlBase::refreshDisplayScale();
+}
+
 std::shared_ptr<sf::Texture> Rect::placeholderTexture() {
     return std::make_shared<sf::Texture>();
 }

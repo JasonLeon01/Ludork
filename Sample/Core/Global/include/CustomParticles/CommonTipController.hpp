@@ -47,6 +47,7 @@ private:
     };
 
     void removeTopTip();
+    void syncDisplayScale();
     void updatePlacement();
     float evaluateFadeInAlpha(float elapsed) const;
     float evaluateFadeOutAlpha(float elapsed) const;
@@ -61,6 +62,7 @@ private:
     std::shared_ptr<ParticleSystem> particleSystem_;
     std::vector<TipItem> tips_;
     bool shifting_ = false;
+    float displayScale_ = 1.0f;
 
     static std::unordered_map<std::string, std::shared_ptr<Curve>> curves_;
     static std::shared_ptr<PlainTextConfig> textConfig_;

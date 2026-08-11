@@ -22,6 +22,15 @@ public sealed class TilesetImageEditor : Control, IDisposable
     private Bitmap? image;
     private JsonObject? data;
     private bool isAutoTile;
+    private bool batchPainting;
+    private bool batchChanged;
+    private bool batchSnapshotRecorded;
+    private int batchColumns;
+    private int batchRows;
+    private int batchCount;
+    private TilesetEditMode batchMode;
+    private (int X, int Y) batchLastCell;
+    private JsonNode? batchSourceValue;
 
     public TilesetImageEditor(int cellSize)
     {
@@ -32,7 +41,7 @@ public sealed class TilesetImageEditor : Control, IDisposable
     public TilesetEditMode Mode { get; set; }
     public Action? BeforeDataChanged { get; set; }
     public Action? DataChanged { get; set; }
-    public Action<JsonObject>? MaterialEditRequested { get; set; }
+    public Action<JsonObject, Action<JsonObject>>? MaterialEditRequested { get; set; }
 
     public void setData(JsonObject? nextData, string? imagePath, bool nextIsAutoTile)
     {
@@ -93,9 +102,59 @@ public sealed class TilesetImageEditor : Control, IDisposable
         Focus();
         if (isAutoTile)
             editAutoTile();
+        else if (args.KeyModifiers.HasFlag(KeyModifiers.Shift))
+        {
+            beginBatchPaint(x, y, columns, rows);
+            args.Pointer.Capture(this);
+        }
         else
             editTileset(y * columns + x, position, x, y, columns * rows);
         args.Handled = true;
+    }
+
+    protected override void OnPointerMoved(PointerEventArgs args)
+    {
+        base.OnPointerMoved(args);
+        if (!batchPainting
+            || image is null
+            || data is null
+            || !args.GetCurrentPoint(this).Properties.IsLeftButtonPressed
+            || !tryGetCell(args.GetPosition(this), batchColumns, batchRows, out int x, out int y))
+        {
+            return;
+        }
+        if (batchLastCell == (x, y))
+            return;
+        paintBatchLine(batchLastCell, (x, y));
+        batchLastCell = (x, y);
+        args.Handled = true;
+    }
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs args)
+    {
+        base.OnPointerReleased(args);
+        if (!batchPainting)
+            return;
+        if (tryGetCell(
+                args.GetPosition(this),
+                batchColumns,
+                batchRows,
+                out int x,
+                out int y)
+            && batchLastCell != (x, y))
+        {
+            paintBatchLine(batchLastCell, (x, y));
+            batchLastCell = (x, y);
+        }
+        completeBatchPaint();
+        args.Pointer.Capture(null);
+        args.Handled = true;
+    }
+
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs args)
+    {
+        base.OnPointerCaptureLost(args);
+        completeBatchPaint();
     }
 
     public void Dispose()
@@ -180,18 +239,20 @@ public sealed class TilesetImageEditor : Control, IDisposable
 
     private void editTileset(int index, Point position, int x, int y, int count)
     {
-        BeforeDataChanged?.Invoke();
+        if (data is null)
+            return;
         switch (Mode)
         {
             case TilesetEditMode.Passable:
+                BeforeDataChanged?.Invoke();
                 JsonArray passable = ensureArray("passable", count, false);
                 passable[index] = !(passable[index]?.GetValue<bool?>() ?? false);
                 break;
             case TilesetEditMode.Material:
-                JsonArray materials = ensureArray("materials", count, createDefaultMaterial);
-                MaterialEditRequested?.Invoke(getObject(materials, index) ?? createAndAssign(materials, index));
+                requestTilesetMaterialEdit(data, index, count);
                 return;
             case TilesetEditMode.Dir4:
+                BeforeDataChanged?.Invoke();
                 JsonArray dir4 = ensureArray("dir4", count, createDefaultDir4);
                 JsonArray value = getArray(dir4[index]) ?? createAndAssignDir4(dir4, index);
                 int localX = (int)position.X - x * cellSize;
@@ -216,22 +277,167 @@ public sealed class TilesetImageEditor : Control, IDisposable
             InvalidateVisual();
             return;
         }
-        if (data["material"] is null)
+        JsonObject target = data;
+        JsonObject material = (JsonObject)(target["material"] as JsonObject ?? createDefaultMaterial()).DeepClone();
+        MaterialEditRequested?.Invoke(material, edited => applyAutoTileMaterial(target, edited));
+    }
+
+    private void beginBatchPaint(int x, int y, int columns, int rows)
+    {
+        if (data is null)
+            return;
+        batchPainting = true;
+        batchChanged = false;
+        batchSnapshotRecorded = false;
+        batchColumns = columns;
+        batchRows = rows;
+        batchCount = columns * rows;
+        batchMode = Mode;
+        batchLastCell = (x, y);
+        batchSourceValue = getModeValue(data, y * columns + x, batchMode);
+    }
+
+    private void paintBatchLine((int X, int Y) start, (int X, int Y) end)
+    {
+        int x = start.X;
+        int y = start.Y;
+        int dx = Math.Abs(end.X - start.X);
+        int sx = start.X < end.X ? 1 : -1;
+        int dy = -Math.Abs(end.Y - start.Y);
+        int sy = start.Y < end.Y ? 1 : -1;
+        int error = dx + dy;
+        bool changed = false;
+        while (true)
+        {
+            changed |= paintBatchCell(y * batchColumns + x);
+            if (x == end.X && y == end.Y)
+                break;
+            int doubled = error * 2;
+            if (doubled >= dy)
+            {
+                error += dy;
+                x += sx;
+            }
+            if (doubled <= dx)
+            {
+                error += dx;
+                y += sy;
+            }
+        }
+        if (changed)
+            InvalidateVisual();
+    }
+
+    private bool paintBatchCell(int index)
+    {
+        if (data is null || batchSourceValue is null || index < 0 || index >= batchCount)
+            return false;
+        JsonNode current = getModeValue(data, index, batchMode);
+        if (JsonNode.DeepEquals(current, batchSourceValue))
+            return false;
+        if (!batchSnapshotRecorded)
+        {
             BeforeDataChanged?.Invoke();
-        JsonObject material = data["material"] as JsonObject ?? createDefaultMaterial();
-        data["material"] = material;
-        MaterialEditRequested?.Invoke(material);
+            batchSnapshotRecorded = true;
+        }
+        switch (batchMode)
+        {
+            case TilesetEditMode.Passable:
+                ensureArray("passable", batchCount, false)[index] = batchSourceValue.GetValue<bool>();
+                break;
+            case TilesetEditMode.Material:
+                ensureArray("materials", batchCount, createDefaultMaterial)[index] = batchSourceValue.DeepClone();
+                break;
+            case TilesetEditMode.Dir4:
+                ensureArray("dir4", batchCount, createDefaultDir4)[index] = batchSourceValue.DeepClone();
+                break;
+        }
+        batchChanged = true;
+        return true;
+    }
+
+    private void completeBatchPaint()
+    {
+        if (!batchPainting)
+            return;
+        batchPainting = false;
+        batchSourceValue = null;
+        if (!batchChanged)
+            return;
+        batchChanged = false;
+        DataChanged?.Invoke();
+        InvalidateVisual();
+    }
+
+    private void requestTilesetMaterialEdit(JsonObject target, int index, int count)
+    {
+        JsonObject material = (JsonObject)(getObject(target["materials"] as JsonArray, index) ?? createDefaultMaterial()).DeepClone();
+        MaterialEditRequested?.Invoke(material, edited => applyTilesetMaterial(target, index, count, edited));
+    }
+
+    private void applyTilesetMaterial(JsonObject target, int index, int count, JsonObject edited)
+    {
+        JsonObject current = getObject(target["materials"] as JsonArray, index) ?? createDefaultMaterial();
+        if (JsonNode.DeepEquals(current, edited))
+            return;
+        BeforeDataChanged?.Invoke();
+        ensureArray(target, "materials", count, createDefaultMaterial)[index] = edited.DeepClone();
+        DataChanged?.Invoke();
+        InvalidateVisual();
+    }
+
+    private void applyAutoTileMaterial(JsonObject target, JsonObject edited)
+    {
+        JsonObject current = target["material"] as JsonObject ?? createDefaultMaterial();
+        if (JsonNode.DeepEquals(current, edited))
+            return;
+        BeforeDataChanged?.Invoke();
+        target["material"] = edited.DeepClone();
+        DataChanged?.Invoke();
+        InvalidateVisual();
+    }
+
+    private static JsonNode getModeValue(JsonObject source, int index, TilesetEditMode mode)
+    {
+        return mode switch
+        {
+            TilesetEditMode.Passable => JsonValue.Create(getBool(source["passable"] as JsonArray, index, false))!,
+            TilesetEditMode.Material => (getObject(source["materials"] as JsonArray, index) ?? createDefaultMaterial()).DeepClone(),
+            TilesetEditMode.Dir4 => createDir4Value(source, index),
+            _ => throw new InvalidOperationException(),
+        };
+    }
+
+    private static JsonArray createDir4Value(JsonObject source, int index)
+    {
+        JsonArray? value = getArray(source["dir4"] is JsonArray values && index < values.Count ? values[index] : null);
+        return new JsonArray(
+            value?[0]?.GetValue<bool?>() ?? true,
+            value?[1]?.GetValue<bool?>() ?? true,
+            value?[2]?.GetValue<bool?>() ?? true,
+            value?[3]?.GetValue<bool?>() ?? true);
+    }
+
+    private bool tryGetCell(Point position, int columns, int rows, out int x, out int y)
+    {
+        x = (int)(position.X / cellSize);
+        y = (int)(position.Y / cellSize);
+        return x >= 0 && y >= 0 && x < columns && y < rows;
     }
 
     private JsonArray ensureArray(string name, int count, Func<JsonNode?> createValue)
     {
-        JsonArray value = data?[name] as JsonArray ?? new JsonArray();
+        return ensureArray(data!, name, count, createValue);
+    }
+
+    private static JsonArray ensureArray(JsonObject target, string name, int count, Func<JsonNode?> createValue)
+    {
+        JsonArray value = target[name] as JsonArray ?? new JsonArray();
         while (value.Count < count)
             value.Add(createValue());
         while (value.Count > count)
             value.RemoveAt(value.Count - 1);
-        if (data is not null)
-            data[name] = value;
+        target[name] = value;
         return value;
     }
 

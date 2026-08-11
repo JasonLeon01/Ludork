@@ -2,37 +2,99 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
-using System.Text.Json.Nodes;
 using Ludork.Services;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Text.Json.Nodes;
 
 namespace Ludork.ViewModels;
 
+public enum ActorLibraryScope
+{
+    All,
+    Favourites,
+    Recent,
+}
+
+public sealed record ActorLibraryScopeOption(ActorLibraryScope Scope, string DisplayName);
+
 public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
 {
+    private const int MaximumRecentItems = 20;
+    private const string BlueprintPrefix = "Data.Blueprints.";
     private readonly GameDataService gameData;
+    private readonly ProjectConfigService projectConfig;
+    private readonly BlueprintClassResolver classResolver;
     private readonly BlueprintPreviewService previewService;
     private readonly FileIconService iconService;
-    private bool previewsActive;
+    private readonly Dictionary<string, ActorQueueItemViewModel> catalog = new(StringComparer.Ordinal);
+    private readonly List<string> recentReferences = [];
+    private bool refreshing;
     private bool disposed;
+    private string? selectedReference;
     [ObservableProperty] private ActorQueueItemViewModel? selectedItem;
+    [ObservableProperty] private string searchText = string.Empty;
+    [ObservableProperty] private ActorLibraryScopeOption? selectedScope;
+    [ObservableProperty] private string? selectedCategory;
 
-    public ActorQueueViewModel(GameDataService gameData, BlueprintPreviewService previewService, FileIconService iconService)
+    public ActorQueueViewModel(
+        GameDataService gameData,
+        ProjectConfigService projectConfig,
+        BlueprintClassResolver classResolver,
+        BlueprintPreviewService previewService,
+        FileIconService iconService)
     {
         this.gameData = gameData;
+        this.projectConfig = projectConfig;
+        this.classResolver = classResolver;
         this.previewService = previewService;
         this.iconService = iconService;
+        Scopes.Add(new ActorLibraryScopeOption(ActorLibraryScope.All, LocaleService.Get("ACTOR_LIBRARY_ALL")));
+        Scopes.Add(new ActorLibraryScopeOption(ActorLibraryScope.Favourites, LocaleService.Get("ACTOR_LIBRARY_FAVOURITES")));
+        Scopes.Add(new ActorLibraryScopeOption(ActorLibraryScope.Recent, LocaleService.Get("ACTOR_LIBRARY_RECENT")));
+        SelectedScope = Scopes[0];
         gameData.DataReloaded += onDataReloaded;
+        refreshCatalog();
     }
 
     public ObservableCollection<ActorQueueItemViewModel> Items { get; } = [];
+    public ObservableCollection<ActorLibraryScopeOption> Scopes { get; } = [];
+    public ObservableCollection<string> Categories { get; } = [];
+    public IReadOnlyList<string> BlueprintReferences => catalog.Keys.ToArray();
     public event EventHandler<string?>? SelectionChanged;
     public event EventHandler<string>? BlueprintOpenRequested;
     public event EventHandler<string>? BlueprintLocateRequested;
 
-    partial void OnSelectedItemChanged(ActorQueueItemViewModel? value) => SelectionChanged?.Invoke(this, value?.BlueprintReference);
+    partial void OnSelectedItemChanged(ActorQueueItemViewModel? value)
+    {
+        if (refreshing)
+            return;
+        selectedReference = value?.BlueprintReference;
+        if (value is not null)
+        {
+            promoteRecent(value.BlueprintReference);
+            if (SelectedScope?.Scope == ActorLibraryScope.Recent)
+                refreshVisibleItems();
+        }
+        SelectionChanged?.Invoke(this, selectedReference);
+    }
+
+    partial void OnSearchTextChanged(string value)
+    {
+        refreshVisibleItems();
+    }
+
+    partial void OnSelectedScopeChanged(ActorLibraryScopeOption? value)
+    {
+        refreshVisibleItems();
+    }
+
+    partial void OnSelectedCategoryChanged(string? value)
+    {
+        refreshVisibleItems();
+    }
 
     public void Select(ActorQueueItemViewModel? item, bool notifyIfUnchanged = false)
     {
@@ -47,46 +109,66 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
 
     public void AddOrPromote(string blueprintReference)
     {
-        ActorQueueItemViewModel? existing = Items.FirstOrDefault(item => item.BlueprintReference == blueprintReference);
-        if (existing is not null)
+        if (!catalog.TryGetValue(blueprintReference, out ActorQueueItemViewModel? item))
         {
-            Items.Remove(existing);
-            existing.Dispose();
+            refreshCatalog();
+            if (!catalog.TryGetValue(blueprintReference, out item))
+                return;
         }
-        string key = blueprintReference["Data.Blueprints.".Length..].Replace('.', '/');
-        gameData.BlueprintsData.TryGetValue(key, out JsonObject? data);
-        Bitmap? fallback = previewService.tryLoadPreview(data ?? [], 48, key);
-        ActorVisualDescriptor? descriptor = previewService.tryResolveActorVisual(blueprintReference);
-        ActorQueueItemViewModel item = new ActorQueueItemViewModel(
-            blueprintReference,
-            fallback ?? iconService.getShellIcon(key + ".json", false, 48),
-            descriptor is { RequiresPreviewService: true }
-                ? previewService.ActorPreviews.Acquire(descriptor, 48, previewsActive)
-                : null);
-        item.IsPreviewActive = previewsActive;
-        Items.Insert(0, item);
-        SelectedItem = item;
+        promoteRecent(blueprintReference);
+        selectedReference = blueprintReference;
+        SearchText = string.Empty;
+        SelectedCategory = Categories.FirstOrDefault();
+        SelectedScope = Scopes.First(option => option.Scope == ActorLibraryScope.Recent);
+        refreshVisibleItems();
+        Select(item, true);
     }
 
     public void Remove(ActorQueueItemViewModel item, ActorQueueItemViewModel? previousItem = null)
     {
-        if (previousItem is not null && previousItem != item && Items.Contains(previousItem))
-            Select(previousItem);
-        if (SelectedItem == item)
-            Select(null);
-        Items.Remove(item);
-        item.Dispose();
+        RemoveRecent(item, previousItem);
+    }
+
+    public void RemoveRecent(ActorQueueItemViewModel item, ActorQueueItemViewModel? previousItem = null)
+    {
+        recentReferences.Remove(item.BlueprintReference);
+        item.IsRecent = false;
+        if (selectedReference == item.BlueprintReference)
+        {
+            selectedReference = previousItem?.BlueprintReference;
+            SelectionChanged?.Invoke(this, selectedReference);
+        }
+        refreshVisibleItems();
+    }
+
+    public void ToggleFavorite(ActorQueueItemViewModel item)
+    {
+        item.IsFavorite = !item.IsFavorite;
+        projectConfig.SetActorFavorite(item.BlueprintReference, item.IsFavorite);
+        if (SelectedScope?.Scope == ActorLibraryScope.Favourites)
+            refreshVisibleItems();
+    }
+
+    public void RemapReferences(IReadOnlyDictionary<string, string> references)
+    {
+        foreach (KeyValuePair<string, string> pair in references)
+            projectConfig.RemapActorFavorite(pair.Key, pair.Value);
+        for (int index = 0; index < recentReferences.Count; index++)
+        {
+            if (references.TryGetValue(recentReferences[index], out string? replacement))
+                recentReferences[index] = replacement;
+        }
+        if (selectedReference is not null
+            && references.TryGetValue(selectedReference, out string? selectedReplacement))
+        {
+            selectedReference = selectedReplacement;
+            SelectionChanged?.Invoke(this, selectedReference);
+        }
     }
 
     public void PurgeStale()
     {
-        foreach (ActorQueueItemViewModel item in Items.Where(item => !gameData.BlueprintsData.ContainsKey(item.Key)).ToArray())
-        {
-            Items.Remove(item);
-            item.Dispose();
-        }
-        if (SelectedItem is not null && !Items.Contains(SelectedItem))
-            SelectedItem = null;
+        refreshCatalog();
     }
 
     public void RequestOpen(ActorQueueItemViewModel? item)
@@ -101,11 +183,10 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
             BlueprintLocateRequested?.Invoke(this, item.BlueprintReference);
     }
 
-    public void SetPreviewActive(bool active)
+    public void DeactivatePreviews()
     {
-        previewsActive = active;
-        foreach (ActorQueueItemViewModel item in Items)
-            item.IsPreviewActive = active;
+        foreach (ActorQueueItemViewModel item in catalog.Values)
+            item.IsPreviewActive = false;
     }
 
     public void Dispose()
@@ -114,99 +195,204 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
             return;
         disposed = true;
         gameData.DataReloaded -= onDataReloaded;
-        foreach (ActorQueueItemViewModel item in Items)
+        foreach (ActorQueueItemViewModel item in catalog.Values)
             item.Dispose();
+        catalog.Clear();
         Items.Clear();
         SelectedItem = null;
     }
 
     private void onDataReloaded(object? sender, EventArgs args)
     {
-        refreshPreviews();
+        refreshCatalog();
     }
 
-    private void refreshPreviews()
+    private void promoteRecent(string blueprintReference)
+    {
+        recentReferences.Remove(blueprintReference);
+        recentReferences.Insert(0, blueprintReference);
+        if (recentReferences.Count > MaximumRecentItems)
+            recentReferences.RemoveRange(MaximumRecentItems, recentReferences.Count - MaximumRecentItems);
+        foreach (ActorQueueItemViewModel catalogItem in catalog.Values)
+            catalogItem.IsRecent = recentReferences.Contains(catalogItem.BlueprintReference, StringComparer.Ordinal);
+    }
+
+    private void refreshCatalog()
     {
         if (disposed)
             return;
-        PurgeStale();
-        foreach (ActorQueueItemViewModel item in Items)
+        bool selectedRemoved = false;
+        HashSet<string> validReferences = new HashSet<string>(StringComparer.Ordinal);
+        foreach (KeyValuePair<string, JsonObject> pair in gameData.BlueprintsData)
         {
-            gameData.BlueprintsData.TryGetValue(item.Key, out JsonObject? blueprint);
-            ActorVisualDescriptor? descriptor = previewService.tryResolveActorVisual(item.BlueprintReference);
-            Bitmap? fallback = previewService.tryLoadPreview(blueprint ?? [], 48, item.Key);
-            item.UpdatePreview(
-                descriptor is { RequiresPreviewService: true }
-                    ? previewService.ActorPreviews.Acquire(descriptor, 48, previewsActive)
-                    : null,
-                fallback ?? iconService.getShellIcon(item.Key + ".json", false, 48));
+            string reference = BlueprintPrefix + pair.Key.Replace('/', '.');
+            if (!classResolver.IsDerivedFrom(reference, "Engine.Actor"))
+                continue;
+            validReferences.Add(reference);
+            ActorVisualDescriptor? descriptor = previewService.tryResolveActorVisual(reference);
+            IImage? fallback = previewService.tryLoadPreview(pair.Value, 48, pair.Key)
+                ?? iconService.getShellIcon(pair.Key + ".json", false, 48);
+            if (catalog.TryGetValue(reference, out ActorQueueItemViewModel? existing))
+            {
+                existing.UpdatePreview(descriptor, fallback);
+                existing.IsFavorite = projectConfig.IsActorFavorite(reference);
+                existing.IsRecent = recentReferences.Contains(reference, StringComparer.Ordinal);
+                continue;
+            }
+            catalog[reference] = new ActorQueueItemViewModel(
+                reference,
+                fallback,
+                descriptor,
+                previewService.ActorPreviews,
+                projectConfig.IsActorFavorite(reference),
+                recentReferences.Contains(reference, StringComparer.Ordinal));
         }
+        foreach (string staleFavorite in projectConfig.GetActorFavorites()
+            .Where(reference => !validReferences.Contains(reference)))
+        {
+            projectConfig.SetActorFavorite(staleFavorite, false);
+        }
+        foreach (string staleReference in catalog.Keys.Where(reference => !validReferences.Contains(reference)).ToArray())
+        {
+            projectConfig.SetActorFavorite(staleReference, false);
+            catalog[staleReference].Dispose();
+            catalog.Remove(staleReference);
+            recentReferences.Remove(staleReference);
+            if (selectedReference == staleReference)
+            {
+                selectedReference = null;
+                selectedRemoved = true;
+            }
+        }
+        Categories.Clear();
+        Categories.Add(LocaleService.Get("ALL_CATEGORIES"));
+        foreach (string category in catalog.Values
+            .Select(item => item.Category)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(value => value, StringComparer.Ordinal))
+        {
+            Categories.Add(category);
+        }
+        if (SelectedCategory is null || !Categories.Contains(SelectedCategory))
+            SelectedCategory = Categories.FirstOrDefault();
+        refreshVisibleItems();
+        if (selectedRemoved)
+            SelectionChanged?.Invoke(this, null);
+    }
+
+    private void refreshVisibleItems()
+    {
+        if (disposed)
+            return;
+        ActorLibraryScope scope = SelectedScope?.Scope ?? ActorLibraryScope.All;
+        string allCategories = Categories.FirstOrDefault() ?? LocaleService.Get("ALL_CATEGORIES");
+        string category = SelectedCategory ?? allCategories;
+        string query = SearchText.Trim();
+        IEnumerable<ActorQueueItemViewModel> source = scope == ActorLibraryScope.Recent
+            ? recentReferences
+                .Select(reference => catalog.GetValueOrDefault(reference))
+                .OfType<ActorQueueItemViewModel>()
+            : catalog.Values.OrderBy(item => item.Category, StringComparer.Ordinal)
+                .ThenBy(item => item.DisplayName, StringComparer.Ordinal);
+        if (scope == ActorLibraryScope.Favourites)
+            source = source.Where(item => item.IsFavorite);
+        if (!string.Equals(category, allCategories, StringComparison.Ordinal))
+            source = source.Where(item => string.Equals(item.Category, category, StringComparison.Ordinal));
+        if (query.Length != 0)
+        {
+            source = source.Where(item => item.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase)
+                || item.BlueprintReference.Contains(query, StringComparison.OrdinalIgnoreCase));
+        }
+
+        refreshing = true;
+        foreach (ActorQueueItemViewModel item in Items)
+            item.IsPreviewActive = false;
+        Items.Clear();
+        foreach (ActorQueueItemViewModel item in source)
+            Items.Add(item);
+        SelectedItem = selectedReference is null
+            ? null
+            : Items.FirstOrDefault(item => item.BlueprintReference == selectedReference);
+        refreshing = false;
     }
 }
 
 public sealed class ActorQueueItemViewModel : ViewModelBase, IDisposable
 {
+    private readonly ActorPreviewService actorPreviewService;
     private IImage? fallback;
+    private ActorVisualDescriptor? descriptor;
     private ActorPreviewLease? previewLease;
     private IImage? icon;
     private bool previewActive;
+    private bool isFavorite;
+    private bool isRecent;
     private bool disposed;
 
     public ActorQueueItemViewModel(
         string blueprintReference,
         IImage? fallback,
-        ActorPreviewLease? previewLease)
+        ActorVisualDescriptor? descriptor,
+        ActorPreviewService actorPreviewService,
+        bool isFavorite,
+        bool isRecent)
     {
         BlueprintReference = blueprintReference;
         this.fallback = fallback;
+        this.descriptor = descriptor;
+        this.actorPreviewService = actorPreviewService;
+        this.isFavorite = isFavorite;
+        this.isRecent = isRecent;
         icon = fallback;
-        this.previewLease = previewLease;
         Key = blueprintReference["Data.Blueprints.".Length..].Replace('.', '/');
         DisplayName = Key.Split('/').LastOrDefault() ?? Key;
-        if (previewLease is not null)
-        {
-            previewLease.FrameChanged += onPreviewFrameChanged;
-            updateIcon();
-        }
+        string[] pathParts = Key.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        Category = pathParts.Length > 1 ? pathParts[0] : LocaleService.Get("UNCATEGORISED");
     }
 
     public string BlueprintReference { get; }
     public string Key { get; }
     public string DisplayName { get; }
+    public string Category { get; }
     public IImage? Icon
     {
         get => icon;
         private set => SetProperty(ref icon, value);
     }
-
+    public bool IsFavorite
+    {
+        get => isFavorite;
+        set => SetProperty(ref isFavorite, value);
+    }
+    public bool IsRecent
+    {
+        get => isRecent;
+        set => SetProperty(ref isRecent, value);
+    }
     public bool IsPreviewActive
     {
         get => previewActive;
         set
         {
+            if (previewActive == value || disposed)
+                return;
             previewActive = value;
+            if (value)
+                ensurePreviewLease();
             if (previewLease is not null)
                 previewLease.IsActive = value;
         }
     }
 
-    public void UpdatePreview(
-        ActorPreviewLease? nextLease,
-        IImage? nextFallback)
+    public void UpdatePreview(ActorVisualDescriptor? nextDescriptor, IImage? nextFallback)
     {
         IImage? previousFallback = fallback;
-        ActorPreviewLease? previousLease = previewLease;
         fallback = nextFallback;
-        if (previousLease is not null)
-            previousLease.FrameChanged -= onPreviewFrameChanged;
-        previewLease = nextLease;
-        if (previewLease is not null)
-        {
-            previewLease.FrameChanged += onPreviewFrameChanged;
-            previewLease.IsActive = previewActive;
-        }
-        updateIcon();
-        previousLease?.Dispose();
+        descriptor = nextDescriptor;
+        releasePreviewLease();
+        Icon = fallback;
+        if (previewActive)
+            ensurePreviewLease();
         if (!ReferenceEquals(previousFallback, nextFallback))
             (previousFallback as IDisposable)?.Dispose();
     }
@@ -216,15 +402,28 @@ public sealed class ActorQueueItemViewModel : ViewModelBase, IDisposable
         if (disposed)
             return;
         disposed = true;
-        if (previewLease is not null)
-        {
-            previewLease.FrameChanged -= onPreviewFrameChanged;
-            previewLease.Dispose();
-            previewLease = null;
-        }
+        releasePreviewLease();
         (fallback as IDisposable)?.Dispose();
         fallback = null;
-        icon = null;
+        Icon = null;
+    }
+
+    private void ensurePreviewLease()
+    {
+        if (previewLease is not null || descriptor is not { RequiresPreviewService: true } visual)
+            return;
+        previewLease = actorPreviewService.Acquire(visual, 48, previewActive);
+        previewLease.FrameChanged += onPreviewFrameChanged;
+        updateIcon();
+    }
+
+    private void releasePreviewLease()
+    {
+        if (previewLease is null)
+            return;
+        previewLease.FrameChanged -= onPreviewFrameChanged;
+        previewLease.Dispose();
+        previewLease = null;
     }
 
     private void onPreviewFrameChanged(object? sender, EventArgs args)
@@ -234,19 +433,13 @@ public sealed class ActorQueueItemViewModel : ViewModelBase, IDisposable
             updateIcon();
             return;
         }
-        Dispatcher.UIThread.Post(() => updateIcon());
+        Dispatcher.UIThread.Post(updateIcon);
     }
 
     private void updateIcon()
     {
         if (disposed)
             return;
-        IImage? next = previewLease?.Frame ?? fallback;
-        if (ReferenceEquals(Icon, next))
-        {
-            OnPropertyChanged(nameof(Icon));
-            return;
-        }
-        Icon = next;
+        Icon = previewLease?.Frame ?? fallback;
     }
 }

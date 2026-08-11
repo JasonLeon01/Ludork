@@ -64,6 +64,8 @@ public sealed class MapPanel : Control
     private AutoTileRenderer? autoTileRenderer;
     private IMapLayerShaderRenderer? layerShaderRenderer;
     private string? selectedLayerName;
+    private string? soloLayerName;
+    private bool selectedLayerEditable;
     private TileSelection? selectedTiles;
     private string? selectedAutoTileKey;
     private string? pendingActor;
@@ -114,12 +116,14 @@ public sealed class MapPanel : Control
     public string? PendingActor => pendingActor;
     public string? SelectedActorLayer => selectedActorLayer;
     public int? SelectedActorIndex => selectedActorIndex;
+    public bool IsSelectedLayerEditable => selectedLayerEditable;
     public MapEditMode EditMode { get; private set; } = MapEditMode.Tile;
     public event EventHandler<TileSelectionChangedEventArgs>? TileSelectionPicked;
     public event EventHandler<ActorSelectionChangedEventArgs>? ActorSelectionChanged;
     public event EventHandler? ActorDataChanged;
     public event EventHandler<LightSelectionChangedEventArgs>? LightSelectionChanged;
     public event EventHandler<LightDataChangedEventArgs>? LightDataChanged;
+    public event EventHandler<string>? EditFeedbackRequested;
 
     public void configure(GameDataService nextGameData, BlueprintPreviewService nextPreviewService)
     {
@@ -167,6 +171,16 @@ public sealed class MapPanel : Control
         InvalidateVisual();
     }
 
+    public void setLayerDisplayState(string? soloLayer, bool editable)
+    {
+        soloLayerName = string.IsNullOrWhiteSpace(soloLayer) ? null : soloLayer;
+        selectedLayerEditable = editable;
+        flushPendingBrushLayers();
+        disposeMapRenderCaches();
+        scheduleActorPreviewActivityUpdate();
+        InvalidateVisual();
+    }
+
     public void setTileSelection(TileSelection? tiles, string? autoTileKey)
     {
         selectedTiles = tiles;
@@ -198,6 +212,31 @@ public sealed class MapPanel : Control
     {
         invalidateActorRenderStates();
         InvalidateVisual();
+    }
+
+    public bool updateSelectedActorPosition(int x, int y)
+    {
+        if (!selectedLayerEditable
+            || getSelectedActor() is not JsonObject actor
+            || !tryGetMapSize(out int width, out int height))
+        {
+            return false;
+        }
+        int nextX = Math.Clamp(x, 0, width - 1);
+        int nextY = Math.Clamp(y, 0, height - 1);
+        if (tryGetActorPosition(actor, out int currentX, out int currentY)
+            && currentX == nextX
+            && currentY == nextY)
+        {
+            return false;
+        }
+        gameData?.RecordSnapshot();
+        actor["position"] = new JsonArray(nextX, nextY);
+        markMapModified();
+        ActorDataChanged?.Invoke(this, EventArgs.Empty);
+        scheduleActorPreviewActivityUpdate();
+        InvalidateVisual();
+        return true;
     }
 
     public void selectActor(string layerName, int? actorIndex)
@@ -294,7 +333,7 @@ public sealed class MapPanel : Control
             {
                 foreach (KeyValuePair<string, JsonNode?> entry in layers)
                 {
-                    if (entry.Value is not JsonObject layer || !isLayerVisible(layer))
+                    if (entry.Value is not JsonObject layer || !isLayerVisible(entry.Key, layer))
                         continue;
                     double opacity = selectedLayerName is null || entry.Key == selectedLayerName ? 1.0 : OtherLayerOpacity;
                     using (context.PushOpacity(opacity))
@@ -342,6 +381,12 @@ public sealed class MapPanel : Control
         if (point.Properties.IsRightButtonPressed)
         {
             pickTileAt(grid);
+            args.Handled = true;
+            return;
+        }
+        if (!selectedLayerEditable)
+        {
+            showEditFeedback("LAYER_NOT_EDITABLE");
             args.Handled = true;
             return;
         }
@@ -409,7 +454,11 @@ public sealed class MapPanel : Control
     protected override void OnPointerExited(PointerEventArgs args)
     {
         base.OnPointerExited(args);
-        if (!tileBrushDragging && !lightMoveDragging && !lightRadiusDragging && actorMoveIndex is null)
+        if (!tileBrushDragging
+            && rectangleStart is null
+            && !lightMoveDragging
+            && !lightRadiusDragging
+            && actorMoveIndex is null)
         {
             hoverGrid = null;
             InvalidateVisual();
@@ -419,13 +468,14 @@ public sealed class MapPanel : Control
     protected override void OnKeyDown(KeyEventArgs args)
     {
         base.OnKeyDown(args);
-        if (EditorShortcuts.HasPrimaryModifier(args.KeyModifiers) && args.Key == Key.C && EditMode == MapEditMode.Actor)
+        bool primary = EditorShortcuts.HasPrimaryModifier(args.KeyModifiers);
+        if (primary && args.Key == Key.C && EditMode == MapEditMode.Actor)
         {
             copySelectedActorToClipboard();
             args.Handled = true;
             return;
         }
-        if (EditorShortcuts.HasPrimaryModifier(args.KeyModifiers) && args.Key == Key.V && EditMode == MapEditMode.Actor && hoverGrid is { } pasteGrid)
+        if (primary && args.Key == Key.V && EditMode == MapEditMode.Actor && hoverGrid is { } pasteGrid)
         {
             pasteActor(pasteGrid);
             args.Handled = true;
@@ -667,7 +717,7 @@ public sealed class MapPanel : Control
             HashSet<string> activeLayers = new(StringComparer.Ordinal);
             foreach (KeyValuePair<string, JsonNode?> entry in layers)
             {
-                if (entry.Value is not JsonObject layer || !isLayerVisible(layer))
+                if (entry.Value is not JsonObject layer || !isLayerVisible(entry.Key, layer))
                     continue;
                 activeLayers.Add(entry.Key);
                 if (!layerRenderCaches.ContainsKey(entry.Key) || dirtyLayerNames.Contains(entry.Key))
@@ -890,7 +940,7 @@ public sealed class MapPanel : Control
         foreach (KeyValuePair<string, List<ActorRenderState>> entry in actorRenderStates)
         {
             bool layerVisible = CurrentMapData?["layers"]?[entry.Key] is JsonObject layer
-                && isLayerVisible(layer);
+                && isLayerVisible(entry.Key, layer);
             foreach (ActorRenderState actor in entry.Value)
             {
                 if (actor.PreviewLease is null)
@@ -1073,11 +1123,14 @@ public sealed class MapPanel : Control
         if (hit is int index)
         {
             setSelectedActor(selectedLayerName, index, true);
-            actorMoveIndex = index;
-            actorMoveLayer = selectedLayerName;
-            args.Pointer.Capture(this);
+            if (selectedLayerEditable)
+            {
+                actorMoveIndex = index;
+                actorMoveLayer = selectedLayerName;
+                args.Pointer.Capture(this);
+            }
         }
-        else if (!string.IsNullOrWhiteSpace(pendingActor))
+        else if (selectedLayerEditable && !string.IsNullOrWhiteSpace(pendingActor))
             placeActor(pendingActor!, grid);
         else
             setSelectedActor(null, null, true);
@@ -1087,19 +1140,20 @@ public sealed class MapPanel : Control
 
     private void moveSelectedActor((int X, int Y) grid)
     {
-        if (actorMoveIndex is not int index || actorMoveLayer is null || getActorList(actorMoveLayer, false) is not JsonArray actors || actors[index] is not JsonObject actor)
+        if (!selectedLayerEditable || actorMoveIndex is not int index || actorMoveLayer is null || getActorList(actorMoveLayer, false) is not JsonArray actors || actors[index] is not JsonObject actor)
             return;
         if (tryGetActorPosition(actor, out int oldX, out int oldY) && oldX == grid.X && oldY == grid.Y)
             return;
         recordMapEditSnapshot();
         actor["position"] = new JsonArray(grid.X, grid.Y);
         markMapModified();
+        ActorDataChanged?.Invoke(this, EventArgs.Empty);
         InvalidateVisual();
     }
 
     private void writeTileSelection((int X, int Y) grid)
     {
-        if (selectedLayerName is null || CurrentMapData?["layers"]?[selectedLayerName] is not JsonObject layer)
+        if (!selectedLayerEditable || selectedLayerName is null || CurrentMapData?["layers"]?[selectedLayerName] is not JsonObject layer)
             return;
         bool changed = false;
         if (selectedTiles is { } tiles)
@@ -1121,7 +1175,7 @@ public sealed class MapPanel : Control
         int maxX = Math.Max(start.X, end.X);
         int maxY = Math.Max(start.Y, end.Y);
         bool changed = false;
-        if (selectedLayerName is null || CurrentMapData?["layers"]?[selectedLayerName] is not JsonObject layer)
+        if (!selectedLayerEditable || selectedLayerName is null || CurrentMapData?["layers"]?[selectedLayerName] is not JsonObject layer)
             return;
         for (int y = minY; y <= maxY; y++)
         for (int x = minX; x <= maxX; x++)
@@ -1146,15 +1200,17 @@ public sealed class MapPanel : Control
     {
         if (!tryGetMapSize(out int width, out int height) || x < 0 || y < 0 || x >= width || y >= height)
             return false;
+        JsonNode? nextTile = tileNumber is null ? null : JsonValue.Create(tileNumber.Value);
+        JsonNode? nextAuto = string.IsNullOrWhiteSpace(autoTileKey) ? null : JsonValue.Create(autoTileKey);
+        JsonNode? currentTile = getCell(layer["tiles"] as JsonArray, x, y);
+        JsonNode? currentAuto = getCell(layer["autoTiles"] as JsonArray, x, y);
+        if (JsonNode.DeepEquals(currentTile, nextTile) && JsonNode.DeepEquals(currentAuto, nextAuto))
+            return false;
         recordMapEditSnapshot();
         JsonArray tiles = ensureGrid(layer, "tiles", width, height);
         JsonArray autoTiles = ensureGrid(layer, "autoTiles", width, height);
         JsonArray tileRow = getRow(tiles, y)!;
         JsonArray autoRow = getRow(autoTiles, y)!;
-        JsonNode? nextTile = tileNumber is null ? null : JsonValue.Create(tileNumber.Value);
-        JsonNode? nextAuto = string.IsNullOrWhiteSpace(autoTileKey) ? null : JsonValue.Create(autoTileKey);
-        if (JsonNode.DeepEquals(tileRow[x], nextTile) && JsonNode.DeepEquals(autoRow[x], nextAuto))
-            return false;
         tileRow[x] = nextTile;
         autoRow[x] = nextAuto;
         markMapModified();
@@ -1186,9 +1242,14 @@ public sealed class MapPanel : Control
         InvalidateVisual();
     }
 
+    private void showEditFeedback(string key)
+    {
+        EditFeedbackRequested?.Invoke(this, LocaleService.Get(key));
+    }
+
     private void placeActor(string reference, (int X, int Y) grid)
     {
-        if (selectedLayerName is null || hasActorAt(selectedLayerName, grid))
+        if (!selectedLayerEditable || selectedLayerName is null || hasActorAt(selectedLayerName, grid))
             return;
         gameData?.RecordSnapshot();
         JsonArray actors = getActorList(selectedLayerName, true)!;
@@ -1207,7 +1268,7 @@ public sealed class MapPanel : Control
 
     private void pasteActor((int X, int Y) grid)
     {
-        if (actorClipboard is null || selectedLayerName is null || hasActorAt(selectedLayerName, grid))
+        if (!selectedLayerEditable || actorClipboard is null || selectedLayerName is null || hasActorAt(selectedLayerName, grid))
             return;
         JsonObject copy = (JsonObject)actorClipboard.DeepClone();
         string reference = copy["bp"]?.GetValue<string>() ?? string.Empty;
@@ -1231,7 +1292,7 @@ public sealed class MapPanel : Control
 
     private void deleteSelectedActor()
     {
-        if (selectedActorLayer is null || selectedActorIndex is not int index || getActorList(selectedActorLayer, false) is not JsonArray actors || index < 0 || index >= actors.Count)
+        if (!selectedLayerEditable || selectedActorLayer is null || selectedActorIndex is not int index || getActorList(selectedActorLayer, false) is not JsonArray actors || index < 0 || index >= actors.Count)
             return;
         JsonObject? actor = actors[index] as JsonObject;
         gameData?.RecordSnapshot();
@@ -1253,9 +1314,9 @@ public sealed class MapPanel : Control
     {
         MenuItem copy = new() { Header = LocaleService.Get("COPY"), IsEnabled = getSelectedActor() is not null };
         copy.Click += (_, _) => copySelectedActorToClipboard();
-        MenuItem paste = new() { Header = LocaleService.Get("PASTE"), IsEnabled = actorClipboard is not null && selectedLayerName is not null && !hasActorAt(selectedLayerName, grid) };
+        MenuItem paste = new() { Header = LocaleService.Get("PASTE"), IsEnabled = selectedLayerEditable && actorClipboard is not null && selectedLayerName is not null && !hasActorAt(selectedLayerName, grid) };
         paste.Click += (_, _) => pasteActor(grid);
-        MenuItem delete = new() { Header = LocaleService.Get("DELETE"), IsEnabled = getSelectedActor() is not null };
+        MenuItem delete = new() { Header = LocaleService.Get("DELETE"), IsEnabled = selectedLayerEditable && getSelectedActor() is not null };
         delete.Click += (_, _) => deleteSelectedActor();
         ContextMenu menu = new() { ItemsSource = new object[] { copy, paste, delete } };
         menu.Open(this);
@@ -1751,9 +1812,20 @@ public sealed class MapPanel : Control
         return Math.Sqrt(dx * dx + dy * dy);
     }
 
-    private static bool isLayerVisible(JsonObject layer) => layer["visible"]?.GetValue<bool?>() ?? true;
+    private bool isLayerVisible(string layerName, JsonObject layer)
+    {
+        return soloLayerName is not null
+            ? string.Equals(layerName, soloLayerName, StringComparison.Ordinal)
+            : layer["visible"]?.GetValue<bool?>() ?? true;
+    }
 
     private static JsonArray? getRow(JsonArray? grid, int y) => grid is not null && y >= 0 && y < grid.Count ? grid[y] as JsonArray : null;
+
+    private static JsonNode? getCell(JsonArray? grid, int x, int y)
+    {
+        JsonArray? row = getRow(grid, y);
+        return row is not null && x >= 0 && x < row.Count ? row[x] : null;
+    }
 
     private static bool tryGetInt(JsonNode? value, out int result) => int.TryParse(value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
 

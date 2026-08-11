@@ -495,12 +495,17 @@ local _METADATA = {
                 "start",
                 "goal",
                 "actor",
+                "excludedAnchors",
                 start = "sf.Vector2i",
                 goal = "sf.Vector2i",
                 actor = {
                     "Engine",
                     "Actor",
                 },
+                excludedAnchors = "sf.Vector2i[]",
+            },
+            default = {
+                [4] = {},
             },
             ["return"] = {
                 "path",

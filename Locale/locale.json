@@ -1031,6 +1031,10 @@
     "zh_CN": "缩放",
     "en_GB": "Scale"
   },
+  "FULLSCREEN": {
+    "zh_CN": "全屏",
+    "en_GB": "Fullscreen"
+  },
   "flipX": {
     "zh_CN": "水平翻转",
     "en_GB": "Flip Horizontal"
@@ -2111,6 +2115,18 @@
     "zh_CN": "该数据类型暂无成员",
     "en_GB": "No members in this data type"
   },
+  "GENERAL_DATA_NO_MATCHES": {
+    "zh_CN": "没有匹配的成员",
+    "en_GB": "No matching members"
+  },
+  "GENERAL_DATA_FORM_VIEW": {
+    "zh_CN": "表单",
+    "en_GB": "Form"
+  },
+  "GENERAL_DATA_TABLE_VIEW": {
+    "zh_CN": "表格",
+    "en_GB": "Table"
+  },
   "GENERAL_DATA_PLACEHOLDER": {
     "zh_CN": "— 不选择 —",
     "en_GB": "— None —"
@@ -2874,6 +2890,98 @@
   "ANCHOR_STRETCH_ALL": {
     "zh_CN": "全拉伸",
     "en_GB": "Stretch All"
+  },
+  "ACTOR_LIBRARY": {
+    "zh_CN": "Actor 库",
+    "en_GB": "Actor Library"
+  },
+  "ACTOR_LIBRARY_ALL": {
+    "zh_CN": "全部",
+    "en_GB": "All"
+  },
+  "ACTOR_LIBRARY_FAVOURITES": {
+    "zh_CN": "收藏",
+    "en_GB": "Favourites"
+  },
+  "ACTOR_LIBRARY_RECENT": {
+    "zh_CN": "最近使用",
+    "en_GB": "Recent"
+  },
+  "ALL_CATEGORIES": {
+    "zh_CN": "全部分类",
+    "en_GB": "All Categories"
+  },
+  "UNCATEGORISED": {
+    "zh_CN": "未分类",
+    "en_GB": "Uncategorised"
+  },
+  "SEARCH_ACTORS": {
+    "zh_CN": "搜索 Actor",
+    "en_GB": "Search Actors"
+  },
+  "ADD_TO_FAVOURITES": {
+    "zh_CN": "添加到收藏",
+    "en_GB": "Add to Favourites"
+  },
+  "REMOVE_FROM_FAVOURITES": {
+    "zh_CN": "从收藏中移除",
+    "en_GB": "Remove from Favourites"
+  },
+  "OPEN_BLUEPRINT": {
+    "zh_CN": "打开蓝图",
+    "en_GB": "Open Blueprint"
+  },
+  "BLUEPRINT": {
+    "zh_CN": "蓝图",
+    "en_GB": "Blueprint"
+  },
+  "OPEN": {
+    "zh_CN": "打开",
+    "en_GB": "Open"
+  },
+  "LOCATE": {
+    "zh_CN": "定位",
+    "en_GB": "Locate"
+  },
+  "POSITION": {
+    "zh_CN": "位置",
+    "en_GB": "Position"
+  },
+  "RESET_OVERRIDE": {
+    "zh_CN": "重置此覆盖值",
+    "en_GB": "Reset this override"
+  },
+  "RESET_ALL_OVERRIDES": {
+    "zh_CN": "全部重置",
+    "en_GB": "Reset All"
+  },
+  "LAYER_READ_ONLY": {
+    "zh_CN": "当前图层已隐藏或被独显抑制；Actor 属性为只读。",
+    "en_GB": "The layer is hidden or solo-suppressed. Actor properties are read-only."
+  },
+  "SHOW_LAYER": {
+    "zh_CN": "显示图层",
+    "en_GB": "Show Layer"
+  },
+  "HIDE_LAYER": {
+    "zh_CN": "隐藏图层",
+    "en_GB": "Hide Layer"
+  },
+  "SOLO_LAYER": {
+    "zh_CN": "独显图层",
+    "en_GB": "Solo Layer"
+  },
+  "EXIT_SOLO_LAYER": {
+    "zh_CN": "退出独显",
+    "en_GB": "Exit Solo"
+  },
+  "LAYER_NOT_EDITABLE": {
+    "zh_CN": "当前图层已隐藏或被独显抑制，无法编辑。",
+    "en_GB": "The layer is hidden or solo-suppressed and cannot be edited."
+  },
+  "LOADING": {
+    "zh_CN": "正在加载…",
+    "en_GB": "Loading…"
   },
   "VISIBILITY": {
     "zh_CN": "可见性",

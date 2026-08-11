@@ -53,6 +53,11 @@ void Window::setWindowSkin(const sf::Image& windowSkin, bool repeated) {
     bindCanvasTexture();
 }
 
+void Window::refreshDisplayScale() {
+    resize(size_);
+    ControlBase::refreshDisplayScale();
+}
+
 std::shared_ptr<sf::Texture> Window::placeholderTexture() {
     return std::make_shared<sf::Texture>();
 }

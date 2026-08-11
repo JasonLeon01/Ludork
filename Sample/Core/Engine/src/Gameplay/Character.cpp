@@ -97,7 +97,10 @@ void Character::_animate(float deltaTime) {
     } else {
         frameX_ = 0;
     }
-    setTextureRect(sf::IntRect({frameX_, frameY_}, rectSize_));
+    const sf::IntRect nextRect({frameX_, frameY_}, rectSize_);
+    if (nextRect != getTextureRect()) {
+        setTextureRect(nextRect);
+    }
 }
 
 void Character::_applyDirection(float x, float y) {

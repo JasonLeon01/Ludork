@@ -42,9 +42,11 @@ void CommonTipController::shutdown() noexcept {
 
 CommonTipController::CommonTipController(
     std::shared_ptr<ParticleSystem> particleSystem)
-    : particleSystem_(std::move(particleSystem)) {}
+    : particleSystem_(std::move(particleSystem)),
+      displayScale_(std::max(0.000001f, engineState().getScale())) {}
 
 void CommonTipController::addTip(const std::string& text) {
+    syncDisplayScale();
     const std::string message = trim(text);
     if (message.empty() || particleSystem_ == nullptr) {
         return;
@@ -70,6 +72,7 @@ void CommonTipController::addTip(const std::string& text) {
 }
 
 void CommonTipController::onTick(float deltaTime) {
+    syncDisplayScale();
     if (tips_.empty()) {
         shifting_ = false;
         return;
@@ -134,6 +137,20 @@ void CommonTipController::onTick(float deltaTime) {
         }
     }
     updatePlacement();
+}
+
+void CommonTipController::syncDisplayScale() {
+    const float displayScale =
+        std::max(0.000001f, engineState().getScale());
+    if (displayScale == displayScale_) {
+        return;
+    }
+    const float ratio = displayScale / displayScale_;
+    for (TipItem& item : tips_) {
+        item.screenY *= ratio;
+        item.targetScreenY *= ratio;
+    }
+    displayScale_ = displayScale;
 }
 
 void CommonTipController::removeTopTip() {

@@ -12,10 +12,21 @@ function PathPreviewComponent:init(gameMap, routeState)
     self._padding = math.max(1.0, Engine.CellSize * 0.12)
     local size = math.max(1.0, Engine.CellSize - self._padding * 2.0)
     self._rectangleSize = sf.Vector2f.new(size, size)
+    self._rectangle = sf.RectangleShape.new(self._rectangleSize)
+    self._rectangle:setFillColor(self._fillColour)
+    self._rectangle:setOutlineColor(self._outlineColour)
+    self._rectangle:setOutlineThickness(1.0)
+    self._cachedRouteRevision = -1
+    self._cachedRoute = {}
 end
 
 function PathPreviewComponent:onRender(camera)
-    local route = self._routeState:getRoute()
+    local routeRevision = self._routeState:getRevision()
+    if routeRevision ~= self._cachedRouteRevision then
+        self._cachedRoute = self._routeState:getRoute()
+        self._cachedRouteRevision = routeRevision
+    end
+    local route = self._cachedRoute
     if not bool(route) then
         return
     end
@@ -31,12 +42,8 @@ function PathPreviewComponent:onRender(camera)
             position.x = cell.x * cellSize + self._padding
             position.y = cell.y * cellSize + self._padding
         end
-        local rectangle = sf.RectangleShape.new(self._rectangleSize)
-        rectangle:setPosition(position)
-        rectangle:setFillColor(self._fillColour)
-        rectangle:setOutlineColor(self._outlineColour)
-        rectangle:setOutlineThickness(1.0)
-        camera:render(rectangle)
+        self._rectangle:setPosition(position)
+        camera:render(self._rectangle)
     end
     Pool.Put("sf.Vector2f", position)
 end

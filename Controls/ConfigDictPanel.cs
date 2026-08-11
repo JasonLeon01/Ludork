@@ -34,6 +34,7 @@ public sealed class ConfigDictPanel : Border
         CornerRadius = new CornerRadius(6);
         Padding = new Thickness(8);
         Child = content;
+        HistoryMergeBehavior.AttachBoundary(owner, gameData);
         rebuild();
     }
 
@@ -91,10 +92,12 @@ public sealed class ConfigDictPanel : Border
         if (isNumericType(type))
         {
             NumericUpDown edit = createNumericUpDown(type, value["value"]);
+            HistoryMergeBehavior.Attach(edit, gameData);
             edit.ValueChanged += (_, _) => updateScalar(type, edit.Value, value);
             return edit;
         }
         TextBox text = createTextBox(value["value"]);
+        HistoryMergeBehavior.Attach(text, gameData);
         text.TextChanged += (_, _) => updateScalar(text.Text, value);
         return text;
     }
@@ -152,6 +155,7 @@ public sealed class ConfigDictPanel : Border
         {
             int captured = index;
             NumericUpDown edit = createNumericUpDown(type, values[index]);
+            HistoryMergeBehavior.Attach(edit, gameData);
             edit.ValueChanged += (_, _) =>
             {
                 JsonNode? next = toJsonNumber(type, edit.Value);
@@ -213,6 +217,7 @@ public sealed class ConfigDictPanel : Border
         if (isNumericType(type))
         {
             NumericUpDown edit = createNumericUpDown(type, values[index]);
+            HistoryMergeBehavior.Attach(edit, gameData);
             edit.ValueChanged += (_, _) =>
             {
                 JsonNode? next = toJsonNumber(type, edit.Value);
@@ -227,6 +232,7 @@ public sealed class ConfigDictPanel : Border
         }
 
         TextBox editText = createTextBox(values[index]);
+        HistoryMergeBehavior.Attach(editText, gameData);
         editText.TextChanged += (_, _) =>
         {
             JsonNode next = JsonValue.Create(editText.Text ?? string.Empty)!;

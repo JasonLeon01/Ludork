@@ -216,3 +216,10 @@ void CheckBox::updateMark() {
         (size_.y - bounds.size.y) / 2.0f,
     });
 }
+
+void CheckBox::refreshDisplayScale() {
+    frame_->refreshDisplayScale();
+    mark_->refreshDisplayScale();
+    updateMark();
+    ControlBase::refreshDisplayScale();
+}

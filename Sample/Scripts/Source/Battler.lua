@@ -449,7 +449,7 @@ function Battler:getDamage(battler)
     if attackDamage <= 0 then
         return DamageType.UNDEFEATABLE, -1
     end
-    local counterRounds = math.max(0, math.floor(self.infoComp.MAXHP / attackDamage))
+    local counterRounds = math.max(0, math.ceil(self.infoComp.MAXHP / attackDamage) - 1)
     return DamageType.NORMAL, math.max(0, counterRounds * counterDamage)
 end
 

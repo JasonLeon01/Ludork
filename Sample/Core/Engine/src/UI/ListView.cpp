@@ -12,7 +12,8 @@ ListView::ListView(const sf::IntRect& rect, int defaultItemHeight,
       defaultItemHeight_(defaultItemHeight),
       fixItemHeight_(fixItemHeight),
       columns_(columns),
-      renderStates_(canvasRenderStates()) {
+      renderStates_(canvasRenderStates()),
+      displayScale_(Scale) {
     if (columns_ <= 0) {
         throw std::invalid_argument("ListView columns must be positive");
     }
@@ -162,6 +163,17 @@ void ListView::applyPositions() {
         rowHeight = std::max(rowHeight, itemHeight);
         child->setPosition({positionX, currentY});
     }
+}
+
+void ListView::refreshDisplayScale() {
+    if (displayScale_ != Scale) {
+        const sf::Vector2f logicalOrigin =
+            ControlBase::getOrigin() / displayScale_;
+        displayScale_ = Scale;
+        setOrigin(logicalOrigin);
+        invalidatePositions();
+    }
+    ControlBase::refreshDisplayScale();
 }
 
 void ListView::draw(sf::RenderTarget& target, sf::RenderStates states) const {

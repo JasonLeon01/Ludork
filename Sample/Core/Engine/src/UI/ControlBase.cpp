@@ -118,6 +118,14 @@ sf::Transform ControlBase::screenRenderTransform() const {
     return _getScreenRenderTransform();
 }
 
+void ControlBase::refreshDisplayScale() {
+    for (const std::shared_ptr<ControlBase>& child : getChildren()) {
+        if (child != nullptr) {
+            child->refreshDisplayScale();
+        }
+    }
+}
+
 sf::Transform ControlBase::_getScreenTransform() const {
     sf::Transform transform = getTransform();
     const std::shared_ptr<ControlBase> parent = getParent();

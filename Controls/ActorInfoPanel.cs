@@ -21,13 +21,23 @@ public sealed class ActorInfoPanel : UserControl
     private readonly Border titleContainer;
     private readonly ScrollViewer scrollArea;
     private readonly TextBox tagEdit;
+    private readonly TextBox blueprintPath;
+    private readonly Button blueprintOpenButton;
+    private readonly Button blueprintLocateButton;
+    private readonly NumericUpDown positionX;
+    private readonly NumericUpDown positionY;
+    private readonly TextBlock layerReadOnlyLabel;
     private readonly Border classSeparator;
     private readonly TextBlock classTitleLabel;
+    private readonly Grid classTitleContainer;
+    private readonly Button resetAllButton;
     private readonly BlueprintVariableForm classForm;
     private readonly TextBlock noSelectionLabel;
     private readonly Dictionary<string, JsonNode?> defaultValues = new(StringComparer.Ordinal);
     private readonly Dictionary<string, JsonNode?> displayValues = new(StringComparer.Ordinal);
     private readonly HashSet<string> fieldsWithDefaults = new(StringComparer.Ordinal);
+    private readonly HashSet<string> overriddenFields = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Button> resetButtons = new(StringComparer.Ordinal);
     private GameDataService? gameData;
     private LuaMetadataService? metadataService;
     private BlueprintClassResolver? classResolver;
@@ -36,8 +46,12 @@ public sealed class ActorInfoPanel : UserControl
     private string? layerName;
     private int? actorIndex;
     private bool loading;
+    private bool layerEditable = true;
+    private string? blueprintReference;
 
     public event EventHandler<ActorSelectionChangedEventArgs>? ActorTagChanged;
+    public event EventHandler<string>? BlueprintOpenRequested;
+    public event EventHandler<string>? BlueprintLocateRequested;
 
     public ActorInfoPanel()
     {
@@ -75,6 +89,88 @@ public sealed class ActorInfoPanel : UserControl
         Grid.SetColumn(tagEdit, 1);
         tagRow.Children.Add(tagEdit);
 
+        blueprintPath = EditorInputs.CreateReadOnlyTextBox();
+        blueprintPath.HorizontalAlignment = HorizontalAlignment.Stretch;
+        blueprintOpenButton = new Button
+        {
+            Content = LocaleService.Get("OPEN"),
+            Height = 34,
+            Padding = new Thickness(8, 0),
+        };
+        blueprintOpenButton.Click += (_, _) => requestBlueprintOpen();
+        blueprintLocateButton = new Button
+        {
+            Content = LocaleService.Get("LOCATE"),
+            Height = 34,
+            Padding = new Thickness(8, 0),
+        };
+        blueprintLocateButton.Click += (_, _) => requestBlueprintLocate();
+        Grid blueprintRow = new()
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"),
+            ColumnSpacing = 4,
+        };
+        TextBlock blueprintLabel = new()
+        {
+            Text = LocaleService.Get("BLUEPRINT"),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        blueprintRow.Children.Add(blueprintLabel);
+        Grid.SetColumn(blueprintPath, 1);
+        blueprintRow.Children.Add(blueprintPath);
+        Grid.SetColumn(blueprintOpenButton, 2);
+        blueprintRow.Children.Add(blueprintOpenButton);
+        Grid.SetColumn(blueprintLocateButton, 3);
+        blueprintRow.Children.Add(blueprintLocateButton);
+
+        positionX = EditorInputs.CreateNumericUpDown(0, 0, 0, 1);
+        positionY = EditorInputs.CreateNumericUpDown(0, 0, 0, 1);
+        positionX.ValueChanged += onPositionChanged;
+        positionY.ValueChanged += onPositionChanged;
+        Grid positionEditors = new()
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,*"),
+            ColumnSpacing = 4,
+        };
+        TextBlock xLabel = new()
+        {
+            Text = "X",
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        TextBlock yLabel = new()
+        {
+            Text = "Y",
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        positionEditors.Children.Add(xLabel);
+        Grid.SetColumn(positionX, 1);
+        positionEditors.Children.Add(positionX);
+        Grid.SetColumn(yLabel, 2);
+        positionEditors.Children.Add(yLabel);
+        Grid.SetColumn(positionY, 3);
+        positionEditors.Children.Add(positionY);
+        Grid positionRow = new()
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*"),
+            ColumnSpacing = 4,
+        };
+        TextBlock positionLabel = new()
+        {
+            Text = LocaleService.Get("POSITION"),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        positionRow.Children.Add(positionLabel);
+        Grid.SetColumn(positionEditors, 1);
+        positionRow.Children.Add(positionEditors);
+
+        layerReadOnlyLabel = new TextBlock
+        {
+            Text = LocaleService.Get("LAYER_READ_ONLY"),
+            Foreground = new SolidColorBrush(Color.Parse("#d9a441")),
+            TextWrapping = TextWrapping.Wrap,
+            IsVisible = false,
+        };
+
         classSeparator = new Border
         {
             Height = 3,
@@ -84,9 +180,26 @@ public sealed class ActorInfoPanel : UserControl
         {
             Text = LocaleService.Get("CLASS_DETAIL"),
             FontWeight = FontWeight.Bold,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        resetAllButton = new Button
+        {
+            Content = LocaleService.Get("RESET_ALL_OVERRIDES"),
+            Height = 28,
+            Padding = new Thickness(8, 0),
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+        resetAllButton.Click += (_, _) => resetAllOverrides();
+        classTitleContainer = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
             Margin = new Thickness(0, 4, 0, 2),
         };
+        classTitleContainer.Children.Add(classTitleLabel);
+        Grid.SetColumn(resetAllButton, 1);
+        classTitleContainer.Children.Add(resetAllButton);
         classForm = new BlueprintVariableForm();
+        classForm.FieldActionFactory = createResetAction;
         classForm.ValueChanged += onClassVariableChanged;
 
         StackPanel content = new()
@@ -96,8 +209,11 @@ public sealed class ActorInfoPanel : UserControl
             Children =
             {
                 tagRow,
+                blueprintRow,
+                positionRow,
+                layerReadOnlyLabel,
                 classSeparator,
-                classTitleLabel,
+                classTitleContainer,
                 classForm,
             },
         };
@@ -150,6 +266,11 @@ public sealed class ActorInfoPanel : UserControl
         classForm.AssetsDirectory = Path.Combine(nextGameData.ProjectPath, "Assets");
         classForm.ProjectDirectory = nextGameData.ProjectPath;
         classForm.CellSize = nextGameData.getCellSize();
+        classForm.HistoryGameData = nextGameData;
+        HistoryMergeBehavior.Attach(tagEdit, nextGameData);
+        HistoryMergeBehavior.Attach(positionX, nextGameData);
+        HistoryMergeBehavior.Attach(positionY, nextGameData);
+        HistoryMergeBehavior.AttachBoundary(this, nextGameData);
     }
 
     public void setActor(
@@ -166,6 +287,7 @@ public sealed class ActorInfoPanel : UserControl
             mapKey = null;
             layerName = null;
             actorIndex = null;
+            blueprintReference = null;
             showSelection(false);
             clearClassDetail();
             return;
@@ -174,8 +296,30 @@ public sealed class ActorInfoPanel : UserControl
         showSelection(true);
         loading = true;
         tagEdit.Text = actorData["tag"]?.GetValue<string>() ?? string.Empty;
+        blueprintReference = actorData["bp"]?.GetValue<string>();
+        blueprintPath.Text = blueprintReference ?? string.Empty;
+        updatePositionEditors(actorData);
         loading = false;
+        updateEditableState();
         refreshClassDetail();
+    }
+
+    public void setLayerEditable(bool editable)
+    {
+        if (layerEditable == editable)
+            return;
+        layerEditable = editable;
+        updateEditableState();
+    }
+
+    public void refreshActorPosition()
+    {
+        JsonObject? actorData = getActorData();
+        if (actorData is null)
+            return;
+        loading = true;
+        updatePositionEditors(actorData);
+        loading = false;
     }
 
     private void showSelection(bool selected)
@@ -191,6 +335,8 @@ public sealed class ActorInfoPanel : UserControl
         defaultValues.Clear();
         displayValues.Clear();
         fieldsWithDefaults.Clear();
+        overriddenFields.Clear();
+        resetButtons.Clear();
         classForm.Clear();
         setClassDetailVisible(false);
     }
@@ -198,8 +344,111 @@ public sealed class ActorInfoPanel : UserControl
     private void setClassDetailVisible(bool visible)
     {
         classSeparator.IsVisible = visible;
-        classTitleLabel.IsVisible = visible;
+        classTitleContainer.IsVisible = visible;
         classForm.IsVisible = visible;
+    }
+
+    private void updateEditableState()
+    {
+        bool editable = layerEditable && mapKey is not null && layerName is not null && actorIndex is not null;
+        if (editable)
+            EditorInputs.ApplyEditable(tagEdit);
+        else
+            EditorInputs.ApplyReadOnly(tagEdit);
+        positionX.IsReadOnly = !editable;
+        positionY.IsReadOnly = !editable;
+        positionX.Focusable = editable;
+        positionY.Focusable = editable;
+        classForm.IsReadOnly = !editable;
+        layerReadOnlyLabel.IsVisible = mapKey is not null && !editable;
+        resetAllButton.IsEnabled = editable && overriddenFields.Count != 0;
+        foreach (Button button in resetButtons.Values)
+            button.IsEnabled = editable;
+    }
+
+    private void updatePositionEditors(JsonObject actorData)
+    {
+        JsonObject? map = getMapData();
+        int width = Math.Max(1, getInt(map?["width"], 1));
+        int height = Math.Max(1, getInt(map?["height"], 1));
+        positionX.Minimum = 0;
+        positionX.Maximum = width - 1;
+        positionY.Minimum = 0;
+        positionY.Maximum = height - 1;
+        JsonArray? position = actorData["position"] as JsonArray;
+        positionX.Value = Math.Clamp(getInt(position?.ElementAtOrDefault(0), 0), 0, width - 1);
+        positionY.Value = Math.Clamp(getInt(position?.ElementAtOrDefault(1), 0), 0, height - 1);
+    }
+
+    private void requestBlueprintOpen()
+    {
+        if (!string.IsNullOrWhiteSpace(blueprintReference))
+            BlueprintOpenRequested?.Invoke(this, blueprintReference);
+    }
+
+    private void requestBlueprintLocate()
+    {
+        if (!string.IsNullOrWhiteSpace(blueprintReference))
+            BlueprintLocateRequested?.Invoke(this, blueprintReference);
+    }
+
+    private Control createResetAction(BlueprintVariableField field)
+    {
+        Button button = new()
+        {
+            Content = "↶",
+            Width = 24,
+            Height = 28,
+            Padding = new Thickness(0),
+            IsVisible = overriddenFields.Contains(field.Name),
+            IsEnabled = layerEditable,
+        };
+        ToolTip.SetTip(button, LocaleService.Get("RESET_OVERRIDE"));
+        button.Click += (_, _) => resetOverride(field.Name);
+        resetButtons[field.Name] = button;
+        return button;
+    }
+
+    private void updateResetActions()
+    {
+        foreach (KeyValuePair<string, Button> pair in resetButtons)
+        {
+            pair.Value.IsVisible = overriddenFields.Contains(pair.Key);
+            pair.Value.IsEnabled = layerEditable;
+        }
+        resetAllButton.IsEnabled = layerEditable && overriddenFields.Count != 0;
+    }
+
+    private void resetOverride(string name)
+    {
+        if (!layerEditable || gameData is null || editorPanel is null || getActorData() is not JsonObject actorData
+            || getClassVarChanges(actorData, false) is not JsonObject changes
+            || !changes.ContainsKey(name))
+        {
+            return;
+        }
+        gameData.RecordSnapshot();
+        changes.Remove(name);
+        cleanupClassVarChanges(actorData);
+        gameData.refreshModifiedState();
+        editorPanel.refreshSelectedActor();
+        refreshClassDetail();
+    }
+
+    private void resetAllOverrides()
+    {
+        if (!layerEditable || gameData is null || editorPanel is null || getActorData() is not JsonObject actorData
+            || getClassVarChanges(actorData, false) is not JsonObject changes
+            || changes.Count == 0)
+        {
+            return;
+        }
+        gameData.RecordSnapshot();
+        changes.Clear();
+        cleanupClassVarChanges(actorData);
+        gameData.refreshModifiedState();
+        editorPanel.refreshSelectedActor();
+        refreshClassDetail();
     }
 
     private void refreshClassDetail()
@@ -226,6 +475,13 @@ public sealed class ActorInfoPanel : UserControl
         defaultValues.Clear();
         displayValues.Clear();
         fieldsWithDefaults.Clear();
+        overriddenFields.Clear();
+        resetButtons.Clear();
+        if (overrides is not null)
+        {
+            foreach (string name in overrides.Select(pair => pair.Key))
+                overriddenFields.Add(name);
+        }
         HashSet<string> invalidVars = new(resolved.InvalidVars, StringComparer.Ordinal)
         {
             "tag",
@@ -257,6 +513,7 @@ public sealed class ActorInfoPanel : UserControl
         }
 
         classForm.SetFields(formFields);
+        updateResetActions();
         setClassDetailVisible(true);
     }
 
@@ -393,7 +650,7 @@ public sealed class ActorInfoPanel : UserControl
 
     private void onTagChanged(object? sender, TextChangedEventArgs args)
     {
-        if (loading || gameData is null || editorPanel is null)
+        if (loading || !layerEditable || gameData is null || editorPanel is null)
             return;
         JsonObject? actorData = getActorData();
         if (actorData is null)
@@ -424,7 +681,7 @@ public sealed class ActorInfoPanel : UserControl
         object? sender,
         BlueprintVariableValueChangedEventArgs args)
     {
-        if (loading || gameData is null || editorPanel is null)
+        if (loading || !layerEditable || gameData is null || editorPanel is null)
             return;
         JsonObject? actorData = getActorData();
         if (actorData is null)
@@ -432,10 +689,8 @@ public sealed class ActorInfoPanel : UserControl
         JsonNode? value = cloneNode(args.Value);
         bool isDefault = fieldsWithDefaults.Contains(args.Name)
             && blueprintValuesEqual(value, defaultValues.GetValueOrDefault(args.Name));
-        JsonObject? changes = getClassVarChanges(actorData, !isDefault);
-        if (changes is null)
-            return;
-        bool currentExists = changes.ContainsKey(args.Name);
+        JsonObject? changes = getClassVarChanges(actorData, false);
+        bool currentExists = changes?.ContainsKey(args.Name) == true;
         if (isDefault && !currentExists)
             return;
         if (!isDefault && currentExists
@@ -447,19 +702,32 @@ public sealed class ActorInfoPanel : UserControl
         gameData.RecordSnapshot();
         if (isDefault)
         {
-            changes.Remove(args.Name);
+            changes!.Remove(args.Name);
             cleanupClassVarChanges(actorData);
             displayValues[args.Name] = cloneNode(defaultValues.GetValueOrDefault(args.Name));
+            overriddenFields.Remove(args.Name);
         }
         else
         {
+            changes ??= getClassVarChanges(actorData, true)!;
             changes[args.Name] = cloneNode(value);
             displayValues[args.Name] = cloneNode(value);
+            overriddenFields.Add(args.Name);
         }
         gameData.refreshModifiedState();
         editorPanel.refreshSelectedActor();
+        updateResetActions();
         if (args.RequiresRefresh)
             Dispatcher.UIThread.Post(refreshClassDetail);
+    }
+
+    private void onPositionChanged(object? sender, NumericUpDownValueChangedEventArgs args)
+    {
+        if (loading || !layerEditable || editorPanel is null)
+            return;
+        int x = decimal.ToInt32(positionX.Value ?? 0);
+        int y = decimal.ToInt32(positionY.Value ?? 0);
+        editorPanel.updateSelectedActorPosition(x, y);
     }
 
     private JsonObject? getActorData()
@@ -717,6 +985,13 @@ public sealed class ActorInfoPanel : UserControl
     private static string? getString(JsonNode? value)
     {
         return value is JsonValue scalar && scalar.TryGetValue(out string? text) ? text : null;
+    }
+
+    private static int getInt(JsonNode? value, int fallback)
+    {
+        return value is JsonValue scalar && scalar.TryGetValue(out int integer)
+            ? integer
+            : fallback;
     }
 
     private static JsonNode? cloneNode(JsonNode? value)

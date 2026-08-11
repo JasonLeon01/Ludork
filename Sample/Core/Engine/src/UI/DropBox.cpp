@@ -536,6 +536,11 @@ void DropBox::markVisualsDirty() {
     visualsDirty_ = true;
 }
 
+void DropBox::refreshDisplayScale() {
+    markVisualsDirty();
+    ControlBase::refreshDisplayScale();
+}
+
 void DropBox::ensureVisuals() const {
     if (visualsDirty_) {
         rebuildVisuals();

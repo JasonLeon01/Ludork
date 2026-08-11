@@ -85,3 +85,8 @@ void ProgressBar::updateGeometry() {
     background_.setSize(size_ * Scale);
     fill_.setSize({size_.x * progress_ * Scale, size_.y * Scale});
 }
+
+void ProgressBar::refreshDisplayScale() {
+    updateGeometry();
+    ControlBase::refreshDisplayScale();
+}

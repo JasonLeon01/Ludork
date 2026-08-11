@@ -86,6 +86,7 @@ public partial class MainWindow : Window
     private ColumnDefinition centerColumn => UpperGrid.ColumnDefinitions[2];
     private ColumnDefinition workspaceColumn => MainLayoutGrid.ColumnDefinitions[0];
     private ColumnDefinition rightColumn => MainLayoutGrid.ColumnDefinitions[2];
+    private ColumnDefinition lowerLeftColumn => LowerGrid.ColumnDefinitions[0];
     private RowDefinition upperRow => MainLayoutGrid.RowDefinitions[0];
     private RowDefinition lowerRow => MainLayoutGrid.RowDefinitions[2];
 
@@ -114,6 +115,7 @@ public partial class MainWindow : Window
         Height = Math.Max(MinHeight, settings.Height);
         leftColumn.Width = new GridLength(Math.Max(160, settings.UpperLeftWidth));
         rightColumn.Width = new GridLength(Math.Max(320, settings.UpperRightWidth));
+        lowerLeftColumn.Width = new GridLength(Math.Max(180, settings.LowerLeftWidth));
     }
 
     private void installPluginMenus()
@@ -167,6 +169,8 @@ public partial class MainWindow : Window
         UpperLeftSplitter.DragCompleted += (_, _) => onHorizontalSplitterChanged();
         UpperRightSplitter.DragDelta += (_, _) => onHorizontalSplitterChanged();
         UpperRightSplitter.DragCompleted += (_, _) => onHorizontalSplitterChanged();
+        LowerLeftSplitter.DragDelta += (_, _) => onLowerLeftSplitterChanged();
+        LowerLeftSplitter.DragCompleted += (_, _) => onLowerLeftSplitterChanged();
         UpperLowerSplitter.DragDelta += (_, _) => saveEditorLayout();
         UpperLowerSplitter.DragCompleted += (_, _) => saveEditorLayout();
         EditorPanel.TileSelectionPicked += onTileSelectionPicked;
@@ -174,10 +178,13 @@ public partial class MainWindow : Window
         EditorPanel.ActorDataChanged += onActorDataChanged;
         EditorPanel.LightSelectionChanged += onLightSelectionChanged;
         EditorPanel.LightDataChanged += onLightDataChanged;
+        EditorPanel.EditFeedbackRequested += (_, message) => toast.ShowMessage(message, 3000);
         GamePanel.InputBatchReady += onGameInputBatchReady;
         Deactivated += (_, _) => GamePanel.NotifyHostFocusLost();
         LightInfoPanel.LightEdited += onLightEdited;
         ActorInfoPanel.ActorTagChanged += onActorTagChanged;
+        ActorInfoPanel.BlueprintOpenRequested += (_, reference) => viewModel?.Actions.OpenBlueprint(reference);
+        ActorInfoPanel.BlueprintLocateRequested += onBlueprintLocateRequested;
         if (projectRunner is not null)
         {
             projectRunner.OutputReceived += onProjectOutputReceived;
@@ -214,6 +221,7 @@ public partial class MainWindow : Window
             viewModel.ExitRequested -= onExitRequested;
             viewModel.PreviewModeRequested -= onPreviewModeRequested;
             viewModel.ActorOutlinerChanged -= onActorOutlinerChanged;
+            viewModel.LayerDisplayStateChanged -= onLayerDisplayStateChanged;
         }
         actorPreviewService = null;
         viewModel = next;
@@ -251,6 +259,7 @@ public partial class MainWindow : Window
         viewModel.ExitRequested += onExitRequested;
         viewModel.PreviewModeRequested += onPreviewModeRequested;
         viewModel.ActorOutlinerChanged += onActorOutlinerChanged;
+        viewModel.LayerDisplayStateChanged += onLayerDisplayStateChanged;
         Title = viewModel.WindowTitle;
         refreshMapPanel();
         selectPreviewMode(MapEditMode.Tile);
@@ -308,13 +317,16 @@ public partial class MainWindow : Window
         Height = Math.Max(MinHeight, editorSettings.Height);
         leftColumn.Width = new GridLength(Math.Max(160, editorSettings.UpperLeftWidth));
         rightColumn.Width = new GridLength(Math.Max(320, editorSettings.UpperRightWidth));
+        lowerLeftColumn.Width = new GridLength(Math.Max(180, editorSettings.LowerLeftWidth));
         lowerRow.Height = new GridLength(Math.Max(lowerRow.MinHeight, editorSettings.LowerAreaHeight));
+        clampLowerLeftPanelWidth();
         clampLowerAreaHeight();
     }
 
     private void onWindowSizeChanged()
     {
         clampHorizontalPanelWidths();
+        clampLowerLeftPanelWidth();
         clampLowerAreaHeight();
         saveEditorLayout();
     }
@@ -322,6 +334,12 @@ public partial class MainWindow : Window
     private void onHorizontalSplitterChanged()
     {
         clampHorizontalPanelWidths();
+        saveEditorLayout();
+    }
+
+    private void onLowerLeftSplitterChanged()
+    {
+        clampLowerLeftPanelWidth();
         saveEditorLayout();
     }
 
@@ -376,6 +394,19 @@ public partial class MainWindow : Window
             lowerRow.Height = new GridLength(maximum);
     }
 
+    private void clampLowerLeftPanelWidth()
+    {
+        double layoutWidth = LowerGrid.Bounds.Width;
+        if (layoutWidth <= 0)
+            return;
+        double splitterWidth = getColumnPixelWidth(LowerGrid.ColumnDefinitions[1]);
+        double maximum = Math.Max(lowerLeftColumn.MinWidth, layoutWidth - splitterWidth);
+        lowerLeftColumn.Width = new GridLength(Math.Clamp(
+            getColumnPixelWidth(lowerLeftColumn),
+            lowerLeftColumn.MinWidth,
+            maximum));
+    }
+
     private void saveEditorLayout()
     {
         if (editorSettings is null || !layoutReady)
@@ -384,6 +415,7 @@ public partial class MainWindow : Window
         editorSettings.Height = Math.Max((int)MinHeight, (int)Math.Round(Height));
         editorSettings.UpperLeftWidth = Math.Max(160, getColumnPixelWidth(leftColumn));
         editorSettings.UpperRightWidth = Math.Max(320, getColumnPixelWidth(rightColumn));
+        editorSettings.LowerLeftWidth = Math.Max(180, getColumnPixelWidth(lowerLeftColumn));
         editorSettings.LowerAreaHeight = Math.Max(160, getRowPixelHeight(lowerRow));
         editorSettings.Language = LocaleService.CurrentLanguage;
         editorSettings.Save();
@@ -461,11 +493,17 @@ public partial class MainWindow : Window
     private void onActorDataChanged(object? sender, EventArgs args)
     {
         viewModel?.refreshActorOutliner();
+        ActorInfoPanel.refreshActorPosition();
     }
 
     private void onActorTagChanged(object? sender, ActorSelectionChangedEventArgs args)
     {
         viewModel?.refreshActorOutliner();
+    }
+
+    private void onLayerDisplayStateChanged(object? sender, EventArgs args)
+    {
+        refreshMapPanelState();
     }
 
     private void onActorOutlinerChanged(object? sender, EventArgs args)
@@ -642,6 +680,7 @@ public partial class MainWindow : Window
             await AlertDialog.ShowAsync(this, LocaleService.Get("ERROR"), message);
             return;
         }
+        mainViewModel.ActorQueue.PurgeStale();
         await AlertDialog.ShowAsync(this, LocaleService.Get("HINT"), LocaleService.Get("HINT_CREATE_BP_SUCCESS"));
     }
 
@@ -936,14 +975,37 @@ public partial class MainWindow : Window
             mainViewModel.Metadata,
             mainViewModel.BlueprintClasses,
             mainViewModel.PreviewService);
+        JsonObject actorLibraryState = createActorLibraryState(document);
+        EventHandler actorLibraryDocumentChanged = (_, _) =>
+        {
+            JsonObject nextState = createActorLibraryState(document);
+            if (JsonNode.DeepEquals(actorLibraryState, nextState))
+                return;
+            actorLibraryState = nextState;
+            mainViewModel.ActorQueue.PurgeStale();
+        };
+        document.Changed += actorLibraryDocumentChanged;
         blueprintWindows[document.DocumentKey] = window;
         window.Activated += (_, _) =>
         {
             if (window.Document.BlueprintKey is string key)
                 lastActiveBlueprintKey = key;
         };
-        window.Closed += (_, _) => blueprintWindows.Remove(document.DocumentKey);
+        window.Closed += (_, _) =>
+        {
+            document.Changed -= actorLibraryDocumentChanged;
+            blueprintWindows.Remove(document.DocumentKey);
+        };
         window.Show(this);
+    }
+
+    private static JsonObject createActorLibraryState(BlueprintEditorDocument document)
+    {
+        return new JsonObject
+        {
+            ["parent"] = document.Data["parent"]?.DeepClone(),
+            ["attrs"] = document.Data["attrs"]?.DeepClone(),
+        };
     }
 
     private async Task createUiAssetAsync(
@@ -1436,8 +1498,12 @@ public partial class MainWindow : Window
     {
         string? layerName = viewModel?.SelectedLayerTab is { IsOverview: false } layer ? layer.Name : null;
         EditorPanel.setSelectedLayer(layerName);
+        EditorPanel.setLayerDisplayState(viewModel?.SoloLayerName, viewModel?.IsSelectedLayerEditable == true);
+        ActorInfoPanel.setLayerEditable(viewModel?.IsSelectedLayerEditable == true);
         if (tileSelect is not null)
+        {
             tileSelect.IsLayerSelected = EditorPanel.EditMode == MapEditMode.Tile && layerName is not null;
+        }
         syncTileSelection();
     }
 
@@ -2177,6 +2243,8 @@ public partial class MainWindow : Window
     {
         if (!LayerTabs.IsEnabled)
             return;
+        if (isLayerActionSource(args.Source))
+            return;
         PointerPoint point = args.GetCurrentPoint(LayerTabs);
         TabStripItem? item = getTabStripItem(args.Source);
         LayerTabViewModel? layer = item?.Content as LayerTabViewModel ?? item?.DataContext as LayerTabViewModel;
@@ -2191,6 +2259,24 @@ public partial class MainWindow : Window
         draggedLayer = layer;
         dragStart = args.GetPosition(LayerTabs);
         isDraggingLayer = false;
+    }
+
+    private void onLayerVisibilityClick(object? sender, RoutedEventArgs args)
+    {
+        if (viewModel is null || (sender as Control)?.DataContext is not LayerTabViewModel layer)
+            return;
+        viewModel.SelectedLayerTab = layer;
+        viewModel.setLayerVisible(layer, !layer.LayerVisible);
+        args.Handled = true;
+    }
+
+    private void onLayerSoloClick(object? sender, RoutedEventArgs args)
+    {
+        if (viewModel is null || (sender as Control)?.DataContext is not LayerTabViewModel layer)
+            return;
+        viewModel.SelectedLayerTab = layer;
+        viewModel.toggleSoloLayer(layer);
+        args.Handled = true;
     }
 
     private void onMapListPointerPressed(object? sender, PointerPressedEventArgs args)
@@ -2297,7 +2383,8 @@ public partial class MainWindow : Window
             viewModel!.GameData,
             viewModel.PreviewService,
             mapKey,
-            refreshPluginMap);
+            refreshPluginMap,
+            viewModel.canEditLayer);
     }
 
     private void refreshPluginMap(string mapKey, string layerName)
@@ -2426,6 +2513,16 @@ public partial class MainWindow : Window
         }
         else
         {
+            MenuItem visibilityItem = new MenuItem
+            {
+                Header = LocaleService.Get(layer.LayerVisible ? "HIDE_LAYER" : "SHOW_LAYER"),
+            };
+            visibilityItem.Click += (_, _) => viewModel.setLayerVisible(layer, !layer.LayerVisible);
+            MenuItem soloItem = new MenuItem
+            {
+                Header = LocaleService.Get(layer.IsSolo ? "EXIT_SOLO_LAYER" : "SOLO_LAYER"),
+            };
+            soloItem.Click += (_, _) => viewModel.toggleSoloLayer(layer);
             MenuItem addItem = new MenuItem { Header = LocaleService.Get("ADD_LAYER") };
             addItem.Click += async (_, _) => await addLayerAsync(layer.Name);
             MenuItem renameItem = new MenuItem { Header = LocaleService.Get("RENAME_LAYER") };
@@ -2444,6 +2541,9 @@ public partial class MainWindow : Window
             clearShaderItem.Click += (_, _) => viewModel.setLayerShaderPath(layer.Name, string.Empty);
             MenuItem deleteItem = new MenuItem { Header = LocaleService.Get("DELETE") };
             deleteItem.Click += async (_, _) => await deleteLayerAsync(layer.Name);
+            menu.Items.Add(visibilityItem);
+            menu.Items.Add(soloItem);
+            menu.Items.Add(new Separator());
             menu.Items.Add(addItem);
             menu.Items.Add(renameItem);
             menu.Items.Add(new Separator());
@@ -2515,6 +2615,13 @@ public partial class MainWindow : Window
         if (source is TabStripItem item)
             return item;
         return (source as Visual)?.GetVisualAncestors().OfType<TabStripItem>().FirstOrDefault();
+    }
+
+    private static bool isLayerActionSource(object? source)
+    {
+        if (source is Button)
+            return true;
+        return (source as Visual)?.GetVisualAncestors().Any(visual => visual is Button) == true;
     }
 
     private static ListBoxItem? getMapListItem(object? source)

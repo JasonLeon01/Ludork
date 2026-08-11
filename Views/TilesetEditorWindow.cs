@@ -5,6 +5,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Controls.Templates;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Ludork.Controls;
 using Ludork.Services;
@@ -25,7 +26,10 @@ public sealed class TilesetEditorWindow : Window
     private readonly ProjectSaveService projectSave;
     private readonly TileSelectViewModel tileSelect;
     private readonly List<TilesetEditorTab> editorTabs = [];
+    private readonly HashSet<TabItem> initializedTabs = [];
+    private readonly HashSet<TabItem> pendingTabs = [];
     private readonly Toast toast;
+    private bool closed;
 
     public TilesetEditorWindow(
         GameDataService gameData,
@@ -44,28 +48,58 @@ public sealed class TilesetEditorWindow : Window
         Background = new SolidColorBrush(Color.FromRgb(43, 43, 43));
         FontFamily = FontFamily.Parse("avares://Ludork/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC");
         EditorWindowIcon.Apply(this);
+        HistoryMergeBehavior.AttachBoundary(this, gameData);
 
-        TabControl tabs = new();
-        tabs.ItemsPanel = new FuncTemplate<Panel?>(() => new StackPanel { Orientation = Orientation.Horizontal });
-        TilesetEditorTab tilesetTab = new(this, gameData, tileSelect, false);
-        editorTabs.Add(tilesetTab);
-        tabs.Items.Add(new TabItem
-        {
-            Header = LocaleService.Get("TILESETS_DATA"),
-            Content = tilesetTab,
-        });
-        TilesetEditorTab autoTileTab = new(this, gameData, tileSelect, true);
-        editorTabs.Add(autoTileTab);
-        tabs.Items.Add(new TabItem
-        {
-            Header = LocaleService.Get("AUTOTILES_DATA"),
-            Content = autoTileTab,
-        });
-        Content = new Border { Padding = new Thickness(5), Child = tabs };
+        Content = DeferredWindowInitializer.CreateLoadingContent();
+        _ = new DeferredWindowInitializer(this, initializeContent);
         toast = new Toast(this);
         gameData.DataRestored += onDataRestored;
-        Closed += (_, _) => gameData.DataRestored -= onDataRestored;
+        Closed += (_, _) =>
+        {
+            closed = true;
+            gameData.DataRestored -= onDataRestored;
+        };
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
+    }
+
+    private void initializeContent()
+    {
+        TabControl tabs = new()
+        {
+            ItemsPanel = new FuncTemplate<Panel?>(() => new StackPanel { Orientation = Orientation.Horizontal }),
+        };
+        TabItem tilesetItem = new()
+        {
+            Header = LocaleService.Get("TILESETS_DATA"),
+            Content = DeferredWindowInitializer.CreateLoadingContent(),
+        };
+        TabItem autoTileItem = new()
+        {
+            Header = LocaleService.Get("AUTOTILES_DATA"),
+            Content = DeferredWindowInitializer.CreateLoadingContent(),
+        };
+        tabs.Items.Add(tilesetItem);
+        tabs.Items.Add(autoTileItem);
+        tabs.SelectionChanged += (_, _) => initializeTab(tabs.SelectedItem as TabItem, autoTileItem);
+        Content = new Border { Padding = new Thickness(5), Child = tabs };
+        tabs.SelectedIndex = 0;
+        initializeTab(tilesetItem, autoTileItem);
+    }
+
+    private void initializeTab(TabItem? item, TabItem autoTileItem)
+    {
+        if (item is null || initializedTabs.Contains(item) || !pendingTabs.Add(item))
+            return;
+        Dispatcher.UIThread.Post(() =>
+        {
+            pendingTabs.Remove(item);
+            if (closed || initializedTabs.Contains(item))
+                return;
+            TilesetEditorTab tab = new(this, gameData, tileSelect, ReferenceEquals(item, autoTileItem));
+            editorTabs.Add(tab);
+            initializedTabs.Add(item);
+            item.Content = tab;
+        }, DispatcherPriority.Background);
     }
 
     private void onDataRestored(object? sender, EventArgs args)
@@ -359,6 +393,7 @@ internal sealed class TilesetDetailPanel : Grid
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Top,
         };
+        HistoryMergeBehavior.Attach(nameBox, gameData);
         nameBox.TextChanged += (_, _) => updateName();
         modeList.SelectionChanged += (_, _) => updateMode();
         modeList.ItemsSource = isAutoTile
@@ -402,14 +437,11 @@ internal sealed class TilesetDetailPanel : Grid
         nameBox.Text = data?["name"]?.GetValue<string>() ?? string.Empty;
         string fileName = data?["fileName"]?.GetValue<string>() ?? string.Empty;
         string path = string.IsNullOrWhiteSpace(fileName) ? string.Empty : Path.Combine(gameData.ProjectPath, "Assets", isAutoTile ? "Autotiles" : "Tilesets", fileName);
-        if (!string.IsNullOrWhiteSpace(fileName) && !File.Exists(path))
-        {
-            data!["fileName"] = string.Empty;
-            fileName = string.Empty;
-            path = string.Empty;
-            dataChanged();
-        }
+        bool missingFile = fileName.Length != 0 && !File.Exists(path);
         fileBox.Text = fileName;
+        fileBox.BorderBrush = new SolidColorBrush(
+            missingFile ? Color.Parse("#b94a48") : EditorInputs.ReadOnlyBorderColor);
+        ToolTip.SetTip(fileBox, missingFile ? path : null);
         imageEditor.setData(data, path, isAutoTile);
         populating = false;
     }
@@ -488,16 +520,9 @@ internal sealed class TilesetDetailPanel : Grid
 
     private void onImageDataChanged() => dataChanged();
 
-    private void editMaterial(JsonObject material)
+    private void editMaterial(JsonObject material, Action<JsonObject> apply)
     {
-        MaterialEditorWindow window = new(material, edited =>
-        {
-            material.Clear();
-            foreach (KeyValuePair<string, JsonNode?> entry in edited)
-                material[entry.Key] = entry.Value?.DeepClone();
-            dataChanged();
-            imageEditor.InvalidateVisual();
-        });
+        MaterialEditorWindow window = new(material, apply);
         window.ShowDialog(owner);
     }
 

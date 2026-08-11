@@ -72,6 +72,9 @@ public:
     BIND_METHOD()
     virtual void onKeyDown(const RuntimeValue::Map& arguments) override;
 
+    BIND_IGNORE()
+    void refreshDisplayScale() override;
+
 protected:
     BIND_METHOD()
     virtual void draw(sf::RenderTarget& target,

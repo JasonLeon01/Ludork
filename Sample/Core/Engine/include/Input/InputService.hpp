@@ -5,6 +5,7 @@
 #include <Runtime/RuntimeValue.hpp>
 #include <UI/FunctionalBase.hpp>
 
+#include <SFML/Graphics/Rect.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/Joystick.hpp>
@@ -184,6 +185,12 @@ public:
 
     BIND_METHOD()
     void setUseInjectedMouseOnly(bool value);
+
+    BIND_IGNORE()
+    void setPointerViewport(std::optional<sf::IntRect> viewport);
+
+    BIND_IGNORE()
+    void onWindowRecreated(sf::WindowBase& window);
 
     BIND_METHOD(Pure = true)
     bool isFocused() const;
@@ -500,6 +507,9 @@ private:
     void recordMouseWheel(sf::Mouse::Wheel wheel, float delta,
                           const sf::Vector2i& position, bool precise = false);
     void processPlatformScrollEvents(sf::WindowBase& window);
+    bool acceptsPointerPixel(const sf::Vector2i& pixel) const;
+    void updatePointerViewportState(bool inside);
+    void updatePointerViewportState(const sf::Vector2i& pixel);
     void processInjectedEvents();
     bool processNativeEvent(sf::WindowBase& window, const sf::Event& event);
     void setFocused(bool focused);
@@ -562,6 +572,10 @@ private:
     std::optional<sf::Vector2i> mouseMovedDelta_;
     bool mouseEntered_ = false;
     bool mouseLeft_ = false;
+    std::optional<sf::IntRect> pointerViewport_;
+    bool pointerInsideViewport_ = true;
+    std::optional<sf::Vector2i> injectedPointerPixel_;
+    std::optional<bool> injectedPointerTransitionPending_;
     bool touchBegan_ = false;
     bool touchEnded_ = false;
     bool touchMoved_ = false;

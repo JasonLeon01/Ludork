@@ -18,16 +18,19 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
     private readonly GameDataService gameData;
     private readonly BlueprintPreviewService previewService;
     private readonly Action<string, string> refreshMap;
+    private readonly Func<string, string, bool> canWriteLayer;
 
     public MapEditorHostBridge(
         GameDataService gameData,
         BlueprintPreviewService previewService,
         string? suggestedMapKey,
-        Action<string, string> refreshMap)
+        Action<string, string> refreshMap,
+        Func<string, string, bool> canWriteLayer)
     {
         this.gameData = gameData;
         this.previewService = previewService;
         this.refreshMap = refreshMap;
+        this.canWriteLayer = canWriteLayer;
         SuggestedMapKey = suggestedMapKey;
     }
 
@@ -289,6 +292,8 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
             return PluginMapWriteResult.Failed("The selected map has invalid dimensions.", currentRevision);
         if (map["layers"]?[request.LayerName] is not JsonObject layer)
             return PluginMapWriteResult.Failed("The selected map layer no longer exists.", currentRevision);
+        if (!canWriteLayer(request.MapKey, request.LayerName))
+            return PluginMapWriteResult.Failed("The selected map layer is hidden or solo-suppressed.", currentRevision);
         string tilesetKey = readString(layer["layerTileset"]);
         if (!string.Equals(
             request.ExpectedTilesetKey,

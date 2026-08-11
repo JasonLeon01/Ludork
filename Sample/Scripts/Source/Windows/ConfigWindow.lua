@@ -255,10 +255,6 @@ function ConfigWindow:_onVoiceVolumeChanged(value)
     self._ui.onVoiceVolumeChanged(value)
 end
 
-function ConfigWindow:_showRestartMindTip()
-    self._ui.showRestartMindTip()
-end
-
 ---@return boolean
 function ConfigWindow:_handleSelectedSliderKeyDown()
     local row = self:_getSelectedSettingRow()

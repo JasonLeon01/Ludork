@@ -9,8 +9,8 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        d:DesignWidth="1280"
-        d:DesignHeight="720"
+        d:DesignWidth="1512"
+        d:DesignHeight="982"
         x:Class="Ludork.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         MinWidth="1144"
@@ -197,7 +197,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="4" />
-                <ColumnDefinition Width="320" MinWidth="320" />
+                <ColumnDefinition Width="400" MinWidth="320" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" MinHeight="320" />
@@ -249,7 +249,38 @@
                                       SelectedItem="{Binding SelectedLayerTab, Mode=TwoWay}">
                                 <TabStrip.ItemTemplate>
                                     <DataTemplate x:DataType="vm:LayerTabViewModel">
-                                        <TextBlock Text="{Binding Name}" />
+                                        <Grid ColumnDefinitions="Auto,Auto,Auto"
+                                              ColumnSpacing="2">
+                                            <ToggleButton Grid.Column="0"
+                                                          Width="24"
+                                                          Height="24"
+                                                          Padding="0"
+                                                          Focusable="False"
+                                                          IsVisible="{Binding ShowLayerActions}"
+                                                          IsChecked="{Binding LayerVisible, Mode=OneWay}"
+                                                          ToolTip.Tip="{Binding VisibilityTooltip}"
+                                                          Click="onLayerVisibilityClick">
+                                                <PathIcon Width="15"
+                                                          Height="15"
+                                                          Data="M12,4.5C7,4.5 2.73,7.61 1,12C2.73,16.39 7,19.5 12,19.5C17,19.5 21.27,16.39 23,12C21.27,7.61 17,4.5 12,4.5M12,17C9.24,17 7,14.76 7,12C7,9.24 9.24,7 12,7C14.76,7 17,9.24 17,12C17,14.76 14.76,17 12,17M12,9C10.34,9 9,10.34 9,12C9,13.66 10.34,15 12,15C13.66,15 15,13.66 15,12C15,10.34 13.66,9 12,9Z" />
+                                            </ToggleButton>
+                                            <ToggleButton Grid.Column="1"
+                                                          Width="24"
+                                                          Height="24"
+                                                          Padding="0"
+                                                          Focusable="False"
+                                                          IsVisible="{Binding ShowLayerActions}"
+                                                          IsChecked="{Binding IsSolo, Mode=OneWay}"
+                                                          ToolTip.Tip="{Binding SoloTooltip}"
+                                                          Click="onLayerSoloClick">
+                                                <PathIcon Width="15"
+                                                          Height="15"
+                                                          Data="M12,2A10,10 0 1,0 22,12A10,10 0 0,0 12,2M12,6A6,6 0 1,1 6,12A6,6 0 0,1 12,6M12,9A3,3 0 1,0 15,12A3,3 0 0,0 12,9Z" />
+                                            </ToggleButton>
+                                            <TextBlock Grid.Column="2"
+                                                       Text="{Binding Name}"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
                                     </DataTemplate>
                                 </TabStrip.ItemTemplate>
                             </TabStrip>
@@ -346,9 +377,9 @@
 
             <GridSplitter x:Name="UpperLowerSplitter" Grid.Row="1" ResizeDirection="Rows" />
 
-            <Grid Grid.Row="2">
+            <Grid x:Name="LowerGrid" Grid.Row="2">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="220" MinWidth="180" />
+                    <ColumnDefinition Width="320" MinWidth="180" />
                     <ColumnDefinition Width="4" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
@@ -356,13 +387,13 @@
                 <Grid Grid.Column="0" RowDefinitions="32,*">
                     <TextBlock Grid.Row="0"
                                Classes="panelTitle"
-                               Text="{Binding RecentlyPlaced}" />
+                               Text="{Binding ActorLibrary}" />
                     <controls:ActorQueuePanel Grid.Row="1"
                                               Classes="surface"
                                               DataContext="{Binding ActorQueue}" />
                 </Grid>
 
-                <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
+                <GridSplitter x:Name="LowerLeftSplitter" Grid.Column="1" ResizeDirection="Columns" />
 
                 <TabControl x:Name="BottomTabs" Grid.Column="2">
                     <TabItem Header="{Binding FileExplorer}">

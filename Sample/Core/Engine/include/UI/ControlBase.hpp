@@ -123,6 +123,9 @@ public:
     BIND_IGNORE()
     sf::Transform screenRenderTransform() const;
 
+    BIND_IGNORE()
+    virtual void refreshDisplayScale();
+
 protected:
     BIND_METHOD(metadata = false)
     virtual sf::Transform _getScreenTransform() const;

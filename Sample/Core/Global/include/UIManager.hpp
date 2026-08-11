@@ -35,6 +35,7 @@ public:
     void removeUI(const std::shared_ptr<ControlBase>& ui);
 
     void fixedLogicHandle(float fixedDelta);
+    void refreshDisplayScale();
     void logicHandle(float deltaTime);
     void renderHandle(float deltaTime,
                       const std::function<void()>& overlayRenderer = {});
@@ -51,6 +52,7 @@ private:
     std::vector<std::shared_ptr<ControlBase>> uis_;
     std::shared_ptr<FocusManager> focusManager_;
     mutable std::mutex mutex_;
+    float displayScale_ = 1.0f;
 
     static UIManager* activeManager_;
 };

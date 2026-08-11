@@ -854,10 +854,9 @@ function GameMap:getTopMaterial(pos)
     return nil
 end
 
-function GameMap:findPathResult(start, goal, actor)
-    self:syncActorsRef(self._wholeActorList)
+function GameMap:findPathResult(start, goal, actor, excludedAnchors)
     self:_syncActorsForPathfinding()
-    local result = self:findPathExt(start, goal, self._tilemap:getSize(), actor)
+    local result = self:findPathExt(start, goal, self._tilemap:getSize(), actor, excludedAnchors or {})
     self:_clearActorsPathfindingBlocks()
     return result
 end
@@ -868,8 +867,8 @@ function GameMap:_clearActorsPathfindingBlocks()
     end
 end
 
-function GameMap:findPath(start, goal, actor)
-    return self:findPathResult(start, goal, actor).offsets
+function GameMap:findPath(start, goal, actor, excludedAnchors)
+    return self:findPathResult(start, goal, actor, excludedAnchors).offsets
 end
 
 function GameMap:isPathfindingPassable(actor, targetPosition)

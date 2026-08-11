@@ -30,8 +30,9 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private readonly UiControlRegistryService controlRegistry = null!;
     private readonly UiAssetValidationService validationService = null!;
     private readonly ProjectSaveService projectSave = null!;
-    private readonly UiPreviewClient previewClient = null!;
-    private readonly UiPreviewSurface previewSurface = null!;
+    private UiPreviewClient previewClient = null!;
+    private UiPreviewSurface previewSurface = null!;
+    private readonly DeferredWindowInitializer initializer = null!;
     private readonly HashSet<string> lockedNodeIds = new(StringComparer.Ordinal);
     private IReadOnlyDictionary<string, UiControlDescriptor> controlLookup =
         new Dictionary<string, UiControlDescriptor>(StringComparer.Ordinal);
@@ -44,10 +45,11 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private JsonObject? transformStartSlot;
     private bool startingHierarchyDrag;
     private bool refreshing;
+    private bool contentInitialized;
 
     public UiAssetEditorWindow()
     {
-        InitializeComponent();
+        Content = DeferredWindowInitializer.CreateLoadingContent();
     }
 
     public UiAssetEditorWindow(
@@ -62,31 +64,43 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         this.projectSave = projectSave;
         this.controlRegistry = controlRegistry;
         this.validationService = validationService;
-        previewClient = new UiPreviewClient(gameData.ProjectPath);
-        previewSurface = new UiPreviewSurface();
-        previewSurface.HitTestResolver = (generation, x, y) =>
-            previewClient.HitTestAsync(generation, x, y);
-        PreviewContainer.Content = previewSurface;
-        EditorInputs.ApplyEditable(PaletteSearch);
-        configureHierarchyDragDrop();
-        applyLocale();
+        Title = document.Title + " - " + LocaleService.Get("UI_ASSET_EDITOR");
+        Width = 1480;
+        Height = 860;
+        MinWidth = 1080;
+        MinHeight = 640;
+        WindowStartupLocation = WindowStartupLocation.CenterOwner;
         document.Changed += onDocumentChanged;
-        previewClient.StateChanged += onPreviewStateChanged;
-        previewSurface.NodeSelected += onPreviewNodeSelected;
-        previewSurface.TransformStarted += onPreviewTransformStarted;
-        previewSurface.TransformChanged += onPreviewTransformChanged;
-        previewSurface.TransformCompleted += onPreviewTransformCompleted;
-        previewSurface.TransformCancelled += onPreviewTransformCancelled;
-        previewSurface.ZoomChanged += (_, _) =>
-        {
-            updateZoomText();
-            schedulePreview();
-        };
-        ScalingChanged += (_, _) => schedulePreview();
         Closing += onClosing;
-        Opened += onOpened;
         projectSave.RegisterParticipant(this);
-        refreshAll();
+        initializer = new DeferredWindowInitializer(this, () =>
+        {
+            InitializeComponent();
+            contentInitialized = true;
+            previewClient = new UiPreviewClient(gameData.ProjectPath);
+            previewSurface = new UiPreviewSurface
+            {
+                HitTestResolver = (generation, x, y) =>
+                    previewClient.HitTestAsync(generation, x, y),
+            };
+            PreviewContainer.Content = previewSurface;
+            EditorInputs.ApplyEditable(PaletteSearch);
+            configureHierarchyDragDrop();
+            applyLocale();
+            previewClient.StateChanged += onPreviewStateChanged;
+            previewSurface.NodeSelected += onPreviewNodeSelected;
+            previewSurface.TransformStarted += onPreviewTransformStarted;
+            previewSurface.TransformChanged += onPreviewTransformChanged;
+            previewSurface.TransformCompleted += onPreviewTransformCompleted;
+            previewSurface.TransformCancelled += onPreviewTransformCancelled;
+            previewSurface.ZoomChanged += (_, _) =>
+            {
+                updateZoomText();
+                schedulePreview();
+            };
+            ScalingChanged += (_, _) => schedulePreview();
+            refreshAll();
+        });
     }
 
     public event EventHandler<string>? NestedAssetOpenRequested;
@@ -98,7 +112,8 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         flushPendingField();
         if (!document.Reload())
             return false;
-        refreshAll();
+        if (initializer.IsInitialized)
+            refreshAll();
         return true;
     }
 
@@ -119,19 +134,18 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     public void RefreshControls()
     {
         flushPendingField();
-        refreshAll();
-    }
-
-    private async void onOpened(object? sender, EventArgs args)
-    {
-        await refreshPreviewAsync();
+        if (initializer.IsInitialized)
+            refreshAll();
     }
 
     private async void onClosing(object? sender, WindowClosingEventArgs args)
     {
         FlushPendingChanges();
-        previewCancellation?.Cancel();
+        document.Changed -= onDocumentChanged;
         projectSave.UnregisterParticipant(this);
+        if (!initializer.IsInitialized)
+            return;
+        previewCancellation?.Cancel();
         await previewClient.DisposeAsync();
     }
 
@@ -153,12 +167,13 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     {
         string title = document.Title;
         Title = title + " - " + LocaleService.Get("UI_ASSET_EDITOR");
-        DocumentTitle.Text = title;
+        if (contentInitialized)
+            DocumentTitle.Text = title;
     }
 
     private void onDocumentChanged(object? sender, EventArgs args)
     {
-        if (refreshing)
+        if (refreshing || !initializer.IsInitialized)
             return;
         refreshAll();
     }

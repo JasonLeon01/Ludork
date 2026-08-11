@@ -10,10 +10,11 @@ public sealed class EditorSettings
 {
     private const string SectionName = "Ludork";
 
-    public int Width { get; set; } = 1280;
-    public int Height { get; set; } = 720;
+    public int Width { get; set; } = 1512;
+    public int Height { get; set; } = 982;
     public int UpperLeftWidth { get; set; } = 320;
-    public int UpperRightWidth { get; set; } = 320;
+    public int UpperRightWidth { get; set; } = 400;
+    public int LowerLeftWidth { get; set; } = 320;
     public int LowerAreaHeight { get; set; } = 240;
     public string Language { get; set; } = getDefaultLanguage();
     public string LastOpenPath { get; set; } = string.Empty;
@@ -34,6 +35,7 @@ public sealed class EditorSettings
         settings.Height = readPositiveInt(values, "Height", settings.Height);
         settings.UpperLeftWidth = readPositiveInt(values, "UpperLeftWidth", settings.UpperLeftWidth);
         settings.UpperRightWidth = readPositiveInt(values, "UpperRightWidth", settings.UpperRightWidth);
+        settings.LowerLeftWidth = readPositiveInt(values, "LowerLeftWidth", settings.LowerLeftWidth);
         settings.LowerAreaHeight = readPositiveInt(values, "LowerAreaHeight", settings.LowerAreaHeight);
         settings.Language = readText(values, "Language", settings.Language);
         settings.LastOpenPath = readText(values, "LastOpenPath", string.Empty);
@@ -62,6 +64,7 @@ public sealed class EditorSettings
             $"height = {Height}",
             $"upperleftwidth = {UpperLeftWidth}",
             $"upperrightwidth = {UpperRightWidth}",
+            $"lowerleftwidth = {LowerLeftWidth}",
             $"lowerareaheight = {LowerAreaHeight}",
             $"language = {Language}",
             $"lastopenpath = {LastOpenPath}",

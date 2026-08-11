@@ -41,6 +41,9 @@ public:
     BIND_METHOD()
     virtual void update(float deltaTime);
 
+    BIND_IGNORE()
+    void refreshDisplayScale() override;
+
     BIND_CLASS_PROPERTY(readonly = true)
     static const std::string SelectionRectOpacityCurveKey;
 

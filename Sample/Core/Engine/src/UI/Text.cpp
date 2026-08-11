@@ -485,7 +485,8 @@ PlainText::PlainText(std::shared_ptr<PlainTextConfig> config,
     : config_(snapshotConfig(config)),
       text_(*config_->font, toSfString(text),
             scaledCharacterSize(std::max(1u, config_->characterSize))),
-      effects_(std::make_unique<EffectCache>()) {
+      effects_(std::make_unique<EffectCache>()),
+      displayScale_(Scale) {
     applyConfig();
 }
 
@@ -509,6 +510,7 @@ std::string PlainText::getString() const {
 }
 
 sf::FloatRect PlainText::getPixelBounds() const {
+    syncDisplayScale();
     return expandedForGlow(
         customSlantTransform(*config_).transformRect(text_.getLocalBounds()),
         config_->glow);
@@ -528,10 +530,12 @@ sf::Vector2f PlainText::getSize() const {
 }
 
 sf::Vector2f PlainText::getOrigin() const {
+    syncDisplayScale();
     return ControlBase::getOrigin() / Scale;
 }
 
 void PlainText::setOrigin(const sf::Vector2f& origin) {
+    syncDisplayScale();
     ControlBase::setOrigin(origin * Scale);
 }
 
@@ -544,7 +548,19 @@ void PlainText::setColour(const sf::Color& colour) {
     refreshDirectColours();
 }
 
+void PlainText::refreshDisplayScale() {
+    if (displayScale_ != Scale) {
+        const sf::Vector2f logicalOrigin =
+            ControlBase::getOrigin() / displayScale_;
+        displayScale_ = Scale;
+        applyConfig();
+        setOrigin(logicalOrigin);
+    }
+    ControlBase::refreshDisplayScale();
+}
+
 void PlainText::draw(sf::RenderTarget& target, sf::RenderStates states) const {
+    syncDisplayScale();
     _applyRenderStates(states);
     if (!getVisible()) {
         return;
@@ -617,6 +633,12 @@ void PlainText::invalidateEffects() {
     effects_->data.dirty = true;
 }
 
+void PlainText::syncDisplayScale() const {
+    if (displayScale_ != Scale) {
+        const_cast<PlainText*>(this)->refreshDisplayScale();
+    }
+}
+
 void PlainText::ensureEffects() const {
     if (!effects_->data.dirty) {
         return;
@@ -631,7 +653,8 @@ RichText::RichText(std::shared_ptr<RichTextConfig> config,
                    const std::string& text)
     : config_(snapshotConfig(config)),
       localBounds_({0.0f, 0.0f}, {0.0f, 0.0f}),
-      effects_(std::make_unique<EffectCache>()) {
+      effects_(std::make_unique<EffectCache>()),
+      displayScale_(Scale) {
     setString(text);
 }
 
@@ -662,6 +685,7 @@ sf::Color RichText::getColour() const {
 }
 
 sf::FloatRect RichText::getPixelBounds() const {
+    syncDisplayScale();
     return expandedForGlow(localBounds_, config_->glow);
 }
 
@@ -679,14 +703,30 @@ sf::Vector2f RichText::getSize() const {
 }
 
 sf::Vector2f RichText::getOrigin() const {
+    syncDisplayScale();
     return ControlBase::getOrigin() / Scale;
 }
 
 void RichText::setOrigin(const sf::Vector2f& origin) {
+    syncDisplayScale();
     ControlBase::setOrigin(origin * Scale);
 }
 
+void RichText::refreshDisplayScale() {
+    if (displayScale_ != Scale) {
+        const sf::Vector2f logicalOrigin =
+            ControlBase::getOrigin() / displayScale_;
+        displayScale_ = Scale;
+        renderText(string_);
+        refreshSegmentColours();
+        invalidateEffects();
+        setOrigin(logicalOrigin);
+    }
+    ControlBase::refreshDisplayScale();
+}
+
 void RichText::draw(sf::RenderTarget& target, sf::RenderStates states) const {
+    syncDisplayScale();
     _applyRenderStates(states);
     if (!getVisible()) {
         return;
@@ -1007,6 +1047,12 @@ void RichText::applySegmentColour(sf::Text& text,
 
 void RichText::invalidateEffects() {
     effects_->data.dirty = true;
+}
+
+void RichText::syncDisplayScale() const {
+    if (displayScale_ != Scale) {
+        const_cast<RichText*>(this)->refreshDisplayScale();
+    }
 }
 
 void RichText::ensureEffects() const {

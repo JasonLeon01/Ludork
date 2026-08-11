@@ -201,7 +201,7 @@ function Battler:getHitCount() end
 --- Pipeline:
 ---     1. attackDamage  = battler.getDamagePerRound(self)
 ---     2. counterDamage = self.getDamagePerRound(battler)
----     3. counterRounds = self.infoComp.MAXHP // attackDamage
+---     3. counterRounds = max(ceil(self.infoComp.MAXHP / attackDamage) - 1, 0)
 ---     4. totalDamage = counterRounds * counterDamage
 ---
 --- - @param battler The opposing battler (the attacker).

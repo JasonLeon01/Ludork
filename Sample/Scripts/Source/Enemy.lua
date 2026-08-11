@@ -56,15 +56,12 @@ function Enemy:battle()
     local player = scene.inst:getPlayer()
     local damageType, damage = self:getDamage(player)
     if damageType == DamageType.UNDEFEATABLE then
-        player.infoComp.HP = 0
-        Enemy._gameOver()
         return 1
     end
     local won = damage < player.infoComp.HP
     player.infoComp.HP = Engine.ToInteger(player.infoComp.HP - damage)
     scene:getGameMap():addDamageText(tostring(damage), player:getPosition())
     if not won then
-        Enemy._gameOver()
         return 1
     end
     return 0
@@ -166,6 +163,7 @@ function Enemy:onCollision(other)
                 end)
             elseif result == 1 then
                 player.infoComp.HP = 0
+                Enemy._gameOver()
             end
         end)
     end

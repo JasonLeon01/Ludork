@@ -54,6 +54,10 @@ bool setNativeInputMethodDisabled(sf::WindowHandle windowHandle,
     return true;
 }
 
+bool isNativeWindowLiveResizing(sf::WindowHandle) noexcept {
+    return false;
+}
+
 void restoreNativeInputMethod() noexcept {
     restoreInputContext();
 }
@@ -61,6 +65,10 @@ void restoreNativeInputMethod() noexcept {
 #elif !defined(__APPLE__) || TARGET_OS_IPHONE
 
 bool setNativeInputMethodDisabled(sf::WindowHandle, bool) noexcept {
+    return false;
+}
+
+bool isNativeWindowLiveResizing(sf::WindowHandle) noexcept {
     return false;
 }
 

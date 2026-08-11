@@ -5,6 +5,7 @@ using Ludork.Services;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
 
@@ -16,6 +17,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private LayerTabViewModel? selectedLayerTab;
     private JsonObject? copiedLayer;
     private string? copiedLayerName;
+    private string? soloLayerName;
     private string selectedLanguage = LocaleService.CurrentLanguage;
     private bool disposed;
 
@@ -35,7 +37,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         BlueprintCreation = new BlueprintCreationService(GameData, Metadata, BlueprintClasses);
         PreviewService = new BlueprintPreviewService(projectPath, GameData, BlueprintClasses);
         IconService = new FileIconService();
-        ActorQueue = new ActorQueueViewModel(GameData, PreviewService, IconService);
+        ActorQueue = new ActorQueueViewModel(
+            GameData,
+            ProjectConfig,
+            BlueprintClasses,
+            PreviewService,
+            IconService);
         FileExplorerPanel = new FileExplorerViewModel(
             projectPath,
             ProjectConfig,
@@ -90,6 +97,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     public event EventHandler<int>? PreviewModeRequested;
     public event EventHandler<string>? FileOpenFailed;
     public event EventHandler? ActorOutlinerChanged;
+    public event EventHandler? LayerDisplayStateChanged;
 
     public GameDataService GameData { get; }
     public ProjectConfigService ProjectConfig { get; }
@@ -170,6 +178,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         {
             if (!SetProperty(ref selectedMap, value))
                 return;
+            soloLayerName = null;
             refreshLayerTabs();
             SelectedMapChanged?.Invoke(this, EventArgs.Empty);
         }
@@ -186,10 +195,26 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             TileSelect.IsLayerSelected = hasLayer;
             if (hasLayer)
                 TileSelect.setCurrentTilesetKey(GameData.getLayerTilesetKey(SelectedMap!.Key, value!.Name));
+            LayerDisplayStateChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 
     public JsonObject? SelectedMapData => SelectedMap is null ? null : GameData.getMap(SelectedMap.Key);
+    public string? SoloLayerName => soloLayerName;
+    public bool IsSelectedLayerEditable => SelectedLayerTab is
+        {
+            IsOverview: false,
+            IsEffectivelyVisible: true,
+        };
+
+    public bool canEditLayer(string mapKey, string layerName)
+    {
+        if (GameData.MapData.GetValueOrDefault(mapKey)?["layers"]?[layerName] is not JsonObject layer)
+            return false;
+        if (SelectedMap?.Key == mapKey && soloLayerName is not null)
+            return string.Equals(soloLayerName, layerName, StringComparison.Ordinal);
+        return layer["visible"]?.GetValue<bool?>() ?? true;
+    }
 
     public bool moveLayer(LayerTabViewModel moving, LayerTabViewModel target)
     {
@@ -217,6 +242,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     {
         if (SelectedMap is null || !GameData.renameLayer(SelectedMap.Key, oldName, newName))
             return false;
+        if (string.Equals(soloLayerName, oldName, StringComparison.Ordinal))
+            soloLayerName = newName;
         refreshLayerTabs(newName);
         return true;
     }
@@ -225,6 +252,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     {
         if (SelectedMap is null || !GameData.removeLayer(SelectedMap.Key, layerName))
             return false;
+        if (string.Equals(soloLayerName, layerName, StringComparison.Ordinal))
+            soloLayerName = null;
         refreshLayerTabs();
         return true;
     }
@@ -251,6 +280,34 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     }
 
     public bool CanPasteLayer => copiedLayer is not null;
+
+    public bool setLayerVisible(LayerTabViewModel layer, bool visible)
+    {
+        if (SelectedMap is null || layer.IsOverview || layer.LayerVisible == visible)
+            return false;
+        if (!GameData.SetLayerVisible(SelectedMap.Key, layer.Name, visible))
+            return false;
+        layer.LayerVisible = visible;
+        updateLayerEditability();
+        return true;
+    }
+
+    public void toggleSoloLayer(LayerTabViewModel layer)
+    {
+        if (layer.IsOverview)
+            return;
+        soloLayerName = string.Equals(soloLayerName, layer.Name, StringComparison.Ordinal)
+            ? null
+            : layer.Name;
+        foreach (LayerTabViewModel item in LayerTabs)
+        {
+            item.IsSolo = !item.IsOverview && string.Equals(item.Name, soloLayerName, StringComparison.Ordinal);
+            item.IsSoloSuppressed = !item.IsOverview
+                && soloLayerName is not null
+                && !string.Equals(item.Name, soloLayerName, StringComparison.Ordinal);
+        }
+        updateLayerEditability();
+    }
 
     public string getLayerShaderPath(string layerName)
     {
@@ -362,16 +419,33 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     {
         string? previousName = preferredLayerName ?? (SelectedLayerTab is { IsOverview: false } ? SelectedLayerTab.Name : null);
         LayerTabs.Clear();
-        LayerTabs.Add(new LayerTabViewModel(LocaleService.Get("OVERVIEW"), true));
+        LayerTabs.Add(new LayerTabViewModel(LocaleService.Get("OVERVIEW"), true, true, false, false));
         if (SelectedMap is not null)
         {
-            foreach (string name in GameData.getLayerNames(SelectedMap.Key))
-                LayerTabs.Add(new LayerTabViewModel(name, false));
+            string[] names = GameData.getLayerNames(SelectedMap.Key).ToArray();
+            if (soloLayerName is not null && !names.Contains(soloLayerName, StringComparer.Ordinal))
+                soloLayerName = null;
+            foreach (string name in names)
+            {
+                bool visible = SelectedMapData?["layers"]?[name]?["visible"]?.GetValue<bool?>() ?? true;
+                LayerTabs.Add(new LayerTabViewModel(
+                    name,
+                    false,
+                    visible,
+                    string.Equals(name, soloLayerName, StringComparison.Ordinal),
+                    soloLayerName is not null && !string.Equals(name, soloLayerName, StringComparison.Ordinal)));
+            }
         }
         SelectedLayerTab = previousName is null
             ? LayerTabs[0]
             : LayerTabs.FirstOrDefault(item => !item.IsOverview && item.Name == previousName) ?? LayerTabs[0];
         refreshActorOutliner();
+        updateLayerEditability();
+    }
+
+    private void updateLayerEditability()
+    {
+        LayerDisplayStateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private static string getString(JsonNode? value)
@@ -405,6 +479,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     private void onDataRestored(object? sender, EventArgs args)
     {
+        ActorQueue.PurgeStale();
         refreshMaps();
         TileSelect.RefreshData();
         SelectedMapChanged?.Invoke(this, EventArgs.Empty);
@@ -416,7 +491,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         if (info?.Type != "blueprint" || info.Key is null)
             return;
         string reference = "Data.Blueprints." + info.Key.Replace('/', '.');
-        if (GameData.IsActorBlueprint(reference))
+        if (BlueprintClasses.IsDerivedFrom(reference, "Engine.Actor"))
             ActorQueue.AddOrPromote(reference);
     }
 
@@ -424,11 +499,70 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         object? sender,
         FileExplorerFilesChangedEventArgs args)
     {
+        remapExplorerMoves(args.Moved);
         ReferenceIndex.MarkDirty();
-        if (args.Moved.Count != 0 || args.Deleted.Count != 0)
-            ActorQueue.PurgeStale();
+        ActorQueue.PurgeStale();
         refreshMaps();
         TileSelect.RefreshData();
+    }
+
+    private void remapExplorerMoves(
+        IReadOnlyList<(string OldPath, string NewPath)> moved)
+    {
+        if (moved.Count == 0)
+            return;
+        Dictionary<string, string> replacements = new Dictionary<string, string>(StringComparer.Ordinal);
+        IReadOnlyList<string> blueprintReferences = ActorQueue.BlueprintReferences;
+        foreach ((string oldPath, string newPath) in moved)
+        {
+            bool directory = Directory.Exists(newPath);
+            if (!directory && !System.IO.File.Exists(newPath))
+                continue;
+            if (tryGetBlueprintReferencePath(oldPath, directory, out string oldReference)
+                && tryGetBlueprintReferencePath(newPath, directory, out string newReference))
+            {
+                foreach (string reference in blueprintReferences)
+                {
+                    if (!directory && string.Equals(reference, oldReference, StringComparison.Ordinal))
+                        replacements[reference] = newReference;
+                    else if (directory && reference.StartsWith(oldReference + ".", StringComparison.Ordinal))
+                        replacements[reference] = newReference + reference[oldReference.Length..];
+                }
+            }
+        }
+        if (replacements.Count != 0)
+            ActorQueue.RemapReferences(replacements);
+    }
+
+    private bool tryGetBlueprintReferencePath(
+        string path,
+        bool directory,
+        out string reference)
+    {
+        string root = Path.GetFullPath(Path.Combine(GameData.ProjectPath, "Data", "Blueprints"));
+        string fullPath = Path.GetFullPath(path);
+        string relative = Path.GetRelativePath(root, fullPath);
+        if (Path.IsPathRooted(relative)
+            || relative == ".."
+            || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+        {
+            reference = string.Empty;
+            return false;
+        }
+        if (!directory && !string.Equals(
+                Path.GetExtension(relative),
+                DataConfig.DataFileExtension,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            reference = string.Empty;
+            return false;
+        }
+        string key = directory ? relative : Path.ChangeExtension(relative, null)!;
+        reference = "Data.Blueprints." + key
+            .Replace(Path.DirectorySeparatorChar, '.')
+            .Replace(Path.AltDirectorySeparatorChar, '.')
+            .Trim('.');
+        return reference.Length > "Data.Blueprints.".Length;
     }
 
     private void onExplorerFileOpened(object? sender, string path)
@@ -529,7 +663,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     public string About => LocaleService.Get("ABOUT_MENU");
     public string MapList => LocaleService.Get("MAP_LIST");
     public string WorldOutliner => LocaleService.Get("WORLD_OUTLINER");
-    public string RecentlyPlaced => LocaleService.Get("RECENTLY_PLACED");
+    public string ActorLibrary => LocaleService.Get("ACTOR_LIBRARY");
     public string FileExplorer => LocaleService.Get("FILE_EXPLORER");
     public string Console => LocaleService.Get("CONSOLE");
 }
@@ -540,10 +674,64 @@ public sealed class HistoryCompletedEventArgs(string action, IReadOnlyList<strin
     public string Action { get; } = action;
     public IReadOnlyList<string> Differences { get; } = differences;
 }
-public sealed class LayerTabViewModel(string name, bool isOverview)
+public sealed class LayerTabViewModel : ViewModelBase
 {
-    public string Name { get; } = name;
-    public bool IsOverview { get; } = isOverview;
+    private bool layerVisible;
+    private bool isSolo;
+    private bool isSoloSuppressed;
+
+    public LayerTabViewModel(
+        string name,
+        bool isOverview,
+        bool layerVisible,
+        bool isSolo,
+        bool isSoloSuppressed)
+    {
+        Name = name;
+        IsOverview = isOverview;
+        this.layerVisible = layerVisible;
+        this.isSolo = isSolo;
+        this.isSoloSuppressed = isSoloSuppressed;
+    }
+
+    public string Name { get; }
+    public bool IsOverview { get; }
+    public bool ShowLayerActions => !IsOverview;
+    public bool LayerVisible
+    {
+        get => layerVisible;
+        set
+        {
+            if (!SetProperty(ref layerVisible, value))
+                return;
+            OnPropertyChanged(nameof(IsEffectivelyVisible));
+            OnPropertyChanged(nameof(VisibilityTooltip));
+        }
+    }
+    public bool IsSolo
+    {
+        get => isSolo;
+        set
+        {
+            if (!SetProperty(ref isSolo, value))
+                return;
+            OnPropertyChanged(nameof(IsEffectivelyVisible));
+            OnPropertyChanged(nameof(SoloTooltip));
+        }
+    }
+    public bool IsSoloSuppressed
+    {
+        get => isSoloSuppressed;
+        set
+        {
+            if (!SetProperty(ref isSoloSuppressed, value))
+                return;
+            OnPropertyChanged(nameof(IsEffectivelyVisible));
+        }
+    }
+    public bool IsEffectivelyVisible => IsSolo || LayerVisible && !IsSoloSuppressed;
+    public string VisibilityTooltip => LocaleService.Get(LayerVisible ? "HIDE_LAYER" : "SHOW_LAYER");
+    public string SoloTooltip => LocaleService.Get(IsSolo ? "EXIT_SOLO_LAYER" : "SOLO_LAYER");
 }
 
 public sealed class ActorOutlinerItemViewModel(

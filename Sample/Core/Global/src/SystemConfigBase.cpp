@@ -5,6 +5,7 @@
 #include <Utf8Path.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
@@ -51,8 +52,8 @@ void SystemConfigBase::init(
     script_ = data_->get("Main", "script").value_or(script_);
     language_ =
         resolveLanguage(data_->get("Main", "language").value_or(language_));
-    scale_ =
-        static_cast<float>(data_->getFloat("Main", "scale").value_or(scale_));
+    scale_ = normalizeScale(
+        static_cast<float>(data_->getFloat("Main", "scale").value_or(scale_)));
     frameRate_ = static_cast<int>(
         data_->getInt("Main", "frameRate").value_or(frameRate_));
     verticalSync_ =
@@ -66,7 +67,7 @@ void SystemConfigBase::init(
         data_->getFloat("Main", "soundVolume").value_or(soundVolume_)));
     voiceVolume_ = clampVolume(static_cast<float>(
         data_->getFloat("Main", "voiceVolume").value_or(voiceVolume_)));
-    engineState().setScale(scale_);
+    engineState().setScale(scale_ > 0.0f ? scale_ : 1.0f);
 }
 
 std::string SystemConfigBase::getScript() {
@@ -101,14 +102,17 @@ float SystemConfigBase::getConfiguredScale() {
 }
 void SystemConfigBase::setScale(float value) {
     applyScale(value);
-    saveScale(value);
+    saveScale(scale_);
 }
 void SystemConfigBase::applyScale(float value) {
-    scale_ = value;
-    engineState().setScale(scale_);
+    scale_ = normalizeScale(value);
+    if (!changeHandler_) {
+        engineState().setScale(scale_ > 0.0f ? scale_ : 1.0f);
+    }
+    afterConfigChanged("scale");
 }
 void SystemConfigBase::saveScale(float value) {
-    setIniData("scale", numberText(value));
+    setIniData("scale", numberText(normalizeScale(value)));
 }
 
 int SystemConfigBase::getFrameRate() {
@@ -242,9 +246,6 @@ void SystemConfigBase::setIniData(const std::string& key,
 }
 
 void SystemConfigBase::afterConfigChanged(const std::string& key) {
-    if (key == "scale") {
-        engineState().setScale(scale_);
-    }
     if (changeHandler_) {
         changeHandler_(key);
     }
@@ -252,6 +253,10 @@ void SystemConfigBase::afterConfigChanged(const std::string& key) {
 
 std::string SystemConfigBase::resolveLanguage(const std::string& language) {
     return language.empty() ? "en_GB" : language;
+}
+
+float SystemConfigBase::normalizeScale(float scale) {
+    return std::isfinite(scale) && scale >= 0.0f ? scale : 1.0f;
 }
 
 float SystemConfigBase::clampVolume(float volume) {

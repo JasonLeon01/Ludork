@@ -2,11 +2,15 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local ComponentBase = require("Global.Components.ComponentBase")
 local Pool = require("Global.Pool")
+local Enemy = require("Source.Enemy")
+local GeneralEnum = require("Source.Configs.GeneralEnum")
 local MovementSpecials = require("Source.MovementSpecials")
+local Teleporter = require("Source.Teleporter")
 
 local Input = Engine.Input
 local Actor = Engine.Actor
 local System = GlobalCore.System
+local Special = GeneralEnum.Special
 
 local NEIGHBOUR_OFFSET_DOWN = sf.Vector2i.new(0, 1)
 local NEIGHBOUR_OFFSET_UP = sf.Vector2i.new(0, -1)
@@ -14,14 +18,35 @@ local NEIGHBOUR_OFFSET_RIGHT = sf.Vector2i.new(1, 0)
 local NEIGHBOUR_OFFSET_LEFT = sf.Vector2i.new(-1, 0)
 local NEIGHBOUR_OFFSETS = { NEIGHBOUR_OFFSET_DOWN, NEIGHBOUR_OFFSET_UP, NEIGHBOUR_OFFSET_RIGHT, NEIGHBOUR_OFFSET_LEFT }
 
+---@param gameMap GameMap
+---@param goal    sf.Vector2i
+---@return boolean
+local function hasTeleporterAt(gameMap, goal)
+    for _, actor in ipairs(gameMap:getAllActors()) do
+        if Class.isInstance(actor, Teleporter) and not actor:isDestroyed() then
+            for _, cell in ipairs(actor:getOccupiedMapCells()) do
+                if cell == goal then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
 ---@class Source.SceneComponents.MapClickAutoPath
 local MapClickAutoPath = {}
 
-function MapClickAutoPath:init(gameMap, routeState)
+function MapClickAutoPath:init(gameMap, routeState, dangerState)
     super(MapClickAutoPath, self).init(gameMap)
     self._routeState = routeState
+    self._dangerState = dangerState
     self._autoPathing = false
+    self._activeGoal = nil
+    self._routeDangerRevision = nil
     self._pendingGoals = {}
+    self._previewMapX = nil
+    self._previewMapY = nil
 end
 
 function MapClickAutoPath:onLateTick(_deltaTime)
@@ -55,21 +80,38 @@ function MapClickAutoPath:onTick(_deltaTime)
     local player = gameMap:getPlayer()
     if player == nil then
         self._autoPathing = false
+        self._activeGoal = nil
+        self._routeDangerRevision = nil
         self._routeState:clear()
         self._pendingGoals = {}
+        self._previewMapX = nil
+        self._previewMapY = nil
         return
     end
     ---@cast player Source.Player.Player
     if self:_isAutoPathBlocked(player) then
         self._autoPathing = false
+        self._activeGoal = nil
+        self._routeDangerRevision = nil
         self._routeState:clear()
         self._pendingGoals = {}
+        self._previewMapX = nil
+        self._previewMapY = nil
         return
     end
+    if self._autoPathing and self._routeDangerRevision ~= self._dangerState:getRevision() then
+        self:_replanForDangerChange(player)
+    end
     local currentPos = player:getMapPosition()
-    self:_trimPreviewRoute(currentPos)
+    if self._previewMapX ~= currentPos.x or self._previewMapY ~= currentPos.y then
+        self:_trimPreviewRoute(currentPos)
+        self._previewMapX = currentPos.x
+        self._previewMapY = currentPos.y
+    end
     if self._autoPathing and not player:isMoving() and not player:isInRoute() then
         self._autoPathing = false
+        self._activeGoal = nil
+        self._routeDangerRevision = nil
         self._routeState:clear()
     end
     local goals = self:_drainPendingGoals()
@@ -86,6 +128,8 @@ function MapClickAutoPath:onTick(_deltaTime)
             player:stop()
         end
         self._autoPathing = false
+        self._activeGoal = nil
+        self._routeDangerRevision = nil
         self._routeState:clear()
         return
     end
@@ -98,14 +142,54 @@ function MapClickAutoPath:onTick(_deltaTime)
             else
                 local plan = self:_buildAutoPathPlan(player, start, goal)
                 if plan ~= nil then
-                    self._routeState:setRoute(plan.route)
-                    self:_trimPreviewRoute(start)
-                    player:setRoute(plan.routeSteps)
-                    self._autoPathing = true
+                    self:_startAutoPath(player, start, goal, plan)
                 end
             end
         end
     end
+end
+
+---@param player Source.Player.Player
+---@param start  sf.Vector2i
+---@param goal   sf.Vector2i
+---@param plan   MapClickAutoPath.Plan
+function MapClickAutoPath:_startAutoPath(player, start, goal, plan)
+    self._routeState:setRoute(plan.route)
+    self:_trimPreviewRoute(start)
+    self._previewMapX = start.x
+    self._previewMapY = start.y
+    self._activeGoal = sf.Vector2i.new(goal.x, goal.y)
+    self._routeDangerRevision = self._dangerState:getRevision()
+    player:setRoute(plan.routeSteps)
+    self._autoPathing = true
+end
+
+---@param player Source.Player.Player
+function MapClickAutoPath:_replanForDangerChange(player)
+    local goal = self._activeGoal
+    local stablePosition = player:getMapPosition()
+    player:stop()
+    player:setMapPosition(stablePosition)
+    self._parent:updateActorOccupancy(player)
+    self._autoPathing = false
+    self._routeState:clear()
+    self._routeDangerRevision = self._dangerState:getRevision()
+    if goal == nil then
+        return
+    end
+    local start = player:getMapPosition()
+    if start == goal then
+        self._activeGoal = nil
+        self._routeDangerRevision = nil
+        return
+    end
+    local plan = self:_buildAutoPathPlan(player, start, goal)
+    if plan == nil then
+        self._activeGoal = nil
+        self._routeDangerRevision = nil
+        return
+    end
+    self:_startAutoPath(player, start, goal, plan)
 end
 
 ---@param player Source.Player.Player
@@ -223,11 +307,27 @@ function MapClickAutoPath:_buildAutoPathPlan(actor, start, goal)
         return { routeSteps = routeSteps, route = { sf.Vector2i.new(start.x, start.y) }, goalPassable = true }
     end
     local gameMap = self._parent
+    local ignoredGoalEnemies = self:_getIgnoredGoalEnemies(goal)
+    local excludedAnchors = self._dangerState:getExcludedAnchors(goal, ignoredGoalEnemies, true)
+    local direct = self:_buildPathToTarget(actor, start, goal, excludedAnchors)
     local goalPassable = gameMap:isPathfindingPassable(actor, goal)
     local goalActuallyPassable = gameMap:isPassable(actor, goal)
-    local direct = self:_buildPathToTarget(actor, start, goal)
-    if goalActuallyPassable and direct ~= nil and direct.route[#direct.route] == goal then
-        return { routeSteps = direct.routeSteps, route = direct.route, goalPassable = true }
+    local goalWillBeEntered = goalPassable and goalActuallyPassable
+    if goalWillBeEntered and bool(ignoredGoalEnemies)
+        and self._dangerState:getDamageAt(goal, ignoredGoalEnemies) > 0 then
+        return nil
+    end
+    if direct ~= nil and direct.route[#direct.route] == goal then
+        if goalActuallyPassable and not goalPassable and not hasTeleporterAt(gameMap, goal) then
+            ---@type sf.Vector2i[]
+            local routeSteps = deepcopy(direct.routeSteps)
+            table.remove(routeSteps)
+            ---@type sf.Vector2i[]
+            local route = deepcopy(direct.route)
+            table.remove(route)
+            return { routeSteps = routeSteps, route = route, goalPassable = false }
+        end
+        return { routeSteps = direct.routeSteps, route = direct.route, goalPassable = goalActuallyPassable }
     end
     if goalPassable then
         return nil
@@ -250,7 +350,7 @@ function MapClickAutoPath:_buildAutoPathPlan(actor, start, goal)
                 routeSteps = emptyRouteSteps
                 route = { sf.Vector2i.new(start.x, start.y) }
             else
-                local neighbourPlan = self:_buildPathToTarget(actor, start, neighbour)
+                local neighbourPlan = self:_buildPathToTarget(actor, start, neighbour, excludedAnchors)
                 if neighbourPlan ~= nil and neighbourPlan.route[#neighbourPlan.route] == neighbour then
                     routeSteps = neighbourPlan.routeSteps
                     route = neighbourPlan.route
@@ -290,13 +390,33 @@ end
 ---@param actor  Engine.Actor
 ---@param start  sf.Vector2i
 ---@param target sf.Vector2i
+---@param excludedAnchors sf.Vector2i[]
 ---@return MapClickAutoPath.Path | nil
-function MapClickAutoPath:_buildPathToTarget(actor, start, target)
-    local pathResult = self._parent:findPathResult(start, target, actor)
+function MapClickAutoPath:_buildPathToTarget(actor, start, target, excludedAnchors)
+    local pathResult = self._parent:findPathResult(start, target, actor, excludedAnchors)
     if not bool(pathResult.route) then
         return nil
     end
     return { routeSteps = pathResult.offsets, route = pathResult.route }
+end
+
+---@param goal sf.Vector2i
+---@return Source.Enemy[]
+function MapClickAutoPath:_getIgnoredGoalEnemies(goal)
+    local enemies = {}
+    for _, actor in ipairs(self._parent:getAllActors()) do
+        if Class.isInstance(actor, Enemy) and not actor:isDestroyed()
+            and (actor:hasSpecial(Special.Domain) or actor:hasSpecial(Special.Blockade)) then
+            ---@cast actor Source.Enemy
+            for _, cell in ipairs(actor:getOccupiedMapCells()) do
+                if cell == goal then
+                    enemies[#enemies + 1] = actor
+                    break
+                end
+            end
+        end
+    end
+    return enemies
 end
 
 ---@return sf.Vector2i | nil

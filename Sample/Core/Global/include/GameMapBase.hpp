@@ -83,13 +83,16 @@ public:
     /// - \param start Start position
     /// - \param goal Goal position
     /// - \param size Grid dimensions
+    /// - \param movingActor Actor whose footprint and occupancy are evaluated
+    /// - \param excludedAnchors Anchor cells that A* must not enter
     ///
     /// - \return Pathfinding result containing offsets, points, and route
     ///
     ////////////////////////////////////////////////////////////
-    BIND_METHOD()
+    BIND_METHOD(defaults = {nil, nil, nil, nil, {}})
     PathResult findPathExt(const sf::Vector2i& start, const sf::Vector2i& goal,
-                           const sf::Vector2u& size, Actor& movingActor);
+                           const sf::Vector2u& size, Actor& movingActor,
+                           const std::vector<sf::Vector2i>& excludedAnchors = {});
 
     ////////////////////////////////////////////////////////////
     /// \brief Build a 2D map of dynamic material property values
@@ -246,6 +249,9 @@ private:
     ////////////////////////////////////////////////////////////
     bool passable(int x, int y, int sx, int sy, int gx, int gy);
 
+    bool passableForActor(int x, int y, int sx, int sy, int gx, int gy,
+                          const Actor* excludedActor);
+
     ////////////////////////////////////////////////////////////
     /// \brief Register one actor into all occupied cells in the occupancy map
     ///
@@ -275,12 +281,15 @@ private:
     /// - \param sy Start anchor Y coordinate
     /// - \param gx Goal anchor X coordinate
     /// - \param gy Goal anchor Y coordinate
+    /// - \param width Search grid width
+    /// - \param height Search grid height
     /// - \param movingActor Moving actor used for footprint checks
     ///
     /// - \return `true` when the node is passable
     ///
     ////////////////////////////////////////////////////////////
     bool nodePassableForActor(int x, int y, int sx, int sy, int gx, int gy,
+                              unsigned int width, unsigned int height,
                               const Actor& movingActor);
 
     bool isDirectionPassable(const sf::Vector2i& fromPosition,
@@ -288,6 +297,7 @@ private:
                              int direction) const;
 
     void ensurePassabilityCache() const;
+    void refreshActorOccupancyCache();
 
     ////////////////////////////////////////////////////////////
     /// \brief Return layer names in top-first order

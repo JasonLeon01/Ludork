@@ -100,6 +100,19 @@ bool setNativeInputMethodDisabled(sf::WindowHandle windowHandle,
   }
 }
 
+bool isNativeWindowLiveResizing(sf::WindowHandle windowHandle) noexcept {
+  @autoreleasepool {
+    id nativeHandle = static_cast<id>(windowHandle);
+    NSView *rootView = nil;
+    if ([nativeHandle isKindOfClass:[NSWindow class]])
+      rootView = [static_cast<NSWindow *>(nativeHandle) contentView];
+    else if ([nativeHandle isKindOfClass:[NSView class]])
+      rootView = static_cast<NSView *>(nativeHandle);
+    SFOpenGLView *openGLView = findOpenGLView(rootView);
+    return openGLView != nil && [openGLView inLiveResize];
+  }
+}
+
 void restoreNativeInputMethod() noexcept {
   @autoreleasepool {
     restoreInputContext();

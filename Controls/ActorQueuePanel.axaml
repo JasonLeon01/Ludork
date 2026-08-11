@@ -4,31 +4,61 @@
              xmlns:controls="using:Ludork.Controls"
              x:Class="Ludork.Controls.ActorQueuePanel"
              x:DataType="vm:ActorQueueViewModel">
-    <ListBox x:Name="Queue"
-             ItemsSource="{Binding Items}"
-             SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
-             DoubleTapped="onDoubleTapped">
-        <ListBox.ItemsPanel>
-            <ItemsPanelTemplate>
-                <StackPanel Spacing="8" />
-            </ItemsPanelTemplate>
-        </ListBox.ItemsPanel>
-        <ListBox.ItemTemplate>
-            <DataTemplate x:DataType="vm:ActorQueueItemViewModel">
-                <Grid Height="66"
-                      ColumnDefinitions="Auto,*"
-                      ColumnSpacing="6"
-                      ToolTip.Tip="{Binding BlueprintReference}">
-                    <Image Source="{Binding Icon}"
-                           Width="48"
-                           Height="48"
-                           Stretch="Uniform"
-                           VerticalAlignment="Center" />
-                    <controls:MiddleEllipsisTextBlock Grid.Column="1"
-                                                       SourceText="{Binding DisplayName}"
-                                                       VerticalAlignment="Center" />
-                </Grid>
-            </DataTemplate>
-        </ListBox.ItemTemplate>
-    </ListBox>
+    <Grid RowDefinitions="38,38,*" RowSpacing="6">
+        <TextBox x:Name="SearchBox"
+                 Text="{Binding SearchText, Mode=TwoWay}"
+                 PlaceholderText="Search" />
+        <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="6">
+            <ComboBox ItemsSource="{Binding Scopes}"
+                      SelectedItem="{Binding SelectedScope, Mode=TwoWay}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ActorLibraryScopeOption">
+                        <TextBlock Text="{Binding DisplayName}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <ComboBox Grid.Column="1"
+                      ItemsSource="{Binding Categories}"
+                      SelectedItem="{Binding SelectedCategory, Mode=TwoWay}" />
+        </Grid>
+        <ListBox x:Name="Queue"
+                 Grid.Row="2"
+                 ItemsSource="{Binding Items}"
+                 SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                 DoubleTapped="onDoubleTapped">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:ActorQueueItemViewModel">
+                    <controls:ActorQueueItemControl>
+                        <Grid Height="66"
+                              ColumnDefinitions="Auto,*,Auto"
+                              ColumnSpacing="6"
+                              ToolTip.Tip="{Binding BlueprintReference}">
+                            <Image Source="{Binding Icon}"
+                                   Width="48"
+                                   Height="48"
+                                   Stretch="Uniform"
+                                   VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1"
+                                        VerticalAlignment="Center"
+                                        Spacing="2">
+                                <controls:MiddleEllipsisTextBlock SourceText="{Binding DisplayName}" />
+                                <controls:MiddleEllipsisTextBlock SourceText="{Binding Category}"
+                                                                  FontSize="11"
+                                                                  Opacity="0.62" />
+                            </StackPanel>
+                            <ToggleButton Grid.Column="2"
+                                          Width="30"
+                                          Height="30"
+                                          Padding="0"
+                                          HorizontalContentAlignment="Center"
+                                          VerticalContentAlignment="Center"
+                                          Content="★"
+                                          IsChecked="{Binding IsFavorite, Mode=OneWay}"
+                                          Click="onFavouriteClick" />
+                        </Grid>
+                    </controls:ActorQueueItemControl>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </Grid>
 </UserControl>

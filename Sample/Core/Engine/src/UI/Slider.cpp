@@ -337,6 +337,11 @@ void Slider::updateGeometry() {
     handle_->setPosition({handleOffset() * Scale, 0.0f});
 }
 
+void Slider::refreshDisplayScale() {
+    updateGeometry();
+    ControlBase::refreshDisplayScale();
+}
+
 void Slider::updatePointerDrag() {
     FunctionalInputProvider* provider = inputProvider();
     if (provider == nullptr || !getVisible() || !getActive()) {

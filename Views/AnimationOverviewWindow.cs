@@ -20,6 +20,7 @@ public sealed class AnimationOverviewWindow : Window
         ItemTemplate = HintedTextPresenter.StringItemTemplate,
     };
     private readonly ContentControl editorHost = new();
+    private readonly DeferredWindowInitializer initializer;
     private string currentKey = string.Empty;
     private readonly Toast toast;
 
@@ -41,12 +42,16 @@ public sealed class AnimationOverviewWindow : Window
         root.Children.Add(animationList);
         Grid.SetColumn(editorHost, 1);
         root.Children.Add(editorHost);
-        Content = root;
+        Content = DeferredWindowInitializer.CreateLoadingContent();
         toast = new Toast(this);
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
         gameData.DataRestored += onDataRestored;
         Closed += (_, _) => gameData.DataRestored -= onDataRestored;
-        refresh();
+        initializer = new DeferredWindowInitializer(this, () =>
+        {
+            Content = root;
+            refreshCore();
+        });
     }
 
     private void onDataRestored(object? sender, EventArgs args)
@@ -56,6 +61,13 @@ public sealed class AnimationOverviewWindow : Window
     }
 
     public void refresh()
+    {
+        if (!initializer.IsInitialized)
+            return;
+        refreshCore();
+    }
+
+    private void refreshCore()
     {
         string previous = currentKey;
         string[] keys = gameData.AnimationsData.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();

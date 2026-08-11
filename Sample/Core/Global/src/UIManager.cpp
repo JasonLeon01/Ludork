@@ -1,6 +1,7 @@
 #include <UIManager.hpp>
 
 #include <System.hpp>
+#include <Runtime/EngineState.hpp>
 #include <UI/Canvas.hpp>
 #include <UI/FunctionalBase.hpp>
 
@@ -26,7 +27,8 @@ void renderCanvas(const std::shared_ptr<ControlBase>& ui) {
 
 UIManager* UIManager::activeManager_ = nullptr;
 
-UIManager::UIManager() : focusManager_(std::make_shared<FocusManager>()) {
+UIManager::UIManager()
+    : focusManager_(std::make_shared<FocusManager>()), displayScale_(Scale) {
     activateFocusResolvers();
 }
 
@@ -65,6 +67,7 @@ void UIManager::loadUI(const std::shared_ptr<ControlBase>& ui) {
     if (ui == nullptr) {
         throw std::invalid_argument("UI cannot be null");
     }
+    ui->refreshDisplayScale();
     const std::lock_guard<std::mutex> lock(mutex_);
     uis_.push_back(ui);
     const std::shared_ptr<FunctionalBase> functional = functionalUI(ui);
@@ -105,6 +108,7 @@ void UIManager::fixedLogicHandle(float fixedDelta) {
 }
 
 void UIManager::logicHandle(float deltaTime) {
+    refreshDisplayScale();
     activateFocusResolvers();
     focusManager_->prepareFrame();
     const std::vector<std::shared_ptr<ControlBase>> sorted = sortedUIs(true);
@@ -115,6 +119,18 @@ void UIManager::logicHandle(float deltaTime) {
         const std::shared_ptr<FunctionalBase> functional = functionalUI(ui);
         if (functional != nullptr) {
             functional->update(deltaTime);
+        }
+    }
+}
+
+void UIManager::refreshDisplayScale() {
+    if (displayScale_ == Scale) {
+        return;
+    }
+    displayScale_ = Scale;
+    for (const std::shared_ptr<ControlBase>& ui : getUIs()) {
+        if (ui != nullptr) {
+            ui->refreshDisplayScale();
         }
     }
 }

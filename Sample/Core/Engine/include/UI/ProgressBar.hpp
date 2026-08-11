@@ -43,6 +43,9 @@ public:
     BIND_METHOD(Pure = true)
     virtual sf::FloatRect getLocalBounds() const override;
 
+    BIND_IGNORE()
+    void refreshDisplayScale() override;
+
 protected:
     BIND_METHOD()
     virtual void draw(sf::RenderTarget& target,

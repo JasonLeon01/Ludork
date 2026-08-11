@@ -54,9 +54,10 @@ public sealed class TileSelectViewModel : ViewModelBase
         {
             if (!IsLayerSelected)
                 value = null;
-            if (!SetProperty(ref selectedAutoTile, value) || value is null)
+            if (!SetProperty(ref selectedAutoTile, value))
                 return;
-            SelectedTiles = null;
+            if (value is not null)
+                SelectedTiles = null;
         }
     }
 
@@ -65,9 +66,10 @@ public sealed class TileSelectViewModel : ViewModelBase
         get => selectedTiles;
         private set
         {
-            if (!SetProperty(ref selectedTiles, value) || value is null)
+            if (!SetProperty(ref selectedTiles, value))
                 return;
-            SetProperty(ref selectedAutoTile, null, nameof(SelectedAutoTile));
+            if (value is not null)
+                SetProperty(ref selectedAutoTile, null, nameof(SelectedAutoTile));
         }
     }
 
@@ -135,7 +137,7 @@ public sealed class TileSelectViewModel : ViewModelBase
     public void ClearSelection()
     {
         clearTileSelection();
-        SetProperty(ref selectedAutoTile, null, nameof(SelectedAutoTile));
+        SelectedAutoTile = null;
     }
 
     private void clearTileSelection()

@@ -30,14 +30,49 @@ public:
     BIND_METHOD()
     static void saveLanguage(const std::string& value);
 
+    ////////////////////////////////////////////////////////////
+    /// \brief Get the current positive display scale
+    ///
+    /// - \return The actual scale used by rendering and input mapping
+    ///
+    ////////////////////////////////////////////////////////////
     BIND_METHOD()
     static float getScale();
+    ////////////////////////////////////////////////////////////
+    /// \brief Get the configured display scale
+    ///
+    /// Zero selects borderless fullscreen on desktop. Non-finite and negative
+    /// values are normalised to one.
+    ///
+    /// - \return The configured value, including zero
+    ///
+    ////////////////////////////////////////////////////////////
     BIND_METHOD()
     static float getConfiguredScale();
+    ////////////////////////////////////////////////////////////
+    /// \brief Apply and save a display scale
+    ///
+    /// The display change is applied between complete frames.
+    ///
+    /// - \param value Scale preference; zero selects desktop fullscreen
+    ///
+    ////////////////////////////////////////////////////////////
     BIND_METHOD()
     static void setScale(float value);
+    ////////////////////////////////////////////////////////////
+    /// \brief Apply a display scale without saving it
+    ///
+    /// - \param value Scale preference; zero selects desktop fullscreen
+    ///
+    ////////////////////////////////////////////////////////////
     BIND_METHOD()
     static void applyScale(float value);
+    ////////////////////////////////////////////////////////////
+    /// \brief Save a display scale without applying it
+    ///
+    /// - \param value Scale preference; zero selects desktop fullscreen
+    ///
+    ////////////////////////////////////////////////////////////
     BIND_METHOD()
     static void saveScale(float value);
 
@@ -108,6 +143,7 @@ private:
     static void setIniData(const std::string& key, const std::string& value);
     static void afterConfigChanged(const std::string& key);
     static std::string resolveLanguage(const std::string& language);
+    static float normalizeScale(float scale);
     static float clampVolume(float volume);
 
     static std::shared_ptr<ludork::standard::ConfigParser> data_;

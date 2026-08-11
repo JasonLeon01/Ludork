@@ -30,11 +30,14 @@ public sealed class GamePanel : NativeControlHost
     private const uint XButtonDownMessage = 0x020B;
     private const uint XButtonUpMessage = 0x020C;
     private const uint CaptureChangedMessage = 0x0215;
+    private const uint MouseLeaveMessage = 0x02A3;
+    private const uint TrackMouseEventLeave = 0x00000002;
     private readonly List<RuntimeInputEvent> pendingEvents = [];
     private WindowProcedure? windowProcedure;
     private nint previousWindowProcedure;
     private bool flushQueued;
     private bool inputEnabled;
+    private bool trackingMouseLeave;
     private int pressedMouseButtons;
 
     public event EventHandler? NativeHandleReady;
@@ -103,6 +106,7 @@ public sealed class GamePanel : NativeControlHost
         releaseNativeInputOwnership(false);
         pendingEvents.Clear();
         flushQueued = false;
+        trackingMouseLeave = false;
         if (OperatingSystem.IsWindows()
             && control.HandleDescriptor == "HWND"
             && previousWindowProcedure != nint.Zero)
@@ -146,8 +150,24 @@ public sealed class GamePanel : NativeControlHost
         }
         else if (message == MouseMoveMessage && canForwardOrdinaryInput(handle))
         {
+            if (!trackingMouseLeave)
+            {
+                NativeTrackMouseEvent trackingEvent = new()
+                {
+                    Size = (uint)Marshal.SizeOf<NativeTrackMouseEvent>(),
+                    Flags = TrackMouseEventLeave,
+                    TrackWindow = handle,
+                };
+                trackingMouseLeave = TrackMouseEvent(ref trackingEvent);
+            }
             NativePoint position = getClientPosition(lParam);
             enqueue(new("MouseMoved", X: position.X, Y: position.Y));
+        }
+        else if (message == MouseLeaveMessage)
+        {
+            trackingMouseLeave = false;
+            if (inputEnabled)
+                enqueue(new("MouseLeft"));
         }
         else if (isMouseButtonMessage(message) && canForwardOrdinaryInput(handle))
         {
@@ -369,6 +389,15 @@ public sealed class GamePanel : NativeControlHost
         public int Y = y;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeTrackMouseEvent
+    {
+        public uint Size;
+        public uint Flags;
+        public nint TrackWindow;
+        public uint HoverTime;
+    }
+
     [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)]
     private static extern nint SetWindowLongPtrW(nint handle, int index, nint value);
 
@@ -406,6 +435,10 @@ public sealed class GamePanel : NativeControlHost
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool ScreenToClient(nint handle, ref NativePoint point);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool TrackMouseEvent(ref NativeTrackMouseEvent trackingEvent);
 }
 
 public sealed class GameInputBatchEventArgs(IReadOnlyList<RuntimeInputEvent> events) : EventArgs

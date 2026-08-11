@@ -13,7 +13,8 @@ Canvas::Canvas(const sf::IntRect& rect)
       inRect_(rect),
       size_(toVector2u(toVector2f(rect.size))),
       canvas_(std::make_shared<sf::RenderTexture>(nonZeroRenderTextureSize(
-          toVector2u(toVector2f(rect.size) * Scale)))) {
+          toVector2u(toVector2f(rect.size) * Scale)))),
+      displayScale_(Scale) {
     setPremultipliedTexture(true);
     bindCanvasTexture();
     setPosition(toVector2f(rect.position));
@@ -149,6 +150,9 @@ void Canvas::update(float deltaTime) {
 }
 
 void Canvas::render() {
+    if (displayScale_ != Scale) {
+        refreshDisplayScale();
+    }
     _buildRenderQueue();
     canvas_->clear(sf::Color::Transparent);
     for (const RenderEntry& entry : renderQueue_) {
@@ -200,6 +204,21 @@ sf::RenderTexture& Canvas::getRenderTexture() {
 
 const sf::RenderTexture& Canvas::getRenderTexture() const {
     return *canvas_;
+}
+
+void Canvas::refreshDisplayScale() {
+    if (displayScale_ != Scale) {
+        const sf::View pixelView = canvas_->getView();
+        const sf::View logicalView(pixelView.getCenter() / displayScale_,
+                                   pixelView.getSize() / displayScale_);
+        const sf::Vector2f logicalOrigin =
+            SpriteBase::getOrigin() / displayScale_;
+        displayScale_ = Scale;
+        resize(size_);
+        setView(logicalView);
+        setOrigin(logicalOrigin);
+    }
+    ControlBase::refreshDisplayScale();
 }
 
 sf::Transform Canvas::_getScreenRenderTransform() const {

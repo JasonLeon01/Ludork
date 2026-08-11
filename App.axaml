@@ -38,5 +38,11 @@
         <Style Selector="NumericUpDown.ludork-editable /template/ TextBox#PART_TextBox">
             <Setter Property="Margin" Value="{Binding $parent[NumericUpDown].Padding}" />
         </Style>
+        <Style Selector="ScrollBar:vertical">
+            <Setter Property="Width" Value="8" />
+        </Style>
+        <Style Selector="ScrollBar:horizontal">
+            <Setter Property="Height" Value="8" />
+        </Style>
     </Application.Styles>
 </Application>

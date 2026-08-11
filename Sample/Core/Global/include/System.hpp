@@ -7,6 +7,7 @@
 #include <SFML/Graphics.hpp>
 
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <deque>
 #include <functional>
@@ -68,14 +69,49 @@ public:
     BIND_METHOD()
     static void saveLanguage(const std::string& value);
 
+    ////////////////////////////////////////////////////////////
+    /// \brief Get the current positive display scale
+    ///
+    /// - \return The actual scale used by rendering and input mapping
+    ///
+    ////////////////////////////////////////////////////////////
     BIND_METHOD()
     static float getScale();
+    ////////////////////////////////////////////////////////////
+    /// \brief Get the configured display scale
+    ///
+    /// Zero selects borderless fullscreen on desktop. Non-finite and negative
+    /// values are normalised to one.
+    ///
+    /// - \return The configured value, including zero
+    ///
+    ////////////////////////////////////////////////////////////
     BIND_METHOD()
     static float getConfiguredScale();
+    ////////////////////////////////////////////////////////////
+    /// \brief Apply and save a display scale
+    ///
+    /// The display change is applied between complete frames.
+    ///
+    /// - \param value Scale preference; zero selects desktop fullscreen
+    ///
+    ////////////////////////////////////////////////////////////
     BIND_METHOD()
     static void setScale(float value);
+    ////////////////////////////////////////////////////////////
+    /// \brief Apply a display scale without saving it
+    ///
+    /// - \param value Scale preference; zero selects desktop fullscreen
+    ///
+    ////////////////////////////////////////////////////////////
     BIND_METHOD()
     static void applyScale(float value);
+    ////////////////////////////////////////////////////////////
+    /// \brief Save a display scale without applying it
+    ///
+    /// - \param value Scale preference; zero selects desktop fullscreen
+    ///
+    ////////////////////////////////////////////////////////////
     BIND_METHOD()
     static void saveScale(float value);
 
@@ -385,9 +421,34 @@ private:
     static void setShaderUniform(sf::Shader& shader, const std::string& name,
                                  const ShaderUniformValue& value);
     static bool shadersAvailable();
+    static void applyPendingDisplayChanges();
+    static void applyConfiguredScale(float scale);
+    static void observeWindowResize();
+    static void updateWindowViewport();
+    static void rebuildDisplayTargets(float scale);
+    static void recreateDesktopWindow(bool fullscreen,
+                                      const sf::Vector2u& size);
+    static void replaceWindowedDesktopWindow(const sf::Vector2u& size,
+                                             const sf::Vector2i& position);
+    static void applyWindowPresentationSettings();
+    static float windowFitScale(const sf::Vector2u& size);
+    static sf::Vector2u renderSizeForScale(float scale);
+    static bool isEmbeddedDisplay();
+    static bool isMobileDisplay();
 
     static std::shared_ptr<sf::RenderWindow> window_;
     static std::unique_ptr<sf::Cursor> cursor_;
+    static std::string windowTitle_;
+    static std::string windowIconPath_;
+    static std::string windowCursorPath_;
+    static sf::ContextSettings windowContextSettings_;
+    static sf::Vector2u observedWindowSize_;
+    static std::optional<float> pendingConfiguredScale_;
+    static std::optional<float> pendingResizeScale_;
+    static std::chrono::steady_clock::time_point lastResizeTime_;
+    static bool desktopFullscreen_;
+    static bool inputMethodDisabled_;
+    static bool canvasDefaultViewActive_;
     static std::unique_ptr<sf::RenderTexture> canvas_;
     static std::optional<sf::Sprite> canvasSprite_;
     static std::unique_ptr<sf::RenderTexture> transition_;

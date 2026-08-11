@@ -1,4 +1,3 @@
-
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
@@ -13,9 +12,24 @@ local UIFunctions = GlobalFunctions.UI
 local DamageType = Battler.DamageType
 local Item = GeneralEnum.Item
 
+---@param self Source.EnemyDamageText
+local function syncTextDisplayScale(self)
+    local displayScale = math.max(Engine.Scale, 0.000001)
+    if self._textDisplayScale == displayScale then
+        return
+    end
+    self._textDisplayScale = displayScale
+    self._textRenderStates = sf.RenderStates.new()
+    local inverseScale = 1.0 / displayScale
+    self._textRenderStates.transform:scale(sf.Vector2f.new(inverseScale, inverseScale))
+    self._renderDirty = true
+end
+
 ---@class Source.EnemyDamageText
 local EnemyDamageText = {}
 
+EnemyDamageText.DamageHintLevel = { NONE = 0, BATTLE = 1, MAP = 2 }
+EnemyDamageText.EnemyDamageHintLevel = EnemyDamageText.DamageHintLevel.BATTLE
 EnemyDamageText.tickable = true
 EnemyDamageText.collisionEnabled = false
 EnemyDamageText.requiredItemID = Item.EnemyBook
@@ -50,20 +64,22 @@ function EnemyDamageText:init(_texture, _rect, tag)
     self._overlayVisible = false
     self._renderDirty = true
     self._fillColor = sf.Color.White
-    local inverseScale = 1.0 / math.max(Engine.Scale, 0.000001)
+    self._textDisplayScale = nil
     self._textRenderStates = sf.RenderStates.new()
-    self._textRenderStates.transform:scale(sf.Vector2f.new(inverseScale, inverseScale))
+    syncTextDisplayScale(self)
     self:setVisible(false, false)
 end
 
 function EnemyDamageText:onTick(_deltaTime)
+    syncTextDisplayScale(self)
     local player = EnemyDamageText._getPlayer()
     if player == nil then
         self:_setOverlayVisible(false)
         return
     end
     local parent = self:getParent()
-    local visible = parent ~= nil and parent:getVisible() and player:hasItem(self.requiredItemID)
+    local visible = EnemyDamageText.EnemyDamageHintLevel >= EnemyDamageText.DamageHintLevel.BATTLE and parent ~= nil
+        and parent:getVisible() and player:hasItem(self.requiredItemID)
     self:_setOverlayVisible(visible)
     if not visible then
         return
@@ -81,13 +97,11 @@ function EnemyDamageText:onTick(_deltaTime)
     end
     self:_ensureText()
     local damageType, damage = parent:getDamage(player)
-    local damageText = damageType == DamageType.UNDEFEATABLE and "???"
-        or tostring(Utils.ToShortNumber(damage))
+    local damageText = damageType == DamageType.UNDEFEATABLE and "???" or tostring(Utils.ToShortNumber(damage))
     local criticalText = EnemyDamageText._formatCriticalText(parent:getCriticalValue(player))
     if self:_setOverlayText(
         damageText, criticalText,
-        EnemyDamageText._getDamageColor(damageType, damage, Engine.ToInteger(player.infoComp.HP)), width,
-        height
+        EnemyDamageText.GetDamageColor(damageType, damage, Engine.ToInteger(player.infoComp.HP)), width, height
     ) then
         self._currentBattlers[1] = parent
         self._currentBattlers[2] = player
@@ -154,6 +168,7 @@ function EnemyDamageText:_renderTextTexture(damageText, criticalText, damageColo
     local replaceTexture = overlayTexture == nil or width ~= self._overlayTextureWidth
         or height ~= self._overlayTextureHeight
     local padding = 2
+    ---@cast size sf.Vector2u
     local renderTexture = EnemyDamageText._getScratchRenderTexture(size, width, height)
     if renderTexture == nil then
         error("Failed to resize enemy damage text render texture", 0)
@@ -278,7 +293,7 @@ end
 ---@param damage     integer
 ---@param playerHP   integer
 ---@return sf.Color
-function EnemyDamageText._getDamageColor(damageType, damage, playerHP)
+function EnemyDamageText.GetDamageColor(damageType, damage, playerHP)
     if damageType == DamageType.UNDEFEATABLE then
         return UIFunctions.GetDimGrey()
     end

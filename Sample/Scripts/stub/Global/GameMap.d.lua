@@ -22,6 +22,7 @@
 ---@field _initialisingActors boolean
 ---@field _camera GlobalCore.Camera | nil
 ---@field _components ComponentBase[]
+---@field _actors table<string, Engine.Actor[]>
 ---@field _player Engine.Actor | nil
 ---@field _scene GlobalCore.SceneBase | nil
 ---@field _particleSystem Engine.ParticleSystem | nil
@@ -397,24 +398,28 @@ function GameMap:getTopMaterial(pos) end
 --- - @param start The starting position.
 --- - @param goal The goal position.
 --- - @param actor The moving actor used for multi-cell footprint checks.
+--- - @param excludedAnchors Optional actor-anchor cells that A* must not enter.
 --- - @return Path data containing offsets, points, and route.
----@param start sf.Vector2i
----@param goal  sf.Vector2i
----@param actor Engine.Actor
+---@param start                    sf.Vector2i
+---@param goal                     sf.Vector2i
+---@param actor                    Engine.Actor
+---@param excludedAnchors?         sf.Vector2i[]
 ---@return GlobalCore.PathResult
-function GameMap:findPathResult(start, goal, actor) end
+function GameMap:findPathResult(start, goal, actor, excludedAnchors) end
 
 --- @brief Find a path from start to goal using pathfinding.
 ---
 --- - @param start The starting position.
 --- - @param goal The goal position.
 --- - @param actor The moving actor used for multi-cell footprint checks.
+--- - @param excludedAnchors Optional actor-anchor cells that A* must not enter.
 --- - @return A list of per-step movement offsets.
----@param start sf.Vector2i
----@param goal  sf.Vector2i
----@param actor Engine.Actor
+---@param start                    sf.Vector2i
+---@param goal                     sf.Vector2i
+---@param actor                    Engine.Actor
+---@param excludedAnchors?         sf.Vector2i[]
 ---@return sf.Vector2i[]
-function GameMap:findPath(start, goal, actor) end
+function GameMap:findPath(start, goal, actor, excludedAnchors) end
 
 --- @brief Check if a target position is passable for automatic pathfinding.
 ---

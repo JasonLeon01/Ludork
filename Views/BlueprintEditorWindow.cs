@@ -34,17 +34,18 @@ public sealed class BlueprintEditorWindow : Window
     private readonly BlueprintValidationService validationService;
     private readonly BlueprintVariableFieldBuilder fieldBuilder;
     private readonly BlueprintNodeParameterEditorFactory nodeParameterEditorFactory;
-    private readonly BlueprintNodeDefinitionCatalog nodeDefinitionCatalog;
-    private readonly BlueprintVariableForm variableForm;
-    private readonly TextBox parentField;
-    private readonly ListBox graphList;
-    private readonly Grid contentHost;
-    private readonly Grid previewPanel;
-    private readonly Image previewImage;
-    private readonly TextBlock previewPlaceholder;
+    private BlueprintNodeDefinitionCatalog? nodeDefinitionCatalog;
+    private BlueprintVariableForm variableForm = null!;
+    private TextBox parentField = null!;
+    private ListBox graphList = null!;
+    private Grid contentHost = null!;
+    private Grid previewPanel = null!;
+    private Image previewImage = null!;
+    private TextBlock previewPlaceholder = null!;
     private readonly Dictionary<string, Control> graphViews = new(StringComparer.Ordinal);
     private readonly Dictionary<string, (Button Button, JsonNode? ParentValue)> revertActions = new(StringComparer.Ordinal);
-    private readonly Toast toast;
+    private Toast toast = null!;
+    private readonly DeferredWindowInitializer initializer;
     private ActorPreviewLease? previewLease;
     private Bitmap? previewBitmap;
     private ResolvedBlueprintClass? resolvedParent;
@@ -71,11 +72,6 @@ public sealed class BlueprintEditorWindow : Window
             gameData,
             metadataService,
             classResolver);
-        nodeDefinitionCatalog = new BlueprintNodeDefinitionCatalog(
-            metadataService,
-            classResolver,
-            document);
-
         Title = document.Title;
         Width = 1200;
         Height = 600;
@@ -86,7 +82,29 @@ public sealed class BlueprintEditorWindow : Window
         Background = new SolidColorBrush(Color.Parse("#1e1e1e"));
         FontFamily = FontFamily.Parse("avares://Ludork/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC");
         EditorWindowIcon.Apply(this);
+        HistoryMergeBehavior.AttachBoundary(this, gameData);
 
+        Content = DeferredWindowInitializer.CreateLoadingContent();
+
+        gameData.DataRestored += onDataRestored;
+        gameData.DataReloaded += onDataReloaded;
+        Closed += onClosed;
+        Deactivated += (_, _) => flushGraphViews();
+        AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
+        initializer = new DeferredWindowInitializer(this, () =>
+        {
+            nodeDefinitionCatalog = new BlueprintNodeDefinitionCatalog(
+                metadataService,
+                classResolver,
+                document);
+            Content = createEditorContent();
+            toast = new Toast(this);
+            refreshAll();
+        });
+    }
+
+    private Control createEditorContent()
+    {
         parentField = EditorInputs.CreateReadOnlyTextBox();
         variableForm = new BlueprintVariableForm
         {
@@ -94,6 +112,7 @@ public sealed class BlueprintEditorWindow : Window
             ProjectDirectory = gameData.ProjectPath,
             CellSize = gameData.getCellSize(),
             IsReadOnly = !document.CanEditAttributes,
+            HistoryGameData = gameData,
             FieldActionFactory = createAttributeAction,
             CanRemoveComponent = field => document.Data["attrs"] is JsonObject attrs
                 && attrs.ContainsKey(field.Name),
@@ -211,16 +230,7 @@ public sealed class BlueprintEditorWindow : Window
         root.Children.Add(splitter);
         Grid.SetColumn(rightPanel, 2);
         root.Children.Add(rightPanel);
-        Content = root;
-
-        toast = new Toast(this);
-        gameData.DataRestored += onDataRestored;
-        gameData.DataReloaded += onDataReloaded;
-        Closed += onClosed;
-        Deactivated += (_, _) => flushGraphViews();
-        Opened += (_, _) => showSelectedContent();
-        AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
-        refreshAll();
+        return root;
     }
 
     public event EventHandler<BlueprintGraphRequestedEventArgs>? GraphRequested;
@@ -244,7 +254,8 @@ public sealed class BlueprintEditorWindow : Window
             return false;
         FlushPendingChanges();
         Title = document.Title;
-        refreshAll();
+        if (initializer.IsInitialized)
+            refreshAll();
         return true;
     }
 
@@ -270,7 +281,8 @@ public sealed class BlueprintEditorWindow : Window
             Close();
             return false;
         }
-        refreshAll();
+        if (initializer.IsInitialized)
+            refreshAll();
         return true;
     }
 
@@ -846,7 +858,7 @@ public sealed class BlueprintEditorWindow : Window
         JsonObject startNodes = graph["startNodes"] as JsonObject ?? [];
         if (graph["startNodes"] is not JsonObject)
             graph["startNodes"] = startNodes;
-        IReadOnlyList<BlueprintGraphNodeDefinition> definitions = nodeDefinitionCatalog.GetNodeDefinitions();
+        IReadOnlyList<BlueprintGraphNodeDefinition> definitions = nodeDefinitionCatalog!.GetNodeDefinitions();
         IReadOnlyList<BlueprintGraphEventParameterDefinition> eventParameters =
             nodeDefinitionCatalog.GetEventParameters(eventName);
         BlueprintGraphDocument graphDocument = BlueprintGraphCodec.Load(
@@ -856,6 +868,7 @@ public sealed class BlueprintEditorWindow : Window
             definitions,
             eventParameters);
         BlueprintGraphControl control = new(
+            gameData,
             graphDocument,
             definitions,
             fieldBuilder,
@@ -1080,6 +1093,8 @@ public sealed class BlueprintEditorWindow : Window
 
     private async void onKeyDown(object? sender, KeyEventArgs args)
     {
+        if (!initializer.IsInitialized)
+            return;
         if (args.Key == Key.F2 && graphList.IsKeyboardFocusWithin)
         {
             if (isGraphReadOnly())

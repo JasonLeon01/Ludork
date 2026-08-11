@@ -100,6 +100,9 @@ public:
     BIND_IGNORE()
     const sf::RenderTexture& getRenderTexture() const;
 
+    BIND_IGNORE()
+    void refreshDisplayScale() override;
+
 protected:
     BIND_METHOD(metadata = false)
     virtual sf::Transform _getScreenRenderTransform() const override;
@@ -130,4 +133,5 @@ private:
     std::vector<RenderEntry> renderQueue_;
     std::vector<std::shared_ptr<AnimSprite>> animations_;
     int zOrder_ = 0;
+    float displayScale_ = 1.0f;
 };
