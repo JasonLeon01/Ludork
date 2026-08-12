@@ -82,7 +82,7 @@
                                           Margin="10,0,0,0"
                                           VerticalAlignment="Center"
                                           Fill="{TemplateBinding Foreground}"
-                                          Data="M0,0L4,3.5 0,7z" />
+                                          Data="{StaticResource EditorIcon.SubmenuRight}" />
 
                                     <Popup Name="PART_Popup"
                                            Grid.Column="0"

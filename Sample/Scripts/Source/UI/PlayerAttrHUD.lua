@@ -1,5 +1,6 @@
 local Data = require("Source.Data")
 local LocaleCore = require("Source.Locale.Core")
+---@type { Item: Source.Configs.GeneralEnum.Item, State: Source.Configs.GeneralEnum.State }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local NodeUtils = require("Source.NodeFunctions.Utils")
 local IconTexture = require("Source.UI.IconTexture")
@@ -11,16 +12,19 @@ local LOC = LocaleCore.ApplyStringLocaleFormat
 local Item = GeneralEnum.Item
 local State = GeneralEnum.State
 local ToShortNumber = NodeUtils.ToShortNumber
+---@type fun(values: string[]): tuple<string>
+local createStateSignature = tuple
 
 ---@class Source.UI.PlayerAttrHUD.PlayerAttrHUDUI
 local PlayerAttrHUDUI = {}
 
 local function getStateSignature(states)
+    ---@type string[]
     local stateIDs = {}
     for index, state in ipairs(states) do
         stateIDs[index] = state.ID
     end
-    return tuple(stateIDs)
+    return createStateSignature(stateIDs)
 end
 
 local function stateSignatureMatches(ui, signature)
@@ -54,7 +58,9 @@ function PlayerAttrHUDUI:_initialiseAvatar(player)
     local frameHeight = math.max(1, math.floor(textureSize.y / 4))
     local frameSize = math.min(frameWidth, frameHeight)
     self._avatarTexture = texture
-    self._avatarRect = sf.IntRect.new(sf.Vector2i.new(0, 0), sf.Vector2i.new(frameWidth, frameHeight))
+    local avatarRect = sf.IntRect.new(0, 0, frameWidth, frameHeight)
+    ---@cast avatarRect sf.IntRect
+    self._avatarRect = avatarRect
     self._avatarSize = math.max(self._avatarSize, frameSize)
     self._infoStartX = math.max(self._infoStartX, self._avatarSize)
 end
@@ -68,7 +74,9 @@ function PlayerAttrHUDUI:_initialiseLayout(model)
     local hudHeight = model._KEY_ROW_Y + keyRowHeight + 4
     ---@cast hudWidth integer
     ---@cast hudHeight integer
-    self._logicalSize = sf.Vector2u.new(hudWidth, hudHeight)
+    local logicalSize = sf.Vector2u.new(hudWidth, hudHeight)
+    ---@cast logicalSize sf.Vector2u
+    self._logicalSize = logicalSize
 
     model._avatarSize = self._avatarSize
     model._infoStartX = self._infoStartX
@@ -189,7 +197,7 @@ function PlayerAttrHUDUI:stateSignatureMatches(states)
     return stateSignatureMatches(self, getStateSignature(states))
 end
 
----@param states    StateInfo[]
+---@param states    Source.Infos.StateInfo[]
 ---@param signature tuple<string>
 function PlayerAttrHUDUI:_rebuildStateRows(states, signature)
     self:clearStateRows()
@@ -204,7 +212,7 @@ function PlayerAttrHUDUI:_rebuildStateRows(states, signature)
     self.model._stateSignature = self._stateSignature
 end
 
----@param states StateInfo[]
+---@param states Source.Infos.StateInfo[]
 function PlayerAttrHUDUI:_updateStateRows(states)
     local x = 0.0
     for index, state in ipairs(states) do

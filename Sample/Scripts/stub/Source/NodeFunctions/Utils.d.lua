@@ -3,7 +3,6 @@
 ---@alias Source.NodeFunctions.Utils.NodeReference<T> Source.NodeFunctions.Utils.AttrRef<T> | Source.NodeFunctions.Utils.LocalRef<T>
 
 ---@class Source.NodeFunctions.Utils.AttrRef<T>
----@field _isNodeReference boolean
 ---@field obj              table
 ---@field name             string
 local AttrRef = {}
@@ -23,7 +22,6 @@ function AttrRef:get() end
 function AttrRef:set(value) end
 
 ---@class Source.NodeFunctions.Utils.LocalRef<T>
----@field _isNodeReference boolean
 ---@field loc              table<string, T>
 ---@field name             string
 ---@field default          T | nil
@@ -43,6 +41,10 @@ function LocalRef:get() end
 ---@param value T
 ---@return T
 function LocalRef:set(value) end
+
+---@param value any
+---@return boolean
+function Utils.IsNodeReference(value) end
 
 --- @brief Blueprint conditional branch.
 ---

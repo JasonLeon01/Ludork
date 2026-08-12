@@ -1,5 +1,6 @@
 ---@meta Source.UI.UiLayout
 
+---@class Source.UI.UiLayout.Module
 local UiLayout = {}
 
 ---@param width  integer

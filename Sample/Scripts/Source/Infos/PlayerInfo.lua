@@ -1,4 +1,5 @@
 local Engine = require("Engine")
+---@type { GeneralDataKey: Source.Configs.GeneralEnum.GeneralDataKey }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 
 local InfoBase = Engine.InfoBase

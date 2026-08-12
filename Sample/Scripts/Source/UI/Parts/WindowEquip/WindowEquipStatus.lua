@@ -164,6 +164,8 @@ function WindowEquipStatusUI:_applyDescriptionPosition()
 end
 
 function WindowEquipStatusUI:getAttrPlus(equipID)
+    local _ = self
+
     if not bool(equipID) then
         return {}
     end
@@ -183,6 +185,8 @@ function WindowEquipStatusUI:getAttrPlus(equipID)
 end
 
 function WindowEquipStatusUI:getAttrKeys(firstAttrs, secondAttrs)
+    local _ = self
+
     local result = {}
     local included = {}
     for _, attrs in ipairs({ firstAttrs, secondAttrs }) do
@@ -208,7 +212,11 @@ end
 
 function WindowEquipStatusUI:_refreshLogicalSize()
     local contentSize = self.model.content:getSize()
-    self._logicalSize = sf.Vector2u.new(math.max(1, math.floor(contentSize.x)), math.max(1, math.floor(contentSize.y)))
+    local logicalSize = sf.Vector2u.new(
+        math.max(1, math.floor(contentSize.x)), math.max(1, math.floor(contentSize.y))
+    )
+    ---@cast logicalSize sf.Vector2u
+    self._logicalSize = logicalSize
 end
 
 return Ui.define("Parts/WindowEquip/WindowEquipStatus", WindowEquipStatusUI)

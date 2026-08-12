@@ -1,4 +1,5 @@
 local GlobalFunctions = require("GlobalFunctions")
+---@type { NormaliseSeparators: fun(value: string): string }
 local Path = require("Global.Utils.Path")
 
 local ManagerFunctions = GlobalFunctions.Manager

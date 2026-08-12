@@ -44,10 +44,24 @@
 --- and destroyed actor tracking.
 ---@class Source.GameInstance.GameInstance
 ---@field _cachedMap string | nil
+---@field new                       fun(skipDefaultPlayer?: boolean): Source.GameInstance.GameInstance
+---@field FromDict                  fun(data: Source.GameInstance.SaveData): Source.GameInstance.GameInstance
+---@field getPlayer                 fun(self: Source.GameInstance.GameInstance): Source.Player.Player
+---@field getVariables              fun(self: Source.GameInstance.GameInstance): table<string, Source.GameInstance.RecordValue>
+---@field getVariable               fun(self: Source.GameInstance.GameInstance, name: string): Source.GameInstance.RecordValue
+---@field setVariable               fun(self: Source.GameInstance.GameInstance, name: string, value: Source.GameInstance.RecordValue)
+---@field getTerrainDestructions    fun(self: Source.GameInstance.GameInstance, mapPath: string): table<string, table<string, Source.GameInstance.TerrainChangeRecord>>
+---@field getAddedActors            fun(self: Source.GameInstance.GameInstance, mapPath: string): Source.GameInstance.AddedActorRecord[]
+---@field getActorPositions         fun(self: Source.GameInstance.GameInstance, mapPath: string): table<string, sf.Vector2i>
+---@field getDestroyedActors        fun(self: Source.GameInstance.GameInstance, mapPath: string): string[]
+---@field recordTerrainDestruction  fun(self: Source.GameInstance.GameInstance, mapPath: string, layerName: string, position: sf.Vector2i, tileID: Source.GameInstance.TerrainTileID)
+---@field recordTelepoint           fun(self: Source.GameInstance.GameInstance, mapPath: string, telepoint: sf.Vector2u)
+---@field applyMapInfo              fun(self: Source.GameInstance.GameInstance, mapPath: string, position?: sf.Vector2i | sf.Vector2u)
+---@field recordAddedActor          fun(self: Source.GameInstance.GameInstance, mapPath: string, actor: Engine.Actor, layerName: string)
+---@field recordActorPosition       fun(self: Source.GameInstance.GameInstance, mapPath: string, actor: Engine.Actor, actorPosition?: sf.Vector2i)
+---@field recordDestroyedActor      fun(self: Source.GameInstance.GameInstance, mapPath: string, actor: Engine.Actor)
+---@field setCurrentRegion          fun(self: Source.GameInstance.GameInstance, region: string)
 local GameInstance = {}
-
----@return Source.GameInstance.GameInstance
-function GameInstance.new(...) end
 
 --- @brief Construct a new game instance with a default player.
 ---@param skipDefaultPlayer boolean | nil

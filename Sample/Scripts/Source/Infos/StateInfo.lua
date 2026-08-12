@@ -1,4 +1,5 @@
 local Engine = require("Engine")
+---@type { GeneralDataKey: Source.Configs.GeneralEnum.GeneralDataKey }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 
 local InfoBase = Engine.InfoBase
@@ -27,9 +28,11 @@ function StateInfo:setOwner(owner)
 end
 
 function StateInfo:onWalk(battler)
+    local _self, _battler = self, battler
 end
 
 function StateInfo:onHookTriggered(battler)
+    local _self, _battler = self, battler
 end
 
 return class(StateInfo, InfoBase)

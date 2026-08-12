@@ -113,11 +113,15 @@ end
 ---@param index integer
 ---@return sf.Vector2f
 function WindowEnemyBook:_getRectPositionForIndex(index)
+    local _ = self
+
     return sf.Vector2f.new(0.0, index * _CELL_HEIGHT)
 end
 
 ---@return integer
 function WindowEnemyBook:_getRectWidth()
+    local _ = self
+
     return _CELL_WIDTH
 end
 

@@ -244,7 +244,7 @@ end
 
 function WindowMenuController:_isPointerInsideMenuGroup(position)
     for _, window in ipairs(self._menuControls) do
-        if window:getVisible() and window:getAbsoluteBounds():contains(position) then
+        if window:getVisible() and sf.FloatRect.contains(window:getAbsoluteBounds(), position) then
             return true
         end
     end

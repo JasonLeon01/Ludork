@@ -2,6 +2,7 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
 local Battler = require("Source.Battler")
+---@type { Item: Source.Configs.GeneralEnum.Item }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local Data = require("Source.Data")
 local Utils = require("Source.NodeFunctions.Utils")
@@ -329,7 +330,9 @@ end
 ---@return sf.Texture
 function EnemyDamageText._getBlankTexture()
     if EnemyDamageText._blankTexture == nil then
-        EnemyDamageText._blankTexture = sf.Texture.new(sf.Image.new(sf.Vector2u.new(1, 1), sf.Color.Transparent))
+        local size = sf.Vector2u.new(1, 1)
+        ---@cast size sf.Vector2u
+        EnemyDamageText._blankTexture = sf.Texture.new(sf.Image.new(size, sf.Color.Transparent))
     end
     local blankTexture = EnemyDamageText._blankTexture
     ---@cast blankTexture sf.Texture

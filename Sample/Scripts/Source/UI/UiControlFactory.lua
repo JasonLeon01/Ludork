@@ -24,8 +24,9 @@ end
 
 function UiControlFactory.layoutCenteredTextRow(root, text, top)
     local rootSize = root:getSize()
-    local textSize = text:getSize()
-    text:setPosition(sf.Vector2f.new((rootSize.x - textSize.x) / 2.0, top))
+    local textBounds = text:getLocalBounds()
+    local positionX = (rootSize.x - textBounds.size.x) / 2.0 - textBounds.position.x
+    text:setPosition(sf.Vector2f.new(positionX, top))
 end
 
 function UiControlFactory.createSelectionRect(size, windowSkin)

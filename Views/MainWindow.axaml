@@ -158,18 +158,31 @@
         <Style Selector="TabStrip.layerTabs">
             <Setter Property="Background" Value="{DynamicResource LudorkSurfaceBrush}" />
         </Style>
+        <Style Selector="ToggleButton.layerVisibility > PathIcon">
+            <Setter Property="Data" Value="{StaticResource EditorIcon.VisibilityHidden}" />
+        </Style>
+        <Style Selector="ToggleButton.layerVisibility:checked > PathIcon">
+            <Setter Property="Data" Value="{StaticResource EditorIcon.VisibilityVisible}" />
+        </Style>
         <Style Selector="TabStrip.layerTabs > TabStripItem">
             <Setter Property="Height" Value="32" />
-            <Setter Property="MinWidth" Value="48" />
-            <Setter Property="Padding" Value="16,0" />
+            <Setter Property="MinWidth" Value="96" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Foreground" Value="{DynamicResource LudorkTextBrush}" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0,0,0,2" />
             <Setter Property="CornerRadius" Value="0" />
             <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TabStrip.layerTabs > TabStripItem:not(:selected) /template/ ContentPresenter#PART_HeaderContent">
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="TextBlock.overviewLayerName">
+            <Setter Property="HorizontalAlignment" Value="Center" />
         </Style>
         <Style Selector="TabStrip.layerTabs > TabStripItem:pointerover">
             <Setter Property="Background" Value="Transparent" />
@@ -238,6 +251,7 @@
                           ColumnDefinitions="*,192,128"
                           Background="{DynamicResource LudorkSurfaceBrush}">
                         <ScrollViewer Grid.Column="0"
+                                      Classes="no-auto-hide"
                                       HorizontalScrollBarVisibility="Auto"
                                       VerticalScrollBarVisibility="Disabled">
                             <TabStrip x:Name="LayerTabs"
@@ -249,37 +263,28 @@
                                       SelectedItem="{Binding SelectedLayerTab, Mode=TwoWay}">
                                 <TabStrip.ItemTemplate>
                                     <DataTemplate x:DataType="vm:LayerTabViewModel">
-                                        <Grid ColumnDefinitions="Auto,Auto,Auto"
-                                              ColumnSpacing="2">
-                                            <ToggleButton Grid.Column="0"
+                                        <Grid ColumnDefinitions="*,Auto"
+                                              Margin="8,0"
+                                              HorizontalAlignment="Stretch">
+                                            <TextBlock Grid.Column="0"
+                                                       Classes.overviewLayerName="{Binding IsOverview}"
+                                                       Text="{Binding Name}"
+                                                       VerticalAlignment="Center" />
+                                            <ToggleButton Grid.Column="1"
+                                                          Classes="layerVisibility"
                                                           Width="24"
                                                           Height="24"
+                                                          Margin="8,0,0,0"
                                                           Padding="0"
+                                                          VerticalAlignment="Center"
                                                           Focusable="False"
                                                           IsVisible="{Binding ShowLayerActions}"
                                                           IsChecked="{Binding LayerVisible, Mode=OneWay}"
                                                           ToolTip.Tip="{Binding VisibilityTooltip}"
                                                           Click="onLayerVisibilityClick">
                                                 <PathIcon Width="15"
-                                                          Height="15"
-                                                          Data="M12,4.5C7,4.5 2.73,7.61 1,12C2.73,16.39 7,19.5 12,19.5C17,19.5 21.27,16.39 23,12C21.27,7.61 17,4.5 12,4.5M12,17C9.24,17 7,14.76 7,12C7,9.24 9.24,7 12,7C14.76,7 17,9.24 17,12C17,14.76 14.76,17 12,17M12,9C10.34,9 9,10.34 9,12C9,13.66 10.34,15 12,15C13.66,15 15,13.66 15,12C15,10.34 13.66,9 12,9Z" />
+                                                          Height="15" />
                                             </ToggleButton>
-                                            <ToggleButton Grid.Column="1"
-                                                          Width="24"
-                                                          Height="24"
-                                                          Padding="0"
-                                                          Focusable="False"
-                                                          IsVisible="{Binding ShowLayerActions}"
-                                                          IsChecked="{Binding IsSolo, Mode=OneWay}"
-                                                          ToolTip.Tip="{Binding SoloTooltip}"
-                                                          Click="onLayerSoloClick">
-                                                <PathIcon Width="15"
-                                                          Height="15"
-                                                          Data="M12,2A10,10 0 1,0 22,12A10,10 0 0,0 12,2M12,6A6,6 0 1,1 6,12A6,6 0 0,1 12,6M12,9A3,3 0 1,0 15,12A3,3 0 0,0 12,9Z" />
-                                            </ToggleButton>
-                                            <TextBlock Grid.Column="2"
-                                                       Text="{Binding Name}"
-                                                       VerticalAlignment="Center" />
                                         </Grid>
                                     </DataTemplate>
                                 </TabStrip.ItemTemplate>
@@ -293,38 +298,19 @@
                               VerticalAlignment="Top">
                             <ToggleButton x:Name="TileModeToggle" Grid.Column="0" Classes="mode" IsChecked="True" Click="onTileModeClick">
                                 <Grid RowDefinitions="22,10">
-                                    <Viewbox Grid.Row="0" Width="20" Height="20">
-                                        <Canvas Width="24" Height="24">
-                                            <Rectangle Canvas.Left="4" Canvas.Top="4" Width="7" Height="7" RadiusX="1.8" RadiusY="1.8" Fill="#E8EAED" />
-                                            <Rectangle Canvas.Left="13" Canvas.Top="4" Width="7" Height="7" RadiusX="1.8" RadiusY="1.8" Fill="#E8EAED" />
-                                            <Rectangle Canvas.Left="4" Canvas.Top="13" Width="7" Height="7" RadiusX="1.8" RadiusY="1.8" Fill="#8AB4F8" />
-                                            <Rectangle Canvas.Left="13" Canvas.Top="13" Width="7" Height="7" RadiusX="1.8" RadiusY="1.8" Fill="#E8EAED" />
-                                        </Canvas>
-                                    </Viewbox>
+                                    <Image Grid.Row="0" Width="20" Height="20" Source="{StaticResource EditorImage.ModeTile}" />
                                     <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+1, macOS=⌘1}" FontSize="8" Foreground="#bedcdcdc" HorizontalAlignment="Center" />
                                 </Grid>
                             </ToggleButton>
                             <ToggleButton x:Name="LightModeToggle" Grid.Column="1" Classes="mode" Click="onLightModeClick">
                                 <Grid RowDefinitions="22,10">
-                                    <Viewbox Grid.Row="0" Width="20" Height="20">
-                                        <Canvas Width="24" Height="24">
-                                            <Path Data="M12 2.8v2.3 M4.7 6.3L6.4 8 M19.3 6.3L17.6 8 M3 13h2.2 M18.8 13H21" Stroke="#8AB4F8" StrokeThickness="1.8" />
-                                            <Path Data="M8 12a4 4 0 1 1 8 0c0 1.45-.78 2.18-1.4 3.05-.3.42-.5.82-.5 1.25H9.9c0-.43-.2-.83-.5-1.25C8.78 14.18 8 13.45 8 12z" Stroke="#E8EAED" StrokeThickness="2" />
-                                            <Path Data="M9.5 17.4h5 M10 20h4" Stroke="#E8EAED" StrokeThickness="2" />
-                                        </Canvas>
-                                    </Viewbox>
+                                    <Image Grid.Row="0" Width="20" Height="20" Source="{StaticResource EditorImage.ModeLight}" />
                                     <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+2, macOS=⌘2}" FontSize="8" Foreground="#bedcdcdc" HorizontalAlignment="Center" />
                                 </Grid>
                             </ToggleButton>
                             <ToggleButton x:Name="ActorModeToggle" Grid.Column="2" Classes="mode" Click="onActorModeClick">
                                 <Grid RowDefinitions="22,10">
-                                    <Viewbox Grid.Row="0" Width="20" Height="20">
-                                        <Canvas Width="24" Height="24">
-                                            <Path Data="M4.2 8V4.2H8 M16 4.2h3.8V8 M4.2 16v3.8H8 M16 19.8h3.8V16" Stroke="#8AB4F8" StrokeThickness="1.8" />
-                                            <Ellipse Canvas.Left="9" Canvas.Top="5.4" Width="6" Height="6" Fill="#E8EAED" />
-                                            <Path Data="M6.5 19.5c0-3.25 2.4-5.4 5.5-5.4s5.5 2.15 5.5 5.4z" Fill="#E8EAED" />
-                                        </Canvas>
-                                    </Viewbox>
+                                    <Image Grid.Row="0" Width="20" Height="20" Source="{StaticResource EditorImage.ModeActor}" />
                                     <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+3, macOS=⌘3}" FontSize="8" Foreground="#bedcdcdc" HorizontalAlignment="Center" />
                                 </Grid>
                             </ToggleButton>
@@ -336,22 +322,10 @@
                               Height="32"
                               VerticalAlignment="Top">
                             <ToggleButton x:Name="EditRunModeToggle" Grid.Column="0" Classes="mode" IsChecked="True" Click="onEditRunModeClick">
-                                <Viewbox Width="22" Height="22">
-                                    <Canvas Width="24" Height="24">
-                                        <Path Data="M5.5 4.5h8.8c.45 0 .88.18 1.2.5l2 2c.32.32.5.75.5 1.2v10.3c0 .83-.67 1.5-1.5 1.5h-11c-.83 0-1.5-.67-1.5-1.5V6c0-.83.67-1.5 1.5-1.5z" Stroke="#E8EAED" StrokeThickness="1.8" />
-                                        <Path Data="M8 9h6 M8 12.5h4" Stroke="#BDC1C6" StrokeThickness="1.5" />
-                                        <Path Data="M10.3 18.2l8.4-8.4" Stroke="#8AB4F8" StrokeThickness="2.6" />
-                                        <Path Data="M19.2 9.3l1.5-1.5 1.3 3.4z" Fill="#8AB4F8" />
-                                    </Canvas>
-                                </Viewbox>
+                                <Image Width="22" Height="22" Source="{StaticResource EditorImage.ModeEditor}" />
                             </ToggleButton>
                             <ToggleButton x:Name="PlayRunModeToggle" Grid.Column="1" Classes="mode" Click="onPlayRunModeClick">
-                                <Viewbox Width="22" Height="22">
-                                    <Canvas Width="24" Height="24">
-                                        <Ellipse Canvas.Left="3.5" Canvas.Top="3.5" Width="17" Height="17" Stroke="#E8EAED" StrokeThickness="2" />
-                                        <Path Data="M10 8.2v7.6l6.8-3.8z" Fill="#8AB4F8" />
-                                    </Canvas>
-                                </Viewbox>
+                                <Image Width="22" Height="22" Source="{StaticResource EditorImage.ModePlay}" />
                             </ToggleButton>
                         </Grid>
                     </Grid>

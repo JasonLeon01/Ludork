@@ -18,6 +18,7 @@
 ---@field _activeBatch userdata | nil
 ---@field _animationSourceKeys table<string, boolean>
 ---@field _loadTask table | nil
+---@field new fun(): Source.Scenes.SceneInit.SceneInit
 local Scene = {}
 
 --- @brief Create progress bar UI and start asset preparation thread.

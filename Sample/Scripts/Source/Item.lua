@@ -13,11 +13,13 @@ Item.getSE = ""
 function Item:init(texture, rect, tag)
     local Data = require("Source.Data")
 
+    ---@cast self Source.Item
     Actor.init(self, texture, rect, tag)
     self:initInfo(Data)
 end
 
 function Item:onCollision(other)
+    ---@cast self Source.Item
     local parentCollision = super(Item, self).onCollision
     Pickup.handleInventoryCollision(self, other, parentCollision, function (player)
         player:addItem(self.ID, self.count)

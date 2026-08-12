@@ -4,6 +4,10 @@
 --- Bridges Actor (rendering/collision/movement) and ItemInfo (item data + event logic)
 --- via multiple inheritance.
 ---
+---@class Source.Item: Engine.Actor, Source.Infos.ItemInfo
+---@field count integer
+---@field getSE string
+---@field new fun(texture?: sf.Texture, rect?: sf.IntRect, tag?: string): Source.Item
 local Item = {}
 
 --- @brief Construct an item with actor rendering and item info.

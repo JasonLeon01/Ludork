@@ -2,6 +2,18 @@
 ---
 --- Loads translation dictionaries and exposes localization functions.
 
+---@class Source.Locale.Core.Module
+---@field GetLocaleKeys           fun(): string[]
+---@field init                    fun()
+---@field GetLocaleContent        fun(localeKey: string, key: string): string
+---@field GetContent              fun(key: string): string
+---@field GetLocaleDict           fun(): table<string, string>
+---@field ApplyStringLocaleFormat fun(value: string): string
+---@field setLanguage             fun(language: string)
+---@field getLanguage             fun(): string
+---@field hasLanguage             fun(language: string): boolean
+---@field hasKey                  fun(key: string): boolean
+---@field ResolveLanguage         fun(language?: string): string
 local Core = {}
 
 --- @brief Get loaded locale identifiers.

@@ -13,7 +13,7 @@
 ---
 --- Combines `Character` (directional movement/animation) with `Battler`
 --- (HP, ATK, DEF, states). Keyboard movement is polled during onFixedTick.
----@class Source.Player.Player: Engine.Character, Source.Battler.Battler, Engine.InfoBase
+---@class Source.Player.Player: Engine.Character, Source.Infos.PlayerInfo, Source.Battler.Battler
 ---@field infoComp Source.Components.PlayerInfoComponent
 ---@field _items table<string, integer>
 ---@field _equips table<string, integer>
@@ -22,6 +22,7 @@
 ---@field _forbiddenMoving boolean
 ---@field _wasMovingOnLastFixedTick boolean
 ---@field _movementSpecialPath sf.Vector2i[]
+---@field new fun(texture?: sf.Texture, tag?: string): Source.Player.Player
 local Player = {}
 
 ---@param texture sf.Texture | nil

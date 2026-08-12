@@ -20,8 +20,12 @@ end
 function WindowMessageUI:init(model)
     self._messageAdvancer = nil
     super(WindowMessageUI, self).init(model, nil)
-    self._messageListController = ListViewController.new(model, sf.Vector2u.new(1, 1), _OPTION_ITEM_HEIGHT, true, 1)
-    self._selectionListController = ListViewController.new(model, sf.Vector2u.new(1, 1), _OPTION_ITEM_HEIGHT, true, 1)
+    local messageListSize = sf.Vector2u.new(1, 1)
+    ---@cast messageListSize sf.Vector2u
+    self._messageListController = ListViewController.new(model, messageListSize, _OPTION_ITEM_HEIGHT, true, 1)
+    local selectionListSize = sf.Vector2u.new(1, 1)
+    ---@cast selectionListSize sf.Vector2u
+    self._selectionListController = ListViewController.new(model, selectionListSize, _OPTION_ITEM_HEIGHT, true, 1)
     self._messageListView = self._messageListController:prepare()
     self._selectionListView = self._selectionListController:prepare()
 end
@@ -110,7 +114,9 @@ function WindowMessageUI:showSelectionList(options, onConfirm, onCancel)
 end
 
 function WindowMessageUI:reflow(width, height)
-    self.view:reflow(sf.Vector2u.new(width, height))
+    local logicalSize = sf.Vector2u.new(width, height)
+    ---@cast logicalSize sf.Vector2u
+    self.view:reflow(logicalSize)
     self.root:setView(self.root:getDefaultView())
 end
 

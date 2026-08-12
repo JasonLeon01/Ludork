@@ -104,16 +104,24 @@ end
 ---@return sf.Vector2i | nil
 function Player._getHeldKeyboardMoveOffset()
     if Input.isActionHeld(Input.getUpKeys()) then
-        return sf.Vector2i.new(0, -1)
+        local offset = sf.Vector2i.new(0, -1)
+        ---@cast offset sf.Vector2i
+        return offset
     end
     if Input.isActionHeld(Input.getDownKeys()) then
-        return sf.Vector2i.new(0, 1)
+        local offset = sf.Vector2i.new(0, 1)
+        ---@cast offset sf.Vector2i
+        return offset
     end
     if Input.isActionHeld(Input.getLeftKeys()) then
-        return sf.Vector2i.new(-1, 0)
+        local offset = sf.Vector2i.new(-1, 0)
+        ---@cast offset sf.Vector2i
+        return offset
     end
     if Input.isActionHeld(Input.getRightKeys()) then
-        return sf.Vector2i.new(1, 0)
+        local offset = sf.Vector2i.new(1, 0)
+        ---@cast offset sf.Vector2i
+        return offset
     end
     return nil
 end
@@ -157,7 +165,9 @@ function Player.FromDict(data)
     local positionY = data.position[2]
     ---@cast positionX integer
     ---@cast positionY integer
-    player:setMapPosition(sf.Vector2u.new(positionX, positionY))
+    local position = sf.Vector2u.new(positionX, positionY)
+    ---@cast position sf.Vector2u
+    player:setMapPosition(position)
     for key, value in pairs(data.attr) do
         if not ComponentsFunctions.setComponentFieldValue(player, key, value) then
             player[key] = value

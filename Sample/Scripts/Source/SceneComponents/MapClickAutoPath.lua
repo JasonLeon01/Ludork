@@ -3,6 +3,7 @@ local GlobalCore = require("GlobalCore")
 local ComponentBase = require("Global.Components.ComponentBase")
 local Pool = require("Global.Pool")
 local Enemy = require("Source.Enemy")
+---@type { Special: Source.Configs.GeneralEnum.Special }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local MovementSpecials = require("Source.MovementSpecials")
 local Teleporter = require("Source.Teleporter")
@@ -158,7 +159,9 @@ function MapClickAutoPath:_startAutoPath(player, start, goal, plan)
     self:_trimPreviewRoute(start)
     self._previewMapX = start.x
     self._previewMapY = start.y
-    self._activeGoal = sf.Vector2i.new(goal.x, goal.y)
+    local activeGoal = sf.Vector2i.new(goal.x, goal.y)
+    ---@cast activeGoal sf.Vector2i
+    self._activeGoal = activeGoal
     self._routeDangerRevision = self._dangerState:getRevision()
     player:setRoute(plan.routeSteps)
     self._autoPathing = true
@@ -304,7 +307,11 @@ function MapClickAutoPath:_buildAutoPathPlan(actor, start, goal)
     if start == goal then
         ---@type sf.Vector2i[]
         local routeSteps = {}
-        return { routeSteps = routeSteps, route = { sf.Vector2i.new(start.x, start.y) }, goalPassable = true }
+        local routeStart = sf.Vector2i.new(start.x, start.y)
+        ---@cast routeStart sf.Vector2i
+        ---@type sf.Vector2i[]
+        local route = { routeStart }
+        return { routeSteps = routeSteps, route = route, goalPassable = true }
     end
     local gameMap = self._parent
     local ignoredGoalEnemies = self:_getIgnoredGoalEnemies(goal)
@@ -348,7 +355,11 @@ function MapClickAutoPath:_buildAutoPathPlan(actor, start, goal)
                 ---@type sf.Vector2i[]
                 local emptyRouteSteps = {}
                 routeSteps = emptyRouteSteps
-                route = { sf.Vector2i.new(start.x, start.y) }
+                local routeStart = sf.Vector2i.new(start.x, start.y)
+                ---@cast routeStart sf.Vector2i
+                ---@type sf.Vector2i[]
+                local startRoute = { routeStart }
+                route = startRoute
             else
                 local neighbourPlan = self:_buildPathToTarget(actor, start, neighbour, excludedAnchors)
                 if neighbourPlan ~= nil and neighbourPlan.route[#neighbourPlan.route] == neighbour then
@@ -405,13 +416,15 @@ end
 function MapClickAutoPath:_getIgnoredGoalEnemies(goal)
     local enemies = {}
     for _, actor in ipairs(self._parent:getAllActors()) do
-        if Class.isInstance(actor, Enemy) and not actor:isDestroyed()
-            and (actor:hasSpecial(Special.Domain) or actor:hasSpecial(Special.Blockade)) then
+        if Class.isInstance(actor, Enemy) then
             ---@cast actor Source.Enemy
-            for _, cell in ipairs(actor:getOccupiedMapCells()) do
-                if cell == goal then
-                    enemies[#enemies + 1] = actor
-                    break
+            if not actor:isDestroyed()
+                and (actor:hasSpecial(Special.Domain) or actor:hasSpecial(Special.Blockade)) then
+                for _, cell in ipairs(actor:getOccupiedMapCells()) do
+                    if cell == goal then
+                        enemies[#enemies + 1] = actor
+                        break
+                    end
                 end
             end
         end
@@ -451,7 +464,11 @@ function MapClickAutoPath:_getInputMapPosition(positionX, positionY)
     local camera = assert(self._parent:getCamera(), "Map click pathfinding requires a camera")
     local worldPos = camera:mapPixelToCoords(mapViewPixel)
     Pool.Put("sf.Vector2i", mapViewPixel)
-    return sf.Vector2i.new(math.floor(worldPos.x / Engine.CellSize), math.floor(worldPos.y / Engine.CellSize))
+    local mapPosition = sf.Vector2i.new(
+        math.floor(worldPos.x / Engine.CellSize), math.floor(worldPos.y / Engine.CellSize)
+    )
+    ---@cast mapPosition sf.Vector2i
+    return mapPosition
 end
 
 ---@param position sf.Vector2i

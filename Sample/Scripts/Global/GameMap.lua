@@ -480,8 +480,12 @@ function GameMap:isPassable(actor, targetPosition)
             if not currentCells:get(tuple { cell.x, cell.y }) then
                 local previousX = cell.x - delta.x
                 local previousY = cell.y - delta.y
+                local previousPosition = sf.Vector2i.new(previousX, previousY)
+                ---@cast previousPosition sf.Vector2i
+                local occupiedPosition = sf.Vector2i.new(cell.x, cell.y)
+                ---@cast occupiedPosition sf.Vector2i
                 if not self:_checkDir4Between(
-                    sf.Vector2i.new(previousX, previousY), sf.Vector2i.new(cell.x, cell.y), direction
+                    previousPosition, occupiedPosition, direction
                 ) then
                     return false
                 end
@@ -663,6 +667,7 @@ function GameMap:getTerrainTilePositions(layerName, tileID)
     for y = 0, size.y - 1 do
         for x = 0, size.x - 1 do
             local terrainPosition = sf.Vector2i.new(x, y)
+            ---@cast terrainPosition sf.Vector2i
             if self:_getTerrainTileID(layer, terrainPosition) == terrainTileID then
                 positions[#positions + 1] = terrainPosition
             end
@@ -1537,6 +1542,7 @@ function GameMap:_ensureDynamicTransmission(activeLights)
         return
     end
     local size = sf.Vector2u.new(requiredSize, requiredSize)
+    ---@cast size sf.Vector2u
     self._dynamicTransmission = sf.RenderTexture.new(size)
     self._dynamicTransmission:setSmooth(false)
     self._dynamicTransmissionPixelSize = requiredSize
@@ -1560,6 +1566,7 @@ function GameMap:_ensureStaticDirectLight()
     end
     local tilemapSize = self._tilemap:getSize()
     local requiredSize = sf.Vector2u.new(tilemapSize.x * Engine.CellSize, tilemapSize.y * Engine.CellSize)
+    ---@cast requiredSize sf.Vector2u
     self._staticDirectLight = sf.RenderTexture.new(requiredSize)
     self._staticDirectLight:setSmooth(false)
     self._cachedLightMaterialRevision = -1
@@ -1887,6 +1894,7 @@ function GameMap:_getActiveLights()
             end
         end
     end
+    ---@type sf.Vector2f | nil
     local position = nil
     for _, actor in ipairs(self:getAllActors()) do
         local lightComp = actor.lightComp
@@ -1899,6 +1907,7 @@ function GameMap:_getActiveLights()
                         y = 0.0
                     })
                 end
+                ---@cast position sf.Vector2f
                 self:_getActorLightPosition(actor, lightComp, position)
                 if self:_isLightVisible(position, radius, viewport) then
                     lights[#lights + 1] = {

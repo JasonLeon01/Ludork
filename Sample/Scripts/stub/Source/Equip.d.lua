@@ -4,6 +4,9 @@
 --- Bridges Actor (rendering/collision/movement) and EquipInfo (equip data + event logic)
 --- via multiple inheritance.
 ---
+---@class Source.Equip: Engine.Actor, Source.Infos.EquipInfo
+---@field getSE string
+---@field new fun(texture?: sf.Texture, rect?: sf.IntRect, tag?: string): Source.Equip
 local Equip = {}
 
 --- @brief Construct an equip with actor rendering and equip info.

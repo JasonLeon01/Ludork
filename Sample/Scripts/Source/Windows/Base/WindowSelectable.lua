@@ -60,9 +60,9 @@ function WindowSelectable:_createSelectionRect()
     local rectHeight = self._rectHeight
     ---@cast rectWidth integer
     ---@cast rectHeight integer
-    local rect = UiControlFactory.createSelectionRect(
-        sf.Vector2u.new(rectWidth, rectHeight), self._windowSkin
-    )
+    local size = sf.Vector2u.new(rectWidth, rectHeight)
+    ---@cast size sf.Vector2u
+    local rect = UiControlFactory.createSelectionRect(size, self._windowSkin)
     local position = self:_getRectPosition()
     ---@cast position - nil
     rect:setPosition(position)
@@ -142,6 +142,7 @@ function WindowSelectable:onTick(deltaTime)
     self._rect:update(deltaTime)
     self._rect:setOpacityMultiplier(focused and 1.0 or _INACTIVE_SELECTION_RECT_OPACITY_MULTIPLIER)
     if self._rect:getParent() == nil then
+        self._rect:resize(sf.Vector2f.new(self._rectWidth, self._rectHeight))
         self.content:addChild(self._rect)
     end
     self:_updatePendingMousePosition()
@@ -322,7 +323,9 @@ function WindowSelectable:_getItemHitSize()
     local height = self._hitRectHeight or self._rectHeight
     ---@cast width integer
     ---@cast height integer
-    return sf.Vector2i.new(width, height)
+    local size = sf.Vector2i.new(width, height)
+    ---@cast size sf.Vector2i
+    return size
 end
 
 -- Get the screen-space hit rectangle for a given item index.
@@ -553,7 +556,8 @@ function WindowSelectable:_updateTouchInput()
         local beganPosition = Input.getTouchBeganPosition()
         if beganPosition ~= nil then
             local position = Engine.ToVector2f(beganPosition)
-            if self:_getContentViewportAbsoluteBounds():contains(position) and self:_shouldCaptureTouch(position) then
+            if sf.FloatRect.contains(self:_getContentViewportAbsoluteBounds(), position)
+                and self:_shouldCaptureTouch(position) then
                 self._wheelScrollTargetOriginY = nil
                 self._touchCaptured = true
                 self._touchDragging = false
@@ -574,7 +578,9 @@ function WindowSelectable:_updateTouchInput()
             self._touchDragging = true
         end
         if self._touchDragging then
-            local originDeltaY = (position.y - self._touchStartPosition.y) / scale
+            local touchStartPosition = self._touchStartPosition
+            ---@cast touchStartPosition sf.Vector2f
+            local originDeltaY = (position.y - touchStartPosition.y) / scale
             self:_setScrollOriginY(self._touchStartOriginY - originDeltaY)
         end
     end
@@ -662,11 +668,12 @@ end
 ---@param position sf.Vector2f
 ---@return integer | nil
 function WindowSelectable:_getSelectionAt(position)
-    if self._listView == nil or not self:_getContentViewportAbsoluteBounds():contains(position) then
+    if self._listView == nil or not sf.FloatRect.contains(self:_getContentViewportAbsoluteBounds(), position) then
         return nil
     end
     for luaIndex, child in ipairs(self._listView:getChildren()) do
-        if Class.isInstance(child, ControlBase) and self:_getItemHitAbsoluteBounds(luaIndex - 1):contains(position) then
+        if Class.isInstance(child, ControlBase)
+            and sf.FloatRect.contains(self:_getItemHitAbsoluteBounds(luaIndex - 1), position) then
             return luaIndex - 1
         end
     end

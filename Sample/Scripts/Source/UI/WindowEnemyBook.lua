@@ -1,6 +1,7 @@
 local Render = require("Global.Utils.Render")
 local Data = require("Source.Data")
 local Locale = require("Source.Locale.Core")
+---@type { Special: Source.Configs.GeneralEnum.Special }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local Battler = require("Source.Battler")
 local Enemy = require("Source.Enemy")
@@ -93,7 +94,9 @@ function WindowEnemyBookUI:refreshEnemies(gameMap)
                 self.model:_confirmEnemy(enemyEntry)
             end
         })
-        local cell = cellController:prepare(sf.Vector2u.new(_CELL_WIDTH, _CELL_HEIGHT))
+        local logicalSize = sf.Vector2u.new(_CELL_WIDTH, _CELL_HEIGHT)
+        ---@cast logicalSize sf.Vector2u
+        local cell = cellController:prepare(logicalSize)
         self._cellControllers[#self._cellControllers + 1] = cellController
         self._listView:addChild(cell)
     end
@@ -186,6 +189,8 @@ function WindowEnemyBookUI:formatName(name)
 end
 
 function WindowEnemyBookUI:formatText(text)
+    local _ = self
+
     return LOC(tostring(text or "")):gsub("\\n", "\n")
 end
 

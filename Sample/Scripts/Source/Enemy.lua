@@ -4,18 +4,21 @@ local GlobalFunctions = require("GlobalFunctions")
 local Data = require("Source.Data")
 local ChildActorComponent = require("Source.Components.ChildActorComponent")
 local EnemyInfoComponent = require("Source.Components.EnemyInfoComponent")
+---@type { Special: Source.Configs.GeneralEnum.Special, State: Source.Configs.GeneralEnum.State }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local EnemyInfo = require("Source.Infos.EnemyInfo")
 local Battler = require("Source.Battler")
 
 local ComponentsFunctions = GlobalFunctions.Components
 local Actor = Engine.Actor
+local actorComponentOwner = Actor
+---@cast actorComponentOwner +{ _componentTypes: table<string, table> }
 local Special = GeneralEnum.Special
 local State = GeneralEnum.State
 local DamageType = Battler.DamageType
 
 local componentTypes = {}
-for name, componentType in pairs(Actor._componentTypes or {}) do
+for name, componentType in pairs(actorComponentOwner._componentTypes or {}) do
     componentTypes[name] = componentType
 end
 componentTypes.childActorComp = ChildActorComponent

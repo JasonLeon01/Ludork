@@ -1,4 +1,5 @@
 local Engine = require("Engine")
+local Utils = require("Source.NodeFunctions.Utils")
 
 local Node = Engine.Node
 
@@ -14,7 +15,7 @@ local function updateInPlace(fn, a, b, operation)
         refLocal[a] = operation(refLocal[a], b)
         return
     end
-    if type(a) == "table" and a._isNodeReference == true then
+    if Utils.IsNodeReference(a) then
         a:set(operation(a:get(), b))
         return
     end

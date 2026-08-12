@@ -3,6 +3,7 @@ local CoreSystem = require("CoreSystem")
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local Logging = require("Global.Utils.Logging")
+---@type Global.Utils.Path.Module
 local Path = require("Global.Utils.Path")
 local Data = require("Source.Data")
 local SceneInitUI = require("Source.UI.Init")

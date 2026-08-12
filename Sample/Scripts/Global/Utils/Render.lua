@@ -59,9 +59,12 @@ function Render.UpdateActorPreviewFrame(texture, rect, animatable, switchInterva
     end
     local positionX = (rect.position.x + rect.size.x) % textureWidth
     ---@cast positionX integer
-    local nextRect = sf.IntRect.new(
-        sf.Vector2i.new(positionX, rect.position.y), sf.Vector2i.new(rect.size.x, rect.size.y)
-    )
+    local nextPosition = sf.Vector2i.new(positionX, rect.position.y)
+    ---@cast nextPosition sf.Vector2i
+    local nextSize = sf.Vector2i.new(rect.size.x, rect.size.y)
+    ---@cast nextSize sf.Vector2i
+    local nextRect = sf.IntRect.new(nextPosition, nextSize)
+    ---@cast nextRect sf.IntRect
     return nextRect, switchTimer, true
 end
 
@@ -245,8 +248,11 @@ function Render.CreateActorPreview(visual)
     local sourceSize = sf.Vector2u.new(
         math.max(1, math.floor(math.abs(sourceRect.size.x))), math.max(1, math.floor(math.abs(sourceRect.size.y)))
     )
+    ---@cast sourceSize sf.Vector2u
     local previewSize = math.max(1, math.floor(Engine.CellSize))
+    ---@cast previewSize integer
     local outputSize = sf.Vector2u.new(previewSize, previewSize)
+    ---@cast outputSize sf.Vector2u
     local outputBuffer = sf.RenderTexture.new(outputSize)
     outputBuffer:setSmooth(false)
     local outputTexture = sf.Texture.new(outputSize)
@@ -254,6 +260,9 @@ function Render.CreateActorPreview(visual)
     local hue = Render.NormaliseActorHue(visual.hue or 0.0)
     local hueShader = getActorHueShader()
     local outputRect = sf.IntRect.new(0, 0, previewSize, previewSize)
+    ---@cast outputRect sf.IntRect
+    local bufferRect = sf.IntRect.new(0, 0, sourceSize.x, sourceSize.y)
+    ---@cast bufferRect sf.IntRect
     ---@type Global.Utils.Render.ActorPreview
     local preview = {
         visual = visual,
@@ -274,7 +283,7 @@ function Render.CreateActorPreview(visual)
         hasHue = hueShader ~= nil and not Render.IsNeutralActorHue(hue),
         _hueShader = hueShader,
         _sourceSize = sourceSize,
-        _bufferRect = sf.IntRect.new(0, 0, sourceSize.x, sourceSize.y),
+        _bufferRect = bufferRect,
         _sourceSprite = sf.Sprite.new(visual.texture, sourceRect),
         _postSprite = sf.Sprite.new(visual.texture, sourceRect),
         _finalSprite = sf.Sprite.new(visual.texture, sourceRect),

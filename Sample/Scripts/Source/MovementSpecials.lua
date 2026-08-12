@@ -1,5 +1,6 @@
 local Engine = require("Engine")
 local EventKeys = require("Source.Configs.EventKeys")
+---@type { Special: Source.Configs.GeneralEnum.Special }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 
 local Special = GeneralEnum.Special
@@ -39,8 +40,10 @@ local function doBlockadeRetreat(enemy, playerPosition)
     local offset = sf.Vector2i.new(
         getSign(enemyPosition.x - playerPosition.x), getSign(enemyPosition.y - playerPosition.y)
     )
+    ---@cast offset sf.Vector2i
     local moved = enemy:MapMove(offset)
     local newPosition = moved and enemyPosition + offset or enemyPosition
+    ---@cast newPosition sf.Vector2i
     if moved then
         local gameMap = enemy:getMap()
         ---@cast gameMap GameMap
@@ -123,6 +126,7 @@ end
 local function calculateDangerAtPosition(enemies, player, playerPosition, ignoredEnemies, applyBlockade)
     local ignoredEnemySet = nil
     if bool(ignoredEnemies) then
+        ---@cast ignoredEnemies -nil
         ignoredEnemySet = {}
         for _, enemy in ipairs(ignoredEnemies) do
             ignoredEnemySet[enemy] = true
@@ -138,6 +142,7 @@ local function calculateDangerAtPosition(enemies, player, playerPosition, ignore
             local domainRange = enemy:getSpecialIntValue(Special.Domain, 0, 1)
             if distance < domainRange then
                 local damage = enemy:getDamagePerRound(player)
+                ---@cast damage integer
                 totalDamage = totalDamage + damage
                 sources[#sources + 1] = {
                     enemy = enemy,
@@ -149,6 +154,7 @@ local function calculateDangerAtPosition(enemies, player, playerPosition, ignore
         if enemy:hasSpecial(Special.Blockade) and distance == 1
             and (ignoredEnemySet == nil or not ignoredEnemySet[enemy]) then
             local damage = enemy:getDamagePerRound(player)
+            ---@cast damage integer
             totalDamage = totalDamage + damage
             sources[#sources + 1] = {
                 enemy = enemy,

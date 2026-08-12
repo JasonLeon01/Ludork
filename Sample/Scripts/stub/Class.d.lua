@@ -3,6 +3,8 @@
 ---@class Class
 Class = Class or {}
 
+---@class Class.MissingValue
+
 ---@class Class.ClassType<T>
 ---@field __ludorkClass boolean
 ---@field __bases table
@@ -72,7 +74,7 @@ function Class.super(cls, self) end
 ---@generic V
 ---@param target table|userdata
 ---@param name string
----@param callback fun(oldValue: V|nil, newValue: V|nil, ...)
+---@param callback fun(oldValue: V|Class.MissingValue, newValue: V, ...)
 ---@param params table|nil
 function Class.monitor(target, name, callback, params) end
 
@@ -81,13 +83,13 @@ function Class.monitor(target, name, callback, params) end
 function Class.unmonitor(target, name) end
 
 ---@param name string
----@param callback fun(...: any): any
+---@param callback function
 function Class.registerService(name, callback) end
 
 ---@param name string
 function Class.unregisterService(name) end
 
----@type table
+---@type Class.MissingValue
 Class.MISSING = {}
 
 --- Global super proxy (same as Class.super).

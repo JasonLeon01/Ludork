@@ -6,6 +6,7 @@ local PathPreviewComponent = {}
 
 function PathPreviewComponent:init(gameMap, routeState)
     super(PathPreviewComponent, self).init(gameMap)
+    ---@type PathRouteState
     self._routeState = routeState
     self._fillColour = sf.Color.new(80, 180, 255, 110)
     self._outlineColour = sf.Color.new(120, 220, 255, 180)

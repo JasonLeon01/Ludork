@@ -6,6 +6,7 @@
 ---@field desc string
 ---@field LEVEL integer
 ---@field CLASS string
+---@field new fun(values?: table<string, Source.Battler.AttributeValue>): Source.Components.PlayerInfoComponent
 local PlayerInfoComponent = {}
 
 return PlayerInfoComponent

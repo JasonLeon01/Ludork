@@ -3040,8 +3040,8 @@
     "en_GB": "Reset All"
   },
   "LAYER_READ_ONLY": {
-    "zh_CN": "当前图层已隐藏或被独显抑制；Actor 属性为只读。",
-    "en_GB": "The layer is hidden or solo-suppressed. Actor properties are read-only."
+    "zh_CN": "当前图层已隐藏；Actor 属性为只读。",
+    "en_GB": "The layer is hidden. Actor properties are read-only."
   },
   "SHOW_LAYER": {
     "zh_CN": "显示图层",
@@ -3051,17 +3051,9 @@
     "zh_CN": "隐藏图层",
     "en_GB": "Hide Layer"
   },
-  "SOLO_LAYER": {
-    "zh_CN": "独显图层",
-    "en_GB": "Solo Layer"
-  },
-  "EXIT_SOLO_LAYER": {
-    "zh_CN": "退出独显",
-    "en_GB": "Exit Solo"
-  },
   "LAYER_NOT_EDITABLE": {
-    "zh_CN": "当前图层已隐藏或被独显抑制，无法编辑。",
-    "en_GB": "The layer is hidden or solo-suppressed and cannot be edited."
+    "zh_CN": "当前图层已隐藏，无法编辑。",
+    "en_GB": "The layer is hidden and cannot be edited."
   },
   "LOADING": {
     "zh_CN": "正在加载…",

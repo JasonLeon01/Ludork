@@ -4,10 +4,9 @@
 --- Defines item-related blueprint events (onUse, onGet).
 --- Independent of Actor; can be used standalone in inventory/shop UI.
 ---
+---@class Source.Infos.ItemInfo: Engine.InfoBase
+---@field new fun(): Source.Infos.ItemInfo
 local ItemInfo = {}
-
----@return any
-function ItemInfo.new(...) end
 
 --- @brief Triggered when the item is used.
 function ItemInfo:onUse() end

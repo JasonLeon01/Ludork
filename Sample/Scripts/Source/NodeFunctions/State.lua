@@ -7,7 +7,9 @@ local ComponentsFunctions = GlobalFunctions.Components
 local State = {}
 
 function State.GetStateOwner()
-    return Context._getGraphOwner(State.GetStateOwner)
+    local owner = Context._getGraphOwner(State.GetStateOwner)
+    ---@cast owner Source.Battler.Battler | nil
+    return owner
 end
 
 function State.GetEventArg(name, default)

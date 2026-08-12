@@ -4,6 +4,7 @@ local Logging = require("Global.Utils.Logging")
 local GameSystem = require("Source.System")
 local Data = require("Source.Data")
 local LocaleCore = require("Source.Locale.Core")
+---@type { Item: Source.Configs.GeneralEnum.Item }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local MapPath = require("Source.MapPath")
 local SceneMapAudioController = require("Source.SceneComponents.MapAudio")
@@ -615,7 +616,9 @@ function Scene:_recordCurrentFloorTelepoint()
     if telepoint == nil then
         return
     end
-    self.inst:recordTelepoint(mapFile, sf.Vector2u.new(telepoint.x, telepoint.y))
+    local savedTelepoint = sf.Vector2u.new(telepoint.x, telepoint.y)
+    ---@cast savedTelepoint sf.Vector2u
+    self.inst:recordTelepoint(mapFile, savedTelepoint)
 end
 
 ---@return sf.Vector2i | nil
@@ -743,7 +746,9 @@ function Scene:_processPendingFloorTransfer()
     local targetPos = targetTeleporter:getTeleportPosition()
     self:gotoMapAndPos(targetMap, targetPos)
     if self._cachedMapFile ~= nil then
-        self.inst:recordTelepoint(self._cachedMapFile, sf.Vector2u.new(targetPos.x, targetPos.y))
+        local savedTelepoint = sf.Vector2u.new(targetPos.x, targetPos.y)
+        ---@cast savedTelepoint sf.Vector2u
+        self.inst:recordTelepoint(self._cachedMapFile, savedTelepoint)
     end
     targetPlayer:setMoveEnabled(moveEnabled)
     self._mapTransferInProgress = false

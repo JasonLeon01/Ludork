@@ -34,10 +34,6 @@ public sealed class FileSelectorDialog : Window
     private static readonly SolidColorBrush HoverBrush = new(Color.Parse("#2a2a2a"));
     private static readonly SolidColorBrush TextBrush = new(Color.Parse("#ffffff"));
     private static readonly SolidColorBrush DetailBrush = new(Color.Parse("#888888"));
-    private static readonly SolidColorBrush FolderAccent = AccentBrush;
-    private static readonly SolidColorBrush FolderBorder = new(Color.Parse("#B8A020"));
-    private static readonly SolidColorBrush FileBody = new(Color.Parse("#2a2a2a"));
-    private static readonly SolidColorBrush FileLine = new(Color.Parse("#555555"));
 
     private readonly string _root;
     private readonly bool _save;
@@ -135,7 +131,7 @@ public sealed class FileSelectorDialog : Window
         {
             Content = new PathIcon
             {
-                Data = Geometry.Parse("M 8,14 L 12,6 L 16,14 Z M 10.5,14 L 10.5,20 L 13.5,20 L 13.5,14 Z"),
+                Data = EditorIconResources.GetGeometry("EditorIcon.NavigateUp"),
                 Width = 18,
                 Height = 18,
                 Foreground = AccentBrush,
@@ -387,11 +383,11 @@ public sealed class FileSelectorDialog : Window
 
         Panel iconArea = new() { Margin = new Thickness(0, 0, 0, 2), HorizontalAlignment = HorizontalAlignment.Center };
         if (isDirectory)
-            iconArea.Children.Add(createFolderIcon());
+            iconArea.Children.Add(EditorIconResources.CreateImage("EditorImage.Folder", 54, 44));
         else if (isImage)
             iconArea.Children.Add(createThumbnail(path));
         else
-            iconArea.Children.Add(createFileIcon());
+            iconArea.Children.Add(EditorIconResources.CreateImage("EditorImage.File", 40, 50));
         inner.Children.Add(iconArea);
 
         TextBlock nameText = new()
@@ -587,69 +583,6 @@ public sealed class FileSelectorDialog : Window
 
         _previewTextBox.Text = text;
         _previewTextContainer.IsVisible = true;
-    }
-
-    private static Control createFolderIcon()
-    {
-        Canvas canvas = new()
-        {
-            Width = 54,
-            Height = 44,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-
-        Border body = new()
-        {
-            Width = 50,
-            Height = 31,
-            CornerRadius = new CornerRadius(3),
-            Background = FolderAccent,
-            BorderBrush = FolderBorder,
-            BorderThickness = new Thickness(1),
-        };
-        Canvas.SetLeft(body, 2);
-        Canvas.SetTop(body, 10);
-
-        Border tab = new()
-        {
-            Width = 24,
-            Height = 10,
-            CornerRadius = new CornerRadius(2),
-            Background = FolderAccent,
-        };
-        Canvas.SetLeft(tab, 4);
-        Canvas.SetTop(tab, 4);
-
-        canvas.Children.Add(body);
-        canvas.Children.Add(tab);
-
-        return new Panel
-        {
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Children = { canvas },
-        };
-    }
-
-    private static Control createFileIcon()
-    {
-        StackPanel lines = new() { Spacing = 5, Margin = new Thickness(8, 13, 8, 0) };
-        for (int i = 0; i < 4; i++)
-            lines.Children.Add(new Border { Height = 2, Background = FileLine });
-
-        return new Border
-        {
-            Width = 40,
-            Height = 50,
-            Background = FileBody,
-            BorderBrush = FileLine,
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(2),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Child = lines,
-        };
     }
 
     private Control createThumbnail(string path)

@@ -260,9 +260,9 @@ function DoorBase:_advanceToFrame(index)
         return
     end
     local rect = self:getTextureRect()
-    self:setTextureRect(
-        sf.IntRect.new(sf.Vector2i.new(self._startX + index * self._frameWidth, self._startY), rect.size)
-    )
+    local position = sf.Vector2i.new(self._startX + index * self._frameWidth, self._startY)
+    ---@cast position sf.Vector2i
+    self:setTextureRect(sf.IntRect.new(position, rect.size))
 end
 
 return class(DoorBase, Actor)

@@ -293,7 +293,7 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
         if (map["layers"]?[request.LayerName] is not JsonObject layer)
             return PluginMapWriteResult.Failed("The selected map layer no longer exists.", currentRevision);
         if (!canWriteLayer(request.MapKey, request.LayerName))
-            return PluginMapWriteResult.Failed("The selected map layer is hidden or solo-suppressed.", currentRevision);
+            return PluginMapWriteResult.Failed("The selected map layer is hidden.", currentRevision);
         string tilesetKey = readString(layer["layerTileset"]);
         if (!string.Equals(
             request.ExpectedTilesetKey,

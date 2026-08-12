@@ -438,7 +438,9 @@ function SceneMapBuilder:buildFloorMapPreview(
     local gameMap = cachedPreview.gameMap
     local mapData = cachedPreview.mapData
     local scale = previewScale > 0.0 and previewScale or 1.0
-    local target = sf.RenderTexture.new(sf.Vector2u.new(previewSize, previewSize))
+    local targetSize = sf.Vector2u.new(previewSize, previewSize)
+    ---@cast targetSize sf.Vector2u
+    local target = sf.RenderTexture.new(targetSize)
     target:clear(sf.Color.Transparent)
     local viewSize = sf.Vector2f.new(previewSize / scale, previewSize / scale)
     local mapPixelSize = sf.Vector2f.new(mapData.width * Engine.CellSize, mapData.height * Engine.CellSize)

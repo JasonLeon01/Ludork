@@ -10,6 +10,7 @@
 ---@field ANIMATION_KEY string
 ---@field HP integer
 ---@field special table<string, Source.Battler.AttributeValue> | nil
+---@field new fun(values?: table<string, Source.Battler.AttributeValue>): Source.Components.BattlerInfoComponent
 local BattlerInfoComponent = {}
 
 ---@param values table<string, Source.Battler.AttributeValue> | nil

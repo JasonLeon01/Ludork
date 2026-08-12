@@ -24,6 +24,8 @@ end
 function ActorPreviewController:_assignDisplay()
     self._visible = self._displayTexture ~= nil and self._displayRect ~= nil
     if self._visible then
+        ---@cast self._displayTexture sf.Texture
+        ---@cast self._displayRect sf.IntRect
         self._imageControl:setTexture(self._displayTexture, true)
         self._imageControl:setTextureRect(self._displayRect)
     end

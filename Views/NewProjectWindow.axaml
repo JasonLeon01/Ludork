@@ -63,9 +63,9 @@
                 <Border Width="52" Height="52" CornerRadius="12" Background="#262c31">
                     <Viewbox Width="30" Height="30">
                         <Canvas Width="32" Height="32">
-                            <Path Data="M5 8.5L16 3l11 5.5v15L16 29 5 23.5z"
+                            <Path Data="{StaticResource EditorIcon.NewProjectOutline}"
                                   Stroke="{DynamicResource LudorkPrimaryBrush}" StrokeThickness="2" />
-                            <Path Data="M5 8.5L16 14l11-5.5 M16 14v15"
+                            <Path Data="{StaticResource EditorIcon.NewProjectEdges}"
                                   Stroke="#dce3e9" StrokeThickness="1.5" />
                         </Canvas>
                     </Viewbox>
@@ -89,9 +89,10 @@
                             <Border Classes="templateIcon">
                                 <Viewbox Width="36" Height="36">
                                     <Canvas Width="40" Height="40">
-                                        <Rectangle Canvas.Left="5" Canvas.Top="6" Width="30" Height="28"
-                                                   RadiusX="5" RadiusY="5" Stroke="#dce3e9" StrokeThickness="2" />
-                                        <Path Data="M17 14v12l10-6z" Fill="{DynamicResource LudorkPrimaryBrush}" />
+                                        <Path Data="{StaticResource EditorIcon.TemplateStandaloneFrame}"
+                                              Stroke="#dce3e9" StrokeThickness="2" />
+                                        <Path Data="{StaticResource EditorIcon.TemplateStandalonePlay}"
+                                              Fill="{DynamicResource LudorkPrimaryBrush}" />
                                     </Canvas>
                                 </Viewbox>
                             </Border>
@@ -119,9 +120,9 @@
                             <Border Classes="templateIcon">
                                 <Viewbox Width="42" Height="30">
                                     <Canvas Width="48" Height="34">
-                                        <Path Data="M14 6L4 17l10 11 M34 6l10 11-10 11"
+                                        <Path Data="{StaticResource EditorIcon.TemplateCppCode}"
                                               Stroke="#dce3e9" StrokeThickness="3" />
-                                        <Path Data="M29 4L20 30"
+                                        <Path Data="{StaticResource EditorIcon.TemplateCppSlash}"
                                               Stroke="{DynamicResource LudorkPrimaryBrush}" StrokeThickness="3" />
                                     </Canvas>
                                 </Viewbox>
@@ -154,18 +155,19 @@
                         <Border Width="86" Height="86" CornerRadius="18" Background="#252a2f">
                             <Grid>
                                 <Viewbox x:Name="StandaloneHeroIcon" Width="54" Height="54">
-                                    <Canvas Width="60" Height="60">
-                                        <Rectangle Canvas.Left="7" Canvas.Top="8" Width="46" Height="42"
-                                                   RadiusX="8" RadiusY="8" Stroke="#dce3e9" StrokeThickness="3" />
-                                        <Path Data="M24 20v18l16-9z" Fill="{DynamicResource LudorkPrimaryBrush}" />
+                                    <Canvas Width="40" Height="40">
+                                        <Path Data="{StaticResource EditorIcon.TemplateStandaloneFrame}"
+                                              Stroke="#dce3e9" StrokeThickness="2" />
+                                        <Path Data="{StaticResource EditorIcon.TemplateStandalonePlay}"
+                                              Fill="{DynamicResource LudorkPrimaryBrush}" />
                                     </Canvas>
                                 </Viewbox>
                                 <Viewbox x:Name="CppHeroIcon" Width="62" Height="48" IsVisible="False">
-                                    <Canvas Width="72" Height="52">
-                                        <Path Data="M22 7L6 26l16 19 M50 7l16 19-16 19"
-                                              Stroke="#dce3e9" StrokeThickness="4" />
-                                        <Path Data="M43 4L29 48"
-                                              Stroke="{DynamicResource LudorkPrimaryBrush}" StrokeThickness="4" />
+                                    <Canvas Width="48" Height="34">
+                                        <Path Data="{StaticResource EditorIcon.TemplateCppCode}"
+                                              Stroke="#dce3e9" StrokeThickness="3" />
+                                        <Path Data="{StaticResource EditorIcon.TemplateCppSlash}"
+                                              Stroke="{DynamicResource LudorkPrimaryBrush}" StrokeThickness="3" />
                                     </Canvas>
                                 </Viewbox>
                             </Grid>

@@ -24,13 +24,11 @@ function PathRouteState:setRoute(route) end
 function PathRouteState:clear() end
 
 --- @brief Get a copy of the current route.
---- @return A copy of the current route list.
----@return sf.Vector2i[]
+---@return sf.Vector2i[] # A copy of the current route list.
 function PathRouteState:getRoute() end
 
 --- @brief Get the current route revision.
---- @return The revision incremented after each route change.
----@return integer
+---@return integer # The revision incremented after each route change.
 function PathRouteState:getRevision() end
 
 return PathRouteState

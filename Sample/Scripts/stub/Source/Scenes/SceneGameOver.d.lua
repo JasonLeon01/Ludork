@@ -1,8 +1,8 @@
 ---@meta Source.Scenes.SceneGameOver
+---@class Source.Scenes.SceneGameOver: GlobalCore.SceneBase
+---@field _ui Source.UI.GameOver
+---@field new fun(): Source.Scenes.SceneGameOver
 local Scene = {}
-
----@return any
-function Scene.new(...) end
 
 --- @brief Fade in the game over screen.
 function Scene:onEnter() end

@@ -1,6 +1,25 @@
 ---@meta Source.System
 
 --- @brief Game system bootstrap that initialises engine subsystems.
+---@class Source.System.Module
+---@field init                     fun()
+---@field getConfigValue           fun(configName: string, settingName: string): string
+---@field getTitle                 fun(): string
+---@field getFonts                 fun(): sf.Font[]
+---@field getFontSize              fun(): integer
+---@field getDecisionSE            fun(): sf.SoundBuffer
+---@field getCancelSE              fun(): sf.SoundBuffer
+---@field getBuzzerSE              fun(): sf.SoundBuffer
+---@field getCursorSE              fun(): sf.SoundBuffer
+---@field getSaveSE                fun(): sf.SoundBuffer
+---@field getLoadSE                fun(): sf.SoundBuffer
+---@field getGetSE                 fun(): sf.SoundBuffer
+---@field getTitleBGM              fun(): string
+---@field getTitleBackgroundFile   fun(): string
+---@field getStartMap              fun(): string
+---@field getStartPos              fun(): sf.Vector2u
+---@field getSavedScreenImage      fun(): sf.Image | nil
+---@field setSavedScreenImage      fun(image: sf.Image | nil)
 local System = {}
 
 --- @brief Initialise the game system from configuration files.

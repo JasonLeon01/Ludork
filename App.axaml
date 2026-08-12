@@ -7,10 +7,15 @@
              RequestedThemeVariant="Dark">
 
     <Application.Resources>
-        <SolidColorBrush x:Key="LudorkPrimaryBrush" Color="#ffd740" />
-        <SolidColorBrush x:Key="LudorkPrimaryMutedBrush" Color="#33ffd740" />
-        <SolidColorBrush x:Key="LudorkSurfaceBrush" Color="#232629" />
-        <SolidColorBrush x:Key="LudorkTextBrush" Color="#ffffff" />
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://Ludork/Resources/EditorIcons.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <SolidColorBrush x:Key="LudorkPrimaryBrush" Color="#ffd740" />
+            <SolidColorBrush x:Key="LudorkPrimaryMutedBrush" Color="#33ffd740" />
+            <SolidColorBrush x:Key="LudorkSurfaceBrush" Color="#232629" />
+            <SolidColorBrush x:Key="LudorkTextBrush" Color="#ffffff" />
+        </ResourceDictionary>
     </Application.Resources>
 
     <Application.DataTemplates>

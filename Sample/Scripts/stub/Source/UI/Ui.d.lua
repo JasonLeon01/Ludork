@@ -1,5 +1,6 @@
 ---@meta Source.UI.Ui
 
+---@class Source.UI.Ui.Module
 local Ui = {}
 
 ---@param assetKey string

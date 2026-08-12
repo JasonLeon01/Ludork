@@ -4,8 +4,10 @@ local NodeCompiler = require("Global.Utils.NodeCompiler")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
 local Logging = require("Global.Utils.Logging")
+---@type Global.Utils.Path.Module
 local Path = require("Global.Utils.Path")
-local LOC = require("Source.Locale.Core").ApplyStringLocaleFormat
+local LocaleCore = require("Source.Locale.Core")
+---@type { GeneralDataKey: Source.Configs.GeneralEnum.GeneralDataKey }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 
 local Curve = Engine.Curve
@@ -14,6 +16,8 @@ local Vector3Curve = Engine.Vector3Curve
 local Vector4Curve = Engine.Vector4Curve
 local ComponentsFunctions = GlobalFunctions.Components
 local ManagerFunctions = GlobalFunctions.Manager
+---@type fun(value: string): string
+local LOC = LocaleCore.ApplyStringLocaleFormat
 local GeneralDataKey = GeneralEnum.GeneralDataKey
 local PlainTextConfig = Engine.PlainTextConfig
 local RichTextConfig = Engine.RichTextConfig
@@ -672,7 +676,9 @@ end
 local function textFontFromData(value, sourceName)
     local path = textConfigString(value, sourceName, true)
     if not bool(path) then
-        local defaultFont = assert(Engine.DefaultFont, "Default font is unavailable for text config " .. sourceName)
+        ---@type sf.Font|nil
+        local engineDefaultFont = Engine.DefaultFont
+        local defaultFont = assert(engineDefaultFont, "Default font is unavailable for text config " .. sourceName)
         return defaultFont
     end
     local font = assert(ManagerFunctions.loadFont(path), "Font not found for text config " .. sourceName .. ": " .. path)

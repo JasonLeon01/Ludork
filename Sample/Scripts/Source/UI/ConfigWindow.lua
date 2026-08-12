@@ -9,6 +9,7 @@ local ConfigSliderRowUI = require("Source.UI.Parts.ConfigWindow.ConfigSliderRow"
 local Ui = require("Source.UI.Ui")
 
 local System = GlobalCore.System
+---@type fun(value: string): string
 local LOC = Locale.ApplyStringLocaleFormat
 
 local _WINDOW_WIDTH = 480

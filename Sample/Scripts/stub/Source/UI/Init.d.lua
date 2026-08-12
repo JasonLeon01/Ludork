@@ -1,10 +1,9 @@
 ---@meta Source.UI.Init
 
 ---@class Source.UI.Init.SceneInitUI : Source.UI.UiController
+---@field new fun(model: Source.Scenes.SceneInit.SceneInit, logicalSize: sf.Vector2u): Source.UI.Init.SceneInitUI
+---@field publish fun(payload: table)
 local SceneInitUI = {}
-
----@return Source.UI.Init.SceneInitUI
-function SceneInitUI.new(...) end
 
 ---@param payload table
 function SceneInitUI.publish(payload) end

@@ -1,8 +1,11 @@
 ---@meta Source.Scenes.SceneTitle
+---@class Source.Scenes.SceneTitle: GlobalCore.SceneBase
+---@field new fun(): Source.Scenes.SceneTitle
+---@field _ui Source.UI.Title
+---@field _windowCommand Source.Windows.WindowCommand
+---@field _windowSaveLoad Source.Windows.WindowSaveLoad
+---@field _configWindow Source.Windows.ConfigWindow
 local Scene = {}
-
----@return any
-function Scene.new(...) end
 
 --- @brief Start with a blind transition effect.
 function Scene:onEnter() end

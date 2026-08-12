@@ -30,7 +30,9 @@ local _SPECIAL_TOP_MARGIN = 16
 local WindowEnemyEncyclopediaUI = {}
 
 function WindowEnemyEncyclopediaUI:init(model, size)
-    self._logicalSize = sf.Vector2u.new(size.x, size.y)
+    local logicalSize = sf.Vector2u.new(size.x, size.y)
+    ---@cast logicalSize sf.Vector2u
+    self._logicalSize = logicalSize
     self._infoPairControllers = {}
     self._specialRowControllers = {}
     self._entry = nil
@@ -112,7 +114,9 @@ end
 ---@param contentWidth integer
 ---@param infoY        number
 function WindowEnemyEncyclopediaUI:_layoutInfoLayer(contentWidth, infoY)
-    self._infoLayer:resize(sf.Vector2u.new(contentWidth, _INFO_LAYER_HEIGHT))
+    local logicalSize = sf.Vector2u.new(contentWidth, _INFO_LAYER_HEIGHT)
+    ---@cast logicalSize sf.Vector2u
+    self._infoLayer:resize(logicalSize)
     self._infoLayer:setView(self._infoLayer:getDefaultView())
     self._infoLayer:setPosition(sf.Vector2f.new(0.0, infoY))
 end
@@ -172,7 +176,9 @@ function WindowEnemyEncyclopediaUI:addInfoPair(label, value, columnIndex, y)
         label = label,
         value = value
     })
-    local root = controller:prepare(sf.Vector2u.new(_INFO_PAIR_WIDTH, _INFO_ROW_GAP))
+    local logicalSize = sf.Vector2u.new(_INFO_PAIR_WIDTH, _INFO_ROW_GAP)
+    ---@cast logicalSize sf.Vector2u
+    local root = controller:prepare(logicalSize)
     root:setPosition(sf.Vector2f.new(columnIndex * _INFO_COLUMN_GAP, y - self._infoLayer:getPosition().y))
     self._infoLayer:addChild(root)
     self._infoPairControllers[#self._infoPairControllers + 1] = controller
@@ -185,7 +191,9 @@ function WindowEnemyEncyclopediaUI:buildSpecials(entry, y)
     local contentWidth = math.max(1, math.floor(contentSize.x))
     local listHeight = math.max(1, math.floor(contentSize.y - y))
     self._specialList:setPosition(sf.Vector2f.new(0.0, y))
-    self._specialList:setSize(sf.Vector2u.new(contentWidth, listHeight))
+    local listSize = sf.Vector2u.new(contentWidth, listHeight)
+    ---@cast listSize sf.Vector2u
+    self._specialList:setSize(listSize)
     local specialDetails = entry.specialDetails or {}
     for _, special in ipairs(specialDetails) do
         local controller = EnemyEncyclopediaSpecialRowUI.new({

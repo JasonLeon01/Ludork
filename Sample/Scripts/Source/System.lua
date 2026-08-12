@@ -38,6 +38,7 @@ function System.init()
     System._title = systemData.title.value
     local size = systemData.gameSize.value
     local gameSize = sf.Vector2u.new(size[1], size[2])
+    ---@cast gameSize sf.Vector2u
     System._fonts = {}
     for _, font in ipairs(systemData.fonts.value) do
         System._fonts[#System._fonts + 1] = ManagerFunctions.loadFont(font)

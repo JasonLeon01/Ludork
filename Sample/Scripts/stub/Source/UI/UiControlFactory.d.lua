@@ -1,5 +1,6 @@
 ---@meta Source.UI.UiControlFactory
 
+---@class Source.UI.UiControlFactory.Module
 local UiControlFactory = {}
 
 ---@param logicalSize sf.Vector2u

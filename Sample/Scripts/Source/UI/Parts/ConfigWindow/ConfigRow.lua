@@ -36,6 +36,8 @@ function ConfigRowControllerBase:setLabelText(labelText)
 end
 
 function ConfigRowControllerBase:getChildren()
+    local _ = self
+
     return {}
 end
 
@@ -44,10 +46,14 @@ function ConfigRowControllerBase:getSize()
 end
 
 function ConfigRowControllerBase:getLocalBounds()
-    return sf.FloatRect.new(sf.Vector2f.new(0.0, 0.0), Engine.ToVector2f(self:getSize()))
+    local size = self:getSize()
+    ---@cast size sf.Vector2u
+    return sf.FloatRect.new(sf.Vector2f.new(0.0, 0.0), sf.Vector2f.new(size.x, size.y))
 end
 
 function ConfigRowControllerBase:onTick(deltaTime)
+    local _deltaTime = deltaTime
+
     self.root:render()
 end
 

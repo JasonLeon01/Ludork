@@ -4,10 +4,9 @@
 --- Defines equip-related blueprint events (onEquip, onUnequip).
 --- Independent of Actor; can be used standalone in inventory/shop UI.
 ---
+---@class Source.Infos.EquipInfo: Engine.InfoBase
+---@field new fun(): Source.Infos.EquipInfo
 local EquipInfo = {}
-
----@return any
-function EquipInfo.new(...) end
 
 --- @brief Triggered when the equip is equipped.
 function EquipInfo:onEquip() end

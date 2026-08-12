@@ -31,7 +31,11 @@ end
 ---@param width  integer
 ---@param height integer
 function WindowItem:_resizeCanvas(target, width, height)
-    target:resize(sf.Vector2u.new(width, height))
+    local _ = self
+
+    local logicalSize = sf.Vector2u.new(width, height)
+    ---@cast logicalSize sf.Vector2u
+    target:resize(logicalSize)
     target:setView(target:getDefaultView())
 end
 

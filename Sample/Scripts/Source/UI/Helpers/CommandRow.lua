@@ -6,8 +6,10 @@ local CommandRowController = {}
 
 function CommandRowController:init(model)
     self.model = model
+    local logicalSize = sf.Vector2u.new(1, 1)
+    ---@cast logicalSize sf.Vector2u
     self.root, self._label = UiControlFactory.createFunctionalTextRow(
-        sf.Vector2u.new(1, 1), Data.getPlainTextConfig("UI/Default")
+        logicalSize, Data.getPlainTextConfig("UI/Default")
     )
     self._bound = false
 end

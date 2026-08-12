@@ -17,7 +17,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private LayerTabViewModel? selectedLayerTab;
     private JsonObject? copiedLayer;
     private string? copiedLayerName;
-    private string? soloLayerName;
     private string selectedLanguage = LocaleService.CurrentLanguage;
     private bool disposed;
 
@@ -178,7 +177,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         {
             if (!SetProperty(ref selectedMap, value))
                 return;
-            soloLayerName = null;
             refreshLayerTabs();
             SelectedMapChanged?.Invoke(this, EventArgs.Empty);
         }
@@ -200,19 +198,16 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     }
 
     public JsonObject? SelectedMapData => SelectedMap is null ? null : GameData.getMap(SelectedMap.Key);
-    public string? SoloLayerName => soloLayerName;
     public bool IsSelectedLayerEditable => SelectedLayerTab is
         {
             IsOverview: false,
-            IsEffectivelyVisible: true,
+            LayerVisible: true,
         };
 
     public bool canEditLayer(string mapKey, string layerName)
     {
         if (GameData.MapData.GetValueOrDefault(mapKey)?["layers"]?[layerName] is not JsonObject layer)
             return false;
-        if (SelectedMap?.Key == mapKey && soloLayerName is not null)
-            return string.Equals(soloLayerName, layerName, StringComparison.Ordinal);
         return layer["visible"]?.GetValue<bool?>() ?? true;
     }
 
@@ -242,8 +237,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     {
         if (SelectedMap is null || !GameData.renameLayer(SelectedMap.Key, oldName, newName))
             return false;
-        if (string.Equals(soloLayerName, oldName, StringComparison.Ordinal))
-            soloLayerName = newName;
         refreshLayerTabs(newName);
         return true;
     }
@@ -252,8 +245,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     {
         if (SelectedMap is null || !GameData.removeLayer(SelectedMap.Key, layerName))
             return false;
-        if (string.Equals(soloLayerName, layerName, StringComparison.Ordinal))
-            soloLayerName = null;
         refreshLayerTabs();
         return true;
     }
@@ -290,23 +281,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         layer.LayerVisible = visible;
         updateLayerEditability();
         return true;
-    }
-
-    public void toggleSoloLayer(LayerTabViewModel layer)
-    {
-        if (layer.IsOverview)
-            return;
-        soloLayerName = string.Equals(soloLayerName, layer.Name, StringComparison.Ordinal)
-            ? null
-            : layer.Name;
-        foreach (LayerTabViewModel item in LayerTabs)
-        {
-            item.IsSolo = !item.IsOverview && string.Equals(item.Name, soloLayerName, StringComparison.Ordinal);
-            item.IsSoloSuppressed = !item.IsOverview
-                && soloLayerName is not null
-                && !string.Equals(item.Name, soloLayerName, StringComparison.Ordinal);
-        }
-        updateLayerEditability();
     }
 
     public string getLayerShaderPath(string layerName)
@@ -419,21 +393,16 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     {
         string? previousName = preferredLayerName ?? (SelectedLayerTab is { IsOverview: false } ? SelectedLayerTab.Name : null);
         LayerTabs.Clear();
-        LayerTabs.Add(new LayerTabViewModel(LocaleService.Get("OVERVIEW"), true, true, false, false));
+        LayerTabs.Add(new LayerTabViewModel(LocaleService.Get("OVERVIEW"), true, true));
         if (SelectedMap is not null)
         {
-            string[] names = GameData.getLayerNames(SelectedMap.Key).ToArray();
-            if (soloLayerName is not null && !names.Contains(soloLayerName, StringComparer.Ordinal))
-                soloLayerName = null;
-            foreach (string name in names)
+            foreach (string name in GameData.getLayerNames(SelectedMap.Key))
             {
                 bool visible = SelectedMapData?["layers"]?[name]?["visible"]?.GetValue<bool?>() ?? true;
                 LayerTabs.Add(new LayerTabViewModel(
                     name,
                     false,
-                    visible,
-                    string.Equals(name, soloLayerName, StringComparison.Ordinal),
-                    soloLayerName is not null && !string.Equals(name, soloLayerName, StringComparison.Ordinal)));
+                    visible));
             }
         }
         SelectedLayerTab = previousName is null
@@ -677,21 +646,15 @@ public sealed class HistoryCompletedEventArgs(string action, IReadOnlyList<strin
 public sealed class LayerTabViewModel : ViewModelBase
 {
     private bool layerVisible;
-    private bool isSolo;
-    private bool isSoloSuppressed;
 
     public LayerTabViewModel(
         string name,
         bool isOverview,
-        bool layerVisible,
-        bool isSolo,
-        bool isSoloSuppressed)
+        bool layerVisible)
     {
         Name = name;
         IsOverview = isOverview;
         this.layerVisible = layerVisible;
-        this.isSolo = isSolo;
-        this.isSoloSuppressed = isSoloSuppressed;
     }
 
     public string Name { get; }
@@ -704,34 +667,10 @@ public sealed class LayerTabViewModel : ViewModelBase
         {
             if (!SetProperty(ref layerVisible, value))
                 return;
-            OnPropertyChanged(nameof(IsEffectivelyVisible));
             OnPropertyChanged(nameof(VisibilityTooltip));
         }
     }
-    public bool IsSolo
-    {
-        get => isSolo;
-        set
-        {
-            if (!SetProperty(ref isSolo, value))
-                return;
-            OnPropertyChanged(nameof(IsEffectivelyVisible));
-            OnPropertyChanged(nameof(SoloTooltip));
-        }
-    }
-    public bool IsSoloSuppressed
-    {
-        get => isSoloSuppressed;
-        set
-        {
-            if (!SetProperty(ref isSoloSuppressed, value))
-                return;
-            OnPropertyChanged(nameof(IsEffectivelyVisible));
-        }
-    }
-    public bool IsEffectivelyVisible => IsSolo || LayerVisible && !IsSoloSuppressed;
     public string VisibilityTooltip => LocaleService.Get(LayerVisible ? "HIDE_LAYER" : "SHOW_LAYER");
-    public string SoloTooltip => LocaleService.Get(IsSolo ? "EXIT_SOLO_LAYER" : "SOLO_LAYER");
 }
 
 public sealed class ActorOutlinerItemViewModel(

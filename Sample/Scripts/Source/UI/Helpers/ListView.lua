@@ -19,18 +19,22 @@ function ListViewController:init(model, logicalSize, defaultItemHeight, fixItemH
 end
 
 function ListViewController:bind()
+    local _ = self
 end
 
 function ListViewController:refresh()
+    local _ = self
 end
 
 function ListViewController:prepare(logicalSize)
     if logicalSize ~= nil then
         self._logicalSize = logicalSize
     end
-    self.root:setSize(
-        sf.Vector2i.new(math.max(1, math.floor(self._logicalSize.x)), math.max(1, math.floor(self._logicalSize.y)))
+    local size = sf.Vector2i.new(
+        math.max(1, math.floor(self._logicalSize.x)), math.max(1, math.floor(self._logicalSize.y))
     )
+    ---@cast size sf.Vector2i
+    self.root:setSize(size)
     self.root:setColumns(self._columns)
     if not self._bound then
         self:bind()

@@ -41,6 +41,7 @@ public partial class MainWindow : Window
     private bool closeConfirmed;
     private bool closingPrompt;
     private bool layoutReady;
+    private bool layoutSavePending;
     private TileSelectViewModel? tileSelect;
     private AnimationOverviewWindow? animationOverview;
     private TilesetEditorWindow? tilesetEditor;
@@ -328,7 +329,19 @@ public partial class MainWindow : Window
         clampHorizontalPanelWidths();
         clampLowerLeftPanelWidth();
         clampLowerAreaHeight();
-        saveEditorLayout();
+        scheduleEditorLayoutSave();
+    }
+
+    private void scheduleEditorLayoutSave()
+    {
+        if (layoutSavePending)
+            return;
+        layoutSavePending = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            layoutSavePending = false;
+            saveEditorLayout();
+        }, DispatcherPriority.Background);
     }
 
     private void onHorizontalSplitterChanged()
@@ -411,8 +424,11 @@ public partial class MainWindow : Window
     {
         if (editorSettings is null || !layoutReady)
             return;
-        editorSettings.Width = Math.Max((int)MinWidth, (int)Math.Round(Width));
-        editorSettings.Height = Math.Max((int)MinHeight, (int)Math.Round(Height));
+        if (WindowState == WindowState.Normal)
+        {
+            editorSettings.Width = Math.Max((int)MinWidth, (int)Math.Round(Width));
+            editorSettings.Height = Math.Max((int)MinHeight, (int)Math.Round(Height));
+        }
         editorSettings.UpperLeftWidth = Math.Max(160, getColumnPixelWidth(leftColumn));
         editorSettings.UpperRightWidth = Math.Max(320, getColumnPixelWidth(rightColumn));
         editorSettings.LowerLeftWidth = Math.Max(180, getColumnPixelWidth(lowerLeftColumn));
@@ -1498,7 +1514,7 @@ public partial class MainWindow : Window
     {
         string? layerName = viewModel?.SelectedLayerTab is { IsOverview: false } layer ? layer.Name : null;
         EditorPanel.setSelectedLayer(layerName);
-        EditorPanel.setLayerDisplayState(viewModel?.SoloLayerName, viewModel?.IsSelectedLayerEditable == true);
+        EditorPanel.setSelectedLayerEditable(viewModel?.IsSelectedLayerEditable == true);
         ActorInfoPanel.setLayerEditable(viewModel?.IsSelectedLayerEditable == true);
         if (tileSelect is not null)
         {
@@ -2270,15 +2286,6 @@ public partial class MainWindow : Window
         args.Handled = true;
     }
 
-    private void onLayerSoloClick(object? sender, RoutedEventArgs args)
-    {
-        if (viewModel is null || (sender as Control)?.DataContext is not LayerTabViewModel layer)
-            return;
-        viewModel.SelectedLayerTab = layer;
-        viewModel.toggleSoloLayer(layer);
-        args.Handled = true;
-    }
-
     private void onMapListPointerPressed(object? sender, PointerPressedEventArgs args)
     {
         if (viewModel is null || !args.GetCurrentPoint(MapList).Properties.IsRightButtonPressed)
@@ -2518,11 +2525,6 @@ public partial class MainWindow : Window
                 Header = LocaleService.Get(layer.LayerVisible ? "HIDE_LAYER" : "SHOW_LAYER"),
             };
             visibilityItem.Click += (_, _) => viewModel.setLayerVisible(layer, !layer.LayerVisible);
-            MenuItem soloItem = new MenuItem
-            {
-                Header = LocaleService.Get(layer.IsSolo ? "EXIT_SOLO_LAYER" : "SOLO_LAYER"),
-            };
-            soloItem.Click += (_, _) => viewModel.toggleSoloLayer(layer);
             MenuItem addItem = new MenuItem { Header = LocaleService.Get("ADD_LAYER") };
             addItem.Click += async (_, _) => await addLayerAsync(layer.Name);
             MenuItem renameItem = new MenuItem { Header = LocaleService.Get("RENAME_LAYER") };
@@ -2542,7 +2544,6 @@ public partial class MainWindow : Window
             MenuItem deleteItem = new MenuItem { Header = LocaleService.Get("DELETE") };
             deleteItem.Click += async (_, _) => await deleteLayerAsync(layer.Name);
             menu.Items.Add(visibilityItem);
-            menu.Items.Add(soloItem);
             menu.Items.Add(new Separator());
             menu.Items.Add(addItem);
             menu.Items.Add(renameItem);

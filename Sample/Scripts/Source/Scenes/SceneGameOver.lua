@@ -12,6 +12,8 @@ local GlobalSystem = GlobalCore.System
 local Scene = {}
 
 function Scene:onEnter()
+    local _ = self
+
     GlobalSystem.setTransition(nil, 3.0)
 end
 
@@ -31,6 +33,8 @@ function Scene:onDestroy()
 end
 
 function Scene:_backToTitle()
+    local _ = self
+
     local SceneTitle = require("Source.Scenes.SceneTitle")
 
     ManagerFunctions.playSE(GameSystem.getDecisionSE())

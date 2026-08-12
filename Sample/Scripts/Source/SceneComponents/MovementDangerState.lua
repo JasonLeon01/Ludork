@@ -1,5 +1,6 @@
 local ComponentBase = require("Global.Components.ComponentBase")
 local Enemy = require("Source.Enemy")
+---@type { Special: Source.Configs.GeneralEnum.Special }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local MovementSpecials = require("Source.MovementSpecials")
 
@@ -35,28 +36,43 @@ end
 function MovementDangerState:init(gameMap)
     super(MovementDangerState, self).init(gameMap)
     local size = gameMap:getSize()
+    ---@type Source.Player.Player | nil
     self._player = nil
+    ---@type Source.Components.PlayerInfoComponent | nil
     self._playerInfoComp = nil
+    ---@type integer | nil
     self._playerCombatRevision = nil
+    ---@type table<Source.Enemy, { x: integer | nil, y: integer | nil, combatRevision: integer | nil, infoComp: Source.Components.EnemyInfoComponent | nil, scanRevision: integer | nil }>
     self._enemySnapshots = {}
+    ---@type Source.Enemy[]
     self._enemies = {}
+    ---@type integer
     self._enemyScanRevision = 0
+    ---@type Source.SceneComponents.MovementDangerEntry[]
     self._entries = {}
+    ---@type table<integer, table<integer, Source.SceneComponents.MovementDangerEntry>>
     self._entryGrid = {}
+    ---@type integer
     self._revision = 0
     self._mapWidth = size.x
     self._mapHeight = size.y
 end
 
 function MovementDangerState:onTick(_deltaTime)
+    ---@type GameMap
     local gameMap = self._parent
     local player = gameMap:getPlayer()
     local changed = player ~= self._player
+    ---@type integer | nil
+    local playerCombatRevision = nil
+    ---@type Source.Components.PlayerInfoComponent | nil
+    local playerInfoComp = nil
     if player ~= nil then
+        ---@cast player Source.Player.Player
         player:normaliseInfoComp()
+        playerCombatRevision = player:getCombatRevision()
+        playerInfoComp = player.infoComp
     end
-    local playerCombatRevision = player ~= nil and player:getCombatRevision() or nil
-    local playerInfoComp = player ~= nil and player.infoComp or nil
     if playerCombatRevision ~= self._playerCombatRevision or playerInfoComp ~= self._playerInfoComp then
         changed = true
     end
@@ -67,6 +83,7 @@ function MovementDangerState:onTick(_deltaTime)
     local enemyScanRevision = self._enemyScanRevision + 1
     self._enemyScanRevision = enemyScanRevision
     if player ~= nil then
+        ---@cast player Source.Player.Player
         for _, actorList in pairs(gameMap._actors) do
             for _, actor in ipairs(actorList) do
                 if Class.isInstance(actor, Enemy) and not actor:isDestroyed() and hasMovementSpecial(actor) then
@@ -125,7 +142,9 @@ function MovementDangerState:_rebuildEntries()
         return
     end
     local position = sf.Vector2i.new(0, 0)
+    ---@cast position sf.Vector2i
     for y = 0, self._mapHeight - 1 do
+        ---@type table<integer, Source.SceneComponents.MovementDangerEntry>
         local row = {}
         self._entryGrid[y + 1] = row
         position.y = y
@@ -135,8 +154,11 @@ function MovementDangerState:_rebuildEntries()
                 self._enemies, player, position, nil
             )
             if damage > 0 then
+                local entryPosition = sf.Vector2i.new(x, y)
+                ---@cast entryPosition sf.Vector2i
+                ---@type Source.SceneComponents.MovementDangerEntry
                 local entry = {
-                    position = sf.Vector2i.new(x, y),
+                    position = entryPosition,
                     damage = damage,
                     sources = sources
                 }
@@ -163,6 +185,7 @@ function MovementDangerState:getDamageAt(position, ignoredEnemies)
     end
     local ignoredEnemySet = nil
     if bool(ignoredEnemies) then
+        ---@cast ignoredEnemies -nil
         ignoredEnemySet = {}
         for _, enemy in ipairs(ignoredEnemies) do
             ignoredEnemySet[enemy] = true
@@ -175,6 +198,7 @@ function MovementDangerState:getExcludedAnchors(goal, ignoredGoalEnemies, allowG
     local result = {}
     local ignoredEnemySet = nil
     if bool(ignoredGoalEnemies) then
+        ---@cast ignoredGoalEnemies -nil
         ignoredEnemySet = {}
         for _, enemy in ipairs(ignoredGoalEnemies) do
             ignoredEnemySet[enemy] = true

@@ -13,7 +13,7 @@ function Context._getRefLocal(fn)
 end
 
 ---@param fn function
----@return any
+---@return unknown
 function Context._requireGraphParent(fn)
     local graph = Context._getRefLocal(fn).__graph__
     assert(graph ~= nil, "Node function requires a blueprint graph context")
@@ -21,7 +21,7 @@ function Context._requireGraphParent(fn)
 end
 
 ---@param fn function
----@return any
+---@return unknown
 function Context._getGraphOwner(fn)
     local graph = Context._getRefLocal(fn).__graph__
     if graph == nil or graph.parent == nil then
@@ -29,7 +29,7 @@ function Context._getGraphOwner(fn)
     end
     local parent = graph.parent
     if Class.isInstance(parent, StateInfo) then
-        ---@cast parent StateInfo
+        ---@cast parent Source.Infos.StateInfo
         return parent:getOwner()
     end
     return parent

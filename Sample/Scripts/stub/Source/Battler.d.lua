@@ -17,7 +17,8 @@ local DamageType = {}
 ---@field _combatRevision integer
 ---@field _monitoredInfoComp Source.Components.BattlerInfoComponent | nil
 ---@field _combatMonitorParams table
----@field _states StateInfo[]
+---@field _states Source.Infos.StateInfo[]
+---@field new fun(attrs?: table<string, Source.Battler.AttributeValue>): Source.Battler.Battler
 local Battler = {}
 
 --- @brief Construct a battler with optional attribute overrides.
@@ -36,7 +37,7 @@ function Battler:getCombatRevision() end
 ---
 --- - @param state State ID string or `StateInfo` instance.
 --- - @return True if the state is active.
----@param state string | StateInfo
+---@param state string | Source.Infos.StateInfo
 ---@return boolean
 function Battler:hasState(state) end
 
@@ -45,13 +46,13 @@ function Battler:hasState(state) end
 --- - @param stateID State identifier.
 --- - @return The matching state, or nil.
 ---@param stateID string
----@return StateInfo | nil
+---@return Source.Infos.StateInfo | nil
 function Battler:getStateByID(stateID) end
 
 --- @brief Get a shallow copy of all active states.
 ---
 --- - @return List of currently active `StateInfo` instances.
----@return StateInfo[]
+---@return Source.Infos.StateInfo[]
 function Battler:getStates() end
 
 --- @brief Get the IDs of all active states (for serialization).
@@ -119,21 +120,21 @@ function Battler:getStateNames() end
 ---
 --- - @param state State ID string or `StateInfo` instance.
 --- - @param stacks Stack count to apply or add.
----@param state  string | StateInfo
+---@param state  string | Source.Infos.StateInfo
 ---@param stacks integer
 function Battler:addState(state, stacks) end
 
 --- @brief Remove an active state by ID or instance.
 ---
 --- - @param state State ID string or `StateInfo` instance.
----@param state string | StateInfo
+---@param state string | Source.Infos.StateInfo
 function Battler:removeState(state) end
 
 --- @brief Reduce stack count for an active state, removing it at zero.
 ---
 --- - @param state State ID string or `StateInfo` instance.
 --- - @param stacks Stack count to reduce.
----@param state  string | StateInfo
+---@param state  string | Source.Infos.StateInfo
 ---@param stacks integer
 function Battler:reduceStateStacks(state, stacks) end
 

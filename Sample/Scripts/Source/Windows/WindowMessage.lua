@@ -489,7 +489,9 @@ function WindowMessage:_updateLayoutBySelectionSize()
         currentY = nameHeight + self._NAME_MESSAGE_GAP + 0.0
     end
     if self._selectionListView ~= nil then
-        self._selectionListView:setSize(sf.Vector2i.new(contentWidth, optionCount * self._OPTION_ITEM_HEIGHT))
+        local listSize = sf.Vector2i.new(contentWidth, optionCount * self._OPTION_ITEM_HEIGHT)
+        ---@cast listSize sf.Vector2i
+        self._selectionListView:setSize(listSize)
         self._selectionListView:setOrigin(sf.Vector2f.new(contentWidth / 2.0, 0.0))
         self._selectionListView:setPosition(sf.Vector2f.new(contentWidth / 2.0, currentY))
     end
@@ -532,7 +534,9 @@ end
 ---@param width  integer
 ---@param height integer
 function WindowMessage._resizeCanvas(target, width, height)
-    target:resize(sf.Vector2u.new(width, height))
+    local logicalSize = sf.Vector2u.new(width, height)
+    ---@cast logicalSize sf.Vector2u
+    target:resize(logicalSize)
     target:setView(target:getDefaultView())
 end
 

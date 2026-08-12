@@ -11,11 +11,12 @@
 ---     onWalk, onHookTriggered.
 --- Independent of Actor; can be used standalone in inventory/shop UI.
 ---
----@class StateInfo: Engine.InfoBase
+---@class Source.Infos.StateInfo: Engine.InfoBase
 ---@field name string
 ---@field icon string
 ---@field stacks integer
 ---@field _owner Source.Battler.Battler | nil
+---@field new fun(): Source.Infos.StateInfo
 local StateInfo = {}
 
 --- @brief Construct a state info with no host yet.

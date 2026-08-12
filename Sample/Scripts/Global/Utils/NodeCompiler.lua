@@ -39,7 +39,7 @@ end
 ---@param module     table
 ---@return table | nil
 local function moduleMetadata(moduleName, module)
-    if type(module) == "table" and type(module.__runtimeMetadata) == "table" then
+    if type(module.__runtimeMetadata) == "table" then
         return module.__runtimeMetadata
     end
     local metadataName = moduleName .. "_meta"
@@ -261,7 +261,7 @@ local function moduleCandidates(prefix, context)
         end
     end
     append(prefix)
-    if type(context) == "table" and type(context.moduleCandidates) == "function" then
+    if context.moduleCandidates ~= nil then
         for _, moduleName in ipairs(context.moduleCandidates(prefix) or {}) do
             append(moduleName)
         end
@@ -283,7 +283,7 @@ local function resolveCallable(functionName, parentClass, context)
     if parentClass ~= nil then
         local candidate = traverse(parentClass, parts, 1)
         if isCallable(candidate) then
-            return candidate, explicitSelf or (#parts == 1 and type(parentClass) == "table"),
+            return candidate, explicitSelf or #parts == 1,
                 Engine.getClassModulePath(parentClass) or ""
         end
         if explicitSelf then
@@ -329,7 +329,7 @@ local function resolveMetadata(functionName, parentClass, context)
     if explicitSelf or #parts == 1 then
         local metadata = nil
         local moduleName = ""
-        if type(parentClass) == "table" then
+        if parentClass ~= nil then
             metadata, moduleName = Engine.resolveMemberMetadata(parentClass, memberName)
         end
         if metadata ~= nil or explicitSelf then

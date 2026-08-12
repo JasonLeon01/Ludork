@@ -1,5 +1,8 @@
 ---@meta Source.Pickup
 
+---@class Source.Pickup.Module
+---@field handleCollision          fun(actor: Engine.Actor, other: Engine.Actor[], parentCollision: fun(other: Engine.Actor[]), applyPickup: fun(player: Source.Player.Player, inst: Source.GameInstance.GameInstance, scene: Source.Scenes.SceneMap.SceneMap))
+---@field handleInventoryCollision fun(actor: Engine.Actor, other: Engine.Actor[], parentCollision: fun(other: Engine.Actor[]), applyPickup: fun(player: Source.Player.Player, inst: Source.GameInstance.GameInstance, scene: Source.Scenes.SceneMap.SceneMap))
 local Pickup = {}
 
 ---@param actor           Engine.Actor

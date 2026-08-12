@@ -4,6 +4,7 @@ local PlayerFunctions = require("Source.NodeFunctions.Player")
 local System = require("Source.System")
 
 local ManagerFunctions = GlobalFunctions.Manager
+---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat
 
 local Pickup = {}

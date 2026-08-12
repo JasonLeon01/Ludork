@@ -64,7 +64,6 @@ public sealed class MapPanel : Control
     private AutoTileRenderer? autoTileRenderer;
     private IMapLayerShaderRenderer? layerShaderRenderer;
     private string? selectedLayerName;
-    private string? soloLayerName;
     private bool selectedLayerEditable;
     private TileSelection? selectedTiles;
     private string? selectedAutoTileKey;
@@ -171,9 +170,8 @@ public sealed class MapPanel : Control
         InvalidateVisual();
     }
 
-    public void setLayerDisplayState(string? soloLayer, bool editable)
+    public void setSelectedLayerEditable(bool editable)
     {
-        soloLayerName = string.IsNullOrWhiteSpace(soloLayer) ? null : soloLayer;
         selectedLayerEditable = editable;
         flushPendingBrushLayers();
         disposeMapRenderCaches();
@@ -333,7 +331,7 @@ public sealed class MapPanel : Control
             {
                 foreach (KeyValuePair<string, JsonNode?> entry in layers)
                 {
-                    if (entry.Value is not JsonObject layer || !isLayerVisible(entry.Key, layer))
+                    if (entry.Value is not JsonObject layer || !isLayerVisible(layer))
                         continue;
                     double opacity = selectedLayerName is null || entry.Key == selectedLayerName ? 1.0 : OtherLayerOpacity;
                     using (context.PushOpacity(opacity))
@@ -717,7 +715,7 @@ public sealed class MapPanel : Control
             HashSet<string> activeLayers = new(StringComparer.Ordinal);
             foreach (KeyValuePair<string, JsonNode?> entry in layers)
             {
-                if (entry.Value is not JsonObject layer || !isLayerVisible(entry.Key, layer))
+                if (entry.Value is not JsonObject layer || !isLayerVisible(layer))
                     continue;
                 activeLayers.Add(entry.Key);
                 if (!layerRenderCaches.ContainsKey(entry.Key) || dirtyLayerNames.Contains(entry.Key))
@@ -940,7 +938,7 @@ public sealed class MapPanel : Control
         foreach (KeyValuePair<string, List<ActorRenderState>> entry in actorRenderStates)
         {
             bool layerVisible = CurrentMapData?["layers"]?[entry.Key] is JsonObject layer
-                && isLayerVisible(entry.Key, layer);
+                && isLayerVisible(layer);
             foreach (ActorRenderState actor in entry.Value)
             {
                 if (actor.PreviewLease is null)
@@ -1812,11 +1810,9 @@ public sealed class MapPanel : Control
         return Math.Sqrt(dx * dx + dy * dy);
     }
 
-    private bool isLayerVisible(string layerName, JsonObject layer)
+    private static bool isLayerVisible(JsonObject layer)
     {
-        return soloLayerName is not null
-            ? string.Equals(layerName, soloLayerName, StringComparison.Ordinal)
-            : layer["visible"]?.GetValue<bool?>() ?? true;
+        return layer["visible"]?.GetValue<bool?>() ?? true;
     }
 
     private static JsonArray? getRow(JsonArray? grid, int y) => grid is not null && y >= 0 && y < grid.Count ? grid[y] as JsonArray : null;

@@ -13,12 +13,26 @@ local System = GlobalCore.System
 local SHORT_NUMBER_UNITS = { { 1000000000, 1000000000, "b" }, { 1000000, 1000000, "m" }, { 10000, 1000, "k" } }
 
 local Utils = {}
+local AttrRef = {}
+local LocalRef = {}
+
+function Utils.IsNodeReference(value)
+    return Class.isInstance(value, AttrRef) or Class.isInstance(value, LocalRef)
+end
+
+---@param animationData Engine.AnimationData
+---@return number
+local function getAnimationDataVisualDuration(animationData)
+    local getAnimationVisualDuration = Engine.getAnimationVisualDuration
+    ---@cast getAnimationVisualDuration function
+    return getAnimationVisualDuration(animationData)
+end
 
 ---@generic T
 ---@param value T | Source.NodeFunctions.Utils.NodeReference<T>
 ---@return T
 local function referenceValue(value)
-    if type(value) == "table" and value._isNodeReference == true then
+    if Utils.IsNodeReference(value) then
         ---@cast value Source.NodeFunctions.Utils.NodeReference<T>
         return value:get()
     end
@@ -95,9 +109,6 @@ local function referenceToString(value)
     return tostring(value:get())
 end
 
-local AttrRef = {
-    _isNodeReference = true
-}
 AttrRef.__add = referenceAdd
 AttrRef.__sub = referenceSub
 AttrRef.__mul = referenceMul
@@ -135,9 +146,6 @@ end
 
 local FinalAttrRef = class(AttrRef)
 
-local LocalRef = {
-    _isNodeReference = true
-}
 LocalRef.__add = referenceAdd
 LocalRef.__sub = referenceSub
 LocalRef.__mul = referenceMul
@@ -279,7 +287,7 @@ function Utils.GetAnimVisualLength(animName)
     if animData == nil then
         error("Animation '" .. tostring(animName) .. "' not found")
     end
-    return Engine.getAnimationVisualDuration(animData)
+    return getAnimationDataVisualDuration(animData)
 end
 
 function Utils.SUPER(obj, params)
@@ -296,7 +304,9 @@ function Utils.SUPER(obj, params)
 end
 
 function Utils.SELF()
-    return Context._requireGraphParent(Utils.SELF)
+    local parent = Context._requireGraphParent(Utils.SELF)
+    ---@cast parent table
+    return parent
 end
 
 function Utils.GetAttrRef(obj, attrName)
@@ -411,6 +421,7 @@ function Utils.TriggerBlueprintEvent(obj, eventName)
 end
 
 function Utils.BackToTitle()
+    ---@type { new: fun(): GlobalCore.SceneBase }
     local Title = require("Source.Scenes.SceneTitle")
 
     System.setScene(Title.new())
@@ -430,16 +441,19 @@ end
 
 function Utils.GetSelfAttr(attrName)
     local obj = Context._requireGraphParent(Utils.GetSelfAttr)
+    ---@cast obj table
     return Utils.GetAttr(obj, attrName)
 end
 
 function Utils.SetSelfAttr(attrName, value)
     local obj = Context._requireGraphParent(Utils.SetSelfAttr)
+    ---@cast obj table
     Utils.SetAttr(obj, attrName, value)
 end
 
 function Utils.IfPlayerOverlaps()
     local obj = Context._requireGraphParent(Utils.IfPlayerOverlaps)
+    ---@cast obj Engine.Actor
     local gameMap = Context.requireSceneMap():getGameMap()
     if gameMap == nil then
         return false

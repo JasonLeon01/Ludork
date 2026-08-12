@@ -13,6 +13,8 @@ local SceneBase = GlobalCore.SceneBase
 local Scene = {}
 
 function Scene:onEnter()
+    local _ = self
+
     GlobalSystem.setTransition(ManagerFunctions.loadTransition("Flat.png"))
 end
 
@@ -100,6 +102,8 @@ end
 
 ---@param inst Source.GameInstance.GameInstance
 function Scene:_onSaveLoadLoaded(inst)
+    local _ = self
+
     local SceneMap = require("Source.Scenes.SceneMap")
 
     ManagerFunctions.stopMusic("BGM")

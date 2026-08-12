@@ -1,10 +1,14 @@
 ---@meta Global.Pool
 
+---@class Global.Pool.Module
+---@field Get fun<T>(className: string, classType: { new: fun(): T }, objectTable?: table): T
+---@field Put fun<T>(className: string, object: T)
+---@field Release fun(className: string)
 local Pool = {}
 
----@generic T: table
+---@generic T
 ---@param className    string
----@param classType    T
+---@param classType    { new: fun(): T }
 ---@param objectTable? table
 ---@return T
 function Pool.Get(className, classType, objectTable) end

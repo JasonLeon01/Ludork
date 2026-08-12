@@ -1,5 +1,8 @@
 local Engine = require("Engine")
 
+---@type fun(event: string, handler: function, priority?: integer): integer
+local subscribe = Engine.subscribe
+
 ---@class Source.UI.UiController
 ---@field _refreshFromEvent fun(self: Source.UI.UiController, payload: any)
 local UiController = {}
@@ -45,7 +48,7 @@ function UiController:subscribe(eventName, handler, priority)
     if priority == nil then
         priority = 0
     end
-    local token = Engine.subscribe(eventName, handler, priority)
+    local token = subscribe(eventName, handler, priority)
     self._eventSubscriptions[#self._eventSubscriptions + 1] = token
     return token
 end
@@ -66,11 +69,14 @@ function UiController:_subscribeRefreshEvent(eventName)
         {
             __mode = "v"
         })
+    ---@type integer | nil
     local token
-    token = Engine.subscribe(eventName, function (payload)
+    token = subscribe(eventName, function (payload)
         local controller = weakController[1]
         if controller == nil then
-            Engine.unsubscribe(token)
+            local subscriptionToken = token
+            ---@cast subscriptionToken -nil
+            Engine.unsubscribe(subscriptionToken)
             return
         end
         controller:_refreshFromEvent(payload)

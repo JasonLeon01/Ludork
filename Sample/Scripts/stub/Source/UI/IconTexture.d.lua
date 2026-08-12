@@ -1,5 +1,6 @@
 ---@meta Source.UI.IconTexture
 
+---@class Source.UI.IconTexture.Module
 local IconTexture = {}
 
 ---@param iconPath string

@@ -4,11 +4,12 @@
 --- Bridges Actor (rendering/collision/movement) and EnemyInfo (enemy data + event logic)
 --- via multiple inheritance.
 ---
----@class Source.Enemy: Engine.Actor, Source.Battler.Battler, Engine.InfoBase
+---@class Source.Enemy: Engine.Actor, Source.Infos.EnemyInfo, Source.Battler.Battler
 ---@field infoComp Source.Components.EnemyInfoComponent
 ---@field childActorComp Source.Components.ChildActorComponent
 ---@field afterBattleVarChanges table<string, { [1]: string, [2]: number }>
 ---@field _battleCondition fun(): boolean | nil
+---@field new fun(texture?: sf.Texture, rect?: sf.IntRect, tag?: string): Source.Enemy
 local Enemy = {}
 
 --- @brief Construct an enemy with actor rendering and enemy info.

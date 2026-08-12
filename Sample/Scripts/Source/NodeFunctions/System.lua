@@ -1,16 +1,31 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
-local LOC = require("Source.Locale.Core").ApplyStringLocaleFormat
+local LocaleCore = require("Source.Locale.Core")
 local Context = require("Source.NodeFunctions.Context")
 
 local ManagerFunctions = GlobalFunctions.Manager
 local GlobalSystem = GlobalCore.System
-
+---@type fun(value: string): string
+local LOC = LocaleCore.ApplyStringLocaleFormat
 local System = {}
 
-System.SoundFilter = Engine.SoundFilter.new()
-System.MusicFilter = Engine.MusicFilter.new()
+---@param constructor fun(values: table): Engine.SoundFilter
+---@return Engine.SoundFilter
+local function constructSoundFilter(constructor)
+    ---@cast constructor function
+    return constructor()
+end
+
+---@param constructor fun(values: table): Engine.MusicFilter
+---@return Engine.MusicFilter
+local function constructMusicFilter(constructor)
+    ---@cast constructor function
+    return constructor()
+end
+
+System.SoundFilter = constructSoundFilter(Engine.SoundFilter.new)
+System.MusicFilter = constructMusicFilter(Engine.MusicFilter.new)
 
 local TransitionCondition = {}
 

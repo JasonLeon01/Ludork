@@ -3,10 +3,8 @@
 ---@field className        string
 ---@field relativePosition sf.Vector2f
 ---@field _childActor      Engine.Actor | nil
+---@field new fun(values?: { className?: string, relativePosition?: sf.Vector2f }): Source.Components.ChildActorComponent
 local ChildActorComponent = {}
-
----@return Source.Components.ChildActorComponent
-function ChildActorComponent.new(...) end
 
 ---@param values { className?: string, relativePosition?: sf.Vector2f } | nil
 function ChildActorComponent:init(values) end

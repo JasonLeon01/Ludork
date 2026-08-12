@@ -44,6 +44,7 @@ function Scene.GotoMap(mapPath, blockTransition, position)
 end
 
 function Scene.GameOver()
+    ---@type { new: fun(): GlobalCore.SceneBase }
     local GameOverScene = require("Source.Scenes.SceneGameOver")
 
     System.setScene(GameOverScene.new())
@@ -240,6 +241,7 @@ end
 
 function Scene.SelfRecordAdded()
     local actor = Context._getGraphOwner(Scene.SelfRecordAdded)
+    ---@cast actor Engine.Actor | nil
     if actor ~= nil then
         Context.requireSceneMap():recordAddedActor(actor)
     end
@@ -251,6 +253,7 @@ end
 
 function Scene.SelfRecordActorPosition()
     local actor = Context._getGraphOwner(Scene.SelfRecordActorPosition)
+    ---@cast actor Engine.Actor | nil
     if actor ~= nil then
         Context.requireSceneMap():recordActorPosition(actor)
     end
@@ -262,6 +265,7 @@ end
 
 function Scene.SelfRecordDestroyed()
     local actor = Context._getGraphOwner(Scene.SelfRecordDestroyed)
+    ---@cast actor Engine.Actor | nil
     if actor ~= nil then
         Context.requireSceneMap():recordDestroyedActor(actor)
     end
@@ -274,6 +278,7 @@ end
 
 function Scene.SelfRecordAndDestroy()
     local actor = Context._getGraphOwner(Scene.SelfRecordAndDestroy)
+    ---@cast actor Engine.Actor | nil
     if actor ~= nil then
         Context.requireSceneMap():recordDestroyedActor(actor)
         actor:destroy()
@@ -302,7 +307,7 @@ function Scene.OpenAttrShop(actor, shopName, shopDescription, abilities, price, 
     local Utils = require("Source.NodeFunctions.Utils")
 
     local priceRef
-    if type(price) == "table" and price._isNodeReference == true then
+    if Utils.IsNodeReference(price) then
         priceRef = price
     elseif type(price) == "string" and bool(price) then
         priceRef = Utils._localRef(instance:getVariables(), price, 0)

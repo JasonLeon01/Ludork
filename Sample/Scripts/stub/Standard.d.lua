@@ -193,16 +193,20 @@ function dict_value:toTable() end
 --- Construct a mutable native list from values.
 --- One raw table, list or tuple argument is shallow-copied as a sequence.
 ---@class list.Type
----@overload fun<T>(values?: table<integer, T>|list<T>|tuple<T>): list<T>
 ---@overload fun<T>(...: T): list<T>
+---@overload fun<T>(values: list<T>): list<T>
+---@overload fun<T>(values: tuple<T>): list<T>
+---@overload fun<T>(values?: T[]): list<T>
 list = {}
 
 --- Construct an immutable native tuple from values.
 --- One raw table, list or tuple argument is shallow-copied as a sequence.
 --- Tuple elements cannot be nil.
 ---@class tuple.Type
----@overload fun<T>(values?: table<integer, T>|list<T>|tuple<T>): tuple<T>
 ---@overload fun<T>(...: T): tuple<T>
+---@overload fun<T>(values: list<T>): tuple<T>
+---@overload fun<T>(values: tuple<T>): tuple<T>
+---@overload fun<T>(values?: T[]): tuple<T>
 tuple = {}
 
 --- Construct a mutable native dictionary from an optional mapping.

@@ -2,25 +2,29 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
 local Data = require("Source.Data")
-local LOC = require("Source.Locale.Core").ApplyStringLocaleFormat
+local LocaleCore = require("Source.Locale.Core")
+---@type { Special: Source.Configs.GeneralEnum.Special, State: Source.Configs.GeneralEnum.State }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local BattlerInfoComponent = require("Source.Components.BattlerInfoComponent")
 local StateInfo = require("Source.Infos.StateInfo")
 
 local ComponentsFunctions = GlobalFunctions.Components
+---@type fun(value: string): string
+local LOC = LocaleCore.ApplyStringLocaleFormat
 local Special = GeneralEnum.Special
 local State = GeneralEnum.State
 
 local DamageType = { NORMAL = 0, UNDEFEATABLE = 1 }
 
 -- Clamp HP to [0, MAXHP] whenever it is set.
----@param old     integer | table
----@param new     integer
+---@param old     integer | Class.MissingValue
+---@param new     integer | Class.MissingValue
 ---@param battler Source.Battler.Battler
 local function onHPChange(old, new, battler)
     if battler == nil then
         return
     end
+    ---@cast new integer
     if new < 0 then
         battler.infoComp.HP = 0
     elseif new > battler.infoComp.MAXHP then
@@ -32,13 +36,14 @@ local function onHPChange(old, new, battler)
 end
 
 -- Propagate MAXHP increases to HP and clamp overflow.
----@param old     integer | table
----@param new     integer
+---@param old     integer | Class.MissingValue
+---@param new     integer | Class.MissingValue
 ---@param battler Source.Battler.Battler
 local function onMAXHPChange(old, new, battler)
     if battler == nil then
         return
     end
+    ---@cast new integer
     if battler.infoComp.HP > new then
         battler.infoComp.HP = new
     end
@@ -135,7 +140,7 @@ function Battler:_ensureCombatMonitors()
     end
 end
 
----@return Class.ClassType<Source.Components.BattlerInfoComponent>
+---@return { new: fun(values?: table<string, Source.Battler.AttributeValue>): Source.Components.BattlerInfoComponent }
 function Battler:_getInfoCompType()
     local componentTypes = Class.type(self)._componentTypes
     if componentTypes == nil then
@@ -453,7 +458,7 @@ function Battler:getDamage(battler)
     return DamageType.NORMAL, math.max(0, counterRounds * counterDamage)
 end
 
----@param state string | StateInfo | nil
+---@param state string | Source.Infos.StateInfo | nil
 ---@return string
 function Battler._resolveStateID(state)
     if state == nil then
@@ -465,14 +470,14 @@ function Battler._resolveStateID(state)
     return state.ID
 end
 
----@param state string | StateInfo | nil
----@return StateInfo | nil
+---@param state string | Source.Infos.StateInfo | nil
+---@return Source.Infos.StateInfo | nil
 function Battler._buildStateInfo(state)
     if state == nil then
         return nil
     end
     if Class.isInstance(state, StateInfo) then
-        ---@cast state StateInfo
+        ---@cast state Source.Infos.StateInfo
         if not state:hasInfoGraph() and bool(state.ID) then
             state:initInfo(Data)
         end

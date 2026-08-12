@@ -13,6 +13,7 @@
 ---@field _canSell boolean
 ---@field _mode string
 ---@field _closed boolean
+---@field new fun(player: Source.Player.Player, commandRect?: sf.IntRect, itemRect?: sf.IntRect, onClose?: function): Source.Windows.WindowShop
 local WindowShop = {}
 
 ---@return sf.IntRect, sf.IntRect

@@ -42,6 +42,8 @@
 ---@field _hueBuffer sf.RenderTexture|nil
 ---@field _outputBuffer sf.RenderTexture
 
+---@class Global.Utils.Render.Module
+---@field GetRealSize fun(inSize: sf.Vector2i | sf.Vector2u | sf.Vector2f): sf.Vector2f
 local Render = {}
 
 --- @brief Convert a size vector to real-world coordinates using the current scale.

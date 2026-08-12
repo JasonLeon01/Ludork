@@ -3,6 +3,7 @@ local Locale = require("Source.Locale.Core")
 local Ui = require("Source.UI.Ui")
 
 local GlobalSystem = GlobalCore.System
+---@type fun(value: string): string
 local LOC = Locale.ApplyStringLocaleFormat
 
 local _HOLD_TIME = 1.0

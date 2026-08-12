@@ -1,0 +1,144 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StreamGeometry x:Key="EditorIcon.VisibilityHidden">M12,17.5C8.2,17.5 4.8,15.4 3.2,12H1C2.7,16.4 7,19.5 12,19.5S21.3,16.4 23,12H20.8C19.2,15.4 15.8,17.5 12,17.5Z</StreamGeometry>
+    <StreamGeometry x:Key="EditorIcon.VisibilityVisible">M12,4.5C7,4.5 2.73,7.61 1,12C2.73,16.39 7,19.5 12,19.5C17,19.5 21.27,16.39 23,12C21.27,7.61 17,4.5 12,4.5M12,17C9.24,17 7,14.76 7,12C7,9.24 9.24,7 12,7C14.76,7 17,9.24 17,12C17,14.76 14.76,17 12,17M12,9C10.34,9 9,10.34 9,12C9,13.66 10.34,15 12,15C13.66,15 15,13.66 15,12C15,10.34 13.66,9 12,9Z</StreamGeometry>
+    <StreamGeometry x:Key="EditorIcon.NavigateUp">M8,14L12,6L16,14ZM10.5,14L10.5,20L13.5,20L13.5,14Z</StreamGeometry>
+    <StreamGeometry x:Key="EditorIcon.SubmenuRight">M0,0L4,3.5L0,7Z</StreamGeometry>
+    <StreamGeometry x:Key="EditorIcon.NewProjectOutline">M5,8.5L16,3L27,8.5L27,23.5L16,29L5,23.5Z</StreamGeometry>
+    <StreamGeometry x:Key="EditorIcon.NewProjectEdges">M5,8.5L16,14L27,8.5M16,14L16,29</StreamGeometry>
+    <StreamGeometry x:Key="EditorIcon.TemplateStandaloneFrame">M10,6H30A5,5,0,0,1,35,11V29A5,5,0,0,1,30,34H10A5,5,0,0,1,5,29V11A5,5,0,0,1,10,6Z</StreamGeometry>
+    <StreamGeometry x:Key="EditorIcon.TemplateStandalonePlay">M17,14L17,26L27,20Z</StreamGeometry>
+    <StreamGeometry x:Key="EditorIcon.TemplateCppCode">M14,6L4,17L14,28M34,6L44,17L34,28</StreamGeometry>
+    <StreamGeometry x:Key="EditorIcon.TemplateCppSlash">M29,4L20,30</StreamGeometry>
+
+    <DrawingImage x:Key="EditorImage.ModeTile" Viewbox="0,0,24,24">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#E8EAED" Geometry="M5.8,4H9.2A1.8,1.8,0,0,1,11,5.8V9.2A1.8,1.8,0,0,1,9.2,11H5.8A1.8,1.8,0,0,1,4,9.2V5.8A1.8,1.8,0,0,1,5.8,4Z" />
+                <GeometryDrawing Brush="#E8EAED" Geometry="M14.8,4H18.2A1.8,1.8,0,0,1,20,5.8V9.2A1.8,1.8,0,0,1,18.2,11H14.8A1.8,1.8,0,0,1,13,9.2V5.8A1.8,1.8,0,0,1,14.8,4Z" />
+                <GeometryDrawing Brush="#8AB4F8" Geometry="M5.8,13H9.2A1.8,1.8,0,0,1,11,14.8V18.2A1.8,1.8,0,0,1,9.2,20H5.8A1.8,1.8,0,0,1,4,18.2V14.8A1.8,1.8,0,0,1,5.8,13Z" />
+                <GeometryDrawing Brush="#E8EAED" Geometry="M14.8,13H18.2A1.8,1.8,0,0,1,20,14.8V18.2A1.8,1.8,0,0,1,18.2,20H14.8A1.8,1.8,0,0,1,13,18.2V14.8A1.8,1.8,0,0,1,14.8,13Z" />
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+    <DrawingImage x:Key="EditorImage.ModeLight" Viewbox="0,0,24,24">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Geometry="M12,2.8V5.1M4.7,6.3L6.4,8M19.3,6.3L17.6,8M3,13H5.2M18.8,13H21">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#8AB4F8" Thickness="1.8" LineCap="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Geometry="M8,12A4,4,0,1,1,16,12C16,13.45,15.22,14.18,14.6,15.05C14.3,15.47,14.1,15.87,14.1,16.3H9.9C9.9,15.87,9.7,15.47,9.4,15.05C8.78,14.18,8,13.45,8,12Z">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#E8EAED" Thickness="2" LineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Geometry="M9.5,17.4H14.5M10,20H14">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#E8EAED" Thickness="2" LineCap="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+    <DrawingImage x:Key="EditorImage.ModeActor" Viewbox="0,0,24,24">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Geometry="M4.2,8V4.2H8M16,4.2H19.8V8M4.2,16V19.8H8M16,19.8H19.8V16">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#8AB4F8" Thickness="1.8" LineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#E8EAED" Geometry="M12,5.4A3,3,0,1,1,12,11.4A3,3,0,1,1,12,5.4Z" />
+                <GeometryDrawing Brush="#E8EAED" Geometry="M6.5,19.5C6.5,16.25,8.9,14.1,12,14.1S17.5,16.25,17.5,19.5Z" />
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+    <DrawingImage x:Key="EditorImage.ModeEditor" Viewbox="0,0,24,24">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Geometry="M5.5,4.5H14.3C14.75,4.5,15.18,4.68,15.5,5L17.5,7C17.82,7.32,18,7.75,18,8.2V18.5C18,19.33,17.33,20,16.5,20H5.5C4.67,20,4,19.33,4,18.5V6C4,5.17,4.67,4.5,5.5,4.5Z">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#E8EAED" Thickness="1.8" LineCap="Round" LineJoin="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Geometry="M8,9H14M8,12.5H12">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#BDC1C6" Thickness="1.5" LineCap="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Geometry="M10.3,18.2L18.7,9.8">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#8AB4F8" Thickness="2.6" LineCap="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#8AB4F8" Geometry="M19.2,9.3L20.7,7.8L22,11.2Z" />
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+    <DrawingImage x:Key="EditorImage.ModePlay" Viewbox="0,0,24,24">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Geometry="M12,3.5A8.5,8.5,0,1,1,12,20.5A8.5,8.5,0,1,1,12,3.5Z">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#E8EAED" Thickness="2" LineCap="Round" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#8AB4F8" Geometry="M10,8.2V15.8L16.8,12Z" />
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+    <DrawingImage x:Key="EditorImage.FolderOpen" Viewbox="0,0,24,24">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#D89B2B" Geometry="M2,5L9,5L11,7L22,7L22,20L2,20Z" />
+                <GeometryDrawing Brush="#F2BD49" Geometry="M2,9L22,9L20,20L4,20Z" />
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+    <DrawingImage x:Key="EditorImage.Folder" Viewbox="0,0,54,44">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#FFD740" Geometry="M5,10H49A3,3,0,0,1,52,13V38A3,3,0,0,1,49,41H5A3,3,0,0,1,2,38V13A3,3,0,0,1,5,10Z">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#B8A020" Thickness="1" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#FFD740" Geometry="M6,4H26A2,2,0,0,1,28,6V12A2,2,0,0,1,26,14H6A2,2,0,0,1,4,12V6A2,2,0,0,1,6,4Z" />
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+    <DrawingImage x:Key="EditorImage.File" Viewbox="0,0,40,50">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#2A2A2A" Geometry="M3,1H37A2,2,0,0,1,39,3V47A2,2,0,0,1,37,49H3A2,2,0,0,1,1,47V3A2,2,0,0,1,3,1Z">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#555555" Thickness="1" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Geometry="M8,14H32M8,21H32M8,28H32M8,35H32">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#555555" Thickness="2" />
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+    <DrawingImage x:Key="EditorImage.ExternalVSCode" Viewbox="0,0,100,100">
+        <DrawingImage.Drawing>
+            <GeometryDrawing Brush="#23A8F2" Geometry="F0 M70.9119,99.3171 C72.4869,99.9307 74.2828,99.8914 75.8725,99.1264 L96.4608,89.2197 C98.6242,88.1787 100,85.9892 100,83.5872 L100,16.4133 C100,14.0113 98.6243,11.8218 96.4609,10.7808 L75.8725,0.873756 C73.7862,-0.130129 71.3446,0.11576 69.5135,1.44695 C69.252,1.63711 69.0028,1.84943 68.769,2.08341 L29.3551,38.0415 L12.1872,25.0096 C10.589,23.7965 8.35363,23.8959 6.86933,25.2461 L1.36303,30.2549 C-0.452552,31.9064 -0.454633,34.7627 1.35853,36.417 L16.2471,50.0001 L1.35853,63.5832 C-0.454633,65.2374 -0.452552,68.0938 1.36303,69.7453 L6.86933,74.7541 C8.35363,76.1043 10.589,76.2037 12.1872,74.9905 L29.3551,61.9587 L68.769,97.9167 C69.3925,98.5406 70.1246,99.0104 70.9119,99.3171 Z M75.0152,27.2989 L45.1091,50.0001 L75.0152,72.7012 Z" />
+        </DrawingImage.Drawing>
+    </DrawingImage>
+    <DrawingImage x:Key="EditorImage.ExternalCursor" Viewbox="0,0,466.73,533.32">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#72716D" Geometry="M233.37,266.66L464.53,400.12C463.11,402.58,461.05,404.68,458.5,406.15L242.44,530.89C236.83,534.13,229.91,534.13,224.3,530.89L8.24,406.15C5.69,404.68,3.63,402.58,2.21,400.12Z" />
+                <GeometryDrawing Brush="#55544F" Geometry="M233.37,0L233.37,266.66L2.21,400.12C0.79,397.66,0,394.82,0,391.88L0,141.44C0,135.55,3.14,130.12,8.24,127.17L224.29,2.43C227.1,0.81,230.23,0,233.36,0Z" />
+                <GeometryDrawing Brush="#43413C" Geometry="M464.52,133.2C463.1,130.74,461.04,128.64,458.49,127.17L242.43,2.43C239.63,0.81,236.5,0,233.37,0L233.37,266.66L464.53,400.12C465.95,397.66,466.74,394.82,466.74,391.88L466.74,141.44C466.74,138.49,465.96,135.67,464.53,133.2Z" />
+                <GeometryDrawing Brush="#D6D5D2" Geometry="M448.35,142.54C449.66,144.8,449.84,147.7,448.35,150.28L238.52,513.7C237.11,516.16,233.36,515.15,233.36,512.32L233.36,272.84C233.36,270.93,232.85,269.09,231.92,267.48Z" />
+                <GeometryDrawing Brush="White" Geometry="M448.35,142.54L231.93,267.49C231.01,265.89,229.67,264.53,228.01,263.57L20.62,143.83C18.16,142.42,19.17,138.67,22,138.67L441.65,138.67C444.63,138.67,447.05,140.28,448.35,142.54Z" />
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+</ResourceDictionary>

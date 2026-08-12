@@ -46,7 +46,9 @@ local WindowItemUI = {}
 
 function WindowItemUI:init(model)
     super(WindowItemUI, self).init(model)
-    self._listViewController = ListViewController.new(model, sf.Vector2u.new(1, 1), 32, true, 6)
+    local logicalSize = sf.Vector2u.new(1, 1)
+    ---@cast logicalSize sf.Vector2u
+    self._listViewController = ListViewController.new(model, logicalSize, 32, true, 6)
     self._listView = self._listViewController:getListView()
     self._logicalSize = nil
     self._rowUIs = {}
@@ -192,8 +194,14 @@ function WindowItemUI:_updateLayout()
     local contentHeight = math.max(1, math.floor(windowSize.y - 96))
     self.model._descMaxWidth = contentWidth
     self.model:_resizeCanvas(self.model.content, contentWidth, contentHeight)
-    self._logicalSize = sf.Vector2u.new(math.max(1, math.floor(windowSize.x)), math.max(1, math.floor(windowSize.y)))
-    self._listViewController:prepare(sf.Vector2u.new(contentWidth, contentHeight))
+    local logicalSize = sf.Vector2u.new(
+        math.max(1, math.floor(windowSize.x)), math.max(1, math.floor(windowSize.y))
+    )
+    ---@cast logicalSize sf.Vector2u
+    self._logicalSize = logicalSize
+    local contentSize = sf.Vector2u.new(contentWidth, contentHeight)
+    ---@cast contentSize sf.Vector2u
+    self._listViewController:prepare(contentSize)
 end
 
 function WindowItemUI:_assignDescription()

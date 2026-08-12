@@ -23,8 +23,10 @@ local AttrShopRow = {}
 
 function AttrShopRow:init(model)
     self.model = model
+    local logicalSize = sf.Vector2u.new(1, 1)
+    ---@cast logicalSize sf.Vector2u
     self.root, self._label = UiControlFactory.createFunctionalTextRow(
-        sf.Vector2u.new(1, 1), Data.getPlainTextConfig("UI/CenterText22")
+        logicalSize, Data.getPlainTextConfig("UI/CenterText22")
     )
 end
 
@@ -74,7 +76,9 @@ end
 
 function WindowAttrShopUI:prepareSelectable(selectable, size)
     self._selectable = selectable
-    self._logicalSize = sf.Vector2u.new(size.x, size.y)
+    local logicalSize = sf.Vector2u.new(size.x, size.y)
+    ---@cast logicalSize sf.Vector2u
+    self._logicalSize = logicalSize
     return self:prepare(self._logicalSize)
 end
 
@@ -145,7 +149,9 @@ function WindowAttrShopUI:_addRow(textValue, available, width)
         text = textValue,
         available = available
     })
-    local cell = row:prepare(sf.Vector2u.new(width, _ITEM_ROW_HEIGHT))
+    local logicalSize = sf.Vector2u.new(width, _ITEM_ROW_HEIGHT)
+    ---@cast logicalSize sf.Vector2u
+    local cell = row:prepare(logicalSize)
     cell:addConfirmCallback(function ()
         self:confirmItem()
     end)
@@ -333,10 +339,12 @@ function WindowAttrShopUI:animateAvatar(deltaTime)
     local textureWidth = self.model._avatarTexture:getSize().x
     local positionX = (self.model._avatarRect.position.x + self.model._avatarRect.size.x) % textureWidth
     ---@cast positionX integer
-    self.model._avatarRect = sf.IntRect.new(
-        sf.Vector2i.new(positionX, self.model._avatarRect.position.y),
-        sf.Vector2i.new(self.model._avatarRect.size.x, self.model._avatarRect.size.y)
+    local avatarRect = sf.IntRect.new(
+        positionX, self.model._avatarRect.position.y,
+        self.model._avatarRect.size.x, self.model._avatarRect.size.y
     )
+    ---@cast avatarRect sf.IntRect
+    self.model._avatarRect = avatarRect
     self.model._avatarImage:setTextureRect(self.model._avatarRect)
 end
 

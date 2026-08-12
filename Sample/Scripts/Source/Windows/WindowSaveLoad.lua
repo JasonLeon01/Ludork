@@ -197,7 +197,9 @@ end
 
 ---@return sf.Vector2u
 function WindowSaveDetail._thumbSize()
-    return sf.Vector2u.new(_DETAIL_THUMB_WIDTH, _DETAIL_THUMB_HEIGHT)
+    local size = sf.Vector2u.new(_DETAIL_THUMB_WIDTH, _DETAIL_THUMB_HEIGHT)
+    ---@cast size sf.Vector2u
+    return size
 end
 
 function WindowSaveDetail:_refreshIfFileChanged()

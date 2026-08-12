@@ -561,7 +561,9 @@ function GameInstance._savedVector2i(position)
     local y = position[2]
     ---@cast x integer
     ---@cast y integer
-    return sf.Vector2i.new(x, y)
+    local result = sf.Vector2i.new(x, y)
+    ---@cast result sf.Vector2i
+    return result
 end
 
 ---@param position integer[]
@@ -571,7 +573,9 @@ function GameInstance._savedVector2u(position)
     local y = position[2]
     ---@cast x integer
     ---@cast y integer
-    return sf.Vector2u.new(x, y)
+    local result = sf.Vector2u.new(x, y)
+    ---@cast result sf.Vector2u
+    return result
 end
 
 ---@param terrainDestructions table<string, table<string, table<string, Source.GameInstance.TerrainChangeRecord>>>
