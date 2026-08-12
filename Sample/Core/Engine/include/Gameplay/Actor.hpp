@@ -131,7 +131,7 @@ public:
     std::string scriptPath = "";
 
     BIND_PROPERTY()
-    std::string tag;
+    std::string tag = "";
 
     BIND_PROPERTY()
     float switchInterval = 0.2f;
@@ -149,7 +149,7 @@ public:
     float hue = 0.0f;
 
     BIND_PROPERTY()
-    bool collisionEnabled;
+    bool collisionEnabled = false;
 
     BIND_METHOD(Pure = true)
     virtual bool getCollisionEnabled() const;

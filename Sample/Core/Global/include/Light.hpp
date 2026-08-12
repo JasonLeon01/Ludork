@@ -19,11 +19,11 @@ using LightData = std::unordered_map<std::string, LightValue>;
 ////////////////////////////////////////////////////////////
 BIND_CLASS(copyable = true)
 struct Light {
-    BIND_PROPERTY()
-    sf::Vector2f position;
+    BIND_PROPERTY(default = {0.0, 0.0})
+    sf::Vector2f position{0.0f, 0.0f};
 
-    BIND_PROPERTY()
-    sf::Color colour;
+    BIND_PROPERTY(default = {255, 255, 255, 255})
+    sf::Color colour = sf::Color::White;
 
     BIND_PROPERTY()
     float radius = 256.0f;

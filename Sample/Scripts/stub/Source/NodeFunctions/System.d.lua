@@ -1,6 +1,6 @@
 ---@meta Source.NodeFunctions.System
 
----@alias Source.NodeFunctions.System.SoundFilterValue boolean | number | sf.Time | sf.Vector3f | sf.SoundSource.Cone | sf.Music.TimeSpan | function | nil
+---@alias Source.NodeFunctions.System.SoundFilterValue boolean | number | sf.Time | sf.Vector3f | sf.SoundSource.Cone | sf.Music.TimeSpan | nil
 
 ---@class Source.NodeFunctions.System.TransitionCondition
 ---@field _started boolean
@@ -32,6 +32,10 @@ function System.EditSoundFilter(attr, value) end
 ---@param attr  string
 ---@param value Source.NodeFunctions.System.SoundFilterValue
 function System.EditMusicFilter(attr, value) end
+
+---@param audioType string
+---@param effect    string
+function System.SetEffect(audioType, effect) end
 
 ---@param soundFileName string
 ---@param applyFilter   boolean

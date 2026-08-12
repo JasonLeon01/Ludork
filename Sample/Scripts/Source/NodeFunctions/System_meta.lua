@@ -19,8 +19,6 @@ local _METADATA = {
                     attr = {
                         "loop",
                         "offset",
-                        "needEffect",
-                        "soundEffect",
                         "pitch",
                         "pan",
                         "volume",
@@ -59,8 +57,6 @@ local _METADATA = {
                     attr = {
                         "loop",
                         "offset",
-                        "needEffect",
-                        "soundEffect",
                         "pitch",
                         "pan",
                         "volume",
@@ -224,8 +220,6 @@ local _METADATA = {
                     attr = {
                         "loop",
                         "offset",
-                        "needEffect",
-                        "soundEffect",
                         "pitch",
                         "pan",
                         "volume",
@@ -265,8 +259,6 @@ local _METADATA = {
                     attr = {
                         "loop",
                         "offset",
-                        "needEffect",
-                        "soundEffect",
                         "pitch",
                         "pan",
                         "volume",
@@ -283,6 +275,36 @@ local _METADATA = {
                         "minGain",
                         "maxGain",
                         "attenuation",
+                    },
+                },
+            },
+        },
+        SetEffect = {
+            type = "function",
+            parameters = {
+                "audioType",
+                "effect",
+                audioType = "string",
+                effect = "string",
+            },
+            ["return"] = {},
+            ExecSplit = {
+                "default",
+                default = "nil",
+            },
+            Meta = {
+                DropBox = {
+                    audioType = {
+                        "Sound",
+                        "Voice",
+                        "Music",
+                    },
+                    effect = {
+                        "nil",
+                        "Echo",
+                        "Distortion",
+                        "Underwater",
+                        "BehindWall",
                     },
                 },
             },

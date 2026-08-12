@@ -1069,6 +1069,14 @@
           7,
           13
         ]
+      },
+      {
+        "tag": "Actors_BP_Actor_Voice_Test_default_13_1",
+        "bp": "Data.Blueprints.Actors.BP_Actor_Voice_Test",
+        "position": [
+          13,
+          1
+        ]
       }
     ]
   },

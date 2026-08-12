@@ -157,7 +157,6 @@ Actor::Actor(std::shared_ptr<sf::Texture> texture,
              std::optional<sf::IntRect> rect, std::string actorTag)
     : sf::Sprite(textureOrBlank(texture)),
       tag(actorTag),
-      collisionEnabled(false),
       texture_(std::move(texture)),
       spriteTexture_(texture_),
       mapTag_(actorTag) {

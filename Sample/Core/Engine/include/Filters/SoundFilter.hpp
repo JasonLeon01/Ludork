@@ -17,12 +17,6 @@ public:
     std::optional<sf::Time> offset;
 
     BIND_PROPERTY()
-    bool needEffect = false;
-
-    BIND_PROPERTY(metadata_type = "function")
-    std::optional<sf::SoundSource::EffectProcessor> soundEffect;
-
-    BIND_PROPERTY()
     std::optional<float> pitch;
 
     BIND_PROPERTY()
@@ -77,16 +71,3 @@ public:
     BIND_PROPERTY()
     std::optional<sf::Music::TimeSpan> loopPoint;
 };
-
-BIND_FUNCTION()
-sf::SoundSource::EffectProcessor echoEffect(float delay, float decay,
-                                            float sampleRate);
-
-BIND_FUNCTION(defaults = {0.7})
-sf::SoundSource::EffectProcessor distortionEffect(float drive,
-                                                  float threshold = 0.7f);
-
-BIND_FUNCTION(defaults = {0.7, 0.3, 44100.0})
-sf::SoundSource::EffectProcessor underwaterEffect(float depth = 0.7f,
-                                                  float bubbleIntensity = 0.3f,
-                                                  float sampleRate = 44100.0f);

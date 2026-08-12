@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <iostream>
 #include <mutex>
 #include <stdexcept>
 #include <unordered_map>
@@ -40,12 +39,16 @@ struct MusicRecord {
     float baseVolume = 100.0f;
 };
 
+using EffectFactory = std::function<sf::SoundSource::EffectProcessor()>;
+
 std::unordered_map<std::string, std::shared_ptr<sf::SoundBuffer>> soundBuffers;
 std::unordered_map<std::string, std::size_t> soundBufferCounts;
 std::vector<SoundRecord> sounds;
 VoiceRecord voice;
 std::unordered_map<std::string, MusicRecord> musics;
-sf::SoundSource::EffectProcessor defaultSoundEffect;
+EffectFactory soundEffectFactory;
+EffectFactory voiceEffectFactory;
+EffectFactory musicEffectFactory;
 std::recursive_mutex audioMutex;
 
 sf::Vector3f positionOf(
@@ -111,6 +114,15 @@ MusicRecord* findMusicRecord(const sf::Music* music) {
     return nullptr;
 }
 
+void applyEffect(sf::SoundSource& source,
+                 const EffectFactory& effectFactory) {
+    if (!effectFactory) {
+        source.setEffectProcessor({});
+        return;
+    }
+    source.setEffectProcessor(effectFactory());
+}
+
 void setFilteredVolume(sf::SoundSource& source, float volume) {
     if (SoundRecord* record =
             dynamic_cast<sf::Sound*>(&source) == nullptr
@@ -152,15 +164,6 @@ void setFilteredVolume(sf::SoundSource& source, float volume) {
 }
 
 void applyAudioFilter(sf::SoundSource& source, const SoundFilter& filter) {
-    if (filter.needEffect) {
-        if (filter.soundEffect.has_value()) {
-            source.setEffectProcessor(*filter.soundEffect);
-        } else if (defaultSoundEffect) {
-            source.setEffectProcessor(defaultSoundEffect);
-        } else {
-            std::cerr << "No sound effect processor set!\n";
-        }
-    }
     if (filter.pan.has_value()) {
         source.setPan(*filter.pan);
     }
@@ -239,8 +242,9 @@ std::shared_ptr<sf::Sound> AudioManager::playSound(
         return nullptr;
     }
     const std::shared_ptr<sf::SoundBuffer> buffer = loadSound(filePath);
-    retainBuffer(filePath, buffer);
     auto sound = std::make_shared<sf::Sound>(*buffer);
+    applyEffect(*sound, soundEffectFactory);
+    retainBuffer(filePath, buffer);
     sounds.push_back({sound, filePath, parent, sound->getVolume(), 1.0f});
     if (parent != nullptr) {
         setSoundParent(sound, parent);
@@ -289,8 +293,9 @@ std::shared_ptr<sf::Sound> AudioManager::playVoice(
     }
     stopVoice();
     const std::shared_ptr<sf::SoundBuffer> buffer = loadSound(filePath);
-    retainBuffer(filePath, buffer);
     auto activeVoice = std::make_shared<sf::Sound>(*buffer);
+    applyEffect(*activeVoice, voiceEffectFactory);
+    retainBuffer(filePath, buffer);
     if (filter != nullptr) {
         setSoundFilter(activeVoice, *filter);
     }
@@ -338,6 +343,7 @@ std::shared_ptr<sf::Music> AudioManager::playMusic(const std::string& musicType,
     if (!music->openFromFile(ludork::standard::pathFromUtf8(filePath))) {
         throw std::runtime_error("Failed to load music from file: " + filePath);
     }
+    applyEffect(*music, musicEffectFactory);
     if (filter != nullptr) {
         setMusicFilter(music, *filter);
     } else {
@@ -499,10 +505,33 @@ void AudioManager::setMusicFilter(const std::shared_ptr<sf::Music>& music,
     music->setSpatializationEnabled(false);
 }
 
-void AudioManager::setDefaultSoundEffect(
-    sf::SoundSource::EffectProcessor effectProcessor) {
+void AudioManager::setEffect(
+    const std::string& audioType,
+    std::function<sf::SoundSource::EffectProcessor()> effectFactory) {
     const std::lock_guard<std::recursive_mutex> lock(audioMutex);
-    defaultSoundEffect = std::move(effectProcessor);
+    if (audioType == "Sound") {
+        soundEffectFactory = std::move(effectFactory);
+        for (SoundRecord& record : sounds) {
+            applyEffect(*record.sound, soundEffectFactory);
+        }
+        return;
+    }
+    if (audioType == "Voice") {
+        voiceEffectFactory = std::move(effectFactory);
+        if (voice.sound != nullptr) {
+            applyEffect(*voice.sound, voiceEffectFactory);
+        }
+        return;
+    }
+    if (audioType == "Music") {
+        musicEffectFactory = std::move(effectFactory);
+        for (auto& [musicType, record] : musics) {
+            static_cast<void>(musicType);
+            applyEffect(*record.music, musicEffectFactory);
+        }
+        return;
+    }
+    throw std::invalid_argument("Unknown audio type: " + audioType);
 }
 
 std::size_t AudioManager::getMemory() {
@@ -563,5 +592,7 @@ void AudioManager::shutdown() noexcept {
     musics.clear();
     soundBufferCounts.clear();
     soundBuffers.clear();
-    defaultSoundEffect = {};
+    soundEffectFactory = {};
+    voiceEffectFactory = {};
+    musicEffectFactory = {};
 }
