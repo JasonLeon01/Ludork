@@ -41,6 +41,45 @@ std::shared_ptr<RuntimeSessionState> findSession(lua_State* state) {
     return activeSession;
 }
 
+std::shared_ptr<RuntimeSessionState> tryFindSession(lua_State* state) {
+    std::unique_lock lock(sessionMutex, std::try_to_lock);
+    if (!lock.owns_lock() || activeSession == nullptr ||
+        activeSession->state != state) {
+        return {};
+    }
+    return activeSession;
+}
+
+int enterSession(lua_State* state, bool blocking) noexcept {
+    try {
+        const std::shared_ptr<RuntimeSessionState> session =
+            blocking ? findSession(state) : tryFindSession(state);
+        if (session == nullptr) {
+            return 0;
+        }
+        if (enteredSession.depth != 0 && enteredSession.state != state) {
+            return 0;
+        }
+        if (blocking) {
+            session->luaMutex.lock();
+        } else if (!session->luaMutex.try_lock()) {
+            return 0;
+        }
+        if (session->state != state || !sessionAllowsCurrentThread(*session)) {
+            session->luaMutex.unlock();
+            return 0;
+        }
+        if (enteredSession.depth == 0) {
+            enteredSession.state = state;
+            enteredSession.session = session;
+        }
+        ++enteredSession.depth;
+        return 1;
+    } catch (...) {
+        return 0;
+    }
+}
+
 }  // namespace
 
 struct RuntimeRegistryReferenceState {
@@ -233,24 +272,11 @@ void initializeRuntimeSession(lua_State* state) {
 }
 
 int enterRuntimeSession(lua_State* state) noexcept {
-    const std::shared_ptr<RuntimeSessionState> session = findSession(state);
-    if (session == nullptr) {
-        return 0;
-    }
-    if (enteredSession.depth != 0 && enteredSession.state != state) {
-        return 0;
-    }
-    session->luaMutex.lock();
-    if (session->state != state || !sessionAllowsCurrentThread(*session)) {
-        session->luaMutex.unlock();
-        return 0;
-    }
-    if (enteredSession.depth == 0) {
-        enteredSession.state = state;
-        enteredSession.session = session;
-    }
-    ++enteredSession.depth;
-    return 1;
+    return enterSession(state, true);
+}
+
+int tryEnterRuntimeSession(lua_State* state) noexcept {
+    return enterSession(state, false);
 }
 
 void leaveRuntimeSession(lua_State* state) noexcept {

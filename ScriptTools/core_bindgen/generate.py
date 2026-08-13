@@ -6,12 +6,15 @@ from pathlib import Path
 
 from .constants import GENERATED_FILE_MARKER
 from .context import GeneratorContext
+from .callback_codecs import (
+    load_callback_codecs,
+    validate_callback_codec_aliases,
+)
 from .model import (
     Member,
     TypeInfo,
 )
 from .cpp_types import (
-    EXTERNAL_TYPE_ALIASES,
     exposed_type_name,
     parse_aliases,
 )
@@ -39,9 +42,11 @@ def main(arguments: list[str] | None = None) -> int:
     parser.add_argument("--stub", type=Path, required=True)
     parser.add_argument("--scripts-directory", type=Path, required=True)
     parser.add_argument("--metadata-stamp", type=Path, required=True)
+    parser.add_argument("--callback-codecs", type=Path, required=True)
     parser.add_argument("--type-registry", action="append", default=[])
     arguments = parser.parse_args(arguments)
     context = GeneratorContext()
+    context.callback_codecs = load_callback_codecs(arguments.callback_codecs)
     types: list[TypeInfo] = []
     functions: list[Member] = []
     registry_entries: list[tuple[str, Path]] = []
@@ -59,9 +64,11 @@ def main(arguments: list[str] | None = None) -> int:
         for _, directory in registry_entries
         for path in sorted(directory.glob("**/*.hpp"))
     ]
-    context.type_aliases = dict(EXTERNAL_TYPE_ALIASES)
     for path in [*registry_header_paths, *header_paths]:
         context.type_aliases.update(parse_aliases(path.read_text(encoding="utf-8")))
+    validate_callback_codec_aliases(
+        context, arguments.callback_codecs.with_name("sfml_api.json")
+    )
     external_types: list[TypeInfo] = []
     external_type_modules: dict[str, str] = {}
     for module_name, directory in registry_entries:

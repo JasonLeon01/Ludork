@@ -95,26 +95,6 @@ else
     apply_luasf_patch "$VALUE_COPY_PATCH"
 fi
 
-ANDROID_CMAKE_PATCH="$PROJECT_ROOT/patches/luasf-android-cmake.patch"
-echo "Applying LuaSF Android CMake patch if needed..."
-if apply_luasf_patch --reverse --check "$ANDROID_CMAKE_PATCH" >/dev/null 2>&1; then
-    echo "LuaSF Android CMake patch is already applied."
-else
-    apply_luasf_patch --check "$ANDROID_CMAKE_PATCH"
-    apply_luasf_patch "$ANDROID_CMAKE_PATCH"
-fi
-
-if [ "$(uname -s)" = "Darwin" ]; then
-    SFML_PATCH="$PROJECT_ROOT/patches/sfml-apple-platform.patch"
-    echo "Applying SFML Apple platform patch if needed..."
-    if apply_luasf_patch --reverse --check -p1 "$SFML_PATCH" >/dev/null 2>&1; then
-        echo "SFML Apple platform patch is already applied."
-    else
-        apply_luasf_patch --check -p1 "$SFML_PATCH"
-        apply_luasf_patch -p1 "$SFML_PATCH"
-    fi
-fi
-
 LUA_CJSON_DIR="$CPP_DIR/lua-cjson"
 if dependency_ready "$LUA_CJSON_DIR" "$LUA_CJSON_VERSION" "lua_cjson.c"; then
     echo "Using existing lua-cjson $LUA_CJSON_VERSION."

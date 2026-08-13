@@ -73,11 +73,13 @@ function System.EditMusicFilter(attr, value)
 end
 
 function System.SetEffect(audioType, effect)
-    local effectFactory = nil
+    local effectProcessor = nil
     if effect ~= "nil" then
-        effectFactory = assert(AudioEffects.EFFECTS[effect], "Unknown audio effect: " .. effect)
+        local createEffect = assert(AudioEffects.EFFECTS[effect], "Unknown audio effect: " .. effect)
+        ---@cast createEffect fun(): sf.SoundSource.EffectProcessor
+        effectProcessor = createEffect()
     end
-    AudioManager.setEffect(audioType, effectFactory)
+    AudioManager.setEffect(audioType, effectProcessor)
 end
 
 function System.PlaySound(soundFileName, applyFilter)

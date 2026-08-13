@@ -10,6 +10,7 @@
 
 #include <sol2/sol.hpp>
 
+#include <array>
 #include <stdexcept>
 
 namespace {
@@ -19,11 +20,15 @@ int updateFromLua(lua_State* state) {
     return 0;
 }
 
-int enterLuaSFState(lua_State* state, void*) {
+int enterLuaSFState(lua_State* state, void*) noexcept {
     return ludork::standard::enterRuntimeSession(state);
 }
 
-void leaveLuaSFState(lua_State* state, void*) {
+int tryEnterLuaSFState(lua_State* state, void*) noexcept {
+    return ludork::standard::tryEnterRuntimeSession(state);
+}
+
+void leaveLuaSFState(lua_State* state, void*) noexcept {
     ludork::standard::leaveRuntimeSession(state);
 }
 
@@ -37,7 +42,8 @@ void initialize(lua_State* state) {
     }
     installLuaErrorHandler(state);
     initializeRuntimeSession(state);
-    if (LuaSF_set_state_execution_hooks(state, enterLuaSFState, leaveLuaSFState,
+    if (LuaSF_set_state_execution_hooks(state, enterLuaSFState,
+                                        tryEnterLuaSFState, leaveLuaSFState,
                                         nullptr) != 0) {
         throw std::runtime_error("Failed to install LuaSF execution hooks");
     }
@@ -104,6 +110,11 @@ void initialize(lua_State* state) {
 void update(lua_State* state) {
     if (state == nullptr) {
         return;
+    }
+    std::array<char, 512> callbackError{};
+    if (LuaSF_take_deferred_callback_error(state, callbackError.data(),
+                                           callbackError.size()) != 0) {
+        throw std::runtime_error(callbackError.data());
     }
     runtime::updateEditorConsole(state);
     binding::updateAsyncio(sol::state_view(state));

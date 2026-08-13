@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Data model used by the Core binding generator."""
+
+from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -10,6 +10,17 @@ from pathlib import Path
 class ParsedType:
     name: str
     arguments: tuple[ParsedType, ...] = ()
+
+
+@dataclass(frozen=True)
+class CallbackCodec:
+    cpp_name: str
+    canonical_type: str
+    codec: str
+    lua_type: str
+    allow_nil: bool
+    thread_policy: str
+    directions: frozenset[str]
 
 
 @dataclass

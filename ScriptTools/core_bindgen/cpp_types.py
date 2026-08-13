@@ -4,17 +4,11 @@ import re
 
 from .context import GeneratorContext
 from .model import (
+    CallbackCodec,
     Member,
     ParsedType,
     TypeInfo,
 )
-
-EXTERNAL_TYPE_ALIASES = {
-    "sf::SoundSource::EffectProcessor": (
-        "std::function<void(const float *, unsigned int &, float *, "
-        "unsigned int &, unsigned int)>"
-    ),
-}
 
 
 SEQUENCE_TYPES = {"std::vector", "std::array"}
@@ -163,6 +157,8 @@ def parse_cpp_type(
     context: GeneratorContext, value: str, seen: frozenset[str] = frozenset()
 ) -> ParsedType:
     clean = remove_type_qualifiers(value)
+    if clean in context.callback_codecs:
+        return ParsedType(clean)
     if clean in context.type_aliases and clean not in seen:
         return parse_cpp_type(context, context.type_aliases[clean], seen | {clean})
     opening = clean.find("<")
@@ -174,6 +170,118 @@ def parse_cpp_type(
             tuple(parse_cpp_type(context, argument, seen) for argument in arguments),
         )
     return ParsedType(clean)
+
+
+def callback_codec(
+    context: GeneratorContext,
+    value: str,
+) -> CallbackCodec | None:
+    clean = remove_type_qualifiers(value)
+    return context.callback_codecs.get(clean)
+
+
+def callback_codecs_in_type(
+    context: GeneratorContext,
+    value: str,
+) -> tuple[CallbackCodec, ...]:
+    def collect(parsed: ParsedType) -> list[CallbackCodec]:
+        direct = context.callback_codecs.get(parsed.name)
+        if direct is not None:
+            return [direct]
+        return [codec for argument in parsed.arguments for codec in collect(argument)]
+
+    result: list[CallbackCodec] = []
+    for codec in collect(parse_cpp_type(context, value)):
+        if codec not in result:
+            result.append(codec)
+    return tuple(result)
+
+
+def callback_codec_policy(
+    context: GeneratorContext,
+    value: str,
+) -> str | None:
+    parsed = parse_cpp_type(context, value)
+    if not callback_codecs_in_type(context, value):
+        return None
+
+    def contains_codec(item: ParsedType) -> bool:
+        return bool(collect_codecs(item))
+
+    def collect_codecs(item: ParsedType) -> list[CallbackCodec]:
+        direct = context.callback_codecs.get(item.name)
+        if direct is not None:
+            return [direct]
+        return [
+            codec for argument in item.arguments for codec in collect_codecs(argument)
+        ]
+
+    def native_policy(item: ParsedType) -> str:
+        if not contains_codec(item):
+            return "ludork_core::LuaNativeCodecPolicy"
+        direct = context.callback_codecs.get(item.name)
+        if direct is not None:
+            allow_nil = "true" if direct.allow_nil else "false"
+            return (
+                "ludork_core::LuaSfCallbackCodecPolicy<"
+                f"{direct.cpp_name}, {direct.codec}, {allow_nil}>"
+            )
+        if item.name in SEQUENCE_TYPES:
+            if not item.arguments:
+                raise ValueError(f"callback codec sequence {value} has no item type")
+            if any(contains_codec(argument) for argument in item.arguments[1:]):
+                raise ValueError(
+                    f"callback codec in allocator or array extent of {value} "
+                    "is unsupported"
+                )
+            return (
+                "ludork_core::LuaSequenceCodecPolicy<"
+                f"{native_policy(item.arguments[0])}>"
+            )
+        if item.name in MAP_TYPES:
+            if len(item.arguments) < 2:
+                raise ValueError(f"callback codec map {value} has incomplete types")
+            if any(contains_codec(argument) for argument in item.arguments[2:]):
+                raise ValueError(
+                    f"callback codec in map policy type of {value} is unsupported"
+                )
+            return (
+                "ludork_core::LuaMapCodecPolicy<"
+                f"{native_policy(item.arguments[0])}, "
+                f"{native_policy(item.arguments[1])}>"
+            )
+        if item.name in OPTIONAL_TYPES:
+            if len(item.arguments) != 1:
+                raise ValueError(f"callback codec optional {value} is malformed")
+            return (
+                "ludork_core::LuaOptionalCodecPolicy<"
+                f"{native_policy(item.arguments[0])}>"
+            )
+        if item.name in VARIANT_TYPES:
+            return (
+                "ludork_core::LuaVariantCodecPolicy<"
+                + ", ".join(native_policy(argument) for argument in item.arguments)
+                + ">"
+            )
+        if item.name in PAIR_TYPES:
+            if len(item.arguments) != 2:
+                raise ValueError(f"callback codec pair {value} is malformed")
+            return (
+                "ludork_core::LuaPairCodecPolicy<"
+                f"{native_policy(item.arguments[0])}, "
+                f"{native_policy(item.arguments[1])}>"
+            )
+        if item.name in TUPLE_TYPES:
+            return (
+                "ludork_core::LuaTupleCodecPolicy<"
+                + ", ".join(native_policy(argument) for argument in item.arguments)
+                + ">"
+            )
+        raise ValueError(
+            f"callback codec nested inside unsupported type {render_parsed_type(item)}"
+        )
+
+    return native_policy(parsed)
 
 
 def parse_aliases(text: str) -> dict[str, str]:
@@ -211,7 +319,12 @@ def is_data_type(context: GeneratorContext, value: str) -> bool:
     parsed = parse_cpp_type(context, value)
     return (
         parsed.name
-        in SEQUENCE_TYPES | MAP_TYPES | OPTIONAL_TYPES | VARIANT_TYPES | PAIR_TYPES
+        in SEQUENCE_TYPES
+        | MAP_TYPES
+        | OPTIONAL_TYPES
+        | VARIANT_TYPES
+        | PAIR_TYPES
+        | TUPLE_TYPES
         or parsed.name in context.dynamic_value_types
         or parsed.name in context.table_value_types
         or dynamic_value_nested_type(context, value) is not None
@@ -227,7 +340,7 @@ def is_table_input(context: GeneratorContext, value: str) -> bool:
     parsed = parse_cpp_type(context, value)
     return (
         dynamic_value_nested_type(context, value) in {"Array", "Map"}
-        or parsed.name in (SEQUENCE_TYPES | MAP_TYPES | PAIR_TYPES)
+        or parsed.name in (SEQUENCE_TYPES | MAP_TYPES | PAIR_TYPES | TUPLE_TYPES)
         or (
             parsed.name in context.table_value_types
             and parsed.name not in context.lua_alternative_types
@@ -601,6 +714,9 @@ def has_top_level_union(value: str) -> bool:
 
 def lua_type(context: GeneratorContext, cpp: str) -> str:
     value = remove_pointer(cpp)
+    codec = callback_codec(context, value)
+    if codec is not None:
+        return codec.lua_type
     parsed = parse_cpp_type(context, value)
     nested_dynamic_type = dynamic_value_nested_type(context, value)
     if parsed.name in context.dynamic_value_types:
@@ -635,6 +751,8 @@ def lua_type(context: GeneratorContext, cpp: str) -> str:
                 values.append(item)
         return "|".join(values) if values else "any"
     if parsed.name in PAIR_TYPES:
+        return "table"
+    if parsed.name in TUPLE_TYPES:
         return "table"
     if parsed.name in SMART_POINTER_TYPES and parsed.arguments:
         inner = lua_type_name(context, parsed.arguments[0])

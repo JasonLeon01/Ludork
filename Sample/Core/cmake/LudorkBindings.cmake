@@ -30,6 +30,9 @@ function(ludork_generate_lua_bindings module_name include_directory output_varia
         "${LUDORK_CORE_SOURCE_DIR}/../Scripts/stub/${module_name}.d.lua")
     set(metadata_stamp
         "${CMAKE_CURRENT_BINARY_DIR}/${module_name}.metadata.stamp")
+    get_filename_component(callback_codecs_directory
+        "${LUASF_CALLBACK_CODECS_FILE}" DIRECTORY)
+    set(callback_codecs_api "${callback_codecs_directory}/sfml_api.json")
 
     add_custom_command(
         OUTPUT "${bindings}" "${stub}" "${metadata_stamp}"
@@ -42,12 +45,15 @@ function(ludork_generate_lua_bindings module_name include_directory output_varia
             --stub "${stub}"
             --scripts-directory "${LUDORK_CORE_SOURCE_DIR}/../Scripts"
             --metadata-stamp "${metadata_stamp}"
+            --callback-codecs "${LUASF_CALLBACK_CODECS_FILE}"
             ${type_registry_arguments}
         DEPENDS
             ${module_headers}
             ${type_registry_headers}
             "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
             "${LUDORK_CORE_SOURCE_DIR}/include/BindAnnotations.hpp"
+            "${LUASF_CALLBACK_CODECS_FILE}"
+            "${callback_codecs_api}"
         VERBATIM)
 
     add_custom_target(${module_name}Stub DEPENDS "${bindings}" "${stub}")

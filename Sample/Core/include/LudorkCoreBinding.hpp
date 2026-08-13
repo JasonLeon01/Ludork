@@ -13,6 +13,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <typeinfo>
 #include <tuple>
@@ -178,6 +179,29 @@ inline constexpr bool IsTableValue = TableValueTraits<LuaValueType<T>>::enabled;
 template <typename T>
 inline constexpr bool IsStdFunction =
     StdFunctionTraits<LuaValueType<T>>::enabled;
+
+struct LuaNativeCodecPolicy {};
+
+template <typename NativeCallable, typename Codec, bool AllowNil>
+struct LuaSfCallbackCodecPolicy {};
+
+template <typename Item>
+struct LuaSequenceCodecPolicy {};
+
+template <typename Key, typename Value>
+struct LuaMapCodecPolicy {};
+
+template <typename Item>
+struct LuaOptionalCodecPolicy {};
+
+template <typename... Alternatives>
+struct LuaVariantCodecPolicy {};
+
+template <typename First, typename Second>
+struct LuaPairCodecPolicy {};
+
+template <typename... Items>
+struct LuaTupleCodecPolicy {};
 
 inline ludork::standard::LuaRegistryReference makeLuaRegistryReference(
     const sol::object& value) {
@@ -991,138 +1015,6 @@ private:
     }
 };
 
-template <>
-struct LuaFunctionAdapter<void(const float*, unsigned int&, float*,
-                               unsigned int&, unsigned int)> {
-    using Function = std::function<void(const float*, unsigned int&, float*,
-                                        unsigned int&, unsigned int)>;
-
-    static Function read(const sol::object& value) {
-        if (isNil(value)) {
-            return {};
-        }
-        if (!value.is<sol::protected_function>()) {
-            throw std::invalid_argument("expected a Lua function");
-        }
-        const ludork::standard::LuaRegistryReference callbackReference =
-            makeLuaRegistryReference(value);
-        return [callbackReference](
-                   const float* inputFrames, unsigned int& inputFrameCount,
-                   float* outputFrames, unsigned int& outputFrameCount,
-                   unsigned int frameChannelCount) noexcept {
-            const unsigned int initialInputFrameCount = inputFrameCount;
-            const unsigned int initialOutputFrameCount = outputFrameCount;
-            try {
-                lua_State* state = callbackReference.state();
-                ludork::standard::LuaExecutionScope execution(state);
-                if (!execution.active()) {
-                    throw std::runtime_error("Lua runtime session is stopping");
-                }
-                if (!callbackReference.push()) {
-                    throw std::runtime_error(
-                        "Lua callback is no longer available");
-                }
-                auto popper = sol::stack::pop_n(state, 1);
-                sol::protected_function callback =
-                    sol::stack::get<sol::protected_function>(state, -1);
-                sol::state_view lua(state);
-                const unsigned int inputFrameCapacity = inputFrameCount;
-                const unsigned int outputFrameCapacity = outputFrameCount;
-                sol::table input = lua_sf::audioFramesToTable(
-                    lua, inputFrames, inputFrameCount, frameChannelCount);
-                sol::table output = lua_sf::audioFramesToTable(
-                    lua, outputFrames, outputFrameCount, frameChannelCount);
-
-                sol::protected_function_result result =
-                    callback(input, inputFrameCount, output, outputFrameCount,
-                             frameChannelCount);
-                lua_sf::throw_on_lua_error(result);
-
-                sol::object outputValue = output;
-                const sol::object returned = result;
-                if (!isNil(returned)) {
-                    if (returned.get_type() == sol::type::table) {
-                        const sol::table table = returned.as<sol::table>();
-                        const sol::object inputCountValue =
-                            table.raw_get<sol::object>("inputFrameCount");
-                        const sol::object outputCountValue =
-                            table.raw_get<sol::object>("outputFrameCount");
-                        const sol::object returnedOutputValue =
-                            table.raw_get<sol::object>("output");
-                        lua_sf::updateAudioFrameCount(inputCountValue,
-                                                      inputFrameCount,
-                                                      inputFrameCapacity);
-                        lua_sf::updateAudioFrameCount(outputCountValue,
-                                                      outputFrameCount,
-                                                      outputFrameCapacity);
-                        const bool hasNamedReturn = !isNil(inputCountValue) ||
-                                                    !isNil(outputCountValue) ||
-                                                    !isNil(returnedOutputValue);
-                        if (!isNil(returnedOutputValue)) {
-                            outputValue = returnedOutputValue;
-                        } else if (!hasNamedReturn) {
-                            outputValue = returned;
-                        }
-                    } else if (returned.get_type() == sol::type::number) {
-                        lua_sf::updateAudioFrameCount(
-                            returned, outputFrameCount, outputFrameCapacity);
-                    }
-                }
-                lua_sf::copyAudioFramesFromObject(outputValue, outputFrames,
-                                                  outputFrameCount,
-                                                  frameChannelCount);
-            } catch (...) {
-                inputFrameCount = initialInputFrameCount;
-                outputFrameCount = initialOutputFrameCount;
-                lua_sf::passthroughAudioFrames(inputFrames, inputFrameCount,
-                                               outputFrames, outputFrameCount,
-                                               frameChannelCount);
-            }
-        };
-    }
-
-    static sol::object write(sol::state_view lua, const Function& function) {
-        if (!function) {
-            return sol::make_object(lua, lua_sf::LUASF_SOL_NIL);
-        }
-        auto wrapper =
-            [function](sol::object inputValue,
-                       lua_sf::LuaIntegral<unsigned int> inputCountValue,
-                       sol::object outputValue,
-                       lua_sf::LuaIntegral<unsigned int> outputCountValue,
-                       lua_sf::LuaIntegral<unsigned int> channelCountValue) {
-                ludork::standard::LuaExecutionScope execution(
-                    inputValue.lua_state());
-                if (!execution.active()) {
-                    throw std::runtime_error("Lua runtime session is stopping");
-                }
-                unsigned int inputCount = inputCountValue.value();
-                unsigned int outputCount = outputCountValue.value();
-                const unsigned int channelCount = channelCountValue.value();
-                sol::state_view callbackLua(inputValue.lua_state());
-                sol::table result = callbackLua.create_table(0, 3);
-                std::vector<float> inputFrames(
-                    static_cast<std::size_t>(inputCount) * channelCount);
-                std::vector<float> outputFrames(
-                    static_cast<std::size_t>(outputCount) * channelCount);
-                lua_sf::copyAudioFramesFromObject(
-                    inputValue, inputFrames.data(), inputCount, channelCount);
-                lua_sf::copyAudioFramesFromObject(outputValue,
-                                                  outputFrames.data(),
-                                                  outputCount, channelCount);
-                function(inputFrames.data(), inputCount, outputFrames.data(),
-                         outputCount, channelCount);
-                result.raw_set("inputFrameCount", inputCount);
-                result.raw_set("outputFrameCount", outputCount);
-                result.raw_set("output", lua_sf::audioFramesToTable(
-                                             callbackLua, outputFrames.data(),
-                                             outputCount, channelCount));
-                return result;
-            };
-        return sol::make_object(lua, sol::as_function(std::move(wrapper)));
-    }
-};
-
 template <typename Signature>
 std::function<Signature> functionFromLua(const sol::object& value) {
     return LuaFunctionAdapter<Signature>::read(value);
@@ -1214,6 +1106,13 @@ bool canReadVariant(const sol::object& value) {
     }
 }
 
+template <typename Tuple, std::size_t... Index>
+bool canReadTuple(const sol::table& table, std::index_sequence<Index...>) {
+    return (canReadLuaValue<std::tuple_element_t<Index, Tuple>>(
+                table.raw_get<sol::object>(Index + 1)) &&
+            ...);
+}
+
 template <typename T>
 bool canReadLuaValue(const sol::object& value) {
     using Value = LuaValueType<T>;
@@ -1251,6 +1150,18 @@ bool canReadLuaValue(const sol::object& value) {
                    table.raw_get<sol::object>(1)) &&
                canReadLuaValue<typename Value::second_type>(
                    table.raw_get<sol::object>(2));
+    } else if constexpr (IsTuple<Value>::value) {
+        if (!value.is<sol::table>()) {
+            return false;
+        }
+        const sol::table table = value.as<sol::table>();
+        std::size_t length = 0;
+        if (!trySequenceLength(table, length) ||
+            length != std::tuple_size_v<Value>) {
+            return false;
+        }
+        return canReadTuple<Value>(
+            table, std::make_index_sequence<std::tuple_size_v<Value>>{});
     } else if constexpr (IsMap<Value>::value) {
         return canReadMap<Value>(value);
     } else if constexpr (IsOptional<Value>::value) {
@@ -1346,6 +1257,12 @@ Variant readVariant(const sol::object& value) {
     }
 }
 
+template <typename Tuple, std::size_t... Index>
+Tuple readTuple(const sol::table& table, std::index_sequence<Index...>) {
+    return Tuple{readLuaValue<std::tuple_element_t<Index, Tuple>>(
+        table.raw_get<sol::object>(Index + 1))...};
+}
+
 template <typename T>
 T readLuaValue(const sol::object& value) {
     using Value = LuaValueType<T>;
@@ -1395,6 +1312,19 @@ T readLuaValue(const sol::object& value) {
             }
         }();
         return Value(std::move(first), std::move(second));
+    } else if constexpr (IsTuple<Value>::value) {
+        if (!value.is<sol::table>()) {
+            throw std::invalid_argument("expected a Lua tuple table");
+        }
+        const sol::table table = value.as<sol::table>();
+        std::size_t length = 0;
+        if (!trySequenceLength(table, length) ||
+            length != std::tuple_size_v<Value>) {
+            throw std::invalid_argument(
+                "Lua tuple length does not match the fixed C++ size");
+        }
+        return readTuple<Value>(
+            table, std::make_index_sequence<std::tuple_size_v<Value>>{});
     } else if constexpr (IsMap<Value>::value) {
         return readMap<Value>(value);
     } else if constexpr (IsOptional<Value>::value) {
@@ -1452,6 +1382,18 @@ sol::object writeMap(sol::state_view lua, const Map& value) {
     return sol::make_object(lua, table);
 }
 
+template <typename Tuple, std::size_t... Index>
+sol::object writeTuple(sol::state_view lua, const Tuple& value,
+                       std::index_sequence<Index...>) {
+    sol::table table =
+        lua.create_table(static_cast<int>(sizeof...(Index)), 1);
+    table.raw_set("n", sizeof...(Index));
+    ((table.raw_set(Index + 1,
+                    writeLuaValue(lua, std::get<Index>(value)))),
+     ...);
+    return sol::make_object(lua, table);
+}
+
 template <typename T>
 sol::object writeLuaValue(sol::state_view lua, const T& value) {
     using Value = LuaValueType<T>;
@@ -1472,6 +1414,10 @@ sol::object writeLuaValue(sol::state_view lua, const T& value) {
         table.raw_set(1, writeLuaValue(lua, value.first));
         table.raw_set(2, writeLuaValue(lua, value.second));
         return sol::make_object(lua, table);
+    } else if constexpr (IsTuple<Value>::value) {
+        return writeTuple(
+            lua, value,
+            std::make_index_sequence<std::tuple_size_v<Value>>{});
     } else if constexpr (IsMap<Value>::value) {
         return writeMap(lua, value);
     } else if constexpr (IsOptional<Value>::value) {
@@ -1519,6 +1465,492 @@ sol::object writeLuaValue(sol::state_view lua, const T& value) {
     } else {
         return lua_sf::as_lua_object(lua, value);
     }
+}
+
+template <typename Native, typename Policy>
+struct LuaCodecAdapter;
+
+template <typename Native>
+struct LuaCodecAdapter<Native, LuaNativeCodecPolicy> {
+    static bool canRead(const sol::object& value) {
+        return canReadLuaValue<Native>(value);
+    }
+
+    static Native read(const sol::object& value, std::string_view) {
+        return readLuaValue<Native>(value);
+    }
+
+    static sol::object write(sol::state_view lua, const Native& value,
+                             std::string_view) {
+        return writeLuaValue(lua, value);
+    }
+};
+
+template <typename Native, typename Expected, typename Codec, bool AllowNil>
+struct LuaCodecAdapter<Native,
+                       LuaSfCallbackCodecPolicy<Expected, Codec, AllowNil>> {
+    static_assert(std::is_same_v<Native, Expected>);
+
+    static bool canRead(const sol::object& value) {
+        return (AllowNil && isNil(value)) ||
+               value.is<sol::protected_function>();
+    }
+
+    static Native read(const sol::object& value, std::string_view label) {
+        if (isNil(value)) {
+            if constexpr (AllowNil) {
+                return Native{};
+            }
+            throw std::invalid_argument(std::string(label) +
+                                        " does not allow nil");
+        }
+        if (!value.is<sol::protected_function>()) {
+            throw std::invalid_argument(std::string("expected ") +
+                                        std::string(label));
+        }
+        return lua_sf::callback::from_object<Expected, Codec>(value, label);
+    }
+
+    static sol::object write(sol::state_view lua, const Native& value,
+                             std::string_view label) {
+        if (!value) {
+            if constexpr (AllowNil) {
+                return sol::make_object(lua, lua_sf::LUASF_SOL_NIL);
+            }
+            throw std::invalid_argument(std::string(label) +
+                                        " does not allow nil");
+        }
+        return lua_sf::callback::to_object<Expected, Codec>(lua, value,
+                                                             label);
+    }
+};
+
+template <typename Sequence, typename ItemPolicy>
+struct LuaCodecAdapter<Sequence, LuaSequenceCodecPolicy<ItemPolicy>> {
+    using Item = typename Sequence::value_type;
+
+    static_assert(IsVector<Sequence>::value || IsArray<Sequence>::value);
+
+    static bool canRead(const sol::object& value) {
+        if (!value.is<sol::table>()) {
+            return false;
+        }
+        const sol::table table = value.as<sol::table>();
+        std::size_t length = 0;
+        if (!trySequenceLength(table, length)) {
+            return false;
+        }
+        if constexpr (IsArray<Sequence>::value) {
+            if (length != std::tuple_size_v<Sequence>) {
+                return false;
+            }
+        }
+        for (std::size_t index = 1; index <= length; ++index) {
+            if (!LuaCodecAdapter<Item, ItemPolicy>::canRead(
+                    table.raw_get<sol::object>(index))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static Sequence read(const sol::object& value, std::string_view label) {
+        if (!value.is<sol::table>()) {
+            throw std::invalid_argument("expected a Lua sequence table");
+        }
+        const sol::table table = value.as<sol::table>();
+        std::size_t length = 0;
+        if (!trySequenceLength(table, length)) {
+            throw std::invalid_argument(
+                "Lua sequence n must be a non-negative integer");
+        }
+        if constexpr (IsArray<Sequence>::value) {
+            if (length != std::tuple_size_v<Sequence>) {
+                throw std::invalid_argument(
+                    "Lua sequence length does not match the fixed C++ size");
+            }
+        }
+        Sequence result{};
+        if constexpr (IsVector<Sequence>::value) {
+            result.reserve(length);
+        }
+        for (std::size_t index = 1; index <= length; ++index) {
+            try {
+                Item item = LuaCodecAdapter<Item, ItemPolicy>::read(
+                    table.raw_get<sol::object>(index), label);
+                if constexpr (IsVector<Sequence>::value) {
+                    result.push_back(std::move(item));
+                } else {
+                    result[index - 1] = std::move(item);
+                }
+            } catch (const std::exception& error) {
+                throw std::invalid_argument(
+                    "Lua sequence element at index " +
+                    std::to_string(index) + ": " + error.what());
+            }
+        }
+        return result;
+    }
+
+    static sol::object write(sol::state_view lua, const Sequence& value,
+                             std::string_view label) {
+        sol::table table = lua.create_table(static_cast<int>(value.size()), 1);
+        table.raw_set("n", value.size());
+        std::size_t index = 1;
+        for (const auto& rawItem : value) {
+            sol::object output;
+            if constexpr (std::is_same_v<Item, bool>) {
+                const bool item = static_cast<bool>(rawItem);
+                output = LuaCodecAdapter<Item, ItemPolicy>::write(lua, item,
+                                                                  label);
+            } else {
+                output = LuaCodecAdapter<Item, ItemPolicy>::write(lua, rawItem,
+                                                                  label);
+            }
+            if (!isNil(output)) {
+                table.raw_set(index, output);
+            }
+            ++index;
+        }
+        return sol::make_object(lua, table);
+    }
+};
+
+template <typename Map, typename KeyPolicy, typename ItemPolicy>
+struct LuaCodecAdapter<Map, LuaMapCodecPolicy<KeyPolicy, ItemPolicy>> {
+    using Key = typename Map::key_type;
+    using Item = typename Map::mapped_type;
+
+    static_assert(IsMap<Map>::value);
+
+    static bool canRead(const sol::object& value) {
+        if (!value.is<sol::table>()) {
+            return false;
+        }
+        const sol::table table = value.as<sol::table>();
+        for (const auto& entry : table) {
+            if (!LuaCodecAdapter<Key, KeyPolicy>::canRead(entry.first) ||
+                !LuaCodecAdapter<Item, ItemPolicy>::canRead(entry.second)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static Map read(const sol::object& value, std::string_view label) {
+        if (!value.is<sol::table>()) {
+            throw std::invalid_argument("expected a Lua map table");
+        }
+        const sol::table table = value.as<sol::table>();
+        Map result;
+        for (const auto& entry : table) {
+            result.emplace(
+                LuaCodecAdapter<Key, KeyPolicy>::read(entry.first, label),
+                LuaCodecAdapter<Item, ItemPolicy>::read(entry.second, label));
+        }
+        return result;
+    }
+
+    static sol::object write(sol::state_view lua, const Map& value,
+                             std::string_view label) {
+        sol::table table = lua.create_table(0, static_cast<int>(value.size()));
+        for (const auto& entry : value) {
+            const sol::object key =
+                LuaCodecAdapter<Key, KeyPolicy>::write(lua, entry.first,
+                                                        label);
+            const sol::object item =
+                LuaCodecAdapter<Item, ItemPolicy>::write(lua, entry.second,
+                                                         label);
+            if (!isNil(item)) {
+                table.raw_set(key, item);
+            }
+        }
+        return sol::make_object(lua, table);
+    }
+};
+
+template <typename Optional, typename ItemPolicy>
+struct LuaCodecAdapter<Optional, LuaOptionalCodecPolicy<ItemPolicy>> {
+    using Item = typename Optional::value_type;
+
+    static_assert(IsOptional<Optional>::value);
+
+    static bool canRead(const sol::object& value) {
+        return isNil(value) ||
+               LuaCodecAdapter<Item, ItemPolicy>::canRead(value);
+    }
+
+    static Optional read(const sol::object& value, std::string_view label) {
+        if (isNil(value)) {
+            return std::nullopt;
+        }
+        return Optional(
+            LuaCodecAdapter<Item, ItemPolicy>::read(value, label));
+    }
+
+    static sol::object write(sol::state_view lua, const Optional& value,
+                             std::string_view label) {
+        if (!value.has_value()) {
+            return sol::make_object(lua, lua_sf::LUASF_SOL_NIL);
+        }
+        return LuaCodecAdapter<Item, ItemPolicy>::write(lua, *value, label);
+    }
+};
+
+template <typename Variant, typename... Policies>
+struct LuaCodecAdapter<Variant, LuaVariantCodecPolicy<Policies...>> {
+    using PolicyTuple = std::tuple<Policies...>;
+
+    static_assert(IsVariant<Variant>::value);
+    static_assert(std::variant_size_v<Variant> == sizeof...(Policies));
+
+    static bool canRead(const sol::object& value) {
+        return canReadAt<sizeof...(Policies)>(value);
+    }
+
+    static Variant read(const sol::object& value, std::string_view label) {
+        return readAt<sizeof...(Policies)>(value, label);
+    }
+
+    static sol::object write(sol::state_view lua, const Variant& value,
+                             std::string_view label) {
+        if (value.valueless_by_exception()) {
+            throw std::invalid_argument("cannot write a valueless variant");
+        }
+        return writeAt<0>(lua, value, label);
+    }
+
+private:
+    template <std::size_t Index>
+    static bool canReadAt(const sol::object& value) {
+        if constexpr (Index == 0) {
+            return false;
+        } else {
+            using Alternative =
+                std::variant_alternative_t<Index - 1, Variant>;
+            using Policy = std::tuple_element_t<Index - 1, PolicyTuple>;
+            return LuaCodecAdapter<Alternative, Policy>::canRead(value) ||
+                   canReadAt<Index - 1>(value);
+        }
+    }
+
+    template <std::size_t Index>
+    static Variant readAt(const sol::object& value, std::string_view label) {
+        if constexpr (Index == 0) {
+            throw std::invalid_argument(
+                "Lua value does not match any variant alternative");
+        } else {
+            using Alternative =
+                std::variant_alternative_t<Index - 1, Variant>;
+            using Policy = std::tuple_element_t<Index - 1, PolicyTuple>;
+            if (LuaCodecAdapter<Alternative, Policy>::canRead(value)) {
+                return Variant(
+                    std::in_place_index<Index - 1>,
+                    LuaCodecAdapter<Alternative, Policy>::read(value,
+                                                                label));
+            }
+            return readAt<Index - 1>(value, label);
+        }
+    }
+
+    template <std::size_t Index>
+    static sol::object writeAt(sol::state_view lua, const Variant& value,
+                               std::string_view label) {
+        if constexpr (Index == sizeof...(Policies)) {
+            throw std::invalid_argument("variant index is out of range");
+        } else {
+            if (value.index() == Index) {
+                using Alternative =
+                    std::variant_alternative_t<Index, Variant>;
+                using Policy = std::tuple_element_t<Index, PolicyTuple>;
+                return LuaCodecAdapter<Alternative, Policy>::write(
+                    lua, std::get<Index>(value), label);
+            }
+            return writeAt<Index + 1>(lua, value, label);
+        }
+    }
+};
+
+template <typename Pair, typename FirstPolicy, typename SecondPolicy>
+struct LuaCodecAdapter<Pair,
+                       LuaPairCodecPolicy<FirstPolicy, SecondPolicy>> {
+    using First = typename Pair::first_type;
+    using Second = typename Pair::second_type;
+
+    static_assert(IsPair<Pair>::value);
+
+    static bool canRead(const sol::object& value) {
+        if (!value.is<sol::table>()) {
+            return false;
+        }
+        const sol::table table = value.as<sol::table>();
+        std::size_t length = 0;
+        return trySequenceLength(table, length) && length == 2 &&
+               LuaCodecAdapter<First, FirstPolicy>::canRead(
+                   table.raw_get<sol::object>(1)) &&
+               LuaCodecAdapter<Second, SecondPolicy>::canRead(
+                   table.raw_get<sol::object>(2));
+    }
+
+    static Pair read(const sol::object& value, std::string_view label) {
+        if (!canRead(value)) {
+            throw std::invalid_argument(
+                "expected a compatible two-element Lua table");
+        }
+        const sol::table table = value.as<sol::table>();
+        return Pair{
+            LuaCodecAdapter<First, FirstPolicy>::read(
+                table.raw_get<sol::object>(1), label),
+            LuaCodecAdapter<Second, SecondPolicy>::read(
+                table.raw_get<sol::object>(2), label)};
+    }
+
+    static sol::object write(sol::state_view lua, const Pair& value,
+                             std::string_view label) {
+        sol::table table = lua.create_table(2, 1);
+        table.raw_set("n", 2);
+        const sol::object first =
+            LuaCodecAdapter<First, FirstPolicy>::write(lua, value.first,
+                                                       label);
+        const sol::object second =
+            LuaCodecAdapter<Second, SecondPolicy>::write(lua, value.second,
+                                                         label);
+        if (!isNil(first)) {
+            table.raw_set(1, first);
+        }
+        if (!isNil(second)) {
+            table.raw_set(2, second);
+        }
+        return sol::make_object(lua, table);
+    }
+};
+
+template <typename Tuple, typename... Policies>
+struct LuaCodecAdapter<Tuple, LuaTupleCodecPolicy<Policies...>> {
+    using PolicyTuple = std::tuple<Policies...>;
+
+    static_assert(IsTuple<Tuple>::value);
+    static_assert(std::tuple_size_v<Tuple> == sizeof...(Policies));
+
+    static bool canRead(const sol::object& value) {
+        if (!value.is<sol::table>()) {
+            return false;
+        }
+        const sol::table table = value.as<sol::table>();
+        std::size_t length = 0;
+        return trySequenceLength(table, length) &&
+               length == sizeof...(Policies) &&
+               canReadItems(table,
+                            std::make_index_sequence<sizeof...(Policies)>{});
+    }
+
+    static Tuple read(const sol::object& value, std::string_view label) {
+        if (!canRead(value)) {
+            throw std::invalid_argument("expected a compatible Lua tuple table");
+        }
+        return readItems(
+            value.as<sol::table>(), label,
+            std::make_index_sequence<sizeof...(Policies)>{});
+    }
+
+    static sol::object write(sol::state_view lua, const Tuple& value,
+                             std::string_view label) {
+        sol::table table = lua.create_table(sizeof...(Policies), 1);
+        table.raw_set("n", sizeof...(Policies));
+        writeItems(lua, table, value, label,
+                   std::make_index_sequence<sizeof...(Policies)>{});
+        return sol::make_object(lua, table);
+    }
+
+private:
+    template <std::size_t... Index>
+    static bool canReadItems(const sol::table& table,
+                             std::index_sequence<Index...>) {
+        return (LuaCodecAdapter<
+                    std::tuple_element_t<Index, Tuple>,
+                    std::tuple_element_t<Index, PolicyTuple>>::canRead(
+                    table.raw_get<sol::object>(Index + 1)) &&
+                ...);
+    }
+
+    template <std::size_t... Index>
+    static Tuple readItems(const sol::table& table, std::string_view label,
+                           std::index_sequence<Index...>) {
+        return Tuple{LuaCodecAdapter<
+            std::tuple_element_t<Index, Tuple>,
+            std::tuple_element_t<Index, PolicyTuple>>::read(
+            table.raw_get<sol::object>(Index + 1), label)...};
+    }
+
+    template <std::size_t... Index>
+    static void writeItems(sol::state_view lua, sol::table& table,
+                           const Tuple& value, std::string_view label,
+                           std::index_sequence<Index...>) {
+        ([&]() {
+            const sol::object item = LuaCodecAdapter<
+                std::tuple_element_t<Index, Tuple>,
+                std::tuple_element_t<Index, PolicyTuple>>::write(
+                lua, std::get<Index>(value), label);
+            if (!isNil(item)) {
+                table.raw_set(Index + 1, item);
+            }
+        }(),
+         ...);
+    }
+};
+
+template <typename T, typename Policy>
+bool canReadLuaCodecValue(const sol::object& value) {
+    return LuaCodecAdapter<LuaValueType<T>, Policy>::canRead(value);
+}
+
+template <typename T, typename Policy>
+LuaValueType<T> readLuaCodecValue(const sol::object& value,
+                                  std::string_view label) {
+    return LuaCodecAdapter<LuaValueType<T>, Policy>::read(value, label);
+}
+
+template <typename T, typename Policy>
+sol::object writeLuaCodecValue(sol::state_view lua, const T& value,
+                               std::string_view label) {
+    return LuaCodecAdapter<LuaValueType<T>, Policy>::write(lua, value, label);
+}
+
+template <typename Policy>
+struct LuaCodecReturnPolicies;
+
+template <typename First, typename Second>
+struct LuaCodecReturnPolicies<LuaPairCodecPolicy<First, Second>> {
+    using Type = std::tuple<First, Second>;
+};
+
+template <typename... Items>
+struct LuaCodecReturnPolicies<LuaTupleCodecPolicy<Items...>> {
+    using Type = std::tuple<Items...>;
+};
+
+template <typename Values, typename Policy, std::size_t... Index>
+LuaReturnTuple<Values> writeLuaCodecReturnsImpl(
+    sol::state_view lua, const Values& values, std::string_view label,
+    std::index_sequence<Index...>) {
+    using Value = LuaValueType<Values>;
+    using Policies = typename LuaCodecReturnPolicies<Policy>::Type;
+    return LuaReturnTuple<Value>{
+        LuaCodecAdapter<std::tuple_element_t<Index, Value>,
+                        std::tuple_element_t<Index, Policies>>::write(
+            lua, std::get<Index>(values), label)...};
+}
+
+template <typename Values, typename Policy>
+LuaReturnTuple<Values> writeLuaCodecReturns(sol::state_view lua,
+                                            const Values& values,
+                                            std::string_view label) {
+    using Value = LuaValueType<Values>;
+    using Policies = typename LuaCodecReturnPolicies<Policy>::Type;
+    static_assert(std::tuple_size_v<Value> == std::tuple_size_v<Policies>);
+    return writeLuaCodecReturnsImpl<Value, Policy>(
+        lua, values, label,
+        std::make_index_sequence<std::tuple_size_v<Value>>{});
 }
 
 template <typename T>

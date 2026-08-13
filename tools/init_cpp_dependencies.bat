@@ -86,22 +86,6 @@ if errorlevel 1 (
     echo LuaSF native value copy patch is already applied.
 )
 
-set "ANDROID_CMAKE_PATCH=%CD%\patches\luasf-android-cmake.patch"
-echo Applying LuaSF Android CMake patch if needed...
-call :apply_luasf_patch --reverse --check "%ANDROID_CMAKE_PATCH%" >nul 2>&1
-if errorlevel 1 (
-    call :apply_luasf_patch --check "%ANDROID_CMAKE_PATCH%"
-    if errorlevel 1 (
-        exit /b 1
-    )
-    call :apply_luasf_patch "%ANDROID_CMAKE_PATCH%"
-    if errorlevel 1 (
-        exit /b 1
-    )
-) else (
-    echo LuaSF Android CMake patch is already applied.
-)
-
 echo Downloading lua-cjson %LUA_CJSON_VERSION%...
 powershell -Command "Invoke-WebRequest -Uri 'https://github.com/openresty/lua-cjson/archive/refs/tags/%LUA_CJSON_VERSION%.zip' -OutFile '%LUA_CJSON_ZIP%'"
 if errorlevel 1 exit /b %errorlevel%

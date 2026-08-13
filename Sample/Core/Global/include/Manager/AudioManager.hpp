@@ -7,7 +7,6 @@
 #include <SFML/Graphics/Transformable.hpp>
 
 #include <cstddef>
-#include <functional>
 #include <memory>
 #include <string>
 
@@ -84,10 +83,9 @@ public:
     static void setMusicFilter(const std::shared_ptr<sf::Music>& music,
                                const MusicFilter& filter);
 
-    BIND_METHOD(metadata = false)
-    static void setEffect(
-        const std::string& audioType,
-        std::function<sf::SoundSource::EffectProcessor()> effectFactory);
+    BIND_METHOD(metadata = false, allow_nil = "effectProcessor")
+    static void setEffect(const std::string& audioType,
+                          sf::SoundSource::EffectProcessor effectProcessor);
 
     BIND_METHOD()
     static std::size_t getMemory();

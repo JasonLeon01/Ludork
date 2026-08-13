@@ -10,6 +10,9 @@ from .model import (
 )
 from .cpp_types import (
     adapted_return_call,
+    callback_codec,
+    callback_codec_policy,
+    callback_codecs_in_type,
     class_property_type,
     cpp_value_type,
     exposed_type_name,
@@ -180,6 +183,47 @@ def parameter_plan(
         if default_expression is not None:
             raise ValueError(f"{type_name} parameter {name} cannot have a default")
         return ParameterPlan(f"{type_name} {name}", name)
+    codec = callback_codec(context, type_name)
+    codec_policy = callback_codec_policy(context, type_name)
+    codecs = callback_codecs_in_type(context, type_name)
+    if codec_policy is not None:
+        if default_expression is not None:
+            raise ValueError(
+                f"callback codec parameter {name} cannot have a C++ default"
+            )
+        unsupported = [
+            item.cpp_name for item in codecs if "fromLua" not in item.directions
+        ]
+        if unsupported:
+            raise ValueError(
+                "callback codec does not support fromLua: " + ", ".join(unsupported)
+            )
+        if codec is not None and allow_nil and not codec.allow_nil:
+            raise ValueError(f"callback codec {codec.cpp_name} does not allow nil")
+        label = codecs[0].lua_type
+        value_type = cpp_value_type(context, type_name)
+        conversion = (
+            f"ludork_core::readLuaCodecValue<{value_type}, {codec_policy}>"
+            f'({name}, "{label}")'
+        )
+        prelude = [
+            f"static_assert(std::is_same_v<{item.cpp_name}, "
+            f"{item.canonical_type}>, "
+            f'"callback codec manifest canonicalType mismatch for '
+            f'{item.cpp_name}");'
+            for item in codecs
+        ]
+        if codec is not None and not allow_nil:
+            prelude.append(
+                f"if (ludork_core::isNil({name})) throw std::invalid_argument("
+                f'"{codec.lua_type} does not allow nil here");'
+            )
+        prelude.append(f"auto {name}Value = {conversion};")
+        return ParameterPlan(
+            f"sol::object {name}",
+            f"{name}Value",
+            prelude,
+        )
     value_type = cpp_value_type(context, type_name)
     if default_expression is not None:
         default_value = cpp_parameter_default(context, type_name, default_expression)
@@ -297,18 +341,26 @@ def callable_lambda(
     multiple_return = not constructor and is_multiple_return(
         context, member, return_type
     )
-    converted_return = constructor or (
-        return_type != "void"
-        and (
-            is_data_type(context, return_type)
-            or is_std_function(context, return_type)
-            or is_shared_pointer(context, return_type)
-            or is_bound_pointer(context, return_type)
-            or (
-                "&" not in return_type
-                and "*" not in return_type
-                and not return_type.startswith("std::unique_ptr<")
-                and not return_type.startswith("std::shared_ptr<")
+    return_codec_policy = (
+        None if constructor else callback_codec_policy(context, return_type)
+    )
+    return_codecs = () if constructor else callback_codecs_in_type(context, return_type)
+    converted_return = (
+        constructor
+        or return_codec_policy is not None
+        or (
+            return_type != "void"
+            and (
+                is_data_type(context, return_type)
+                or is_std_function(context, return_type)
+                or is_shared_pointer(context, return_type)
+                or is_bound_pointer(context, return_type)
+                or (
+                    "&" not in return_type
+                    and "*" not in return_type
+                    and not return_type.startswith("std::unique_ptr<")
+                    and not return_type.startswith("std::shared_ptr<")
+                )
             )
         )
     )
@@ -324,6 +376,27 @@ def callable_lambda(
         base_arguments = f"<{', '.join(owner_types)}>"
         body.append(
             f"return ludork_core::writeOwningLuaObject{base_arguments}(lua, {call});"
+        )
+    elif return_codec_policy is not None:
+        unsupported = [
+            item.cpp_name for item in return_codecs if "toLua" not in item.directions
+        ]
+        if unsupported:
+            raise ValueError(
+                "callback codec does not support toLua: " + ", ".join(unsupported)
+            )
+        body.extend(
+            f"static_assert(std::is_same_v<{item.cpp_name}, "
+            f"{item.canonical_type}>, "
+            f'"callback codec manifest canonicalType mismatch for '
+            f'{item.cpp_name}");'
+            for item in return_codecs
+        )
+        writer = "writeLuaCodecReturns" if multiple_return else "writeLuaCodecValue"
+        body.append(
+            f"return ludork_core::{writer}<{return_type}, "
+            f"{return_codec_policy}>"
+            f'(lua, {call}, "{return_codecs[0].lua_type}");'
         )
     elif multiple_return:
         body.append(f"return ludork_core::writeLuaReturns(lua, {call});")

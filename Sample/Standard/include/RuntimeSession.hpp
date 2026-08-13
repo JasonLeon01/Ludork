@@ -88,6 +88,7 @@ LUDORK_STANDARD_API LuaRegistryReference
 findRuntimeOpaqueValue(lua_State* state, const void* identity);
 LUDORK_STANDARD_API void initializeRuntimeSession(lua_State* state);
 LUDORK_STANDARD_API int enterRuntimeSession(lua_State* state) noexcept;
+LUDORK_STANDARD_API int tryEnterRuntimeSession(lua_State* state) noexcept;
 LUDORK_STANDARD_API void leaveRuntimeSession(lua_State* state) noexcept;
 LUDORK_STANDARD_API void beginRuntimeShutdown(lua_State* state) noexcept;
 LUDORK_STANDARD_API void registerRuntimeCleanup(lua_State* state,

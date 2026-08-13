@@ -39,16 +39,14 @@ struct MusicRecord {
     float baseVolume = 100.0f;
 };
 
-using EffectFactory = std::function<sf::SoundSource::EffectProcessor()>;
-
 std::unordered_map<std::string, std::shared_ptr<sf::SoundBuffer>> soundBuffers;
 std::unordered_map<std::string, std::size_t> soundBufferCounts;
 std::vector<SoundRecord> sounds;
 VoiceRecord voice;
 std::unordered_map<std::string, MusicRecord> musics;
-EffectFactory soundEffectFactory;
-EffectFactory voiceEffectFactory;
-EffectFactory musicEffectFactory;
+sf::SoundSource::EffectProcessor soundEffectProcessor;
+sf::SoundSource::EffectProcessor voiceEffectProcessor;
+sf::SoundSource::EffectProcessor musicEffectProcessor;
 std::recursive_mutex audioMutex;
 
 sf::Vector3f positionOf(
@@ -115,12 +113,8 @@ MusicRecord* findMusicRecord(const sf::Music* music) {
 }
 
 void applyEffect(sf::SoundSource& source,
-                 const EffectFactory& effectFactory) {
-    if (!effectFactory) {
-        source.setEffectProcessor({});
-        return;
-    }
-    source.setEffectProcessor(effectFactory());
+                 const sf::SoundSource::EffectProcessor& effectProcessor) {
+    source.setEffectProcessor(effectProcessor);
 }
 
 void setFilteredVolume(sf::SoundSource& source, float volume) {
@@ -243,7 +237,7 @@ std::shared_ptr<sf::Sound> AudioManager::playSound(
     }
     const std::shared_ptr<sf::SoundBuffer> buffer = loadSound(filePath);
     auto sound = std::make_shared<sf::Sound>(*buffer);
-    applyEffect(*sound, soundEffectFactory);
+    applyEffect(*sound, soundEffectProcessor);
     retainBuffer(filePath, buffer);
     sounds.push_back({sound, filePath, parent, sound->getVolume(), 1.0f});
     if (parent != nullptr) {
@@ -294,7 +288,7 @@ std::shared_ptr<sf::Sound> AudioManager::playVoice(
     stopVoice();
     const std::shared_ptr<sf::SoundBuffer> buffer = loadSound(filePath);
     auto activeVoice = std::make_shared<sf::Sound>(*buffer);
-    applyEffect(*activeVoice, voiceEffectFactory);
+    applyEffect(*activeVoice, voiceEffectProcessor);
     retainBuffer(filePath, buffer);
     if (filter != nullptr) {
         setSoundFilter(activeVoice, *filter);
@@ -343,7 +337,7 @@ std::shared_ptr<sf::Music> AudioManager::playMusic(const std::string& musicType,
     if (!music->openFromFile(ludork::standard::pathFromUtf8(filePath))) {
         throw std::runtime_error("Failed to load music from file: " + filePath);
     }
-    applyEffect(*music, musicEffectFactory);
+    applyEffect(*music, musicEffectProcessor);
     if (filter != nullptr) {
         setMusicFilter(music, *filter);
     } else {
@@ -505,29 +499,28 @@ void AudioManager::setMusicFilter(const std::shared_ptr<sf::Music>& music,
     music->setSpatializationEnabled(false);
 }
 
-void AudioManager::setEffect(
-    const std::string& audioType,
-    std::function<sf::SoundSource::EffectProcessor()> effectFactory) {
+void AudioManager::setEffect(const std::string& audioType,
+                             sf::SoundSource::EffectProcessor effectProcessor) {
     const std::lock_guard<std::recursive_mutex> lock(audioMutex);
     if (audioType == "Sound") {
-        soundEffectFactory = std::move(effectFactory);
+        soundEffectProcessor = std::move(effectProcessor);
         for (SoundRecord& record : sounds) {
-            applyEffect(*record.sound, soundEffectFactory);
+            applyEffect(*record.sound, soundEffectProcessor);
         }
         return;
     }
     if (audioType == "Voice") {
-        voiceEffectFactory = std::move(effectFactory);
+        voiceEffectProcessor = std::move(effectProcessor);
         if (voice.sound != nullptr) {
-            applyEffect(*voice.sound, voiceEffectFactory);
+            applyEffect(*voice.sound, voiceEffectProcessor);
         }
         return;
     }
     if (audioType == "Music") {
-        musicEffectFactory = std::move(effectFactory);
+        musicEffectProcessor = std::move(effectProcessor);
         for (auto& [musicType, record] : musics) {
             static_cast<void>(musicType);
-            applyEffect(*record.music, musicEffectFactory);
+            applyEffect(*record.music, musicEffectProcessor);
         }
         return;
     }
@@ -592,7 +585,7 @@ void AudioManager::shutdown() noexcept {
     musics.clear();
     soundBufferCounts.clear();
     soundBuffers.clear();
-    soundEffectFactory = {};
-    voiceEffectFactory = {};
-    musicEffectFactory = {};
+    soundEffectProcessor = {};
+    voiceEffectProcessor = {};
+    musicEffectProcessor = {};
 }
