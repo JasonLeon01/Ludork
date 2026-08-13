@@ -83,9 +83,9 @@ public:
     static void setMusicFilter(const std::shared_ptr<sf::Music>& music,
                                const MusicFilter& filter);
 
-    BIND_METHOD(metadata = false, allow_nil = "effectProcessor")
+    BIND_METHOD(metadata = false)
     static void setEffect(const std::string& audioType,
-                          sf::SoundSource::EffectProcessor effectProcessor);
+                          const std::string& effect);
 
     BIND_METHOD()
     static std::size_t getMemory();

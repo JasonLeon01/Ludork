@@ -1,15 +1,19 @@
 #include <Manager/AudioManager.hpp>
 
 #include <Filters/SoundFilter.hpp>
+#include <Manager/AudioEffects.hpp>
 #include <Manager/TimeManager.hpp>
 #include <SystemConfigBase.hpp>
 
 #include <Utf8Path.hpp>
 
+#include <SFML/Audio/PlaybackDevice.hpp>
+
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <mutex>
+#include <optional>
 #include <stdexcept>
 #include <unordered_map>
 #include <utility>
@@ -18,12 +22,17 @@
 namespace {
 constexpr float SpatialMinDistance = 64.0f;
 
+using ludork::global::audio::AudioEffectBinding;
+using ludork::global::audio::AudioEffectControl;
+using ludork::global::audio::AudioEffectFault;
+
 struct SoundRecord {
     std::shared_ptr<sf::Sound> sound;
     std::string filePath;
     std::shared_ptr<sf::Transformable> parent;
     float baseVolume = 100.0f;
     float basePitch = 1.0f;
+    std::shared_ptr<AudioEffectControl> effectControl;
 };
 
 struct VoiceRecord {
@@ -31,12 +40,14 @@ struct VoiceRecord {
     std::string filePath;
     std::shared_ptr<sf::Transformable> refActor;
     float baseVolume = 100.0f;
+    std::shared_ptr<AudioEffectControl> effectControl;
 };
 
 struct MusicRecord {
     std::shared_ptr<sf::Music> music;
     std::string filePath;
     float baseVolume = 100.0f;
+    std::shared_ptr<AudioEffectControl> effectControl;
 };
 
 std::unordered_map<std::string, std::shared_ptr<sf::SoundBuffer>> soundBuffers;
@@ -44,9 +55,10 @@ std::unordered_map<std::string, std::size_t> soundBufferCounts;
 std::vector<SoundRecord> sounds;
 VoiceRecord voice;
 std::unordered_map<std::string, MusicRecord> musics;
-sf::SoundSource::EffectProcessor soundEffectProcessor;
-sf::SoundSource::EffectProcessor voiceEffectProcessor;
-sf::SoundSource::EffectProcessor musicEffectProcessor;
+std::string soundEffect = "nil";
+std::string voiceEffect = "nil";
+std::string musicEffect = "nil";
+AudioEffectFault pendingAudioEffectFault = AudioEffectFault::None;
 std::recursive_mutex audioMutex;
 
 sf::Vector3f positionOf(
@@ -112,9 +124,45 @@ MusicRecord* findMusicRecord(const sf::Music* music) {
     return nullptr;
 }
 
-void applyEffect(sf::SoundSource& source,
-                 const sf::SoundSource::EffectProcessor& effectProcessor) {
-    source.setEffectProcessor(effectProcessor);
+std::shared_ptr<AudioEffectControl> attachEffect(
+    sf::SoundSource& source, const std::string& effect) {
+    if (!ludork::global::audio::hasAudioEffectProcessor(effect)) {
+        return nullptr;
+    }
+    const std::optional<std::uint32_t> sampleRate =
+        sf::PlaybackDevice::getDeviceSampleRate();
+    if (!sampleRate.has_value() || *sampleRate == 0) {
+        throw std::runtime_error(
+            "Audio playback device sample rate is unavailable");
+    }
+    AudioEffectBinding binding =
+        ludork::global::audio::createAudioEffect(effect, *sampleRate);
+    source.setEffectProcessor(std::move(binding.processor));
+    return std::move(binding.control);
+}
+
+void stopManaged(
+    sf::SoundSource& source,
+    const std::shared_ptr<AudioEffectControl>& effectControl) {
+    ludork::global::audio::cancelAudioEffect(effectControl);
+    source.stop();
+}
+
+bool isFinished(
+    const sf::SoundSource& source,
+    const std::shared_ptr<AudioEffectControl>& effectControl) noexcept {
+    return source.getStatus() == sf::SoundSource::Status::Stopped &&
+           ludork::global::audio::isAudioEffectDrained(effectControl);
+}
+
+void captureEffectFault(
+    const std::shared_ptr<AudioEffectControl>& effectControl) noexcept {
+    const AudioEffectFault fault =
+        ludork::global::audio::takeAudioEffectFault(effectControl);
+    if (pendingAudioEffectFault == AudioEffectFault::None &&
+        fault != AudioEffectFault::None) {
+        pendingAudioEffectFault = fault;
+    }
 }
 
 void setFilteredVolume(sf::SoundSource& source, float volume) {
@@ -125,7 +173,7 @@ void setFilteredVolume(sf::SoundSource& source, float volume) {
         record != nullptr) {
         record->baseVolume = volume;
         if (!SystemConfigBase::getSoundOn()) {
-            source.stop();
+            stopManaged(source, record->effectControl);
         } else {
             source.setVolume(volume * SystemConfigBase::getSoundVolume() /
                              100.0f);
@@ -135,7 +183,7 @@ void setFilteredVolume(sf::SoundSource& source, float volume) {
     if (voice.sound.get() == &source) {
         voice.baseVolume = volume;
         if (!SystemConfigBase::getVoiceOn()) {
-            source.stop();
+            stopManaged(source, voice.effectControl);
         } else {
             source.setVolume(volume * SystemConfigBase::getVoiceVolume() /
                              100.0f);
@@ -237,9 +285,11 @@ std::shared_ptr<sf::Sound> AudioManager::playSound(
     }
     const std::shared_ptr<sf::SoundBuffer> buffer = loadSound(filePath);
     auto sound = std::make_shared<sf::Sound>(*buffer);
-    applyEffect(*sound, soundEffectProcessor);
+    std::shared_ptr<AudioEffectControl> effectControl =
+        attachEffect(*sound, soundEffect);
     retainBuffer(filePath, buffer);
-    sounds.push_back({sound, filePath, parent, sound->getVolume(), 1.0f});
+    sounds.push_back({sound, filePath, parent, sound->getVolume(), 1.0f,
+                      std::move(effectControl)});
     if (parent != nullptr) {
         setSoundParent(sound, parent);
     }
@@ -288,12 +338,14 @@ std::shared_ptr<sf::Sound> AudioManager::playVoice(
     stopVoice();
     const std::shared_ptr<sf::SoundBuffer> buffer = loadSound(filePath);
     auto activeVoice = std::make_shared<sf::Sound>(*buffer);
-    applyEffect(*activeVoice, voiceEffectProcessor);
+    std::shared_ptr<AudioEffectControl> effectControl =
+        attachEffect(*activeVoice, voiceEffect);
     retainBuffer(filePath, buffer);
     if (filter != nullptr) {
         setSoundFilter(activeVoice, *filter);
     }
-    voice = {activeVoice, filePath, refActor, activeVoice->getVolume()};
+    voice = {activeVoice, filePath, refActor, activeVoice->getVolume(),
+             std::move(effectControl)};
     if (refActor != nullptr) {
         setVoiceRefActor(activeVoice, refActor, minDistance);
     }
@@ -337,13 +389,15 @@ std::shared_ptr<sf::Music> AudioManager::playMusic(const std::string& musicType,
     if (!music->openFromFile(ludork::standard::pathFromUtf8(filePath))) {
         throw std::runtime_error("Failed to load music from file: " + filePath);
     }
-    applyEffect(*music, musicEffectProcessor);
+    std::shared_ptr<AudioEffectControl> effectControl =
+        attachEffect(*music, musicEffect);
     if (filter != nullptr) {
         setMusicFilter(music, *filter);
     } else {
         music->setSpatializationEnabled(false);
     }
-    MusicRecord record{music, filePath, music->getVolume()};
+    MusicRecord record{music, filePath, music->getVolume(),
+                       std::move(effectControl)};
     music->setVolume(SystemConfigBase::getMusicOn()
                          ? record.baseVolume *
                                SystemConfigBase::getMusicVolume() / 100.0f
@@ -356,7 +410,8 @@ std::shared_ptr<sf::Music> AudioManager::playMusic(const std::string& musicType,
 void AudioManager::stopSound() {
     const std::lock_guard<std::recursive_mutex> lock(audioMutex);
     for (SoundRecord& record : sounds) {
-        record.sound->stop();
+        stopManaged(*record.sound, record.effectControl);
+        captureEffectFault(record.effectControl);
     }
     update();
 }
@@ -366,9 +421,11 @@ void AudioManager::stopVoice() {
     if (voice.sound == nullptr) {
         return;
     }
-    voice.sound->stop();
-    releaseBuffer(voice.filePath);
+    stopManaged(*voice.sound, voice.effectControl);
+    captureEffectFault(voice.effectControl);
+    std::string filePath = std::move(voice.filePath);
     voice = {};
+    releaseBuffer(filePath);
 }
 
 void AudioManager::stopMusic(const std::string& musicType) {
@@ -377,19 +434,18 @@ void AudioManager::stopMusic(const std::string& musicType) {
     if (iterator == musics.end()) {
         return;
     }
-    iterator->second.music->stop();
+    stopManaged(*iterator->second.music, iterator->second.effectControl);
+    captureEffectFault(iterator->second.effectControl);
     musics.erase(iterator);
 }
 
 void AudioManager::applySoundVolumes() {
     const std::lock_guard<std::recursive_mutex> lock(audioMutex);
     for (SoundRecord& record : sounds) {
-        if (record.sound->getStatus() == sf::SoundSource::Status::Stopped) {
-            continue;
-        }
         if (!SystemConfigBase::getSoundOn()) {
-            record.sound->stop();
-        } else {
+            stopManaged(*record.sound, record.effectControl);
+        } else if (record.sound->getStatus() !=
+                   sf::SoundSource::Status::Stopped) {
             record.sound->setVolume(record.baseVolume *
                                     SystemConfigBase::getSoundVolume() /
                                     100.0f);
@@ -400,13 +456,13 @@ void AudioManager::applySoundVolumes() {
 
 void AudioManager::applyVoiceVolumes() {
     const std::lock_guard<std::recursive_mutex> lock(audioMutex);
-    if (voice.sound == nullptr ||
-        voice.sound->getStatus() == sf::SoundSource::Status::Stopped) {
+    if (voice.sound == nullptr) {
         return;
     }
     if (!SystemConfigBase::getVoiceOn()) {
         stopVoice();
-    } else {
+    } else if (voice.sound->getStatus() !=
+               sf::SoundSource::Status::Stopped) {
         voice.sound->setVolume(voice.baseVolume *
                                SystemConfigBase::getVoiceVolume() / 100.0f);
     }
@@ -500,28 +556,19 @@ void AudioManager::setMusicFilter(const std::shared_ptr<sf::Music>& music,
 }
 
 void AudioManager::setEffect(const std::string& audioType,
-                             sf::SoundSource::EffectProcessor effectProcessor) {
+                             const std::string& effect) {
+    ludork::global::audio::validateAudioEffect(effect);
     const std::lock_guard<std::recursive_mutex> lock(audioMutex);
     if (audioType == "Sound") {
-        soundEffectProcessor = std::move(effectProcessor);
-        for (SoundRecord& record : sounds) {
-            applyEffect(*record.sound, soundEffectProcessor);
-        }
+        soundEffect = effect;
         return;
     }
     if (audioType == "Voice") {
-        voiceEffectProcessor = std::move(effectProcessor);
-        if (voice.sound != nullptr) {
-            applyEffect(*voice.sound, voiceEffectProcessor);
-        }
+        voiceEffect = effect;
         return;
     }
     if (audioType == "Music") {
-        musicEffectProcessor = std::move(effectProcessor);
-        for (auto& [musicType, record] : musics) {
-            static_cast<void>(musicType);
-            applyEffect(*record.music, musicEffectProcessor);
-        }
+        musicEffect = effect;
         return;
     }
     throw std::invalid_argument("Unknown audio type: " + audioType);
@@ -540,36 +587,87 @@ void AudioManager::update() {
     const std::lock_guard<std::recursive_mutex> lock(audioMutex);
     updateAllSoundPositions();
     updateAllVoicePositions();
-    for (SoundRecord& record : sounds) {
-        if (record.sound->getStatus() != sf::SoundSource::Status::Stopped) {
-            record.sound->setPitch(record.basePitch * TimeManager::getSpeed());
+    for (auto iterator = sounds.begin(); iterator != sounds.end();) {
+        const AudioEffectFault fault =
+            ludork::global::audio::takeAudioEffectFault(
+                iterator->effectControl);
+        if (fault != AudioEffectFault::None) {
+            if (pendingAudioEffectFault == AudioEffectFault::None) {
+                pendingAudioEffectFault = fault;
+            }
+            stopManaged(*iterator->sound, iterator->effectControl);
+        }
+        if (!isFinished(*iterator->sound, iterator->effectControl)) {
+            if (iterator->sound->getStatus() !=
+                sf::SoundSource::Status::Stopped) {
+                iterator->sound->setPitch(iterator->basePitch *
+                                          TimeManager::getSpeed());
+            }
+            ++iterator;
             continue;
         }
-        releaseBuffer(record.filePath);
+        stopManaged(*iterator->sound, iterator->effectControl);
+        captureEffectFault(iterator->effectControl);
+        std::string filePath = std::move(iterator->filePath);
+        iterator = sounds.erase(iterator);
+        releaseBuffer(filePath);
     }
-    sounds.erase(std::remove_if(sounds.begin(), sounds.end(),
-                                [](const SoundRecord& record) {
-                                    return record.sound->getStatus() ==
-                                           sf::SoundSource::Status::Stopped;
-                                }),
-                 sounds.end());
-    if (voice.sound != nullptr &&
-        voice.sound->getStatus() == sf::SoundSource::Status::Stopped) {
-        releaseBuffer(voice.filePath);
-        voice = {};
+    if (voice.sound != nullptr) {
+        const AudioEffectFault fault =
+            ludork::global::audio::takeAudioEffectFault(voice.effectControl);
+        if (fault != AudioEffectFault::None) {
+            if (pendingAudioEffectFault == AudioEffectFault::None) {
+                pendingAudioEffectFault = fault;
+            }
+            stopManaged(*voice.sound, voice.effectControl);
+        }
+        if (isFinished(*voice.sound, voice.effectControl)) {
+            stopManaged(*voice.sound, voice.effectControl);
+            captureEffectFault(voice.effectControl);
+            std::string filePath = std::move(voice.filePath);
+            voice = {};
+            releaseBuffer(filePath);
+        }
     }
     for (auto iterator = musics.begin(); iterator != musics.end();) {
-        if (iterator->second.music->getStatus() ==
-            sf::SoundSource::Status::Stopped) {
+        const AudioEffectFault fault =
+            ludork::global::audio::takeAudioEffectFault(
+                iterator->second.effectControl);
+        if (fault != AudioEffectFault::None) {
+            if (pendingAudioEffectFault == AudioEffectFault::None) {
+                pendingAudioEffectFault = fault;
+            }
+            stopManaged(*iterator->second.music,
+                        iterator->second.effectControl);
+        }
+        if (isFinished(*iterator->second.music,
+                       iterator->second.effectControl)) {
+            stopManaged(*iterator->second.music,
+                        iterator->second.effectControl);
+            captureEffectFault(iterator->second.effectControl);
             iterator = musics.erase(iterator);
         } else {
             ++iterator;
         }
     }
+    if (pendingAudioEffectFault != AudioEffectFault::None) {
+        const AudioEffectFault fault = pendingAudioEffectFault;
+        pendingAudioEffectFault = AudioEffectFault::None;
+        throw std::runtime_error(
+            ludork::global::audio::audioEffectFaultMessage(fault));
+    }
 }
 
 void AudioManager::shutdown() noexcept {
     const std::lock_guard<std::recursive_mutex> lock(audioMutex);
+    for (SoundRecord& record : sounds) {
+        ludork::global::audio::cancelAudioEffect(record.effectControl);
+    }
+    ludork::global::audio::cancelAudioEffect(voice.effectControl);
+    for (auto& [musicType, record] : musics) {
+        static_cast<void>(musicType);
+        ludork::global::audio::cancelAudioEffect(record.effectControl);
+    }
     for (SoundRecord& record : sounds) {
         record.sound->stop();
     }
@@ -585,7 +683,8 @@ void AudioManager::shutdown() noexcept {
     musics.clear();
     soundBufferCounts.clear();
     soundBuffers.clear();
-    soundEffectProcessor = {};
-    voiceEffectProcessor = {};
-    musicEffectProcessor = {};
+    soundEffect = "nil";
+    voiceEffect = "nil";
+    musicEffect = "nil";
+    pendingAudioEffectFault = AudioEffectFault::None;
 }

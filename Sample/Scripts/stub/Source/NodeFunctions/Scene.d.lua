@@ -38,6 +38,8 @@ function Scene.ShowMessageByTag(name, message, refActorTag) end
 function Scene.ShowMessage(name, message, actor) end
 
 --- @brief Play a non-spatial voice clip and show a dialogue message on the current map scene by actor tag.
+---
+--- The returned latent condition stops the current Voice before reporting that the dialogue finished.
 ---@param name          string
 ---@param message       string
 ---@param voiceFileName string
@@ -46,6 +48,8 @@ function Scene.ShowMessage(name, message, actor) end
 function Scene.ShowVoiceMessageByTag(name, message, voiceFileName, refActorTag) end
 
 --- @brief Play a spatial voice clip relative to an actor and show a dialogue message on the current map scene.
+---
+--- The returned latent condition stops the current Voice before reporting that the dialogue finished.
 ---@param name          string
 ---@param message       string
 ---@param voiceFileName string

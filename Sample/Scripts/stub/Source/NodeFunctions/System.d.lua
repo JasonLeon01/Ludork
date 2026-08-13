@@ -33,6 +33,8 @@ function System.EditSoundFilter(attr, value) end
 ---@param value Source.NodeFunctions.System.SoundFilterValue
 function System.EditMusicFilter(attr, value) end
 
+---Select a native audio-effect preset for future playback in one category.
+---Use the literal string `nil` to clear the category preset.
 ---@param audioType string
 ---@param effect    string
 function System.SetEffect(audioType, effect) end

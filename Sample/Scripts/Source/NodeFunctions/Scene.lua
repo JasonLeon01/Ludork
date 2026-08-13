@@ -26,6 +26,18 @@ local function getActorByTag(scene, refActorTag)
     return scene:getGameMap():getActorByTag(refActorTag)
 end
 
+---@param condition fun(): boolean
+---@return fun(): boolean
+local function stopVoiceAfterDialogue(condition)
+    return function ()
+        if not condition() then
+            return false
+        end
+        ManagerFunctions.stopVoice()
+        return true
+    end
+end
+
 ---@param camera GlobalCore.Camera
 ---@param actor  Engine.Actor
 local function snapCameraToActor(camera, actor)
@@ -79,14 +91,16 @@ function Scene.ShowVoiceMessageByTag(name, message, voiceFileName, refActorTag)
     refActorTag = refActorTag == nil and "" or refActorTag
     local scene = Context.requireSceneMap()
     ManagerFunctions.playVoice(voiceFileName)
-    return scene:showMessage(name, message, getActorByTag(scene, refActorTag))
+    local dialogueFinished = scene:showMessage(name, message, getActorByTag(scene, refActorTag))
+    return stopVoiceAfterDialogue(dialogueFinished)
 end
 
 function Scene.ShowVoiceMessage(name, message, voiceFileName, refActor, minDistance)
     minDistance = minDistance == nil and 64.0 or minDistance
     local scene = Context.requireSceneMap()
     ManagerFunctions.playVoice(voiceFileName, nil, refActor, tonumber(minDistance))
-    return scene:showMessage(name, message, refActor)
+    local dialogueFinished = scene:showMessage(name, message, refActor)
+    return stopVoiceAfterDialogue(dialogueFinished)
 end
 
 function Scene.ShowSelection(name, options, refActorTag, allowCancel)
