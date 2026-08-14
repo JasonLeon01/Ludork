@@ -1,9 +1,12 @@
 #include <UI/FunctionalBase.hpp>
 
+#include <Runtime/EngineState.hpp>
 #include <UI/ControlBase.hpp>
 
 #include <array>
+#include <cmath>
 #include <cstdint>
+#include <stdexcept>
 
 FunctionalInputProvider* FunctionalBase::inputProvider_ = nullptr;
 FunctionalBase::FocusResolver FunctionalBase::keyboardFocusResolver_;
@@ -11,6 +14,12 @@ FunctionalBase::DirectionalFocusRequester
     FunctionalBase::directionalFocusRequester_;
 FunctionalBase::FocusSetter FunctionalBase::keyboardFocusSetter_;
 FunctionalBase::FocusResolver FunctionalBase::keyboardCursorResolver_;
+
+FunctionalBase::~FunctionalBase() {
+    if (pointerSource_ == PointerSource::Touch && inputProvider_ != nullptr) {
+        inputProvider_->cancelTouchGesture();
+    }
+}
 
 void FunctionalBase::setInputProvider(FunctionalInputProvider* provider) {
     inputProvider_ = provider;
@@ -85,11 +94,43 @@ void FunctionalBase::setActive(bool active) {
     }
     active_ = active;
     if (!active_) {
-        pressed_ = false;
-        pointerSource_ = PointerSource::None;
-        pressedMouseButton_.reset();
+        const bool hadPointerInteraction =
+            hovered_ || pressed_ || pointerSource_ != PointerSource::None;
+        resetPointerInteraction();
+        if (!hadPointerInteraction) {
+            onInteractionStateChanged();
+        }
+        return;
     }
     onInteractionStateChanged();
+}
+
+void FunctionalBase::setTouchHitBounds(
+    const std::optional<sf::FloatRect>& bounds) {
+    if (bounds.has_value() &&
+        (!std::isfinite(bounds->position.x) ||
+         !std::isfinite(bounds->position.y) ||
+         !std::isfinite(bounds->size.x) ||
+         !std::isfinite(bounds->size.y) || bounds->size.x < 0.0f ||
+         bounds->size.y < 0.0f)) {
+        throw std::invalid_argument(
+            "Touch hit bounds must be finite with non-negative size");
+    }
+    touchHitBounds_ = bounds;
+}
+
+std::optional<sf::FloatRect>
+FunctionalBase::getAbsoluteTouchHitBounds() const {
+    const ControlBase* control = dynamic_cast<const ControlBase*>(this);
+    if (control == nullptr) {
+        return std::nullopt;
+    }
+    if (!touchHitBounds_.has_value()) {
+        return control->getAbsoluteBounds();
+    }
+    const sf::FloatRect scaledBounds(touchHitBounds_->position * Scale,
+                                     touchHitBounds_->size * Scale);
+    return control->screenRenderTransform().transformRect(scaledBounds);
 }
 
 void FunctionalBase::addConfirmCallback(EventCallback callback) {
@@ -141,120 +182,126 @@ void FunctionalBase::update(float deltaTime) {
     ControlBase* control = dynamic_cast<ControlBase*>(this);
     const sf::Vector2f mousePosition(inputProvider_->getMousePosition());
     if (control != nullptr && !control->getVisible()) {
-        setHovered(false, mousePosition);
-        endPointerPress();
+        resetPointerInteraction();
         return;
     }
 
-    static constexpr std::array buttons = {
-        sf::Mouse::Button::Left,
-        sf::Mouse::Button::Right,
-        sf::Mouse::Button::Middle,
-    };
-    std::array<bool, buttons.size()> mousePressed = {};
-    bool mousePressReceived = false;
-    if (active_ && inputProvider_->isMouseButtonPressed()) {
-        for (std::size_t index = 0; index < buttons.size(); ++index) {
-            const sf::Mouse::Button button = buttons[index];
-            mousePressed[index] =
-                inputProvider_->getMouseButtonPressed(button, false);
-            mousePressReceived = mousePressReceived || mousePressed[index];
-            if (mousePressed[index] && onMouseButtonDown(mouseButtonArguments(
-                                           mousePosition, button))) {
-                inputProvider_->getMouseButtonPressed(button, true);
-                inputProvider_->isMouseButtonTriggered(button, true);
-            }
-        }
-    }
-
-    bool hovered = control != nullptr &&
-                   control->getAbsoluteBounds().contains(mousePosition);
-    if (!inputProvider_->isMouseInputMode()) {
-        hovered = false;
-    }
-    setHovered(hovered, mousePosition);
-    if (hovered) {
-        if (active_ && pointerSource_ == PointerSource::None) {
-            for (std::size_t index = 0; index < buttons.size(); ++index) {
-                if (mousePressed[index]) {
-                    beginMousePress(buttons[index]);
-                    break;
-                }
-            }
-        }
-        if (inputProvider_->isMouseMoved()) {
-            onMouseMoved(pointerArguments(mousePosition));
-        }
-        if (active_ && mousePressReceived) {
-            onClick(pointerArguments(mousePosition));
-        }
-        if (active_ && inputProvider_->isMouseWheelScrolled()) {
-            onMouseWheelScrolled(mouseWheelArguments(
-                mousePosition, inputProvider_->getMouseScrolledWheelDelta()));
-        }
-    }
-
-    if (pointerSource_ == PointerSource::Mouse) {
-        const sf::Mouse::Button button = *pressedMouseButton_;
-        const bool released =
-            inputProvider_->isMouseButtonReleased() &&
-            inputProvider_->getMouseButtonReleased(button, false);
-        if (!active_ || !hovered || released ||
-            !inputProvider_->isMouseButtonDown(button)) {
-            endPointerPress();
-        }
-    }
-
-    if (active_ && control != nullptr) {
-        const sf::FloatRect bounds = control->getAbsoluteBounds();
-        const bool acceptsTouchTap = getCanReceiveFocus() ||
-                                     static_cast<bool>(confirmCallback_) ||
-                                     static_cast<bool>(clickCallback_);
-        if (pointerSource_ == PointerSource::None && acceptsTouchTap &&
+    if (active_ && control != nullptr &&
+        pointerSource_ == PointerSource::None && acceptsTouchCapture()) {
+        const std::optional<sf::FloatRect> touchBounds =
+            getAbsoluteTouchHitBounds();
+        if (touchBounds.has_value() &&
             inputProvider_->isTouchBegan(false)) {
             const std::optional<sf::Vector2i> beganPosition =
                 inputProvider_->getTouchBeganPosition();
             if (beganPosition.has_value() &&
-                bounds.contains(sf::Vector2f(*beganPosition))) {
+                touchBounds->contains(sf::Vector2f(*beganPosition))) {
                 beginTouchPress();
                 inputProvider_->isTouchBegan(true);
+                onTouchCaptureBegan(sf::Vector2f(*beganPosition));
             }
         }
-        if (inputProvider_->isTouchMoved()) {
+    }
+
+    if (pointerSource_ != PointerSource::Touch) {
+        static constexpr std::array buttons = {
+            sf::Mouse::Button::Left,
+            sf::Mouse::Button::Right,
+            sf::Mouse::Button::Middle,
+        };
+        std::array<bool, buttons.size()> mousePressed = {};
+        bool mousePressReceived = false;
+        if (active_ && inputProvider_->isMouseButtonPressed()) {
+            for (std::size_t index = 0; index < buttons.size(); ++index) {
+                const sf::Mouse::Button button = buttons[index];
+                mousePressed[index] =
+                    inputProvider_->getMouseButtonPressed(button, false);
+                mousePressReceived =
+                    mousePressReceived || mousePressed[index];
+                if (mousePressed[index] &&
+                    onMouseButtonDown(
+                        mouseButtonArguments(mousePosition, button))) {
+                    inputProvider_->getMouseButtonPressed(button, true);
+                    inputProvider_->isMouseButtonTriggered(button, true);
+                }
+            }
+        }
+
+        bool hovered = control != nullptr &&
+                       control->getAbsoluteBounds().contains(mousePosition);
+        if (!inputProvider_->isMouseInputMode()) {
+            hovered = false;
+        }
+        setHovered(hovered, mousePosition);
+        if (hovered) {
+            if (active_ && pointerSource_ == PointerSource::None) {
+                for (std::size_t index = 0; index < buttons.size(); ++index) {
+                    if (mousePressed[index]) {
+                        beginMousePress(buttons[index]);
+                        break;
+                    }
+                }
+            }
+            if (inputProvider_->isMouseMoved()) {
+                onMouseMoved(pointerArguments(mousePosition));
+            }
+            if (active_ && mousePressReceived) {
+                onClick(pointerArguments(mousePosition));
+            }
+            if (active_ && inputProvider_->isMouseWheelScrolled()) {
+                onMouseWheelScrolled(mouseWheelArguments(
+                    mousePosition,
+                    inputProvider_->getMouseScrolledWheelDelta()));
+            }
+        }
+
+        if (pointerSource_ == PointerSource::Mouse) {
+            const sf::Mouse::Button button = *pressedMouseButton_;
+            const bool released =
+                inputProvider_->isMouseButtonReleased() &&
+                inputProvider_->getMouseButtonReleased(button, false);
+            if (!active_ || !hovered || released ||
+                !inputProvider_->isMouseButtonDown(button)) {
+                endPointerPress();
+            }
+        }
+    } else {
+        setHovered(false, mousePosition);
+    }
+
+    if (active_ && control != nullptr) {
+        if (pointerSource_ == PointerSource::Touch) {
+            const bool ended = inputProvider_->isTouchEnded();
             const std::optional<sf::Vector2i> position =
-                inputProvider_->getTouchPosition();
-            if (position.has_value() &&
-                bounds.contains(sf::Vector2f(*position))) {
+                ended ? inputProvider_->getTouchEndedPosition()
+                      : inputProvider_->getTouchPosition();
+            if (inputProvider_->isTouchMoved() && position.has_value()) {
                 onMouseMoved(pointerArguments(sf::Vector2f(*position)));
             }
-        }
-        if (pointerSource_ == PointerSource::Touch) {
-            const std::optional<sf::Vector2i> position =
-                inputProvider_->getTouchPosition();
-            if (inputProvider_->isTouchEnded()) {
-                const std::optional<sf::Vector2i> endedPosition =
-                    inputProvider_->getTouchEndedPosition();
-                if (inputProvider_->isTouchTap(false) &&
-                    endedPosition.has_value() &&
-                    bounds.contains(sf::Vector2f(*endedPosition))) {
-                    const RuntimeValue::Map arguments =
-                        pointerArguments(sf::Vector2f(*endedPosition));
-                    if (confirmCallback_) {
-                        onConfirm(arguments);
-                    } else {
-                        onClick(arguments);
+            if (ended) {
+                if (inputProvider_->isTouchTap(false)) {
+                    const std::optional<sf::FloatRect> releaseBounds =
+                        getAbsoluteTouchHitBounds();
+                    if (position.has_value() && releaseBounds.has_value() &&
+                        releaseBounds->contains(sf::Vector2f(*position))) {
+                        const RuntimeValue::Map arguments =
+                            pointerArguments(sf::Vector2f(*position));
+                        if (confirmCallback_) {
+                            onConfirm(arguments);
+                        } else {
+                            onClick(arguments);
+                        }
                     }
                     inputProvider_->isTouchTap(true);
                 }
                 endPointerPress();
-            } else if (!inputProvider_->isTouchActive() ||
-                       !position.has_value() ||
-                       !bounds.contains(sf::Vector2f(*position))) {
-                endPointerPress();
+            } else if (!active_ || !inputProvider_->isTouchActive() ||
+                       !position.has_value()) {
+                resetPointerInteraction();
             }
         }
     } else if (pointerSource_ == PointerSource::Touch) {
-        endPointerPress();
+        resetPointerInteraction();
     }
 
     if (shouldDispatchKeyboardInput()) {
@@ -347,14 +394,32 @@ FunctionalInputProvider* FunctionalBase::inputProvider() {
     return inputProvider_;
 }
 
+bool FunctionalBase::acceptsTouchCapture() const {
+    return getCanReceiveFocus() || static_cast<bool>(confirmCallback_) ||
+           static_cast<bool>(clickCallback_);
+}
+
+void FunctionalBase::onTouchCaptureBegan(const sf::Vector2f&) {}
+
+bool FunctionalBase::hasTouchCapture() const {
+    return pointerSource_ == PointerSource::Touch;
+}
+
+void FunctionalBase::onPointerInteractionReset() {}
+
 void FunctionalBase::resetPointerInteraction() {
-    if (!hovered_ && !pressed_) {
+    if (!hovered_ && !pressed_ && pointerSource_ == PointerSource::None) {
+        onPointerInteractionReset();
         return;
+    }
+    if (pointerSource_ == PointerSource::Touch && inputProvider_ != nullptr) {
+        inputProvider_->cancelTouchGesture();
     }
     hovered_ = false;
     pressed_ = false;
     pointerSource_ = PointerSource::None;
     pressedMouseButton_.reset();
+    onPointerInteractionReset();
     onInteractionStateChanged();
 }
 

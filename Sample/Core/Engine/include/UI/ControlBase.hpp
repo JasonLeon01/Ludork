@@ -144,6 +144,8 @@ protected:
                       sf::RenderStates states) const override;
 
 private:
+    static void resetFunctionalInteractions(ControlBase& control);
+
     bool visible_ = true;
     std::string name_;
     std::weak_ptr<ControlBase> parent_;

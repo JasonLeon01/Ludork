@@ -309,6 +309,9 @@ public:
     std::optional<sf::Vector2i> getTouchMovedDelta() const;
 
     BIND_METHOD()
+    void cancelTouchGesture() noexcept override;
+
+    BIND_METHOD()
     bool isTouchTriggered(bool handled = false);
 
     BIND_METHOD(Pure = true)
@@ -592,6 +595,7 @@ private:
     float touchTravelDistance_ = 0.0f;
     bool touchDragged_ = false;
     bool touchGestureSuppressed_ = false;
+    std::optional<unsigned int> primaryTouchFinger_;
     std::unordered_map<unsigned int, sf::Vector2i> touchFingers_;
     bool touchCancelMouseActive_ = false;
     bool touchCancelMousePressedThisFrame_ = false;

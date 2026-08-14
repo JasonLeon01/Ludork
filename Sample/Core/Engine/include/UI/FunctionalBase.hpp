@@ -4,6 +4,7 @@
 #include <Runtime/RuntimeValue.hpp>
 #include <UI/FocusableMixin.hpp>
 
+#include <SFML/Graphics/Rect.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <SFML/Window/Mouse.hpp>
 
@@ -37,6 +38,7 @@ public:
     virtual bool isTouchEnded() const = 0;
     virtual bool isTouchActive() const = 0;
     virtual std::optional<sf::Vector2i> getTouchEndedPosition() const = 0;
+    virtual void cancelTouchGesture() noexcept = 0;
     virtual bool isKeyPressed() const = 0;
     virtual bool isKeyReleased() const = 0;
     virtual bool isJoystickButtonPressed() const = 0;
@@ -61,7 +63,7 @@ public:
 
     BIND_INIT()
     FunctionalBase() = default;
-    virtual ~FunctionalBase() = default;
+    virtual ~FunctionalBase();
 
     static void setInputProvider(FunctionalInputProvider* provider);
 
@@ -109,6 +111,13 @@ public:
 
     BIND_METHOD()
     void setActive(bool active);
+
+    BIND_METHOD()
+    void setTouchHitBounds(
+        const std::optional<sf::FloatRect>& bounds);
+
+    BIND_METHOD(Pure = true)
+    std::optional<sf::FloatRect> getAbsoluteTouchHitBounds() const;
 
     BIND_METHOD()
     void addConfirmCallback(
@@ -211,9 +220,15 @@ public:
 protected:
     static FunctionalInputProvider* inputProvider();
     void resetPointerInteraction();
+    virtual bool acceptsTouchCapture() const;
+    virtual void onTouchCaptureBegan(const sf::Vector2f& position);
+    bool hasTouchCapture() const;
+    virtual void onPointerInteractionReset();
     virtual void onInteractionStateChanged();
 
 private:
+    friend class ControlBase;
+
     enum class PointerSource {
         None,
         Mouse,
@@ -241,6 +256,7 @@ private:
     bool active_ = true;
     PointerSource pointerSource_ = PointerSource::None;
     std::optional<sf::Mouse::Button> pressedMouseButton_;
+    std::optional<sf::FloatRect> touchHitBounds_;
     EventCallback confirmCallback_;
     EventCallback cancelCallback_;
     EventCallback clickCallback_;

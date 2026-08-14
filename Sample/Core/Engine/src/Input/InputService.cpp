@@ -403,6 +403,7 @@ void InputService::setFocused(bool focused) {
     touchTravelDistance_ = 0.0f;
     touchDragged_ = false;
     touchGestureSuppressed_ = true;
+    primaryTouchFinger_.reset();
     touchFingers_.clear();
     touchActive_ = false;
     touchTrigger_ = {};
@@ -480,13 +481,10 @@ void InputService::beginTwoFingerCancel(const sf::Vector2i& position) {
     if (touchCancelMouseActive_) {
         return;
     }
-    touchGestureSuppressed_ = true;
-    touchMovedDelta_.reset();
+    cancelTouchGesture();
     setMouseButtonPressed(sf::Mouse::Button::Right, position);
     touchCancelMouseActive_ = true;
     touchCancelMousePressedThisFrame_ = true;
-    touchBeganHandled_ = true;
-    touchTrigger_ = {0, true};
 }
 
 void InputService::endTwoFingerCancel(const sf::Vector2i& position) {
@@ -585,6 +583,7 @@ void InputService::onWindowRecreated(sf::WindowBase& window) {
     touchTravelDistance_ = 0.0f;
     touchDragged_ = false;
     touchGestureSuppressed_ = false;
+    primaryTouchFinger_.reset();
     touchFingers_.clear();
     touchCancelMouseActive_ = false;
     touchCancelMousePressedThisFrame_ = false;
@@ -833,8 +832,11 @@ bool InputService::processNativeEvent(sf::WindowBase& window,
             }
             const sf::Vector2i position =
                 pixelToWorld(window, touchEvent->position);
+            const bool hadTrackedTouches = !touchFingers_.empty();
             touchFingers_[touchEvent->finger] = position;
-            if (touchEvent->finger == 0) {
+            if (!touchBegan_ && !touchEnded_ && !hadTrackedTouches &&
+                !primaryTouchFinger_.has_value()) {
+                primaryTouchFinger_ = touchEvent->finger;
                 touchBegan_ = true;
                 touchActive_ = true;
                 touchBeganPosition_ = position;
@@ -857,7 +859,9 @@ bool InputService::processNativeEvent(sf::WindowBase& window,
             if (finger != touchFingers_.end()) {
                 finger->second = position;
             }
-            if (touchEvent->finger == 0 && finger != touchFingers_.end()) {
+            if (primaryTouchFinger_.has_value() &&
+                touchEvent->finger == *primaryTouchFinger_ &&
+                finger != touchFingers_.end() && touchActive_) {
                 const std::optional<sf::Vector2i> previous = touchPosition_;
                 touchMoved_ = true;
                 touchPosition_ = position;
@@ -879,9 +883,12 @@ bool InputService::processNativeEvent(sf::WindowBase& window,
             const sf::Vector2i position =
                 pixelToWorld(window, touchEvent->position);
             const auto finger = touchFingers_.find(touchEvent->finger);
-            const bool primaryGesture = touchEvent->finger == 0 &&
-                                        finger != touchFingers_.end() &&
-                                        touchActive_;
+            const bool primaryFinger = primaryTouchFinger_.has_value() &&
+                                       touchEvent->finger ==
+                                           *primaryTouchFinger_;
+            const bool primaryGesture =
+                primaryFinger && finger != touchFingers_.end() &&
+                touchActive_;
             if (finger != touchFingers_.end()) {
                 touchFingers_.erase(finger);
             }
@@ -908,6 +915,11 @@ bool InputService::processNativeEvent(sf::WindowBase& window,
                     touchTapPosition_ = position;
                 }
                 touchTrigger_ = {};
+            }
+            if (primaryFinger) {
+                touchActive_ = false;
+                touchTrigger_ = {};
+                primaryTouchFinger_.reset();
             }
             if (touchCancelMouseActive_ && touchFingers_.size() < 2) {
                 endTwoFingerCancel(position);
@@ -1452,7 +1464,8 @@ bool InputService::isMouseLeft() const {
 }
 
 bool InputService::isTouchBegan(bool handled) {
-    if (touchBlocked_ || !touchBegan_ || touchBeganHandled_) {
+    if (touchBlocked_ || touchGestureSuppressed_ || !touchBegan_ ||
+        touchBeganHandled_) {
         return false;
     }
     if (handled) {
@@ -1462,7 +1475,8 @@ bool InputService::isTouchBegan(bool handled) {
 }
 
 bool InputService::isTouchTap(bool handled) {
-    if (touchBlocked_ || !touchTap_ || touchTapHandled_) {
+    if (touchBlocked_ || touchGestureSuppressed_ || !touchTap_ ||
+        touchTapHandled_) {
         return false;
     }
     if (handled) {
@@ -1472,7 +1486,7 @@ bool InputService::isTouchTap(bool handled) {
 }
 
 bool InputService::isTouchEnded() const {
-    return touchEnded_ && !touchBlocked_;
+    return touchEnded_ && !touchBlocked_ && !touchGestureSuppressed_;
 }
 
 bool InputService::isTouchMoved() const {
@@ -1507,6 +1521,20 @@ std::optional<sf::Vector2i> InputService::getTouchMovedDelta() const {
     return isTouchMoved() ? touchMovedDelta_ : std::optional<sf::Vector2i>{};
 }
 
+void InputService::cancelTouchGesture() noexcept {
+    touchGestureSuppressed_ = true;
+    touchActive_ = false;
+    touchBeganHandled_ = true;
+    touchMoved_ = false;
+    touchMovedDelta_.reset();
+    touchTap_ = false;
+    touchTapHandled_ = true;
+    touchTapPosition_.reset();
+    touchEnded_ = false;
+    touchEndedPosition_.reset();
+    touchTrigger_ = {};
+}
+
 bool InputService::isTouchTriggered(bool handled) {
     if (touchBlocked_ || touchDragged_ || touchGestureSuppressed_ ||
         touchTrigger_.handled || touchTrigger_.count < 1) {
@@ -1527,6 +1555,7 @@ void InputService::blockTouch() {
     touchTravelDistance_ = 0.0f;
     touchDragged_ = false;
     touchGestureSuppressed_ = true;
+    primaryTouchFinger_.reset();
     touchFingers_.clear();
     touchActive_ = false;
     touchTrigger_ = {};
@@ -2072,6 +2101,7 @@ void InputService::shutdown() noexcept {
     heldKeys_.clear();
     heldScans_.clear();
     abortTwoFingerCancel();
+    primaryTouchFinger_.reset();
     touchFingers_.clear();
     touchActive_ = false;
     touchPosition_.reset();

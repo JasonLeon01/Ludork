@@ -549,21 +549,22 @@ end
 ---@return integer | nil
 function WindowSelectable:_updateTouchInput()
     if not self:getActive() or self._listView == nil then
-        self:_resetTouchCapture()
+        self:_resetTouchCapture(true)
         return nil
     end
     if Input.isTouchBegan(false) then
         local beganPosition = Input.getTouchBeganPosition()
         if beganPosition ~= nil then
             local position = Engine.ToVector2f(beganPosition)
-            if sf.FloatRect.contains(self:_getContentViewportAbsoluteBounds(), position)
-                and self:_shouldCaptureTouch(position) then
+            if sf.FloatRect.contains(self:_getContentViewportAbsoluteBounds(), position) then
                 self._wheelScrollTargetOriginY = nil
-                self._touchCaptured = true
-                self._touchDragging = false
-                self._touchStartPosition = position
-                self._touchStartOriginY = self:_getScrollOriginY()
-                Input.isTouchBegan(true)
+                if self:_shouldCaptureTouch(position) then
+                    self._touchCaptured = true
+                    self._touchDragging = false
+                    self._touchStartPosition = position
+                    self._touchStartOriginY = self:_getScrollOriginY()
+                    Input.isTouchBegan(true)
+                end
             end
         end
     end
@@ -586,7 +587,7 @@ function WindowSelectable:_updateTouchInput()
     end
     if not Input.isTouchEnded() then
         if not Input.isTouchActive() then
-            self:_resetTouchCapture()
+            self:_resetTouchCapture(true)
         end
         return nil
     end
@@ -624,7 +625,11 @@ function WindowSelectable:_getContentViewportAbsoluteBounds()
     return bounds
 end
 
-function WindowSelectable:_resetTouchCapture()
+---@param cancelGesture boolean | nil
+function WindowSelectable:_resetTouchCapture(cancelGesture)
+    if cancelGesture == true and self._touchCaptured then
+        Input.cancelTouchGesture()
+    end
     self._touchCaptured = false
     self._touchDragging = false
     self._touchStartPosition = nil
@@ -635,7 +640,7 @@ function WindowSelectable:_resetTransientInputState()
     self._mousePositionAtCursorPending = false
     self._mouseSelectionConfirmedThisFrame = false
     self._wheelScrollTargetOriginY = nil
-    self:_resetTouchCapture()
+    self:_resetTouchCapture(true)
 end
 
 ---@return boolean

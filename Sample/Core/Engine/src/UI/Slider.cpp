@@ -87,7 +87,6 @@ void Slider::setVisible(bool visible) {
     ControlBase::setVisible(visible);
     if (!visible) {
         mouseDragging_ = false;
-        touchDragging_ = false;
         suppressClick_ = false;
         resetPointerInteraction();
     }
@@ -195,23 +194,8 @@ sf::FloatRect Slider::getLocalBounds() const {
 }
 
 void Slider::update(float deltaTime) {
-    FunctionalInputProvider* provider = inputProvider();
-    if (provider != nullptr && getVisible() && getActive() &&
-        provider->isTouchBegan(false)) {
-        const std::optional<sf::Vector2i> beganPosition =
-            provider->getTouchBeganPosition();
-        if (beganPosition.has_value() &&
-            getAbsoluteBounds().contains(sf::Vector2f(*beganPosition))) {
-            touchDragging_ = true;
-            mouseDragging_ = false;
-            suppressClick_ = false;
-            requestKeyboardFocus();
-            setValueFromBoundsPosition(getAbsoluteBounds(),
-                                       sf::Vector2f(*beganPosition));
-        }
-    }
     FunctionalBase::update(deltaTime);
-    updatePointerDrag();
+    updateMouseDrag();
 }
 
 void Slider::onClick(const RuntimeValue::Map& arguments) {
@@ -233,7 +217,6 @@ bool Slider::onMouseButtonDown(const RuntimeValue::Map& arguments) {
     suppressClick_ = !accepted;
     if (accepted) {
         mouseDragging_ = true;
-        touchDragging_ = false;
         requestKeyboardFocus();
         setValueFromBoundsPosition(getAbsoluteBounds(), *position);
     }
@@ -242,7 +225,7 @@ bool Slider::onMouseButtonDown(const RuntimeValue::Map& arguments) {
 
 void Slider::onMouseMoved(const RuntimeValue::Map& arguments) {
     const std::optional<sf::Vector2f> position = pointerPosition(arguments);
-    if ((mouseDragging_ || touchDragging_) && position.has_value()) {
+    if ((mouseDragging_ || hasTouchCapture()) && position.has_value()) {
         setValueFromBoundsPosition(getAbsoluteBounds(), *position);
     }
     FunctionalBase::onMouseMoved(arguments);
@@ -261,6 +244,23 @@ void Slider::onKeyDown(const RuntimeValue::Map& arguments) {
         }
     }
     FunctionalBase::onKeyDown(arguments);
+}
+
+bool Slider::acceptsTouchCapture() const {
+    return true;
+}
+
+void Slider::onTouchCaptureBegan(const sf::Vector2f& position) {
+    mouseDragging_ = false;
+    suppressClick_ = false;
+    requestKeyboardFocus();
+    setValueFromBoundsPosition(getAbsoluteBounds(), position);
+}
+
+void Slider::onPointerInteractionReset() {
+    mouseDragging_ = false;
+    suppressClick_ = false;
+    FunctionalBase::onPointerInteractionReset();
 }
 
 void Slider::draw(sf::RenderTarget& target, sf::RenderStates states) const {
@@ -342,11 +342,10 @@ void Slider::refreshDisplayScale() {
     ControlBase::refreshDisplayScale();
 }
 
-void Slider::updatePointerDrag() {
+void Slider::updateMouseDrag() {
     FunctionalInputProvider* provider = inputProvider();
     if (provider == nullptr || !getVisible() || !getActive()) {
         mouseDragging_ = false;
-        touchDragging_ = false;
         return;
     }
     if (mouseDragging_) {
@@ -357,18 +356,6 @@ void Slider::updatePointerDrag() {
                                               false)) ||
             !provider->isMouseButtonDown(sf::Mouse::Button::Left)) {
             mouseDragging_ = false;
-        }
-    }
-    if (touchDragging_) {
-        const std::optional<sf::Vector2i> position =
-            provider->isTouchEnded() ? provider->getTouchEndedPosition()
-                                     : provider->getTouchPosition();
-        if (position.has_value()) {
-            setValueFromBoundsPosition(getAbsoluteBounds(),
-                                       sf::Vector2f(*position));
-        }
-        if (provider->isTouchEnded() || !provider->isTouchActive()) {
-            touchDragging_ = false;
         }
     }
 }

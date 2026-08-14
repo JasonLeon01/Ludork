@@ -96,6 +96,10 @@ public:
     void refreshDisplayScale() override;
 
 protected:
+    bool acceptsTouchCapture() const override;
+    void onTouchCaptureBegan(const sf::Vector2f& position) override;
+    void onPointerInteractionReset() override;
+
     BIND_METHOD()
     virtual void draw(sf::RenderTarget& target,
                       sf::RenderStates states) const override;
@@ -109,7 +113,7 @@ private:
     float handleWidth() const;
     float handleOffset() const;
     void updateGeometry();
-    void updatePointerDrag();
+    void updateMouseDrag();
 
     sf::Vector2f size_;
     std::shared_ptr<sf::Texture> lineTexture_;
@@ -120,7 +124,6 @@ private:
     int maxValue_ = 100;
     int value_ = 0;
     bool mouseDragging_ = false;
-    bool touchDragging_ = false;
     bool suppressClick_ = false;
     std::function<void(int)> valueChangedCallback_;
 };

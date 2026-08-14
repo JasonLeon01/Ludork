@@ -282,8 +282,13 @@ end
 
 function ConfigWindow:_shouldCaptureTouch(position)
     for luaIndex, row in ipairs(self._settingRows) do
-        if Class.isInstance(row, ConfigSliderRowUI) and row:getSlider():getAbsoluteBounds():contains(position) then
-            return self.index ~= luaIndex - 1
+        if Class.isInstance(row, ConfigSliderRowUI) then
+            local slider = row:getSlider()
+            if slider:getVisible() and slider:getActive()
+                and slider:getAbsoluteTouchHitBounds():contains(position) then
+                self:_setPointerIndex(luaIndex - 1)
+                return false
+            end
         end
     end
     return super(ConfigWindow, self)._shouldCaptureTouch(position)

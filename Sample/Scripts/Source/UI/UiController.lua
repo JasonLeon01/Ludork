@@ -170,7 +170,10 @@ function UiController:unmount()
     end
     local uiManager = self._uiManager
     ---@cast uiManager GlobalCore.UIManager
+    local wasVisible = self.root:getVisible()
+    self.root:setVisible(false)
     uiManager:removeUI(self.root)
+    self.root:setVisible(wasVisible)
     self._uiManager = nil
     self._mounted = false
 end

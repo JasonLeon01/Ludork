@@ -1,6 +1,7 @@
 #include <UI/ControlBase.hpp>
 
 #include <Runtime/EngineState.hpp>
+#include <UI/FunctionalBase.hpp>
 #include <Utils/Render.hpp>
 
 bool ControlBase::getVisible() const {
@@ -8,7 +9,13 @@ bool ControlBase::getVisible() const {
 }
 
 void ControlBase::setVisible(bool visible) {
+    if (visible_ == visible) {
+        return;
+    }
     visible_ = visible;
+    if (!visible_) {
+        resetFunctionalInteractions(*this);
+    }
 }
 
 const std::string& ControlBase::getName() const {
@@ -24,6 +31,10 @@ std::shared_ptr<ControlBase> ControlBase::getParent() const {
 }
 
 void ControlBase::setParent(const std::shared_ptr<ControlBase>& parent) {
+    if (parent_.lock() == parent) {
+        return;
+    }
+    resetFunctionalInteractions(*this);
     parent_ = parent;
 }
 
@@ -122,6 +133,17 @@ void ControlBase::refreshDisplayScale() {
     for (const std::shared_ptr<ControlBase>& child : getChildren()) {
         if (child != nullptr) {
             child->refreshDisplayScale();
+        }
+    }
+}
+
+void ControlBase::resetFunctionalInteractions(ControlBase& control) {
+    if (FunctionalBase* functional = dynamic_cast<FunctionalBase*>(&control)) {
+        functional->resetPointerInteraction();
+    }
+    for (const std::shared_ptr<ControlBase>& child : control.getChildren()) {
+        if (child != nullptr) {
+            resetFunctionalInteractions(*child);
         }
     }
 }
