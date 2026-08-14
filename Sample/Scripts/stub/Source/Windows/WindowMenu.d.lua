@@ -6,6 +6,8 @@
 ---@field _moveRestoreGuard fun(): boolean
 local WindowMenuController = {}
 
+---@param owner Source.Windows.WindowMenu
+---@return Source.UI.Helpers.CommandRowModel[]
 function WindowMenuController.createCommands(owner) end
 
 function WindowMenuController:bind() end
@@ -35,10 +37,12 @@ function WindowMenuController:getMenuControls() end
 
 function WindowMenuController:onSaveLoadClose() end
 
+function WindowMenuController:onConfigClose() end
+
 --- @brief In-game menu window that manages commands, open/close triggers, and sub-windows.
 ---
 --- Owns the full menu lifecycle: detects the open trigger, defines built-in commands
---- (Items, Equipment, Save, Load, Return to Title), delegates to WindowItem, and
+--- (Items, Equipment, Save, Config, Return to Title), delegates to WindowItem, and
 --- re-enables player movement on close.
 ---@class Source.Windows.WindowMenu: Source.Windows.WindowCommand
 ---@field controllerClass Class.ClassType<Source.Windows.WindowMenu.Controller>
@@ -48,6 +52,7 @@ function WindowMenuController:onSaveLoadClose() end
 ---@field _windowEquipSelect Source.Windows.WindowEquipSelect
 ---@field _windowEquipStatus Source.Windows.WindowEquipStatus
 ---@field _windowSaveLoad Source.Windows.WindowSaveLoad
+---@field _configWindow Source.Windows.ConfigWindow
 ---@field _menuController Source.Windows.WindowMenu.Controller
 ---@field _menuControls Engine.Canvas[]
 ---@field new fun(player: Source.Player.Player, windows: Source.Windows.WindowMenuWindows): Source.Windows.WindowMenu
@@ -59,6 +64,7 @@ local WindowMenu = {}
 ---@field equipSelect Source.Windows.WindowEquipSelect
 ---@field equipStatus Source.Windows.WindowEquipStatus
 ---@field saveLoad    Source.Windows.WindowSaveLoad
+---@field config      Source.Windows.ConfigWindow
 
 --- @brief Construct the menu window and wire up sub-window callbacks.
 ---
@@ -108,5 +114,8 @@ function WindowMenu:close() end
 function WindowMenu:isBlocking() end
 
 function WindowMenu:onSaveLoadClose() end
+
+--- @brief Reactivate the command list and return focus after the Config window closes.
+function WindowMenu:onConfigClose() end
 
 return WindowMenu

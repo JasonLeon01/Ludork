@@ -117,6 +117,13 @@ function WindowAttrShop:refreshItems()
     self._shopUI:refreshItems()
 end
 
+function WindowAttrShop:refreshLocale()
+    if not self:getVisible() then
+        return
+    end
+    self._shopUI:refreshLocale()
+end
+
 function WindowAttrShop:close()
     self._shopUI:close()
 end

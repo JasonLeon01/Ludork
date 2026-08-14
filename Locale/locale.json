@@ -755,6 +755,62 @@
     "zh_CN": "公共函数",
     "en_GB": "Common Functions"
   },
+  "GAME_VARIABLES": {
+    "zh_CN": "游戏变量",
+    "en_GB": "Game Variables"
+  },
+  "NEW_GAME_VARIABLE": {
+    "zh_CN": "新建变量",
+    "en_GB": "New Variable"
+  },
+  "GAME_VARIABLE_NAME": {
+    "zh_CN": "变量名",
+    "en_GB": "Variable Name"
+  },
+  "GAME_VARIABLE_TYPE": {
+    "zh_CN": "变量类型",
+    "en_GB": "Variable Type"
+  },
+  "GAME_VARIABLE_INITIAL_VALUE": {
+    "zh_CN": "初始值",
+    "en_GB": "Initial Value"
+  },
+  "GAME_VARIABLE_REMARK": {
+    "zh_CN": "备注",
+    "en_GB": "Remark"
+  },
+  "GAME_VARIABLE_EXISTS": {
+    "zh_CN": "变量名已存在",
+    "en_GB": "Variable name already exists"
+  },
+  "GAME_VARIABLE_TYPE_REQUIRED": {
+    "zh_CN": "请选择变量类型",
+    "en_GB": "Select a variable type"
+  },
+  "GAME_VARIABLE_ITEM_COUNT": {
+    "zh_CN": "{count} 项",
+    "en_GB": "{count} items"
+  },
+  "DELETE_GAME_VARIABLE": {
+    "zh_CN": "删除变量",
+    "en_GB": "Delete Variable"
+  },
+  "CONFIRM_DELETE_GAME_VARIABLE": {
+    "zh_CN": "确认删除变量 '{name}' 吗？",
+    "en_GB": "Delete variable '{name}'?"
+  },
+  "GAME_VARIABLE_SAVE_FAILED": {
+    "zh_CN": "保存游戏变量失败",
+    "en_GB": "Failed to save game variables"
+  },
+  "RETRY_SAVE": {
+    "zh_CN": "重试保存",
+    "en_GB": "Retry Save"
+  },
+  "SELECT_GAME_VARIABLE": {
+    "zh_CN": "选择游戏变量",
+    "en_GB": "Select game variable"
+  },
   "HELP": {
     "zh_CN": "帮助",
     "en_GB": "Help"

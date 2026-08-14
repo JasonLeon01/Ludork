@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using Ludork.Controls;
 using Ludork.Models;
@@ -25,6 +26,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
     private readonly BlueprintGraphDocument document;
     private readonly BlueprintVariableFieldBuilder fieldBuilder;
     private readonly BlueprintNodeParameterEditorFactory parameterEditorFactory;
+    private readonly IGameVariableCatalog gameVariables;
     private readonly string assetsDirectory;
     private readonly int cellSize;
     private readonly IReadOnlyList<BlueprintGraphNodeDefinition> definitions;
@@ -37,6 +39,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         IReadOnlyList<BlueprintGraphNodeDefinition> definitions,
         BlueprintVariableFieldBuilder fieldBuilder,
         BlueprintNodeParameterEditorFactory parameterEditorFactory,
+        IGameVariableCatalog gameVariables,
         string assetsDirectory,
         int cellSize,
         bool isReadOnly)
@@ -46,6 +49,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         this.definitions = definitions;
         this.fieldBuilder = fieldBuilder;
         this.parameterEditorFactory = parameterEditorFactory;
+        this.gameVariables = gameVariables;
         this.assetsDirectory = assetsDirectory;
         this.cellSize = cellSize;
         IsReadOnly = isReadOnly;
@@ -376,6 +380,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
                 port,
                 fieldBuilder,
                 parameterEditorFactory,
+                gameVariables,
                 getRawInputValue,
                 setRawInputValue,
                 assetsDirectory,
@@ -392,6 +397,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
                 port,
                 fieldBuilder,
                 parameterEditorFactory,
+                gameVariables,
                 getRawInputValue,
                 setRawInputValue,
                 assetsDirectory,
@@ -639,6 +645,7 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
         BlueprintGraphPort model,
         BlueprintVariableFieldBuilder fieldBuilder,
         BlueprintNodeParameterEditorFactory parameterEditorFactory,
+        IGameVariableCatalog gameVariables,
         Func<string, JsonNode?> getRawSiblingValue,
         Action<string, JsonNode?> setRawSiblingValue,
         string assetsDirectory,
@@ -667,6 +674,7 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
                 AssetsDirectory = assetsDirectory,
                 ProjectDirectory = Path.GetDirectoryName(assetsDirectory) ?? string.Empty,
                 CellSize = cellSize,
+                GameVariables = gameVariables,
                 HistoryGameData = gameData,
                 IsReadOnly = isReadOnly(),
                 ShowFieldNames = false,
@@ -688,6 +696,8 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
                 document.NotifyChanged();
                 ParameterValueChanged?.Invoke(this, EventArgs.Empty);
                 ParameterEdited?.Invoke(this, EventArgs.Empty);
+                if (args.RequiresRefresh)
+                    Dispatcher.UIThread.Post(form.RefreshEditors, DispatcherPriority.Background);
             };
             Editor = form;
             ParameterForm = form;
@@ -714,6 +724,8 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
             return;
         disposed = true;
         Model.PropertyChanged -= onModelPropertyChanged;
+        if (ParameterForm is not null)
+            ParameterForm.GameVariables = null;
     }
 
     public void ApplyExternalValue(JsonNode? value)

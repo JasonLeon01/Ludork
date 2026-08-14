@@ -1,31 +1,47 @@
 {
-    "type": "plainTextConfig",
-    "name": "CenterText24",
-    "font": "",
-    "characterSize": 24,
-    "style": {
-        "bold": false,
-        "italic": false,
-        "underlined": false,
-        "strikeThrough": false
-    },
-    "fillColor": [255, 255, 255, 255],
-    "letterSpacing": 1.0,
-    "lineSpacing": 1.0,
-    "lineAlignment": "center",
-    "outline": {
-        "color": [0, 0, 0, 255],
-        "thickness": 0.0
-    },
-    "glow": {
-        "enabled": false,
-        "color": [255, 255, 255, 0],
-        "radius": 0.0,
-        "intensity": 0.0
-    },
-    "gradient": {
-        "enabled": false,
-        "direction": "vertical",
-        "curve": ""
-    }
+  "type": "plainTextConfig",
+  "name": "CenterText24",
+  "font": "",
+  "characterSize": 24,
+  "style": {
+    "bold": false,
+    "italic": false,
+    "underlined": false,
+    "strikeThrough": false
+  },
+  "fillColor": [
+    255,
+    255,
+    255,
+    255
+  ],
+  "letterSpacing": 1.0,
+  "lineSpacing": 1.0,
+  "lineAlignment": "center",
+  "outline": {
+    "color": [
+      0,
+      0,
+      0,
+      255
+    ],
+    "thickness": 0.0
+  },
+  "glow": {
+    "enabled": false,
+    "color": [
+      255,
+      255,
+      255,
+      0
+    ],
+    "radius": 0.0,
+    "intensity": 0
+  },
+  "gradient": {
+    "enabled": false,
+    "direction": "vertical",
+    "curve": ""
+  },
+  "slantAngle": 0
 }

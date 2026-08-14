@@ -257,6 +257,7 @@ public sealed class ActorInfoPanel : UserControl
         GameDataService nextGameData,
         LuaMetadataService nextMetadataService,
         BlueprintClassResolver nextClassResolver,
+        IGameVariableCatalog nextGameVariables,
         MapPanel nextEditorPanel)
     {
         gameData = nextGameData;
@@ -266,6 +267,7 @@ public sealed class ActorInfoPanel : UserControl
         classForm.AssetsDirectory = Path.Combine(nextGameData.ProjectPath, "Assets");
         classForm.ProjectDirectory = nextGameData.ProjectPath;
         classForm.CellSize = nextGameData.getCellSize();
+        classForm.GameVariables = nextGameVariables;
         classForm.HistoryGameData = nextGameData;
         HistoryMergeBehavior.Attach(tagEdit, nextGameData);
         HistoryMergeBehavior.Attach(positionX, nextGameData);

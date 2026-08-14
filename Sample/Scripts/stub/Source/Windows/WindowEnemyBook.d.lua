@@ -35,6 +35,9 @@ function WindowEnemyBook:open(gameMap) end
 --- @brief Close the handbook.
 function WindowEnemyBook:close() end
 
+--- @brief Refresh localised enemy, stat, and special text without rebuilding rows or previews.
+function WindowEnemyBook:refreshLocale() end
+
 ---@param deltaTime number
 function WindowEnemyBook:onTick(deltaTime) end
 

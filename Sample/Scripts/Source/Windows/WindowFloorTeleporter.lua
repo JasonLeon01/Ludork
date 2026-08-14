@@ -265,6 +265,15 @@ function WindowFloorTeleporterController:closeByCancel()
     end
 end
 
+function WindowFloorTeleporterController:refreshLocale()
+    if not self.model._commandWindow:getVisible() then
+        return
+    end
+    self.model._telepointEntriesCache = dict()
+    self.model._commandWindow:refreshMaps(self:getVisitedRegionEntries())
+    self:refreshPreview()
+end
+
 function WindowFloorTeleporterController:activateTelepointSelector()
     local mapKey = self.model._commandWindow:getCurrentMapKey()
     if not bool(mapKey) or not bool(self:getTelepointsForMap(mapKey)) then
@@ -501,6 +510,10 @@ end
 
 function WindowFloorTeleporter:closeByCancel()
     self._teleporterController:closeByCancel()
+end
+
+function WindowFloorTeleporter:refreshLocale()
+    self._teleporterController:refreshLocale()
 end
 
 function WindowFloorTeleporter:activateTelepointSelector()

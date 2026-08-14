@@ -1,70 +1,71 @@
 {
-    "parent": "Source.Equip",
-    "attrs": {
-        "ID": "Shield_A",
-        "material": {
-            "lightBlock": 0.24,
-            "mirror": false,
-            "reflectionStrength": 0.5,
-            "opacity": 1.0,
-            "speedRate": 1.0
-        },
-        "collisionEnabled": true,
-        "texturePath": "equips/classic-equips.png",
-        "defaultRect": [
-            [
-                0,
-                96,
-                32,
-                32
-            ]
-        ]
+  "parent": "Source.Equip",
+  "attrs": {
+    "ID": "Shield_A",
+    "material": {
+      "lightBlock": 0.24,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1.0,
+      "speedRate": 1.0
     },
-    "graph": {
-        "nodeGraph": {
-            "onCreate": {
-                "nodes": [],
-                "links": []
-            },
-            "onDestroy": {
-                "nodes": [],
-                "links": []
-            },
-            "onEquip": {
-                "nodes": [],
-                "links": []
-            },
-            "onFixedTick": {
-                "nodes": [],
-                "links": []
-            },
-            "onLateTick": {
-                "nodes": [],
-                "links": []
-            },
-            "onOverlap": {
-                "nodes": [],
-                "links": []
-            },
-            "onTick": {
-                "nodes": [],
-                "links": []
-            },
-            "onUnequip": {
-                "nodes": [],
-                "links": []
-            }
-        },
-        "startNodes": {
-            "onCreate": null,
-            "onDestroy": null,
-            "onEquip": null,
-            "onFixedTick": null,
-            "onLateTick": null,
-            "onOverlap": null,
-            "onTick": null,
-            "onUnequip": null
-        }
+    "collisionEnabled": true,
+    "texturePath": "equips/classic-equips.png",
+    "defaultRect": [
+      [
+        0,
+        96,
+        32,
+        32
+      ]
+    ],
+    "tag": ""
+  },
+  "graph": {
+    "nodeGraph": {
+      "onCreate": {
+        "nodes": [],
+        "links": []
+      },
+      "onDestroy": {
+        "nodes": [],
+        "links": []
+      },
+      "onEquip": {
+        "nodes": [],
+        "links": []
+      },
+      "onFixedTick": {
+        "nodes": [],
+        "links": []
+      },
+      "onLateTick": {
+        "nodes": [],
+        "links": []
+      },
+      "onOverlap": {
+        "nodes": [],
+        "links": []
+      },
+      "onTick": {
+        "nodes": [],
+        "links": []
+      },
+      "onUnequip": {
+        "nodes": [],
+        "links": []
+      }
     },
-    "type": "blueprint"
+    "startNodes": {
+      "onCreate": null,
+      "onDestroy": null,
+      "onEquip": null,
+      "onFixedTick": null,
+      "onLateTick": null,
+      "onOverlap": null,
+      "onTick": null,
+      "onUnequip": null
+    }
+  },
+  "type": "blueprint"
 }

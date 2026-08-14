@@ -2,7 +2,6 @@ local CoreSystem = require("CoreSystem")
 local Engine = require("Engine")
 local GlobalFunctions = require("GlobalFunctions")
 local GameSystem = require("Source.System")
-local LocaleCore = require("Source.Locale.Core")
 local Save = require("Source.Save")
 local WindowSaveDetailUI = require("Source.UI.Parts.WindowSaveLoad.WindowSaveDetail")
 local WindowSaveSlotUI = require("Source.UI.Parts.WindowSaveLoad.WindowSaveSlot")
@@ -12,8 +11,6 @@ local WindowBase = require("Source.Windows.Base.WindowBase")
 
 local Input = Engine.Input
 local ManagerFunctions = GlobalFunctions.Manager
----@type fun(value: string): string
-local LOC = LocaleCore.ApplyStringLocaleFormat
 
 local _SLOT_ROW_HEIGHT = 32
 local MAX_SAVE_SLOTS = 100
@@ -36,14 +33,14 @@ function WindowSaveCommandController.createCommands(owner)
     return {
         {
             key = "Load",
-            text = LOC("MENU_LOAD"),
+            localeKey = "MENU_LOAD",
             callback = function (_obj, _kwargs)
                 owner:onCommandConfirm("load")
             end
         },
         {
             key = "Save",
-            text = LOC("MENU_SAVE"),
+            localeKey = "MENU_SAVE",
             callback = function (_obj, _kwargs)
                 owner:onCommandConfirm("save")
             end

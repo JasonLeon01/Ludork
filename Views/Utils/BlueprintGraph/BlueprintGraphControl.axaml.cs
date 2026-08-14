@@ -9,6 +9,7 @@ using Avalonia.VisualTree;
 using Ludork.Models;
 using Ludork.Plugin.Avalonia;
 using Ludork.Services;
+using Ludork.Views.Utils;
 using NodifyM.Avalonia.Controls;
 using System;
 using System.Collections.Generic;
@@ -57,6 +58,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         IReadOnlyList<BlueprintGraphNodeDefinition> definitions,
         BlueprintVariableFieldBuilder fieldBuilder,
         BlueprintNodeParameterEditorFactory parameterEditorFactory,
+        IGameVariableCatalog gameVariables,
         string assetsDirectory,
         int cellSize,
         bool isReadOnly = false) : this()
@@ -67,6 +69,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
             definitions,
             fieldBuilder,
             parameterEditorFactory,
+            gameVariables,
             assetsDirectory,
             cellSize,
             isReadOnly);
@@ -507,6 +510,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
             or ComboBox
             or CheckBox
             or Slider
+            or SearchableListPicker
             or SelectingItemsControl;
     }
 }

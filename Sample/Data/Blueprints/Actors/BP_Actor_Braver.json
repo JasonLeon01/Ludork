@@ -1,69 +1,70 @@
 {
-    "parent": "Source.Player",
-    "attrs": {
-        "material": {
-            "lightBlock": 0.4,
-            "mirror": false,
-            "reflectionStrength": 0.5,
-            "opacity": 1.0,
-            "speedRate": 1.0
-        },
-        "speed": 160,
-        "texturePath": "actors/classic-cha-braver01.png",
-        "ID": "Bravor",
-        "lightComp": {
-            "lightColour": [
-                255,
-                255,
-                255,
-                255
-            ],
-            "lightRadius": 64.0
-        },
-        "infoComp": {
-            "HP": 1000
-        }
+  "parent": "Source.Player",
+  "attrs": {
+    "material": {
+      "lightBlock": 0.4,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1.0,
+      "speedRate": 1.0
     },
-    "graph": {
-        "nodeGraph": {
-            "onCollision": {
-                "nodes": [],
-                "links": []
-            },
-            "onCreate": {
-                "nodes": [],
-                "links": []
-            },
-            "onDestroy": {
-                "nodes": [],
-                "links": []
-            },
-            "onFixedTick": {
-                "nodes": [],
-                "links": []
-            },
-            "onLateTick": {
-                "nodes": [],
-                "links": []
-            },
-            "onOverlap": {
-                "nodes": [],
-                "links": []
-            },
-            "onTick": {
-                "nodes": [],
-                "links": []
-            }
-        },
-        "startNodes": {
-            "onCollision": null,
-            "onCreate": null,
-            "onDestroy": null,
-            "onFixedTick": null,
-            "onLateTick": null,
-            "onOverlap": null,
-            "onTick": null
-        }
+    "speed": 160,
+    "texturePath": "actors/classic-cha-braver01.png",
+    "ID": "Bravor",
+    "lightComp": {
+      "lightColour": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "lightRadius": 64.0
     },
-    "type": "blueprint"
+    "infoComp": {
+      "HP": 1000
+    },
+    "tag": ""
+  },
+  "graph": {
+    "nodeGraph": {
+      "onCollision": {
+        "nodes": [],
+        "links": []
+      },
+      "onCreate": {
+        "nodes": [],
+        "links": []
+      },
+      "onDestroy": {
+        "nodes": [],
+        "links": []
+      },
+      "onFixedTick": {
+        "nodes": [],
+        "links": []
+      },
+      "onLateTick": {
+        "nodes": [],
+        "links": []
+      },
+      "onOverlap": {
+        "nodes": [],
+        "links": []
+      },
+      "onTick": {
+        "nodes": [],
+        "links": []
+      }
+    },
+    "startNodes": {
+      "onCollision": null,
+      "onCreate": null,
+      "onDestroy": null,
+      "onFixedTick": null,
+      "onLateTick": null,
+      "onOverlap": null,
+      "onTick": null
+    }
+  },
+  "type": "blueprint"
 }

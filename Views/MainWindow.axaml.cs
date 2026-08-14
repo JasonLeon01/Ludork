@@ -47,6 +47,7 @@ public partial class MainWindow : Window
     private TilesetEditorWindow? tilesetEditor;
     private GeneralDataEditorWindow? generalDataEditor;
     private CommonFunctionWindow? commonFunctionWindow;
+    private GameVariableManagerWindow? gameVariableManager;
     private PerformanceMonitorWindow? performanceMonitorWindow;
     private PackSelectionDialog? packSelectionDialog;
     private PackLogDialog? packLogDialog;
@@ -235,7 +236,12 @@ public partial class MainWindow : Window
         EditorPanel.configure(viewModel.GameData, viewModel.PreviewService);
         (int gameWidth, int gameHeight) = viewModel.GameData.getGameSize();
         GameAspectPanel.AspectRatio = (double)gameWidth / gameHeight;
-        ActorInfoPanel.configure(viewModel.GameData, viewModel.Metadata, viewModel.BlueprintClasses, EditorPanel);
+        ActorInfoPanel.configure(
+            viewModel.GameData,
+            viewModel.Metadata,
+            viewModel.BlueprintClasses,
+            viewModel.GameVariables,
+            EditorPanel);
         viewModel.PropertyChanged += onViewModelPropertyChanged;
         viewModel.SelectedMapChanged += onSelectedMapChanged;
         viewModel.ActorQueue.SelectionChanged += onActorQueueSelectionChanged;
@@ -609,6 +615,8 @@ public partial class MainWindow : Window
             showAnimationOverview(viewModel.GameData);
         else if (action == "CommonFunctions" && viewModel is not null)
             await showCommonFunctionsAsync(viewModel);
+        else if (action == "GameVariables" && viewModel is not null)
+            showGameVariableManager(viewModel);
         else if (action == "GeneralData" && viewModel is not null)
             showGeneralDataEditor(viewModel, null);
         else if (action.StartsWith("GeneralData:", StringComparison.Ordinal) && viewModel is not null)
@@ -945,6 +953,19 @@ public partial class MainWindow : Window
         commonFunctionWindow = window;
         await window.ShowDialog(this);
         commonFunctionWindow = null;
+    }
+
+    private void showGameVariableManager(MainViewModel mainViewModel)
+    {
+        if (gameVariableManager is not null)
+        {
+            gameVariableManager.Show();
+            gameVariableManager.Activate();
+            return;
+        }
+        gameVariableManager = new GameVariableManagerWindow(mainViewModel.GameVariables);
+        gameVariableManager.Closed += (_, _) => gameVariableManager = null;
+        gameVariableManager.Show(this);
     }
 
     private void showGeneralDataEditor(MainViewModel mainViewModel, string? typeKey)

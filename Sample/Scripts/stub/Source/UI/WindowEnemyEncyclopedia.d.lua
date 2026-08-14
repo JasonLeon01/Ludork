@@ -39,6 +39,8 @@ function WindowEnemyEncyclopediaUI:getContent() end
 ---@param entry Source.UI.WindowEnemyBook.Entry
 function WindowEnemyEncyclopediaUI:open(entry) end
 
+function WindowEnemyEncyclopediaUI:refreshLocale() end
+
 ---@param entry Source.UI.WindowEnemyBook.Entry
 ---@param infoY number
 function WindowEnemyEncyclopediaUI:buildInfo(entry, infoY) end

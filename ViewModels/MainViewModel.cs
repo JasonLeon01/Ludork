@@ -26,10 +26,15 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         TileSelect = new TileSelectViewModel(GameData);
         ProjectConfig = new ProjectConfigService(projectPath);
         Metadata = new LuaMetadataService(projectPath);
+        GameVariables = new GameVariableService(projectPath, Metadata);
         BlueprintClasses = new BlueprintClassResolver(GameData, Metadata);
         GameConfig = new GameConfigService(projectPath);
         BlueprintValidation = new BlueprintValidationService(GameData, Metadata, BlueprintClasses);
-        ProjectSave = new ProjectSaveService(GameData, GameConfig, BlueprintValidation);
+        ProjectSave = new ProjectSaveService(
+            GameData,
+            GameConfig,
+            GameVariables,
+            BlueprintValidation);
         ReferenceIndex = new ReferenceIndexService(GameData, Metadata, BlueprintClasses);
         UiControlRegistry = ProjectSave.UiControlRegistry;
         UiAssetValidation = ProjectSave.UiAssetValidation;
@@ -68,6 +73,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         AnimationOverviewCommand = new RelayCommand(Actions.OpenAnimationOverview);
         TilesetsDataCommand = new RelayCommand(Actions.OpenTilesets);
         CommonFunctionsCommand = new RelayCommand(Actions.OpenCommonFunctions);
+        GameVariablesCommand = new RelayCommand(Actions.OpenGameVariables);
         GeneralDataCommand = new RelayCommand(() => Actions.OpenGeneralData());
         UndoCommand = new RelayCommand(executeUndo, () => GameData.CanUndo);
         RedoCommand = new RelayCommand(executeRedo, () => GameData.CanRedo);
@@ -77,6 +83,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         FileExplorerPanel.FilesChanged += onExplorerFilesChanged;
         GameData.ModifiedChanged += onModifiedChanged;
         GameConfig.Changed += onModifiedChanged;
+        GameVariables.Changed += onModifiedChanged;
+        GameVariables.Saved += onGameVariablesSaved;
         GameData.UndoRedoStateChanged += onUndoRedoStateChanged;
         GameData.DataRestored += onDataRestored;
         foreach (KeyValuePair<string, JsonObject> pair in GameData.MapData.OrderBy(item => item.Key, StringComparer.Ordinal))
@@ -101,6 +109,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     public GameDataService GameData { get; }
     public ProjectConfigService ProjectConfig { get; }
     public LuaMetadataService Metadata { get; }
+    public GameVariableService GameVariables { get; }
     public BlueprintClassResolver BlueprintClasses { get; }
     public GameConfigService GameConfig { get; }
     public BlueprintValidationService BlueprintValidation { get; }
@@ -136,6 +145,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     public IRelayCommand AnimationOverviewCommand { get; }
     public IRelayCommand TilesetsDataCommand { get; }
     public IRelayCommand CommonFunctionsCommand { get; }
+    public IRelayCommand GameVariablesCommand { get; }
     public IRelayCommand GeneralDataCommand { get; }
     public IRelayCommand UndoCommand { get; }
     public IRelayCommand RedoCommand { get; }
@@ -167,7 +177,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     }
     public bool CanConfigureIndividualWindow => ProjectConfig.CanConfigureIndividualWindow;
     public event EventHandler? LanguageChangeRequested;
-    public bool IsModified => GameData.IsModified || GameConfig.IsModified;
+    public bool IsModified => GameData.IsModified || GameConfig.IsModified || GameVariables.IsModified;
     public string WindowTitle => GameData.getGameTitle() + (IsModified ? " *" : string.Empty);
 
     public MapListItemViewModel? SelectedMap
@@ -378,6 +388,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             return;
         disposed = true;
         GameConfig.Changed -= onModifiedChanged;
+        GameVariables.Changed -= onModifiedChanged;
+        GameVariables.Saved -= onGameVariablesSaved;
         ActorQueue.Dispose();
         FileExplorerPanel.Dispose();
         PreviewService.Dispose();
@@ -438,6 +450,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(IsModified));
         OnPropertyChanged(nameof(WindowTitle));
         SaveCommand.NotifyCanExecuteChanged();
+    }
+
+    private void onGameVariablesSaved(object? sender, EventArgs args)
+    {
+        FileExplorerPanel.Refresh();
+        onModifiedChanged(sender, args);
     }
 
     private void onUndoRedoStateChanged(object? sender, EventArgs args)
@@ -625,6 +643,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     public string AnimationOverview => LocaleService.Get("ANIMATION_OVERVIEW");
     public string TilesetsData => LocaleService.Get("TILESETS_DATA");
     public string CommonFunctions => LocaleService.Get("COMMON_FUNCTIONS");
+    public string GameVariablesLabel => LocaleService.Get("GAME_VARIABLES");
     public string GeneralData => LocaleService.Get("GENERAL_DATA");
     public string Help => LocaleService.Get("HELP");
     public string HelpExplanation => LocaleService.Get("HELP_EXPLANATION");

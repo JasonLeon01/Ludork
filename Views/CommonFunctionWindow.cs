@@ -143,6 +143,7 @@ public sealed class CommonFunctionWindow : Window
             definitions,
             fieldBuilder,
             parameterEditorFactory,
+            projectSave.GameVariables,
             Path.Combine(gameData.ProjectPath, "Assets"),
             gameData.getCellSize());
         graphControl.GraphChanged += onGraphChanged;

@@ -69,6 +69,35 @@ local _METADATA = {
         afterBattleVarChanges = {
             type = "Dict[string, Tuple[string, any]]",
             default = {},
+            Meta = {
+                DictKeyMeta = {
+                    InstVar = {
+                        types = {
+                            "int",
+                            "float",
+                        },
+                    },
+                },
+                ItemMeta = {
+                    TupleMeta = {
+                        [1] = {
+                            DropBox = {
+                                "=",
+                                "+",
+                                "-",
+                                "*",
+                                "/",
+                                "//",
+                                "%",
+                                "**",
+                            },
+                        },
+                        [2] = {
+                            InstVarValue = "$dictKey",
+                        },
+                    },
+                },
+            },
         },
         battle = {
             type = "function",

@@ -3,6 +3,7 @@
 ---@class Source.UI.RegionTitle: Source.UI.UiController
 ---@field new fun(logicalSize: sf.Vector2u): Source.UI.RegionTitle
 ---@field publish fun(payload: table)
+---@field refreshEvents string[]
 ---@field _logicalSize sf.Vector2u
 ---@field _region string | nil
 ---@field _elapsed number

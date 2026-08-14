@@ -129,6 +129,11 @@ function WindowEnemyBookCellUI:prepare(logicalSize)
     return root
 end
 
+function WindowEnemyBookCellUI:refreshLocale()
+    self:prepare(sf.Vector2u.new(_CELL_WIDTH, _CELL_HEIGHT))
+    self.root:render()
+end
+
 function WindowEnemyBookCellUI.measureSpecialAreaWidth(specialDisplays)
     if not bool(specialDisplays) then
         return 0.0

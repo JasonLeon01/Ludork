@@ -1,26 +1,27 @@
 {
-    "parent": "Source.DoorBase.DoorBase",
-    "attrs": {
-        "scriptMixin": true,
-        "scriptPath": "Doors/ConditionDoor.lua",
-        "material": {
-            "lightBlock": 0.64,
-            "mirror": false,
-            "reflectionStrength": 0.5,
-            "opacity": 1.0,
-            "speedRate": 1.0
-        },
-        "texturePath": "blocks/classic-doors-001-single.png",
-        "defaultRect": [
-            [
-                0,
-                128,
-                32,
-                32
-            ]
-        ],
-        "openConditionName": "",
-        "openConditionVal": 0
+  "parent": "Source.DoorBase.DoorBase",
+  "attrs": {
+    "scriptMixin": true,
+    "scriptPath": "Doors/ConditionDoor.lua",
+    "material": {
+      "lightBlock": 0.64,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1.0,
+      "speedRate": 1.0
     },
-    "type": "blueprint"
+    "texturePath": "blocks/classic-doors-001-single.png",
+    "defaultRect": [
+      [
+        0,
+        128,
+        32,
+        32
+      ]
+    ],
+    "openConditionName": "",
+    "openConditionVal": 0,
+    "tag": ""
+  },
+  "type": "blueprint"
 }

@@ -111,6 +111,8 @@ function WindowFloorTeleporterController:close() end
 
 function WindowFloorTeleporterController:closeByCancel() end
 
+function WindowFloorTeleporterController:refreshLocale() end
+
 function WindowFloorTeleporterController:activateTelepointSelector() end
 
 ---@param playCancelSE boolean | nil
@@ -220,6 +222,9 @@ function WindowFloorTeleporter:close() end
 
 --- @brief Close the window via cancel input.
 function WindowFloorTeleporter:closeByCancel() end
+
+--- @brief Refresh localised map and telepoint labels while preserving both selections and the active child window.
+function WindowFloorTeleporter:refreshLocale() end
 
 --- @brief Move input focus from the map list to the telepoint selector.
 function WindowFloorTeleporter:activateTelepointSelector() end

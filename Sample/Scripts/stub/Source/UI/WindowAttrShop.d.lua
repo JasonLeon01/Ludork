@@ -18,6 +18,8 @@ function AttrShopRow:prepare(logicalSize) end
 ---@field model Source.Windows.WindowAttrShop
 ---@field _selectable Source.Windows._WindowAttrShopSelectable | nil
 ---@field _logicalSize sf.Vector2u | nil
+---@field _shopNameSource string
+---@field _descriptionSource string
 ---@field _shopName string
 ---@field _description string
 ---@field _priceTextValue string
@@ -87,6 +89,8 @@ function WindowAttrShopUI:getAttributeDisplayName(attributeName) end
 ---@param moneyName       string | nil
 ---@param rect            sf.IntRect | nil
 function WindowAttrShopUI:open( shopActor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName, rect ) end
+
+function WindowAttrShopUI:refreshLocale() end
 
 function WindowAttrShopUI:refreshPriceText() end
 

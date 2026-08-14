@@ -1,31 +1,47 @@
 {
-    "type": "plainTextConfig",
-    "name": "Poison",
-    "font": "",
-    "characterSize": 8,
-    "style": {
-        "bold": false,
-        "italic": false,
-        "underlined": false,
-        "strikeThrough": false
-    },
-    "fillColor": [0, 192, 0, 255],
-    "letterSpacing": 1.0,
-    "lineSpacing": 1.0,
-    "lineAlignment": "default",
-    "outline": {
-        "color": [0, 0, 0, 255],
-        "thickness": 0.0
-    },
-    "glow": {
-        "enabled": false,
-        "color": [0, 192, 0, 0],
-        "radius": 0.0,
-        "intensity": 0.0
-    },
-    "gradient": {
-        "enabled": false,
-        "direction": "vertical",
-        "curve": ""
-    }
+  "type": "plainTextConfig",
+  "name": "Poison",
+  "font": "",
+  "characterSize": 8,
+  "style": {
+    "bold": false,
+    "italic": false,
+    "underlined": false,
+    "strikeThrough": false
+  },
+  "fillColor": [
+    0,
+    192,
+    0,
+    255
+  ],
+  "letterSpacing": 1.0,
+  "lineSpacing": 1.0,
+  "lineAlignment": "default",
+  "outline": {
+    "color": [
+      0,
+      0,
+      0,
+      255
+    ],
+    "thickness": 0.0
+  },
+  "glow": {
+    "enabled": false,
+    "color": [
+      0,
+      192,
+      0,
+      0
+    ],
+    "radius": 0.0,
+    "intensity": 0
+  },
+  "gradient": {
+    "enabled": false,
+    "direction": "vertical",
+    "curve": ""
+  },
+  "slantAngle": 0
 }

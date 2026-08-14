@@ -207,6 +207,30 @@ function WindowMessage:setMessage(refPosition, name, message, allowCancel, onFin
     self:requestKeyboardFocus()
 end
 
+function WindowMessage:refreshContent(name, message)
+    assert(self._inDialogue, "Message content can only be refreshed during dialogue")
+    self._name = WindowMessage._normalizeText(name)
+    self._ui:setName(self._name)
+    self._nameText:setVisible(self._name:match("%S") ~= nil)
+    if self._contentMode == ContentMode.SELECTION then
+        assert(type(message) == "table", "Selection dialogue requires option text")
+        local selectionListView = assert(self._selectionListView, "Selection list is missing")
+        local children = selectionListView:getChildren()
+        local optionCount = math.min(#message, self._MAX_OPTIONS)
+        assert(#children == optionCount, "Selection option count changed during dialogue")
+        for index = 1, optionCount do
+            local child = children[index]
+            ---@cast child Engine.PlainText
+            child:setString(WindowMessage._normalizeText(tostring(message[index])))
+        end
+    else
+        assert(type(message) == "string", "Message dialogue requires text")
+        self._message = WindowMessage._normalizeText(message)
+        self._ui:setMessage(self._message)
+    end
+    self._pendingLayout = true
+end
+
 ---@param selectionResult integer
 function WindowMessage:_resolveSelection(selectionResult)
     if self._selectionResult ~= nil then

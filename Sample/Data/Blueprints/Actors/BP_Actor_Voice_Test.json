@@ -58,8 +58,8 @@
           {
             "nodeFunction": "NodeFunctions.Scene.ShowVoiceMessage",
             "params": [
-              "TestVoice",
-              "This message would bring a voice with certain sound effect. ",
+              "{TV_NAME}",
+              "{TV_1}",
               "SEVoice.wav",
               null,
               64
@@ -80,8 +80,8 @@
           {
             "nodeFunction": "NodeFunctions.Scene.ShowVoiceMessage",
             "params": [
-              "TestVoice2",
-              "This message would bring a voice with certain sound effect. ",
+              "{TV_NAME}",
+              "{TV_2}",
               "SEVoice.wav",
               null,
               64
@@ -116,8 +116,8 @@
           {
             "nodeFunction": "NodeFunctions.Scene.ShowVoiceMessage",
             "params": [
-              "TestVoice3",
-              "This message would bring a voice with certain sound effect. ",
+              "{TV_NAME}",
+              "{TV_3}",
               "SEVoice.wav",
               null,
               64
@@ -141,8 +141,8 @@
           {
             "nodeFunction": "NodeFunctions.Scene.ShowVoiceMessage",
             "params": [
-              "TestVoice4",
-              "This message would bring a voice with certain sound effect. ",
+              "{TV_NAME}",
+              "{TV_4}",
               "SEVoice.wav",
               null,
               64

@@ -2,15 +2,12 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
 local GameSystem = require("Source.System")
-local LocaleCore = require("Source.Locale.Core")
 local WindowCommand = require("Source.Windows.WindowCommand")
 
 local Input = Engine.Input
 local Direction = Engine.FocusDirection
 local ManagerFunctions = GlobalFunctions.Manager
 local GlobalSystem = GlobalCore.System
----@type fun(value: string): string
-local LOC = LocaleCore.ApplyStringLocaleFormat
 
 local _MENU_Z_ORDER = 1
 
@@ -35,25 +32,31 @@ local WindowMenuController = {}
 function WindowMenuController.createCommands(owner)
     return {
         {
-            text = LOC("MENU_ITEM"),
+            localeKey = "MENU_ITEM",
             callback = function ()
                 owner:_onMenuItem()
             end
         },
         {
-            text = LOC("MENU_EQUIP"),
+            localeKey = "MENU_EQUIP",
             callback = function ()
                 owner:_onMenuEquip()
             end
         },
         {
-            text = LOC("MENU_SAVE_FILE"),
+            localeKey = "MENU_SAVE_FILE",
             callback = function ()
                 owner:_onMenuSave()
             end
         },
         {
-            text = LOC("MENU_EXIT"),
+            localeKey = "MENU_CONFIG",
+            callback = function ()
+                owner:_onMenuConfig()
+            end
+        },
+        {
+            localeKey = "MENU_EXIT",
             callback = function ()
                 WindowMenuController._onMenuExit()
             end
@@ -69,7 +72,8 @@ function WindowMenuController:bind()
         configureMenuControl(model._windowEquipStatus),
         configureMenuControl(assert(model._windowSaveLoad:getCommandWindow(), "Menu save command window is missing")),
         configureMenuControl(model._windowSaveLoad:getSlotWindow()),
-        configureMenuControl(model._windowSaveLoad:getDetailWindow())
+        configureMenuControl(model._windowSaveLoad:getDetailWindow()),
+        configureMenuControl(model._configWindow)
     }
     self._moveRestoreGuard = function ()
         return true
@@ -112,7 +116,7 @@ function WindowMenuController:handleMouseButtonDown(kwargs)
 end
 
 function WindowMenuController:tick()
-    if Input.isTouchBlocked() then
+    if Input.isTouchBlocked() or not self.model:getActive() then
         return
     end
     local tapPosition = Input.getTouchTapPosition()
@@ -212,7 +216,19 @@ function WindowMenuController:_onMenuSave()
     focusTarget:requestKeyboardFocusAtCursor()
 end
 
+function WindowMenuController:_onMenuConfig()
+    ManagerFunctions.playSE(GameSystem.getDecisionSE())
+    self:_closeSubMenus("config")
+    self.model:setActive(false)
+    self.model._configWindow:open()
+end
+
 function WindowMenuController:onSaveLoadClose()
+    self.model:requestKeyboardFocus()
+end
+
+function WindowMenuController:onConfigClose()
+    self.model:setActive(true)
     self.model:requestKeyboardFocus()
 end
 
@@ -268,6 +284,10 @@ function WindowMenuController:_closeSubMenus(exceptName)
         self.model._windowSaveLoad:close()
         closed = true
     end
+    if exceptName ~= "config" and self.model._configWindow:isOpen() then
+        self.model._configWindow:close()
+        closed = true
+    end
     return closed
 end
 
@@ -307,8 +327,9 @@ function WindowMenu:init(player, windows)
     self._windowEquipSelect = windows.equipSelect
     self._windowEquipStatus = windows.equipStatus
     self._windowSaveLoad = windows.saveLoad
+    self._configWindow = windows.config
     local commands = FinalWindowMenuController.createCommands(self)
-    super(WindowMenu, self).init(Engine.ToIntRect(0, 0, 192, 160), commands)
+    super(WindowMenu, self).init(Engine.ToIntRect(0, 0, 192, 192), commands)
     self._menuController = self._commandController
     ---@cast self._menuController Source.Windows.WindowMenu.Controller
     self._menuControls = self._menuController:getMenuControls()
@@ -373,8 +394,16 @@ function WindowMenu:_onMenuSave()
     self._menuController:_onMenuSave()
 end
 
+function WindowMenu:_onMenuConfig()
+    self._menuController:_onMenuConfig()
+end
+
 function WindowMenu:onSaveLoadClose()
     self._menuController:onSaveLoadClose()
+end
+
+function WindowMenu:onConfigClose()
+    self._menuController:onConfigClose()
 end
 
 ---@return Source.Windows.Base.WindowSelectable | nil

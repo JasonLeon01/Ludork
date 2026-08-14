@@ -4,6 +4,7 @@ local Locale = require("Source.Locale.Core")
 local TextLayout = require("Source.TextLayout")
 local NodeUtils = require("Source.NodeFunctions.Utils")
 local Ui = require("Source.UI.Ui")
+local WindowEnemyBookUI = require("Source.UI.WindowEnemyBook")
 local ActorPreviewController = require("Source.UI.Parts.Shared.ActorPreviewController")
 local EnemyEncyclopediaInfoPairUI = require("Source.UI.Parts.WindowEnemyEncyclopedia.EnemyEncyclopediaInfoPair")
 local EnemyEncyclopediaSpecialRowUI = require("Source.UI.Parts.WindowEnemyEncyclopedia.EnemyEncyclopediaSpecialRow")
@@ -74,6 +75,21 @@ function WindowEnemyEncyclopediaUI:open(entry)
     self:clearEnemyControls()
     self._entry = entry
     self._previewController:setEntry(entry)
+    self:_renderEntry(entry)
+end
+
+function WindowEnemyEncyclopediaUI:refreshLocale()
+    local entry = self._entry
+    if entry == nil then
+        return
+    end
+    WindowEnemyBookUI.RefreshEntryLocale(entry)
+    self:_clearTextControls()
+    self:_renderEntry(entry)
+end
+
+---@param entry Source.UI.WindowEnemyBook.Entry
+function WindowEnemyEncyclopediaUI:_renderEntry(entry)
     local contentWidth = math.max(1, math.floor(self._content:getSize().x))
     local fittedName = TextLayout.fitPlainText(tostring(entry.name or ""), contentWidth, _NAME_TEXT_CONFIG)
     self:setText("Name", fittedName)
@@ -261,6 +277,16 @@ function WindowEnemyEncyclopediaUI:tick(deltaTime)
 end
 
 function WindowEnemyEncyclopediaUI:clearEnemyControls()
+    self:_clearTextControls()
+    self:setProperty("Portrait", "visible", false)
+    self._entry = nil
+    self._previewController:clear()
+    self.model._portrait = nil
+    self.model._nameText = nil
+    self:_syncModelState()
+end
+
+function WindowEnemyEncyclopediaUI:_clearTextControls()
     for _, controller in ipairs(self._infoPairControllers) do
         local root = controller:getRoot()
         if root:getParent() == self._infoLayer then
@@ -270,17 +296,11 @@ function WindowEnemyEncyclopediaUI:clearEnemyControls()
     self._specialList:clearChildren()
     self._infoPairControllers = {}
     self._specialRowControllers = {}
-    self:setProperty("Portrait", "visible", false)
     self:setProperty("Name", "visible", false)
     self:setProperty("Description", "visible", false)
     self:setText("Name", "")
     self:setText("Description", "")
-    self._entry = nil
-    self._previewController:clear()
-    self.model._portrait = nil
-    self.model._nameText = nil
     self.model._infoTexts = {}
-    self:_syncModelState()
 end
 
 function WindowEnemyEncyclopediaUI:_syncModelState()

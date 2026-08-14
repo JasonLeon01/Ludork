@@ -1,77 +1,232 @@
 {
-    "type": "richTextConfig",
-    "name": "Message",
-    "font": "",
-    "lineAlignment": "default",
-    "defaultStyle": {
-        "characterSize": 18,
-        "style": {
-            "bold": false,
-            "italic": false,
-            "underlined": false,
-            "strikeThrough": false
-        },
-        "fillColor": [255, 255, 255, 255],
-        "letterSpacing": 1.0,
-        "lineSpacing": 1.0,
-        "outline": {
-            "color": [0, 0, 0, 0],
-            "thickness": 0.0
-        }
+  "type": "richTextConfig",
+  "name": "Message",
+  "font": "",
+  "lineAlignment": "default",
+  "defaultStyle": {
+    "characterSize": 18,
+    "style": {
+      "bold": false,
+      "italic": false,
+      "underlined": false,
+      "strikeThrough": false
     },
-    "styleOrder": [
-        "RosyBrown",
-        "Copper",
-        "Sage",
-        "Teal",
-        "MutedPurple",
-        "Taupe",
-        "TerraCotta",
-        "Ochre",
-        "FernGreen",
-        "SteelBlue",
-        "DimGrey",
-        "Charcoal",
-        "Black",
-        "Blue",
-        "Cyan",
-        "Green",
-        "Magenta",
-        "Red",
-        "White",
-        "Yellow"
+    "fillColor": [
+      255,
+      255,
+      255,
+      255
     ],
-    "styles": {
-        "RosyBrown": { "fillColor": [169, 99, 98, 255] },
-        "Copper": { "fillColor": [168, 101, 56, 255] },
-        "Sage": { "fillColor": [173, 181, 125, 255] },
-        "Teal": { "fillColor": [75, 128, 130, 255] },
-        "MutedPurple": { "fillColor": [111, 100, 150, 255] },
-        "Taupe": { "fillColor": [114, 105, 92, 255] },
-        "TerraCotta": { "fillColor": [153, 87, 77, 255] },
-        "Ochre": { "fillColor": [146, 113, 64, 255] },
-        "FernGreen": { "fillColor": [75, 116, 85, 255] },
-        "SteelBlue": { "fillColor": [86, 108, 143, 255] },
-        "DimGrey": { "fillColor": [106, 106, 106, 255] },
-        "Charcoal": { "fillColor": [31, 31, 31, 255] },
-        "Black": { "fillColor": [0, 0, 0, 255] },
-        "Blue": { "fillColor": [0, 0, 255, 255] },
-        "Cyan": { "fillColor": [0, 255, 255, 255] },
-        "Green": { "fillColor": [0, 255, 0, 255] },
-        "Magenta": { "fillColor": [255, 0, 255, 255] },
-        "Red": { "fillColor": [255, 0, 0, 255] },
-        "White": { "fillColor": [255, 255, 255, 255] },
-        "Yellow": { "fillColor": [255, 255, 0, 255] }
-    },
-    "glow": {
-        "enabled": false,
-        "color": [255, 255, 255, 0],
-        "radius": 0.0,
-        "intensity": 0.0
-    },
-    "gradient": {
-        "enabled": false,
-        "direction": "vertical",
-        "curve": ""
+    "letterSpacing": 1.0,
+    "lineSpacing": 1.0,
+    "outline": {
+      "color": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "thickness": 0.0
     }
+  },
+  "styleOrder": [
+    "RosyBrown",
+    "Copper",
+    "Sage",
+    "Teal",
+    "MutedPurple",
+    "Taupe",
+    "TerraCotta",
+    "Ochre",
+    "FernGreen",
+    "SteelBlue",
+    "DimGrey",
+    "Charcoal",
+    "Black",
+    "Blue",
+    "Cyan",
+    "Green",
+    "Magenta",
+    "Red",
+    "White",
+    "Yellow"
+  ],
+  "styles": {
+    "RosyBrown": {
+      "fillColor": [
+        169,
+        99,
+        98,
+        255
+      ]
+    },
+    "Copper": {
+      "fillColor": [
+        168,
+        101,
+        56,
+        255
+      ]
+    },
+    "Sage": {
+      "fillColor": [
+        173,
+        181,
+        125,
+        255
+      ]
+    },
+    "Teal": {
+      "fillColor": [
+        75,
+        128,
+        130,
+        255
+      ]
+    },
+    "MutedPurple": {
+      "fillColor": [
+        111,
+        100,
+        150,
+        255
+      ]
+    },
+    "Taupe": {
+      "fillColor": [
+        114,
+        105,
+        92,
+        255
+      ]
+    },
+    "TerraCotta": {
+      "fillColor": [
+        153,
+        87,
+        77,
+        255
+      ]
+    },
+    "Ochre": {
+      "fillColor": [
+        146,
+        113,
+        64,
+        255
+      ]
+    },
+    "FernGreen": {
+      "fillColor": [
+        75,
+        116,
+        85,
+        255
+      ]
+    },
+    "SteelBlue": {
+      "fillColor": [
+        86,
+        108,
+        143,
+        255
+      ]
+    },
+    "DimGrey": {
+      "fillColor": [
+        106,
+        106,
+        106,
+        255
+      ]
+    },
+    "Charcoal": {
+      "fillColor": [
+        31,
+        31,
+        31,
+        255
+      ]
+    },
+    "Black": {
+      "fillColor": [
+        0,
+        0,
+        0,
+        255
+      ]
+    },
+    "Blue": {
+      "fillColor": [
+        0,
+        0,
+        255,
+        255
+      ]
+    },
+    "Cyan": {
+      "fillColor": [
+        0,
+        255,
+        255,
+        255
+      ]
+    },
+    "Green": {
+      "fillColor": [
+        0,
+        255,
+        0,
+        255
+      ]
+    },
+    "Magenta": {
+      "fillColor": [
+        255,
+        0,
+        255,
+        255
+      ]
+    },
+    "Red": {
+      "fillColor": [
+        255,
+        0,
+        0,
+        255
+      ]
+    },
+    "White": {
+      "fillColor": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    "Yellow": {
+      "fillColor": [
+        255,
+        255,
+        0,
+        255
+      ]
+    }
+  },
+  "glow": {
+    "enabled": false,
+    "color": [
+      255,
+      255,
+      255,
+      0
+    ],
+    "radius": 0.0,
+    "intensity": 0
+  },
+  "gradient": {
+    "enabled": false,
+    "direction": "vertical",
+    "curve": ""
+  }
 }

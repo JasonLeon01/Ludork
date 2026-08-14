@@ -2,6 +2,7 @@
 local cjson = require("cjson")
 local Data = require("Source.Data")
 local Engine = require("Engine")
+local GameVariables = require("Source.Configs.GameVariables")
 local MapPath = require("Source.MapPath")
 
 ---@param position sf.Vector2i | sf.Vector2u
@@ -61,7 +62,7 @@ local GameInstance = {}
 function GameInstance:init(skipDefaultPlayer)
     self._players = {}
     self._currentRegion = "Mota"
-    self._variables = {}
+    self._variables = deepcopy(GameVariables)
     self._cachedMap = nil
     self._cachedNewItem = {}
     self._cachedAddedActors = {}

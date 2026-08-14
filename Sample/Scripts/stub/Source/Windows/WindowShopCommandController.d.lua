@@ -4,7 +4,7 @@
 local WindowShopCommandController = {}
 
 ---@param owner Source.Windows.WindowShop
----@return table
+---@return Source.UI.Helpers.CommandRowModel[]
 function WindowShopCommandController.CreateCommands(owner) end
 
 return WindowShopCommandController

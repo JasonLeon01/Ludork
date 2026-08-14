@@ -1,132 +1,133 @@
 {
-    "parent": "Engine.Actor",
-    "attrs": {
-        "animatable": true,
-        "material": {
-            "lightBlock": 0.4,
-            "mirror": false,
-            "reflectionStrength": 0.5,
-            "opacity": 1.0,
-            "speedRate": 1.0
-        },
-        "collisionEnabled": true,
-        "tickable": false,
-        "texturePath": "enemies/classic-enemies-01-slime-single.png",
-        "defaultRect": [
-            [
-                0,
-                224,
-                32,
-                32
+  "parent": "Engine.Actor",
+  "attrs": {
+    "animatable": true,
+    "material": {
+      "lightBlock": 0.4,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1.0,
+      "speedRate": 1.0
+    },
+    "collisionEnabled": true,
+    "tickable": false,
+    "texturePath": "enemies/classic-enemies-01-slime-single.png",
+    "defaultRect": [
+      [
+        0,
+        224,
+        32,
+        32
+      ]
+    ],
+    "shaderPath": "Rainbow.frag",
+    "tag": ""
+  },
+  "graph": {
+    "nodeGraph": {
+      "onCollision": {
+        "nodes": [
+          {
+            "nodeFunction": "NodeFunctions.Utils.SELF",
+            "params": [],
+            "pos": [
+              -720.0,
+              564.0
             ]
+          },
+          {
+            "nodeFunction": "NodeFunctions.Movement.SetAutoPathToDestination",
+            "params": [
+              "",
+              [
+                9,
+                9
+              ]
+            ],
+            "pos": [
+              0.0,
+              314.0
+            ]
+          },
+          {
+            "nodeFunction": "NodeFunctions.Utils.Print",
+            "params": [
+              "Start path!"
+            ],
+            "pos": [
+              720.0,
+              189.0
+            ]
+          },
+          {
+            "nodeFunction": "NodeFunctions.Utils.Print",
+            "params": [
+              "End path"
+            ],
+            "pos": [
+              720.0,
+              439.0
+            ]
+          }
         ],
-        "shaderPath": "Rainbow.frag"
+        "links": [
+          {
+            "left": 0,
+            "right": 1,
+            "leftOutPin": 0,
+            "rightInPin": 0,
+            "linkType": "Params"
+          },
+          {
+            "left": 1,
+            "right": 2,
+            "leftOutPin": 0,
+            "rightInPin": 0,
+            "linkType": "Exec"
+          },
+          {
+            "left": 1,
+            "right": 3,
+            "leftOutPin": 1,
+            "rightInPin": 0,
+            "linkType": "Exec"
+          }
+        ]
+      },
+      "onCreate": {
+        "nodes": [],
+        "links": []
+      },
+      "onDestroy": {
+        "nodes": [],
+        "links": []
+      },
+      "onFixedTick": {
+        "nodes": [],
+        "links": []
+      },
+      "onLateTick": {
+        "nodes": [],
+        "links": []
+      },
+      "onOverlap": {
+        "nodes": [],
+        "links": []
+      },
+      "onTick": {
+        "nodes": [],
+        "links": []
+      }
     },
-    "graph": {
-        "nodeGraph": {
-            "onCollision": {
-                "nodes": [
-                    {
-                        "nodeFunction": "NodeFunctions.Utils.SELF",
-                        "params": [],
-                        "pos": [
-                            -720.0,
-                            564.0
-                        ]
-                    },
-                    {
-                        "nodeFunction": "NodeFunctions.Movement.SetAutoPathToDestination",
-                        "params": [
-                            "",
-                            [
-                                9,
-                                9
-                            ]
-                        ],
-                        "pos": [
-                            0.0,
-                            314.0
-                        ]
-                    },
-                    {
-                        "nodeFunction": "NodeFunctions.Utils.Print",
-                        "params": [
-                            "Start path!"
-                        ],
-                        "pos": [
-                            720.0,
-                            189.0
-                        ]
-                    },
-                    {
-                        "nodeFunction": "NodeFunctions.Utils.Print",
-                        "params": [
-                            "End path"
-                        ],
-                        "pos": [
-                            720.0,
-                            439.0
-                        ]
-                    }
-                ],
-                "links": [
-                    {
-                        "left": 0,
-                        "right": 1,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Params"
-                    },
-                    {
-                        "left": 1,
-                        "right": 2,
-                        "leftOutPin": 0,
-                        "rightInPin": 0,
-                        "linkType": "Exec"
-                    },
-                    {
-                        "left": 1,
-                        "right": 3,
-                        "leftOutPin": 1,
-                        "rightInPin": 0,
-                        "linkType": "Exec"
-                    }
-                ]
-            },
-            "onCreate": {
-                "nodes": [],
-                "links": []
-            },
-            "onDestroy": {
-                "nodes": [],
-                "links": []
-            },
-            "onFixedTick": {
-                "nodes": [],
-                "links": []
-            },
-            "onLateTick": {
-                "nodes": [],
-                "links": []
-            },
-            "onOverlap": {
-                "nodes": [],
-                "links": []
-            },
-            "onTick": {
-                "nodes": [],
-                "links": []
-            }
-        },
-        "startNodes": {
-            "onCollision": 1,
-            "onCreate": null,
-            "onDestroy": null,
-            "onFixedTick": null,
-            "onLateTick": null,
-            "onOverlap": null,
-            "onTick": null
-        }
-    },
-    "type": "blueprint"
+    "startNodes": {
+      "onCollision": 1,
+      "onCreate": null,
+      "onDestroy": null,
+      "onFixedTick": null,
+      "onLateTick": null,
+      "onOverlap": null,
+      "onTick": null
+    }
+  },
+  "type": "blueprint"
 }

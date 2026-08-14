@@ -1,71 +1,72 @@
 {
-    "parent": "Source.Item",
-    "attrs": {
-        "material": {
-            "lightBlock": 0.24,
-            "mirror": false,
-            "reflectionStrength": 0.5,
-            "opacity": 1.0,
-            "speedRate": 1.0
-        },
-        "collisionEnabled": true,
-        "tickable": false,
-        "texturePath": "items/classic-keys.png",
-        "defaultRect": [
-            [
-                32,
-                0,
-                32,
-                32
-            ]
-        ],
-        "ID": "KEY_B"
+  "parent": "Source.Item",
+  "attrs": {
+    "material": {
+      "lightBlock": 0.24,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1.0,
+      "speedRate": 1.0
     },
-    "graph": {
-        "nodeGraph": {
-            "onCollision": {
-                "nodes": [],
-                "links": []
-            },
-            "onCreate": {
-                "nodes": [],
-                "links": []
-            },
-            "onDestroy": {
-                "nodes": [],
-                "links": []
-            },
-            "onFixedTick": {
-                "nodes": [],
-                "links": []
-            },
-            "onLateTick": {
-                "nodes": [],
-                "links": []
-            },
-            "onOverlap": {
-                "nodes": [],
-                "links": []
-            },
-            "onTick": {
-                "nodes": [],
-                "links": []
-            },
-            "onUse": {
-                "nodes": [],
-                "links": []
-            }
-        },
-        "startNodes": {
-            "onCollision": null,
-            "onCreate": null,
-            "onDestroy": null,
-            "onFixedTick": null,
-            "onLateTick": null,
-            "onOverlap": null,
-            "onTick": null,
-            "onUse": null
-        }
+    "collisionEnabled": true,
+    "tickable": false,
+    "texturePath": "items/classic-keys.png",
+    "defaultRect": [
+      [
+        32,
+        0,
+        32,
+        32
+      ]
+    ],
+    "ID": "KEY_B",
+    "tag": ""
+  },
+  "graph": {
+    "nodeGraph": {
+      "onCollision": {
+        "nodes": [],
+        "links": []
+      },
+      "onCreate": {
+        "nodes": [],
+        "links": []
+      },
+      "onDestroy": {
+        "nodes": [],
+        "links": []
+      },
+      "onFixedTick": {
+        "nodes": [],
+        "links": []
+      },
+      "onLateTick": {
+        "nodes": [],
+        "links": []
+      },
+      "onOverlap": {
+        "nodes": [],
+        "links": []
+      },
+      "onTick": {
+        "nodes": [],
+        "links": []
+      },
+      "onUse": {
+        "nodes": [],
+        "links": []
+      }
     },
-    "type": "blueprint"
+    "startNodes": {
+      "onCollision": null,
+      "onCreate": null,
+      "onDestroy": null,
+      "onFixedTick": null,
+      "onLateTick": null,
+      "onOverlap": null,
+      "onTick": null,
+      "onUse": null
+    }
+  },
+  "type": "blueprint"
 }

@@ -111,6 +111,7 @@ public sealed class BlueprintEditorWindow : Window
             AssetsDirectory = Path.Combine(gameData.ProjectPath, "Assets"),
             ProjectDirectory = gameData.ProjectPath,
             CellSize = gameData.getCellSize(),
+            GameVariables = projectSave.GameVariables,
             IsReadOnly = !document.CanEditAttributes,
             HistoryGameData = gameData,
             FieldActionFactory = createAttributeAction,
@@ -873,6 +874,7 @@ public sealed class BlueprintEditorWindow : Window
             definitions,
             fieldBuilder,
             nodeParameterEditorFactory,
+            projectSave.GameVariables,
             Path.Combine(gameData.ProjectPath, "Assets"),
             gameData.getCellSize(),
             isGraphReadOnly());

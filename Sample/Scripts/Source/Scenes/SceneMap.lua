@@ -4,6 +4,7 @@ local Logging = require("Global.Utils.Logging")
 local GameSystem = require("Source.System")
 local Data = require("Source.Data")
 local LocaleCore = require("Source.Locale.Core")
+local EventKeys = require("Source.Configs.EventKeys")
 ---@type { Item: Source.Configs.GeneralEnum.Item }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local MapPath = require("Source.MapPath")
@@ -16,6 +17,7 @@ local EquipWindows = require("Source.Windows.WindowEquip")
 local WindowAttrShopModule = require("Source.Windows.WindowAttrShop")
 local WindowEnemyBookModule = require("Source.Windows.WindowEnemyBook")
 local WindowEnemyEncyclopedia = require("Source.Windows.WindowEnemyEncyclopedia")
+local ConfigWindow = require("Source.Windows.ConfigWindow")
 local FloorWindows = require("Source.Windows.WindowFloorTeleporter")
 local WindowItem = require("Source.Windows.WindowItem")
 local WindowMenu = require("Source.Windows.WindowMenu")
@@ -98,6 +100,7 @@ function Scene:onCreate()
         end
     end)
     self._messageWindow = WindowMessage.new()
+    self._dialogueLocaleSource = nil
     self._windowItem = WindowItem.new(Engine.ToIntRect(192, 0, 256, 256), self.player)
     self._windowEquipSlot = WindowEquipSlot.new(
         Engine.ToIntRect(192, 0, EQUIP_SLOT_WIDTH, EQUIP_SLOT_HEIGHT), self.player
@@ -169,12 +172,16 @@ function Scene:onCreate()
             self:applyLoadedGame(inst)
         end
     )
+    self._configWindow = ConfigWindow.new(function ()
+        self:_onConfigClose()
+    end)
     self._windowMenu = WindowMenu.new(self.player, {
         item = self._windowItem,
         equipSlot = self._windowEquipSlot,
         equipSelect = self._windowEquipSelect,
         equipStatus = self._windowEquipStatus,
-        saveLoad = self._windowSaveLoad
+        saveLoad = self._windowSaveLoad,
+        config = self._configWindow
     })
     self._blockingWindows = {
         self._windowShop, self._windowAttrShop, self._windowEnemyBook, self._windowEnemyEncyclopedia,
@@ -193,11 +200,18 @@ function Scene:onCreate()
         self._windowShop:getItemWindow(), self._windowAttrShop:getSelectable(), self._windowEnemyBook,
         self._windowEnemyEncyclopedia, self._windowFloorTeleporter:getCommandWindow(),
         self._windowFloorTeleporter:getPreviewWindow(), self._windowSaveLoad:getCommandWindow(),
-        self._windowSaveLoad:getSlotWindow(), self._windowSaveLoad:getDetailWindow()
+        self._windowSaveLoad:getSlotWindow(), self._windowSaveLoad:getDetailWindow(),
+        self._configWindow
     }
     for _, window in ipairs(uiWindows) do
         loadUiControl(uiManager, window)
     end
+    self._localeChangedToken = Engine.subscribe(EventKeys.LocaleChanged, function ()
+        local scene = sceneRef[1]
+        if scene ~= nil then
+            scene:_refreshMapUiLocale()
+        end
+    end)
 
     self._windowMenu:close()
     self._gameMap = nil
@@ -264,8 +278,34 @@ function Scene:onQuit()
 end
 
 function Scene:onDestroy()
+    if self._localeChangedToken ~= nil then
+        Engine.unsubscribe(self._localeChangedToken)
+        self._localeChangedToken = nil
+    end
+    self._dialogueLocaleSource = nil
     self._mapAudio:stopMapAudio()
+    self._configWindow:dispose()
     self._regionTitleUI:dispose()
+end
+
+function Scene:_refreshMapUiLocale()
+    local dialogueSource = self._dialogueLocaleSource
+    if dialogueSource ~= nil and self._messageWindow:isInDialogue() then
+        local name, content = self:_formatDialogueSource(dialogueSource)
+        self._messageWindow:refreshContent(name, content)
+    end
+    self._windowMenu:refreshRows()
+    self._windowItem:refreshLocale()
+    self._windowEquipSlot:refreshLocale()
+    self._windowShop:getCommandWindow():refreshRows()
+    self._windowAttrShop:refreshLocale()
+    self._windowEnemyBook:refreshLocale()
+    self._windowEnemyEncyclopedia:refreshLocale()
+    self._windowFloorTeleporter:refreshLocale()
+    local saveCommandWindow = self._windowSaveLoad:getCommandWindow()
+    if saveCommandWindow ~= nil then
+        saveCommandWindow:refreshRows()
+    end
 end
 
 function Scene:onFixedTick(fixedDelta)
@@ -327,6 +367,9 @@ function Scene.IsHotKeySceneMethod(sceneType, function_)
 end
 
 function Scene:onTick(deltaTime)
+    if self._dialogueLocaleSource ~= nil and not self._messageWindow:isInDialogue() then
+        self._dialogueLocaleSource = nil
+    end
     if self._mapTransferInProgress then
         return super(Scene, self).onTick(deltaTime)
     end
@@ -392,7 +435,7 @@ function Scene:getGameMap()
     return self._gameMap
 end
 
-function Scene:showMessage(name, message, refActor)
+function Scene:showMessage(name, message, refActor, localeArgs)
     local refPosition = nil
     if refActor ~= nil then
         local gameMap = self:getGameMap()
@@ -412,10 +455,16 @@ function Scene:showMessage(name, message, refActor)
         self:_blockMapInput(2)
     end
     self.player:setMoveEnabled(false)
-    local localVars = Scene.GetDialogueLocalVars(Scene.showMessage)
+    local dialogueSource = self:_createDialogueLocaleSource(
+        name, message, localeArgs, Scene.showMessage
+    )
+    self._dialogueLocaleSource = dialogueSource
+    local formattedName, formattedMessage = self:_formatDialogueSource(dialogueSource)
+    local function finishDialogue()
+        restoreMove()
+    end
     self._messageWindow:setMessage(
-        refPosition, self:_formatDialogueText(name, localVars), self:_formatDialogueText(message, localVars), true,
-        restoreMove
+        refPosition, formattedName, formattedMessage, true, finishDialogue
     )
     return function ()
         if self._messageWindow:isInDialogue() then
@@ -426,7 +475,7 @@ function Scene:showMessage(name, message, refActor)
     end
 end
 
-function Scene:showSelection(name, options, refActor, allowCancel)
+function Scene:showSelection(name, options, refActor, allowCancel, localeArgs)
     if allowCancel == nil then
         allowCancel = true
     end
@@ -449,13 +498,16 @@ function Scene:showSelection(name, options, refActor, allowCancel)
         self:_blockMapInput(2)
     end
     self.player:setMoveEnabled(false)
-    local localVars = Scene.GetDialogueLocalVars(Scene.showSelection)
-    local formattedOptions = {}
-    for _, option in ipairs(options) do
-        formattedOptions[#formattedOptions + 1] = self:_formatDialogueText(option, localVars)
+    local dialogueSource = self:_createDialogueLocaleSource(
+        name, options, localeArgs, Scene.showSelection
+    )
+    self._dialogueLocaleSource = dialogueSource
+    local formattedName, formattedOptions = self:_formatDialogueSource(dialogueSource)
+    local function finishDialogue()
+        restoreMove()
     end
     self._messageWindow:setMessage(
-        refPosition, self:_formatDialogueText(name, localVars), formattedOptions, allowCancel, restoreMove
+        refPosition, formattedName, formattedOptions, allowCancel, finishDialogue
     )
     return function ()
         local selectionResult = self._messageWindow:getSelectionResult()
@@ -660,18 +712,65 @@ function Scene.GetDialogueLocalVars(nodeFunction)
     return result
 end
 
----@param text      string
----@param localVars table<string, any>
+---@param name         string
+---@param content      string | string[]
+---@param localeArgs  table<string, any> | nil
+---@param nodeFunction function
+---@return table
+function Scene:_createDialogueLocaleSource(name, content, localeArgs, nodeFunction)
+    local instanceVars = {}
+    if self.inst ~= nil then
+        instanceVars = copy(self.inst:getVariables())
+    end
+    return {
+        name = name,
+        content = type(content) == "table" and copy(content) or content,
+        localeArgs = copy(localeArgs or {}),
+        localVars = Scene.GetDialogueLocalVars(nodeFunction),
+        instanceVars = instanceVars
+    }
+end
+
+---@param source table
+---@return string, string | string[]
+function Scene:_formatDialogueSource(source)
+    local formattedName = self:_formatDialogueText(
+        source.name, source.localeArgs, source.localVars, source.instanceVars
+    )
+    if type(source.content) ~= "table" then
+        return formattedName, self:_formatDialogueText(
+            source.content, source.localeArgs, source.localVars, source.instanceVars
+        )
+    end
+    local formattedOptions = {}
+    for _, option in ipairs(source.content) do
+        formattedOptions[#formattedOptions + 1] = self:_formatDialogueText(
+            option, source.localeArgs, source.localVars, source.instanceVars
+        )
+    end
+    return formattedName, formattedOptions
+end
+
+---@param text         string
+---@param localeArgs   table<string, any>
+---@param localVars    table<string, any>
+---@param instanceVars table<string, any>
 ---@return string
-function Scene:_formatDialogueText(text, localVars)
+function Scene:_formatDialogueText(text, localeArgs, localVars, instanceVars)
     if type(text) ~= "string" then
         return tostring(text)
     end
     text = LOC(text)
-    text = Engine.ApplyStringMappingFormat(text, localVars)
-    if self.inst ~= nil then
-        text = Engine.ApplyStringMappingFormat(text, self.inst:getVariables())
+    local resolvedLocaleArgs = {}
+    for key, value in pairs(localeArgs) do
+        if type(value) == "string" then
+            value = LOC(value)
+        end
+        resolvedLocaleArgs[key] = value
     end
+    text = Engine.ApplyStringMappingFormat(text, resolvedLocaleArgs)
+    text = Engine.ApplyStringMappingFormat(text, localVars)
+    text = Engine.ApplyStringMappingFormat(text, instanceVars)
     return text
 end
 
@@ -779,6 +878,10 @@ function Scene:_onSaveLoadClose(reason)
         return
     end
     self._windowMenu:close()
+end
+
+function Scene:_onConfigClose()
+    self._windowMenu:onConfigClose()
 end
 
 function Scene:gotoMapAndPos(mapPath, pos, blockTransition)

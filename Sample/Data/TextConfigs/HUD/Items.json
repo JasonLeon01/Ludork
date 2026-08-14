@@ -1,45 +1,79 @@
 {
-    "type": "richTextConfig",
-    "name": "Items",
-    "font": "",
-    "lineAlignment": "default",
-    "defaultStyle": {
-        "characterSize": 18,
-        "style": {
-            "bold": false,
-            "italic": false,
-            "underlined": false,
-            "strikeThrough": false
-        },
-        "fillColor": [255, 255, 255, 255],
-        "letterSpacing": 1.0,
-        "lineSpacing": 1.0,
-        "outline": {
-            "color": [0, 0, 0, 255],
-            "thickness": 0.0
-        }
+  "type": "richTextConfig",
+  "name": "Items",
+  "font": "",
+  "lineAlignment": "default",
+  "defaultStyle": {
+    "characterSize": 18,
+    "style": {
+      "bold": false,
+      "italic": false,
+      "underlined": false,
+      "strikeThrough": false
     },
-    "styleOrder": ["Yellow", "Blue", "Red"],
-    "styles": {
-        "Yellow": {
-            "fillColor": [255, 255, 0, 255]
-        },
-        "Blue": {
-            "fillColor": [0, 0, 255, 255]
-        },
-        "Red": {
-            "fillColor": [255, 0, 0, 255]
-        }
-    },
-    "glow": {
-        "enabled": false,
-        "color": [255, 255, 255, 0],
-        "radius": 0.0,
-        "intensity": 0.0
-    },
-    "gradient": {
-        "enabled": false,
-        "direction": "vertical",
-        "curve": ""
+    "fillColor": [
+      255,
+      255,
+      255,
+      255
+    ],
+    "letterSpacing": 1.0,
+    "lineSpacing": 1.0,
+    "outline": {
+      "color": [
+        0,
+        0,
+        0,
+        255
+      ],
+      "thickness": 0.0
     }
+  },
+  "styleOrder": [
+    "Yellow",
+    "Blue",
+    "Red"
+  ],
+  "styles": {
+    "Yellow": {
+      "fillColor": [
+        255,
+        255,
+        0,
+        255
+      ]
+    },
+    "Blue": {
+      "fillColor": [
+        0,
+        0,
+        255,
+        255
+      ]
+    },
+    "Red": {
+      "fillColor": [
+        255,
+        0,
+        0,
+        255
+      ]
+    }
+  },
+  "glow": {
+    "enabled": false,
+    "color": [
+      255,
+      255,
+      255,
+      0
+    ],
+    "radius": 0.0,
+    "intensity": 0
+  },
+  "gradient": {
+    "enabled": false,
+    "direction": "vertical",
+    "curve": ""
+  }
 }

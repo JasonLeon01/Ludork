@@ -11,6 +11,8 @@ function WindowEquipSlotController:getSlotCellData(slotKey) end
 
 function WindowEquipSlotController:refreshSlots() end
 
+function WindowEquipSlotController:refreshLocale() end
+
 function WindowEquipSlotController:redrawIfVisible() end
 
 ---@return string | nil
@@ -165,6 +167,9 @@ function WindowEquipSlot:setEquipStatusWindow(windowEquipStatus) end
 
 --- @brief Rebuild the slot list from the player's class slot order.
 function WindowEquipSlot:refreshSlots() end
+
+--- @brief Refresh localised slot and status text without changing the selected slot or equipment candidate.
+function WindowEquipSlot:refreshLocale() end
 
 --- @brief Update slot window and notify slot change on index change.
 ---

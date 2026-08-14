@@ -1824,16 +1824,8 @@ void applyBlueprintGeneralData(sol::state_view lua, const sol::object& object,
                                          : std::string();
             if (type == "dict") {
                 value = resolveGeneralDataDictionary(lua, value);
-            } else if (type == "string") {
-                const RuntimeValue rawValue =
-                    ludork_core::readLuaValue<RuntimeValue>(value);
-                const std::vector<RuntimeValue> resolved =
-                    resolveRuntime("blueprint.resolveStringValue", {rawValue});
-                if (!resolved.empty()) {
-                    value = ludork_core::writeLuaValue(lua, resolved.front());
-                }
-            } else if (type != "int" && type != "float" && type != "bool" &&
-                       type != "list" &&
+            } else if (type != "string" && type != "int" &&
+                       type != "float" && type != "bool" && type != "list" &&
                        !std::regex_match(type,
                                          std::regex(R"(^tuple\[\d+\]$)"))) {
                 value = evaluateRuntimeExpression(lua, value, nilObject(lua));

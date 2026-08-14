@@ -80,6 +80,14 @@ local _METADATA = {
                 "default",
                 default = "nil",
             },
+            Meta = {
+                InstVar = {
+                    "valueName",
+                },
+                InstVarValue = {
+                    value = "valueName",
+                },
+            },
         },
         GetGameVariable = {
             type = "function",
@@ -94,6 +102,14 @@ local _METADATA = {
                 value = "any",
             },
             Pure = true,
+            Meta = {
+                InstVar = {
+                    "valueName",
+                },
+                InstVarValue = {
+                    default = "valueName",
+                },
+            },
         },
         GetGameVariableRef = {
             type = "function",
@@ -108,6 +124,14 @@ local _METADATA = {
                 value = "any",
             },
             Pure = true,
+            Meta = {
+                InstVar = {
+                    "valueName",
+                },
+                InstVarValue = {
+                    default = "valueName",
+                },
+            },
         },
         AddPlayerByClass = {
             type = "function",
@@ -605,6 +629,12 @@ local _METADATA = {
                         ">",
                         ">=",
                     },
+                },
+                InstVar = {
+                    "varName",
+                },
+                InstVarValue = {
+                    value = "varName",
                 },
             },
         },

@@ -53,6 +53,10 @@ function WindowEnemyBook:close()
     self:setActive(false)
 end
 
+function WindowEnemyBook:refreshLocale()
+    self._ui:refreshLocale()
+end
+
 function WindowEnemyBook:onTick(deltaTime)
     self._ui:tick(deltaTime)
     super(WindowEnemyBook, self).onTick(deltaTime)

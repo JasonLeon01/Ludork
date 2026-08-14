@@ -5,7 +5,7 @@
 ---@field [2] number
 
 ---@param owner Source.Windows.WindowSaveLoad
----@return table
+---@return Source.UI.Helpers.CommandRowModel[]
 function WindowSaveCommandController.createCommands(owner) end
 
 ---@class Source.Windows.WindowSaveLoadExports

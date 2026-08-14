@@ -31,6 +31,9 @@ function WindowEnemyEncyclopedia:open(entry) end
 --- @brief Close the enemy encyclopedia window.
 function WindowEnemyEncyclopedia:close() end
 
+--- @brief Refresh localised detail text without resetting the portrait animation or window focus.
+function WindowEnemyEncyclopedia:refreshLocale() end
+
 --- @brief Close on confirm or cancel.
 ---
 --- - @param kwargs Event data.

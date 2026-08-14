@@ -1,11 +1,8 @@
 local GlobalFunctions = require("GlobalFunctions")
-local LocaleCore = require("Source.Locale.Core")
 local PlayerFunctions = require("Source.NodeFunctions.Player")
 local System = require("Source.System")
 
 local ManagerFunctions = GlobalFunctions.Manager
----@type fun(value: string): string
-local LOC = LocaleCore.ApplyStringLocaleFormat
 
 local Pickup = {}
 
@@ -22,11 +19,10 @@ local function showNewItemMessage(actor, inst, scene)
         return
     end
     inst:setCachedNewItem(actor.ID)
-    local text = LOC("ITEM_NEW"):pformat({
+    scene:showMessage("", "ITEM_NEW", nil, {
         name = actor.name,
         desc = actor.desc
-    }):replace("\\n", "\n")
-    scene:showMessage("", text, nil)
+    })
 end
 
 function Pickup.handleCollision(actor, other, parentCollision, applyPickup)

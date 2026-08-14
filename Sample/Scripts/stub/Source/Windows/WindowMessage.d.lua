@@ -90,4 +90,12 @@ function WindowMessage:getSelectionResult() end
 ---@param onFinished  function | nil
 function WindowMessage:setMessage(refPosition, name, message, allowCancel, onFinished) end
 
+--- @brief Replace the visible dialogue text without resetting interaction or fade state.
+---
+--- Selection content must keep the same option count as the active dialogue. The window preserves
+--- the current option, callbacks, focus, fade progress, completion state, and reference position.
+---@param name    string
+---@param message string | string[]
+function WindowMessage:refreshContent(name, message) end
+
 return WindowMessage

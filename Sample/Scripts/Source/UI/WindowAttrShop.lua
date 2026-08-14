@@ -51,6 +51,8 @@ function WindowAttrShopUI:init(model)
     super(WindowAttrShopUI, self).init(model)
     self._selectable = nil
     self._logicalSize = nil
+    self._shopNameSource = ""
+    self._descriptionSource = ""
     self._shopName = ""
     self._description = ""
     self._priceTextValue = ""
@@ -212,17 +214,23 @@ function WindowAttrShopUI:open(
         selectable:setPosition(sf.Vector2f.new(rect.position.x, rect.position.y))
     end
     self:refreshAvatar(shopActor)
-    self._shopName = bool(shopName) and LOC(shopName) or ""
-    local description = bool(shopDescription) and LOC(shopDescription) or ""
+    self._shopNameSource = tostring(shopName or "")
+    self._descriptionSource = tostring(shopDescription or "")
+    self:refreshLocale()
+    self.model._closed = false
+    selectable:setVisible(true)
+    selectable:setActive(true)
+    selectable:requestKeyboardFocus()
+end
+
+function WindowAttrShopUI:refreshLocale()
+    self._shopName = bool(self._shopNameSource) and LOC(self._shopNameSource) or ""
+    local description = bool(self._descriptionSource) and LOC(self._descriptionSource) or ""
     self._description = description:gsub("\\n", "\n")
     self:setText("ShopName", self._shopName)
     self:setText("Description", self._description)
     self:refreshPriceText()
     self:refreshItems()
-    self.model._closed = false
-    selectable:setVisible(true)
-    selectable:setActive(true)
-    selectable:requestKeyboardFocus()
 end
 
 function WindowAttrShopUI:refreshPriceText()

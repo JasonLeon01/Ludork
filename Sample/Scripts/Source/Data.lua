@@ -6,7 +6,6 @@ local GlobalFunctions = require("GlobalFunctions")
 local Logging = require("Global.Utils.Logging")
 ---@type Global.Utils.Path.Module
 local Path = require("Global.Utils.Path")
-local LocaleCore = require("Source.Locale.Core")
 ---@type { GeneralDataKey: Source.Configs.GeneralEnum.GeneralDataKey }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 
@@ -16,8 +15,6 @@ local Vector3Curve = Engine.Vector3Curve
 local Vector4Curve = Engine.Vector4Curve
 local ComponentsFunctions = GlobalFunctions.Components
 local ManagerFunctions = GlobalFunctions.Manager
----@type fun(value: string): string
-local LOC = LocaleCore.ApplyStringLocaleFormat
 local GeneralDataKey = GeneralEnum.GeneralDataKey
 local PlainTextConfig = Engine.PlainTextConfig
 local RichTextConfig = Engine.RichTextConfig
@@ -1268,8 +1265,6 @@ end)
 Class.registerService("richTextConfig", function (name)
     return Data.getRichTextConfig(name)
 end)
-
-Class.registerService("blueprint.resolveStringValue", LOC)
 
 Class.registerService("blueprint.classGraphData", function (className)
     local classPath = Data.resolveClassPath(className)

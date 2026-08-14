@@ -74,6 +74,10 @@ function WindowItem:open()
     self._itemUI:open()
 end
 
+function WindowItem:refreshLocale()
+    self:_updateDescription()
+end
+
 function WindowItem:close()
     self._itemUI:close()
 end

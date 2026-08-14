@@ -76,6 +76,7 @@ public sealed class EditorActionRouter
     public void OpenUiAsset(string key) => request($"UiAsset:{key}");
     public void OpenTilesets() => request("Tilesets");
     public void OpenCommonFunctions() => request("CommonFunctions");
+    public void OpenGameVariables() => request("GameVariables");
     public void OpenGeneralData(string? key = null) => request(key is null ? "GeneralData" : $"GeneralData:{key}");
     public void OpenBlueprint(string reference) => request($"Blueprint:{reference}");
     public void Undo() => request("Undo");

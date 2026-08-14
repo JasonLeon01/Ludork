@@ -21,6 +21,25 @@ local _specialIconCache = {}
 
 local WindowEnemyBookUI = {}
 
+---@param text string | nil
+---@return string
+function WindowEnemyBookUI.FormatLocaleText(text)
+    return LOC(tostring(text or "")):gsub("\\n", "\n")
+end
+
+---@param entry Source.UI.WindowEnemyBook.Entry
+function WindowEnemyBookUI.RefreshEntryLocale(entry)
+    entry.name = WindowEnemyBookUI.FormatLocaleText(entry.nameSource)
+    entry.desc = WindowEnemyBookUI.FormatLocaleText(entry.descSource)
+    for _, display in ipairs(entry.specialDisplays) do
+        display.name = WindowEnemyBookUI.FormatLocaleText(display.nameSource)
+    end
+    for _, detail in ipairs(entry.specialDetails) do
+        detail.name = WindowEnemyBookUI.FormatLocaleText(detail.nameSource)
+        detail.desc = WindowEnemyBookUI.FormatLocaleText(detail.descSource)
+    end
+end
+
 function WindowEnemyBookUI.loadSpecialIcon(iconPath)
     if not bool(iconPath) then
         return nil
@@ -112,6 +131,15 @@ function WindowEnemyBookUI:tick(deltaTime)
     end
 end
 
+function WindowEnemyBookUI:refreshLocale()
+    for _, entry in ipairs(self.model._enemies) do
+        WindowEnemyBookUI.RefreshEntryLocale(entry)
+    end
+    for _, cellController in ipairs(self._cellControllers) do
+        cellController:refreshLocale()
+    end
+end
+
 function WindowEnemyBookUI:buildEntry(enemy, visual)
     visual = visual or Render.CaptureActorVisual(enemy)
     local damageType, damage = enemy:getDamage(self.model._player)
@@ -123,9 +151,13 @@ function WindowEnemyBookUI:buildEntry(enemy, visual)
     end
     local sourceScale = enemy:getScale()
     local scale = copy(sourceScale)
+    local nameSource = tostring(enemy.infoComp.name or enemy.ID)
+    local descSource = enemy.infoComp.desc
     return {
-        name = self:formatName(enemy.infoComp.name or enemy.ID),
-        desc = self:formatText(enemy.infoComp.desc),
+        nameSource = nameSource,
+        descSource = descSource,
+        name = self:formatName(nameSource),
+        desc = self:formatText(descSource),
         MAXHP = math.floor(enemy.infoComp.MAXHP),
         ATK = math.floor(enemy:getATK(self.model._player)),
         DEF = math.floor(enemy:getDEF(self.model._player)),
@@ -155,6 +187,7 @@ function WindowEnemyBookUI:buildSpecialDisplays(special)
         return {
             {
                 texture = nil,
+                nameSource = "MORE_SPECIAL",
                 name = LOC("MORE_SPECIAL")
             }
         }
@@ -162,9 +195,13 @@ function WindowEnemyBookUI:buildSpecialDisplays(special)
     local displays = {}
     for _, specialKey in ipairs(specialKeys) do
         local specialData = Data.getGeneralSpecialData(tostring(specialKey))
-        local name = self:formatName(specialData.name or specialKey)
+        local nameSource = tostring(specialData.name or specialKey)
         local iconPath = tostring(specialData.icon or specialKey)
-        displays[#displays + 1] = { texture = self.loadSpecialIcon(iconPath), name = name }
+        displays[#displays + 1] = {
+            texture = self.loadSpecialIcon(iconPath),
+            nameSource = nameSource,
+            name = self:formatName(nameSource)
+        }
     end
     return displays
 end
@@ -176,9 +213,13 @@ function WindowEnemyBookUI:buildSpecialDetails(special)
     local details = {}
     for _, specialKey in ipairs(table.orderedStringKeys(special, _SPECIAL_ORDER)) do
         local specialData = Data.getGeneralSpecialData(tostring(specialKey))
+        local nameSource = tostring(specialData.name or specialKey)
+        local descSource = tostring(specialData.desc or "")
         details[#details + 1] = {
-            name = self:formatText(specialData.name or specialKey),
-            desc = self:formatText(specialData.desc or "")
+            nameSource = nameSource,
+            descSource = descSource,
+            name = self:formatText(nameSource),
+            desc = self:formatText(descSource)
         }
     end
     return details
@@ -191,7 +232,7 @@ end
 function WindowEnemyBookUI:formatText(text)
     local _ = self
 
-    return LOC(tostring(text or "")):gsub("\\n", "\n")
+    return WindowEnemyBookUI.FormatLocaleText(text)
 end
 
 return Ui.define("WindowEnemyBook", WindowEnemyBookUI)

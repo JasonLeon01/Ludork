@@ -130,6 +130,9 @@ function WindowAttrShop:refreshPriceText() end
 --- @brief Refresh ability availability and displayed prices.
 function WindowAttrShop:refreshItems() end
 
+--- @brief Refresh localised shop text, price text, and ability rows without changing the current selection.
+function WindowAttrShop:refreshLocale() end
+
 --- @brief Close and deactivate the attribute shop.
 function WindowAttrShop:close() end
 

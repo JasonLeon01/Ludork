@@ -39,6 +39,9 @@ function WindowItem:onMouseButtonDown(kwargs) end
 --- @brief Open the item window, refreshing inventory first.
 function WindowItem:open() end
 
+--- @brief Refresh the currently selected item's localised name and description.
+function WindowItem:refreshLocale() end
+
 --- @brief Close the item window.
 function WindowItem:close() end
 

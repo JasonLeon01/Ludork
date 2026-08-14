@@ -1,4 +1,5 @@
 local GlobalCore = require("GlobalCore")
+local EventKeys = require("Source.Configs.EventKeys")
 local Locale = require("Source.Locale.Core")
 local Ui = require("Source.UI.Ui")
 
@@ -11,6 +12,8 @@ local _FADE_TIME = 1.0
 
 ---@class Source.UI.RegionTitle: Source.UI.UiController
 local RegionTitleUI = {}
+
+RegionTitleUI.refreshEvents = { EventKeys.LocaleChanged }
 
 function RegionTitleUI:init(logicalSize)
     self._logicalSize = logicalSize
@@ -52,6 +55,9 @@ function RegionTitleUI:prepare(logicalSize)
 end
 
 function RegionTitleUI:onViewUpdate(payload)
+    if payload.region == nil then
+        return
+    end
     self._region = payload.region
     self._elapsed = 0.0
 end

@@ -19,9 +19,14 @@ local _METADATA = {
                 "name",
                 "message",
                 "refActor",
+                "localeArgs",
                 name = "string",
                 message = "string",
                 refActor = { "Engine", "Actor" },
+                localeArgs = "Dict[string, any]",
+            },
+            default = {
+                [4] = {},
             },
             ["return"] = {
                 "return",
@@ -39,13 +44,16 @@ local _METADATA = {
                 "options",
                 "refActor",
                 "allowCancel",
+                "localeArgs",
                 name = "string",
                 options = "string[]",
                 refActor = { "Engine", "Actor" },
                 allowCancel = "bool",
+                localeArgs = "Dict[string, any]",
             },
             default = {
                 [4] = true,
+                [5] = {},
             },
             ["return"] = {
                 "return",

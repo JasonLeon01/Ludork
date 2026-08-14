@@ -28,6 +28,8 @@ function WindowEnemyBookCellUI:refresh() end
 ---@return Engine.Canvas
 function WindowEnemyBookCellUI:prepare(logicalSize) end
 
+function WindowEnemyBookCellUI:refreshLocale() end
+
 ---@param specialDisplays Source.UI.WindowEnemyBook.SpecialDisplay[]
 ---@return number
 function WindowEnemyBookCellUI.measureSpecialAreaWidth(specialDisplays) end

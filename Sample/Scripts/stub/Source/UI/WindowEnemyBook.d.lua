@@ -2,13 +2,18 @@
 
 ---@class Source.UI.WindowEnemyBook.SpecialDisplay
 ---@field texture sf.Texture | nil
+---@field nameSource string
 ---@field name string
 
 ---@class Source.UI.WindowEnemyBook.SpecialDetail
+---@field nameSource string
+---@field descSource string
 ---@field name string
 ---@field desc string
 
 ---@class Source.UI.WindowEnemyBook.Entry
+---@field nameSource string
+---@field descSource string | nil
 ---@field name string
 ---@field desc string
 ---@field MAXHP integer
@@ -39,6 +44,13 @@
 ---@field new fun(model: Source.Windows.WindowEnemyBook, size: sf.Vector2i): Source.UI.WindowEnemyBook
 local WindowEnemyBookUI = {}
 
+---@param text string | nil
+---@return string
+function WindowEnemyBookUI.FormatLocaleText(text) end
+
+---@param entry Source.UI.WindowEnemyBook.Entry
+function WindowEnemyBookUI.RefreshEntryLocale(entry) end
+
 ---@param iconPath string
 ---@return sf.Texture | nil
 function WindowEnemyBookUI.loadSpecialIcon(iconPath) end
@@ -68,6 +80,8 @@ function WindowEnemyBookUI:refreshEnemies(gameMap) end
 
 ---@param deltaTime number
 function WindowEnemyBookUI:tick(deltaTime) end
+
+function WindowEnemyBookUI:refreshLocale() end
 
 ---@param enemy  Source.Enemy
 ---@param visual Global.Utils.Render.ActorVisual | nil

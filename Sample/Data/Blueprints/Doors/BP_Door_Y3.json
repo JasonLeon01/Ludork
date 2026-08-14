@@ -13,7 +13,8 @@
     ],
     "needKeyID": "KEY_Y",
     "needKeyCount": 3,
-    "texturePath": "blocks/classic-doors-003-single.png"
+    "texturePath": "blocks/classic-doors-003-single.png",
+    "tag": ""
   },
   "type": "blueprint"
 }

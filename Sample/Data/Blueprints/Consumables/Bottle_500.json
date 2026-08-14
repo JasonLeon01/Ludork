@@ -29,7 +29,8 @@
         96
       ],
       "lightRadius": 16.0
-    }
+    },
+    "tag": ""
   },
   "graph": {
     "nodeGraph": {

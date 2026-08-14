@@ -20,7 +20,8 @@
         32
       ]
     ],
-    "shaderPath": "Rainbow.frag"
+    "shaderPath": "Rainbow.frag",
+    "tag": ""
   },
   "graph": {
     "nodeGraph": {
@@ -81,8 +82,8 @@
           {
             "nodeFunction": "NodeFunctions.Scene.ShowVoiceMessageByTag",
             "params": [
-              "TestName2",
-              "Now you will see.",
+              "{TD_NAME}",
+              "{TD_1}",
               "chuckle.wav",
               ""
             ],
@@ -114,7 +115,7 @@
             "nodeFunction": "NodeFunctions.Scene.ShowMessageByTag",
             "params": [
               "",
-              "No name here.",
+              "{TD_2}",
               ""
             ],
             "pos": [
@@ -125,12 +126,12 @@
           {
             "nodeFunction": "NodeFunctions.Scene.ShowSelection",
             "params": [
-              "TestSelection",
+              "{TS_NAME}",
               [
-                "Test blinking",
-                "Test shaking",
-                "Test shop",
-                "More..."
+                "{TS_1}",
+                "{TS_2}",
+                "{TS_3}",
+                "{TS_6}"
               ],
               "",
               true
@@ -143,10 +144,10 @@
           {
             "nodeFunction": "NodeFunctions.Scene.ShowSelection",
             "params": [
-              "TestSelection",
+              "{TS_NAME}",
               [
-                "Test weather",
-                "Test Video"
+                "{TS_4}",
+                "{TS_5}"
               ],
               "",
               true

@@ -98,6 +98,24 @@ function WindowEquipSlotController:refreshSlots()
     self:redrawIfVisible()
 end
 
+function WindowEquipSlotController:refreshLocale()
+    if not self.model:getVisible() then
+        return
+    end
+    self:refreshSlots()
+    local slotKey = self:getCurrentSlotKey()
+    if slotKey == nil then
+        return
+    end
+    if self.model._windowEquipSelect ~= nil and self.model._windowEquipSelect:getActive() then
+        self.model._windowEquipSelect:updateStatus()
+        return
+    end
+    if self.model._windowEquipStatus ~= nil then
+        self.model._windowEquipStatus:refreshForSlot(slotKey)
+    end
+end
+
 function WindowEquipSlotController:redrawIfVisible()
     if not self.model:getVisible() then
         return
@@ -541,6 +559,10 @@ end
 
 function WindowEquipSlot:refreshSlots()
     self._slotController:refreshSlots()
+end
+
+function WindowEquipSlot:refreshLocale()
+    self._slotController:refreshLocale()
 end
 
 -- Force redraw while visible even when inactive.

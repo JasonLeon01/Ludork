@@ -42,5 +42,6 @@
     "enabled": false,
     "direction": "vertical",
     "curve": ""
-  }
+  },
+  "slantAngle": 0
 }

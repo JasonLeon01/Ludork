@@ -7,10 +7,21 @@ local _METADATA = {
         openConditionName = {
             type = "string",
             default = "",
+            Meta = {
+                InstVar = {
+                    types = {
+                        "int",
+                        "float",
+                    },
+                },
+            },
         },
         openConditionVal = {
             type = "int",
             default = 0,
+            Meta = {
+                InstVarValue = "openConditionName",
+            },
         },
     },
 }

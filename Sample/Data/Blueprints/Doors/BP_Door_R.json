@@ -1,56 +1,57 @@
 {
-    "parent": "Data.Blueprints.Doors.BP_Door_Y",
-    "attrs": {
-        "defaultRect": [
-            [
-                0,
-                64,
-                32,
-                32
-            ]
-        ],
-        "needKeyID": "KEY_R"
+  "parent": "Data.Blueprints.Doors.BP_Door_Y",
+  "attrs": {
+    "defaultRect": [
+      [
+        0,
+        64,
+        32,
+        32
+      ]
+    ],
+    "needKeyID": "KEY_R",
+    "tag": ""
+  },
+  "graph": {
+    "nodeGraph": {
+      "onCollision": {
+        "nodes": [],
+        "links": []
+      },
+      "onCreate": {
+        "nodes": [],
+        "links": []
+      },
+      "onDestroy": {
+        "nodes": [],
+        "links": []
+      },
+      "onFixedTick": {
+        "nodes": [],
+        "links": []
+      },
+      "onLateTick": {
+        "nodes": [],
+        "links": []
+      },
+      "onOverlap": {
+        "nodes": [],
+        "links": []
+      },
+      "onTick": {
+        "nodes": [],
+        "links": []
+      }
     },
-    "graph": {
-        "nodeGraph": {
-            "onCollision": {
-                "nodes": [],
-                "links": []
-            },
-            "onCreate": {
-                "nodes": [],
-                "links": []
-            },
-            "onDestroy": {
-                "nodes": [],
-                "links": []
-            },
-            "onFixedTick": {
-                "nodes": [],
-                "links": []
-            },
-            "onLateTick": {
-                "nodes": [],
-                "links": []
-            },
-            "onOverlap": {
-                "nodes": [],
-                "links": []
-            },
-            "onTick": {
-                "nodes": [],
-                "links": []
-            }
-        },
-        "startNodes": {
-            "onCollision": null,
-            "onCreate": null,
-            "onDestroy": null,
-            "onFixedTick": null,
-            "onLateTick": null,
-            "onOverlap": null,
-            "onTick": null
-        }
-    },
-    "type": "blueprint"
+    "startNodes": {
+      "onCollision": null,
+      "onCreate": null,
+      "onDestroy": null,
+      "onFixedTick": null,
+      "onLateTick": null,
+      "onOverlap": null,
+      "onTick": null
+    }
+  },
+  "type": "blueprint"
 }

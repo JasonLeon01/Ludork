@@ -5,6 +5,13 @@
 ---@field anchorPos sf.Vector2i
 ---@field moveEnabled boolean
 
+---@class Source.Scenes.SceneMap.DialogueLocaleSource
+---@field name string
+---@field content string | string[]
+---@field localeArgs table<string, any>
+---@field localVars table<string, any>
+---@field instanceVars table<string, any>
+
 ---@class Source.Scenes.SceneMap.SceneMap: GlobalCore.SceneBase
 ---@field new fun(): Source.Scenes.SceneMap.SceneMap
 ---@field inst Source.GameInstance.GameInstance
@@ -24,9 +31,12 @@
 ---@field _windowFloorTeleporter Source.Windows.WindowFloorTeleporter
 ---@field _windowSaveLoad Source.Windows.WindowSaveLoad
 ---@field _windowMenu Source.Windows.WindowMenu
+---@field _configWindow Source.Windows.ConfigWindow
 ---@field _blockingWindows any[]
 ---@field _regionTitleUI Source.UI.RegionTitle
 ---@field _regionTitleText Engine.RichText
+---@field _localeChangedToken integer | nil
+---@field _dialogueLocaleSource Source.Scenes.SceneMap.DialogueLocaleSource | nil
 ---@field _gameMap GameMap | nil
 ---@field _cachedMapFile string | nil
 ---@field _currentRegion string | nil
@@ -108,12 +118,14 @@ function Scene:getGameMap() end
 --- - @param name Speaker name.
 --- - @param message Message text.
 --- - @param refActor Optional reference actor for positioning.
+--- - @param localeArgs Optional raw locale values inserted after translating the message template.
 --- - @return A callable condition function that returns True when dialogue finishes.
----@param name     string
----@param message  string
----@param refActor Engine.Actor | nil
+---@param name        string
+---@param message     string
+---@param refActor    Engine.Actor | nil
+---@param localeArgs? table<string, any>
 ---@return function
-function Scene:showMessage(name, message, refActor) end
+function Scene:showMessage(name, message, refActor, localeArgs) end
 
 --- @brief Show a selection window with multiple options.
 ---
@@ -121,13 +133,15 @@ function Scene:showMessage(name, message, refActor) end
 --- - @param options List of option strings.
 --- - @param refActor Optional reference actor for positioning.
 --- - @param allowCancel Whether the player can cancel.
+--- - @param localeArgs Optional raw locale values inserted after translating each text template.
 --- - @return A callable that returns the selected option index, or -1 for cancel.
----@param name        string
----@param options     string[]
----@param refActor    Engine.Actor | nil
----@param allowCancel boolean
+---@param name         string
+---@param options      string[]
+---@param refActor     Engine.Actor | nil
+---@param allowCancel  boolean
+---@param localeArgs?  table<string, any>
 ---@return function
-function Scene:showSelection(name, options, refActor, allowCancel) end
+function Scene:showSelection(name, options, refActor, allowCancel, localeArgs) end
 
 --- @brief Apply a loaded game instance and force-reload the cached map.
 ---

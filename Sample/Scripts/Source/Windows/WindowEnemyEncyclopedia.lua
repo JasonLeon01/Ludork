@@ -48,6 +48,10 @@ function WindowEnemyEncyclopedia:close()
     end
 end
 
+function WindowEnemyEncyclopedia:refreshLocale()
+    self._ui:refreshLocale()
+end
+
 function WindowEnemyEncyclopedia:onKeyDown(_kwargs)
     if Input.isActionTriggered(Input.getConfirmKeys(), false) then
         self:_closeByInput()

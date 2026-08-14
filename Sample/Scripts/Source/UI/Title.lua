@@ -1,12 +1,8 @@
 local Engine = require("Engine")
 local SourceSystem = require("Source.System")
-local LocaleCore = require("Source.Locale.Core")
 local EventKeys = require("Source.Configs.EventKeys")
 local WindowCommand = require("Source.Windows.WindowCommand")
 local Ui = require("Source.UI.Ui")
-
----@type fun(value: string): string
-local LOC = LocaleCore.ApplyStringLocaleFormat
 
 local SceneTitleUI = {}
 
@@ -16,28 +12,24 @@ function SceneTitleUI:bind()
     self._commandModels = {
         {
             localeKey = "TITLE_START",
-            text = "",
             callback = function ()
                 self.model._startGame()
             end
         },
         {
             localeKey = "TITLE_CONTINUE",
-            text = "",
             callback = function ()
                 self.model:_onLoadCommand()
             end
         },
         {
             localeKey = "TITLE_CONFIG",
-            text = "",
             callback = function ()
                 self.model:_onConfigCommand()
             end
         },
         {
             localeKey = "TITLE_EXIT",
-            text = "",
             callback = function ()
                 self.model._exitGame()
             end
@@ -50,9 +42,6 @@ end
 
 function SceneTitleUI:refresh()
     self:setProperty("Background", "texture", "Assets/System/" .. SourceSystem.getTitleBackgroundFile())
-    for _, command in ipairs(self._commandModels) do
-        command.text = LOC(command.localeKey)
-    end
     self._windowCommand:refreshRows()
 end
 

@@ -1,63 +1,64 @@
 {
-    "parent": "Engine.Actor",
-    "attrs": {
-        "scriptMixin": true,
-        "scriptPath": "Consumables/Bottle.lua",
-        "material": {
-            "lightBlock": 0.16,
-            "mirror": false,
-            "reflectionStrength": 0.5,
-            "opacity": 1.0,
-            "speedRate": 1.0
-        },
-        "collisionEnabled": true,
-        "texturePath": "items/classic-potions.png",
-        "HP_plus": 200,
-        "lightComp": {
-            "lightColour": [
-                255,
-                96,
-                96,
-                128
-            ],
-            "lightRadius": 16.0
-        }
+  "parent": "Engine.Actor",
+  "attrs": {
+    "scriptMixin": true,
+    "scriptPath": "Consumables/Bottle.lua",
+    "material": {
+      "lightBlock": 0.16,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1.0,
+      "speedRate": 1.0
     },
-    "graph": {
-        "nodeGraph": {
-            "onCreate": {
-                "nodes": [],
-                "links": []
-            },
-            "onDestroy": {
-                "nodes": [],
-                "links": []
-            },
-            "onFixedTick": {
-                "nodes": [],
-                "links": []
-            },
-            "onLateTick": {
-                "nodes": [],
-                "links": []
-            },
-            "onOverlap": {
-                "nodes": [],
-                "links": []
-            },
-            "onTick": {
-                "nodes": [],
-                "links": []
-            }
-        },
-        "startNodes": {
-            "onCreate": null,
-            "onDestroy": null,
-            "onFixedTick": null,
-            "onLateTick": null,
-            "onOverlap": null,
-            "onTick": null
-        }
+    "collisionEnabled": true,
+    "texturePath": "items/classic-potions.png",
+    "HP_plus": 200,
+    "lightComp": {
+      "lightColour": [
+        255,
+        96,
+        96,
+        128
+      ],
+      "lightRadius": 16.0
     },
-    "type": "blueprint"
+    "tag": ""
+  },
+  "graph": {
+    "nodeGraph": {
+      "onCreate": {
+        "nodes": [],
+        "links": []
+      },
+      "onDestroy": {
+        "nodes": [],
+        "links": []
+      },
+      "onFixedTick": {
+        "nodes": [],
+        "links": []
+      },
+      "onLateTick": {
+        "nodes": [],
+        "links": []
+      },
+      "onOverlap": {
+        "nodes": [],
+        "links": []
+      },
+      "onTick": {
+        "nodes": [],
+        "links": []
+      }
+    },
+    "startNodes": {
+      "onCreate": null,
+      "onDestroy": null,
+      "onFixedTick": null,
+      "onLateTick": null,
+      "onOverlap": null,
+      "onTick": null
+    }
+  },
+  "type": "blueprint"
 }
