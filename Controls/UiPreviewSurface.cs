@@ -16,29 +16,29 @@ namespace Ludork.Controls;
 
 public sealed class UiPreviewNodeEventArgs : EventArgs
 {
-    public UiPreviewNodeEventArgs(string nodeId)
+    public UiPreviewNodeEventArgs(string nodeName)
     {
-        NodeId = nodeId;
+        NodeName = nodeName;
     }
 
-    public string NodeId { get; }
+    public string NodeName { get; }
 }
 
 public sealed class UiPreviewTransformEventArgs : EventArgs
 {
     public UiPreviewTransformEventArgs(
-        string nodeId,
+        string nodeName,
         double deltaX,
         double deltaY,
         bool resize)
     {
-        NodeId = nodeId;
+        NodeName = nodeName;
         DeltaX = deltaX;
         DeltaY = deltaY;
         Resize = resize;
     }
 
-    public string NodeId { get; }
+    public string NodeName { get; }
     public double DeltaX { get; }
     public double DeltaY { get; }
     public bool Resize { get; }
@@ -62,7 +62,7 @@ public sealed class UiPreviewSurface : UserControl
     private readonly EditorZoomInput zoomInput = new();
     private readonly List<UiPreviewNodeGeometry> nodes = [];
     private WriteableBitmap? bitmap;
-    private string? selectedNodeId;
+    private string? selectedNodeName;
     private Point pointerStart;
     private Point panStart;
     private bool transforming;
@@ -213,9 +213,9 @@ public sealed class UiPreviewSurface : UserControl
         resizeHandle.IsVisible = false;
     }
 
-    public void SetSelectedNode(string? nodeId)
+    public void SetSelectedNode(string? nodeName)
     {
-        selectedNodeId = nodeId;
+        selectedNodeName = nodeName;
         updateSelection();
     }
 
@@ -272,26 +272,26 @@ public sealed class UiPreviewSurface : UserControl
         Point designPoint = toDesignPoint(point.Position);
         UiPreviewNodeGeometry? selected = nodes
             .Where(node => string.Equals(
-                node.NodeId,
-                selectedNodeId,
+                node.NodeName,
+                selectedNodeName,
                 StringComparison.Ordinal))
             .OrderByDescending(node => node.DrawOrder)
             .FirstOrDefault();
         if (selected is not null && isResizeHandleHit(designPoint))
         {
-            beginTransform(args, point, selected.NodeId, designPoint);
+            beginTransform(args, point, selected.NodeName, designPoint);
             return;
         }
         if (HitTestResolver is null || frameGeneration == 0)
             return;
         long hitTestGeneration = frameGeneration;
-        string? hitNodeId = await HitTestResolver(
+        string? hitNodeName = await HitTestResolver(
             hitTestGeneration,
             designPoint.X,
             designPoint.Y);
-        if (hitNodeId is null || frameGeneration != hitTestGeneration)
+        if (hitNodeName is null || frameGeneration != hitTestGeneration)
             return;
-        if (string.Equals(hitNodeId, selectedNodeId, StringComparison.Ordinal))
+        if (string.Equals(hitNodeName, selectedNodeName, StringComparison.Ordinal))
         {
             PointerPoint currentPoint = args.GetCurrentPoint(viewport);
             if (currentPoint.Properties.IsLeftButtonPressed)
@@ -299,28 +299,28 @@ public sealed class UiPreviewSurface : UserControl
                 beginTransform(
                     args,
                     currentPoint,
-                    hitNodeId,
+                    hitNodeName,
                     toDesignPoint(currentPoint.Position));
             }
             return;
         }
-        selectedNodeId = hitNodeId;
+        selectedNodeName = hitNodeName;
         updateSelection();
-        NodeSelected?.Invoke(this, new UiPreviewNodeEventArgs(hitNodeId));
+        NodeSelected?.Invoke(this, new UiPreviewNodeEventArgs(hitNodeName));
         args.Handled = true;
     }
 
     private void beginTransform(
         PointerPressedEventArgs args,
         PointerPoint point,
-        string nodeId,
+        string nodeName,
         Point designPoint)
     {
         transforming = true;
         resizing = isResizeHandleHit(designPoint);
         pointerStart = point.Position;
         args.Pointer.Capture(viewport);
-        UiPreviewTransformEventArgs transformArgs = new(nodeId, 0, 0, resizing);
+        UiPreviewTransformEventArgs transformArgs = new(nodeName, 0, 0, resizing);
         TransformStarted?.Invoke(this, transformArgs);
         args.Handled = true;
     }
@@ -335,13 +335,13 @@ public sealed class UiPreviewSurface : UserControl
             args.Handled = true;
             return;
         }
-        if (!transforming || selectedNodeId is null)
+        if (!transforming || selectedNodeName is null)
             return;
         double deltaX = (current.X - pointerStart.X) / zoom;
         double deltaY = (current.Y - pointerStart.Y) / zoom;
         TransformChanged?.Invoke(
             this,
-            new UiPreviewTransformEventArgs(selectedNodeId, deltaX, deltaY, resizing));
+            new UiPreviewTransformEventArgs(selectedNodeName, deltaX, deltaY, resizing));
         args.Handled = true;
     }
 
@@ -354,7 +354,7 @@ public sealed class UiPreviewSurface : UserControl
             args.Handled = true;
             return;
         }
-        if (!transforming || selectedNodeId is null)
+        if (!transforming || selectedNodeName is null)
             return;
         Point current = args.GetPosition(viewport);
         double deltaX = (current.X - pointerStart.X) / zoom;
@@ -363,7 +363,7 @@ public sealed class UiPreviewSurface : UserControl
         args.Pointer.Capture(null);
         TransformCompleted?.Invoke(
             this,
-            new UiPreviewTransformEventArgs(selectedNodeId, deltaX, deltaY, resizing));
+            new UiPreviewTransformEventArgs(selectedNodeName, deltaX, deltaY, resizing));
         args.Handled = true;
     }
 
@@ -445,7 +445,7 @@ public sealed class UiPreviewSurface : UserControl
     private void updateSelection()
     {
         UiPreviewNodeGeometry? geometry = nodes
-            .Where(node => string.Equals(node.NodeId, selectedNodeId, StringComparison.Ordinal))
+            .Where(node => string.Equals(node.NodeName, selectedNodeName, StringComparison.Ordinal))
             .OrderByDescending(node => node.DrawOrder)
             .FirstOrDefault();
         if (geometry is null)

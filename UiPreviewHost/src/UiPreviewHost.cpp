@@ -45,7 +45,7 @@
 
 namespace {
 
-constexpr std::int64_t protocolVersion = 4;
+constexpr std::int64_t protocolVersion = 5;
 constexpr std::uint32_t maximumMessageSize = 64u * 1024u * 1024u;
 constexpr unsigned int maximumAtlasSize = 2048;
 constexpr unsigned int atlasGutter = 1;
@@ -517,7 +517,7 @@ RuntimeValue::Array nodeGeometry(
     for (const UiAssetNodeView& node : instance->getNodeViews()) {
         const sf::FloatRect clip = effectiveClip(node.control, rootClip);
         result.emplace_back(object({
-            {"nodeId", RuntimeValue(node.nodeId)},
+            {"nodeName", RuntimeValue(node.nodeName)},
             {"x", number(node.bounds.position.x / renderScale)},
             {"y", number(node.bounds.position.y / renderScale)},
             {"width", number(node.bounds.size.x / renderScale)},
@@ -1314,7 +1314,7 @@ private:
             static_cast<float>(requireNumber(
                 requireValue(request, "y", "Hit test request"),
                 "Hit test request.y"))};
-        RuntimeValue nodeId;
+        RuntimeValue nodeName;
         if (instance_ != nullptr && generation == generation_) {
             engineState().setScale(renderScale_);
             const sf::Vector2f point = logicalPoint * renderScale_;
@@ -1347,7 +1347,7 @@ private:
                         .transformPoint(point) /
                     renderScale_;
                 if (node.control->getLocalBounds().contains(local)) {
-                    nodeId = RuntimeValue(node.nodeId);
+                    nodeName = RuntimeValue(node.nodeName);
                     break;
                 }
             }
@@ -1355,7 +1355,7 @@ private:
         return RuntimeValue(object({
             {"type", RuntimeValue("hitTest")},
             {"generation", RuntimeValue(generation)},
-            {"nodeId", std::move(nodeId)},
+            {"nodeName", std::move(nodeName)},
         }));
     }
 

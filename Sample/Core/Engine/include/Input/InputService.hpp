@@ -13,6 +13,7 @@
 #include <SFML/Window/Mouse.hpp>
 #include <SFML/Window/WindowBase.hpp>
 
+#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <deque>
@@ -191,6 +192,9 @@ public:
 
     BIND_IGNORE()
     void onWindowRecreated(sf::WindowBase& window);
+
+    BIND_IGNORE()
+    static void requestSystemCancel() noexcept;
 
     BIND_METHOD(Pure = true)
     bool isFocused() const;
@@ -506,6 +510,7 @@ private:
                                      const sf::Vector2i& position);
 
     void resetFrameState();
+    void consumePendingSystemCancel();
     void clearKeyboardState();
     void recordMouseWheel(sf::Mouse::Wheel wheel, float delta,
                           const sf::Vector2i& position, bool precise = false);
@@ -629,6 +634,7 @@ private:
     std::vector<ActionMapping> actionMappings_;
     std::function<void()> frameCompletionCallback_;
     sf::WindowBase* activeWindow_ = nullptr;
+    static std::atomic_bool pendingSystemCancel_;
 };
 
 BIND_FUNCTION()

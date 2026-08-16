@@ -10,7 +10,6 @@
     "category": "Windows"
   },
   "root": {
-    "id": "570434e7-4bc2-4db0-8e26-9bf13bb2ca86",
     "name": "Root",
     "controlId": "Engine.Canvas",
     "properties": {
@@ -22,7 +21,6 @@
     "editor": {},
     "children": [
       {
-        "id": "b5df05e8-ddc5-4257-8173-6eacf2b302ca",
         "name": "WindowFrame",
         "controlId": "Engine.Window",
         "properties": {
@@ -61,7 +59,6 @@
         "children": []
       },
       {
-        "id": "85a5cf1c-d581-4b4e-99ec-1336574d6dee",
         "name": "Content",
         "controlId": "Engine.Canvas",
         "properties": {
@@ -97,7 +94,6 @@
         "editor": {},
         "children": [
           {
-            "id": "c5fb60ba-a1b2-4d32-bf9e-2bbdf87c0e0d",
             "name": "PreviewImage",
             "controlId": "Engine.Image",
             "properties": {
@@ -132,7 +128,6 @@
             "children": []
           },
           {
-            "id": "f9d7181e-c6df-4b17-8df2-0ebbababd1ae",
             "name": "TelepointList",
             "controlId": "Engine.ListView",
             "properties": {

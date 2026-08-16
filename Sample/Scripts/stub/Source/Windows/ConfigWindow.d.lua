@@ -3,6 +3,9 @@
 --- Each setting row combines a label and an interactive control.
 ---@class Source.Windows.ConfigWindow: Source.Windows.Base.WindowSelectable
 ---@field _open boolean
+---@field _capturedTouchSlider Engine.Slider?
+---@field _capturedTouchSliderIndex integer?
+---@field _capturedTouchOwner "list" | "slider" | nil
 local ConfigWindow = {}
 
 ---@param onClose function | nil
@@ -93,6 +96,9 @@ function ConfigWindow:close() end
 
 function ConfigWindow:dispose() end
 
+--- @brief Cancel an expanded DropBox, or close the configuration window.
+function ConfigWindow:onReturn() end
+
 --- @brief Update the window, delegating input to an expanded DropBox when needed.
 ---
 --- - @param deltaTime  Elapsed time in seconds
@@ -109,5 +115,18 @@ function ConfigWindow:onKeyDown(kwargs) end
 ---@param kwargs table
 ---@return boolean
 function ConfigWindow:onMouseButtonDown(kwargs) end
+
+---@param position sf.Vector2f
+function ConfigWindow:_onCapturedTouchBegan(position) end
+
+---@param position sf.Vector2f
+---@return boolean
+function ConfigWindow:_handleCapturedTouchDrag(position) end
+
+---@param position sf.Vector2f
+---@return boolean
+function ConfigWindow:_handleCapturedTouchTap(position) end
+
+function ConfigWindow:_onCapturedTouchReset() end
 
 return ConfigWindow

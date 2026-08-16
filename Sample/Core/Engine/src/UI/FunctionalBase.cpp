@@ -51,29 +51,28 @@ void FunctionalBase::resetRuntimeCallbacks() noexcept {
 }
 
 bool FunctionalBase::canReceiveFocus() const {
-    if (!getCanReceiveFocus() || !active_) {
-        return false;
-    }
-    const ControlBase* control = dynamic_cast<const ControlBase*>(this);
-    return control == nullptr || control->getVisible();
+    return getCanReceiveFocus() && isInteractionEnabled();
 }
 
 bool FunctionalBase::shouldDispatchKeyboardInput() const {
-    return !keyboardFocusResolver_ || keyboardFocusResolver_(*this);
+    return isInteractionEnabled() &&
+           (!keyboardFocusResolver_ || keyboardFocusResolver_(*this));
 }
 
 bool FunctionalBase::requestDirectionalFocusMove(const std::string& direction) {
-    return directionalFocusRequester_ &&
+    return isInteractionEnabled() && directionalFocusRequester_ &&
            directionalFocusRequester_(*this, direction);
 }
 
 bool FunctionalBase::requestKeyboardFocus() {
-    return keyboardFocusSetter_ && keyboardFocusSetter_(*this);
+    return isInteractionEnabled() && keyboardFocusSetter_ &&
+           keyboardFocusSetter_(*this);
 }
 
 bool FunctionalBase::ownsKeyboardCursorFocus() const {
-    return keyboardCursorResolver_ ? keyboardCursorResolver_(*this)
-                                   : getFocused();
+    return isInteractionEnabled() &&
+           (keyboardCursorResolver_ ? keyboardCursorResolver_(*this)
+                                    : getFocused());
 }
 
 bool FunctionalBase::isHovered() const {
@@ -96,7 +95,12 @@ void FunctionalBase::setActive(bool active) {
     if (!active_) {
         const bool hadPointerInteraction =
             hovered_ || pressed_ || pointerSource_ != PointerSource::None;
-        resetPointerInteraction();
+        ControlBase* control = dynamic_cast<ControlBase*>(this);
+        if (control != nullptr) {
+            ControlBase::resetFunctionalInteractions(*control);
+        } else {
+            resetPointerInteraction();
+        }
         if (!hadPointerInteraction) {
             onInteractionStateChanged();
         }
@@ -181,13 +185,13 @@ void FunctionalBase::update(float deltaTime) {
     }
     ControlBase* control = dynamic_cast<ControlBase*>(this);
     const sf::Vector2f mousePosition(inputProvider_->getMousePosition());
-    if (control != nullptr && !control->getVisible()) {
+    if (!isInteractionEnabled()) {
         resetPointerInteraction();
         return;
     }
 
-    if (active_ && control != nullptr &&
-        pointerSource_ == PointerSource::None && acceptsTouchCapture()) {
+    if (control != nullptr && pointerSource_ == PointerSource::None &&
+        acceptsTouchCapture()) {
         const std::optional<sf::FloatRect> touchBounds =
             getAbsoluteTouchHitBounds();
         if (touchBounds.has_value() &&
@@ -202,6 +206,10 @@ void FunctionalBase::update(float deltaTime) {
             }
         }
     }
+    if (!isInteractionEnabled()) {
+        resetPointerInteraction();
+        return;
+    }
 
     if (pointerSource_ != PointerSource::Touch) {
         static constexpr std::array buttons = {
@@ -211,8 +219,11 @@ void FunctionalBase::update(float deltaTime) {
         };
         std::array<bool, buttons.size()> mousePressed = {};
         bool mousePressReceived = false;
-        if (active_ && inputProvider_->isMouseButtonPressed()) {
+        if (inputProvider_->isMouseButtonPressed()) {
             for (std::size_t index = 0; index < buttons.size(); ++index) {
+                if (!isInteractionEnabled()) {
+                    break;
+                }
                 const sf::Mouse::Button button = buttons[index];
                 mousePressed[index] =
                     inputProvider_->getMouseButtonPressed(button, false);
@@ -226,6 +237,10 @@ void FunctionalBase::update(float deltaTime) {
                 }
             }
         }
+        if (!isInteractionEnabled()) {
+            resetPointerInteraction();
+            return;
+        }
 
         bool hovered = control != nullptr &&
                        control->getAbsoluteBounds().contains(mousePosition);
@@ -233,8 +248,12 @@ void FunctionalBase::update(float deltaTime) {
             hovered = false;
         }
         setHovered(hovered, mousePosition);
+        if (!isInteractionEnabled()) {
+            resetPointerInteraction();
+            return;
+        }
         if (hovered) {
-            if (active_ && pointerSource_ == PointerSource::None) {
+            if (pointerSource_ == PointerSource::None) {
                 for (std::size_t index = 0; index < buttons.size(); ++index) {
                     if (mousePressed[index]) {
                         beginMousePress(buttons[index]);
@@ -242,16 +261,32 @@ void FunctionalBase::update(float deltaTime) {
                     }
                 }
             }
+            if (!isInteractionEnabled()) {
+                resetPointerInteraction();
+                return;
+            }
             if (inputProvider_->isMouseMoved()) {
                 onMouseMoved(pointerArguments(mousePosition));
             }
-            if (active_ && mousePressReceived) {
+            if (!isInteractionEnabled()) {
+                resetPointerInteraction();
+                return;
+            }
+            if (mousePressReceived) {
                 onClick(pointerArguments(mousePosition));
             }
-            if (active_ && inputProvider_->isMouseWheelScrolled()) {
+            if (!isInteractionEnabled()) {
+                resetPointerInteraction();
+                return;
+            }
+            if (inputProvider_->isMouseWheelScrolled()) {
                 onMouseWheelScrolled(mouseWheelArguments(
                     mousePosition,
                     inputProvider_->getMouseScrolledWheelDelta()));
+            }
+            if (!isInteractionEnabled()) {
+                resetPointerInteraction();
+                return;
             }
         }
 
@@ -260,7 +295,7 @@ void FunctionalBase::update(float deltaTime) {
             const bool released =
                 inputProvider_->isMouseButtonReleased() &&
                 inputProvider_->getMouseButtonReleased(button, false);
-            if (!active_ || !hovered || released ||
+            if (!isInteractionEnabled() || !hovered || released ||
                 !inputProvider_->isMouseButtonDown(button)) {
                 endPointerPress();
             }
@@ -268,8 +303,12 @@ void FunctionalBase::update(float deltaTime) {
     } else {
         setHovered(false, mousePosition);
     }
+    if (!isInteractionEnabled()) {
+        resetPointerInteraction();
+        return;
+    }
 
-    if (active_ && control != nullptr) {
+    if (control != nullptr) {
         if (pointerSource_ == PointerSource::Touch) {
             const bool ended = inputProvider_->isTouchEnded();
             const std::optional<sf::Vector2i> position =
@@ -277,6 +316,10 @@ void FunctionalBase::update(float deltaTime) {
                       : inputProvider_->getTouchPosition();
             if (inputProvider_->isTouchMoved() && position.has_value()) {
                 onMouseMoved(pointerArguments(sf::Vector2f(*position)));
+            }
+            if (!isInteractionEnabled()) {
+                resetPointerInteraction();
+                return;
             }
             if (ended) {
                 if (inputProvider_->isTouchTap(false)) {
@@ -295,7 +338,8 @@ void FunctionalBase::update(float deltaTime) {
                     inputProvider_->isTouchTap(true);
                 }
                 endPointerPress();
-            } else if (!active_ || !inputProvider_->isTouchActive() ||
+            } else if (!isInteractionEnabled() ||
+                       !inputProvider_->isTouchActive() ||
                        !position.has_value()) {
                 resetPointerInteraction();
             }
@@ -310,8 +354,9 @@ void FunctionalBase::update(float deltaTime) {
             inputProvider_->isJoystickAxisMoved()) {
             onKeyDown({});
         }
-        if (inputProvider_->isKeyReleased() ||
-            inputProvider_->isJoystickButtonReleased()) {
+        if (shouldDispatchKeyboardInput() &&
+            (inputProvider_->isKeyReleased() ||
+             inputProvider_->isJoystickButtonReleased())) {
             onKeyUp({});
         }
     }
@@ -392,6 +437,32 @@ void FunctionalBase::onFixedTick(float) {}
 
 FunctionalInputProvider* FunctionalBase::inputProvider() {
     return inputProvider_;
+}
+
+bool FunctionalBase::isInteractionEnabled() const {
+    if (!active_) {
+        return false;
+    }
+    const ControlBase* control = dynamic_cast<const ControlBase*>(this);
+    if (control == nullptr) {
+        return true;
+    }
+    if (!control->getVisible()) {
+        return false;
+    }
+    std::shared_ptr<ControlBase> parent = control->getParent();
+    while (parent != nullptr) {
+        if (!parent->getVisible()) {
+            return false;
+        }
+        const FunctionalBase* functional =
+            dynamic_cast<const FunctionalBase*>(parent.get());
+        if (functional != nullptr && !functional->getActive()) {
+            return false;
+        }
+        parent = parent->getParent();
+    }
+    return true;
 }
 
 bool FunctionalBase::acceptsTouchCapture() const {

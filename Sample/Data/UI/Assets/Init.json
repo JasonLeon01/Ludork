@@ -10,7 +10,6 @@
     "category": "Scenes"
   },
   "root": {
-    "id": "f553b725-bf62-4b14-8fee-1c19ae69e8b7",
     "name": "Root",
     "controlId": "Engine.Canvas",
     "properties": {
@@ -22,7 +21,6 @@
     "editor": {},
     "children": [
       {
-        "id": "9a302f87-0b0c-4678-bc95-1414ba082efa",
         "name": "Background",
         "controlId": "Engine.Image",
         "properties": {
@@ -56,7 +54,6 @@
         "children": []
       },
       {
-        "id": "39ed9a1a-1086-44c4-9525-70d41e719979",
         "name": "ProgressBar",
         "controlId": "Engine.ProgressBar",
         "properties": {

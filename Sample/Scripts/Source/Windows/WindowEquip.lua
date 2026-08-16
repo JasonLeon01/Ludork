@@ -121,13 +121,16 @@ function WindowEquipSlotController:redrawIfVisible()
         return
     end
     local wasActive = self.model:getActive()
+    local returnButtonSuppressed = self.model._returnButtonSuppressed
     if not wasActive then
+        self.model:_setReturnButtonSuppressed(true)
         self.model:setActive(true)
     end
     self.model:update(0.0)
     self.model:render()
     if not wasActive then
         self.model:setActive(false)
+        self.model:_setReturnButtonSuppressed(returnButtonSuppressed)
     end
 end
 
@@ -183,7 +186,7 @@ function WindowEquipSlotController:handleKeyDown()
     if not Input.isActionTriggered(Input.getCancelKeys(), false) then
         return false
     end
-    self:closeByCancel()
+    self.model:onReturn()
     Input.isActionTriggered(Input.getCancelKeys(), true)
     return true
 end
@@ -192,7 +195,7 @@ function WindowEquipSlotController:handleMouseButtonDown(kwargs)
     if kwargs.button ~= sf.Mouse.Button.Right then
         return false
     end
-    self:closeByCancel()
+    self.model:onReturn()
     return true
 end
 
@@ -378,7 +381,7 @@ function WindowEquipSelectController:handleKeyDown()
     if not Input.isActionTriggered(Input.getCancelKeys(), false) then
         return false
     end
-    self:closeByCancel()
+    self.model:onReturn()
     Input.isActionTriggered(Input.getCancelKeys(), true)
     return true
 end
@@ -387,7 +390,7 @@ function WindowEquipSelectController:handleMouseButtonDown(kwargs)
     if kwargs.button ~= sf.Mouse.Button.Right then
         return false
     end
-    self:closeByCancel()
+    self.model:onReturn()
     return true
 end
 
@@ -529,6 +532,7 @@ WindowEquipSlot.controllerClass = FinalWindowEquipSlotController
 
 function WindowEquipSlot:init(rect, player, windowEquipSelect, windowEquipStatus, onClose)
     super(WindowEquipSlot, self).init(rect, nil, nil, _SLOT_ROW_HEIGHT)
+    self:setHasReturnBtn(true)
     self._onCloseCallback = onClose
     self._player = player
     self._windowEquipSelect = windowEquipSelect
@@ -611,7 +615,7 @@ function WindowEquipSlot:close()
     self._slotController:close()
 end
 
-function WindowEquipSlot:_closeByCancel()
+function WindowEquipSlot:onReturn()
     self._slotController:closeByCancel()
 end
 
@@ -623,6 +627,7 @@ WindowEquipSelect.controllerClass = FinalWindowEquipSelectController
 
 function WindowEquipSelect:init(rect, player, windowEquipSlot, windowEquipStatus, onEquip)
     super(WindowEquipSelect, self).init(rect, nil, _EQUIP_CELL_SIZE, _EQUIP_CELL_SIZE)
+    self:setHasReturnBtn(true)
     self._player = player
     self._windowEquipSlot = windowEquipSlot
     self._windowEquipStatus = windowEquipStatus
@@ -675,8 +680,7 @@ function WindowEquipSelect:returnToSlotWindow(playSE)
     self._selectController:returnToSlotWindow(playSE)
 end
 
--- Handle cancel by returning focus to the slot list.
-function WindowEquipSelect:_closeByCancel()
+function WindowEquipSelect:onReturn()
     self._selectController:closeByCancel()
 end
 

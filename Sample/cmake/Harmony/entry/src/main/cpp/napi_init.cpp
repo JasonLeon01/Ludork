@@ -1,4 +1,5 @@
 #include <Application.hpp>
+#include <Input/InputService.hpp>
 #include <SFML/Main/MainHarmony.hpp>
 
 #include <array>
@@ -97,6 +98,12 @@ napi_value configureSystemLocale(napi_env env, napi_callback_info info) {
     return napi_get_undefined(env, &result) == napi_ok ? result : nullptr;
 }
 
+napi_value submitSystemBack(napi_env env, napi_callback_info) {
+    InputService::requestSystemCancel();
+    napi_value result{};
+    return napi_get_boolean(env, true, &result) == napi_ok ? result : nullptr;
+}
+
 }  // namespace
 
 extern "C" napi_value initializeModule(napi_env env, napi_value exports) {
@@ -112,6 +119,9 @@ extern "C" napi_value initializeModule(napi_env env, napi_value exports) {
                                  nullptr, napi_default, nullptr},
         napi_property_descriptor{"configureSystemLocale", nullptr,
                                  ::configureSystemLocale, nullptr, nullptr,
+                                 nullptr, napi_default, nullptr},
+        napi_property_descriptor{"submitSystemBack", nullptr,
+                                 ::submitSystemBack, nullptr, nullptr,
                                  nullptr, napi_default, nullptr}};
     if (napi_define_properties(env, initializedExports, properties.size(),
                                properties.data()) != napi_ok) {

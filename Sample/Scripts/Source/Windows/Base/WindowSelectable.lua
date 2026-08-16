@@ -48,6 +48,7 @@ function WindowSelectable:init(rect, listView, rectWidth, rectHeight, windowSkin
     self._mousePositionAtCursorPending = false
     self._mouseSelectionConfirmedThisFrame = false
     self._wheelScrollTargetOriginY = nil
+    self._selectionInputPaused = false
     self._touchCaptured = false
     self._touchDragging = false
     self._touchStartPosition = nil
@@ -116,7 +117,7 @@ function WindowSelectable:update(deltaTime)
 end
 
 function WindowSelectable:onTick(deltaTime)
-    local active = self:getActive()
+    local active = self:canReceiveFocus()
     local focused = self:_hasCursorFocus()
     if self.index ~= nil then
         if self._rectWidth ~= self:_getRectWidth() then
@@ -131,7 +132,8 @@ function WindowSelectable:onTick(deltaTime)
         ---@cast position - nil
         self._rect:setPosition(position)
     end
-    local selectionVisible = self.index ~= nil and self:_itemCount() > 0 and focused == true
+    local selectionVisible = not self._selectionInputPaused and self.index ~= nil
+        and self:_itemCount() > 0 and focused == true
     self._rect:setVisible(selectionVisible)
     if self:_shouldEnsureSelectionVisible() then
         self:_ensureSelectionVisible()
@@ -146,10 +148,11 @@ function WindowSelectable:onTick(deltaTime)
         self.content:addChild(self._rect)
     end
     self:_updatePendingMousePosition()
-    if active and self._listView ~= nil then
+    if active and not self._selectionInputPaused and self._listView ~= nil then
         self:_confirmMouseSelection()
     end
-    if LUDORK_DESKTOP and active and self._listView ~= nil and Input.isTouchTap(false) then
+    if LUDORK_DESKTOP and active and not self._selectionInputPaused
+        and self._listView ~= nil and Input.isTouchTap(false) then
         local tapPos = Input.getTouchTapPosition()
         if tapPos ~= nil then
             local touchLocal = Engine.ToVector2f(tapPos)
@@ -169,6 +172,9 @@ function WindowSelectable:onTick(deltaTime)
 end
 
 function WindowSelectable:onMouseWheelScrolled(kwargs)
+    if self._selectionInputPaused or not self:canReceiveFocus() then
+        return
+    end
     local listView = self._listView
     if listView == nil or not bool(listView:getChildren()) then
         return
@@ -191,7 +197,8 @@ function WindowSelectable:onMouseWheelScrolled(kwargs)
 end
 
 function WindowSelectable:onMouseMoved(kwargs)
-    if self._mouseSelectionConfirmedThisFrame or not self:canReceiveFocus() or self._listView == nil
+    if self._selectionInputPaused or self._mouseSelectionConfirmedThisFrame
+        or not self:canReceiveFocus() or self._listView == nil
         or not Input.isMouseInputMode() or not Input.isMouseMoved() then
         return
     end
@@ -204,6 +211,9 @@ function WindowSelectable:onMouseMoved(kwargs)
 end
 
 function WindowSelectable:requestKeyboardFocusAtCursor()
+    if self._selectionInputPaused then
+        return false
+    end
     local focused = self:requestKeyboardFocus()
     if not focused then
         return false
@@ -217,6 +227,9 @@ end
 
 ---@diagnostic disable-next-line: unused
 function WindowSelectable:onKeyDown(kwargs)
+    if self._selectionInputPaused or not self:canReceiveFocus() then
+        return
+    end
     local listView = self._listView
     if listView == nil or not bool(listView:getChildren()) or self.index == nil then
         return
@@ -246,7 +259,8 @@ function WindowSelectable:onKeyDown(kwargs)
 end
 
 function WindowSelectable:onDirectionalKey(direction)
-    if self.index == nil or self:_itemCount() <= 0 then
+    if self._selectionInputPaused or not self:canReceiveFocus()
+        or self.index == nil or self:_itemCount() <= 0 then
         return false
     end
     local columns = self:_getColumns()
@@ -376,16 +390,22 @@ end
 
 ---@return boolean
 function WindowSelectable:_hasCursorFocus()
+    if self._selectionInputPaused or not self:canReceiveFocus() then
+        return false
+    end
     if self:ownsKeyboardCursorFocus() then
         return true
     end
-    return self:getActive() and self:shouldDispatchKeyboardInput()
+    return self:shouldDispatchKeyboardInput()
 end
 
 ---@param direction  string
 ---@param actionKeys table
 ---@return boolean
 function WindowSelectable:_handleDirectionalAction(direction, actionKeys)
+    if self._selectionInputPaused or not self:canReceiveFocus() then
+        return false
+    end
     if not Input.isActionTriggered(actionKeys, false, _REPEAT_DELAY, _REPEAT_INTERVAL) then
         return false
     end
@@ -460,6 +480,10 @@ end
 
 ---@param deltaTime number
 function WindowSelectable:_updateWheelScroll(deltaTime)
+    if self._selectionInputPaused or not self:canReceiveFocus() then
+        self._wheelScrollTargetOriginY = nil
+        return
+    end
     if self._wheelScrollTargetOriginY == nil then
         return
     end
@@ -536,7 +560,7 @@ function WindowSelectable:_updatePendingMousePosition()
         return
     end
     self._mousePositionAtCursorPending = false
-    if LUDORK_MOBILE or not Input.isMouseInputMode()
+    if self._selectionInputPaused or LUDORK_MOBILE or not Input.isMouseInputMode()
         or not self:_hasCursorFocus() or self.index == nil
         or self.index < 0 or self.index >= self:_itemCount() then
         return
@@ -548,7 +572,7 @@ end
 
 ---@return integer | nil
 function WindowSelectable:_updateTouchInput()
-    if not self:getActive() or self._listView == nil then
+    if not self:canReceiveFocus() or self._selectionInputPaused or self._listView == nil then
         self:_resetTouchCapture(true)
         return nil
     end
@@ -563,6 +587,7 @@ function WindowSelectable:_updateTouchInput()
                     self._touchDragging = false
                     self._touchStartPosition = position
                     self._touchStartOriginY = self:_getScrollOriginY()
+                    self:_onCapturedTouchBegan(position)
                     Input.isTouchBegan(true)
                 end
             end
@@ -579,10 +604,12 @@ function WindowSelectable:_updateTouchInput()
             self._touchDragging = true
         end
         if self._touchDragging then
-            local touchStartPosition = self._touchStartPosition
-            ---@cast touchStartPosition sf.Vector2f
-            local originDeltaY = (position.y - touchStartPosition.y) / scale
-            self:_setScrollOriginY(self._touchStartOriginY - originDeltaY)
+            if not self:_handleCapturedTouchDrag(position) then
+                local touchStartPosition = self._touchStartPosition
+                ---@cast touchStartPosition sf.Vector2f
+                local originDeltaY = (position.y - touchStartPosition.y) / scale
+                self:_setScrollOriginY(self._touchStartOriginY - originDeltaY)
+            end
         end
     end
     if not Input.isTouchEnded() then
@@ -597,12 +624,15 @@ function WindowSelectable:_updateTouchInput()
         Input.isTouchTap(true)
         local tapPosition = Input.getTouchTapPosition()
         if tapPosition ~= nil then
-            local index = self:_getSelectionAt(Engine.ToVector2f(tapPosition))
-            if index ~= nil then
-                if self.index == index then
-                    pendingTouchConfirm = index
-                else
-                    self:_setPointerIndex(index)
+            local position = Engine.ToVector2f(tapPosition)
+            if not self:_handleCapturedTouchTap(position) then
+                local index = self:_getSelectionAt(position)
+                if index ~= nil then
+                    if self.index == index then
+                        pendingTouchConfirm = index
+                    else
+                        self:_setPointerIndex(index)
+                    end
                 end
             end
         end
@@ -614,6 +644,33 @@ end
 ---@diagnostic disable-next-line: unused
 function WindowSelectable:_shouldCaptureTouch(position)
     return true
+end
+
+---@param position sf.Vector2f
+---@diagnostic disable-next-line: unused
+function WindowSelectable:_onCapturedTouchBegan(position)
+end
+
+---@param position sf.Vector2f
+---@return boolean
+---@diagnostic disable-next-line: unused
+function WindowSelectable:_handleCapturedTouchDrag(position)
+    return false
+end
+
+---@param position sf.Vector2f
+---@return boolean
+---@diagnostic disable-next-line: unused
+function WindowSelectable:_handleCapturedTouchTap(position)
+    return false
+end
+
+function WindowSelectable:_onCapturedTouchReset()
+end
+
+function WindowSelectable:onPointerInteractionReset()
+    self:_resetTouchCapture(true)
+    super(WindowSelectable, self).onPointerInteractionReset()
 end
 
 ---@return sf.FloatRect
@@ -634,6 +691,20 @@ function WindowSelectable:_resetTouchCapture(cancelGesture)
     self._touchDragging = false
     self._touchStartPosition = nil
     self._touchStartOriginY = 0.0
+    self:_onCapturedTouchReset()
+end
+
+---@param paused boolean
+function WindowSelectable:_setSelectionInputPaused(paused)
+    if self._selectionInputPaused == paused then
+        return
+    end
+    self._selectionInputPaused = paused
+    if paused then
+        self:_resetTransientInputState()
+    else
+        self._ensureSelectionVisibleRequested = true
+    end
 end
 
 function WindowSelectable:_resetTransientInputState()
@@ -645,7 +716,7 @@ end
 
 ---@return boolean
 function WindowSelectable:_confirmMouseSelection()
-    if not Input.isMouseInputMode() then
+    if self._selectionInputPaused or not self:canReceiveFocus() or not Input.isMouseInputMode() then
         return false
     end
     if not Input.isMouseButtonTriggered(sf.Mouse.Button.Left, false) then
@@ -662,6 +733,9 @@ end
 ---@param position sf.Vector2f
 ---@return boolean
 function WindowSelectable:_confirmSelectionAt(position)
+    if self._selectionInputPaused or not self:canReceiveFocus() then
+        return false
+    end
     local index = self:_getSelectionAt(position)
     if index == nil then
         return false
@@ -688,7 +762,7 @@ end
 ---@param index integer
 ---@return boolean
 function WindowSelectable:_confirmSelectionIndex(index)
-    if self._listView == nil then
+    if self._selectionInputPaused or not self:canReceiveFocus() or self._listView == nil then
         return false
     end
     local children = self._listView:getChildren()

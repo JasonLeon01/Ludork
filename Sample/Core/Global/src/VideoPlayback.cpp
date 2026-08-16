@@ -73,12 +73,13 @@ struct AudioData {
 
 class WindowFocusRestoreScope {
 public:
-    explicit WindowFocusRestoreScope(sf::RenderWindow& window)
-        : window_(window), restore_(window.hasFocus()) {}
+    explicit WindowFocusRestoreScope(const sf::RenderWindow& window)
+        : restore_(window.hasFocus()) {}
 
     ~WindowFocusRestoreScope() {
-        if (restore_ && window_.isOpen()) {
-            window_.requestFocus();
+        const std::shared_ptr<sf::RenderWindow> window = System::getWindow();
+        if (restore_ && window != nullptr && window->isOpen()) {
+            window->requestFocus();
         }
     }
 
@@ -86,7 +87,6 @@ public:
     WindowFocusRestoreScope& operator=(const WindowFocusRestoreScope&) = delete;
 
 private:
-    sf::RenderWindow& window_;
     bool restore_;
 };
 
@@ -219,7 +219,7 @@ public:
           audio_(extractAudio(path_)) {}
 
     void play() {
-        const std::shared_ptr<sf::RenderWindow> window = System::getWindow();
+        std::shared_ptr<sf::RenderWindow> window = System::getWindow();
         if (window == nullptr) {
             throw std::runtime_error(
                 "Video playback requires an active window");
@@ -245,6 +245,10 @@ public:
         sf::Clock silentClock;
         silentClock.restart();
         while (System::isActive()) {
+            window = System::getWindow();
+            if (window == nullptr) {
+                break;
+            }
             inputService().update(*window);
             TimeManager::update();
             if (skipable_ && inputService().isActionTriggered(
@@ -256,7 +260,9 @@ public:
             if (sprite_.has_value()) {
                 window->draw(*sprite_);
             }
-            window->display();
+            System::present();
+            window.reset();
+            System::completeFrame();
             if (finished_) {
                 break;
             }
@@ -288,6 +294,7 @@ private:
         if (!targetFrameIndex_.has_value()) {
             finished_ = true;
         }
+        updateSpriteLayout(window);
     }
 
     std::optional<int> getFrame(sf::RenderWindow& window) {
@@ -301,18 +308,25 @@ private:
                 static_cast<unsigned int>(decoder_.height())};
             texture_.emplace(frameSize);
             sprite_.emplace(*texture_);
-            const sf::View view = window.getView();
-            const sf::Vector2f viewSize = view.getSize();
-            const float scale =
-                std::min(viewSize.x / static_cast<float>(frameSize.x),
-                         viewSize.y / static_cast<float>(frameSize.y));
-            sprite_->setScale({scale, scale});
-            sprite_->setOrigin({static_cast<float>(frameSize.x) / 2.0f,
-                                static_cast<float>(frameSize.y) / 2.0f});
-            sprite_->setPosition(view.getCenter());
         }
         texture_->update(decoder_.rgbaFrame().data());
         return decoder_.frameIndex() - 1;
+    }
+
+    void updateSpriteLayout(const sf::RenderWindow& window) {
+        if (!sprite_.has_value() || !texture_.has_value()) {
+            return;
+        }
+        const sf::Vector2u frameSize = texture_->getSize();
+        const sf::View view = window.getView();
+        const sf::Vector2f viewSize = view.getSize();
+        const float scale =
+            std::min(viewSize.x / static_cast<float>(frameSize.x),
+                     viewSize.y / static_cast<float>(frameSize.y));
+        sprite_->setScale({scale, scale});
+        sprite_->setOrigin({static_cast<float>(frameSize.x) / 2.0f,
+                            static_cast<float>(frameSize.y) / 2.0f});
+        sprite_->setPosition(view.getCenter());
     }
 
     std::string path_;

@@ -9,6 +9,7 @@ local _WindowAttrShopSelectable = {}
 
 function _WindowAttrShopSelectable:init(rect, owner)
     super(_WindowAttrShopSelectable, self).init(rect, nil, nil, _ITEM_ROW_HEIGHT)
+    self:setHasReturnBtn(true)
     self._owner = owner
     self._abilityKeys = {}
     self._cellAvailable = {}
@@ -49,6 +50,10 @@ end
 function _WindowAttrShopSelectable:onMouseButtonDown(kwargs)
     return self._owner._shopUI
         :handleMouseButtonDown(kwargs)
+end
+
+function _WindowAttrShopSelectable:onReturn()
+    self._owner:closeByCancel()
 end
 
 ---@param index integer

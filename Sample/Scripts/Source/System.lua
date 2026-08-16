@@ -2,6 +2,7 @@ local Engine = require("Engine")
 local GameMap = require("Global.GameMap")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
+local MainConfig = require("Source.Config.Main")
 
 local ManagerFunctions = GlobalFunctions.Manager
 local GlobalSystem = GlobalCore.System
@@ -54,6 +55,12 @@ function System.init()
     System._startMap = systemData.startMap.value
     local startPos = systemData.startPos.value
     System._startPos = sf.Vector2u.new(startPos[1], startPos[2])
+    local configuredScale = GlobalSystem.getConfiguredScale()
+    local maximumScale = GlobalSystem.getMaximumWindowedScale(gameSize)
+    local _, effectiveScale = MainConfig.GetDisplayScaleOptions(maximumScale, configuredScale)
+    if maximumScale ~= nil and effectiveScale ~= configuredScale then
+        GlobalSystem.setScale(effectiveScale)
+    end
     GlobalSystem.initializeDisplay(System._title, gameSize, iconPath, cursorPath)
     Engine.DefaultFont = System._fonts[1]
     Engine.DefaultFontSize = System._fontSize

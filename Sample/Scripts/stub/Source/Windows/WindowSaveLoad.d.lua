@@ -34,6 +34,8 @@ function WindowSaveCommand:onKeyDown(kwargs) end
 ---@return boolean
 function WindowSaveCommand:onMouseButtonDown(kwargs) end
 
+function WindowSaveCommand:onReturn() end
+
 --- @brief Save-file slot list (1..MAX_SAVE_SLOTS) for load/save selection.
 ---@class Source.Windows.WindowSaveSlot: Source.Windows.Base.WindowSelectable
 local WindowSaveSlot = {}
@@ -55,6 +57,8 @@ function WindowSaveSlot:onTick(deltaTime) end
 ---@param kwargs table
 ---@return boolean
 function WindowSaveSlot:onMouseButtonDown(kwargs) end
+
+function WindowSaveSlot:onReturn() end
 
 --- @brief Save-file detail panel showing the current slot's screenshot and timestamp.
 ---

@@ -127,6 +127,7 @@ function UiController:_attachWindowRoot(host, root)
     local legacyWindow = host._window
     local legacyContent = host.content
     local pauseMark = host._pauseMark
+    local returnButton = host._returnButton
     local windowFrame = self:getWindowFrame()
     local content = self:getContent()
     local repeated = host._repeated
@@ -139,10 +140,12 @@ function UiController:_attachWindowRoot(host, root)
     legacyContent:removeChild(pauseMark)
     host:removeChild(legacyWindow)
     host:removeChild(legacyContent)
+    host:removeChild(returnButton)
     host:addChild(root)
     host._window = windowFrame
     host.content = content
     content:addChild(pauseMark)
+    host:addChild(returnButton)
     return root
 end
 

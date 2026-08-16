@@ -127,7 +127,7 @@ sf::FloatRect CheckBox::getLocalBounds() const {
 
 void CheckBox::update(float deltaTime) {
     FunctionalInputProvider* provider = inputProvider();
-    if (provider != nullptr && getVisible() && getActive() &&
+    if (provider != nullptr && isInteractionEnabled() &&
         provider->isTouchBegan(false)) {
         const std::optional<sf::Vector2i> beganPosition =
             provider->getTouchBeganPosition();

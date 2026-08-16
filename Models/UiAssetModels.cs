@@ -122,8 +122,7 @@ public static class UiAssetSchema
             return false;
         string logicalKey = controlId[ProjectControlPrefix.Length..];
         string normalized = NormalizeAssetKey(logicalKey);
-        if (!string.Equals(normalized, logicalKey, StringComparison.Ordinal)
-            || Guid.TryParseExact(logicalKey, "D", out Guid _))
+        if (!string.Equals(normalized, logicalKey, StringComparison.Ordinal))
         {
             return false;
         }
@@ -156,7 +155,6 @@ public static class UiAssetSchema
             },
             ["root"] = new JsonObject
             {
-                ["id"] = createId(),
                 ["name"] = "Root",
                 ["controlId"] = "Engine.Canvas",
                 ["properties"] = new JsonObject
@@ -181,16 +179,7 @@ public static class UiAssetSchema
         copy["type"] = UiAssetType;
         if (copy["palette"] is JsonObject palette && !string.IsNullOrWhiteSpace(displayName))
             palette["displayName"] = displayName;
-        if (copy["root"] is JsonObject root)
-            replaceNodeIds(root);
         return copy;
-    }
-
-    public static void EnsureMissingIdentities(JsonObject asset)
-    {
-        asset["type"] = UiAssetType;
-        if (asset["root"] is JsonObject root)
-            ensureMissingNodeIds(root);
     }
 
     public static IEnumerable<JsonObject> EnumerateNodes(JsonObject asset)
@@ -211,40 +200,5 @@ public static class UiAssetSchema
                     pending.Push(child);
             }
         }
-    }
-
-    private static void replaceNodeIds(JsonObject node)
-    {
-        node["id"] = createId();
-        if (node["children"] is not JsonArray children)
-            return;
-        foreach (JsonNode? childNode in children)
-        {
-            if (childNode is JsonObject child)
-                replaceNodeIds(child);
-        }
-    }
-
-    private static void ensureMissingNodeIds(JsonObject node)
-    {
-        if (getString(node["id"]) is null)
-            node["id"] = createId();
-        if (node["children"] is not JsonArray children)
-            return;
-        foreach (JsonNode? childNode in children)
-        {
-            if (childNode is JsonObject child)
-                ensureMissingNodeIds(child);
-        }
-    }
-
-    private static string createId()
-    {
-        return Guid.NewGuid().ToString("D");
-    }
-
-    private static string? getString(JsonNode? value)
-    {
-        return value is JsonValue scalar && scalar.TryGetValue(out string? text) ? text : null;
     }
 }

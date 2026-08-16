@@ -59,6 +59,7 @@ function ConfigSettingRowUI:dispose()
         self._dropBox:setOnLayoutChanged(nil)
         self._dropBox:setOnExpandedChanged(nil)
         self._dropBox:setOnSelectedIndexChanged(nil)
+        self._dropBox:setOnSelectionConfirmed(nil)
     end
     self.root:addConfirmCallback(nil)
     self._dropBox = nil

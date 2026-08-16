@@ -7,6 +7,7 @@ file(GLOB_RECURSE LUDORK_GLOBAL_SOURCES CONFIGURE_DEPENDS
 if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     enable_language(OBJCXX)
     list(APPEND LUDORK_GLOBAL_SOURCES
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/Platform/NativeDisplayMac.mm"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Platform/NativeInputMethodMac.mm")
 endif()
 
@@ -35,7 +36,7 @@ target_link_libraries(GlobalCore
         SFML::Audio
         SFML::Network)
 if(WIN32)
-    target_link_libraries(GlobalCore PRIVATE Imm32)
+    target_link_libraries(GlobalCore PRIVATE Imm32 User32)
 elseif(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
     target_include_directories(GlobalCore PRIVATE

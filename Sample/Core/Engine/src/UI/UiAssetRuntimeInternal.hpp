@@ -22,7 +22,6 @@ struct UiCanvasSlotData {
 };
 
 struct UiRuntimeNode {
-    std::string id;
     std::string name;
     std::string controlId;
     std::shared_ptr<ControlBase> control;

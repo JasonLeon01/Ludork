@@ -17,6 +17,7 @@
 #include <vector>
 
 class ControlBase;
+class FunctionalBase;
 
 class ControlBaseSharedOwner
     : public std::enable_shared_from_this<ControlBase> {
@@ -144,6 +145,8 @@ protected:
                       sf::RenderStates states) const override;
 
 private:
+    friend class FunctionalBase;
+
     static void resetFunctionalInteractions(ControlBase& control);
 
     bool visible_ = true;

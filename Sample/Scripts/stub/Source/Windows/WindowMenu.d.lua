@@ -91,6 +91,8 @@ function WindowMenu:onKeyDown(kwargs) end
 ---@return boolean
 function WindowMenu:onMouseButtonDown(kwargs) end
 
+function WindowMenu:onReturn() end
+
 ---@param deltaTime number
 function WindowMenu:onTick(deltaTime) end
 

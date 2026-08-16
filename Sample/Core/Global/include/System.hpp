@@ -21,6 +21,10 @@
 #include <variant>
 #include <vector>
 
+namespace ludork::global {
+struct WindowedFramePlacement;
+}
+
 class SceneRuntime : public RuntimeObject {
 public:
     virtual ~SceneRuntime() = default;
@@ -88,6 +92,20 @@ public:
     ////////////////////////////////////////////////////////////
     BIND_METHOD()
     static float getConfiguredScale();
+    ////////////////////////////////////////////////////////////
+    /// \brief Get the largest decorated window scale for a display
+    ///
+    /// The current window's display is used when available; otherwise the
+    /// primary display is queried. Embedded and mobile displays return no
+    /// value.
+    ///
+    /// - \param gameSize Non-zero logical game size
+    /// - \return Maximum scale, or no value when the work area is unavailable
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD(Pure = true)
+    static std::optional<float> getMaximumWindowedScale(
+        const sf::Vector2u& gameSize);
     ////////////////////////////////////////////////////////////
     /// \brief Apply and save a display scale
     ///
@@ -428,8 +446,9 @@ private:
     static void rebuildDisplayTargets(float scale);
     static void recreateDesktopWindow(bool fullscreen,
                                       const sf::Vector2u& size);
-    static void replaceWindowedDesktopWindow(const sf::Vector2u& size,
-                                             const sf::Vector2i& position);
+    static void replaceWindowedDesktopWindow(
+        const sf::Vector2u& size,
+        const ludork::global::WindowedFramePlacement* placement);
     static void applyWindowPresentationSettings();
     static float windowFitScale(const sf::Vector2u& size);
     static sf::Vector2u renderSizeForScale(float scale);
@@ -437,12 +456,14 @@ private:
     static bool isMobileDisplay();
 
     static std::shared_ptr<sf::RenderWindow> window_;
+    static std::mutex windowMutex_;
     static std::unique_ptr<sf::Cursor> cursor_;
     static std::string windowTitle_;
     static std::string windowIconPath_;
     static std::string windowCursorPath_;
     static sf::ContextSettings windowContextSettings_;
     static sf::Vector2u observedWindowSize_;
+    static std::optional<sf::Vector2u> observedWindowClientSize_;
     static std::optional<float> pendingConfiguredScale_;
     static std::optional<float> pendingResizeScale_;
     static std::chrono::steady_clock::time_point lastResizeTime_;

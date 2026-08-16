@@ -46,6 +46,8 @@ function _WindowAttrShopSelectable:onKeyDown(kwargs) end
 ---@return boolean
 function _WindowAttrShopSelectable:onMouseButtonDown(kwargs) end
 
+function _WindowAttrShopSelectable:onReturn() end
+
 --- @brief Attribute upgrade shop coordinator.
 ---@class Source.Windows.WindowAttrShop
 ---@field uiClass Class.ClassType<Source.UI.WindowAttrShop>

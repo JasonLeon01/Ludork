@@ -15,7 +15,7 @@ std::shared_ptr<ludork::standard::ConfigParser> SystemConfigBase::data_;
 std::filesystem::path SystemConfigBase::dataFilePath_;
 std::string SystemConfigBase::script_ = "Scripts/Entry.lua";
 std::string SystemConfigBase::language_ = "en_GB";
-float SystemConfigBase::scale_ = 2.0f;
+float SystemConfigBase::scale_ = 1.0f;
 int SystemConfigBase::frameRate_ = 120;
 bool SystemConfigBase::verticalSync_ = true;
 bool SystemConfigBase::musicOn_ = true;
@@ -222,7 +222,7 @@ void SystemConfigBase::shutdown() noexcept {
     dataFilePath_.clear();
     script_ = "Scripts/Entry.lua";
     language_ = "en_GB";
-    scale_ = 2.0f;
+    scale_ = 1.0f;
     frameRate_ = 120;
     verticalSync_ = true;
     musicOn_ = true;

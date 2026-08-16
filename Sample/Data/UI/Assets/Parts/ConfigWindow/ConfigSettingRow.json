@@ -10,7 +10,6 @@
     "category": "General"
   },
   "root": {
-    "id": "3efc93da-80ce-4220-9aed-c635bbd7e038",
     "name": "Root",
     "controlId": "Engine.Canvas",
     "properties": {
@@ -22,7 +21,6 @@
     "editor": {},
     "children": [
       {
-        "id": "51eb3203-c7e4-4fea-8653-6c1e03c1761b",
         "name": "Label",
         "controlId": "Engine.PlainText",
         "properties": {
@@ -59,7 +57,6 @@
         "children": []
       },
       {
-        "id": "835c8f25-09fd-495d-ba0b-c6a0e2ad90a5",
         "name": "DropBox",
         "controlId": "Engine.DropBox",
         "properties": {

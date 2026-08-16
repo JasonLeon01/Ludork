@@ -4,7 +4,6 @@ import argparse
 import json
 import math
 import pathlib
-import uuid
 
 from .ui_control_registry import PLAIN_TEXT_CONTROL_IDS
 from .ui_control_registry import RICH_TEXT_CONTROL_IDS
@@ -31,7 +30,6 @@ ASSET_FIELDS = {
 DESIGN_SIZE_FIELDS = {"width", "height"}
 PALETTE_FIELDS = {"exposed", "displayName", "category"}
 NODE_FIELDS = {
-    "id",
     "name",
     "controlId",
     "properties",
@@ -108,19 +106,6 @@ def _asset_key_from_path(
         pathlib.PurePosixPath(*relative.parts).as_posix(),
         str(path),
     )
-
-
-def _uuid(value: object, label: str) -> str:
-    if not isinstance(value, str):
-        raise UiAssetError(f"{label} must be a UUID string")
-    try:
-        parsed = uuid.UUID(value)
-    except ValueError as exception:
-        raise UiAssetError(f"{label} must be a UUID string") from exception
-    canonical = str(parsed)
-    if value != canonical:
-        raise UiAssetError(f"{label} must use canonical UUID form")
-    return canonical
 
 
 def _finite_number(value: object, label: str) -> float:
@@ -396,21 +381,12 @@ def _validate_node(
     root: bool,
     parent: dict[str, object] | None,
     project_root: pathlib.Path,
-    node_ids: set[str],
-    project_node_ids: set[str],
     names: set[str],
     asset_references: list[str],
 ) -> None:
     if not isinstance(node, dict):
         raise UiAssetError(f"{path} must be an object")
     _reject_unknown_fields(node, NODE_FIELDS, path)
-    node_id = _uuid(node.get("id"), f"{path}.id")
-    if node_id in node_ids:
-        raise UiAssetError(f"Duplicate node id: {node_id}")
-    if node_id in project_node_ids:
-        raise UiAssetError(f"Duplicate project node id: {node_id}")
-    node_ids.add(node_id)
-    project_node_ids.add(node_id)
     name = node.get("name")
     if not isinstance(name, str) or not name.strip():
         raise UiAssetError(f"{path}.name must be a non-empty string")
@@ -452,14 +428,6 @@ def _validate_node(
             control_id.removeprefix("Project:"),
             f"{path}.controlId",
         )
-        try:
-            legacy_id = uuid.UUID(reference)
-        except ValueError:
-            legacy_id = None
-        if legacy_id is not None and str(legacy_id) == reference:
-            raise UiAssetError(
-                f"{path}.controlId must use a relative asset key, not a UUID"
-            )
         asset_references.append(reference)
         if properties or children:
             raise UiAssetError(
@@ -572,8 +540,6 @@ def _validate_node(
             False,
             descriptor,
             project_root,
-            node_ids,
-            project_node_ids,
             names,
             asset_references,
         )
@@ -583,7 +549,6 @@ def _validate_asset(
     path: pathlib.Path,
     value: dict[str, object],
     project_root: pathlib.Path,
-    project_node_ids: set[str],
 ) -> list[str]:
     _reject_unknown_fields(value, ASSET_FIELDS, str(path))
     if value.get("type") != "uiAsset":
@@ -630,8 +595,6 @@ def _validate_asset(
         None,
         project_root,
         set(),
-        project_node_ids,
-        set(),
         references,
     )
     return references
@@ -677,7 +640,6 @@ def validate_assets(project_root: pathlib.Path) -> None:
     assets_root = root / ASSETS_RELATIVE_PATH
     references: dict[str, list[str]] = {}
     exposed_assets: set[str] = set()
-    project_node_ids: set[str] = set()
     if assets_root.is_dir():
         candidates = sorted(
             path
@@ -705,7 +667,6 @@ def validate_assets(project_root: pathlib.Path) -> None:
                 path,
                 value,
                 root,
-                project_node_ids,
             )
             palette = value["palette"]
             if isinstance(palette, dict) and palette["exposed"] is True:

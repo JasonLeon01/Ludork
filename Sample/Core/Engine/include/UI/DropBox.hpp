@@ -88,6 +88,9 @@ public:
     void setOnSelectedIndexChanged(std::function<void(int)> callback);
 
     BIND_METHOD()
+    void setOnSelectionConfirmed(std::function<void(int)> callback);
+
+    BIND_METHOD()
     void setOnExpandedChanged(std::function<void(bool)> callback);
 
     BIND_METHOD()
@@ -191,6 +194,7 @@ private:
     bool previousCanReceiveFocus_ = true;
 
     std::function<void(int)> selectedIndexChangedCallback_;
+    std::function<void(int)> selectionConfirmedCallback_;
     std::function<void(bool)> expandedChangedCallback_;
     std::function<void()> layoutChangedCallback_;
 

@@ -127,7 +127,7 @@ function WindowFloorMapPreviewUI:handleKeyDown()
     if not Input.isActionTriggered(Input.getCancelKeys(), false) then
         return false
     end
-    self.model._owner:activateMapList(true)
+    self.model:onReturn()
     Input.isActionTriggered(Input.getCancelKeys(), true)
     return true
 end
@@ -136,7 +136,7 @@ function WindowFloorMapPreviewUI:handleMouseButtonDown(kwargs)
     if kwargs.button ~= sf.Mouse.Button.Right then
         return false
     end
-    self.model._owner:activateMapList(true)
+    self.model:onReturn()
     return true
 end
 

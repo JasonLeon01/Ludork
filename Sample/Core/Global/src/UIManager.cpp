@@ -169,11 +169,13 @@ std::vector<std::shared_ptr<ControlBase>> UIManager::sortedUIs(
         sorted = uis_;
     }
     std::stable_sort(sorted.begin(), sorted.end(),
-                     [descending](const std::shared_ptr<ControlBase>& left,
-                                  const std::shared_ptr<ControlBase>& right) {
-                         return descending ? zOrder(left) > zOrder(right)
-                                           : zOrder(left) < zOrder(right);
+                     [](const std::shared_ptr<ControlBase>& left,
+                        const std::shared_ptr<ControlBase>& right) {
+                         return zOrder(left) < zOrder(right);
                      });
+    if (descending) {
+        std::reverse(sorted.begin(), sorted.end());
+    }
     return sorted;
 }
 

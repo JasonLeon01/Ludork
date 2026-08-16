@@ -9,7 +9,6 @@
 #include <Utf8Path.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
@@ -108,22 +107,6 @@ bool isProjectControl(const std::string& controlId) {
     return controlId.starts_with(projectControlPrefix);
 }
 
-bool isUuidReference(const std::string& value) {
-    if (value.size() != 36) {
-        return false;
-    }
-    for (std::size_t index = 0; index < value.size(); ++index) {
-        if (index == 8 || index == 13 || index == 18 || index == 23) {
-            if (value[index] != '-') {
-                return false;
-            }
-        } else if (!std::isxdigit(static_cast<unsigned char>(value[index]))) {
-            return false;
-        }
-    }
-    return true;
-}
-
 std::string nestedAssetKey(const std::string& controlId) {
     if (!isProjectControl(controlId) ||
         controlId.size() ==
@@ -131,15 +114,8 @@ std::string nestedAssetKey(const std::string& controlId) {
         throw std::invalid_argument("Invalid project UI control id: " +
                                     controlId);
     }
-    const std::string result =
-        controlId.substr(std::char_traits<char>::length(projectControlPrefix));
-    if (isUuidReference(result)) {
-        throw std::invalid_argument(
-            "Project UI control id must use a relative asset key, not a "
-            "UUID: " +
-            controlId);
-    }
-    return result;
+    return controlId.substr(
+        std::char_traits<char>::length(projectControlPrefix));
 }
 
 sf::Vector2f parseDesignSize(const RuntimeValue::Map& asset,
@@ -414,7 +390,6 @@ std::shared_ptr<UiAssetInstance> buildAsset(
 std::shared_ptr<UiRuntimeNode> buildNode(
     const RuntimeValue& value, const std::string& source,
     UiAssetInstanceState& state, BuildContext& context,
-    std::unordered_set<std::string>& nodeIds,
     std::unordered_set<std::string>& localNames, bool root);
 
 void attachChildren(const std::shared_ptr<UiRuntimeNode>& node,
@@ -520,33 +495,28 @@ RuntimeValue::Map effectiveProperties(const RuntimeValue::Map& node,
 std::shared_ptr<UiRuntimeNode> buildNode(
     const RuntimeValue& value, const std::string& source,
     UiAssetInstanceState& state, BuildContext& context,
-    std::unordered_set<std::string>& nodeIds,
     std::unordered_set<std::string>& localNames, bool root) {
     const RuntimeValue::Map& data = requireMap(value, source);
-    const RuntimeValue* idValue = findValue(data, "id");
+    requireOnlyKeys(data,
+                    {"name", "controlId", "properties", "slot", "editor",
+                     "children"},
+                    source);
     const RuntimeValue* nameValue = findValue(data, "name");
     const RuntimeValue* controlIdValue = findValue(data, "controlId");
     const RuntimeValue* propertiesValue = findValue(data, "properties");
     const RuntimeValue* childrenValue = findValue(data, "children");
-    if (idValue == nullptr || nameValue == nullptr ||
-        controlIdValue == nullptr || propertiesValue == nullptr ||
-        childrenValue == nullptr) {
+    if (nameValue == nullptr || controlIdValue == nullptr ||
+        propertiesValue == nullptr || childrenValue == nullptr) {
         throw std::invalid_argument(
-            source + " requires id, name, controlId, properties, and children");
+            source + " requires name, controlId, properties, and children");
     }
 
     std::shared_ptr<UiRuntimeNode> result = std::make_shared<UiRuntimeNode>();
-    result->id = requireString(*idValue, source + ".id");
     result->name = requireString(*nameValue, source + ".name");
     result->controlId = requireString(*controlIdValue, source + ".controlId");
-    if (result->id.empty() || result->name.empty() ||
-        result->controlId.empty()) {
+    if (result->name.empty() || result->controlId.empty()) {
         throw std::invalid_argument(source +
-                                    " id, name, and controlId cannot be empty");
-    }
-    if (!nodeIds.insert(result->id).second) {
-        throw std::invalid_argument("Duplicate UI node id " + result->id +
-                                    " in " + state.assetKey);
+                                    " name and controlId cannot be empty");
     }
     if (!localNames.insert(result->name).second) {
         throw std::invalid_argument("Duplicate UI node name " + result->name +
@@ -620,7 +590,7 @@ std::shared_ptr<UiRuntimeNode> buildNode(
         const std::string childSource =
             source + ".children[" + std::to_string(index) + "]";
         std::shared_ptr<UiRuntimeNode> child =
-            buildNode(children[index], childSource, state, context, nodeIds,
+            buildNode(children[index], childSource, state, context,
                       localNames, false);
         const RuntimeValue::Map& childData =
             requireMap(children[index], childSource);
@@ -704,10 +674,9 @@ std::shared_ptr<UiAssetInstance> buildAsset(
         state->designSize =
             parseDesignSize(asset, "UI asset " + expectedAssetKey);
         state->logicalSize = logicalSize.value_or(state->designSize);
-        std::unordered_set<std::string> nodeIds;
         std::unordered_set<std::string> localNames;
         state->root = buildNode(*rootValue, expectedAssetKey + ".root", *state,
-                                context, nodeIds, localNames, true);
+                                context, localNames, true);
 
         std::shared_ptr<UiAssetInstance> result(new UiAssetInstance(state));
         UiLayoutEngine::reflow(*result, state->logicalSize);
@@ -723,7 +692,7 @@ void collectNodeViews(const std::shared_ptr<UiRuntimeNode>& node,
                       std::vector<UiAssetNodeView>& result,
                       std::size_t& drawOrder) {
     UiAssetNodeView view;
-    view.nodeId = node->id;
+    view.nodeName = node->name;
     view.control = node->control;
     view.bounds = node->control->getAbsoluteBounds();
     view.nestedBoundary = node->nestedAsset != nullptr;

@@ -45,4 +45,6 @@ function WindowShopItem:onKeyDown(kwargs) end
 ---@return boolean
 function WindowShopItem:onMouseButtonDown(kwargs) end
 
+function WindowShopItem:onReturn() end
+
 return WindowShopItem

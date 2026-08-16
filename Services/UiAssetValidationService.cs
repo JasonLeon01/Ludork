@@ -19,7 +19,7 @@ public sealed class UiAssetValidationService
         ["exposed", "displayName", "category"],
         StringComparer.Ordinal);
     private static readonly HashSet<string> NodeFields = new HashSet<string>(
-        ["id", "name", "controlId", "properties", "slot", "editor", "children"],
+        ["name", "controlId", "properties", "slot", "editor", "children"],
         StringComparer.Ordinal);
     private static readonly HashSet<string> CanvasSlotFields = new HashSet<string>(
         ["anchors", "offsets", "alignment", "autoSize", "zOrder"],
@@ -88,7 +88,6 @@ public sealed class UiAssetValidationService
             validateAssetStructure(logicalKey, pair.Value, controls, issues);
             issuesByKey[logicalKey.Length == 0 ? pair.Key : logicalKey] = issues;
         }
-        validateProjectIdentities(issuesByKey);
         validateProjectCycles(issuesByKey);
         foreach (string invalidPath in gameData.InvalidLoadPaths
                      .Where(isUiPath)
@@ -125,9 +124,8 @@ public sealed class UiAssetValidationService
             add(issues, "root", "root", "UI asset root must be an object");
             return;
         }
-        HashSet<string> nodeIds = new HashSet<string>(StringComparer.Ordinal);
         HashSet<string> names = new HashSet<string>(StringComparer.Ordinal);
-        validateNode(assetKey, root, "root", true, null, controls, nodeIds, names, issues);
+        validateNode(assetKey, root, "root", true, null, controls, names, issues);
     }
 
     private void validateNode(
@@ -137,14 +135,10 @@ public sealed class UiAssetValidationService
         bool root,
         UiControlDescriptor? parent,
         IReadOnlyDictionary<string, UiControlDescriptor> controls,
-        ISet<string> nodeIds,
         ISet<string> names,
         ICollection<UiValidationIssue> issues)
     {
         rejectUnknownFields(node, NodeFields, path, issues);
-        string? nodeId = validateUuid(node["id"], path + ".id", issues);
-        if (nodeId is not null && !nodeIds.Add(nodeId))
-            add(issues, "duplicateNodeId", path + ".id", $"Duplicate node id \"{nodeId}\"");
         string? name = getString(node["name"]);
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -253,7 +247,6 @@ public sealed class UiAssetValidationService
                 false,
                 descriptor,
                 controls,
-                nodeIds,
                 names,
                 issues);
         }
@@ -552,64 +545,6 @@ public sealed class UiAssetValidationService
         }
     }
 
-    private void validateProjectIdentities(
-        IDictionary<string, List<UiValidationIssue>> issuesByKey)
-    {
-        Dictionary<string, List<(string Key, string Path)>> nodesById =
-            new Dictionary<string, List<(string Key, string Path)>>(StringComparer.Ordinal);
-        foreach (KeyValuePair<string, JsonObject> pair in gameData.UiAssetsData)
-        {
-            string logicalKey = UiAssetSchema.ToLogicalAssetKey(pair.Key);
-            if (logicalKey.Length == 0)
-                continue;
-            if (pair.Value["root"] is JsonObject root)
-                collectNodeIdentities(logicalKey, root, "root", nodesById);
-        }
-        foreach (KeyValuePair<string, List<(string Key, string Path)>> pair in
-                 nodesById.Where(item => item.Value.Count > 1))
-        {
-            string locations = string.Join(
-                ", ",
-                pair.Value
-                    .OrderBy(item => item.Key, StringComparer.Ordinal)
-                    .ThenBy(item => item.Path, StringComparer.Ordinal)
-                    .Select(item => item.Key + "." + item.Path));
-            foreach ((string key, string path) in pair.Value)
-            {
-                add(
-                    issuesByKey[key],
-                    "duplicateProjectNodeId",
-                    path + ".id",
-                    $"Node id \"{pair.Key}\" is also used by {locations}");
-            }
-        }
-    }
-
-    private static void collectNodeIdentities(
-        string assetKey,
-        JsonObject node,
-        string path,
-        IDictionary<string, List<(string Key, string Path)>> nodesById)
-    {
-        string? nodeId = canonicalUuid(node["id"]);
-        if (nodeId is not null)
-        {
-            if (!nodesById.TryGetValue(nodeId, out List<(string Key, string Path)>? locations))
-            {
-                locations = [];
-                nodesById[nodeId] = locations;
-            }
-            locations.Add((assetKey, path));
-        }
-        if (node["children"] is not JsonArray children)
-            return;
-        for (int index = 0; index < children.Count; index++)
-        {
-            if (children[index] is JsonObject child)
-                collectNodeIdentities(assetKey, child, $"{path}.children[{index}]", nodesById);
-        }
-    }
-
     private void validateProjectCycles(
         IDictionary<string, List<UiValidationIssue>> issuesByKey)
     {
@@ -730,29 +665,6 @@ public sealed class UiAssetValidationService
             add(issues, "paletteDisplayName", "palette.displayName", "Palette display name must be non-empty");
         if (string.IsNullOrWhiteSpace(getString(palette["category"])))
             add(issues, "paletteCategory", "palette.category", "Palette category must be non-empty");
-    }
-
-    private static string? validateUuid(
-        JsonNode? value,
-        string path,
-        ICollection<UiValidationIssue> issues)
-    {
-        string? canonical = canonicalUuid(value);
-        if (canonical is null)
-            add(issues, "uuid", path, "Value must be a canonical UUID string");
-        return canonical;
-    }
-
-    private static string? canonicalUuid(JsonNode? value)
-    {
-        string? text = getString(value);
-        if (text is null
-            || !Guid.TryParseExact(text, "D", out Guid parsed)
-            || !string.Equals(text, parsed.ToString("D"), StringComparison.Ordinal))
-        {
-            return null;
-        }
-        return text;
     }
 
     private static double[]? validatePair(

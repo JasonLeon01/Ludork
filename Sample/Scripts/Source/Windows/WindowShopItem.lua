@@ -12,6 +12,7 @@ WindowShopItem.uiClass = WindowShopItemUI
 
 function WindowShopItem:init(rect, owner)
     super(WindowShopItem, self).init(rect, nil, nil, SHOP_ITEM_ROW_HEIGHT)
+    self:setHasReturnBtn(true)
     self._owner = owner
     self._itemIDs = {}
     self._cellAvailable = {}
@@ -64,7 +65,7 @@ end
 
 function WindowShopItem:onKeyDown(kwargs)
     if Input.isActionTriggered(Input.getCancelKeys(), false) then
-        self._owner:cancelItemSelection()
+        self:onReturn()
         Input.isActionTriggered(Input.getCancelKeys(), true)
         return
     end
@@ -73,10 +74,14 @@ end
 
 function WindowShopItem:onMouseButtonDown(kwargs)
     if kwargs.button == sf.Mouse.Button.Right then
-        self._owner:cancelItemSelection()
+        self:onReturn()
         return true
     end
     return false
+end
+
+function WindowShopItem:onReturn()
+    self._owner:cancelItemSelection()
 end
 
 return class(WindowShopItem, WindowSelectable)

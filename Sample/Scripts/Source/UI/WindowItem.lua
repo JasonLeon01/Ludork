@@ -130,7 +130,7 @@ function WindowItemUI:handleKeyDown()
     if not Input.isActionTriggered(Input.getCancelKeys(), false) then
         return false
     end
-    self:_closeByCancel()
+    self.model:onReturn()
     Input.isActionTriggered(Input.getCancelKeys(), true)
     return true
 end
@@ -139,7 +139,7 @@ function WindowItemUI:handleMouseButtonDown(kwargs)
     if kwargs.button ~= sf.Mouse.Button.Right then
         return false
     end
-    self:_closeByCancel()
+    self.model:onReturn()
     return true
 end
 

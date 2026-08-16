@@ -24,7 +24,7 @@ namespace Ludork.Views;
 
 public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
 {
-    private const string DragPrefix = "ludork-ui-node:";
+    private const string DragPrefix = "ludork-ui-node-name:";
     private readonly UiAssetEditorDocument document = null!;
     private readonly GameDataService gameData = null!;
     private readonly UiControlRegistryService controlRegistry = null!;
@@ -33,15 +33,15 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private UiPreviewClient previewClient = null!;
     private UiPreviewSurface previewSurface = null!;
     private readonly DeferredWindowInitializer initializer = null!;
-    private readonly HashSet<string> lockedNodeIds = new(StringComparer.Ordinal);
+    private readonly HashSet<string> lockedNodeNames = new(StringComparer.Ordinal);
     private IReadOnlyDictionary<string, UiControlDescriptor> controlLookup =
         new Dictionary<string, UiControlDescriptor>(StringComparer.Ordinal);
-    private string? selectedNodeId;
+    private string? selectedNodeName;
     private Action? pendingFieldCommit;
     private CancellationTokenSource? previewCancellation;
     private PointerPressedEventArgs? hierarchyDragPress;
     private Point? hierarchyDragStart;
-    private string? hierarchyDragNodeId;
+    private string? hierarchyDragNodeName;
     private JsonObject? transformStartSlot;
     private bool startingHierarchyDrag;
     private bool refreshing;
@@ -255,25 +255,31 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         if (root is null)
         {
             HierarchyTree.ItemsSource = Array.Empty<UiHierarchyItem>();
-            selectedNodeId = null;
+            lockedNodeNames.Clear();
+            selectedNodeName = null;
+            previewSurface.SetSelectedNode(null);
             return;
         }
+        HashSet<string> nodeNames = UiAssetSchema.EnumerateNodes(document.Data)
+            .Select(node => getString(node, "name"))
+            .Where(name => name.Length != 0)
+            .ToHashSet(StringComparer.Ordinal);
+        lockedNodeNames.IntersectWith(nodeNames);
         UiHierarchyItem rootItem = createHierarchyItem(root);
         HierarchyTree.ItemsSource = new[] { rootItem };
-        UiHierarchyItem? selected = findHierarchyItem(rootItem, selectedNodeId);
+        UiHierarchyItem? selected = findHierarchyItem(rootItem, selectedNodeName);
         if (selected is null)
         {
             selected = rootItem;
-            selectedNodeId = rootItem.NodeId;
+            selectedNodeName = rootItem.NodeName;
         }
         HierarchyTree.SelectedItem = selected;
-        previewSurface.SetSelectedNode(selectedNodeId);
+        previewSurface.SetSelectedNode(selectedNodeName);
     }
 
     private UiHierarchyItem createHierarchyItem(JsonObject node)
     {
-        string nodeId = getString(node, "id");
-        string name = getString(node, "name", "Widget");
+        string nodeName = getString(node, "name", "Widget");
         string controlId = getString(node, "controlId");
         string controlLabel = controlLookup.TryGetValue(controlId, out UiControlDescriptor? descriptor)
             ? descriptor.DisplayName
@@ -288,25 +294,25 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
                 children.Add(createHierarchyItem(child));
         }
         return new UiHierarchyItem(
-            nodeId,
-            name,
+            nodeName,
+            nodeName,
             controlId,
             controlLabel,
             isNestedAsset,
             getBool((node["properties"] as JsonObject)?["visible"], true),
-            lockedNodeIds.Contains(nodeId),
+            lockedNodeNames.Contains(nodeName),
             children);
     }
 
     private static UiHierarchyItem? findHierarchyItem(
         UiHierarchyItem root,
-        string? nodeId)
+        string? nodeName)
     {
-        if (string.Equals(root.NodeId, nodeId, StringComparison.Ordinal))
+        if (string.Equals(root.NodeName, nodeName, StringComparison.Ordinal))
             return root;
         foreach (UiHierarchyItem child in root.Children)
         {
-            UiHierarchyItem? result = findHierarchyItem(child, nodeId);
+            UiHierarchyItem? result = findHierarchyItem(child, nodeName);
             if (result is not null)
                 return result;
         }
@@ -333,7 +339,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             setStatus(LocaleService.Get("UI_SELECT_CONTAINER"));
             return;
         }
-        string parentId = getString(parent, "id");
+        string parentName = getString(parent, "name");
         if (!canAcceptChild(parent, null))
         {
             setStatus(LocaleService.Get("UI_CONTAINER_REJECTS_CHILD"));
@@ -351,35 +357,35 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
                 defaults[property.Id] = property.Default.DeepClone();
         }
         JsonObject slot = createSlot(parent);
-        string? nodeId = document.AddNode(
-            parentId,
+        string? nodeName = document.AddNode(
+            parentName,
             descriptor.ControlId,
             descriptor.DisplayName,
             defaults,
             slot);
-        if (nodeId is null)
+        if (nodeName is null)
             return;
-        selectedNodeId = nodeId;
+        selectedNodeName = nodeName;
         refreshAll();
     }
 
     private JsonObject? getAddParent()
     {
-        JsonObject? selected = selectedNodeId is null
+        JsonObject? selected = selectedNodeName is null
             ? null
-            : document.FindNode(selectedNodeId);
+            : document.FindNode(selectedNodeName);
         if (selected is not null && canAcceptChild(selected, null))
             return selected;
-        if (selectedNodeId is not null)
+        if (selectedNodeName is not null)
         {
-            JsonObject? parent = document.FindParent(selectedNodeId);
+            JsonObject? parent = document.FindParent(selectedNodeName);
             if (parent is not null && canAcceptChild(parent, null))
                 return parent;
         }
         return document.Data["root"] as JsonObject;
     }
 
-    private bool canAcceptChild(JsonObject parent, string? movingNodeId)
+    private bool canAcceptChild(JsonObject parent, string? movingNodeName)
     {
         string controlId = getString(parent, "controlId");
         if (!controlLookup.TryGetValue(controlId, out UiControlDescriptor? descriptor))
@@ -391,8 +397,8 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         int childCount = parent["children"] is JsonArray children
             ? children.OfType<JsonObject>()
                 .Count(child => !string.Equals(
-                    getString(child, "id"),
-                    movingNodeId,
+                    getString(child, "name"),
+                    movingNodeName,
                     StringComparison.Ordinal))
             : 0;
         return childCount == 0;
@@ -454,8 +460,8 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         if (refreshing || HierarchyTree.SelectedItem is not UiHierarchyItem item)
             return;
         flushPendingField();
-        selectedNodeId = item.NodeId;
-        previewSurface.SetSelectedNode(selectedNodeId);
+        selectedNodeName = item.NodeName;
+        previewSurface.SetSelectedNode(selectedNodeName);
         refreshDetails();
     }
 
@@ -485,7 +491,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             return;
         }
         document.SetNodeProperty(
-            item.NodeId,
+            item.NodeName,
             "visible",
             JsonValue.Create(toggle.IsChecked == true));
         args.Handled = true;
@@ -501,39 +507,39 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             return;
         }
         if (checkBox.IsChecked == true)
-            lockedNodeIds.Add(item.NodeId);
+            lockedNodeNames.Add(item.NodeName);
         else
-            lockedNodeIds.Remove(item.NodeId);
+            lockedNodeNames.Remove(item.NodeName);
         refreshHierarchy();
         args.Handled = true;
     }
 
     private void onDeleteNode(object? sender, RoutedEventArgs args)
     {
-        if (selectedNodeId is null)
+        if (selectedNodeName is null)
             return;
-        JsonObject? parent = document.FindParent(selectedNodeId);
+        JsonObject? parent = document.FindParent(selectedNodeName);
         if (parent is null)
             return;
-        string nextSelection = getString(parent, "id");
-        if (document.DeleteNode(selectedNodeId))
+        string nextSelection = getString(parent, "name");
+        if (document.DeleteNode(selectedNodeName))
         {
-            selectedNodeId = nextSelection;
+            selectedNodeName = nextSelection;
             refreshAll();
         }
     }
 
     private void onDuplicateNode(object? sender, RoutedEventArgs args)
     {
-        if (selectedNodeId is null)
+        if (selectedNodeName is null)
             return;
-        JsonObject? parent = document.FindParent(selectedNodeId);
+        JsonObject? parent = document.FindParent(selectedNodeName);
         if (parent is null || !canAcceptChild(parent, null))
             return;
-        string? copyId = document.DuplicateNode(selectedNodeId);
-        if (copyId is not null)
+        string? copyName = document.DuplicateNode(selectedNodeName);
+        if (copyName is not null)
         {
-            selectedNodeId = copyId;
+            selectedNodeName = copyName;
             refreshAll();
         }
     }
@@ -551,7 +557,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private void moveWithinParent(int direction)
     {
         if (!tryGetNodeLocation(
-                selectedNodeId,
+                selectedNodeName,
                 out JsonObject? parent,
                 out JsonArray? siblings,
                 out int index)
@@ -563,13 +569,13 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         int target = index + direction;
         if (target < 0 || target >= siblings.Count)
             return;
-        document.MoveNode(selectedNodeId!, getString(parent, "id"), target);
+        document.MoveNode(selectedNodeName!, getString(parent, "name"), target);
     }
 
     private void onIndent(object? sender, RoutedEventArgs args)
     {
         if (!tryGetNodeLocation(
-                selectedNodeId,
+                selectedNodeName,
                 out JsonObject? parent,
                 out JsonArray? siblings,
                 out int index)
@@ -577,7 +583,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             || siblings is null
             || index <= 0
             || siblings[index - 1] is not JsonObject destination
-            || !canAcceptChild(destination, selectedNodeId))
+            || !canAcceptChild(destination, selectedNodeName))
         {
             return;
         }
@@ -585,8 +591,8 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             ? children.Count
             : 0;
         document.MoveNode(
-            selectedNodeId!,
-            getString(destination, "id"),
+            selectedNodeName!,
+            getString(destination, "name"),
             childCount,
             createSlot(destination));
     }
@@ -594,7 +600,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private void onOutdent(object? sender, RoutedEventArgs args)
     {
         if (!tryGetNodeLocation(
-                selectedNodeId,
+                selectedNodeName,
                 out JsonObject? parent,
                 out _,
                 out _)
@@ -602,32 +608,32 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         {
             return;
         }
-        string parentId = getString(parent, "id");
+        string parentName = getString(parent, "name");
         if (!tryGetNodeLocation(
-                parentId,
+                parentName,
                 out JsonObject? grandParent,
                 out JsonArray? parentSiblings,
                 out int parentIndex)
             || grandParent is null
             || parentSiblings is null
-            || !canAcceptChild(grandParent, selectedNodeId))
+            || !canAcceptChild(grandParent, selectedNodeName))
         {
             return;
         }
         document.MoveNode(
-            selectedNodeId!,
-            getString(grandParent, "id"),
+            selectedNodeName!,
+            getString(grandParent, "name"),
             parentIndex + 1,
             createSlot(grandParent));
     }
 
     private bool tryGetNodeLocation(
-        string? nodeId,
+        string? nodeName,
         out JsonObject? parent,
         out JsonArray? siblings,
         out int index)
     {
-        parent = nodeId is null ? null : document.FindParent(nodeId);
+        parent = nodeName is null ? null : document.FindParent(nodeName);
         siblings = parent?["children"] as JsonArray;
         index = -1;
         if (siblings is null)
@@ -635,7 +641,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         for (int candidateIndex = 0; candidateIndex < siblings.Count; candidateIndex++)
         {
             if (siblings[candidateIndex] is JsonObject child
-                && string.Equals(getString(child, "id"), nodeId, StringComparison.Ordinal))
+                && string.Equals(getString(child, "name"), nodeName, StringComparison.Ordinal))
             {
                 index = candidateIndex;
                 return true;
@@ -648,9 +654,9 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     {
         if (!ReferenceEquals(HierarchyTree.SelectedItem, item))
             HierarchyTree.SelectedItem = item;
-        JsonObject? parent = document.FindParent(item.NodeId);
+        JsonObject? parent = document.FindParent(item.NodeName);
         bool canModify = parent is not null
-            && !lockedNodeIds.Contains(item.NodeId);
+            && !lockedNodeNames.Contains(item.NodeName);
         MenuItem delete = new()
         {
             Header = LocaleService.Get("DELETE"),
@@ -708,12 +714,12 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     {
         pendingFieldCommit = null;
         DetailsPanel.Children.Clear();
-        JsonObject? node = selectedNodeId is null
+        JsonObject? node = selectedNodeName is null
             ? null
-            : document.FindNode(selectedNodeId);
+            : document.FindNode(selectedNodeName);
         if (node is null)
             return;
-        bool isRoot = document.FindParent(selectedNodeId!) is null;
+        bool isRoot = document.FindParent(selectedNodeName!) is null;
         if (isRoot)
             addAssetDetails();
         addWidgetDetails(node);
@@ -777,18 +783,11 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private void addWidgetDetails(JsonObject node)
     {
         addSection(LocaleService.Get("WIDGET"));
-        string nodeId = getString(node, "id");
+        string nodeName = getString(node, "name");
         addTextField(
             LocaleService.Get("NAME"),
-            getString(node, "name"),
-            value =>
-            {
-                if (!document.RenameNode(nodeId, value))
-                {
-                    setStatus(LocaleService.Get("UI_NAME_MUST_BE_UNIQUE"));
-                    refreshDetails();
-                }
-            });
+            nodeName,
+            value => renameNode(nodeName, value));
         string controlId = getString(node, "controlId");
         addReadOnlyTextField(LocaleService.Get("CONTROL"), controlId);
         if (!controlLookup.TryGetValue(controlId, out UiControlDescriptor? descriptor))
@@ -817,7 +816,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         }
         JsonObject properties = node["properties"] as JsonObject ?? new JsonObject();
         JsonObject editor = node["editor"] as JsonObject ?? new JsonObject();
-        bool rootCanvas = document.FindParent(nodeId) is null
+        bool rootCanvas = document.FindParent(nodeName) is null
             && string.Equals(
                 descriptor.ControlId,
                 "Engine.Canvas",
@@ -828,12 +827,43 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
                 continue;
             JsonObject source = property.EditorOnly ? editor : properties;
             JsonNode? value = source[property.Id] ?? property.Default;
-            addPropertyField(nodeId, descriptor.ControlId, property, value);
+            addPropertyField(nodeName, descriptor.ControlId, property, value);
         }
     }
 
+    private void renameNode(string nodeName, string value)
+    {
+        if (refreshing)
+            return;
+        string nextName = value.Trim();
+        if (string.Equals(nodeName, nextName, StringComparison.Ordinal))
+            return;
+        bool renamed;
+        bool wasRefreshing = refreshing;
+        refreshing = true;
+        try
+        {
+            renamed = document.RenameNode(nodeName, value);
+        }
+        finally
+        {
+            refreshing = wasRefreshing;
+        }
+        if (!renamed)
+        {
+            setStatus(LocaleService.Get("UI_NAME_MUST_BE_UNIQUE"));
+            refreshDetails();
+            return;
+        }
+        if (string.Equals(selectedNodeName, nodeName, StringComparison.Ordinal))
+            selectedNodeName = nextName;
+        if (lockedNodeNames.Remove(nodeName))
+            lockedNodeNames.Add(nextName);
+        refreshAll();
+    }
+
     private void addPropertyField(
-        string nodeId,
+        string nodeName,
         string controlId,
         UiControlPropertyDescriptor property,
         JsonNode? value)
@@ -841,9 +871,9 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         Action<JsonNode?> commit = nextValue =>
         {
             if (property.EditorOnly)
-                document.SetNodeEditorProperty(nodeId, property.Id, nextValue);
+                document.SetNodeEditorProperty(nodeName, property.Id, nextValue);
             else
-                document.SetNodeProperty(nodeId, property.Id, nextValue);
+                document.SetNodeProperty(nodeName, property.Id, nextValue);
         };
         switch (property.Type)
         {
@@ -921,7 +951,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
 
     private void addSlotDetails(JsonObject node)
     {
-        JsonObject? parent = document.FindParent(getString(node, "id"));
+        JsonObject? parent = document.FindParent(getString(node, "name"));
         if (parent is null
             || !controlLookup.TryGetValue(
                 getString(parent, "controlId"),
@@ -944,10 +974,10 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             return;
         JsonObject slot = node["slot"] as JsonObject
             ?? UiAssetEditorDocument.CreateDefaultCanvasSlot();
-        addCanvasSlotFields(getString(node, "id"), slot);
+        addCanvasSlotFields(getString(node, "name"), slot);
     }
 
-    private void addCanvasSlotFields(string nodeId, JsonObject slot)
+    private void addCanvasSlotFields(string nodeName, JsonObject slot)
     {
         JsonObject anchors = slot["anchors"] as JsonObject ?? new JsonObject();
         JsonArray min = anchors["min"] as JsonArray ?? new JsonArray(0, 0);
@@ -959,7 +989,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         double maximumX = getDouble(max[0], 0);
         double maximumY = getDouble(max[1], 0);
         addAnchorPicker(
-            nodeId,
+            nodeName,
             minimumX,
             minimumY,
             maximumX,
@@ -967,22 +997,22 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         bool stretchesX = Math.Abs(maximumX - minimumX) > 0.0001;
         bool stretchesY = Math.Abs(maximumY - minimumY) > 0.0001;
         addSlotOffsetField(
-            nodeId,
+            nodeName,
             stretchesX ? "OFFSET_LEFT" : "POSITION_X",
             "left",
             getDouble(offsets["left"], 0));
         addSlotOffsetField(
-            nodeId,
+            nodeName,
             stretchesY ? "OFFSET_TOP" : "POSITION_Y",
             "top",
             getDouble(offsets["top"], 0));
         addSlotOffsetField(
-            nodeId,
+            nodeName,
             stretchesX ? "OFFSET_RIGHT" : "SIZE_X",
             "right",
             getDouble(offsets["right"], 100));
         addSlotOffsetField(
-            nodeId,
+            nodeName,
             stretchesY ? "OFFSET_BOTTOM" : "SIZE_Y",
             "bottom",
             getDouble(offsets["bottom"], 34));
@@ -992,11 +1022,11 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             getDouble(alignment[1], 0),
             0,
             1,
-            (x, y) => updateSlotPoint(nodeId, null, "alignment", x, y));
+            (x, y) => updateSlotPoint(nodeName, null, "alignment", x, y));
         addBoolField(
             LocaleService.Get("AUTO_SIZE"),
             getBool(slot["autoSize"], false),
-            value => updateSlotScalar(nodeId, "autoSize", JsonValue.Create(value)));
+            value => updateSlotScalar(nodeName, "autoSize", JsonValue.Create(value)));
         addNumericField(
             LocaleService.Get("Z_ORDER"),
             getDouble(slot["zOrder"], 0),
@@ -1004,13 +1034,13 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             int.MaxValue,
             1,
             value => updateSlotScalar(
-                nodeId,
+                nodeName,
                 "zOrder",
                 JsonValue.Create((int)Math.Round(value))));
     }
 
     private void addAnchorPicker(
-        string nodeId,
+        string nodeName,
         double minimumX,
         double minimumY,
         double maximumX,
@@ -1021,14 +1051,14 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             minimumY,
             maximumX,
             maximumY);
-        picker.PresetSelected += preset => setAnchorPreset(nodeId, preset);
+        picker.PresetSelected += preset => setAnchorPreset(nodeName, preset);
         DetailsPanel.Children.Add(createField(
             LocaleService.Get("ANCHORS"),
             picker));
     }
 
     private void addSlotOffsetField(
-        string nodeId,
+        string nodeName,
         string localeKey,
         string offsetName,
         double value)
@@ -1039,14 +1069,14 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             -1000000000,
             1000000000,
             1,
-            next => updateSlotOffset(nodeId, offsetName, next));
+            next => updateSlotOffset(nodeName, offsetName, next));
     }
 
     private void setAnchorPreset(
-        string nodeId,
+        string nodeName,
         CanvasAnchorPreset preset)
     {
-        JsonObject slot = cloneSlot(nodeId);
+        JsonObject slot = cloneSlot(nodeName);
         slot["anchors"] = new JsonObject
         {
             ["min"] = new JsonArray(preset.MinimumX, preset.MinimumY),
@@ -1055,17 +1085,17 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         slot["alignment"] = new JsonArray(
             preset.AlignmentX,
             preset.AlignmentY);
-        document.SetNodeSlot(nodeId, slot);
+        document.SetNodeSlot(nodeName, slot);
     }
 
     private void updateSlotPoint(
-        string nodeId,
+        string nodeName,
         string? group,
         string name,
         double x,
         double y)
     {
-        JsonObject slot = cloneSlot(nodeId);
+        JsonObject slot = cloneSlot(nodeName);
         if (group is null)
         {
             slot[name] = new JsonArray(x, y);
@@ -1076,31 +1106,31 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             groupValue[name] = new JsonArray(x, y);
             slot[group] = groupValue;
         }
-        document.SetNodeSlot(nodeId, slot);
+        document.SetNodeSlot(nodeName, slot);
     }
 
     private void updateSlotOffset(
-        string nodeId,
+        string nodeName,
         string name,
         double value)
     {
-        JsonObject slot = cloneSlot(nodeId);
+        JsonObject slot = cloneSlot(nodeName);
         JsonObject offsets = slot["offsets"] as JsonObject ?? new JsonObject();
         offsets[name] = value;
         slot["offsets"] = offsets;
-        document.SetNodeSlot(nodeId, slot);
+        document.SetNodeSlot(nodeName, slot);
     }
 
-    private void updateSlotScalar(string nodeId, string name, JsonNode value)
+    private void updateSlotScalar(string nodeName, string name, JsonNode value)
     {
-        JsonObject slot = cloneSlot(nodeId);
+        JsonObject slot = cloneSlot(nodeName);
         slot[name] = value;
-        document.SetNodeSlot(nodeId, slot);
+        document.SetNodeSlot(nodeName, slot);
     }
 
-    private JsonObject cloneSlot(string nodeId)
+    private JsonObject cloneSlot(string nodeName)
     {
-        JsonObject? node = document.FindNode(nodeId);
+        JsonObject? node = document.FindNode(nodeName);
         return node?["slot"] is JsonObject slot
             ? (JsonObject)slot.DeepClone()
             : UiAssetEditorDocument.CreateDefaultCanvasSlot();
@@ -1135,16 +1165,19 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         box.GotFocus += (_, _) => pendingFieldCommit = commitValue;
         box.LostFocus += (_, _) =>
         {
+            if (!ReferenceEquals(pendingFieldCommit, commitValue))
+                return;
+            pendingFieldCommit = null;
             commitValue();
-            if (ReferenceEquals(pendingFieldCommit, commitValue))
-                pendingFieldCommit = null;
         };
         box.KeyDown += (_, args) =>
         {
             if (args.Key != Key.Enter)
                 return;
-            commitValue();
+            if (!ReferenceEquals(pendingFieldCommit, commitValue))
+                return;
             pendingFieldCommit = null;
+            commitValue();
             args.Handled = true;
         };
         DetailsPanel.Children.Add(createField(label, box));
@@ -1497,7 +1530,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             return;
         }
         previewSurface.SetFrame(frame);
-        previewSurface.SetSelectedNode(selectedNodeId);
+        previewSurface.SetSelectedNode(selectedNodeName);
         updateAnchorGuides();
         updatePreviewState();
     }
@@ -1558,7 +1591,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private void onPreviewNodeSelected(object? sender, UiPreviewNodeEventArgs args)
     {
         flushPendingField();
-        selectedNodeId = args.NodeId;
+        selectedNodeName = args.NodeName;
         refreshHierarchy();
         refreshDetails();
     }
@@ -1567,9 +1600,9 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         object? sender,
         UiPreviewTransformEventArgs args)
     {
-        if (lockedNodeIds.Contains(args.NodeId)
+        if (lockedNodeNames.Contains(args.NodeName)
             || !tryGetDesignerCanvasSlot(
-                args.NodeId,
+                args.NodeName,
                 out JsonObject slot))
         {
             return;
@@ -1640,16 +1673,16 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             ["right"] = right,
             ["bottom"] = bottom,
         };
-        document.SetNodeSlot(args.NodeId, slot);
+        document.SetNodeSlot(args.NodeName, slot);
     }
 
     private bool tryGetDesignerCanvasSlot(
-        string nodeId,
+        string nodeName,
         out JsonObject slot)
     {
         slot = null!;
-        JsonObject? node = document.FindNode(nodeId);
-        JsonObject? parent = document.FindParent(nodeId);
+        JsonObject? node = document.FindNode(nodeName);
+        JsonObject? parent = document.FindParent(nodeName);
         if (node?["slot"] is not JsonObject currentSlot
             || parent is null
             || !controlLookup.TryGetValue(
@@ -1674,9 +1707,9 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
 
     private void updateAnchorGuides()
     {
-        if (selectedNodeId is null
+        if (selectedNodeName is null
             || !tryGetDesignerCanvasSlot(
-                selectedNodeId,
+                selectedNodeName,
                 out JsonObject slot)
             || slot["anchors"] is not JsonObject anchors
             || anchors["min"] is not JsonArray minimum
@@ -1719,13 +1752,13 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         UiHierarchyItem? item = getHierarchyItem(args.Source);
         if (!point.Properties.IsLeftButtonPressed
             || item is null
-            || document.FindParent(item.NodeId) is null)
+            || document.FindParent(item.NodeName) is null)
         {
             return;
         }
         hierarchyDragPress = args;
         hierarchyDragStart = point.Position;
-        hierarchyDragNodeId = item.NodeId;
+        hierarchyDragNodeName = item.NodeName;
     }
 
     private void onHierarchyContextRequested(
@@ -1748,7 +1781,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         if (startingHierarchyDrag
             || hierarchyDragStart is not Point start
             || hierarchyDragPress is null
-            || hierarchyDragNodeId is null)
+            || hierarchyDragNodeName is null)
         {
             return;
         }
@@ -1763,7 +1796,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         }
         startingHierarchyDrag = true;
         DataTransfer data = new();
-        data.Add(DataTransferItem.CreateText(DragPrefix + hierarchyDragNodeId));
+        data.Add(DataTransferItem.CreateText(DragPrefix + hierarchyDragNodeName));
         await DragDrop.DoDragDropAsync(
             hierarchyDragPress,
             data,
@@ -1781,11 +1814,11 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
 
     private void onHierarchyDragOver(object? sender, DragEventArgs args)
     {
-        string? nodeId = getDraggedNodeId(args);
+        string? nodeName = getDraggedNodeName(args);
         UiHierarchyItem? target = getHierarchyItem(args.Source);
-        args.DragEffects = nodeId is not null
+        args.DragEffects = nodeName is not null
             && target is not null
-            && canDropNode(nodeId, target, args)
+            && canDropNode(nodeName, target, args)
                 ? DragDropEffects.Move
                 : DragDropEffects.None;
         args.Handled = true;
@@ -1793,58 +1826,58 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
 
     private void onHierarchyDrop(object? sender, DragEventArgs args)
     {
-        string? nodeId = getDraggedNodeId(args);
+        string? nodeName = getDraggedNodeName(args);
         UiHierarchyItem? target = getHierarchyItem(args.Source);
-        if (nodeId is null || target is null)
+        if (nodeName is null || target is null)
             return;
         if (!tryGetDropLocation(
-                nodeId,
+                nodeName,
                 target,
                 args,
-                out string parentId,
+                out string parentName,
                 out int index))
         {
             return;
         }
-        JsonObject? destination = document.FindNode(parentId);
-        JsonObject? sourceParent = document.FindParent(nodeId);
+        JsonObject? destination = document.FindNode(parentName);
+        JsonObject? sourceParent = document.FindParent(nodeName);
         JsonObject? slot = destination is not null
             && sourceParent is not null
             && !string.Equals(
-                getString(destination, "id"),
-                getString(sourceParent, "id"),
+                getString(destination, "name"),
+                getString(sourceParent, "name"),
                 StringComparison.Ordinal)
                 ? createSlot(destination)
                 : null;
-        if (document.MoveNode(nodeId, parentId, index, slot))
-            selectedNodeId = nodeId;
+        if (document.MoveNode(nodeName, parentName, index, slot))
+            selectedNodeName = nodeName;
         args.Handled = true;
     }
 
     private bool canDropNode(
-        string nodeId,
+        string nodeName,
         UiHierarchyItem target,
         DragEventArgs args)
     {
-        return tryGetDropLocation(nodeId, target, args, out _, out _);
+        return tryGetDropLocation(nodeName, target, args, out _, out _);
     }
 
     private bool tryGetDropLocation(
-        string nodeId,
+        string nodeName,
         UiHierarchyItem target,
         DragEventArgs args,
-        out string parentId,
+        out string parentName,
         out int index)
     {
-        parentId = string.Empty;
+        parentName = string.Empty;
         index = 0;
-        JsonObject? node = document.FindNode(nodeId);
-        JsonObject? targetNode = document.FindNode(target.NodeId);
+        JsonObject? node = document.FindNode(nodeName);
+        JsonObject? targetNode = document.FindNode(target.NodeName);
         if (node is null
             || targetNode is null
-            || lockedNodeIds.Contains(nodeId)
-            || string.Equals(nodeId, target.NodeId, StringComparison.Ordinal)
-            || isDescendant(node, target.NodeId))
+            || lockedNodeNames.Contains(nodeName)
+            || string.Equals(nodeName, target.NodeName, StringComparison.Ordinal)
+            || isDescendant(node, target.NodeName))
         {
             return false;
         }
@@ -1854,49 +1887,49 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             : args.GetPosition(container).Y / Math.Max(1, container.Bounds.Height);
         if (relativeY >= 0.25
             && relativeY <= 0.75
-            && canAcceptChild(targetNode, nodeId))
+            && canAcceptChild(targetNode, nodeName))
         {
-            parentId = target.NodeId;
+            parentName = target.NodeName;
             index = targetNode["children"] is JsonArray targetChildren
                 ? targetChildren.Count
                 : 0;
             return normalizeHierarchyDropIndex(
-                nodeId,
-                parentId,
+                nodeName,
+                parentName,
                 ref index);
         }
         if (!tryGetNodeLocation(
-                target.NodeId,
+                target.NodeName,
                 out JsonObject? targetParent,
                 out _,
                 out int targetIndex)
             || targetParent is null
-            || !canAcceptChild(targetParent, nodeId))
+            || !canAcceptChild(targetParent, nodeName))
         {
             return false;
         }
-        parentId = getString(targetParent, "id");
+        parentName = getString(targetParent, "name");
         index = targetIndex + (relativeY > 0.75 ? 1 : 0);
         return normalizeHierarchyDropIndex(
-            nodeId,
-            parentId,
+            nodeName,
+            parentName,
             ref index);
     }
 
     private bool normalizeHierarchyDropIndex(
-        string nodeId,
-        string parentId,
+        string nodeName,
+        string parentName,
         ref int index)
     {
         if (!tryGetNodeLocation(
-                nodeId,
+                nodeName,
                 out JsonObject? sourceParent,
                 out _,
                 out int sourceIndex)
             || sourceParent is null
             || !string.Equals(
-                getString(sourceParent, "id"),
-                parentId,
+                getString(sourceParent, "name"),
+                parentName,
                 StringComparison.Ordinal))
         {
             return true;
@@ -1906,14 +1939,14 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         return sourceIndex != index;
     }
 
-    private static bool isDescendant(JsonObject node, string nodeId)
+    private static bool isDescendant(JsonObject node, string nodeName)
     {
         if (node["children"] is not JsonArray children)
             return false;
         foreach (JsonObject child in children.OfType<JsonObject>())
         {
-            if (string.Equals(getString(child, "id"), nodeId, StringComparison.Ordinal)
-                || isDescendant(child, nodeId))
+            if (string.Equals(getString(child, "name"), nodeName, StringComparison.Ordinal)
+                || isDescendant(child, nodeName))
             {
                 return true;
             }
@@ -1943,7 +1976,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             .FirstOrDefault();
     }
 
-    private static string? getDraggedNodeId(DragEventArgs args)
+    private static string? getDraggedNodeName(DragEventArgs args)
     {
         string? text = args.DataTransfer.TryGetText();
         return text is not null && text.StartsWith(DragPrefix, StringComparison.Ordinal)
@@ -1955,7 +1988,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     {
         hierarchyDragPress = null;
         hierarchyDragStart = null;
-        hierarchyDragNodeId = null;
+        hierarchyDragNodeName = null;
     }
 
     private double getDesignWidth()

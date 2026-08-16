@@ -17,6 +17,9 @@ function WindowBaseUI:getWindow() end
 ---@return Engine.Canvas
 function WindowBaseUI:getContent() end
 
+---@return Engine.Button
+function WindowBaseUI:getReturnButton() end
+
 ---@return Engine.Image
 function WindowBaseUI:getPauseMark() end
 

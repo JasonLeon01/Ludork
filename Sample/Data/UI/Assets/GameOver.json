@@ -10,7 +10,6 @@
     "category": "Scenes"
   },
   "root": {
-    "id": "3fbb2abc-cfef-4f6b-a700-18b8d275ed72",
     "name": "Root",
     "controlId": "Engine.Canvas",
     "properties": {
@@ -23,7 +22,6 @@
     "editor": {},
     "children": [
       {
-        "id": "47b1228d-e0bb-41a5-bad7-8f38a326df14",
         "name": "Background",
         "controlId": "Engine.SolidRect",
         "properties": {
@@ -62,7 +60,6 @@
         "children": []
       },
       {
-        "id": "69d8e2ca-3b8f-4da2-a4d4-ae287e82da25",
         "name": "Message",
         "controlId": "Engine.PlainText",
         "properties": {

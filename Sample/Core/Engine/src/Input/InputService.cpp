@@ -143,6 +143,8 @@ const std::unordered_map<std::string, InputAxisComparison>
         {"Greater", greaterThan},
 };
 
+std::atomic_bool InputService::pendingSystemCancel_{false};
+
 bool InputActionKey::operator==(const InputActionKey& other) const {
     if (kind != other.kind || name != other.name || code != other.code ||
         threshold != other.threshold) {
@@ -372,6 +374,16 @@ void InputService::resetFrameState() {
     joystickReleasedEvents_.clear();
     joystickAxisEvents_.clear();
     enteredText_.clear();
+}
+
+void InputService::consumePendingSystemCancel() {
+    if (!pendingSystemCancel_.exchange(false, std::memory_order_acq_rel)) {
+        return;
+    }
+    abortTwoFingerCancel();
+    cancelTouchGesture();
+    setKeyPressed(Key::Escape, sf::Keyboard::Scancode::Escape, {});
+    setKeyReleased(Key::Escape, sf::Keyboard::Scancode::Escape, {});
 }
 
 void InputService::clearKeyboardState() {
@@ -1032,6 +1044,10 @@ void InputService::initializeNativePolling() {
     ludork::engine::platform_input::initialize();
 }
 
+void InputService::requestSystemCancel() noexcept {
+    pendingSystemCancel_.store(true, std::memory_order_release);
+}
+
 bool InputService::isKeyboardKeyDown(sf::Keyboard::Key key) const {
     if (heldKeys_.contains(static_cast<int>(key))) {
         return true;
@@ -1183,6 +1199,7 @@ void InputService::dispatchActionMappings() {
 void InputService::update(sf::WindowBase& window) {
     activeWindow_ = &window;
     resetFrameState();
+    consumePendingSystemCancel();
     if (injectedPointerTransitionPending_.has_value()) {
         if (*injectedPointerTransitionPending_) {
             mouseEntered_ = true;
@@ -2091,6 +2108,7 @@ void InputService::setFrameCompletionCallback(std::function<void()> callback) {
 }
 
 void InputService::shutdown() noexcept {
+    pendingSystemCancel_.store(false, std::memory_order_release);
     ludork::engine::platform_input::shutdown();
     actionMappings_.clear();
     frameCompletionCallback_ = {};

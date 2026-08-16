@@ -45,6 +45,9 @@ function WindowEnemyEncyclopedia:onKeyDown(kwargs) end
 ---@return boolean
 function WindowEnemyEncyclopedia:onMouseButtonDown(kwargs) end
 
+--- @brief Close the enemy detail through its cancel path.
+function WindowEnemyEncyclopedia:onReturn() end
+
 --- @brief Update the animated portrait.
 ---
 --- - @param deltaTime Elapsed time in seconds.

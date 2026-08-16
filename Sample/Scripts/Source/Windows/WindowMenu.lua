@@ -79,6 +79,7 @@ function WindowMenuController:bind()
         return true
     end
     local onSubMenuClose = function ()
+        self:_syncReturnButtonSuppression()
         model:requestKeyboardFocus()
     end
     model._windowItem._onCloseCallback = onSubMenuClose
@@ -97,14 +98,14 @@ function WindowMenuController:handleKeyDown()
     if not Input.isActionTriggered(cancelKeys, false) then
         return false
     end
-    self:_handleCancel()
+    self.model:onReturn()
     Input.isActionTriggered(cancelKeys, true)
     return true
 end
 
 function WindowMenuController:handleMouseButtonDown(kwargs)
     if kwargs.button == sf.Mouse.Button.Right then
-        self:_handleCancel()
+        self.model:onReturn()
         return true
     end
     if kwargs.button == sf.Mouse.Button.Left
@@ -145,6 +146,7 @@ function WindowMenuController:open()
     self.model._player:setMoveEnabled(false)
     self.model:setVisible(true)
     self.model:setActive(true)
+    self:_syncReturnButtonSuppression()
     self.model:requestKeyboardFocus()
 end
 
@@ -152,6 +154,7 @@ function WindowMenuController:close()
     self:_closeSubMenus()
     self.model:setVisible(false)
     self.model:setActive(false)
+    self:_syncReturnButtonSuppression()
     if self._moveRestoreGuard() then
         self.model._player:setMoveEnabled(true)
     end
@@ -193,6 +196,7 @@ function WindowMenuController:_onMenuItem()
     ManagerFunctions.playSE(GameSystem.getDecisionSE())
     self:_closeSubMenus("item")
     self.model._windowItem:open()
+    self:_syncReturnButtonSuppression()
     self.model._windowItem:requestKeyboardFocusAtCursor()
 end
 
@@ -201,6 +205,7 @@ function WindowMenuController:_onMenuEquip()
     self:_closeSubMenus("equip")
     self.model._windowEquipSelect:open()
     self.model._windowEquipSlot:open()
+    self:_syncReturnButtonSuppression()
     self.model._windowEquipSlot:requestKeyboardFocusAtCursor()
 end
 
@@ -208,6 +213,7 @@ function WindowMenuController:_onMenuSave()
     ManagerFunctions.playSE(GameSystem.getDecisionSE())
     self:_closeSubMenus("save")
     self.model._windowSaveLoad:open()
+    self:_syncReturnButtonSuppression()
     ---@type Source.Windows.WindowSaveCommand | Source.Windows.WindowSaveSlot | nil
     local focusTarget = self.model._windowSaveLoad:getCommandWindow()
     if focusTarget == nil or not focusTarget:getActive() then
@@ -221,14 +227,17 @@ function WindowMenuController:_onMenuConfig()
     self:_closeSubMenus("config")
     self.model:setActive(false)
     self.model._configWindow:open()
+    self:_syncReturnButtonSuppression()
 end
 
 function WindowMenuController:onSaveLoadClose()
+    self:_syncReturnButtonSuppression()
     self.model:requestKeyboardFocus()
 end
 
 function WindowMenuController:onConfigClose()
     self.model:setActive(true)
+    self:_syncReturnButtonSuppression()
     self.model:requestKeyboardFocus()
 end
 
@@ -288,7 +297,18 @@ function WindowMenuController:_closeSubMenus(exceptName)
         self.model._configWindow:close()
         closed = true
     end
+    self:_syncReturnButtonSuppression()
     return closed
+end
+
+function WindowMenuController:_syncReturnButtonSuppression()
+    local suppressed = self.model._windowItem:getVisible()
+        or self.model._windowEquipSlot:getVisible()
+        or self.model._windowEquipSelect:getVisible()
+        or self.model._windowEquipStatus:getVisible()
+        or self.model._windowSaveLoad:getVisible()
+        or self.model._configWindow:isOpen()
+    self.model:_setReturnButtonSuppressed(suppressed)
 end
 
 function WindowMenuController:_returnEquipSelectToSlot()
@@ -330,6 +350,7 @@ function WindowMenu:init(player, windows)
     self._configWindow = windows.config
     local commands = FinalWindowMenuController.createCommands(self)
     super(WindowMenu, self).init(Engine.ToIntRect(0, 0, 192, 192), commands)
+    self:setHasReturnBtn(true)
     self._menuController = self._commandController
     ---@cast self._menuController Source.Windows.WindowMenu.Controller
     self._menuControls = self._menuController:getMenuControls()
@@ -374,11 +395,7 @@ function WindowMenu:isBlocking()
     return self._menuController:isBlocking()
 end
 
-function WindowMenu:_closeByCancel()
-    self._menuController:_closeByCancel()
-end
-
-function WindowMenu:_handleCancel()
+function WindowMenu:onReturn()
     self._menuController:_handleCancel()
 end
 

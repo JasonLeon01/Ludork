@@ -169,7 +169,7 @@ function WindowAttrShopUI:handleKeyDown()
     if not Input.isActionTriggered(Input.getCancelKeys(), false) then
         return false
     end
-    self:closeByCancel()
+    self:_getSelectable():onReturn()
     Input.isActionTriggered(Input.getCancelKeys(), true)
     return true
 end
@@ -178,7 +178,7 @@ function WindowAttrShopUI:handleMouseButtonDown(kwargs)
     if kwargs.button ~= sf.Mouse.Button.Right then
         return false
     end
-    self:closeByCancel()
+    self:_getSelectable():onReturn()
     return true
 end
 

@@ -344,7 +344,7 @@ void Slider::refreshDisplayScale() {
 
 void Slider::updateMouseDrag() {
     FunctionalInputProvider* provider = inputProvider();
-    if (provider == nullptr || !getVisible() || !getActive()) {
+    if (provider == nullptr || !isInteractionEnabled()) {
         mouseDragging_ = false;
         return;
     }

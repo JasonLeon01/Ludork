@@ -26,6 +26,7 @@ WindowEnemyBook.uiClass = WindowEnemyBookUI
 
 function WindowEnemyBook:init(rect, player, onClose, onConfirm)
     super(WindowEnemyBook, self).init(rect, nil, _CELL_WIDTH, _CELL_HEIGHT)
+    self:setHasReturnBtn(true)
     self._player = player
     self._onCloseCallback = onClose
     self._onConfirmCallback = onConfirm
@@ -64,7 +65,7 @@ end
 
 function WindowEnemyBook:onKeyDown(kwargs)
     if Input.isActionTriggered(Input.getCancelKeys(), false) then
-        self:_closeByCancel()
+        self:onReturn()
         Input.isActionTriggered(Input.getCancelKeys(), true)
         return
     end
@@ -73,7 +74,7 @@ end
 
 function WindowEnemyBook:onMouseButtonDown(kwargs)
     if kwargs.button == sf.Mouse.Button.Right then
-        self:_closeByCancel()
+        self:onReturn()
         return true
     end
     return false
@@ -129,7 +130,7 @@ function WindowEnemyBook:_getRectWidth()
     return _CELL_WIDTH
 end
 
-function WindowEnemyBook:_closeByCancel()
+function WindowEnemyBook:onReturn()
     ManagerFunctions.playSE(GameSystem.getCancelSE())
     self:close()
     if self._onCloseCallback ~= nil then

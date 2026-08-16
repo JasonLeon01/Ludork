@@ -12,6 +12,7 @@ WindowShopCommand.controllerClass = WindowShopCommandController
 function WindowShopCommand:init(rect, owner)
     local commands = self.controllerClass.CreateCommands(owner)
     super(WindowShopCommand, self).init(rect, commands, nil, 32, nil, nil, 2)
+    self:setHasReturnBtn(true)
     self._owner = owner
     self._lastIndex = self.index
 end
@@ -28,7 +29,7 @@ end
 
 function WindowShopCommand:onKeyDown(kwargs)
     if Input.isActionTriggered(Input.getCancelKeys(), false) then
-        self._owner:closeByCancel()
+        self:onReturn()
         Input.isActionTriggered(Input.getCancelKeys(), true)
         return
     end
@@ -37,10 +38,14 @@ end
 
 function WindowShopCommand:onMouseButtonDown(kwargs)
     if kwargs.button == sf.Mouse.Button.Right then
-        self._owner:closeByCancel()
+        self:onReturn()
         return true
     end
     return false
+end
+
+function WindowShopCommand:onReturn()
+    self._owner:closeByCancel()
 end
 
 return class(WindowShopCommand, WindowCommand)

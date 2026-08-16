@@ -98,12 +98,13 @@ WindowSaveCommand.controllerClass = FinalWindowSaveCommandController
 function WindowSaveCommand:init(rect, owner)
     local commands = FinalWindowSaveCommandController.createCommands(owner)
     super(WindowSaveCommand, self).init(rect, commands, nil, 32, nil, nil, 2)
+    self:setHasReturnBtn(true)
     self._owner = owner
 end
 
 function WindowSaveCommand:onKeyDown(kwargs)
     if Input.isActionTriggered(Input.getCancelKeys(), false) then
-        self._owner:closeByCancel()
+        self:onReturn()
         Input.isActionTriggered(Input.getCancelKeys(), true)
         return
     end
@@ -112,10 +113,14 @@ end
 
 function WindowSaveCommand:onMouseButtonDown(kwargs)
     if kwargs.button == sf.Mouse.Button.Right then
-        self._owner:closeByCancel()
+        self:onReturn()
         return true
     end
     return false
+end
+
+function WindowSaveCommand:onReturn()
+    self._owner:closeByCancel()
 end
 
 local FinalWindowSaveCommand = class(WindowSaveCommand, WindowCommand)
@@ -124,6 +129,7 @@ local WindowSaveSlot = {}
 
 function WindowSaveSlot:init(rect, owner)
     super(WindowSaveSlot, self).init(rect, nil, nil, _SLOT_ROW_HEIGHT)
+    self:setHasReturnBtn(true)
     self._owner = owner
     self._ui = WindowSaveSlotUI.new(self, rect.size, MAX_SAVE_SLOTS)
     self._ui:attach()
@@ -132,7 +138,7 @@ end
 
 function WindowSaveSlot:onKeyDown(kwargs)
     if Input.isActionTriggered(Input.getCancelKeys(), false) then
-        self._owner:cancelSlotSelection()
+        self:onReturn()
         Input.isActionTriggered(Input.getCancelKeys(), true)
         return
     end
@@ -146,10 +152,14 @@ end
 
 function WindowSaveSlot:onMouseButtonDown(kwargs)
     if kwargs.button == sf.Mouse.Button.Right then
-        self._owner:cancelSlotSelection()
+        self:onReturn()
         return true
     end
     return false
+end
+
+function WindowSaveSlot:onReturn()
+    self._owner:cancelSlotSelection()
 end
 
 local FinalWindowSaveSlot = class(WindowSaveSlot, WindowSelectable)

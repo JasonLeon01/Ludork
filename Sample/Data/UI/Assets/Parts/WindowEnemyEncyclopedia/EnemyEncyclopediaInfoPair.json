@@ -10,7 +10,6 @@
     "category": "Rows"
   },
   "root": {
-    "id": "930bebc9-7dd3-463c-a062-fe8eb295ba15",
     "name": "Root",
     "controlId": "Engine.Canvas",
     "properties": {
@@ -22,7 +21,6 @@
     "editor": {},
     "children": [
       {
-        "id": "93f242a5-4f28-4ba2-9c99-0b3cab58c7e8",
         "name": "Label",
         "controlId": "Engine.FunctionalPlainText",
         "properties": {
@@ -50,7 +48,6 @@
         "children": []
       },
       {
-        "id": "f9444892-64c8-4f97-b5ab-c3b41440791f",
         "name": "Value",
         "controlId": "Engine.FunctionalPlainText",
         "properties": {

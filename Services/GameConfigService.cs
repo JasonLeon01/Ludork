@@ -31,7 +31,7 @@ public sealed class GameConfigService
     private static readonly GameConfigData defaults = new(
         "Scripts/Entry.lua",
         "en_GB",
-        2.0,
+        1.0,
         120,
         true,
         true,

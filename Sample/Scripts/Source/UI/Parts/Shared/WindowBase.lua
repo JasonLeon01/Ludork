@@ -14,6 +14,7 @@ end
 function WindowBaseUI:bind()
     self._window = self:requireControl("WindowFrame")
     self._content = self:requireControl("Content")
+    self._returnButton = self:requireControl("ReturnButton")
     self._pauseMark = self:requireControl("PauseMark")
     self._window:setWindowSkin(self._windowSkin, self._repeated)
     self._pauseMarkTexture = sf.Texture.new(self._windowSkin, false, self.model._PAUSE_MARK_ATLAS_RECT)
@@ -21,14 +22,18 @@ function WindowBaseUI:bind()
     self._pauseMark:setTexture(self._pauseMarkTexture, true)
     self._pauseMark:setTextureRect(self.model._PAUSE_MARK_FRAME_RECTS[1])
     self._pauseMark:setVisible(false)
+    self._returnButton:setVisible(false)
+    self._returnButton:setActive(false)
 end
 
 function WindowBaseUI:attachTo(parent, logicalSize)
     self:prepare(logicalSize)
     self.root:removeChild(self._window)
     self.root:removeChild(self._content)
+    self.root:removeChild(self._returnButton)
     parent:addChild(self._window)
     parent:addChild(self._content)
+    parent:addChild(self._returnButton)
 end
 
 function WindowBaseUI:getWindow()
@@ -37,6 +42,10 @@ end
 
 function WindowBaseUI:getContent()
     return self._content
+end
+
+function WindowBaseUI:getReturnButton()
+    return self._returnButton
 end
 
 function WindowBaseUI:getPauseMark()

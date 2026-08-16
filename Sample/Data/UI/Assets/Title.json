@@ -10,7 +10,6 @@
     "category": "Scenes"
   },
   "root": {
-    "id": "b87fcbcd-98bc-4c15-bea2-f265e39b0459",
     "name": "Root",
     "controlId": "Engine.Canvas",
     "properties": {
@@ -22,7 +21,6 @@
     "editor": {},
     "children": [
       {
-        "id": "58fa2e81-4c6f-4dff-98e1-47e4e8aef8aa",
         "name": "Background",
         "controlId": "Engine.Image",
         "properties": {

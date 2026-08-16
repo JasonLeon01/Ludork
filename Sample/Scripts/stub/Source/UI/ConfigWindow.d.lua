@@ -3,6 +3,7 @@
 ---@class Source.UI.ConfigWindow : Source.UI.UiController
 ---@field model Source.Windows.ConfigWindow
 ---@field _windowSkin sf.Image
+---@field _scaleValues number[]
 ---@field _windowFrame Engine.Window
 ---@field _content Engine.Canvas
 ---@field _listView Engine.ListView
@@ -30,6 +31,8 @@ function ConfigWindowUI:init(model, windowSkin) end
 function ConfigWindowUI:bind() end
 
 function ConfigWindowUI:refresh() end
+
+function ConfigWindowUI:refreshDisplayScaleOptions() end
 
 ---@return Engine.Canvas
 function ConfigWindowUI:prepare() end
@@ -86,9 +89,6 @@ function ConfigWindowUI.onVerticalSyncCheckedChanged(checked) end
 
 ---@param index integer
 function ConfigWindowUI.onLanguageSelectedIndexChanged(index) end
-
----@param index integer
-function ConfigWindowUI.onScaleSelectedIndexChanged(index) end
 
 ---@param index integer
 function ConfigWindowUI.onFrameRateSelectedIndexChanged(index) end

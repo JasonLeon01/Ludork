@@ -49,7 +49,7 @@ public:
 BIND_CLASS(callbacks =
                "onConfirm,onCancel,onClick,onMouseButtonDown,onHover,onUnHover,"
                "onMouseMoved,onMouseWheelScrolled,onKeyDown,onKeyUp,onTick,"
-               "onLateTick,onFixedTick")
+               "onLateTick,onFixedTick,onPointerInteractionReset")
 class LUDORK_ENGINE_API FunctionalBase : public FocusableMixin {
 public:
     using FocusResolver = std::function<bool(const FunctionalBase&)>;
@@ -219,10 +219,12 @@ public:
 
 protected:
     static FunctionalInputProvider* inputProvider();
+    bool isInteractionEnabled() const;
     void resetPointerInteraction();
     virtual bool acceptsTouchCapture() const;
     virtual void onTouchCaptureBegan(const sf::Vector2f& position);
     bool hasTouchCapture() const;
+    BIND_METHOD(metadata = false)
     virtual void onPointerInteractionReset();
     virtual void onInteractionStateChanged();
 

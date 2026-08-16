@@ -19,7 +19,6 @@ local _DROPBOX_WIDTH = 200
 local _CHECKBOX_SIZE = 32
 local _SLIDER_WIDTH = 160
 local _LANGUAGE_VALUES = MainConfig.SupportedLanguages
-local _SCALE_VALUES = { 0.0, 1.0, 1.25, 1.5, 1.75, 2.0 }
 local _FRAMERATE_ITEMS = { "30", "60", "90", "120" }
 local _SETTING_LOCALE_KEYS = {
     "language", "framerate", "verticalsync", "musicon", "musicvolume", "soundon", "soundvolume", "voiceon", "voicevolume"
@@ -28,7 +27,7 @@ if not LUDORK_MOBILE then
     table.insert(_SETTING_LOCALE_KEYS, 2, "scale")
 end
 
-local function _getLanguageLabels()
+local function getLanguageLabels()
     local languageLabels = {}
     for index, value in ipairs(_LANGUAGE_VALUES) do
         languageLabels[index] = LOC(value)
@@ -36,8 +35,25 @@ local function _getLanguageLabels()
     return languageLabels
 end
 
-local function getScaleLabels()
-    return { LOC("fullscreen"), "1", "1.25", "1.5", "1.75", "2" }
+local function getScaleLabels(scaleValues)
+    local labels = {}
+    for index, value in ipairs(scaleValues) do
+        if value == 0.0 then
+            labels[index] = LOC("fullscreen")
+        else
+            labels[index] = string.format("%.8g", value)
+        end
+    end
+    return labels
+end
+
+local function findScaleIndex(scaleValues, scale)
+    for index, value in ipairs(scaleValues) do
+        if value == scale then
+            return index - 1
+        end
+    end
+    return 0
 end
 
 ---@class Source.UI.ConfigWindow
@@ -47,6 +63,7 @@ ConfigWindowUI.refreshEvents = { EventKeys.LocaleChanged }
 
 function ConfigWindowUI:init(model, windowSkin)
     self._windowSkin = windowSkin
+    self._scaleValues = {}
     super(ConfigWindowUI, self).init(model, nil)
 end
 
@@ -61,10 +78,18 @@ function ConfigWindowUI:refresh()
     for index, rowUI in ipairs(self._settingRows) do
         rowUI:setLabelText(LOC(assert(_SETTING_LOCALE_KEYS[index])))
     end
-    self._languageRow:setItems(_getLanguageLabels())
+    self._languageRow:setItems(getLanguageLabels())
     if self._scaleRow ~= nil then
-        self._scaleRow:setItems(getScaleLabels())
+        self._scaleRow:setItems(getScaleLabels(self._scaleValues))
     end
+end
+
+function ConfigWindowUI:refreshDisplayScaleOptions()
+    if self._scaleRow == nil then
+        return
+    end
+    local scaleValues, effectiveScale = self:_getCurrentDisplayScaleOptions()
+    self:_setScaleOptions(scaleValues, effectiveScale)
 end
 
 function ConfigWindowUI:prepare()
@@ -146,12 +171,6 @@ function ConfigWindowUI.onLanguageSelectedIndexChanged(index)
     Locale.setLanguage(language)
 end
 
-function ConfigWindowUI.onScaleSelectedIndexChanged(index)
-    local scale = _SCALE_VALUES[index + 1]
-    ---@cast scale number
-    System.setScale(scale)
-end
-
 function ConfigWindowUI.onFrameRateSelectedIndexChanged(index)
     System.setFrameRate(Engine.ToInteger(_FRAMERATE_ITEMS[index + 1]))
 end
@@ -199,17 +218,15 @@ end
 
 function ConfigWindowUI:_createRows()
     self._languageRow = ConfigSettingRowUI.new(
-        LOC("language"), _getLanguageLabels(), _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
+        LOC("language"), getLanguageLabels(), _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
         self.model._findSelectedIndex(_LANGUAGE_VALUES, System.getLanguage())
     )
     if not LUDORK_MOBILE then
-        local configuredScale = System.getConfiguredScale()
-        local scaleIndex = self.model._findSelectedIndex(_SCALE_VALUES, configuredScale)
-        if _SCALE_VALUES[scaleIndex + 1] ~= configuredScale then
-            scaleIndex = self.model._findSelectedIndex(_SCALE_VALUES, 1.0)
-        end
+        local effectiveScale
+        self._scaleValues, effectiveScale = self:_getCurrentDisplayScaleOptions()
+        local scaleIndex = findScaleIndex(self._scaleValues, effectiveScale)
         self._scaleRow = ConfigSettingRowUI.new(
-            LOC("scale"), getScaleLabels(), _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
+            LOC("scale"), getScaleLabels(self._scaleValues), _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
             scaleIndex
         )
     end
@@ -306,13 +323,38 @@ function ConfigWindowUI:_createRows()
         ConfigWindowUI.onLanguageSelectedIndexChanged(index)
     end)
     if self._scaleRow ~= nil then
-        self._scaleRow:getDropBox():setOnSelectedIndexChanged(function (index)
-            ConfigWindowUI.onScaleSelectedIndexChanged(index)
+        self._scaleRow:getDropBox():setOnSelectionConfirmed(function (index)
+            self:_onScaleSelectionConfirmed(index)
         end)
     end
     self._framerateRow:getDropBox():setOnSelectedIndexChanged(function (index)
         ConfigWindowUI.onFrameRateSelectedIndexChanged(index)
     end)
+end
+
+function ConfigWindowUI:_getCurrentDisplayScaleOptions()
+    local configuredScale = System.getConfiguredScale()
+    local maximumScale = System.getMaximumWindowedScale(System.getGameSize())
+    local scaleValues, effectiveScale = MainConfig.GetDisplayScaleOptions(maximumScale, configuredScale)
+    if maximumScale ~= nil and effectiveScale ~= configuredScale then
+        System.setScale(effectiveScale)
+    end
+    return scaleValues, effectiveScale
+end
+
+function ConfigWindowUI:_setScaleOptions(scaleValues, selectedScale)
+    self._scaleValues = scaleValues
+    self._scaleRow:setItems(getScaleLabels(scaleValues))
+    local scaleIndex = findScaleIndex(scaleValues, selectedScale)
+    self._scaleRow:getDropBox():setSelectedIndex(scaleIndex)
+end
+
+function ConfigWindowUI:_onScaleSelectionConfirmed(index)
+    local selectedScale = assert(self._scaleValues[index + 1])
+    local maximumScale = System.getMaximumWindowedScale(System.getGameSize())
+    local scaleValues, effectiveScale = MainConfig.GetDisplayScaleOptions(maximumScale, selectedScale)
+    self:_setScaleOptions(scaleValues, effectiveScale)
+    System.setScale(effectiveScale)
 end
 
 return Ui.define("ConfigWindow", ConfigWindowUI)

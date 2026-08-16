@@ -10,7 +10,6 @@
     "category": "Windows"
   },
   "root": {
-    "id": "5816c457-653a-4dae-b281-5b33e36904e3",
     "name": "Root",
     "controlId": "Engine.Canvas",
     "properties": {
@@ -22,7 +21,6 @@
     "editor": {},
     "children": [
       {
-        "id": "3eab112b-6f76-4f66-a2cc-c276805b667d",
         "name": "WindowFrame",
         "controlId": "Engine.Window",
         "properties": {
@@ -61,7 +59,6 @@
         "children": []
       },
       {
-        "id": "21a4324b-58b3-4ec7-9bb0-d1ac568d382d",
         "name": "Content",
         "controlId": "Engine.Canvas",
         "properties": {
@@ -97,7 +94,6 @@
         "editor": {},
         "children": [
           {
-            "id": "7a22616e-c4fc-46b2-bb91-46ea17ab392c",
             "name": "SettingsList",
             "controlId": "Engine.ListView",
             "properties": {

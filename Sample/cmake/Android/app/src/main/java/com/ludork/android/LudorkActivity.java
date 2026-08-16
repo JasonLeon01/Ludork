@@ -1,10 +1,15 @@
 package com.ludork.android;
 
+import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.app.NativeActivity;
 import android.content.res.AssetManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.system.Os;
 import android.util.Log;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -26,6 +31,23 @@ public final class LudorkActivity extends NativeActivity {
     private static final String MANIFEST_ASSET = "ludork-runtime-manifest.json";
     private static final String COMPLETE_MARKER = ".complete";
     private static final int BUFFER_SIZE = 64 * 1024;
+    private Api33BackHandler api33BackHandler;
+
+    @TargetApi(Build.VERSION_CODES.TIRAMISU)
+    private static final class Api33BackHandler {
+        private final OnBackInvokedCallback callback;
+
+        Api33BackHandler(LudorkActivity activity) {
+            callback = LudorkActivity::submitSystemBack;
+            activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                    callback);
+        }
+
+        void unregister(LudorkActivity activity) {
+            activity.getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(callback);
+        }
+    }
 
     private static final class RuntimeFile {
         final String path;
@@ -49,7 +71,30 @@ public final class LudorkActivity extends NativeActivity {
             throw new IllegalStateException("Unable to prepare the Ludork Android runtime", exception);
         }
         super.onCreate(savedInstanceState);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            api33BackHandler = new Api33BackHandler(this);
+        }
     }
+
+    @Override
+    @SuppressLint("GestureBackNavigation")
+    @SuppressWarnings("deprecation")
+    public void onBackPressed() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            submitSystemBack();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (api33BackHandler != null) {
+            api33BackHandler.unregister(this);
+            api33BackHandler = null;
+        }
+        super.onDestroy();
+    }
+
+    private static native void submitSystemBack();
 
     private void prepareRuntime() throws Exception {
         JSONObject manifest = new JSONObject(readAssetText(MANIFEST_ASSET));

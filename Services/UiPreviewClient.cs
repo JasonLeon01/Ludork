@@ -20,7 +20,7 @@ public enum UiPreviewClientState
 }
 
 public sealed record UiPreviewNodeGeometry(
-    string NodeId,
+    string NodeName,
     double X,
     double Y,
     double Width,
@@ -175,8 +175,8 @@ public sealed class UiPreviewClient : IAsyncDisposable
             {
                 return null;
             }
-            string nodeId = getString(response, "nodeId");
-            return nodeId.Length == 0 ? null : nodeId;
+            string nodeName = getString(response, "nodeName");
+            return nodeName.Length == 0 ? null : nodeName;
         }
         catch (OperationCanceledException)
         {
@@ -226,7 +226,7 @@ public sealed class UiPreviewClient : IAsyncDisposable
             foreach (JsonObject node in nodeData.OfType<JsonObject>())
             {
                 nodes.Add(new UiPreviewNodeGeometry(
-                    getString(node, "nodeId"),
+                    getString(node, "nodeName"),
                     getDouble(node, "x"),
                     getDouble(node, "y"),
                     getDouble(node, "width"),

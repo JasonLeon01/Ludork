@@ -16,6 +16,7 @@ WindowEnemyEncyclopedia.uiClass = WindowEnemyEncyclopediaUI
 
 function WindowEnemyEncyclopedia:init(rect, onClose)
     super(WindowEnemyEncyclopedia, self).init(rect)
+    self:setHasReturnBtn(true)
     self._onCloseCallback = onClose
     self._portrait = nil
     self._nameText = nil
@@ -54,19 +55,19 @@ end
 
 function WindowEnemyEncyclopedia:onKeyDown(_kwargs)
     if Input.isActionTriggered(Input.getConfirmKeys(), false) then
-        self:_closeByInput()
+        self:onReturn()
         Input.isActionTriggered(Input.getConfirmKeys(), true)
         return
     end
     if Input.isActionTriggered(Input.getCancelKeys(), false) then
-        self:_closeByInput()
+        self:onReturn()
         Input.isActionTriggered(Input.getCancelKeys(), true)
     end
 end
 
 function WindowEnemyEncyclopedia:onMouseButtonDown(_kwargs)
     if _kwargs.button == sf.Mouse.Button.Right then
-        self:_closeByInput()
+        self:onReturn()
         return true
     end
     return false
@@ -90,7 +91,7 @@ function WindowEnemyEncyclopedia:_clearEnemyControls()
     self._ui:clearEnemyControls()
 end
 
-function WindowEnemyEncyclopedia:_closeByInput()
+function WindowEnemyEncyclopedia:onReturn()
     ManagerFunctions.playSE(GameSystem.getCancelSE())
     self:close()
 end

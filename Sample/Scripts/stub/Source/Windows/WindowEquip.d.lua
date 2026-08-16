@@ -188,6 +188,8 @@ function WindowEquipSlot:onKeyDown(kwargs) end
 ---@return boolean
 function WindowEquipSlot:onMouseButtonDown(kwargs) end
 
+function WindowEquipSlot:onReturn() end
+
 --- @brief Open the slot window, refreshing slot list first.
 function WindowEquipSlot:open() end
 
@@ -259,6 +261,8 @@ function WindowEquipSelect:onKeyDown(kwargs) end
 ---@param kwargs table
 ---@return boolean
 function WindowEquipSelect:onMouseButtonDown(kwargs) end
+
+function WindowEquipSelect:onReturn() end
 
 --- @brief Open the available-equip window without taking focus.
 function WindowEquipSelect:open() end

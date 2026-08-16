@@ -10,7 +10,6 @@
     "category": "Windows"
   },
   "root": {
-    "id": "65089351-13ea-4196-abc9-cb3ae55fbceb",
     "name": "Root",
     "controlId": "Engine.Canvas",
     "properties": {
@@ -22,7 +21,6 @@
     "editor": {},
     "children": [
       {
-        "id": "72a2dc1c-1824-49dc-a91d-f74a3e782996",
         "name": "WindowFrame",
         "controlId": "Engine.Window",
         "properties": {
@@ -61,7 +59,6 @@
         "children": []
       },
       {
-        "id": "8714826b-b17b-460e-896d-b50e57f70f3b",
         "name": "Content",
         "controlId": "Engine.Canvas",
         "properties": {
@@ -97,7 +94,6 @@
         "editor": {},
         "children": [
           {
-            "id": "63fcfdc4-253c-4342-9233-aeb29874bbaf",
             "name": "EnemyList",
             "controlId": "Engine.ListView",
             "properties": {

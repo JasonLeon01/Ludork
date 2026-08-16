@@ -7,7 +7,7 @@
 ---@field bp              string
 ---@field layer           string
 ---@field position        sf.Vector2i
----@field tag             string
+---@field tag             string Non-empty map-placement tag returned by `actor:getMapTag()`.
 ---@field classVarChanges table<string, Source.GameInstance.RecordValue> | nil
 
 ---@class Source.GameInstance.TerrainChangeRecord
@@ -18,7 +18,7 @@
 ---@field bp              string
 ---@field layer           string
 ---@field position        integer[]
----@field tag             string
+---@field tag             string Non-empty map-placement tag returned by `actor:getMapTag()`.
 ---@field classVarChanges table<string, Source.GameInstance.RecordValue> | nil
 
 ---@class Source.GameInstance.SavedTerrainChangeRecord
@@ -41,7 +41,8 @@
 --- @brief Persistent game state container that survives across scene transitions.
 ---
 --- Holds player data, game variables, cached map information,
---- and destroyed actor tracking.
+--- and destroyed actor tracking. Added, moved and destroyed Actor records use
+--- the stable map-placement tag returned by `actor:getMapTag()`, not `actor.tag`.
 ---@class Source.GameInstance.GameInstance
 ---@field _cachedMap string | nil
 ---@field new                       fun(skipDefaultPlayer?: boolean): Source.GameInstance.GameInstance
@@ -184,7 +185,7 @@ function GameInstance:applyMapInfo(mapPath, position) end
 --- @brief Record an added actor for persistence.
 ---
 --- - @param mapPath The map path where the actor was added.
---- - @param actor The added actor.
+--- - @param actor The added actor, identified by its non-empty map-placement tag.
 --- - @param layerName The actor layer name.
 ---@param mapPath   string
 ---@param actor     Engine.Actor
@@ -202,7 +203,7 @@ function GameInstance:getAddedActors(mapPath) end
 --- @brief Record an actor position change for persistence.
 ---
 --- - @param mapPath The map path where the actor moved.
---- - @param actor The moved actor.
+--- - @param actor The moved actor, identified by its non-empty map-placement tag.
 ---@param mapPath       string
 ---@param actor         Engine.Actor
 ---@param actorPosition sf.Vector2i | nil
@@ -211,7 +212,7 @@ function GameInstance:recordActorPosition(mapPath, actor, actorPosition) end
 --- @brief Get actor position records for a map.
 ---
 --- - @param mapPath The map path.
---- - @return Actor-tag-indexed position records.
+--- - @return Map-placement-tag-indexed position records.
 ---@param mapPath string
 ---@return table<string, sf.Vector2i>
 function GameInstance:getActorPositions(mapPath) end
@@ -219,15 +220,15 @@ function GameInstance:getActorPositions(mapPath) end
 --- @brief Record a destroyed actor for persistence.
 ---
 --- - @param mapPath The map path where the actor was destroyed.
---- - @param actor The destroyed actor.
+--- - @param actor The destroyed actor, identified by its non-empty map-placement tag.
 ---@param mapPath string
 ---@param actor   Engine.Actor
 function GameInstance:recordDestroyedActor(mapPath, actor) end
 
---- @brief Get destroyed actor tags for a map.
+--- @brief Get destroyed Actor map-placement tags for a map.
 ---
 --- - @param mapPath The map path.
---- - @return A list of destroyed actor tags.
+--- - @return A list of destroyed Actor map-placement tags.
 ---@param mapPath string
 ---@return string[]
 function GameInstance:getDestroyedActors(mapPath) end

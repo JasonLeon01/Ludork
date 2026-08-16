@@ -10,6 +10,8 @@ local ManagerFunctions = GlobalFunctions.Manager
 
 local _DEFAULT_RECT = Engine.ToIntRect(80, 48, 480, 320)
 local _ROW_HEIGHT = 32
+local _TOUCH_OWNER_LIST = "list"
+local _TOUCH_OWNER_SLIDER = "slider"
 
 ---@class Source.Windows.ConfigWindow
 local ConfigWindow = {}
@@ -18,6 +20,7 @@ function ConfigWindow:init(onClose)
     local windowSkin = ManagerFunctions.loadSystem(Engine.DefaultWindowskinName, false, nil, true):copyToImage()
     local contentWidth = _DEFAULT_RECT.size.x
     super(ConfigWindow, self).init(_DEFAULT_RECT, nil, contentWidth, _ROW_HEIGHT, windowSkin)
+    self:setHasReturnBtn(true)
     self._ui = ConfigWindowUI.new(self, windowSkin)
     self._ui:attach()
     self._listView = self._ui:getListView()
@@ -35,6 +38,9 @@ function ConfigWindow:init(onClose)
     self._settingRows = self._ui:getSettingRows()
     self._onClose = onClose
     self._open = false
+    self._capturedTouchSlider = nil
+    self._capturedTouchSliderIndex = nil
+    self._capturedTouchOwner = nil
     self:setVisible(false)
     self:setActive(false)
 end
@@ -87,6 +93,8 @@ function ConfigWindow:isOpen()
 end
 
 function ConfigWindow:open()
+    self._ui:refreshDisplayScaleOptions()
+    self:_setSelectionInputPaused(false)
     self._open = true
     self:setVisible(true)
     self:setActive(true)
@@ -124,11 +132,23 @@ function ConfigWindow:dispose()
     self._dropBoxRows = nil
     self._settingRows = nil
     self._onClose = nil
+    self._capturedTouchSlider = nil
+    self._capturedTouchSliderIndex = nil
+    self._capturedTouchOwner = nil
 end
 
 function ConfigWindow:_closeByCancel()
     ManagerFunctions.playSE(GameSystem.getCancelSE())
     self:close()
+end
+
+function ConfigWindow:onReturn()
+    local expandedRow = self:_getExpandedSettingRow()
+    if expandedRow ~= nil then
+        expandedRow:getDropBox():cancel()
+        return
+    end
+    self:_closeByCancel()
 end
 
 function ConfigWindow:onTick(deltaTime)
@@ -139,8 +159,11 @@ end
 
 function ConfigWindow:onKeyDown(kwargs)
     if Input.isActionTriggered(Input.getCancelKeys(), false) then
-        self:_closeByCancel()
+        self:onReturn()
         Input.isActionTriggered(Input.getCancelKeys(), true)
+        return
+    end
+    if self._selectionInputPaused then
         return
     end
     if self:_handleSelectedSliderKeyDown() then
@@ -151,7 +174,7 @@ end
 
 function ConfigWindow:onMouseButtonDown(kwargs)
     if kwargs.button == sf.Mouse.Button.Right then
-        self:_closeByCancel()
+        self:onReturn()
         return true
     end
     return false
@@ -168,15 +191,17 @@ end
 ---@param expanded boolean
 function ConfigWindow:_onDropBoxExpandedChanged(expanded)
     if expanded then
-        self:setActive(false)
+        self:_setSelectionInputPaused(true)
         local expandedRow = self:_getExpandedSettingRow()
         for _, row in ipairs(self._settingRows) do
             row:setActive(row == expandedRow)
         end
-    elseif self._open then
-        self:setActive(true)
-        self:_setSettingRowsActive(true)
-        self:requestKeyboardFocus()
+    else
+        self:_setSelectionInputPaused(false)
+        if self._open then
+            self:_setSettingRowsActive(true)
+            self:requestKeyboardFocus()
+        end
     end
 end
 
@@ -216,11 +241,6 @@ end
 ---@param index integer
 function ConfigWindow:_onLanguageSelectedIndexChanged(index)
     self._ui.onLanguageSelectedIndexChanged(index)
-end
-
----@param index integer
-function ConfigWindow:_onScaleSelectedIndexChanged(index)
-    self._ui.onScaleSelectedIndexChanged(index)
 end
 
 ---@param index integer
@@ -280,18 +300,74 @@ function ConfigWindow:_handleSelectedSliderKeyDown()
     return false
 end
 
-function ConfigWindow:_shouldCaptureTouch(position)
+---@param position sf.Vector2f
+function ConfigWindow:_onCapturedTouchBegan(position)
+    self._capturedTouchSlider = nil
+    self._capturedTouchSliderIndex = nil
+    self._capturedTouchOwner = nil
     for luaIndex, row in ipairs(self._settingRows) do
         if Class.isInstance(row, ConfigSliderRowUI) then
             local slider = row:getSlider()
             if slider:getVisible() and slider:getActive()
                 and slider:getAbsoluteTouchHitBounds():contains(position) then
-                self:_setPointerIndex(luaIndex - 1)
-                return false
+                self._capturedTouchSlider = slider
+                self._capturedTouchSliderIndex = luaIndex - 1
+                return
             end
         end
     end
-    return super(ConfigWindow, self)._shouldCaptureTouch(position)
+end
+
+---@param position sf.Vector2f
+---@return boolean
+function ConfigWindow:_handleCapturedTouchDrag(position)
+    local slider = self._capturedTouchSlider
+    if slider == nil then
+        return false
+    end
+    if self._capturedTouchOwner == nil then
+        local startPosition = self._touchStartPosition
+        ---@cast startPosition sf.Vector2f
+        local deltaX = position.x - startPosition.x
+        local deltaY = position.y - startPosition.y
+        if math.abs(deltaX) > math.abs(deltaY) then
+            self._capturedTouchOwner = _TOUCH_OWNER_SLIDER
+            local index = self._capturedTouchSliderIndex
+            ---@cast index integer
+            self:_setPointerIndex(index)
+        else
+            self._capturedTouchOwner = _TOUCH_OWNER_LIST
+        end
+    end
+    if self._capturedTouchOwner ~= _TOUCH_OWNER_SLIDER then
+        return false
+    end
+    if slider:getVisible() and slider:getActive() then
+        slider:setValueFromBoundsPosition(slider:getAbsoluteBounds(), position)
+    end
+    return true
+end
+
+---@param position sf.Vector2f
+---@return boolean
+function ConfigWindow:_handleCapturedTouchTap(position)
+    local slider = self._capturedTouchSlider
+    if slider == nil then
+        return false
+    end
+    local index = self._capturedTouchSliderIndex
+    ---@cast index integer
+    self:_setPointerIndex(index)
+    if slider:getVisible() and slider:getActive() then
+        slider:setValueFromBoundsPosition(slider:getAbsoluteBounds(), position)
+    end
+    return true
+end
+
+function ConfigWindow:_onCapturedTouchReset()
+    self._capturedTouchSlider = nil
+    self._capturedTouchSliderIndex = nil
+    self._capturedTouchOwner = nil
 end
 
 ---@return Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI | Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI | Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI | nil

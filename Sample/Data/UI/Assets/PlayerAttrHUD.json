@@ -10,7 +10,6 @@
     "category": "HUD"
   },
   "root": {
-    "id": "f6acf321-1f6b-49c9-a273-1dac3ccd57d6",
     "name": "Root",
     "controlId": "Engine.Canvas",
     "properties": {
@@ -22,7 +21,6 @@
     "editor": {},
     "children": [
       {
-        "id": "f3fcfc55-f830-4c03-9c5c-4559b7462208",
         "name": "Avatar",
         "controlId": "Engine.Button",
         "properties": {
@@ -69,7 +67,6 @@
         "children": []
       },
       {
-        "id": "8dc9950f-a507-42ab-81e2-57dea564159f",
         "name": "MapName",
         "controlId": "Engine.PlainText",
         "properties": {
@@ -106,7 +103,6 @@
         "children": []
       },
       {
-        "id": "0eb2de49-a178-4db6-800b-c6e5081eaaf2",
         "name": "Level",
         "controlId": "Engine.PlainText",
         "properties": {
@@ -143,7 +139,6 @@
         "children": []
       },
       {
-        "id": "8f86d993-ca1f-499d-ae1e-4ad9683de2d7",
         "name": "StateHost",
         "controlId": "Engine.Canvas",
         "properties": {
@@ -180,7 +175,6 @@
         "children": []
       },
       {
-        "id": "94696f60-3986-4897-993c-053f686c5839",
         "name": "HpBack",
         "controlId": "Engine.SolidRect",
         "properties": {
@@ -223,7 +217,6 @@
         "children": []
       },
       {
-        "id": "2ff32851-ee2e-4a81-99c3-43daf108ec94",
         "name": "HpFill",
         "controlId": "Engine.SolidRect",
         "properties": {
@@ -266,7 +259,6 @@
         "children": []
       },
       {
-        "id": "6a50c10c-3fbb-4548-bbde-e3316e2ae024",
         "name": "HpLabel",
         "controlId": "Engine.PlainText",
         "properties": {
@@ -303,7 +295,6 @@
         "children": []
       },
       {
-        "id": "8258e44f-6357-4e41-880c-48a800bb98e2",
         "name": "HpValue",
         "controlId": "Engine.RichText",
         "properties": {
@@ -340,7 +331,6 @@
         "children": []
       },
       {
-        "id": "2aa21198-8e65-4ef0-b80b-95526833a53c",
         "name": "HpPoison",
         "controlId": "Engine.PlainText",
         "properties": {
@@ -377,7 +367,6 @@
         "children": []
       },
       {
-        "id": "b16bb882-9564-4673-9d14-6ef1cc283bd7",
         "name": "AtkLabel",
         "controlId": "Engine.PlainText",
         "properties": {
@@ -414,7 +403,6 @@
         "children": []
       },
       {
-        "id": "da0552de-4758-487c-94c8-19e59fb02758",
         "name": "AtkValue",
         "controlId": "Engine.PlainText",
         "properties": {
@@ -451,7 +439,6 @@
         "children": []
       },
       {
-        "id": "f1c69917-474c-4464-a79a-8246853abdcf",
         "name": "AtkDebuff",
         "controlId": "Engine.PlainText",
         "properties": {
@@ -488,7 +475,6 @@
         "children": []
       },
       {
-        "id": "44ab459f-f5b0-417c-bedb-6cd62b60eb05",
         "name": "DefLabel",
         "controlId": "Engine.PlainText",
         "properties": {
@@ -525,7 +511,6 @@
         "children": []
       },
       {
-        "id": "623a6715-8675-4a46-8776-8d0f553df20a",
         "name": "DefValue",
         "controlId": "Engine.PlainText",
         "properties": {
@@ -562,7 +547,6 @@
         "children": []
       },
       {
-        "id": "c7d3984b-e5d3-430f-88d5-813bbd85bcde",
         "name": "DefDebuff",
         "controlId": "Engine.PlainText",
         "properties": {
@@ -599,7 +583,6 @@
         "children": []
       },
       {
-        "id": "60bcf52c-383e-4673-b916-4910f9da46db",
         "name": "ExpLabel",
         "controlId": "Engine.PlainText",
         "properties": {
@@ -636,7 +619,6 @@
         "children": []
       },
       {
-        "id": "c9de1053-60e3-4ed1-918a-9699af6174d8",
         "name": "ExpValue",
         "controlId": "Engine.PlainText",
         "properties": {
@@ -673,7 +655,6 @@
         "children": []
       },
       {
-        "id": "4b107c51-9e47-4255-b4fe-07ae04e5f667",
         "name": "GoldLabel",
         "controlId": "Engine.PlainText",
         "properties": {
@@ -710,7 +691,6 @@
         "children": []
       },
       {
-        "id": "a54c24b8-61d4-4efd-9b39-fd31d6d57eb0",
         "name": "GoldValue",
         "controlId": "Engine.PlainText",
         "properties": {
@@ -747,7 +727,6 @@
         "children": []
       },
       {
-        "id": "cc65c238-417d-4a0b-89f2-2e4eee39e2c8",
         "name": "KeyIcon",
         "controlId": "Engine.Image",
         "properties": {
@@ -781,7 +760,6 @@
         "children": []
       },
       {
-        "id": "4ffd130f-f3c1-429d-bd8e-3b006b0f20e2",
         "name": "ItemCounts",
         "controlId": "Engine.RichText",
         "properties": {

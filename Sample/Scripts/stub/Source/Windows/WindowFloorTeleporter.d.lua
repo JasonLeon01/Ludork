@@ -58,6 +58,8 @@ function WindowFloorMapCommand:onKeyDown(kwargs) end
 ---@return boolean
 function WindowFloorMapCommand:onMouseButtonDown(kwargs) end
 
+function WindowFloorMapCommand:onReturn() end
+
 --- @brief Right-side preview panel and telepoint selector for the selected map.
 ---@class Source.Windows.WindowFloorMapPreview: Source.Windows.Base.WindowSelectable
 local WindowFloorMapPreview = {}
@@ -98,6 +100,8 @@ function WindowFloorMapPreview:onKeyDown(kwargs) end
 ---@param kwargs table
 ---@return boolean
 function WindowFloorMapPreview:onMouseButtonDown(kwargs) end
+
+function WindowFloorMapPreview:onReturn() end
 
 local WindowFloorTeleporterController = {}
 

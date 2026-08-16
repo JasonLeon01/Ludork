@@ -1,6 +1,7 @@
 #include <System.hpp>
 
 #include "PerformanceProfiler.hpp"
+#include "Platform/NativeDisplay.hpp"
 #include "Platform/NativeInputMethod.hpp"
 
 #include <Fog/FogController.hpp>
@@ -41,12 +42,14 @@ bool viewsEqual(const sf::View& left, const sf::View& right) {
 }  // namespace
 
 std::shared_ptr<sf::RenderWindow> System::window_;
+std::mutex System::windowMutex_;
 std::unique_ptr<sf::Cursor> System::cursor_;
 std::string System::windowTitle_;
 std::string System::windowIconPath_;
 std::string System::windowCursorPath_;
 sf::ContextSettings System::windowContextSettings_;
 sf::Vector2u System::observedWindowSize_;
+std::optional<sf::Vector2u> System::observedWindowClientSize_;
 std::optional<float> System::pendingConfiguredScale_;
 std::optional<float> System::pendingResizeScale_;
 std::chrono::steady_clock::time_point System::lastResizeTime_;
@@ -122,6 +125,7 @@ void System::init(const std::shared_ptr<ludork::standard::ConfigParser>& data,
     pendingConfiguredScale_.reset();
     pendingResizeScale_.reset();
     observedWindowSize_ = {};
+    observedWindowClientSize_.reset();
     desktopFullscreen_ = false;
     inputMethodDisabled_ = true;
     canvasDefaultViewActive_ = true;
@@ -154,14 +158,7 @@ void System::init(const std::shared_ptr<ludork::standard::ConfigParser>& data,
     stopScreenTone();
     stopShake();
     TimeManager::init();
-    if (shadersAvailable()) {
-        transitionShader_ = ShaderManager::load("Global/Transition.frag",
-                                                sf::Shader::Type::Fragment);
-    } else {
-        transitionShader_.reset();
-        warnOnce("System.transitionShader",
-                 "Shaders are unavailable; skipped loading transition shader");
-    }
+    transitionShader_.reset();
 }
 
 void System::initializeDisplay(const std::string& title,
@@ -181,6 +178,10 @@ void System::initializeDisplay(const std::string& title,
     windowCursorPath_ = cursorPath;
     windowContextSettings_ = {};
     windowContextSettings_.antiAliasingLevel = isMobileDisplay() ? 0U : 8U;
+#if defined(SFML_SYSTEM_IOS)
+    windowContextSettings_.majorVersion = 3;
+    windowContextSettings_.minorVersion = 0;
+#endif
     std::shared_ptr<sf::RenderWindow> window;
 
     setGameSize(gameSize);
@@ -211,21 +212,46 @@ void System::initializeDisplay(const std::string& title,
         const float configuredScale = getConfiguredScale();
         desktopFullscreen_ = configuredScale == 0.0f;
         const sf::Vector2u windowSize =
-            desktopFullscreen_
-                ? sf::VideoMode::getDesktopMode().size
-                : renderSizeForScale(configuredScale);
+            desktopFullscreen_ ? sf::VideoMode::getDesktopMode().size
+                               : renderSizeForScale(configuredScale);
         window = std::make_shared<sf::RenderWindow>(
             sf::VideoMode(windowSize), title,
             desktopFullscreen_ ? sf::Style::None : sf::Style::Default,
             sf::State::Windowed, windowContextSettings_);
-        engineState().setScale(windowFitScale(window->getSize()));
+        const std::optional<sf::Vector2u> clientSize =
+            desktopFullscreen_ ? std::nullopt
+                               : ludork::global::getWindowedClientSize(
+                                     window->getNativeHandle());
+        engineState().setScale(
+            windowFitScale(clientSize.value_or(window->getSize())));
     }
 
+#if defined(SFML_SYSTEM_IOS)
+    if (window->getSettings().majorVersion < 3) {
+        throw std::runtime_error(
+            "iOS requires an OpenGL ES 3.0 context, but OpenGL ES " +
+            std::to_string(window->getSettings().majorVersion) + "." +
+            std::to_string(window->getSettings().minorVersion) +
+            " was created");
+    }
+#endif
     initWindow(window);
+    if (shadersAvailable()) {
+        transitionShader_ = ShaderManager::load("Global/Transition.frag",
+                                                sf::Shader::Type::Fragment);
+    } else {
+        transitionShader_.reset();
+        warnOnce("System.transitionShader",
+                 "Shaders are unavailable; skipped loading transition shader");
+    }
     setInputMethodDisabled(true);
     inputService().initializeNativePolling();
     initCanvas(renderSizeForScale(getScale()));
     observedWindowSize_ = window_->getSize();
+    observedWindowClientSize_ =
+        desktopFullscreen_
+            ? std::nullopt
+            : ludork::global::getWindowedClientSize(window_->getNativeHandle());
     updateWindowViewport();
 }
 
@@ -252,6 +278,27 @@ float System::getScale() {
 }
 float System::getConfiguredScale() {
     return SystemConfigBase::getConfiguredScale();
+}
+std::optional<float> System::getMaximumWindowedScale(
+    const sf::Vector2u& gameSize) {
+    if (gameSize.x == 0 || gameSize.y == 0 || isEmbeddedDisplay() ||
+        isMobileDisplay()) {
+        return std::nullopt;
+    }
+    std::optional<sf::Vector2u> clientSize;
+    {
+        const std::lock_guard<std::mutex> lock(windowMutex_);
+        const sf::WindowHandle windowHandle =
+            window_ != nullptr && window_->isOpen() ? window_->getNativeHandle()
+                                                    : sf::WindowHandle{};
+        clientSize = ludork::global::getMaximumWindowedClientSize(windowHandle);
+    }
+    if (!clientSize.has_value() || clientSize->x == 0 || clientSize->y == 0) {
+        return std::nullopt;
+    }
+    return std::min(
+        static_cast<float>(clientSize->x) / static_cast<float>(gameSize.x),
+        static_cast<float>(clientSize->y) / static_cast<float>(gameSize.y));
 }
 void System::setScale(float value) {
     SystemConfigBase::setScale(value);
@@ -350,8 +397,11 @@ void System::setGameSize(const sf::Vector2u& gameSize) {
 }
 
 bool System::isActive() {
-    return !shuttingDown_.load() && window_ != nullptr && window_->isOpen() &&
-           engineState().getGameRunning();
+    if (shuttingDown_.load() || !engineState().getGameRunning()) {
+        return false;
+    }
+    const std::lock_guard<std::mutex> lock(windowMutex_);
+    return window_ != nullptr && window_->isOpen();
 }
 
 bool System::shouldLoop() {
@@ -362,11 +412,15 @@ void System::initWindow(const std::shared_ptr<sf::RenderWindow>& window) {
     if (window == nullptr) {
         throw std::invalid_argument("System window cannot be nil");
     }
-    window_ = window;
+    {
+        const std::lock_guard<std::mutex> lock(windowMutex_);
+        window_ = window;
+    }
     applyWindowPresentationSettings();
 }
 
 std::shared_ptr<sf::RenderWindow> System::getWindow() {
+    const std::lock_guard<std::mutex> lock(windowMutex_);
     return window_;
 }
 
@@ -396,11 +450,11 @@ sf::Vector2u System::renderSizeForScale(float scale) {
     const float normalizedScale = std::max(0.01f, scale);
     return {
         static_cast<unsigned int>(std::max(
-            1.0f, std::floor(static_cast<float>(gameSize.x) *
-                             normalizedScale))),
+            1.0f,
+            std::floor(static_cast<float>(gameSize.x) * normalizedScale))),
         static_cast<unsigned int>(std::max(
-            1.0f, std::floor(static_cast<float>(gameSize.y) *
-                             normalizedScale))),
+            1.0f,
+            std::floor(static_cast<float>(gameSize.y) * normalizedScale))),
     };
 }
 
@@ -435,8 +489,8 @@ void System::applyWindowPresentationSettings() {
     }
 }
 
-void System::recreateDesktopWindow(bool fullscreen,
-                                   const sf::Vector2u& size) {
+void System::recreateDesktopWindow(bool fullscreen, const sf::Vector2u& size) {
+    const std::lock_guard<std::mutex> lock(windowMutex_);
     if (window_ == nullptr || isEmbeddedDisplay() || isMobileDisplay()) {
         return;
     }
@@ -454,22 +508,31 @@ void System::recreateDesktopWindow(bool fullscreen,
     inputService().initializeNativePolling();
 }
 
-void System::replaceWindowedDesktopWindow(const sf::Vector2u& size,
-                                          const sf::Vector2i& position) {
-    if (window_ == nullptr || isEmbeddedDisplay() || isMobileDisplay()) {
+void System::replaceWindowedDesktopWindow(
+    const sf::Vector2u& size,
+    const ludork::global::WindowedFramePlacement* placement) {
+    const std::shared_ptr<sf::RenderWindow> previousWindow = getWindow();
+    if (previousWindow == nullptr || isEmbeddedDisplay() || isMobileDisplay()) {
         return;
     }
     ludork::global::restoreNativeInputMethod();
-    window_.reset();
-    window_ = std::make_shared<sf::RenderWindow>(
-        sf::VideoMode(size), windowTitle_, sf::Style::Default,
-        sf::State::Windowed, windowContextSettings_);
-    desktopFullscreen_ = false;
-    window_->setPosition(position);
-    applyWindowPresentationSettings();
-    setInputMethodDisabled(inputMethodDisabled_);
-    inputService().onWindowRecreated(*window_);
-    inputService().initializeNativePolling();
+    const std::shared_ptr<sf::RenderWindow> replacement =
+        std::make_shared<sf::RenderWindow>(
+            sf::VideoMode(size), windowTitle_, sf::Style::Default,
+            sf::State::Windowed, windowContextSettings_);
+    {
+        const std::lock_guard<std::mutex> lock(windowMutex_);
+        window_ = replacement;
+        desktopFullscreen_ = false;
+        if (placement != nullptr) {
+            ludork::global::setWindowedFramePlacement(
+                window_->getNativeHandle(), *placement);
+        }
+        applyWindowPresentationSettings();
+        setInputMethodDisabled(inputMethodDisabled_);
+        inputService().onWindowRecreated(*window_);
+        inputService().initializeNativePolling();
+    }
 }
 
 void System::updateWindowViewport() {
@@ -560,23 +623,33 @@ void System::applyConfiguredScale(float scale) {
         return;
     }
     const bool fullscreen = scale == 0.0f;
-    sf::Vector2u targetSize = fullscreen
-                                  ? sf::VideoMode::getDesktopMode().size
-                                  : renderSizeForScale(scale);
+    sf::Vector2u targetSize = fullscreen ? sf::VideoMode::getDesktopMode().size
+                                         : renderSizeForScale(scale);
+    std::optional<sf::Vector2u> clientSize;
     if (fullscreen != desktopFullscreen_) {
         recreateDesktopWindow(fullscreen, targetSize);
-    } else if (!fullscreen && window_->getSize() != targetSize) {
-#if defined(__APPLE__)
-        const sf::Vector2i windowPosition = window_->getPosition();
-        recreateDesktopWindow(false, targetSize);
-        window_->setPosition(windowPosition);
+        if (!fullscreen) {
+            clientSize = ludork::global::getWindowedClientSize(
+                window_->getNativeHandle());
+        }
+    } else if (!fullscreen) {
+#if defined(__APPLE__) && !defined(LUDORK_MOBILE)
+        const std::optional<ludork::global::WindowedFramePlacement> placement =
+            ludork::global::getWindowedFramePlacement(
+                window_->getNativeHandle());
+        replaceWindowedDesktopWindow(
+            targetSize, placement.has_value() ? &*placement : nullptr);
 #else
         window_->setSize(targetSize);
 #endif
+        clientSize =
+            ludork::global::getWindowedClientSize(window_->getNativeHandle());
     }
     observedWindowSize_ = window_->getSize();
+    observedWindowClientSize_ = clientSize;
     pendingResizeScale_.reset();
-    rebuildDisplayTargets(windowFitScale(observedWindowSize_));
+    rebuildDisplayTargets(
+        windowFitScale(clientSize.value_or(observedWindowSize_)));
 }
 
 void System::observeWindowResize() {
@@ -586,24 +659,46 @@ void System::observeWindowResize() {
     const sf::Vector2u size = window_->getSize();
     const auto now = std::chrono::steady_clock::now();
     if (size != observedWindowSize_) {
+        const std::optional<sf::Vector2u> clientSize =
+            desktopFullscreen_ ? std::nullopt
+                               : ludork::global::getWindowedClientSize(
+                                     window_->getNativeHandle());
+        const bool clientSizeChanged =
+            !clientSize.has_value() || clientSize != observedWindowClientSize_;
         observedWindowSize_ = size;
-        pendingResizeScale_ = windowFitScale(size);
-        lastResizeTime_ = now;
+        observedWindowClientSize_ = clientSize;
+        if (clientSizeChanged) {
+            pendingResizeScale_ =
+                windowFitScale(clientSize.value_or(observedWindowSize_));
+            lastResizeTime_ = now;
+        }
         updateWindowViewport();
     }
     if (!pendingResizeScale_.has_value() ||
         now - lastResizeTime_ < std::chrono::milliseconds(150)) {
         return;
     }
+    float scale = *pendingResizeScale_;
     pendingResizeScale_.reset();
 #if defined(__APPLE__) && !defined(LUDORK_MOBILE)
     if (!isEmbeddedDisplay() && !desktopFullscreen_) {
-        const sf::Vector2i windowPosition = window_->getPosition();
-        replaceWindowedDesktopWindow(observedWindowSize_, windowPosition);
-        observedWindowSize_ = window_->getSize();
+        const std::optional<sf::Vector2u> clientSize =
+            ludork::global::getWindowedClientSize(window_->getNativeHandle());
+        if (clientSize.has_value()) {
+            const std::optional<ludork::global::WindowedFramePlacement>
+                placement = ludork::global::getWindowedFramePlacement(
+                    window_->getNativeHandle());
+            replaceWindowedDesktopWindow(
+                *clientSize, placement.has_value() ? &*placement : nullptr);
+            observedWindowSize_ = window_->getSize();
+            const std::optional<sf::Vector2u> replacedClientSize =
+                ludork::global::getWindowedClientSize(
+                    window_->getNativeHandle());
+            observedWindowClientSize_ = replacedClientSize;
+            scale = windowFitScale(replacedClientSize.value_or(*clientSize));
+        }
     }
 #endif
-    const float scale = windowFitScale(observedWindowSize_);
     rebuildDisplayTargets(scale);
 }
 
@@ -612,6 +707,7 @@ void System::applyPendingDisplayChanges() {
         const float scale = *pendingConfiguredScale_;
         pendingConfiguredScale_.reset();
         applyConfiguredScale(scale);
+        return;
     }
     observeWindowResize();
 }
@@ -872,11 +968,18 @@ void System::present() {
 #if defined(__APPLE__) && !defined(LUDORK_MOBILE)
     if (!isEmbeddedDisplay() && !desktopFullscreen_) {
         const sf::Vector2u windowSize = window_->getSize();
-        if (ludork::global::isNativeWindowLiveResizing(
-                window_->getNativeHandle()) ||
-            windowSize != observedWindowSize_) {
-            pendingResizeScale_ = windowFitScale(windowSize);
-            lastResizeTime_ = std::chrono::steady_clock::now();
+        const bool liveResizing = ludork::global::isNativeWindowLiveResizing(
+            window_->getNativeHandle());
+        if (liveResizing || windowSize != observedWindowSize_) {
+            const std::optional<sf::Vector2u> clientSize =
+                ludork::global::getWindowedClientSize(
+                    window_->getNativeHandle());
+            if (liveResizing || !clientSize.has_value() ||
+                clientSize != observedWindowClientSize_) {
+                pendingResizeScale_ =
+                    windowFitScale(clientSize.value_or(windowSize));
+                lastResizeTime_ = std::chrono::steady_clock::now();
+            }
             return;
         }
         if (pendingResizeScale_.has_value()) {
@@ -1384,13 +1487,19 @@ void System::shutdownRuntime() noexcept {
     toneBuffer_.reset();
     canvas_.reset();
     ludork::global::restoreNativeInputMethod();
-    window_.reset();
+    std::shared_ptr<sf::RenderWindow> previousWindow;
+    {
+        const std::lock_guard<std::mutex> lock(windowMutex_);
+        previousWindow = std::move(window_);
+    }
+    previousWindow.reset();
     cursor_.reset();
     windowTitle_.clear();
     windowIconPath_.clear();
     windowCursorPath_.clear();
     windowContextSettings_ = {};
     observedWindowSize_ = {};
+    observedWindowClientSize_.reset();
     pendingConfiguredScale_.reset();
     pendingResizeScale_.reset();
     lastResizeTime_ = {};
@@ -1428,12 +1537,20 @@ void System::shutdownRuntime() noexcept {
 
 void System::onConfigChanged(const std::string& key) {
     if (key == "scale") {
-        pendingConfiguredScale_ = getConfiguredScale();
-    } else if (key == "frameRate" && window_ != nullptr) {
-        window_->setFramerateLimit(
-            static_cast<unsigned int>(std::max(0, getFrameRate())));
-    } else if (key == "verticalSync" && window_ != nullptr) {
-        window_->setVerticalSyncEnabled(getVerticalSync());
+        if (getWindow() != nullptr) {
+            pendingConfiguredScale_ = getConfiguredScale();
+        }
+    } else if (key == "frameRate") {
+        const std::shared_ptr<sf::RenderWindow> window = getWindow();
+        if (window != nullptr) {
+            window->setFramerateLimit(
+                static_cast<unsigned int>(std::max(0, getFrameRate())));
+        }
+    } else if (key == "verticalSync") {
+        const std::shared_ptr<sf::RenderWindow> window = getWindow();
+        if (window != nullptr) {
+            window->setVerticalSyncEnabled(getVerticalSync());
+        }
     } else if (key == "musicOn" || key == "musicVolume") {
         AudioManager::applyMusicVolumes();
     } else if (key == "soundOn") {

@@ -15,6 +15,7 @@ end
 
 function WindowItem:init(rect, player, onClose)
     super(WindowItem, self).init(rect, nil, 32, 32)
+    self:setHasReturnBtn(true)
     self._onCloseCallback = onClose
     self._onUseCallback = nil
     self._player = player
@@ -82,12 +83,12 @@ function WindowItem:close()
     self._itemUI:close()
 end
 
-function WindowItem:_onUseItem()
-    self._itemUI:_onUseItem()
+function WindowItem:onReturn()
+    self._itemUI:_closeByCancel()
 end
 
-function WindowItem:_closeByCancel()
-    self._itemUI:_closeByCancel()
+function WindowItem:_onUseItem()
+    self._itemUI:_onUseItem()
 end
 
 return class(WindowItem, WindowSelectable)

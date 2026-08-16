@@ -10,7 +10,6 @@
     "category": "General"
   },
   "root": {
-    "id": "639bc157-2d03-4f09-b56b-253326cd3102",
     "name": "Root",
     "controlId": "Engine.Canvas",
     "properties": {
@@ -22,7 +21,6 @@
     "editor": {},
     "children": [
       {
-        "id": "9bd9fdde-046b-4248-aa52-1f3dd8be8288",
         "name": "Label",
         "controlId": "Engine.PlainText",
         "properties": {
@@ -59,7 +57,6 @@
         "children": []
       },
       {
-        "id": "d59fdc1b-c2a7-424d-8e4a-9b959312dc24",
         "name": "Slider",
         "controlId": "Engine.Slider",
         "properties": {
@@ -101,7 +98,6 @@
         "children": []
       },
       {
-        "id": "a84a1093-b31b-4ca3-819e-e2bc77862cdc",
         "name": "ValueText",
         "controlId": "Engine.PlainText",
         "properties": {

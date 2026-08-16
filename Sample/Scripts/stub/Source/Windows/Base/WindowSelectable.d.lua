@@ -21,6 +21,7 @@
 ---@field _mousePositionAtCursorPending boolean
 ---@field _mouseSelectionConfirmedThisFrame boolean
 ---@field _wheelScrollTargetOriginY number?
+---@field _selectionInputPaused boolean
 ---@field _touchCaptured boolean
 ---@field _touchDragging boolean
 ---@field _touchStartPosition sf.Vector2f?
@@ -45,7 +46,9 @@ local WindowSelectable = {}
 ---@param repeated      boolean | nil
 ---@param hitRectWidth  integer | nil
 ---@param hitRectHeight integer | nil
-function WindowSelectable:init(rect, listView, rectWidth, rectHeight, windowSkin, repeated, hitRectWidth, hitRectHeight) end
+function WindowSelectable:init(
+    rect, listView, rectWidth, rectHeight, windowSkin, repeated, hitRectWidth, hitRectHeight
+) end
 
 --- @brief Get the current list view.
 ---
@@ -120,5 +123,29 @@ function WindowSelectable:_applyItem(item) end
 ---@param position sf.Vector2f
 ---@return boolean
 function WindowSelectable:_shouldCaptureTouch(position) end
+
+--- @brief Handle the beginning of a touch captured by the parent list.
+---@param position sf.Vector2f
+function WindowSelectable:_onCapturedTouchBegan(position) end
+
+--- @brief Optionally handle a captured touch drag instead of scrolling the parent list.
+---@param position sf.Vector2f
+---@return boolean
+function WindowSelectable:_handleCapturedTouchDrag(position) end
+
+--- @brief Optionally handle a captured touch tap instead of selecting the parent-list item.
+---@param position sf.Vector2f
+---@return boolean
+function WindowSelectable:_handleCapturedTouchTap(position) end
+
+--- @brief Reset state owned by captured-touch hooks.
+function WindowSelectable:_onCapturedTouchReset() end
+
+--- @brief Cancel Lua-owned captured-touch state when native interaction state is reset.
+function WindowSelectable:onPointerInteractionReset() end
+
+--- @brief Pause or resume every parent-list input path while a child owns input.
+---@param paused boolean
+function WindowSelectable:_setSelectionInputPaused(paused) end
 
 return WindowSelectable

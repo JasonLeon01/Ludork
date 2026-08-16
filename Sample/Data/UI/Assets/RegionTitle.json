@@ -10,7 +10,6 @@
     "category": "Scenes"
   },
   "root": {
-    "id": "a6a8cd9c-5bc1-4751-a56b-f077e6e4fa11",
     "name": "Root",
     "controlId": "Engine.Canvas",
     "properties": {
@@ -22,7 +21,6 @@
     "editor": {},
     "children": [
       {
-        "id": "41cca42e-2488-4758-b2ec-e178073f6e82",
         "name": "RegionTitle",
         "controlId": "Engine.RichText",
         "properties": {

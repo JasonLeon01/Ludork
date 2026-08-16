@@ -10,7 +10,6 @@
     "category": "Windows"
   },
   "root": {
-    "id": "3d2495b7-2b34-4108-9623-df89adfffe94",
     "name": "Root",
     "controlId": "Engine.Canvas",
     "properties": {
@@ -22,7 +21,6 @@
     "editor": {},
     "children": [
       {
-        "id": "12b0ce2d-9aa5-4e9e-b6b6-50eab52bd4b8",
         "name": "Icon",
         "controlId": "Engine.FunctionalImage",
         "properties": {
@@ -56,7 +54,6 @@
         "children": []
       },
       {
-        "id": "19c4b5c7-0f8a-48c6-becb-77a5f5c9c8dd",
         "name": "Label",
         "controlId": "Engine.FunctionalPlainText",
         "properties": {

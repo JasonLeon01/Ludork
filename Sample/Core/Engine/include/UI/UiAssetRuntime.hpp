@@ -19,7 +19,7 @@ class UiAssetRuntime;
 class UiLayoutEngine;
 
 struct LUDORK_ENGINE_API UiAssetNodeView {
-    std::string nodeId;
+    std::string nodeName;
     std::shared_ptr<ControlBase> control;
     sf::FloatRect bounds;
     bool nestedBoundary = false;

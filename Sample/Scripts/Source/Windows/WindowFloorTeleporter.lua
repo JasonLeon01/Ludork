@@ -92,7 +92,7 @@ function WindowFloorMapCommandController:handleKeyDown()
     if not Input.isActionTriggered(Input.getCancelKeys(), false) then
         return false
     end
-    self.model._owner:closeByCancel()
+    self.model:onReturn()
     Input.isActionTriggered(Input.getCancelKeys(), true)
     return true
 end
@@ -102,7 +102,7 @@ function WindowFloorMapCommandController:handleMouseButtonDown(kwargs)
     if kwargs.button ~= sf.Mouse.Button.Right then
         return false
     end
-    self.model._owner:closeByCancel()
+    self.model:onReturn()
     return true
 end
 
@@ -116,6 +116,7 @@ WindowFloorMapCommand.controllerClass = FinalWindowFloorMapCommandController
 function WindowFloorMapCommand:init(rect, owner)
     self._owner = owner
     super(WindowFloorMapCommand, self).init(rect, {}, nil, _LIST_ROW_HEIGHT)
+    self:setHasReturnBtn(true)
     ---@cast self._commandController Source.Windows.WindowFloorMapCommandController
     self._mapController = self._commandController
 end
@@ -144,6 +145,10 @@ function WindowFloorMapCommand:onMouseButtonDown(kwargs)
     return self._mapController:handleMouseButtonDown(kwargs)
 end
 
+function WindowFloorMapCommand:onReturn()
+    self._owner:closeByCancel()
+end
+
 ---@type Class.ClassType<Source.Windows.WindowFloorMapCommand>
 local FinalWindowFloorMapCommand = class(WindowFloorMapCommand, WindowCommand)
 
@@ -155,6 +160,7 @@ function WindowFloorMapPreview:init(rect, owner, loadPreview, resolvePreviewMapP
     self._owner = owner
     self._telepointItemWidth = self.uiClass.getTelepointItemWidth(rect)
     super(WindowFloorMapPreview, self).init(rect, nil, self._telepointItemWidth, _TELEPOINT_LIST_HEIGHT)
+    self:setHasReturnBtn(true)
     self._previewUI = self.uiClass.new(self, rect.size, loadPreview, resolvePreviewMapPath)
     self._previewUI:attach()
     self._listView = self._previewUI:getListView()
@@ -192,6 +198,10 @@ end
 function WindowFloorMapPreview:onMouseButtonDown(kwargs)
     return self._previewUI
         :handleMouseButtonDown(kwargs)
+end
+
+function WindowFloorMapPreview:onReturn()
+    self._owner:activateMapList(true)
 end
 
 ---@param entries table

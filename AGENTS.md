@@ -61,7 +61,7 @@ Do not write bare `new TextBox { IsReadOnly = true }` or ad-hoc grey backgrounds
 - Internal widgets of a large UI live under `Data/UI/Assets/Parts/<LargeUiName>/`; widgets shared by multiple UIs live under `Data/UI/Assets/Parts/Shared/`. Do not recreate directories organised by control shape such as `Rows`, `Windows`, or `Scenes`.
 - Matching Lua UI classes use the same owner layering: large UIs under `Scripts/Source/UI/`, internal parts under `Scripts/Source/UI/Parts/<LargeUiName>/`. `Ui.lua`, `UiController.lua`, `UiControlFactory.lua`, and helpers that are genuinely shared across UIs are exempt.
 - Declarative UI assets use a path relative to `Data/UI/Assets`, with `/` separators and no extension, as the sole asset identity; asset JSON must not store `assetId`, nested references use `Project:<relative path>`, and the project must not generate, save, or read a UI Catalog.
-- When the editor moves a UI asset it must preserve node UUIDs, `palette.exposed`, and `palette.category`, and automatically update nested asset references in managed JSON; the caller must update `Ui.define` keys, `require` paths, and LuaDoc paths in sync, and must not add aliases for old paths.
+- When the editor moves a UI asset it must preserve asset-local unique node names, `palette.exposed`, and `palette.category`, and automatically update nested asset references in managed JSON; the caller must update `Ui.define` keys, `require` paths, and LuaDoc paths in sync, and must not add aliases for old paths.
 
 ## Lua blueprint metadata
 

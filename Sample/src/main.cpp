@@ -4,9 +4,11 @@
 #include <cstdlib>
 
 #if defined(SFML_SYSTEM_ANDROID)
+#include <Input/InputService.hpp>
 #include <SFML/System/NativeActivity.hpp>
 
 #include <android/native_activity.h>
+#include <jni.h>
 
 #include <filesystem>
 #include <fstream>
@@ -44,6 +46,13 @@ void configureAndroidRuntimePaths() {
 #endif
 
 }
+
+#if defined(SFML_SYSTEM_ANDROID)
+extern "C" JNIEXPORT void JNICALL
+Java_com_ludork_android_LudorkActivity_submitSystemBack(JNIEnv*, jclass) {
+    InputService::requestSystemCancel();
+}
+#endif
 
 int main(int argc, char** argv) {
 #if defined(SFML_SYSTEM_ANDROID)

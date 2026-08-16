@@ -25,11 +25,15 @@ function WindowBase:init(rect, windowSkin, repeated)
     end
     self._windowSkin = windowSkin
     self._repeated = repeated == true
+    self._hasReturnBtn = false
+    self._returnButtonSuppressed = false
     self._windowBaseUI = WindowBaseUI.new(self, windowSkin, repeated)
     local size = self:getSize()
     self._windowBaseUI:attachTo(self, sf.Vector2u.new(size.x, size.y))
     self._window = self._windowBaseUI:getWindow()
     self.content = self._windowBaseUI:getContent()
+    self._returnButton = self._windowBaseUI:getReturnButton()
+    self:_bindReturnButton()
     self._pauseMarkShowRequested = false
     self._pauseMarkEnabled = true
     self._pauseMarkVisiblePredicate = nil
@@ -37,6 +41,74 @@ function WindowBase:init(rect, windowSkin, repeated)
     self._pauseMarkFrameTimer = 0.0
     self._pauseMark = self._windowBaseUI:getPauseMark()
     self._pauseMarkTexture = self._windowBaseUI:getPauseMarkTexture()
+    self:_refreshReturnButtonState()
+end
+
+function WindowBase:onReturn()
+end
+
+function WindowBase:getHasReturnBtn()
+    return self._hasReturnBtn
+end
+
+function WindowBase:setHasReturnBtn(value)
+    self._hasReturnBtn = value == true
+    self:_refreshReturnButtonState()
+end
+
+function WindowBase:setActive(active)
+    super(WindowBase, self).setActive(active)
+    self:_refreshReturnButtonState()
+end
+
+function WindowBase:setVisible(visible)
+    super(WindowBase, self).setVisible(visible)
+    self:_refreshReturnButtonState()
+end
+
+function WindowBase:_setReturnButtonSuppressed(suppressed)
+    self._returnButtonSuppressed = suppressed == true
+    self:_refreshReturnButtonState()
+end
+
+function WindowBase:_canUseReturnButton()
+    return self._hasReturnBtn and not self._returnButtonSuppressed
+        and self:getVisible() and self:getActive()
+end
+
+function WindowBase:_refreshReturnButtonState()
+    if self._returnButton == nil then
+        return
+    end
+    local enabled = self:_canUseReturnButton()
+    self._returnButton:setActive(enabled)
+    self._returnButton:setVisible(enabled)
+end
+
+function WindowBase:_bindReturnButton()
+    ---@type Source.Windows.Base.WindowBase[]
+    local modelRef = setmetatable({ self }, {
+        __mode = "v"
+    })
+    self._returnButton:addConfirmCallback(function ()
+        local model = modelRef[1]
+        if model ~= nil and model:_canUseReturnButton() then
+            model:onReturn()
+        end
+    end)
+    self._returnButton:addMouseButtonDownCallback(function (button, kwargs)
+        local model = modelRef[1]
+        if model == nil or not model:_canUseReturnButton()
+            or kwargs.button ~= sf.Mouse.Button.Left then
+            return false
+        end
+        local position = sf.Vector2f.new(kwargs.position.x, kwargs.position.y)
+        if not button:getAbsoluteBounds():contains(position) then
+            return false
+        end
+        model:onReturn()
+        return true
+    end)
 end
 
 function WindowBase:setPauseMarkEnabled(enabled)
@@ -76,6 +148,7 @@ end
 
 function WindowBase:onTick(deltaTime)
     super(WindowBase, self).onTick(deltaTime)
+    self:_refreshReturnButtonState()
     self:_updatePauseMarkAnimation(deltaTime)
 end
 

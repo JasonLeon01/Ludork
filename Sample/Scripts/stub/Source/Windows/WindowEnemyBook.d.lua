@@ -52,4 +52,7 @@ function WindowEnemyBook:onKeyDown(kwargs) end
 ---@return boolean
 function WindowEnemyBook:onMouseButtonDown(kwargs) end
 
+--- @brief Close the handbook through its cancel path.
+function WindowEnemyBook:onReturn() end
+
 return WindowEnemyBookExports

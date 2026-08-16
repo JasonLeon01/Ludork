@@ -10,7 +10,6 @@
     "category": "Windows"
   },
   "root": {
-    "id": "1c12ac1d-074d-440d-9a56-9628426dd578",
     "name": "Root",
     "controlId": "Engine.Canvas",
     "properties": {
@@ -22,7 +21,6 @@
     "editor": {},
     "children": [
       {
-        "id": "96860dc1-6e63-4f42-98a2-3ab9f30388f8",
         "name": "WindowFrame",
         "controlId": "Engine.Window",
         "properties": {
@@ -61,7 +59,6 @@
         "children": []
       },
       {
-        "id": "dd64be07-ea16-43d1-ac18-b5ed2c4f04e5",
         "name": "Content",
         "controlId": "Engine.Canvas",
         "properties": {
@@ -97,7 +94,6 @@
         "editor": {},
         "children": [
           {
-            "id": "e14cc133-5a97-4276-ad3c-689e3fdc583f",
             "name": "SlotList",
             "controlId": "Engine.ListView",
             "properties": {

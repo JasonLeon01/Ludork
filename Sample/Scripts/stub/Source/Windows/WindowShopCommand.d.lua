@@ -30,4 +30,6 @@ function WindowShopCommand:onKeyDown(kwargs) end
 ---@return boolean
 function WindowShopCommand:onMouseButtonDown(kwargs) end
 
+function WindowShopCommand:onReturn() end
+
 return WindowShopCommand

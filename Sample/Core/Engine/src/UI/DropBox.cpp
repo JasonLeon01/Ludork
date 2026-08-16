@@ -157,6 +157,10 @@ void DropBox::setOnSelectedIndexChanged(std::function<void(int)> callback) {
     selectedIndexChangedCallback_ = std::move(callback);
 }
 
+void DropBox::setOnSelectionConfirmed(std::function<void(int)> callback) {
+    selectionConfirmedCallback_ = std::move(callback);
+}
+
 void DropBox::setOnExpandedChanged(std::function<void(bool)> callback) {
     expandedChangedCallback_ = std::move(callback);
 }
@@ -432,6 +436,9 @@ void DropBox::setExpandedState(bool expanded) {
 void DropBox::confirmCurrentSelection() {
     if (!items_.empty()) {
         setSelectedIndex(cursorIndex_);
+        if (selectionConfirmedCallback_) {
+            selectionConfirmedCallback_(selectedIndex_);
+        }
     }
     playUiSound(selectSound_);
     setExpandedState(false);

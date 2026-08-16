@@ -227,7 +227,7 @@ end
 
 function GameInstance:recordActorPosition(mapPath, actor, actorPosition)
     mapPath = MapPath.Normalise(mapPath)
-    local actorTag = actor.tag
+    local actorTag = actor:getMapTag()
     if not bool(actorTag) then
         return
     end
@@ -244,7 +244,7 @@ end
 
 function GameInstance:recordDestroyedActor(mapPath, actor)
     mapPath = MapPath.Normalise(mapPath)
-    local actorTag = actor.tag
+    local actorTag = actor:getMapTag()
     if not bool(actorTag) then
         return
     end
@@ -285,7 +285,7 @@ end
 ---@param layerName string
 ---@return Source.GameInstance.AddedActorRecord | nil
 function GameInstance._buildAddedActorRecord(actor, layerName)
-    local actorTag = actor.tag
+    local actorTag = actor:getMapTag()
     if not bool(actorTag) then
         return nil
     end

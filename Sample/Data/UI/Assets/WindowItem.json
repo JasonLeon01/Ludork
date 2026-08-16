@@ -10,7 +10,6 @@
     "category": "Windows"
   },
   "root": {
-    "id": "9cf88d60-388e-4e28-a132-73f438af3239",
     "name": "Root",
     "controlId": "Engine.Canvas",
     "properties": {
@@ -22,7 +21,6 @@
     "editor": {},
     "children": [
       {
-        "id": "34ee604f-9100-44c1-8b41-c4623b877f0c",
         "name": "ItemName",
         "controlId": "Engine.PlainText",
         "properties": {
@@ -59,7 +57,6 @@
         "children": []
       },
       {
-        "id": "74baeb56-7588-4e64-893a-bc9785b63aad",
         "name": "Description",
         "controlId": "Engine.PlainText",
         "properties": {

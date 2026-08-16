@@ -78,6 +78,7 @@ class SfmlHostCallbacks {
 interface SfmlNativeContext {
   configureRuntimePaths(runtimeRoot: string, userDataRoot: string): void;
   configureSystemLocale(systemLocale: string): void;
+  submitSystemBack(): boolean;
   initializeHost(
     manager: resourceManager.ResourceManager,
     windowId: number,
@@ -661,6 +662,11 @@ struct Index {
       event.keySource !== KeySource.JOYSTICK && event.keyText.length > 0) {
       this.nativeContext?.submitKeyText(event.keyText);
     }
+  }
+
+  onBackPress(): boolean {
+    this.nativeContext?.submitSystemBack();
+    return true;
   }
 
   private resetImeEditor(): void {

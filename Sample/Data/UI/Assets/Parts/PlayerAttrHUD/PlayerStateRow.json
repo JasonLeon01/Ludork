@@ -10,7 +10,6 @@
     "category": "HUD"
   },
   "root": {
-    "id": "caf12ff3-067a-4072-9f9e-932baff3f895",
     "name": "Root",
     "controlId": "Engine.Canvas",
     "properties": {
@@ -22,7 +21,6 @@
     "editor": {},
     "children": [
       {
-        "id": "e8c55bda-533a-4851-8ddd-469e9f3163ac",
         "name": "Icon",
         "controlId": "Engine.Image",
         "properties": {
@@ -57,7 +55,6 @@
         "children": []
       },
       {
-        "id": "11b9bfb5-4e3d-4d54-984a-d1fefafc846a",
         "name": "StateName",
         "controlId": "Engine.PlainText",
         "properties": {

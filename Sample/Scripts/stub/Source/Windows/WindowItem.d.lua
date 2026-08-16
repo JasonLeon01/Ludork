@@ -45,4 +45,7 @@ function WindowItem:refreshLocale() end
 --- @brief Close the item window.
 function WindowItem:close() end
 
+--- @brief Close the item window through its cancel path.
+function WindowItem:onReturn() end
+
 return WindowItem

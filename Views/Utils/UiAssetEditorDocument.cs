@@ -100,33 +100,31 @@ public sealed class UiAssetEditorDocument
         return commitWorking();
     }
 
-    public JsonObject? FindNode(string nodeId)
+    public JsonObject? FindNode(string nodeName)
     {
-        return findNode(getRoot(), nodeId);
+        return findNode(getRoot(), nodeName);
     }
 
-    public JsonObject? FindParent(string nodeId)
+    public JsonObject? FindParent(string nodeName)
     {
         JsonObject? root = getRoot();
-        return root is null ? null : findParent(root, nodeId);
+        return root is null ? null : findParent(root, nodeName);
     }
 
     public string? AddNode(
-        string parentId,
+        string parentName,
         string controlId,
         string preferredName,
         JsonObject? defaultProperties,
         JsonObject? defaultSlot)
     {
-        JsonObject? parent = FindNode(parentId);
+        JsonObject? parent = FindNode(parentName);
         if (parent is null)
             return null;
         JsonArray children = ensureArray(parent, "children");
-        string nodeId = Guid.NewGuid().ToString("D");
         string name = createUniqueName(preferredName);
         JsonObject node = new()
         {
-            ["id"] = nodeId,
             ["name"] = name,
             ["controlId"] = controlId,
             ["properties"] = defaultProperties?.DeepClone() ?? new JsonObject(),
@@ -137,29 +135,29 @@ public sealed class UiAssetEditorDocument
         JsonObject before = (JsonObject)data.DeepClone();
         children.Add(node);
         completeMutation(before);
-        return nodeId;
+        return name;
     }
 
-    public bool DeleteNode(string nodeId)
+    public bool DeleteNode(string nodeName)
     {
         JsonObject? root = getRoot();
         if (root is null
-            || string.Equals(getString(root, "id"), nodeId, StringComparison.Ordinal))
+            || string.Equals(getString(root, "name"), nodeName, StringComparison.Ordinal))
         {
             return false;
         }
         JsonObject before = (JsonObject)data.DeepClone();
-        bool removed = removeNode(root, nodeId, out _);
+        bool removed = removeNode(root, nodeName, out _);
         if (!removed)
             return false;
         completeMutation(before);
         return true;
     }
 
-    public string? DuplicateNode(string nodeId)
+    public string? DuplicateNode(string nodeName)
     {
-        JsonObject? source = FindNode(nodeId);
-        JsonObject? parent = FindParent(nodeId);
+        JsonObject? source = FindNode(nodeName);
+        JsonObject? parent = FindParent(nodeName);
         if (source is null
             || parent is null
             || parent["children"] is not JsonArray children)
@@ -174,31 +172,31 @@ public sealed class UiAssetEditorDocument
             .Select(node => getString(node, "name"))
             .Where(name => name.Length != 0)
             .ToHashSet(StringComparer.Ordinal);
-        replaceCloneIdentities(copy, names);
+        replaceCloneNames(copy, names);
         JsonObject before = (JsonObject)data.DeepClone();
         children.Insert(sourceIndex + 1, copy);
         completeMutation(before);
-        return getString(copy, "id");
+        return getString(copy, "name");
     }
 
     public bool MoveNode(
-        string nodeId,
-        string parentId,
+        string nodeName,
+        string parentName,
         int index,
         JsonObject? slot = null)
     {
         JsonObject? root = getRoot();
-        JsonObject? destination = FindNode(parentId);
+        JsonObject? destination = FindNode(parentName);
         if (root is null
             || destination is null
-            || string.Equals(getString(root, "id"), nodeId, StringComparison.Ordinal)
-            || string.Equals(nodeId, parentId, StringComparison.Ordinal)
-            || isDescendant(FindNode(nodeId), parentId))
+            || string.Equals(getString(root, "name"), nodeName, StringComparison.Ordinal)
+            || string.Equals(nodeName, parentName, StringComparison.Ordinal)
+            || isDescendant(FindNode(nodeName), parentName))
         {
             return false;
         }
         JsonObject before = (JsonObject)data.DeepClone();
-        if (!removeNode(root, nodeId, out JsonObject? node) || node is null)
+        if (!removeNode(root, nodeName, out JsonObject? node) || node is null)
             return false;
         if (slot is not null)
             node["slot"] = slot.DeepClone();
@@ -209,9 +207,9 @@ public sealed class UiAssetEditorDocument
         return true;
     }
 
-    public bool RenameNode(string nodeId, string name)
+    public bool RenameNode(string nodeName, string name)
     {
-        JsonObject? node = FindNode(nodeId);
+        JsonObject? node = FindNode(nodeName);
         string value = name.Trim();
         if (node is null
             || value.Length == 0
@@ -224,27 +222,27 @@ public sealed class UiAssetEditorDocument
         return setNodeValue(node, "name", JsonValue.Create(value));
     }
 
-    public bool SetNodeProperty(string nodeId, string propertyId, JsonNode? value)
+    public bool SetNodeProperty(string nodeName, string propertyId, JsonNode? value)
     {
-        JsonObject? node = FindNode(nodeId);
+        JsonObject? node = FindNode(nodeName);
         if (node is null || isNestedAsset(node))
             return false;
         JsonObject properties = ensureObject(node, "properties");
         return setNodeValue(properties, propertyId, value);
     }
 
-    public bool SetNodeEditorProperty(string nodeId, string propertyId, JsonNode? value)
+    public bool SetNodeEditorProperty(string nodeName, string propertyId, JsonNode? value)
     {
-        JsonObject? node = FindNode(nodeId);
+        JsonObject? node = FindNode(nodeName);
         if (node is null || isNestedAsset(node))
             return false;
         JsonObject editor = ensureObject(node, "editor");
         return setNodeValue(editor, propertyId, value);
     }
 
-    public bool SetNodeSlot(string nodeId, JsonObject slot)
+    public bool SetNodeSlot(string nodeName, JsonObject slot)
     {
-        JsonObject? node = FindNode(nodeId);
+        JsonObject? node = FindNode(nodeName);
         if (node is null || ReferenceEquals(node, getRoot()))
             return false;
         return setNodeValue(node, "slot", slot);
@@ -401,46 +399,45 @@ public sealed class UiAssetEditorDocument
         return baseName + suffix;
     }
 
-    private static void replaceCloneIdentities(
+    private static void replaceCloneNames(
         JsonObject node,
         ISet<string> names)
     {
-        node["id"] = Guid.NewGuid().ToString("D");
         string name = createUniqueName(getString(node, "name"), names);
         node["name"] = name;
         names.Add(name);
         if (node["children"] is not JsonArray children)
             return;
         foreach (JsonObject child in children.OfType<JsonObject>())
-            replaceCloneIdentities(child, names);
+            replaceCloneNames(child, names);
     }
 
-    private static JsonObject? findNode(JsonObject? node, string nodeId)
+    private static JsonObject? findNode(JsonObject? node, string nodeName)
     {
         if (node is null)
             return null;
-        if (string.Equals(getString(node, "id"), nodeId, StringComparison.Ordinal))
+        if (string.Equals(getString(node, "name"), nodeName, StringComparison.Ordinal))
             return node;
         if (node["children"] is not JsonArray children)
             return null;
         foreach (JsonObject child in children.OfType<JsonObject>())
         {
-            JsonObject? result = findNode(child, nodeId);
+            JsonObject? result = findNode(child, nodeName);
             if (result is not null)
                 return result;
         }
         return null;
     }
 
-    private static JsonObject? findParent(JsonObject node, string nodeId)
+    private static JsonObject? findParent(JsonObject node, string nodeName)
     {
         if (node["children"] is not JsonArray children)
             return null;
         foreach (JsonObject child in children.OfType<JsonObject>())
         {
-            if (string.Equals(getString(child, "id"), nodeId, StringComparison.Ordinal))
+            if (string.Equals(getString(child, "name"), nodeName, StringComparison.Ordinal))
                 return node;
-            JsonObject? result = findParent(child, nodeId);
+            JsonObject? result = findParent(child, nodeName);
             if (result is not null)
                 return result;
         }
@@ -449,7 +446,7 @@ public sealed class UiAssetEditorDocument
 
     private static bool removeNode(
         JsonObject parent,
-        string nodeId,
+        string nodeName,
         out JsonObject? removed)
     {
         JsonArray children = ensureArray(parent, "children");
@@ -457,27 +454,27 @@ public sealed class UiAssetEditorDocument
         {
             if (children[index] is not JsonObject child)
                 continue;
-            if (string.Equals(getString(child, "id"), nodeId, StringComparison.Ordinal))
+            if (string.Equals(getString(child, "name"), nodeName, StringComparison.Ordinal))
             {
                 children.RemoveAt(index);
                 removed = child;
                 return true;
             }
-            if (removeNode(child, nodeId, out removed))
+            if (removeNode(child, nodeName, out removed))
                 return true;
         }
         removed = null;
         return false;
     }
 
-    private static bool isDescendant(JsonObject? node, string candidateId)
+    private static bool isDescendant(JsonObject? node, string candidateName)
     {
         if (node is null || node["children"] is not JsonArray children)
             return false;
         foreach (JsonObject child in children.OfType<JsonObject>())
         {
-            if (string.Equals(getString(child, "id"), candidateId, StringComparison.Ordinal)
-                || isDescendant(child, candidateId))
+            if (string.Equals(getString(child, "name"), candidateName, StringComparison.Ordinal)
+                || isDescendant(child, candidateName))
             {
                 return true;
             }
@@ -522,7 +519,7 @@ public sealed class UiAssetEditorDocument
 public sealed class UiHierarchyItem
 {
     public UiHierarchyItem(
-        string nodeId,
+        string nodeName,
         string name,
         string controlId,
         string controlLabel,
@@ -531,7 +528,7 @@ public sealed class UiHierarchyItem
         bool isLocked,
         IReadOnlyList<UiHierarchyItem> children)
     {
-        NodeId = nodeId;
+        NodeName = nodeName;
         Name = name;
         ControlId = controlId;
         ControlLabel = controlLabel;
@@ -541,7 +538,7 @@ public sealed class UiHierarchyItem
         Children = children;
     }
 
-    public string NodeId { get; }
+    public string NodeName { get; }
     public string Name { get; }
     public string ControlId { get; }
     public string ControlLabel { get; }

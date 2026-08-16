@@ -18,6 +18,7 @@
 
 ---@class GameMap: GlobalCore.GameMapBase
 ---@field DefaultCoverAlpha integer
+---@field MapViewOffset sf.Vector2f Manual adjustment added after automatic per-axis centring.
 ---@field _actorBatchDepth integer
 ---@field _initialisingActors boolean
 ---@field _camera GlobalCore.Camera | nil
@@ -134,31 +135,31 @@ function GameMap:getActorByLayerAndPosition(layer, position) end
 ---@return Engine.Actor[]
 function GameMap:getActorsByRange(position, radius) end
 
---- @brief Get the actor with a given tag.
+--- @brief Get the actor with a given map-placement tag.
 ---
---- - @param tag The tag to search for.
+--- - @param tag The map-placement tag to search for.
 --- - @return The matching actor, or nil.
 ---@param tag string
 ---@return Engine.Actor | nil
 function GameMap:getActorByTag(tag) end
 
---- @brief Get all actors with a given tag.
+--- @brief Get all actors with a given map-placement tag.
 ---
---- - @param tag The tag to search for.
+--- - @param tag The map-placement tag to search for.
 --- - @return A list of matching actors.
 ---@param tag string
 ---@return Engine.Actor[]
 function GameMap:getAllActorsByTag(tag) end
 
---- @brief Remove actors matching any tag from the map without replaying destroy events.
+--- @brief Remove actors matching any map-placement tag without replaying destroy events.
 ---
---- - @param tags Actor tags to remove.
+--- - @param tags Map-placement tags to remove.
 ---@param tags string[]
 function GameMap:removeActorsByTags(tags) end
 
 --- @brief Apply persisted actor position changes to the current map.
 ---
---- - @param actorPositions Actor-tag-indexed tile positions.
+--- - @param actorPositions Map-placement-tag-indexed tile positions.
 ---@param actorPositions table<string, sf.Vector2i>
 function GameMap:applyActorPositions(actorPositions) end
 
@@ -379,9 +380,9 @@ function GameMap:setAmbientLight(ambientLight) end
 ---@return sf.Vector2u
 function GameMap:getSize() end
 
---- @brief Get the effective map view offset.
+--- @brief Get the effective map view offset after centring undersized map axes.
 ---
---- - @return Manual offset, or an automatic centred offset for small maps.
+--- - @return Automatic per-axis centring plus GameMap.MapViewOffset.
 ---@return sf.Vector2f
 function GameMap:getMapViewOffset() end
 

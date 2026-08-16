@@ -34,7 +34,7 @@ local DEFAULT_LISTENER_UP_VECTOR = sf.Vector3f.new(0.0, 1.0, 0.0)
 
 local GameMap = {}
 
-GameMap.MapViewOffset = sf.Vector2f.new(192.0, 32.0)
+GameMap.MapViewOffset = sf.Vector2f.new(80.0, 0.0)
 
 function GameMap:init(mapName, tilemap, camera, previewOnly)
     local materialShader = nil
@@ -363,7 +363,7 @@ end
 function GameMap:getActorByTag(tag)
     for _, actorList in pairs(self._actors) do
         for _, actor in ipairs(actorList) do
-            if actor.tag == tag then
+            if actor:getMapTag() == tag then
                 return actor
             end
         end
@@ -387,7 +387,7 @@ function GameMap:removeActorsByTags(tags)
     local actorsToRemove = {}
     for _, actorList in pairs(self._actors) do
         for _, actor in ipairs(actorList) do
-            if tagSet[actor.tag] then
+            if tagSet[actor:getMapTag()] then
                 actorsToRemove[actor] = true
                 for descendant in pairs(self:_getDescendantActorIDs(actor)) do
                     actorsToRemove[descendant] = true
@@ -484,9 +484,7 @@ function GameMap:isPassable(actor, targetPosition)
                 ---@cast previousPosition sf.Vector2i
                 local occupiedPosition = sf.Vector2i.new(cell.x, cell.y)
                 ---@cast occupiedPosition sf.Vector2i
-                if not self:_checkDir4Between(
-                    previousPosition, occupiedPosition, direction
-                ) then
+                if not self:_checkDir4Between(previousPosition, occupiedPosition, direction) then
                     return false
                 end
             end
@@ -731,9 +729,7 @@ function GameMap:destroyTerrain(layerName, position, tileID)
     if scene ~= nil and scene.inst ~= nil then
         local changedPosition = changedPositions[1]
         ---@cast changedPosition sf.Vector2i
-        scene.inst:recordTerrainDestruction(
-            self._persistentMapPath, layerName, changedPosition, terrainTileID
-        )
+        scene.inst:recordTerrainDestruction(self._persistentMapPath, layerName, changedPosition, terrainTileID)
     end
 end
 
@@ -747,9 +743,7 @@ function GameMap:destroyTerrainList(layerName, positions, tileID)
     ---@cast scene Source.Scenes.SceneMap.SceneMap | nil
     if scene ~= nil and scene.inst ~= nil then
         for _, terrainPosition in ipairs(changedPositions) do
-            scene.inst:recordTerrainDestruction(
-                self._persistentMapPath, layerName, terrainPosition, terrainTileID
-            )
+            scene.inst:recordTerrainDestruction(self._persistentMapPath, layerName, terrainPosition, terrainTileID)
         end
     end
 end
@@ -828,14 +822,11 @@ end
 
 function GameMap:getMapViewOffset()
     local offset = GameMap.MapViewOffset
-    if offset ~= Engine.ZeroVector2f then
-        return offset
-    end
     local gameSize = System.getGameSize()
     local mapSize = self._tilemap:getSize() * Engine.CellSize
     return sf.Vector2f.new(
-        mapSize.x < gameSize.x and (gameSize.x - mapSize.x) / 2.0 or 0.0,
-        mapSize.y < gameSize.y and (gameSize.y - mapSize.y) / 2.0 or 0.0
+        offset.x + (mapSize.x < gameSize.x and (gameSize.x - mapSize.x) / 2.0 or 0.0),
+        offset.y + (mapSize.y < gameSize.y and (gameSize.y - mapSize.y) / 2.0 or 0.0)
     )
 end
 
@@ -2036,9 +2027,9 @@ function GameMap:_writeTerrainTile(layer, layerData, autoTileTextures, autoTileF
     local tiles = layerData.tiles
     local autoTiles = layerData.autoTiles
     local tilesRow = tiles[y]
-    ---@cast tilesRow (integer | nil)[]
+    ---@cast tilesRow(integer | nil)[]
     local autoTilesRow = autoTiles[y]
-    ---@cast autoTilesRow (integer | string | nil)[]
+    ---@cast autoTilesRow(integer | string | nil)[]
     if tileID == nil then
         tilesRow[x] = nil
         autoTilesRow[x] = nil
@@ -2095,7 +2086,7 @@ function GameMap._ensureTerrainAutoTileGrid(_self, layerData, size)
         autoTiles[#autoTiles + 1] = {}
     end
     for _, row in ipairs(autoTiles) do
-        ---@cast row (integer | string | nil)[] & { n: integer | nil }
+        ---@cast row(integer | string | nil)[] & { n: integer | nil }
         local rowLength = row.n
         if rowLength == nil then
             row.n = size.x

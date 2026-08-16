@@ -129,7 +129,7 @@ public sealed class GameDataService
         else
         {
             value = (JsonObject)asset.DeepClone();
-            UiAssetSchema.EnsureMissingIdentities(value);
+            value["type"] = UiAssetSchema.UiAssetType;
         }
         RecordSnapshot();
         data[dataKey] = value;
