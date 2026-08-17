@@ -33,12 +33,9 @@ add_subdirectory(
     "${CMAKE_CURRENT_BINARY_DIR}/Sample"
     EXCLUDE_FROM_ALL)
 
-add_custom_target(UiPreviewHostAdapterValidate
-    COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
-        ui-adapter-check
-        "${LUDORK_REPOSITORY_ROOT}"
-    WORKING_DIRECTORY "${LUDORK_REPOSITORY_ROOT}"
-    VERBATIM)
+ludork_add_ui_validation_target(
+    UiPreviewHostAdapterValidate
+    "${LUDORK_REPOSITORY_ROOT}")
 
 add_executable(UiPreviewHost
     src/UiPreviewHost.cpp

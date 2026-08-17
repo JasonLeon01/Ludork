@@ -149,16 +149,10 @@ add_subdirectory(Standard)
 
 add_subdirectory(Core)
 
-add_custom_target(UiAssetValidate
-    COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
-        ui-adapter-check
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-    COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
-        ui-assets
-        validate
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-    VERBATIM)
+ludork_add_ui_validation_target(
+    UiAssetValidate
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+    VALIDATE_ASSETS)
 add_dependencies(Engine UiAssetValidate)
 
 if(LUDORK_BUILD_SAMPLE_APPLICATION)
@@ -308,39 +302,21 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
         string(TOUPPER "${resource_directory}" resource_directory_upper)
         set(resource_source_variable
             "LUDORK_${resource_directory_upper}_SOURCE_DIR")
-        add_custom_command(TARGET Main POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E make_directory
-                "$<TARGET_BUNDLE_DIR:Main>/${resource_directory}"
-            COMMAND "${LUDORK_RSYNC_EXECUTABLE}"
-                -a
-                --delete
-                --exclude=.DS_Store
-                --exclude=*.anim.json
-                "${${resource_source_variable}}/"
-                "$<TARGET_BUNDLE_DIR:Main>/${resource_directory}/"
-            VERBATIM)
+        ludork_add_ios_bundle_directory_sync(
+            Main
+            "${${resource_source_variable}}"
+            "${resource_directory}"
+            EXCLUDES "*.anim.json")
     endforeach()
-    add_custom_command(TARGET Main POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E make_directory
-            "$<TARGET_BUNDLE_DIR:Main>/Scripts"
-        COMMAND "${LUDORK_RSYNC_EXECUTABLE}"
-            -a
-            --delete
-            --exclude=.DS_Store
-            "${LUDORK_SCRIPTS_SOURCE_DIR}/"
-            "$<TARGET_BUNDLE_DIR:Main>/Scripts/"
-        VERBATIM)
+    ludork_add_ios_bundle_directory_sync(
+        Main
+        "${LUDORK_SCRIPTS_SOURCE_DIR}"
+        Scripts)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Licenses")
-        add_custom_command(TARGET Main POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E make_directory
-                "$<TARGET_BUNDLE_DIR:Main>/Licenses"
-            COMMAND "${LUDORK_RSYNC_EXECUTABLE}"
-                -a
-                --delete
-                --exclude=.DS_Store
-                "${CMAKE_CURRENT_SOURCE_DIR}/Licenses/"
-                "$<TARGET_BUNDLE_DIR:Main>/Licenses/"
-            VERBATIM)
+        ludork_add_ios_bundle_directory_sync(
+            Main
+            "${CMAKE_CURRENT_SOURCE_DIR}/Licenses"
+            Licenses)
     endif()
     foreach(legal_file IN ITEMS
         LICENSE.md

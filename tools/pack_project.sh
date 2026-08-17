@@ -32,11 +32,8 @@ if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
     echo "Usage: tools/pack_project.sh [--compile-lua] [--encrypt-shaders] [--encrypt-data] <project-folder> [dist-folder]" >&2
     exit 1
 fi
-if [ "$(uname -s)" != "Darwin" ]; then
-    echo "pack_project.sh currently supports macOS only." >&2
-    exit 1
-fi
 
+require_macos_arm64
 SCRIPT_TOOLS=$(resolve_script_tools)
 PROJECT_DIR=$(absolute_path "$1")
 DEFAULT_DIST="$PROJECT_DIR/dist"
@@ -59,6 +56,7 @@ fi
 
 PROJECT_MODE=$("$SCRIPT_TOOLS" project-runtime-mode "$PROJECT_FILE")
 TEMPORARY_DIR=$(mktemp -d "${TMPDIR:-/tmp}/ludork-pack.XXXXXX")
+UI_PREVIEW_ENTRY_NAMES="UiPreviewHost UiPreviewCurveResolver"
 
 cleanup_temporary() {
     rm -rf "$TEMPORARY_DIR"
@@ -66,20 +64,20 @@ cleanup_temporary() {
 
 remove_ui_preview_host_entries() {
     package_dir=$1
-    find "$package_dir" -depth \
-        \( -name 'UiPreviewHost*' -o -name 'UiPreviewCurveResolver*' \) \
-        -exec rm -rf {} +
+    for entry_name in $UI_PREVIEW_ENTRY_NAMES; do
+        find "$package_dir" -depth -name "$entry_name*" -exec rm -rf {} +
+    done
 }
 
 validate_no_ui_preview_host() {
     package_dir=$1
-    forbidden_path=$(find "$package_dir" \
-        \( -name 'UiPreviewHost*' -o -name 'UiPreviewCurveResolver*' \) \
-        -print -quit)
-    if [ -n "$forbidden_path" ]; then
-        echo "UI preview host entry was found in a game package: $forbidden_path" >&2
-        exit 1
-    fi
+    for entry_name in $UI_PREVIEW_ENTRY_NAMES; do
+        forbidden_path=$(find "$package_dir" -name "$entry_name*" -print -quit)
+        if [ -n "$forbidden_path" ]; then
+            echo "UI preview host entry was found in a game package: $forbidden_path" >&2
+            exit 1
+        fi
+    done
 }
 
 trap cleanup_temporary EXIT HUP INT TERM
@@ -100,19 +98,15 @@ mkdir -p "$DIST_DIR"
 "$SCRIPT_TOOLS" macos-bundle \
     "$PROJECT_DIR" "$RUNTIME_DIR" "$DIST_DIR/Main.app"
 remove_ui_preview_host_entries "$DIST_DIR/Main.app"
-if [ "$ENCRYPT_SHADERS" -eq 1 ] && [ "$ENCRYPT_DATA" -eq 1 ]; then
-    "$SCRIPT_TOOLS" finalize-package --encrypt-shaders --encrypt-data \
-        "$DIST_DIR/Main.app/Contents/Resources"
-elif [ "$ENCRYPT_SHADERS" -eq 1 ]; then
-    "$SCRIPT_TOOLS" finalize-package --encrypt-shaders \
-        "$DIST_DIR/Main.app/Contents/Resources"
-elif [ "$ENCRYPT_DATA" -eq 1 ]; then
-    "$SCRIPT_TOOLS" finalize-package --encrypt-data \
-        "$DIST_DIR/Main.app/Contents/Resources"
-else
-    "$SCRIPT_TOOLS" finalize-package \
-        "$DIST_DIR/Main.app/Contents/Resources"
+set --
+if [ "$ENCRYPT_SHADERS" -eq 1 ]; then
+    set -- "$@" --encrypt-shaders
 fi
+if [ "$ENCRYPT_DATA" -eq 1 ]; then
+    set -- "$@" --encrypt-data
+fi
+"$SCRIPT_TOOLS" finalize-package "$@" \
+    "$DIST_DIR/Main.app/Contents/Resources"
 if [ "$USE_LUAC" -eq 1 ]; then
     "$SCRIPT_TOOLS" compile-lua "$DIST_DIR/Main.app/Contents/Resources/Scripts"
 fi

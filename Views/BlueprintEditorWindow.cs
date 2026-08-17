@@ -48,8 +48,11 @@ public sealed class BlueprintEditorWindow : Window
     private readonly DeferredWindowInitializer initializer;
     private ActorPreviewLease? previewLease;
     private Bitmap? previewBitmap;
+    private ActorVisualDescriptor? publishedVisualDescriptor;
     private ResolvedBlueprintClass? resolvedParent;
     private ResolvedBlueprintClass? resolvedClass;
+    private bool suppressLiveVisualInvalidation;
+    private bool visualDescriptorPublished;
     private bool refreshing;
 
     public BlueprintEditorWindow(
@@ -476,7 +479,7 @@ public sealed class BlueprintEditorWindow : Window
         if (document.CommitAttributes(updates, staleFields))
         {
             refreshAttributes();
-            refreshPreview();
+            refreshPreview(resolvedClass);
         }
     }
 
@@ -554,7 +557,7 @@ public sealed class BlueprintEditorWindow : Window
                 if (!document.CommitAttribute(field.Name, parentValue))
                     return;
                 refreshAttributes();
-                refreshPreview();
+                refreshPreview(resolvedClass);
             };
             return revert;
         }
@@ -571,7 +574,7 @@ public sealed class BlueprintEditorWindow : Window
             if (!document.RemoveAttribute(field.Name))
                 return;
             refreshAttributes();
-            refreshPreview();
+            refreshPreview(resolvedClass);
         };
         return remove;
     }
@@ -613,7 +616,7 @@ public sealed class BlueprintEditorWindow : Window
             removals))
         {
             refreshAttributes();
-            refreshPreview();
+            refreshPreview(resolvedClass);
         }
     }
 
@@ -684,7 +687,6 @@ public sealed class BlueprintEditorWindow : Window
         variableForm.SetFields(fieldBuilder.Build(resolved));
         updateGraphMode();
         refreshing = false;
-        refreshPreview();
         refreshGraphList(null, false);
     }
 
@@ -709,18 +711,18 @@ public sealed class BlueprintEditorWindow : Window
         return parent.Length == 0 ? null : classResolver.Resolve(parent);
     }
 
-    private void refreshPreview()
+    private void refreshPreview(ResolvedBlueprintClass? resolved = null)
     {
+        resolved ??= classResolver.ResolveBlueprint(document.Data, document.BlueprintKey);
+        resolvedClass = resolved;
         ActorVisualDescriptor? descriptor = previewService.tryResolveActorVisual(
-            document.Data,
-            document.BlueprintKey);
+            resolved,
+            resolved.ClassReference);
+        publishVisualDescriptor(descriptor);
         if (descriptor is not { RequiresPreviewService: true })
         {
             releasePreviewLease();
-            replacePreviewFallback(previewService.tryLoadPreview(
-                document.Data,
-                480,
-                document.BlueprintKey));
+            replacePreviewFallback(previewService.tryLoadPreview(resolved, 480));
             return;
         }
 
@@ -737,10 +739,19 @@ public sealed class BlueprintEditorWindow : Window
             previewLease.UpdateDescriptor(descriptor);
         }
         previewLease.IsActive = previewPanel.IsVisible;
-        replacePreviewFallback(previewService.tryLoadPreview(
-            document.Data,
-            480,
-            document.BlueprintKey));
+        replacePreviewFallback(previewService.tryLoadPreview(resolved, 480));
+    }
+
+    private void publishVisualDescriptor(ActorVisualDescriptor? descriptor)
+    {
+        if (!suppressLiveVisualInvalidation
+            && visualDescriptorPublished
+            && !Equals(publishedVisualDescriptor, descriptor))
+        {
+            previewService.InvalidateVisuals();
+        }
+        publishedVisualDescriptor = descriptor;
+        visualDescriptorPublished = true;
     }
 
     private void replacePreviewFallback(Bitmap? next)
@@ -780,10 +791,9 @@ public sealed class BlueprintEditorWindow : Window
 
     private bool supportsPreview()
     {
-        string parent = document.Data["parent"]?.GetValue<string>() ?? string.Empty;
-        return parent.Length != 0 && classResolver.IsDerivedFrom(
-            parent,
-            "Engine.Actor");
+        ResolvedBlueprintClass resolved = resolvedClass
+            ?? classResolver.ResolveBlueprint(document.Data, document.BlueprintKey);
+        return classResolver.IsDerivedFrom(resolved, "Engine.Actor");
     }
 
     private void refreshGraphList(string? preferredEvent, bool preferPreview)
@@ -834,7 +844,7 @@ public sealed class BlueprintEditorWindow : Window
         if (selected.IsPreview)
         {
             previewPanel.IsVisible = true;
-            refreshPreview();
+            refreshPreview(resolvedClass);
             return;
         }
         string eventName = selected.EventName ?? string.Empty;
@@ -859,19 +869,27 @@ public sealed class BlueprintEditorWindow : Window
         JsonObject startNodes = graph["startNodes"] as JsonObject ?? [];
         if (graph["startNodes"] is not JsonObject)
             graph["startNodes"] = startNodes;
-        IReadOnlyList<BlueprintGraphNodeDefinition> definitions = nodeDefinitionCatalog!.GetNodeDefinitions();
-        IReadOnlyList<BlueprintGraphEventParameterDefinition> eventParameters =
-            nodeDefinitionCatalog.GetEventParameters(eventName);
+        BlueprintNodeDefinitionSet definitionSet;
+        IReadOnlyList<BlueprintGraphEventParameterDefinition> eventParameters;
+        using (IDisposable metadataBatch = classResolver.BeginBatch())
+        {
+            definitionSet = nodeDefinitionCatalog!.GetNodeDefinitionSet(resolvedClass);
+            eventParameters = definitionSet.EventParameters.TryGetValue(
+                eventName,
+                out IReadOnlyList<BlueprintGraphEventParameterDefinition>? parameters)
+                ? parameters
+                : [];
+        }
         BlueprintGraphDocument graphDocument = BlueprintGraphCodec.Load(
             eventName,
             eventGraph,
             startNodes[eventName],
-            definitions,
+            definitionSet,
             eventParameters);
         BlueprintGraphControl control = new(
             gameData,
             graphDocument,
-            definitions,
+            definitionSet.Definitions,
             fieldBuilder,
             nodeParameterEditorFactory,
             projectSave.GameVariables,
@@ -891,9 +909,8 @@ public sealed class BlueprintEditorWindow : Window
         List<string> result = document.GetGraphNames().ToList();
         if (document.Kind != BlueprintEditorDocumentKind.Blueprint)
             return result;
-        ResolvedBlueprintClass resolved = classResolver.ResolveBlueprint(
-            document.Data,
-            document.BlueprintKey);
+        ResolvedBlueprintClass resolved = resolvedClass
+            ?? classResolver.ResolveBlueprint(document.Data, document.BlueprintKey);
         if (resolved.RootType is null)
             return result;
         foreach (LuaNodeMemberMetadata member in metadataService.GetNodeMembers(
@@ -925,12 +942,13 @@ public sealed class BlueprintEditorWindow : Window
         {
             action.Button.IsEnabled = !JsonNode.DeepEquals(args.Value, action.ParentValue);
         }
-        refreshPreview();
         if (args.RequiresRefresh || args.Name == "scriptMixin")
         {
             clearGraphViews();
             Dispatcher.UIThread.Post(refreshAll);
+            return;
         }
+        refreshPreview();
     }
 
     private void onGraphSelectionChanged(object? sender, SelectionChangedEventArgs args)
@@ -1085,12 +1103,25 @@ public sealed class BlueprintEditorWindow : Window
 
     private void onDataRestored(object? sender, EventArgs args)
     {
-        reload(true);
+        reloadFromDataChange();
     }
 
     private void onDataReloaded(object? sender, EventArgs args)
     {
-        reload(true);
+        reloadFromDataChange();
+    }
+
+    private void reloadFromDataChange()
+    {
+        suppressLiveVisualInvalidation = true;
+        try
+        {
+            reload(true);
+        }
+        finally
+        {
+            suppressLiveVisualInvalidation = false;
+        }
     }
 
     private async void onKeyDown(object? sender, KeyEventArgs args)

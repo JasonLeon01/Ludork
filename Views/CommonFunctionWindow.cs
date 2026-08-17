@@ -144,18 +144,17 @@ public sealed class CommonFunctionWindow : Window
             return;
         JsonObject eventGraph = currentDocument.GetEventGraph();
         JsonObject startNodes = currentDocument.GetStartNodes();
-        IReadOnlyList<BlueprintGraphNodeDefinition> definitions =
-            nodeDefinitionCatalog!.GetNodeDefinitions();
+        BlueprintNodeDefinitionSet definitionSet = nodeDefinitionCatalog!.GetNodeDefinitionSet();
         BlueprintGraphDocument graphDocument = BlueprintGraphCodec.Load(
             "common",
             eventGraph,
             startNodes["common"],
-            definitions,
+            definitionSet,
             []);
         graphControl = new BlueprintGraphControl(
             gameData,
             graphDocument,
-            definitions,
+            definitionSet.Definitions,
             fieldBuilder,
             parameterEditorFactory,
             projectSave.GameVariables,

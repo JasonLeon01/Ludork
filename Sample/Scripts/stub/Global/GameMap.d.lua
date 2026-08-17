@@ -27,6 +27,10 @@
 ---@field _player Engine.Actor | nil
 ---@field _scene GlobalCore.SceneBase | nil
 ---@field _particleSystem Engine.ParticleSystem | nil
+---@field _actorPixelShatterShader sf.Shader | nil
+---@field _actorPixelShatterEffects table<string, Global.CustomEffects.ActorPixelShatterEffect[]>
+---@field _actorPixelShatterByActor table<Engine.Actor, Global.CustomEffects.ActorPixelShatterEffect>
+---@field _actorPixelShatterSeed integer
 ---@field _staticTransmission sf.RenderTexture | nil
 ---@field _dynamicTransmission sf.RenderTexture | nil
 ---@field _directLight sf.RenderTexture | nil
@@ -211,6 +215,16 @@ function GameMap:initialiseActorsAndComponents() end
 --- - @param actor The actor to destroy.
 ---@param actor Engine.Actor
 function GameMap:destroyActor(actor) end
+
+--- @brief Queue a visual-only world-pixel shatter effect for an Actor.
+---
+--- The Actor remains responsible for its normal destroy lifecycle. This method
+--- only retains its final visual until the transient effect is prepared on the
+--- render thread. It returns false when shaders are unavailable, the Actor is
+--- already destroyed or queued, or the Actor is not on a visible live-map layer.
+---@param actor Engine.Actor
+---@return boolean
+function GameMap:playActorPixelShatterEffect(actor) end
 
 --- @brief Get the camera attached to this map.
 ---

@@ -43,6 +43,40 @@ copy_runtime_legal_files() {
         "$template_dir/THIRD_PARTY_NOTICES_zh_CN.md"
 }
 
+copy_cpp_template() {
+    template_dir=$1
+    include_ffmpeg=$2
+    set -- \
+        -a \
+        --exclude '.DS_Store' \
+        --exclude '.venv/' \
+        --exclude 'build/' \
+        --exclude 'bin/' \
+        --exclude 'Log/' \
+        --exclude 'Save/' \
+        --exclude '__pycache__/' \
+        --exclude '*.anim.json' \
+        --exclude '*.py' \
+        --exclude '*.pyc' \
+        --exclude '*.pyo' \
+        --exclude '*.log' \
+        --exclude 'Main.ini' \
+        --exclude 'Ludork.ini' \
+        --exclude 'Ludork-startup-error.log' \
+        --exclude '.vs/' \
+        --exclude '.idea/' \
+        --exclude 'cmake-build-ludork-debug/' \
+        --exclude 'CMakeUserPresets.json' \
+        --exclude 'generate_vs2022.bat' \
+        --exclude 'generate_clion.bat' \
+        --exclude 'UiPreviewHost*' \
+        --exclude 'UiPreviewCurveResolver*'
+    if [ "$include_ffmpeg" -ne 1 ]; then
+        set -- "$@" --exclude 'ffmpeg/' --exclude 'ThirdPartySource/'
+    fi
+    rsync "$@" "$SOURCE_DIR/" "$template_dir/"
+}
+
 if [ ! -x "$SCRIPT_TOOLS" ]; then
     echo "ScriptTools was not found. Run tools/init.sh first." >&2
     exit 1
@@ -65,58 +99,8 @@ rm -rf "$CPP_TEMPLATE_DIR" "$STANDALONE_TEMPLATE_DIR" \
     "$CPP_FFMPEG_TEMPLATE_DIR" "$STANDALONE_FFMPEG_TEMPLATE_DIR"
 mkdir -p "$CPP_TEMPLATE_DIR" "$STANDALONE_TEMPLATE_DIR" \
     "$CPP_FFMPEG_TEMPLATE_DIR" "$STANDALONE_FFMPEG_TEMPLATE_DIR"
-rsync -a \
-    --exclude '.DS_Store' \
-    --exclude '.venv/' \
-    --exclude 'build/' \
-    --exclude 'bin/' \
-    --exclude 'Log/' \
-    --exclude 'Save/' \
-    --exclude '__pycache__/' \
-    --exclude 'ffmpeg/' \
-    --exclude 'ThirdPartySource/' \
-    --exclude '*.anim.json' \
-    --exclude '*.py' \
-    --exclude '*.pyc' \
-    --exclude '*.pyo' \
-    --exclude '*.log' \
-    --exclude 'Main.ini' \
-    --exclude 'Ludork.ini' \
-    --exclude 'Ludork-startup-error.log' \
-    --exclude '.vs/' \
-    --exclude '.idea/' \
-    --exclude 'cmake-build-ludork-debug/' \
-    --exclude 'CMakeUserPresets.json' \
-    --exclude 'generate_vs2022.bat' \
-    --exclude 'generate_clion.bat' \
-    --exclude 'UiPreviewHost*' \
-    --exclude 'UiPreviewCurveResolver*' \
-    "$SOURCE_DIR/" "$CPP_TEMPLATE_DIR/"
-rsync -a \
-    --exclude '.DS_Store' \
-    --exclude '.venv/' \
-    --exclude 'build/' \
-    --exclude 'bin/' \
-    --exclude 'Log/' \
-    --exclude 'Save/' \
-    --exclude '__pycache__/' \
-    --exclude '*.anim.json' \
-    --exclude '*.py' \
-    --exclude '*.pyc' \
-    --exclude '*.pyo' \
-    --exclude '*.log' \
-    --exclude 'Main.ini' \
-    --exclude 'Ludork.ini' \
-    --exclude 'Ludork-startup-error.log' \
-    --exclude '.vs/' \
-    --exclude '.idea/' \
-    --exclude 'cmake-build-ludork-debug/' \
-    --exclude 'CMakeUserPresets.json' \
-    --exclude 'generate_vs2022.bat' \
-    --exclude 'generate_clion.bat' \
-    --exclude 'UiPreviewHost*' \
-    --exclude 'UiPreviewCurveResolver*' \
-    "$SOURCE_DIR/" "$CPP_FFMPEG_TEMPLATE_DIR/"
+copy_cpp_template "$CPP_TEMPLATE_DIR" 0
+copy_cpp_template "$CPP_FFMPEG_TEMPLATE_DIR" 1
 
 chmod +x \
     "$CPP_TEMPLATE_DIR/generate_clion.sh" \

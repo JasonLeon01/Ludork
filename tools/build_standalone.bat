@@ -1,17 +1,20 @@
 @echo off
 setlocal EnableExtensions
-cd /d "%~dp0.."
+for %%I in ("%~dp0.") do set "TOOLS_DIR=%%~fI"
+for %%I in ("%TOOLS_DIR%\..") do set "ROOT_DIR=%%~fI"
+cd /d "%ROOT_DIR%"
 
-if "%~3"=="" (
-    echo Usage: tools\build_standalone.bat ^<cpp-folder^> ^<standalone-folder^> ^<Debug^|Release^>
-    exit /b 1
-)
+if "%~1"=="" goto :usage
+if "%~2"=="" goto :usage
+if "%~3"=="" goto :usage
+if not "%~4"=="" goto :usage
 
 for %%I in ("%~1") do set "CPP_DIR=%%~fI"
 for %%I in ("%~2") do set "STANDALONE_DIR=%%~fI"
 set "CONFIG=%~3"
+if /I not "%CONFIG%"=="Debug" if /I not "%CONFIG%"=="Release" goto :usage
 
-call "%CD%\tools\build_cpp.bat" "%CPP_DIR%" "%CONFIG%"
+call "%TOOLS_DIR%\build_cpp.bat" "%CPP_DIR%" "%CONFIG%"
 if errorlevel 1 exit /b %errorlevel%
 
 if not exist "%CPP_DIR%\Assets" (
@@ -64,25 +67,19 @@ if not exist "%STANDALONE_DIR%\Main.exe" (
 echo Standalone build complete: %STANDALONE_DIR%
 exit /b 0
 
+:usage
+echo Usage: tools\build_standalone.bat ^<cpp-folder^> ^<standalone-folder^> ^<Debug^|Release^>
+exit /b 1
+
 :remove_ui_preview_host_entries
-for /r "%~1" %%F in (UiPreviewHost*) do if exist "%%~fF" (
+for /r "%~1" %%F in (UiPreviewHost* UiPreviewCurveResolver*) do if exist "%%~fF" (
     del /F /Q "%%~fF"
     if errorlevel 1 exit /b 1
 )
-for /r "%~1" %%F in (UiPreviewCurveResolver*) do if exist "%%~fF" (
-    del /F /Q "%%~fF"
-    if errorlevel 1 exit /b 1
-)
-for /d /r "%~1" %%D in (UiPreviewHost*) do if exist "%%~fD" (
+for /d /r "%~1" %%D in (UiPreviewHost* UiPreviewCurveResolver*) do if exist "%%~fD" (
     rmdir /S /Q "%%~fD"
     if errorlevel 1 exit /b 1
 )
-for /d /r "%~1" %%D in (UiPreviewCurveResolver*) do if exist "%%~fD" (
-    rmdir /S /Q "%%~fD"
-    if errorlevel 1 exit /b 1
-)
-for /r "%~1" %%F in (UiPreviewHost*) do if exist "%%~fF" exit /b 1
-for /r "%~1" %%F in (UiPreviewCurveResolver*) do if exist "%%~fF" exit /b 1
-for /d /r "%~1" %%D in (UiPreviewHost*) do if exist "%%~fD" exit /b 1
-for /d /r "%~1" %%D in (UiPreviewCurveResolver*) do if exist "%%~fD" exit /b 1
+for /r "%~1" %%F in (UiPreviewHost* UiPreviewCurveResolver*) do if exist "%%~fF" exit /b 1
+for /d /r "%~1" %%D in (UiPreviewHost* UiPreviewCurveResolver*) do if exist "%%~fD" exit /b 1
 exit /b 0

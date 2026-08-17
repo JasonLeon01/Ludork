@@ -49,19 +49,20 @@ if not exist "%CD%\.tools\gnu-make\gnumake.exe" (
     exit /b 1
 )
 
-if exist "%CPP_TEMPLATE_DIR%" rmdir /S /Q "%CPP_TEMPLATE_DIR%"
-if exist "%STANDALONE_TEMPLATE_DIR%" rmdir /S /Q "%STANDALONE_TEMPLATE_DIR%"
-if exist "%CPP_FFMPEG_TEMPLATE_DIR%" rmdir /S /Q "%CPP_FFMPEG_TEMPLATE_DIR%"
-if exist "%STANDALONE_FFMPEG_TEMPLATE_DIR%" rmdir /S /Q "%STANDALONE_FFMPEG_TEMPLATE_DIR%"
-mkdir "%CPP_TEMPLATE_DIR%"
-mkdir "%STANDALONE_TEMPLATE_DIR%"
-mkdir "%CPP_FFMPEG_TEMPLATE_DIR%"
-mkdir "%STANDALONE_FFMPEG_TEMPLATE_DIR%"
+for %%T in (
+    "%CPP_TEMPLATE_DIR%"
+    "%STANDALONE_TEMPLATE_DIR%"
+    "%CPP_FFMPEG_TEMPLATE_DIR%"
+    "%STANDALONE_FFMPEG_TEMPLATE_DIR%"
+) do (
+    if exist "%%~T" rmdir /S /Q "%%~T"
+    mkdir "%%~T"
+)
 
-robocopy "%SOURCE_DIR%" "%CPP_TEMPLATE_DIR%" /E /XD "%SOURCE_DIR%\.venv" "%SOURCE_DIR%\build" "%SOURCE_DIR%\bin" "%SOURCE_DIR%\ffmpeg" "%SOURCE_DIR%\ThirdPartySource" "%SOURCE_DIR%\Log" "%SOURCE_DIR%\Save" "%SOURCE_DIR%\.vs" "%SOURCE_DIR%\.idea" "%SOURCE_DIR%\cmake-build-ludork-debug" __pycache__ UiPreviewHost UiPreviewCurveResolver /XF *.anim.json *.py *.pyc *.pyo *.log Main.ini Ludork.ini CMakeUserPresets.json generate_clion.sh UiPreviewHost* UiPreviewCurveResolver* /NFL /NDL /NJH /NJS /NP
-if errorlevel 8 exit /b %errorlevel%
-robocopy "%SOURCE_DIR%" "%CPP_FFMPEG_TEMPLATE_DIR%" /E /XD "%SOURCE_DIR%\.venv" "%SOURCE_DIR%\build" "%SOURCE_DIR%\bin" "%SOURCE_DIR%\Log" "%SOURCE_DIR%\Save" "%SOURCE_DIR%\.vs" "%SOURCE_DIR%\.idea" "%SOURCE_DIR%\cmake-build-ludork-debug" __pycache__ UiPreviewHost UiPreviewCurveResolver /XF *.anim.json *.py *.pyc *.pyo *.log Main.ini Ludork.ini CMakeUserPresets.json generate_clion.sh UiPreviewHost* UiPreviewCurveResolver* /NFL /NDL /NJH /NJS /NP
-if errorlevel 8 exit /b %errorlevel%
+call :copy_cpp_template "%CPP_TEMPLATE_DIR%" 0
+if errorlevel 1 exit /b %errorlevel%
+call :copy_cpp_template "%CPP_FFMPEG_TEMPLATE_DIR%" 1
+if errorlevel 1 exit /b %errorlevel%
 
 "%SCRIPT_TOOLS%" configure-project-template "%CPP_TEMPLATE_DIR%\Main.proj" true false
 if errorlevel 1 exit /b %errorlevel%
@@ -87,10 +88,10 @@ if errorlevel 1 exit /b %errorlevel%
 "%SCRIPT_TOOLS%" configure-project-template "%STANDALONE_FFMPEG_TEMPLATE_DIR%\Main.proj" false true
 if errorlevel 1 exit /b %errorlevel%
 
-if exist "%CPP_TEMPLATE_DIR%\build" rmdir /S /Q "%CPP_TEMPLATE_DIR%\build"
-if exist "%CPP_TEMPLATE_DIR%\bin" rmdir /S /Q "%CPP_TEMPLATE_DIR%\bin"
-if exist "%CPP_FFMPEG_TEMPLATE_DIR%\build" rmdir /S /Q "%CPP_FFMPEG_TEMPLATE_DIR%\build"
-if exist "%CPP_FFMPEG_TEMPLATE_DIR%\bin" rmdir /S /Q "%CPP_FFMPEG_TEMPLATE_DIR%\bin"
+for %%T in ("%CPP_TEMPLATE_DIR%" "%CPP_FFMPEG_TEMPLATE_DIR%") do (
+    if exist "%%~T\build" rmdir /S /Q "%%~T\build"
+    if exist "%%~T\bin" rmdir /S /Q "%%~T\bin"
+)
 
 for %%T in (
     "%CPP_TEMPLATE_DIR%"
@@ -111,6 +112,13 @@ exit /b 0
 :usage
 echo Usage: tools\create_templates.bat [Debug^|Release] [output-folder]
 exit /b 1
+
+:copy_cpp_template
+set COPY_TEMPLATE_EXCLUDED_DIRECTORIES="%SOURCE_DIR%\.venv" "%SOURCE_DIR%\build" "%SOURCE_DIR%\bin" "%SOURCE_DIR%\Log" "%SOURCE_DIR%\Save" "%SOURCE_DIR%\.vs" "%SOURCE_DIR%\.idea" "%SOURCE_DIR%\cmake-build-ludork-debug" __pycache__ UiPreviewHost UiPreviewCurveResolver
+if "%~2"=="0" set COPY_TEMPLATE_EXCLUDED_DIRECTORIES=%COPY_TEMPLATE_EXCLUDED_DIRECTORIES% "%SOURCE_DIR%\ffmpeg" "%SOURCE_DIR%\ThirdPartySource"
+robocopy "%SOURCE_DIR%" "%~1" /E /XD %COPY_TEMPLATE_EXCLUDED_DIRECTORIES% /XF *.anim.json *.py *.pyc *.pyo *.log Main.ini Ludork.ini CMakeUserPresets.json generate_clion.sh UiPreviewHost* UiPreviewCurveResolver* /NFL /NDL /NJH /NJS /NP
+if errorlevel 8 exit /b %errorlevel%
+exit /b 0
 
 :copy_standalone_files
 set "COPY_SOURCE=%~1"

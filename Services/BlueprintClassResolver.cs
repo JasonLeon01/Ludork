@@ -13,42 +13,48 @@ public sealed class BlueprintClassResolver : IDisposable
     private const string BlueprintPrefix = "Data.Blueprints.";
     private readonly GameDataService gameData;
     private readonly LuaMetadataService metadataService;
+    private readonly Dictionary<string, ResolvedBlueprintTemplate> templateCache = new(StringComparer.Ordinal);
+    private long metadataRevision = -1;
+    private long revision;
     private bool disposed;
 
     public BlueprintClassResolver(GameDataService gameData, LuaMetadataService metadataService)
     {
         this.gameData = gameData;
         this.metadataService = metadataService;
+        gameData.DataChanged += onDataChanged;
+        gameData.DataRestored += onDataChanged;
         gameData.DataReloaded += onDataReloaded;
     }
 
     public ResolvedBlueprintClass Resolve(string classReference, JsonObject? overrides = null)
     {
         string reference = classReference?.Trim() ?? string.Empty;
-        if (reference.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
+        if (templateCache.TryGetValue(reference, out ResolvedBlueprintTemplate? cached))
         {
-            string key = reference[BlueprintPrefix.Length..].Replace('.', '/');
-            if (gameData.BlueprintsData.TryGetValue(key, out JsonObject? blueprint))
-                return resolveBlueprint(blueprint, reference, key, overrides);
-            return createResolvedClass(
-                reference,
-                null,
-                Array.Empty<LuaTypeReference>(),
-                Array.Empty<BlueprintCompatibilityType>(),
-                Array.Empty<JsonObject>(),
-                overrides
-            );
+            if (cached.IsCurrent(metadataService))
+                return cached.Materialize(overrides);
+            if (cached.MetadataRevision == metadataService.CacheRevision)
+                metadataService.ClearCache();
+            clearResolutionCaches();
         }
 
-        BlueprintRootResolution root = resolveRoot(reference);
-        return createResolvedClass(
-            reference,
-            root.RootType,
-            root.MetadataBases,
-            root.CompatibilityTypes,
-            Array.Empty<JsonObject>(),
-            overrides
-        );
+        using IDisposable metadataRead = metadataService.BeginRead();
+        ensureMetadataRevision();
+
+        ResolvedBlueprintTemplate template = createCanonicalTemplate(reference);
+        if (!template.IsCaptureConsistent)
+        {
+            metadataService.ClearCache();
+            clearResolutionCaches();
+            metadataService.RestartDependencyTracking();
+            ensureMetadataRevision();
+            template = createCanonicalTemplate(reference);
+            if (!template.IsCaptureConsistent)
+                throw new IOException("Metadata changed while resolving blueprint class");
+        }
+        templateCache[reference] = template;
+        return template.Materialize(overrides);
     }
 
     public ResolvedBlueprintClass ResolveBlueprint(
@@ -57,6 +63,8 @@ public sealed class BlueprintClassResolver : IDisposable
         JsonObject? overrides = null
     )
     {
+        using IDisposable metadataRead = metadataService.BeginRead();
+        ensureMetadataRevision();
         string reference = string.IsNullOrWhiteSpace(blueprintKey)
             ? string.Empty
             : blueprintKey.StartsWith(BlueprintPrefix, StringComparison.Ordinal)
@@ -67,7 +75,18 @@ public sealed class BlueprintClassResolver : IDisposable
             : blueprintKey.StartsWith(BlueprintPrefix, StringComparison.Ordinal)
                 ? blueprintKey[BlueprintPrefix.Length..].Replace('.', '/')
                 : blueprintKey.Replace('\\', '/');
-        return resolveBlueprint(blueprint, reference, key, overrides);
+        ResolvedBlueprintTemplate template = createBlueprintTemplate(blueprint, reference, key);
+        if (!template.IsCaptureConsistent)
+        {
+            metadataService.ClearCache();
+            clearResolutionCaches();
+            metadataService.RestartDependencyTracking();
+            ensureMetadataRevision();
+            template = createBlueprintTemplate(blueprint, reference, key);
+            if (!template.IsCaptureConsistent)
+                throw new IOException("Metadata changed while resolving blueprint class");
+        }
+        return template.Materialize(overrides);
     }
 
     public JsonNode? GetValue(string classReference, string fieldName)
@@ -77,12 +96,20 @@ public sealed class BlueprintClassResolver : IDisposable
 
     public bool IsDerivedFrom(string classReference, string baseTypeName)
     {
-        ResolvedBlueprintClass resolved = Resolve(classReference);
+        using IDisposable metadataRead = metadataService.BeginRead();
+        return IsDerivedFrom(Resolve(classReference), baseTypeName);
+    }
+
+    public long Revision => revision;
+
+    public bool IsDerivedFrom(ResolvedBlueprintClass resolved, string baseTypeName)
+    {
+        using IDisposable metadataRead = metadataService.BeginRead();
         LuaTypeReference baseType = LuaTypeReference.Parse(baseTypeName);
         if (resolved.RootType is not null && metadataService.ResolveMro(resolved.RootType)
             .Any(type => type.Type == baseType))
             return true;
-        string? terminalReference = getTerminalReference(classReference);
+        string? terminalReference = resolved.TerminalReference;
         if (string.IsNullOrWhiteSpace(terminalReference) || findMetadataType(terminalReference) is not null)
             return false;
         return BlueprintCompatibilityCatalog.IsDerivedFrom(
@@ -96,14 +123,48 @@ public sealed class BlueprintClassResolver : IDisposable
         if (disposed)
             return;
         disposed = true;
+        gameData.DataChanged -= onDataChanged;
+        gameData.DataRestored -= onDataChanged;
         gameData.DataReloaded -= onDataReloaded;
     }
 
-    private ResolvedBlueprintClass resolveBlueprint(
+    public IDisposable BeginBatch()
+    {
+        return metadataService.BeginRead();
+    }
+
+    private ResolvedBlueprintTemplate createCanonicalTemplate(string reference)
+    {
+        if (reference.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
+        {
+            string key = reference[BlueprintPrefix.Length..].Replace('.', '/');
+            if (gameData.BlueprintsData.TryGetValue(key, out JsonObject? blueprint))
+                return createBlueprintTemplate(blueprint, reference, key);
+            return createResolvedTemplate(
+                reference,
+                null,
+                null,
+                Array.Empty<LuaTypeReference>(),
+                Array.Empty<BlueprintCompatibilityType>(),
+                Array.Empty<LuaTypeReference>(),
+                Array.Empty<JsonObject>());
+        }
+
+        BlueprintRootResolution root = resolveRoot(reference);
+        return createResolvedTemplate(
+            reference,
+            root.TerminalReference,
+            root.RootType,
+            root.MetadataBases,
+            root.CompatibilityTypes,
+            root.ProbedMetadataTypes,
+            Array.Empty<JsonObject>());
+    }
+
+    private ResolvedBlueprintTemplate createBlueprintTemplate(
         JsonObject blueprint,
         string classReference,
-        string? blueprintKey,
-        JsonObject? overrides
+        string? blueprintKey
     )
     {
         List<JsonObject> chain = [blueprint];
@@ -125,31 +186,37 @@ public sealed class BlueprintClassResolver : IDisposable
 
         chain.Reverse();
         BlueprintRootResolution root = resolveRoot(parent);
-        return createResolvedClass(
+        return createResolvedTemplate(
             classReference,
+            root.TerminalReference,
             root.RootType,
             root.MetadataBases,
             root.CompatibilityTypes,
-            chain,
-            overrides
+            root.ProbedMetadataTypes,
+            chain
         );
     }
 
     private BlueprintRootResolution resolveRoot(string? reference)
     {
+        HashSet<LuaTypeReference> probedMetadataTypes = [];
         if (string.IsNullOrWhiteSpace(reference) || reference.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
             return new BlueprintRootResolution(
                 null,
+                null,
                 Array.Empty<LuaTypeReference>(),
-                Array.Empty<BlueprintCompatibilityType>()
+                Array.Empty<BlueprintCompatibilityType>(),
+                probedMetadataTypes.ToArray()
             );
         LuaTypeReference originalType = LuaTypeReference.Parse(reference);
-        LuaTypeReference? metadataType = findMetadataType(reference);
+        LuaTypeReference? metadataType = findMetadataType(reference, probedMetadataTypes);
         if (metadataType is not null)
             return new BlueprintRootResolution(
+                reference,
                 metadataType,
                 Array.Empty<LuaTypeReference>(),
-                Array.Empty<BlueprintCompatibilityType>()
+                Array.Empty<BlueprintCompatibilityType>(),
+                probedMetadataTypes.ToArray()
             );
 
         List<BlueprintCompatibilityType> compatibilityTypes = [];
@@ -163,27 +230,32 @@ public sealed class BlueprintClassResolver : IDisposable
             current = compatibilityType.Parent;
             if (string.IsNullOrWhiteSpace(current))
                 break;
-            metadataType = findMetadataType(current);
+            metadataType = findMetadataType(current, probedMetadataTypes);
             if (metadataType is not null)
             {
                 compatibilityTypes.Reverse();
                 return new BlueprintRootResolution(
+                    reference,
                     metadataType,
-                    getCompatibilityMetadataBases(compatibilityTypes),
-                    compatibilityTypes
+                    getCompatibilityMetadataBases(compatibilityTypes, probedMetadataTypes),
+                    compatibilityTypes,
+                    probedMetadataTypes.ToArray()
                 );
             }
         }
         compatibilityTypes.Reverse();
         return new BlueprintRootResolution(
+            reference,
             originalType,
-            getCompatibilityMetadataBases(compatibilityTypes),
-            compatibilityTypes
+            getCompatibilityMetadataBases(compatibilityTypes, probedMetadataTypes),
+            compatibilityTypes,
+            probedMetadataTypes.ToArray()
         );
     }
 
     private IReadOnlyList<LuaTypeReference> getCompatibilityMetadataBases(
-        IReadOnlyList<BlueprintCompatibilityType> compatibilityTypes
+        IReadOnlyList<BlueprintCompatibilityType> compatibilityTypes,
+        ISet<LuaTypeReference> probedMetadataTypes
     )
     {
         List<LuaTypeReference> result = [];
@@ -192,7 +264,7 @@ public sealed class BlueprintClassResolver : IDisposable
         {
             foreach (string reference in compatibilityType.MetadataBases)
             {
-                LuaTypeReference? metadataType = findMetadataType(reference);
+                LuaTypeReference? metadataType = findMetadataType(reference, probedMetadataTypes);
                 if (metadataType is not null && added.Add(metadataType.QualifiedName))
                     result.Add(metadataType);
             }
@@ -200,22 +272,27 @@ public sealed class BlueprintClassResolver : IDisposable
         return result;
     }
 
-    private LuaTypeReference? findMetadataType(string reference)
+    private LuaTypeReference? findMetadataType(
+        string reference,
+        ISet<LuaTypeReference>? probedMetadataTypes = null)
     {
         LuaTypeReference parsed = LuaTypeReference.Parse(reference);
+        probedMetadataTypes?.Add(parsed);
         if (metadataService.GetType(parsed) is not null)
             return parsed;
         LuaTypeReference fileClassReference = new(reference, parsed.TypeName);
+        probedMetadataTypes?.Add(fileClassReference);
         return metadataService.GetType(fileClassReference) is not null ? fileClassReference : null;
     }
 
-    private ResolvedBlueprintClass createResolvedClass(
+    private ResolvedBlueprintTemplate createResolvedTemplate(
         string classReference,
+        string? terminalReference,
         LuaTypeReference? rootType,
         IReadOnlyList<LuaTypeReference> metadataBases,
         IReadOnlyList<BlueprintCompatibilityType> compatibilityTypes,
-        IReadOnlyList<JsonObject> blueprintChain,
-        JsonObject? overrides
+        IReadOnlyList<LuaTypeReference> probedMetadataTypes,
+        IReadOnlyList<JsonObject> blueprintChain
     )
     {
         List<string> metadataOrder = [];
@@ -227,12 +304,15 @@ public sealed class BlueprintClassResolver : IDisposable
         List<string> invalidVars = [];
         HashSet<string> invalidVarSet = new(StringComparer.Ordinal);
         JsonObject rectRangeVars = new JsonObject();
+        HashSet<LuaTypeReference> dependencyTypes = new(probedMetadataTypes);
+        HashSet<string> dependencyMixins = new(StringComparer.OrdinalIgnoreCase);
 
         HashSet<LuaTypeReference> mergedMetadataTypes = [];
         foreach (LuaTypeReference metadataBase in metadataBases)
         {
             foreach (LuaTypeMetadata type in metadataService.ResolveMro(metadataBase).Reverse())
             {
+                addMetadataDependencies(dependencyTypes, type);
                 if (mergedMetadataTypes.Add(type.Type))
                     mergeMetadataType(
                         type,
@@ -251,6 +331,7 @@ public sealed class BlueprintClassResolver : IDisposable
         {
             foreach (LuaTypeMetadata type in metadataService.ResolveMro(rootType).Reverse())
             {
+                addMetadataDependencies(dependencyTypes, type);
                 if (mergedMetadataTypes.Add(type.Type))
                     mergeMetadataType(
                         type,
@@ -284,6 +365,7 @@ public sealed class BlueprintClassResolver : IDisposable
             string localScriptPath = readString(attrs?["scriptPath"]);
             if (string.IsNullOrWhiteSpace(localScriptPath))
                 continue;
+            dependencyMixins.Add(localScriptPath);
 
             LuaTypeMetadata? mixinMetadata = null;
             try
@@ -333,7 +415,10 @@ public sealed class BlueprintClassResolver : IDisposable
         foreach (string name in metadataOrder)
         {
             BlueprintFieldMetadata field = schema[name];
-            JsonObject? structuralDefault = buildStructuredDefault(field, new HashSet<string>(StringComparer.Ordinal));
+            JsonObject? structuralDefault = buildStructuredDefault(
+                field,
+                new HashSet<string>(StringComparer.Ordinal),
+                dependencyTypes);
             if (structuralDefault is not null)
                 structuralDefaults[name] = structuralDefault;
             if (fieldsWithMetadataDefaults.Contains(name) && structuralDefault is not null)
@@ -368,102 +453,31 @@ public sealed class BlueprintClassResolver : IDisposable
             );
         }
 
-        List<ResolvedBlueprintField> fields = [];
-        HashSet<string> added = new(StringComparer.Ordinal);
-        foreach (string name in metadataOrder)
-        {
-            bool hasBlueprintValue = blueprintFieldSet.Contains(name);
-            bool hasDefault = fieldsWithMetadataDefaults.Contains(name);
-            bool hasOverride = overrides?.ContainsKey(name) == true;
-            if (!hasDefault && !hasBlueprintValue && !hasOverride)
-                continue;
-            JsonNode? blueprintDefaultValue = hasBlueprintValue
-                ? cloneNode(blueprintValues[name])
-                : hasDefault
-                    ? cloneNode(metadataDefaults[name])
-                    : null;
-            JsonNode? value = hasOverride
-                ? cloneNode(overrides![name])
-                : cloneNode(blueprintDefaultValue);
-            BlueprintFieldMetadata fieldMetadata = schema[name];
-            fields.Add(new ResolvedBlueprintField(
-                name,
-                fieldMetadata.Type,
-                value,
-                blueprintDefaultValue,
-                fieldMetadata,
-                false,
-                hasBlueprintValue || hasDefault
-            ));
-            added.Add(name);
-        }
-
-        foreach (string name in blueprintOrder)
-        {
-            if (added.Contains(name))
-                continue;
-            JsonNode? blueprintDefaultValue = cloneNode(blueprintValues[name]);
-            JsonNode? value = overrides?.ContainsKey(name) == true
-                ? cloneNode(overrides[name])
-                : cloneNode(blueprintDefaultValue);
-            if (schema.TryGetValue(name, out BlueprintFieldMetadata? fieldMetadata))
-            {
-                fields.Add(new ResolvedBlueprintField(
-                    name,
-                    fieldMetadata.Type,
-                    value,
-                    blueprintDefaultValue,
-                    fieldMetadata,
-                    false,
-                    true
-                ));
-            }
-            else
-            {
-                fields.Add(createUnknownField(name, value, blueprintDefaultValue, true));
-            }
-            added.Add(name);
-        }
-
-        if (overrides is not null)
-        {
-            foreach (KeyValuePair<string, JsonNode?> pair in overrides)
-            {
-                if (added.Contains(pair.Key))
-                    continue;
-                if (schema.TryGetValue(pair.Key, out BlueprintFieldMetadata? fieldMetadata))
-                {
-                    fields.Add(new ResolvedBlueprintField(
-                        pair.Key,
-                        fieldMetadata.Type,
-                        cloneNode(pair.Value),
-                        null,
-                        fieldMetadata,
-                        false,
-                        false
-                    ));
-                }
-                else
-                {
-                    fields.Add(createUnknownField(pair.Key, pair.Value, null, false));
-                }
-                added.Add(pair.Key);
-            }
-        }
-
-        return new ResolvedBlueprintClass(
+        LuaMetadataService.DependencySet dependencies = metadataService.CaptureDependencies(
+            dependencyTypes,
+            dependencyMixins);
+        return new ResolvedBlueprintTemplate(
             classReference,
+            terminalReference,
             rootType,
-            fields,
+            metadataOrder,
+            schema,
+            metadataDefaults,
+            fieldsWithMetadataDefaults,
+            blueprintOrder,
+            blueprintValues,
+            blueprintFieldSet,
             classMeta,
             invalidVars,
             rectRangeVars,
             scriptMixin,
             hasBlueprintParent,
             parentScriptMixin,
-            metadataOrder.ToArray(),
             localMixinFieldNames,
-            scriptMixinError
+            scriptMixinError,
+            revision,
+            metadataService.CacheRevision,
+            dependencies
         );
     }
 
@@ -541,6 +555,15 @@ public sealed class BlueprintClassResolver : IDisposable
                 ? mergeNodes(structureDefault, pair.Value)
                 : cloneNode(pair.Value);
         }
+    }
+
+    private static void addMetadataDependencies(
+        ISet<LuaTypeReference> dependencies,
+        LuaTypeMetadata metadata)
+    {
+        dependencies.Add(metadata.Type);
+        foreach (LuaTypeReference baseType in metadata.Bases)
+            dependencies.Add(baseType.WithDefaultModule(metadata.Type.ModuleName));
     }
 
     private static ResolvedBlueprintField createUnknownField(
@@ -627,10 +650,12 @@ public sealed class BlueprintClassResolver : IDisposable
 
     private JsonObject? buildStructuredDefault(
         BlueprintFieldMetadata field,
-        HashSet<string> resolving
+        HashSet<string> resolving,
+        ISet<LuaTypeReference> dependencyTypes
     )
     {
         LuaTypeReference typeReference = field.Type.WithDefaultModule(field.DeclaringType.ModuleName);
+        dependencyTypes.Add(typeReference);
         if (!resolving.Add(typeReference.QualifiedName))
             return null;
         if (metadataService.GetType(typeReference) is null)
@@ -639,6 +664,8 @@ public sealed class BlueprintClassResolver : IDisposable
             return null;
         }
         IReadOnlyList<LuaTypeMetadata> mro = metadataService.ResolveMro(typeReference);
+        foreach (LuaTypeMetadata type in mro)
+            addMetadataDependencies(dependencyTypes, type);
         JsonObject result = new JsonObject();
         bool hasValue = false;
         foreach (LuaTypeMetadata type in mro.Reverse())
@@ -647,7 +674,7 @@ public sealed class BlueprintClassResolver : IDisposable
             {
                 if (!type.Fields.TryGetValue(name, out BlueprintFieldMetadata? nestedField))
                     continue;
-                JsonObject? nestedDefault = buildStructuredDefault(nestedField, resolving);
+                JsonObject? nestedDefault = buildStructuredDefault(nestedField, resolving, dependencyTypes);
                 if (nestedField.HasDefaultValue)
                 {
                     result[name] = mergeNodes(nestedDefault, nestedField.DefaultValue);
@@ -689,33 +716,216 @@ public sealed class BlueprintClassResolver : IDisposable
         return blueprint["parent"]?.GetValue<string>()?.Trim();
     }
 
-    private string? getTerminalReference(string classReference)
+    private void ensureMetadataRevision()
     {
-        string reference = classReference?.Trim() ?? string.Empty;
-        if (!reference.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
-            return string.IsNullOrWhiteSpace(reference) ? null : reference;
-        string key = reference[BlueprintPrefix.Length..].Replace('.', '/');
-        HashSet<string> visited = new(StringComparer.Ordinal);
-        while (visited.Add(key) && gameData.BlueprintsData.TryGetValue(key, out JsonObject? blueprint))
-        {
-            string? parent = getParent(blueprint);
-            if (string.IsNullOrWhiteSpace(parent))
-                return null;
-            if (!parent.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
-                return parent;
-            key = parent[BlueprintPrefix.Length..].Replace('.', '/');
-        }
-        return null;
+        long revision = metadataService.CacheRevision;
+        if (metadataRevision == revision)
+            return;
+        metadataRevision = revision;
+        clearResolutionCaches();
+    }
+
+    private void clearResolutionCaches()
+    {
+        templateCache.Clear();
+        revision++;
+    }
+
+    private void onDataChanged(object? sender, EventArgs e)
+    {
+        clearResolutionCaches();
     }
 
     private void onDataReloaded(object? sender, EventArgs e)
     {
         metadataService.ClearCache();
+        clearResolutionCaches();
+        metadataRevision = metadataService.CacheRevision;
     }
 
     private sealed record BlueprintRootResolution(
+        string? TerminalReference,
         LuaTypeReference? RootType,
         IReadOnlyList<LuaTypeReference> MetadataBases,
-        IReadOnlyList<BlueprintCompatibilityType> CompatibilityTypes
+        IReadOnlyList<BlueprintCompatibilityType> CompatibilityTypes,
+        IReadOnlyList<LuaTypeReference> ProbedMetadataTypes
     );
+
+    private sealed class ResolvedBlueprintTemplate
+    {
+        private readonly string classReference;
+        private readonly string? terminalReference;
+        private readonly LuaTypeReference? rootType;
+        private readonly IReadOnlyList<string> metadataOrder;
+        private readonly IReadOnlyDictionary<string, BlueprintFieldMetadata> schema;
+        private readonly IReadOnlyDictionary<string, JsonNode?> metadataDefaults;
+        private readonly IReadOnlySet<string> fieldsWithMetadataDefaults;
+        private readonly IReadOnlyList<string> blueprintOrder;
+        private readonly IReadOnlyDictionary<string, JsonNode?> blueprintValues;
+        private readonly IReadOnlySet<string> blueprintFieldSet;
+        private readonly JsonObject classMeta;
+        private readonly IReadOnlyList<string> invalidVars;
+        private readonly JsonObject rectRangeVars;
+        private readonly bool scriptMixin;
+        private readonly bool hasBlueprintParent;
+        private readonly bool parentScriptMixin;
+        private readonly IReadOnlyList<string> localMixinFieldNames;
+        private readonly string? scriptMixinError;
+        private readonly LuaMetadataService.DependencySet dependencies;
+
+        public ResolvedBlueprintTemplate(
+            string classReference,
+            string? terminalReference,
+            LuaTypeReference? rootType,
+            IReadOnlyList<string> metadataOrder,
+            IReadOnlyDictionary<string, BlueprintFieldMetadata> schema,
+            IReadOnlyDictionary<string, JsonNode?> metadataDefaults,
+            IReadOnlySet<string> fieldsWithMetadataDefaults,
+            IReadOnlyList<string> blueprintOrder,
+            IReadOnlyDictionary<string, JsonNode?> blueprintValues,
+            IReadOnlySet<string> blueprintFieldSet,
+            JsonObject classMeta,
+            IReadOnlyList<string> invalidVars,
+            JsonObject rectRangeVars,
+            bool scriptMixin,
+            bool hasBlueprintParent,
+            bool parentScriptMixin,
+            IReadOnlyList<string> localMixinFieldNames,
+            string? scriptMixinError,
+            long resolverRevision,
+            long metadataRevision,
+            LuaMetadataService.DependencySet dependencies)
+        {
+            this.classReference = classReference;
+            this.terminalReference = terminalReference;
+            this.rootType = rootType;
+            this.metadataOrder = metadataOrder.ToArray();
+            this.schema = schema;
+            this.metadataDefaults = metadataDefaults;
+            this.fieldsWithMetadataDefaults = new HashSet<string>(fieldsWithMetadataDefaults, StringComparer.Ordinal);
+            this.blueprintOrder = blueprintOrder.ToArray();
+            this.blueprintValues = blueprintValues;
+            this.blueprintFieldSet = new HashSet<string>(blueprintFieldSet, StringComparer.Ordinal);
+            this.classMeta = classMeta;
+            this.invalidVars = invalidVars.ToArray();
+            this.rectRangeVars = rectRangeVars;
+            this.scriptMixin = scriptMixin;
+            this.hasBlueprintParent = hasBlueprintParent;
+            this.parentScriptMixin = parentScriptMixin;
+            this.localMixinFieldNames = localMixinFieldNames.ToArray();
+            this.scriptMixinError = scriptMixinError;
+            ResolverRevision = resolverRevision;
+            MetadataRevision = metadataRevision;
+            this.dependencies = dependencies;
+        }
+
+        public long ResolverRevision { get; }
+        public long MetadataRevision { get; }
+        public bool IsCaptureConsistent => dependencies.IsConsistent;
+
+        public bool IsCurrent(LuaMetadataService metadataService)
+        {
+            return MetadataRevision == metadataService.CacheRevision
+                && metadataService.AreDependenciesCurrent(dependencies);
+        }
+
+        public ResolvedBlueprintClass Materialize(JsonObject? overrides)
+        {
+            List<ResolvedBlueprintField> fields = [];
+            HashSet<string> added = new(StringComparer.Ordinal);
+            foreach (string name in metadataOrder)
+            {
+                bool hasBlueprintValue = blueprintFieldSet.Contains(name);
+                bool hasDefault = fieldsWithMetadataDefaults.Contains(name);
+                bool hasOverride = overrides?.ContainsKey(name) == true;
+                if (!hasDefault && !hasBlueprintValue && !hasOverride)
+                    continue;
+                JsonNode? blueprintDefaultValue = hasBlueprintValue
+                    ? blueprintValues[name]
+                    : hasDefault
+                        ? metadataDefaults[name]
+                        : null;
+                JsonNode? value = hasOverride ? overrides![name] : blueprintDefaultValue;
+                BlueprintFieldMetadata fieldMetadata = schema[name];
+                fields.Add(new ResolvedBlueprintField(
+                    name,
+                    fieldMetadata.Type,
+                    value,
+                    blueprintDefaultValue,
+                    fieldMetadata,
+                    false,
+                    hasBlueprintValue || hasDefault));
+                added.Add(name);
+            }
+
+            foreach (string name in blueprintOrder)
+            {
+                if (added.Contains(name))
+                    continue;
+                JsonNode? blueprintDefaultValue = blueprintValues[name];
+                JsonNode? value = overrides?.ContainsKey(name) == true
+                    ? overrides[name]
+                    : blueprintDefaultValue;
+                if (schema.TryGetValue(name, out BlueprintFieldMetadata? fieldMetadata))
+                {
+                    fields.Add(new ResolvedBlueprintField(
+                        name,
+                        fieldMetadata.Type,
+                        value,
+                        blueprintDefaultValue,
+                        fieldMetadata,
+                        false,
+                        true));
+                }
+                else
+                {
+                    fields.Add(createUnknownField(name, value, blueprintDefaultValue, true));
+                }
+                added.Add(name);
+            }
+
+            if (overrides is not null)
+            {
+                foreach (KeyValuePair<string, JsonNode?> pair in overrides)
+                {
+                    if (added.Contains(pair.Key))
+                        continue;
+                    if (schema.TryGetValue(pair.Key, out BlueprintFieldMetadata? fieldMetadata))
+                    {
+                        fields.Add(new ResolvedBlueprintField(
+                            pair.Key,
+                            fieldMetadata.Type,
+                            pair.Value,
+                            null,
+                            fieldMetadata,
+                            false,
+                            false));
+                    }
+                    else
+                    {
+                        fields.Add(createUnknownField(pair.Key, pair.Value, null, false));
+                    }
+                    added.Add(pair.Key);
+                }
+            }
+
+            return new ResolvedBlueprintClass(
+                classReference,
+                terminalReference,
+                rootType,
+                fields,
+                classMeta,
+                invalidVars,
+                rectRangeVars,
+                scriptMixin,
+                hasBlueprintParent,
+                parentScriptMixin,
+                metadataOrder,
+                localMixinFieldNames,
+                scriptMixinError,
+                ResolverRevision,
+                MetadataRevision);
+        }
+
+    }
 }

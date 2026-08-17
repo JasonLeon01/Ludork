@@ -131,6 +131,58 @@ function(ludork_configure_visual_studio_play target)
             "LUDORK_EDITOR=1\nLUDORK_WINDOW_MODE=individual")
 endfunction()
 
+function(ludork_add_ui_validation_target target project_root)
+    set(options VALIDATE_ASSETS)
+    cmake_parse_arguments(UI_VALIDATION
+        "${options}"
+        ""
+        ""
+        ${ARGN})
+
+    set(validation_commands
+        COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
+            ui-adapter-check
+            "${project_root}")
+    if(UI_VALIDATION_VALIDATE_ASSETS)
+        list(APPEND validation_commands
+            COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
+                ui-assets
+                validate
+                "${project_root}")
+    endif()
+
+    add_custom_target(${target}
+        ${validation_commands}
+        WORKING_DIRECTORY "${project_root}"
+        VERBATIM)
+endfunction()
+
+function(ludork_add_ios_bundle_directory_sync
+    target source_directory bundle_subdirectory)
+    set(multi_value_args EXCLUDES)
+    cmake_parse_arguments(BUNDLE_SYNC
+        ""
+        ""
+        "${multi_value_args}"
+        ${ARGN})
+
+    set(exclude_arguments --exclude=.DS_Store)
+    foreach(exclude_pattern IN LISTS BUNDLE_SYNC_EXCLUDES)
+        list(APPEND exclude_arguments "--exclude=${exclude_pattern}")
+    endforeach()
+
+    add_custom_command(TARGET ${target} POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E make_directory
+            "$<TARGET_BUNDLE_DIR:${target}>/${bundle_subdirectory}"
+        COMMAND "${LUDORK_RSYNC_EXECUTABLE}"
+            -a
+            --delete
+            ${exclude_arguments}
+            "${source_directory}/"
+            "$<TARGET_BUNDLE_DIR:${target}>/${bundle_subdirectory}/"
+        VERBATIM)
+endfunction()
+
 function(ludork_enable_release_symbols target)
     if(NOT MSVC)
         return()

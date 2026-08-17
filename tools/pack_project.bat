@@ -1,6 +1,8 @@
 @echo off
 setlocal EnableExtensions
-cd /d "%~dp0.."
+for %%I in ("%~dp0.") do set "TOOLS_DIR=%%~fI"
+for %%I in ("%TOOLS_DIR%\..") do set "ROOT_DIR=%%~fI"
+cd /d "%ROOT_DIR%"
 
 set "USE_LUAC=0"
 set "ENCRYPT_SHADERS=0"
@@ -32,7 +34,8 @@ if "%~2"=="" (
 )
 
 set "PROJECT_FILE=%PROJECT_DIR%\Main.proj"
-set "SCRIPT_TOOLS=%CD%\.tools\ScriptTools\ScriptTools.exe"
+set "SCRIPT_TOOLS=%TOOLS_DIR%\ScriptTools.exe"
+if not exist "%SCRIPT_TOOLS%" set "SCRIPT_TOOLS=%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe"
 if not exist "%SCRIPT_TOOLS%" (
     echo ScriptTools was not found. Run tools\init.bat first.
     exit /b 1
@@ -68,12 +71,7 @@ if not exist "%DIST_DIR%\Main.exe" (
     exit /b 1
 )
 
-call :finalize_package
-if errorlevel 1 exit /b %errorlevel%
-call :compile_lua
-if errorlevel 1 exit /b %errorlevel%
-echo Pack complete: %DIST_DIR%
-exit /b 0
+goto complete_pack
 
 :pack_cpp
 set "CMAKE_FILE=%PROJECT_DIR%\CMakeLists.txt"
@@ -82,7 +80,7 @@ if not exist "%CMAKE_FILE%" (
     exit /b 1
 )
 
-call "%CD%\tools\build_standalone.bat" "%PROJECT_DIR%" "%DIST_DIR%" Release
+call "%TOOLS_DIR%\build_standalone.bat" "%PROJECT_DIR%" "%DIST_DIR%" Release
 if errorlevel 1 exit /b %errorlevel%
 
 if not exist "%DIST_DIR%\Main.exe" (
@@ -90,6 +88,7 @@ if not exist "%DIST_DIR%\Main.exe" (
     exit /b 1
 )
 
+:complete_pack
 call :finalize_package
 if errorlevel 1 exit /b %errorlevel%
 call :compile_lua
@@ -108,7 +107,8 @@ exit /b %errorlevel%
 
 :compile_lua
 if not "%USE_LUAC%"=="1" exit /b 0
-set "LUAC=%CD%\.tools\Lua\luac.exe"
+set "LUAC=%TOOLS_DIR%\luac.exe"
+if not exist "%LUAC%" set "LUAC=%ROOT_DIR%\.tools\Lua\luac.exe"
 if not exist "%LUAC%" (
     echo Host luac was not found. Build the C++ Sample once before using --compile-lua.
     exit /b 1

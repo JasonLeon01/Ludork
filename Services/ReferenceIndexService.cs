@@ -292,8 +292,8 @@ public sealed class ReferenceIndexService : IDisposable
 
     private void buildEdges()
     {
-        IReadOnlyList<BlueprintGraphNodeDefinition> globalDefinitions =
-            BlueprintNodeDefinitionCatalog.CreateGlobal(metadataService, classResolver).GetNodeDefinitions();
+        BlueprintNodeDefinitionSet globalDefinitions =
+            BlueprintNodeDefinitionCatalog.CreateGlobal(metadataService, classResolver).GetNodeDefinitionSet();
         foreach (KeyValuePair<string, JsonObject> pair in gameData.SystemConfigData)
             scanConfigReferences(nodeId("config", pair.Key), pair.Key, pair.Value);
         foreach (KeyValuePair<string, JsonObject> pair in gameData.TilesetData)
@@ -575,8 +575,8 @@ public sealed class ReferenceIndexService : IDisposable
         if (data["graph"] is JsonObject graph)
         {
             BlueprintGraphContext context = new(data, key);
-            IReadOnlyList<BlueprintGraphNodeDefinition> definitions =
-                new BlueprintNodeDefinitionCatalog(metadataService, classResolver, context).GetNodeDefinitions();
+            BlueprintNodeDefinitionSet definitions =
+                new BlueprintNodeDefinitionCatalog(metadataService, classResolver, context).GetNodeDefinitionSet();
             scanNodeGraphReferences(sourceId, graph, $"Blueprints/{key}.graph", definitions);
             scanGenericReferences(sourceId, graph, $"Blueprints/{key}.graph");
         }
@@ -599,7 +599,7 @@ public sealed class ReferenceIndexService : IDisposable
     private void scanGeneralReferences(
         string key,
         JsonObject data,
-        IReadOnlyList<BlueprintGraphNodeDefinition> globalDefinitions)
+        BlueprintNodeDefinitionSet globalDefinitions)
     {
         string sourceId = nodeId("general", key);
         JsonObject parameterSchema = data["params"] as JsonObject ?? [];
@@ -681,12 +681,11 @@ public sealed class ReferenceIndexService : IDisposable
         string sourceId,
         JsonObject graphData,
         string path,
-        IReadOnlyList<BlueprintGraphNodeDefinition> definitions)
+        BlueprintNodeDefinitionSet definitions)
     {
         if (graphData["nodeGraph"] is not JsonObject nodeGraph)
             return;
-        IReadOnlyDictionary<string, BlueprintGraphNodeDefinition> lookup =
-            BlueprintNodeDefinitionCatalog.CreateDefinitionLookup(definitions);
+        IReadOnlyDictionary<string, BlueprintGraphNodeDefinition> lookup = definitions.RuntimeLookup;
         foreach (KeyValuePair<string, JsonNode?> graphPair in nodeGraph)
         {
             if (graphPair.Value is not JsonObject graph || graph["nodes"] is not JsonArray graphNodes)

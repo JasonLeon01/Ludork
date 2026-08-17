@@ -12,7 +12,18 @@ namespace Ludork.Services;
 public sealed class LuaMetadataService
 {
     private readonly string scriptsPath;
-    private readonly Dictionary<string, CachedMetadataFile> cache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, CachedMetadataFile> fileCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, CachedScriptMixinMetadata> scriptMixinCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, IReadOnlyList<LuaTypeMetadata>> mroCache = new(StringComparer.Ordinal);
+    private readonly Dictionary<NodeMemberCacheKey, IReadOnlyList<LuaNodeMemberMetadata>> nodeMemberCache = [];
+    private readonly Dictionary<LuaNodeMemberKind, IReadOnlyList<LuaNodeMemberMetadata>> enumeratedNodeMemberCache = [];
+    private CachedMetadataFileSet? metadataFileSet;
+    private IReadOnlyList<LuaNodeMemberMetadata>? enumeratedNodeMembers;
+    private IReadOnlyList<LuaTypeMetadata>? enumeratedTypes;
+    private Dictionary<string, FileStamp>? readDependencyStamps;
+    private bool readDependenciesConsistent = true;
+    private int readScopeDepth;
+    private long revision;
 
     public LuaMetadataService(string projectPath)
     {
@@ -22,12 +33,119 @@ public sealed class LuaMetadataService
 
     public string ProjectPath { get; }
 
+    internal long CacheRevision => revision;
+
+    public IDisposable BeginRead()
+    {
+        if (readScopeDepth == 0)
+        {
+            ensureCacheCurrent();
+            readDependencyStamps = new Dictionary<string, FileStamp>(StringComparer.OrdinalIgnoreCase);
+            readDependenciesConsistent = true;
+        }
+        readScopeDepth++;
+        return new MetadataReadScope(this);
+    }
+
+    public long Revision
+    {
+        get
+        {
+            ensureCacheCurrent();
+            return revision;
+        }
+    }
+
+    internal DependencySet CaptureDependencies(
+        IEnumerable<LuaTypeReference> types,
+        IEnumerable<string> scriptMixins)
+    {
+        HashSet<string> paths = new(StringComparer.OrdinalIgnoreCase);
+        foreach (LuaTypeReference type in types)
+        {
+            if (!string.IsNullOrWhiteSpace(type.ModuleName))
+                paths.Add(getMetadataPath(type.ModuleName));
+        }
+        foreach (string scriptMixin in scriptMixins)
+        {
+            string normalized = ScriptMixinPaths.Normalize(scriptMixin);
+            if (!string.IsNullOrEmpty(normalized))
+                paths.Add(ScriptMixinPaths.GetMetadataPath(ProjectPath, normalized));
+        }
+        Dictionary<string, FileStamp> stamps = new(StringComparer.OrdinalIgnoreCase);
+        bool consistent = readDependenciesConsistent;
+        bool coveredByReadSnapshot = true;
+        foreach (string path in paths)
+        {
+            bool cachedByFile = fileCache.ContainsKey(path);
+            bool cachedByMixin = scriptMixinCache.Values.Any(
+                cached => string.Equals(cached.Path, path, StringComparison.OrdinalIgnoreCase));
+            if (!cachedByFile && !cachedByMixin)
+                coveredByReadSnapshot = false;
+            if (readDependencyStamps?.TryGetValue(path, out FileStamp readStamp) == true)
+            {
+                stamps[path] = readStamp;
+                if (readStamp != getFileStamp(path))
+                    consistent = false;
+                continue;
+            }
+            if (fileCache.TryGetValue(path, out CachedMetadataFile? cachedFile))
+            {
+                stamps[path] = cachedFile.Stamp;
+                if (cachedFile.Stamp != getFileStamp(path))
+                    consistent = false;
+                continue;
+            }
+            CachedScriptMixinMetadata? cachedMixin = scriptMixinCache.Values.FirstOrDefault(
+                cached => string.Equals(cached.Path, path, StringComparison.OrdinalIgnoreCase));
+            if (cachedMixin is not null)
+            {
+                stamps[path] = cachedMixin.Stamp;
+                if (cachedMixin.Stamp != getFileStamp(path))
+                    consistent = false;
+            }
+            else
+            {
+                stamps[path] = getFileStamp(path);
+            }
+        }
+        return new DependencySet(stamps, consistent, coveredByReadSnapshot);
+    }
+
+    internal bool AreDependenciesCurrent(DependencySet dependencies)
+    {
+        if (!dependencies.IsConsistent)
+            return false;
+        if (readScopeDepth != 0 && dependencies.CoveredByReadSnapshot)
+            return true;
+        foreach (KeyValuePair<string, FileStamp> entry in dependencies.Stamps)
+        {
+            if (entry.Value != getFileStamp(entry.Key))
+                return false;
+        }
+        return true;
+    }
+
+    internal void RestartDependencyTracking()
+    {
+        if (readScopeDepth == 0)
+            return;
+        readDependencyStamps = new Dictionary<string, FileStamp>(StringComparer.OrdinalIgnoreCase);
+        readDependenciesConsistent = true;
+    }
+
     public LuaTypeMetadata? GetType(string qualifiedTypeName)
     {
         return GetType(LuaTypeReference.Parse(qualifiedTypeName));
     }
 
     public LuaTypeMetadata? GetType(LuaTypeReference type, string? defaultModule = null)
+    {
+        ensureCacheCurrent();
+        return getType(type, defaultModule);
+    }
+
+    private LuaTypeMetadata? getType(LuaTypeReference type, string? defaultModule = null)
     {
         LuaTypeReference resolvedType = type.WithDefaultModule(defaultModule);
         if (resolvedType.ModuleName is null)
@@ -39,12 +157,32 @@ public sealed class LuaMetadataService
 
     public LuaTypeMetadata? LoadScriptMixinMetadata(string scriptPath)
     {
+        ensureCacheCurrent();
         string normalized = ScriptMixinPaths.Normalize(scriptPath);
         if (string.IsNullOrEmpty(normalized))
             return null;
         string metadataPath = ScriptMixinPaths.GetMetadataPath(ProjectPath, normalized);
-        if (!File.Exists(metadataPath))
+        if (readScopeDepth != 0
+            && scriptMixinCache.TryGetValue(normalized, out CachedScriptMixinMetadata? scopedCached))
+        {
+            trackReadDependency(metadataPath, scopedCached.Stamp);
+            return scopedCached.Metadata;
+        }
+        FileStamp stamp = getFileStamp(metadataPath);
+        trackReadDependency(metadataPath, stamp);
+        if (scriptMixinCache.TryGetValue(normalized, out CachedScriptMixinMetadata? cached))
+        {
+            if (cached.Stamp == stamp)
+                return cached.Metadata;
+            invalidateCaches();
+            stamp = getFileStamp(metadataPath);
+            trackReadDependency(metadataPath, stamp);
+        }
+        if (!stamp.Exists)
+        {
+            scriptMixinCache[normalized] = new CachedScriptMixinMetadata(metadataPath, stamp, null);
             return null;
+        }
 
         Script script = new(CoreModules.None);
         DynValue result = script.DoString(File.ReadAllText(metadataPath), null, metadataPath);
@@ -57,6 +195,7 @@ public sealed class LuaMetadataService
             throw new InvalidDataException($"Mixin metadata must contain only the {typeName} type");
         if (metadata.Bases.Count != 0)
             throw new InvalidDataException("Mixin metadata cannot declare bases");
+        scriptMixinCache[normalized] = new CachedScriptMixinMetadata(metadataPath, stamp, metadata);
         return metadata;
     }
 
@@ -67,9 +206,8 @@ public sealed class LuaMetadataService
 
     public IReadOnlyList<LuaTypeMetadata> ResolveMro(LuaTypeReference type)
     {
-        Dictionary<string, IReadOnlyList<LuaTypeMetadata>> resolved = new(StringComparer.Ordinal);
-        HashSet<string> resolving = new(StringComparer.Ordinal);
-        return resolveMro(type, resolved, resolving);
+        ensureCacheCurrent();
+        return resolveMroCached(type);
     }
 
     public IReadOnlyList<LuaNodeMemberMetadata> GetNodeMembers(
@@ -87,11 +225,19 @@ public sealed class LuaMetadataService
         bool includeInherited = true
     )
     {
-        LuaTypeMetadata? declaredType = GetType(type);
+        ensureCacheCurrent();
+        NodeMemberCacheKey cacheKey = new(type, kind, includeInherited);
+        if (nodeMemberCache.TryGetValue(cacheKey, out IReadOnlyList<LuaNodeMemberMetadata>? cached))
+            return cached;
+        LuaTypeMetadata? declaredType = getType(type);
         if (declaredType is null)
-            return Array.Empty<LuaNodeMemberMetadata>();
+        {
+            IReadOnlyList<LuaNodeMemberMetadata> empty = Array.Empty<LuaNodeMemberMetadata>();
+            nodeMemberCache[cacheKey] = empty;
+            return empty;
+        }
         IReadOnlyList<LuaTypeMetadata> hierarchy = includeInherited
-            ? ResolveMro(declaredType.Type)
+            ? resolveMroCached(declaredType.Type)
             : [declaredType];
         Dictionary<string, LuaNodeMemberMetadata> merged = new(StringComparer.Ordinal);
         List<string> order = [];
@@ -106,70 +252,199 @@ public sealed class LuaMetadataService
                 merged[name] = member;
             }
         }
-        return order
+        IReadOnlyList<LuaNodeMemberMetadata> result = order
             .Select(name => merged[name])
             .Where(member => kind is null || member.Kind == kind)
-            .ToList();
+            .ToArray();
+        nodeMemberCache[cacheKey] = result;
+        return result;
     }
 
     public IReadOnlyList<LuaNodeMemberMetadata> EnumerateNodeMembers(LuaNodeMemberKind? kind = null)
     {
-        if (!Directory.Exists(scriptsPath))
-            return Array.Empty<LuaNodeMemberMetadata>();
-        List<LuaNodeMemberMetadata> result = [];
-        IEnumerable<string> paths = Directory
-            .EnumerateFiles(scriptsPath, "*_meta.lua", SearchOption.AllDirectories)
-            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase);
-        foreach (string path in paths)
+        ensureCacheCurrent();
+        if (kind is LuaNodeMemberKind memberKind
+            && enumeratedNodeMemberCache.TryGetValue(memberKind, out IReadOnlyList<LuaNodeMemberMetadata>? filtered))
         {
-            string relativePath = Path.GetRelativePath(scriptsPath, path);
-            if (isScriptMixinMetadata(relativePath))
-                continue;
-            string moduleName = relativePath[..^"_meta.lua".Length]
-                .Replace(Path.DirectorySeparatorChar, '.')
-                .Replace(Path.AltDirectorySeparatorChar, '.');
-            IReadOnlyDictionary<string, LuaTypeMetadata> types = getFileTypes(path, moduleName);
-            foreach (LuaTypeMetadata metadata in types.Values)
+            return filtered;
+        }
+        if (enumeratedNodeMembers is null)
+        {
+            List<LuaNodeMemberMetadata> result = [];
+            foreach (string path in getMetadataFileSet().Paths)
             {
-                foreach (string name in metadata.MemberNames)
+                string moduleName = getModuleName(path);
+                IReadOnlyDictionary<string, LuaTypeMetadata> types = getFileTypes(path, moduleName);
+                foreach (LuaTypeMetadata metadata in types.Values)
                 {
-                    if (!metadata.Members.TryGetValue(name, out LuaNodeMemberMetadata? member))
-                        continue;
-                    if (kind is null || member.Kind == kind)
+                    foreach (string name in metadata.MemberNames)
+                    {
+                        if (!metadata.Members.TryGetValue(name, out LuaNodeMemberMetadata? member))
+                            continue;
                         result.Add(member);
+                    }
                 }
             }
+            enumeratedNodeMembers = result.ToArray();
         }
-        return result;
+        if (kind is null)
+            return enumeratedNodeMembers;
+        IReadOnlyList<LuaNodeMemberMetadata> nextFiltered = enumeratedNodeMembers
+            .Where(member => member.Kind == kind)
+            .ToArray();
+        enumeratedNodeMemberCache[kind.Value] = nextFiltered;
+        return nextFiltered;
     }
 
     public IReadOnlyList<LuaTypeMetadata> EnumerateTypes()
     {
-        if (!Directory.Exists(scriptsPath))
-            return Array.Empty<LuaTypeMetadata>();
+        ensureCacheCurrent();
+        if (enumeratedTypes is not null)
+            return enumeratedTypes;
         Dictionary<string, LuaTypeMetadata> result = new(StringComparer.Ordinal);
-        IEnumerable<string> paths = Directory
-            .EnumerateFiles(scriptsPath, "*_meta.lua", SearchOption.AllDirectories)
-            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase);
-        foreach (string path in paths)
+        foreach (string path in getMetadataFileSet().Paths)
         {
-            string relativePath = Path.GetRelativePath(scriptsPath, path);
-            if (isScriptMixinMetadata(relativePath))
-                continue;
-            string moduleName = relativePath[..^"_meta.lua".Length]
-                .Replace(Path.DirectorySeparatorChar, '.')
-                .Replace(Path.AltDirectorySeparatorChar, '.');
+            string moduleName = getModuleName(path);
             foreach (LuaTypeMetadata metadata in getFileTypes(path, moduleName).Values)
                 result[metadata.Type.QualifiedName] = metadata;
         }
-        return result.Values
+        enumeratedTypes = result.Values
             .OrderBy(metadata => metadata.Type.QualifiedName, StringComparer.Ordinal)
             .ToArray();
+        return enumeratedTypes;
     }
 
     public void ClearCache()
     {
-        cache.Clear();
+        invalidateCaches();
+    }
+
+    private void ensureCacheCurrent()
+    {
+        if (readScopeDepth != 0)
+            return;
+        foreach (KeyValuePair<string, CachedMetadataFile> entry in fileCache)
+        {
+            if (entry.Value.Stamp != getFileStamp(entry.Key))
+            {
+                invalidateCaches();
+                return;
+            }
+        }
+        foreach (CachedScriptMixinMetadata entry in scriptMixinCache.Values)
+        {
+            if (entry.Stamp != getFileStamp(entry.Path))
+            {
+                invalidateCaches();
+                return;
+            }
+        }
+        if (metadataFileSet is null || directoryStampsAreCurrent(metadataFileSet.DirectoryStamps))
+            return;
+        CachedMetadataFileSet currentFileSet = captureMetadataFileSet();
+        if (!metadataFileSet.Paths.SequenceEqual(currentFileSet.Paths, StringComparer.OrdinalIgnoreCase))
+        {
+            invalidateCaches();
+            return;
+        }
+        metadataFileSet = currentFileSet;
+    }
+
+    private void invalidateCaches()
+    {
+        fileCache.Clear();
+        scriptMixinCache.Clear();
+        mroCache.Clear();
+        nodeMemberCache.Clear();
+        enumeratedNodeMemberCache.Clear();
+        metadataFileSet = null;
+        enumeratedNodeMembers = null;
+        enumeratedTypes = null;
+        revision++;
+    }
+
+    private void endRead()
+    {
+        if (readScopeDepth > 0)
+            readScopeDepth--;
+        if (readScopeDepth != 0)
+            return;
+        readDependencyStamps = null;
+        readDependenciesConsistent = true;
+    }
+
+    private void trackReadDependency(string path, FileStamp stamp)
+    {
+        if (readScopeDepth == 0 || readDependencyStamps is null)
+            return;
+        if (readDependencyStamps.TryGetValue(path, out FileStamp existing))
+        {
+            if (existing != stamp)
+                readDependenciesConsistent = false;
+            return;
+        }
+        readDependencyStamps[path] = stamp;
+    }
+
+    private CachedMetadataFileSet getMetadataFileSet()
+    {
+        metadataFileSet ??= captureMetadataFileSet();
+        return metadataFileSet;
+    }
+
+    private CachedMetadataFileSet captureMetadataFileSet()
+    {
+        List<string> directories = [scriptsPath];
+        List<string> paths = [];
+        if (Directory.Exists(scriptsPath))
+        {
+            directories.AddRange(Directory
+                .EnumerateDirectories(scriptsPath, "*", SearchOption.AllDirectories)
+                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
+            paths.AddRange(Directory
+                .EnumerateFiles(scriptsPath, "*_meta.lua", SearchOption.AllDirectories)
+                .Where(path => !isScriptMixinMetadata(Path.GetRelativePath(scriptsPath, path)))
+                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
+        }
+        Dictionary<string, DirectoryStamp> directoryStamps = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string directory in directories)
+            directoryStamps[directory] = getDirectoryStamp(directory);
+        return new CachedMetadataFileSet(paths.ToArray(), directoryStamps);
+    }
+
+    private static bool directoryStampsAreCurrent(
+        IReadOnlyDictionary<string, DirectoryStamp> directoryStamps)
+    {
+        foreach (KeyValuePair<string, DirectoryStamp> entry in directoryStamps)
+        {
+            if (entry.Value != getDirectoryStamp(entry.Key))
+                return false;
+        }
+        return true;
+    }
+
+    private string getModuleName(string path)
+    {
+        string relativePath = Path.GetRelativePath(scriptsPath, path);
+        return relativePath[..^"_meta.lua".Length]
+            .Replace(Path.DirectorySeparatorChar, '.')
+            .Replace(Path.AltDirectorySeparatorChar, '.');
+    }
+
+    private static FileStamp getFileStamp(string path)
+    {
+        FileInfo info = new(path);
+        return info.Exists
+            ? new FileStamp(true, info.LastWriteTimeUtc, info.Length)
+            : new FileStamp(false, default, 0);
+    }
+
+    private static DirectoryStamp getDirectoryStamp(string path)
+    {
+        DirectoryInfo info = new(path);
+        return info.Exists
+            ? new DirectoryStamp(true, info.LastWriteTimeUtc)
+            : new DirectoryStamp(false, default);
     }
 
     private string getMetadataPath(string moduleName)
@@ -186,41 +461,57 @@ public sealed class LuaMetadataService
 
     private IReadOnlyDictionary<string, LuaTypeMetadata> getFileTypes(string path, string moduleName)
     {
-        if (!File.Exists(path))
+        if (readScopeDepth != 0
+            && fileCache.TryGetValue(path, out CachedMetadataFile? scopedCached)
+            && string.Equals(scopedCached.ModuleName, moduleName, StringComparison.Ordinal))
         {
-            cache.Remove(path);
-            return new Dictionary<string, LuaTypeMetadata>(StringComparer.Ordinal);
+            trackReadDependency(path, scopedCached.Stamp);
+            return scopedCached.Types;
         }
-        DateTime modifiedAt = File.GetLastWriteTimeUtc(path);
-        if (cache.TryGetValue(path, out CachedMetadataFile? cached) && cached.ModifiedAt == modifiedAt)
-            return cached.Types;
+        FileStamp stamp = getFileStamp(path);
+        trackReadDependency(path, stamp);
+        if (fileCache.TryGetValue(path, out CachedMetadataFile? cached))
+        {
+            if (cached.Stamp == stamp && string.Equals(cached.ModuleName, moduleName, StringComparison.Ordinal))
+                return cached.Types;
+            invalidateCaches();
+            stamp = getFileStamp(path);
+            trackReadDependency(path, stamp);
+        }
 
         IReadOnlyDictionary<string, LuaTypeMetadata> types;
-        try
-        {
-            Script script = new(CoreModules.None);
-            DynValue result = script.DoString(File.ReadAllText(path), null, path);
-            validateMetadataRoot(result);
-            types = parseMetadataFile(result.Table, moduleName);
-        }
-        catch (InterpreterException)
+        if (!stamp.Exists)
         {
             types = new Dictionary<string, LuaTypeMetadata>(StringComparer.Ordinal);
         }
-        catch (InvalidDataException)
+        else
         {
-            types = new Dictionary<string, LuaTypeMetadata>(StringComparer.Ordinal);
-        }
-        catch (IOException)
-        {
-            types = new Dictionary<string, LuaTypeMetadata>(StringComparer.Ordinal);
-        }
-        catch (UnauthorizedAccessException)
-        {
-            types = new Dictionary<string, LuaTypeMetadata>(StringComparer.Ordinal);
+            try
+            {
+                Script script = new(CoreModules.None);
+                DynValue result = script.DoString(File.ReadAllText(path), null, path);
+                validateMetadataRoot(result);
+                types = parseMetadataFile(result.Table, moduleName);
+            }
+            catch (InterpreterException)
+            {
+                types = new Dictionary<string, LuaTypeMetadata>(StringComparer.Ordinal);
+            }
+            catch (InvalidDataException)
+            {
+                types = new Dictionary<string, LuaTypeMetadata>(StringComparer.Ordinal);
+            }
+            catch (IOException)
+            {
+                types = new Dictionary<string, LuaTypeMetadata>(StringComparer.Ordinal);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                types = new Dictionary<string, LuaTypeMetadata>(StringComparer.Ordinal);
+            }
         }
 
-        cache[path] = new CachedMetadataFile(modifiedAt, types);
+        fileCache[path] = new CachedMetadataFile(stamp, moduleName, types);
         return types;
     }
 
@@ -657,7 +948,9 @@ public sealed class LuaMetadataService
         string key = type.QualifiedName;
         if (resolved.TryGetValue(key, out IReadOnlyList<LuaTypeMetadata>? existing))
             return existing;
-        LuaTypeMetadata? current = GetType(type);
+        if (mroCache.TryGetValue(key, out IReadOnlyList<LuaTypeMetadata>? cached))
+            return cached;
+        LuaTypeMetadata? current = getType(type);
         if (current is null || !resolving.Add(key))
             return Array.Empty<LuaTypeMetadata>();
 
@@ -665,7 +958,7 @@ public sealed class LuaMetadataService
         List<LuaTypeMetadata> directBases = [];
         foreach (LuaTypeReference baseReference in current.Bases)
         {
-            LuaTypeMetadata? directBase = GetType(baseReference, current.Type.ModuleName);
+            LuaTypeMetadata? directBase = getType(baseReference, current.Type.ModuleName);
             if (directBase is null)
                 continue;
             IReadOnlyList<LuaTypeMetadata> baseMro = resolveMro(directBase.Type, resolved, resolving);
@@ -681,7 +974,23 @@ public sealed class LuaMetadataService
         if (directBases.Count != 0)
             sequences.Add(directBases.ToList());
         mergeC3(result, sequences);
-        resolved[key] = result;
+        IReadOnlyList<LuaTypeMetadata> materialized = result.ToArray();
+        resolved[key] = materialized;
+        return materialized;
+    }
+
+    private IReadOnlyList<LuaTypeMetadata> resolveMroCached(LuaTypeReference type)
+    {
+        string key = type.QualifiedName;
+        if (mroCache.TryGetValue(key, out IReadOnlyList<LuaTypeMetadata>? cached))
+            return cached;
+        Dictionary<string, IReadOnlyList<LuaTypeMetadata>> resolved = new(StringComparer.Ordinal);
+        HashSet<string> resolving = new(StringComparer.Ordinal);
+        IReadOnlyList<LuaTypeMetadata> result = resolveMro(type, resolved, resolving);
+        foreach (KeyValuePair<string, IReadOnlyList<LuaTypeMetadata>> entry in resolved)
+            mroCache[entry.Key] = entry.Value;
+        if (!mroCache.ContainsKey(key))
+            mroCache[key] = result;
         return result;
     }
 
@@ -713,5 +1022,56 @@ public sealed class LuaMetadataService
         }
     }
 
-    private sealed record CachedMetadataFile(DateTime ModifiedAt, IReadOnlyDictionary<string, LuaTypeMetadata> Types);
+    private readonly record struct NodeMemberCacheKey(
+        LuaTypeReference Type,
+        LuaNodeMemberKind? Kind,
+        bool IncludeInherited);
+
+    internal readonly record struct FileStamp(bool Exists, DateTime ModifiedAt, long Length);
+    private readonly record struct DirectoryStamp(bool Exists, DateTime ModifiedAt);
+
+    private sealed record CachedMetadataFile(
+        FileStamp Stamp,
+        string ModuleName,
+        IReadOnlyDictionary<string, LuaTypeMetadata> Types);
+
+    private sealed record CachedScriptMixinMetadata(
+        string Path,
+        FileStamp Stamp,
+        LuaTypeMetadata? Metadata);
+
+    private sealed record CachedMetadataFileSet(
+        IReadOnlyList<string> Paths,
+        IReadOnlyDictionary<string, DirectoryStamp> DirectoryStamps);
+
+    internal sealed class DependencySet
+    {
+        public DependencySet(
+            IReadOnlyDictionary<string, FileStamp> stamps,
+            bool isConsistent,
+            bool coveredByReadSnapshot)
+        {
+            Stamps = stamps;
+            IsConsistent = isConsistent;
+            CoveredByReadSnapshot = coveredByReadSnapshot;
+        }
+
+        internal IReadOnlyDictionary<string, FileStamp> Stamps { get; }
+        internal bool IsConsistent { get; }
+        internal bool CoveredByReadSnapshot { get; }
+    }
+
+    private sealed class MetadataReadScope(LuaMetadataService owner) : IDisposable
+    {
+        private LuaMetadataService? service = owner;
+
+        public void Dispose()
+        {
+            LuaMetadataService? current = service;
+            if (current is null)
+                return;
+            service = null;
+            current.endRead();
+        }
+    }
 }

@@ -40,6 +40,7 @@ public sealed class ResolvedBlueprintClass
 
     public ResolvedBlueprintClass(
         string classReference,
+        string? terminalReference,
         LuaTypeReference? rootType,
         IReadOnlyList<ResolvedBlueprintField> fields,
         JsonObject meta,
@@ -50,10 +51,13 @@ public sealed class ResolvedBlueprintClass
         bool parentScriptMixin,
         IReadOnlyList<string> declaredFieldNames,
         IReadOnlyList<string> localMixinFieldNames,
-        string? scriptMixinError
+        string? scriptMixinError,
+        long resolverRevision,
+        long metadataRevision
     )
     {
         ClassReference = classReference;
+        TerminalReference = terminalReference;
         RootType = rootType;
         Fields = fields;
         Meta = (JsonObject)meta.DeepClone();
@@ -65,6 +69,8 @@ public sealed class ResolvedBlueprintClass
         DeclaredFieldNames = declaredFieldNames;
         LocalMixinFieldNames = localMixinFieldNames;
         ScriptMixinError = scriptMixinError;
+        ResolverRevision = resolverRevision;
+        MetadataRevision = metadataRevision;
         Dictionary<string, ResolvedBlueprintField> lookup = new(StringComparer.Ordinal);
         foreach (ResolvedBlueprintField field in fields)
             lookup[field.Name] = field;
@@ -72,6 +78,7 @@ public sealed class ResolvedBlueprintClass
     }
 
     public string ClassReference { get; }
+    public string? TerminalReference { get; }
     public LuaTypeReference? RootType { get; }
     public IReadOnlyList<ResolvedBlueprintField> Fields { get; }
     public JsonObject Meta { get; }
@@ -83,6 +90,8 @@ public sealed class ResolvedBlueprintClass
     public IReadOnlyList<string> DeclaredFieldNames { get; }
     public IReadOnlyList<string> LocalMixinFieldNames { get; }
     public string? ScriptMixinError { get; }
+    public long ResolverRevision { get; }
+    public long MetadataRevision { get; }
 
     public ResolvedBlueprintField? GetField(string name)
     {

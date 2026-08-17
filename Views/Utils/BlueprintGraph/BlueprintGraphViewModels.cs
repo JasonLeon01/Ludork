@@ -19,6 +19,15 @@ using System.Text.Json.Nodes;
 
 namespace Ludork.Views.Utils.BlueprintGraph;
 
+internal static class BlueprintGraphBrushes
+{
+    public static readonly IBrush VirtualHeader = new SolidColorBrush(Color.Parse("#3c6432"));
+    public static readonly IBrush ResolvedHeader = new SolidColorBrush(Color.Parse("#3b3b3b"));
+    public static readonly IBrush UnresolvedHeader = new SolidColorBrush(Color.Parse("#713b3b"));
+    public static readonly IBrush Execution = new SolidColorBrush(Color.Parse("#e6b84f"));
+    public static readonly IBrush Parameter = new SolidColorBrush(Color.Parse("#65ad67"));
+}
+
 public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
 {
     private static BlueprintGraphClipboard? clipboard;
@@ -275,7 +284,8 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
                 targetIndex,
                 connection.SourcePinIndex,
                 connection.TargetPinIndex,
-                connection.Kind));
+                connection.Kind,
+                connection.RawData.DeepClone() as JsonObject ?? []));
         }
         clipboard = new BlueprintGraphClipboard(copiedNodes, copiedConnections);
     }
@@ -326,7 +336,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
                 copied.Kind,
                 copied.SourcePinIndex,
                 copied.TargetPinIndex,
-                []);
+                copied.RawData);
             if (document.AddConnection(connection))
                 addConnectionViewModel(connection);
         }
@@ -582,10 +592,10 @@ public sealed class BlueprintGraphNodeViewModel : NodeViewModelBase, IDisposable
             ? $"{Model.NodeFunction}\n{LocaleService.Get("NODE_UNRESOLVED")}"
             : $"{Model.NodeFunction}\n\n{Model.Description}\n\n{LocaleService.Get("NODE_UNRESOLVED")}";
     public IBrush HeaderBrush => Model.IsVirtual
-        ? new SolidColorBrush(Color.Parse("#3c6432"))
+        ? BlueprintGraphBrushes.VirtualHeader
         : Model.IsResolved
-            ? new SolidColorBrush(Color.Parse("#3b3b3b"))
-            : new SolidColorBrush(Color.Parse("#713b3b"));
+            ? BlueprintGraphBrushes.ResolvedHeader
+            : BlueprintGraphBrushes.UnresolvedHeader;
 
     public void Dispose()
     {
@@ -635,9 +645,20 @@ public sealed class BlueprintGraphNodeViewModel : NodeViewModelBase, IDisposable
 
 public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDisposable
 {
+    private readonly GameDataService gameData;
+    private readonly BlueprintVariableFieldBuilder fieldBuilder;
+    private readonly BlueprintNodeParameterEditorFactory parameterEditorFactory;
+    private readonly IGameVariableCatalog gameVariables;
+    private readonly Func<string, JsonNode?> getRawSiblingValue;
+    private readonly Action<string, JsonNode?> setRawSiblingValue;
+    private readonly string assetsDirectory;
+    private readonly int cellSize;
     private readonly BlueprintGraphDocument document;
     private readonly Func<bool> isReadOnly;
     private readonly string displayTypeName;
+    private IReadOnlyList<BlueprintGraphPortViewModel>? dependencyParameters;
+    private BlueprintVariableField? parameterField;
+    private BlueprintVariableForm? parameterForm;
     private bool disposed;
 
     public BlueprintGraphPortViewModel(
@@ -654,6 +675,14 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
         Func<bool> isReadOnly)
     {
         Model = model;
+        this.gameData = gameData;
+        this.fieldBuilder = fieldBuilder;
+        this.parameterEditorFactory = parameterEditorFactory;
+        this.gameVariables = gameVariables;
+        this.getRawSiblingValue = getRawSiblingValue;
+        this.setRawSiblingValue = setRawSiblingValue;
+        this.assetsDirectory = assetsDirectory;
+        this.cellSize = cellSize;
         this.document = document;
         this.isReadOnly = isReadOnly;
         displayTypeName = model.TypeName;
@@ -667,47 +696,28 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
             && model.Kind == BlueprintGraphPortKind.Params
             && model.SupportsEditor)
         {
-            BlueprintVariableField field = fieldBuilder.BuildNodeParameter(model);
-            displayTypeName = getDisplayTypeName(field, model.TypeName);
-            BlueprintVariableForm form = new()
-            {
-                AssetsDirectory = assetsDirectory,
-                ProjectDirectory = Path.GetDirectoryName(assetsDirectory) ?? string.Empty,
-                CellSize = cellSize,
-                GameVariables = gameVariables,
-                HistoryGameData = gameData,
-                IsReadOnly = isReadOnly(),
-                ShowFieldNames = false,
-                MinWidth = 180,
-                MaxWidth = 280,
-            };
-            form.CustomValueEditorFactory = request => parameterEditorFactory.Create(
-                request,
-                getRawSiblingValue,
-                setRawSiblingValue,
-                () => !disposed);
-            form.PointerPressed += onParameterEditorPointerPressed;
-            form.SetFields([field]);
-            form.ValueChanged += (_, args) =>
-            {
-                if (isReadOnly())
-                    return;
-                model.Value = args.Value?.DeepClone();
-                document.NotifyChanged();
-                ParameterValueChanged?.Invoke(this, EventArgs.Empty);
-                ParameterEdited?.Invoke(this, EventArgs.Empty);
-                if (args.RequiresRefresh)
-                    Dispatcher.UIThread.Post(form.RefreshEditors, DispatcherPriority.Background);
-            };
-            Editor = form;
-            ParameterForm = form;
+            displayTypeName = fieldBuilder.GetNodeParameterDisplayTypeName(model);
         }
         model.PropertyChanged += onModelPropertyChanged;
     }
 
     public BlueprintGraphPort Model { get; }
-    public Control? Editor { get; }
-    public BlueprintVariableForm? ParameterForm { get; }
+    public Control? Editor
+    {
+        get
+        {
+            ensureParameterEditor();
+            return parameterForm;
+        }
+    }
+    public BlueprintVariableForm? ParameterForm
+    {
+        get
+        {
+            ensureParameterEditor();
+            return parameterForm;
+        }
+    }
     public event EventHandler? ParameterValueChanged;
     public event EventHandler? ParameterEdited;
     public string DisplayTitle => Model.Kind == BlueprintGraphPortKind.Params
@@ -715,8 +725,8 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
         : Title;
     public bool IsEditorVisible => Model.IsEditorVisible;
     public IBrush Brush => Model.Kind == BlueprintGraphPortKind.Exec
-        ? new SolidColorBrush(Color.Parse("#e6b84f"))
-        : new SolidColorBrush(Color.Parse("#65ad67"));
+        ? BlueprintGraphBrushes.Execution
+        : BlueprintGraphBrushes.Parameter;
 
     public void Dispose()
     {
@@ -724,8 +734,9 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
             return;
         disposed = true;
         Model.PropertyChanged -= onModelPropertyChanged;
-        if (ParameterForm is not null)
-            ParameterForm.GameVariables = null;
+        parameterForm?.Dispose();
+        parameterForm = null;
+        dependencyParameters = null;
     }
 
     public void ApplyExternalValue(JsonNode? value)
@@ -733,7 +744,9 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
         if (disposed || isReadOnly() || JsonNode.DeepEquals(Model.Value, value))
             return;
         Model.Value = value?.DeepClone();
-        ParameterForm?.SetFieldValue(Model.Name, value);
+        if (parameterField is not null)
+            parameterField.Value = value?.DeepClone();
+        parameterForm?.SetFieldValue(Model.Name, value);
         document.NotifyChanged();
         ParameterValueChanged?.Invoke(this, EventArgs.Empty);
         ParameterEdited?.Invoke(this, EventArgs.Empty);
@@ -742,18 +755,66 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
     public void SetReadOnly(bool value)
     {
         CanConnect = !value;
-        if (ParameterForm is not null)
-            ParameterForm.IsReadOnly = value;
+        if (parameterForm is not null)
+            parameterForm.IsReadOnly = value;
     }
 
     public void SynchronizeDependencies(IEnumerable<BlueprintGraphPortViewModel> parameters)
     {
-        if (ParameterForm is null)
+        dependencyParameters = parameters as IReadOnlyList<BlueprintGraphPortViewModel>
+            ?? parameters.ToArray();
+        synchronizeParameterFormDependencies();
+    }
+
+    private void ensureParameterEditor()
+    {
+        if (disposed || parameterForm is not null || !Model.IsEditorVisible)
             return;
-        foreach (BlueprintGraphPortViewModel parameter in parameters)
+        parameterField ??= fieldBuilder.BuildNodeParameter(Model);
+        BlueprintVariableForm form = new()
+        {
+            AssetsDirectory = assetsDirectory,
+            ProjectDirectory = Path.GetDirectoryName(assetsDirectory) ?? string.Empty,
+            CellSize = cellSize,
+            GameVariables = gameVariables,
+            HistoryGameData = gameData,
+            IsReadOnly = isReadOnly(),
+            ShowFieldNames = false,
+            MinWidth = 180,
+            MaxWidth = 280,
+        };
+        form.CustomValueEditorFactory = request => parameterEditorFactory.Create(
+            request,
+            getRawSiblingValue,
+            setRawSiblingValue,
+            () => !disposed);
+        form.PointerPressed += onParameterEditorPointerPressed;
+        form.SetFields([parameterField]);
+        parameterForm = form;
+        synchronizeParameterFormDependencies();
+        form.ValueChanged += (_, args) =>
+        {
+            if (isReadOnly())
+                return;
+            Model.Value = args.Value?.DeepClone();
+            document.NotifyChanged();
+            ParameterValueChanged?.Invoke(this, EventArgs.Empty);
+            ParameterEdited?.Invoke(this, EventArgs.Empty);
+            if (args.RequiresRefresh)
+                Dispatcher.UIThread.Post(form.RefreshEditors, DispatcherPriority.Background);
+        };
+        OnPropertyChanged(nameof(Editor));
+        OnPropertyChanged(nameof(ParameterForm));
+    }
+
+    private void synchronizeParameterFormDependencies()
+    {
+        if (parameterForm is null || dependencyParameters is null)
+            return;
+        foreach (BlueprintGraphPortViewModel parameter in dependencyParameters)
         {
             JsonNode? value = parameter.Model.IsConnected ? null : parameter.Model.Value;
-            ParameterForm.SetDependencyValue(parameter.Model.Name, value);
+            parameterForm.SetDependencyValue(parameter.Model.Name, value);
         }
     }
 
@@ -761,26 +822,16 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
     {
         if (string.Equals(args.PropertyName, nameof(BlueprintGraphPort.IsConnected), StringComparison.Ordinal))
         {
+            ensureParameterEditor();
             IsConnected = Model.IsConnected;
             OnPropertyChanged(nameof(IsEditorVisible));
             ParameterValueChanged?.Invoke(this, EventArgs.Empty);
         }
         else if (string.Equals(args.PropertyName, nameof(BlueprintGraphPort.IsEditorVisible), StringComparison.Ordinal))
         {
+            ensureParameterEditor();
             OnPropertyChanged(nameof(IsEditorVisible));
         }
-    }
-
-    private static string getDisplayTypeName(BlueprintVariableField field, string fallback)
-    {
-        return field.EditorKind switch
-        {
-            BlueprintVariableEditorKind.MoveRoute => "MoveRoute",
-            BlueprintVariableEditorKind.TransferPosition => "TransferPos",
-            BlueprintVariableEditorKind.BlueprintClass => "BlueprintClass",
-            BlueprintVariableEditorKind.CommonFunction => "CommonFunction",
-            _ => fallback,
-        };
     }
 
     private static void onParameterEditorPointerPressed(
@@ -807,8 +858,8 @@ public sealed class BlueprintGraphConnectionViewModel : ConnectionViewModelBase
 
     public BlueprintGraphConnection Model { get; }
     public IBrush Stroke => Model.Kind == BlueprintGraphPortKind.Exec
-        ? new SolidColorBrush(Color.Parse("#e6b84f"))
-        : new SolidColorBrush(Color.Parse("#65ad67"));
+        ? BlueprintGraphBrushes.Execution
+        : BlueprintGraphBrushes.Parameter;
 
     public override void DisconnectConnection(ConnectionViewModelBase connection)
     {
@@ -902,7 +953,8 @@ internal sealed record BlueprintGraphClipboardConnection(
     int TargetIndex,
     int SourcePinIndex,
     int TargetPinIndex,
-    BlueprintGraphPortKind Kind);
+    BlueprintGraphPortKind Kind,
+    JsonObject RawData);
 
 public sealed class BlueprintPendingConnectionViewModel : PendingConnectionViewModelBase
 {

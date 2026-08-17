@@ -39,6 +39,17 @@ set(LUDORK_FFMPEG_BUILD_DIR "${LUDORK_FFMPEG_PREFIX}/build")
 set(LUDORK_FFMPEG_INSTALL_DIR "${LUDORK_FFMPEG_PREFIX}/install")
 file(MAKE_DIRECTORY "${LUDORK_FFMPEG_INSTALL_DIR}/include")
 
+function(ludork_use_static_ffmpeg_runtime)
+    set(FFMPEG_LIBRARY_TYPE STATIC PARENT_SCOPE)
+    foreach(ffmpeg_library IN ITEMS
+        AVUTIL AVCODEC AVFORMAT SWSCALE SWRESAMPLE)
+        string(TOLOWER "${ffmpeg_library}" ffmpeg_library_name)
+        set(FFMPEG_${ffmpeg_library}_RUNTIME
+            "${LUDORK_FFMPEG_INSTALL_DIR}/lib/lib${ffmpeg_library_name}.a"
+            PARENT_SCOPE)
+    endforeach()
+endfunction()
+
 if(CMAKE_SYSTEM_NAME STREQUAL "OHOS")
     if(NOT DEFINED OHOS_SDK_NATIVE OR OHOS_SDK_NATIVE STREQUAL "")
         message(FATAL_ERROR "OHOS_SDK_NATIVE is required for the FFmpeg OHOS build.")
@@ -47,12 +58,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "OHOS")
         message(FATAL_ERROR "The OHOS native LLVM toolchain was not found: ${OHOS_SDK_NATIVE}")
     endif()
     find_program(LUDORK_GNU_MAKE_EXECUTABLE NAMES gmake make REQUIRED)
-    set(FFMPEG_LIBRARY_TYPE STATIC)
-    set(FFMPEG_AVUTIL_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/lib/libavutil.a")
-    set(FFMPEG_AVCODEC_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/lib/libavcodec.a")
-    set(FFMPEG_AVFORMAT_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/lib/libavformat.a")
-    set(FFMPEG_SWSCALE_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/lib/libswscale.a")
-    set(FFMPEG_SWRESAMPLE_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/lib/libswresample.a")
+    ludork_use_static_ffmpeg_runtime()
     set(FFMPEG_CONFIGURE_COMMAND
         sh
         "${CMAKE_CURRENT_SOURCE_DIR}/build_ohos.sh"
@@ -92,12 +98,7 @@ elseif(ANDROID)
             "for the Android FFmpeg build.")
     endif()
     set(LUDORK_GNU_MAKE_EXECUTABLE "${CMAKE_MAKE_PROGRAM}")
-    set(FFMPEG_LIBRARY_TYPE STATIC)
-    set(FFMPEG_AVUTIL_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/lib/libavutil.a")
-    set(FFMPEG_AVCODEC_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/lib/libavcodec.a")
-    set(FFMPEG_AVFORMAT_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/lib/libavformat.a")
-    set(FFMPEG_SWSCALE_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/lib/libswscale.a")
-    set(FFMPEG_SWRESAMPLE_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/lib/libswresample.a")
+    ludork_use_static_ffmpeg_runtime()
     set(FFMPEG_CONFIGURE_COMMAND
         sh
         "${CMAKE_CURRENT_SOURCE_DIR}/build_android.sh"
@@ -131,12 +132,7 @@ elseif(APPLE)
     if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
         set(FFMPEG_APPLE_PLATFORM ios)
         set(FFMPEG_APPLE_DEPLOYMENT_TARGET "${CMAKE_OSX_DEPLOYMENT_TARGET}")
-        set(FFMPEG_LIBRARY_TYPE STATIC)
-        set(FFMPEG_AVUTIL_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/lib/libavutil.a")
-        set(FFMPEG_AVCODEC_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/lib/libavcodec.a")
-        set(FFMPEG_AVFORMAT_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/lib/libavformat.a")
-        set(FFMPEG_SWSCALE_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/lib/libswscale.a")
-        set(FFMPEG_SWRESAMPLE_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/lib/libswresample.a")
+        ludork_use_static_ffmpeg_runtime()
     else()
         set(FFMPEG_APPLE_PLATFORM macos)
         set(FFMPEG_APPLE_DEPLOYMENT_TARGET "${CMAKE_OSX_DEPLOYMENT_TARGET}")
@@ -161,6 +157,13 @@ else()
         "The trimmed FFmpeg subproject supports Windows, macOS, iOS, Android, and OHOS.")
 endif()
 
+set(LUDORK_FFMPEG_RUNTIME_FILES
+    "${FFMPEG_AVUTIL_RUNTIME}"
+    "${FFMPEG_AVCODEC_RUNTIME}"
+    "${FFMPEG_AVFORMAT_RUNTIME}"
+    "${FFMPEG_SWSCALE_RUNTIME}"
+    "${FFMPEG_SWRESAMPLE_RUNTIME}")
+
 ExternalProject_Add(LudorkFFmpegExternal
     SOURCE_DIR "${LUDORK_FFMPEG_SOURCE_DIR}"
     BINARY_DIR "${LUDORK_FFMPEG_PREFIX}"
@@ -168,12 +171,7 @@ ExternalProject_Add(LudorkFFmpegExternal
     BUILD_COMMAND ""
     INSTALL_COMMAND ""
     UPDATE_COMMAND ""
-    BUILD_BYPRODUCTS
-        "${FFMPEG_AVUTIL_RUNTIME}"
-        "${FFMPEG_AVCODEC_RUNTIME}"
-        "${FFMPEG_AVFORMAT_RUNTIME}"
-        "${FFMPEG_SWSCALE_RUNTIME}"
-        "${FFMPEG_SWRESAMPLE_RUNTIME}")
+    BUILD_BYPRODUCTS ${LUDORK_FFMPEG_RUNTIME_FILES})
 
 function(ludork_ffmpeg_import target library runtime)
     add_library(${target} ${FFMPEG_LIBRARY_TYPE} IMPORTED GLOBAL)
@@ -193,31 +191,19 @@ ludork_ffmpeg_import(FFmpeg::avformat avformat "${FFMPEG_AVFORMAT_RUNTIME}")
 ludork_ffmpeg_import(FFmpeg::swscale swscale "${FFMPEG_SWSCALE_RUNTIME}")
 ludork_ffmpeg_import(FFmpeg::swresample swresample "${FFMPEG_SWRESAMPLE_RUNTIME}")
 
-if(CMAKE_SYSTEM_NAME STREQUAL "OHOS")
+if(CMAKE_SYSTEM_NAME STREQUAL "OHOS" OR ANDROID)
     target_link_libraries(FFmpeg::avutil INTERFACE Threads::Threads m)
+    if(ANDROID)
+        target_link_libraries(FFmpeg::avutil INTERFACE atomic)
+    endif()
     target_link_libraries(FFmpeg::avcodec INTERFACE FFmpeg::avutil)
     target_link_libraries(FFmpeg::avformat INTERFACE FFmpeg::avcodec FFmpeg::avutil)
-    target_link_libraries(FFmpeg::swscale INTERFACE FFmpeg::avutil)
-    target_link_libraries(FFmpeg::swresample INTERFACE FFmpeg::avutil)
-elseif(ANDROID)
-    target_link_libraries(FFmpeg::avutil INTERFACE
-        Threads::Threads
-        m
-        atomic)
-    target_link_libraries(FFmpeg::avcodec INTERFACE FFmpeg::avutil)
-    target_link_libraries(FFmpeg::avformat INTERFACE
-        FFmpeg::avcodec
-        FFmpeg::avutil)
     target_link_libraries(FFmpeg::swscale INTERFACE FFmpeg::avutil)
     target_link_libraries(FFmpeg::swresample INTERFACE FFmpeg::avutil)
 endif()
 
 set(LUDORK_FFMPEG_RUNTIME_FILES
-    "${FFMPEG_AVUTIL_RUNTIME}"
-    "${FFMPEG_AVCODEC_RUNTIME}"
-    "${FFMPEG_AVFORMAT_RUNTIME}"
-    "${FFMPEG_SWSCALE_RUNTIME}"
-    "${FFMPEG_SWRESAMPLE_RUNTIME}"
+    "${LUDORK_FFMPEG_RUNTIME_FILES}"
     PARENT_SCOPE)
 
 function(ludork_copy_ffmpeg_runtime target)

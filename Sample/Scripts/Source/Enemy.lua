@@ -28,6 +28,7 @@ componentTypes.infoComp = EnemyInfoComponent
 local Enemy = {}
 
 Enemy.ID = "FILL_IT_BY_YOURSELF"
+Enemy.DefeatShatterEffectEnabled = true
 Enemy._componentTypes = componentTypes
 Enemy.infoComp = EnemyInfoComponent.new()
 Enemy.childActorComp = ChildActorComponent.new({
@@ -45,6 +46,8 @@ function Enemy:init(texture, rect, tag)
     self:_normaliseChildActorComp()
     Battler.init(self)
     self._battleCondition = nil
+    self._defeatFinalising = false
+    self._defeatFinalised = false
     self:initInfo(Data)
     self:_syncInitialHP()
 end
@@ -145,7 +148,8 @@ function Enemy:onCollision(other)
     local PlayerFunctions = require("Source.NodeFunctions.Player")
 
     local player = PlayerFunctions.MeetPlayer(other)
-    if player ~= nil and (self._battleCondition == nil or self._battleCondition()) then
+    if player ~= nil and not bool(self._defeatFinalising)
+        and (self._battleCondition == nil or self._battleCondition()) then
         self._battleCondition = nil
         local result = self:battle()
         local animationLength = math.max(
@@ -155,10 +159,18 @@ function Enemy:onCollision(other)
         self._battleCondition = scene:addTimer(animationLength, function ()
             self._battleCondition = nil
             if result == 0 then
+                self._defeatFinalising = true
                 local gold = self.infoComp.GOLD
                 local exp = self.infoComp.EXP
                 self:triggerEvent("onDefeat", nil, function ()
+                    if bool(self._defeatFinalised) then
+                        return
+                    end
+                    self._defeatFinalised = true
                     scene:recordDestroyedActor(self)
+                    if bool(Enemy.DefeatShatterEffectEnabled) then
+                        scene:getGameMap():playActorPixelShatterEffect(self)
+                    end
                     self:destroy()
                     player.infoComp.GOLD = player.infoComp.GOLD + gold
                     player.infoComp.EXP = player.infoComp.EXP + exp

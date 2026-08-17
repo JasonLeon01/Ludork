@@ -1,12 +1,14 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
+local ActorPixelShatterEffect = require("Global.CustomEffects.ActorPixelShatterEffect")
 local DamageTextParticle = require("Global.CustomParticles.DamageTextParticle")
 local Pool = require("Global.Pool")
 local Render = require("Global.Utils.Render")
 
 local ComponentsFunctions = GlobalFunctions.Components
 local ManagerFunctions = GlobalFunctions.Manager
+local ShaderManager = GlobalCore.ShaderManager
 local System = GlobalCore.System
 local WeatherController = GlobalCore.WeatherController
 local FogController = GlobalCore.FogController
@@ -43,6 +45,7 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
     local lightPassShader = nil
     local unobstructedLightPassShader = nil
     local actorHueShader = nil
+    local actorPixelShatterShader = nil
     if sf.Shader.isAvailable() then
         if not previewOnly then
             tilemapLightMaskShader = ManagerFunctions.loadShader(
@@ -54,6 +57,9 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
             unobstructedLightPassShader = ManagerFunctions.loadShader(
                 "Global/UnoccludedLightPass.frag", sf.Shader.Type.Fragment
             )
+            actorPixelShatterShader = assert(ShaderManager.loadFull(
+                "Global/ActorPixelShatter.vert", "Global/ActorPixelShatter.frag"
+            ), "Actor pixel shatter shader must not be nil")
         end
         actorHueShader = ManagerFunctions.loadShader("Global/Hue.frag", sf.Shader.Type.Fragment)
     end
@@ -66,6 +72,7 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
     self._unobstructedLightPassShader = unobstructedLightPassShader
     self._materialShader = materialShader
     self._actorHueShader = actorHueShader
+    self._actorPixelShatterShader = actorPixelShatterShader
     self._previewOnly = previewOnly == true
     self.mapName = mapName
     self._persistentMapPath = mapName
@@ -86,6 +93,13 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
         self._particleSystem = Engine.ParticleSystem.new()
     end
     self._actorsOnDestroy = {}
+    ---@type table<string, Global.CustomEffects.ActorPixelShatterEffect[]>
+    self._actorPixelShatterEffects = {}
+    ---@type table<Engine.Actor, Global.CustomEffects.ActorPixelShatterEffect>
+    self._actorPixelShatterByActor = setmetatable({}, {
+        __mode = "k"
+    })
+    self._actorPixelShatterSeed = 0
     self._wholeActorList = {}
     self._actorUpdateList = {}
     self._actorUpdateBatch = ActorUpdateBatch.new()
@@ -631,6 +645,33 @@ function GameMap:destroyActor(actor)
     self._materialDirty = true
 end
 
+function GameMap:playActorPixelShatterEffect(actor)
+    if self._previewOnly or self._actorPixelShatterShader == nil or actor:isDestroyed()
+        or self._actorPixelShatterByActor[actor] ~= nil then
+        return false
+    end
+    local layerName = self:getActorLayer(actor)
+    if layerName == nil then
+        return false
+    end
+    local layer = self._tilemap:getLayer(layerName)
+    if layer == nil or not layer.visible then
+        return false
+    end
+    self._actorPixelShatterSeed = self._actorPixelShatterSeed + 1
+    local effect = ActorPixelShatterEffect.new(
+        actor, self._actorPixelShatterShader, self._actorPixelShatterSeed
+    )
+    local layerEffects = self._actorPixelShatterEffects[layerName]
+    if layerEffects == nil then
+        layerEffects = {}
+        self._actorPixelShatterEffects[layerName] = layerEffects
+    end
+    layerEffects[#layerEffects + 1] = effect
+    self._actorPixelShatterByActor[actor] = effect
+    return true
+end
+
 function GameMap:getCamera()
     return self._camera
 end
@@ -1095,6 +1136,7 @@ function GameMap:onTick(deltaTime)
                 for index, listed in ipairs(actorList) do
                     if listed == actor then
                         table.remove(actorList, index)
+                        self._actorPixelShatterByActor[actor] = nil
                         Actor.BlueprintEvent(actor, Actor, "onDestroy")
                         break
                     end
@@ -1104,10 +1146,35 @@ function GameMap:onTick(deltaTime)
         self:updateActorList()
         self._actorsOnDestroy = {}
     end
+    self:_updateActorPixelShatterEffects(deltaTime)
     self._actorUpdateBatch:update(deltaTime)
     self:_updateAudioListener()
     ---@cast self._particleSystem Engine.ParticleSystem
     self._particleSystem:onTick(deltaTime)
+end
+
+function GameMap:_updateActorPixelShatterEffects(deltaTime)
+    for layerName, effects in pairs(self._actorPixelShatterEffects) do
+        local activeEffects = {}
+        for _, effect in ipairs(effects) do
+            effect:onTick(deltaTime)
+            if effect:isFinished() then
+                for actor, actorEffect in pairs(self._actorPixelShatterByActor) do
+                    if actorEffect == effect then
+                        self._actorPixelShatterByActor[actor] = nil
+                        break
+                    end
+                end
+            else
+                activeEffects[#activeEffects + 1] = effect
+            end
+        end
+        if bool(activeEffects) then
+            self._actorPixelShatterEffects[layerName] = activeEffects
+        else
+            self._actorPixelShatterEffects[layerName] = nil
+        end
+    end
 end
 
 function GameMap:onLateTick(deltaTime)
@@ -1133,6 +1200,7 @@ function GameMap:onFixedTick(fixedDelta)
 end
 
 function GameMap:drawMapContent(target, states, applyPlayerCover)
+    self:_prepareActorPixelShatterEffects()
     states = states or sf.RenderStates.new()
     local layerKeys = self._layerNames
     local playerLayerIndex = applyPlayerCover and self:_getPlayerLayerIndex(layerKeys) or -1
@@ -1462,9 +1530,11 @@ function GameMap:_renderSurfaceMask()
             ---@cast drawable sf.Drawable
             self._surfaceMask:draw(drawable, self._surfaceTileRenderStates)
             for _, actor in ipairs(self._actors[layerName] or {}) do
-                visibleActors[actor] = true
-                self:_setActorMaskUniforms(actor)
-                self._surfaceMask:draw(actor, self._surfaceActorRenderStates)
+                if not actor:isDestroyed() then
+                    visibleActors[actor] = true
+                    self:_setActorMaskUniforms(actor)
+                    self._surfaceMask:draw(actor, self._surfaceActorRenderStates)
+                end
             end
         end
     end
@@ -2281,13 +2351,44 @@ end
 ---@param applyPlayerCover boolean
 function GameMap:_drawLayerActors(target, states, layerName, layerIndex, playerLayerIndex, applyPlayerCover)
     for _, actor in ipairs(self._actors[layerName] or {}) do
-        local actorAlpha = 255
-        if applyPlayerCover and self._player ~= nil and layerIndex > playerLayerIndex and playerLayerIndex ~= -1
-            and actor ~= self._player and actor:intersects(self._player) then
-            actorAlpha = GameMap.DefaultCoverAlpha
+        if self._actorPixelShatterByActor[actor] == nil then
+            local actorAlpha = 255
+            if applyPlayerCover and self._player ~= nil and layerIndex > playerLayerIndex and playerLayerIndex ~= -1
+                and actor ~= self._player and actor:intersects(self._player) then
+                actorAlpha = GameMap.DefaultCoverAlpha
+            end
+            ---@cast actorAlpha integer
+            self:_drawActor(target, states, actor, actorAlpha)
         end
-        ---@cast actorAlpha integer
-        self:_drawActor(target, states, actor, actorAlpha)
+    end
+    self:_drawActorPixelShatterEffects(target, layerName)
+end
+
+function GameMap:_prepareActorPixelShatterEffects()
+    local function drawActor(snapshotTarget, actor)
+        self:_drawActor(snapshotTarget, sf.RenderStates.new(), actor, 255)
+    end
+    for _, effects in pairs(self._actorPixelShatterEffects) do
+        for _, effect in ipairs(effects) do
+            if not effect:isPrepared() then
+                effect:prepare(drawActor)
+            end
+        end
+    end
+end
+
+---@param target    sf.RenderTarget
+---@param layerName string
+function GameMap:_drawActorPixelShatterEffects(target, layerName)
+    local effects = self._actorPixelShatterEffects[layerName]
+    if not bool(effects) then
+        return
+    end
+    ---@cast effects Global.CustomEffects.ActorPixelShatterEffect[]
+    for _, effect in ipairs(effects) do
+        if not effect:isFinished() then
+            effect:draw(target)
+        end
     end
 end
 

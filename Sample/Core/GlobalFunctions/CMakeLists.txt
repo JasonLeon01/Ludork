@@ -17,21 +17,8 @@ add_library(GlobalFunctions ${LUDORK_RUNTIME_LIBRARY_TYPE}
     ${LUDORK_GLOBAL_FUNCTIONS_SOURCES}
     "${LUDORK_GLOBAL_FUNCTIONS_BINDINGS}")
 add_library(Ludork::GlobalFunctions ALIAS GlobalFunctions)
-add_dependencies(GlobalFunctions GlobalFunctionsStub)
-if(MSVC)
-    set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/Components.cpp"
-        APPEND PROPERTY
-        COMPILE_OPTIONS
-            "$<$<CONFIG:Debug>:/O1>"
-            "$<$<CONFIG:Debug>:/Ob1>"
-            "$<$<CONFIG:Debug>:/Oy->")
-    set_property(SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/Components.cpp"
-        APPEND PROPERTY
-        VS_SETTINGS
-            "$<$<CONFIG:Debug>:BasicRuntimeChecks=Default>")
-endif()
+ludork_apply_msvc_debug_source_options(
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Components.cpp")
 target_compile_definitions(GlobalFunctions PRIVATE
     LUDORK_PLATFORM="${LUDORK_PLATFORM}")
 target_include_directories(GlobalFunctions

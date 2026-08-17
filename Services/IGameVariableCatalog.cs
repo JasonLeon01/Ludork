@@ -13,6 +13,7 @@ public sealed record GameVariableSaveResult(bool Success, string Detail)
 public interface IGameVariableCatalog
 {
     IReadOnlyList<GameVariableDefinition> Variables { get; }
+    long Revision { get; }
     bool IsModified { get; }
     event EventHandler? Changed;
     event EventHandler? Saved;

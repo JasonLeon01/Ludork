@@ -19,7 +19,7 @@ using System.Text.Json.Nodes;
 
 namespace Ludork.Controls;
 
-public sealed class BlueprintVariableForm : UserControl
+public sealed class BlueprintVariableForm : UserControl, IDisposable
 {
     private const double CompactDictionaryEntryWidth = 300;
     private readonly Grid form = new()
@@ -45,7 +45,8 @@ public sealed class BlueprintVariableForm : UserControl
     private bool showFieldNames = true;
     private bool building;
     private bool gameVariablesSubscribed;
-    private string gameVariableCatalogSignature = string.Empty;
+    private bool disposed;
+    private long gameVariableCatalogRevision;
     private int editorRefreshGeneration;
 
     public BlueprintVariableForm()
@@ -56,11 +57,13 @@ public sealed class BlueprintVariableForm : UserControl
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs args)
     {
         base.OnAttachedToVisualTree(args);
+        if (disposed)
+            return;
         subscribeGameVariables();
-        string signature = getGameVariableCatalogSignature();
-        if (!string.Equals(gameVariableCatalogSignature, signature, StringComparison.Ordinal))
+        long catalogRevision = gameVariables?.Revision ?? 0;
+        if (gameVariableCatalogRevision != catalogRevision)
         {
-            gameVariableCatalogSignature = signature;
+            gameVariableCatalogRevision = catalogRevision;
             queueRefreshEditors(gameVariables);
         }
     }
@@ -90,7 +93,9 @@ public sealed class BlueprintVariableForm : UserControl
                 return;
             unsubscribeGameVariables();
             gameVariables = value;
-            gameVariableCatalogSignature = getGameVariableCatalogSignature();
+            gameVariableCatalogRevision = gameVariables?.Revision ?? 0;
+            if (disposed)
+                return;
             subscribeGameVariables();
             RefreshEditors();
         }
@@ -156,8 +161,11 @@ public sealed class BlueprintVariableForm : UserControl
 
     public void SetFields(IEnumerable<BlueprintVariableField> nextFields)
     {
+        if (disposed)
+            return;
         editorRefreshGeneration++;
         building = true;
+        disposeNestedForms();
         fields.Clear();
         fields.AddRange(nextFields.Select(field => field.Clone()));
         values.Clear();
@@ -165,7 +173,6 @@ public sealed class BlueprintVariableForm : UserControl
         dependencySources.Clear();
         instanceVariableSources.Clear();
         historyControls.Clear();
-        nestedHistoryForms.Clear();
         form.Children.Clear();
         form.RowDefinitions.Clear();
 
@@ -229,7 +236,7 @@ public sealed class BlueprintVariableForm : UserControl
 
     public void RefreshEditors()
     {
-        if (fields.Count == 0)
+        if (disposed || fields.Count == 0)
             return;
         BlueprintVariableField[] nextFields = fields.Select(field => field.Clone()).ToArray();
         SetFields(nextFields);
@@ -2306,7 +2313,8 @@ public sealed class BlueprintVariableForm : UserControl
 
     private void subscribeGameVariables()
     {
-        if (gameVariablesSubscribed
+        if (disposed
+            || gameVariablesSubscribed
             || gameVariables is null
             || VisualRoot is null)
         {
@@ -2326,19 +2334,22 @@ public sealed class BlueprintVariableForm : UserControl
 
     private void onGameVariablesChanged(object? sender, EventArgs args)
     {
-        string signature = getGameVariableCatalogSignature();
-        if (string.Equals(gameVariableCatalogSignature, signature, StringComparison.Ordinal))
+        long catalogRevision = gameVariables?.Revision ?? 0;
+        if (gameVariableCatalogRevision == catalogRevision)
             return;
-        gameVariableCatalogSignature = signature;
+        gameVariableCatalogRevision = catalogRevision;
         queueRefreshEditors(sender);
     }
 
     private void queueRefreshEditors(object? expectedCatalog = null)
     {
+        if (disposed)
+            return;
         int generation = ++editorRefreshGeneration;
         Dispatcher.UIThread.Post(() =>
         {
-            if (VisualRoot is null
+            if (disposed
+                || VisualRoot is null
                 || generation != editorRefreshGeneration
                 || expectedCatalog is not null && !ReferenceEquals(gameVariables, expectedCatalog))
             {
@@ -2348,15 +2359,22 @@ public sealed class BlueprintVariableForm : UserControl
         }, DispatcherPriority.Background);
     }
 
-    private string getGameVariableCatalogSignature()
+    private void disposeNestedForms()
     {
-        if (gameVariables is null)
-            return string.Empty;
-        return string.Join(
-            "\n",
-            gameVariables.Variables
-                .OrderBy(definition => definition.Name, StringComparer.Ordinal)
-                .Select(definition => $"{definition.Name}\0{definition.Type}"));
+        foreach (BlueprintVariableForm nested in nestedHistoryForms)
+            nested.Dispose();
+        nestedHistoryForms.Clear();
+    }
+
+    public void Dispose()
+    {
+        if (disposed)
+            return;
+        disposed = true;
+        editorRefreshGeneration++;
+        unsubscribeGameVariables();
+        disposeNestedForms();
+        gameVariables = null;
     }
 
     private static JsonNode? getFieldValue(BlueprintVariableField field)

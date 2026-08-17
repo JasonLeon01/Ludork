@@ -62,10 +62,14 @@ void main()
     fogUV = flowWarp(fogUV, distortAmt, time, 0.0);
     vec2 fogUV2 = fogUV * 1.55 + fogScroll * 0.6;
     fogUV2 = flowWarp(fogUV2, distortAmt * 0.75, time, 2.17);
-    float d1 = texture2D(fogTex, fract(fogUV)).a;
-    float d2 = texture2D(fogTex, fract(fogUV2)).a * 0.45;
-    float density = clamp(smoothstep(0.12, 0.58, d1 + d2), 0.0, 1.0) * p;
-    vec3 fogColor = vec3(0.92, 0.94, 0.97);
+    vec4 fog1 = texture2D(fogTex, fract(fogUV));
+    vec4 fog2 = texture2D(fogTex, fract(fogUV2));
+    float d1 = fog1.a;
+    float d2 = fog2.a * 0.45;
+    float densityWeight = d1 + d2;
+    float density = clamp(smoothstep(0.12, 0.58, densityWeight), 0.0, 1.0) * p;
+    vec3 fogColor = (fog1.rgb * d1 + fog2.rgb * d2) /
+                    max(densityWeight, 0.0001);
     vec3 outCol = mix(src, fogColor, density);
     gl_FragColor = vec4(clamp(outCol, 0.0, 1.0), 1.0);
 }

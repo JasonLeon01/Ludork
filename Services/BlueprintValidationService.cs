@@ -341,11 +341,11 @@ public sealed class BlueprintValidationService
         JsonObject graph,
         ICollection<string> errors)
     {
+        using IDisposable metadataBatch = classResolver.BeginBatch();
         BlueprintGraphContext context = new(data, key);
         BlueprintNodeDefinitionCatalog catalog = new(metadataService, classResolver, context);
-        IReadOnlyList<BlueprintGraphNodeDefinition> definitions = catalog.GetNodeDefinitions();
-        IReadOnlyDictionary<string, BlueprintGraphNodeDefinition> lookup =
-            BlueprintNodeDefinitionCatalog.CreateDefinitionLookup(definitions);
+        BlueprintNodeDefinitionSet definitionSet = catalog.GetNodeDefinitionSet();
+        IReadOnlyDictionary<string, BlueprintGraphNodeDefinition> lookup = definitionSet.RuntimeLookup;
         JsonObject nodeGraph = (JsonObject)graph["nodeGraph"]!;
         foreach (KeyValuePair<string, JsonNode?> pair in nodeGraph)
         {
@@ -353,7 +353,11 @@ public sealed class BlueprintValidationService
             JsonArray nodes = (JsonArray)eventData["nodes"]!;
             JsonArray links = (JsonArray)eventData["links"]!;
             IReadOnlyList<BlueprintGraphEventParameterDefinition> eventParameters =
-                catalog.GetEventParameters(pair.Key);
+                definitionSet.EventParameters.TryGetValue(
+                    pair.Key,
+                    out IReadOnlyList<BlueprintGraphEventParameterDefinition>? parameters)
+                    ? parameters
+                    : [];
             Dictionary<string, BlueprintGraphEventParameterDefinition> parametersByKey = eventParameters
                 .ToDictionary(parameter => parameter.ExternalKey, StringComparer.Ordinal);
             BlueprintGraphNodeDefinition?[] nodeDefinitions = new BlueprintGraphNodeDefinition?[nodes.Count];

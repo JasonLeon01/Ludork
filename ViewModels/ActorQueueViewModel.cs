@@ -2,6 +2,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Ludork.Models;
 using Ludork.Services;
 using System;
 using System.Collections.Generic;
@@ -32,6 +33,7 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
     private readonly Dictionary<string, ActorQueueItemViewModel> catalog = new(StringComparer.Ordinal);
     private readonly List<string> recentReferences = [];
     private bool refreshing;
+    private bool deferVisibleRefresh;
     private bool disposed;
     private string? selectedReference;
     [ObservableProperty] private ActorQueueItemViewModel? selectedItem;
@@ -56,6 +58,7 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
         Scopes.Add(new ActorLibraryScopeOption(ActorLibraryScope.Recent, LocaleService.Get("ACTOR_LIBRARY_RECENT")));
         SelectedScope = Scopes[0];
         gameData.DataReloaded += onDataReloaded;
+        previewService.LiveVisualsInvalidated += onDataReloaded;
         refreshCatalog();
     }
 
@@ -83,17 +86,17 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
 
     partial void OnSearchTextChanged(string value)
     {
-        refreshVisibleItems();
+        requestVisibleItemsRefresh();
     }
 
     partial void OnSelectedScopeChanged(ActorLibraryScopeOption? value)
     {
-        refreshVisibleItems();
+        requestVisibleItemsRefresh();
     }
 
     partial void OnSelectedCategoryChanged(string? value)
     {
-        refreshVisibleItems();
+        requestVisibleItemsRefresh();
     }
 
     public void Select(ActorQueueItemViewModel? item, bool notifyIfUnchanged = false)
@@ -109,18 +112,31 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
 
     public void AddOrPromote(string blueprintReference)
     {
-        if (!catalog.TryGetValue(blueprintReference, out ActorQueueItemViewModel? item))
+        ActorQueueItemViewModel? item = null;
+        deferVisibleRefresh = true;
+        try
         {
-            refreshCatalog();
             if (!catalog.TryGetValue(blueprintReference, out item))
-                return;
+            {
+                refreshCatalog();
+                catalog.TryGetValue(blueprintReference, out item);
+            }
+            if (item is not null)
+            {
+                promoteRecent(blueprintReference);
+                selectedReference = blueprintReference;
+                SearchText = string.Empty;
+                SelectedCategory = Categories.FirstOrDefault();
+                SelectedScope = Scopes.First(option => option.Scope == ActorLibraryScope.Recent);
+            }
         }
-        promoteRecent(blueprintReference);
-        selectedReference = blueprintReference;
-        SearchText = string.Empty;
-        SelectedCategory = Categories.FirstOrDefault();
-        SelectedScope = Scopes.First(option => option.Scope == ActorLibraryScope.Recent);
+        finally
+        {
+            deferVisibleRefresh = false;
+        }
         refreshVisibleItems();
+        if (item is null)
+            return;
         Select(item, true);
     }
 
@@ -195,6 +211,7 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
             return;
         disposed = true;
         gameData.DataReloaded -= onDataReloaded;
+        previewService.LiveVisualsInvalidated -= onDataReloaded;
         foreach (ActorQueueItemViewModel item in catalog.Values)
             item.Dispose();
         catalog.Clear();
@@ -221,16 +238,18 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
     {
         if (disposed)
             return;
+        using IDisposable resolutionBatch = classResolver.BeginBatch();
         bool selectedRemoved = false;
         HashSet<string> validReferences = new HashSet<string>(StringComparer.Ordinal);
         foreach (KeyValuePair<string, JsonObject> pair in gameData.BlueprintsData)
         {
             string reference = BlueprintPrefix + pair.Key.Replace('/', '.');
-            if (!classResolver.IsDerivedFrom(reference, "Engine.Actor"))
+            ResolvedBlueprintClass resolved = classResolver.Resolve(reference);
+            if (!classResolver.IsDerivedFrom(resolved, "Engine.Actor"))
                 continue;
             validReferences.Add(reference);
-            ActorVisualDescriptor? descriptor = previewService.tryResolveActorVisual(reference);
-            IImage? fallback = previewService.tryLoadPreview(pair.Value, 48, pair.Key)
+            ActorVisualDescriptor? descriptor = previewService.tryResolveActorVisual(resolved, reference);
+            IImage? fallback = previewService.tryLoadPreview(resolved, 48)
                 ?? iconService.getShellIcon(pair.Key + ".json", false, 48);
             if (catalog.TryGetValue(reference, out ActorQueueItemViewModel? existing))
             {
@@ -274,8 +293,13 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
             Categories.Add(category);
         }
         if (SelectedCategory is null || !Categories.Contains(SelectedCategory))
+        {
+            bool previousDeferVisibleRefresh = deferVisibleRefresh;
+            deferVisibleRefresh = true;
             SelectedCategory = Categories.FirstOrDefault();
-        refreshVisibleItems();
+            deferVisibleRefresh = previousDeferVisibleRefresh;
+        }
+        requestVisibleItemsRefresh();
         if (selectedRemoved)
             SelectionChanged?.Invoke(this, null);
     }
@@ -314,6 +338,12 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
             ? null
             : Items.FirstOrDefault(item => item.BlueprintReference == selectedReference);
         refreshing = false;
+    }
+
+    private void requestVisibleItemsRefresh()
+    {
+        if (!deferVisibleRefresh)
+            refreshVisibleItems();
     }
 }
 

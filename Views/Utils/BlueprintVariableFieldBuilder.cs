@@ -23,6 +23,7 @@ public sealed class BlueprintVariableFieldBuilder
 
     public IReadOnlyList<BlueprintVariableField> Build(ResolvedBlueprintClass resolved)
     {
+        using IDisposable metadataRead = metadataService.BeginRead();
         HashSet<string> invalidVars = new(resolved.InvalidVars, StringComparer.Ordinal);
         List<BlueprintVariableField> result = [];
         foreach (ResolvedBlueprintField field in resolved.Fields)
@@ -73,6 +74,25 @@ public sealed class BlueprintVariableFieldBuilder
             RelatedFieldName = relatedFieldName,
             AssetSubdirectory = assetSubdirectory,
             Options = getNodeParameterOptions(port.Name, meta),
+        };
+    }
+
+    public string GetNodeParameterDisplayTypeName(BlueprintGraphPort port)
+    {
+        JsonObject meta = port.Meta;
+        string? assetSubdirectory = getNodeAssetSubdirectory(meta["PathVars"]);
+        string? relatedFieldName = getString(meta["Transfer"]);
+        BlueprintVariableEditorKind editorKind = getNodeEditorKind(
+            meta,
+            assetSubdirectory,
+            relatedFieldName);
+        return editorKind switch
+        {
+            BlueprintVariableEditorKind.MoveRoute => "MoveRoute",
+            BlueprintVariableEditorKind.TransferPosition => "TransferPos",
+            BlueprintVariableEditorKind.BlueprintClass => "BlueprintClass",
+            BlueprintVariableEditorKind.CommonFunction => "CommonFunction",
+            _ => port.TypeName,
         };
     }
 

@@ -1,6 +1,7 @@
 using Ludork.Models;
 using Ludork.Views.Utils;
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -12,20 +13,25 @@ namespace Ludork.Views.Utils.BlueprintGraph;
 
 public static class BlueprintGraphCodec
 {
+    private static readonly IReadOnlyDictionary<string, BlueprintGraphNodeDefinition> EmptyDefinitionLookup =
+        new Dictionary<string, BlueprintGraphNodeDefinition>(StringComparer.Ordinal);
+
     public static BlueprintGraphDocument Load(
         string eventName,
         JsonObject eventGraph,
         JsonNode? startNode = null,
-        IReadOnlyList<BlueprintGraphNodeDefinition>? definitions = null,
+        BlueprintNodeDefinitionSet? definitionSet = null,
         IReadOnlyList<BlueprintGraphEventParameterDefinition>? eventParameters = null)
     {
         IReadOnlyDictionary<string, BlueprintGraphNodeDefinition> definitionsByPath =
-            BlueprintNodeDefinitionCatalog.CreateDefinitionLookup(definitions ?? []);
+            definitionSet?.RuntimeLookup ?? EmptyDefinitionLookup;
         Dictionary<string, BlueprintGraphEventParameterDefinition> parametersByKey = (eventParameters ?? [])
             .GroupBy(parameter => parameter.ExternalKey, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.Last(), StringComparer.Ordinal);
         BlueprintGraphDocument document = new(eventName, eventGraph);
+        Guid graphId = createStableId(eventName);
         Dictionary<int, BlueprintGraphNode> nodesByIndex = [];
+        Dictionary<Guid, BlueprintGraphNode> nodesById = [];
         Dictionary<string, BlueprintGraphNode> externalNodes = new(StringComparer.Ordinal);
         JsonArray nodes = eventGraph["nodes"] as JsonArray ?? [];
         for (int index = 0; index < nodes.Count; index++)
@@ -54,6 +60,7 @@ public static class BlueprintGraphCodec
             addParameterPorts(node, parameters.Count);
             document.Nodes.Add(node);
             nodesByIndex[index] = node;
+            nodesById[node.Id] = node;
         }
 
         foreach (BlueprintGraphEventParameterDefinition parameter in (eventParameters ?? [])
@@ -65,6 +72,7 @@ public static class BlueprintGraphCodec
                 nodesByIndex,
                 externalNodes,
                 parametersByKey,
+                nodesById,
                 document);
         }
 
@@ -79,6 +87,7 @@ public static class BlueprintGraphCodec
                 nodesByIndex,
                 externalNodes,
                 parametersByKey,
+                nodesById,
                 document);
             BlueprintGraphEndpoint? target = getEndpoint(
                 rawLink["right"],
@@ -86,11 +95,12 @@ public static class BlueprintGraphCodec
                 nodesByIndex,
                 externalNodes,
                 parametersByKey,
+                nodesById,
                 document);
             if (source?.NodeId is not Guid sourceNodeId
                 || target?.NodeId is not Guid targetNodeId
-                || document.FindNode(sourceNodeId) is not BlueprintGraphNode sourceNode
-                || document.FindNode(targetNodeId) is not BlueprintGraphNode targetNode)
+                || !nodesById.TryGetValue(sourceNodeId, out BlueprintGraphNode? sourceNode)
+                || !nodesById.TryGetValue(targetNodeId, out BlueprintGraphNode? targetNode))
             {
                 continue;
             }
@@ -112,8 +122,7 @@ public static class BlueprintGraphCodec
                 BlueprintGraphPortDirection.Input,
                 kind,
                 targetPinIndex);
-            Guid connectionId = createStableId(
-                $"{eventName}:link:{index}:{formatEndpoint(source)}:{sourcePinIndex}:{formatEndpoint(target)}:{targetPinIndex}:{kind}");
+            Guid connectionId = createIndexedId(graphId, 1, index);
             BlueprintGraphConnection connection = new(
                 connectionId,
                 index,
@@ -134,6 +143,7 @@ public static class BlueprintGraphCodec
             nodesByIndex,
             externalNodes,
             parametersByKey,
+            nodesById,
             document);
         document.Start = start;
         return document;
@@ -294,6 +304,7 @@ public static class BlueprintGraphCodec
         IReadOnlyDictionary<int, BlueprintGraphNode> nodesByIndex,
         IDictionary<string, BlueprintGraphNode> externalNodes,
         IReadOnlyDictionary<string, BlueprintGraphEventParameterDefinition> parametersByKey,
+        IDictionary<Guid, BlueprintGraphNode> nodesById,
         BlueprintGraphDocument document)
     {
         if (tryGetInteger(value, out int nodeIndex))
@@ -345,6 +356,7 @@ public static class BlueprintGraphCodec
                 null);
             externalNode.AddPort(output);
             externalNodes[externalKey] = externalNode;
+            nodesById[externalNode.Id] = externalNode;
             document.Nodes.Add(externalNode);
         }
         return BlueprintGraphEndpoint.External(externalKey, externalNode.Id);
@@ -367,16 +379,33 @@ public static class BlueprintGraphCodec
         BlueprintGraphPortKind kind,
         int pinIndex)
     {
-        return createStableId($"{nodeId:N}:port:{direction}:{kind}:{pinIndex}");
+        Span<byte> bytes = stackalloc byte[16];
+        nodeId.TryWriteBytes(bytes);
+        bytes[10] ^= (byte)((int)direction + 1);
+        bytes[11] ^= (byte)((int)kind + 1);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes[12..], pinIndex + 1);
+        return new Guid(bytes);
+    }
+
+    private static Guid createIndexedId(Guid namespaceId, byte kind, int index)
+    {
+        Span<byte> bytes = stackalloc byte[16];
+        namespaceId.TryWriteBytes(bytes);
+        bytes[11] ^= kind;
+        BinaryPrimitives.WriteInt32LittleEndian(bytes[12..], index + 1);
+        return new Guid(bytes);
     }
 
     private static Guid createStableId(string value)
     {
-        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
-        byte[] bytes = hash[..16];
-        bytes[6] = (byte)((bytes[6] & 0x0f) | 0x50);
-        bytes[8] = (byte)((bytes[8] & 0x3f) | 0x80);
-        return new Guid(bytes);
+        int byteCount = Encoding.UTF8.GetByteCount(value);
+        Span<byte> input = byteCount <= 512 ? stackalloc byte[byteCount] : new byte[byteCount];
+        Encoding.UTF8.GetBytes(value, input);
+        Span<byte> hash = stackalloc byte[32];
+        SHA256.HashData(input, hash);
+        hash[6] = (byte)((hash[6] & 0x0f) | 0x50);
+        hash[8] = (byte)((hash[8] & 0x3f) | 0x80);
+        return new Guid(hash[..16]);
     }
 
     private static string createPortName(
@@ -397,8 +426,10 @@ public static class BlueprintGraphCodec
     {
         if (definition?.HasExplicitDisplayName == true)
             return definition.Title;
-        string memberName = nodeFunction.Split('.', StringSplitOptions.RemoveEmptyEntries)
-            .LastOrDefault() ?? nodeFunction;
+        int separator = nodeFunction.LastIndexOf('.');
+        string memberName = separator >= 0 && separator < nodeFunction.Length - 1
+            ? nodeFunction[(separator + 1)..]
+            : nodeFunction;
         string displayName = EditorDisplayName.Format(memberName);
         if (!nodeFunction.Contains('.', StringComparison.Ordinal)
             && !string.IsNullOrWhiteSpace(memberName))
@@ -406,11 +437,6 @@ public static class BlueprintGraphCodec
             return $"(parent){displayName}";
         }
         return displayName;
-    }
-
-    private static string formatEndpoint(BlueprintGraphEndpoint endpoint)
-    {
-        return endpoint.ExternalKey ?? endpoint.NodeId?.ToString("N", CultureInfo.InvariantCulture) ?? string.Empty;
     }
 
     private static string? getString(JsonNode? value)

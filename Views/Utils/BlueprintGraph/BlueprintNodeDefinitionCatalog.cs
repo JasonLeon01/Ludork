@@ -3,10 +3,32 @@ using Ludork.Services;
 using Ludork.Views.Utils;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Views.Utils.BlueprintGraph;
+
+public sealed class BlueprintNodeDefinitionSet
+{
+    public BlueprintNodeDefinitionSet(
+        IReadOnlyList<BlueprintGraphNodeDefinition> definitions,
+        IReadOnlyDictionary<string, BlueprintGraphNodeDefinition> runtimeLookup,
+        IReadOnlyDictionary<string, IReadOnlyList<BlueprintGraphEventParameterDefinition>> eventParameters)
+    {
+        Definitions = definitions;
+        RuntimeLookup = runtimeLookup;
+        Dictionary<string, IReadOnlyList<BlueprintGraphEventParameterDefinition>> parameters =
+            new(StringComparer.Ordinal);
+        foreach (KeyValuePair<string, IReadOnlyList<BlueprintGraphEventParameterDefinition>> pair in eventParameters)
+            parameters[pair.Key] = pair.Value;
+        EventParameters = new ReadOnlyDictionary<string, IReadOnlyList<BlueprintGraphEventParameterDefinition>>(parameters);
+    }
+
+    public IReadOnlyList<BlueprintGraphNodeDefinition> Definitions { get; }
+    public IReadOnlyDictionary<string, BlueprintGraphNodeDefinition> RuntimeLookup { get; }
+    public IReadOnlyDictionary<string, IReadOnlyList<BlueprintGraphEventParameterDefinition>> EventParameters { get; }
+}
 
 public sealed class BlueprintNodeDefinitionCatalog
 {
@@ -14,6 +36,15 @@ public sealed class BlueprintNodeDefinitionCatalog
     private readonly BlueprintClassResolver classResolver;
     private readonly BlueprintGraphContext? context;
     private readonly BlueprintEditorDocument? document;
+    private readonly Dictionary<string, IReadOnlyList<BlueprintGraphEventParameterDefinition>> eventParameters =
+        new(StringComparer.Ordinal);
+    private long cachedMetadataRevision = -1;
+    private long cachedResolverRevision = -1;
+    private JsonObject? cachedContextData;
+    private string? cachedContextKey;
+    private string? cachedContextParent;
+    private ResolvedBlueprintClass? cachedContextClass;
+    private BlueprintNodeDefinitionSet? cachedDefinitionSet;
 
     public BlueprintNodeDefinitionCatalog(
         LuaMetadataService metadataService,
@@ -42,7 +73,90 @@ public sealed class BlueprintNodeDefinitionCatalog
         return new BlueprintNodeDefinitionCatalog(metadataService, classResolver, (BlueprintGraphContext?)null);
     }
 
-    public static IReadOnlyDictionary<string, BlueprintGraphNodeDefinition> CreateDefinitionLookup(
+    public void Invalidate()
+    {
+        cachedMetadataRevision = -1;
+        cachedResolverRevision = -1;
+        cachedContextData = null;
+        cachedContextKey = null;
+        cachedContextParent = null;
+        cachedContextClass = null;
+        cachedDefinitionSet = null;
+        eventParameters.Clear();
+    }
+
+    public BlueprintNodeDefinitionSet GetNodeDefinitionSet(
+        ResolvedBlueprintClass? resolvedContext = null)
+    {
+        using IDisposable metadataRead = metadataService.BeginRead();
+        ResolvedBlueprintClass? resolved = ensureContextCache(resolvedContext);
+        if (cachedDefinitionSet is not null)
+            return cachedDefinitionSet;
+
+        List<BlueprintGraphNodeDefinition> result = [];
+        HashSet<string> definitionKeys = new(StringComparer.Ordinal);
+        IReadOnlyList<LuaTypeMetadata> contextMro = resolved?.RootType is null
+            ? []
+            : metadataService.ResolveMro(resolved.RootType);
+        HashSet<string> contextTypes = getContextTypeNames(contextMro);
+        foreach (LuaNodeMemberMetadata member in metadataService.EnumerateNodeMembers(
+                LuaNodeMemberKind.Function)
+            .OrderBy(member => getRuntimeRootPriority(member.RuntimePath))
+            .ThenBy(member => member.RuntimePath, StringComparer.Ordinal))
+        {
+            string runtimePath = getGlobalRuntimePath(member.RuntimePath);
+            IReadOnlyList<string> aliases = getGlobalRuntimeAliases(member, runtimePath);
+            IReadOnlyList<string> pickerPath = getGlobalPickerPath(member.RuntimePath);
+            addDefinition(
+                result,
+                definitionKeys,
+                member,
+                runtimePath,
+                aliases,
+                pickerPath,
+                false,
+                isContextRelevant(member, contextTypes));
+        }
+
+        if (resolved?.RootType is not null)
+        {
+            foreach (LuaNodeMemberMetadata member in metadataService.GetNodeMembers(
+                resolved.RootType,
+                LuaNodeMemberKind.Function))
+            {
+                addDefinition(
+                    result,
+                    definitionKeys,
+                    member,
+                    member.Name,
+                    getParentRuntimeAliases(member),
+                    [LocaleService.Get("PARENT")],
+                    true,
+                    true);
+            }
+        }
+
+        BlueprintGraphNodeDefinition[] definitions = result.ToArray();
+        eventParameters.Clear();
+        if (resolved?.RootType is not null)
+        {
+            foreach (LuaNodeMemberMetadata eventMember in metadataService.GetNodeMembers(
+                resolved.RootType,
+                LuaNodeMemberKind.Event))
+            {
+                if (!eventParameters.ContainsKey(eventMember.Name))
+                    eventParameters[eventMember.Name] = createEventParameters(eventMember);
+            }
+        }
+        cachedDefinitionSet = new BlueprintNodeDefinitionSet(
+            definitions,
+            createDefinitionLookup(definitions),
+            eventParameters);
+        cachedMetadataRevision = metadataService.Revision;
+        return cachedDefinitionSet;
+    }
+
+    private static IReadOnlyDictionary<string, BlueprintGraphNodeDefinition> createDefinitionLookup(
         IReadOnlyList<BlueprintGraphNodeDefinition> definitions)
     {
         Dictionary<string, BlueprintGraphNodeDefinition> result = new(StringComparer.Ordinal);
@@ -71,68 +185,9 @@ public sealed class BlueprintNodeDefinitionCatalog
         return result;
     }
 
-    public IReadOnlyList<BlueprintGraphNodeDefinition> GetNodeDefinitions()
+    private static IReadOnlyList<BlueprintGraphEventParameterDefinition> createEventParameters(
+        LuaNodeMemberMetadata eventMember)
     {
-        List<BlueprintGraphNodeDefinition> result = [];
-        HashSet<string> definitionKeys = new(StringComparer.Ordinal);
-        ResolvedBlueprintClass? resolved = resolveContextClass();
-        IReadOnlyList<LuaTypeMetadata> contextMro = resolved?.RootType is null
-            ? []
-            : metadataService.ResolveMro(resolved.RootType);
-        HashSet<string> contextTypes = getContextTypeNames(contextMro);
-        foreach (LuaNodeMemberMetadata member in metadataService.EnumerateNodeMembers(
-                LuaNodeMemberKind.Function)
-            .OrderBy(member => getRuntimeRootPriority(member.RuntimePath))
-            .ThenBy(member => member.RuntimePath, StringComparer.Ordinal))
-        {
-            string runtimePath = getGlobalRuntimePath(member.RuntimePath);
-            IReadOnlyList<string> aliases = getGlobalRuntimeAliases(member, runtimePath);
-            IReadOnlyList<string> pickerPath = getGlobalPickerPath(member.RuntimePath);
-            addDefinition(
-                result,
-                definitionKeys,
-                member,
-                runtimePath,
-                aliases,
-                pickerPath,
-                false,
-                isContextRelevant(member, contextTypes));
-        }
-
-        if (resolved?.RootType is null)
-            return result;
-        foreach (LuaNodeMemberMetadata member in metadataService.GetNodeMembers(
-            resolved.RootType,
-            LuaNodeMemberKind.Function))
-        {
-            addDefinition(
-                result,
-                definitionKeys,
-                member,
-                member.Name,
-                getParentRuntimeAliases(member),
-                [LocaleService.Get("PARENT")],
-                true,
-                true);
-        }
-        return result;
-    }
-
-    public IReadOnlyList<BlueprintGraphEventParameterDefinition> GetEventParameters(
-        string eventName)
-    {
-        ResolvedBlueprintClass? resolved = resolveContextClass();
-        if (resolved?.RootType is null)
-            return [];
-        LuaNodeMemberMetadata? eventMember = metadataService.GetNodeMembers(
-                resolved.RootType,
-                LuaNodeMemberKind.Event)
-            .FirstOrDefault(member => string.Equals(
-                member.Name,
-                eventName,
-                StringComparison.Ordinal));
-        if (eventMember is null)
-            return [];
         List<BlueprintGraphEventParameterDefinition> result = [];
         for (int index = 0; index < eventMember.Parameters.Count; index++)
         {
@@ -143,7 +198,39 @@ public sealed class BlueprintNodeDefinitionCatalog
                 parameter.Type.QualifiedName,
                 index));
         }
-        return result;
+        return result.ToArray();
+    }
+
+    private ResolvedBlueprintClass? ensureContextCache(
+        ResolvedBlueprintClass? resolvedContext)
+    {
+        long metadataRevision = metadataService.Revision;
+        long resolverRevision = classResolver.Revision;
+        JsonObject? data = document?.Data ?? context?.Data;
+        string key = document?.BlueprintKey ?? context?.BlueprintKey ?? string.Empty;
+        string parent = data?["parent"]?.ToJsonString() ?? string.Empty;
+        bool suppliedContextIsCurrent = resolvedContext is not null
+            && resolvedContext.ResolverRevision == resolverRevision
+            && resolvedContext.MetadataRevision == metadataService.CacheRevision;
+        if (cachedMetadataRevision == metadataRevision
+            && cachedResolverRevision == resolverRevision
+            && ReferenceEquals(cachedContextData, data)
+            && string.Equals(cachedContextKey, key, StringComparison.Ordinal)
+            && string.Equals(cachedContextParent, parent, StringComparison.Ordinal)
+            && (!suppliedContextIsCurrent || ReferenceEquals(cachedContextClass, resolvedContext)))
+        {
+            return cachedContextClass;
+        }
+
+        cachedContextClass = suppliedContextIsCurrent ? resolvedContext : resolveContextClass();
+        cachedContextData = data;
+        cachedContextKey = key;
+        cachedContextParent = parent;
+        cachedMetadataRevision = metadataService.Revision;
+        cachedResolverRevision = classResolver.Revision;
+        cachedDefinitionSet = null;
+        eventParameters.Clear();
+        return cachedContextClass;
     }
 
     private ResolvedBlueprintClass? resolveContextClass()

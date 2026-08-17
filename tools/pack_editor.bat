@@ -45,61 +45,53 @@ set "GNU_MAKE_LICENSE=%ROOT_DIR%\.tools\build\make-%GNU_MAKE_VERSION%\COPYING"
 set "SCRIPT_TOOLS=%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe"
 set "SCRIPT_TOOLS_VERSION_REPORT=%ROOT_DIR%\.tools\ScriptTools\runtime-versions.txt"
 
-call :require_file "%ROOT_DIR%\tools\create_templates.bat"
-if errorlevel 1 exit /b 1
-call :require_file "%ROOT_DIR%\tools\build_ui_preview_host.bat"
-if errorlevel 1 exit /b 1
-call :require_file "%ROOT_DIR%\tools\editor_runtime\build_cpp.bat"
-if errorlevel 1 exit /b 1
-call :require_file "%ROOT_DIR%\tools\editor_runtime\build_standalone.bat"
-if errorlevel 1 exit /b 1
-call :require_file "%ROOT_DIR%\tools\editor_runtime\pack_project.bat"
-if errorlevel 1 exit /b 1
-
-call :require_file "%SCRIPT_TOOLS%"
-if errorlevel 1 exit /b 1
-call :require_file "%SCRIPT_TOOLS_VERSION_REPORT%"
-if errorlevel 1 exit /b 1
-call :require_file "%ROOT_DIR%\Sample\CMakeLists.txt"
-if errorlevel 1 exit /b 1
-call :require_directory "%ROOT_DIR%\Sample\LuaSF"
-if errorlevel 1 exit /b 1
-call :require_directory "%ROOT_DIR%\Sample\lua-cjson"
-if errorlevel 1 exit /b 1
-call :require_directory "%ROOT_DIR%\Sample\zlib"
-if errorlevel 1 exit /b 1
-call :require_file "%ROOT_DIR%\Sample\ffmpeg\configure"
-if errorlevel 1 exit /b 1
-call :require_file "%ROOT_DIR%\Sample\ThirdPartySource\ffmpeg-*.tar.xz"
-if errorlevel 1 exit /b 1
-call :require_file "%GNU_MAKE_EXE%"
-if errorlevel 1 exit /b 1
-call :require_file "%GNU_MAKE_SOURCE%"
-if errorlevel 1 exit /b 1
-call :require_file "%ROOT_DIR%\Locale\locale.json"
-if errorlevel 1 exit /b 1
-call :require_file "%ROOT_DIR%\LICENSE.md"
-if errorlevel 1 exit /b 1
-call :require_file "%ROOT_DIR%\README.md"
-if errorlevel 1 exit /b 1
-call :require_file "%ROOT_DIR%\README_zh_CN.md"
-if errorlevel 1 exit /b 1
-call :require_file "%ROOT_DIR%\THIRD_PARTY_NOTICES.md"
-if errorlevel 1 exit /b 1
-call :require_file "%ROOT_DIR%\THIRD_PARTY_NOTICES_zh_CN.md"
-if errorlevel 1 exit /b 1
-call :require_file "%ROOT_DIR%\About_en_GB.md"
-if errorlevel 1 exit /b 1
-call :require_file "%ROOT_DIR%\About_zh_CN.md"
-if errorlevel 1 exit /b 1
-call :require_directory "%ROOT_DIR%\docs\_images"
-if errorlevel 1 exit /b 1
-call :require_directory "%ROOT_DIR%\docs\en_GB"
-if errorlevel 1 exit /b 1
-call :require_directory "%ROOT_DIR%\docs\zh_CN"
-if errorlevel 1 exit /b 1
-call :require_directory "%ROOT_DIR%\Licenses"
-if errorlevel 1 exit /b 1
+for %%F in (
+    "%ROOT_DIR%\tools\create_templates.bat"
+    "%ROOT_DIR%\tools\build_ui_preview_host.bat"
+    "%ROOT_DIR%\tools\editor_runtime\build_cpp.bat"
+    "%ROOT_DIR%\tools\build_standalone.bat"
+    "%ROOT_DIR%\tools\pack_project.bat"
+    "%SCRIPT_TOOLS%"
+    "%SCRIPT_TOOLS_VERSION_REPORT%"
+    "%ROOT_DIR%\Sample\CMakeLists.txt"
+) do (
+    call :require_file "%%~F"
+    if errorlevel 1 exit /b 1
+)
+for %%D in (
+    "%ROOT_DIR%\Sample\LuaSF"
+    "%ROOT_DIR%\Sample\lua-cjson"
+    "%ROOT_DIR%\Sample\zlib"
+) do (
+    call :require_directory "%%~D"
+    if errorlevel 1 exit /b 1
+)
+for %%F in (
+    "%ROOT_DIR%\Sample\ffmpeg\configure"
+    "%ROOT_DIR%\Sample\ThirdPartySource\ffmpeg-*.tar.xz"
+    "%GNU_MAKE_EXE%"
+    "%GNU_MAKE_SOURCE%"
+    "%ROOT_DIR%\Locale\locale.json"
+    "%ROOT_DIR%\LICENSE.md"
+    "%ROOT_DIR%\README.md"
+    "%ROOT_DIR%\README_zh_CN.md"
+    "%ROOT_DIR%\THIRD_PARTY_NOTICES.md"
+    "%ROOT_DIR%\THIRD_PARTY_NOTICES_zh_CN.md"
+    "%ROOT_DIR%\About_en_GB.md"
+    "%ROOT_DIR%\About_zh_CN.md"
+) do (
+    call :require_file "%%~F"
+    if errorlevel 1 exit /b 1
+)
+for %%D in (
+    "%ROOT_DIR%\docs\_images"
+    "%ROOT_DIR%\docs\en_GB"
+    "%ROOT_DIR%\docs\zh_CN"
+    "%ROOT_DIR%\Licenses"
+) do (
+    call :require_directory "%%~D"
+    if errorlevel 1 exit /b 1
+)
 
 echo Building native UI preview host...
 call "%ROOT_DIR%\tools\build_ui_preview_host.bat" Release
@@ -140,16 +132,16 @@ call :copy_directory "%ROOT_DIR%\docs\zh_CN" "%STAGE_DIR%\docs\zh_CN"
 if errorlevel 1 goto failed
 call :copy_directory "%ROOT_DIR%\Licenses" "%STAGE_DIR%\Licenses"
 if errorlevel 1 goto failed
-copy /Y "%ROOT_DIR%\LICENSE.md" "%STAGE_DIR%\LICENSE.md" >nul
-if errorlevel 1 goto failed
-copy /Y "%ROOT_DIR%\README.md" "%STAGE_DIR%\README.md" >nul
-if errorlevel 1 goto failed
-copy /Y "%ROOT_DIR%\README_zh_CN.md" "%STAGE_DIR%\README_zh_CN.md" >nul
-if errorlevel 1 goto failed
-copy /Y "%ROOT_DIR%\THIRD_PARTY_NOTICES.md" "%STAGE_DIR%\THIRD_PARTY_NOTICES.md" >nul
-if errorlevel 1 goto failed
-copy /Y "%ROOT_DIR%\THIRD_PARTY_NOTICES_zh_CN.md" "%STAGE_DIR%\THIRD_PARTY_NOTICES_zh_CN.md" >nul
-if errorlevel 1 goto failed
+for %%F in (
+    LICENSE.md
+    README.md
+    README_zh_CN.md
+    THIRD_PARTY_NOTICES.md
+    THIRD_PARTY_NOTICES_zh_CN.md
+) do (
+    copy /Y "%ROOT_DIR%\%%F" "%STAGE_DIR%\%%F" >nul
+    if errorlevel 1 goto failed
+)
 for %%F in ("%ROOT_DIR%\About_*.md") do (
     copy /Y "%%~fF" "%STAGE_DIR%\%%~nxF" >nul
     if errorlevel 1 goto failed
@@ -162,10 +154,10 @@ if errorlevel 1 goto failed
 mkdir "%STAGE_DIR%\tools" >nul 2>nul
 copy /Y "%ROOT_DIR%\tools\editor_runtime\build_cpp.bat" "%STAGE_DIR%\tools\build_cpp.bat" >nul
 if errorlevel 1 goto failed
-copy /Y "%ROOT_DIR%\tools\editor_runtime\build_standalone.bat" "%STAGE_DIR%\tools\build_standalone.bat" >nul
-if errorlevel 1 goto failed
-copy /Y "%ROOT_DIR%\tools\editor_runtime\pack_project.bat" "%STAGE_DIR%\tools\pack_project.bat" >nul
-if errorlevel 1 goto failed
+for %%F in (build_standalone.bat pack_project.bat) do (
+    copy /Y "%ROOT_DIR%\tools\%%F" "%STAGE_DIR%\tools\%%F" >nul
+    if errorlevel 1 goto failed
+)
 call :require_file "%ROOT_DIR%\.tools\Lua\luac.exe"
 if errorlevel 1 goto failed
 copy /Y "%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe" "%STAGE_DIR%\tools\ScriptTools.exe" >nul

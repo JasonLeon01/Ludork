@@ -2,6 +2,7 @@ using Ludork.Models;
 using MoonSharp.Interpreter;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -21,7 +22,9 @@ public sealed class GameVariableService : IGameVariableCatalog
     private static readonly UTF8Encoding utf8 = new(false, true);
     private readonly LuaMetadataService metadataService;
     private readonly List<GameVariableDefinition> variables = [];
+    private readonly ReadOnlyCollection<GameVariableDefinition> readonlyVariables;
     private bool isModified;
+    private long revision;
 
     public GameVariableService(string projectPath, LuaMetadataService metadataService)
     {
@@ -38,6 +41,7 @@ public sealed class GameVariableService : IGameVariableCatalog
         }
 
         this.metadataService = metadataService;
+        readonlyVariables = variables.AsReadOnly();
         RuntimePath = Path.Combine(normalizedProjectPath, RuntimeRelativePath.Replace('/', Path.DirectorySeparatorChar));
         MetadataPath = Path.Combine(normalizedProjectPath, MetadataRelativePath.Replace('/', Path.DirectorySeparatorChar));
 
@@ -51,9 +55,8 @@ public sealed class GameVariableService : IGameVariableCatalog
 
     public string RuntimePath { get; }
     public string MetadataPath { get; }
-    public IReadOnlyList<GameVariableDefinition> Variables => variables
-        .OrderBy(value => value.Name, StringComparer.Ordinal)
-        .ToArray();
+    public IReadOnlyList<GameVariableDefinition> Variables => readonlyVariables;
+    public long Revision => revision;
     public bool IsModified => isModified;
     public event EventHandler? Changed;
     public event EventHandler? Saved;
@@ -112,7 +115,7 @@ public sealed class GameVariableService : IGameVariableCatalog
             return GameVariableSaveResult.Failed($"Game variable {name} already exists");
         variables.Add(new GameVariableDefinition(name, type, createDefault(type)));
         variables.Sort((left, right) => StringComparer.Ordinal.Compare(left.Name, right.Name));
-        return saveMutation();
+        return saveMutation(true);
     }
 
     public GameVariableSaveResult Delete(string name)
@@ -121,7 +124,7 @@ public sealed class GameVariableService : IGameVariableCatalog
         if (index < 0)
             return GameVariableSaveResult.Failed($"Game variable {name} does not exist");
         variables.RemoveAt(index);
-        return saveMutation();
+        return saveMutation(true);
     }
 
     public GameVariableSaveResult ChangeType(string name, GameVariableType type)
@@ -139,7 +142,7 @@ public sealed class GameVariableService : IGameVariableCatalog
             type,
             createDefault(type),
             current.Remark);
-        return saveMutation();
+        return saveMutation(true);
     }
 
     public GameVariableSaveResult SetInitialValue(string name, JsonNode? initialValue)
@@ -163,7 +166,7 @@ public sealed class GameVariableService : IGameVariableCatalog
             current.Type,
             initialValue,
             current.Remark);
-        return saveMutation();
+        return saveMutation(false);
     }
 
     public GameVariableSaveResult SetRemark(string name, string? remark)
@@ -180,7 +183,7 @@ public sealed class GameVariableService : IGameVariableCatalog
             current.Type,
             current.InitialValue,
             normalized);
-        return saveMutation();
+        return saveMutation(false);
     }
 
     public GameVariableSaveResult SavePending()
@@ -216,8 +219,10 @@ public sealed class GameVariableService : IGameVariableCatalog
             RuntimeRelativePath + Environment.NewLine + MetadataRelativePath);
     }
 
-    private GameVariableSaveResult saveMutation()
+    private GameVariableSaveResult saveMutation(bool catalogChanged)
     {
+        if (catalogChanged)
+            revision++;
         isModified = true;
         GameVariableSaveResult result = SavePending();
         if (!result.Success)

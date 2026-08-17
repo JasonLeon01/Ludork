@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 
@@ -51,8 +52,9 @@ public sealed class MapPanel : Control
     private readonly Stopwatch animationClock = Stopwatch.StartNew();
     private readonly DispatcherTimer animationTimer;
     private readonly DispatcherTimer tileBrushRenderTimer;
-    private readonly Dictionary<string, Bitmap> bitmapCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, CachedBitmap> bitmapCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Bitmap> hueCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<Bitmap> retiredBitmaps = [];
     private readonly Dictionary<string, LayerRenderCache> layerRenderCaches = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<ActorRenderState>> actorRenderStates = new(StringComparer.Ordinal);
     private readonly HashSet<string> dirtyLayerNames = new(StringComparer.Ordinal);
@@ -90,6 +92,7 @@ public sealed class MapPanel : Control
     private ActorRenderState? pendingActorRenderState;
     private ScrollViewer? hostScrollViewer;
     private bool actorRenderStatesDirty = true;
+    private bool pendingActorRenderStateDirty = true;
     private bool animationStateDirty = true;
     private bool hasAnimatedActors;
     private bool actorPreviewActivityUpdatePending;
@@ -128,15 +131,19 @@ public sealed class MapPanel : Control
     {
         if (ReferenceEquals(gameData, nextGameData) && ReferenceEquals(previewService, nextPreviewService))
             return;
+        if (previewService is not null)
+            previewService.VisualsInvalidated -= onActorVisualsInvalidated;
         disposeMapRenderCaches();
+        invalidateActorRenderStates();
+        invalidatePendingActorRenderState();
         disposeCachedBitmaps();
         autoTileRenderer?.Dispose();
         gameData = nextGameData;
         previewService = nextPreviewService;
+        previewService.VisualsInvalidated += onActorVisualsInvalidated;
         autoTileRenderer = new AutoTileRenderer(nextGameData);
         tileSize = Math.Clamp(nextGameData.getCellSize(), MinTileSize, MaxTileSize);
         continuousTileSize = tileSize;
-        invalidateActorRenderStates();
         InvalidateMeasure();
         InvalidateVisual();
     }
@@ -154,6 +161,7 @@ public sealed class MapPanel : Control
         RefreshCount += 1;
         disposeMapRenderCaches();
         invalidateActorRenderStates();
+        invalidatePendingActorRenderState();
         hoverGrid = null;
         rectangleStart = null;
         setSelectedLightIndex(null);
@@ -208,7 +216,29 @@ public sealed class MapPanel : Control
 
     public void refreshSelectedActor()
     {
-        invalidateActorRenderStates();
+        if (actorRenderStatesDirty)
+        {
+            InvalidateVisual();
+            return;
+        }
+        if (selectedActorLayer is not string layerName
+            || selectedActorIndex is not int index
+            || getActorList(layerName, false) is not JsonArray actors
+            || !actorRenderStates.TryGetValue(layerName, out List<ActorRenderState>? states)
+            || actors.Count != states.Count
+            || index < 0
+            || index >= actors.Count
+            || actors[index] is not JsonObject actor
+            || !ReferenceEquals(states[index].Actor, actor))
+        {
+            invalidateActorRenderStates();
+            InvalidateVisual();
+            return;
+        }
+        disposeActorPreviewLease(states[index].PreviewLease);
+        states[index] = createActorRenderState(actor);
+        animationStateDirty = true;
+        scheduleActorPreviewActivityUpdate();
         InvalidateVisual();
     }
 
@@ -285,8 +315,13 @@ public sealed class MapPanel : Control
 
     public void setPendingActor(string? blueprintReference)
     {
-        pendingActor = string.IsNullOrWhiteSpace(blueprintReference) ? null : blueprintReference.Trim();
-        invalidateActorRenderStates();
+        string? nextPendingActor = string.IsNullOrWhiteSpace(blueprintReference)
+            ? null
+            : blueprintReference.Trim();
+        if (string.Equals(pendingActor, nextPendingActor, StringComparison.Ordinal))
+            return;
+        pendingActor = nextPendingActor;
+        invalidatePendingActorRenderState();
         InvalidateVisual();
     }
 
@@ -708,6 +743,7 @@ public sealed class MapPanel : Control
         }
         checkerboardRenderCache ??= buildCheckerboardRenderCache(viewport, renderScale);
         ensureActorRenderStates();
+        ensurePendingActorRenderState();
         scheduleActorPreviewActivityUpdate();
         JsonObject? layers = CurrentMapData?["layers"] as JsonObject;
         if (layers is not null)
@@ -822,6 +858,8 @@ public sealed class MapPanel : Control
             return;
         disposeActorPreviewLeases();
         actorRenderStates.Clear();
+        Dictionary<string, ActorVisualDescriptor?> sharedDescriptors = new(StringComparer.Ordinal);
+        using IDisposable? resolutionBatch = previewService?.BeginResolutionBatch();
         if (CurrentMapData?["actors"] is JsonObject actorGroups)
         {
             foreach (KeyValuePair<string, JsonNode?> entry in actorGroups)
@@ -832,26 +870,71 @@ public sealed class MapPanel : Control
                 foreach (JsonNode? node in actors)
                 {
                     JsonObject actor = node as JsonObject ?? new JsonObject();
-                    states.Add(createActorRenderState(actor));
+                    states.Add(createActorRenderState(actor, sharedDescriptors));
                 }
                 actorRenderStates[entry.Key] = states;
             }
         }
+        actorRenderStatesDirty = false;
+        animationStateDirty = true;
+    }
+
+    private void ensurePendingActorRenderState()
+    {
+        if (!pendingActorRenderStateDirty)
+            return;
+        disposeActorPreviewLease(pendingActorRenderState?.PreviewLease);
         pendingActorRenderState = null;
         if (!string.IsNullOrWhiteSpace(pendingActor))
         {
             JsonObject ghost = new() { ["bp"] = pendingActor };
             pendingActorRenderState = createActorRenderState(ghost);
         }
-        actorRenderStatesDirty = false;
+        pendingActorRenderStateDirty = false;
         animationStateDirty = true;
     }
 
     private ActorRenderState createActorRenderState(JsonObject actor)
     {
-        ActorVisualDescriptor? descriptor = CurrentMapData is null
+        ActorVisualDescriptor? descriptor = resolveActorVisual(actor, null);
+        return createActorRenderState(actor, descriptor);
+    }
+
+    private ActorRenderState createActorRenderState(
+        JsonObject actor,
+        Dictionary<string, ActorVisualDescriptor?> sharedDescriptors)
+    {
+        ActorVisualDescriptor? descriptor = resolveActorVisual(actor, sharedDescriptors);
+        return createActorRenderState(actor, descriptor);
+    }
+
+    private ActorVisualDescriptor? resolveActorVisual(
+        JsonObject actor,
+        Dictionary<string, ActorVisualDescriptor?>? sharedDescriptors)
+    {
+        if (CurrentMapData is null || previewService is null)
+            return null;
+        string reference = actor["bp"]?.GetValue<string>() ?? string.Empty;
+        string tag = actor["tag"]?.GetValue<string>() ?? string.Empty;
+        JsonObject? overrides = tag.Length == 0
             ? null
-            : previewService?.tryResolveMapActorVisual(CurrentMapData, actor);
+            : CurrentMapData["BPClassVarChanged"]?[tag] as JsonObject;
+        if (overrides?.Count == 0)
+            overrides = null;
+        if (sharedDescriptors is null || overrides is not null)
+            return previewService.tryResolveActorVisual(reference, overrides);
+        if (!sharedDescriptors.TryGetValue(reference, out ActorVisualDescriptor? descriptor))
+        {
+            descriptor = previewService.tryResolveActorVisual(reference);
+            sharedDescriptors[reference] = descriptor;
+        }
+        return descriptor;
+    }
+
+    private ActorRenderState createActorRenderState(
+        JsonObject actor,
+        ActorVisualDescriptor? descriptor)
+    {
         if (descriptor is null)
             return ActorRenderState.Missing(actor);
         Bitmap? image = getActorBitmap(descriptor.TexturePath);
@@ -983,7 +1066,6 @@ public sealed class MapPanel : Control
             foreach (ActorRenderState actor in actors)
                 disposeActorPreviewLease(actor.PreviewLease);
         }
-        disposeActorPreviewLease(pendingActorRenderState?.PreviewLease);
     }
 
     private void disposeActorPreviewLease(ActorPreviewLease? lease)
@@ -1395,12 +1477,23 @@ public sealed class MapPanel : Control
 
     private Bitmap? loadBitmap(string path)
     {
-        if (bitmapCache.TryGetValue(path, out Bitmap? cached))
-            return cached;
-        if (!File.Exists(path))
+        FileInfo file = new(path);
+        if (bitmapCache.TryGetValue(path, out CachedBitmap cached))
+        {
+            if (file.Exists
+                && cached.ModifiedAt == file.LastWriteTimeUtc
+                && cached.Length == file.Length)
+            {
+                return cached.Image;
+            }
+            retiredBitmaps.Add(cached.Image);
+            retireHueImages(path);
+            bitmapCache.Remove(path);
+        }
+        if (!file.Exists)
             return null;
         Bitmap image = new(path);
-        bitmapCache[path] = image;
+        bitmapCache[path] = new CachedBitmap(file.LastWriteTimeUtc, file.Length, image);
         return image;
     }
 
@@ -1431,6 +1524,18 @@ public sealed class MapPanel : Control
         Marshal.Copy(pixels, 0, frame.Address, pixels.Length);
         hueCache[cacheKey] = result;
         return result;
+    }
+
+    private void retireHueImages(string path)
+    {
+        string prefix = path + "|";
+        foreach (string key in hueCache.Keys
+            .Where(key => key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .ToArray())
+        {
+            retiredBitmaps.Add(hueCache[key]);
+            hueCache.Remove(key);
+        }
     }
 
     private static (double H, double S, double V) rgbToHsv(double r, double g, double b)
@@ -1877,8 +1982,15 @@ public sealed class MapPanel : Control
     {
         disposeActorPreviewLeases();
         actorRenderStates.Clear();
-        pendingActorRenderState = null;
         actorRenderStatesDirty = true;
+        animationStateDirty = true;
+    }
+
+    private void invalidatePendingActorRenderState()
+    {
+        disposeActorPreviewLease(pendingActorRenderState?.PreviewLease);
+        pendingActorRenderState = null;
+        pendingActorRenderStateDirty = true;
         animationStateDirty = true;
     }
 
@@ -1908,18 +2020,30 @@ public sealed class MapPanel : Control
     {
         disposeMapRenderCaches();
         invalidateActorRenderStates();
+        invalidatePendingActorRenderState();
         disposeCachedBitmaps();
         autoTileRenderer?.Dispose();
     }
 
     private void disposeCachedBitmaps()
     {
-        foreach (Bitmap bitmap in bitmapCache.Values)
-            bitmap.Dispose();
+        foreach (CachedBitmap bitmap in bitmapCache.Values)
+            bitmap.Image.Dispose();
         foreach (Bitmap bitmap in hueCache.Values)
+            bitmap.Dispose();
+        foreach (Bitmap bitmap in retiredBitmaps)
             bitmap.Dispose();
         bitmapCache.Clear();
         hueCache.Clear();
+        retiredBitmaps.Clear();
+    }
+
+    private void onActorVisualsInvalidated(object? sender, EventArgs args)
+    {
+        invalidateActorRenderStates();
+        invalidatePendingActorRenderState();
+        disposeCachedBitmaps();
+        InvalidateVisual();
     }
 
     private sealed class ViewportRenderCache(RenderTargetBitmap bitmap, Rect viewport) : IDisposable
@@ -1932,6 +2056,8 @@ public sealed class MapPanel : Control
             Bitmap.Dispose();
         }
     }
+
+    private readonly record struct CachedBitmap(DateTime ModifiedAt, long Length, Bitmap Image);
 
     private sealed class LayerRenderCache(RenderTargetBitmap bitmap, Rect viewport) : IDisposable
     {

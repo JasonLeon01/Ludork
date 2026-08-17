@@ -3,6 +3,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Ludork.Models;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -16,6 +17,7 @@ public sealed class BlueprintPreviewService : IDisposable
     private readonly string projectPath;
     private readonly GameDataService gameData;
     private readonly BlueprintClassResolver classResolver;
+    private readonly Dictionary<string, SourceImageInfo> sourceImageInfoCache = new(StringComparer.OrdinalIgnoreCase);
 
     public BlueprintPreviewService(
         string projectPath,
@@ -26,9 +28,25 @@ public sealed class BlueprintPreviewService : IDisposable
         this.gameData = gameData;
         this.classResolver = classResolver;
         ActorPreviews = new ActorPreviewService(this.projectPath);
+        gameData.DataReloaded += onVisualSourceDataChanged;
+        gameData.DataRestored += onVisualSourceDataChanged;
     }
 
     public ActorPreviewService ActorPreviews { get; }
+    public event EventHandler? VisualsInvalidated;
+    public event EventHandler? LiveVisualsInvalidated;
+
+    public IDisposable BeginResolutionBatch()
+    {
+        return classResolver.BeginBatch();
+    }
+
+    public void InvalidateVisuals()
+    {
+        sourceImageInfoCache.Clear();
+        VisualsInvalidated?.Invoke(this, EventArgs.Empty);
+        LiveVisualsInvalidated?.Invoke(this, EventArgs.Empty);
+    }
 
     public ActorVisualDescriptor? tryResolveActorVisual(
         string blueprintReference,
@@ -38,8 +56,8 @@ public sealed class BlueprintPreviewService : IDisposable
         if (!blueprintReference.StartsWith(prefix, StringComparison.Ordinal))
             return createActorVisual(classResolver.Resolve(blueprintReference, overrides), blueprintReference);
         string key = blueprintReference[prefix.Length..].Replace('.', '/');
-        return gameData.BlueprintsData.TryGetValue(key, out JsonObject? blueprint)
-            ? tryResolveActorVisual(blueprint, key, overrides)
+        return gameData.BlueprintsData.ContainsKey(key)
+            ? tryResolveActorVisual(classResolver.Resolve(blueprintReference, overrides), blueprintReference)
             : null;
     }
 
@@ -54,7 +72,14 @@ public sealed class BlueprintPreviewService : IDisposable
             : blueprintKey.StartsWith("Data.Blueprints.", StringComparison.Ordinal)
                 ? blueprintKey
                 : "Data.Blueprints." + blueprintKey.Replace('/', '.').Replace('\\', '.');
-        return createActorVisual(resolved, reference);
+        return tryResolveActorVisual(resolved, reference);
+    }
+
+    public ActorVisualDescriptor? tryResolveActorVisual(
+        ResolvedBlueprintClass resolved,
+        string blueprintReference)
+    {
+        return createActorVisual(resolved, blueprintReference);
     }
 
     public ActorVisualDescriptor? tryResolveMapActorVisual(JsonObject map, JsonObject actor)
@@ -67,12 +92,27 @@ public sealed class BlueprintPreviewService : IDisposable
 
     public void Dispose()
     {
+        gameData.DataReloaded -= onVisualSourceDataChanged;
+        gameData.DataRestored -= onVisualSourceDataChanged;
         ActorPreviews.Dispose();
+        sourceImageInfoCache.Clear();
+    }
+
+    private void onVisualSourceDataChanged(object? sender, EventArgs args)
+    {
+        sourceImageInfoCache.Clear();
+        VisualsInvalidated?.Invoke(this, EventArgs.Empty);
     }
 
     public Bitmap? tryLoadPreview(JsonObject blueprint, int size = 80, string? blueprintKey = null)
     {
-        string? texturePath = getBlueprintAttr(blueprint, blueprintKey, "texturePath", string.Empty)?.ToString();
+        ResolvedBlueprintClass resolved = classResolver.ResolveBlueprint(blueprint, blueprintKey);
+        return tryLoadPreview(resolved, size);
+    }
+
+    public Bitmap? tryLoadPreview(ResolvedBlueprintClass resolved, int size = 80)
+    {
+        string? texturePath = getResolvedValue(resolved, "texturePath")?.ToString();
         if (string.IsNullOrWhiteSpace(texturePath))
             return null;
 
@@ -81,13 +121,14 @@ public sealed class BlueprintPreviewService : IDisposable
             return null;
 
         using Bitmap source = new Bitmap(filePath);
-        (int sx, int sy, int w, int h)? rect = parseRect(getBlueprintAttr(blueprint, blueprintKey, "defaultRect", null));
-        (double x, double y) origin = parseVec2(getBlueprintAttr(blueprint, blueprintKey, "defaultOrigin", null), 0, 0);
-        (double x, double y) scale = parseVec2(getBlueprintAttr(blueprint, blueprintKey, "defaultScale", null), 1, 1);
-        float hue = parseHue(getBlueprintAttr(blueprint, blueprintKey, "hue", 0));
+        (int sx, int sy, int w, int h)? rect = parseRect(getResolvedValue(resolved, "defaultRect"));
+        (double x, double y) origin = parseVec2(getResolvedValue(resolved, "defaultOrigin"), 0, 0);
+        (double x, double y) scale = parseVec2(getResolvedValue(resolved, "defaultScale"), 1, 1);
+        float hue = parseHue(getResolvedValue(resolved, "hue"));
         if (rect is null)
         {
-            rect = defaultRect(blueprintKey, source.PixelSize.Width, source.PixelSize.Height);
+            bool isCharacter = classResolver.IsDerivedFrom(resolved, "Engine.Character");
+            rect = defaultRect(isCharacter, source.PixelSize.Width, source.PixelSize.Height);
             if (rect is null)
                 return null;
         }
@@ -115,8 +156,8 @@ public sealed class BlueprintPreviewService : IDisposable
         if (!blueprintReference.StartsWith(prefix, StringComparison.Ordinal))
             return null;
         string key = blueprintReference[prefix.Length..].Replace('.', '/');
-        return gameData.BlueprintsData.TryGetValue(key, out JsonObject? blueprint)
-            ? tryLoadPreview(blueprint, size, key)
+        return gameData.BlueprintsData.ContainsKey(key)
+            ? tryLoadPreview(classResolver.Resolve(blueprintReference), size)
             : null;
     }
 
@@ -126,8 +167,8 @@ public sealed class BlueprintPreviewService : IDisposable
         if (!blueprintReference.StartsWith(prefix, StringComparison.Ordinal))
             return null;
         string key = blueprintReference[prefix.Length..].Replace('.', '/');
-        return gameData.BlueprintsData.TryGetValue(key, out JsonObject? blueprint)
-            ? getBlueprintAttr(blueprint, key, attrName, null)
+        return gameData.BlueprintsData.ContainsKey(key)
+            ? classResolver.Resolve(blueprintReference).GetValue(attrName)
             : null;
     }
 
@@ -141,30 +182,33 @@ public sealed class BlueprintPreviewService : IDisposable
         ResolvedBlueprintClass resolved,
         string blueprintReference)
     {
-        string texturePath = resolved.GetValue("texturePath")?.ToString() ?? string.Empty;
+        string texturePath = getResolvedValue(resolved, "texturePath")?.ToString() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(texturePath))
             return null;
         string filePath = resolveTexturePath(texturePath);
         if (!File.Exists(filePath))
             return null;
-        using Bitmap texture = new(filePath);
-        PixelSize textureSize = texture.PixelSize;
-        bool isCharacter = blueprintReference.Length != 0 && isCharacterBlueprint(blueprintReference);
-        (int sx, int sy, int w, int h)? parsedRect = parseRect(resolved.GetValue("defaultRect"));
+        PixelSize? sourceSize = getSourceImageSize(filePath);
+        if (sourceSize is null)
+            return null;
+        PixelSize textureSize = sourceSize.Value;
+        bool isCharacter = blueprintReference.Length != 0
+            && classResolver.IsDerivedFrom(resolved, "Engine.Character");
+        (int sx, int sy, int w, int h)? parsedRect = parseRect(getResolvedValue(resolved, "defaultRect"));
         PixelRect rect;
-        bool animated = getBool(resolved.GetValue("animatable"), false);
+        bool animated = getBool(getResolvedValue(resolved, "animatable"), false);
         if (isCharacter && textureSize.Width >= 4 && textureSize.Height >= 4)
         {
             int width = Math.Max(1, textureSize.Width / 4);
             int height = Math.Max(1, textureSize.Height / 4);
-            int direction = Math.Clamp((int)getDouble(resolved.GetValue("direction"), 0), 0, 3);
+            int direction = Math.Clamp((int)getDouble(getResolvedValue(resolved, "direction"), 0), 0, 3);
             rect = new PixelRect(0, direction * height, width, height);
-            animated = animated && getBool(resolved.GetValue("animateWithoutMoving"), false);
+            animated = animated && getBool(getResolvedValue(resolved, "animateWithoutMoving"), false);
         }
         else
         {
             (int sx, int sy, int w, int h)? fallback = parsedRect
-                ?? defaultRect(null, textureSize.Width, textureSize.Height);
+                ?? defaultRect(false, textureSize.Width, textureSize.Height);
             if (fallback is null)
                 return null;
             (int sx, int sy, int w, int h) value = fallback.Value;
@@ -175,42 +219,31 @@ public sealed class BlueprintPreviewService : IDisposable
         {
             return null;
         }
-        (double x, double y) translation = parseVec2(resolved.GetValue("defaultTranslation"), 0, 0);
-        (double x, double y) scale = parseVec2(resolved.GetValue("defaultScale"), 1, 1);
-        (double x, double y) origin = parseVec2(resolved.GetValue("defaultOrigin"), 0, 0);
-        double interval = Math.Max(0.001, getDouble(resolved.GetValue("switchInterval"), 0.2));
+        (double x, double y) translation = parseVec2(getResolvedValue(resolved, "defaultTranslation"), 0, 0);
+        (double x, double y) scale = parseVec2(getResolvedValue(resolved, "defaultScale"), 1, 1);
+        (double x, double y) origin = parseVec2(getResolvedValue(resolved, "defaultOrigin"), 0, 0);
+        double interval = Math.Max(0.001, getDouble(getResolvedValue(resolved, "switchInterval"), 0.2));
         int frameCount = Math.Max(1, textureSize.Width / rect.Width);
         return new ActorVisualDescriptor(
             blueprintReference,
             filePath,
             textureSize,
             rect,
-            resolved.GetValue("shaderPath")?.ToString() ?? string.Empty,
-            parseHue(resolved.GetValue("hue")),
+            getResolvedValue(resolved, "shaderPath")?.ToString() ?? string.Empty,
+            parseHue(getResolvedValue(resolved, "hue")),
             new Vector(translation.x, translation.y),
             new Vector(scale.x, scale.y),
             new Vector(origin.x, origin.y),
-            getDouble(resolved.GetValue("defaultRotation"), 0),
+            getDouble(getResolvedValue(resolved, "defaultRotation"), 0),
             isCharacter,
             animated,
             interval,
             frameCount);
     }
 
-    private JsonNode? getBlueprintAttr(JsonObject blueprint, string? blueprintKey, string attrName, object? defaultValue)
+    private static JsonNode? getResolvedValue(ResolvedBlueprintClass resolved, string attrName)
     {
-        ResolvedBlueprintClass resolved = classResolver.ResolveBlueprint(blueprint, blueprintKey);
-        ResolvedBlueprintField? field = resolved.GetField(attrName);
-        if (field is not null)
-            return field.Value?.DeepClone();
-        return defaultValue switch
-        {
-            null => null,
-            string text => JsonValue.Create(text),
-            int number => JsonValue.Create(number),
-            double number => JsonValue.Create(number),
-            _ => JsonValue.Create(defaultValue.ToString()),
-        };
+        return resolved.GetField(attrName)?.Value;
     }
 
     private static (int sx, int sy, int w, int h)? parseRect(JsonNode? value)
@@ -259,22 +292,37 @@ public sealed class BlueprintPreviewService : IDisposable
         return fallback;
     }
 
-    private (int sx, int sy, int w, int h)? defaultRect(string? blueprintKey, int imageWidth, int imageHeight)
+    private static (int sx, int sy, int w, int h)? defaultRect(
+        bool isCharacter,
+        int imageWidth,
+        int imageHeight)
     {
         if (imageWidth <= 0 || imageHeight <= 0)
             return null;
-        if (isCharacterActor(blueprintKey))
+        if (isCharacter)
             return (0, 0, Math.Max(1, imageWidth / 4), Math.Max(1, imageHeight / 4));
         int tile = DefaultTileSize;
         return (0, 0, Math.Min(tile, imageWidth), Math.Min(tile, imageHeight));
     }
 
-    private bool isCharacterActor(string? blueprintKey)
+    private PixelSize? getSourceImageSize(string filePath)
     {
-        if (string.IsNullOrWhiteSpace(blueprintKey))
-            return false;
-        string reference = "Data.Blueprints." + blueprintKey.Replace('/', '.').Replace('\\', '.');
-        return isCharacterBlueprint(reference);
+        FileInfo file = new(filePath);
+        if (!file.Exists)
+        {
+            sourceImageInfoCache.Remove(filePath);
+            return null;
+        }
+        if (sourceImageInfoCache.TryGetValue(filePath, out SourceImageInfo cached)
+            && cached.ModifiedAt == file.LastWriteTimeUtc
+            && cached.Length == file.Length)
+        {
+            return cached.Size;
+        }
+        using Bitmap source = new(filePath);
+        PixelSize size = source.PixelSize;
+        sourceImageInfoCache[filePath] = new SourceImageInfo(file.LastWriteTimeUtc, file.Length, size);
+        return size;
     }
 
     private static Bitmap? renderCrop(
@@ -516,4 +564,5 @@ public sealed class BlueprintPreviewService : IDisposable
     }
 
     private readonly record struct PixelChannels(int Red, int Green, int Blue, int Alpha);
+    private readonly record struct SourceImageInfo(DateTime ModifiedAt, long Length, PixelSize Size);
 }

@@ -178,7 +178,7 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
         string filter = query?.Trim() ?? string.Empty;
         int limit = Math.Clamp(maximumResults, 1, 5000);
         JsonArray result = [];
-        foreach (BlueprintGraphNodeDefinition definition in catalog.GetNodeDefinitions()
+        foreach (BlueprintGraphNodeDefinition definition in catalog.GetNodeDefinitionSet().Definitions
                      .Where(definition => matchesDefinition(definition, filter))
                      .OrderByDescending(definition => definition.IsContextRelevant)
                      .ThenBy(definition => definition.RuntimePath, StringComparer.Ordinal)

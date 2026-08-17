@@ -356,14 +356,12 @@ bool useRuntimeRoot(const std::filesystem::path& executablePath,
 }
 
 void configureLuaSearchPaths(lua_State* state,
-                             const std::filesystem::path& executablePath,
-                             const std::filesystem::path& runtimeRoot) {
+                             const std::filesystem::path& executablePath) {
     lua_getglobal(state, "package");
     lua_getfield(state, -1, "path");
     const char* packagePath = lua_tostring(state, -1);
     const std::string scriptModulePath =
-        (runtimeRoot / "Scripts" / "?.lua").generic_string() + ";" +
-        (runtimeRoot / "Scripts" / "?.luac").generic_string() + ";";
+        "Scripts/?.lua;Scripts/?.luac;";
     lua_pushlstring(state, scriptModulePath.c_str(), scriptModulePath.size());
     lua_pushstring(state, packagePath == nullptr ? "" : packagePath);
     lua_concat(state, 2);
@@ -529,7 +527,7 @@ int run(int argc, char** argv) {
     }
     RuntimeOwner runtime(state);
 
-    configureLuaSearchPaths(state, executablePath, runtimeRoot);
+    configureLuaSearchPaths(state, executablePath);
     registerEmbeddedModules(state);
     initializeRuntime(state);
     setLuaArguments(state, argc, argv);

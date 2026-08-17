@@ -8,6 +8,33 @@ using System.Text.Json.Nodes;
 
 namespace Ludork.Models;
 
+internal static class BlueprintGraphRawData
+{
+    public static JsonObject CloneWithout(
+        JsonObject source,
+        string first,
+        string second,
+        string? third = null,
+        string? fourth = null,
+        string? fifth = null)
+    {
+        JsonObject result = [];
+        foreach (KeyValuePair<string, JsonNode?> pair in source)
+        {
+            if (string.Equals(pair.Key, first, StringComparison.Ordinal)
+                || string.Equals(pair.Key, second, StringComparison.Ordinal)
+                || third is not null && string.Equals(pair.Key, third, StringComparison.Ordinal)
+                || fourth is not null && string.Equals(pair.Key, fourth, StringComparison.Ordinal)
+                || fifth is not null && string.Equals(pair.Key, fifth, StringComparison.Ordinal))
+            {
+                continue;
+            }
+            result[pair.Key] = pair.Value?.DeepClone();
+        }
+        return result;
+    }
+}
+
 public enum BlueprintGraphPortKind
 {
     Exec,
@@ -263,7 +290,7 @@ public sealed class BlueprintGraphNode : INotifyPropertyChanged
         IsResolved = isResolved;
         IsVirtual = isVirtual;
         ExternalKey = externalKey;
-        RawData = (JsonObject)rawData.DeepClone();
+        RawData = BlueprintGraphRawData.CloneWithout(rawData, "nodeFunction", "params", "pos");
         Parameters = (JsonArray)parameters.DeepClone();
         Description = description ?? string.Empty;
     }
@@ -364,7 +391,13 @@ public sealed class BlueprintGraphConnection
         Kind = kind;
         SourcePinIndex = sourcePinIndex;
         TargetPinIndex = targetPinIndex;
-        RawData = (JsonObject)rawData.DeepClone();
+        RawData = BlueprintGraphRawData.CloneWithout(
+            rawData,
+            "left",
+            "right",
+            "leftOutPin",
+            "rightInPin",
+            "linkType");
     }
 
     public Guid Id { get; }
@@ -386,7 +419,7 @@ public sealed class BlueprintGraphDocument
     public BlueprintGraphDocument(string eventName, JsonObject rawEventGraph)
     {
         EventName = eventName;
-        RawEventGraph = (JsonObject)rawEventGraph.DeepClone();
+        RawEventGraph = BlueprintGraphRawData.CloneWithout(rawEventGraph, "nodes", "links");
     }
 
     public event EventHandler? Changed;

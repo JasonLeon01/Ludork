@@ -11,6 +11,11 @@ fi
 CPP_DIR=$(absolute_path "$1")
 STANDALONE_DIR=$(absolute_path "$2")
 CONFIG=$3
+if [ "$CONFIG" != "Debug" ] && [ "$CONFIG" != "Release" ]; then
+    echo "Configuration must be Debug or Release." >&2
+    exit 1
+fi
+
 sh "$TOOLS_DIR/build_cpp.sh" "$CPP_DIR" "$CONFIG"
 
 for resource in Assets Data Scripts; do
@@ -44,9 +49,23 @@ for legal_name in LICENSE.md THIRD_PARTY_NOTICES.md THIRD_PARTY_NOTICES_zh_CN.md
         cp "$CPP_DIR/$legal_name" "$STANDALONE_DIR/$legal_name"
     fi
 done
-find "$STANDALONE_DIR" -depth \
-    \( -name 'UiPreviewHost*' -o -name 'UiPreviewCurveResolver*' \) \
-    -exec rm -rf {} +
+
+UI_PREVIEW_ENTRY_NAMES="UiPreviewHost UiPreviewCurveResolver"
+for entry_name in $UI_PREVIEW_ENTRY_NAMES; do
+    find "$STANDALONE_DIR" -depth -name "$entry_name*" -exec rm -rf {} +
+done
+for entry_name in $UI_PREVIEW_ENTRY_NAMES; do
+    forbidden_path=$(find "$STANDALONE_DIR" -name "$entry_name*" -print -quit)
+    if [ -n "$forbidden_path" ]; then
+        echo "UI preview host entry was found in a standalone build: $forbidden_path" >&2
+        exit 1
+    fi
+done
+
+if [ ! -f "$STANDALONE_DIR/Main" ]; then
+    echo "Standalone output is missing Main." >&2
+    exit 1
+fi
 chmod +x "$STANDALONE_DIR/Main"
 
 echo "Standalone build complete: $STANDALONE_DIR"

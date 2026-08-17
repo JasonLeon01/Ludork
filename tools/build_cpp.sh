@@ -25,10 +25,6 @@ if [ ! -f "$CPP_DIR/CMakeLists.txt" ]; then
 fi
 SCRIPT_TOOLS=$(resolve_script_tools)
 LUAC_CACHE="$PROJECT_ROOT/.tools/Lua/luac"
-if [ ! -x "$SCRIPT_TOOLS" ]; then
-    echo "ScriptTools was not found. Run tools/init.sh first." >&2
-    exit 1
-fi
 
 CMAKE_BIN=$(find_cmake)
 echo "Project: $CPP_DIR"
@@ -42,9 +38,10 @@ set -- \
     -DLUDORK_SCRIPT_TOOLS_EXECUTABLE="$SCRIPT_TOOLS" \
     -DLUDORK_LUAC_CACHE_FILE="$LUAC_CACHE"
 
+DEPENDENCY_NAMES="flac freetype harfbuzz libssh2 mbedtls ogg sheenbidi vorbis"
 dependency_cache_is_ready() {
     cache_dir=$1
-    for dependency_name in flac freetype harfbuzz libssh2 mbedtls ogg sheenbidi vorbis; do
+    for dependency_name in $DEPENDENCY_NAMES; do
         if [ ! -f "$cache_dir/$dependency_name-src/CMakeLists.txt" ]; then
             return 1
         fi
@@ -64,7 +61,7 @@ do
 done
 if [ "$CPP_DIR" != "$PROJECT_ROOT/Sample" ] && [ -n "$dependency_cache" ]; then
     mkdir -p "$CPP_DIR/build/_deps"
-    for dependency_name in flac freetype harfbuzz libssh2 mbedtls ogg sheenbidi vorbis; do
+    for dependency_name in $DEPENDENCY_NAMES; do
         dependency_link="$CPP_DIR/build/_deps/$dependency_name-src"
         if [ ! -e "$dependency_link" ] && [ ! -L "$dependency_link" ]; then
             ln -s "$dependency_cache/$dependency_name-src" "$dependency_link"

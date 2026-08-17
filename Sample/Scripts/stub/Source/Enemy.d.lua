@@ -5,6 +5,9 @@
 --- via multiple inheritance.
 ---
 ---@class Source.Enemy: Engine.Actor, Source.Infos.EnemyInfo, Source.Battler.Battler
+---@field DefeatShatterEffectEnabled boolean Global mutable switch for the defeat pixel-shatter effect. Defaults to `true`; changes affect only enemies defeated afterwards.
+---@field private _defeatFinalising boolean
+---@field private _defeatFinalised boolean
 ---@field infoComp Source.Components.EnemyInfoComponent
 ---@field childActorComp Source.Components.ChildActorComponent
 ---@field afterBattleVarChanges table<string, { [1]: string, [2]: number }>
