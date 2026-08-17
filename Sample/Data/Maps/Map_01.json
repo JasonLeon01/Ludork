@@ -1798,6 +1798,30 @@
           10,
           7
         ]
+      },
+      {
+        "tag": "Items_BP_Item_CentreFly_default_11_11",
+        "bp": "Data.Blueprints.Items.BP_Item_CentreFly",
+        "position": [
+          11,
+          11
+        ]
+      },
+      {
+        "tag": "Items_BP_Item_UpFly_default_12_11",
+        "bp": "Data.Blueprints.Items.BP_Item_UpFly",
+        "position": [
+          12,
+          11
+        ]
+      },
+      {
+        "tag": "Items_BP_Item_DownFly_default_10_12",
+        "bp": "Data.Blueprints.Items.BP_Item_DownFly",
+        "position": [
+          10,
+          12
+        ]
       }
     ]
   },

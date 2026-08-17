@@ -350,10 +350,7 @@ public partial class FileExplorerPanel : UserControl
                 await deleteSelected(viewModel, getSelectedEntries(activeEntries));
                 break;
             case Key.Enter:
-                if (viewModel.SelectedEntry is { IsDirectory: true } directory)
-                    viewModel.NavigateTo(directory.FullPath);
-                else if (viewModel.SelectedEntry is { IsDirectory: false } file)
-                    await openFromSystem(file.FullPath);
+                viewModel.OpenSelected();
                 break;
             case Key.Space:
                 if (viewModel.SelectedEntry is { IsDirectory: false } selected && isImage(selected.FullPath)

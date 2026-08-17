@@ -74,8 +74,9 @@ public sealed class EditorActionRouter
     public void OpenCurve(string key) => request($"Curve:{key}");
     public void OpenTextConfig(string key) => request($"TextConfig:{key}");
     public void OpenUiAsset(string key) => request($"UiAsset:{key}");
-    public void OpenTilesets() => request("Tilesets");
-    public void OpenCommonFunctions() => request("CommonFunctions");
+    public void OpenTilesets(string? key = null) => request(key is null ? "Tilesets" : $"Tilesets:{key}");
+    public void OpenAutoTiles(string? key = null) => request(key is null ? "AutoTiles" : $"AutoTiles:{key}");
+    public void OpenCommonFunctions(string? key = null) => request(key is null ? "CommonFunctions" : $"CommonFunctions:{key}");
     public void OpenGameVariables() => request("GameVariables");
     public void OpenGeneralData(string? key = null) => request(key is null ? "GeneralData" : $"GeneralData:{key}");
     public void OpenBlueprint(string reference) => request($"Blueprint:{reference}");

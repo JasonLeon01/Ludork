@@ -71,8 +71,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         GameConfigCommand = new RelayCommand(Actions.OpenGameConfig);
         SystemConfigCommand = new RelayCommand(Actions.OpenSystemConfig);
         AnimationOverviewCommand = new RelayCommand(Actions.OpenAnimationOverview);
-        TilesetsDataCommand = new RelayCommand(Actions.OpenTilesets);
-        CommonFunctionsCommand = new RelayCommand(Actions.OpenCommonFunctions);
+        TilesetsDataCommand = new RelayCommand(() => Actions.OpenTilesets());
+        CommonFunctionsCommand = new RelayCommand(() => Actions.OpenCommonFunctions());
         GameVariablesCommand = new RelayCommand(Actions.OpenGameVariables);
         GeneralDataCommand = new RelayCommand(() => Actions.OpenGeneralData());
         UndoCommand = new RelayCommand(executeUndo, () => GameData.CanUndo);
@@ -555,52 +555,72 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private void onExplorerFileOpened(object? sender, string path)
     {
         DataFileInfo? info = GameData.TryLoadDataFile(path);
-        if (info is null)
+        if (info?.Type == "invalidTextConfig")
         {
-            try
-            {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
-            }
-            catch (Win32Exception exception)
-            {
-                FileOpenFailed?.Invoke(this, exception.Message);
-            }
-            catch (InvalidOperationException exception)
-            {
-                FileOpenFailed?.Invoke(this, exception.Message);
-            }
+            FileOpenFailed?.Invoke(
+                this,
+                LocaleService.Get("INVALID_TEXT_CONFIG_TYPE")
+                    .Replace("{path}", path));
             return;
         }
-        if (info.Type == "map" && info.Key is not null)
+        if (info is null
+            || string.IsNullOrWhiteSpace(info.Key)
+            || !EditorDataOpenCatalog.TryResolve(info.Type, out EditorDataOpenTarget target))
         {
-            SelectedMap = Maps.FirstOrDefault(map => map.Key == info.Key);
+            openWithSystem(path);
             return;
         }
-        switch (info.Type)
+        switch (target)
         {
-            case "blueprint": Actions.OpenBlueprint(info.Key ?? string.Empty); break;
-            case "tileset":
-            case "autoTile": Actions.OpenTilesets(); break;
-            case "config": Actions.OpenSystemConfig(); break;
-            case "commonFunction": Actions.OpenCommonFunctions(); break;
-            case "animation": Actions.OpenAnimation(info.Key ?? string.Empty); break;
-            case "curve":
-            case "vector2Curve":
-            case "vector3Curve":
-            case "vector4Curve": Actions.OpenCurve(info.Key ?? string.Empty); break;
-            case "plainTextConfig":
-            case "richTextConfig": Actions.OpenTextConfig(info.Key ?? string.Empty); break;
-            case "uiAsset":
-                Actions.OpenUiAsset(UiAssetSchema.ToLogicalAssetKey(info.Key ?? string.Empty));
+            case EditorDataOpenTarget.SystemConfig:
+                Actions.OpenSystemConfig();
                 break;
-            case "invalidTextConfig":
-                FileOpenFailed?.Invoke(
-                    this,
-                    LocaleService.Get("INVALID_TEXT_CONFIG_TYPE")
-                        .Replace("{path}", path));
+            case EditorDataOpenTarget.Tilesets:
+                Actions.OpenTilesets(info.Key);
                 break;
-            case "general": Actions.OpenGeneralData(info.Key); break;
-            default: Actions.OpenGeneralData(); break;
+            case EditorDataOpenTarget.AutoTiles:
+                Actions.OpenAutoTiles(info.Key);
+                break;
+            case EditorDataOpenTarget.Map:
+                SelectedMap = Maps.FirstOrDefault(map => map.Key == info.Key);
+                break;
+            case EditorDataOpenTarget.CommonFunctions:
+                Actions.OpenCommonFunctions(info.Key);
+                break;
+            case EditorDataOpenTarget.Blueprint:
+                Actions.OpenBlueprint(info.Key);
+                break;
+            case EditorDataOpenTarget.Animation:
+                Actions.OpenAnimation(info.Key);
+                break;
+            case EditorDataOpenTarget.Curve:
+                Actions.OpenCurve(info.Key);
+                break;
+            case EditorDataOpenTarget.TextConfig:
+                Actions.OpenTextConfig(info.Key);
+                break;
+            case EditorDataOpenTarget.UiAsset:
+                Actions.OpenUiAsset(UiAssetSchema.ToLogicalAssetKey(info.Key));
+                break;
+            case EditorDataOpenTarget.GeneralData:
+                Actions.OpenGeneralData(info.Key);
+                break;
+        }
+    }
+
+    private void openWithSystem(string path)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+        }
+        catch (Win32Exception exception)
+        {
+            FileOpenFailed?.Invoke(this, exception.Message);
+        }
+        catch (InvalidOperationException exception)
+        {
+            FileOpenFailed?.Invoke(this, exception.Message);
         }
     }
 

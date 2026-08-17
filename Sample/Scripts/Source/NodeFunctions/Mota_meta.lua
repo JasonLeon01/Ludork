@@ -43,6 +43,63 @@ local _METADATA = {
                 default = "nil",
             },
         },
+        CenterSymmetricTeleport = {
+            type = "function",
+            parameters = {
+            },
+            ["return"] = {
+                "return",
+                ["return"] = "int",
+            },
+            ExecSplit = {
+                "Success",
+                "Failed",
+                Success = {
+                    0,
+                },
+                Failed = {
+                    1,
+                },
+            },
+        },
+        GoUpstairsSamePos = {
+            type = "function",
+            parameters = {
+            },
+            ["return"] = {
+                "return",
+                ["return"] = "int",
+            },
+            ExecSplit = {
+                "Success",
+                "Failed",
+                Success = {
+                    0,
+                },
+                Failed = {
+                    1,
+                },
+            },
+        },
+        GoDownstairsSamePos = {
+            type = "function",
+            parameters = {
+            },
+            ["return"] = {
+                "return",
+                ["return"] = "int",
+            },
+            ExecSplit = {
+                "Success",
+                "Failed",
+                Success = {
+                    0,
+                },
+                Failed = {
+                    1,
+                },
+            },
+        },
     },
 }
 

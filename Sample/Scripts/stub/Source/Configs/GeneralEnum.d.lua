@@ -47,7 +47,9 @@ local Equip = {}
 ---@field BreakIce string
 ---@field BreakLava string
 ---@field BreakWall string
+---@field CentreFly string
 ---@field ClearWall string
+---@field DownFly string
 ---@field EnemyBook string
 ---@field KEY_B string
 ---@field KEY_R string
@@ -55,6 +57,7 @@ local Equip = {}
 ---@field PoisonedEase string
 ---@field PoisonedRelease string
 ---@field Teleport string
+---@field UpFly string
 ---@field WeakEase string
 ---@field WeakRelease string
 ---@type Source.Configs.GeneralEnum.Item

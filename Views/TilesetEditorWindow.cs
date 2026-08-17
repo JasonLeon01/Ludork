@@ -28,7 +28,16 @@ public sealed class TilesetEditorWindow : Window
     private readonly List<TilesetEditorTab> editorTabs = [];
     private readonly HashSet<TabItem> initializedTabs = [];
     private readonly HashSet<TabItem> pendingTabs = [];
+    private readonly DeferredWindowInitializer initializer;
     private readonly Toast toast;
+    private TabControl? tabControl;
+    private TabItem? tilesetItem;
+    private TabItem? autoTileItem;
+    private TilesetEditorTab? tilesetTab;
+    private TilesetEditorTab? autoTileTab;
+    private string? pendingTilesetKey;
+    private string? pendingAutoTileKey;
+    private bool pendingAutoTilePage;
     private bool closed;
 
     public TilesetEditorWindow(
@@ -51,7 +60,7 @@ public sealed class TilesetEditorWindow : Window
         HistoryMergeBehavior.AttachBoundary(this, gameData);
 
         Content = DeferredWindowInitializer.CreateLoadingContent();
-        _ = new DeferredWindowInitializer(this, initializeContent);
+        initializer = new DeferredWindowInitializer(this, initializeContent);
         toast = new Toast(this);
         gameData.DataRestored += onDataRestored;
         Closed += (_, _) =>
@@ -62,31 +71,54 @@ public sealed class TilesetEditorWindow : Window
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
     }
 
+    public void NavigateTo(bool isAutoTile, string? key = null)
+    {
+        pendingAutoTilePage = isAutoTile;
+        if (key is not null)
+        {
+            if (isAutoTile)
+                pendingAutoTileKey = key;
+            else
+                pendingTilesetKey = key;
+        }
+        if (initializer.IsInitialized)
+            navigateToPendingPage();
+    }
+
     private void initializeContent()
     {
-        TabControl tabs = new()
+        tabControl = new TabControl
         {
             ItemsPanel = new FuncTemplate<Panel?>(() => new StackPanel { Orientation = Orientation.Horizontal }),
         };
-        TabItem tilesetItem = new()
+        tilesetItem = new TabItem
         {
             Header = LocaleService.Get("TILESETS_DATA"),
             Content = DeferredWindowInitializer.CreateLoadingContent(),
         };
-        TabItem autoTileItem = new()
+        autoTileItem = new TabItem
         {
             Header = LocaleService.Get("AUTOTILES_DATA"),
             Content = DeferredWindowInitializer.CreateLoadingContent(),
         };
-        tabs.Items.Add(tilesetItem);
-        tabs.Items.Add(autoTileItem);
-        tabs.SelectionChanged += (_, _) => initializeTab(tabs.SelectedItem as TabItem, autoTileItem);
-        Content = new Border { Padding = new Thickness(5), Child = tabs };
-        tabs.SelectedIndex = 0;
-        initializeTab(tilesetItem, autoTileItem);
+        tabControl.Items.Add(tilesetItem);
+        tabControl.Items.Add(autoTileItem);
+        tabControl.SelectionChanged += (_, _) => initializeTab(tabControl.SelectedItem as TabItem);
+        Content = new Border { Padding = new Thickness(5), Child = tabControl };
+        navigateToPendingPage();
     }
 
-    private void initializeTab(TabItem? item, TabItem autoTileItem)
+    private void navigateToPendingPage()
+    {
+        TabItem? item = pendingAutoTilePage ? autoTileItem : tilesetItem;
+        if (tabControl is null || item is null)
+            return;
+        tabControl.SelectedItem = item;
+        initializeTab(item);
+        applyPendingSelection(pendingAutoTilePage);
+    }
+
+    private void initializeTab(TabItem? item)
     {
         if (item is null || initializedTabs.Contains(item) || !pendingTabs.Add(item))
             return;
@@ -95,11 +127,30 @@ public sealed class TilesetEditorWindow : Window
             pendingTabs.Remove(item);
             if (closed || initializedTabs.Contains(item))
                 return;
-            TilesetEditorTab tab = new(this, gameData, tileSelect, ReferenceEquals(item, autoTileItem));
+            bool isAutoTile = ReferenceEquals(item, autoTileItem);
+            TilesetEditorTab tab = new(this, gameData, tileSelect, isAutoTile);
+            if (isAutoTile)
+                autoTileTab = tab;
+            else
+                tilesetTab = tab;
             editorTabs.Add(tab);
             initializedTabs.Add(item);
             item.Content = tab;
+            applyPendingSelection(isAutoTile);
         }, DispatcherPriority.Background);
+    }
+
+    private void applyPendingSelection(bool isAutoTile)
+    {
+        TilesetEditorTab? tab = isAutoTile ? autoTileTab : tilesetTab;
+        string? key = isAutoTile ? pendingAutoTileKey : pendingTilesetKey;
+        if (tab is null || key is null)
+            return;
+        if (isAutoTile)
+            pendingAutoTileKey = null;
+        else
+            pendingTilesetKey = null;
+        tab.SelectData(key);
     }
 
     private void onDataRestored(object? sender, EventArgs args)
@@ -354,6 +405,8 @@ internal sealed class TilesetEditorTab : Grid
         tileSelect.RefreshData();
         refreshList(selectedKey);
     }
+
+    public void SelectData(string key) => refreshList(key);
 
     public void RefreshAfterDataRestore() => refreshAll();
 }

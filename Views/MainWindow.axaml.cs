@@ -606,7 +606,21 @@ public partial class MainWindow : Window
         else if (action == "SystemConfig" && viewModel is not null)
             await new ConfigWindow(viewModel.GameData, viewModel.ProjectSave).ShowDialog(this);
         else if (action == "Tilesets" && viewModel is not null)
-            showTilesetEditor(viewModel.GameData, viewModel.TileSelect);
+            showTilesetEditor(viewModel.GameData, viewModel.TileSelect, false, null);
+        else if (action.StartsWith("Tilesets:", StringComparison.Ordinal) && viewModel is not null)
+            showTilesetEditor(
+                viewModel.GameData,
+                viewModel.TileSelect,
+                false,
+                action["Tilesets:".Length..]);
+        else if (action == "AutoTiles" && viewModel is not null)
+            showTilesetEditor(viewModel.GameData, viewModel.TileSelect, true, null);
+        else if (action.StartsWith("AutoTiles:", StringComparison.Ordinal) && viewModel is not null)
+            showTilesetEditor(
+                viewModel.GameData,
+                viewModel.TileSelect,
+                true,
+                action["AutoTiles:".Length..]);
         else if (action == "NewAnimation" && viewModel is not null)
             await createAnimationAsync(viewModel.GameData);
         else if (action == "NewCurve" && viewModel is not null)
@@ -614,7 +628,11 @@ public partial class MainWindow : Window
         else if (action == "AnimationOverview" && viewModel is not null)
             showAnimationOverview(viewModel.GameData);
         else if (action == "CommonFunctions" && viewModel is not null)
-            await showCommonFunctionsAsync(viewModel);
+            await showCommonFunctionsAsync(viewModel, null);
+        else if (action.StartsWith("CommonFunctions:", StringComparison.Ordinal) && viewModel is not null)
+            await showCommonFunctionsAsync(
+                viewModel,
+                action["CommonFunctions:".Length..]);
         else if (action == "GameVariables" && viewModel is not null)
             showGameVariableManager(viewModel);
         else if (action == "GeneralData" && viewModel is not null)
@@ -938,10 +956,13 @@ public partial class MainWindow : Window
         await AlertDialog.ShowAsync(this, LocaleService.Get("ERROR"), message);
     }
 
-    private async Task showCommonFunctionsAsync(MainViewModel mainViewModel)
+    private async Task showCommonFunctionsAsync(
+        MainViewModel mainViewModel,
+        string? functionKey)
     {
         if (commonFunctionWindow is not null)
         {
+            commonFunctionWindow.SelectFunction(functionKey);
             commonFunctionWindow.Activate();
             return;
         }
@@ -950,6 +971,7 @@ public partial class MainWindow : Window
             mainViewModel.ProjectSave,
             mainViewModel.Metadata,
             mainViewModel.BlueprintClasses);
+        window.SelectFunction(functionKey);
         commonFunctionWindow = window;
         await window.ShowDialog(this);
         commonFunctionWindow = null;
@@ -1337,15 +1359,21 @@ public partial class MainWindow : Window
         animationOverview.Show(this);
     }
 
-    private void showTilesetEditor(GameDataService gameData, TileSelectViewModel tileSelect)
+    private void showTilesetEditor(
+        GameDataService gameData,
+        TileSelectViewModel tileSelect,
+        bool isAutoTile,
+        string? key)
     {
         if (tilesetEditor is not null)
         {
+            tilesetEditor.NavigateTo(isAutoTile, key);
             tilesetEditor.Show();
             tilesetEditor.Activate();
             return;
         }
         tilesetEditor = new TilesetEditorWindow(gameData, viewModel!.ProjectSave, tileSelect);
+        tilesetEditor.NavigateTo(isAutoTile, key);
         tilesetEditor.Closed += (_, _) => tilesetEditor = null;
         tilesetEditor.Show(this);
     }

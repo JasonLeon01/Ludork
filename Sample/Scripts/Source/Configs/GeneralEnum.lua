@@ -30,7 +30,9 @@ local Item = {
     BreakIce = "BreakIce",
     BreakLava = "BreakLava",
     BreakWall = "BreakWall",
+    CentreFly = "CentreFly",
     ClearWall = "ClearWall",
+    DownFly = "DownFly",
     EnemyBook = "EnemyBook",
     KEY_B = "KEY_B",
     KEY_R = "KEY_R",
@@ -38,6 +40,7 @@ local Item = {
     PoisonedEase = "PoisonedEase",
     PoisonedRelease = "PoisonedRelease",
     Teleport = "Teleport",
+    UpFly = "UpFly",
     WeakEase = "WeakEase",
     WeakRelease = "WeakRelease"
 }

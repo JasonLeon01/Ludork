@@ -204,6 +204,20 @@ function Scene:requestFloorTransfer(targetMap, anchorPos, moveEnabled) end
 ---@param blockTransition? boolean
 function Scene:gotoMapAndPos(mapPath, pos, blockTransition) end
 
+--- @brief Teleport the player to the centre-symmetric tile on the current map when passable.
+---
+--- - @return True when the teleport succeeds.
+---@return boolean
+function Scene:tryCenterSymmetricTeleport() end
+
+--- @brief Teleport the player to the same coordinates on an adjacent region floor when passable.
+---
+--- - @param step Region-list offset; +1 goes upstairs and -1 goes downstairs.
+--- - @return True when the teleport succeeds.
+---@param step integer
+---@return boolean
+function Scene:tryAdjacentFloorSamePos(step) end
+
 --- @brief Record an added actor for persistence.
 ---
 --- - @param actor The added actor.

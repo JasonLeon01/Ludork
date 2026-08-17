@@ -899,6 +899,80 @@ function Scene:gotoMapAndPos(mapPath, pos, blockTransition)
     end
 end
 
+function Scene:tryCenterSymmetricTeleport()
+    local gameMap = self:getGameMap()
+    local player = gameMap:getPlayer()
+    if player == nil then
+        return false
+    end
+    local size = gameMap:getSize()
+    local position = player:getMapPosition()
+    local targetPosition = sf.Vector2i.new(size.x - 1 - position.x, size.y - 1 - position.y)
+    ---@cast targetPosition sf.Vector2i
+    if not gameMap:isPassable(player, targetPosition) then
+        return false
+    end
+    player:setMapPosition(targetPosition)
+    gameMap:updateActorOccupancy(player)
+    return true
+end
+
+function Scene:tryAdjacentFloorSamePos(step)
+    local RegionDict = require("Source.Config.RegionDict")
+    local Teleporter = require("Source.Teleporter")
+
+    local gameMap = self:getGameMap()
+    local player = gameMap:getPlayer()
+    if player == nil then
+        return false
+    end
+    local sourceMap = self._cachedMapFile
+    if not bool(sourceMap) then
+        return false
+    end
+    local regionMaps = RegionDict[self.inst:getCurrentRegion()] or {}
+    local currentIndex = Teleporter._findCurrentMapIndex(regionMaps, sourceMap)
+    if currentIndex == nil then
+        return false
+    end
+    local targetIndex = currentIndex + step
+    if targetIndex < 1 or targetIndex > #regionMaps then
+        return false
+    end
+
+    local targetMap = self:resolveRegionMapPath(regionMaps[targetIndex])
+    local sourcePosition = player:getMapPosition()
+    local targetPosition = sf.Vector2i.new(sourcePosition.x, sourcePosition.y)
+    ---@cast targetPosition sf.Vector2i
+    if not self:_isMapPositionPassable(targetMap, player, targetPosition) then
+        return false
+    end
+
+    self:gotoMapAndPos(targetMap, targetPosition, true)
+    local targetGameMap = self:getGameMap()
+    local targetPlayer = targetGameMap:getPlayer()
+    if targetPlayer == nil or not targetGameMap:isPassable(targetPlayer, targetPosition) then
+        self:gotoMapAndPos(sourceMap, sourcePosition, true)
+        return false
+    end
+    GlobalSystem.requestTransition(MAP_TRANSITION_NAME, MAP_TRANSITION_TIME)
+    return true
+end
+
+---@param mapPath  string
+---@param actor    Engine.Actor
+---@param position sf.Vector2i
+---@return boolean
+function Scene:_isMapPositionPassable(mapPath, actor, position)
+    local mapFile, mapData = self._mapBuilder:loadMapData(mapPath, self:_getCurrentRegionMap())
+    local gameMap = self._mapBuilder:generateGameMap(mapData, nil, false, true)
+    gameMap:applyTerrainDestructions(self.inst:getTerrainDestructions(mapFile))
+    self._mapBuilder:applyAddedActors(gameMap, self.inst:getAddedActors(mapFile), false)
+    gameMap:applyActorPositions(self.inst:getActorPositions(mapFile))
+    gameMap:removeActorsByTags(self.inst:getDestroyedActors(mapFile))
+    return gameMap:isPassable(actor, position)
+end
+
 function Scene:recordAddedActor(actor)
     local layerName = self:getGameMap():getActorLayer(actor)
     if layerName ~= nil then

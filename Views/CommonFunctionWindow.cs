@@ -33,6 +33,7 @@ public sealed class CommonFunctionWindow : Window
     private readonly DeferredWindowInitializer initializer;
     private CommonFunctionEditorDocument? currentDocument;
     private BlueprintGraphControl? graphControl;
+    private string? pendingFunctionName;
     private bool refreshing;
 
     public CommonFunctionWindow(
@@ -73,7 +74,9 @@ public sealed class CommonFunctionWindow : Window
                 classResolver);
             Content = createEditorContent();
             toast = new Toast(this);
-            refreshList(null);
+            string? preferredName = pendingFunctionName;
+            pendingFunctionName = null;
+            refreshList(preferredName);
         });
     }
 
@@ -111,6 +114,18 @@ public sealed class CommonFunctionWindow : Window
     public void FlushPendingChanges()
     {
         flushGraph();
+    }
+
+    public void SelectFunction(string? name)
+    {
+        if (name is null)
+            return;
+        if (!initializer.IsInitialized)
+        {
+            pendingFunctionName = name;
+            return;
+        }
+        refreshList(name);
     }
 
     private void onSelectionChanged(object? sender, SelectionChangedEventArgs args)

@@ -172,6 +172,162 @@
         }
       }
     },
+    "UpFly": {
+      "name": "{UPFLY}",
+      "desc": "{UPFLY_DESC}",
+      "usable": true,
+      "price": 0,
+      "icon": "Icons/classic-items-2-2.png",
+      "cost": true,
+      "_graph": {
+        "nodeGraph": {
+          "onUse": {
+            "nodes": [
+              {
+                "nodeFunction": "NodeFunctions.Mota.GoUpstairsSamePos",
+                "params": [],
+                "pos": [
+                  0,
+                  0.0
+                ]
+              },
+              {
+                "nodeFunction": "NodeFunctions.Player.RemoveItem",
+                "params": [
+                  "UpFly",
+                  1
+                ],
+                "pos": [
+                  720,
+                  0.0
+                ]
+              }
+            ],
+            "links": [
+              {
+                "left": 0,
+                "right": 1,
+                "leftOutPin": 0,
+                "rightInPin": 0,
+                "linkType": "Exec"
+              }
+            ]
+          },
+          "onGet": {
+            "nodes": [],
+            "links": []
+          }
+        },
+        "startNodes": {
+          "onUse": 0,
+          "onGet": null
+        }
+      }
+    },
+    "DownFly": {
+      "name": "{DOWNFLY}",
+      "desc": "{DOWNFLY_DESC}",
+      "usable": true,
+      "price": 0,
+      "icon": "Icons/classic-items-1-2.png",
+      "cost": true,
+      "_graph": {
+        "nodeGraph": {
+          "onUse": {
+            "nodes": [
+              {
+                "nodeFunction": "NodeFunctions.Mota.GoDownstairsSamePos",
+                "params": [],
+                "pos": [
+                  0,
+                  0.0
+                ]
+              },
+              {
+                "nodeFunction": "NodeFunctions.Player.RemoveItem",
+                "params": [
+                  "DownFly",
+                  1
+                ],
+                "pos": [
+                  720,
+                  0.0
+                ]
+              }
+            ],
+            "links": [
+              {
+                "left": 0,
+                "right": 1,
+                "leftOutPin": 0,
+                "rightInPin": 0,
+                "linkType": "Exec"
+              }
+            ]
+          },
+          "onGet": {
+            "nodes": [],
+            "links": []
+          }
+        },
+        "startNodes": {
+          "onUse": 0,
+          "onGet": null
+        }
+      }
+    },
+    "CentreFly": {
+      "name": "{CENTREFLY}",
+      "desc": "{CENTREFLY_DESC}",
+      "usable": true,
+      "price": 0,
+      "icon": "Icons/classic-items-0-2.png",
+      "cost": true,
+      "_graph": {
+        "nodeGraph": {
+          "onUse": {
+            "nodes": [
+              {
+                "nodeFunction": "NodeFunctions.Mota.CenterSymmetricTeleport",
+                "params": [],
+                "pos": [
+                  0,
+                  0.0
+                ]
+              },
+              {
+                "nodeFunction": "NodeFunctions.Player.RemoveItem",
+                "params": [
+                  "CentreFly",
+                  1
+                ],
+                "pos": [
+                  720,
+                  0.0
+                ]
+              }
+            ],
+            "links": [
+              {
+                "left": 0,
+                "right": 1,
+                "leftOutPin": 0,
+                "rightInPin": 0,
+                "linkType": "Exec"
+              }
+            ]
+          },
+          "onGet": {
+            "nodes": [],
+            "links": []
+          }
+        },
+        "startNodes": {
+          "onUse": 0,
+          "onGet": null
+        }
+      }
+    },
     "BreakWall": {
       "name": "{BREAK_WALL}",
       "desc": "{BREAK_WALL_DESC}",
