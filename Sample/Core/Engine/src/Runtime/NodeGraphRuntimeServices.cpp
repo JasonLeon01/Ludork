@@ -18,7 +18,7 @@ const std::vector<std::string>& nodeGraphRuntimeServiceNames() {
 
 ServiceDispatchResult dispatchNodeGraphRuntimeService(
     sol::this_state state, const std::string& operation,
-    const sol::table& arguments) {
+    const RuntimeArguments& arguments) {
     sol::state_view lua(state);
     if (operation == "nodegraph.context") {
         return nodeGraphContext(lua, arguments);

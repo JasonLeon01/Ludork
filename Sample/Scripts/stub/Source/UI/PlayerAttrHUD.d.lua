@@ -2,9 +2,11 @@
 
 ---@class Source.UI.PlayerAttrHUD.PlayerAttrHUDUI : Source.UI.UiController
 ---@field model Source.Windows.PlayerAttrHUD
+---@field refreshEvents string[]
 ---@field _stateUIs Source.UI.Parts.PlayerAttrHUD.PlayerStateRow.PlayerStateRowUI[]
 ---@field _stateWidgets Engine.Canvas[]
 ---@field _stateSignature tuple<string> | nil
+---@field _stateDisplaySignature tuple<string> | nil
 ---@field _stateIconCache table<string, sf.Texture>
 ---@field _avatarTexture sf.Texture | nil
 ---@field _avatarRect sf.IntRect | nil
@@ -13,6 +15,15 @@
 ---@field _hpBarWidth integer
 ---@field _logicalSize sf.Vector2u
 ---@field _hpRate number
+---@field _language string
+---@field _headerSignature tuple<any> | nil
+---@field _combatSignature tuple<any> | nil
+---@field _hpSignature tuple<any> | nil
+---@field _statSignature tuple<any> | nil
+---@field _stackSignature tuple<any> | nil
+---@field _progressSignature tuple<any> | nil
+---@field _keySignature tuple<any> | nil
+---@field _layoutDirty boolean
 ---@field _avatar Engine.Button
 ---@field _mapNameText Engine.PlainText
 ---@field _levelText Engine.PlainText
@@ -49,7 +60,9 @@ function PlayerAttrHUDUI:clearStateRows() end
 ---@return boolean
 function PlayerAttrHUDUI:stateSignatureMatches(states) end
 
-function PlayerAttrHUDUI:refreshStates() end
+---@param language string | nil
+---@return boolean
+function PlayerAttrHUDUI:refreshStates(language) end
 
 ---@param mapName string
 ---@return string

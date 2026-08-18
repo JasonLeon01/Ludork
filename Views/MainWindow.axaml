@@ -67,8 +67,8 @@
                     <NativeMenuItem Header="{Binding AnimationOverview}" Command="{Binding AnimationOverviewCommand}" Gesture="F8" />
                     <NativeMenuItem Header="{Binding TilesetsData}" Command="{Binding TilesetsDataCommand}" Gesture="F9" />
                     <NativeMenuItem Header="{Binding CommonFunctions}" Command="{Binding CommonFunctionsCommand}" Gesture="F10" />
-                    <NativeMenuItem Header="{Binding GameVariablesLabel}" Command="{Binding GameVariablesCommand}" />
-                    <NativeMenuItem Header="{Binding GeneralData}" Command="{Binding GeneralDataCommand}" Gesture="F11" />
+                    <NativeMenuItem Header="{Binding GameVariablesLabel}" Command="{Binding GameVariablesCommand}" Gesture="F11" />
+                    <NativeMenuItem Header="{Binding GeneralData}" Command="{Binding GeneralDataCommand}" Gesture="F12" />
                 </NativeMenu>
             </NativeMenuItem>
             <NativeMenuItem Header="{Binding Plugins}">
@@ -123,7 +123,8 @@
         <KeyBinding Gesture="F8" Command="{Binding AnimationOverviewCommand}" />
         <KeyBinding Gesture="F9" Command="{Binding TilesetsDataCommand}" />
         <KeyBinding Gesture="F10" Command="{Binding CommonFunctionsCommand}" />
-        <KeyBinding Gesture="F11" Command="{Binding GeneralDataCommand}" />
+        <KeyBinding Gesture="F11" Command="{Binding GameVariablesCommand}" />
+        <KeyBinding Gesture="F12" Command="{Binding GeneralDataCommand}" />
     </Window.KeyBindings>
 
     <Window.Styles>

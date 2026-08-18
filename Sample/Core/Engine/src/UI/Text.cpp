@@ -1,15 +1,10 @@
 #include <UI/Text.hpp>
 
 #include <Runtime/EngineState.hpp>
+#include <UI/TextEffects.hpp>
 #include <UI/UIState.hpp>
 #include <Utils/Inner.hpp>
-#include <Utils/ShaderLoader.hpp>
 
-#include <SFML/Graphics/Image.hpp>
-#include <SFML/Graphics/RenderTexture.hpp>
-#include <SFML/Graphics/Shader.hpp>
-#include <SFML/Graphics/Sprite.hpp>
-#include <SFML/Graphics/Texture.hpp>
 #include <SFML/Graphics/Transform.hpp>
 #include <SFML/System/String.hpp>
 
@@ -17,16 +12,10 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <iostream>
 #include <stdexcept>
-#include <unordered_map>
-#include <unordered_set>
 #include <utility>
 
 namespace {
-
-constexpr std::size_t CurveSampleCount = 256;
-constexpr const char* DefaultTextEffectsShader = "Global/TextEffects.frag";
 
 sf::String toSfString(const std::string& value) {
     return sf::String::fromUtf8(value.begin(), value.end());
@@ -83,27 +72,6 @@ void validateGradient(const TextGradientConfig& gradient) {
     }
 }
 
-bool glowEnabled(const TextGlowConfig& glow) {
-    return glow.enabled && glow.radius > 0.0f && glow.intensity > 0.0f &&
-           glow.color.a > 0;
-}
-
-bool effectsEnabled(const TextGlowConfig& glow,
-                    const TextGradientConfig& gradient) {
-    return glowEnabled(glow) || gradient.enabled;
-}
-
-float glowRadiusPixels(const TextGlowConfig& glow) {
-    return glowEnabled(glow) ? std::max(0.0f, glow.radius * Scale) : 0.0f;
-}
-
-sf::FloatRect expandedForGlow(const sf::FloatRect& bounds,
-                              const TextGlowConfig& glow) {
-    const float radius = glowRadiusPixels(glow);
-    return {{bounds.position.x - radius, bounds.position.y - radius},
-            {bounds.size.x + radius * 2.0f, bounds.size.y + radius * 2.0f}};
-}
-
 sf::Transform customSlantTransform(const PlainTextConfig& config) {
     if ((config.style & static_cast<std::uint32_t>(sf::Text::Italic)) != 0 ||
         !std::isfinite(config.slantAngle)) {
@@ -116,262 +84,6 @@ sf::Transform customSlantTransform(const PlainTextConfig& config) {
     constexpr float DegreesToRadians = 3.14159265358979323846f / 180.0f;
     const float shear = std::tan(angle * DegreesToRadians);
     return {1.0f, -shear, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
-}
-
-void warnTextEffectOnce(const std::string& key, const std::string& message) {
-    static std::unordered_set<std::string> warnings;
-    if (warnings.insert(key).second) {
-        std::cerr << message << '\n';
-    }
-}
-
-std::shared_ptr<sf::Shader> loadTextEffectsShader() {
-    static std::unordered_map<std::string, std::weak_ptr<sf::Shader>>
-        shaderCache;
-    static std::unordered_set<std::string> failedShaders;
-    const std::string path = DefaultTextEffectsShader;
-    if (!sf::Shader::isAvailable()) {
-        warnTextEffectOnce(
-            "Text.shaderUnavailable",
-            "Text effects are disabled because shaders are unavailable");
-        return nullptr;
-    }
-    if (failedShaders.find(path) != failedShaders.end()) {
-        return nullptr;
-    }
-    const auto cached = shaderCache.find(path);
-    if (cached != shaderCache.end()) {
-        const std::shared_ptr<sf::Shader> shader = cached->second.lock();
-        if (shader != nullptr) {
-            return shader;
-        }
-    }
-    ShaderLoadResult loaded =
-        ShaderLoader::load(path, sf::Shader::Type::Fragment);
-    if (!loaded) {
-        failedShaders.insert(path);
-        warnTextEffectOnce("Text.shaderLoad:" + path, loaded.error);
-        return nullptr;
-    }
-    shaderCache[path] = loaded.shader;
-    return loaded.shader;
-}
-
-std::uint8_t curveTextureChannel(float value) {
-    return static_cast<std::uint8_t>(std::clamp(std::lround(value), 0l, 255l));
-}
-
-std::unique_ptr<sf::Texture> buildCurveTexture(
-    const std::shared_ptr<Vector4Curve>& curve) {
-    sf::Image image({static_cast<unsigned int>(CurveSampleCount), 1u},
-                    sf::Color::White);
-    for (std::size_t index = 0; index < CurveSampleCount; ++index) {
-        const float input = static_cast<float>(index) /
-                            static_cast<float>(CurveSampleCount - 1);
-        const std::array<float, 4> output =
-            curve == nullptr
-                ? std::array<float, 4>{255.0f, 255.0f, 255.0f, 255.0f}
-                : curve->evaluate(input);
-        image.setPixel({static_cast<unsigned int>(index), 0u},
-                       sf::Color(curveTextureChannel(output[0]),
-                                 curveTextureChannel(output[1]),
-                                 curveTextureChannel(output[2]),
-                                 curveTextureChannel(output[3])));
-    }
-    std::unique_ptr<sf::Texture> texture = std::make_unique<sf::Texture>(image);
-    texture->setSmooth(true);
-    return texture;
-}
-
-struct EffectTextSource {
-    const sf::Text* text = nullptr;
-    sf::Color fillColor = sf::Color::White;
-    sf::Color outlineColor = sf::Color::Black;
-    sf::Transform transform;
-};
-
-struct TextEffectCacheData {
-    bool dirty = true;
-    sf::FloatRect pixelBounds;
-    sf::Vector2f contentMinimum;
-    sf::Vector2f contentMaximum;
-    std::unique_ptr<sf::RenderTexture> fill;
-    std::unique_ptr<sf::RenderTexture> outline;
-    std::unique_ptr<sf::Texture> curve;
-    std::unique_ptr<sf::Sprite> sprite;
-    std::shared_ptr<sf::Shader> shader;
-};
-
-sf::FloatRect combinedTextBounds(const std::vector<EffectTextSource>& sources,
-                                 bool includeOutline) {
-    bool hasBounds = false;
-    float minimumX = 0.0f;
-    float minimumY = 0.0f;
-    float maximumX = 0.0f;
-    float maximumY = 0.0f;
-    for (const EffectTextSource& source : sources) {
-        if (source.text == nullptr) {
-            continue;
-        }
-        sf::Text measuredText = *source.text;
-        if (!includeOutline) {
-            measuredText.setOutlineThickness(0.0f);
-        }
-        const sf::FloatRect bounds =
-            source.transform.transformRect(measuredText.getGlobalBounds());
-        if (bounds.size.x <= 0.0f || bounds.size.y <= 0.0f) {
-            continue;
-        }
-        const float right = bounds.position.x + bounds.size.x;
-        const float bottom = bounds.position.y + bounds.size.y;
-        if (!hasBounds) {
-            minimumX = bounds.position.x;
-            minimumY = bounds.position.y;
-            maximumX = right;
-            maximumY = bottom;
-            hasBounds = true;
-            continue;
-        }
-        minimumX = std::min(minimumX, bounds.position.x);
-        minimumY = std::min(minimumY, bounds.position.y);
-        maximumX = std::max(maximumX, right);
-        maximumY = std::max(maximumY, bottom);
-    }
-    if (!hasBounds) {
-        return {};
-    }
-    return {{minimumX, minimumY}, {maximumX - minimumX, maximumY - minimumY}};
-}
-
-void clearEffectCache(TextEffectCacheData& cache) {
-    cache.fill.reset();
-    cache.outline.reset();
-    cache.curve.reset();
-    cache.sprite.reset();
-    cache.shader.reset();
-    cache.pixelBounds = {};
-    cache.contentMinimum = {};
-    cache.contentMaximum = {};
-    cache.dirty = false;
-}
-
-void rebuildEffectCache(TextEffectCacheData& cache,
-                        const std::vector<EffectTextSource>& sources,
-                        const TextGlowConfig& glow,
-                        const TextGradientConfig& gradient) {
-    const sf::FloatRect renderBounds = combinedTextBounds(sources, true);
-    const sf::FloatRect fillBounds = combinedTextBounds(sources, false);
-    if (renderBounds.size.x <= 0.0f || renderBounds.size.y <= 0.0f ||
-        fillBounds.size.x <= 0.0f || fillBounds.size.y <= 0.0f) {
-        clearEffectCache(cache);
-        return;
-    }
-
-    const std::shared_ptr<sf::Shader> shader = loadTextEffectsShader();
-    if (shader == nullptr) {
-        clearEffectCache(cache);
-        return;
-    }
-
-    const float padding = std::ceil(glowRadiusPixels(glow)) + 2.0f;
-    const float left = std::floor(renderBounds.position.x - padding);
-    const float top = std::floor(renderBounds.position.y - padding);
-    const float right =
-        std::ceil(renderBounds.position.x + renderBounds.size.x + padding);
-    const float bottom =
-        std::ceil(renderBounds.position.y + renderBounds.size.y + padding);
-    const sf::Vector2u textureSize{
-        static_cast<unsigned int>(std::max(1.0f, right - left)),
-        static_cast<unsigned int>(std::max(1.0f, bottom - top)),
-    };
-    const unsigned int maximumSize = sf::Texture::getMaximumSize();
-    if (textureSize.x > maximumSize || textureSize.y > maximumSize) {
-        warnTextEffectOnce(
-            "Text.effectCacheMaximum",
-            "Text effects were skipped because the cache exceeds the maximum "
-            "texture size");
-        clearEffectCache(cache);
-        return;
-    }
-
-    cache.pixelBounds = {
-        {left, top},
-        {static_cast<float>(textureSize.x), static_cast<float>(textureSize.y)}};
-    cache.contentMinimum = {
-        (fillBounds.position.x - left) / static_cast<float>(textureSize.x),
-        (fillBounds.position.y - top) / static_cast<float>(textureSize.y),
-    };
-    cache.contentMaximum = {
-        (fillBounds.position.x + fillBounds.size.x - left) /
-            static_cast<float>(textureSize.x),
-        (fillBounds.position.y + fillBounds.size.y - top) /
-            static_cast<float>(textureSize.y),
-    };
-
-    cache.fill = std::make_unique<sf::RenderTexture>(textureSize);
-    cache.outline = std::make_unique<sf::RenderTexture>(textureSize);
-    cache.fill->clear(sf::Color::Transparent);
-    cache.outline->clear(sf::Color::Transparent);
-    sf::RenderStates cacheStates;
-    cacheStates.transform.translate({-left, -top});
-
-    for (const EffectTextSource& source : sources) {
-        if (source.text == nullptr) {
-            continue;
-        }
-        sf::RenderStates sourceStates = cacheStates;
-        sourceStates.transform.combine(source.transform);
-        sf::Text fillText = *source.text;
-        fillText.setFillColor(source.fillColor);
-        fillText.setOutlineThickness(0.0f);
-        cache.fill->draw(fillText, sourceStates);
-
-        if (source.text->getOutlineThickness() != 0.0f &&
-            source.outlineColor.a != 0) {
-            sf::Text outlineText = *source.text;
-            outlineText.setFillColor(sf::Color::Transparent);
-            outlineText.setOutlineColor(source.outlineColor);
-            cache.outline->draw(outlineText, sourceStates);
-        }
-    }
-
-    cache.fill->display();
-    cache.outline->display();
-    cache.curve = buildCurveTexture(gradient.curve);
-    cache.sprite = std::make_unique<sf::Sprite>(cache.fill->getTexture());
-    cache.sprite->setPosition(cache.pixelBounds.position);
-    cache.shader = shader;
-    cache.dirty = false;
-}
-
-bool drawEffectCache(TextEffectCacheData& cache, sf::RenderTarget& target,
-                     sf::RenderStates states, const sf::Color& colour,
-                     const TextGlowConfig& glow,
-                     const TextGradientConfig& gradient) {
-    if (cache.sprite == nullptr || cache.shader == nullptr ||
-        cache.fill == nullptr || cache.outline == nullptr ||
-        cache.curve == nullptr) {
-        return false;
-    }
-
-    cache.sprite->setColor(colour);
-    cache.shader->setUniform("texture", cache.fill->getTexture());
-    cache.shader->setUniform("outlineTexture", cache.outline->getTexture());
-    cache.shader->setUniform("curveTexture", *cache.curve);
-    cache.shader->setUniform("textureSize", cache.pixelBounds.size);
-    cache.shader->setUniform("contentMinimum", cache.contentMinimum);
-    cache.shader->setUniform("contentMaximum", cache.contentMaximum);
-    cache.shader->setUniform("gradientEnabled", gradient.enabled);
-    cache.shader->setUniform("gradientDirection",
-                             gradient.direction == "horizontal" ? 1 : 0);
-    cache.shader->setUniform("glowEnabled", glowEnabled(glow));
-    cache.shader->setUniform("glowColor", sf::Glsl::Vec4(glow.color));
-    cache.shader->setUniform("glowRadius", glowRadiusPixels(glow));
-    cache.shader->setUniform("glowIntensity",
-                             std::clamp(glow.intensity, 0.0f, 1.0f));
-    states.shader = cache.shader.get();
-    target.draw(*cache.sprite, states);
-    return true;
 }
 
 sf::Text::LineAlignment resolvedLineAlignment(
@@ -396,11 +108,11 @@ float alignmentOffset(sf::Text::LineAlignment alignment, float availableWidth,
 }  // namespace
 
 struct PlainText::EffectCache {
-    TextEffectCacheData data;
+    ludork::engine::text_effects::Cache data;
 };
 
 struct RichText::EffectCache {
-    TextEffectCacheData data;
+    ludork::engine::text_effects::Cache data;
 };
 
 void TextStyle::enableStyle(sf::Text& text) const {
@@ -511,7 +223,7 @@ std::string PlainText::getString() const {
 
 sf::FloatRect PlainText::getPixelBounds() const {
     syncDisplayScale();
-    return expandedForGlow(
+    return ludork::engine::text_effects::expandedBounds(
         customSlantTransform(*config_).transformRect(text_.getLocalBounds()),
         config_->glow);
 }
@@ -567,13 +279,15 @@ void PlainText::draw(sf::RenderTarget& target, sf::RenderStates states) const {
     }
     sf::RenderStates textStates = states;
     textStates.transform.combine(customSlantTransform(*config_));
-    if (!effectsEnabled(config_->glow, config_->gradient)) {
+    if (!ludork::engine::text_effects::enabled(config_->glow,
+                                                config_->gradient)) {
         target.draw(text_, textStates);
         return;
     }
     ensureEffects();
-    if (!drawEffectCache(effects_->data, target, states, colour_, config_->glow,
-                         config_->gradient)) {
+    if (!ludork::engine::text_effects::draw(
+            effects_->data, target, states, colour_, config_->glow,
+            config_->gradient)) {
         target.draw(text_, textStates);
     }
 }
@@ -643,10 +357,11 @@ void PlainText::ensureEffects() const {
     if (!effects_->data.dirty) {
         return;
     }
-    rebuildEffectCache(effects_->data,
-                       {{&text_, config_->fillColor, config_->outline.color,
-                         customSlantTransform(*config_)}},
-                       config_->glow, config_->gradient);
+    ludork::engine::text_effects::rebuild(
+        effects_->data,
+        {{&text_, config_->fillColor, config_->outline.color,
+          customSlantTransform(*config_)}},
+        config_->glow, config_->gradient);
 }
 
 RichText::RichText(std::shared_ptr<RichTextConfig> config,
@@ -686,7 +401,8 @@ sf::Color RichText::getColour() const {
 
 sf::FloatRect RichText::getPixelBounds() const {
     syncDisplayScale();
-    return expandedForGlow(localBounds_, config_->glow);
+    return ludork::engine::text_effects::expandedBounds(localBounds_,
+                                                         config_->glow);
 }
 
 sf::FloatRect RichText::getLocalBounds() const {
@@ -731,15 +447,17 @@ void RichText::draw(sf::RenderTarget& target, sf::RenderStates states) const {
     if (!getVisible()) {
         return;
     }
-    if (!effectsEnabled(config_->glow, config_->gradient)) {
+    if (!ludork::engine::text_effects::enabled(config_->glow,
+                                                config_->gradient)) {
         for (const Segment& segment : segments_) {
             target.draw(*segment.text, states);
         }
         return;
     }
     ensureEffects();
-    if (drawEffectCache(effects_->data, target, states, colour_, config_->glow,
-                        config_->gradient)) {
+    if (ludork::engine::text_effects::draw(
+            effects_->data, target, states, colour_, config_->glow,
+            config_->gradient)) {
         return;
     }
     for (const Segment& segment : segments_) {
@@ -1059,7 +777,7 @@ void RichText::ensureEffects() const {
     if (!effects_->data.dirty) {
         return;
     }
-    std::vector<EffectTextSource> sources;
+    std::vector<ludork::engine::text_effects::Source> sources;
     sources.reserve(segments_.size());
     for (const Segment& segment : segments_) {
         sources.push_back(
@@ -1067,6 +785,6 @@ void RichText::ensureEffects() const {
              segment.style.fillColor.value_or(sf::Color::White),
              segment.style.outlineColor.value_or(sf::Color::Black)});
     }
-    rebuildEffectCache(effects_->data, sources, config_->glow,
-                       config_->gradient);
+    ludork::engine::text_effects::rebuild(
+        effects_->data, sources, config_->glow, config_->gradient);
 }

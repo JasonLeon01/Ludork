@@ -5,8 +5,11 @@
 
 #include <SFML/System.hpp>
 
+#include <atomic>
+#include <cstdint>
 #include <functional>
 #include <memory>
+#include <mutex>
 
 BIND_CLASS()
 class TimerEntry {
@@ -67,9 +70,14 @@ public:
     static void shutdown() noexcept;
 
 private:
+    static void ensureInitialized();
+    static void initializeLocked();
+
     static sf::Clock clock_;
-    static sf::Time lastElapsedTime_;
-    static sf::Time deltaTime_;
-    static float speed_;
-    static bool initialized_;
+    static sf::Time writerLastElapsedTime_;
+    static std::atomic<std::int64_t> currentMicroseconds_;
+    static std::atomic<std::int64_t> deltaMicroseconds_;
+    static std::atomic<float> speed_;
+    static std::atomic_bool initialized_;
+    static std::mutex writerMutex_;
 };

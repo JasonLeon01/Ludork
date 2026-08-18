@@ -1,51 +1,104 @@
 #include <Manager/FontManager.hpp>
 
+#include <ConcurrentResourceCache.hpp>
 #include <Utf8Path.hpp>
 
+#include <cstdint>
 #include <iostream>
+#include <mutex>
+#include <shared_mutex>
 #include <stdexcept>
+#include <unordered_map>
 
-std::unordered_map<std::string, std::shared_ptr<sf::Font>> FontManager::fonts_;
-std::unordered_map<std::string, std::string> FontManager::filenames_;
-std::unordered_map<std::string, std::string> FontManager::familyByFilename_;
+namespace {
+
+struct FontManagerState {
+    ludork::core::ConcurrentResourceCache<sf::Font> resources;
+    std::shared_mutex mutex;
+    std::unordered_map<std::string, std::shared_ptr<sf::Font>> fonts;
+    std::unordered_map<std::string, std::string> filenames;
+    std::unordered_map<std::string, std::string> familyByFilename;
+    std::uint64_t generation = 0;
+};
+
+FontManagerState& fontManagerState() {
+    static FontManagerState state;
+    return state;
+}
+
+}  // namespace
 
 std::shared_ptr<sf::Font> FontManager::load(const std::string& filePath) {
-    const auto filenameIterator = familyByFilename_.find(filePath);
-    if (filenameIterator != familyByFilename_.end()) {
-        return fonts_.at(filenameIterator->second);
+    FontManagerState& state = fontManagerState();
+    std::uint64_t generation;
+    {
+        std::shared_lock lock(state.mutex);
+        const auto filenameIterator = state.familyByFilename.find(filePath);
+        if (filenameIterator != state.familyByFilename.end()) {
+            return state.fonts.at(filenameIterator->second);
+        }
+        generation = state.generation;
     }
-    auto font = std::make_shared<sf::Font>();
-    if (!font->openFromFile(ludork::standard::pathFromUtf8(filePath))) {
-        throw std::runtime_error("Failed to load font from file: " + filePath);
-    }
+    const std::shared_ptr<sf::Font> font =
+        state.resources.getOrLoad(filePath, [&]() {
+            auto loaded = std::make_shared<sf::Font>();
+            if (!loaded->openFromFile(
+                    ludork::standard::pathFromUtf8(filePath))) {
+                throw std::runtime_error("Failed to load font from file: " +
+                                         filePath);
+            }
+            return loaded;
+        });
     const std::string family = font->getInfo().family;
-    fonts_[family] = font;
-    filenames_[family] = filePath;
-    familyByFilename_[filePath] = family;
+    std::unique_lock lock(state.mutex);
+    if (state.generation != generation) {
+        return font;
+    }
+    const auto filenameIterator = state.familyByFilename.find(filePath);
+    if (filenameIterator != state.familyByFilename.end()) {
+        return state.fonts.at(filenameIterator->second);
+    }
+    auto updatedFonts = state.fonts;
+    auto updatedFilenames = state.filenames;
+    auto updatedFamilyByFilename = state.familyByFilename;
+    updatedFonts[family] = font;
+    updatedFilenames[family] = filePath;
+    updatedFamilyByFilename[filePath] = family;
+    state.fonts.swap(updatedFonts);
+    state.filenames.swap(updatedFilenames);
+    state.familyByFilename.swap(updatedFamilyByFilename);
     return font;
 }
 
 std::shared_ptr<sf::Font> FontManager::getFont(const std::string& fontName) {
-    const auto iterator = fonts_.find(fontName);
-    if (iterator == fonts_.end()) {
+    FontManagerState& state = fontManagerState();
+    std::shared_lock lock(state.mutex);
+    const auto iterator = state.fonts.find(fontName);
+    if (iterator == state.fonts.end()) {
         throw std::out_of_range("Font " + fontName + " not found");
     }
     return iterator->second;
 }
 
 std::string FontManager::getFontFilename(const std::string& fontName) {
-    const auto iterator = filenames_.find(fontName);
-    if (iterator != filenames_.end()) {
-        return iterator->second;
+    FontManagerState& state = fontManagerState();
+    {
+        std::shared_lock lock(state.mutex);
+        const auto iterator = state.filenames.find(fontName);
+        if (iterator != state.filenames.end()) {
+            return iterator->second;
+        }
     }
     std::cerr << "Font " << fontName << " not found\n";
     return {};
 }
 
 std::vector<std::string> FontManager::getFontList() {
+    FontManagerState& state = fontManagerState();
+    std::shared_lock lock(state.mutex);
     std::vector<std::string> result;
-    result.reserve(fonts_.size());
-    for (const auto& [fontName, font] : fonts_) {
+    result.reserve(state.fonts.size());
+    for (const auto& [fontName, font] : state.fonts) {
         static_cast<void>(font);
         result.push_back(fontName);
     }
@@ -53,9 +106,11 @@ std::vector<std::string> FontManager::getFontList() {
 }
 
 std::vector<std::string> FontManager::getFontFilenameList() {
+    FontManagerState& state = fontManagerState();
+    std::shared_lock lock(state.mutex);
     std::vector<std::string> result;
-    result.reserve(filenames_.size());
-    for (const auto& [fontName, filePath] : filenames_) {
+    result.reserve(state.filenames.size());
+    for (const auto& [fontName, filePath] : state.filenames) {
         static_cast<void>(fontName);
         result.push_back(filePath);
     }
@@ -63,23 +118,32 @@ std::vector<std::string> FontManager::getFontFilenameList() {
 }
 
 bool FontManager::hasFont(const std::string& fontName) {
-    return fonts_.contains(fontName);
+    FontManagerState& state = fontManagerState();
+    std::shared_lock lock(state.mutex);
+    return state.fonts.contains(fontName);
 }
 
 std::size_t FontManager::getMemory() {
+    FontManagerState& state = fontManagerState();
+    std::shared_lock lock(state.mutex);
     std::size_t total =
-        sizeof(fonts_) + sizeof(filenames_) + sizeof(familyByFilename_);
-    for (const auto& [name, font] : fonts_) {
+        sizeof(state) + state.resources.entryCount() *
+                            sizeof(std::weak_ptr<sf::Font>);
+    for (const auto& [name, font] : state.fonts) {
         total += name.capacity() + sizeof(font) + sizeof(sf::Font);
     }
-    for (const auto& [name, path] : filenames_) {
+    for (const auto& [name, path] : state.filenames) {
         total += name.capacity() + path.capacity();
     }
     return total;
 }
 
 void FontManager::clear() noexcept {
-    familyByFilename_.clear();
-    filenames_.clear();
-    fonts_.clear();
+    FontManagerState& state = fontManagerState();
+    std::unique_lock lock(state.mutex);
+    ++state.generation;
+    state.resources.clear();
+    state.familyByFilename.clear();
+    state.filenames.clear();
+    state.fonts.clear();
 }

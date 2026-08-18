@@ -5,7 +5,7 @@
 #include <LuaSF.hpp>
 
 #include "Bindings.hpp"
-#include "Runtime/ClassRuntime.hpp"
+#include "Runtime/ClassRuntime/ClassRuntime.hpp"
 #include "Runtime/EditorConsole.hpp"
 
 #include <sol2/sol.hpp>

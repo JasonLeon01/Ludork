@@ -177,8 +177,11 @@ function dict_value:keys() end
 ---@return list<V>
 function dict_value:values() end
 
---- Return insertion-ordered key/value pairs as two-slot native lists.
----@return list<list<K|V>>
+--- Return a lazy insertion-ordered key/value iterator.
+--- Use it directly in `for key, value in dictionary:items() do`.
+---@return fun(state: any, control: any): K?, V? iterator
+---@return nil state
+---@return nil initial
 function dict_value:items() end
 
 --- Return a shallow native-dictionary copy.

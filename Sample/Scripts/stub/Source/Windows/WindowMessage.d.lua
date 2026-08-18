@@ -46,6 +46,9 @@ function WindowMessage:onTick(deltaTime) end
 ---@param kwargs table
 function WindowMessage:onKeyDown(kwargs) end
 
+--- @brief Cancel the current selection dialogue through the shared return path.
+function WindowMessage:onReturn() end
+
 --- @brief Advance a plain message dialogue on left mouse click anywhere within the window.
 ---
 --- - @param kwargs Event data with cursor position.

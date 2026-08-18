@@ -6,6 +6,8 @@
 
 #include <string>
 
+struct lua_State;
+
 namespace ludork::standard::class_runtime {
 
 LUDORK_STANDARD_API sol::table finalizeClass(sol::table definition,
@@ -67,9 +69,9 @@ LUDORK_STANDARD_API sol::object deepCopy(sol::state_view lua,
 LUDORK_STANDARD_API sol::object requireModule(sol::state_view lua,
                                              const std::string& moduleName);
 
-LUDORK_STANDARD_API sol::table invoke(sol::state_view lua,
-                                     const sol::object& callable,
-                                     const sol::table& arguments);
+LUDORK_STANDARD_API int invoke(lua_State* state,
+                              const sol::object& callable,
+                              int argumentCount);
 
 LUDORK_STANDARD_API void registerService(
     sol::state_view lua, const std::string& name,
@@ -78,8 +80,7 @@ LUDORK_STANDARD_API void registerService(
 LUDORK_STANDARD_API void unregisterService(sol::state_view lua,
                                            const std::string& name);
 
-LUDORK_STANDARD_API sol::table callService(sol::state_view lua,
-                                          const std::string& name,
-                                          const sol::table& arguments);
+LUDORK_STANDARD_API int callService(lua_State* state, const std::string& name,
+                                   int argumentCount);
 
 }  // namespace ludork::standard::class_runtime

@@ -73,6 +73,7 @@ public:
 
     lua_State* state() const noexcept;
     bool push() const noexcept;
+    bool pushUnderExecutionScope() const noexcept;
     bool equals(const LuaRegistryReference& other) const noexcept;
     explicit operator bool() const noexcept;
 

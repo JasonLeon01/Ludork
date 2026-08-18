@@ -46,9 +46,9 @@ Every release package records its exact ScriptTools CPython, OpenSSL, Nuitka, an
 
 | Component | Version or revision | Purpose and distribution | Licence | Complete text | Official source |
 | --- | --- | --- | --- | --- | --- |
-| LuaSF | 3.1.0.2-ME | SFML bindings in all project templates and the UI preview host | MIT | `Licenses/LuaSF/LICENSE.txt` | [JasonLeon01/LuaSF-AutoGenerator](https://github.com/JasonLeon01/LuaSF-AutoGenerator) |
+| LuaSF | 3.1.0.4-ME-OH | SFML bindings in all project templates and the UI preview host | MIT | `Licenses/LuaSF/LICENSE.txt` | [JasonLeon01/LuaSF-AutoGenerator](https://github.com/JasonLeon01/LuaSF-AutoGenerator) |
 | Lua | 5.5.0 | Game scripting runtime and `luac` | MIT | `Licenses/Lua/LICENSE.txt` | [Lua.org](https://www.lua.org/) |
-| SFML | 3.1.0 | Graphics, windowing, audio, system, and network runtime | Zlib/libpng | `Licenses/SFML/LICENSE.txt` | [SFML/SFML](https://github.com/SFML/SFML) |
+| SFML | 3.1.0, SFML-ME branch 310ME-OH | Graphics, windowing, audio, system, and network runtime | Zlib/libpng | `Licenses/SFML/LICENSE.txt` | [JasonLeon01/SFML-ME `310ME-OH`](https://github.com/JasonLeon01/SFML-ME/tree/310ME-OH) |
 | sol2 | 3.2.3 in the distributed LuaSF source | C++/Lua binding headers | MIT | `Licenses/sol2/LICENSE.txt` | [ThePhD/sol2](https://github.com/ThePhD/sol2) |
 | lua-cjson | Source release 2.1.0.19; the upstream runtime constant reports 2.1.0.11 | JSON module linked into the game runtime | MIT | `Licenses/lua-cjson/LICENSE.txt` | [openresty/lua-cjson](https://github.com/openresty/lua-cjson) |
 | zlib | 1.3.1 | Compression support in the game runtime | Zlib | `Licenses/zlib/LICENSE.txt` | [madler/zlib](https://github.com/madler/zlib) |
@@ -60,7 +60,7 @@ Every release package records its exact ScriptTools CPython, OpenSSL, Nuitka, an
 | FLAC | 1.5.0 | Statically linked SFML audio codec dependency | BSD 3-Clause | `Licenses/NativeDependencies/FLAC-COPYING.Xiph.txt` | [xiph/flac](https://github.com/xiph/flac) |
 | Mbed TLS | 3.6.5 | Statically linked SFML network cryptography dependency | Apache License 2.0 or GPLv2; Ludork uses the Apache option | `Licenses/NativeDependencies/MbedTLS-LICENSE.txt` | [Mbed-TLS/mbedtls](https://github.com/Mbed-TLS/mbedtls) |
 | libssh2 | commit `704299e997bf518375dc9222670c57b800ac59e6` (1.11.2 development line) | Statically linked SFML SFTP dependency | BSD 3-Clause | `Licenses/NativeDependencies/libssh2-COPYING.txt` | [libssh2/libssh2](https://github.com/libssh2/libssh2) |
-| SFML bundled source dependencies | Revisions bundled with SFML 3.1.0 | OpenGL loading, image, audio, Unicode, Vulkan, DirectInput compatibility, and Windows polling support in SFML source templates | MIT, MIT-0, BSD, Apache 2.0, CC0 1.0, LGPL 2.1 or later, or public-domain alternatives as identified by SFML and the source headers | `Licenses/NativeDependencies/SFML-THIRD-PARTY.md`, `Licenses/NativeDependencies/Glad-CC0-1.0.txt`, `Licenses/NativeDependencies/Wine-DInput-LGPLv2.1.txt`; full notices also remain in the corresponding source headers | [SFML dependency list](https://github.com/SFML/SFML/blob/3.1.0/readme.md#external-libraries-used-by-sfml) |
+| SFML bundled source dependencies | Revisions bundled with SFML-ME 310ME-OH | OpenGL loading, image, audio, Unicode, Vulkan, DirectInput compatibility, and Windows polling support in SFML source templates | MIT, MIT-0, BSD, Apache 2.0, CC0 1.0, LGPL 2.1 or later, or public-domain alternatives as identified by SFML and the source headers | `Licenses/NativeDependencies/SFML-THIRD-PARTY.md`, `Licenses/NativeDependencies/Glad-CC0-1.0.txt`, `Licenses/NativeDependencies/Wine-DInput-LGPLv2.1.txt`; full notices also remain in the corresponding source headers | [SFML-ME dependency list](https://github.com/JasonLeon01/SFML-ME/blob/310ME-OH/readme.md#external-libraries-used-by-sfml) |
 
 ## Optional tools, codecs, and assets
 

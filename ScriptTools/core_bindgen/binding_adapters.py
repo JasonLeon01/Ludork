@@ -250,7 +250,10 @@ def callback_result_lines(
             "ludork::standard::LuaExecutionScope bindingLuaExecution("
             "bindingCallbackState);"
         ),
-        (f"if (!bindingLuaExecution.active() || !{callback_name}.push()) {{"),
+        (
+            "if (!bindingLuaExecution.active() || "
+            f"!{callback_name}.pushUnderExecutionScope()) {{"
+        ),
     ]
     if re.search(r"=\s*0\s*;?$", member.declaration):
         lines.append(

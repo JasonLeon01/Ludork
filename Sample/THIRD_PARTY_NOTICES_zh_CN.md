@@ -8,9 +8,9 @@ Ludork 软件本体适用 [`LICENSE.md`](LICENSE.md) 中的 Zlib 许可证。该
 
 | 组件 | 版本或 revision | 用途与分发范围 | 许可证 | 完整正文 | 官方来源 |
 | --- | --- | --- | --- | --- | --- |
-| LuaSF | 3.1.0.2-ME | Sample 与所有工程模板中的 SFML 绑定 | MIT | `Licenses/LuaSF/LICENSE.txt` | [JasonLeon01/LuaSF-AutoGenerator](https://github.com/JasonLeon01/LuaSF-AutoGenerator) |
+| LuaSF | 3.1.0.4-ME-OH | Sample 与所有工程模板中的 SFML 绑定 | MIT | `Licenses/LuaSF/LICENSE.txt` | [JasonLeon01/LuaSF-AutoGenerator](https://github.com/JasonLeon01/LuaSF-AutoGenerator) |
 | Lua | 5.5.0 | 游戏脚本运行时与 `luac` | MIT | `Licenses/Lua/LICENSE.txt` | [Lua.org](https://www.lua.org/) |
-| SFML | 3.1.0 | 图形、窗口、音频、系统与网络运行时 | Zlib/libpng | `Licenses/SFML/LICENSE.txt` | [SFML/SFML](https://github.com/SFML/SFML) |
+| SFML | 3.1.0，SFML-ME 分支 310ME-OH | 图形、窗口、音频、系统与网络运行时 | Zlib/libpng | `Licenses/SFML/LICENSE.txt` | [JasonLeon01/SFML-ME `310ME-OH`](https://github.com/JasonLeon01/SFML-ME/tree/310ME-OH) |
 | sol2 | 发行版 LuaSF 源码中的 3.2.3 | C++/Lua 绑定头文件 | MIT | `Licenses/sol2/LICENSE.txt` | [ThePhD/sol2](https://github.com/ThePhD/sol2) |
 | lua-cjson | 源码发行版本 2.1.0.19；上游运行时常量报告为 2.1.0.11 | 链接到游戏运行时的 JSON 模块 | MIT | `Licenses/lua-cjson/LICENSE.txt` | [openresty/lua-cjson](https://github.com/openresty/lua-cjson) |
 | zlib | 1.3.1 | 游戏运行时压缩支持 | Zlib | `Licenses/zlib/LICENSE.txt` | [madler/zlib](https://github.com/madler/zlib) |
@@ -22,7 +22,7 @@ Ludork 软件本体适用 [`LICENSE.md`](LICENSE.md) 中的 Zlib 许可证。该
 | FLAC | 1.5.0 | 静态链接的 SFML 音频编解码依赖 | BSD 3-Clause | `Licenses/NativeDependencies/FLAC-COPYING.Xiph.txt` | [xiph/flac](https://github.com/xiph/flac) |
 | Mbed TLS | 3.6.5 | 静态链接的 SFML 网络加密依赖 | Apache License 2.0 或 GPLv2；Ludork 选用 Apache 选项 | `Licenses/NativeDependencies/MbedTLS-LICENSE.txt` | [Mbed-TLS/mbedtls](https://github.com/Mbed-TLS/mbedtls) |
 | libssh2 | commit `704299e997bf518375dc9222670c57b800ac59e6`（1.11.2 开发分支） | 静态链接的 SFML SFTP 依赖 | BSD 3-Clause | `Licenses/NativeDependencies/libssh2-COPYING.txt` | [libssh2/libssh2](https://github.com/libssh2/libssh2) |
-| SFML 随附的源码依赖 | SFML 3.1.0 随附 revision | SFML 源码模板中的 OpenGL 加载、图片、音频、Unicode、Vulkan、DirectInput 兼容与 Windows polling 支持 | SFML 与源码头所列 MIT、MIT-0、BSD、Apache 2.0、CC0 1.0、LGPL 2.1 或更高版本，或公有领域备选条款 | `Licenses/NativeDependencies/SFML-THIRD-PARTY.md`、`Licenses/NativeDependencies/Glad-CC0-1.0.txt`、`Licenses/NativeDependencies/Wine-DInput-LGPLv2.1.txt`；对应源码头文件中也保留完整声明 | [SFML 依赖列表](https://github.com/SFML/SFML/blob/3.1.0/readme.md#external-libraries-used-by-sfml) |
+| SFML 随附的源码依赖 | SFML-ME 310ME-OH 随附 revision | SFML 源码模板中的 OpenGL 加载、图片、音频、Unicode、Vulkan、DirectInput 兼容与 Windows polling 支持 | SFML 与源码头所列 MIT、MIT-0、BSD、Apache 2.0、CC0 1.0、LGPL 2.1 或更高版本，或公有领域备选条款 | `Licenses/NativeDependencies/SFML-THIRD-PARTY.md`、`Licenses/NativeDependencies/Glad-CC0-1.0.txt`、`Licenses/NativeDependencies/Wine-DInput-LGPLv2.1.txt`；对应源码头文件中也保留完整声明 | [SFML-ME 依赖列表](https://github.com/JasonLeon01/SFML-ME/blob/310ME-OH/readme.md#external-libraries-used-by-sfml) |
 
 ## 视频运行时与随包资产
 

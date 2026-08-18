@@ -11,6 +11,11 @@
 
 #include <sol2/sol.hpp>
 
+extern "C" {
+#include <lauxlib.h>
+#include <lua.h>
+}
+
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -27,48 +32,62 @@ void forEachServiceName(Callback&& callback) {
     callback(ludork::engine::runtime_detail::nodeGraphRuntimeServiceNames());
 }
 
-sol::table dispatchRuntimeService(sol::this_state state,
-                                  const std::string& operation,
-                                  const sol::table& arguments) {
+int dispatchRuntimeService(lua_State* state, const std::string& operation,
+                           const ludork::engine::runtime_detail::RuntimeArguments& arguments) {
     using namespace ludork::engine::runtime_detail;
     if (ServiceDispatchResult result =
-            dispatchRuntimeValueService(state, operation, arguments)) {
+            dispatchRuntimeValueService(sol::this_state(state), operation,
+                                        arguments)) {
         return *result;
     }
     if (ServiceDispatchResult result =
-            dispatchMetadataRuntimeService(state, operation, arguments)) {
+            dispatchMetadataRuntimeService(sol::this_state(state), operation,
+                                           arguments)) {
         return *result;
     }
     if (ServiceDispatchResult result =
-            dispatchBlueprintRuntimeService(state, operation, arguments)) {
+            dispatchBlueprintRuntimeService(sol::this_state(state), operation,
+                                            arguments)) {
         return *result;
     }
     if (ServiceDispatchResult result =
-            dispatchNodeGraphRuntimeService(state, operation, arguments)) {
+            dispatchNodeGraphRuntimeService(sol::this_state(state), operation,
+                                            arguments)) {
         return *result;
     }
-    return runtimeResolverResult(sol::state_view(state), {});
+    return 0;
+}
+
+int runtimeServiceCallback(lua_State* state) {
+    try {
+        ludork::standard::LuaExecutionScope execution(state);
+        if (!execution.active()) {
+            return 0;
+        }
+        std::size_t nameLength = 0;
+        const char* rawName =
+            lua_tolstring(state, lua_upvalueindex(1), &nameLength);
+        if (rawName == nullptr) {
+            return luaL_error(state, "%s", "Runtime service name is missing");
+        }
+        const std::string name(rawName, nameLength);
+        const ludork::engine::runtime_detail::RuntimeArguments arguments(
+            state, 1, lua_gettop(state));
+        return dispatchRuntimeService(state, name, arguments);
+    } catch (const std::exception& error) {
+        return luaL_error(state, "%s", error.what());
+    } catch (...) {
+        return luaL_error(state, "%s", "Unknown runtime service error");
+    }
 }
 
 void registerRuntimeService(lua_State* state, const std::string& name) {
     sol::state_view lua(state);
-    const sol::object rawCallback = sol::make_object(
-        lua, sol::as_function([state, name](sol::variadic_args arguments)
-                                  -> sol::variadic_results {
-            ludork::standard::LuaExecutionScope execution(state);
-            if (!execution.active()) {
-                return {};
-            }
-            sol::state_view callbackLua(state);
-            const sol::table packed =
-                ludork::engine::runtime_detail::packArguments(callbackLua,
-                                                              arguments);
-            return ludork::engine::runtime_detail::unpackResults(
-                callbackLua,
-                dispatchRuntimeService(sol::this_state(state), name, packed));
-        }));
+    lua_pushlstring(state, name.data(), name.size());
+    lua_pushcclosure(state, &runtimeServiceCallback, 1);
     const sol::protected_function callback =
-        rawCallback.as<sol::protected_function>();
+        sol::stack::get<sol::protected_function>(state, -1);
+    lua_pop(state, 1);
     ludork::standard::class_runtime::registerService(lua, name, callback);
 }
 

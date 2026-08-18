@@ -788,9 +788,10 @@ public:
         const std::filesystem::path& framePath =
             frameFiles.write(sharedPixels);
         for (RuntimeValue& pageValue : pages) {
-            RuntimeValue::Map& page = *pageValue.getIf<RuntimeValue::Map>();
+            RuntimeValue::Map& page =
+                *pageValue.getMutableIf<RuntimeValue::Map>();
             RuntimeValue::Map& sharedMemory =
-                *page["sharedMemory"].getIf<RuntimeValue::Map>();
+                *page["sharedMemory"].getMutableIf<RuntimeValue::Map>();
             sharedMemory["filePath"] = RuntimeValue(pathText(framePath));
         }
         RuntimeValue::Array items;

@@ -11,8 +11,10 @@
 #include <RuntimeSession.hpp>
 #include <UI/FunctionalBase.hpp>
 #include <UI/Rect.hpp>
+#include <UI/TextEffectResources.hpp>
 #include <UI/UiControlAdapterRegistry.hpp>
 #include <UI/UiResources.hpp>
+#include <UI/UiVector4CurveResource.hpp>
 #include <Utils/EventBus.hpp>
 #include <Utils/Inner.hpp>
 
@@ -69,7 +71,9 @@ void shutdown(lua_State* state) noexcept {
     clearRuntimeResolver();
     FunctionalBase::resetRuntimeCallbacks();
     Rect::clearOpacityCurveCache();
+    ludork::engine::text_effects::clearResources();
     clearUiControlAdapterResourceCache();
+    clearUiVector4CurveResourceCache();
     uiResources().reset();
     setActorAudioService(nullptr);
     shutdownAnimationResources();

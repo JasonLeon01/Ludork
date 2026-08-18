@@ -1,6 +1,6 @@
 # SFML bundled single-header dependency notices
 
-These notices apply to source files distributed inside the SFML 3.1.0 tree used by Ludork. The original notices remain in those source headers. Where an upstream component offers a choice, Ludork relies on the permissive licence identified below.
+These notices apply to source files distributed inside the SFML-ME 3.1.0 tree (branch 310ME-OH) used by Ludork. The original notices remain in those source headers. Where an upstream component offers a choice, Ludork relies on the permissive licence identified below.
 
 ## dr_mp3 and miniaudio — MIT No Attribution
 

@@ -81,6 +81,33 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         .Any(node => !node.Model.IsVirtual);
     public bool CanDeleteSelected => !IsReadOnly && CanCopySelected;
 
+    internal void SelectAllNodes()
+    {
+        SelectedNodes.Clear();
+        foreach (BlueprintGraphNodeViewModel node in Nodes
+            .OfType<BlueprintGraphNodeViewModel>()
+            .Where(node => !node.Model.IsVirtual))
+        {
+            SelectedNodes.Add(node);
+        }
+    }
+
+    internal bool NudgeSelected(Vector delta)
+    {
+        if (IsReadOnly)
+            return false;
+        BlueprintGraphNodeViewModel[] selected = getSelectedRegularNodes();
+        if (selected.Length == 0)
+            return false;
+        foreach (BlueprintGraphNodeViewModel node in selected)
+        {
+            node.Location = new Point(
+                node.Location.X + delta.X,
+                node.Location.Y + delta.Y);
+        }
+        return true;
+    }
+
     public void SetReadOnly(bool value)
     {
         if (IsReadOnly == value)
@@ -194,10 +221,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
     {
         if (IsReadOnly)
             return;
-        BlueprintGraphNodeViewModel[] selected = SelectedNodes
-            .OfType<BlueprintGraphNodeViewModel>()
-            .Where(node => !node.Model.IsVirtual)
-            .ToArray();
+        BlueprintGraphNodeViewModel[] selected = getSelectedRegularNodes();
         if (selected.Length == 0)
             return;
         HashSet<Guid> ids = selected.Select(node => node.Model.Id).ToHashSet();
@@ -257,12 +281,33 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
 
     public void CopySelected()
     {
-        BlueprintGraphNodeViewModel[] selected = SelectedNodes
-            .OfType<BlueprintGraphNodeViewModel>()
-            .Where(node => !node.Model.IsVirtual)
-            .ToArray();
-        if (selected.Length == 0)
+        BlueprintGraphClipboard? copied = createClipboard(getSelectedRegularNodes());
+        if (copied is not null)
+            clipboard = copied;
+    }
+
+    internal void DuplicateSelected(Point location)
+    {
+        if (IsReadOnly)
             return;
+        BlueprintGraphClipboard? copied = createClipboard(getSelectedRegularNodes());
+        if (copied is not null)
+            paste(copied, location);
+    }
+
+    public void Paste(Point location)
+    {
+        BlueprintGraphClipboard? copied = clipboard;
+        if (IsReadOnly || copied is null || copied.Nodes.Count == 0)
+            return;
+        paste(copied, location);
+    }
+
+    private BlueprintGraphClipboard? createClipboard(
+        IReadOnlyList<BlueprintGraphNodeViewModel> selected)
+    {
+        if (selected.Count == 0)
+            return null;
         Dictionary<Guid, int> indices = selected
             .Select((node, index) => (node.Model.Id, index))
             .ToDictionary(entry => entry.Id, entry => entry.index);
@@ -287,43 +332,41 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
                 connection.Kind,
                 connection.RawData.DeepClone() as JsonObject ?? []));
         }
-        clipboard = new BlueprintGraphClipboard(copiedNodes, copiedConnections);
+        return new BlueprintGraphClipboard(copiedNodes, copiedConnections);
     }
 
-    public void Paste(Point location)
+    private void paste(BlueprintGraphClipboard copied, Point location)
     {
-        if (IsReadOnly || clipboard is null || clipboard.Nodes.Count == 0)
-            return;
-        double minimumX = clipboard.Nodes.Min(node => node.X);
-        double minimumY = clipboard.Nodes.Min(node => node.Y);
+        double minimumX = copied.Nodes.Min(node => node.X);
+        double minimumY = copied.Nodes.Min(node => node.Y);
         List<BlueprintGraphNode> pasted = [];
-        foreach (BlueprintGraphClipboardNode copied in clipboard.Nodes)
+        foreach (BlueprintGraphClipboardNode copiedNode in copied.Nodes)
         {
             Point nextLocation = new(
-                location.X + copied.X - minimumX,
-                location.Y + copied.Y - minimumY);
+                location.X + copiedNode.X - minimumX,
+                location.Y + copiedNode.Y - minimumY);
             BlueprintGraphNode node = createNode(
-                copied.Definition,
-                copied.RawData,
-                copied.Parameters,
+                copiedNode.Definition,
+                copiedNode.RawData,
+                copiedNode.Parameters,
                 nextLocation,
-                copied.IsResolved);
+                copiedNode.IsResolved);
             document.Nodes.Add(node);
             addNodeViewModel(node);
             pasted.Add(node);
         }
-        foreach (BlueprintGraphClipboardConnection copied in clipboard.Connections)
+        foreach (BlueprintGraphClipboardConnection copiedConnection in copied.Connections)
         {
-            BlueprintGraphNode sourceNode = pasted[copied.SourceIndex];
-            BlueprintGraphNode targetNode = pasted[copied.TargetIndex];
+            BlueprintGraphNode sourceNode = pasted[copiedConnection.SourceIndex];
+            BlueprintGraphNode targetNode = pasted[copiedConnection.TargetIndex];
             BlueprintGraphPort? sourcePort = sourceNode.FindPort(
                 BlueprintGraphPortDirection.Output,
-                copied.Kind,
-                copied.SourcePinIndex);
+                copiedConnection.Kind,
+                copiedConnection.SourcePinIndex);
             BlueprintGraphPort? targetPort = targetNode.FindPort(
                 BlueprintGraphPortDirection.Input,
-                copied.Kind,
-                copied.TargetPinIndex);
+                copiedConnection.Kind,
+                copiedConnection.TargetPinIndex);
             if (sourcePort is null || targetPort is null)
                 continue;
             BlueprintGraphConnection connection = new(
@@ -333,10 +376,10 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
                 BlueprintGraphEndpoint.Node(targetNode.Id),
                 sourcePort.Id,
                 targetPort.Id,
-                copied.Kind,
-                copied.SourcePinIndex,
-                copied.TargetPinIndex,
-                copied.RawData);
+                copiedConnection.Kind,
+                copiedConnection.SourcePinIndex,
+                copiedConnection.TargetPinIndex,
+                copiedConnection.RawData);
             if (document.AddConnection(connection))
                 addConnectionViewModel(connection);
         }
@@ -344,6 +387,14 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         foreach (BlueprintGraphNode node in pasted)
             SelectedNodes.Add(nodesById[node.Id]);
         document.NotifyChanged();
+    }
+
+    private BlueprintGraphNodeViewModel[] getSelectedRegularNodes()
+    {
+        return SelectedNodes
+            .OfType<BlueprintGraphNodeViewModel>()
+            .Where(node => !node.Model.IsVirtual)
+            .ToArray();
     }
 
     public void OrganizeLayout()

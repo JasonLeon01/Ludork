@@ -9,7 +9,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <unordered_map>
 
 BIND_CLASS()
 class LUDORK_GLOBAL_API ShaderManager {
@@ -34,12 +33,4 @@ public:
     BIND_IGNORE()
     static void clear() noexcept;
 
-private:
-    static void removeExpired();
-
-    static std::unordered_map<std::string, std::weak_ptr<sf::Shader>> shaders_;
-    static std::unordered_map<std::string, std::weak_ptr<sf::Shader>>
-        fullShaders_;
-    static std::unordered_map<std::string, std::weak_ptr<sf::Shader>>
-        geoShaders_;
 };

@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Ludork.Services;
 using System.Threading.Tasks;
@@ -18,6 +19,7 @@ public partial class ConfirmationDialog : Window
         MessageText.Text = message;
         ConfirmButton.Content = LocaleService.Get("CONFIRM");
         CancelButton.Content = LocaleService.Get("CANCEL");
+        AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
     }
 
     public static Task<bool> ShowAsync(Window owner, string title, string message)
@@ -33,5 +35,19 @@ public partial class ConfirmationDialog : Window
     private void onCancel(object? sender, RoutedEventArgs args)
     {
         Close(false);
+    }
+
+    private void onKeyDown(object? sender, KeyEventArgs args)
+    {
+        if (args.Key is Key.Enter or Key.Return or Key.Space)
+        {
+            Close(true);
+            args.Handled = true;
+        }
+        else if (args.Key == Key.Escape)
+        {
+            Close(false);
+            args.Handled = true;
+        }
     }
 }

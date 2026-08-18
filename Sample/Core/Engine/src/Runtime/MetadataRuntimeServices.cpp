@@ -25,7 +25,7 @@ const std::vector<std::string>& metadataRuntimeServiceNames() {
 
 ServiceDispatchResult dispatchMetadataRuntimeService(
     sol::this_state state, const std::string& operation,
-    const sol::table& arguments) {
+    const RuntimeArguments& arguments) {
     sol::state_view lua(state);
     const sol::object first = runtimeResolverArgument(lua, arguments, 1);
     const sol::object second = runtimeResolverArgument(lua, arguments, 2);
@@ -197,17 +197,27 @@ ServiceDispatchResult dispatchMetadataRuntimeService(
             throw std::runtime_error(
                 "Runtime metadata type has no new constructor");
         }
-        sol::table packedArguments =
-            lua.create_table(static_cast<int>(constructorArguments.size()), 1);
-        packedArguments.raw_set("n", constructorArguments.size());
-        for (std::size_t index = 0; index < constructorArguments.size();
-             ++index) {
-            packedArguments.raw_set(index + 1, constructorArguments[index]);
+        lua_State* luaState = lua.lua_state();
+        const int stackBase = lua_gettop(luaState);
+        try {
+            ensureRuntimeLuaStack(luaState, constructorArguments.size(),
+                                  "runtime constructor arguments");
+            for (const sol::object& argument : constructorArguments) {
+                argument.push();
+            }
+            const int resultCount = ludork::standard::class_runtime::invoke(
+                luaState, rawConstructor,
+                static_cast<int>(constructorArguments.size()));
+            if (resultCount == 0) {
+                lua_pushnil(luaState);
+            } else {
+                lua_settop(luaState, stackBase + 1);
+            }
+            return 1;
+        } catch (...) {
+            lua_settop(luaState, stackBase);
+            throw;
         }
-        const sol::table constructed = ludork::standard::class_runtime::invoke(
-            lua, rawConstructor, packedArguments);
-        return runtimeResolverResult(
-            lua, {runtimeResolverArgument(lua, constructed, 1)});
     }
     return std::nullopt;
 }

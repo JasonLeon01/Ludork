@@ -7,6 +7,7 @@ extern "C" {
 #include <lua.h>
 }
 
+#include <stdexcept>
 #include <string>
 #include <unordered_set>
 
@@ -95,6 +96,9 @@ void installLuaErrorHandler(lua_State* state) {
 
 int protectedLuaCall(lua_State* state, int argumentCount, int resultCount) {
     const int functionIndex = lua_gettop(state) - argumentCount;
+    if (lua_checkstack(state, 1) == 0) {
+        throw std::runtime_error("Lua stack cannot grow for protected call");
+    }
     lua_pushcfunction(state, luaTracebackHandler);
     lua_insert(state, functionIndex);
     const int status =

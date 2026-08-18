@@ -227,7 +227,15 @@ end
 
 ---@diagnostic disable-next-line: unused
 function WindowSelectable:onKeyDown(kwargs)
-    if self._selectionInputPaused or not self:canReceiveFocus() then
+    if not self:canReceiveFocus() then
+        return
+    end
+    if Input.isActionTriggered(Input.getCancelKeys(), false) then
+        self:onReturn()
+        Input.isActionTriggered(Input.getCancelKeys(), true)
+        return
+    end
+    if self._selectionInputPaused then
         return
     end
     local listView = self._listView
@@ -256,6 +264,17 @@ function WindowSelectable:onKeyDown(kwargs)
         return
     end
     self:_handleDirectionalAction(Direction.RIGHT, Input.getRightKeys())
+end
+
+function WindowSelectable:onMouseButtonDown(kwargs)
+    if not self:canReceiveFocus() then
+        return false
+    end
+    if kwargs.button == sf.Mouse.Button.Right then
+        self:onReturn()
+        return true
+    end
+    return false
 end
 
 function WindowSelectable:onDirectionalKey(direction)

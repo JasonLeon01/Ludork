@@ -100,7 +100,8 @@ function MapClickAutoPath:onTick(_deltaTime)
         self._previewMapY = nil
         return
     end
-    if self._autoPathing and self._routeDangerRevision ~= self._dangerState:getRevision() then
+    if self._autoPathing and (player:isMoving() or player:isInRoute())
+        and self._routeDangerRevision ~= self._dangerState:getRevision() then
         self:_replanForDangerChange(player)
     end
     local currentPos = player:getMapPosition()
@@ -376,7 +377,7 @@ function MapClickAutoPath:_buildAutoPathPlan(actor, start, goal)
     if bestPlan == nil then
         return nil
     end
-    if goalActuallyPassable then
+    if goalActuallyPassable or not bool(gameMap:getCollisionAt(goal.x, goal.y, actor)) then
         return { routeSteps = bestPlan.routeSteps, route = bestPlan.route, goalPassable = false }
     end
     local fullRoute = {}

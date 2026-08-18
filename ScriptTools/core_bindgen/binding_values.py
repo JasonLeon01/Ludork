@@ -13,8 +13,10 @@ from .cpp_types import (
     cpp_value_type,
     is_static_method,
     is_std_function,
+    normalize_declaration,
     parameter_types,
     property_type,
+    split_template_arguments,
     std_function_signature,
 )
 from .annotations import (
@@ -94,10 +96,7 @@ end""",
         if expectedName == nil then
             local resolver = rawget(_G, "_LUDORK_RUNTIME_RESOLVER")
             if type(resolver) == "function" then
-                local result = resolver("getClassModulePath", { expectedType })
-                if type(result) == "table" then
-                    expectedName = result[1]
-                end
+                expectedName = resolver("getClassModulePath", expectedType)
             end
         end
         if expectedName == nil and rawget(expectedType, "__ludorkClass") then
@@ -164,6 +163,12 @@ def injection_lines(
     if type_name is not None and not is_static_method(member):
         raise ValueError(f"BIND_INJECT {type_name}.{member.name} must be static")
     value_type = cpp_value_type(context, parameter_types_value[0])
+    raw_variadic = member.options.get("variadic", "false").lower()
+    if raw_variadic not in {"true", "false"}:
+        raise ValueError(
+            f"BIND_INJECT {member.name} variadic must be true or false"
+        )
+    variadic = raw_variadic == "true"
     source_name = f"bindingInjectionSource{index}"
     value_name = f"bindingInjectionValue{index}"
     lines = [
@@ -171,10 +176,18 @@ def injection_lines(
     ]
     if is_std_function(context, value_type):
         signature = std_function_signature(context, value_type)
+        if variadic:
+            validate_variadic_injection_signature(member, signature)
         lines.append(
-            f"auto {value_name} = ludork_core::functionFromLua<{signature}>({source_name});"
+            f"auto {value_name} = ludork_core::"
+            f"{'variadicFunctionFromLua' if variadic else 'functionFromLua'}"
+            f"<{signature}>({source_name});"
         )
     else:
+        if variadic:
+            raise ValueError(
+                f"BIND_INJECT {member.name} variadic requires std::function"
+            )
         lines.append(
             f"auto {value_name} = ludork_core::readLuaValue<{value_type}>({source_name});"
         )
@@ -185,6 +198,38 @@ def injection_lines(
     )
     lines.append(call)
     return lines
+
+
+def validate_variadic_injection_signature(member: Member, signature: str) -> None:
+    normalized = normalize_declaration(signature)
+    opening = normalized.find("(")
+    if opening <= 0 or not normalized.endswith(")"):
+        raise ValueError(
+            f"BIND_INJECT {member.name} variadic requires a function signature"
+        )
+    return_type = normalized[:opening].strip()
+    parameters = split_template_arguments(normalized[opening + 1 : -1])
+    return_match = re.fullmatch(r"std::vector\s*<\s*(.+)\s*>", return_type)
+    argument_match = (
+        re.fullmatch(
+            r"const\s+std::vector\s*<\s*(.+)\s*>\s*&",
+            parameters[-1],
+        )
+        if parameters
+        else None
+    )
+    if return_match is None or argument_match is None:
+        raise ValueError(
+            f"BIND_INJECT {member.name} variadic requires "
+            "std::vector<T>(Fixed..., const std::vector<T>&)"
+        )
+    canonical_return = re.sub(r"\s+", "", return_match.group(1))
+    canonical_argument = re.sub(r"\s+", "", argument_match.group(1))
+    if canonical_return != canonical_argument:
+        raise ValueError(
+            f"BIND_INJECT {member.name} variadic argument and return item "
+            "types must match"
+        )
 
 
 def lua_alternative_property_map(

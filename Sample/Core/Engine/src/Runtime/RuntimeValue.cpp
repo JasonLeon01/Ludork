@@ -24,6 +24,19 @@ std::shared_ptr<RuntimeObject> RuntimeObject::runtimeOwner() const {
 
 RuntimeIdentity::~RuntimeIdentity() = default;
 
+RuntimeValue::RuntimeValue(RuntimeValue&& other) noexcept
+    : storage_(std::move(other.storage_)) {
+    other.storage_ = std::monostate{};
+}
+
+RuntimeValue& RuntimeValue::operator=(RuntimeValue&& other) noexcept {
+    if (this != &other) {
+        storage_ = std::move(other.storage_);
+        other.storage_ = std::monostate{};
+    }
+    return *this;
+}
+
 RuntimeValue::RuntimeValue(bool value) : storage_(value) {}
 
 RuntimeValue::RuntimeValue(std::int64_t value) : storage_(value) {}
@@ -35,9 +48,11 @@ RuntimeValue::RuntimeValue(const char* value)
 
 RuntimeValue::RuntimeValue(std::string value) : storage_(std::move(value)) {}
 
-RuntimeValue::RuntimeValue(Array value) : storage_(std::move(value)) {}
+RuntimeValue::RuntimeValue(Array value)
+    : storage_(std::make_shared<Array>(std::move(value))) {}
 
-RuntimeValue::RuntimeValue(Map value) : storage_(std::move(value)) {}
+RuntimeValue::RuntimeValue(Map value)
+    : storage_(std::make_shared<Map>(std::move(value))) {}
 
 RuntimeValue::RuntimeValue(Object value) : storage_(std::move(value)) {}
 
@@ -69,14 +84,6 @@ std::string RuntimeValue::typeName() const {
         default:
             return "identity";
     }
-}
-
-const RuntimeValue::Storage& RuntimeValue::storage() const {
-    return storage_;
-}
-
-RuntimeValue::Storage& RuntimeValue::storage() {
-    return storage_;
 }
 
 void setRuntimeResolver(RuntimeResolver resolver) {

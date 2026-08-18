@@ -1,5 +1,6 @@
 #include <UI/UiVector4CurveResource.hpp>
 
+#include <ConcurrentResourceCache.hpp>
 #include <Curve.hpp>
 #include <Runtime/RuntimeValue.hpp>
 #include <Utils/File.hpp>
@@ -10,14 +11,13 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
 namespace {
 
-std::unordered_map<std::string, std::shared_ptr<Vector4Curve>>& curveCache() {
-    static std::unordered_map<std::string, std::shared_ptr<Vector4Curve>> cache;
+ludork::core::ConcurrentResourceCache<Vector4Curve, true>& curveCache() {
+    static ludork::core::ConcurrentResourceCache<Vector4Curve, true> cache;
     return cache;
 }
 
@@ -226,16 +226,10 @@ std::shared_ptr<Vector4Curve> loadUiVector4CurveResource(
     const std::filesystem::path path =
         curvePath(std::filesystem::weakly_canonical(projectRoot), assetKey);
     const std::string cacheKey = ludork::standard::pathToUtf8(path);
-    std::unordered_map<std::string, std::shared_ptr<Vector4Curve>>& cache =
-        curveCache();
-    const auto cached = cache.find(cacheKey);
-    if (cached != cache.end()) {
-        return cached->second;
-    }
-    std::shared_ptr<Vector4Curve> curve =
-        Vector4Curve::fromData(curveData(getJSONData(path), cacheKey));
-    cache.emplace(cacheKey, curve);
-    return curve;
+    return curveCache().getOrLoad(cacheKey, [&]() {
+        return Vector4Curve::fromData(
+            curveData(getJSONData(path), cacheKey));
+    });
 }
 
 void clearUiVector4CurveResourceCache() noexcept {

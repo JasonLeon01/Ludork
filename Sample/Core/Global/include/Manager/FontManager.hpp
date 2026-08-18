@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <memory>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 BIND_CLASS()
@@ -37,9 +36,4 @@ public:
 
     BIND_IGNORE()
     static void clear() noexcept;
-
-private:
-    static std::unordered_map<std::string, std::shared_ptr<sf::Font>> fonts_;
-    static std::unordered_map<std::string, std::string> filenames_;
-    static std::unordered_map<std::string, std::string> familyByFilename_;
 };

@@ -24,9 +24,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
     private readonly DispatcherTimer changeTimer;
     private readonly NodifyEditor editor;
     private readonly EditorZoomInput zoomInput = new();
-    private Point insertionPoint;
-    private PixelPoint pickerPosition;
-    private bool hasInsertionPoint;
+    private Point pointerViewportPoint;
     private bool hasPendingChange;
     private bool parameterFlushScheduled;
     private bool viewportInitialized;
@@ -47,6 +45,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         Loaded += onLoaded;
         AddHandler(PointerPressedEvent, onPointerPressed, RoutingStrategies.Tunnel);
         AddHandler(PointerReleasedEvent, onPointerReleased, RoutingStrategies.Tunnel);
+        AddHandler(PointerMovedEvent, onPointerMoved, RoutingStrategies.Tunnel);
         AddHandler(PointerWheelChangedEvent, onPointerWheelChanged, RoutingStrategies.Tunnel);
         editor.PointerTouchPadGestureMagnify += onPointerTouchPadGestureMagnify;
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
@@ -124,6 +123,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         viewModel.BlueprintPendingConnection.EmptyDropRequested -= onEmptyDropRequested;
         RemoveHandler(PointerPressedEvent, onPointerPressed);
         RemoveHandler(PointerReleasedEvent, onPointerReleased);
+        RemoveHandler(PointerMovedEvent, onPointerMoved);
         RemoveHandler(PointerWheelChangedEvent, onPointerWheelChanged);
         editor.PointerTouchPadGestureMagnify -= onPointerTouchPadGestureMagnify;
         RemoveHandler(KeyDownEvent, onKeyDown);
@@ -231,22 +231,28 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
     private void onPointerPressed(object? sender, PointerPressedEventArgs args)
     {
         Focus();
-        updateInsertionPoint(args.GetPosition(editor));
+        updatePointerPosition(args.GetPosition(editor));
         if (!args.GetCurrentPoint(this).Properties.IsRightButtonPressed)
             return;
         BlueprintGraphNodeViewModel? contextNode = findContextNode(args.Source);
         selectContextNode(contextNode);
         args.Handled = true;
-        showContextMenu(contextNode);
+        showContextMenu(contextNode, getInsertionTarget());
     }
 
     private void onPointerReleased(object? sender, PointerReleasedEventArgs args)
     {
-        updateInsertionPoint(args.GetPosition(editor));
+        updatePointerPosition(args.GetPosition(editor));
+    }
+
+    private void onPointerMoved(object? sender, PointerEventArgs args)
+    {
+        updatePointerPosition(args.GetPosition(editor));
     }
 
     private void onPointerWheelChanged(object? sender, PointerWheelEventArgs args)
     {
+        updatePointerPosition(args.GetPosition(editor));
         if (!EditorZoomInput.IsMacOS)
             return;
         if (zoomInput.ShouldSuppressWheel())
@@ -286,6 +292,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
     {
         if (!EditorZoomInput.IsMacOS)
             return;
+        updatePointerPosition(args.GetPosition(editor));
         zoomInput.MarkMagnify();
         applyZoom(
             args.GetPosition(editor),
@@ -325,6 +332,23 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
     {
         if (isInputControl(args.Source))
             return;
+        if (args.KeyModifiers == KeyModifiers.None
+            && args.Key is Key.Left or Key.Right or Key.Up or Key.Down)
+        {
+            if (viewModel.IsReadOnly)
+                return;
+            Vector delta = args.Key switch
+            {
+                Key.Left => new Vector(-1, 0),
+                Key.Right => new Vector(1, 0),
+                Key.Up => new Vector(0, -1),
+                _ => new Vector(0, 1),
+            };
+            if (!viewModel.NudgeSelected(delta))
+                return;
+            args.Handled = true;
+            return;
+        }
         if (args.Key == Key.Delete)
         {
             if (viewModel.IsReadOnly)
@@ -339,7 +363,11 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         {
             if (viewModel.IsReadOnly)
                 return;
-            await addNodeAsync();
+            await addNodeAsync(getInsertionTarget());
+        }
+        else if (args.Key == Key.A)
+        {
+            viewModel.SelectAllNodes();
         }
         else if (args.Key == Key.C)
         {
@@ -349,7 +377,13 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         {
             if (viewModel.IsReadOnly)
                 return;
-            viewModel.Paste(getDefaultInsertionPoint());
+            viewModel.Paste(getInsertionTarget().GraphPoint);
+        }
+        else if (args.Key == Key.D)
+        {
+            if (viewModel.IsReadOnly)
+                return;
+            viewModel.DuplicateSelected(getInsertionTarget().GraphPoint);
         }
         else
         {
@@ -358,7 +392,9 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         args.Handled = true;
     }
 
-    private void showContextMenu(BlueprintGraphNodeViewModel? contextNode)
+    private void showContextMenu(
+        BlueprintGraphNodeViewModel? contextNode,
+        (Point GraphPoint, PixelPoint ScreenPoint) insertionTarget)
     {
         bool isBlank = contextNode is null;
         bool isRegularNode = contextNode is not null && !contextNode.Model.IsVirtual;
@@ -368,7 +404,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
             Header = LocaleService.Get("ADD_NODE"),
             IsEnabled = !viewModel.IsReadOnly && isBlank && viewModel.Definitions.Count != 0,
         };
-        add.Click += async (_, _) => await addNodeAsync();
+        add.Click += async (_, _) => await addNodeAsync(insertionTarget);
         menu.Items.Add(add);
 
         MenuItem setStart = new()
@@ -416,7 +452,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
             Header = LocaleService.Get("PASTE"),
             IsEnabled = !viewModel.IsReadOnly && isBlank && viewModel.CanPaste,
         };
-        paste.Click += (_, _) => viewModel.Paste(insertionPoint);
+        paste.Click += (_, _) => viewModel.Paste(insertionTarget.GraphPoint);
         menu.Items.Add(paste);
         MenuItem delete = new()
         {
@@ -428,7 +464,8 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         menu.Open(editor);
     }
 
-    private async Task addNodeAsync()
+    private async Task addNodeAsync(
+        (Point GraphPoint, PixelPoint ScreenPoint) insertionTarget)
     {
         Window? owner = TopLevel.GetTopLevel(this) as Window;
         if (viewModel.IsReadOnly || owner is null || viewModel.Definitions.Count == 0 || pickerOpen)
@@ -437,10 +474,10 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         BlueprintGraphNodeDefinition? selected = await BlueprintNodePickerWindow.ShowAsync(
             owner,
             viewModel.Definitions,
-            getPickerPosition());
+            insertionTarget.ScreenPoint);
         pickerOpen = false;
         if (!disposed && selected is not null)
-            viewModel.AddNode(selected, getDefaultInsertionPoint());
+            viewModel.AddNode(selected, insertionTarget.GraphPoint);
     }
 
     private async void onEmptyDropRequested(
@@ -457,35 +494,28 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         Window? owner = TopLevel.GetTopLevel(this) as Window;
         if (owner is null || compatible.Length == 0)
             return;
+        (Point GraphPoint, PixelPoint ScreenPoint) insertionTarget = getInsertionTarget();
         pickerOpen = true;
         BlueprintGraphNodeDefinition? selected = await BlueprintNodePickerWindow.ShowAsync(
             owner,
             compatible,
-            getPickerPosition());
+            insertionTarget.ScreenPoint);
         pickerOpen = false;
         if (!disposed && selected is not null)
-            viewModel.AddNodeAndConnect(selected, getDefaultInsertionPoint(), args.Source);
+            viewModel.AddNodeAndConnect(selected, insertionTarget.GraphPoint, args.Source);
     }
 
-    private Point getDefaultInsertionPoint()
+    private (Point GraphPoint, PixelPoint ScreenPoint) getInsertionTarget()
     {
-        if (hasInsertionPoint)
-            return insertionPoint;
-        return toGraphPoint(new Point(editor.Bounds.Width / 2, editor.Bounds.Height / 2));
+        Point viewportPoint = editor.IsPointerOver
+            ? pointerViewportPoint
+            : new Point(editor.Bounds.Width / 2, editor.Bounds.Height / 2);
+        return (toGraphPoint(viewportPoint), editor.PointToScreen(viewportPoint));
     }
 
-    private PixelPoint getPickerPosition()
+    private void updatePointerPosition(Point viewportPoint)
     {
-        if (hasInsertionPoint)
-            return pickerPosition;
-        return editor.PointToScreen(new Point(editor.Bounds.Width / 2, editor.Bounds.Height / 2));
-    }
-
-    private void updateInsertionPoint(Point viewportPoint)
-    {
-        insertionPoint = toGraphPoint(viewportPoint);
-        pickerPosition = editor.PointToScreen(viewportPoint);
-        hasInsertionPoint = true;
+        pointerViewportPoint = viewportPoint;
     }
 
     private Point toGraphPoint(Point viewportPoint)

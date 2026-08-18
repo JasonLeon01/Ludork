@@ -53,7 +53,7 @@ local PlayerAttrHUD = {}
 ---@param openMenuCallback function | nil
 function PlayerAttrHUD:init(player, openMenuCallback) end
 
---- Update HUD texts and bars every frame to reflect current player attributes.
+--- Poll lightweight player signatures every frame and refresh only the HUD groups whose displayed values changed.
 ---
 --- - @param deltaTime  Elapsed frame time in seconds
 ---@param deltaTime number

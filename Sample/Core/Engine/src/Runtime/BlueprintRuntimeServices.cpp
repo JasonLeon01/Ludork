@@ -26,7 +26,7 @@ const std::vector<std::string>& blueprintRuntimeServiceNames() {
 
 ServiceDispatchResult dispatchBlueprintRuntimeService(
     sol::this_state state, const std::string& operation,
-    const sol::table& arguments) {
+    const RuntimeArguments& arguments) {
     sol::state_view lua(state);
     const sol::object first = runtimeResolverArgument(lua, arguments, 1);
     const sol::object second = runtimeResolverArgument(lua, arguments, 2);

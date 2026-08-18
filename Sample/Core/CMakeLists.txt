@@ -65,23 +65,6 @@ target_link_libraries(LudorkCoreBinding INTERFACE
     SFML::Audio
     SFML::Network)
 
-function(ludork_apply_msvc_debug_source_options)
-    if(NOT MSVC)
-        return()
-    endif()
-
-    foreach(source IN LISTS ARGN)
-        set_property(SOURCE "${source}" APPEND PROPERTY
-            COMPILE_OPTIONS
-                "$<$<CONFIG:Debug>:/O1>"
-                "$<$<CONFIG:Debug>:/Ob1>"
-                "$<$<CONFIG:Debug>:/Oy->")
-        set_property(SOURCE "${source}" APPEND PROPERTY
-            VS_SETTINGS
-                "$<$<CONFIG:Debug>:BasicRuntimeChecks=Default>")
-    endforeach()
-endfunction()
-
 function(ludork_configure_core_library target generated_bindings)
     add_dependencies(${target} ${target}Stub)
     target_compile_features(${target} PRIVATE cxx_std_20)

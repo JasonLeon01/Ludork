@@ -5,10 +5,12 @@
 #include <utility>
 
 sf::Clock TimeManager::clock_;
-sf::Time TimeManager::lastElapsedTime_ = sf::Time::Zero;
-sf::Time TimeManager::deltaTime_ = sf::Time::Zero;
-float TimeManager::speed_ = 1.0f;
-bool TimeManager::initialized_ = false;
+sf::Time TimeManager::writerLastElapsedTime_ = sf::Time::Zero;
+std::atomic<std::int64_t> TimeManager::currentMicroseconds_ = 0;
+std::atomic<std::int64_t> TimeManager::deltaMicroseconds_ = 0;
+std::atomic<float> TimeManager::speed_ = 1.0f;
+std::atomic_bool TimeManager::initialized_ = false;
+std::mutex TimeManager::writerMutex_;
 
 TimerEntry::TimerEntry(float timeValue, RuntimeIdentityPtr taskValue,
                        RuntimeValue::Array paramsValue, bool blockingValue)
@@ -31,51 +33,75 @@ void TimerEntry::cancel() {
 }
 
 void TimeManager::init() {
+    const std::lock_guard<std::mutex> lock(writerMutex_);
+    initializeLocked();
+}
+
+void TimeManager::ensureInitialized() {
+    if (initialized_.load(std::memory_order_acquire)) {
+        return;
+    }
+    const std::lock_guard<std::mutex> lock(writerMutex_);
+    if (!initialized_.load(std::memory_order_relaxed)) {
+        initializeLocked();
+    }
+}
+
+void TimeManager::initializeLocked() {
+    initialized_.store(false, std::memory_order_release);
     clock_.restart();
-    lastElapsedTime_ = sf::Time::Zero;
-    deltaTime_ = sf::Time::Zero;
-    initialized_ = true;
-    update();
+    writerLastElapsedTime_ = clock_.getElapsedTime();
+    currentMicroseconds_.store(writerLastElapsedTime_.asMicroseconds(),
+                               std::memory_order_release);
+    deltaMicroseconds_.store(writerLastElapsedTime_.asMicroseconds(),
+                             std::memory_order_release);
+    initialized_.store(true, std::memory_order_release);
 }
 
 sf::Time TimeManager::getCurrentTime() {
-    if (!initialized_) {
-        init();
-    }
-    return lastElapsedTime_;
+    ensureInitialized();
+    return sf::microseconds(
+        currentMicroseconds_.load(std::memory_order_acquire));
 }
 
 sf::Time TimeManager::getDeltaTime() {
-    if (!initialized_) {
-        init();
-    }
-    return sf::seconds(deltaTime_.asSeconds() * speed_);
+    ensureInitialized();
+    const sf::Time delta = sf::microseconds(
+        deltaMicroseconds_.load(std::memory_order_acquire));
+    return delta * speed_.load(std::memory_order_acquire);
 }
 
 void TimeManager::update() {
-    if (!initialized_) {
-        init();
+    const std::lock_guard<std::mutex> lock(writerMutex_);
+    if (!initialized_.load(std::memory_order_relaxed)) {
+        initializeLocked();
         return;
     }
     const sf::Time currentTime = clock_.getElapsedTime();
-    deltaTime_ = currentTime - lastElapsedTime_;
-    lastElapsedTime_ = currentTime;
+    const sf::Time deltaTime = currentTime - writerLastElapsedTime_;
+    writerLastElapsedTime_ = currentTime;
+    deltaMicroseconds_.store(deltaTime.asMicroseconds(),
+                             std::memory_order_release);
+    currentMicroseconds_.store(currentTime.asMicroseconds(),
+                               std::memory_order_release);
 }
 
 float TimeManager::getSpeed() {
-    return speed_;
+    return speed_.load(std::memory_order_acquire);
 }
 
 void TimeManager::setSpeed(float speed) {
     if (speed < 0.0f) {
         throw std::invalid_argument("Time speed must be non-negative");
     }
-    speed_ = speed;
+    speed_.store(speed, std::memory_order_release);
 }
 
 void TimeManager::shutdown() noexcept {
-    lastElapsedTime_ = sf::Time::Zero;
-    deltaTime_ = sf::Time::Zero;
-    speed_ = 1.0f;
-    initialized_ = false;
+    const std::lock_guard<std::mutex> lock(writerMutex_);
+    initialized_.store(false, std::memory_order_release);
+    writerLastElapsedTime_ = sf::Time::Zero;
+    currentMicroseconds_.store(0, std::memory_order_release);
+    deltaMicroseconds_.store(0, std::memory_order_release);
+    speed_.store(1.0f, std::memory_order_release);
 }

@@ -186,6 +186,7 @@ function WindowMenuController:_handleCancel()
         return
     end
     if self:_closeSubMenus() then
+        ManagerFunctions.playSE(GameSystem.getCancelSE())
         self.model:requestKeyboardFocus()
         return
     end

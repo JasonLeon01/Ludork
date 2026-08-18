@@ -10,7 +10,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <unordered_map>
 
 BIND_CLASS()
 class LUDORK_GLOBAL_API TextureManager {
@@ -30,10 +29,4 @@ private:
     static std::string makeKey(const std::string& filePath, bool sRGB,
                                const std::optional<sf::IntRect>& area,
                                bool smooth);
-    static void removeExpired();
-
-    static std::unordered_map<std::string, std::weak_ptr<sf::Texture>>
-        textures_;
-    static std::unordered_map<std::string, std::shared_ptr<sf::Texture>>
-        pinnedTextures_;
 };

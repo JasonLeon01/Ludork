@@ -97,20 +97,29 @@ function WindowMessage:onTick(deltaTime)
 end
 
 function WindowMessage:onKeyDown(kwargs)
-    if self._contentMode == ContentMode.SELECTION and self._allowCancel and self._selectionListView ~= nil
-        and self.index ~= nil and Input.isActionTriggered(Input.getCancelKeys(), false) then
-        local children = self._selectionListView:getChildren()
-        if self.index >= 0 and self.index < #children then
-            local child = children[self.index + 1]
-            if Class.isInstance(child, FunctionalBase) then
-                ---@cast child Engine.ControlBase & Engine.FunctionalBase
-                child:onCancel({})
-                Input.isActionTriggered(Input.getCancelKeys(), true)
-            end
-        end
+    if self._contentMode == ContentMode.SELECTION and self._allowCancel
+        and Input.isActionTriggered(Input.getCancelKeys(), false) then
+        self:onReturn()
+        Input.isActionTriggered(Input.getCancelKeys(), true)
         return
     end
     return super(WindowMessage, self).onKeyDown(kwargs)
+end
+
+function WindowMessage:onReturn()
+    if self._contentMode ~= ContentMode.SELECTION or not self._allowCancel
+        or self._selectionListView == nil or self.index == nil then
+        return
+    end
+    local children = self._selectionListView:getChildren()
+    if self.index < 0 or self.index >= #children then
+        return
+    end
+    local child = children[self.index + 1]
+    if Class.isInstance(child, FunctionalBase) then
+        ---@cast child Engine.ControlBase & Engine.FunctionalBase
+        child:onCancel({})
+    end
 end
 
 function WindowMessage:onClick(kwargs)

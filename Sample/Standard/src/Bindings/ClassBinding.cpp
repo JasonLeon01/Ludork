@@ -1,6 +1,6 @@
 #include "Bindings.hpp"
 
-#include "Runtime/ClassRuntime.hpp"
+#include "Runtime/ClassRuntime/ClassRuntime.hpp"
 
 #include <sol2/sol.hpp>
 

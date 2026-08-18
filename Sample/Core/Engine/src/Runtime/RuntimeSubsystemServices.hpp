@@ -11,8 +11,28 @@
 
 namespace ludork::engine::runtime_detail {
 
-using ServiceDispatchResult = std::optional<sol::table>;
+struct RuntimeArguments {
+    RuntimeArguments(lua_State* value, int firstIndex, int valueCount)
+        : state(value),
+          first(valueCount == 0 ? 0 : lua_absindex(value, firstIndex)),
+          count(valueCount) {}
 
+    [[nodiscard]] std::size_t size() const noexcept {
+        return static_cast<std::size_t>(count);
+    }
+
+    lua_State* state = nullptr;
+    int first = 0;
+    int count = 0;
+};
+
+using ServiceDispatchResult = std::optional<int>;
+
+void ensureRuntimeLuaStack(lua_State* state, std::size_t count,
+                           const char* context);
+int invokeRuntimeFunction(lua_State* state, const sol::object& callable,
+                          const std::vector<sol::object>& arguments,
+                          const char* context);
 sol::object nilObject(sol::state_view lua);
 std::function<void()> completionCallback(const sol::object& value);
 sol::table registryTable(sol::state_view lua, const char* key,
@@ -29,10 +49,10 @@ void dispatchBlueprintEvent(sol::this_state state, const sol::object& object,
                             const std::function<void()>& onComplete);
 void validateBlueprintEvent(sol::this_state state, const sol::object& object,
                             const std::string& eventName);
-sol::table runtimeResolverResult(sol::state_view lua,
-                                 const std::vector<sol::object>& values);
+int runtimeResolverResult(sol::state_view lua,
+                          const std::vector<sol::object>& values);
 sol::object runtimeResolverArgument(sol::state_view lua,
-                                    const sol::table& arguments,
+                                    const RuntimeArguments& arguments,
                                     std::size_t index);
 sol::object findRuntimeClassModule(sol::state_view lua,
                                    const sol::object& classReference);
@@ -92,40 +112,36 @@ void initializeBlueprintInfo(sol::this_state state, const sol::object& object,
 sol::table registeredBlueprintEvents(sol::state_view lua,
                                      const sol::object& rawClass);
 
-sol::table nodeGraphContext(sol::state_view lua, const sol::table& arguments);
-sol::table invokeNodeGraphCallable(sol::state_view lua,
-                                   const sol::table& arguments);
-sol::table createNodeGraphNode(sol::state_view lua,
-                               const sol::table& arguments);
-sol::table bridgeNodeGraphCache(sol::state_view lua,
-                                const sol::table& arguments);
-sol::table evaluateNodeGraphCondition(sol::state_view lua,
-                                      const sol::table& arguments);
-
-sol::table packArguments(sol::state_view lua,
-                         const sol::variadic_args& arguments);
-sol::variadic_results unpackResults(sol::state_view lua,
-                                    const sol::table& packed);
+int nodeGraphContext(sol::state_view lua, const RuntimeArguments& arguments);
+int invokeNodeGraphCallable(sol::state_view lua,
+                            const RuntimeArguments& arguments);
+int createNodeGraphNode(sol::state_view lua,
+                        const RuntimeArguments& arguments);
+int bridgeNodeGraphCache(sol::state_view lua,
+                         const RuntimeArguments& arguments);
+int evaluateNodeGraphCondition(sol::state_view lua,
+                               const RuntimeArguments& arguments);
+void clearNodeGraphRuntimeCaches(sol::state_view lua);
 
 const std::vector<std::string>& runtimeValueServiceNames();
 ServiceDispatchResult dispatchRuntimeValueService(sol::this_state state,
                                                   const std::string& operation,
-                                                  const sol::table& arguments);
+                                                  const RuntimeArguments& arguments);
 
 const std::vector<std::string>& metadataRuntimeServiceNames();
 ServiceDispatchResult dispatchMetadataRuntimeService(
     sol::this_state state, const std::string& operation,
-    const sol::table& arguments);
+    const RuntimeArguments& arguments);
 
 const std::vector<std::string>& blueprintRuntimeServiceNames();
 ServiceDispatchResult dispatchBlueprintRuntimeService(
     sol::this_state state, const std::string& operation,
-    const sol::table& arguments);
+    const RuntimeArguments& arguments);
 
 const std::vector<std::string>& nodeGraphRuntimeServiceNames();
 ServiceDispatchResult dispatchNodeGraphRuntimeService(
     sol::this_state state, const std::string& operation,
-    const sol::table& arguments);
+    const RuntimeArguments& arguments);
 
 void clearRuntimeServiceCaches(sol::state_view lua);
 

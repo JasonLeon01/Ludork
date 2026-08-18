@@ -19,6 +19,8 @@ Standard is a native layer (implementation under `Sample/Standard/`, LuaLS surfa
 
 When a change alters behaviour, APIs, paths, or conventions described in docs, update every locale tree under `docs/` in the same task (at least `docs/en_GB/` and `docs/zh_CN/`) so all languages stay in sync. For Sample code under `Sample/` (especially `Sample/Scripts/`), also check `docs/en_GB/03.Lua and Blueprint Scripting/06.Sample Gameplay/` and the matching pages in other locales, plus any API pages that describe the affected behaviour. Do not leave any locale describing the old protocol.
 
+Re-examine the necessity of every design element through the lens of the "Keep Things Simple" software engineering philosophy.
+
 Delete test scaffolding once testing is finished.
 
 ## Form input styles (Map Edit is the standard)
@@ -153,7 +155,7 @@ Purely declarative decorators (`Meta`, `InvalidVars`, `RectRangeVars`) and `["re
 ## Lua platform detection
 
 - Platform is injected by a CMake compile macro as the global string `PLATFORM`; Lua scripts must not infer the operating system themselves.
-- Agreed values include `win32`, `darwin`, and `ios`; other platforms use the lower-case CMake system name.
+- Agreed values include `win32`, `darwin`, `ios`, `android` and `ohos`; other platforms use the lower-case CMake system name.
 - All platform-related runtime logic must read `PLATFORM`, and must not judge platform indirectly via path separators, environment-variable presence, or similar heuristics.
 
 ## Persistence: pickle is not supported

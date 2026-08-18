@@ -92,14 +92,23 @@ function WindowSelectable:onMouseMoved(kwargs) end
 ---@return boolean
 function WindowSelectable:requestKeyboardFocusAtCursor() end
 
---- @brief Handle keyboard navigation and confirmation.
+--- @brief Handle cancel, keyboard navigation, and confirmation.
 ---
---- Direction keys use repeat mode: immediate first press, then
---- after ~0.4 s they fire every ~0.1 s while held.
+--- Cancel keys call `onReturn` before list navigation. Direction keys use
+--- repeat mode: immediate first press, then after ~0.4 s they fire every
+--- ~0.1 s while held.
 ---
 --- - @param kwargs Event data.
 ---@param kwargs table
 function WindowSelectable:onKeyDown(kwargs) end
+
+--- @brief Handle right-click cancel through `onReturn`.
+---
+--- - @param kwargs Event data.
+--- - @return True when right-click cancel was handled.
+---@param kwargs table
+---@return boolean
+function WindowSelectable:onMouseButtonDown(kwargs) end
 
 --- @brief Handle directional cursor movement.
 ---
