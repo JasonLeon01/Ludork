@@ -119,6 +119,13 @@ public:
     static void saveFrameRate(int value);
 
     BIND_METHOD()
+    static int getAntiAliasingLevel();
+    BIND_METHOD()
+    static void setAntiAliasingLevel(int value);
+    BIND_METHOD()
+    static void saveAntiAliasingLevel(int value);
+
+    BIND_METHOD()
     static bool getVerticalSync();
     BIND_METHOD()
     static void setVerticalSync(bool value);

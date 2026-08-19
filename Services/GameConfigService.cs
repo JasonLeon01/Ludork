@@ -12,6 +12,7 @@ public sealed record GameConfigData(
     string Language,
     double Scale,
     int FrameRate,
+    int AntiAliasingLevel,
     bool VerticalSync,
     bool MusicOn,
     bool SoundOn,
@@ -28,11 +29,13 @@ public sealed record GameConfigSaveResult(bool Success, string Detail)
 
 public sealed class GameConfigService
 {
+    private const int SfmlDefaultAntiAliasingLevel = 0;
     private static readonly GameConfigData defaults = new(
         "Scripts/Entry.lua",
         "en_GB",
         1.0,
         120,
+        SfmlDefaultAntiAliasingLevel,
         true,
         true,
         true,
@@ -106,6 +109,10 @@ public sealed class GameConfigService
             FrameRate = normalized.FrameRate == normalizedBaseline.FrameRate
                 ? current.FrameRate
                 : normalized.FrameRate,
+            AntiAliasingLevel =
+                normalized.AntiAliasingLevel == normalizedBaseline.AntiAliasingLevel
+                    ? current.AntiAliasingLevel
+                    : normalized.AntiAliasingLevel,
             VerticalSync = normalized.VerticalSync == normalizedBaseline.VerticalSync
                 ? current.VerticalSync
                 : normalized.VerticalSync,
@@ -195,6 +202,11 @@ public sealed class GameConfigService
             text(document, "language", defaults.Language, true),
             number(document, "scale", defaults.Scale, 1.0),
             Math.Max(1, integer(document, "framerate", defaults.FrameRate, 60)),
+            Math.Max(0, integer(
+                document,
+                "antialiasinglevel",
+                defaults.AntiAliasingLevel,
+                SfmlDefaultAntiAliasingLevel)),
             boolean(document, "verticalsync", defaults.VerticalSync, false),
             boolean(document, "musicon", defaults.MusicOn, true),
             boolean(document, "soundon", defaults.SoundOn, true),
@@ -223,6 +235,7 @@ public sealed class GameConfigService
                 ? data.Scale
                 : 1.0, 2),
             FrameRate = Math.Max(1, data.FrameRate),
+            AntiAliasingLevel = Math.Max(0, data.AntiAliasingLevel),
             MusicVolume = volume(data.MusicVolume),
             SoundVolume = volume(data.SoundVolume),
             VoiceVolume = volume(data.VoiceVolume),
@@ -307,6 +320,10 @@ public sealed class GameConfigService
         document.SetValue("Main", "language", data.Language);
         document.SetValue("Main", "scale", data.Scale.ToString("F2", CultureInfo.InvariantCulture));
         document.SetValue("Main", "framerate", data.FrameRate.ToString(CultureInfo.InvariantCulture));
+        document.SetValue(
+            "Main",
+            "antialiasinglevel",
+            data.AntiAliasingLevel.ToString(CultureInfo.InvariantCulture));
         document.SetValue("Main", "verticalsync", boolText(data.VerticalSync));
         document.SetValue("Main", "musicon", boolText(data.MusicOn));
         document.SetValue("Main", "soundon", boolText(data.SoundOn));

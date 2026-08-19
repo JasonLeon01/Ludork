@@ -24,6 +24,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     {
         GameData = new GameDataService(projectPath);
         TileSelect = new TileSelectViewModel(GameData);
+        TileSelect.TilesetSelected += onTilesetSelected;
         ProjectConfig = new ProjectConfigService(projectPath);
         Metadata = new LuaMetadataService(projectPath);
         GameVariables = new GameVariableService(projectPath, Metadata);
@@ -390,6 +391,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         GameConfig.Changed -= onModifiedChanged;
         GameVariables.Changed -= onModifiedChanged;
         GameVariables.Saved -= onGameVariablesSaved;
+        TileSelect.TilesetSelected -= onTilesetSelected;
         ActorQueue.Dispose();
         FileExplorerPanel.Dispose();
         PreviewService.Dispose();
@@ -450,6 +452,14 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(IsModified));
         OnPropertyChanged(nameof(WindowTitle));
         SaveCommand.NotifyCanExecuteChanged();
+    }
+
+    private void onTilesetSelected(object? sender, string tilesetKey)
+    {
+        if (SelectedMap is null || SelectedLayerTab is not { IsOverview: false } layer)
+            return;
+        if (GameData.setLayerTilesetKey(SelectedMap.Key, layer.Name, tilesetKey))
+            LayerDisplayStateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void onGameVariablesSaved(object? sender, EventArgs args)

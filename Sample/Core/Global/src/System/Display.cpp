@@ -51,7 +51,8 @@ void System::initializeDisplay(const std::string& title,
     windowIconPath_ = iconPath;
     windowCursorPath_ = cursorPath;
     windowContextSettings_ = {};
-    windowContextSettings_.antiAliasingLevel = isMobileDisplay() ? 0U : 8U;
+    windowContextSettings_.antiAliasingLevel =
+        static_cast<unsigned int>(getAntiAliasingLevel());
 #if defined(SFML_SYSTEM_IOS)
     windowContextSettings_.majorVersion = 3;
     windowContextSettings_.minorVersion = 0;

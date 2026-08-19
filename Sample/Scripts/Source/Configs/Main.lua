@@ -1,6 +1,9 @@
 local CoreSystem = require("CoreSystem")
 local Engine = require("Engine")
+local GlobalCore = require("GlobalCore")
 local Locale = require("Source.Locale.Core")
+
+local System = GlobalCore.System
 
 local MainConfig = {}
 local DEFAULT_LANGUAGE = "en_GB"
@@ -9,7 +12,9 @@ local DISPLAY_SCALE_EPSILON = 0.0001
 local DISPLAY_SCALE_PRESETS = { 0.0, 1.0, 1.25, 1.5, 1.75, 2.0 }
 local DEFAULT_MAIN_ITEMS = {
     { "script", "Scripts/Entry.lua" }, { "language", DEFAULT_LANGUAGE }, { "scale", "1.0" }, { "framerate", "120" },
-    { "verticalsync", "true" }, { "musicon", "true" }, { "soundon", "true" }, { "voiceon", "true" },
+    { "antialiasinglevel", tostring(System.getAntiAliasingLevel()) }, { "verticalsync", "true" },
+    { "musicon", "true" }, { "soundon", "true" },
+    { "voiceon", "true" },
     { "musicvolume", "100.00" }, { "soundvolume", "100.00" }, { "voicevolume", "100.00" }
 }
 

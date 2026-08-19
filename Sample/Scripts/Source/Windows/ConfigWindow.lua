@@ -27,6 +27,7 @@ function ConfigWindow:init(onClose)
     self._languageRow = self._ui:getLanguageRow()
     self._scaleRow = self._ui:getScaleRow()
     self._framerateRow = self._ui:getFramerateRow()
+    self._antiAliasingLevelRow = self._ui:getAntiAliasingLevelRow()
     self._verticalSyncRow = self._ui:getVerticalSyncRow()
     self._musicOnRow = self._ui:getMusicOnRow()
     self._musicVolumeRow = self._ui:getMusicVolumeRow()
@@ -58,6 +59,10 @@ end
 
 function ConfigWindow:getFramerateDropBox()
     return self._framerateRow:getDropBox()
+end
+
+function ConfigWindow:getAntiAliasingLevelDropBox()
+    return self._antiAliasingLevelRow:getDropBox()
 end
 
 function ConfigWindow:getVerticalSyncCheckBox()
@@ -122,6 +127,7 @@ function ConfigWindow:dispose()
     self._languageRow = nil
     self._scaleRow = nil
     self._framerateRow = nil
+    self._antiAliasingLevelRow = nil
     self._verticalSyncRow = nil
     self._musicOnRow = nil
     self._musicVolumeRow = nil

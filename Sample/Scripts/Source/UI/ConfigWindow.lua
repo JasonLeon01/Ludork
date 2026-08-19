@@ -20,8 +20,10 @@ local _CHECKBOX_SIZE = 32
 local _SLIDER_WIDTH = 160
 local _LANGUAGE_VALUES = MainConfig.SupportedLanguages
 local _FRAMERATE_ITEMS = { "30", "60", "90", "120" }
+local _ANTI_ALIASING_LEVEL_ITEMS = { "0", "2", "4", "8" }
 local _SETTING_LOCALE_KEYS = {
-    "language", "framerate", "verticalsync", "musicon", "musicvolume", "soundon", "soundvolume", "voiceon", "voicevolume"
+    "language", "framerate", "antialiasinglevel", "verticalsync", "musicon", "musicvolume", "soundon",
+    "soundvolume", "voiceon", "voicevolume"
 }
 if not LUDORK_MOBILE then
     table.insert(_SETTING_LOCALE_KEYS, 2, "scale")
@@ -54,6 +56,21 @@ local function findScaleIndex(scaleValues, scale)
         end
     end
     return 0
+end
+
+local function getAntiAliasingLevelItems(level)
+    local items = copy(_ANTI_ALIASING_LEVEL_ITEMS)
+    local value = tostring(level)
+    for _, item in ipairs(items) do
+        if item == value then
+            return items
+        end
+    end
+    items[#items + 1] = value
+    table.sort(items, function (left, right)
+        return assert(tonumber(left)) < assert(tonumber(right))
+    end)
+    return items
 end
 
 ---@class Source.UI.ConfigWindow
@@ -124,6 +141,10 @@ function ConfigWindowUI:getFramerateRow()
     return self._framerateRow
 end
 
+function ConfigWindowUI:getAntiAliasingLevelRow()
+    return self._antiAliasingLevelRow
+end
+
 function ConfigWindowUI:getVerticalSyncRow()
     return self._verticalSyncRow
 end
@@ -173,6 +194,11 @@ end
 
 function ConfigWindowUI.onFrameRateSelectedIndexChanged(index)
     System.setFrameRate(Engine.ToInteger(_FRAMERATE_ITEMS[index + 1]))
+end
+
+function ConfigWindowUI:onAntiAliasingLevelSelectedIndexChanged(index)
+    local value = assert(self._antiAliasingLevelItems[index + 1])
+    System.setAntiAliasingLevel(Engine.ToInteger(value))
 end
 
 function ConfigWindowUI.onMusicOnCheckedChanged(checked)
@@ -233,6 +259,12 @@ function ConfigWindowUI:_createRows()
     self._framerateRow = ConfigSettingRowUI.new(
         LOC("framerate"), _FRAMERATE_ITEMS, _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
         self.model._findSelectedIndex(_FRAMERATE_ITEMS, System.getFrameRate())
+    )
+    self._antiAliasingLevelItems = getAntiAliasingLevelItems(System.getAntiAliasingLevel())
+    self._antiAliasingLevelRow = ConfigSettingRowUI.new(
+        LOC("antialiasinglevel"), self._antiAliasingLevelItems, _CONTENT_WIDTH, _DROPBOX_WIDTH,
+        self._windowSkin,
+        self.model._findSelectedIndex(self._antiAliasingLevelItems, System.getAntiAliasingLevel())
     )
     self._verticalSyncRow = ConfigCheckBoxRowUI.new(
         LOC("verticalsync"),
@@ -301,10 +333,10 @@ function ConfigWindowUI:_createRows()
             ConfigWindowUI.onVoiceVolumeChanged(value)
         end
     )
-    self._dropBoxRows = { self._languageRow, self._framerateRow }
+    self._dropBoxRows = { self._languageRow, self._framerateRow, self._antiAliasingLevelRow }
     self._settingRows = {
-        self._languageRow, self._framerateRow, self._verticalSyncRow, self._musicOnRow, self._musicVolumeRow,
-        self._soundOnRow, self._soundVolumeRow, self._voiceOnRow, self._voiceVolumeRow
+        self._languageRow, self._framerateRow, self._antiAliasingLevelRow, self._verticalSyncRow, self._musicOnRow,
+        self._musicVolumeRow, self._soundOnRow, self._soundVolumeRow, self._voiceOnRow, self._voiceVolumeRow
     }
     if self._scaleRow ~= nil then
         table.insert(self._dropBoxRows, 2, self._scaleRow)
@@ -329,6 +361,9 @@ function ConfigWindowUI:_createRows()
     end
     self._framerateRow:getDropBox():setOnSelectedIndexChanged(function (index)
         ConfigWindowUI.onFrameRateSelectedIndexChanged(index)
+    end)
+    self._antiAliasingLevelRow:getDropBox():setOnSelectedIndexChanged(function (index)
+        self:onAntiAliasingLevelSelectedIndexChanged(index)
     end)
 end
 

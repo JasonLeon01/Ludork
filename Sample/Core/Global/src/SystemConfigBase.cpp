@@ -4,9 +4,12 @@
 
 #include <Utf8Path.hpp>
 
+#include <SFML/Window/ContextSettings.hpp>
+
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -17,6 +20,8 @@ std::string SystemConfigBase::script_ = "Scripts/Entry.lua";
 std::string SystemConfigBase::language_ = "en_GB";
 float SystemConfigBase::scale_ = 1.0f;
 int SystemConfigBase::frameRate_ = 120;
+int SystemConfigBase::antiAliasingLevel_ =
+    static_cast<int>(sf::ContextSettings{}.antiAliasingLevel);
 bool SystemConfigBase::verticalSync_ = true;
 bool SystemConfigBase::musicOn_ = true;
 bool SystemConfigBase::soundOn_ = true;
@@ -56,6 +61,9 @@ void SystemConfigBase::init(
         static_cast<float>(data_->getFloat("Main", "scale").value_or(scale_)));
     frameRate_ = static_cast<int>(
         data_->getInt("Main", "frameRate").value_or(frameRate_));
+    antiAliasingLevel_ = normalizeAntiAliasingLevel(
+        data_->getInt("Main", "antiAliasingLevel")
+            .value_or(antiAliasingLevel_));
     verticalSync_ =
         data_->getBoolean("Main", "verticalSync").value_or(verticalSync_);
     musicOn_ = data_->getBoolean("Main", "musicOn").value_or(musicOn_);
@@ -125,6 +133,19 @@ void SystemConfigBase::setFrameRate(int value) {
 }
 void SystemConfigBase::saveFrameRate(int value) {
     setIniData("frameRate", std::to_string(value));
+}
+
+int SystemConfigBase::getAntiAliasingLevel() {
+    return antiAliasingLevel_;
+}
+void SystemConfigBase::setAntiAliasingLevel(int value) {
+    antiAliasingLevel_ = normalizeAntiAliasingLevel(value);
+    saveAntiAliasingLevel(antiAliasingLevel_);
+    afterConfigChanged("antiAliasingLevel");
+}
+void SystemConfigBase::saveAntiAliasingLevel(int value) {
+    setIniData("antiAliasingLevel",
+               std::to_string(normalizeAntiAliasingLevel(value)));
 }
 
 bool SystemConfigBase::getVerticalSync() {
@@ -224,6 +245,8 @@ void SystemConfigBase::shutdown() noexcept {
     language_ = "en_GB";
     scale_ = 1.0f;
     frameRate_ = 120;
+    antiAliasingLevel_ =
+        static_cast<int>(sf::ContextSettings{}.antiAliasingLevel);
     verticalSync_ = true;
     musicOn_ = true;
     soundOn_ = true;
@@ -257,6 +280,13 @@ std::string SystemConfigBase::resolveLanguage(const std::string& language) {
 
 float SystemConfigBase::normalizeScale(float scale) {
     return std::isfinite(scale) && scale >= 0.0f ? scale : 1.0f;
+}
+
+int SystemConfigBase::normalizeAntiAliasingLevel(std::int64_t level) {
+    if (level < 0 || level > std::numeric_limits<int>::max()) {
+        return static_cast<int>(sf::ContextSettings{}.antiAliasingLevel);
+    }
+    return static_cast<int>(level);
 }
 
 float SystemConfigBase::clampVolume(float volume) {

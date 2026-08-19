@@ -13,6 +13,7 @@ public sealed class TileSelectViewModel : ViewModelBase
     private AutoTileItemViewModel? selectedAutoTile;
     private TileSelection? selectedTiles;
     private bool isLayerSelected;
+    private bool syncingTilesetSelection;
 
     public TileSelectViewModel(GameDataService gameData)
     {
@@ -35,6 +36,7 @@ public sealed class TileSelectViewModel : ViewModelBase
     public int CellSize { get; }
     public ObservableCollection<TilesetTabViewModel> Tilesets { get; } = [];
     public ObservableCollection<AutoTileItemViewModel> AutoTiles { get; } = [];
+    public event EventHandler<string>? TilesetSelected;
 
     public TilesetTabViewModel? SelectedTileset
     {
@@ -44,6 +46,8 @@ public sealed class TileSelectViewModel : ViewModelBase
             if (!SetProperty(ref selectedTileset, value))
                 return;
             clearTileSelection();
+            if (!syncingTilesetSelection && value is not null)
+                TilesetSelected?.Invoke(this, value.Key);
         }
     }
 
@@ -90,13 +94,16 @@ public sealed class TileSelectViewModel : ViewModelBase
 
     public void setCurrentTilesetKey(string? key)
     {
+        syncingTilesetSelection = true;
         SelectedTileset = Tilesets.FirstOrDefault(item => item.Key == key) ?? Tilesets.FirstOrDefault();
+        syncingTilesetSelection = false;
     }
 
     public void RefreshData()
     {
         string? tilesetKey = SelectedTileset?.Key;
         string? autoTileKey = SelectedAutoTile?.Key;
+        syncingTilesetSelection = true;
         Tilesets.Clear();
         AutoTiles.Clear();
         foreach (string key in GameData.TilesetData.Keys)
@@ -110,6 +117,7 @@ public sealed class TileSelectViewModel : ViewModelBase
             AutoTiles.Add(new AutoTileItemViewModel(key, Path.Combine(GameData.ProjectPath, "Assets", "Autotiles", fileName)));
         }
         SelectedTileset = Tilesets.FirstOrDefault(item => item.Key == tilesetKey) ?? Tilesets.FirstOrDefault();
+        syncingTilesetSelection = false;
         SelectedAutoTile = AutoTiles.FirstOrDefault(item => item.Key == autoTileKey);
     }
 

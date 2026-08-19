@@ -40,6 +40,12 @@ function ConfigWindow:getScaleDropBox() end
 ---@return Engine.DropBox
 function ConfigWindow:getFramerateDropBox() end
 
+--- @brief Get the anti-aliasing level DropBox on the settings list.
+---
+--- - @return  Anti-aliasing level DropBox coordinator
+---@return Engine.DropBox
+function ConfigWindow:getAntiAliasingLevelDropBox() end
+
 --- @brief Get the vertical-sync CheckBox on the settings list.
 ---
 --- - @return  Vertical-sync CheckBox coordinator

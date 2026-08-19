@@ -129,6 +129,15 @@ void System::setFrameRate(int value) {
 void System::saveFrameRate(int value) {
     SystemConfigBase::saveFrameRate(value);
 }
+int System::getAntiAliasingLevel() {
+    return SystemConfigBase::getAntiAliasingLevel();
+}
+void System::setAntiAliasingLevel(int value) {
+    SystemConfigBase::setAntiAliasingLevel(value);
+}
+void System::saveAntiAliasingLevel(int value) {
+    SystemConfigBase::saveAntiAliasingLevel(value);
+}
 bool System::getVerticalSync() {
     return SystemConfigBase::getVerticalSync();
 }

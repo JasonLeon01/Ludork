@@ -3,6 +3,7 @@
 #include <BindAnnotations.hpp>
 #include <ConfigParser.hpp>
 
+#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <memory>
@@ -84,6 +85,13 @@ public:
     static void saveFrameRate(int value);
 
     BIND_METHOD()
+    static int getAntiAliasingLevel();
+    BIND_METHOD()
+    static void setAntiAliasingLevel(int value);
+    BIND_METHOD()
+    static void saveAntiAliasingLevel(int value);
+
+    BIND_METHOD()
     static bool getVerticalSync();
     BIND_METHOD()
     static void setVerticalSync(bool value);
@@ -144,6 +152,7 @@ private:
     static void afterConfigChanged(const std::string& key);
     static std::string resolveLanguage(const std::string& language);
     static float normalizeScale(float scale);
+    static int normalizeAntiAliasingLevel(std::int64_t level);
     static float clampVolume(float volume);
 
     static std::shared_ptr<ludork::standard::ConfigParser> data_;
@@ -152,6 +161,7 @@ private:
     static std::string language_;
     static float scale_;
     static int frameRate_;
+    static int antiAliasingLevel_;
     static bool verticalSync_;
     static bool musicOn_;
     static bool soundOn_;

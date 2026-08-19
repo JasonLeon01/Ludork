@@ -10,6 +10,8 @@
 ---@field _languageRow Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
 ---@field _scaleRow Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI | nil
 ---@field _framerateRow Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
+---@field _antiAliasingLevelItems string[]
+---@field _antiAliasingLevelRow Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
 ---@field _verticalSyncRow Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
 ---@field _musicOnRow Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
 ---@field _musicVolumeRow Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI
@@ -57,6 +59,9 @@ function ConfigWindowUI:getScaleRow() end
 ---@return Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
 function ConfigWindowUI:getFramerateRow() end
 
+---@return Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
+function ConfigWindowUI:getAntiAliasingLevelRow() end
+
 ---@return Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
 function ConfigWindowUI:getVerticalSyncRow() end
 
@@ -92,6 +97,9 @@ function ConfigWindowUI.onLanguageSelectedIndexChanged(index) end
 
 ---@param index integer
 function ConfigWindowUI.onFrameRateSelectedIndexChanged(index) end
+
+---@param index integer
+function ConfigWindowUI:onAntiAliasingLevelSelectedIndexChanged(index) end
 
 ---@param checked boolean
 function ConfigWindowUI.onMusicOnCheckedChanged(checked) end

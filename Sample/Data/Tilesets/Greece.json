@@ -1,0 +1,3963 @@
+{
+  "name": "Greece",
+  "fileName": "Greek_Temple.png",
+  "passable": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    false,
+    true,
+    true,
+    false,
+    true,
+    true,
+    true,
+    true,
+    false,
+    true,
+    true,
+    false,
+    true,
+    true,
+    true,
+    true,
+    false,
+    true,
+    true,
+    false,
+    true,
+    true,
+    true,
+    true,
+    false,
+    true,
+    true,
+    false,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    false,
+    true,
+    true,
+    true,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    true,
+    false,
+    false,
+    false,
+    true,
+    false,
+    false,
+    false,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    false,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    false,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    true,
+    false,
+    false,
+    false,
+    true,
+    false,
+    false,
+    false,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    false,
+    false,
+    false,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "materials": [
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    },
+    {
+      "lightBlock": 0,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1,
+      "speedRate": 1
+    }
+  ],
+  "dir4": [
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      false,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      false,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      false,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      false,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      false,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      false,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      false,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      false,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ],
+    [
+      true,
+      true,
+      true,
+      true
+    ]
+  ],
+  "type": "tileset"
+}

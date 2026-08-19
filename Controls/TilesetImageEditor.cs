@@ -446,11 +446,6 @@ public sealed class TilesetImageEditor : Control, IDisposable
         return ensureArray(name, count, () => defaultValue);
     }
 
-    private JsonArray ensureArray(string name, int count, Func<JsonArray> createValue)
-    {
-        return ensureArray(name, count, () => createValue());
-    }
-
     private JsonArray? getArray(string name) => data?[name] as JsonArray;
     private static JsonArray? getArray(JsonNode? node) => node as JsonArray;
     private static JsonObject? getObject(JsonArray? value, int index) => value is not null && index < value.Count ? value[index] as JsonObject : null;

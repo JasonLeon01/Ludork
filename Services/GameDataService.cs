@@ -830,6 +830,19 @@ public sealed class GameDataService
         return getMap(mapKey)?["layers"]?[layerName]?["layerTileset"]?.GetValue<string>();
     }
 
+    public bool setLayerTilesetKey(string mapKey, string layerName, string tilesetKey)
+    {
+        JsonObject? layer = getMap(mapKey)?["layers"]?[layerName] as JsonObject;
+        if (layer is null || !TilesetData.ContainsKey(tilesetKey))
+            return false;
+        if (string.Equals(layer["layerTileset"]?.GetValue<string>(), tilesetKey, StringComparison.Ordinal))
+            return false;
+        RecordSnapshot();
+        layer["layerTileset"] = tilesetKey;
+        refreshModifiedState();
+        return true;
+    }
+
     public string getLayerShaderPath(string mapKey, string layerName)
     {
         return getMap(mapKey)?["layers"]?[layerName]?["shaderPath"]?.GetValue<string>() ?? string.Empty;

@@ -17,10 +17,12 @@ public sealed class GameConfigWindow : Window
 {
     private static readonly double[] scaleValues = [0.0, 1.0, 1.25, 1.5, 1.75, 2.0];
     private static readonly int[] frameRateValues = [30, 60, 90, 120];
+    private static readonly int[] antiAliasingLevelValues = [0, 2, 4, 8];
     private readonly GameConfigData initialData;
     private readonly ComboBox languageBox;
     private readonly ComboBox scaleBox;
     private readonly ComboBox frameRateBox;
+    private readonly ComboBox antiAliasingLevelBox;
     private readonly CheckBox verticalSyncBox;
     private readonly CheckBox musicOnBox;
     private readonly CheckBox soundOnBox;
@@ -34,7 +36,7 @@ public sealed class GameConfigWindow : Window
     {
         Title = LocaleService.Get("GAME_CONFIG");
         Width = 560;
-        Height = 532;
+        Height = 574;
         MinWidth = 560;
         MinHeight = 320;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -64,6 +66,16 @@ public sealed class GameConfigWindow : Window
             ? initialData.FrameRate
             : frameRateValues.MinBy(value => Math.Abs(value - initialData.FrameRate));
         frameRateBox.SelectedItem = selectedFrameRate.ToString(CultureInfo.InvariantCulture);
+        string[] antiAliasingLevels = antiAliasingLevelValues
+            .Append(initialData.AntiAliasingLevel)
+            .Distinct()
+            .Order()
+            .Select(value => value.ToString(CultureInfo.InvariantCulture))
+            .ToArray();
+        antiAliasingLevelBox = createComboBox(
+            antiAliasingLevels.Cast<object>().ToArray());
+        antiAliasingLevelBox.SelectedItem =
+            initialData.AntiAliasingLevel.ToString(CultureInfo.InvariantCulture);
         this.initialData = initialData with
         {
             Scale = selectedScale,
@@ -83,6 +95,7 @@ public sealed class GameConfigWindow : Window
         addRow(form, LocaleService.Get("language"), languageBox);
         addRow(form, LocaleService.Get("scale"), scaleBox);
         addRow(form, LocaleService.Get("framerate"), frameRateBox);
+        addRow(form, LocaleService.Get("antialiasinglevel"), antiAliasingLevelBox);
         addRow(form, LocaleService.Get("verticalsync"), verticalSyncBox);
         addRow(form, LocaleService.Get("musicon"), musicOnBox);
         addRow(form, LocaleService.Get("soundon"), soundOnBox);
@@ -155,11 +168,16 @@ public sealed class GameConfigWindow : Window
             frameRateBox.SelectedItem?.ToString() ?? "60",
             NumberStyles.Integer,
             CultureInfo.InvariantCulture);
+        int antiAliasingLevel = int.Parse(
+            antiAliasingLevelBox.SelectedItem?.ToString() ?? "0",
+            NumberStyles.Integer,
+            CultureInfo.InvariantCulture);
         Close(initialData with
         {
             Language = language,
             Scale = scale,
             FrameRate = frameRate,
+            AntiAliasingLevel = antiAliasingLevel,
             VerticalSync = verticalSyncBox.IsChecked == true,
             MusicOn = musicOnBox.IsChecked == true,
             SoundOn = soundOnBox.IsChecked == true,
