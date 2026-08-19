@@ -1,6 +1,6 @@
 #include <SceneBase.hpp>
 
-#include "PerformanceProfiler.hpp"
+#include "System/Diagnostics/PerformanceProfiler.hpp"
 
 #include <Input/InputService.hpp>
 #include <Manager/AudioManager.hpp>

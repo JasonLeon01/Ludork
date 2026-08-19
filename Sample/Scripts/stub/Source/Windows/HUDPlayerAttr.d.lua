@@ -53,6 +53,12 @@ local PlayerAttrHUD = {}
 ---@param openMenuCallback function | nil
 function PlayerAttrHUD:init(player, openMenuCallback) end
 
+--- Rebind the player whose values are displayed by this HUD.
+---
+--- - @param player Target player.
+---@param player Source.Player.Player
+function PlayerAttrHUD:setPlayer(player) end
+
 --- Poll lightweight player signatures every frame and refresh only the HUD groups whose displayed values changed.
 ---
 --- - @param deltaTime  Elapsed frame time in seconds

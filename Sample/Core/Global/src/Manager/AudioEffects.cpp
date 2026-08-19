@@ -57,9 +57,8 @@ bool getSampleCount(unsigned int frameCount, unsigned int channelCount,
 void markFault(const std::shared_ptr<AudioEffectControl>& control,
                AudioEffectFault fault) noexcept {
     AudioEffectFault expected = AudioEffectFault::None;
-    control->fault.compare_exchange_strong(expected, fault,
-                                           std::memory_order_release,
-                                           std::memory_order_relaxed);
+    control->fault.compare_exchange_strong(
+        expected, fault, std::memory_order_release, std::memory_order_relaxed);
     control->tailDrained.store(true, std::memory_order_release);
 }
 
@@ -72,8 +71,7 @@ void silenceBlock(const float* inputFrames, unsigned int& inputFrameCount,
         control->tailDrained.store(true, std::memory_order_release);
         return;
     }
-    const unsigned int frameCount =
-        std::min(inputFrameCount, outputFrameCount);
+    const unsigned int frameCount = std::min(inputFrameCount, outputFrameCount);
     std::size_t sampleCount = 0;
     if (frameCount == 0 || outputFrames == nullptr ||
         !getSampleCount(frameCount, frameChannelCount, sampleCount)) {
@@ -87,12 +85,11 @@ void silenceBlock(const float* inputFrames, unsigned int& inputFrameCount,
     control->tailDrained.store(true, std::memory_order_release);
 }
 
-void faultAndSilence(
-    const float* inputFrames, unsigned int& inputFrameCount,
-    float* outputFrames, unsigned int& outputFrameCount,
-    unsigned int frameChannelCount,
-    const std::shared_ptr<AudioEffectControl>& control,
-    AudioEffectFault fault) noexcept {
+void faultAndSilence(const float* inputFrames, unsigned int& inputFrameCount,
+                     float* outputFrames, unsigned int& outputFrameCount,
+                     unsigned int frameChannelCount,
+                     const std::shared_ptr<AudioEffectControl>& control,
+                     AudioEffectFault fault) noexcept {
     silenceBlock(inputFrames, inputFrameCount, outputFrames, outputFrameCount,
                  frameChannelCount, control);
     markFault(control, fault);
@@ -110,8 +107,8 @@ public:
     EchoProcessor(std::uint32_t sampleRate,
                   std::shared_ptr<AudioEffectControl> control)
         : delayFrames_(std::max(
-              1U, static_cast<unsigned int>(std::floor(
-                      std::max(0.0, EchoDelay) * sampleRate)))),
+              1U, static_cast<unsigned int>(
+                      std::floor(std::max(0.0, EchoDelay) * sampleRate)))),
           control_(std::move(control)) {
         std::size_t sampleCount = 0;
         if (!getSampleCount(delayFrames_, MaximumChannelCount, sampleCount)) {
@@ -125,8 +122,7 @@ public:
                     unsigned int frameChannelCount) noexcept {
         const unsigned int availableInput = inputFrameCount;
         const unsigned int outputCapacity = outputFrameCount;
-        if (frameChannelCount == 0 ||
-            frameChannelCount > MaximumChannelCount) {
+        if (frameChannelCount == 0 || frameChannelCount > MaximumChannelCount) {
             faultAndSilence(inputFrames, inputFrameCount, outputFrames,
                             outputFrameCount, frameChannelCount, control_,
                             AudioEffectFault::UnsupportedChannelCount);
@@ -231,16 +227,15 @@ private:
         for (unsigned int frame = 0; frame < frameCount; ++frame) {
             const std::size_t frameOffset =
                 static_cast<std::size_t>(frame) * frameChannelCount;
-            const std::size_t delayOffset =
-                bufferIndex_ * MaximumChannelCount;
+            const std::size_t delayOffset = bufferIndex_ * MaximumChannelCount;
             for (unsigned int channel = 0; channel < frameChannelCount;
                  ++channel) {
                 const std::size_t sampleIndex = frameOffset + channel;
                 const std::size_t delayIndex = delayOffset + channel;
                 const float input = inputFrames[sampleIndex];
                 const double delayed = delayBuffer_[delayIndex];
-                outputFrames[sampleIndex] = static_cast<float>(
-                    input + delayed * EchoDecay);
+                outputFrames[sampleIndex] =
+                    static_cast<float>(input + delayed * EchoDecay);
                 delayBuffer_[delayIndex] = input;
             }
             bufferIndex_ = (bufferIndex_ + 1) % delayFrames_;
@@ -303,10 +298,9 @@ public:
             return;
         }
         for (std::size_t index = 0; index < sampleCount; ++index) {
-            outputFrames[index] =
-                static_cast<float>(std::clamp(
-                    inputFrames[index] * DistortionDrive,
-                    -DistortionThreshold, DistortionThreshold));
+            outputFrames[index] = static_cast<float>(
+                std::clamp(inputFrames[index] * DistortionDrive,
+                           -DistortionThreshold, DistortionThreshold));
         }
         if (control_->cancelled.load(std::memory_order_acquire)) {
             std::fill_n(outputFrames, sampleCount, 0.0f);
@@ -328,22 +322,19 @@ public:
           bubbleRate_(0.001 + UnderwaterBubbleIntensity * 0.005),
           compressionRatio_(1.0 + UnderwaterDepth * 2.0),
           control_(std::move(control)) {
-        const double cutoff =
-            std::max(1.0, 800.0 - UnderwaterDepth * 600.0);
-        alpha_ = timeStep_ /
-                 (1.0 / (cutoff * 2.0 * Pi) + timeStep_);
-        constexpr std::array<unsigned int, 5> milliseconds{
-            43, 67, 89, 127, 173};
+        const double cutoff = std::max(1.0, 800.0 - UnderwaterDepth * 600.0);
+        alpha_ = timeStep_ / (1.0 / (cutoff * 2.0 * Pi) + timeStep_);
+        constexpr std::array<unsigned int, 5> milliseconds{43, 67, 89, 127,
+                                                           173};
         for (std::size_t index = 0; index < milliseconds.size(); ++index) {
-            delayFrames_[index] = std::max(
-                1U, static_cast<unsigned int>(std::floor(
-                        static_cast<double>(sampleRate_) *
-                        milliseconds[index] / 1000.0)));
+            delayFrames_[index] =
+                std::max(1U, static_cast<unsigned int>(
+                                 std::floor(static_cast<double>(sampleRate_) *
+                                            milliseconds[index] / 1000.0)));
             std::size_t sampleCount = 0;
             if (!getSampleCount(delayFrames_[index], MaximumChannelCount,
                                 sampleCount)) {
-                throw std::length_error(
-                    "Underwater delay buffer is too large");
+                throw std::length_error("Underwater delay buffer is too large");
             }
             buffers_[index].assign(sampleCount, 0.0);
         }
@@ -358,8 +349,7 @@ public:
             clearFrameCounts(inputFrameCount, outputFrameCount);
             return;
         }
-        if (frameChannelCount == 0 ||
-            frameChannelCount > MaximumChannelCount) {
+        if (frameChannelCount == 0 || frameChannelCount > MaximumChannelCount) {
             faultAndSilence(inputFrames, inputFrameCount, outputFrames,
                             outputFrameCount, frameChannelCount, control_,
                             AudioEffectFault::UnsupportedChannelCount);
@@ -385,8 +375,7 @@ public:
 private:
     double nextRandom() noexcept {
         randomState_ = static_cast<std::uint32_t>(
-            (static_cast<std::uint64_t>(randomState_) * 48271U) %
-            2147483647U);
+            (static_cast<std::uint64_t>(randomState_) * 48271U) % 2147483647U);
         return static_cast<double>(randomState_) / 2147483647.0;
     }
 
@@ -424,14 +413,13 @@ private:
         for (unsigned int frame = 0; frame < frameCount; ++frame) {
             const double modulation =
                 1.0 + 0.05 * UnderwaterDepth * std::sin(waterPhase_);
-            waterPhase_ = std::fmod(
-                waterPhase_ + 2.0 * Pi * 0.5 / sampleRate_, 2.0 * Pi);
+            waterPhase_ =
+                std::fmod(waterPhase_ + 2.0 * Pi * 0.5 / sampleRate_, 2.0 * Pi);
             double bubble = 0.0;
             if (nextRandom() < bubbleRate_) {
                 const double frequency = 200.0 + nextRandom() * 800.0;
-                const double amplitude =
-                    (nextRandom() * 0.5 + 0.5) *
-                    UnderwaterBubbleIntensity * 0.1;
+                const double amplitude = (nextRandom() * 0.5 + 0.5) *
+                                         UnderwaterBubbleIntensity * 0.1;
                 bubble = amplitude * std::sin(bubblePhase_ * frequency) *
                          std::exp(-bubblePhase_ * 10.0);
             }
@@ -469,12 +457,11 @@ private:
                 const double output =
                     (filtered + reverb * 0.4 + channelBubble) *
                     (1.0 - UnderwaterDepth * 0.4);
-                outputFrames[sampleIndex] = static_cast<float>(
-                    std::clamp(output, -0.8, 0.8));
+                outputFrames[sampleIndex] =
+                    static_cast<float>(std::clamp(output, -0.8, 0.8));
             }
             for (std::size_t index = 0; index < indices_.size(); ++index) {
-                indices_[index] =
-                    (indices_[index] + 1) % delayFrames_[index];
+                indices_[index] = (indices_[index] + 1) % delayFrames_[index];
             }
         }
         if (control_->cancelled.load(std::memory_order_acquire)) {
@@ -508,8 +495,8 @@ public:
         : control_(std::move(control)) {
         const double maximumCutoff =
             std::max(20.0, static_cast<double>(sampleRate) * 0.45);
-        const double cutoff = std::clamp(
-            static_cast<double>(BehindWallCutoff), 20.0, maximumCutoff);
+        const double cutoff = std::clamp(static_cast<double>(BehindWallCutoff),
+                                         20.0, maximumCutoff);
         alpha_ = 1.0 - std::exp(-2.0 * Pi * cutoff / sampleRate);
         gain_ = std::clamp(BehindWallTransmission, 0.0, 1.0);
     }
@@ -523,8 +510,7 @@ public:
             clearFrameCounts(inputFrameCount, outputFrameCount);
             return;
         }
-        if (frameChannelCount == 0 ||
-            frameChannelCount > MaximumChannelCount) {
+        if (frameChannelCount == 0 || frameChannelCount > MaximumChannelCount) {
             faultAndSilence(inputFrames, inputFrameCount, outputFrames,
                             outputFrameCount, frameChannelCount, control_,
                             AudioEffectFault::UnsupportedChannelCount);
@@ -582,16 +568,14 @@ private:
                  ++channel) {
                 const std::size_t sampleIndex = frameOffset + channel;
                 const double input = inputFrames[sampleIndex];
-                const double first =
-                    firstStages_[channel] +
-                    alpha_ * (input - firstStages_[channel]);
-                const double second =
-                    secondStages_[channel] +
-                    alpha_ * (first - secondStages_[channel]);
+                const double first = firstStages_[channel] +
+                                     alpha_ * (input - firstStages_[channel]);
+                const double second = secondStages_[channel] +
+                                      alpha_ * (first - secondStages_[channel]);
                 firstStages_[channel] = first;
                 secondStages_[channel] = second;
-                outputFrames[sampleIndex] = static_cast<float>(
-                    std::clamp(second * gain_, -1.0, 1.0));
+                outputFrames[sampleIndex] =
+                    static_cast<float>(std::clamp(second * gain_, -1.0, 1.0));
             }
         }
         if (control_->cancelled.load(std::memory_order_acquire)) {
@@ -613,9 +597,8 @@ AudioEffectBinding createEcho(std::uint32_t sampleRate) {
     auto control = std::make_shared<AudioEffectControl>();
     auto state = std::make_shared<EchoProcessor>(sampleRate, control);
     return {sf::SoundSource::EffectProcessor(
-                [state](const float* inputFrames,
-                        unsigned int& inputFrameCount, float* outputFrames,
-                        unsigned int& outputFrameCount,
+                [state](const float* inputFrames, unsigned int& inputFrameCount,
+                        float* outputFrames, unsigned int& outputFrameCount,
                         unsigned int frameChannelCount) noexcept {
                     (*state)(inputFrames, inputFrameCount, outputFrames,
                              outputFrameCount, frameChannelCount);
@@ -627,9 +610,8 @@ AudioEffectBinding createDistortion(std::uint32_t) {
     auto control = std::make_shared<AudioEffectControl>();
     auto state = std::make_shared<DistortionProcessor>(control);
     return {sf::SoundSource::EffectProcessor(
-                [state](const float* inputFrames,
-                        unsigned int& inputFrameCount, float* outputFrames,
-                        unsigned int& outputFrameCount,
+                [state](const float* inputFrames, unsigned int& inputFrameCount,
+                        float* outputFrames, unsigned int& outputFrameCount,
                         unsigned int frameChannelCount) noexcept {
                     (*state)(inputFrames, inputFrameCount, outputFrames,
                              outputFrameCount, frameChannelCount);
@@ -641,9 +623,8 @@ AudioEffectBinding createUnderwater(std::uint32_t sampleRate) {
     auto control = std::make_shared<AudioEffectControl>();
     auto state = std::make_shared<UnderwaterProcessor>(sampleRate, control);
     return {sf::SoundSource::EffectProcessor(
-                [state](const float* inputFrames,
-                        unsigned int& inputFrameCount, float* outputFrames,
-                        unsigned int& outputFrameCount,
+                [state](const float* inputFrames, unsigned int& inputFrameCount,
+                        float* outputFrames, unsigned int& outputFrameCount,
                         unsigned int frameChannelCount) noexcept {
                     (*state)(inputFrames, inputFrameCount, outputFrames,
                              outputFrameCount, frameChannelCount);
@@ -655,9 +636,8 @@ AudioEffectBinding createBehindWall(std::uint32_t sampleRate) {
     auto control = std::make_shared<AudioEffectControl>();
     auto state = std::make_shared<BehindWallProcessor>(sampleRate, control);
     return {sf::SoundSource::EffectProcessor(
-                [state](const float* inputFrames,
-                        unsigned int& inputFrameCount, float* outputFrames,
-                        unsigned int& outputFrameCount,
+                [state](const float* inputFrames, unsigned int& inputFrameCount,
+                        float* outputFrames, unsigned int& outputFrameCount,
                         unsigned int frameChannelCount) noexcept {
                     (*state)(inputFrames, inputFrameCount, outputFrames,
                              outputFrameCount, frameChannelCount);
@@ -674,11 +654,10 @@ constexpr std::array<RegistryEntry, 5> Registry{{
 }};
 
 const RegistryEntry* findEntry(std::string_view name) noexcept {
-    const auto iterator =
-        std::find_if(Registry.begin(), Registry.end(),
-                     [name](const RegistryEntry& entry) {
-                         return entry.name == name;
-                     });
+    const auto iterator = std::find_if(Registry.begin(), Registry.end(),
+                                       [name](const RegistryEntry& entry) {
+                                           return entry.name == name;
+                                       });
     return iterator == Registry.end() ? nullptr : &*iterator;
 }
 

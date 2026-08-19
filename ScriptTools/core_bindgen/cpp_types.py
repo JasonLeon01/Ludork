@@ -172,6 +172,25 @@ def parse_cpp_type(
     return ParsedType(clean)
 
 
+def require_binding_type_features(context: GeneratorContext, value: str) -> None:
+    def visit(item: ParsedType) -> None:
+        owner, separator, nested = item.name.rpartition("::")
+        if item.name in context.dynamic_value_types or (
+            separator
+            and owner in context.dynamic_value_types
+            and nested in {"Array", "Map", "Object"}
+        ):
+            context.require_binding_feature("dynamic")
+        if item.name == "std::function":
+            context.require_binding_feature("function")
+        if item.name == "std::shared_ptr" or item.name.endswith("*"):
+            context.require_binding_feature("native")
+        for argument in item.arguments:
+            visit(argument)
+
+    visit(parse_cpp_type(context, value))
+
+
 def callback_codec(
     context: GeneratorContext,
     value: str,
@@ -281,6 +300,8 @@ def callback_codec_policy(
             f"callback codec nested inside unsupported type {render_parsed_type(item)}"
         )
 
+    context.require_binding_feature("callback")
+    require_binding_type_features(context, value)
     return native_policy(parsed)
 
 

@@ -178,8 +178,7 @@ bool appendDirectoryEntries(const FileBatchSpec& spec,
         if (regular) {
             const std::filesystem::path relative =
                 iterator->path().lexically_relative(spec.root);
-            const std::string storedRelativePath =
-                pathToGenericUtf8(relative);
+            const std::string storedRelativePath = pathToGenericUtf8(relative);
             const bool encryptedData = iterator->path().extension() == ".ldc";
             const bool includeEncryptedData =
                 encryptedData && jsonSuffix(spec.suffix);
@@ -544,7 +543,8 @@ private:
                     return stopping_.load(std::memory_order_acquire) ||
                            !work_.empty();
                 });
-                if (stopping_.load(std::memory_order_acquire) && work_.empty()) {
+                if (stopping_.load(std::memory_order_acquire) &&
+                    work_.empty()) {
                     return;
                 }
                 if (work_.empty()) {

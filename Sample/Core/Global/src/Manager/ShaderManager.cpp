@@ -69,8 +69,8 @@ std::size_t ShaderManager::getMemory() {
     const std::size_t entries = caches.shaders.entryCount() +
                                 caches.fullShaders.entryCount() +
                                 caches.geoShaders.entryCount();
-    return sizeof(caches) + entries *
-               (sizeof(sf::Shader) + sizeof(std::weak_ptr<sf::Shader>));
+    return sizeof(caches) +
+           entries * (sizeof(sf::Shader) + sizeof(std::weak_ptr<sf::Shader>));
 }
 
 void ShaderManager::clear() noexcept {

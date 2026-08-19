@@ -55,8 +55,7 @@ private:
     RuntimeValue resolvedDefinition_;
 };
 
-BIND_CLASS(bind_bases = false,
-           cast_bases = "RuntimeObject", metadata = false)
+BIND_CLASS(bind_bases = false, cast_bases = "RuntimeObject", metadata = false)
 class Node : public RuntimeObject {
 public:
     using InputPinMap = std::unordered_map<int, RuntimeValue>;

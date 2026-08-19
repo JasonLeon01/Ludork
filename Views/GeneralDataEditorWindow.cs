@@ -1426,7 +1426,15 @@ internal sealed class GeneralDataPage : Grid
                     : assetsRoot;
                 if (!Directory.Exists(startDir))
                     startDir = assetsRoot;
-                string? path = await FileSelectorDialog.ShowAsync(owner, startDir, FileSelectorDialog.AllFilesFilter());
+                string currentPath = pathBox.Text ?? string.Empty;
+                string? initialFilePath = string.IsNullOrWhiteSpace(currentPath)
+                    ? null
+                    : Path.Combine(assetsRoot, currentPath);
+                string? path = await FileSelectorDialog.ShowAsync(
+                    owner,
+                    startDir,
+                    FileSelectorDialog.AllFilesFilter(),
+                    initialFilePath: initialFilePath);
                 if (path is null)
                     return;
                 string rel = Path.GetRelativePath(assetsRoot, path).Replace('\\', '/');

@@ -43,8 +43,7 @@ int invokeRuntimeFunction(lua_State* state, const sol::object& callable,
         }
         const int status = ludork::standard::protectedLuaCall(
             state, static_cast<int>(arguments.size()), LUA_MULTRET);
-        ensureRuntimeLuaStack(state, LUA_MINSTACK,
-                              "runtime function results");
+        ensureRuntimeLuaStack(state, LUA_MINSTACK, "runtime function results");
         if (status != LUA_OK) {
             throw std::runtime_error(
                 ludork::standard::luaErrorMessage(state, -1));
@@ -222,10 +221,9 @@ sol::object callRegisteredRuntimeServiceFirst(
         }
         const int resultCount = ludork::standard::class_runtime::callService(
             state, name, static_cast<int>(arguments.size()));
-        sol::object result = resultCount == 0
-                                 ? nilObject(lua)
-                                 : sol::stack::get<sol::object>(state,
-                                                                stackBase + 1);
+        sol::object result = resultCount == 0 ? nilObject(lua)
+                                              : sol::stack::get<sol::object>(
+                                                    state, stackBase + 1);
         lua_settop(state, stackBase);
         return result;
     } catch (...) {

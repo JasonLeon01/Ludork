@@ -138,7 +138,15 @@ public sealed class MapEditWindow : Window
     {
         string root = Path.Combine(gameData.ProjectPath, "Assets", rootName);
         Directory.CreateDirectory(root);
-        string? path = await FileSelectorDialog.ShowAsync(this, root, filterStr);
+        string current = target.Text ?? string.Empty;
+        string? initialFilePath = string.IsNullOrWhiteSpace(current)
+            ? null
+            : Path.Combine(root, current);
+        string? path = await FileSelectorDialog.ShowAsync(
+            this,
+            root,
+            filterStr,
+            initialFilePath: initialFilePath);
         if (path is not null)
             target.Text = Path.GetFileName(path);
     }

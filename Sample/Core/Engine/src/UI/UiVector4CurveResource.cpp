@@ -227,8 +227,7 @@ std::shared_ptr<Vector4Curve> loadUiVector4CurveResource(
         curvePath(std::filesystem::weakly_canonical(projectRoot), assetKey);
     const std::string cacheKey = ludork::standard::pathToUtf8(path);
     return curveCache().getOrLoad(cacheKey, [&]() {
-        return Vector4Curve::fromData(
-            curveData(getJSONData(path), cacheKey));
+        return Vector4Curve::fromData(curveData(getJSONData(path), cacheKey));
     });
 }
 

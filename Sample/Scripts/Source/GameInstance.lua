@@ -80,7 +80,7 @@ local GameInstance = {}
 function GameInstance:init(skipDefaultPlayer)
     self._playerKeys = {}
     self._players = {}
-    self._currentRegion = "Mota"
+    self._currentRegion = ""
     self._variables = deepcopy(GameVariables)
     self._cachedMap = nil
     self._cachedNewItem = {}
@@ -96,7 +96,8 @@ function GameInstance:init(skipDefaultPlayer)
     local Player = require("Source.Player")
     local GameSystem = require("Source.System")
 
-    local firstPlayer = Player.InitPlayer("Data.Blueprints.Actors.BP_Actor_Braver")
+    self._currentRegion = GameSystem.GetStartRegion()
+    local firstPlayer = Player.InitPlayer(GameSystem.GetStartPlayerClassPath())
     firstPlayer:setMapPosition(GameSystem.getStartPos())
     appendPlayer(self._players, self._playerKeys, firstPlayer)
 end

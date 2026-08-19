@@ -237,8 +237,7 @@ std::filesystem::path validateLogicalAssetKey(const std::string& assetKey) {
         throw std::invalid_argument("UI asset key must be canonical: " +
                                     assetKey);
     }
-    std::filesystem::path relative =
-        ludork::standard::pathFromUtf8(assetKey);
+    std::filesystem::path relative = ludork::standard::pathFromUtf8(assetKey);
     if (relative.empty() || relative.is_absolute() ||
         relative.has_root_path()) {
         throw std::invalid_argument("UI asset key must be relative: " +
@@ -256,8 +255,7 @@ std::filesystem::path validateLogicalAssetKey(const std::string& assetKey) {
         throw std::invalid_argument(
             "UI asset key must not include a file extension: " + assetKey);
     }
-    const std::string generic =
-        ludork::standard::pathToGenericUtf8(relative);
+    const std::string generic = ludork::standard::pathToGenericUtf8(relative);
     if (generic != assetKey) {
         throw std::invalid_argument("UI asset key must be canonical: " +
                                     assetKey);
@@ -479,8 +477,7 @@ RuntimeValue::Map effectiveProperties(const RuntimeValue::Map& node,
                                *previewText, source + ".editor.previewText")));
         return result;
     }
-    if (controlId != "Engine.PlainText" &&
-        controlId != "Engine.RichText" &&
+    if (controlId != "Engine.PlainText" && controlId != "Engine.RichText" &&
         controlId != "Engine.FunctionalPlainText" &&
         controlId != "Engine.FunctionalRichText") {
         throw std::invalid_argument(
@@ -497,10 +494,9 @@ std::shared_ptr<UiRuntimeNode> buildNode(
     UiAssetInstanceState& state, BuildContext& context,
     std::unordered_set<std::string>& localNames, bool root) {
     const RuntimeValue::Map& data = requireMap(value, source);
-    requireOnlyKeys(data,
-                    {"name", "controlId", "properties", "slot", "editor",
-                     "children"},
-                    source);
+    requireOnlyKeys(
+        data, {"name", "controlId", "properties", "slot", "editor", "children"},
+        source);
     const RuntimeValue* nameValue = findValue(data, "name");
     const RuntimeValue* controlIdValue = findValue(data, "controlId");
     const RuntimeValue* propertiesValue = findValue(data, "properties");
@@ -589,9 +585,8 @@ std::shared_ptr<UiRuntimeNode> buildNode(
     for (std::size_t index = 0; index < children.size(); ++index) {
         const std::string childSource =
             source + ".children[" + std::to_string(index) + "]";
-        std::shared_ptr<UiRuntimeNode> child =
-            buildNode(children[index], childSource, state, context,
-                      localNames, false);
+        std::shared_ptr<UiRuntimeNode> child = buildNode(
+            children[index], childSource, state, context, localNames, false);
         const RuntimeValue::Map& childData =
             requireMap(children[index], childSource);
         const RuntimeValue* childSlot = findValue(childData, "slot");

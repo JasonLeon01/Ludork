@@ -457,6 +457,7 @@ function WindowEquipStatus:init(rect, player)
 end
 
 function WindowEquipStatus:setPlayer(player)
+    self._player = player
     self._statusUI:setPlayer(player)
 end
 
@@ -548,6 +549,10 @@ end
 
 function WindowEquipSlot:setEquipSelectWindow(windowEquipSelect)
     self._windowEquipSelect = windowEquipSelect
+end
+
+function WindowEquipSlot:setPlayer(player)
+    self._player = player
 end
 
 function WindowEquipSlot:setEquipStatusWindow(windowEquipStatus)
@@ -644,6 +649,10 @@ end
 
 function WindowEquipSelect:setEquipSlotWindow(windowEquipSlot)
     self._windowEquipSlot = windowEquipSlot
+end
+
+function WindowEquipSelect:setPlayer(player)
+    self._player = player
 end
 
 function WindowEquipSelect:setEquipStatusWindow(windowEquipStatus)

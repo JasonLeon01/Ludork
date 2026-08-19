@@ -167,7 +167,8 @@ struct LUDORK_ENGINE_API RichTextConfig : public RuntimeObject {
     TextGradientConfig gradient;
 };
 
-BIND_CLASS(callbacks =
+BIND_CLASS(
+    callbacks =
         "getSize,getLocalBounds,getGlobalBounds,getOrigin,setOrigin,draw")
 class PlainText : public ControlBase {
 public:
@@ -244,7 +245,8 @@ private:
     float displayScale_ = 1.0f;
 };
 
-BIND_CLASS(callbacks =
+BIND_CLASS(
+    callbacks =
         "getSize,getLocalBounds,getGlobalBounds,getOrigin,setOrigin,draw")
 class RichText : public ControlBase {
 public:

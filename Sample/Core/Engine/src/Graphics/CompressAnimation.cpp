@@ -67,8 +67,7 @@ std::pair<float, float> getRotatedSize(float width, float height,
 
 sf::Texture* getTexture(
     std::unordered_map<int, std::unique_ptr<sf::Texture>>& cache,
-    const std::vector<std::string>& assets,
-    const std::filesystem::path& root,
+    const std::vector<std::string>& assets, const std::filesystem::path& root,
     int index) {
     const auto existing = cache.find(index);
     if (existing != cache.end()) {
@@ -78,8 +77,8 @@ sf::Texture* getTexture(
         return nullptr;
     }
     const std::filesystem::path path =
-        root / ludork::standard::pathFromUtf8(
-                   assets[static_cast<std::size_t>(index)]);
+        root /
+        ludork::standard::pathFromUtf8(assets[static_cast<std::size_t>(index)]);
     std::unique_ptr<sf::Texture> texture = std::make_unique<sf::Texture>(path);
     sf::Texture* result = texture.get();
     cache.emplace(index, std::move(texture));
@@ -120,8 +119,7 @@ std::vector<std::uint8_t> compressFrame(const std::uint8_t* data,
 
 void updateCanvasExtent(
     const std::vector<AnimationTimeline>& timeLines, float frameTime,
-    const std::vector<std::string>& assets,
-    const std::filesystem::path& root,
+    const std::vector<std::string>& assets, const std::filesystem::path& root,
     std::unordered_map<int, std::unique_ptr<sf::Texture>>& cache, float& maxX,
     float& maxY) {
     for (const AnimationTimeline& timeline : timeLines) {
@@ -170,8 +168,7 @@ CompressedAnimationFrames compressAnimationFrames(
     int frameCount, float frameStep, int frameRate,
     const std::vector<AnimationTimeline>& timeLines,
     const std::vector<std::string>& assets,
-    const std::filesystem::path& assetsRoot,
-    const std::string& imageFormat) {
+    const std::filesystem::path& assetsRoot, const std::string& imageFormat) {
     CompressedAnimationFrames result;
     result.duration = frameRate > 0 ? static_cast<float>(frameCount) /
                                           static_cast<float>(frameRate)
@@ -276,11 +273,9 @@ C_CompressAnimation(const sol::object& zlibModule, int frameCount,
                     const std::string& assetsRoot,
                     const std::string& imageFormat) {
     (void)zlibModule;
-    CompressedAnimationFrames result =
-        compressAnimationFrames(frameCount, frameStep, frameRate, timeLines,
-                                assets,
-                                ludork::standard::pathFromUtf8(assetsRoot),
-                                imageFormat);
+    CompressedAnimationFrames result = compressAnimationFrames(
+        frameCount, frameStep, frameRate, timeLines, assets,
+        ludork::standard::pathFromUtf8(assetsRoot), imageFormat);
     return {result.duration, std::move(result.frames),
             std::move(result.sounds)};
 }

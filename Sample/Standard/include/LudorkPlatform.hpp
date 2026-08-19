@@ -6,7 +6,7 @@
 #error Ludork platform form macros must be derived from SFML
 #endif
 
-#if defined(SFML_SYSTEM_IOS) || defined(SFML_SYSTEM_ANDROID) ||              \
+#if defined(SFML_SYSTEM_IOS) || defined(SFML_SYSTEM_ANDROID) || \
     (defined(SFML_SYSTEM_HARMONY) && defined(SFML_HARMONY_MOBILE))
 #define LUDORK_MOBILE 1
 #else

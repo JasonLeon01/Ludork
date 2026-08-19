@@ -50,10 +50,10 @@ void registerConfigParser(sol::state_view lua) {
     sol::usertype<ConfigParser> parserType = lua.new_usertype<ConfigParser>(
         "LudorkStandardConfigParser", sol::no_constructor);
     lua_sf::mark_shared_usertype<ConfigParser>(lua);
-    parserType.set_function("read", [](ConfigParser& parser,
-                                       const std::string& path) {
-        return parser.read(pathFromUtf8(path));
-    });
+    parserType.set_function("read",
+                            [](ConfigParser& parser, const std::string& path) {
+                                return parser.read(pathFromUtf8(path));
+                            });
     parserType.set_function("has_section", &ConfigParser::hasSection);
     parserType.set_function("add_section", &ConfigParser::addSection);
     parserType.set_function(
@@ -92,10 +92,10 @@ void registerConfigParser(sol::state_view lua) {
                   const std::string& key, const sol::object& value) {
             parser.set(section, key, luaString(value));
         });
-    parserType.set_function("write", [](const ConfigParser& parser,
-                                        const std::string& path) {
-        parser.write(pathFromUtf8(path));
-    });
+    parserType.set_function(
+        "write", [](const ConfigParser& parser, const std::string& path) {
+            parser.write(pathFromUtf8(path));
+        });
     lua["LudorkStandardConfigParser"] = sol::lua_nil;
 
     sol::table module = lua.create_table();

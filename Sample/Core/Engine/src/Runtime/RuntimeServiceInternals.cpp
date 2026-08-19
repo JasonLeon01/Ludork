@@ -6,7 +6,7 @@
 #include <ClassServices.hpp>
 #include <Gameplay/Components/ComponentRuntime.hpp>
 #include <LuaError.hpp>
-#include <LudorkCoreBinding.hpp>
+#include <LudorkCoreBinding/DynamicValueCodec.hpp>
 #include <NodeGraph/Graph.hpp>
 #include <Runtime/EngineClassRuntime.hpp>
 #include <RuntimeSession.hpp>

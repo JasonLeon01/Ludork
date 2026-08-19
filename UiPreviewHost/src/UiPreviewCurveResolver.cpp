@@ -22,19 +22,17 @@ UiPreviewCurveResolver::~UiPreviewCurveResolver() {
     clear();
 }
 
-void UiPreviewCurveResolver::install(
-    const std::filesystem::path& projectRoot) {
+void UiPreviewCurveResolver::install(const std::filesystem::path& projectRoot) {
     clear();
     if (!std::filesystem::is_directory(projectRoot)) {
         throw std::invalid_argument(
             "UI preview curve project root is not a directory");
     }
     projectRoot_ = std::filesystem::weakly_canonical(projectRoot);
-    setRuntimeResolver(
-        [this](const std::string& operation,
-               const std::vector<RuntimeValue>& arguments) {
-            return resolve(operation, arguments);
-        });
+    setRuntimeResolver([this](const std::string& operation,
+                              const std::vector<RuntimeValue>& arguments) {
+        return resolve(operation, arguments);
+    });
     installed_ = true;
 }
 
@@ -48,8 +46,7 @@ void UiPreviewCurveResolver::clear() noexcept {
 }
 
 std::vector<RuntimeValue> UiPreviewCurveResolver::resolve(
-    const std::string& operation,
-    const std::vector<RuntimeValue>& arguments) {
+    const std::string& operation, const std::vector<RuntimeValue>& arguments) {
     if (operation != "vector4Curve") {
         return {};
     }
@@ -57,10 +54,9 @@ std::vector<RuntimeValue> UiPreviewCurveResolver::resolve(
         throw std::invalid_argument(
             "UI preview Vector4Curve resolver requires one asset key");
     }
-    const std::string& assetKey = requireString(
-        arguments.front(), "UI preview Vector4Curve asset key");
+    const std::string& assetKey =
+        requireString(arguments.front(), "UI preview Vector4Curve asset key");
     const std::shared_ptr<Vector4Curve> curve =
         loadUiVector4CurveResource(projectRoot_, assetKey);
-    return {RuntimeValue(
-        std::static_pointer_cast<RuntimeObject>(curve))};
+    return {RuntimeValue(std::static_pointer_cast<RuntimeObject>(curve))};
 }

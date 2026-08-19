@@ -3,7 +3,6 @@
 
 #include <ClassServices.hpp>
 #include <Gameplay/Components/ComponentRuntime.hpp>
-#include <LudorkCoreBinding.hpp>
 #include <NodeGraph/Graph.hpp>
 #include <Runtime/EngineClassRuntime.hpp>
 #include <RuntimeSession.hpp>
@@ -156,15 +155,15 @@ sol::table buildRuntimeEventDescriptor(sol::state_view lua,
                 }
             }
         }
-        sol::table descriptor =
-            createRuntimeParameterDescriptor(lua, names);
+        sol::table descriptor = createRuntimeParameterDescriptor(lua, names);
         descriptor.raw_set("metadataFound", true);
         descriptor.raw_set("metadata", rawEvent);
         return descriptor;
     }
 
     const sol::object classMethod = classType.get<sol::object>(eventName);
-    sol::table descriptor = callableRuntimeParameterDescriptor(lua, classMethod);
+    sol::table descriptor =
+        callableRuntimeParameterDescriptor(lua, classMethod);
     descriptor.raw_set("metadataFound", false);
     if (classMethod.is<sol::protected_function>()) {
         descriptor.raw_set("sourceMethod", classMethod);
@@ -247,8 +246,7 @@ void invokeNamedRuntimeMethod(sol::state_view lua, const sol::object& object,
     const int stackBase = lua_gettop(state);
     try {
         if (names.size() > static_cast<std::size_t>(INT_MAX - 1)) {
-            throw std::length_error(
-                "Blueprint event argument count overflow");
+            throw std::length_error("Blueprint event argument count overflow");
         }
         std::vector<sol::object> arguments;
         arguments.reserve(names.size() + 1);
@@ -260,8 +258,8 @@ void invokeNamedRuntimeMethod(sol::state_view lua, const sol::object& object,
                     rawName.as<std::string>()));
             }
         }
-        static_cast<void>(invokeRuntimeFunction(
-            state, method, arguments, "blueprint event arguments"));
+        static_cast<void>(invokeRuntimeFunction(state, method, arguments,
+                                                "blueprint event arguments"));
         lua_settop(state, stackBase);
     } catch (...) {
         lua_settop(state, stackBase);

@@ -27,9 +27,9 @@ std::string describeLuaValue(lua_State* state, int index, int depth,
         lua_pushvalue(state, absoluteIndex);
         std::size_t length = 0;
         const char* raw = lua_tolstring(state, -1, &length);
-        const std::string result =
-            raw == nullptr ? lua_typename(state, valueType)
-                           : std::string(raw, length);
+        const std::string result = raw == nullptr
+                                       ? lua_typename(state, valueType)
+                                       : std::string(raw, length);
         lua_pop(state, 1);
         return result;
     }

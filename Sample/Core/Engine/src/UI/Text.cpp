@@ -280,14 +280,14 @@ void PlainText::draw(sf::RenderTarget& target, sf::RenderStates states) const {
     sf::RenderStates textStates = states;
     textStates.transform.combine(customSlantTransform(*config_));
     if (!ludork::engine::text_effects::enabled(config_->glow,
-                                                config_->gradient)) {
+                                               config_->gradient)) {
         target.draw(text_, textStates);
         return;
     }
     ensureEffects();
-    if (!ludork::engine::text_effects::draw(
-            effects_->data, target, states, colour_, config_->glow,
-            config_->gradient)) {
+    if (!ludork::engine::text_effects::draw(effects_->data, target, states,
+                                            colour_, config_->glow,
+                                            config_->gradient)) {
         target.draw(text_, textStates);
     }
 }
@@ -402,7 +402,7 @@ sf::Color RichText::getColour() const {
 sf::FloatRect RichText::getPixelBounds() const {
     syncDisplayScale();
     return ludork::engine::text_effects::expandedBounds(localBounds_,
-                                                         config_->glow);
+                                                        config_->glow);
 }
 
 sf::FloatRect RichText::getLocalBounds() const {
@@ -448,16 +448,16 @@ void RichText::draw(sf::RenderTarget& target, sf::RenderStates states) const {
         return;
     }
     if (!ludork::engine::text_effects::enabled(config_->glow,
-                                                config_->gradient)) {
+                                               config_->gradient)) {
         for (const Segment& segment : segments_) {
             target.draw(*segment.text, states);
         }
         return;
     }
     ensureEffects();
-    if (ludork::engine::text_effects::draw(
-            effects_->data, target, states, colour_, config_->glow,
-            config_->gradient)) {
+    if (ludork::engine::text_effects::draw(effects_->data, target, states,
+                                           colour_, config_->glow,
+                                           config_->gradient)) {
         return;
     }
     for (const Segment& segment : segments_) {
@@ -785,6 +785,6 @@ void RichText::ensureEffects() const {
              segment.style.fillColor.value_or(sf::Color::White),
              segment.style.outlineColor.value_or(sf::Color::Black)});
     }
-    ludork::engine::text_effects::rebuild(
-        effects_->data, sources, config_->glow, config_->gradient);
+    ludork::engine::text_effects::rebuild(effects_->data, sources,
+                                          config_->glow, config_->gradient);
 }

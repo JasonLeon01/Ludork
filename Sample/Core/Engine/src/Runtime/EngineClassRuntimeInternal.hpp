@@ -20,9 +20,9 @@ sol::object checkedResult(sol::state_view lua,
                           int index = 0);
 sol::table requireTable(sol::state_view lua, const std::string& moduleName);
 sol::table resolverState(sol::state_view lua);
-sol::object callRuntimeServiceFirst(
-    sol::state_view lua, const std::string& name,
-    const std::vector<sol::object>& arguments);
+sol::object callRuntimeServiceFirst(sol::state_view lua,
+                                    const std::string& name,
+                                    const std::vector<sol::object>& arguments);
 sol::object compileGraphTemplate(sol::state_view lua, const sol::table& data,
                                  const sol::object& classType);
 bool classGraphHasExecutableEvent(sol::state_view lua,
@@ -52,12 +52,11 @@ void mergeScriptMixin(sol::state_view lua, const sol::table& parentClass,
                       const std::string& scriptPath);
 void applyConfigValues(sol::state_view lua, const sol::table& parentClass,
                        sol::table classAttrs, const sol::table& references);
-void initializeGeneratedInstance(lua_State* state,
-                                 const std::string& classPath,
+void initializeGeneratedInstance(lua_State* state, const std::string& classPath,
                                  const sol::object& self,
                                  const sol::variadic_args& arguments);
-std::tuple<sol::object, sol::object> resolveClass(
-    sol::state_view lua, const sol::object& rawPath,
-    const sol::object& rawRoot);
+std::tuple<sol::object, sol::object> resolveClass(sol::state_view lua,
+                                                  const sol::object& rawPath,
+                                                  const sol::object& rawRoot);
 
 }  // namespace ludork::engine::class_runtime_detail

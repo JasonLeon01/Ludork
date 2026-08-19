@@ -21,8 +21,7 @@ namespace ludork::standard::container_runtime::detail {
 
 inline constexpr const char* ORIGINAL_IPAIRS_KEY =
     "LudorkStandard.ContainerOriginalIpairs";
-inline constexpr const char* LESS_THAN_KEY =
-    "LudorkStandard.ContainerLessThan";
+inline constexpr const char* LESS_THAN_KEY = "LudorkStandard.ContainerLessThan";
 inline constexpr const char* JSON_NULL_KEY = "LuaSF.JsonNullSentinel";
 inline constexpr const char* JSON_ARRAY_METATABLE_KEY =
     "LuaSF.JsonArrayMetatable";
@@ -110,8 +109,7 @@ void appendTupleValue(sol::state_view lua, const sol::object& target,
 std::vector<sol::object> constructorValues(sol::state_view lua,
                                            sol::variadic_args arguments,
                                            bool& decodedFromRawTable);
-std::size_t findDictEntry(const sol::object& target,
-                          const sol::object& key);
+std::size_t findDictEntry(const sol::object& target, const sol::object& key);
 void setDictEntry(sol::state_view lua, const sol::object& target,
                   const sol::object& key, const sol::object& value,
                   bool decodeJsonNull);

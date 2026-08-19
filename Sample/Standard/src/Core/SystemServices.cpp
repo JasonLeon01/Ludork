@@ -66,8 +66,8 @@ std::tuple<std::string, std::string> defaultLocale() {
             const int bytes = WideCharToMultiByte(
                 CP_UTF8, 0, buffer, length - 1, nullptr, 0, nullptr, nullptr);
             language.resize(static_cast<std::size_t>(bytes));
-            WideCharToMultiByte(CP_UTF8, 0, buffer, length - 1,
-                                language.data(), bytes, nullptr, nullptr);
+            WideCharToMultiByte(CP_UTF8, 0, buffer, length - 1, language.data(),
+                                bytes, nullptr, nullptr);
         }
 #else
         const char* raw = std::getenv("LC_ALL");

@@ -23,8 +23,8 @@ struct Utf8Codepoint {
 inline Utf8Codepoint decodeUtf8Codepoint(std::string_view value,
                                          std::string_view name,
                                          std::size_t offset) {
-    const std::uint8_t lead = static_cast<std::uint8_t>(
-        static_cast<unsigned char>(value[offset]));
+    const std::uint8_t lead =
+        static_cast<std::uint8_t>(static_cast<unsigned char>(value[offset]));
     std::size_t length = 0;
     char32_t codepoint = 0;
     if (lead <= 0x7F) {

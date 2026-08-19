@@ -74,10 +74,10 @@ std::vector<sol::object> nodeGraphCallArguments(
     const sol::object& self, const sol::object& rawArguments) {
     const std::size_t selfCount =
         self.valid() && self.get_type() != sol::type::lua_nil ? 1 : 0;
-    const std::size_t count = rawArguments.is<sol::table>()
-                                  ? nodeGraphPackedCount(
-                                        rawArguments.as<sol::table>())
-                                  : 0;
+    const std::size_t count =
+        rawArguments.is<sol::table>()
+            ? nodeGraphPackedCount(rawArguments.as<sol::table>())
+            : 0;
     if (count > static_cast<std::size_t>(INT_MAX) - selfCount) {
         throw std::length_error("Node graph argument count overflow");
     }
@@ -113,8 +113,7 @@ std::vector<sol::object> callNodeGraphCallable(
         std::vector<sol::object> result;
         result.reserve(static_cast<std::size_t>(count));
         for (int index = 1; index <= count; ++index) {
-            result.push_back(
-                sol::stack::get<sol::object>(state, base + index));
+            result.push_back(sol::stack::get<sol::object>(state, base + index));
         }
         lua_settop(state, base);
         return result;
@@ -338,9 +337,9 @@ int invokeNodeGraphCallable(sol::state_view lua,
     std::vector<sol::object> results;
     std::exception_ptr failure;
     try {
-        const int count = invokeRuntimeFunction(
-            state, callable, callableArguments,
-            "node graph runtime callable arguments");
+        const int count =
+            invokeRuntimeFunction(state, callable, callableArguments,
+                                  "node graph runtime callable arguments");
         ensureRuntimeLuaStack(state, LUA_MINSTACK,
                               "node graph runtime callable results");
         results.reserve(static_cast<std::size_t>(count));
@@ -394,8 +393,8 @@ int createNodeGraphNode(sol::state_view lua,
         runtimeResolverArgument(lua, arguments, index + 1).push();
     }
     try {
-        const int resultCount = ludork::standard::class_runtime::invoke(
-            state, rawConstructor, 5);
+        const int resultCount =
+            ludork::standard::class_runtime::invoke(state, rawConstructor, 5);
         if (resultCount == 0) {
             lua_pushnil(state);
         } else {

@@ -17,8 +17,7 @@ std::string utf8Bytes(const std::u8string& value) {
         std::memcpy(result.data(), value.data(), value.size());
     }
     if (result.find('\0') != std::string::npos) {
-        throw std::invalid_argument(
-            "filesystem path contains an embedded NUL");
+        throw std::invalid_argument("filesystem path contains an embedded NUL");
     }
     detail::validateUtf8(result, "filesystem path");
     return result;

@@ -8,8 +8,8 @@
 
 LUDORK_ENGINE_API RuntimeValue parseJSONText(const std::string& text);
 LUDORK_ENGINE_API std::string stringifyJSON(const RuntimeValue& value);
-LUDORK_ENGINE_API RuntimeValue getJSONData(
-    const std::filesystem::path& filePath);
+LUDORK_ENGINE_API RuntimeValue
+getJSONData(const std::filesystem::path& filePath);
 LUDORK_ENGINE_API std::string getJSONText(
     const std::filesystem::path& filePath);
 LUDORK_ENGINE_API bool jsonExists(const std::filesystem::path& filePath);

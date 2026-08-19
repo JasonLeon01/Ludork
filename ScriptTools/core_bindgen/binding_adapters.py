@@ -22,6 +22,7 @@ from .cpp_types import (
     parameter_types,
     parameter_without_default,
     remove_type_qualifiers,
+    require_binding_type_features,
     split_return_type,
 )
 from .annotations import validate_lua_path
@@ -153,6 +154,7 @@ def singleton_callable_lambda(
     if is_static_method(member):
         call = f"{type_name}::{member.name}({', '.join(arguments)})"
     return_type, call = adapted_return_call(context, member, call)
+    require_binding_type_features(context, return_type)
     multiple_return = is_multiple_return(context, member, native_return_type)
     converted_return = return_type != "void" and (
         is_shared_pointer(context, return_type)
@@ -239,11 +241,15 @@ def callback_result_lines(
     callback_name: str,
     declaring_type: str,
 ) -> list[str]:
+    context.require_binding_feature("function")
+    for parameter_type in parameter_types(member.declaration):
+        require_binding_type_features(context, parameter_type)
     argument_names = parameter_names(member.declaration)
     arguments = ", ".join(argument_names)
     callback_arguments = ", ".join(argument_names)
     base_invocation = f"{declaring_type}::{member.name}({arguments})"
     return_type = split_return_type(member.declaration, member.name)
+    require_binding_type_features(context, return_type)
     lines = [
         (f"lua_State *bindingCallbackState = {callback_name}.state();"),
         (
@@ -278,6 +284,7 @@ def callback_result_lines(
         return lines
     lua_return_type = lua_return_type_override(context, member)
     if lua_return_type is not None:
+        require_binding_type_features(context, lua_return_type)
         invocation = (
             f"ludork_core::callPushedLuaFunction<{lua_return_type}>(bindingCallbackState, {callback_arguments})"
             if callback_arguments
@@ -319,6 +326,9 @@ def adapter_class_lines(
     callbacks, base_members, legacy = adapter_members(info, type_map)
     if legacy or (not callbacks and not base_members):
         return [], None
+    context.require_binding_feature("native")
+    if callbacks:
+        context.require_binding_feature("function")
     adapter = info.name + "LuaBindingAdapter"
     output = [f"class {adapter} final : public {info.name} {{", "public:"]
     constructors = info.constructors or [
@@ -477,6 +487,7 @@ def base_method_lambda(
         f"({', '.join(arguments)})"
     )
     return_type, call = adapted_return_call(context, member, call)
+    require_binding_type_features(context, return_type)
     multiple_return = is_multiple_return(context, member, native_return_type)
     converted_return = return_type != "void" and (
         is_shared_pointer(context, return_type)
@@ -607,6 +618,9 @@ def module_property_bindings(
         member.name: member for member in properties.values()
     }
     for index, member in enumerate(unique_members.values()):
+        require_binding_type_features(
+            context, module_property_type(context, member)
+        )
         cache = member.options.get("cache", "false").lower() == "true"
         cache = cache or bool(option_list(member.options, "reverse", "reverses"))
         if not cache:

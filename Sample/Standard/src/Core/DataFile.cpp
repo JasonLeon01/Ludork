@@ -115,8 +115,7 @@ std::uint64_t contentNonce(const std::filesystem::path& path,
 std::vector<std::uint8_t> encodeData(const std::filesystem::path& path,
                                      const std::string& source) {
     if (source.size() > MaximumDataSize) {
-        throw std::runtime_error("JSON data is too large: " +
-                                 pathToUtf8(path));
+        throw std::runtime_error("JSON data is too large: " + pathToUtf8(path));
     }
     uLongf compressedSize = compressBound(static_cast<uLong>(source.size()));
     std::vector<std::uint8_t> compressed(compressedSize);

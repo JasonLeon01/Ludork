@@ -3,7 +3,7 @@
 #include "RuntimeSubsystemServices.hpp"
 
 #include <ClassServices.hpp>
-#include <LudorkCoreBinding.hpp>
+#include <LudorkCoreBinding/NativeObjectCodec.hpp>
 #include <Runtime/EngineClassRuntime.hpp>
 #include <Runtime/RuntimeValue.hpp>
 #include <RuntimeSession.hpp>
@@ -32,27 +32,24 @@ void forEachServiceName(Callback&& callback) {
     callback(ludork::engine::runtime_detail::nodeGraphRuntimeServiceNames());
 }
 
-int dispatchRuntimeService(lua_State* state, const std::string& operation,
-                           const ludork::engine::runtime_detail::RuntimeArguments& arguments) {
+int dispatchRuntimeService(
+    lua_State* state, const std::string& operation,
+    const ludork::engine::runtime_detail::RuntimeArguments& arguments) {
     using namespace ludork::engine::runtime_detail;
-    if (ServiceDispatchResult result =
-            dispatchRuntimeValueService(sol::this_state(state), operation,
-                                        arguments)) {
+    if (ServiceDispatchResult result = dispatchRuntimeValueService(
+            sol::this_state(state), operation, arguments)) {
         return *result;
     }
-    if (ServiceDispatchResult result =
-            dispatchMetadataRuntimeService(sol::this_state(state), operation,
-                                           arguments)) {
+    if (ServiceDispatchResult result = dispatchMetadataRuntimeService(
+            sol::this_state(state), operation, arguments)) {
         return *result;
     }
-    if (ServiceDispatchResult result =
-            dispatchBlueprintRuntimeService(sol::this_state(state), operation,
-                                            arguments)) {
+    if (ServiceDispatchResult result = dispatchBlueprintRuntimeService(
+            sol::this_state(state), operation, arguments)) {
         return *result;
     }
-    if (ServiceDispatchResult result =
-            dispatchNodeGraphRuntimeService(sol::this_state(state), operation,
-                                            arguments)) {
+    if (ServiceDispatchResult result = dispatchNodeGraphRuntimeService(
+            sol::this_state(state), operation, arguments)) {
         return *result;
     }
     return 0;

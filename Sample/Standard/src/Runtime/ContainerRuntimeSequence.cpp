@@ -304,8 +304,7 @@ sol::object copyList(const sol::object& source, sol::this_state state) {
     return result;
 }
 
-std::size_t nativeSequenceLength(const sol::object& value,
-                                 ContainerKind kind) {
+std::size_t nativeSequenceLength(const sol::object& value, ContainerKind kind) {
     if (kind == ContainerKind::List) {
         if (!value.is<NativeList>()) {
             throw std::invalid_argument("list operand expected");
@@ -323,8 +322,7 @@ sol::object createNativeSequence(sol::state_view lua, ContainerKind kind) {
 }
 
 void appendNativeSequenceValue(sol::state_view lua, const sol::object& target,
-                               const sol::object& value,
-                               ContainerKind kind) {
+                               const sol::object& value, ContainerKind kind) {
     if (kind == ContainerKind::List) {
         appendListValue(lua, target, value, false, false);
         return;
@@ -358,14 +356,14 @@ sol::object concatenateNativeSequences(const sol::object& left,
 }
 
 sol::object repeatNativeSequence(const sol::object& left,
-                                 const sol::object& right,
-                                 ContainerKind kind,
+                                 const sol::object& right, ContainerKind kind,
                                  sol::this_state state) {
     const bool leftSequence = containerKind(left) == kind;
     const sol::object& source = leftSequence ? left : right;
     const sol::object& rawRepetitions = leftSequence ? right : left;
     if (!rawRepetitions.is<lua_Integer>()) {
-        throw std::invalid_argument("sequence repetition count must be an integer");
+        throw std::invalid_argument(
+            "sequence repetition count must be an integer");
     }
     const lua_Integer signedRepetitions = rawRepetitions.as<lua_Integer>();
     const std::size_t repetitions =
@@ -395,8 +393,7 @@ sol::object multiplyList(const sol::object& left, const sol::object& right,
 
 sol::object addTuples(const sol::object& left, const sol::object& right,
                       sol::this_state state) {
-    return concatenateNativeSequences(left, right, ContainerKind::Tuple,
-                                      state);
+    return concatenateNativeSequences(left, right, ContainerKind::Tuple, state);
 }
 
 sol::object multiplyTuple(const sol::object& left, const sol::object& right,

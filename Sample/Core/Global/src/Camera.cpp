@@ -281,9 +281,9 @@ void Camera::rebuildRenderTexture(bool preserveView) const {
         }
     }
     renderTexture_->setSmooth(false);
-    renderTexture_->setView(
-        defaultViewActive_ ? renderTexture_->getDefaultView()
-                           : preservedView.value_or(sf::View(*viewport_)));
+    renderTexture_->setView(defaultViewActive_
+                                ? renderTexture_->getDefaultView()
+                                : preservedView.value_or(sf::View(*viewport_)));
     renderTexture_->clear(sf::Color::Transparent);
     renderTexture_->display();
     if (renderSprite_.has_value()) {
@@ -334,7 +334,7 @@ void Camera::refreshView() {
         return;
     }
     sf::View view = renderTexture_ == nullptr ? sf::View(*viewport_)
-                                               : renderTexture_->getView();
+                                              : renderTexture_->getView();
     view.setCenter(viewport_->getCenter());
     view.setSize(viewport_->size);
     defaultViewActive_ = false;

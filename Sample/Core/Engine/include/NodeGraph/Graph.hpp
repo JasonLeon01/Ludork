@@ -33,8 +33,7 @@ struct GraphLink {
     std::string linkType;
 };
 
-BIND_CLASS(bind_bases = false,
-           cast_bases = "RuntimeObject", metadata = false)
+BIND_CLASS(bind_bases = false, cast_bases = "RuntimeObject", metadata = false)
 class Graph : public RuntimeObject {
 public:
     using DataNodeMap =

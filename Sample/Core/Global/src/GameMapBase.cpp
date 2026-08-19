@@ -80,12 +80,10 @@ std::shared_ptr<sf::Texture> GameMapBase::generateDataFromMap(
     return texture;
 }
 
-PathResult GameMapBase::findPathExt(const sf::Vector2i& start,
-                                    const sf::Vector2i& goal,
-                                    const sf::Vector2u& size,
-                                    Actor& movingActor,
-                                    const std::vector<sf::Vector2i>&
-                                        excludedAnchors) {
+PathResult GameMapBase::findPathExt(
+    const sf::Vector2i& start, const sf::Vector2i& goal,
+    const sf::Vector2u& size, Actor& movingActor,
+    const std::vector<sf::Vector2i>& excludedAnchors) {
     ensurePassabilityCache();
     refreshActorOccupancyCache();
     int sx = start.x;
@@ -528,8 +526,8 @@ bool GameMapBase::passable(int x, int y, int sx, int sy, int gx, int gy) {
     return passableForActor(x, y, sx, sy, gx, gy, nullptr);
 }
 
-bool GameMapBase::passableForActor(int x, int y, int sx, int sy, int gx,
-                                   int gy, const Actor* excludedActor) {
+bool GameMapBase::passableForActor(int x, int y, int sx, int sy, int gx, int gy,
+                                   const Actor* excludedActor) {
     if ((x == sx && y == sy) || (x == gx && y == gy)) {
         return true;
     }
@@ -719,13 +717,11 @@ bool GameMapBase::nodePassableForActor(int x, int y, int sx, int sy, int gx,
         return passable(x, y, sx, sy, gx, gy);
     }
     for (const sf::Vector2i& cell : cells) {
-        if (cell.x < 0 || cell.y < 0 ||
-            cell.x >= static_cast<int>(width) ||
+        if (cell.x < 0 || cell.y < 0 || cell.x >= static_cast<int>(width) ||
             cell.y >= static_cast<int>(height)) {
             return false;
         }
-        if (!passableForActor(cell.x, cell.y, sx, sy, gx, gy,
-                              &movingActor)) {
+        if (!passableForActor(cell.x, cell.y, sx, sy, gx, gy, &movingActor)) {
             return false;
         }
     }

@@ -349,8 +349,16 @@ public partial class FileExplorerPanel : UserControl
             case Key.Delete:
                 await deleteSelected(viewModel, getSelectedEntries(activeEntries));
                 break;
+            case Key.F2:
+                if (OperatingSystem.IsMacOS())
+                    return;
+                await tryRenameSelected(viewModel);
+                break;
             case Key.Enter:
-                viewModel.OpenSelected();
+                if (OperatingSystem.IsMacOS())
+                    await tryRenameSelected(viewModel);
+                else
+                    viewModel.OpenSelected();
                 break;
             case Key.Space:
                 if (viewModel.SelectedEntry is { IsDirectory: false } selected && isImage(selected.FullPath)
@@ -377,6 +385,14 @@ public partial class FileExplorerPanel : UserControl
                 viewModel.CreateDirectory(name, targetDirectory),
                 LocaleService.Get("CREATE_FOLDER_FAILED"));
         }
+    }
+
+    private async Task tryRenameSelected(FileExplorerViewModel viewModel)
+    {
+        IReadOnlyList<FileExplorerEntryViewModel> selected = getSelectedEntries(activeEntries);
+        if (selected.Count != 1)
+            return;
+        await renameSelected(viewModel, selected[0]);
     }
 
     private async Task renameSelected(FileExplorerViewModel viewModel, FileExplorerEntryViewModel item)

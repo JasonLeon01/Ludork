@@ -50,13 +50,11 @@ struct Cache {
     std::shared_ptr<sf::Shader> shader;
 };
 
-bool enabled(const TextGlowConfig& glow,
-             const TextGradientConfig& gradient);
+bool enabled(const TextGlowConfig& glow, const TextGradientConfig& gradient);
 sf::FloatRect expandedBounds(const sf::FloatRect& bounds,
                              const TextGlowConfig& glow);
 void rebuild(Cache& cache, const std::vector<Source>& sources,
-             const TextGlowConfig& glow,
-             const TextGradientConfig& gradient);
+             const TextGlowConfig& glow, const TextGradientConfig& gradient);
 bool draw(Cache& cache, sf::RenderTarget& target, sf::RenderStates states,
           const sf::Color& colour, const TextGlowConfig& glow,
           const TextGradientConfig& gradient);

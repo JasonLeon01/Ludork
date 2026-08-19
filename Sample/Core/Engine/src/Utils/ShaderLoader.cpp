@@ -153,8 +153,9 @@ bool readFile(const std::filesystem::path& path,
 ShaderSourceResult decodeShader(const std::filesystem::path& path,
                                 const std::vector<std::uint8_t>& encoded) {
     if (encoded.size() < ShaderHeaderSize) {
-        return {
-            {}, path, "Encrypted shader header is truncated: " + pathText(path)};
+        return {{},
+                path,
+                "Encrypted shader header is truncated: " + pathText(path)};
     }
     if (!std::equal(ShaderMagic.begin(), ShaderMagic.end(), encoded.begin())) {
         return {
@@ -175,8 +176,9 @@ ShaderSourceResult decodeShader(const std::filesystem::path& path,
     const std::uint32_t expectedChecksum = readUint32(encoded.data() + 12);
     const std::uint64_t nonce = readUint64(encoded.data() + 16);
     if (sourceSize > MaximumShaderSize) {
-        return {
-            {}, path, "Encrypted shader source is too large: " + pathText(path)};
+        return {{},
+                path,
+                "Encrypted shader source is too large: " + pathText(path)};
     }
 
     std::vector<std::uint8_t> compressed(
@@ -246,8 +248,7 @@ ShaderSourceResult ShaderLoader::readSource(const std::string& shaderPath) {
 
 std::optional<sf::Shader::Type> ShaderLoader::inferType(
     const std::string& shaderPath) {
-    return shaderTypeFromExtension(
-        ludork::standard::pathFromUtf8(shaderPath));
+    return shaderTypeFromExtension(ludork::standard::pathFromUtf8(shaderPath));
 }
 
 ShaderLoadResult ShaderLoader::load(

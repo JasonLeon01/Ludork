@@ -26,8 +26,7 @@ LUDORK_STANDARD_API std::filesystem::path directoryName(
     const std::filesystem::path& value);
 LUDORK_STANDARD_API std::filesystem::path absolutePath(
     const std::filesystem::path& value);
-LUDORK_STANDARD_API double modificationTime(
-    const std::filesystem::path& value);
+LUDORK_STANDARD_API double modificationTime(const std::filesystem::path& value);
 LUDORK_STANDARD_API double processMemoryMegabytes();
 
 }  // namespace ludork::standard

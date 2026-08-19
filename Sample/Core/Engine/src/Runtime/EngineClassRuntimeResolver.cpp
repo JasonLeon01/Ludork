@@ -3,7 +3,6 @@
 
 #include <ClassServices.hpp>
 #include <Gameplay/Components/ComponentRuntime.hpp>
-#include <LudorkCoreBinding.hpp>
 #include <Runtime/RuntimeValue.hpp>
 #include <RuntimeSession.hpp>
 #include <Utils/DataValue.hpp>
@@ -31,8 +30,7 @@ sol::object nilObject(sol::state_view lua) {
 }
 
 sol::object checkedResult(sol::state_view lua,
-                          sol::protected_function_result& result,
-                          int index) {
+                          sol::protected_function_result& result, int index) {
     if (!result.valid()) {
         const sol::error error = result;
         throw std::runtime_error(error.what());
@@ -115,10 +113,9 @@ sol::object callRuntimeServiceFirst(sol::state_view lua,
         }
         const int resultCount = ludork::standard::class_runtime::callService(
             state, name, static_cast<int>(arguments.size()));
-        sol::object result = resultCount == 0
-                                 ? nilObject(lua)
-                                 : sol::stack::get<sol::object>(state,
-                                                                stackBase + 1);
+        sol::object result = resultCount == 0 ? nilObject(lua)
+                                              : sol::stack::get<sol::object>(
+                                                    state, stackBase + 1);
         lua_settop(state, stackBase);
         return result;
     } catch (...) {

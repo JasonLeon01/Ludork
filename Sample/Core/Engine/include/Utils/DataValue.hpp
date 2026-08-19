@@ -65,8 +65,7 @@ LUDORK_ENGINE_API DataValueService& dataValueService();
 BIND_FUNCTION(name = "getClassModulePath")
 RuntimeValue dataValueGetClassModulePath(const RuntimeValue& classReference);
 
-BIND_FUNCTION(name = "getClassTypeMetadata",
-              multiple_returns = true)
+BIND_FUNCTION(name = "getClassTypeMetadata", multiple_returns = true)
 std::pair<RuntimeValue, RuntimeValue> dataValueGetClassTypeMetadata(
     const RuntimeValue& classReference);
 
@@ -81,13 +80,11 @@ BIND_FUNCTION(name = "resolveAttrValueType")
 RuntimeValue dataValueResolveAttrValueType(const RuntimeValue& owner,
                                            const std::string& key);
 
-BIND_FUNCTION(name = "resolveConfigVar",
-              multiple_returns = true)
+BIND_FUNCTION(name = "resolveConfigVar", multiple_returns = true)
 std::pair<RuntimeValue, RuntimeValue> dataValueResolveConfigVar(
     const RuntimeValue& owner, const std::string& key);
 
-BIND_FUNCTION(name = "resolveMemberMetadata",
-              multiple_returns = true)
+BIND_FUNCTION(name = "resolveMemberMetadata", multiple_returns = true)
 std::pair<RuntimeValue, RuntimeValue> dataValueResolveMemberMetadata(
     const RuntimeValue& owner, const std::string& key);
 
@@ -100,8 +97,7 @@ bool dataValueIsStandardValueType(const RuntimeValue& valueType);
 BIND_FUNCTION(name = "shouldEvalValueType")
 bool dataValueShouldEvalValueType(const RuntimeValue& valueType);
 
-BIND_FUNCTION(name = "evalDataExpression",
-              defaults = {nil})
+BIND_FUNCTION(name = "evalDataExpression", defaults = {nil})
 RuntimeValue dataValueEvalDataExpression(
     const RuntimeValue& value,
     const RuntimeValue::Map& environment = RuntimeValue::Map{});
@@ -110,8 +106,7 @@ BIND_FUNCTION(name = "coerceStandardValue")
 RuntimeValue dataValueCoerceStandardValue(const RuntimeValue& value,
                                           const RuntimeValue& valueType);
 
-BIND_FUNCTION(name = "resolveMetadataType",
-              defaults = {nil})
+BIND_FUNCTION(name = "resolveMetadataType", defaults = {nil})
 RuntimeValue dataValueResolveMetadataType(
     const RuntimeValue& typeReference,
     const std::string& declaringModule = std::string());
@@ -119,14 +114,12 @@ RuntimeValue dataValueResolveMetadataType(
 BIND_FUNCTION(name = "metadataTypeName")
 std::string dataValueMetadataTypeName(const RuntimeValue& typeReference);
 
-BIND_FUNCTION(name = "constructTypedValue",
-              defaults = {nil})
+BIND_FUNCTION(name = "constructTypedValue", defaults = {nil})
 RuntimeValue dataValueConstructTypedValue(
     const RuntimeValue& value, const RuntimeValue& valueType,
     const std::string& declaringModule = std::string());
 
-BIND_FUNCTION(name = "resolveTypedDataValue",
-              defaults = {nil, nil})
+BIND_FUNCTION(name = "resolveTypedDataValue", defaults = {nil, nil})
 RuntimeValue dataValueResolveTypedDataValue(
     const RuntimeValue& value, const RuntimeValue& valueType,
     const RuntimeValue::Map& environment = RuntimeValue::Map{},

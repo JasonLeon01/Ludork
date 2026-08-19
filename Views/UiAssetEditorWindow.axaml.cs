@@ -1199,12 +1199,13 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         {
             string assetsRoot = Path.Combine(gameData.ProjectPath, "Assets");
             Directory.CreateDirectory(assetsRoot);
-            string? initialDirectory = getTextureInitialDirectory(value);
+            string? initialFilePath = getTextureInitialFilePath(pathBox.Text ?? string.Empty);
             string? selectedPath = await FileSelectorDialog.ShowAsync(
                 this,
                 assetsRoot,
                 FileSelectorDialog.ImageFilesFilter(),
-                initialDirectory: initialDirectory);
+                initialDirectory: Path.GetDirectoryName(initialFilePath),
+                initialFilePath: initialFilePath);
             if (selectedPath is null)
                 return;
             string relativePath = Path.GetRelativePath(
@@ -1240,14 +1241,13 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         DetailsPanel.Children.Add(createField(label, row));
     }
 
-    private string? getTextureInitialDirectory(string value)
+    private string? getTextureInitialFilePath(string value)
     {
         if (!value.StartsWith("Assets/", StringComparison.Ordinal))
             return null;
-        string resourcePath = Path.Combine(
+        return Path.Combine(
             gameData.ProjectPath,
             value.Replace('/', Path.DirectorySeparatorChar));
-        return Path.GetDirectoryName(resourcePath);
     }
 
     private void addNumericField(

@@ -28,6 +28,10 @@ function WindowItem:init(rect, player, onClose)
     self:setVisible(false)
 end
 
+function WindowItem:setPlayer(player)
+    self._player = player
+end
+
 ---@param target Engine.Canvas
 ---@param width  integer
 ---@param height integer

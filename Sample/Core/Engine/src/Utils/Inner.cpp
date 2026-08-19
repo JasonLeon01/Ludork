@@ -178,8 +178,7 @@ std::string getUserDataPath(const std::optional<std::string>& appNameOverride) {
 }
 
 std::string getSavePath(const std::optional<std::string>& appNameOverride) {
-    const std::filesystem::path path =
-        userDataPath(appNameOverride) / "Save";
+    const std::filesystem::path path = userDataPath(appNameOverride) / "Save";
 #if !defined(_WIN32)
     std::filesystem::create_directories(path);
 #endif
@@ -188,12 +187,12 @@ std::string getSavePath(const std::optional<std::string>& appNameOverride) {
 
 std::string getMainIniPath(const std::optional<std::string>& appNameOverride) {
     return ludork::standard::pathToUtf8(userDataPath(appNameOverride) /
-                                       "Main.ini");
+                                        "Main.ini");
 }
 
 std::string getAnimationSourceRoot() {
     return ludork::standard::pathToUtf8(std::filesystem::path(".") / "Data" /
-                                       "Animations");
+                                        "Animations");
 }
 
 std::string getAnimationCacheRoot(

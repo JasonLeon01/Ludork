@@ -4,20 +4,20 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        d:DesignWidth="480"
-        d:DesignHeight="320"
+        d:DesignWidth="820"
+        d:DesignHeight="520"
         x:Class="Ludork.Views.StartWindow"
         x:DataType="vm:StartViewModel"
-        Width="480"
-        Height="320"
-        MinWidth="480"
-        MaxWidth="480"
-        MinHeight="320"
-        MaxHeight="320"
+        Width="820"
+        Height="520"
+        MinWidth="820"
+        MaxWidth="820"
+        MinHeight="520"
+        MaxHeight="520"
         CanResize="False"
         WindowDecorations="None"
         WindowStartupLocation="CenterScreen"
-        Background="#121212"
+        Background="#111315"
         FontFamily="avares://Ludork/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC"
         Icon="/Assets/icon.ico"
         Title="Ludork">
@@ -35,54 +35,249 @@
 
     <Window.Styles>
         <Style Selector="Button.startAction">
-            <Setter Property="Height" Value="48" />
-            <Setter Property="Background" Value="#1f1f1f" />
-            <Setter Property="Foreground" Value="#ffffff" />
-            <Setter Property="BorderBrush" Value="#3a3a3a" />
+            <Setter Property="MinHeight" Value="104" />
+            <Setter Property="Padding" Value="18" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Background" Value="#1b1e21" />
+            <Setter Property="Foreground" Value="#eef1f4" />
+            <Setter Property="BorderBrush" Value="#3a3f44" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="FontSize" Value="18" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="CornerRadius" Value="8" />
         </Style>
         <Style Selector="Button.startAction:pointerover">
-            <Setter Property="Background" Value="#96ffffff" />
-            <Setter Property="Foreground" Value="#111111" />
-            <Setter Property="BorderBrush" Value="#dcffffff" />
-            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="Background" Value="#23272b" />
+            <Setter Property="BorderBrush" Value="#6c747c" />
         </Style>
         <Style Selector="Button.startAction:pressed">
-            <Setter Property="Background" Value="#c8ffffff" />
+            <Setter Property="Background" Value="#292e32" />
+        </Style>
+        <Style Selector="Button.startAction.primary">
+            <Setter Property="Background" Value="{DynamicResource LudorkPrimaryBrush}" />
+            <Setter Property="Foreground" Value="#161715" />
+            <Setter Property="BorderBrush" Value="#9d862c" />
+        </Style>
+        <Style Selector="Button.startAction.primary:pointerover">
+            <Setter Property="Background" Value="#ffe05d" />
+            <Setter Property="BorderBrush" Value="#ffe47a" />
+        </Style>
+        <Style Selector="Button.startAction.primary:pressed">
+            <Setter Property="Background" Value="#e9c735" />
+        </Style>
+        <Style Selector="Button.recentProject">
+            <Setter Property="MinHeight" Value="55" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#dfe3e7" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+        <Style Selector="Button.recentProject:pointerover">
+            <Setter Property="Background" Value="#1c1f22" />
+            <Setter Property="BorderBrush" Value="#34383d" />
+        </Style>
+        <Style Selector="Button.recentProject:pressed">
+            <Setter Property="Background" Value="#24282c" />
         </Style>
     </Window.Styles>
 
-    <Panel>
-        <Canvas>
-            <TextBlock Canvas.Top="24"
-                       Width="480"
-                       HorizontalAlignment="Center"
-                       Text="{Binding AppName}"
-                       TextAlignment="Center"
-                       Foreground="#ffffff"
-                       FontSize="37.333"
-                       FontWeight="Bold" />
-            <StackPanel Canvas.Left="24"
-                        Canvas.Top="149"
-                        Width="432"
-                        Spacing="16">
-                <Button Classes="startAction"
-                        Width="432"
-                        Content="{Binding NewProject}"
-                        Click="onNewProject" />
-                <Button Classes="startAction"
-                        Width="432"
-                        Content="{Binding OpenProject}"
-                        Click="onOpenProject" />
-            </StackPanel>
-        </Canvas>
-        <NativeMenuBar VerticalAlignment="Top"
+    <Grid RowDefinitions="Auto,58,*">
+        <NativeMenuBar Grid.Row="0"
                        HorizontalAlignment="Stretch"
-                       Height="32"
                        MaxHeight="64" />
-    </Panel>
+
+        <Border Grid.Row="1"
+                Background="#151719"
+                BorderBrush="#2d3135"
+                BorderThickness="0,0,0,1"
+                Padding="24,0"
+                PointerPressed="onTitleBarPointerPressed">
+            <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
+                <Image Width="44" Height="44"
+                       VerticalAlignment="Center"
+                       Source="/Assets/icon.png"
+                       Stretch="Uniform" />
+                <TextBlock Grid.Column="1"
+                           VerticalAlignment="Center"
+                           Text="{Binding AppName}"
+                           Foreground="#f4f6f8"
+                           FontSize="19"
+                           FontWeight="SemiBold" />
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2"
+              Margin="34,30,34,28"
+              ColumnDefinitions="*,270"
+              ColumnSpacing="30">
+            <StackPanel MaxWidth="480"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Spacing="0">
+                <TextBlock Text="{Binding StartTitle}"
+                           Foreground="#f4f6f8"
+                           FontSize="42"
+                           FontWeight="SemiBold" />
+                <TextBlock Margin="0,8,0,25"
+                           Text="{Binding StartSubtitle}"
+                           Foreground="#9da5ad"
+                           FontSize="14"
+                           TextWrapping="Wrap" />
+                <Grid ColumnDefinitions="1*,1*" ColumnSpacing="12">
+                    <Button Classes="startAction primary"
+                            Click="onNewProject">
+                        <Grid RowDefinitions="Auto,*">
+                            <Viewbox Width="30" Height="30"
+                                     HorizontalAlignment="Left">
+                                <Canvas Width="32" Height="32">
+                                    <Path Data="{StaticResource EditorIcon.NewProjectOutline}"
+                                          Stroke="#161715"
+                                          StrokeThickness="2" />
+                                    <Path Data="{StaticResource EditorIcon.NewProjectEdges}"
+                                          Stroke="#161715"
+                                          StrokeThickness="1.5" />
+                                </Canvas>
+                            </Viewbox>
+                            <Grid Grid.Row="1"
+                                  ColumnDefinitions="*,Auto"
+                                  VerticalAlignment="Bottom">
+                                <TextBlock Text="{Binding NewProject}"
+                                           VerticalAlignment="Center"
+                                           FontSize="16"
+                                           FontWeight="SemiBold" />
+                                <Viewbox Grid.Column="1" Width="16" Height="16">
+                                    <Path Data="{StaticResource EditorIcon.StartArrowRight}"
+                                          Stroke="#161715"
+                                          StrokeThickness="1.5"
+                                          StrokeLineCap="Round"
+                                          StrokeJoin="Round" />
+                                </Viewbox>
+                            </Grid>
+                        </Grid>
+                    </Button>
+                    <Button Grid.Column="1"
+                            Classes="startAction"
+                            Click="onOpenProject">
+                        <Grid RowDefinitions="Auto,*">
+                            <Image Width="30" Height="30"
+                                   HorizontalAlignment="Left"
+                                   Source="{StaticResource EditorImage.FolderOpen}"
+                                   Stretch="Uniform" />
+                            <Grid Grid.Row="1"
+                                  ColumnDefinitions="*,Auto"
+                                  VerticalAlignment="Bottom">
+                                <TextBlock Text="{Binding OpenProject}"
+                                           VerticalAlignment="Center"
+                                           FontSize="16"
+                                           FontWeight="SemiBold" />
+                                <Viewbox Grid.Column="1" Width="16" Height="16">
+                                    <Path Data="{StaticResource EditorIcon.StartArrowRight}"
+                                          Stroke="#858e97"
+                                          StrokeThickness="1.5"
+                                          StrokeLineCap="Round"
+                                          StrokeJoin="Round" />
+                                </Viewbox>
+                            </Grid>
+                        </Grid>
+                    </Button>
+                </Grid>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1"
+                        VerticalAlignment="Top"
+                        Spacing="0">
+                <TextBlock Margin="0,0,0,7"
+                           Text="{Binding RecentProjectsTitle}"
+                           Foreground="#dce1e6"
+                           FontSize="13"
+                           FontWeight="SemiBold" />
+                <ItemsControl ItemsSource="{Binding RecentProjects}"
+                              IsVisible="{Binding HasRecentProjects}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:RecentProjectViewModel">
+                            <Button Classes="recentProject"
+                                    Click="onRecentProject"
+                                    ToolTip.Tip="{Binding ProjectDirectory}">
+                                <Grid ColumnDefinitions="30,*,16"
+                                      ColumnSpacing="9">
+                                    <Border Width="30" Height="30"
+                                            VerticalAlignment="Center"
+                                            Background="#272921"
+                                            CornerRadius="6">
+                                        <Viewbox Width="17" Height="17">
+                                            <Path Data="{StaticResource EditorIcon.StartRecentFolder}"
+                                                  Stroke="#d0ad35"
+                                                  StrokeThickness="1.7"
+                                                  StrokeJoin="Round" />
+                                        </Viewbox>
+                                    </Border>
+                                    <StackPanel Grid.Column="1"
+                                                VerticalAlignment="Center"
+                                                Spacing="2">
+                                        <TextBlock Text="{Binding Name}"
+                                                   Foreground="#e3e6e9"
+                                                   FontSize="13"
+                                                   FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding ProjectDirectory}"
+                                                   Foreground="#747d85"
+                                                   FontSize="11"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                    <Viewbox Grid.Column="2"
+                                             Width="15" Height="15"
+                                             VerticalAlignment="Center">
+                                        <Path Data="{StaticResource EditorIcon.StartArrowRight}"
+                                              Stroke="#737b83"
+                                              StrokeThickness="1.5"
+                                              StrokeLineCap="Round"
+                                              StrokeJoin="Round" />
+                                    </Viewbox>
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Border MinHeight="112"
+                        IsVisible="{Binding HasNoRecentProjects}"
+                        Background="#181b1e"
+                        BorderBrush="#2d3135"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="18">
+                    <TextBlock HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Text="{Binding NoRecentProjects}"
+                               Foreground="#747d85"
+                               FontSize="12"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap" />
+                </Border>
+                <Border Margin="0,14,0,0"
+                        BorderBrush="#2c3034"
+                        BorderThickness="0,1,0,0"
+                        Padding="10,12,10,0">
+                    <Grid ColumnDefinitions="15,*" ColumnSpacing="8">
+                        <Viewbox Width="15" Height="15"
+                                 VerticalAlignment="Center">
+                            <Path Data="{StaticResource EditorIcon.StartFileUpload}"
+                                  Stroke="#767f88"
+                                  StrokeThickness="1.5"
+                                  StrokeLineCap="Round"
+                                  StrokeJoin="Round" />
+                        </Viewbox>
+                        <TextBlock Grid.Column="1"
+                                   VerticalAlignment="Center"
+                                   Text="{Binding DropProjectHint}"
+                                   Foreground="#767f88"
+                                   FontSize="11"
+                                   TextWrapping="Wrap" />
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </Grid>
+    </Grid>
 </Window>

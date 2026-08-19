@@ -16,7 +16,7 @@
 #include <string>
 #endif
 
-#if defined(SFML_SYSTEM_IOS) || defined(SFML_SYSTEM_HARMONY) ||              \
+#if defined(SFML_SYSTEM_IOS) || defined(SFML_SYSTEM_HARMONY) || \
     defined(SFML_SYSTEM_ANDROID)
 #include <SFML/Main.hpp>
 #endif
@@ -45,7 +45,7 @@ void configureAndroidRuntimePaths() {
 }
 #endif
 
-}
+}  // namespace
 
 #if defined(SFML_SYSTEM_ANDROID)
 extern "C" JNIEXPORT void JNICALL

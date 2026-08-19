@@ -849,11 +849,15 @@ public sealed class TextConfigEditorWindow : Window
         string root = Path.Combine(gameData.ProjectPath, "Assets", "Fonts");
         Directory.CreateDirectory(root);
         string filter = FileSelectorDialog.FilesFilter("*.ttf", "*.otf");
+        string? initialFilePath = string.IsNullOrWhiteSpace(current)
+            ? null
+            : Path.Combine(root, current);
         string? path = await FileSelectorDialog.ShowAsync(
             this,
             root,
             filter,
-            LocaleService.Get("TEXT_CONFIG_FONT"));
+            LocaleService.Get("TEXT_CONFIG_FONT"),
+            initialFilePath: initialFilePath);
         return path is null ? null : Path.GetRelativePath(root, path).Replace('\\', '/');
     }
 

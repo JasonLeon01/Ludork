@@ -137,8 +137,7 @@ int requireInt32(const RuntimeValue& value, const std::string& source) {
     return static_cast<int>(integer);
 }
 
-std::uint64_t checkedPixelByteCount(unsigned int width,
-                                    unsigned int height,
+std::uint64_t checkedPixelByteCount(unsigned int width, unsigned int height,
                                     const std::string& source) {
     const std::uint64_t byteCount = static_cast<std::uint64_t>(width) *
                                     static_cast<std::uint64_t>(height) * 4u;
@@ -185,9 +184,8 @@ std::filesystem::path safeProjectPath(const std::string& value,
 
 std::string settingString(const RuntimeValue::Map& config,
                           const std::string& name) {
-    const RuntimeValue::Map& setting =
-        requireMap(requireValue(config, name, "System config"),
-                   "System config." + name);
+    const RuntimeValue::Map& setting = requireMap(
+        requireValue(config, name, "System config"), "System config." + name);
     return requireString(
         requireValue(setting, "value", "System config." + name),
         "System config." + name + ".value");
@@ -195,23 +193,20 @@ std::string settingString(const RuntimeValue::Map& config,
 
 std::int64_t settingInteger(const RuntimeValue::Map& config,
                             const std::string& name) {
-    const RuntimeValue::Map& setting =
-        requireMap(requireValue(config, name, "System config"),
-                   "System config." + name);
+    const RuntimeValue::Map& setting = requireMap(
+        requireValue(config, name, "System config"), "System config." + name);
     return requireInteger(
         requireValue(setting, "value", "System config." + name),
         "System config." + name + ".value");
 }
 
 void configureUiResources() {
-    const RuntimeValue configValue =
-        getJSONData(std::filesystem::path(".") / "Data" / "Configs" /
-                    "System.json");
+    const RuntimeValue configValue = getJSONData(
+        std::filesystem::path(".") / "Data" / "Configs" / "System.json");
     const RuntimeValue::Map& config =
         requireMap(configValue, "Data/Configs/System.json");
-    const RuntimeValue::Map& fonts =
-        requireMap(requireValue(config, "fonts", "System config"),
-                   "System config.fonts");
+    const RuntimeValue::Map& fonts = requireMap(
+        requireValue(config, "fonts", "System config"), "System config.fonts");
     const RuntimeValue::Array& fontNames =
         requireArray(requireValue(fonts, "value", "System config.fonts"),
                      "System config.fonts.value");
@@ -221,14 +216,12 @@ void configureUiResources() {
     }
     const std::string& fontName =
         requireString(fontNames.front(), "System config.fonts.value[0]");
-    const std::string base =
-        findValue(fonts, "base") == nullptr
-            ? "Fonts"
-            : requireString(*findValue(fonts, "base"),
-                            "System config.fonts.base");
-    const std::filesystem::path fontPath =
-        safeProjectPath("Assets/" + base + "/" + fontName,
-                        "System config font");
+    const std::string base = findValue(fonts, "base") == nullptr
+                                 ? "Fonts"
+                                 : requireString(*findValue(fonts, "base"),
+                                                 "System config.fonts.base");
+    const std::filesystem::path fontPath = safeProjectPath(
+        "Assets/" + base + "/" + fontName, "System config font");
     std::shared_ptr<sf::Font> font = std::make_shared<sf::Font>();
     if (!font->openFromFile(fontPath)) {
         throw std::runtime_error("Failed to load preview font: " +
@@ -260,8 +253,7 @@ std::optional<std::string> readMessage() {
     if (std::cin.gcount() == 0 && std::cin.eof()) {
         return std::nullopt;
     }
-    if (std::cin.gcount() !=
-        static_cast<std::streamsize>(lengthBytes.size())) {
+    if (std::cin.gcount() != static_cast<std::streamsize>(lengthBytes.size())) {
         throw std::runtime_error("Truncated preview protocol length");
     }
     const std::uint32_t length =
@@ -299,9 +291,8 @@ void writeMessage(const RuntimeValue& value) {
 }
 
 sf::Vector2u designSize(const RuntimeValue::Map& asset) {
-    const RuntimeValue::Map& size =
-        requireMap(requireValue(asset, "designSize", "UI asset"),
-                   "UI asset.designSize");
+    const RuntimeValue::Map& size = requireMap(
+        requireValue(asset, "designSize", "UI asset"), "UI asset.designSize");
     const double width =
         requireNumber(requireValue(size, "width", "UI asset.designSize"),
                       "UI asset.designSize.width");
@@ -331,8 +322,7 @@ struct RenderTargetSpec {
     sf::Vector2u size;
 };
 
-sf::Vector2u scaledRenderSize(const sf::Vector2u& design,
-                              float renderScale) {
+sf::Vector2u scaledRenderSize(const sf::Vector2u& design, float renderScale) {
     const float width = static_cast<float>(design.x) * renderScale;
     const float height = static_cast<float>(design.y) * renderScale;
     if (!std::isfinite(width) || !std::isfinite(height) || width < 1.0f ||
@@ -357,19 +347,17 @@ RenderTargetSpec renderTargetSpec(const sf::Vector2u& design,
             "OpenGL does not report a usable maximum texture size");
     }
     const double maximumScale = std::min(
-        static_cast<double>(maximumTextureSize) /
-            static_cast<double>(design.x),
+        static_cast<double>(maximumTextureSize) / static_cast<double>(design.x),
         static_cast<double>(maximumTextureSize) /
             static_cast<double>(design.y));
     if (maximumScale < static_cast<double>(minimumRenderScale)) {
         throw std::invalid_argument(
             "UI asset designSize cannot fit the maximum texture size");
     }
-    float renderScale = static_cast<float>(
-        std::min(requestedScale, maximumScale));
+    float renderScale =
+        static_cast<float>(std::min(requestedScale, maximumScale));
     sf::Vector2u size = scaledRenderSize(design, renderScale);
-    while ((size.x > maximumTextureSize ||
-            size.y > maximumTextureSize) &&
+    while ((size.x > maximumTextureSize || size.y > maximumTextureSize) &&
            renderScale > minimumRenderScale) {
         renderScale = std::nextafter(renderScale, 0.0f);
         size = scaledRenderSize(design, renderScale);
@@ -383,8 +371,7 @@ RenderTargetSpec renderTargetSpec(const sf::Vector2u& design,
 }
 
 void renderNestedCanvases(const std::shared_ptr<ControlBase>& control) {
-    for (const std::shared_ptr<ControlBase>& child :
-         control->getChildren()) {
+    for (const std::shared_ptr<ControlBase>& child : control->getChildren()) {
         if (child != nullptr && child->getVisible()) {
             renderNestedCanvases(child);
         }
@@ -396,8 +383,8 @@ void renderNestedCanvases(const std::shared_ptr<ControlBase>& control) {
     }
 }
 
-std::vector<std::uint8_t> bgraFromPremultipliedRgba(
-    const sf::Image& image, const sf::Vector2u& size) {
+std::vector<std::uint8_t> bgraFromPremultipliedRgba(const sf::Image& image,
+                                                    const sf::Vector2u& size) {
     const std::uint64_t byteCount =
         checkedPixelByteCount(size.x, size.y, "Preview frame");
     const std::uint8_t* source = image.getPixelsPtr();
@@ -432,8 +419,7 @@ std::vector<std::uint8_t> premultipliedBgraFromStraightRgba(
             (static_cast<std::uint32_t>(source[index + 1]) * alpha + 127u) /
             255u);
         result[index + 2] = static_cast<std::uint8_t>(
-            (static_cast<std::uint32_t>(source[index]) * alpha + 127u) /
-            255u);
+            (static_cast<std::uint32_t>(source[index]) * alpha + 127u) / 255u);
         result[index + 3] = static_cast<std::uint8_t>(alpha);
     }
     return result;
@@ -485,8 +471,7 @@ sf::FloatRect effectiveClip(const std::shared_ptr<ControlBase>& control,
 
 bool insideEffectiveClip(const std::shared_ptr<ControlBase>& control,
                          const sf::Vector2f& point,
-                         const sf::FloatRect& rootClip,
-                         float renderScale) {
+                         const sf::FloatRect& rootClip, float renderScale) {
     if (!rootClip.contains(point)) {
         return false;
     }
@@ -494,9 +479,8 @@ bool insideEffectiveClip(const std::shared_ptr<ControlBase>& control,
     while (current != nullptr) {
         if (std::dynamic_pointer_cast<Canvas>(current) != nullptr) {
             const sf::Vector2f local =
-                current->screenRenderTransform()
-                    .getInverse()
-                    .transformPoint(point) /
+                current->screenRenderTransform().getInverse().transformPoint(
+                    point) /
                 renderScale;
             if (!current->getLocalBounds().contains(local)) {
                 return false;
@@ -508,11 +492,10 @@ bool insideEffectiveClip(const std::shared_ptr<ControlBase>& control,
 }
 
 RuntimeValue::Array nodeGeometry(
-    const std::shared_ptr<UiAssetInstance>& instance,
-    const sf::Vector2u& size, float renderScale) {
+    const std::shared_ptr<UiAssetInstance>& instance, const sf::Vector2u& size,
+    float renderScale) {
     const sf::FloatRect rootClip(
-        {0.0f, 0.0f},
-        {static_cast<float>(size.x), static_cast<float>(size.y)});
+        {0.0f, 0.0f}, {static_cast<float>(size.x), static_cast<float>(size.y)});
     RuntimeValue::Array result;
     for (const UiAssetNodeView& node : instance->getNodeViews()) {
         const sf::FloatRect clip = effectiveClip(node.control, rootClip);
@@ -543,9 +526,8 @@ public:
             std::filesystem::temp_directory_path();
         for (std::size_t index = 0; index < paths_.size(); ++index) {
             paths_[index] =
-                temporary /
-                ("LudorkUiPreview-" + std::to_string(stamp) + "-" +
-                 std::to_string(index) + ".bin");
+                temporary / ("LudorkUiPreview-" + std::to_string(stamp) + "-" +
+                             std::to_string(index) + ".bin");
         }
     }
 
@@ -562,14 +544,14 @@ public:
         const std::filesystem::path& path = paths_[current_];
         std::ofstream output(path, std::ios::binary | std::ios::trunc);
         if (!output) {
-            throw std::runtime_error(
-                "Failed to open preview frame buffer: " + pathText(path));
+            throw std::runtime_error("Failed to open preview frame buffer: " +
+                                     pathText(path));
         }
         output.write(reinterpret_cast<const char*>(pixels.data()),
                      static_cast<std::streamsize>(pixels.size()));
         if (!output) {
-            throw std::runtime_error(
-                "Failed to write preview frame buffer: " + pathText(path));
+            throw std::runtime_error("Failed to write preview frame buffer: " +
+                                     pathText(path));
         }
         return path;
     }
@@ -644,14 +626,14 @@ std::filesystem::path projectAssetPath(
     return candidate;
 }
 
-std::filesystem::path actorTexturePath(
-    const std::filesystem::path& projectPath, const std::string& value) {
+std::filesystem::path actorTexturePath(const std::filesystem::path& projectPath,
+                                       const std::string& value) {
     return projectAssetPath(projectPath, value, "Assets/Characters",
                             "Actor texturePath");
 }
 
-std::filesystem::path actorShaderPath(
-    const std::filesystem::path& projectPath, const std::string& value) {
+std::filesystem::path actorShaderPath(const std::filesystem::path& projectPath,
+                                      const std::string& value) {
     std::filesystem::path path = projectAssetPath(
         projectPath, value, "Assets/Shaders", "Actor shaderPath");
     if (fileStamp(path).exists) {
@@ -659,8 +641,7 @@ std::filesystem::path actorShaderPath(
     }
     const std::string extension =
         ludork::standard::pathToUtf8(path.extension());
-    if (extension == ".frag" || extension == ".vert" ||
-        extension == ".geom") {
+    if (extension == ".frag" || extension == ".vert" || extension == ".geom") {
         std::filesystem::path encrypted = path;
         encrypted.replace_extension(extension + "c");
         if (fileStamp(encrypted).exists) {
@@ -720,12 +701,12 @@ public:
         const std::int64_t generation = requireInteger(
             requireValue(request, "generation", "Actor render request"),
             "Actor render request.generation");
-        const float time = static_cast<float>(requireNumber(
-            requireValue(request, "time", "Actor render request"),
-            "Actor render request.time"));
-        const RuntimeValue::Array& itemValues = requireArray(
-            requireValue(request, "items", "Actor render request"),
-            "Actor render request.items");
+        const float time = static_cast<float>(
+            requireNumber(requireValue(request, "time", "Actor render request"),
+                          "Actor render request.time"));
+        const RuntimeValue::Array& itemValues =
+            requireArray(requireValue(request, "items", "Actor render request"),
+                         "Actor render request.items");
         std::vector<PackedActorVisual> visuals;
         visuals.reserve(itemValues.size());
         for (std::size_t index = 0; index < itemValues.size(); ++index) {
@@ -733,12 +714,11 @@ public:
         }
         std::stable_sort(
             visuals.begin(), visuals.end(),
-            [](const PackedActorVisual& left,
-               const PackedActorVisual& right) {
+            [](const PackedActorVisual& left, const PackedActorVisual& right) {
                 return left.visual.id < right.visual.id;
             });
-        const unsigned int limit = std::min(
-            maximumAtlasSize, sf::Texture::getMaximumSize());
+        const unsigned int limit =
+            std::min(maximumAtlasSize, sf::Texture::getMaximumSize());
         if (limit <= atlasGutter * 2) {
             throw std::runtime_error(
                 "OpenGL maximum texture size cannot hold an actor atlas");
@@ -760,7 +740,7 @@ public:
         std::vector<std::vector<std::uint8_t>> pagePixels;
         pagePixels.reserve(layouts.size());
         for (std::size_t pageIndex = 0; pageIndex < layouts.size();
-            ++pageIndex) {
+             ++pageIndex) {
             pagePixels.push_back(
                 renderPage(layouts[pageIndex], visuals, pageIndex, time));
         }
@@ -776,17 +756,19 @@ public:
             sharedPixels.insert(sharedPixels.end(), pixels.begin(),
                                 pixels.end());
             pages.emplace_back(object({
-                {"width", RuntimeValue(static_cast<std::int64_t>(layout.size.x))},
-                {"height", RuntimeValue(static_cast<std::int64_t>(layout.size.y))},
-                {"stride", RuntimeValue(static_cast<std::int64_t>(layout.size.x) * 4)},
+                {"width",
+                 RuntimeValue(static_cast<std::int64_t>(layout.size.x))},
+                {"height",
+                 RuntimeValue(static_cast<std::int64_t>(layout.size.y))},
+                {"stride",
+                 RuntimeValue(static_cast<std::int64_t>(layout.size.x) * 4)},
                 {"sharedMemory", RuntimeValue(object({
-                    {"filePath", RuntimeValue(std::string())},
-                    {"offset", RuntimeValue(offset)},
-                }))},
+                                     {"filePath", RuntimeValue(std::string())},
+                                     {"offset", RuntimeValue(offset)},
+                                 }))},
             }));
         }
-        const std::filesystem::path& framePath =
-            frameFiles.write(sharedPixels);
+        const std::filesystem::path& framePath = frameFiles.write(sharedPixels);
         for (RuntimeValue& pageValue : pages) {
             RuntimeValue::Map& page =
                 *pageValue.getMutableIf<RuntimeValue::Map>();
@@ -800,10 +782,14 @@ public:
             items.emplace_back(object({
                 {"id", RuntimeValue(visual.visual.id)},
                 {"page", RuntimeValue(static_cast<std::int64_t>(visual.page))},
-                {"x", RuntimeValue(static_cast<std::int64_t>(visual.position.x))},
-                {"y", RuntimeValue(static_cast<std::int64_t>(visual.position.y))},
-                {"width", RuntimeValue(static_cast<std::int64_t>(visual.visual.textureRect.size.x))},
-                {"height", RuntimeValue(static_cast<std::int64_t>(visual.visual.textureRect.size.y))},
+                {"x",
+                 RuntimeValue(static_cast<std::int64_t>(visual.position.x))},
+                {"y",
+                 RuntimeValue(static_cast<std::int64_t>(visual.position.y))},
+                {"width", RuntimeValue(static_cast<std::int64_t>(
+                              visual.visual.textureRect.size.x))},
+                {"height", RuntimeValue(static_cast<std::int64_t>(
+                               visual.visual.textureRect.size.y))},
                 {"shaderError", RuntimeValue(visual.shaderError)},
                 {"error", RuntimeValue(visual.error)},
             }));
@@ -824,23 +810,21 @@ private:
             "Actor render request.items[" + std::to_string(index) + "]";
         const RuntimeValue::Map& item = requireMap(value, source);
         const RuntimeValue::Map& rect = requireMap(
-            requireValue(item, "textureRect", source),
-            source + ".textureRect");
-        const int width = requireInt32(
-            requireValue(rect, "width", source + ".textureRect"),
-            source + ".textureRect.width");
-        const int height = requireInt32(
-            requireValue(rect, "height", source + ".textureRect"),
-            source + ".textureRect.height");
+            requireValue(item, "textureRect", source), source + ".textureRect");
+        const int width =
+            requireInt32(requireValue(rect, "width", source + ".textureRect"),
+                         source + ".textureRect.width");
+        const int height =
+            requireInt32(requireValue(rect, "height", source + ".textureRect"),
+                         source + ".textureRect.height");
         if (width <= 0 || height <= 0) {
             throw std::invalid_argument(source +
                                         ".textureRect must have positive size");
         }
         const std::string& shaderText = requireString(
-            requireValue(item, "shaderPath", source),
-            source + ".shaderPath");
-        float hue = static_cast<float>(requireNumber(
-            requireValue(item, "hue", source), source + ".hue"));
+            requireValue(item, "shaderPath", source), source + ".shaderPath");
+        float hue = static_cast<float>(
+            requireNumber(requireValue(item, "hue", source), source + ".hue"));
         hue = std::fmod(hue, 360.0f);
         if (hue < 0.0f) {
             hue += 360.0f;
@@ -857,9 +841,8 @@ private:
                  requireInt32(requireValue(rect, "y", source + ".textureRect"),
                               source + ".textureRect.y")},
                 {width, height}),
-            shaderText.empty()
-                ? std::filesystem::path()
-                : actorShaderPath(projectPath_, shaderText),
+            shaderText.empty() ? std::filesystem::path()
+                               : actorShaderPath(projectPath_, shaderText),
             hue};
         return {std::move(visual)};
     }
@@ -960,9 +943,9 @@ private:
                 packed.error = shaderEntry.error;
             }
         }
-        const bool hasHue = packed.visual.hue > neutralHueEpsilon &&
-                            std::abs(packed.visual.hue - 360.0f) >
-                                neutralHueEpsilon;
+        const bool hasHue =
+            packed.visual.hue > neutralHueEpsilon &&
+            std::abs(packed.visual.hue - 360.0f) > neutralHueEpsilon;
         if (packed.shaderError) {
             drawError(target, *textureEntry.texture, rect, packed.position);
             return;
@@ -1054,8 +1037,7 @@ private:
     }
 
     static std::uint64_t effectBufferKey(const sf::Vector2i& size) {
-        return static_cast<std::uint64_t>(
-                   static_cast<unsigned int>(size.x))
+        return static_cast<std::uint64_t>(static_cast<unsigned int>(size.x))
                    << 32u |
                static_cast<unsigned int>(size.y);
     }
@@ -1101,8 +1083,8 @@ void main()
 }
 )";
             errorShader_ = std::make_shared<sf::Shader>();
-            if (!errorShader_->loadFromMemory(
-                    source, sf::Shader::Type::Fragment)) {
+            if (!errorShader_->loadFromMemory(source,
+                                              sf::Shader::Type::Fragment)) {
                 errorShader_.reset();
                 throw std::runtime_error(
                     "Failed to compile actor shader error renderer");
@@ -1112,8 +1094,7 @@ void main()
     }
 
     void drawError(sf::RenderTexture& target, const sf::Texture& texture,
-                   const sf::IntRect& rect,
-                   const sf::Vector2u& position) {
+                   const sf::IntRect& rect, const sf::Vector2u& position) {
         sf::Sprite source(texture, rect);
         source.setPosition(sf::Vector2f(position));
         sf::Shader& shader = requireErrorShader();
@@ -1123,22 +1104,19 @@ void main()
         target.draw(source, states);
     }
 
-    static void bindActorShader(sf::Shader& shader,
-                                const sf::Texture& texture,
+    static void bindActorShader(sf::Shader& shader, const sf::Texture& texture,
                                 const sf::IntRect& rect, float time) {
         const sf::Vector2u size = texture.getSize();
         shader.setUniform("texture", sf::Shader::CurrentTexture);
         shader.setUniform("time", time);
-        shader.setUniform(
-            "textureSize",
-            sf::Vector2f(static_cast<float>(size.x),
-                         static_cast<float>(size.y)));
-        shader.setUniform(
-            "textureRect",
-            sf::Glsl::Vec4(static_cast<float>(rect.position.x),
-                           static_cast<float>(rect.position.y),
-                           static_cast<float>(rect.size.x),
-                           static_cast<float>(rect.size.y)));
+        shader.setUniform("textureSize",
+                          sf::Vector2f(static_cast<float>(size.x),
+                                       static_cast<float>(size.y)));
+        shader.setUniform("textureRect",
+                          sf::Glsl::Vec4(static_cast<float>(rect.position.x),
+                                         static_cast<float>(rect.position.y),
+                                         static_cast<float>(rect.size.x),
+                                         static_cast<float>(rect.size.y)));
     }
 
     static void bindHueShader(sf::Shader& shader, float hue) {
@@ -1206,18 +1184,17 @@ private:
         const std::string& requestedFingerprint = requireString(
             requireValue(request, "adapterFingerprint", "Handshake"),
             "Handshake.adapterFingerprint");
-        bool accepted =
-            requestedProtocol == protocolVersion &&
-            requestedFingerprint == uiControlAdapterFingerprint();
+        bool accepted = requestedProtocol == protocolVersion &&
+                        requestedFingerprint == uiControlAdapterFingerprint();
         std::string message;
         if (!accepted) {
             message =
                 "UiPreviewHost protocol or adapter fingerprint "
                 "is incompatible.";
         } else {
-            const std::string& projectPath = requireString(
-                requireValue(request, "projectPath", "Handshake"),
-                "Handshake.projectPath");
+            const std::string& projectPath =
+                requireString(requireValue(request, "projectPath", "Handshake"),
+                              "Handshake.projectPath");
             const std::filesystem::path project =
                 std::filesystem::weakly_canonical(
                     ludork::standard::pathFromUtf8(projectPath));
@@ -1249,17 +1226,16 @@ private:
         const std::int64_t generation = requireInteger(
             requireValue(request, "generation", "Render request"),
             "Render request.generation");
-        const std::string& assetKey = requireString(
-            requireValue(request, "assetKey", "Render request"),
-            "Render request.assetKey");
+        const std::string& assetKey =
+            requireString(requireValue(request, "assetKey", "Render request"),
+                          "Render request.assetKey");
         const RuntimeValue& asset =
             requireValue(request, "asset", "Render request");
         const RuntimeValue::Map& assetMap =
             requireMap(asset, "Render request.asset");
         const RuntimeValue::Map& dependencies =
-            requireMap(
-                requireValue(request, "dependencies", "Render request"),
-                "Render request.dependencies");
+            requireMap(requireValue(request, "dependencies", "Render request"),
+                       "Render request.dependencies");
         const sf::Vector2u design = designSize(assetMap);
         const double requestedScale = requireNumber(
             requireValue(request, "renderScale", "Render request"),
@@ -1282,14 +1258,10 @@ private:
         return RuntimeValue(object({
             {"type", RuntimeValue("frame")},
             {"generation", RuntimeValue(generation)},
-            {"designWidth",
-             RuntimeValue(static_cast<std::int64_t>(design.x))},
-            {"designHeight",
-             RuntimeValue(static_cast<std::int64_t>(design.y))},
-            {"width",
-             RuntimeValue(static_cast<std::int64_t>(renderSize_.x))},
-            {"height",
-             RuntimeValue(static_cast<std::int64_t>(renderSize_.y))},
+            {"designWidth", RuntimeValue(static_cast<std::int64_t>(design.x))},
+            {"designHeight", RuntimeValue(static_cast<std::int64_t>(design.y))},
+            {"width", RuntimeValue(static_cast<std::int64_t>(renderSize_.x))},
+            {"height", RuntimeValue(static_cast<std::int64_t>(renderSize_.y))},
             {"stride",
              RuntimeValue(static_cast<std::int64_t>(renderSize_.x) * 4)},
             {"renderScale", number(renderScale_)},
@@ -1299,8 +1271,7 @@ private:
                  {"offset", RuntimeValue(std::int64_t{0})},
              }))},
             {"nodes",
-             RuntimeValue(nodeGeometry(
-                 instance_, renderSize_, renderScale_))},
+             RuntimeValue(nodeGeometry(instance_, renderSize_, renderScale_))},
         }));
     }
 
@@ -1309,26 +1280,23 @@ private:
             requireValue(request, "generation", "Hit test request"),
             "Hit test request.generation");
         const sf::Vector2f logicalPoint{
-            static_cast<float>(requireNumber(
-                requireValue(request, "x", "Hit test request"),
-                "Hit test request.x")),
-            static_cast<float>(requireNumber(
-                requireValue(request, "y", "Hit test request"),
-                "Hit test request.y"))};
+            static_cast<float>(
+                requireNumber(requireValue(request, "x", "Hit test request"),
+                              "Hit test request.x")),
+            static_cast<float>(
+                requireNumber(requireValue(request, "y", "Hit test request"),
+                              "Hit test request.y"))};
         RuntimeValue nodeName;
         if (instance_ != nullptr && generation == generation_) {
             engineState().setScale(renderScale_);
             const sf::Vector2f point = logicalPoint * renderScale_;
-            const sf::FloatRect rootClip(
-                {0.0f, 0.0f},
-                {static_cast<float>(renderSize_.x),
-                 static_cast<float>(renderSize_.y)});
-            std::vector<UiAssetNodeView> nodes =
-                instance_->getNodeViews();
+            const sf::FloatRect rootClip({0.0f, 0.0f},
+                                         {static_cast<float>(renderSize_.x),
+                                          static_cast<float>(renderSize_.y)});
+            std::vector<UiAssetNodeView> nodes = instance_->getNodeViews();
             std::stable_sort(
                 nodes.begin(), nodes.end(),
-                [](const UiAssetNodeView& left,
-                   const UiAssetNodeView& right) {
+                [](const UiAssetNodeView& left, const UiAssetNodeView& right) {
                     return left.drawOrder > right.drawOrder;
                 });
             for (const UiAssetNodeView& node : nodes) {
@@ -1338,15 +1306,14 @@ private:
                 if (!node.bounds.contains(point)) {
                     continue;
                 }
-                if (!insideEffectiveClip(
-                        node.control, point, rootClip, renderScale_)) {
+                if (!insideEffectiveClip(node.control, point, rootClip,
+                                         renderScale_)) {
                     continue;
                 }
-                const sf::Vector2f local =
-                    node.control->screenRenderTransform()
-                        .getInverse()
-                        .transformPoint(point) /
-                    renderScale_;
+                const sf::Vector2f local = node.control->screenRenderTransform()
+                                               .getInverse()
+                                               .transformPoint(point) /
+                                           renderScale_;
                 if (node.control->getLocalBounds().contains(local)) {
                     nodeName = RuntimeValue(node.nodeName);
                     break;

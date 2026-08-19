@@ -58,7 +58,7 @@ public partial class App : Application
             {
                 StartWindow startWindow = new StartWindow(editorSettings)
                 {
-                    DataContext = new StartViewModel(),
+                    DataContext = new StartViewModel(editorSettings),
                 };
                 registerPluginFailureNotification(startWindow);
                 desktop.MainWindow = startWindow;
@@ -138,13 +138,13 @@ public partial class App : Application
         if (string.IsNullOrWhiteSpace(projectPath))
             return null;
 
-        editorSettings.setLastOpenPath(projectPath);
         TextHintService.SetProjectPath(projectPath);
         MainWindow mainWindow = new MainWindow(editorSettings, projectPath)
         {
             DataContext = new MainViewModel(projectPath),
         };
         registerPluginFailureNotification(mainWindow);
+        editorSettings.recordOpenedProject(fullPath);
         return mainWindow;
     }
 }

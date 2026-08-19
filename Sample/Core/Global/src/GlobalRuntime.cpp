@@ -1,6 +1,6 @@
 #include <GlobalRuntimeApi.hpp>
 
-#include "PerformanceProfiler.hpp"
+#include "System/Diagnostics/PerformanceProfiler.hpp"
 
 #include <CustomParticles/CommonTipController.hpp>
 #include <EditorCommandServices.hpp>

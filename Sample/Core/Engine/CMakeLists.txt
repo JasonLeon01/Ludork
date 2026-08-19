@@ -7,7 +7,7 @@ file(GLOB_RECURSE LUDORK_ENGINE_SOURCES CONFIGURE_DEPENDS
 if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     enable_language(OBJCXX)
     list(APPEND LUDORK_ENGINE_SOURCES
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/Input/PlatformInputBridgeMac.mm")
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/Input/Platform/PlatformInputBridgeMac.mm")
 endif()
 
 ludork_generate_lua_bindings(

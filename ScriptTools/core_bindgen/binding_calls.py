@@ -31,6 +31,7 @@ from .cpp_types import (
     parameter_types,
     property_type,
     remove_type_qualifiers,
+    require_binding_type_features,
     split_return_type,
 )
 from .annotations import (
@@ -146,6 +147,10 @@ def indexer_registration(
     if member is None:
         return None
     key_type = cpp_value_type(context, parameter_types(member.declaration)[0])
+    require_binding_type_features(context, key_type)
+    require_binding_type_features(
+        context, split_return_type(member.declaration, member.name)
+    )
     self_type = (
         f"const {info.name} &self" if is_const_method(member) else f"{info.name} &self"
     )
@@ -183,6 +188,7 @@ def parameter_plan(
         if default_expression is not None:
             raise ValueError(f"{type_name} parameter {name} cannot have a default")
         return ParameterPlan(f"{type_name} {name}", name)
+    require_binding_type_features(context, type_name)
     codec = callback_codec(context, type_name)
     codec_policy = callback_codec_policy(context, type_name)
     codecs = callback_codecs_in_type(context, type_name)
@@ -331,6 +337,7 @@ def callable_lambda(
         else:
             call = f"self.{member.name}({', '.join(arguments)})"
         return_type, call = adapted_return_call(context, member, call)
+    require_binding_type_features(context, return_type)
     if type_name is not None and not static:
         self_type = (
             f"const {type_name} &self"
@@ -559,6 +566,7 @@ def property_registration(
 ) -> str:
     target = f"{type_info.name}Type"
     value_type = property_type(context, member)
+    require_binding_type_features(context, value_type)
     computed_getter = member.options.get("getter")
     if computed_getter is not None:
         self_type = (
@@ -600,12 +608,15 @@ def property_registration(
     return f'{target}.set("{member.name}", sol::property({getter}, {setter}));'
 
 
-def class_property_registration(type_info: TypeInfo, member: Member) -> str:
+def class_property_registration(
+    context: GeneratorContext, type_info: TypeInfo, member: Member
+) -> str:
     if re.search(r"\bstatic\b", member.declaration) is None:
         raise ValueError(
             f"BIND_CLASS_PROPERTY {type_info.name}.{member.name} must be static"
         )
     target = f"{type_info.name}Type"
+    require_binding_type_features(context, class_property_type(context, member))
     exposed_name = member.options.get("name", member.name)
     if not re.fullmatch(r"[A-Za-z_]\w*", exposed_name):
         raise ValueError(
@@ -654,6 +665,7 @@ def class_property_new_index_lines(
             )
         else:
             value_type = class_property_type(context, member)
+            require_binding_type_features(context, value_type)
             lines.append(
                 f'        if (name == "{exposed_name}") {{ '
                 f"{type_info.name}::{member.name} = "

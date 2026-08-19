@@ -3,47 +3,25 @@
 #include <BindAnnotations.hpp>
 #include <ConfigParser.hpp>
 #include <Runtime/RuntimeValue.hpp>
+#include <System/GraphicsTypes.hpp>
+#include <System/SceneRuntime.hpp>
 
-#include <SFML/Graphics.hpp>
-
-#include <atomic>
-#include <chrono>
-#include <cstddef>
-#include <deque>
 #include <functional>
 #include <memory>
-#include <mutex>
 #include <optional>
-#include <random>
 #include <string>
-#include <thread>
-#include <unordered_map>
-#include <variant>
 #include <vector>
 
 namespace ludork::global {
 struct WindowedFramePlacement;
-}
-
-class SceneRuntime : public RuntimeObject {
-public:
-    virtual ~SceneRuntime() = default;
-    virtual void systemMain() = 0;
-    virtual void systemEnter() = 0;
-    virtual void systemQuit() = 0;
-    virtual void systemDestroy() = 0;
-    virtual void systemShutdown() noexcept = 0;
-    virtual bool systemIsRunning() const noexcept = 0;
-    virtual void systemInput() = 0;
-};
-
-using ShaderUniformValue =
-    std::variant<float, int, bool, sf::Vector2f, sf::Vector3f, sf::Glsl::Vec4,
-                 sf::Vector2i, sf::Vector3i, sf::Glsl::Ivec4, sf::Color,
-                 std::shared_ptr<sf::Texture>, std::vector<float>,
-                 std::vector<sf::Vector2f>, std::vector<sf::Vector3f>,
-                 std::vector<sf::Glsl::Vec4>>;
-using ShaderUniforms = std::unordered_map<std::string, ShaderUniformValue>;
+namespace system_runtime {
+struct DisplayRuntime;
+struct FramePipelineRuntime;
+struct SceneStackRuntime;
+struct LifecycleRuntime;
+struct SystemRuntime;
+}  // namespace system_runtime
+}  // namespace ludork::global
 
 BIND_CLASS(runtime_bases = "SystemConfigBase", native_bases = "")
 class System {
@@ -396,6 +374,11 @@ public:
 
 private:
     friend class SceneBase;
+    friend struct ludork::global::system_runtime::DisplayRuntime;
+    friend struct ludork::global::system_runtime::FramePipelineRuntime;
+    friend struct ludork::global::system_runtime::SceneStackRuntime;
+    friend struct ludork::global::system_runtime::LifecycleRuntime;
+    friend struct ludork::global::system_runtime::SystemRuntime;
 
     struct PendingTransition {
         std::optional<std::string> name;
@@ -454,79 +437,4 @@ private:
     static sf::Vector2u renderSizeForScale(float scale);
     static bool isEmbeddedDisplay();
     static bool isMobileDisplay();
-
-    static std::shared_ptr<sf::RenderWindow> window_;
-    static std::mutex windowMutex_;
-    static std::unique_ptr<sf::Cursor> cursor_;
-    static std::string windowTitle_;
-    static std::string windowIconPath_;
-    static std::string windowCursorPath_;
-    static sf::ContextSettings windowContextSettings_;
-    static sf::Vector2u observedWindowSize_;
-    static std::optional<sf::Vector2u> observedWindowClientSize_;
-    static std::optional<float> pendingConfiguredScale_;
-    static std::optional<float> pendingResizeScale_;
-    static std::chrono::steady_clock::time_point lastResizeTime_;
-    static bool desktopFullscreen_;
-    static bool inputMethodDisabled_;
-    static bool canvasDefaultViewActive_;
-    static std::unique_ptr<sf::RenderTexture> canvas_;
-    static std::optional<sf::Sprite> canvasSprite_;
-    static std::unique_ptr<sf::RenderTexture> transition_;
-    static std::unique_ptr<sf::RenderTexture> transitionTempTexture_;
-    static std::unique_ptr<sf::RenderTexture> transitionOutputTexture_;
-    static std::unique_ptr<sf::RenderTexture> transitionMaskTexture_;
-    static std::optional<sf::Sprite> transitionSprite_;
-    static std::optional<sf::Sprite> transitionOutputSprite_;
-    static std::vector<std::unique_ptr<sf::RenderTexture>> graphicsCanvases_;
-    static std::vector<std::shared_ptr<sf::Shader>> graphicsShaders_;
-    static std::shared_ptr<sf::Shader> transitionShader_;
-    static std::shared_ptr<sf::Texture> transitionResource_;
-    static bool inTransition_;
-    static float transitionTimeCount_;
-    static float transitionTime_;
-    static std::size_t transitionRevision_;
-    static std::size_t composedTransitionRevision_;
-    static bool transitionCompletionPending_;
-    static bool transitionFrozen_;
-    static bool transitionFreezePending_;
-    static std::optional<PendingTransition> pendingTransition_;
-    static std::mutex transitionMutex_;
-    static std::mutex presentMutex_;
-
-    static std::shared_ptr<sf::Shader> flashShader_;
-    static sf::Glsl::Vec4 flashColour_;
-    static float flashDuration_;
-    static float flashTimeCount_;
-    static bool flashActive_;
-
-    static std::shared_ptr<sf::Shader> toneShader_;
-    static sf::Glsl::Vec4 toneCurrentColour_;
-    static sf::Glsl::Vec4 toneStartColour_;
-    static sf::Glsl::Vec4 toneTargetColour_;
-    static float toneDuration_;
-    static float toneTimeCount_;
-    static bool toneActive_;
-    static std::unique_ptr<sf::RenderTexture> toneBuffer_;
-    static std::optional<sf::Sprite> toneBufferSprite_;
-
-    static float shakePower_;
-    static float shakeSpeed_;
-    static float shakeDuration_;
-    static float shakeTimeCount_;
-    static bool shakeActive_;
-    static sf::Vector2f shakeOffset_;
-    static float shakeNextUpdate_;
-    static std::mt19937 random_;
-
-    static std::vector<std::shared_ptr<SceneRuntime>> scenes_;
-    static std::deque<std::shared_ptr<SceneRuntime>> retiredScenes_;
-    static std::deque<PendingSceneOperation> pendingSceneOperations_;
-    static std::mutex sceneMutex_;
-    static std::mutex pendingSceneMutex_;
-    static std::thread::id sceneOperationThread_;
-    static std::function<void()> standardUpdate_;
-    static std::atomic_bool shuttingDown_;
-    static std::mutex lifecycleMutex_;
-    static bool debugMode_;
 };

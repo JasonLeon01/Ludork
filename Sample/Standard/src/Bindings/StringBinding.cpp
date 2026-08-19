@@ -14,8 +14,8 @@ namespace ludork::standard::binding {
 
 namespace {
 
-using detail::Utf8Codepoint;
 using detail::decodeUtf8Codepoint;
+using detail::Utf8Codepoint;
 using detail::validateUtf8;
 
 enum class FormatPartKind {
@@ -189,8 +189,7 @@ std::string pformat(sol::this_state current, const std::string& format,
             ++positionalIndex;
             continue;
         }
-        const sol::object value =
-            mapping.raw_get<sol::object>(part.value);
+        const sol::object value = mapping.raw_get<sol::object>(part.value);
         if (!value.valid() || value.get_type() == sol::type::lua_nil) {
             throw std::invalid_argument("pformat mapping is missing key '" +
                                         part.value + "'");
@@ -228,8 +227,7 @@ std::string strip(const std::string& value, bool leading, bool trailing) {
     return value.substr(begin, end - begin);
 }
 
-std::string replaceLiteral(const std::string& value,
-                           const std::string& target,
+std::string replaceLiteral(const std::string& value, const std::string& target,
                            const std::string& replacement) {
     validateUtf8(value, "string");
     validateUtf8(target, "target");
@@ -290,8 +288,7 @@ std::vector<std::size_t> utf8Offsets(const std::string& value) {
     return result;
 }
 
-lua_Integer normaliseUtf8SliceIndex(lua_Integer index,
-                                    lua_Integer length) {
+lua_Integer normaliseUtf8SliceIndex(lua_Integer index, lua_Integer length) {
     if (index < 0) {
         if (index < -length) {
             return 0;
@@ -314,52 +311,44 @@ lua_Integer utf8Length(const std::string& value) {
 std::string utf8Slice(const std::string& value, lua_Integer start,
                       lua_Integer finish) {
     const std::vector<std::size_t> offsets = utf8Offsets(value);
-    const lua_Integer length =
-        static_cast<lua_Integer>(offsets.size() - 1);
+    const lua_Integer length = static_cast<lua_Integer>(offsets.size() - 1);
     const lua_Integer first = normaliseUtf8SliceIndex(start, length);
     const lua_Integer last = normaliseUtf8SliceIndex(finish, length);
     if (last <= first) {
         return {};
     }
-    const std::size_t firstOffset =
-        offsets[static_cast<std::size_t>(first)];
-    const std::size_t lastOffset =
-        offsets[static_cast<std::size_t>(last)];
+    const std::size_t firstOffset = offsets[static_cast<std::size_t>(first)];
+    const std::size_t lastOffset = offsets[static_cast<std::size_t>(last)];
     return value.substr(firstOffset, lastOffset - firstOffset);
 }
 
 }  // namespace
 
 void registerString(sol::state_view lua) {
-    const sol::object rawString =
-        lua.globals().raw_get<sol::object>("string");
+    const sol::object rawString = lua.globals().raw_get<sol::object>("string");
     if (!rawString.is<sol::table>()) {
         throw std::runtime_error("Lua string library is not defined");
     }
     sol::table stringTable = rawString.as<sol::table>();
     stringTable.set_function(
-        "pformat",
-        [](sol::this_state current, const std::string& format,
-           sol::variadic_args arguments) {
+        "pformat", [](sol::this_state current, const std::string& format,
+                      sol::variadic_args arguments) {
             return pformat(current, format, arguments);
         });
     stringTable.set_function(
-        "contains",
-        [](const std::string& value, const std::string& target) {
+        "contains", [](const std::string& value, const std::string& target) {
             validateUtf8(value, "string");
             validateUtf8(target, "target");
             return value.find(target) != std::string::npos;
         });
     stringTable.set_function(
-        "startsWith",
-        [](const std::string& value, const std::string& prefix) {
+        "startsWith", [](const std::string& value, const std::string& prefix) {
             validateUtf8(value, "string");
             validateUtf8(prefix, "prefix");
             return value.starts_with(prefix);
         });
     stringTable.set_function(
-        "endsWith",
-        [](const std::string& value, const std::string& suffix) {
+        "endsWith", [](const std::string& value, const std::string& suffix) {
             validateUtf8(value, "string");
             validateUtf8(suffix, "suffix");
             return value.ends_with(suffix);
@@ -384,19 +373,17 @@ void registerString(sol::state_view lua) {
     stringTable.set_function("strip", [](const std::string& value) {
         return strip(value, true, true);
     });
-    stringTable.set_function(
-        "stripLeading", [](const std::string& value) {
-            return strip(value, true, false);
-        });
-    stringTable.set_function(
-        "stripTrailing", [](const std::string& value) {
-            return strip(value, false, true);
-        });
-    stringTable.set_function("replace", &replaceLiteral);
-    stringTable.set_function("split", [](const std::string& value,
-                                         const std::string& separator) {
-        return sol::as_table(splitLiteral(value, separator));
+    stringTable.set_function("stripLeading", [](const std::string& value) {
+        return strip(value, true, false);
     });
+    stringTable.set_function("stripTrailing", [](const std::string& value) {
+        return strip(value, false, true);
+    });
+    stringTable.set_function("replace", &replaceLiteral);
+    stringTable.set_function(
+        "split", [](const std::string& value, const std::string& separator) {
+            return sol::as_table(splitLiteral(value, separator));
+        });
     stringTable.set_function("utf8Length", &utf8Length);
     stringTable.set_function("utf8Slice", &utf8Slice);
 }

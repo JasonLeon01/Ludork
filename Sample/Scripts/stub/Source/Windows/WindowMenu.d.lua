@@ -74,6 +74,10 @@ local WindowMenu = {}
 ---@param windows Source.Windows.WindowMenuWindows
 function WindowMenu:init(player, windows) end
 
+--- @brief Rebind the player whose movement is controlled by the menu.
+---@param player Source.Player.Player
+function WindowMenu:setPlayer(player) end
+
 --- @brief Set a predicate that decides whether close restores player movement.
 ---
 --- - @param guard Callable returning True when movement may be restored.

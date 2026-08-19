@@ -203,6 +203,26 @@
     "zh_CN": "部分插件未能加载",
     "en_GB": "Some Plugins Failed to Load"
   },
+  "START_TITLE": {
+    "zh_CN": "开始创作",
+    "en_GB": "Start creating"
+  },
+  "START_SUBTITLE": {
+    "zh_CN": "创建新项目，或继续编辑已有的 Ludork 项目。",
+    "en_GB": "Create a new world or continue editing an existing Ludork project."
+  },
+  "START_RECENT_PROJECTS": {
+    "zh_CN": "最近项目",
+    "en_GB": "Recent Projects"
+  },
+  "START_NO_RECENT_PROJECTS": {
+    "zh_CN": "暂无最近项目",
+    "en_GB": "No recent projects yet"
+  },
+  "START_DROP_PROJECT_HINT": {
+    "zh_CN": "也可以将 .proj 文件拖放到窗口",
+    "en_GB": "You can also drop a .proj file onto this window"
+  },
   "NEW_PROJECT": {
     "zh_CN": "新建项目",
     "en_GB": "New Project"
@@ -1422,6 +1442,14 @@
   "startMap": {
     "zh_CN": "初始地图",
     "en_GB": "Start Map"
+  },
+  "startPlayerBlueprint": {
+    "zh_CN": "初始玩家蓝图",
+    "en_GB": "Start Player Blueprint"
+  },
+  "startRegion": {
+    "zh_CN": "初始区域",
+    "en_GB": "Start Region"
   },
   "startPos": {
     "zh_CN": "初始位置",

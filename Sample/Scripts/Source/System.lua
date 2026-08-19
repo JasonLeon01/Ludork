@@ -16,6 +16,8 @@ System._windowskinName = ""
 System._titleBackgroundFile = "GrassBackground.png"
 System._coverOpaqueAlpha = 0
 System._startMap = ""
+System._startPlayerClassPath = ""
+System._startRegion = ""
 System._startPos = sf.Vector2u.new(0, 0)
 System._cursorSE = ""
 System._decisionSE = ""
@@ -31,6 +33,23 @@ System._equipSE = ""
 System._titleBGM = ""
 System._audioConfigValues = {}
 System._savedScreenImage = nil
+
+---@param relativePath string
+---@return string
+local function blueprintRelativePathToClassPath(relativePath)
+    assert(type(relativePath) == "string", "Start player blueprint path must be a string")
+    assert(relativePath:sub(-5) == ".json", "Start player blueprint path must end with .json")
+    assert(relativePath:sub(1, 1) ~= "/", "Start player blueprint path must be relative")
+    assert(not relativePath:find("\\", 1, true), "Start player blueprint path must use / separators")
+    assert(not relativePath:find("//", 1, true), "Start player blueprint path contains an empty segment")
+    local classRelativePath = relativePath:sub(1, -6)
+    assert(bool(classRelativePath), "Start player blueprint path must not be empty")
+    assert(classRelativePath:sub(-1) ~= "/", "Start player blueprint path contains an empty segment")
+    for segment in classRelativePath:gmatch("[^/]+") do
+        assert(segment ~= "." and segment ~= "..", "Start player blueprint path contains an invalid segment")
+    end
+    return "Data.Blueprints." .. classRelativePath:gsub("/", ".")
+end
 
 function System.init()
     local MovementSpecials = require("Source.MovementSpecials")
@@ -53,6 +72,9 @@ function System.init()
     local coverOpaqueAlpha = systemData.coverOpaqueAlpha.value
     System._coverOpaqueAlpha = coverOpaqueAlpha
     System._startMap = systemData.startMap.value
+    System._startPlayerClassPath = blueprintRelativePathToClassPath(systemData.startPlayerBlueprint.value)
+    System._startRegion = systemData.startRegion.value
+    assert(type(System._startRegion) == "string" and bool(System._startRegion), "Start region must be a non-empty string")
     local startPos = systemData.startPos.value
     System._startPos = sf.Vector2u.new(startPos[1], startPos[2])
     local configuredScale = GlobalSystem.getConfiguredScale()
@@ -133,6 +155,14 @@ end
 
 function System.getStartMap()
     return System._startMap
+end
+
+function System.GetStartPlayerClassPath()
+    return System._startPlayerClassPath
+end
+
+function System.GetStartRegion()
+    return System._startRegion
 end
 
 function System.getStartPos()

@@ -5,6 +5,7 @@ using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Ludork.Plugin.Abstractions;
 using Ludork.Services;
+using Ludork.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -28,6 +29,7 @@ public partial class StartWindow : Window
     public StartWindow(EditorSettings settings)
     {
         editorSettings = settings;
+        editorSettings.removeMissingRecentProjects();
         InitializeComponent();
         NativeMenu? rootMenu = NativeMenu.GetMenu(this);
         if (Application.Current is App app
@@ -64,6 +66,18 @@ public partial class StartWindow : Window
         });
         if (files.Count > 0)
             openProject(files[0].Path.LocalPath);
+    }
+
+    private void onRecentProject(object? sender, RoutedEventArgs args)
+    {
+        if (sender is Button { DataContext: RecentProjectViewModel project })
+            openProject(project.ProjectFilePath);
+    }
+
+    private void onTitleBarPointerPressed(object? sender, PointerPressedEventArgs args)
+    {
+        if (args.GetCurrentPoint(this).Properties.PointerUpdateKind == PointerUpdateKind.LeftButtonPressed)
+            BeginMoveDrag(args);
     }
 
     private async void onImportPlugin(object? sender, EventArgs args)

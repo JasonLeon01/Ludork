@@ -53,7 +53,7 @@ LUDORK_ENGINE_API void initializeLatent();
 
 LUDORK_ENGINE_API void shutdownLatent() noexcept;
 
-BIND_MODULE_PROPERTY(name = "latentManager",
-                     readonly = true, cache = true, metadata = false)
+BIND_MODULE_PROPERTY(name = "latentManager", readonly = true, cache = true,
+                     metadata = false)
 extern LUDORK_ENGINE_API const std::shared_ptr<LatentManager>
     latentManagerInstance;

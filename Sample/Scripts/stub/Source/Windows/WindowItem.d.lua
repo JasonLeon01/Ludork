@@ -19,6 +19,10 @@ local WindowItem = {}
 ---@param onClose function | nil
 function WindowItem:init(rect, player, onClose) end
 
+--- @brief Rebind the player whose inventory is displayed.
+---@param player Source.Player.Player
+function WindowItem:setPlayer(player) end
+
 --- @brief Update item window and render item cells.
 ---
 --- - @param deltaTime Elapsed time in seconds.

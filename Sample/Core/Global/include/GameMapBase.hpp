@@ -90,9 +90,10 @@ public:
     ///
     ////////////////////////////////////////////////////////////
     BIND_METHOD(defaults = {nil, nil, nil, nil, {}})
-    PathResult findPathExt(const sf::Vector2i& start, const sf::Vector2i& goal,
-                           const sf::Vector2u& size, Actor& movingActor,
-                           const std::vector<sf::Vector2i>& excludedAnchors = {});
+    PathResult findPathExt(
+        const sf::Vector2i& start, const sf::Vector2i& goal,
+        const sf::Vector2u& size, Actor& movingActor,
+        const std::vector<sf::Vector2i>& excludedAnchors = {});
 
     ////////////////////////////////////////////////////////////
     /// \brief Build a 2D map of dynamic material property values

@@ -52,23 +52,23 @@
             </NativeMenuItem>
             <NativeMenuItem Header="{Binding Game}">
                 <NativeMenu>
-                    <NativeMenuItem Header="{Binding GameConfigLabel}" Command="{Binding GameConfigCommand}" Gesture="F2" />
+                    <NativeMenuItem Header="{Binding GameConfigLabel}" Command="{Binding GameConfigCommand}" Gesture="F3" />
                     <NativeMenuItemSeparator />
-                    <NativeMenuItem Header="{Binding NewBlueprint}" Command="{Binding NewBlueprintCommand}" Gesture="F3" />
-                    <NativeMenuItem Header="{Binding NewAnimation}" Command="{Binding NewAnimationCommand}" Gesture="F4" />
-                    <NativeMenuItem Header="{Binding NewCurve}" Command="{Binding NewCurveCommand}" Gesture="F5" />
-                    <NativeMenuItem Header="{Binding NewTextConfig}" Command="{Binding NewTextConfigCommand}" Gesture="F6" />
+                    <NativeMenuItem Header="{Binding NewBlueprint}" Command="{Binding NewBlueprintCommand}" />
+                    <NativeMenuItem Header="{Binding NewAnimation}" Command="{Binding NewAnimationCommand}" />
+                    <NativeMenuItem Header="{Binding NewCurve}" Command="{Binding NewCurveCommand}" />
+                    <NativeMenuItem Header="{Binding NewTextConfig}" Command="{Binding NewTextConfigCommand}" />
                     <NativeMenuItem Header="{Binding NewUiAsset}" Command="{Binding NewUiAssetCommand}" />
                 </NativeMenu>
             </NativeMenuItem>
             <NativeMenuItem Header="{Binding Database}">
                 <NativeMenu>
-                    <NativeMenuItem Header="{Binding SystemConfig}" Command="{Binding SystemConfigCommand}" Gesture="F7" />
-                    <NativeMenuItem Header="{Binding AnimationOverview}" Command="{Binding AnimationOverviewCommand}" Gesture="F8" />
-                    <NativeMenuItem Header="{Binding TilesetsData}" Command="{Binding TilesetsDataCommand}" Gesture="F9" />
-                    <NativeMenuItem Header="{Binding CommonFunctions}" Command="{Binding CommonFunctionsCommand}" Gesture="F10" />
-                    <NativeMenuItem Header="{Binding GameVariablesLabel}" Command="{Binding GameVariablesCommand}" Gesture="F11" />
-                    <NativeMenuItem Header="{Binding GeneralData}" Command="{Binding GeneralDataCommand}" Gesture="F12" />
+                    <NativeMenuItem Header="{Binding SystemConfig}" Command="{Binding SystemConfigCommand}" Gesture="F4" />
+                    <NativeMenuItem Header="{Binding AnimationOverview}" Command="{Binding AnimationOverviewCommand}" Gesture="F5" />
+                    <NativeMenuItem Header="{Binding TilesetsData}" Command="{Binding TilesetsDataCommand}" Gesture="F6" />
+                    <NativeMenuItem Header="{Binding CommonFunctions}" Command="{Binding CommonFunctionsCommand}" Gesture="F7" />
+                    <NativeMenuItem Header="{Binding GameVariablesLabel}" Command="{Binding GameVariablesCommand}" Gesture="F8" />
+                    <NativeMenuItem Header="{Binding GeneralData}" Command="{Binding GeneralDataCommand}" Gesture="F9" />
                 </NativeMenu>
             </NativeMenuItem>
             <NativeMenuItem Header="{Binding Plugins}">
@@ -114,17 +114,13 @@
         <KeyBinding Gesture="{OnPlatform Default=Ctrl+2, macOS=Meta+2}" Command="{Binding LightModeCommand}" />
         <KeyBinding Gesture="{OnPlatform Default=Ctrl+3, macOS=Meta+3}" Command="{Binding ActorModeCommand}" />
         <KeyBinding Gesture="F1" Command="{Binding HelpCommand}" />
-        <KeyBinding Gesture="F2" Command="{Binding GameConfigCommand}" />
-        <KeyBinding Gesture="F3" Command="{Binding NewBlueprintCommand}" />
-        <KeyBinding Gesture="F4" Command="{Binding NewAnimationCommand}" />
-        <KeyBinding Gesture="F5" Command="{Binding NewCurveCommand}" />
-        <KeyBinding Gesture="F6" Command="{Binding NewTextConfigCommand}" />
-        <KeyBinding Gesture="F7" Command="{Binding SystemConfigCommand}" />
-        <KeyBinding Gesture="F8" Command="{Binding AnimationOverviewCommand}" />
-        <KeyBinding Gesture="F9" Command="{Binding TilesetsDataCommand}" />
-        <KeyBinding Gesture="F10" Command="{Binding CommonFunctionsCommand}" />
-        <KeyBinding Gesture="F11" Command="{Binding GameVariablesCommand}" />
-        <KeyBinding Gesture="F12" Command="{Binding GeneralDataCommand}" />
+        <KeyBinding Gesture="F3" Command="{Binding GameConfigCommand}" />
+        <KeyBinding Gesture="F4" Command="{Binding SystemConfigCommand}" />
+        <KeyBinding Gesture="F5" Command="{Binding AnimationOverviewCommand}" />
+        <KeyBinding Gesture="F6" Command="{Binding TilesetsDataCommand}" />
+        <KeyBinding Gesture="F7" Command="{Binding CommonFunctionsCommand}" />
+        <KeyBinding Gesture="F8" Command="{Binding GameVariablesCommand}" />
+        <KeyBinding Gesture="F9" Command="{Binding GeneralDataCommand}" />
     </Window.KeyBindings>
 
     <Window.Styles>

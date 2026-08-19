@@ -16,6 +16,7 @@ from .cpp_types import (
     normalize_declaration,
     parameter_types,
     property_type,
+    require_binding_type_features,
     split_template_arguments,
     std_function_signature,
 )
@@ -163,12 +164,15 @@ def injection_lines(
     if type_name is not None and not is_static_method(member):
         raise ValueError(f"BIND_INJECT {type_name}.{member.name} must be static")
     value_type = cpp_value_type(context, parameter_types_value[0])
+    require_binding_type_features(context, value_type)
     raw_variadic = member.options.get("variadic", "false").lower()
     if raw_variadic not in {"true", "false"}:
         raise ValueError(
             f"BIND_INJECT {member.name} variadic must be true or false"
         )
     variadic = raw_variadic == "true"
+    if variadic:
+        context.require_binding_feature("variadic")
     source_name = f"bindingInjectionSource{index}"
     value_name = f"bindingInjectionValue{index}"
     lines = [
@@ -441,6 +445,8 @@ def table_value_trait_lines(
     lines.append("")
     for info in table_types:
         properties = table_value_properties(info, type_map)
+        for prop in properties:
+            require_binding_type_features(context, property_type(context, prop))
         alternatives = lua_alternatives(info)
         emits = lua_emits(info)
         alternative_properties = lua_alternative_property_map(info, properties)

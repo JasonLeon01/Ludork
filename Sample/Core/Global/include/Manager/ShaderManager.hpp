@@ -32,5 +32,4 @@ public:
 
     BIND_IGNORE()
     static void clear() noexcept;
-
 };

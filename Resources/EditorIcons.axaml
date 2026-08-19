@@ -6,6 +6,9 @@
     <StreamGeometry x:Key="EditorIcon.SubmenuRight">M0,0L4,3.5L0,7Z</StreamGeometry>
     <StreamGeometry x:Key="EditorIcon.NewProjectOutline">M5,8.5L16,3L27,8.5L27,23.5L16,29L5,23.5Z</StreamGeometry>
     <StreamGeometry x:Key="EditorIcon.NewProjectEdges">M5,8.5L16,14L27,8.5M16,14L16,29</StreamGeometry>
+    <StreamGeometry x:Key="EditorIcon.StartArrowRight">M3,8H13M9.5,4.5L13,8L9.5,11.5</StreamGeometry>
+    <StreamGeometry x:Key="EditorIcon.StartRecentFolder">M2,6H9L11,8H22V19H2Z</StreamGeometry>
+    <StreamGeometry x:Key="EditorIcon.StartFileUpload">M6,2H15L20,7V22H6ZM15,2V7H20M13,18V10M9.5,13.5L13,10L16.5,13.5</StreamGeometry>
     <StreamGeometry x:Key="EditorIcon.TemplateStandaloneFrame">M10,6H30A5,5,0,0,1,35,11V29A5,5,0,0,1,30,34H10A5,5,0,0,1,5,29V11A5,5,0,0,1,10,6Z</StreamGeometry>
     <StreamGeometry x:Key="EditorIcon.TemplateStandalonePlay">M17,14L17,26L27,20Z</StreamGeometry>
     <StreamGeometry x:Key="EditorIcon.TemplateCppCode">M14,6L4,17L14,28M34,6L44,17L34,28</StreamGeometry>

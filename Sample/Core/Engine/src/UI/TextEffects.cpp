@@ -117,8 +117,7 @@ Cache::Cache() = default;
 
 Cache::~Cache() = default;
 
-bool enabled(const TextGlowConfig& glow,
-             const TextGradientConfig& gradient) {
+bool enabled(const TextGlowConfig& glow, const TextGradientConfig& gradient) {
     return glowEnabled(glow) || gradient.enabled;
 }
 
@@ -130,8 +129,7 @@ sf::FloatRect expandedBounds(const sf::FloatRect& bounds,
 }
 
 void rebuild(Cache& cache, const std::vector<Source>& sources,
-             const TextGlowConfig& glow,
-             const TextGradientConfig& gradient) {
+             const TextGlowConfig& glow, const TextGradientConfig& gradient) {
     const sf::FloatRect renderBounds = combinedTextBounds(sources, true);
     const sf::FloatRect fillBounds = combinedTextBounds(sources, false);
     if (renderBounds.size.x <= 0.0f || renderBounds.size.y <= 0.0f ||

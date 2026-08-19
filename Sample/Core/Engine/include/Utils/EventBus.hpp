@@ -112,8 +112,7 @@ private:
     static BlueprintEventInvoker blueprintEventInvoker_;
 };
 
-BIND_MODULE_PROPERTY(name = "_default_bus",
-                     readonly = true, metadata = false)
+BIND_MODULE_PROPERTY(name = "_default_bus", readonly = true, metadata = false)
 extern LUDORK_ENGINE_API EventBus* const DefaultEventBus;
 
 BIND_INJECT(global = "_LUDORK_BLUEPRINT_EVENT_VALIDATOR")
@@ -133,21 +132,18 @@ BIND_FUNCTION(name = "once", defaults = {0})
 std::size_t onceEvent(const std::string& event, EventHandler handler,
                       int priority = 0);
 
-BIND_FUNCTION(name = "subscribeObjectHandler",
-              defaults = {0})
+BIND_FUNCTION(name = "subscribeObjectHandler", defaults = {0})
 std::size_t subscribeObjectEvent(const std::string& event,
                                  RuntimeIdentityPtr object,
                                  EventHandler handler, int priority = 0);
 
-BIND_FUNCTION(name = "subscribeBlueprintEvent",
-              defaults = {0})
+BIND_FUNCTION(name = "subscribeBlueprintEvent", defaults = {0})
 std::size_t subscribeBlueprintEvent(const std::string& event,
                                     RuntimeIdentityPtr object,
                                     const std::string& eventName,
                                     int priority = 0);
 
-BIND_FUNCTION(name = "onceBlueprintEvent",
-              defaults = {0})
+BIND_FUNCTION(name = "onceBlueprintEvent", defaults = {0})
 std::size_t onceBlueprintEvent(const std::string& event,
                                RuntimeIdentityPtr object,
                                const std::string& eventName, int priority = 0);

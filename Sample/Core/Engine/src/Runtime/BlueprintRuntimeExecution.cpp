@@ -3,7 +3,7 @@
 
 #include <ClassServices.hpp>
 #include <Gameplay/Components/ComponentRuntime.hpp>
-#include <LudorkCoreBinding.hpp>
+#include <LudorkCoreBinding/DynamicValueCodec.hpp>
 #include <NodeGraph/Graph.hpp>
 #include <Runtime/EngineClassRuntime.hpp>
 #include <RuntimeSession.hpp>
@@ -40,9 +40,9 @@ bool blueprintIsInstance(sol::this_state state, const sol::object& value,
            isInstance(state, value, type.as<sol::table>());
 }
 
-sol::object callRuntimeMethodFirst(
-    sol::state_view lua, const sol::object& object, const char* name,
-    const std::vector<sol::object>& arguments) {
+sol::object callRuntimeMethodFirst(sol::state_view lua,
+                                   const sol::object& object, const char* name,
+                                   const std::vector<sol::object>& arguments) {
     const sol::object method =
         runtimeIndex(lua, object, sol::make_object(lua, name), false);
     if (!method.is<sol::protected_function>()) {
@@ -57,10 +57,9 @@ sol::object callRuntimeMethodFirst(
     try {
         const int resultCount = invokeRuntimeFunction(
             state, method, values, "runtime method arguments");
-        sol::object result =
-            resultCount == 0
-                ? nilObject(lua)
-                : sol::stack::get<sol::object>(state, stackBase + 1);
+        sol::object result = resultCount == 0 ? nilObject(lua)
+                                              : sol::stack::get<sol::object>(
+                                                    state, stackBase + 1);
         lua_settop(state, stackBase);
         return result;
     } catch (...) {
@@ -219,8 +218,7 @@ sol::table blueprintEventKeywordArguments(
             continue;
         }
         const std::string name = rawName.as<std::string>();
-        if (result.get<sol::object>(name).get_type() ==
-            sol::type::lua_nil) {
+        if (result.get<sol::object>(name).get_type() == sol::type::lua_nil) {
             result.set(name, arguments.get<sol::object>(index));
         }
     }

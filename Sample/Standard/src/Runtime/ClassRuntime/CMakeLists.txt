@@ -1,12 +1,10 @@
-add_library(LudorkStandardClassRuntime OBJECT
-    ClassNativeInterop.cpp
-    Bridge.cpp
-    Common.cpp
-    Native.cpp
-    Composite.cpp
-    Instance.cpp
-    Copy.cpp
-    Module.cpp)
+add_library(LudorkStandardClassRuntime OBJECT)
+
+add_subdirectory(Detail)
+add_subdirectory(Native)
+add_subdirectory(Composite)
+add_subdirectory(Instance)
+add_subdirectory(Class)
 
 set_target_properties(LudorkStandardClassRuntime PROPERTIES
     POSITION_INDEPENDENT_CODE ON)
@@ -30,12 +28,3 @@ target_link_libraries(LudorkStandardClassRuntime
     PRIVATE
         LuaSF::LuaSF
         LuaSF::Lua)
-
-ludork_apply_msvc_debug_source_options(
-    "${CMAKE_CURRENT_SOURCE_DIR}/Bridge.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Common.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Native.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Composite.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Instance.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Copy.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Module.cpp")

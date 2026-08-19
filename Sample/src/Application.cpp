@@ -360,8 +360,7 @@ void configureLuaSearchPaths(lua_State* state,
     lua_getglobal(state, "package");
     lua_getfield(state, -1, "path");
     const char* packagePath = lua_tostring(state, -1);
-    const std::string scriptModulePath =
-        "Scripts/?.lua;Scripts/?.luac;";
+    const std::string scriptModulePath = "Scripts/?.lua;Scripts/?.luac;";
     lua_pushlstring(state, scriptModulePath.c_str(), scriptModulePath.size());
     lua_pushstring(state, packagePath == nullptr ? "" : packagePath);
     lua_concat(state, 2);
@@ -484,8 +483,8 @@ void configureRuntimePaths(const std::filesystem::path& runtimeRoot,
         throw std::runtime_error("Unable to configure user data root");
     }
 #else
-    if (setenv("LUDORK_USER_DATA_ROOT",
-               normalizedUserDataRoot.string().c_str(), 1) != 0) {
+    if (setenv("LUDORK_USER_DATA_ROOT", normalizedUserDataRoot.string().c_str(),
+               1) != 0) {
         throw std::system_error(errno, std::generic_category(),
                                 "Unable to configure user data root");
     }

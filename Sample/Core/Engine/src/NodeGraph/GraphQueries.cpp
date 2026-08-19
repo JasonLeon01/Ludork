@@ -285,7 +285,6 @@ void Graph::addExecutionCompleteCallback(const std::string& key,
     }
 }
 
-
 RuntimeValue::Map Graph::asDict() const {
     const_cast<Graph*>(this)->ensureInitialised();
     RuntimeValue::Map result;

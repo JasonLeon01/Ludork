@@ -357,6 +357,10 @@ function WindowMenu:init(player, windows)
     self._menuControls = self._menuController:getMenuControls()
 end
 
+function WindowMenu:setPlayer(player)
+    self._player = player
+end
+
 function WindowMenu:setMoveRestoreGuard(guard)
     self._menuController:setMoveRestoreGuard(guard)
 end

@@ -17,6 +17,8 @@
 ---@field getTitleBGM              fun(): string
 ---@field getTitleBackgroundFile   fun(): string
 ---@field getStartMap              fun(): string
+---@field GetStartPlayerClassPath  fun(): string
+---@field GetStartRegion           fun(): string
 ---@field getStartPos              fun(): sf.Vector2u
 ---@field getSavedScreenImage      fun(): sf.Image | nil
 ---@field setSavedScreenImage      fun(image: sf.Image | nil)
@@ -78,6 +80,18 @@ function System.setWindowskinName(name) end
 --- - @return The start map path.
 ---@return string
 function System.getStartMap() end
+
+--- @brief Get the configured new-game player Blueprint class path.
+---
+--- - @return The `Data.Blueprints.*` class path derived from `startPlayerBlueprint`.
+---@return string
+function System.GetStartPlayerClassPath() end
+
+--- @brief Get the configured new-game region.
+---
+--- - @return The initial region name used by a new GameInstance.
+---@return string
+function System.GetStartRegion() end
 
 --- @brief Get the starting position on the map.
 ---

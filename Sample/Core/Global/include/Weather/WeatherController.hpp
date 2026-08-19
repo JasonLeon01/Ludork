@@ -17,20 +17,16 @@ class Particle;
 class ParticleBase;
 class ParticleSystem;
 
-BIND_MODULE_PROPERTY(name = "NONE",
-                     readonly = true)
+BIND_MODULE_PROPERTY(name = "NONE", readonly = true)
 extern const int WeatherTypeNone;
 
-BIND_MODULE_PROPERTY(name = "RAIN",
-                     readonly = true)
+BIND_MODULE_PROPERTY(name = "RAIN", readonly = true)
 extern const int WeatherTypeRain;
 
-BIND_MODULE_PROPERTY(name = "STORM",
-                     readonly = true)
+BIND_MODULE_PROPERTY(name = "STORM", readonly = true)
 extern const int WeatherTypeStorm;
 
-BIND_MODULE_PROPERTY(name = "SNOW",
-                     readonly = true)
+BIND_MODULE_PROPERTY(name = "SNOW", readonly = true)
 extern const int WeatherTypeSnow;
 
 BIND_FUNCTION(name = "coerce")

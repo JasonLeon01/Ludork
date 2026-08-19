@@ -18,7 +18,8 @@ bool readString(napi_env env, napi_value value, std::string& result) {
     }
 
     std::size_t length = 0;
-    if (napi_get_value_string_utf8(env, value, nullptr, 0, &length) != napi_ok) {
+    if (napi_get_value_string_utf8(env, value, nullptr, 0, &length) !=
+        napi_ok) {
         return false;
     }
 
@@ -50,8 +51,7 @@ napi_value configureRuntimePaths(napi_env env, napi_callback_info info) {
     if (!readString(env, arguments[0], runtimeRoot) ||
         !readString(env, arguments[1], userDataRoot)) {
         napi_throw_type_error(
-            env, nullptr,
-            "configureRuntimePaths requires two string paths");
+            env, nullptr, "configureRuntimePaths requires two string paths");
         return nullptr;
     }
 
@@ -81,9 +81,8 @@ napi_value configureSystemLocale(napi_env env, napi_callback_info info) {
 
     std::string systemLocale;
     if (!readString(env, arguments[0], systemLocale)) {
-        napi_throw_type_error(
-            env, nullptr,
-            "configureSystemLocale requires a locale string");
+        napi_throw_type_error(env, nullptr,
+                              "configureSystemLocale requires a locale string");
         return nullptr;
     }
 
@@ -121,8 +120,8 @@ extern "C" napi_value initializeModule(napi_env env, napi_value exports) {
                                  ::configureSystemLocale, nullptr, nullptr,
                                  nullptr, napi_default, nullptr},
         napi_property_descriptor{"submitSystemBack", nullptr,
-                                 ::submitSystemBack, nullptr, nullptr,
-                                 nullptr, napi_default, nullptr}};
+                                 ::submitSystemBack, nullptr, nullptr, nullptr,
+                                 napi_default, nullptr}};
     if (napi_define_properties(env, initializedExports, properties.size(),
                                properties.data()) != napi_ok) {
         napi_throw_error(env, nullptr,

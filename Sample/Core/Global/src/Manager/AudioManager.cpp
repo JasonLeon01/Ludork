@@ -124,8 +124,8 @@ MusicRecord* findMusicRecord(const sf::Music* music) {
     return nullptr;
 }
 
-std::shared_ptr<AudioEffectControl> attachEffect(
-    sf::SoundSource& source, const std::string& effect) {
+std::shared_ptr<AudioEffectControl> attachEffect(sf::SoundSource& source,
+                                                 const std::string& effect) {
     if (!ludork::global::audio::hasAudioEffectProcessor(effect)) {
         return nullptr;
     }
@@ -141,9 +141,8 @@ std::shared_ptr<AudioEffectControl> attachEffect(
     return std::move(binding.control);
 }
 
-void stopManaged(
-    sf::SoundSource& source,
-    const std::shared_ptr<AudioEffectControl>& effectControl) {
+void stopManaged(sf::SoundSource& source,
+                 const std::shared_ptr<AudioEffectControl>& effectControl) {
     ludork::global::audio::cancelAudioEffect(effectControl);
     source.stop();
 }
@@ -461,8 +460,7 @@ void AudioManager::applyVoiceVolumes() {
     }
     if (!SystemConfigBase::getVoiceOn()) {
         stopVoice();
-    } else if (voice.sound->getStatus() !=
-               sf::SoundSource::Status::Stopped) {
+    } else if (voice.sound->getStatus() != sf::SoundSource::Status::Stopped) {
         voice.sound->setVolume(voice.baseVolume *
                                SystemConfigBase::getVoiceVolume() / 100.0f);
     }

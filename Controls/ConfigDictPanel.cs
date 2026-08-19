@@ -263,7 +263,7 @@ public sealed class ConfigDictPanel : Border
         Button browse = new() { Content = "..." };
         browse.Click += async (_, _) =>
         {
-            string? selected = await selectFileName(value);
+            string? selected = await selectFileName(value, edit.Text ?? string.Empty);
             if (selected is null)
                 return;
             bool changed = values is not null && index is int selectedIndex
@@ -303,19 +303,27 @@ public sealed class ConfigDictPanel : Border
         Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60)),
     };
 
-    private async Task<string?> selectFileName(JsonObject value)
+    private async Task<string?> selectFileName(JsonObject value, string current)
     {
         string root = getFileRoot(value);
         IReadOnlyList<string> extensions = getExtensions(value["ext"]);
         string filterStr = extensions.Count == 0
             ? FileSelectorDialog.AllFilesFilter(star: true)
             : FileSelectorDialog.FilesFilter(extensions.Select(e => "*" + e).ToArray());
-        string? path = await FileSelectorDialog.ShowAsync(owner, root, filterStr);
+        string? initialFilePath = string.IsNullOrWhiteSpace(current)
+            ? null
+            : Path.Combine(root, current);
+        string? path = await FileSelectorDialog.ShowAsync(
+            owner,
+            root,
+            filterStr,
+            initialFilePath: initialFilePath);
         if (path is null) return null;
         string fileName = Path.GetFileName(path);
-        return extensions.Count == 0 || extensions.Any(e => fileName.EndsWith(e, StringComparison.OrdinalIgnoreCase))
-            ? fileName
-            : null;
+        if (extensions.Count != 0
+            && !extensions.Any(e => fileName.EndsWith(e, StringComparison.OrdinalIgnoreCase)))
+            return null;
+        return Path.GetRelativePath(root, path).Replace('\\', '/');
     }
 
     private string getFileRoot(JsonObject value)

@@ -45,8 +45,7 @@ std::string currentPath() {
 }
 
 void createDirectories(const std::string& path) {
-    std::filesystem::create_directories(
-        ludork::standard::pathFromUtf8(path));
+    std::filesystem::create_directories(ludork::standard::pathFromUtf8(path));
 }
 
 std::string compress(const std::string& value) {

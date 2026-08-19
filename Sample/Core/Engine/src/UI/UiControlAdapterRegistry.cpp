@@ -590,8 +590,7 @@ RuntimeValue::Map loadTextConfigData(const std::string& textConfigKey) {
     }
     const std::filesystem::path path =
         std::filesystem::path(".") / "Data" / "TextConfigs" / relative;
-    return requireMap(getJSONData(path),
-                      ludork::standard::pathToUtf8(path));
+    return requireMap(getJSONData(path), ludork::standard::pathToUtf8(path));
 }
 
 std::shared_ptr<PlainTextConfig> plainTextConfig(
@@ -918,8 +917,7 @@ UiControlAdapterRegistry::UiControlAdapterRegistry() {
     };
     canvas.setter = [](ControlBase& control, const std::string& propertyId,
                        const RuntimeValue& value) {
-        Canvas& canvas =
-            requireControlType<Canvas>(control, "Engine.Canvas");
+        Canvas& canvas = requireControlType<Canvas>(control, "Engine.Canvas");
         if (propertyId == "size") {
             canvas.resize(requireVector2u(value, "size"));
             return;
@@ -928,8 +926,7 @@ UiControlAdapterRegistry::UiControlAdapterRegistry() {
     };
     canvas.arranger = [](ControlBase& control, const sf::Vector2f& size,
                          const sf::Vector2f& renderScale) {
-        Canvas& canvas =
-            requireControlType<Canvas>(control, "Engine.Canvas");
+        Canvas& canvas = requireControlType<Canvas>(control, "Engine.Canvas");
         canvas.resize(
             {static_cast<unsigned int>(std::max(0.0f, std::round(size.x))),
              static_cast<unsigned int>(std::max(0.0f, std::round(size.y)))});
@@ -1160,8 +1157,7 @@ UiControlAdapterRegistry::UiControlAdapterRegistry() {
     };
     button.setter = [](ControlBase& control, const std::string& propertyId,
                        const RuntimeValue& value) {
-        Button& button =
-            requireControlType<Button>(control, "Engine.Button");
+        Button& button = requireControlType<Button>(control, "Engine.Button");
         if (propertyId == "texture") {
             button.setTexture(loadTexture(requireString(value, "texture")),
                               true);
@@ -1284,8 +1280,7 @@ UiControlAdapterRegistry::UiControlAdapterRegistry() {
     };
     dropBox.setter = [](ControlBase& control, const std::string& propertyId,
                         const RuntimeValue& value) {
-        DropBox& field =
-            requireControlType<DropBox>(control, "Engine.DropBox");
+        DropBox& field = requireControlType<DropBox>(control, "Engine.DropBox");
         if (propertyId == "size") {
             field.setCollapsedSize(requireVector2f(value, "size"));
         } else if (propertyId == "windowSkin") {
@@ -1322,8 +1317,7 @@ UiControlAdapterRegistry::UiControlAdapterRegistry() {
     };
     window.setter = [](ControlBase& control, const std::string& propertyId,
                        const RuntimeValue& value) {
-        Window& window =
-            requireControlType<Window>(control, "Engine.Window");
+        Window& window = requireControlType<Window>(control, "Engine.Window");
         if (propertyId == "size") {
             window.resize(requireVector2u(value, "size"));
             return;
@@ -1333,8 +1327,7 @@ UiControlAdapterRegistry::UiControlAdapterRegistry() {
     };
     window.arranger = [](ControlBase& control, const sf::Vector2f& size,
                          const sf::Vector2f& renderScale) {
-        Window& window =
-            requireControlType<Window>(control, "Engine.Window");
+        Window& window = requireControlType<Window>(control, "Engine.Window");
         window.resize(
             {static_cast<unsigned int>(std::max(0.0f, std::round(size.x))),
              static_cast<unsigned int>(std::max(0.0f, std::round(size.y)))});

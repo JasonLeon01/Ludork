@@ -11,4 +11,4 @@ void configureSystemLocale(const std::string& systemLocale);
 
 int run(int argc, char** argv);
 
-}
+}  // namespace ludork::application

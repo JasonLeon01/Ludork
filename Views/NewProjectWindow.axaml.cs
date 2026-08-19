@@ -334,7 +334,6 @@ public partial class NewProjectWindow : Window
                 projectFilePath,
                 config.ToJsonString(new() { WriteIndented = true })
             );
-            editorSettings.setLastOpenPath(targetPath);
             creating = false;
             Close(projectFilePath);
         }

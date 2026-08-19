@@ -16,8 +16,7 @@ namespace ludork::standard::binding {
 
 namespace {
 
-bool tableContains(const sol::table& values,
-                   const sol::object& expected) {
+bool tableContains(const sol::table& values, const sol::object& expected) {
     lua_State* state = values.lua_state();
     values.push();
     const int tableIndex = lua_gettop(state);
@@ -37,10 +36,9 @@ bool tableContains(const sol::table& values,
     }
 }
 
-sol::table orderedStringKeys(
-    const sol::table& values,
-    const sol::optional<sol::table>& preferredOrder,
-    sol::this_state state) {
+sol::table orderedStringKeys(const sol::table& values,
+                             const sol::optional<sol::table>& preferredOrder,
+                             sol::this_state state) {
     std::unordered_set<std::string> remaining;
     for (const auto& entry : values) {
         if (!entry.first.is<std::string>()) {
@@ -55,15 +53,14 @@ sol::table orderedStringKeys(
     if (preferredOrder.has_value()) {
         const sol::table preferred = *preferredOrder;
         for (lua_Integer index = 1;; ++index) {
-            const sol::object value =
-                preferred.get<sol::object>(index);
-            if (!value.valid() ||
-                value.get_type() == sol::type::lua_nil) {
+            const sol::object value = preferred.get<sol::object>(index);
+            if (!value.valid() || value.get_type() == sol::type::lua_nil) {
                 break;
             }
             if (!value.is<std::string>()) {
                 throw std::invalid_argument(
-                    "orderedStringKeys preferredOrder must contain only strings");
+                    "orderedStringKeys preferredOrder must contain only "
+                    "strings");
             }
             const std::string key = value.as<std::string>();
             if (remaining.erase(key) != 0) {
@@ -77,8 +74,7 @@ sol::table orderedStringKeys(
     ordered.insert(ordered.end(), extras.begin(), extras.end());
 
     sol::state_view lua(state);
-    sol::table result =
-        lua.create_table(static_cast<int>(ordered.size()), 0);
+    sol::table result = lua.create_table(static_cast<int>(ordered.size()), 0);
     for (std::size_t index = 0; index < ordered.size(); ++index) {
         result.raw_set(index + 1, ordered[index]);
     }
@@ -88,8 +84,7 @@ sol::table orderedStringKeys(
 }  // namespace
 
 void registerTable(sol::state_view lua) {
-    const sol::object rawTable =
-        lua.globals().raw_get<sol::object>("table");
+    const sol::object rawTable = lua.globals().raw_get<sol::object>("table");
     if (!rawTable.is<sol::table>()) {
         throw std::runtime_error("Lua table library is not defined");
     }

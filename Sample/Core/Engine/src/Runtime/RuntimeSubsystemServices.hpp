@@ -115,8 +115,7 @@ sol::table registeredBlueprintEvents(sol::state_view lua,
 int nodeGraphContext(sol::state_view lua, const RuntimeArguments& arguments);
 int invokeNodeGraphCallable(sol::state_view lua,
                             const RuntimeArguments& arguments);
-int createNodeGraphNode(sol::state_view lua,
-                        const RuntimeArguments& arguments);
+int createNodeGraphNode(sol::state_view lua, const RuntimeArguments& arguments);
 int bridgeNodeGraphCache(sol::state_view lua,
                          const RuntimeArguments& arguments);
 int evaluateNodeGraphCondition(sol::state_view lua,
@@ -124,9 +123,9 @@ int evaluateNodeGraphCondition(sol::state_view lua,
 void clearNodeGraphRuntimeCaches(sol::state_view lua);
 
 const std::vector<std::string>& runtimeValueServiceNames();
-ServiceDispatchResult dispatchRuntimeValueService(sol::this_state state,
-                                                  const std::string& operation,
-                                                  const RuntimeArguments& arguments);
+ServiceDispatchResult dispatchRuntimeValueService(
+    sol::this_state state, const std::string& operation,
+    const RuntimeArguments& arguments);
 
 const std::vector<std::string>& metadataRuntimeServiceNames();
 ServiceDispatchResult dispatchMetadataRuntimeService(

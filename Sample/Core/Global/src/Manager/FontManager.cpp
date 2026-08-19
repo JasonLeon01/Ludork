@@ -126,9 +126,8 @@ bool FontManager::hasFont(const std::string& fontName) {
 std::size_t FontManager::getMemory() {
     FontManagerState& state = fontManagerState();
     std::shared_lock lock(state.mutex);
-    std::size_t total =
-        sizeof(state) + state.resources.entryCount() *
-                            sizeof(std::weak_ptr<sf::Font>);
+    std::size_t total = sizeof(state) + state.resources.entryCount() *
+                                            sizeof(std::weak_ptr<sf::Font>);
     for (const auto& [name, font] : state.fonts) {
         total += name.capacity() + sizeof(font) + sizeof(sf::Font);
     }

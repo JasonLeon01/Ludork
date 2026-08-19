@@ -7,9 +7,8 @@
 #include <string>
 #include <vector>
 
-BIND_CLASS(bind_bases = false,
-           runtime_bases = "BPBase", native_bases = "RuntimeObject",
-           cast_bases = "RuntimeObject")
+BIND_CLASS(bind_bases = false, runtime_bases = "BPBase",
+           native_bases = "RuntimeObject", cast_bases = "RuntimeObject")
 class InfoBase : public RuntimeObject {
 public:
     BIND_INIT()

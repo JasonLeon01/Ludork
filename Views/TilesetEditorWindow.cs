@@ -533,7 +533,15 @@ internal sealed class TilesetDetailPanel : Grid
             return;
         string root = Path.Combine(gameData.ProjectPath, "Assets", isAutoTile ? "Autotiles" : "Tilesets");
         Directory.CreateDirectory(root);
-        string? path = await FileSelectorDialog.ShowAsync(owner, root, FileSelectorDialog.ImageFilesFilter());
+        string current = data["fileName"]?.GetValue<string>() ?? string.Empty;
+        string? initialFilePath = string.IsNullOrWhiteSpace(current)
+            ? null
+            : Path.Combine(root, current);
+        string? path = await FileSelectorDialog.ShowAsync(
+            owner,
+            root,
+            FileSelectorDialog.ImageFilesFilter(),
+            initialFilePath: initialFilePath);
         if (path is null)
             return;
         using Avalonia.Media.Imaging.Bitmap bitmap = new(path);

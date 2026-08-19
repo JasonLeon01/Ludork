@@ -36,6 +36,10 @@ function PlayerAttrHUD:init(player, openMenuCallback)
     self._ui:attach(logicalSize)
 end
 
+function PlayerAttrHUD:setPlayer(player)
+    self._player = player
+end
+
 function PlayerAttrHUD:onTick(deltaTime)
     self:_refresh()
     return super(PlayerAttrHUD, self).onTick(deltaTime)

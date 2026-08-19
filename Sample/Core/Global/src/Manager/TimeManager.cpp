@@ -66,8 +66,8 @@ sf::Time TimeManager::getCurrentTime() {
 
 sf::Time TimeManager::getDeltaTime() {
     ensureInitialized();
-    const sf::Time delta = sf::microseconds(
-        deltaMicroseconds_.load(std::memory_order_acquire));
+    const sf::Time delta =
+        sf::microseconds(deltaMicroseconds_.load(std::memory_order_acquire));
     return delta * speed_.load(std::memory_order_acquire);
 }
 

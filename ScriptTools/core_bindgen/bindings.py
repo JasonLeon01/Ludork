@@ -78,7 +78,8 @@ def generate_bindings(
         "#include <LuaSF.hpp>",
         "#include <luasf_sol.hpp>",
         "#include <LudorkCore.hpp>",
-        "#include <LudorkCoreBinding.hpp>",
+        *(["#include <ClassServices.hpp>"] if types else []),
+        "__LUDORK_CORE_BINDING_FEATURE_HEADERS__",
         *includes,
         "#include <fstream>",
         "#include <memory>",
@@ -94,6 +95,7 @@ def generate_bindings(
         if info.options.get("dynamic_value", "false").lower() == "true"
     ]
     if dynamic_types:
+        context.require_binding_feature("dynamic")
         output.append("namespace ludork_core {")
         for info in dynamic_types:
             output.extend(
@@ -110,6 +112,7 @@ def generate_bindings(
         if info.options.get("opaque_identity", "false").lower() == "true"
     ]
     if opaque_identity_types:
+        context.require_binding_feature("native")
         output.append("namespace ludork_core {")
         for info in opaque_identity_types:
             output.extend(
@@ -233,6 +236,7 @@ def generate_bindings(
             context, public_constructors, info.name, True, conversion_bases
         )
         if info.options.get("table_init", "false").lower() == "true":
+            context.require_binding_feature("native")
             factories.insert(0, table_initializer_factory(info, conversion_bases))
             if not any(0 in member_arities(member) for member in public_constructors):
                 factories.insert(0, table_default_factory(info, conversion_bases))
@@ -244,6 +248,7 @@ def generate_bindings(
         external_types = ", ".join([info.name, *conversion_bases])
         output.append(f"    lua_sf::register_external_usertype<{external_types}>(lua);")
         if conversion_bases:
+            context.require_binding_feature("native")
             writer_types = ", ".join([info.name, info.name, *conversion_bases])
             output.append(
                 f"    ludork_core::registerDynamicNativeWriter<{writer_types}>(lua);"
@@ -330,6 +335,8 @@ def generate_bindings(
                     ]
                 )
         elif legacy_callbacks:
+            context.require_binding_feature("native")
+            context.require_binding_feature("function")
             owner_types = [info.name, *conversion_bases]
             base_arguments = f"<{', '.join(owner_types)}>"
             output.append(
@@ -426,7 +433,9 @@ def generate_bindings(
             member for member in info.class_properties if member.access == "public"
         ]
         for prop in public_class_properties:
-            output.append("    " + class_property_registration(info, prop))
+            output.append(
+                "    " + class_property_registration(context, info, prop)
+            )
         output.extend(
             "    " + line
             for line in class_property_new_index_lines(
@@ -491,4 +500,10 @@ def generate_bindings(
             "",
         ]
     )
+    feature_header_index = output.index(
+        "__LUDORK_CORE_BINDING_FEATURE_HEADERS__"
+    )
+    output[feature_header_index : feature_header_index + 1] = [
+        f"#include <{header}>" for header in context.binding_feature_headers()
+    ]
     return "\n".join(output)

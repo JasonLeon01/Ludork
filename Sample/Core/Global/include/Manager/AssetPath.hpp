@@ -17,8 +17,7 @@ inline std::string assetFile(const std::string& folder,
 
 inline std::string textureAssetFile(const std::string& folder,
                                     std::string filename) {
-    const std::filesystem::path path =
-        ludork::standard::pathFromUtf8(filename);
+    const std::filesystem::path path = ludork::standard::pathFromUtf8(filename);
     const std::string extension =
         ludork::standard::pathToUtf8(path.extension());
     if (extension.empty()) {

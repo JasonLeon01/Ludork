@@ -717,11 +717,10 @@ void Actor::_animate(float deltaTime) {
     if (width == 0) {
         return;
     }
-    const sf::IntRect nextRect(
-        {(currentRect.position.x + currentRect.size.x) %
-             static_cast<int>(width),
-         currentRect.position.y},
-        currentRect.size);
+    const sf::IntRect nextRect({(currentRect.position.x + currentRect.size.x) %
+                                    static_cast<int>(width),
+                                currentRect.position.y},
+                               currentRect.size);
     if (nextRect != currentRect) {
         setTextureRect(nextRect);
     }

@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 using Ludork.Services;
 using System;
 using System.Collections.Generic;
@@ -60,6 +61,7 @@ public sealed class FileSelectorDialog : Window
     private readonly TextBox _fileNameBox;
     private readonly ComboBox _filterCombo;
     private readonly Button _confirmButton;
+    private Border? _initialFileCell;
 
     public string? SelectedPath => _selectedPath;
     public string SelectedNameFilter => _filterIndex < _filterNames.Length ? _filterNames[_filterIndex] : string.Empty;
@@ -79,9 +81,17 @@ public sealed class FileSelectorDialog : Window
         string filterStr,
         string? title = null,
         bool save = false,
-        string? initialDirectory = null)
+        string? initialDirectory = null,
+        string? initialFilePath = null)
     {
-        FileSelectorDialog dialog = new(owner, root, filterStr, title, save, initialDirectory);
+        FileSelectorDialog dialog = new(
+            owner,
+            root,
+            filterStr,
+            title,
+            save,
+            initialDirectory,
+            initialFilePath: initialFilePath);
         return dialog.ShowDialog<string?>(owner);
     }
 
@@ -96,11 +106,22 @@ public sealed class FileSelectorDialog : Window
         return dialog.ShowDialog<string[]?>(owner);
     }
 
-    public static async Task<string?> SelectLayerShaderAsync(Window owner, string projectPath)
+    public static async Task<string?> SelectLayerShaderAsync(
+        Window owner,
+        string projectPath,
+        string currentPath)
     {
         string root = Path.Combine(projectPath, "Assets", "Shaders");
         Directory.CreateDirectory(root);
-        string? path = await ShowAsync(owner, root, FilesFilter("*.vert", "*.frag"), LocaleService.Get("SELECT_LAYER_SHADER"));
+        string? initialFilePath = string.IsNullOrWhiteSpace(currentPath)
+            ? null
+            : Path.Combine(root, currentPath);
+        string? path = await ShowAsync(
+            owner,
+            root,
+            FilesFilter("*.vert", "*.frag"),
+            LocaleService.Get("SELECT_LAYER_SHADER"),
+            initialFilePath: initialFilePath);
         if (path is null)
             return null;
         return Path.GetRelativePath(root, path).Replace('\\', '/');
@@ -113,16 +134,10 @@ public sealed class FileSelectorDialog : Window
         string? title = null,
         bool save = false,
         string? initialDirectory = null,
-        bool allowMultiple = false)
+        bool allowMultiple = false,
+        string? initialFilePath = null)
     {
         _root = Path.GetFullPath(root);
-        _currentDirectory = _root;
-        if (!string.IsNullOrWhiteSpace(initialDirectory)
-            && Directory.Exists(initialDirectory)
-            && isWithinRoot(initialDirectory))
-        {
-            _currentDirectory = Path.GetFullPath(initialDirectory);
-        }
         _save = save;
         _allowMultiple = allowMultiple && !save;
 
@@ -131,6 +146,28 @@ public sealed class FileSelectorDialog : Window
             parts = [filterStr];
         _filterNames = parts;
         _filterPatterns = parts.Select(ParsePatterns).ToList();
+
+        _currentDirectory = _root;
+        string? initialSelection = null;
+        if (!_save
+            && !_allowMultiple
+            && !string.IsNullOrWhiteSpace(initialFilePath)
+            && File.Exists(initialFilePath))
+        {
+            string fullInitialFilePath = Path.GetFullPath(initialFilePath);
+            if (isWithinRoot(fullInitialFilePath) && matchesFilter(fullInitialFilePath))
+            {
+                initialSelection = fullInitialFilePath;
+                _currentDirectory = Path.GetDirectoryName(fullInitialFilePath)!;
+            }
+        }
+        if (initialSelection is null
+            && !string.IsNullOrWhiteSpace(initialDirectory)
+            && Directory.Exists(initialDirectory)
+            && isWithinRoot(initialDirectory))
+        {
+            _currentDirectory = Path.GetFullPath(initialDirectory);
+        }
 
         Title = title ?? LocaleService.Get("SELECT_FILE");
         Width = 940;
@@ -298,8 +335,19 @@ public sealed class FileSelectorDialog : Window
 
         KeyDown += onKeyDown;
         Closed += (_, _) => disposeAllBitmaps();
+        Opened += (_, _) =>
+        {
+            Border? initialFileCell = _initialFileCell;
+            _initialFileCell = null;
+            if (initialFileCell is not null)
+            {
+                Dispatcher.UIThread.Post(
+                    initialFileCell.BringIntoView,
+                    DispatcherPriority.Loaded);
+            }
+        };
 
-        refreshDirectory();
+        refreshDirectory(initialSelection);
     }
 
     private bool canGoUp =>
@@ -324,7 +372,7 @@ public sealed class FileSelectorDialog : Window
         return !relative.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relative);
     }
 
-    private void refreshDirectory()
+    private void refreshDirectory(string? initialFilePath = null)
     {
         _lookInBox.Text = _currentDirectory;
         _upButton.IsEnabled = canGoUp;
@@ -355,7 +403,14 @@ public sealed class FileSelectorDialog : Window
         foreach (string dir in dirs)
             _fileGrid.Children.Add(createEntry(dir, isDirectory: true));
         foreach (string file in files)
-            _fileGrid.Children.Add(createEntry(file, isDirectory: false));
+        {
+            Border entry = createEntry(file, isDirectory: false);
+            _fileGrid.Children.Add(entry);
+            if (string.Equals(file, initialFilePath, StringComparison.OrdinalIgnoreCase))
+                _initialFileCell = entry;
+        }
+        if (_initialFileCell is not null)
+            selectEntry(initialFilePath!, isDirectory: false, _initialFileCell, KeyModifiers.None);
     }
 
     private bool matchesFilter(string filePath)
@@ -380,7 +435,7 @@ public sealed class FileSelectorDialog : Window
         refreshDirectory();
     }
 
-    private Control createEntry(string path, bool isDirectory)
+    private Border createEntry(string path, bool isDirectory)
     {
         bool isImage = !isDirectory && ImageSuffixes.Contains(Path.GetExtension(path).TrimStart('.'));
         string name = Path.GetFileName(path);

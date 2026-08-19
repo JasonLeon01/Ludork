@@ -66,6 +66,19 @@
     ],
     "value": "Map_01.json"
   },
+  "startPlayerBlueprint": {
+    "type": "file",
+    "root": "Data",
+    "base": "Blueprints",
+    "ext": [
+      ".json"
+    ],
+    "value": "Actors/BP_Actor_Braver.json"
+  },
+  "startRegion": {
+    "type": "string",
+    "value": "Mota"
+  },
   "startPos": {
     "type": "int[2]",
     "value": [

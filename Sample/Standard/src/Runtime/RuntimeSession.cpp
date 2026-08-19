@@ -60,7 +60,8 @@ std::shared_ptr<RuntimeSessionState> tryFindSession(lua_State* state) {
 int enterSession(lua_State* state, bool blocking) noexcept {
     try {
         if (enteredSession.depth != 0) {
-            if (enteredSession.state != state || enteredSession.session == nullptr ||
+            if (enteredSession.state != state ||
+                enteredSession.session == nullptr ||
                 enteredSession.session->state != state ||
                 !sessionAllowsCurrentThread(*enteredSession.session)) {
                 return 0;
@@ -208,7 +209,8 @@ bool LuaRegistryReference::push() const noexcept {
 
 bool LuaRegistryReference::pushUnderExecutionScope() const noexcept {
     if (reference_ == nullptr || reference_->reference < 0 ||
-        enteredSession.depth == 0 || enteredSession.state != reference_->state ||
+        enteredSession.depth == 0 ||
+        enteredSession.state != reference_->state ||
         enteredSession.session != reference_->session ||
         reference_->session->state != reference_->state ||
         !sessionAllowsCurrentThread(*reference_->session) ||

@@ -883,12 +883,17 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                 baseDirectory = Directory.Exists(fallback) ? fallback : Environment.CurrentDirectory;
             }
             string? pathFilter = getMetadataString(field, "PathFilter");
+            string current = box.Text ?? string.Empty;
+            string? initialFilePath = string.IsNullOrWhiteSpace(current)
+                ? null
+                : Path.Combine(baseDirectory, current);
             string? selected = await FileSelectorDialog.ShowAsync(
                 owner,
                 baseDirectory,
                 string.IsNullOrWhiteSpace(pathFilter)
                     ? FileSelectorDialog.AllFilesFilter(star: true)
-                    : FileSelectorDialog.FilesFilter(pathFilter));
+                    : FileSelectorDialog.FilesFilter(pathFilter),
+                initialFilePath: initialFilePath);
             if (string.IsNullOrWhiteSpace(selected))
                 return;
             string relative;

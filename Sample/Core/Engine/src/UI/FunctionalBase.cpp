@@ -113,8 +113,7 @@ void FunctionalBase::setTouchHitBounds(
     const std::optional<sf::FloatRect>& bounds) {
     if (bounds.has_value() &&
         (!std::isfinite(bounds->position.x) ||
-         !std::isfinite(bounds->position.y) ||
-         !std::isfinite(bounds->size.x) ||
+         !std::isfinite(bounds->position.y) || !std::isfinite(bounds->size.x) ||
          !std::isfinite(bounds->size.y) || bounds->size.x < 0.0f ||
          bounds->size.y < 0.0f)) {
         throw std::invalid_argument(
@@ -123,8 +122,7 @@ void FunctionalBase::setTouchHitBounds(
     touchHitBounds_ = bounds;
 }
 
-std::optional<sf::FloatRect>
-FunctionalBase::getAbsoluteTouchHitBounds() const {
+std::optional<sf::FloatRect> FunctionalBase::getAbsoluteTouchHitBounds() const {
     const ControlBase* control = dynamic_cast<const ControlBase*>(this);
     if (control == nullptr) {
         return std::nullopt;
@@ -194,8 +192,7 @@ void FunctionalBase::update(float deltaTime) {
         acceptsTouchCapture()) {
         const std::optional<sf::FloatRect> touchBounds =
             getAbsoluteTouchHitBounds();
-        if (touchBounds.has_value() &&
-            inputProvider_->isTouchBegan(false)) {
+        if (touchBounds.has_value() && inputProvider_->isTouchBegan(false)) {
             const std::optional<sf::Vector2i> beganPosition =
                 inputProvider_->getTouchBeganPosition();
             if (beganPosition.has_value() &&
@@ -227,8 +224,7 @@ void FunctionalBase::update(float deltaTime) {
                 const sf::Mouse::Button button = buttons[index];
                 mousePressed[index] =
                     inputProvider_->getMouseButtonPressed(button, false);
-                mousePressReceived =
-                    mousePressReceived || mousePressed[index];
+                mousePressReceived = mousePressReceived || mousePressed[index];
                 if (mousePressed[index] &&
                     onMouseButtonDown(
                         mouseButtonArguments(mousePosition, button))) {

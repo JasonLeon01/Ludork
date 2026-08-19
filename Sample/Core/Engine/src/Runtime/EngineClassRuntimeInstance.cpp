@@ -3,7 +3,7 @@
 
 #include <ClassServices.hpp>
 #include <Gameplay/Components/ComponentRuntime.hpp>
-#include <LudorkCoreBinding.hpp>
+#include <LudorkCoreBinding/DynamicValueCodec.hpp>
 #include <Runtime/RuntimeValue.hpp>
 #include <RuntimeSession.hpp>
 #include <Utils/DataValue.hpp>

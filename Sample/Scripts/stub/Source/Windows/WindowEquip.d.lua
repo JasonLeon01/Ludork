@@ -153,6 +153,10 @@ local WindowEquipSlot = {}
 ---@param onClose           function | nil
 function WindowEquipSlot:init(rect, player, windowEquipSelect, windowEquipStatus, onClose) end
 
+--- @brief Rebind the player whose equipment slots are displayed.
+---@param player Source.Player.Player
+function WindowEquipSlot:setPlayer(player) end
+
 --- @brief Set the available-equip window reference.
 ---
 --- - @param windowEquipSelect The available-equip window.
@@ -217,6 +221,10 @@ local WindowEquipSelect = {}
 ---@param windowEquipStatus Source.Windows.WindowEquipStatus | nil
 ---@param onEquip           function | nil
 function WindowEquipSelect:init(rect, player, windowEquipSlot, windowEquipStatus, onEquip) end
+
+--- @brief Rebind the player whose available equipment is displayed.
+---@param player Source.Player.Player
+function WindowEquipSelect:setPlayer(player) end
 
 --- @brief Set the equipped-slot window reference.
 ---

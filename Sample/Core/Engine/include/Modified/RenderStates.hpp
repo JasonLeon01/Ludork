@@ -4,8 +4,7 @@
 
 #include <SFML/Graphics/RenderStates.hpp>
 
-BIND_CLASS(name = "RenderStates",
-           cast_bases = "sf::RenderStates")
+BIND_CLASS(name = "RenderStates", cast_bases = "sf::RenderStates")
 class ModifiedRenderStates : public sf::RenderStates {
 public:
     BIND_INIT()

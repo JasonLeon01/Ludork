@@ -529,17 +529,16 @@ function Scene:applyLoadedGame(inst)
     self:gotoMapAndPos(mapPath, position)
 end
 
--- Point HUD and sub-windows at the current player after load.
 function Scene:_rebindPlayerToUI()
-    self._windowItem._player = self.player
-    self._windowEquipSlot._player = self.player
-    self._windowEquipSelect._player = self.player
+    self._windowItem:setPlayer(self.player)
+    self._windowEquipSlot:setPlayer(self.player)
+    self._windowEquipSelect:setPlayer(self.player)
     self._windowEquipStatus:setPlayer(self.player)
-    self._windowMenu._player = self.player
+    self._windowMenu:setPlayer(self.player)
     self._windowShop:setPlayer(self.player)
     self._windowAttrShop:setPlayer(self.player)
     self._windowEnemyBook:setPlayer(self.player)
-    self._playerHUD._player = self.player
+    self._playerHUD:setPlayer(self.player)
 end
 
 function Scene:showEnemyBook()

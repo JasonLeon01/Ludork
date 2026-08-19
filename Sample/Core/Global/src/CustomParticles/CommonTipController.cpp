@@ -140,8 +140,7 @@ void CommonTipController::onTick(float deltaTime) {
 }
 
 void CommonTipController::syncDisplayScale() {
-    const float displayScale =
-        std::max(0.000001f, engineState().getScale());
+    const float displayScale = std::max(0.000001f, engineState().getScale());
     if (displayScale == displayScale_) {
         return;
     }

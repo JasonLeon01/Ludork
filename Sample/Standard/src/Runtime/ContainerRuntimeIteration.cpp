@@ -49,8 +49,8 @@ sol::object sequenceIndex(sol::this_state state, const sol::object& self,
         if (index < 1 || static_cast<std::size_t>(index) > length) {
             return nilObject(lua);
         }
-        return exposedValue(
-            lua, sequenceValues(self).raw_get<sol::object>(index));
+        return exposedValue(lua,
+                            sequenceValues(self).raw_get<sol::object>(index));
     }
     const sol::object member = typeMember(lua, typeName, key);
     if (member.valid() && member.get_type() != sol::type::lua_nil) {

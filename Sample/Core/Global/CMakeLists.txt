@@ -7,8 +7,8 @@ file(GLOB_RECURSE LUDORK_GLOBAL_SOURCES CONFIGURE_DEPENDS
 if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     enable_language(OBJCXX)
     list(APPEND LUDORK_GLOBAL_SOURCES
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/Platform/NativeDisplayMac.mm"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/Platform/NativeInputMethodMac.mm")
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/System/Platform/NativeDisplayMac.mm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/System/Platform/NativeInputMethodMac.mm")
 endif()
 
 ludork_generate_lua_bindings(

@@ -88,8 +88,8 @@ public:
     virtual void destroyActor(Actor& actor) = 0;
 };
 
-BIND_CLASS(bind_bases = false,
-    runtime_bases = "BPBase,sf::Sprite",
+BIND_CLASS(
+    bind_bases = false, runtime_bases = "BPBase,sf::Sprite",
     native_bases = "RuntimeObject,sf::Sprite",
     cast_bases = "RuntimeObject,sf::Sprite,sf::Drawable,sf::Transformable",
     callbacks =

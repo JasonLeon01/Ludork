@@ -12,8 +12,8 @@ Canvas::Canvas(const sf::IntRect& rect)
     : SpriteBase(placeholderTexture()),
       inRect_(rect),
       size_(toVector2u(toVector2f(rect.size))),
-      canvas_(std::make_shared<sf::RenderTexture>(nonZeroRenderTextureSize(
-          toVector2u(toVector2f(rect.size) * Scale)))),
+      canvas_(std::make_shared<sf::RenderTexture>(
+          nonZeroRenderTextureSize(toVector2u(toVector2f(rect.size) * Scale)))),
       displayScale_(Scale) {
     setPremultipliedTexture(true);
     bindCanvasTexture();

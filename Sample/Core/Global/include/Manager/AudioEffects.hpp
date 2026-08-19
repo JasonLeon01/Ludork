@@ -12,8 +12,7 @@
 #include <string_view>
 #include <unordered_map>
 
-BIND_MODULE_PROPERTY(name = "AudioEffects", readonly = true,
-                     metadata = false)
+BIND_MODULE_PROPERTY(name = "AudioEffects", readonly = true, metadata = false)
 extern LUDORK_GLOBAL_API const std::unordered_map<std::string, std::string>
     AudioEffects;
 
@@ -43,8 +42,8 @@ LUDORK_GLOBAL_API void validateAudioEffect(std::string_view name);
 
 LUDORK_GLOBAL_API bool hasAudioEffectProcessor(std::string_view name);
 
-LUDORK_GLOBAL_API AudioEffectBinding createAudioEffect(
-    std::string_view name, std::uint32_t sampleRate);
+LUDORK_GLOBAL_API AudioEffectBinding
+createAudioEffect(std::string_view name, std::uint32_t sampleRate);
 
 LUDORK_GLOBAL_API void cancelAudioEffect(
     const std::shared_ptr<AudioEffectControl>& control) noexcept;

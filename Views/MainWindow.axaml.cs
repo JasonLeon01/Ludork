@@ -2643,7 +2643,10 @@ public partial class MainWindow : Window
     {
         if (viewModel is null)
             return;
-        string? shaderPath = await FileSelectorDialog.SelectLayerShaderAsync(this, viewModel.GameData.ProjectPath);
+        string? shaderPath = await FileSelectorDialog.SelectLayerShaderAsync(
+            this,
+            viewModel.GameData.ProjectPath,
+            viewModel.getLayerShaderPath(layerName));
         if (shaderPath is not null)
             viewModel.setLayerShaderPath(layerName, shaderPath);
     }

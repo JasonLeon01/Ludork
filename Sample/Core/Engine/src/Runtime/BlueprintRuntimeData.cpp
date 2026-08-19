@@ -3,7 +3,7 @@
 
 #include <ClassServices.hpp>
 #include <Gameplay/Components/ComponentRuntime.hpp>
-#include <LudorkCoreBinding.hpp>
+#include <LudorkCoreBinding/DynamicValueCodec.hpp>
 #include <NodeGraph/Graph.hpp>
 #include <Runtime/EngineClassRuntime.hpp>
 #include <RuntimeSession.hpp>
@@ -102,8 +102,8 @@ void applyBlueprintGeneralData(sol::state_view lua, const sol::object& object,
                                          : std::string();
             if (type == "dict") {
                 value = resolveGeneralDataDictionary(lua, value);
-            } else if (type != "string" && type != "int" &&
-                       type != "float" && type != "bool" && type != "list" &&
+            } else if (type != "string" && type != "int" && type != "float" &&
+                       type != "bool" && type != "list" &&
                        !std::regex_match(type,
                                          std::regex(R"(^tuple\[\d+\]$)"))) {
                 value = evaluateRuntimeExpression(lua, value, nilObject(lua));
@@ -187,7 +187,8 @@ sol::table registeredBlueprintEvents(sol::state_view lua,
     if (!target.is<sol::table>()) {
         return result;
     }
-    sol::table classCache = classRuntimeEventCache(lua, target.as<sol::table>());
+    sol::table classCache =
+        classRuntimeEventCache(lua, target.as<sol::table>());
     const sol::object cached =
         classCache.raw_get<sol::object>("registeredEvents");
     if (cached.is<sol::table>()) {
