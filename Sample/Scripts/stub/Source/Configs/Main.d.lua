@@ -1,6 +1,6 @@
----@meta Source.Config.Main
+---@meta Source.Configs.Main
 
----@class Source.Config.Main.Module
+---@class Source.Configs.Main.Module
 ---@field SupportedLanguages string[]
 local MainConfig = {}
 

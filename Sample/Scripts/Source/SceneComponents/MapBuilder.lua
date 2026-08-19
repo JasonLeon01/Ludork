@@ -16,6 +16,7 @@ local ManagerFunctions = GlobalFunctions.Manager
 
 local MAP_DATA_ROOT = os.path.join(".", "Data", "Maps")
 local MAP_DATA_EXTENSION = ".json"
+local DAMAGE_TEXT_CONFIG = "Global/DamageText"
 local DAMAGE_TEXT_SPEED_CURVE = "Global/DamageTextSpeed"
 local objectKeyOrders = setmetatable({}, {
     __mode = "k"
@@ -366,6 +367,7 @@ function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, preview
         result:addComponent(MovementDangerPreviewComponent.new(result, movementDangerState))
         result:addComponent(MapClickAutoPath.new(result, pathRouteState, movementDangerState))
         result:addComponent(PathPreviewComponent.new(result, pathRouteState))
+        result:setDamageTextConfig(Data.getPlainTextConfig(DAMAGE_TEXT_CONFIG))
         result:setDamageTextSpeedCurve(Data.getCurve(DAMAGE_TEXT_SPEED_CURVE))
         result:setAmbientLight(data.ambientLight)
         for _, light in ipairs(data.lights) do

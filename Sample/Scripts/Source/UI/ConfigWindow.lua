@@ -1,6 +1,6 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
-local MainConfig = require("Source.Config.Main")
+local MainConfig = require("Source.Configs.Main")
 local EventKeys = require("Source.Configs.EventKeys")
 local Locale = require("Source.Locale.Core")
 local ConfigCheckBoxRowUI = require("Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow")

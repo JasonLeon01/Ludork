@@ -2,10 +2,10 @@
   "name": "attack",
   "frameRate": 30,
   "assets": [
-    "mting-344.png",
-    "mting-345.png",
-    "mting-346.png",
-    "mting-347.png",
+    "Explosion_01.png",
+    "Explosion_02.png",
+    "Explosion_03.png",
+    "Explosion_04.png",
     "mting-27.wav"
   ],
   "timeLines": [

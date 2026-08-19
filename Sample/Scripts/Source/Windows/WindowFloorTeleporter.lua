@@ -1,6 +1,6 @@
 local Engine = require("Engine")
 local GlobalFunctions = require("GlobalFunctions")
-local RegionDict = require("Source.Config.RegionDict")
+local RegionDict = require("Source.Configs.RegionDict")
 local LocaleCore = require("Source.Locale.Core")
 local MapPath = require("Source.MapPath")
 local SceneMapBuilder = require("Source.SceneComponents.MapBuilder")

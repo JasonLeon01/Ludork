@@ -219,18 +219,16 @@ function Scene.CreateActorFromBPPathWithDefaults(bpPath, defaults, layerName, po
 end
 
 function Scene.DestroyTerrain(layerName, position, tileID)
-    local gameMap = Context.requireSceneMap():getGameMap()
-    if gameMap ~= nil then
-        gameMap:destroyTerrain(layerName, position, tileID)
-    end
+    local scene = Context.requireSceneMap()
+    local changedPositions = scene:getGameMap():setTerrainTiles(layerName, { position }, tileID)
+    scene:recordTerrainDestructions(layerName, changedPositions)
 end
 
 function Scene.DestroyTerrainList(layerName, positions, tileID)
     positions = positions or {}
-    local gameMap = Context.requireSceneMap():getGameMap()
-    if gameMap ~= nil then
-        gameMap:destroyTerrainList(layerName, positions, tileID)
-    end
+    local scene = Context.requireSceneMap()
+    local changedPositions = scene:getGameMap():setTerrainTiles(layerName, positions, tileID)
+    scene:recordTerrainDestructions(layerName, changedPositions)
 end
 
 function Scene.GetTerrainTile(layerName, position)

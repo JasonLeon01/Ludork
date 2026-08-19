@@ -229,7 +229,7 @@ public sealed class ActorInfoPanel : UserControl
 
         noSelectionLabel = new TextBlock
         {
-            Text = LocaleService.Get("NO_SELECTION"),
+            Text = LocaleService.Get("GENERAL_DATA_PLACEHOLDER"),
             Foreground = new SolidColorBrush(Color.Parse("#888888")),
             FontStyle = FontStyle.Italic,
             HorizontalAlignment = HorizontalAlignment.Center,

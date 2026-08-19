@@ -319,7 +319,7 @@ function Scene:onInput()
     if self:isInputBlocked() then
         return
     end
-    local HotKey = require("Source.Config.HotKey")
+    local HotKey = require("Source.Configs.HotKey")
 
     for key, hotKeyConfig in pairs(HotKey) do
         local sceneType = hotKeyConfig.Scene
@@ -409,7 +409,6 @@ function Scene:loadMap(mapPath)
     local gameMap = self._mapBuilder:generateGameMap(mapData)
     self._gameMap = gameMap
     gameMap:setScene(self)
-    gameMap:setPersistentMapPath(mapFile)
     gameMap:applyTerrainDestructions(self.inst:getTerrainDestructions(mapFile))
     self._mapBuilder:applyAddedActors(gameMap, self.inst:getAddedActors(mapFile))
     gameMap:applyActorPositions(self.inst:getActorPositions(mapFile))
@@ -918,7 +917,7 @@ function Scene:tryCenterSymmetricTeleport()
 end
 
 function Scene:tryAdjacentFloorSamePos(step)
-    local RegionDict = require("Source.Config.RegionDict")
+    local RegionDict = require("Source.Configs.RegionDict")
     local Teleporter = require("Source.Teleporter")
 
     local gameMap = self:getGameMap()
@@ -989,6 +988,19 @@ end
 function Scene:recordDestroyedActor(actor)
     assert(self._cachedMapFile ~= nil, "Scene map path is not loaded")
     self.inst:recordDestroyedActor(self._cachedMapFile, actor)
+end
+
+function Scene:recordTerrainDestructions(layerName, positions)
+    if not bool(positions) then
+        return
+    end
+    assert(self._cachedMapFile ~= nil, "Scene map path is not loaded")
+    local gameMap = self:getGameMap()
+    for _, position in ipairs(positions) do
+        self.inst:recordTerrainDestruction(
+            self._cachedMapFile, layerName, position, gameMap:getTerrainTile(layerName, position)
+        )
+    end
 end
 
 function Scene:playBgm(bgm, bgmFilter)
@@ -1150,7 +1162,7 @@ end
 ---@param mapFile string
 ---@return string | nil
 function Scene.FindRegionForMap(mapFile)
-    local RegionDict = require("Source.Config.RegionDict")
+    local RegionDict = require("Source.Configs.RegionDict")
 
     local currentName = Scene.NormaliseRegionMapName(mapFile)
     local currentBaseName = os.path.basename(currentName)

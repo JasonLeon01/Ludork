@@ -237,6 +237,14 @@ function Scene:recordActorPosition(actor, position) end
 ---@param actor Engine.Actor
 function Scene:recordDestroyedActor(actor) end
 
+--- @brief Persist terrain changes already applied to the current map.
+---
+--- - @param layerName The changed tile layer.
+--- - @param positions The positions successfully changed by GameMap.
+---@param layerName string
+---@param positions sf.Vector2i[]
+function Scene:recordTerrainDestructions(layerName, positions) end
+
 --- @brief Replace the current map BGM.
 ---
 --- - @param bgm Music filename under Assets/Musics.

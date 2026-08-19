@@ -27,7 +27,8 @@
 
 ---@class Source.GameInstance.SaveData
 ---@field region           string
----@field players          Source.Player.SaveData[]
+---@field playerKeys       string[]
+---@field players          table<string, Source.Player.SaveData>
 ---@field variables        table<string, Source.GameInstance.RecordValue>
 ---@field map              string
 ---@field obtainedItems    table<string, boolean>
@@ -44,6 +45,8 @@
 --- and destroyed actor tracking. Added, moved and destroyed Actor records use
 --- the stable map-placement tag returned by `actor:getMapTag()`, not `actor.tag`.
 ---@class Source.GameInstance.GameInstance
+---@field _playerKeys string[]
+---@field _players table<string, Source.Player.Player>
 ---@field _cachedMap string | nil
 ---@field new                       fun(skipDefaultPlayer?: boolean): Source.GameInstance.GameInstance
 ---@field FromDict                  fun(data: Source.GameInstance.SaveData): Source.GameInstance.GameInstance
@@ -70,7 +73,7 @@ function GameInstance:init(skipDefaultPlayer) end
 
 --- @brief Serialize the game instance to a dictionary.
 ---
---- - @return A dictionary containing players, variables, map, destroyed actors, and screenshot.
+--- - @return A dictionary containing ordered player keys, keyed players, variables, map, destroyed actors, and screenshot.
 ---@return Source.GameInstance.SaveData
 function GameInstance:asDict() end
 
@@ -134,21 +137,29 @@ function GameInstance:setVariable(name, value) end
 ---@return Source.Player.Player
 function GameInstance:getPlayer() end
 
---- @brief Set the primary player.
+--- @brief Make an existing keyed player the primary player.
 ---
---- - @param player The player to set as primary.
----@param player Source.Player.Player
-function GameInstance:setPlayer(player) end
+--- Moves the key to the first position in the player order.
+---
+--- - @param playerKey The existing player key to make primary.
+---@param playerKey string
+function GameInstance:setPlayer(playerKey) end
 
 --- @brief Get all players.
 ---
---- - @return A list of all players.
----@return Source.Player.Player[]
+--- - @return A dictionary keyed by Player General Data key.
+---@return table<string, Source.Player.Player>
 function GameInstance:getPlayers() end
+
+--- @brief Get player keys in their current order.
+---
+--- - @return The live ordered player-key list; the first key identifies the primary player.
+---@return string[]
+function GameInstance:getPlayerKeys() end
 
 --- @brief Get a player by index.
 ---
---- - @param index The player index.
+--- - @param index The zero-based index in the ordered player-key list.
 --- - @return The player at the given index.
 ---@param index integer
 ---@return Source.Player.Player

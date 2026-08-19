@@ -37,12 +37,15 @@ public sealed class FileSelectorDialog : Window
 
     private readonly string _root;
     private readonly bool _save;
+    private readonly bool _allowMultiple;
     private readonly List<List<string>> _filterPatterns;
     private readonly string[] _filterNames;
     private int _filterIndex;
 
     private string _currentDirectory;
     private string? _selectedPath;
+    private readonly List<string> _selectedPaths = [];
+    private string? _selectionAnchorPath;
     private string _fileName = string.Empty;
     private Bitmap? _previewBitmap;
     private readonly List<Bitmap> _thumbnailBitmaps = [];
@@ -82,6 +85,17 @@ public sealed class FileSelectorDialog : Window
         return dialog.ShowDialog<string?>(owner);
     }
 
+    public static Task<string[]?> ShowMultipleAsync(
+        Window owner,
+        string root,
+        string filterStr,
+        string? title = null,
+        string? initialDirectory = null)
+    {
+        FileSelectorDialog dialog = new(owner, root, filterStr, title, allowMultiple: true, initialDirectory: initialDirectory);
+        return dialog.ShowDialog<string[]?>(owner);
+    }
+
     public static async Task<string?> SelectLayerShaderAsync(Window owner, string projectPath)
     {
         string root = Path.Combine(projectPath, "Assets", "Shaders");
@@ -98,7 +112,8 @@ public sealed class FileSelectorDialog : Window
         string filterStr,
         string? title = null,
         bool save = false,
-        string? initialDirectory = null)
+        string? initialDirectory = null,
+        bool allowMultiple = false)
     {
         _root = Path.GetFullPath(root);
         _currentDirectory = _root;
@@ -109,6 +124,7 @@ public sealed class FileSelectorDialog : Window
             _currentDirectory = Path.GetFullPath(initialDirectory);
         }
         _save = save;
+        _allowMultiple = allowMultiple && !save;
 
         string[] parts = filterStr.Split(";;", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length == 0)
@@ -313,7 +329,11 @@ public sealed class FileSelectorDialog : Window
         _lookInBox.Text = _currentDirectory;
         _upButton.IsEnabled = canGoUp;
         _selectedPath = null;
+        _selectedPaths.Clear();
+        _selectionAnchorPath = null;
         _fileName = string.Empty;
+        if (_allowMultiple)
+            _fileNameBox.Text = string.Empty;
         clearPreview();
         updateConfirmButton();
 
@@ -431,7 +451,7 @@ public sealed class FileSelectorDialog : Window
         cell.PointerPressed += (_, args) =>
         {
             if (args.GetCurrentPoint(cell).Properties.IsLeftButtonPressed)
-                selectEntry(path, isDirectory, cell);
+                selectEntry(path, isDirectory, cell, args.KeyModifiers);
         };
         cell.DoubleTapped += (_, _) => activateEntry(path, isDirectory);
 
@@ -439,7 +459,9 @@ public sealed class FileSelectorDialog : Window
     }
 
     private bool isSelectedEntry(string path) =>
-        string.Equals(_selectedPath, path, StringComparison.OrdinalIgnoreCase);
+        _allowMultiple
+            ? _selectedPaths.Contains(path, StringComparer.OrdinalIgnoreCase)
+            : string.Equals(_selectedPath, path, StringComparison.OrdinalIgnoreCase);
 
     private static void resetCellStyle(Border cell)
     {
@@ -462,19 +484,42 @@ public sealed class FileSelectorDialog : Window
         }
     }
 
-    private void selectEntry(string path, bool isDirectory, Border clicked)
+    private void selectEntry(string path, bool isDirectory, Border clicked, KeyModifiers modifiers)
     {
-        deselectAll();
-        applySelectedStyle(clicked);
-
         if (isDirectory)
         {
+            deselectAll();
+            applySelectedStyle(clicked);
             _selectedPath = null;
+            _selectedPaths.Clear();
+            _selectionAnchorPath = null;
             _fileName = string.Empty;
+            if (_allowMultiple)
+                _fileNameBox.Text = string.Empty;
             clearPreview();
+        }
+        else if (_allowMultiple)
+        {
+            bool primary = EditorShortcuts.HasPrimaryModifier(modifiers);
+            bool shift = modifiers.HasFlag(KeyModifiers.Shift);
+            if (shift && _selectionAnchorPath is not null)
+                selectRange(_selectionAnchorPath, path, primary);
+            else if (primary)
+                toggleSelection(path);
+            else
+            {
+                _selectedPaths.Clear();
+                _selectedPaths.Add(path);
+            }
+            if (!shift || _selectionAnchorPath is null)
+                _selectionAnchorPath = path;
+            refreshSelectionStyles();
+            updateActiveSelection(path);
         }
         else
         {
+            deselectAll();
+            applySelectedStyle(clicked);
             _selectedPath = path;
             _fileName = Path.GetFileName(path);
             if (!_save)
@@ -482,6 +527,73 @@ public sealed class FileSelectorDialog : Window
             updatePreview(path);
         }
         updateConfirmButton();
+    }
+
+    private void selectRange(string startPath, string endPath, bool additive)
+    {
+        List<string> files = _fileGrid.Children
+            .OfType<Border>()
+            .Select(control => control.Tag as string)
+            .Where(path => path is not null && File.Exists(path))
+            .Cast<string>()
+            .ToList();
+        int startIndex = files.FindIndex(path => string.Equals(path, startPath, StringComparison.OrdinalIgnoreCase));
+        int endIndex = files.FindIndex(path => string.Equals(path, endPath, StringComparison.OrdinalIgnoreCase));
+        if (startIndex < 0 || endIndex < 0)
+        {
+            if (!additive)
+                _selectedPaths.Clear();
+            addSelectedPath(endPath);
+            return;
+        }
+        if (!additive)
+            _selectedPaths.Clear();
+        int first = Math.Min(startIndex, endIndex);
+        int last = Math.Max(startIndex, endIndex);
+        for (int index = first; index <= last; index += 1)
+            addSelectedPath(files[index]);
+    }
+
+    private void toggleSelection(string path)
+    {
+        int index = _selectedPaths.FindIndex(selected =>
+            string.Equals(selected, path, StringComparison.OrdinalIgnoreCase));
+        if (index >= 0)
+            _selectedPaths.RemoveAt(index);
+        else
+            _selectedPaths.Add(path);
+    }
+
+    private void addSelectedPath(string path)
+    {
+        if (!_selectedPaths.Contains(path, StringComparer.OrdinalIgnoreCase))
+            _selectedPaths.Add(path);
+    }
+
+    private void refreshSelectionStyles()
+    {
+        foreach (Control control in _fileGrid.Children)
+        {
+            if (control is not Border border || border.Tag is not string path)
+                continue;
+            if (_selectedPaths.Contains(path, StringComparer.OrdinalIgnoreCase))
+                applySelectedStyle(border);
+            else
+                resetCellStyle(border);
+        }
+    }
+
+    private void updateActiveSelection(string requestedPath)
+    {
+        _selectedPath = _selectedPaths.Contains(requestedPath, StringComparer.OrdinalIgnoreCase)
+            ? requestedPath
+            : _selectedPaths.LastOrDefault();
+        _fileName = _selectedPath is null ? string.Empty : Path.GetFileName(_selectedPath);
+        _fileNameBox.Text = string.Join(", ", _selectedPaths.Select(Path.GetFileName));
+        if (_selectedPath is null)
+            clearPreview();
+        else
+            updatePreview(_selectedPath);
     }
 
     private void activateEntry(string path, bool isDirectory)
@@ -495,6 +607,19 @@ public sealed class FileSelectorDialog : Window
             }
             return;
         }
+        if (_allowMultiple)
+        {
+            if (!_selectedPaths.Contains(path, StringComparer.OrdinalIgnoreCase))
+            {
+                _selectedPaths.Clear();
+                _selectedPaths.Add(path);
+                refreshSelectionStyles();
+            }
+            updateActiveSelection(path);
+            updateConfirmButton();
+            confirm();
+            return;
+        }
         _selectedPath = path;
         _fileName = Path.GetFileName(path);
         if (!_save)
@@ -506,6 +631,14 @@ public sealed class FileSelectorDialog : Window
 
     private void confirm()
     {
+        if (_allowMultiple)
+        {
+            string[] paths = _selectedPaths.Select(Path.GetFullPath).ToArray();
+            if (paths.Length == 0 || paths.Any(path => !isWithinRoot(path) || !File.Exists(path)))
+                return;
+            Close(paths);
+            return;
+        }
         string? resolved = _save ? buildSavePath() : _selectedPath;
         if (resolved is null)
             return;
@@ -530,7 +663,7 @@ public sealed class FileSelectorDialog : Window
     {
         _confirmButton.IsEnabled = _save
             ? !string.IsNullOrWhiteSpace(_fileNameBox.Text)
-            : _selectedPath is not null;
+            : _allowMultiple ? _selectedPaths.Count > 0 : _selectedPath is not null;
     }
 
     private void clearPreview()

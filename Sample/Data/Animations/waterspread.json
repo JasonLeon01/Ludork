@@ -1,0 +1,554 @@
+{
+  "name": "waterspread",
+  "frameRate": 30,
+  "assets": [
+    "WaterSpread_00.png",
+    "WaterSpread_01.png",
+    "WaterSpread_02.png",
+    "WaterSpread_03.png",
+    "WaterSpread_04.png",
+    "WaterSpread_05.png",
+    "WaterSpread_06.png",
+    "WaterSpread_07.png",
+    "WaterSpread_08.png",
+    "WaterSpread_09.png",
+    "WaterSpread_10.png",
+    "WaterSpread_11.png",
+    "WaterSpread_12.png",
+    "WaterSpread_13.png",
+    "WaterSpread_14.png",
+    "WaterSpread_15.png",
+    "WaterSpread_16.png",
+    "WaterSpread_17.png"
+  ],
+  "timeLines": [
+    {
+      "timeSegments": [
+        {
+          "type": "frame",
+          "asset": 0,
+          "startFrame": {
+            "time": 0,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "endFrame": {
+            "time": 0.05,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "flipX": false
+        },
+        {
+          "type": "frame",
+          "asset": 1,
+          "startFrame": {
+            "time": 0.05,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "endFrame": {
+            "time": 0.1,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "flipX": false
+        },
+        {
+          "type": "frame",
+          "asset": 2,
+          "startFrame": {
+            "time": 0.1,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "endFrame": {
+            "time": 0.15000000000000002,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "flipX": false
+        },
+        {
+          "type": "frame",
+          "asset": 3,
+          "startFrame": {
+            "time": 0.15000000000000002,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "endFrame": {
+            "time": 0.2,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "flipX": false
+        },
+        {
+          "type": "frame",
+          "asset": 4,
+          "startFrame": {
+            "time": 0.2,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "endFrame": {
+            "time": 0.25,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "flipX": false
+        },
+        {
+          "type": "frame",
+          "asset": 5,
+          "startFrame": {
+            "time": 0.25,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "endFrame": {
+            "time": 0.3,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "flipX": false
+        },
+        {
+          "type": "frame",
+          "asset": 6,
+          "startFrame": {
+            "time": 0.3,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "endFrame": {
+            "time": 0.35,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "flipX": false
+        },
+        {
+          "type": "frame",
+          "asset": 7,
+          "startFrame": {
+            "time": 0.35,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "endFrame": {
+            "time": 0.39999999999999997,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "flipX": false
+        },
+        {
+          "type": "frame",
+          "asset": 8,
+          "startFrame": {
+            "time": 0.39999999999999997,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "endFrame": {
+            "time": 0.44999999999999996,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "flipX": false
+        },
+        {
+          "type": "frame",
+          "asset": 9,
+          "startFrame": {
+            "time": 0.44999999999999996,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "endFrame": {
+            "time": 0.49999999999999994,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "flipX": false
+        },
+        {
+          "type": "frame",
+          "asset": 10,
+          "startFrame": {
+            "time": 0.49999999999999994,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "endFrame": {
+            "time": 0.5499999999999999,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "flipX": false
+        },
+        {
+          "type": "frame",
+          "asset": 11,
+          "startFrame": {
+            "time": 0.5499999999999999,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "endFrame": {
+            "time": 0.6,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "flipX": false
+        },
+        {
+          "type": "frame",
+          "asset": 12,
+          "startFrame": {
+            "time": 0.6,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "endFrame": {
+            "time": 0.65,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "flipX": false
+        },
+        {
+          "type": "frame",
+          "asset": 13,
+          "startFrame": {
+            "time": 0.65,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "endFrame": {
+            "time": 0.7000000000000001,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "flipX": false
+        },
+        {
+          "type": "frame",
+          "asset": 14,
+          "startFrame": {
+            "time": 0.7000000000000001,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "endFrame": {
+            "time": 0.7500000000000001,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "flipX": false
+        },
+        {
+          "type": "frame",
+          "asset": 15,
+          "startFrame": {
+            "time": 0.7500000000000001,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "endFrame": {
+            "time": 0.8000000000000002,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "flipX": false
+        },
+        {
+          "type": "frame",
+          "asset": 16,
+          "startFrame": {
+            "time": 0.8000000000000002,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "endFrame": {
+            "time": 0.8500000000000002,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "flipX": false
+        },
+        {
+          "type": "frame",
+          "asset": 17,
+          "startFrame": {
+            "time": 0.8500000000000002,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "endFrame": {
+            "time": 0.9000000000000002,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              0.25,
+              0.25
+            ]
+          },
+          "flipX": false
+        }
+      ]
+    }
+  ],
+  "timeTags": [],
+  "type": "animation"
+}

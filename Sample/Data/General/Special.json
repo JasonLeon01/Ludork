@@ -1,76 +1,82 @@
 {
-    "params": {
-        "name": {
-            "type": "string",
-            "defaultValue": ""
-        },
-        "desc": {
-            "type": "string",
-            "defaultValue": ""
-        },
-        "icon": {
-            "type": "file",
-            "defaultValue": "Icons"
-        },
-        "kwargs": {
-            "type": "dict",
-            "defaultValue": {}
-        }
+  "params": {
+    "name": {
+      "type": "string",
+      "defaultValue": ""
     },
-    "members": {
-        "Poisoning": {
-            "name": "{S_POISONING}",
-            "desc": "{S_POISONING_DESC}",
-            "icon": "Icons/Specials/Poisoning.png",
-            "kwargs": {}
-        },
-        "Weaken": {
-            "name": "{S_WEAKEN}",
-            "desc": "{S_WEAKEN_DESC}",
-            "icon": "Icons/Specials/Weaken.png",
-            "kwargs": {}
-        },
-        "Hard": {
-            "name": "{S_HARD}",
-            "desc": "{S_HARD_DESC}",
-            "icon": "Icons/Specials/Hard.png",
-            "kwargs": {}
-        },
-        "Magic": {
-            "name": "{S_MAGIC}",
-            "desc": "{S_MAGIC_DESC}",
-            "icon": "Icons/Specials/Magic.png",
-            "kwargs": {}
-        },
-        "MultiHit": {
-            "name": "{S_MULTIHIT}",
-            "desc": "{S_MULTIHIT_DESC}",
-            "icon": "Icons/Specials/MultiHit.png",
-            "kwargs": {}
-        },
-        "Compete": {
-            "name": "{S_COMPETE}",
-            "desc": "{S_COMPETE_DESC}",
-            "icon": "Icons/Specials/Compete.png",
-            "kwargs": {}
-        },
-        "Domain": {
-            "name": "{S_DOMAIN}",
-            "desc": "{S_DOMAIN_DESC}",
-            "icon": "Icons/Specials/Domain.png",
-            "kwargs": {}
-        },
-        "Flank": {
-            "name": "{S_FLANK}",
-            "desc": "{S_FLANK_DESC}",
-            "icon": "Icons/Specials/Flank.png",
-            "kwargs": {}
-        },
-        "Blockade": {
-            "name": "{S_BLOCKADE}",
-            "desc": "{S_BLOCKADE_DESC}",
-            "icon": "Icons/Specials/Blockade.png",
-            "kwargs": {}
-        }
+    "desc": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "icon": {
+      "type": "file",
+      "defaultValue": "Icons"
+    },
+    "kwargs": {
+      "type": "dict",
+      "defaultValue": {}
     }
+  },
+  "members": {
+    "Poisoning": {
+      "name": "{S_POISONING}",
+      "desc": "{S_POISONING_DESC}",
+      "icon": "Icons/Specials/Poisoning.png",
+      "kwargs": {}
+    },
+    "Weaken": {
+      "name": "{S_WEAKEN}",
+      "desc": "{S_WEAKEN_DESC}",
+      "icon": "Icons/Specials/Weaken.png",
+      "kwargs": {}
+    },
+    "Hard": {
+      "name": "{S_HARD}",
+      "desc": "{S_HARD_DESC}",
+      "icon": "Icons/Specials/Hard.png",
+      "kwargs": {}
+    },
+    "Magic": {
+      "name": "{S_MAGIC}",
+      "desc": "{S_MAGIC_DESC}",
+      "icon": "Icons/Specials/Magic.png",
+      "kwargs": {}
+    },
+    "MultiHit": {
+      "name": "{S_MULTIHIT}",
+      "desc": "{S_MULTIHIT_DESC}",
+      "icon": "Icons/Specials/MultiHit.png",
+      "kwargs": {}
+    },
+    "Compete": {
+      "name": "{S_COMPETE}",
+      "desc": "{S_COMPETE_DESC}",
+      "icon": "Icons/Specials/Compete.png",
+      "kwargs": {}
+    },
+    "Domain": {
+      "name": "{S_DOMAIN}",
+      "desc": "{S_DOMAIN_DESC}",
+      "icon": "Icons/Specials/Domain.png",
+      "kwargs": {}
+    },
+    "Flank": {
+      "name": "{S_FLANK}",
+      "desc": "{S_FLANK_DESC}",
+      "icon": "Icons/Specials/Flank.png",
+      "kwargs": {}
+    },
+    "Blockade": {
+      "name": "{S_BLOCKADE}",
+      "desc": "{S_BLOCKADE_DESC}",
+      "icon": "Icons/Specials/Blockade.png",
+      "kwargs": {}
+    },
+    "Reborn": {
+      "name": "{S_REBORN}",
+      "desc": "{S_REBORN_DESC}",
+      "icon": "Icons/Specials/Reborn.png",
+      "kwargs": {}
+    }
+  }
 }

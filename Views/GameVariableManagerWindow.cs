@@ -137,7 +137,7 @@ public sealed class GameVariableManagerWindow : Window
         };
         noSelectionText = new TextBlock
         {
-            Text = LocaleService.Get("NO_SELECTION"),
+            Text = LocaleService.Get("GENERAL_DATA_PLACEHOLDER"),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             Foreground = Brushes.Gray,

@@ -57,9 +57,28 @@ local function storeTerrainChange(mapChanges, layerName, position, tileID)
     layerChanges[coordinateKey(position)] = { position = copy(position), tileID = tileID }
 end
 
+---@param player Source.Player.Player
+---@return string
+local function requirePlayerKey(player)
+    local playerKey = player.ID
+    assert(type(playerKey) == "string" and bool(playerKey), "Player ID must be a non-empty string")
+    return playerKey
+end
+
+---@param players    table<string, Source.Player.Player>
+---@param playerKeys string[]
+---@param player     Source.Player.Player
+local function appendPlayer(players, playerKeys, player)
+    local playerKey = requirePlayerKey(player)
+    assert(players[playerKey] == nil, "Duplicate player key: " .. playerKey)
+    playerKeys[#playerKeys + 1] = playerKey
+    players[playerKey] = player
+end
+
 local GameInstance = {}
 
 function GameInstance:init(skipDefaultPlayer)
+    self._playerKeys = {}
     self._players = {}
     self._currentRegion = "Mota"
     self._variables = deepcopy(GameVariables)
@@ -79,18 +98,25 @@ function GameInstance:init(skipDefaultPlayer)
 
     local firstPlayer = Player.InitPlayer("Data.Blueprints.Actors.BP_Actor_Braver")
     firstPlayer:setMapPosition(GameSystem.getStartPos())
-    self._players[1] = firstPlayer
+    appendPlayer(self._players, self._playerKeys, firstPlayer)
 end
 
 function GameInstance:asDict()
     local players = {}
-    for _, player in ipairs(self._players) do
-        players[#players + 1] = player:asDict()
+    for _, playerKey in ipairs(self._playerKeys) do
+        local player = assert(self._players[playerKey], "Player data is missing for key: " .. playerKey)
+        assert(requirePlayerKey(player) == playerKey, "Player ID does not match player key: " .. playerKey)
+        assert(players[playerKey] == nil, "Duplicate player key: " .. playerKey)
+        players[playerKey] = player:asDict()
+    end
+    for playerKey in pairs(self._players) do
+        assert(players[playerKey] ~= nil, "Player key is missing from playerKeys: " .. playerKey)
     end
     local cachedMap = self._cachedMap
     ---@cast cachedMap string
     return {
         region = self._currentRegion,
+        playerKeys = copy(self._playerKeys),
         players = players,
         variables = self._variables,
         map = cachedMap,
@@ -109,8 +135,16 @@ function GameInstance.FromDict(data)
 
     local instance = GameInstance.new(true)
     instance._currentRegion = data.region
-    for _, playerData in ipairs(data.players) do
-        instance._players[#instance._players + 1] = Player.FromDict(playerData)
+    assert(#data.playerKeys > 0, "playerKeys must contain at least one player key")
+    for _, playerKey in ipairs(data.playerKeys) do
+        assert(type(playerKey) == "string" and bool(playerKey), "Player key must be a non-empty string")
+        local playerData = assert(data.players[playerKey], "Player data is missing for key: " .. playerKey)
+        local player = Player.FromDict(playerData)
+        assert(requirePlayerKey(player) == playerKey, "Player ID does not match player key: " .. playerKey)
+        appendPlayer(instance._players, instance._playerKeys, player)
+    end
+    for playerKey in pairs(data.players) do
+        assert(instance._players[playerKey] ~= nil, "Player key is missing from playerKeys: " .. playerKey)
     end
     instance._variables = data.variables
     instance._cachedMap = data.map
@@ -153,29 +187,40 @@ function GameInstance:setVariable(name, value)
 end
 
 function GameInstance:getPlayer()
-    return self._players[1]
+    return self._players[self._playerKeys[1]]
 end
 
-function GameInstance:setPlayer(player)
-    if bool(self._players) then
-        self._players[1] = player
-    else
-        self._players[#self._players + 1] = player
+function GameInstance:setPlayer(playerKey)
+    assert(self._players[playerKey] ~= nil, "Player does not exist: " .. tostring(playerKey))
+    for index, existingKey in ipairs(self._playerKeys) do
+        if existingKey == playerKey then
+            if index > 1 then
+                table.remove(self._playerKeys, index)
+                table.insert(self._playerKeys, 1, playerKey)
+            end
+            return
+        end
     end
+    error("Player key is missing from playerKeys: " .. playerKey)
 end
 
 function GameInstance:getPlayers()
     return self._players
 end
 
+function GameInstance:getPlayerKeys()
+    return self._playerKeys
+end
+
 function GameInstance:getPlayerByIndex(index)
-    local player = self._players[index + 1]
+    local player = self._players[self._playerKeys[index + 1]]
     ---@cast player Source.Player.Player
     return player
 end
 
 function GameInstance:getPlayerByTag(tag)
-    for _, player in ipairs(self._players) do
+    for _, playerKey in ipairs(self._playerKeys) do
+        local player = self._players[playerKey]
         if player.tag == tag then
             return player
         end
@@ -186,16 +231,18 @@ end
 function GameInstance:addPlayerByClass(playerClass)
     local Player = require("Source.Player")
 
-    self._players[#self._players + 1] = Player.InitPlayer(playerClass)
+    appendPlayer(self._players, self._playerKeys, Player.InitPlayer(playerClass))
 end
 
 function GameInstance:removePlayerByClass(playerClass)
-    if #self._players <= 1 then
+    if #self._playerKeys <= 1 then
         return
     end
-    for index, player in ipairs(self._players) do
+    for index, playerKey in ipairs(self._playerKeys) do
+        local player = self._players[playerKey]
         if player:getClassPath() == playerClass then
-            table.remove(self._players, index)
+            table.remove(self._playerKeys, index)
+            self._players[playerKey] = nil
             return
         end
     end
@@ -206,7 +253,7 @@ function GameInstance:applyMapInfo(mapPath, position)
         self._cachedMap = mapPath
     end
     if position ~= nil then
-        self._players[1]:setMapPosition(position)
+        self:getPlayer():setMapPosition(position)
     end
 end
 

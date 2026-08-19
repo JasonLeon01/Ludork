@@ -35,14 +35,17 @@ public sealed class GameDataService
     private readonly Stack<Dictionary<string, Dictionary<string, JsonObject>>> undoStack = new();
     private readonly Stack<Dictionary<string, Dictionary<string, JsonObject>>> redoStack = new();
     private readonly List<string> invalidLoadPaths = [];
+    private readonly GeneralEnumService generalEnums;
     private long nextHistoryGestureId;
     private long activeHistoryGestureId;
     private bool activeHistoryGestureHasSnapshot;
     private bool isModified;
+    private bool generalEnumSavePending;
 
     public GameDataService(string projectPath)
     {
         ProjectPath = Path.GetFullPath(projectPath);
+        generalEnums = new GeneralEnumService(ProjectPath);
         loadAll();
     }
 
@@ -655,6 +658,7 @@ public sealed class GameDataService
             ["frameRate"] = 30,
             ["assets"] = new JsonArray(),
             ["timeLines"] = new JsonArray(),
+            ["timeTags"] = new JsonArray(),
         };
         refreshModifiedState();
         return true;
@@ -1037,6 +1041,7 @@ public sealed class GameDataService
         List<string> updated = [];
         List<string> deleted = [];
         List<string> failed = [];
+        bool generalSaveFailed = false;
         foreach (KeyValuePair<string, DataSection> pair in sections)
         {
             Dictionary<string, JsonObject> originSection = originData[pair.Key];
@@ -1061,6 +1066,8 @@ public sealed class GameDataService
                 catch (Exception)
                 {
                     failed.Add(dataPair.Key);
+                    if (pair.Key == "General")
+                        generalSaveFailed = true;
                 }
             }
             foreach (string removedKey in originSection.Keys.Except(pair.Value.Data.Keys, StringComparer.Ordinal).ToArray())
@@ -1076,7 +1083,21 @@ public sealed class GameDataService
                 catch (Exception)
                 {
                     failed.Add(removedKey);
+                    if (pair.Key == "General")
+                        generalSaveFailed = true;
                 }
+            }
+        }
+        if (!generalSaveFailed)
+        {
+            GeneralEnumSaveResult generalEnumResult = generalEnums.Save(sections["General"].Data);
+            generalEnumSavePending = !generalEnumResult.Success;
+            if (!generalEnumResult.Success)
+                failed.Add("GeneralEnum (" + generalEnumResult.Detail + ")");
+            else if (generalEnumResult.Changed)
+            {
+                updated.Add(GeneralEnumService.RuntimeRelativePath);
+                updated.Add(GeneralEnumService.StubRelativePath);
             }
         }
         refreshModifiedState();
@@ -1170,7 +1191,8 @@ public sealed class GameDataService
     public void refreshModifiedState()
     {
         DataChanged?.Invoke(this, EventArgs.Empty);
-        bool modified = sections.Any(section => !sectionEqual(section.Value.Data, originData[section.Key]));
+        bool modified = generalEnumSavePending
+            || sections.Any(section => !sectionEqual(section.Value.Data, originData[section.Key]));
         if (modified == isModified)
             return;
         isModified = modified;

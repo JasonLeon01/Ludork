@@ -120,7 +120,7 @@
       "special": {
         "Magic": ""
       },
-      "ANIMATION_KEY": "attack"
+      "ANIMATION_KEY": "waterspread"
     },
     "Bat": {
       "name": "{BAT}",
@@ -161,7 +161,7 @@
         "Magic": "",
         "Domain": "2"
       },
-      "ANIMATION_KEY": "attack"
+      "ANIMATION_KEY": "waterspread"
     },
     "WhiteKing": {
       "name": "{WHITE_KING}",
@@ -175,7 +175,7 @@
       "special": {
         "Flank": ""
       },
-      "ANIMATION_KEY": "attack"
+      "ANIMATION_KEY": "watershot"
     },
     "BigWizard": {
       "name": "{BIG_WIZARD}",
@@ -190,7 +190,7 @@
         "Magic": "",
         "Blockade": ""
       },
-      "ANIMATION_KEY": "attack"
+      "ANIMATION_KEY": "watershot"
     },
     "GreatIron": {
       "name": "{GREATIRON}",
@@ -204,6 +204,20 @@
       "special": {
         "MultiHit": "8",
         "Hard": ""
+      },
+      "ANIMATION_KEY": "attack"
+    },
+    "GhostSoldier": {
+      "name": "{GHOST_SOLDIER}",
+      "desc": "{GHOST_SOLDIER_DESC}",
+      "MAXHP": 75,
+      "ATK": 50,
+      "DEF": 10,
+      "EXP": 3,
+      "GOLD": 3,
+      "drops": [],
+      "special": {
+        "Reborn": "Data.Blueprints.Enemies.BP_Enemy_Skeleton_01"
       },
       "ANIMATION_KEY": "attack"
     }

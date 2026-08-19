@@ -2,7 +2,7 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
 local Logging = require("Global.Utils.Logging")
-local MainConfig = require("Source.Config.Main")
+local MainConfig = require("Source.Configs.Main")
 local Locale = require("Source.Locale.Core")
 
 local NodeGraphFunctions = GlobalFunctions.NodeGraph

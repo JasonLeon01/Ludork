@@ -282,42 +282,10 @@ local _METADATA = {
                 tileID = "any",
             },
             ["return"] = {
-                "count",
-                count = "int",
+                "positions",
+                positions = "sf.Vector2i[]",
             },
             Pure = true,
-        },
-        destroyTerrain = {
-            type = "function",
-            parameters = {
-                "layerName",
-                "position",
-                "tileID",
-                layerName = "string",
-                position = "sf.Vector2i",
-                tileID = "any",
-            },
-            ["return"] = {},
-            ExecSplit = {
-                "default",
-                default = "nil",
-            },
-        },
-        destroyTerrainList = {
-            type = "function",
-            parameters = {
-                "layerName",
-                "positions",
-                "tileID",
-                layerName = "string",
-                positions = "sf.Vector2i[]",
-                tileID = "any",
-            },
-            ["return"] = {},
-            ExecSplit = {
-                "default",
-                default = "nil",
-            },
         },
         getLights = {
             type = "function",
@@ -573,13 +541,8 @@ local _METADATA = {
             parameters = {
                 "text",
                 "position",
-                "textConfigKey",
                 text = "string",
                 position = "sf.Vector2f",
-                textConfigKey = "string",
-            },
-            default = {
-                [3] = "Global/DamageText",
             },
             ["return"] = {},
             ExecSplit = {

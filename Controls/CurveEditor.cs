@@ -32,7 +32,7 @@ public sealed class CurveEditor : UserControl
     private readonly TextBox arriveTangentBox = EditorInputs.CreateEditableTextBox();
     private readonly TextBox leaveTangentBox = EditorInputs.CreateEditableTextBox();
     private readonly StackPanel keyInspector = new() { Spacing = 6 };
-    private readonly TextBlock noSelection = new() { Text = LocaleService.Get("NO_SELECTION"), HorizontalAlignment = HorizontalAlignment.Center };
+    private readonly TextBlock noSelection = new() { Text = LocaleService.Get("GENERAL_DATA_PLACEHOLDER"), HorizontalAlignment = HorizontalAlignment.Center };
     private readonly string curveType;
     private readonly int componentCount;
     private bool syncing;

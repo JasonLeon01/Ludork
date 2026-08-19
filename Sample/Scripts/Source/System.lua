@@ -2,7 +2,7 @@ local Engine = require("Engine")
 local GameMap = require("Global.GameMap")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
-local MainConfig = require("Source.Config.Main")
+local MainConfig = require("Source.Configs.Main")
 
 local ManagerFunctions = GlobalFunctions.Manager
 local GlobalSystem = GlobalCore.System

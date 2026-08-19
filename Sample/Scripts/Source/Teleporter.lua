@@ -1,6 +1,6 @@
 
 local Engine = require("Engine")
-local RegionDict = require("Source.Config.RegionDict")
+local RegionDict = require("Source.Configs.RegionDict")
 local MapPath = require("Source.MapPath")
 
 local Actor = Engine.Actor

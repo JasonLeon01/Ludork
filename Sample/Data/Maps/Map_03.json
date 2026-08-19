@@ -1077,6 +1077,14 @@
           13,
           1
         ]
+      },
+      {
+        "tag": "Enemies_BP_Enemy_GhostSoldier_default_7_1",
+        "bp": "Data.Blueprints.Enemies.BP_Enemy_GhostSoldier",
+        "position": [
+          7,
+          1
+        ]
       }
     ]
   },

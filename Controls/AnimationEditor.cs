@@ -283,12 +283,13 @@ public sealed class AnimationEditor : UserControl
             return;
         string root = Path.Combine(gameData.ProjectPath, "Assets", audio ? "Sounds" : "Animations");
         Directory.CreateDirectory(root);
-        string? path = await FileSelectorDialog.ShowAsync(owner, root,
+        string[]? paths = await FileSelectorDialog.ShowMultipleAsync(owner, root,
             FileSelectorDialog.AllFilesFilter(star: true), LocaleService.Get(audio ? "ADD_AUDIO" : "ADD_ASSET"));
-        if (path is null)
+        if (paths is null)
             return;
         JsonArray assets = getAssets();
-        assets.Add(Path.GetFileName(path));
+        foreach (string path in paths)
+            assets.Add(Path.GetFileName(path));
         refreshAssets();
         commit();
     }
@@ -2148,7 +2149,7 @@ public sealed class AnimationTimeline : Control
                 }
             }
             else
-                duration = sound ? defaultDuration(asset) : batch ? 0.1 : 0.05;
+                duration = sound ? defaultDuration(asset) : 0.05;
             double originalAudioDuration = duration;
             if (sound && !batch && track < existingTracks.Count && existingTracks[track] is JsonObject trackData
                 && trackData["timeSegments"] is JsonArray existing)

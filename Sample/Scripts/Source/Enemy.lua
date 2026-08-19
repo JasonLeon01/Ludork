@@ -24,6 +24,34 @@ end
 componentTypes.childActorComp = ChildActorComponent
 componentTypes.infoComp = EnemyInfoComponent
 
+---@param enemy Source.Enemy
+---@param scene Source.Scenes.SceneMap.SceneMap
+---@return Engine.Actor | nil actor
+---@return string | nil layerName
+local function createRebornEnemy(enemy, scene)
+    local blueprintPath = enemy.infoComp.special[Special.Reborn]
+    if blueprintPath == nil then
+        return nil, nil
+    end
+    assert(type(blueprintPath) == "string" and bool(blueprintPath),
+        "Enemy Reborn special requires a Blueprint class path")
+    local gameMap = scene:getGameMap()
+    local layerName = assert(gameMap:getActorLayer(enemy), "Reborn enemy is not on a map layer")
+    local originalTag = enemy:getMapTag()
+    assert(bool(originalTag), "Reborn enemy requires a non-empty map-placement tag")
+    local mapTag = originalTag .. "_Reborn"
+    local tagSuffix = 2
+    while gameMap:getActorByTag(mapTag) ~= nil do
+        mapTag = originalTag .. "_Reborn_" .. tostring(tagSuffix)
+        tagSuffix = tagSuffix + 1
+    end
+    local actor = assert(Data.genActorFromClassPath(blueprintPath),
+        "Reborn enemy Blueprint class not found: " .. blueprintPath)
+    actor:setMapTag(mapTag)
+    actor:setMapPosition(copy(enemy:getMapPosition()))
+    return actor, layerName
+end
+
 ---@class Source.Enemy
 local Enemy = {}
 
@@ -166,12 +194,18 @@ function Enemy:onCollision(other)
                     if bool(self._defeatFinalised) then
                         return
                     end
+                    local rebornEnemy, rebornLayer = createRebornEnemy(self, scene)
                     self._defeatFinalised = true
                     scene:recordDestroyedActor(self)
                     if bool(Enemy.DefeatShatterEffectEnabled) then
                         scene:getGameMap():playActorPixelShatterEffect(self)
                     end
                     self:destroy()
+                    if rebornEnemy ~= nil then
+                        ---@cast rebornLayer string
+                        scene:getGameMap():spawnActor(rebornEnemy, rebornLayer)
+                        scene:recordAddedActor(rebornEnemy)
+                    end
                     player.infoComp.GOLD = player.infoComp.GOLD + gold
                     player.infoComp.EXP = player.infoComp.EXP + exp
                     self:afterBattle(player)

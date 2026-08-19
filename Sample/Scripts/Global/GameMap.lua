@@ -75,7 +75,6 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
     self._actorPixelShatterShader = actorPixelShatterShader
     self._previewOnly = previewOnly == true
     self.mapName = mapName
-    self._persistentMapPath = mapName
     ---@type GlobalCore.SceneBase | nil
     self._scene = nil
     ---@type Engine.Tilemap
@@ -186,6 +185,7 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
     ---@type fun(autoTileName: string): Engine.AutoTile | nil
     self._autoTileResolver = nil
     self._damageTextSpeedCurve = nil
+    self._damageTextConfig = nil
     ---@type sf.RenderStates | nil
     self._surfaceTileRenderStates = nil
     ---@type sf.RenderStates | nil
@@ -254,6 +254,11 @@ end
 function GameMap:setDamageTextSpeedCurve(curve)
     assert(curve ~= nil, "DamageText speed curve must not be nil")
     self._damageTextSpeedCurve = curve
+end
+
+function GameMap:setDamageTextConfig(config)
+    assert(config ~= nil, "DamageText config must not be nil")
+    self._damageTextConfig = config
 end
 
 function GameMap:_syncActorsForMapCache()
@@ -715,23 +720,12 @@ function GameMap:getTerrainTilePositions(layerName, tileID)
     return positions
 end
 
-function GameMap:setPersistentMapPath(mapPath)
-    self._persistentMapPath = mapPath
-end
-
 function GameMap:setTerrainTile(layerName, position, tileID)
-    return bool(self:_setTerrainTiles(layerName, { position }, tileID))
+    return bool(self:setTerrainTiles(layerName, { position }, tileID))
 end
 
 function GameMap:setTerrainTiles(layerName, positions, tileID)
-    return #self:_setTerrainTiles(layerName, positions, tileID)
-end
-
----@param layerName string
----@param positions sf.Vector2i[]
----@param tileID    integer | string | nil
----@return sf.Vector2i[]
-function GameMap:_setTerrainTiles(layerName, positions, tileID)
+    local terrainTileID = self:_normaliseTerrainTileID(tileID)
     if not bool(positions) then
         return {}
     end
@@ -740,7 +734,6 @@ function GameMap:_setTerrainTiles(layerName, positions, tileID)
         return {}
     end
     ---@cast layer Engine.TileLayer
-    local terrainTileID = self:_normaliseTerrainTileID(tileID)
     local layerData = layer:getData()
     local autoTileTextures = layer:getAutoTileTextures()
     local autoTileFrameCounts = layer:getAutoTileFrameCounts()
@@ -757,36 +750,6 @@ function GameMap:_setTerrainTiles(layerName, positions, tileID)
     self:_replaceTerrainLayer(layerName, layer, layerData, autoTileTextures, autoTileFrameCounts)
     self:markPassabilityDirty()
     return changedPositions
-end
-
-function GameMap:destroyTerrain(layerName, position, tileID)
-    local terrainTileID = self:_normaliseTerrainTileID(tileID)
-    local changedPositions = self:_setTerrainTiles(layerName, { position }, terrainTileID)
-    if not bool(changedPositions) then
-        return
-    end
-    local scene = self._scene
-    ---@cast scene Source.Scenes.SceneMap.SceneMap | nil
-    if scene ~= nil and scene.inst ~= nil then
-        local changedPosition = changedPositions[1]
-        ---@cast changedPosition sf.Vector2i
-        scene.inst:recordTerrainDestruction(self._persistentMapPath, layerName, changedPosition, terrainTileID)
-    end
-end
-
-function GameMap:destroyTerrainList(layerName, positions, tileID)
-    local terrainTileID = self:_normaliseTerrainTileID(tileID)
-    local changedPositions = self:_setTerrainTiles(layerName, positions, terrainTileID)
-    if not bool(changedPositions) then
-        return
-    end
-    local scene = self._scene
-    ---@cast scene Source.Scenes.SceneMap.SceneMap | nil
-    if scene ~= nil and scene.inst ~= nil then
-        for _, terrainPosition in ipairs(changedPositions) do
-            scene.inst:recordTerrainDestruction(self._persistentMapPath, layerName, terrainPosition, terrainTileID)
-        end
-    end
 end
 
 function GameMap:applyTerrainDestructions(terrainDestructions)
@@ -944,13 +907,13 @@ function GameMap:addCommonTip(text)
     end
 end
 
-function GameMap:addDamageText(text, position, textConfigKey)
+function GameMap:addDamageText(text, position)
     assert(self._damageTextSpeedCurve ~= nil, "DamageText speed curve is not configured")
+    assert(self._damageTextConfig ~= nil, "DamageText config is not configured")
     local drawPosition = self:worldToMapViewPosition(position)
-    local Data = require("Source.Data")
-
-    local textConfig = Data.getPlainTextConfig(textConfigKey or "Global/DamageText")
-    DamageTextParticle.new(self._particleSystem, text, drawPosition, textConfig, self._damageTextSpeedCurve)
+    DamageTextParticle.new(
+        self._particleSystem, text, drawPosition, self._damageTextConfig, self._damageTextSpeedCurve
+    )
 end
 
 function GameMap:worldToMapViewPosition(position)

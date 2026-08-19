@@ -46,6 +46,7 @@
 ---@field _lightPassRenderStates sf.RenderStates | nil
 ---@field _unobstructedLightPassRenderStates sf.RenderStates | nil
 ---@field _autoTileResolver fun(autoTileName: string): Engine.AutoTile | nil
+---@field _damageTextConfig Engine.PlainTextConfig | nil
 ---@field _actorShaderBuffer sf.RenderTexture | nil
 ---@field _actorHueBuffer sf.RenderTexture | nil
 ---@field _cachedActiveLights table[] | nil
@@ -84,6 +85,9 @@ function GameMap:setAutoTileResolver(resolver) end
 
 ---@param curve Engine.Curve
 function GameMap:setDamageTextSpeedCurve(curve) end
+
+---@param config Engine.PlainTextConfig
+function GameMap:setDamageTextConfig(config) end
 
 --- @brief Get the player actor.
 ---
@@ -264,12 +268,6 @@ function GameMap:getTerrainTile(layerName, position) end
 ---@return sf.Vector2i[]
 function GameMap:getTerrainTilePositions(layerName, tileID) end
 
---- @brief Set the persistent map path used when recording map changes.
----
---- - @param mapPath The map path stored by the current game instance.
----@param mapPath string
-function GameMap:setPersistentMapPath(mapPath) end
-
 --- @brief Replace one terrain tile on the current map.
 ---
 --- - @param layerName The tile layer to edit.
@@ -287,37 +285,17 @@ function GameMap:setTerrainTile(layerName, position, tileID) end
 --- - @param layerName The tile layer to edit.
 --- - @param positions The sf.Vector2i tile coordinates.
 --- - @param tileID The replacement tile ID, autotile key, or nil to clear the tiles.
---- - @return The number of replaced tiles.
+--- - @return The successfully changed positions.
 ---@param layerName string
 ---@param positions sf.Vector2i[]
 ---@param tileID    integer | string | nil
----@return integer
+---@return sf.Vector2i[]
 function GameMap:setTerrainTiles(layerName, positions, tileID) end
-
---- @brief Replace one terrain tile and persist the change in the game instance.
----
---- - @param layerName The tile layer to edit.
---- - @param position The sf.Vector2i tile coordinate.
---- - @param tileID The replacement tile ID, autotile key, or nil to clear the tile.
----@param layerName string
----@param position  sf.Vector2i
----@param tileID    integer | string | nil
-function GameMap:destroyTerrain(layerName, position, tileID) end
-
---- @brief Replace multiple terrain tiles and persist the changes in the game instance.
----
---- - @param layerName The tile layer to edit.
---- - @param positions The sf.Vector2i tile coordinates.
---- - @param tileID The replacement tile ID, autotile key, or nil to clear the tiles.
----@param layerName string
----@param positions sf.Vector2i[]
----@param tileID    integer | string | nil
-function GameMap:destroyTerrainList(layerName, positions, tileID) end
 
 --- @brief Apply persisted terrain replacements to the current map.
 ---
 --- - @param terrainDestructions Layer-indexed terrain replacement records.
----@param terrainDestructions table<string, table<string, Source.GameInstance.TerrainChangeRecord>>
+---@param terrainDestructions table<string, table<string, { position: sf.Vector2i, tileID: integer | string | nil }>>
 function GameMap:applyTerrainDestructions(terrainDestructions) end
 
 --- @brief Get all lights on the map.
@@ -483,11 +461,9 @@ function GameMap:addCommonTip(text) end
 ---
 --- - @param text Damage text content.
 --- - @param position World position used as the spawn point.
---- - @param textConfigKey Optional PlainTextConfig asset key.
----@param text          string
----@param position      sf.Vector2f
----@param textConfigKey string | nil
-function GameMap:addDamageText(text, position, textConfigKey) end
+---@param text     string
+---@param position sf.Vector2f
+function GameMap:addDamageText(text, position) end
 
 --- @brief Convert a world position for drawing while the map view is active.
 ---

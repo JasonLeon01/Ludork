@@ -855,10 +855,10 @@ internal sealed class GeneralDataPage : Grid
             List<string>? options = getRefOptions(refKind, refKey);
             if (options is not null)
             {
-                ComboBox combo = createReferenceCombo(current, options);
+                ComboBox combo = GeneralDataReferenceInputs.Create(current, options);
                 combo.SelectionChanged += (_, _) =>
                 {
-                    string next = combo.SelectedItem as string ?? string.Empty;
+                    string next = GeneralDataReferenceInputs.GetValue(combo);
                     if ((row.Member[column.Name]?.GetValue<string>() ?? string.Empty) == next)
                         return;
                     gameData.RecordSnapshot();
@@ -901,22 +901,6 @@ internal sealed class GeneralDataPage : Grid
         Grid.SetColumn(edit, 1);
         complex.Children.Add(edit);
         return complex;
-    }
-
-    private static ComboBox createReferenceCombo(string current, List<string> options)
-    {
-        ComboBox combo = new()
-        {
-            MinHeight = EditorInputs.FieldMinHeight,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-        };
-        List<string> items = new() { string.Empty };
-        if (current.Length > 0 && !options.Contains(current))
-            items.Add(current);
-        items.AddRange(options);
-        combo.ItemsSource = items;
-        combo.SelectedItem = items.Contains(current) ? current : string.Empty;
-        return combo;
     }
 
     private static string summarizeComplexValue(string type, JsonNode? value)
@@ -1512,21 +1496,10 @@ internal sealed class GeneralDataPage : Grid
             List<string>? refOptions = getRefOptions(refKind, refKey);
             if (refOptions is not null)
             {
-                ComboBox combo = new()
-                {
-                    MinHeight = EditorInputs.FieldMinHeight,
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                };
-                List<string> items = new() { string.Empty };
-                if (current.Length > 0 && !refOptions.Contains(current))
-                    items.Add(current);
-                items.AddRange(refOptions);
-                foreach (string opt in items)
-                    combo.Items.Add(opt);
-                combo.SelectedItem = items.Contains(current) ? current : string.Empty;
+                ComboBox combo = GeneralDataReferenceInputs.Create(current, refOptions);
                 combo.SelectionChanged += (_, _) =>
                 {
-                    string next = combo.SelectedItem as string ?? string.Empty;
+                    string next = GeneralDataReferenceInputs.GetValue(combo);
                     if ((rawValue?.GetValue<string>() ?? string.Empty) == next)
                         return;
                     gameData.RecordSnapshot();
@@ -1621,6 +1594,51 @@ internal sealed record GeneralDataTableColumn(string Name, JsonObject Definition
 
 internal sealed record GeneralDataTableRow(string Id, JsonObject Member);
 
+internal static class GeneralDataReferenceInputs
+{
+    public static ComboBox Create(string current, IReadOnlyList<string> options)
+    {
+        ComboBox combo = new()
+        {
+            MinHeight = EditorInputs.FieldMinHeight,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        ComboBoxItem placeholder = createItem(LocaleService.Get("GENERAL_DATA_PLACEHOLDER"), string.Empty);
+        combo.Items.Add(placeholder);
+        ComboBoxItem selected = placeholder;
+        if (current.Length > 0 && !options.Contains(current))
+        {
+            selected = createItem(current, current);
+            combo.Items.Add(selected);
+        }
+        foreach (string option in options)
+        {
+            if (option.Length == 0)
+                continue;
+            ComboBoxItem item = createItem(option, option);
+            combo.Items.Add(item);
+            if (string.Equals(option, current, StringComparison.Ordinal))
+                selected = item;
+        }
+        combo.SelectedItem = selected;
+        return combo;
+    }
+
+    public static string GetValue(ComboBox combo)
+    {
+        return (combo.SelectedItem as ComboBoxItem)?.Tag as string ?? string.Empty;
+    }
+
+    private static ComboBoxItem createItem(string label, string value)
+    {
+        return new ComboBoxItem
+        {
+            Content = label,
+            Tag = value,
+        };
+    }
+}
+
 internal sealed class ListFieldEditor : StackPanel
 {
     private readonly GameDataService gameData;
@@ -1651,21 +1669,10 @@ internal sealed class ListFieldEditor : StackPanel
             Control editor;
             if (refOptions is not null)
             {
-                ComboBox combo = new()
-                {
-                    MinHeight = EditorInputs.FieldMinHeight,
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                };
-                List<string> items = new() { string.Empty };
-                if (current.Length > 0 && !refOptions.Contains(current))
-                    items.Add(current);
-                items.AddRange(refOptions);
-                foreach (string opt in items)
-                    combo.Items.Add(opt);
-                combo.SelectedItem = items.Contains(current) ? current : string.Empty;
+                ComboBox combo = GeneralDataReferenceInputs.Create(current, refOptions);
                 combo.SelectionChanged += (_, _) =>
                 {
-                    string next = combo.SelectedItem as string ?? string.Empty;
+                    string next = GeneralDataReferenceInputs.GetValue(combo);
                     if ((data[captured]?.GetValue<string>() ?? string.Empty) == next)
                         return;
                     gameData.RecordSnapshot();
@@ -1736,6 +1743,7 @@ internal sealed class DictFieldEditor : StackPanel
     private readonly string paramName;
     private JsonObject data;
     private readonly List<string>? keyOptions;
+    private bool hasPendingReferenceEntry;
 
     public DictFieldEditor(GameDataService gameData, JsonObject member, string paramName, JsonObject data, List<string>? keyOptions)
     {
@@ -1752,37 +1760,34 @@ internal sealed class DictFieldEditor : StackPanel
     {
         Children.Clear();
         List<KeyValuePair<string, JsonNode?>> entries = data.Select(e => e).ToList();
-        for (int i = 0; i < entries.Count; i++)
+        int rowCount = entries.Count + (hasPendingReferenceEntry ? 1 : 0);
+        for (int i = 0; i < rowCount; i++)
         {
-            string entryKey = entries[i].Key;
-            string entryValue = entries[i].Value?.GetValue<string>() ?? string.Empty;
+            bool pending = i >= entries.Count;
+            string entryKey = pending ? string.Empty : entries[i].Key;
+            string entryValue = pending ? string.Empty : entries[i].Value?.GetValue<string>() ?? string.Empty;
             Grid row = new() { ColumnDefinitions = new ColumnDefinitions("*,4,*,Auto"), ColumnSpacing = 4 };
             Control keyEditor;
             if (keyOptions is not null)
             {
-                ComboBox combo = new()
-                {
-                    MinHeight = EditorInputs.FieldMinHeight,
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                };
-                List<string> items = new() { string.Empty };
-                if (entryKey.Length > 0 && !keyOptions.Contains(entryKey))
-                    items.Add(entryKey);
-                items.AddRange(keyOptions);
-                foreach (string opt in items)
-                    combo.Items.Add(opt);
-                combo.SelectedItem = items.Contains(entryKey) ? entryKey : string.Empty;
+                List<string> availableOptions = keyOptions
+                    .Where(option => string.Equals(option, entryKey, StringComparison.Ordinal)
+                        || !data.ContainsKey(option))
+                    .ToList();
+                ComboBox combo = GeneralDataReferenceInputs.Create(entryKey, availableOptions);
                 string capturedKey = entryKey;
                 combo.SelectionChanged += (_, _) =>
                 {
-                    string newKey = combo.SelectedItem as string ?? string.Empty;
-                    if (newKey == capturedKey || string.IsNullOrEmpty(newKey))
+                    string newKey = GeneralDataReferenceInputs.GetValue(combo);
+                    if (newKey == capturedKey || string.IsNullOrEmpty(newKey) || data.ContainsKey(newKey))
                         return;
                     gameData.RecordSnapshot();
                     attachData();
-                    string val = data[capturedKey]?.GetValue<string>() ?? string.Empty;
-                    data.Remove(capturedKey);
+                    string val = pending ? string.Empty : data[capturedKey]?.GetValue<string>() ?? string.Empty;
+                    if (!pending)
+                        data.Remove(capturedKey);
                     data[newKey] = val;
+                    hasPendingReferenceEntry = false;
                     gameData.refreshModifiedState();
                     rebuild();
                 };
@@ -1811,6 +1816,7 @@ internal sealed class DictFieldEditor : StackPanel
             row.Children.Add(keyEditor);
 
             TextBox valBox = EditorInputs.CreateEditableTextBox(entryValue);
+            valBox.IsEnabled = !pending;
             HistoryMergeBehavior.Attach(valBox, gameData);
             string capturedEntryKey = entryKey;
             valBox.TextChanged += (_, _) =>
@@ -1832,6 +1838,12 @@ internal sealed class DictFieldEditor : StackPanel
             string capturedDelKey = entryKey;
             del.Click += (_, _) =>
             {
+                if (pending)
+                {
+                    hasPendingReferenceEntry = false;
+                    rebuild();
+                    return;
+                }
                 gameData.RecordSnapshot();
                 attachData();
                 data.Remove(capturedDelKey);
@@ -1847,9 +1859,17 @@ internal sealed class DictFieldEditor : StackPanel
             Content = "+",
             HorizontalAlignment = HorizontalAlignment.Stretch,
             Height = 28,
+            IsEnabled = keyOptions is null
+                || (!hasPendingReferenceEntry && keyOptions.Any(option => !data.ContainsKey(option))),
         };
         add.Click += (_, _) =>
         {
+            if (keyOptions is not null)
+            {
+                hasPendingReferenceEntry = true;
+                rebuild();
+                return;
+            }
             string newKey = "key";
             int n = 2;
             while (data.ContainsKey(newKey))
