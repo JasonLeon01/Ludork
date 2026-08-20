@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Runtime/RuntimeValue.hpp>
+#include <Runtime/RuntimeValueReader.hpp>
 #include <UI/ControlBase.hpp>
 #include <UI/Text.hpp>
 
@@ -17,11 +17,11 @@
 
 namespace ui_control_adapter_detail {
 
-float requireFloat(const RuntimeValue& value, const std::string& source);
-int requireInt(const RuntimeValue& value, const std::string& source);
-bool requireBool(const RuntimeValue& value, const std::string& source);
-const std::string& requireString(const RuntimeValue& value,
-                                 const std::string& source);
+using ludork::engine::runtime_value_reader::requireBool;
+using ludork::engine::runtime_value_reader::requireFloat;
+using ludork::engine::runtime_value_reader::requireInt;
+using ludork::engine::runtime_value_reader::requireString;
+
 sf::Vector2f requireVector2f(const RuntimeValue& value,
                              const std::string& source);
 sf::Vector2u requireVector2u(const RuntimeValue& value,

@@ -4,6 +4,7 @@
 #include "Protocol/PreviewProtocol.hpp"
 #include "Rendering/PixelConversion.hpp"
 
+#include <Runtime/RuntimeValueReader.hpp>
 #include <Utf8Path.hpp>
 #include <Utils/ShaderLoader.hpp>
 
@@ -175,15 +176,20 @@ struct ActorBatchRenderer::Impl {
 
     RuntimeValue render(const RuntimeValue::Map& request,
                         FrameFiles& frameFiles) {
-        const std::int64_t generation = requireInteger(
-            requireValue(request, "generation", "Actor render request"),
-            "Actor render request.generation");
-        const float time = static_cast<float>(
-            requireNumber(requireValue(request, "time", "Actor render request"),
-                          "Actor render request.time"));
+        const std::int64_t generation =
+            ludork::engine::runtime_value_reader::requireInteger(
+                ludork::engine::runtime_value_reader::requireValue(
+                    request, "generation", "Actor render request"),
+                "Actor render request.generation");
+        const float time = ludork::engine::runtime_value_reader::requireFloat(
+            ludork::engine::runtime_value_reader::requireValue(
+                request, "time", "Actor render request"),
+            "Actor render request.time");
         const RuntimeValue::Array& itemValues =
-            requireArray(requireValue(request, "items", "Actor render request"),
-                         "Actor render request.items");
+            ludork::engine::runtime_value_reader::requireArray(
+                ludork::engine::runtime_value_reader::requireValue(
+                    request, "items", "Actor render request"),
+                "Actor render request.items");
         std::vector<PackedActorVisual> visuals;
         visuals.reserve(itemValues.size());
         for (std::size_t index = 0; index < itemValues.size(); ++index) {
@@ -285,39 +291,58 @@ private:
                                   std::size_t index) const {
         const std::string source =
             "Actor render request.items[" + std::to_string(index) + "]";
-        const RuntimeValue::Map& item = requireMap(value, source);
-        const RuntimeValue::Map& rect = requireMap(
-            requireValue(item, "textureRect", source), source + ".textureRect");
-        const int width =
-            requireInt32(requireValue(rect, "width", source + ".textureRect"),
-                         source + ".textureRect.width");
-        const int height =
-            requireInt32(requireValue(rect, "height", source + ".textureRect"),
-                         source + ".textureRect.height");
+        const RuntimeValue::Map& item =
+            ludork::engine::runtime_value_reader::requireMap(value, source);
+        const RuntimeValue::Map& rect =
+            ludork::engine::runtime_value_reader::requireMap(
+                ludork::engine::runtime_value_reader::requireValue(
+                    item, "textureRect", source),
+                source + ".textureRect");
+        const int width = ludork::engine::runtime_value_reader::requireInt(
+            ludork::engine::runtime_value_reader::requireValue(
+                rect, "width", source + ".textureRect"),
+            source + ".textureRect.width");
+        const int height = ludork::engine::runtime_value_reader::requireInt(
+            ludork::engine::runtime_value_reader::requireValue(
+                rect, "height", source + ".textureRect"),
+            source + ".textureRect.height");
         if (width <= 0 || height <= 0) {
             throw std::invalid_argument(source +
                                         ".textureRect must have positive size");
         }
-        const std::string& shaderText = requireString(
-            requireValue(item, "shaderPath", source), source + ".shaderPath");
-        float hue = static_cast<float>(
-            requireNumber(requireValue(item, "hue", source), source + ".hue"));
+        const std::string& shaderText =
+            ludork::engine::runtime_value_reader::requireString(
+                ludork::engine::runtime_value_reader::requireValue(
+                    item, "shaderPath", source),
+                source + ".shaderPath");
+        float hue = ludork::engine::runtime_value_reader::requireFloat(
+            ludork::engine::runtime_value_reader::requireValue(item, "hue",
+                                                               source),
+            source + ".hue");
         hue = std::fmod(hue, 360.0f);
         if (hue < 0.0f) {
             hue += 360.0f;
         }
         ActorVisualRequest visual{
-            requireString(requireValue(item, "id", source), source + ".id"),
+            ludork::engine::runtime_value_reader::requireString(
+                ludork::engine::runtime_value_reader::requireValue(item, "id",
+                                                                   source),
+                source + ".id"),
             actorTexturePath(
                 projectPath_,
-                requireString(requireValue(item, "texturePath", source),
-                              source + ".texturePath")),
-            sf::IntRect(
-                {requireInt32(requireValue(rect, "x", source + ".textureRect"),
-                              source + ".textureRect.x"),
-                 requireInt32(requireValue(rect, "y", source + ".textureRect"),
-                              source + ".textureRect.y")},
-                {width, height}),
+                ludork::engine::runtime_value_reader::requireString(
+                    ludork::engine::runtime_value_reader::requireValue(
+                        item, "texturePath", source),
+                    source + ".texturePath")),
+            sf::IntRect({ludork::engine::runtime_value_reader::requireInt(
+                             ludork::engine::runtime_value_reader::requireValue(
+                                 rect, "x", source + ".textureRect"),
+                             source + ".textureRect.x"),
+                         ludork::engine::runtime_value_reader::requireInt(
+                             ludork::engine::runtime_value_reader::requireValue(
+                                 rect, "y", source + ".textureRect"),
+                             source + ".textureRect.y")},
+                        {width, height}),
             shaderText.empty() ? std::filesystem::path()
                                : actorShaderPath(projectPath_, shaderText),
             hue};

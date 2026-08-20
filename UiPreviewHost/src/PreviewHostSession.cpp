@@ -3,6 +3,7 @@
 #include "Protocol/PreviewProtocol.hpp"
 
 #include <Runtime/EngineState.hpp>
+#include <Runtime/RuntimeValueReader.hpp>
 #include <UI/UiControlAdapterRegistry.hpp>
 #include <UI/UiResources.hpp>
 #include <Utf8Path.hpp>
@@ -26,10 +27,13 @@ PreviewHostSession::~PreviewHostSession() noexcept {
 
 RuntimeValue PreviewHostSession::handle(const RuntimeValue& requestValue) {
     const RuntimeValue::Map& request =
-        requireMap(requestValue, "Preview request");
+        ludork::engine::runtime_value_reader::requireMap(requestValue,
+                                                         "Preview request");
     const std::string& type =
-        requireString(requireValue(request, "type", "Preview request"),
-                      "Preview request.type");
+        ludork::engine::runtime_value_reader::requireString(
+            ludork::engine::runtime_value_reader::requireValue(
+                request, "type", "Preview request"),
+            "Preview request.type");
     if (type == "handshake") {
         return handshake(request);
     }
@@ -55,11 +59,15 @@ RuntimeValue PreviewHostSession::handshake(const RuntimeValue::Map& request) {
     accepted_ = false;
     uiSession_.reset();
     const std::int64_t requestedProtocol =
-        requireInteger(requireValue(request, "protocolVersion", "Handshake"),
-                       "Handshake.protocolVersion");
+        ludork::engine::runtime_value_reader::requireInteger(
+            ludork::engine::runtime_value_reader::requireValue(
+                request, "protocolVersion", "Handshake"),
+            "Handshake.protocolVersion");
     const std::string& requestedFingerprint =
-        requireString(requireValue(request, "adapterFingerprint", "Handshake"),
-                      "Handshake.adapterFingerprint");
+        ludork::engine::runtime_value_reader::requireString(
+            ludork::engine::runtime_value_reader::requireValue(
+                request, "adapterFingerprint", "Handshake"),
+            "Handshake.adapterFingerprint");
     const bool accepted = requestedProtocol == protocolVersion &&
                           requestedFingerprint == adapterFingerprint_;
     std::string message;
@@ -68,8 +76,10 @@ RuntimeValue PreviewHostSession::handshake(const RuntimeValue::Map& request) {
             "UiPreviewHost protocol or adapter fingerprint is incompatible.";
     } else {
         const std::string& projectPath =
-            requireString(requireValue(request, "projectPath", "Handshake"),
-                          "Handshake.projectPath");
+            ludork::engine::runtime_value_reader::requireString(
+                ludork::engine::runtime_value_reader::requireValue(
+                    request, "projectPath", "Handshake"),
+                "Handshake.projectPath");
         const std::filesystem::path project = std::filesystem::weakly_canonical(
             ludork::standard::pathFromUtf8(projectPath));
         if (!std::filesystem::is_directory(project)) {

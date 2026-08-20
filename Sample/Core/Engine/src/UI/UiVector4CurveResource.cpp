@@ -2,14 +2,12 @@
 
 #include <ConcurrentResourceCache.hpp>
 #include <Curve.hpp>
-#include <Runtime/RuntimeValue.hpp>
+#include <Runtime/RuntimeValueReader.hpp>
 #include <Utils/File.hpp>
 
 #include <Utf8Path.hpp>
 
 #include <array>
-#include <cmath>
-#include <limits>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -21,55 +19,11 @@ ludork::core::ConcurrentResourceCache<Vector4Curve, true>& curveCache() {
     return cache;
 }
 
-const RuntimeValue* findValue(const RuntimeValue::Map& values,
-                              const std::string& name) {
-    const auto iterator = values.find(name);
-    return iterator == values.end() ? nullptr : &iterator->second;
-}
-
-const RuntimeValue::Map& requireMap(const RuntimeValue& value,
-                                    const std::string& source) {
-    const RuntimeValue::Map* map = value.getIf<RuntimeValue::Map>();
-    if (map == nullptr) {
-        throw std::invalid_argument(source + " must be an object");
-    }
-    return *map;
-}
-
-const RuntimeValue::Array& requireArray(const RuntimeValue& value,
-                                        const std::string& source) {
-    const RuntimeValue::Array* array = value.getIf<RuntimeValue::Array>();
-    if (array == nullptr) {
-        throw std::invalid_argument(source + " must be an array");
-    }
-    return *array;
-}
-
-const std::string& requireString(const RuntimeValue& value,
-                                 const std::string& source) {
-    const std::string* text = value.getIf<std::string>();
-    if (text == nullptr) {
-        throw std::invalid_argument(source + " must be a string");
-    }
-    return *text;
-}
-
-float requireFloat(const RuntimeValue& value, const std::string& source) {
-    double number;
-    if (const std::int64_t* integer = value.getIf<std::int64_t>()) {
-        number = static_cast<double>(*integer);
-    } else if (const double* floating = value.getIf<double>()) {
-        number = *floating;
-    } else {
-        throw std::invalid_argument(source + " must be a number");
-    }
-    if (!std::isfinite(number) ||
-        number < -static_cast<double>(std::numeric_limits<float>::max()) ||
-        number > static_cast<double>(std::numeric_limits<float>::max())) {
-        throw std::invalid_argument(source + " must be a finite float");
-    }
-    return static_cast<float>(number);
-}
+using ludork::engine::runtime_value_reader::findValue;
+using ludork::engine::runtime_value_reader::requireArray;
+using ludork::engine::runtime_value_reader::requireFloat;
+using ludork::engine::runtime_value_reader::requireMap;
+using ludork::engine::runtime_value_reader::requireString;
 
 std::array<float, 4> requireVector4(const RuntimeValue& value,
                                     const std::string& source) {

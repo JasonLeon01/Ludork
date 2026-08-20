@@ -298,6 +298,9 @@ bool executeBlueprintGraph(sol::state_view lua, const sol::object& graph,
                            const std::function<void()>& onComplete) {
     const std::shared_ptr<Graph> nativeGraph =
         graph.as<std::shared_ptr<Graph>>();
+    if (nativeGraph->getLatentPendingCount(eventName) > 0) {
+        return false;
+    }
     if (!nativeGraph->tryLockExecution(eventName)) {
         return false;
     }

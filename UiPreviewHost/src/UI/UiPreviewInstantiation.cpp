@@ -3,6 +3,7 @@
 #include "Protocol/PreviewProtocol.hpp"
 
 #include <Runtime/EngineState.hpp>
+#include <Runtime/RuntimeValueReader.hpp>
 #include <UI/UiAssetRuntime.hpp>
 #include <UI/UIState.hpp>
 #include <Utf8Path.hpp>
@@ -39,19 +40,27 @@ std::filesystem::path safeProjectPath(const std::string& value,
 
 std::string settingString(const RuntimeValue::Map& config,
                           const std::string& name) {
-    const RuntimeValue::Map& setting = requireMap(
-        requireValue(config, name, "System config"), "System config." + name);
-    return requireString(
-        requireValue(setting, "value", "System config." + name),
+    const RuntimeValue::Map& setting =
+        ludork::engine::runtime_value_reader::requireMap(
+            ludork::engine::runtime_value_reader::requireValue(config, name,
+                                                               "System config"),
+            "System config." + name);
+    return ludork::engine::runtime_value_reader::requireString(
+        ludork::engine::runtime_value_reader::requireValue(
+            setting, "value", "System config." + name),
         "System config." + name + ".value");
 }
 
 std::int64_t settingInteger(const RuntimeValue::Map& config,
                             const std::string& name) {
-    const RuntimeValue::Map& setting = requireMap(
-        requireValue(config, name, "System config"), "System config." + name);
-    return requireInteger(
-        requireValue(setting, "value", "System config." + name),
+    const RuntimeValue::Map& setting =
+        ludork::engine::runtime_value_reader::requireMap(
+            ludork::engine::runtime_value_reader::requireValue(config, name,
+                                                               "System config"),
+            "System config." + name);
+    return ludork::engine::runtime_value_reader::requireInteger(
+        ludork::engine::runtime_value_reader::requireValue(
+            setting, "value", "System config." + name),
         "System config." + name + ".value");
 }
 
@@ -59,22 +68,32 @@ void configureUiResources() {
     const RuntimeValue configValue = getJSONData(
         std::filesystem::path(".") / "Data" / "Configs" / "System.json");
     const RuntimeValue::Map& config =
-        requireMap(configValue, "Data/Configs/System.json");
-    const RuntimeValue::Map& fonts = requireMap(
-        requireValue(config, "fonts", "System config"), "System config.fonts");
+        ludork::engine::runtime_value_reader::requireMap(
+            configValue, "Data/Configs/System.json");
+    const RuntimeValue::Map& fonts =
+        ludork::engine::runtime_value_reader::requireMap(
+            ludork::engine::runtime_value_reader::requireValue(config, "fonts",
+                                                               "System config"),
+            "System config.fonts");
     const RuntimeValue::Array& fontNames =
-        requireArray(requireValue(fonts, "value", "System config.fonts"),
-                     "System config.fonts.value");
+        ludork::engine::runtime_value_reader::requireArray(
+            ludork::engine::runtime_value_reader::requireValue(
+                fonts, "value", "System config.fonts"),
+            "System config.fonts.value");
     if (fontNames.empty()) {
         throw std::invalid_argument(
             "System config must declare at least one font");
     }
     const std::string& fontName =
-        requireString(fontNames.front(), "System config.fonts.value[0]");
-    const std::string base = findValue(fonts, "base") == nullptr
-                                 ? "Fonts"
-                                 : requireString(*findValue(fonts, "base"),
-                                                 "System config.fonts.base");
+        ludork::engine::runtime_value_reader::requireString(
+            fontNames.front(), "System config.fonts.value[0]");
+    const RuntimeValue* baseValue =
+        ludork::engine::runtime_value_reader::findValue(fonts, "base");
+    const std::string base =
+        baseValue == nullptr
+            ? "Fonts"
+            : ludork::engine::runtime_value_reader::requireString(
+                  *baseValue, "System config.fonts.base");
     const std::filesystem::path fontPath = safeProjectPath(
         "Assets/" + base + "/" + fontName, "System config font");
     std::shared_ptr<sf::Font> font = std::make_shared<sf::Font>();
@@ -95,14 +114,19 @@ void configureUiResources() {
 }  // namespace
 
 sf::Vector2u designSize(const RuntimeValue::Map& asset) {
-    const RuntimeValue::Map& size = requireMap(
-        requireValue(asset, "designSize", "UI asset"), "UI asset.designSize");
-    const double width =
-        requireNumber(requireValue(size, "width", "UI asset.designSize"),
-                      "UI asset.designSize.width");
-    const double height =
-        requireNumber(requireValue(size, "height", "UI asset.designSize"),
-                      "UI asset.designSize.height");
+    const RuntimeValue::Map& size =
+        ludork::engine::runtime_value_reader::requireMap(
+            ludork::engine::runtime_value_reader::requireValue(
+                asset, "designSize", "UI asset"),
+            "UI asset.designSize");
+    const double width = ludork::engine::runtime_value_reader::requireNumber(
+        ludork::engine::runtime_value_reader::requireValue(
+            size, "width", "UI asset.designSize"),
+        "UI asset.designSize.width");
+    const double height = ludork::engine::runtime_value_reader::requireNumber(
+        ludork::engine::runtime_value_reader::requireValue(
+            size, "height", "UI asset.designSize"),
+        "UI asset.designSize.height");
     if (width <= 0.0 || height <= 0.0 ||
         width > static_cast<double>(std::numeric_limits<unsigned int>::max()) ||
         height >

@@ -3,10 +3,8 @@
 #include <Utils/File.hpp>
 
 #include <array>
-#include <cmath>
 #include <cstdio>
 #include <iostream>
-#include <limits>
 #include <stdexcept>
 
 #ifdef _WIN32
@@ -29,78 +27,6 @@ std::array<std::uint8_t, 4> littleEndian(std::uint32_t value) {
 }
 
 }  // namespace
-
-const RuntimeValue* findValue(const RuntimeValue::Map& values,
-                              const std::string& name) {
-    const auto iterator = values.find(name);
-    return iterator == values.end() ? nullptr : &iterator->second;
-}
-
-const RuntimeValue::Map& requireMap(const RuntimeValue& value,
-                                    const std::string& source) {
-    const RuntimeValue::Map* map = value.getIf<RuntimeValue::Map>();
-    if (map == nullptr) {
-        throw std::invalid_argument(source + " must be an object");
-    }
-    return *map;
-}
-
-const RuntimeValue::Array& requireArray(const RuntimeValue& value,
-                                        const std::string& source) {
-    const RuntimeValue::Array* array = value.getIf<RuntimeValue::Array>();
-    if (array == nullptr) {
-        throw std::invalid_argument(source + " must be an array");
-    }
-    return *array;
-}
-
-const RuntimeValue& requireValue(const RuntimeValue::Map& values,
-                                 const std::string& name,
-                                 const std::string& source) {
-    const RuntimeValue* value = findValue(values, name);
-    if (value == nullptr) {
-        throw std::invalid_argument(source + " is missing " + name);
-    }
-    return *value;
-}
-
-const std::string& requireString(const RuntimeValue& value,
-                                 const std::string& source) {
-    const std::string* text = value.getIf<std::string>();
-    if (text == nullptr) {
-        throw std::invalid_argument(source + " must be a string");
-    }
-    return *text;
-}
-
-std::int64_t requireInteger(const RuntimeValue& value,
-                            const std::string& source) {
-    const std::int64_t* integer = value.getIf<std::int64_t>();
-    if (integer == nullptr) {
-        throw std::invalid_argument(source + " must be an integer");
-    }
-    return *integer;
-}
-
-double requireNumber(const RuntimeValue& value, const std::string& source) {
-    if (const std::int64_t* integer = value.getIf<std::int64_t>()) {
-        return static_cast<double>(*integer);
-    }
-    const double* number = value.getIf<double>();
-    if (number == nullptr || !std::isfinite(*number)) {
-        throw std::invalid_argument(source + " must be a finite number");
-    }
-    return *number;
-}
-
-int requireInt32(const RuntimeValue& value, const std::string& source) {
-    const std::int64_t integer = requireInteger(value, source);
-    if (integer < std::numeric_limits<int>::min() ||
-        integer > std::numeric_limits<int>::max()) {
-        throw std::invalid_argument(source + " is outside the integer range");
-    }
-    return static_cast<int>(integer);
-}
 
 RuntimeValue::Map object(
     std::initializer_list<std::pair<const std::string, RuntimeValue>> values) {

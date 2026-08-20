@@ -1,6 +1,6 @@
 #include <System.hpp>
 
-#include "SystemRuntimeAccess.hpp"
+#include "SystemRuntime.hpp"
 
 #include <GlobalRuntimeApi.hpp>
 
@@ -9,11 +9,11 @@
 #include <thread>
 #include <utility>
 
-using namespace ludork::global::system_runtime;
-
 std::shared_ptr<SceneRuntime> System::getScene() {
-    const std::lock_guard<std::mutex> lock(sceneMutex_);
-    return scenes_.empty() ? nullptr : scenes_.back();
+    ludork::global::system_runtime::SceneStackRuntime& sceneStack =
+        ludork::global::system_runtime::runtime().sceneStack;
+    const std::lock_guard<std::mutex> lock(sceneStack.sceneMutex_);
+    return sceneStack.scenes_.empty() ? nullptr : sceneStack.scenes_.back();
 }
 
 std::shared_ptr<SceneRuntime> System::requireScene() {
@@ -25,42 +25,60 @@ std::shared_ptr<SceneRuntime> System::requireScene() {
 }
 
 std::vector<std::shared_ptr<SceneRuntime>> System::getSceneList() {
-    const std::lock_guard<std::mutex> lock(sceneMutex_);
-    return scenes_;
+    ludork::global::system_runtime::SceneStackRuntime& sceneStack =
+        ludork::global::system_runtime::runtime().sceneStack;
+    const std::lock_guard<std::mutex> lock(sceneStack.sceneMutex_);
+    return sceneStack.scenes_;
 }
 
 void System::bindSceneOperationThread() {
-    const std::lock_guard<std::mutex> lock(pendingSceneMutex_);
-    if (shuttingDown_.load()) {
+    ludork::global::system_runtime::SystemRuntime& systemRuntime =
+        ludork::global::system_runtime::runtime();
+    ludork::global::system_runtime::SceneStackRuntime& sceneStack =
+        systemRuntime.sceneStack;
+    ludork::global::system_runtime::LifecycleRuntime& lifecycle =
+        systemRuntime.lifecycle;
+    const std::lock_guard<std::mutex> lock(sceneStack.pendingSceneMutex_);
+    if (lifecycle.shuttingDown_.load()) {
         return;
     }
-    sceneOperationThread_ = std::this_thread::get_id();
+    sceneStack.sceneOperationThread_ = std::this_thread::get_id();
 }
 
 void System::unbindSceneOperationThread() {
-    const std::lock_guard<std::mutex> lock(pendingSceneMutex_);
-    if (sceneOperationThread_ == std::this_thread::get_id()) {
-        sceneOperationThread_ = {};
+    ludork::global::system_runtime::SceneStackRuntime& sceneStack =
+        ludork::global::system_runtime::runtime().sceneStack;
+    const std::lock_guard<std::mutex> lock(sceneStack.pendingSceneMutex_);
+    if (sceneStack.sceneOperationThread_ == std::this_thread::get_id()) {
+        sceneStack.sceneOperationThread_ = {};
     }
 }
 
 bool System::hasPendingSceneOperations() {
-    const std::lock_guard<std::mutex> lock(pendingSceneMutex_);
-    return !pendingSceneOperations_.empty();
+    ludork::global::system_runtime::SceneStackRuntime& sceneStack =
+        ludork::global::system_runtime::runtime().sceneStack;
+    const std::lock_guard<std::mutex> lock(sceneStack.pendingSceneMutex_);
+    return !sceneStack.pendingSceneOperations_.empty();
 }
 
 void System::applyPendingSceneReplace() {
+    ludork::global::system_runtime::SystemRuntime& systemRuntime =
+        ludork::global::system_runtime::runtime();
+    ludork::global::system_runtime::SceneStackRuntime& sceneStack =
+        systemRuntime.sceneStack;
+    ludork::global::system_runtime::LifecycleRuntime& lifecycle =
+        systemRuntime.lifecycle;
     std::deque<PendingSceneOperation> operations;
     {
-        const std::lock_guard<std::mutex> lock(pendingSceneMutex_);
-        if (shuttingDown_.load()) {
+        const std::lock_guard<std::mutex> lock(sceneStack.pendingSceneMutex_);
+        if (lifecycle.shuttingDown_.load()) {
             return;
         }
-        if (sceneOperationThread_ != std::thread::id{} &&
-            sceneOperationThread_ != std::this_thread::get_id()) {
+        if (sceneStack.sceneOperationThread_ != std::thread::id{} &&
+            sceneStack.sceneOperationThread_ != std::this_thread::get_id()) {
             return;
         }
-        operations.swap(pendingSceneOperations_);
+        operations.swap(sceneStack.pendingSceneOperations_);
     }
     while (!operations.empty()) {
         PendingSceneOperation operation = std::move(operations.front());
@@ -92,15 +110,23 @@ void System::exit() {
 }
 void System::requestSceneOperation(SceneOperationType type,
                                    std::shared_ptr<SceneRuntime> scene) {
+    ludork::global::system_runtime::SystemRuntime& systemRuntime =
+        ludork::global::system_runtime::runtime();
+    ludork::global::system_runtime::SceneStackRuntime& sceneStack =
+        systemRuntime.sceneStack;
+    ludork::global::system_runtime::LifecycleRuntime& lifecycle =
+        systemRuntime.lifecycle;
     bool applyImmediately = false;
     {
-        const std::lock_guard<std::mutex> lock(pendingSceneMutex_);
-        if (shuttingDown_.load()) {
+        const std::lock_guard<std::mutex> lock(sceneStack.pendingSceneMutex_);
+        if (lifecycle.shuttingDown_.load()) {
             return;
         }
-        applyImmediately = sceneOperationThread_ == std::thread::id{};
+        applyImmediately =
+            sceneStack.sceneOperationThread_ == std::thread::id{};
         if (!applyImmediately) {
-            pendingSceneOperations_.push_back({type, std::move(scene)});
+            sceneStack.pendingSceneOperations_.push_back(
+                {type, std::move(scene)});
         }
     }
     if (applyImmediately) {
@@ -126,77 +152,105 @@ void System::applySceneOperation(PendingSceneOperation operation) {
 }
 
 void System::applySetScene(const std::shared_ptr<SceneRuntime>& scene) {
-    if (shuttingDown_.load()) {
+    ludork::global::system_runtime::SystemRuntime& systemRuntime =
+        ludork::global::system_runtime::runtime();
+    ludork::global::system_runtime::SceneStackRuntime& sceneStack =
+        systemRuntime.sceneStack;
+    ludork::global::system_runtime::LifecycleRuntime& lifecycle =
+        systemRuntime.lifecycle;
+    if (lifecycle.shuttingDown_.load()) {
         return;
     }
     freezeTransitionBackground();
     {
-        const std::lock_guard<std::mutex> lock(sceneMutex_);
-        if (shuttingDown_.load()) {
+        const std::lock_guard<std::mutex> lock(sceneStack.sceneMutex_);
+        if (lifecycle.shuttingDown_.load()) {
             return;
         }
-        if (scenes_.empty()) {
-            scenes_.push_back(scene);
+        if (sceneStack.scenes_.empty()) {
+            sceneStack.scenes_.push_back(scene);
         } else {
-            retiredScenes_.push_back(std::move(scenes_.back()));
-            scenes_.back() = scene;
+            sceneStack.retiredScenes_.push_back(
+                std::move(sceneStack.scenes_.back()));
+            sceneStack.scenes_.back() = scene;
         }
     }
     drainRetiredScenes();
 }
 
 void System::applyPushScene(const std::shared_ptr<SceneRuntime>& scene) {
-    const std::lock_guard<std::mutex> lock(sceneMutex_);
-    if (shuttingDown_.load()) {
+    ludork::global::system_runtime::SystemRuntime& systemRuntime =
+        ludork::global::system_runtime::runtime();
+    ludork::global::system_runtime::SceneStackRuntime& sceneStack =
+        systemRuntime.sceneStack;
+    ludork::global::system_runtime::LifecycleRuntime& lifecycle =
+        systemRuntime.lifecycle;
+    const std::lock_guard<std::mutex> lock(sceneStack.sceneMutex_);
+    if (lifecycle.shuttingDown_.load()) {
         return;
     }
-    scenes_.push_back(scene);
+    sceneStack.scenes_.push_back(scene);
 }
 
 void System::applyPopScene() {
+    ludork::global::system_runtime::SystemRuntime& systemRuntime =
+        ludork::global::system_runtime::runtime();
+    ludork::global::system_runtime::SceneStackRuntime& sceneStack =
+        systemRuntime.sceneStack;
+    ludork::global::system_runtime::LifecycleRuntime& lifecycle =
+        systemRuntime.lifecycle;
     {
-        const std::lock_guard<std::mutex> lock(sceneMutex_);
-        if (shuttingDown_.load()) {
+        const std::lock_guard<std::mutex> lock(sceneStack.sceneMutex_);
+        if (lifecycle.shuttingDown_.load()) {
             return;
         }
-        if (scenes_.empty()) {
+        if (sceneStack.scenes_.empty()) {
             throw std::logic_error("Cannot pop an empty scene stack");
         }
-        retiredScenes_.push_back(std::move(scenes_.back()));
-        scenes_.pop_back();
+        sceneStack.retiredScenes_.push_back(
+            std::move(sceneStack.scenes_.back()));
+        sceneStack.scenes_.pop_back();
     }
     drainRetiredScenes();
 }
 
 void System::applyExit() {
+    ludork::global::system_runtime::SystemRuntime& systemRuntime =
+        ludork::global::system_runtime::runtime();
+    ludork::global::system_runtime::SceneStackRuntime& sceneStack =
+        systemRuntime.sceneStack;
+    ludork::global::system_runtime::LifecycleRuntime& lifecycle =
+        systemRuntime.lifecycle;
     std::vector<std::shared_ptr<SceneRuntime>> scenes;
     {
-        const std::lock_guard<std::mutex> lock(sceneMutex_);
-        if (shuttingDown_.load()) {
+        const std::lock_guard<std::mutex> lock(sceneStack.sceneMutex_);
+        if (lifecycle.shuttingDown_.load()) {
             return;
         }
-        scenes.swap(scenes_);
+        scenes.swap(sceneStack.scenes_);
         for (auto iterator = scenes.rbegin(); iterator != scenes.rend();
              ++iterator) {
-            retiredScenes_.push_back(std::move(*iterator));
+            sceneStack.retiredScenes_.push_back(std::move(*iterator));
         }
     }
     drainRetiredScenes();
 }
 
 void System::drainRetiredScenes() {
+    ludork::global::system_runtime::SceneStackRuntime& sceneStack =
+        ludork::global::system_runtime::runtime().sceneStack;
     std::exception_ptr failure;
     while (true) {
         std::shared_ptr<SceneRuntime> scene;
         {
-            const std::lock_guard<std::mutex> lock(sceneMutex_);
-            if (retiredScenes_.empty() ||
-                (retiredScenes_.front() != nullptr &&
-                 retiredScenes_.front()->systemIsRunning())) {
+            const std::lock_guard<std::mutex> lock(sceneStack.sceneMutex_);
+            if (sceneStack.retiredScenes_.empty() ||
+                (sceneStack.retiredScenes_.front() != nullptr &&
+                 sceneStack.retiredScenes_.front()->systemIsRunning())) {
                 break;
             }
-            scene = std::move(retiredScenes_.front());
-            retiredScenes_.pop_front();
+            scene = std::move(sceneStack.retiredScenes_.front());
+            sceneStack.retiredScenes_.pop_front();
         }
         if (scene == nullptr) {
             continue;

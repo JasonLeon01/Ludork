@@ -12,7 +12,7 @@
 ---@field bgs               string | nil
 ---@field bgmFilter         Source.SceneComponents.MusicFilterData | nil
 ---@field bgsFilter         Source.SceneComponents.MusicFilterData | nil
----@field fog               sf.Color | nil
+---@field fog               string | nil
 ---@field fogPower          number | nil
 ---@field fogOx             number | nil
 ---@field fogOy             number | nil

@@ -6,6 +6,7 @@
 #include "UI/UiPreviewInstantiation.hpp"
 
 #include <Runtime/EngineState.hpp>
+#include <Runtime/RuntimeValueReader.hpp>
 #include <Utf8Path.hpp>
 
 #include <filesystem>
@@ -28,22 +29,32 @@ void UiPreviewSession::reset() noexcept {
 RuntimeValue UiPreviewSession::render(const RuntimeValue::Map& request,
                                       FrameFiles& frameFiles) {
     const std::int64_t generation =
-        requireInteger(requireValue(request, "generation", "Render request"),
-                       "Render request.generation");
+        ludork::engine::runtime_value_reader::requireInteger(
+            ludork::engine::runtime_value_reader::requireValue(
+                request, "generation", "Render request"),
+            "Render request.generation");
     const std::string& assetKey =
-        requireString(requireValue(request, "assetKey", "Render request"),
-                      "Render request.assetKey");
+        ludork::engine::runtime_value_reader::requireString(
+            ludork::engine::runtime_value_reader::requireValue(
+                request, "assetKey", "Render request"),
+            "Render request.assetKey");
     const RuntimeValue& asset =
-        requireValue(request, "asset", "Render request");
+        ludork::engine::runtime_value_reader::requireValue(request, "asset",
+                                                           "Render request");
     const RuntimeValue::Map& assetMap =
-        requireMap(asset, "Render request.asset");
+        ludork::engine::runtime_value_reader::requireMap(
+            asset, "Render request.asset");
     const RuntimeValue::Map& dependencies =
-        requireMap(requireValue(request, "dependencies", "Render request"),
-                   "Render request.dependencies");
+        ludork::engine::runtime_value_reader::requireMap(
+            ludork::engine::runtime_value_reader::requireValue(
+                request, "dependencies", "Render request"),
+            "Render request.dependencies");
     const sf::Vector2u design = designSize(assetMap);
     const double requestedScale =
-        requireNumber(requireValue(request, "renderScale", "Render request"),
-                      "Render request.renderScale");
+        ludork::engine::runtime_value_reader::requireNumber(
+            ludork::engine::runtime_value_reader::requireValue(
+                request, "renderScale", "Render request"),
+            "Render request.renderScale");
     const RenderTargetSpec targetSpec =
         renderTargetSpec(design, requestedScale);
     std::shared_ptr<UiAssetInstance> instance = instantiateUiPreview(
@@ -78,15 +89,19 @@ RuntimeValue UiPreviewSession::render(const RuntimeValue::Map& request,
 
 RuntimeValue UiPreviewSession::hitTest(const RuntimeValue::Map& request) const {
     const std::int64_t generation =
-        requireInteger(requireValue(request, "generation", "Hit test request"),
-                       "Hit test request.generation");
+        ludork::engine::runtime_value_reader::requireInteger(
+            ludork::engine::runtime_value_reader::requireValue(
+                request, "generation", "Hit test request"),
+            "Hit test request.generation");
     const sf::Vector2f logicalPoint{
-        static_cast<float>(
-            requireNumber(requireValue(request, "x", "Hit test request"),
-                          "Hit test request.x")),
-        static_cast<float>(
-            requireNumber(requireValue(request, "y", "Hit test request"),
-                          "Hit test request.y"))};
+        ludork::engine::runtime_value_reader::requireFloat(
+            ludork::engine::runtime_value_reader::requireValue(
+                request, "x", "Hit test request"),
+            "Hit test request.x"),
+        ludork::engine::runtime_value_reader::requireFloat(
+            ludork::engine::runtime_value_reader::requireValue(
+                request, "y", "Hit test request"),
+            "Hit test request.y")};
     RuntimeValue nodeName;
     if (instance_ != nullptr && generation == generation_) {
         engineState().setScale(renderScale_);

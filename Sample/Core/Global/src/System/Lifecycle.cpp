@@ -2,7 +2,7 @@
 
 #include "Platform/NativeDisplay.hpp"
 #include "Platform/NativeInputMethod.hpp"
-#include "SystemRuntimeAccess.hpp"
+#include "SystemRuntime.hpp"
 
 #include <Fog/FogController.hpp>
 #include <GlobalRuntimeApi.hpp>
@@ -20,50 +20,56 @@
 #include <stdexcept>
 #include <utility>
 
-using namespace ludork::global::system_runtime;
-
 void System::init(const std::shared_ptr<ludork::standard::ConfigParser>& data,
                   const std::string& dataFilePath) {
     engineState().setGameRunning(true);
     SystemConfigBase::init(data, dataFilePath);
     SystemConfigBase::setChangeHandler(onConfigChanged);
-    pendingConfiguredScale_.reset();
-    pendingResizeScale_.reset();
-    observedWindowSize_ = {};
-    observedWindowClientSize_.reset();
-    desktopFullscreen_ = false;
-    inputMethodDisabled_ = true;
-    canvasDefaultViewActive_ = true;
-    graphicsCanvases_.clear();
-    graphicsShaders_.clear();
+    ludork::global::system_runtime::SystemRuntime& systemRuntime =
+        ludork::global::system_runtime::runtime();
+    ludork::global::system_runtime::DisplayRuntime& display =
+        systemRuntime.display;
+    ludork::global::system_runtime::FramePipelineRuntime& framePipeline =
+        systemRuntime.framePipeline;
+    ludork::global::system_runtime::SceneStackRuntime& sceneStack =
+        systemRuntime.sceneStack;
+    display.pendingConfiguredScale_.reset();
+    display.pendingResizeScale_.reset();
+    display.observedWindowSize_ = {};
+    display.observedWindowClientSize_.reset();
+    display.desktopFullscreen_ = false;
+    display.inputMethodDisabled_ = true;
+    display.canvasDefaultViewActive_ = true;
+    framePipeline.graphicsCanvases_.clear();
+    framePipeline.graphicsShaders_.clear();
     {
-        const std::lock_guard<std::mutex> lock(sceneMutex_);
-        scenes_.clear();
-        retiredScenes_.clear();
+        const std::lock_guard<std::mutex> lock(sceneStack.sceneMutex_);
+        sceneStack.scenes_.clear();
+        sceneStack.retiredScenes_.clear();
     }
     {
-        const std::lock_guard<std::mutex> lock(pendingSceneMutex_);
-        pendingSceneOperations_.clear();
-        sceneOperationThread_ = {};
+        const std::lock_guard<std::mutex> lock(sceneStack.pendingSceneMutex_);
+        sceneStack.pendingSceneOperations_.clear();
+        sceneStack.sceneOperationThread_ = {};
     }
     {
-        const std::lock_guard<std::mutex> lock(transitionMutex_);
-        pendingTransition_.reset();
+        const std::lock_guard<std::mutex> lock(framePipeline.transitionMutex_);
+        framePipeline.pendingTransition_.reset();
     }
-    transitionResource_.reset();
-    transitionFrozen_ = false;
-    transitionFreezePending_ = false;
-    inTransition_ = false;
-    transitionTimeCount_ = 0.0f;
-    transitionTime_ = 0.0f;
-    transitionRevision_ = 0;
-    composedTransitionRevision_ = 0;
-    transitionCompletionPending_ = false;
+    framePipeline.transitionResource_.reset();
+    framePipeline.transitionFrozen_ = false;
+    framePipeline.transitionFreezePending_ = false;
+    framePipeline.inTransition_ = false;
+    framePipeline.transitionTimeCount_ = 0.0f;
+    framePipeline.transitionTime_ = 0.0f;
+    framePipeline.transitionRevision_ = 0;
+    framePipeline.composedTransitionRevision_ = 0;
+    framePipeline.transitionCompletionPending_ = false;
     stopFlash();
     stopScreenTone();
     stopShake();
     TimeManager::init();
-    transitionShader_.reset();
+    framePipeline.transitionShader_.reset();
 }
 
 std::string System::getScript() {
@@ -96,12 +102,15 @@ std::optional<float> System::getMaximumWindowedScale(
         isMobileDisplay()) {
         return std::nullopt;
     }
+    ludork::global::system_runtime::DisplayRuntime& display =
+        ludork::global::system_runtime::runtime().display;
     std::optional<sf::Vector2u> clientSize;
     {
-        const std::lock_guard<std::mutex> lock(windowMutex_);
+        const std::lock_guard<std::mutex> lock(display.windowMutex_);
         const sf::WindowHandle windowHandle =
-            window_ != nullptr && window_->isOpen() ? window_->getNativeHandle()
-                                                    : sf::WindowHandle{};
+            display.window_ != nullptr && display.window_->isOpen()
+                ? display.window_->getNativeHandle()
+                : sf::WindowHandle{};
         clientSize = ludork::global::getMaximumWindowedClientSize(windowHandle);
     }
     if (!clientSize.has_value() || clientSize->x == 0 || clientSize->y == 0) {
@@ -203,10 +212,14 @@ void System::saveVoiceVolume(float value) {
 }
 
 bool System::isDebugMode() {
-    return debugMode_;
+    ludork::global::system_runtime::LifecycleRuntime& lifecycle =
+        ludork::global::system_runtime::runtime().lifecycle;
+    return lifecycle.debugMode_;
 }
 void System::setDebugMode(bool debugMode) {
-    debugMode_ = debugMode;
+    ludork::global::system_runtime::LifecycleRuntime& lifecycle =
+        ludork::global::system_runtime::runtime().lifecycle;
+    lifecycle.debugMode_ = debugMode;
 }
 
 sf::Vector2u System::getGameSize() {
@@ -217,11 +230,17 @@ void System::setGameSize(const sf::Vector2u& gameSize) {
 }
 
 bool System::isActive() {
-    if (shuttingDown_.load() || !engineState().getGameRunning()) {
+    ludork::global::system_runtime::SystemRuntime& systemRuntime =
+        ludork::global::system_runtime::runtime();
+    ludork::global::system_runtime::DisplayRuntime& display =
+        systemRuntime.display;
+    ludork::global::system_runtime::LifecycleRuntime& lifecycle =
+        systemRuntime.lifecycle;
+    if (lifecycle.shuttingDown_.load() || !engineState().getGameRunning()) {
         return false;
     }
-    const std::lock_guard<std::mutex> lock(windowMutex_);
-    return window_ != nullptr && window_->isOpen();
+    const std::lock_guard<std::mutex> lock(display.windowMutex_);
+    return display.window_ != nullptr && display.window_->isOpen();
 }
 
 bool System::shouldLoop() {
@@ -229,14 +248,20 @@ bool System::shouldLoop() {
 }
 
 void System::run() {
-    if (shuttingDown_.load()) {
+    ludork::global::system_runtime::SystemRuntime& systemRuntime =
+        ludork::global::system_runtime::runtime();
+    ludork::global::system_runtime::DisplayRuntime& display =
+        systemRuntime.display;
+    ludork::global::system_runtime::LifecycleRuntime& lifecycle =
+        systemRuntime.lifecycle;
+    if (lifecycle.shuttingDown_.load()) {
         throw std::runtime_error(
             "Game loop cannot start during runtime shutdown");
     }
-    if (window_ == nullptr) {
+    if (display.window_ == nullptr) {
         throw std::runtime_error("Game loop cannot start without a window");
     }
-    if (!window_->isOpen()) {
+    if (!display.window_->isOpen()) {
         throw std::runtime_error(
             "Game loop cannot start because the window is closed");
     }
@@ -264,23 +289,39 @@ void System::run() {
 }
 
 void System::setStandardUpdate(std::function<void()> update) {
-    standardUpdate_ = std::move(update);
+    ludork::global::system_runtime::LifecycleRuntime& lifecycle =
+        ludork::global::system_runtime::runtime().lifecycle;
+    lifecycle.standardUpdate_ = std::move(update);
 }
 
 void System::updateRuntime() {
-    if (!shuttingDown_.load() && standardUpdate_) {
-        standardUpdate_();
+    ludork::global::system_runtime::LifecycleRuntime& lifecycle =
+        ludork::global::system_runtime::runtime().lifecycle;
+    if (!lifecycle.shuttingDown_.load() && lifecycle.standardUpdate_) {
+        lifecycle.standardUpdate_();
     }
 }
 
 void System::initializeRuntimeSession() noexcept {
-    const std::lock_guard<std::mutex> lifecycleLock(lifecycleMutex_);
-    shuttingDown_.store(false);
+    ludork::global::system_runtime::LifecycleRuntime& lifecycle =
+        ludork::global::system_runtime::runtime().lifecycle;
+    const std::lock_guard<std::mutex> lifecycleLock(lifecycle.lifecycleMutex_);
+    lifecycle.shuttingDown_.store(false);
 }
 
 void System::shutdownRuntime() noexcept {
-    const std::lock_guard<std::mutex> lifecycleLock(lifecycleMutex_);
-    shuttingDown_.store(true);
+    ludork::global::system_runtime::SystemRuntime& systemRuntime =
+        ludork::global::system_runtime::runtime();
+    ludork::global::system_runtime::DisplayRuntime& display =
+        systemRuntime.display;
+    ludork::global::system_runtime::FramePipelineRuntime& framePipeline =
+        systemRuntime.framePipeline;
+    ludork::global::system_runtime::SceneStackRuntime& sceneStack =
+        systemRuntime.sceneStack;
+    ludork::global::system_runtime::LifecycleRuntime& lifecycle =
+        systemRuntime.lifecycle;
+    const std::lock_guard<std::mutex> lifecycleLock(lifecycle.lifecycleMutex_);
+    lifecycle.shuttingDown_.store(true);
     std::vector<std::shared_ptr<SceneRuntime>> scenes;
     std::deque<std::shared_ptr<SceneRuntime>> retiredScenes;
     const auto shutdownScene = [](const auto& scene) noexcept {
@@ -299,14 +340,14 @@ void System::shutdownRuntime() noexcept {
         scene->systemShutdown();
     };
     {
-        const std::lock_guard<std::mutex> lock(pendingSceneMutex_);
-        pendingSceneOperations_.clear();
-        sceneOperationThread_ = {};
+        const std::lock_guard<std::mutex> lock(sceneStack.pendingSceneMutex_);
+        sceneStack.pendingSceneOperations_.clear();
+        sceneStack.sceneOperationThread_ = {};
     }
     {
-        const std::lock_guard<std::mutex> lock(sceneMutex_);
-        scenes.swap(scenes_);
-        retiredScenes.swap(retiredScenes_);
+        const std::lock_guard<std::mutex> lock(sceneStack.sceneMutex_);
+        scenes.swap(sceneStack.scenes_);
+        retiredScenes.swap(sceneStack.retiredScenes_);
     }
     for (const std::shared_ptr<SceneRuntime>& scene : retiredScenes) {
         shutdownScene(scene);
@@ -318,9 +359,9 @@ void System::shutdownRuntime() noexcept {
     }
     scenes.clear();
     {
-        const std::lock_guard<std::mutex> lock(sceneMutex_);
-        scenes.swap(scenes_);
-        retiredScenes.swap(retiredScenes_);
+        const std::lock_guard<std::mutex> lock(sceneStack.sceneMutex_);
+        scenes.swap(sceneStack.scenes_);
+        retiredScenes.swap(sceneStack.retiredScenes_);
     }
     for (const std::shared_ptr<SceneRuntime>& scene : retiredScenes) {
         shutdownScene(scene);
@@ -332,79 +373,81 @@ void System::shutdownRuntime() noexcept {
     }
     scenes.clear();
     {
-        const std::lock_guard<std::mutex> lock(transitionMutex_);
-        pendingTransition_.reset();
+        const std::lock_guard<std::mutex> lock(framePipeline.transitionMutex_);
+        framePipeline.pendingTransition_.reset();
     }
-    standardUpdate_ = {};
-    graphicsShaders_.clear();
-    graphicsCanvases_.clear();
-    transitionResource_.reset();
-    transitionShader_.reset();
-    flashShader_.reset();
-    toneShader_.reset();
-    canvasSprite_.reset();
-    transitionSprite_.reset();
-    transitionOutputSprite_.reset();
-    toneBufferSprite_.reset();
-    transition_.reset();
-    transitionTempTexture_.reset();
-    transitionOutputTexture_.reset();
-    transitionMaskTexture_.reset();
-    toneBuffer_.reset();
-    canvas_.reset();
+    lifecycle.standardUpdate_ = {};
+    framePipeline.graphicsShaders_.clear();
+    framePipeline.graphicsCanvases_.clear();
+    framePipeline.transitionResource_.reset();
+    framePipeline.transitionShader_.reset();
+    framePipeline.flashShader_.reset();
+    framePipeline.toneShader_.reset();
+    display.canvasSprite_.reset();
+    framePipeline.transitionSprite_.reset();
+    framePipeline.transitionOutputSprite_.reset();
+    framePipeline.toneBufferSprite_.reset();
+    framePipeline.transition_.reset();
+    framePipeline.transitionTempTexture_.reset();
+    framePipeline.transitionOutputTexture_.reset();
+    framePipeline.transitionMaskTexture_.reset();
+    framePipeline.toneBuffer_.reset();
+    display.canvas_.reset();
     ludork::global::restoreNativeInputMethod();
     std::shared_ptr<sf::RenderWindow> previousWindow;
     {
-        const std::lock_guard<std::mutex> lock(windowMutex_);
-        previousWindow = std::move(window_);
+        const std::lock_guard<std::mutex> lock(display.windowMutex_);
+        previousWindow = std::move(display.window_);
     }
     previousWindow.reset();
-    cursor_.reset();
-    windowTitle_.clear();
-    windowIconPath_.clear();
-    windowCursorPath_.clear();
-    windowContextSettings_ = {};
-    observedWindowSize_ = {};
-    observedWindowClientSize_.reset();
-    pendingConfiguredScale_.reset();
-    pendingResizeScale_.reset();
-    lastResizeTime_ = {};
-    desktopFullscreen_ = false;
-    inputMethodDisabled_ = true;
-    canvasDefaultViewActive_ = true;
-    inTransition_ = false;
-    transitionTimeCount_ = 0.0f;
-    transitionTime_ = 0.0f;
-    transitionRevision_ = 0;
-    composedTransitionRevision_ = 0;
-    transitionCompletionPending_ = false;
-    transitionFrozen_ = false;
-    transitionFreezePending_ = false;
-    flashActive_ = false;
-    flashColour_ = {1.0f, 1.0f, 1.0f, 1.0f};
-    flashDuration_ = 0.0f;
-    flashTimeCount_ = 0.0f;
-    toneActive_ = false;
-    toneCurrentColour_ = {};
-    toneStartColour_ = {};
-    toneTargetColour_ = {};
-    toneDuration_ = 0.0f;
-    toneTimeCount_ = 0.0f;
-    shakeActive_ = false;
-    shakePower_ = 0.0f;
-    shakeSpeed_ = 0.0f;
-    shakeDuration_ = 0.0f;
-    shakeTimeCount_ = 0.0f;
-    shakeOffset_ = {};
-    shakeNextUpdate_ = 0.0f;
-    debugMode_ = false;
+    display.cursor_.reset();
+    display.windowTitle_.clear();
+    display.windowIconPath_.clear();
+    display.windowCursorPath_.clear();
+    display.windowContextSettings_ = {};
+    display.observedWindowSize_ = {};
+    display.observedWindowClientSize_.reset();
+    display.pendingConfiguredScale_.reset();
+    display.pendingResizeScale_.reset();
+    display.lastResizeTime_ = {};
+    display.desktopFullscreen_ = false;
+    display.inputMethodDisabled_ = true;
+    display.canvasDefaultViewActive_ = true;
+    framePipeline.inTransition_ = false;
+    framePipeline.transitionTimeCount_ = 0.0f;
+    framePipeline.transitionTime_ = 0.0f;
+    framePipeline.transitionRevision_ = 0;
+    framePipeline.composedTransitionRevision_ = 0;
+    framePipeline.transitionCompletionPending_ = false;
+    framePipeline.transitionFrozen_ = false;
+    framePipeline.transitionFreezePending_ = false;
+    framePipeline.flashActive_ = false;
+    framePipeline.flashColour_ = {1.0f, 1.0f, 1.0f, 1.0f};
+    framePipeline.flashDuration_ = 0.0f;
+    framePipeline.flashTimeCount_ = 0.0f;
+    framePipeline.toneActive_ = false;
+    framePipeline.toneCurrentColour_ = {};
+    framePipeline.toneStartColour_ = {};
+    framePipeline.toneTargetColour_ = {};
+    framePipeline.toneDuration_ = 0.0f;
+    framePipeline.toneTimeCount_ = 0.0f;
+    framePipeline.shakeActive_ = false;
+    framePipeline.shakePower_ = 0.0f;
+    framePipeline.shakeSpeed_ = 0.0f;
+    framePipeline.shakeDuration_ = 0.0f;
+    framePipeline.shakeTimeCount_ = 0.0f;
+    framePipeline.shakeOffset_ = {};
+    framePipeline.shakeNextUpdate_ = 0.0f;
+    lifecycle.debugMode_ = false;
     engineState().setGameRunning(false);
 }
 
 void System::onConfigChanged(const std::string& key) {
     if (key == "scale") {
         if (getWindow() != nullptr) {
-            pendingConfiguredScale_ = getConfiguredScale();
+            ludork::global::system_runtime::DisplayRuntime& display =
+                ludork::global::system_runtime::runtime().display;
+            display.pendingConfiguredScale_ = getConfiguredScale();
         }
     } else if (key == "frameRate") {
         const std::shared_ptr<sf::RenderWindow> window = getWindow();

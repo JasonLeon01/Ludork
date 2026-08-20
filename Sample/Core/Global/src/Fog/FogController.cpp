@@ -3,6 +3,7 @@
 #include <Manager/AssetPath.hpp>
 #include <Manager/ShaderManager.hpp>
 #include <Manager/TextureManager.hpp>
+#include <Runtime/RuntimeValueReader.hpp>
 #include <System.hpp>
 #include <Utils/Inner.hpp>
 #include <Utils/Render.hpp>
@@ -10,16 +11,13 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <cstdlib>
 #include <exception>
 #include <iostream>
 
 namespace {
-const RuntimeValue* findValue(const RuntimeValue::Map& map,
-                              const std::string& key) {
-    const auto iterator = map.find(key);
-    return iterator == map.end() ? nullptr : &iterator->second;
-}
+using ludork::engine::runtime_value_reader::findValue;
+using ludork::engine::runtime_value_reader::requireFloat;
+using ludork::engine::runtime_value_reader::requireString;
 
 std::string trim(std::string value) {
     const std::size_t first = value.find_first_not_of(" \t\r\n");
@@ -30,44 +28,11 @@ std::string trim(std::string value) {
     return value.substr(first, last - first + 1);
 }
 
-std::string stringValue(const RuntimeValue* value) {
-    if (value == nullptr || value->isNil()) {
-        return {};
-    }
-    if (const std::string* string = value->getIf<std::string>()) {
-        return *string;
-    }
-    if (const std::int64_t* integer = value->getIf<std::int64_t>()) {
-        return std::to_string(*integer);
-    }
-    if (const double* number = value->getIf<double>()) {
-        return std::to_string(*number);
-    }
-    if (const bool* boolean = value->getIf<bool>()) {
-        return *boolean ? "true" : "false";
-    }
-    return {};
-}
-
-double numberValue(const RuntimeValue* value, double fallback = 0.0) {
-    if (value == nullptr) {
-        return fallback;
-    }
-    if (const std::int64_t* integer = value->getIf<std::int64_t>()) {
-        return static_cast<double>(*integer);
-    }
-    if (const double* number = value->getIf<double>()) {
-        return *number;
-    }
-    const std::string* string = value->getIf<std::string>();
-    if (string == nullptr) {
-        return fallback;
-    }
-    char* end = nullptr;
-    const double result = std::strtod(string->c_str(), &end);
-    return end != string->c_str() && *end == '\0' && std::isfinite(result)
-               ? result
-               : fallback;
+float optionalFloat(const RuntimeValue::Map& mapData, const std::string& name) {
+    const RuntimeValue* value = findValue(mapData, name);
+    return value == nullptr || value->isNil()
+               ? 0.0f
+               : requireFloat(*value, "mapData." + name);
 }
 
 }  // namespace
@@ -88,22 +53,24 @@ std::optional<sf::Sprite> FogController::bufferSprite_;
 
 void FogController::applyFromMapData(const RuntimeValue::Map& mapData) {
     clearFog();
-    const std::string graphic = trim(stringValue(findValue(mapData, "fog")));
-    const int power = static_cast<int>(
-        std::floor(numberValue(findValue(mapData, "fogPower"))));
-    if (graphic.empty() || power <= 0) {
+    const RuntimeValue* fogValue = findValue(mapData, "fog");
+    const std::string graphic =
+        trim(fogValue == nullptr || fogValue->isNil()
+                 ? std::string{}
+                 : requireString(*fogValue, "mapData.fog"));
+    const float power = std::clamp(
+        std::floor(optionalFloat(mapData, "fogPower")), 0.0f, 100.0f);
+    const sf::Vector2f scroll{optionalFloat(mapData, "fogOx"),
+                              optionalFloat(mapData, "fogOy")};
+    const float distort = std::clamp(
+        std::floor(optionalFloat(mapData, "fogDistort")), 0.0f, 100.0f);
+    if (graphic.empty() || power <= 0.0f) {
         return;
     }
     graphic_ = graphic;
-    power_ = static_cast<float>(std::clamp(power, 0, 100));
-    scroll_ = {
-        static_cast<float>(numberValue(findValue(mapData, "fogOx"))),
-        static_cast<float>(numberValue(findValue(mapData, "fogOy"))),
-    };
-    distort_ = static_cast<float>(std::clamp(
-        static_cast<int>(
-            std::floor(numberValue(findValue(mapData, "fogDistort")))),
-        0, 100));
+    power_ = power;
+    scroll_ = scroll;
+    distort_ = distort;
     offset_ = {};
     time_ = 0.0f;
     if (!loadFogTexture()) {
