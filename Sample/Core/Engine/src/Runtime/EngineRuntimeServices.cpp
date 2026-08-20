@@ -1,5 +1,6 @@
 #include <Runtime/EngineRuntimeServices.hpp>
 
+#include "EngineRuntimeSession.hpp"
 #include "RuntimeSubsystemServices.hpp"
 
 #include <ClassServices.hpp>
@@ -16,6 +17,7 @@ extern "C" {
 #include <lua.h>
 }
 
+#include <atomic>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -23,13 +25,12 @@ extern "C" {
 namespace {
 
 using ServiceNames = const std::vector<std::string>&;
+std::atomic<lua_State*> engineRuntimeState{nullptr};
 
 template <typename Callback>
 void forEachServiceName(Callback&& callback) {
     callback(ludork::engine::runtime_detail::runtimeValueServiceNames());
     callback(ludork::engine::runtime_detail::metadataRuntimeServiceNames());
-    callback(ludork::engine::runtime_detail::blueprintRuntimeServiceNames());
-    callback(ludork::engine::runtime_detail::nodeGraphRuntimeServiceNames());
 }
 
 int dispatchRuntimeService(
@@ -44,22 +45,15 @@ int dispatchRuntimeService(
             sol::this_state(state), operation, arguments)) {
         return *result;
     }
-    if (ServiceDispatchResult result = dispatchBlueprintRuntimeService(
-            sol::this_state(state), operation, arguments)) {
-        return *result;
-    }
-    if (ServiceDispatchResult result = dispatchNodeGraphRuntimeService(
-            sol::this_state(state), operation, arguments)) {
-        return *result;
-    }
-    return 0;
+    throw std::runtime_error("Engine runtime service '" + operation +
+                             "' has no dispatcher");
 }
 
 int runtimeServiceCallback(lua_State* state) {
     try {
         ludork::standard::LuaExecutionScope execution(state);
         if (!execution.active()) {
-            return 0;
+            throw std::runtime_error("Lua runtime session is stopping");
         }
         std::size_t nameLength = 0;
         const char* rawName =
@@ -118,7 +112,7 @@ void initializeEngineRuntimeServices(lua_State* state) {
                                                const std::string& eventName) {
         ludork::standard::LuaExecutionScope execution(state);
         if (!execution.active()) {
-            return;
+            throw std::runtime_error("Lua runtime session is stopping");
         }
         sol::state_view lua(state);
         const sol::object target = ludork_core::writeLuaValue(lua, object);
@@ -128,6 +122,7 @@ void initializeEngineRuntimeServices(lua_State* state) {
                                                       target),
             eventName, sol::make_object(lua, lua.create_table()), {});
     });
+    ludork::engine::runtime_detail::installEngineRuntimeState(state);
 }
 
 void shutdownEngineRuntimeServices(lua_State* state) noexcept {
@@ -144,4 +139,48 @@ void shutdownEngineRuntimeServices(lua_State* state) noexcept {
         }
     });
     ludork::engine::runtime_detail::clearRuntimeServiceCaches(lua);
+    ludork::engine::runtime_detail::clearEngineRuntimeState(state);
 }
+
+namespace ludork::engine::runtime_detail {
+
+void installEngineRuntimeState(lua_State* state) {
+    if (state == nullptr) {
+        throw std::invalid_argument("Engine runtime state must not be null");
+    }
+    lua_State* expected = nullptr;
+    if (!engineRuntimeState.compare_exchange_strong(
+            expected, state, std::memory_order_acq_rel,
+            std::memory_order_acquire) &&
+        expected != state) {
+        throw std::runtime_error("Engine runtime is already initialized");
+    }
+}
+
+void clearEngineRuntimeState(lua_State* state) noexcept {
+    lua_State* expected = state;
+    engineRuntimeState.compare_exchange_strong(expected, nullptr,
+                                               std::memory_order_release,
+                                               std::memory_order_relaxed);
+}
+
+EngineRuntimeScope::EngineRuntimeScope()
+    : state_(engineRuntimeState.load(std::memory_order_acquire)) {
+    if (state_ == nullptr) {
+        throw std::runtime_error("Engine runtime is not initialized");
+    }
+    execution_.emplace(state_);
+    if (!execution_->active()) {
+        throw std::runtime_error("Lua runtime session is stopping");
+    }
+}
+
+sol::state_view EngineRuntimeScope::lua() const {
+    return sol::state_view(state_);
+}
+
+lua_State* EngineRuntimeScope::state() const noexcept {
+    return state_;
+}
+
+}  // namespace ludork::engine::runtime_detail

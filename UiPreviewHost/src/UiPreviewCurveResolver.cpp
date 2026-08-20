@@ -5,6 +5,7 @@
 
 #include <stdexcept>
 
+namespace ludork::preview_host {
 namespace {
 
 const std::string& requireString(const RuntimeValue& value,
@@ -48,7 +49,8 @@ void UiPreviewCurveResolver::clear() noexcept {
 std::vector<RuntimeValue> UiPreviewCurveResolver::resolve(
     const std::string& operation, const std::vector<RuntimeValue>& arguments) {
     if (operation != "vector4Curve") {
-        return {};
+        throw std::runtime_error("UI preview runtime operation '" + operation +
+                                 "' is not supported");
     }
     if (arguments.size() != 1) {
         throw std::invalid_argument(
@@ -60,3 +62,5 @@ std::vector<RuntimeValue> UiPreviewCurveResolver::resolve(
         loadUiVector4CurveResource(projectRoot_, assetKey);
     return {RuntimeValue(std::static_pointer_cast<RuntimeObject>(curve))};
 }
+
+}  // namespace ludork::preview_host

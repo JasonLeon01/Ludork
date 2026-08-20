@@ -1,4 +1,5 @@
 #include <Gameplay/InfoBase.hpp>
+#include <Runtime/BlueprintRuntime.hpp>
 
 #include <utility>
 
@@ -21,7 +22,7 @@ void InfoBase::initInfo(const RuntimeIdentityPtr& dataProvider) {
     if (object.isNil() || !dataProvider) {
         return;
     }
-    resolveRuntime("blueprint.InitInfo", {object, RuntimeValue(dataProvider)});
+    blueprintRuntime().initializeInfo(object, dataProvider);
 }
 
 void InfoBase::setInfoGraph(const RuntimeIdentityPtr& graph) {
@@ -41,41 +42,16 @@ void InfoBase::triggerEvent(const std::string& eventName,
                             const RuntimeIdentityPtr& onComplete) {
     const RuntimeValue object = nativeInfoObject(*this);
     if (!object.isNil()) {
-        resolveRuntime("blueprint.BlueprintEvent",
-                       {object, RuntimeValue(), RuntimeValue(eventName),
-                        keywordArguments, RuntimeValue(onComplete)});
+        blueprintRuntime().dispatchEvent(object, nullptr, eventName,
+                                         keywordArguments, onComplete);
     }
 }
 
 std::vector<std::string> InfoBase::getRegisteredEvents(
     const RuntimeIdentityPtr& classType) {
-    const std::vector<RuntimeValue> result = resolveRuntime(
-        "blueprint.GetRegisteredEvents", {RuntimeValue(classType)});
-    if (result.empty()) {
-        return {};
-    }
-    const RuntimeValue::Array* values =
-        result.front().getIf<RuntimeValue::Array>();
-    if (values == nullptr) {
-        return {};
-    }
-    std::vector<std::string> events;
-    events.reserve(values->size());
-    for (const RuntimeValue& value : *values) {
-        const std::string* name = value.getIf<std::string>();
-        if (name != nullptr) {
-            events.push_back(*name);
-        }
-    }
-    return events;
+    return blueprintRuntime().registeredEvents(classType);
 }
 
 std::string InfoBase::getInfoType(const RuntimeIdentityPtr& classType) {
-    const std::vector<RuntimeValue> result =
-        resolveRuntime("blueprint.GetInfoType", {RuntimeValue(classType)});
-    if (result.empty()) {
-        return {};
-    }
-    const std::string* value = result.front().getIf<std::string>();
-    return value == nullptr ? std::string{} : *value;
+    return blueprintRuntime().infoType(classType);
 }

@@ -4,6 +4,8 @@ The project is in active development. When a new data shape, path, or API is set
 
 Editor-side C#: no comments or docstrings; no unnecessary try/catch; do not declare with `var` unless the full type name is excessively long.
 
+After changing first-party C++ sources (`.h`, `.hpp`, `.cc`, `.cpp`, and similar), format those files in place with `clang-format -i` so the repository `.clang-format` is applied. Do not format git-ignored third-party or generated C++.
+
 ### Documentation
 
 `docs/en_GB/` is the authoritative description of project architecture and runtime behaviour for agents to consult. This file is a hard constraint list for agents; it does not replace the docs.
@@ -22,6 +24,8 @@ When a change alters behaviour, APIs, paths, or conventions described in docs, u
 Re-examine the necessity of every design element through the lens of the "Keep Things Simple" software engineering philosophy.
 
 Delete test scaffolding once testing is finished.
+
+Do not patch or edit git-ignored third-party or temporary files. That includes vendored trees such as `Sample/LuaSF/`, `Sample/lua-cjson/`, `Sample/zlib/`, `Sample/ffmpeg/`, and `Sample/ThirdPartySource/`, plus generated outputs and build or session artefacts (`bin/`, `obj/`, `Temp/`, `build/`, logs, and similar). Change first-party tracked sources, CMake or build wiring, or wrappers instead. Do not add `.patch` / `.diff` files or in-tree overlays for ignored third-party code. Unless the current task explicitly requires otherwise, do not force-add ignored paths.
 
 ## Form input styles (Map Edit is the standard)
 

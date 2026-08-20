@@ -1,35 +1,16 @@
-#include <UI/Text.hpp>
+#include "TextCommon.hpp"
 
 #include <Runtime/EngineState.hpp>
 #include <UI/TextEffects.hpp>
 #include <UI/UIState.hpp>
-#include <Utils/Inner.hpp>
-
-#include <SFML/Graphics/Transform.hpp>
-#include <SFML/System/String.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
 #include <utility>
 
 namespace {
-
-sf::String toSfString(const std::string& value) {
-    return sf::String::fromUtf8(value.begin(), value.end());
-}
-
-std::string toUtf8String(const sf::String& value) {
-    const sf::U8String bytes = value.toUtf8();
-    return {bytes.begin(), bytes.end()};
-}
-
-unsigned int scaledCharacterSize(unsigned int characterSize) {
-    return static_cast<unsigned int>(
-        std::max(1.0f, std::floor(static_cast<float>(characterSize) * Scale)));
-}
 
 int hexDigit(char character) {
     if (character >= '0' && character <= '9') {
@@ -54,38 +35,6 @@ std::optional<std::uint8_t> hexByte(const std::string& value,
     return static_cast<std::uint8_t>((high << 4) | low);
 }
 
-sf::Color modulateColour(const sf::Color& baseColour,
-                         const sf::Color& factorColour) {
-    return {
-        static_cast<std::uint8_t>(baseColour.r * factorColour.r / 255),
-        static_cast<std::uint8_t>(baseColour.g * factorColour.g / 255),
-        static_cast<std::uint8_t>(baseColour.b * factorColour.b / 255),
-        static_cast<std::uint8_t>(baseColour.a * factorColour.a / 255),
-    };
-}
-
-void validateGradient(const TextGradientConfig& gradient) {
-    if (gradient.direction != "vertical" &&
-        gradient.direction != "horizontal") {
-        throw std::invalid_argument(
-            "Text gradient direction must be vertical or horizontal");
-    }
-}
-
-sf::Transform customSlantTransform(const PlainTextConfig& config) {
-    if ((config.style & static_cast<std::uint32_t>(sf::Text::Italic)) != 0 ||
-        !std::isfinite(config.slantAngle)) {
-        return {};
-    }
-    const float angle = std::clamp(config.slantAngle, -45.0f, 45.0f);
-    if (std::abs(angle) <= 0.0001f) {
-        return {};
-    }
-    constexpr float DegreesToRadians = 3.14159265358979323846f / 180.0f;
-    const float shear = std::tan(angle * DegreesToRadians);
-    return {1.0f, -shear, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
-}
-
 sf::Text::LineAlignment resolvedLineAlignment(
     sf::Text::LineAlignment alignment) {
     return alignment == sf::Text::LineAlignment::Default
@@ -107,262 +56,9 @@ float alignmentOffset(sf::Text::LineAlignment alignment, float availableWidth,
 
 }  // namespace
 
-struct PlainText::EffectCache {
-    ludork::engine::text_effects::Cache data;
-};
-
 struct RichText::EffectCache {
     ludork::engine::text_effects::Cache data;
 };
-
-void TextStyle::enableStyle(sf::Text& text) const {
-    if (characterSize.has_value()) {
-        text.setCharacterSize(scaledCharacterSize(*characterSize));
-    }
-    std::uint32_t resolvedStyle = text.getStyle();
-    const auto applyStyleFlag = [&resolvedStyle](
-                                    const std::optional<bool>& enabled,
-                                    sf::Text::Style style) {
-        if (!enabled.has_value()) {
-            return;
-        }
-        const std::uint32_t mask = static_cast<std::uint32_t>(style);
-        if (*enabled) {
-            resolvedStyle |= mask;
-        } else {
-            resolvedStyle &= ~mask;
-        }
-    };
-    applyStyleFlag(bold, sf::Text::Bold);
-    applyStyleFlag(italic, sf::Text::Italic);
-    applyStyleFlag(underlined, sf::Text::Underlined);
-    applyStyleFlag(strikeThrough, sf::Text::StrikeThrough);
-    text.setStyle(resolvedStyle);
-    if (fillColor.has_value()) {
-        text.setFillColor(*fillColor);
-    }
-    if (letterSpacing.has_value()) {
-        text.setLetterSpacing(*letterSpacing);
-    }
-    if (lineSpacing.has_value()) {
-        text.setLineSpacing(*lineSpacing);
-    }
-    if (outlineColor.has_value()) {
-        text.setOutlineColor(*outlineColor);
-    }
-    if (outlineThickness.has_value()) {
-        text.setOutlineThickness(*outlineThickness * Scale);
-    }
-}
-
-void TextStyle::adaptStyle(const TextStyle& inStyle) {
-    if (inStyle.characterSize.has_value()) {
-        characterSize = inStyle.characterSize;
-    }
-    if (inStyle.bold.has_value()) {
-        bold = inStyle.bold;
-    }
-    if (inStyle.italic.has_value()) {
-        italic = inStyle.italic;
-    }
-    if (inStyle.underlined.has_value()) {
-        underlined = inStyle.underlined;
-    }
-    if (inStyle.strikeThrough.has_value()) {
-        strikeThrough = inStyle.strikeThrough;
-    }
-    if (inStyle.fillColor.has_value()) {
-        fillColor = inStyle.fillColor;
-    }
-    if (inStyle.letterSpacing.has_value()) {
-        letterSpacing = inStyle.letterSpacing;
-    }
-    if (inStyle.lineSpacing.has_value()) {
-        lineSpacing = inStyle.lineSpacing;
-    }
-    if (inStyle.outlineColor.has_value()) {
-        outlineColor = inStyle.outlineColor;
-    }
-    if (inStyle.outlineThickness.has_value()) {
-        outlineThickness = inStyle.outlineThickness;
-    }
-}
-
-TextStyle TextStyle::copy() const {
-    return *this;
-}
-
-PlainText::PlainText(std::shared_ptr<PlainTextConfig> config,
-                     const std::string& text)
-    : config_(snapshotConfig(config)),
-      text_(*config_->font, toSfString(text),
-            scaledCharacterSize(std::max(1u, config_->characterSize))),
-      effects_(std::make_unique<EffectCache>()),
-      displayScale_(Scale) {
-    applyConfig();
-}
-
-PlainText::~PlainText() = default;
-
-std::shared_ptr<PlainTextConfig> PlainText::getConfig() const {
-    return snapshotConfig(*config_);
-}
-
-unsigned int PlainText::getCharacterSize() const {
-    return config_->characterSize;
-}
-
-void PlainText::setString(const std::string& text) {
-    text_.setString(toSfString(text));
-    invalidateEffects();
-}
-
-std::string PlainText::getString() const {
-    return toUtf8String(text_.getString());
-}
-
-sf::FloatRect PlainText::getPixelBounds() const {
-    syncDisplayScale();
-    return ludork::engine::text_effects::expandedBounds(
-        customSlantTransform(*config_).transformRect(text_.getLocalBounds()),
-        config_->glow);
-}
-
-sf::FloatRect PlainText::getLocalBounds() const {
-    const sf::FloatRect bounds = getPixelBounds();
-    return {bounds.position / Scale, bounds.size / Scale};
-}
-
-sf::FloatRect PlainText::getGlobalBounds() const {
-    return getTransform().transformRect(getLocalBounds());
-}
-
-sf::Vector2f PlainText::getSize() const {
-    return getPixelBounds().size / Scale;
-}
-
-sf::Vector2f PlainText::getOrigin() const {
-    syncDisplayScale();
-    return ControlBase::getOrigin() / Scale;
-}
-
-void PlainText::setOrigin(const sf::Vector2f& origin) {
-    syncDisplayScale();
-    ControlBase::setOrigin(origin * Scale);
-}
-
-sf::Color PlainText::getColour() const {
-    return colour_;
-}
-
-void PlainText::setColour(const sf::Color& colour) {
-    colour_ = colour;
-    refreshDirectColours();
-}
-
-void PlainText::refreshDisplayScale() {
-    if (displayScale_ != Scale) {
-        const sf::Vector2f logicalOrigin =
-            ControlBase::getOrigin() / displayScale_;
-        displayScale_ = Scale;
-        applyConfig();
-        setOrigin(logicalOrigin);
-    }
-    ControlBase::refreshDisplayScale();
-}
-
-void PlainText::draw(sf::RenderTarget& target, sf::RenderStates states) const {
-    syncDisplayScale();
-    _applyRenderStates(states);
-    if (!getVisible()) {
-        return;
-    }
-    sf::RenderStates textStates = states;
-    textStates.transform.combine(customSlantTransform(*config_));
-    if (!ludork::engine::text_effects::enabled(config_->glow,
-                                               config_->gradient)) {
-        target.draw(text_, textStates);
-        return;
-    }
-    ensureEffects();
-    if (!ludork::engine::text_effects::draw(effects_->data, target, states,
-                                            colour_, config_->glow,
-                                            config_->gradient)) {
-        target.draw(text_, textStates);
-    }
-}
-
-const PlainTextConfig& PlainText::configReference(
-    const std::shared_ptr<PlainTextConfig>& config) {
-    if (config == nullptr) {
-        throw std::invalid_argument("PlainText config must not be null");
-    }
-    if (config->type != "plainTextConfig") {
-        throw std::invalid_argument(
-            "PlainText requires a plainTextConfig asset");
-    }
-    if (config->font == nullptr) {
-        throw std::invalid_argument(
-            "PlainTextConfig resolved font must not be null");
-    }
-    validateGradient(config->gradient);
-    return *config;
-}
-
-std::shared_ptr<PlainTextConfig> PlainText::snapshotConfig(
-    const std::shared_ptr<PlainTextConfig>& config) {
-    return snapshotConfig(configReference(config));
-}
-
-std::shared_ptr<PlainTextConfig> PlainText::snapshotConfig(
-    const PlainTextConfig& config) {
-    std::shared_ptr<PlainTextConfig> snapshot =
-        std::make_shared<PlainTextConfig>(config);
-    if (config.gradient.curve != nullptr) {
-        snapshot->gradient.curve =
-            Vector4Curve::fromData(config.gradient.curve->toData());
-    }
-    return snapshot;
-}
-
-void PlainText::applyConfig() {
-    text_.setCharacterSize(
-        scaledCharacterSize(std::max(1u, config_->characterSize)));
-    text_.setStyle(config_->style);
-    text_.setLetterSpacing(config_->letterSpacing);
-    text_.setLineSpacing(config_->lineSpacing);
-    text_.setLineAlignment(config_->lineAlignment);
-    text_.setOutlineThickness(std::max(0.0f, config_->outline.thickness) *
-                              Scale);
-    refreshDirectColours();
-    invalidateEffects();
-}
-
-void PlainText::refreshDirectColours() {
-    text_.setFillColor(modulateColour(config_->fillColor, colour_));
-    text_.setOutlineColor(modulateColour(config_->outline.color, colour_));
-}
-
-void PlainText::invalidateEffects() {
-    effects_->data.dirty = true;
-}
-
-void PlainText::syncDisplayScale() const {
-    if (displayScale_ != Scale) {
-        const_cast<PlainText*>(this)->refreshDisplayScale();
-    }
-}
-
-void PlainText::ensureEffects() const {
-    if (!effects_->data.dirty) {
-        return;
-    }
-    ludork::engine::text_effects::rebuild(
-        effects_->data,
-        {{&text_, config_->fillColor, config_->outline.color,
-          customSlantTransform(*config_)}},
-        config_->glow, config_->gradient);
-}
 
 RichText::RichText(std::shared_ptr<RichTextConfig> config,
                    const std::string& text)
@@ -477,7 +173,7 @@ const RichTextConfig& RichText::configReference(
         throw std::invalid_argument(
             "RichTextConfig resolved font must not be null");
     }
-    validateGradient(config->gradient);
+    ludork::engine::text_detail::validateGradient(config->gradient);
     return *config;
 }
 
@@ -540,7 +236,8 @@ std::optional<sf::Color> RichText::parseMarkerColour(
 
 sf::Color RichText::modulateColour(const sf::Color& baseColour,
                                    const sf::Color& factorColour) {
-    return ::modulateColour(baseColour, factorColour);
+    return ludork::engine::text_detail::modulateColour(baseColour,
+                                                       factorColour);
 }
 
 void RichText::renderText(const std::string& text) {
@@ -708,9 +405,9 @@ std::unique_ptr<sf::Text> RichText::buildText(const std::string& text,
     if (!style.characterSize.has_value()) {
         throw std::logic_error("RichText style requires a character size");
     }
-    std::unique_ptr<sf::Text> result =
-        std::make_unique<sf::Text>(*config_->font, toSfString(text),
-                                   scaledCharacterSize(*style.characterSize));
+    std::unique_ptr<sf::Text> result = std::make_unique<sf::Text>(
+        *config_->font, ludork::engine::text_detail::toSfString(text),
+        ludork::engine::text_detail::scaledCharacterSize(*style.characterSize));
     style.enableStyle(*result);
     return result;
 }
@@ -743,8 +440,9 @@ float RichText::measureAdvance(const sf::Text& text) {
 
 float RichText::getLineAdvance(const TextStyle& style) const {
     const unsigned int characterSize =
-        scaledCharacterSize(style.characterSize.value_or(
-            static_cast<unsigned int>(std::max(1, defaultFontSize))));
+        ludork::engine::text_detail::scaledCharacterSize(
+            style.characterSize.value_or(
+                static_cast<unsigned int>(std::max(1, defaultFontSize))));
     return config_->font->getLineSpacing(characterSize) *
            style.lineSpacing.value_or(1.0f);
 }

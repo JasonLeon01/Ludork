@@ -14,6 +14,9 @@ firstResult(const std::vector<RuntimeValue>& values);
 LUDORK_ENGINE_API RuntimeValue invokeFirst(
     const std::string& operation, std::vector<RuntimeValue> arguments = {});
 
+LUDORK_ENGINE_API void invokeVoid(const std::string& operation,
+                                  std::vector<RuntimeValue> arguments = {});
+
 LUDORK_ENGINE_API bool invokeBool(const std::string& operation,
                                   std::vector<RuntimeValue> arguments = {});
 

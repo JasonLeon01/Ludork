@@ -592,7 +592,8 @@ int callService(lua_State* state, const std::string& name, int argumentCount) {
         runtimeServiceRegistry(lua).raw_get<sol::object>(name);
     if (!rawService.is<sol::protected_function>()) {
         lua_settop(state, stackBase);
-        return 0;
+        throw std::runtime_error("Runtime service '" + name +
+                                 "' is not registered");
     }
     ensureRuntimeLuaStack(state, 1, "runtime service callable");
     rawService.push();

@@ -2,11 +2,11 @@
 #include "GraphInternal.hpp"
 
 #include <NodeGraph/LatentManager.hpp>
+#include <Runtime/NodeGraphRuntime.hpp>
+#include <Runtime/RuntimeValueServices.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstdint>
-#include <limits>
 #include <set>
 #include <stdexcept>
 #include <utility>
@@ -15,42 +15,9 @@ using namespace ludork::engine::graph_detail;
 
 namespace {
 
-const RuntimeValue* mapValue(const RuntimeValue::Map& map,
-                             const std::string& name) {
-    const auto iterator = map.find(name);
-    return iterator == map.end() ? nullptr : &iterator->second;
-}
-
-std::optional<std::size_t> sizeValue(const RuntimeValue& value) {
-    if (const std::int64_t* integer = value.getIf<std::int64_t>()) {
-        if (*integer < 0) {
-            return std::nullopt;
-        }
-        return static_cast<std::size_t>(*integer);
-    }
-    if (const double* number = value.getIf<double>()) {
-        if (!std::isfinite(*number) || std::floor(*number) != *number ||
-            *number < 0.0 ||
-            *number >
-                static_cast<double>(std::numeric_limits<std::size_t>::max())) {
-            return std::nullopt;
-        }
-        return static_cast<std::size_t>(*number);
-    }
-    return std::nullopt;
-}
-
-RuntimeValue nodeIndexRuntimeValue(const NodeIndex& value) {
-    if (const int* index = std::get_if<int>(&value)) {
-        return RuntimeValue(static_cast<std::int64_t>(*index));
-    }
-    return RuntimeValue(std::get<std::string>(value));
-}
-
 RuntimeValue runtimeMember(const RuntimeValue& value, const std::string& name) {
-    const std::vector<RuntimeValue> resolved =
-        resolveRuntime("reflect.get", {value, RuntimeValue(name)});
-    return resolved.empty() ? RuntimeValue() : resolved.front();
+    return ludork::engine::runtime_services::invokeFirst(
+        "reflect.get", {value, RuntimeValue(name)});
 }
 
 RuntimeIdentityPtr callableWithin(const RuntimeValue& value,
@@ -91,78 +58,9 @@ std::vector<int> sortedPins(
 }
 
 NodeCache decodeNodeCache(const RuntimeIdentityPtr& cacheIdentity) {
-    NodeCache cache;
-    if (cacheIdentity == nullptr) {
-        return cache;
-    }
-    const std::vector<RuntimeValue> resolved = resolveRuntime(
-        "nodegraph.cache",
-        {RuntimeValue(std::string("decode")), RuntimeValue(cacheIdentity)});
-    if (resolved.empty() || resolved.front().isNil()) {
-        return cache;
-    }
-    const RuntimeValue::Array* descriptors =
-        resolved.front().getIf<RuntimeValue::Array>();
-    if (descriptors == nullptr) {
-        throw std::runtime_error(
-            "nodegraph.cache decode must return a descriptor array");
-    }
-    for (const RuntimeValue& descriptorValue : *descriptors) {
-        const RuntimeValue::Map* descriptor =
-            descriptorValue.getIf<RuntimeValue::Map>();
-        if (descriptor == nullptr) {
-            throw std::runtime_error("Node cache descriptor must be a map");
-        }
-        const RuntimeValue* keyValue = mapValue(*descriptor, "key");
-        const std::optional<NodeIndex> key =
-            keyValue == nullptr ? std::nullopt : nodeIndexValue(*keyValue);
-        if (!key.has_value()) {
-            throw std::runtime_error(
-                "Node cache descriptor key must be an integer or string");
-        }
-        const RuntimeValue* valuesValue = mapValue(*descriptor, "values");
-        const RuntimeValue::Array* values =
-            valuesValue == nullptr ? nullptr
-                                   : valuesValue->getIf<RuntimeValue::Array>();
-        if (valuesValue != nullptr && values == nullptr) {
-            throw std::runtime_error(
-                "Node cache descriptor values must be an array");
-        }
-        NodeResult result;
-        if (values != nullptr) {
-            result.values = *values;
-        }
-        const RuntimeValue* countValue = mapValue(*descriptor, "count");
-        if (countValue == nullptr) {
-            result.count = result.values.size();
-        } else {
-            const std::optional<std::size_t> count = sizeValue(*countValue);
-            if (!count.has_value()) {
-                throw std::runtime_error(
-                    "Node cache descriptor count must be a non-negative "
-                    "integer");
-            }
-            result.count = *count;
-        }
-        if (result.values.size() < result.count) {
-            result.values.resize(result.count);
-        }
-        cache[*key] = std::move(result);
-    }
-    return cache;
-}
-
-RuntimeValue::Array encodeNodeCache(const NodeCache& cache) {
-    RuntimeValue::Array descriptors;
-    descriptors.reserve(cache.size());
-    for (const auto& [key, result] : cache) {
-        descriptors.emplace_back(RuntimeValue::Map{
-            {"key", nodeIndexRuntimeValue(key)},
-            {"values", RuntimeValue(result.values)},
-            {"count", RuntimeValue(static_cast<std::int64_t>(result.count))},
-        });
-    }
-    return descriptors;
+    return cacheIdentity == nullptr
+               ? NodeCache{}
+               : nodeGraphRuntime().readCache(cacheIdentity);
 }
 
 void syncNodeCache(const RuntimeIdentityPtr& cacheIdentity,
@@ -170,9 +68,7 @@ void syncNodeCache(const RuntimeIdentityPtr& cacheIdentity,
     if (cacheIdentity == nullptr) {
         return;
     }
-    resolveRuntime("nodegraph.cache", {RuntimeValue(std::string("encode")),
-                                       RuntimeValue(cacheIdentity),
-                                       RuntimeValue(encodeNodeCache(cache))});
+    nodeGraphRuntime().writeCache(cacheIdentity, cache);
 }
 
 }  // namespace ludork::engine::graph_detail
@@ -351,10 +247,7 @@ RuntimeValue Graph::getParent() const {
     if (graphContext_.isNil()) {
         return RuntimeValue();
     }
-    const std::vector<RuntimeValue> resolved =
-        resolveRuntime("nodegraph.context",
-                       {graphContext_, RuntimeValue(std::string("getParent"))});
-    return resolved.empty() ? RuntimeValue() : resolved.front();
+    return nodeGraphRuntime().getContextParent(graphContext_);
 }
 
 void Graph::setParent(RuntimeValue value) {
@@ -362,9 +255,7 @@ void Graph::setParent(RuntimeValue value) {
         initializeContext(std::move(value));
         return;
     }
-    resolveRuntime("nodegraph.context",
-                   {graphContext_, RuntimeValue(std::string("setParent")),
-                    std::move(value)});
+    nodeGraphRuntime().setContextParent(graphContext_, value);
 }
 
 void Graph::setLocalGraph(RuntimeIdentityPtr context) {
@@ -403,9 +294,5 @@ RuntimeValue Graph::contextValue(const std::string& name) const {
     if (localGraph == nullptr) {
         return RuntimeValue();
     }
-    const std::vector<RuntimeValue> resolved =
-        resolveRuntime("nodegraph.context",
-                       {RuntimeValue(localGraph),
-                        RuntimeValue(std::string("get")), RuntimeValue(name)});
-    return resolved.empty() ? RuntimeValue() : resolved.front();
+    return nodeGraphRuntime().getContextValue(localGraph, name);
 }

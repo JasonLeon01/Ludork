@@ -50,6 +50,8 @@ public:
                         ControlBase& control) const;
 
 private:
+    struct Builder;
+
     struct Adapter {
         UiChildPolicy childPolicy = UiChildPolicy::None;
         UiControlSlotType slotType = UiControlSlotType::None;

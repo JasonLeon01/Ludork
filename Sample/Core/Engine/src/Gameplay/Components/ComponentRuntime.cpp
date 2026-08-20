@@ -96,7 +96,8 @@ RuntimeValue runtimeGet(const RuntimeValue& value, const std::string& name,
 
 void runtimeSet(const RuntimeValue& value, const std::string& name,
                 const RuntimeValue& member) {
-    resolveRuntime("reflect.set", {value, RuntimeValue(name), member});
+    ludork::engine::runtime_services::invokeVoid(
+        "reflect.set", {value, RuntimeValue(name), member});
 }
 
 RuntimeValue cloneComponentRuntimeValue(const RuntimeValue& value) {
@@ -208,9 +209,9 @@ RuntimeValue::Map inheritedComponentDefaults(const RuntimeValue& classValue) {
                            RuntimeValue(std::move(componentDefaults)));
         }
     }
-    resolveRuntime("components.cacheSet",
-                   {RuntimeValue(std::string("inheritedDefaults")), classValue,
-                    RuntimeValue(result)});
+    ludork::engine::runtime_services::invokeVoid(
+        "components.cacheSet", {RuntimeValue(std::string("inheritedDefaults")),
+                                classValue, RuntimeValue(result)});
     return result;
 }
 
@@ -324,8 +325,9 @@ RuntimeValue::Map getComponentTypes(const RuntimeValue& classValue) {
             result[name] = std::move(componentType);
         }
     }
-    resolveRuntime("components.cacheSet", {RuntimeValue(std::string("types")),
-                                           classValue, RuntimeValue(result)});
+    ludork::engine::runtime_services::invokeVoid(
+        "components.cacheSet",
+        {RuntimeValue(std::string("types")), classValue, RuntimeValue(result)});
     return result;
 }
 
@@ -360,9 +362,9 @@ RuntimeValue::Map getComponentFieldDefaults(const RuntimeValue& componentType) {
     for (auto& [name, value] : defaults) {
         value = cloneComponentFieldValue(componentType, name, value);
     }
-    resolveRuntime("components.cacheSet",
-                   {RuntimeValue(std::string("fieldDefaults")), componentType,
-                    RuntimeValue(defaults)});
+    ludork::engine::runtime_services::invokeVoid(
+        "components.cacheSet", {RuntimeValue(std::string("fieldDefaults")),
+                                componentType, RuntimeValue(defaults)});
     return cloneRuntimeMap(defaults);
 }
 
@@ -387,9 +389,10 @@ std::unordered_map<std::string, std::string> getComponentFieldMap(
     for (const auto& [fieldName, componentName] : result) {
         cachedMap.emplace(fieldName, RuntimeValue(componentName));
     }
-    resolveRuntime("components.cacheSet",
-                   {RuntimeValue(std::string("fieldMap")), classValue,
-                    RuntimeValue(std::move(cachedMap))});
+    ludork::engine::runtime_services::invokeVoid(
+        "components.cacheSet",
+        {RuntimeValue(std::string("fieldMap")), classValue,
+         RuntimeValue(std::move(cachedMap))});
     return result;
 }
 

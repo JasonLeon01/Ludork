@@ -37,9 +37,8 @@ ludork_add_ui_validation_target(
     UiPreviewHostAdapterValidate
     "${LUDORK_REPOSITORY_ROOT}")
 
-add_executable(UiPreviewHost
-    src/UiPreviewHost.cpp
-    src/UiPreviewCurveResolver.cpp)
+add_executable(UiPreviewHost)
+add_subdirectory(src)
 add_dependencies(UiPreviewHost UiPreviewHostAdapterValidate)
 target_compile_features(UiPreviewHost PRIVATE cxx_std_20)
 target_link_libraries(UiPreviewHost PRIVATE Ludork::Engine)

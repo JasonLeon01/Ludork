@@ -91,6 +91,4 @@ public:
 
 private:
     static RuntimeValue objectValue(const RuntimeObject& object);
-    static bool booleanResult(const std::string& operation,
-                              const std::vector<RuntimeValue>& arguments);
 };

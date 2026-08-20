@@ -1,0 +1,38 @@
+#pragma once
+
+#include "Actor/ActorBatchRenderer.hpp"
+#include "Protocol/FrameFiles.hpp"
+#include "UI/UiPreviewSession.hpp"
+#include "UiPreviewCurveResolver.hpp"
+
+#include <Runtime/RuntimeValue.hpp>
+
+#include <string>
+#include <string_view>
+
+namespace ludork::preview_host {
+
+class PreviewHostSession {
+public:
+    explicit PreviewHostSession(std::string_view adapterFingerprint);
+    ~PreviewHostSession() noexcept;
+
+    PreviewHostSession(const PreviewHostSession&) = delete;
+    PreviewHostSession& operator=(const PreviewHostSession&) = delete;
+    PreviewHostSession(PreviewHostSession&&) = delete;
+    PreviewHostSession& operator=(PreviewHostSession&&) = delete;
+
+    RuntimeValue handle(const RuntimeValue& requestValue);
+
+private:
+    RuntimeValue handshake(const RuntimeValue::Map& request);
+
+    std::string adapterFingerprint_;
+    UiPreviewCurveResolver curveResolver_;
+    FrameFiles frameFiles_;
+    ActorBatchRenderer actorRenderer_;
+    UiPreviewSession uiSession_;
+    bool accepted_ = false;
+};
+
+}  // namespace ludork::preview_host

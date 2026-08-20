@@ -1,10 +1,10 @@
 #include <NodeGraph/Node.hpp>
 
 #include <NodeGraph/Graph.hpp>
+#include <Runtime/NodeGraphRuntime.hpp>
 #include <Utils/DataValue.hpp>
 
 #include <algorithm>
-#include <cstdint>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -40,19 +40,6 @@ bool boolValue(const RuntimeValue* value, bool fallback = false) {
     }
     const bool* flag = value->getIf<bool>();
     return flag == nullptr ? fallback : *flag;
-}
-
-std::size_t countValue(const RuntimeValue* value, std::size_t fallback) {
-    if (value == nullptr) {
-        return fallback;
-    }
-    if (const std::int64_t* integer = value->getIf<std::int64_t>()) {
-        return *integer < 0 ? fallback : static_cast<std::size_t>(*integer);
-    }
-    if (const double* number = value->getIf<double>()) {
-        return *number < 0.0 ? fallback : static_cast<std::size_t>(*number);
-    }
-    return fallback;
 }
 
 RuntimeIdentityPtr identityValue(const RuntimeValue* value) {
@@ -253,21 +240,14 @@ NodeResult Node::executeResult(const InputPinMap& inputPinReplace) {
     const RuntimeValue selfValue =
         definition.selfFunction_ ? parent : RuntimeValue();
     const std::shared_ptr<Graph> parentGraph = parentGraph_.lock();
-    const RuntimeValue contextValue =
-        parentGraph == nullptr || parentGraph->getLocalGraph() == nullptr
-            ? RuntimeValue()
-            : RuntimeValue(parentGraph->getLocalGraph());
-    if (!contextValue.isNil() && parentGraph != nullptr) {
-        resolveRuntime("nodegraph.context",
-                       {contextValue, RuntimeValue(std::string("set")),
-                        RuntimeValue(std::string("__key__")),
-                        RuntimeValue(parentGraph->getDoingPartKey())});
+    const RuntimeIdentityPtr context =
+        parentGraph == nullptr ? nullptr : parentGraph->getLocalGraph();
+    if (context != nullptr) {
+        nodeGraphRuntime().setContextValue(
+            context, "__key__", RuntimeValue(parentGraph->getDoingPartKey()));
     }
-    std::vector<RuntimeValue> resolved =
-        resolveRuntime("nodegraph.invoke",
-                       {RuntimeValue(definition.nodeFunction_), selfValue,
-                        RuntimeValue(std::move(actualParams)), contextValue});
-    NodeResult result = parseInvocationResult(resolved);
+    NodeResult result = nodeGraphRuntime().invoke(
+        definition.nodeFunction_, selfValue, actualParams, context);
     if (result.count == 0) {
         result.values = {RuntimeValue()};
         result.count = 1;
@@ -309,9 +289,7 @@ RuntimeIdentityPtr Node::getRefLocal(const RuntimeIdentityPtr& nodeFunction) {
     if (nodeFunction == nullptr) {
         return nullptr;
     }
-    const std::vector<RuntimeValue> resolved =
-        resolveRuntime("nodegraph.refLocal", {RuntimeValue(nodeFunction)});
-    return resolved.empty() ? nullptr : identityValue(&resolved.front());
+    return nodeGraphRuntime().refLocal(nodeFunction);
 }
 
 const NodeMemberMetadata& Node::getMemberMetadata() const {
@@ -434,37 +412,6 @@ NodeMemberMetadata Node::parseMemberMetadata(
     metadata.loopNode = stringValue(mapValue(*value, "loopNode"));
     metadata.kind = stringValue(mapValue(*value, "kind"));
     return metadata;
-}
-
-NodeResult Node::parseInvocationResult(
-    const std::vector<RuntimeValue>& resolvedValues) {
-    NodeResult result;
-    if (resolvedValues.empty()) {
-        return result;
-    }
-    if (const RuntimeValue::Map* descriptor =
-            resolvedValues.front().getIf<RuntimeValue::Map>()) {
-        const RuntimeValue::Array* values =
-            asArray(mapValue(*descriptor, "values"));
-        if (values != nullptr) {
-            result.values = *values;
-        }
-        result.count =
-            countValue(mapValue(*descriptor, "count"), result.values.size());
-        return result;
-    }
-    if (const RuntimeValue::Array* values =
-            resolvedValues.front().getIf<RuntimeValue::Array>()) {
-        result.values = *values;
-        result.count =
-            resolvedValues.size() > 1
-                ? countValue(&resolvedValues[1], result.values.size())
-                : result.values.size();
-        return result;
-    }
-    result.values = resolvedValues;
-    result.count = resolvedValues.size();
-    return result;
 }
 
 void Node::analyseFunction(const RuntimeValue& resolvedDefinition) {

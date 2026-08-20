@@ -1,7 +1,7 @@
 #include <UI/Rect.hpp>
 
 #include <Runtime/EngineState.hpp>
-#include <Runtime/RuntimeValue.hpp>
+#include <Runtime/RuntimeValueServices.hpp>
 #include <Utils/Render.hpp>
 
 #include <algorithm>
@@ -112,21 +112,16 @@ std::shared_ptr<Curve> Rect::resolveOpacityCurve(const std::string& key) {
     if (cached != opacityCurves_.end()) {
         return cached->second;
     }
-    const std::vector<RuntimeValue> resolved =
-        resolveRuntime("curve", {RuntimeValue(key)});
-    if (resolved.empty()) {
-        return nullptr;
-    }
-    const RuntimeValue::Object* object =
-        resolved.front().getIf<RuntimeValue::Object>();
-    if (object == nullptr) {
-        return nullptr;
-    }
+    const RuntimeValue resolved = ludork::engine::runtime_services::invokeFirst(
+        "curve", {RuntimeValue(key)});
+    const RuntimeValue::Object* object = resolved.getIf<RuntimeValue::Object>();
     const std::shared_ptr<Curve> curve =
-        std::dynamic_pointer_cast<Curve>(*object);
-    if (curve != nullptr) {
-        opacityCurves_.emplace(key, curve);
+        object == nullptr ? nullptr : std::dynamic_pointer_cast<Curve>(*object);
+    if (curve == nullptr) {
+        throw std::runtime_error(
+            "Runtime service 'curve' must return a non-nil Curve");
     }
+    opacityCurves_.emplace(key, curve);
     return curve;
 }
 

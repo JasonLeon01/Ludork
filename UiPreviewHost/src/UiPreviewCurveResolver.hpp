@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+namespace ludork::preview_host {
+
 class UiPreviewCurveResolver {
 public:
     UiPreviewCurveResolver() = default;
@@ -27,3 +29,5 @@ private:
     std::filesystem::path projectRoot_;
     bool installed_ = false;
 };
+
+}  // namespace ludork::preview_host

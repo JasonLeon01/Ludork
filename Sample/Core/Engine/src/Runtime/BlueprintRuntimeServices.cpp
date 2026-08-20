@@ -1,137 +1,188 @@
+#include <Runtime/BlueprintRuntime.hpp>
+
+#include "EngineRuntimeSession.hpp"
 #include "RuntimeSubsystemServices.hpp"
+
+#include <LudorkCoreBinding/DynamicValueCodec.hpp>
 
 #include <stdexcept>
 
-namespace ludork::engine::runtime_detail {
+namespace {
 
-const std::vector<std::string>& blueprintRuntimeServiceNames() {
-    static const std::vector<std::string> names{
-        "blueprint.BlueprintEvent",
-        "blueprint.HasBlueprintEvent",
-        "blueprint._tryExecuteInfoGraph",
-        "blueprint._classHasBlueprintEvent",
-        "blueprint._graphHasExecutableEvent",
-        "blueprint._graphDataHasExecutableEvent",
-        "blueprint.ExecuteParentEvent",
-        "blueprint._executeGraph",
-        "blueprint.ExecuteInfoGraph",
-        "blueprint._resolveGeneralDataDict",
-        "blueprint.ApplyGeneralData",
-        "blueprint.InitInfo",
-        "blueprint.GetRegisteredEvents",
-        "blueprint.GetInfoType",
-    };
-    return names;
+sol::object runtimeValue(sol::state_view lua, const RuntimeValue& value) {
+    return ludork_core::writeLuaValue(lua, value);
 }
 
-ServiceDispatchResult dispatchBlueprintRuntimeService(
-    sol::this_state state, const std::string& operation,
-    const RuntimeArguments& arguments) {
-    sol::state_view lua(state);
-    const sol::object first = runtimeResolverArgument(lua, arguments, 1);
-    const sol::object second = runtimeResolverArgument(lua, arguments, 2);
-    if (operation == "blueprint.BlueprintEvent") {
-        const sol::object rawEvent = runtimeResolverArgument(lua, arguments, 3);
-        if (!rawEvent.is<std::string>()) {
-            throw std::invalid_argument(
-                "Blueprint event name must be a string");
-        }
-        dispatchBlueprintEvent(
-            state, first, second, rawEvent.as<std::string>(),
-            runtimeResolverArgument(lua, arguments, 4),
-            completionCallback(runtimeResolverArgument(lua, arguments, 5)));
-        return runtimeResolverResult(lua, {});
-    }
-    if (operation == "blueprint.HasBlueprintEvent") {
-        const bool result =
-            second.is<std::string>() &&
-            hasBlueprintEvent(state, first, second.as<std::string>());
-        return runtimeResolverResult(lua, {sol::make_object(lua, result)});
-    }
-    if (operation == "blueprint._tryExecuteInfoGraph") {
-        const bool result =
-            second.is<std::string>() &&
-            tryExecuteInfoBlueprintGraph(
-                state, first, second.as<std::string>(),
-                runtimeResolverArgument(lua, arguments, 3),
-                completionCallback(runtimeResolverArgument(lua, arguments, 4)));
-        return runtimeResolverResult(lua, {sol::make_object(lua, result)});
-    }
-    if (operation == "blueprint._classHasBlueprintEvent") {
-        const bool result =
-            second.is<std::string>() &&
-            classHasBlueprintEvent(state, first, second.as<std::string>());
-        return runtimeResolverResult(lua, {sol::make_object(lua, result)});
-    }
-    if (operation == "blueprint._graphHasExecutableEvent") {
-        const bool result = second.is<std::string>() &&
-                            blueprintGraphHasExecutableEvent(
-                                lua, first, second.as<std::string>());
-        return runtimeResolverResult(lua, {sol::make_object(lua, result)});
-    }
-    if (operation == "blueprint._graphDataHasExecutableEvent") {
-        const bool result = second.is<std::string>() &&
-                            blueprintGraphDataHasExecutableEvent(
-                                lua, first, second.as<std::string>());
-        return runtimeResolverResult(lua, {sol::make_object(lua, result)});
-    }
-    if (operation == "blueprint.ExecuteParentEvent") {
-        const sol::object rawEvent = runtimeResolverArgument(lua, arguments, 3);
-        const bool result =
-            rawEvent.is<std::string>() &&
-            executeParentBlueprintEvent(
-                state, first, second, rawEvent.as<std::string>(),
-                runtimeResolverArgument(lua, arguments, 4),
-                runtimeResolverArgument(lua, arguments, 5),
-                runtimeResolverArgument(lua, arguments, 6),
-                completionCallback(runtimeResolverArgument(lua, arguments, 7)));
-        return runtimeResolverResult(lua, {sol::make_object(lua, result)});
-    }
-    if (operation == "blueprint._executeGraph") {
-        const bool result =
-            second.is<std::string>() &&
-            executeBlueprintGraph(
-                lua, first, second.as<std::string>(),
-                runtimeResolverArgument(lua, arguments, 3),
-                runtimeResolverArgument(lua, arguments, 4),
-                completionCallback(runtimeResolverArgument(lua, arguments, 5)));
-        return runtimeResolverResult(lua, {sol::make_object(lua, result)});
-    }
-    if (operation == "blueprint.ExecuteInfoGraph") {
-        if (second.is<std::string>()) {
-            tryExecuteInfoBlueprintGraph(
-                state, first, second.as<std::string>(),
-                runtimeResolverArgument(lua, arguments, 3), {});
-        }
-        return runtimeResolverResult(lua, {});
-    }
-    if (operation == "blueprint._resolveGeneralDataDict") {
-        return runtimeResolverResult(
-            lua, {resolveGeneralDataDictionary(lua, first)});
-    }
-    if (operation == "blueprint.ApplyGeneralData") {
-        applyBlueprintGeneralData(lua, first, second,
-                                  runtimeResolverArgument(lua, arguments, 3));
-        return runtimeResolverResult(lua, {});
-    }
-    if (operation == "blueprint.InitInfo") {
-        initializeBlueprintInfo(state, first, second);
-        return runtimeResolverResult(lua, {});
-    }
-    if (operation == "blueprint.GetRegisteredEvents") {
-        return runtimeResolverResult(
-            lua,
-            {sol::make_object(lua, registeredBlueprintEvents(lua, first))});
-    }
-    if (operation == "blueprint.GetInfoType") {
-        const sol::object value =
-            runtimeIndex(lua, first, sol::make_object(lua, "_infoType"), false);
-        return runtimeResolverResult(
-            lua,
-            {value.is<std::string>() ? value
-                                     : sol::make_object(lua, std::string())});
-    }
-    return std::nullopt;
+sol::object runtimeIdentity(sol::state_view lua,
+                            const RuntimeIdentityPtr& value) {
+    return ludork_core::writeLuaValue(lua, value);
 }
 
-}  // namespace ludork::engine::runtime_detail
+}  // namespace
+
+void BlueprintRuntimeFacade::dispatchEvent(
+    const RuntimeValue& object, const RuntimeIdentityPtr& objectType,
+    const std::string& eventName, const RuntimeValue& keywordArguments,
+    const RuntimeIdentityPtr& onComplete) const {
+    ludork::engine::runtime_detail::EngineRuntimeScope runtime;
+    sol::state_view lua = runtime.lua();
+    ludork::engine::runtime_detail::dispatchBlueprintEvent(
+        sol::this_state(runtime.state()), runtimeValue(lua, object),
+        runtimeIdentity(lua, objectType), eventName,
+        runtimeValue(lua, keywordArguments),
+        ludork::engine::runtime_detail::completionCallback(
+            runtimeIdentity(lua, onComplete)));
+}
+
+bool BlueprintRuntimeFacade::hasEvent(const RuntimeValue& object,
+                                      const std::string& eventName) const {
+    ludork::engine::runtime_detail::EngineRuntimeScope runtime;
+    return ludork::engine::runtime_detail::hasBlueprintEvent(
+        sol::this_state(runtime.state()), runtimeValue(runtime.lua(), object),
+        eventName);
+}
+
+bool BlueprintRuntimeFacade::tryExecuteInfoGraph(
+    const RuntimeValue& object, const std::string& eventName,
+    const RuntimeValue& keywordArguments,
+    const RuntimeIdentityPtr& onComplete) const {
+    ludork::engine::runtime_detail::EngineRuntimeScope runtime;
+    sol::state_view lua = runtime.lua();
+    return ludork::engine::runtime_detail::tryExecuteInfoBlueprintGraph(
+        sol::this_state(runtime.state()), runtimeValue(lua, object), eventName,
+        runtimeValue(lua, keywordArguments),
+        ludork::engine::runtime_detail::completionCallback(
+            runtimeIdentity(lua, onComplete)));
+}
+
+bool BlueprintRuntimeFacade::classHasEvent(const RuntimeIdentityPtr& classType,
+                                           const std::string& eventName) const {
+    ludork::engine::runtime_detail::EngineRuntimeScope runtime;
+    return ludork::engine::runtime_detail::classHasBlueprintEvent(
+        sol::this_state(runtime.state()),
+        runtimeIdentity(runtime.lua(), classType), eventName);
+}
+
+bool BlueprintRuntimeFacade::graphHasExecutableEvent(
+    const RuntimeIdentityPtr& graph, const std::string& eventName) const {
+    ludork::engine::runtime_detail::EngineRuntimeScope runtime;
+    return ludork::engine::runtime_detail::blueprintGraphHasExecutableEvent(
+        runtime.lua(), runtimeIdentity(runtime.lua(), graph), eventName);
+}
+
+bool BlueprintRuntimeFacade::graphDataHasExecutableEvent(
+    const RuntimeValue& graphData, const std::string& eventName) const {
+    ludork::engine::runtime_detail::EngineRuntimeScope runtime;
+    return ludork::engine::runtime_detail::blueprintGraphDataHasExecutableEvent(
+        runtime.lua(), runtimeValue(runtime.lua(), graphData), eventName);
+}
+
+bool BlueprintRuntimeFacade::executeParentEvent(
+    const RuntimeValue& object, const RuntimeIdentityPtr& classType,
+    const std::string& eventName, const RuntimeValue& arguments,
+    const RuntimeValue& keywordArguments, const RuntimeIdentityPtr& localGraph,
+    const RuntimeIdentityPtr& onComplete) const {
+    ludork::engine::runtime_detail::EngineRuntimeScope runtime;
+    sol::state_view lua = runtime.lua();
+    return ludork::engine::runtime_detail::executeParentBlueprintEvent(
+        sol::this_state(runtime.state()), runtimeValue(lua, object),
+        runtimeIdentity(lua, classType), eventName,
+        runtimeValue(lua, arguments), runtimeValue(lua, keywordArguments),
+        runtimeIdentity(lua, localGraph),
+        ludork::engine::runtime_detail::completionCallback(
+            runtimeIdentity(lua, onComplete)));
+}
+
+bool BlueprintRuntimeFacade::executeGraph(
+    const RuntimeIdentityPtr& graph, const std::string& eventName,
+    const RuntimeValue& keywordArguments, const RuntimeIdentityPtr& localGraph,
+    const RuntimeIdentityPtr& onComplete) const {
+    ludork::engine::runtime_detail::EngineRuntimeScope runtime;
+    sol::state_view lua = runtime.lua();
+    return ludork::engine::runtime_detail::executeBlueprintGraph(
+        lua, runtimeIdentity(lua, graph), eventName,
+        runtimeValue(lua, keywordArguments), runtimeIdentity(lua, localGraph),
+        ludork::engine::runtime_detail::completionCallback(
+            runtimeIdentity(lua, onComplete)));
+}
+
+void BlueprintRuntimeFacade::executeInfoGraph(
+    const RuntimeValue& object, const std::string& eventName,
+    const RuntimeValue& keywordArguments) const {
+    ludork::engine::runtime_detail::EngineRuntimeScope runtime;
+    sol::state_view lua = runtime.lua();
+    static_cast<void>(
+        ludork::engine::runtime_detail::tryExecuteInfoBlueprintGraph(
+            sol::this_state(runtime.state()), runtimeValue(lua, object),
+            eventName, runtimeValue(lua, keywordArguments), {}));
+}
+
+RuntimeValue BlueprintRuntimeFacade::resolveGeneralDataDictionary(
+    const RuntimeValue& value) const {
+    ludork::engine::runtime_detail::EngineRuntimeScope runtime;
+    sol::state_view lua = runtime.lua();
+    return ludork_core::readLuaValue<RuntimeValue>(
+        ludork::engine::runtime_detail::resolveGeneralDataDictionary(
+            lua, runtimeValue(lua, value)));
+}
+
+void BlueprintRuntimeFacade::applyGeneralData(
+    const RuntimeValue& object, const RuntimeValue& data,
+    const RuntimeValue& parameterTypes) const {
+    ludork::engine::runtime_detail::EngineRuntimeScope runtime;
+    sol::state_view lua = runtime.lua();
+    ludork::engine::runtime_detail::applyBlueprintGeneralData(
+        lua, runtimeValue(lua, object), runtimeValue(lua, data),
+        runtimeValue(lua, parameterTypes));
+}
+
+void BlueprintRuntimeFacade::initializeInfo(
+    const RuntimeValue& object, const RuntimeIdentityPtr& dataProvider) const {
+    ludork::engine::runtime_detail::EngineRuntimeScope runtime;
+    sol::state_view lua = runtime.lua();
+    ludork::engine::runtime_detail::initializeBlueprintInfo(
+        sol::this_state(runtime.state()), runtimeValue(lua, object),
+        runtimeIdentity(lua, dataProvider));
+}
+
+std::vector<std::string> BlueprintRuntimeFacade::registeredEvents(
+    const RuntimeIdentityPtr& classType) const {
+    ludork::engine::runtime_detail::EngineRuntimeScope runtime;
+    sol::state_view lua = runtime.lua();
+    const sol::table values =
+        ludork::engine::runtime_detail::registeredBlueprintEvents(
+            lua, runtimeIdentity(lua, classType));
+    std::vector<std::string> events;
+    events.reserve(values.size());
+    for (std::size_t index = 1; index <= values.size(); ++index) {
+        const sol::object value = values.raw_get<sol::object>(index);
+        if (!value.is<std::string>()) {
+            throw std::runtime_error(
+                "Registered blueprint event name must be a string");
+        }
+        events.push_back(value.as<std::string>());
+    }
+    return events;
+}
+
+std::string BlueprintRuntimeFacade::infoType(
+    const RuntimeIdentityPtr& classType) const {
+    ludork::engine::runtime_detail::EngineRuntimeScope runtime;
+    sol::state_view lua = runtime.lua();
+    const sol::object value = ludork::engine::runtime_detail::runtimeIndex(
+        lua, runtimeIdentity(lua, classType),
+        sol::make_object(lua, "_infoType"), false);
+    if (!value.valid() || value.get_type() == sol::type::none ||
+        value.get_type() == sol::type::lua_nil) {
+        return {};
+    }
+    if (!value.is<std::string>()) {
+        throw std::runtime_error("Blueprint info type must be a string");
+    }
+    return value.as<std::string>();
+}
+
+BlueprintRuntimeFacade& blueprintRuntime() {
+    static BlueprintRuntimeFacade runtime;
+    return runtime;
+}

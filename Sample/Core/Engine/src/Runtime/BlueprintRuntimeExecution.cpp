@@ -6,6 +6,7 @@
 #include <LudorkCoreBinding/DynamicValueCodec.hpp>
 #include <NodeGraph/Graph.hpp>
 #include <Runtime/EngineClassRuntime.hpp>
+#include <Runtime/NodeGraphRuntime.hpp>
 #include <RuntimeSession.hpp>
 #include <Utf8Path.hpp>
 #include <Utils/DataValue.hpp>
@@ -17,8 +18,10 @@ extern "C" {
 #include <algorithm>
 #include <climits>
 #include <cstddef>
+#include <exception>
 #include <fstream>
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <regex>
@@ -257,6 +260,37 @@ void mergeBlueprintLocalArguments(sol::state_view lua,
     }
 }
 
+void logBlueprintCleanupFailure(const std::string& eventName,
+                                const std::string& key,
+                                const std::exception_ptr& failure) noexcept {
+    try {
+        std::rethrow_exception(failure);
+    } catch (const std::exception& error) {
+        std::cerr << "WARNING:Blueprint event '" << eventName
+                  << "' failed to restore context key '" << key
+                  << "': " << error.what() << '\n';
+    } catch (...) {
+        std::cerr << "WARNING:Blueprint event '" << eventName
+                  << "' failed to restore context key '" << key
+                  << "': unknown error\n";
+    }
+}
+
+void logBlueprintCompletionFailure(const std::string& eventName,
+                                   const std::exception_ptr& failure) noexcept {
+    try {
+        std::rethrow_exception(failure);
+    } catch (const std::exception& error) {
+        std::cerr << "WARNING:Blueprint event '" << eventName
+                  << "' completion failed while preserving an earlier error: "
+                  << error.what() << '\n';
+    } catch (...) {
+        std::cerr << "WARNING:Blueprint event '" << eventName
+                  << "' completion failed while preserving an earlier error: "
+                     "unknown error\n";
+    }
+}
+
 bool executeBlueprintGraph(sol::state_view lua, const sol::object& graph,
                            const std::string& eventName,
                            const sol::object& rawKeywordArguments,
@@ -267,65 +301,44 @@ bool executeBlueprintGraph(sol::state_view lua, const sol::object& graph,
     if (!nativeGraph->tryLockExecution(eventName)) {
         return false;
     }
-    if (onComplete) {
-        nativeGraph->addExecutionCompleteCallback(eventName, onComplete);
-    }
-    const RuntimeIdentityPtr oldLocalGraph = nativeGraph->getLocalGraph();
-    RuntimeValue context;
-    RuntimeValue oldContextGraph;
-    std::vector<std::pair<std::string, RuntimeValue>> oldEventParameters;
+    RuntimeIdentityPtr oldLocalGraph;
+    sol::object context;
+    sol::object oldContextGraph;
+    std::vector<std::pair<std::string, sol::object>> oldEventParameters;
+    bool oldLocalGraphCaptured = false;
     bool contextGraphSet = false;
+    std::exception_ptr failure;
 
-    const auto restore = [&]() noexcept {
-        for (const auto& [name, value] : oldEventParameters) {
-            try {
-                resolveRuntime("nodegraph.context",
-                               {context, RuntimeValue(std::string("set")),
-                                RuntimeValue(name), value});
-            } catch (...) {}
-        }
-        if (contextGraphSet) {
-            try {
-                resolveRuntime(
-                    "nodegraph.context",
-                    {context, RuntimeValue(std::string("set")),
-                     RuntimeValue(std::string("__graph__")), oldContextGraph});
-            } catch (...) {}
-        }
-        nativeGraph->setLocalGraph(oldLocalGraph);
-        nativeGraph->completeExecution(eventName);
-    };
     try {
+        oldLocalGraph = nativeGraph->getLocalGraph();
+        oldLocalGraphCaptured = true;
+        context = nilObject(lua);
+        oldContextGraph = nilObject(lua);
+        if (onComplete) {
+            nativeGraph->addExecutionCompleteCallback(eventName, onComplete);
+        }
         if (localGraph.valid() && localGraph.get_type() != sol::type::lua_nil) {
             nativeGraph->setLocalGraph(
                 ludork_core::readLuaValue<RuntimeIdentityPtr>(localGraph));
         }
         RuntimeIdentityPtr activeLocalGraph = nativeGraph->getLocalGraph();
         if (activeLocalGraph == nullptr) {
-            const std::vector<RuntimeValue> created = resolveRuntime(
-                "nodegraph.context",
-                {nativeGraph->parentClass, nativeGraph->getParent()});
-            if (!created.empty()) {
-                if (const RuntimeIdentityPtr* identity =
-                        created.front().getIf<RuntimeIdentityPtr>()) {
-                    activeLocalGraph = *identity;
-                }
-            }
+            const NodeGraphContextObjects created = createNodeGraphContext(
+                lua, ludork_core::writeLuaValue(lua, nativeGraph->parentClass),
+                ludork_core::writeLuaValue(lua, nativeGraph->getParent()));
+            activeLocalGraph = ludork_core::readLuaValue<RuntimeIdentityPtr>(
+                created.localGraph);
             nativeGraph->setLocalGraph(activeLocalGraph);
         }
         if (activeLocalGraph == nullptr) {
             throw std::runtime_error("Blueprint graph has no local context");
         }
 
-        context = RuntimeValue(activeLocalGraph);
-        const std::vector<RuntimeValue> oldGraph = resolveRuntime(
-            "nodegraph.context", {context, RuntimeValue(std::string("get")),
-                                  RuntimeValue(std::string("__graph__"))});
-        oldContextGraph = oldGraph.empty() ? RuntimeValue() : oldGraph.front();
-        resolveRuntime("nodegraph.context",
-                       {context, RuntimeValue(std::string("set")),
-                        RuntimeValue(std::string("__graph__")),
-                        nativeGraph->getGraphContext()});
+        context = ludork_core::writeLuaValue(lua, activeLocalGraph);
+        oldContextGraph = getNodeGraphContextValue(lua, context, "__graph__");
+        setNodeGraphContextValue(
+            lua, context, "__graph__",
+            ludork_core::writeLuaValue(lua, nativeGraph->getGraphContext()));
         contextGraphSet = true;
         if (rawKeywordArguments.is<sol::table>()) {
             for (const auto& entry : rawKeywordArguments.as<sol::table>()) {
@@ -334,25 +347,64 @@ bool executeBlueprintGraph(sol::state_view lua, const sol::object& graph,
                 }
                 const std::string name =
                     "__" + entry.first.as<std::string>() + "__";
-                const std::vector<RuntimeValue> oldValue =
-                    resolveRuntime("nodegraph.context",
-                                   {context, RuntimeValue(std::string("get")),
-                                    RuntimeValue(name)});
                 oldEventParameters.emplace_back(
-                    name, oldValue.empty() ? RuntimeValue() : oldValue.front());
-                resolveRuntime(
-                    "nodegraph.context",
-                    {context, RuntimeValue(std::string("set")),
-                     RuntimeValue(name),
-                     ludork_core::readLuaValue<RuntimeValue>(entry.second)});
+                    name, getNodeGraphContextValue(lua, context, name));
+                setNodeGraphContextValue(lua, context, name, entry.second);
             }
         }
         nativeGraph->execute(eventName);
     } catch (...) {
-        restore();
-        throw;
+        failure = std::current_exception();
     }
-    restore();
+
+    for (const auto& [name, value] : oldEventParameters) {
+        try {
+            setNodeGraphContextValue(lua, context, name, value);
+        } catch (...) {
+            const std::exception_ptr restoreFailure = std::current_exception();
+            logBlueprintCleanupFailure(eventName, name, restoreFailure);
+            if (failure == nullptr) {
+                failure = restoreFailure;
+            }
+        }
+    }
+    if (contextGraphSet) {
+        try {
+            setNodeGraphContextValue(lua, context, "__graph__",
+                                     oldContextGraph);
+        } catch (...) {
+            const std::exception_ptr restoreFailure = std::current_exception();
+            logBlueprintCleanupFailure(eventName, "__graph__", restoreFailure);
+            if (failure == nullptr) {
+                failure = restoreFailure;
+            }
+        }
+    }
+    if (oldLocalGraphCaptured) {
+        try {
+            nativeGraph->setLocalGraph(oldLocalGraph);
+        } catch (...) {
+            const std::exception_ptr restoreFailure = std::current_exception();
+            logBlueprintCleanupFailure(eventName, "localGraph", restoreFailure);
+            if (failure == nullptr) {
+                failure = restoreFailure;
+            }
+        }
+    }
+
+    try {
+        nativeGraph->completeExecution(eventName);
+    } catch (...) {
+        const std::exception_ptr completionFailure = std::current_exception();
+        if (failure != nullptr) {
+            logBlueprintCompletionFailure(eventName, completionFailure);
+        } else {
+            failure = completionFailure;
+        }
+    }
+    if (failure != nullptr) {
+        std::rethrow_exception(failure);
+    }
     return true;
 }
 

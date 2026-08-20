@@ -9,6 +9,7 @@
 #include <LudorkCoreBinding/DynamicValueCodec.hpp>
 #include <NodeGraph/Graph.hpp>
 #include <Runtime/EngineClassRuntime.hpp>
+#include <Runtime/NodeGraphRuntime.hpp>
 #include <RuntimeSession.hpp>
 #include <Utf8Path.hpp>
 #include <Utils/DataValue.hpp>

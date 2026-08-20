@@ -3,45 +3,15 @@
 #include <Input/InputService.hpp>
 #include <NodeGraph/Graph.hpp>
 #include <NodeGraph/Node.hpp>
+#include <Runtime/NodeGraphRuntime.hpp>
+#include <Runtime/RuntimeValueServices.hpp>
 
 #include <algorithm>
-#include <cmath>
-#include <cstdint>
+#include <iostream>
 #include <stdexcept>
 #include <utility>
 
 namespace {
-const RuntimeValue* mapValue(const RuntimeValue::Map& map,
-                             const std::string& name) {
-    const auto iterator = map.find(name);
-    return iterator == map.end() ? nullptr : &iterator->second;
-}
-
-std::size_t countValue(const RuntimeValue* value, std::size_t fallback) {
-    if (value == nullptr) {
-        return fallback;
-    }
-    if (const std::int64_t* integer = value->getIf<std::int64_t>()) {
-        return *integer < 0 ? fallback : static_cast<std::size_t>(*integer);
-    }
-    if (const double* number = value->getIf<double>()) {
-        if (!std::isfinite(*number) || *number < 0.0 ||
-            std::floor(*number) != *number) {
-            return fallback;
-        }
-        return static_cast<std::size_t>(*number);
-    }
-    return fallback;
-}
-
-bool boolValue(const RuntimeValue* value, bool fallback) {
-    if (value == nullptr) {
-        return fallback;
-    }
-    const bool* flag = value->getIf<bool>();
-    return flag == nullptr ? fallback : *flag;
-}
-
 struct ConditionResult {
     RuntimeValue::Array values;
     std::size_t count = 0;
@@ -66,94 +36,15 @@ private:
 };
 
 ConditionResult pollCondition(const RuntimeIdentityPtr& condition) {
-    const std::vector<RuntimeValue> result =
-        resolveRuntime("nodegraph.condition", {RuntimeValue(condition)});
-    if (result.empty()) {
-        throw std::runtime_error(
-            "Latent condition did not return a descriptor");
-    }
-    const RuntimeValue::Map* descriptor =
-        result.front().getIf<RuntimeValue::Map>();
-    if (descriptor == nullptr) {
-        throw std::runtime_error("Latent condition descriptor must be a map");
-    }
-
-    ConditionResult parsed;
-    const RuntimeValue* valuesValue = mapValue(*descriptor, "values");
-    if (valuesValue != nullptr) {
-        const RuntimeValue::Array* values =
-            valuesValue->getIf<RuntimeValue::Array>();
-        if (values == nullptr) {
-            throw std::runtime_error(
-                "Latent condition values must be an array");
-        }
-        parsed.values = *values;
-    }
-    parsed.count =
-        countValue(mapValue(*descriptor, "count"), parsed.values.size());
-    parsed.finished = boolValue(mapValue(*descriptor, "finished"), true);
-    return parsed;
-}
-
-bool nativeRuntimeEqual(const RuntimeValue& left, const RuntimeValue& right) {
-    if (left.isNil() || right.isNil()) {
-        return left.isNil() && right.isNil();
-    }
-    if (const bool* leftValue = left.getIf<bool>()) {
-        const bool* rightValue = right.getIf<bool>();
-        return rightValue != nullptr && *leftValue == *rightValue;
-    }
-    if (const std::int64_t* leftValue = left.getIf<std::int64_t>()) {
-        if (const std::int64_t* rightValue = right.getIf<std::int64_t>()) {
-            return *leftValue == *rightValue;
-        }
-        if (const double* rightValue = right.getIf<double>()) {
-            return static_cast<double>(*leftValue) == *rightValue;
-        }
-        return false;
-    }
-    if (const double* leftValue = left.getIf<double>()) {
-        if (const double* rightValue = right.getIf<double>()) {
-            return *leftValue == *rightValue;
-        }
-        if (const std::int64_t* rightValue = right.getIf<std::int64_t>()) {
-            return *leftValue == static_cast<double>(*rightValue);
-        }
-        return false;
-    }
-    if (const std::string* leftValue = left.getIf<std::string>()) {
-        const std::string* rightValue = right.getIf<std::string>();
-        return rightValue != nullptr && *leftValue == *rightValue;
-    }
-    if (const RuntimeValue::Object* leftValue =
-            left.getIf<RuntimeValue::Object>()) {
-        const RuntimeValue::Object* rightValue =
-            right.getIf<RuntimeValue::Object>();
-        return rightValue != nullptr && *leftValue == *rightValue;
-    }
-    if (const RuntimeIdentityPtr* leftValue =
-            left.getIf<RuntimeIdentityPtr>()) {
-        const RuntimeIdentityPtr* rightValue =
-            right.getIf<RuntimeIdentityPtr>();
-        if (rightValue == nullptr || *leftValue == nullptr ||
-            *rightValue == nullptr) {
-            return rightValue != nullptr && *leftValue == *rightValue;
-        }
-        return (*leftValue)->equals(**rightValue);
-    }
-    return false;
+    NodeGraphConditionResult result =
+        nodeGraphRuntime().evaluateCondition(condition);
+    return {std::move(result.result.values), result.result.count,
+            result.finished};
 }
 
 bool runtimeEqual(const RuntimeValue& left, const RuntimeValue& right) {
-    const std::vector<RuntimeValue> reflected =
-        resolveRuntime("reflect.equal", {left, right});
-    if (!reflected.empty()) {
-        const bool* equal = reflected.front().getIf<bool>();
-        if (equal != nullptr) {
-            return *equal;
-        }
-    }
-    return nativeRuntimeEqual(left, right);
+    return ludork::engine::runtime_services::invokeBool("reflect.equal",
+                                                        {left, right});
 }
 
 RuntimeValue normaliseMatchValue(const RuntimeValue& value) {
@@ -195,25 +86,21 @@ std::vector<int> latentExecIndexes(const NodeMemberMetadata& metadata,
 
 class LocalGraphScope {
 public:
-    LocalGraphScope(Graph& graph, RuntimeIdentityPtr replacement)
+    LocalGraphScope(Graph& graph, RuntimeIdentityPtr replacement,
+                    std::string eventKey)
         : graph_(graph),
           previous_(graph.getLocalGraph()),
-          context_(replacement) {
+          context_(replacement),
+          eventKey_(std::move(eventKey)) {
         graph_.setLocalGraph(std::move(replacement));
-        if (context_.isNil()) {
+        if (context_ == nullptr) {
             return;
         }
         try {
-            const std::vector<RuntimeValue> previousGraph =
-                resolveRuntime("nodegraph.context",
-                               {context_, RuntimeValue(std::string("get")),
-                                RuntimeValue(std::string("__graph__"))});
             previousContextGraph_ =
-                previousGraph.empty() ? RuntimeValue() : previousGraph.front();
-            resolveRuntime("nodegraph.context",
-                           {context_, RuntimeValue(std::string("set")),
-                            RuntimeValue(std::string("__graph__")),
-                            graph_.getGraphContext()});
+                nodeGraphRuntime().getContextValue(context_, "__graph__");
+            nodeGraphRuntime().setContextValue(context_, "__graph__",
+                                               graph_.getGraphContext());
             contextGraphSet_ = true;
         } catch (...) {
             graph_.setLocalGraph(std::move(previous_));
@@ -221,14 +108,20 @@ public:
         }
     }
 
-    ~LocalGraphScope() {
+    ~LocalGraphScope() noexcept {
         if (contextGraphSet_) {
             try {
-                resolveRuntime("nodegraph.context",
-                               {context_, RuntimeValue(std::string("set")),
-                                RuntimeValue(std::string("__graph__")),
-                                previousContextGraph_});
-            } catch (...) {}
+                nodeGraphRuntime().setContextValue(context_, "__graph__",
+                                                   previousContextGraph_);
+            } catch (const std::exception& error) {
+                std::cerr << "WARNING:Latent event '" << eventKey_
+                          << "' failed to restore context key '__graph__': "
+                          << error.what() << '\n';
+            } catch (...) {
+                std::cerr << "WARNING:Latent event '" << eventKey_
+                          << "' failed to restore context key '__graph__': "
+                             "unknown error\n";
+            }
         }
         graph_.setLocalGraph(std::move(previous_));
     }
@@ -239,7 +132,8 @@ public:
 private:
     Graph& graph_;
     RuntimeIdentityPtr previous_;
-    RuntimeValue context_;
+    RuntimeIdentityPtr context_;
+    std::string eventKey_;
     RuntimeValue previousContextGraph_;
     bool contextGraphSet_ = false;
 };
@@ -326,7 +220,7 @@ void LatentManager::update() {
         }
 
         {
-            LocalGraphScope localGraph(*graph, entry->localRef);
+            LocalGraphScope localGraph(*graph, entry->localRef, entry->key);
             const Graph::PinNexts& nexts =
                 graph->getNodeNexts(entry->key, entry->index);
             for (const int execIndex : execIndexes) {

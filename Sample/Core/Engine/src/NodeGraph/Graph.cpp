@@ -2,6 +2,7 @@
 #include "GraphInternal.hpp"
 
 #include <NodeGraph/LatentManager.hpp>
+#include <Runtime/NodeGraphRuntime.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -95,14 +96,10 @@ Graph::Graph(const Graph& definition, RuntimeValue parentValue, InstanceTag)
 }
 
 void Graph::initializeContext(RuntimeValue parentValue) {
-    const std::vector<RuntimeValue> context = resolveRuntime(
-        "nodegraph.context", {parentClass, std::move(parentValue)});
-    if (!context.empty()) {
-        localGraph = identityValue(&context.front());
-    }
-    if (context.size() > 1) {
-        graphContext_ = context[1];
-    }
+    NodeGraphRuntimeContext context =
+        nodeGraphRuntime().createContext(parentClass, parentValue);
+    localGraph = std::move(context.localGraph);
+    graphContext_ = std::move(context.graph);
 }
 
 std::shared_ptr<Graph> Graph::instantiate(RuntimeValue parentValue) {
@@ -183,33 +180,16 @@ void Graph::ensureEventInitialised(const std::string& key) {
         node->attachParentGraph(self);
     }
     if (!nodeModel_.isNil()) {
-        const RuntimeValue::Object graphObject = self;
         const std::vector<std::shared_ptr<DataNode>>& dataNodes =
             dataNodes_.at(key);
         for (std::size_t index = 0; index < dataNodes.size(); ++index) {
             const std::shared_ptr<DataNode>& dataNode = dataNodes[index];
             const std::shared_ptr<Node>& fallback = eventNodes[index];
-            const std::vector<RuntimeValue> resolved = resolveRuntime(
-                "nodegraph.createNode",
-                {nodeModel_, RuntimeValue(graphObject), getParent(),
-                 RuntimeValue(dataNode->nodeFunction),
-                 RuntimeValue(fallback->getCallable()),
-                 RuntimeValue(dataNode->getParams())});
-            if (resolved.empty() || resolved.front().isNil()) {
-                continue;
-            }
-            const RuntimeValue::Object* object =
-                resolved.front().getIf<RuntimeValue::Object>();
-            if (object == nullptr || *object == nullptr) {
-                throw std::runtime_error(
-                    "nodegraph.createNode must return an Engine.Node or nil");
-            }
-            std::shared_ptr<Node> node =
-                std::dynamic_pointer_cast<Node>(*object);
+            std::shared_ptr<Node> node = nodeGraphRuntime().createNode(
+                nodeModel_, self, getParent(), dataNode->nodeFunction,
+                fallback->getCallable(), dataNode->getParams());
             if (node == nullptr) {
-                throw std::runtime_error(
-                    "nodegraph.createNode returned an object that is not an "
-                    "Engine.Node");
+                continue;
             }
             node->position = dataNode->position;
             eventNodes[index] = std::move(node);

@@ -1,0 +1,32 @@
+#pragma once
+
+#include <BindAnnotations.hpp>
+
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+class Actor;
+
+BIND_CLASS(metadata = false)
+class ActorUpdateBatch {
+public:
+    BIND_INIT()
+    ActorUpdateBatch();
+
+    BIND_METHOD(metadata = false)
+    void syncActors(const std::vector<std::shared_ptr<Actor>>& actors);
+
+    BIND_METHOD(metadata = false)
+    void update(float deltaTime);
+
+    BIND_METHOD(metadata = false)
+    void lateUpdate(float deltaTime);
+
+    BIND_METHOD(metadata = false)
+    void fixedUpdate(float fixedDelta);
+
+private:
+    std::vector<std::shared_ptr<Actor>> actors_;
+    std::unordered_map<Actor*, unsigned int> tickEvents_;
+};

@@ -120,8 +120,6 @@ private:
         const RuntimeValue& resolvedDefinition);
     static NodeMemberMetadata parseMemberMetadata(
         const RuntimeValue& metadataValue);
-    static NodeResult parseInvocationResult(
-        const std::vector<RuntimeValue>& resolvedValues);
 
     Node(Graph& parentGraph, RuntimeValue parent, std::string functionName,
          RuntimeValue resolvedDefinition, RuntimeValue params);

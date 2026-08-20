@@ -1,11 +1,14 @@
 #include <Runtime/RuntimeValue.hpp>
 
+#include <atomic>
+#include <memory>
+#include <stdexcept>
 #include <utility>
 
 namespace {
 
-RuntimeResolver& runtimeResolver() {
-    static RuntimeResolver resolver;
+std::shared_ptr<const RuntimeResolver>& runtimeResolver() {
+    static std::shared_ptr<const RuntimeResolver> resolver;
     return resolver;
 }
 
@@ -87,16 +90,30 @@ std::string RuntimeValue::typeName() const {
 }
 
 void setRuntimeResolver(RuntimeResolver resolver) {
-    runtimeResolver() = std::move(resolver);
+    if (!resolver) {
+        throw std::invalid_argument("Runtime resolver must not be empty");
+    }
+    std::atomic_store_explicit(
+        &runtimeResolver(),
+        std::make_shared<const RuntimeResolver>(std::move(resolver)),
+        std::memory_order_release);
 }
 
 void clearRuntimeResolver() noexcept {
-    runtimeResolver() = {};
+    std::atomic_store_explicit(&runtimeResolver(),
+                               std::shared_ptr<const RuntimeResolver>{},
+                               std::memory_order_release);
 }
 
 std::vector<RuntimeValue> resolveRuntime(
     const std::string& operation, const std::vector<RuntimeValue>& arguments) {
-    const RuntimeResolver& resolver = runtimeResolver();
-    return resolver ? resolver(operation, arguments)
-                    : std::vector<RuntimeValue>{};
+    const std::shared_ptr<const RuntimeResolver> resolver =
+        std::atomic_load_explicit(&runtimeResolver(),
+                                  std::memory_order_acquire);
+    if (!resolver) {
+        throw std::runtime_error(
+            "Runtime resolver is not installed for operation '" + operation +
+            "'");
+    }
+    return (*resolver)(operation, arguments);
 }

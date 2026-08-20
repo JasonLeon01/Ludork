@@ -1,31 +1,20 @@
 #include <Gameplay/BPBase.hpp>
+#include <Runtime/BlueprintRuntime.hpp>
 
 #include <utility>
-
-namespace {
-
-std::vector<RuntimeValue> callBlueprintRuntime(
-    const std::string& operation, std::vector<RuntimeValue> arguments) {
-    return resolveRuntime("blueprint." + operation, arguments);
-}
-
-}  // namespace
 
 void BPBase::BlueprintEvent(const RuntimeIdentityPtr& object,
                             const RuntimeIdentityPtr& objectType,
                             const std::string& eventName,
                             const RuntimeValue& keywordArguments,
                             const RuntimeIdentityPtr& onComplete) {
-    callBlueprintRuntime(
-        "BlueprintEvent",
-        {RuntimeValue(object), RuntimeValue(objectType),
-         RuntimeValue(eventName), keywordArguments, RuntimeValue(onComplete)});
+    blueprintRuntime().dispatchEvent(RuntimeValue(object), objectType,
+                                     eventName, keywordArguments, onComplete);
 }
 
 bool BPBase::HasBlueprintEvent(const RuntimeIdentityPtr& object,
                                const std::string& eventName) {
-    return booleanResult("HasBlueprintEvent",
-                         {RuntimeValue(object), RuntimeValue(eventName)});
+    return blueprintRuntime().hasEvent(RuntimeValue(object), eventName);
 }
 
 bool BPBase::IsBlueprintEventEmpty(const RuntimeIdentityPtr& object,
@@ -37,27 +26,23 @@ bool BPBase::_tryExecuteInfoGraph(const RuntimeIdentityPtr& object,
                                   const std::string& eventName,
                                   const RuntimeValue& keywordArguments,
                                   const RuntimeIdentityPtr& onComplete) {
-    return booleanResult("_tryExecuteInfoGraph",
-                         {RuntimeValue(object), RuntimeValue(eventName),
-                          keywordArguments, RuntimeValue(onComplete)});
+    return blueprintRuntime().tryExecuteInfoGraph(
+        RuntimeValue(object), eventName, keywordArguments, onComplete);
 }
 
 bool BPBase::_classHasBlueprintEvent(const RuntimeIdentityPtr& classType,
                                      const std::string& eventName) {
-    return booleanResult("_classHasBlueprintEvent",
-                         {RuntimeValue(classType), RuntimeValue(eventName)});
+    return blueprintRuntime().classHasEvent(classType, eventName);
 }
 
 bool BPBase::_graphHasExecutableEvent(const RuntimeIdentityPtr& graph,
                                       const std::string& eventName) {
-    return booleanResult("_graphHasExecutableEvent",
-                         {RuntimeValue(graph), RuntimeValue(eventName)});
+    return blueprintRuntime().graphHasExecutableEvent(graph, eventName);
 }
 
 bool BPBase::_graphDataHasExecutableEvent(const RuntimeValue& graphData,
                                           const std::string& eventName) {
-    return booleanResult("_graphDataHasExecutableEvent",
-                         {graphData, RuntimeValue(eventName)});
+    return blueprintRuntime().graphDataHasExecutableEvent(graphData, eventName);
 }
 
 bool BPBase::ExecuteParentEvent(const RuntimeIdentityPtr& object,
@@ -67,12 +52,9 @@ bool BPBase::ExecuteParentEvent(const RuntimeIdentityPtr& object,
                                 const RuntimeValue& keywordArguments,
                                 const RuntimeIdentityPtr& localGraph,
                                 const RuntimeIdentityPtr& onComplete) {
-    return booleanResult(
-        "ExecuteParentEvent",
-        {RuntimeValue(object), RuntimeValue(classType), RuntimeValue(eventName),
-         arguments, keywordArguments,
-         localGraph == nullptr ? RuntimeValue() : RuntimeValue(localGraph),
-         RuntimeValue(onComplete)});
+    return blueprintRuntime().executeParentEvent(
+        RuntimeValue(object), classType, eventName, arguments, keywordArguments,
+        localGraph, onComplete);
 }
 
 bool BPBase::_executeGraph(const RuntimeIdentityPtr& graph,
@@ -80,32 +62,26 @@ bool BPBase::_executeGraph(const RuntimeIdentityPtr& graph,
                            const RuntimeValue& keywordArguments,
                            const RuntimeIdentityPtr& localGraph,
                            const RuntimeIdentityPtr& onComplete) {
-    return booleanResult(
-        "_executeGraph",
-        {RuntimeValue(graph), RuntimeValue(eventName), keywordArguments,
-         localGraph == nullptr ? RuntimeValue() : RuntimeValue(localGraph),
-         RuntimeValue(onComplete)});
+    return blueprintRuntime().executeGraph(graph, eventName, keywordArguments,
+                                           localGraph, onComplete);
 }
 
 void BPBase::ExecuteInfoGraph(const RuntimeIdentityPtr& object,
                               const std::string& eventName,
                               const RuntimeValue& keywordArguments) {
-    callBlueprintRuntime(
-        "ExecuteInfoGraph",
-        {RuntimeValue(object), RuntimeValue(eventName), keywordArguments});
+    blueprintRuntime().executeInfoGraph(RuntimeValue(object), eventName,
+                                        keywordArguments);
 }
 
 RuntimeValue BPBase::_resolveGeneralDataDict(const RuntimeValue& value) {
-    std::vector<RuntimeValue> result =
-        callBlueprintRuntime("_resolveGeneralDataDict", {value});
-    return result.empty() ? RuntimeValue() : std::move(result.front());
+    return blueprintRuntime().resolveGeneralDataDictionary(value);
 }
 
 void BPBase::ApplyGeneralData(const RuntimeIdentityPtr& object,
                               const RuntimeValue& data,
                               const RuntimeValue& parameterTypes) {
-    callBlueprintRuntime("ApplyGeneralData",
-                         {RuntimeValue(object), data, parameterTypes});
+    blueprintRuntime().applyGeneralData(RuntimeValue(object), data,
+                                        parameterTypes);
 }
 
 void BPBase::BlueprintEventNative(RuntimeObject& object,
@@ -115,17 +91,15 @@ void BPBase::BlueprintEventNative(RuntimeObject& object,
     if (runtimeObject.isNil()) {
         return;
     }
-    callBlueprintRuntime("BlueprintEvent", {runtimeObject, RuntimeValue(),
-                                            RuntimeValue(eventName),
-                                            RuntimeValue(keywordArguments)});
+    blueprintRuntime().dispatchEvent(runtimeObject, nullptr, eventName,
+                                     RuntimeValue(keywordArguments), nullptr);
 }
 
 bool BPBase::HasBlueprintEventNative(const RuntimeObject& object,
                                      const std::string& eventName) {
     const RuntimeValue runtimeObject = objectValue(object);
     return !runtimeObject.isNil() &&
-           booleanResult("HasBlueprintEvent",
-                         {runtimeObject, RuntimeValue(eventName)});
+           blueprintRuntime().hasEvent(runtimeObject, eventName);
 }
 
 bool BPBase::TryExecuteInfoGraphNative(
@@ -133,9 +107,9 @@ bool BPBase::TryExecuteInfoGraphNative(
     const RuntimeValue::Map& keywordArguments) {
     const RuntimeValue runtimeObject = objectValue(object);
     return !runtimeObject.isNil() &&
-           booleanResult("_tryExecuteInfoGraph",
-                         {runtimeObject, RuntimeValue(eventName),
-                          RuntimeValue(keywordArguments)});
+           blueprintRuntime().tryExecuteInfoGraph(
+               runtimeObject, eventName, RuntimeValue(keywordArguments),
+               nullptr);
 }
 
 void BPBase::ApplyGeneralDataNative(RuntimeObject& object,
@@ -143,8 +117,8 @@ void BPBase::ApplyGeneralDataNative(RuntimeObject& object,
                                     const RuntimeValue& parameterTypes) {
     const RuntimeValue runtimeObject = objectValue(object);
     if (!runtimeObject.isNil()) {
-        callBlueprintRuntime("ApplyGeneralData",
-                             {runtimeObject, data, parameterTypes});
+        blueprintRuntime().applyGeneralData(runtimeObject, data,
+                                            parameterTypes);
     }
 }
 
@@ -156,15 +130,4 @@ RuntimeValue BPBase::objectValue(const RuntimeObject& object) {
         owner = std::const_pointer_cast<RuntimeObject>(std::move(constOwner));
     }
     return owner ? RuntimeValue(std::move(owner)) : RuntimeValue();
-}
-
-bool BPBase::booleanResult(const std::string& operation,
-                           const std::vector<RuntimeValue>& arguments) {
-    const std::vector<RuntimeValue> result =
-        callBlueprintRuntime(operation, arguments);
-    if (result.empty()) {
-        return false;
-    }
-    const bool* value = result.front().getIf<bool>();
-    return value != nullptr && *value;
 }
