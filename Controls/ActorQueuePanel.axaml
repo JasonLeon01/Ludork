@@ -33,11 +33,12 @@
                               ColumnDefinitions="Auto,*,Auto"
                               ColumnSpacing="6"
                               ToolTip.Tip="{Binding BlueprintReference}">
-                            <Image Source="{Binding Icon}"
-                                   Width="48"
-                                   Height="48"
-                                   Stretch="Uniform"
-                                   VerticalAlignment="Center" />
+                            <controls:FrameRevisionImage Source="{Binding Icon}"
+                                                         FrameRevision="{Binding PreviewFrameRevision}"
+                                                         Width="48"
+                                                         Height="48"
+                                                         Stretch="Uniform"
+                                                         VerticalAlignment="Center" />
                             <StackPanel Grid.Column="1"
                                         VerticalAlignment="Center"
                                         Spacing="2">

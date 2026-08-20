@@ -354,6 +354,7 @@ public sealed class ActorQueueItemViewModel : ViewModelBase, IDisposable
     private ActorVisualDescriptor? descriptor;
     private ActorPreviewLease? previewLease;
     private IImage? icon;
+    private long previewFrameRevision;
     private bool previewActive;
     private bool isFavorite;
     private bool isRecent;
@@ -388,6 +389,11 @@ public sealed class ActorQueueItemViewModel : ViewModelBase, IDisposable
     {
         get => icon;
         private set => SetProperty(ref icon, value);
+    }
+    public long PreviewFrameRevision
+    {
+        get => previewFrameRevision;
+        private set => SetProperty(ref previewFrameRevision, value);
     }
     public bool IsFavorite
     {
@@ -460,10 +466,18 @@ public sealed class ActorQueueItemViewModel : ViewModelBase, IDisposable
     {
         if (Dispatcher.UIThread.CheckAccess())
         {
-            updateIcon();
+            updatePreviewFrame();
             return;
         }
-        Dispatcher.UIThread.Post(updateIcon);
+        Dispatcher.UIThread.Post(updatePreviewFrame);
+    }
+
+    private void updatePreviewFrame()
+    {
+        if (disposed)
+            return;
+        updateIcon();
+        PreviewFrameRevision += 1;
     }
 
     private void updateIcon()

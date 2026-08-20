@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Ludork.Controls"
              xmlns:vm="using:Ludork.ViewModels"
              x:Class="Ludork.Controls.FileExplorerPanel"
              x:DataType="vm:FileExplorerViewModel"
@@ -102,11 +103,12 @@
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:FileExplorerEntryViewModel">
                         <StackPanel Width="150" Margin="6" Spacing="3">
-                            <Image Source="{Binding Icon}"
-                                   Width="80"
-                                   Height="80"
-                                   Stretch="Uniform"
-                                   HorizontalAlignment="Center" />
+                            <controls:FrameRevisionImage Source="{Binding Icon}"
+                                                         FrameRevision="{Binding PreviewFrameRevision}"
+                                                         Width="80"
+                                                         Height="80"
+                                                         Stretch="Uniform"
+                                                         HorizontalAlignment="Center" />
                             <TextBlock Text="{Binding Name}"
                                        TextAlignment="Center"
                                        TextWrapping="Wrap"
@@ -127,10 +129,11 @@
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:FileExplorerEntryViewModel">
                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="6,3">
-                            <Image Source="{Binding Icon}"
-                                   Width="28"
-                                   Height="28"
-                                   Stretch="Uniform" />
+                            <controls:FrameRevisionImage Source="{Binding Icon}"
+                                                         FrameRevision="{Binding PreviewFrameRevision}"
+                                                         Width="28"
+                                                         Height="28"
+                                                         Stretch="Uniform" />
                             <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
                         </StackPanel>
                     </DataTemplate>

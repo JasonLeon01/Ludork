@@ -1288,6 +1288,7 @@ public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
     private IImage? fallback;
     private ActorPreviewLease? previewLease;
     private IImage? icon;
+    private long previewFrameRevision;
     private bool disposed;
 
     public FileExplorerEntryViewModel(string fullPath, bool isDirectory, IImage? icon)
@@ -1321,6 +1322,11 @@ public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
         get => icon;
         private set => SetProperty(ref icon, value);
     }
+    public long PreviewFrameRevision
+    {
+        get => previewFrameRevision;
+        private set => SetProperty(ref previewFrameRevision, value);
+    }
     public string Name { get; }
 
     public bool IsPreviewActive
@@ -1353,10 +1359,18 @@ public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
     {
         if (Dispatcher.UIThread.CheckAccess())
         {
-            updateIcon();
+            updatePreviewFrame();
             return;
         }
-        Dispatcher.UIThread.Post(() => updateIcon());
+        Dispatcher.UIThread.Post(updatePreviewFrame);
+    }
+
+    private void updatePreviewFrame()
+    {
+        if (disposed)
+            return;
+        updateIcon();
+        PreviewFrameRevision += 1;
     }
 
     private void updateIcon()
@@ -1364,11 +1378,6 @@ public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
         if (disposed)
             return;
         IImage? next = previewLease?.Frame ?? fallback ?? icon;
-        if (ReferenceEquals(Icon, next))
-        {
-            OnPropertyChanged(nameof(Icon));
-            return;
-        }
         Icon = next;
     }
 }

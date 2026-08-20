@@ -189,9 +189,23 @@ public sealed class TilesetImageEditor : Control, IDisposable
         if (frame.Width <= 0 || frame.Height <= 0 || data is null)
             return;
         if (Mode == TilesetEditMode.Passable)
-            drawPassable(context, frame, data["passable"]?.GetValue<bool?>() ?? true);
+            drawAutoTileMarker(context, frame, data["passable"]?.GetValue<bool?>() ?? true ? "O" : "X");
         else if (Mode == TilesetEditMode.Material && !isDefaultMaterial(data["material"] as JsonObject))
-            drawMaterial(context, frame);
+            drawAutoTileMarker(context, frame, "M");
+    }
+
+    private static void drawAutoTileMarker(DrawingContext context, Rect frame, string value)
+    {
+        FormattedText marker = new(
+            value,
+            System.Globalization.CultureInfo.InvariantCulture,
+            FlowDirection.LeftToRight,
+            Typeface.Default,
+            24,
+            Brushes.White);
+        context.DrawText(
+            marker,
+            new Point(frame.Center.X - marker.Width / 2, frame.Center.Y - marker.Height / 2));
     }
 
     private static void drawPassable(DrawingContext context, Rect cell, bool passable)
