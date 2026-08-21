@@ -1,0 +1,20 @@
+{
+  "parent": "Data.Blueprints.Doors.BP_Door_General",
+  "attrs": {
+    "scriptMixin": true,
+    "scriptPath": "Doors/KeyDoor.lua",
+    "defaultRect": [
+      [
+        0,
+        64,
+        32,
+        32
+      ]
+    ],
+    "needKeyID": "KEY_R",
+    "needKeyCount": 3,
+    "texturePath": "blocks/classic-doors-003-single.png",
+    "tag": ""
+  },
+  "type": "blueprint"
+}

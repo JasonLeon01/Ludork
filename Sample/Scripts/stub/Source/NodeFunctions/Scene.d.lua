@@ -143,7 +143,7 @@ function Scene.CreateActorFromBPPathWithDefaults(bpPath, defaults, layerName, po
 --- - @param tileID The replacement tile ID, autotile key, or nil.
 ---@param layerName string
 ---@param position  sf.Vector2i
----@param tileID    integer | string | nil
+---@param tileID    Global.GameMap.TerrainTileID
 function Scene.DestroyTerrain(layerName, position, tileID) end
 
 --- @brief Replace and persist multiple terrain tiles on the current map.
@@ -153,7 +153,7 @@ function Scene.DestroyTerrain(layerName, position, tileID) end
 --- - @param tileID The replacement tile ID, autotile key, or nil.
 ---@param layerName string
 ---@param positions sf.Vector2i[]
----@param tileID    integer | string | nil
+---@param tileID    Global.GameMap.TerrainTileID
 function Scene.DestroyTerrainList(layerName, positions, tileID) end
 
 --- @brief Get the terrain tile ID on the current map.
@@ -163,7 +163,7 @@ function Scene.DestroyTerrainList(layerName, positions, tileID) end
 --- - @return The static tile ID, autotile key, or nil.
 ---@param layerName string
 ---@param position  sf.Vector2i
----@return integer | string | nil
+---@return Global.GameMap.TerrainTileID
 function Scene.GetTerrainTile(layerName, position) end
 
 --- @brief Get all current-map coordinates that match a tile ID on one layer.
@@ -172,7 +172,7 @@ function Scene.GetTerrainTile(layerName, position) end
 --- - @param tileID The static tile ID, autotile key, or nil.
 --- - @return A list of matching tile coordinates.
 ---@param layerName string
----@param tileID    integer | string | nil
+---@param tileID    Global.GameMap.TerrainTileID
 ---@return sf.Vector2i[]
 function Scene.GetTerrainTilePositions(layerName, tileID) end
 

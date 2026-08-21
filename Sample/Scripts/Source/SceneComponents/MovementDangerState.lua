@@ -11,10 +11,8 @@ local MovementDangerState = {}
 ---@param enemy Source.Enemy
 ---@return boolean
 local function hasMovementSpecial(enemy)
-    enemy:normaliseInfoComp()
-    local special = enemy.infoComp.special
-    return special ~= nil and (special[Special.Domain] ~= nil or special[Special.Flank] ~= nil
-        or special[Special.Blockade] ~= nil)
+    return enemy:hasSpecial(Special.Domain) or enemy:hasSpecial(Special.Flank)
+        or enemy:hasSpecial(Special.Blockade)
 end
 
 ---@param entry Source.SceneComponents.MovementDangerEntry
@@ -42,7 +40,7 @@ function MovementDangerState:init(gameMap)
     self._playerInfoComp = nil
     ---@type integer | nil
     self._playerCombatRevision = nil
-    ---@type table<Source.Enemy, { x: integer | nil, y: integer | nil, combatRevision: integer | nil, infoComp: Source.Components.EnemyInfoComponent | nil, scanRevision: integer | nil }>
+    ---@type table<Source.Enemy, Source.SceneComponents.MovementDangerEnemySnapshot>
     self._enemySnapshots = {}
     ---@type Source.Enemy[]
     self._enemies = {}
@@ -69,7 +67,6 @@ function MovementDangerState:onTick(_deltaTime)
     local playerInfoComp = nil
     if player ~= nil then
         ---@cast player Source.Player.Player
-        player:normaliseInfoComp()
         playerCombatRevision = player:getCombatRevision()
         playerInfoComp = player.infoComp
     end

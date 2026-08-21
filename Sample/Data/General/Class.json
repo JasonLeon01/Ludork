@@ -2,15 +2,19 @@
     "params": {
         "name": {
             "type": "string",
+            "comment": "The display name of this class.",
             "defaultValue": ""
         },
         "desc": {
             "type": "string",
+            "comment": "The display description of this class.",
             "defaultValue": ""
         },
         "slot": {
             "type": "dict",
-            "defaultValue": {}
+            "comment": "Equipment slot names mapped to the equipment initially equipped in each slot; use an empty value for an unequipped slot.",
+            "defaultValue": {},
+            "valueType": "string"
         }
     },
     "members": {

@@ -2,14 +2,17 @@
     "params": {
         "name": {
             "type": "string",
+            "comment": "The display name of this player preset.",
             "defaultValue": ""
         },
         "desc": {
             "type": "string",
+            "comment": "The display description of this player preset.",
             "defaultValue": ""
         },
         "CLASS": {
             "type": "string",
+            "comment": "The Class member ID that defines the player's equipment slots and initial equipment.",
             "defaultValue": "",
             "reference": {
                 "kind": "general",
@@ -18,30 +21,37 @@
         },
         "MAXHP": {
             "type": "int",
+            "comment": "The player's starting maximum HP.",
             "defaultValue": 1000
         },
         "ATK": {
             "type": "int",
+            "comment": "The player's starting attack value.",
             "defaultValue": 10
         },
         "DEF": {
             "type": "int",
+            "comment": "The player's starting defence value.",
             "defaultValue": 10
         },
         "EXP": {
             "type": "int",
+            "comment": "The player's starting experience.",
             "defaultValue": 0
         },
         "GOLD": {
             "type": "int",
+            "comment": "The player's starting gold.",
             "defaultValue": 0
         },
         "LEVEL": {
             "type": "int",
+            "comment": "The player's starting level.",
             "defaultValue": 1
         },
         "ANIMATION_KEY": {
             "type": "string",
+            "comment": "The animation played when the player attacks.",
             "defaultValue": "",
             "reference": {
                 "kind": "animation"

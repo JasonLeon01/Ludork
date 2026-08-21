@@ -1,6 +1,7 @@
 local _METADATA = {
     PlayerInfoComponent = {
         attrs = {
+            "HP",
             "name",
             "desc",
             "LEVEL",
@@ -8,6 +9,10 @@ local _METADATA = {
         },
         bases = {
             { "Source.Components.BattlerInfoComponent", "BattlerInfoComponent" },
+        },
+        HP = {
+            type = "int",
+            default = 0,
         },
         name = {
             type = "string",

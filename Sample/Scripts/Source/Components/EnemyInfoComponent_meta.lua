@@ -22,7 +22,7 @@ local _METADATA = {
             default = {},
         },
         drops = {
-            type = "string[]",
+            type = "Dict[string, sf.Vector2i]",
             default = {},
         },
     },

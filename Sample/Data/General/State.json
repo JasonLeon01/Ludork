@@ -2,18 +2,22 @@
     "params": {
         "name": {
             "type": "string",
+            "comment": "The display name of this state.",
             "defaultValue": ""
         },
         "desc": {
             "type": "string",
+            "comment": "The display description of this state.",
             "defaultValue": ""
         },
         "icon": {
             "type": "file",
+            "comment": "The icon asset path relative to Assets.",
             "defaultValue": "Icons"
         },
         "stackable": {
             "type": "bool",
+            "comment": "Whether adding this state again increases the existing state's stack count.",
             "defaultValue": false
         }
     },

@@ -37,4 +37,9 @@ function Teleporter.isAsideOrOverlapping(actors, position) end
 ---@return Source.Teleporter.Teleporter | nil
 function Teleporter._findNearestTeleporter(actors, position) end
 
+---@param regionMaps string[]
+---@param currentMap string
+---@return integer | nil
+function Teleporter._findCurrentMapIndex(regionMaps, currentMap) end
+
 return Teleporter

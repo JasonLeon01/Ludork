@@ -328,7 +328,7 @@ end
 ---@return Engine.TextStyle
 local function richTextStyleFromData(value, sourceName, requireAll)
     textConfigOnlyFields(value, richTextStyleFields, sourceName)
-    ---@type table<string, integer|number|boolean|sf.Color>
+    ---@type Source.Data.TextStyleValues
     local style = {}
     if value.characterSize ~= nil then
         style.characterSize = textConfigInteger(value.characterSize, sourceName .. ".characterSize", 1, 512)

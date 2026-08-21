@@ -1,12 +1,14 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
+local Logging = require("Global.Utils.Logging")
 local Data = require("Source.Data")
 local ChildActorComponent = require("Source.Components.ChildActorComponent")
 local EnemyInfoComponent = require("Source.Components.EnemyInfoComponent")
 ---@type { Special: Source.Configs.GeneralEnum.Special, State: Source.Configs.GeneralEnum.State }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local EnemyInfo = require("Source.Infos.EnemyInfo")
+local Item = require("Source.Item")
 local Battler = require("Source.Battler")
 
 local ComponentsFunctions = GlobalFunctions.Components
@@ -24,32 +26,126 @@ end
 componentTypes.childActorComp = ChildActorComponent
 componentTypes.infoComp = EnemyInfoComponent
 
----@param enemy Source.Enemy
----@param scene Source.Scenes.SceneMap.SceneMap
----@return Engine.Actor | nil actor
----@return string | nil layerName
-local function createRebornEnemy(enemy, scene)
-    local blueprintPath = enemy.infoComp.special[Special.Reborn]
-    if blueprintPath == nil then
-        return nil, nil
-    end
-    assert(type(blueprintPath) == "string" and bool(blueprintPath),
-        "Enemy Reborn special requires a Blueprint class path")
+---@param enemy   Source.Enemy
+---@param scene   Source.Scenes.SceneMap.SceneMap
+---@return table context
+local function createDefeatSpawnContext(enemy, scene)
     local gameMap = scene:getGameMap()
-    local layerName = assert(gameMap:getActorLayer(enemy), "Reborn enemy is not on a map layer")
+    local layerName = assert(gameMap:getActorLayer(enemy), "Defeated enemy is not on a map layer")
     local originalTag = enemy:getMapTag()
-    assert(bool(originalTag), "Reborn enemy requires a non-empty map-placement tag")
-    local mapTag = originalTag .. "_Reborn"
+    assert(bool(originalTag), "Defeated enemy requires a non-empty map-placement tag")
+    return {
+        gameMap = gameMap,
+        layerName = layerName,
+        originalTag = originalTag,
+        position = copy(enemy:getMapPosition()),
+        reservedTags = {},
+    }
+end
+
+---@param context table
+---@param suffix  string
+---@return string
+local function reserveDefeatSpawnTag(context, suffix)
+    local baseTag = context.originalTag .. "_" .. suffix
+    local mapTag = baseTag
     local tagSuffix = 2
-    while gameMap:getActorByTag(mapTag) ~= nil do
-        mapTag = originalTag .. "_Reborn_" .. tostring(tagSuffix)
+    while context.gameMap:getActorByTag(mapTag) ~= nil or context.reservedTags[mapTag] do
+        mapTag = baseTag .. "_" .. tostring(tagSuffix)
         tagSuffix = tagSuffix + 1
     end
+    context.reservedTags[mapTag] = true
+    return mapTag
+end
+
+---@param context       table
+---@param blueprintPath string
+---@param kind           string
+---@param tagSuffix      string
+---@return Engine.Actor
+local function prepareDefeatSpawnActor(context, blueprintPath, kind, tagSuffix)
+    assert(type(blueprintPath) == "string" and bool(blueprintPath),
+        "Enemy " .. kind .. " requires a Blueprint class path")
     local actor = assert(Data.genActorFromClassPath(blueprintPath),
-        "Reborn enemy Blueprint class not found: " .. blueprintPath)
+        "Enemy " .. kind .. " Blueprint class not found: " .. blueprintPath)
+    actor:setMapTag(reserveDefeatSpawnTag(context, tagSuffix))
+    actor:setMapPosition(copy(context.position))
+    return actor
+end
+
+---@param blueprintPath string
+---@param position      sf.Vector2i
+---@return string
+local function createDropMapTag(blueprintPath, position)
+    local prefix = blueprintPath:gsub("^Data%.Blueprints%.", ""):gsub("%.", "_")
+    return prefix .. "_default_" .. tostring(position.x) .. "_" .. tostring(position.y)
+end
+
+---@param context       table
+---@param blueprintPath string
+---@param offset        sf.Vector2i
+---@return Source.Item | nil
+local function prepareDropActor(context, blueprintPath, offset)
+    assert(type(blueprintPath) == "string" and bool(blueprintPath),
+        "Enemy drop requires a Blueprint class path")
+    local resolvedPath = Data.resolveClassPath(blueprintPath)
+    local itemClass = assert(Data.getClass(resolvedPath),
+        "Enemy drop Blueprint class not found: " .. resolvedPath)
+    assert(Class.isSubclass(itemClass, Item),
+        "Enemy drop Blueprint must derive from Source.Item: " .. resolvedPath)
+    local position = context.position + offset
+    local mapTag = createDropMapTag(resolvedPath, position)
+    if context.gameMap:getActorByTag(mapTag) ~= nil or context.reservedTags[mapTag] then
+        Logging.warning(
+            "Skipping enemy drop %s at (%d, %d): map tag already exists: %s",
+            resolvedPath,
+            position.x,
+            position.y,
+            mapTag
+        )
+        return nil
+    end
+    local actor = assert(Data.genActorFromClassPath(resolvedPath),
+        "Enemy drop Blueprint class not found: " .. resolvedPath)
+    context.reservedTags[mapTag] = true
     actor:setMapTag(mapTag)
-    actor:setMapPosition(copy(enemy:getMapPosition()))
-    return actor, layerName
+    actor:setMapPosition(position)
+    return actor
+end
+
+---@param enemy Source.Enemy
+---@param scene Source.Scenes.SceneMap.SceneMap
+---@return Engine.Actor | nil rebornActor
+---@return table[] droppedActors
+---@return string | nil layerName
+local function prepareDefeatSpawns(enemy, scene)
+    ---@type string | nil
+    local blueprintPath = enemy.infoComp.special[Special.Reborn]
+    local drops = enemy:getDrops()
+    if blueprintPath == nil and not bool(drops) then
+        return nil, {}, nil
+    end
+    local context = createDefeatSpawnContext(enemy, scene)
+    local rebornActor = nil
+    if blueprintPath ~= nil then
+        rebornActor = prepareDefeatSpawnActor(context, blueprintPath, "Reborn special", "Reborn")
+    end
+    local droppedActors = {}
+    for _, dropPath in ipairs(table.orderedStringKeys(drops)) do
+        local actor = prepareDropActor(context, dropPath, drops[dropPath])
+        if actor ~= nil then
+            droppedActors[#droppedActors + 1] = actor
+        end
+    end
+    return rebornActor, droppedActors, context.layerName
+end
+
+---@param scene     Source.Scenes.SceneMap.SceneMap
+---@param actor     Engine.Actor
+---@param layerName string
+local function spawnPersistentActor(scene, actor, layerName)
+    scene:getGameMap():spawnActor(actor, layerName)
+    scene:recordAddedActor(actor)
 end
 
 ---@class Source.Enemy
@@ -77,11 +173,13 @@ function Enemy:init(texture, rect, tag)
     self._defeatFinalising = false
     self._defeatFinalised = false
     self:initInfo(Data)
-    self:_syncInitialHP()
 end
 
 function Enemy:_normaliseChildActorComp()
-    self.childActorComp = ComponentsFunctions.componentFromData(ChildActorComponent, self.childActorComp)
+    local value = self.childActorComp
+    if not Class.hasOwnField(self, "childActorComp") or not Class.isInstance(value, ChildActorComponent) then
+        self.childActorComp = ComponentsFunctions.componentFromData(ChildActorComponent, value)
+    end
 end
 
 function Enemy:battle()
@@ -93,7 +191,7 @@ function Enemy:battle()
         return 1
     end
     local won = damage < player.infoComp.HP
-    player.infoComp.HP = Engine.ToInteger(player.infoComp.HP - damage)
+    player.infoComp.HP = player.infoComp.HP - damage
     scene:getGameMap():addDamageText(tostring(damage), player:getPosition())
     if not won then
         return 1
@@ -103,7 +201,7 @@ end
 
 function Enemy:afterBattle(against)
     local player = against
-    for specialKey, stackValue in pairs(self:getSpecial()) do
+    for specialKey in pairs(self:getSpecial()) do
         ---@type string | nil
         local specialType = nil
         if specialKey == Special.Poisoning then
@@ -112,26 +210,12 @@ function Enemy:afterBattle(against)
             specialType = State.Weak
         end
         if specialType ~= nil then
-            local stacks = Enemy._resolveSpecialStacks(stackValue)
+            local stacks = self:getSpecialIntValue(specialKey)
             if stacks > 0 then
                 player:addState(specialType, stacks)
             end
         end
     end
-end
-
----@param stackValue boolean | string | number
----@return integer
-function Enemy._resolveSpecialStacks(stackValue)
-    local resolved = stackValue
-    if type(stackValue) == "string" then
-        resolved = Engine.Eval(stackValue)
-    end
-    local value = tonumber(resolved)
-    if value == nil then
-        return 0
-    end
-    return math.max(0, math.tointeger(value) or math.floor(value))
 end
 
 function Enemy:getSpecial()
@@ -144,18 +228,16 @@ end
 
 function Enemy:getDrops()
     local result = {}
-    for index, value in ipairs(self.infoComp.drops or {}) do
-        result[index] = value
+    for blueprintPath, offset in pairs(self.infoComp.drops) do
+        result[blueprintPath] = copy(offset)
     end
     return result
 end
 
 function Enemy:getCriticalValue(battler)
-    self:_normaliseInfoComp()
-    battler:normaliseInfoComp()
-    local attackerATK = Engine.ToInteger(battler:getATK(self))
-    local enemyDEF = Engine.ToInteger(self:getDEF(battler))
-    local enemyHP = Engine.ToInteger(self.infoComp.MAXHP)
+    local attackerATK = battler:getATK(self)
+    local enemyDEF = self:getDEF(battler)
+    local enemyHP = self.infoComp.MAXHP
     if attackerATK <= enemyDEF then
         return enemyDEF + 1
     end
@@ -194,7 +276,7 @@ function Enemy:onCollision(other)
                     if bool(self._defeatFinalised) then
                         return
                     end
-                    local rebornEnemy, rebornLayer = createRebornEnemy(self, scene)
+                    local rebornEnemy, droppedActors, spawnLayer = prepareDefeatSpawns(self, scene)
                     self._defeatFinalised = true
                     scene:recordDestroyedActor(self)
                     if bool(Enemy.DefeatShatterEffectEnabled) then
@@ -202,9 +284,13 @@ function Enemy:onCollision(other)
                     end
                     self:destroy()
                     if rebornEnemy ~= nil then
-                        ---@cast rebornLayer string
-                        scene:getGameMap():spawnActor(rebornEnemy, rebornLayer)
-                        scene:recordAddedActor(rebornEnemy)
+                        ---@cast spawnLayer string
+                        spawnPersistentActor(scene, rebornEnemy, spawnLayer)
+                    end
+                    for _, droppedActor in ipairs(droppedActors) do
+                        ---@cast spawnLayer string
+                        spawnPersistentActor(scene, droppedActor, spawnLayer)
+                        droppedActor:triggerEvent("onDrop")
                     end
                     player.infoComp.GOLD = player.infoComp.GOLD + gold
                     player.infoComp.EXP = player.infoComp.EXP + exp

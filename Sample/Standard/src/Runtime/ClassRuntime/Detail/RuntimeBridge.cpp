@@ -73,8 +73,8 @@ bool objectsRawEqual(const sol::object& left, const sol::object& right) {
     return class_runtime::rawEqual(left, right);
 }
 
-sol::object clonePlainDataImpl(sol::state_view lua, const sol::object& value) {
-    return class_runtime::clonePlainData(lua, value);
+sol::object deepCopyImpl(sol::state_view lua, const sol::object& value) {
+    return class_runtime::deepCopy(lua, value);
 }
 
 }  // namespace
@@ -505,7 +505,7 @@ int runtimeClassResolverImpl(lua_State* state) {
         return invokeRuntimeCallable(lua, first, second);
     }
     if (operation == "reflect.clone") {
-        return runtimeResolverResult(lua, {clonePlainDataImpl(lua, first)});
+        return runtimeResolverResult(lua, {deepCopyImpl(lua, first)});
     }
     lua_remove(state, 1);
     return callRuntimeService(state, operation, arguments.count);

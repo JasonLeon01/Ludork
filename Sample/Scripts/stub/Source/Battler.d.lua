@@ -13,7 +13,6 @@ local DamageType = {}
 ---@class Source.Battler.Battler
 ---@field DamageType { NORMAL: Source.Battler.DamageType, UNDEFEATABLE: Source.Battler.DamageType }
 ---@field infoComp Source.Components.BattlerInfoComponent
----@field _loading boolean
 ---@field _combatRevision integer
 ---@field _monitoredInfoComp Source.Components.BattlerInfoComponent | nil
 ---@field _combatMonitorParams table
@@ -26,9 +25,6 @@ local Battler = {}
 --- - @param attrs Optional dictionary of attribute overrides.
 ---@param attrs? table<string, Source.Battler.AttributeValue>
 function Battler:init(attrs) end
-
---- @brief Ensure `infoComp` matches this battler's expected component type.
-function Battler:normaliseInfoComp() end
 
 ---@return integer
 function Battler:getCombatRevision() end

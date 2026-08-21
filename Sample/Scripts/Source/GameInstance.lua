@@ -47,7 +47,7 @@ end
 ---@param mapChanges table<string, table<string, Source.GameInstance.TerrainChangeRecord>>
 ---@param layerName  string
 ---@param position   sf.Vector2i
----@param tileID     Source.GameInstance.TerrainTileID
+---@param tileID     Global.GameMap.TerrainTileID
 local function storeTerrainChange(mapChanges, layerName, position, tileID)
     local layerChanges = mapChanges[layerName]
     if layerChanges == nil then
@@ -103,6 +103,7 @@ function GameInstance:init(skipDefaultPlayer)
 end
 
 function GameInstance:asDict()
+    ---@cast self._players table<string, Source.Player.Player>
     local players = {}
     for _, playerKey in ipairs(self._playerKeys) do
         local player = assert(self._players[playerKey], "Player data is missing for key: " .. playerKey)
@@ -222,6 +223,7 @@ end
 function GameInstance:getPlayerByTag(tag)
     for _, playerKey in ipairs(self._playerKeys) do
         local player = self._players[playerKey]
+        ---@cast player Source.Player.Player
         if player.tag == tag then
             return player
         end
@@ -241,6 +243,7 @@ function GameInstance:removePlayerByClass(playerClass)
     end
     for index, playerKey in ipairs(self._playerKeys) do
         local player = self._players[playerKey]
+        ---@cast player Source.Player.Player
         if player:getClassPath() == playerClass then
             table.remove(self._playerKeys, index)
             self._players[playerKey] = nil
@@ -589,7 +592,7 @@ function GameInstance._normaliseTerrainDestructions(terrainDestructions)
         result[MapPath.Normalise(mapPath)] = mapChanges
         for layerName, changes in pairs(layerChanges) do
             for _, change in ipairs(changes) do
-                ---@type Source.GameInstance.TerrainTileID
+                ---@type Global.GameMap.TerrainTileID
                 local tileID
                 if change.tileID ~= cjson.null then
                     local savedTileID = change.tileID
@@ -631,7 +634,7 @@ end
 ---@param mapPath             string
 ---@param layerName           string
 ---@param position            sf.Vector2i
----@param tileID              Source.GameInstance.TerrainTileID
+---@param tileID              Global.GameMap.TerrainTileID
 function GameInstance._storeTerrainChange(terrainDestructions, mapPath, layerName, position, tileID)
     local mapChanges = terrainDestructions[mapPath]
     if mapChanges == nil then

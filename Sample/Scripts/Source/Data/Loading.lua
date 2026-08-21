@@ -9,6 +9,29 @@ local Vector2Curve = Engine.Vector2Curve
 local Vector3Curve = Engine.Vector3Curve
 local Vector4Curve = Engine.Vector4Curve
 
+---@type table<string, boolean>
+local generalDataScalarTypes = {
+    any = true,
+    bool = true,
+    file = true,
+    float = true,
+    int = true,
+    string = true,
+    ["sf.Color"] = true,
+    ["sf.IntRect"] = true,
+    ["sf.Vector2f"] = true,
+    ["sf.Vector2i"] = true,
+    ["sf.Vector2u"] = true,
+    ["sf.Vector3f"] = true,
+    ["sf.Vector3i"] = true,
+    ["sf.Vector3u"] = true,
+}
+
+---@type table<string, boolean>
+local generalDataTypes = deepcopy(generalDataScalarTypes)
+generalDataTypes.list = true
+generalDataTypes.dict = true
+
 local categoryFields = {
     animations = "_animationData",
     commonFunctions = "_commonFunctionsData",
@@ -20,6 +43,194 @@ local categoryFields = {
 }
 
 local DataLoading = {}
+
+---@param relativePath string
+---@param context      string
+---@param message      string
+local function generalDataError(relativePath, context, message)
+    error(string.format("Invalid General Data %s in %s: %s", context, relativePath, message))
+end
+
+---@param value any
+---@return boolean
+local function isArray(value)
+    if type(value) ~= "table" then
+        return false
+    end
+    local count = 0
+    local maximum = 0
+    for key in pairs(value) do
+        if type(key) ~= "number" or math.type(key) ~= "integer" or key < 1 then
+            return false
+        end
+        count = count + 1
+        maximum = math.max(maximum, key)
+    end
+    return count == maximum
+end
+
+---@param value any
+---@return boolean
+local function isDictionary(value)
+    if type(value) ~= "table" then
+        return false
+    end
+    for key in pairs(value) do
+        if type(key) ~= "string" then
+            return false
+        end
+    end
+    return true
+end
+
+---@param value        any
+---@param typeName     string
+---@param relativePath string
+---@param context      string
+---@return any
+local function canonicaliseGeneralScalar(value, typeName, relativePath, context)
+    if typeName == "any" then
+        return value
+    end
+    if typeName == "string" or typeName == "file" then
+        if type(value) ~= "string" then
+            generalDataError(relativePath, context, "expected " .. typeName)
+        end
+        return value
+    end
+    if typeName == "bool" then
+        if type(value) ~= "boolean" then
+            generalDataError(relativePath, context, "expected bool")
+        end
+        return value
+    end
+    if typeName == "int" then
+        if type(value) ~= "number" or math.type(value) ~= "integer" then
+            generalDataError(relativePath, context, "expected int")
+        end
+        return value
+    end
+    if typeName == "float" then
+        if type(value) ~= "number" then
+            generalDataError(relativePath, context, "expected float")
+        end
+        return value + 0.0
+    end
+    if not generalDataScalarTypes[typeName] then
+        generalDataError(relativePath, context, "unsupported type " .. tostring(typeName))
+    end
+    if not isArray(value) then
+        generalDataError(relativePath, context, "expected JSON array for " .. typeName)
+    end
+    local result = Engine.resolveTypedDataValue(value, typeName)
+    local sfTypeName = typeName:sub(4)
+    local sfType = sf[sfTypeName]
+    if sfType == nil or not Class.isInstance(result, sfType) then
+        generalDataError(relativePath, context, "could not construct " .. typeName)
+    end
+    return result
+end
+
+---@param value        any
+---@param typeName     string
+---@param param        table
+---@param relativePath string
+---@param context      string
+---@return any
+local function canonicaliseGeneralValue(value, typeName, param, relativePath, context)
+    if typeName == "list" then
+        local itemType = param.itemType
+        if type(itemType) ~= "string" or not bool(itemType) then
+            generalDataError(relativePath, context, "list requires itemType")
+        end
+        if not generalDataScalarTypes[itemType] then
+            generalDataError(relativePath, context, "unsupported itemType " .. tostring(itemType))
+        end
+        if not isArray(value) then
+            generalDataError(relativePath, context, "expected JSON array")
+        end
+        local result = {}
+        for index, item in ipairs(value) do
+            result[index] = canonicaliseGeneralScalar(
+                item, itemType, relativePath, context .. "[" .. tostring(index) .. "]"
+            )
+        end
+        return result
+    end
+    if typeName == "dict" then
+        local valueType = param.valueType
+        if type(valueType) ~= "string" or not bool(valueType) then
+            generalDataError(relativePath, context, "dict requires valueType")
+        end
+        if not generalDataScalarTypes[valueType] then
+            generalDataError(relativePath, context, "unsupported valueType " .. tostring(valueType))
+        end
+        if not isDictionary(value) then
+            generalDataError(relativePath, context, "expected JSON object with string keys")
+        end
+        local result = {}
+        for key, item in pairs(value) do
+            result[key] = canonicaliseGeneralScalar(
+                item, valueType, relativePath, context .. "." .. key
+            )
+        end
+        return result
+    end
+    return canonicaliseGeneralScalar(value, typeName, relativePath, context)
+end
+
+---@param payload      table
+---@param relativePath string
+local function canonicaliseGeneralData(payload, relativePath)
+    local params = payload.params
+    if not isDictionary(params) then
+        generalDataError(relativePath, "schema", "params must be a JSON object")
+    end
+    local members = payload.members
+    if not isDictionary(members) then
+        generalDataError(relativePath, "schema", "members must be a JSON object")
+    end
+    for fieldName, param in pairs(params) do
+        if type(param) ~= "table" then
+            generalDataError(relativePath, "parameter " .. fieldName, "definition must be a JSON object")
+        end
+        local typeName = param.type
+        if type(typeName) ~= "string" or not generalDataTypes[typeName] then
+            generalDataError(
+                relativePath, "parameter " .. fieldName, "unsupported type " .. tostring(typeName)
+            )
+        end
+        if rawget(param, "defaultValue") == nil then
+            generalDataError(relativePath, "parameter " .. fieldName, "defaultValue is required")
+        end
+        canonicaliseGeneralValue(
+            param.defaultValue, typeName, param, relativePath, "parameter " .. fieldName .. ".defaultValue"
+        )
+    end
+    for memberName, member in pairs(members) do
+        if not isDictionary(member) then
+            generalDataError(relativePath, "member " .. memberName, "must be a JSON object")
+        end
+        for fieldName in pairs(member) do
+            if fieldName:sub(1, 1) ~= "_" and params[fieldName] == nil then
+                generalDataError(relativePath, "member " .. memberName, "unknown field " .. fieldName)
+            end
+        end
+        for fieldName, param in pairs(params) do
+            local value = rawget(member, fieldName)
+            if value == nil then
+                generalDataError(relativePath, "member " .. memberName, "missing field " .. fieldName)
+            end
+            member[fieldName] = canonicaliseGeneralValue(
+                value,
+                param.type,
+                param,
+                relativePath,
+                "member " .. memberName .. "." .. fieldName
+            )
+        end
+    end
+end
 
 function DataLoading:init(data)
     self._data = data
@@ -53,14 +264,14 @@ function DataLoading:normaliseJsonNull(value, seen)
     end
     local result = {}
     seen[value] = result
-    local isArray = true
+    local arrayValue = true
     for key in pairs(value) do
         if type(key) ~= "number" or key < 1 or key % 1 ~= 0 then
-            isArray = false
+            arrayValue = false
             break
         end
     end
-    if isArray then
+    if arrayValue then
         for index = 1, #value do
             local item = value[index]
             result[index] = item == cjson.null and cjson.null or self:normaliseJsonNull(item, seen)
@@ -193,6 +404,7 @@ function DataLoading:applyInitialLoadItem(stage, item)
     elseif category == "general" then
         payload.type = nil
         name = self:splitCompound(relativePath)
+        canonicaliseGeneralData(payload, relativePath)
         stage._generalData[name] = payload
     elseif category == "curves" then
         local curveType = payload.type

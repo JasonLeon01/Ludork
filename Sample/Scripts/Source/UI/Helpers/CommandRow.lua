@@ -33,6 +33,7 @@ function CommandRowController:refresh()
     if self.model.localeKey ~= nil then
         text = LOC(self.model.localeKey)
     end
+    ---@cast text string
     self._label:setString(text)
     UiControlFactory.layoutCenteredTextRow(self.root, self._label, 0.0)
 end

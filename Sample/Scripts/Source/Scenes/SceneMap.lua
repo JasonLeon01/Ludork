@@ -554,8 +554,8 @@ function Scene:showEnemyBook()
 end
 
 function Scene:showFloorTeleporter()
-    if (not self:_canOpenMenu() and not self:_canOpenItemOverlay()) or not self.player:hasItem(FLOOR_TELEPORTER_ITEM_ID)
-        or not self:_canUseFloorTeleporterByAsideConstraint() then
+    if (not self:_canOpenMenu() and not self:_canOpenItemOverlay())
+        or not self.player:hasItem(FLOOR_TELEPORTER_ITEM_ID) then
         return
     end
     if not self._windowFloorTeleporter:getVisible() then
@@ -565,30 +565,6 @@ function Scene:showFloorTeleporter()
     self:_recordCurrentFloorTelepoint()
     self._windowFloorTeleporter:open(self.inst)
     self:_blockMapInput(2)
-end
-
----@return boolean
-function Scene:_canUseFloorTeleporterByAsideConstraint()
-    local itemData = Data.getGeneralItemData(FLOOR_TELEPORTER_ITEM_ID)
-    local kwargs = itemData.kwargs
-    if kwargs == nil then
-        return true
-    end
-    local flag = rawget(kwargs, "CanOnlyUseAsideTeleporter") or false
-    if type(flag) == "string" then
-        flag = Engine.evalDataExpression(flag)
-    end
-    if not bool(flag) then
-        return true
-    end
-    local gameMap = self:getGameMap()
-    local player = gameMap:getPlayer()
-    if player == nil then
-        return false
-    end
-    local Teleporter = require("Source.Teleporter")
-
-    return Teleporter.isAsideOrOverlapping(gameMap:getAllActors(), player:getMapPosition())
 end
 
 function Scene:openMenu()
@@ -928,6 +904,7 @@ function Scene:tryAdjacentFloorSamePos(step)
     if not bool(sourceMap) then
         return false
     end
+    ---@cast sourceMap string
     local regionMaps = RegionDict[self.inst:getCurrentRegion()] or {}
     local currentIndex = Teleporter._findCurrentMapIndex(regionMaps, sourceMap)
     if currentIndex == nil then

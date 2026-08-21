@@ -684,7 +684,9 @@ public sealed class BlueprintEditorWindow : Window
         resolvedClass = resolved;
         resolvedParent = resolveParentClass();
         revertActions.Clear();
-        variableForm.SetFields(fieldBuilder.Build(resolved));
+        variableForm.SetFields(fieldBuilder.Build(
+            resolved,
+            document.Kind == BlueprintEditorDocumentKind.Blueprint));
         updateGraphMode();
         refreshing = false;
         refreshGraphList(null, false);
@@ -700,7 +702,9 @@ public sealed class BlueprintEditorWindow : Window
         resolvedClass = resolved;
         resolvedParent = resolveParentClass();
         revertActions.Clear();
-        variableForm.SetFields(fieldBuilder.Build(resolved));
+        variableForm.SetFields(fieldBuilder.Build(
+            resolved,
+            document.Kind == BlueprintEditorDocumentKind.Blueprint));
         updateGraphMode();
         refreshing = false;
     }
@@ -934,6 +938,8 @@ public sealed class BlueprintEditorWindow : Window
         }
         if (args.Name == "scriptMixin")
             flushGraphViews();
+        bool generalDataSelectorChanged = resolvedClass is not null
+            && fieldBuilder.IsGeneralDataSelector(resolvedClass, args.Name);
         if (!document.CommitAttribute(args.Name, args.Value))
             return;
         if (revertActions.TryGetValue(
@@ -941,6 +947,15 @@ public sealed class BlueprintEditorWindow : Window
             out (Button Button, JsonNode? ParentValue) action))
         {
             action.Button.IsEnabled = !JsonNode.DeepEquals(args.Value, action.ParentValue);
+        }
+        if (generalDataSelectorChanged)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                refreshAttributes();
+                refreshPreview(resolvedClass);
+            });
+            return;
         }
         if (args.RequiresRefresh || args.Name == "scriptMixin")
         {

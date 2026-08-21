@@ -1,6 +1,7 @@
 ---@meta Source.NodeFunctions.System
 
----@alias Source.NodeFunctions.System.SoundFilterValue boolean | number | sf.Time | sf.Vector3f | sf.SoundSource.Cone | sf.Music.TimeSpan | nil
+---@alias Source.NodeFunctions.System.SoundFilterValue boolean | number | sf.Time | sf.Vector3f | sf.SoundSource.Cone | nil
+---@alias Source.NodeFunctions.System.MusicFilterValue Source.NodeFunctions.System.SoundFilterValue | sf.Music.TimeSpan
 
 ---@class Source.NodeFunctions.System.TransitionCondition
 ---@field _started boolean
@@ -30,7 +31,7 @@ function FrozenCondition:isFinished() end
 function System.EditSoundFilter(attr, value) end
 
 ---@param attr  string
----@param value Source.NodeFunctions.System.SoundFilterValue
+---@param value Source.NodeFunctions.System.MusicFilterValue
 function System.EditMusicFilter(attr, value) end
 
 ---Select a native audio-effect preset for future playback in one category.
@@ -69,11 +70,11 @@ function System.FreezeTransitionBackground() end
 function System.RequestTransition(transitionName, transitionTime) end
 
 ---@param attr  string
----@param value Source.NodeFunctions.System.SoundFilterValue
+---@param value Source.NodeFunctions.System.MusicFilterValue
 function System.SetBgmFilter(attr, value) end
 
 ---@param attr  string
----@param value Source.NodeFunctions.System.SoundFilterValue
+---@param value Source.NodeFunctions.System.MusicFilterValue
 function System.SetBgsFilter(attr, value) end
 
 ---@param red      integer

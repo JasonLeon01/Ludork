@@ -1,16 +1,42 @@
 ---@meta Source.Data
 ---@alias Source.Data.ClassVarValue nil|boolean|number|string|table|userdata
 ---@alias Source.Data.JsonValue nil|boolean|number|string|table
+---@alias Source.Data.GeneralValue boolean|number|string|table|userdata
+---@alias Source.Data.CurveValue Engine.Curve | Engine.Vector2Curve | Engine.Vector3Curve | Engine.Vector4Curve
+
+---@class Source.Data.TextStyleValues
+---@field characterSize? integer
+---@field bold? boolean
+---@field italic? boolean
+---@field underlined? boolean
+---@field strikeThrough? boolean
+---@field fillColor? sf.Color
+---@field letterSpacing? number
+---@field lineSpacing? number
+---@field outlineColor? sf.Color
+---@field outlineThickness? number
+
+---@class Source.Data.EnemySpecialValues
+---@field Poisoning? integer
+---@field Weaken? integer
+---@field Hard? boolean
+---@field Magic? boolean
+---@field MultiHit? integer
+---@field Compete? boolean
+---@field Domain? integer
+---@field Flank? boolean
+---@field Blockade? boolean
+---@field Reborn? string
 
 ---@class Source.Data.InitialLoadStage
 ---@field _animationData       table<string, Engine.AnimationData>
----@field _curveData           table
+---@field _curveData           table<string, Source.Data.CurveValue>
 ---@field _curveTypes          table<string, string>
 ---@field _textConfigData      table<string, table>
 ---@field _commonFunctionsData table
 ---@field _tilesetData         table<string, Engine.Tileset>
 ---@field _autoTileData        table<string, Engine.AutoTile>
----@field _generalData         table
+---@field _generalData         table<string, table<string, Source.Data.GeneralValue>>
 ---@field _aborted             boolean
 ---@field _committed           boolean
 
@@ -44,19 +70,27 @@
 
 ---@class Source.Data.GeneralEquipData : Source.Data.GeneralMemberData
 ---@field slot string
----@field attrPlus table<string, string|number>
+---@field attrPlus table<string, integer>
+
+---@class Source.Data.GeneralEnemyData : Source.Data.GeneralMemberData
+---@field MAXHP         integer
+---@field ATK           integer
+---@field DEF           integer
+---@field EXP           integer
+---@field GOLD          integer
+---@field drops         table<string, sf.Vector2i>
+---@field special       Source.Data.EnemySpecialValues
+---@field ANIMATION_KEY string
 
 ---@class Source.Data.GeneralItemData : Source.Data.GeneralMemberData
 ---@field usable boolean
 ---@field price integer
 ---@field cost boolean
----@field kwargs table<string, Source.Data.JsonValue> | nil
 
 ---@class Source.Data.GeneralStateData : Source.Data.GeneralMemberData
 ---@field stackable boolean
 
 ---@class Source.Data.GeneralSpecialData : Source.Data.GeneralMemberData
----@field kwargs table<string, Source.Data.JsonValue>
 local Data = {}
 
 ---@return Source.Data.InitialLoadStage
@@ -202,9 +236,9 @@ function Data.hasAutoTile(name) end
 --- @brief Get general data by name.
 ---
 --- - @param name The data name.
---- - @return General data dictionary.
+--- - @return General data dictionary whose member fields have already been canonicalised from their schema.
 ---@param name string
----@return table<string, Source.Data.JsonValue>
+---@return table<string, Source.Data.GeneralValue>
 function Data.getGeneralData(name) end
 
 --- @brief Get class data by its key.
@@ -220,7 +254,7 @@ function Data.getGeneralClassData(key) end
 --- - @param enemyKey The enemy key.
 --- - @return Enemy data dictionary.
 ---@param key string
----@return Source.Data.GeneralMemberData
+---@return Source.Data.GeneralEnemyData
 function Data.getGeneralEnemyData(key) end
 
 --- @brief Get player data by its key.
@@ -278,9 +312,9 @@ function Data.getGeneralStateData(key) end
 --- @brief Get a class by its blueprint path.
 ---
 --- - @param classPath The class path.
---- - @return The class type.
+--- - @return The class type, or nil when the path is not registered.
 ---@param classPath string
----@return Class.ClassType<any>
+---@return Class.ClassType<any> | nil
 function Data.getClass(classPath) end
 
 --- @brief Get class data by its blueprint path.

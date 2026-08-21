@@ -14,7 +14,7 @@ local actorHueShader = nil
 local Render = {}
 
 local function normaliseSignatureNumber(value)
-    local number = tonumber(value) or 0.0
+    local number = value
     if math.abs(number) <= 0.000000001 then
         number = 0.0
     end
@@ -175,7 +175,7 @@ function Render.GetRealSize(inSize)
 end
 
 function Render.NormaliseActorHue(hue)
-    return (tonumber(hue) or 0.0) % 360.0
+    return hue % 360.0
 end
 
 function Render.IsNeutralActorHue(hue)
@@ -214,7 +214,7 @@ function Render.CaptureActorVisual(actor)
         hasShaderError = shaderError,
         hue = Render.NormaliseActorHue(actor.hue or 0.0),
         animatable = actor:getAnimatable(),
-        switchInterval = tonumber(actor.switchInterval) or 0.2
+        switchInterval = actor.switchInterval
     }
 end
 
@@ -246,10 +246,10 @@ function Render.CreateActorPreview(visual)
     local sourceRect = copy(visual.rect or visual.textureRect)
     ---@cast sourceRect sf.IntRect
     local sourceSize = sf.Vector2u.new(
-        math.max(1, math.floor(math.abs(sourceRect.size.x))), math.max(1, math.floor(math.abs(sourceRect.size.y)))
+        math.max(1, math.abs(sourceRect.size.x)), math.max(1, math.abs(sourceRect.size.y))
     )
     ---@cast sourceSize sf.Vector2u
-    local previewSize = math.max(1, math.floor(Engine.CellSize))
+    local previewSize = math.max(1, Engine.CellSize)
     ---@cast previewSize integer
     local outputSize = sf.Vector2u.new(previewSize, previewSize)
     ---@cast outputSize sf.Vector2u
@@ -276,7 +276,7 @@ function Render.CreateActorPreview(visual)
         shaderError = visual.shaderError == true or visual.hasShaderError == true,
         hue = hue,
         animatable = bool(visual.animatable),
-        switchInterval = tonumber(visual.switchInterval) or 0.2,
+        switchInterval = visual.switchInterval or 0.2,
         switchTimer = 0.0,
         shaderTime = 0.0,
         size = previewSize,

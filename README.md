@@ -98,7 +98,7 @@ The initialisation script prepares the native dependencies and the editor-owned 
 ## Documentation and support
 
 - Start with the [Ludork documentation](docs/en_GB/00.Ludork%20Documentation.md).
-- Follow [Getting Started](docs/en_GB/01.Getting%20Started/00.Overview.md) for installation, project creation, running, and packaging.
+- Follow [Getting Started](docs/en_GB/01.Getting%20Started/01.Create%20Your%20First%20Project.md) for project creation, running, and packaging.
 - Report reproducible faults and request features through [GitHub Issues](https://github.com/JasonLeon01/Ludork/issues).
 
 When reporting a problem, include Ludork 1.0.0, your operating system, the selected template, the steps to reproduce the problem, and the relevant Console output. Do not attach projects containing credentials or content you cannot redistribute.

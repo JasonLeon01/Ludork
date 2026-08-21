@@ -116,7 +116,7 @@ end
 function System.RequestTransition(transitionName, transitionTime)
     transitionName = transitionName == nil and "" or transitionName
     transitionTime = transitionTime == nil and 1.0 or transitionTime
-    GlobalSystem.requestTransition(transitionName, tonumber(transitionTime))
+    GlobalSystem.requestTransition(transitionName, transitionTime)
     return FinalTransitionCondition.new()
 end
 
@@ -134,9 +134,7 @@ function System.FlashScreen(red, green, blue, alpha, duration)
     blue = blue == nil and 255 or blue
     alpha = alpha == nil and 255 or alpha
     duration = duration == nil and 0.5 or duration
-    GlobalSystem.flashScreen(
-        sf.Color.new((math.modf(red)), (math.modf(green)), (math.modf(blue)), (math.modf(alpha))), tonumber(duration)
-    )
+    GlobalSystem.flashScreen(sf.Color.new(red, green, blue, alpha), duration)
 end
 
 function System.StopFlashScreen()
@@ -149,19 +147,19 @@ function System.ChangeScreenTone(red, green, blue, gray, duration)
     blue = blue == nil and 0 or blue
     gray = gray == nil and 0 or gray
     duration = duration == nil and 0.0 or duration
-    GlobalSystem.changeScreenTone(tonumber(red), tonumber(green), tonumber(blue), tonumber(gray), tonumber(duration))
+    GlobalSystem.changeScreenTone(red, green, blue, gray, duration)
 end
 
 function System.ClearScreenTone(duration)
     duration = duration == nil and 0.0 or duration
-    GlobalSystem.clearScreenTone(tonumber(duration))
+    GlobalSystem.clearScreenTone(duration)
 end
 
 function System.ScreenShake(power, speed, duration)
     power = power == nil and 4.0 or power
     speed = speed == nil and 10.0 or speed
     duration = duration == nil and 0.5 or duration
-    GlobalSystem.startShake(tonumber(power), tonumber(speed), tonumber(duration))
+    GlobalSystem.startShake(power, speed, duration)
 end
 
 function System.StopScreenShake()
@@ -181,7 +179,7 @@ end
 function System.SetWeather(weatherType, power, maxCount)
     power = power == nil and 40 or power
     maxCount = maxCount == nil and 80 or maxCount
-    GlobalSystem.setWeather(coerceWeatherType(weatherType), (math.modf(power)), (math.modf(maxCount)))
+    GlobalSystem.setWeather(coerceWeatherType(weatherType), power, maxCount)
 end
 
 function System.ClearWeather()

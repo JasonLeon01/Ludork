@@ -2,23 +2,29 @@
     "params": {
         "name": {
             "type": "string",
+            "comment": "The display name of this equipment.",
             "defaultValue": ""
         },
         "desc": {
             "type": "string",
+            "comment": "The display description of this equipment.",
             "defaultValue": ""
         },
         "icon": {
             "type": "file",
+            "comment": "The icon asset path relative to Assets.",
             "defaultValue": "Icons"
         },
         "slot": {
             "type": "string",
+            "comment": "The Class slot key occupied by this equipment.",
             "defaultValue": ""
         },
         "attrPlus": {
             "type": "dict",
-            "defaultValue": {}
+            "comment": "Attribute names mapped to integer modifiers applied while this equipment is equipped.",
+            "defaultValue": {},
+            "valueType": "int"
         }
     },
     "members": {
@@ -28,7 +34,7 @@
             "icon": "Icons/classic-equips-2-0.png",
             "slot": "weapon",
             "attrPlus": {
-                "ATK": "10"
+                "ATK": 10
             },
             "_graph": {
                 "nodeGraph": {
@@ -53,7 +59,7 @@
             "icon": "Icons/classic-equips-3-0.png",
             "slot": "shield",
             "attrPlus": {
-                "DEF": "10"
+                "DEF": 10
             }
         }
     },

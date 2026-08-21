@@ -13,7 +13,6 @@ BattlerInfoComponent.DEF = 10
 BattlerInfoComponent.EXP = 0
 BattlerInfoComponent.GOLD = 0
 BattlerInfoComponent.ANIMATION_KEY = ""
-BattlerInfoComponent.HP = 0
 
 function BattlerInfoComponent:init(values)
     values = values or {}

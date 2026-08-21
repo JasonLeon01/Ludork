@@ -40,9 +40,8 @@ public:
     void executeInfoGraph(const RuntimeValue& object,
                           const std::string& eventName,
                           const RuntimeValue& keywordArguments) const;
-    RuntimeValue resolveGeneralDataDictionary(const RuntimeValue& value) const;
-    void applyGeneralData(const RuntimeValue& object, const RuntimeValue& data,
-                          const RuntimeValue& parameterTypes) const;
+    void applyGeneralData(const RuntimeValue& object,
+                          const RuntimeValue& data) const;
     void initializeInfo(const RuntimeValue& object,
                         const RuntimeIdentityPtr& dataProvider) const;
     std::vector<std::string> registeredEvents(

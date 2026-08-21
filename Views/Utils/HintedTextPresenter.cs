@@ -13,6 +13,9 @@ namespace Ludork.Views.Utils;
 
 public sealed class HintedTextPresenter : StackPanel
 {
+    private const double TextBoxHintMaxWidthRatio = 0.5;
+    private const double InitialTextBoxHintMaxWidth = 320;
+
     public static readonly StyledProperty<string?> TextProperty =
         AvaloniaProperty.Register<HintedTextPresenter, string?>(nameof(Text));
     public static readonly StyledProperty<bool> ShowTextProperty =
@@ -41,6 +44,7 @@ public sealed class HintedTextPresenter : StackPanel
         {
             Foreground = new SolidColorBrush(Color.Parse("#888888")),
             VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
         };
         hintBorder = new Border
         {
@@ -136,8 +140,10 @@ public sealed class HintedTextPresenter : StackPanel
             {
                 ShowText = false,
             };
+            presenter.hintBorder.MaxWidth = InitialTextBoxHintMaxWidth;
             textBox.InnerRightContent = presenter;
             textBox.TextChanged += onTextChanged;
+            textBox.SizeChanged += onSizeChanged;
             Update();
         }
 
@@ -149,6 +155,7 @@ public sealed class HintedTextPresenter : StackPanel
         public void Dispose()
         {
             textBox.TextChanged -= onTextChanged;
+            textBox.SizeChanged -= onSizeChanged;
             if (ReferenceEquals(textBox.InnerRightContent, presenter))
                 textBox.InnerRightContent = null;
         }
@@ -156,6 +163,16 @@ public sealed class HintedTextPresenter : StackPanel
         private void onTextChanged(object? sender, TextChangedEventArgs args)
         {
             Update();
+        }
+
+        private void onSizeChanged(object? sender, SizeChangedEventArgs args)
+        {
+            double contentWidth = args.NewSize.Width
+                - textBox.Padding.Left
+                - textBox.Padding.Right;
+            presenter.hintBorder.MaxWidth = Math.Max(
+                0,
+                contentWidth * TextBoxHintMaxWidthRatio);
         }
     }
 }

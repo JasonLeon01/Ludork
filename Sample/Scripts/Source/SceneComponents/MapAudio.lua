@@ -135,7 +135,7 @@ function SceneMapAudioController._buildMusicFilter(data)
     if not bool(data) then
         return nil
     end
-    ---@type table<string, boolean|number|sf.Time|sf.Music.TimeSpan>
+    ---@type Source.SceneComponents.MusicFilterValues
     local values = {}
     local fields = { "loop", "pitch", "pan", "volume" }
     for _, key in ipairs(fields) do

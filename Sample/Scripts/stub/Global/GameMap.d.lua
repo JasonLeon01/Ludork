@@ -1,5 +1,7 @@
 ---@meta Global.GameMap
 
+---@alias Global.GameMap.TerrainTileID integer | string | nil
+
 --- @brief Game map managing tile layers, actors, lights, collisions, and pathfinding.
 ---
 --- Provides the core gameplay map with lighting, occlusion, actor management,
@@ -255,7 +257,7 @@ function GameMap:getTilemap() end
 --- - @return The static tile ID, autotile key, or nil.
 ---@param layerName string
 ---@param position  sf.Vector2i
----@return integer | string | nil
+---@return Global.GameMap.TerrainTileID
 function GameMap:getTerrainTile(layerName, position) end
 
 --- @brief Get all coordinates matching a terrain tile ID on one layer.
@@ -264,7 +266,7 @@ function GameMap:getTerrainTile(layerName, position) end
 --- - @param tileID The static tile ID, autotile key, or nil to find empty cells.
 --- - @return A list of matching tile coordinates.
 ---@param layerName string
----@param tileID    integer | string | nil
+---@param tileID    Global.GameMap.TerrainTileID
 ---@return sf.Vector2i[]
 function GameMap:getTerrainTilePositions(layerName, tileID) end
 
@@ -276,7 +278,7 @@ function GameMap:getTerrainTilePositions(layerName, tileID) end
 --- - @return True if the tile was replaced.
 ---@param layerName string
 ---@param position  sf.Vector2i
----@param tileID    integer | string | nil
+---@param tileID    Global.GameMap.TerrainTileID
 ---@return boolean
 function GameMap:setTerrainTile(layerName, position, tileID) end
 
@@ -288,14 +290,14 @@ function GameMap:setTerrainTile(layerName, position, tileID) end
 --- - @return The successfully changed positions.
 ---@param layerName string
 ---@param positions sf.Vector2i[]
----@param tileID    integer | string | nil
+---@param tileID    Global.GameMap.TerrainTileID
 ---@return sf.Vector2i[]
 function GameMap:setTerrainTiles(layerName, positions, tileID) end
 
 --- @brief Apply persisted terrain replacements to the current map.
 ---
 --- - @param terrainDestructions Layer-indexed terrain replacement records.
----@param terrainDestructions table<string, table<string, { position: sf.Vector2i, tileID: integer | string | nil }>>
+---@param terrainDestructions table<string, table<string, { position: sf.Vector2i, tileID: Global.GameMap.TerrainTileID }>>
 function GameMap:applyTerrainDestructions(terrainDestructions) end
 
 --- @brief Get all lights on the map.
@@ -493,7 +495,7 @@ function GameMap:worldToCanvasPosition(position) end
 ---
 --- - @param actor The querying actor.
 --- - @param targetPosition The map position to check.
---- - @return A list of colliding actors.
+--- - @return Colliding actors on the topmost occupied layer, ordered from visually topmost to bottommost.
 ---@param actor          Engine.Actor
 ---@param targetPosition sf.Vector2i
 ---@return Engine.Actor[]

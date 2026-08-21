@@ -6,9 +6,7 @@
 #include <LudorkCoreBinding/DynamicValueCodec.hpp>
 #include <NodeGraph/Graph.hpp>
 #include <Runtime/EngineClassRuntime.hpp>
-#include <RuntimeSession.hpp>
 #include <Utf8Path.hpp>
-#include <Utils/DataValue.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -21,7 +19,6 @@ extern "C" {
 #include <functional>
 #include <memory>
 #include <optional>
-#include <regex>
 #include <stdexcept>
 #include <string>
 #include <unordered_set>
@@ -29,42 +26,6 @@ extern "C" {
 #include <vector>
 
 namespace ludork::engine::runtime_detail {
-
-std::string trimRuntimeString(const std::string& value) {
-    const std::size_t start = value.find_first_not_of(" \t\r\n");
-    if (start == std::string::npos) {
-        return std::string();
-    }
-    const std::size_t end = value.find_last_not_of(" \t\r\n");
-    return value.substr(start, end - start + 1);
-}
-
-sol::object resolveGeneralDataDictionary(sol::state_view lua,
-                                         const sol::object& value) {
-    if (value.is<sol::table>()) {
-        sol::table result = lua.create_table();
-        for (const auto& entry : value.as<sol::table>()) {
-            sol::object item = entry.second;
-            if (item.is<std::string>()) {
-                const std::string text = item.as<std::string>();
-                item =
-                    trimRuntimeString(text).empty()
-                        ? sol::make_object(lua, std::string())
-                        : evaluateRuntimeExpression(lua, item, nilObject(lua));
-            }
-            result.raw_set(entry.first, item);
-        }
-        return sol::make_object(lua, result);
-    }
-    if (value.is<std::string>()) {
-        const sol::object evaluated =
-            evaluateRuntimeExpression(lua, value, nilObject(lua));
-        if (evaluated.is<sol::table>()) {
-            return resolveGeneralDataDictionary(lua, evaluated);
-        }
-    }
-    return sol::make_object(lua, lua.create_table());
-}
 
 bool setBlueprintComponentField(sol::state_view lua, const sol::object& object,
                                 const std::string& name,
@@ -76,44 +37,24 @@ bool setBlueprintComponentField(sol::state_view lua, const sol::object& object,
 }
 
 void applyBlueprintGeneralData(sol::state_view lua, const sol::object& object,
-                               const sol::object& rawData,
-                               const sol::object& rawParameterTypes) {
+                               const sol::object& rawData) {
     if (!rawData.is<sol::table>()) {
-        return;
+        throw std::invalid_argument("General Data member must be a table");
     }
-    const sol::table parameterTypes = rawParameterTypes.is<sol::table>()
-                                          ? rawParameterTypes.as<sol::table>()
-                                          : lua.create_table();
     for (const auto& entry : rawData.as<sol::table>()) {
         if (!entry.first.is<std::string>()) {
-            continue;
+            throw std::invalid_argument(
+                "General Data field name must be a string");
         }
         const std::string name = entry.first.as<std::string>();
         if (name.empty() || name.front() == '_') {
             continue;
         }
-        sol::object value = entry.second;
-        const sol::object rawParameter = parameterTypes.get<sol::object>(name);
-        if (rawParameter.is<sol::table>()) {
-            const sol::object rawType =
-                rawParameter.as<sol::table>().get<sol::object>("type");
-            const std::string type = rawType.is<std::string>()
-                                         ? rawType.as<std::string>()
-                                         : std::string();
-            if (type == "dict") {
-                value = resolveGeneralDataDictionary(lua, value);
-            } else if (type != "string" && type != "int" && type != "float" &&
-                       type != "bool" && type != "list" &&
-                       !std::regex_match(type,
-                                         std::regex(R"(^tuple\[\d+\]$)"))) {
-                value = evaluateRuntimeExpression(lua, value, nilObject(lua));
-            }
-        } else {
-            value = evaluateRuntimeExpression(lua, value, nilObject(lua));
-        }
-        if (!setBlueprintComponentField(lua, object, name, value)) {
-            runtimeAssign(lua, object, sol::make_object(lua, name), value,
-                          false);
+        if (!setBlueprintComponentField(lua, object, name, entry.second)) {
+            runtimeAssign(
+                lua, object, sol::make_object(lua, name),
+                ludork::standard::class_runtime::deepCopy(lua, entry.second),
+                false);
         }
     }
 }
@@ -134,7 +75,8 @@ void initializeBlueprintInfo(sol::this_state state, const sol::object& object,
     const sol::object rawGetGeneralData = runtimeIndex(
         lua, dataProvider, sol::make_object(lua, "getGeneralData"), false);
     if (!rawGetGeneralData.is<sol::protected_function>()) {
-        return;
+        throw std::runtime_error(
+            "General Data provider must expose getGeneralData");
     }
     sol::protected_function getGeneralData =
         rawGetGeneralData.as<sol::protected_function>();
@@ -142,25 +84,23 @@ void initializeBlueprintInfo(sol::this_state state, const sol::object& object,
         getGeneralData(rawInfoType.as<std::string>());
     sol::object rawData = checkedResult(lua, loaded);
     if (!rawData.is<sol::table>()) {
-        rawData = sol::make_object(lua, lua.create_table());
+        throw std::runtime_error("General Data definition must be a table");
     }
     const sol::table data = rawData.as<sol::table>();
     const sol::object rawMembers = data.get<sol::object>("members");
     const sol::object rawId =
         runtimeIndex(lua, object, sol::make_object(lua, "ID"), false);
     if (!rawMembers.is<sol::table>() || !rawId.is<std::string>()) {
-        return;
+        throw std::runtime_error(
+            "General Data definition requires members and a string Info ID");
     }
     const sol::object member =
         rawMembers.as<sol::table>().get<sol::object>(rawId.as<std::string>());
     if (!member.is<sol::table>()) {
-        return;
+        throw std::runtime_error("General Data member not found: " +
+                                 rawId.as<std::string>());
     }
-    sol::object parameters = data.get<sol::object>("params");
-    if (!parameters.is<sol::table>()) {
-        parameters = sol::make_object(lua, lua.create_table());
-    }
-    applyBlueprintGeneralData(lua, object, member, parameters);
+    applyBlueprintGeneralData(lua, object, member);
     const sol::object graphData =
         member.as<sol::table>().get<sol::object>("_graph");
     const sol::object rawGenerator = runtimeIndex(

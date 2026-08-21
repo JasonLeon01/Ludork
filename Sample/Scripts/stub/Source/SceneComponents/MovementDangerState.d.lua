@@ -5,11 +5,19 @@
 ---@field damage integer
 ---@field sources Source.MovementSpecials.DangerSource[]
 
+---@class Source.SceneComponents.MovementDangerEnemySnapshot
+---@field x? integer
+---@field y? integer
+---@field combatRevision? integer
+---@field infoComp? Source.Components.EnemyInfoComponent
+---@field scanRevision? integer
+
 --- @brief Cached movement-special danger grid for the current map and player.
 ---@class Source.SceneComponents.MovementDangerState: ComponentBase
 ---@field _parent GameMap
 ---@field _revision integer
 ---@field _entries Source.SceneComponents.MovementDangerEntry[]
+---@field _enemySnapshots table<Source.Enemy, Source.SceneComponents.MovementDangerEnemySnapshot>
 local MovementDangerState = {}
 
 ---@param gameMap GameMap

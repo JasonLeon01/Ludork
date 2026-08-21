@@ -470,7 +470,9 @@ std::vector<Actor*> GameMapBase::getCollisionAt(int x, int y,
     }
     const auto& descendantActors = selfActor.getDescendantActors();
     std::vector<Actor*> result;
-    for (Actor* otherActor : actorsAtCell) {
+    for (auto actorIt = actorsAtCell.rbegin(); actorIt != actorsAtCell.rend();
+         ++actorIt) {
+        Actor* otherActor = *actorIt;
         if (otherActor == &selfActor) {
             continue;
         }

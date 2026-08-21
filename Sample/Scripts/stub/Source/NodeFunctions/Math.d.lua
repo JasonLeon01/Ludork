@@ -1,5 +1,9 @@
 ---@meta Source.NodeFunctions.Math
 
+---@alias Source.NodeFunctions.Math.Vector2Value sf.Vector2f | sf.Vector2i | sf.Vector2u
+---@alias Source.NodeFunctions.Math.Vector3Value sf.Vector3f | sf.Vector3i
+---@alias Source.NodeFunctions.Math.VectorValue Source.NodeFunctions.Math.Vector2Value | Source.NodeFunctions.Math.Vector3Value
+
 ---@param x number
 ---@param y number
 ---@return sf.Vector2f
@@ -27,7 +31,7 @@ function Math.BuildVector3f(x, y, z) end
 ---@return sf.Vector3i
 function Math.BuildVector3i(x, y, z) end
 
----@param num     integer | number
+---@param num     number
 ---@param epsilon number
 ---@return boolean
 function Math.IsNearZero(num, epsilon) end
@@ -100,15 +104,16 @@ function Math.Clamp(value, min_val, max_val) end
 ---@return number
 function Math.Lerp(a, b, t) end
 
----@param value integer | number
----@return integer | number
+---@generic T: number
+---@param value T
+---@return T
 function Math.Abs(value) end
 
----@param value integer | number
+---@param value number
 ---@return integer
 function Math.ToInt(value) end
 
----@param value integer | number
+---@param value number
 ---@return number
 function Math.ToFloat(value) end
 
@@ -122,17 +127,17 @@ function Math.Max(values) end
 ---@return T
 function Math.Min(values) end
 
----@param value integer | number
----@return integer | number
+---@param value number
+---@return number
 function Math.Sqrt(value) end
 
----@param base integer | number
----@param exp  integer | number
----@return integer | number
+---@param base number
+---@param exp  number
+---@return number
 function Math.Pow(base, exp) end
 
----@param v1 sf.Vector2f | sf.Vector2i | sf.Vector2u
----@param v2 sf.Vector2f | sf.Vector2i | sf.Vector2u
+---@param v1 Source.NodeFunctions.Math.Vector2Value
+---@param v2 Source.NodeFunctions.Math.Vector2Value
 ---@return number
 function Math.Vector2Distance(v1, v2) end
 
@@ -141,24 +146,34 @@ function Math.Vector2Distance(v1, v2) end
 ---@return number
 function Math.Vector3Distance(v1, v2) end
 
----@param v1 sf.Vector2f | sf.Vector2i | sf.Vector2u
----@param v2 sf.Vector2f | sf.Vector2i | sf.Vector2u
+---@overload fun(v1: sf.Vector2f, v2: sf.Vector2f): number
+---@overload fun(v1: sf.Vector2i, v2: sf.Vector2i): number
+---@overload fun(v1: sf.Vector2u, v2: sf.Vector2u): number
+---@param v1 never
+---@param v2 never
 ---@return number
 function Math.Vector2Dot(v1, v2) end
 
----@param v1 sf.Vector3f | sf.Vector3i
----@param v2 sf.Vector3f | sf.Vector3i
+---@overload fun(v1: sf.Vector3f, v2: sf.Vector3f): number
+---@overload fun(v1: sf.Vector3i, v2: sf.Vector3i): number
+---@param v1 never
+---@param v2 never
 ---@return number
 function Math.Vector3Dot(v1, v2) end
 
----@param v1 sf.Vector2f | sf.Vector2i | sf.Vector2u
----@param v2 sf.Vector2f | sf.Vector2i | sf.Vector2u
----@return number | integer
+---@overload fun(v1: sf.Vector2f, v2: sf.Vector2f): number
+---@overload fun(v1: sf.Vector2i, v2: sf.Vector2i): number
+---@overload fun(v1: sf.Vector2u, v2: sf.Vector2u): number
+---@param v1 never
+---@param v2 never
+---@return number
 function Math.Vector2Cross(v1, v2) end
 
----@param v1 sf.Vector3f | sf.Vector3i
----@param v2 sf.Vector3f | sf.Vector3i
----@return sf.Vector3f | sf.Vector3i
+---@overload fun(v1: sf.Vector3f, v2: sf.Vector3f): sf.Vector3f
+---@overload fun(v1: sf.Vector3i, v2: sf.Vector3i): sf.Vector3i
+---@param v1 never
+---@param v2 never
+---@return never
 function Math.Vector3Cross(v1, v2) end
 
 ---@param v sf.Vector2f
@@ -169,12 +184,12 @@ function Math.Vector2Length(v) end
 ---@return number
 function Math.Vector3Length(v) end
 
----@param v sf.Vector2f | sf.Vector2i | sf.Vector2u
----@return number | integer
+---@param v Source.NodeFunctions.Math.Vector2Value
+---@return number
 function Math.Vector2LengthSquared(v) end
 
----@param v sf.Vector3f | sf.Vector3i
----@return number | integer
+---@param v Source.NodeFunctions.Math.Vector3Value
+---@return number
 function Math.Vector3LengthSquared(v) end
 
 ---@param v sf.Vector2f
@@ -202,18 +217,29 @@ function Math.AsDegrees(angle) end
 ---@return number
 function Math.AsRadians(angle) end
 
----@param v   sf.Vector2f | sf.Vector2i | sf.Vector2u | sf.Vector3f | sf.Vector3i
----@param div sf.Vector2f | sf.Vector2i | sf.Vector2u | sf.Vector3f | sf.Vector3i
----@return sf.Vector2f | sf.Vector2i | sf.Vector2u | sf.Vector3f | sf.Vector3i
+---@overload fun(v: sf.Vector2f, div: sf.Vector2f): sf.Vector2f
+---@overload fun(v: sf.Vector2i, div: sf.Vector2i): sf.Vector2i
+---@overload fun(v: sf.Vector2u, div: sf.Vector2u): sf.Vector2u
+---@overload fun(v: sf.Vector3f, div: sf.Vector3f): sf.Vector3f
+---@overload fun(v: sf.Vector3i, div: sf.Vector3i): sf.Vector3i
+---@param v   never
+---@param div never
+---@return never
 function Math.Vector2ComponentWiseDiv(v, div) end
 
----@param v   sf.Vector2f | sf.Vector2i | sf.Vector2u | sf.Vector3f | sf.Vector3i
----@param mul sf.Vector2f | sf.Vector2i | sf.Vector2u | sf.Vector3f | sf.Vector3i
----@return sf.Vector2f | sf.Vector2i | sf.Vector2u | sf.Vector3f | sf.Vector3i
+---@overload fun(v: sf.Vector2f, mul: sf.Vector2f): sf.Vector2f
+---@overload fun(v: sf.Vector2i, mul: sf.Vector2i): sf.Vector2i
+---@overload fun(v: sf.Vector2u, mul: sf.Vector2u): sf.Vector2u
+---@overload fun(v: sf.Vector3f, mul: sf.Vector3f): sf.Vector3f
+---@overload fun(v: sf.Vector3i, mul: sf.Vector3i): sf.Vector3i
+---@param v   never
+---@param mul never
+---@return never
 function Math.Vector2ComponentWiseMul(v, mul) end
 
----@param v sf.Vector2f | sf.Vector2i | sf.Vector2u
----@return sf.Vector2f | sf.Vector2i | sf.Vector2u
+---@generic T: Source.NodeFunctions.Math.Vector2Value
+---@param v T
+---@return T
 function Math.Vector2Perpendicular(v) end
 
 ---@param v    sf.Vector2f

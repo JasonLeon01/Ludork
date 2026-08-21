@@ -3,6 +3,7 @@ local BattlerInfoComponent = require("Source.Components.BattlerInfoComponent")
 ---@class Source.Components.PlayerInfoComponent
 local PlayerInfoComponent = {}
 
+PlayerInfoComponent.HP = 0
 PlayerInfoComponent.name = ""
 PlayerInfoComponent.desc = ""
 PlayerInfoComponent.LEVEL = 1

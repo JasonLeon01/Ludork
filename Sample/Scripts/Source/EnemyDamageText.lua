@@ -102,7 +102,7 @@ function EnemyDamageText:onTick(_deltaTime)
     local criticalText = EnemyDamageText._formatCriticalText(parent:getCriticalValue(player))
     if self:_setOverlayText(
         damageText, criticalText,
-        EnemyDamageText.GetDamageColor(damageType, damage, Engine.ToInteger(player.infoComp.HP)), width, height
+        EnemyDamageText.GetDamageColor(damageType, damage, player.infoComp.HP), width, height
     ) then
         self._currentBattlers[1] = parent
         self._currentBattlers[2] = player
@@ -298,8 +298,8 @@ function EnemyDamageText.GetDamageColor(damageType, damage, playerHP)
     if damageType == DamageType.UNDEFEATABLE then
         return UIFunctions.GetDimGrey()
     end
-    damage = Engine.ToInteger(math.max(0, damage))
-    playerHP = Engine.ToInteger(math.max(0, playerHP))
+    damage = math.max(0, damage)
+    playerHP = math.max(0, playerHP)
     if damage == 0 then
         return sf.Color.Green
     elseif playerHP <= 0 then

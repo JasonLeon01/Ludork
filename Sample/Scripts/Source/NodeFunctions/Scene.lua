@@ -51,7 +51,9 @@ end
 
 function Scene.GotoMap(mapPath, blockTransition, position)
     mapPath = mapPath == nil and "" or mapPath
-    blockTransition = bool(blockTransition)
+    if blockTransition == nil then
+        blockTransition = false
+    end
     Context.requireSceneMap():gotoMapAndPos(mapPath, position, blockTransition)
 end
 
@@ -63,12 +65,12 @@ function Scene.GameOver()
 end
 
 function Scene.AddTimer(interval, blocking)
-    blocking = bool(blocking)
+    if blocking == nil then
+        blocking = false
+    end
     local scene = System.getScene()
     if scene ~= nil then
-        local timerInterval = tonumber(interval)
-        ---@cast timerInterval number
-        return scene:addTimer(timerInterval, function ()
+        return scene:addTimer(interval, function ()
         end, blocking
         )
     end
@@ -98,7 +100,7 @@ end
 function Scene.ShowVoiceMessage(name, message, voiceFileName, refActor, minDistance)
     minDistance = minDistance == nil and 64.0 or minDistance
     local scene = Context.requireSceneMap()
-    ManagerFunctions.playVoice(voiceFileName, nil, refActor, tonumber(minDistance))
+    ManagerFunctions.playVoice(voiceFileName, nil, refActor, minDistance)
     local dialogueFinished = scene:showMessage(name, message, refActor)
     return stopVoiceAfterDialogue(dialogueFinished)
 end
@@ -109,8 +111,6 @@ function Scene.ShowSelection(name, options, refActorTag, allowCancel)
     refActorTag = refActorTag == nil and "" or refActorTag
     if allowCancel == nil then
         allowCancel = true
-    else
-        allowCancel = bool(allowCancel)
     end
     local scene = Context.requireSceneMap()
     return scene:showSelection(name, options, getActorByTag(scene, refActorTag), allowCancel)
@@ -121,8 +121,6 @@ function Scene.ShowRefSelection(name, options, refActor, allowCancel)
     options = options or {}
     if allowCancel == nil then
         allowCancel = true
-    else
-        allowCancel = bool(allowCancel)
     end
     return Context.requireSceneMap():showSelection(name, options, refActor, allowCancel)
 end
@@ -170,7 +168,7 @@ function Scene.RecordTelepoint(mapPath, x, y)
     mapPath = mapPath == nil and "" or mapPath
     x = x == nil and 0 or x
     y = y == nil and 0 or y
-    Context.requireGameInstance():recordTelepoint(mapPath, sf.Vector2u.new((math.modf(x)), (math.modf(y))))
+    Context.requireGameInstance():recordTelepoint(mapPath, sf.Vector2u.new(x, y))
 end
 
 function Scene.CreateActorFromBPPath(bpPath, layerName, position, tag, emitCreateEvent)
@@ -301,8 +299,6 @@ function Scene.OpenShop(items, canSell)
     items = copy(items or {})
     if canSell == nil then
         canSell = true
-    else
-        canSell = bool(canSell)
     end
     return Context.requireSceneMap():openShop(items, canSell)
 end
@@ -330,7 +326,7 @@ function Scene.OpenAttrShop(actor, shopName, shopDescription, abilities, price, 
         }, "price", priceValue)
     end
     return scene:openAttrShop(
-        actor, shopName, shopDescription, abilities, priceRef, (math.modf(priceIncrement)), moneyName
+        actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName
     )
 end
 

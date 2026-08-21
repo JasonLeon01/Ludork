@@ -2307,6 +2307,14 @@
     "zh_CN": "字段类型",
     "en_GB": "Field Type"
   },
+  "ITEM_TYPE": {
+    "zh_CN": "元素类型",
+    "en_GB": "Item Type"
+  },
+  "VALUE_TYPE": {
+    "zh_CN": "值类型",
+    "en_GB": "Value Type"
+  },
   "DEFAULT_VALUE": {
     "zh_CN": "默认值",
     "en_GB": "Default Value"
@@ -2336,12 +2344,16 @@
     "en_GB": "file: An asset file field. It selects a file under Assets and saves the path relative to Assets."
   },
   "GENERAL_DATA_TYPE_TIP_LIST": {
-    "zh_CN": "list：列表字段，编辑时使用可增删行的列表编辑器。",
-    "en_GB": "list: A list field edited with a row-based list editor."
+    "zh_CN": "list：列表字段；每一项由元素类型决定，并使用对应的 typed editor。",
+    "en_GB": "list: A list field whose item type selects the typed editor used for every row."
   },
   "GENERAL_DATA_TYPE_TIP_DICT": {
-    "zh_CN": "dict：字典字段，编辑时使用键值行编辑器，左侧为 key，右侧为 value。",
-    "en_GB": "dict: A dictionary field edited with key-value rows (key on the left, value on the right)."
+    "zh_CN": "dict：string key 字典；每个 value 由值类型决定，并使用对应的 typed editor。",
+    "en_GB": "dict: A string-keyed dictionary whose value type selects the typed editor for each value."
+  },
+  "GENERAL_DATA_TYPE_TIP_SF": {
+    "zh_CN": "SFML 值类型：使用对应的向量、颜色或矩形复合输入控件。",
+    "en_GB": "SFML value type: Uses the matching vector, colour, or rectangle composite input."
   },
   "GENERAL_DATA_DEFAULT_TIP_STRING": {
     "zh_CN": "string：新成员默认填入的文本。",
@@ -2364,12 +2376,16 @@
     "en_GB": "file: Enter the default selection folder under Assets, such as Icons; member values are saved as paths relative to Assets."
   },
   "GENERAL_DATA_DEFAULT_TIP_LIST": {
-    "zh_CN": "list：输入 Python 列表格式作为默认值，例如 [\"A\", \"B\"]；留空时使用空列表。",
-    "en_GB": "list: Enter a Python list as the default, such as [\"A\", \"B\"]; empty uses an empty list."
+    "zh_CN": "list：新成员默认使用空列表；新增项使用所选元素类型的默认值。",
+    "en_GB": "list: New members use an empty list; added rows use the selected item type's default."
   },
   "GENERAL_DATA_DEFAULT_TIP_DICT": {
-    "zh_CN": "dict：输入 Python 字典格式作为默认值，例如 {\"key\": \"value\"}；留空时使用空字典。",
-    "en_GB": "dict: Enter a Python dict as the default, such as {\"key\": \"value\"}; empty uses an empty dict."
+    "zh_CN": "dict：新成员默认使用空字典；新增 value 使用所选值类型的默认值。",
+    "en_GB": "dict: New members use an empty dictionary; added values use the selected value type's default."
+  },
+  "GENERAL_DATA_DEFAULT_TIP_SF": {
+    "zh_CN": "SFML 值类型使用对应控件的内置默认值。",
+    "en_GB": "SFML value types use the matching editor's built-in default."
   },
   "PARAM_EXISTS": {
     "zh_CN": "字段已存在",

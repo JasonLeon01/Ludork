@@ -55,7 +55,7 @@ function MovementDangerPreviewComponent:_refreshEntries(player)
         text:setString(tostring(Utils.ToShortNumber(entry.damage)))
         text:setScale(sf.Vector2f.new(inverseScale, inverseScale))
         text:setColour(EnemyDamageText.GetDamageColor(
-            DamageType.NORMAL, entry.damage, Engine.ToInteger(player.infoComp.HP)
+            DamageType.NORMAL, entry.damage, player.infoComp.HP
         ))
         local bounds = text:getLocalBounds()
         local worldX = entry.position.x * cellSize + (cellSize - bounds.size.x) * 0.5 - bounds.position.x

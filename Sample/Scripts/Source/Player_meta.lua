@@ -37,7 +37,7 @@ local _METADATA = {
             default = 96.0,
         },
         infoComp = {
-            type = { "Source.Battler", "PlayerInfoComponent" },
+            type = { "Source.Components.PlayerInfoComponent", "PlayerInfoComponent" },
             component = true,
             default = {
                 MAXHP = 1000,

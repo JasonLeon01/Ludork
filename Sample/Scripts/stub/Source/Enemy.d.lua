@@ -34,10 +34,11 @@ function Enemy:battle() end
 ---@param against Source.Battler.Battler
 function Enemy:afterBattle(against) end
 
----@return table<string, string | number | boolean>
+---@return Source.Data.EnemySpecialValues
 function Enemy:getSpecial() end
 
----@return string[]
+--- @brief Return Item Blueprint class paths mapped to their drop offsets.
+---@return table<string, sf.Vector2i>
 function Enemy:getDrops() end
 
 --- @brief Calculate the next attack threshold for this enemy.

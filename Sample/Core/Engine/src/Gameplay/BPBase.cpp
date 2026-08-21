@@ -73,15 +73,9 @@ void BPBase::ExecuteInfoGraph(const RuntimeIdentityPtr& object,
                                         keywordArguments);
 }
 
-RuntimeValue BPBase::_resolveGeneralDataDict(const RuntimeValue& value) {
-    return blueprintRuntime().resolveGeneralDataDictionary(value);
-}
-
 void BPBase::ApplyGeneralData(const RuntimeIdentityPtr& object,
-                              const RuntimeValue& data,
-                              const RuntimeValue& parameterTypes) {
-    blueprintRuntime().applyGeneralData(RuntimeValue(object), data,
-                                        parameterTypes);
+                              const RuntimeValue& data) {
+    blueprintRuntime().applyGeneralData(RuntimeValue(object), data);
 }
 
 void BPBase::BlueprintEventNative(RuntimeObject& object,
@@ -113,12 +107,10 @@ bool BPBase::TryExecuteInfoGraphNative(
 }
 
 void BPBase::ApplyGeneralDataNative(RuntimeObject& object,
-                                    const RuntimeValue& data,
-                                    const RuntimeValue& parameterTypes) {
+                                    const RuntimeValue& data) {
     const RuntimeValue runtimeObject = objectValue(object);
     if (!runtimeObject.isNil()) {
-        blueprintRuntime().applyGeneralData(runtimeObject, data,
-                                            parameterTypes);
+        blueprintRuntime().applyGeneralData(runtimeObject, data);
     }
 }
 

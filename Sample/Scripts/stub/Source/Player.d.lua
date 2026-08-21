@@ -12,9 +12,10 @@
 --- @brief Player-controlled character with input bindings and battle stats.
 ---
 --- Combines `Character` (directional movement/animation) with `Battler`
---- (HP, ATK, DEF, states). Keyboard movement is polled during onFixedTick.
+--- (MAXHP, ATK, DEF, states) and owns the player's current HP. Keyboard movement is polled during onFixedTick.
 ---@class Source.Player.Player: Engine.Character, Source.Infos.PlayerInfo, Source.Battler.Battler
 ---@field infoComp Source.Components.PlayerInfoComponent
+---@field _loading boolean
 ---@field _items table<string, integer>
 ---@field _equips table<string, integer>
 ---@field _equipInfo table<string, string>

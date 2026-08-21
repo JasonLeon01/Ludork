@@ -25,43 +25,33 @@ end
 function Math.BuildVector2f(x, y)
     x = x == nil and 0.0 or x
     y = y == nil and 0.0 or y
-    local vectorX = tonumber(x)
-    local vectorY = tonumber(y)
-    ---@cast vectorX number
-    ---@cast vectorY number
-    return sf.Vector2f.new(vectorX, vectorY)
+    return sf.Vector2f.new(x, y)
 end
 
 function Math.BuildVector2i(x, y)
     x = x == nil and 0 or x
     y = y == nil and 0 or y
-    return sf.Vector2i.new(Engine.ToInteger(x), Engine.ToInteger(y))
+    return sf.Vector2i.new(x, y)
 end
 
 function Math.BuildVector2u(x, y)
     x = x == nil and 0 or x
     y = y == nil and 0 or y
-    return sf.Vector2u.new(Engine.ToInteger(x), Engine.ToInteger(y))
+    return sf.Vector2u.new(x, y)
 end
 
 function Math.BuildVector3f(x, y, z)
     x = x == nil and 0.0 or x
     y = y == nil and 0.0 or y
     z = z == nil and 0.0 or z
-    local vectorX = tonumber(x)
-    local vectorY = tonumber(y)
-    local vectorZ = tonumber(z)
-    ---@cast vectorX number
-    ---@cast vectorY number
-    ---@cast vectorZ number
-    return sf.Vector3f.new(vectorX, vectorY, vectorZ)
+    return sf.Vector3f.new(x, y, z)
 end
 
 function Math.BuildVector3i(x, y, z)
     x = x == nil and 0 or x
     y = y == nil and 0 or y
     z = z == nil and 0 or z
-    return sf.Vector3i.new(Engine.ToInteger(x), Engine.ToInteger(y), Engine.ToInteger(z))
+    return sf.Vector3i.new(x, y, z)
 end
 
 function Math.IsNearZero(num, epsilon)
@@ -294,7 +284,7 @@ end
 function Math.RandomInt(min_val, max_val)
     min_val = min_val == nil and 0 or min_val
     max_val = max_val == nil and 100 or max_val
-    return math.random(Engine.ToInteger(min_val), Engine.ToInteger(max_val))
+    return math.random(min_val, max_val)
 end
 
 function Math.RandomFloat(min_val, max_val)
@@ -364,31 +354,31 @@ function Math.GREATER_EQUALS(a, b)
 end
 
 function Math.AND(a, b)
-    return bool(a) and bool(b)
+    return a and b
 end
 
 function Math.OR(a, b)
-    return bool(a) or bool(b)
+    return a or b
 end
 
 function Math.NOT(a)
-    return not bool(a)
+    return not a
 end
 
 function Math.XOR(a, b)
-    return bool(a) ~= bool(b)
+    return a ~= b
 end
 
 function Math.NAND(a, b)
-    return not (bool(a) and bool(b))
+    return not (a and b)
 end
 
 function Math.NOR(a, b)
-    return not (bool(a) or bool(b))
+    return not (a or b)
 end
 
 function Math.XNOR(a, b)
-    return bool(a) == bool(b)
+    return a == b
 end
 
 function Math.IADD(a, b)

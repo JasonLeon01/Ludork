@@ -56,7 +56,14 @@ public sealed class BlueprintValidationService
         validateBlueprintModeChain(key, data, errors);
         ResolvedBlueprintClass resolved = validateScriptMixin(key, data, errors);
 
-        if (data["graph"] is not JsonObject graph)
+        bool hasGraph = data.TryGetPropertyValue("graph", out JsonNode? graphNode);
+        if (!hasGraph)
+        {
+            if (!resolved.ScriptMixin)
+                errors.Add("Blueprint \"graph\" must be an object");
+            return new BlueprintValidationResult(key, errors.Count == 0, errors);
+        }
+        if (graphNode is not JsonObject graph)
         {
             errors.Add("Blueprint \"graph\" must be an object");
             return new BlueprintValidationResult(key, false, errors);

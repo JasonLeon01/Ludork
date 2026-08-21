@@ -221,7 +221,7 @@ end
 ---@return integer
 function WindowShop.GetItemPrice(itemID)
     local itemInfo = Data.getGeneralItemData(itemID)
-    return math.floor(tonumber(itemInfo.price) or 0)
+    return itemInfo.price
 end
 
 ---@param itemID string

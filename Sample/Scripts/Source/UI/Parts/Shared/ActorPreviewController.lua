@@ -16,7 +16,7 @@ function ActorPreviewController:_syncPreviewState()
     self._displayTexture = preview.texture
     self._displayRect = preview.rect
     self._rect = copy(preview.sourceRect)
-    self._animatable = bool(preview.animatable)
+    self._animatable = preview.animatable
     self._switchInterval = preview.switchInterval
     self._switchTimer = preview.switchTimer
 end
@@ -45,8 +45,8 @@ function ActorPreviewController:setEntry(entry)
     if entry.scale ~= nil then
         self._scale = copy(entry.scale)
     end
-    self._animatable = bool(entry.animatable)
-    self._switchInterval = tonumber(entry.switchInterval) or _DEFAULT_SWITCH_INTERVAL
+    self._animatable = entry.animatable
+    self._switchInterval = entry.switchInterval
     self._displayTexture = self._texture
     self._displayRect = self._rect
     if self._preview ~= nil then

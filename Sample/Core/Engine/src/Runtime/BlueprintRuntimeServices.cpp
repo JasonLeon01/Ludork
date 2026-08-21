@@ -117,23 +117,12 @@ void BlueprintRuntimeFacade::executeInfoGraph(
             eventName, runtimeValue(lua, keywordArguments), {}));
 }
 
-RuntimeValue BlueprintRuntimeFacade::resolveGeneralDataDictionary(
-    const RuntimeValue& value) const {
-    ludork::engine::runtime_detail::EngineRuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
-    return ludork_core::readLuaValue<RuntimeValue>(
-        ludork::engine::runtime_detail::resolveGeneralDataDictionary(
-            lua, runtimeValue(lua, value)));
-}
-
-void BlueprintRuntimeFacade::applyGeneralData(
-    const RuntimeValue& object, const RuntimeValue& data,
-    const RuntimeValue& parameterTypes) const {
+void BlueprintRuntimeFacade::applyGeneralData(const RuntimeValue& object,
+                                              const RuntimeValue& data) const {
     ludork::engine::runtime_detail::EngineRuntimeScope runtime;
     sol::state_view lua = runtime.lua();
     ludork::engine::runtime_detail::applyBlueprintGeneralData(
-        lua, runtimeValue(lua, object), runtimeValue(lua, data),
-        runtimeValue(lua, parameterTypes));
+        lua, runtimeValue(lua, object), runtimeValue(lua, data));
 }
 
 void BlueprintRuntimeFacade::initializeInfo(

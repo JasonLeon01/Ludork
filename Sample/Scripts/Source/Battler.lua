@@ -16,53 +16,6 @@ local State = GeneralEnum.State
 
 local DamageType = { NORMAL = 0, UNDEFEATABLE = 1 }
 
--- Clamp HP to [0, MAXHP] whenever it is set.
----@param old     integer | Class.MissingValue
----@param new     integer | Class.MissingValue
----@param battler Source.Battler.Battler
-local function onHPChange(old, new, battler)
-    if battler == nil then
-        return
-    end
-    ---@cast new integer
-    if new < 0 then
-        battler.infoComp.HP = 0
-    elseif new > battler.infoComp.MAXHP then
-        battler.infoComp.HP = battler.infoComp.MAXHP
-    end
-    if old ~= battler.infoComp.HP then
-        battler:_incrementCombatRevision()
-    end
-end
-
--- Propagate MAXHP increases to HP and clamp overflow.
----@param old     integer | Class.MissingValue
----@param new     integer | Class.MissingValue
----@param battler Source.Battler.Battler
-local function onMAXHPChange(old, new, battler)
-    if battler == nil then
-        return
-    end
-    ---@cast new integer
-    if battler.infoComp.HP > new then
-        battler.infoComp.HP = new
-    end
-    if not battler._loading then
-        local oldValue = old == Class.MISSING and 0 or old
-        ---@cast oldValue integer
-        local delta = new - oldValue
-        ---@cast delta integer
-        if delta > 0 then
-            local hp = battler.infoComp.HP + delta
-            ---@cast hp integer
-            battler.infoComp.HP = hp
-        end
-    end
-    if old ~= new then
-        battler:_incrementCombatRevision()
-    end
-end
-
 ---@param old     Source.Battler.AttributeValue | table
 ---@param new     Source.Battler.AttributeValue
 ---@param battler Source.Battler.Battler
@@ -84,7 +37,6 @@ Battler.infoComp = BattlerInfoComponent.new()
 
 function Battler:init(attrs)
     self:_normaliseInfoComp()
-    self._loading = false
     self._combatRevision = 0
     self._monitoredInfoComp = nil
     self._combatMonitorParams = setmetatable({ self }, {
@@ -108,13 +60,6 @@ function Battler:_normaliseInfoComp()
     if not Class.hasOwnField(self, "infoComp") or not Class.isInstance(value, componentType) then
         self.infoComp = ComponentsFunctions.componentFromData(componentType, value)
     end
-    if self._combatRevision ~= nil then
-        self:_ensureCombatMonitors()
-    end
-end
-
-function Battler:normaliseInfoComp()
-    self:_normaliseInfoComp()
 end
 
 function Battler:_incrementCombatRevision()
@@ -131,8 +76,7 @@ function Battler:_ensureCombatMonitors()
         return
     end
     self._monitoredInfoComp = infoComp
-    Class.monitor(infoComp, "HP", onHPChange, self._combatMonitorParams)
-    Class.monitor(infoComp, "MAXHP", onMAXHPChange, self._combatMonitorParams)
+    Class.monitor(infoComp, "MAXHP", onCombatAttributeChange, self._combatMonitorParams)
     Class.monitor(infoComp, "ATK", onCombatAttributeChange, self._combatMonitorParams)
     Class.monitor(infoComp, "DEF", onCombatAttributeChange, self._combatMonitorParams)
     if infoComp.special ~= nil then
@@ -158,7 +102,6 @@ end
 ---@param default T
 ---@return T
 function Battler:_getInfoField(key, default)
-    self:_normaliseInfoComp()
     local value = self.infoComp[key]
     return value == nil and default or value
 end
@@ -167,16 +110,8 @@ end
 ---@param key   string
 ---@param value T
 function Battler:_setInfoField(key, value)
-    self:_normaliseInfoComp()
     if self.infoComp[key] ~= nil then
         self.infoComp[key] = value
-    end
-end
-
-function Battler:_syncInitialHP()
-    self:_normaliseInfoComp()
-    if self.infoComp.HP <= 0 then
-        self.infoComp.HP = math.tointeger(self.infoComp.MAXHP)
     end
 end
 
@@ -235,7 +170,6 @@ function Battler:getStateStackCount(stateID)
 end
 
 function Battler:hasSpecial(specialID)
-    self:_normaliseInfoComp()
     local special = self.infoComp.special
     if not bool(special) then
         return false
@@ -249,7 +183,6 @@ function Battler:getSpecialIntValue(specialID, default, minValue)
     minValue = minValue == nil and 0 or minValue
     ---@cast default integer
     ---@cast minValue integer
-    self:_normaliseInfoComp()
     local special = self.infoComp.special
     if not bool(special) then
         return default < minValue and minValue or default
@@ -259,21 +192,13 @@ function Battler:getSpecialIntValue(specialID, default, minValue)
         return default < minValue and minValue or default
     end
     local value = special[specialID]
-    if type(value) == "string" then
-        value = Engine.Eval(value)
-    end
-    local numericValue = tonumber(value)
-    if numericValue == nil then
-        return default < minValue and minValue or default
-    end
-    local integerValue = math.tointeger(numericValue) or math.floor(numericValue)
-    ---@cast integerValue integer
-    return integerValue < minValue and minValue or integerValue
+    assert(math.type(value) == "integer", "Battler special " .. specialID .. " must be an integer")
+    ---@cast value integer
+    return value < minValue and minValue or value
 end
 
 function Battler:getATK(opponent)
-    self:_normaliseInfoComp()
-    local attackerATK = Engine.ToInteger(self.infoComp.ATK)
+    local attackerATK = self.infoComp.ATK
     if self:hasState(State.Weak) then
         attackerATK = math.max(0, attackerATK - 2 * self:_getStateStackCount(State.Weak))
         ---@cast attackerATK integer
@@ -286,8 +211,7 @@ function Battler:getATK(opponent)
 end
 
 function Battler:getDEF(attacker)
-    self:_normaliseInfoComp()
-    local defenderDEF = Engine.ToInteger(self.infoComp.DEF)
+    local defenderDEF = self.infoComp.DEF
     if self:hasState(State.Weak) then
         defenderDEF = math.max(0, defenderDEF - 2 * self:_getStateStackCount(State.Weak))
         ---@cast defenderDEF integer
@@ -312,7 +236,7 @@ function Battler:addState(state, stacks)
     if info == nil then
         return
     end
-    local stackCount = math.max(0, math.tointeger(stacks) or 0)
+    local stackCount = math.max(0, stacks)
     if stackCount <= 0 then
         return
     end
@@ -351,7 +275,7 @@ function Battler:reduceStateStacks(state, stacks)
         return
     end
     stacks = stacks == nil and 1 or stacks
-    local stackCount = math.max(0, math.tointeger(stacks) or 0)
+    local stackCount = math.max(0, stacks)
     if stackCount <= 0 then
         return
     end
@@ -412,7 +336,6 @@ function Battler:triggerStateHook(stateKey)
 end
 
 function Battler:playAttackAnimationAt(scene, targetPosition)
-    self:_normaliseInfoComp()
     local animationKey = self.infoComp.ANIMATION_KEY
     if not bool(animationKey) then
         return 0.0
@@ -427,8 +350,6 @@ function Battler:playAttackAnimationAt(scene, targetPosition)
 end
 
 function Battler:getDamagePerRound(defender)
-    self:normaliseInfoComp()
-    defender:normaliseInfoComp()
     local attackerATK = self:getATK(defender)
     local defenderDEF = defender:getDEF(self)
     if self:hasSpecial(Special.Magic) then
@@ -447,8 +368,6 @@ function Battler:getHitCount()
 end
 
 function Battler:getDamage(battler)
-    self:normaliseInfoComp()
-    battler:normaliseInfoComp()
     local attackDamage = battler:getDamagePerRound(self)
     local counterDamage = self:getDamagePerRound(battler)
     if attackDamage <= 0 then
@@ -484,9 +403,6 @@ function Battler._buildStateInfo(state)
         return state
     end
     if type(state) == "string" and bool(state) then
-        if not bool(Data.getGeneralStateData(state)) then
-            return nil
-        end
         local info = StateInfo.new()
         info.ID = state
         info:initInfo(Data)

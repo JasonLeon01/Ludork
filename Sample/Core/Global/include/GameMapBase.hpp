@@ -185,7 +185,8 @@ public:
     /// - \param y Tile Y coordinate
     /// - \param selfActor Actor excluded from the result
     ///
-    /// - \return Colliding actors at the requested position
+    /// - \return Colliding actors on the topmost occupied layer, ordered from
+    /// visually topmost to bottommost
     ///
     ////////////////////////////////////////////////////////////
     BIND_METHOD()

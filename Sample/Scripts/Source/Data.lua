@@ -11,7 +11,7 @@ local Data = {
     dataKinds = 7,
     ---@type table<string, Engine.AnimationData>
     _animationData = {},
-    ---@type table<string, Engine.Curve|Engine.Vector2Curve|Engine.Vector3Curve|Engine.Vector4Curve>
+    ---@type table<string, Source.Data.CurveValue>
     _curveData = {},
     ---@type table<string, string>
     _curveTypes = {},
@@ -27,7 +27,7 @@ local Data = {
     _tilesetData = {},
     ---@type table<string, Engine.AutoTile>
     _autoTileData = {},
-    ---@type table<string, table<string, Source.Data.JsonValue>>
+    ---@type table<string, table<string, Source.Data.GeneralValue>>
     _generalData = {},
     ---@type string[] | nil
     _blueprintClassPaths = nil,
@@ -161,27 +161,30 @@ function Data.getGeneralData(name)
 end
 
 ---@param name string
----@return table<string, table<string, Source.Data.JsonValue>>
+---@return table<string, table<string, Source.Data.GeneralValue>>
 local function generalMembers(name)
     local data = Data.getGeneralData(name)
-    local members = data.members
-    if members == nil then
-        return {}
-    end
-    ---@cast members table<string, table<string, Source.Data.JsonValue>>
+    local members = requireNamedValue(data, "members", "General data members not found: " .. tostring(name))
+    ---@cast members table<string, table<string, Source.Data.GeneralValue>>
     return members
 end
 
 function Data.getGeneralClassData(key)
-    return generalMembers(GeneralDataKey.Class)[key] or {}
+    return requireNamedValue(
+        generalMembers(GeneralDataKey.Class), key, "General class data not found: " .. tostring(key)
+    )
 end
 
 function Data.getGeneralEnemyData(key)
-    return generalMembers(GeneralDataKey.Enemy)[key] or {}
+    return requireNamedValue(
+        generalMembers(GeneralDataKey.Enemy), key, "General enemy data not found: " .. tostring(key)
+    )
 end
 
 function Data.getGeneralPlayerData(key)
-    return generalMembers(GeneralDataKey.Player)[key] or {}
+    return requireNamedValue(
+        generalMembers(GeneralDataKey.Player), key, "General player data not found: " .. tostring(key)
+    )
 end
 
 function Data.getAllGeneralEquipData()
@@ -189,7 +192,9 @@ function Data.getAllGeneralEquipData()
 end
 
 function Data.getGeneralEquipData(key)
-    return generalMembers(GeneralDataKey.Equip)[key] or {}
+    return requireNamedValue(
+        generalMembers(GeneralDataKey.Equip), key, "General equip data not found: " .. tostring(key)
+    )
 end
 
 function Data.getAllGeneralItemData()
@@ -197,15 +202,21 @@ function Data.getAllGeneralItemData()
 end
 
 function Data.getGeneralItemData(key)
-    return generalMembers(GeneralDataKey.Item)[key] or {}
+    return requireNamedValue(
+        generalMembers(GeneralDataKey.Item), key, "General item data not found: " .. tostring(key)
+    )
 end
 
 function Data.getGeneralSpecialData(key)
-    return generalMembers(GeneralDataKey.Special)[key] or {}
+    return requireNamedValue(
+        generalMembers(GeneralDataKey.Special), key, "General special data not found: " .. tostring(key)
+    )
 end
 
 function Data.getGeneralStateData(key)
-    return generalMembers(GeneralDataKey.State)[key] or {}
+    return requireNamedValue(
+        generalMembers(GeneralDataKey.State), key, "General state data not found: " .. tostring(key)
+    )
 end
 
 function Data.getClass(classPath)

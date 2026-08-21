@@ -27,9 +27,7 @@ end
 
 function Save.GetSavePath(slot)
     slot = slot == nil and 1 or slot
-    local integerSlot = math.tointeger(slot)
-    ---@cast integerSlot integer
-    return SourceSave.GetSavePath(integerSlot)
+    return SourceSave.GetSavePath(slot)
 end
 
 return Save

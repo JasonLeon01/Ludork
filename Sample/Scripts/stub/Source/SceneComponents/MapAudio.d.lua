@@ -1,5 +1,14 @@
 ---@meta Source.SceneComponents.MapAudio
----@alias Source.SceneComponents.MusicFilterValue boolean | number | sf.Time | sf.Music.TimeSpan
+---@alias Source.SceneComponents.SoundFilterValue boolean | number | sf.Time | sf.Vector3f | sf.SoundSource.Cone | nil
+---@alias Source.SceneComponents.MusicFilterValue Source.SceneComponents.SoundFilterValue | sf.Music.TimeSpan
+
+---@class Source.SceneComponents.MusicFilterValues
+---@field loop? boolean
+---@field offset? sf.Time
+---@field pitch? number
+---@field pan? number
+---@field volume? number
+---@field loopPoint? sf.Music.TimeSpan
 
 ---@class Source.SceneComponents.MusicLoopPointData
 ---@field start number

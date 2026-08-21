@@ -2,6 +2,7 @@
 
 --- @brief Editable player identity and battle attributes.
 ---@class Source.Components.PlayerInfoComponent: Source.Components.BattlerInfoComponent
+---@field HP integer
 ---@field name string
 ---@field desc string
 ---@field LEVEL integer

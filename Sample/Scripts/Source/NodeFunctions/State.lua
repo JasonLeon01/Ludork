@@ -1,4 +1,3 @@
-local Engine = require("Engine")
 local GlobalFunctions = require("GlobalFunctions")
 local Battler = require("Source.Battler")
 local Context = require("Source.NodeFunctions.Context")
@@ -47,7 +46,7 @@ function State.DamageBattler(battler, amount)
     if hp == nil then
         return
     end
-    ComponentsFunctions.setComponentFieldValue(battler, "HP", Engine.ToInteger(hp) - Engine.ToInteger(amount))
+    ComponentsFunctions.setComponentFieldValue(battler, "HP", hp - amount)
 end
 
 function State.HealBattler(battler, amount)
@@ -59,7 +58,7 @@ function State.HealBattler(battler, amount)
     if hp == nil then
         return
     end
-    ComponentsFunctions.setComponentFieldValue(battler, "HP", Engine.ToInteger(hp) + Engine.ToInteger(amount))
+    ComponentsFunctions.setComponentFieldValue(battler, "HP", hp + amount)
 end
 
 function State.BattlerHasState(battler, stateID)
@@ -90,6 +89,13 @@ function State.ReduceStateFrom(battler, stateID, stacks)
         return
     end
     battler:reduceStateStacks(stateID, stacks)
+end
+
+function State.TriggerStateHook(battler, stateID)
+    if not Class.isInstance(battler, Battler) then
+        return
+    end
+    battler:triggerStateHook(stateID)
 end
 
 return State

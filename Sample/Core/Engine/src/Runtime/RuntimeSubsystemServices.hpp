@@ -102,11 +102,8 @@ bool executeBlueprintGraph(sol::state_view lua, const sol::object& graph,
                            const sol::object& rawKeywordArguments,
                            const sol::object& graphClass,
                            const std::function<void()>& onComplete);
-sol::object resolveGeneralDataDictionary(sol::state_view lua,
-                                         const sol::object& value);
 void applyBlueprintGeneralData(sol::state_view lua, const sol::object& object,
-                               const sol::object& rawData,
-                               const sol::object& rawParameterTypes);
+                               const sol::object& rawData);
 void initializeBlueprintInfo(sol::this_state state, const sol::object& object,
                              const sol::object& dataProvider);
 sol::table registeredBlueprintEvents(sol::state_view lua,

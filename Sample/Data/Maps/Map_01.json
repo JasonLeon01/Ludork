@@ -1822,6 +1822,22 @@
           10,
           12
         ]
+      },
+      {
+        "tag": "Doors_BP_Door_B3_default_11_7",
+        "bp": "Data.Blueprints.Doors.BP_Door_B3",
+        "position": [
+          11,
+          7
+        ]
+      },
+      {
+        "tag": "Doors_BP_Door_R3_default_12_7",
+        "bp": "Data.Blueprints.Doors.BP_Door_R3",
+        "position": [
+          12,
+          7
+        ]
       }
     ]
   },

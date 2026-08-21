@@ -176,7 +176,7 @@ end
 ---@param actor Engine.Actor
 local function applyActorGenerationClassVars(actor)
     actor:setTranslation(actor.defaultTranslation)
-    actor:setRotation(tonumber(actor.defaultRotation) or 0.0)
+    actor:setRotation(actor.defaultRotation)
     actor:setScale(actor.defaultScale)
     actor:setOrigin(actor.defaultOrigin)
 end
@@ -241,6 +241,28 @@ local function normaliseActorClassVarObjects(actor)
     actor:normaliseAutoSoundParams()
 end
 
+---@param actor         Engine.Actor
+---@param componentName string
+---@param componentType table
+---@param value         Source.Data.ClassVarValue
+local function applyComponentClassVarChange(actor, componentName, componentType, value)
+    assert(type(value) == "table",
+        "Blueprint component override " .. componentName .. " must be a table")
+    local component = actor[componentName]
+    assert(Class.isInstance(component, componentType),
+        "Blueprint component field " .. componentName .. " is not an instance of its declared type")
+    local fieldDefaults = ComponentsFunctions.getComponentFieldDefaults(componentType)
+    for fieldName, fieldValue in pairs(value) do
+        assert(type(fieldName) == "string" and fieldDefaults[fieldName] ~= nil,
+            "Unknown component member " .. tostring(fieldName) .. " in " .. componentName)
+        component[fieldName] = ComponentsFunctions._cloneComponentFieldValue(
+            componentType,
+            fieldName,
+            fieldValue
+        )
+    end
+end
+
 ---@param actor   Engine.Actor
 ---@param changes table<string, Source.Data.ClassVarValue>
 local function applyActorClassVarChanges(actor, changes)
@@ -252,16 +274,21 @@ local function applyActorClassVarChanges(actor, changes)
     else
         storedChanges = deepcopy(storedChanges)
     end
+    local componentTypes = ComponentsFunctions.getComponentTypes(Class.type(actor))
     for key, value in pairs(changes) do
         if type(key) == "string" and not isBlueprintOnlyClassVar(actor, key) then
             storedChanges[key] = deepcopy(value)
-            actor[key] = resolveClassVarChangeValue(actor, key, value)
+            local componentType = componentTypes[key]
+            if componentType ~= nil then
+                applyComponentClassVarChange(actor, key, componentType, value)
+            else
+                actor[key] = resolveClassVarChangeValue(actor, key, value)
+            end
         end
     end
     if bool(storedChanges) then
         generatedActor._classVarChanges = storedChanges
     end
-    ComponentsFunctions.normaliseInstanceComponents(actor)
     normaliseActorClassVarObjects(actor)
     if changes.shaderPath ~= nil then
         actor:setShaderPath(actor.shaderPath or "")

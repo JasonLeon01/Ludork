@@ -13,7 +13,7 @@ local _METADATA = {
                 default = "nil",
             },
         },
-        onGet = {
+        onDrop = {
             type = "event",
             parameters = {},
             ["return"] = {},

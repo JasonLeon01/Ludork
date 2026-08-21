@@ -215,7 +215,7 @@ function WindowMenuController:_onMenuSave()
     self:_closeSubMenus("save")
     self.model._windowSaveLoad:open()
     self:_syncReturnButtonSuppression()
-    ---@type Source.Windows.WindowSaveCommand | Source.Windows.WindowSaveSlot | nil
+    ---@type Source.Windows.Base.WindowSelectable | nil
     local focusTarget = self.model._windowSaveLoad:getCommandWindow()
     if focusTarget == nil or not focusTarget:getActive() then
         focusTarget = self.model._windowSaveLoad:getSlotWindow()

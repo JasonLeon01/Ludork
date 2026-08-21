@@ -7,6 +7,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.VisualTree;
 using Ludork.Controls;
+using Ludork.Models;
 using Ludork.Services;
 using Ludork.Views.Utils;
 using System;
@@ -704,7 +705,13 @@ internal sealed class GeneralDataPage : Grid
         tableHeader.Children.Clear();
         tableHeader.Children.Add(buildTableHeaderCell("ID", 0));
         for (int index = 0; index < tableColumns.Count; index++)
-            tableHeader.Children.Add(buildTableHeaderCell(tableColumns[index].Name, index + 1));
+        {
+            GeneralDataTableColumn column = tableColumns[index];
+            tableHeader.Children.Add(buildTableHeaderCell(
+                column.Name,
+                index + 1,
+                column.Definition["comment"]?.GetValue<string>()));
+        }
         tableSurface.Width = TableIdColumnWidth + tableColumns.Count * TableFieldColumnWidth;
 
         GeneralDataTableRow[] rows = typeData["members"] is JsonObject members
@@ -722,7 +729,7 @@ internal sealed class GeneralDataPage : Grid
         syncingSelection = false;
     }
 
-    private static Border buildTableHeaderCell(string text, int column)
+    private static Border buildTableHeaderCell(string text, int column, string? comment = null)
     {
         Border border = new()
         {
@@ -736,6 +743,8 @@ internal sealed class GeneralDataPage : Grid
                 TextTrimming = TextTrimming.CharacterEllipsis,
             },
         };
+        if (!string.IsNullOrWhiteSpace(comment))
+            ToolTip.SetTip(border, comment);
         Grid.SetColumn(border, column);
         return border;
     }
@@ -1182,14 +1191,14 @@ internal sealed class GeneralDataPage : Grid
             VerticalAlignment = VerticalAlignment.Center,
             TextWrapping = TextWrapping.Wrap,
         };
-        string description = paramDef?["desc"]?.GetValue<string>() ?? string.Empty;
-        if (description.Length > 0 || referenceLabel.Length > 0)
+        string comment = paramDef?["comment"]?.GetValue<string>() ?? string.Empty;
+        if (comment.Length > 0 || referenceLabel.Length > 0)
         {
             ToolTip.SetTip(
                 labelBlock,
-                description.Length > 0 && referenceLabel.Length > 0
-                    ? description + Environment.NewLine + referenceLabel
-                    : description + referenceLabel);
+                comment.Length > 0 && referenceLabel.Length > 0
+                    ? comment + Environment.NewLine + referenceLabel
+                    : comment + referenceLabel);
         }
         if (paramName is not null && paramsObj is not null)
         {
@@ -1282,7 +1291,9 @@ internal sealed class GeneralDataPage : Grid
         if (paramDef is null)
             return false;
         string type = paramDef["type"]?.GetValue<string>() ?? "string";
-        return type is "string" or "list" or "dict";
+        return type == "string"
+            || type == "dict"
+            || (type == "list" && getContainerItemType(paramDef, "itemType") == "string");
     }
 
     private static JsonObject? getParamReference(JsonObject? paramDef)
@@ -1310,21 +1321,31 @@ internal sealed class GeneralDataPage : Grid
     {
         JsonObject? paramsObj = typeData["params"] as JsonObject;
         paramsObj ??= new JsonObject();
-        (string name, string type, string defaultText)? result = await AddParamDialog.ShowAsync(
+        GeneralDataParamCreation? result = await AddParamDialog.ShowAsync(
             owner, paramsObj.Select(e => e.Key));
         if (result is null)
             return;
-        (string name, string type, string defaultText) = result.Value;
-        JsonNode defaultValue = parseDefaultValue(type, defaultText);
+        JsonNode defaultValue = parseDefaultValue(result.Type, result.DefaultText);
+        JsonObject paramDef = new()
+        {
+            ["type"] = result.Type,
+        };
+        if (result.Comment.Length > 0)
+            paramDef["comment"] = result.Comment;
+        paramDef["defaultValue"] = defaultValue;
+        if (result.ItemType is not null)
+            paramDef["itemType"] = result.ItemType;
+        if (result.ValueType is not null)
+            paramDef["valueType"] = result.ValueType;
         gameData.RecordSnapshot();
-        paramsObj[name] = new JsonObject { ["type"] = type, ["defaultValue"] = defaultValue };
+        paramsObj[result.Name] = paramDef;
         typeData["params"] = paramsObj;
         if (typeData["members"] is JsonObject members)
         {
             foreach (KeyValuePair<string, JsonNode?> mEntry in members)
             {
-                if (mEntry.Value is JsonObject member && !member.ContainsKey(name))
-                    member[name] = defaultValue?.DeepClone() ?? JsonValue.Create("");
+                if (mEntry.Value is JsonObject member && !member.ContainsKey(result.Name))
+                    member[result.Name] = defaultValue.DeepClone();
             }
         }
         gameData.refreshModifiedState();
@@ -1457,14 +1478,14 @@ internal sealed class GeneralDataPage : Grid
         {
             JsonArray current = rawValue is JsonArray arr ? (JsonArray)arr.DeepClone() : new JsonArray();
             List<string>? refOptions = getRefOptions(refKind, refKey);
-            return new ListFieldEditor(gameData, member, paramName, current, refOptions);
+            return buildTypedFieldEditor(paramName, paramDef, current, member, refOptions);
         }
 
         if (type == "dict")
         {
             JsonObject current = rawValue is JsonObject obj ? (JsonObject)obj.DeepClone() : new JsonObject();
             List<string>? refOptions = getRefOptions(refKind, refKey);
-            return new DictFieldEditor(gameData, member, paramName, current, refOptions);
+            return buildTypedFieldEditor(paramName, paramDef, current, member, refOptions);
         }
 
         if (type.StartsWith("tuple", StringComparison.Ordinal) &&
@@ -1498,6 +1519,9 @@ internal sealed class GeneralDataPage : Grid
             }
             return tupleRow;
         }
+
+        if (isSfType(type))
+            return buildTypedFieldEditor(paramName, paramDef, rawValue, member, null);
 
         {
             string current = rawValue?.GetValue<string>() ?? string.Empty;
@@ -1533,6 +1557,115 @@ internal sealed class GeneralDataPage : Grid
         }
     }
 
+    private Control buildTypedFieldEditor(
+        string paramName,
+        JsonObject paramDef,
+        JsonNode? rawValue,
+        JsonObject member,
+        IReadOnlyList<string>? referenceOptions)
+    {
+        string type = paramDef["type"]?.GetValue<string>() ?? "string";
+        string editorType = type switch
+        {
+            "list" => getContainerItemType(paramDef, "itemType") + "[]",
+            "dict" => "Dict[string, " + getContainerItemType(paramDef, "valueType") + "]",
+            _ => type,
+        };
+        JsonObject meta = buildTypedFieldMeta(type, paramDef, referenceOptions);
+        BlueprintVariableField field = new(paramName, editorType, rawValue)
+        {
+            Meta = meta,
+        };
+        BlueprintVariableForm form = new()
+        {
+            AssetsDirectory = Path.Combine(gameData.ProjectPath, "Assets"),
+            ProjectDirectory = gameData.ProjectPath,
+            CellSize = gameData.getCellSize(),
+            HistoryGameData = gameData,
+            ShowFieldNames = false,
+            CustomValueEditorFactory = createGeneralDataReferenceEditor,
+        };
+        form.ValueChanged += (_, args) =>
+        {
+            if (JsonNode.DeepEquals(member[paramName], args.Value))
+                return;
+            gameData.RecordSnapshot();
+            member[paramName] = args.Value?.DeepClone();
+            gameData.refreshModifiedState();
+        };
+        form.SetFields([field]);
+        return form;
+    }
+
+    private static JsonObject buildTypedFieldMeta(
+        string type,
+        JsonObject paramDef,
+        IReadOnlyList<string>? referenceOptions)
+    {
+        JsonObject meta = [];
+        if (type == "list")
+        {
+            JsonObject itemMeta = [];
+            if (getContainerItemType(paramDef, "itemType") == "file")
+                itemMeta["PathVars"] = string.Empty;
+            if (referenceOptions is not null)
+                itemMeta["GeneralDataReference"] = buildReferenceOptions(referenceOptions);
+            if (itemMeta.Count > 0)
+                meta["ItemMeta"] = itemMeta;
+        }
+        else if (type == "dict")
+        {
+            if (getContainerItemType(paramDef, "valueType") == "file")
+                meta["ItemMeta"] = new JsonObject { ["PathVars"] = string.Empty };
+            if (referenceOptions is not null)
+            {
+                meta["DictKeyMeta"] = new JsonObject
+                {
+                    ["GeneralDataReference"] = buildReferenceOptions(referenceOptions),
+                };
+            }
+        }
+        return meta;
+    }
+
+    private static JsonArray buildReferenceOptions(IEnumerable<string> options)
+    {
+        JsonArray result = [];
+        foreach (string option in options)
+            result.Add(option);
+        return result;
+    }
+
+    private static Control? createGeneralDataReferenceEditor(BlueprintVariableEditorRequest request)
+    {
+        if (request.Field.Meta["GeneralDataReference"] is not JsonArray rawOptions)
+            return null;
+        List<string> options = rawOptions
+            .Select(option => option?.GetValue<string>() ?? string.Empty)
+            .ToList();
+        string current = request.Value?.GetValue<string>() ?? string.Empty;
+        ComboBox combo = GeneralDataReferenceInputs.Create(current, options);
+        combo.SelectionChanged += (_, _) =>
+        {
+            string next = GeneralDataReferenceInputs.GetValue(combo);
+            request.Commit(JsonValue.Create(next), false);
+        };
+        return combo;
+    }
+
+    private static string getContainerItemType(JsonObject paramDef, string name)
+    {
+        string? value = paramDef[name]?.GetValue<string>();
+        if (string.IsNullOrWhiteSpace(value))
+            throw new InvalidOperationException($"General Data container is missing {name}");
+        return value;
+    }
+
+    private static bool isSfType(string type)
+    {
+        return type.StartsWith("sf.", StringComparison.Ordinal);
+    }
+
     private List<string>? getRefOptions(string refKind, string refKey)
     {
         if (refKind == "animation")
@@ -1555,16 +1688,16 @@ internal sealed class GeneralDataPage : Grid
             {
                 if (entry.Value is not JsonObject paramDef)
                     continue;
-                string type = paramDef["type"]?.GetValue<string>() ?? "string";
-                JsonNode? def = paramDef["defaultValue"];
-                member[entry.Key] = buildMemberDefaultValue(type, def);
+                member[entry.Key] = buildMemberDefaultValue(paramDef);
             }
         }
         return member;
     }
 
-    private static JsonNode? buildMemberDefaultValue(string type, JsonNode? defaultDef)
+    private static JsonNode? buildMemberDefaultValue(JsonObject paramDef)
     {
+        string type = paramDef["type"]?.GetValue<string>() ?? "string";
+        JsonNode? defaultDef = paramDef["defaultValue"];
         return type switch
         {
             "int" => defaultDef?.GetValue<int?>() ?? 0,
@@ -1572,8 +1705,16 @@ internal sealed class GeneralDataPage : Grid
             "bool" => defaultDef?.GetValue<bool?>() ?? false,
             "list" => defaultDef is JsonArray arr ? (JsonArray)arr.DeepClone() : new JsonArray(),
             "dict" => defaultDef is JsonObject obj ? (JsonObject)obj.DeepClone() : new JsonObject(),
+            _ when isSfType(type) => createTypedDefault(type),
             _ => JsonValue.Create(defaultDef?.GetValue<string>() ?? string.Empty),
         };
+    }
+
+    private static JsonNode createTypedDefault(string type)
+    {
+        return LuaMetadataValueDefaults.Create(
+            LuaMetadataType.Parse(type),
+            _ => JsonValue.Create(string.Empty)) ?? JsonValue.Create(string.Empty)!;
     }
 
     private static void reorderMemberKey(JsonObject members, string oldKey, string newKey)
@@ -1593,6 +1734,7 @@ internal sealed class GeneralDataPage : Grid
             "bool" => text.Equals("true", StringComparison.OrdinalIgnoreCase) ? true : false,
             "list" => new JsonArray(),
             "dict" => new JsonObject(),
+            _ when isSfType(type) => createTypedDefault(type),
             _ => JsonValue.Create(text) ?? JsonValue.Create(string.Empty)!,
         };
     }
@@ -1644,256 +1786,5 @@ internal static class GeneralDataReferenceInputs
             Content = label,
             Tag = value,
         };
-    }
-}
-
-internal sealed class ListFieldEditor : StackPanel
-{
-    private readonly GameDataService gameData;
-    private readonly JsonObject member;
-    private readonly string paramName;
-    private readonly JsonArray data;
-    private readonly List<string>? refOptions;
-
-    public ListFieldEditor(GameDataService gameData, JsonObject member, string paramName, JsonArray data, List<string>? refOptions)
-    {
-        this.gameData = gameData;
-        this.member = member;
-        this.paramName = paramName;
-        this.data = data;
-        this.refOptions = refOptions;
-        Spacing = 4;
-        rebuild();
-    }
-
-    private void rebuild()
-    {
-        Children.Clear();
-        for (int i = 0; i < data.Count; i++)
-        {
-            int captured = i;
-            string current = data[i]?.GetValue<string>() ?? string.Empty;
-            Grid row = new() { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 4 };
-            Control editor;
-            if (refOptions is not null)
-            {
-                ComboBox combo = GeneralDataReferenceInputs.Create(current, refOptions);
-                combo.SelectionChanged += (_, _) =>
-                {
-                    string next = GeneralDataReferenceInputs.GetValue(combo);
-                    if ((data[captured]?.GetValue<string>() ?? string.Empty) == next)
-                        return;
-                    gameData.RecordSnapshot();
-                    attachData();
-                    data[captured] = next;
-                    gameData.refreshModifiedState();
-                };
-                editor = combo;
-            }
-            else
-            {
-                TextBox box = EditorInputs.CreateEditableTextBox(current);
-                HistoryMergeBehavior.Attach(box, gameData);
-                box.TextChanged += (_, _) =>
-                {
-                    string next = box.Text ?? string.Empty;
-                    if ((data[captured]?.GetValue<string>() ?? string.Empty) == next)
-                        return;
-                    gameData.RecordSnapshot();
-                    attachData();
-                    data[captured] = next;
-                    gameData.refreshModifiedState();
-                };
-                editor = box;
-            }
-            row.Children.Add(editor);
-            Button del = new() { Content = "−", Width = 28, Height = 34, Padding = new Thickness(0) };
-            del.Click += (_, _) =>
-            {
-                gameData.RecordSnapshot();
-                attachData();
-                data.RemoveAt(captured);
-                gameData.refreshModifiedState();
-                rebuild();
-            };
-            Grid.SetColumn(del, 1);
-            row.Children.Add(del);
-            Children.Add(row);
-        }
-        Button add = new()
-        {
-            Content = "+",
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            Height = 28,
-        };
-        add.Click += (_, _) =>
-        {
-            gameData.RecordSnapshot();
-            attachData();
-            data.Add(string.Empty);
-            gameData.refreshModifiedState();
-            rebuild();
-        };
-        Children.Add(add);
-    }
-
-    private void attachData()
-    {
-        if (!ReferenceEquals(member[paramName], data))
-            member[paramName] = data;
-    }
-}
-
-internal sealed class DictFieldEditor : StackPanel
-{
-    private readonly GameDataService gameData;
-    private readonly JsonObject member;
-    private readonly string paramName;
-    private JsonObject data;
-    private readonly List<string>? keyOptions;
-    private bool hasPendingReferenceEntry;
-
-    public DictFieldEditor(GameDataService gameData, JsonObject member, string paramName, JsonObject data, List<string>? keyOptions)
-    {
-        this.gameData = gameData;
-        this.member = member;
-        this.paramName = paramName;
-        this.data = data;
-        this.keyOptions = keyOptions;
-        Spacing = 4;
-        rebuild();
-    }
-
-    private void rebuild()
-    {
-        Children.Clear();
-        List<KeyValuePair<string, JsonNode?>> entries = data.Select(e => e).ToList();
-        int rowCount = entries.Count + (hasPendingReferenceEntry ? 1 : 0);
-        for (int i = 0; i < rowCount; i++)
-        {
-            bool pending = i >= entries.Count;
-            string entryKey = pending ? string.Empty : entries[i].Key;
-            string entryValue = pending ? string.Empty : entries[i].Value?.GetValue<string>() ?? string.Empty;
-            Grid row = new() { ColumnDefinitions = new ColumnDefinitions("*,4,*,Auto"), ColumnSpacing = 4 };
-            Control keyEditor;
-            if (keyOptions is not null)
-            {
-                List<string> availableOptions = keyOptions
-                    .Where(option => string.Equals(option, entryKey, StringComparison.Ordinal)
-                        || !data.ContainsKey(option))
-                    .ToList();
-                ComboBox combo = GeneralDataReferenceInputs.Create(entryKey, availableOptions);
-                string capturedKey = entryKey;
-                combo.SelectionChanged += (_, _) =>
-                {
-                    string newKey = GeneralDataReferenceInputs.GetValue(combo);
-                    if (newKey == capturedKey || string.IsNullOrEmpty(newKey) || data.ContainsKey(newKey))
-                        return;
-                    gameData.RecordSnapshot();
-                    attachData();
-                    string val = pending ? string.Empty : data[capturedKey]?.GetValue<string>() ?? string.Empty;
-                    if (!pending)
-                        data.Remove(capturedKey);
-                    data[newKey] = val;
-                    hasPendingReferenceEntry = false;
-                    gameData.refreshModifiedState();
-                    rebuild();
-                };
-                keyEditor = combo;
-            }
-            else
-            {
-                TextBox keyBox = EditorInputs.CreateEditableTextBox(entryKey);
-                HistoryMergeBehavior.Attach(keyBox, gameData);
-                string capturedKey = entryKey;
-                keyBox.LostFocus += (_, _) =>
-                {
-                    string newKey = keyBox.Text?.Trim() ?? string.Empty;
-                    if (string.IsNullOrEmpty(newKey) || newKey == capturedKey || data.ContainsKey(newKey))
-                        return;
-                    gameData.RecordSnapshot();
-                    attachData();
-                    string val = data[capturedKey]?.GetValue<string>() ?? string.Empty;
-                    data.Remove(capturedKey);
-                    data[newKey] = val;
-                    gameData.refreshModifiedState();
-                    rebuild();
-                };
-                keyEditor = keyBox;
-            }
-            row.Children.Add(keyEditor);
-
-            TextBox valBox = EditorInputs.CreateEditableTextBox(entryValue);
-            valBox.IsEnabled = !pending;
-            HistoryMergeBehavior.Attach(valBox, gameData);
-            string capturedEntryKey = entryKey;
-            valBox.TextChanged += (_, _) =>
-            {
-                if (!data.ContainsKey(capturedEntryKey))
-                    return;
-                string next = valBox.Text ?? string.Empty;
-                if ((data[capturedEntryKey]?.GetValue<string>() ?? string.Empty) == next)
-                    return;
-                gameData.RecordSnapshot();
-                attachData();
-                data[capturedEntryKey] = next;
-                gameData.refreshModifiedState();
-            };
-            Grid.SetColumn(valBox, 2);
-            row.Children.Add(valBox);
-
-            Button del = new() { Content = "−", Width = 28, Height = 34, Padding = new Thickness(0) };
-            string capturedDelKey = entryKey;
-            del.Click += (_, _) =>
-            {
-                if (pending)
-                {
-                    hasPendingReferenceEntry = false;
-                    rebuild();
-                    return;
-                }
-                gameData.RecordSnapshot();
-                attachData();
-                data.Remove(capturedDelKey);
-                gameData.refreshModifiedState();
-                rebuild();
-            };
-            Grid.SetColumn(del, 3);
-            row.Children.Add(del);
-            Children.Add(row);
-        }
-        Button add = new()
-        {
-            Content = "+",
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            Height = 28,
-            IsEnabled = keyOptions is null
-                || (!hasPendingReferenceEntry && keyOptions.Any(option => !data.ContainsKey(option))),
-        };
-        add.Click += (_, _) =>
-        {
-            if (keyOptions is not null)
-            {
-                hasPendingReferenceEntry = true;
-                rebuild();
-                return;
-            }
-            string newKey = "key";
-            int n = 2;
-            while (data.ContainsKey(newKey))
-                newKey = "key" + n++;
-            gameData.RecordSnapshot();
-            attachData();
-            data[newKey] = string.Empty;
-            gameData.refreshModifiedState();
-            rebuild();
-        };
-        Children.Add(add);
-    }
-
-    private void attachData()
-    {
-        if (!ReferenceEquals(member[paramName], data))
-            member[paramName] = data;
     }
 }

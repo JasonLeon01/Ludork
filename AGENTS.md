@@ -12,7 +12,6 @@ After changing first-party C++ sources (`.h`, `.hpp`, `.cc`, `.cpp`, and similar
 
 Before changing Lua runtime behaviour, Standard or other native globals, Core bindings, blueprints or mixins, declarative UI, or Sample gameplay, read the matching English docs first. Primary Lua entry points:
 
-- `docs/en_GB/03.Lua and Blueprint Scripting/00.Overview.md`
 - `docs/en_GB/03.Lua and Blueprint Scripting/01.Lua Runtime and Modules.md` — Standard natives (`list` / `tuple` / `dict`, `bool`, `copy` / `deepcopy`, `PLATFORM`, module load order, `toTable` boundaries)
 - `docs/en_GB/03.Lua and Blueprint Scripting/02.Classes Defaults and Lifecycle.md`
 - Plus the relevant subsection under Mixin, Blueprint, declarative UI, Sample, or API reference as needed

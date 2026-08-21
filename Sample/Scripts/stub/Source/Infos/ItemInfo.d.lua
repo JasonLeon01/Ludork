@@ -1,7 +1,7 @@
 ---@meta Source.Infos.ItemInfo
 --- @brief Item data + logic layer.
 ---
---- Defines item-related blueprint events (onUse, onGet).
+--- Defines item-related blueprint events (onUse, onDrop).
 --- Independent of Actor; can be used standalone in inventory/shop UI.
 ---
 ---@class Source.Infos.ItemInfo: Engine.InfoBase
@@ -11,7 +11,7 @@ local ItemInfo = {}
 --- @brief Triggered when the item is used.
 function ItemInfo:onUse() end
 
---- @brief Triggered when the item is gotten.
-function ItemInfo:onGet() end
+--- @brief Triggered when an enemy drops this Item actor into the map.
+function ItemInfo:onDrop() end
 
 return ItemInfo

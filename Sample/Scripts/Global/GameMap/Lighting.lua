@@ -785,7 +785,7 @@ function GameMapLighting:_getActiveLights()
     for _, actor in ipairs(self:getAllActors()) do
         local lightComp = actor.lightComp
         if lightComp ~= nil and not actor:isDestroyed() then
-            local radius = tonumber(lightComp.lightRadius) or 0.0
+            local radius = lightComp.lightRadius
             if radius > 0.0 then
                 if position == nil then
                     position = Pool.Get("sf.Vector2f", sf.Vector2f, {

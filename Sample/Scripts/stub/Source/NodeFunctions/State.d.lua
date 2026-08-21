@@ -98,4 +98,12 @@ function State.RemoveStateFrom(battler, stateID) end
 ---@param stacks  integer
 function State.ReduceStateFrom(battler, stateID, stacks) end
 
+--- @brief Explicitly trigger one active state's hook event on a battler.
+---
+--- - @param battler The target battler.
+--- - @param stateID State identifier.
+---@param battler Source.Battler.Battler | nil
+---@param stateID string
+function State.TriggerStateHook(battler, stateID) end
+
 return State

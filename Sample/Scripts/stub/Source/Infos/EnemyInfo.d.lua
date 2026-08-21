@@ -1,7 +1,7 @@
 ---@meta Source.Infos.EnemyInfo
 --- @brief Enemy data + logic layer.
 ---
---- Defines enemy-related blueprint events (onDefeat, onEncounter).
+--- Defines enemy-related blueprint events (onDefeat).
 --- Independent of Actor; can be used standalone in battle systems.
 ---
 ---@class Source.Infos.EnemyInfo: Engine.InfoBase

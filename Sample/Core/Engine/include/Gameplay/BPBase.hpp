@@ -66,13 +66,9 @@ public:
                                  const std::string& eventName,
                                  const RuntimeValue& keywordArguments = {});
 
-    BIND_METHOD(metadata = false)
-    static RuntimeValue _resolveGeneralDataDict(const RuntimeValue& value);
-
     BIND_METHOD()
     static void ApplyGeneralData(const RuntimeIdentityPtr& object,
-                                 const RuntimeValue& data,
-                                 const RuntimeValue& parameterTypes);
+                                 const RuntimeValue& data);
 
     static void BlueprintEventNative(
         RuntimeObject& object, const std::string& eventName,
@@ -86,8 +82,7 @@ public:
         const RuntimeValue::Map& keywordArguments = {});
 
     static void ApplyGeneralDataNative(RuntimeObject& object,
-                                       const RuntimeValue& data,
-                                       const RuntimeValue& parameterTypes);
+                                       const RuntimeValue& data);
 
 private:
     static RuntimeValue objectValue(const RuntimeObject& object);

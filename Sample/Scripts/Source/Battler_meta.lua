@@ -13,7 +13,6 @@ local _METADATA = {
                 EXP = 0,
                 GOLD = 0,
                 ANIMATION_KEY = "",
-                HP = 0,
             },
         },
         addState = {

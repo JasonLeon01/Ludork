@@ -52,7 +52,7 @@ function WindowEquipStatusUI:clearChangeTexts() end
 function WindowEquipStatusUI:setDescriptionPosition(nameY, descY) end
 
 ---@param equipID string | nil
----@return table
+---@return table<string, integer>
 function WindowEquipStatusUI:getAttrPlus(equipID) end
 
 ---@param firstAttrs  table

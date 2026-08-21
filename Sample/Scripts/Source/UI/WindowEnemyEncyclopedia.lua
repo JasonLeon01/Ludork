@@ -226,26 +226,20 @@ function WindowEnemyEncyclopediaUI:buildSpecials(entry, y)
 end
 
 function WindowEnemyEncyclopediaUI.formatCriticalText(criticalValue)
-    local value = tonumber(criticalValue)
-    value = value ~= nil and math.modf(value) or -2
-    if value == -2 then
+    if criticalValue == nil or criticalValue == -2 then
         return ""
     end
-    if value == -1 then
+    if criticalValue == -1 then
         return "???"
     end
-    return tostring(ToShortNumber(value))
+    return tostring(ToShortNumber(criticalValue))
 end
 
 function WindowEnemyEncyclopediaUI.formatHitCount(hitCount)
     if hitCount == nil then
         return ""
     end
-    local value = tonumber(hitCount)
-    if value == nil then
-        return ""
-    end
-    return tostring(ToShortNumber(math.max(1, math.modf(value))))
+    return tostring(ToShortNumber(math.max(1, hitCount)))
 end
 
 function WindowEnemyEncyclopediaUI.limitLines(text, maxLines, maxWidth)

@@ -189,6 +189,28 @@ local _METADATA = {
                 },
             },
         },
+        TriggerStateHook = {
+            type = "function",
+            parameters = {
+                "battler",
+                "stateID",
+                battler = { "Source.Battler", "Battler" },
+                stateID = "string",
+            },
+            ["return"] = {},
+            ExecSplit = {
+                "default",
+                default = "nil",
+            },
+            Meta = {
+                GeneralDataVars = {
+                    {
+                        "stateID",
+                        "State",
+                    },
+                },
+            },
+        },
     },
 }
 

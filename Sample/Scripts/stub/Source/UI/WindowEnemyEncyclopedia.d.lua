@@ -55,11 +55,11 @@ function WindowEnemyEncyclopediaUI:addInfoPair(label, value, columnIndex, y) end
 ---@param y     number
 function WindowEnemyEncyclopediaUI:buildSpecials(entry, y) end
 
----@param criticalValue number | string | nil
+---@param criticalValue integer | nil
 ---@return string
 function WindowEnemyEncyclopediaUI.formatCriticalText(criticalValue) end
 
----@param hitCount number | string | nil
+---@param hitCount integer | nil
 ---@return string
 function WindowEnemyEncyclopediaUI.formatHitCount(hitCount) end
 

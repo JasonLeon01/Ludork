@@ -386,12 +386,12 @@ function WindowMessage._getCurveDuration(curve)
     end
     local firstKey = assert(curve.keys[1])
     local lastKey = curve.keys[#curve.keys]
-    return (tonumber(lastKey.time) or 0.0) - (tonumber(firstKey.time) or 0.0)
+    return lastKey.time - firstKey.time
 end
 
 ---@return integer
 function WindowMessage:_getMaxWindowWidth()
-    local gameWidth = math.floor(GlobalSystem.getGameSize().x)
+    local gameWidth = GlobalSystem.getGameSize().x
     return math.max(1, gameWidth - self._SCREEN_EDGE_MARGIN)
 end
 

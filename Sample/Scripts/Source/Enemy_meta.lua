@@ -23,7 +23,7 @@ local _METADATA = {
             },
         },
         infoComp = {
-            type = { "Source.Battler", "EnemyInfoComponent" },
+            type = { "Source.Components.EnemyInfoComponent", "EnemyInfoComponent" },
             component = true,
             default = {
                 MAXHP = 1000,
@@ -32,7 +32,6 @@ local _METADATA = {
                 EXP = 0,
                 GOLD = 0,
                 ANIMATION_KEY = "",
-                HP = 0,
                 name = "",
                 desc = "",
                 special = {},

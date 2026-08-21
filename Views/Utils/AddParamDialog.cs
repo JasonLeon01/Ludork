@@ -12,11 +12,48 @@ namespace Ludork.Views.Utils;
 
 public sealed class AddParamDialog : Window
 {
-    private static readonly string[] ParamTypes = ["string", "int", "float", "bool", "file", "list", "dict"];
+    private static readonly string[] ParamTypes =
+    [
+        "string",
+        "int",
+        "float",
+        "bool",
+        "file",
+        "list",
+        "dict",
+        "sf.Vector2f",
+        "sf.Vector2i",
+        "sf.Vector2u",
+        "sf.Vector3f",
+        "sf.Vector3i",
+        "sf.Vector3u",
+        "sf.Color",
+        "sf.IntRect",
+    ];
+    private static readonly string[] ContainerItemTypes =
+    [
+        "any",
+        "string",
+        "int",
+        "float",
+        "bool",
+        "file",
+        "sf.Vector2f",
+        "sf.Vector2i",
+        "sf.Vector2u",
+        "sf.Vector3f",
+        "sf.Vector3i",
+        "sf.Vector3u",
+        "sf.Color",
+        "sf.IntRect",
+    ];
 
     private readonly IEnumerable<string> existingParams;
     private readonly TextBox nameBox;
+    private readonly TextBox commentBox;
     private readonly ComboBox typeCombo;
+    private readonly TextBlock containerItemTypeLabel;
+    private readonly ComboBox containerItemTypeCombo;
     private readonly TextBox defaultBox;
     private readonly TextBlock typeTipBlock;
     private readonly TextBlock defaultTipBlock;
@@ -27,7 +64,7 @@ public sealed class AddParamDialog : Window
         this.existingParams = existingParams;
         Title = LocaleService.Get("ADD_PARAM");
         Width = 480;
-        Height = 320;
+        Height = 400;
         MinWidth = 380;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Background = new SolidColorBrush(Color.FromRgb(43, 43, 43));
@@ -35,11 +72,21 @@ public sealed class AddParamDialog : Window
         EditorWindowIcon.Apply(this);
 
         nameBox = EditorInputs.CreateEditableTextBox();
+        commentBox = EditorInputs.CreateEditableTextBox();
 
         typeCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
         foreach (string t in ParamTypes)
             typeCombo.Items.Add(t);
         typeCombo.SelectedIndex = 0;
+
+        containerItemTypeLabel = new TextBlock
+        {
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        containerItemTypeCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
+        foreach (string t in ContainerItemTypes)
+            containerItemTypeCombo.Items.Add(t);
+        containerItemTypeCombo.SelectedIndex = 0;
 
         defaultBox = EditorInputs.CreateEditableTextBox();
         typeTipBlock = new TextBlock
@@ -60,8 +107,7 @@ public sealed class AddParamDialog : Window
             TextWrapping = TextWrapping.Wrap,
         };
 
-        typeCombo.SelectionChanged += (_, _) => updateTips();
-        updateTips();
+        typeCombo.SelectionChanged += (_, _) => updateTypeState();
 
         Grid form = new()
         {
@@ -70,8 +116,11 @@ public sealed class AddParamDialog : Window
         };
         addRow(form, 0, LocaleService.Get("PARAM_NAME"), nameBox);
         form.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        addRow(form, 1, LocaleService.Get("PARAM_TYPE"), typeCombo);
-        addRow(form, 2, LocaleService.Get("DEFAULT_VALUE"), defaultBox);
+        addRow(form, 1, "Comment", commentBox);
+        addRow(form, 2, LocaleService.Get("PARAM_TYPE"), typeCombo);
+        addRow(form, 3, containerItemTypeLabel, containerItemTypeCombo);
+        addRow(form, 4, LocaleService.Get("DEFAULT_VALUE"), defaultBox);
+        updateTypeState();
 
         Button confirm = new() { Content = LocaleService.Get("CONFIRM"), MinWidth = 80 };
         confirm.Click += onConfirm;
@@ -104,33 +153,49 @@ public sealed class AddParamDialog : Window
 
     private void addRow(Grid form, int row, string label, Control editor)
     {
+        addRow(
+            form,
+            row,
+            new TextBlock
+            {
+                Text = label,
+                VerticalAlignment = VerticalAlignment.Center,
+            },
+            editor);
+    }
+
+    private void addRow(Grid form, int row, TextBlock label, Control editor)
+    {
         while (form.RowDefinitions.Count <= row)
             form.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        TextBlock lbl = new()
-        {
-            Text = label,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        Grid.SetRow(lbl, row);
-        Grid.SetColumn(lbl, 0);
-        form.Children.Add(lbl);
+        Grid.SetRow(label, row);
+        Grid.SetColumn(label, 0);
+        form.Children.Add(label);
         Grid.SetRow(editor, row);
         Grid.SetColumn(editor, 2);
         form.Children.Add(editor);
     }
 
-    private void updateTips()
+    private void updateTypeState()
     {
         string t = typeCombo.SelectedItem as string ?? "string";
-        typeTipBlock.Text = LocaleService.Get("GENERAL_DATA_TYPE_TIP_" + t.ToUpperInvariant());
-        defaultTipBlock.Text = LocaleService.Get("GENERAL_DATA_DEFAULT_TIP_" + t.ToUpperInvariant());
+        bool list = t == "list";
+        bool dict = t == "dict";
+        containerItemTypeLabel.Text = LocaleService.Get(list ? "ITEM_TYPE" : "VALUE_TYPE");
+        containerItemTypeLabel.IsVisible = list || dict;
+        containerItemTypeCombo.IsVisible = list || dict;
+        bool sfType = t.StartsWith("sf.", System.StringComparison.Ordinal);
+        defaultBox.IsEnabled = !list && !dict && !sfType;
+        string tipType = sfType ? "SF" : t.ToUpperInvariant();
+        typeTipBlock.Text = LocaleService.Get("GENERAL_DATA_TYPE_TIP_" + tipType);
+        defaultTipBlock.Text = LocaleService.Get("GENERAL_DATA_DEFAULT_TIP_" + tipType);
     }
 
-    public static Task<(string name, string type, string defaultText)?> ShowAsync(
+    public static Task<GeneralDataParamCreation?> ShowAsync(
         Window owner,
         IEnumerable<string> existingParams)
     {
-        return new AddParamDialog(existingParams).ShowDialog<(string, string, string)?>(owner);
+        return new AddParamDialog(existingParams).ShowDialog<GeneralDataParamCreation?>(owner);
     }
 
     private void onConfirm(object? sender, RoutedEventArgs args)
@@ -148,7 +213,23 @@ public sealed class AddParamDialog : Window
             return;
         }
         string type = typeCombo.SelectedItem as string ?? "string";
+        string containerItemType = containerItemTypeCombo.SelectedItem as string ?? "string";
         string defaultText = defaultBox.Text ?? string.Empty;
-        Close((name, type, defaultText));
+        string comment = commentBox.Text?.Trim() ?? string.Empty;
+        Close(new GeneralDataParamCreation(
+            name,
+            type,
+            type == "list" ? containerItemType : null,
+            type == "dict" ? containerItemType : null,
+            defaultText,
+            comment));
     }
 }
+
+public sealed record GeneralDataParamCreation(
+    string Name,
+    string Type,
+    string? ItemType,
+    string? ValueType,
+    string DefaultText,
+    string Comment);

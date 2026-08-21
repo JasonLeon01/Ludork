@@ -14,6 +14,58 @@ local LEVEL_HP_GAIN = 400
 local LEVEL_ATK_GAIN = 2
 local LEVEL_DEF_GAIN = 2
 
+---@param old    integer | Class.MissingValue
+---@param new    integer | Class.MissingValue
+---@param player Source.Player.Player
+local function onHPChange(old, new, player)
+    if player == nil then
+        return
+    end
+    ---@cast new integer
+    if new < 0 then
+        player.infoComp.HP = 0
+    elseif new > player.infoComp.MAXHP then
+        player.infoComp.HP = player.infoComp.MAXHP
+    end
+    if old ~= player.infoComp.HP then
+        player:_incrementCombatRevision()
+    end
+end
+
+---@param old    integer | Class.MissingValue
+---@param new    integer | Class.MissingValue
+---@param player Source.Player.Player
+local function onMAXHPChange(old, new, player)
+    if player == nil then
+        return
+    end
+    ---@cast new integer
+    if player.infoComp.HP > new then
+        player.infoComp.HP = new
+    end
+    if not player._loading then
+        local oldValue = old == Class.MISSING and 0 or old
+        ---@cast oldValue integer
+        local delta = new - oldValue
+        ---@cast delta integer
+        if delta > 0 then
+            local hp = player.infoComp.HP + delta
+            ---@cast hp integer
+            player.infoComp.HP = hp
+        end
+    end
+    if old ~= new then
+        player:_incrementCombatRevision()
+    end
+end
+
+---@param player Source.Player.Player
+local function syncInitialHP(player)
+    if player.infoComp.HP <= 0 then
+        player.infoComp.HP = player.infoComp.MAXHP
+    end
+end
+
 ---@class Source.Player.Player
 local Player = {}
 
@@ -29,8 +81,10 @@ function Player:init(texture, tag)
     Character.init(self, texture, tag or "")
     Battler.init(self)
     self._loading = true
+    Class.monitor(self.infoComp, "HP", onHPChange, self._combatMonitorParams)
+    Class.monitor(self.infoComp, "MAXHP", onMAXHPChange, self._combatMonitorParams)
     self:initInfo(Data)
-    self:_syncInitialHP()
+    syncInitialHP(self)
     self._loading = false
 
     Class.monitor(self.infoComp, "LEVEL", function (old, new)
@@ -310,18 +364,15 @@ function Player:_updateEquipInfo(slot, equipID)
     self._equipInfo = result
 end
 
----@param attrPlus   table<string, string|number>
+---@param attrPlus   table<string, integer>
 ---@param multiplier integer
 function Player:_applyEquipAttributeChanges(attrPlus, multiplier)
     for attrKey, attrValue in pairs(attrPlus) do
-        local delta = assert(tonumber(attrValue), "Invalid equip attribute value: " .. tostring(attrKey)) * multiplier
+        local delta = attrValue * multiplier
         if self.infoComp[attrKey] ~= nil then
             self.infoComp[attrKey] = self.infoComp[attrKey] + delta
         else
-            local currentValue = assert(
-                tonumber(self[attrKey]), "Equip attribute target is missing or not numeric: " .. tostring(attrKey)
-            )
-            self[attrKey] = currentValue + delta
+            self[attrKey] = self[attrKey] + delta
         end
     end
 end

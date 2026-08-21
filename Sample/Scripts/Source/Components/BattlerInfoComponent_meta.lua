@@ -7,7 +7,6 @@ local _METADATA = {
             "EXP",
             "GOLD",
             "ANIMATION_KEY",
-            "HP",
         },
         bases = {
             { "Engine", "Component" },
@@ -38,10 +37,6 @@ local _METADATA = {
             Meta = {
                 GeneralDataVars = "ANIMATION",
             },
-        },
-        HP = {
-            type = "int",
-            default = 0,
         },
         Meta = {
             GeneralDataVars = {

@@ -61,12 +61,18 @@ bool Actor::MapMove(const sf::Vector2i& requestedOffset) {
         if (!collisions.empty()) {
             BPBase::BlueprintEventNative(
                 *this, "onCollision", {{"other", actorListValue(collisions)}});
+            if (isDestroyed()) {
+                return false;
+            }
             const std::vector<Actor*> self{this};
             for (Actor* collision : collisions) {
-                if (collision != nullptr) {
-                    BPBase::BlueprintEventNative(
-                        *collision, "onCollision",
-                        {{"other", actorListValue(self)}});
+                if (collision == nullptr || collision->isDestroyed()) {
+                    continue;
+                }
+                BPBase::BlueprintEventNative(*collision, "onCollision",
+                                             {{"other", actorListValue(self)}});
+                if (isDestroyed() || collision->isDestroyed()) {
+                    break;
                 }
             }
         }

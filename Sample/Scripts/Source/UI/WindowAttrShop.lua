@@ -207,7 +207,7 @@ function WindowAttrShopUI:open(
     if priceRef == nil then
         self.model._fallbackPrice = 0
     end
-    self.model._priceIncrement = Engine.ToInteger(priceIncrement)
+    self.model._priceIncrement = priceIncrement
     self.model._moneyName = tostring(moneyName or "GOLD")
     self:getPrices()
     if rect ~= nil then
@@ -327,7 +327,7 @@ function WindowAttrShopUI:refreshAvatar(shopActor)
     self.model._avatarTexture = texture
     self.model._avatarRect = textureRect
     self.model._avatarAnimatable = shopActor:getAnimatable()
-    self.model._avatarSwitchInterval = tonumber(shopActor.switchInterval) or 0.2
+    self.model._avatarSwitchInterval = shopActor.switchInterval
     self.model._avatarImage:setTexture(texture, false)
     self.model._avatarImage:setTextureRect(textureRect)
     self:setProperty("Avatar", "visible", true)

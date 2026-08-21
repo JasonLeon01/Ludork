@@ -376,7 +376,7 @@ function ConfigWindow:_onCapturedTouchReset()
     self._capturedTouchOwner = nil
 end
 
----@return Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI | Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI | Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI | nil
+---@return Source.UI.Parts.ConfigWindow.ConfigRow.ConfigRowControllerBase | nil
 function ConfigWindow:_getSelectedSettingRow()
     if self._settingRows == nil or self.index == nil then
         return nil

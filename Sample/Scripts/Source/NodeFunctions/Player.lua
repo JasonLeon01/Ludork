@@ -133,7 +133,7 @@ function Player.HealPlayer(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        player.infoComp.HP = player.infoComp.HP + Engine.ToInteger(amount)
+        player.infoComp.HP = player.infoComp.HP + amount
     end
 end
 
@@ -141,7 +141,7 @@ function Player.DamagePlayer(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        local hp = player.infoComp.HP - Engine.ToInteger(amount)
+        local hp = player.infoComp.HP - amount
         ---@cast hp integer
         player.infoComp.HP = hp
     end
@@ -166,7 +166,7 @@ function Player.AddHP(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        player.infoComp.HP = player.infoComp.HP + Engine.ToInteger(amount)
+        player.infoComp.HP = player.infoComp.HP + amount
     end
 end
 
@@ -174,7 +174,7 @@ function Player.AddGold(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        player.infoComp.GOLD = player.infoComp.GOLD + Engine.ToInteger(amount)
+        player.infoComp.GOLD = player.infoComp.GOLD + amount
     end
 end
 
@@ -182,7 +182,7 @@ function Player.AddATK(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        player.infoComp.ATK = player.infoComp.ATK + Engine.ToInteger(amount)
+        player.infoComp.ATK = player.infoComp.ATK + amount
     end
 end
 
@@ -190,7 +190,7 @@ function Player.AddDEF(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        player.infoComp.DEF = player.infoComp.DEF + Engine.ToInteger(amount)
+        player.infoComp.DEF = player.infoComp.DEF + amount
     end
 end
 
@@ -198,7 +198,7 @@ function Player.AddEXP(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        player.infoComp.EXP = player.infoComp.EXP + Engine.ToInteger(amount)
+        player.infoComp.EXP = player.infoComp.EXP + amount
     end
 end
 

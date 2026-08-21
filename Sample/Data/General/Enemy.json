@@ -2,45 +2,50 @@
   "params": {
     "name": {
       "type": "string",
-      "desc": "The name of enemy.",
+      "comment": "The display name of this enemy.",
       "defaultValue": "NEW ENEMY"
     },
     "desc": {
       "type": "string",
-      "desc": "The description of enemy.",
+      "comment": "The display description of this enemy.",
       "defaultValue": "NEW ENEMY DESC"
     },
     "MAXHP": {
       "type": "int",
+      "comment": "The enemy's maximum HP.",
       "defaultValue": 0
     },
     "ATK": {
       "type": "int",
+      "comment": "The enemy's attack value.",
       "defaultValue": 0
     },
     "DEF": {
       "type": "int",
+      "comment": "The enemy's defence value.",
       "defaultValue": 0
     },
     "EXP": {
       "type": "int",
+      "comment": "The experience granted when the enemy is defeated.",
       "defaultValue": 0
     },
     "GOLD": {
       "type": "int",
+      "comment": "The gold granted when the enemy is defeated.",
       "defaultValue": 0
     },
     "drops": {
-      "type": "list",
-      "defaultValue": [],
-      "reference": {
-        "kind": "general",
-        "key": "Item"
-      }
+      "type": "dict",
+      "comment": "Item Blueprint class paths mapped to map-cell offsets from the defeated enemy.",
+      "defaultValue": {},
+      "valueType": "sf.Vector2i"
     },
     "special": {
       "type": "dict",
+      "comment": "Special member IDs mapped to integer parameters, boolean flags or the Reborn Blueprint class path.",
       "defaultValue": {},
+      "valueType": "any",
       "reference": {
         "kind": "general",
         "key": "Special"
@@ -48,6 +53,7 @@
     },
     "ANIMATION_KEY": {
       "type": "string",
+      "comment": "The animation played when the enemy attacks.",
       "defaultValue": "",
       "reference": {
         "kind": "animation"
@@ -74,9 +80,9 @@
       "DEF": 0,
       "EXP": 1,
       "GOLD": 2,
-      "drops": [],
+      "drops": {},
       "special": {
-        "Poisoning": "1"
+        "Poisoning": 1
       },
       "ANIMATION_KEY": "attack"
     },
@@ -88,9 +94,9 @@
       "DEF": 2,
       "EXP": 1000,
       "GOLD": 1000,
-      "drops": [],
+      "drops": {},
       "special": {
-        "Weaken": "2"
+        "Weaken": 2
       },
       "ANIMATION_KEY": "attack"
     },
@@ -102,9 +108,9 @@
       "DEF": 10,
       "EXP": 1,
       "GOLD": 3,
-      "drops": [],
+      "drops": {},
       "special": {
-        "Hard": ""
+        "Hard": true
       },
       "ANIMATION_KEY": "attack"
     },
@@ -116,9 +122,9 @@
       "DEF": 12,
       "EXP": 3,
       "GOLD": 3,
-      "drops": [],
+      "drops": {},
       "special": {
-        "Magic": ""
+        "Magic": true
       },
       "ANIMATION_KEY": "waterspread"
     },
@@ -130,7 +136,7 @@
       "DEF": 5,
       "EXP": 4,
       "GOLD": 4,
-      "drops": [],
+      "drops": {},
       "special": {},
       "ANIMATION_KEY": "attack"
     },
@@ -142,9 +148,9 @@
       "DEF": 5,
       "EXP": 3,
       "GOLD": 6,
-      "drops": [],
+      "drops": {},
       "special": {
-        "Compete": ""
+        "Compete": true
       },
       "ANIMATION_KEY": "attack"
     },
@@ -156,10 +162,10 @@
       "DEF": 30,
       "EXP": 5,
       "GOLD": 8,
-      "drops": [],
+      "drops": {},
       "special": {
-        "Magic": "",
-        "Domain": "2"
+        "Magic": true,
+        "Domain": 2
       },
       "ANIMATION_KEY": "waterspread"
     },
@@ -171,9 +177,9 @@
       "DEF": 50,
       "EXP": 20,
       "GOLD": 60,
-      "drops": [],
+      "drops": {},
       "special": {
-        "Flank": ""
+        "Flank": true
       },
       "ANIMATION_KEY": "watershot"
     },
@@ -185,10 +191,10 @@
       "DEF": 30,
       "EXP": 8,
       "GOLD": 8,
-      "drops": [],
+      "drops": {},
       "special": {
-        "Magic": "",
-        "Blockade": ""
+        "Magic": true,
+        "Blockade": true
       },
       "ANIMATION_KEY": "watershot"
     },
@@ -200,10 +206,19 @@
       "DEF": 0,
       "EXP": 3,
       "GOLD": 6,
-      "drops": [],
+      "drops": {
+        "Data.Blueprints.Items.BP_Item_Key_B3": [
+          0,
+          0
+        ],
+        "Data.Blueprints.Items.BP_Item_Key_R3": [
+          0,
+          0
+        ]
+      },
       "special": {
-        "MultiHit": "8",
-        "Hard": ""
+        "MultiHit": 8,
+        "Hard": true
       },
       "ANIMATION_KEY": "attack"
     },
@@ -215,7 +230,7 @@
       "DEF": 10,
       "EXP": 3,
       "GOLD": 3,
-      "drops": [],
+      "drops": {},
       "special": {
         "Reborn": "Data.Blueprints.Enemies.BP_Enemy_Skeleton_01"
       },
@@ -224,7 +239,6 @@
   },
   "linkedType": "EnemyInfo",
   "events": [
-    "onDefeat",
-    "onEncounter"
+    "onDefeat"
   ]
 }

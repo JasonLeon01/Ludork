@@ -13,7 +13,7 @@ function ItemInfo:onUse()
     local _ = self
 end
 
-function ItemInfo:onGet()
+function ItemInfo:onDrop()
     local _ = self
 end
 

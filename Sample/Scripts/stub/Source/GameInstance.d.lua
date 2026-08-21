@@ -1,6 +1,5 @@
 ---@meta Source.GameInstance
 
----@alias Source.GameInstance.TerrainTileID integer|string|nil
 ---@alias Source.GameInstance.RecordValue nil|boolean|number|string|table
 
 ---@class Source.GameInstance.AddedActorRecord
@@ -12,7 +11,7 @@
 
 ---@class Source.GameInstance.TerrainChangeRecord
 ---@field position sf.Vector2i
----@field tileID   Source.GameInstance.TerrainTileID
+---@field tileID   Global.GameMap.TerrainTileID
 
 ---@class Source.GameInstance.SavedAddedActorRecord
 ---@field bp              string
@@ -58,7 +57,7 @@
 ---@field getAddedActors            fun(self: Source.GameInstance.GameInstance, mapPath: string): Source.GameInstance.AddedActorRecord[]
 ---@field getActorPositions         fun(self: Source.GameInstance.GameInstance, mapPath: string): table<string, sf.Vector2i>
 ---@field getDestroyedActors        fun(self: Source.GameInstance.GameInstance, mapPath: string): string[]
----@field recordTerrainDestruction  fun(self: Source.GameInstance.GameInstance, mapPath: string, layerName: string, position: sf.Vector2i, tileID: Source.GameInstance.TerrainTileID)
+---@field recordTerrainDestruction  fun(self: Source.GameInstance.GameInstance, mapPath: string, layerName: string, position: sf.Vector2i, tileID: Global.GameMap.TerrainTileID)
 ---@field recordTelepoint           fun(self: Source.GameInstance.GameInstance, mapPath: string, telepoint: sf.Vector2u)
 ---@field applyMapInfo              fun(self: Source.GameInstance.GameInstance, mapPath: string, position?: sf.Vector2i | sf.Vector2u)
 ---@field recordAddedActor          fun(self: Source.GameInstance.GameInstance, mapPath: string, actor: Engine.Actor, layerName: string)
@@ -253,7 +252,7 @@ function GameInstance:getDestroyedActors(mapPath) end
 ---@param mapPath   string
 ---@param layerName string
 ---@param position  sf.Vector2i
----@param tileID    integer | string | nil
+---@param tileID    Global.GameMap.TerrainTileID
 function GameInstance:recordTerrainDestruction(mapPath, layerName, position, tileID) end
 
 --- @brief Get recorded terrain tile replacements for a map.

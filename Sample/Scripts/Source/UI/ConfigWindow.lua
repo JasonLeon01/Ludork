@@ -379,6 +379,7 @@ end
 
 function ConfigWindowUI:_setScaleOptions(scaleValues, selectedScale)
     self._scaleValues = scaleValues
+    ---@cast self._scaleRow -nil
     self._scaleRow:setItems(getScaleLabels(scaleValues))
     local scaleIndex = findScaleIndex(scaleValues, selectedScale)
     self._scaleRow:getDropBox():setSelectedIndex(scaleIndex)

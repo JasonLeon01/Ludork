@@ -174,14 +174,7 @@ function WindowEquipStatusUI:getAttrPlus(equipID)
     if attrPlus == nil then
         return {}
     end
-    local result = {}
-    for attrKey, attrValue in pairs(attrPlus) do
-        local converted = tonumber(attrValue)
-        if converted ~= nil then
-            result[tostring(attrKey)] = converted
-        end
-    end
-    return result
+    return copy(attrPlus)
 end
 
 function WindowEquipStatusUI:getAttrKeys(firstAttrs, secondAttrs)

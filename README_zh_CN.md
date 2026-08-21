@@ -98,7 +98,7 @@ macOS：
 ## 文档与支持
 
 - 从 [Ludork 文档](docs/zh_CN/00.Ludork%20文档.md)开始阅读。
-- 按照[快速入门](docs/zh_CN/01.快速入门/00.概述.md)完成安装、工程创建、运行与打包。
+- 按照[快速入门](docs/zh_CN/01.快速入门/01.创建第一个项目.md)完成工程创建、运行与打包。
 - 通过 [GitHub Issues](https://github.com/JasonLeon01/Ludork/issues)报告可复现问题或提交功能建议。
 
 报告问题时，请提供 Ludork 1.0.0、操作系统、所选模板、复现步骤及相关 Console 输出。请勿附带包含凭据或无权再分发内容的工程。

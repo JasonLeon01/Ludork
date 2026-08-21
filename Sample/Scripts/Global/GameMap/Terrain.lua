@@ -96,8 +96,8 @@ function GameMapTerrain:updateActorOccupancy(actor)
     GameMapBase.updateActorOccupancy(gameMapBase, actor)
 end
 
----@param tileID integer | string | nil
----@return integer | string | nil
+---@param tileID Global.GameMap.TerrainTileID
+---@return Global.GameMap.TerrainTileID
 function GameMapTerrain._normaliseTerrainTileID(_self, tileID)
     if tileID == nil then
         return nil
@@ -121,7 +121,7 @@ end
 
 ---@param layer    Engine.TileLayer
 ---@param position sf.Vector2i
----@return integer | string | nil
+---@return Global.GameMap.TerrainTileID
 function GameMapTerrain:_getTerrainTileID(layer, position)
     return self:_getTerrainAutoTileID(layer, position) or layer:get(position)
 end
@@ -131,7 +131,7 @@ end
 ---@param autoTileTextures    sf.Texture[]
 ---@param autoTileFrameCounts integer[]
 ---@param position            sf.Vector2i
----@param tileID              integer | string | nil
+---@param tileID              Global.GameMap.TerrainTileID
 function GameMapTerrain:_writeTerrainTile(layer, layerData, autoTileTextures, autoTileFrameCounts, position, tileID)
     local x = position.x + 1
     local y = position.y + 1
@@ -141,7 +141,7 @@ function GameMapTerrain:_writeTerrainTile(layer, layerData, autoTileTextures, au
     local tilesRow = tiles[y]
     ---@cast tilesRow(integer | nil)[]
     local autoTilesRow = autoTiles[y]
-    ---@cast autoTilesRow(integer | string | nil)[]
+    ---@cast autoTilesRow Global.GameMap.TerrainTileID[]
     if tileID == nil then
         tilesRow[x] = nil
         autoTilesRow[x] = nil
@@ -198,7 +198,7 @@ function GameMapTerrain._ensureTerrainAutoTileGrid(_self, layerData, size)
         autoTiles[#autoTiles + 1] = {}
     end
     for _, row in ipairs(autoTiles) do
-        ---@cast row(integer | string | nil)[] & { n: integer | nil }
+        ---@cast row Global.GameMap.TerrainTileID[] & { n: integer | nil }
         local rowLength = row.n
         if rowLength == nil then
             row.n = size.x

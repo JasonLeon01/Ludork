@@ -360,7 +360,7 @@ local _METADATA = {
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "int",
             },
             Pure = true,
         },

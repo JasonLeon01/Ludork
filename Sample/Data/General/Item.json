@@ -2,26 +2,32 @@
   "params": {
     "name": {
       "type": "string",
+      "comment": "The display name of this item.",
       "defaultValue": ""
     },
     "desc": {
       "type": "string",
+      "comment": "The display description of this item.",
       "defaultValue": ""
     },
     "usable": {
       "type": "bool",
+      "comment": "Whether the item can be activated from the inventory and trigger onUse.",
       "defaultValue": false
     },
     "price": {
       "type": "int",
+      "comment": "The gold price used when buying or selling the item in shops.",
       "defaultValue": 0
     },
     "icon": {
       "type": "file",
+      "comment": "The icon asset path relative to Assets.",
       "defaultValue": "Icons"
     },
     "cost": {
       "type": "bool",
+      "comment": "Whether the inventory displays this item's stack count.",
       "defaultValue": true
     }
   },
@@ -36,15 +42,10 @@
           "onUse": {
             "nodes": [],
             "links": []
-          },
-          "onGet": {
-            "nodes": [],
-            "links": []
           }
         },
         "startNodes": {
-          "onUse": null,
-          "onGet": null
+          "onUse": null
         }
       },
       "icon": "Icons/classic-keys-0-0.png",
@@ -127,15 +128,10 @@
                 "linkType": "Params"
               }
             ]
-          },
-          "onGet": {
-            "nodes": [],
-            "links": []
           }
         },
         "startNodes": {
-          "onUse": 0,
-          "onGet": null
+          "onUse": 0
         }
       }
     },
@@ -160,15 +156,10 @@
               }
             ],
             "links": []
-          },
-          "onGet": {
-            "nodes": [],
-            "links": []
           }
         },
         "startNodes": {
-          "onUse": 0,
-          "onGet": null
+          "onUse": 0
         }
       }
     },
@@ -212,15 +203,10 @@
                 "linkType": "Exec"
               }
             ]
-          },
-          "onGet": {
-            "nodes": [],
-            "links": []
           }
         },
         "startNodes": {
-          "onUse": 0,
-          "onGet": null
+          "onUse": 0
         }
       }
     },
@@ -264,15 +250,10 @@
                 "linkType": "Exec"
               }
             ]
-          },
-          "onGet": {
-            "nodes": [],
-            "links": []
           }
         },
         "startNodes": {
-          "onUse": 0,
-          "onGet": null
+          "onUse": 0
         }
       }
     },
@@ -316,15 +297,10 @@
                 "linkType": "Exec"
               }
             ]
-          },
-          "onGet": {
-            "nodes": [],
-            "links": []
           }
         },
         "startNodes": {
-          "onUse": 0,
-          "onGet": null
+          "onUse": 0
         }
       }
     },
@@ -451,15 +427,10 @@
                 "linkType": "Exec"
               }
             ]
-          },
-          "onGet": {
-            "nodes": [],
-            "links": []
           }
         },
         "startNodes": {
-          "onUse": 3,
-          "onGet": null
+          "onUse": 3
         }
       }
     },
@@ -646,24 +617,14 @@
               }
             ]
           },
-          "onGet": {
-            "nodes": [],
-            "links": []
-          },
           "onDrop": {
-            "nodes": [],
-            "links": []
-          },
-          "onEquip": {
             "nodes": [],
             "links": []
           }
         },
         "startNodes": {
           "onUse": 6,
-          "onGet": null,
-          "onDrop": null,
-          "onEquip": null
+          "onDrop": null
         }
       }
     },
@@ -789,104 +750,10 @@
                 "linkType": "Exec"
               }
             ]
-          },
-          "onGet": {
-            "nodes": [
-              {
-                "nodeFunction": "NodeFunctions.Player.GetPlayerFrontPosition",
-                "params": [],
-                "pos": [
-                  147.99358771847983,
-                  183.45038477603228
-                ]
-              },
-              {
-                "nodeFunction": "NodeFunctions.Scene.GetTerrainTile",
-                "params": [
-                  "default",
-                  ""
-                ],
-                "pos": [
-                  64.74719462683487,
-                  288.2791760766221
-                ]
-              },
-              {
-                "nodeFunction": "NodeFunctions.Container.ListContains",
-                "params": [
-                  "",
-                  "[12, \u0022lava\u0022]"
-                ],
-                "pos": [
-                  84.78799296371238,
-                  490.22875931746444
-                ]
-              },
-              {
-                "nodeFunction": "NodeFunctions.Utils.IF",
-                "params": [
-                  ""
-                ],
-                "pos": [
-                  641.3055467800792,
-                  607.3903495945943
-                ]
-              },
-              {
-                "nodeFunction": "NodeFunctions.Scene.DestroyTerrain",
-                "params": [
-                  "default",
-                  "",
-                  "nil"
-                ],
-                "pos": [
-                  884.8783265667439,
-                  647.4719462683494
-                ]
-              }
-            ],
-            "links": [
-              {
-                "left": 0,
-                "right": 1,
-                "leftOutPin": 0,
-                "rightInPin": 1,
-                "linkType": "Params"
-              },
-              {
-                "left": 1,
-                "right": 2,
-                "leftOutPin": 0,
-                "rightInPin": 0,
-                "linkType": "Params"
-              },
-              {
-                "left": 2,
-                "right": 3,
-                "leftOutPin": 0,
-                "rightInPin": 0,
-                "linkType": "Params"
-              },
-              {
-                "left": 3,
-                "right": 4,
-                "leftOutPin": 0,
-                "rightInPin": 0,
-                "linkType": "Exec"
-              },
-              {
-                "left": 0,
-                "right": 4,
-                "leftOutPin": 0,
-                "rightInPin": 1,
-                "linkType": "Params"
-              }
-            ]
           }
         },
         "startNodes": {
-          "onUse": 3,
-          "onGet": null
+          "onUse": 3
         }
       }
     },
@@ -1012,24 +879,14 @@
               }
             ]
           },
-          "onGet": {
-            "nodes": [],
-            "links": []
-          },
           "onDrop": {
-            "nodes": [],
-            "links": []
-          },
-          "onEquip": {
             "nodes": [],
             "links": []
           }
         },
         "startNodes": {
           "onUse": 3,
-          "onGet": null,
-          "onDrop": null,
-          "onEquip": null
+          "onDrop": null
         }
       }
     },
@@ -1076,15 +933,10 @@
                 "linkType": "Exec"
               }
             ]
-          },
-          "onGet": {
-            "nodes": [],
-            "links": []
           }
         },
         "startNodes": {
-          "onUse": 0,
-          "onGet": null
+          "onUse": 0
         }
       }
     },
@@ -1130,15 +982,10 @@
                 "linkType": "Exec"
               }
             ]
-          },
-          "onGet": {
-            "nodes": [],
-            "links": []
           }
         },
         "startNodes": {
-          "onUse": 0,
-          "onGet": null
+          "onUse": 0
         }
       }
     },
@@ -1185,15 +1032,10 @@
                 "linkType": "Exec"
               }
             ]
-          },
-          "onGet": {
-            "nodes": [],
-            "links": []
           }
         },
         "startNodes": {
-          "onUse": 0,
-          "onGet": null
+          "onUse": 0
         }
       }
     },
@@ -1239,15 +1081,10 @@
                 "linkType": "Exec"
               }
             ]
-          },
-          "onGet": {
-            "nodes": [],
-            "links": []
           }
         },
         "startNodes": {
-          "onUse": 0,
-          "onGet": null
+          "onUse": 0
         }
       }
     }
@@ -1255,7 +1092,6 @@
   "linkedType": "ItemInfo",
   "events": [
     "onDrop",
-    "onEquip",
     "onUse"
   ]
 }

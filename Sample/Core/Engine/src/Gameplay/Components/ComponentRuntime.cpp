@@ -4,6 +4,7 @@
 #include <Utils/DataValue.hpp>
 
 #include <cstdint>
+#include <stdexcept>
 #include <utility>
 
 namespace ludork::engine::components {
@@ -235,10 +236,17 @@ ComponentFieldTarget resolveComponentFieldTarget(const RuntimeValue& object,
     if (typeIterator == componentTypes.end()) {
         return {};
     }
-    RuntimeValue component = runtimeGet(object, fieldIterator->second);
+    const std::string& componentName = fieldIterator->second;
+    RuntimeValue component = runtimeGet(object, componentName);
+    if (component.isNil()) {
+        throw std::runtime_error("Component field '" + componentName +
+                                 "' is missing while resolving member '" +
+                                 fieldName + "'");
+    }
     if (!runtimeIsInstance(component, typeIterator->second)) {
-        component = componentFromData(typeIterator->second, component);
-        runtimeSet(object, fieldIterator->second, component);
+        throw std::runtime_error(
+            "Component field '" + componentName +
+            "' has the wrong type while resolving member '" + fieldName + "'");
     }
     return {std::move(component), typeIterator->second, true};
 }

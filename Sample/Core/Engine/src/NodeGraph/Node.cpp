@@ -195,10 +195,6 @@ NodeResult Node::executeResult(const InputPinMap& inputPinReplace) {
         throw std::invalid_argument("Node params must be an array");
     }
     RuntimeValue::Array actualParams(definition.paramCount_);
-    RuntimeValue::Map evalLocals;
-    if (definition.selfFunction_) {
-        evalLocals.emplace("self", parent);
-    }
 
     for (std::size_t index = 0; index < definition.paramCount_; ++index) {
         const auto replacement = inputPinReplace.find(static_cast<int>(index));
@@ -215,21 +211,7 @@ NodeResult Node::executeResult(const InputPinMap& inputPinReplace) {
             actualParams[index] = parent;
             continue;
         }
-        if (stored.isNil()) {
-            actualParams[index] = RuntimeValue();
-            continue;
-        }
-
-        RuntimeValue parameterType(std::string("any"));
-        if (index < definition.paramOrder_.size()) {
-            const auto type =
-                definition.paramList_.find(definition.paramOrder_[index]);
-            if (type != definition.paramList_.end()) {
-                parameterType = type->second;
-            }
-        }
-        actualParams[index] = dataValueService().resolveTypedDataValue(
-            stored, parameterType, evalLocals, definition.declaringModule_);
+        actualParams[index] = stored;
     }
 
     if (definition.nodeFunction_ == nullptr) {
