@@ -1,5 +1,5 @@
 ---@meta Mixins.Doors.Door
----@class Mixins.Doors.Door: Source.DoorBase.DoorBase
+---@class (partial) Mixins.Doors.Door: Source.DoorBase.DoorBase
 local Door = {}
 
 ---@param other Engine.Actor[]

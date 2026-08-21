@@ -250,9 +250,9 @@ function WindowMessage:_resolveSelection(selectionResult)
     self._fadePhase = FadePhase.OUT
     self._fadeTime = 0.0
     if self._onFinished ~= nil then
-        local onFinished = self._onFinished
+        local callbacks = { self._onFinished }
         self._onFinished = nil
-        onFinished()
+        callbacks[1]()
     end
 end
 
@@ -384,7 +384,7 @@ function WindowMessage._getCurveDuration(curve)
     if curve == nil or #curve.keys < 2 then
         return 0.0
     end
-    local firstKey = assert(curve.keys[1])
+    local firstKey = curve.keys[1]
     local lastKey = curve.keys[#curve.keys]
     return lastKey.time - firstKey.time
 end
@@ -430,7 +430,7 @@ function WindowMessage:_updateLayoutByTextSize()
         nameHeight = WindowMessage._getTextLineHeight(nameBounds)
     end
     ---@cast nameWidth integer
-    local displayMessage = self._message
+    local displayMessage = self._message .. ""
     local maxContentWidth = Engine.ToInteger(math.max(32, self:_getMaxWindowWidth() - self._WINDOW_PADDING * 2))
     self._ui:setMessage(displayMessage)
     local textBounds = self._text:getLocalBounds()

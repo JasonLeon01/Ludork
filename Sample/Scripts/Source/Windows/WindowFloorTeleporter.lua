@@ -75,11 +75,10 @@ function WindowFloorMapCommandController:refreshMaps(entries)
 end
 
 function WindowFloorMapCommandController:getCurrentMapKey()
-    local index = self.model.index
-    if index == nil or index >= #self._mapKeys then
+    if self.model.index == nil or self.model.index >= #self._mapKeys then
         return nil
     end
-    return self._mapKeys[index + 1]
+    return self._mapKeys[self.model.index + 1]
 end
 
 function WindowFloorMapCommandController:afterTick()
@@ -181,7 +180,7 @@ function WindowFloorMapPreview:setMapKeyAndTelepoints(mapKey, entries, selectedI
 end
 
 function WindowFloorMapPreview:onTick(deltaTime)
-    local previousIndex = self.index
+    local previousIndex = self.index ~= nil and self.index or nil
     super(WindowFloorMapPreview, self).onTick(deltaTime)
     self._previewUI:afterSelectionUpdate(previousIndex)
 end
@@ -190,7 +189,7 @@ function WindowFloorMapPreview:onKeyDown(kwargs)
     if self._previewUI:handleKeyDown() then
         return
     end
-    local previousIndex = self.index
+    local previousIndex = self.index ~= nil and self.index or nil
     super(WindowFloorMapPreview, self).onKeyDown(kwargs)
     self._previewUI:afterSelectionUpdate(previousIndex)
 end
@@ -370,9 +369,7 @@ function WindowFloorTeleporterController:getVisitedRegionEntries()
     local visited = self:getVisitedMapNames()
     local result = {}
     for _, mapKey in ipairs(regionMaps) do
-        if visited[WindowFloorTeleporterController.NormaliseMapName(mapKey)]
-            and bool(self:getTelepointsForMap(mapKey))
-        then
+        if visited[WindowFloorTeleporterController.NormaliseMapName(mapKey)] and bool(self:getTelepointsForMap(mapKey)) then
             result[#result + 1] = { mapKey, self:getMapDisplayName(mapKey) }
         end
     end
@@ -380,9 +377,8 @@ function WindowFloorTeleporterController:getVisitedRegionEntries()
 end
 
 function WindowFloorTeleporterController:getTelepointsForMap(mapKey)
-    local telepoints = self.model._inst._cachedTelepoints
     local normalisedMapKey = WindowFloorTeleporterController.NormaliseMapName(mapKey)
-    for mapPath in pairs(telepoints) do
+    for mapPath in pairs(self.model._inst._cachedTelepoints) do
         if WindowFloorTeleporterController.NormaliseMapName(tostring(mapPath)) == normalisedMapKey then
             return self.model._inst:getTelepoints(tostring(mapPath))
         end
@@ -413,12 +409,10 @@ end
 
 function WindowFloorTeleporterController:getVisitedMapNames()
     local visited = {}
-    local cachedMap = self.model._inst._cachedMap
-    if bool(cachedMap) then
-        visited[WindowFloorTeleporterController.NormaliseMapName(cachedMap)] = true
+    if bool(self.model._inst._cachedMap) then
+        visited[WindowFloorTeleporterController.NormaliseMapName(self.model._inst._cachedMap)] = true
     end
-    local telepoints = self.model._inst._cachedTelepoints
-    for mapPath in pairs(telepoints) do
+    for mapPath in pairs(self.model._inst._cachedTelepoints) do
         visited[WindowFloorTeleporterController.NormaliseMapName(tostring(mapPath))] = true
     end
     return visited

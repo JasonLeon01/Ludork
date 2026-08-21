@@ -45,8 +45,8 @@ local function onMAXHPChange(old, new, player)
     end
     if not player._loading then
         local oldValue = old == Class.MISSING and 0 or old
-        ---@cast oldValue integer
         local delta = new - oldValue
+        ---@cast oldValue integer
         ---@cast delta integer
         if delta > 0 then
             local hp = player.infoComp.HP + delta
@@ -119,8 +119,8 @@ function Player:_onArrivedAtMapCell()
 end
 
 function Player:consumeMovementSpecialPath()
-    local path = self._movementSpecialPath
-    self._movementSpecialPath = {}
+    local path = {}
+    path, self._movementSpecialPath = self._movementSpecialPath, path
     return path
 end
 

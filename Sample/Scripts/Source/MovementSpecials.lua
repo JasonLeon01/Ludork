@@ -80,19 +80,10 @@ local function checkFlankDamage(flankEnemies, player, playerPosition)
         local leftDamage = left:getDamagePerRound(player)
         local rightDamage = right:getDamagePerRound(player)
         totalDamage = totalDamage + leftDamage
-        ---@cast totalDamage integer
         totalDamage = totalDamage + rightDamage
         ---@cast totalDamage integer
-        sources[#sources + 1] = {
-            enemy = left,
-            special = Special.Flank,
-            damage = leftDamage
-        }
-        sources[#sources + 1] = {
-            enemy = right,
-            special = Special.Flank,
-            damage = rightDamage
-        }
+        sources[#sources + 1] = { enemy = left, special = Special.Flank, damage = leftDamage }
+        sources[#sources + 1] = { enemy = right, special = Special.Flank, damage = rightDamage }
     end
     local up = positionMap:get(positionKey(0, -1))
     local down = positionMap:get(positionKey(0, 1))
@@ -100,19 +91,10 @@ local function checkFlankDamage(flankEnemies, player, playerPosition)
         local upDamage = up:getDamagePerRound(player)
         local downDamage = down:getDamagePerRound(player)
         totalDamage = totalDamage + upDamage
-        ---@cast totalDamage integer
         totalDamage = totalDamage + downDamage
         ---@cast totalDamage integer
-        sources[#sources + 1] = {
-            enemy = up,
-            special = Special.Flank,
-            damage = upDamage
-        }
-        sources[#sources + 1] = {
-            enemy = down,
-            special = Special.Flank,
-            damage = downDamage
-        }
+        sources[#sources + 1] = { enemy = up, special = Special.Flank, damage = upDamage }
+        sources[#sources + 1] = { enemy = down, special = Special.Flank, damage = downDamage }
     end
     return totalDamage, sources
 end
@@ -126,7 +108,7 @@ end
 local function calculateDangerAtPosition(enemies, player, playerPosition, ignoredEnemies, applyBlockade)
     local ignoredEnemySet = nil
     if bool(ignoredEnemies) then
-        ---@cast ignoredEnemies -nil
+        ---@cast ignoredEnemies - nil
         ignoredEnemySet = {}
         for _, enemy in ipairs(ignoredEnemies) do
             ignoredEnemySet[enemy] = true
@@ -137,18 +119,13 @@ local function calculateDangerAtPosition(enemies, player, playerPosition, ignore
     for _, enemy in ipairs(enemies) do
         local enemyPosition = enemy:getMapPosition()
         local distance = getManhattanDistance(playerPosition, enemyPosition)
-        if enemy:hasSpecial(Special.Domain)
-            and (ignoredEnemySet == nil or not ignoredEnemySet[enemy]) then
+        if enemy:hasSpecial(Special.Domain) and (ignoredEnemySet == nil or not ignoredEnemySet[enemy]) then
             local domainRange = enemy:getSpecialIntValue(Special.Domain, 0, 1)
             if distance < domainRange then
                 local damage = enemy:getDamagePerRound(player)
                 ---@cast damage integer
                 totalDamage = totalDamage + damage
-                sources[#sources + 1] = {
-                    enemy = enemy,
-                    special = Special.Domain,
-                    damage = damage
-                }
+                sources[#sources + 1] = { enemy = enemy, special = Special.Domain, damage = damage }
             end
         end
         if enemy:hasSpecial(Special.Blockade) and distance == 1
@@ -156,11 +133,7 @@ local function calculateDangerAtPosition(enemies, player, playerPosition, ignore
             local damage = enemy:getDamagePerRound(player)
             ---@cast damage integer
             totalDamage = totalDamage + damage
-            sources[#sources + 1] = {
-                enemy = enemy,
-                special = Special.Blockade,
-                damage = damage
-            }
+            sources[#sources + 1] = { enemy = enemy, special = Special.Blockade, damage = damage }
             if applyBlockade then
                 doBlockadeRetreat(enemy, playerPosition)
             end
@@ -239,9 +212,7 @@ local function applyMovementSpecials(player, pathPositions)
         for _, enemy in ipairs(damagingEnemies) do
             if not seenEnemies[enemy] then
                 seenEnemies[enemy] = true
-                animationLength = math.max(
-                    animationLength, enemy:playAttackAnimationAt(scene, playerPosition)
-                )
+                animationLength = math.max(animationLength, enemy:playAttackAnimationAt(scene, playerPosition))
             end
         end
     end

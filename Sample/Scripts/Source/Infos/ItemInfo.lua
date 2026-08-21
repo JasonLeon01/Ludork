@@ -9,12 +9,12 @@ local ItemInfo = {}
 
 ItemInfo._infoType = GeneralDataKey.Item
 
+---@diagnostic disable-next-line: unused
 function ItemInfo:onUse()
-    local _ = self
 end
 
+---@diagnostic disable-next-line: unused
 function ItemInfo:onDrop()
-    local _ = self
 end
 
 return class(ItemInfo, InfoBase)

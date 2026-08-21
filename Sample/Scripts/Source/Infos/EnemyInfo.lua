@@ -9,8 +9,8 @@ local EnemyInfo = {}
 
 EnemyInfo._infoType = GeneralDataKey.Enemy
 
+---@diagnostic disable-next-line: unused
 function EnemyInfo:onDefeat()
-    local _ = self
 end
 
 return class(EnemyInfo, InfoBase)

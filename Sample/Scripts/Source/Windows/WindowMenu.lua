@@ -65,26 +65,26 @@ function WindowMenuController.createCommands(owner)
 end
 
 function WindowMenuController:bind()
-    local model = self.model
     self._menuControls = {
-        configureMenuControl(model), configureMenuControl(model._windowItem),
-        configureMenuControl(model._windowEquipSlot), configureMenuControl(model._windowEquipSelect),
-        configureMenuControl(model._windowEquipStatus),
-        configureMenuControl(assert(model._windowSaveLoad:getCommandWindow(), "Menu save command window is missing")),
-        configureMenuControl(model._windowSaveLoad:getSlotWindow()),
-        configureMenuControl(model._windowSaveLoad:getDetailWindow()),
-        configureMenuControl(model._configWindow)
+        configureMenuControl(self.model), configureMenuControl(self.model._windowItem),
+        configureMenuControl(self.model._windowEquipSlot), configureMenuControl(self.model._windowEquipSelect),
+        configureMenuControl(self.model._windowEquipStatus),
+        configureMenuControl(
+            assert(self.model._windowSaveLoad:getCommandWindow(), "Menu save command window is missing")
+        ), configureMenuControl(self.model._windowSaveLoad:getSlotWindow()),
+        configureMenuControl(self.model._windowSaveLoad:getDetailWindow()),
+        configureMenuControl(self.model._configWindow)
     }
     self._moveRestoreGuard = function ()
         return true
     end
     local onSubMenuClose = function ()
         self:_syncReturnButtonSuppression()
-        model:requestKeyboardFocus()
+        self.model:requestKeyboardFocus()
     end
-    model._windowItem._onCloseCallback = onSubMenuClose
-    model._windowEquipSlot._onCloseCallback = onSubMenuClose
-    model._windowItem._onUseCallback = function ()
+    self.model._windowItem._onCloseCallback = onSubMenuClose
+    self.model._windowEquipSlot._onCloseCallback = onSubMenuClose
+    self.model._windowItem._onUseCallback = function ()
         self:close()
     end
 end
@@ -303,12 +303,9 @@ function WindowMenuController:_closeSubMenus(exceptName)
 end
 
 function WindowMenuController:_syncReturnButtonSuppression()
-    local suppressed = self.model._windowItem:getVisible()
-        or self.model._windowEquipSlot:getVisible()
-        or self.model._windowEquipSelect:getVisible()
-        or self.model._windowEquipStatus:getVisible()
-        or self.model._windowSaveLoad:getVisible()
-        or self.model._configWindow:isOpen()
+    local suppressed = self.model._windowItem:getVisible() or self.model._windowEquipSlot:getVisible()
+        or self.model._windowEquipSelect:getVisible() or self.model._windowEquipStatus:getVisible()
+        or self.model._windowSaveLoad:getVisible() or self.model._configWindow:isOpen()
     self.model:_setReturnButtonSuppressed(suppressed)
 end
 

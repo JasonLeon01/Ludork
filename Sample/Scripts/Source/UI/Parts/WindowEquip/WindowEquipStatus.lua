@@ -43,9 +43,8 @@ function WindowEquipStatusUI:attach()
     self:_refreshLogicalSize()
     local root = self:prepare(self._logicalSize)
     self:_applyDescriptionPosition()
-    local content = self.model.content
-    ---@cast content Engine.Canvas
-    content:addChild(root)
+    ---@cast self.model.content Engine.Canvas
+    self.model.content:addChild(root)
 end
 
 function WindowEquipStatusUI:setPlayer(player)
@@ -108,13 +107,11 @@ function WindowEquipStatusUI:addChangeRow(attrKey, delta, rowIndex)
         label = LOC(attrKey),
         delta = delta
     })
-    local logicalSize = self._logicalSize
-    ---@cast logicalSize sf.Vector2u
-    local rowRoot = controller:prepare(sf.Vector2u.new(logicalSize.x, _ROW_HEIGHT))
+    ---@cast self._logicalSize sf.Vector2u
+    local rowRoot = controller:prepare(sf.Vector2u.new(self._logicalSize.x, _ROW_HEIGHT))
     rowRoot:setPosition(sf.Vector2f.new(0.0, rowIndex * _ROW_HEIGHT))
-    local root = self.root
-    ---@cast root Engine.Canvas
-    root:addChild(rowRoot)
+    ---@cast self.root Engine.Canvas
+    self.root:addChild(rowRoot)
     self._changeRowControllers[#self._changeRowControllers + 1] = controller
     self.model._changeTexts[#self.model._changeTexts + 1] = controller:requireControl("Label")
     self.model._changeTexts[#self.model._changeTexts + 1] = controller:requireControl("Delta")
@@ -140,12 +137,11 @@ function WindowEquipStatusUI:refreshDescription(candidateEquipID, showUnequip)
 end
 
 function WindowEquipStatusUI:clearChangeTexts()
-    local root = self.root
-    ---@cast root Engine.Canvas
+    ---@cast self.root Engine.Canvas
     for _, controller in ipairs(self._changeRowControllers) do
         local rowRoot = controller:getRoot()
-        if rowRoot:getParent() == root then
-            root:removeChild(rowRoot)
+        if rowRoot:getParent() == self.root then
+            self.root:removeChild(rowRoot)
         end
     end
     self._changeRowControllers = {}
@@ -163,9 +159,8 @@ function WindowEquipStatusUI:_applyDescriptionPosition()
     self.model._descText:setPosition(sf.Vector2f.new(0.0, self._descriptionTextY))
 end
 
+---@diagnostic disable-next-line: unused
 function WindowEquipStatusUI:getAttrPlus(equipID)
-    local _ = self
-
     if not bool(equipID) then
         return {}
     end
@@ -177,9 +172,8 @@ function WindowEquipStatusUI:getAttrPlus(equipID)
     return copy(attrPlus)
 end
 
+---@diagnostic disable-next-line: unused
 function WindowEquipStatusUI:getAttrKeys(firstAttrs, secondAttrs)
-    local _ = self
-
     local result = {}
     local included = {}
     for _, attrs in ipairs({ firstAttrs, secondAttrs }) do
@@ -205,9 +199,7 @@ end
 
 function WindowEquipStatusUI:_refreshLogicalSize()
     local contentSize = self.model.content:getSize()
-    local logicalSize = sf.Vector2u.new(
-        math.max(1, math.floor(contentSize.x)), math.max(1, math.floor(contentSize.y))
-    )
+    local logicalSize = sf.Vector2u.new(math.max(1, math.floor(contentSize.x)), math.max(1, math.floor(contentSize.y)))
     ---@cast logicalSize sf.Vector2u
     self._logicalSize = logicalSize
 end

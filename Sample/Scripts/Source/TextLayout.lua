@@ -6,22 +6,22 @@ local RichText = Engine.RichText
 
 local TextLayout = {}
 ---@class Source.TextLayout.TextUnit
----@field value string
+---@field value  string
 ---@field marker boolean
 
 ---@class Source.TextLayout.PlainMeasurementEntry
----@field config Engine.PlainTextConfig
+---@field config  Engine.PlainTextConfig
 ---@field control Engine.PlainText
 
 ---@class Source.TextLayout.RichMeasurementEntry
----@field config Engine.RichTextConfig
----@field control Engine.RichText
+---@field config      Engine.RichTextConfig
+---@field control     Engine.RichText
 ---@field markerFlags table<string, boolean>
 
----@type table<string, Source.TextLayout.PlainMeasurementEntry>
 local plainMeasurementControls = {}
----@type table<string, Source.TextLayout.RichMeasurementEntry>
 local richMeasurementControls = {}
+---@cast plainMeasurementControls table<string, Source.TextLayout.PlainMeasurementEntry>
+---@cast richMeasurementControls table<string, Source.TextLayout.RichMeasurementEntry>
 
 local function getPlainMeasurementControl(textConfigKey)
     local config = Data.getPlainTextConfig(textConfigKey)
@@ -54,7 +54,7 @@ local function textUnits(text)
 end
 
 ---@param textConfigKey string
----@param text string
+---@param text          string
 ---@return Source.TextLayout.TextUnit[]
 local function richTextUnits(textConfigKey, text)
     local units = {}
@@ -89,9 +89,9 @@ local function richTextUnits(textConfigKey, text)
     return units
 end
 
----@param units Source.TextLayout.TextUnit[]
+---@param units      Source.TextLayout.TextUnit[]
 ---@param firstIndex integer | nil
----@param lastIndex integer | nil
+---@param lastIndex  integer | nil
 ---@return string
 local function concatenateUnits(units, firstIndex, lastIndex)
     local values = {}
@@ -105,9 +105,9 @@ local function concatenateUnits(units, firstIndex, lastIndex)
     return table.concat(values)
 end
 
----@param units Source.TextLayout.TextUnit[]
+---@param units      Source.TextLayout.TextUnit[]
 ---@param firstIndex integer | nil
----@param lastIndex integer | nil
+---@param lastIndex  integer | nil
 ---@return string
 local function concatenateMarkers(units, firstIndex, lastIndex)
     local values = {}
@@ -123,7 +123,7 @@ local function concatenateMarkers(units, firstIndex, lastIndex)
     return table.concat(values)
 end
 
----@param units Source.TextLayout.TextUnit[]
+---@param units     Source.TextLayout.TextUnit[]
 ---@param lastIndex integer | nil
 ---@return integer
 local function visibleUnitCount(units, lastIndex)

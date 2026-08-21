@@ -121,7 +121,7 @@ function WindowEquipSlotController:redrawIfVisible()
         return
     end
     local wasActive = self.model:getActive()
-    local returnButtonSuppressed = self.model._returnButtonSuppressed
+    local returnButtonSuppressed = self.model._returnButtonSuppressed == true
     if not wasActive then
         self.model:_setReturnButtonSuppressed(true)
         self.model:setActive(true)
@@ -263,9 +263,8 @@ function WindowEquipSelectController:attach()
     self.model:setListView(listView)
 end
 
+---@diagnostic disable-next-line: unused
 function WindowEquipSelectController:resizeCanvas(target, width, height)
-    local _ = self
-
     local logicalSize = sf.Vector2u.new(width, height)
     ---@cast logicalSize sf.Vector2u
     target:resize(logicalSize)
@@ -340,18 +339,18 @@ function WindowEquipSelectController:updateStatus()
         self.model._windowEquipStatus:refreshForEquip(self.model._slotKey, nil)
         return
     end
-    local entry = self.model._equipList[self.model.index + 1]
-    local showUnequip = entry == self.UNEQUIP
-    local candidateEquipID = entry
+    local showUnequip = self.model._equipList[self.model.index + 1] == self.UNEQUIP
     if showUnequip then
-        candidateEquipID = nil
+        self.model._windowEquipStatus:refreshForEquip(self.model._slotKey, nil, true)
+    else
+        self.model._windowEquipStatus:refreshForEquip(
+            self.model._slotKey, self.model._equipList[self.model.index + 1], false
+        )
     end
-    self.model._windowEquipStatus:refreshForEquip(self.model._slotKey, candidateEquipID, showUnequip)
 end
 
+---@diagnostic disable-next-line: unused
 function WindowEquipSelectController:getGridColumns(contentWidth)
-    local _ = self
-
     return math.max(1, math.floor((contentWidth - _EQUIP_CELL_SIZE) / _EQUIP_CELL_SIZE))
 end
 
@@ -408,21 +407,20 @@ function WindowEquipSelectController:onConfirmAction()
     if self.model.index == nil or self.model.index < 0 or self.model.index >= #self.model._equipList then
         return
     end
-    local entry = self.model._equipList[self.model.index + 1]
-    local slotKey = self.model._slotKey
-    local currentEquipped = self.model._player:getEquipInfo(slotKey)
+    local currentEquipped = self.model._player:getEquipInfo(self.model._slotKey)
     ManagerFunctions.playSE(GameSystem.getEquipSE())
-    if entry == self.UNEQUIP or entry == currentEquipped then
+    if self.model._equipList[self.model.index + 1] == self.UNEQUIP
+        or self.model._equipList[self.model.index + 1] == currentEquipped then
         if bool(currentEquipped) then
-            self.model._player:unequip(slotKey)
+            self.model._player:unequip(self.model._slotKey)
         end
     else
-        self.model._player:equip(entry)
+        self.model._player:equip(self.model._equipList[self.model.index + 1])
     end
     if self.model._windowEquipSlot ~= nil then
         self.model._windowEquipSlot:refreshSlots()
     end
-    self:refreshForSlot(slotKey)
+    self:refreshForSlot(self.model._slotKey)
     if self.model._onEquipCallback ~= nil then
         self.model._onEquipCallback()
     end

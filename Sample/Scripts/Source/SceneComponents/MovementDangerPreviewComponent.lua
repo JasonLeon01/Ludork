@@ -47,23 +47,18 @@ function MovementDangerPreviewComponent:_refreshEntries(player)
     local displayScale = math.max(Engine.Scale, 0.000001)
     local inverseScale = 1.0 / displayScale
     for index, entry in ipairs(self._cachedEntries) do
-        local text = self._texts[index]
-        if text == nil then
-            text = PlainText.new(Data.getPlainTextConfig(EnemyDamageText.textConfig), "")
-            self._texts[index] = text
+        if self._texts[index] == nil then
+            self._texts[index] = PlainText.new(Data.getPlainTextConfig(EnemyDamageText.textConfig), "")
         end
-        text:setString(tostring(Utils.ToShortNumber(entry.damage)))
-        text:setScale(sf.Vector2f.new(inverseScale, inverseScale))
-        text:setColour(EnemyDamageText.GetDamageColor(
-            DamageType.NORMAL, entry.damage, player.infoComp.HP
-        ))
-        local bounds = text:getLocalBounds()
+        self._texts[index]:setString(tostring(Utils.ToShortNumber(entry.damage)))
+        self._texts[index]:setScale(sf.Vector2f.new(inverseScale, inverseScale))
+        self._texts[index]:setColour(
+            EnemyDamageText.GetDamageColor(DamageType.NORMAL, entry.damage, player.infoComp.HP)
+        )
+        local bounds = self._texts[index]:getLocalBounds()
         local worldX = entry.position.x * cellSize + (cellSize - bounds.size.x) * 0.5 - bounds.position.x
         local worldY = entry.position.y * cellSize + (cellSize - bounds.size.y) * 0.5 - bounds.position.y
-        text:setPosition(sf.Vector2f.new(
-            worldX / displayScale,
-            worldY / displayScale
-        ))
+        self._texts[index]:setPosition(sf.Vector2f.new(worldX / displayScale, worldY / displayScale))
     end
 end
 

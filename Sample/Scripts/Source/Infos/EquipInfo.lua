@@ -9,12 +9,12 @@ local EquipInfo = {}
 
 EquipInfo._infoType = GeneralDataKey.Equip
 
+---@diagnostic disable-next-line: unused
 function EquipInfo:onEquip()
-    local _ = self
 end
 
+---@diagnostic disable-next-line: unused
 function EquipInfo:onUnequip()
-    local _ = self
 end
 
 return class(EquipInfo, InfoBase)

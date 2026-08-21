@@ -239,9 +239,7 @@ function Scene._formatBatchError(errorData)
     if errorData == nil then
         return "File batch failed"
     end
-    return string.format(
-        "%s failed for %s: %s", errorData.operation, errorData.path, errorData.message
-    )
+    return string.format("%s failed for %s: %s", errorData.operation, errorData.path, errorData.message)
 end
 
 ---@param offset number
@@ -370,12 +368,10 @@ function Scene:_removeOrphanedAnimation(item)
 end
 
 function Scene:_pumpInitialLoad()
-    local activeBatch = self._activeBatch
-    ---@cast activeBatch userdata
-    local loadStage = self._loadStage
-    ---@cast loadStage Source.Data.InitialLoadStage
+    ---@cast self._activeBatch userdata
+    ---@cast self._loadStage Source.Data.InitialLoadStage
     while not self._loadCancelled do
-        local snapshot = asyncio.poll_file_batch(activeBatch, 1)
+        local snapshot = asyncio.poll_file_batch(self._activeBatch, 1)
         self.progressTotal = snapshot.total
         if snapshot.state == "failed" then
             error(Scene._formatBatchError(snapshot.error))
@@ -386,13 +382,13 @@ function Scene:_pumpInitialLoad()
         local item = snapshot.items ~= nil and snapshot.items[1] or nil
         if item ~= nil then
             if not self:_removeOrphanedAnimation(item) then
-                Data.applyInitialLoadItem(loadStage, item)
+                Data.applyInitialLoadItem(self._loadStage, item)
             end
             self.processedCount = self.processedCount + 1
             self:_setPhaseProgress(ANIMATION_PROGRESS_WEIGHT, 1.0 - ANIMATION_PROGRESS_WEIGHT)
         end
         if snapshot.state == "completed" and snapshot.drained and self.processedCount == snapshot.total then
-            Data.commitInitialLoad(loadStage)
+            Data.commitInitialLoad(self._loadStage)
             self._loadStage = nil
             self._activeBatch = nil
             self.progressValue = 1.0

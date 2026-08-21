@@ -18,12 +18,12 @@ function ListViewController:init(model, logicalSize, defaultItemHeight, fixItemH
     self._bound = false
 end
 
+---@diagnostic disable-next-line: unused
 function ListViewController:bind()
-    local _ = self
 end
 
+---@diagnostic disable-next-line: unused
 function ListViewController:refresh()
-    local _ = self
 end
 
 function ListViewController:prepare(logicalSize)

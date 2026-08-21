@@ -37,12 +37,7 @@ local richTextConfigFields = {
     gradient = true
 }
 
-local textStyleFields = {
-    bold = true,
-    italic = true,
-    underlined = true,
-    strikeThrough = true
-}
+local textStyleFields = { bold = true, italic = true, underlined = true, strikeThrough = true }
 
 local textStyleFieldOrder = { "bold", "italic", "underlined", "strikeThrough" }
 
@@ -55,23 +50,11 @@ local richTextStyleFields = {
     outline = true
 }
 
-local textOutlineFields = {
-    color = true,
-    thickness = true
-}
+local textOutlineFields = { color = true, thickness = true }
 
-local textGlowFields = {
-    enabled = true,
-    color = true,
-    radius = true,
-    intensity = true
-}
+local textGlowFields = { enabled = true, color = true, radius = true, intensity = true }
 
-local textGradientFields = {
-    enabled = true,
-    direction = true,
-    curve = true
-}
+local textGradientFields = { enabled = true, direction = true, curve = true }
 
 local DataTextConfigs = {}
 
@@ -264,12 +247,14 @@ end
 local function textFontFromData(value, sourceName)
     local path = textConfigString(value, sourceName, true)
     if not bool(path) then
-        ---@type sf.Font|nil
+        ---@type sf.Font | nil
         local engineDefaultFont = Engine.DefaultFont
         local defaultFont = assert(engineDefaultFont, "Default font is unavailable for text config " .. sourceName)
         return defaultFont
     end
-    local font = assert(ManagerFunctions.loadFont(path), "Font not found for text config " .. sourceName .. ": " .. path)
+    local font = assert(
+        ManagerFunctions.loadFont(path), "Font not found for text config " .. sourceName .. ": " .. path
+    )
     return font
 end
 
@@ -460,29 +445,23 @@ local function buildRichTextConfig(data, name, value)
 end
 
 function DataTextConfigs:getPlainTextConfig(name)
-    local cached = self._data._plainTextConfigs[name]
-    if cached ~= nil then
-        return cached
+    if self._data._plainTextConfigs[name] ~= nil then
+        return self._data._plainTextConfigs[name]
     end
-    local value = requireNamedValue(
-        self._data._textConfigData, name, "Text config data not found: " .. tostring(name)
-    )
+    local value = requireNamedValue(self._data._textConfigData, name, "Text config data not found: " .. tostring(name))
     assert(value.type == "plainTextConfig", "Text config is not plain text: " .. tostring(name))
-    cached = buildPlainTextConfig(self._data, name, value)
+    local cached = buildPlainTextConfig(self._data, name, value)
     self._data._plainTextConfigs[name] = cached
     return cached
 end
 
 function DataTextConfigs:getRichTextConfig(name)
-    local cached = self._data._richTextConfigs[name]
-    if cached ~= nil then
-        return cached
+    if self._data._richTextConfigs[name] ~= nil then
+        return self._data._richTextConfigs[name]
     end
-    local value = requireNamedValue(
-        self._data._textConfigData, name, "Text config data not found: " .. tostring(name)
-    )
+    local value = requireNamedValue(self._data._textConfigData, name, "Text config data not found: " .. tostring(name))
     assert(value.type == "richTextConfig", "Text config is not rich text: " .. tostring(name))
-    cached = buildRichTextConfig(self._data, name, value)
+    local cached = buildRichTextConfig(self._data, name, value)
     self._data._richTextConfigs[name] = cached
     return cached
 end

@@ -1,12 +1,12 @@
 local PlayerFunctions = require("Source.NodeFunctions.Player")
 
+---@class (partial) Mixins.Doors.KeyDoor
 local KeyDoor = {}
 
 KeyDoor.needKeyID = ""
 KeyDoor.needKeyCount = 1
 
----@param self Mixins.Doors.KeyDoor
-function KeyDoor.onCollision(self, other)
+function KeyDoor:onCollision(other)
     if PlayerFunctions.MeetPlayer(other) == nil then
         return
     end

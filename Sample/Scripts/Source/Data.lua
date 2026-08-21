@@ -7,33 +7,21 @@ local DataBlueprints = require("Source.Data.Blueprints")
 
 local GeneralDataKey = GeneralEnum.GeneralDataKey
 
+---@class (partial) Source.Data
 local Data = {
     dataKinds = 7,
-    ---@type table<string, Engine.AnimationData>
     _animationData = {},
-    ---@type table<string, Source.Data.CurveValue>
     _curveData = {},
-    ---@type table<string, string>
     _curveTypes = {},
-    ---@type table<string, table>
     _textConfigData = {},
-    ---@type table<string, Engine.PlainTextConfig>
     _plainTextConfigs = {},
-    ---@type table<string, Engine.RichTextConfig>
     _richTextConfigs = {},
-    ---@type table<string, Source.Data.GraphData>
     _commonFunctionsData = {},
-    ---@type table<string, Engine.Tileset>
     _tilesetData = {},
-    ---@type table<string, Engine.AutoTile>
     _autoTileData = {},
-    ---@type table<string, table<string, Source.Data.GeneralValue>>
     _generalData = {},
-    ---@type string[] | nil
     _blueprintClassPaths = nil,
-    ---@type table<string, string> | nil
     _blueprintClassPathIndex = nil,
-    ---@type table<string, string|table>
     _blueprintClassData = {},
     _classDict = Engine.ClassDict.new()
 }
@@ -110,9 +98,7 @@ function Data.splitCompound(fileName)
 end
 
 function Data.getAnimation(name)
-    local animation = requireNamedValue(
-        Data._animationData, name, "Animation data not found: " .. tostring(name)
-    )
+    local animation = requireNamedValue(Data._animationData, name, "Animation data not found: " .. tostring(name))
     return copy(animation)
 end
 
@@ -202,9 +188,7 @@ function Data.getAllGeneralItemData()
 end
 
 function Data.getGeneralItemData(key)
-    return requireNamedValue(
-        generalMembers(GeneralDataKey.Item), key, "General item data not found: " .. tostring(key)
-    )
+    return requireNamedValue(generalMembers(GeneralDataKey.Item), key, "General item data not found: " .. tostring(key))
 end
 
 function Data.getGeneralSpecialData(key)

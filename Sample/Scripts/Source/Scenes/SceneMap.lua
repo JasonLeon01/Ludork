@@ -2,7 +2,6 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local Logging = require("Global.Utils.Logging")
 local GameSystem = require("Source.System")
-local Data = require("Source.Data")
 local LocaleCore = require("Source.Locale.Core")
 local EventKeys = require("Source.Configs.EventKeys")
 ---@type { Item: Source.Configs.GeneralEnum.Item }
@@ -53,11 +52,11 @@ local EQUIP_STATUS_X = 384
 local MAP_TRANSITION_NAME = ""
 local MAP_TRANSITION_TIME = 0.5
 local ENEMY_BOOK_ITEM_ID = GeneralEnum.Item.EnemyBook
----@cast ENEMY_BOOK_ITEM_ID string
 local FLOOR_TELEPORTER_ITEM_ID = GeneralEnum.Item.Teleport
+---@cast ENEMY_BOOK_ITEM_ID string
 ---@cast FLOOR_TELEPORTER_ITEM_ID string
 
----@param name string
+---@param name    string
 ---@param control any
 ---@return GlobalCore.FocusGroup
 local function createSingleControlFocusGroup(name, control)
@@ -66,7 +65,7 @@ local function createSingleControlFocusGroup(name, control)
 end
 
 ---@param uiManager GlobalCore.UIManager
----@param control any
+---@param control   any
 local function loadUiControl(uiManager, control)
     ---@cast control Engine.ControlBase
     uiManager:loadUI(control)
@@ -200,8 +199,7 @@ function Scene:onCreate()
         self._windowShop:getItemWindow(), self._windowAttrShop:getSelectable(), self._windowEnemyBook,
         self._windowEnemyEncyclopedia, self._windowFloorTeleporter:getCommandWindow(),
         self._windowFloorTeleporter:getPreviewWindow(), self._windowSaveLoad:getCommandWindow(),
-        self._windowSaveLoad:getSlotWindow(), self._windowSaveLoad:getDetailWindow(),
-        self._configWindow
+        self._windowSaveLoad:getSlotWindow(), self._windowSaveLoad:getDetailWindow(), self._configWindow
     }
     for _, window in ipairs(uiWindows) do
         loadUiControl(uiManager, window)
@@ -289,9 +287,8 @@ function Scene:onDestroy()
 end
 
 function Scene:_refreshMapUiLocale()
-    local dialogueSource = self._dialogueLocaleSource
-    if dialogueSource ~= nil and self._messageWindow:isInDialogue() then
-        local name, content = self:_formatDialogueSource(dialogueSource)
+    if self._dialogueLocaleSource ~= nil and self._messageWindow:isInDialogue() then
+        local name, content = self:_formatDialogueSource(self._dialogueLocaleSource)
         self._messageWindow:refreshContent(name, content)
     end
     self._windowMenu:refreshRows()
@@ -454,17 +451,13 @@ function Scene:showMessage(name, message, refActor, localeArgs)
         self:_blockMapInput(2)
     end
     self.player:setMoveEnabled(false)
-    local dialogueSource = self:_createDialogueLocaleSource(
-        name, message, localeArgs, Scene.showMessage
-    )
+    local dialogueSource = self:_createDialogueLocaleSource(name, message, localeArgs, Scene.showMessage)
     self._dialogueLocaleSource = dialogueSource
     local formattedName, formattedMessage = self:_formatDialogueSource(dialogueSource)
     local function finishDialogue()
         restoreMove()
     end
-    self._messageWindow:setMessage(
-        refPosition, formattedName, formattedMessage, true, finishDialogue
-    )
+    self._messageWindow:setMessage(refPosition, formattedName, formattedMessage, true, finishDialogue)
     return function ()
         if self._messageWindow:isInDialogue() then
             return false
@@ -497,17 +490,13 @@ function Scene:showSelection(name, options, refActor, allowCancel, localeArgs)
         self:_blockMapInput(2)
     end
     self.player:setMoveEnabled(false)
-    local dialogueSource = self:_createDialogueLocaleSource(
-        name, options, localeArgs, Scene.showSelection
-    )
+    local dialogueSource = self:_createDialogueLocaleSource(name, options, localeArgs, Scene.showSelection)
     self._dialogueLocaleSource = dialogueSource
     local formattedName, formattedOptions = self:_formatDialogueSource(dialogueSource)
     local function finishDialogue()
         restoreMove()
     end
-    self._messageWindow:setMessage(
-        refPosition, formattedName, formattedOptions, allowCancel, finishDialogue
-    )
+    self._messageWindow:setMessage(refPosition, formattedName, formattedOptions, allowCancel, finishDialogue)
     return function ()
         local selectionResult = self._messageWindow:getSelectionResult()
         if selectionResult == nil then
@@ -554,8 +543,7 @@ function Scene:showEnemyBook()
 end
 
 function Scene:showFloorTeleporter()
-    if (not self:_canOpenMenu() and not self:_canOpenItemOverlay())
-        or not self.player:hasItem(FLOOR_TELEPORTER_ITEM_ID) then
+    if (not self:_canOpenMenu() and not self:_canOpenItemOverlay()) or not self.player:hasItem(FLOOR_TELEPORTER_ITEM_ID) then
         return
     end
     if not self._windowFloorTeleporter:getVisible() then
@@ -637,14 +625,13 @@ function Scene:_recordCurrentFloorTelepoint()
     if self._gameMap == nil or self._cachedMapFile == nil then
         return
     end
-    local mapFile = self._cachedMapFile
     local telepoint = self:_findNearestFloorTelepoint()
     if telepoint == nil then
         return
     end
     local savedTelepoint = sf.Vector2u.new(telepoint.x, telepoint.y)
     ---@cast savedTelepoint sf.Vector2u
-    self.inst:recordTelepoint(mapFile, savedTelepoint)
+    self.inst:recordTelepoint(self._cachedMapFile, savedTelepoint)
 end
 
 ---@return sf.Vector2i | nil
@@ -688,7 +675,7 @@ end
 
 ---@param name         string
 ---@param content      string | string[]
----@param localeArgs  table<string, any> | nil
+---@param localeArgs   table<string, any> | nil
 ---@param nodeFunction function
 ---@return table
 function Scene:_createDialogueLocaleSource(name, content, localeArgs, nodeFunction)
@@ -712,9 +699,8 @@ function Scene:_formatDialogueSource(source)
         source.name, source.localeArgs, source.localVars, source.instanceVars
     )
     if type(source.content) ~= "table" then
-        return formattedName, self:_formatDialogueText(
-            source.content, source.localeArgs, source.localVars, source.instanceVars
-        )
+        return formattedName,
+            self:_formatDialogueText(source.content, source.localeArgs, source.localVars, source.instanceVars)
     end
     local formattedOptions = {}
     for _, option in ipairs(source.content) do
@@ -730,6 +716,7 @@ end
 ---@param localVars    table<string, any>
 ---@param instanceVars table<string, any>
 ---@return string
+---@diagnostic disable-next-line: unused
 function Scene:_formatDialogueText(text, localeArgs, localVars, instanceVars)
     if type(text) ~= "string" then
         return tostring(text)
@@ -792,7 +779,11 @@ function Scene:_processPendingFloorTransfer()
     if self._pendingFloorTransfer == nil or not GlobalSystem.isTransitionBackgroundFrozen() then
         return
     end
-    local transferData = self._pendingFloorTransfer
+    local transferData = {
+        targetMap = self._pendingFloorTransfer.targetMap,
+        anchorPos = self._pendingFloorTransfer.anchorPos,
+        moveEnabled = self._pendingFloorTransfer.moveEnabled
+    }
     self._pendingFloorTransfer = nil
     self._mapTransferInProgress = true
     local targetMap = transferData.targetMap
@@ -900,13 +891,13 @@ function Scene:tryAdjacentFloorSamePos(step)
     if player == nil then
         return false
     end
-    local sourceMap = self._cachedMapFile
-    if not bool(sourceMap) then
+    if not bool(self._cachedMapFile) then
         return false
     end
-    ---@cast sourceMap string
+    ---@cast self._cachedMapFile string
+    local sourceMap = self._cachedMapFile .. ""
     local regionMaps = RegionDict[self.inst:getCurrentRegion()] or {}
-    local currentIndex = Teleporter._findCurrentMapIndex(regionMaps, sourceMap)
+    local currentIndex = Teleporter._findCurrentMapIndex(regionMaps, self._cachedMapFile)
     if currentIndex == nil then
         return false
     end
@@ -915,6 +906,7 @@ function Scene:tryAdjacentFloorSamePos(step)
         return false
     end
 
+    ---@diagnostic disable-next-line: param-type-mismatch
     local targetMap = self:resolveRegionMapPath(regionMaps[targetIndex])
     local sourcePosition = player:getMapPosition()
     local targetPosition = sf.Vector2i.new(sourcePosition.x, sourcePosition.y)

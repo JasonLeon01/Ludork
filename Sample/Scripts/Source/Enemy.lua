@@ -14,7 +14,7 @@ local Battler = require("Source.Battler")
 local ComponentsFunctions = GlobalFunctions.Components
 local Actor = Engine.Actor
 local actorComponentOwner = Actor
----@cast actorComponentOwner +{ _componentTypes: table<string, table> }
+---@cast actorComponentOwner + { _componentTypes: table<string, table> }
 local Special = GeneralEnum.Special
 local State = GeneralEnum.State
 local DamageType = Battler.DamageType
@@ -26,8 +26,8 @@ end
 componentTypes.childActorComp = ChildActorComponent
 componentTypes.infoComp = EnemyInfoComponent
 
----@param enemy   Source.Enemy
----@param scene   Source.Scenes.SceneMap.SceneMap
+---@param enemy Source.Enemy
+---@param scene Source.Scenes.SceneMap.SceneMap
 ---@return table context
 local function createDefeatSpawnContext(enemy, scene)
     local gameMap = scene:getGameMap()
@@ -39,7 +39,7 @@ local function createDefeatSpawnContext(enemy, scene)
         layerName = layerName,
         originalTag = originalTag,
         position = copy(enemy:getMapPosition()),
-        reservedTags = {},
+        reservedTags = {}
     }
 end
 
@@ -60,14 +60,16 @@ end
 
 ---@param context       table
 ---@param blueprintPath string
----@param kind           string
----@param tagSuffix      string
+---@param kind          string
+---@param tagSuffix     string
 ---@return Engine.Actor
 local function prepareDefeatSpawnActor(context, blueprintPath, kind, tagSuffix)
-    assert(type(blueprintPath) == "string" and bool(blueprintPath),
-        "Enemy " .. kind .. " requires a Blueprint class path")
-    local actor = assert(Data.genActorFromClassPath(blueprintPath),
-        "Enemy " .. kind .. " Blueprint class not found: " .. blueprintPath)
+    assert(
+        type(blueprintPath) == "string" and bool(blueprintPath), "Enemy " .. kind .. " requires a Blueprint class path"
+    )
+    local actor = assert(
+        Data.genActorFromClassPath(blueprintPath), "Enemy " .. kind .. " Blueprint class not found: " .. blueprintPath
+    )
     actor:setMapTag(reserveDefeatSpawnTag(context, tagSuffix))
     actor:setMapPosition(copy(context.position))
     return actor
@@ -86,27 +88,22 @@ end
 ---@param offset        sf.Vector2i
 ---@return Source.Item | nil
 local function prepareDropActor(context, blueprintPath, offset)
-    assert(type(blueprintPath) == "string" and bool(blueprintPath),
-        "Enemy drop requires a Blueprint class path")
+    assert(type(blueprintPath) == "string" and bool(blueprintPath), "Enemy drop requires a Blueprint class path")
     local resolvedPath = Data.resolveClassPath(blueprintPath)
-    local itemClass = assert(Data.getClass(resolvedPath),
-        "Enemy drop Blueprint class not found: " .. resolvedPath)
-    assert(Class.isSubclass(itemClass, Item),
-        "Enemy drop Blueprint must derive from Source.Item: " .. resolvedPath)
+    local itemClass = assert(Data.getClass(resolvedPath), "Enemy drop Blueprint class not found: " .. resolvedPath)
+    assert(Class.isSubclass(itemClass, Item), "Enemy drop Blueprint must derive from Source.Item: " .. resolvedPath)
     local position = context.position + offset
     local mapTag = createDropMapTag(resolvedPath, position)
     if context.gameMap:getActorByTag(mapTag) ~= nil or context.reservedTags[mapTag] then
         Logging.warning(
-            "Skipping enemy drop %s at (%d, %d): map tag already exists: %s",
-            resolvedPath,
-            position.x,
-            position.y,
+            "Skipping enemy drop %s at (%d, %d): map tag already exists: %s", resolvedPath, position.x, position.y,
             mapTag
         )
         return nil
     end
-    local actor = assert(Data.genActorFromClassPath(resolvedPath),
-        "Enemy drop Blueprint class not found: " .. resolvedPath)
+    local actor = assert(
+        Data.genActorFromClassPath(resolvedPath), "Enemy drop Blueprint class not found: " .. resolvedPath
+    )
     context.reservedTags[mapTag] = true
     actor:setMapTag(mapTag)
     actor:setMapPosition(position)
@@ -176,9 +173,8 @@ function Enemy:init(texture, rect, tag)
 end
 
 function Enemy:_normaliseChildActorComp()
-    local value = self.childActorComp
-    if not Class.hasOwnField(self, "childActorComp") or not Class.isInstance(value, ChildActorComponent) then
-        self.childActorComp = ComponentsFunctions.componentFromData(ChildActorComponent, value)
+    if not Class.hasOwnField(self, "childActorComp") or not Class.isInstance(self.childActorComp, ChildActorComponent) then
+        self.childActorComp = ComponentsFunctions.componentFromData(ChildActorComponent, self.childActorComp)
     end
 end
 
@@ -187,6 +183,7 @@ function Enemy:battle()
     ---@cast scene Source.Scenes.SceneMap.SceneMap
     local player = scene.inst:getPlayer()
     local damageType, damage = self:getDamage(player)
+    ---@cast damage integer
     if damageType == DamageType.UNDEFEATABLE then
         return 1
     end
@@ -237,19 +234,18 @@ end
 function Enemy:getCriticalValue(battler)
     local attackerATK = battler:getATK(self)
     local enemyDEF = self:getDEF(battler)
-    local enemyHP = self.infoComp.MAXHP
     if attackerATK <= enemyDEF then
         return enemyDEF + 1
     end
-    if attackerATK >= enemyHP + enemyDEF then
+    if attackerATK >= self.infoComp.MAXHP + enemyDEF then
         return -2
     end
     if self:hasSpecial(Special.Hard) then
         return -1
     end
     local damage = attackerATK - enemyDEF
-    local turns = math.max(math.ceil(enemyHP / damage) - 1, 0)
-    return math.ceil(enemyHP / turns) + enemyDEF
+    local turns = math.max(math.ceil(self.infoComp.MAXHP / damage) - 1, 0)
+    return math.ceil(self.infoComp.MAXHP / turns) + enemyDEF
 end
 
 function Enemy:onCollision(other)
@@ -258,8 +254,7 @@ function Enemy:onCollision(other)
     local PlayerFunctions = require("Source.NodeFunctions.Player")
 
     local player = PlayerFunctions.MeetPlayer(other)
-    if player ~= nil and not bool(self._defeatFinalising)
-        and (self._battleCondition == nil or self._battleCondition()) then
+    if player ~= nil and not bool(self._defeatFinalising) and (self._battleCondition == nil or self._battleCondition()) then
         self._battleCondition = nil
         local result = self:battle()
         local animationLength = math.max(
@@ -270,8 +265,7 @@ function Enemy:onCollision(other)
             self._battleCondition = nil
             if result == 0 then
                 self._defeatFinalising = true
-                local gold = self.infoComp.GOLD
-                local exp = self.infoComp.EXP
+                local rewards = { self.infoComp.GOLD, self.infoComp.EXP }
                 self:triggerEvent("onDefeat", nil, function ()
                     if bool(self._defeatFinalised) then
                         return
@@ -292,8 +286,8 @@ function Enemy:onCollision(other)
                         spawnPersistentActor(scene, droppedActor, spawnLayer)
                         droppedActor:triggerEvent("onDrop")
                     end
-                    player.infoComp.GOLD = player.infoComp.GOLD + gold
-                    player.infoComp.EXP = player.infoComp.EXP + exp
+                    player.infoComp.GOLD = player.infoComp.GOLD + rewards[1]
+                    player.infoComp.EXP = player.infoComp.EXP + rewards[2]
                     self:afterBattle(player)
                 end)
             elseif result == 1 then

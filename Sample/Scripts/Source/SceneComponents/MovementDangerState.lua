@@ -6,16 +6,16 @@ local MovementSpecials = require("Source.MovementSpecials")
 
 local Special = GeneralEnum.Special
 
+---@class (partial) Source.SceneComponents.MovementDangerState
 local MovementDangerState = {}
 
 ---@param enemy Source.Enemy
 ---@return boolean
 local function hasMovementSpecial(enemy)
-    return enemy:hasSpecial(Special.Domain) or enemy:hasSpecial(Special.Flank)
-        or enemy:hasSpecial(Special.Blockade)
+    return enemy:hasSpecial(Special.Domain) or enemy:hasSpecial(Special.Flank) or enemy:hasSpecial(Special.Blockade)
 end
 
----@param entry Source.SceneComponents.MovementDangerEntry
+---@param entry           Source.SceneComponents.MovementDangerEntry
 ---@param ignoredEnemySet table<Source.Enemy, boolean> | nil
 ---@return integer
 local function getEntryDamage(entry, ignoredEnemySet)
@@ -34,37 +34,27 @@ end
 function MovementDangerState:init(gameMap)
     super(MovementDangerState, self).init(gameMap)
     local size = gameMap:getSize()
-    ---@type Source.Player.Player | nil
     self._player = nil
-    ---@type Source.Components.PlayerInfoComponent | nil
     self._playerInfoComp = nil
-    ---@type integer | nil
     self._playerCombatRevision = nil
-    ---@type table<Source.Enemy, Source.SceneComponents.MovementDangerEnemySnapshot>
     self._enemySnapshots = {}
-    ---@type Source.Enemy[]
     self._enemies = {}
-    ---@type integer
     self._enemyScanRevision = 0
-    ---@type Source.SceneComponents.MovementDangerEntry[]
     self._entries = {}
-    ---@type table<integer, table<integer, Source.SceneComponents.MovementDangerEntry>>
     self._entryGrid = {}
-    ---@type integer
     self._revision = 0
     self._mapWidth = size.x
     self._mapHeight = size.y
 end
 
 function MovementDangerState:onTick(_deltaTime)
-    ---@type GameMap
-    local gameMap = self._parent
-    local player = gameMap:getPlayer()
+    ---@cast self._parent GameMap
+    local player = self._parent:getPlayer()
     local changed = player ~= self._player
-    ---@type integer | nil
     local playerCombatRevision = nil
-    ---@type Source.Components.PlayerInfoComponent | nil
     local playerInfoComp = nil
+    ---@cast playerCombatRevision integer | nil
+    ---@cast playerInfoComp Source.Components.PlayerInfoComponent | nil
     if player ~= nil then
         ---@cast player Source.Player.Player
         playerCombatRevision = player:getCombatRevision()
@@ -74,50 +64,47 @@ function MovementDangerState:onTick(_deltaTime)
         changed = true
     end
 
-    local enemies = self._enemies
-    local enemySnapshots = self._enemySnapshots
     local enemyCount = 0
     local enemyScanRevision = self._enemyScanRevision + 1
     self._enemyScanRevision = enemyScanRevision
     if player ~= nil then
         ---@cast player Source.Player.Player
-        for _, actorList in pairs(gameMap._actors) do
+        for _, actorList in pairs(self._parent._actors) do
             for _, actor in ipairs(actorList) do
                 if Class.isInstance(actor, Enemy) and not actor:isDestroyed() and hasMovementSpecial(actor) then
                     ---@cast actor Source.Enemy
                     local position = actor:getMapPosition()
                     local combatRevision = actor:getCombatRevision()
-                    local snapshot = enemySnapshots[actor]
-                    if snapshot == nil then
-                        snapshot = {}
-                        enemySnapshots[actor] = snapshot
+                    if self._enemySnapshots[actor] == nil then
+                        self._enemySnapshots[actor] = {}
                         changed = true
-                    elseif snapshot.x ~= position.x or snapshot.y ~= position.y
-                        or snapshot.combatRevision ~= combatRevision or snapshot.infoComp ~= actor.infoComp then
+                    elseif self._enemySnapshots[actor].x ~= position.x or self._enemySnapshots[actor].y ~= position.y
+                        or self._enemySnapshots[actor].combatRevision ~= combatRevision
+                        or self._enemySnapshots[actor].infoComp ~= actor.infoComp then
                         changed = true
                     end
-                    snapshot.x = position.x
-                    snapshot.y = position.y
-                    snapshot.combatRevision = combatRevision
-                    snapshot.infoComp = actor.infoComp
-                    snapshot.scanRevision = enemyScanRevision
+                    self._enemySnapshots[actor].x = position.x
+                    self._enemySnapshots[actor].y = position.y
+                    self._enemySnapshots[actor].combatRevision = combatRevision
+                    self._enemySnapshots[actor].infoComp = actor.infoComp
+                    self._enemySnapshots[actor].scanRevision = enemyScanRevision
                     enemyCount = enemyCount + 1
-                    if enemies[enemyCount] ~= actor then
-                        enemies[enemyCount] = actor
+                    if self._enemies[enemyCount] ~= actor then
+                        self._enemies[enemyCount] = actor
                         changed = true
                     end
                 end
             end
         end
     end
-    for enemy, snapshot in pairs(enemySnapshots) do
+    for enemy, snapshot in pairs(self._enemySnapshots) do
         if snapshot.scanRevision ~= enemyScanRevision then
-            enemySnapshots[enemy] = nil
+            self._enemySnapshots[enemy] = nil
             changed = true
         end
     end
-    for index = #enemies, enemyCount + 1, -1 do
-        enemies[index] = nil
+    for index = #self._enemies, enemyCount + 1, -1 do
+        self._enemies[index] = nil
         changed = true
     end
     if not changed then
@@ -134,8 +121,7 @@ end
 function MovementDangerState:_rebuildEntries()
     self._entries = {}
     self._entryGrid = {}
-    local player = self._player
-    if player == nil or not bool(self._enemies) then
+    if self._player == nil or not bool(self._enemies) then
         return
     end
     local position = sf.Vector2i.new(0, 0)
@@ -148,17 +134,13 @@ function MovementDangerState:_rebuildEntries()
         for x = 0, self._mapWidth - 1 do
             position.x = x
             local damage, sources = MovementSpecials.CalculateDangerAtPosition(
-                self._enemies, player, position, nil
+                self._enemies, self._player, position, nil
             )
             if damage > 0 then
                 local entryPosition = sf.Vector2i.new(x, y)
                 ---@cast entryPosition sf.Vector2i
                 ---@type Source.SceneComponents.MovementDangerEntry
-                local entry = {
-                    position = entryPosition,
-                    damage = damage,
-                    sources = sources
-                }
+                local entry = { position = entryPosition, damage = damage, sources = sources }
                 self._entries[#self._entries + 1] = entry
                 row[x + 1] = entry
             end
@@ -175,14 +157,13 @@ function MovementDangerState:getEntries()
 end
 
 function MovementDangerState:getDamageAt(position, ignoredEnemies)
-    local row = self._entryGrid[position.y + 1]
-    local entry = row ~= nil and row[position.x + 1] or nil
+    local entry = self._entryGrid[position.y + 1] ~= nil and self._entryGrid[position.y + 1][position.x + 1] or nil
     if entry == nil then
         return 0
     end
     local ignoredEnemySet = nil
     if bool(ignoredEnemies) then
-        ---@cast ignoredEnemies -nil
+        ---@cast ignoredEnemies - nil
         ignoredEnemySet = {}
         for _, enemy in ipairs(ignoredEnemies) do
             ignoredEnemySet[enemy] = true
@@ -195,7 +176,7 @@ function MovementDangerState:getExcludedAnchors(goal, ignoredGoalEnemies, allowG
     local result = {}
     local ignoredEnemySet = nil
     if bool(ignoredGoalEnemies) then
-        ---@cast ignoredGoalEnemies -nil
+        ---@cast ignoredGoalEnemies - nil
         ignoredEnemySet = {}
         for _, enemy in ipairs(ignoredGoalEnemies) do
             ignoredEnemySet[enemy] = true

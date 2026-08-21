@@ -179,10 +179,10 @@ local function normaliseMapData(data)
         lights[index] = GlobalCore.Light.fromDict(lightData)
     end
     data.lights = lights
-    ---@type table<string, Source.Data.SerializedActorData[]>
     local serializedActors = data.actors or {}
-    ---@type table<string, Source.Data.ActorData[]>
     local actors = {}
+    ---@cast serializedActors table<string, Source.Data.SerializedActorData[]>
+    ---@cast actors table<string, Source.Data.ActorData[]>
     data.actors = actors
     for layerName, actorDatas in pairs(serializedActors) do
         local normalisedActorDatas = {}
@@ -191,11 +191,7 @@ local function normaliseMapData(data)
             local position = actorData.position or { 0, 0 }
             local x = position[1] or 0
             local y = position[2] or 0
-            normalisedActorDatas[index] = {
-                bp = actorData.bp,
-                tag = actorData.tag,
-                position = sf.Vector2u.new(x, y)
-            }
+            normalisedActorDatas[index] = { bp = actorData.bp, tag = actorData.tag, position = sf.Vector2u.new(x, y) }
         end
     end
 end
@@ -425,8 +421,7 @@ function SceneMapBuilder:buildFloorMapPreview(
     inst, currentMap, mapKey, telepoint, previewSize, previewScale, showTelepointMarker
 )
     local mapPath = self:resolveMapPath(mapKey, currentMap)
-    local cachedPreview = self._floorMapPreviewGameMaps[mapPath]
-    if cachedPreview == nil then
+    if self._floorMapPreviewGameMaps[mapPath] == nil then
         local resolvedPath, mapData = self:loadMapData(mapPath, currentMap)
         mapPath = resolvedPath
         local gameMap = self:generateGameMap(mapData, nil, false, true)
@@ -434,18 +429,18 @@ function SceneMapBuilder:buildFloorMapPreview(
         self:applyAddedActors(gameMap, inst:getAddedActors(mapPath), false)
         gameMap:applyActorPositions(inst:getActorPositions(mapPath))
         gameMap:removeActorsByTags(inst:getDestroyedActors(mapPath))
-        cachedPreview = { gameMap = gameMap, mapData = mapData }
-        self._floorMapPreviewGameMaps[mapPath] = cachedPreview
+        self._floorMapPreviewGameMaps[mapPath] = { gameMap = gameMap, mapData = mapData }
     end
-    local gameMap = cachedPreview.gameMap
-    local mapData = cachedPreview.mapData
     local scale = previewScale > 0.0 and previewScale or 1.0
     local targetSize = sf.Vector2u.new(previewSize, previewSize)
     ---@cast targetSize sf.Vector2u
     local target = sf.RenderTexture.new(targetSize)
     target:clear(sf.Color.Transparent)
     local viewSize = sf.Vector2f.new(previewSize / scale, previewSize / scale)
-    local mapPixelSize = sf.Vector2f.new(mapData.width * Engine.CellSize, mapData.height * Engine.CellSize)
+    local mapPixelSize = sf.Vector2f.new(
+        self._floorMapPreviewGameMaps[mapPath].mapData.width * Engine.CellSize,
+        self._floorMapPreviewGameMaps[mapPath].mapData.height * Engine.CellSize
+    )
     local centre = sf.Vector2f.new(
         mapPixelSize.x >= viewSize.x and viewSize.x / 2.0 or mapPixelSize.x / 2.0,
         mapPixelSize.y >= viewSize.y and viewSize.y / 2.0 or mapPixelSize.y / 2.0
@@ -460,7 +455,7 @@ function SceneMapBuilder:buildFloorMapPreview(
     end
     target:setView(sf.View.new(centre, viewSize))
     local states = Engine.CanvasRenderStates()
-    gameMap:drawMapContent(target, states)
+    self._floorMapPreviewGameMaps[mapPath].gameMap:drawMapContent(target, states)
     if showTelepointMarker then
         local marker = sf.RectangleShape.new(sf.Vector2f.new(Engine.CellSize, Engine.CellSize))
         marker:setPosition(sf.Vector2f.new(telepoint.x * Engine.CellSize, telepoint.y * Engine.CellSize))

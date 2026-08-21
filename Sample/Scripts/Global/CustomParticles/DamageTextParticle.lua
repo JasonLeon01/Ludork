@@ -1,6 +1,7 @@
 local Engine = require("Engine")
 local Pool = require("Global.Pool")
 
+---@class (partial) DamageTextParticle
 local DamageTextParticle = {}
 
 DamageTextParticle._MOVE_X = 32.0
@@ -12,12 +13,9 @@ function DamageTextParticle:init(particleSystem, text, position, textConfig, spe
     assert(textConfig ~= nil, "DamageTextParticle text config must not be nil")
     self._particleSystem = particleSystem
     self._speedCurve = speedCurve
-    ---@type Engine.TextParticle | nil
     self._textParticle = nil
     self._startPosition = copy(position)
-    ---@type boolean
     self._destroyRequested = false
-    ---@type boolean
     self._destroyed = false
     local message = tostring(text)
     if not bool(message) then
@@ -45,12 +43,12 @@ function DamageTextParticle:destroy()
         return
     end
     self._destroyed = true
-    local textParticle = self._textParticle
+    local particleState = { textParticle = self._textParticle }
     self._textParticle = nil
-    if textParticle ~= nil then
-        local parent = textParticle:getParent()
+    if particleState.textParticle ~= nil then
+        local parent = particleState.textParticle:getParent()
         if parent ~= nil then
-            parent:removeText(textParticle)
+            parent:removeText(particleState.textParticle)
         end
     end
     for index, current in ipairs(DamageTextParticle._active) do

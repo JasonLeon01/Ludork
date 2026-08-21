@@ -75,7 +75,7 @@ function UiController:_subscribeRefreshEvent(eventName)
         local controller = weakController[1]
         if controller == nil then
             local subscriptionToken = token
-            ---@cast subscriptionToken -nil
+            ---@cast subscriptionToken - nil
             Engine.unsubscribe(subscriptionToken)
             return
         end
@@ -171,11 +171,10 @@ function UiController:unmount()
     if not self._mounted then
         return
     end
-    local uiManager = self._uiManager
-    ---@cast uiManager GlobalCore.UIManager
+    ---@cast self._uiManager GlobalCore.UIManager
     local wasVisible = self.root:getVisible()
     self.root:setVisible(false)
-    uiManager:removeUI(self.root)
+    self._uiManager:removeUI(self.root)
     self.root:setVisible(wasVisible)
     self._uiManager = nil
     self._mounted = false

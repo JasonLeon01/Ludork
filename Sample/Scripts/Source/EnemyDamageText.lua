@@ -101,8 +101,7 @@ function EnemyDamageText:onTick(_deltaTime)
     local damageText = damageType == DamageType.UNDEFEATABLE and "???" or tostring(Utils.ToShortNumber(damage))
     local criticalText = EnemyDamageText._formatCriticalText(parent:getCriticalValue(player))
     if self:_setOverlayText(
-        damageText, criticalText,
-        EnemyDamageText.GetDamageColor(damageType, damage, player.infoComp.HP), width, height
+        damageText, criticalText, EnemyDamageText.GetDamageColor(damageType, damage, player.infoComp.HP), width, height
     ) then
         self._currentBattlers[1] = parent
         self._currentBattlers[2] = player
@@ -165,9 +164,9 @@ function EnemyDamageText:_renderTextTexture(damageText, criticalText, damageColo
     width = Engine.ToInteger(math.max(1, width))
     height = Engine.ToInteger(math.max(1, height))
     local size = sf.Vector2u.new(width, height)
-    local overlayTexture = self._overlayTexture
-    local replaceTexture = overlayTexture == nil or width ~= self._overlayTextureWidth
+    local replaceTexture = self._overlayTexture == nil or width ~= self._overlayTextureWidth
         or height ~= self._overlayTextureHeight
+    local overlayTexture = not replaceTexture and self._overlayTexture or nil
     local padding = 2
     ---@cast size sf.Vector2u
     local renderTexture = EnemyDamageText._getScratchRenderTexture(size, width, height)
@@ -254,13 +253,12 @@ function EnemyDamageText:_setOverlayVisible(visible)
 end
 
 function EnemyDamageText:_updateOverlayPosition()
-    local offset = self.damageTextOffset
-    if offset.x == self._currentOffsetX and offset.y == self._currentOffsetY then
+    if self.damageTextOffset.x == self._currentOffsetX and self.damageTextOffset.y == self._currentOffsetY then
         return
     end
-    self._currentOffsetX = offset.x
-    self._currentOffsetY = offset.y
-    self:setRelativePosition(offset)
+    self._currentOffsetX = self.damageTextOffset.x
+    self._currentOffsetY = self.damageTextOffset.y
+    self:setRelativePosition(self.damageTextOffset)
 end
 
 ---@param parent Engine.Actor | nil

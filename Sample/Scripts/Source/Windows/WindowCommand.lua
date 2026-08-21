@@ -54,7 +54,9 @@ end
 
 function WindowCommandController:createRow(item)
     local controller = CommandRowController.new(item)
-    local root = controller:prepare(sf.Vector2u.new(self._rowWidth, self._rowHeight))
+    local logicalSize = sf.Vector2u.new(self._rowWidth, self._rowHeight)
+    ---@cast logicalSize sf.Vector2u
+    local root = controller:prepare(logicalSize)
     self._rowControllers[#self._rowControllers + 1] = controller
     return root
 end

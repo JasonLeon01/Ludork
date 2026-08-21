@@ -79,13 +79,12 @@ function WindowEnemyEncyclopediaUI:open(entry)
 end
 
 function WindowEnemyEncyclopediaUI:refreshLocale()
-    local entry = self._entry
-    if entry == nil then
+    if self._entry == nil then
         return
     end
-    WindowEnemyBookUI.RefreshEntryLocale(entry)
+    WindowEnemyBookUI.RefreshEntryLocale(self._entry)
     self:_clearTextControls()
-    self:_renderEntry(entry)
+    self:_renderEntry(self._entry)
 end
 
 ---@param entry Source.UI.WindowEnemyBook.Entry
@@ -95,8 +94,8 @@ function WindowEnemyEncyclopediaUI:_renderEntry(entry)
     self:setText("Name", fittedName)
     self:setProperty("Name", "visible", true)
     local displayDescription = WindowEnemyEncyclopediaUI.limitLines(
-        TextLayout.wrapPlainText(tostring(entry.desc or ""), contentWidth, _INFO_TEXT_CONFIG),
-        _DESC_MAX_LINES, contentWidth
+        TextLayout.wrapPlainText(tostring(entry.desc or ""), contentWidth, _INFO_TEXT_CONFIG), _DESC_MAX_LINES,
+        contentWidth
     )
     self:setText("Description", displayDescription)
     self:setProperty("Description", "visible", true)
@@ -121,9 +120,7 @@ end
 ---@return number
 function WindowEnemyEncyclopediaUI:_layoutPortrait()
     local contentSize = self._content:getSize()
-    local bounds = sf.FloatRect.new(
-        sf.Vector2f.new(0.0, 0.0), sf.Vector2f.new(contentSize.x, _PORTRAIT_AREA_HEIGHT)
-    )
+    local bounds = sf.FloatRect.new(sf.Vector2f.new(0.0, 0.0), sf.Vector2f.new(contentSize.x, _PORTRAIT_AREA_HEIGHT))
     return self._previewController:layout(bounds, "top").y
 end
 

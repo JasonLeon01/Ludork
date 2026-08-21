@@ -27,12 +27,12 @@ function StateInfo:setOwner(owner)
     self._owner = owner
 end
 
+---@diagnostic disable-next-line: unused
 function StateInfo:onWalk(battler)
-    local _self, _battler = self, battler
 end
 
+---@diagnostic disable-next-line: unused
 function StateInfo:onHookTriggered(battler)
-    local _self, _battler = self, battler
 end
 
 return class(StateInfo, InfoBase)

@@ -12,6 +12,7 @@ for index = 0, MAX_SHADER_LIGHTS - 1 do
     UNOBSTRUCTED_LIGHT_INTENSITY_UNIFORMS[index + 1] = "lightIntensity[" .. index .. "]"
 end
 
+---@class (partial) GameMap
 local GameMapLighting = {}
 
 function GameMapLighting:getLights()
@@ -279,30 +280,29 @@ end
 ---@param size      sf.Vector2u
 ---@param occupancy number[][]
 function GameMapLighting:_rebuildStaticOccupancy(size, occupancy)
-    ---@type number[][]
     local prefix = {}
-    ---@type number[]
     local firstPrefixRow = {}
     prefix[1] = firstPrefixRow
+    ---@cast prefix number[][]
+    ---@cast firstPrefixRow number[]
     for x = 1, size.x + 1 do
         firstPrefixRow[x] = 0
     end
     local textureRows = {}
     for y = 1, size.y do
-        ---@type number[]
-        local prefixRow = { 0 }
+        local prefixRow = { 0 } ---@type number[]
         local previousPrefixRow = prefix[y]
-        ---@cast previousPrefixRow number[]
         local occupancyRow = occupancy[y]
+        ---@cast previousPrefixRow number[]
         ---@cast occupancyRow number[]
         for x = 1, size.x do
             local occupancyValue = occupancyRow[x]
-            ---@cast occupancyValue number
             local previousPrefixValue = previousPrefixRow[x + 1]
-            ---@cast previousPrefixValue number
             local prefixValue = prefixRow[x]
-            ---@cast prefixValue number
             local previousRowPrefixValue = previousPrefixRow[x]
+            ---@cast occupancyValue number
+            ---@cast previousPrefixValue number
+            ---@cast prefixValue number
             ---@cast previousRowPrefixValue number
             prefixRow[x + 1] = occupancyValue + previousPrefixValue + prefixValue - previousRowPrefixValue
         end
@@ -376,29 +376,27 @@ function GameMapLighting:_setTileMaskUniforms(layerName, layer)
     ---@cast lightBlockImage sf.Image
     ---@cast reflectionStrengthImage sf.Image
     ---@cast ignoreLightingImage sf.Image
-    local cached = self._layerMaskTextureCache[layerName]
-    ---@type sf.Texture
     local lightBlockTexture
-    ---@type sf.Texture
     local reflectionStrengthTexture
-    ---@type sf.Texture
     local ignoreLightingTexture
-    if cached == nil or cached[1] ~= lightBlockImage
-        or cached[2] ~= reflectionStrengthImage or cached[3] ~= ignoreLightingImage then
+    if self._layerMaskTextureCache[layerName] == nil or self._layerMaskTextureCache[layerName][1] ~= lightBlockImage
+        or self._layerMaskTextureCache[layerName][2] ~= reflectionStrengthImage
+        or self._layerMaskTextureCache[layerName][3] ~= ignoreLightingImage then
         lightBlockTexture = sf.Texture.new(lightBlockImage)
         reflectionStrengthTexture = sf.Texture.new(reflectionStrengthImage)
         ignoreLightingTexture = sf.Texture.new(ignoreLightingImage)
-        cached = {
+        self._layerMaskTextureCache[layerName] = {
             lightBlockImage, reflectionStrengthImage, ignoreLightingImage, lightBlockTexture, reflectionStrengthTexture,
             ignoreLightingTexture
         }
-        ---@cast cached GameMapLayerMaskTextureCacheEntry
-        self._layerMaskTextureCache[layerName] = cached
     else
-        lightBlockTexture = cached[4]
-        reflectionStrengthTexture = cached[5]
-        ignoreLightingTexture = cached[6]
+        lightBlockTexture = self._layerMaskTextureCache[layerName][4]
+        reflectionStrengthTexture = self._layerMaskTextureCache[layerName][5]
+        ignoreLightingTexture = self._layerMaskTextureCache[layerName][6]
     end
+    ---@cast lightBlockTexture sf.Texture
+    ---@cast reflectionStrengthTexture sf.Texture
+    ---@cast ignoreLightingTexture sf.Texture
     self._tilemapLightMaskShader:setUniform("lightBlockTex", lightBlockTexture)
     self._tilemapLightMaskShader:setUniform("reflectionStrengthTex", reflectionStrengthTexture)
     self._tilemapLightMaskShader:setUniform("ignoreLightingTex", ignoreLightingTexture)
@@ -452,6 +450,7 @@ function GameMapLighting:_ensureStaticDirectLight()
     end
     local tilemapSize = self._tilemap:getSize()
     local requiredSize = sf.Vector2u.new(tilemapSize.x * Engine.CellSize, tilemapSize.y * Engine.CellSize)
+    ---@cast tilemapSize sf.Vector2u
     ---@cast requiredSize sf.Vector2u
     self._staticDirectLight = sf.RenderTexture.new(requiredSize)
     self._staticDirectLight:setSmooth(false)
@@ -542,26 +541,21 @@ function GameMapLighting:_lightHasStaticTransmissionLoss(light)
     local cellSize = Engine.CellSize
     local minimumX = math.max(0, math.floor((light.position.x - light.radius) / cellSize) - 1)
     local minimumY = math.max(0, math.floor((light.position.y - light.radius) / cellSize) - 1)
-    local maximumX = math.min(size.x - 1, math.floor((light.position.x + light.radius) / cellSize) + 1)
-    local maximumY = math.min(size.y - 1, math.floor((light.position.y + light.radius) / cellSize) + 1)
+    local maximumX = Engine.ToInteger(
+        math.min(size.x - 1, math.floor((light.position.x + light.radius) / cellSize) + 1)
+    )
+    local maximumY = Engine.ToInteger(
+        math.min(size.y - 1, math.floor((light.position.y + light.radius) / cellSize) + 1)
+    )
     if minimumX > maximumX or minimumY > maximumY then
         return false
     end
-    local prefix = self._staticOccupancyPrefix
-    ---@cast prefix number[][]
-    local maximumRow = prefix[maximumY + 2]
-    ---@cast maximumRow number[]
-    local minimumRow = prefix[minimumY + 1]
-    ---@cast minimumRow number[]
-    local maximumCorner = maximumRow[maximumX + 2]
-    ---@cast maximumCorner number
-    local maximumRowMinimum = maximumRow[minimumX + 1]
-    ---@cast maximumRowMinimum number
-    local minimumRowMaximum = minimumRow[maximumX + 2]
-    ---@cast minimumRowMaximum number
-    local minimumCorner = minimumRow[minimumX + 1]
-    ---@cast minimumCorner number
-    local total = maximumCorner - minimumRowMaximum - maximumRowMinimum + minimumCorner
+    ---@cast self._staticOccupancyPrefix number[][]
+    ---@diagnostic disable: need-check-nil
+    local total = self._staticOccupancyPrefix[maximumY + 2][maximumX + 2] - self._staticOccupancyPrefix[minimumY + 1][maximumX
+            + 2] - self._staticOccupancyPrefix[maximumY + 2][minimumX + 1]
+        + self._staticOccupancyPrefix[minimumY + 1][minimumX + 1]
+    ---@diagnostic enable: need-check-nil
     return total > 0
 end
 
@@ -591,7 +585,8 @@ end
 ---@param entries table[]
 ---@param cache   table[] | nil
 ---@return boolean
-function GameMapLighting._lightsMatchCache(_self, entries, cache)
+---@diagnostic disable-next-line: unused
+function GameMapLighting:_lightsMatchCache(entries, cache)
     if cache == nil or #cache ~= #entries then
         return false
     end
@@ -625,7 +620,8 @@ end
 
 ---@param light GlobalCore.Light
 ---@return table
-function GameMapLighting._cacheLightValues(_self, light)
+---@diagnostic disable-next-line: unused
+function GameMapLighting:_cacheLightValues(light)
     return {
         light.position.x, light.position.y, light.colour.r, light.colour.g, light.colour.b, light.radius,
         light.intensity
@@ -668,7 +664,8 @@ end
 ---@param textureX number
 ---@param textureY number
 ---@param colour   sf.Color
-function GameMapLighting._appendLightBatchVertex(_self, vertices, vertex, x, y, textureX, textureY, colour)
+---@diagnostic disable-next-line: unused
+function GameMapLighting:_appendLightBatchVertex(vertices, vertex, x, y, textureX, textureY, colour)
     vertex.position = sf.Vector2f.new(x, y)
     vertex.texCoords = sf.Vector2f.new(textureX, textureY)
     vertex.color = colour
@@ -761,7 +758,8 @@ end
 ---@param actor Engine.Actor
 ---@param light GlobalCore.Light
 ---@return boolean
-function GameMapLighting._actorIntersectsLight(_self, actor, light)
+---@diagnostic disable-next-line: unused
+function GameMapLighting:_actorIntersectsLight(actor, light)
     local bounds = actor:getGlobalBounds()
     return bounds.position.x <= light.position.x + light.radius and bounds.position.x + bounds.size.x
             >= light.position.x - light.radius and bounds.position.y <= light.position.y + light.radius
@@ -817,7 +815,8 @@ end
 ---@param lightComp Engine.LightComponent
 ---@param result    sf.Vector2f | nil
 ---@return sf.Vector2f
-function GameMapLighting._getActorLightPosition(_self, actor, lightComp, result)
+---@diagnostic disable-next-line: unused
+function GameMapLighting:_getActorLightPosition(actor, lightComp, result)
     local bounds = actor:getLocalBounds()
     local offset = lightComp.lightOffset
     local localPosition = sf.Vector2f.new(

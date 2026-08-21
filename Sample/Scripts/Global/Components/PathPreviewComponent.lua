@@ -18,6 +18,7 @@ function PathPreviewComponent:init(gameMap, routeState)
     self._rectangle:setOutlineColor(self._outlineColour)
     self._rectangle:setOutlineThickness(1.0)
     self._cachedRouteRevision = -1
+    ---@type sf.Vector2i[]
     self._cachedRoute = {}
 end
 
@@ -27,18 +28,17 @@ function PathPreviewComponent:onRender(camera)
         self._cachedRoute = self._routeState:getRoute()
         self._cachedRouteRevision = routeRevision
     end
-    local route = self._cachedRoute
-    if not bool(route) then
+    if not bool(self._cachedRoute) then
         return
     end
     local cellSize = Engine.CellSize
-    local firstCell = route[1]
-    ---@cast firstCell - nil
+    ---@diagnostic disable: need-check-nil
     local position = Pool.Get("sf.Vector2f", sf.Vector2f, {
-        x = firstCell.x * cellSize + self._padding,
-        y = firstCell.y * cellSize + self._padding
+        x = self._cachedRoute[1].x * cellSize + self._padding,
+        y = self._cachedRoute[1].y * cellSize + self._padding
     })
-    for index, cell in ipairs(route) do
+    ---@diagnostic enable: need-check-nil
+    for index, cell in ipairs(self._cachedRoute) do
         if index > 1 then
             position.x = cell.x * cellSize + self._padding
             position.y = cell.y * cellSize + self._padding

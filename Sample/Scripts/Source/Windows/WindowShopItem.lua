@@ -22,7 +22,7 @@ function WindowShopItem:init(rect, owner)
 end
 
 function WindowShopItem:refreshItems(itemIDs, availableMap, valueMap)
-    local previousIndex = self.index
+    local previousIndex = self.index ~= nil and self.index or nil
     local previousItemID = self:getCurrentItemID()
     self._itemIDs = copy(itemIDs)
     self._ui:refreshItems(itemIDs, availableMap, valueMap)

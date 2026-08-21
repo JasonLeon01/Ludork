@@ -22,8 +22,8 @@ local _LANGUAGE_VALUES = MainConfig.SupportedLanguages
 local _FRAMERATE_ITEMS = { "30", "60", "90", "120" }
 local _ANTI_ALIASING_LEVEL_ITEMS = { "0", "2", "4", "8" }
 local _SETTING_LOCALE_KEYS = {
-    "language", "framerate", "antialiasinglevel", "verticalsync", "musicon", "musicvolume", "soundon",
-    "soundvolume", "voiceon", "voicevolume"
+    "language", "framerate", "antialiasinglevel", "verticalsync", "musicon", "musicvolume", "soundon", "soundvolume",
+    "voiceon", "voicevolume"
 }
 if not LUDORK_MOBILE then
     table.insert(_SETTING_LOCALE_KEYS, 2, "scale")
@@ -262,8 +262,7 @@ function ConfigWindowUI:_createRows()
     )
     self._antiAliasingLevelItems = getAntiAliasingLevelItems(System.getAntiAliasingLevel())
     self._antiAliasingLevelRow = ConfigSettingRowUI.new(
-        LOC("antialiasinglevel"), self._antiAliasingLevelItems, _CONTENT_WIDTH, _DROPBOX_WIDTH,
-        self._windowSkin,
+        LOC("antialiasinglevel"), self._antiAliasingLevelItems, _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
         self.model._findSelectedIndex(self._antiAliasingLevelItems, System.getAntiAliasingLevel())
     )
     self._verticalSyncRow = ConfigCheckBoxRowUI.new(
@@ -276,63 +275,36 @@ function ConfigWindowUI:_createRows()
             ConfigWindowUI.onVerticalSyncCheckedChanged(checked)
         end
     )
-    self._musicOnRow = ConfigCheckBoxRowUI.new(
-        LOC("musicon"),
-        _CONTENT_WIDTH,
-        _CHECKBOX_SIZE,
-        self._windowSkin,
-        System.getMusicOn(),
-        function (checked)
-            ConfigWindowUI.onMusicOnCheckedChanged(checked)
-        end
+    self._musicOnRow = ConfigCheckBoxRowUI.new(LOC("musicon"), _CONTENT_WIDTH, _CHECKBOX_SIZE, self._windowSkin, System.getMusicOn(), function (
+        checked
     )
-    self._musicVolumeRow = ConfigSliderRowUI.new(
-        LOC("musicvolume"),
-        _CONTENT_WIDTH,
-        _SLIDER_WIDTH,
-        Engine.Round(System.getMusicVolume()),
-        function (value)
-            ConfigWindowUI.onMusicVolumeChanged(value)
-        end
+        ConfigWindowUI.onMusicOnCheckedChanged(checked)
+    end)
+    self._musicVolumeRow = ConfigSliderRowUI.new(LOC("musicvolume"), _CONTENT_WIDTH, _SLIDER_WIDTH, Engine.Round(
+        System.getMusicVolume()
+    ), function (value)
+        ConfigWindowUI.onMusicVolumeChanged(value)
+    end)
+    self._soundOnRow = ConfigCheckBoxRowUI.new(LOC("soundon"), _CONTENT_WIDTH, _CHECKBOX_SIZE, self._windowSkin, System.getSoundOn(), function (
+        checked
     )
-    self._soundOnRow = ConfigCheckBoxRowUI.new(
-        LOC("soundon"),
-        _CONTENT_WIDTH,
-        _CHECKBOX_SIZE,
-        self._windowSkin,
-        System.getSoundOn(),
-        function (checked)
-            ConfigWindowUI.onSoundOnCheckedChanged(checked)
-        end
+        ConfigWindowUI.onSoundOnCheckedChanged(checked)
+    end)
+    self._soundVolumeRow = ConfigSliderRowUI.new(LOC("soundvolume"), _CONTENT_WIDTH, _SLIDER_WIDTH, Engine.Round(
+        System.getSoundVolume()
+    ), function (value)
+        ConfigWindowUI.onSoundVolumeChanged(value)
+    end)
+    self._voiceOnRow = ConfigCheckBoxRowUI.new(LOC("voiceon"), _CONTENT_WIDTH, _CHECKBOX_SIZE, self._windowSkin, System.getVoiceOn(), function (
+        checked
     )
-    self._soundVolumeRow = ConfigSliderRowUI.new(
-        LOC("soundvolume"),
-        _CONTENT_WIDTH,
-        _SLIDER_WIDTH,
-        Engine.Round(System.getSoundVolume()),
-        function (value)
-            ConfigWindowUI.onSoundVolumeChanged(value)
-        end
-    )
-    self._voiceOnRow = ConfigCheckBoxRowUI.new(
-        LOC("voiceon"),
-        _CONTENT_WIDTH,
-        _CHECKBOX_SIZE,
-        self._windowSkin,
-        System.getVoiceOn(),
-        function (checked)
-            ConfigWindowUI.onVoiceOnCheckedChanged(checked)
-        end
-    )
-    self._voiceVolumeRow = ConfigSliderRowUI.new(
-        LOC("voicevolume"),
-        _CONTENT_WIDTH,
-        _SLIDER_WIDTH,
-        Engine.Round(System.getVoiceVolume()),
-        function (value)
-            ConfigWindowUI.onVoiceVolumeChanged(value)
-        end
-    )
+        ConfigWindowUI.onVoiceOnCheckedChanged(checked)
+    end)
+    self._voiceVolumeRow = ConfigSliderRowUI.new(LOC("voicevolume"), _CONTENT_WIDTH, _SLIDER_WIDTH, Engine.Round(
+        System.getVoiceVolume()
+    ), function (value)
+        ConfigWindowUI.onVoiceVolumeChanged(value)
+    end)
     self._dropBoxRows = { self._languageRow, self._framerateRow, self._antiAliasingLevelRow }
     self._settingRows = {
         self._languageRow, self._framerateRow, self._antiAliasingLevelRow, self._verticalSyncRow, self._musicOnRow,
@@ -367,6 +339,7 @@ function ConfigWindowUI:_createRows()
     end)
 end
 
+---@diagnostic disable-next-line: unused
 function ConfigWindowUI:_getCurrentDisplayScaleOptions()
     local configuredScale = System.getConfiguredScale()
     local maximumScale = System.getMaximumWindowedScale(System.getGameSize())
@@ -379,7 +352,7 @@ end
 
 function ConfigWindowUI:_setScaleOptions(scaleValues, selectedScale)
     self._scaleValues = scaleValues
-    ---@cast self._scaleRow -nil
+    ---@cast self._scaleRow - nil
     self._scaleRow:setItems(getScaleLabels(scaleValues))
     local scaleIndex = findScaleIndex(scaleValues, selectedScale)
     self._scaleRow:getDropBox():setSelectedIndex(scaleIndex)

@@ -55,10 +55,9 @@ function Battler:init(attrs)
 end
 
 function Battler:_normaliseInfoComp()
-    local value = self.infoComp
     local componentType = self:_getInfoCompType()
-    if not Class.hasOwnField(self, "infoComp") or not Class.isInstance(value, componentType) then
-        self.infoComp = ComponentsFunctions.componentFromData(componentType, value)
+    if not Class.hasOwnField(self, "infoComp") or not Class.isInstance(self.infoComp, componentType) then
+        self.infoComp = ComponentsFunctions.componentFromData(componentType, self.infoComp)
     end
 end
 
@@ -71,16 +70,15 @@ function Battler:getCombatRevision()
 end
 
 function Battler:_ensureCombatMonitors()
-    local infoComp = self.infoComp
-    if self._monitoredInfoComp == infoComp then
+    if self._monitoredInfoComp == self.infoComp then
         return
     end
-    self._monitoredInfoComp = infoComp
-    Class.monitor(infoComp, "MAXHP", onCombatAttributeChange, self._combatMonitorParams)
-    Class.monitor(infoComp, "ATK", onCombatAttributeChange, self._combatMonitorParams)
-    Class.monitor(infoComp, "DEF", onCombatAttributeChange, self._combatMonitorParams)
-    if infoComp.special ~= nil then
-        Class.monitor(infoComp, "special", onCombatAttributeChange, self._combatMonitorParams)
+    self._monitoredInfoComp = self.infoComp
+    Class.monitor(self.infoComp, "MAXHP", onCombatAttributeChange, self._combatMonitorParams)
+    Class.monitor(self.infoComp, "ATK", onCombatAttributeChange, self._combatMonitorParams)
+    Class.monitor(self.infoComp, "DEF", onCombatAttributeChange, self._combatMonitorParams)
+    if self.infoComp.special ~= nil then
+        Class.monitor(self.infoComp, "special", onCombatAttributeChange, self._combatMonitorParams)
     end
 end
 
@@ -102,8 +100,7 @@ end
 ---@param default T
 ---@return T
 function Battler:_getInfoField(key, default)
-    local value = self.infoComp[key]
-    return value == nil and default or value
+    return self.infoComp[key] == nil and default or self.infoComp[key]
 end
 
 ---@generic T
@@ -170,12 +167,11 @@ function Battler:getStateStackCount(stateID)
 end
 
 function Battler:hasSpecial(specialID)
-    local special = self.infoComp.special
-    if not bool(special) then
+    if not bool(self.infoComp.special) then
         return false
     end
-    ---@cast special table<string, Source.Battler.AttributeValue>
-    return special[specialID] ~= nil
+    ---@cast self.infoComp.special table<string, Source.Battler.AttributeValue>
+    return self.infoComp.special[specialID] ~= nil
 end
 
 function Battler:getSpecialIntValue(specialID, default, minValue)
@@ -183,26 +179,25 @@ function Battler:getSpecialIntValue(specialID, default, minValue)
     minValue = minValue == nil and 0 or minValue
     ---@cast default integer
     ---@cast minValue integer
-    local special = self.infoComp.special
-    if not bool(special) then
+    if not bool(self.infoComp.special) then
         return default < minValue and minValue or default
     end
-    ---@cast special table<string, Source.Battler.AttributeValue>
-    if special[specialID] == nil then
+    ---@cast self.infoComp.special table<string, Source.Battler.AttributeValue>
+    if self.infoComp.special[specialID] == nil then
         return default < minValue and minValue or default
     end
-    local value = special[specialID]
-    assert(math.type(value) == "integer", "Battler special " .. specialID .. " must be an integer")
-    ---@cast value integer
-    return value < minValue and minValue or value
+    assert(
+        math.type(self.infoComp.special[specialID]) == "integer",
+        "Battler special " .. specialID .. " must be an integer"
+    )
+    return self.infoComp.special[specialID] < minValue and minValue or self.infoComp.special[specialID]
 end
 
 function Battler:getATK(opponent)
-    local attackerATK = self.infoComp.ATK
-    if self:hasState(State.Weak) then
-        attackerATK = math.max(0, attackerATK - 2 * self:_getStateStackCount(State.Weak))
-        ---@cast attackerATK integer
-    end
+    local attackerATK = self:hasState(State.Weak)
+        and math.max(0, self.infoComp.ATK - 2 * self:_getStateStackCount(State.Weak))
+        or self.infoComp.ATK
+    ---@cast attackerATK integer
     if opponent ~= nil and self:hasSpecial(Special.Compete) then
         attackerATK = math.max(attackerATK, opponent:getATK())
         ---@cast attackerATK integer
@@ -211,11 +206,10 @@ function Battler:getATK(opponent)
 end
 
 function Battler:getDEF(attacker)
-    local defenderDEF = self.infoComp.DEF
-    if self:hasState(State.Weak) then
-        defenderDEF = math.max(0, defenderDEF - 2 * self:_getStateStackCount(State.Weak))
-        ---@cast defenderDEF integer
-    end
+    local defenderDEF = self:hasState(State.Weak)
+        and math.max(0, self.infoComp.DEF - 2 * self:_getStateStackCount(State.Weak))
+        or self.infoComp.DEF
+    ---@cast defenderDEF integer
     if attacker ~= nil and self:hasSpecial(Special.Hard) then
         defenderDEF = math.max(defenderDEF, attacker:getATK(self) - 1)
         ---@cast defenderDEF integer
@@ -336,11 +330,10 @@ function Battler:triggerStateHook(stateKey)
 end
 
 function Battler:playAttackAnimationAt(scene, targetPosition)
-    local animationKey = self.infoComp.ANIMATION_KEY
-    if not bool(animationKey) then
+    if not bool(self.infoComp.ANIMATION_KEY) then
         return 0.0
     end
-    local animationData = Data.getAnimation(animationKey)
+    local animationData = Data.getAnimation(self.infoComp.ANIMATION_KEY)
     local Animation = GlobalCore.Animation
     local animation = Animation.new(animationData, true)
     local halfCell = Engine.CellSize * 0.5
@@ -374,7 +367,10 @@ function Battler:getDamage(battler)
         return DamageType.UNDEFEATABLE, -1
     end
     local counterRounds = math.max(0, math.ceil(self.infoComp.MAXHP / attackDamage) - 1)
-    return DamageType.NORMAL, math.max(0, counterRounds * counterDamage)
+    local damage = math.max(0, counterRounds * counterDamage)
+    ---@cast counterRounds integer
+    ---@cast damage integer
+    return DamageType.NORMAL, damage
 end
 
 ---@param state string | Source.Infos.StateInfo | nil

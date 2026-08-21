@@ -164,8 +164,7 @@ function LocalRef:init(loc, name, default)
 end
 
 function LocalRef:get()
-    local value = self.loc[self.name]
-    return value == nil and self.default or value
+    return self.loc[self.name] == nil and self.default or self.loc[self.name]
 end
 
 function LocalRef:set(value)
@@ -269,9 +268,7 @@ function Utils.AddAnimOn(animName, actorTag, rotation, scale)
     if actor == nil then
         error("Actor with tag '" .. tostring(actorTag) .. "' not found")
     end
-    spawnAnim(
-        animName, actor:getPosition() + sf.Vector2f.new(Engine.CellSize, Engine.CellSize) * 0.5, rotation, scale
-    )
+    spawnAnim(animName, actor:getPosition() + sf.Vector2f.new(Engine.CellSize, Engine.CellSize) * 0.5, rotation, scale)
 end
 
 function Utils.GetAnimLength(animName)

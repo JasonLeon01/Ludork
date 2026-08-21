@@ -5,8 +5,17 @@
     },
     "workspace": {
         "ignoreDir": [
+            "bin",
             "build",
-            "dist"
+            "dist",
+            "ffmpeg",
+            "Log",
+            "LuaSF",
+            "lua-cjson",
+            "obj",
+            "Temp",
+            "ThirdPartySource",
+            "zlib"
         ],
         "workspaceRoots": [
             "./Scripts/stub"

@@ -35,9 +35,8 @@ function ConfigRowControllerBase:setLabelText(labelText)
     self:prepare()
 end
 
+---@diagnostic disable-next-line: unused
 function ConfigRowControllerBase:getChildren()
-    local _ = self
-
     return {}
 end
 

@@ -158,10 +158,7 @@ function WindowItemUI:_onUseItem()
     if self.model.index == nil or self.model.index >= #self.model._itemList then
         return
     end
-    local entry = self.model._itemList[self.model.index + 1]
-    ---@cast entry { [1]: string, [2]: integer }
-    local itemID = entry[1]
-    local itemInfoData = Data.getGeneralItemData(itemID)
+    local itemInfoData = Data.getGeneralItemData(self.model._itemList[self.model.index + 1][1])
     local usable = itemInfoData.usable
     if usable == nil then
         usable = true
@@ -171,7 +168,7 @@ function WindowItemUI:_onUseItem()
     end
     ManagerFunctions.playSE(GameSystem.getDecisionSE())
     local info = ItemInfo.new()
-    info.ID = itemID
+    info.ID = self.model._itemList[self.model.index + 1][1]
     info:initInfo(Data)
     info:triggerEvent("onUse")
     self:close()
@@ -194,9 +191,7 @@ function WindowItemUI:_updateLayout()
     local contentHeight = math.max(1, math.floor(windowSize.y - 96))
     self.model._descMaxWidth = contentWidth
     self.model:_resizeCanvas(self.model.content, contentWidth, contentHeight)
-    local logicalSize = sf.Vector2u.new(
-        math.max(1, math.floor(windowSize.x)), math.max(1, math.floor(windowSize.y))
-    )
+    local logicalSize = sf.Vector2u.new(math.max(1, math.floor(windowSize.x)), math.max(1, math.floor(windowSize.y)))
     ---@cast logicalSize sf.Vector2u
     self._logicalSize = logicalSize
     local contentSize = sf.Vector2u.new(contentWidth, contentHeight)
@@ -210,10 +205,7 @@ function WindowItemUI:_assignDescription()
         self:setText("Description", "")
         return
     end
-    local entry = self.model._itemList[self.model.index + 1]
-    ---@cast entry { [1]: string, [2]: integer }
-    local itemID = entry[1]
-    local itemData = Data.getGeneralItemData(itemID)
+    local itemData = Data.getGeneralItemData(self.model._itemList[self.model.index + 1][1])
     self:setText("ItemName", LOC(itemData.name or ""))
     local rawDescription = LOC(itemData.desc or "")
     self:setText("Description", self:wrapDescription(rawDescription))

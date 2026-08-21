@@ -47,7 +47,6 @@ function WindowShopItemUI:refreshItems(itemIDs, availableMap, valueMap)
     self._listView:clearChildren()
     self._cellControllers = {}
     self.model._cellAvailable = {}
-    local cellAvailable = self.model._cellAvailable
     local cellWidth = self.model:_getRectWidth()
     local itemData = Data.getAllGeneralItemData()
     for _, itemID in ipairs(itemIDs) do
@@ -56,7 +55,7 @@ function WindowShopItemUI:refreshItems(itemIDs, availableMap, valueMap)
         if available == nil then
             available = true
         end
-        cellAvailable[#cellAvailable + 1] = available
+        self.model._cellAvailable[#self.model._cellAvailable + 1] = available
         local cellController = WindowShopCellUI.new({
             iconTexture = self.loadItemIcon(member.icon or ""),
             value = valueMap[itemID] or 0,

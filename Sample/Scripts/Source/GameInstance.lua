@@ -1,4 +1,3 @@
-
 local cjson = require("cjson")
 local Data = require("Source.Data")
 local Engine = require("Engine")
@@ -106,22 +105,24 @@ function GameInstance:asDict()
     ---@cast self._players table<string, Source.Player.Player>
     local players = {}
     for _, playerKey in ipairs(self._playerKeys) do
-        local player = assert(self._players[playerKey], "Player data is missing for key: " .. playerKey)
-        assert(requirePlayerKey(player) == playerKey, "Player ID does not match player key: " .. playerKey)
+        assert(Class.hasOwnField(self._players, playerKey), "Player data is missing for key: " .. playerKey)
+        assert(
+            requirePlayerKey(self._players[playerKey]) == playerKey,
+            "Player ID does not match player key: " .. playerKey
+        )
         assert(players[playerKey] == nil, "Duplicate player key: " .. playerKey)
-        players[playerKey] = player:asDict()
+        players[playerKey] = self._players[playerKey]:asDict()
     end
     for playerKey in pairs(self._players) do
         assert(players[playerKey] ~= nil, "Player key is missing from playerKeys: " .. playerKey)
     end
-    local cachedMap = self._cachedMap
-    ---@cast cachedMap string
+    ---@cast self._cachedMap string
     return {
         region = self._currentRegion,
         playerKeys = copy(self._playerKeys),
         players = players,
         variables = self._variables,
-        map = cachedMap,
+        map = self._cachedMap,
         obtainedItems = self._cachedNewItem,
         addedActors = GameInstance._serialiseAddedActors(self._cachedAddedActors),
         actorPositions = GameInstance._serialiseActorPositions(self._cachedActorPositions),
@@ -215,15 +216,13 @@ function GameInstance:getPlayerKeys()
 end
 
 function GameInstance:getPlayerByIndex(index)
-    local player = self._players[self._playerKeys[index + 1]]
-    ---@cast player Source.Player.Player
-    return player
+    ---@diagnostic disable-next-line: return-type-mismatch, need-check-nil
+    return self._players[self._playerKeys[index + 1]]
 end
 
 function GameInstance:getPlayerByTag(tag)
-    for _, playerKey in ipairs(self._playerKeys) do
-        local player = self._players[playerKey]
-        ---@cast player Source.Player.Player
+    for index in ipairs(self._playerKeys) do
+        local player = self:getPlayerByIndex(index - 1)
         if player.tag == tag then
             return player
         end
@@ -242,8 +241,7 @@ function GameInstance:removePlayerByClass(playerClass)
         return
     end
     for index, playerKey in ipairs(self._playerKeys) do
-        local player = self._players[playerKey]
-        ---@cast player Source.Player.Player
+        local player = self:getPlayerByIndex(index - 1)
         if player:getClassPath() == playerClass then
             table.remove(self._playerKeys, index)
             self._players[playerKey] = nil
@@ -257,6 +255,7 @@ function GameInstance:applyMapInfo(mapPath, position)
         self._cachedMap = mapPath
     end
     if position ~= nil then
+        ---@diagnostic disable-next-line: call-non-callable, need-check-nil
         self:getPlayer():setMapPosition(position)
     end
 end
@@ -345,12 +344,7 @@ function GameInstance._buildAddedActorRecord(actor, layerName)
     if not bool(blueprintPath) then
         return nil
     end
-    local actorRecord = {
-        bp = blueprintPath,
-        layer = layerName,
-        position = copy(actorPosition),
-        tag = actorTag
-    }
+    local actorRecord = { bp = blueprintPath, layer = layerName, position = copy(actorPosition), tag = actorTag }
     ---@cast actor Source.Data.GeneratedActor
     local classVarChanges = GameInstance._normaliseClassVarChanges(actor._classVarChanges)
     if bool(classVarChanges) then
@@ -596,7 +590,7 @@ function GameInstance._normaliseTerrainDestructions(terrainDestructions)
                 local tileID
                 if change.tileID ~= cjson.null then
                     local savedTileID = change.tileID
-                    ---@cast savedTileID -lightuserdata
+                    ---@cast savedTileID - lightuserdata
                     tileID = savedTileID
                 end
                 storeTerrainChange(mapChanges, layerName, GameInstance._savedVector2i(change.position), tileID)

@@ -12,6 +12,7 @@ using Ludork.Services;
 using Ludork.Views.Utils;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
@@ -1237,10 +1238,21 @@ internal sealed class GeneralDataPage : Grid
     private void showParamLabelContextMenu(string paramName, JsonObject paramsObj, Control anchor)
     {
         JsonObject? paramDef = paramsObj[paramName] as JsonObject;
-        if (!isParamReferenceAllowed(paramDef))
+        if (paramDef is null)
             return;
 
         ContextMenu menu = new();
+        MenuItem editItem = new() { Header = LocaleService.Get("EDIT_PARAM") };
+        editItem.Click += async (_, _) => await onEditParamAsync(paramName);
+        menu.Items.Add(editItem);
+
+        if (!isParamReferenceAllowed(paramDef))
+        {
+            menu.Open(anchor);
+            return;
+        }
+
+        menu.Items.Add(new Separator());
         MenuItem addReferenceItem = new() { Header = LocaleService.Get("ADD_REFERENCE") };
         foreach (string key in gameData.GeneralData.Keys.OrderBy(k => k, StringComparer.Ordinal))
         {
@@ -1325,18 +1337,7 @@ internal sealed class GeneralDataPage : Grid
             owner, paramsObj.Select(e => e.Key));
         if (result is null)
             return;
-        JsonNode defaultValue = parseDefaultValue(result.Type, result.DefaultText);
-        JsonObject paramDef = new()
-        {
-            ["type"] = result.Type,
-        };
-        if (result.Comment.Length > 0)
-            paramDef["comment"] = result.Comment;
-        paramDef["defaultValue"] = defaultValue;
-        if (result.ItemType is not null)
-            paramDef["itemType"] = result.ItemType;
-        if (result.ValueType is not null)
-            paramDef["valueType"] = result.ValueType;
+        JsonObject paramDef = buildParamDefinition(result);
         gameData.RecordSnapshot();
         paramsObj[result.Name] = paramDef;
         typeData["params"] = paramsObj;
@@ -1345,11 +1346,60 @@ internal sealed class GeneralDataPage : Grid
             foreach (KeyValuePair<string, JsonNode?> mEntry in members)
             {
                 if (mEntry.Value is JsonObject member && !member.ContainsKey(result.Name))
-                    member[result.Name] = defaultValue.DeepClone();
+                    member[result.Name] = buildMemberDefaultValue(paramDef);
             }
         }
         gameData.refreshModifiedState();
         buildForm(memberId);
+    }
+
+    private async Task onEditParamAsync(string paramName)
+    {
+        if (typeData["params"] is not JsonObject paramsObj
+            || paramsObj[paramName] is not JsonObject currentDefinition)
+        {
+            return;
+        }
+
+        GeneralDataParamCreation initialValue = createParamCreation(paramName, currentDefinition);
+        GeneralDataParamCreation? result = await AddParamDialog.ShowEditAsync(
+            owner,
+            paramsObj.Select(entry => entry.Key).Where(name => name != paramName),
+            initialValue);
+        if (result is null)
+            return;
+
+        JsonObject nextDefinition = updateParamDefinition(currentDefinition, result);
+        bool resetMemberValues = hasValueTypeChanged(initialValue, result);
+        if (result.Name == paramName && JsonNode.DeepEquals(currentDefinition, nextDefinition))
+            return;
+        if (resetMemberValues)
+        {
+            string message = LocaleService.Get("CONFIRM_CHANGE_PARAM_TYPE").Replace("{}", paramName);
+            bool confirmed = await ConfirmationDialog.ShowAsync(
+                owner,
+                LocaleService.Get("EDIT_PARAM"),
+                message);
+            if (!confirmed)
+                return;
+        }
+
+        gameData.RecordSnapshot();
+        replaceObjectKey(paramsObj, paramName, result.Name, nextDefinition);
+        if (typeData["members"] is JsonObject members)
+        {
+            foreach (KeyValuePair<string, JsonNode?> memberEntry in members)
+            {
+                if (memberEntry.Value is not JsonObject member)
+                    continue;
+                JsonNode? nextValue = resetMemberValues
+                    ? buildMemberDefaultValue(nextDefinition)
+                    : member[paramName];
+                replaceObjectKey(member, paramName, result.Name, nextValue);
+            }
+        }
+        gameData.refreshModifiedState();
+        populateMemberList(selectedMemberId);
     }
 
     private async Task onRemoveParamAsync(string paramName)
@@ -1717,12 +1767,102 @@ internal sealed class GeneralDataPage : Grid
             _ => JsonValue.Create(string.Empty)) ?? JsonValue.Create(string.Empty)!;
     }
 
+    private static JsonObject buildParamDefinition(GeneralDataParamCreation value)
+    {
+        JsonObject definition = new()
+        {
+            ["type"] = value.Type,
+            ["defaultValue"] = parseDefaultValue(value.Type, value.DefaultText),
+        };
+        if (value.Comment.Length > 0)
+            definition["comment"] = value.Comment;
+        if (value.ItemType is not null)
+            definition["itemType"] = value.ItemType;
+        if (value.ValueType is not null)
+            definition["valueType"] = value.ValueType;
+        return definition;
+    }
+
+    private static JsonObject updateParamDefinition(
+        JsonObject currentDefinition,
+        GeneralDataParamCreation value)
+    {
+        JsonObject definition = (JsonObject)currentDefinition.DeepClone();
+        definition["type"] = value.Type;
+        definition["defaultValue"] = parseDefaultValue(value.Type, value.DefaultText);
+        if (value.Comment.Length == 0)
+            definition.Remove("comment");
+        else
+            definition["comment"] = value.Comment;
+        if (value.ItemType is null)
+            definition.Remove("itemType");
+        else
+            definition["itemType"] = value.ItemType;
+        if (value.ValueType is null)
+            definition.Remove("valueType");
+        else
+            definition["valueType"] = value.ValueType;
+        if (!isParamReferenceAllowed(definition))
+            definition.Remove("reference");
+        return definition;
+    }
+
+    private static GeneralDataParamCreation createParamCreation(
+        string name,
+        JsonObject definition)
+    {
+        string type = definition["type"]?.GetValue<string>() ?? "string";
+        return new GeneralDataParamCreation(
+            name,
+            type,
+            type == "list" ? getContainerItemType(definition, "itemType") : null,
+            type == "dict" ? getContainerItemType(definition, "valueType") : null,
+            formatDefaultValue(type, definition["defaultValue"]),
+            definition["comment"]?.GetValue<string>() ?? string.Empty);
+    }
+
+    private static bool hasValueTypeChanged(
+        GeneralDataParamCreation current,
+        GeneralDataParamCreation next)
+    {
+        if (current.Type != next.Type)
+            return true;
+        return current.Type switch
+        {
+            "list" => current.ItemType != next.ItemType,
+            "dict" => current.ValueType != next.ValueType,
+            _ => false,
+        };
+    }
+
+    private static string formatDefaultValue(string type, JsonNode? value)
+    {
+        return type switch
+        {
+            "int" => (value?.GetValue<int?>() ?? 0).ToString(CultureInfo.InvariantCulture),
+            "float" => (value?.GetValue<double?>() ?? 0.0).ToString(CultureInfo.InvariantCulture),
+            "bool" => value?.GetValue<bool?>() == true ? "true" : "false",
+            "list" or "dict" => string.Empty,
+            _ when isSfType(type) => string.Empty,
+            _ => value?.GetValue<string>() ?? string.Empty,
+        };
+    }
+
     private static void reorderMemberKey(JsonObject members, string oldKey, string newKey)
     {
-        List<KeyValuePair<string, JsonNode?>> entries = members.Select(e => e).ToList();
-        members.Clear();
+        replaceObjectKey(members, oldKey, newKey, members[oldKey]);
+    }
+
+    private static void replaceObjectKey(
+        JsonObject obj,
+        string oldKey,
+        string newKey,
+        JsonNode? newValue)
+    {
+        List<KeyValuePair<string, JsonNode?>> entries = obj.Select(entry => entry).ToList();
+        obj.Clear();
         foreach (KeyValuePair<string, JsonNode?> entry in entries)
-            members.Add(entry.Key == oldKey ? newKey : entry.Key, entry.Value);
+            obj.Add(entry.Key == oldKey ? newKey : entry.Key, entry.Key == oldKey ? newValue : entry.Value);
     }
 
     private static JsonNode parseDefaultValue(string type, string text)

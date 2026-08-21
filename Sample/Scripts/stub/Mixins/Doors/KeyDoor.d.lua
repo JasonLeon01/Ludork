@@ -1,6 +1,6 @@
 ---@meta Mixins.Doors.KeyDoor
----@class Mixins.Doors.KeyDoor: Source.DoorBase.DoorBase
----@field needKeyID string
+---@class (partial) Mixins.Doors.KeyDoor: Source.DoorBase.DoorBase
+---@field needKeyID    string
 ---@field needKeyCount integer
 local KeyDoor = {}
 

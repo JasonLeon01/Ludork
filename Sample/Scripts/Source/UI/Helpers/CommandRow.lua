@@ -9,10 +9,7 @@ local LOC = LocaleCore.ApplyStringLocaleFormat
 local CommandRowController = {}
 
 function CommandRowController:init(model)
-    assert(
-        (model.text ~= nil) ~= (model.localeKey ~= nil),
-        "Command row requires exactly one of text or localeKey"
-    )
+    assert((model.text ~= nil) ~= (model.localeKey ~= nil), "Command row requires exactly one of text or localeKey")
     self.model = model
     local logicalSize = sf.Vector2u.new(1, 1)
     ---@cast logicalSize sf.Vector2u
@@ -29,10 +26,7 @@ function CommandRowController:bind()
 end
 
 function CommandRowController:refresh()
-    local text = self.model.text
-    if self.model.localeKey ~= nil then
-        text = LOC(self.model.localeKey)
-    end
+    local text = self.model.localeKey ~= nil and LOC(self.model.localeKey) or self.model.text
     ---@cast text string
     self._label:setString(text)
     UiControlFactory.layoutCenteredTextRow(self.root, self._label, 0.0)

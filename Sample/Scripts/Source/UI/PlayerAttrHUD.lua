@@ -13,10 +13,10 @@ local LOC = LocaleCore.ApplyStringLocaleFormat
 local Item = GeneralEnum.Item
 local State = GeneralEnum.State
 local ToShortNumber = NodeUtils.ToShortNumber
----@type fun(values: string[]): tuple<string>
 local createStateSignature = tuple
----@type fun(...: any): tuple<any>
 local createSignature = tuple
+---@cast createStateSignature fun(values: string[]): tuple<string>
+---@cast createSignature fun(...: any): tuple<any>
 
 ---@class Source.UI.PlayerAttrHUD.PlayerAttrHUDUI
 local PlayerAttrHUDUI = {}
@@ -117,37 +117,37 @@ end
 
 function PlayerAttrHUDUI:bind()
     self._avatar = self:requireControl("Avatar")
-    ---@cast self._avatar Engine.Button
     self._mapNameText = self:requireControl("MapName")
-    ---@cast self._mapNameText Engine.PlainText
     self._levelText = self:requireControl("Level")
-    ---@cast self._levelText Engine.PlainText
     self._stateHost = self:requireControl("StateHost")
-    ---@cast self._stateHost Engine.Canvas
     self._hpBack = self:requireControl("HpBack")
-    ---@cast self._hpBack Engine.SolidRect
     self._hpFill = self:requireControl("HpFill")
-    ---@cast self._hpFill Engine.SolidRect
     self._hpLabelText = self:requireControl("HpLabel")
-    ---@cast self._hpLabelText Engine.PlainText
     self._hpText = self:requireControl("HpValue")
-    ---@cast self._hpText Engine.RichText
     self._atkDebuffText = self:requireControl("AtkDebuff")
-    ---@cast self._atkDebuffText Engine.PlainText
     self._defDebuffText = self:requireControl("DefDebuff")
-    ---@cast self._defDebuffText Engine.PlainText
     self._hpPoisonText = self:requireControl("HpPoison")
-    ---@cast self._hpPoisonText Engine.PlainText
     self._keyIcon = self:requireControl("KeyIcon")
-    ---@cast self._keyIcon Engine.Image
     self._itemText = self:requireControl("ItemCounts")
-    ---@cast self._itemText Engine.RichText
     self._statValueTexts = {
         ATK = self:requireControl("AtkValue"),
         DEF = self:requireControl("DefValue"),
         EXP = self:requireControl("ExpValue"),
         GOLD = self:requireControl("GoldValue")
     }
+    ---@cast self._avatar Engine.Button
+    ---@cast self._mapNameText Engine.PlainText
+    ---@cast self._levelText Engine.PlainText
+    ---@cast self._stateHost Engine.Canvas
+    ---@cast self._hpBack Engine.SolidRect
+    ---@cast self._hpFill Engine.SolidRect
+    ---@cast self._hpLabelText Engine.PlainText
+    ---@cast self._hpText Engine.RichText
+    ---@cast self._atkDebuffText Engine.PlainText
+    ---@cast self._defDebuffText Engine.PlainText
+    ---@cast self._hpPoisonText Engine.PlainText
+    ---@cast self._keyIcon Engine.Image
+    ---@cast self._itemText Engine.RichText
     ---@cast self._statValueTexts table<string, Engine.PlainText>
     self:_bindAvatar()
     self:_publishControls()
@@ -202,9 +202,8 @@ function PlayerAttrHUDUI:loadStateIcon(iconPath)
     if not bool(iconPath) then
         return nil
     end
-    local cached = self._stateIconCache[iconPath]
-    if cached ~= nil then
-        return cached
+    if self._stateIconCache[iconPath] ~= nil then
+        return self._stateIconCache[iconPath]
     end
     local texture = IconTexture.load(iconPath, "Icons/States")
     self._stateIconCache[iconPath] = texture
@@ -249,17 +248,17 @@ function PlayerAttrHUDUI:_updateStateRows(states)
         local stateData = Data.getGeneralStateData(state.ID)
         local iconPath = state.icon or stateData.icon or ""
         local texture = bool(iconPath) and self:loadStateIcon(iconPath) or nil
-        local rowUI = self._stateUIs[index]
-        ---@cast rowUI Source.UI.Parts.PlayerAttrHUD.PlayerStateRow.PlayerStateRowUI
-        rowUI.model.iconTexture = texture
-        rowUI.model.name = state.name
-        local rowRoot = rowUI:prepare()
+        ---@diagnostic disable: need-check-nil
+        self._stateUIs[index].model.iconTexture = texture
+        self._stateUIs[index].model.name = state.name
+        local rowRoot = self._stateUIs[index]:prepare()
         if self._stateWidgets[index] == nil then
             self._stateHost:addChild(rowRoot)
             self._stateWidgets[index] = rowRoot
         end
         rowRoot:setPosition(sf.Vector2f.new(x, 0.0))
-        x = x + rowUI:getWidth() + self.model._STATE_GAP
+        x = x + self._stateUIs[index]:getWidth() + self.model._STATE_GAP
+        ---@diagnostic enable: need-check-nil
     end
     self.model._stateWidgets = self._stateWidgets
 end
@@ -296,12 +295,10 @@ function PlayerAttrHUDUI:getMapDisplayName()
 end
 
 function PlayerAttrHUDUI:refresh()
-    local player = self.model._player
-    local infoComp = player.infoComp
     local layoutDirty = false
     local language = LocaleCore.getLanguage()
     local localeChanged = self._language ~= language
-    local gameMap = player:getMap()
+    local gameMap = self.model._player:getMap()
     local mapName = ""
     if gameMap ~= nil then
         ---@cast gameMap GameMap
@@ -320,38 +317,34 @@ function PlayerAttrHUDUI:refresh()
         layoutDirty = true
     end
 
-    local combatSignature = createSignature(infoComp, player:getCombatRevision())
+    local combatSignature = createSignature(self.model._player.infoComp, self.model._player:getCombatRevision())
     local refreshStateRows = localeChanged
     if self._combatSignature ~= combatSignature then
         self._combatSignature = combatSignature
         refreshStateRows = true
 
-        local hp = infoComp.HP
-        local maxhp = infoComp.MAXHP
-        local hpSignature = createSignature(hp, maxhp)
+        local hpSignature = createSignature(self.model._player.infoComp.HP, self.model._player.infoComp.MAXHP)
         if self._hpSignature ~= hpSignature then
             self._hpSignature = hpSignature
             self:setText(
                 "HpValue",
-                "#default#" .. tostring(ToShortNumber(hp)) .. "/#max#" .. tostring(ToShortNumber(maxhp))
-                    .. "#default#"
+                "#default#" .. tostring(ToShortNumber(self.model._player.infoComp.HP)) .. "/#max#"
+                    .. tostring(ToShortNumber(self.model._player.infoComp.MAXHP)) .. "#default#"
             )
-            self._hpRate = hp / maxhp
+            self._hpRate = self.model._player.infoComp.HP / self.model._player.infoComp.MAXHP
             layoutDirty = true
         end
 
-        local atk = infoComp.ATK
-        local defence = infoComp.DEF
-        local statSignature = createSignature(atk, defence)
+        local statSignature = createSignature(self.model._player.infoComp.ATK, self.model._player.infoComp.DEF)
         if self._statSignature ~= statSignature then
             self._statSignature = statSignature
-            self:setText("AtkValue", tostring(ToShortNumber(atk)))
-            self:setText("DefValue", tostring(ToShortNumber(defence)))
+            self:setText("AtkValue", tostring(ToShortNumber(self.model._player.infoComp.ATK)))
+            self:setText("DefValue", tostring(ToShortNumber(self.model._player.infoComp.DEF)))
             layoutDirty = true
         end
 
-        local weakStacks = player:getStateStackCount(State.Weak)
-        local poisonStacks = player:getStateStackCount(State.Poisoned)
+        local weakStacks = self.model._player:getStateStackCount(State.Weak)
+        local poisonStacks = self.model._player:getStateStackCount(State.Poisoned)
         local stackSignature = createSignature(weakStacks, poisonStacks)
         if self._stackSignature ~= stackSignature then
             self._stackSignature = stackSignature
@@ -363,29 +356,27 @@ function PlayerAttrHUDUI:refresh()
         end
     end
 
-    local level = infoComp.LEVEL
-    local exp = infoComp.EXP
-    local gold = infoComp.GOLD
-    local progressSignature = createSignature(level, exp, gold)
+    local progressSignature = createSignature(
+        self.model._player.infoComp.LEVEL, self.model._player.infoComp.EXP, self.model._player.infoComp.GOLD
+    )
     if self._progressSignature ~= progressSignature then
         self._progressSignature = progressSignature
-        self:setText("Level", "Lv. " .. tostring(level))
-        self:setText("ExpValue", tostring(ToShortNumber(exp)))
-        self:setText("GoldValue", tostring(ToShortNumber(gold)))
+        self:setText("Level", "Lv. " .. tostring(self.model._player.infoComp.LEVEL))
+        self:setText("ExpValue", tostring(ToShortNumber(self.model._player.infoComp.EXP)))
+        self:setText("GoldValue", tostring(ToShortNumber(self.model._player.infoComp.GOLD)))
         layoutDirty = true
     end
 
-    local keyYCount = player:getItemCount(Item.KEY_Y)
-    local keyBCount = player:getItemCount(Item.KEY_B)
-    local keyRCount = player:getItemCount(Item.KEY_R)
+    local keyYCount = self.model._player:getItemCount(Item.KEY_Y)
+    local keyBCount = self.model._player:getItemCount(Item.KEY_B)
+    local keyRCount = self.model._player:getItemCount(Item.KEY_R)
     local keySignature = createSignature(keyYCount, keyBCount, keyRCount)
     if self._keySignature ~= keySignature then
         self._keySignature = keySignature
         self:setText(
             "ItemCounts",
-            "#Yellow#" .. string.format("%02d", keyYCount) .. "#default#  #Blue#"
-                .. string.format("%02d", keyBCount) .. "#default#  #Red#" .. string.format("%02d", keyRCount)
-                .. "#default#"
+            "#Yellow#" .. string.format("%02d", keyYCount) .. "#default#  #Blue#" .. string.format("%02d", keyBCount)
+                .. "#default#  #Red#" .. string.format("%02d", keyRCount) .. "#default#"
         )
         layoutDirty = true
     end

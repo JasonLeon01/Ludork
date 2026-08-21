@@ -19,6 +19,13 @@
         "${workspaceFolder}/build/zlib",
         "${workspaceFolder}/build/cmake/FFmpeg/external/install/include"
     ],
+    "C_Cpp.codeAnalysis.exclude": {
+        "**/ffmpeg/**": true,
+        "**/LuaSF/**": true,
+        "**/lua-cjson/**": true,
+        "**/ThirdPartySource/**": true,
+        "**/zlib/**": true
+    },
     "Lua.workspace.library": [
         "${workspaceFolder}/Scripts/stub"
     ],

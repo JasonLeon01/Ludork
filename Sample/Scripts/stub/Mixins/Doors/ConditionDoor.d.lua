@@ -1,7 +1,7 @@
 ---@meta Mixins.Doors.ConditionDoor
----@class Mixins.Doors.ConditionDoor: Source.DoorBase.DoorBase
----@field openConditionName string
----@field openConditionVal integer
+---@class (partial) Mixins.Doors.ConditionDoor: Source.DoorBase.DoorBase
+---@field openConditionName     string
+---@field openConditionVal      integer
 ---@field _conditionDoorPending boolean
 local ConditionDoor = {}
 

@@ -59,10 +59,12 @@ public sealed class AddParamDialog : Window
     private readonly TextBlock defaultTipBlock;
     private readonly TextBlock errorText;
 
-    private AddParamDialog(IEnumerable<string> existingParams)
+    private AddParamDialog(
+        IEnumerable<string> existingParams,
+        GeneralDataParamCreation? initialValue)
     {
         this.existingParams = existingParams;
-        Title = LocaleService.Get("ADD_PARAM");
+        Title = LocaleService.Get(initialValue is null ? "ADD_PARAM" : "EDIT_PARAM");
         Width = 480;
         Height = 400;
         MinWidth = 380;
@@ -109,6 +111,17 @@ public sealed class AddParamDialog : Window
 
         typeCombo.SelectionChanged += (_, _) => updateTypeState();
 
+        if (initialValue is not null)
+        {
+            nameBox.Text = initialValue.Name;
+            commentBox.Text = initialValue.Comment;
+            typeCombo.SelectedItem = initialValue.Type;
+            containerItemTypeCombo.SelectedItem = initialValue.ItemType
+                ?? initialValue.ValueType
+                ?? "any";
+            defaultBox.Text = initialValue.DefaultText;
+        }
+
         Grid form = new()
         {
             ColumnDefinitions = new ColumnDefinitions("Auto,12,*"),
@@ -116,7 +129,7 @@ public sealed class AddParamDialog : Window
         };
         addRow(form, 0, LocaleService.Get("PARAM_NAME"), nameBox);
         form.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        addRow(form, 1, "Comment", commentBox);
+        addRow(form, 1, LocaleService.Get("PARAM_COMMENT"), commentBox);
         addRow(form, 2, LocaleService.Get("PARAM_TYPE"), typeCombo);
         addRow(form, 3, containerItemTypeLabel, containerItemTypeCombo);
         addRow(form, 4, LocaleService.Get("DEFAULT_VALUE"), defaultBox);
@@ -195,7 +208,15 @@ public sealed class AddParamDialog : Window
         Window owner,
         IEnumerable<string> existingParams)
     {
-        return new AddParamDialog(existingParams).ShowDialog<GeneralDataParamCreation?>(owner);
+        return new AddParamDialog(existingParams, null).ShowDialog<GeneralDataParamCreation?>(owner);
+    }
+
+    public static Task<GeneralDataParamCreation?> ShowEditAsync(
+        Window owner,
+        IEnumerable<string> existingParams,
+        GeneralDataParamCreation initialValue)
+    {
+        return new AddParamDialog(existingParams, initialValue).ShowDialog<GeneralDataParamCreation?>(owner);
     }
 
     private void onConfirm(object? sender, RoutedEventArgs args)

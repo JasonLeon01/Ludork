@@ -24,7 +24,7 @@ local WindowEnemyBookUI = {}
 ---@param text string | nil
 ---@return string
 function WindowEnemyBookUI.FormatLocaleText(text)
-    return LOC(tostring(text or "")):gsub("\\n", "\n")
+    return (LOC(tostring(text or "")):gsub("\\n", "\n"))
 end
 
 ---@param entry Source.UI.WindowEnemyBook.Entry
@@ -229,9 +229,8 @@ function WindowEnemyBookUI:formatName(name)
     return self:formatText(name)
 end
 
+---@diagnostic disable-next-line: unused
 function WindowEnemyBookUI:formatText(text)
-    local _ = self
-
     return WindowEnemyBookUI.FormatLocaleText(text)
 end
 

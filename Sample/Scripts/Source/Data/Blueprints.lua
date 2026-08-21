@@ -108,31 +108,26 @@ function DataBlueprints:resolveClassPath(className)
 end
 
 function DataBlueprints:getCommonFunction(name)
-    local data = self._data._commonFunctionsData[name]
-    if data == nil then
+    if self._data._commonFunctionsData[name] == nil then
         local path = "./Data/CommonFunctions/" .. tostring(name) .. ".json"
         assert(Engine.jsonExists(path), "Common function not found: " .. tostring(name))
         local loadedData = self._loading:normaliseJsonNull(Engine.getJSONData(path))
         ---@cast loadedData Source.Data.GraphData
-        data = loadedData
         self._data._commonFunctionsData[name] = loadedData
     end
-    return self:genGraphFromData(data)
+    return self:genGraphFromData(self._data._commonFunctionsData[name])
 end
 
 ---@param data        Source.Data.GraphData
 ---@param parentClass Class.ClassType<any> | nil
 ---@return Engine.Graph
 function DataBlueprints:compileGraphTemplate(data, parentClass)
-    local templates = self._graphTemplates[data]
-    if templates == nil then
-        templates = {}
-        self._graphTemplates[data] = templates
+    if self._graphTemplates[data] == nil then
+        self._graphTemplates[data] = {}
     end
     local parentKey = parentClass or nilGraphParentClass
-    local template = templates[parentKey]
-    if template ~= nil then
-        return template
+    if self._graphTemplates[data][parentKey] ~= nil then
+        return self._graphTemplates[data][parentKey]
     end
     local nodes = {}
     local links = {}
@@ -162,10 +157,10 @@ function DataBlueprints:compileGraphTemplate(data, parentClass)
             end
         end
     end
-    template = Engine.Graph.new(
+    local template = Engine.Graph.new(
         data.parent or "NOT_WRITTEN", parentClass, nil, nodes, links, nil, startNodes, eventParams
     )
-    templates[parentKey] = template
+    self._graphTemplates[data][parentKey] = template
     return template
 end
 
@@ -246,20 +241,19 @@ end
 ---@param componentType table
 ---@param value         Source.Data.ClassVarValue
 local function applyComponentClassVarChange(actor, componentName, componentType, value)
-    assert(type(value) == "table",
-        "Blueprint component override " .. componentName .. " must be a table")
+    assert(type(value) == "table", "Blueprint component override " .. componentName .. " must be a table")
     local component = actor[componentName]
-    assert(Class.isInstance(component, componentType),
-        "Blueprint component field " .. componentName .. " is not an instance of its declared type")
+    assert(
+        Class.isInstance(component, componentType),
+        "Blueprint component field " .. componentName .. " is not an instance of its declared type"
+    )
     local fieldDefaults = ComponentsFunctions.getComponentFieldDefaults(componentType)
     for fieldName, fieldValue in pairs(value) do
-        assert(type(fieldName) == "string" and fieldDefaults[fieldName] ~= nil,
-            "Unknown component member " .. tostring(fieldName) .. " in " .. componentName)
-        component[fieldName] = ComponentsFunctions._cloneComponentFieldValue(
-            componentType,
-            fieldName,
-            fieldValue
+        assert(
+            type(fieldName) == "string" and fieldDefaults[fieldName] ~= nil,
+            "Unknown component member " .. tostring(fieldName) .. " in " .. componentName
         )
+        component[fieldName] = ComponentsFunctions._cloneComponentFieldValue(componentType, fieldName, fieldValue)
     end
 end
 
@@ -359,15 +353,13 @@ function DataBlueprints:registerServices()
         if self._data._blueprintClassPaths == nil then
             self:_loadBlueprintClassPaths()
         end
-        local data = self._data._blueprintClassData[classPath]
-        if type(data) == "string" then
-            local loadedData = self._loading:normaliseJsonNull(cjson.decode(data))
+        if type(self._data._blueprintClassData[classPath]) == "string" then
+            local loadedData = self._loading:normaliseJsonNull(cjson.decode(self._data._blueprintClassData[classPath]))
             ---@cast loadedData table<string, Source.Data.JsonValue>
-            data = loadedData
             self._data._blueprintClassData[classPath] = loadedData
         end
-        if data ~= nil then
-            return data
+        if self._data._blueprintClassData[classPath] ~= nil then
+            return self._data._blueprintClassData[classPath]
         end
         local relative = classPath:match("^Data%.Blueprints%.(.+)$")
         if relative == nil then
@@ -384,9 +376,9 @@ function DataBlueprints:registerServices()
     end)
 
     Class.registerService("blueprint.invalidateClassData", function (classPath)
-        local data = self._data._blueprintClassData[classPath]
-        if type(data) == "table" and data.graph ~= nil then
-            self._graphTemplates[data.graph] = nil
+        if type(self._data._blueprintClassData[classPath]) == "table"
+            and self._data._blueprintClassData[classPath].graph ~= nil then
+            self._graphTemplates[self._data._blueprintClassData[classPath].graph] = nil
         end
         self._data._blueprintClassData[classPath] = nil
     end)

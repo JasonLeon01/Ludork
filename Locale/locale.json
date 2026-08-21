@@ -2307,6 +2307,10 @@
     "zh_CN": "字段类型",
     "en_GB": "Field Type"
   },
+  "PARAM_COMMENT": {
+    "zh_CN": "注释",
+    "en_GB": "Comment"
+  },
   "ITEM_TYPE": {
     "zh_CN": "元素类型",
     "en_GB": "Item Type"
@@ -2534,6 +2538,14 @@
   "ADD_PARAM": {
     "zh_CN": "添加字段",
     "en_GB": "Add Field"
+  },
+  "EDIT_PARAM": {
+    "zh_CN": "编辑字段",
+    "en_GB": "Edit Field"
+  },
+  "CONFIRM_CHANGE_PARAM_TYPE": {
+    "zh_CN": "字段 '{}' 的类型或容器元素/值类型已更改。确认后会使用新的默认值重置所有已有成员中的该字段值。是否继续？",
+    "en_GB": "The type or container item type of field '{}' has changed. Continuing will reset this field in every existing member to the new default value. Continue?"
   },
   "ADD_REFERENCE": {
     "zh_CN": "增加引用",

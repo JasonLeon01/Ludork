@@ -28,6 +28,7 @@ local DEFAULT_LISTENER_DIRECTION = sf.Vector3f.new(0.0, 0.0, -1.0)
 local CHARACTER_LISTENER_UP_VECTOR = sf.Vector3f.new(0.0, 0.0, -1.0)
 local DEFAULT_LISTENER_UP_VECTOR = sf.Vector3f.new(0.0, 1.0, 0.0)
 
+---@class (partial) GameMap
 local GameMap = {}
 
 GameMap.MapViewOffset = sf.Vector2f.new(80.0, 0.0)
@@ -51,15 +52,14 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
             unobstructedLightPassShader = ManagerFunctions.loadShader(
                 "Global/UnoccludedLightPass.frag", sf.Shader.Type.Fragment
             )
-            actorPixelShatterShader = assert(ShaderManager.loadFull(
-                "Global/ActorPixelShatter.vert", "Global/ActorPixelShatter.frag"
-            ), "Actor pixel shatter shader must not be nil")
+            actorPixelShatterShader = assert(
+                ShaderManager.loadFull("Global/ActorPixelShatter.vert", "Global/ActorPixelShatter.frag"),
+                "Actor pixel shatter shader must not be nil"
+            )
         end
         actorHueShader = ManagerFunctions.loadShader("Global/Hue.frag", sf.Shader.Type.Fragment)
     end
-    ---@type GlobalCore.GameMapBase
-    local gameMapBase = self
-    GameMapBase.init(gameMapBase)
+    GameMapBase.init(self)
     self._tilemapLightMaskShader = tilemapLightMaskShader
     self._lightMaskShader = lightMaskShader
     self._lightPassShader = lightPassShader
@@ -69,9 +69,7 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
     self._actorPixelShatterShader = actorPixelShatterShader
     self._previewOnly = previewOnly == true
     self.mapName = mapName
-    ---@type GlobalCore.SceneBase | nil
     self._scene = nil
-    ---@type Engine.Tilemap
     self._tilemap = tilemap
     self._layersTopFirst = {}
     local layerNames = self._tilemap:getLayerNameList()
@@ -80,15 +78,12 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
         self._layersTopFirst[#self._layersTopFirst + 1] = self._tilemap:getLayer(layerNames[index])
     end
     self._actors = {}
-    ---@type Engine.ParticleSystem | nil
     self._particleSystem = nil
     if not self._previewOnly then
         self._particleSystem = Engine.ParticleSystem.new()
     end
     self._actorsOnDestroy = {}
-    ---@type table<string, Global.CustomEffects.ActorPixelShatterEffect[]>
     self._actorPixelShatterEffects = {}
-    ---@type table<Engine.Actor, Global.CustomEffects.ActorPixelShatterEffect>
     self._actorPixelShatterByActor = setmetatable({}, {
         __mode = "k"
     })
@@ -98,11 +93,8 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
     self._actorUpdateBatch = ActorUpdateBatch.new()
     self._createInitialisedActorIDs = {}
     self._componentInitialisedActorIDs = {}
-    ---@type integer
     self._actorBatchDepth = 0
-    ---@type boolean
     self._initialisingActors = false
-    ---@type GlobalCore.Camera | nil
     self._camera = nil
     if not self._previewOnly then
         self._camera = camera or Camera.new()
@@ -114,85 +106,55 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
     local tilemapSize = self._tilemap:getSize()
     self._shaderMapSize = sf.Vector2f.new(tilemapSize.x, tilemapSize.y)
     self._playerCoverColour = sf.Color.new(255, 255, 255, GameMap.DefaultCoverAlpha)
-    ---@type sf.RenderTexture | nil
     self._staticTransmission = nil
     self._staticOccupancy = nil
-    ---@type number[][] | nil
     self._staticOccupancyPrefix = nil
-    ---@type sf.RenderTexture | nil
     self._surfaceMask = nil
-    ---@type sf.RenderTexture | nil
     self._dynamicTransmission = nil
-    ---@type sf.RenderTexture | nil
     self._directLight = nil
-    ---@type sf.RenderTexture | nil
     self._staticDirectLight = nil
     self._useStaticDirectLight = false
-    ---@type sf.RectangleShape | nil
     self._lightPassQuad = nil
-    ---@type sf.VertexArray | nil
     self._unobstructedLightVertices = nil
-    ---@type sf.Vertex | nil
     self._unobstructedLightVertex = nil
     self._unobstructedLightCache = nil
-    ---@type table[] | nil
     self._cachedActiveLights = nil
-    ---@type integer
     self._cachedLightMaterialRevision = -1
-    ---@type tuple<any> | nil
     self._cachedLightTransmissionSignature = nil
-    ---@type integer
     self._staticTransmissionRevision = -1
-    ---@type tuple<any> | nil
     self._staticTransmissionSignature = nil
-    ---@type boolean
     self._staticHasTransmissionLoss = false
     self._dynamicTransmissionPixelSize = 0
     self._zeroShaderOffset = sf.Vector2f.new(0.0, 0.0)
     self._shaderColour = sf.Vector3f.new(0.0, 0.0, 0.0)
-    ---@type sf.RenderTexture | nil
     self._actorShaderBuffer = nil
-    ---@type sf.RenderTexture | nil
     self._actorHueBuffer = nil
     self._actorHueSourceSprite = nil
-    ---@type boolean
     self._materialDirty = true
-    ---@type integer
     self._materialRevision = 0
-    ---@type table<string, GameMapLayerMaskTextureCacheEntry>
     self._layerMaskTextureCache = {}
     self._shaderTime = 0.0
     self._transparentTiles = {}
-    ---@type GameMapCoverLayerState[] | nil
     self._coverLayerStates = nil
     self._coverPlayerX = nil
     self._coverPlayerY = nil
     self._coverPlayerLayerIndex = nil
     self._coverAlpha = nil
     self._coverMaterialRevision = nil
-    ---@type boolean[][] | nil
     self._tilePassableGrid = nil
-    ---@type Engine.Actor | nil
     self._player = nil
-    ---@type ComponentBase[]
     self._components = {}
-    ---@type fun(autoTileName: string): Engine.AutoTile | nil
     self._autoTileResolver = nil
     self._damageTextSpeedCurve = nil
     self._damageTextConfig = nil
-    ---@type sf.RenderStates | nil
     self._surfaceTileRenderStates = nil
-    ---@type sf.RenderStates | nil
     self._surfaceActorRenderStates = nil
-    ---@type sf.RenderStates | nil
     self._transmissionTileRenderStates = nil
-    ---@type sf.RenderStates | nil
     self._transmissionActorRenderStates = nil
-    ---@type sf.RenderStates | nil
     self._lightPassRenderStates = nil
-    ---@type sf.RenderStates | nil
     self._unobstructedLightPassRenderStates = nil
     if not self._previewOnly then
+        ---@cast self._camera GlobalCore.Camera
         local mapPixelSize = self._tilemap:getSize() * Engine.CellSize
         self._staticTransmission = sf.RenderTexture.new(mapPixelSize)
         self._staticTransmission:setSmooth(false)
@@ -315,9 +277,7 @@ function GameMap:addDamageText(text, position)
     assert(self._damageTextSpeedCurve ~= nil, "DamageText speed curve is not configured")
     assert(self._damageTextConfig ~= nil, "DamageText config is not configured")
     local drawPosition = self:worldToMapViewPosition(position)
-    DamageTextParticle.new(
-        self._particleSystem, text, drawPosition, self._damageTextConfig, self._damageTextSpeedCurve
-    )
+    DamageTextParticle.new(self._particleSystem, text, drawPosition, self._damageTextConfig, self._damageTextSpeedCurve)
 end
 
 function GameMap:worldToMapViewPosition(position)
@@ -369,7 +329,8 @@ end
 
 ---@param direction integer
 ---@return sf.Vector3f
-function GameMap._getAudioListenerDirection(_self, direction)
+---@diagnostic disable-next-line: unused
+function GameMap:_getAudioListenerDirection(direction)
     if direction == Engine.Direction.UP then
         return LISTENER_DIRECTION_UP
     elseif direction == Engine.Direction.LEFT then
@@ -436,14 +397,13 @@ end
 function GameMap:drawMapContent(target, states, applyPlayerCover)
     self:_prepareActorPixelShatterEffects()
     states = states or sf.RenderStates.new()
-    local layerKeys = self._layerNames
-    local playerLayerIndex = applyPlayerCover and self:_getPlayerLayerIndex(layerKeys) or -1
+    local playerLayerIndex = applyPlayerCover and self:_getPlayerLayerIndex(self._layerNames) or -1
     local refreshPlayerCover = false
     local playerPosition = nil
     if applyPlayerCover then
-        refreshPlayerCover, playerPosition = self:_preparePlayerCover(layerKeys, playerLayerIndex)
+        refreshPlayerCover, playerPosition = self:_preparePlayerCover(self._layerNames, playerLayerIndex)
     end
-    for index, layerName in ipairs(layerKeys) do
+    for index, layerName in ipairs(self._layerNames) do
         local layer = self._tilemap:getLayer(layerName)
         ---@cast layer Engine.TileLayer
         if layer.visible then
@@ -474,16 +434,14 @@ function GameMap:show()
         self._camera:clear()
     end
     if self._camera ~= nil then
+        ---@diagnostic disable-next-line: param-type-mismatch
         self:drawMapContent(self._camera:getRenderTexture(), self._camera:getRenderStates(), true)
     else
         self:_resetTransparentTiles()
     end
-    do
-        local componentCamera = self._camera
-        ---@cast componentCamera GlobalCore.Camera
-        for _, component in ipairs(self._components) do
-            component:onRender(componentCamera)
-        end
+    ---@cast self._camera GlobalCore.Camera
+    for _, component in ipairs(self._components) do
+        component:onRender(self._camera)
     end
     if self:_lightingShadersAvailable() then
         self:_renderLighting(self:_getActiveLights())
@@ -495,14 +453,12 @@ function GameMap:show()
     if self._camera ~= nil then
         WeatherController.drawShaderOverlay(self._camera)
     end
-    local renderCamera = self._camera
-    ---@cast renderCamera GlobalCore.Camera
-    System.draw(renderCamera, self._materialShader)
+    ---@diagnostic disable-next-line: param-type-mismatch
+    System.draw(self._camera, self._materialShader)
     FogController.drawOverlay()
-    local particleSystem = self._particleSystem
-    ---@cast particleSystem Engine.ParticleSystem
-    WeatherController.registerParticleSystem(particleSystem)
-    System.draw(particleSystem)
+    ---@cast self._particleSystem Engine.ParticleSystem
+    WeatherController.registerParticleSystem(self._particleSystem)
+    System.draw(self._particleSystem)
     System.setWindowDefaultView()
 end
 

@@ -29,15 +29,13 @@ function ChildActorComponent:onAttach(owner)
         return {}
     end
 
-    ---@type Engine.Actor | nil
-    local childActor = self._childActor
-    if childActor ~= nil and not childActor:isDestroyed() then
+    if self._childActor ~= nil and not self._childActor:isDestroyed() then
         return {}
     end
 
     local Data = require("Source.Data")
 
-    childActor = Data.genActorFromClassName(className, ChildActorComponent._makeChildTag(owner))
+    local childActor = Data.genActorFromClassName(className, ChildActorComponent._makeChildTag(owner))
     if childActor == nil then
         return {}
     end

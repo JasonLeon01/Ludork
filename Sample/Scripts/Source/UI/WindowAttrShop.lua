@@ -287,15 +287,15 @@ function WindowAttrShopUI:confirmItem()
     ---@cast abilityIndex - nil
     local price = self:getPrices()[abilityIndex]
     ---@cast price - nil
-    local infoComp = self.model._player.infoComp
-    if not selectable:isCurrentAvailable() or infoComp[self.model._moneyName] == nil
-        or infoComp[self.model._moneyName] < price or infoComp[abilityKey] == nil then
+    if not selectable:isCurrentAvailable() or self.model._player.infoComp[self.model._moneyName] == nil
+        or self.model._player.infoComp[self.model._moneyName] < price or self.model._player.infoComp[abilityKey] == nil then
         ManagerFunctions.playSE(GameSystem.getBuzzerSE())
         self:refreshItems()
         return
     end
-    infoComp[self.model._moneyName] = infoComp[self.model._moneyName] - price
-    infoComp[abilityKey] = infoComp[abilityKey] + self.model._abilities[abilityKey]
+    self.model._player.infoComp[self.model._moneyName] = self.model._player.infoComp[self.model._moneyName] - price
+    self.model._player.infoComp[abilityKey] = self.model._player.infoComp[abilityKey]
+        + self.model._abilities[abilityKey]
     self:increasePrice(abilityIndex)
     ManagerFunctions.playSE(GameSystem.getShopSE())
     self:refreshPriceText()
@@ -348,8 +348,7 @@ function WindowAttrShopUI:animateAvatar(deltaTime)
     local positionX = (self.model._avatarRect.position.x + self.model._avatarRect.size.x) % textureWidth
     ---@cast positionX integer
     local avatarRect = sf.IntRect.new(
-        positionX, self.model._avatarRect.position.y,
-        self.model._avatarRect.size.x, self.model._avatarRect.size.y
+        positionX, self.model._avatarRect.position.y, self.model._avatarRect.size.x, self.model._avatarRect.size.y
     )
     ---@cast avatarRect sf.IntRect
     self.model._avatarRect = avatarRect
@@ -430,8 +429,9 @@ function WindowAttrShopUI:_reflow()
     if self.model._avatarRect == nil then
         return
     end
-    local frameSize = self.model._avatarRect.size
-    self.model._avatarImage:setScale(sf.Vector2f.new(_AVATAR_SIZE / frameSize.x, _AVATAR_SIZE / frameSize.y))
+    self.model._avatarImage:setScale(
+        sf.Vector2f.new(_AVATAR_SIZE / self.model._avatarRect.size.x, _AVATAR_SIZE / self.model._avatarRect.size.y)
+    )
 end
 
 return Ui.define("WindowAttrShop", WindowAttrShopUI)

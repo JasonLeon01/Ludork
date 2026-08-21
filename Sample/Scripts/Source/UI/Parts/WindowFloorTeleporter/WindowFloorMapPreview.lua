@@ -152,7 +152,9 @@ function WindowFloorMapPreviewUI:rebuildTelepointList(entries)
                 self.model._owner:confirmSelectedTelepoint()
             end
         })
-        local child = controller:prepare(sf.Vector2u.new(self.model._telepointItemWidth, _TELEPOINT_LIST_HEIGHT))
+        local logicalSize = sf.Vector2u.new(self.model._telepointItemWidth, _TELEPOINT_LIST_HEIGHT)
+        ---@cast logicalSize sf.Vector2u
+        local child = controller:prepare(logicalSize)
         self._rowControllers[#self._rowControllers + 1] = controller
         self.model:_applyItem(child)
         self._listView:addChild(child)
@@ -193,11 +195,10 @@ function WindowFloorMapPreviewUI:refreshSelectedPreview()
 end
 
 function WindowFloorMapPreviewUI:getSelectedTelepoint()
-    local index = self.model.index
-    if index == nil or index < 0 or index >= #self.model._telepoints then
+    if self.model.index == nil or self.model.index < 0 or self.model.index >= #self.model._telepoints then
         return nil
     end
-    return self.model._telepoints[index + 1]
+    return self.model._telepoints[self.model.index + 1]
 end
 
 function WindowFloorMapPreviewUI:hidePreview()

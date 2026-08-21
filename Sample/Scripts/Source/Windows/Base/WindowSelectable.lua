@@ -57,11 +57,9 @@ end
 
 ---@return Engine.Rect
 function WindowSelectable:_createSelectionRect()
-    local rectWidth = self._rectWidth
-    local rectHeight = self._rectHeight
-    ---@cast rectWidth integer
-    ---@cast rectHeight integer
-    local size = sf.Vector2u.new(rectWidth, rectHeight)
+    ---@cast self._rectWidth integer
+    ---@cast self._rectHeight integer
+    local size = sf.Vector2u.new(self._rectWidth, self._rectHeight)
     ---@cast size sf.Vector2u
     local rect = UiControlFactory.createSelectionRect(size, self._windowSkin)
     local position = self:_getRectPosition()
@@ -151,8 +149,9 @@ function WindowSelectable:onTick(deltaTime)
     if active and not self._selectionInputPaused and self._listView ~= nil then
         self:_confirmMouseSelection()
     end
-    if LUDORK_DESKTOP and active and not self._selectionInputPaused
-        and self._listView ~= nil and Input.isTouchTap(false) then
+    if LUDORK_DESKTOP and active
+        and not self._selectionInputPaused and self._listView ~= nil
+        and Input.isTouchTap(false) then
         local tapPos = Input.getTouchTapPosition()
         if tapPos ~= nil then
             local touchLocal = Engine.ToVector2f(tapPos)
@@ -175,8 +174,7 @@ function WindowSelectable:onMouseWheelScrolled(kwargs)
     if self._selectionInputPaused or not self:canReceiveFocus() then
         return
     end
-    local listView = self._listView
-    if listView == nil or not bool(listView:getChildren()) then
+    if self._listView == nil or not bool(self._listView:getChildren()) then
         return
     end
     local wheel = Input.getMouseScrolledWheel()
@@ -197,9 +195,8 @@ function WindowSelectable:onMouseWheelScrolled(kwargs)
 end
 
 function WindowSelectable:onMouseMoved(kwargs)
-    if self._selectionInputPaused or self._mouseSelectionConfirmedThisFrame
-        or not self:canReceiveFocus() or self._listView == nil
-        or not Input.isMouseInputMode() or not Input.isMouseMoved() then
+    if self._selectionInputPaused or self._mouseSelectionConfirmedThisFrame or not self:canReceiveFocus()
+        or self._listView == nil or not Input.isMouseInputMode() or not Input.isMouseMoved() then
         return
     end
     local position = sf.Vector2f.new(kwargs.position.x, kwargs.position.y)
@@ -238,12 +235,11 @@ function WindowSelectable:onKeyDown(kwargs)
     if self._selectionInputPaused then
         return
     end
-    local listView = self._listView
-    if listView == nil or not bool(listView:getChildren()) or self.index == nil then
+    if self._listView == nil or not bool(self._listView:getChildren()) or self.index == nil then
         return
     end
     if Input.isActionTriggered(Input.getConfirmKeys(), false) then
-        local children = listView:getChildren()
+        local children = self._listView:getChildren()
         if self.index >= 0 and self.index < #children then
             local child = children[self.index + 1]
             if Class.isInstance(child, FunctionalBase) then
@@ -278,8 +274,7 @@ function WindowSelectable:onMouseButtonDown(kwargs)
 end
 
 function WindowSelectable:onDirectionalKey(direction)
-    if self._selectionInputPaused or not self:canReceiveFocus()
-        or self.index == nil or self:_itemCount() <= 0 then
+    if self._selectionInputPaused or not self:canReceiveFocus() or self.index == nil or self:_itemCount() <= 0 then
         return false
     end
     local columns = self:_getColumns()
@@ -506,8 +501,7 @@ function WindowSelectable:_updateWheelScroll(deltaTime)
     if self._wheelScrollTargetOriginY == nil then
         return
     end
-    local pendingOriginY = self._wheelScrollTargetOriginY
-    local targetOriginY = self:_clampScrollOriginY(pendingOriginY)
+    local targetOriginY = self:_clampScrollOriginY(self._wheelScrollTargetOriginY)
     self._wheelScrollTargetOriginY = targetOriginY
     local originY = self:_getScrollOriginY()
     local distance = targetOriginY - originY
@@ -579,9 +573,8 @@ function WindowSelectable:_updatePendingMousePosition()
         return
     end
     self._mousePositionAtCursorPending = false
-    if self._selectionInputPaused or LUDORK_MOBILE or not Input.isMouseInputMode()
-        or not self:_hasCursorFocus() or self.index == nil
-        or self.index < 0 or self.index >= self:_itemCount() then
+    if self._selectionInputPaused or LUDORK_MOBILE or not Input.isMouseInputMode() or not self:_hasCursorFocus()
+        or self.index == nil or self.index < 0 or self.index >= self:_itemCount() then
         return
     end
     local bounds = self._rect:getAbsoluteBounds()
@@ -624,9 +617,8 @@ function WindowSelectable:_updateTouchInput()
         end
         if self._touchDragging then
             if not self:_handleCapturedTouchDrag(position) then
-                local touchStartPosition = self._touchStartPosition
-                ---@cast touchStartPosition sf.Vector2f
-                local originDeltaY = (position.y - touchStartPosition.y) / scale
+                ---@cast self._touchStartPosition sf.Vector2f
+                local originDeltaY = (position.y - self._touchStartPosition.y) / scale
                 self:_setScrollOriginY(self._touchStartOriginY - originDeltaY)
             end
         end
@@ -684,6 +676,7 @@ function WindowSelectable:_handleCapturedTouchTap(position)
     return false
 end
 
+---@diagnostic disable-next-line: unused
 function WindowSelectable:_onCapturedTouchReset()
 end
 

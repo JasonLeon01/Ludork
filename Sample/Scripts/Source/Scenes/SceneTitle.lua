@@ -12,9 +12,8 @@ local SceneBase = GlobalCore.SceneBase
 ---@class Source.Scenes.SceneTitle: GlobalCore.SceneBase
 local Scene = {}
 
+---@diagnostic disable-next-line: unused
 function Scene:onEnter()
-    local _ = self
-
     GlobalSystem.setTransition(ManagerFunctions.loadTransition("Flat.png"))
 end
 
@@ -43,9 +42,7 @@ function Scene:onCreate()
     end)
     ---@type any[]
     local uiWindows = {
-        self._windowCommand,
-        self._windowSaveLoad:getSlotWindow(),
-        self._windowSaveLoad:getDetailWindow(),
+        self._windowCommand, self._windowSaveLoad:getSlotWindow(), self._windowSaveLoad:getDetailWindow(),
         self._configWindow
     }
     for _, window in ipairs(uiWindows) do
@@ -101,9 +98,8 @@ function Scene:_onSaveLoadClose(reason)
 end
 
 ---@param inst Source.GameInstance.GameInstance
+---@diagnostic disable-next-line: unused
 function Scene:_onSaveLoadLoaded(inst)
-    local _ = self
-
     local SceneMap = require("Source.Scenes.SceneMap")
 
     ManagerFunctions.stopMusic("BGM")

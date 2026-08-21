@@ -87,13 +87,11 @@ function WindowEnemyBookCellUI:bind()
 end
 
 function WindowEnemyBookCellUI:refresh()
-    local entry = self.model.entry
-
     local specialAreaWidth = WindowEnemyBookCellUI.measureSpecialAreaWidth(self._specialDisplays)
     local nameMaxWidth = math.max(32, math.floor(_CELL_WIDTH - _ICON_AREA_WIDTH - specialAreaWidth))
-    self:setText("Name", TextLayout.fitPlainText(entry.name or "", nameMaxWidth, _NAME_TEXT_CONFIG))
+    self:setText("Name", TextLayout.fitPlainText(self.model.entry.name or "", nameMaxWidth, _NAME_TEXT_CONFIG))
     for _, stat in ipairs(_STAT_FIELDS) do
-        local value = LOC(stat.locale) .. "\t" .. tostring(ToShortNumber(entry[stat.field] or stat.default))
+        local value = LOC(stat.locale) .. "\t" .. tostring(ToShortNumber(self.model.entry[stat.field] or stat.default))
         self:setText(stat.control, value)
         self:setProperty(
             stat.control, "colour", value:sub(-3) == "???" and _UNDEFEATABLE_TEXT_COLOUR or _STAT_TEXT_COLOUR
@@ -130,7 +128,9 @@ function WindowEnemyBookCellUI:prepare(logicalSize)
 end
 
 function WindowEnemyBookCellUI:refreshLocale()
-    self:prepare(sf.Vector2u.new(_CELL_WIDTH, _CELL_HEIGHT))
+    local logicalSize = sf.Vector2u.new(_CELL_WIDTH, _CELL_HEIGHT)
+    ---@cast logicalSize sf.Vector2u
+    self:prepare(logicalSize)
     self.root:render()
 end
 
@@ -157,9 +157,7 @@ function WindowEnemyBookCellUI.measureSpecialAreaWidth(specialDisplays)
 end
 
 function WindowEnemyBookCellUI:_layoutIcon()
-    local bounds = sf.FloatRect.new(
-        sf.Vector2f.new(0.0, 0.0), sf.Vector2f.new(_ICON_AREA_WIDTH, _CELL_HEIGHT)
-    )
+    local bounds = sf.FloatRect.new(sf.Vector2f.new(0.0, 0.0), sf.Vector2f.new(_ICON_AREA_WIDTH, _CELL_HEIGHT))
     self._previewController:layout(bounds, "center")
 end
 

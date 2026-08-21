@@ -24,7 +24,7 @@ local generalDataScalarTypes = {
     ["sf.Vector2u"] = true,
     ["sf.Vector3f"] = true,
     ["sf.Vector3i"] = true,
-    ["sf.Vector3u"] = true,
+    ["sf.Vector3u"] = true
 }
 
 ---@type table<string, boolean>
@@ -63,8 +63,11 @@ local function isArray(value)
         if type(key) ~= "number" or math.type(key) ~= "integer" or key < 1 then
             return false
         end
+        ---@cast key integer
         count = count + 1
-        maximum = math.max(maximum, key)
+        if key > maximum then
+            maximum = key
+        end
     end
     return count == maximum
 end
@@ -125,7 +128,11 @@ local function canonicaliseGeneralScalar(value, typeName, relativePath, context)
     local result = Engine.resolveTypedDataValue(value, typeName)
     local sfTypeName = typeName:sub(4)
     local sfType = sf[sfTypeName]
-    if sfType == nil or not Class.isInstance(result, sfType) then
+    if sfType == nil then
+        generalDataError(relativePath, context, "could not construct " .. typeName)
+    end
+    ---@cast sfType table
+    if not Class.isInstance(result, sfType) then
         generalDataError(relativePath, context, "could not construct " .. typeName)
     end
     return result
@@ -170,9 +177,7 @@ local function canonicaliseGeneralValue(value, typeName, param, relativePath, co
         end
         local result = {}
         for key, item in pairs(value) do
-            result[key] = canonicaliseGeneralScalar(
-                item, valueType, relativePath, context .. "." .. key
-            )
+            result[key] = canonicaliseGeneralScalar(item, valueType, relativePath, context .. "." .. key)
         end
         return result
     end
@@ -196,9 +201,7 @@ local function canonicaliseGeneralData(payload, relativePath)
         end
         local typeName = param.type
         if type(typeName) ~= "string" or not generalDataTypes[typeName] then
-            generalDataError(
-                relativePath, "parameter " .. fieldName, "unsupported type " .. tostring(typeName)
-            )
+            generalDataError(relativePath, "parameter " .. fieldName, "unsupported type " .. tostring(typeName))
         end
         if rawget(param, "defaultValue") == nil then
             generalDataError(relativePath, "parameter " .. fieldName, "defaultValue is required")
@@ -222,11 +225,7 @@ local function canonicaliseGeneralData(payload, relativePath)
                 generalDataError(relativePath, "member " .. memberName, "missing field " .. fieldName)
             end
             member[fieldName] = canonicaliseGeneralValue(
-                value,
-                param.type,
-                param,
-                relativePath,
-                "member " .. memberName .. "." .. fieldName
+                value, param.type, param, relativePath, "member " .. memberName .. "." .. fieldName
             )
         end
     end
@@ -238,9 +237,8 @@ end
 
 ---@param fileName string
 ---@return string, string
+---@diagnostic disable-next-line: unused
 function DataLoading:splitCompound(fileName)
-    local _ = self
-
     local name, extension = fileName:match("^(.-)(%..+)$")
     if name == nil then
         return fileName, ""
@@ -303,17 +301,14 @@ local function formatBatchError(errorData)
     if errorData == nil then
         return "File batch failed"
     end
-    return string.format(
-        "%s failed for %s: %s", errorData.operation, errorData.path, errorData.message
-    )
+    return string.format("%s failed for %s: %s", errorData.operation, errorData.path, errorData.message)
 end
 
 ---@param specs  FileBatchSpec[]
 ---@param onItem fun(item: FileBatchItem, snapshot: FileBatchSnapshot)
 ---@return integer
+---@diagnostic disable-next-line: unused
 function DataLoading:drainFileBatch(specs, onItem)
-    local _ = self
-
     assert(bool(asyncio), "asyncio is not initialised")
     local async = asyncio
     local job = async.start_file_batch(specs)
@@ -355,9 +350,8 @@ function DataLoading:_loadOneCategory(spec, onFileLoaded)
     end
 end
 
+---@diagnostic disable-next-line: unused
 function DataLoading:beginInitialLoad()
-    local _ = self
-
     return {
         _animationData = {},
         _curveData = {},
@@ -460,9 +454,8 @@ function DataLoading:commitInitialLoad(stage, blueprints)
     stage._committed = true
 end
 
+---@diagnostic disable-next-line: unused
 function DataLoading:abortInitialLoad(stage)
-    local _ = self
-
     if not stage._committed then
         stage._aborted = true
     end
@@ -482,9 +475,10 @@ function DataLoading:countLoadableFiles(dataRoot, needExt, recursive)
             recursive = recursive == true,
             required = false
         }
-    }, function ()
-        total = total + 1
-    end)
+    },
+        function ()
+            total = total + 1
+        end)
     return total
 end
 

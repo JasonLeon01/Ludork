@@ -314,8 +314,7 @@ function ConfigWindow:_onCapturedTouchBegan(position)
     for luaIndex, row in ipairs(self._settingRows) do
         if Class.isInstance(row, ConfigSliderRowUI) then
             local slider = row:getSlider()
-            if slider:getVisible() and slider:getActive()
-                and slider:getAbsoluteTouchHitBounds():contains(position) then
+            if slider:getVisible() and slider:getActive() and slider:getAbsoluteTouchHitBounds():contains(position) then
                 self._capturedTouchSlider = slider
                 self._capturedTouchSliderIndex = luaIndex - 1
                 return
@@ -327,20 +326,17 @@ end
 ---@param position sf.Vector2f
 ---@return boolean
 function ConfigWindow:_handleCapturedTouchDrag(position)
-    local slider = self._capturedTouchSlider
-    if slider == nil then
+    if self._capturedTouchSlider == nil then
         return false
     end
     if self._capturedTouchOwner == nil then
-        local startPosition = self._touchStartPosition
-        ---@cast startPosition sf.Vector2f
-        local deltaX = position.x - startPosition.x
-        local deltaY = position.y - startPosition.y
+        ---@cast self._touchStartPosition sf.Vector2f
+        local deltaX = position.x - self._touchStartPosition.x
+        local deltaY = position.y - self._touchStartPosition.y
         if math.abs(deltaX) > math.abs(deltaY) then
             self._capturedTouchOwner = _TOUCH_OWNER_SLIDER
-            local index = self._capturedTouchSliderIndex
-            ---@cast index integer
-            self:_setPointerIndex(index)
+            ---@cast self._capturedTouchSliderIndex integer
+            self:_setPointerIndex(self._capturedTouchSliderIndex)
         else
             self._capturedTouchOwner = _TOUCH_OWNER_LIST
         end
@@ -348,8 +344,8 @@ function ConfigWindow:_handleCapturedTouchDrag(position)
     if self._capturedTouchOwner ~= _TOUCH_OWNER_SLIDER then
         return false
     end
-    if slider:getVisible() and slider:getActive() then
-        slider:setValueFromBoundsPosition(slider:getAbsoluteBounds(), position)
+    if self._capturedTouchSlider:getVisible() and self._capturedTouchSlider:getActive() then
+        self._capturedTouchSlider:setValueFromBoundsPosition(self._capturedTouchSlider:getAbsoluteBounds(), position)
     end
     return true
 end
@@ -357,15 +353,13 @@ end
 ---@param position sf.Vector2f
 ---@return boolean
 function ConfigWindow:_handleCapturedTouchTap(position)
-    local slider = self._capturedTouchSlider
-    if slider == nil then
+    if self._capturedTouchSlider == nil then
         return false
     end
-    local index = self._capturedTouchSliderIndex
-    ---@cast index integer
-    self:_setPointerIndex(index)
-    if slider:getVisible() and slider:getActive() then
-        slider:setValueFromBoundsPosition(slider:getAbsoluteBounds(), position)
+    ---@cast self._capturedTouchSliderIndex integer
+    self:_setPointerIndex(self._capturedTouchSliderIndex)
+    if self._capturedTouchSlider:getVisible() and self._capturedTouchSlider:getActive() then
+        self._capturedTouchSlider:setValueFromBoundsPosition(self._capturedTouchSlider:getAbsoluteBounds(), position)
     end
     return true
 end

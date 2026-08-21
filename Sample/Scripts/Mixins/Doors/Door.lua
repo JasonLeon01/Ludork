@@ -1,7 +1,8 @@
+---@class (partial) Mixins.Doors.Door
 local Door = {}
 
----@param self Mixins.Doors.Door
-function Door.onCollision(self, _other)
+function Door:onCollision(_other)
+    ---@diagnostic disable-next-line: unnecessary-if
     if self.opening then
         return
     end

@@ -5,6 +5,7 @@ local GlobalFunctions = require("GlobalFunctions")
 local GameMapBase = GlobalCore.GameMapBase
 local ManagerFunctions = GlobalFunctions.Manager
 
+---@class (partial) GameMap
 local GameMapTerrain = {}
 
 function GameMapTerrain:getTerrainTile(layerName, position)
@@ -91,14 +92,13 @@ function GameMapTerrain:updateActorOccupancy(actor)
         return
     end
     actor:syncMapCache()
-    ---@type GlobalCore.GameMapBase
-    local gameMapBase = self
-    GameMapBase.updateActorOccupancy(gameMapBase, actor)
+    GameMapBase.updateActorOccupancy(self, actor)
 end
 
 ---@param tileID Global.GameMap.TerrainTileID
 ---@return Global.GameMap.TerrainTileID
-function GameMapTerrain._normaliseTerrainTileID(_self, tileID)
+---@diagnostic disable-next-line: unused
+function GameMapTerrain:_normaliseTerrainTileID(tileID)
     if tileID == nil then
         return nil
     elseif type(tileID) == "string" then
@@ -114,7 +114,8 @@ end
 ---@param layer    Engine.TileLayer
 ---@param position sf.Vector2i
 ---@return boolean
-function GameMapTerrain._isTerrainPositionInLayer(_self, layer, position)
+---@diagnostic disable-next-line: unused
+function GameMapTerrain:_isTerrainPositionInLayer(layer, position)
     local size = layer:getGridSize()
     return position.x >= 0 and position.y >= 0 and position.x < size.x and position.y < size.y
 end
@@ -139,8 +140,8 @@ function GameMapTerrain:_writeTerrainTile(layer, layerData, autoTileTextures, au
     local tiles = layerData.tiles
     local autoTiles = layerData.autoTiles
     local tilesRow = tiles[y]
-    ---@cast tilesRow(integer | nil)[]
     local autoTilesRow = autoTiles[y]
+    ---@cast tilesRow(integer | nil)[]
     ---@cast autoTilesRow Global.GameMap.TerrainTileID[]
     if tileID == nil then
         tilesRow[x] = nil
@@ -162,7 +163,8 @@ end
 ---@param layer    Engine.TileLayer
 ---@param position sf.Vector2i
 ---@return string | nil
-function GameMapTerrain._getTerrainAutoTileID(_self, layer, position)
+---@diagnostic disable-next-line: unused
+function GameMapTerrain:_getTerrainAutoTileID(layer, position)
     local autoTiles = layer:getAutoTiles()
     local row = autoTiles and autoTiles[position.y + 1] or nil
     if row == nil then
@@ -189,7 +191,8 @@ end
 
 ---@param layerData Engine.TileLayerData
 ---@param size      sf.Vector2u
-function GameMapTerrain._ensureTerrainAutoTileGrid(_self, layerData, size)
+---@diagnostic disable-next-line: unused
+function GameMapTerrain:_ensureTerrainAutoTileGrid(layerData, size)
     local autoTiles = layerData.autoTiles
     if not bool(autoTiles) then
         autoTiles = {}
@@ -261,7 +264,8 @@ end
 
 ---@param texture sf.Texture | nil
 ---@return integer
-function GameMapTerrain._getAutoTileFrameCount(_self, texture)
+---@diagnostic disable-next-line: unused
+function GameMapTerrain:_getAutoTileFrameCount(texture)
     if texture == nil then
         return 1
     end
@@ -280,9 +284,8 @@ function GameMapTerrain:_replaceTerrainLayer(_layerName, layer, layerData, autoT
     local newLayer = layer:rebuild(layerData, autoTileTextures, autoTileFrameCounts)
     self._tilemap:addLayer(newLayer)
     self._layersTopFirst = {}
-    local layerKeys = self._layerNames
-    for index = #layerKeys, 1, -1 do
-        self._layersTopFirst[#self._layersTopFirst + 1] = self._tilemap:getLayer(layerKeys[index])
+    for index = #self._layerNames, 1, -1 do
+        self._layersTopFirst[#self._layersTopFirst + 1] = self._tilemap:getLayer(self._layerNames[index])
     end
 end
 
@@ -291,6 +294,7 @@ end
 ---@param smooth       boolean
 ---@return sf.Texture
 function GameMapTerrain:_getMaterialPropertyTexture(functionName, invalidValue, smooth)
+    ---@diagnostic disable-next-line: return-type-mismatch
     return self:generateDataFromMap(
         self._tilemap:getSize(), self:getMaterialPropertyMap(functionName, invalidValue), smooth == true
     )

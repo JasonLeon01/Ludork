@@ -117,16 +117,14 @@ end
 
 ---@param index integer
 ---@return sf.Vector2f
+---@diagnostic disable-next-line: unused
 function WindowEnemyBook:_getRectPositionForIndex(index)
-    local _ = self
-
     return sf.Vector2f.new(0.0, index * _CELL_HEIGHT)
 end
 
 ---@return integer
+---@diagnostic disable-next-line: unused
 function WindowEnemyBook:_getRectWidth()
-    local _ = self
-
     return _CELL_WIDTH
 end
 

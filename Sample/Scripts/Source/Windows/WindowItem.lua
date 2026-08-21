@@ -35,9 +35,8 @@ end
 ---@param target Engine.Canvas
 ---@param width  integer
 ---@param height integer
+---@diagnostic disable-next-line: unused
 function WindowItem:_resizeCanvas(target, width, height)
-    local _ = self
-
     local logicalSize = sf.Vector2u.new(width, height)
     ---@cast logicalSize sf.Vector2u
     target:resize(logicalSize)

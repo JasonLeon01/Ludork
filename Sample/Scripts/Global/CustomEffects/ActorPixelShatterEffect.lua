@@ -55,9 +55,8 @@ function ActorPixelShatterEffect:prepare(drawActor)
     if bool(self._prepared) then
         return
     end
-    local sourceActor = self._sourceActor
-    assert(sourceActor ~= nil, "ActorPixelShatterEffect source Actor is unavailable")
-    local bounds = sourceActor:getGlobalBounds()
+    assert(self._sourceActor ~= nil, "ActorPixelShatterEffect source Actor is unavailable")
+    local bounds = self._sourceActor:getGlobalBounds()
     local originX = math.floor(bounds.position.x)
     local originY = math.floor(bounds.position.y)
     local maximumX = math.ceil(bounds.position.x + bounds.size.x)
@@ -69,12 +68,9 @@ function ActorPixelShatterEffect:prepare(drawActor)
     ---@cast renderTextureSize sf.Vector2u
     local snapshot = sf.RenderTexture.new(renderTextureSize)
     snapshot:setSmooth(false)
-    snapshot:setView(sf.View.new(
-        sf.Vector2f.new(originX + width * 0.5, originY + height * 0.5),
-        snapshotSize
-    ))
+    snapshot:setView(sf.View.new(sf.Vector2f.new(originX + width * 0.5, originY + height * 0.5), snapshotSize))
     snapshot:clear(sf.Color.Transparent)
-    drawActor(snapshot, sourceActor)
+    drawActor(snapshot, self._sourceActor)
     snapshot:display()
 
     local renderStates = sf.RenderStates.new()
@@ -104,22 +100,18 @@ function ActorPixelShatterEffect:draw(target)
     if not bool(self._prepared) or self:isFinished() then
         return
     end
-    local snapshotOrigin = self._snapshotOrigin
-    local snapshotSize = self._snapshotSize
-    local vertices = self._vertices
-    local renderStates = self._renderStates
-    assert(snapshotOrigin ~= nil)
-    assert(snapshotSize ~= nil)
-    assert(vertices ~= nil)
-    assert(renderStates ~= nil)
+    assert(self._snapshotOrigin ~= nil)
+    assert(self._snapshotSize ~= nil)
+    assert(self._vertices ~= nil)
+    assert(self._renderStates ~= nil)
     self._shader:setUniform("texture", sf.Shader.CurrentTexture)
     self._shader:setUniform("elapsed", self._elapsed)
     self._shader:setUniform("duration", DURATION)
     self._shader:setUniform("staggerDuration", STAGGER_DURATION)
-    self._shader:setUniform("snapshotOrigin", snapshotOrigin)
-    self._shader:setUniform("snapshotSize", snapshotSize)
+    self._shader:setUniform("snapshotOrigin", self._snapshotOrigin)
+    self._shader:setUniform("snapshotSize", self._snapshotSize)
     self._shader:setUniform("seed", self._seed)
-    target:draw(vertices, renderStates)
+    target:draw(self._vertices, self._renderStates)
 end
 
 return class(ActorPixelShatterEffect)

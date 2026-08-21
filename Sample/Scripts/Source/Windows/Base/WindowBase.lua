@@ -44,6 +44,7 @@ function WindowBase:init(rect, windowSkin, repeated)
     self:_refreshReturnButtonState()
 end
 
+---@diagnostic disable-next-line: unused
 function WindowBase:onReturn()
 end
 
@@ -72,8 +73,7 @@ function WindowBase:_setReturnButtonSuppressed(suppressed)
 end
 
 function WindowBase:_canUseReturnButton()
-    return self._hasReturnBtn and not self._returnButtonSuppressed
-        and self:getVisible() and self:getActive()
+    return self._hasReturnBtn and not self._returnButtonSuppressed and self:getVisible() and self:getActive()
 end
 
 function WindowBase:_refreshReturnButtonState()
@@ -98,8 +98,7 @@ function WindowBase:_bindReturnButton()
     end)
     self._returnButton:addMouseButtonDownCallback(function (button, kwargs)
         local model = modelRef[1]
-        if model == nil or not model:_canUseReturnButton()
-            or kwargs.button ~= sf.Mouse.Button.Left then
+        if model == nil or not model:_canUseReturnButton() or kwargs.button ~= sf.Mouse.Button.Left then
             return false
         end
         local position = sf.Vector2f.new(kwargs.position.x, kwargs.position.y)
@@ -161,9 +160,8 @@ function WindowBase:_refreshPauseMarkVisibility()
     if not visible then
         self._pauseMarkFrameIndex = 1
         self._pauseMarkFrameTimer = 0.0
-        local frameRect = self._PAUSE_MARK_FRAME_RECTS[1]
-        ---@cast frameRect - nil
-        self._pauseMark:setTextureRect(frameRect)
+        ---@diagnostic disable-next-line: need-check-nil, param-type-mismatch
+        self._pauseMark:setTextureRect(self._PAUSE_MARK_FRAME_RECTS[1])
     end
 end
 
@@ -184,9 +182,8 @@ function WindowBase:_updatePauseMarkAnimation(deltaTime)
     end
     self._pauseMarkFrameTimer = self._pauseMarkFrameTimer - self._PAUSE_MARK_FRAME_INTERVAL
     self._pauseMarkFrameIndex = self._pauseMarkFrameIndex % #self._PAUSE_MARK_FRAME_RECTS + 1
-    local frameRect = self._PAUSE_MARK_FRAME_RECTS[self._pauseMarkFrameIndex]
-    ---@cast frameRect - nil
-    self._pauseMark:setTextureRect(frameRect)
+    ---@diagnostic disable-next-line: need-check-nil, param-type-mismatch
+    self._pauseMark:setTextureRect(self._PAUSE_MARK_FRAME_RECTS[self._pauseMarkFrameIndex])
 end
 
 return class(WindowBase, Canvas)

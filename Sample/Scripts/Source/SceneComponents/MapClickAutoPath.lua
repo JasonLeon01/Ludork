@@ -77,8 +77,7 @@ function MapClickAutoPath:onLateTick(_deltaTime)
 end
 
 function MapClickAutoPath:onTick(_deltaTime)
-    local gameMap = self._parent
-    local player = gameMap:getPlayer()
+    local player = self._parent:getPlayer()
     if player == nil then
         self._autoPathing = false
         self._activeGoal = nil
@@ -170,7 +169,7 @@ end
 
 ---@param player Source.Player.Player
 function MapClickAutoPath:_replanForDangerChange(player)
-    local goal = self._activeGoal
+    local goal = self._activeGoal ~= nil and copy(self._activeGoal) or nil
     local stablePosition = player:getMapPosition()
     player:stop()
     player:setMapPosition(stablePosition)
@@ -306,32 +305,26 @@ end
 ---@return MapClickAutoPath.Plan | nil
 function MapClickAutoPath:_buildAutoPathPlan(actor, start, goal)
     if start == goal then
-        ---@type sf.Vector2i[]
-        local routeSteps = {}
+        local routeSteps = {} ---@type sf.Vector2i[]
         local routeStart = sf.Vector2i.new(start.x, start.y)
         ---@cast routeStart sf.Vector2i
-        ---@type sf.Vector2i[]
-        local route = { routeStart }
+        local route = { routeStart } ---@type sf.Vector2i[]
         return { routeSteps = routeSteps, route = route, goalPassable = true }
     end
-    local gameMap = self._parent
     local ignoredGoalEnemies = self:_getIgnoredGoalEnemies(goal)
     local excludedAnchors = self._dangerState:getExcludedAnchors(goal, ignoredGoalEnemies, true)
     local direct = self:_buildPathToTarget(actor, start, goal, excludedAnchors)
-    local goalPassable = gameMap:isPathfindingPassable(actor, goal)
-    local goalActuallyPassable = gameMap:isPassable(actor, goal)
+    local goalPassable = self._parent:isPathfindingPassable(actor, goal)
+    local goalActuallyPassable = self._parent:isPassable(actor, goal)
     local goalWillBeEntered = goalPassable and goalActuallyPassable
-    if goalWillBeEntered and bool(ignoredGoalEnemies)
-        and self._dangerState:getDamageAt(goal, ignoredGoalEnemies) > 0 then
+    if goalWillBeEntered and bool(ignoredGoalEnemies) and self._dangerState:getDamageAt(goal, ignoredGoalEnemies) > 0 then
         return nil
     end
     if direct ~= nil and direct.route[#direct.route] == goal then
-        if goalActuallyPassable and not goalPassable and not hasTeleporterAt(gameMap, goal) then
-            ---@type sf.Vector2i[]
-            local routeSteps = deepcopy(direct.routeSteps)
+        if goalActuallyPassable and not goalPassable and not hasTeleporterAt(self._parent, goal) then
+            local routeSteps = deepcopy(direct.routeSteps) ---@type sf.Vector2i[]
             table.remove(routeSteps)
-            ---@type sf.Vector2i[]
-            local route = deepcopy(direct.route)
+            local route = deepcopy(direct.route) ---@type sf.Vector2i[]
             table.remove(route)
             return { routeSteps = routeSteps, route = route, goalPassable = false }
         end
@@ -347,19 +340,17 @@ function MapClickAutoPath:_buildAutoPathPlan(actor, start, goal)
             x = goal.x + offset.x,
             y = goal.y + offset.y
         })
-        if self:_isInMap(neighbour) and (neighbour == start or gameMap:isPathfindingPassable(actor, neighbour)) then
-            ---@type sf.Vector2i[] | nil
+        if self:_isInMap(neighbour) and (neighbour == start or self._parent:isPathfindingPassable(actor, neighbour)) then
             local routeSteps
-            ---@type sf.Vector2i[] | nil
             local route
+            ---@cast routeSteps sf.Vector2i[] | nil
+            ---@cast route sf.Vector2i[] | nil
             if neighbour == start then
-                ---@type sf.Vector2i[]
-                local emptyRouteSteps = {}
-                routeSteps = emptyRouteSteps
+                local emptyRouteSteps = {} ---@type sf.Vector2i[]
                 local routeStart = sf.Vector2i.new(start.x, start.y)
                 ---@cast routeStart sf.Vector2i
-                ---@type sf.Vector2i[]
-                local startRoute = { routeStart }
+                local startRoute = { routeStart } ---@type sf.Vector2i[]
+                routeSteps = emptyRouteSteps
                 route = startRoute
             else
                 local neighbourPlan = self:_buildPathToTarget(actor, start, neighbour, excludedAnchors)
@@ -377,7 +368,7 @@ function MapClickAutoPath:_buildAutoPathPlan(actor, start, goal)
     if bestPlan == nil then
         return nil
     end
-    if goalActuallyPassable or not bool(gameMap:getCollisionAt(goal.x, goal.y, actor)) then
+    if goalActuallyPassable or not bool(self._parent:getCollisionAt(goal.x, goal.y, actor)) then
         return { routeSteps = bestPlan.routeSteps, route = bestPlan.route, goalPassable = false }
     end
     local fullRoute = {}
@@ -399,9 +390,9 @@ function MapClickAutoPath:_buildAutoPathPlan(actor, start, goal)
     return { routeSteps = routeSteps, route = fullRoute, goalPassable = false }
 end
 
----@param actor  Engine.Actor
----@param start  sf.Vector2i
----@param target sf.Vector2i
+---@param actor           Engine.Actor
+---@param start           sf.Vector2i
+---@param target          sf.Vector2i
 ---@param excludedAnchors sf.Vector2i[]
 ---@return MapClickAutoPath.Path | nil
 function MapClickAutoPath:_buildPathToTarget(actor, start, target, excludedAnchors)
@@ -419,8 +410,7 @@ function MapClickAutoPath:_getIgnoredGoalEnemies(goal)
     for _, actor in ipairs(self._parent:getAllActors()) do
         if Class.isInstance(actor, Enemy) then
             ---@cast actor Source.Enemy
-            if not actor:isDestroyed()
-                and (actor:hasSpecial(Special.Domain) or actor:hasSpecial(Special.Blockade)) then
+            if not actor:isDestroyed() and (actor:hasSpecial(Special.Domain) or actor:hasSpecial(Special.Blockade)) then
                 for _, cell in ipairs(actor:getOccupiedMapCells()) do
                     if cell == goal then
                         enemies[#enemies + 1] = actor
@@ -505,8 +495,8 @@ end
 
 ---@return sf.Vector2i[]
 function MapClickAutoPath:_drainPendingGoals()
-    local goals = self._pendingGoals
-    self._pendingGoals = {}
+    local goals = {}
+    goals, self._pendingGoals = self._pendingGoals, goals
     return goals
 end
 

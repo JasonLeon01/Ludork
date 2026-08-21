@@ -1,6 +1,7 @@
 local Pool = require("Global.Pool")
 local Render = require("Global.Utils.Render")
 
+---@class (partial) GameMap
 local GameMapRendering = {}
 
 ---@param layerKeys        string[]
@@ -12,19 +13,17 @@ function GameMapRendering:_preparePlayerCover(layerKeys, playerLayerIndex)
         return false, nil
     end
     local playerPosition = self._player:getMapPosition()
-    local coverLayerStates = self._coverLayerStates
     local reusable = self._coverPlayerX == playerPosition.x and self._coverPlayerY == playerPosition.y
         and self._coverPlayerLayerIndex == playerLayerIndex and self._coverAlpha == self.DefaultCoverAlpha
-        and self._coverMaterialRevision == self._materialRevision and coverLayerStates ~= nil
-        and #coverLayerStates == #layerKeys
+        and self._coverMaterialRevision == self._materialRevision and self._coverLayerStates ~= nil
+        and #self._coverLayerStates == #layerKeys
     if reusable then
-        ---@cast coverLayerStates GameMapCoverLayerState[]
+        ---@cast self._coverLayerStates GameMapCoverLayerState[]
         for index, layerName in ipairs(layerKeys) do
             local layer = self._tilemap:getLayer(layerName)
             ---@cast layer Engine.TileLayer
-            local state = coverLayerStates[index]
-            ---@cast state GameMapCoverLayerState
-            if state.layer ~= layer or state.visible ~= layer.visible then
+            ---@diagnostic disable-next-line: need-check-nil
+            if self._coverLayerStates[index].layer ~= layer or self._coverLayerStates[index].visible ~= layer.visible then
                 reusable = false
                 break
             end
@@ -139,12 +138,10 @@ end
 ---@param target    sf.RenderTarget
 ---@param layerName string
 function GameMapRendering:_drawActorPixelShatterEffects(target, layerName)
-    local effects = self._actorPixelShatterEffects[layerName]
-    if not bool(effects) then
+    if not bool(self._actorPixelShatterEffects[layerName]) then
         return
     end
-    ---@cast effects Global.CustomEffects.ActorPixelShatterEffect[]
-    for _, effect in ipairs(effects) do
+    for _, effect in ipairs(self._actorPixelShatterEffects[layerName]) do
         if not effect:isFinished() then
             effect:draw(target)
         end

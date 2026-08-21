@@ -1,9 +1,9 @@
 ---@meta Mixins.Consumables.Bottle
---- @brief
+---@brief
 ---
----@class Mixins.Consumables.Bottle: Engine.Actor
+---@class (partial) Mixins.Consumables.Bottle: Engine.Actor
 ---@field HP_plus integer
----@field getSE string
+---@field getSE   string
 local Bottle = {}
 
 ---@param other Engine.Actor[]

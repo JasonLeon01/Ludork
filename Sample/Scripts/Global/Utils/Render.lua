@@ -8,7 +8,7 @@ local GlobalSystem = GlobalCore.System
 local PREVIEW_MIN_SCALE = 0.01
 local HUE_EPSILON = 0.0001
 
----@type sf.Shader|nil
+---@type sf.Shader | nil
 local actorHueShader = nil
 
 local Render = {}
@@ -33,8 +33,8 @@ local function applyActorHueUniform(shader, hue)
     shader:setUniform("hue", hue)
 end
 
----@param buffer sf.RenderTexture|nil
----@param size sf.Vector2u
+---@param buffer sf.RenderTexture | nil
+---@param size   sf.Vector2u
 ---@return sf.RenderTexture
 local function ensurePreviewBuffer(buffer, size)
     if buffer == nil or buffer:getSize() ~= size then
@@ -60,15 +60,15 @@ function Render.UpdateActorPreviewFrame(texture, rect, animatable, switchInterva
     local positionX = (rect.position.x + rect.size.x) % textureWidth
     ---@cast positionX integer
     local nextPosition = sf.Vector2i.new(positionX, rect.position.y)
-    ---@cast nextPosition sf.Vector2i
     local nextSize = sf.Vector2i.new(rect.size.x, rect.size.y)
+    ---@cast nextPosition sf.Vector2i
     ---@cast nextSize sf.Vector2i
     local nextRect = sf.IntRect.new(nextPosition, nextSize)
     ---@cast nextRect sf.IntRect
     return nextRect, switchTimer, true
 end
 
----@param preview Global.Utils.Render.ActorPreview
+---@param preview   Global.Utils.Render.ActorPreview
 ---@param deltaTime number
 ---@return boolean
 local function advancePreviewFrame(preview, deltaTime)
@@ -82,7 +82,7 @@ local function advancePreviewFrame(preview, deltaTime)
 end
 
 ---@param preview Global.Utils.Render.ActorPreview
----@return sf.Texture, sf.IntRect, sf.Color, sf.Shader|nil
+---@return sf.Texture, sf.IntRect, sf.Color, sf.Shader | nil
 local function drawPreviewSource(preview)
     local texture = preview.visual.texture
     local sourceRect = preview.sourceRect
@@ -227,8 +227,8 @@ function Render.GetActorVisualSignature(enemyID, visual)
         local values = {
             tostring(enemyID), tostring(visual.texturePath or ""), tostring(textureHandle), tostring(rect.position.y),
             tostring(rect.size.x), tostring(rect.size.y), "animated", tostring(visual.shaderPath or ""),
-            normaliseSignatureNumber(Render.NormaliseActorHue(visual.hue or 0.0)), normaliseSignatureNumber(visual.scale.x),
-            normaliseSignatureNumber(visual.scale.y)
+            normaliseSignatureNumber(Render.NormaliseActorHue(visual.hue or 0.0)),
+            normaliseSignatureNumber(visual.scale.x), normaliseSignatureNumber(visual.scale.y)
         }
         return tuple(values)
     end
@@ -245,11 +245,13 @@ end
 function Render.CreateActorPreview(visual)
     local sourceRect = copy(visual.rect or visual.textureRect)
     ---@cast sourceRect sf.IntRect
-    local sourceSize = sf.Vector2u.new(
-        math.max(1, math.abs(sourceRect.size.x)), math.max(1, math.abs(sourceRect.size.y))
-    )
-    ---@cast sourceSize sf.Vector2u
+    local sourceWidth = math.max(1, math.abs(sourceRect.size.x))
+    local sourceHeight = math.max(1, math.abs(sourceRect.size.y))
+    ---@cast sourceWidth integer
+    ---@cast sourceHeight integer
+    local sourceSize = sf.Vector2u.new(sourceWidth, sourceHeight)
     local previewSize = math.max(1, Engine.CellSize)
+    ---@cast sourceSize sf.Vector2u
     ---@cast previewSize integer
     local outputSize = sf.Vector2u.new(previewSize, previewSize)
     ---@cast outputSize sf.Vector2u
@@ -260,8 +262,8 @@ function Render.CreateActorPreview(visual)
     local hue = Render.NormaliseActorHue(visual.hue or 0.0)
     local hueShader = getActorHueShader()
     local outputRect = sf.IntRect.new(0, 0, previewSize, previewSize)
-    ---@cast outputRect sf.IntRect
     local bufferRect = sf.IntRect.new(0, 0, sourceSize.x, sourceSize.y)
+    ---@cast outputRect sf.IntRect
     ---@cast bufferRect sf.IntRect
     ---@type Global.Utils.Render.ActorPreview
     local preview = {

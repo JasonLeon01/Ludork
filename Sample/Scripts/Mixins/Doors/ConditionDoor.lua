@@ -5,6 +5,7 @@ local System = GlobalCore.System
 
 local EVENT_KEY = "ConditionalDoorAutoOpen"
 
+---@class (partial) Mixins.Doors.ConditionDoor
 local ConditionDoor = {}
 
 ConditionDoor.openConditionName = ""
@@ -20,8 +21,7 @@ local function getGameInstance()
     return inst
 end
 
----@param self Mixins.Doors.ConditionDoor
-function ConditionDoor.onCreate(self)
+function ConditionDoor:onCreate()
     self._conditionDoorPending = true
     if not bool(self.openConditionName) then
         return
@@ -35,13 +35,11 @@ function ConditionDoor.onCreate(self)
     inst:setVariable(self.openConditionName, value)
 end
 
----@param self Mixins.Doors.ConditionDoor
-function ConditionDoor.onDestroy(self)
+function ConditionDoor:onDestroy()
     Engine.unsubscribeObjectHandler(EVENT_KEY, self)
 end
 
----@param self Mixins.Doors.ConditionDoor
-function ConditionDoor.onTick(self, deltaTime)
+function ConditionDoor:onTick(deltaTime)
     super().onTick(deltaTime)
     if not self._conditionDoorPending or not bool(self.openConditionName) then
         return

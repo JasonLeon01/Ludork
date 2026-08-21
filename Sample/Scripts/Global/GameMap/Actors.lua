@@ -5,6 +5,7 @@ local ActorPixelShatterEffect = require("Global.CustomEffects.ActorPixelShatterE
 local Actor = Engine.Actor
 local ComponentsFunctions = GlobalFunctions.Components
 
+---@class (partial) GameMap
 local GameMapActors = {}
 
 function GameMapActors:_syncActorsForMapCache()
@@ -198,12 +199,8 @@ function GameMapActors:isPassable(actor, targetPosition)
         if cell.x < 0 or cell.y < 0 or cell.x >= size.x or cell.y >= size.y then
             return false
         end
-        ---@type boolean[][] | nil
-        local passableGrid = self._tilePassableGrid
-        if passableGrid ~= nil then
-            local passableRow = passableGrid[cell.y + 1]
-            ---@cast passableRow boolean[]
-            if not passableRow[cell.x + 1] then
+        if self._tilePassableGrid ~= nil then
+            if not assert(self._tilePassableGrid[cell.y + 1])[cell.x + 1] then
                 return false
             end
         end
@@ -231,8 +228,8 @@ function GameMapActors:isPassable(actor, targetPosition)
                 local previousX = cell.x - delta.x
                 local previousY = cell.y - delta.y
                 local previousPosition = sf.Vector2i.new(previousX, previousY)
-                ---@cast previousPosition sf.Vector2i
                 local occupiedPosition = sf.Vector2i.new(cell.x, cell.y)
+                ---@cast previousPosition sf.Vector2i
                 ---@cast occupiedPosition sf.Vector2i
                 if not self:_checkDir4Between(previousPosition, occupiedPosition, direction) then
                     return false
@@ -382,8 +379,8 @@ function GameMapActors:destroyActor(actor)
 end
 
 function GameMapActors:playActorPixelShatterEffect(actor)
-    if self._previewOnly or self._actorPixelShatterShader == nil or actor:isDestroyed()
-        or self._actorPixelShatterByActor[actor] ~= nil then
+    if self._previewOnly or self._actorPixelShatterShader == nil
+        or actor:isDestroyed() or self._actorPixelShatterByActor[actor] ~= nil then
         return false
     end
     local layerName = self:getActorLayer(actor)
@@ -395,26 +392,21 @@ function GameMapActors:playActorPixelShatterEffect(actor)
         return false
     end
     self._actorPixelShatterSeed = self._actorPixelShatterSeed + 1
-    local effect = ActorPixelShatterEffect.new(
-        actor, self._actorPixelShatterShader, self._actorPixelShatterSeed
-    )
-    local layerEffects = self._actorPixelShatterEffects[layerName]
-    if layerEffects == nil then
-        layerEffects = {}
-        self._actorPixelShatterEffects[layerName] = layerEffects
+    local effect = ActorPixelShatterEffect.new(actor, self._actorPixelShatterShader, self._actorPixelShatterSeed)
+    if self._actorPixelShatterEffects[layerName] == nil then
+        self._actorPixelShatterEffects[layerName] = {}
     end
-    layerEffects[#layerEffects + 1] = effect
+    local effectIndex = #self._actorPixelShatterEffects[layerName] + 1
+    self._actorPixelShatterEffects[layerName][effectIndex] = effect
     self._actorPixelShatterByActor[actor] = effect
     return true
 end
 
 function GameMapActors:getTopMaterial(pos)
-    local layerKeys = self._layerNames
-    for index = #layerKeys, 1, -1 do
-        local layerName = layerKeys[index]
-        local layer = self._tilemap:getLayer(layerName)
+    for index = #self._layerNames, 1, -1 do
+        local layer = self._tilemap:getLayer(self._layerNames[index])
         if layer ~= nil and layer.visible then
-            for _, actor in ipairs(self._actors[layerName] or {}) do
+            for _, actor in ipairs(self._actors[self._layerNames[index]] or {}) do
                 if actor ~= self._player and actor:getMapPosition() == pos then
                     return actor:getMaterial()
                 end
@@ -508,7 +500,8 @@ end
 
 ---@param actor Engine.Actor
 ---@return table<Engine.Actor, boolean>
-function GameMapActors._getDescendantActorIDs(_self, actor)
+---@diagnostic disable-next-line: unused
+function GameMapActors:_getDescendantActorIDs(actor)
     local descendantActors = {}
     local stack = {}
     for _, child in ipairs(actor:getChildren()) do

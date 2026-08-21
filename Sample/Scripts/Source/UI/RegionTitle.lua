@@ -28,9 +28,8 @@ end
 
 function RegionTitleUI:refresh()
     local visible = self._region ~= nil and self._elapsed < _HOLD_TIME + _FADE_TIME
-    local region = self._region
-    ---@cast region string
-    self:setText("RegionTitle", visible and LOC(region) or "")
+    ---@cast self._region string
+    self:setText("RegionTitle", visible and LOC(self._region) or "")
     self:setProperty("RegionTitle", "visible", visible)
     if not visible then
         return
@@ -93,10 +92,9 @@ function RegionTitleUI:getText()
 end
 
 function RegionTitleUI:draw()
-    local root = self.root
-    ---@cast root Engine.Canvas
-    root:render()
-    GlobalSystem.draw(root)
+    ---@cast self.root Engine.Canvas
+    self.root:render()
+    GlobalSystem.draw(self.root)
 end
 
 return Ui.define("RegionTitle", RegionTitleUI)
