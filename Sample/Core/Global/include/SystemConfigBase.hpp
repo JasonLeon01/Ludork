@@ -77,6 +77,34 @@ public:
     BIND_METHOD()
     static void saveScale(float value);
 
+    ////////////////////////////////////////////////////////////
+    /// \brief Get the configured maximum render scale
+    ///
+    /// Zero leaves the internal render scale uncapped. A positive value caps
+    /// the actual surface-fit scale without changing the window size.
+    ///
+    /// - \return The configured maximum scale, including zero
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
+    static float getMaximumRenderScale();
+    ////////////////////////////////////////////////////////////
+    /// \brief Apply and save a maximum render scale
+    ///
+    /// - \param value Maximum scale; zero leaves rendering uncapped
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
+    static void setMaximumRenderScale(float value);
+    ////////////////////////////////////////////////////////////
+    /// \brief Save a maximum render scale without applying it
+    ///
+    /// - \param value Maximum scale; zero leaves rendering uncapped
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
+    static void saveMaximumRenderScale(float value);
+
     BIND_METHOD()
     static int getFrameRate();
     BIND_METHOD()
@@ -152,6 +180,7 @@ private:
     static void afterConfigChanged(const std::string& key);
     static std::string resolveLanguage(const std::string& language);
     static float normalizeScale(float scale);
+    static float normalizeMaximumRenderScale(float scale);
     static int normalizeAntiAliasingLevel(std::int64_t level);
     static float clampVolume(float volume);
 
@@ -160,6 +189,7 @@ private:
     static std::string script_;
     static std::string language_;
     static float scale_;
+    static float maximumRenderScale_;
     static int frameRate_;
     static int antiAliasingLevel_;
     static bool verticalSync_;

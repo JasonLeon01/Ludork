@@ -10,6 +10,7 @@
 #include <Manager/ShaderManager.hpp>
 #include <Manager/TextureManager.hpp>
 #include <Runtime/EngineState.hpp>
+#include <System/NativeDisplayHost.hpp>
 #include <SystemConfigBase.hpp>
 #include <Utils/Inner.hpp>
 
@@ -62,6 +63,7 @@ void System::initializeDisplay(const std::string& title,
     display.windowContextSettings_.minorVersion = 0;
 #endif
     std::shared_ptr<sf::RenderWindow> window;
+    float surfaceFitScale = 1.0f;
 
     setGameSize(gameSize);
     setDebugMode(launchOptions.editor);
@@ -76,7 +78,7 @@ void System::initializeDisplay(const std::string& title,
             reinterpret_cast<sf::WindowHandle>(
                 launchOptions.hostWindowHandle.value()),
             display.windowContextSettings_);
-        engineState().setScale(windowFitScale(window->getSize()));
+        surfaceFitScale = windowFitScale(window->getSize());
         inputService().setUseInjectedMouseOnly(true);
 #else
         throw std::runtime_error(
@@ -86,13 +88,13 @@ void System::initializeDisplay(const std::string& title,
         window = std::make_shared<sf::RenderWindow>(
             sf::VideoMode::getDesktopMode(), title, sf::Style::Default,
             sf::State::Fullscreen, display.windowContextSettings_);
-        engineState().setScale(windowFitScale(window->getSize()));
+        surfaceFitScale = windowFitScale(window->getSize());
     } else {
         const float configuredScale = getConfiguredScale();
         display.desktopFullscreen_ = configuredScale == 0.0f;
         const sf::Vector2u windowSize =
             display.desktopFullscreen_ ? sf::VideoMode::getDesktopMode().size
-                                       : renderSizeForScale(configuredScale);
+                                       : windowSizeForScale(configuredScale);
         window = std::make_shared<sf::RenderWindow>(
             sf::VideoMode(windowSize), title,
             display.desktopFullscreen_ ? sf::Style::None : sf::Style::Default,
@@ -101,10 +103,12 @@ void System::initializeDisplay(const std::string& title,
             display.desktopFullscreen_ ? std::nullopt
                                        : ludork::global::getWindowedClientSize(
                                              window->getNativeHandle());
-        engineState().setScale(
-            windowFitScale(clientSize.value_or(window->getSize())));
+        surfaceFitScale =
+            windowFitScale(clientSize.value_or(window->getSize()));
     }
 
+    display.surfaceFitScale_ = surfaceFitScale;
+    engineState().setScale(effectiveRenderScale(surfaceFitScale));
 #if defined(SFML_SYSTEM_IOS)
     if (window->getSettings().majorVersion < 3) {
         throw std::runtime_error(
@@ -132,6 +136,10 @@ void System::initializeDisplay(const std::string& title,
                                    : ludork::global::getWindowedClientSize(
                                          display.window_->getNativeHandle());
     updateWindowViewport();
+    if (isMobileDisplay() && isDisplayScaleConfigurable()) {
+        ludork::global::native_display_host::requestDisplayScale(
+            getConfiguredScale(), gameSize);
+    }
 }
 
 void System::initWindow(const std::shared_ptr<sf::RenderWindow>& window) {
@@ -167,6 +175,16 @@ bool System::isMobileDisplay() {
 #endif
 }
 
+bool System::isDisplayScaleConfigurable() {
+    if (isEmbeddedDisplay()) {
+        return false;
+    }
+    if (!isMobileDisplay()) {
+        return true;
+    }
+    return ludork::global::native_display_host::isDisplayScaleConfigurable();
+}
+
 float System::windowFitScale(const sf::Vector2u& size) {
     const sf::Vector2u gameSize = getGameSize();
     const float scale =
@@ -175,7 +193,17 @@ float System::windowFitScale(const sf::Vector2u& size) {
     return std::max(0.01f, scale);
 }
 
-sf::Vector2u System::renderSizeForScale(float scale) {
+float System::effectiveRenderScale(float surfaceFitScale) {
+    const float normalizedSurfaceFitScale = std::max(0.01f, surfaceFitScale);
+    const float maximumRenderScale = getMaximumRenderScale();
+    const float effectiveScale =
+        maximumRenderScale > 0.0f
+            ? std::min(normalizedSurfaceFitScale, maximumRenderScale)
+            : normalizedSurfaceFitScale;
+    return std::max(0.01f, effectiveScale);
+}
+
+sf::Vector2u System::windowSizeForScale(float scale) {
     const sf::Vector2u gameSize = getGameSize();
     const float normalizedScale = std::max(0.01f, scale);
     return {
@@ -186,6 +214,10 @@ sf::Vector2u System::renderSizeForScale(float scale) {
             1.0f,
             std::floor(static_cast<float>(gameSize.y) * normalizedScale))),
     };
+}
+
+sf::Vector2u System::renderSizeForScale(float scale) {
+    return windowSizeForScale(scale);
 }
 
 void System::applyWindowPresentationSettings() {
@@ -314,17 +346,19 @@ void System::updateWindowViewport() {
         sf::IntRect(viewportPosition, viewportSize));
 }
 
-void System::rebuildDisplayTargets(float scale) {
-    const float normalizedScale = std::max(0.01f, scale);
-    const sf::Vector2u size = renderSizeForScale(normalizedScale);
+void System::rebuildDisplayTargets(float surfaceFitScale) {
+    const float normalizedSurfaceFitScale = std::max(0.01f, surfaceFitScale);
+    const float renderScale = effectiveRenderScale(normalizedSurfaceFitScale);
+    const sf::Vector2u size = renderSizeForScale(renderScale);
     ludork::global::system_runtime::SystemRuntime& systemRuntime =
         ludork::global::system_runtime::runtime();
     ludork::global::system_runtime::DisplayRuntime& display =
         systemRuntime.display;
     ludork::global::system_runtime::FramePipelineRuntime& framePipeline =
         systemRuntime.framePipeline;
+    display.surfaceFitScale_ = normalizedSurfaceFitScale;
     if (display.canvas_ != nullptr && display.canvas_->getSize() == size &&
-        engineState().getScale() == normalizedScale) {
+        engineState().getScale() == renderScale) {
         updateWindowViewport();
         return;
     }
@@ -333,7 +367,7 @@ void System::rebuildDisplayTargets(float scale) {
         framePipeline.transition_->display();
         transitionImage = framePipeline.transition_->getTexture().copyToImage();
     }
-    engineState().setScale(normalizedScale);
+    engineState().setScale(renderScale);
     initCanvas(size);
     if (transitionImage.has_value() && framePipeline.transition_ != nullptr) {
         const sf::Texture texture(*transitionImage);
@@ -371,13 +405,19 @@ void System::rebuildDisplayTargets(float scale) {
 void System::applyConfiguredScale(float scale) {
     ludork::global::system_runtime::DisplayRuntime& display =
         ludork::global::system_runtime::runtime().display;
-    if (display.window_ == nullptr || isEmbeddedDisplay() ||
-        isMobileDisplay()) {
+    if (display.window_ == nullptr || isEmbeddedDisplay()) {
+        return;
+    }
+    if (isMobileDisplay()) {
+        if (isDisplayScaleConfigurable()) {
+            ludork::global::native_display_host::requestDisplayScale(
+                scale, getGameSize());
+        }
         return;
     }
     const bool fullscreen = scale == 0.0f;
     sf::Vector2u targetSize = fullscreen ? sf::VideoMode::getDesktopMode().size
-                                         : renderSizeForScale(scale);
+                                         : windowSizeForScale(scale);
     std::optional<sf::Vector2u> clientSize;
     if (fullscreen != display.desktopFullscreen_) {
         recreateDesktopWindow(fullscreen, targetSize);
@@ -467,7 +507,10 @@ void System::applyPendingDisplayChanges() {
         const float scale = *display.pendingConfiguredScale_;
         display.pendingConfiguredScale_.reset();
         applyConfiguredScale(scale);
-        return;
+    }
+    if (display.pendingRenderTargetRebuild_) {
+        display.pendingRenderTargetRebuild_ = false;
+        rebuildDisplayTargets(display.surfaceFitScale_);
     }
     observeWindowResize();
 }

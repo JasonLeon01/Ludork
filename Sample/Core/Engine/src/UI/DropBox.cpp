@@ -6,6 +6,8 @@
 #include <UI/UiAudioService.hpp>
 #include <UI/Window.hpp>
 
+#include <LudorkPlatform.hpp>
+
 #include <SFML/Window/Mouse.hpp>
 
 #include <algorithm>
@@ -21,6 +23,12 @@ constexpr float RepeatInterval = 0.1f;
 constexpr float ItemHorizontalInset = 32.0f;
 constexpr float CollapsedTextInset = 8.0f;
 constexpr float ExpandedContentTop = 16.0f;
+
+#if defined(LUDORK_MOBILE)
+constexpr bool MobilePlatform = true;
+#else
+constexpr bool MobilePlatform = false;
+#endif
 
 std::optional<double> numericValue(const RuntimeValue& value) {
     if (const double* result = value.getIf<double>()) {
@@ -211,6 +219,14 @@ void DropBox::update(float deltaTime) {
 }
 
 void DropBox::onConfirm(const RuntimeValue::Map& arguments) {
+    if (MobilePlatform && hasTouchCapture()) {
+        const std::optional<sf::Vector2f> position = pointerPosition(arguments);
+        if (position.has_value()) {
+            handlePointerAction(*position, std::nullopt);
+            FunctionalBase::onConfirm(arguments);
+            return;
+        }
+    }
     if (expanded_) {
         confirmCurrentSelection();
     } else {
@@ -251,7 +267,8 @@ bool DropBox::onMouseButtonDown(const RuntimeValue::Map& arguments) {
 
 void DropBox::onMouseMoved(const RuntimeValue::Map& arguments) {
     const std::optional<sf::Vector2f> position = pointerPosition(arguments);
-    if (expanded_ && position.has_value()) {
+    if (expanded_ && position.has_value() &&
+        !(MobilePlatform && hasTouchCapture())) {
         const std::optional<int> index =
             itemIndexAt(toLocalPosition(*position));
         if (index.has_value()) {
@@ -491,6 +508,12 @@ bool DropBox::handlePointerAction(const sf::Vector2f& screenPosition,
     }
     const std::optional<int> index = itemIndexAt(localPosition);
     if (index.has_value()) {
+        if (MobilePlatform && hasTouchCapture() && cursorIndex_ != *index) {
+            cursorIndex_ = *index;
+            updateSelectionVisual();
+            playUiSound(cursorSound_);
+            return true;
+        }
         cursorIndex_ = *index;
         updateSelectionVisual();
         confirmCurrentSelection();

@@ -71,14 +71,15 @@ public:
     BIND_METHOD()
     static float getConfiguredScale();
     ////////////////////////////////////////////////////////////
-    /// \brief Get the largest decorated window scale for a display
+    /// \brief Get the largest configurable display scale
     ///
-    /// The current window's display is used when available; otherwise the
-    /// primary display is queried. Embedded and mobile displays return no
-    /// value.
+    /// Desktop uses the current window's display work area when available,
+    /// otherwise the primary display. A configurable mobile host uses its
+    /// host-reported maximum windowed dimensions. Embedded and
+    /// non-configurable mobile displays return no value.
     ///
     /// - \param gameSize Non-zero logical game size
-    /// - \return Maximum scale, or no value when the work area is unavailable
+    /// - \return Maximum scale, or no value when display size is unavailable
     ///
     ////////////////////////////////////////////////////////////
     BIND_METHOD(Pure = true)
@@ -110,6 +111,48 @@ public:
     ////////////////////////////////////////////////////////////
     BIND_METHOD()
     static void saveScale(float value);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Get the configured maximum render scale
+    ///
+    /// Zero leaves the internal render scale uncapped. A positive value caps
+    /// the actual surface-fit scale without changing the window size.
+    ///
+    /// - \return The configured maximum scale, including zero
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
+    static float getMaximumRenderScale();
+    ////////////////////////////////////////////////////////////
+    /// \brief Apply and save a maximum render scale
+    ///
+    /// The render-target change is applied between complete frames.
+    ///
+    /// - \param value Maximum scale; zero leaves rendering uncapped
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
+    static void setMaximumRenderScale(float value);
+    ////////////////////////////////////////////////////////////
+    /// \brief Save a maximum render scale without applying it
+    ///
+    /// - \param value Maximum scale; zero leaves rendering uncapped
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
+    static void saveMaximumRenderScale(float value);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Check whether the current host can apply display scale changes
+    ///
+    /// Standalone desktop windows support scale changes. Embedded displays and
+    /// ordinary mobile hosts do not; a mobile host may register support.
+    ///
+    /// - \return True when display scale changes can be applied
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD(Pure = true)
+    static bool isDisplayScaleConfigurable();
 
     BIND_METHOD()
     static int getFrameRate();
@@ -433,7 +476,7 @@ private:
     static void applyConfiguredScale(float scale);
     static void observeWindowResize();
     static void updateWindowViewport();
-    static void rebuildDisplayTargets(float scale);
+    static void rebuildDisplayTargets(float surfaceFitScale);
     static void recreateDesktopWindow(bool fullscreen,
                                       const sf::Vector2u& size);
     static void replaceWindowedDesktopWindow(
@@ -441,6 +484,8 @@ private:
         const ludork::global::WindowedFramePlacement* placement);
     static void applyWindowPresentationSettings();
     static float windowFitScale(const sf::Vector2u& size);
+    static float effectiveRenderScale(float surfaceFitScale);
+    static sf::Vector2u windowSizeForScale(float scale);
     static sf::Vector2u renderSizeForScale(float scale);
     static bool isEmbeddedDisplay();
     static bool isMobileDisplay();

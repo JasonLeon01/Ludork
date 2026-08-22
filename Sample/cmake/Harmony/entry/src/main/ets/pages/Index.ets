@@ -5,7 +5,7 @@ import { image } from '@kit.ImageKit';
 import { KeyCode, pointer } from '@kit.InputKit';
 import { i18n, resourceManager } from '@kit.LocalizationKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { window } from '@kit.ArkUI';
+import { display, window } from '@kit.ArkUI';
 
 const DOMAIN = 0x4C44;
 const TAG = 'Ludork-Harmony';
@@ -78,6 +78,21 @@ class SfmlHostCallbacks {
 interface SfmlNativeContext {
   configureRuntimePaths(runtimeRoot: string, userDataRoot: string): void;
   configureSystemLocale(systemLocale: string): void;
+  configureDisplayScaleHost(
+    configurable: boolean,
+    maximumWindowedWidth: number,
+    maximumWindowedHeight: number,
+    callback: (scale: number, gameWidth: number, gameHeight: number) => void
+  ): boolean;
+  clearDisplayScaleHost(): void;
+  submitKeyEvent(
+    keyCode: number,
+    pressed: boolean,
+    alt: boolean,
+    control: boolean,
+    shift: boolean,
+    system: boolean
+  ): boolean;
   submitSystemBack(): boolean;
   initializeHost(
     manager: resourceManager.ResourceManager,
@@ -107,10 +122,15 @@ struct SfmlSurfaceNode {
   nodeAppeared: (binding: SurfaceNodeBinding) => void = (_binding: SurfaceNodeBinding): void => {};
   surfaceLoaded: (binding: SurfaceNodeBinding) => void = (_binding: SurfaceNodeBinding): void => {};
   surfaceDestroyed: (binding: SurfaceNodeBinding) => void = (_binding: SurfaceNodeBinding): void => {};
-  surfaceKeyEvent: (binding: SurfaceNodeBinding, event: KeyEvent) => void = (
+  surfaceFocusLost: (binding: SurfaceNodeBinding) => void = (_binding: SurfaceNodeBinding): void => {};
+  surfacePreImeKeyEvent: (binding: SurfaceNodeBinding, event: KeyEvent) => boolean = (
     _binding: SurfaceNodeBinding,
     _event: KeyEvent
-  ): void => {};
+  ): boolean => false;
+  surfaceKeyEvent: (binding: SurfaceNodeBinding, event: KeyEvent) => boolean = (
+    _binding: SurfaceNodeBinding,
+    _event: KeyEvent
+  ): boolean => false;
 
   aboutToAppear(): void {
     if (!this.binding.registered) {
@@ -158,6 +178,8 @@ struct SfmlSurfaceNode {
       .focusable(true)
       .defaultFocus(true)
       .onLoad((context?: object) => this.handleLoad(context))
+      .onBlur(() => this.surfaceFocusLost(this.binding))
+      .onKeyPreIme((event: KeyEvent) => this.surfacePreImeKeyEvent(this.binding, event))
       .onKeyEvent((event: KeyEvent) => this.surfaceKeyEvent(this.binding, event))
       .onDestroy(() => this.handleDestroy());
   }
@@ -208,6 +230,11 @@ struct Index {
   private customPointer?: image.PixelMap;
   private customPointerRequest: number = 0;
   private exitRequested: boolean = false;
+  private heldSurfaceKeys: Set<number> = new Set<number>();
+  private windowCommandQueue: Promise<void> = Promise.resolve();
+  private windowHostGeneration: number = 0;
+  private displayScaleRequest: number = 0;
+  private keepScreenOn: boolean = true;
 
   private describeError(error: Error): string {
     const code = (error as BusinessError).code;
@@ -313,20 +340,100 @@ struct Index {
     }
   }
 
+  private queueWindowCommand(
+    context: common.UIAbilityContext,
+    operation: string,
+    command: (mainWindow: window.Window, generation: number) => Promise<void>
+  ): void {
+    const generation = this.windowHostGeneration;
+    this.windowCommandQueue = this.windowCommandQueue.then(async () => {
+      if (generation !== this.windowHostGeneration) {
+        return;
+      }
+      const mainWindow = await window.getLastWindow(context);
+      if (generation !== this.windowHostGeneration) {
+        return;
+      }
+      await command(mainWindow, generation);
+    }).catch((error: Error) => {
+      this.logHostFailure(operation, error);
+    });
+  }
+
+  private async applyWindowPresentation(
+    mainWindow: window.Window,
+    fullscreen: boolean,
+    keepScreenOn: boolean
+  ): Promise<void> {
+    const systemBars: Array<'status' | 'navigation'> = fullscreen ? [] : ['status', 'navigation'];
+    await Promise.all([
+      mainWindow.setWindowLayoutFullScreen(fullscreen),
+      mainWindow.setWindowSystemBarEnable(systemBars),
+      mainWindow.setWindowKeepScreenOn(keepScreenOn)
+    ]);
+  }
+
   private configureWindow(
     context: common.UIAbilityContext,
     fullscreen: boolean,
     keepScreenOn: boolean
   ): void {
-    window.getLastWindow(context).then((mainWindow: window.Window) => {
-      const systemBars: Array<'status' | 'navigation'> = fullscreen ? [] : ['status', 'navigation'];
-      return Promise.all([
-        mainWindow.setWindowLayoutFullScreen(fullscreen),
-        mainWindow.setWindowSystemBarEnable(systemBars),
-        mainWindow.setWindowKeepScreenOn(keepScreenOn)
-      ]);
-    }).catch((error: Error) => {
-      this.logHostFailure('Configuring the Stage window', error);
+    this.keepScreenOn = keepScreenOn;
+    this.queueWindowCommand(context, 'Configuring the Stage window', async (
+      mainWindow: window.Window,
+      generation: number
+    ) => {
+      if (generation !== this.windowHostGeneration) {
+        return;
+      }
+      await this.applyWindowPresentation(mainWindow, fullscreen, keepScreenOn);
+    });
+  }
+
+  private requestDisplayScale(
+    context: common.UIAbilityContext,
+    scale: number,
+    gameWidth: number,
+    gameHeight: number
+  ): void {
+    const request = ++this.displayScaleRequest;
+    this.queueWindowCommand(context, 'Changing the Stage window scale', async (
+      mainWindow: window.Window,
+      generation: number
+    ) => {
+      if (request !== this.displayScaleRequest || generation !== this.windowHostGeneration) {
+        return;
+      }
+
+      if (scale === 0) {
+        const status = mainWindow.getWindowStatus();
+        if (status !== window.WindowStatusType.MAXIMIZE &&
+          status !== window.WindowStatusType.FULL_SCREEN) {
+          await mainWindow.maximize(window.MaximizePresentation.ENTER_IMMERSIVE);
+        }
+        if (request !== this.displayScaleRequest || generation !== this.windowHostGeneration) {
+          return;
+        }
+        await this.applyWindowPresentation(mainWindow, true, this.keepScreenOn);
+        return;
+      }
+
+      if (!Number.isFinite(scale) || scale <= 0 || gameWidth <= 0 || gameHeight <= 0) {
+        throw new Error('Invalid display scale request');
+      }
+      if (mainWindow.getWindowStatus() !== window.WindowStatusType.FLOATING) {
+        await mainWindow.recover();
+      }
+      if (request !== this.displayScaleRequest || generation !== this.windowHostGeneration) {
+        return;
+      }
+      const width = Math.max(1, Math.round(gameWidth * scale));
+      const height = Math.max(1, Math.round(gameHeight * scale));
+      await mainWindow.resizeAsync(width, height);
+      if (request !== this.displayScaleRequest || generation !== this.windowHostGeneration) {
+        return;
+      }
+      await this.applyWindowPresentation(mainWindow, false, this.keepScreenOn);
     });
   }
 
@@ -351,6 +458,68 @@ struct Index {
       (fullscreen: boolean, keepScreenOn: boolean) => this.configureWindow(context, fullscreen, keepScreenOn),
       () => this.requestExit(context)
     );
+  }
+
+  private isSurfacePreImeKey(keyCode: number): boolean {
+    return keyCode === KeyCode.KEYCODE_SPACE || keyCode === KeyCode.KEYCODE_ENTER ||
+      keyCode === KeyCode.KEYCODE_NUMPAD_ENTER || keyCode === KeyCode.KEYCODE_ESCAPE;
+  }
+
+  private isSurfaceModifierHeld(leftKeyCode: number, rightKeyCode: number): boolean {
+    return this.heldSurfaceKeys.has(leftKeyCode) || this.heldSurfaceKeys.has(rightKeyCode);
+  }
+
+  private getSurfaceModifierState(
+    event: KeyEvent | undefined,
+    modifier: string,
+    leftKeyCode: number,
+    rightKeyCode: number
+  ): boolean {
+    let reported: boolean = false;
+    if (event !== undefined && event.getModifierKeyState !== undefined) {
+      reported = event.getModifierKeyState([modifier]);
+    }
+    return reported || this.isSurfaceModifierHeld(leftKeyCode, rightKeyCode);
+  }
+
+  private submitSurfaceKeyEvent(
+    context: SfmlNativeContext,
+    keyCode: number,
+    pressed: boolean,
+    event?: KeyEvent
+  ): boolean {
+    const alt = this.getSurfaceModifierState(
+      event, 'Alt', KeyCode.KEYCODE_ALT_LEFT, KeyCode.KEYCODE_ALT_RIGHT
+    );
+    const control = this.getSurfaceModifierState(
+      event, 'Ctrl', KeyCode.KEYCODE_CTRL_LEFT, KeyCode.KEYCODE_CTRL_RIGHT
+    );
+    const shift = this.getSurfaceModifierState(
+      event, 'Shift', KeyCode.KEYCODE_SHIFT_LEFT, KeyCode.KEYCODE_SHIFT_RIGHT
+    );
+    const system = this.isSurfaceModifierHeld(
+      KeyCode.KEYCODE_META_LEFT, KeyCode.KEYCODE_META_RIGHT
+    );
+    return context.submitKeyEvent(keyCode, pressed, alt, control, shift, system);
+  }
+
+  private releaseHeldSurfaceKeys(context?: SfmlNativeContext): void {
+    const keyCodes: number[] = Array.from(this.heldSurfaceKeys);
+    for (let index = keyCodes.length - 1; index >= 0; --index) {
+      const keyCode = keyCodes[index];
+      this.heldSurfaceKeys.delete(keyCode);
+      if (context !== undefined) {
+        this.submitSurfaceKeyEvent(context, keyCode, false);
+      }
+    }
+    this.heldSurfaceKeys.clear();
+  }
+
+  private invalidateNativeBridges(context?: SfmlNativeContext): void {
+    ++this.windowHostGeneration;
+    ++this.displayScaleRequest;
+    this.releaseHeldSurfaceKeys(context);
+    context?.clearDisplayScaleHost();
   }
 
   private async removeTree(path: string): Promise<void> {
@@ -504,6 +673,7 @@ struct Index {
     if (this.lifecycle === 'foreground') {
       context.onForeground();
     } else if (this.lifecycle === 'background') {
+      this.releaseHeldSurfaceKeys(context);
       context.onBackground();
     }
   }
@@ -557,12 +727,46 @@ struct Index {
     hilog.info(DOMAIN, TAG, 'Configuring system locale %{public}s', systemLocaleName);
     nativeContext.configureRuntimePaths(this.runtimeRoot, this.userDataRoot);
     nativeContext.configureSystemLocale(systemLocaleName);
+    const hostGeneration = ++this.windowHostGeneration;
+    const displayScaleConfigurable = deviceInfo.deviceType === 'tablet';
+    let maximumWindowedWidth = 0;
+    let maximumWindowedHeight = 0;
+    if (displayScaleConfigurable) {
+      try {
+        const mainWindow = abilityContext.windowStage.getMainWindowSync();
+        const displayId = mainWindow.getWindowProperties().displayId;
+        const hostDisplay = displayId === undefined ? display.getDefaultDisplaySync() :
+          display.getDisplayByIdSync(displayId);
+        const windowLimits = mainWindow.getWindowLimits();
+        const limitWidth = windowLimits.maxWidth !== undefined && windowLimits.maxWidth > 0 ?
+          windowLimits.maxWidth : hostDisplay.availableWidth;
+        const limitHeight = windowLimits.maxHeight !== undefined && windowLimits.maxHeight > 0 ?
+          windowLimits.maxHeight : hostDisplay.availableHeight;
+        maximumWindowedWidth = Math.max(0, Math.min(hostDisplay.availableWidth, limitWidth));
+        maximumWindowedHeight = Math.max(0, Math.min(hostDisplay.availableHeight, limitHeight));
+      } catch (error) {
+        this.logHostFailure('Obtaining maximum window size', error as Error);
+      }
+    }
+    nativeContext.configureDisplayScaleHost(
+      displayScaleConfigurable,
+      maximumWindowedWidth,
+      maximumWindowedHeight,
+      (scale: number, gameWidth: number, gameHeight: number) => {
+        if (hostGeneration === this.windowHostGeneration) {
+          this.requestDisplayScale(abilityContext, scale, gameWidth, gameHeight);
+        }
+      }
+    );
     const initialized = nativeContext.initializeHost(
       abilityContext.resourceManager,
       this.windowId,
       deviceInfo.deviceType,
       this.createHostCallbacks(abilityContext)
     );
+    if (!initialized) {
+      nativeContext.clearDisplayScaleHost();
+    }
 
     this.hostInitialized = initialized;
     this.status = initialized ? '' : 'Unsupported device or native host failure';
@@ -600,6 +804,7 @@ struct Index {
       const previousContext = previousBinding.context;
       previousBinding.context = undefined;
       previousBinding.retired = true;
+      this.invalidateNativeBridges(previousContext);
       previousContext?.onXComponentDestroy();
     }
 
@@ -623,6 +828,7 @@ struct Index {
     this.hostInitialized = false;
     ++this.customPointerRequest;
     this.releaseCustomPointer();
+    this.invalidateNativeBridges(context);
     context?.onDestroy();
   }
 
@@ -637,6 +843,9 @@ struct Index {
       return;
     }
 
+    if (wasActive) {
+      this.invalidateNativeBridges(context);
+    }
     context?.onXComponentDestroy();
     if (!wasActive) {
       return;
@@ -654,14 +863,77 @@ struct Index {
     this.initializeNative(binding);
   }
 
-  private handleSurfaceKeyEvent(binding: SurfaceNodeBinding, event: KeyEvent): void {
-    if (binding !== this.activeSurfaceBinding) {
-      return;
+  private handleSurfaceFocusLost(binding: SurfaceNodeBinding): void {
+    if (binding === this.activeSurfaceBinding) {
+      this.releaseHeldSurfaceKeys(this.nativeContext);
     }
-    if (event.type === KeyType.Down && event.keyCode !== KeyCode.KEYCODE_UNKNOWN &&
+  }
+
+  private handleImeKeyEvent(event: KeyEvent): boolean {
+    const binding = this.activeSurfaceBinding;
+    if (binding === undefined || event.keySource === KeySource.JOYSTICK) {
+      return false;
+    }
+    if (!this.isSurfacePreImeKey(event.keyCode)) {
+      return false;
+    }
+    const isEnter = event.keyCode === KeyCode.KEYCODE_ENTER ||
+      event.keyCode === KeyCode.KEYCODE_NUMPAD_ENTER;
+    if (event.type === KeyType.Down && isEnter &&
+      !this.heldSurfaceKeys.has(event.keyCode)) {
+      this.nativeContext?.submitTextEdit(0, 0, '\r');
+    }
+    const consumeEvent = isEnter || event.keyCode === KeyCode.KEYCODE_ESCAPE;
+    return this.handleSurfaceKeyEvent(binding, event, false, consumeEvent);
+  }
+
+  private handleSurfacePreImeKeyEvent(binding: SurfaceNodeBinding, event: KeyEvent): boolean {
+    if (binding !== this.activeSurfaceBinding || event.keySource === KeySource.JOYSTICK ||
+      !this.isSurfacePreImeKey(event.keyCode)) {
+      return false;
+    }
+    return this.handleSurfaceKeyEvent(binding, event);
+  }
+
+  private handleSurfaceKeyEvent(
+    binding: SurfaceNodeBinding,
+    event: KeyEvent,
+    forwardKeyText: boolean = true,
+    consumeEvent: boolean = true
+  ): boolean {
+    if (binding !== this.activeSurfaceBinding) {
+      return false;
+    }
+    if (forwardKeyText && event.type === KeyType.Down && event.keyCode !== KeyCode.KEYCODE_UNKNOWN &&
       event.keySource !== KeySource.JOYSTICK && event.keyText.length > 0) {
       this.nativeContext?.submitKeyText(event.keyText);
     }
+
+    if (event.keySource === KeySource.JOYSTICK) {
+      return false;
+    }
+    const context = this.nativeContext;
+    if (context === undefined) {
+      return false;
+    }
+    let forwarded = false;
+    if (event.type === KeyType.Down) {
+      if (this.heldSurfaceKeys.has(event.keyCode)) {
+        forwarded = true;
+      } else {
+        this.heldSurfaceKeys.add(event.keyCode);
+        forwarded = this.submitSurfaceKeyEvent(context, event.keyCode, true, event);
+        if (!forwarded) {
+          this.heldSurfaceKeys.delete(event.keyCode);
+        }
+      }
+    } else if (event.type === KeyType.Up && this.heldSurfaceKeys.delete(event.keyCode)) {
+      forwarded = this.submitSurfaceKeyEvent(context, event.keyCode, false, event);
+    }
+    if (forwarded && consumeEvent) {
+      event.stopPropagation();
+    }
+    return forwarded && consumeEvent;
   }
 
   onBackPress(): boolean {
@@ -802,9 +1074,11 @@ struct Index {
         nodeAppeared: (binding: SurfaceNodeBinding) => this.registerSurfaceNode(binding),
         surfaceLoaded: (binding: SurfaceNodeBinding) => this.handleSurfaceNodeLoad(binding),
         surfaceDestroyed: (binding: SurfaceNodeBinding) => this.handleSurfaceNodeDestroy(binding),
-        surfaceKeyEvent: (binding: SurfaceNodeBinding, event: KeyEvent) => {
-          this.handleSurfaceKeyEvent(binding, event);
-        }
+        surfaceFocusLost: (binding: SurfaceNodeBinding) => this.handleSurfaceFocusLost(binding),
+        surfacePreImeKeyEvent: (binding: SurfaceNodeBinding, event: KeyEvent) =>
+          this.handleSurfacePreImeKeyEvent(binding, event),
+        surfaceKeyEvent: (binding: SurfaceNodeBinding, event: KeyEvent) =>
+          this.handleSurfaceKeyEvent(binding, event)
       })
         .width('100%')
         .height('100%');
@@ -816,6 +1090,10 @@ struct Index {
         .opacity(0.01)
         .focusable(true)
         .maxLength(8192)
+        .onBlur(() => {
+          this.releaseHeldSurfaceKeys(this.nativeContext);
+        })
+        .onKeyPreIme((event: KeyEvent) => this.handleImeKeyEvent(event))
         .onChange((value: string, _previewText?: PreviewText, options?: TextChangeOptions) => {
           this.handleImeChange(value, options);
         })

@@ -28,6 +28,14 @@ Key resolveKeyCode(Key key, sf::Keyboard::Scancode scan) {
     return localized == Key::Unknown ? key : localized;
 }
 
+sf::Keyboard::Scancode scanFromCode(int code) {
+    if (code < 0 ||
+        static_cast<unsigned int>(code) >= sf::Keyboard::ScancodeCount) {
+        return sf::Keyboard::Scancode::Unknown;
+    }
+    return static_cast<sf::Keyboard::Scancode>(code);
+}
+
 int parseDecimal(std::string_view value) {
     if (value.empty()) {
         return -1;
@@ -166,8 +174,7 @@ void InputRuntime::consumePendingSystemCancel() {
     }
     abortTwoFingerCancel();
     cancelTouchGesture();
-    setKeyPressed(Key::Escape, sf::Keyboard::Scancode::Escape, {});
-    setKeyReleased(Key::Escape, sf::Keyboard::Scancode::Escape, {});
+    setKeyPulse(Key::Escape, sf::Keyboard::Scancode::Escape, {});
 }
 
 void InputRuntime::setFocused(bool focused) {
@@ -192,6 +199,7 @@ void InputRuntime::setFocused(bool focused) {
 }
 
 void InputRuntime::injectEvent(const InjectedInputEvent& event) {
+    const std::lock_guard<std::mutex> lock(eventPump_.injectedEventsMutex_);
     eventPump_.injectedEvents_.push_back(event);
 }
 
@@ -298,10 +306,14 @@ void InputRuntime::processPlatformScrollEvents(sf::WindowBase& window) {
 }
 
 void InputRuntime::processInjectedEvents() {
-    while (!eventPump_.injectedEvents_.empty()) {
-        const InjectedInputEvent event =
-            std::move(eventPump_.injectedEvents_.front());
-        eventPump_.injectedEvents_.pop_front();
+    std::deque<InjectedInputEvent> events;
+    {
+        const std::lock_guard<std::mutex> lock(eventPump_.injectedEventsMutex_);
+        events.swap(eventPump_.injectedEvents_);
+    }
+    while (!events.empty()) {
+        const InjectedInputEvent event = std::move(events.front());
+        events.pop_front();
         const InputModifiers modifiers{event.alt, event.control, event.shift,
                                        event.system};
         const sf::Vector2i pixel{event.x, event.y};
@@ -317,12 +329,24 @@ void InputRuntime::processInjectedEvents() {
         }
         if (event.type == "KeyPressed") {
             setFocused(true);
-            setKeyPressed(keyFromName(event.key),
-                          sf::Keyboard::Scancode::Unknown, modifiers);
+            sf::Keyboard::Key key = keyFromName(event.key);
+            sf::Keyboard::Scancode scan = scanFromCode(event.scan);
+            if (scan == sf::Keyboard::Scancode::Unknown &&
+                key != sf::Keyboard::Key::Unknown) {
+                scan = sf::Keyboard::delocalize(key);
+            }
+            key = resolveKeyCode(key, scan);
+            setKeyPressed(key, scan, modifiers);
         } else if (event.type == "KeyReleased") {
             setFocused(true);
-            setKeyReleased(keyFromName(event.key),
-                           sf::Keyboard::Scancode::Unknown, modifiers);
+            sf::Keyboard::Key key = keyFromName(event.key);
+            sf::Keyboard::Scancode scan = scanFromCode(event.scan);
+            if (scan == sf::Keyboard::Scancode::Unknown &&
+                key != sf::Keyboard::Key::Unknown) {
+                scan = sf::Keyboard::delocalize(key);
+            }
+            key = resolveKeyCode(key, scan);
+            setKeyReleased(key, scan, modifiers);
         } else if (event.type == "MouseMoved") {
             updatePointerViewportState(pixel);
             if (acceptsPointerPixel(pixel) ||
