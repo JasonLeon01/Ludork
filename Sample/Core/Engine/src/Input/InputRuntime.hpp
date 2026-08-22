@@ -7,8 +7,10 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstddef>
 #include <deque>
 #include <functional>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -31,6 +33,17 @@ struct InputModifiers {
     bool system = false;
 };
 
+struct HeldKeyState {
+    std::size_t physicalCount = 0;
+    bool keyOnly = false;
+    InputModifiers modifiers;
+};
+
+struct HeldScanState {
+    sf::Keyboard::Key key = sf::Keyboard::Key::Unknown;
+    InputModifiers modifiers;
+};
+
 class InputEventPump {
 public:
     static void requestSystemCancel() noexcept;
@@ -43,6 +56,7 @@ private:
     bool focusGained_ = false;
     InputType currentInputType_ = InputType::Mouse;
     bool useInjectedMouseOnly_ = false;
+    std::mutex injectedEventsMutex_;
     std::deque<InjectedInputEvent> injectedEvents_;
     sf::WindowBase* activeWindow_ = nullptr;
     static std::atomic_bool pendingSystemCancel_;
@@ -60,10 +74,14 @@ private:
     std::unordered_map<std::string, bool> scanReleasedEvents_;
     std::unordered_map<std::string, InputTriggerEntry> keyTriggers_;
     std::unordered_map<std::string, InputTriggerEntry> scanTriggers_;
+    std::unordered_map<std::string, std::optional<InputTriggerEntry>>
+        keyPulseTriggerBackups_;
+    std::unordered_map<std::string, std::optional<InputTriggerEntry>>
+        scanPulseTriggerBackups_;
     std::unordered_set<std::string> pendingKeyTriggerReleases_;
     std::unordered_set<std::string> pendingScanTriggerReleases_;
-    std::unordered_set<int> heldKeys_;
-    std::unordered_set<int> heldScans_;
+    std::unordered_map<int, HeldKeyState> heldKeys_;
+    std::unordered_map<int, HeldScanState> heldScans_;
     std::string enteredText_;
     bool blocked_ = false;
 };
@@ -294,12 +312,15 @@ private:
 
     void resetFrameState();
     void consumePendingSystemCancel();
+    void restoreKeyPulses();
     void clearKeyboardState();
     void setFocused(bool focused);
     void setKeyPressed(sf::Keyboard::Key key, sf::Keyboard::Scancode scan,
                        const InputModifiers& modifiers);
     void setKeyReleased(sf::Keyboard::Key key, sf::Keyboard::Scancode scan,
                         const InputModifiers& modifiers);
+    void setKeyPulse(sf::Keyboard::Key key, sf::Keyboard::Scancode scan,
+                     const InputModifiers& modifiers);
     void setMouseButtonPressed(sf::Mouse::Button button,
                                const sf::Vector2i& position);
     void setMouseButtonReleased(sf::Mouse::Button button,

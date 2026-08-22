@@ -4,11 +4,16 @@
 ---@field SupportedLanguages string[]
 local MainConfig = {}
 
----@param maximumScale number | nil
+---@param maximumScale    number | nil
 ---@param configuredScale number
 ---@return number[] values
 ---@return number effectiveScale
 function MainConfig.GetDisplayScaleOptions(maximumScale, configuredScale) end
+
+---@param configuredScale number
+---@return number[] values
+---@return number effectiveScale
+function MainConfig.GetMaximumRenderScaleOptions(configuredScale) end
 
 ---@return string iniFilePath
 ---@return ConfigParser iniFile

@@ -11,6 +11,7 @@ public sealed record GameConfigData(
     string Script,
     string Language,
     double Scale,
+    double MaximumRenderScale,
     int FrameRate,
     int AntiAliasingLevel,
     bool VerticalSync,
@@ -34,7 +35,8 @@ public sealed class GameConfigService
         "Scripts/Entry.lua",
         "en_GB",
         1.0,
-        120,
+        2.0,
+        30,
         SfmlDefaultAntiAliasingLevel,
         true,
         true,
@@ -106,6 +108,9 @@ public sealed class GameConfigService
             Scale = normalized.Scale == normalizedBaseline.Scale
                 ? current.Scale
                 : normalized.Scale,
+            MaximumRenderScale = normalized.MaximumRenderScale == normalizedBaseline.MaximumRenderScale
+                ? current.MaximumRenderScale
+                : normalized.MaximumRenderScale,
             FrameRate = normalized.FrameRate == normalizedBaseline.FrameRate
                 ? current.FrameRate
                 : normalized.FrameRate,
@@ -201,7 +206,8 @@ public sealed class GameConfigService
             text(document, "script", defaults.Script),
             text(document, "language", defaults.Language, true),
             number(document, "scale", defaults.Scale, 1.0),
-            Math.Max(1, integer(document, "framerate", defaults.FrameRate, 60)),
+            number(document, "maxrenderscale", defaults.MaximumRenderScale, 2.0),
+            Math.Max(1, integer(document, "framerate", defaults.FrameRate, 30)),
             Math.Max(0, integer(
                 document,
                 "antialiasinglevel",
@@ -234,6 +240,9 @@ public sealed class GameConfigService
             Scale = Math.Round(double.IsFinite(data.Scale) && data.Scale >= 0.0
                 ? data.Scale
                 : 1.0, 2),
+            MaximumRenderScale = double.IsFinite(data.MaximumRenderScale) && data.MaximumRenderScale >= 0.0
+                ? data.MaximumRenderScale
+                : 2.0,
             FrameRate = Math.Max(1, data.FrameRate),
             AntiAliasingLevel = Math.Max(0, data.AntiAliasingLevel),
             MusicVolume = volume(data.MusicVolume),
@@ -319,6 +328,10 @@ public sealed class GameConfigService
         document.SetValue("Main", "script", data.Script);
         document.SetValue("Main", "language", data.Language);
         document.SetValue("Main", "scale", data.Scale.ToString("F2", CultureInfo.InvariantCulture));
+        document.SetValue(
+            "Main",
+            "maxrenderscale",
+            data.MaximumRenderScale.ToString("G17", CultureInfo.InvariantCulture));
         document.SetValue("Main", "framerate", data.FrameRate.ToString(CultureInfo.InvariantCulture));
         document.SetValue(
             "Main",

@@ -719,9 +719,17 @@
     "zh_CN": "语言",
     "en_GB": "Language"
   },
+  "maxrenderscale": {
+    "zh_CN": "最大渲染倍率",
+    "en_GB": "Maximum Render Scale"
+  },
   "framerate": {
     "zh_CN": "帧率上限",
     "en_GB": "Frame Rate"
+  },
+  "antialiasinglevel":{
+    "zh_CN": "抗锯齿等级",
+    "en_GB": "Antialiasing Level"
   },
   "verticalsync": {
     "zh_CN": "垂直同步",
@@ -1194,6 +1202,10 @@
   "FULLSCREEN": {
     "zh_CN": "全屏",
     "en_GB": "Fullscreen"
+  },
+  "UNLIMITED": {
+    "zh_CN": "不限",
+    "en_GB": "Unlimited"
   },
   "flipX": {
     "zh_CN": "水平翻转",

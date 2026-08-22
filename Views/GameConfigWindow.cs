@@ -15,12 +15,15 @@ namespace Ludork.Views;
 
 public sealed class GameConfigWindow : Window
 {
-    private static readonly double[] scaleValues = [0.0, 1.0, 1.25, 1.5, 1.75, 2.0];
+    private static readonly double[] scaleValues = [0.0, 1.0, 1.25, 1.5, 1.75, 2.0, 3.0, 4.0];
+    private static readonly double[] maximumRenderScaleValues = [1.0, 1.5, 2.0, 3.0, 4.0, 0.0];
     private static readonly int[] frameRateValues = [30, 60, 90, 120];
     private static readonly int[] antiAliasingLevelValues = [0, 2, 4, 8];
     private readonly GameConfigData initialData;
     private readonly ComboBox languageBox;
     private readonly ComboBox scaleBox;
+    private readonly double[] maximumRenderScaleOptions;
+    private readonly ComboBox maximumRenderScaleBox;
     private readonly ComboBox frameRateBox;
     private readonly ComboBox antiAliasingLevelBox;
     private readonly CheckBox verticalSyncBox;
@@ -58,6 +61,17 @@ public sealed class GameConfigWindow : Window
             : 1.0;
         scaleBox.SelectedIndex = Array.IndexOf(scaleValues, selectedScale);
 
+        maximumRenderScaleOptions = getMaximumRenderScaleOptions(initialData.MaximumRenderScale);
+        string[] maximumRenderScales = maximumRenderScaleOptions
+            .Select(value => value == 0.0
+                ? LocaleService.Get("UNLIMITED")
+                : value.ToString("G8", CultureInfo.InvariantCulture))
+            .ToArray();
+        maximumRenderScaleBox = createComboBox(maximumRenderScales.Cast<object>().ToArray());
+        maximumRenderScaleBox.SelectedIndex = Array.IndexOf(
+            maximumRenderScaleOptions,
+            initialData.MaximumRenderScale);
+
         string[] frameRates = frameRateValues
             .Select(value => value.ToString(CultureInfo.InvariantCulture))
             .ToArray();
@@ -94,6 +108,7 @@ public sealed class GameConfigWindow : Window
         addRow(form, LocaleService.Get("script"), scriptBox);
         addRow(form, LocaleService.Get("language"), languageBox);
         addRow(form, LocaleService.Get("scale"), scaleBox);
+        addRow(form, LocaleService.Get("maxrenderscale"), maximumRenderScaleBox);
         addRow(form, LocaleService.Get("framerate"), frameRateBox);
         addRow(form, LocaleService.Get("antialiasinglevel"), antiAliasingLevelBox);
         addRow(form, LocaleService.Get("verticalsync"), verticalSyncBox);
@@ -164,8 +179,11 @@ public sealed class GameConfigWindow : Window
         double scale = scaleBox.SelectedIndex >= 0
             ? scaleValues[scaleBox.SelectedIndex]
             : 1.0;
+        double maximumRenderScale = maximumRenderScaleBox.SelectedIndex >= 0
+            ? maximumRenderScaleOptions[maximumRenderScaleBox.SelectedIndex]
+            : 2.0;
         int frameRate = int.Parse(
-            frameRateBox.SelectedItem?.ToString() ?? "60",
+            frameRateBox.SelectedItem?.ToString() ?? "30",
             NumberStyles.Integer,
             CultureInfo.InvariantCulture);
         int antiAliasingLevel = int.Parse(
@@ -176,6 +194,7 @@ public sealed class GameConfigWindow : Window
         {
             Language = language,
             Scale = scale,
+            MaximumRenderScale = maximumRenderScale,
             FrameRate = frameRate,
             AntiAliasingLevel = antiAliasingLevel,
             VerticalSync = verticalSyncBox.IsChecked == true,
@@ -201,6 +220,20 @@ public sealed class GameConfigWindow : Window
             MinHeight = EditorInputs.FieldMinHeight,
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
+    }
+
+    private static double[] getMaximumRenderScaleOptions(double configuredScale)
+    {
+        List<double> values = maximumRenderScaleValues
+            .Where(value => value > 0.0)
+            .ToList();
+        if (configuredScale > 0.0 && !values.Contains(configuredScale))
+        {
+            values.Add(configuredScale);
+            values.Sort();
+        }
+        values.Add(0.0);
+        return values.ToArray();
     }
 
     private static NumericUpDown createVolumeBox(double value)

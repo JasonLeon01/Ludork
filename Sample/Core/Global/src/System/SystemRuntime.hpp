@@ -27,8 +27,10 @@ struct DisplayRuntime {
     sf::ContextSettings windowContextSettings_;
     sf::Vector2u observedWindowSize_;
     std::optional<sf::Vector2u> observedWindowClientSize_;
+    float surfaceFitScale_ = 1.0f;
     std::optional<float> pendingConfiguredScale_;
     std::optional<float> pendingResizeScale_;
+    bool pendingRenderTargetRebuild_ = false;
     std::chrono::steady_clock::time_point lastResizeTime_;
     bool desktopFullscreen_ = false;
     bool inputMethodDisabled_ = true;

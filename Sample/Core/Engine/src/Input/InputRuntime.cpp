@@ -9,6 +9,7 @@
 #include <utility>
 
 void InputRuntime::resetFrameState() {
+    restoreKeyPulses();
     for (const std::string& identifier : keyboard_.pendingKeyTriggerReleases_) {
         keyboard_.keyTriggers_.erase(identifier);
     }
@@ -175,7 +176,10 @@ void InputRuntime::shutdown() noexcept {
     ludork::engine::platform_input::shutdown();
     actions_.mappings_.clear();
     frameCompletionCallback_ = {};
-    eventPump_.injectedEvents_.clear();
+    {
+        const std::lock_guard<std::mutex> lock(eventPump_.injectedEventsMutex_);
+        eventPump_.injectedEvents_.clear();
+    }
     resetFrameState();
     clearKeyboardState();
     pointer_.mouseTriggers_.clear();

@@ -8,7 +8,7 @@ local Locale = require("Source.Locale.Core")
 local NodeGraphFunctions = GlobalFunctions.NodeGraph
 local GlobalSystem = GlobalCore.System
 
-local APP_NAME = "LudorkSample"
+local APP_NAME = "Ludork Sample"
 SAVE_AS_LDC = false
 
 -- Entry point.

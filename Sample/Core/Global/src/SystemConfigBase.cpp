@@ -19,7 +19,8 @@ std::filesystem::path SystemConfigBase::dataFilePath_;
 std::string SystemConfigBase::script_ = "Scripts/Entry.lua";
 std::string SystemConfigBase::language_ = "en_GB";
 float SystemConfigBase::scale_ = 1.0f;
-int SystemConfigBase::frameRate_ = 120;
+float SystemConfigBase::maximumRenderScale_ = 2.0f;
+int SystemConfigBase::frameRate_ = 30;
 int SystemConfigBase::antiAliasingLevel_ =
     static_cast<int>(sf::ContextSettings{}.antiAliasingLevel);
 bool SystemConfigBase::verticalSync_ = true;
@@ -59,11 +60,14 @@ void SystemConfigBase::init(
         resolveLanguage(data_->get("Main", "language").value_or(language_));
     scale_ = normalizeScale(
         static_cast<float>(data_->getFloat("Main", "scale").value_or(scale_)));
+    maximumRenderScale_ = normalizeMaximumRenderScale(
+        static_cast<float>(data_->getFloat("Main", "maxrenderscale")
+                               .value_or(maximumRenderScale_)));
     frameRate_ = static_cast<int>(
         data_->getInt("Main", "frameRate").value_or(frameRate_));
-    antiAliasingLevel_ = normalizeAntiAliasingLevel(
-        data_->getInt("Main", "antiAliasingLevel")
-            .value_or(antiAliasingLevel_));
+    antiAliasingLevel_ =
+        normalizeAntiAliasingLevel(data_->getInt("Main", "antiAliasingLevel")
+                                       .value_or(antiAliasingLevel_));
     verticalSync_ =
         data_->getBoolean("Main", "verticalSync").value_or(verticalSync_);
     musicOn_ = data_->getBoolean("Main", "musicOn").value_or(musicOn_);
@@ -75,7 +79,10 @@ void SystemConfigBase::init(
         data_->getFloat("Main", "soundVolume").value_or(soundVolume_)));
     voiceVolume_ = clampVolume(static_cast<float>(
         data_->getFloat("Main", "voiceVolume").value_or(voiceVolume_)));
-    engineState().setScale(scale_ > 0.0f ? scale_ : 1.0f);
+    const float initialScale = scale_ > 0.0f ? scale_ : 1.0f;
+    engineState().setScale(maximumRenderScale_ > 0.0f
+                               ? std::min(initialScale, maximumRenderScale_)
+                               : initialScale);
 }
 
 std::string SystemConfigBase::getScript() {
@@ -121,6 +128,19 @@ void SystemConfigBase::applyScale(float value) {
 }
 void SystemConfigBase::saveScale(float value) {
     setIniData("scale", numberText(normalizeScale(value)));
+}
+
+float SystemConfigBase::getMaximumRenderScale() {
+    return maximumRenderScale_;
+}
+void SystemConfigBase::setMaximumRenderScale(float value) {
+    maximumRenderScale_ = normalizeMaximumRenderScale(value);
+    saveMaximumRenderScale(maximumRenderScale_);
+    afterConfigChanged("maximumRenderScale");
+}
+void SystemConfigBase::saveMaximumRenderScale(float value) {
+    setIniData("maxrenderscale",
+               numberText(normalizeMaximumRenderScale(value)));
 }
 
 int SystemConfigBase::getFrameRate() {
@@ -244,7 +264,8 @@ void SystemConfigBase::shutdown() noexcept {
     script_ = "Scripts/Entry.lua";
     language_ = "en_GB";
     scale_ = 1.0f;
-    frameRate_ = 120;
+    maximumRenderScale_ = 2.0f;
+    frameRate_ = 30;
     antiAliasingLevel_ =
         static_cast<int>(sf::ContextSettings{}.antiAliasingLevel);
     verticalSync_ = true;
@@ -280,6 +301,10 @@ std::string SystemConfigBase::resolveLanguage(const std::string& language) {
 
 float SystemConfigBase::normalizeScale(float scale) {
     return std::isfinite(scale) && scale >= 0.0f ? scale : 1.0f;
+}
+
+float SystemConfigBase::normalizeMaximumRenderScale(float scale) {
+    return std::isfinite(scale) && scale >= 0.0f ? scale : 2.0f;
 }
 
 int SystemConfigBase::normalizeAntiAliasingLevel(std::int64_t level) {

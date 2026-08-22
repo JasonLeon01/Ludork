@@ -1,26 +1,28 @@
 ---@meta Source.UI.ConfigWindow
 
----@class Source.UI.ConfigWindow : Source.UI.UiController
----@field model Source.Windows.ConfigWindow
----@field _windowSkin sf.Image
----@field _scaleValues number[]
----@field _windowFrame Engine.Window
----@field _content Engine.Canvas
----@field _listView Engine.ListView
----@field _languageRow Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
----@field _scaleRow Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI | nil
----@field _framerateRow Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
----@field _antiAliasingLevelItems string[]
----@field _antiAliasingLevelRow Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
----@field _verticalSyncRow Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
----@field _musicOnRow Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
----@field _musicVolumeRow Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI
----@field _soundOnRow Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
----@field _soundVolumeRow Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI
----@field _voiceOnRow Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
----@field _voiceVolumeRow Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI
----@field _dropBoxRows Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI[]
----@field _settingRows Source.UI.Parts.ConfigWindow.ConfigRow.ConfigRowControllerBase[]
+---@class Source.UI.ConfigWindow: Source.UI.UiController
+---@field model                     Source.Windows.ConfigWindow
+---@field _windowSkin               sf.Image
+---@field _scaleValues              number[]
+---@field _maximumRenderScaleValues number[]
+---@field _windowFrame              Engine.Window
+---@field _content                  Engine.Canvas
+---@field _listView                 Engine.ListView
+---@field _languageRow              Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
+---@field _scaleRow                 Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI | nil
+---@field _maximumRenderScaleRow    Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
+---@field _framerateRow             Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
+---@field _antiAliasingLevelItems   string[]
+---@field _antiAliasingLevelRow     Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
+---@field _verticalSyncRow          Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
+---@field _musicOnRow               Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
+---@field _musicVolumeRow           Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI
+---@field _soundOnRow               Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
+---@field _soundVolumeRow           Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI
+---@field _voiceOnRow               Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
+---@field _voiceVolumeRow           Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI
+---@field _dropBoxRows              Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI[]
+---@field _settingRows              Source.UI.Parts.ConfigWindow.ConfigRow.ConfigRowControllerBase[]
 local ConfigWindowUI = {}
 
 ---@return Source.UI.ConfigWindow
@@ -55,6 +57,9 @@ function ConfigWindowUI:getLanguageRow() end
 
 ---@return Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI | nil
 function ConfigWindowUI:getScaleRow() end
+
+---@return Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
+function ConfigWindowUI:getMaximumRenderScaleRow() end
 
 ---@return Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
 function ConfigWindowUI:getFramerateRow() end

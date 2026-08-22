@@ -10,6 +10,7 @@
 #include <Manager/AudioManager.hpp>
 #include <Manager/TimeManager.hpp>
 #include <Runtime/EngineState.hpp>
+#include <System/NativeDisplayHost.hpp>
 #include <SystemConfigBase.hpp>
 #include <Weather/WeatherController.hpp>
 
@@ -35,6 +36,8 @@ void System::init(const std::shared_ptr<ludork::standard::ConfigParser>& data,
         systemRuntime.sceneStack;
     display.pendingConfiguredScale_.reset();
     display.pendingResizeScale_.reset();
+    display.surfaceFitScale_ = 1.0f;
+    display.pendingRenderTargetRebuild_ = false;
     display.observedWindowSize_ = {};
     display.observedWindowClientSize_.reset();
     display.desktopFullscreen_ = false;
@@ -98,27 +101,31 @@ float System::getConfiguredScale() {
 }
 std::optional<float> System::getMaximumWindowedScale(
     const sf::Vector2u& gameSize) {
-    if (gameSize.x == 0 || gameSize.y == 0 || isEmbeddedDisplay() ||
-        isMobileDisplay()) {
+    if (gameSize.x == 0 || gameSize.y == 0 || isEmbeddedDisplay()) {
         return std::nullopt;
     }
-    ludork::global::system_runtime::DisplayRuntime& display =
-        ludork::global::system_runtime::runtime().display;
-    std::optional<sf::Vector2u> clientSize;
-    {
+    std::optional<sf::Vector2u> maximumSize;
+    if (isMobileDisplay()) {
+        maximumSize =
+            ludork::global::native_display_host::getMaximumWindowedSize();
+    } else {
+        ludork::global::system_runtime::DisplayRuntime& display =
+            ludork::global::system_runtime::runtime().display;
         const std::lock_guard<std::mutex> lock(display.windowMutex_);
         const sf::WindowHandle windowHandle =
             display.window_ != nullptr && display.window_->isOpen()
                 ? display.window_->getNativeHandle()
                 : sf::WindowHandle{};
-        clientSize = ludork::global::getMaximumWindowedClientSize(windowHandle);
+        maximumSize =
+            ludork::global::getMaximumWindowedClientSize(windowHandle);
     }
-    if (!clientSize.has_value() || clientSize->x == 0 || clientSize->y == 0) {
+    if (!maximumSize.has_value() || maximumSize->x == 0 ||
+        maximumSize->y == 0) {
         return std::nullopt;
     }
     return std::min(
-        static_cast<float>(clientSize->x) / static_cast<float>(gameSize.x),
-        static_cast<float>(clientSize->y) / static_cast<float>(gameSize.y));
+        static_cast<float>(maximumSize->x) / static_cast<float>(gameSize.x),
+        static_cast<float>(maximumSize->y) / static_cast<float>(gameSize.y));
 }
 void System::setScale(float value) {
     SystemConfigBase::setScale(value);
@@ -128,6 +135,15 @@ void System::applyScale(float value) {
 }
 void System::saveScale(float value) {
     SystemConfigBase::saveScale(value);
+}
+float System::getMaximumRenderScale() {
+    return SystemConfigBase::getMaximumRenderScale();
+}
+void System::setMaximumRenderScale(float value) {
+    SystemConfigBase::setMaximumRenderScale(value);
+}
+void System::saveMaximumRenderScale(float value) {
+    SystemConfigBase::saveMaximumRenderScale(value);
 }
 int System::getFrameRate() {
     return SystemConfigBase::getFrameRate();
@@ -409,6 +425,8 @@ void System::shutdownRuntime() noexcept {
     display.observedWindowClientSize_.reset();
     display.pendingConfiguredScale_.reset();
     display.pendingResizeScale_.reset();
+    display.surfaceFitScale_ = 1.0f;
+    display.pendingRenderTargetRebuild_ = false;
     display.lastResizeTime_ = {};
     display.desktopFullscreen_ = false;
     display.inputMethodDisabled_ = true;
@@ -448,6 +466,12 @@ void System::onConfigChanged(const std::string& key) {
             ludork::global::system_runtime::DisplayRuntime& display =
                 ludork::global::system_runtime::runtime().display;
             display.pendingConfiguredScale_ = getConfiguredScale();
+        }
+    } else if (key == "maximumRenderScale") {
+        if (getWindow() != nullptr) {
+            ludork::global::system_runtime::DisplayRuntime& display =
+                ludork::global::system_runtime::runtime().display;
+            display.pendingRenderTargetRebuild_ = true;
         }
     } else if (key == "frameRate") {
         const std::shared_ptr<sf::RenderWindow> window = getWindow();

@@ -26,6 +26,7 @@ function ConfigWindow:init(onClose)
     self._listView = self._ui:getListView()
     self._languageRow = self._ui:getLanguageRow()
     self._scaleRow = self._ui:getScaleRow()
+    self._maximumRenderScaleRow = self._ui:getMaximumRenderScaleRow()
     self._framerateRow = self._ui:getFramerateRow()
     self._antiAliasingLevelRow = self._ui:getAntiAliasingLevelRow()
     self._verticalSyncRow = self._ui:getVerticalSyncRow()
@@ -55,6 +56,10 @@ function ConfigWindow:getScaleDropBox()
         return nil
     end
     return self._scaleRow:getDropBox()
+end
+
+function ConfigWindow:getMaximumRenderScaleDropBox()
+    return self._maximumRenderScaleRow:getDropBox()
 end
 
 function ConfigWindow:getFramerateDropBox()
@@ -126,6 +131,7 @@ function ConfigWindow:dispose()
     self._listView = nil
     self._languageRow = nil
     self._scaleRow = nil
+    self._maximumRenderScaleRow = nil
     self._framerateRow = nil
     self._antiAliasingLevelRow = nil
     self._verticalSyncRow = nil
