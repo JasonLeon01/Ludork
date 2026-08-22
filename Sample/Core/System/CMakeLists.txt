@@ -12,7 +12,7 @@ ludork_generate_lua_bindings(
 
 add_library(CoreSystem ${LUDORK_MODULE_LIBRARY_TYPE}
     ${LUDORK_SYSTEM_SOURCES}
-    "${LUDORK_SYSTEM_BINDINGS}")
+    ${LUDORK_SYSTEM_BINDINGS})
 add_library(Ludork::System ALIAS CoreSystem)
 target_include_directories(CoreSystem PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include")

@@ -905,6 +905,7 @@ def parse_header(
                         options,
                         member_access(body, member_match.start, default_access),
                         member_line,
+                        path,
                     )
                     validate_member_annotation(property_member, path, info.name)
                     destination.append(property_member)
@@ -927,6 +928,7 @@ def parse_header(
                 options,
                 member_access(body, member_match.start, default_access),
                 member_line,
+                path,
             )
             validate_member_annotation(member, path, info.name)
             if kind == "METHOD" and "property" in options:
@@ -994,6 +996,7 @@ def parse_header(
                         property_options,
                         member.access,
                         member.line,
+                        path,
                     )
                 )
                 previous_marker_end = declaration_end
@@ -1059,6 +1062,7 @@ def parse_header(
                 decorators,
                 options,
                 line=member_line,
+                source=path,
             )
             validate_member_annotation(member, path)
             free_functions.append(member)
@@ -1075,6 +1079,7 @@ def parse_header(
                 "",
                 "LUA_REVERSE",
                 options=options,
+                source=path,
             )
         )
     for match in re.finditer(r"BIND_LUA_HELPER\(([^)]*)\)", text):
@@ -1091,6 +1096,7 @@ def parse_header(
                 "",
                 "LUA_HELPER",
                 options=options,
+                source=path,
             )
         )
     return types, free_functions

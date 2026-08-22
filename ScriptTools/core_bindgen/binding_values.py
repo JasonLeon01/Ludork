@@ -415,19 +415,9 @@ def lua_alternative_block(
     return lines
 
 
-def table_value_trait_lines(
-    context: GeneratorContext, types: list[TypeInfo]
-) -> list[str]:
-    table_types = [
-        info
-        for info in types
-        if info.options.get("table_init", "false").lower() == "true"
-    ]
-    if not table_types:
-        return []
-    type_map = {info.name: info for info in types}
-    lines = ["namespace ludork_core {"]
-    for info in table_types:
+def table_value_trait_declaration_lines(types: list[TypeInfo]) -> list[str]:
+    lines: list[str] = []
+    for info in types:
         lines.extend(
             [
                 f"template <> struct TableValueTraits<{info.name}> {{",
@@ -442,6 +432,25 @@ def table_value_trait_lines(
                 "};",
             ]
         )
+    return lines
+
+
+def table_value_trait_lines(
+    context: GeneratorContext,
+    types: list[TypeInfo],
+    required_names: set[str],
+) -> list[str]:
+    table_types = [
+        info
+        for info in types
+        if info.name in required_names
+        and info.options.get("table_init", "false").lower() == "true"
+    ]
+    if not table_types:
+        return []
+    type_map = {info.name: info for info in types}
+    lines = ["namespace ludork_core {"]
+    lines.extend(table_value_trait_declaration_lines(table_types))
     lines.append("")
     for info in table_types:
         properties = table_value_properties(info, type_map)

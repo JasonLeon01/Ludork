@@ -39,6 +39,23 @@ class GeneratorContext:
     suppressed_metadata_base_types: set[str] = field(default_factory=set)
     type_modules: dict[str, str] = field(default_factory=dict)
     binding_features: set[str] = field(default_factory=lambda: {"value"})
+    required_bound_types: set[str] = field(default_factory=set)
+    required_dynamic_traits: set[str] = field(default_factory=set)
+    required_table_traits: set[str] = field(default_factory=set)
+    required_opaque_traits: set[str] = field(default_factory=set)
+
+    def fork_translation_unit(self) -> GeneratorContext:
+        return GeneratorContext(
+            type_aliases=self.type_aliases,
+            callback_codecs=self.callback_codecs,
+            exposed_type_names=self.exposed_type_names,
+            dynamic_value_types=self.dynamic_value_types,
+            table_value_types=self.table_value_types,
+            lua_alternative_types=self.lua_alternative_types,
+            opaque_identity_types=self.opaque_identity_types,
+            suppressed_metadata_base_types=self.suppressed_metadata_base_types,
+            type_modules=self.type_modules,
+        )
 
     def require_binding_feature(self, feature: str) -> None:
         if feature not in BINDING_FEATURE_HEADERS:

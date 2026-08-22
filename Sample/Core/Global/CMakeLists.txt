@@ -20,7 +20,7 @@ ludork_generate_lua_bindings(
 
 add_library(GlobalCore ${LUDORK_RUNTIME_LIBRARY_TYPE}
     ${LUDORK_GLOBAL_SOURCES}
-    "${LUDORK_GLOBAL_BINDINGS}")
+    ${LUDORK_GLOBAL_BINDINGS})
 add_library(Ludork::Global ALIAS GlobalCore)
 target_compile_definitions(GlobalCore PRIVATE
     LUDORK_GLOBAL_EXPORTS=1

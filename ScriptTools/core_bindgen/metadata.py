@@ -968,9 +968,11 @@ def generate_metadata(
 
 
 def write_metadata(path: Path, contents: str) -> None:
-    if path.exists() and not path.read_text(encoding="utf-8").startswith(
-        GENERATED_FILE_MARKER
-    ):
-        raise ValueError(f"refusing to overwrite hand-written metadata: {path}")
+    if path.exists():
+        existing = path.read_text(encoding="utf-8")
+        if not existing.startswith(GENERATED_FILE_MARKER):
+            raise ValueError(f"refusing to overwrite hand-written metadata: {path}")
+        if existing == contents:
+            return
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(contents, encoding="utf-8")

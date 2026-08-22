@@ -40,6 +40,7 @@ class Member:
     options: dict[str, str] = field(default_factory=dict)
     access: str = "public"
     line: int = 0
+    source: Path | None = None
 
 
 @dataclass

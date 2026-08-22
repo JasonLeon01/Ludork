@@ -17,7 +17,7 @@ ludork_generate_lua_bindings(
 
 add_library(Engine ${LUDORK_RUNTIME_LIBRARY_TYPE}
     ${LUDORK_ENGINE_SOURCES}
-    "${LUDORK_ENGINE_BINDINGS}")
+    ${LUDORK_ENGINE_BINDINGS})
 add_library(Ludork::Engine ALIAS Engine)
 ludork_apply_msvc_debug_source_options(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/NodeGraph/ClassDict.cpp"

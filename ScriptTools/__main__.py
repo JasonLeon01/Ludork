@@ -19,6 +19,7 @@ from ScriptTools import prune_editor_windows_publish
 from ScriptTools import ui_adapter_check
 from ScriptTools import ui_assets
 from ScriptTools.core_bindgen import generate
+from ScriptTools.core_bindgen import layout
 
 
 Command = Callable[[list[str] | None], int]
@@ -26,6 +27,7 @@ Command = Callable[[list[str] | None], int]
 COMMANDS: dict[str, Command] = {
     "android-pack": android_pack.main,
     "core-bindgen": generate.main,
+    "core-bindgen-layout": layout.main,
     "configure-project-template": configure_project_template.main,
     "editor-macos-metadata": editor_macos_metadata.main,
     "editor-official-plugins": editor_official_plugins.main,

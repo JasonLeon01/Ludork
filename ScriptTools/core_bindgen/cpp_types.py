@@ -173,7 +173,42 @@ def parse_cpp_type(
 
 
 def require_binding_type_features(context: GeneratorContext, value: str) -> None:
+    visited_expressions: set[str] = set()
+
+    def visit_function_signature(signature: str) -> None:
+        normalized = normalize_declaration(signature)
+        opening = normalized.find("(")
+        if opening <= 0 or not normalized.endswith(")"):
+            return
+        visit_expression(normalized[:opening])
+        parameters = normalized[opening + 1 : -1].strip()
+        if not parameters or parameters == "void":
+            return
+        for parameter in split_template_arguments(parameters):
+            visit_expression(parameter)
+
+    def visit_expression(expression: str) -> None:
+        normalized = normalize_declaration(expression)
+        if not normalized or normalized in visited_expressions:
+            return
+        visited_expressions.add(normalized)
+        codec = context.callback_codecs.get(remove_type_qualifiers(normalized))
+        if codec is not None:
+            context.require_binding_feature("callback")
+            visit_expression(codec.canonical_type)
+            return
+        visit(parse_cpp_type(context, normalized))
+
     def visit(item: ParsedType) -> None:
+        codec = context.callback_codecs.get(item.name)
+        if codec is not None:
+            context.require_binding_feature("callback")
+            visit_expression(codec.canonical_type)
+            return
+        if item.name.endswith("*"):
+            context.require_binding_feature("native")
+            visit_expression(remove_pointer(item.name))
+            return
         owner, separator, nested = item.name.rpartition("::")
         if item.name in context.dynamic_value_types or (
             separator
@@ -181,14 +216,32 @@ def require_binding_type_features(context: GeneratorContext, value: str) -> None
             and nested in {"Array", "Map", "Object"}
         ):
             context.require_binding_feature("dynamic")
+            dynamic_type = (
+                item.name if item.name in context.dynamic_value_types else owner
+            )
+            context.required_dynamic_traits.add(dynamic_type)
+            context.required_bound_types.add(dynamic_type)
+        if item.name in context.table_value_types:
+            context.required_table_traits.add(item.name)
+            context.required_bound_types.add(item.name)
+        if item.name in context.opaque_identity_types:
+            context.require_binding_feature("native")
+            context.required_opaque_traits.add(item.name)
+            context.required_bound_types.add(item.name)
+        if item.name in context.exposed_type_names:
+            context.required_bound_types.add(item.name)
         if item.name == "std::function":
             context.require_binding_feature("function")
+            if len(item.arguments) == 1:
+                visit_function_signature(item.arguments[0].name)
         if item.name == "std::shared_ptr" or item.name.endswith("*"):
             context.require_binding_feature("native")
         for argument in item.arguments:
+            if item.name == "std::function":
+                continue
             visit(argument)
 
-    visit(parse_cpp_type(context, value))
+    visit_expression(value)
 
 
 def callback_codec(

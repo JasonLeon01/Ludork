@@ -4,7 +4,7 @@ import argparse
 import re
 from pathlib import Path
 
-from .constants import GENERATED_FILE_MARKER
+from .constants import CPP_GENERATED_FILE_MARKER
 from .context import GeneratorContext
 from .callback_codecs import (
     load_callback_codecs,
@@ -31,6 +31,62 @@ from .metadata import (
 from .bindings import generate_bindings
 
 
+def write_if_different(path: Path, contents: str) -> None:
+    if path.exists() and path.read_text(encoding="utf-8") == contents:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(contents, encoding="utf-8")
+
+
+def write_generated_binding(path: Path, contents: str) -> None:
+    if path.exists():
+        existing = path.read_text(encoding="utf-8")
+        if not existing.startswith(CPP_GENERATED_FILE_MARKER):
+            raise ValueError(f"refusing to overwrite hand-written binding: {path}")
+        if existing == contents:
+            return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(contents, encoding="utf-8")
+
+
+def read_previous_binding_outputs(
+    manifest: Path, bindings_directory: Path
+) -> set[Path]:
+    if not manifest.exists():
+        return set()
+    result: set[Path] = set()
+    for line in manifest.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        path = Path(line)
+        if not path.is_absolute():
+            raise ValueError(f"binding manifest contains a relative path: {path}")
+        resolved = path.resolve()
+        try:
+            resolved.relative_to(bindings_directory)
+        except ValueError as error:
+            raise ValueError(
+                f"binding manifest path is outside bindings directory: {resolved}"
+            ) from error
+        if resolved.suffix != ".cpp":
+            raise ValueError(
+                f"binding manifest path is not a C++ source: {resolved}"
+            )
+        result.add(resolved)
+    return result
+
+
+def binding_output_path(bindings_directory: Path, name: str) -> Path:
+    path = (bindings_directory / name).resolve()
+    try:
+        path.relative_to(bindings_directory)
+    except ValueError as error:
+        raise ValueError(
+            f"binding output path is outside bindings directory: {path}"
+        ) from error
+    return path
+
+
 def main(arguments: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Generate Ludork Core sol2 bindings and LuaLS stub"
@@ -38,7 +94,9 @@ def main(arguments: list[str] | None = None) -> int:
     parser.add_argument("--source-root", type=Path, required=True)
     parser.add_argument("--include-directory", type=Path, required=True)
     parser.add_argument("--module", required=True)
-    parser.add_argument("--bindings", type=Path, required=True)
+    parser.add_argument("--bindings-directory", type=Path, required=True)
+    parser.add_argument("--bindings-manifest", type=Path, required=True)
+    parser.add_argument("--bindings-stamp", type=Path, required=True)
     parser.add_argument("--stub", type=Path, required=True)
     parser.add_argument("--scripts-directory", type=Path, required=True)
     parser.add_argument("--metadata-stamp", type=Path, required=True)
@@ -136,16 +194,6 @@ def main(arguments: list[str] | None = None) -> int:
     metadata_path = (
         arguments.scripts_directory.resolve() / f"{arguments.module}_meta.lua"
     )
-    metadata_outputs = {metadata_path}
-    previous_outputs: set[Path] = set()
-    if arguments.metadata_stamp.exists():
-        previous_outputs = {
-            Path(line).resolve()
-            for line in arguments.metadata_stamp.read_text(
-                encoding="utf-8"
-            ).splitlines()
-            if line.strip()
-        }
     metadata = generate_metadata(
         context,
         arguments.module,
@@ -154,36 +202,49 @@ def main(arguments: list[str] | None = None) -> int:
         type_modules,
         metadata_type_names(context, all_types),
     )
-    write_metadata(metadata_path, metadata)
-    for previous_path in previous_outputs - metadata_outputs:
-        if previous_path.exists() and previous_path.read_text(
-            encoding="utf-8"
-        ).startswith(GENERATED_FILE_MARKER):
-            previous_path.unlink()
     stub = generate_stub(context, arguments.module, types, functions)
-    arguments.bindings.parent.mkdir(parents=True, exist_ok=True)
-    arguments.stub.parent.mkdir(parents=True, exist_ok=True)
-    arguments.bindings.write_text(
-        generate_bindings(
-            context,
-            arguments.source_root,
-            arguments.include_directory,
-            arguments.module,
-            types,
-            functions,
-            stub,
-            metadata,
-            all_types,
-            [directory for _, directory in registry_entries],
-        ),
-        encoding="utf-8",
+    binding_sources = generate_bindings(
+        context,
+        arguments.include_directory,
+        arguments.module,
+        types,
+        functions,
+        stub,
+        metadata,
+        all_types,
+        [directory for _, directory in registry_entries],
     )
-    arguments.stub.write_text(stub, encoding="utf-8")
-    arguments.metadata_stamp.parent.mkdir(parents=True, exist_ok=True)
-    arguments.metadata_stamp.write_text(
-        "\n".join(str(path) for path in sorted(metadata_outputs)) + "\n",
-        encoding="utf-8",
+    bindings_directory = arguments.bindings_directory.resolve()
+    bindings_manifest = arguments.bindings_manifest.resolve()
+    bindings_stamp = arguments.bindings_stamp.resolve()
+    previous_binding_outputs = read_previous_binding_outputs(
+        bindings_manifest, bindings_directory
     )
+    current_binding_outputs = {
+        binding_output_path(bindings_directory, name) for name in binding_sources
+    }
+    for name, contents in binding_sources.items():
+        write_generated_binding(
+            binding_output_path(bindings_directory, name), contents
+        )
+    write_metadata(metadata_path, metadata)
+    write_if_different(arguments.stub, stub)
+    write_if_different(arguments.metadata_stamp, str(metadata_path) + "\n")
+    for previous_path in previous_binding_outputs - current_binding_outputs:
+        if not previous_path.exists():
+            continue
+        contents = previous_path.read_text(encoding="utf-8")
+        if not contents.startswith(CPP_GENERATED_FILE_MARKER):
+            raise ValueError(
+                f"refusing to remove hand-written stale binding: {previous_path}"
+            )
+        previous_path.unlink()
+    manifest_contents = (
+        "\n".join(str(path) for path in sorted(current_binding_outputs)) + "\n"
+    )
+    write_if_different(bindings_manifest, manifest_contents)
+    bindings_stamp.parent.mkdir(parents=True, exist_ok=True)
+    bindings_stamp.write_text(manifest_contents, encoding="utf-8")
     return 0
 
 

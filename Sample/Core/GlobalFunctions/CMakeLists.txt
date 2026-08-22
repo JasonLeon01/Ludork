@@ -15,7 +15,7 @@ ludork_generate_lua_bindings(
 
 add_library(GlobalFunctions ${LUDORK_RUNTIME_LIBRARY_TYPE}
     ${LUDORK_GLOBAL_FUNCTIONS_SOURCES}
-    "${LUDORK_GLOBAL_FUNCTIONS_BINDINGS}")
+    ${LUDORK_GLOBAL_FUNCTIONS_BINDINGS})
 add_library(Ludork::GlobalFunctions ALIAS GlobalFunctions)
 ludork_apply_msvc_debug_source_options(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Components.cpp")

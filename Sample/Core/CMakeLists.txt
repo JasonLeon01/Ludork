@@ -39,6 +39,11 @@ if(NOT DEFINED LUDORK_DEBUG_SOL_SAFETIES)
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/LudorkBindings.cmake")
+ludork_discover_lua_binding_layouts(
+    Engine "${CMAKE_CURRENT_SOURCE_DIR}/Engine/include"
+    CoreSystem "${CMAKE_CURRENT_SOURCE_DIR}/System/include"
+    GlobalCore "${CMAKE_CURRENT_SOURCE_DIR}/Global/include"
+    GlobalFunctions "${CMAKE_CURRENT_SOURCE_DIR}/GlobalFunctions/include")
 
 add_library(LudorkCoreBinding INTERFACE)
 add_library(Ludork::CoreBinding ALIAS LudorkCoreBinding)
@@ -80,9 +85,15 @@ function(ludork_configure_core_library target generated_bindings)
         set_target_properties(${target} PROPERTIES
             SUFFIX "${CMAKE_SHARED_MODULE_SUFFIX}")
     endif()
+    foreach(generated_binding IN LISTS generated_bindings)
+        set_property(SOURCE "${generated_binding}" PROPERTY
+            SKIP_UNITY_BUILD_INCLUSION ON)
+    endforeach()
     if(MSVC)
-        set_property(SOURCE "${generated_bindings}" APPEND PROPERTY
-            COMPILE_OPTIONS /bigobj)
+        foreach(generated_binding IN LISTS generated_bindings)
+            set_property(SOURCE "${generated_binding}" APPEND PROPERTY
+                COMPILE_OPTIONS /bigobj)
+        endforeach()
     endif()
     ludork_set_runtime_output(${target})
 endfunction()
