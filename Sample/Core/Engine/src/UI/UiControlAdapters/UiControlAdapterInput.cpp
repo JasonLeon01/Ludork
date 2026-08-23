@@ -153,7 +153,7 @@ void UiControlAdapterRegistry::Builder::registerInputAdapters(
                         const RuntimeValue& value) {
         DropBox& field = requireControlType<DropBox>(control, "Engine.DropBox");
         if (propertyId == "size") {
-            field.setCollapsedSize(requireVector2f(value, "size"));
+            field.resize(requireVector2f(value, "size"));
         } else if (propertyId == "windowSkin") {
             field.setWindowSkin(
                 loadWindowSkin(requireString(value, "windowSkin")));
@@ -171,7 +171,9 @@ void UiControlAdapterRegistry::Builder::registerInputAdapters(
     };
     dropBox.arranger = [](ControlBase& control, const sf::Vector2f& size,
                           const sf::Vector2f& renderScale) {
-        arrangeByScale(control, size, renderScale);
+        DropBox& field = requireControlType<DropBox>(control, "Engine.DropBox");
+        field.resize(size);
+        field.setScale(renderScale);
     };
     dropBox.properties.emplace("previewText");
     registry.registerAdapter<DropBoxUiControlAdapterTag>(std::move(dropBox));

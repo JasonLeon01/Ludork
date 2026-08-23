@@ -6,29 +6,55 @@ local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 local ConfigSliderRowUI = require("Source.UI.Parts.ConfigWindow.ConfigSliderRow")
 
 local Input = Engine.Input
+local Direction = Engine.FocusDirection
 local ManagerFunctions = GlobalFunctions.Manager
 
-local _DEFAULT_RECT = Engine.ToIntRect(80, 48, 480, 320)
+local _DEFAULT_RECT = Engine.ToIntRect(80, 48, 480, 384)
 local _ROW_HEIGHT = 32
+local _GRAPHICS_PAGE_INDEX = 0
+local _FOCUS_TABS = "tabs"
+local _FOCUS_SETTINGS = "settings"
 local _TOUCH_OWNER_LIST = "list"
 local _TOUCH_OWNER_SLIDER = "slider"
+
+---@param index          integer
+---@param scaleRowChange integer
+---@return integer
+local function adjustGraphicsSettingIndex(index, scaleRowChange)
+    if scaleRowChange > 0 and index >= 1 then
+        return index + 1
+    end
+    if scaleRowChange < 0 and index > 1 then
+        return index - 1
+    end
+    return index
+end
 
 ---@class Source.Windows.ConfigWindow
 local ConfigWindow = {}
 
 function ConfigWindow:init(onClose)
+    self._activePageIndex = _GRAPHICS_PAGE_INDEX
+    self._focusLevel = _FOCUS_TABS
+    self._pageSessions = {
+        { index = 0, scrollOriginY = 0.0 }, { index = 0, scrollOriginY = 0.0 }, { index = 0, scrollOriginY = 0.0 }
+    }
     local windowSkin = ManagerFunctions.loadSystem(Engine.DefaultWindowskinName, false, nil, true):copyToImage()
     local contentWidth = _DEFAULT_RECT.size.x
     super(ConfigWindow, self).init(_DEFAULT_RECT, nil, contentWidth, _ROW_HEIGHT, windowSkin)
     self:setHasReturnBtn(true)
     self._ui = ConfigWindowUI.new(self, windowSkin)
     self._ui:attach()
-    self._listView = self._ui:getListView()
+    self._windowContent = self.content
+    self._settingsContent = self._ui:getSettingsContent()
+    self._tabList = self._ui:getTabList()
+    self._listView = self._tabList
     self._languageRow = self._ui:getLanguageRow()
-    self._scaleRow = self._ui:getScaleRow()
+    self._graphicsPresetRow = self._ui:getGraphicsPresetRow()
     self._maximumRenderScaleRow = self._ui:getMaximumRenderScaleRow()
     self._framerateRow = self._ui:getFramerateRow()
     self._antiAliasingLevelRow = self._ui:getAntiAliasingLevelRow()
+    self._lightingRenderScaleRow = self._ui:getLightingRenderScaleRow()
     self._verticalSyncRow = self._ui:getVerticalSyncRow()
     self._musicOnRow = self._ui:getMusicOnRow()
     self._musicVolumeRow = self._ui:getMusicVolumeRow()
@@ -36,13 +62,13 @@ function ConfigWindow:init(onClose)
     self._soundVolumeRow = self._ui:getSoundVolumeRow()
     self._voiceOnRow = self._ui:getVoiceOnRow()
     self._voiceVolumeRow = self._ui:getVoiceVolumeRow()
-    self._dropBoxRows = self._ui:getDropBoxRows()
-    self._settingRows = self._ui:getSettingRows()
     self._onClose = onClose
     self._open = false
     self._capturedTouchSlider = nil
     self._capturedTouchSliderIndex = nil
     self._capturedTouchOwner = nil
+    self._ui:setActivePage(self._activePageIndex)
+    self:_refreshControlActivity()
     self:setVisible(false)
     self:setActive(false)
 end
@@ -51,11 +77,16 @@ function ConfigWindow:getLanguageDropBox()
     return self._languageRow:getDropBox()
 end
 
+function ConfigWindow:getGraphicsPresetDropBox()
+    return self._graphicsPresetRow:getDropBox()
+end
+
 function ConfigWindow:getScaleDropBox()
-    if self._scaleRow == nil then
+    local scaleRow = self._ui:getScaleRow()
+    if scaleRow == nil then
         return nil
     end
-    return self._scaleRow:getDropBox()
+    return scaleRow:getDropBox()
 end
 
 function ConfigWindow:getMaximumRenderScaleDropBox()
@@ -68,6 +99,10 @@ end
 
 function ConfigWindow:getAntiAliasingLevelDropBox()
     return self._antiAliasingLevelRow:getDropBox()
+end
+
+function ConfigWindow:getLightingRenderScaleDropBox()
+    return self._lightingRenderScaleRow:getDropBox()
 end
 
 function ConfigWindow:getVerticalSyncCheckBox()
@@ -103,20 +138,20 @@ function ConfigWindow:isOpen()
 end
 
 function ConfigWindow:open()
-    self._ui:refreshDisplayScaleOptions()
+    self:_applyScaleRowChange(self._ui:refreshDisplayScaleOptions())
     self:_setSelectionInputPaused(false)
     self._open = true
     self:setVisible(true)
     self:setActive(true)
-    self:_setSettingRowsActive(true)
-    self:requestKeyboardFocus()
+    self:_focusTabs(false)
 end
 
 function ConfigWindow:close()
-    self._open = false
-    self:setActive(false)
-    self:_setSettingRowsActive(false)
     self:_collapseAllDropBoxes()
+    self._open = false
+    self:_focusTabs(false)
+    self:setActive(false)
+    self:_refreshControlActivity()
     self:setVisible(false)
     if self._onClose ~= nil then
         self._onClose()
@@ -124,16 +159,22 @@ function ConfigWindow:close()
 end
 
 function ConfigWindow:dispose()
+    self:_detachSelectionRect()
+    self.content = self._windowContent
     if self._ui ~= nil then
         self._ui:dispose()
         self._ui = nil
     end
+    self._windowContent = nil
+    self._settingsContent = nil
+    self._tabList = nil
     self._listView = nil
     self._languageRow = nil
-    self._scaleRow = nil
+    self._graphicsPresetRow = nil
     self._maximumRenderScaleRow = nil
     self._framerateRow = nil
     self._antiAliasingLevelRow = nil
+    self._lightingRenderScaleRow = nil
     self._verticalSyncRow = nil
     self._musicOnRow = nil
     self._musicVolumeRow = nil
@@ -141,8 +182,7 @@ function ConfigWindow:dispose()
     self._soundVolumeRow = nil
     self._voiceOnRow = nil
     self._voiceVolumeRow = nil
-    self._dropBoxRows = nil
-    self._settingRows = nil
+    self._pageSessions = nil
     self._onClose = nil
     self._capturedTouchSlider = nil
     self._capturedTouchSliderIndex = nil
@@ -160,13 +200,35 @@ function ConfigWindow:onReturn()
         expandedRow:getDropBox():cancel()
         return
     end
+    if self._focusLevel == _FOCUS_SETTINGS then
+        self:_focusTabs(true)
+        return
+    end
     self:_closeByCancel()
 end
 
 function ConfigWindow:onTick(deltaTime)
+    if self._open then
+        self:_applyScaleRowChange(self._ui:syncDisplayScaleAvailability())
+    end
     self._rect:setVisible(false)
     self._ui:tick(deltaTime)
     super(ConfigWindow, self).onTick(deltaTime)
+end
+
+---@param scaleRowChange integer
+function ConfigWindow:_applyScaleRowChange(scaleRowChange)
+    if scaleRowChange == 0 then
+        return
+    end
+    local session = self:_getPageSession(_GRAPHICS_PAGE_INDEX)
+    session.index = adjustGraphicsSettingIndex(session.index, scaleRowChange)
+    if self._focusLevel == _FOCUS_SETTINGS and self._activePageIndex == _GRAPHICS_PAGE_INDEX then
+        self.index = adjustGraphicsSettingIndex(self.index or 0, scaleRowChange)
+        self._oldIndex = self.index
+        self._ensureSelectionVisibleRequested = true
+    end
+    self:_refreshControlActivity()
 end
 
 function ConfigWindow:onKeyDown(kwargs)
@@ -192,6 +254,56 @@ function ConfigWindow:onMouseButtonDown(kwargs)
     return false
 end
 
+function ConfigWindow:onDirectionalKey(direction)
+    if self._focusLevel == _FOCUS_TABS then
+        if direction == Direction.DOWN then
+            self:_enterSettings(false)
+            return true
+        end
+        if direction == Direction.LEFT and self.index > 0 then
+            self:_selectTab(self.index - 1)
+            return true
+        end
+        if direction == Direction.RIGHT and self.index + 1 < self._ui:getPageCount() then
+            self:_selectTab(self.index + 1)
+            return true
+        end
+        return false
+    end
+    if direction == Direction.UP then
+        if self.index == 0 then
+            self:_focusTabs(false)
+            return true
+        end
+        return self:_setIndexIfChanged(self.index - 1)
+    end
+    if direction == Direction.DOWN then
+        if self.index + 1 >= self:_itemCount() then
+            return false
+        end
+        return self:_setIndexIfChanged(self.index + 1)
+    end
+    return false
+end
+
+---@param index integer
+function ConfigWindow:_setPointerIndex(index)
+    self.index = index
+    if self._focusLevel == _FOCUS_TABS then
+        self:_selectTab(index)
+    end
+    self:_synchronizeSelectionScrollState()
+end
+
+---@param tabIndex integer
+function ConfigWindow:_onTabConfirmed(tabIndex)
+    if self._focusLevel ~= _FOCUS_TABS then
+        return
+    end
+    self:_selectTab(tabIndex)
+    self:_enterSettings(true)
+end
+
 ---@param row Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
 ---@return function
 function ConfigWindow._makeSettingRowConfirmCallback(row)
@@ -205,13 +317,14 @@ function ConfigWindow:_onDropBoxExpandedChanged(expanded)
     if expanded then
         self:_setSelectionInputPaused(true)
         local expandedRow = self:_getExpandedSettingRow()
-        for _, row in ipairs(self._settingRows) do
+        local page = self:_getActivePage()
+        for _, row in ipairs(page.rows) do
             row:setActive(row == expandedRow)
         end
     else
         self:_setSelectionInputPaused(false)
+        self:_refreshControlActivity()
         if self._open then
-            self:_setSettingRowsActive(true)
             self:requestKeyboardFocus()
         end
     end
@@ -219,7 +332,8 @@ end
 
 ---@return Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI | nil
 function ConfigWindow:_getExpandedSettingRow()
-    for _, row in ipairs(self._dropBoxRows) do
+    local page = self:_getActivePage()
+    for _, row in ipairs(page.dropBoxRows) do
         if row:getDropBox():isExpanded() then
             return row
         end
@@ -233,15 +347,11 @@ function ConfigWindow:_anyDropBoxExpanded()
 end
 
 function ConfigWindow:_collapseAllDropBoxes()
-    for _, row in ipairs(self._dropBoxRows) do
-        row:getDropBox():setExpanded(false)
-    end
-end
-
----@param active boolean
-function ConfigWindow:_setSettingRowsActive(active)
-    for _, row in ipairs(self._settingRows) do
-        row:setActive(active)
+    for pageIndex = 0, self._ui:getPageCount() - 1 do
+        local page = self._ui:getPage(pageIndex)
+        for _, row in ipairs(page.dropBoxRows) do
+            row:getDropBox():setExpanded(false)
+        end
     end
 end
 
@@ -257,7 +367,7 @@ end
 
 ---@param index integer
 function ConfigWindow:_onFrameRateSelectedIndexChanged(index)
-    self._ui.onFrameRateSelectedIndexChanged(index)
+    self._ui:onFrameRateSelectedIndexChanged(index)
 end
 
 ---@param checked boolean
@@ -317,7 +427,11 @@ function ConfigWindow:_onCapturedTouchBegan(position)
     self._capturedTouchSlider = nil
     self._capturedTouchSliderIndex = nil
     self._capturedTouchOwner = nil
-    for luaIndex, row in ipairs(self._settingRows) do
+    if self._focusLevel ~= _FOCUS_SETTINGS then
+        return
+    end
+    local page = self:_getActivePage()
+    for luaIndex, row in ipairs(page.rows) do
         if Class.isInstance(row, ConfigSliderRowUI) then
             local slider = row:getSlider()
             if slider:getVisible() and slider:getActive() and slider:getAbsoluteTouchHitBounds():contains(position) then
@@ -378,11 +492,12 @@ end
 
 ---@return Source.UI.Parts.ConfigWindow.ConfigRow.ConfigRowControllerBase | nil
 function ConfigWindow:_getSelectedSettingRow()
-    if self._settingRows == nil or self.index == nil then
+    if self._focusLevel ~= _FOCUS_SETTINGS or self.index == nil then
         return nil
     end
-    if self.index >= 0 and self.index < #self._settingRows then
-        return self._settingRows[self.index + 1]
+    local page = self:_getActivePage()
+    if self.index >= 0 and self.index < #page.rows then
+        return page.rows[self.index + 1]
     end
     return nil
 end
@@ -410,25 +525,160 @@ function ConfigWindow._findSelectedIndex(items, value)
     return 0
 end
 
--- Selection width spans the full content area.
----
---- - @return  Content width in logical UI units
 ---@return integer
 function ConfigWindow:_getRectWidth()
+    if self._focusLevel == _FOCUS_TABS then
+        return math.floor((self.content:getSize().x - 32) / self._ui:getPageCount())
+    end
     return self.content:getSize().x
 end
 
--- Selection rect in content space; rows are full-width without ListView column inset.
----
---- - @param index  Zero-based item index.
---- - @return  Top-left of the selection rectangle in content space.
 ---@param index integer
 ---@return sf.Vector2f
 function ConfigWindow:_getRectPositionForIndex(index)
-    local columns = self:_getColumns()
-    local x = index % columns * self._rectWidth
-    local y = math.floor(index / columns) * self._rectHeight
-    return sf.Vector2f.new(x, y)
+    if self._focusLevel == _FOCUS_TABS then
+        return sf.Vector2f.new(index * self._rectWidth + 16, 0.0)
+    end
+    local page = self:_getActivePage()
+    page.list:applyPositions()
+    local child = page.list:getChildren()[index + 1]
+    if child == nil then
+        return sf.Vector2f.new(0.0, index * self._rectHeight)
+    end
+    return sf.Vector2f.new(0.0, child:getPosition().y)
+end
+
+---@return number
+function ConfigWindow:_getMaxScrollOriginY()
+    if self._focusLevel == _FOCUS_TABS then
+        return 0.0
+    end
+    local page = self:_getActivePage()
+    page.list:applyPositions()
+    local contentBottom = 0.0
+    for _, child in ipairs(page.list:getChildren()) do
+        contentBottom = math.max(contentBottom, child:getPosition().y + child:getSize().y)
+    end
+    return math.max(0.0, contentBottom - self._settingsContent:getView():getSize().y)
+end
+
+---@return sf.FloatRect
+function ConfigWindow:_getContentViewportAbsoluteBounds()
+    if self._focusLevel == _FOCUS_TABS then
+        return self._tabList:getAbsoluteBounds()
+    end
+    local view = self._settingsContent:getView()
+    self._settingsContent:setView(self._settingsContent:getDefaultView())
+    local bounds = self._settingsContent:getAbsoluteBounds()
+    self._settingsContent:setView(view)
+    return bounds
+end
+
+---@return Source.UI.ConfigWindow.Page
+function ConfigWindow:_getActivePage()
+    return self._ui:getPage(self._activePageIndex)
+end
+
+---@param pageIndex integer
+---@return Source.Windows.ConfigWindow.PageSession
+function ConfigWindow:_getPageSession(pageIndex)
+    return assert(self._pageSessions[pageIndex + 1])
+end
+
+function ConfigWindow:_savePageSession()
+    local session = self:_getPageSession(self._activePageIndex)
+    session.index = self.index or 0
+    session.scrollOriginY = self:_getScrollOriginY()
+end
+
+function ConfigWindow:_restorePageScroll()
+    local session = self:_getPageSession(self._activePageIndex)
+    local view = self._settingsContent:getView()
+    local viewSize = view:getSize()
+    local origin = view:getCenter() - viewSize / 2.0
+    self._settingsContent:setView(
+        sf.View.new(sf.Vector2f.new(origin.x, session.scrollOriginY) + viewSize / 2.0, viewSize)
+    )
+end
+
+---@param index integer
+function ConfigWindow:_selectTab(index)
+    if index < 0 or index >= self._ui:getPageCount() then
+        return
+    end
+    self._activePageIndex = index
+    self._ui:setActivePage(index)
+    if self._focusLevel == _FOCUS_TABS then
+        self.index = index
+    end
+    self:_restorePageScroll()
+    self:_refreshControlActivity()
+end
+
+---@param playSound boolean
+function ConfigWindow:_enterSettings(playSound)
+    if self._focusLevel == _FOCUS_SETTINGS then
+        return
+    end
+    if playSound then
+        ManagerFunctions.playSE(GameSystem.getDecisionSE())
+    end
+    self:_detachSelectionRect()
+    self._focusLevel = _FOCUS_SETTINGS
+    self.content = self._settingsContent
+    self._listView = self:_getActivePage().list
+    self.index = self:_getPageSession(self._activePageIndex).index
+    self:_restorePageScroll()
+    self._oldIndex = self.index
+    self._ensureSelectionVisibleRequested = true
+    self:_refreshControlActivity()
+    self:requestKeyboardFocusAtCursor()
+end
+
+---@param playSound boolean
+function ConfigWindow:_focusTabs(playSound)
+    if self._focusLevel == _FOCUS_SETTINGS then
+        self:_savePageSession()
+    end
+    if playSound then
+        ManagerFunctions.playSE(GameSystem.getCancelSE())
+    end
+    self:_detachSelectionRect()
+    self._focusLevel = _FOCUS_TABS
+    self.content = self._windowContent
+    self._listView = self._tabList
+    self.index = self._activePageIndex
+    self._oldIndex = self.index
+    self._ensureSelectionVisibleRequested = true
+    self:_restorePageScroll()
+    self:_refreshControlActivity()
+    if self._open then
+        self:requestKeyboardFocusAtCursor()
+    end
+end
+
+function ConfigWindow:_detachSelectionRect()
+    local parent = self._rect:getParent()
+    if parent ~= nil then
+        ---@cast parent Engine.Canvas
+        parent:removeChild(self._rect)
+    end
+end
+
+function ConfigWindow:_refreshControlActivity()
+    local windowActive = self._open and self:getActive()
+    local tabsActive = windowActive and self._focusLevel == _FOCUS_TABS
+    self._tabList:setActive(tabsActive)
+    for _, child in ipairs(self._tabList:getChildren()) do
+        ---@cast child Engine.ControlBase & Engine.FunctionalBase
+        child:setActive(tabsActive)
+    end
+    for pageIndex = 0, self._ui:getPageCount() - 1 do
+        local page = self._ui:getPage(pageIndex)
+        local active = windowActive and self._focusLevel == _FOCUS_SETTINGS and pageIndex == self._activePageIndex
+        page.list:setActive(active)
+        self._ui:setPageRowsActive(pageIndex, active)
+    end
 end
 
 return class(ConfigWindow, WindowSelectable)

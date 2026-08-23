@@ -105,6 +105,34 @@ public:
     BIND_METHOD()
     static void saveMaximumRenderScale(float value);
 
+    ////////////////////////////////////////////////////////////
+    /// \brief Get the configured lighting render scale
+    ///
+    /// The supported values are 0.5, 0.75 and 1.0. Other values are
+    /// normalised to one.
+    ///
+    /// - \return The configured lighting render scale
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
+    static float getLightingRenderScale();
+    ////////////////////////////////////////////////////////////
+    /// \brief Apply and save a lighting render scale
+    ///
+    /// - \param value Lighting render scale
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
+    static void setLightingRenderScale(float value);
+    ////////////////////////////////////////////////////////////
+    /// \brief Save a lighting render scale without applying it
+    ///
+    /// - \param value Lighting render scale
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
+    static void saveLightingRenderScale(float value);
+
     BIND_METHOD()
     static int getFrameRate();
     BIND_METHOD()
@@ -181,6 +209,7 @@ private:
     static std::string resolveLanguage(const std::string& language);
     static float normalizeScale(float scale);
     static float normalizeMaximumRenderScale(float scale);
+    static float normalizeLightingRenderScale(float scale);
     static int normalizeAntiAliasingLevel(std::int64_t level);
     static float clampVolume(float volume);
 
@@ -190,6 +219,7 @@ private:
     static std::string language_;
     static float scale_;
     static float maximumRenderScale_;
+    static float lightingRenderScale_;
     static int frameRate_;
     static int antiAliasingLevel_;
     static bool verticalSync_;

@@ -25,6 +25,30 @@
             <Setter Property="IsVisible" Value="{Binding IsVisible}" />
             <Setter Property="IsExpanded" Value="True" />
         </Style>
+        <Style Selector="TabStrip.documentSections">
+            <Setter Property="Background" Value="#1f1f1f" />
+        </Style>
+        <Style Selector="TabStrip.documentSections > TabStripItem">
+            <Setter Property="Height" Value="38" />
+            <Setter Property="MinWidth" Value="112" />
+            <Setter Property="Padding" Value="16,0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#ffffff" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0,0,0,2" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TabStrip.documentSections > TabStripItem:pointerover">
+            <Setter Property="Foreground" Value="{DynamicResource LudorkPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource LudorkPrimaryBrush}" />
+        </Style>
+        <Style Selector="TabStrip.documentSections > TabStripItem:selected">
+            <Setter Property="Foreground" Value="{DynamicResource LudorkPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource LudorkPrimaryBrush}" />
+        </Style>
         <Style Selector="Button.markdownHeading">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Foreground" Value="#ffffff" />
@@ -45,8 +69,25 @@
             <Setter Property="Foreground" Value="#b3ddff" />
         </Style>
     </Window.Styles>
-    <Grid Margin="8" RowDefinitions="Auto,8,*">
-        <Grid ColumnDefinitions="Auto,52,*">
+    <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,8,*">
+        <ScrollViewer x:Name="SectionTabsScrollViewer"
+                      Grid.Row="0"
+                      Background="#1f1f1f"
+                      HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Disabled">
+            <TabStrip x:Name="SectionTabs"
+                      Classes="documentSections"
+                      HorizontalAlignment="Left"
+                      SelectionChanged="onSectionSelectionChanged">
+                <TabStrip.ItemTemplate>
+                    <DataTemplate DataType="local:MarkdownDocumentSection">
+                        <TextBlock Text="{Binding DisplayName}" TextWrapping="NoWrap" />
+                    </DataTemplate>
+                </TabStrip.ItemTemplate>
+            </TabStrip>
+        </ScrollViewer>
+        <Border x:Name="SectionTabsGap" Grid.Row="1" Height="8" />
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,52,*">
             <TextBox x:Name="SearchBox"
                      Classes="docSearch"
                      PlaceholderText="Search"
@@ -56,7 +97,7 @@
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center" />
         </Grid>
-        <Grid Grid.Row="2" ColumnDefinitions="2*,8,8*">
+        <Grid Grid.Row="4" ColumnDefinitions="2*,8,8*">
             <TreeView x:Name="DocumentTree"
                       Grid.Column="0"
                       SelectionChanged="onDocumentSelectionChanged">

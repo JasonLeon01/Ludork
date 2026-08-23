@@ -11,12 +11,12 @@ local DEFAULT_DISPLAY_SCALE = 1.0
 local DEFAULT_MAXIMUM_RENDER_SCALE = 2.0
 local DISPLAY_SCALE_EPSILON = 0.0001
 local DISPLAY_SCALE_PRESETS = { 0.0, 1.0, 1.25, 1.5, 1.75, 2.0, 3.0, 4.0 }
-local MAXIMUM_RENDER_SCALE_PRESETS = { 1.0, 1.5, 2.0, 3.0, 4.0, 0.0 }
+local MAXIMUM_RENDER_SCALE_PRESETS = { 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 0.0 }
 local DEFAULT_MAIN_ITEMS = {
     { "script", "Scripts/Entry.lua" }, { "language", DEFAULT_LANGUAGE }, { "framerate", "30" },
     { "maxrenderscale", "2.0" }, { "antialiasinglevel", tostring(System.getAntiAliasingLevel()) },
-    { "verticalsync", "true" }, { "musicon", "true" }, { "soundon", "true" }, { "voiceon", "true" },
-    { "musicvolume", "100.00" }, { "soundvolume", "100.00" }, { "voicevolume", "100.00" }
+    { "lightingrenderscale", "1.0" }, { "verticalsync", "true" }, { "musicon", "true" }, { "soundon", "true" },
+    { "voiceon", "true" }, { "musicvolume", "100.00" }, { "soundvolume", "100.00" }, { "voicevolume", "100.00" }
 }
 
 MainConfig.SupportedLanguages = { "en_GB", "zh_CN" }

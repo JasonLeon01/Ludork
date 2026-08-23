@@ -1,7 +1,4 @@
-local Engine = require("Engine")
 local UiController = require("Source.UI.UiController")
-
-local ListView = Engine.ListView
 
 local ConfigRowControllerBase = {}
 
@@ -54,17 +51,6 @@ function ConfigRowControllerBase:onTick(deltaTime)
     local _deltaTime = deltaTime
 
     self.root:render()
-end
-
-function ConfigRowControllerBase:setRowHeight(rowHeight)
-    self._rowHeight = math.max(1, math.ceil(rowHeight))
-    self.view:reflow(sf.Vector2u.new(self._rowWidth, self._rowHeight))
-    self.root:render()
-    local parent = self.root:getParent()
-    if Class.isInstance(parent, ListView) then
-        parent:invalidatePositions()
-        parent:applyPositions()
-    end
 end
 
 return class(ConfigRowControllerBase, UiController)

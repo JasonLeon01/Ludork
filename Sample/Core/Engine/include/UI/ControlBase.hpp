@@ -17,6 +17,7 @@
 #include <vector>
 
 class ControlBase;
+class Canvas;
 class FunctionalBase;
 
 class ControlBaseSharedOwner
@@ -145,9 +146,14 @@ protected:
                       sf::RenderStates states) const override;
 
 private:
+    friend class Canvas;
     friend class FunctionalBase;
 
     static void resetFunctionalInteractions(ControlBase& control);
+
+    virtual bool _hasOverlay() const;
+    virtual void _drawOverlay(sf::RenderTarget& target,
+                              sf::RenderStates states) const;
 
     bool visible_ = true;
     std::string name_;

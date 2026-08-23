@@ -1,6 +1,6 @@
 ---@meta Source.UI.Parts.ConfigWindow.ConfigRow
 
----@class Source.UI.Parts.ConfigWindow.ConfigRow.ConfigRowControllerBase : Source.UI.UiController
+---@class Source.UI.Parts.ConfigWindow.ConfigRow.ConfigRowControllerBase: Source.UI.UiController
 local ConfigRowControllerBase = {}
 
 ---@param model     any
@@ -34,8 +34,5 @@ function ConfigRowControllerBase:getLocalBounds() end
 
 ---@param deltaTime number
 function ConfigRowControllerBase:onTick(deltaTime) end
-
----@param rowHeight number
-function ConfigRowControllerBase:setRowHeight(rowHeight) end
 
 return ConfigRowControllerBase

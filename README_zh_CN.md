@@ -22,7 +22,7 @@ Ludork 是一款面向 2D 角色扮演游戏创作的游戏编辑器与原生运
 | Ludork 编辑器 | macOS 13.3 或更高版本，Apple Silicon | 以原生 `.app` 应用包发布。 |
 | 桌面游戏工程 | Windows 10 或更高版本，x64；或 macOS 13.3 或更高版本，Apple Silicon | 新工程使用与编辑器宿主平台对应的模板。 |
 | iOS 游戏工程 | iOS 15.0 或更高版本，arm64 | 打包需要 C++ Source 工程、Apple Silicon macOS、完整 Xcode 与 Apple 开发签名。 |
-| HarmonyOS 游戏工程 | HarmonyOS 6.0.1 / API 21 或更高版本，arm64-v8a | Mobile HAP 打包需要 C++ Source 工程、Apple Silicon macOS 与 DevEco Studio。 |
+| HarmonyOS 游戏工程 | HarmonyOS 6.0.2 / API 22 或更高版本，arm64-v8a | Mobile HAP 打包需要 C++ Source 工程、Apple Silicon macOS 与 DevEco Studio。 |
 | Android 游戏工程 | Android 7.0 / API 24 或更高版本，arm64-v8a | APK 打包需要 C++ Source 工程、Apple Silicon macOS、Android Studio、SDK Platform 36、Build Tools 36.0.0、Android NDK r27 或更高版本，以及本机 CMake 3.28 或更高版本。默认输出未签名 APK，也可使用已有 JKS 或 PKCS12 keystore 进行可选签名。 |
 
 Ludork 1.0.0 不提供 Linux 或 Intel Mac 编辑器安装包。

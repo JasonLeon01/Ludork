@@ -148,6 +148,12 @@ void ControlBase::resetFunctionalInteractions(ControlBase& control) {
     }
 }
 
+bool ControlBase::_hasOverlay() const {
+    return false;
+}
+
+void ControlBase::_drawOverlay(sf::RenderTarget&, sf::RenderStates) const {}
+
 sf::Transform ControlBase::_getScreenTransform() const {
     sf::Transform transform = getTransform();
     const std::shared_ptr<ControlBase> parent = getParent();

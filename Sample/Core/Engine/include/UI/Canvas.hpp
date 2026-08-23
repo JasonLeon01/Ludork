@@ -124,6 +124,10 @@ private:
     };
 
     static std::shared_ptr<sf::Texture> placeholderTexture();
+    bool hasCanvasAncestor() const;
+    void appendOverlayNode(const std::shared_ptr<ControlBase>& node);
+    void buildOverlayQueue();
+    void drawOverlays();
     void bindCanvasTexture();
 
     sf::IntRect inRect_;
@@ -131,6 +135,7 @@ private:
     std::shared_ptr<sf::RenderTexture> canvas_;
     std::vector<std::shared_ptr<ControlBase>> children_;
     std::vector<RenderEntry> renderQueue_;
+    std::vector<std::shared_ptr<ControlBase>> overlayQueue_;
     std::vector<std::shared_ptr<AnimSprite>> animations_;
     int zOrder_ = 0;
     float displayScale_ = 1.0f;

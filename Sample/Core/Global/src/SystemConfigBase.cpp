@@ -20,6 +20,7 @@ std::string SystemConfigBase::script_ = "Scripts/Entry.lua";
 std::string SystemConfigBase::language_ = "en_GB";
 float SystemConfigBase::scale_ = 1.0f;
 float SystemConfigBase::maximumRenderScale_ = 2.0f;
+float SystemConfigBase::lightingRenderScale_ = 1.0f;
 int SystemConfigBase::frameRate_ = 30;
 int SystemConfigBase::antiAliasingLevel_ =
     static_cast<int>(sf::ContextSettings{}.antiAliasingLevel);
@@ -63,6 +64,8 @@ void SystemConfigBase::init(
     maximumRenderScale_ = normalizeMaximumRenderScale(
         static_cast<float>(data_->getFloat("Main", "maxrenderscale")
                                .value_or(maximumRenderScale_)));
+    lightingRenderScale_ = normalizeLightingRenderScale(static_cast<float>(
+        data_->getFloat("Main", "lightingrenderscale").value_or(1.0)));
     frameRate_ = static_cast<int>(
         data_->getInt("Main", "frameRate").value_or(frameRate_));
     antiAliasingLevel_ =
@@ -141,6 +144,19 @@ void SystemConfigBase::setMaximumRenderScale(float value) {
 void SystemConfigBase::saveMaximumRenderScale(float value) {
     setIniData("maxrenderscale",
                numberText(normalizeMaximumRenderScale(value)));
+}
+
+float SystemConfigBase::getLightingRenderScale() {
+    return lightingRenderScale_;
+}
+void SystemConfigBase::setLightingRenderScale(float value) {
+    lightingRenderScale_ = normalizeLightingRenderScale(value);
+    saveLightingRenderScale(lightingRenderScale_);
+    afterConfigChanged("lightingRenderScale");
+}
+void SystemConfigBase::saveLightingRenderScale(float value) {
+    setIniData("lightingrenderscale",
+               numberText(normalizeLightingRenderScale(value)));
 }
 
 int SystemConfigBase::getFrameRate() {
@@ -265,6 +281,7 @@ void SystemConfigBase::shutdown() noexcept {
     language_ = "en_GB";
     scale_ = 1.0f;
     maximumRenderScale_ = 2.0f;
+    lightingRenderScale_ = 1.0f;
     frameRate_ = 30;
     antiAliasingLevel_ =
         static_cast<int>(sf::ContextSettings{}.antiAliasingLevel);
@@ -305,6 +322,13 @@ float SystemConfigBase::normalizeScale(float scale) {
 
 float SystemConfigBase::normalizeMaximumRenderScale(float scale) {
     return std::isfinite(scale) && scale >= 0.0f ? scale : 2.0f;
+}
+
+float SystemConfigBase::normalizeLightingRenderScale(float scale) {
+    if (scale == 0.5f || scale == 0.75f || scale == 1.0f) {
+        return scale;
+    }
+    return 1.0f;
 }
 
 int SystemConfigBase::normalizeAntiAliasingLevel(std::int64_t level) {

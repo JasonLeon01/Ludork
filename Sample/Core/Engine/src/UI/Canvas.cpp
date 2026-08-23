@@ -164,6 +164,10 @@ void Canvas::render() {
             canvas_->draw(*animation, _getAnimRenderStates());
         }
     }
+    if (!hasCanvasAncestor()) {
+        buildOverlayQueue();
+        drawOverlays();
+    }
     canvas_->display();
 }
 
@@ -281,6 +285,52 @@ sf::RenderStates Canvas::_getAnimRenderStates() const {
 
 std::shared_ptr<sf::Texture> Canvas::placeholderTexture() {
     return std::make_shared<sf::Texture>();
+}
+
+bool Canvas::hasCanvasAncestor() const {
+    std::shared_ptr<ControlBase> parent = getParent();
+    while (parent != nullptr) {
+        if (dynamic_cast<Canvas*>(parent.get()) != nullptr) {
+            return true;
+        }
+        parent = parent->getParent();
+    }
+    return false;
+}
+
+void Canvas::appendOverlayNode(const std::shared_ptr<ControlBase>& node) {
+    ListView* listView = dynamic_cast<ListView*>(node.get());
+    if (listView != nullptr) {
+        listView->applyPositions();
+    }
+    if (node->_hasOverlay()) {
+        overlayQueue_.push_back(node);
+    }
+    const std::vector<std::shared_ptr<ControlBase>> children =
+        node->getChildren();
+    for (const std::shared_ptr<ControlBase>& child : children) {
+        if (child != nullptr && child->getVisible()) {
+            appendOverlayNode(child);
+        }
+    }
+}
+
+void Canvas::buildOverlayQueue() {
+    overlayQueue_.clear();
+    for (const std::shared_ptr<ControlBase>& child : children_) {
+        if (child != nullptr && child->getVisible()) {
+            appendOverlayNode(child);
+        }
+    }
+}
+
+void Canvas::drawOverlays() {
+    const sf::Transform hostInverse = screenRenderTransform().getInverse();
+    for (const std::shared_ptr<ControlBase>& node : overlayQueue_) {
+        sf::RenderStates states = node->getRenderStates();
+        states.transform = hostInverse * node->screenRenderTransform();
+        node->_drawOverlay(*canvas_, states);
+    }
 }
 
 void Canvas::bindCanvasTexture() {

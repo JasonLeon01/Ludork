@@ -22,7 +22,7 @@ Ludork is a game editor and native runtime for creating 2D role-playing games. I
 | Ludork editor | macOS 13.3 or newer, Apple Silicon | Distributed as a native `.app` bundle. |
 | Desktop game projects | Windows 10 or newer, x64; or macOS 13.3 or newer, Apple Silicon | A project is created from the template for the editor's host platform. |
 | iOS game projects | iOS 15.0 or newer, arm64 | Packaging requires a C++ Source project, Apple Silicon macOS, full Xcode, and Apple development signing. |
-| HarmonyOS game projects | HarmonyOS 6.0.1 / API 21 or newer, arm64-v8a | Mobile HAP packaging requires a C++ Source project, Apple Silicon macOS, and DevEco Studio. |
+| HarmonyOS game projects | HarmonyOS 6.0.2 / API 22 or newer, arm64-v8a | Mobile HAP packaging requires a C++ Source project, Apple Silicon macOS, and DevEco Studio. |
 | Android game projects | Android 7.0 / API 24 or newer, arm64-v8a | APK packaging requires a C++ Source project, Apple Silicon macOS, Android Studio, SDK Platform 36, Build Tools 36.0.0, Android NDK r27 or newer, and host CMake 3.28 or newer. Output is unsigned by default and may optionally be signed with an existing JKS or PKCS12 keystore. |
 
 Linux and Intel-based macOS editor packages are not provided in Ludork 1.0.0.

@@ -2,9 +2,12 @@
 
 #include <Input/InputService.hpp>
 #include <Runtime/EngineState.hpp>
+#include <UI/Canvas.hpp>
 #include <UI/Rect.hpp>
 #include <UI/UiAudioService.hpp>
 #include <UI/Window.hpp>
+#include <Utils/Math.hpp>
+#include <Utils/Render.hpp>
 
 #include <LudorkPlatform.hpp>
 
@@ -23,6 +26,9 @@ constexpr float RepeatInterval = 0.1f;
 constexpr float ItemHorizontalInset = 32.0f;
 constexpr float CollapsedTextInset = 8.0f;
 constexpr float ExpandedContentTop = 16.0f;
+constexpr float WheelScrollResponse = 18.0f;
+constexpr float WheelScrollEpsilon = 0.01f;
+constexpr float GeometryEpsilon = 0.001f;
 
 #if defined(LUDORK_MOBILE)
 constexpr bool MobilePlatform = true;
@@ -38,6 +44,36 @@ std::optional<double> numericValue(const RuntimeValue& value) {
         return static_cast<double>(*result);
     }
     return std::nullopt;
+}
+
+bool nearlyEqual(float left, float right) {
+    return std::abs(left - right) <= GeometryEpsilon;
+}
+
+sf::FloatRect intersectRects(const sf::FloatRect& left,
+                             const sf::FloatRect& right) {
+    const float minX = std::max(left.position.x, right.position.x);
+    const float minY = std::max(left.position.y, right.position.y);
+    const float maxX = std::min(left.position.x + left.size.x,
+                                right.position.x + right.size.x);
+    const float maxY = std::min(left.position.y + left.size.y,
+                                right.position.y + right.size.y);
+    return {{minX, minY},
+            {std::max(0.0f, maxX - minX), std::max(0.0f, maxY - minY)}};
+}
+
+sf::FloatRect canvasContentScreenBounds(const Canvas& canvas) {
+    sf::Transform transform = canvas.screenRenderTransform();
+    const sf::Vector2f scrollOffset =
+        canvas.getDefaultView().getCenter() - canvas.getView().getCenter();
+    transform.translate(-scrollOffset * Scale);
+    const sf::IntRect contentRect = canvas.getContentRect();
+    const sf::FloatRect scaledContent(
+        sf::Vector2f(contentRect.position) * Scale,
+        sf::Vector2f(std::max(0, contentRect.size.x),
+                     std::max(0, contentRect.size.y)) *
+            Scale);
+    return transform.transformRect(scaledContent);
 }
 
 }  // namespace
@@ -62,29 +98,28 @@ DropBox::DropBox(const sf::Vector2f& collapsedSize, const sf::Image& windowSkin,
 DropBox::~DropBox() = default;
 
 sf::Vector2f DropBox::getSize() const {
-    return expanded_ ? sf::Vector2f(collapsedSize_.x, expandedHeight())
-                     : collapsedSize_;
-}
-
-sf::Vector2f DropBox::getCollapsedSize() const {
     return collapsedSize_;
 }
 
-void DropBox::resize(const sf::Vector2f& size) {
-    setCollapsedSize(size);
+sf::FloatRect DropBox::getLocalBounds() const {
+    if (!expanded_) {
+        return {{0.0f, 0.0f}, collapsedSize_};
+    }
+    syncPopupGeometry(false);
+    const float minY = std::min(0.0f, popupGeometry_.positionY);
+    const float maxY = std::max(
+        collapsedSize_.y, popupGeometry_.positionY + popupGeometry_.height);
+    return {{0.0f, minY}, {collapsedSize_.x, maxY - minY}};
 }
 
-void DropBox::setCollapsedSize(const sf::Vector2f& size) {
+void DropBox::resize(const sf::Vector2f& size) {
     const sf::Vector2f normalized = normalizedSize(size);
     if (normalized == collapsedSize_) {
         return;
     }
-    const sf::Vector2f previousSize = getSize();
     collapsedSize_ = normalized;
+    popupGeometryInitialized_ = false;
     markVisualsDirty();
-    if (layoutChangedCallback_ && getSize() != previousSize) {
-        layoutChangedCallback_();
-    }
 }
 
 void DropBox::setWindowSkin(const sf::Image& windowSkin, bool repeated) {
@@ -106,13 +141,14 @@ std::vector<std::string> DropBox::getItems() const {
 }
 
 void DropBox::setItems(const std::vector<std::string>& items) {
-    const sf::Vector2f previousSize = getSize();
     items_ = items;
     selectedIndex_ = clampedIndex(selectedIndex_);
     cursorIndex_ = selectedIndex_;
+    scrollTargetOffset_.reset();
+    popupGeometryInitialized_ = false;
     markVisualsDirty();
-    if (layoutChangedCallback_ && getSize() != previousSize) {
-        layoutChangedCallback_();
+    if (expanded_) {
+        syncPopupGeometry(true);
     }
 }
 
@@ -128,6 +164,10 @@ void DropBox::setSelectedIndex(int index) {
     selectedIndex_ = selectedIndex;
     cursorIndex_ = selectedIndex_;
     markVisualsDirty();
+    if (expanded_) {
+        syncPopupGeometry(false);
+        ensureCursorVisible();
+    }
     if (selectedIndexChangedCallback_) {
         selectedIndexChangedCallback_(selectedIndex_);
     }
@@ -173,10 +213,6 @@ void DropBox::setOnExpandedChanged(std::function<void(bool)> callback) {
     expandedChangedCallback_ = std::move(callback);
 }
 
-void DropBox::setOnLayoutChanged(std::function<void()> callback) {
-    layoutChangedCallback_ = std::move(callback);
-}
-
 void DropBox::setOpenSound(const std::string& filename) {
     openSound_ = filename;
 }
@@ -210,6 +246,10 @@ const std::string& DropBox::getCancelSound() const {
 }
 
 void DropBox::update(float deltaTime) {
+    if (expanded_) {
+        syncPopupGeometry(false);
+        updateWheelScroll(deltaTime);
+    }
     ensureVisuals();
     if (expanded_ && selectionRect_ != nullptr && !items_.empty()) {
         selectionRect_->update(deltaTime);
@@ -267,8 +307,15 @@ bool DropBox::onMouseButtonDown(const RuntimeValue::Map& arguments) {
 
 void DropBox::onMouseMoved(const RuntimeValue::Map& arguments) {
     const std::optional<sf::Vector2f> position = pointerPosition(arguments);
-    if (expanded_ && position.has_value() &&
-        !(MobilePlatform && hasTouchCapture())) {
+    if (expanded_ && position.has_value() && MobilePlatform &&
+        hasTouchCapture()) {
+        if (inputService().isTouchDragged()) {
+            scrollTargetOffset_.reset();
+            const float localDelta = toLocalPosition(*position).y -
+                                     toLocalPosition(touchStartPosition_).y;
+            setScrollOffset(touchStartScrollOffset_ - localDelta);
+        }
+    } else if (expanded_ && position.has_value()) {
         const std::optional<int> index =
             itemIndexAt(toLocalPosition(*position));
         if (index.has_value()) {
@@ -287,12 +334,22 @@ void DropBox::onMouseWheelScrolled(const RuntimeValue::Map& arguments) {
     const auto iterator = arguments.find("delta");
     if (expanded_ && iterator != arguments.end()) {
         const std::optional<double> delta = numericValue(iterator->second);
-        const int offset = delta.has_value() && *delta > 0.0   ? -1
-                           : delta.has_value() && *delta < 0.0 ? 1
-                                                               : 0;
-        if (offset != 0 && moveCursor(offset, false)) {
+        const std::optional<sf::Mouse::Wheel> wheel =
+            inputService().getMouseScrolledWheel();
+        if (delta.has_value() && *delta != 0.0 &&
+            (!wheel.has_value() || *wheel == sf::Mouse::Wheel::Vertical)) {
+            syncPopupGeometry(false);
+            if (inputService().isMouseWheelPrecise()) {
+                scrollTargetOffset_.reset();
+                setScrollOffset(scrollOffset_ - static_cast<float>(*delta) /
+                                                    std::max(Scale, 0.000001f));
+            } else {
+                const float target =
+                    scrollTargetOffset_.value_or(scrollOffset_) -
+                    static_cast<float>(*delta) * RowHeight;
+                setScrollTargetOffset(target);
+            }
             requestKeyboardFocus();
-            playUiSound(cursorSound_);
         }
     }
     FunctionalBase::onMouseWheelScrolled(arguments);
@@ -345,18 +402,17 @@ void DropBox::draw(sf::RenderTarget& target, sf::RenderStates states) const {
     }
     ensureVisuals();
     _applyRenderStates(states);
-    if (!expanded_) {
-        target.draw(*collapsedFrame_, states);
-        target.draw(*collapsedText_, states);
-        return;
+    target.draw(*collapsedFrame_, states);
+    target.draw(*collapsedText_, states);
+    if (expanded_ && !hasCanvasAncestor()) {
+        _drawOverlay(target, states);
     }
-    target.draw(*expandedWindow_, states);
-    if (!items_.empty()) {
-        target.draw(*selectionRect_, states);
-    }
-    for (const std::unique_ptr<PlainText>& text : itemTexts_) {
-        target.draw(*text, states);
-    }
+}
+
+void DropBox::onTouchCaptureBegan(const sf::Vector2f& position) {
+    touchStartPosition_ = position;
+    touchStartScrollOffset_ = scrollOffset_;
+    scrollTargetOffset_.reset();
 }
 
 sf::Vector2f DropBox::normalizedSize(const sf::Vector2f& size) {
@@ -420,25 +476,160 @@ float DropBox::expandedHeight() const {
                static_cast<float>(std::max<std::size_t>(items_.size(), 1U));
 }
 
+DropBox::PopupGeometry DropBox::calculatePopupGeometry() const {
+    const sf::FloatRect screenBounds({0.0f, 0.0f},
+                                     toVector2f(GameSize) * Scale);
+    sf::FloatRect constraint = screenBounds;
+    std::shared_ptr<ControlBase> parent = getParent();
+    std::shared_ptr<Canvas> host;
+    while (parent != nullptr) {
+        if (const std::shared_ptr<Canvas> canvas =
+                std::dynamic_pointer_cast<Canvas>(parent)) {
+            host = canvas;
+        }
+        parent = parent->getParent();
+    }
+    if (host != nullptr) {
+        constraint =
+            intersectRects(constraint, canvasContentScreenBounds(*host));
+    }
+
+    PopupGeometry result;
+    if (constraint.size.x <= 0.0f || constraint.size.y <= 0.0f) {
+        return result;
+    }
+    const sf::FloatRect collapsedScreenBounds =
+        screenRenderTransform().transformRect(
+            {{0.0f, 0.0f}, collapsedSize_ * Scale});
+    const sf::FloatRect visibleAnchor =
+        intersectRects(collapsedScreenBounds, constraint);
+    if (visibleAnchor.size.x <= 0.0f || visibleAnchor.size.y <= 0.0f) {
+        return result;
+    }
+
+    const sf::FloatRect localConstraint =
+        screenRenderTransform().getInverse().transformRect(constraint);
+    const float constraintTop = localConstraint.position.y / Scale;
+    const float constraintBottom =
+        (localConstraint.position.y + localConstraint.size.y) / Scale;
+    const float naturalHeight = expandedHeight();
+    const float downwardTop = std::max(0.0f, constraintTop);
+    const float upwardBottom = std::min(collapsedSize_.y, constraintBottom);
+    const float downwardSpace = std::max(0.0f, constraintBottom - downwardTop);
+    const float upwardSpace = std::max(0.0f, upwardBottom - constraintTop);
+
+    bool upward = false;
+    if (naturalHeight <= downwardSpace) {
+        result.positionY = downwardTop;
+        result.height = naturalHeight;
+    } else if (naturalHeight <= upwardSpace) {
+        upward = true;
+        result.height = naturalHeight;
+    } else if (downwardSpace >= upwardSpace) {
+        result.positionY = downwardTop;
+        result.height = std::min(naturalHeight, downwardSpace);
+    } else {
+        upward = true;
+        result.height = std::min(naturalHeight, upwardSpace);
+    }
+    result.height = std::floor(result.height);
+    if (upward) {
+        result.positionY = upwardBottom - result.height;
+    }
+    result.contentHeight = std::max(0.0f, result.height - ExpandedBorderHeight);
+    const float itemContentHeight =
+        RowHeight *
+        static_cast<float>(std::max<std::size_t>(items_.size(), 1U));
+    result.maxScrollOffset =
+        std::max(0.0f, itemContentHeight - result.contentHeight);
+    return result;
+}
+
+void DropBox::syncPopupGeometry(bool ensureCursor) const {
+    const PopupGeometry geometry = calculatePopupGeometry();
+    const bool changed =
+        !popupGeometryInitialized_ ||
+        !nearlyEqual(popupGeometry_.positionY, geometry.positionY) ||
+        !nearlyEqual(popupGeometry_.height, geometry.height) ||
+        !nearlyEqual(popupGeometry_.contentHeight, geometry.contentHeight) ||
+        !nearlyEqual(popupGeometry_.maxScrollOffset, geometry.maxScrollOffset);
+    popupGeometry_ = geometry;
+    popupGeometryInitialized_ = true;
+    clampScrollOffsets();
+    if (changed || ensureCursor) {
+        ensureCursorVisible();
+    }
+}
+
+void DropBox::clampScrollOffsets() const {
+    scrollOffset_ =
+        std::clamp(scrollOffset_, 0.0f, popupGeometry_.maxScrollOffset);
+    if (scrollTargetOffset_.has_value()) {
+        *scrollTargetOffset_ = std::clamp(*scrollTargetOffset_, 0.0f,
+                                          popupGeometry_.maxScrollOffset);
+    }
+}
+
+void DropBox::setScrollOffset(float offset) const {
+    scrollOffset_ = std::clamp(offset, 0.0f, popupGeometry_.maxScrollOffset);
+}
+
+void DropBox::setScrollTargetOffset(float offset) const {
+    scrollTargetOffset_ =
+        std::clamp(offset, 0.0f, popupGeometry_.maxScrollOffset);
+}
+
+void DropBox::updateWheelScroll(float deltaTime) const {
+    if (!scrollTargetOffset_.has_value()) {
+        return;
+    }
+    const float distance = *scrollTargetOffset_ - scrollOffset_;
+    if (std::abs(distance) <= WheelScrollEpsilon) {
+        setScrollOffset(*scrollTargetOffset_);
+        scrollTargetOffset_.reset();
+        return;
+    }
+    const float factor =
+        1.0f - std::exp(-WheelScrollResponse * std::max(0.0f, deltaTime));
+    setScrollOffset(scrollOffset_ + distance * factor);
+}
+
+void DropBox::ensureCursorVisible() const {
+    scrollTargetOffset_.reset();
+    if (items_.empty() || popupGeometry_.contentHeight <= 0.0f) {
+        setScrollOffset(scrollOffset_);
+        return;
+    }
+    const float itemTop = RowHeight * static_cast<float>(cursorIndex_);
+    const float itemBottom = itemTop + RowHeight;
+    float offset = scrollOffset_;
+    if (itemTop < offset) {
+        offset = itemTop;
+    } else if (itemBottom > offset + popupGeometry_.contentHeight) {
+        offset = itemBottom - popupGeometry_.contentHeight;
+    }
+    setScrollOffset(offset);
+}
+
 void DropBox::setExpandedState(bool expanded) {
     if (expanded_ == expanded) {
         return;
     }
-    const sf::Vector2f previousSize = getSize();
     expanded_ = expanded;
     if (expanded_) {
         previousCanReceiveFocus_ = getCanReceiveFocus();
         focusabilityOverridden_ = true;
         setCanReceiveFocus(true);
         cursorIndex_ = selectedIndex_;
+        scrollOffset_ = 0.0f;
+        scrollTargetOffset_.reset();
+        popupGeometryInitialized_ = false;
+        syncPopupGeometry(true);
     } else if (focusabilityOverridden_) {
         setCanReceiveFocus(previousCanReceiveFocus_);
         focusabilityOverridden_ = false;
     }
     updateSelectionVisual();
-    if (layoutChangedCallback_ && getSize() != previousSize) {
-        layoutChangedCallback_();
-    }
     if (!expanded_) {
         restoreParentFocus();
     }
@@ -479,6 +670,8 @@ bool DropBox::moveCursor(int offset, bool wrap) {
         return false;
     }
     cursorIndex_ = index;
+    syncPopupGeometry(false);
+    ensureCursorVisible();
     updateSelectionVisual();
     return true;
 }
@@ -491,8 +684,7 @@ bool DropBox::handlePointerAction(const sf::Vector2f& screenPosition,
         return true;
     }
     const sf::Vector2f localPosition = toLocalPosition(screenPosition);
-    const sf::Vector2f size = getSize();
-    if (!sf::FloatRect({0.0f, 0.0f}, size).contains(localPosition)) {
+    if (!getLocalBounds().contains(localPosition)) {
         return false;
     }
     const int leftButton = static_cast<int>(sf::Mouse::Button::Left);
@@ -530,13 +722,15 @@ std::optional<int> DropBox::itemIndexAt(
     if (localPosition.x < inset || localPosition.x > collapsedSize_.x - inset) {
         return std::nullopt;
     }
-    const float relativeY = localPosition.y - ExpandedContentTop;
-    if (relativeY < 0.0f) {
+    syncPopupGeometry(false);
+    const float viewportTop = popupGeometry_.positionY + ExpandedContentTop;
+    if (localPosition.y < viewportTop ||
+        localPosition.y >= viewportTop + popupGeometry_.contentHeight) {
         return std::nullopt;
     }
+    const float relativeY = localPosition.y - viewportTop + scrollOffset_;
     const int index = static_cast<int>(relativeY / RowHeight);
-    const int itemCount =
-        static_cast<int>(std::max<std::size_t>(items_.size(), 1U));
+    const int itemCount = static_cast<int>(items_.size());
     if (index < 0 || index >= itemCount) {
         return std::nullopt;
     }
@@ -547,6 +741,17 @@ sf::Vector2f DropBox::toLocalPosition(
     const sf::Vector2f& screenPosition) const {
     return screenRenderTransform().getInverse().transformPoint(screenPosition) /
            Scale;
+}
+
+bool DropBox::hasCanvasAncestor() const {
+    std::shared_ptr<ControlBase> parent = getParent();
+    while (parent != nullptr) {
+        if (dynamic_cast<Canvas*>(parent.get()) != nullptr) {
+            return true;
+        }
+        parent = parent->getParent();
+    }
+    return false;
 }
 
 void DropBox::restoreParentFocus() {
@@ -560,6 +765,37 @@ void DropBox::restoreParentFocus() {
         }
         parent = parent->getParent();
     }
+}
+
+bool DropBox::_hasOverlay() const {
+    if (!expanded_) {
+        return false;
+    }
+    syncPopupGeometry(false);
+    return popupGeometry_.height > 0.0f;
+}
+
+void DropBox::_drawOverlay(sf::RenderTarget& target,
+                           sf::RenderStates states) const {
+    if (!expanded_ || !getVisible()) {
+        return;
+    }
+    syncPopupGeometry(false);
+    if (popupGeometry_.height <= 0.0f) {
+        return;
+    }
+    ensurePopupVisuals();
+    expandedWindow_->setPosition({0.0f, popupGeometry_.positionY});
+    target.draw(*expandedWindow_, states);
+    if (popupGeometry_.contentHeight <= 0.0f ||
+        popupContentSprite_ == nullptr) {
+        return;
+    }
+    renderPopupContent();
+    states.blendMode = premultipliedRenderStates().blendMode;
+    states.transform.translate(
+        {0.0f, (popupGeometry_.positionY + ExpandedContentTop) * Scale});
+    target.draw(*popupContentSprite_, states);
 }
 
 void DropBox::markVisualsDirty() {
@@ -579,17 +815,13 @@ void DropBox::ensureVisuals() const {
 
 void DropBox::rebuildVisuals() const {
     const sf::Vector2i collapsedPixels = roundedSize(collapsedSize_);
-    const sf::Vector2i expandedPixels =
-        roundedSize({collapsedSize_.x, expandedHeight()});
     collapsedFrame_ = std::make_unique<Rect>(
         sf::IntRect({0, 0}, collapsedPixels), windowSkin_);
     collapsedText_ =
         std::make_unique<PlainText>(textConfig_, getSelectedItem());
-    expandedWindow_ = std::make_unique<Window>(
-        sf::IntRect({0, 0}, expandedPixels), windowSkin_, repeated_);
     const int selectionWidth = std::max(0, collapsedPixels.x - 64);
     selectionRect_ =
-        std::make_unique<Rect>(sf::IntRect({32, 16}, {selectionWidth, 32}),
+        std::make_unique<Rect>(sf::IntRect({32, 0}, {selectionWidth, 32}),
                                windowSkin_, Rect::SelectionRectOpacityCurveKey);
     itemTexts_.clear();
     itemTexts_.reserve(items_.size());
@@ -601,7 +833,74 @@ void DropBox::rebuildVisuals() const {
     }
     positionCollapsedText();
     updateSelectionVisual();
+    expandedWindow_.reset();
+    popupContentCanvas_.reset();
+    popupContentSprite_.reset();
+    popupWindowSize_ = {};
+    popupContentTextureSize_ = {};
     visualsDirty_ = false;
+}
+
+void DropBox::ensurePopupVisuals() const {
+    ensureVisuals();
+    const sf::Vector2i popupSize =
+        roundedSize({collapsedSize_.x, popupGeometry_.height});
+    const sf::Vector2u windowSize(static_cast<unsigned int>(popupSize.x),
+                                  static_cast<unsigned int>(popupSize.y));
+    if (expandedWindow_ == nullptr || popupWindowSize_ != windowSize) {
+        expandedWindow_ = std::make_unique<Window>(
+            sf::IntRect({0, 0}, popupSize), windowSkin_, repeated_);
+        popupWindowSize_ = windowSize;
+    }
+
+    const sf::Vector2u contentTextureSize(
+        static_cast<unsigned int>(
+            std::max(0L, std::lround(collapsedSize_.x * Scale))),
+        static_cast<unsigned int>(
+            std::max(0L, std::lround(popupGeometry_.contentHeight * Scale))));
+    if (contentTextureSize.x == 0U || contentTextureSize.y == 0U) {
+        popupContentCanvas_.reset();
+        popupContentSprite_.reset();
+        popupContentTextureSize_ = {};
+        return;
+    }
+    if (popupContentCanvas_ == nullptr ||
+        popupContentTextureSize_ != contentTextureSize) {
+        popupContentCanvas_ = std::make_unique<sf::RenderTexture>(
+            nonZeroRenderTextureSize(contentTextureSize));
+        popupContentSprite_ =
+            std::make_unique<sf::Sprite>(popupContentCanvas_->getTexture());
+        popupContentSprite_->setTextureRect(
+            {{0, 0},
+             {static_cast<int>(contentTextureSize.x),
+              static_cast<int>(contentTextureSize.y)}});
+        popupContentTextureSize_ = contentTextureSize;
+    }
+}
+
+void DropBox::renderPopupContent() const {
+    popupContentCanvas_->clear(sf::Color::Transparent);
+    sf::RenderStates states = canvasRenderStates();
+    states.transform.translate({0.0f, -scrollOffset_ * Scale});
+
+    const float viewportBottom = scrollOffset_ + popupGeometry_.contentHeight;
+    if (!items_.empty()) {
+        const float selectionTop = RowHeight * static_cast<float>(cursorIndex_);
+        if (selectionTop < viewportBottom &&
+            selectionTop + RowHeight > scrollOffset_) {
+            popupContentCanvas_->draw(*selectionRect_, states);
+        }
+        const int firstIndex = std::max(
+            0, static_cast<int>(std::floor(scrollOffset_ / RowHeight)));
+        const int lastIndex =
+            std::min(static_cast<int>(items_.size()),
+                     static_cast<int>(std::ceil(viewportBottom / RowHeight)));
+        for (int index = firstIndex; index < lastIndex; ++index) {
+            popupContentCanvas_->draw(
+                *itemTexts_[static_cast<std::size_t>(index)], states);
+        }
+    }
+    popupContentCanvas_->display();
 }
 
 void DropBox::updateSelectionVisual() const {
@@ -610,8 +909,7 @@ void DropBox::updateSelectionVisual() const {
     }
     selectionRect_->setVisible(expanded_ && !items_.empty());
     selectionRect_->setPosition(
-        {ItemHorizontalInset,
-         ExpandedContentTop + RowHeight * static_cast<float>(cursorIndex_)});
+        {ItemHorizontalInset, RowHeight * static_cast<float>(cursorIndex_)});
 }
 
 void DropBox::positionCollapsedText() const {
@@ -628,6 +926,6 @@ void DropBox::positionItemText(PlainText& text, int index) const {
     const sf::FloatRect bounds = text.getLocalBounds();
     text.setPosition(
         {(collapsedSize_.x - bounds.size.x) * 0.5f - bounds.position.x,
-         ExpandedContentTop + RowHeight * static_cast<float>(index) +
+         RowHeight * static_cast<float>(index) +
              (RowHeight - bounds.size.y) * 0.5f - bounds.position.y});
 }

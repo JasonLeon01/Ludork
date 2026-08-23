@@ -143,6 +143,36 @@ public:
     static void saveMaximumRenderScale(float value);
 
     ////////////////////////////////////////////////////////////
+    /// \brief Get the configured lighting render scale
+    ///
+    /// The supported values are 0.5, 0.75 and 1.0. Other values are
+    /// normalised to one.
+    ///
+    /// - \return The configured lighting render scale
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
+    static float getLightingRenderScale();
+    ////////////////////////////////////////////////////////////
+    /// \brief Apply and save a lighting render scale
+    ///
+    /// The lighting targets are rebuilt on the next map render.
+    ///
+    /// - \param value Lighting render scale
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
+    static void setLightingRenderScale(float value);
+    ////////////////////////////////////////////////////////////
+    /// \brief Save a lighting render scale without applying it
+    ///
+    /// - \param value Lighting render scale
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD()
+    static void saveLightingRenderScale(float value);
+
+    ////////////////////////////////////////////////////////////
     /// \brief Check whether the current host can apply display scale changes
     ///
     /// Standalone desktop windows support scale changes. Embedded displays and

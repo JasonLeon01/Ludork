@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -50,6 +51,8 @@ public partial class MarkdownPreviewWindow : Window
     private static readonly FontFamily codeFont = FontFamily.Parse("Cascadia Mono,Menlo,Monaco,Consolas");
     private bool singleFile;
     private readonly List<MarkdownDocumentEntry> entries = [];
+    private readonly List<MarkdownDocumentSection> sections = [];
+    private readonly Dictionary<MarkdownDocumentEntry, MarkdownDocumentSection> entrySections = [];
     private readonly List<MarkdownHeading> headings = [];
     private readonly List<Bitmap> renderedBitmaps = [];
     private readonly List<Image> renderedImages = [];
@@ -57,8 +60,11 @@ public partial class MarkdownPreviewWindow : Window
     private readonly Dictionary<string, int> headingAnchorCounts = new(StringComparer.Ordinal);
     private string documentRoot = string.Empty;
     private string imageRoot = string.Empty;
+    private IReadOnlyList<MarkdownDocumentEntry> documentRoots = [];
     private MarkdownDocumentEntry? selectedEntry;
+    private MarkdownDocumentSection? selectedSection;
     private bool changingSelection;
+    private bool changingSection;
     private int renderSerial;
 
     public MarkdownPreviewWindow()
@@ -79,8 +85,21 @@ public partial class MarkdownPreviewWindow : Window
             ? Path.GetDirectoryName(fullPath) ?? fullPath
             : fullPath;
         this.imageRoot = Path.GetFullPath(imageRoot);
-        DocumentTree.ItemsSource = collectDocuments(fullPath);
-        selectInitialDocument();
+        documentRoots = collectDocuments(fullPath);
+        SectionTabsScrollViewer.IsVisible = !singleFile;
+        SectionTabsGap.IsVisible = !singleFile;
+        if (singleFile)
+        {
+            DocumentTree.ItemsSource = documentRoots;
+            selectInitialDocument();
+            return;
+        }
+        createSections();
+        SectionTabs.ItemsSource = sections;
+        if (sections.Count > 0)
+            activateSection(sections[0], null);
+        else
+            renderMarkdown("No markdown files");
     }
 
     private IReadOnlyList<MarkdownDocumentEntry> collectDocuments(string path)
@@ -95,13 +114,13 @@ public partial class MarkdownPreviewWindow : Window
         }
         if (!Directory.Exists(path) || isSymbolicLinkOrInaccessible(path))
             return [];
-        IReadOnlyList<MarkdownDocumentEntry> roots = collectDirectory(path);
+        IReadOnlyList<MarkdownDocumentEntry> roots = collectDirectory(path, true);
         foreach (MarkdownDocumentEntry root in roots)
             indexEntry(root);
         return roots;
     }
 
-    private IReadOnlyList<MarkdownDocumentEntry> collectDirectory(string directory)
+    private IReadOnlyList<MarkdownDocumentEntry> collectDirectory(string directory, bool topLevel = false)
     {
         List<MarkdownDocumentEntry> result = [];
         foreach (string child in Directory.EnumerateFileSystemEntries(directory).OrderBy(getSortKey, StringComparer.OrdinalIgnoreCase))
@@ -122,7 +141,10 @@ public partial class MarkdownPreviewWindow : Window
             }
             else if (Path.GetExtension(child).Equals(".md", StringComparison.OrdinalIgnoreCase))
             {
-                MarkdownDocumentEntry entry = new(Path.GetFileNameWithoutExtension(child), child, false);
+                string displayName = topLevel
+                    ? LocaleService.Get("DOCUMENTATION_OVERVIEW")
+                    : Path.GetFileNameWithoutExtension(child);
+                MarkdownDocumentEntry entry = new(displayName, child, false);
                 result.Add(entry);
             }
         }
@@ -136,6 +158,47 @@ public partial class MarkdownPreviewWindow : Window
             indexEntry(child);
     }
 
+    private void createSections()
+    {
+        MarkdownDocumentEntry? overview = documentRoots.FirstOrDefault(root => !root.IsDirectory);
+        MarkdownDocumentEntry? gettingStarted = documentRoots.FirstOrDefault(root => root.IsDirectory);
+        bool mergedGettingStarted = false;
+        if (overview is not null && gettingStarted is not null)
+        {
+            mergedGettingStarted = true;
+            IReadOnlyList<MarkdownDocumentEntry> treeEntries = [overview, .. gettingStarted.Children];
+            MarkdownDocumentSection section = new(
+                getDisplayName(gettingStarted.DisplayName),
+                gettingStarted,
+                treeEntries);
+            sections.Add(section);
+            indexSectionEntry(overview, section);
+            indexSectionEntry(gettingStarted, section);
+        }
+        foreach (MarkdownDocumentEntry root in documentRoots)
+        {
+            if (mergedGettingStarted
+                && (ReferenceEquals(root, overview) || ReferenceEquals(root, gettingStarted)))
+                continue;
+            IReadOnlyList<MarkdownDocumentEntry> treeEntries = root.IsDirectory
+                ? root.Children
+                : [root];
+            string displayName = root.IsDirectory
+                ? getDisplayName(root.DisplayName)
+                : LocaleService.Get("DOCUMENTATION_OVERVIEW");
+            MarkdownDocumentSection section = new(displayName, root, treeEntries);
+            sections.Add(section);
+            indexSectionEntry(root, section);
+        }
+    }
+
+    private void indexSectionEntry(MarkdownDocumentEntry entry, MarkdownDocumentSection section)
+    {
+        entrySections[entry] = section;
+        foreach (MarkdownDocumentEntry child in entry.Children)
+            indexSectionEntry(child, section);
+    }
+
     private static string getSortKey(string path)
     {
         string name = Path.GetFileNameWithoutExtension(path);
@@ -143,6 +206,12 @@ public partial class MarkdownPreviewWindow : Window
         return match.Success
             ? $"0{int.Parse(match.Groups[1].Value):D8}{match.Groups[2].Value}"
             : $"1{name.ToLowerInvariant()}";
+    }
+
+    private static string getDisplayName(string name)
+    {
+        string displayName = Regex.Replace(name, @"^\d+[\.\s_-]*", string.Empty);
+        return displayName.Length > 0 ? displayName : name;
     }
 
     private void selectInitialDocument()
@@ -154,6 +223,55 @@ public partial class MarkdownPreviewWindow : Window
             renderMarkdown("No markdown files");
     }
 
+    private void onSectionSelectionChanged(object? sender, SelectionChangedEventArgs args)
+    {
+        if (changingSection
+            || sender is not TabStrip tabStrip
+            || tabStrip.SelectedItem is not MarkdownDocumentSection section)
+            return;
+        activateSection(section, null);
+    }
+
+    private void activateSection(MarkdownDocumentSection section, MarkdownDocumentEntry? preferredEntry)
+    {
+        changingSection = true;
+        SectionTabs.SelectedItem = section;
+        changingSection = false;
+        selectedSection = section;
+        DocumentTree.ItemsSource = section.TreeEntries;
+        MarkdownDocumentEntry? targetEntry = preferredEntry;
+        if (targetEntry is null || !targetEntry.IsVisible)
+            targetEntry = section.SelectedEntry;
+        if (targetEntry is null || !targetEntry.IsVisible)
+            targetEntry = findFirstVisibleEntry(section);
+        changingSelection = true;
+        DocumentTree.SelectedItem = targetEntry;
+        changingSelection = false;
+        if (targetEntry is null)
+        {
+            selectedEntry = null;
+            renderMarkdown("No markdown files");
+            return;
+        }
+        section.SelectedEntry = targetEntry;
+        selectedEntry = targetEntry;
+        loadEntry(targetEntry);
+    }
+
+    private MarkdownDocumentEntry? findFirstVisibleEntry(MarkdownDocumentSection section)
+    {
+        MarkdownDocumentEntry? document = entries.FirstOrDefault(entry =>
+            !entry.IsDirectory
+            && entry.IsVisible
+            && entrySections.TryGetValue(entry, out MarkdownDocumentSection? entrySection)
+            && ReferenceEquals(entrySection, section));
+        return document ?? entries.FirstOrDefault(entry =>
+            entry.IsVisible
+            && (!ReferenceEquals(entry, section.RootEntry) || !entry.IsDirectory)
+            && entrySections.TryGetValue(entry, out MarkdownDocumentSection? entrySection)
+            && ReferenceEquals(entrySection, section));
+    }
+
     private void onDocumentSelectionChanged(object? sender, SelectionChangedEventArgs args)
     {
         if (changingSelection
@@ -161,6 +279,8 @@ public partial class MarkdownPreviewWindow : Window
             || !entry.IsVisible)
             return;
         selectedEntry = entry;
+        if (selectedSection is not null)
+            selectedSection.SelectedEntry = entry;
         loadEntry(entry);
     }
 
@@ -620,6 +740,13 @@ public partial class MarkdownPreviewWindow : Window
     {
         if (!entry.IsVisible)
             SearchBox.Text = string.Empty;
+        if (entrySections.TryGetValue(entry, out MarkdownDocumentSection? section))
+        {
+            activateSection(section, entry);
+            if (fragment.Length > 0)
+                queueAnchorNavigation(fragment);
+            return;
+        }
         changingSelection = true;
         DocumentTree.SelectedItem = entry;
         changingSelection = false;
@@ -1133,15 +1260,46 @@ public partial class MarkdownPreviewWindow : Window
         string query = SearchBox.Text?.Trim() ?? string.Empty;
         int matchCount = refreshVisibility(query);
         SearchCountText.Text = string.IsNullOrEmpty(query) ? string.Empty : matchCount.ToString();
-        if (selectedEntry is null || !selectedEntry.IsVisible)
+        if (selectedEntry is not null && selectedEntry.IsVisible)
+            return;
+        if (!singleFile && selectedSection is not null)
+        {
+            MarkdownDocumentEntry? sectionMatch = selectedSection.SelectedEntry;
+            if (sectionMatch is null || !sectionMatch.IsVisible)
+                sectionMatch = findFirstVisibleEntry(selectedSection);
+            if (sectionMatch is not null)
+            {
+                activateSection(selectedSection, sectionMatch);
+                return;
+            }
+        }
+        MarkdownDocumentEntry? match = entries.FirstOrDefault(entry => !entry.IsDirectory && entry.IsVisible);
+        if (match is not null)
+        {
+            navigateToEntry(match, string.Empty);
+            return;
+        }
+        if (singleFile)
             selectInitialDocument();
+        else if (selectedSection is not null)
+            activateSection(selectedSection, null);
     }
 
     private int refreshVisibility(string query)
     {
         int matchCount = 0;
-        foreach (MarkdownDocumentEntry root in DocumentTree.ItemsSource!.Cast<MarkdownDocumentEntry>())
-            refreshEntryVisibility(root, query, ref matchCount);
+        foreach (MarkdownDocumentEntry root in documentRoots)
+        {
+            if (singleFile || !root.IsDirectory)
+            {
+                refreshEntryVisibility(root, query, ref matchCount);
+                continue;
+            }
+            bool childMatches = false;
+            foreach (MarkdownDocumentEntry child in root.Children)
+                childMatches |= refreshEntryVisibility(child, query, ref matchCount);
+            root.IsVisible = childMatches;
+        }
         return matchCount;
     }
 
@@ -1218,6 +1376,24 @@ public sealed class MarkdownDocumentEntry : INotifyPropertyChanged
     {
         return File.ReadAllText(Path, Encoding.UTF8);
     }
+}
+
+public sealed class MarkdownDocumentSection
+{
+    public MarkdownDocumentSection(
+        string displayName,
+        MarkdownDocumentEntry rootEntry,
+        IReadOnlyList<MarkdownDocumentEntry> treeEntries)
+    {
+        DisplayName = displayName;
+        RootEntry = rootEntry;
+        TreeEntries = treeEntries;
+    }
+
+    public string DisplayName { get; }
+    public MarkdownDocumentEntry RootEntry { get; }
+    public IReadOnlyList<MarkdownDocumentEntry> TreeEntries { get; }
+    public MarkdownDocumentEntry? SelectedEntry { get; set; }
 }
 
 public sealed class MarkdownHeading

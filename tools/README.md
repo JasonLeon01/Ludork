@@ -92,7 +92,7 @@ required by an installed editor.
 
 Low-level build and pack scripts do not export `Data/Locale/Locale.xlsx`. The Official Locale Tools editor plug-in performs export through before-run and before-pack hooks. Run or pack from the editor, or provide an equivalent deliberate export step when automating outside it.
 
-`pack_harmony.sh` produces an arm64-v8a mobile HAP for HarmonyOS 6.0.1 / API 21 or newer. It requires Apple Silicon macOS, a C++ Source project, and DevEco Studio with the OpenHarmony native SDK.
+`pack_harmony.sh` produces an arm64-v8a mobile HAP for HarmonyOS 6.0.2 / API 22 or newer. It requires Apple Silicon macOS, a C++ Source project, and DevEco Studio with the OpenHarmony native SDK.
 
 `pack_android.sh` produces an arm64-v8a Release APK for Android 7.0 / API 24 or newer. It requires Apple Silicon macOS, Android Studio at one of its two standard application locations, SDK Platform 36, Build Tools 36.0.0, a complete stable NDK r27 or newer under the locally installed SDK, system CMake 3.28 or newer with Unix Makefiles support, and `/usr/bin/make`. The SDK is resolved from `ANDROID_SDK_ROOT`, then `ANDROID_HOME`, then `~/Library/Android/sdk`. The packer selects the highest complete stable NDK under that SDK's `ndk` directory; projects and editor packages never carry an SDK or NDK. Set `LUDORK_CMAKE` only when selecting a particular system CMake executable. The tool does not use an SDK-bundled CMake, Ninja, SDK Manager, an emulator, AVD or adb. It runs `ScriptTools android-pack`, packages the prebuilt `libludork.so` with Gradle and, by default, writes `dist/<game>-android-arm64-v8a-unsigned.apk` without installing or launching it.
 

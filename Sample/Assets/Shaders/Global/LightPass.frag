@@ -6,7 +6,7 @@ uniform sampler2D staticTransmission;
 uniform sampler2D staticOccupancy;
 uniform sampler2D dynamicTransmission;
 
-uniform float screenScale;
+uniform vec2 targetPixelScale;
 uniform vec2 screenSize;
 uniform vec2 mapViewOffset;
 uniform vec2 viewPos;
@@ -362,7 +362,7 @@ float TraceTransmission(vec2 from, vec2 to) {
 }
 
 vec2 ScreenPixelToWorld() {
-    vec2 pixelPosBLView = gl_FragCoord.xy / screenScale;
+    vec2 pixelPosBLView = gl_FragCoord.xy / targetPixelScale;
     vec2 pixelPosTLView =
         vec2(pixelPosBLView.x, screenSize.y - pixelPosBLView.y) -
         mapViewOffset;

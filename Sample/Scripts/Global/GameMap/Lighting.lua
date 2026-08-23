@@ -12,6 +12,15 @@ for index = 0, MAX_SHADER_LIGHTS - 1 do
     UNOBSTRUCTED_LIGHT_INTENSITY_UNIFORMS[index + 1] = "lightIntensity[" .. index .. "]"
 end
 
+---@param size  sf.Vector2u
+---@param scale number
+---@return sf.Vector2u
+local function getLightingTargetSize(size, scale)
+    local targetSize = sf.Vector2u.new(math.max(1, math.floor(size.x * scale)), math.max(1, math.floor(size.y * scale)))
+    ---@cast targetSize sf.Vector2u
+    return targetSize
+end
+
 ---@class (partial) GameMap
 local GameMapLighting = {}
 
@@ -218,7 +227,10 @@ function GameMapLighting:_renderCachedLighting(activeLights)
             unobstructedLights[#unobstructedLights + 1] = entry
         end
     end
-    self._staticDirectLight:setView(self._staticDirectLight:getDefaultView())
+    local tilemapSize = self._tilemap:getSize()
+    local worldSize = sf.Vector2f.new(tilemapSize.x * Engine.CellSize, tilemapSize.y * Engine.CellSize)
+    local worldCentre = sf.Vector2f.new(worldSize.x * 0.5, worldSize.y * 0.5)
+    self._staticDirectLight:setView(sf.View.new(worldCentre, worldSize))
     self._staticDirectLight:clear(sf.Color.Black)
     if bool(staticLights) then
         self:_setLightPassWorldUniforms()
@@ -436,40 +448,53 @@ function GameMapLighting:_ensureDirectLight()
     ---@cast self._camera GlobalCore.Camera
     local renderTexture = self._camera:getRenderTexture()
     ---@cast renderTexture sf.RenderTexture
-    local requiredSize = renderTexture:getSize()
+    local lightingRenderScale = System.getLightingRenderScale()
+    local requiredSize = getLightingTargetSize(renderTexture:getSize(), lightingRenderScale)
     if self._directLight ~= nil and self._directLight:getSize() == requiredSize then
+        self._directLight:setSmooth(lightingRenderScale < 1.0)
         return
     end
     self._directLight = sf.RenderTexture.new(requiredSize)
-    self._directLight:setSmooth(false)
+    self._directLight:setSmooth(lightingRenderScale < 1.0)
 end
 
 function GameMapLighting:_ensureStaticDirectLight()
-    if self._staticDirectLight ~= nil then
+    local tilemapSize = self._tilemap:getSize()
+    local mapPixelSize = sf.Vector2u.new(tilemapSize.x * Engine.CellSize, tilemapSize.y * Engine.CellSize)
+    ---@cast mapPixelSize sf.Vector2u
+    local lightingRenderScale = System.getLightingRenderScale()
+    local requiredSize = getLightingTargetSize(mapPixelSize, lightingRenderScale)
+    if self._staticDirectLight ~= nil and self._staticDirectLight:getSize() == requiredSize then
+        self._staticDirectLight:setSmooth(lightingRenderScale < 1.0)
         return
     end
-    local tilemapSize = self._tilemap:getSize()
-    local requiredSize = sf.Vector2u.new(tilemapSize.x * Engine.CellSize, tilemapSize.y * Engine.CellSize)
-    ---@cast tilemapSize sf.Vector2u
-    ---@cast requiredSize sf.Vector2u
     self._staticDirectLight = sf.RenderTexture.new(requiredSize)
-    self._staticDirectLight:setSmooth(false)
+    self._staticDirectLight:setSmooth(lightingRenderScale < 1.0)
     self._cachedLightMaterialRevision = -1
 end
 
 function GameMapLighting:_setLightPassCommonUniforms()
     ---@cast self._camera GlobalCore.Camera
+    ---@cast self._directLight sf.RenderTexture
     local screenSize = self._camera:getViewSize()
+    local targetSize = self._directLight:getSize()
     ---@cast screenSize sf.Vector2f
     self:_setLightPassTextureUniforms()
+    self._lightPassShader:setUniform(
+        "targetPixelScale", sf.Vector2f.new(targetSize.x / screenSize.x, targetSize.y / screenSize.y)
+    )
     self:_setViewShaderUniforms(self._lightPassShader, screenSize, self._zeroShaderOffset, true)
 end
 
 function GameMapLighting:_setLightPassWorldUniforms()
+    ---@cast self._staticDirectLight sf.RenderTexture
     local tilemapSize = self._tilemap:getSize()
     local screenSize = sf.Vector2f.new(tilemapSize.x * Engine.CellSize, tilemapSize.y * Engine.CellSize)
+    local targetSize = self._staticDirectLight:getSize()
     self:_setLightPassTextureUniforms()
-    self._lightPassShader:setUniform("screenScale", 1.0)
+    self._lightPassShader:setUniform(
+        "targetPixelScale", sf.Vector2f.new(targetSize.x / screenSize.x, targetSize.y / screenSize.y)
+    )
     self._lightPassShader:setUniform("screenSize", screenSize)
     self._lightPassShader:setUniform("mapViewOffset", self._zeroShaderOffset)
     self._lightPassShader:setUniform("viewPos", self._zeroShaderOffset)
@@ -490,7 +515,6 @@ end
 ---@param usesFragmentCoordinates boolean
 function GameMapLighting:_setViewShaderUniforms(shader, screenSize, mapViewOffset, usesFragmentCoordinates)
     if usesFragmentCoordinates then
-        shader:setUniform("screenScale", System.getScale())
         shader:setUniform("mapViewOffset", mapViewOffset)
     end
     shader:setUniform("screenSize", screenSize)

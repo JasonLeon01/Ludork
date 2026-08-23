@@ -8,8 +8,11 @@
 #include <UI/Text.hpp>
 
 #include <SFML/Graphics/Image.hpp>
+#include <SFML/Graphics/Rect.hpp>
 #include <SFML/Graphics/RenderStates.hpp>
 #include <SFML/Graphics/RenderTarget.hpp>
+#include <SFML/Graphics/RenderTexture.hpp>
+#include <SFML/Graphics/Sprite.hpp>
 #include <SFML/System/Vector2.hpp>
 
 #include <functional>
@@ -23,8 +26,9 @@ class Rect;
 class Window;
 
 BIND_CLASS(callbacks =
-               "getSize,update,onConfirm,onCancel,onClick,onMouseButtonDown,"
-               "onMouseMoved,onMouseWheelScrolled,onKeyDown,draw")
+               "getSize,getLocalBounds,update,onConfirm,onCancel,onClick,"
+               "onMouseButtonDown,onMouseMoved,onMouseWheelScrolled,onKeyDown,"
+               "draw")
 class LUDORK_ENGINE_API DropBox : public ControlBase, public FunctionalBase {
 public:
     BIND_INIT(defaults = {{}, 0, false})
@@ -43,13 +47,10 @@ public:
     virtual sf::Vector2f getSize() const override;
 
     BIND_METHOD(Pure = true)
-    sf::Vector2f getCollapsedSize() const;
+    virtual sf::FloatRect getLocalBounds() const override;
 
     BIND_METHOD()
     void resize(const sf::Vector2f& size);
-
-    BIND_METHOD()
-    void setCollapsedSize(const sf::Vector2f& size);
 
     BIND_METHOD(defaults = {false})
     void setWindowSkin(const sf::Image& windowSkin, bool repeated = false);
@@ -92,9 +93,6 @@ public:
 
     BIND_METHOD()
     void setOnExpandedChanged(std::function<void(bool)> callback);
-
-    BIND_METHOD()
-    void setOnLayoutChanged(std::function<void()> callback);
 
     BIND_METHOD()
     void setOpenSound(const std::string& filename);
@@ -153,7 +151,16 @@ protected:
     virtual void draw(sf::RenderTarget& target,
                       sf::RenderStates states) const override;
 
+    virtual void onTouchCaptureBegan(const sf::Vector2f& position) override;
+
 private:
+    struct PopupGeometry {
+        float positionY = 0.0f;
+        float height = 0.0f;
+        float contentHeight = 0.0f;
+        float maxScrollOffset = 0.0f;
+    };
+
     static constexpr float RowHeight = 32.0f;
     static constexpr float ExpandedBorderHeight = 32.0f;
 
@@ -165,6 +172,13 @@ private:
 
     int clampedIndex(int index) const;
     float expandedHeight() const;
+    PopupGeometry calculatePopupGeometry() const;
+    void syncPopupGeometry(bool ensureCursor) const;
+    void clampScrollOffsets() const;
+    void setScrollOffset(float offset) const;
+    void setScrollTargetOffset(float offset) const;
+    void updateWheelScroll(float deltaTime) const;
+    void ensureCursorVisible() const;
     void setExpandedState(bool expanded);
     void confirmCurrentSelection();
     bool moveCursor(int offset, bool wrap);
@@ -172,11 +186,17 @@ private:
                              std::optional<int> button);
     std::optional<int> itemIndexAt(const sf::Vector2f& localPosition) const;
     sf::Vector2f toLocalPosition(const sf::Vector2f& screenPosition) const;
+    bool hasCanvasAncestor() const;
     void restoreParentFocus();
 
+    bool _hasOverlay() const override;
+    void _drawOverlay(sf::RenderTarget& target,
+                      sf::RenderStates states) const override;
     void markVisualsDirty();
     void ensureVisuals() const;
     void rebuildVisuals() const;
+    void ensurePopupVisuals() const;
+    void renderPopupContent() const;
     void updateSelectionVisual() const;
     void positionCollapsedText() const;
     void positionItemText(PlainText& text, int index) const;
@@ -192,11 +212,12 @@ private:
     bool suppressNextClick_ = false;
     bool focusabilityOverridden_ = false;
     bool previousCanReceiveFocus_ = true;
+    sf::Vector2f touchStartPosition_;
+    float touchStartScrollOffset_ = 0.0f;
 
     std::function<void(int)> selectedIndexChangedCallback_;
     std::function<void(int)> selectionConfirmedCallback_;
     std::function<void(bool)> expandedChangedCallback_;
-    std::function<void()> layoutChangedCallback_;
 
     std::string openSound_;
     std::string cursorSound_;
@@ -204,9 +225,17 @@ private:
     std::string cancelSound_;
 
     mutable bool visualsDirty_ = true;
+    mutable bool popupGeometryInitialized_ = false;
+    mutable PopupGeometry popupGeometry_;
+    mutable float scrollOffset_ = 0.0f;
+    mutable std::optional<float> scrollTargetOffset_;
+    mutable sf::Vector2u popupWindowSize_;
+    mutable sf::Vector2u popupContentTextureSize_;
     mutable std::unique_ptr<Rect> collapsedFrame_;
     mutable std::unique_ptr<PlainText> collapsedText_;
     mutable std::unique_ptr<Window> expandedWindow_;
+    mutable std::unique_ptr<sf::RenderTexture> popupContentCanvas_;
+    mutable std::unique_ptr<sf::Sprite> popupContentSprite_;
     mutable std::unique_ptr<Rect> selectionRect_;
     mutable std::vector<std::unique_ptr<PlainText>> itemTexts_;
 };

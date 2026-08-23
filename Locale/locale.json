@@ -720,8 +720,12 @@
     "en_GB": "Language"
   },
   "maxrenderscale": {
-    "zh_CN": "最大渲染倍率",
-    "en_GB": "Maximum Render Scale"
+    "zh_CN": "渲染上限",
+    "en_GB": "Render Limit"
+  },
+  "lightingrenderscale": {
+    "zh_CN": "光照渲染倍率",
+    "en_GB": "Lighting Render Scale"
   },
   "framerate": {
     "zh_CN": "帧率上限",
@@ -1221,6 +1225,10 @@
   },
   "OVERVIEW": {
     "zh_CN": "全貌",
+    "en_GB": "Overview"
+  },
+  "DOCUMENTATION_OVERVIEW": {
+    "zh_CN": "总览",
     "en_GB": "Overview"
   },
   "MAPLIST_EDIT": {

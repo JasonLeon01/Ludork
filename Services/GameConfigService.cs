@@ -12,6 +12,7 @@ public sealed record GameConfigData(
     string Language,
     double Scale,
     double MaximumRenderScale,
+    double LightingRenderScale,
     int FrameRate,
     int AntiAliasingLevel,
     bool VerticalSync,
@@ -36,6 +37,7 @@ public sealed class GameConfigService
         "en_GB",
         1.0,
         2.0,
+        1.0,
         30,
         SfmlDefaultAntiAliasingLevel,
         true,
@@ -111,6 +113,9 @@ public sealed class GameConfigService
             MaximumRenderScale = normalized.MaximumRenderScale == normalizedBaseline.MaximumRenderScale
                 ? current.MaximumRenderScale
                 : normalized.MaximumRenderScale,
+            LightingRenderScale = normalized.LightingRenderScale == normalizedBaseline.LightingRenderScale
+                ? current.LightingRenderScale
+                : normalized.LightingRenderScale,
             FrameRate = normalized.FrameRate == normalizedBaseline.FrameRate
                 ? current.FrameRate
                 : normalized.FrameRate,
@@ -207,6 +212,7 @@ public sealed class GameConfigService
             text(document, "language", defaults.Language, true),
             number(document, "scale", defaults.Scale, 1.0),
             number(document, "maxrenderscale", defaults.MaximumRenderScale, 2.0),
+            number(document, "lightingrenderscale", defaults.LightingRenderScale, 1.0),
             Math.Max(1, integer(document, "framerate", defaults.FrameRate, 30)),
             Math.Max(0, integer(
                 document,
@@ -243,6 +249,7 @@ public sealed class GameConfigService
             MaximumRenderScale = double.IsFinite(data.MaximumRenderScale) && data.MaximumRenderScale >= 0.0
                 ? data.MaximumRenderScale
                 : 2.0,
+            LightingRenderScale = lightingRenderScale(data.LightingRenderScale),
             FrameRate = Math.Max(1, data.FrameRate),
             AntiAliasingLevel = Math.Max(0, data.AntiAliasingLevel),
             MusicVolume = volume(data.MusicVolume),
@@ -256,6 +263,11 @@ public sealed class GameConfigService
         if (!double.IsFinite(value))
             return 100.0;
         return Math.Round(Math.Clamp(value, 0.0, 100.0), 2);
+    }
+
+    private static double lightingRenderScale(double value)
+    {
+        return value is 0.5 or 0.75 or 1.0 ? value : 1.0;
     }
 
     private static string text(
@@ -332,6 +344,10 @@ public sealed class GameConfigService
             "Main",
             "maxrenderscale",
             data.MaximumRenderScale.ToString("G17", CultureInfo.InvariantCulture));
+        document.SetValue(
+            "Main",
+            "lightingrenderscale",
+            data.LightingRenderScale.ToString("G17", CultureInfo.InvariantCulture));
         document.SetValue("Main", "framerate", data.FrameRate.ToString(CultureInfo.InvariantCulture));
         document.SetValue(
             "Main",

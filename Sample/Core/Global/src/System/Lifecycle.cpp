@@ -145,6 +145,15 @@ void System::setMaximumRenderScale(float value) {
 void System::saveMaximumRenderScale(float value) {
     SystemConfigBase::saveMaximumRenderScale(value);
 }
+float System::getLightingRenderScale() {
+    return SystemConfigBase::getLightingRenderScale();
+}
+void System::setLightingRenderScale(float value) {
+    SystemConfigBase::setLightingRenderScale(value);
+}
+void System::saveLightingRenderScale(float value) {
+    SystemConfigBase::saveLightingRenderScale(value);
+}
 int System::getFrameRate() {
     return SystemConfigBase::getFrameRate();
 }

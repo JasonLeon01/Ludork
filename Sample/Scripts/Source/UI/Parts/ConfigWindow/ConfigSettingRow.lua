@@ -30,9 +30,6 @@ function ConfigSettingRowUI:bind()
     self._dropBox:setCursorSound(GameSystem.getCursorSE())
     self._dropBox:setSelectSound(GameSystem.getDecisionSE())
     self._dropBox:setCancelSound(GameSystem.getCancelSE())
-    self._dropBox:setOnLayoutChanged(function ()
-        self:_onDropBoxLayoutChanged()
-    end)
 end
 
 function ConfigSettingRowUI:refresh()
@@ -56,7 +53,6 @@ end
 
 function ConfigSettingRowUI:dispose()
     if self._dropBox ~= nil then
-        self._dropBox:setOnLayoutChanged(nil)
         self._dropBox:setOnExpandedChanged(nil)
         self._dropBox:setOnSelectedIndexChanged(nil)
         self._dropBox:setOnSelectionConfirmed(nil)
@@ -64,10 +60,6 @@ function ConfigSettingRowUI:dispose()
     self.root:addConfirmCallback(nil)
     self._dropBox = nil
     super(ConfigSettingRowUI, self).dispose()
-end
-
-function ConfigSettingRowUI:_onDropBoxLayoutChanged()
-    self:setRowHeight(self._dropBox:getSize().y)
 end
 
 return Ui.define("Parts/ConfigWindow/ConfigSettingRow", ConfigSettingRowUI, ConfigRowControllerBase)

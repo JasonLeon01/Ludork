@@ -16,7 +16,8 @@ namespace Ludork.Views;
 public sealed class GameConfigWindow : Window
 {
     private static readonly double[] scaleValues = [0.0, 1.0, 1.25, 1.5, 1.75, 2.0, 3.0, 4.0];
-    private static readonly double[] maximumRenderScaleValues = [1.0, 1.5, 2.0, 3.0, 4.0, 0.0];
+    private static readonly double[] maximumRenderScaleValues = [0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 0.0];
+    private static readonly double[] lightingRenderScaleValues = [0.5, 0.75, 1.0];
     private static readonly int[] frameRateValues = [30, 60, 90, 120];
     private static readonly int[] antiAliasingLevelValues = [0, 2, 4, 8];
     private readonly GameConfigData initialData;
@@ -24,6 +25,7 @@ public sealed class GameConfigWindow : Window
     private readonly ComboBox scaleBox;
     private readonly double[] maximumRenderScaleOptions;
     private readonly ComboBox maximumRenderScaleBox;
+    private readonly ComboBox lightingRenderScaleBox;
     private readonly ComboBox frameRateBox;
     private readonly ComboBox antiAliasingLevelBox;
     private readonly CheckBox verticalSyncBox;
@@ -39,7 +41,7 @@ public sealed class GameConfigWindow : Window
     {
         Title = LocaleService.Get("GAME_CONFIG");
         Width = 560;
-        Height = 574;
+        Height = 616;
         MinWidth = 560;
         MinHeight = 320;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -71,6 +73,14 @@ public sealed class GameConfigWindow : Window
         maximumRenderScaleBox.SelectedIndex = Array.IndexOf(
             maximumRenderScaleOptions,
             initialData.MaximumRenderScale);
+
+        string[] lightingRenderScales = lightingRenderScaleValues
+            .Select(value => value.ToString("F2", CultureInfo.InvariantCulture))
+            .ToArray();
+        lightingRenderScaleBox = createComboBox(lightingRenderScales.Cast<object>().ToArray());
+        lightingRenderScaleBox.SelectedIndex = Array.IndexOf(
+            lightingRenderScaleValues,
+            initialData.LightingRenderScale);
 
         string[] frameRates = frameRateValues
             .Select(value => value.ToString(CultureInfo.InvariantCulture))
@@ -109,6 +119,7 @@ public sealed class GameConfigWindow : Window
         addRow(form, LocaleService.Get("language"), languageBox);
         addRow(form, LocaleService.Get("scale"), scaleBox);
         addRow(form, LocaleService.Get("maxrenderscale"), maximumRenderScaleBox);
+        addRow(form, LocaleService.Get("lightingrenderscale"), lightingRenderScaleBox);
         addRow(form, LocaleService.Get("framerate"), frameRateBox);
         addRow(form, LocaleService.Get("antialiasinglevel"), antiAliasingLevelBox);
         addRow(form, LocaleService.Get("verticalsync"), verticalSyncBox);
@@ -182,6 +193,9 @@ public sealed class GameConfigWindow : Window
         double maximumRenderScale = maximumRenderScaleBox.SelectedIndex >= 0
             ? maximumRenderScaleOptions[maximumRenderScaleBox.SelectedIndex]
             : 2.0;
+        double lightingRenderScale = lightingRenderScaleBox.SelectedIndex >= 0
+            ? lightingRenderScaleValues[lightingRenderScaleBox.SelectedIndex]
+            : 1.0;
         int frameRate = int.Parse(
             frameRateBox.SelectedItem?.ToString() ?? "30",
             NumberStyles.Integer,
@@ -195,6 +209,7 @@ public sealed class GameConfigWindow : Window
             Language = language,
             Scale = scale,
             MaximumRenderScale = maximumRenderScale,
+            LightingRenderScale = lightingRenderScale,
             FrameRate = frameRate,
             AntiAliasingLevel = antiAliasingLevel,
             VerticalSync = verticalSyncBox.IsChecked == true,

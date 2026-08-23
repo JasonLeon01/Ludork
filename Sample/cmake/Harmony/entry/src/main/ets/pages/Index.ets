@@ -234,6 +234,11 @@ struct Index {
   private windowCommandQueue: Promise<void> = Promise.resolve();
   private windowHostGeneration: number = 0;
   private displayScaleRequest: number = 0;
+  private freeWindowModeWindow?: window.Window;
+  private freeWindowModeChangeCallback?: Callback<boolean>;
+  private freeWindowModeListenerGeneration: number = 0;
+  private displayScaleConfigurable: boolean = false;
+  private displayScaleHostConfigured: boolean = false;
   private keepScreenOn: boolean = true;
 
   private describeError(error: Error): string {
@@ -390,6 +395,180 @@ struct Index {
     });
   }
 
+  private releaseFreeWindowModeListener(): void {
+    const mainWindow = this.freeWindowModeWindow;
+    const callback = this.freeWindowModeChangeCallback;
+    ++this.freeWindowModeListenerGeneration;
+    this.freeWindowModeWindow = undefined;
+    this.freeWindowModeChangeCallback = undefined;
+    if (mainWindow === undefined || callback === undefined) {
+      return;
+    }
+    try {
+      mainWindow.off('freeWindowModeChange', callback);
+    } catch (error) {
+      this.logHostFailure('Stopping free window mode monitoring', error as Error);
+    }
+  }
+
+  private configureNativeDisplayScaleHost(
+    nativeContext: SfmlNativeContext,
+    context: common.UIAbilityContext,
+    hostGeneration: number
+  ): boolean {
+    if (!this.displayScaleConfigurable) {
+      this.displayScaleHostConfigured = false;
+      nativeContext.clearDisplayScaleHost();
+      return false;
+    }
+
+    let mainWindow: window.Window;
+    try {
+      mainWindow = context.windowStage.getMainWindowSync();
+    } catch (error) {
+      this.displayScaleHostConfigured = false;
+      nativeContext.clearDisplayScaleHost();
+      this.logHostFailure('Obtaining the Stage window for display scaling', error as Error);
+      return false;
+    }
+
+    let maximumWindowedWidth = 0;
+    let maximumWindowedHeight = 0;
+    try {
+      const displayId = mainWindow.getWindowProperties().displayId;
+      const hostDisplay = displayId === undefined ? display.getDefaultDisplaySync() :
+        display.getDisplayByIdSync(displayId);
+      const windowLimits = mainWindow.getWindowLimits();
+      const limitWidth = windowLimits.maxWidth !== undefined && windowLimits.maxWidth > 0 ?
+        windowLimits.maxWidth : hostDisplay.availableWidth;
+      const limitHeight = windowLimits.maxHeight !== undefined && windowLimits.maxHeight > 0 ?
+        windowLimits.maxHeight : hostDisplay.availableHeight;
+      maximumWindowedWidth = Math.max(0, Math.min(hostDisplay.availableWidth, limitWidth));
+      maximumWindowedHeight = Math.max(0, Math.min(hostDisplay.availableHeight, limitHeight));
+    } catch (error) {
+      this.logHostFailure('Obtaining maximum window size', error as Error);
+    }
+
+    try {
+      this.displayScaleHostConfigured = nativeContext.configureDisplayScaleHost(
+        true,
+        maximumWindowedWidth,
+        maximumWindowedHeight,
+        (scale: number, gameWidth: number, gameHeight: number) => {
+          if (hostGeneration === this.windowHostGeneration && this.displayScaleConfigurable) {
+            this.requestDisplayScale(context, scale, gameWidth, gameHeight);
+          }
+        }
+      );
+      if (!this.displayScaleHostConfigured) {
+        nativeContext.clearDisplayScaleHost();
+        hilog.warn(DOMAIN, TAG, 'Configuring display scaling failed');
+      }
+    } catch (error) {
+      this.displayScaleHostConfigured = false;
+      nativeContext.clearDisplayScaleHost();
+      this.logHostFailure('Configuring display scaling', error as Error);
+    }
+    return this.displayScaleHostConfigured;
+  }
+
+  private updateDisplayScaleConfigurable(configurable: boolean): void {
+    const changed = this.displayScaleConfigurable !== configurable;
+    if (!changed && this.displayScaleHostConfigured === configurable) {
+      return;
+    }
+    this.displayScaleConfigurable = configurable;
+    if (changed) {
+      ++this.displayScaleRequest;
+    }
+    const nativeContext = this.nativeContext;
+    if (nativeContext === undefined || !this.hostInitialized) {
+      this.displayScaleHostConfigured = false;
+      return;
+    }
+    if (!configurable) {
+      this.displayScaleHostConfigured = false;
+      nativeContext.clearDisplayScaleHost();
+      return;
+    }
+    const hostContext = this.getUIContext().getHostContext();
+    if (hostContext === undefined) {
+      this.displayScaleHostConfigured = false;
+      nativeContext.clearDisplayScaleHost();
+      return;
+    }
+    this.configureNativeDisplayScaleHost(
+      nativeContext,
+      hostContext as common.UIAbilityContext,
+      this.windowHostGeneration
+    );
+  }
+
+  private refreshFreeWindowMode(): void {
+    const mainWindow = this.freeWindowModeWindow;
+    if (mainWindow === undefined) {
+      return;
+    }
+    try {
+      this.updateDisplayScaleConfigurable(
+        deviceInfo.deviceType === 'tablet' && mainWindow.isInFreeWindowMode()
+      );
+    } catch (error) {
+      this.updateDisplayScaleConfigurable(false);
+      this.logHostFailure('Querying free window mode', error as Error);
+    }
+  }
+
+  private trackFreeWindowMode(mainWindow: window.Window): void {
+    if (this.freeWindowModeWindow === mainWindow && this.freeWindowModeChangeCallback !== undefined) {
+      this.refreshFreeWindowMode();
+      return;
+    }
+    this.releaseFreeWindowModeListener();
+    this.updateDisplayScaleConfigurable(false);
+    if (deviceInfo.deviceType !== 'tablet') {
+      return;
+    }
+
+    const listenerGeneration = ++this.freeWindowModeListenerGeneration;
+    const callback = (enabled: boolean): void => {
+      if (listenerGeneration === this.freeWindowModeListenerGeneration &&
+        this.freeWindowModeWindow === mainWindow) {
+        this.updateDisplayScaleConfigurable(enabled);
+      }
+    };
+    try {
+      mainWindow.on('freeWindowModeChange', callback);
+      this.freeWindowModeWindow = mainWindow;
+      this.freeWindowModeChangeCallback = callback;
+      this.refreshFreeWindowMode();
+    } catch (error) {
+      this.updateDisplayScaleConfigurable(false);
+      this.logHostFailure('Starting free window mode monitoring', error as Error);
+    }
+  }
+
+  private refreshFreeWindowModeTracking(): void {
+    const hostContext = this.getUIContext().getHostContext();
+    if (hostContext === undefined) {
+      this.updateDisplayScaleConfigurable(false);
+      return;
+    }
+    try {
+      this.trackFreeWindowMode(
+        (hostContext as common.UIAbilityContext).windowStage.getMainWindowSync()
+      );
+    } catch (error) {
+      this.updateDisplayScaleConfigurable(false);
+      this.logHostFailure('Refreshing free window mode monitoring', error as Error);
+    }
+  }
+
+  private isDisplayScaleRequestCurrent(request: number, generation: number): boolean {
+    return this.displayScaleConfigurable && request === this.displayScaleRequest &&
+      generation === this.windowHostGeneration;
+  }
+
   private requestDisplayScale(
     context: common.UIAbilityContext,
     scale: number,
@@ -401,7 +580,7 @@ struct Index {
       mainWindow: window.Window,
       generation: number
     ) => {
-      if (request !== this.displayScaleRequest || generation !== this.windowHostGeneration) {
+      if (!this.isDisplayScaleRequestCurrent(request, generation)) {
         return;
       }
 
@@ -411,7 +590,7 @@ struct Index {
           status !== window.WindowStatusType.FULL_SCREEN) {
           await mainWindow.maximize(window.MaximizePresentation.ENTER_IMMERSIVE);
         }
-        if (request !== this.displayScaleRequest || generation !== this.windowHostGeneration) {
+        if (!this.isDisplayScaleRequestCurrent(request, generation)) {
           return;
         }
         await this.applyWindowPresentation(mainWindow, true, this.keepScreenOn);
@@ -424,13 +603,13 @@ struct Index {
       if (mainWindow.getWindowStatus() !== window.WindowStatusType.FLOATING) {
         await mainWindow.recover();
       }
-      if (request !== this.displayScaleRequest || generation !== this.windowHostGeneration) {
+      if (!this.isDisplayScaleRequestCurrent(request, generation)) {
         return;
       }
       const width = Math.max(1, Math.round(gameWidth * scale));
       const height = Math.max(1, Math.round(gameHeight * scale));
       await mainWindow.resizeAsync(width, height);
-      if (request !== this.displayScaleRequest || generation !== this.windowHostGeneration) {
+      if (!this.isDisplayScaleRequestCurrent(request, generation)) {
         return;
       }
       await this.applyWindowPresentation(mainWindow, false, this.keepScreenOn);
@@ -518,6 +697,7 @@ struct Index {
   private invalidateNativeBridges(context?: SfmlNativeContext): void {
     ++this.windowHostGeneration;
     ++this.displayScaleRequest;
+    this.displayScaleHostConfigured = false;
     this.releaseHeldSurfaceKeys(context);
     context?.clearDisplayScaleHost();
   }
@@ -671,6 +851,7 @@ struct Index {
     }
 
     if (this.lifecycle === 'foreground') {
+      this.refreshFreeWindowModeTracking();
       context.onForeground();
     } else if (this.lifecycle === 'background') {
       this.releaseHeldSurfaceKeys(context);
@@ -727,37 +908,10 @@ struct Index {
     hilog.info(DOMAIN, TAG, 'Configuring system locale %{public}s', systemLocaleName);
     nativeContext.configureRuntimePaths(this.runtimeRoot, this.userDataRoot);
     nativeContext.configureSystemLocale(systemLocaleName);
+    const mainWindow = abilityContext.windowStage.getMainWindowSync();
+    this.trackFreeWindowMode(mainWindow);
     const hostGeneration = ++this.windowHostGeneration;
-    const displayScaleConfigurable = deviceInfo.deviceType === 'tablet';
-    let maximumWindowedWidth = 0;
-    let maximumWindowedHeight = 0;
-    if (displayScaleConfigurable) {
-      try {
-        const mainWindow = abilityContext.windowStage.getMainWindowSync();
-        const displayId = mainWindow.getWindowProperties().displayId;
-        const hostDisplay = displayId === undefined ? display.getDefaultDisplaySync() :
-          display.getDisplayByIdSync(displayId);
-        const windowLimits = mainWindow.getWindowLimits();
-        const limitWidth = windowLimits.maxWidth !== undefined && windowLimits.maxWidth > 0 ?
-          windowLimits.maxWidth : hostDisplay.availableWidth;
-        const limitHeight = windowLimits.maxHeight !== undefined && windowLimits.maxHeight > 0 ?
-          windowLimits.maxHeight : hostDisplay.availableHeight;
-        maximumWindowedWidth = Math.max(0, Math.min(hostDisplay.availableWidth, limitWidth));
-        maximumWindowedHeight = Math.max(0, Math.min(hostDisplay.availableHeight, limitHeight));
-      } catch (error) {
-        this.logHostFailure('Obtaining maximum window size', error as Error);
-      }
-    }
-    nativeContext.configureDisplayScaleHost(
-      displayScaleConfigurable,
-      maximumWindowedWidth,
-      maximumWindowedHeight,
-      (scale: number, gameWidth: number, gameHeight: number) => {
-        if (hostGeneration === this.windowHostGeneration) {
-          this.requestDisplayScale(abilityContext, scale, gameWidth, gameHeight);
-        }
-      }
-    );
+    this.configureNativeDisplayScaleHost(nativeContext, abilityContext, hostGeneration);
     const initialized = nativeContext.initializeHost(
       abilityContext.resourceManager,
       this.windowId,
@@ -765,6 +919,7 @@ struct Index {
       this.createHostCallbacks(abilityContext)
     );
     if (!initialized) {
+      this.displayScaleHostConfigured = false;
       nativeContext.clearDisplayScaleHost();
     }
 
@@ -806,6 +961,7 @@ struct Index {
       previousBinding.retired = true;
       this.invalidateNativeBridges(previousContext);
       previousContext?.onXComponentDestroy();
+      this.hostInitialized = false;
     }
 
     this.activeSurfaceBinding = binding;
@@ -826,6 +982,9 @@ struct Index {
     this.latestSurfaceBinding = undefined;
     this.activeSurfaceBinding = undefined;
     this.hostInitialized = false;
+    this.releaseFreeWindowModeListener();
+    this.displayScaleConfigurable = false;
+    this.displayScaleHostConfigured = false;
     ++this.customPointerRequest;
     this.releaseCustomPointer();
     this.invalidateNativeBridges(context);
